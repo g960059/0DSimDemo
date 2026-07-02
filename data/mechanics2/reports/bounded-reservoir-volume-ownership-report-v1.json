@@ -1,0 +1,282 @@
+{
+  "reportId": "bounded-reservoir-volume-ownership-report-v1",
+  "gateId": "boundedReservoirVolumeOwnershipV1",
+  "inputs": {
+    "profileId": "preload-low",
+    "leftPointId": "left-heart-preload-low",
+    "rightPointId": "right-heart-preload-low",
+    "epochCounts": [
+      22,
+      40,
+      56
+    ]
+  },
+  "variantResults": [
+    {
+      "variantId": "hard-volume-bound24",
+      "description": "Stricter diagnostic hard volume compatibility bound to check whether the signal depends on using the exact guard value.",
+      "intervention": {
+        "volumeBoundMl": 24,
+        "transferGain01": 0.14,
+        "maxTransferPerEpochMl": 3.5,
+        "pulmonaryVenousComplianceMlPerMmHg": 80,
+        "systemicVenousComplianceMlPerMmHg": 160
+      },
+      "probeResults": [
+        {
+          "epochs": 22,
+          "status": "pass",
+          "failureReasons": [],
+          "leftStatus": "pass",
+          "rightStatus": "pass",
+          "finalAbsForwardMismatchMl": 7.961332,
+          "finalRelativeMismatch": 0.153883,
+          "maxAbsReservoirVolumeMl": 24,
+          "finalReservoirStepMl": 0,
+          "maxAbsAcceptedTransferMl": 1.771959,
+          "finalAcceptedTransferMl": 0,
+          "volumeLimiterHitCount": 5,
+          "maxAbsRejectedTransferMl": 1.114586,
+          "finalRejectedTransferMl": 1.114586,
+          "leftFailureReasons": [],
+          "rightFailureReasons": []
+        },
+        {
+          "epochs": 40,
+          "status": "pass",
+          "failureReasons": [],
+          "leftStatus": "pass",
+          "rightStatus": "pass",
+          "finalAbsForwardMismatchMl": 7.961332,
+          "finalRelativeMismatch": 0.153883,
+          "maxAbsReservoirVolumeMl": 24,
+          "finalReservoirStepMl": 0,
+          "maxAbsAcceptedTransferMl": 1.771959,
+          "finalAcceptedTransferMl": 0,
+          "volumeLimiterHitCount": 23,
+          "maxAbsRejectedTransferMl": 1.114586,
+          "finalRejectedTransferMl": 1.114586,
+          "leftFailureReasons": [],
+          "rightFailureReasons": []
+        },
+        {
+          "epochs": 56,
+          "status": "pass",
+          "failureReasons": [],
+          "leftStatus": "pass",
+          "rightStatus": "pass",
+          "finalAbsForwardMismatchMl": 7.961332,
+          "finalRelativeMismatch": 0.153883,
+          "maxAbsReservoirVolumeMl": 24,
+          "finalReservoirStepMl": 0,
+          "maxAbsAcceptedTransferMl": 1.771959,
+          "finalAcceptedTransferMl": 0,
+          "volumeLimiterHitCount": 39,
+          "maxAbsRejectedTransferMl": 1.114586,
+          "finalRejectedTransferMl": 1.114586,
+          "leftFailureReasons": [],
+          "rightFailureReasons": []
+        }
+      ],
+      "summary": {
+        "passCount": 3,
+        "total": 3,
+        "longestStatus": "pass",
+        "maxAbsReservoirVolumeMl": 24,
+        "maxAbsRejectedTransferMl": 1.114586,
+        "volumeLimiterHitCount": 67,
+        "allSourceSurfacesPreserved": true
+      }
+    },
+    {
+      "variantId": "hard-volume-bound28",
+      "description": "Own accepted reservoir transfer with a hard volume compatibility bound matching the standing persistent-volume guard.",
+      "intervention": {
+        "volumeBoundMl": 28,
+        "transferGain01": 0.14,
+        "maxTransferPerEpochMl": 3.5,
+        "pulmonaryVenousComplianceMlPerMmHg": 80,
+        "systemicVenousComplianceMlPerMmHg": 160
+      },
+      "probeResults": [
+        {
+          "epochs": 22,
+          "status": "pass",
+          "failureReasons": [],
+          "leftStatus": "pass",
+          "rightStatus": "pass",
+          "finalAbsForwardMismatchMl": 8.284318,
+          "finalRelativeMismatch": 0.160971,
+          "maxAbsReservoirVolumeMl": 28,
+          "finalReservoirStepMl": 0.649272,
+          "maxAbsAcceptedTransferMl": 1.771959,
+          "finalAcceptedTransferMl": 0,
+          "volumeLimiterHitCount": 2,
+          "maxAbsRejectedTransferMl": 1.159805,
+          "finalRejectedTransferMl": 1.159805,
+          "leftFailureReasons": [],
+          "rightFailureReasons": []
+        },
+        {
+          "epochs": 40,
+          "status": "pass",
+          "failureReasons": [],
+          "leftStatus": "pass",
+          "rightStatus": "pass",
+          "finalAbsForwardMismatchMl": 8.284318,
+          "finalRelativeMismatch": 0.160971,
+          "maxAbsReservoirVolumeMl": 28,
+          "finalReservoirStepMl": 0,
+          "maxAbsAcceptedTransferMl": 1.771959,
+          "finalAcceptedTransferMl": 0,
+          "volumeLimiterHitCount": 20,
+          "maxAbsRejectedTransferMl": 1.159805,
+          "finalRejectedTransferMl": 1.159805,
+          "leftFailureReasons": [],
+          "rightFailureReasons": []
+        },
+        {
+          "epochs": 56,
+          "status": "pass",
+          "failureReasons": [],
+          "leftStatus": "pass",
+          "rightStatus": "pass",
+          "finalAbsForwardMismatchMl": 8.284318,
+          "finalRelativeMismatch": 0.160971,
+          "maxAbsReservoirVolumeMl": 28,
+          "finalReservoirStepMl": 0,
+          "maxAbsAcceptedTransferMl": 1.771959,
+          "finalAcceptedTransferMl": 0,
+          "volumeLimiterHitCount": 36,
+          "maxAbsRejectedTransferMl": 1.159805,
+          "finalRejectedTransferMl": 1.159805,
+          "leftFailureReasons": [],
+          "rightFailureReasons": []
+        }
+      ],
+      "summary": {
+        "passCount": 3,
+        "total": 3,
+        "longestStatus": "pass",
+        "maxAbsReservoirVolumeMl": 28,
+        "maxAbsRejectedTransferMl": 1.159805,
+        "volumeLimiterHitCount": 58,
+        "allSourceSurfacesPreserved": true
+      }
+    },
+    {
+      "variantId": "selected-reference-unbounded",
+      "description": "Selected preload-low source-aware reservoir scaffold without volume ownership projection.",
+      "intervention": {
+        "volumeBoundMl": null,
+        "transferGain01": 0.14,
+        "maxTransferPerEpochMl": 3.5,
+        "pulmonaryVenousComplianceMlPerMmHg": 80,
+        "systemicVenousComplianceMlPerMmHg": 160
+      },
+      "probeResults": [
+        {
+          "epochs": 22,
+          "status": "fail",
+          "failureReasons": [
+            "persistent-large-reservoir-shuttle"
+          ],
+          "leftStatus": "pass",
+          "rightStatus": "pass",
+          "finalAbsForwardMismatchMl": 8.279053,
+          "finalRelativeMismatch": 0.160882,
+          "maxAbsReservoirVolumeMl": 28.509668,
+          "finalReservoirStepMl": 1.15894,
+          "maxAbsAcceptedTransferMl": 1.771959,
+          "finalAcceptedTransferMl": 1.159067,
+          "volumeLimiterHitCount": 0,
+          "maxAbsRejectedTransferMl": 0,
+          "finalRejectedTransferMl": 0,
+          "leftFailureReasons": [],
+          "rightFailureReasons": []
+        },
+        {
+          "epochs": 40,
+          "status": "fail",
+          "failureReasons": [
+            "persistent-large-reservoir-shuttle"
+          ],
+          "leftStatus": "pass",
+          "rightStatus": "pass",
+          "finalAbsForwardMismatchMl": 7.026014,
+          "finalRelativeMismatch": 0.135946,
+          "maxAbsReservoirVolumeMl": 46.159782,
+          "finalReservoirStepMl": 0.985328,
+          "maxAbsAcceptedTransferMl": 1.771959,
+          "finalAcceptedTransferMl": 0.983642,
+          "volumeLimiterHitCount": 0,
+          "maxAbsRejectedTransferMl": 0,
+          "finalRejectedTransferMl": 0,
+          "leftFailureReasons": [],
+          "rightFailureReasons": []
+        },
+        {
+          "epochs": 56,
+          "status": "fail",
+          "failureReasons": [
+            "right-surface-not-preserved",
+            "persistent-large-reservoir-shuttle"
+          ],
+          "leftStatus": "pass",
+          "rightStatus": "fail",
+          "finalAbsForwardMismatchMl": 1.895323,
+          "finalRelativeMismatch": 0.033802,
+          "maxAbsReservoirVolumeMl": 48.935821,
+          "finalReservoirStepMl": 0.354857,
+          "maxAbsAcceptedTransferMl": 1.771959,
+          "finalAcceptedTransferMl": -0.265345,
+          "volumeLimiterHitCount": 0,
+          "maxAbsRejectedTransferMl": 0,
+          "finalRejectedTransferMl": 0,
+          "leftFailureReasons": [],
+          "rightFailureReasons": [
+            "beat-repeatability-failed"
+          ]
+        }
+      ],
+      "summary": {
+        "passCount": 0,
+        "total": 3,
+        "longestStatus": "fail",
+        "maxAbsReservoirVolumeMl": 48.935821,
+        "maxAbsRejectedTransferMl": 0,
+        "volumeLimiterHitCount": 0,
+        "allSourceSurfacesPreserved": false
+      }
+    }
+  ],
+  "summary": {
+    "bestVariantId": "hard-volume-bound24",
+    "bestPassCount": 3,
+    "referencePassCount": 0,
+    "bestLongestStatus": "pass",
+    "bestMaxAbsReservoirVolumeMl": 24,
+    "bestVolumeLimiterHitCount": 67
+  },
+  "decision": {
+    "boundedReservoirVolumeStatus": "bounded-volume-ownership-targeted-signal",
+    "nextAction": "Promote bounded reservoir-volume ownership into the source-aware four-chamber contract smoke and rerun the full nominal/dt-half/long-epoch envelope; do not unlock runtime, AV-plane, or LandAtrial from this targeted signal alone.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "true-four-chamber-dynamics",
+      "morphology-acceptance",
+      "reservoir-broad-retuning",
+      "AV-plane-unlock",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "trueFourChamberDynamics": false,
+    "morphologyAcceptance": false,
+    "reservoirBroadRetuning": false,
+    "AVPlaneUnlock": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "89760a5c860735a3e6ac01b6cc6eb2e8832a7ab064cb54f8ae2ea923bc22db5c"
+}
