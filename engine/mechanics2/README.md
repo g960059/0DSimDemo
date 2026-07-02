@@ -107,6 +107,9 @@ Current scope:
   full-envelope smoke for bounded reservoir-volume ownership.
 - `benches/FourChamberBoundedReservoirDynamicsReviewBench.ts`: limiter-duty
   review for the bounded reservoir-volume ownership scaffold.
+- `benches/FourChamberSmoothReservoirOwnershipBench.ts`: smooth compatibility
+  feedback candidates that reduce hard-bound fallback duty while preserving the
+  source-aware four-chamber smoke.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
