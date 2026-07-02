@@ -48,12 +48,14 @@ export type LeftAtrialEffectiveGeometryModeV2 =
   | "lv-shortening-stretch-volume-shadow"
   | "lv-shortening-capacity-volume-shadow"
   | "phase-reservoir-capacity-volume-shadow"
-  | "lobe-state-capacity-volume-shadow";
+  | "lobe-state-capacity-volume-shadow"
+  | "av-plane-reservoir-capacity-volume-shadow";
 export type LeftAtrialLobeGeneratorModeV2 =
   | "none"
   | "reservoir-suction-state-shadow"
   | "reservoir-booster-state-shadow"
-  | "flow-reservoir-booster-state-shadow";
+  | "flow-reservoir-booster-state-shadow"
+  | "av-plane-reservoir-booster-state-shadow";
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
   | "fiber-active-a-window-gated-shadow"
@@ -106,6 +108,8 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laReservoirSuctionEndTheta: number;
   readonly laReservoirFillingRateStartMlPerSec: number;
   readonly laReservoirFillingRateEndMlPerSec: number;
+  readonly laAVPlaneEjectionRateStartMlPerSec: number;
+  readonly laAVPlaneEjectionRateEndMlPerSec: number;
   readonly laBoosterPressureGainMmHg: number;
   readonly laBoosterPressureRiseTauSec: number;
   readonly laBoosterPressureFallTauSec: number;
@@ -296,6 +300,8 @@ export function defaultLeftHeartSubsystemParamsV2(
     laReservoirSuctionEndTheta: overrides.laReservoirSuctionEndTheta ?? 0.70,
     laReservoirFillingRateStartMlPerSec: overrides.laReservoirFillingRateStartMlPerSec ?? 6,
     laReservoirFillingRateEndMlPerSec: overrides.laReservoirFillingRateEndMlPerSec ?? 70,
+    laAVPlaneEjectionRateStartMlPerSec: overrides.laAVPlaneEjectionRateStartMlPerSec ?? 20,
+    laAVPlaneEjectionRateEndMlPerSec: overrides.laAVPlaneEjectionRateEndMlPerSec ?? 80,
     laBoosterPressureGainMmHg: overrides.laBoosterPressureGainMmHg ?? 0,
     laBoosterPressureRiseTauSec: overrides.laBoosterPressureRiseTauSec ?? 0.045,
     laBoosterPressureFallTauSec: overrides.laBoosterPressureFallTauSec ?? 0.12,
@@ -491,6 +497,7 @@ function acceptLeftHeartCandidateV2(input: {
     input.dtSec,
     input.params,
     input.candidate.laVolumeMl - input.previous.laVolumeMl,
+    input.previous.lvVolumeMl - input.candidate.lvVolumeMl,
   );
   const laBoosterPressureDrive01 = nextLaBoosterPressureDrive01(
     input.previousLaBoosterPressureDrive01,
@@ -544,10 +551,14 @@ function acceptLeftHeartCandidateV2(input: {
     -input.params.laReservoirSuctionPressureGainMmHg * laReservoirSuctionDrive01;
   const laBoosterPressureMmHg =
     input.params.laBoosterPressureGainMmHg * laBoosterPressureDrive01;
-  const laReservoirGeometryDeltaMl = input.params.laEffectiveGeometryMode === "lobe-state-capacity-volume-shadow"
+  const laReservoirGeometryDeltaMl =
+    input.params.laEffectiveGeometryMode === "lobe-state-capacity-volume-shadow"
+    || input.params.laEffectiveGeometryMode === "av-plane-reservoir-capacity-volume-shadow"
     ? input.params.laReservoirGeometryGainMl * laReservoirSuctionDrive01
     : 0;
-  const laBoosterGeometryDeltaMl = input.params.laEffectiveGeometryMode === "lobe-state-capacity-volume-shadow"
+  const laBoosterGeometryDeltaMl =
+    input.params.laEffectiveGeometryMode === "lobe-state-capacity-volume-shadow"
+    || input.params.laEffectiveGeometryMode === "av-plane-reservoir-capacity-volume-shadow"
     ? input.params.laBoosterGeometryGainMl * laBoosterPressureDrive01
     : 0;
   const lapRawMmHg = Math.max(0, leftAtrialPressureRaw(
@@ -679,16 +690,19 @@ function leftAtrialEffectiveGeometryReadback(input: {
     1e-9,
   );
   const zAvNorm = input.params.laEffectiveGeometryMode === "phase-reservoir-capacity-volume-shadow"
-    ? raisedCosineWindow(input.theta, 0.06, 0.82)
+      ? raisedCosineWindow(input.theta, 0.06, 0.82)
     : input.params.laEffectiveGeometryMode === "lobe-state-capacity-volume-shadow"
+      || input.params.laEffectiveGeometryMode === "av-plane-reservoir-capacity-volume-shadow"
       ? clamp((lobeGeometryDeltaMl + input.params.laBoosterGeometryGainMl) / lobeGeometryScaleMl, 0, 1)
       : clamp((input.params.maxLvVolumeMl - input.candidate.lvVolumeMl) / lvRange, 0, 1);
   const previousZAvNorm = input.params.laEffectiveGeometryMode === "phase-reservoir-capacity-volume-shadow"
     ? raisedCosineWindow(previousTheta, 0.06, 0.82)
     : input.params.laEffectiveGeometryMode === "lobe-state-capacity-volume-shadow"
+      || input.params.laEffectiveGeometryMode === "av-plane-reservoir-capacity-volume-shadow"
       ? clamp((previousLobeGeometryDeltaMl + input.params.laBoosterGeometryGainMl) / lobeGeometryScaleMl, 0, 1)
       : clamp((input.params.maxLvVolumeMl - input.previous.lvVolumeMl) / lvRange, 0, 1);
   const atrialGeometryDeltaMl = input.params.laEffectiveGeometryMode === "lobe-state-capacity-volume-shadow"
+    || input.params.laEffectiveGeometryMode === "av-plane-reservoir-capacity-volume-shadow"
     ? lobeGeometryDeltaMl
     : input.params.laEffectiveGeometryGainMl * zAvNorm;
   return enabledAVPlaneGeometryShadowReadbackV1({
@@ -714,6 +728,9 @@ function leftAtrialEffectiveFiberVolumeMl(
     return Math.max(1e-6, bloodVolumeMl - atrialGeometryDeltaMl);
   }
   if (params.laEffectiveGeometryMode === "lobe-state-capacity-volume-shadow") {
+    return Math.max(1e-6, bloodVolumeMl - atrialGeometryDeltaMl);
+  }
+  if (params.laEffectiveGeometryMode === "av-plane-reservoir-capacity-volume-shadow") {
     return Math.max(1e-6, bloodVolumeMl - atrialGeometryDeltaMl);
   }
   return Math.max(1e-6, bloodVolumeMl + atrialGeometryDeltaMl);
@@ -765,11 +782,13 @@ function nextLaReservoirSuctionDrive01(
   dtSec: number,
   params: LeftHeartSubsystemParamsV2,
   laVolumeDeltaMl: number,
+  lvEjectionVolumeDeltaMl: number,
 ): number {
   if (
     params.laLobeGeneratorMode !== "reservoir-suction-state-shadow"
     && params.laLobeGeneratorMode !== "reservoir-booster-state-shadow"
     && params.laLobeGeneratorMode !== "flow-reservoir-booster-state-shadow"
+    && params.laLobeGeneratorMode !== "av-plane-reservoir-booster-state-shadow"
   ) return 0;
   const phaseDrive01 = raisedCosineWindow(
     theta,
@@ -786,6 +805,15 @@ function nextLaReservoirSuctionDrive01(
   );
   const targetDrive01 = params.laLobeGeneratorMode === "flow-reservoir-booster-state-shadow"
     ? phaseDrive01 * fillingDrive01
+    : params.laLobeGeneratorMode === "av-plane-reservoir-booster-state-shadow"
+      ? phaseDrive01 * smoothstep01(
+        (Math.max(0, lvEjectionVolumeDeltaMl / Math.max(dtSec, 1e-9))
+          - params.laAVPlaneEjectionRateStartMlPerSec)
+          / Math.max(
+            params.laAVPlaneEjectionRateEndMlPerSec - params.laAVPlaneEjectionRateStartMlPerSec,
+            1e-9,
+          ),
+      )
     : phaseDrive01;
   const tau = targetDrive01 > previousDrive01
     ? params.laReservoirSuctionRiseTauSec
@@ -803,6 +831,7 @@ function nextLaBoosterPressureDrive01(
   if (
     params.laLobeGeneratorMode !== "reservoir-booster-state-shadow"
     && params.laLobeGeneratorMode !== "flow-reservoir-booster-state-shadow"
+    && params.laLobeGeneratorMode !== "av-plane-reservoir-booster-state-shadow"
   ) return 0;
   const targetDrive01 = raisedCosineWindow(
     theta,

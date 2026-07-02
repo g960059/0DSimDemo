@@ -59,12 +59,13 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: test stateful AV-plane descent as the reservoir-filling driver
-inside the atrial chamber/valve transaction, with hidden-volume and a-prime
-readbacks. Warm-replay lobe attribution, separated-state smokes, dual-lobe
-geometry, and flow-oriented LA filling-rate drive show pressure parity, scalar
-reservoir suction, simple reservoir/booster pressure states, and AV-plane-free
-lobe generators are insufficient. Direct atrial pressure substitution,
+Next PR target: classify pressure-volume orientation and MV/AV-plane phase
+co-evolution for the missing atrial v-loop. Warm-replay lobe attribution,
+separated-state smokes, dual-lobe geometry, flow-oriented LA filling-rate
+drive, and hidden-volume-free AV-plane ejection-rate reservoir oracles show
+pressure parity, scalar reservoir suction, simple reservoir/booster pressure
+states, AV-plane-free lobe generators, and simple ejection-rate AV-plane
+reservoir drive are insufficient. Direct atrial pressure substitution,
 additive atrial active-pressure source substitution, direct AV-gradient
 injection, more fixed source-state variant sweeps, readback-only geometry
 overlays, simple LV-shortening effective-geometry transactions, display-only
@@ -257,6 +258,10 @@ Included:
 - FlowOrientedAtrialLobeGeneratorBench V1 for a left-heart filling-rate-driven
   reservoir lobe check plus visual PV-loop review bundle, showing flow gating
   preserves source/MVF surfaces but does not repair opposed a/v lobe quality.
+- AVPlaneReservoirOracleBench V1 for a hidden-volume-free AV-plane
+  ejection-rate reservoir oracle with lobe-orientation counts, showing
+  a-prime/s-prime readbacks can be finite while same-signed lobes still
+  dominate and the v-loop remains collapsed.
 
 Excluded:
 
