@@ -41,12 +41,12 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: implement a source-surface time-integration / output-parity
-contract that owns the three classified residual classes separately:
-left-preload-low shape dt-parity, left-afterload-high output reserve, and
-right-preload-low settling/repeatability before dt-output parity. Do not
-restart reservoir gain/compliance tuning, broad small-parameter scans, runtime
-wiring, AV-plane work, or LandAtrial re-entry from this evidence alone.
+Next PR target: implement a source-surface contract using phase-aligned shape
+parity, then address the two remaining true source residuals separately:
+left-afterload-high output reserve and right-preload-low settling/repeatability
+before dt-output parity. Do not restart reservoir gain/compliance tuning, broad
+small-parameter scans, runtime wiring, AV-plane work, or LandAtrial re-entry
+from this evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -104,6 +104,9 @@ Included:
 - SourceSurfaceTimeIntegrationAttributionBench V1 for classifying remaining
   source-surface residuals into shape dt-parity, output reserve, and
   settling/repeatability owner classes.
+- SourceSurfaceSamplingParityBench V1 for checking source-surface shape
+  dt-parity on a phase-aligned sampling grid before treating it as a model
+  residual.
 
 Excluded:
 
@@ -380,6 +383,15 @@ Next gates:
     `right-heart-contractility-low` remains a clean accepted low-output
     phenotype. This points next to a source-surface integration/output-parity
     contract, not reservoir tuning, AV-plane, LandAtrial, or runtime wiring.
+37. Source-surface sampling parity: the `left-heart-preload-low` shape
+    residual is classified as sampling-grid parity rather than a model
+    morphology residual. Raw MV inflow C1 changes from 0.105442 to 0.310388 at
+    `dt-half`, but phase-aligned `dt-half` C1 is 0.081549 with aligned delta
+    0.023893, and both raw/aligned waves remain single-peaked. Sampling is not
+    the owner for `left-heart-afterload-high` output reserve or
+    `right-heart-preload-low` repeatability/output residuals. Next work should
+    use phase-aligned source shape parity and focus on output reserve plus
+    right-source settling/repeatability.
 
 Parallel prep, not blocking the next strategic gate:
 
