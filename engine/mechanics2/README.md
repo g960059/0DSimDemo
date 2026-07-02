@@ -219,6 +219,9 @@ Current scope:
 - `benches/FlowOrientedAtrialLobeGeneratorBench.ts`: focused left-heart lobe
   generator check that drives reservoir state from LA filling-rate readbacks
   and records a visual PV-loop review bundle before any AV-plane promotion.
+- `benches/AVPlaneReservoirOracleBench.ts`: hidden-volume-free AV-plane
+  ejection-rate reservoir oracle with lobe-orientation counts, a-prime/s-prime
+  readbacks, and visual PV-loop review before runtime AV-plane enablement.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
