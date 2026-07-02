@@ -154,6 +154,9 @@ Current scope:
 - `benches/AtrialFiberSourceReservoirShadowReplayBench.ts`:
   source/reservoir-conditioned LA/RA AtrialFiber shadow replay that keeps
   pressure substitution, runtime, AV-plane, and LandAtrial locked.
+- `benches/AvValveAtrialGradientShadowBench.ts`: shadow MV/TV valve-gradient
+  replay that confirms direct atrial active-gradient injection is not a
+  preservation path and keeps pressure commit/runtime/AV-plane locked.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt

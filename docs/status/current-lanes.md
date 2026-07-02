@@ -59,10 +59,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: classify whether an atrial-fiber shadow/readback can inform a
-future valve/source co-owned pressure-gradient contract without substituting
-atrial pressure. Runtime wiring, reservoir broad retuning, AV-plane work, and
-LandAtrial re-entry remain blocked.
+Next PR target: keep AtrialFiber as shadow/readback only and avoid direct
+atrial pressure or AV gradient injection until a true valve/source co-owned
+state contract is designed. Runtime wiring, reservoir broad retuning, AV-plane
+work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -193,6 +193,9 @@ Included:
 - AtrialFiberSourceReservoirShadowReplayBench V1 for source/reservoir
   pressure-conditioned LA/RA AtrialFiber shadow replay with finite bounded
   late-active readbacks while pressure substitution remains blocked.
+- AvValveAtrialGradientShadowBench V1 for confirming that simple atrial active
+  gradient injection into shadow MV/TV replay is blocked even though the
+  AtrialFiber source/reservoir shadow readbacks are finite and bounded.
 
 Excluded:
 
