@@ -34,6 +34,7 @@ Canonical references:
 - [Source-surface dt-half stability scan V1](source-surface-dthalf-stability-scan-v1.md)
 - [Source-surface time-integration attribution V1](source-surface-time-integration-attribution-v1.md)
 - [Source-surface sampling parity V1](source-surface-sampling-parity-v1.md)
+- [Source-surface contract V1](source-surface-contract-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 

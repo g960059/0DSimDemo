@@ -81,6 +81,9 @@ Current scope:
 - `benches/SourceSurfaceSamplingParityBench.ts`: sampling-grid attribution for
   source-surface shape dt-parity checks using phase-aligned `dt-half` waveform
   comparisons.
+- `benches/SourceSurfaceContractBench.ts`: source-surface contract probe using
+  phase-aligned shape parity, left load-conditioned output reserve, and right
+  preload-low settling/repeatability classification.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
@@ -112,6 +115,7 @@ Planning docs:
 - [Source-surface dt-half stability scan V1](../../docs/mechanics2/source-surface-dthalf-stability-scan-v1.md)
 - [Source-surface time-integration attribution V1](../../docs/mechanics2/source-surface-time-integration-attribution-v1.md)
 - [Source-surface sampling parity V1](../../docs/mechanics2/source-surface-sampling-parity-v1.md)
+- [Source-surface contract V1](../../docs/mechanics2/source-surface-contract-v1.md)
 - [ADR-MYO-003](../../docs/myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 
 Claim boundary:
