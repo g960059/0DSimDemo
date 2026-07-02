@@ -62,7 +62,8 @@ export type LeftAtrialLobeGeneratorModeV2 =
   | "av-plane-venous-reservoir-transaction-v1"
   | "av-plane-reservoir-strain-reference-transaction-v1"
   | "av-plane-pressure-capacity-reservoir-transaction-v1"
-  | "av-plane-two-state-reservoir-transaction-v1";
+  | "av-plane-two-state-reservoir-transaction-v1"
+  | "av-plane-traction-reservoir-transaction-v1";
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
   | "fiber-active-a-window-gated-shadow"
@@ -920,6 +921,7 @@ function nextLaReservoirSuctionDrive01(
     && params.laLobeGeneratorMode !== "av-plane-reservoir-strain-reference-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-pressure-capacity-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-two-state-reservoir-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
   ) return 0;
   const phaseDrive01 = raisedCosineWindow(
     theta,
@@ -942,6 +944,7 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-reservoir-strain-reference-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
       ? phaseDrive01 * smoothstep01(
         (Math.max(0, lvEjectionVolumeDeltaMl / Math.max(dtSec, 1e-9))
           - params.laAVPlaneEjectionRateStartMlPerSec)
@@ -956,6 +959,7 @@ function nextLaReservoirSuctionDrive01(
     || params.laLobeGeneratorMode === "av-plane-reservoir-strain-reference-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
     || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
+    || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
     ? smoothstep01(
       previousMvOpen01
         / Math.max(params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
@@ -968,19 +972,22 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-reservoir-strain-reference-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
       ? params.laAVPlaneReservoirCapacityRiseTauSec
       : params.laReservoirSuctionRiseTauSec
     : (params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-venous-reservoir-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-reservoir-strain-reference-transaction-v1"
       || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
-      || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1") && mvOpenRelease01 > 0.5
+      || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
+      || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1") && mvOpenRelease01 > 0.5
       ? params.laAVPlaneReservoirCapacityReleaseTauSec
       : params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-venous-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-reservoir-strain-reference-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-pressure-capacity-reservoir-transaction-v1"
         || params.laLobeGeneratorMode === "av-plane-two-state-reservoir-transaction-v1"
+        || params.laLobeGeneratorMode === "av-plane-traction-reservoir-transaction-v1"
         ? params.laAVPlaneReservoirCapacityFallTauSec
         : params.laReservoirSuctionFallTauSec;
   const step = (acceptedTargetDrive01 - previousDrive01) * dtSec / Math.max(tau, 1e-6);
@@ -1100,6 +1107,7 @@ function avPlaneReservoirKinematicFlowMlPerSec(
   if (
     params.laLobeGeneratorMode !== "av-plane-venous-reservoir-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-reservoir-strain-reference-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
   ) return 0;
   if (params.laAVPlaneVenousReservoirCouplingGain <= 0) return 0;
   if (params.laAVPlaneVenousReservoirMaxFlowMlPerSec <= 0) return 0;
@@ -1130,7 +1138,10 @@ function leftAtrialAVPlaneReservoirTractionPressureMmHg(
   previousMvOpen01: number,
   params: LeftHeartSubsystemParamsV2,
 ): number {
-  if (params.laLobeGeneratorMode !== "av-plane-pressure-capacity-reservoir-transaction-v1") return 0;
+  if (
+    params.laLobeGeneratorMode !== "av-plane-pressure-capacity-reservoir-transaction-v1"
+    && params.laLobeGeneratorMode !== "av-plane-traction-reservoir-transaction-v1"
+  ) return 0;
   if (params.laAVPlaneReservoirTractionGainMmHgPerNormPerSec === 0) return 0;
   const mvClosedGate01 = 1 - smoothstep01(
     previousMvOpen01 / Math.max(params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),

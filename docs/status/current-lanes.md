@@ -59,34 +59,34 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: move the atrial V-loop attempt from scalar pressure/recoil
-surfaces to explicit cavity/blood-volume reservoir coevolution. Topology
-attribution shows blood-volume PV opposed lobes remain 0/105, but the same
-two-state AV-plane surface has opposed orientation in an effective
-wall-stretch coordinate for 45/105 rows and 25/105 source-preserving rows.
-That is a geometry-axis signal, not an acceptance path: do not relax the
-blood-volume LA PV gate or promote AV-plane until the accepted cavity/blood
-volume state itself forms opposed a/v lobes.
-Warm-replay lobe attribution, separated-state smokes,
-dual-lobe geometry, flow-oriented LA filling-rate drive, hidden-volume-free
-AV-plane ejection-rate reservoir oracles, AV-plane reservoir capacity/stretch
-+ booster/wall-work, explicit pulmonary venous reservoir inflow, and atrial
-wall reference-volume shift all show source/MVF or v-loop area signals, but
-opposed v-loop quality remains failed in closed-loop source surfaces. The
-isolated prescribed-flow rate-gated traction bench shows a 7/7 topology signal
-only as a falsification scaffold, and the first closed-loop pressure-only
-AV-capacity transfer did not beat the compliance-node baseline. Direct atrial
-pressure substitution, additive atrial
-active-pressure source substitution, direct AV-gradient injection, more fixed
-source-state variant sweeps, readback-only geometry overlays, simple
-LV-shortening effective-geometry transactions, display-only piston volume,
-phase-pressure oracles, more scalar reservoir/reference/capacity sweeps,
-runtime wiring, reservoir broad retuning, runtime
-AV-plane enablement, and LandAtrial re-entry remain blocked. For atrial work,
-pressure parity, MVF cleanup, larger v-loop area, source/MVF improvement, or
-self-crossing PV loops alone are insufficient: normal-sinus acceptance must
-preserve atrial PV figure-eight opposed-lobe quality and eventually expose
-AV-plane velocity/a-prime readbacks.
+Next PR target: use the new AV-plane traction plus accepted pulmonary venous
+reservoir-flow signal as the atrial v-loop mechanism lead, then repair the
+remaining source/MVF residuals without returning to passive reservoir scalar
+sweeps. The first closed-loop traction transaction produces blood-volume LA PV
+opposed lobes 7/7 and `dt-half` opposed lobes 7/7 with hidden-volume cleanliness
+preserved, while flow-only, traction-only, and wrong-sign traction controls are
+0/7. This is a topology mechanism signal, not morphology acceptance: source
+surface and MVF cleanliness remain 4/7, visual review still shows sharp
+traction-driven pressure geometry, and runtime wiring, runtime AV-plane
+enablement, pressure substitution, broad reservoir retuning, and LandAtrial
+re-entry remain blocked.
+Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
+flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
+reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
+explicit pulmonary venous reservoir inflow, atrial wall reference-volume shift,
+pressure-capacity transfer, and two-state reservoir recoil all show source/MVF,
+v-loop area, or effective-stretch signals, but do not produce accepted
+blood-volume opposed-lobe quality. Do not relax the blood-volume LA PV gate.
+Direct atrial pressure substitution, additive atrial active-pressure source
+substitution, direct AV-gradient injection, more fixed source-state variant
+sweeps, readback-only geometry overlays, simple LV-shortening
+effective-geometry transactions, display-only piston volume, phase-pressure
+oracles, more scalar reservoir/reference/capacity sweeps, runtime wiring,
+reservoir broad retuning, runtime AV-plane enablement, and LandAtrial re-entry
+remain blocked. For atrial work, pressure parity, MVF cleanup, larger v-loop
+area, source/MVF improvement, or self-crossing PV loops alone are insufficient:
+normal-sinus acceptance must preserve atrial PV figure-eight opposed-lobe
+quality and eventually expose AV-plane velocity/a-prime readbacks.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -302,6 +302,15 @@ Included:
   next fix and routes the next design toward explicit accepted atrial
   cavity/blood-volume reservoir coevolution while keeping the blood-volume
   figure-eight gate strict.
+- AtrialAVPlaneTractionReservoirTransactionBench V1 for a closed-loop
+  left-heart topology experiment where AV-plane descent traction and accepted
+  pulmonary venous reservoir flow co-evolve inside the LA/MV/LV transaction.
+  The selected `traction12-flow10-cap20` variant reaches blood-volume
+  opposed-lobe topology 7/7 and `dt-half` topology 7/7 while source-surface
+  preservation remains 4/7; flow-only, traction-only, and wrong-sign traction
+  controls are 0/7. This routes the next atrial work to traction/source/MVF
+  cleanup and owner visual review, not passive reservoir sweeps or AV-plane
+  promotion.
 
 Excluded:
 
