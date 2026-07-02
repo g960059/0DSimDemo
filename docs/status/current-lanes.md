@@ -59,11 +59,11 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: build a deeper same-step source/valve/chamber transaction that
-owns MV adverse-gradient flow and TV pressure-flow/area underfill together.
-Direct atrial pressure substitution, direct AV-gradient injection, more fixed
-source-state variant sweeps, runtime wiring, reservoir broad retuning, AV-plane
-work, and LandAtrial re-entry remain blocked.
+Next PR target: carry the cyclic accepted valve-state replay signal into a
+same-step source/valve/chamber transaction with explicit pressure-flow
+causality/energy ownership. Direct atrial pressure substitution, direct
+AV-gradient injection, more fixed source-state variant sweeps, runtime wiring,
+reservoir broad retuning, AV-plane work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -202,6 +202,8 @@ Included:
   without source pressure or gradient commit.
 - AvValveSourceStateResidualAttributionBench V1 for classifying the fixed
   `source-open-memory` residual before any further source-state contract work.
+- AvValveCyclicStateReplayBench V1 for checking whether accepted valve state
+  carryover, rather than more atrial source-state tuning, preserves AV replay.
 
 Excluded:
 
@@ -696,6 +698,15 @@ Next gates:
     Stop fixed source-state variant sweeps; next work should implement a true
     same-step source/valve/chamber transaction, not pressure/gradient commit,
     runtime, AV-plane, LandAtrial, or reservoir retuning.
+64. AV valve cyclic accepted-state replay: replaying AV valves with cyclic
+    valve-state carryover improves the shadow replay from zero-state 0/14 to
+    `cyclic-current-pressure` 4/14, with forward-volume parity 14/14, clean
+    shape 7/14, mean Q RMS delta ~0.46 mL/s, and cyclic state delta 0. The
+    source-open-memory variant is worse, so the next owner is accepted valve
+    state plus pressure-flow causality/energy, not more source-state tuning.
+    Remaining failures are adverse-gradient forward-flow rows; pressure/gradient
+    commit, runtime, AV-plane, LandAtrial, and morphology acceptance remain
+    blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
