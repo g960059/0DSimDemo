@@ -59,17 +59,16 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: carry the cyclic accepted valve-state replay, stateful LA
-chamber mixed signal, local LA/MV no-go, and additive active-pressure source
-no-go into a same-step pulmonary-reservoir/LA-chamber/MV-valve/LV-filling
-transaction with explicit phase-local pressure-flow causality/energy ownership.
-Direct atrial pressure substitution, additive atrial active-pressure source
-substitution, direct AV-gradient injection, more fixed source-state variant
-sweeps, runtime wiring, reservoir broad retuning, AV-plane work, and
-LandAtrial re-entry remain blocked. For atrial work, pressure parity or MVF
-cleanup alone is insufficient: normal-sinus acceptance must preserve atrial PV
-figure-eight lobe quality and eventually expose AV-plane velocity/a-prime
-readbacks.
+Next PR target: classify why the same-step pulmonary-reservoir/LA-chamber/
+MV-valve/LV-filling surface remains mixed: pulmonary venous compliance and
+extra fixed-point iterations reduce transaction residuals but do not recover
+LA PV lobe quality or MVF morphology. Direct atrial pressure substitution,
+additive atrial active-pressure source substitution, direct AV-gradient
+injection, more fixed source-state variant sweeps, runtime wiring, reservoir
+broad retuning, AV-plane work, and LandAtrial re-entry remain blocked. For
+atrial work, pressure parity or MVF cleanup alone is insufficient:
+normal-sinus acceptance must preserve atrial PV figure-eight lobe quality and
+eventually expose AV-plane velocity/a-prime readbacks.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -224,6 +223,9 @@ Included:
 - LaActivePressureAdditiveSourceBench V1 for testing whether adding AtrialFiber
   active pressure to the empirical LA pressure baseline can preserve left-heart
   source-surface behavior and LA PV lobe quality.
+- LaMvAssembledTransactionSurfaceBench V1 for comparing same-step pulmonary
+  reservoir, LA chamber, MV valve, and LV filling ownership surfaces while
+  AV-plane remains disabled.
 
 Excluded:
 
@@ -790,6 +792,17 @@ Next gates:
     adding atrial active pressure to a pre-existing source surface. Runtime,
     AV-plane enablement, a-prime claims, LandAtrial, and morphology acceptance
     remain blocked.
+71. LA/MV assembled transaction surface: the first same-step pulmonary-
+    reservoir/LA-chamber/MV-valve/LV-filling surface is mixed evidence, not a
+    promotion path. The best fixed-pressure reference has source-surface pass
+    0/7, contract pass 0/7, LA PV lobe-quality 1/7, MVF clean 3/7, and
+    transaction convergence 0/7. Pulmonary venous compliance-node variants
+    reduce the max transaction residual from ~1.03 mL to ~0.14 mL, but still
+    leave contract pass 0/7, LA PV lobe-quality 0/7, and MVF clean 3/7. This
+    says residual iteration/pressure-reservoir ownership alone is insufficient;
+    next work should classify the remaining LA PV lobe and MVF residuals before
+    enabling AV-plane geometry or LandAtrial. Runtime, morphology acceptance,
+    a-prime claims, and LandAtrial remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 
