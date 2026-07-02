@@ -59,14 +59,15 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: carry the cyclic accepted valve-state replay signal into a
-same-step source/valve/chamber transaction with explicit phase-local
-pressure-flow causality/energy ownership. Direct atrial pressure substitution,
-direct AV-gradient injection, more fixed source-state variant sweeps, runtime
-wiring, reservoir broad retuning, AV-plane work, and LandAtrial re-entry remain
-blocked. For atrial work, pressure parity or MVF cleanup alone is insufficient:
-normal-sinus acceptance must preserve atrial PV figure-eight lobe quality and
-eventually expose AV-plane velocity/a-prime readbacks.
+Next PR target: carry the cyclic accepted valve-state replay and stateful LA
+chamber mixed signals into a same-step source/valve/chamber transaction with
+explicit phase-local pressure-flow causality/energy ownership. Direct atrial
+pressure substitution, direct AV-gradient injection, more fixed source-state
+variant sweeps, runtime wiring, reservoir broad retuning, AV-plane work, and
+LandAtrial re-entry remain blocked. For atrial work, pressure parity or MVF
+cleanup alone is insufficient: normal-sinus acceptance must preserve atrial PV
+figure-eight lobe quality and eventually expose AV-plane velocity/a-prime
+readbacks.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -210,6 +211,8 @@ Included:
 - AtrialFigureEightQualityAuditBench V1 for source/reservoir-conditioned LA/RA
   PV lobe-quality and a-prime-readback readiness auditing without pressure
   substitution or AV-plane enablement.
+- StatefulLaChamberContractSmokeBench V1 for testing stateful LA chamber total
+  pressure as a left-heart LA pressure source while AV-plane remains disabled.
 
 Excluded:
 
@@ -733,6 +736,16 @@ Next gates:
     explicit future AV-plane position/velocity readbacks. Pressure
     substitution, runtime, AV-plane enablement, LandAtrial, and morphology
     acceptance remain blocked.
+67. Stateful LA chamber contract smoke: using stateful LA chamber total
+    pressure directly as the left-heart LA pressure source is mixed, not a
+    promotion path. It preserves MV forward-volume parity 7/7 and mass 7/7, but
+    source-surface pass is only 1/7, LA PV lobe-quality is only 1/7, and
+    contract pass is 0/7. This confirms P-V co-evolution is necessary but
+    direct chamber-pressure substitution is still insufficient. Next atrial
+    work should co-own LA chamber pressure and MV valve/source state in a
+    same-step transaction, with AV-plane position/velocity readbacks designed
+    but not enabled. Runtime, AV-plane enablement, a-prime claims, LandAtrial,
+    and morphology acceptance remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 

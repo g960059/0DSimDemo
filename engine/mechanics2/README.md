@@ -168,6 +168,9 @@ Current scope:
 - `benches/AtrialFigureEightQualityAuditBench.ts`: source/reservoir-conditioned
   LA/RA PV quality audit comparing current source pressure with AtrialFiber
   pressure and reporting missing AV-plane velocity/a-prime readbacks.
+- `benches/StatefulLaChamberContractSmokeBench.ts`: left-heart smoke that uses
+  stateful LA chamber total pressure as the LA pressure source with AV-plane
+  disabled, separating source-surface preservation from LA PV lobe quality.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
