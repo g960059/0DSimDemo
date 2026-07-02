@@ -41,12 +41,12 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: address source-surface time integration and output/parity
-ownership directly. The source-surface `dt-half` scan finds a right-side
-partial signal but no left or right full-pass candidate, so simple
-source-surface parameter perturbations are not enough. Do not restart reservoir
-gain/compliance tuning, runtime wiring, AV-plane work, or LandAtrial re-entry
-from this evidence alone.
+Next PR target: implement a source-surface time-integration / output-parity
+contract that owns the three classified residual classes separately:
+left-preload-low shape dt-parity, left-afterload-high output reserve, and
+right-preload-low settling/repeatability before dt-output parity. Do not
+restart reservoir gain/compliance tuning, broad small-parameter scans, runtime
+wiring, AV-plane work, or LandAtrial re-entry from this evidence alone.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -101,6 +101,9 @@ Included:
 - SourceSurfaceDtHalfStabilityScanBench V1 for small standalone left/right
   source-surface `dt-half` candidate perturbations after reservoir pressure
   tuning is closed as the next fix.
+- SourceSurfaceTimeIntegrationAttributionBench V1 for classifying remaining
+  source-surface residuals into shape dt-parity, output reserve, and
+  settling/repeatability owner classes.
 
 Excluded:
 
@@ -367,6 +370,16 @@ Next gates:
     repeatability and dt-half output parity. This is a partial signal only;
     next work should move to source-surface time integration / output-parity
     ownership rather than more reservoir or small parameter scans.
+36. Source-surface time-integration attribution: the residuals split into three
+    owner classes, not one tuning knob. `left-heart-preload-low` is a
+    shape-dt-parity residual with MV inflow C1 worsening at `dt-half` while
+    output parity stays close. `left-heart-afterload-high` is output-reserve
+    limited with small repeatability and `dt-half` output deltas.
+    `right-heart-preload-low` is repeatability-before-dt-output, with final
+    PV ejection differing from both the previous beat and `dt-half`.
+    `right-heart-contractility-low` remains a clean accepted low-output
+    phenotype. This points next to a source-surface integration/output-parity
+    contract, not reservoir tuning, AV-plane, LandAtrial, or runtime wiring.
 
 Parallel prep, not blocking the next strategic gate:
 
