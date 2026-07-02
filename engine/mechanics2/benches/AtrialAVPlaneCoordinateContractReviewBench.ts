@@ -37,6 +37,11 @@ type VariantIdV1 =
   | "force-balance-vel10-drive4-hyd002-cap28"
   | "force-balance-vel12-drive4-hyd002-cap28"
   | "force-balance-vel08-drive3-hyd001-cap32"
+  | "reference-volume-cap28-drive4-hyd002-stiff1-damp04-vel06"
+  | "reference-volume-cap32-drive4-hyd002-stiff1-damp04-vel08"
+  | "reference-volume-cap32-drive6-hyd004-stiff2-damp06-vel08"
+  | "reference-volume-cap36-drive6-hyd003-stiff2-damp06-vel06"
+  | "reference-volume-cap40-drive8-hyd004-stiff3-damp08-vel06"
   | "wall-work-cap28-drive4-hyd002-stiff1-damp04-fast"
   | "wall-work-cap32-drive6-hyd004-stiff2-damp06-fast"
   | "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast"
@@ -49,6 +54,7 @@ type VariantV1 = {
     | "raw-reference"
     | "capacity-work-coordinate"
     | "force-balance-coordinate"
+    | "reference-volume-coordinate"
     | "wall-work-lamv-residual";
   readonly capacityGainMl: number;
   readonly driveForceN: number;
@@ -82,6 +88,25 @@ type LobeQualityV1 = {
   readonly conduitBelowReservoirChordFraction: number;
   readonly meanConduitBelowReservoirChordMmHg: number;
   readonly phaseOrientationPass: boolean;
+  readonly maxPvTangentAngleJumpDeg: number;
+  readonly mvOpeningTangentAngleJumpDeg: number;
+  readonly lowerVLoopTangentAngleJumpDeg: number;
+  readonly phaseC1Pass: boolean;
+  readonly failureReasons: readonly string[];
+};
+
+type PrimeWaveQualityV1 = {
+  readonly sPrimePresent: boolean;
+  readonly ePrimePresent: boolean;
+  readonly aPrimePresent: boolean;
+  readonly sPrimePeakAbsCmPerSec: number;
+  readonly ePrimePeakAbsCmPerSec: number;
+  readonly aPrimePeakAbsCmPerSec: number;
+  readonly sPrimeC1ContinuityScore: number;
+  readonly ePrimeC1ContinuityScore: number;
+  readonly aPrimeC1ContinuityScore: number;
+  readonly maxPrimeC1ContinuityScore: number;
+  readonly primeWaveformPass: boolean;
   readonly failureReasons: readonly string[];
 };
 
@@ -107,6 +132,7 @@ type RowV1 = {
   readonly clampCount: number;
   readonly baselineClampCount: number;
   readonly lobeQuality: LobeQualityV1;
+  readonly primeWaveQuality: PrimeWaveQualityV1;
   readonly failureReasons: readonly string[];
 };
 
@@ -121,6 +147,8 @@ type VariantSummaryV1 = {
   readonly phaseOrientationPassCount: number;
   readonly mvOpeningDownwardCount: number;
   readonly conduitBelowReservoirChordCount: number;
+  readonly phaseC1PassCount: number;
+  readonly primeWaveformPassCount: number;
   readonly maxZNorm: number;
   readonly maxZDotNormPerSec: number;
   readonly maxDriveForceN: number;
@@ -131,6 +159,8 @@ type VariantSummaryV1 = {
   readonly maxVLoopArea: number;
   readonly maxPostOpeningPressureDropMmHg: number;
   readonly maxConduitBelowReservoirChordFraction: number;
+  readonly maxPvTangentAngleJumpDeg: number;
+  readonly maxPrimeC1ContinuityScore: number;
 };
 
 export type AtrialAVPlaneCoordinateContractReviewReportV1 = {
@@ -143,6 +173,7 @@ export type AtrialAVPlaneCoordinateContractReviewReportV1 = {
   readonly rawReference: VariantSummaryV1;
   readonly bestCoordinateVariant: VariantSummaryV1;
   readonly bestForceBalanceVariant: VariantSummaryV1;
+  readonly bestReferenceVolumeVariant: VariantSummaryV1;
   readonly bestWallWorkVariant: VariantSummaryV1;
   readonly summary: {
     readonly totalProfiles: 7;
@@ -158,6 +189,11 @@ export type AtrialAVPlaneCoordinateContractReviewReportV1 = {
     readonly bestForceBalanceTopologyPass: number;
     readonly bestForceBalanceSourcePreservingTopologyPass: number;
     readonly bestForceBalanceMvfCleanCount: number;
+    readonly bestReferenceVolumeVariantId: VariantIdV1;
+    readonly bestReferenceVolumeSourceSurfacePass: number;
+    readonly bestReferenceVolumeTopologyPass: number;
+    readonly bestReferenceVolumeSourcePreservingTopologyPass: number;
+    readonly bestReferenceVolumeMvfCleanCount: number;
     readonly bestWallWorkVariantId: VariantIdV1;
     readonly bestWallWorkSourceSurfacePass: number;
     readonly bestWallWorkTopologyPass: number;
@@ -166,6 +202,7 @@ export type AtrialAVPlaneCoordinateContractReviewReportV1 = {
     readonly coordinateVariantsImprovingRawSourceAndKeepingTopology: number;
     readonly coordinateVariantsWithZeroTractionPressure: number;
     readonly forceBalanceVariantCount: number;
+    readonly referenceVolumeVariantCount: number;
     readonly wallWorkVariantCount: number;
     readonly reviewStatus:
       | "coordinate-contract-transfer-signal"
@@ -221,6 +258,11 @@ export const ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1: readonly VariantV1
   variant("force-balance-vel10-drive4-hyd002-cap28", "force-balance-coordinate", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 1.0),
   variant("force-balance-vel12-drive4-hyd002-cap28", "force-balance-coordinate", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 1.2),
   variant("force-balance-vel08-drive3-hyd001-cap32", "force-balance-coordinate", 32, 3, 1, 0.35, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.01, 0.8),
+  variant("reference-volume-cap28-drive4-hyd002-stiff1-damp04-vel06", "reference-volume-coordinate", 28, 4, 1, 0.4, 0.030, 0.6, 0.06, 0.54, 0.050, 0.20, 0.075, 0.12, 0.02, 0),
+  variant("reference-volume-cap32-drive4-hyd002-stiff1-damp04-vel08", "reference-volume-coordinate", 32, 4, 1, 0.4, 0.030, 0.8, 0.06, 0.54, 0.050, 0.20, 0.075, 0.12, 0.02, 0),
+  variant("reference-volume-cap32-drive6-hyd004-stiff2-damp06-vel08", "reference-volume-coordinate", 32, 6, 2, 0.6, 0.030, 0.8, 0.06, 0.54, 0.050, 0.22, 0.085, 0.12, 0.04, 0),
+  variant("reference-volume-cap36-drive6-hyd003-stiff2-damp06-vel06", "reference-volume-coordinate", 36, 6, 2, 0.6, 0.030, 0.6, 0.06, 0.54, 0.050, 0.22, 0.085, 0.12, 0.03, 0),
+  variant("reference-volume-cap40-drive8-hyd004-stiff3-damp08-vel06", "reference-volume-coordinate", 40, 8, 3, 0.8, 0.030, 0.6, 0.06, 0.54, 0.050, 0.24, 0.095, 0.12, 0.04, 0),
   variant("wall-work-cap28-drive4-hyd002-stiff1-damp04-fast", "wall-work-lamv-residual", 28, 4, 1, 0.4, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.02, 0.6),
   variant("wall-work-cap32-drive6-hyd004-stiff2-damp06-fast", "wall-work-lamv-residual", 32, 6, 2, 0.6, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.04, 0.8),
   variant("wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", "wall-work-lamv-residual", 36, 6, 2, 0.6, 0.030, 2.4, 0.06, 0.52, 0.040, 0.22, 0.055, 0.12, 0.03, 0.7),
@@ -264,6 +306,20 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
     || b.mvfCleanCount - a.mvfCleanCount
     || b.maxVLoopArea - a.maxVLoopArea
   )[0]!;
+  const referenceVolumeSummaries = variantSummaries.filter((summary) =>
+    ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.find((variantConfig) =>
+      variantConfig.variantId === summary.variantId
+    )?.mode === "reference-volume-coordinate"
+  );
+  const bestReferenceVolumeVariant = [...referenceVolumeSummaries].sort((a, b) =>
+    b.sourcePreservingTopologyPass - a.sourcePreservingTopologyPass
+    || b.phaseC1PassCount - a.phaseC1PassCount
+    || b.primeWaveformPassCount - a.primeWaveformPassCount
+    || b.topologyPass - a.topologyPass
+    || b.sourceSurfacePass - a.sourceSurfacePass
+    || b.mvfCleanCount - a.mvfCleanCount
+    || b.maxVLoopArea - a.maxVLoopArea
+  )[0]!;
   const wallWorkSummaries = variantSummaries.filter((summary) =>
     ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.find((variantConfig) =>
       variantConfig.variantId === summary.variantId
@@ -287,6 +343,10 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
     ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.filter((variantConfig) =>
       variantConfig.mode === "force-balance-coordinate"
     ).length;
+  const referenceVolumeVariantCount =
+    ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.filter((variantConfig) =>
+      variantConfig.mode === "reference-volume-coordinate"
+    ).length;
   const wallWorkVariantCount =
     ATRIAL_AV_PLANE_COORDINATE_CONTRACT_VARIANTS_V1.filter((variantConfig) =>
       variantConfig.mode === "wall-work-lamv-residual"
@@ -307,6 +367,7 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
     rawReference,
     bestCoordinateVariant,
     bestForceBalanceVariant,
+    bestReferenceVolumeVariant,
     bestWallWorkVariant,
     summary: {
       totalProfiles: 7,
@@ -322,6 +383,11 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
       bestForceBalanceTopologyPass: bestForceBalanceVariant.topologyPass,
       bestForceBalanceSourcePreservingTopologyPass: bestForceBalanceVariant.sourcePreservingTopologyPass,
       bestForceBalanceMvfCleanCount: bestForceBalanceVariant.mvfCleanCount,
+      bestReferenceVolumeVariantId: bestReferenceVolumeVariant.variantId,
+      bestReferenceVolumeSourceSurfacePass: bestReferenceVolumeVariant.sourceSurfacePass,
+      bestReferenceVolumeTopologyPass: bestReferenceVolumeVariant.topologyPass,
+      bestReferenceVolumeSourcePreservingTopologyPass: bestReferenceVolumeVariant.sourcePreservingTopologyPass,
+      bestReferenceVolumeMvfCleanCount: bestReferenceVolumeVariant.mvfCleanCount,
       bestWallWorkVariantId: bestWallWorkVariant.variantId,
       bestWallWorkSourceSurfacePass: bestWallWorkVariant.sourceSurfacePass,
       bestWallWorkTopologyPass: bestWallWorkVariant.topologyPass,
@@ -330,6 +396,7 @@ AtrialAVPlaneCoordinateContractReviewReportV1 {
       coordinateVariantsImprovingRawSourceAndKeepingTopology,
       coordinateVariantsWithZeroTractionPressure,
       forceBalanceVariantCount,
+      referenceVolumeVariantCount,
       wallWorkVariantCount,
       reviewStatus,
     },
@@ -384,6 +451,12 @@ export function applyCoordinateContractVariant(
         laEffectiveGeometryMode: "av-plane-wall-work-lamv-residual-transaction-v1" as const,
         laAVPlaneWorkCoordinateHydraulicGain: variantConfig.hydraulicGain,
       }
+      : variantConfig.mode === "reference-volume-coordinate"
+        ? {
+          laLobeGeneratorMode: "av-plane-reference-volume-coordinate-transaction-v1" as const,
+          laEffectiveGeometryMode: "av-plane-reference-volume-coordinate-transaction-v1" as const,
+          laAVPlaneWorkCoordinateHydraulicGain: variantConfig.hydraulicGain,
+        }
       : {
       laLobeGeneratorMode: "av-plane-capacity-work-coordinate-transaction-v1" as const,
       laEffectiveGeometryMode: "av-plane-force-position-reservoir-transaction-v1" as const,
@@ -392,6 +465,7 @@ export function applyCoordinateContractVariant(
   const retainsVenousReservoirFlow =
     variantConfig.mode === "force-balance-coordinate"
     || variantConfig.mode === "wall-work-lamv-residual";
+  const referenceVolumeCoordinate = variantConfig.mode === "reference-volume-coordinate";
   return {
     ...base,
     ...forceBalanceOverrides,
@@ -404,6 +478,10 @@ export function applyCoordinateContractVariant(
       retainsVenousReservoirFlow ? base.laAVPlaneVenousReservoirCouplingGain : 0,
     laAVPlaneVenousReservoirMaxFlowMlPerSec:
       retainsVenousReservoirFlow ? base.laAVPlaneVenousReservoirMaxFlowMlPerSec : 0,
+    laReservoirSuctionPressureGainMmHg: referenceVolumeCoordinate ? 0 : base.laReservoirSuctionPressureGainMmHg,
+    laAVPlaneReservoirRecoilPressureGainMmHg:
+      referenceVolumeCoordinate ? 0 : base.laAVPlaneReservoirRecoilPressureGainMmHg,
+    laBoosterPressureGainMmHg: referenceVolumeCoordinate ? 0 : base.laBoosterPressureGainMmHg,
     laAVPlaneWorkCoordinateDriveForceN: variantConfig.driveForceN,
     laAVPlaneWorkCoordinateHydraulicGain: variantConfig.hydraulicGain,
     laAVPlaneWorkCoordinateStiffnessNPerNorm: variantConfig.stiffnessNPerNorm,
@@ -443,6 +521,7 @@ function rowForRun(
       / Math.max(forwardFlowVolume(baselineBeat.map((sample) => sample.qAovMlPerSec), baselineDtSec), 1e-9),
   );
   const lobeQuality = lobeQualityFor(beat);
+  const primeWaveQuality = primeWaveQualityFor(beat);
   const maxHiddenBloodVolumeSourceMl =
     round(maxAbs(beat.map((sample) => sample.laEffectiveGeometryHiddenBloodVolumeSourceMl)));
   const maxMassResidualAbsMl = round(maxAbs(beat.map((sample) => sample.massResidualMl)));
@@ -482,6 +561,7 @@ function rowForRun(
     clampCount: run.clampCount,
     baselineClampCount: baseline.clampCount,
     lobeQuality,
+    primeWaveQuality,
     failureReasons: [
       ...sourceFailures,
       ...topologyFailures,
@@ -532,6 +612,8 @@ function summarizeVariant(variantId: VariantIdV1, rows: readonly RowV1[]): Varia
       row.lobeQuality.conduitBelowReservoirChordFraction >= 0.55
       && row.lobeQuality.meanConduitBelowReservoirChordMmHg >= 0.25
     ).length,
+    phaseC1PassCount: rows.filter((row) => row.lobeQuality.phaseC1Pass).length,
+    primeWaveformPassCount: rows.filter((row) => row.primeWaveQuality.primeWaveformPass).length,
     maxZNorm: round(Math.max(0, ...rows.map((row) => row.maxZNorm))),
     maxZDotNormPerSec: round(Math.max(0, ...rows.map((row) => row.maxZDotNormPerSec))),
     maxDriveForceN: round(Math.max(0, ...rows.map((row) => row.maxDriveForceN))),
@@ -544,6 +626,9 @@ function summarizeVariant(variantId: VariantIdV1, rows: readonly RowV1[]): Varia
       round(Math.max(0, ...rows.map((row) => row.lobeQuality.postOpeningPressureDropMmHg))),
     maxConduitBelowReservoirChordFraction:
       round(Math.max(0, ...rows.map((row) => row.lobeQuality.conduitBelowReservoirChordFraction))),
+    maxPvTangentAngleJumpDeg: round(Math.max(0, ...rows.map((row) => row.lobeQuality.maxPvTangentAngleJumpDeg))),
+    maxPrimeC1ContinuityScore:
+      round(Math.max(0, ...rows.map((row) => row.primeWaveQuality.maxPrimeC1ContinuityScore))),
   };
 }
 
@@ -564,6 +649,7 @@ function lobeQualityFor(samples: readonly LeftHeartSubsystemSampleV2[]): LobeQua
   const opposedSignedLobes = signedALoop * signedVLoop < 0;
   const volumeSeparation = mean(vLoop.x) - mean(aLoop.x);
   const phaseOrientation = phaseOrientationFor(volumes, pressures, theta, mvOpen);
+  const tangentContinuity = pvTangentContinuityFor(volumes, pressures, theta, phaseOrientation);
   const failures: string[] = [];
   if (selfIntersections < 1) failures.push("missing-pv-self-intersection");
   if (aLoopArea < 1.8) failures.push("a-loop-area-too-small");
@@ -571,6 +657,7 @@ function lobeQualityFor(samples: readonly LeftHeartSubsystemSampleV2[]): LobeQua
   if (!opposedSignedLobes) failures.push("a-v-lobes-not-opposed");
   if (volumeSeparation < 1.2) failures.push("v-loop-not-higher-volume-than-a-loop");
   failures.push(...phaseOrientation.failureReasons);
+  failures.push(...tangentContinuity.failureReasons);
   return {
     pass: failures.length === 0,
     selfIntersections,
@@ -591,6 +678,10 @@ function lobeQualityFor(samples: readonly LeftHeartSubsystemSampleV2[]): LobeQua
     conduitBelowReservoirChordFraction: round(phaseOrientation.conduitBelowReservoirChordFraction),
     meanConduitBelowReservoirChordMmHg: round(phaseOrientation.meanConduitBelowReservoirChordMmHg),
     phaseOrientationPass: phaseOrientation.failureReasons.length === 0,
+    maxPvTangentAngleJumpDeg: round(tangentContinuity.maxPvTangentAngleJumpDeg),
+    mvOpeningTangentAngleJumpDeg: round(tangentContinuity.mvOpeningTangentAngleJumpDeg),
+    lowerVLoopTangentAngleJumpDeg: round(tangentContinuity.lowerVLoopTangentAngleJumpDeg),
+    phaseC1Pass: tangentContinuity.failureReasons.length === 0,
     failureReasons: failures,
   };
 }
@@ -668,6 +759,146 @@ function phaseOrientationFor(
     meanConduitBelowReservoirChordMmHg: meanConduitBelowReservoirChord,
     failureReasons: failures,
   };
+}
+
+function primeWaveQualityFor(samples: readonly LeftHeartSubsystemSampleV2[]): PrimeWaveQualityV1 {
+  const sPrime = samples.map((sample) => sample.avPlaneGeometryReadback.sPrimeProxyCmPerSec);
+  const ePrime = samples.map((sample) => sample.avPlaneGeometryReadback.ePrimeProxyCmPerSec);
+  const aPrime = samples.map((sample) => sample.avPlaneGeometryReadback.aPrimeProxyCmPerSec);
+  const sFinite = finitePrimeValues(sPrime);
+  const eFinite = finitePrimeValues(ePrime);
+  const aFinite = finitePrimeValues(aPrime);
+  const sScore = c1ContinuityForNullableTrace(sPrime);
+  const eScore = c1ContinuityForNullableTrace(ePrime);
+  const aScore = c1ContinuityForNullableTrace(aPrime);
+  const maxPrimeC1 = Math.max(sScore, eScore, aScore);
+  const failures: string[] = [];
+  if (sFinite.length === 0) failures.push("missing-s-prime-window");
+  if (eFinite.length === 0) failures.push("missing-e-prime-window");
+  if (aFinite.length === 0) failures.push("missing-a-prime-window");
+  if (maxAbs(sFinite) < 0.5) failures.push("s-prime-too-small");
+  if (maxAbs(eFinite) < 0.5) failures.push("e-prime-too-small");
+  if (maxAbs(aFinite) < 0.5) failures.push("a-prime-too-small");
+  if (maxPrimeC1 > 0.72) failures.push("prime-waveform-c1-kink");
+  return {
+    sPrimePresent: sFinite.length > 0,
+    ePrimePresent: eFinite.length > 0,
+    aPrimePresent: aFinite.length > 0,
+    sPrimePeakAbsCmPerSec: round(maxAbs(sFinite)),
+    ePrimePeakAbsCmPerSec: round(maxAbs(eFinite)),
+    aPrimePeakAbsCmPerSec: round(maxAbs(aFinite)),
+    sPrimeC1ContinuityScore: round(sScore),
+    ePrimeC1ContinuityScore: round(eScore),
+    aPrimeC1ContinuityScore: round(aScore),
+    maxPrimeC1ContinuityScore: round(maxPrimeC1),
+    primeWaveformPass: failures.length === 0,
+    failureReasons: failures,
+  };
+}
+
+function finitePrimeValues(values: readonly (number | null)[]): readonly number[] {
+  return values.filter((value): value is number => value != null && Number.isFinite(value));
+}
+
+function c1ContinuityForNullableTrace(values: readonly (number | null)[]): number {
+  const finite = finitePrimeValues(values);
+  if (finite.length < 4) return Number.POSITIVE_INFINITY;
+  return c1ContinuityForTrace(finite);
+}
+
+function c1ContinuityForTrace(values: readonly number[]): number {
+  const slopes: number[] = [];
+  for (let i = 1; i < values.length; i++) slopes.push(values[i]! - values[i - 1]!);
+  const maxSlope = maxAbs(slopes);
+  if (maxSlope <= 1e-12) return 0;
+  let maxJump = 0;
+  for (let i = 1; i < slopes.length; i++) {
+    maxJump = Math.max(maxJump, Math.abs(slopes[i]! - slopes[i - 1]!));
+  }
+  return maxJump / maxSlope;
+}
+
+function pvTangentContinuityFor(
+  volumes: readonly number[],
+  pressures: readonly number[],
+  theta: readonly number[],
+  phaseOrientation: ReturnType<typeof phaseOrientationFor>,
+): {
+  readonly maxPvTangentAngleJumpDeg: number;
+  readonly mvOpeningTangentAngleJumpDeg: number;
+  readonly lowerVLoopTangentAngleJumpDeg: number;
+  readonly failureReasons: readonly string[];
+} {
+  const angleJumps = tangentAngleJumpsDeg(volumes, pressures);
+  const maxPvTangentAngleJumpDeg = Math.max(0, ...angleJumps.map((entry) => entry.angleJumpDeg));
+  const mvOpeningTangentAngleJumpDeg = phaseOrientation.mvOpeningIndex == null
+    ? 0
+    : localAngleJumpAt(angleJumps, phaseOrientation.mvOpeningIndex);
+  const lowerVLoopIndex = phaseOrientation.mvOpeningIndex == null
+    ? null
+    : lowerConduitPressureIndex(pressures, theta, phaseOrientation.mvOpeningIndex);
+  const lowerVLoopTangentAngleJumpDeg = lowerVLoopIndex == null
+    ? 0
+    : localAngleJumpAt(angleJumps, lowerVLoopIndex);
+  const failures: string[] = [];
+  if (mvOpeningTangentAngleJumpDeg > 58) failures.push("mv-opening-pv-c1-kink");
+  if (lowerVLoopTangentAngleJumpDeg > 58) failures.push("lower-v-loop-pv-c1-kink");
+  if (maxPvTangentAngleJumpDeg > 122) failures.push("pv-global-c1-kink");
+  return {
+    maxPvTangentAngleJumpDeg,
+    mvOpeningTangentAngleJumpDeg,
+    lowerVLoopTangentAngleJumpDeg,
+    failureReasons: failures,
+  };
+}
+
+function tangentAngleJumpsDeg(
+  x: readonly number[],
+  y: readonly number[],
+): readonly { readonly index: number; readonly angleJumpDeg: number }[] {
+  const out: { index: number; angleJumpDeg: number }[] = [];
+  if (x.length < 5 || y.length < 5) return out;
+  const xScale = Math.max(Math.max(...x) - Math.min(...x), 1e-9);
+  const yScale = Math.max(Math.max(...y) - Math.min(...y), 1e-9);
+  for (let i = 1; i < x.length - 1; i++) {
+    const prevAngle = Math.atan2((y[i]! - y[i - 1]!) / yScale, (x[i]! - x[i - 1]!) / xScale);
+    const nextAngle = Math.atan2((y[i + 1]! - y[i]!) / yScale, (x[i + 1]! - x[i]!) / xScale);
+    out.push({ index: i, angleJumpDeg: Math.abs(wrapAngleRad(nextAngle - prevAngle)) * 180 / Math.PI });
+  }
+  return out;
+}
+
+function localAngleJumpAt(
+  angleJumps: readonly { readonly index: number; readonly angleJumpDeg: number }[],
+  index: number,
+): number {
+  return Math.max(0, ...angleJumps
+    .filter((entry) => Math.abs(entry.index - index) <= 1)
+    .map((entry) => entry.angleJumpDeg));
+}
+
+function lowerConduitPressureIndex(
+  pressures: readonly number[],
+  theta: readonly number[],
+  openingIndex: number,
+): number | null {
+  const indices = conduitIndicesAfterOpening(theta, openingIndex);
+  let selected: number | null = null;
+  let minPressure = Number.POSITIVE_INFINITY;
+  for (const index of indices) {
+    if (pressures[index]! < minPressure) {
+      minPressure = pressures[index]!;
+      selected = index;
+    }
+  }
+  return selected;
+}
+
+function wrapAngleRad(value: number): number {
+  let out = value;
+  while (out > Math.PI) out -= 2 * Math.PI;
+  while (out < -Math.PI) out += 2 * Math.PI;
+  return out;
 }
 
 function findMvOpeningIndex(mvOpen: readonly number[]): number | null {
