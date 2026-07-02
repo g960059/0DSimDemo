@@ -41,9 +41,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: design a bounded preload-low reservoir-volume ownership
-contract for the source-aware four-chamber scaffold. Runtime wiring, reservoir
-broad retuning, AV-plane work, and LandAtrial re-entry remain blocked.
+Next PR target: promote bounded reservoir-volume ownership into the full
+source-aware four-chamber contract smoke and rerun nominal, `dt-half`, and
+long-epoch envelope checks. Runtime wiring, reservoir broad retuning, AV-plane
+work, and LandAtrial re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -122,6 +123,8 @@ Included:
   four-chamber contract smoke and its remaining reservoir-repeatability blocker.
 - PreloadLowReservoirRepeatabilityAttributionBench V1 for focused epoch-history
   attribution of the remaining preload-low reservoir blocker.
+- BoundedReservoirVolumeOwnershipBench V1 for the targeted bounded
+  reservoir-volume ownership signal on the preload-low long-epoch blocker.
 
 Excluded:
 
@@ -471,6 +474,14 @@ Next gates:
     load reaches ~48.9 mL and the right surface fails. This points next to a
     bounded reservoir-volume ownership contract, not broad reservoir
     gain/compliance retuning, runtime wiring, AV-plane, or LandAtrial work.
+45. Bounded reservoir-volume ownership: a hard accepted reservoir-volume
+    compatibility bound gives a targeted preload-low long-epoch signal.
+    Unbounded reference is 0/3 across 22, 40, and 56 epochs. `hard-volume-bound28`
+    and `hard-volume-bound24` are both 3/3 with source surfaces preserved; the
+    best selected variant is `hard-volume-bound24` with max reservoir volume
+    24 mL. This is not adoption evidence because the limiter rejects transfer
+    over many epochs. Next work should apply the ownership law inside the full
+    source-aware four-chamber contract smoke and rerun the complete envelope.
 
 Parallel prep, not blocking the next strategic gate:
 

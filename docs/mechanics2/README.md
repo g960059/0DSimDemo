@@ -41,6 +41,7 @@ Canonical references:
 - [Four-chamber source-aware contract V1](four-chamber-source-aware-contract-v1.md)
 - [Four-chamber source-aware contract smoke V1](four-chamber-source-aware-contract-smoke-v1.md)
 - [Preload-low reservoir repeatability attribution V1](preload-low-reservoir-repeatability-attribution-v1.md)
+- [Bounded reservoir volume ownership V1](bounded-reservoir-volume-ownership-v1.md)
 - [ADR-MYO-003](../myocardium/adr/ADR-MYO-003-mechanicscore2-circadapt-lite.md)
 - [Engine sidecar README](../../engine/mechanics2/README.md)
 
