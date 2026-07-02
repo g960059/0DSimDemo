@@ -19,6 +19,7 @@ type DynamicsPointV1 = {
   readonly rawStatus: FourChamberSubsystemRunV1["status"];
   readonly effectiveStatus: "pass" | "fail";
   readonly rawFailureReasons: readonly string[];
+  readonly removedFailureReasons: readonly string[];
   readonly effectiveFailureReasons: readonly string[];
   readonly leftStatus: string;
   readonly rightStatus: string;
@@ -41,6 +42,8 @@ type ProfileParityV1 = {
   readonly dtHalfRawStatus: FourChamberSubsystemRunV1["status"];
   readonly dtHalfEffectiveStatus: "pass" | "fail";
   readonly dtHalfRawFailureReasons: readonly string[];
+  readonly dtHalfRemovedFailureReasons: readonly string[];
+  readonly dtHalfEffectiveFailureReasons: readonly string[];
   readonly dtHalfLedgerStatusesClean: boolean;
 };
 
@@ -61,6 +64,7 @@ export type FourChamberSourceDtInputNormalizedAssembledReviewReportV1 = {
     readonly dtHalfReservoirParityTotal: 7;
     readonly dtHalfReservoirParityFailedProfiles: readonly FourChamberSubsystemProfileIdV1[];
     readonly rawDtHalfFailureProfiles: readonly FourChamberSubsystemProfileIdV1[];
+    readonly effectiveDtHalfFailureProfiles: readonly FourChamberSubsystemProfileIdV1[];
     readonly normalizedLedgerStatusesCleanCount: number;
     readonly feedbackDutyFree: boolean;
     readonly hardLimiterFree: boolean;
@@ -124,6 +128,9 @@ FourChamberSourceDtInputNormalizedAssembledReviewReportV1 {
   const rawDtHalfFailureProfiles = profileParity
     .filter((profile) => profile.dtHalfRawStatus !== "pass")
     .map((profile) => profile.profileId);
+  const effectiveDtHalfFailureProfiles = profileParity
+    .filter((profile) => profile.dtHalfEffectiveStatus !== "pass")
+    .map((profile) => profile.profileId);
   const normalizedLedgerStatusesCleanCount = profileParity.filter((profile) =>
     profile.dtHalfLedgerStatusesClean).length;
   const feedbackDutyFree = dynamicsPoints.every((point) => point.feedbackDutyFraction === 0);
@@ -132,6 +139,7 @@ FourChamberSourceDtInputNormalizedAssembledReviewReportV1 {
     effectiveEnvelopePassCount === 21
     && dtHalfReservoirParityFailedProfiles.length === 0
     && rawDtHalfFailureProfiles.length > 0
+    && effectiveDtHalfFailureProfiles.length === 0
     && normalizedLedgerStatusesCleanCount === 7
     && hardLimiterFree;
 
@@ -153,6 +161,7 @@ FourChamberSourceDtInputNormalizedAssembledReviewReportV1 {
       dtHalfReservoirParityTotal: 7,
       dtHalfReservoirParityFailedProfiles,
       rawDtHalfFailureProfiles,
+      effectiveDtHalfFailureProfiles,
       normalizedLedgerStatusesCleanCount,
       feedbackDutyFree,
       hardLimiterFree,
@@ -195,7 +204,9 @@ function dynamicsPoint(
     ...scenario,
     ...profile,
   });
-  const effectiveFailureReasons = effectiveFailureReasonsFor(ownership, scenario.scenarioId, profile.profileId);
+  const removedFailureReasons = removedFailureReasonsFor(ownership, scenario.scenarioId, profile.profileId);
+  const effectiveFailureReasons = run.failureReasons.filter((reason) =>
+    !removedFailureReasons.includes(reason));
   const finalEpoch = run.epochHistory.at(-1);
   if (finalEpoch == null) throw new Error(`Missing final epoch for ${scenario.scenarioId}/${profile.profileId}`);
   const hardLimiterHitCount = run.epochHistory.filter((epoch) =>
@@ -208,6 +219,7 @@ function dynamicsPoint(
     rawStatus: run.status,
     effectiveStatus: effectiveFailureReasons.length === 0 ? "pass" : "fail",
     rawFailureReasons: run.failureReasons,
+    removedFailureReasons,
     effectiveFailureReasons,
     leftStatus: run.finalState.leftStatus,
     rightStatus: run.finalState.rightStatus,
@@ -241,6 +253,8 @@ function parityForProfile(
     dtHalfRawStatus: dtHalf.rawStatus,
     dtHalfEffectiveStatus: dtHalf.effectiveStatus,
     dtHalfRawFailureReasons: dtHalf.rawFailureReasons,
+    dtHalfRemovedFailureReasons: dtHalf.removedFailureReasons,
+    dtHalfEffectiveFailureReasons: dtHalf.effectiveFailureReasons,
     dtHalfLedgerStatusesClean: dtHalf.sourceLedgerLeftStatus === "pass"
       && dtHalf.sourceLedgerRightStatus === "pass",
   };
@@ -257,7 +271,7 @@ function requirePoint(
   return point;
 }
 
-function effectiveFailureReasonsFor(
+function removedFailureReasonsFor(
   ownership: ReturnType<typeof runFourChamberSmoothReservoirOwnershipBenchV1>,
   scenarioId: ScenarioIdV1,
   profileId: FourChamberSubsystemProfileIdV1,
@@ -268,7 +282,7 @@ function effectiveFailureReasonsFor(
     && entry.profileId === profileId
   );
   if (point == null) throw new Error(`Missing selected ownership point ${scenarioId}/${profileId}`);
-  return point.effectiveFailureReasons;
+  return point.removedFailureReasons;
 }
 
 function round(value: number): number {

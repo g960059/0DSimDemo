@@ -17,6 +17,11 @@
         "left-surface-not-preserved",
         "right-surface-not-preserved"
       ],
+      "removedDtHalfFailureReasons": [
+        "left-surface-not-preserved",
+        "right-surface-not-preserved"
+      ],
+      "effectiveDtHalfFailureReasons": [],
       "normalizedLedgerClean": true,
       "owner": "status-rate-source-surface-preserved-raw-failure"
     },
@@ -25,6 +30,10 @@
       "rawDtHalfFailureReasons": [
         "left-surface-not-preserved"
       ],
+      "removedDtHalfFailureReasons": [
+        "left-surface-not-preserved"
+      ],
+      "effectiveDtHalfFailureReasons": [],
       "normalizedLedgerClean": true,
       "owner": "status-rate-source-surface-preserved-raw-failure"
     },
@@ -34,6 +43,11 @@
         "right-surface-not-preserved",
         "unexpected-accepted-phenotype"
       ],
+      "removedDtHalfFailureReasons": [
+        "right-surface-not-preserved",
+        "unexpected-accepted-phenotype"
+      ],
+      "effectiveDtHalfFailureReasons": [],
       "normalizedLedgerClean": true,
       "owner": "status-rate-source-surface-preserved-raw-failure"
     }
@@ -55,6 +69,7 @@
       "afterload-high",
       "contractility-low"
     ],
+    "effectiveDtHalfFailureProfiles": [],
     "rawStatusFailuresPreserved": true,
     "assembledHardLimiterFree": true,
     "sourceReservoirContractPass": true
@@ -83,5 +98,5 @@
     "AVPlaneUnlock": false,
     "LandAtrialUnlock": false
   },
-  "normalizedSha256": "fa59595c2a173d9c215c5cfaf9f465a2a579036e7db8c5da8831b4ffe08e074f"
+  "normalizedSha256": "718d4810258f3683626176fde300e5c7212e6dcc51743a57b590130be56aaf77"
 }

@@ -20,12 +20,16 @@ Result:
 - Normalized ledger source statuses are clean: 7/7.
 - Raw status-rate `dt-half` source failures remain visible:
   `preload-low`, `afterload-high`, and `contractility-low`.
+- Effective `dt-half` source failures after applying source-aware owners to
+  the normalized run itself: none.
 
 Interpretation:
 
 - Source/reservoir closure is now good enough for an AtrialFiberPack-without-AV-plane
   readiness review.
 - This does not mean raw source surfaces pass at `dt-half`.
+- This does not reuse old unnormalized effective statuses; normalized effective
+  statuses are recomputed from the normalized run's own failure reasons.
 - This does not mean runtime, true four-chamber dynamics, morphology acceptance,
   AV-plane, or LandAtrial are unlocked.
 
