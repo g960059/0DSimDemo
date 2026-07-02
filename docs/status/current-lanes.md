@@ -41,9 +41,10 @@ are implemented. The explicit reservoir-state, Gate C volume-reserve scaffold,
 four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
-Next PR target: AtrialFiberPack-without-AV-plane readiness review on top of
-the source/reservoir contract signal. Runtime wiring, reservoir broad
-retuning, AV-plane work, and LandAtrial re-entry remain blocked.
+Next PR target: AV-plane-off closed-loop atrial-fiber smoke on top of the
+source/reservoir contract and prescribed-volume AtrialFiberPack signal.
+Runtime wiring, reservoir broad retuning, AV-plane work, and LandAtrial
+re-entry remain blocked.
 
 Detailed plan: [MechanicsCore2 / CircAdapt-lite execution plan v3](../mechanics2/MechanicsCore2_CircAdaptLite_ExecutionPlan_v3.md).
 
@@ -146,6 +147,9 @@ Included:
 - FourChamberSourceReservoirContractReviewBench V1 for promoting smooth
   reservoir dynamics plus source-ledger input normalization into a
   source/reservoir contract signal while preserving raw status-rate failures.
+- AtrialFiberPackV1 and AtrialFiberPackPrescribedVolumeBench V1 for the first
+  CircAdapt-lite style LA/RA one-fiber wall readiness signal without AV-plane
+  geometry or piston-volume coupling.
 
 Excluded:
 
@@ -574,6 +578,14 @@ Next gates:
     This is enough to review AtrialFiberPack without
     AV-plane as a next sidecar scope, not enough for runtime wiring, AV-plane,
     LandAtrial, direct PV outflow transfer, or morphology acceptance.
+55. AtrialFiberPack prescribed-volume readiness: LA/RA one-fiber chamber walls
+    pass 4/4 prescribed-volume fixtures on top of the source/reservoir contract
+    signal. LA peak pressure is ~6 mmHg, RA peak pressure is ~3 mmHg, all
+    outputs are finite and bounded, and active pressure peaks remain
+    late-diastolic at theta ~0.79-0.81. This is enough to attempt an
+    AV-plane-off closed-loop atrial-fiber smoke, not enough for runtime wiring,
+    AV-plane geometry, piston-volume mode, LandAtrial unlock, or morphology
+    acceptance.
 
 Parallel prep, not blocking the next strategic gate:
 

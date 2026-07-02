@@ -1,0 +1,160 @@
+{
+  "reportId": "atrial-fiber-pack-prescribed-volume-report-v1",
+  "gateId": "atrialFiberPackPrescribedVolumeV1",
+  "upstreamSourceReservoirContract": {
+    "requiredStatus": "source-reservoir-contract-review-signal",
+    "observedStatus": "source-reservoir-contract-review-signal",
+    "mayProceedObserved": true
+  },
+  "fixtureResults": [
+    {
+      "fixtureId": "la-normal-sinus-volume-v1",
+      "chamberId": "LA",
+      "status": "pass",
+      "pressurePeakMmHg": 6.047188,
+      "pressureMinMmHg": 0,
+      "pressurePulseMmHg": 6.047188,
+      "activePressurePeakMmHg": 6.047188,
+      "passivePressurePeakMmHg": 0.021212,
+      "seriesPressurePeakMmHg": 0.197859,
+      "activePeakTheta": 0.8125,
+      "maxAbsLSiVelocityNormPerSec": 0.556786,
+      "pressureShape": {
+        "sampleCount": 160,
+        "min": 0,
+        "max": 6.047187513245608,
+        "range": 6.047187513245608,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.1375,
+        "peakWidthAtHalfMaxFraction": 0.1375,
+        "peakAreaRatio": 0.259608789616122,
+        "c1ContinuityScore": 0.194066,
+        "dYdtSpikeRatio": 6.282075,
+        "positiveCurvatureFraction": 0.405063,
+        "positiveCurvatureBurden": 0.136946
+      },
+      "allFinite": true,
+      "failureReasons": []
+    },
+    {
+      "fixtureId": "ra-normal-sinus-volume-v1",
+      "chamberId": "RA",
+      "status": "pass",
+      "pressurePeakMmHg": 3.153339,
+      "pressureMinMmHg": 0.000108,
+      "pressurePulseMmHg": 3.153231,
+      "activePressurePeakMmHg": 3.153339,
+      "passivePressurePeakMmHg": 0.012491,
+      "seriesPressurePeakMmHg": 0.11039,
+      "activePeakTheta": 0.79375,
+      "maxAbsLSiVelocityNormPerSec": 0.537156,
+      "pressureShape": {
+        "sampleCount": 160,
+        "min": 0.00010777075986680109,
+        "max": 3.1533385368201126,
+        "range": 3.1532307660602457,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.1375,
+        "peakWidthAtHalfMaxFraction": 0.1375,
+        "peakAreaRatio": 0.2523566668635409,
+        "c1ContinuityScore": 0.193618,
+        "dYdtSpikeRatio": 6.90112,
+        "positiveCurvatureFraction": 0.424051,
+        "positiveCurvatureBurden": 0.142254
+      },
+      "allFinite": true,
+      "failureReasons": []
+    },
+    {
+      "fixtureId": "la-high-preload-volume-v1",
+      "chamberId": "LA",
+      "status": "pass",
+      "pressurePeakMmHg": 6.244287,
+      "pressureMinMmHg": 0.002728,
+      "pressurePulseMmHg": 6.241558,
+      "activePressurePeakMmHg": 6.243258,
+      "passivePressurePeakMmHg": 0.041417,
+      "seriesPressurePeakMmHg": 0.187375,
+      "activePeakTheta": 0.8125,
+      "maxAbsLSiVelocityNormPerSec": 0.597013,
+      "pressureShape": {
+        "sampleCount": 160,
+        "min": 0.0027284399132823513,
+        "max": 6.2442865507411724,
+        "range": 6.24155811082789,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.1375,
+        "peakWidthAtHalfMaxFraction": 0.1375,
+        "peakAreaRatio": 0.2587733465827668,
+        "c1ContinuityScore": 0.194666,
+        "dYdtSpikeRatio": 5.631086,
+        "positiveCurvatureFraction": 0.386076,
+        "positiveCurvatureBurden": 0.137027
+      },
+      "allFinite": true,
+      "failureReasons": []
+    },
+    {
+      "fixtureId": "ra-low-preload-volume-v1",
+      "chamberId": "RA",
+      "status": "pass",
+      "pressurePeakMmHg": 3.00424,
+      "pressureMinMmHg": 0,
+      "pressurePulseMmHg": 3.00424,
+      "activePressurePeakMmHg": 3.00424,
+      "passivePressurePeakMmHg": 0.004356,
+      "seriesPressurePeakMmHg": 0.117867,
+      "activePeakTheta": 0.7875,
+      "maxAbsLSiVelocityNormPerSec": 0.502658,
+      "pressureShape": {
+        "sampleCount": 160,
+        "min": 0,
+        "max": 3.0042401720756864,
+        "range": 3.0042401720756864,
+        "dominantPeakCount": 1,
+        "secondaryPeakProminenceRatio": 0,
+        "fwhmFractionOfWindow": 0.1375,
+        "peakWidthAtHalfMaxFraction": 0.1375,
+        "peakAreaRatio": 0.25175225506162646,
+        "c1ContinuityScore": 0.192505,
+        "dYdtSpikeRatio": 7.213893,
+        "positiveCurvatureFraction": 0.449367,
+        "positiveCurvatureBurden": 0.142494
+      },
+      "allFinite": true,
+      "failureReasons": []
+    }
+  ],
+  "summary": {
+    "total": 4,
+    "pass": 4,
+    "fail": 0,
+    "boundedPressureCount": 4,
+    "lateActivePeakCount": 4,
+    "finiteCount": 4
+  },
+  "decision": {
+    "atrialFiberPackStatus": "atrial-fiber-pack-prescribed-volume-signal",
+    "nextAction": "Proceed to an AV-plane-off closed-loop atrial-fiber smoke. Keep AV-plane geometry, piston-volume mode, LandAtrial, and runtime wiring locked.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "closed-loop-atria",
+      "morphology-acceptance",
+      "AV-plane-geometry",
+      "AV-plane-piston-volume-mode",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "closedLoopAtria": false,
+    "morphologyAcceptance": false,
+    "AVPlaneGeometry": false,
+    "pistonVolumeMode": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "1fd19ce80c0c84649b43f5a71e260ef52b00d615a55134d7cc9dcfca3cad90e6"
+}
