@@ -1,0 +1,805 @@
+{
+  "reportId": "la-active-pressure-additive-source-report-v1",
+  "gateId": "laActivePressureAdditiveSourceV1",
+  "sourceMode": "left-heart-LA-fiber-active-pressure-additive-shadow-no-runtime-no-AV-plane",
+  "variants": [
+    {
+      "variantId": "fiber-active-additive-gain025",
+      "activePressureGain": 0.25
+    },
+    {
+      "variantId": "fiber-active-additive-gain050",
+      "activePressureGain": 0.5
+    },
+    {
+      "variantId": "fiber-active-additive-gain075",
+      "activePressureGain": 0.75
+    },
+    {
+      "variantId": "fiber-active-additive-gain100",
+      "activePressureGain": 1
+    }
+  ],
+  "rows": [
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "fiber-active-additive-gain025",
+      "activePressureGain": 0.25,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.185383,
+      "mvForwardVolumeRatio": 1.006302,
+      "aovForwardVolumeRatio": 1.008645,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "pass",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "fiber-active-additive-gain050",
+      "activePressureGain": 0.5,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.250503,
+      "mvForwardVolumeRatio": 1.04711,
+      "aovForwardVolumeRatio": 1.035895,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "pass",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "fiber-active-additive-gain075",
+      "activePressureGain": 0.75,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.335448,
+      "mvForwardVolumeRatio": 1.058435,
+      "aovForwardVolumeRatio": 1.043086,
+      "clampCount": 11,
+      "baselineClampCount": 5,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr75",
+      "sourcePointId": "left-heart-normal-hr75",
+      "variantId": "fiber-active-additive-gain100",
+      "activePressureGain": 1,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.48889,
+      "mvForwardVolumeRatio": 1.078682,
+      "aovForwardVolumeRatio": 1.071866,
+      "clampCount": 40,
+      "baselineClampCount": 5,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "mvf-c1-kink",
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "fiber-active-additive-gain025",
+      "activePressureGain": 0.25,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.276238,
+      "mvForwardVolumeRatio": 1.00893,
+      "aovForwardVolumeRatio": 1.008805,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "fiber-active-additive-gain050",
+      "activePressureGain": 0.5,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.279324,
+      "mvForwardVolumeRatio": 0.982294,
+      "aovForwardVolumeRatio": 0.938628,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed",
+        "v-loop-not-higher-volume-than-a-loop"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "fiber-active-additive-gain075",
+      "activePressureGain": 0.75,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.330108,
+      "mvForwardVolumeRatio": 1.041256,
+      "aovForwardVolumeRatio": 1.014695,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed",
+        "v-loop-not-higher-volume-than-a-loop"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "normal-hr90",
+      "sourcePointId": "left-heart-normal-hr90",
+      "variantId": "fiber-active-additive-gain100",
+      "activePressureGain": 1,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.467888,
+      "mvForwardVolumeRatio": 1.047104,
+      "aovForwardVolumeRatio": 1.025671,
+      "clampCount": 13,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed",
+        "v-loop-not-higher-volume-than-a-loop"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "mvf-c1-kink",
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "fiber-active-additive-gain025",
+      "activePressureGain": 0.25,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.188321,
+      "mvForwardVolumeRatio": 1.009574,
+      "aovForwardVolumeRatio": 1.007081,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "fiber-active-additive-gain050",
+      "activePressureGain": 0.5,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.149861,
+      "mvForwardVolumeRatio": 1.042824,
+      "aovForwardVolumeRatio": 0.99522,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "fiber-active-additive-gain075",
+      "activePressureGain": 0.75,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.376889,
+      "mvForwardVolumeRatio": 1.073957,
+      "aovForwardVolumeRatio": 1.017494,
+      "clampCount": 5,
+      "baselineClampCount": 5,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "v-loop-area-too-small"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-low",
+      "sourcePointId": "left-heart-preload-low",
+      "variantId": "fiber-active-additive-gain100",
+      "activePressureGain": 1,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.447655,
+      "mvForwardVolumeRatio": 1.082112,
+      "aovForwardVolumeRatio": 1.042379,
+      "clampCount": 28,
+      "baselineClampCount": 5,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "mvf-c1-kink",
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "fiber-active-additive-gain025",
+      "activePressureGain": 0.25,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.246216,
+      "mvForwardVolumeRatio": 1.008048,
+      "aovForwardVolumeRatio": 1.007645,
+      "clampCount": 3,
+      "baselineClampCount": 3,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "fiber-active-additive-gain050",
+      "activePressureGain": 0.5,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.34853,
+      "mvForwardVolumeRatio": 1.034497,
+      "aovForwardVolumeRatio": 1.034428,
+      "clampCount": 3,
+      "baselineClampCount": 3,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "pass",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "fiber-active-additive-gain075",
+      "activePressureGain": 0.75,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.448871,
+      "mvForwardVolumeRatio": 1.047624,
+      "aovForwardVolumeRatio": 1.05019,
+      "clampCount": 15,
+      "baselineClampCount": 3,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-c1-kink",
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "preload-high",
+      "sourcePointId": "left-heart-preload-high",
+      "variantId": "fiber-active-additive-gain100",
+      "activePressureGain": 1,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.612024,
+      "mvForwardVolumeRatio": 1.077737,
+      "aovForwardVolumeRatio": 1.087225,
+      "clampCount": 34,
+      "baselineClampCount": 3,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-c1-kink",
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "fiber-active-additive-gain025",
+      "activePressureGain": 0.25,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.271907,
+      "mvForwardVolumeRatio": 1.012799,
+      "aovForwardVolumeRatio": 1.012123,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "fiber-active-additive-gain050",
+      "activePressureGain": 0.5,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.369714,
+      "mvForwardVolumeRatio": 1.037573,
+      "aovForwardVolumeRatio": 1.035171,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "fiber-active-additive-gain075",
+      "activePressureGain": 0.75,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.428437,
+      "mvForwardVolumeRatio": 1.07835,
+      "aovForwardVolumeRatio": 1.081386,
+      "clampCount": 5,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "mvf-c1-kink",
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "afterload-high",
+      "sourcePointId": "left-heart-afterload-high",
+      "variantId": "fiber-active-additive-gain100",
+      "activePressureGain": 1,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.597137,
+      "mvForwardVolumeRatio": 1.127848,
+      "aovForwardVolumeRatio": 1.126518,
+      "clampCount": 15,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "mvf-c1-kink",
+        "new-clamp-hit",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "fiber-active-additive-gain025",
+      "activePressureGain": 0.25,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.224311,
+      "mvForwardVolumeRatio": 1.046163,
+      "aovForwardVolumeRatio": 1.051991,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "a-loop-area-too-small",
+        "v-loop-area-too-small",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "fiber-active-additive-gain050",
+      "activePressureGain": 0.5,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.55461,
+      "mvForwardVolumeRatio": 1.174927,
+      "aovForwardVolumeRatio": 1.180523,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-c1-kink",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "fiber-active-additive-gain075",
+      "activePressureGain": 0.75,
+      "mvForwardPeakCount": 2,
+      "mvC1ContinuityScore": 0.581277,
+      "mvForwardVolumeRatio": 1.333843,
+      "aovForwardVolumeRatio": 1.340097,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-c1-kink",
+        "mv-forward-volume-ratio-wide",
+        "aov-output-ratio-wide",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-low",
+      "sourcePointId": "left-heart-contractility-low",
+      "variantId": "fiber-active-additive-gain100",
+      "activePressureGain": 1,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.69273,
+      "mvForwardVolumeRatio": 1.49733,
+      "aovForwardVolumeRatio": 1.503737,
+      "clampCount": 0,
+      "baselineClampCount": 0,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "mvf-c1-kink",
+        "mv-forward-volume-ratio-wide",
+        "aov-output-ratio-wide",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "fiber-active-additive-gain025",
+      "activePressureGain": 0.25,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.165782,
+      "mvForwardVolumeRatio": 1.018315,
+      "aovForwardVolumeRatio": 1.025091,
+      "clampCount": 13,
+      "baselineClampCount": 13,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection",
+        "a-v-lobes-not-opposed"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "fiber-active-additive-gain050",
+      "activePressureGain": 0.5,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.148088,
+      "mvForwardVolumeRatio": 1.011132,
+      "aovForwardVolumeRatio": 1.038376,
+      "clampCount": 13,
+      "baselineClampCount": 13,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "fiber-active-additive-gain075",
+      "activePressureGain": 0.75,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.174061,
+      "mvForwardVolumeRatio": 1.004999,
+      "aovForwardVolumeRatio": 1.003947,
+      "clampCount": 13,
+      "baselineClampCount": 13,
+      "maxMassResidualAbsMl": 0,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "la-pv-lobe-quality-fail"
+      ]
+    },
+    {
+      "profileId": "contractility-high",
+      "sourcePointId": "left-heart-contractility-high",
+      "variantId": "fiber-active-additive-gain100",
+      "activePressureGain": 1,
+      "mvForwardPeakCount": 1,
+      "mvC1ContinuityScore": 0.182733,
+      "mvForwardVolumeRatio": 1.098104,
+      "aovForwardVolumeRatio": 1.104261,
+      "clampCount": 104,
+      "baselineClampCount": 13,
+      "maxMassResidualAbsMl": 1.659713,
+      "laPvLobeQualityPass": false,
+      "laPvFailureReasons": [
+        "missing-pv-self-intersection"
+      ],
+      "sourceSurfaceStatus": "fail",
+      "contractStatus": "fail",
+      "failureReasons": [
+        "mvf-not-biphasic",
+        "new-clamp-hit",
+        "mass-residual-wide",
+        "la-pv-lobe-quality-fail"
+      ]
+    }
+  ],
+  "variantSummaries": [
+    {
+      "variantId": "fiber-active-additive-gain025",
+      "sourceSurfacePass": 1,
+      "contractPass": 0,
+      "laPvLobeQualityPass": 0,
+      "mvfCleanCount": 1,
+      "mvForwardVolumeParityCount": 7,
+      "aovOutputParityCount": 7,
+      "clampRegressionFreeCount": 7,
+      "massCleanCount": 7,
+      "meanMvForwardVolumeRatio": 1.015733,
+      "meanAovForwardVolumeRatio": 1.01734
+    },
+    {
+      "variantId": "fiber-active-additive-gain050",
+      "sourceSurfacePass": 2,
+      "contractPass": 0,
+      "laPvLobeQualityPass": 0,
+      "mvfCleanCount": 2,
+      "mvForwardVolumeParityCount": 7,
+      "aovOutputParityCount": 7,
+      "clampRegressionFreeCount": 7,
+      "massCleanCount": 7,
+      "meanMvForwardVolumeRatio": 1.047194,
+      "meanAovForwardVolumeRatio": 1.036892
+    },
+    {
+      "variantId": "fiber-active-additive-gain075",
+      "sourceSurfacePass": 0,
+      "contractPass": 0,
+      "laPvLobeQualityPass": 0,
+      "mvfCleanCount": 1,
+      "mvForwardVolumeParityCount": 6,
+      "aovOutputParityCount": 6,
+      "clampRegressionFreeCount": 4,
+      "massCleanCount": 7,
+      "meanMvForwardVolumeRatio": 1.091209,
+      "meanAovForwardVolumeRatio": 1.078699
+    },
+    {
+      "variantId": "fiber-active-additive-gain100",
+      "sourceSurfacePass": 0,
+      "contractPass": 0,
+      "laPvLobeQualityPass": 0,
+      "mvfCleanCount": 0,
+      "mvForwardVolumeParityCount": 6,
+      "aovOutputParityCount": 6,
+      "clampRegressionFreeCount": 1,
+      "massCleanCount": 6,
+      "meanMvForwardVolumeRatio": 1.144131,
+      "meanAovForwardVolumeRatio": 1.13738
+    }
+  ],
+  "bestVariant": {
+    "variantId": "fiber-active-additive-gain050",
+    "sourceSurfacePass": 2,
+    "contractPass": 0,
+    "laPvLobeQualityPass": 0,
+    "mvfCleanCount": 2,
+    "mvForwardVolumeParityCount": 7,
+    "aovOutputParityCount": 7,
+    "clampRegressionFreeCount": 7,
+    "massCleanCount": 7,
+    "meanMvForwardVolumeRatio": 1.047194,
+    "meanAovForwardVolumeRatio": 1.036892
+  },
+  "summary": {
+    "totalProfiles": 7,
+    "bestVariantId": "fiber-active-additive-gain050",
+    "bestSourceSurfacePass": 2,
+    "bestContractPass": 0,
+    "bestLaPvLobeQualityPass": 0,
+    "bestMvfCleanCount": 2
+  },
+  "decision": {
+    "laActivePressureAdditiveSourceStatus": "la-active-pressure-additive-source-blocked",
+    "nextAction": "Keep additive active-pressure source promotion blocked; direct source-surface pressure changes are still insufficient.",
+    "blockedClaims": [
+      "runtime-wiring",
+      "morphology-acceptance",
+      "AV-plane-geometry",
+      "a-prime-readback",
+      "LandAtrial-unlock"
+    ]
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "morphologyAcceptance": false,
+    "AVPlaneGeometry": false,
+    "aPrimeReadback": false,
+    "LandAtrialUnlock": false
+  },
+  "normalizedSha256": "904c5963dbd340a4ccd01ad240796dd0b1179589f85afcc24c595940d19cfd9f"
+}

@@ -60,9 +60,10 @@ four-chamber assembly contract, assembly smoke, and first epoch-level
 four-chamber subsystem smoke are also implemented.
 
 Next PR target: carry the cyclic accepted valve-state replay, stateful LA
-chamber mixed signal, and local LA/MV no-go into a same-step
-pulmonary-reservoir/LA-chamber/MV-valve/LV-filling transaction with explicit
-phase-local pressure-flow causality/energy ownership. Direct atrial pressure
+chamber mixed signal, local LA/MV no-go, and additive active-pressure source
+no-go into a same-step pulmonary-reservoir/LA-chamber/MV-valve/LV-filling
+transaction with explicit phase-local pressure-flow causality/energy ownership.
+Direct atrial pressure substitution, additive atrial active-pressure source
 substitution, direct AV-gradient injection, more fixed source-state variant
 sweeps, runtime wiring, reservoir broad retuning, AV-plane work, and
 LandAtrial re-entry remain blocked. For atrial work, pressure parity or MVF
@@ -220,6 +221,9 @@ Included:
 - LaMvSameStepTransactionReplayBench V1 for a local LA/MV same-step replay
   using AtrialFiber total pressure while LVP and pulmonary venous inflow remain
   baseline-forced.
+- LaActivePressureAdditiveSourceBench V1 for testing whether adding AtrialFiber
+  active pressure to the empirical LA pressure baseline can preserve left-heart
+  source-surface behavior and LA PV lobe quality.
 
 Excluded:
 
@@ -776,6 +780,16 @@ Next gates:
     valve pressure-flow, and LV filling together rather than forcing LVP/PV
     inflow from the baseline. Runtime, AV-plane enablement, a-prime claims,
     LandAtrial, and morphology acceptance remain blocked.
+70. Additive LA active-pressure source comparison: adding AtrialFiber active
+    pressure to the empirical LA pressure baseline preserves volume/output/mass
+    parity in the best gain-0.50 variant, but it is still not a promotion path.
+    Best source-surface pass is 2/7, contract pass 0/7, LA PV lobe-quality
+    0/7, and MVF clean 2/7. This closes pressure-source addition as a shortcut:
+    the next transaction must co-own pulmonary reservoir/inflow, LA pressure-
+    volume evolution, MV pressure-flow/energy, and LV filling rather than
+    adding atrial active pressure to a pre-existing source surface. Runtime,
+    AV-plane enablement, a-prime claims, LandAtrial, and morphology acceptance
+    remain blocked.
 
 Parallel prep, not blocking the next strategic gate:
 

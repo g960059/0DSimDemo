@@ -182,6 +182,9 @@ Current scope:
 - `benches/LaMvSameStepTransactionReplayBench.ts`: local LA/MV same-step
   transaction replay using AtrialFiber total pressure, baseline LVP, and
   pulmonary venous inflow with AV-plane disabled.
+- `benches/LaActivePressureAdditiveSourceBench.ts`: left-heart source-surface
+  comparison that adds AtrialFiber active pressure to the empirical LA pressure
+  baseline without AV-plane enablement.
 
 The first replay fixtures are procedural fixtures that lock the fixture schema
 and gate semantics. They are not extracted patient traces and are not CircAdapt
