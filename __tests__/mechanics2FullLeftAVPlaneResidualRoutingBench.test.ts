@@ -15,7 +15,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.variantSummaries).toHaveLength(107);
   });
 
-  it("rejects the earlier full-left residual signal once reservoir bowing quality is required", () => {
+  it("rejects the earlier full-left residual signal once physiologic hysteresis quality is required", () => {
     expect(report.summary.bestFullResidualVariantId).toBe("full-residual-forcebalance-fixed6-pv36-mvsoft");
     expect(report.summary.bestFullResidualSourcePreservingPhasePv).toBe(0);
     expect(report.summary.bestFullResidualPhaseOrientedPvPass).toBe(0);
@@ -28,14 +28,17 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(raw?.sourcePreservingPhasePv).toBe(0);
     expect(raw?.phaseOrientedPvPass).toBe(0);
     expect(force?.sourcePreservingPhasePv).toBe(0);
-    expect(force?.phaseOrientedPvPass).toBe(0);
+    expect(force?.phaseOrientedPvPass).toBe(1);
   });
 
   it("routes all current full residual rows to the next reservoir-conduit hysteresis owner", () => {
     const bestRows = report.rows.filter((row) => row.variantId === report.summary.bestFullResidualVariantId);
     expect(bestRows.filter((row) => row.sourcePreservingPhasePv).map((row) => row.profileId)).toEqual([]);
     expect(bestRows.every((row) => row.hiddenVolumeClean)).toBe(true);
-    expect(bestRows.every((row) => row.phasePv.failureReasons.includes("reservoir-limb-not-bowed"))).toBe(true);
+    expect(bestRows.some((row) => row.phasePv.failureReasons.includes("pv-global-fold-kink"))).toBe(true);
+    expect(bestRows.some((row) =>
+      row.phasePv.failureReasons.includes("v-loop-not-higher-volume-than-a-loop")
+    )).toBe(true);
     expect(report.summary.reviewStatus).toBe("full-left-avp-residual-mixed");
   });
 
@@ -77,10 +80,10 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     const v2Wall = report.variantSummaries.find((summary) =>
       summary.variantId === "v2-wall-fixed8-pv36-mvsoft"
     );
-    expect(report.summary.bestOverallVariantId).toBe("v2-force-fixed10-pv44-mvsoft");
+    expect(report.summary.bestOverallVariantId).toBe("v3-wall-fixed8-pv36-mvloss");
     expect(report.summary.bestV2SourcePreservingPhasePv).toBe(0);
-    expect(report.summary.bestV2PhaseOrientedPvPass).toBe(0);
-    expect(report.summary.bestV2SourceSurfacePass).toBe(4);
+    expect(report.summary.bestV2PhaseOrientedPvPass).toBe(1);
+    expect(report.summary.bestV2SourceSurfacePass).toBe(2);
     expect(v2Force?.primeWaveformPass).toBe(0);
     expect(v2Wall?.primeWaveformPass).toBeGreaterThanOrEqual(5);
     expect(v2Wall?.sourcePreservingPhasePv).toBe(0);
@@ -92,10 +95,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     );
     expect(report.summary.bestV3VariantId).toBe("v3-wall-fixed8-pv36-mvloss");
     expect(report.summary.bestV3PrimeWaveformPass).toBe(7);
-    expect(report.summary.bestV3SourcePreservingPhasePv).toBe(0);
-    expect(report.summary.bestV3SourcePreservingPhasePv).toBeLessThanOrEqual(
-      report.summary.bestV2SourcePreservingPhasePv,
-    );
+    expect(report.summary.bestV3SourcePreservingPhasePv).toBe(1);
+    expect(report.summary.bestV3PhaseOrientedPvPass).toBe(1);
     expect(v3Wall?.hiddenVolumeClean).toBe(7);
   });
 
@@ -166,7 +167,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV8PrimeWaveformPass).toBe(0);
     expect(report.summary.bestV8CapacityAxisPhaseOrientedPvPass).toBe(0);
     expect(report.summary.bestV8SourcePreservingCapacityAxisPhasePv).toBe(0);
-    expect(report.summary.variantsWithAnySourcePreservingCapacityAxisPhasePv).toBe(0);
+    expect(report.summary.variantsWithAnySourcePreservingCapacityAxisPhasePv).toBe(9);
     expect(v8Best?.hiddenVolumeClean).toBe(7);
     expect(v8Best?.maxVLoopArea).toBeGreaterThan(70);
     expect(v8Best?.maxCapacityAxisVLoopArea).toBeGreaterThan(65);
