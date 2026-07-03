@@ -63,6 +63,7 @@ export type LeftAtrialEffectiveGeometryModeV2 =
   | "av-plane-full-left-phase-owned-residual-v1"
   | "av-plane-full-left-reference-capacity-residual-v1"
   | "av-plane-full-left-reference-capacity-venous-residual-v1"
+  | "av-plane-full-left-dynamic-reference-pressure-residual-v1"
   | "av-plane-full-left-reference-wall-geometry-residual-v1";
 export type LeftAtrialLobeGeneratorModeV2 =
   | "none"
@@ -90,6 +91,7 @@ export type LeftAtrialLobeGeneratorModeV2 =
   | "av-plane-full-left-phase-owned-residual-v1"
   | "av-plane-full-left-reference-capacity-residual-v1"
   | "av-plane-full-left-reference-capacity-venous-residual-v1"
+  | "av-plane-full-left-dynamic-reference-pressure-residual-v1"
   | "av-plane-full-left-reference-wall-geometry-residual-v1";
 export type LeftAtrialPressureSourceModeV2 =
   | "empirical-a-wave"
@@ -810,6 +812,7 @@ function acceptLeftHeartCandidateV2(input: {
     || input.params.laEffectiveGeometryMode === "av-plane-full-left-phase-owned-residual-v1"
     || input.params.laEffectiveGeometryMode === "av-plane-full-left-reference-capacity-residual-v1"
     || input.params.laEffectiveGeometryMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || input.params.laEffectiveGeometryMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || input.params.laEffectiveGeometryMode === "av-plane-full-left-reference-wall-geometry-residual-v1"
     ? avPlaneGeometryReadback.atrialGeometryDeltaMl
     : 0;
@@ -827,6 +830,7 @@ function acceptLeftHeartCandidateV2(input: {
     lapFiberActivePulse01,
     laFiberChamber.pressureRawMmHg,
     laFiberChamber.activePressureMmHg,
+    leftAtrialPressureReferenceVolumeShiftMl(input.params, laReservoirReferenceVolumeShiftMl),
   ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
   const lapSafetyMmHg = safetyPressureMmHg(
     input.candidate.laVolumeMl,
@@ -904,6 +908,7 @@ function acceptLeftHeartCandidateV2(input: {
       lapFiberActivePulse01,
       laFiberChamber.pressureRawMmHg,
       laFiberChamber.activePressureMmHg,
+      leftAtrialPressureReferenceVolumeShiftMl(input.params, laReservoirReferenceVolumeShiftMl),
     ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
   }
   if (input.params.laLobeGeneratorMode === "av-plane-reference-volume-coordinate-transaction-v1") {
@@ -960,6 +965,7 @@ function acceptLeftHeartCandidateV2(input: {
       lapFiberActivePulse01,
       laFiberChamber.pressureRawMmHg,
       laFiberChamber.activePressureMmHg,
+      leftAtrialPressureReferenceVolumeShiftMl(input.params, laReservoirReferenceVolumeShiftMl),
     ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
   }
   if (
@@ -970,6 +976,7 @@ function acceptLeftHeartCandidateV2(input: {
     || input.params.laLobeGeneratorMode === "av-plane-full-left-phase-owned-residual-v1"
     || input.params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-residual-v1"
     || input.params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || input.params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || input.params.laLobeGeneratorMode === "av-plane-full-left-reference-wall-geometry-residual-v1"
   ) {
     let mvOpenEstimate01 = input.previousMvState.open01;
@@ -1039,6 +1046,7 @@ function acceptLeftHeartCandidateV2(input: {
         lapFiberActivePulse01,
         laFiberChamber.pressureRawMmHg,
         laFiberChamber.activePressureMmHg,
+        leftAtrialPressureReferenceVolumeShiftMl(input.params, laReservoirReferenceVolumeShiftMl),
       ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
       const lapWithCoordinateMmHg =
         Math.max(0, lapRawWithoutTractionMmHg + laAVPlaneWorkCoordinate.tractionPressureMmHg)
@@ -1092,7 +1100,8 @@ function acceptLeftHeartCandidateV2(input: {
       / Math.max(rootOutResistanceEffectiveMmHgSecPerMl, 1e-9),
   );
   const usesReferenceCapacityVenousResidual =
-    input.params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1";
+    input.params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || input.params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1";
   const previousKinematicReservoirCapacityMl = usesReferenceCapacityVenousResidual
     ? previousLaReservoirReferenceVolumeShiftMl
     : previousAvPlaneGeometryReadback.atrialGeometryDeltaMl;
@@ -1187,6 +1196,8 @@ function isFullLeftReferenceCapacityResidualMode(params: LeftHeartSubsystemParam
     || params.laEffectiveGeometryMode === "av-plane-full-left-reference-capacity-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
     || params.laEffectiveGeometryMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
+    || params.laEffectiveGeometryMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-wall-geometry-residual-v1"
     || params.laEffectiveGeometryMode === "av-plane-full-left-reference-wall-geometry-residual-v1";
 }
@@ -1416,6 +1427,7 @@ function leftAtrialEffectiveGeometryReadback(input: {
     || geometryMode === "av-plane-full-left-phase-owned-residual-v1"
     || geometryMode === "av-plane-full-left-reference-capacity-residual-v1"
     || geometryMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || geometryMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || geometryMode === "av-plane-full-left-reference-wall-geometry-residual-v1";
   const usesWorkCoordinateReadback =
     geometryMode === "av-plane-force-position-reservoir-transaction-v1"
@@ -1429,6 +1441,7 @@ function leftAtrialEffectiveGeometryReadback(input: {
     || geometryMode === "av-plane-full-left-phase-owned-residual-v1"
     || geometryMode === "av-plane-full-left-reference-capacity-residual-v1"
     || geometryMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || geometryMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || geometryMode === "av-plane-full-left-reference-wall-geometry-residual-v1";
   const zAvNorm = geometryMode === "phase-reservoir-capacity-volume-shadow"
     ? raisedCosineWindow(input.theta, 0.06, 0.82)
@@ -1508,6 +1521,7 @@ function leftAtrialEffectiveFiberVolumeMl(
   if (
     params.laEffectiveGeometryMode === "av-plane-full-left-reference-capacity-residual-v1"
     || params.laEffectiveGeometryMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || params.laEffectiveGeometryMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || params.laEffectiveGeometryMode === "av-plane-full-left-reference-wall-geometry-residual-v1"
   ) {
     return Math.max(1e-6, bloodVolumeMl);
@@ -1592,6 +1606,7 @@ function nextLaReservoirSuctionDrive01(
     && params.laLobeGeneratorMode !== "av-plane-full-left-phase-owned-residual-v1"
     && params.laLobeGeneratorMode !== "av-plane-full-left-reference-capacity-residual-v1"
     && params.laLobeGeneratorMode !== "av-plane-full-left-reference-capacity-venous-residual-v1"
+    && params.laLobeGeneratorMode !== "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     && params.laLobeGeneratorMode !== "av-plane-full-left-reference-wall-geometry-residual-v1"
   ) return 0;
   const phaseDrive01 = raisedCosineWindow(
@@ -1629,8 +1644,9 @@ function nextLaReservoirSuctionDrive01(
       || params.laLobeGeneratorMode === "av-plane-full-left-hybrid-velocity-residual-v1"
       || params.laLobeGeneratorMode === "av-plane-full-left-phase-owned-residual-v1"
       || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-residual-v1"
-    || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
-    || params.laLobeGeneratorMode === "av-plane-full-left-reference-wall-geometry-residual-v1"
+      || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+      || params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
+      || params.laLobeGeneratorMode === "av-plane-full-left-reference-wall-geometry-residual-v1"
       ? phaseDrive01 * smoothstep01(
         (Math.max(0, lvEjectionVolumeDeltaMl / Math.max(dtSec, 1e-9))
           - params.laAVPlaneEjectionRateStartMlPerSec)
@@ -1659,6 +1675,7 @@ function nextLaReservoirSuctionDrive01(
     || params.laLobeGeneratorMode === "av-plane-full-left-phase-owned-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-wall-geometry-residual-v1"
     ? smoothstep01(
       previousMvOpen01
@@ -1687,6 +1704,7 @@ function nextLaReservoirSuctionDrive01(
     || params.laLobeGeneratorMode === "av-plane-full-left-phase-owned-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-wall-geometry-residual-v1";
   const usesCapacityReleaseTau =
     params.laLobeGeneratorMode === "av-plane-reservoir-capacity-transaction-v1"
@@ -1708,6 +1726,7 @@ function nextLaReservoirSuctionDrive01(
     || params.laLobeGeneratorMode === "av-plane-full-left-phase-owned-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-wall-geometry-residual-v1";
   const tau = acceptedTargetDrive01 > previousDrive01
     ? usesCapacityTau
@@ -1843,6 +1862,7 @@ function avPlaneReservoirKinematicFlowMlPerSec(
     && params.laLobeGeneratorMode !== "av-plane-force-balance-coordinate-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-wall-work-lamv-residual-transaction-v1"
     && params.laLobeGeneratorMode !== "av-plane-full-left-reference-capacity-venous-residual-v1"
+    && params.laLobeGeneratorMode !== "av-plane-full-left-dynamic-reference-pressure-residual-v1"
   ) return 0;
   if (params.laAVPlaneVenousReservoirCouplingGain <= 0) return 0;
   if (params.laAVPlaneVenousReservoirMaxFlowMlPerSec <= 0) return 0;
@@ -1868,6 +1888,7 @@ function leftAtrialReferenceVolumeShiftMl(
   if (
     params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-capacity-venous-residual-v1"
+    || params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-reference-wall-geometry-residual-v1"
   ) {
     return Math.max(0, params.laAVPlaneReservoirReferenceGainMl * clamp(workCoordinateZNorm, 0, 1));
@@ -1881,6 +1902,15 @@ function leftAtrialPressureGeometryVolumeShiftMl(
   referenceVolumeShiftMl: number,
 ): number {
   return params.laLobeGeneratorMode === "av-plane-full-left-reference-wall-geometry-residual-v1"
+    ? Math.max(0, referenceVolumeShiftMl)
+    : 0;
+}
+
+function leftAtrialPressureReferenceVolumeShiftMl(
+  params: LeftHeartSubsystemParamsV2,
+  referenceVolumeShiftMl: number,
+): number {
+  return params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     ? Math.max(0, referenceVolumeShiftMl)
     : 0;
 }
@@ -1976,6 +2006,7 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
     && input.params.laLobeGeneratorMode !== "av-plane-full-left-phase-owned-residual-v1"
     && input.params.laLobeGeneratorMode !== "av-plane-full-left-reference-capacity-residual-v1"
     && input.params.laLobeGeneratorMode !== "av-plane-full-left-reference-capacity-venous-residual-v1"
+    && input.params.laLobeGeneratorMode !== "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     && input.params.laLobeGeneratorMode !== "av-plane-full-left-reference-wall-geometry-residual-v1"
   ) {
     return {
@@ -2136,13 +2167,16 @@ function leftAtrialPressureRaw(
   fiberActivePulse01: number,
   fiberChamberPressureMmHg: number,
   fiberActivePressureMmHg: number,
+  referencePressureVolumeShiftMl = 0,
 ): number {
   if (params.laPressureSourceMode === "fiber-chamber-total-pressure-shadow") {
     return fiberChamberPressureMmHg;
   }
+  const complianceReferenceVolumeMl =
+    params.laReferenceVolumeMl + Math.max(0, referencePressureVolumeShiftMl);
   const complianceBaseline =
     params.laPressureBaselineMmHg
-    + (laVolumeMl - params.laReferenceVolumeMl) / Math.max(params.laComplianceMlPerMmHg, 1e-9);
+    + (laVolumeMl - complianceReferenceVolumeMl) / Math.max(params.laComplianceMlPerMmHg, 1e-9);
   if (params.laPressureSourceMode === "fiber-active-pressure-additive-shadow") {
     return complianceBaseline + params.laFiberActivePressureGain * fiberActivePressureMmHg;
   }
