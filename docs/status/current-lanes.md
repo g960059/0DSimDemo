@@ -179,6 +179,21 @@ does not mean adding reservoir capacity as hidden blood volume; the likely
 physiology path is a dynamic AV-plane-driven LA reference/effective cavity
 volume that lowers LA wall pressure during ventricular systole while the mass
 ledger remains owned by venous/MV/AoV flows.
+A first dynamic reference-pressure probe then routes that same AV-plane
+reference-capacity shift into the empirical LA pressure reference volume while
+keeping strict blood volume ledger-owned and retaining the shadow
+`blood+capacity` axis. It is neutral/negative for strict morphology: best V9
+matches the V8 source/MVF/capacity-axis signal (source 6/7, MVF 6/7,
+capacity-axis source+phase 4/7, hidden-volume clean 7/7) but still leaves
+strict blood-volume phase-oriented LA PV at 0/7 and prime at 0/7. This
+confirms the owner-preferred effective/capacity axis is a real visual signal,
+but a compliance-baseline reference shift alone does not create the acceptable
+blood-volume v-loop or C1-continuous MV-opening limb. Next work should avoid
+more scalar capacity/reference shifts and instead solve the physiology-facing
+LA cavity/reference coordinate, LA wall pressure, MV opening/loss, pulmonary
+venous inflow, and LV ejection/relaxation timing as one accepted-state
+residual, with both blood-volume and effective-cavity PV readbacks preserved
+for visual review.
 A first isolated LA-AV-plane-MV-PV residual then co-solves LA blood volume,
 pulmonary venous reservoir pressure/flow, MV q-state flow, LA wall pressure,
 and an explicit AV-plane coordinate against prescribed LV pressure. It is a

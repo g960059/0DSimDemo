@@ -11,8 +11,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records a full-left LA-AV-plane residual routing report", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(308);
-    expect(report.variantSummaries).toHaveLength(44);
+    expect(report.rows).toHaveLength(343);
+    expect(report.variantSummaries).toHaveLength(49);
   });
 
   it("finds a source-preserving phase-oriented signal only after full-left residual ownership is added", () => {
@@ -168,7 +168,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV8PrimeWaveformPass).toBe(0);
     expect(report.summary.bestV8CapacityAxisPhaseOrientedPvPass).toBe(4);
     expect(report.summary.bestV8SourcePreservingCapacityAxisPhasePv).toBe(4);
-    expect(report.summary.variantsWithAnySourcePreservingCapacityAxisPhasePv).toBe(21);
+    expect(report.summary.variantsWithAnySourcePreservingCapacityAxisPhasePv).toBe(26);
     expect(v8Best?.hiddenVolumeClean).toBe(7);
     expect(v8Best?.maxVLoopArea).toBeGreaterThan(70);
     expect(v8Best?.maxCapacityAxisVLoopArea).toBeGreaterThan(65);
@@ -176,6 +176,30 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(v8Rows.every((row) => row.qAvPlaneKinematicForwardVolumeMl > 10)).toBe(true);
     expect(v8Rows.every((row) => row.hiddenVolumeClean)).toBe(true);
     expect(v8Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
+  });
+
+  it("shows dynamic reference pressure preserves capacity-axis signal but does not fix blood PV phase", () => {
+    const v9Best = report.variantSummaries.find((summary) =>
+      summary.variantId === "v9-force-dynref-fixed8-pv36-mvloss"
+    );
+    const v9Rows = report.rows.filter((row) =>
+      row.family === "full-left-dynamic-reference-pressure-residual-v9"
+    );
+    expect(report.summary.bestV9VariantId).toBe("v9-force-dynref-fixed8-pv36-mvloss");
+    expect(report.summary.bestV9SourcePreservingPhasePv).toBe(0);
+    expect(report.summary.bestV9PhaseOrientedPvPass).toBe(0);
+    expect(report.summary.bestV9SourceSurfacePass).toBe(6);
+    expect(report.summary.bestV9MvfClean).toBe(6);
+    expect(report.summary.bestV9PrimeWaveformPass).toBe(0);
+    expect(report.summary.bestV9CapacityAxisPhaseOrientedPvPass).toBe(4);
+    expect(report.summary.bestV9SourcePreservingCapacityAxisPhasePv).toBe(4);
+    expect(v9Best?.hiddenVolumeClean).toBe(7);
+    expect(v9Best?.maxVLoopArea).toBeGreaterThan(70);
+    expect(v9Best?.maxCapacityAxisVLoopArea).toBeGreaterThan(65);
+    expect(v9Best?.capacityAxisPhaseC1Pass).toBe(7);
+    expect(v9Rows.every((row) => row.qAvPlaneKinematicForwardVolumeMl > 10)).toBe(true);
+    expect(v9Rows.every((row) => row.hiddenVolumeClean)).toBe(true);
+    expect(v9Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {
