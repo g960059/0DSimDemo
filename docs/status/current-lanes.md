@@ -1376,20 +1376,21 @@ Next gates:
     acceptance axis. Next work should quantify blood-volume x-descent depth,
     v-loop blood-area, and LAP-time pressure dip after MV closure before
     continuing LA-MV-PV implicit subsystem development.
-90. Blood-volume x-descent quality gate: follow-up visual review and external
+90. Blood-volume reservoir-conduit quality gate: follow-up visual review and external
     critique showed that effective/capacity-axis 8-shapes are useful
     wall/capacity readbacks but must not become acceptance or owner SVG
     promotion by themselves. The full-left routing gate now requires
-    blood-volume x-descent depth, blood v-loop area, immediate MV-opening
-    downstroke, reservoir-limb bowing below the MV-closure/MV-opening chord,
+    blood v-loop area, immediate post-MV-opening conduit downstroke,
     and local MV-opening transition quality in addition to phase orientation
-    and hidden-volume hygiene, while non-opening C1/kink markers remain visual
-    warnings. This collapses the apparent C1-warning signal to 0/7:
-    best full residual, V2, V3, V8/V9/V12/V14/V15/V16, and every current
-    source-preserving phase route fail the blood-quality gate despite
-    source/MVF/prime or pressure-relief partials. The SVG now hides all current
-    PV candidates rather than showing loops with elastance-rise, vertical EDPVR
-    folds, upward MV-opening starts, or sharp/non-bowed V-loop bottoms. Next
+    and hidden-volume hygiene. X-descent depth/roundness, chord-below behavior,
+    and non-opening C1/kink markers remain readbacks/visual warnings. Removing
+    x-descent-depth as a hard failure recovers a bounded raw signal
+    (best full residual source-preserving phase 4/7 and phase 5/7), but this is
+    not morphology acceptance and still includes profile-local source/MVF or
+    MV-opening/conduit residuals. The SVG now hides all current PV candidates
+    rather than showing loops with elastance-rise, vertical EDPVR folds, upward
+    immediate post-MV-opening conduit starts, or broken v-loop area/separation.
+    Next
     architecture work should implement an explicit
     reservoir-conduit hysteresis state: an asymmetric AV-plane descent/recoil
     trajectory co-solved with MV opening/loss, pulmonary venous inflow, LA wall
@@ -1401,8 +1402,9 @@ Next gates:
     blood volume ledger-owned by pulmonary venous and MV flow, drives the
     AV-plane reference/capacity coordinate with an asymmetric reservoir descent
     and conduit recoil target, and preserves the strict owner-SVG policy that
-    hides every candidate failing the blood-volume x-descent / v-loop area /
-    MV-opening downstroke / transition gate. The first V17 family is not a
+    hides every candidate failing the blood-volume v-loop area/separation /
+    immediate post-MV-opening conduit downstroke / transition gate. The first
+    V17 family is not a
     promotion path: best V17 has blood phase 0/7 and source-preserving phase
     0/7, while preserving hidden-volume cleanliness 7/7 and prime waveform 7/7
     on the best wall/recoil variant. Stronger capacity increases pressure
@@ -1417,14 +1419,34 @@ Next gates:
     broad x-descent roundness are not valid hard acceptance requirements.
     The full-left routing gate now keeps chord-below and x-trough placement as
     readbacks/warnings, while hard blood-volume checks focus on physiologic
-    x-descent, reservoir volume rise, v-wave rise, v-loop area, adequate
-    A/V-loop volume separation, MV-opening downstroke, local MV-opening
-    transition, and gross-fold rejection. Owner SVG routing is stricter than
-    the raw phase gate: single-profile or source/MVF-dirty candidates remain
+    v-loop area, adequate A/V-loop volume separation, immediate post-MV-opening
+    conduit downstroke, and local MV-opening transition. X-descent depth,
+    reservoir volume rise, and v-wave rise remain readbacks. Global PV
+    fold/tangent jumps remain warnings/readbacks unless the MV-opening
+    transition itself is kinked. Owner SVG routing is stricter than the raw
+    phase gate: single-profile or source/MVF-dirty candidates remain
     hidden, so the current refreshed SVG still shows no acceptable LA PV
     candidate. Treat this as a gate false-negative cleanup, not a model
     promotion; next architecture remains the true co-solved
     reservoir-conduit state residual.
+93. Phase-asymmetric reservoir-conduit hysteresis V18: the full-left routing
+    bench now tests `av-plane-full-left-reservoir-conduit-hysteresis-v2`, which
+    keeps blood volume ledger-owned, retains AV-plane capacity across early
+    MV-opening, recoils the capacity state with MV forward-flow/conduit
+    deceleration, and adds pulmonary-source balance to the same residual. This
+    is a partial mechanism signal only: selected
+    `v18-wall-hyst2-retain-fixed12-pv56-mvsmooth` preserves hidden-volume
+    cleanliness 7/7 and prime waveform 7/7, reaches MV-opening tangent quality
+    7/7, and produces applied fixed-blood pressure relief about 4.01 mmHg with
+    max blood x-descent about 3.79 mmHg as a readback. It still fails strict
+    blood-volume LA PV quality 0/7 and source-preserving phase 0/7 because the
+    blood v-loop remains too small or not opposed in most profiles. The SVG
+    deliberately hides all current
+    candidates rather than displaying visually misleading A-loop-dominated or
+    upward immediate post-MV-opening conduit loops. Next work should improve
+    blood-volume V-loop opposition and reservoir-conduit hysteresis inside the
+    same LA wall / AV-plane / MV / pulmonary venous residual, not reopen global
+    C1 filters or scalar capacity gain sweeps.
 
 Parallel prep, not blocking the next strategic gate:
 

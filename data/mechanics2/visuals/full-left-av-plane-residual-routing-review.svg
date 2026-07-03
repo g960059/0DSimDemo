@@ -1,28 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="2080" viewBox="0 0 1900 2080">
-<rect width="1900" height="2080" fill="#070b13"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="2120" viewBox="0 0 1900 2120">
+<rect width="1900" height="2120" fill="#070b13"/>
 <text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="700">Full-left LA-AV-plane residual routing review</text>
-<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Effective-cavity LA PV is a shadow diagnostic axis, not acceptance; blood-volume PV remains the physiology-facing mass-ledger audit. This SVG hides rows unless blood-volume x-descent, v-loop area, immediate MV-opening downstroke, MV-opening transition, source/MVF cleanliness, capacity/effective PV phase, hidden-volume hygiene, and no gross fold pass; chord-below markers are warnings.</text>
-<text x="34" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best full residual: full-residual-forcebalance-fixed6-pv36-mvsoft; source+phase 0/7, phase 0/7, source 4/7</text>
-<text x="34" y="102" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best overall: v3-wall-fixed8-pv36-mvloss; source+phase 1/7, phase 1/7, source 4/7</text>
+<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Effective-cavity LA PV is a shadow diagnostic axis, not acceptance; blood-volume PV remains the physiology-facing mass-ledger audit. This SVG hides rows unless blood v-loop area/separation, immediate post-MV-opening conduit/downstroke, source/MVF cleanliness, capacity/effective PV phase, and hidden-volume hygiene pass; x-descent depth, broad chord-below, and global kink markers are warnings.</text>
+<text x="34" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best full residual: full-residual-forcebalance-fixed6-pv36-mvsoft; source+phase 4/7, phase 5/7, source 4/7</text>
+<text x="34" y="102" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best overall: full-residual-forcebalance-fixed6-pv36-mvsoft; source+phase 4/7, phase 5/7, source 4/7</text>
 <text x="34" y="122" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best smooth core: smooth-core-force-fixed6-pv36-mvsoft; source+phase 0/7, phase 0/7, source 1/7, prime 0/7</text>
-<text x="660" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V2: v2-force-fixed10-pv44-mvsoft; source+phase 0/7, phase 1/7, source 2/7, MVF 3/7, prime 0/7</text>
-<text x="660" y="102" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V3: v3-wall-fixed8-pv36-mvloss; source+phase 1/7, phase 1/7, source 4/7, MVF 4/7, prime 7/7</text>
+<text x="660" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V2: v2-force-fixed8-pv36-mvsoft; source+phase 4/7, phase 5/7, source 4/7, MVF 5/7, prime 0/7</text>
+<text x="660" y="102" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V3: v3-wall-fixed8-pv36-mvloss; source+phase 3/7, phase 3/7, source 4/7, MVF 4/7, prime 7/7</text>
 <text x="660" y="122" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V4: v4-wall-veltarget-fixed8-pv36-mvsoft; source+phase 0/7, phase 0/7, source 3/7, MVF 3/7, prime 3/7</text>
 <text x="660" y="142" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V5: v5-wall-phaseowned-fixed8-pv36-mvsoft; source+phase 0/7, phase 0/7, source 0/7, MVF 3/7, prime 3/7</text>
 <text x="660" y="162" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V6 ref-cap: v6-force-refcap-vel06-fixed10-pv44-mvsoft; source+phase 0/7, phase 0/7, source 6/7, MVF 6/7, prime 2/7</text>
-<text x="660" y="182" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V8 ref-cap+venous: v8-force-refcap-venous-fixed8-pv36-mvloss; blood phase 0/7, capacity phase 0/7, capacity source+phase 0/7, source 6/7, MVF 6/7</text>
-<text x="660" y="202" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 dynamic ref-pressure: v9-force-dynref-fixed8-pv36-mvloss; blood phase 0/7, capacity phase 0/7, source+phase 0/7, source 6/7, MVF 6/7</text>
+<text x="660" y="182" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V8 ref-cap+venous: v8-force-refcap-venous-fixed8-pv36-mvloss; blood phase 0/7, capacity phase 1/7, capacity source+phase 1/7, source 6/7, MVF 6/7</text>
+<text x="660" y="202" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 dynamic ref-pressure: v9-force-dynref-fixed8-pv36-mvloss; blood phase 0/7, capacity phase 1/7, source+phase 0/7, source 6/7, MVF 6/7</text>
 <text x="660" y="222" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 separated coordinates: AV-ref 16.35 mL, pressure-ref 16.35 mL, effective-cavity +16.35 mL</text>
 <text x="660" y="242" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 fixed-blood pressure probe: counterfactual relief 2.18 mmHg, applied relief 2.18 mmHg, blood x-descent 2.45 mmHg</text>
 <text x="660" y="262" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V10 separated capacity residual: v10-force-separated-vel06-fixed10-pv44-mvsoft; blood phase 0/7, capacity phase 0/7, source 0/7, MVF 6/7, prime 2/7</text>
-<text x="660" y="282" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V11 accepted-state residual: v11-force-accepted-late16-slowrel-fixed14-pv52-mvsoft; blood phase 0/7, source+phase 0/7, source 0/7, MVF 6/7, prime 0/7</text>
-<text x="660" y="302" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V12 effective-cavity pressure law: v12-force-effcav-pr175-fixed8-pv36-mvloss; blood phase 0/7, capacity phase 0/7, capacity source+phase 0/7, source 6/7, MVF 6/7</text>
-<text x="660" y="322" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V12 fixed-blood pressure probe: counterfactual relief 2.18 mmHg, applied relief 3.82 mmHg, blood x-descent 2.45 mmHg</text>
-<text x="660" y="342" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V13 accepted-coordinate C1 law: v13-wall-effcav-c1accel08-pr150-fixed8-pv36-mvloss; capacity phase 0/7, capacity source+phase 0/7, source 4/7, MVF 4/7, prime 2/7</text>
-<text x="660" y="362" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V14 continuous trajectory law: v14-wall-effcav-traj20-pr150-fixed8-pv36-mvloss; capacity phase 0/7, capacity source+phase 0/7, source 5/7, MVF 5/7, prime 6/7</text>
-<text x="660" y="382" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V15 MV-coupled trajectory law: v15-wall-effcav-traj20-mvtarget05-pr150-fixed8-pv36-mvloss; capacity phase 0/7, capacity source+phase 0/7, source 5/7, MVF 5/7, prime 6/7</text>
-<text x="660" y="402" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V16 implicit MV-state trajectory law: v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss; capacity phase 0/7, capacity source+phase 0/7, source 5/7, MVF 5/7, prime 6/7</text>
-<text x="660" y="422" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V17 reservoir-conduit hysteresis: v17-wall-hyst-slowrecoil-traj20-pr150-fixed12-pv56-mvsmooth; blood phase 0/7, source+phase 0/7, source 3/7, MVF 4/7, prime 7/7, x-descent 1.66 mmHg</text>
+<text x="660" y="282" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V11 accepted-state residual: v11-wall-accepted-fixed10-pv44-mvloss; blood phase 0/7, source+phase 0/7, source 0/7, MVF 6/7, prime 0/7</text>
+<text x="660" y="302" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V12 effective-cavity pressure law: v12-force-effcav-pr150-fixed10-pv44-mvsoft; blood phase 0/7, capacity phase 2/7, capacity source+phase 2/7, source 4/7, MVF 5/7</text>
+<text x="660" y="322" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V12 fixed-blood pressure probe: counterfactual relief 2.09 mmHg, applied relief 3.14 mmHg, blood x-descent 4.79 mmHg</text>
+<text x="660" y="342" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V13 accepted-coordinate C1 law: v13-wall-effcav-c1accel16-pr150-fixed8-pv36-mvloss; capacity phase 1/7, capacity source+phase 1/7, source 5/7, MVF 5/7, prime 1/7</text>
+<text x="660" y="362" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V14 continuous trajectory law: v14-wall-effcav-traj20-pr150-fixed8-pv36-mvloss; capacity phase 1/7, capacity source+phase 1/7, source 5/7, MVF 5/7, prime 6/7</text>
+<text x="660" y="382" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V15 MV-coupled trajectory law: v15-wall-effcav-traj20-mvtarget05-pr150-fixed8-pv36-mvloss; capacity phase 1/7, capacity source+phase 1/7, source 5/7, MVF 5/7, prime 6/7</text>
+<text x="660" y="402" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V16 implicit MV-state trajectory law: v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss; capacity phase 1/7, capacity source+phase 1/7, source 5/7, MVF 5/7, prime 6/7</text>
+<text x="660" y="422" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V17 reservoir-conduit hysteresis: v17-force-hyst-traj20-pr175-fixed12-pv52-mvloss; blood phase 0/7, source+phase 0/7, source 6/7, MVF 6/7, prime 2/7, x-descent 2.04 mmHg</text>
+<text x="660" y="442" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V18 phase-asymmetric hysteresis: v18-wall-hyst2-retain-fixed12-pv56-mvsmooth; blood phase 0/7, source+phase 0/7, source 3/7, MVF 4/7, prime 7/7, x-descent 3.79 mmHg</text>
 <line x1="1540" y1="36" x2="1574" y2="36" stroke="#22c55e" stroke-width="3"/>
 <text x="1584" y="41" fill="#22c55e" font-family="Inter,Arial,sans-serif" font-size="12">baseline no AV-plane</text>
 <line x1="1540" y1="58" x2="1574" y2="58" stroke="#f97316" stroke-width="3"/>
@@ -63,199 +64,201 @@
 <text x="1584" y="437" fill="#c084fc" font-family="Inter,Arial,sans-serif" font-size="12">best V16 implicit MV state</text>
 <line x1="1540" y1="454" x2="1574" y2="454" stroke="#2dd4bf" stroke-width="3"/>
 <text x="1584" y="459" fill="#2dd4bf" font-family="Inter,Arial,sans-serif" font-size="12">best V17 reservoir-conduit hysteresis</text>
+<line x1="1540" y1="476" x2="1574" y2="476" stroke="#5eead4" stroke-width="3"/>
+<text x="1584" y="481" fill="#5eead4" font-family="Inter,Arial,sans-serif" font-size="12">best V18 phase-asymmetric hysteresis</text>
 <circle cx="1780" cy="40" r="4.4" fill="#f8fafc" stroke="#111827" stroke-width="1.4"/>
 <text x="1792" y="45" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV opening</text>
 <circle cx="1780" cy="62" r="4.4" fill="#111827" stroke="#f8fafc" stroke-width="1.7"/>
 <text x="1792" y="67" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV closure</text>
 <path d="M1775,79 L1785,89 M1785,79 L1775,89" stroke="#ef4444" stroke-width="1.6"/>
 <text x="1792" y="89" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">PV tangent kink marker</text>
-<rect x="50" y="446" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
-<text x="66" y="474" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">normal-hr75</text>
-<rect x="76" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="76" y1="636" x2="216.8" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="146.4" y1="494" x2="146.4" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="83" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
-<text x="86" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: blood x-descent or effective/capacity PV filter rejected all overlays</text>
-<rect x="242.8" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="242.8" y1="636" x2="383.6" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="313.20000000000005" y1="494" x2="313.20000000000005" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="249.8" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
-<text x="250.8" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood x-descent or effective/capacity phase failed</text>
-<rect x="409.6" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="409.6" y1="636" x2="550.4000000000001" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="480" y1="494" x2="480" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="416.6" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
-<text x="417.6" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="576.4000000000001" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="576.4000000000001" y1="636" x2="717.2" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="646.8000000000001" y1="494" x2="646.8000000000001" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="583.4000000000001" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
-<text x="584.4000000000001" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood x-descent candidate</text>
-<rect x="743.2" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="743.2" y1="636" x2="884" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="813.6" y1="494" x2="813.6" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="750.2" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
-<text x="751.2" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="948" y="446" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
-<text x="964" y="474" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">normal-hr90</text>
-<rect x="974" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="974" y1="636" x2="1114.8" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="1044.4" y1="494" x2="1044.4" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="981" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
-<text x="984" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: blood x-descent or effective/capacity PV filter rejected all overlays</text>
-<rect x="1140.8" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1140.8" y1="636" x2="1281.6" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="1211.2" y1="494" x2="1211.2" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="1147.8" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
-<text x="1148.8" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood x-descent or effective/capacity phase failed</text>
-<rect x="1307.6" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1307.6" y1="636" x2="1448.3999999999999" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="1378" y1="494" x2="1378" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="1314.6" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
-<text x="1315.6" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="1474.4" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1474.4" y1="636" x2="1615.2" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="1544.8000000000002" y1="494" x2="1544.8000000000002" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="1481.4" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
-<text x="1482.4" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood x-descent candidate</text>
-<rect x="1641.2" y="494" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1641.2" y1="636" x2="1782" y2="636" stroke="#1f2937" stroke-width="1"/>
-<line x1="1711.6000000000001" y1="494" x2="1711.6000000000001" y2="778" stroke="#1f2937" stroke-width="1"/>
-<text x="1648.2" y="510" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
-<text x="1649.2" y="532" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="50" y="846" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
-<text x="66" y="874" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">preload-low</text>
-<rect x="76" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="76" y1="1036" x2="216.8" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="146.4" y1="894" x2="146.4" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="83" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
-<text x="86" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: blood x-descent or effective/capacity PV filter rejected all overlays</text>
-<rect x="242.8" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="242.8" y1="1036" x2="383.6" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="313.20000000000005" y1="894" x2="313.20000000000005" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="249.8" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
-<text x="250.8" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood x-descent or effective/capacity phase failed</text>
-<rect x="409.6" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="409.6" y1="1036" x2="550.4000000000001" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="480" y1="894" x2="480" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="416.6" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
-<text x="417.6" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="576.4000000000001" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="576.4000000000001" y1="1036" x2="717.2" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="646.8000000000001" y1="894" x2="646.8000000000001" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="583.4000000000001" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
-<text x="584.4000000000001" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood x-descent candidate</text>
-<rect x="743.2" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="743.2" y1="1036" x2="884" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="813.6" y1="894" x2="813.6" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="750.2" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
-<text x="751.2" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="948" y="846" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
-<text x="964" y="874" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">preload-high</text>
-<rect x="974" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="974" y1="1036" x2="1114.8" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="1044.4" y1="894" x2="1044.4" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="981" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
-<text x="984" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: blood x-descent or effective/capacity PV filter rejected all overlays</text>
-<rect x="1140.8" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1140.8" y1="1036" x2="1281.6" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="1211.2" y1="894" x2="1211.2" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="1147.8" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
-<text x="1148.8" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood x-descent or effective/capacity phase failed</text>
-<rect x="1307.6" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1307.6" y1="1036" x2="1448.3999999999999" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="1378" y1="894" x2="1378" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="1314.6" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
-<text x="1315.6" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="1474.4" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1474.4" y1="1036" x2="1615.2" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="1544.8000000000002" y1="894" x2="1544.8000000000002" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="1481.4" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
-<text x="1482.4" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood x-descent candidate</text>
-<rect x="1641.2" y="894" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1641.2" y1="1036" x2="1782" y2="1036" stroke="#1f2937" stroke-width="1"/>
-<line x1="1711.6000000000001" y1="894" x2="1711.6000000000001" y2="1178" stroke="#1f2937" stroke-width="1"/>
-<text x="1648.2" y="910" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
-<text x="1649.2" y="932" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="50" y="1246" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
-<text x="66" y="1274" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">afterload-high</text>
-<rect x="76" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="76" y1="1436" x2="216.8" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="146.4" y1="1294" x2="146.4" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="83" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
-<text x="86" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: blood x-descent or effective/capacity PV filter rejected all overlays</text>
-<rect x="242.8" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="242.8" y1="1436" x2="383.6" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="313.20000000000005" y1="1294" x2="313.20000000000005" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="249.8" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
-<text x="250.8" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood x-descent or effective/capacity phase failed</text>
-<rect x="409.6" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="409.6" y1="1436" x2="550.4000000000001" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="480" y1="1294" x2="480" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="416.6" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
-<text x="417.6" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="576.4000000000001" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="576.4000000000001" y1="1436" x2="717.2" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="646.8000000000001" y1="1294" x2="646.8000000000001" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="583.4000000000001" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
-<text x="584.4000000000001" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood x-descent candidate</text>
-<rect x="743.2" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="743.2" y1="1436" x2="884" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="813.6" y1="1294" x2="813.6" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="750.2" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
-<text x="751.2" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="948" y="1246" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
-<text x="964" y="1274" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">contractility-low</text>
-<rect x="974" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="974" y1="1436" x2="1114.8" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="1044.4" y1="1294" x2="1044.4" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="981" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
-<text x="984" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: blood x-descent or effective/capacity PV filter rejected all overlays</text>
-<rect x="1140.8" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1140.8" y1="1436" x2="1281.6" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="1211.2" y1="1294" x2="1211.2" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="1147.8" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
-<text x="1148.8" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood x-descent or effective/capacity phase failed</text>
-<rect x="1307.6" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1307.6" y1="1436" x2="1448.3999999999999" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="1378" y1="1294" x2="1378" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="1314.6" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
-<text x="1315.6" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="1474.4" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1474.4" y1="1436" x2="1615.2" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="1544.8000000000002" y1="1294" x2="1544.8000000000002" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="1481.4" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
-<text x="1482.4" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood x-descent candidate</text>
-<rect x="1641.2" y="1294" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="1641.2" y1="1436" x2="1782" y2="1436" stroke="#1f2937" stroke-width="1"/>
-<line x1="1711.6000000000001" y1="1294" x2="1711.6000000000001" y2="1578" stroke="#1f2937" stroke-width="1"/>
-<text x="1648.2" y="1310" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
-<text x="1649.2" y="1332" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="50" y="1646" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
-<text x="66" y="1674" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">contractility-high</text>
-<rect x="76" y="1694" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="76" y1="1836" x2="216.8" y2="1836" stroke="#1f2937" stroke-width="1"/>
-<line x1="146.4" y1="1694" x2="146.4" y2="1978" stroke="#1f2937" stroke-width="1"/>
-<text x="83" y="1710" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
-<text x="86" y="1732" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: blood x-descent or effective/capacity PV filter rejected all overlays</text>
-<rect x="242.8" y="1694" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="242.8" y1="1836" x2="383.6" y2="1836" stroke="#1f2937" stroke-width="1"/>
-<line x1="313.20000000000005" y1="1694" x2="313.20000000000005" y2="1978" stroke="#1f2937" stroke-width="1"/>
-<text x="249.8" y="1710" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
-<text x="250.8" y="1732" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood x-descent or effective/capacity phase failed</text>
-<rect x="409.6" y="1694" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="409.6" y1="1836" x2="550.4000000000001" y2="1836" stroke="#1f2937" stroke-width="1"/>
-<line x1="480" y1="1694" x2="480" y2="1978" stroke="#1f2937" stroke-width="1"/>
-<text x="416.6" y="1710" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
-<text x="417.6" y="1732" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
-<rect x="576.4000000000001" y="1694" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="576.4000000000001" y1="1836" x2="717.2" y2="1836" stroke="#1f2937" stroke-width="1"/>
-<line x1="646.8000000000001" y1="1694" x2="646.8000000000001" y2="1978" stroke="#1f2937" stroke-width="1"/>
-<text x="583.4000000000001" y="1710" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
-<text x="584.4000000000001" y="1732" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood x-descent candidate</text>
-<rect x="743.2" y="1694" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
-<line x1="743.2" y1="1836" x2="884" y2="1836" stroke="#1f2937" stroke-width="1"/>
-<line x1="813.6" y1="1694" x2="813.6" y2="1978" stroke="#1f2937" stroke-width="1"/>
-<text x="750.2" y="1710" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
-<text x="751.2" y="1732" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>
+<rect x="50" y="486" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
+<text x="66" y="514" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">normal-hr75</text>
+<rect x="76" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="76" y1="676" x2="216.8" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="146.4" y1="534" x2="146.4" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="83" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
+<text x="86" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: v-loop/MV-opening or effective/capacity PV filter rejected all overlays</text>
+<rect x="242.8" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="242.8" y1="676" x2="383.6" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="313.20000000000005" y1="534" x2="313.20000000000005" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="249.8" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
+<text x="250.8" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood v-loop/MV-opening or effective/capacity phase failed</text>
+<rect x="409.6" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="409.6" y1="676" x2="550.4000000000001" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="480" y1="534" x2="480" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="416.6" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
+<text x="417.6" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="576.4000000000001" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="576.4000000000001" y1="676" x2="717.2" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="646.8000000000001" y1="534" x2="646.8000000000001" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="583.4000000000001" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
+<text x="584.4000000000001" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood v-loop/MV-opening candidate</text>
+<rect x="743.2" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="743.2" y1="676" x2="884" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="813.6" y1="534" x2="813.6" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="750.2" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
+<text x="751.2" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="948" y="486" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
+<text x="964" y="514" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">normal-hr90</text>
+<rect x="974" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="974" y1="676" x2="1114.8" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="1044.4" y1="534" x2="1044.4" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="981" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
+<text x="984" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: v-loop/MV-opening or effective/capacity PV filter rejected all overlays</text>
+<rect x="1140.8" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1140.8" y1="676" x2="1281.6" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="1211.2" y1="534" x2="1211.2" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="1147.8" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
+<text x="1148.8" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood v-loop/MV-opening or effective/capacity phase failed</text>
+<rect x="1307.6" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1307.6" y1="676" x2="1448.3999999999999" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="1378" y1="534" x2="1378" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="1314.6" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
+<text x="1315.6" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="1474.4" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1474.4" y1="676" x2="1615.2" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="1544.8000000000002" y1="534" x2="1544.8000000000002" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="1481.4" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
+<text x="1482.4" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood v-loop/MV-opening candidate</text>
+<rect x="1641.2" y="534" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1641.2" y1="676" x2="1782" y2="676" stroke="#1f2937" stroke-width="1"/>
+<line x1="1711.6000000000001" y1="534" x2="1711.6000000000001" y2="818" stroke="#1f2937" stroke-width="1"/>
+<text x="1648.2" y="550" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
+<text x="1649.2" y="572" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="50" y="886" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
+<text x="66" y="914" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">preload-low</text>
+<rect x="76" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="76" y1="1076" x2="216.8" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="146.4" y1="934" x2="146.4" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="83" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
+<text x="86" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: v-loop/MV-opening or effective/capacity PV filter rejected all overlays</text>
+<rect x="242.8" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="242.8" y1="1076" x2="383.6" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="313.20000000000005" y1="934" x2="313.20000000000005" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="249.8" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
+<text x="250.8" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood v-loop/MV-opening or effective/capacity phase failed</text>
+<rect x="409.6" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="409.6" y1="1076" x2="550.4000000000001" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="480" y1="934" x2="480" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="416.6" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
+<text x="417.6" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="576.4000000000001" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="576.4000000000001" y1="1076" x2="717.2" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="646.8000000000001" y1="934" x2="646.8000000000001" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="583.4000000000001" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
+<text x="584.4000000000001" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood v-loop/MV-opening candidate</text>
+<rect x="743.2" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="743.2" y1="1076" x2="884" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="813.6" y1="934" x2="813.6" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="750.2" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
+<text x="751.2" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="948" y="886" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
+<text x="964" y="914" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">preload-high</text>
+<rect x="974" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="974" y1="1076" x2="1114.8" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="1044.4" y1="934" x2="1044.4" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="981" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
+<text x="984" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: v-loop/MV-opening or effective/capacity PV filter rejected all overlays</text>
+<rect x="1140.8" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1140.8" y1="1076" x2="1281.6" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="1211.2" y1="934" x2="1211.2" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="1147.8" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
+<text x="1148.8" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood v-loop/MV-opening or effective/capacity phase failed</text>
+<rect x="1307.6" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1307.6" y1="1076" x2="1448.3999999999999" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="1378" y1="934" x2="1378" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="1314.6" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
+<text x="1315.6" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="1474.4" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1474.4" y1="1076" x2="1615.2" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="1544.8000000000002" y1="934" x2="1544.8000000000002" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="1481.4" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
+<text x="1482.4" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood v-loop/MV-opening candidate</text>
+<rect x="1641.2" y="934" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1641.2" y1="1076" x2="1782" y2="1076" stroke="#1f2937" stroke-width="1"/>
+<line x1="1711.6000000000001" y1="934" x2="1711.6000000000001" y2="1218" stroke="#1f2937" stroke-width="1"/>
+<text x="1648.2" y="950" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
+<text x="1649.2" y="972" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="50" y="1286" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
+<text x="66" y="1314" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">afterload-high</text>
+<rect x="76" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="76" y1="1476" x2="216.8" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="146.4" y1="1334" x2="146.4" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="83" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
+<text x="86" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: v-loop/MV-opening or effective/capacity PV filter rejected all overlays</text>
+<rect x="242.8" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="242.8" y1="1476" x2="383.6" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="313.20000000000005" y1="1334" x2="313.20000000000005" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="249.8" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
+<text x="250.8" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood v-loop/MV-opening or effective/capacity phase failed</text>
+<rect x="409.6" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="409.6" y1="1476" x2="550.4000000000001" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="480" y1="1334" x2="480" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="416.6" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
+<text x="417.6" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="576.4000000000001" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="576.4000000000001" y1="1476" x2="717.2" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="646.8000000000001" y1="1334" x2="646.8000000000001" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="583.4000000000001" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
+<text x="584.4000000000001" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood v-loop/MV-opening candidate</text>
+<rect x="743.2" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="743.2" y1="1476" x2="884" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="813.6" y1="1334" x2="813.6" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="750.2" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
+<text x="751.2" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="948" y="1286" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
+<text x="964" y="1314" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">contractility-low</text>
+<rect x="974" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="974" y1="1476" x2="1114.8" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="1044.4" y1="1334" x2="1044.4" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="981" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
+<text x="984" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: v-loop/MV-opening or effective/capacity PV filter rejected all overlays</text>
+<rect x="1140.8" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1140.8" y1="1476" x2="1281.6" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="1211.2" y1="1334" x2="1211.2" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="1147.8" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
+<text x="1148.8" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood v-loop/MV-opening or effective/capacity phase failed</text>
+<rect x="1307.6" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1307.6" y1="1476" x2="1448.3999999999999" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="1378" y1="1334" x2="1378" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="1314.6" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
+<text x="1315.6" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="1474.4" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1474.4" y1="1476" x2="1615.2" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="1544.8000000000002" y1="1334" x2="1544.8000000000002" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="1481.4" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
+<text x="1482.4" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood v-loop/MV-opening candidate</text>
+<rect x="1641.2" y="1334" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="1641.2" y1="1476" x2="1782" y2="1476" stroke="#1f2937" stroke-width="1"/>
+<line x1="1711.6000000000001" y1="1334" x2="1711.6000000000001" y2="1618" stroke="#1f2937" stroke-width="1"/>
+<text x="1648.2" y="1350" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
+<text x="1649.2" y="1372" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="50" y="1686" width="860" height="372" rx="8" fill="#111827" stroke="#253044"/>
+<text x="66" y="1714" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="15" font-weight="700">contractility-high</text>
+<rect x="76" y="1734" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="76" y1="1876" x2="216.8" y2="1876" stroke="#1f2937" stroke-width="1"/>
+<line x1="146.4" y1="1734" x2="146.4" y2="2018" stroke="#1f2937" stroke-width="1"/>
+<text x="83" y="1750" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA blood PV (ledger audit)</text>
+<text x="86" y="1772" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: v-loop/MV-opening or effective/capacity PV filter rejected all overlays</text>
+<rect x="242.8" y="1734" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="242.8" y1="1876" x2="383.6" y2="1876" stroke="#1f2937" stroke-width="1"/>
+<line x1="313.20000000000005" y1="1734" x2="313.20000000000005" y2="2018" stroke="#1f2937" stroke-width="1"/>
+<text x="249.8" y="1750" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">LA effective-cavity PV</text>
+<text x="250.8" y="1772" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood v-loop/MV-opening or effective/capacity phase failed</text>
+<rect x="409.6" y="1734" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="409.6" y1="1876" x2="550.4000000000001" y2="1876" stroke="#1f2937" stroke-width="1"/>
+<line x1="480" y1="1734" x2="480" y2="2018" stroke="#1f2937" stroke-width="1"/>
+<text x="416.6" y="1750" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">QMV forward</text>
+<text x="417.6" y="1772" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
+<rect x="576.4000000000001" y="1734" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="576.4000000000001" y1="1876" x2="717.2" y2="1876" stroke="#1f2937" stroke-width="1"/>
+<line x1="646.8000000000001" y1="1734" x2="646.8000000000001" y2="2018" stroke="#1f2937" stroke-width="1"/>
+<text x="583.4000000000001" y="1750" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate pressure</text>
+<text x="584.4000000000001" y="1772" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood v-loop/MV-opening candidate</text>
+<rect x="743.2" y="1734" width="140.8" height="284" fill="#0b1220" stroke="#1f2937"/>
+<line x1="743.2" y1="1876" x2="884" y2="1876" stroke="#1f2937" stroke-width="1"/>
+<line x1="813.6" y1="1734" x2="813.6" y2="2018" stroke="#1f2937" stroke-width="1"/>
+<text x="750.2" y="1750" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">physiology candidate s/e/a'</text>
+<text x="751.2" y="1772" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood v-loop/MV-opening candidates</text>
 </svg>
