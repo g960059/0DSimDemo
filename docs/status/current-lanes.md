@@ -200,6 +200,17 @@ against smoothing the coordinate/readback in isolation. Next work should own
 `z_AV`, `zDot_AV`, LA wall pressure, MV opening/loss, and pulmonary venous
 inflow as coupled residual unknowns instead of post-readback smoothing or
 scalar coordinate damping.
+The first V2 coordinate-residual promotion then adds `z_AV`/`zDot_AV` to the
+fixed-point candidate residual while preserving the force-balance or wall-work
+lobe mechanics. This keeps the #433 route alive and makes the coordinate-owned
+variant the best overall route: `v2-force-fixed8-pv36-mvsoft` reaches
+source+phase 3/7, phase 4/7, source 4/7, MVF 5/7, hidden-volume clean 7/7, but
+prime remains 0/7. Wall-work V2 variants improve prime waveform to 5-6/7 with
+hidden-volume clean 7/7, but source+phase drops to 2/7. Treat this as a real
+coordinate-ownership signal and a clear remaining owner split: force-balance
+preserves source/phase while wall-work smooths prime, but no V2 candidate yet
+solves both. Next work should co-own MV opening/loss and AV-plane velocity
+smoothness in the same residual instead of adding readback filters.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
