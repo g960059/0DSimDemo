@@ -177,6 +177,7 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laAVPlaneWorkCoordinateMassKg: number;
   readonly laAVPlaneWorkCoordinateMaxVelocityNormPerSec: number;
   readonly laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2: number;
+  readonly laAVPlaneContinuousMvResidualGain: number;
   readonly laAVPlanePrimeVelocityReadbackTauSec: number;
   readonly laAVPlaneReservoirRecoilPressureGainMmHg: number;
   readonly laAVPlaneReservoirRecoilRiseTauSec: number;
@@ -458,6 +459,8 @@ export function defaultLeftHeartSubsystemParamsV2(
       overrides.laAVPlaneWorkCoordinateMaxVelocityNormPerSec ?? 1.8,
     laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2:
       overrides.laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2 ?? 0,
+    laAVPlaneContinuousMvResidualGain:
+      overrides.laAVPlaneContinuousMvResidualGain ?? 0,
     laAVPlanePrimeVelocityReadbackTauSec:
       overrides.laAVPlanePrimeVelocityReadbackTauSec ?? 0,
     laAVPlaneReservoirRecoilPressureGainMmHg:
@@ -1516,6 +1519,16 @@ function fullLeftResidualCoordinateResiduals(
       (candidate.laVolumeMl - pressureReliefMl) - (previous.laVolumeMl - previousPressureReliefMl);
     const expectedWallStretchDeltaMl = bloodLedgerDeltaMl - capacityDeltaMl;
     const mvOpeningPressureFlowResidualMmHg = accepted.mv.pressureFlowResidualMmHg;
+    const mvResidualGain = Math.max(0, params.laAVPlaneContinuousMvResidualGain);
+    const mvPressureGradientMmHg =
+      (accepted.lapRawMmHg + accepted.lapSafetyMmHg) - (accepted.lvpRawMmHg + accepted.lvpSafetyMmHg);
+    const ejectionDrive01 = smoothstep01(
+      (Math.max(0, accepted.aov.qMlPerSec) - params.laAVPlaneEjectionRateStartMlPerSec)
+        / Math.max(params.laAVPlaneEjectionRateEndMlPerSec - params.laAVPlaneEjectionRateStartMlPerSec, 1e-9),
+    );
+    const mvOpenTarget01 =
+      smoothstep01((mvPressureGradientMmHg - 0.15) / 1.6)
+      * (1 - 0.90 * ejectionDrive01);
     residuals.push(
       (candidate.laAVPlaneWorkCoordinateZNorm - projectedTargetZNorm) * scaleMl * 0.010,
       (candidate.laAVPlaneWorkCoordinateZDotNormPerSec - targetZDotNormPerSec)
@@ -1526,6 +1539,12 @@ function fullLeftResidualCoordinateResiduals(
       (wallStretchDeltaMl - expectedWallStretchDeltaMl) * 0.006,
       mvOpeningPressureFlowResidualMmHg * 0.006,
     );
+    if (mvResidualGain > 0) {
+      residuals.push(
+        (accepted.mv.open01 - mvOpenTarget01) * scaleMl * mvResidualGain * 0.020,
+        mvOpeningPressureFlowResidualMmHg * mvResidualGain * 0.004,
+      );
+    }
   }
   return residuals;
 }

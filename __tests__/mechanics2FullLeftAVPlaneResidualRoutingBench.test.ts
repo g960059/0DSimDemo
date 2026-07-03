@@ -11,8 +11,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records a full-left LA-AV-plane residual routing report", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(630);
-    expect(report.variantSummaries).toHaveLength(90);
+    expect(report.rows).toHaveLength(658);
+    expect(report.variantSummaries).toHaveLength(94);
   });
 
   it("finds a source-preserving phase-oriented signal only after full-left residual ownership is added", () => {
@@ -168,7 +168,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV8PrimeWaveformPass).toBe(0);
     expect(report.summary.bestV8CapacityAxisPhaseOrientedPvPass).toBe(4);
     expect(report.summary.bestV8SourcePreservingCapacityAxisPhasePv).toBe(4);
-    expect(report.summary.variantsWithAnySourcePreservingCapacityAxisPhasePv).toBe(51);
+    expect(report.summary.variantsWithAnySourcePreservingCapacityAxisPhasePv).toBe(54);
     expect(v8Best?.hiddenVolumeClean).toBe(7);
     expect(v8Best?.maxVLoopArea).toBeGreaterThan(70);
     expect(v8Best?.maxCapacityAxisVLoopArea).toBeGreaterThan(65);
@@ -207,7 +207,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV9MaxPressureReferenceCapacityMl).toBe(report.summary.bestV9MaxReferenceCapacityShiftMl);
     expect(report.summary.bestV9MaxEffectiveCavityCapacityMl).toBe(report.summary.bestV9MaxReferenceCapacityShiftMl);
     expect(report.summary.bestV9MaxBloodXDescentPressureDropMmHg).toBeGreaterThan(2);
-    expect(report.summary.variantsWithAnyAppliedFixedBloodPressureRelief).toBe(46);
+    expect(report.summary.variantsWithAnyAppliedFixedBloodPressureRelief).toBe(50);
     expect(v9Best?.hiddenVolumeClean).toBe(7);
     expect(v9Best?.maxVLoopArea).toBeGreaterThan(70);
     expect(v9Best?.maxCapacityAxisVLoopArea).toBeGreaterThan(65);
@@ -388,6 +388,46 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(v14SourceBest?.primeWaveformPass).toBe(0);
     expect(v14Rows.every((row) => row.hiddenVolumeClean)).toBe(true);
     expect(v14Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
+  });
+
+  it("rejects accepted-output MV target residuals as sufficient LA-MV trajectory ownership", () => {
+    const v15Best = report.variantSummaries.find((summary) =>
+      summary.variantId === "v15-wall-effcav-traj20-mvtarget05-pr150-fixed8-pv36-mvloss"
+    );
+    const v15StrongTarget = report.variantSummaries.find((summary) =>
+      summary.variantId === "v15-wall-effcav-traj20-mvtarget10-pr150-fixed8-pv36-mvloss"
+    );
+    const v15SourceBest = report.variantSummaries.find((summary) =>
+      summary.variantId === "v15-force-effcav-traj14-mvtarget10-pr175-fixed10-pv44-mvloss"
+    );
+    const v14Best = report.variantSummaries.find((summary) =>
+      summary.variantId === "v14-wall-effcav-traj20-pr150-fixed8-pv36-mvloss"
+    );
+    const v14SourceBest = report.variantSummaries.find((summary) =>
+      summary.variantId === "v14-force-effcav-traj14-pr175-fixed10-pv44-mvloss"
+    );
+    const v15Rows = report.rows.filter((row) =>
+      row.family === "full-left-continuous-mv-coupled-law-v15"
+    );
+    expect(report.summary.bestV15VariantId)
+      .toBe("v15-wall-effcav-traj20-mvtarget05-pr150-fixed8-pv36-mvloss");
+    expect(report.summary.bestV15SourceSurfacePass).toBe(report.summary.bestV14SourceSurfacePass);
+    expect(report.summary.bestV15MvfClean).toBe(report.summary.bestV14MvfClean);
+    expect(report.summary.bestV15PrimeWaveformPass).toBe(report.summary.bestV14PrimeWaveformPass);
+    expect(report.summary.bestV15CapacityAxisPhaseOrientedPvPass)
+      .toBe(report.summary.bestV14CapacityAxisPhaseOrientedPvPass);
+    expect(report.summary.bestV15SourcePreservingCapacityAxisPhasePv)
+      .toBe(report.summary.bestV14SourcePreservingCapacityAxisPhasePv);
+    expect(report.summary.bestV15PhaseOrientedPvPass).toBe(0);
+    expect(v15Best?.hiddenVolumeClean).toBe(7);
+    expect(v15Best?.maxPrimeC1ContinuityScore).toBe(v14Best?.maxPrimeC1ContinuityScore);
+    expect(v15StrongTarget?.sourcePreservingCapacityAxisPhasePv)
+      .toBe(v15Best?.sourcePreservingCapacityAxisPhasePv);
+    expect(v15SourceBest?.sourceSurfacePass).toBe(v14SourceBest?.sourceSurfacePass);
+    expect(v15SourceBest?.mvfClean).toBe(v14SourceBest?.mvfClean);
+    expect(v15SourceBest?.primeWaveformPass).toBe(0);
+    expect(v15Rows.every((row) => row.hiddenVolumeClean)).toBe(true);
+    expect(v15Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {

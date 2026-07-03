@@ -1324,6 +1324,24 @@ Next gates:
     MV opening/loss plus LA wall pressure coupling into the same continuous
     residual rather than increasing trajectory residual weight or enabling
     runtime/AV-plane physiology/LandAtrial.
+87. MV-coupled continuous trajectory V15: adding an accepted-output MV
+    opening/pressure-flow target residual on top of the V14 continuous
+    AV-plane trajectory does not materially move the morphology. Best V15
+    `v15-wall-effcav-traj20-mvtarget05-pr150-fixed8-pv36-mvloss` matches the
+    best V14 counts exactly: hidden-volume clean 7/7, source 5/7, MVF 5/7,
+    prime waveform 6/7, effective-cavity/capacity-axis phase 4/7,
+    source-preserving effective-cavity phase 3/7, strict blood phase 0/7,
+    about 2.76 mmHg applied fixed-blood pressure relief, and about 2.14 mmHg
+    blood-coordinate x-descent. A stronger source-preserving V15 force variant
+    reaches source/MVF 6/7 but still has prime 0/7, matching the V14
+    source-friendlier trade-off. Visual review likewise shows V15 largely
+    overlapping V14 with residual MV-opening/QMV artifacts and folded
+    effective-cavity loops. Treat this as negative evidence for
+    accepted-output-only MV target penalties: the next architecture step should
+    promote MV opening/flow/loss and LA wall pressure into the candidate or
+    implicit residual state that is solved with the continuous AV-plane
+    trajectory, rather than adding more accepted-state MV residual weights or
+    scalar MV-loss variants.
 
 Parallel prep, not blocking the next strategic gate:
 
