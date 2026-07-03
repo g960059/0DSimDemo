@@ -13,6 +13,7 @@ import {
   type OneFiberChamberStateV1,
 } from "@/engine/mechanics2/chamber/OneFiberChamberV1";
 import {
+  evaluateFlowStateValveStateV1,
   initialFlowStateValveStateV1,
   stepFlowStateValveV1,
   type FlowStateValveOutputV1,
@@ -178,6 +179,7 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laAVPlaneWorkCoordinateMaxVelocityNormPerSec: number;
   readonly laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2: number;
   readonly laAVPlaneContinuousMvResidualGain: number;
+  readonly laAVPlaneImplicitMvStateGain: number;
   readonly laAVPlanePrimeVelocityReadbackTauSec: number;
   readonly laAVPlaneReservoirRecoilPressureGainMmHg: number;
   readonly laAVPlaneReservoirRecoilRiseTauSec: number;
@@ -316,12 +318,15 @@ type CandidateV2 = {
   readonly pulmonaryVenousPressureMmHg: number;
   readonly laAVPlaneWorkCoordinateZNorm: number;
   readonly laAVPlaneWorkCoordinateZDotNormPerSec: number;
+  readonly mvQEstimateMlPerSec: number;
+  readonly mvOpenEstimate01: number;
 };
 
 type AcceptedV2 = CandidateV2 & {
   readonly lvChamber: OneFiberChamberOutputV1;
   readonly laFiberChamber: AtrialFiberChamberOutputV1;
   readonly mv: FlowStateValveOutputV1;
+  readonly mvImplicitTarget: FlowStateValveOutputV1;
   readonly aov: FlowStateValveOutputV1;
   readonly lapRawMmHg: number;
   readonly lapSafetyMmHg: number;
@@ -461,6 +466,8 @@ export function defaultLeftHeartSubsystemParamsV2(
       overrides.laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2 ?? 0,
     laAVPlaneContinuousMvResidualGain:
       overrides.laAVPlaneContinuousMvResidualGain ?? 0,
+    laAVPlaneImplicitMvStateGain:
+      overrides.laAVPlaneImplicitMvStateGain ?? 0,
     laAVPlanePrimeVelocityReadbackTauSec:
       overrides.laAVPlanePrimeVelocityReadbackTauSec ?? 0,
     laAVPlaneReservoirRecoilPressureGainMmHg:
@@ -522,6 +529,8 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       pulmonaryVenousPressureMmHg: state.pulmonaryVenousPressureMmHg,
       laAVPlaneWorkCoordinateZNorm: state.laAVPlaneWorkCoordinateZNorm,
       laAVPlaneWorkCoordinateZDotNormPerSec: state.laAVPlaneWorkCoordinateZDotNormPerSec,
+      mvQEstimateMlPerSec: state.mv.qMlPerSec,
+      mvOpenEstimate01: state.mv.open01,
     };
     const initialCandidate = previousVolumes;
     const result = runMechanicsFixedPointTransactionV2(
@@ -557,6 +566,16 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
         accepted.lvVolumeMl - candidate.lvVolumeMl,
         accepted.rootPressureMmHg - candidate.rootPressureMmHg,
         accepted.pulmonaryVenousPressureMmHg - candidate.pulmonaryVenousPressureMmHg,
+        isFullLeftImplicitMvStateMode(params)
+          ? (accepted.mvImplicitTarget.qMlPerSec - candidate.mvQEstimateMlPerSec)
+            * Math.max(dtSec, 1e-9)
+            * Math.max(0, params.laAVPlaneImplicitMvStateGain)
+          : 0,
+        isFullLeftImplicitMvStateMode(params)
+          ? (accepted.mvImplicitTarget.open01 - candidate.mvOpenEstimate01)
+            * inputCoordinateResidualScaleMl(params)
+            * Math.max(0, params.laAVPlaneImplicitMvStateGain)
+          : 0,
         ...fullLeftResidualCoordinateResiduals(
           inputCoordinateResidualScaleMl(params),
           params,
@@ -585,6 +604,12 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
             relaxation,
           )
           : accepted.laAVPlaneWorkCoordinateZDotNormPerSec,
+        mvQEstimateMlPerSec: isFullLeftImplicitMvStateMode(params)
+          ? lerpV2(candidate.mvQEstimateMlPerSec, accepted.mvImplicitTarget.qMlPerSec, relaxation)
+          : accepted.mv.qMlPerSec,
+        mvOpenEstimate01: isFullLeftImplicitMvStateMode(params)
+          ? lerpV2(candidate.mvOpenEstimate01, accepted.mvImplicitTarget.open01, relaxation)
+          : accepted.mv.open01,
       }),
     );
     const accepted = result.accepted;
@@ -1121,7 +1146,18 @@ function acceptLeftHeartCandidateV2(input: {
   const laAVPlaneReservoirTractionPressureMmHg = laMvTransaction.tractionPressureMmHg;
   const lapRawMmHg = laMvTransaction.lapRawMmHg;
   const lapMmHg = lapRawMmHg + lapSafetyMmHg;
-  const mv = laMvTransaction.mv;
+  const mvImplicitTarget = laMvTransaction.mv;
+  const mv = isFullLeftImplicitMvStateMode(input.params)
+    ? evaluateFlowStateValveStateV1(input.previousMvState, {
+      dtSec: input.dtSec,
+      upstreamPressureMmHg: lapMmHg,
+      downstreamPressureMmHg: lvpMmHg,
+      closureDrive01: mvSystolicClosureDrive01(input.theta, input.params),
+    }, input.params.mv, {
+      qMlPerSec: input.candidate.mvQEstimateMlPerSec,
+      open01: input.candidate.mvOpenEstimate01,
+    })
+    : mvImplicitTarget;
   const aov = stepFlowStateValveV1(input.previousAovState, {
     dtSec: input.dtSec,
     upstreamPressureMmHg: lvpMmHg,
@@ -1183,11 +1219,14 @@ function acceptLeftHeartCandidateV2(input: {
   const bounded = boundVolumesV2(rawNextLaVolumeMl, rawNextLvVolumeMl, input.params);
   return {
     ...bounded,
+    mvQEstimateMlPerSec: mv.qMlPerSec,
+    mvOpenEstimate01: mv.open01,
     rootPressureMmHg,
     pulmonaryVenousPressureMmHg: pulmonaryBoundary.pulmonaryVenousPressureMmHg,
     lvChamber,
     laFiberChamber,
     mv,
+    mvImplicitTarget,
     aov,
     lapRawMmHg,
     lapSafetyMmHg,
@@ -1278,6 +1317,11 @@ function isFullLeftEffectiveCavityPressureLawMode(params: LeftHeartSubsystemPara
 function isFullLeftContinuousTrajectoryLawMode(params: LeftHeartSubsystemParamsV2): boolean {
   return params.laLobeGeneratorMode === "av-plane-full-left-continuous-trajectory-law-v1"
     || params.laEffectiveGeometryMode === "av-plane-full-left-continuous-trajectory-law-v1";
+}
+
+function isFullLeftImplicitMvStateMode(params: LeftHeartSubsystemParamsV2): boolean {
+  return isFullLeftContinuousTrajectoryLawMode(params)
+    && Math.max(0, params.laAVPlaneImplicitMvStateGain) > 0;
 }
 
 function isFullLeftResidualCoordinateMode(params: LeftHeartSubsystemParamsV2): boolean {
@@ -1543,6 +1587,17 @@ function fullLeftResidualCoordinateResiduals(
       residuals.push(
         (accepted.mv.open01 - mvOpenTarget01) * scaleMl * mvResidualGain * 0.020,
         mvOpeningPressureFlowResidualMmHg * mvResidualGain * 0.004,
+      );
+    }
+    if (isFullLeftImplicitMvStateMode(params)) {
+      const implicitGain = Math.max(0, params.laAVPlaneImplicitMvStateGain);
+      residuals.push(
+        (candidate.mvOpenEstimate01 - accepted.mvImplicitTarget.open01) * scaleMl * implicitGain * 0.030,
+        (candidate.mvQEstimateMlPerSec - accepted.mvImplicitTarget.qMlPerSec)
+          * Math.max(dtSec, 1e-9)
+          * implicitGain
+          * 0.060,
+        accepted.mv.pressureFlowResidualMmHg * implicitGain * 0.010,
       );
     }
   }
