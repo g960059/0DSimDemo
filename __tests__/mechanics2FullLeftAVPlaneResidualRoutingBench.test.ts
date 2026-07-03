@@ -11,8 +11,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records a full-left LA-AV-plane residual routing report", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(217);
-    expect(report.variantSummaries).toHaveLength(31);
+    expect(report.rows).toHaveLength(273);
+    expect(report.variantSummaries).toHaveLength(39);
   });
 
   it("finds a source-preserving phase-oriented signal only after full-left residual ownership is added", () => {
@@ -125,6 +125,34 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV5PrimeWaveformPass).toBe(3);
     expect(v5Force?.hiddenVolumeClean).toBe(7);
     expect(v5Force?.sourceSurfacePass).toBe(0);
+  });
+
+  it("keeps V6 reference-capacity evidence bounded by phase and C1 failures", () => {
+    const v6Best = report.variantSummaries.find((summary) =>
+      summary.variantId === "v6-force-refcap-vel06-fixed10-pv44-mvsoft"
+    );
+    const v6Fixed = report.variantSummaries.find((summary) =>
+      summary.variantId === "v6-force-refcap-fixed8-pv36-mvsoft"
+    );
+    const v7Wall = report.variantSummaries.find((summary) =>
+      summary.variantId === "v7-force-refwall-vel06-fixed10-pv44-mvsoft"
+    );
+    expect(report.summary.bestV6VariantId).toBe("v6-force-refcap-vel06-fixed10-pv44-mvsoft");
+    expect(report.summary.bestV6SourcePreservingPhasePv).toBe(0);
+    expect(report.summary.bestV6PhaseOrientedPvPass).toBe(0);
+    expect(report.summary.bestV6SourceSurfacePass).toBe(6);
+    expect(report.summary.bestV6MvfClean).toBe(6);
+    expect(report.summary.bestV6PrimeWaveformPass).toBe(2);
+    expect(v6Best?.hiddenVolumeClean).toBe(7);
+    expect(v6Best?.maxSystolicXDescentPressureDropMmHg).toBeGreaterThan(3);
+    expect(v6Best?.maxSystolicReservoirVolumeRiseMl).toBeGreaterThan(30);
+    expect(v6Best?.maxPvTangentAngleJumpDeg).toBeGreaterThan(170);
+    expect(v6Fixed?.sourceSurfacePass).toBe(6);
+    expect(v6Fixed?.mvfClean).toBe(6);
+    expect(v7Wall?.sourceSurfacePass).toBe(6);
+    expect(v7Wall?.sourcePreservingPhasePv).toBe(0);
+    expect(v7Wall?.maxVLoopArea).toBeLessThan(v6Best!.maxVLoopArea);
+    expect(v7Wall?.primeWaveformPass).toBeLessThan(v6Best!.primeWaveformPass);
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {

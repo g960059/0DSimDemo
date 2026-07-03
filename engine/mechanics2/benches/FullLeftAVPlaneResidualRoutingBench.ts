@@ -59,7 +59,15 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v5-force-phaseowned-fixed8-pv36-mvsoft"
   | "v5-force-phaseowned-fixed10-pv44-mvsoft"
   | "v5-force-phaseowned-fixed8-pv36-mvloss"
-  | "v5-wall-phaseowned-fixed8-pv36-mvsoft";
+  | "v5-wall-phaseowned-fixed8-pv36-mvsoft"
+  | "v6-force-refcap-fixed8-pv36-mvsoft"
+  | "v6-force-refcap-fixed10-pv44-mvsoft"
+  | "v6-force-refcap-fixed8-pv36-mvloss"
+  | "v6-wall-refcap-fixed8-pv36-mvsoft"
+  | "v6-force-refcap-vel06-fixed10-pv44-mvsoft"
+  | "v6-refvol-refcap-vel06-fixed10-pv44-mvsoft"
+  | "v7-force-refwall-fixed10-pv44-mvsoft"
+  | "v7-force-refwall-vel06-fixed10-pv44-mvsoft";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -74,7 +82,9 @@ type VariantFamilyV1 =
   | "full-left-residual-v2"
   | "full-left-residual-v3"
   | "full-left-hybrid-velocity-residual-v4"
-  | "full-left-phase-owned-residual-v5";
+  | "full-left-phase-owned-residual-v5"
+  | "full-left-reference-capacity-residual-v6"
+  | "full-left-reference-wall-geometry-residual-v7";
 
 type VariantV1 = {
   readonly variantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
@@ -103,6 +113,10 @@ type PhaseOrientedPvQualityV1 = {
   readonly postOpeningVolumeDropMl: number;
   readonly conduitBelowReservoirChordFraction: number;
   readonly meanConduitBelowReservoirChordMmHg: number;
+  readonly systolicXDescentPressureDropMmHg: number;
+  readonly systolicReservoirVolumeRiseMl: number;
+  readonly systolicVWavePressureRiseMmHg: number;
+  readonly systolicReservoirPass: boolean;
   readonly phaseOrientationPass: boolean;
   readonly maxPvTangentAngleJumpDeg: number;
   readonly mvOpeningTangentAngleJumpDeg: number;
@@ -168,6 +182,9 @@ type VariantSummaryV1 = {
   readonly maxVLoopArea: number;
   readonly maxPostOpeningPressureDropMmHg: number;
   readonly maxPostOpeningVolumeDropMl: number;
+  readonly maxSystolicXDescentPressureDropMmHg: number;
+  readonly maxSystolicReservoirVolumeRiseMl: number;
+  readonly maxSystolicVWavePressureRiseMmHg: number;
   readonly maxConduitBelowReservoirChordFraction: number;
   readonly maxPvTangentAngleJumpDeg: number;
   readonly maxTractionPressureStepMmHg: number;
@@ -223,6 +240,12 @@ export type FullLeftAVPlaneResidualRoutingReportV1 = {
     readonly bestV5SourceSurfacePass: number;
     readonly bestV5MvfClean: number;
     readonly bestV5PrimeWaveformPass: number;
+    readonly bestV6VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
+    readonly bestV6SourcePreservingPhasePv: number;
+    readonly bestV6PhaseOrientedPvPass: number;
+    readonly bestV6SourceSurfacePass: number;
+    readonly bestV6MvfClean: number;
+    readonly bestV6PrimeWaveformPass: number;
     readonly variantsWithAnySourcePreservingPhasePv: number;
     readonly fullResidualVariantsWithAnyPhasePv: number;
     readonly reviewStatus:
@@ -255,6 +278,7 @@ export type FullLeftAVPlaneResidualRoutingTrajectoryPanelV1 = {
   readonly bestV3: readonly LeftHeartSubsystemSampleV2[];
   readonly bestV4: readonly LeftHeartSubsystemSampleV2[];
   readonly bestV5: readonly LeftHeartSubsystemSampleV2[];
+  readonly bestV6: readonly LeftHeartSubsystemSampleV2[];
   readonly bestFullResidualVariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestOverallVariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestSmoothCoreVariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
@@ -262,6 +286,7 @@ export type FullLeftAVPlaneResidualRoutingTrajectoryPanelV1 = {
   readonly bestV3VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestV4VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestV5VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
+  readonly bestV6VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
 };
 
 const LEFT_VARIANT_ID = "active-length-mv-closure-stateful-root08" as const;
@@ -309,6 +334,14 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v5-force-phaseowned-fixed10-pv44-mvsoft", "full-left-phase-owned-residual-v5", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.064, 0.00036, 4e-6),
   variant("v5-force-phaseowned-fixed8-pv36-mvloss", "full-left-phase-owned-residual-v5", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
   variant("v5-wall-phaseowned-fixed8-pv36-mvsoft", "full-left-phase-owned-residual-v5", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.070, 0.00038, 4e-6),
+  variant("v6-force-refcap-fixed8-pv36-mvsoft", "full-left-reference-capacity-residual-v6", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.070, 0.00038, 4e-6),
+  variant("v6-force-refcap-fixed10-pv44-mvsoft", "full-left-reference-capacity-residual-v6", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.064, 0.00036, 4e-6),
+  variant("v6-force-refcap-fixed8-pv36-mvloss", "full-left-reference-capacity-residual-v6", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v6-wall-refcap-fixed8-pv36-mvsoft", "full-left-reference-capacity-residual-v6", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.070, 0.00038, 4e-6),
+  variant("v6-force-refcap-vel06-fixed10-pv44-mvsoft", "full-left-reference-capacity-residual-v6", "force-balance-vel06-drive4-hyd002-cap28", 10, 0.26, 44, 0.064, 0.00036, 4e-6),
+  variant("v6-refvol-refcap-vel06-fixed10-pv44-mvsoft", "full-left-reference-capacity-residual-v6", "reference-volume-cap36-drive6-hyd003-stiff2-damp06-vel06", 10, 0.26, 44, 0.064, 0.00036, 4e-6),
+  variant("v7-force-refwall-fixed10-pv44-mvsoft", "full-left-reference-wall-geometry-residual-v7", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.064, 0.00036, 4e-6),
+  variant("v7-force-refwall-vel06-fixed10-pv44-mvsoft", "full-left-reference-wall-geometry-residual-v7", "force-balance-vel06-drive4-hyd002-cap28", 10, 0.26, 44, 0.064, 0.00036, 4e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResidualRoutingReportV1 {
@@ -342,6 +375,9 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
   const v3Summaries = variantSummaries.filter((summary) => summary.family === "full-left-residual-v3");
   const v4Summaries = variantSummaries.filter((summary) => summary.family === "full-left-hybrid-velocity-residual-v4");
   const v5Summaries = variantSummaries.filter((summary) => summary.family === "full-left-phase-owned-residual-v5");
+  const v6Summaries = variantSummaries.filter((summary) =>
+    summary.family === "full-left-reference-capacity-residual-v6"
+  );
   const bestFullResidualVariant = [...fullResidualSummaries].sort((a, b) =>
     b.sourcePreservingPhasePv - a.sourcePreservingPhasePv
     || b.phaseOrientedPvPass - a.phaseOrientedPvPass
@@ -384,6 +420,14 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
     || b.maxVLoopArea - a.maxVLoopArea
   )[0]!;
   const bestV5Variant = [...v5Summaries].sort((a, b) =>
+    b.sourcePreservingPhasePv - a.sourcePreservingPhasePv
+    || b.phaseOrientedPvPass - a.phaseOrientedPvPass
+    || b.sourceSurfacePass - a.sourceSurfacePass
+    || b.mvfClean - a.mvfClean
+    || b.primeWaveformPass - a.primeWaveformPass
+    || b.maxVLoopArea - a.maxVLoopArea
+  )[0]!;
+  const bestV6Variant = [...v6Summaries].sort((a, b) =>
     b.sourcePreservingPhasePv - a.sourcePreservingPhasePv
     || b.phaseOrientedPvPass - a.phaseOrientedPvPass
     || b.sourceSurfacePass - a.sourceSurfacePass
@@ -451,6 +495,12 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
       bestV5SourceSurfacePass: bestV5Variant.sourceSurfacePass,
       bestV5MvfClean: bestV5Variant.mvfClean,
       bestV5PrimeWaveformPass: bestV5Variant.primeWaveformPass,
+      bestV6VariantId: bestV6Variant.variantId,
+      bestV6SourcePreservingPhasePv: bestV6Variant.sourcePreservingPhasePv,
+      bestV6PhaseOrientedPvPass: bestV6Variant.phaseOrientedPvPass,
+      bestV6SourceSurfacePass: bestV6Variant.sourceSurfacePass,
+      bestV6MvfClean: bestV6Variant.mvfClean,
+      bestV6PrimeWaveformPass: bestV6Variant.primeWaveformPass,
       variantsWithAnySourcePreservingPhasePv,
       fullResidualVariantsWithAnyPhasePv,
       reviewStatus,
@@ -489,6 +539,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   bestV3VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
   bestV4VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
   bestV5VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
+  bestV6VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
 ): readonly FullLeftAVPlaneResidualRoutingTrajectoryPanelV1[] {
   const report = runFullLeftAVPlaneResidualRoutingBenchV1();
   const selectedFullId = bestFullResidualVariantId ?? report.summary.bestFullResidualVariantId;
@@ -498,6 +549,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   const selectedV3Id = bestV3VariantId ?? report.summary.bestV3VariantId;
   const selectedV4Id = bestV4VariantId ?? report.summary.bestV4VariantId;
   const selectedV5Id = bestV5VariantId ?? report.summary.bestV5VariantId;
+  const selectedV6Id = bestV6VariantId ?? report.summary.bestV6VariantId;
   const baseParams = buildLeftHeartDynamicReserveVariantEnvelopeV1(LEFT_VARIANT_ID);
   const baselineVariant = getVariant("baseline-no-avp-compliance-node");
   const rawVariant = getVariant("raw-traction-reference");
@@ -508,6 +560,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   const bestV3Variant = getVariant(selectedV3Id);
   const bestV4Variant = getVariant(selectedV4Id);
   const bestV5Variant = getVariant(selectedV5Id);
+  const bestV6Variant = getVariant(selectedV6Id);
   return PROFILE_IDS.map((profileId, index) => {
     const params = baseParams[index]!;
     return {
@@ -521,6 +574,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
       bestV3: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV3Variant)).finalBeatSamples,
       bestV4: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV4Variant)).finalBeatSamples,
       bestV5: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV5Variant)).finalBeatSamples,
+      bestV6: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV6Variant)).finalBeatSamples,
       bestFullResidualVariantId: selectedFullId,
       bestOverallVariantId: selectedOverallId,
       bestSmoothCoreVariantId: selectedSmoothCoreId,
@@ -528,6 +582,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
       bestV3VariantId: selectedV3Id,
       bestV4VariantId: selectedV4Id,
       bestV5VariantId: selectedV5Id,
+      bestV6VariantId: selectedV6Id,
     };
   });
 }
@@ -591,6 +646,8 @@ function applyFullLeftRoutingVariant(
     && variantConfig.family !== "full-left-residual-v3"
     && variantConfig.family !== "full-left-hybrid-velocity-residual-v4"
     && variantConfig.family !== "full-left-phase-owned-residual-v5"
+    && variantConfig.family !== "full-left-reference-capacity-residual-v6"
+    && variantConfig.family !== "full-left-reference-wall-geometry-residual-v7"
   ) {
     return coordinateBase;
   }
@@ -621,6 +678,20 @@ function applyFullLeftRoutingVariant(
         ...coordinateBase,
         laLobeGeneratorMode: "av-plane-full-left-phase-owned-residual-v1" as const,
         laEffectiveGeometryMode: "av-plane-full-left-phase-owned-residual-v1" as const,
+      }
+    : variantConfig.family === "full-left-reference-capacity-residual-v6"
+      ? {
+        ...coordinateBase,
+        laLobeGeneratorMode: "av-plane-full-left-reference-capacity-residual-v1" as const,
+        laEffectiveGeometryMode: "av-plane-full-left-reference-capacity-residual-v1" as const,
+        laAVPlaneReservoirReferenceGainMl: coordinateBase.laReservoirGeometryGainMl,
+      }
+    : variantConfig.family === "full-left-reference-wall-geometry-residual-v7"
+      ? {
+        ...coordinateBase,
+        laLobeGeneratorMode: "av-plane-full-left-reference-wall-geometry-residual-v1" as const,
+        laEffectiveGeometryMode: "av-plane-full-left-reference-wall-geometry-residual-v1" as const,
+        laAVPlaneReservoirReferenceGainMl: coordinateBase.laReservoirGeometryGainMl,
       }
     : coordinateBase;
   return {
@@ -788,6 +859,12 @@ function summarizeVariant(variantConfig: VariantV1, rows: readonly RowV1[]): Var
       round(Math.max(0, ...rows.map((row) => row.phasePv.postOpeningPressureDropMmHg))),
     maxPostOpeningVolumeDropMl:
       round(Math.max(0, ...rows.map((row) => row.phasePv.postOpeningVolumeDropMl))),
+    maxSystolicXDescentPressureDropMmHg:
+      round(Math.max(0, ...rows.map((row) => row.phasePv.systolicXDescentPressureDropMmHg))),
+    maxSystolicReservoirVolumeRiseMl:
+      round(Math.max(0, ...rows.map((row) => row.phasePv.systolicReservoirVolumeRiseMl))),
+    maxSystolicVWavePressureRiseMmHg:
+      round(Math.max(0, ...rows.map((row) => row.phasePv.systolicVWavePressureRiseMmHg))),
     maxConduitBelowReservoirChordFraction:
       round(Math.max(0, ...rows.map((row) => row.phasePv.conduitBelowReservoirChordFraction))),
     maxPvTangentAngleJumpDeg: round(Math.max(0, ...rows.map((row) => row.phasePv.maxPvTangentAngleJumpDeg))),
@@ -838,6 +915,10 @@ function phaseOrientedPvQualityFor(samples: readonly LeftHeartSubsystemSampleV2[
     postOpeningVolumeDropMl: round(phase.postOpeningVolumeDropMl),
     conduitBelowReservoirChordFraction: round(phase.conduitBelowReservoirChordFraction),
     meanConduitBelowReservoirChordMmHg: round(phase.meanConduitBelowReservoirChordMmHg),
+    systolicXDescentPressureDropMmHg: round(phase.systolicXDescentPressureDropMmHg),
+    systolicReservoirVolumeRiseMl: round(phase.systolicReservoirVolumeRiseMl),
+    systolicVWavePressureRiseMmHg: round(phase.systolicVWavePressureRiseMmHg),
+    systolicReservoirPass: phase.systolicReservoirPass,
     phaseOrientationPass: phase.failureReasons.length === 0,
     maxPvTangentAngleJumpDeg: round(tangent.maxPvTangentAngleJumpDeg),
     mvOpeningTangentAngleJumpDeg: round(tangent.mvOpeningTangentAngleJumpDeg),
@@ -861,6 +942,10 @@ function phaseOrientationFor(
   readonly postOpeningVolumeDropMl: number;
   readonly conduitBelowReservoirChordFraction: number;
   readonly meanConduitBelowReservoirChordMmHg: number;
+  readonly systolicXDescentPressureDropMmHg: number;
+  readonly systolicReservoirVolumeRiseMl: number;
+  readonly systolicVWavePressureRiseMmHg: number;
+  readonly systolicReservoirPass: boolean;
   readonly failureReasons: readonly string[];
 } {
   const failures: string[] = [];
@@ -878,9 +963,25 @@ function phaseOrientationFor(
       postOpeningVolumeDropMl: 0,
       conduitBelowReservoirChordFraction: 0,
       meanConduitBelowReservoirChordMmHg: 0,
+      systolicXDescentPressureDropMmHg: 0,
+      systolicReservoirVolumeRiseMl: 0,
+      systolicVWavePressureRiseMmHg: 0,
+      systolicReservoirPass: false,
       failureReasons: failures,
     };
   }
+  const reservoirIndices = circularIndexRange(mvClosureIndex, mvOpeningIndex, theta.length);
+  const closurePressure = pressures[mvClosureIndex]!;
+  const closureVolume = volumes[mvClosureIndex]!;
+  const reservoirPressures = reservoirIndices.map((index) => pressures[index]!);
+  const minReservoirPressure = Math.min(closurePressure, ...reservoirPressures);
+  const systolicXDescentPressureDrop = closurePressure - minReservoirPressure;
+  const systolicReservoirVolumeRise = volumes[mvOpeningIndex]! - closureVolume;
+  const systolicVWavePressureRise = pressures[mvOpeningIndex]! - minReservoirPressure;
+  const systolicReservoirPass =
+    systolicXDescentPressureDrop >= 0.25
+    && systolicReservoirVolumeRise >= 0.8
+    && systolicVWavePressureRise >= 0.45;
   const conduitIndices = conduitIndicesAfterOpening(theta, mvOpeningIndex);
   const openingPressure = pressures[mvOpeningIndex]!;
   const openingVolume = volumes[mvOpeningIndex]!;
@@ -908,6 +1009,7 @@ function phaseOrientationFor(
   if (postOpeningVolumeDrop < 0.8) failures.push("mv-opening-conduit-not-volume-leftward");
   if (conduitBelowReservoirChordFraction < 0.55) failures.push("conduit-not-below-reservoir-chord");
   if (meanConduitBelowReservoirChord < 0.25) failures.push("conduit-mean-not-below-reservoir-chord");
+  if (!systolicReservoirPass) failures.push("missing-systolic-x-descent-reservoir");
   return {
     mvOpeningIndex,
     mvClosureIndex,
@@ -917,6 +1019,10 @@ function phaseOrientationFor(
     postOpeningVolumeDropMl: postOpeningVolumeDrop,
     conduitBelowReservoirChordFraction,
     meanConduitBelowReservoirChordMmHg: meanConduitBelowReservoirChord,
+    systolicXDescentPressureDropMmHg: systolicXDescentPressureDrop,
+    systolicReservoirVolumeRiseMl: systolicReservoirVolumeRise,
+    systolicVWavePressureRiseMmHg: systolicVWavePressureRise,
+    systolicReservoirPass,
     failureReasons: failures,
   };
 }
@@ -1067,6 +1173,16 @@ function conduitIndicesAfterOpening(theta: readonly number[], openingIndex: numb
     const index = (openingIndex + step) % theta.length;
     indices.push(index);
     if (step > 0 && theta[index]! >= PRE_A_THETA) break;
+  }
+  return indices;
+}
+
+function circularIndexRange(startIndex: number, endIndex: number, length: number): readonly number[] {
+  const indices: number[] = [];
+  for (let step = 0; step <= length; step++) {
+    const index = (startIndex + step) % length;
+    indices.push(index);
+    if (step > 0 && index === endIndex) break;
   }
   return indices;
 }
