@@ -174,7 +174,13 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v23-wall-v16area-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite"
   | "v23-wall-v16area-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite"
   | "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
-  | "v23-wall-v16area-minloss-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite";
+  | "v23-wall-v16area-minloss-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite"
+  | "v24-wall-v16receiverstate-lvrecv2-rpath-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite"
+  | "v24-wall-v16receiverstate-lvrecv3-rpath-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
+  | "v24-wall-v16receiverstate-lvrecv3-rpathslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
+  | "v24-wall-v16receiverstate-lvrecv3-rpathfast-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
+  | "v24-wall-v16receiverstate-cap105-lvrecv3-rpath-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
+  | "v24-wall-v16receiverstate-rpath08-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -207,7 +213,8 @@ type VariantFamilyV1 =
   | "full-left-reservoir-conduit-hysteresis-v20"
   | "full-left-reservoir-conduit-hysteresis-v21"
   | "full-left-v16-transfer-hysteresis-v22"
-  | "full-left-v16-area-receiver-hysteresis-v23";
+  | "full-left-v16-area-receiver-hysteresis-v23"
+  | "full-left-v16-receiver-state-hysteresis-v24";
 
 type VariantV1 = {
   readonly variantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
@@ -874,6 +881,12 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v23-wall-v16area-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
   variant("v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
   variant("v23-wall-v16area-minloss-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00032, 4e-6),
+  variant("v24-wall-v16receiverstate-lvrecv2-rpath-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite", "full-left-v16-receiver-state-hysteresis-v24", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
+  variant("v24-wall-v16receiverstate-lvrecv3-rpath-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-v16-receiver-state-hysteresis-v24", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
+  variant("v24-wall-v16receiverstate-lvrecv3-rpathslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-v16-receiver-state-hysteresis-v24", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
+  variant("v24-wall-v16receiverstate-lvrecv3-rpathfast-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-v16-receiver-state-hysteresis-v24", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
+  variant("v24-wall-v16receiverstate-cap105-lvrecv3-rpath-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-v16-receiver-state-hysteresis-v24", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
+  variant("v24-wall-v16receiverstate-rpath08-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-v16-receiver-state-hysteresis-v24", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(
@@ -1681,6 +1694,7 @@ function applyFullLeftRoutingVariant(
     && variantConfig.family !== "full-left-reservoir-conduit-hysteresis-v21"
     && variantConfig.family !== "full-left-v16-transfer-hysteresis-v22"
     && variantConfig.family !== "full-left-v16-area-receiver-hysteresis-v23"
+    && variantConfig.family !== "full-left-v16-receiver-state-hysteresis-v24"
   ) {
     return coordinateBase;
   }
@@ -2058,6 +2072,7 @@ function applyFullLeftRoutingVariant(
       }
     : variantConfig.family === "full-left-v16-transfer-hysteresis-v22"
       || variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
+      || variantConfig.family === "full-left-v16-receiver-state-hysteresis-v24"
       ? {
         ...coordinateBase,
         laLobeGeneratorMode: "av-plane-full-left-v16-transfer-hysteresis-v6" as const,
@@ -2080,6 +2095,19 @@ function applyFullLeftRoutingVariant(
             : 0,
         laAVPlaneReservoirConduitPressureMemoryRiseTauSec: 0.070,
         laAVPlaneReservoirConduitPressureMemoryFallTauSec: 0.44,
+        laMvLvReceiverPathGain01: variantConfig.family === "full-left-v16-receiver-state-hysteresis-v24"
+          ? (variantConfig.variantId.includes("rpath08") ? 0.8 : 1.0)
+          : 0,
+        laMvLvReceiverPathRiseTauSec: variantConfig.variantId.includes("rpathfast")
+          ? 0.022
+          : variantConfig.variantId.includes("rpathslow")
+            ? 0.050
+            : 0.032,
+        laMvLvReceiverPathFallTauSec: variantConfig.variantId.includes("rpathslow")
+          ? 0.30
+          : variantConfig.variantId.includes("rpathfast")
+            ? 0.16
+            : 0.22,
         lvEarlyFillingReceiverReliefGainMmHg: variantConfig.variantId.includes("softrecv")
           ? 0.90
           : variantConfig.variantId.includes("fastrecv")
@@ -2095,20 +2123,26 @@ function applyFullLeftRoutingVariant(
           ? 0.028
           : variantConfig.variantId.includes("softrecv")
             ? 0.050
+            : variantConfig.variantId.includes("rpathfast")
+              ? 0.028
             : variantConfig.variantId.includes("lvrecv2") || variantConfig.variantId.includes("lvrecv3")
               ? 0.034
               : 0.040,
         lvEarlyFillingReceiverReliefFallTauSec: variantConfig.variantId.includes("softrecv")
           ? 0.24
+          : variantConfig.variantId.includes("rpathslow")
+            ? 0.30
           : variantConfig.variantId.includes("lvrecv2") || variantConfig.variantId.includes("lvrecv3")
             ? 0.26
             : 0.20,
         lvEarlyFillingReceiverReliefStartTheta: variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
+          || variantConfig.family === "full-left-v16-receiver-state-hysteresis-v24"
           ? 0.32
           : 0.34,
         lvEarlyFillingReceiverReliefEndTheta: variantConfig.variantId.includes("softrecv")
           ? 0.72
           : variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
+            || variantConfig.family === "full-left-v16-receiver-state-hysteresis-v24"
             ? 0.72
             : 0.68,
         laAVPlanePrimeVelocityReadbackTauSec: 0,
@@ -2123,9 +2157,11 @@ function applyFullLeftRoutingVariant(
               : 0,
         laAVPlaneReservoirCapacityRiseTauSec: 0.066,
         laAVPlaneReservoirCapacityFallTauSec: variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
+          || variantConfig.family === "full-left-v16-receiver-state-hysteresis-v24"
           ? 0.42
           : 0.38,
         laAVPlaneReservoirCapacityReleaseTauSec: variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
+          || variantConfig.family === "full-left-v16-receiver-state-hysteresis-v24"
           ? 0.20
           : 0.18,
         laAVPlaneVenousReservoirCouplingGain: coordinateBase.laAVPlaneVenousReservoirCouplingGain,

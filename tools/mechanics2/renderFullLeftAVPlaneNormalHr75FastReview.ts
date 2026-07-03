@@ -30,6 +30,7 @@ const report = runFullLeftAVPlaneResidualRoutingBenchV1({ profileIds: ["normal-h
 const rows = report.rows.filter((row) => row.profileId === "normal-hr75");
 const pinnedMechanismIds = new Set([
   "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v24-wall-v16receiverstate-lvrecv3-rpathslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
 ]);
 const eligibleRows = rows
   .filter((row) =>

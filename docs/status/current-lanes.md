@@ -1547,6 +1547,24 @@ Next gates:
     relief/loss variants toward a co-solved LA-MV-LV receiver state that
     separates reservoir filling and conduit emptying paths without collapsing
     the V16 normal-shape loop.
+99. V16 receiver-path state V24: a follow-up adds an explicit
+    LA-MV-LV receiver-path state inside the fixed-point left-heart transaction
+    and routes that state into early-LV receiver relief plus the V16
+    reservoir/conduit trajectory target. This is a bounded component signal,
+    not a visual acceptance path. The representative slow receiver-path row
+    `v24-wall-v16receiverstate-lvrecv3-rpathslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite`
+    preserves the V23-level source-preserving blood-phase count at 3/7
+    (normal-HR75, preload-low, contractility-high), keeps source/MVF at 5/7
+    and prime/hidden-volume cleanliness at 7/7, and slightly raises the max
+    blood V-loop area versus V23. On normal-HR75 it remains source/MVF/prime
+    and blood-phase clean, but its V-loop area is still below the V16
+    no-receiver shape. Treat this as evidence that an explicit receiver state
+    can be added without breaking the current V16/V23 signal, but that
+    receiver relief/path-state alone does not create the owner-desired fuller
+    conduit loop. Next work should stop treating the LV receiver as a scalar
+    relief and instead co-solve LV early-diastolic receiving capacity/relaxation
+    with MV opening/loss, LA wall pressure, pulmonary venous inflow, and the
+    AV-plane reservoir/conduit path.
 
 Parallel prep, not blocking the next strategic gate:
 

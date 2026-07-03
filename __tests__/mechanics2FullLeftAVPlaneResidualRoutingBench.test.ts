@@ -32,7 +32,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     );
 
     expect(normalReport.summary.totalProfiles).toBe(1);
-    expect(normalReport.rows).toHaveLength(146);
+    expect(normalReport.rows).toHaveLength(152);
     expect(normalReport.summary.bestOverallVariantId).toBe("v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss");
     expect(normalReport.summary.bestOverallSourcePreservingPhasePv).toBe(1);
     expect(visualCandidates.map((row) => row.variantId)).toContain(
@@ -44,6 +44,9 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(visualCandidates.map((row) => row.variantId)).toContain(
       "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
     );
+    expect(visualCandidates.map((row) => row.variantId)).toContain(
+      "v24-wall-v16receiverstate-lvrecv3-rpathslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+    );
     expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0)).toBe(true);
     expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyVolumeDropMl > 5.0)).toBe(true);
   });
@@ -51,9 +54,9 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records the full-left LA-AV-plane residual routing experiment", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(1022);
-    expect(report.variantSummaries).toHaveLength(146);
-    expect(new Set(report.rows.map((row) => row.family)).size).toBe(31);
+    expect(report.rows).toHaveLength(1064);
+    expect(report.variantSummaries).toHaveLength(152);
+    expect(new Set(report.rows.map((row) => row.family)).size).toBe(32);
   });
 
   it("keeps x-descent depth and signed-lobe orientation as readbacks instead of hard failures", () => {
@@ -261,6 +264,41 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(normal!.phasePv.postOpeningEarlyVolumeDropMl).toBeGreaterThan(7.0);
     expect(contractilityHigh?.sourcePreservingPhasePv).toBe(true);
     expect(v23Rows.filter((row) => !row.phaseOrientedPvPass)
+      .every((row) => row.phasePv.failureReasons.includes("v-loop-area-too-small"))).toBe(true);
+  });
+
+  it("records V24 receiver-path state as neutral-to-slight V-loop area evidence, not normal-shape adoption", () => {
+    const v16VariantId = "v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss";
+    const v23VariantId = "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite";
+    const v24VariantId = "v24-wall-v16receiverstate-lvrecv3-rpathslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite";
+    const v16Normal = rowsFor(v16VariantId).find((row) => row.profileId === "normal-hr75");
+    const v23Best = summaryFor(v23VariantId);
+    const v24Best = summaryFor(v24VariantId);
+    const v24Rows = rowsFor(v24VariantId);
+    const normal = v24Rows.find((row) => row.profileId === "normal-hr75");
+    const contractilityHigh = v24Rows.find((row) => row.profileId === "contractility-high");
+
+    expect(v24Best.sourcePreservingPhasePv).toBe(v23Best.sourcePreservingPhasePv);
+    expect(v24Best.phaseOrientedPvPass).toBe(v23Best.phaseOrientedPvPass);
+    expect(v24Best.primeWaveformPass).toBe(7);
+    expect(v24Best.hiddenVolumeClean).toBe(7);
+    expect(v24Best.maxVLoopArea).toBeGreaterThan(v23Best.maxVLoopArea);
+
+    expect(v24Rows.filter((row) => row.sourcePreservingPhasePv).map((row) => row.profileId)).toEqual([
+      "normal-hr75",
+      "preload-low",
+      "contractility-high",
+    ]);
+    expect(normal).toBeDefined();
+    expect(v16Normal).toBeDefined();
+    expect(normal!.sourceSurfacePass).toBe(true);
+    expect(normal!.mvfClean).toBe(true);
+    expect(normal!.phaseOrientedPvPass).toBe(true);
+    expect(normal!.phasePv.vLoopArea).toBeLessThan(v16Normal!.phasePv.vLoopArea);
+    expect(normal!.phasePv.postOpeningEarlyPressureDropMmHg).toBeGreaterThan(2.4);
+    expect(normal!.postMvoConduit.earlyConduitMeanLvReceiverReliefMmHg).toBeGreaterThan(0.15);
+    expect(contractilityHigh?.sourcePreservingPhasePv).toBe(true);
+    expect(v24Rows.filter((row) => !row.phaseOrientedPvPass)
       .every((row) => row.phasePv.failureReasons.includes("v-loop-area-too-small"))).toBe(true);
   });
 
