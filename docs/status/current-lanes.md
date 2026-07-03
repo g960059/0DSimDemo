@@ -1134,6 +1134,28 @@ Next gates:
     still structurally blocked, and next work should target the pressure-volume
     orientation owner rather than pressure parity, scalar suction, or AV-plane
     gain tuning.
+80. Full-left LA-AV-plane residual routing: PR #437 reclassified the older
+    opposed-signed-lobe counts as over-permissive under an owner-visual
+    MV-closure/MV-opening phase gate. The current best route remains V2
+    coordinate residual (`v2-force-fixed8-pv36-mvsoft`) with source+phase 3/7,
+    phase 4/7, source 4/7, MVF 5/7, but prime waveform 0/7. V3 MV-loss smooths
+    prime 7/7 only by trading source+phase down to 2/7, while V4/V5 target or
+    phase-owned velocity residuals are 0/7 source+phase. This makes the next
+    owner the coupled LA wall pressure / AV-plane coordinate / MV opening-loss
+    / pulmonary venous inflow residual, not another scalar traction or target
+    velocity sweep.
+81. Reference-capacity AV-plane residual V6/V7: V6 removes additive traction
+    pressure and routes AV-plane descent into LA reference capacity while blood
+    volume stays ledger-owned by pulmonary venous and MV flows. It is a partial
+    hygiene signal, not a promotion path: best V6 preserves source and MVF 6/7
+    and records systolic x-descent/reservoir signal in most profiles, but phase
+    LA PV remains 0/7 because a/v lobes are not opposed and MV-opening PV
+    tangent jumps remain owner-visible. The V7 pressure-wall-geometry variant
+    weakens v-loop/prime metrics and is negative. Next work should co-solve a
+    smooth annular/AV-plane coordinate with LA wall pressure, MV opening/loss,
+    pulmonary venous inflow, and LV ejection/relaxation timing so the V-loop is
+    created by physiologic x-descent and a C1-continuous MV-opening transition,
+    not by a pressure hook or post-hoc geometry shift.
 
 Parallel prep, not blocking the next strategic gate:
 

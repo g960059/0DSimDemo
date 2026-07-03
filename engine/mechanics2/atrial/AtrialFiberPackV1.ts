@@ -31,6 +31,7 @@ export type AtrialFiberChamberInputV1 = {
   readonly previousCavityVolumeMl: number;
   readonly referenceCavityVolumeShiftMl?: number;
   readonly previousReferenceCavityVolumeShiftMl?: number;
+  readonly pressureGeometryVolumeShiftMl?: number;
 };
 
 export type AtrialFiberChamberOutputV1 = {
@@ -56,6 +57,7 @@ export type AtrialFiberChamberOutputV1 = {
   readonly referenceCavityVolumeMl: number;
   readonly referenceCavityVolumeShiftMl: number;
   readonly previousReferenceCavityVolumeShiftMl: number;
+  readonly pressureGeometryVolumeShiftMl: number;
 };
 
 const ATRIAL_BASE_FIBER_PARAMS_V1: HillSeriesFiberParamsV1 = {
@@ -112,6 +114,7 @@ export function stepAtrialFiberChamberV1(
   const dtSec = Math.max(input.dtSec, 1e-6);
   const referenceCavityVolumeShiftMl = input.referenceCavityVolumeShiftMl ?? 0;
   const previousReferenceCavityVolumeShiftMl = input.previousReferenceCavityVolumeShiftMl ?? 0;
+  const pressureGeometryVolumeShiftMl = input.pressureGeometryVolumeShiftMl ?? 0;
   const lS = lengthFromVolume(input.cavityVolumeMl, params, referenceCavityVolumeShiftMl);
   const lSPrev = lengthFromVolume(input.previousCavityVolumeMl, params, previousReferenceCavityVolumeShiftMl);
   const fiber = stepHillSeriesFiberV1(previous.fiber, {
@@ -122,7 +125,7 @@ export function stepAtrialFiberChamberV1(
     lS,
     lSDot: (lS - lSPrev) / dtSec,
   }, params.fiber);
-  const geometry = geometryFromVolume(input.cavityVolumeMl, params);
+  const geometry = geometryFromVolume(input.cavityVolumeMl + pressureGeometryVolumeShiftMl, params);
   const activePressureMmHg = stressToPressureMmHg(fiber.sigmaActivePa, geometry, params);
   const passivePressureMmHg = stressToPressureMmHg(fiber.sigmaPassivePa, geometry, params);
   const seriesPressureMmHg = stressToPressureMmHg(fiber.sigmaSeriesPa, geometry, params);
@@ -150,6 +153,7 @@ export function stepAtrialFiberChamberV1(
     referenceCavityVolumeMl: params.referenceCavityVolumeMl + referenceCavityVolumeShiftMl,
     referenceCavityVolumeShiftMl,
     previousReferenceCavityVolumeShiftMl,
+    pressureGeometryVolumeShiftMl,
   };
 }
 
