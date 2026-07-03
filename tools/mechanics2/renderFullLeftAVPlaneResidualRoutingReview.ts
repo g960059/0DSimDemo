@@ -42,6 +42,7 @@ const panels = runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   report.summary.bestV16VariantId,
   report.summary.bestV17VariantId,
   report.summary.bestV18VariantId,
+  report.summary.bestV19VariantId,
 );
 
 const width = 1900;
@@ -79,6 +80,7 @@ svg.push(`<text x="660" y="382" fill="#9ca3af" font-family="Inter,Arial,sans-ser
 svg.push(`<text x="660" y="402" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V16 implicit MV-state trajectory law: ${report.summary.bestV16VariantId}; capacity phase ${report.summary.bestV16CapacityAxisPhaseOrientedPvPass}/7, capacity source+phase ${report.summary.bestV16SourcePreservingCapacityAxisPhasePv}/7, source ${report.summary.bestV16SourceSurfacePass}/7, MVF ${report.summary.bestV16MvfClean}/7, prime ${report.summary.bestV16PrimeWaveformPass}/7</text>`);
 svg.push(`<text x="660" y="422" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V17 reservoir-conduit hysteresis: ${report.summary.bestV17VariantId}; blood phase ${report.summary.bestV17PhaseOrientedPvPass}/7, source+phase ${report.summary.bestV17SourcePreservingPhasePv}/7, source ${report.summary.bestV17SourceSurfacePass}/7, MVF ${report.summary.bestV17MvfClean}/7, prime ${report.summary.bestV17PrimeWaveformPass}/7, x-descent ${report.summary.bestV17MaxBloodXDescentPressureDropMmHg.toFixed(2)} mmHg</text>`);
 svg.push(`<text x="660" y="442" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V18 phase-asymmetric hysteresis: ${report.summary.bestV18VariantId}; blood phase ${report.summary.bestV18PhaseOrientedPvPass}/7, source+phase ${report.summary.bestV18SourcePreservingPhasePv}/7, source ${report.summary.bestV18SourceSurfacePass}/7, MVF ${report.summary.bestV18MvfClean}/7, prime ${report.summary.bestV18PrimeWaveformPass}/7, x-descent ${report.summary.bestV18MaxBloodXDescentPressureDropMmHg.toFixed(2)} mmHg</text>`);
+svg.push(`<text x="660" y="462" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V19 recoil hysteresis: ${report.summary.bestV19VariantId}; blood phase ${report.summary.bestV19PhaseOrientedPvPass}/7, source+phase ${report.summary.bestV19SourcePreservingPhasePv}/7, source ${report.summary.bestV19SourceSurfacePass}/7, MVF ${report.summary.bestV19MvfClean}/7, prime ${report.summary.bestV19PrimeWaveformPass}/7, x-descent ${report.summary.bestV19MaxBloodXDescentPressureDropMmHg.toFixed(2)} mmHg</text>`);
 legend(svg, 1540, 36, "#22c55e", "baseline no AV-plane");
 legend(svg, 1540, 58, "#f97316", "raw traction reference");
 legend(svg, 1540, 80, "#a855f7", "best full-left residual");
@@ -100,6 +102,7 @@ legend(svg, 1540, 410, "#fb7185", "best V15 MV-coupled trajectory");
 legend(svg, 1540, 432, "#c084fc", "best V16 implicit MV state");
 legend(svg, 1540, 454, "#2dd4bf", "best V17 reservoir-conduit hysteresis");
 legend(svg, 1540, 476, "#5eead4", "best V18 phase-asymmetric hysteresis");
+legend(svg, 1540, 498, "#d946ef", "best V19 recoil hysteresis");
 svg.push(`<circle cx="1780" cy="40" r="4.4" fill="#f8fafc" stroke="#111827" stroke-width="1.4"/>`);
 svg.push(`<text x="1792" y="45" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV opening</text>`);
 svg.push(`<circle cx="1780" cy="62" r="4.4" fill="#111827" stroke="#f8fafc" stroke-width="1.7"/>`);
@@ -171,6 +174,7 @@ function renderPv(
     { variantId: panel.bestV16VariantId, samples: panel.bestV16, color: "#c084fc" },
     { variantId: panel.bestV17VariantId, samples: panel.bestV17, color: "#2dd4bf" },
     { variantId: panel.bestV18VariantId, samples: panel.bestV18, color: "#5eead4" },
+    { variantId: panel.bestV19VariantId, samples: panel.bestV19, color: "#d946ef" },
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "LA blood PV (ledger audit)");
@@ -239,6 +243,7 @@ function renderCapacityPv(
     { variantId: panel.bestV16VariantId, samples: panel.bestV16, color: "#c084fc" },
     { variantId: panel.bestV17VariantId, samples: panel.bestV17, color: "#2dd4bf" },
     { variantId: panel.bestV18VariantId, samples: panel.bestV18, color: "#5eead4" },
+    { variantId: panel.bestV19VariantId, samples: panel.bestV19, color: "#d946ef" },
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "LA effective-cavity PV");
@@ -290,6 +295,7 @@ function renderFlow(
     { variantId: panel.bestV16VariantId, samples: panel.bestV16, color: "#c084fc" },
     { variantId: panel.bestV17VariantId, samples: panel.bestV17, color: "#2dd4bf" },
     { variantId: panel.bestV18VariantId, samples: panel.bestV18, color: "#5eead4" },
+    { variantId: panel.bestV19VariantId, samples: panel.bestV19, color: "#d946ef" },
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "QMV forward");
@@ -443,7 +449,8 @@ function shouldPlotPhysiologyPvCandidate(
     && !!row.mvfClean
     && !!row.phaseC1Pass
     && !!row.hiddenVolumeClean
-    && (summary?.sourcePreservingPhasePv ?? 0) >= 5;
+    && row.phasePv.maxPvTangentAngleJumpDeg <= 75
+    && (summary?.sourcePreservingPhasePv ?? 0) >= 4;
 }
 
 function physiologyDiagnosticTrace(panel: ReturnType<typeof runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1>[number]): {
@@ -452,6 +459,7 @@ function physiologyDiagnosticTrace(panel: ReturnType<typeof runFullLeftAVPlaneRe
   readonly samples: readonly LeftHeartSubsystemSampleV2[];
 } | null {
   const candidates = [
+    { variantId: panel.bestV19VariantId, label: "best V19", samples: panel.bestV19 },
     { variantId: panel.bestV18VariantId, label: "best V18", samples: panel.bestV18 },
     { variantId: panel.bestV17VariantId, label: "best V17", samples: panel.bestV17 },
     { variantId: panel.bestV16VariantId, label: "best V16", samples: panel.bestV16 },
