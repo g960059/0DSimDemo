@@ -224,6 +224,18 @@ not sufficient, and that capacity/reference residuals must not become another
 display-axis route. Next work should move the pressure-relief/capacity state
 inside the accepted-state LA wall / AV-plane / MV / pulmonary venous residual
 instead of adding further scalar separated-capacity variants.
+A dedicated effective-cavity sign audit then checks that interpretation without
+promoting any capacity-axis morphology. Across 56 audited representative rows,
+the current AV-plane/reference-capacity contribution has zero positive-pressure
+source rows and passes both applied and counterfactual fixed-blood-volume sign
+probes 56/56; the largest applied pressure relief is 2.63 mmHg and V8 carries
+the same relief only as a counterfactual readback. However, no reference/capacity
+row passes strict blood-volume phase plus C1, while 10 capacity-axis rows are
+explicitly hidden from the owner SVG by the strict blood-volume gate. Treat this
+as sign-correct but too weak/incorrectly owned for blood-volume figure-eight
+morphology. Keep `blood+capacity` / effective-cavity PV as shadow readbacks only;
+next work remains the accepted-state LA wall / AV-plane / MV / pulmonary venous
+residual, not another scalar display-axis route.
 A first isolated LA-AV-plane-MV-PV residual then co-solves LA blood volume,
 pulmonary venous reservoir pressure/flow, MV q-state flow, LA wall pressure,
 and an explicit AV-plane coordinate against prescribed LV pressure. It is a
