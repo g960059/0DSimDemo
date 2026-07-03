@@ -201,6 +201,16 @@ export type LeftHeartSubsystemStateV2 = {
   readonly clampCount: number;
 };
 
+export type LeftAtrialVolumeCoordinateReadbackV2 = {
+  readonly bloodVolumeMl: number;
+  readonly avPlaneReferenceCapacityMl: number;
+  readonly pressureReferenceCapacityMl: number;
+  readonly effectiveCavityVolumeMl: number;
+  readonly pressureWallStretchVolumeMl: number;
+  readonly counterfactualWallStretchVolumeMl: number;
+  readonly hiddenBloodVolumeSourceMl: number;
+};
+
 export type LeftHeartSubsystemSampleV2 = {
   readonly tSec: number;
   readonly beat: number;
@@ -220,6 +230,7 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly lapFiberActivePulse01: number;
   readonly lapPressureSourceMode: LeftAtrialPressureSourceModeV2;
   readonly laEffectiveGeometryMode: LeftAtrialEffectiveGeometryModeV2;
+  readonly laVolumeCoordinateReadback: LeftAtrialVolumeCoordinateReadbackV2;
   readonly laEffectiveGeometryDeltaMl: number;
   readonly laReservoirGeometryDeltaMl: number;
   readonly laReservoirReferenceVolumeShiftMl: number;
@@ -580,6 +591,13 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       lapFiberActivePulse01: accepted.lapFiberActivePulse01,
       lapPressureSourceMode: params.laPressureSourceMode,
       laEffectiveGeometryMode: params.laEffectiveGeometryMode,
+      laVolumeCoordinateReadback: leftAtrialVolumeCoordinateReadbackV2For({
+        params,
+        bloodVolumeMl: accepted.laVolumeMl,
+        avPlaneReferenceCapacityMl: accepted.laReservoirReferenceVolumeShiftMl,
+        geometryCapacityMl: accepted.laReservoirGeometryDeltaMl,
+        hiddenBloodVolumeSourceMl: accepted.avPlaneGeometryReadback.hiddenBloodVolumeSourceMl,
+      }),
       laEffectiveGeometryDeltaMl: accepted.avPlaneGeometryReadback.atrialGeometryDeltaMl,
       laReservoirGeometryDeltaMl: accepted.laReservoirGeometryDeltaMl,
       laBoosterGeometryDeltaMl: accepted.laBoosterGeometryDeltaMl,
@@ -1913,6 +1931,30 @@ function leftAtrialPressureReferenceVolumeShiftMl(
   return params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
     ? Math.max(0, referenceVolumeShiftMl)
     : 0;
+}
+
+function leftAtrialVolumeCoordinateReadbackV2For(input: {
+  readonly params: LeftHeartSubsystemParamsV2;
+  readonly bloodVolumeMl: number;
+  readonly avPlaneReferenceCapacityMl: number;
+  readonly geometryCapacityMl: number;
+  readonly hiddenBloodVolumeSourceMl: number;
+}): LeftAtrialVolumeCoordinateReadbackV2 {
+  const avPlaneReferenceCapacityMl = Math.max(0, input.avPlaneReferenceCapacityMl);
+  const pressureReferenceCapacityMl = leftAtrialPressureReferenceVolumeShiftMl(
+    input.params,
+    avPlaneReferenceCapacityMl,
+  );
+  return {
+    bloodVolumeMl: input.bloodVolumeMl,
+    avPlaneReferenceCapacityMl,
+    pressureReferenceCapacityMl,
+    effectiveCavityVolumeMl:
+      input.bloodVolumeMl + Math.max(0, input.geometryCapacityMl, avPlaneReferenceCapacityMl),
+    pressureWallStretchVolumeMl: Math.max(1e-6, input.bloodVolumeMl - pressureReferenceCapacityMl),
+    counterfactualWallStretchVolumeMl: Math.max(1e-6, input.bloodVolumeMl - avPlaneReferenceCapacityMl),
+    hiddenBloodVolumeSourceMl: input.hiddenBloodVolumeSourceMl,
+  };
 }
 
 function leftAtrialAVPlaneReservoirTractionPressureTargetMmHg(

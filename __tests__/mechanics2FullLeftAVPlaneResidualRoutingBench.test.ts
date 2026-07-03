@@ -172,6 +172,12 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(v8Best?.hiddenVolumeClean).toBe(7);
     expect(v8Best?.maxVLoopArea).toBeGreaterThan(70);
     expect(v8Best?.maxCapacityAxisVLoopArea).toBeGreaterThan(65);
+    expect(v8Best?.maxReferenceCapacityShiftMl).toBeGreaterThan(10);
+    expect(v8Best?.maxEffectiveCavityCapacityMl).toBeGreaterThan(10);
+    expect(v8Best?.maxPressureReferenceCapacityMl).toBe(0);
+    expect(v8Best?.maxCounterfactualFixedBloodPressureReliefMmHg).toBeGreaterThan(2);
+    expect(v8Best?.maxAppliedFixedBloodPressureReliefMmHg).toBe(0);
+    expect(v8Best?.maxBloodXDescentPressureDropMmHg).toBeGreaterThan(2);
     expect(v8Best?.capacityAxisPhaseC1Pass).toBe(7);
     expect(v8Rows.every((row) => row.qAvPlaneKinematicForwardVolumeMl > 10)).toBe(true);
     expect(v8Rows.every((row) => row.hiddenVolumeClean)).toBe(true);
@@ -193,9 +199,24 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV9PrimeWaveformPass).toBe(0);
     expect(report.summary.bestV9CapacityAxisPhaseOrientedPvPass).toBe(4);
     expect(report.summary.bestV9SourcePreservingCapacityAxisPhasePv).toBe(4);
+    expect(report.summary.bestV9MaxCounterfactualFixedBloodPressureReliefMmHg).toBeGreaterThan(2);
+    expect(report.summary.bestV9MaxAppliedFixedBloodPressureReliefMmHg).toBeGreaterThan(2);
+    expect(report.summary.bestV9MaxAppliedFixedBloodPressureReliefMmHg)
+      .toBe(report.summary.bestV9MaxCounterfactualFixedBloodPressureReliefMmHg);
+    expect(report.summary.bestV9MaxReferenceCapacityShiftMl).toBeGreaterThan(10);
+    expect(report.summary.bestV9MaxPressureReferenceCapacityMl).toBe(report.summary.bestV9MaxReferenceCapacityShiftMl);
+    expect(report.summary.bestV9MaxEffectiveCavityCapacityMl).toBe(report.summary.bestV9MaxReferenceCapacityShiftMl);
+    expect(report.summary.bestV9MaxBloodXDescentPressureDropMmHg).toBeGreaterThan(2);
+    expect(report.summary.variantsWithAnyAppliedFixedBloodPressureRelief).toBe(5);
     expect(v9Best?.hiddenVolumeClean).toBe(7);
     expect(v9Best?.maxVLoopArea).toBeGreaterThan(70);
     expect(v9Best?.maxCapacityAxisVLoopArea).toBeGreaterThan(65);
+    expect(v9Best?.maxReferenceCapacityShiftMl).toBeGreaterThan(10);
+    expect(v9Best?.maxPressureReferenceCapacityMl).toBe(v9Best?.maxReferenceCapacityShiftMl);
+    expect(v9Best?.maxEffectiveCavityCapacityMl).toBe(v9Best?.maxReferenceCapacityShiftMl);
+    expect(v9Best?.maxCounterfactualFixedBloodPressureReliefMmHg).toBeGreaterThan(2);
+    expect(v9Best?.maxAppliedFixedBloodPressureReliefMmHg).toBeGreaterThan(2);
+    expect(v9Best?.maxBloodXDescentPressureDropMmHg).toBeGreaterThan(2);
     expect(v9Best?.capacityAxisPhaseC1Pass).toBe(7);
     expect(v9Rows.every((row) => row.qAvPlaneKinematicForwardVolumeMl > 10)).toBe(true);
     expect(v9Rows.every((row) => row.hiddenVolumeClean)).toBe(true);

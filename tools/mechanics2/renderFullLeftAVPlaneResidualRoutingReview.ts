@@ -52,6 +52,8 @@ svg.push(`<text x="660" y="142" fill="#9ca3af" font-family="Inter,Arial,sans-ser
 svg.push(`<text x="660" y="162" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V6 ref-cap: ${report.summary.bestV6VariantId}; source+phase ${report.summary.bestV6SourcePreservingPhasePv}/7, phase ${report.summary.bestV6PhaseOrientedPvPass}/7, source ${report.summary.bestV6SourceSurfacePass}/7, MVF ${report.summary.bestV6MvfClean}/7, prime ${report.summary.bestV6PrimeWaveformPass}/7</text>`);
 svg.push(`<text x="660" y="182" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V8 ref-cap+venous: ${report.summary.bestV8VariantId}; blood phase ${report.summary.bestV8PhaseOrientedPvPass}/7, capacity phase ${report.summary.bestV8CapacityAxisPhaseOrientedPvPass}/7, capacity source+phase ${report.summary.bestV8SourcePreservingCapacityAxisPhasePv}/7, source ${report.summary.bestV8SourceSurfacePass}/7, MVF ${report.summary.bestV8MvfClean}/7</text>`);
 svg.push(`<text x="660" y="202" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 dynamic ref-pressure: ${report.summary.bestV9VariantId}; blood phase ${report.summary.bestV9PhaseOrientedPvPass}/7, capacity phase ${report.summary.bestV9CapacityAxisPhaseOrientedPvPass}/7, source+phase ${report.summary.bestV9SourcePreservingPhasePv}/7, source ${report.summary.bestV9SourceSurfacePass}/7, MVF ${report.summary.bestV9MvfClean}/7</text>`);
+svg.push(`<text x="660" y="222" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 separated coordinates: AV-ref ${report.summary.bestV9MaxReferenceCapacityShiftMl.toFixed(2)} mL, pressure-ref ${report.summary.bestV9MaxPressureReferenceCapacityMl.toFixed(2)} mL, effective-cavity +${report.summary.bestV9MaxEffectiveCavityCapacityMl.toFixed(2)} mL</text>`);
+svg.push(`<text x="660" y="242" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 fixed-blood pressure probe: counterfactual relief ${report.summary.bestV9MaxCounterfactualFixedBloodPressureReliefMmHg.toFixed(2)} mmHg, applied relief ${report.summary.bestV9MaxAppliedFixedBloodPressureReliefMmHg.toFixed(2)} mmHg, blood x-descent ${report.summary.bestV9MaxBloodXDescentPressureDropMmHg.toFixed(2)} mmHg</text>`);
 legend(svg, 1260, 36, "#22c55e", "baseline no AV-plane");
 legend(svg, 1260, 58, "#f97316", "raw traction reference");
 legend(svg, 1260, 80, "#a855f7", "best full-left residual");
@@ -310,7 +312,7 @@ function pathForPvAxis(
 }
 
 function capacityAxisVolumeMl(sample: LeftHeartSubsystemSampleV2): number {
-  return sample.acceptedLaVolumeMl + Math.max(0, sample.laReservoirGeometryDeltaMl, sample.laReservoirReferenceVolumeShiftMl);
+  return sample.laVolumeCoordinateReadback.effectiveCavityVolumeMl;
 }
 
 function pathForTrace<K extends keyof LeftHeartSubsystemSampleV2>(

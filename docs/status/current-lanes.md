@@ -194,6 +194,20 @@ LA cavity/reference coordinate, LA wall pressure, MV opening/loss, pulmonary
 venous inflow, and LV ejection/relaxation timing as one accepted-state
 residual, with both blood-volume and effective-cavity PV readbacks preserved
 for visual review.
+A fixed-blood pressure-relief probe now makes that distinction explicit: the
+best V9 surface carries about 2.18 mmHg of dynamic reference-pressure relief at
+fixed LA blood volume. The subsystem now reports separate LA coordinates:
+ledger-owned blood volume, AV-plane reference/capacity state, pressure-applied
+reference capacity, effective-cavity volume, pressure-wall-stretch volume, and
+hidden blood-volume source. V8 carries the same counterfactual capacity relief
+without applying it to pressure, whereas V9 applies the reference capacity to
+the pressure law; both still leave strict blood-volume LA PV at 0/7 while the
+shadow `blood+capacity` axis remains 4/7. Treat this as evidence that the
+AV-plane/reference-capacity mechanism has the correct pressure-lowering sign but
+not the correct accepted-state phase/MV-opening ownership. Do not promote the
+`blood+capacity` display loop as acceptance; keep the next PR on the coupled LA
+wall pressure / AV-plane coordinate / MV loss-opening / pulmonary venous inflow
+residual.
 A first isolated LA-AV-plane-MV-PV residual then co-solves LA blood volume,
 pulmonary venous reservoir pressure/flow, MV q-state flow, LA wall pressure,
 and an explicit AV-plane coordinate against prescribed LV pressure. It is a

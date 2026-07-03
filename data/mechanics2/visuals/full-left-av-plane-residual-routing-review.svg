@@ -12,6 +12,8 @@
 <text x="660" y="162" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V6 ref-cap: v6-force-refcap-vel06-fixed10-pv44-mvsoft; source+phase 0/7, phase 0/7, source 6/7, MVF 6/7, prime 2/7</text>
 <text x="660" y="182" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V8 ref-cap+venous: v8-force-refcap-venous-fixed8-pv36-mvloss; blood phase 0/7, capacity phase 4/7, capacity source+phase 4/7, source 6/7, MVF 6/7</text>
 <text x="660" y="202" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 dynamic ref-pressure: v9-force-dynref-fixed8-pv36-mvloss; blood phase 0/7, capacity phase 4/7, source+phase 0/7, source 6/7, MVF 6/7</text>
+<text x="660" y="222" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 separated coordinates: AV-ref 16.35 mL, pressure-ref 16.35 mL, effective-cavity +16.35 mL</text>
+<text x="660" y="242" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 fixed-blood pressure probe: counterfactual relief 2.18 mmHg, applied relief 2.18 mmHg, blood x-descent 2.45 mmHg</text>
 <line x1="1260" y1="36" x2="1294" y2="36" stroke="#22c55e" stroke-width="3"/>
 <text x="1304" y="41" fill="#22c55e" font-family="Inter,Arial,sans-serif" font-size="12">baseline no AV-plane</text>
 <line x1="1260" y1="58" x2="1294" y2="58" stroke="#f97316" stroke-width="3"/>
