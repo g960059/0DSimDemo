@@ -1412,6 +1412,19 @@ Next gates:
     move from target-shaping toward a true co-solved reservoir-conduit state
     residual that owns the LA wall pressure path, MV q-state opening/loss, and
     pulmonary venous return through the entire reservoir-to-conduit transition.
+92. LA PV reference-aligned gate correction: owner review of published
+    figure-eight reference loops clarified that reservoir-limb-below-chord and
+    broad x-descent roundness are not valid hard acceptance requirements.
+    The full-left routing gate now keeps chord-below and x-trough placement as
+    readbacks/warnings, while hard blood-volume checks focus on physiologic
+    x-descent, reservoir volume rise, v-wave rise, v-loop area, adequate
+    A/V-loop volume separation, MV-opening downstroke, local MV-opening
+    transition, and gross-fold rejection. Owner SVG routing is stricter than
+    the raw phase gate: single-profile or source/MVF-dirty candidates remain
+    hidden, so the current refreshed SVG still shows no acceptable LA PV
+    candidate. Treat this as a gate false-negative cleanup, not a model
+    promotion; next architecture remains the true co-solved
+    reservoir-conduit state residual.
 
 Parallel prep, not blocking the next strategic gate:
 

@@ -562,6 +562,8 @@ const MIN_BLOOD_X_DESCENT_PRESSURE_DROP_MMHG = 2.0;
 const MIN_BLOOD_RESERVOIR_VOLUME_RISE_ML = 12.0;
 const MIN_BLOOD_V_WAVE_PRESSURE_RISE_MMHG = 3.0;
 const MIN_BLOOD_V_LOOP_AREA = 55.0;
+const MIN_BLOOD_V_LOOP_VOLUME_SEPARATION_ML = 5.0;
+const MAX_GROSS_PV_FOLD_TANGENT_JUMP_DEG = 122.0;
 const MAX_MV_OPENING_TANGENT_JUMP_DEG = 58.0;
 const MAX_MV_OPENING_INITIAL_PRESSURE_RISE_MMHG = 0.25;
 const MIN_MV_OPENING_EARLY_PRESSURE_DROP_MMHG = 0.55;
@@ -1838,12 +1840,15 @@ function phaseOrientedPvQualityFor(
   const reservoirBowPass = phase.reservoirBowPass;
   const mvOpeningTransitionPass = tangent.mvOpeningTangentAngleJumpDeg <= MAX_MV_OPENING_TANGENT_JUMP_DEG;
   const mvOpeningDownstrokePass = phase.mvOpeningDownstrokePass;
+  const grossFoldPass = tangent.maxPvTangentAngleJumpDeg <= MAX_GROSS_PV_FOLD_TANGENT_JUMP_DEG;
   if (!bloodVLoopAreaPass) failures.push("v-loop-area-too-small");
-  if (!reservoirBowPass) failures.push("reservoir-limb-not-bowed");
+  if (!grossFoldPass) failures.push("pv-global-fold-kink");
   if (!mvOpeningTransitionPass) failures.push("mv-opening-transition-not-clean");
   if (!mvOpeningDownstrokePass) failures.push("mv-opening-conduit-start-not-downstroke");
   if (!opposedSignedLobes) failures.push("a-v-lobes-not-opposed");
-  if (volumeSeparation < 1.2) failures.push("v-loop-not-higher-volume-than-a-loop");
+  if (volumeSeparation < MIN_BLOOD_V_LOOP_VOLUME_SEPARATION_ML) {
+    failures.push("v-loop-not-higher-volume-than-a-loop");
+  }
   failures.push(...phase.failureReasons);
   return {
     pass: failures.length === 0,
@@ -2059,20 +2064,8 @@ function phaseOrientationFor(
   }
   if (postOpeningPressureDrop < 0.8) failures.push("mv-opening-conduit-not-pressure-downward");
   if (postOpeningVolumeDrop < 0.8) failures.push("mv-opening-conduit-not-volume-leftward");
-  if (reservoirBelowChordFraction < MIN_RESERVOIR_BELOW_CHORD_FRACTION) {
-    failures.push("reservoir-limb-not-below-chord");
-  }
-  if (meanReservoirBelowChord < MIN_MEAN_RESERVOIR_BELOW_CHORD_MMHG) {
-    failures.push("reservoir-limb-not-bowed-below-chord");
-  }
-  if (xTroughVolumeRise < MIN_X_TROUGH_VOLUME_RISE_ML) {
-    failures.push("x-trough-too-close-to-mv-closure-volume");
-  }
-  if (postXTroughVolumeRise < MIN_POST_X_TROUGH_VOLUME_RISE_ML) {
-    failures.push("x-trough-too-close-to-mv-opening-volume");
-  }
-  if (conduitBelowReservoirChordFraction < 0.55) failures.push("conduit-not-below-reservoir-chord");
-  if (meanConduitBelowReservoirChord < 0.25) failures.push("conduit-mean-not-below-reservoir-chord");
+  // Reference atrial PV loops can cross the closure-opening chord and can have a sharp x-descent;
+  // keep chord and x-trough geometry as readbacks, not hard acceptance failures.
   if (!systolicReservoirPass) failures.push("missing-systolic-x-descent-reservoir");
   return {
     mvOpeningIndex,
