@@ -257,7 +257,15 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v32-wall-v16lvref64-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
   | "v32-wall-v16lvref120-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
   | "v32-wall-v16lvref80-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
-  | "v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite";
+  | "v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v33-wall-v16lvref56-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v33-wall-v16lvref56-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v33-wall-v16lvref48-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v33-wall-v16lvref56-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v33-wall-v16lvref48-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v33-wall-v16lvref56-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -327,6 +335,9 @@ type PhaseOrientedPvQualityV1 = {
   readonly firstIntersectionReservoirProgress01: number | null;
   readonly meanReservoirConduitSeparationMmHg: number;
   readonly maxReservoirConduitSeparationMmHg: number;
+  readonly conduitBellyDepthMmHg: number;
+  readonly conduitArcLengthOverChord: number;
+  readonly conduitCurvatureIntegralDeg: number;
   readonly postOpeningPressureDropMmHg: number;
   readonly postOpeningVolumeDropMl: number;
   readonly postOpeningInitialPressureRiseMmHg: number;
@@ -1053,6 +1064,14 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v32-wall-v16lvref120-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
   variant("v32-wall-v16lvref80-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
   variant("v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v33-wall-v16lvref56-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v33-wall-v16lvref56-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v33-wall-v16lvref48-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v33-wall-v16lvref56-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v33-wall-v16lvref48-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v33-wall-v16lvref56-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(
@@ -2249,10 +2268,12 @@ function applyFullLeftRoutingVariant(
           ? 2.20
           : variantConfig.variantId.includes("pr200")
             ? 2.00
-          : variantConfig.variantId.includes("pr180")
-            ? 1.80
-          : variantConfig.variantId.includes("pr160")
-          ? 1.60
+	          : variantConfig.variantId.includes("pr180")
+	            ? 1.80
+	          : variantConfig.variantId.includes("pr170")
+	            ? 1.70
+	          : variantConfig.variantId.includes("pr160")
+	          ? 1.60
           : variantConfig.variantId.includes("pr155")
             ? 1.55
             : 1.50,
@@ -2348,14 +2369,20 @@ function applyFullLeftRoutingVariant(
             : variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
               ? (variantConfig.variantId.includes("cupsoft") ? 0.58 : 0.48)
             : coordinateBase.laReservoirConduitPathMemoryFallTauSec,
-        laReservoirConduitPathReliefGainMmHg:
-          variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
-          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
-          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
-            ? (variantConfig.variantId.includes("relief28")
-              ? 2.8
-              : variantConfig.variantId.includes("relief24")
-                ? 2.4
+	        laReservoirConduitPathReliefGainMmHg:
+	          variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+	          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+	          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
+	            ? (variantConfig.variantId.includes("relief60")
+	              ? 6.0
+	              : variantConfig.variantId.includes("relief45")
+	                ? 4.5
+	              : variantConfig.variantId.includes("relief36")
+	                ? 3.6
+	              : variantConfig.variantId.includes("relief28")
+	              ? 2.8
+	              : variantConfig.variantId.includes("relief24")
+	                ? 2.4
               : variantConfig.variantId.includes("relief20")
                 ? 2.0
               : variantConfig.variantId.includes("relief16")
@@ -2980,9 +3007,12 @@ function phaseOrientedPvQualityFor(
     mvClosurePressureMmHg: phase.mvClosurePressureMmHg == null ? null : round(phase.mvClosurePressureMmHg),
     firstIntersectionReservoirProgress01:
       firstIntersectionReservoirProgress01 == null ? null : round(firstIntersectionReservoirProgress01),
-    meanReservoirConduitSeparationMmHg: round(phase.meanReservoirConduitSeparationMmHg),
-    maxReservoirConduitSeparationMmHg: round(phase.maxReservoirConduitSeparationMmHg),
-    postOpeningPressureDropMmHg: round(phase.postOpeningPressureDropMmHg),
+	    meanReservoirConduitSeparationMmHg: round(phase.meanReservoirConduitSeparationMmHg),
+	    maxReservoirConduitSeparationMmHg: round(phase.maxReservoirConduitSeparationMmHg),
+	    conduitBellyDepthMmHg: round(phase.conduitBellyDepthMmHg),
+	    conduitArcLengthOverChord: round(phase.conduitArcLengthOverChord),
+	    conduitCurvatureIntegralDeg: round(phase.conduitCurvatureIntegralDeg),
+	    postOpeningPressureDropMmHg: round(phase.postOpeningPressureDropMmHg),
     postOpeningVolumeDropMl: round(phase.postOpeningVolumeDropMl),
     postOpeningInitialPressureRiseMmHg: round(phase.postOpeningInitialPressureRiseMmHg),
     postOpeningEarlyPressureDropMmHg: round(phase.postOpeningEarlyPressureDropMmHg),
@@ -3052,9 +3082,12 @@ function phaseOrientationFor(
   readonly mvClosureIndex: number | null;
   readonly mvOpeningPressureMmHg: number | null;
   readonly mvClosurePressureMmHg: number | null;
-  readonly meanReservoirConduitSeparationMmHg: number;
-  readonly maxReservoirConduitSeparationMmHg: number;
-  readonly postOpeningPressureDropMmHg: number;
+	  readonly meanReservoirConduitSeparationMmHg: number;
+	  readonly maxReservoirConduitSeparationMmHg: number;
+	  readonly conduitBellyDepthMmHg: number;
+	  readonly conduitArcLengthOverChord: number;
+	  readonly conduitCurvatureIntegralDeg: number;
+	  readonly postOpeningPressureDropMmHg: number;
   readonly postOpeningVolumeDropMl: number;
   readonly postOpeningInitialPressureRiseMmHg: number;
   readonly postOpeningEarlyPressureDropMmHg: number;
@@ -3084,9 +3117,12 @@ function phaseOrientationFor(
       mvClosureIndex,
       mvOpeningPressureMmHg: mvOpeningIndex == null ? null : pressures[mvOpeningIndex]!,
       mvClosurePressureMmHg: mvClosureIndex == null ? null : pressures[mvClosureIndex]!,
-      meanReservoirConduitSeparationMmHg: 0,
-      maxReservoirConduitSeparationMmHg: 0,
-      postOpeningPressureDropMmHg: 0,
+	      meanReservoirConduitSeparationMmHg: 0,
+	      maxReservoirConduitSeparationMmHg: 0,
+	      conduitBellyDepthMmHg: 0,
+	      conduitArcLengthOverChord: 1,
+	      conduitCurvatureIntegralDeg: 0,
+	      postOpeningPressureDropMmHg: 0,
       postOpeningVolumeDropMl: 0,
       postOpeningInitialPressureRiseMmHg: 0,
       postOpeningEarlyPressureDropMmHg: 0,
@@ -3153,9 +3189,10 @@ function phaseOrientationFor(
   );
   const openingPressure = pressures[mvOpeningIndex]!;
   const openingVolume = volumes[mvOpeningIndex]!;
-  const conduitPressures = conduitIndices.map((index) => pressures[index]!);
-  const conduitVolumes = conduitIndices.map((index) => volumes[index]!);
-  const postOpeningPressureDrop = openingPressure - Math.min(openingPressure, ...conduitPressures);
+	  const conduitPressures = conduitIndices.map((index) => pressures[index]!);
+	  const conduitVolumes = conduitIndices.map((index) => volumes[index]!);
+	  const conduitShape = conduitShapeMetricsFor(conduitVolumes, conduitPressures);
+	  const postOpeningPressureDrop = openingPressure - Math.min(openingPressure, ...conduitPressures);
   const postOpeningVolumeDrop = openingVolume - Math.min(openingVolume, ...conduitVolumes);
   const earlyConduitIndices = earlyConduitIndicesAfterOpening(theta, mvOpeningIndex);
   const earlyConduitPressures = earlyConduitIndices.map((index) => pressures[index]!);
@@ -3208,9 +3245,12 @@ function phaseOrientationFor(
     mvClosureIndex,
     mvOpeningPressureMmHg: openingPressure,
     mvClosurePressureMmHg: pressures[mvClosureIndex]!,
-    meanReservoirConduitSeparationMmHg: reservoirConduitSeparation.meanSeparationMmHg,
-    maxReservoirConduitSeparationMmHg: reservoirConduitSeparation.maxSeparationMmHg,
-    postOpeningPressureDropMmHg: postOpeningPressureDrop,
+	    meanReservoirConduitSeparationMmHg: reservoirConduitSeparation.meanSeparationMmHg,
+	    maxReservoirConduitSeparationMmHg: reservoirConduitSeparation.maxSeparationMmHg,
+	    conduitBellyDepthMmHg: conduitShape.bellyDepthMmHg,
+	    conduitArcLengthOverChord: conduitShape.arcLengthOverChord,
+	    conduitCurvatureIntegralDeg: conduitShape.curvatureIntegralDeg,
+	    postOpeningPressureDropMmHg: postOpeningPressureDrop,
     postOpeningVolumeDropMl: postOpeningVolumeDrop,
     postOpeningInitialPressureRiseMmHg: postOpeningInitialPressureRise,
     postOpeningEarlyPressureDropMmHg: postOpeningEarlyPressureDrop,
@@ -3416,6 +3456,49 @@ function reservoirChordPressureAtVolume(
   if (Math.abs(denom) < 1e-9) return Math.max(closurePressure, openingPressure);
   const t = Math.max(0, Math.min(1, (volume - closureVolume) / denom));
   return closurePressure + t * (openingPressure - closurePressure);
+}
+
+function conduitShapeMetricsFor(
+  volumes: readonly number[],
+  pressures: readonly number[],
+): {
+  readonly bellyDepthMmHg: number;
+  readonly arcLengthOverChord: number;
+  readonly curvatureIntegralDeg: number;
+} {
+  if (volumes.length < 3 || pressures.length < 3) {
+    return { bellyDepthMmHg: 0, arcLengthOverChord: 1, curvatureIntegralDeg: 0 };
+  }
+  const xScale = Math.max(Math.max(...volumes) - Math.min(...volumes), 1e-9);
+  const yScale = Math.max(Math.max(...pressures) - Math.min(...pressures), 1e-9);
+  const x0 = volumes[0]!;
+  const y0 = pressures[0]!;
+  const x1 = volumes[volumes.length - 1]!;
+  const y1 = pressures[pressures.length - 1]!;
+  const chordLength = Math.max(
+    Math.hypot((x1 - x0) / xScale, (y1 - y0) / yScale),
+    1e-9,
+  );
+  let arcLength = 0;
+  let bellyDepthMmHg = 0;
+  for (let i = 1; i < volumes.length; i++) {
+    arcLength += Math.hypot(
+      (volumes[i]! - volumes[i - 1]!) / xScale,
+      (pressures[i]! - pressures[i - 1]!) / yScale,
+    );
+  }
+  for (let i = 1; i < volumes.length - 1; i++) {
+    const t = i / (volumes.length - 1);
+    const chordPressure = y0 + t * (y1 - y0);
+    bellyDepthMmHg = Math.max(bellyDepthMmHg, chordPressure - pressures[i]!);
+  }
+  const angleJumps = tangentAngleJumpsDeg(volumes, pressures);
+  const curvatureIntegralDeg = angleJumps.reduce((sum, entry) => sum + entry.angleJumpDeg, 0);
+  return {
+    bellyDepthMmHg,
+    arcLengthOverChord: arcLength / chordLength,
+    curvatureIntegralDeg,
+  };
 }
 
 function reservoirConduitSeparationFor(

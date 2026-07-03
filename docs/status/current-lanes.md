@@ -1692,7 +1692,29 @@ Next gates:
     that separation cleanly through true early-diastolic LV receiving/relaxation
     and reservoir-conduit hysteresis rather than dirty cup forcing, scalar
     pressure relief, effective-cavity axes, prime waveforms, or capacity-axis
-    success as acceptance.
+    success as acceptance. The current V33 normal-first probe reuses the V32 LV
+    receiver reference-capacity mechanism but applies the V30-like path-memory /
+    wall-viscoelastic shape lead with MV-lite cleanliness. The best clean
+    normal-HR75 rows now reach blood V-loop area about 111-115, mean
+    reservoir-conduit separation about 4.30 mmHg, conduit belly-depth about
+    1.39-1.43 mmHg, and post-MV-opening pressure / volume drop about
+    5.44-5.55 mmHg / 9.19-9.73 mL while preserving source surface, MVF,
+    blood-phase, and hidden-volume cleanliness at normal-HR75. This is a stronger
+    normal-first morphology signal, not broad-envelope acceptance. The owner
+    visual review still owns shape judgement because the reference-crossing
+    location is treated as a hypothesis/readback only and can vary with
+    physiology; do not hard-gate the intersection location, effective/capacity
+    axes, prime waveform, or x-descent depth while the residual is being
+    isolated. The broad 7-profile rerun confirms this is still not robust:
+    the top normal V33 row preserves source/MVF/phase/hidden cleanliness at
+    normal-HR75, preload-low, and afterload-high, but normal-HR90 and
+    contractility-high develop MVF three-peak failures, preload-high hits a
+    transaction residual, and contractility-low remains mass/clamp limited.
+    Treat V33 as a stronger normal-first blood-PV shape lead. Next work should
+    inspect the V33 blood-only SVG against the Nature-style references, then
+    decide whether to continue local LV-receiver/conduit-belly shaping or move
+    to a more explicit early-diastolic LV relaxation receiver state before any
+    broad-envelope claim.
 
 Parallel prep, not blocking the next strategic gate:
 

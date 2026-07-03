@@ -99,13 +99,19 @@ const pinnedMechanismIds = new Set([
   "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv8-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
   "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv12-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
   "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv12-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
-  "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
-  "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
-  "v32-wall-v16lvref60-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
-  "v32-wall-v16lvref64-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
-  "v32-wall-v16lvref120-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
-  "v32-wall-v16lvref80-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
-  "v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  "v32-wall-v16lvref60-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  "v32-wall-v16lvref64-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  "v32-wall-v16lvref120-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  "v32-wall-v16lvref80-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  "v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  "v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+	  "v33-wall-v16lvref56-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+	  "v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+	  "v33-wall-v16lvref56-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+	  "v33-wall-v16lvref48-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+	  "v33-wall-v16lvref56-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
 ]);
 void pinnedMechanismIds;
 const eligibleRows = rows
@@ -129,6 +135,8 @@ const visualAnchorIds = [
   "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
   "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
   "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v33-wall-v16lvref56-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
   "v28-wall-v16visco3-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
 ] as const;
 
@@ -144,7 +152,8 @@ const visualAnchorRows = visualAnchorIds
 
 const topCleanRows = eligibleRows
   .sort((a, b) =>
-    b.phasePv.meanReservoirConduitSeparationMmHg - a.phasePv.meanReservoirConduitSeparationMmHg
+    b.phasePv.conduitBellyDepthMmHg - a.phasePv.conduitBellyDepthMmHg
+    || b.phasePv.meanReservoirConduitSeparationMmHg - a.phasePv.meanReservoirConduitSeparationMmHg
     || b.phasePv.vLoopArea - a.phasePv.vLoopArea
     || b.phasePv.postOpeningEarlyPressureDropMmHg - a.phasePv.postOpeningEarlyPressureDropMmHg
   )
@@ -198,7 +207,7 @@ function renderLegend(out: string[], traces: readonly Trace[], x: number, y: num
     const yy = y + index * 17;
     out.push(`<line x1="${x}" y1="${yy}" x2="${x + 24}" y2="${yy}" stroke="${trace.color}" stroke-width="3"/>`);
     const status = trace.row.sourceSurfacePass && trace.row.mvfClean ? "clean" : "dirty-shape-anchor";
-    out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | ${status} | blood vArea ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | x-ing ${formatNullable(trace.row.phasePv.firstIntersectionReservoirProgress01)} | postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg/${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL</text>`);
+    out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | ${status} | blood vArea ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)} | arc ${trace.row.phasePv.conduitArcLengthOverChord.toFixed(2)} | postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg/${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL</text>`);
   });
 }
 

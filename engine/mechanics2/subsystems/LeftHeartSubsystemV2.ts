@@ -650,6 +650,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
     laMvLvReceiverPath01: 0,
     lvEarlyFillingReceiverCapacity01: 0,
     lvEarlyFillingReceiverReliefMmHg: 0,
+    lvEarlyFillingReceiverReferenceVolumeShiftMl: 0,
     laBoosterPressureDrive01: 0,
     clampCount: 0,
   };
@@ -964,6 +965,8 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       laMvLvReceiverPath01: accepted.laMvLvReceiverPath01,
       lvEarlyFillingReceiverCapacity01: accepted.lvEarlyFillingReceiverCapacity01,
       lvEarlyFillingReceiverReliefMmHg: accepted.lvEarlyFillingReceiverReliefMmHg,
+      lvEarlyFillingReceiverReferenceVolumeShiftMl:
+        accepted.lvEarlyFillingReceiverReferenceVolumeShiftMl,
       laBoosterPressureDrive01: accepted.laBoosterPressureDrive01,
       clampCount: state.clampCount + accepted.volumeClampHit01,
     };

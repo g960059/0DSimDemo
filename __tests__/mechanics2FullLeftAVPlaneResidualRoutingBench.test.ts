@@ -46,7 +46,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
 	  );
 
 	  expect(normalReport.summary.totalProfiles).toBe(1);
-	  expect(normalReport.rows).toHaveLength(229);
+	  expect(normalReport.rows).toHaveLength(237);
 	  expect(normalReport.summary.bestOverallVariantId).toBe("v2-force-fixed8-pv36-mvsoft");
 	  expect(normalReport.summary.bestOverallSourcePreservingPhasePv).toBe(1);
 	  expect(visualCandidates.map((row) => row.variantId)).toContain(
@@ -76,18 +76,29 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
 	  expect(bestV31Visual!.phasePv.vLoopArea).toBeGreaterThan(bestV29Visual!.phasePv.vLoopArea);
 	  expect(bestV31Visual!.phasePv.vLoopArea).toBeGreaterThan(55);
 	  expect(bestV31Visual!.mvForwardPeakCount).toBe(2);
-	  const bestV32Visual = visualCandidates
+	  const v32Visual = visualCandidates.find((row) =>
+	    row.variantId ===
+	    "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+	  );
+	  expect(v32Visual).toBeDefined();
+	  expect(v32Visual!.phasePv.vLoopArea).toBeGreaterThan(bestV31Visual!.phasePv.vLoopArea);
+	  expect(v32Visual!.phasePv.vLoopArea).toBeGreaterThan(70);
+	  expect(v32Visual!.phasePv.postOpeningEarlyPressureDropMmHg).toBeGreaterThan(4);
+	  expect(v32Visual!.phasePv.postOpeningEarlyVolumeDropMl).toBeGreaterThan(10);
+	  expect(v32Visual!.maxLvReceiverReferenceVolumeShiftMl).toBeGreaterThan(10);
+	  expect(v32Visual!.mvForwardPeakCount).toBe(2);
+	  const bestReceiverVisual = visualCandidates
 	    .filter((row) => row.family === "full-left-normal-first-lv-reference-receiver-v32")
 	    .sort((a, b) => b.phasePv.vLoopArea - a.phasePv.vLoopArea)[0];
-	  expect(bestV32Visual?.variantId).toBe(
-	    "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  expect(bestReceiverVisual?.variantId).toBe(
+	    "v33-wall-v16lvref56-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
 	  );
-	  expect(bestV32Visual!.phasePv.vLoopArea).toBeGreaterThan(bestV31Visual!.phasePv.vLoopArea);
-	  expect(bestV32Visual!.phasePv.vLoopArea).toBeGreaterThan(70);
-	  expect(bestV32Visual!.phasePv.postOpeningEarlyPressureDropMmHg).toBeGreaterThan(4);
-	  expect(bestV32Visual!.phasePv.postOpeningEarlyVolumeDropMl).toBeGreaterThan(10);
-	  expect(bestV32Visual!.maxLvReceiverReferenceVolumeShiftMl).toBeGreaterThan(10);
-	  expect(bestV32Visual!.mvForwardPeakCount).toBe(2);
+	  expect(bestReceiverVisual!.phasePv.vLoopArea).toBeGreaterThan(110);
+	  expect(bestReceiverVisual!.phasePv.meanReservoirConduitSeparationMmHg).toBeGreaterThan(4);
+	  expect(bestReceiverVisual!.phasePv.conduitBellyDepthMmHg).toBeGreaterThan(1.2);
+	  expect(bestReceiverVisual!.phasePv.postOpeningEarlyPressureDropMmHg).toBeGreaterThan(5);
+	  expect(bestReceiverVisual!.phasePv.postOpeningEarlyVolumeDropMl).toBeGreaterThan(9);
+	  expect(bestReceiverVisual!.mvForwardPeakCount).toBe(2);
 	  expect(visualCandidates.every((row) => row.phasePv.vLoopArea >= 40)).toBe(true);
 	  expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0)).toBe(true);
 	  expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyVolumeDropMl > 0.8)).toBe(true);
@@ -96,8 +107,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records the full-left LA-AV-plane residual routing experiment", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-	  expect(report.rows).toHaveLength(1603);
-	  expect(report.variantSummaries).toHaveLength(229);
+	  expect(report.rows).toHaveLength(1659);
+	  expect(report.variantSummaries).toHaveLength(237);
 	  expect(new Set(report.rows.map((row) => row.family)).size).toBe(40);
   });
 
