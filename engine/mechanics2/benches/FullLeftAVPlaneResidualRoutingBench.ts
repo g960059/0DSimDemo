@@ -128,7 +128,14 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v16-wall-effcav-traj20-mvimplicit10-pr150-fixed8-pv36-mvloss"
   | "v16-force-effcav-traj14-mvimplicit02-pr175-fixed10-pv44-mvloss"
   | "v16-force-effcav-traj14-mvimplicit05-pr175-fixed10-pv44-mvloss"
-  | "v16-force-effcav-traj14-mvimplicit10-pr175-fixed10-pv44-mvloss";
+  | "v16-force-effcav-traj14-mvimplicit10-pr175-fixed10-pv44-mvloss"
+  | "v17-force-hyst-traj14-pr175-fixed10-pv52-mvloss"
+  | "v17-force-hyst-traj20-pr175-fixed12-pv52-mvloss"
+  | "v17-wall-hyst-traj20-pr150-fixed10-pv52-mvloss"
+  | "v17-wall-hyst-slowrecoil-traj20-pr150-fixed12-pv56-mvsmooth"
+  | "v17-force-hyst-strongcap-traj20-pr200-fixed12-pv56-mvloss"
+  | "v17-wall-hyst-strongcap-traj20-pr175-fixed12-pv56-mvloss"
+  | "v17-wall-hyst-strongcap-slowrecoil-traj20-pr175-fixed14-pv60-mvsmooth";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -154,7 +161,8 @@ type VariantFamilyV1 =
   | "full-left-c1-coordinate-pressure-law-v13"
   | "full-left-continuous-trajectory-law-v14"
   | "full-left-continuous-mv-coupled-law-v15"
-  | "full-left-implicit-mv-state-trajectory-law-v16";
+  | "full-left-implicit-mv-state-trajectory-law-v16"
+  | "full-left-reservoir-conduit-hysteresis-v17";
 
 type VariantV1 = {
   readonly variantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
@@ -469,6 +477,20 @@ export type FullLeftAVPlaneResidualRoutingReportV1 = {
     readonly bestV16MaxCounterfactualFixedBloodPressureReliefMmHg: number;
     readonly bestV16MaxAppliedFixedBloodPressureReliefMmHg: number;
     readonly bestV16MaxBloodXDescentPressureDropMmHg: number;
+    readonly bestV17VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
+    readonly bestV17SourcePreservingPhasePv: number;
+    readonly bestV17PhaseOrientedPvPass: number;
+    readonly bestV17SourceSurfacePass: number;
+    readonly bestV17MvfClean: number;
+    readonly bestV17PrimeWaveformPass: number;
+    readonly bestV17CapacityAxisPhaseOrientedPvPass: number;
+    readonly bestV17SourcePreservingCapacityAxisPhasePv: number;
+    readonly bestV17MaxReferenceCapacityShiftMl: number;
+    readonly bestV17MaxPressureReferenceCapacityMl: number;
+    readonly bestV17MaxEffectiveCavityCapacityMl: number;
+    readonly bestV17MaxCounterfactualFixedBloodPressureReliefMmHg: number;
+    readonly bestV17MaxAppliedFixedBloodPressureReliefMmHg: number;
+    readonly bestV17MaxBloodXDescentPressureDropMmHg: number;
     readonly variantsWithAnySourcePreservingPhasePv: number;
     readonly variantsWithAnySourcePreservingCapacityAxisPhasePv: number;
     readonly variantsWithAnyAppliedFixedBloodPressureRelief: number;
@@ -513,6 +535,7 @@ export type FullLeftAVPlaneResidualRoutingTrajectoryPanelV1 = {
   readonly bestV14: readonly LeftHeartSubsystemSampleV2[];
   readonly bestV15: readonly LeftHeartSubsystemSampleV2[];
   readonly bestV16: readonly LeftHeartSubsystemSampleV2[];
+  readonly bestV17: readonly LeftHeartSubsystemSampleV2[];
   readonly bestFullResidualVariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestOverallVariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestSmoothCoreVariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
@@ -530,6 +553,7 @@ export type FullLeftAVPlaneResidualRoutingTrajectoryPanelV1 = {
   readonly bestV14VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestV15VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestV16VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
+  readonly bestV17VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
 };
 
 const LEFT_VARIANT_ID = "active-length-mv-closure-stateful-root08" as const;
@@ -659,6 +683,13 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v16-force-effcav-traj14-mvimplicit02-pr175-fixed10-pv44-mvloss", "full-left-implicit-mv-state-trajectory-law-v16", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.086, 0.00054, 8e-6),
   variant("v16-force-effcav-traj14-mvimplicit05-pr175-fixed10-pv44-mvloss", "full-left-implicit-mv-state-trajectory-law-v16", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.086, 0.00054, 8e-6),
   variant("v16-force-effcav-traj14-mvimplicit10-pr175-fixed10-pv44-mvloss", "full-left-implicit-mv-state-trajectory-law-v16", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.086, 0.00054, 8e-6),
+  variant("v17-force-hyst-traj14-pr175-fixed10-pv52-mvloss", "full-left-reservoir-conduit-hysteresis-v17", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.24, 52, 0.086, 0.00054, 8e-6),
+  variant("v17-force-hyst-traj20-pr175-fixed12-pv52-mvloss", "full-left-reservoir-conduit-hysteresis-v17", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 12, 0.22, 52, 0.086, 0.00054, 8e-6),
+  variant("v17-wall-hyst-traj20-pr150-fixed10-pv52-mvloss", "full-left-reservoir-conduit-hysteresis-v17", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.24, 52, 0.086, 0.00054, 8e-6),
+  variant("v17-wall-hyst-slowrecoil-traj20-pr150-fixed12-pv56-mvsmooth", "full-left-reservoir-conduit-hysteresis-v17", "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06", 12, 0.22, 56, 0.075, 0.00044, 6e-6),
+  variant("v17-force-hyst-strongcap-traj20-pr200-fixed12-pv56-mvloss", "full-left-reservoir-conduit-hysteresis-v17", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 12, 0.22, 56, 0.086, 0.00054, 8e-6),
+  variant("v17-wall-hyst-strongcap-traj20-pr175-fixed12-pv56-mvloss", "full-left-reservoir-conduit-hysteresis-v17", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 12, 0.22, 56, 0.086, 0.00054, 8e-6),
+  variant("v17-wall-hyst-strongcap-slowrecoil-traj20-pr175-fixed14-pv60-mvsmooth", "full-left-reservoir-conduit-hysteresis-v17", "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06", 14, 0.20, 60, 0.075, 0.00044, 6e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResidualRoutingReportV1 {
@@ -721,6 +752,9 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
   );
   const v16Summaries = variantSummaries.filter((summary) =>
     summary.family === "full-left-implicit-mv-state-trajectory-law-v16"
+  );
+  const v17Summaries = variantSummaries.filter((summary) =>
+    summary.family === "full-left-reservoir-conduit-hysteresis-v17"
   );
   const bestFullResidualVariant = [...fullResidualSummaries].sort((a, b) =>
     b.sourcePreservingPhasePv - a.sourcePreservingPhasePv
@@ -868,6 +902,16 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
     || b.mvfClean - a.mvfClean
     || b.maxAppliedFixedBloodPressureReliefMmHg - a.maxAppliedFixedBloodPressureReliefMmHg
     || b.maxCapacityAxisVLoopArea - a.maxCapacityAxisVLoopArea
+  )[0]!;
+  const bestV17Variant = [...v17Summaries].sort((a, b) =>
+    b.sourcePreservingPhasePv - a.sourcePreservingPhasePv
+    || b.phaseOrientedPvPass - a.phaseOrientedPvPass
+    || b.phaseC1Pass - a.phaseC1Pass
+    || b.sourceSurfacePass - a.sourceSurfacePass
+    || b.mvfClean - a.mvfClean
+    || b.primeWaveformPass - a.primeWaveformPass
+    || b.maxBloodXDescentPressureDropMmHg - a.maxBloodXDescentPressureDropMmHg
+    || b.maxVLoopArea - a.maxVLoopArea
   )[0]!;
   const variantsWithAnySourcePreservingPhasePv =
     variantSummaries.filter((summary) => summary.sourcePreservingPhasePv > 0).length;
@@ -1070,6 +1114,21 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
         bestV16Variant.maxCounterfactualFixedBloodPressureReliefMmHg,
       bestV16MaxAppliedFixedBloodPressureReliefMmHg: bestV16Variant.maxAppliedFixedBloodPressureReliefMmHg,
       bestV16MaxBloodXDescentPressureDropMmHg: bestV16Variant.maxBloodXDescentPressureDropMmHg,
+      bestV17VariantId: bestV17Variant.variantId,
+      bestV17SourcePreservingPhasePv: bestV17Variant.sourcePreservingPhasePv,
+      bestV17PhaseOrientedPvPass: bestV17Variant.phaseOrientedPvPass,
+      bestV17SourceSurfacePass: bestV17Variant.sourceSurfacePass,
+      bestV17MvfClean: bestV17Variant.mvfClean,
+      bestV17PrimeWaveformPass: bestV17Variant.primeWaveformPass,
+      bestV17CapacityAxisPhaseOrientedPvPass: bestV17Variant.capacityAxisPhaseOrientedPvPass,
+      bestV17SourcePreservingCapacityAxisPhasePv: bestV17Variant.sourcePreservingCapacityAxisPhasePv,
+      bestV17MaxReferenceCapacityShiftMl: bestV17Variant.maxReferenceCapacityShiftMl,
+      bestV17MaxPressureReferenceCapacityMl: bestV17Variant.maxPressureReferenceCapacityMl,
+      bestV17MaxEffectiveCavityCapacityMl: bestV17Variant.maxEffectiveCavityCapacityMl,
+      bestV17MaxCounterfactualFixedBloodPressureReliefMmHg:
+        bestV17Variant.maxCounterfactualFixedBloodPressureReliefMmHg,
+      bestV17MaxAppliedFixedBloodPressureReliefMmHg: bestV17Variant.maxAppliedFixedBloodPressureReliefMmHg,
+      bestV17MaxBloodXDescentPressureDropMmHg: bestV17Variant.maxBloodXDescentPressureDropMmHg,
       variantsWithAnySourcePreservingPhasePv,
       variantsWithAnySourcePreservingCapacityAxisPhasePv,
       variantsWithAnyAppliedFixedBloodPressureRelief,
@@ -1120,6 +1179,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   bestV14VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
   bestV15VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
   bestV16VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
+  bestV17VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
 ): readonly FullLeftAVPlaneResidualRoutingTrajectoryPanelV1[] {
   const report = runFullLeftAVPlaneResidualRoutingBenchV1();
   const selectedFullId = bestFullResidualVariantId ?? report.summary.bestFullResidualVariantId;
@@ -1139,6 +1199,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   const selectedV14Id = bestV14VariantId ?? report.summary.bestV14VariantId;
   const selectedV15Id = bestV15VariantId ?? report.summary.bestV15VariantId;
   const selectedV16Id = bestV16VariantId ?? report.summary.bestV16VariantId;
+  const selectedV17Id = bestV17VariantId ?? report.summary.bestV17VariantId;
   const baseParams = buildLeftHeartDynamicReserveVariantEnvelopeV1(LEFT_VARIANT_ID);
   const baselineVariant = getVariant("baseline-no-avp-compliance-node");
   const rawVariant = getVariant("raw-traction-reference");
@@ -1159,6 +1220,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   const bestV14Variant = getVariant(selectedV14Id);
   const bestV15Variant = getVariant(selectedV15Id);
   const bestV16Variant = getVariant(selectedV16Id);
+  const bestV17Variant = getVariant(selectedV17Id);
   return PROFILE_IDS.map((profileId, index) => {
     const params = baseParams[index]!;
     return {
@@ -1182,6 +1244,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
       bestV14: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV14Variant)).finalBeatSamples,
       bestV15: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV15Variant)).finalBeatSamples,
       bestV16: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV16Variant)).finalBeatSamples,
+      bestV17: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV17Variant)).finalBeatSamples,
       bestFullResidualVariantId: selectedFullId,
       bestOverallVariantId: selectedOverallId,
       bestSmoothCoreVariantId: selectedSmoothCoreId,
@@ -1199,6 +1262,7 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
       bestV14VariantId: selectedV14Id,
       bestV15VariantId: selectedV15Id,
       bestV16VariantId: selectedV16Id,
+      bestV17VariantId: selectedV17Id,
     };
   });
 }
@@ -1273,6 +1337,7 @@ function applyFullLeftRoutingVariant(
     && variantConfig.family !== "full-left-continuous-trajectory-law-v14"
     && variantConfig.family !== "full-left-continuous-mv-coupled-law-v15"
     && variantConfig.family !== "full-left-implicit-mv-state-trajectory-law-v16"
+    && variantConfig.family !== "full-left-reservoir-conduit-hysteresis-v17"
   ) {
     return coordinateBase;
   }
@@ -1433,6 +1498,31 @@ function applyFullLeftRoutingVariant(
         laAVPlaneImplicitMvStateGain: implicitMvStateGainForV16(variantConfig.variantId),
         laAVPlaneVenousReservoirCouplingGain: coordinateBase.laAVPlaneVenousReservoirCouplingGain,
         laAVPlaneVenousReservoirMaxFlowMlPerSec: coordinateBase.laAVPlaneVenousReservoirMaxFlowMlPerSec,
+      }
+    : variantConfig.family === "full-left-reservoir-conduit-hysteresis-v17"
+      ? {
+        ...coordinateBase,
+        laLobeGeneratorMode: "av-plane-full-left-reservoir-conduit-hysteresis-v1" as const,
+        laEffectiveGeometryMode: "av-plane-full-left-reservoir-conduit-hysteresis-v1" as const,
+        laAVPlaneReservoirReferenceGainMl: coordinateBase.laReservoirGeometryGainMl
+          * (variantConfig.variantId.includes("strongcap") ? 1.28 : 1),
+        laAVPlanePressureReferenceMultiplier: variantConfig.variantId.includes("pr200")
+          ? 2.00
+          : variantConfig.variantId.includes("pr175")
+            ? 1.75
+            : 1.50,
+        laAVPlanePrimeVelocityReadbackTauSec: 0,
+        laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2: coordinateAccelerationForV14(variantConfig.variantId),
+        laAVPlaneContinuousMvResidualGain: 0.8,
+        laAVPlaneImplicitMvStateGain: variantConfig.variantId.includes("mvimplicit") ? 0.5 : 0,
+        laAVPlaneReservoirCapacityRiseTauSec: variantConfig.variantId.includes("slowrecoil") ? 0.075 : 0.065,
+        laAVPlaneReservoirCapacityFallTauSec: variantConfig.variantId.includes("slowrecoil") ? 0.24 : 0.18,
+        laAVPlaneReservoirCapacityReleaseTauSec: variantConfig.variantId.includes("slowrecoil") ? 0.30 : 0.22,
+        laAVPlaneVenousReservoirCouplingGain: Math.max(0.40, coordinateBase.laAVPlaneVenousReservoirCouplingGain),
+        laAVPlaneVenousReservoirMaxFlowMlPerSec: Math.max(
+          80,
+          coordinateBase.laAVPlaneVenousReservoirMaxFlowMlPerSec,
+        ),
       }
     : coordinateBase;
   return {
@@ -1815,7 +1905,9 @@ function isDynamicReferencePressureMode(params: LeftHeartSubsystemParamsV2): boo
     || params.laLobeGeneratorMode === "av-plane-full-left-effective-cavity-pressure-law-v1"
     || params.laEffectiveGeometryMode === "av-plane-full-left-effective-cavity-pressure-law-v1"
     || params.laLobeGeneratorMode === "av-plane-full-left-continuous-trajectory-law-v1"
-    || params.laEffectiveGeometryMode === "av-plane-full-left-continuous-trajectory-law-v1";
+    || params.laEffectiveGeometryMode === "av-plane-full-left-continuous-trajectory-law-v1"
+    || params.laLobeGeneratorMode === "av-plane-full-left-reservoir-conduit-hysteresis-v1"
+    || params.laEffectiveGeometryMode === "av-plane-full-left-reservoir-conduit-hysteresis-v1";
 }
 
 function phaseOrientationFor(

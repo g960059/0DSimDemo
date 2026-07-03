@@ -11,8 +11,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records a full-left LA-AV-plane residual routing report", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(700);
-    expect(report.variantSummaries).toHaveLength(100);
+    expect(report.rows).toHaveLength(749);
+    expect(report.variantSummaries).toHaveLength(107);
   });
 
   it("rejects the earlier full-left residual signal once reservoir bowing quality is required", () => {
@@ -205,7 +205,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV9MaxPressureReferenceCapacityMl).toBe(report.summary.bestV9MaxReferenceCapacityShiftMl);
     expect(report.summary.bestV9MaxEffectiveCavityCapacityMl).toBe(report.summary.bestV9MaxReferenceCapacityShiftMl);
     expect(report.summary.bestV9MaxBloodXDescentPressureDropMmHg).toBeGreaterThan(2);
-    expect(report.summary.variantsWithAnyAppliedFixedBloodPressureRelief).toBe(56);
+    expect(report.summary.variantsWithAnyAppliedFixedBloodPressureRelief).toBe(63);
     expect(v9Best?.hiddenVolumeClean).toBe(7);
     expect(v9Best?.maxVLoopArea).toBeGreaterThan(70);
     expect(v9Best?.maxCapacityAxisVLoopArea).toBeGreaterThan(65);
@@ -453,6 +453,36 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(v16Force?.primeWaveformPass).toBe(0);
     expect(v16Rows.every((row) => row.hiddenVolumeClean)).toBe(true);
     expect(v16Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
+  });
+
+  it("rejects V17 reservoir-conduit hysteresis as currently insufficient for blood-volume v-loop quality", () => {
+    const v17Best = report.variantSummaries.find((summary) =>
+      summary.variantId === "v17-wall-hyst-slowrecoil-traj20-pr150-fixed12-pv56-mvsmooth"
+    );
+    const v17Strong = report.variantSummaries.find((summary) =>
+      summary.variantId === "v17-wall-hyst-strongcap-slowrecoil-traj20-pr175-fixed14-pv60-mvsmooth"
+    );
+    const v17Rows = report.rows.filter((row) =>
+      row.family === "full-left-reservoir-conduit-hysteresis-v17"
+    );
+    expect(report.summary.bestV17VariantId)
+      .toBe("v17-wall-hyst-slowrecoil-traj20-pr150-fixed12-pv56-mvsmooth");
+    expect(report.summary.bestV17SourcePreservingPhasePv).toBe(0);
+    expect(report.summary.bestV17PhaseOrientedPvPass).toBe(0);
+    expect(report.summary.bestV17SourceSurfacePass).toBe(3);
+    expect(report.summary.bestV17MvfClean).toBe(4);
+    expect(report.summary.bestV17PrimeWaveformPass).toBe(7);
+    expect(report.summary.bestV17CapacityAxisPhaseOrientedPvPass).toBe(0);
+    expect(report.summary.bestV17SourcePreservingCapacityAxisPhasePv).toBe(0);
+    expect(v17Best?.hiddenVolumeClean).toBe(7);
+    expect(v17Best?.maxVLoopArea).toBeGreaterThan(50);
+    expect(v17Best?.maxBloodXDescentPressureDropMmHg).toBeGreaterThan(1.5);
+    expect(v17Strong?.maxAppliedFixedBloodPressureReliefMmHg)
+      .toBeGreaterThan(v17Best!.maxAppliedFixedBloodPressureReliefMmHg);
+    expect(v17Strong?.sourceSurfacePass).toBeLessThan(v17Best!.sourceSurfacePass);
+    expect(v17Rows.every((row) => row.hiddenVolumeClean)).toBe(true);
+    expect(v17Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
+    expect(v17Rows.some((row) => row.phasePv.failureReasons.includes("a-v-lobes-not-opposed"))).toBe(true);
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {
