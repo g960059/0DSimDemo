@@ -1497,6 +1497,23 @@ Next gates:
     the LA wall pressure/MV loss/pulmonary venous source coupling so reservoir
     and conduit occupy two smooth blood-volume paths with enough V-loop area,
     not return to scalar recoil or x-descent-depth gates.
+96. Branch-memory / LV-receiver V21 and normal-HR75 fast loop: a follow-up
+    tests `av-plane-full-left-reservoir-conduit-hysteresis-v5`, adding a
+    conduit-branch pressure memory and a diagnostic early-LV-filling receiver
+    relief for MV downstream pressure. This is negative for broad blood-volume
+    phase morphology: selected V21 improves source-surface/capacity-axis
+    bookkeeping but drops blood phase/source-preserving phase to 0/7, so it is
+    not a promotion path. Because the owner prioritizes research speed over
+    broad-envelope sweeps, the bench now supports profile filtering and records
+    a normal-HR75-only fast report/SVG. On that single point, several older
+    continuous trajectory / implicit-MV variants produce source-clean,
+    MVF-clean, prime-clean, blood-volume phase candidates, with the current
+    normal-fast best `v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss`.
+    Treat this as a visual research shortcut and starting point for the next
+    mechanism pass, not broad acceptance; bad vertical V-wave,
+    upward-immediate-post-MV-opening, and prime-failed candidates should stay
+    out of owner-facing SVG overlays. Next work may focus on normal-HR75 first
+    before expanding back to the 7-point envelope.
 
 Parallel prep, not blocking the next strategic gate:
 
