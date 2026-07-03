@@ -206,6 +206,8 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laReservoirConduitWallViscoelasticBoosterSuppression01: number;
   readonly laReservoirConduitWallViscoelasticRiseTauSec: number;
   readonly laReservoirConduitWallViscoelasticFallTauSec: number;
+  readonly laReservoirConduitWallViscoelasticPositiveScale01: number;
+  readonly laReservoirConduitWallViscoelasticNegativeScale01: number;
   readonly laReservoirConduitPathMemoryGain01: number;
   readonly laReservoirConduitPathMemoryRiseTauSec: number;
   readonly laReservoirConduitPathMemoryFallTauSec: number;
@@ -223,6 +225,7 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly lvEarlyFillingReceiverCapacityRiseTauSec: number;
   readonly lvEarlyFillingReceiverCapacityFallTauSec: number;
   readonly lvEarlyFillingReceiverReferenceGainMl: number;
+  readonly lvEarlyFillingReceiverConduitCupGain01: number;
   readonly laMvLvReceiverPathGain01: number;
   readonly laMvLvReceiverPathRiseTauSec: number;
   readonly laMvLvReceiverPathFallTauSec: number;
@@ -569,6 +572,10 @@ export function defaultLeftHeartSubsystemParamsV2(
       overrides.laReservoirConduitWallViscoelasticRiseTauSec ?? 0.045,
     laReservoirConduitWallViscoelasticFallTauSec:
       overrides.laReservoirConduitWallViscoelasticFallTauSec ?? 0.090,
+    laReservoirConduitWallViscoelasticPositiveScale01:
+      overrides.laReservoirConduitWallViscoelasticPositiveScale01 ?? 1,
+    laReservoirConduitWallViscoelasticNegativeScale01:
+      overrides.laReservoirConduitWallViscoelasticNegativeScale01 ?? 1,
     laReservoirConduitPathMemoryGain01:
       overrides.laReservoirConduitPathMemoryGain01 ?? 0,
     laReservoirConduitPathMemoryRiseTauSec:
@@ -603,6 +610,8 @@ export function defaultLeftHeartSubsystemParamsV2(
       overrides.lvEarlyFillingReceiverCapacityFallTauSec ?? 0.22,
     lvEarlyFillingReceiverReferenceGainMl:
       overrides.lvEarlyFillingReceiverReferenceGainMl ?? 0,
+    lvEarlyFillingReceiverConduitCupGain01:
+      overrides.lvEarlyFillingReceiverConduitCupGain01 ?? 0,
     laMvLvReceiverPathGain01:
       overrides.laMvLvReceiverPathGain01 ?? 0,
     laMvLvReceiverPathRiseTauSec:
@@ -2546,10 +2555,14 @@ function leftAtrialReservoirConduitWallViscoelasticPressureTargetMmHg(
   if (gainMmHg <= 0) return 0;
   const flowScaleMlPerSec = Math.max(1, params.laReservoirConduitWallViscoelasticFlowScaleMlPerSec);
   const laVolumeRateMlPerSec = deltaLaVolumeMl / Math.max(dtSec, 1e-9);
+  const rawRateDrive = Math.tanh(laVolumeRateMlPerSec / flowScaleMlPerSec);
+  const directionalScale = rawRateDrive >= 0
+    ? clamp(params.laReservoirConduitWallViscoelasticPositiveScale01, 0, 2)
+    : clamp(params.laReservoirConduitWallViscoelasticNegativeScale01, 0, 2.5);
   const boosterSuppression01 = clamp(params.laReservoirConduitWallViscoelasticBoosterSuppression01, 0, 1);
   const boosterWindow01 = raisedCosineWindow(theta, params.laAWaveStartTheta, params.laAWaveEndTheta);
   const reservoirConduitGate01 = clamp(1 - boosterSuppression01 * boosterWindow01, 0, 1);
-  return gainMmHg * Math.tanh(laVolumeRateMlPerSec / flowScaleMlPerSec) * reservoirConduitGate01;
+  return gainMmHg * rawRateDrive * directionalScale * reservoirConduitGate01;
 }
 
 function nextLaReservoirConduitWallViscoelasticPressureMmHg(
@@ -2635,6 +2648,11 @@ function leftAtrialReservoirConduitPathReliefTargetMmHgFor(input: {
     params.lvEarlyFillingReceiverReliefStartTheta,
     params.lvEarlyFillingReceiverReliefEndTheta,
   );
+  const midConduitCupWindow01 = raisedCosineWindow(
+    input.theta,
+    params.lvEarlyFillingReceiverReliefStartTheta + 0.055,
+    Math.min(0.92, params.lvEarlyFillingReceiverReliefEndTheta + 0.10),
+  );
   const mvForwardFlowDrive01 = Math.tanh(
     Math.max(0, input.mvQMlPerSec) / Math.max(1, params.laReservoirConduitPathReliefFlowScaleMlPerSec),
   );
@@ -2660,12 +2678,22 @@ function leftAtrialReservoirConduitPathReliefTargetMmHgFor(input: {
     0,
     1,
   );
-  return gainMmHg * pathDischarge01
+  const baseRelief01 = pathDischarge01
     * mvOpenDrive01
     * earlyDiastolicWindow01
     * (0.34 + 0.66 * mvForwardFlowDrive01)
     * receiverDrive01
     * clamp(boosterSuppression01, 0, 1);
+  const cupMode01 = smoothstep01((params.laReservoirConduitPathReliefFlowScaleMlPerSec - 120) / 28);
+  const cupRelief01 =
+    cupMode01
+    * pathDischarge01
+    * mvOpenDrive01
+    * midConduitCupWindow01
+    * (0.22 + 0.44 * receiverPath01 + 0.34 * receiverCapacity01)
+    * (0.55 + 0.45 * laToLvGradientDrive01)
+    * clamp(boosterSuppression01, 0, 1);
+  return gainMmHg * clamp(baseRelief01 + 1.35 * cupRelief01, 0, 1);
 }
 
 function nextLaReservoirConduitPathReliefMmHg(
@@ -2822,6 +2850,7 @@ function lvEarlyFillingReceiverEffectiveMvDownstreamPressureMmHg(
   if (!usesLvEarlyFillingReceiverRelief(params)) return lvpMmHg;
   const capacityReliefMmHg = usesLvEarlyFillingReceiverCapacityState(params)
     ? 0.62
+      * (1 + 0.38 * clamp(params.lvEarlyFillingReceiverConduitCupGain01, 0, 1))
       * Math.max(0, params.lvEarlyFillingReceiverReliefGainMmHg)
       * clamp(receiverCapacity01, 0, 1)
     : 0;
@@ -2862,11 +2891,17 @@ function lvEarlyFillingReceiverCapacityTarget01For(input: {
     params.lvEarlyFillingReceiverReliefStartTheta,
     params.lvEarlyFillingReceiverReliefEndTheta,
   );
+  const conduitCupWindow01 = raisedCosineWindow(
+    input.theta,
+    params.lvEarlyFillingReceiverReliefStartTheta + 0.045,
+    Math.min(0.92, params.lvEarlyFillingReceiverReliefEndTheta + 0.12),
+  );
   const laToLvGradientDrive01 = smoothstep01((input.lapMmHg - input.lvpMmHg) / 3.0);
   const conduitPath01 = clamp(input.path01, 0, 1);
   const receiverPath01 = clamp(input.receiverPath01, 0, 1);
   const previousCapacity01 = clamp(input.previous.lvEarlyFillingReceiverCapacity01, 0, 1);
   const referenceReceiverBoost01 = smoothstep01(params.lvEarlyFillingReceiverReferenceGainMl / 80);
+  const conduitCupGain01 = clamp(params.lvEarlyFillingReceiverConduitCupGain01, 0, 1);
   const capacityTarget01 =
     mvOpenDrive01
     * earlyDiastolicDrive01
@@ -2880,7 +2915,15 @@ function lvEarlyFillingReceiverCapacityTarget01For(input: {
       * mvOpenDrive01
       * earlyDiastolicDrive01
       * (0.08 + 0.18 * mvForwardFlowDrive01 + 0.10 * previousCapacity01);
-  return gain01 * clamp(referenceReceiverCapacityTarget01, 0, 1);
+  const conduitCupTarget01 =
+    conduitCupGain01
+    * mvOpenDrive01
+    * conduitCupWindow01
+    * (0.18 + 0.34 * conduitPath01 + 0.28 * receiverPath01 + 0.20 * previousCapacity01)
+    * (0.22 + 0.46 * mvForwardFlowDrive01 + 0.22 * previousMvForwardDrive01
+      + 0.10 * mvForwardAccelerationDrive01)
+    * (0.48 + 0.52 * laToLvGradientDrive01);
+  return gain01 * clamp(referenceReceiverCapacityTarget01 + conduitCupTarget01, 0, 1);
 }
 
 function nextLvEarlyFillingReceiverCapacity01(
@@ -2931,7 +2974,13 @@ function lvEarlyFillingReceiverReliefTargetMmHgFor(input: {
     params.lvEarlyFillingReceiverReliefStartTheta,
     params.lvEarlyFillingReceiverReliefEndTheta,
   );
+  const conduitBellyWindow01 = raisedCosineWindow(
+    input.theta,
+    params.lvEarlyFillingReceiverReliefStartTheta + 0.070,
+    Math.min(0.93, params.lvEarlyFillingReceiverReliefEndTheta + 0.16),
+  );
   const laToLvGradientDrive01 = smoothstep01((input.lapMmHg - input.lvpMmHg) / 3.2);
+  const conduitCupGain01 = clamp(params.lvEarlyFillingReceiverConduitCupGain01, 0, 1);
   const receiverDrive01 =
     mvOpenDrive01
     * earlyDiastolicDrive01
@@ -2946,7 +2995,19 @@ function lvEarlyFillingReceiverReliefTargetMmHgFor(input: {
     * pathMix01
     * (0.10 + 0.28 * mvForwardFlowDrive01 + 0.12 * receiverCapacity01)
     * (0.52 + 0.48 * laToLvGradientDrive01);
-  return gainMmHg * clamp(receiverDrive01 + referenceReceiverDrive01, 0, 1);
+  const conduitBellyReceiverDrive01 =
+    conduitCupGain01
+    * mvOpenDrive01
+    * conduitBellyWindow01
+    * (0.16 + 0.38 * conduitPath01 + 0.24 * receiverCapacity01 + 0.22 * receiverPath01)
+    * (0.48 + 0.28 * mvForwardFlowDrive01 + 0.16 * previousMvForwardDrive01
+      + 0.08 * receiverCapacity01)
+    * (0.56 + 0.44 * laToLvGradientDrive01);
+  return gainMmHg * clamp(
+    receiverDrive01 + referenceReceiverDrive01 + 0.54 * conduitBellyReceiverDrive01,
+    0,
+    1,
+  );
 }
 
 function nextLvEarlyFillingReceiverReliefMmHg(

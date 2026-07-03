@@ -14,6 +14,10 @@ const outPath = resolve(
   repoRoot,
   "data/mechanics2/visuals/full-left-av-plane-normal-hr75-fast-review.svg",
 );
+const cardsOutPath = resolve(
+  repoRoot,
+  "data/mechanics2/visuals/full-left-av-plane-normal-hr75-candidate-cards.svg",
+);
 
 const COLORS = [
   "#38bdf8",
@@ -108,10 +112,32 @@ const pinnedMechanismIds = new Set([
 	  "v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
 	  "v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
 	  "v33-wall-v16lvref56-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
-	  "v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
-	  "v33-wall-v16lvref56-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
-	  "v33-wall-v16lvref48-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
-	  "v33-wall-v16lvref56-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v33-wall-v16lvref56-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v33-wall-v16lvref48-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v33-wall-v16lvref56-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v33-wall-v16lvref48-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v33-wall-v16lvref56-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v34-wall-v16lvref48-cap150-visco6-pathmem90-relief45-cupwide-phaselock04-lvrecv8-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v34-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v34-wall-v16lvref56-cap125-visco6-pathmem90-relief45-cupwide-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v35-wall-v16lvref48-cap150-visco6-conduitvisco025-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v35-wall-v16lvref56-cap150-visco6-conduitvisco025-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v35-wall-v16lvref48-cap150-visco8-conduitvisco020-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v35-wall-v16lvref56-cap150-visco8-conduitvisco020-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v36-wall-v16lvref48-cap150-visco6-pathmem90-relief45-cupwide-lvrcup04-phaselock04-lvrecv8-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed14-pv52-mvlite",
+  "v36-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-lvrcup04-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed14-pv52-mvlite",
+  "v36-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-lvrcup04-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed14-pv52-mvlite",
+  "v36-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-lvrcup06-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed14-pv52-mvlite",
+  "v36-wall-v16lvref56-cap125-visco6-pathmem90-relief45-cupwide-lvrcup04-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr170-fixed14-pv44-mvlite",
+  "v36-wall-v16lvref56-cap150-visco6-pathmem100-relief60-cupwide-lvrcup04-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v36-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-lvrcup06-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed16-pv56-mvlite",
+  "v37-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v37-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v37-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed16-pv56-mvlite",
+  "v37-wall-v16lvref56-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
+  "v37-wall-v16lvref64-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
+  "v37-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
 ]);
 void pinnedMechanismIds;
 const eligibleRows = rows
@@ -128,6 +154,19 @@ const eligibleRows = rows
     && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
   );
 const visualAnchorIds = [
+  "v37-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v37-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v37-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed16-pv56-mvlite",
+  "v37-wall-v16lvref56-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
+  "v37-wall-v16lvref64-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
+  "v37-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v36-wall-v16lvref48-cap150-visco6-pathmem90-relief45-cupwide-lvrcup04-phaselock04-lvrecv8-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed14-pv52-mvlite",
+  "v36-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-lvrcup04-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed14-pv52-mvlite",
+  "v36-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-lvrcup04-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed14-pv52-mvlite",
+  "v36-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-lvrcup06-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed14-pv52-mvlite",
+  "v36-wall-v16lvref56-cap125-visco6-pathmem90-relief45-cupwide-lvrcup04-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr170-fixed14-pv44-mvlite",
+  "v36-wall-v16lvref56-cap150-visco6-pathmem100-relief60-cupwide-lvrcup04-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v36-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-lvrcup06-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed16-pv56-mvlite",
   "v29-wall-v16pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
   "v30-wall-v16cup-visco6-pathmem90-relief45-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
   "v30-wall-v16cup-visco6-pathmem75-relief36-cupsoft-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
@@ -137,6 +176,15 @@ const visualAnchorIds = [
   "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
   "v33-wall-v16lvref48-cap125-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
   "v33-wall-v16lvref56-cap125-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v33-wall-v16lvref48-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v33-wall-v16lvref56-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v34-wall-v16lvref48-cap150-visco6-pathmem90-relief45-cupwide-phaselock04-lvrecv8-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v34-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v34-wall-v16lvref56-cap125-visco6-pathmem90-relief45-cupwide-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v35-wall-v16lvref48-cap150-visco6-conduitvisco025-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v35-wall-v16lvref56-cap150-visco6-conduitvisco025-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v35-wall-v16lvref48-cap150-visco8-conduitvisco020-pathmem90-relief45-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v35-wall-v16lvref56-cap150-visco8-conduitvisco020-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
   "v28-wall-v16visco3-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
 ] as const;
 
@@ -162,7 +210,7 @@ const topCleanRows = eligibleRows
 const candidateRows = uniqueRowsByVariantId([
   ...visualAnchorRows,
   ...topCleanRows,
-]).slice(0, 10);
+]).slice(0, 24);
 
 const traces = candidateRows.map((row, index) => ({
   row,
@@ -176,7 +224,7 @@ const svg: string[] = [];
 svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
 svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
 svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="700">Normal HR75 fast LA AV-plane residual review</text>`);
-svg.push(`<text x="34" y="60" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Only normal-hr75 is evaluated here. Candidate traces require source surface, MVF, blood-volume PV phase, hidden-volume cleanliness, and blood v-loop area >= 40 for visual triage; prime readbacks are ignored.</text>`);
+svg.push(`<text x="34" y="60" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Only normal-hr75 is evaluated here. The overlay prioritizes source/MVF/phase/hidden-volume clean rows with visible blood V-loop area for readability; V-loop area is not an adoption gate here.</text>`);
 svg.push(`<text x="34" y="84" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="13">Shown rows: ${candidateRows.length}; fast report rows: ${rows.length}. Includes dirty shape anchors when labeled; this artifact is a visual research shortcut, not broad-envelope acceptance.</text>`);
 
 if (traces.length === 0) {
@@ -195,12 +243,88 @@ svg.push(`</svg>`);
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, `${svg.join("\n")}\n`);
 console.log(outPath.replace(`${repoRoot}/`, ""));
+renderCandidateCards(traces);
 
 type Trace = {
   readonly row: (typeof report.rows)[number];
   readonly color: string;
   readonly samples: readonly LeftHeartSubsystemSampleV2[];
 };
+
+function renderCandidateCards(traces: readonly Trace[]): void {
+  const cardWidth = 330;
+  const cardHeight = 295;
+  const cols = 3;
+  const rowsCount = Math.max(1, Math.ceil(traces.length / cols));
+  const width = 34 + cols * cardWidth + (cols - 1) * 18 + 34;
+  const height = 92 + rowsCount * cardHeight + (rowsCount - 1) * 18 + 34;
+  const allSamples = traces.flatMap((trace) => trace.samples);
+  const xScale = scaleFor(allSamples.map((sample) => sample.acceptedLaVolumeMl), 0, 1);
+  const yScale = scaleFor(allSamples.map((sample) => sample.lapMmHg), 1, -1);
+  const svg: string[] = [];
+  svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
+  svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
+  svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="700">Normal HR75 LA blood PV candidate cards</text>`);
+  svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Blood-volume axis only. Effective/capacity and prime traces are intentionally omitted. X-descent depth, crossing location, and V-loop area are readbacks, not hard adoption by themselves.</text>`);
+  svg.push(`<text x="34" y="80" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">Reject visually impossible rows: upward post-MV-opening conduit, vertical fold/kink, or elastance-rise fake V-loop. Compare shape by eye against the Nature-style reservoir/conduit/pumping references.</text>`);
+  traces.forEach((trace, index) => {
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    const x = 34 + col * (cardWidth + 18);
+    const y = 108 + row * (cardHeight + 18);
+    renderPvCard(svg, trace, x, y, cardWidth, cardHeight, xScale, yScale);
+  });
+  svg.push(`</svg>`);
+  mkdirSync(dirname(cardsOutPath), { recursive: true });
+  writeFileSync(cardsOutPath, `${svg.join("\n")}\n`);
+  console.log(cardsOutPath.replace(`${repoRoot}/`, ""));
+}
+
+function renderPvCard(
+  out: string[],
+  trace: Trace,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  xScale01: (value: number) => number,
+  yScale01: (value: number) => number,
+): void {
+  const plotX = x + 18;
+  const plotY = y + 58;
+  const plotW = w - 36;
+  const plotH = h - 86;
+  const sx = (value: number) => plotX + xScale01(value) * plotW;
+  const sy = (value: number) => plotY + yScale01(value) * plotH;
+  const status = trace.row.sourceSurfacePass && trace.row.mvfClean ? "clean" : "dirty anchor";
+  out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#111827" stroke="#253044"/>`);
+  out.push(`<text x="${x + 14}" y="${y + 23}" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">${shortVariantLabel(trace.row.variantId)}</text>`);
+  out.push(`<text x="${x + 14}" y="${y + 42}" fill="${status === "clean" ? "#86efac" : "#fca5a5"}" font-family="Inter,Arial,sans-serif" font-size="11">${status} | area ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)} | arc ${trace.row.phasePv.conduitArcLengthOverChord.toFixed(2)}</text>`);
+  out.push(`<rect x="${plotX}" y="${plotY}" width="${plotW}" height="${plotH}" fill="#0b1220" stroke="#263244"/>`);
+  out.push(`<path d="M${plotX + plotW / 2},${plotY + 8} L${plotX + plotW / 2},${plotY + plotH - 8} M${plotX + 8},${plotY + plotH / 2} L${plotX + plotW - 8},${plotY + plotH / 2}" stroke="#263244" stroke-width="1"/>`);
+  const openingIndex = findMvOpeningIndex(trace.samples);
+  const closureIndex = openingIndex == null ? null : findMvClosureIndexAfter(trace.samples, openingIndex);
+  if (openingIndex != null && closureIndex != null) {
+    const opening = trace.samples[openingIndex]!;
+    const closure = trace.samples[closureIndex]!;
+    out.push(`<line x1="${sx(closure.acceptedLaVolumeMl).toFixed(1)}" y1="${sy(closure.lapMmHg).toFixed(1)}" x2="${sx(opening.acceptedLaVolumeMl).toFixed(1)}" y2="${sy(opening.lapMmHg).toFixed(1)}" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4 4" opacity="0.7"/>`);
+    renderPhaseSegments(
+      out,
+      trace.samples,
+      openingIndex,
+      closureIndex,
+      (sample) => sx(sample.acceptedLaVolumeMl),
+      (sample) => sy(sample.lapMmHg),
+    );
+    out.push(`<circle cx="${sx(opening.acceptedLaVolumeMl).toFixed(1)}" cy="${sy(opening.lapMmHg).toFixed(1)}" r="4" fill="#f8fafc" stroke="#020617" stroke-width="1.3"/>`);
+    out.push(`<circle cx="${sx(closure.acceptedLaVolumeMl).toFixed(1)}" cy="${sy(closure.lapMmHg).toFixed(1)}" r="4" fill="#020617" stroke="#f8fafc" stroke-width="1.6"/>`);
+    out.push(`<text x="${(sx(opening.acceptedLaVolumeMl) + 6).toFixed(1)}" y="${(sy(opening.lapMmHg) - 6).toFixed(1)}" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="10">MVO</text>`);
+    out.push(`<text x="${(sx(closure.acceptedLaVolumeMl) + 6).toFixed(1)}" y="${(sy(closure.lapMmHg) + 13).toFixed(1)}" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="10">MVC</text>`);
+  } else {
+    out.push(`<path d="${pathFor(trace.samples, (sample) => sx(sample.acceptedLaVolumeMl), (sample) => sy(sample.lapMmHg))}" fill="none" stroke="#38bdf8" stroke-width="2.6"/>`);
+  }
+  out.push(`<text x="${x + 14}" y="${y + h - 15}" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)} mmHg / ${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)} mL | initRise ${trace.row.phasePv.postOpeningInitialPressureRiseMmHg.toFixed(2)} | tx ${trace.row.maxTransactionResidualNormMl.toFixed(3)}</text>`);
+}
 
 function renderLegend(out: string[], traces: readonly Trace[], x: number, y: number): void {
   traces.forEach((trace, index) => {
@@ -416,6 +540,26 @@ function findMvClosureIndexAfter(samples: readonly LeftHeartSubsystemSampleV2[],
 
 function finiteOrZero(value: number | null | undefined): number {
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function shortVariantLabel(variantId: string): string {
+  const prefix = variantId.match(/^(v\d+)/)?.[1] ?? "variant";
+  if (variantId.includes("lvref")) {
+    const lvref = variantId.match(/lvref\d+/)?.[0] ?? "lvref";
+    const cap = variantId.match(/cap\d+/)?.[0] ?? "cap";
+    const relief = variantId.match(/relief\d+/)?.[0] ?? "relief";
+    const recv = variantId.match(/lvrecv\d+/)?.[0] ?? "lvrecv";
+    const path = variantId.includes("rpathbelly")
+      ? "rpathbelly"
+      : variantId.includes("rpathslow")
+        ? "rpathslow"
+        : "";
+    return `${prefix} ${lvref} ${cap} ${relief} ${recv} ${path}`.trim();
+  }
+  if (variantId.includes("cup")) return `${prefix} cup anchor`;
+  if (variantId.includes("pathmem")) return `${prefix} pathmem anchor`;
+  if (variantId.includes("visco")) return `${prefix} wall visco anchor`;
+  return variantId.slice(0, 52);
 }
 
 function escapeXml(value: string): string {

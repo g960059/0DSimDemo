@@ -1714,7 +1714,25 @@ Next gates:
     inspect the V33 blood-only SVG against the Nature-style references, then
     decide whether to continue local LV-receiver/conduit-belly shaping or move
     to a more explicit early-diastolic LV relaxation receiver state before any
-    broad-envelope claim.
+    broad-envelope claim. V35-V37 extend the same large PR as negative/partial
+    evidence rather than a new promotion path. Directional wall-viscoelastic
+    V35 shrinks the clean normal-HR75 loop back to about 46 area and is not a
+    route. V36 adds a local LV receiver conduit-cup/reference-capacity readback;
+    the best clean row remains source/MVF/blood-phase/hidden-volume clean but
+    reaches only about 98.7 area, 3.47 mmHg mean reservoir-conduit separation,
+    1.43 mmHg belly depth, and 4.56 mmHg / 8.18 mL early post-MVO drop, below
+    the V33 clean shape. V37 strengthens the receiver cup and mid-conduit
+    relief; it can create a deeper dirty belly signal (up to about 4.13 mmHg
+    with 6.16 mmHg / 12.07 mL early post-MVO drop), but only by collapsing MVF
+    to one forward peak and shrinking the A-loop / widening transaction
+    residuals. Treat this as evidence that further scalar receiver-cup gain is
+    the wrong owner for the remaining Nature-style rounded V-loop. Current
+    owner-facing artifacts should keep blood-volume PV only; effective/capacity
+    axes, prime waveforms, x-descent depth, and intersection position are
+    readbacks, not acceptance. The next mechanism should be a true
+    phase-locked AV-plane / LV early-diastolic relaxation reservoir-conduit
+    state that makes filling and emptying follow different blood-volume paths,
+    not another scalar cup or direct pressure-relief sweep.
 
 Parallel prep, not blocking the next strategic gate:
 
