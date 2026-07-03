@@ -11,8 +11,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records a full-left LA-AV-plane residual routing report", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(161);
-    expect(report.variantSummaries).toHaveLength(23);
+    expect(report.rows).toHaveLength(217);
+    expect(report.variantSummaries).toHaveLength(31);
   });
 
   it("finds a source-preserving phase-oriented signal only after full-left residual ownership is added", () => {
@@ -99,6 +99,32 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV3SourcePreservingPhasePv).toBe(2);
     expect(report.summary.bestV3SourcePreservingPhasePv).toBeLessThan(report.summary.bestV2SourcePreservingPhasePv);
     expect(v3Wall?.hiddenVolumeClean).toBe(7);
+  });
+
+  it("rejects simple hybrid velocity-target residuals as source-preserving phase fixes", () => {
+    const v4Force = report.variantSummaries.find((summary) =>
+      summary.variantId === "v4-force-veltarget-fixed8-pv36-mvsoft"
+    );
+    expect(report.summary.bestV4VariantId).toBe("v4-wall-veltarget-fixed8-pv36-mvsoft");
+    expect(report.summary.bestV4SourcePreservingPhasePv).toBe(0);
+    expect(report.summary.bestV4PhaseOrientedPvPass).toBe(0);
+    expect(report.summary.bestV4PrimeWaveformPass).toBe(3);
+    expect(v4Force?.hiddenVolumeClean).toBe(7);
+    expect(v4Force?.sourcePreservingPhasePv).toBe(0);
+  });
+
+  it("rejects phase-owned target residuals as a substitute for true same-step ownership", () => {
+    const v5Force = report.variantSummaries.find((summary) =>
+      summary.variantId === "v5-force-phaseowned-fixed8-pv36-mvsoft"
+    );
+    expect(report.summary.bestV5VariantId).toBe("v5-wall-phaseowned-fixed8-pv36-mvsoft");
+    expect(report.summary.bestV5SourcePreservingPhasePv).toBe(0);
+    expect(report.summary.bestV5PhaseOrientedPvPass).toBe(0);
+    expect(report.summary.bestV5SourceSurfacePass).toBe(0);
+    expect(report.summary.bestV5MvfClean).toBe(3);
+    expect(report.summary.bestV5PrimeWaveformPass).toBe(3);
+    expect(v5Force?.hiddenVolumeClean).toBe(7);
+    expect(v5Force?.sourceSurfacePass).toBe(0);
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {
