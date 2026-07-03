@@ -181,12 +181,23 @@ type PhaseOrientedPvQualityV1 = {
   readonly mvClosurePressureMmHg: number | null;
   readonly postOpeningPressureDropMmHg: number;
   readonly postOpeningVolumeDropMl: number;
+  readonly postOpeningInitialPressureRiseMmHg: number;
+  readonly postOpeningEarlyPressureDropMmHg: number;
+  readonly postOpeningEarlyVolumeDropMl: number;
+  readonly xTroughVolumeRiseMl: number;
+  readonly postXTroughVolumeRiseMl: number;
+  readonly reservoirBelowChordFraction: number;
+  readonly meanReservoirBelowChordMmHg: number;
   readonly conduitBelowReservoirChordFraction: number;
   readonly meanConduitBelowReservoirChordMmHg: number;
   readonly systolicXDescentPressureDropMmHg: number;
   readonly systolicReservoirVolumeRiseMl: number;
   readonly systolicVWavePressureRiseMmHg: number;
   readonly systolicReservoirPass: boolean;
+  readonly bloodVLoopAreaPass: boolean;
+  readonly reservoirBowPass: boolean;
+  readonly mvOpeningTransitionPass: boolean;
+  readonly mvOpeningDownstrokePass: boolean;
   readonly phaseOrientationPass: boolean;
   readonly maxPvTangentAngleJumpDeg: number;
   readonly mvOpeningTangentAngleJumpDeg: number;
@@ -523,6 +534,19 @@ export type FullLeftAVPlaneResidualRoutingTrajectoryPanelV1 = {
 
 const LEFT_VARIANT_ID = "active-length-mv-closure-stateful-root08" as const;
 const PRE_A_THETA = 0.74;
+const MIN_BLOOD_X_DESCENT_PRESSURE_DROP_MMHG = 2.0;
+const MIN_BLOOD_RESERVOIR_VOLUME_RISE_ML = 12.0;
+const MIN_BLOOD_V_WAVE_PRESSURE_RISE_MMHG = 3.0;
+const MIN_BLOOD_V_LOOP_AREA = 55.0;
+const MAX_MV_OPENING_TANGENT_JUMP_DEG = 58.0;
+const MAX_MV_OPENING_INITIAL_PRESSURE_RISE_MMHG = 0.25;
+const MIN_MV_OPENING_EARLY_PRESSURE_DROP_MMHG = 0.55;
+const MIN_MV_OPENING_EARLY_VOLUME_DROP_ML = 0.55;
+const MV_OPENING_EARLY_CONDUIT_PHASE_WINDOW = 0.08;
+const MIN_RESERVOIR_BELOW_CHORD_FRACTION = 0.35;
+const MIN_MEAN_RESERVOIR_BELOW_CHORD_MMHG = 0.35;
+const MIN_X_TROUGH_VOLUME_RISE_ML = 2.0;
+const MIN_POST_X_TROUGH_VOLUME_RISE_ML = 4.0;
 
 const PROFILE_IDS: readonly FourChamberSubsystemProfileIdV1[] = [
   "normal-hr75",
@@ -1720,7 +1744,14 @@ function phaseOrientedPvQualityFor(
   const failures: string[] = [];
   if (selfIntersections < 1) failures.push("missing-pv-self-intersection");
   if (aLoopArea < 1.8) failures.push("a-loop-area-too-small");
-  if (vLoopArea < 1.8) failures.push("v-loop-area-too-small");
+  const bloodVLoopAreaPass = vLoopArea >= MIN_BLOOD_V_LOOP_AREA;
+  const reservoirBowPass = phase.reservoirBowPass;
+  const mvOpeningTransitionPass = tangent.mvOpeningTangentAngleJumpDeg <= MAX_MV_OPENING_TANGENT_JUMP_DEG;
+  const mvOpeningDownstrokePass = phase.mvOpeningDownstrokePass;
+  if (!bloodVLoopAreaPass) failures.push("v-loop-area-too-small");
+  if (!reservoirBowPass) failures.push("reservoir-limb-not-bowed");
+  if (!mvOpeningTransitionPass) failures.push("mv-opening-transition-not-clean");
+  if (!mvOpeningDownstrokePass) failures.push("mv-opening-conduit-start-not-downstroke");
   if (!opposedSignedLobes) failures.push("a-v-lobes-not-opposed");
   if (volumeSeparation < 1.2) failures.push("v-loop-not-higher-volume-than-a-loop");
   failures.push(...phase.failureReasons);
@@ -1737,12 +1768,23 @@ function phaseOrientedPvQualityFor(
     mvClosurePressureMmHg: phase.mvClosurePressureMmHg == null ? null : round(phase.mvClosurePressureMmHg),
     postOpeningPressureDropMmHg: round(phase.postOpeningPressureDropMmHg),
     postOpeningVolumeDropMl: round(phase.postOpeningVolumeDropMl),
+    postOpeningInitialPressureRiseMmHg: round(phase.postOpeningInitialPressureRiseMmHg),
+    postOpeningEarlyPressureDropMmHg: round(phase.postOpeningEarlyPressureDropMmHg),
+    postOpeningEarlyVolumeDropMl: round(phase.postOpeningEarlyVolumeDropMl),
+    xTroughVolumeRiseMl: round(phase.xTroughVolumeRiseMl),
+    postXTroughVolumeRiseMl: round(phase.postXTroughVolumeRiseMl),
+    reservoirBelowChordFraction: round(phase.reservoirBelowChordFraction),
+    meanReservoirBelowChordMmHg: round(phase.meanReservoirBelowChordMmHg),
     conduitBelowReservoirChordFraction: round(phase.conduitBelowReservoirChordFraction),
     meanConduitBelowReservoirChordMmHg: round(phase.meanConduitBelowReservoirChordMmHg),
     systolicXDescentPressureDropMmHg: round(phase.systolicXDescentPressureDropMmHg),
     systolicReservoirVolumeRiseMl: round(phase.systolicReservoirVolumeRiseMl),
     systolicVWavePressureRiseMmHg: round(phase.systolicVWavePressureRiseMmHg),
     systolicReservoirPass: phase.systolicReservoirPass,
+    bloodVLoopAreaPass,
+    reservoirBowPass,
+    mvOpeningTransitionPass,
+    mvOpeningDownstrokePass,
     phaseOrientationPass: phase.failureReasons.length === 0,
     maxPvTangentAngleJumpDeg: round(tangent.maxPvTangentAngleJumpDeg),
     mvOpeningTangentAngleJumpDeg: round(tangent.mvOpeningTangentAngleJumpDeg),
@@ -1788,12 +1830,21 @@ function phaseOrientationFor(
   readonly mvClosurePressureMmHg: number | null;
   readonly postOpeningPressureDropMmHg: number;
   readonly postOpeningVolumeDropMl: number;
+  readonly postOpeningInitialPressureRiseMmHg: number;
+  readonly postOpeningEarlyPressureDropMmHg: number;
+  readonly postOpeningEarlyVolumeDropMl: number;
+  readonly xTroughVolumeRiseMl: number;
+  readonly postXTroughVolumeRiseMl: number;
+  readonly reservoirBelowChordFraction: number;
+  readonly meanReservoirBelowChordMmHg: number;
   readonly conduitBelowReservoirChordFraction: number;
   readonly meanConduitBelowReservoirChordMmHg: number;
   readonly systolicXDescentPressureDropMmHg: number;
   readonly systolicReservoirVolumeRiseMl: number;
   readonly systolicVWavePressureRiseMmHg: number;
   readonly systolicReservoirPass: boolean;
+  readonly reservoirBowPass: boolean;
+  readonly mvOpeningDownstrokePass: boolean;
   readonly failureReasons: readonly string[];
 } {
   const failures: string[] = [];
@@ -1809,12 +1860,21 @@ function phaseOrientationFor(
       mvClosurePressureMmHg: mvClosureIndex == null ? null : pressures[mvClosureIndex]!,
       postOpeningPressureDropMmHg: 0,
       postOpeningVolumeDropMl: 0,
+      postOpeningInitialPressureRiseMmHg: 0,
+      postOpeningEarlyPressureDropMmHg: 0,
+      postOpeningEarlyVolumeDropMl: 0,
+      xTroughVolumeRiseMl: 0,
+      postXTroughVolumeRiseMl: 0,
+      reservoirBelowChordFraction: 0,
+      meanReservoirBelowChordMmHg: 0,
       conduitBelowReservoirChordFraction: 0,
       meanConduitBelowReservoirChordMmHg: 0,
       systolicXDescentPressureDropMmHg: 0,
       systolicReservoirVolumeRiseMl: 0,
       systolicVWavePressureRiseMmHg: 0,
       systolicReservoirPass: false,
+      reservoirBowPass: false,
+      mvOpeningDownstrokePass: false,
       failureReasons: failures,
     };
   }
@@ -1823,13 +1883,39 @@ function phaseOrientationFor(
   const closureVolume = volumes[mvClosureIndex]!;
   const reservoirPressures = reservoirIndices.map((index) => pressures[index]!);
   const minReservoirPressure = Math.min(closurePressure, ...reservoirPressures);
+  const minReservoirIndex = reservoirIndices.reduce(
+    (selected, index) => pressures[index]! < pressures[selected]! ? index : selected,
+    mvClosureIndex,
+  );
+  const xTroughVolumeRise = volumes[minReservoirIndex]! - closureVolume;
+  const postXTroughVolumeRise = volumes[mvOpeningIndex]! - volumes[minReservoirIndex]!;
+  const reservoirBelowChordMargins = reservoirIndices
+    .filter((index) => index !== mvClosureIndex && index !== mvOpeningIndex)
+    .map((index) =>
+      reservoirChordPressureAtVolume(
+        volumes[index]!,
+        closureVolume,
+        closurePressure,
+        volumes[mvOpeningIndex]!,
+        pressures[mvOpeningIndex]!,
+      ) - pressures[index]!
+    );
+  const reservoirBelowChordCount = reservoirBelowChordMargins.filter((margin) => margin >= 0.2).length;
+  const reservoirBelowChordFraction =
+    reservoirBelowChordMargins.length === 0 ? 0 : reservoirBelowChordCount / reservoirBelowChordMargins.length;
+  const meanReservoirBelowChord = mean(reservoirBelowChordMargins);
   const systolicXDescentPressureDrop = closurePressure - minReservoirPressure;
   const systolicReservoirVolumeRise = volumes[mvOpeningIndex]! - closureVolume;
   const systolicVWavePressureRise = pressures[mvOpeningIndex]! - minReservoirPressure;
   const systolicReservoirPass =
-    systolicXDescentPressureDrop >= 0.25
-    && systolicReservoirVolumeRise >= 0.8
-    && systolicVWavePressureRise >= 0.45;
+    systolicXDescentPressureDrop >= MIN_BLOOD_X_DESCENT_PRESSURE_DROP_MMHG
+    && systolicReservoirVolumeRise >= MIN_BLOOD_RESERVOIR_VOLUME_RISE_ML
+    && systolicVWavePressureRise >= MIN_BLOOD_V_WAVE_PRESSURE_RISE_MMHG;
+  const reservoirBowPass =
+    reservoirBelowChordFraction >= MIN_RESERVOIR_BELOW_CHORD_FRACTION
+    && meanReservoirBelowChord >= MIN_MEAN_RESERVOIR_BELOW_CHORD_MMHG
+    && xTroughVolumeRise >= MIN_X_TROUGH_VOLUME_RISE_ML
+    && postXTroughVolumeRise >= MIN_POST_X_TROUGH_VOLUME_RISE_ML;
   const conduitIndices = conduitIndicesAfterOpening(theta, mvOpeningIndex);
   const openingPressure = pressures[mvOpeningIndex]!;
   const openingVolume = volumes[mvOpeningIndex]!;
@@ -1837,6 +1923,22 @@ function phaseOrientationFor(
   const conduitVolumes = conduitIndices.map((index) => volumes[index]!);
   const postOpeningPressureDrop = openingPressure - Math.min(openingPressure, ...conduitPressures);
   const postOpeningVolumeDrop = openingVolume - Math.min(openingVolume, ...conduitVolumes);
+  const earlyConduitIndices = earlyConduitIndicesAfterOpening(theta, mvOpeningIndex);
+  const earlyConduitPressures = earlyConduitIndices.map((index) => pressures[index]!);
+  const earlyConduitVolumes = earlyConduitIndices.map((index) => volumes[index]!);
+  const postOpeningInitialPressureRise = Math.max(
+    0,
+    ...earlyConduitPressures.map((pressure) => pressure - openingPressure),
+  );
+  const postOpeningEarlyPressureDrop =
+    openingPressure - Math.min(openingPressure, ...earlyConduitPressures);
+  const postOpeningEarlyVolumeDrop =
+    openingVolume - Math.min(openingVolume, ...earlyConduitVolumes);
+  const mvOpeningDownstrokePass =
+    earlyConduitIndices.length >= 3
+    && postOpeningInitialPressureRise <= MAX_MV_OPENING_INITIAL_PRESSURE_RISE_MMHG
+    && postOpeningEarlyPressureDrop >= MIN_MV_OPENING_EARLY_PRESSURE_DROP_MMHG
+    && postOpeningEarlyVolumeDrop >= MIN_MV_OPENING_EARLY_VOLUME_DROP_ML;
   const belowChordMargins = conduitIndices
     .filter((index) => index !== mvOpeningIndex)
     .map((index) =>
@@ -1853,8 +1955,30 @@ function phaseOrientationFor(
     belowChordMargins.length === 0 ? 0 : belowChordCount / belowChordMargins.length;
   const meanConduitBelowReservoirChord = mean(belowChordMargins);
   if (conduitIndices.length < 6) failures.push("conduit-window-too-short");
+  if (earlyConduitIndices.length < 3) failures.push("mv-opening-early-conduit-window-too-short");
+  if (postOpeningInitialPressureRise > MAX_MV_OPENING_INITIAL_PRESSURE_RISE_MMHG) {
+    failures.push("mv-opening-starts-upward");
+  }
+  if (postOpeningEarlyPressureDrop < MIN_MV_OPENING_EARLY_PRESSURE_DROP_MMHG) {
+    failures.push("mv-opening-early-conduit-not-pressure-downward");
+  }
+  if (postOpeningEarlyVolumeDrop < MIN_MV_OPENING_EARLY_VOLUME_DROP_ML) {
+    failures.push("mv-opening-early-conduit-not-volume-leftward");
+  }
   if (postOpeningPressureDrop < 0.8) failures.push("mv-opening-conduit-not-pressure-downward");
   if (postOpeningVolumeDrop < 0.8) failures.push("mv-opening-conduit-not-volume-leftward");
+  if (reservoirBelowChordFraction < MIN_RESERVOIR_BELOW_CHORD_FRACTION) {
+    failures.push("reservoir-limb-not-below-chord");
+  }
+  if (meanReservoirBelowChord < MIN_MEAN_RESERVOIR_BELOW_CHORD_MMHG) {
+    failures.push("reservoir-limb-not-bowed-below-chord");
+  }
+  if (xTroughVolumeRise < MIN_X_TROUGH_VOLUME_RISE_ML) {
+    failures.push("x-trough-too-close-to-mv-closure-volume");
+  }
+  if (postXTroughVolumeRise < MIN_POST_X_TROUGH_VOLUME_RISE_ML) {
+    failures.push("x-trough-too-close-to-mv-opening-volume");
+  }
   if (conduitBelowReservoirChordFraction < 0.55) failures.push("conduit-not-below-reservoir-chord");
   if (meanConduitBelowReservoirChord < 0.25) failures.push("conduit-mean-not-below-reservoir-chord");
   if (!systolicReservoirPass) failures.push("missing-systolic-x-descent-reservoir");
@@ -1865,12 +1989,21 @@ function phaseOrientationFor(
     mvClosurePressureMmHg: pressures[mvClosureIndex]!,
     postOpeningPressureDropMmHg: postOpeningPressureDrop,
     postOpeningVolumeDropMl: postOpeningVolumeDrop,
+    postOpeningInitialPressureRiseMmHg: postOpeningInitialPressureRise,
+    postOpeningEarlyPressureDropMmHg: postOpeningEarlyPressureDrop,
+    postOpeningEarlyVolumeDropMl: postOpeningEarlyVolumeDrop,
+    xTroughVolumeRiseMl: xTroughVolumeRise,
+    postXTroughVolumeRiseMl: postXTroughVolumeRise,
+    reservoirBelowChordFraction,
+    meanReservoirBelowChordMmHg: meanReservoirBelowChord,
     conduitBelowReservoirChordFraction,
     meanConduitBelowReservoirChordMmHg: meanConduitBelowReservoirChord,
     systolicXDescentPressureDropMmHg: systolicXDescentPressureDrop,
     systolicReservoirVolumeRiseMl: systolicReservoirVolumeRise,
     systolicVWavePressureRiseMmHg: systolicVWavePressureRise,
     systolicReservoirPass,
+    reservoirBowPass,
+    mvOpeningDownstrokePass,
     failureReasons: failures,
   };
 }
@@ -2023,6 +2156,22 @@ function conduitIndicesAfterOpening(theta: readonly number[], openingIndex: numb
     if (step > 0 && theta[index]! >= PRE_A_THETA) break;
   }
   return indices;
+}
+
+function earlyConduitIndicesAfterOpening(theta: readonly number[], openingIndex: number): readonly number[] {
+  const indices: number[] = [];
+  const openingTheta = theta[openingIndex]!;
+  for (let step = 1; step < theta.length; step++) {
+    const index = (openingIndex + step) % theta.length;
+    if (forwardPhaseDistance(theta[index]!, openingTheta) > MV_OPENING_EARLY_CONDUIT_PHASE_WINDOW) break;
+    if (theta[index]! >= PRE_A_THETA) break;
+    indices.push(index);
+  }
+  return indices;
+}
+
+function forwardPhaseDistance(value: number, from: number): number {
+  return value >= from ? value - from : value + 1 - from;
 }
 
 function circularIndexRange(startIndex: number, endIndex: number, length: number): readonly number[] {

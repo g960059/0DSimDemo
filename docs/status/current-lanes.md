@@ -1376,6 +1376,25 @@ Next gates:
     acceptance axis. Next work should quantify blood-volume x-descent depth,
     v-loop blood-area, and LAP-time pressure dip after MV closure before
     continuing LA-MV-PV implicit subsystem development.
+90. Blood-volume x-descent quality gate: follow-up visual review and external
+    critique showed that effective/capacity-axis 8-shapes are useful
+    wall/capacity readbacks but must not become acceptance or owner SVG
+    promotion by themselves. The full-left routing gate now requires
+    blood-volume x-descent depth, blood v-loop area, immediate MV-opening
+    downstroke, reservoir-limb bowing below the MV-closure/MV-opening chord,
+    and local MV-opening transition quality in addition to phase orientation
+    and hidden-volume hygiene, while non-opening C1/kink markers remain visual
+    warnings. This collapses the apparent C1-warning signal to 0/7:
+    best full residual, V2, V3, V8/V9/V12/V14/V15/V16, and every current
+    source-preserving phase route fail the blood-quality gate despite
+    source/MVF/prime or pressure-relief partials. The SVG now hides all current
+    PV candidates rather than showing loops with elastance-rise, vertical EDPVR
+    folds, upward MV-opening starts, or sharp/non-bowed V-loop bottoms. Next
+    architecture work should implement an explicit
+    reservoir-conduit hysteresis state: an asymmetric AV-plane descent/recoil
+    trajectory co-solved with MV opening/loss, pulmonary venous inflow, LA wall
+    pressure, and LV ejection/relaxation timing, rather than increasing
+    reference-capacity gain alone.
 
 Parallel prep, not blocking the next strategic gate:
 
