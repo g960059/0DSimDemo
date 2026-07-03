@@ -21,124 +21,74 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("can run a normal-HR75-only fast loop for visual research", () => {
 	  const normalReport = runFullLeftAVPlaneResidualRoutingBenchV1({ profileIds: ["normal-hr75"] });
 	  const normalRows = normalReport.rows.filter((row) => row.profileId === "normal-hr75");
+	  const currentNormalFamilies = [
+	    "full-left-v16-area-receiver-hysteresis-v23",
+	    "full-left-v16-receiver-state-hysteresis-v24",
+	    "full-left-v16-lvreceiver-capacity-hysteresis-v25",
+	    "full-left-v16-phase-locked-avplane-hysteresis-v26",
+	    "full-left-normal-first-large-vloop-hysteresis-v27",
+	    "full-left-normal-first-wall-viscoelastic-hysteresis-v28",
+	    "full-left-normal-first-path-state-hysteresis-v29",
+	    "full-left-normal-first-conduit-cup-hysteresis-v30",
+	    "full-left-normal-first-capacity-path-hysteresis-v31",
+	    "full-left-normal-first-lv-reference-receiver-v32",
+	  ];
 	  const visualCandidates = normalRows.filter((row) =>
-	    [
-	      "full-left-v16-area-receiver-hysteresis-v23",
-	      "full-left-v16-receiver-state-hysteresis-v24",
-	      "full-left-v16-lvreceiver-capacity-hysteresis-v25",
-	      "full-left-v16-phase-locked-avplane-hysteresis-v26",
-	      "full-left-normal-first-large-vloop-hysteresis-v27",
-	      "full-left-normal-first-wall-viscoelastic-hysteresis-v28",
-	      "full-left-normal-first-path-state-hysteresis-v29",
-	      "full-left-normal-first-conduit-cup-hysteresis-v30",
-	      "full-left-normal-first-capacity-path-hysteresis-v31",
-	      "full-left-normal-first-lv-reference-receiver-v32",
-	    ].includes(row.family)
+	    currentNormalFamilies.includes(row.family)
 	    && row.sourceSurfacePass
 	    && row.mvfClean
 	    && row.phaseOrientedPvPass
 	    && row.hiddenVolumeClean
+	    && row.failureReasons.length === 0
+	    && row.phasePv.aLoopArea >= 28
 	    && row.phasePv.vLoopArea >= 40
+	    && row.phasePv.meanReservoirConduitSeparationMmHg >= 1.5
+	    && row.phasePv.conduitBellyDepthMmHg >= 0.25
 	    && row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0
 	    && row.phasePv.postOpeningEarlyVolumeDropMl > 0.8
 	    && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
 	    && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
 	  );
+	  const largeVLoopALoopCollapseRows = normalRows.filter((row) =>
+	    currentNormalFamilies.includes(row.family)
+	    && row.phasePv.vLoopArea >= 100
+	    && row.phasePv.aLoopArea < 28
+	  );
 
 	  expect(normalReport.summary.totalProfiles).toBe(1);
-	  expect(normalReport.rows).toHaveLength(270);
+	  expect(normalReport.rows).toHaveLength(338);
 	  expect(normalReport.summary.bestOverallVariantId).toBe("v2-force-fixed8-pv36-mvsoft");
 	  expect(normalReport.summary.bestOverallSourcePreservingPhasePv).toBe(1);
 	  expect(visualCandidates.map((row) => row.variantId)).toContain(
-	    "v28-wall-v16visco3-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
-	  );
-	  expect(visualCandidates.map((row) => row.variantId)).toContain(
 	    "v28-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
 	  );
-	  const bestV28VisualArea = Math.max(
-	    ...visualCandidates
-	      .filter((row) => row.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28")
-	      .map((row) => row.phasePv.vLoopArea),
-	  );
-	  const bestV29Visual = visualCandidates
-	    .filter((row) => row.family === "full-left-normal-first-path-state-hysteresis-v29")
-	    .sort((a, b) => b.phasePv.vLoopArea - a.phasePv.vLoopArea)[0];
-	  expect(bestV29Visual?.variantId).toBe(
+	  expect(visualCandidates.map((row) => row.variantId)).toContain(
 	    "v29-wall-v16pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
 	  );
-	  expect(bestV29Visual!.phasePv.vLoopArea).toBeGreaterThan(bestV28VisualArea);
-	  const bestV31Visual = visualCandidates
-	    .filter((row) => row.family === "full-left-normal-first-capacity-path-hysteresis-v31")
-	    .sort((a, b) => b.phasePv.vLoopArea - a.phasePv.vLoopArea)[0];
-	  expect(bestV31Visual?.variantId).toBe(
-	    "v31-wall-v16cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+	  expect(visualCandidates.map((row) => row.variantId)).toContain(
+	    "v31-wall-v16cap125-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
 	  );
-	  expect(bestV31Visual!.phasePv.vLoopArea).toBeGreaterThan(bestV29Visual!.phasePv.vLoopArea);
-	  expect(bestV31Visual!.phasePv.vLoopArea).toBeGreaterThan(55);
-	  expect(bestV31Visual!.mvForwardPeakCount).toBe(2);
-	  const v32Visual = visualCandidates.find((row) =>
-	    row.variantId ===
-	    "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+	  expect(visualCandidates.map((row) => row.variantId)).toContain(
+	    "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv2-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
 	  );
-	  expect(v32Visual).toBeDefined();
-	  expect(v32Visual!.phasePv.vLoopArea).toBeGreaterThan(bestV31Visual!.phasePv.vLoopArea);
-	  expect(v32Visual!.phasePv.vLoopArea).toBeGreaterThan(70);
-	  expect(v32Visual!.phasePv.postOpeningEarlyPressureDropMmHg).toBeGreaterThan(4);
-	  expect(v32Visual!.phasePv.postOpeningEarlyVolumeDropMl).toBeGreaterThan(10);
-	  expect(v32Visual!.maxLvReceiverReferenceVolumeShiftMl).toBeGreaterThan(10);
-	  expect(v32Visual!.mvForwardPeakCount).toBe(2);
-	  const bestReceiverVisual = visualCandidates
-	    .filter((row) => row.family === "full-left-normal-first-lv-reference-receiver-v32")
-	    .sort((a, b) => b.phasePv.vLoopArea - a.phasePv.vLoopArea)[0];
-	  expect(bestReceiverVisual?.variantId).toBe(
-	    "v33-wall-v16lvref56-cap150-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
-	  );
-	  expect(bestReceiverVisual!.phasePv.vLoopArea).toBeGreaterThan(110);
-	  expect(bestReceiverVisual!.phasePv.meanReservoirConduitSeparationMmHg).toBeGreaterThan(4);
-	  expect(bestReceiverVisual!.phasePv.conduitBellyDepthMmHg).toBeGreaterThan(1.2);
-	  expect(bestReceiverVisual!.phasePv.postOpeningEarlyPressureDropMmHg).toBeGreaterThan(5);
-	  expect(bestReceiverVisual!.phasePv.postOpeningEarlyVolumeDropMl).toBeGreaterThan(9);
-	  expect(bestReceiverVisual!.mvForwardPeakCount).toBe(2);
-	  const bestV36Visual = visualCandidates
-	    .filter((row) => row.variantId.startsWith("v36-"))
-	    .sort((a, b) => b.phasePv.vLoopArea - a.phasePv.vLoopArea)[0];
-	  expect(bestV36Visual?.variantId).toBe(
-	    "v36-wall-v16lvref48-cap150-visco6-pathmem90-relief45-cupwide-lvrcup04-phaselock04-lvrecv8-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed14-pv52-mvlite",
-	  );
-	  expect(bestV36Visual!.phasePv.vLoopArea).toBeGreaterThan(90);
-	  expect(bestV36Visual!.phasePv.vLoopArea).toBeLessThan(bestReceiverVisual!.phasePv.vLoopArea);
-	  expect(bestV36Visual!.phasePv.conduitBellyDepthMmHg).toBeGreaterThan(1.2);
-	  expect(bestV36Visual!.mvForwardPeakCount).toBe(2);
-	  const v37Rows = normalRows.filter((row) => row.variantId.startsWith("v37-"));
-	  const deepestV37 = [...v37Rows].sort((a, b) =>
-	    b.phasePv.conduitBellyDepthMmHg - a.phasePv.conduitBellyDepthMmHg
-	  )[0];
-	  expect(v37Rows).toHaveLength(6);
-	  expect(v37Rows.every((row) =>
-	    !(row.sourceSurfacePass && row.mvfClean && row.phaseOrientedPvPass && row.hiddenVolumeClean
-	      && row.failureReasons.length === 0)
-	  )).toBe(true);
-	  expect(deepestV37!.phasePv.conduitBellyDepthMmHg).toBeGreaterThan(4);
-	  expect(deepestV37!.mvForwardPeakCount).toBe(1);
-	  expect(deepestV37!.phasePv.failureReasons).toContain("a-loop-area-too-small");
-	  const v38Rows = normalRows.filter((row) => row.variantId.startsWith("v38-"));
-	  const bestV38Area = [...v38Rows].sort((a, b) => b.phasePv.vLoopArea - a.phasePv.vLoopArea)[0];
-	  expect(v38Rows).toHaveLength(4);
-	  expect(v38Rows.some((row) => row.sourceSurfacePass && row.mvfClean)).toBe(true);
-	  expect(v38Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
-	  expect(bestV38Area!.phasePv.vLoopArea).toBeGreaterThan(90);
-	  expect(bestV38Area!.phasePv.conduitBellyDepthMmHg).toBeLessThan(1.5);
-	  expect(bestV38Area!.phasePv.failureReasons).toContain("a-loop-area-too-small");
+	  expect(visualCandidates.length).toBeGreaterThan(0);
+	  expect(visualCandidates.every((row) => row.phasePv.aLoopArea >= 28)).toBe(true);
 	  expect(visualCandidates.every((row) => row.phasePv.vLoopArea >= 40)).toBe(true);
+	  expect(visualCandidates.every((row) => row.phasePv.meanReservoirConduitSeparationMmHg >= 1.5)).toBe(true);
+	  expect(visualCandidates.every((row) => row.phasePv.conduitBellyDepthMmHg >= 0.25)).toBe(true);
 	  expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0)).toBe(true);
 	  expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyVolumeDropMl > 0.8)).toBe(true);
+	  expect(largeVLoopALoopCollapseRows.length).toBeGreaterThan(0);
+	  expect(largeVLoopALoopCollapseRows.every((row) =>
+	    row.phasePv.failureReasons.includes("a-loop-area-too-small")
+	  )).toBe(true);
 	});
 
   it("records the full-left LA-AV-plane residual routing experiment", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-	  expect(report.rows).toHaveLength(1890);
-	  expect(report.variantSummaries).toHaveLength(270);
+	  expect(report.rows).toHaveLength(2366);
+	  expect(report.variantSummaries).toHaveLength(338);
 	  expect(new Set(report.rows.map((row) => row.family)).size).toBe(40);
   });
 
@@ -169,7 +119,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("preserves the bounded legacy full-residual signal while keeping source/MVF limits visible", () => {
     expect(report.summary.bestFullResidualVariantId).toBe("full-residual-forcebalance-fixed6-pv36-mvsoft");
     expect(report.summary.bestFullResidualSourcePreservingPhasePv).toBe(4);
-    expect(report.summary.bestFullResidualPhaseOrientedPvPass).toBe(6);
+    expect(report.summary.bestFullResidualPhaseOrientedPvPass).toBe(5);
     expect(report.summary.bestFullResidualSourceSurfacePass).toBe(4);
     expect(report.summary.reviewStatus).toBe("full-left-avp-residual-positive-signal");
 

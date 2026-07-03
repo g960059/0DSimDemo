@@ -1738,6 +1738,24 @@ Next gates:
     early-diastolic relaxation reservoir-conduit state that makes filling and
     emptying follow different blood-volume paths while preserving the booster
     loop, not another scalar cup or direct pressure-relief sweep.
+    Follow-up V39-V52 evidence keeps that routing and adds one important visual
+    guard: large blood V-loop area is not useful if the booster/A-loop is
+    crushed. V46/V47/V49 can reach very large apparent V-loop areas around
+    150-157, but their A-loop area collapses to roughly 2-7, so they are now
+    deterministic `a-loop-area-too-small` failures and are removed from
+    owner-facing SVG review. The normal-HR75 candidate-card renderer now shows
+    blood-volume PV only and only clean rows that preserve source surface, MVF,
+    phase, hidden-volume cleanliness, a visible A-loop, V-loop area, and
+    reservoir-conduit separation; dirty anchors and effective/capacity/prime
+    traces are not shown. With that stricter visual prefilter, the best clean
+    normal rows fall back to the V28/V29/V31/V51 family: they preserve the
+    A-loop, but V-loop belly remains shallow (about 0.35-0.57 mmHg) and still
+    looks too straight/sliver-like versus the Nature-style references. Treat
+    V50-V52 as negative/ceiling evidence for the current scalar/receiver
+    variants: the path can either enlarge V-area by losing the A-loop or keep
+    the A-loop while leaving the V-loop too thin. Next work should target an
+    A-loop-preserving reservoir-conduit hysteresis owner rather than another
+    V-area-only scalar sweep.
 
 Parallel prep, not blocking the next strategic gate:
 

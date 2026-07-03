@@ -34,6 +34,10 @@ const COLORS = [
 
 const report = runFullLeftAVPlaneResidualRoutingBenchV1({ profileIds: ["normal-hr75"] });
 const rows = report.rows.filter((row) => row.profileId === "normal-hr75");
+const MIN_VISUAL_A_LOOP_AREA = 28;
+const MIN_VISUAL_V_LOOP_AREA = 40;
+const MIN_VISUAL_RESERVOIR_CONDUIT_SEPARATION_MMHG = 1.5;
+const MIN_VISUAL_CONDUIT_BELLY_DEPTH_MMHG = 0.25;
 const pinnedMechanismIds = new Set([
   "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
   "v24-wall-v16receiverstate-lvrecv3-rpathslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
@@ -142,6 +146,74 @@ const pinnedMechanismIds = new Set([
   "v38-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
   "v38-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
   "v38-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v39-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathfast-rcapfast-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v39-wall-v16lvref80-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathfast-rcapfast-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v39-wall-v16lvref80-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathfast-rcapfast-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v39-wall-v16lvref120-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathfast-rcapfast-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v40-statepath-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v40-statepath-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v40-statepath-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed12-pv52-mvlite",
+  "v40-statepath-branchmem-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed12-pv52-mvlite",
+  "v40-statepath-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed14-pv56-mvlite",
+  "v40-statepath-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed14-pv56-mvlite",
+  "v41-wall-v16lvref48-cap150-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v41-wall-v16lvref56-cap150-visco6-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v41-wall-v16lvref56-cap150-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v41-wall-v16lvref56-cap150-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v41-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed12-pv56-mvlite",
+  "v41-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed12-pv56-mvlite",
+  "v42-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v42-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v42-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed24-pv56-mvlite",
+  "v42-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed24-pv56-mvlite",
+  "v43-wall-v16lvref56-cap175-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v43-wall-v16lvref64-cap175-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v43-wall-v16lvref56-cap150-visco6-pathmem100-relief52-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
+  "v43-wall-v16lvref64-cap150-visco6-pathmem100-relief52-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
+  "v43-wall-v16lvref64-cap175-visco6-pathmem100-relief52-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed24-pv56-mvlite",
+  "v44-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed36-pv56-mvlite",
+  "v44-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed36-pv56-mvlite",
+  "v44-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed48-pv56-mvlite",
+  "v44-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed48-pv56-mvlite",
+  "v45-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v45-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v46-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv16-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v46-wall-v16lvref72-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v46-wall-v16lvref72-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv16-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v46-wall-v16lvref80-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv16-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup02-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup03-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup04-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup02-longrecv-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup03-longrecv-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup02-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup03-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup02-longrecv-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup03-longrecv-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v49-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup04-longrecv-mvres30-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v49-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup05-longrecv-mvres30-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v49-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup06-longrecv-mvres30-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v49-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup03-longrecv-mvres30-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v50-wall-v16cap125-visco35-viscosoft-pathmem75-relief16-lvrcup02-phaselock02-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v50-wall-v16cap125-visco35-viscosoft-pathmem90-relief20-lvrcup02-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v50-wall-v16cap125-visco3-pathmem75-relief16-lvrcup02-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v50-wall-v16cap125-visco35-viscosoft-pathmem75-relief16-lvrcup03-phaselock02-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v50-wall-v16cap150-visco35-viscosoft-pathmem75-relief16-lvrcup02-phaselock02-lvrecv3-rcapslow-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed12-pv48-mvlite",
+  "v51-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock03-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv2-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcapfast-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv2-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv2-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcapbelly-traj20-mvimplicit02-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
 ]);
 void pinnedMechanismIds;
 const eligibleRows = rows
@@ -151,7 +223,10 @@ const eligibleRows = rows
 	    && row.mvfClean
 	    && row.phaseOrientedPvPass
 	    && row.hiddenVolumeClean
-	    && row.phasePv.vLoopArea >= 40
+	    && row.phasePv.vLoopArea >= MIN_VISUAL_V_LOOP_AREA
+	    && row.phasePv.aLoopArea >= MIN_VISUAL_A_LOOP_AREA
+	    && row.phasePv.meanReservoirConduitSeparationMmHg >= MIN_VISUAL_RESERVOIR_CONDUIT_SEPARATION_MMHG
+	    && row.phasePv.conduitBellyDepthMmHg >= MIN_VISUAL_CONDUIT_BELLY_DEPTH_MMHG
 	    && row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0
 	    && row.phasePv.postOpeningEarlyVolumeDropMl > 0.8
     && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
@@ -162,6 +237,74 @@ const visualAnchorIds = [
   "v38-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
   "v38-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
   "v38-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v39-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathfast-rcapfast-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v39-wall-v16lvref80-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathfast-rcapfast-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v39-wall-v16lvref80-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathfast-rcapfast-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v39-wall-v16lvref120-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathfast-rcapfast-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v40-statepath-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v40-statepath-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v40-statepath-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed12-pv52-mvlite",
+  "v40-statepath-branchmem-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed12-pv52-mvlite",
+  "v40-statepath-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed14-pv56-mvlite",
+  "v40-statepath-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed14-pv56-mvlite",
+  "v41-wall-v16lvref48-cap150-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v41-wall-v16lvref56-cap150-visco6-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v41-wall-v16lvref56-cap150-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v41-wall-v16lvref56-cap150-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v41-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed12-pv56-mvlite",
+  "v41-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed12-pv56-mvlite",
+  "v42-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v42-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v42-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed24-pv56-mvlite",
+  "v42-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed24-pv56-mvlite",
+  "v43-wall-v16lvref56-cap175-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v43-wall-v16lvref64-cap175-visco6-pathmem90-relief45-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v43-wall-v16lvref56-cap150-visco6-pathmem100-relief52-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
+  "v43-wall-v16lvref64-cap150-visco6-pathmem100-relief52-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
+  "v43-wall-v16lvref64-cap175-visco6-pathmem100-relief52-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed24-pv56-mvlite",
+  "v44-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed36-pv56-mvlite",
+  "v44-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed36-pv56-mvlite",
+  "v44-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed48-pv56-mvlite",
+  "v44-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed48-pv56-mvlite",
+  "v45-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v45-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v46-wall-v16lvref64-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv16-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v46-wall-v16lvref72-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v46-wall-v16lvref72-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv16-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v46-wall-v16lvref80-cap175-visco8-pathmem100-relief60-phaselock04-lvrecv16-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup02-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup03-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup04-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup02-longrecv-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v47-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup03-longrecv-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup02-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup03-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup02-longrecv-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v48-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup03-longrecv-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v49-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup04-longrecv-mvres30-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v49-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup05-longrecv-mvres30-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v49-wall-v16lvref64-cap175-visco8-pathmem100-relief60-lvrcup06-longrecv-mvres30-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v49-wall-v16lvref64-cap175-visco8-pathmem100-relief60-cupwide-lvrcup03-longrecv-mvres30-phaselock04-lvrecv12-rpathslow-rcapslow-traj20-mvimplicit02-pr200-fixed72-pv56-mvlite",
+  "v50-wall-v16cap125-visco35-viscosoft-pathmem75-relief16-lvrcup02-phaselock02-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v50-wall-v16cap125-visco35-viscosoft-pathmem90-relief20-lvrcup02-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v50-wall-v16cap125-visco3-pathmem75-relief16-lvrcup02-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v50-wall-v16cap125-visco35-viscosoft-pathmem75-relief16-lvrcup03-phaselock02-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v50-wall-v16cap150-visco35-viscosoft-pathmem75-relief16-lvrcup02-phaselock02-lvrecv3-rcapslow-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed12-pv48-mvlite",
+  "v51-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock03-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv2-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v51-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcapfast-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv2-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv2-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcapbelly-traj20-mvimplicit02-pr170-fixed10-pv44-mvsmooth",
+  "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
   "v37-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
   "v37-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
   "v37-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed16-pv56-mvlite",
@@ -199,7 +342,14 @@ const visualAnchorIds = [
 const visualAnchorRows = visualAnchorIds
   .map((variantId) => rows.find((row) =>
     row.variantId === variantId
+    && row.sourceSurfacePass
+    && row.mvfClean
+    && row.phaseOrientedPvPass
     && row.hiddenVolumeClean
+    && row.phasePv.aLoopArea >= MIN_VISUAL_A_LOOP_AREA
+    && row.phasePv.vLoopArea >= MIN_VISUAL_V_LOOP_AREA
+    && row.phasePv.meanReservoirConduitSeparationMmHg >= MIN_VISUAL_RESERVOIR_CONDUIT_SEPARATION_MMHG
+    && row.phasePv.conduitBellyDepthMmHg >= MIN_VISUAL_CONDUIT_BELLY_DEPTH_MMHG
     && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
     && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
   ))
@@ -214,9 +364,32 @@ const topCleanRows = eligibleRows
   )
   .slice(0, 4);
 
+const topShapeSignalRows = rows
+  .filter((row) =>
+    isCurrentNormalFirstFamily(row.family)
+    && row.sourceSurfacePass
+    && row.mvfClean
+    && row.phaseOrientedPvPass
+    && row.hiddenVolumeClean
+    && row.phasePv.aLoopArea >= MIN_VISUAL_A_LOOP_AREA
+    && row.phasePv.vLoopArea >= MIN_VISUAL_V_LOOP_AREA
+    && row.phasePv.meanReservoirConduitSeparationMmHg >= MIN_VISUAL_RESERVOIR_CONDUIT_SEPARATION_MMHG
+    && row.phasePv.conduitBellyDepthMmHg >= MIN_VISUAL_CONDUIT_BELLY_DEPTH_MMHG
+    && row.failureReasons.length === 0
+    && row.phasePv.postOpeningInitialPressureRiseMmHg <= 0.1
+  )
+  .sort((a, b) =>
+    Math.min(b.phasePv.aLoopArea, 60) - Math.min(a.phasePv.aLoopArea, 60)
+    || b.phasePv.vLoopArea - a.phasePv.vLoopArea
+    || b.phasePv.conduitBellyDepthMmHg - a.phasePv.conduitBellyDepthMmHg
+    || a.maxTransactionResidualNormMl - b.maxTransactionResidualNormMl
+  )
+  .slice(0, 6);
+
 const candidateRows = uniqueRowsByVariantId([
-  ...visualAnchorRows,
   ...topCleanRows,
+  ...topShapeSignalRows,
+  ...visualAnchorRows,
 ]).slice(0, 24);
 
 const traces = candidateRows.map((row, index) => ({
@@ -232,7 +405,7 @@ svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${hei
 svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
 svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="700">Normal HR75 fast LA AV-plane residual review</text>`);
 svg.push(`<text x="34" y="60" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Only normal-hr75 is evaluated here. The overlay prioritizes source/MVF/phase/hidden-volume clean rows with visible blood V-loop area for readability; V-loop area is not an adoption gate here.</text>`);
-svg.push(`<text x="34" y="84" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="13">Shown rows: ${candidateRows.length}; fast report rows: ${rows.length}. Includes dirty shape anchors when labeled; this artifact is a visual research shortcut, not broad-envelope acceptance.</text>`);
+svg.push(`<text x="34" y="84" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="13">Shown rows: ${candidateRows.length}; fast report rows: ${rows.length}. Missing/flattened A-loop rows are excluded from this owner-facing SVG.</text>`);
 
 if (traces.length === 0) {
   svg.push(`<text x="34" y="138" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="16">No normal-hr75 candidate survived the visual prefilter.</text>`);
@@ -273,7 +446,7 @@ function renderCandidateCards(traces: readonly Trace[]): void {
   svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
   svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="700">Normal HR75 LA blood PV candidate cards</text>`);
   svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Blood-volume axis only. Effective/capacity and prime traces are intentionally omitted. X-descent depth, crossing location, and V-loop area are readbacks, not hard adoption by themselves.</text>`);
-  svg.push(`<text x="34" y="80" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">Reject visually impossible rows: upward post-MV-opening conduit, vertical fold/kink, or elastance-rise fake V-loop. Compare shape by eye against the Nature-style reservoir/conduit/pumping references.</text>`);
+  svg.push(`<text x="34" y="80" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">Only clean source/MVF/phase/hidden-volume rows with a preserved A loop are shown. Compare shape by eye against the Nature-style reservoir/conduit/pumping references.</text>`);
   traces.forEach((trace, index) => {
     const col = index % cols;
     const row = Math.floor(index / cols);
@@ -306,7 +479,7 @@ function renderPvCard(
   const status = isCleanVisualRow(trace.row) ? "clean" : "dirty anchor";
   out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#111827" stroke="#253044"/>`);
   out.push(`<text x="${x + 14}" y="${y + 23}" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">${shortVariantLabel(trace.row.variantId)}</text>`);
-  out.push(`<text x="${x + 14}" y="${y + 42}" fill="${status === "clean" ? "#86efac" : "#fca5a5"}" font-family="Inter,Arial,sans-serif" font-size="11">${status} | area ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)} | arc ${trace.row.phasePv.conduitArcLengthOverChord.toFixed(2)}</text>`);
+  out.push(`<text x="${x + 14}" y="${y + 42}" fill="${status === "clean" ? "#86efac" : "#fca5a5"}" font-family="Inter,Arial,sans-serif" font-size="11">${status} | A ${trace.row.phasePv.aLoopArea.toFixed(1)} | V ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)}</text>`);
   out.push(`<rect x="${plotX}" y="${plotY}" width="${plotW}" height="${plotH}" fill="#0b1220" stroke="#263244"/>`);
   out.push(`<path d="M${plotX + plotW / 2},${plotY + 8} L${plotX + plotW / 2},${plotY + plotH - 8} M${plotX + 8},${plotY + plotH / 2} L${plotX + plotW - 8},${plotY + plotH / 2}" stroke="#263244" stroke-width="1"/>`);
   const openingIndex = findMvOpeningIndex(trace.samples);
@@ -338,7 +511,7 @@ function renderLegend(out: string[], traces: readonly Trace[], x: number, y: num
     const yy = y + index * 17;
     out.push(`<line x1="${x}" y1="${yy}" x2="${x + 24}" y2="${yy}" stroke="${trace.color}" stroke-width="3"/>`);
     const status = isCleanVisualRow(trace.row) ? "clean" : "dirty-shape-anchor";
-    out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | ${status} | blood vArea ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)} | arc ${trace.row.phasePv.conduitArcLengthOverChord.toFixed(2)} | postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg/${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL</text>`);
+    out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | ${status} | A ${trace.row.phasePv.aLoopArea.toFixed(1)} | V ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)} | postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg/${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL</text>`);
   });
 }
 
