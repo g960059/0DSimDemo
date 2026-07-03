@@ -18,12 +18,36 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
 
   const rowsFor = (variantId: string) => report.rows.filter((row) => row.variantId === variantId);
 
+  it("can run a normal-HR75-only fast loop for visual research", () => {
+    const normalReport = runFullLeftAVPlaneResidualRoutingBenchV1({ profileIds: ["normal-hr75"] });
+    const normalRows = normalReport.rows.filter((row) => row.profileId === "normal-hr75");
+    const visualCandidates = normalRows.filter((row) =>
+      row.sourceSurfacePass
+      && row.mvfClean
+      && row.primeWaveformPass
+      && row.phaseOrientedPvPass
+      && row.hiddenVolumeClean
+      && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
+      && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
+    );
+
+    expect(normalReport.summary.totalProfiles).toBe(1);
+    expect(normalReport.rows).toHaveLength(128);
+    expect(normalReport.summary.bestOverallVariantId).toBe("v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss");
+    expect(normalReport.summary.bestOverallSourcePreservingPhasePv).toBe(1);
+    expect(visualCandidates.map((row) => row.variantId)).toContain(
+      "v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss",
+    );
+    expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0)).toBe(true);
+    expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyVolumeDropMl > 5.0)).toBe(true);
+  });
+
   it("records the full-left LA-AV-plane residual routing experiment", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(854);
-    expect(report.variantSummaries).toHaveLength(122);
-    expect(new Set(report.rows.map((row) => row.family)).size).toBe(28);
+    expect(report.rows).toHaveLength(896);
+    expect(report.variantSummaries).toHaveLength(128);
+    expect(new Set(report.rows.map((row) => row.family)).size).toBe(29);
   });
 
   it("keeps x-descent depth and signed-lobe orientation as readbacks instead of hard failures", () => {
@@ -92,6 +116,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
       ["bestV17", "v17-force-hyst-traj20-pr175-fixed12-pv52-mvloss", 1, 1, 6, 2],
       ["bestV18", "v18-wall-hyst2-retain-fixed12-pv56-mvsmooth", 1, 1, 3, 7],
       ["bestV20", "v20-force-hyststate-slowpath-fixed14-pv64-mvsmooth", 1, 1, 4, 6],
+      ["bestV21", "v21-force-branchmem-fixed14-pv64-mvsmooth", 0, 0, 5, 5],
     ] as const;
 
     for (const [prefix, variantId, sourcePhase, phase, source, prime] of expected) {
@@ -156,6 +181,28 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     ]);
     expect(v20Rows.filter((row) => !row.phaseOrientedPvPass)
       .every((row) => row.phasePv.failureReasons.includes("v-loop-area-too-small"))).toBe(true);
+    expect(v20Rows.find((row) => row.profileId === "preload-low")!.postMvoConduit.earlyConduitPressureDropMmHg)
+      .toBeGreaterThan(1.5);
+  });
+
+  it("records V21 branch-memory plus LV-receiver relief as negative blood-phase evidence", () => {
+    const v21Best = summaryFor(report.summary.bestV21VariantId);
+    const v21Rows = rowsFor(report.summary.bestV21VariantId);
+
+    expect(report.summary.bestV21VariantId).toBe("v21-force-branchmem-fixed14-pv64-mvsmooth");
+    expect(report.summary.bestV21SourcePreservingPhasePv).toBe(0);
+    expect(report.summary.bestV21PhaseOrientedPvPass).toBe(0);
+    expect(report.summary.bestV21SourceSurfacePass).toBe(5);
+    expect(report.summary.bestV21MvfClean).toBe(5);
+    expect(report.summary.bestV21PrimeWaveformPass).toBe(5);
+    expect(report.summary.bestV21CapacityAxisPhaseOrientedPvPass).toBe(6);
+    expect(report.summary.bestV21SourcePreservingCapacityAxisPhasePv).toBe(5);
+
+    expect(v21Best.hiddenVolumeClean).toBe(7);
+    expect(v21Rows).toHaveLength(7);
+    expect(v21Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
+    expect(v21Rows.some((row) => row.postMvoConduit.earlyConduitMeanLvReceiverReliefMmHg > 0)).toBe(true);
+    expect(v21Rows.some((row) => row.phasePv.vLoopArea > 20)).toBe(true);
   });
 
   it("keeps owner SVG candidates hidden when no blood/MVF/opening-clean row is visually acceptable", () => {
@@ -165,8 +212,9 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     );
 
     expect(svg).toContain("Effective-cavity LA PV is a shadow diagnostic axis, not acceptance");
-    expect(svg.match(/no plotted candidate/g)?.length).toBe(7);
+    expect(svg.match(/no plotted candidate/g)?.length).toBe(6);
     expect(svg).not.toContain("best V19 recoil hysteresis\" fill=\"none\"");
+    expect(svg).toContain("best V20 pressure");
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {
