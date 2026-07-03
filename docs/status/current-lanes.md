@@ -1229,6 +1229,31 @@ Next gates:
     pulmonary venous inflow, and LV ejection/relaxation timing so the V-loop is
     created by physiologic x-descent and a C1-continuous MV-opening transition,
     not by a pressure hook or post-hoc geometry shift.
+82. Accepted-state LA wall / AV-plane / MV / pulmonary venous residual V11:
+    the next large routing surface now puts LA wall pressure, AV-plane
+    reference/capacity state, MV pressure-flow/opening, pulmonary venous source
+    balance, blood-volume mass ledger, and accepted ejection/MV-opening timing
+    into the same residual family. The result is useful negative architecture
+    evidence, not a promotion path: best V11
+    `v11-wall-accepted-fixed10-pv44-mvloss` reaches strict blood-volume
+    source+phase 0/7, phase 0/7, source surface 0/7, MVF 6/7, prime 0/7, while
+    capacity-axis phase remains 4/7 and source-preserving capacity-axis phase is
+    0/7. The fixed-blood pressure-relief sign is still correct
+    (about 3.0 mmHg applied relief and about 2.0 mmHg blood-coordinate
+    x-descent), hidden-volume cleanliness is preserved, and high-iteration plus
+    MV-smoothing probes do not recover strict blood-volume topology. Owner
+    direction now treats the effective-cavity / blood+capacity PV axis as an
+    acceptable visual target for atrial figure-eight review, while blood volume
+    remains a mass-ledger and hidden-source audit coordinate. The review SVG is
+    therefore filtered by effective/capacity-axis phase plus C1 quality and
+    hidden-volume cleanliness, not by strict blood-volume pass; JSON artifacts
+    retain blood-volume failures for diagnosis. Treat this as evidence that
+    residual wrapping around the current coordinate law is insufficient. The
+    next architecture step should replace the LA wall / AV-plane coordinate law
+    itself so ledger-owned blood volume, dynamic wall-stretch/reference
+    capacity, MV opening/loss, pulmonary venous inflow, and LV
+    ejection/relaxation timing co-evolve with C1-continuous effective-cavity PV
+    morphology and clean mass accounting.
 
 Parallel prep, not blocking the next strategic gate:
 
