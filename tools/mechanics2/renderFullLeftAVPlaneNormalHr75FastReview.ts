@@ -56,6 +56,14 @@ const pinnedMechanismIds = new Set([
   "v28-wall-v16visco6-phaselock015-lvrecv3-rcapslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
   "v28-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
   "v28-wall-v16visco6-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v29-wall-v16pathmem60-relief12-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v29-wall-v16pathmem75-relief16-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v29-wall-v16pathmem90-relief20-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v29-wall-v16pathmem90-relief24-softpath-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v29-wall-v16pathmem100-relief28-softpath-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v29-wall-v16pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v29-wall-v16pathmem90-relief20-phaselock02-lvrecv4-rcapfast-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v29-wall-v16pathmem75-relief16-longmemory-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
 ]);
 const eligibleRows = rows
   .filter((row) =>
@@ -139,7 +147,8 @@ function isCurrentNormalFirstFamily(family: string): boolean {
     || family === "full-left-v16-lvreceiver-capacity-hysteresis-v25"
     || family === "full-left-v16-phase-locked-avplane-hysteresis-v26"
     || family === "full-left-normal-first-large-vloop-hysteresis-v27"
-    || family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28";
+    || family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
+    || family === "full-left-normal-first-path-state-hysteresis-v29";
 }
 
 function renderPvPanel(
@@ -158,7 +167,7 @@ function renderPvPanel(
   const sx = scaleFor(xs, x, w);
   const sy = scaleFor(ys, y + h, -h);
   panelFrame(out, x, y, w, h, title);
-  for (const trace of traces) {
+  for (const [traceIndex, trace] of traces.entries()) {
     const openingIndex = findMvOpeningIndex(trace.samples);
     const closureIndex = openingIndex == null ? null : findMvClosureIndexAfter(trace.samples, openingIndex);
     if (openingIndex != null && closureIndex != null) {
@@ -168,8 +177,67 @@ function renderPvPanel(
       out.push(`<circle cx="${sx(volumeFor(opening)).toFixed(1)}" cy="${sy(opening.lapMmHg).toFixed(1)}" r="4" fill="${trace.color}" stroke="#020617" stroke-width="1.2"/>`);
       out.push(`<circle cx="${sx(volumeFor(closure)).toFixed(1)}" cy="${sy(closure.lapMmHg).toFixed(1)}" r="4" fill="#020617" stroke="${trace.color}" stroke-width="1.6"/>`);
     }
-    out.push(`<path d="${pathFor(trace.samples, (sample) => sx(volumeFor(sample)), (sample) => sy(sample.lapMmHg))}" fill="none" stroke="${trace.color}" stroke-width="2.4" opacity="0.88"/>`);
+    out.push(`<path d="${pathFor(trace.samples, (sample) => sx(volumeFor(sample)), (sample) => sy(sample.lapMmHg))}" fill="none" stroke="${trace.color}" stroke-width="${traceIndex === 0 ? 1.6 : 1.2}" opacity="${traceIndex === 0 ? 0.32 : 0.18}"/>`);
+    if (traceIndex === 0 && openingIndex != null && closureIndex != null) {
+      renderPhaseSegments(out, trace.samples, openingIndex, closureIndex, (sample) => sx(volumeFor(sample)), (sample) => sy(sample.lapMmHg));
+    }
   }
+  out.push(`<text x="${x + w - 270}" y="${y + 25}" fill="#60a5fa" font-family="Inter,Arial,sans-serif" font-size="11">reservoir</text>`);
+  out.push(`<text x="${x + w - 194}" y="${y + 25}" fill="#fb923c" font-family="Inter,Arial,sans-serif" font-size="11">conduit</text>`);
+  out.push(`<text x="${x + w - 128}" y="${y + 25}" fill="#d1d5db" font-family="Inter,Arial,sans-serif" font-size="11">pumping</text>`);
+}
+
+function renderPhaseSegments(
+  out: string[],
+  samples: readonly LeftHeartSubsystemSampleV2[],
+  openingIndex: number,
+  closureIndex: number,
+  xFor: (sample: LeftHeartSubsystemSampleV2) => number,
+  yFor: (sample: LeftHeartSubsystemSampleV2) => number,
+): void {
+  const aWaveStartIndex = findYValleyIndex(samples, openingIndex, closureIndex)
+    ?? findIndexAfterTheta(samples, openingIndex, 0.80)
+    ?? Math.floor(samples.length * 0.80);
+  const reservoir = cyclicSegment(samples, closureIndex, openingIndex);
+  const conduit = cyclicSegment(samples, openingIndex, aWaveStartIndex);
+  const pumping = cyclicSegment(samples, aWaveStartIndex, closureIndex);
+  out.push(`<path d="${pathFor(reservoir, xFor, yFor)}" fill="none" stroke="#60a5fa" stroke-width="4.0" opacity="0.94"/>`);
+  out.push(`<path d="${pathFor(conduit, xFor, yFor)}" fill="none" stroke="#fb923c" stroke-width="4.0" opacity="0.94"/>`);
+  out.push(`<path d="${pathFor(pumping, xFor, yFor)}" fill="none" stroke="#d1d5db" stroke-width="3.6" opacity="0.90"/>`);
+}
+
+function cyclicSegment<T>(items: readonly T[], startIndex: number, endIndex: number): readonly T[] {
+  const segment: T[] = [];
+  for (let step = 0; step <= items.length; step++) {
+    const index = (startIndex + step) % items.length;
+    segment.push(items[index]!);
+    if (index === endIndex) break;
+  }
+  return segment;
+}
+
+function findIndexAfterTheta(
+  samples: readonly LeftHeartSubsystemSampleV2[],
+  startIndex: number,
+  theta: number,
+): number | null {
+  for (let step = 0; step < samples.length; step++) {
+    const index = (startIndex + step) % samples.length;
+    if (samples[index]!.theta >= theta) return index;
+  }
+  return null;
+}
+
+function findYValleyIndex(
+  samples: readonly LeftHeartSubsystemSampleV2[],
+  openingIndex: number,
+  closureIndex: number,
+): number | null {
+  const conduit = cyclicSegment(samples, openingIndex, closureIndex)
+    .filter((sample) => sample.theta >= samples[openingIndex]!.theta && sample.theta <= 0.88);
+  if (conduit.length === 0) return null;
+  const valley = conduit.reduce((best, sample) => sample.lapMmHg < best.lapMmHg ? sample : best, conduit[0]!);
+  return samples.indexOf(valley);
 }
 
 function renderTimePanel(

@@ -29,6 +29,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
 	      "full-left-v16-phase-locked-avplane-hysteresis-v26",
 	      "full-left-normal-first-large-vloop-hysteresis-v27",
 	      "full-left-normal-first-wall-viscoelastic-hysteresis-v28",
+	      "full-left-normal-first-path-state-hysteresis-v29",
 	    ].includes(row.family)
 	    && row.sourceSurfacePass
 	    && row.mvfClean
@@ -42,7 +43,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
 	  );
 
 	  expect(normalReport.summary.totalProfiles).toBe(1);
-	  expect(normalReport.rows).toHaveLength(181);
+	  expect(normalReport.rows).toHaveLength(189);
 	  expect(normalReport.summary.bestOverallVariantId).toBe("v2-force-fixed8-pv36-mvsoft");
 	  expect(normalReport.summary.bestOverallSourcePreservingPhasePv).toBe(1);
 	  expect(visualCandidates.map((row) => row.variantId)).toContain(
@@ -51,6 +52,18 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
 	  expect(visualCandidates.map((row) => row.variantId)).toContain(
 	    "v28-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
 	  );
+	  const bestV28VisualArea = Math.max(
+	    ...visualCandidates
+	      .filter((row) => row.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28")
+	      .map((row) => row.phasePv.vLoopArea),
+	  );
+	  const bestV29Visual = visualCandidates
+	    .filter((row) => row.family === "full-left-normal-first-path-state-hysteresis-v29")
+	    .sort((a, b) => b.phasePv.vLoopArea - a.phasePv.vLoopArea)[0];
+	  expect(bestV29Visual?.variantId).toBe(
+	    "v29-wall-v16pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+	  );
+	  expect(bestV29Visual!.phasePv.vLoopArea).toBeGreaterThan(bestV28VisualArea);
 	  expect(visualCandidates.every((row) => row.phasePv.vLoopArea >= 40)).toBe(true);
 	  expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0)).toBe(true);
 	  expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyVolumeDropMl > 0.8)).toBe(true);
@@ -59,9 +72,9 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records the full-left LA-AV-plane residual routing experiment", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-	  expect(report.rows).toHaveLength(1267);
-	  expect(report.variantSummaries).toHaveLength(181);
-	  expect(new Set(report.rows.map((row) => row.family)).size).toBe(36);
+	  expect(report.rows).toHaveLength(1323);
+	  expect(report.variantSummaries).toHaveLength(189);
+	  expect(new Set(report.rows.map((row) => row.family)).size).toBe(37);
   });
 
   it("keeps x-descent depth and signed-lobe orientation as readbacks instead of hard failures", () => {

@@ -1625,6 +1625,32 @@ Next gates:
     pressure, pulmonary venous inflow, MV opening/loss, LV receiver relaxation,
     and phase-locked AV-plane descent/recoil. Do not reintroduce effective-axis
     acceptance or prime-waveform gating while this residual is being isolated.
+102. Normal-first path-state hysteresis V29: PR #462 now tests an explicit
+    `laReservoirConduitPathMemory01` plus `laReservoirConduitPathReliefMmHg`
+    state in the same LA-MV-LV accepted transaction, layered on the useful V28
+    wall-viscoelastic hysteresis signal. The mechanism charges path memory
+    during MV-closed systolic reservoir filling and discharges it only through
+    the post-MV-opening conduit/LV-receiver branch; LA blood volume remains
+    ledger-owned by pulmonary venous inflow minus MV flow. Normal-HR75 is the
+    current speed gate: the best V29 visual candidate
+    `v29-wall-v16pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite`
+    is source/MVF/blood-phase/hidden-volume clean, improves blood V-loop area to
+    about 48.8 versus V28's about 44.7, and keeps post-MV-opening pressure /
+    volume drop about 2.67 mmHg / 5.12 mL. Broad envelope remains explicitly
+    partial: the same candidate is phase-clean in 6/7 but source-preserving only
+    4/7, with preload-low and contractility-high limited by MVF cleanliness and
+    contractility-low still failing small V-loop area plus MVF/kink. The
+    normal-HR75 SVG is blood-only and overlays phase colors on the primary trace
+    (reservoir, conduit, pumping) to avoid effective-axis visual false positives.
+    Visual review remains negative for adoption: the V-loop is no longer the
+    vertical/upward-MV-opening failure mode, but it is still too triangular and
+    lacks the rounded reservoir-conduit hysteresis seen in the Nature reference.
+    Next work should not broaden gates yet; stay normal-HR75-first and target
+    conduit curvature/y-valley ownership, likely by making the early LV receiver
+    and MV flow path create an initially steep pressure descent followed by a
+    slower pressure recovery while LA volume continues to empty. Keep V-loop
+    area permissive as a growable residual; keep effective/capacity PV and prime
+    waveform outside the current acceptance/display surface.
 
 Parallel prep, not blocking the next strategic gate:
 
