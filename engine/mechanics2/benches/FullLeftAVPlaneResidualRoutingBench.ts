@@ -179,6 +179,12 @@ type RowV1 = {
   readonly maxMvReverseProjectionAbsMlPerSec: number;
   readonly pulmonaryVenousForwardVolumeRatio: number;
   readonly qAvPlaneKinematicForwardVolumeMl: number;
+  readonly maxReferenceCapacityShiftMl: number;
+  readonly maxPressureReferenceCapacityMl: number;
+  readonly maxEffectiveCavityCapacityMl: number;
+  readonly maxCounterfactualFixedBloodPressureReliefMmHg: number;
+  readonly maxAppliedFixedBloodPressureReliefMmHg: number;
+  readonly maxBloodXDescentPressureDropMmHg: number;
   readonly phasePv: PhaseOrientedPvQualityV1;
   readonly capacityAxisPhasePv: PhaseOrientedPvQualityV1;
   readonly prime: PrimeWaveQualityV1;
@@ -212,6 +218,12 @@ type VariantSummaryV1 = {
   readonly maxTractionPressureStepMmHg: number;
   readonly maxTransactionResidualNormMl: number;
   readonly maxPrimeC1ContinuityScore: number;
+  readonly maxReferenceCapacityShiftMl: number;
+  readonly maxPressureReferenceCapacityMl: number;
+  readonly maxEffectiveCavityCapacityMl: number;
+  readonly maxCounterfactualFixedBloodPressureReliefMmHg: number;
+  readonly maxAppliedFixedBloodPressureReliefMmHg: number;
+  readonly maxBloodXDescentPressureDropMmHg: number;
 };
 
 export type FullLeftAVPlaneResidualRoutingReportV1 = {
@@ -284,8 +296,15 @@ export type FullLeftAVPlaneResidualRoutingReportV1 = {
     readonly bestV9PrimeWaveformPass: number;
     readonly bestV9CapacityAxisPhaseOrientedPvPass: number;
     readonly bestV9SourcePreservingCapacityAxisPhasePv: number;
+    readonly bestV9MaxReferenceCapacityShiftMl: number;
+    readonly bestV9MaxPressureReferenceCapacityMl: number;
+    readonly bestV9MaxEffectiveCavityCapacityMl: number;
+    readonly bestV9MaxCounterfactualFixedBloodPressureReliefMmHg: number;
+    readonly bestV9MaxAppliedFixedBloodPressureReliefMmHg: number;
+    readonly bestV9MaxBloodXDescentPressureDropMmHg: number;
     readonly variantsWithAnySourcePreservingPhasePv: number;
     readonly variantsWithAnySourcePreservingCapacityAxisPhasePv: number;
+    readonly variantsWithAnyAppliedFixedBloodPressureRelief: number;
     readonly fullResidualVariantsWithAnyPhasePv: number;
     readonly reviewStatus:
       | "full-left-avp-residual-positive-signal"
@@ -516,6 +535,8 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
     variantSummaries.filter((summary) => summary.sourcePreservingPhasePv > 0).length;
   const variantsWithAnySourcePreservingCapacityAxisPhasePv =
     variantSummaries.filter((summary) => summary.sourcePreservingCapacityAxisPhasePv > 0).length;
+  const variantsWithAnyAppliedFixedBloodPressureRelief =
+    variantSummaries.filter((summary) => summary.maxAppliedFixedBloodPressureReliefMmHg > 0.1).length;
   const fullResidualVariantsWithAnyPhasePv =
     fullResidualSummaries.filter((summary) => summary.phaseOrientedPvPass > 0).length;
   const reviewStatus =
@@ -596,8 +617,16 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
       bestV9PrimeWaveformPass: bestV9Variant.primeWaveformPass,
       bestV9CapacityAxisPhaseOrientedPvPass: bestV9Variant.capacityAxisPhaseOrientedPvPass,
       bestV9SourcePreservingCapacityAxisPhasePv: bestV9Variant.sourcePreservingCapacityAxisPhasePv,
+      bestV9MaxReferenceCapacityShiftMl: bestV9Variant.maxReferenceCapacityShiftMl,
+      bestV9MaxPressureReferenceCapacityMl: bestV9Variant.maxPressureReferenceCapacityMl,
+      bestV9MaxEffectiveCavityCapacityMl: bestV9Variant.maxEffectiveCavityCapacityMl,
+      bestV9MaxCounterfactualFixedBloodPressureReliefMmHg:
+        bestV9Variant.maxCounterfactualFixedBloodPressureReliefMmHg,
+      bestV9MaxAppliedFixedBloodPressureReliefMmHg: bestV9Variant.maxAppliedFixedBloodPressureReliefMmHg,
+      bestV9MaxBloodXDescentPressureDropMmHg: bestV9Variant.maxBloodXDescentPressureDropMmHg,
       variantsWithAnySourcePreservingPhasePv,
       variantsWithAnySourcePreservingCapacityAxisPhasePv,
+      variantsWithAnyAppliedFixedBloodPressureRelief,
       fullResidualVariantsWithAnyPhasePv,
       reviewStatus,
     },
@@ -903,6 +932,14 @@ function rowForRun(
   ];
   const tractionPressure = beat.map((sample) => sample.laAVPlaneReservoirTractionPressureMmHg);
   const tractionSteps = tractionPressure.slice(1).map((value, index) => value - tractionPressure[index]!);
+  const counterfactualFixedBloodPressureRelief = beat.map((sample) =>
+    fixedBloodReferencePressureReliefMmHgFor(sample.laReservoirReferenceVolumeShiftMl, run.params)
+  );
+  const appliedFixedBloodPressureRelief = beat.map((sample) =>
+    isDynamicReferencePressureMode(run.params)
+      ? fixedBloodReferencePressureReliefMmHgFor(sample.laReservoirReferenceVolumeShiftMl, run.params)
+      : 0
+  );
   return {
     profileId,
     variantId: variantConfig.variantId,
@@ -939,6 +976,20 @@ function rowForRun(
     pulmonaryVenousForwardVolumeRatio,
     qAvPlaneKinematicForwardVolumeMl:
       round(forwardFlowVolume(beat.map((sample) => sample.qAVPlaneReservoirKinematicMlPerSec), dtSec)),
+    maxReferenceCapacityShiftMl:
+      round(Math.max(0, ...beat.map((sample) => sample.laVolumeCoordinateReadback.avPlaneReferenceCapacityMl))),
+    maxPressureReferenceCapacityMl:
+      round(Math.max(0, ...beat.map((sample) => sample.laVolumeCoordinateReadback.pressureReferenceCapacityMl))),
+    maxEffectiveCavityCapacityMl:
+      round(Math.max(0, ...beat.map((sample) =>
+        sample.laVolumeCoordinateReadback.effectiveCavityVolumeMl
+        - sample.laVolumeCoordinateReadback.bloodVolumeMl
+      ))),
+    maxCounterfactualFixedBloodPressureReliefMmHg:
+      round(Math.max(0, ...counterfactualFixedBloodPressureRelief)),
+    maxAppliedFixedBloodPressureReliefMmHg:
+      round(Math.max(0, ...appliedFixedBloodPressureRelief)),
+    maxBloodXDescentPressureDropMmHg: phasePv.systolicXDescentPressureDropMmHg,
     phasePv,
     capacityAxisPhasePv,
     prime,
@@ -1008,6 +1059,15 @@ function summarizeVariant(variantConfig: VariantV1, rows: readonly RowV1[]): Var
     maxTractionPressureStepMmHg: round(Math.max(0, ...rows.map((row) => row.maxTractionPressureStepMmHg))),
     maxTransactionResidualNormMl: round(Math.max(0, ...rows.map((row) => row.maxTransactionResidualNormMl))),
     maxPrimeC1ContinuityScore: round(Math.max(0, ...rows.map((row) => row.prime.maxC1ContinuityScore))),
+    maxReferenceCapacityShiftMl: round(Math.max(0, ...rows.map((row) => row.maxReferenceCapacityShiftMl))),
+    maxPressureReferenceCapacityMl: round(Math.max(0, ...rows.map((row) => row.maxPressureReferenceCapacityMl))),
+    maxEffectiveCavityCapacityMl: round(Math.max(0, ...rows.map((row) => row.maxEffectiveCavityCapacityMl))),
+    maxCounterfactualFixedBloodPressureReliefMmHg:
+      round(Math.max(0, ...rows.map((row) => row.maxCounterfactualFixedBloodPressureReliefMmHg))),
+    maxAppliedFixedBloodPressureReliefMmHg:
+      round(Math.max(0, ...rows.map((row) => row.maxAppliedFixedBloodPressureReliefMmHg))),
+    maxBloodXDescentPressureDropMmHg:
+      round(Math.max(0, ...rows.map((row) => row.maxBloodXDescentPressureDropMmHg))),
   };
 }
 
@@ -1069,8 +1129,19 @@ function phaseOrientedPvQualityFor(
 }
 
 function capacityAxisVolumeMl(sample: LeftHeartSubsystemSampleV2): number {
-  return sample.acceptedLaVolumeMl
-    + Math.max(0, sample.laReservoirGeometryDeltaMl, sample.laReservoirReferenceVolumeShiftMl);
+  return sample.laVolumeCoordinateReadback.effectiveCavityVolumeMl;
+}
+
+function fixedBloodReferencePressureReliefMmHgFor(
+  referenceShiftMl: number,
+  params: LeftHeartSubsystemParamsV2,
+): number {
+  return Math.max(0, referenceShiftMl) / Math.max(params.laComplianceMlPerMmHg, 1e-9);
+}
+
+function isDynamicReferencePressureMode(params: LeftHeartSubsystemParamsV2): boolean {
+  return params.laLobeGeneratorMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1"
+    || params.laEffectiveGeometryMode === "av-plane-full-left-dynamic-reference-pressure-residual-v1";
 }
 
 function phaseOrientationFor(
