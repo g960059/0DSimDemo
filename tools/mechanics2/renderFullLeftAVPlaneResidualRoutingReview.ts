@@ -51,7 +51,7 @@ const svg: string[] = [];
 svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
 svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
 svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="700">Full-left LA-AV-plane residual routing review</text>`);
-svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Effective-cavity LA PV is the visual candidate axis; blood-volume PV remains a mass-ledger audit. This SVG hides rows unless capacity/effective PV phase+C1 and hidden-volume hygiene pass.</text>`);
+svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Effective-cavity LA PV is a shadow diagnostic axis, not acceptance; blood-volume PV remains the physiology-facing mass-ledger audit. This SVG hides rows unless capacity/effective PV phase and hidden-volume hygiene pass; C1/kink markers are visual warnings.</text>`);
 svg.push(`<text x="34" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best full residual: ${report.summary.bestFullResidualVariantId}; source+phase ${report.summary.bestFullResidualSourcePreservingPhasePv}/7, phase ${report.summary.bestFullResidualPhaseOrientedPvPass}/7, source ${report.summary.bestFullResidualSourceSurfacePass}/7</text>`);
 svg.push(`<text x="34" y="102" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best overall: ${report.summary.bestOverallVariantId}; source+phase ${report.summary.bestOverallSourcePreservingPhasePv}/7, phase ${report.summary.bestOverallPhaseOrientedPvPass}/7, source ${report.summary.bestOverallSourceSurfacePass}/7</text>`);
 svg.push(`<text x="34" y="122" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best smooth core: ${report.summary.bestSmoothCoreVariantId}; source+phase ${report.summary.bestSmoothCoreSourcePreservingPhasePv}/7, phase ${report.summary.bestSmoothCorePhaseOrientedPvPass}/7, source ${report.summary.bestSmoothCoreSourceSurfacePass}/7, prime ${report.summary.bestSmoothCorePrimeWaveformPass}/7</text>`);
@@ -394,7 +394,6 @@ function shouldPlotPhysiologyPvCandidate(
 ): boolean {
   const row = rowByVariantProfile.get(`${variantId}::${profileId}`);
   return !!row?.capacityAxisPhaseOrientedPvPass
-    && !!row.capacityAxisPhaseC1Pass
     && !!row.hiddenVolumeClean;
 }
 

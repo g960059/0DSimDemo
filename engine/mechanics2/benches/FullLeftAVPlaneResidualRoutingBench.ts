@@ -1724,7 +1724,6 @@ function phaseOrientedPvQualityFor(
   if (!opposedSignedLobes) failures.push("a-v-lobes-not-opposed");
   if (volumeSeparation < 1.2) failures.push("v-loop-not-higher-volume-than-a-loop");
   failures.push(...phase.failureReasons);
-  failures.push(...tangent.failureReasons);
   return {
     pass: failures.length === 0,
     selfIntersections,

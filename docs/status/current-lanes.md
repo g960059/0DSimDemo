@@ -1359,6 +1359,23 @@ Next gates:
     inflow, and AV-plane coordinate are solved as one residual system against
     LV ejection/relaxation timing, rather than continuing accepted/candidate
     residual penalties around the existing transaction.
+89. LA PV phase-gate visual routing follow-up: owner-provided reference loops
+    show that local C1/tangent continuity should be treated as a visual warning,
+    not as the hard determinant of figure-eight acceptability. The
+    `phaseOrientedPvPass` gate now keeps MV-opening/conduit direction,
+    reservoir-chord orientation, opposed lobe sign, v-loop volume separation,
+    and hidden-volume hygiene as the hard routing checks while preserving
+    tangent/C1 failures as readbacks and SVG warning markers. This reclassifies
+    several previously hidden rows as visible diagnostics: best full residual
+    reaches source+phase 4/7 and phase 6/7, V2 reaches source+phase 4/7, V3
+    reaches source+phase 4/7, and V14/V15/V16 expose only a limited 1/7
+    blood-volume phase signal. Visual review remains negative for morphology
+    acceptance: the displayed blood-volume loops still lack the broad reference
+    v-loop / x-descent quality, QMV/MV-opening artifacts remain, and the
+    effective-cavity axis is explicitly shadow diagnostic only rather than an
+    acceptance axis. Next work should quantify blood-volume x-descent depth,
+    v-loop blood-area, and LAP-time pressure dip after MV closure before
+    continuing LA-MV-PV implicit subsystem development.
 
 Parallel prep, not blocking the next strategic gate:
 
