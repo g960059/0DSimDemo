@@ -46,7 +46,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
 	  );
 
 	  expect(normalReport.summary.totalProfiles).toBe(1);
-	  expect(normalReport.rows).toHaveLength(266);
+	  expect(normalReport.rows).toHaveLength(270);
 	  expect(normalReport.summary.bestOverallVariantId).toBe("v2-force-fixed8-pv36-mvsoft");
 	  expect(normalReport.summary.bestOverallSourcePreservingPhasePv).toBe(1);
 	  expect(visualCandidates.map((row) => row.variantId)).toContain(
@@ -121,6 +121,14 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
 	  expect(deepestV37!.phasePv.conduitBellyDepthMmHg).toBeGreaterThan(4);
 	  expect(deepestV37!.mvForwardPeakCount).toBe(1);
 	  expect(deepestV37!.phasePv.failureReasons).toContain("a-loop-area-too-small");
+	  const v38Rows = normalRows.filter((row) => row.variantId.startsWith("v38-"));
+	  const bestV38Area = [...v38Rows].sort((a, b) => b.phasePv.vLoopArea - a.phasePv.vLoopArea)[0];
+	  expect(v38Rows).toHaveLength(4);
+	  expect(v38Rows.some((row) => row.sourceSurfacePass && row.mvfClean)).toBe(true);
+	  expect(v38Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
+	  expect(bestV38Area!.phasePv.vLoopArea).toBeGreaterThan(90);
+	  expect(bestV38Area!.phasePv.conduitBellyDepthMmHg).toBeLessThan(1.5);
+	  expect(bestV38Area!.phasePv.failureReasons).toContain("a-loop-area-too-small");
 	  expect(visualCandidates.every((row) => row.phasePv.vLoopArea >= 40)).toBe(true);
 	  expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0)).toBe(true);
 	  expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyVolumeDropMl > 0.8)).toBe(true);
@@ -129,8 +137,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records the full-left LA-AV-plane residual routing experiment", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-	  expect(report.rows).toHaveLength(1862);
-	  expect(report.variantSummaries).toHaveLength(266);
+	  expect(report.rows).toHaveLength(1890);
+	  expect(report.variantSummaries).toHaveLength(270);
 	  expect(new Set(report.rows.map((row) => row.family)).size).toBe(40);
   });
 

@@ -294,7 +294,11 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v37-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed16-pv56-mvlite"
   | "v37-wall-v16lvref56-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite"
   | "v37-wall-v16lvref64-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite"
-  | "v37-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite";
+  | "v37-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite"
+  | "v38-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite"
+  | "v38-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite"
+  | "v38-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite"
+  | "v38-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -1130,6 +1134,10 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v37-wall-v16lvref56-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 18, 0.16, 52, 0.076, 0.00044, 6e-6),
   variant("v37-wall-v16lvref64-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 18, 0.16, 52, 0.076, 0.00044, 6e-6),
   variant("v37-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 18, 0.16, 56, 0.072, 0.00044, 6e-6),
+  variant("v38-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 16, 0.18, 52, 0.076, 0.00044, 6e-6),
+  variant("v38-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 16, 0.18, 52, 0.076, 0.00044, 6e-6),
+  variant("v38-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 18, 0.16, 56, 0.072, 0.00044, 6e-6),
+  variant("v38-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 18, 0.16, 56, 0.072, 0.00044, 6e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(
@@ -2692,6 +2700,8 @@ function applyFullLeftRoutingVariant(
         laAVPlaneImplicitMvStateGain: implicitMvStateGainForV16(variantConfig.variantId),
         laAVPlaneContinuousMvResidualGain: variantConfig.variantId.includes("lvrecv3")
           ? 0.30
+          : variantConfig.variantId.includes("mvres30")
+            ? 0.30
           : variantConfig.variantId.includes("lvrecv2") || variantConfig.variantId.includes("fastrecv")
             ? 0.28
             : variantConfig.variantId.includes("lvrecv")

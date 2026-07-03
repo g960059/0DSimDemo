@@ -138,6 +138,10 @@ const pinnedMechanismIds = new Set([
   "v37-wall-v16lvref56-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
   "v37-wall-v16lvref64-cap150-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed18-pv52-mvlite",
   "v37-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-lvrcup10-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v38-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v38-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v38-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v38-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
 ]);
 void pinnedMechanismIds;
 const eligibleRows = rows
@@ -154,6 +158,10 @@ const eligibleRows = rows
     && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
   );
 const visualAnchorIds = [
+  "v38-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v38-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
+  "v38-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
+  "v38-wall-v16lvref80-cap175-visco6-pathmem100-relief60-cupwide-mvres30-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed18-pv56-mvlite",
   "v37-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
   "v37-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
   "v37-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed16-pv56-mvlite",
@@ -192,7 +200,6 @@ const visualAnchorRows = visualAnchorIds
   .map((variantId) => rows.find((row) =>
     row.variantId === variantId
     && row.hiddenVolumeClean
-    && row.phaseOrientedPvPass
     && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
     && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
   ))
@@ -296,7 +303,7 @@ function renderPvCard(
   const plotH = h - 86;
   const sx = (value: number) => plotX + xScale01(value) * plotW;
   const sy = (value: number) => plotY + yScale01(value) * plotH;
-  const status = trace.row.sourceSurfacePass && trace.row.mvfClean ? "clean" : "dirty anchor";
+  const status = isCleanVisualRow(trace.row) ? "clean" : "dirty anchor";
   out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#111827" stroke="#253044"/>`);
   out.push(`<text x="${x + 14}" y="${y + 23}" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">${shortVariantLabel(trace.row.variantId)}</text>`);
   out.push(`<text x="${x + 14}" y="${y + 42}" fill="${status === "clean" ? "#86efac" : "#fca5a5"}" font-family="Inter,Arial,sans-serif" font-size="11">${status} | area ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)} | arc ${trace.row.phasePv.conduitArcLengthOverChord.toFixed(2)}</text>`);
@@ -330,7 +337,7 @@ function renderLegend(out: string[], traces: readonly Trace[], x: number, y: num
   traces.forEach((trace, index) => {
     const yy = y + index * 17;
     out.push(`<line x1="${x}" y1="${yy}" x2="${x + 24}" y2="${yy}" stroke="${trace.color}" stroke-width="3"/>`);
-    const status = trace.row.sourceSurfacePass && trace.row.mvfClean ? "clean" : "dirty-shape-anchor";
+    const status = isCleanVisualRow(trace.row) ? "clean" : "dirty-shape-anchor";
     out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | ${status} | blood vArea ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)} | arc ${trace.row.phasePv.conduitArcLengthOverChord.toFixed(2)} | postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg/${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL</text>`);
   });
 }
@@ -568,6 +575,14 @@ function escapeXml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function isCleanVisualRow(row: (typeof rows)[number]): boolean {
+  return row.sourceSurfacePass
+    && row.mvfClean
+    && row.phaseOrientedPvPass
+    && row.hiddenVolumeClean
+    && row.failureReasons.length === 0;
 }
 
 function uniqueRowsByVariantId<T extends { readonly variantId: string }>(rows: readonly T[]): T[] {

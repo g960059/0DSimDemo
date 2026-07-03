@@ -1725,14 +1725,19 @@ Next gates:
     relief; it can create a deeper dirty belly signal (up to about 4.13 mmHg
     with 6.16 mmHg / 12.07 mL early post-MVO drop), but only by collapsing MVF
     to one forward peak and shrinking the A-loop / widening transaction
-    residuals. Treat this as evidence that further scalar receiver-cup gain is
-    the wrong owner for the remaining Nature-style rounded V-loop. Current
-    owner-facing artifacts should keep blood-volume PV only; effective/capacity
-    axes, prime waveforms, x-descent depth, and intersection position are
-    readbacks, not acceptance. The next mechanism should be a true
-    phase-locked AV-plane / LV early-diastolic relaxation reservoir-conduit
-    state that makes filling and emptying follow different blood-volume paths,
-    not another scalar cup or direct pressure-relief sweep.
+    residuals. V38 then removes direct LV downstream-pressure relief and keeps
+    only LV receiver reference/capacity plus MV residual ownership; this can
+    preserve source/MVF in some normal-HR75 rows, but all V38 rows still fail
+    blood-phase through A-loop shrinkage and keep belly depth below about
+    1.5 mmHg. Treat V37/V38 together as evidence that both stronger scalar
+    receiver-cup relief and relief-free LV capacity alone are insufficient
+    owners for the remaining Nature-style rounded V-loop. Current owner-facing
+    artifacts should keep blood-volume PV only; effective/capacity axes, prime
+    waveforms, x-descent depth, and intersection position are readbacks, not
+    acceptance. The next mechanism should be a true phase-locked AV-plane / LV
+    early-diastolic relaxation reservoir-conduit state that makes filling and
+    emptying follow different blood-volume paths while preserving the booster
+    loop, not another scalar cup or direct pressure-relief sweep.
 
 Parallel prep, not blocking the next strategic gate:
 
