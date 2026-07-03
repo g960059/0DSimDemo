@@ -36,13 +36,14 @@ const panels = runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   report.summary.bestV13VariantId,
   report.summary.bestV14VariantId,
   report.summary.bestV15VariantId,
+  report.summary.bestV16VariantId,
 );
 
 const width = 1900;
 const panelWidth = 860;
 const panelHeight = 372;
 const marginX = 50;
-const marginY = 416;
+const marginY = 446;
 const gapX = 38;
 const gapY = 28;
 const height = marginY + 4 * panelHeight + 3 * gapY + 62;
@@ -70,6 +71,7 @@ svg.push(`<text x="660" y="322" fill="#9ca3af" font-family="Inter,Arial,sans-ser
 svg.push(`<text x="660" y="342" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V13 accepted-coordinate C1 law: ${report.summary.bestV13VariantId}; capacity phase ${report.summary.bestV13CapacityAxisPhaseOrientedPvPass}/7, capacity source+phase ${report.summary.bestV13SourcePreservingCapacityAxisPhasePv}/7, source ${report.summary.bestV13SourceSurfacePass}/7, MVF ${report.summary.bestV13MvfClean}/7, prime ${report.summary.bestV13PrimeWaveformPass}/7</text>`);
 svg.push(`<text x="660" y="362" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V14 continuous trajectory law: ${report.summary.bestV14VariantId}; capacity phase ${report.summary.bestV14CapacityAxisPhaseOrientedPvPass}/7, capacity source+phase ${report.summary.bestV14SourcePreservingCapacityAxisPhasePv}/7, source ${report.summary.bestV14SourceSurfacePass}/7, MVF ${report.summary.bestV14MvfClean}/7, prime ${report.summary.bestV14PrimeWaveformPass}/7</text>`);
 svg.push(`<text x="660" y="382" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V15 MV-coupled trajectory law: ${report.summary.bestV15VariantId}; capacity phase ${report.summary.bestV15CapacityAxisPhaseOrientedPvPass}/7, capacity source+phase ${report.summary.bestV15SourcePreservingCapacityAxisPhasePv}/7, source ${report.summary.bestV15SourceSurfacePass}/7, MVF ${report.summary.bestV15MvfClean}/7, prime ${report.summary.bestV15PrimeWaveformPass}/7</text>`);
+svg.push(`<text x="660" y="402" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V16 implicit MV-state trajectory law: ${report.summary.bestV16VariantId}; capacity phase ${report.summary.bestV16CapacityAxisPhaseOrientedPvPass}/7, capacity source+phase ${report.summary.bestV16SourcePreservingCapacityAxisPhasePv}/7, source ${report.summary.bestV16SourceSurfacePass}/7, MVF ${report.summary.bestV16MvfClean}/7, prime ${report.summary.bestV16PrimeWaveformPass}/7</text>`);
 legend(svg, 1540, 36, "#22c55e", "baseline no AV-plane");
 legend(svg, 1540, 58, "#f97316", "raw traction reference");
 legend(svg, 1540, 80, "#a855f7", "best full-left residual");
@@ -88,6 +90,7 @@ legend(svg, 1540, 344, "#67e8f9", "best V12 eff-cavity pressure law");
 legend(svg, 1540, 366, "#34d399", "best V13 coordinate C1 law");
 legend(svg, 1540, 388, "#fbbf24", "best V14 continuous trajectory");
 legend(svg, 1540, 410, "#fb7185", "best V15 MV-coupled trajectory");
+legend(svg, 1540, 432, "#c084fc", "best V16 implicit MV state");
 svg.push(`<circle cx="1780" cy="40" r="4.4" fill="#f8fafc" stroke="#111827" stroke-width="1.4"/>`);
 svg.push(`<text x="1792" y="45" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV opening</text>`);
 svg.push(`<circle cx="1780" cy="62" r="4.4" fill="#111827" stroke="#f8fafc" stroke-width="1.7"/>`);
@@ -156,6 +159,7 @@ function renderPv(
     { variantId: panel.bestV13VariantId, samples: panel.bestV13, color: "#34d399" },
     { variantId: panel.bestV14VariantId, samples: panel.bestV14, color: "#fbbf24" },
     { variantId: panel.bestV15VariantId, samples: panel.bestV15, color: "#fb7185" },
+    { variantId: panel.bestV16VariantId, samples: panel.bestV16, color: "#c084fc" },
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "LA blood PV (ledger audit)");
@@ -221,6 +225,7 @@ function renderCapacityPv(
     { variantId: panel.bestV13VariantId, samples: panel.bestV13, color: "#34d399" },
     { variantId: panel.bestV14VariantId, samples: panel.bestV14, color: "#fbbf24" },
     { variantId: panel.bestV15VariantId, samples: panel.bestV15, color: "#fb7185" },
+    { variantId: panel.bestV16VariantId, samples: panel.bestV16, color: "#c084fc" },
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "LA effective-cavity PV");
@@ -269,6 +274,7 @@ function renderFlow(
     { variantId: panel.bestV13VariantId, samples: panel.bestV13, color: "#34d399" },
     { variantId: panel.bestV14VariantId, samples: panel.bestV14, color: "#fbbf24" },
     { variantId: panel.bestV15VariantId, samples: panel.bestV15, color: "#fb7185" },
+    { variantId: panel.bestV16VariantId, samples: panel.bestV16, color: "#c084fc" },
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "QMV forward");
@@ -398,6 +404,7 @@ function physiologyDiagnosticTrace(panel: ReturnType<typeof runFullLeftAVPlaneRe
   readonly samples: readonly LeftHeartSubsystemSampleV2[];
 } | null {
   const candidates = [
+    { variantId: panel.bestV16VariantId, label: "best V16", samples: panel.bestV16 },
     { variantId: panel.bestV15VariantId, label: "best V15", samples: panel.bestV15 },
     { variantId: panel.bestV14VariantId, label: "best V14", samples: panel.bestV14 },
     { variantId: panel.bestV13VariantId, label: "best V13", samples: panel.bestV13 },

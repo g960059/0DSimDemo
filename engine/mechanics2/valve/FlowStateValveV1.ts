@@ -144,6 +144,33 @@ export function stepFlowStateValveV1(
     dtSec,
   );
   const qMlPerSec = softReverseLimit(qPreProjection, open01, params);
+  return evaluateFlowStateValveStateV1(previous, input, params, { qMlPerSec, open01 });
+}
+
+export function evaluateFlowStateValveStateV1(
+  previous: FlowStateValveStateV1,
+  input: FlowStateValveInputV1,
+  params: FlowStateValveParamsV1,
+  state: FlowStateValveStateV1,
+): FlowStateValveOutputV1 {
+  const dtSec = Math.max(input.dtSec, 1e-6);
+  const pressureGradientMmHg = input.upstreamPressureMmHg - input.downstreamPressureMmHg;
+  const closureDrive01 = clamp01(input.closureDrive01 ?? 0);
+  const open01 = clamp01(state.open01);
+  const effectiveOpen01 = Math.max(params.minEffectiveOpen01, open01);
+  const lossScale = 1 / Math.max(effectiveOpen01 * effectiveOpen01, 1e-6);
+  const resistance = params.resistanceMmHgSecPerMl * lossScale;
+  const bernoulli = params.bernoulliMmHgSec2PerMl2 * lossScale;
+  const inertance = params.inertanceMmHgSec2PerMl;
+  const qMlPerSec = state.qMlPerSec;
+  const qPreProjection = qNextConsistentLoss(
+    previous.qMlPerSec,
+    pressureGradientMmHg,
+    resistance,
+    bernoulli,
+    inertance,
+    dtSec,
+  );
   const qDotMlPerSec2 = (qMlPerSec - previous.qMlPerSec) / dtSec;
   const resistiveLossMmHg = resistance * qMlPerSec;
   const inertancePressureMmHg = inertance * qDotMlPerSec2;

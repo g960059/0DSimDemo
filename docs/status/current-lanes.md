@@ -1342,6 +1342,23 @@ Next gates:
     implicit residual state that is solved with the continuous AV-plane
     trajectory, rather than adding more accepted-state MV residual weights or
     scalar MV-loss variants.
+88. Implicit MV-state trajectory V16: promoting MV q/open into the fixed-point
+    candidate state is still insufficient when it is only coupled as a target
+    residual around the existing LA/MV transaction. Best V16
+    `v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss` keeps
+    hidden-volume clean 7/7, source 5/7, MVF 5/7, prime 6/7, and
+    effective-cavity/capacity-axis phase 4/7, but source-preserving
+    effective-cavity phase drops to 2/7 and strict blood phase stays 0/7.
+    Higher implicit MV gains worsen source status, and the force-family V16
+    variants keep source/MVF weaker with prime 0/7. Visual review shows the
+    implicit MV trace largely overlapping V14/V15 with remaining QMV/MV-opening
+    artifacts and folded effective-cavity loops. Treat this as negative
+    evidence for a lightly coupled MV candidate state: the next architecture
+    step should replace the wrapper-style residual with a true LA-MV-PV
+    implicit subsystem where LA wall pressure, MV q/open/loss, pulmonary venous
+    inflow, and AV-plane coordinate are solved as one residual system against
+    LV ejection/relaxation timing, rather than continuing accepted/candidate
+    residual penalties around the existing transaction.
 
 Parallel prep, not blocking the next strategic gate:
 
