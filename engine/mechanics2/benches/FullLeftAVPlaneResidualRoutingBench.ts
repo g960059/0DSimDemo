@@ -51,7 +51,15 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v2-wall-fixed10-pv44-mvsoft"
   | "v3-wall-fixed8-pv36-mvloss"
   | "v3-wall-fixed10-pv44-mvloss"
-  | "v3-force-fixed8-pv36-mvloss";
+  | "v3-force-fixed8-pv36-mvloss"
+  | "v4-force-veltarget-fixed8-pv36-mvsoft"
+  | "v4-force-veltarget-fixed10-pv44-mvsoft"
+  | "v4-force-veltarget-fixed8-pv36-mvloss"
+  | "v4-wall-veltarget-fixed8-pv36-mvsoft"
+  | "v5-force-phaseowned-fixed8-pv36-mvsoft"
+  | "v5-force-phaseowned-fixed10-pv44-mvsoft"
+  | "v5-force-phaseowned-fixed8-pv36-mvloss"
+  | "v5-wall-phaseowned-fixed8-pv36-mvsoft";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -64,7 +72,9 @@ type VariantFamilyV1 =
   | "state-velocity-readback"
   | "smooth-full-left-core"
   | "full-left-residual-v2"
-  | "full-left-residual-v3";
+  | "full-left-residual-v3"
+  | "full-left-hybrid-velocity-residual-v4"
+  | "full-left-phase-owned-residual-v5";
 
 type VariantV1 = {
   readonly variantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
@@ -201,6 +211,18 @@ export type FullLeftAVPlaneResidualRoutingReportV1 = {
     readonly bestV3SourceSurfacePass: number;
     readonly bestV3MvfClean: number;
     readonly bestV3PrimeWaveformPass: number;
+    readonly bestV4VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
+    readonly bestV4SourcePreservingPhasePv: number;
+    readonly bestV4PhaseOrientedPvPass: number;
+    readonly bestV4SourceSurfacePass: number;
+    readonly bestV4MvfClean: number;
+    readonly bestV4PrimeWaveformPass: number;
+    readonly bestV5VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
+    readonly bestV5SourcePreservingPhasePv: number;
+    readonly bestV5PhaseOrientedPvPass: number;
+    readonly bestV5SourceSurfacePass: number;
+    readonly bestV5MvfClean: number;
+    readonly bestV5PrimeWaveformPass: number;
     readonly variantsWithAnySourcePreservingPhasePv: number;
     readonly fullResidualVariantsWithAnyPhasePv: number;
     readonly reviewStatus:
@@ -231,11 +253,15 @@ export type FullLeftAVPlaneResidualRoutingTrajectoryPanelV1 = {
   readonly bestSmoothCore: readonly LeftHeartSubsystemSampleV2[];
   readonly bestV2: readonly LeftHeartSubsystemSampleV2[];
   readonly bestV3: readonly LeftHeartSubsystemSampleV2[];
+  readonly bestV4: readonly LeftHeartSubsystemSampleV2[];
+  readonly bestV5: readonly LeftHeartSubsystemSampleV2[];
   readonly bestFullResidualVariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestOverallVariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestSmoothCoreVariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestV2VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
   readonly bestV3VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
+  readonly bestV4VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
+  readonly bestV5VariantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
 };
 
 const LEFT_VARIANT_ID = "active-length-mv-closure-stateful-root08" as const;
@@ -275,6 +301,14 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v3-wall-fixed8-pv36-mvloss", "full-left-residual-v3", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
   variant("v3-wall-fixed10-pv44-mvloss", "full-left-residual-v3", "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06", 10, 0.26, 44, 0.086, 0.00054, 8e-6),
   variant("v3-force-fixed8-pv36-mvloss", "full-left-residual-v3", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v4-force-veltarget-fixed8-pv36-mvsoft", "full-left-hybrid-velocity-residual-v4", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.070, 0.00038, 4e-6),
+  variant("v4-force-veltarget-fixed10-pv44-mvsoft", "full-left-hybrid-velocity-residual-v4", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.064, 0.00036, 4e-6),
+  variant("v4-force-veltarget-fixed8-pv36-mvloss", "full-left-hybrid-velocity-residual-v4", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v4-wall-veltarget-fixed8-pv36-mvsoft", "full-left-hybrid-velocity-residual-v4", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.070, 0.00038, 4e-6),
+  variant("v5-force-phaseowned-fixed8-pv36-mvsoft", "full-left-phase-owned-residual-v5", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.070, 0.00038, 4e-6),
+  variant("v5-force-phaseowned-fixed10-pv44-mvsoft", "full-left-phase-owned-residual-v5", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.064, 0.00036, 4e-6),
+  variant("v5-force-phaseowned-fixed8-pv36-mvloss", "full-left-phase-owned-residual-v5", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v5-wall-phaseowned-fixed8-pv36-mvsoft", "full-left-phase-owned-residual-v5", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.070, 0.00038, 4e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResidualRoutingReportV1 {
@@ -306,6 +340,8 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
   const smoothCoreSummaries = variantSummaries.filter((summary) => summary.family === "smooth-full-left-core");
   const v2Summaries = variantSummaries.filter((summary) => summary.family === "full-left-residual-v2");
   const v3Summaries = variantSummaries.filter((summary) => summary.family === "full-left-residual-v3");
+  const v4Summaries = variantSummaries.filter((summary) => summary.family === "full-left-hybrid-velocity-residual-v4");
+  const v5Summaries = variantSummaries.filter((summary) => summary.family === "full-left-phase-owned-residual-v5");
   const bestFullResidualVariant = [...fullResidualSummaries].sort((a, b) =>
     b.sourcePreservingPhasePv - a.sourcePreservingPhasePv
     || b.phaseOrientedPvPass - a.phaseOrientedPvPass
@@ -337,6 +373,22 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
     || b.sourceSurfacePass - a.sourceSurfacePass
     || b.phaseOrientedPvPass - a.phaseOrientedPvPass
     || b.mvfClean - a.mvfClean
+    || b.maxVLoopArea - a.maxVLoopArea
+  )[0]!;
+  const bestV4Variant = [...v4Summaries].sort((a, b) =>
+    b.sourcePreservingPhasePv - a.sourcePreservingPhasePv
+    || b.primeWaveformPass - a.primeWaveformPass
+    || b.sourceSurfacePass - a.sourceSurfacePass
+    || b.phaseOrientedPvPass - a.phaseOrientedPvPass
+    || b.mvfClean - a.mvfClean
+    || b.maxVLoopArea - a.maxVLoopArea
+  )[0]!;
+  const bestV5Variant = [...v5Summaries].sort((a, b) =>
+    b.sourcePreservingPhasePv - a.sourcePreservingPhasePv
+    || b.phaseOrientedPvPass - a.phaseOrientedPvPass
+    || b.sourceSurfacePass - a.sourceSurfacePass
+    || b.mvfClean - a.mvfClean
+    || b.primeWaveformPass - a.primeWaveformPass
     || b.maxVLoopArea - a.maxVLoopArea
   )[0]!;
   const variantsWithAnySourcePreservingPhasePv =
@@ -387,6 +439,18 @@ export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResid
       bestV3SourceSurfacePass: bestV3Variant.sourceSurfacePass,
       bestV3MvfClean: bestV3Variant.mvfClean,
       bestV3PrimeWaveformPass: bestV3Variant.primeWaveformPass,
+      bestV4VariantId: bestV4Variant.variantId,
+      bestV4SourcePreservingPhasePv: bestV4Variant.sourcePreservingPhasePv,
+      bestV4PhaseOrientedPvPass: bestV4Variant.phaseOrientedPvPass,
+      bestV4SourceSurfacePass: bestV4Variant.sourceSurfacePass,
+      bestV4MvfClean: bestV4Variant.mvfClean,
+      bestV4PrimeWaveformPass: bestV4Variant.primeWaveformPass,
+      bestV5VariantId: bestV5Variant.variantId,
+      bestV5SourcePreservingPhasePv: bestV5Variant.sourcePreservingPhasePv,
+      bestV5PhaseOrientedPvPass: bestV5Variant.phaseOrientedPvPass,
+      bestV5SourceSurfacePass: bestV5Variant.sourceSurfacePass,
+      bestV5MvfClean: bestV5Variant.mvfClean,
+      bestV5PrimeWaveformPass: bestV5Variant.primeWaveformPass,
       variantsWithAnySourcePreservingPhasePv,
       fullResidualVariantsWithAnyPhasePv,
       reviewStatus,
@@ -423,6 +487,8 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   bestSmoothCoreVariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
   bestV2VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
   bestV3VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
+  bestV4VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
+  bestV5VariantId?: FullLeftAVPlaneResidualRoutingVariantIdV1,
 ): readonly FullLeftAVPlaneResidualRoutingTrajectoryPanelV1[] {
   const report = runFullLeftAVPlaneResidualRoutingBenchV1();
   const selectedFullId = bestFullResidualVariantId ?? report.summary.bestFullResidualVariantId;
@@ -430,6 +496,8 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   const selectedSmoothCoreId = bestSmoothCoreVariantId ?? report.summary.bestSmoothCoreVariantId;
   const selectedV2Id = bestV2VariantId ?? report.summary.bestV2VariantId;
   const selectedV3Id = bestV3VariantId ?? report.summary.bestV3VariantId;
+  const selectedV4Id = bestV4VariantId ?? report.summary.bestV4VariantId;
+  const selectedV5Id = bestV5VariantId ?? report.summary.bestV5VariantId;
   const baseParams = buildLeftHeartDynamicReserveVariantEnvelopeV1(LEFT_VARIANT_ID);
   const baselineVariant = getVariant("baseline-no-avp-compliance-node");
   const rawVariant = getVariant("raw-traction-reference");
@@ -438,6 +506,8 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   const bestSmoothCoreVariant = getVariant(selectedSmoothCoreId);
   const bestV2Variant = getVariant(selectedV2Id);
   const bestV3Variant = getVariant(selectedV3Id);
+  const bestV4Variant = getVariant(selectedV4Id);
+  const bestV5Variant = getVariant(selectedV5Id);
   return PROFILE_IDS.map((profileId, index) => {
     const params = baseParams[index]!;
     return {
@@ -449,11 +519,15 @@ export function runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
       bestSmoothCore: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestSmoothCoreVariant)).finalBeatSamples,
       bestV2: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV2Variant)).finalBeatSamples,
       bestV3: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV3Variant)).finalBeatSamples,
+      bestV4: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV4Variant)).finalBeatSamples,
+      bestV5: runLeftHeartSubsystemV2(applyFullLeftRoutingVariant(params, bestV5Variant)).finalBeatSamples,
       bestFullResidualVariantId: selectedFullId,
       bestOverallVariantId: selectedOverallId,
       bestSmoothCoreVariantId: selectedSmoothCoreId,
       bestV2VariantId: selectedV2Id,
       bestV3VariantId: selectedV3Id,
+      bestV4VariantId: selectedV4Id,
+      bestV5VariantId: selectedV5Id,
     };
   });
 }
@@ -515,6 +589,8 @@ function applyFullLeftRoutingVariant(
     && variantConfig.family !== "smooth-full-left-core"
     && variantConfig.family !== "full-left-residual-v2"
     && variantConfig.family !== "full-left-residual-v3"
+    && variantConfig.family !== "full-left-hybrid-velocity-residual-v4"
+    && variantConfig.family !== "full-left-phase-owned-residual-v5"
   ) {
     return coordinateBase;
   }
@@ -533,6 +609,18 @@ function applyFullLeftRoutingVariant(
       ? {
         ...coordinateBase,
         laEffectiveGeometryMode: "av-plane-full-left-residual-v2-transaction-v1" as const,
+      }
+    : variantConfig.family === "full-left-hybrid-velocity-residual-v4"
+      ? {
+        ...coordinateBase,
+        laLobeGeneratorMode: "av-plane-full-left-hybrid-velocity-residual-v1" as const,
+        laEffectiveGeometryMode: "av-plane-full-left-hybrid-velocity-residual-v1" as const,
+      }
+    : variantConfig.family === "full-left-phase-owned-residual-v5"
+      ? {
+        ...coordinateBase,
+        laLobeGeneratorMode: "av-plane-full-left-phase-owned-residual-v1" as const,
+        laEffectiveGeometryMode: "av-plane-full-left-phase-owned-residual-v1" as const,
       }
     : coordinateBase;
   return {

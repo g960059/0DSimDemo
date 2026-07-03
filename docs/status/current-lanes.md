@@ -20,6 +20,10 @@ Scope: coordination only; evidence lives in PRs, artifacts, and git history.
   LV/RV PV dome/rebound/curvature, MVF/TVF E/A and kink checks, LA/RA PV, and
   pressure timing. Owner visual rejection overrides any old gross-pass number
   until the checker is hardened to match it.
+- The LA figure-eight gate is allowed to be wrong while it is still being
+  hardened. Treat borderline pass/fail results as visual-review-required and
+  keep SVG overlays with MV opening, MV closure, reservoir chord, and kink
+  markers for frequent owner-visible checks.
 
 ## Current Frontier
 
@@ -220,6 +224,18 @@ it trades away the force-balance source/phase route. Do not treat prime pass
 alone as acceptance; the next architecture step should co-solve phase/C1
 continuity, MV loss, and AV-plane source preservation instead of post-selecting
 between force-balance and wall-work paths.
+A V4/V5 follow-up then tested two cheap ways to bridge that split inside the
+full-left residual family. Simple AV-plane velocity-target residuals are no-go:
+best V4 is source+phase 0/7, phase 0/7, source 3/7, MVF 3/7, prime 3/7, hidden
+volume clean 7/7. Phase-owned target residuals that tie `z_AV`/`zDot_AV` to
+accepted AoV ejection, MV opening, MV pressure-flow residual, and LA-LV pressure
+relief are also no-go: best V5 is source+phase 0/7, phase 0/7, source 0/7, MVF
+3/7, prime 3/7, hidden-volume clean 7/7. This is useful negative evidence
+against target/regularizer additions. The next step should move the same
+owners into the actual accepted-state equations: AV-plane coordinate, MV
+loss/opening, LA wall pressure, pulmonary venous inflow, and LV
+ejection/relaxation timing must be solved as coupled state, not added as a
+phase target.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
