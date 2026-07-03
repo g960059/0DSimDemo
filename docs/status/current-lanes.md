@@ -1528,6 +1528,25 @@ Next gates:
     small V-loop area, so the next mechanism step should grow the
     reservoir-conduit hysteresis path without sacrificing the V16 normal-shape
     conduit downstroke or reintroducing scalar recoil/vertical V-wave artifacts.
+98. V16-area receiver/loss V23: a follow-up keeps the V16/V22 continuous
+    trajectory route and tests whether stronger early-LV receiver relief plus
+    lighter MV loss/inertance can transfer the normal-HR75 conduit downstroke
+    into the broader reservoir-conduit hysteresis residual. Normal-HR75 remains
+    clean across V23 source/MVF/prime/blood-phase rows, and the representative
+    `v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite`
+    row strengthens post-MV-opening early pressure/volume drop relative to V22
+    while staying hidden-volume clean. Across the 7-profile envelope, V23
+    extends source-preserving blood-phase rows from the selected V22's 2/7 to
+    3/7 by adding contractility-high, with prime and hidden-volume cleanliness
+    7/7. This is still not broad morphology acceptance: normal-HR75 blood
+    V-loop area is smaller than the V16/V22 no-receiver shape, and the
+    remaining failures continue to be V-loop-area residuals. Treat V23 as
+    component evidence that LV receiver/MV loss affects the conduit limb, but
+    not as proof that loss/outflow tuning alone can grow the desired
+    reservoir-conduit hysteresis area. Next work should move from parameter
+    relief/loss variants toward a co-solved LA-MV-LV receiver state that
+    separates reservoir filling and conduit emptying paths without collapsing
+    the V16 normal-shape loop.
 
 Parallel prep, not blocking the next strategic gate:
 

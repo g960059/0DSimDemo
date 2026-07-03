@@ -162,7 +162,19 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v22-wall-v16transfer-branchmem-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss"
   | "v22-wall-v16transfer-lvrecv-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss"
   | "v22-wall-v16transfer-lvrecv-traj20-mvimplicit05-pr150-fixed8-pv36-mvloss"
-  | "v22-wall-v16transfer-softrecv-traj20-mvimplicit02-pr150-fixed8-pv40-mvsmooth";
+  | "v22-wall-v16transfer-softrecv-traj20-mvimplicit02-pr150-fixed8-pv40-mvsmooth"
+  | "v23-wall-v16area-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvloss"
+  | "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvloss"
+  | "v23-wall-v16area-cap105-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvloss"
+  | "v23-wall-v16area-cap110-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvloss"
+  | "v23-wall-v16area-lvrecv2-traj20-mvimplicit05-pr155-fixed8-pv36-mvloss"
+  | "v23-wall-v16area-lvrecv3-traj20-mvimplicit05-pr160-fixed8-pv36-mvloss"
+  | "v23-wall-v16area-fastrecv-traj20-mvimplicit02-pr155-fixed8-pv36-mvloss"
+  | "v23-wall-v16area-softpv-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv44-mvloss"
+  | "v23-wall-v16area-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite"
+  | "v23-wall-v16area-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite"
+  | "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
+  | "v23-wall-v16area-minloss-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -194,7 +206,8 @@ type VariantFamilyV1 =
   | "full-left-reservoir-conduit-hysteresis-v19"
   | "full-left-reservoir-conduit-hysteresis-v20"
   | "full-left-reservoir-conduit-hysteresis-v21"
-  | "full-left-v16-transfer-hysteresis-v22";
+  | "full-left-v16-transfer-hysteresis-v22"
+  | "full-left-v16-area-receiver-hysteresis-v23";
 
 type VariantV1 = {
   readonly variantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
@@ -849,6 +862,18 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v22-wall-v16transfer-lvrecv-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss", "full-left-v16-transfer-hysteresis-v22", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
   variant("v22-wall-v16transfer-lvrecv-traj20-mvimplicit05-pr150-fixed8-pv36-mvloss", "full-left-v16-transfer-hysteresis-v22", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
   variant("v22-wall-v16transfer-softrecv-traj20-mvimplicit02-pr150-fixed8-pv40-mvsmooth", "full-left-v16-transfer-hysteresis-v22", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 40, 0.075, 0.00044, 6e-6),
+  variant("v23-wall-v16area-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvloss", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvloss", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v23-wall-v16area-cap105-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvloss", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v23-wall-v16area-cap110-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvloss", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v23-wall-v16area-lvrecv2-traj20-mvimplicit05-pr155-fixed8-pv36-mvloss", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v23-wall-v16area-lvrecv3-traj20-mvimplicit05-pr160-fixed8-pv36-mvloss", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v23-wall-v16area-fastrecv-traj20-mvimplicit02-pr155-fixed8-pv36-mvloss", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v23-wall-v16area-softpv-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv44-mvloss", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 44, 0.082, 0.00050, 8e-6),
+  variant("v23-wall-v16area-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
+  variant("v23-wall-v16area-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
+  variant("v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
+  variant("v23-wall-v16area-minloss-lvrecv2-traj20-mvimplicit02-pr155-fixed8-pv36-mvlite", "full-left-v16-area-receiver-hysteresis-v23", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00032, 4e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(
@@ -1655,6 +1680,7 @@ function applyFullLeftRoutingVariant(
     && variantConfig.family !== "full-left-reservoir-conduit-hysteresis-v20"
     && variantConfig.family !== "full-left-reservoir-conduit-hysteresis-v21"
     && variantConfig.family !== "full-left-v16-transfer-hysteresis-v22"
+    && variantConfig.family !== "full-left-v16-area-receiver-hysteresis-v23"
   ) {
     return coordinateBase;
   }
@@ -2031,35 +2057,77 @@ function applyFullLeftRoutingVariant(
         ),
       }
     : variantConfig.family === "full-left-v16-transfer-hysteresis-v22"
+      || variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
       ? {
         ...coordinateBase,
         laLobeGeneratorMode: "av-plane-full-left-v16-transfer-hysteresis-v6" as const,
         laEffectiveGeometryMode: "av-plane-full-left-v16-transfer-hysteresis-v6" as const,
-        laAVPlaneReservoirReferenceGainMl: coordinateBase.laReservoirGeometryGainMl,
-        laAVPlanePressureReferenceMultiplier: 1.50,
+        laAVPlaneReservoirReferenceGainMl: coordinateBase.laReservoirGeometryGainMl
+          * (variantConfig.variantId.includes("cap110")
+            ? 1.10
+            : variantConfig.variantId.includes("cap105")
+              ? 1.05
+              : 1.0),
+        laAVPlanePressureReferenceMultiplier: variantConfig.variantId.includes("pr160")
+          ? 1.60
+          : variantConfig.variantId.includes("pr155")
+            ? 1.55
+            : 1.50,
         laAVPlaneReservoirConduitPressureMemoryGainMmHg: variantConfig.variantId.includes("branchmem")
           ? 0.85
-          : variantConfig.variantId.includes("lvrecv")
+          : variantConfig.variantId.includes("lvrecv") && variantConfig.family === "full-left-v16-transfer-hysteresis-v22"
             ? 0.45
             : 0,
         laAVPlaneReservoirConduitPressureMemoryRiseTauSec: 0.070,
         laAVPlaneReservoirConduitPressureMemoryFallTauSec: 0.44,
         lvEarlyFillingReceiverReliefGainMmHg: variantConfig.variantId.includes("softrecv")
           ? 0.90
+          : variantConfig.variantId.includes("fastrecv")
+            ? 2.00
+          : variantConfig.variantId.includes("lvrecv3")
+            ? 2.25
+          : variantConfig.variantId.includes("lvrecv2")
+            ? 1.85
           : variantConfig.variantId.includes("lvrecv")
             ? 1.45
             : 0,
-        lvEarlyFillingReceiverReliefRiseTauSec: variantConfig.variantId.includes("softrecv") ? 0.050 : 0.040,
-        lvEarlyFillingReceiverReliefFallTauSec: variantConfig.variantId.includes("softrecv") ? 0.24 : 0.20,
-        lvEarlyFillingReceiverReliefStartTheta: 0.34,
-        lvEarlyFillingReceiverReliefEndTheta: variantConfig.variantId.includes("softrecv") ? 0.72 : 0.68,
+        lvEarlyFillingReceiverReliefRiseTauSec: variantConfig.variantId.includes("fastrecv")
+          ? 0.028
+          : variantConfig.variantId.includes("softrecv")
+            ? 0.050
+            : variantConfig.variantId.includes("lvrecv2") || variantConfig.variantId.includes("lvrecv3")
+              ? 0.034
+              : 0.040,
+        lvEarlyFillingReceiverReliefFallTauSec: variantConfig.variantId.includes("softrecv")
+          ? 0.24
+          : variantConfig.variantId.includes("lvrecv2") || variantConfig.variantId.includes("lvrecv3")
+            ? 0.26
+            : 0.20,
+        lvEarlyFillingReceiverReliefStartTheta: variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
+          ? 0.32
+          : 0.34,
+        lvEarlyFillingReceiverReliefEndTheta: variantConfig.variantId.includes("softrecv")
+          ? 0.72
+          : variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
+            ? 0.72
+            : 0.68,
         laAVPlanePrimeVelocityReadbackTauSec: 0,
         laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2: coordinateAccelerationForV14(variantConfig.variantId),
         laAVPlaneImplicitMvStateGain: implicitMvStateGainForV16(variantConfig.variantId),
-        laAVPlaneContinuousMvResidualGain: variantConfig.variantId.includes("lvrecv") ? 0.24 : 0,
+        laAVPlaneContinuousMvResidualGain: variantConfig.variantId.includes("lvrecv3")
+          ? 0.30
+          : variantConfig.variantId.includes("lvrecv2") || variantConfig.variantId.includes("fastrecv")
+            ? 0.28
+            : variantConfig.variantId.includes("lvrecv")
+              ? 0.24
+              : 0,
         laAVPlaneReservoirCapacityRiseTauSec: 0.066,
-        laAVPlaneReservoirCapacityFallTauSec: 0.38,
-        laAVPlaneReservoirCapacityReleaseTauSec: 0.18,
+        laAVPlaneReservoirCapacityFallTauSec: variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
+          ? 0.42
+          : 0.38,
+        laAVPlaneReservoirCapacityReleaseTauSec: variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
+          ? 0.20
+          : 0.18,
         laAVPlaneVenousReservoirCouplingGain: coordinateBase.laAVPlaneVenousReservoirCouplingGain,
         laAVPlaneVenousReservoirMaxFlowMlPerSec: coordinateBase.laAVPlaneVenousReservoirMaxFlowMlPerSec,
       }

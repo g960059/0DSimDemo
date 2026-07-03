@@ -28,7 +28,10 @@ const COLORS = [
 
 const report = runFullLeftAVPlaneResidualRoutingBenchV1({ profileIds: ["normal-hr75"] });
 const rows = report.rows.filter((row) => row.profileId === "normal-hr75");
-const candidateRows = rows
+const pinnedMechanismIds = new Set([
+  "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+]);
+const eligibleRows = rows
   .filter((row) =>
     row.sourceSurfacePass
     && row.mvfClean
@@ -37,14 +40,25 @@ const candidateRows = rows
     && row.hiddenVolumeClean
     && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
     && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
+  );
+const candidateRows = uniqueRowsByVariantId([
+  ...eligibleRows.filter((row) => pinnedMechanismIds.has(row.variantId)),
+  ...eligibleRows,
+])
+  .sort((a, b) =>
+    Number(pinnedMechanismIds.has(b.variantId)) - Number(pinnedMechanismIds.has(a.variantId))
+    || Number(b.sourcePreservingPhasePv) - Number(a.sourcePreservingPhasePv)
+    || Number(b.primeWaveformPass) - Number(a.primeWaveformPass)
+    || b.phasePv.vLoopArea - a.phasePv.vLoopArea
+    || b.phasePv.postOpeningEarlyPressureDropMmHg - a.phasePv.postOpeningEarlyPressureDropMmHg
   )
+  .slice(0, 9)
   .sort((a, b) =>
     Number(b.sourcePreservingPhasePv) - Number(a.sourcePreservingPhasePv)
     || Number(b.primeWaveformPass) - Number(a.primeWaveformPass)
     || b.phasePv.vLoopArea - a.phasePv.vLoopArea
     || b.phasePv.postOpeningEarlyPressureDropMmHg - a.phasePv.postOpeningEarlyPressureDropMmHg
-  )
-  .slice(0, 8);
+  );
 
 const traces = candidateRows.map((row, index) => ({
   row,
@@ -240,4 +254,15 @@ function escapeXml(value: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function uniqueRowsByVariantId<T extends { readonly variantId: string }>(rows: readonly T[]): T[] {
+  const seen = new Set<string>();
+  const unique: T[] = [];
+  for (const row of rows) {
+    if (seen.has(row.variantId)) continue;
+    seen.add(row.variantId);
+    unique.push(row);
+  }
+  return unique;
 }
