@@ -1514,6 +1514,20 @@ Next gates:
     upward-immediate-post-MV-opening, and prime-failed candidates should stay
     out of owner-facing SVG overlays. Next work may focus on normal-HR75 first
     before expanding back to the 7-point envelope.
+97. V16-transfer hysteresis V22: a normal-first follow-up keeps the V16
+    continuous trajectory and implicit-MV state as the shape source while
+    routing it through a weak reservoir-conduit pressure-memory / early-LV
+    receiver ownership mode. This deliberately does not use the stronger
+    V20/V21 coordinate target that crushed V-loop area. The normal-HR75 fast
+    artifact now includes V22 candidates that preserve source/MVF/prime and
+    blood-volume phase quality; the selected LV-receiver V22 keeps normal-HR75
+    and preload-low source-preserving phase clean, improves source/MVF/prime
+    counts to 6/7, 6/7, and 7/7 respectively, and preserves hidden-volume
+    cleanliness 7/7. It is still not broad atrial morphology evidence: the
+    remaining five profiles fail the blood-volume phase gate mainly through
+    small V-loop area, so the next mechanism step should grow the
+    reservoir-conduit hysteresis path without sacrificing the V16 normal-shape
+    conduit downstroke or reintroducing scalar recoil/vertical V-wave artifacts.
 
 Parallel prep, not blocking the next strategic gate:
 

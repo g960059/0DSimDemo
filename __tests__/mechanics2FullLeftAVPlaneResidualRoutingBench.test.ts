@@ -32,11 +32,14 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     );
 
     expect(normalReport.summary.totalProfiles).toBe(1);
-    expect(normalReport.rows).toHaveLength(128);
+    expect(normalReport.rows).toHaveLength(134);
     expect(normalReport.summary.bestOverallVariantId).toBe("v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss");
     expect(normalReport.summary.bestOverallSourcePreservingPhasePv).toBe(1);
     expect(visualCandidates.map((row) => row.variantId)).toContain(
       "v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss",
+    );
+    expect(visualCandidates.map((row) => row.variantId)).toContain(
+      "v22-wall-v16transfer-lvrecv-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss",
     );
     expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0)).toBe(true);
     expect(visualCandidates.every((row) => row.phasePv.postOpeningEarlyVolumeDropMl > 5.0)).toBe(true);
@@ -45,9 +48,9 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records the full-left LA-AV-plane residual routing experiment", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(896);
-    expect(report.variantSummaries).toHaveLength(128);
-    expect(new Set(report.rows.map((row) => row.family)).size).toBe(29);
+    expect(report.rows).toHaveLength(938);
+    expect(report.variantSummaries).toHaveLength(134);
+    expect(new Set(report.rows.map((row) => row.family)).size).toBe(30);
   });
 
   it("keeps x-descent depth and signed-lobe orientation as readbacks instead of hard failures", () => {
@@ -203,6 +206,29 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(v21Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
     expect(v21Rows.some((row) => row.postMvoConduit.earlyConduitMeanLvReceiverReliefMmHg > 0)).toBe(true);
     expect(v21Rows.some((row) => row.phasePv.vLoopArea > 20)).toBe(true);
+  });
+
+  it("records V22 as a V16-shape transfer into weak hysteresis and LV-receiver ownership", () => {
+    const v22VariantId = "v22-wall-v16transfer-lvrecv-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss";
+    const v22Best = summaryFor(v22VariantId);
+    const v22Rows = rowsFor(v22VariantId);
+
+    expect(v22Best.sourcePreservingPhasePv).toBe(2);
+    expect(v22Best.phaseOrientedPvPass).toBe(2);
+    expect(v22Best.sourceSurfacePass).toBe(6);
+    expect(v22Best.mvfClean).toBe(6);
+    expect(v22Best.primeWaveformPass).toBe(7);
+    expect(v22Best.hiddenVolumeClean).toBe(7);
+    expect(v22Best.maxVLoopArea).toBeGreaterThan(70);
+
+    expect(v22Rows.filter((row) => row.sourcePreservingPhasePv).map((row) => row.profileId)).toEqual([
+      "normal-hr75",
+      "preload-low",
+    ]);
+    expect(v22Rows.find((row) => row.profileId === "normal-hr75")!.postMvoConduit.earlyConduitMeanLvReceiverReliefMmHg)
+      .toBeGreaterThan(0);
+    expect(v22Rows.filter((row) => !row.phaseOrientedPvPass)
+      .every((row) => row.phasePv.failureReasons.includes("v-loop-area-too-small"))).toBe(true);
   });
 
   it("keeps owner SVG candidates hidden when no blood/MVF/opening-clean row is visually acceptable", () => {

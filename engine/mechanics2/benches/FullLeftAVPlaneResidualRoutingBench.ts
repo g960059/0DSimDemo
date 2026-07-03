@@ -156,7 +156,13 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v21-force-branchmem-lvrecv-fixed14-pv68-mvsmooth"
   | "v21-wall-branchmem-lvrecv-fixed14-pv68-mvsmooth"
   | "v21-force-branchmem-sourcebal-fixed16-pv72-mvsmooth"
-  | "v21-wall-branchmem-sourcebal-fixed16-pv72-mvsmooth";
+  | "v21-wall-branchmem-sourcebal-fixed16-pv72-mvsmooth"
+  | "v22-wall-v16transfer-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss"
+  | "v22-wall-v16transfer-traj20-mvimplicit05-pr150-fixed8-pv36-mvloss"
+  | "v22-wall-v16transfer-branchmem-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss"
+  | "v22-wall-v16transfer-lvrecv-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss"
+  | "v22-wall-v16transfer-lvrecv-traj20-mvimplicit05-pr150-fixed8-pv36-mvloss"
+  | "v22-wall-v16transfer-softrecv-traj20-mvimplicit02-pr150-fixed8-pv40-mvsmooth";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -187,7 +193,8 @@ type VariantFamilyV1 =
   | "full-left-reservoir-conduit-hysteresis-v18"
   | "full-left-reservoir-conduit-hysteresis-v19"
   | "full-left-reservoir-conduit-hysteresis-v20"
-  | "full-left-reservoir-conduit-hysteresis-v21";
+  | "full-left-reservoir-conduit-hysteresis-v21"
+  | "full-left-v16-transfer-hysteresis-v22";
 
 type VariantV1 = {
   readonly variantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
@@ -836,6 +843,12 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v21-wall-branchmem-lvrecv-fixed14-pv68-mvsmooth", "full-left-reservoir-conduit-hysteresis-v21", "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06", 14, 0.20, 68, 0.058, 0.00032, 4e-6),
   variant("v21-force-branchmem-sourcebal-fixed16-pv72-mvsmooth", "full-left-reservoir-conduit-hysteresis-v21", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 16, 0.18, 72, 0.054, 0.00030, 4e-6),
   variant("v21-wall-branchmem-sourcebal-fixed16-pv72-mvsmooth", "full-left-reservoir-conduit-hysteresis-v21", "wall-work-cap40-drive6-hyd002-stiff2-damp06-vel06", 16, 0.18, 72, 0.054, 0.00030, 4e-6),
+  variant("v22-wall-v16transfer-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss", "full-left-v16-transfer-hysteresis-v22", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v22-wall-v16transfer-traj20-mvimplicit05-pr150-fixed8-pv36-mvloss", "full-left-v16-transfer-hysteresis-v22", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v22-wall-v16transfer-branchmem-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss", "full-left-v16-transfer-hysteresis-v22", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v22-wall-v16transfer-lvrecv-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss", "full-left-v16-transfer-hysteresis-v22", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v22-wall-v16transfer-lvrecv-traj20-mvimplicit05-pr150-fixed8-pv36-mvloss", "full-left-v16-transfer-hysteresis-v22", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v22-wall-v16transfer-softrecv-traj20-mvimplicit02-pr150-fixed8-pv40-mvsmooth", "full-left-v16-transfer-hysteresis-v22", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 40, 0.075, 0.00044, 6e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(
@@ -1641,6 +1654,7 @@ function applyFullLeftRoutingVariant(
     && variantConfig.family !== "full-left-reservoir-conduit-hysteresis-v19"
     && variantConfig.family !== "full-left-reservoir-conduit-hysteresis-v20"
     && variantConfig.family !== "full-left-reservoir-conduit-hysteresis-v21"
+    && variantConfig.family !== "full-left-v16-transfer-hysteresis-v22"
   ) {
     return coordinateBase;
   }
@@ -2015,6 +2029,39 @@ function applyFullLeftRoutingVariant(
           variantConfig.variantId.includes("sourcebal") ? 118 : 104,
           coordinateBase.laAVPlaneVenousReservoirMaxFlowMlPerSec,
         ),
+      }
+    : variantConfig.family === "full-left-v16-transfer-hysteresis-v22"
+      ? {
+        ...coordinateBase,
+        laLobeGeneratorMode: "av-plane-full-left-v16-transfer-hysteresis-v6" as const,
+        laEffectiveGeometryMode: "av-plane-full-left-v16-transfer-hysteresis-v6" as const,
+        laAVPlaneReservoirReferenceGainMl: coordinateBase.laReservoirGeometryGainMl,
+        laAVPlanePressureReferenceMultiplier: 1.50,
+        laAVPlaneReservoirConduitPressureMemoryGainMmHg: variantConfig.variantId.includes("branchmem")
+          ? 0.85
+          : variantConfig.variantId.includes("lvrecv")
+            ? 0.45
+            : 0,
+        laAVPlaneReservoirConduitPressureMemoryRiseTauSec: 0.070,
+        laAVPlaneReservoirConduitPressureMemoryFallTauSec: 0.44,
+        lvEarlyFillingReceiverReliefGainMmHg: variantConfig.variantId.includes("softrecv")
+          ? 0.90
+          : variantConfig.variantId.includes("lvrecv")
+            ? 1.45
+            : 0,
+        lvEarlyFillingReceiverReliefRiseTauSec: variantConfig.variantId.includes("softrecv") ? 0.050 : 0.040,
+        lvEarlyFillingReceiverReliefFallTauSec: variantConfig.variantId.includes("softrecv") ? 0.24 : 0.20,
+        lvEarlyFillingReceiverReliefStartTheta: 0.34,
+        lvEarlyFillingReceiverReliefEndTheta: variantConfig.variantId.includes("softrecv") ? 0.72 : 0.68,
+        laAVPlanePrimeVelocityReadbackTauSec: 0,
+        laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2: coordinateAccelerationForV14(variantConfig.variantId),
+        laAVPlaneImplicitMvStateGain: implicitMvStateGainForV16(variantConfig.variantId),
+        laAVPlaneContinuousMvResidualGain: variantConfig.variantId.includes("lvrecv") ? 0.24 : 0,
+        laAVPlaneReservoirCapacityRiseTauSec: 0.066,
+        laAVPlaneReservoirCapacityFallTauSec: 0.38,
+        laAVPlaneReservoirCapacityReleaseTauSec: 0.18,
+        laAVPlaneVenousReservoirCouplingGain: coordinateBase.laAVPlaneVenousReservoirCouplingGain,
+        laAVPlaneVenousReservoirMaxFlowMlPerSec: coordinateBase.laAVPlaneVenousReservoirMaxFlowMlPerSec,
       }
     : coordinateBase;
   return {
