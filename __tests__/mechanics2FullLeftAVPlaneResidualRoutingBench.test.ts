@@ -11,8 +11,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records a full-left LA-AV-plane residual routing report", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(98);
-    expect(report.variantSummaries).toHaveLength(14);
+    expect(report.rows).toHaveLength(140);
+    expect(report.variantSummaries).toHaveLength(20);
   });
 
   it("finds a source-preserving phase-oriented signal only after full-left residual ownership is added", () => {
@@ -72,6 +72,22 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(smoothWall?.primeWaveformPass).toBe(0);
     expect(smoothWall?.phaseOrientedPvPass).toBe(0);
     expect(smoothWall?.sourcePreservingPhasePv).toBe(0);
+  });
+
+  it("shows V2 coordinate residual ownership preserves the best route but does not fix prime by itself", () => {
+    const v2Force = report.variantSummaries.find((summary) =>
+      summary.variantId === "v2-force-fixed8-pv36-mvsoft"
+    );
+    const v2Wall = report.variantSummaries.find((summary) =>
+      summary.variantId === "v2-wall-fixed8-pv36-mvsoft"
+    );
+    expect(report.summary.bestOverallVariantId).toBe("v2-force-fixed8-pv36-mvsoft");
+    expect(report.summary.bestV2SourcePreservingPhasePv).toBe(3);
+    expect(report.summary.bestV2PhaseOrientedPvPass).toBe(4);
+    expect(report.summary.bestV2SourceSurfacePass).toBe(4);
+    expect(v2Force?.primeWaveformPass).toBe(0);
+    expect(v2Wall?.primeWaveformPass).toBeGreaterThanOrEqual(5);
+    expect(v2Wall?.sourcePreservingPhasePv).toBeLessThan(3);
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {
