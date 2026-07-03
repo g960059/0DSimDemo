@@ -98,7 +98,15 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v12-force-effcav-pr150-fixed10-pv44-mvsoft"
   | "v12-force-effcav-pr150-fixed10-pv44-mvloss"
   | "v12-wall-effcav-pr150-fixed8-pv36-mvloss"
-  | "v12-force-effcav-late12-pr150-fixed10-pv44-mvloss";
+  | "v12-force-effcav-late12-pr150-fixed10-pv44-mvloss"
+  | "v12-force-effcav-pr150-primevel04-fixed8-pv36-mvloss"
+  | "v12-force-effcav-pr150-primevel08-fixed8-pv36-mvloss"
+  | "v12-wall-effcav-pr150-primevel04-fixed8-pv36-mvloss"
+  | "v12-wall-effcav-pr150-primevel08-fixed8-pv36-mvloss"
+  | "v12-force-effcav-pr150-primevel16-fixed8-pv36-mvloss"
+  | "v12-force-effcav-pr150-primevel24-fixed8-pv36-mvloss"
+  | "v12-wall-effcav-pr150-primevel16-fixed8-pv36-mvloss"
+  | "v12-wall-effcav-pr150-primevel24-fixed8-pv36-mvloss";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -507,6 +515,14 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v12-force-effcav-pr150-fixed10-pv44-mvloss", "full-left-effective-cavity-pressure-law-v12", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.086, 0.00054, 8e-6),
   variant("v12-wall-effcav-pr150-fixed8-pv36-mvloss", "full-left-effective-cavity-pressure-law-v12", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
   variant("v12-force-effcav-late12-pr150-fixed10-pv44-mvloss", "full-left-effective-cavity-pressure-law-v12", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 10, 0.26, 44, 0.086, 0.00054, 8e-6),
+  variant("v12-force-effcav-pr150-primevel04-fixed8-pv36-mvloss", "full-left-effective-cavity-pressure-law-v12", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v12-force-effcav-pr150-primevel08-fixed8-pv36-mvloss", "full-left-effective-cavity-pressure-law-v12", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v12-wall-effcav-pr150-primevel04-fixed8-pv36-mvloss", "full-left-effective-cavity-pressure-law-v12", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v12-wall-effcav-pr150-primevel08-fixed8-pv36-mvloss", "full-left-effective-cavity-pressure-law-v12", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v12-force-effcav-pr150-primevel16-fixed8-pv36-mvloss", "full-left-effective-cavity-pressure-law-v12", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v12-force-effcav-pr150-primevel24-fixed8-pv36-mvloss", "full-left-effective-cavity-pressure-law-v12", "force-balance-cap32-drive6-hyd004-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v12-wall-effcav-pr150-primevel16-fixed8-pv36-mvloss", "full-left-effective-cavity-pressure-law-v12", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
+  variant("v12-wall-effcav-pr150-primevel24-fixed8-pv36-mvloss", "full-left-effective-cavity-pressure-law-v12", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00058, 8e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(): FullLeftAVPlaneResidualRoutingReportV1 {
@@ -1086,6 +1102,7 @@ function applyFullLeftRoutingVariant(
         laEffectiveGeometryMode: "av-plane-full-left-effective-cavity-pressure-law-v1" as const,
         laAVPlaneReservoirReferenceGainMl: coordinateBase.laReservoirGeometryGainMl,
         laAVPlanePressureReferenceMultiplier: pressureReferenceMultiplierForV12(variantConfig.variantId),
+        laAVPlanePrimeVelocityReadbackTauSec: primeVelocityReadbackTauSecForV12(variantConfig.variantId),
         laAVPlaneVenousReservoirCouplingGain: coordinateBase.laAVPlaneVenousReservoirCouplingGain,
         laAVPlaneVenousReservoirMaxFlowMlPerSec: coordinateBase.laAVPlaneVenousReservoirMaxFlowMlPerSec,
         laReservoirSuctionStartTheta: variantConfig.variantId.includes("late12")
@@ -1123,6 +1140,16 @@ function pressureReferenceMultiplierForV12(
   if (variantId.includes("pr150")) return 1.50;
   if (variantId.includes("pr175")) return 1.75;
   return 1;
+}
+
+function primeVelocityReadbackTauSecForV12(
+  variantId: FullLeftAVPlaneResidualRoutingVariantIdV1,
+): number {
+  if (variantId.includes("primevel04")) return 0.04;
+  if (variantId.includes("primevel08")) return 0.08;
+  if (variantId.includes("primevel16")) return 0.16;
+  if (variantId.includes("primevel24")) return 0.24;
+  return 0;
 }
 
 function findById<T extends { readonly variantId: string }>(

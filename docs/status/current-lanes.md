@@ -1273,6 +1273,17 @@ Next gates:
     waveform and MV-opening C1 continuity inside the same effective-cavity
     coordinate law, not return to scalar display-axis or blood-volume hidden
     source tricks.
+84. Prime velocity readback smoothing: a V12 follow-up tested whether the
+    rectangular s/e/a-prime proxy was just a readback artifact by applying
+    accepted-coordinate velocity low-pass variants at 0.04, 0.08, 0.16, and
+    0.24 seconds. This is negative for promotion: the best 0.04 s wall variant
+    slightly lowers the maximum prime C1 score (about 1.07 to about 0.96) while
+    preserving the same 4/7 source-preserving effective-cavity phase signal,
+    but no variant reaches prime waveform pass and heavier smoothing worsens the
+    C1 score. Treat readback smoothing as no-go. The next step must make the
+    AV-plane coordinate trajectory itself C1-continuous in the accepted-state
+    residual, while preserving the V12 effective-cavity pressure-law signal,
+    source/MVF cleanliness, and hidden-volume hygiene.
 
 Parallel prep, not blocking the next strategic gate:
 
