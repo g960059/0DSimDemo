@@ -1447,6 +1447,29 @@ Next gates:
     blood-volume V-loop opposition and reservoir-conduit hysteresis inside the
     same LA wall / AV-plane / MV / pulmonary venous residual, not reopen global
     C1 filters or scalar capacity gain sweeps.
+94. Recoil-heavy reservoir-conduit hysteresis V19: the full-left routing bench
+    now tests `av-plane-full-left-reservoir-conduit-hysteresis-v3`, which adds
+    an explicit conduit-recoil capacity-flow residual and a more aggressive
+    MV-opening/MV-forward-flow release target. This is negative evidence for
+    early/strong recoil as the missing mechanism: selected
+    `v19-wall-hyst3-recoil-fixed12-pv60-mvsmooth` keeps hidden-volume
+    cleanliness 7/7 and prime waveform 7/7, but falls to blood phase 0/7 and
+    source-preserving phase 0/7 while V-loop area fails in every profile. The
+    applied pressure relief rises to about 4.49 mmHg and blood x-descent to
+    about 4.16 mmHg, so the remaining blocker is not x-descent depth alone;
+    the recoil compresses the V-loop path instead of preserving a smooth
+    reservoir-to-conduit hysteresis loop. The gate cleanup keeps x-descent
+    depth, signed-lobe polarity, and global fold/kink as readbacks rather than
+    hard failures; hard blood-volume checks focus on V-loop area/separation,
+    immediate post-MV-opening conduit downstroke, local MV-opening transition,
+    source/MVF cleanliness, and hidden-volume hygiene. Owner SVG routing is
+    stricter than the raw phase gate and now hides all current candidates,
+    preventing vertical V-wave / upward-MV-opening / elastance-rise loops from
+    being shown as visual candidates. Next work should stop increasing recoil
+    strength and instead introduce a history/stateful reservoir-conduit
+    hysteresis owner that co-solves AV-plane descent/recoil, LA wall pressure,
+    MV opening/loss, pulmonary venous inflow, and LV ejection/relaxation timing
+    as two smooth paths with shared mass ledger.
 
 Parallel prep, not blocking the next strategic gate:
 
