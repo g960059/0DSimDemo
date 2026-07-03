@@ -1254,6 +1254,25 @@ Next gates:
     capacity, MV opening/loss, pulmonary venous inflow, and LV
     ejection/relaxation timing co-evolve with C1-continuous effective-cavity PV
     morphology and clean mass accounting.
+83. Effective-cavity pressure-law V12: a first coordinate-law replacement
+    keeps blood volume ledger-owned and treats the AV-plane reference/capacity
+    state as the physiology-facing effective cavity for owner visual review.
+    The pressure-applied reference capacity is amplified inside the LA pressure
+    law rather than plotted as hidden blood volume. Best V12
+    `v12-wall-effcav-pr150-fixed8-pv36-mvloss` increases the fixed-blood
+    applied pressure-relief readback to about 3.78 mmHg, improves the
+    effective-cavity/capacity-axis phase signal to 5/7, and preserves
+    source-preserving effective-cavity phase at 4/7 with source 5/7, MVF 6/7,
+    and hidden-volume cleanliness 7/7. It is still not atrial physiology
+    acceptance: strict blood-volume phase remains 0/7, prime waveform remains
+    0/7, preload-low and contractility-low are still hidden from the SVG by the
+    effective/capacity phase or C1 filter, and source/MVF coupling is not fully
+    clean. Treat V12 as a real visual-axis/mechanism signal and as evidence
+    that physiologic x-descent magnitude can be reached without blood-ledger
+    contamination; the next step should own smooth AV-plane velocity/prime
+    waveform and MV-opening C1 continuity inside the same effective-cavity
+    coordinate law, not return to scalar display-axis or blood-volume hidden
+    source tricks.
 
 Parallel prep, not blocking the next strategic gate:
 
