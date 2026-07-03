@@ -1395,6 +1395,23 @@ Next gates:
     trajectory co-solved with MV opening/loss, pulmonary venous inflow, LA wall
     pressure, and LV ejection/relaxation timing, rather than increasing
     reference-capacity gain alone.
+91. Reservoir-conduit hysteresis V17 decision experiment: the full-left
+    routing bench now includes an explicit
+    `av-plane-full-left-reservoir-conduit-hysteresis-v1` mode. It keeps LA
+    blood volume ledger-owned by pulmonary venous and MV flow, drives the
+    AV-plane reference/capacity coordinate with an asymmetric reservoir descent
+    and conduit recoil target, and preserves the strict owner-SVG policy that
+    hides every candidate failing the blood-volume x-descent / v-loop area /
+    MV-opening downstroke / transition gate. The first V17 family is not a
+    promotion path: best V17 has blood phase 0/7 and source-preserving phase
+    0/7, while preserving hidden-volume cleanliness 7/7 and prime waveform 7/7
+    on the best wall/recoil variant. Stronger capacity increases pressure
+    relief but trades away source surface and still does not form opposed
+    blood-volume lobes. Treat this as evidence that trajectory asymmetry is
+    necessary but still too weak/late-owned; the next architecture step should
+    move from target-shaping toward a true co-solved reservoir-conduit state
+    residual that owns the LA wall pressure path, MV q-state opening/loss, and
+    pulmonary venous return through the entire reservoir-to-conduit transition.
 
 Parallel prep, not blocking the next strategic gate:
 

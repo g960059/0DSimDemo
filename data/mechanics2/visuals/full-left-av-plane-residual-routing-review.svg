@@ -22,6 +22,7 @@
 <text x="660" y="362" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V14 continuous trajectory law: v14-wall-effcav-traj20-pr150-fixed8-pv36-mvloss; capacity phase 0/7, capacity source+phase 0/7, source 5/7, MVF 5/7, prime 6/7</text>
 <text x="660" y="382" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V15 MV-coupled trajectory law: v15-wall-effcav-traj20-mvtarget05-pr150-fixed8-pv36-mvloss; capacity phase 0/7, capacity source+phase 0/7, source 5/7, MVF 5/7, prime 6/7</text>
 <text x="660" y="402" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V16 implicit MV-state trajectory law: v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss; capacity phase 0/7, capacity source+phase 0/7, source 5/7, MVF 5/7, prime 6/7</text>
+<text x="660" y="422" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V17 reservoir-conduit hysteresis: v17-wall-hyst-slowrecoil-traj20-pr150-fixed12-pv56-mvsmooth; blood phase 0/7, source+phase 0/7, source 3/7, MVF 4/7, prime 7/7, x-descent 1.66 mmHg</text>
 <line x1="1540" y1="36" x2="1574" y2="36" stroke="#22c55e" stroke-width="3"/>
 <text x="1584" y="41" fill="#22c55e" font-family="Inter,Arial,sans-serif" font-size="12">baseline no AV-plane</text>
 <line x1="1540" y1="58" x2="1574" y2="58" stroke="#f97316" stroke-width="3"/>
@@ -60,6 +61,8 @@
 <text x="1584" y="415" fill="#fb7185" font-family="Inter,Arial,sans-serif" font-size="12">best V15 MV-coupled trajectory</text>
 <line x1="1540" y1="432" x2="1574" y2="432" stroke="#c084fc" stroke-width="3"/>
 <text x="1584" y="437" fill="#c084fc" font-family="Inter,Arial,sans-serif" font-size="12">best V16 implicit MV state</text>
+<line x1="1540" y1="454" x2="1574" y2="454" stroke="#2dd4bf" stroke-width="3"/>
+<text x="1584" y="459" fill="#2dd4bf" font-family="Inter,Arial,sans-serif" font-size="12">best V17 reservoir-conduit hysteresis</text>
 <circle cx="1780" cy="40" r="4.4" fill="#f8fafc" stroke="#111827" stroke-width="1.4"/>
 <text x="1792" y="45" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV opening</text>
 <circle cx="1780" cy="62" r="4.4" fill="#111827" stroke="#f8fafc" stroke-width="1.7"/>
