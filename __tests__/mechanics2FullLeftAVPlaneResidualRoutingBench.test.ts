@@ -11,8 +11,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records a full-left LA-AV-plane residual routing report", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(63);
-    expect(report.variantSummaries).toHaveLength(9);
+    expect(report.rows).toHaveLength(98);
+    expect(report.variantSummaries).toHaveLength(14);
   });
 
   it("finds a source-preserving phase-oriented signal only after full-left residual ownership is added", () => {
@@ -41,6 +41,37 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(bestRows.every((row) => row.hiddenVolumeClean)).toBe(true);
     expect(bestRows.every((row) => !row.primeWaveformPass)).toBe(true);
     expect(report.summary.reviewStatus).toBe("full-left-avp-residual-positive-signal");
+  });
+
+  it("shows state-velocity readback alone does not fix the prime waveform", () => {
+    const force = report.variantSummaries.find((summary) =>
+      summary.variantId === "full-residual-forcebalance-fixed6-pv36-mvsoft"
+    );
+    const readbackForce = report.variantSummaries.find((summary) =>
+      summary.variantId === "state-velocity-force-fixed6-pv36-mvsoft"
+    );
+    const readbackWall = report.variantSummaries.find((summary) =>
+      summary.variantId === "state-velocity-wall-fixed6-pv36-mvsoft"
+    );
+    expect(readbackForce?.sourcePreservingPhasePv).toBe(force?.sourcePreservingPhasePv);
+    expect(readbackForce?.phaseOrientedPvPass).toBe(force?.phaseOrientedPvPass);
+    expect(readbackForce?.primeWaveformPass).toBe(0);
+    expect(readbackWall?.primeWaveformPass).toBe(3);
+  });
+
+  it("rejects smooth AV-plane velocity core as a topology-preserving fix by itself", () => {
+    const smoothForce = report.variantSummaries.find((summary) =>
+      summary.variantId === "smooth-core-force-fixed6-pv36-mvsoft"
+    );
+    const smoothWall = report.variantSummaries.find((summary) =>
+      summary.variantId === "smooth-core-wall-fixed6-pv36-mvsoft"
+    );
+    expect(smoothForce?.primeWaveformPass).toBe(0);
+    expect(smoothForce?.phaseOrientedPvPass).toBe(0);
+    expect(smoothForce?.sourcePreservingPhasePv).toBe(0);
+    expect(smoothWall?.primeWaveformPass).toBe(0);
+    expect(smoothWall?.phaseOrientedPvPass).toBe(0);
+    expect(smoothWall?.sourcePreservingPhasePv).toBe(0);
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {

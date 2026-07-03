@@ -189,6 +189,17 @@ contractility-high still fails output/phase, and the SVG still marks visible PV
 C1 kink locations. Next work should promote the full-left residual family into
 the actual LA wall/AV-plane/MV/PV accepted-state equations rather than add more
 scalar reservoir or isolated prescribed-LV variants.
+A state-velocity readback and smooth-coordinate full-left core follow-up keeps
+the same strict gates and visual SVG. The state-velocity readback variant
+preserves the best #433 source+phase signal exactly (3/7, phase 4/7, source
+4/7, MVF 5/7) but still has prime waveform 0/7, so the prime/C1 blocker is not
+a finite-difference readback artifact. The smooth-coordinate variants also do
+not promote: best smooth core has source+phase 0/7, phase 0/7, source 1/7, MVF
+2/7, prime 0/7, hidden-volume clean 7/7. Treat this as negative evidence
+against smoothing the coordinate/readback in isolation. Next work should own
+`z_AV`, `zDot_AV`, LA wall pressure, MV opening/loss, and pulmonary venous
+inflow as coupled residual unknowns instead of post-readback smoothing or
+scalar coordinate damping.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,
