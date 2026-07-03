@@ -21,9 +21,9 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records the full-left LA-AV-plane residual routing experiment", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(819);
-    expect(report.variantSummaries).toHaveLength(117);
-    expect(new Set(report.rows.map((row) => row.family)).size).toBe(27);
+    expect(report.rows).toHaveLength(854);
+    expect(report.variantSummaries).toHaveLength(122);
+    expect(new Set(report.rows.map((row) => row.family)).size).toBe(28);
   });
 
   it("keeps x-descent depth and signed-lobe orientation as readbacks instead of hard failures", () => {
@@ -39,6 +39,15 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.rows.every((row) => row.hiddenVolumeClean)).toBe(true);
     expect(report.rows.some((row) => row.phaseOrientedPvPass)).toBe(true);
     expect(report.rows.some((row) => row.sourcePreservingPhasePv)).toBe(true);
+  });
+
+  it("keeps the blood V-loop area threshold permissive enough for emerging loops", () => {
+    const v20Rows = rowsFor(report.summary.bestV20VariantId);
+    const preloadLow = v20Rows.find((row) => row.profileId === "preload-low");
+    expect(preloadLow).toBeDefined();
+    expect(preloadLow!.phasePv.vLoopArea).toBeLessThan(55);
+    expect(preloadLow!.phasePv.bloodVLoopAreaPass).toBe(true);
+    expect(preloadLow!.phaseOrientedPvPass).toBe(true);
   });
 
   it("preserves the bounded legacy full-residual signal while keeping source/MVF limits visible", () => {
@@ -71,17 +80,18 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
       ["bestV4", "v4-wall-veltarget-fixed8-pv36-mvsoft", 0, 0, 3, 3],
       ["bestV5", "v5-wall-phaseowned-fixed8-pv36-mvsoft", 0, 0, 0, 3],
       ["bestV6", "v6-force-refcap-fixed8-pv36-mvloss", 1, 1, 5, 0],
-      ["bestV8", "v8-force-refcap-venous-fixed8-pv36-mvloss", 1, 1, 6, 0],
-      ["bestV9", "v9-force-dynref-fixed8-pv36-mvloss", 1, 1, 6, 0],
+      ["bestV8", "v8-force-refcap-venous-fixed8-pv36-mvloss", 2, 2, 6, 0],
+      ["bestV9", "v9-force-dynref-fixed8-pv36-mvloss", 2, 2, 6, 0],
       ["bestV10", "v10-force-separated-fixed8-pv36-mvloss", 0, 1, 0, 0],
-      ["bestV11", "v11-wall-accepted-fixed10-pv44-mvloss", 0, 1, 0, 0],
-      ["bestV12", "v12-force-effcav-pr150-fixed10-pv44-mvsoft", 0, 0, 4, 0],
-      ["bestV13", "v13-wall-effcav-c1accel16-pr150-fixed8-pv36-mvloss", 1, 1, 5, 1],
-      ["bestV14", "v14-wall-effcav-traj20-pr150-fixed8-pv36-mvloss", 1, 1, 5, 6],
-      ["bestV15", "v15-wall-effcav-traj20-mvtarget05-pr150-fixed8-pv36-mvloss", 1, 1, 5, 6],
-      ["bestV16", "v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss", 1, 1, 5, 6],
+      ["bestV11", "v11-wall-accepted-fixed10-pv44-mvloss", 0, 2, 0, 0],
+      ["bestV12", "v12-wall-effcav-pr150-fixed8-pv36-mvloss", 1, 1, 5, 0],
+      ["bestV13", "v13-wall-effcav-c1accel12-pr150-fixed8-pv36-mvloss", 2, 2, 4, 0],
+      ["bestV14", "v14-force-effcav-traj14-pr175-fixed10-pv44-mvloss", 1, 1, 6, 0],
+      ["bestV15", "v15-force-effcav-traj14-mvtarget10-pr175-fixed10-pv44-mvloss", 1, 1, 6, 0],
+      ["bestV16", "v16-wall-effcav-traj20-mvimplicit02-pr150-fixed8-pv36-mvloss", 2, 2, 5, 6],
       ["bestV17", "v17-force-hyst-traj20-pr175-fixed12-pv52-mvloss", 1, 1, 6, 2],
       ["bestV18", "v18-wall-hyst2-retain-fixed12-pv56-mvsmooth", 1, 1, 3, 7],
+      ["bestV20", "v20-force-hyststate-slowpath-fixed14-pv64-mvsmooth", 1, 1, 4, 6],
     ] as const;
 
     for (const [prefix, variantId, sourcePhase, phase, source, prime] of expected) {
@@ -100,13 +110,13 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     const v19Rows = rowsFor(report.summary.bestV19VariantId);
 
     expect(report.summary.bestV19VariantId).toBe("v19-wall-hyst3-recoil-fixed12-pv60-mvsmooth");
-    expect(report.summary.bestV19SourcePreservingPhasePv).toBe(0);
-    expect(report.summary.bestV19PhaseOrientedPvPass).toBe(0);
+    expect(report.summary.bestV19SourcePreservingPhasePv).toBe(1);
+    expect(report.summary.bestV19PhaseOrientedPvPass).toBe(1);
     expect(report.summary.bestV19SourceSurfacePass).toBe(3);
     expect(report.summary.bestV19MvfClean).toBe(4);
     expect(report.summary.bestV19PrimeWaveformPass).toBe(7);
-    expect(report.summary.bestV19CapacityAxisPhaseOrientedPvPass).toBe(4);
-    expect(report.summary.bestV19SourcePreservingCapacityAxisPhasePv).toBe(1);
+    expect(report.summary.bestV19CapacityAxisPhaseOrientedPvPass).toBe(6);
+    expect(report.summary.bestV19SourcePreservingCapacityAxisPhasePv).toBe(3);
     expect(report.summary.bestV19MaxReferenceCapacityShiftMl).toBeGreaterThan(20);
     expect(report.summary.bestV19MaxAppliedFixedBloodPressureReliefMmHg).toBeGreaterThan(4);
     expect(report.summary.bestV19MaxBloodXDescentPressureDropMmHg).toBeGreaterThan(4);
@@ -115,10 +125,37 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(v19Best.primeWaveformPass).toBe(v18Best.primeWaveformPass);
     expect(v19Best.maxVLoopArea).toBeLessThan(v18Best.maxVLoopArea);
     expect(v19Rows).toHaveLength(7);
-    expect(v19Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
-    expect(v19Rows.every((row) => row.phasePv.failureReasons.includes("v-loop-area-too-small"))).toBe(true);
+    expect(v19Rows.filter((row) => row.phaseOrientedPvPass).map((row) => row.profileId)).toEqual([
+      "preload-low",
+    ]);
+    expect(v19Rows.filter((row) => !row.phaseOrientedPvPass)
+      .every((row) => row.phasePv.failureReasons.includes("v-loop-area-too-small"))).toBe(true);
     expect(v19Rows.every((row) => !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")))
       .toBe(true);
+  });
+
+  it("records V20 stateful reservoir-conduit hysteresis as source-cleaner with one bounded phase signal", () => {
+    const v20Best = summaryFor(report.summary.bestV20VariantId);
+    const v20Rows = rowsFor(report.summary.bestV20VariantId);
+
+    expect(report.summary.bestV20VariantId).toBe("v20-force-hyststate-slowpath-fixed14-pv64-mvsmooth");
+    expect(report.summary.bestV20SourcePreservingPhasePv).toBe(1);
+    expect(report.summary.bestV20PhaseOrientedPvPass).toBe(1);
+    expect(report.summary.bestV20SourceSurfacePass).toBe(4);
+    expect(report.summary.bestV20MvfClean).toBe(5);
+    expect(report.summary.bestV20PrimeWaveformPass).toBe(6);
+    expect(report.summary.bestV20CapacityAxisPhaseOrientedPvPass).toBe(5);
+    expect(report.summary.bestV20SourcePreservingCapacityAxisPhasePv).toBe(3);
+
+    expect(v20Best.hiddenVolumeClean).toBe(7);
+    expect(v20Best.maxTransactionResidualNormMl).toBeLessThan(0.25);
+    expect(v20Best.maxVLoopArea).toBeGreaterThan(summaryFor(report.summary.bestV19VariantId).maxVLoopArea);
+    expect(v20Rows).toHaveLength(7);
+    expect(v20Rows.filter((row) => row.phaseOrientedPvPass).map((row) => row.profileId)).toEqual([
+      "preload-low",
+    ]);
+    expect(v20Rows.filter((row) => !row.phaseOrientedPvPass)
+      .every((row) => row.phasePv.failureReasons.includes("v-loop-area-too-small"))).toBe(true);
   });
 
   it("keeps owner SVG candidates hidden when no blood/MVF/opening-clean row is visually acceptable", () => {
