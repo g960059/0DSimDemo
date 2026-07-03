@@ -64,6 +64,46 @@ const pinnedMechanismIds = new Set([
   "v29-wall-v16pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
   "v29-wall-v16pathmem90-relief20-phaselock02-lvrecv4-rcapfast-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
   "v29-wall-v16pathmem75-relief16-longmemory-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v30-wall-v16cup-visco4-pathmem90-relief45-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
+  "v30-wall-v16cup-visco6-pathmem90-relief45-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
+  "v30-wall-v16cup-visco6-pathmem100-relief60-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed12-pv48-mvloss",
+  "v30-wall-v16cup-visco8-pathmem100-relief60-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed12-pv48-mvloss",
+  "v30-wall-v16cup-visco6-pathmem90-relief45-phaselock06-lvrecv4-rcapfast-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
+  "v30-wall-v16cup-visco8-pathmem90-relief45-phaselock04-lvrecv4-rcapfast-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
+  "v30-wall-v16cup-visco6-pathmem75-relief36-cupsoft-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
+  "v30-wall-v16cup-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
+  "v31-wall-v16cap125-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v31-wall-v16cap125-pathmem90-relief20-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v31-wall-v16cap150-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite",
+  "v31-wall-v16cap150-pathmem90-relief20-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite",
+  "v31-wall-v16cap125-visco25-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v31-wall-v16cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v31-wall-v16cap150-visco25-pathmem75-relief16-phaselock03-lvrecv2-rcapslow-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite",
+  "v31-wall-v16cap125-pathmem100-relief20-softpath-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref8-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref12-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref16-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref12-cap150-visco25-pathmem75-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite",
+  "v32-wall-v16lvref16-cap150-visco25-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite",
+  "v32-wall-v16lvref20-cap150-visco25-pathmem90-relief20-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite",
+  "v32-wall-v16lvref80-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref32-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref52-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv6-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv6-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv8-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv8-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv12-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv12-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref60-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref64-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref120-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref80-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
 ]);
 const eligibleRows = rows
   .filter((row) =>
@@ -148,7 +188,10 @@ function isCurrentNormalFirstFamily(family: string): boolean {
     || family === "full-left-v16-phase-locked-avplane-hysteresis-v26"
     || family === "full-left-normal-first-large-vloop-hysteresis-v27"
     || family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
-    || family === "full-left-normal-first-path-state-hysteresis-v29";
+    || family === "full-left-normal-first-path-state-hysteresis-v29"
+    || family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+    || family === "full-left-normal-first-capacity-path-hysteresis-v31"
+    || family === "full-left-normal-first-lv-reference-receiver-v32";
 }
 
 function renderPvPanel(

@@ -1625,7 +1625,7 @@ Next gates:
     pressure, pulmonary venous inflow, MV opening/loss, LV receiver relaxation,
     and phase-locked AV-plane descent/recoil. Do not reintroduce effective-axis
     acceptance or prime-waveform gating while this residual is being isolated.
-102. Normal-first path-state hysteresis V29: PR #462 now tests an explicit
+102. Normal-first path-state / capacity-path hysteresis V29-V32: PR #462 now tests an explicit
     `laReservoirConduitPathMemory01` plus `laReservoirConduitPathReliefMmHg`
     state in the same LA-MV-LV accepted transaction, layered on the useful V28
     wall-viscoelastic hysteresis signal. The mechanism charges path memory
@@ -1640,17 +1640,51 @@ Next gates:
     partial: the same candidate is phase-clean in 6/7 but source-preserving only
     4/7, with preload-low and contractility-high limited by MVF cleanliness and
     contractility-low still failing small V-loop area plus MVF/kink. The
+    follow-up V30 conduit-cup family is negative as a promotion path: it expands
+    normal-HR75 V-loop area up to about 93, but does so by producing MVF
+    three-peak / transaction-residual failures, so the dirty rows stay in JSON
+    evidence and are excluded from owner-facing SVG triage. V31 keeps the
+    V29-style clean path state, increases AV-plane reference/capacity ownership,
+    and gives the best normal-first positive signal so far:
+    `v31-wall-v16cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite`
+    is normal-HR75 source/MVF/blood-phase/hidden-volume clean with blood V-loop
+    area about 57.5 and post-MV-opening pressure / volume drop about
+    3.50 mmHg / 6.83 mL. Broad envelope remains partial for the same candidate:
+    source-preserving 4/7, phase-clean 6/7, hidden-volume clean 7/7, with
+    preload-low and contractility-high limited by MVF cleanliness and
+    contractility-low limited by mass/clamp plus small area. The
     normal-HR75 SVG is blood-only and overlays phase colors on the primary trace
     (reservoir, conduit, pumping) to avoid effective-axis visual false positives.
-    Visual review remains negative for adoption: the V-loop is no longer the
-    vertical/upward-MV-opening failure mode, but it is still too triangular and
-    lacks the rounded reservoir-conduit hysteresis seen in the Nature reference.
-    Next work should not broaden gates yet; stay normal-HR75-first and target
-    conduit curvature/y-valley ownership, likely by making the early LV receiver
-    and MV flow path create an initially steep pressure descent followed by a
-    slower pressure recovery while LA volume continues to empty. Keep V-loop
-    area permissive as a growable residual; keep effective/capacity PV and prime
-    waveform outside the current acceptance/display surface.
+    Visual review remains negative for adoption but improved: the V-loop is no
+    longer the vertical/upward-MV-opening failure mode and the area is larger,
+    but the reservoir and conduit limbs remain too straight/triangular versus
+    the rounded Nature reference. Next work should stay normal-HR75-first and
+    target conduit curvature/y-valley ownership, preferably by separating the
+    area-making AV-plane/capacity state from MVF-safe LV receiver flow rather
+    than increasing direct LA pressure relief. Keep V-loop area permissive as a
+    growable residual; keep effective/capacity PV and prime waveform outside the
+    current acceptance/display surface. V32 adds an explicit LV early-filling
+    receiver reference-volume shift inside the LV one-fiber chamber pressure
+    law, so the LV receiver can lower early-diastolic LV pressure by changing
+    receiving capacity rather than acting only as scalar LA pressure relief. The
+    current normal-HR75 best row
+    `v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite`
+    is source/MVF/blood-phase/hidden-volume clean, raises blood V-loop area to
+    about 72.2, and deepens the post-MV-opening pressure / volume drop to about
+    4.84 mmHg / 11.02 mL with max LV receiver reference shift about 14.2 mL.
+    This is the strongest normal-HR75 blood-coordinate signal so far and the
+    owner-facing SVG remains blood-PV only. It is still not a promotion path:
+    broad 7-profile evidence for the same row is source-preserving 5/7,
+    phase-clean 6/7, MVF clean 6/7, hidden-volume clean 7/7; contractility-low
+    is limited by mass/clamp plus small V-loop area, and contractility-high is
+    limited by MVF/output ratio. Visual review is improved but still not
+    reference-like: the V loop is larger, yet the conduit limb remains too
+    straight/diagonal and lacks the rounded reservoir-conduit belly seen in the
+    Nature LA1/LA10/LA11 references. Next work should keep the V32 LV receiver
+    reference-shift lead, deepen true early-diastolic LV receiving/relaxation
+    ownership, and build reservoir-conduit hysteresis/curvature without using
+    effective-cavity axes, prime waveforms, or capacity-axis success as
+    acceptance.
 
 Parallel prep, not blocking the next strategic gate:
 

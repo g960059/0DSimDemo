@@ -222,6 +222,7 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly lvEarlyFillingReceiverCapacityGain01: number;
   readonly lvEarlyFillingReceiverCapacityRiseTauSec: number;
   readonly lvEarlyFillingReceiverCapacityFallTauSec: number;
+  readonly lvEarlyFillingReceiverReferenceGainMl: number;
   readonly laMvLvReceiverPathGain01: number;
   readonly laMvLvReceiverPathRiseTauSec: number;
   readonly laMvLvReceiverPathFallTauSec: number;
@@ -258,6 +259,7 @@ export type LeftHeartSubsystemStateV2 = {
   readonly laMvLvReceiverPath01: number;
   readonly lvEarlyFillingReceiverCapacity01: number;
   readonly lvEarlyFillingReceiverReliefMmHg: number;
+  readonly lvEarlyFillingReceiverReferenceVolumeShiftMl: number;
   readonly laBoosterPressureDrive01: number;
   readonly clampCount: number;
 };
@@ -312,6 +314,7 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly laMvLvReceiverPath01: number;
   readonly lvEarlyFillingReceiverCapacity01: number;
   readonly lvEarlyFillingReceiverReliefMmHg: number;
+  readonly lvEarlyFillingReceiverReferenceVolumeShiftMl: number;
   readonly laBoosterGeometryDeltaMl: number;
   readonly laEffectiveGeometryHiddenBloodVolumeSourceMl: number;
   readonly laAPrimeProxyCmPerSec: number | null;
@@ -427,6 +430,7 @@ type AcceptedV2 = CandidateV2 & {
   readonly laReservoirConduitPathMemory01: number;
   readonly laReservoirConduitPathReliefMmHg: number;
   readonly lvEarlyFillingReceiverReliefMmHg: number;
+  readonly lvEarlyFillingReceiverReferenceVolumeShiftMl: number;
   readonly laBoosterPressureDrive01: number;
   readonly laBoosterPressureMmHg: number;
   readonly laBoosterGeometryDeltaMl: number;
@@ -597,6 +601,8 @@ export function defaultLeftHeartSubsystemParamsV2(
       overrides.lvEarlyFillingReceiverCapacityRiseTauSec ?? 0.038,
     lvEarlyFillingReceiverCapacityFallTauSec:
       overrides.lvEarlyFillingReceiverCapacityFallTauSec ?? 0.22,
+    lvEarlyFillingReceiverReferenceGainMl:
+      overrides.lvEarlyFillingReceiverReferenceGainMl ?? 0,
     laMvLvReceiverPathGain01:
       overrides.laMvLvReceiverPathGain01 ?? 0,
     laMvLvReceiverPathRiseTauSec:
@@ -892,6 +898,8 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       laMvLvReceiverPath01: accepted.laMvLvReceiverPath01,
       lvEarlyFillingReceiverCapacity01: accepted.lvEarlyFillingReceiverCapacity01,
       lvEarlyFillingReceiverReliefMmHg: accepted.lvEarlyFillingReceiverReliefMmHg,
+      lvEarlyFillingReceiverReferenceVolumeShiftMl:
+        accepted.lvEarlyFillingReceiverReferenceVolumeShiftMl,
       laAPrimeProxyCmPerSec: accepted.avPlaneGeometryReadback.aPrimeProxyCmPerSec,
       laLobeGeneratorMode: params.laLobeGeneratorMode,
       laReservoirSuctionDrive01: accepted.laReservoirSuctionDrive01,
@@ -986,6 +994,16 @@ function acceptLeftHeartCandidateV2(input: {
   readonly theta: number;
   readonly params: LeftHeartSubsystemParamsV2;
 }): AcceptedV2 {
+  const lvEarlyFillingReceiverReferenceVolumeShiftMl =
+    lvEarlyFillingReceiverReferenceVolumeShiftMlFor(
+      input.params,
+      input.candidate.lvEarlyFillingReceiverCapacity01,
+    );
+  const previousLvEarlyFillingReceiverReferenceVolumeShiftMl =
+    lvEarlyFillingReceiverReferenceVolumeShiftMlFor(
+      input.params,
+      input.previous.lvEarlyFillingReceiverCapacity01,
+    );
   const lvChamber = stepOneFiberChamberV1(input.previousLvState, {
     tSec: input.tSec,
     dtSec: input.dtSec,
@@ -993,6 +1011,8 @@ function acceptLeftHeartCandidateV2(input: {
     activationTimeSec: input.activationTimeSec,
     cavityVolumeMl: input.candidate.lvVolumeMl,
     previousCavityVolumeMl: input.previous.lvVolumeMl,
+    referenceCavityVolumeShiftMl: lvEarlyFillingReceiverReferenceVolumeShiftMl,
+    previousReferenceCavityVolumeShiftMl: previousLvEarlyFillingReceiverReferenceVolumeShiftMl,
   }, input.params.lv);
   const laReservoirSuctionDrive01 = nextLaReservoirSuctionDrive01(
     input.previousLaReservoirSuctionDrive01,
@@ -1718,6 +1738,7 @@ function acceptLeftHeartCandidateV2(input: {
     laMvLvReceiverPath01,
     lvEarlyFillingReceiverCapacity01,
     lvEarlyFillingReceiverReliefMmHg,
+    lvEarlyFillingReceiverReferenceVolumeShiftMl,
     laReservoirGeometryDeltaMl,
     laReservoirReferenceVolumeShiftMl,
     laBoosterPressureDrive01,
@@ -2727,6 +2748,15 @@ function usesLvEarlyFillingReceiverCapacityState(params: LeftHeartSubsystemParam
   return Math.max(0, params.lvEarlyFillingReceiverCapacityGain01) > 0;
 }
 
+function lvEarlyFillingReceiverReferenceVolumeShiftMlFor(
+  params: LeftHeartSubsystemParamsV2,
+  receiverCapacity01: number,
+): number {
+  if (!usesLvEarlyFillingReceiverCapacityState(params)) return 0;
+  return Math.max(0, params.lvEarlyFillingReceiverReferenceGainMl)
+    * clamp(receiverCapacity01, 0, 1);
+}
+
 function laMvLvReceiverPathTarget01For(input: {
   readonly params: LeftHeartSubsystemParamsV2;
   readonly theta: number;
@@ -2833,6 +2863,7 @@ function lvEarlyFillingReceiverCapacityTarget01For(input: {
   const conduitPath01 = clamp(input.path01, 0, 1);
   const receiverPath01 = clamp(input.receiverPath01, 0, 1);
   const previousCapacity01 = clamp(input.previous.lvEarlyFillingReceiverCapacity01, 0, 1);
+  const referenceReceiverBoost01 = smoothstep01(params.lvEarlyFillingReceiverReferenceGainMl / 80);
   const capacityTarget01 =
     mvOpenDrive01
     * earlyDiastolicDrive01
@@ -2840,7 +2871,13 @@ function lvEarlyFillingReceiverCapacityTarget01For(input: {
     * (0.32 + 0.36 * mvForwardFlowDrive01 + 0.20 * previousMvForwardDrive01
       + 0.12 * mvForwardAccelerationDrive01)
     * (0.64 + 0.36 * laToLvGradientDrive01);
-  return gain01 * clamp(capacityTarget01, 0, 1);
+  const referenceReceiverCapacityTarget01 =
+    capacityTarget01 * (1 + 1.55 * referenceReceiverBoost01)
+    + referenceReceiverBoost01
+      * mvOpenDrive01
+      * earlyDiastolicDrive01
+      * (0.08 + 0.18 * mvForwardFlowDrive01 + 0.10 * previousCapacity01);
+  return gain01 * clamp(referenceReceiverCapacityTarget01, 0, 1);
 }
 
 function nextLvEarlyFillingReceiverCapacity01(
@@ -2882,6 +2919,7 @@ function lvEarlyFillingReceiverReliefTargetMmHgFor(input: {
   const receiverCapacity01 = usesLvEarlyFillingReceiverCapacityState(params)
     ? clamp(input.receiverCapacity01, 0, 1)
     : 0;
+  const referenceReceiverBoost01 = smoothstep01(params.lvEarlyFillingReceiverReferenceGainMl / 80);
   const pathMix01 = usesLaMvLvReceiverPathState(params)
     ? clamp(0.22 + 0.66 * conduitPath01 + 0.20 * receiverPath01 + 0.18 * receiverCapacity01, 0, 1)
     : 0.24 + 0.76 * conduitPath01;
@@ -2898,7 +2936,14 @@ function lvEarlyFillingReceiverReliefTargetMmHgFor(input: {
     * (0.28 + 0.46 * mvForwardFlowDrive01 + 0.16 * previousMvForwardDrive01
       + 0.10 * receiverCapacity01)
     * (0.60 + 0.40 * laToLvGradientDrive01);
-  return gainMmHg * clamp(receiverDrive01, 0, 1);
+  const referenceReceiverDrive01 =
+    referenceReceiverBoost01
+    * mvOpenDrive01
+    * earlyDiastolicDrive01
+    * pathMix01
+    * (0.10 + 0.28 * mvForwardFlowDrive01 + 0.12 * receiverCapacity01)
+    * (0.52 + 0.48 * laToLvGradientDrive01);
+  return gainMmHg * clamp(receiverDrive01 + referenceReceiverDrive01, 0, 1);
 }
 
 function nextLvEarlyFillingReceiverReliefMmHg(

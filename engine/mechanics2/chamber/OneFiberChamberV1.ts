@@ -27,12 +27,15 @@ export type OneFiberChamberInputV1 = {
   readonly activationTimeSec: number;
   readonly cavityVolumeMl: number;
   readonly previousCavityVolumeMl: number;
+  readonly referenceCavityVolumeShiftMl?: number;
+  readonly previousReferenceCavityVolumeShiftMl?: number;
 };
 
 export type OneFiberChamberOutputV1 = {
   readonly state: OneFiberChamberStateV1;
   readonly chamberId: OneFiberChamberParamsV1["chamberId"];
   readonly cavityVolumeMl: number;
+  readonly referenceCavityVolumeShiftMl: number;
   readonly vMidMl: number;
   readonly aMidM2: number;
   readonly rMidM: number;
@@ -85,8 +88,17 @@ export function stepOneFiberChamberV1(
   params: OneFiberChamberParamsV1,
 ): OneFiberChamberOutputV1 {
   const dtSec = Math.max(input.dtSec, 1e-6);
-  const lS = lengthFromVolume(input.cavityVolumeMl, params);
-  const lSPrev = lengthFromVolume(input.previousCavityVolumeMl, params);
+  const referenceCavityVolumeShiftMl = Math.max(0, input.referenceCavityVolumeShiftMl ?? 0);
+  const previousReferenceCavityVolumeShiftMl = Math.max(
+    0,
+    input.previousReferenceCavityVolumeShiftMl ?? referenceCavityVolumeShiftMl,
+  );
+  const lS = lengthFromVolumeWithReferenceShift(input.cavityVolumeMl, referenceCavityVolumeShiftMl, params);
+  const lSPrev = lengthFromVolumeWithReferenceShift(
+    input.previousCavityVolumeMl,
+    previousReferenceCavityVolumeShiftMl,
+    params,
+  );
   const fiber = stepHillSeriesFiberV1(previous.fiber, {
     tSec: input.tSec,
     dtSec,
@@ -104,6 +116,7 @@ export function stepOneFiberChamberV1(
     state: { fiber: fiber.state },
     chamberId: params.chamberId,
     cavityVolumeMl: input.cavityVolumeMl,
+    referenceCavityVolumeShiftMl,
     vMidMl: geometry.vMidMl,
     aMidM2: geometry.aMidM2,
     rMidM: geometry.rMidM,
@@ -126,8 +139,19 @@ export function stepOneFiberChamberV1(
 }
 
 function lengthFromVolume(cavityVolumeMl: number, params: OneFiberChamberParamsV1): number {
+  return lengthFromVolumeWithReferenceShift(cavityVolumeMl, 0, params);
+}
+
+function lengthFromVolumeWithReferenceShift(
+  cavityVolumeMl: number,
+  referenceCavityVolumeShiftMl: number,
+  params: OneFiberChamberParamsV1,
+): number {
   const amid = midwallAreaM2(cavityVolumeMl, params.wallVolumeMl);
-  const amidRef = midwallAreaM2(params.referenceCavityVolumeMl, params.wallVolumeMl);
+  const amidRef = midwallAreaM2(
+    params.referenceCavityVolumeMl + Math.max(0, referenceCavityVolumeShiftMl),
+    params.wallVolumeMl,
+  );
   return params.lSRef * Math.sqrt(amid / Math.max(amidRef, 1e-12));
 }
 

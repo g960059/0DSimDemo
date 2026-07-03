@@ -217,7 +217,47 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v29-wall-v16pathmem100-relief28-softpath-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
   | "v29-wall-v16pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
   | "v29-wall-v16pathmem90-relief20-phaselock02-lvrecv4-rcapfast-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
-  | "v29-wall-v16pathmem75-relief16-longmemory-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite";
+  | "v29-wall-v16pathmem75-relief16-longmemory-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite"
+  | "v30-wall-v16cup-visco4-pathmem90-relief45-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss"
+  | "v30-wall-v16cup-visco6-pathmem90-relief45-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss"
+  | "v30-wall-v16cup-visco6-pathmem100-relief60-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed12-pv48-mvloss"
+  | "v30-wall-v16cup-visco8-pathmem100-relief60-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed12-pv48-mvloss"
+  | "v30-wall-v16cup-visco6-pathmem90-relief45-phaselock06-lvrecv4-rcapfast-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss"
+  | "v30-wall-v16cup-visco8-pathmem90-relief45-phaselock04-lvrecv4-rcapfast-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss"
+  | "v30-wall-v16cup-visco6-pathmem75-relief36-cupsoft-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss"
+  | "v30-wall-v16cup-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss"
+  | "v31-wall-v16cap125-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v31-wall-v16cap125-pathmem90-relief20-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v31-wall-v16cap150-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite"
+  | "v31-wall-v16cap150-pathmem90-relief20-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite"
+  | "v31-wall-v16cap125-visco25-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v31-wall-v16cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v31-wall-v16cap150-visco25-pathmem75-relief16-phaselock03-lvrecv2-rcapslow-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite"
+  | "v31-wall-v16cap125-pathmem100-relief20-softpath-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref8-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref12-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref16-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref12-cap150-visco25-pathmem75-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite"
+  | "v32-wall-v16lvref16-cap150-visco25-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite"
+  | "v32-wall-v16lvref20-cap150-visco25-pathmem90-relief20-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite"
+  | "v32-wall-v16lvref80-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref32-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref52-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv6-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv6-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv8-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv8-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv12-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv12-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref60-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref64-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref120-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref80-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite"
+  | "v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -256,7 +296,10 @@ type VariantFamilyV1 =
   | "full-left-v16-phase-locked-avplane-hysteresis-v26"
   | "full-left-normal-first-large-vloop-hysteresis-v27"
   | "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
-  | "full-left-normal-first-path-state-hysteresis-v29";
+  | "full-left-normal-first-path-state-hysteresis-v29"
+  | "full-left-normal-first-conduit-cup-hysteresis-v30"
+  | "full-left-normal-first-capacity-path-hysteresis-v31"
+  | "full-left-normal-first-lv-reference-receiver-v32";
 
 type VariantV1 = {
   readonly variantId: FullLeftAVPlaneResidualRoutingVariantIdV1;
@@ -370,6 +413,7 @@ type RowV1 = {
   readonly maxReferenceCapacityShiftMl: number;
   readonly maxPressureReferenceCapacityMl: number;
   readonly maxEffectiveCavityCapacityMl: number;
+  readonly maxLvReceiverReferenceVolumeShiftMl: number;
   readonly maxCounterfactualFixedBloodPressureReliefMmHg: number;
   readonly maxAppliedFixedBloodPressureReliefMmHg: number;
   readonly maxBloodXDescentPressureDropMmHg: number;
@@ -966,6 +1010,46 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v29-wall-v16pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-normal-first-path-state-hysteresis-v29", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
   variant("v29-wall-v16pathmem90-relief20-phaselock02-lvrecv4-rcapfast-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-normal-first-path-state-hysteresis-v29", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
   variant("v29-wall-v16pathmem75-relief16-longmemory-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite", "full-left-normal-first-path-state-hysteresis-v29", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 8, 0.30, 36, 0.090, 0.00044, 6e-6),
+  variant("v30-wall-v16cup-visco4-pathmem90-relief45-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss", "full-left-normal-first-conduit-cup-hysteresis-v30", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00062, 10e-6),
+  variant("v30-wall-v16cup-visco6-pathmem90-relief45-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss", "full-left-normal-first-conduit-cup-hysteresis-v30", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00062, 10e-6),
+  variant("v30-wall-v16cup-visco6-pathmem100-relief60-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed12-pv48-mvloss", "full-left-normal-first-conduit-cup-hysteresis-v30", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 12, 0.22, 48, 0.078, 0.00068, 12e-6),
+  variant("v30-wall-v16cup-visco8-pathmem100-relief60-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed12-pv48-mvloss", "full-left-normal-first-conduit-cup-hysteresis-v30", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 12, 0.22, 48, 0.078, 0.00068, 12e-6),
+  variant("v30-wall-v16cup-visco6-pathmem90-relief45-phaselock06-lvrecv4-rcapfast-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss", "full-left-normal-first-conduit-cup-hysteresis-v30", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00062, 10e-6),
+  variant("v30-wall-v16cup-visco8-pathmem90-relief45-phaselock04-lvrecv4-rcapfast-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss", "full-left-normal-first-conduit-cup-hysteresis-v30", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00062, 10e-6),
+  variant("v30-wall-v16cup-visco6-pathmem75-relief36-cupsoft-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss", "full-left-normal-first-conduit-cup-hysteresis-v30", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00062, 10e-6),
+  variant("v30-wall-v16cup-visco4-pathmem75-relief36-cupsoft-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss", "full-left-normal-first-conduit-cup-hysteresis-v30", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00062, 10e-6),
+  variant("v31-wall-v16cap125-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-capacity-path-hysteresis-v31", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v31-wall-v16cap125-pathmem90-relief20-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-capacity-path-hysteresis-v31", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v31-wall-v16cap150-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite", "full-left-normal-first-capacity-path-hysteresis-v31", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v31-wall-v16cap150-pathmem90-relief20-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite", "full-left-normal-first-capacity-path-hysteresis-v31", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v31-wall-v16cap125-visco25-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-capacity-path-hysteresis-v31", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v31-wall-v16cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-capacity-path-hysteresis-v31", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v31-wall-v16cap150-visco25-pathmem75-relief16-phaselock03-lvrecv2-rcapslow-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite", "full-left-normal-first-capacity-path-hysteresis-v31", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v31-wall-v16cap125-pathmem100-relief20-softpath-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-capacity-path-hysteresis-v31", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref8-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref12-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref16-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref12-cap150-visco25-pathmem75-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref16-cap150-visco25-pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref20-cap150-visco25-pathmem90-relief20-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr200-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref80-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref32-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref52-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv6-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv6-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv8-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv8-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv12-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv12-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref60-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref64-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref120-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref80-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(
@@ -1753,6 +1837,9 @@ function applyFullLeftRoutingVariant(
     && variantConfig.family !== "full-left-normal-first-large-vloop-hysteresis-v27"
     && variantConfig.family !== "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
     && variantConfig.family !== "full-left-normal-first-path-state-hysteresis-v29"
+    && variantConfig.family !== "full-left-normal-first-conduit-cup-hysteresis-v30"
+    && variantConfig.family !== "full-left-normal-first-capacity-path-hysteresis-v31"
+    && variantConfig.family !== "full-left-normal-first-lv-reference-receiver-v32"
   ) {
     return coordinateBase;
   }
@@ -2136,6 +2223,9 @@ function applyFullLeftRoutingVariant(
       || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
       || variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
       || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
       ? {
         ...coordinateBase,
         laLobeGeneratorMode: "av-plane-full-left-v16-transfer-hysteresis-v6" as const,
@@ -2171,6 +2261,9 @@ function applyFullLeftRoutingVariant(
 	        laReservoirConduitWallViscoelasticGainMmHg:
 	          variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
               || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
 	            ? (variantConfig.variantId.includes("visco35")
 	              ? 3.5
 	              : variantConfig.variantId.includes("visco25")
@@ -2190,25 +2283,40 @@ function applyFullLeftRoutingVariant(
 	        laReservoirConduitWallViscoelasticFlowScaleMlPerSec:
 	          variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
               || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
 	            ? (variantConfig.variantId.includes("viscosoft") ? 95 : 70)
 	            : coordinateBase.laReservoirConduitWallViscoelasticFlowScaleMlPerSec,
 	        laReservoirConduitWallViscoelasticBoosterSuppression01:
 	          variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
               || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
 	            ? 0.92
 	            : coordinateBase.laReservoirConduitWallViscoelasticBoosterSuppression01,
 	        laReservoirConduitWallViscoelasticRiseTauSec:
 	          variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
               || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
 	            ? (variantConfig.variantId.includes("viscosoft") ? 0.070 : 0.045)
 	            : coordinateBase.laReservoirConduitWallViscoelasticRiseTauSec,
 	        laReservoirConduitWallViscoelasticFallTauSec:
 	          variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
               || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
 	            ? (variantConfig.variantId.includes("viscosoft") ? 0.140 : 0.090)
 	            : coordinateBase.laReservoirConduitWallViscoelasticFallTauSec,
         laReservoirConduitPathMemoryGain01:
           variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+          || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
             ? (variantConfig.variantId.includes("pathmem100")
               ? 1.0
               : variantConfig.variantId.includes("pathmem90")
@@ -2219,18 +2327,28 @@ function applyFullLeftRoutingVariant(
             : 0,
         laReservoirConduitPathMemoryRiseTauSec:
           variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
             ? (variantConfig.variantId.includes("softpath") ? 0.080 : 0.052)
+            : variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+              ? (variantConfig.variantId.includes("cupsoft") ? 0.090 : 0.065)
             : coordinateBase.laReservoirConduitPathMemoryRiseTauSec,
         laReservoirConduitPathMemoryFallTauSec:
           variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
             ? (variantConfig.variantId.includes("longmemory")
               ? 0.52
               : variantConfig.variantId.includes("softpath")
                 ? 0.42
                 : 0.34)
+            : variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+              ? (variantConfig.variantId.includes("cupsoft") ? 0.58 : 0.48)
             : coordinateBase.laReservoirConduitPathMemoryFallTauSec,
         laReservoirConduitPathReliefGainMmHg:
           variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
             ? (variantConfig.variantId.includes("relief28")
               ? 2.8
               : variantConfig.variantId.includes("relief24")
@@ -2240,18 +2358,38 @@ function applyFullLeftRoutingVariant(
               : variantConfig.variantId.includes("relief16")
                 ? 1.6
                 : 1.2)
+            : variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+              ? (variantConfig.variantId.includes("relief60")
+                ? 6.0
+                : variantConfig.variantId.includes("relief45")
+                  ? 4.5
+                  : variantConfig.variantId.includes("relief36")
+                    ? 3.6
+                    : 2.8)
             : 0,
         laReservoirConduitPathReliefFlowScaleMlPerSec:
           variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
             ? (variantConfig.variantId.includes("softpath") ? 115 : 90)
+            : variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+              ? (variantConfig.variantId.includes("cupsoft") ? 135 : 125)
             : coordinateBase.laReservoirConduitPathReliefFlowScaleMlPerSec,
         laReservoirConduitPathReliefRiseTauSec:
           variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
             ? (variantConfig.variantId.includes("softpath") ? 0.070 : 0.050)
+            : variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+              ? (variantConfig.variantId.includes("cupsoft") ? 0.075 : 0.055)
             : coordinateBase.laReservoirConduitPathReliefRiseTauSec,
         laReservoirConduitPathReliefFallTauSec:
           variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
             ? (variantConfig.variantId.includes("softpath") ? 0.26 : 0.20)
+            : variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+              ? (variantConfig.variantId.includes("cupsoft") ? 0.42 : 0.34)
             : coordinateBase.laReservoirConduitPathReliefFallTauSec,
         laAVPlaneReservoirConduitPressureMemoryRiseTauSec: 0.070,
         laAVPlaneReservoirConduitPressureMemoryFallTauSec: 0.44,
@@ -2259,6 +2397,9 @@ function applyFullLeftRoutingVariant(
           || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
           || variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
           || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
           ? (variantConfig.variantId.includes("phaselock10")
             ? 1.0
             : variantConfig.variantId.includes("phaselock015")
@@ -2279,6 +2420,9 @@ function applyFullLeftRoutingVariant(
           || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
           || variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
           || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
           ? (variantConfig.variantId.includes("rpath08") ? 0.8 : 1.0)
           : 0,
         laMvLvReceiverPathRiseTauSec: variantConfig.variantId.includes("rpathfast")
@@ -2296,6 +2440,9 @@ function applyFullLeftRoutingVariant(
           || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
           || variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
           || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
           ? (variantConfig.variantId.includes("rcap08") ? 0.8 : 1.0)
           : 0,
         lvEarlyFillingReceiverCapacityRiseTauSec: variantConfig.variantId.includes("rcapfast")
@@ -2308,10 +2455,46 @@ function applyFullLeftRoutingVariant(
           : variantConfig.variantId.includes("rcapslow")
             ? 0.36
             : 0.26,
+        lvEarlyFillingReceiverReferenceGainMl:
+          variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
+            ? (variantConfig.variantId.includes("lvref120")
+              ? 120
+              : variantConfig.variantId.includes("lvref80")
+                ? 80
+              : variantConfig.variantId.includes("lvref64")
+                ? 64
+              : variantConfig.variantId.includes("lvref60")
+                ? 60
+              : variantConfig.variantId.includes("lvref56")
+                ? 56
+              : variantConfig.variantId.includes("lvref52")
+                ? 52
+              : variantConfig.variantId.includes("lvref48")
+                ? 48
+              : variantConfig.variantId.includes("lvref32")
+                ? 32
+              : variantConfig.variantId.includes("lvref20")
+              ? 20
+              : variantConfig.variantId.includes("lvref16")
+                ? 16
+              : variantConfig.variantId.includes("lvref12")
+                ? 12
+              : variantConfig.variantId.includes("lvref8")
+                ? 8
+                : 0)
+            : 0,
         lvEarlyFillingReceiverReliefGainMmHg: variantConfig.variantId.includes("softrecv")
           ? 0.90
           : variantConfig.variantId.includes("fastrecv")
             ? 2.00
+          : variantConfig.variantId.includes("lvrecv16")
+            ? 16.00
+          : variantConfig.variantId.includes("lvrecv12")
+            ? 12.00
+          : variantConfig.variantId.includes("lvrecv8")
+            ? 8.00
+          : variantConfig.variantId.includes("lvrecv6")
+            ? 6.00
           : variantConfig.variantId.includes("lvrecv4")
             ? 3.20
           : variantConfig.variantId.includes("lvrecv3")
@@ -2344,6 +2527,9 @@ function applyFullLeftRoutingVariant(
           || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
           || variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
           || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
           ? 0.32
           : 0.34,
         lvEarlyFillingReceiverReliefEndTheta: variantConfig.variantId.includes("softrecv")
@@ -2355,6 +2541,9 @@ function applyFullLeftRoutingVariant(
             || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
             || variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
             || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
             ? 0.72
             : 0.68,
         laAVPlanePrimeVelocityReadbackTauSec: 0,
@@ -2375,6 +2564,9 @@ function applyFullLeftRoutingVariant(
           || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
           || variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
           || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
           ? 0.42
           : 0.38,
         laAVPlaneReservoirCapacityReleaseTauSec: variantConfig.family === "full-left-v16-area-receiver-hysteresis-v23"
@@ -2384,6 +2576,9 @@ function applyFullLeftRoutingVariant(
           || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
           || variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
           || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+      || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
+      || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
+      || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
           ? 0.20
           : 0.18,
         laAVPlaneVenousReservoirCouplingGain: coordinateBase.laAVPlaneVenousReservoirCouplingGain,
@@ -2589,6 +2784,8 @@ function rowForRun(
         sample.laVolumeCoordinateReadback.effectiveCavityVolumeMl
         - sample.laVolumeCoordinateReadback.bloodVolumeMl
       ))),
+    maxLvReceiverReferenceVolumeShiftMl:
+      round(Math.max(0, ...beat.map((sample) => sample.lvEarlyFillingReceiverReferenceVolumeShiftMl))),
     maxCounterfactualFixedBloodPressureReliefMmHg:
       round(Math.max(0, ...counterfactualFixedBloodPressureRelief)),
     maxAppliedFixedBloodPressureReliefMmHg:
