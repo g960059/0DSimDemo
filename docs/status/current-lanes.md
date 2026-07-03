@@ -1470,6 +1470,33 @@ Next gates:
     hysteresis owner that co-solves AV-plane descent/recoil, LA wall pressure,
     MV opening/loss, pulmonary venous inflow, and LV ejection/relaxation timing
     as two smooth paths with shared mass ledger.
+95. Stateful reservoir-conduit hysteresis V20 plus permissive V-loop-area
+    cleanup: the full-left routing bench now
+    tests `av-plane-full-left-reservoir-conduit-hysteresis-v4`, adding an
+    explicit non-blood `laAVPlaneReservoirConduitHysteresis01` path state. The
+    state rises after MV opening with forward-flow/conduit drive, stays
+    suppressed during ejection, and blends AV-plane reservoir capacity toward a
+    retained conduit target instead of forcing immediate recoil. The hard
+    blood V-loop area threshold is now intentionally permissive enough not to
+    reject emerging-but-small V-loops by area alone; x-descent depth remains a
+    readback, not a hard gate. This is a
+    cleaner source-surface signal with one bounded phase signal, but still not
+    broad morphology evidence: selected
+    `v20-force-hyststate-slowpath-fixed14-pv64-mvsmooth` improves source
+    surface to 4/7 and MVF cleanliness to 5/7 with hidden-volume cleanliness
+    7/7 and local MV-opening transition 7/7. It reaches blood-volume LA PV
+    phase 1/7 and source-preserving phase 1/7, limited to preload-low, while
+    the other six profiles still fail mainly on small V-loop area. The max
+    blood V-loop area is about 49.94 and max blood x-descent readback is about
+    3.63 mmHg; this reinforces that x-descent depth alone is not the blocker,
+    and that V-loop area should be treated as a growable residual rather than
+    an over-strict early stop.
+    The SVG deliberately keeps all current candidates hidden, including V20,
+    rather than showing vertical V-wave / upward-MV-opening / elastance-rise
+    loops. Next work should preserve the explicit path-state owner but revise
+    the LA wall pressure/MV loss/pulmonary venous source coupling so reservoir
+    and conduit occupy two smooth blood-volume paths with enough V-loop area,
+    not return to scalar recoil or x-descent-depth gates.
 
 Parallel prep, not blocking the next strategic gate:
 
