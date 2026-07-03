@@ -21,6 +21,7 @@ const panels = runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   report.summary.bestOverallVariantId,
   report.summary.bestSmoothCoreVariantId,
   report.summary.bestV2VariantId,
+  report.summary.bestV3VariantId,
 );
 
 const width = 1660;
@@ -40,12 +41,14 @@ svg.push(`<text x="34" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif
 svg.push(`<text x="34" y="102" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best overall: ${report.summary.bestOverallVariantId}; source+phase ${report.summary.bestOverallSourcePreservingPhasePv}/7, phase ${report.summary.bestOverallPhaseOrientedPvPass}/7, source ${report.summary.bestOverallSourceSurfacePass}/7</text>`);
 svg.push(`<text x="34" y="122" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best smooth core: ${report.summary.bestSmoothCoreVariantId}; source+phase ${report.summary.bestSmoothCoreSourcePreservingPhasePv}/7, phase ${report.summary.bestSmoothCorePhaseOrientedPvPass}/7, source ${report.summary.bestSmoothCoreSourceSurfacePass}/7, prime ${report.summary.bestSmoothCorePrimeWaveformPass}/7</text>`);
 svg.push(`<text x="660" y="122" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V2: ${report.summary.bestV2VariantId}; source+phase ${report.summary.bestV2SourcePreservingPhasePv}/7, phase ${report.summary.bestV2PhaseOrientedPvPass}/7, source ${report.summary.bestV2SourceSurfacePass}/7, MVF ${report.summary.bestV2MvfClean}/7, prime ${report.summary.bestV2PrimeWaveformPass}/7</text>`);
+svg.push(`<text x="660" y="102" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V3: ${report.summary.bestV3VariantId}; source+phase ${report.summary.bestV3SourcePreservingPhasePv}/7, phase ${report.summary.bestV3PhaseOrientedPvPass}/7, source ${report.summary.bestV3SourceSurfacePass}/7, MVF ${report.summary.bestV3MvfClean}/7, prime ${report.summary.bestV3PrimeWaveformPass}/7</text>`);
 legend(svg, 1120, 36, "#22c55e", "baseline no AV-plane");
 legend(svg, 1120, 58, "#f97316", "raw traction reference");
 legend(svg, 1120, 80, "#a855f7", "best full-left residual");
 legend(svg, 1120, 102, "#38bdf8", "best overall route");
 legend(svg, 1120, 124, "#eab308", "best smooth core");
 legend(svg, 1120, 146, "#ec4899", "best V2 coord residual");
+legend(svg, 1120, 168, "#14b8a6", "best V3 MV loss");
 svg.push(`<circle cx="1460" cy="40" r="4.4" fill="#f8fafc" stroke="#111827" stroke-width="1.4"/>`);
 svg.push(`<text x="1472" y="45" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV opening</text>`);
 svg.push(`<circle cx="1460" cy="62" r="4.4" fill="#111827" stroke="#f8fafc" stroke-width="1.7"/>`);
@@ -101,6 +104,7 @@ function renderPv(
     { samples: panel.bestOverall, color: "#38bdf8" },
     { samples: panel.bestSmoothCore, color: "#eab308" },
     { samples: panel.bestV2, color: "#ec4899" },
+    { samples: panel.bestV3, color: "#14b8a6" },
   ];
   const all = traces.flatMap((trace) => trace.samples);
   const xs = all.map((sample) => sample.acceptedLaVolumeMl);
@@ -158,6 +162,7 @@ function renderFlow(
     { samples: panel.bestOverall, color: "#38bdf8" },
     { samples: panel.bestSmoothCore, color: "#eab308" },
     { samples: panel.bestV2, color: "#ec4899" },
+    { samples: panel.bestV3, color: "#14b8a6" },
   ];
   const maxValue = Math.max(1, ...traces.flatMap((trace) => trace.samples.map((sample) => Math.max(0, sample.qMvMlPerSec))));
   const sx = (theta: number) => x + theta * w;
@@ -176,14 +181,14 @@ function renderPressure(
   h: number,
   panel: ReturnType<typeof runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1>[number],
 ): void {
-  const samples = panel.bestV2;
+  const samples = panel.bestV3;
   const values = samples.flatMap((sample) => [sample.lapMmHg, sample.lvpMmHg, sample.pulmonaryVenousPressureMmHg]);
   const minValue = Math.min(...values);
   const maxValue = Math.max(...values);
   const sx = (theta: number) => x + theta * w;
   const sy = (value: number) => y + h - (value - minValue) / Math.max(maxValue - minValue, 1e-9) * h;
-  axis(out, x, y, w, h, "best V2 pressure");
-  out.push(`<path d="${pathForTrace(samples, sx, sy, "lapMmHg")}" fill="none" stroke="#ec4899" stroke-width="2.2" opacity="0.9"/>`);
+  axis(out, x, y, w, h, "best V3 pressure");
+  out.push(`<path d="${pathForTrace(samples, sx, sy, "lapMmHg")}" fill="none" stroke="#14b8a6" stroke-width="2.2" opacity="0.9"/>`);
   out.push(`<path d="${pathForTrace(samples, sx, sy, "lvpMmHg")}" fill="none" stroke="#facc15" stroke-width="1.7" opacity="0.72"/>`);
   out.push(`<path d="${pathForTrace(samples, sx, sy, "pulmonaryVenousPressureMmHg")}" fill="none" stroke="#60a5fa" stroke-width="1.7" opacity="0.72"/>`);
   out.push(`<text x="${x + 6}" y="${y + h - 7}" fill="#c4b5fd" font-family="Inter,Arial,sans-serif" font-size="10">LAP</text>`);
@@ -199,7 +204,7 @@ function renderPrime(
   h: number,
   panel: ReturnType<typeof runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1>[number],
 ): void {
-  const samples = panel.bestV2;
+  const samples = panel.bestV3;
   const values = samples.flatMap((sample) => [
     sample.avPlaneGeometryReadback.sPrimeProxyCmPerSec ?? 0,
     sample.avPlaneGeometryReadback.ePrimeProxyCmPerSec ?? 0,
@@ -208,7 +213,7 @@ function renderPrime(
   const maxAbsValue = Math.max(1, ...values.map((value) => Math.abs(value)));
   const sx = (theta: number) => x + theta * w;
   const sy = (value: number) => y + h / 2 - value / maxAbsValue * (h * 0.44);
-  axis(out, x, y, w, h, "best V2 s/e/a'");
+  axis(out, x, y, w, h, "best V3 s/e/a'");
   out.push(`<line x1="${x}" y1="${y + h / 2}" x2="${x + w}" y2="${y + h / 2}" stroke="#334155" stroke-width="1"/>`);
   out.push(`<path d="${pathForPrime(samples, sx, sy, "sPrimeProxyCmPerSec")}" fill="none" stroke="#22c55e" stroke-width="2.0" opacity="0.9"/>`);
   out.push(`<path d="${pathForPrime(samples, sx, sy, "ePrimeProxyCmPerSec")}" fill="none" stroke="#38bdf8" stroke-width="2.0" opacity="0.9"/>`);

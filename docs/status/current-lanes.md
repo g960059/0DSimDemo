@@ -211,6 +211,15 @@ coordinate-ownership signal and a clear remaining owner split: force-balance
 preserves source/phase while wall-work smooths prime, but no V2 candidate yet
 solves both. Next work should co-own MV opening/loss and AV-plane velocity
 smoothness in the same residual instead of adding readback filters.
+A V3 MV-loss/velocity residual family then combines the V2 coordinate residual
+with stronger MV loss/inertance. Best V3 `v3-wall-fixed8-pv36-mvloss` reaches
+prime waveform 7/7, source surface 4/7, and hidden-volume cleanliness 7/7, but
+source+phase falls to 2/7, phase-oriented LA PV falls to 2/7, and MVF clean
+falls to 4/7. This confirms that MV-loss/wall-work can smooth s/e/a-prime, but
+it trades away the force-balance source/phase route. Do not treat prime pass
+alone as acceptance; the next architecture step should co-solve phase/C1
+continuity, MV loss, and AV-plane source preservation instead of post-selecting
+between force-balance and wall-work paths.
 Warm-replay lobe attribution, separated-state smokes, dual-lobe geometry,
 flow-oriented LA filling-rate drive, hidden-volume-free AV-plane ejection-rate
 reservoir oracles, AV-plane reservoir capacity/stretch + booster/wall-work,

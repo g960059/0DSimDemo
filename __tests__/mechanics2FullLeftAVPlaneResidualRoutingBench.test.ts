@@ -11,8 +11,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records a full-left LA-AV-plane residual routing report", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(140);
-    expect(report.variantSummaries).toHaveLength(20);
+    expect(report.rows).toHaveLength(161);
+    expect(report.variantSummaries).toHaveLength(23);
   });
 
   it("finds a source-preserving phase-oriented signal only after full-left residual ownership is added", () => {
@@ -88,6 +88,17 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(v2Force?.primeWaveformPass).toBe(0);
     expect(v2Wall?.primeWaveformPass).toBeGreaterThanOrEqual(5);
     expect(v2Wall?.sourcePreservingPhasePv).toBeLessThan(3);
+  });
+
+  it("shows V3 MV loss can smooth prime only by trading away source-preserving phase", () => {
+    const v3Wall = report.variantSummaries.find((summary) =>
+      summary.variantId === "v3-wall-fixed8-pv36-mvloss"
+    );
+    expect(report.summary.bestV3VariantId).toBe("v3-wall-fixed8-pv36-mvloss");
+    expect(report.summary.bestV3PrimeWaveformPass).toBe(7);
+    expect(report.summary.bestV3SourcePreservingPhasePv).toBe(2);
+    expect(report.summary.bestV3SourcePreservingPhasePv).toBeLessThan(report.summary.bestV2SourcePreservingPhasePv);
+    expect(v3Wall?.hiddenVolumeClean).toBe(7);
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {
