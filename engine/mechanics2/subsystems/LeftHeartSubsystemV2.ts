@@ -174,6 +174,7 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laAVPlaneWorkCoordinateDampingNsecPerNorm: number;
   readonly laAVPlaneWorkCoordinateMassKg: number;
   readonly laAVPlaneWorkCoordinateMaxVelocityNormPerSec: number;
+  readonly laAVPlanePrimeVelocityReadbackTauSec: number;
   readonly laAVPlaneReservoirRecoilPressureGainMmHg: number;
   readonly laAVPlaneReservoirRecoilRiseTauSec: number;
   readonly laAVPlaneReservoirRecoilFallTauSec: number;
@@ -452,6 +453,8 @@ export function defaultLeftHeartSubsystemParamsV2(
       overrides.laAVPlaneWorkCoordinateMassKg ?? 0.035,
     laAVPlaneWorkCoordinateMaxVelocityNormPerSec:
       overrides.laAVPlaneWorkCoordinateMaxVelocityNormPerSec ?? 1.8,
+    laAVPlanePrimeVelocityReadbackTauSec:
+      overrides.laAVPlanePrimeVelocityReadbackTauSec ?? 0,
     laAVPlaneReservoirRecoilPressureGainMmHg:
       overrides.laAVPlaneReservoirRecoilPressureGainMmHg ?? 0,
     laAVPlaneReservoirRecoilRiseTauSec:
@@ -2311,9 +2314,18 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
     -maxVelocityNormPerSec,
     maxVelocityNormPerSec,
   );
-  const zDotReadbackNormPerSec = fullLeftCoordinateResidual
-    ? clamp(input.candidateZDotNormPerSec ?? zDotNormPerSec, -maxVelocityNormPerSec, maxVelocityNormPerSec)
-    : zDotNormPerSec;
+  const primeReadbackTauSec = Math.max(0, input.params.laAVPlanePrimeVelocityReadbackTauSec);
+  const primeReadbackAlpha = primeReadbackTauSec > 0
+    ? clamp(input.dtSec / Math.max(primeReadbackTauSec, input.dtSec, 1e-9), 0, 1)
+    : 1;
+  const smoothedPrimeZDotNormPerSec =
+    input.previousZDotNormPerSec
+    + (zDotNormPerSec - input.previousZDotNormPerSec) * primeReadbackAlpha;
+  const zDotReadbackNormPerSec = primeReadbackTauSec > 0
+    ? clamp(smoothedPrimeZDotNormPerSec, -maxVelocityNormPerSec, maxVelocityNormPerSec)
+    : fullLeftCoordinateResidual
+      ? clamp(input.candidateZDotNormPerSec ?? zDotNormPerSec, -maxVelocityNormPerSec, maxVelocityNormPerSec)
+      : zDotNormPerSec;
   let zNorm = input.previousZNorm + zDotNormPerSec * input.dtSec;
   zNorm = clamp(zNorm, 0, 1);
   if ((zNorm <= 0 && zDotNormPerSec < 0) || (zNorm >= 1 && zDotNormPerSec > 0)) {
