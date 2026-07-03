@@ -1284,6 +1284,26 @@ Next gates:
     AV-plane coordinate trajectory itself C1-continuous in the accepted-state
     residual, while preserving the V12 effective-cavity pressure-law signal,
     source/MVF cleanliness, and hidden-volume hygiene.
+85. Accepted-coordinate C1 law V13: finite acceleration on the accepted
+    AV-plane coordinate plus tapered s/e/a-prime readback windows is only a
+    partial local signal, not a promotion path. Best V13
+    `v13-wall-effcav-c1accel16-pr150-fixed8-pv36-mvloss` keeps hidden-volume
+    cleanliness 7/7 and records about 3.14 mmHg applied fixed-blood pressure
+    relief with about 2.37 mmHg blood-coordinate x-descent, but source remains
+    5/7, MVF falls to 5/7, effective-cavity/capacity-axis phase falls to 4/7,
+    source-preserving effective-cavity phase falls to 3/7, prime waveform is
+    only 1/7, and strict blood-volume phase remains 0/7. The looser
+    `c1accel08` variant reaches prime 2/7 but drops source-preserving
+    effective-cavity phase to 1/7. Visual review of the refreshed SVG still
+    shows profile-dependent folded effective-cavity loops, MV-opening/kink
+    artifacts, and non-physiologic prime discontinuity signatures. Treat
+    finite coordinate acceleration and readback window tapering as insufficient
+    by themselves. The next architecture step should replace the local
+    windowed coordinate update with a continuous AV-plane trajectory law
+    co-solved with LA wall pressure, MV opening/loss, pulmonary venous inflow,
+    and LV ejection/relaxation timing; do not resume scalar readback smoothing,
+    display-axis tricks, hidden blood-volume sources, runtime wiring,
+    AV-plane physiology enablement, or LandAtrial tuning from this surface.
 
 Parallel prep, not blocking the next strategic gate:
 

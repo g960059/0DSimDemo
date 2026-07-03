@@ -174,6 +174,7 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laAVPlaneWorkCoordinateDampingNsecPerNorm: number;
   readonly laAVPlaneWorkCoordinateMassKg: number;
   readonly laAVPlaneWorkCoordinateMaxVelocityNormPerSec: number;
+  readonly laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2: number;
   readonly laAVPlanePrimeVelocityReadbackTauSec: number;
   readonly laAVPlaneReservoirRecoilPressureGainMmHg: number;
   readonly laAVPlaneReservoirRecoilRiseTauSec: number;
@@ -453,6 +454,8 @@ export function defaultLeftHeartSubsystemParamsV2(
       overrides.laAVPlaneWorkCoordinateMassKg ?? 0.035,
     laAVPlaneWorkCoordinateMaxVelocityNormPerSec:
       overrides.laAVPlaneWorkCoordinateMaxVelocityNormPerSec ?? 1.8,
+    laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2:
+      overrides.laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2 ?? 0,
     laAVPlanePrimeVelocityReadbackTauSec:
       overrides.laAVPlanePrimeVelocityReadbackTauSec ?? 0,
     laAVPlaneReservoirRecoilPressureGainMmHg:
@@ -1654,6 +1657,7 @@ function leftAtrialEffectiveGeometryReadback(input: {
     atrialGeometryDeltaMl,
     velocityScaleCmPerSec: input.params.laEffectiveGeometryVelocityScaleCmPerSec,
     atrialKickVelocityWindow: [input.params.laAWaveStartTheta, input.params.laAWaveEndTheta],
+    velocityWindowTaperFraction: input.params.laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2 > 0 ? 0.18 : 0,
   });
 }
 
@@ -2314,6 +2318,32 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
     -maxVelocityNormPerSec,
     maxVelocityNormPerSec,
   );
+  const maxAccelerationNormPerSec2 = Math.max(
+    0,
+    input.params.laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2,
+  );
+  if (maxAccelerationNormPerSec2 > 0) {
+    const maxVelocityStepNormPerSec = maxAccelerationNormPerSec2 * input.dtSec;
+    zDotNormPerSec = clamp(
+      zDotNormPerSec,
+      input.previousZDotNormPerSec - maxVelocityStepNormPerSec,
+      input.previousZDotNormPerSec + maxVelocityStepNormPerSec,
+    );
+  }
+  let zNorm = input.previousZNorm + zDotNormPerSec * input.dtSec;
+  if (zNorm < 0 || zNorm > 1) {
+    const boundedZNorm = clamp(zNorm, 0, 1);
+    if (maxAccelerationNormPerSec2 > 0) {
+      zDotNormPerSec = clamp(
+        (boundedZNorm - input.previousZNorm) / Math.max(input.dtSec, 1e-9),
+        -maxVelocityNormPerSec,
+        maxVelocityNormPerSec,
+      );
+    } else if ((boundedZNorm <= 0 && zDotNormPerSec < 0) || (boundedZNorm >= 1 && zDotNormPerSec > 0)) {
+      zDotNormPerSec = 0;
+    }
+    zNorm = boundedZNorm;
+  }
   const primeReadbackTauSec = Math.max(0, input.params.laAVPlanePrimeVelocityReadbackTauSec);
   const primeReadbackAlpha = primeReadbackTauSec > 0
     ? clamp(input.dtSec / Math.max(primeReadbackTauSec, input.dtSec, 1e-9), 0, 1)
@@ -2323,14 +2353,9 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
     + (zDotNormPerSec - input.previousZDotNormPerSec) * primeReadbackAlpha;
   const zDotReadbackNormPerSec = primeReadbackTauSec > 0
     ? clamp(smoothedPrimeZDotNormPerSec, -maxVelocityNormPerSec, maxVelocityNormPerSec)
-    : fullLeftCoordinateResidual
+    : fullLeftCoordinateResidual && maxAccelerationNormPerSec2 <= 0
       ? clamp(input.candidateZDotNormPerSec ?? zDotNormPerSec, -maxVelocityNormPerSec, maxVelocityNormPerSec)
       : zDotNormPerSec;
-  let zNorm = input.previousZNorm + zDotNormPerSec * input.dtSec;
-  zNorm = clamp(zNorm, 0, 1);
-  if ((zNorm <= 0 && zDotNormPerSec < 0) || (zNorm >= 1 && zDotNormPerSec > 0)) {
-    zDotNormPerSec = 0;
-  }
   const coordinateVelocityTractionForceN =
     input.params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1"
       || input.params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
