@@ -163,6 +163,22 @@ sufficient for the missing v-loop or C1 continuity; the next architecture step
 must co-solve the continuous AV-plane coordinate with LA wall pressure, MV
 opening/loss, and venous reservoir inflow rather than add another scalar
 coordinate or pressure hook.
+A follow-up blood-vs-capacity-axis review keeps the strict LA PV gate on
+ledger-owned blood volume and adds a shadow `blood+capacity` effective/cavity
+PV overlay.
+Routing AV-plane reference-capacity expansion through pulmonary venous inflow
+does activate ledger-owned kinematic reservoir inflow (~12-17 mL/beat across
+the V8 variants) while preserving hidden-volume cleanliness 7/7. The best V8
+surface reaches source 6/7, MVF 6/7, and the owner-preferred capacity-axis
+phase-oriented PV signal reaches 4/7 source-preserving capacity-axis phase,
+while strict blood-volume phase remains 0/7 and prime remains 0/7. Treat this
+as a real visual/axis signal, not acceptance: the next architecture step should
+decide whether the physiology-facing LA PV x-axis should be blood ledger
+volume, effective cavity/capacity volume, or both as separate readbacks. This
+does not mean adding reservoir capacity as hidden blood volume; the likely
+physiology path is a dynamic AV-plane-driven LA reference/effective cavity
+volume that lowers LA wall pressure during ventricular systole while the mass
+ledger remains owned by venous/MV/AoV flows.
 A first isolated LA-AV-plane-MV-PV residual then co-solves LA blood volume,
 pulmonary venous reservoir pressure/flow, MV q-state flow, LA wall pressure,
 and an explicit AV-plane coordinate against prescribed LV pressure. It is a
