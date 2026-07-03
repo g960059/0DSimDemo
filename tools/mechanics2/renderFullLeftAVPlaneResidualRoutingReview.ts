@@ -32,13 +32,14 @@ const panels = runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   report.summary.bestV9VariantId,
   report.summary.bestV10VariantId,
   report.summary.bestV11VariantId,
+  report.summary.bestV12VariantId,
 );
 
-const width = 1660;
-const panelWidth = 760;
+const width = 1900;
+const panelWidth = 860;
 const panelHeight = 372;
 const marginX = 50;
-const marginY = 312;
+const marginY = 356;
 const gapX = 38;
 const gapY = 28;
 const height = marginY + 4 * panelHeight + 3 * gapY + 62;
@@ -61,26 +62,29 @@ svg.push(`<text x="660" y="222" fill="#9ca3af" font-family="Inter,Arial,sans-ser
 svg.push(`<text x="660" y="242" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 fixed-blood pressure probe: counterfactual relief ${report.summary.bestV9MaxCounterfactualFixedBloodPressureReliefMmHg.toFixed(2)} mmHg, applied relief ${report.summary.bestV9MaxAppliedFixedBloodPressureReliefMmHg.toFixed(2)} mmHg, blood x-descent ${report.summary.bestV9MaxBloodXDescentPressureDropMmHg.toFixed(2)} mmHg</text>`);
 svg.push(`<text x="660" y="262" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V10 separated capacity residual: ${report.summary.bestV10VariantId}; blood phase ${report.summary.bestV10PhaseOrientedPvPass}/7, capacity phase ${report.summary.bestV10CapacityAxisPhaseOrientedPvPass}/7, source ${report.summary.bestV10SourceSurfacePass}/7, MVF ${report.summary.bestV10MvfClean}/7, prime ${report.summary.bestV10PrimeWaveformPass}/7</text>`);
 svg.push(`<text x="660" y="282" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V11 accepted-state residual: ${report.summary.bestV11VariantId}; blood phase ${report.summary.bestV11PhaseOrientedPvPass}/7, source+phase ${report.summary.bestV11SourcePreservingPhasePv}/7, source ${report.summary.bestV11SourceSurfacePass}/7, MVF ${report.summary.bestV11MvfClean}/7, prime ${report.summary.bestV11PrimeWaveformPass}/7</text>`);
-legend(svg, 1260, 36, "#22c55e", "baseline no AV-plane");
-legend(svg, 1260, 58, "#f97316", "raw traction reference");
-legend(svg, 1260, 80, "#a855f7", "best full-left residual");
-legend(svg, 1260, 102, "#38bdf8", "best overall route");
-legend(svg, 1260, 124, "#eab308", "best smooth core");
-legend(svg, 1260, 146, "#ec4899", "best V2 coord residual");
-legend(svg, 1260, 168, "#14b8a6", "best V3 MV loss");
-legend(svg, 1260, 190, "#f43f5e", "best V4 velocity target");
-legend(svg, 1260, 212, "#818cf8", "best V5 phase-owned");
-legend(svg, 1260, 234, "#f9a8d4", "best V6 ref-capacity");
-legend(svg, 1260, 256, "#fb7185", "best V8 ref-cap+venous");
-legend(svg, 1260, 278, "#f8fafc", "best V9 dynamic ref-pressure");
-legend(svg, 1260, 300, "#c084fc", "best V10 separated capacity");
-legend(svg, 1260, 322, "#93c5fd", "best V11 accepted-state");
-svg.push(`<circle cx="1500" cy="40" r="4.4" fill="#f8fafc" stroke="#111827" stroke-width="1.4"/>`);
-svg.push(`<text x="1512" y="45" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV opening</text>`);
-svg.push(`<circle cx="1500" cy="62" r="4.4" fill="#111827" stroke="#f8fafc" stroke-width="1.7"/>`);
-svg.push(`<text x="1512" y="67" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV closure</text>`);
-svg.push(`<path d="M1495,79 L1505,89 M1505,79 L1495,89" stroke="#ef4444" stroke-width="1.6"/>`);
-svg.push(`<text x="1512" y="89" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">PV tangent kink marker</text>`);
+svg.push(`<text x="660" y="302" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V12 effective-cavity pressure law: ${report.summary.bestV12VariantId}; blood phase ${report.summary.bestV12PhaseOrientedPvPass}/7, capacity phase ${report.summary.bestV12CapacityAxisPhaseOrientedPvPass}/7, capacity source+phase ${report.summary.bestV12SourcePreservingCapacityAxisPhasePv}/7, source ${report.summary.bestV12SourceSurfacePass}/7, MVF ${report.summary.bestV12MvfClean}/7</text>`);
+svg.push(`<text x="660" y="322" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V12 fixed-blood pressure probe: counterfactual relief ${report.summary.bestV12MaxCounterfactualFixedBloodPressureReliefMmHg.toFixed(2)} mmHg, applied relief ${report.summary.bestV12MaxAppliedFixedBloodPressureReliefMmHg.toFixed(2)} mmHg, blood x-descent ${report.summary.bestV12MaxBloodXDescentPressureDropMmHg.toFixed(2)} mmHg</text>`);
+legend(svg, 1540, 36, "#22c55e", "baseline no AV-plane");
+legend(svg, 1540, 58, "#f97316", "raw traction reference");
+legend(svg, 1540, 80, "#a855f7", "best full-left residual");
+legend(svg, 1540, 102, "#38bdf8", "best overall route");
+legend(svg, 1540, 124, "#eab308", "best smooth core");
+legend(svg, 1540, 146, "#ec4899", "best V2 coord residual");
+legend(svg, 1540, 168, "#14b8a6", "best V3 MV loss");
+legend(svg, 1540, 190, "#f43f5e", "best V4 velocity target");
+legend(svg, 1540, 212, "#818cf8", "best V5 phase-owned");
+legend(svg, 1540, 234, "#f9a8d4", "best V6 ref-capacity");
+legend(svg, 1540, 256, "#fb7185", "best V8 ref-cap+venous");
+legend(svg, 1540, 278, "#f8fafc", "best V9 dynamic ref-pressure");
+legend(svg, 1540, 300, "#c084fc", "best V10 separated capacity");
+legend(svg, 1540, 322, "#93c5fd", "best V11 accepted-state");
+legend(svg, 1540, 344, "#67e8f9", "best V12 eff-cavity pressure law");
+svg.push(`<circle cx="1780" cy="40" r="4.4" fill="#f8fafc" stroke="#111827" stroke-width="1.4"/>`);
+svg.push(`<text x="1792" y="45" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV opening</text>`);
+svg.push(`<circle cx="1780" cy="62" r="4.4" fill="#111827" stroke="#f8fafc" stroke-width="1.7"/>`);
+svg.push(`<text x="1792" y="67" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV closure</text>`);
+svg.push(`<path d="M1775,79 L1785,89 M1785,79 L1775,89" stroke="#ef4444" stroke-width="1.6"/>`);
+svg.push(`<text x="1792" y="89" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">PV tangent kink marker</text>`);
 
 for (let i = 0; i < panels.length; i++) {
   const col = i % 2;
@@ -139,6 +143,7 @@ function renderPv(
     { variantId: panel.bestV9VariantId, samples: panel.bestV9, color: "#f8fafc" },
     { variantId: panel.bestV10VariantId, samples: panel.bestV10, color: "#c084fc" },
     { variantId: panel.bestV11VariantId, samples: panel.bestV11, color: "#93c5fd" },
+    { variantId: panel.bestV12VariantId, samples: panel.bestV12, color: "#67e8f9" },
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "LA blood PV (ledger audit)");
@@ -200,6 +205,7 @@ function renderCapacityPv(
     { variantId: panel.bestV9VariantId, samples: panel.bestV9, color: "#f8fafc" },
     { variantId: panel.bestV10VariantId, samples: panel.bestV10, color: "#c084fc" },
     { variantId: panel.bestV11VariantId, samples: panel.bestV11, color: "#93c5fd" },
+    { variantId: panel.bestV12VariantId, samples: panel.bestV12, color: "#67e8f9" },
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "LA effective-cavity PV");
@@ -244,6 +250,7 @@ function renderFlow(
     { variantId: panel.bestV9VariantId, samples: panel.bestV9, color: "#f8fafc" },
     { variantId: panel.bestV10VariantId, samples: panel.bestV10, color: "#c084fc" },
     { variantId: panel.bestV11VariantId, samples: panel.bestV11, color: "#93c5fd" },
+    { variantId: panel.bestV12VariantId, samples: panel.bestV12, color: "#67e8f9" },
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "QMV forward");
@@ -373,6 +380,7 @@ function physiologyDiagnosticTrace(panel: ReturnType<typeof runFullLeftAVPlaneRe
   readonly samples: readonly LeftHeartSubsystemSampleV2[];
 } | null {
   const candidates = [
+    { variantId: panel.bestV12VariantId, label: "best V12", samples: panel.bestV12 },
     { variantId: panel.bestV11VariantId, label: "best V11", samples: panel.bestV11 },
     { variantId: panel.bestV10VariantId, label: "best V10", samples: panel.bestV10 },
     { variantId: panel.bestV9VariantId, label: "best V9", samples: panel.bestV9 },
