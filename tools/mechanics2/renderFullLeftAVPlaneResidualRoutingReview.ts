@@ -51,7 +51,7 @@ const svg: string[] = [];
 svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
 svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
 svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="700">Full-left LA-AV-plane residual routing review</text>`);
-svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Effective-cavity LA PV is a shadow diagnostic axis, not acceptance; blood-volume PV remains the physiology-facing mass-ledger audit. This SVG hides rows unless capacity/effective PV phase and hidden-volume hygiene pass; C1/kink markers are visual warnings.</text>`);
+svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Effective-cavity LA PV is a shadow diagnostic axis, not acceptance; blood-volume PV remains the physiology-facing mass-ledger audit. This SVG hides rows unless blood-volume x-descent, v-loop area, immediate MV-opening downstroke, MV-opening transition, capacity/effective PV phase, and hidden-volume hygiene pass; non-opening C1/kink markers are visual warnings.</text>`);
 svg.push(`<text x="34" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best full residual: ${report.summary.bestFullResidualVariantId}; source+phase ${report.summary.bestFullResidualSourcePreservingPhasePv}/7, phase ${report.summary.bestFullResidualPhaseOrientedPvPass}/7, source ${report.summary.bestFullResidualSourceSurfacePass}/7</text>`);
 svg.push(`<text x="34" y="102" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best overall: ${report.summary.bestOverallVariantId}; source+phase ${report.summary.bestOverallSourcePreservingPhasePv}/7, phase ${report.summary.bestOverallPhaseOrientedPvPass}/7, source ${report.summary.bestOverallSourceSurfacePass}/7</text>`);
 svg.push(`<text x="34" y="122" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best smooth core: ${report.summary.bestSmoothCoreVariantId}; source+phase ${report.summary.bestSmoothCoreSourcePreservingPhasePv}/7, phase ${report.summary.bestSmoothCorePhaseOrientedPvPass}/7, source ${report.summary.bestSmoothCoreSourceSurfacePass}/7, prime ${report.summary.bestSmoothCorePrimeWaveformPass}/7</text>`);
@@ -163,7 +163,7 @@ function renderPv(
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "LA blood PV (ledger audit)");
-    out.push(`<text x="${x + 10}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: effective/capacity PV filter rejected all overlays</text>`);
+    out.push(`<text x="${x + 10}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: blood x-descent or effective/capacity PV filter rejected all overlays</text>`);
     return;
   }
   const all = traces.flatMap((trace) => trace.samples);
@@ -229,7 +229,7 @@ function renderCapacityPv(
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "LA effective-cavity PV");
-    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: effective/capacity phase or C1 failed</text>`);
+    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: blood x-descent or effective/capacity phase failed</text>`);
     return;
   }
   const all = traces.flatMap((trace) => trace.samples);
@@ -278,7 +278,7 @@ function renderFlow(
   ].filter((trace) => shouldPlotPhysiologyPvCandidate(trace.variantId, panel.profileId));
   if (traces.length === 0) {
     axis(out, x, y, w, h, "QMV forward");
-    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected effective/capacity PV candidates</text>`);
+    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>`);
     return;
   }
   const maxValue = Math.max(1, ...traces.flatMap((trace) => trace.samples.map((sample) => Math.max(0, sample.qMvMlPerSec))));
@@ -301,7 +301,7 @@ function renderPressure(
   const trace = physiologyDiagnosticTrace(panel);
   if (trace == null) {
     axis(out, x, y, w, h, "physiology candidate pressure");
-    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no effective/capacity PV candidate</text>`);
+    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: no blood x-descent candidate</text>`);
     return;
   }
   const samples = trace.samples;
@@ -314,9 +314,37 @@ function renderPressure(
   out.push(`<path d="${pathForTrace(samples, sx, sy, "lapMmHg")}" fill="none" stroke="#f8fafc" stroke-width="2.2" opacity="0.9"/>`);
   out.push(`<path d="${pathForTrace(samples, sx, sy, "lvpMmHg")}" fill="none" stroke="#facc15" stroke-width="1.7" opacity="0.72"/>`);
   out.push(`<path d="${pathForTrace(samples, sx, sy, "pulmonaryVenousPressureMmHg")}" fill="none" stroke="#60a5fa" stroke-width="1.7" opacity="0.72"/>`);
+  renderXDescentMarkers(out, samples, sx, sy);
   out.push(`<text x="${x + 6}" y="${y + h - 7}" fill="#c4b5fd" font-family="Inter,Arial,sans-serif" font-size="10">LAP</text>`);
   out.push(`<text x="${x + 38}" y="${y + h - 7}" fill="#fde68a" font-family="Inter,Arial,sans-serif" font-size="10">LVP</text>`);
   out.push(`<text x="${x + 72}" y="${y + h - 7}" fill="#bfdbfe" font-family="Inter,Arial,sans-serif" font-size="10">PV</text>`);
+}
+
+function renderXDescentMarkers(
+  out: string[],
+  samples: readonly LeftHeartSubsystemSampleV2[],
+  sx: (theta: number) => number,
+  sy: (value: number) => number,
+): void {
+  const openingIndex = findMvOpeningIndex(samples.map((sample) => sample.mvOpen01));
+  const closureIndex = openingIndex == null
+    ? null
+    : findMvClosureIndexAfter(samples.map((sample) => sample.mvOpen01), openingIndex);
+  if (openingIndex == null || closureIndex == null) return;
+  const reservoirIndices = circularIndexRange(closureIndex, openingIndex, samples.length);
+  if (reservoirIndices.length === 0) return;
+  let troughIndex = reservoirIndices[0]!;
+  for (const index of reservoirIndices) {
+    if (samples[index]!.lapMmHg < samples[troughIndex]!.lapMmHg) troughIndex = index;
+  }
+  const closure = samples[closureIndex]!;
+  const trough = samples[troughIndex]!;
+  const opening = samples[openingIndex]!;
+  out.push(`<line x1="${sx(closure.theta).toFixed(1)}" y1="${sy(closure.lapMmHg).toFixed(1)}" x2="${sx(closure.theta).toFixed(1)}" y2="${sy(trough.lapMmHg).toFixed(1)}" stroke="#f8fafc" stroke-width="1.1" stroke-dasharray="3 3" opacity="0.6"/>`);
+  out.push(`<line x1="${sx(opening.theta).toFixed(1)}" y1="${sy(opening.lapMmHg).toFixed(1)}" x2="${sx(opening.theta).toFixed(1)}" y2="${sy(trough.lapMmHg).toFixed(1)}" stroke="#f8fafc" stroke-width="1.1" stroke-dasharray="3 3" opacity="0.42"/>`);
+  out.push(`<circle cx="${sx(closure.theta).toFixed(1)}" cy="${sy(closure.lapMmHg).toFixed(1)}" r="3.0" fill="#111827" stroke="#f8fafc" stroke-width="1.4"/>`);
+  out.push(`<circle cx="${sx(trough.theta).toFixed(1)}" cy="${sy(trough.lapMmHg).toFixed(1)}" r="3.0" fill="#0f172a" stroke="#22c55e" stroke-width="1.5"/>`);
+  out.push(`<circle cx="${sx(opening.theta).toFixed(1)}" cy="${sy(opening.lapMmHg).toFixed(1)}" r="3.0" fill="#f8fafc" stroke="#111827" stroke-width="1.2"/>`);
 }
 
 function renderPrime(
@@ -330,7 +358,7 @@ function renderPrime(
   const trace = physiologyDiagnosticTrace(panel);
   if (trace == null) {
     axis(out, x, y, w, h, "physiology candidate s/e/a'");
-    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected effective/capacity PV candidates</text>`);
+    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected blood x-descent candidates</text>`);
     return;
   }
   const samples = trace.samples;
@@ -394,6 +422,7 @@ function shouldPlotPhysiologyPvCandidate(
 ): boolean {
   const row = rowByVariantProfile.get(`${variantId}::${profileId}`);
   return !!row?.capacityAxisPhaseOrientedPvPass
+    && !!row.phaseOrientedPvPass
     && !!row.hiddenVolumeClean;
 }
 
@@ -467,6 +496,16 @@ function findMvClosureIndexAfter(mvOpen: readonly number[], openingIndex: number
     if (previous >= threshold && current < threshold) return index;
   }
   return null;
+}
+
+function circularIndexRange(startIndex: number, endIndex: number, length: number): number[] {
+  const indices: number[] = [];
+  for (let step = 0; step <= length; step++) {
+    const index = (startIndex + step) % length;
+    indices.push(index);
+    if (index === endIndex) break;
+  }
+  return indices;
 }
 
 function pvKinkMarkerIndices(samples: readonly LeftHeartSubsystemSampleV2[], openingIndex: number): readonly number[] {
