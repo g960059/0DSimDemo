@@ -16,6 +16,9 @@ const outPath = resolve(
 );
 
 const report = runFullLeftAVPlaneResidualRoutingBenchV1();
+const rowByVariantProfile = new Map<string, (typeof report.rows)[number]>(
+  report.rows.map((row) => [`${row.variantId}::${row.profileId}`, row] as const),
+);
 const panels = runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   report.summary.bestFullResidualVariantId,
   report.summary.bestOverallVariantId,
@@ -27,6 +30,7 @@ const panels = runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1(
   report.summary.bestV6VariantId,
   report.summary.bestV8VariantId,
   report.summary.bestV9VariantId,
+  report.summary.bestV10VariantId,
 );
 
 const width = 1660;
@@ -41,7 +45,7 @@ const svg: string[] = [];
 svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
 svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
 svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="700">Full-left LA-AV-plane residual routing review</text>`);
-svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Blood-volume LA PV is the current strict gate; blood+capacity PV is a shadow effective/cavity-volume candidate for visual review. MV opening should move down/left below the reservoir chord.</text>`);
+svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Blood-volume LA PV is the strict gate. This SVG hides capacity-axis-only / elastance-rise V-loop candidates; JSON keeps all variants. MV opening should move down/left below the reservoir chord.</text>`);
 svg.push(`<text x="34" y="82" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best full residual: ${report.summary.bestFullResidualVariantId}; source+phase ${report.summary.bestFullResidualSourcePreservingPhasePv}/7, phase ${report.summary.bestFullResidualPhaseOrientedPvPass}/7, source ${report.summary.bestFullResidualSourceSurfacePass}/7</text>`);
 svg.push(`<text x="34" y="102" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best overall: ${report.summary.bestOverallVariantId}; source+phase ${report.summary.bestOverallSourcePreservingPhasePv}/7, phase ${report.summary.bestOverallPhaseOrientedPvPass}/7, source ${report.summary.bestOverallSourceSurfacePass}/7</text>`);
 svg.push(`<text x="34" y="122" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best smooth core: ${report.summary.bestSmoothCoreVariantId}; source+phase ${report.summary.bestSmoothCoreSourcePreservingPhasePv}/7, phase ${report.summary.bestSmoothCorePhaseOrientedPvPass}/7, source ${report.summary.bestSmoothCoreSourceSurfacePass}/7, prime ${report.summary.bestSmoothCorePrimeWaveformPass}/7</text>`);
@@ -54,6 +58,7 @@ svg.push(`<text x="660" y="182" fill="#9ca3af" font-family="Inter,Arial,sans-ser
 svg.push(`<text x="660" y="202" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 dynamic ref-pressure: ${report.summary.bestV9VariantId}; blood phase ${report.summary.bestV9PhaseOrientedPvPass}/7, capacity phase ${report.summary.bestV9CapacityAxisPhaseOrientedPvPass}/7, source+phase ${report.summary.bestV9SourcePreservingPhasePv}/7, source ${report.summary.bestV9SourceSurfacePass}/7, MVF ${report.summary.bestV9MvfClean}/7</text>`);
 svg.push(`<text x="660" y="222" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 separated coordinates: AV-ref ${report.summary.bestV9MaxReferenceCapacityShiftMl.toFixed(2)} mL, pressure-ref ${report.summary.bestV9MaxPressureReferenceCapacityMl.toFixed(2)} mL, effective-cavity +${report.summary.bestV9MaxEffectiveCavityCapacityMl.toFixed(2)} mL</text>`);
 svg.push(`<text x="660" y="242" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V9 fixed-blood pressure probe: counterfactual relief ${report.summary.bestV9MaxCounterfactualFixedBloodPressureReliefMmHg.toFixed(2)} mmHg, applied relief ${report.summary.bestV9MaxAppliedFixedBloodPressureReliefMmHg.toFixed(2)} mmHg, blood x-descent ${report.summary.bestV9MaxBloodXDescentPressureDropMmHg.toFixed(2)} mmHg</text>`);
+svg.push(`<text x="660" y="262" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="12">best V10 separated capacity residual: ${report.summary.bestV10VariantId}; blood phase ${report.summary.bestV10PhaseOrientedPvPass}/7, capacity phase ${report.summary.bestV10CapacityAxisPhaseOrientedPvPass}/7, source ${report.summary.bestV10SourceSurfacePass}/7, MVF ${report.summary.bestV10MvfClean}/7, prime ${report.summary.bestV10PrimeWaveformPass}/7</text>`);
 legend(svg, 1260, 36, "#22c55e", "baseline no AV-plane");
 legend(svg, 1260, 58, "#f97316", "raw traction reference");
 legend(svg, 1260, 80, "#a855f7", "best full-left residual");
@@ -66,6 +71,7 @@ legend(svg, 1260, 212, "#818cf8", "best V5 phase-owned");
 legend(svg, 1260, 234, "#f9a8d4", "best V6 ref-capacity");
 legend(svg, 1260, 256, "#fb7185", "best V8 ref-cap+venous");
 legend(svg, 1260, 278, "#f8fafc", "best V9 dynamic ref-pressure");
+legend(svg, 1260, 300, "#c084fc", "best V10 separated capacity");
 svg.push(`<circle cx="1500" cy="40" r="4.4" fill="#f8fafc" stroke="#111827" stroke-width="1.4"/>`);
 svg.push(`<text x="1512" y="45" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">MV opening</text>`);
 svg.push(`<circle cx="1500" cy="62" r="4.4" fill="#111827" stroke="#f8fafc" stroke-width="1.7"/>`);
@@ -116,19 +122,25 @@ function renderPv(
   panel: ReturnType<typeof runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1>[number],
 ): void {
   const traces = [
-    { samples: panel.baseline, color: "#22c55e" },
-    { samples: panel.rawTraction, color: "#f97316" },
-    { samples: panel.bestFullResidual, color: "#a855f7" },
-    { samples: panel.bestOverall, color: "#38bdf8" },
-    { samples: panel.bestSmoothCore, color: "#eab308" },
-    { samples: panel.bestV2, color: "#ec4899" },
-    { samples: panel.bestV3, color: "#14b8a6" },
-    { samples: panel.bestV4, color: "#f43f5e" },
-    { samples: panel.bestV5, color: "#818cf8" },
-    { samples: panel.bestV6, color: "#f9a8d4" },
-    { samples: panel.bestV8, color: "#fb7185" },
-    { samples: panel.bestV9, color: "#f8fafc" },
-  ];
+    { variantId: "baseline-no-avp-compliance-node", samples: panel.baseline, color: "#22c55e" },
+    { variantId: "raw-traction-reference", samples: panel.rawTraction, color: "#f97316" },
+    { variantId: panel.bestFullResidualVariantId, samples: panel.bestFullResidual, color: "#a855f7" },
+    { variantId: panel.bestOverallVariantId, samples: panel.bestOverall, color: "#38bdf8" },
+    { variantId: panel.bestSmoothCoreVariantId, samples: panel.bestSmoothCore, color: "#eab308" },
+    { variantId: panel.bestV2VariantId, samples: panel.bestV2, color: "#ec4899" },
+    { variantId: panel.bestV3VariantId, samples: panel.bestV3, color: "#14b8a6" },
+    { variantId: panel.bestV4VariantId, samples: panel.bestV4, color: "#f43f5e" },
+    { variantId: panel.bestV5VariantId, samples: panel.bestV5, color: "#818cf8" },
+    { variantId: panel.bestV6VariantId, samples: panel.bestV6, color: "#f9a8d4" },
+    { variantId: panel.bestV8VariantId, samples: panel.bestV8, color: "#fb7185" },
+    { variantId: panel.bestV9VariantId, samples: panel.bestV9, color: "#f8fafc" },
+    { variantId: panel.bestV10VariantId, samples: panel.bestV10, color: "#c084fc" },
+  ].filter((trace) => shouldPlotStrictBloodCandidate(trace.variantId, panel.profileId, trace.samples));
+  if (traces.length === 0) {
+    axis(out, x, y, w, h, "LA blood PV");
+    out.push(`<text x="${x + 10}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">no plotted candidate: blood-volume x-descent filter rejected all overlays</text>`);
+    return;
+  }
   const all = traces.flatMap((trace) => trace.samples);
   const xs = all.map((sample) => sample.acceptedLaVolumeMl);
   const ps = all.map((sample) => sample.lapMmHg);
@@ -179,10 +191,16 @@ function renderCapacityPv(
   panel: ReturnType<typeof runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1>[number],
 ): void {
   const traces = [
-    { samples: panel.bestV6, color: "#f9a8d4" },
-    { samples: panel.bestV8, color: "#fb7185" },
-    { samples: panel.bestV9, color: "#f8fafc" },
-  ];
+    { variantId: panel.bestV6VariantId, samples: panel.bestV6, color: "#f9a8d4" },
+    { variantId: panel.bestV8VariantId, samples: panel.bestV8, color: "#fb7185" },
+    { variantId: panel.bestV9VariantId, samples: panel.bestV9, color: "#f8fafc" },
+    { variantId: panel.bestV10VariantId, samples: panel.bestV10, color: "#c084fc" },
+  ].filter((trace) => shouldPlotStrictBloodCandidate(trace.variantId, panel.profileId, trace.samples));
+  if (traces.length === 0) {
+    axis(out, x, y, w, h, "LA blood+capacity PV (shadow)");
+    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden: capacity-axis loop lacks blood-volume x-descent</text>`);
+    return;
+  }
   const all = traces.flatMap((trace) => trace.samples);
   const xs = all.map((sample) => capacityAxisVolumeMl(sample));
   const ps = all.map((sample) => sample.lapMmHg);
@@ -207,19 +225,25 @@ function renderFlow(
   panel: ReturnType<typeof runFullLeftAVPlaneResidualRoutingTrajectoryPanelsV1>[number],
 ): void {
   const traces = [
-    { samples: panel.baseline, color: "#22c55e" },
-    { samples: panel.rawTraction, color: "#f97316" },
-    { samples: panel.bestFullResidual, color: "#a855f7" },
-    { samples: panel.bestOverall, color: "#38bdf8" },
-    { samples: panel.bestSmoothCore, color: "#eab308" },
-    { samples: panel.bestV2, color: "#ec4899" },
-    { samples: panel.bestV3, color: "#14b8a6" },
-    { samples: panel.bestV4, color: "#f43f5e" },
-    { samples: panel.bestV5, color: "#818cf8" },
-    { samples: panel.bestV6, color: "#f9a8d4" },
-    { samples: panel.bestV8, color: "#fb7185" },
-    { samples: panel.bestV9, color: "#f8fafc" },
-  ];
+    { variantId: "baseline-no-avp-compliance-node", samples: panel.baseline, color: "#22c55e" },
+    { variantId: "raw-traction-reference", samples: panel.rawTraction, color: "#f97316" },
+    { variantId: panel.bestFullResidualVariantId, samples: panel.bestFullResidual, color: "#a855f7" },
+    { variantId: panel.bestOverallVariantId, samples: panel.bestOverall, color: "#38bdf8" },
+    { variantId: panel.bestSmoothCoreVariantId, samples: panel.bestSmoothCore, color: "#eab308" },
+    { variantId: panel.bestV2VariantId, samples: panel.bestV2, color: "#ec4899" },
+    { variantId: panel.bestV3VariantId, samples: panel.bestV3, color: "#14b8a6" },
+    { variantId: panel.bestV4VariantId, samples: panel.bestV4, color: "#f43f5e" },
+    { variantId: panel.bestV5VariantId, samples: panel.bestV5, color: "#818cf8" },
+    { variantId: panel.bestV6VariantId, samples: panel.bestV6, color: "#f9a8d4" },
+    { variantId: panel.bestV8VariantId, samples: panel.bestV8, color: "#fb7185" },
+    { variantId: panel.bestV9VariantId, samples: panel.bestV9, color: "#f8fafc" },
+    { variantId: panel.bestV10VariantId, samples: panel.bestV10, color: "#c084fc" },
+  ].filter((trace) => shouldPlotStrictBloodCandidate(trace.variantId, panel.profileId, trace.samples));
+  if (traces.length === 0) {
+    axis(out, x, y, w, h, "QMV forward");
+    out.push(`<text x="${x + 8}" y="${y + 38}" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="10">hidden with rejected LA PV candidates</text>`);
+    return;
+  }
   const maxValue = Math.max(1, ...traces.flatMap((trace) => trace.samples.map((sample) => Math.max(0, sample.qMvMlPerSec))));
   const sx = (theta: number) => x + theta * w;
   const sy = (value: number) => y + h - Math.max(0, value) / maxValue * h;
@@ -313,6 +337,49 @@ function pathForPvAxis(
 
 function capacityAxisVolumeMl(sample: LeftHeartSubsystemSampleV2): number {
   return sample.laVolumeCoordinateReadback.effectiveCavityVolumeMl;
+}
+
+function shouldPlotStrictBloodCandidate(
+  variantId: string,
+  profileId: string,
+  samples: readonly LeftHeartSubsystemSampleV2[],
+): boolean {
+  const row = rowByVariantProfile.get(`${variantId}::${profileId}`);
+  return !!row?.phaseOrientedPvPass
+    && !!row.phaseC1Pass
+    && hasPhysiologicBloodVLoop(samples);
+}
+
+function hasPhysiologicBloodVLoop(samples: readonly LeftHeartSubsystemSampleV2[]): boolean {
+  const mvOpen = samples.map((sample) => sample.mvOpen01);
+  const openingIndex = findMvOpeningIndex(mvOpen);
+  if (openingIndex == null) return false;
+  const closureIndex = findMvClosureIndexAfter(mvOpen, openingIndex);
+  if (closureIndex == null) return false;
+  const segment = circularSegment(samples, closureIndex, openingIndex);
+  if (segment.length < 5) return false;
+  const closure = samples[closureIndex]!;
+  const opening = samples[openingIndex]!;
+  const minPressure = Math.min(...segment.map((sample) => sample.lapMmHg));
+  const minIndex = segment.findIndex((sample) => sample.lapMmHg === minPressure);
+  const reservoirVolumeRiseMl = opening.acceptedLaVolumeMl - closure.acceptedLaVolumeMl;
+  const xDescentMmHg = closure.lapMmHg - minPressure;
+  const vWaveRiseMmHg = opening.lapMmHg - minPressure;
+  return reservoirVolumeRiseMl > 1
+    && xDescentMmHg > 0.25
+    && vWaveRiseMmHg > 0.35
+    && minIndex > 0
+    && minIndex < segment.length - 1;
+}
+
+function circularSegment<T>(items: readonly T[], startIndex: number, endIndex: number): readonly T[] {
+  const out: T[] = [];
+  for (let offset = 0; offset <= items.length; offset++) {
+    const index = (startIndex + offset) % items.length;
+    out.push(items[index]!);
+    if (index === endIndex) return out;
+  }
+  return out;
 }
 
 function pathForTrace<K extends keyof LeftHeartSubsystemSampleV2>(

@@ -11,8 +11,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records a full-left LA-AV-plane residual routing report", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-    expect(report.rows).toHaveLength(343);
-    expect(report.variantSummaries).toHaveLength(49);
+    expect(report.rows).toHaveLength(371);
+    expect(report.variantSummaries).toHaveLength(53);
   });
 
   it("finds a source-preserving phase-oriented signal only after full-left residual ownership is added", () => {
@@ -207,7 +207,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV9MaxPressureReferenceCapacityMl).toBe(report.summary.bestV9MaxReferenceCapacityShiftMl);
     expect(report.summary.bestV9MaxEffectiveCavityCapacityMl).toBe(report.summary.bestV9MaxReferenceCapacityShiftMl);
     expect(report.summary.bestV9MaxBloodXDescentPressureDropMmHg).toBeGreaterThan(2);
-    expect(report.summary.variantsWithAnyAppliedFixedBloodPressureRelief).toBe(5);
+    expect(report.summary.variantsWithAnyAppliedFixedBloodPressureRelief).toBe(9);
     expect(v9Best?.hiddenVolumeClean).toBe(7);
     expect(v9Best?.maxVLoopArea).toBeGreaterThan(70);
     expect(v9Best?.maxCapacityAxisVLoopArea).toBeGreaterThan(65);
@@ -221,6 +221,33 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(v9Rows.every((row) => row.qAvPlaneKinematicForwardVolumeMl > 10)).toBe(true);
     expect(v9Rows.every((row) => row.hiddenVolumeClean)).toBe(true);
     expect(v9Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
+  });
+
+  it("rejects separated capacity residual ownership as a blood-volume V-loop fix", () => {
+    const v10Best = report.variantSummaries.find((summary) =>
+      summary.variantId === "v10-force-separated-vel06-fixed10-pv44-mvsoft"
+    );
+    const v10Rows = report.rows.filter((row) =>
+      row.family === "full-left-separated-capacity-residual-v10"
+    );
+    expect(report.summary.bestV10VariantId).toBe("v10-force-separated-vel06-fixed10-pv44-mvsoft");
+    expect(report.summary.bestV10SourcePreservingPhasePv).toBe(0);
+    expect(report.summary.bestV10PhaseOrientedPvPass).toBe(0);
+    expect(report.summary.bestV10SourceSurfacePass).toBe(0);
+    expect(report.summary.bestV10MvfClean).toBe(6);
+    expect(report.summary.bestV10PrimeWaveformPass).toBe(2);
+    expect(report.summary.bestV10CapacityAxisPhaseOrientedPvPass).toBe(1);
+    expect(report.summary.bestV10SourcePreservingCapacityAxisPhasePv).toBe(0);
+    expect(report.summary.bestV10MaxPressureReferenceCapacityMl).toBeGreaterThan(10);
+    expect(report.summary.bestV10MaxAppliedFixedBloodPressureReliefMmHg).toBeGreaterThan(2);
+    expect(report.summary.bestV10MaxAppliedFixedBloodPressureReliefMmHg)
+      .toBe(report.summary.bestV10MaxCounterfactualFixedBloodPressureReliefMmHg);
+    expect(report.summary.bestV10MaxBloodXDescentPressureDropMmHg).toBeGreaterThan(3);
+    expect(v10Best?.hiddenVolumeClean).toBe(7);
+    expect(v10Best?.maxPvTangentAngleJumpDeg).toBeGreaterThan(170);
+    expect(v10Rows.every((row) => row.hiddenVolumeClean)).toBe(true);
+    expect(v10Rows.every((row) => !row.sourcePreservingPhasePv)).toBe(true);
+    expect(v10Rows.every((row) => !row.phaseOrientedPvPass)).toBe(true);
   });
 
   it("keeps runtime and atrial enablement claims blocked", () => {

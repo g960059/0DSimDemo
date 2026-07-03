@@ -208,6 +208,22 @@ not the correct accepted-state phase/MV-opening ownership. Do not promote the
 `blood+capacity` display loop as acceptance; keep the next PR on the coupled LA
 wall pressure / AV-plane coordinate / MV loss-opening / pulmonary venous inflow
 residual.
+A separated-capacity residual follow-up then keeps ledger blood volume,
+AV-plane reference/capacity, pressure-applied reference capacity,
+effective-cavity volume, and wall-stretch volume as explicit readbacks while
+testing whether the reference/capacity state can be owned as a separate
+residual. It is negative for promotion: best V10
+`v10-force-separated-vel06-fixed10-pv44-mvsoft` reaches strict blood phase
+0/7, source-preserving phase 0/7, source surface 0/7, MVF 6/7, prime 2/7, and
+capacity-axis phase only 1/7 despite applying about 2.63 mmHg of fixed-blood
+pressure relief. The visual SVG now hides capacity-axis-only / elastance-rise
+V-loop candidates unless the corresponding blood-volume PV row passes the
+strict phase and C1 checks; full JSON artifacts still keep all variants. Treat
+this as evidence that explicit coordinate separation is necessary hygiene but
+not sufficient, and that capacity/reference residuals must not become another
+display-axis route. Next work should move the pressure-relief/capacity state
+inside the accepted-state LA wall / AV-plane / MV / pulmonary venous residual
+instead of adding further scalar separated-capacity variants.
 A first isolated LA-AV-plane-MV-PV residual then co-solves LA blood volume,
 pulmonary venous reservoir pressure/flow, MV q-state flow, LA wall pressure,
 and an explicit AV-plane coordinate against prescribed LV pressure. It is a
