@@ -324,6 +324,9 @@ type PhaseOrientedPvQualityV1 = {
   readonly mvClosureIndex: number | null;
   readonly mvOpeningPressureMmHg: number | null;
   readonly mvClosurePressureMmHg: number | null;
+  readonly firstIntersectionReservoirProgress01: number | null;
+  readonly meanReservoirConduitSeparationMmHg: number;
+  readonly maxReservoirConduitSeparationMmHg: number;
   readonly postOpeningPressureDropMmHg: number;
   readonly postOpeningVolumeDropMl: number;
   readonly postOpeningInitialPressureRiseMmHg: number;
@@ -2942,6 +2945,12 @@ function phaseOrientedPvQualityFor(
   const opposedSignedLobes = signedALoop * signedVLoop < 0;
   const volumeSeparation = mean(vLoop.x) - mean(aLoop.x);
   const phase = phaseOrientationFor(volumes, pressures, theta, mvOpen);
+  const firstIntersectionReservoirProgress01 = firstSelfIntersectionReservoirProgress01For(
+    volumes,
+    pressures,
+    phase.mvClosureIndex,
+    phase.mvOpeningIndex,
+  );
   const tangent = pvTangentContinuityFor(volumes, pressures, theta, phase.mvOpeningIndex);
   const failures: string[] = [];
   if (selfIntersections < 1) failures.push("missing-pv-self-intersection");
@@ -2969,6 +2978,10 @@ function phaseOrientedPvQualityFor(
     mvClosureIndex: phase.mvClosureIndex,
     mvOpeningPressureMmHg: phase.mvOpeningPressureMmHg == null ? null : round(phase.mvOpeningPressureMmHg),
     mvClosurePressureMmHg: phase.mvClosurePressureMmHg == null ? null : round(phase.mvClosurePressureMmHg),
+    firstIntersectionReservoirProgress01:
+      firstIntersectionReservoirProgress01 == null ? null : round(firstIntersectionReservoirProgress01),
+    meanReservoirConduitSeparationMmHg: round(phase.meanReservoirConduitSeparationMmHg),
+    maxReservoirConduitSeparationMmHg: round(phase.maxReservoirConduitSeparationMmHg),
     postOpeningPressureDropMmHg: round(phase.postOpeningPressureDropMmHg),
     postOpeningVolumeDropMl: round(phase.postOpeningVolumeDropMl),
     postOpeningInitialPressureRiseMmHg: round(phase.postOpeningInitialPressureRiseMmHg),
@@ -3039,6 +3052,8 @@ function phaseOrientationFor(
   readonly mvClosureIndex: number | null;
   readonly mvOpeningPressureMmHg: number | null;
   readonly mvClosurePressureMmHg: number | null;
+  readonly meanReservoirConduitSeparationMmHg: number;
+  readonly maxReservoirConduitSeparationMmHg: number;
   readonly postOpeningPressureDropMmHg: number;
   readonly postOpeningVolumeDropMl: number;
   readonly postOpeningInitialPressureRiseMmHg: number;
@@ -3069,6 +3084,8 @@ function phaseOrientationFor(
       mvClosureIndex,
       mvOpeningPressureMmHg: mvOpeningIndex == null ? null : pressures[mvOpeningIndex]!,
       mvClosurePressureMmHg: mvClosureIndex == null ? null : pressures[mvClosureIndex]!,
+      meanReservoirConduitSeparationMmHg: 0,
+      maxReservoirConduitSeparationMmHg: 0,
       postOpeningPressureDropMmHg: 0,
       postOpeningVolumeDropMl: 0,
       postOpeningInitialPressureRiseMmHg: 0,
@@ -3128,6 +3145,12 @@ function phaseOrientationFor(
     && xTroughVolumeRise >= MIN_X_TROUGH_VOLUME_RISE_ML
     && postXTroughVolumeRise >= MIN_POST_X_TROUGH_VOLUME_RISE_ML;
   const conduitIndices = conduitIndicesAfterOpening(theta, mvOpeningIndex);
+  const reservoirConduitSeparation = reservoirConduitSeparationFor(
+    volumes,
+    pressures,
+    reservoirIndices,
+    conduitIndices,
+  );
   const openingPressure = pressures[mvOpeningIndex]!;
   const openingVolume = volumes[mvOpeningIndex]!;
   const conduitPressures = conduitIndices.map((index) => pressures[index]!);
@@ -3185,6 +3208,8 @@ function phaseOrientationFor(
     mvClosureIndex,
     mvOpeningPressureMmHg: openingPressure,
     mvClosurePressureMmHg: pressures[mvClosureIndex]!,
+    meanReservoirConduitSeparationMmHg: reservoirConduitSeparation.meanSeparationMmHg,
+    maxReservoirConduitSeparationMmHg: reservoirConduitSeparation.maxSeparationMmHg,
     postOpeningPressureDropMmHg: postOpeningPressureDrop,
     postOpeningVolumeDropMl: postOpeningVolumeDrop,
     postOpeningInitialPressureRiseMmHg: postOpeningInitialPressureRise,
@@ -3393,6 +3418,57 @@ function reservoirChordPressureAtVolume(
   return closurePressure + t * (openingPressure - closurePressure);
 }
 
+function reservoirConduitSeparationFor(
+  volumes: readonly number[],
+  pressures: readonly number[],
+  reservoirIndices: readonly number[],
+  conduitIndices: readonly number[],
+): { readonly meanSeparationMmHg: number; readonly maxSeparationMmHg: number } {
+  const separations = conduitIndices
+    .map((index) => {
+      const reservoirPressure = interpolatedReservoirPressureAtVolume(
+        volumes[index]!,
+        volumes,
+        pressures,
+        reservoirIndices,
+      );
+      return reservoirPressure == null ? null : reservoirPressure - pressures[index]!;
+    })
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  if (separations.length === 0) return { meanSeparationMmHg: 0, maxSeparationMmHg: 0 };
+  return {
+    meanSeparationMmHg: mean(separations),
+    maxSeparationMmHg: Math.max(...separations),
+  };
+}
+
+function interpolatedReservoirPressureAtVolume(
+  volume: number,
+  volumes: readonly number[],
+  pressures: readonly number[],
+  reservoirIndices: readonly number[],
+): number | null {
+  const candidates: number[] = [];
+  for (let i = 0; i < reservoirIndices.length - 1; i++) {
+    const a = reservoirIndices[i]!;
+    const b = reservoirIndices[i + 1]!;
+    const va = volumes[a]!;
+    const vb = volumes[b]!;
+    const minV = Math.min(va, vb);
+    const maxV = Math.max(va, vb);
+    if (volume < minV - 1e-9 || volume > maxV + 1e-9) continue;
+    const denom = vb - va;
+    if (Math.abs(denom) < 1e-9) {
+      candidates.push(Math.max(pressures[a]!, pressures[b]!));
+    } else {
+      const t = Math.max(0, Math.min(1, (volume - va) / denom));
+      candidates.push(pressures[a]! + t * (pressures[b]! - pressures[a]!));
+    }
+  }
+  if (candidates.length === 0) return null;
+  return Math.max(...candidates);
+}
+
 function lowerConduitPressureIndex(
   pressures: readonly number[],
   theta: readonly number[],
@@ -3467,6 +3543,41 @@ function countSelfIntersections(x: readonly number[], y: readonly number[]): num
   return count;
 }
 
+function firstSelfIntersectionReservoirProgress01For(
+  x: readonly number[],
+  y: readonly number[],
+  mvClosureIndex: number | null,
+  mvOpeningIndex: number | null,
+): number | null {
+  if (mvClosureIndex == null || mvOpeningIndex == null || x.length < 4) return null;
+  const reservoirIndices = circularIndexRange(mvClosureIndex, mvOpeningIndex, x.length);
+  if (reservoirIndices.length < 2) return null;
+  const reservoirSegmentCount = reservoirIndices.length - 1;
+  let bestProgress: number | null = null;
+  for (let reservoirStep = 0; reservoirStep < reservoirSegmentCount; reservoirStep++) {
+    const i = reservoirIndices[reservoirStep]!;
+    const iNext = reservoirIndices[reservoirStep + 1]!;
+    for (let j = 0; j < x.length; j++) {
+      const jNext = (j + 1) % x.length;
+      if (sharesEndpoint(i, iNext, j, jNext)) continue;
+      const params = segmentIntersectionParameters(
+        x[i]!,
+        y[i]!,
+        x[iNext]!,
+        y[iNext]!,
+        x[j]!,
+        y[j]!,
+        x[jNext]!,
+        y[jNext]!,
+      );
+      if (params == null) continue;
+      const progress = (reservoirStep + params.t) / Math.max(1, reservoirSegmentCount);
+      if (bestProgress == null || progress < bestProgress) bestProgress = progress;
+    }
+  }
+  return bestProgress;
+}
+
 function segmentsIntersect(
   ax: number,
   ay: number,
@@ -3482,6 +3593,34 @@ function segmentsIntersect(
   const d3 = orientation(cx, cy, dx, dy, ax, ay);
   const d4 = orientation(cx, cy, dx, dy, bx, by);
   return d1 * d2 < 0 && d3 * d4 < 0;
+}
+
+function segmentIntersectionParameters(
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+  dx: number,
+  dy: number,
+): { readonly t: number; readonly u: number } | null {
+  const rx = bx - ax;
+  const ry = by - ay;
+  const sx = dx - cx;
+  const sy = dy - cy;
+  const denom = rx * sy - ry * sx;
+  if (Math.abs(denom) < 1e-12) return null;
+  const qpx = cx - ax;
+  const qpy = cy - ay;
+  const t = (qpx * sy - qpy * sx) / denom;
+  const u = (qpx * ry - qpy * rx) / denom;
+  if (t <= 1e-6 || t >= 1 - 1e-6 || u <= 1e-6 || u >= 1 - 1e-6) return null;
+  return { t, u };
+}
+
+function sharesEndpoint(a0: number, a1: number, b0: number, b1: number): boolean {
+  return a0 === b0 || a0 === b1 || a1 === b0 || a1 === b1;
 }
 
 function orientation(ax: number, ay: number, bx: number, by: number, cx: number, cy: number): number {

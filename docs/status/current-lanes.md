@@ -1642,8 +1642,10 @@ Next gates:
     contractility-low still failing small V-loop area plus MVF/kink. The
     follow-up V30 conduit-cup family is negative as a promotion path: it expands
     normal-HR75 V-loop area up to about 93, but does so by producing MVF
-    three-peak / transaction-residual failures, so the dirty rows stay in JSON
-    evidence and are excluded from owner-facing SVG triage. V31 keeps the
+    three-peak / transaction-residual failures. Those dirty rows are not
+    acceptance candidates, but the owner-facing SVG now keeps selected V30 rows
+    as explicitly labeled dirty shape anchors because their conduit separation
+    can be visually more informative than raw clean-candidate area. V31 keeps the
     V29-style clean path state, increases AV-plane reference/capacity ownership,
     and gives the best normal-first positive signal so far:
     `v31-wall-v16cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite`
@@ -1667,24 +1669,30 @@ Next gates:
     receiver reference-volume shift inside the LV one-fiber chamber pressure
     law, so the LV receiver can lower early-diastolic LV pressure by changing
     receiving capacity rather than acting only as scalar LA pressure relief. The
-    current normal-HR75 best row
+    current normal-HR75 highest clean-area row
     `v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite`
     is source/MVF/blood-phase/hidden-volume clean, raises blood V-loop area to
     about 72.2, and deepens the post-MV-opening pressure / volume drop to about
     4.84 mmHg / 11.02 mL with max LV receiver reference shift about 14.2 mL.
-    This is the strongest normal-HR75 blood-coordinate signal so far and the
-    owner-facing SVG remains blood-PV only. It is still not a promotion path:
+    However visual review downgrades this from best shape to raw-area partial
+    evidence: the V loop remains too sliver-like, the visible crossing is too
+    early on the reservoir path versus the reference mid-reservoir crossing, and
+    the conduit limb is still too straight. The report now records
+    `firstIntersectionReservoirProgress01` plus reservoir-conduit separation
+    readbacks to expose this false-positive class: V32 raises clean area but has
+    only about 2.56 mmHg mean reservoir-conduit separation, while dirty V30 rows
+    reach about 4.23 mmHg separation but fail MVF/transaction cleanliness. The
+    owner-facing SVG remains blood-PV only and includes V29/V30/V31/V32 anchors
+    so shape can be reviewed directly. V32 is still not a promotion path:
     broad 7-profile evidence for the same row is source-preserving 5/7,
     phase-clean 6/7, MVF clean 6/7, hidden-volume clean 7/7; contractility-low
     is limited by mass/clamp plus small V-loop area, and contractility-high is
-    limited by MVF/output ratio. Visual review is improved but still not
-    reference-like: the V loop is larger, yet the conduit limb remains too
-    straight/diagonal and lacks the rounded reservoir-conduit belly seen in the
-    Nature LA1/LA10/LA11 references. Next work should keep the V32 LV receiver
-    reference-shift lead, deepen true early-diastolic LV receiving/relaxation
-    ownership, and build reservoir-conduit hysteresis/curvature without using
-    effective-cavity axes, prime waveforms, or capacity-axis success as
-    acceptance.
+    limited by MVF/output ratio. Next work should combine the V32 LV receiver
+    reference-shift lead with the V30 conduit-separation shape lead, but solve
+    that separation cleanly through true early-diastolic LV receiving/relaxation
+    and reservoir-conduit hysteresis rather than dirty cup forcing, scalar
+    pressure relief, effective-cavity axes, prime waveforms, or capacity-axis
+    success as acceptance.
 
 Parallel prep, not blocking the next strategic gate:
 

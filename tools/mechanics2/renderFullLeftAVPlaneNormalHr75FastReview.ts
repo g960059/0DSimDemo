@@ -24,6 +24,8 @@ const COLORS = [
   "#fb7185",
   "#67e8f9",
   "#a3e635",
+  "#f97316",
+  "#e5e7eb",
 ] as const;
 
 const report = runFullLeftAVPlaneResidualRoutingBenchV1({ profileIds: ["normal-hr75"] });
@@ -105,6 +107,7 @@ const pinnedMechanismIds = new Set([
   "v32-wall-v16lvref80-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
   "v32-wall-v16lvref120-cap125-visco3-pathmem90-relief16-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
 ]);
+void pinnedMechanismIds;
 const eligibleRows = rows
   .filter((row) =>
     isCurrentNormalFirstFamily(row.family)
@@ -118,22 +121,39 @@ const eligibleRows = rows
     && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
     && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
   );
-const candidateRows = uniqueRowsByVariantId([
-  ...eligibleRows.filter((row) => pinnedMechanismIds.has(row.variantId)),
-  ...eligibleRows,
-])
+const visualAnchorIds = [
+  "v29-wall-v16pathmem75-relief16-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v30-wall-v16cup-visco6-pathmem90-relief45-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
+  "v30-wall-v16cup-visco6-pathmem75-relief36-cupsoft-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
+  "v31-wall-v16cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref56-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv16-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v32-wall-v16lvref48-cap125-visco3-pathmem75-relief12-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv44-mvlite",
+  "v28-wall-v16visco3-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+] as const;
+
+const visualAnchorRows = visualAnchorIds
+  .map((variantId) => rows.find((row) =>
+    row.variantId === variantId
+    && row.hiddenVolumeClean
+    && row.phaseOrientedPvPass
+    && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
+    && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
+  ))
+  .filter((row): row is (typeof rows)[number] => row != null);
+
+const topCleanRows = eligibleRows
   .sort((a, b) =>
-    Number(pinnedMechanismIds.has(b.variantId)) - Number(pinnedMechanismIds.has(a.variantId))
-    || Number(b.sourcePreservingPhasePv) - Number(a.sourcePreservingPhasePv)
+    b.phasePv.meanReservoirConduitSeparationMmHg - a.phasePv.meanReservoirConduitSeparationMmHg
     || b.phasePv.vLoopArea - a.phasePv.vLoopArea
     || b.phasePv.postOpeningEarlyPressureDropMmHg - a.phasePv.postOpeningEarlyPressureDropMmHg
   )
-  .slice(0, 9)
-  .sort((a, b) =>
-    Number(b.sourcePreservingPhasePv) - Number(a.sourcePreservingPhasePv)
-    || b.phasePv.vLoopArea - a.phasePv.vLoopArea
-    || b.phasePv.postOpeningEarlyPressureDropMmHg - a.phasePv.postOpeningEarlyPressureDropMmHg
-  );
+  .slice(0, 4);
+
+const candidateRows = uniqueRowsByVariantId([
+  ...visualAnchorRows,
+  ...topCleanRows,
+]).slice(0, 10);
 
 const traces = candidateRows.map((row, index) => ({
   row,
@@ -148,7 +168,7 @@ svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${hei
 svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
 svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="700">Normal HR75 fast LA AV-plane residual review</text>`);
 svg.push(`<text x="34" y="60" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Only normal-hr75 is evaluated here. Candidate traces require source surface, MVF, blood-volume PV phase, hidden-volume cleanliness, and blood v-loop area >= 40 for visual triage; prime readbacks are ignored.</text>`);
-svg.push(`<text x="34" y="84" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="13">Candidate count: ${candidateRows.length}; fastest loop report rows: ${rows.length}. This artifact is a visual research shortcut, not broad-envelope acceptance.</text>`);
+svg.push(`<text x="34" y="84" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="13">Shown rows: ${candidateRows.length}; fast report rows: ${rows.length}. Includes dirty shape anchors when labeled; this artifact is a visual research shortcut, not broad-envelope acceptance.</text>`);
 
 if (traces.length === 0) {
   svg.push(`<text x="34" y="138" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="16">No normal-hr75 candidate survived the visual prefilter.</text>`);
@@ -177,7 +197,8 @@ function renderLegend(out: string[], traces: readonly Trace[], x: number, y: num
   traces.forEach((trace, index) => {
     const yy = y + index * 17;
     out.push(`<line x1="${x}" y1="${yy}" x2="${x + 24}" y2="${yy}" stroke="${trace.color}" stroke-width="3"/>`);
-    out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | blood vArea ${trace.row.phasePv.vLoopArea.toFixed(1)} | postMVO drop ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg / ${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL</text>`);
+    const status = trace.row.sourceSurfacePass && trace.row.mvfClean ? "clean" : "dirty-shape-anchor";
+    out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | ${status} | blood vArea ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | x-ing ${formatNullable(trace.row.phasePv.firstIntersectionReservoirProgress01)} | postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg/${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL</text>`);
   });
 }
 
@@ -247,6 +268,10 @@ function renderPhaseSegments(
   out.push(`<path d="${pathFor(reservoir, xFor, yFor)}" fill="none" stroke="#60a5fa" stroke-width="4.0" opacity="0.94"/>`);
   out.push(`<path d="${pathFor(conduit, xFor, yFor)}" fill="none" stroke="#fb923c" stroke-width="4.0" opacity="0.94"/>`);
   out.push(`<path d="${pathFor(pumping, xFor, yFor)}" fill="none" stroke="#d1d5db" stroke-width="3.6" opacity="0.90"/>`);
+}
+
+function formatNullable(value: number | null): string {
+  return value == null ? "n/a" : value.toFixed(2);
 }
 
 function cyclicSegment<T>(items: readonly T[], startIndex: number, endIndex: number): readonly T[] {
