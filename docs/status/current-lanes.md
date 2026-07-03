@@ -1304,6 +1304,26 @@ Next gates:
     and LV ejection/relaxation timing; do not resume scalar readback smoothing,
     display-axis tricks, hidden blood-volume sources, runtime wiring,
     AV-plane physiology enablement, or LandAtrial tuning from this surface.
+86. Continuous AV-plane trajectory law V14: a lightweight second-order
+    trajectory residual tied to accepted AoV ejection, MV opening/forward flow,
+    pulmonary venous source, and LA/LV pressure relief gives the first strong
+    prime-continuity signal but does not solve the LA-MV residual. Best V14
+    `v14-wall-effcav-traj20-pr150-fixed8-pv36-mvloss` keeps hidden-volume
+    cleanliness 7/7, source 5/7, MVF 5/7, effective-cavity/capacity-axis phase
+    4/7, source-preserving effective-cavity phase 3/7, and improves prime
+    waveform to 6/7 with about 2.76 mmHg applied fixed-blood pressure relief
+    and about 2.14 mmHg blood-coordinate x-descent. A source-friendlier V14
+    force variant reaches source 6/7 and MVF 6/7 but prime 0/7. Visual review
+    still shows folded/profile-dependent effective-cavity loops and residual
+    MV-opening/MV-loss artifacts; strict blood-volume phase remains 0/7 for all
+    V14 rows. Treat V14 as positive evidence that the accepted AV-plane
+    trajectory, not readback smoothing, owns the s/e/a-prime C1 problem, while
+    the remaining figure-eight/MVF residual is still in LA wall pressure, MV
+    opening/loss, pulmonary venous inflow, and LV relaxation timing. The next
+    architecture step should keep the continuous trajectory state and move the
+    MV opening/loss plus LA wall pressure coupling into the same continuous
+    residual rather than increasing trajectory residual weight or enabling
+    runtime/AV-plane physiology/LandAtrial.
 
 Parallel prep, not blocking the next strategic gate:
 
