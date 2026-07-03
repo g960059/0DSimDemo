@@ -201,11 +201,20 @@ export type LeftHeartSubsystemParamsV2 = LeftHeartSubsystemParamsV1 & {
   readonly laAVPlaneReservoirConduitPressureMemoryGainMmHg: number;
   readonly laAVPlaneReservoirConduitPressureMemoryRiseTauSec: number;
   readonly laAVPlaneReservoirConduitPressureMemoryFallTauSec: number;
+  readonly laReservoirConduitWallViscoelasticGainMmHg: number;
+  readonly laReservoirConduitWallViscoelasticFlowScaleMlPerSec: number;
+  readonly laReservoirConduitWallViscoelasticBoosterSuppression01: number;
+  readonly laReservoirConduitWallViscoelasticRiseTauSec: number;
+  readonly laReservoirConduitWallViscoelasticFallTauSec: number;
+  readonly laAVPlanePhaseLockedTrajectoryGain01: number;
   readonly lvEarlyFillingReceiverReliefGainMmHg: number;
   readonly lvEarlyFillingReceiverReliefRiseTauSec: number;
   readonly lvEarlyFillingReceiverReliefFallTauSec: number;
   readonly lvEarlyFillingReceiverReliefStartTheta: number;
   readonly lvEarlyFillingReceiverReliefEndTheta: number;
+  readonly lvEarlyFillingReceiverCapacityGain01: number;
+  readonly lvEarlyFillingReceiverCapacityRiseTauSec: number;
+  readonly lvEarlyFillingReceiverCapacityFallTauSec: number;
   readonly laMvLvReceiverPathGain01: number;
   readonly laMvLvReceiverPathRiseTauSec: number;
   readonly laMvLvReceiverPathFallTauSec: number;
@@ -236,7 +245,9 @@ export type LeftHeartSubsystemStateV2 = {
   readonly laAVPlaneWorkCoordinateNetForceN: number;
   readonly laAVPlaneReservoirConduitHysteresis01: number;
   readonly laAVPlaneReservoirConduitPressureMemoryMmHg: number;
+  readonly laReservoirConduitWallViscoelasticPressureMmHg: number;
   readonly laMvLvReceiverPath01: number;
+  readonly lvEarlyFillingReceiverCapacity01: number;
   readonly lvEarlyFillingReceiverReliefMmHg: number;
   readonly laBoosterPressureDrive01: number;
   readonly clampCount: number;
@@ -286,7 +297,9 @@ export type LeftHeartSubsystemSampleV2 = {
   readonly laAVPlaneWorkCoordinatePressureMmHg: number;
   readonly laAVPlaneReservoirConduitHysteresis01: number;
   readonly laAVPlaneReservoirConduitPressureMemoryMmHg: number;
+  readonly laReservoirConduitWallViscoelasticPressureMmHg: number;
   readonly laMvLvReceiverPath01: number;
+  readonly lvEarlyFillingReceiverCapacity01: number;
   readonly lvEarlyFillingReceiverReliefMmHg: number;
   readonly laBoosterGeometryDeltaMl: number;
   readonly laEffectiveGeometryHiddenBloodVolumeSourceMl: number;
@@ -351,7 +364,9 @@ type CandidateV2 = {
   readonly laAVPlaneWorkCoordinateZDotNormPerSec: number;
   readonly laAVPlaneReservoirConduitHysteresis01: number;
   readonly laAVPlaneReservoirConduitPressureMemoryMmHg: number;
+  readonly laReservoirConduitWallViscoelasticPressureMmHg: number;
   readonly laMvLvReceiverPath01: number;
+  readonly lvEarlyFillingReceiverCapacity01: number;
   readonly lvEarlyFillingReceiverReliefMmHg: number;
   readonly mvQEstimateMlPerSec: number;
   readonly mvOpenEstimate01: number;
@@ -395,6 +410,7 @@ type AcceptedV2 = CandidateV2 & {
   readonly laAVPlaneWorkCoordinatePressureMmHg: number;
   readonly laAVPlaneReservoirConduitHysteresis01: number;
   readonly laAVPlaneReservoirConduitPressureMemoryMmHg: number;
+  readonly laReservoirConduitWallViscoelasticPressureMmHg: number;
   readonly lvEarlyFillingReceiverReliefMmHg: number;
   readonly laBoosterPressureDrive01: number;
   readonly laBoosterPressureMmHg: number;
@@ -524,6 +540,18 @@ export function defaultLeftHeartSubsystemParamsV2(
       overrides.laAVPlaneReservoirConduitPressureMemoryRiseTauSec ?? 0.075,
     laAVPlaneReservoirConduitPressureMemoryFallTauSec:
       overrides.laAVPlaneReservoirConduitPressureMemoryFallTauSec ?? 0.36,
+    laReservoirConduitWallViscoelasticGainMmHg:
+      overrides.laReservoirConduitWallViscoelasticGainMmHg ?? 0,
+    laReservoirConduitWallViscoelasticFlowScaleMlPerSec:
+      overrides.laReservoirConduitWallViscoelasticFlowScaleMlPerSec ?? 70,
+    laReservoirConduitWallViscoelasticBoosterSuppression01:
+      overrides.laReservoirConduitWallViscoelasticBoosterSuppression01 ?? 0.85,
+    laReservoirConduitWallViscoelasticRiseTauSec:
+      overrides.laReservoirConduitWallViscoelasticRiseTauSec ?? 0.045,
+    laReservoirConduitWallViscoelasticFallTauSec:
+      overrides.laReservoirConduitWallViscoelasticFallTauSec ?? 0.090,
+    laAVPlanePhaseLockedTrajectoryGain01:
+      overrides.laAVPlanePhaseLockedTrajectoryGain01 ?? 0,
     lvEarlyFillingReceiverReliefGainMmHg:
       overrides.lvEarlyFillingReceiverReliefGainMmHg ?? 0,
     lvEarlyFillingReceiverReliefRiseTauSec:
@@ -534,6 +562,12 @@ export function defaultLeftHeartSubsystemParamsV2(
       overrides.lvEarlyFillingReceiverReliefStartTheta ?? 0.34,
     lvEarlyFillingReceiverReliefEndTheta:
       overrides.lvEarlyFillingReceiverReliefEndTheta ?? 0.74,
+    lvEarlyFillingReceiverCapacityGain01:
+      overrides.lvEarlyFillingReceiverCapacityGain01 ?? 0,
+    lvEarlyFillingReceiverCapacityRiseTauSec:
+      overrides.lvEarlyFillingReceiverCapacityRiseTauSec ?? 0.038,
+    lvEarlyFillingReceiverCapacityFallTauSec:
+      overrides.lvEarlyFillingReceiverCapacityFallTauSec ?? 0.22,
     laMvLvReceiverPathGain01:
       overrides.laMvLvReceiverPathGain01 ?? 0,
     laMvLvReceiverPathRiseTauSec:
@@ -575,7 +609,9 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
     laAVPlaneWorkCoordinateNetForceN: 0,
     laAVPlaneReservoirConduitHysteresis01: 0,
     laAVPlaneReservoirConduitPressureMemoryMmHg: 0,
+    laReservoirConduitWallViscoelasticPressureMmHg: 0,
     laMvLvReceiverPath01: 0,
+    lvEarlyFillingReceiverCapacity01: 0,
     lvEarlyFillingReceiverReliefMmHg: 0,
     laBoosterPressureDrive01: 0,
     clampCount: 0,
@@ -595,7 +631,9 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       laAVPlaneWorkCoordinateZDotNormPerSec: state.laAVPlaneWorkCoordinateZDotNormPerSec,
       laAVPlaneReservoirConduitHysteresis01: state.laAVPlaneReservoirConduitHysteresis01,
       laAVPlaneReservoirConduitPressureMemoryMmHg: state.laAVPlaneReservoirConduitPressureMemoryMmHg,
+      laReservoirConduitWallViscoelasticPressureMmHg: state.laReservoirConduitWallViscoelasticPressureMmHg,
       laMvLvReceiverPath01: state.laMvLvReceiverPath01,
+      lvEarlyFillingReceiverCapacity01: state.lvEarlyFillingReceiverCapacity01,
       lvEarlyFillingReceiverReliefMmHg: state.lvEarlyFillingReceiverReliefMmHg,
       mvQEstimateMlPerSec: state.mv.qMlPerSec,
       mvOpenEstimate01: state.mv.open01,
@@ -654,8 +692,19 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
             * inputCoordinateResidualScaleMl(params)
             * 0.35
           : 0,
+        usesLaReservoirConduitWallViscoelasticPressure(params)
+          ? (accepted.laReservoirConduitWallViscoelasticPressureMmHg
+            - candidate.laReservoirConduitWallViscoelasticPressureMmHg)
+            * inputCoordinateResidualScaleMl(params)
+            * 0.28
+          : 0,
         usesLaMvLvReceiverPathState(params)
           ? (accepted.laMvLvReceiverPath01 - candidate.laMvLvReceiverPath01)
+            * inputCoordinateResidualScaleMl(params)
+            * 0.35
+          : 0,
+        usesLvEarlyFillingReceiverCapacityState(params)
+          ? (accepted.lvEarlyFillingReceiverCapacity01 - candidate.lvEarlyFillingReceiverCapacity01)
             * inputCoordinateResidualScaleMl(params)
             * 0.35
           : 0,
@@ -671,6 +720,7 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
           candidate,
           accepted,
           dtSec,
+          theta,
         ),
       ]),
       (candidate, accepted, relaxation) => ({
@@ -706,9 +756,19 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
             relaxation,
           )
           : accepted.laAVPlaneReservoirConduitPressureMemoryMmHg,
+        laReservoirConduitWallViscoelasticPressureMmHg: usesLaReservoirConduitWallViscoelasticPressure(params)
+          ? lerpV2(
+            candidate.laReservoirConduitWallViscoelasticPressureMmHg,
+            accepted.laReservoirConduitWallViscoelasticPressureMmHg,
+            relaxation,
+          )
+          : accepted.laReservoirConduitWallViscoelasticPressureMmHg,
         laMvLvReceiverPath01: usesLaMvLvReceiverPathState(params)
           ? lerpV2(candidate.laMvLvReceiverPath01, accepted.laMvLvReceiverPath01, relaxation)
           : accepted.laMvLvReceiverPath01,
+        lvEarlyFillingReceiverCapacity01: usesLvEarlyFillingReceiverCapacityState(params)
+          ? lerpV2(candidate.lvEarlyFillingReceiverCapacity01, accepted.lvEarlyFillingReceiverCapacity01, relaxation)
+          : accepted.lvEarlyFillingReceiverCapacity01,
         lvEarlyFillingReceiverReliefMmHg: usesLvEarlyFillingReceiverRelief(params)
           ? lerpV2(
             candidate.lvEarlyFillingReceiverReliefMmHg,
@@ -769,7 +829,9 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       laAVPlaneWorkCoordinatePressureMmHg: accepted.laAVPlaneWorkCoordinatePressureMmHg,
       laAVPlaneReservoirConduitHysteresis01: accepted.laAVPlaneReservoirConduitHysteresis01,
       laAVPlaneReservoirConduitPressureMemoryMmHg: accepted.laAVPlaneReservoirConduitPressureMemoryMmHg,
+      laReservoirConduitWallViscoelasticPressureMmHg: accepted.laReservoirConduitWallViscoelasticPressureMmHg,
       laMvLvReceiverPath01: accepted.laMvLvReceiverPath01,
+      lvEarlyFillingReceiverCapacity01: accepted.lvEarlyFillingReceiverCapacity01,
       lvEarlyFillingReceiverReliefMmHg: accepted.lvEarlyFillingReceiverReliefMmHg,
       laAPrimeProxyCmPerSec: accepted.avPlaneGeometryReadback.aPrimeProxyCmPerSec,
       laLobeGeneratorMode: params.laLobeGeneratorMode,
@@ -829,7 +891,9 @@ export function runLeftHeartSubsystemV2(params: LeftHeartSubsystemParamsV2): Lef
       laAVPlaneWorkCoordinateNetForceN: accepted.laAVPlaneWorkCoordinateNetForceN,
       laAVPlaneReservoirConduitHysteresis01: accepted.laAVPlaneReservoirConduitHysteresis01,
       laAVPlaneReservoirConduitPressureMemoryMmHg: accepted.laAVPlaneReservoirConduitPressureMemoryMmHg,
+      laReservoirConduitWallViscoelasticPressureMmHg: accepted.laReservoirConduitWallViscoelasticPressureMmHg,
       laMvLvReceiverPath01: accepted.laMvLvReceiverPath01,
+      lvEarlyFillingReceiverCapacity01: accepted.lvEarlyFillingReceiverCapacity01,
       lvEarlyFillingReceiverReliefMmHg: accepted.lvEarlyFillingReceiverReliefMmHg,
       laBoosterPressureDrive01: accepted.laBoosterPressureDrive01,
       clampCount: state.clampCount + accepted.volumeClampHit01,
@@ -899,6 +963,7 @@ function acceptLeftHeartCandidateV2(input: {
     candidateZDotNormPerSec: input.candidate.laAVPlaneWorkCoordinateZDotNormPerSec,
     reservoirDrive01: laReservoirSuctionDrive01,
     previousMvOpen01: input.previousMvState.open01,
+    theta: input.theta,
     dtSec: input.dtSec,
     params: input.params,
   });
@@ -978,6 +1043,17 @@ function acceptLeftHeartCandidateV2(input: {
     input.params.laAVPlaneReservoirRecoilPressureGainMmHg * laReservoirRecoilDrive01;
   const laBoosterPressureMmHg =
     input.params.laBoosterPressureGainMmHg * laBoosterPressureDrive01;
+  const laReservoirConduitWallViscoelasticPressureTargetMmHg =
+    leftAtrialReservoirConduitWallViscoelasticPressureTargetMmHg(
+      input.params,
+      input.theta,
+      input.candidate.laVolumeMl - input.previous.laVolumeMl,
+      input.dtSec,
+    );
+  const laReservoirConduitWallViscoelasticPressureMmHg =
+    usesLaReservoirConduitWallViscoelasticPressure(input.params)
+      ? input.candidate.laReservoirConduitWallViscoelasticPressureMmHg
+      : 0;
   let laReservoirGeometryDeltaMl =
     input.params.laEffectiveGeometryMode === "lobe-state-capacity-volume-shadow"
     || input.params.laEffectiveGeometryMode === "av-plane-reservoir-capacity-volume-shadow"
@@ -1023,7 +1099,10 @@ function acceptLeftHeartCandidateV2(input: {
     laFiberChamber.pressureRawMmHg,
     laFiberChamber.activePressureMmHg,
     leftAtrialPressureReferenceVolumeShiftMl(input.params, laReservoirReferenceVolumeShiftMl),
-  ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
+  ) + laReservoirSuctionPressureMmHg
+    + laReservoirRecoilPressureMmHg
+    + laBoosterPressureMmHg
+    + laReservoirConduitWallViscoelasticPressureMmHg;
   let laAVPlaneReservoirConduitPressureMemoryReliefMmHg =
     fullLeftReservoirConduitPressureMemoryReliefMmHg(
       input.params,
@@ -1055,6 +1134,7 @@ function acceptLeftHeartCandidateV2(input: {
     input.params,
     lvpMmHg,
     input.candidate.lvEarlyFillingReceiverReliefMmHg,
+    input.candidate.lvEarlyFillingReceiverCapacity01,
   );
   if (input.params.laLobeGeneratorMode === "av-plane-force-balance-coordinate-transaction-v1") {
     laAVPlaneWorkCoordinate = nextLeftAtrialAVPlaneWorkCoordinateV1({
@@ -1064,6 +1144,7 @@ function acceptLeftHeartCandidateV2(input: {
       candidateZDotNormPerSec: input.candidate.laAVPlaneWorkCoordinateZDotNormPerSec,
       reservoirDrive01: laReservoirSuctionDrive01,
       previousMvOpen01: input.previousMvState.open01,
+      theta: input.theta,
       lapMmHg: lapRawWithoutTractionMmHg + lapSafetyMmHg,
       lvpMmHg,
       dtSec: input.dtSec,
@@ -1116,7 +1197,10 @@ function acceptLeftHeartCandidateV2(input: {
       laFiberChamber.pressureRawMmHg,
       laFiberChamber.activePressureMmHg,
       leftAtrialPressureReferenceVolumeShiftMl(input.params, laReservoirReferenceVolumeShiftMl),
-    ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
+    ) + laReservoirSuctionPressureMmHg
+      + laReservoirRecoilPressureMmHg
+      + laBoosterPressureMmHg
+      + laReservoirConduitWallViscoelasticPressureMmHg;
   }
   if (input.params.laLobeGeneratorMode === "av-plane-reference-volume-coordinate-transaction-v1") {
     laAVPlaneWorkCoordinate = nextLeftAtrialAVPlaneWorkCoordinateV1({
@@ -1126,6 +1210,7 @@ function acceptLeftHeartCandidateV2(input: {
       candidateZDotNormPerSec: input.candidate.laAVPlaneWorkCoordinateZDotNormPerSec,
       reservoirDrive01: laReservoirSuctionDrive01,
       previousMvOpen01: input.previousMvState.open01,
+      theta: input.theta,
       lapMmHg: lapRawWithoutTractionMmHg + lapSafetyMmHg,
       lvpMmHg,
       dtSec: input.dtSec,
@@ -1173,7 +1258,10 @@ function acceptLeftHeartCandidateV2(input: {
       laFiberChamber.pressureRawMmHg,
       laFiberChamber.activePressureMmHg,
       leftAtrialPressureReferenceVolumeShiftMl(input.params, laReservoirReferenceVolumeShiftMl),
-    ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
+    ) + laReservoirSuctionPressureMmHg
+      + laReservoirRecoilPressureMmHg
+      + laBoosterPressureMmHg
+      + laReservoirConduitWallViscoelasticPressureMmHg;
   }
   if (
     input.params.laLobeGeneratorMode === "av-plane-wall-work-lamv-residual-transaction-v1"
@@ -1207,6 +1295,7 @@ function acceptLeftHeartCandidateV2(input: {
         reservoirDrive01: laReservoirSuctionDrive01,
         previousMvOpen01: input.previousMvState.open01,
         mvOpen01: mvOpenEstimate01,
+        theta: input.theta,
         lapMmHg: lapEstimateMmHg,
         lvpMmHg,
         dtSec: input.dtSec,
@@ -1264,7 +1353,10 @@ function acceptLeftHeartCandidateV2(input: {
         laFiberChamber.pressureRawMmHg,
         laFiberChamber.activePressureMmHg,
         leftAtrialPressureReferenceVolumeShiftMl(input.params, laReservoirReferenceVolumeShiftMl),
-      ) + laReservoirSuctionPressureMmHg + laReservoirRecoilPressureMmHg + laBoosterPressureMmHg;
+      ) + laReservoirSuctionPressureMmHg
+        + laReservoirRecoilPressureMmHg
+        + laBoosterPressureMmHg
+        + laReservoirConduitWallViscoelasticPressureMmHg;
       laAVPlaneReservoirConduitPressureMemoryReliefMmHg =
         fullLeftReservoirConduitPressureMemoryReliefMmHg(
           input.params,
@@ -1419,6 +1511,24 @@ function acceptLeftHeartCandidateV2(input: {
     input.dtSec,
     input.params,
   );
+  const lvEarlyFillingReceiverCapacityTarget01 =
+    lvEarlyFillingReceiverCapacityTarget01For({
+      params: input.params,
+      theta: input.theta,
+      previous: input.previous,
+      path01: laAVPlaneReservoirConduitHysteresis01,
+      receiverPath01: laMvLvReceiverPath01,
+      mvOpen01: mv.open01,
+      mvQMlPerSec: mv.qMlPerSec,
+      lapMmHg,
+      lvpMmHg,
+    });
+  const lvEarlyFillingReceiverCapacity01 = nextLvEarlyFillingReceiverCapacity01(
+    input.previous.lvEarlyFillingReceiverCapacity01,
+    lvEarlyFillingReceiverCapacityTarget01,
+    input.dtSec,
+    input.params,
+  );
   const lvEarlyFillingReceiverReliefTargetMmHg =
     lvEarlyFillingReceiverReliefTargetMmHgFor({
       params: input.params,
@@ -1426,6 +1536,7 @@ function acceptLeftHeartCandidateV2(input: {
       previous: input.previous,
       path01: laAVPlaneReservoirConduitHysteresis01,
       receiverPath01: laMvLvReceiverPath01,
+      receiverCapacity01: lvEarlyFillingReceiverCapacity01,
       mvOpen01: mv.open01,
       mvQMlPerSec: mv.qMlPerSec,
       lapMmHg,
@@ -1437,6 +1548,13 @@ function acceptLeftHeartCandidateV2(input: {
     input.dtSec,
     input.params,
   );
+  const acceptedLaReservoirConduitWallViscoelasticPressureMmHg =
+    nextLaReservoirConduitWallViscoelasticPressureMmHg(
+      input.previous.laReservoirConduitWallViscoelasticPressureMmHg,
+      laReservoirConduitWallViscoelasticPressureTargetMmHg,
+      input.dtSec,
+      input.params,
+    );
   const qPulmonaryVenousMlPerSec = pulmonaryBoundary.qPulmonaryVenousMlPerSec;
   const rawNextLvVolumeMl = input.previous.lvVolumeMl + input.dtSec * (mv.qMlPerSec - aov.qMlPerSec);
   const rawNextLaVolumeMl = input.previous.laVolumeMl + input.dtSec * (qPulmonaryVenousMlPerSec - mv.qMlPerSec);
@@ -1487,7 +1605,10 @@ function acceptLeftHeartCandidateV2(input: {
     laAVPlaneWorkCoordinatePressureMmHg: laAVPlaneWorkCoordinate.tractionPressureMmHg,
     laAVPlaneReservoirConduitHysteresis01,
     laAVPlaneReservoirConduitPressureMemoryMmHg,
+    laReservoirConduitWallViscoelasticPressureMmHg:
+      acceptedLaReservoirConduitWallViscoelasticPressureMmHg,
     laMvLvReceiverPath01,
+    lvEarlyFillingReceiverCapacity01,
     lvEarlyFillingReceiverReliefMmHg,
     laReservoirGeometryDeltaMl,
     laReservoirReferenceVolumeShiftMl,
@@ -1638,6 +1759,7 @@ function fullLeftResidualCoordinateResiduals(
   candidate: CandidateV2,
   accepted: AcceptedV2,
   dtSec: number,
+  theta: number,
 ): readonly number[] {
   if (scaleMl <= 0) return [];
   const residuals = [
@@ -1817,7 +1939,7 @@ function fullLeftResidualCoordinateResiduals(
   }
   if (isFullLeftContinuousTrajectoryLawMode(params)) {
     const targetZNorm = isFullLeftReservoirConduitHysteresisV4Mode(params)
-      ? fullLeftReservoirConduitHysteresisV4TargetZNorm(params, previous, candidate, accepted)
+      ? fullLeftReservoirConduitHysteresisV4TargetZNorm(params, previous, candidate, accepted, theta)
       : isFullLeftReservoirConduitHysteresisV3Mode(params)
       ? fullLeftReservoirConduitHysteresisV3TargetZNorm(params, previous, accepted)
       : isFullLeftReservoirConduitHysteresisV2Mode(params)
@@ -1875,12 +1997,15 @@ function fullLeftResidualCoordinateResiduals(
     const mvOpenTarget01 =
       smoothstep01((mvPressureGradientMmHg - 0.15) / 1.6)
       * (1 - 0.90 * ejectionDrive01);
+    const phaseLockedGain01 = clamp(params.laAVPlanePhaseLockedTrajectoryGain01, 0, 1);
+    const coordinateTargetWeight = phaseLockedGain01 > 0 ? 0.055 : 0.010;
+    const coordinateVelocityWeight = phaseLockedGain01 > 0 ? 0.085 : 0.020;
     residuals.push(
-      (candidate.laAVPlaneWorkCoordinateZNorm - projectedTargetZNorm) * scaleMl * 0.010,
+      (candidate.laAVPlaneWorkCoordinateZNorm - projectedTargetZNorm) * scaleMl * coordinateTargetWeight,
       (candidate.laAVPlaneWorkCoordinateZDotNormPerSec - targetZDotNormPerSec)
         * scaleMl
         * Math.max(dtSec, 1e-9)
-        * 0.020,
+        * coordinateVelocityWeight,
       bloodMassResidualMl * 0.040,
       (wallStretchDeltaMl - expectedWallStretchDeltaMl) * 0.006,
       mvOpeningPressureFlowResidualMmHg * 0.006,
@@ -2267,6 +2392,41 @@ function fullLeftReservoirConduitPressureMemoryReliefMmHg(
     * conduitReliefGate01;
 }
 
+function usesLaReservoirConduitWallViscoelasticPressure(params: LeftHeartSubsystemParamsV2): boolean {
+  return Math.max(0, params.laReservoirConduitWallViscoelasticGainMmHg) > 0;
+}
+
+function leftAtrialReservoirConduitWallViscoelasticPressureTargetMmHg(
+  params: LeftHeartSubsystemParamsV2,
+  theta: number,
+  deltaLaVolumeMl: number,
+  dtSec: number,
+): number {
+  const gainMmHg = Math.max(0, params.laReservoirConduitWallViscoelasticGainMmHg);
+  if (gainMmHg <= 0) return 0;
+  const flowScaleMlPerSec = Math.max(1, params.laReservoirConduitWallViscoelasticFlowScaleMlPerSec);
+  const laVolumeRateMlPerSec = deltaLaVolumeMl / Math.max(dtSec, 1e-9);
+  const boosterSuppression01 = clamp(params.laReservoirConduitWallViscoelasticBoosterSuppression01, 0, 1);
+  const boosterWindow01 = raisedCosineWindow(theta, params.laAWaveStartTheta, params.laAWaveEndTheta);
+  const reservoirConduitGate01 = clamp(1 - boosterSuppression01 * boosterWindow01, 0, 1);
+  return gainMmHg * Math.tanh(laVolumeRateMlPerSec / flowScaleMlPerSec) * reservoirConduitGate01;
+}
+
+function nextLaReservoirConduitWallViscoelasticPressureMmHg(
+  previousPressureMmHg: number,
+  targetPressureMmHg: number,
+  dtSec: number,
+  params: LeftHeartSubsystemParamsV2,
+): number {
+  if (!usesLaReservoirConduitWallViscoelasticPressure(params)) return 0;
+  const tauSec = Math.abs(targetPressureMmHg) > Math.abs(previousPressureMmHg)
+    ? Math.max(0.012, params.laReservoirConduitWallViscoelasticRiseTauSec)
+    : Math.max(0.018, params.laReservoirConduitWallViscoelasticFallTauSec);
+  const step = (targetPressureMmHg - previousPressureMmHg) * dtSec / Math.max(tauSec, 1e-9);
+  const gainMmHg = Math.max(0, params.laReservoirConduitWallViscoelasticGainMmHg);
+  return clamp(previousPressureMmHg + step, -gainMmHg, gainMmHg);
+}
+
 function fullLeftReservoirConduitPressureMemoryTargetMmHgFor(input: {
   readonly params: LeftHeartSubsystemParamsV2;
   readonly previous: CandidateV2;
@@ -2332,6 +2492,10 @@ function usesLaMvLvReceiverPathState(params: LeftHeartSubsystemParamsV2): boolea
   return Math.max(0, params.laMvLvReceiverPathGain01) > 0;
 }
 
+function usesLvEarlyFillingReceiverCapacityState(params: LeftHeartSubsystemParamsV2): boolean {
+  return Math.max(0, params.lvEarlyFillingReceiverCapacityGain01) > 0;
+}
+
 function laMvLvReceiverPathTarget01For(input: {
   readonly params: LeftHeartSubsystemParamsV2;
   readonly theta: number;
@@ -2389,12 +2553,77 @@ function lvEarlyFillingReceiverEffectiveMvDownstreamPressureMmHg(
   params: LeftHeartSubsystemParamsV2,
   lvpMmHg: number,
   receiverReliefMmHg: number,
+  receiverCapacity01: number,
 ): number {
   if (!usesLvEarlyFillingReceiverRelief(params)) return lvpMmHg;
+  const capacityReliefMmHg = usesLvEarlyFillingReceiverCapacityState(params)
+    ? 0.62
+      * Math.max(0, params.lvEarlyFillingReceiverReliefGainMmHg)
+      * clamp(receiverCapacity01, 0, 1)
+    : 0;
   return Math.max(
     0,
-    lvpMmHg - clamp(receiverReliefMmHg, 0, Math.max(0, params.lvEarlyFillingReceiverReliefGainMmHg)),
+    lvpMmHg - clamp(
+      receiverReliefMmHg + capacityReliefMmHg,
+      0,
+      Math.max(0, params.lvEarlyFillingReceiverReliefGainMmHg) * 1.55,
+    ),
   );
+}
+
+function lvEarlyFillingReceiverCapacityTarget01For(input: {
+  readonly params: LeftHeartSubsystemParamsV2;
+  readonly theta: number;
+  readonly previous: CandidateV2;
+  readonly path01: number;
+  readonly receiverPath01: number;
+  readonly mvOpen01: number;
+  readonly mvQMlPerSec: number;
+  readonly lapMmHg: number;
+  readonly lvpMmHg: number;
+}): number {
+  const { params } = input;
+  const gain01 = clamp(params.lvEarlyFillingReceiverCapacityGain01, 0, 1);
+  if (gain01 <= 0) return 0;
+  const mvOpenDrive01 = smoothstep01(
+    input.mvOpen01 / Math.max(params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
+  );
+  const mvForwardFlowDrive01 = smoothstep01(Math.max(0, input.mvQMlPerSec) / 78);
+  const previousMvForwardDrive01 = smoothstep01(Math.max(0, input.previous.mvQEstimateMlPerSec) / 78);
+  const mvForwardAccelerationDrive01 = smoothstep01(
+    (Math.max(0, input.mvQMlPerSec) - Math.max(0, input.previous.mvQEstimateMlPerSec)) / 52,
+  );
+  const earlyDiastolicDrive01 = raisedCosineWindow(
+    input.theta,
+    params.lvEarlyFillingReceiverReliefStartTheta,
+    params.lvEarlyFillingReceiverReliefEndTheta,
+  );
+  const laToLvGradientDrive01 = smoothstep01((input.lapMmHg - input.lvpMmHg) / 3.0);
+  const conduitPath01 = clamp(input.path01, 0, 1);
+  const receiverPath01 = clamp(input.receiverPath01, 0, 1);
+  const previousCapacity01 = clamp(input.previous.lvEarlyFillingReceiverCapacity01, 0, 1);
+  const capacityTarget01 =
+    mvOpenDrive01
+    * earlyDiastolicDrive01
+    * (0.18 + 0.32 * conduitPath01 + 0.34 * receiverPath01 + 0.16 * previousCapacity01)
+    * (0.32 + 0.36 * mvForwardFlowDrive01 + 0.20 * previousMvForwardDrive01
+      + 0.12 * mvForwardAccelerationDrive01)
+    * (0.64 + 0.36 * laToLvGradientDrive01);
+  return gain01 * clamp(capacityTarget01, 0, 1);
+}
+
+function nextLvEarlyFillingReceiverCapacity01(
+  previousReceiverCapacity01: number,
+  targetReceiverCapacity01: number,
+  dtSec: number,
+  params: LeftHeartSubsystemParamsV2,
+): number {
+  if (!usesLvEarlyFillingReceiverCapacityState(params)) return 0;
+  const tauSec = targetReceiverCapacity01 > previousReceiverCapacity01
+    ? Math.max(0.016, params.lvEarlyFillingReceiverCapacityRiseTauSec)
+    : Math.max(0.060, params.lvEarlyFillingReceiverCapacityFallTauSec);
+  const step = (targetReceiverCapacity01 - previousReceiverCapacity01) * dtSec / Math.max(tauSec, 1e-9);
+  return clamp(previousReceiverCapacity01 + step, 0, clamp(params.lvEarlyFillingReceiverCapacityGain01, 0, 1));
 }
 
 function lvEarlyFillingReceiverReliefTargetMmHgFor(input: {
@@ -2403,6 +2632,7 @@ function lvEarlyFillingReceiverReliefTargetMmHgFor(input: {
   readonly previous: CandidateV2;
   readonly path01: number;
   readonly receiverPath01: number;
+  readonly receiverCapacity01: number;
   readonly mvOpen01: number;
   readonly mvQMlPerSec: number;
   readonly lapMmHg: number;
@@ -2418,8 +2648,11 @@ function lvEarlyFillingReceiverReliefTargetMmHgFor(input: {
   const previousMvForwardDrive01 = smoothstep01(Math.max(0, input.previous.mvQEstimateMlPerSec) / 92);
   const conduitPath01 = clamp(input.path01, 0, 1);
   const receiverPath01 = clamp(input.receiverPath01, 0, 1);
+  const receiverCapacity01 = usesLvEarlyFillingReceiverCapacityState(params)
+    ? clamp(input.receiverCapacity01, 0, 1)
+    : 0;
   const pathMix01 = usesLaMvLvReceiverPathState(params)
-    ? clamp(0.24 + 0.76 * conduitPath01 + 0.18 * receiverPath01, 0, 1)
+    ? clamp(0.22 + 0.66 * conduitPath01 + 0.20 * receiverPath01 + 0.18 * receiverCapacity01, 0, 1)
     : 0.24 + 0.76 * conduitPath01;
   const earlyDiastolicDrive01 = raisedCosineWindow(
     input.theta,
@@ -2431,7 +2664,8 @@ function lvEarlyFillingReceiverReliefTargetMmHgFor(input: {
     mvOpenDrive01
     * earlyDiastolicDrive01
     * pathMix01
-    * (0.30 + 0.52 * mvForwardFlowDrive01 + 0.18 * previousMvForwardDrive01)
+    * (0.28 + 0.46 * mvForwardFlowDrive01 + 0.16 * previousMvForwardDrive01
+      + 0.10 * receiverCapacity01)
     * (0.60 + 0.40 * laToLvGradientDrive01);
   return gainMmHg * clamp(receiverDrive01, 0, 1);
 }
@@ -2459,6 +2693,7 @@ function fullLeftReservoirConduitHysteresisV4TargetZNorm(
   previous: CandidateV2,
   candidate: CandidateV2,
   accepted: AcceptedV2,
+  theta: number,
 ): number {
   const ejectionDrive01 = smoothstep01(
     (Math.max(0, accepted.aov.qMlPerSec) - params.laAVPlaneEjectionRateStartMlPerSec)
@@ -2476,6 +2711,9 @@ function fullLeftReservoirConduitHysteresisV4TargetZNorm(
   const receiverPath01 = usesLaMvLvReceiverPathState(params)
     ? clamp(candidate.laMvLvReceiverPath01, 0, 1)
     : 0;
+  const receiverCapacity01 = usesLvEarlyFillingReceiverCapacityState(params)
+    ? clamp(candidate.lvEarlyFillingReceiverCapacity01, 0, 1)
+    : 0;
   const previousZ = clamp(previous.laAVPlaneWorkCoordinateZNorm, 0, 1);
   const reservoirTarget = clamp(
     ejectionDrive01
@@ -2490,12 +2728,14 @@ function fullLeftReservoirConduitHysteresisV4TargetZNorm(
       - 0.12 * mvForwardDecelDrive01
       + 0.08 * pulmonarySourceDrive01
       - 0.04 * laToLvReliefDrive01
-      + 0.22 * receiverPath01,
+      + 0.22 * receiverPath01
+      + 0.16 * receiverCapacity01,
     0.58,
     0.96,
   );
   const conduitFloor = clamp(
-    0.14 + 0.13 * pulmonarySourceDrive01 - 0.04 * laToLvReliefDrive01 - 0.080 * receiverPath01,
+    0.14 + 0.13 * pulmonarySourceDrive01 - 0.04 * laToLvReliefDrive01
+      - 0.080 * receiverPath01 - 0.052 * receiverCapacity01,
     0.06,
     0.30,
   );
@@ -2504,7 +2744,55 @@ function fullLeftReservoirConduitHysteresisV4TargetZNorm(
     0,
     1,
   );
-  return clamp(reservoirTarget * (1 - path01) + conduitTarget * path01, 0, 1);
+  const baseTarget = clamp(reservoirTarget * (1 - path01) + conduitTarget * path01, 0, 1);
+  const phaseLockedGain01 = clamp(params.laAVPlanePhaseLockedTrajectoryGain01, 0, 1);
+  if (phaseLockedGain01 <= 0) return baseTarget;
+  const systolicDescentWindow01 = raisedCosineWindow(theta, 0.055, 0.425);
+  const earlyConduitWindow01 = raisedCosineWindow(
+    theta,
+    params.lvEarlyFillingReceiverReliefStartTheta,
+    params.lvEarlyFillingReceiverReliefEndTheta,
+  );
+  const mvOpenDrive01 = smoothstep01(
+    accepted.mv.open01 / Math.max(params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
+  );
+  const phaseConduitGate01 = clamp(mvOpenDrive01 * earlyConduitWindow01, 0, 1);
+  const phaseReservoirTarget = clamp(
+    ejectionDrive01
+      * (0.76 + 0.24 * systolicDescentWindow01)
+      * (1 + 0.10 * pulmonarySourceDrive01)
+      * (1 - 0.05 * laToLvReliefDrive01),
+    0,
+    1,
+  );
+  const phaseConduitRetention01 = clamp(
+    0.92
+      - 0.10 * mvForwardFlowDrive01
+      - 0.12 * mvForwardDecelDrive01
+      + 0.06 * receiverPath01
+      + 0.10 * receiverCapacity01,
+    0.68,
+    0.98,
+  );
+  const phaseConduitFloor = clamp(
+    0.12
+      + 0.08 * pulmonarySourceDrive01
+      - 0.025 * laToLvReliefDrive01
+      - 0.035 * receiverCapacity01,
+    0.075,
+    0.24,
+  );
+  const phaseConduitTarget = clamp(
+    previousZ * phaseConduitRetention01 + phaseConduitFloor * (1 - phaseConduitRetention01),
+    0,
+    1,
+  );
+  const phaseTarget = clamp(
+    phaseReservoirTarget * (1 - phaseConduitGate01) + phaseConduitTarget * phaseConduitGate01,
+    0,
+    1,
+  );
+  return clamp(baseTarget * (1 - phaseLockedGain01) + phaseTarget * phaseLockedGain01, 0, 1);
 }
 
 function resolveLaMvOpenTractionTransactionV1(input: {
@@ -3331,6 +3619,7 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
   readonly reservoirDrive01: number;
   readonly previousMvOpen01: number;
   readonly mvOpen01?: number;
+  readonly theta?: number;
   readonly lapMmHg?: number;
   readonly lvpMmHg?: number;
   readonly dtSec: number;
@@ -3445,6 +3734,50 @@ function nextLeftAtrialAVPlaneWorkCoordinateV1(input: {
     -maxVelocityNormPerSec,
     maxVelocityNormPerSec,
   );
+  const phaseLockedGain01 = clamp(input.params.laAVPlanePhaseLockedTrajectoryGain01, 0, 1);
+  if (phaseLockedGain01 > 0 && input.theta != null) {
+    const mvOpenDrive01 = smoothstep01(
+      (input.mvOpen01 ?? input.previousMvOpen01)
+        / Math.max(input.params.laAVPlaneReservoirCapacityMvOpenReleaseThreshold01, 1e-9),
+    );
+    const systolicDescentWindow01 = raisedCosineWindow(input.theta, 0.055, 0.425);
+    const earlyConduitWindow01 = raisedCosineWindow(
+      input.theta,
+      input.params.lvEarlyFillingReceiverReliefStartTheta,
+      input.params.lvEarlyFillingReceiverReliefEndTheta,
+    );
+    const phaseConduitGate01 = clamp(mvOpenDrive01 * earlyConduitWindow01, 0, 1);
+    const phaseReservoirTargetZNorm = clamp(
+      Math.max(input.reservoirDrive01, systolicDescentWindow01)
+        * (1 - 0.05 * mvOpenDrive01),
+      0,
+      1,
+    );
+    const phaseConduitTargetZNorm = clamp(
+      input.previousZNorm * 0.94 + 0.10 * 0.06,
+      0,
+      1,
+    );
+    const phaseTargetZNorm = clamp(
+      phaseReservoirTargetZNorm * (1 - phaseConduitGate01)
+        + phaseConduitTargetZNorm * phaseConduitGate01,
+      0,
+      1,
+    );
+    const phaseTauSec = phaseTargetZNorm >= input.previousZNorm
+      ? Math.max(input.params.laAVPlaneReservoirCapacityRiseTauSec, input.dtSec, 1e-9)
+      : Math.max(input.params.laAVPlaneReservoirCapacityReleaseTauSec, input.dtSec, 1e-9);
+    const phaseTargetZDotNormPerSec = clamp(
+      (phaseTargetZNorm - input.previousZNorm) / phaseTauSec,
+      -maxVelocityNormPerSec,
+      maxVelocityNormPerSec,
+    );
+    zDotNormPerSec = clamp(
+      zDotNormPerSec * (1 - phaseLockedGain01) + phaseTargetZDotNormPerSec * phaseLockedGain01,
+      -maxVelocityNormPerSec,
+      maxVelocityNormPerSec,
+    );
+  }
   const maxAccelerationNormPerSec2 = Math.max(
     0,
     input.params.laAVPlaneWorkCoordinateMaxAccelerationNormPerSec2,

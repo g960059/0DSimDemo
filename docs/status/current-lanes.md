@@ -1565,6 +1565,66 @@ Next gates:
     relief and instead co-solve LV early-diastolic receiving capacity/relaxation
     with MV opening/loss, LA wall pressure, pulmonary venous inflow, and the
     AV-plane reservoir/conduit path.
+100. LV receiver capacity state plus phase-locked AV-plane path V25/V26:
+    a larger normal-first pass adds an explicit early-LV-filling receiver
+    capacity state and a weak phase-locked AV-plane trajectory owner on top of
+    the V16/V23/V24 reservoir-conduit route. Prime/a-prime waveform quality is
+    now treated as a readback only for this residual lane, because its current
+    waveform gate is not trusted enough to filter candidates; source surface,
+    MVF cleanliness, blood-volume PV phase, immediate post-MV-opening conduit
+    downstroke, and hidden-volume cleanliness remain the hard visual filters.
+    V25 receiver capacity alone is clean but shrinks the normal-HR75 V-loop
+    area further (representative normal area about 32.7-32.8 vs V16 36.9).
+    V26 weak phase-lock is the useful signal: normal-HR75
+    `v26-wall-v16phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite`
+    preserves source/MVF/blood-phase/hidden-volume cleanliness and raises the
+    blood V-loop area to about 37.65, exceeding the V16 no-receiver shape while
+    keeping a clean immediate post-MV-opening downstroke. Stronger phase-lock
+    variants over-constrain the path and shrink normal V-loop area, so the
+    positive signal is weak phase-locked z_AV ownership, not stronger direct
+    velocity forcing. Across the broad 7-profile envelope, V26 remains a
+    component signal only: best V26 reaches source-preserving blood phase 3/7
+    (normal-HR75, preload-low, contractility-high), source 5/7, MVF 5/7, and
+    hidden-volume clean 7/7; normal-HR90/preload-high still fail blood PV
+    phase, and afterload-high/contractility-low remain MV-kink/MVF residuals.
+    The updated normal fast SVG shows only candidates passing the current
+    blood-volume/source/MVF/hidden-volume filters. Effective/capacity axes are
+    no longer an owner-facing SVG or current morphology-gate target; keep them
+    as internal readbacks only when useful. Treat V26 as a mechanism lead for
+    separating V-loop area ownership (phase-locked z_AV state) from conduit
+    direction ownership (LV receiver), not as morphology acceptance or runtime
+    enablement. If this state separation does not continue to transfer beyond
+    the normal point, the next architecture branch should test wall
+    viscoelastic reservoir-conduit hysteresis rather than more scalar receiver
+    relief.
+101. Normal-first large-area and wall-viscoelastic hysteresis V27/V28: because
+    the owner prioritizes research speed and the normal-HR75 V-loop area is the
+    visible blocker, the latest pass focuses on normal-HR75 first rather than
+    requiring broad-envelope success. V27 larger capacity/receiver variants are
+    negative: they do not produce a reference-like blood-volume reservoir/conduit
+    loop without damaging source/MVF behavior. V28 adds a stateful
+    reservoir-conduit wall-viscoelastic pressure term inside the LA-MV-LV
+    transaction. This is a useful normal-first partial signal: normal-HR75
+    `v28-wall-v16visco3-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite`
+    remains source/MVF/blood-phase/hidden-volume clean with blood V-loop area
+    about 44.7 and post-MV-opening pressure/volume drop about 2.63 mmHg /
+    4.79 mL; `v28-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite`
+    remains clean with blood V-loop area about 43.6 and post-MV-opening
+    drop about 3.16 mmHg / 5.44 mL. Higher wall-viscoelastic gains can enlarge
+    area further but break source-surface and/or MVF cleanliness, so this is not
+    a scalar gain adoption path. Owner-facing SVGs now display blood-volume PV
+    only; effective/capacity PV and prime/a-prime panels are removed from the
+    current visual candidate surface and are not current morphology gates. Visual
+    review against the Nature artificial-LA reference remains negative: the
+    current normal-HR75 candidates are much better than the previous vertical
+    V-wave/upward-MV-opening failures, but the V loop is still too triangular
+    and straight, with insufficient rounded reservoir-conduit hysteresis. Next
+    work should stay normal-HR75-first and build a real blood-volume
+    reservoir-conduit hysteresis owner that separates the MV-closure-to-MV-opening
+    reservoir path from the post-MV-opening conduit path, co-solved with LA wall
+    pressure, pulmonary venous inflow, MV opening/loss, LV receiver relaxation,
+    and phase-locked AV-plane descent/recoil. Do not reintroduce effective-axis
+    acceptance or prime-waveform gating while this residual is being isolated.
 
 Parallel prep, not blocking the next strategic gate:
 

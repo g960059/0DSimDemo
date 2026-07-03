@@ -31,14 +31,42 @@ const rows = report.rows.filter((row) => row.profileId === "normal-hr75");
 const pinnedMechanismIds = new Set([
   "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
   "v24-wall-v16receiverstate-lvrecv3-rpathslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v25-wall-v16lvreceivercap-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v25-wall-v16lvreceivercap-lvrecv3-rcapslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v26-wall-v16phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v26-wall-v16phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v26-wall-v16phaselock085-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v26-wall-v16phaselock085-lvrecv3-rcapslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v27-wall-v16phaselock02-cap125-pr180-lvrecv3-rcap-traj20-mvimplicit02-pv52-mvlite",
+  "v27-wall-v16phaselock02-cap150-pr200-lvrecv3-rcap-traj20-mvimplicit02-pv64-mvlite",
+  "v27-wall-v16phaselock015-cap150-pr200-lvrecv3-rcapslow-traj20-mvimplicit02-pv64-mvlite",
+  "v27-wall-v16phaselock03-cap150-pr200-lvrecv4-rcap-traj20-mvimplicit02-pv64-mvlite",
+  "v27-wall-v16phaselock02-cap175-pr220-lvrecv4-rcapfast-traj20-mvimplicit02-pv72-mvlite",
+  "v28-wall-v16visco2-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco25-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco25-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco3-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco3-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco35-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco4-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco6-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco8-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco4-phaselock04-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco6-phaselock015-lvrecv3-rcapslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
+  "v28-wall-v16visco6-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
 ]);
 const eligibleRows = rows
   .filter((row) =>
-    row.sourceSurfacePass
-    && row.mvfClean
-    && row.primeWaveformPass
-    && row.phaseOrientedPvPass
-    && row.hiddenVolumeClean
+    isCurrentNormalFirstFamily(row.family)
+    && row.sourceSurfacePass
+	    && row.mvfClean
+	    && row.phaseOrientedPvPass
+	    && row.hiddenVolumeClean
+	    && row.phasePv.vLoopArea >= 40
+	    && row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0
+	    && row.phasePv.postOpeningEarlyVolumeDropMl > 0.8
     && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
     && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
   );
@@ -49,14 +77,12 @@ const candidateRows = uniqueRowsByVariantId([
   .sort((a, b) =>
     Number(pinnedMechanismIds.has(b.variantId)) - Number(pinnedMechanismIds.has(a.variantId))
     || Number(b.sourcePreservingPhasePv) - Number(a.sourcePreservingPhasePv)
-    || Number(b.primeWaveformPass) - Number(a.primeWaveformPass)
     || b.phasePv.vLoopArea - a.phasePv.vLoopArea
     || b.phasePv.postOpeningEarlyPressureDropMmHg - a.phasePv.postOpeningEarlyPressureDropMmHg
   )
   .slice(0, 9)
   .sort((a, b) =>
     Number(b.sourcePreservingPhasePv) - Number(a.sourcePreservingPhasePv)
-    || Number(b.primeWaveformPass) - Number(a.primeWaveformPass)
     || b.phasePv.vLoopArea - a.phasePv.vLoopArea
     || b.phasePv.postOpeningEarlyPressureDropMmHg - a.phasePv.postOpeningEarlyPressureDropMmHg
   );
@@ -73,30 +99,19 @@ const svg: string[] = [];
 svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
 svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
 svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="700">Normal HR75 fast LA AV-plane residual review</text>`);
-svg.push(`<text x="34" y="60" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Only normal-hr75 is evaluated here. Candidate traces require source surface, MVF, blood-volume PV phase, and hidden-volume cleanliness; blood volume remains the physiology-facing axis.</text>`);
+svg.push(`<text x="34" y="60" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Only normal-hr75 is evaluated here. Candidate traces require source surface, MVF, blood-volume PV phase, hidden-volume cleanliness, and blood v-loop area >= 40 for visual triage; prime readbacks are ignored.</text>`);
 svg.push(`<text x="34" y="84" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="13">Candidate count: ${candidateRows.length}; fastest loop report rows: ${rows.length}. This artifact is a visual research shortcut, not broad-envelope acceptance.</text>`);
 
 if (traces.length === 0) {
   svg.push(`<text x="34" y="138" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="16">No normal-hr75 candidate survived the visual prefilter.</text>`);
 } else {
   renderLegend(svg, traces, 34, 116);
-  renderPvPanel(svg, traces, 34, 260, 430, 350, "LA blood PV", (sample) => sample.acceptedLaVolumeMl);
-  renderPvPanel(
-    svg,
-    traces,
-    510,
-    260,
-    430,
-    350,
-    "LA effective-cavity PV",
-    (sample) => sample.laVolumeCoordinateReadback.effectiveCavityVolumeMl,
-  );
-  renderTimePanel(svg, traces, 986, 260, 430, 166, "QMV / QPV", [
+  renderPvPanel(svg, traces, 34, 248, 780, 440, "LA blood PV (ledger volume only)", (sample) => sample.acceptedLaVolumeMl);
+  renderTimePanel(svg, traces, 860, 248, 560, 206, "QMV / QPV", [
     { key: "qMvMlPerSec", label: "QMV", dash: "" },
     { key: "qPulmonaryVenousMlPerSec", label: "QPV", dash: "5 4" },
   ]);
-  renderPressurePanel(svg, traces, 986, 444, 430, 166);
-  renderPrimePanel(svg, traces, 34, 656, 1382, 150);
+  renderPressurePanel(svg, traces, 860, 482, 560, 206);
 }
 
 svg.push(`</svg>`);
@@ -114,8 +129,17 @@ function renderLegend(out: string[], traces: readonly Trace[], x: number, y: num
   traces.forEach((trace, index) => {
     const yy = y + index * 17;
     out.push(`<line x1="${x}" y1="${yy}" x2="${x + 24}" y2="${yy}" stroke="${trace.color}" stroke-width="3"/>`);
-    out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | vArea ${trace.row.phasePv.vLoopArea.toFixed(1)} | postMVO drop ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg / ${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL | prime ${trace.row.primeWaveformPass ? "ok" : "fail"}</text>`);
+    out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | blood vArea ${trace.row.phasePv.vLoopArea.toFixed(1)} | postMVO drop ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg / ${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL</text>`);
   });
+}
+
+function isCurrentNormalFirstFamily(family: string): boolean {
+  return family === "full-left-v16-area-receiver-hysteresis-v23"
+    || family === "full-left-v16-receiver-state-hysteresis-v24"
+    || family === "full-left-v16-lvreceiver-capacity-hysteresis-v25"
+    || family === "full-left-v16-phase-locked-avplane-hysteresis-v26"
+    || family === "full-left-normal-first-large-vloop-hysteresis-v27"
+    || family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28";
 }
 
 function renderPvPanel(
