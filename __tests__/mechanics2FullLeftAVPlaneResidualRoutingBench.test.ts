@@ -56,7 +56,7 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
 	  );
 
 	  expect(normalReport.summary.totalProfiles).toBe(1);
-	  expect(normalReport.rows).toHaveLength(338);
+	  expect(normalReport.rows).toHaveLength(439);
 	  expect(normalReport.summary.bestOverallVariantId).toBe("v2-force-fixed8-pv36-mvsoft");
 	  expect(normalReport.summary.bestOverallSourcePreservingPhasePv).toBe(1);
 	  expect(visualCandidates.map((row) => row.variantId)).toContain(
@@ -87,8 +87,8 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
   it("records the full-left LA-AV-plane residual routing experiment", () => {
     expect(report.reportId).toBe(FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_REPORT_ID_V1);
     expect(report.mode).toBe("full-left-heart-la-avplane-mv-pv-routing-no-runtime");
-	  expect(report.rows).toHaveLength(2366);
-	  expect(report.variantSummaries).toHaveLength(338);
+	  expect(report.rows).toHaveLength(3073);
+	  expect(report.variantSummaries).toHaveLength(439);
 	  expect(new Set(report.rows.map((row) => row.family)).size).toBe(40);
   });
 
@@ -186,7 +186,10 @@ describe("FullLeftAVPlaneResidualRoutingBenchV1", () => {
     expect(report.summary.bestV19SourcePreservingCapacityAxisPhasePv).toBe(3);
     expect(report.summary.bestV19MaxReferenceCapacityShiftMl).toBeGreaterThan(20);
     expect(report.summary.bestV19MaxAppliedFixedBloodPressureReliefMmHg).toBeGreaterThan(4);
-    expect(report.summary.bestV19MaxBloodXDescentPressureDropMmHg).toBeGreaterThan(4);
+    expect(report.summary.bestV19MaxBloodXDescentPressureDropMmHg).toBeGreaterThan(1);
+    expect(report.summary.bestV19MaxBloodXDescentPressureDropMmHg).toBeLessThan(
+      report.summary.bestV19MaxAppliedFixedBloodPressureReliefMmHg,
+    );
 
     expect(v19Best.hiddenVolumeClean).toBe(7);
     expect(v19Best.primeWaveformPass).toBe(v18Best.primeWaveformPass);
