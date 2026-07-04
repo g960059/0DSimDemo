@@ -1756,6 +1756,37 @@ Next gates:
     the A-loop while leaving the V-loop too thin. Next work should target an
     A-loop-preserving reservoir-conduit hysteresis owner rather than another
     V-area-only scalar sweep.
+    Follow-up V60-V70 work treats the owner observation that the atrial passive
+    law looked too linear as a structural lead. Branch-owner pressure/compliance
+    variants and direct A-window pressure boosters are not promotion paths:
+    branch ownership does not produce a reference-like loop, and V68 direct
+    `aboost` variants can restore A-loop area only by breaking MVF/source
+    cleanliness. The useful signal is the low-alpha / high-beta exponential
+    LA EDPVR with atrial active pressure as a separate booster owner. V70
+    normal-HR75 candidates preserve blood-axis-only source/MVF/phase/hidden
+    cleanliness while keeping the A-loop visible and improving the V-loop
+    signal (best clean normal row about A-loop area 53, V-loop area 97,
+    reservoir-conduit separation 3.05 mmHg, belly depth 1.50 mmHg). This is
+    still not broad-envelope acceptance: the 7-profile rerun remains 1/7 clean
+    for V70-style rows, with HR90/preload/afterload/contractility failures
+    dominated by A-loop size, v-loop positioning, transaction/output, and
+    contractility-low MVF/source issues. Follow-up V71/V72 pushes the owner's
+    sharper EDPVR hypothesis: reduce alpha much further while increasing beta.
+    That is useful as a boundary test, but not a promotion path. V71 keeps
+    source/MVF mostly clean and increases local conduit belly readbacks, but
+    collapses the A-loop below the visual floor; V72 restores A-loop area with a
+    stronger active owner, but then loses the post-MVO downstroke and returns to
+    an upward-opening / shallow-belly artifact. In the 7-profile rerun, V71 can
+    create large clean-looking preload-low area, but it does not solve the
+    normal-HR75 owner target and remains a shape-transfer no-go. Treat the result
+    as a mechanism constraint: low-alpha/high-beta passive EDPVR is part of the
+    answer only if the booster and conduit receiver are owned by separate
+    accepted states. The current normal-first structural lead remains
+    V70/V69-style low-alpha / high-beta EDPVR plus explicit atrial active booster
+    ownership; keep blood-volume PV as the only owner-facing morphology axis,
+    keep effective/capacity and prime traces out of gates and SVGs, and do not
+    return to scalar pressure-relief, direct-pressure booster, or V-area-only
+    sweeps.
 
 Parallel prep, not blocking the next strategic gate:
 

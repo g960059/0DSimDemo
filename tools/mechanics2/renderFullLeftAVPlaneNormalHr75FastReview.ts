@@ -18,6 +18,10 @@ const cardsOutPath = resolve(
   repoRoot,
   "data/mechanics2/visuals/full-left-av-plane-normal-hr75-candidate-cards.svg",
 );
+const reportOutPath = resolve(
+  repoRoot,
+  "data/mechanics2/reports/full-left-av-plane-normal-hr75-fast-report-v1.json",
+);
 
 const COLORS = [
   "#38bdf8",
@@ -38,6 +42,11 @@ const MIN_VISUAL_A_LOOP_AREA = 28;
 const MIN_VISUAL_V_LOOP_AREA = 40;
 const MIN_VISUAL_RESERVOIR_CONDUIT_SEPARATION_MMHG = 1.5;
 const MIN_VISUAL_CONDUIT_BELLY_DEPTH_MMHG = 0.25;
+const MAX_VISUAL_RESERVOIR_EARLY_OVERSHOOT_ABOVE_MVO_MMHG = 1.50;
+const NEAR_MISS_ALLOWED_FAILURES = new Set([
+  "phase-oriented-la-pv-fail",
+  "missing-pv-self-intersection",
+]);
 const pinnedMechanismIds = new Set([
   "v23-wall-v16area-lvrecv3-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
   "v24-wall-v16receiverstate-lvrecv3-rpathslow-traj20-mvimplicit02-pr160-fixed8-pv36-mvlite",
@@ -219,6 +228,8 @@ void pinnedMechanismIds;
 const eligibleRows = rows
   .filter((row) =>
     isCurrentNormalFirstFamily(row.family)
+    && row.variantId.includes("edpvr")
+    && row.variantId.includes("alpha")
     && row.sourceSurfacePass
 	    && row.mvfClean
 	    && row.phaseOrientedPvPass
@@ -227,6 +238,8 @@ const eligibleRows = rows
 	    && row.phasePv.aLoopArea >= MIN_VISUAL_A_LOOP_AREA
 	    && row.phasePv.meanReservoirConduitSeparationMmHg >= MIN_VISUAL_RESERVOIR_CONDUIT_SEPARATION_MMHG
 	    && row.phasePv.conduitBellyDepthMmHg >= MIN_VISUAL_CONDUIT_BELLY_DEPTH_MMHG
+	    && row.phasePv.reservoirEarlyPressureOvershootAboveMvOpeningMmHg
+        <= MAX_VISUAL_RESERVOIR_EARLY_OVERSHOOT_ABOVE_MVO_MMHG
 	    && row.phasePv.postOpeningEarlyPressureDropMmHg > 1.0
 	    && row.phasePv.postOpeningEarlyVolumeDropMl > 0.8
     && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
@@ -305,6 +318,13 @@ const visualAnchorIds = [
   "v52-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth",
   "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcapbelly-traj20-mvimplicit02-pr170-fixed10-pv44-mvsmooth",
   "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss",
+  "v53-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
+  "v53-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v53-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-boostfast-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v53-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-boostsafe-boostfast-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed12-pv52-mvlite",
+  "v54-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-lacompliance9-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v54-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-lacompliance11-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite",
+  "v54-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-lacompliance9-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite",
   "v37-wall-v16lvref56-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
   "v37-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed16-pv52-mvlite",
   "v37-wall-v16lvref64-cap175-visco6-pathmem90-relief45-cupwide-lvrcup08-longrecv-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr200-fixed16-pv56-mvlite",
@@ -342,6 +362,7 @@ const visualAnchorIds = [
 const visualAnchorRows = visualAnchorIds
   .map((variantId) => rows.find((row) =>
     row.variantId === variantId
+    && row.variantId.includes("edpvr")
     && row.sourceSurfacePass
     && row.mvfClean
     && row.phaseOrientedPvPass
@@ -350,6 +371,8 @@ const visualAnchorRows = visualAnchorIds
     && row.phasePv.vLoopArea >= MIN_VISUAL_V_LOOP_AREA
     && row.phasePv.meanReservoirConduitSeparationMmHg >= MIN_VISUAL_RESERVOIR_CONDUIT_SEPARATION_MMHG
     && row.phasePv.conduitBellyDepthMmHg >= MIN_VISUAL_CONDUIT_BELLY_DEPTH_MMHG
+    && row.phasePv.reservoirEarlyPressureOvershootAboveMvOpeningMmHg
+      <= MAX_VISUAL_RESERVOIR_EARLY_OVERSHOOT_ABOVE_MVO_MMHG
     && !row.phasePv.failureReasons.includes("mv-opening-starts-upward")
     && !row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")
   ))
@@ -367,6 +390,8 @@ const topCleanRows = eligibleRows
 const topShapeSignalRows = rows
   .filter((row) =>
     isCurrentNormalFirstFamily(row.family)
+    && row.variantId.includes("edpvr")
+    && row.variantId.includes("alpha")
     && row.sourceSurfacePass
     && row.mvfClean
     && row.phaseOrientedPvPass
@@ -375,6 +400,8 @@ const topShapeSignalRows = rows
     && row.phasePv.vLoopArea >= MIN_VISUAL_V_LOOP_AREA
     && row.phasePv.meanReservoirConduitSeparationMmHg >= MIN_VISUAL_RESERVOIR_CONDUIT_SEPARATION_MMHG
     && row.phasePv.conduitBellyDepthMmHg >= MIN_VISUAL_CONDUIT_BELLY_DEPTH_MMHG
+    && row.phasePv.reservoirEarlyPressureOvershootAboveMvOpeningMmHg
+      <= MAX_VISUAL_RESERVOIR_EARLY_OVERSHOOT_ABOVE_MVO_MMHG
     && row.failureReasons.length === 0
     && row.phasePv.postOpeningInitialPressureRiseMmHg <= 0.1
   )
@@ -386,11 +413,38 @@ const topShapeSignalRows = rows
   )
   .slice(0, 6);
 
+const nearMissShapeRows = rows
+  .filter((row) =>
+    isCurrentNormalFirstFamily(row.family)
+    && row.variantId.includes("edpvr")
+    && row.variantId.includes("alpha")
+    && row.sourceSurfacePass
+    && row.mvfClean
+    && row.hiddenVolumeClean
+    && row.phasePv.aLoopArea >= MIN_VISUAL_A_LOOP_AREA
+    && row.phasePv.vLoopArea >= 75
+    && row.phasePv.meanReservoirConduitSeparationMmHg >= 2.0
+    && row.phasePv.conduitBellyDepthMmHg >= 0.9
+    && row.phasePv.postOpeningEarlyPressureDropMmHg > 3.0
+    && row.phasePv.postOpeningEarlyVolumeDropMl > 0.8
+    && row.phasePv.reservoirEarlyPressureOvershootAboveMvOpeningMmHg <= 0.5
+    && isNearMissVisualRow(row)
+  )
+  .sort((a, b) =>
+    b.phasePv.vLoopArea - a.phasePv.vLoopArea
+    || b.phasePv.meanReservoirConduitSeparationMmHg - a.phasePv.meanReservoirConduitSeparationMmHg
+    || b.phasePv.conduitBellyDepthMmHg - a.phasePv.conduitBellyDepthMmHg
+  )
+  .slice(0, 4);
+
 const candidateRows = uniqueRowsByVariantId([
   ...topCleanRows,
+  ...nearMissShapeRows,
   ...topShapeSignalRows,
   ...visualAnchorRows,
-]).slice(0, 24);
+])
+  .filter((row) => row.variantId.includes("alpha"))
+  .slice(0, 24);
 
 const traces = candidateRows.map((row, index) => ({
   row,
@@ -404,8 +458,8 @@ const svg: string[] = [];
 svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
 svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
 svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="24" font-weight="700">Normal HR75 fast LA AV-plane residual review</text>`);
-svg.push(`<text x="34" y="60" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Only normal-hr75 is evaluated here. The overlay prioritizes source/MVF/phase/hidden-volume clean rows with visible blood V-loop area for readability; V-loop area is not an adoption gate here.</text>`);
-svg.push(`<text x="34" y="84" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="13">Shown rows: ${candidateRows.length}; fast report rows: ${rows.length}. Missing/flattened A-loop rows are excluded from this owner-facing SVG.</text>`);
+svg.push(`<text x="34" y="60" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Only normal-hr75 is evaluated here. Blood axis only; effective/capacity and prime traces are omitted from visual selection.</text>`);
+svg.push(`<text x="34" y="84" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="13">Shown rows: ${candidateRows.length}; fast report rows: ${rows.length}. Clean rows plus limited near-miss rows are shown; upward-MVO, elastance-rise, and flattened-A rows are excluded.</text>`);
 
 if (traces.length === 0) {
   svg.push(`<text x="34" y="138" fill="#fca5a5" font-family="Inter,Arial,sans-serif" font-size="16">No normal-hr75 candidate survived the visual prefilter.</text>`);
@@ -423,6 +477,9 @@ svg.push(`</svg>`);
 mkdirSync(dirname(outPath), { recursive: true });
 writeFileSync(outPath, `${svg.join("\n")}\n`);
 console.log(outPath.replace(`${repoRoot}/`, ""));
+mkdirSync(dirname(reportOutPath), { recursive: true });
+writeFileSync(reportOutPath, `${JSON.stringify(report, null, 2)}\n`);
+console.log(reportOutPath.replace(`${repoRoot}/`, ""));
 renderCandidateCards(traces);
 
 type Trace = {
@@ -446,7 +503,7 @@ function renderCandidateCards(traces: readonly Trace[]): void {
   svg.push(`<rect width="${width}" height="${height}" fill="#070b13"/>`);
   svg.push(`<text x="34" y="34" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="22" font-weight="700">Normal HR75 LA blood PV candidate cards</text>`);
   svg.push(`<text x="34" y="58" fill="#9ca3af" font-family="Inter,Arial,sans-serif" font-size="13">Blood-volume axis only. Effective/capacity and prime traces are intentionally omitted. X-descent depth, crossing location, and V-loop area are readbacks, not hard adoption by themselves.</text>`);
-  svg.push(`<text x="34" y="80" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">Only clean source/MVF/phase/hidden-volume rows with a preserved A loop are shown. Compare shape by eye against the Nature-style reservoir/conduit/pumping references.</text>`);
+  svg.push(`<text x="34" y="80" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">Clean rows plus selected near-miss blood-shape rows are shown. Upward-MVO, elastance-rise, and flattened-A rows are excluded.</text>`);
   traces.forEach((trace, index) => {
     const col = index % cols;
     const row = Math.floor(index / cols);
@@ -476,10 +533,10 @@ function renderPvCard(
   const plotH = h - 86;
   const sx = (value: number) => plotX + xScale01(value) * plotW;
   const sy = (value: number) => plotY + yScale01(value) * plotH;
-  const status = isCleanVisualRow(trace.row) ? "clean" : "dirty anchor";
+  const status = visualRowStatus(trace.row);
   out.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="8" fill="#111827" stroke="#253044"/>`);
   out.push(`<text x="${x + 14}" y="${y + 23}" fill="#e5e7eb" font-family="Inter,Arial,sans-serif" font-size="12" font-weight="700">${shortVariantLabel(trace.row.variantId)}</text>`);
-  out.push(`<text x="${x + 14}" y="${y + 42}" fill="${status === "clean" ? "#86efac" : "#fca5a5"}" font-family="Inter,Arial,sans-serif" font-size="11">${status} | A ${trace.row.phasePv.aLoopArea.toFixed(1)} | V ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)}</text>`);
+  out.push(`<text x="${x + 14}" y="${y + 42}" fill="${status === "clean" ? "#86efac" : "#fde68a"}" font-family="Inter,Arial,sans-serif" font-size="11">${status} | A ${trace.row.phasePv.aLoopArea.toFixed(1)} | V ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)}</text>`);
   out.push(`<rect x="${plotX}" y="${plotY}" width="${plotW}" height="${plotH}" fill="#0b1220" stroke="#263244"/>`);
   out.push(`<path d="M${plotX + plotW / 2},${plotY + 8} L${plotX + plotW / 2},${plotY + plotH - 8} M${plotX + 8},${plotY + plotH / 2} L${plotX + plotW - 8},${plotY + plotH / 2}" stroke="#263244" stroke-width="1"/>`);
   const openingIndex = findMvOpeningIndex(trace.samples);
@@ -503,14 +560,14 @@ function renderPvCard(
   } else {
     out.push(`<path d="${pathFor(trace.samples, (sample) => sx(sample.acceptedLaVolumeMl), (sample) => sy(sample.lapMmHg))}" fill="none" stroke="#38bdf8" stroke-width="2.6"/>`);
   }
-  out.push(`<text x="${x + 14}" y="${y + h - 15}" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)} mmHg / ${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)} mL | initRise ${trace.row.phasePv.postOpeningInitialPressureRiseMmHg.toFixed(2)} | tx ${trace.row.maxTransactionResidualNormMl.toFixed(3)}</text>`);
+  out.push(`<text x="${x + 14}" y="${y + h - 15}" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="10">postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)} mmHg / ${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)} mL | resOverMVO ${trace.row.phasePv.reservoirEarlyPressureOvershootAboveMvOpeningMmHg.toFixed(2)} | tx ${trace.row.maxTransactionResidualNormMl.toFixed(3)}</text>`);
 }
 
 function renderLegend(out: string[], traces: readonly Trace[], x: number, y: number): void {
   traces.forEach((trace, index) => {
     const yy = y + index * 17;
     out.push(`<line x1="${x}" y1="${yy}" x2="${x + 24}" y2="${yy}" stroke="${trace.color}" stroke-width="3"/>`);
-    const status = isCleanVisualRow(trace.row) ? "clean" : "dirty-shape-anchor";
+    const status = visualRowStatus(trace.row);
     out.push(`<text x="${x + 32}" y="${yy + 4}" fill="#cbd5e1" font-family="Inter,Arial,sans-serif" font-size="12">${escapeXml(trace.row.variantId)} | ${status} | A ${trace.row.phasePv.aLoopArea.toFixed(1)} | V ${trace.row.phasePv.vLoopArea.toFixed(1)} | sep ${trace.row.phasePv.meanReservoirConduitSeparationMmHg.toFixed(2)} | belly ${trace.row.phasePv.conduitBellyDepthMmHg.toFixed(2)} | postMVO ${trace.row.phasePv.postOpeningEarlyPressureDropMmHg.toFixed(2)}mmHg/${trace.row.phasePv.postOpeningEarlyVolumeDropMl.toFixed(2)}mL</text>`);
   });
 }
@@ -713,7 +770,7 @@ function findMvClosureIndexAfter(samples: readonly LeftHeartSubsystemSampleV2[],
     const index = (openingIndex + step) % samples.length;
     const previous = samples[(index + samples.length - 1) % samples.length]!.mvOpen01;
     const current = samples[index]!.mvOpen01;
-    if (previous >= 0.45 && current < 0.45) return index;
+    if (previous >= 0.12 && current < 0.12) return index;
   }
   return null;
 }
@@ -756,6 +813,21 @@ function isCleanVisualRow(row: (typeof rows)[number]): boolean {
     && row.phaseOrientedPvPass
     && row.hiddenVolumeClean
     && row.failureReasons.length === 0;
+}
+
+function isNearMissVisualRow(row: (typeof rows)[number]): boolean {
+  if (isCleanVisualRow(row)) return true;
+  if (row.phasePv.failureReasons.includes("mv-opening-starts-upward")) return false;
+  if (row.phasePv.failureReasons.includes("mv-opening-conduit-start-not-downstroke")) return false;
+  if (row.phasePv.failureReasons.includes("mv-opening-transition-not-clean")) return false;
+  if (row.phasePv.failureReasons.includes("a-loop-area-too-small")) return false;
+  if (row.phasePv.failureReasons.includes("a-loop-area-ratio-too-small")) return false;
+  const failures = [...new Set([...row.failureReasons, ...row.phasePv.failureReasons])];
+  return failures.every((failure) => NEAR_MISS_ALLOWED_FAILURES.has(failure));
+}
+
+function visualRowStatus(row: (typeof rows)[number]): "clean" | "near-miss" {
+  return isCleanVisualRow(row) ? "clean" : "near-miss";
 }
 
 function uniqueRowsByVariantId<T extends { readonly variantId: string }>(rows: readonly T[]): T[] {

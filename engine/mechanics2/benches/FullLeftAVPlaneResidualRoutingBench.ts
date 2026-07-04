@@ -366,7 +366,108 @@ export type FullLeftAVPlaneResidualRoutingVariantIdV1 =
   | "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv2-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth"
   | "v52-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth"
   | "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcapbelly-traj20-mvimplicit02-pr170-fixed10-pv44-mvsmooth"
-  | "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss";
+  | "v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss"
+  | "v53-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v53-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v53-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-boostfast-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v53-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-boostsafe-boostfast-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed12-pv52-mvlite"
+  | "v54-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-lacompliance9-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v54-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-lacompliance11-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v54-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-lacompliance9-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v55-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-lvrcup02-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v55-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-lvrcup04-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite"
+  | "v55-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup02-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v55-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup04-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v55-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup02-lacompliance11-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v56-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup06-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v56-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup08-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v56-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup06-longrecv-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v56-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup06-longrecv-phaselock04-lvrecv8-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v60-branchowner-res4-cond4-cap135-pathmem82-boostsafe-phaselock04-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v60-branchowner-res5-cond5-cap135-pathmem82-boostsafe-phaselock04-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v60-branchowner-res6-cond6-cap135-pathmem82-boostsafe-phaselock04-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v60-branchowner-res5-cond7-branchslow-cap135-pathmem82-boostsafe-phaselock04-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v60-branchowner-res6-cond8-branchslow-cap150-pathmem90-boostsafe-phaselock04-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v61-edpvr-a04-b060-cap125-visco3-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v61-edpvr-a06-b050-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v61-edpvr-a08-b045-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v61-edpvr-a10-b040-cap135-visco4-pathmem82-relief36-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v61-edpvr-a12-b035-cap150-visco5-pathmem90-relief40-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v61-edpvr-a08-b035-cap150-visco35-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v62-edpvr-alpha005-beta120-cap125-visco3-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v62-edpvr-alpha010-beta100-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v62-edpvr-alpha015-beta090-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v62-edpvr-alpha020-beta080-cap135-visco4-pathmem82-relief36-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v62-edpvr-alpha010-beta120-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v62-edpvr-alpha020-beta100-cap150-visco5-pathmem90-relief40-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v63-edpvr-a08-b035-act25-cap150-visco35-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v63-edpvr-a08-b035-act35-cap150-visco35-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v63-edpvr-a08-b035-act45-cap150-visco35-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v63-edpvr-alpha015-beta090-act25-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v63-edpvr-alpha015-beta090-act35-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v63-edpvr-alpha020-beta080-act35-cap135-visco4-pathmem82-relief36-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v64-edpvr-alpha008-beta110-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v64-edpvr-alpha010-beta110-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v64-edpvr-alpha012-beta105-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v64-edpvr-alpha015-beta100-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v64-edpvr-alpha018-beta095-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v64-edpvr-alpha012-beta110-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v64-edpvr-alpha008-beta120-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v65-edpvr-alpha0005-beta180-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v65-edpvr-alpha001-beta170-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v65-edpvr-alpha002-beta160-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v65-edpvr-alpha003-beta150-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v65-edpvr-alpha004-beta140-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v65-edpvr-alpha006-beta130-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v65-edpvr-alpha001-beta180-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v65-edpvr-alpha002-beta170-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v66-edpvr-alpha004-beta150-act90-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v66-edpvr-alpha006-beta140-act75-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v66-edpvr-alpha006-beta150-act90-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v66-edpvr-alpha008-beta130-act75-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v66-edpvr-alpha010-beta130-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v66-edpvr-alpha008-beta140-act100-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v67-edpvr-alpha015-beta090-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v67-edpvr-alpha015-beta090-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v67-edpvr-alpha015-beta090-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v67-edpvr-alpha012-beta105-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v67-edpvr-alpha010-beta100-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v67-edpvr-alpha020-beta080-cap135-visco4-pathmem82-relief36-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v68-edpvr-alpha002-beta160-aboost4-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite"
+  | "v68-edpvr-alpha003-beta150-aboost4-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v68-edpvr-alpha004-beta140-aboost3-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v68-edpvr-alpha004-beta150-aboost4-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v68-edpvr-alpha006-beta130-aboost3-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v68-edpvr-alpha006-beta140-aboost4-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v68-edpvr-alpha008-beta130-aboost5-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v68-edpvr-alpha010-beta120-aboost5-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v69-edpvr-alpha004-beta140-act65-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v69-edpvr-alpha004-beta140-act75-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v69-edpvr-alpha006-beta130-act65-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v69-edpvr-alpha006-beta130-act75-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite"
+  | "v69-edpvr-alpha008-beta130-act75-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v69-edpvr-alpha010-beta130-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v69-edpvr-alpha008-beta120-act65-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v69-edpvr-alpha010-beta120-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v70-edpvr-alpha008-beta120-act65-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v70-edpvr-alpha008-beta120-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v70-edpvr-alpha008-beta120-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v70-edpvr-alpha010-beta120-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v70-edpvr-alpha006-beta130-act75-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v70-edpvr-alpha008-beta130-act75-cap150-visco5-pathmem90-relief32-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v70-edpvr-alpha010-beta130-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v70-edpvr-alpha012-beta120-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v71-edpvr-alpha00025-beta220-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v71-edpvr-alpha0005-beta220-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v71-edpvr-alpha001-beta220-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v71-edpvr-alpha001-beta200-act75-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v71-edpvr-alpha002-beta200-act75-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v71-edpvr-alpha002-beta190-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v71-edpvr-alpha003-beta190-act75-cap150-visco5-pathmem90-relief32-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v72-edpvr-alpha001-beta200-act100-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v72-edpvr-alpha002-beta200-act100-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v72-edpvr-alpha002-beta190-act100-cap150-visco5-pathmem90-relief32-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite"
+  | "v72-edpvr-alpha003-beta190-act100-cap150-visco5-pathmem90-relief32-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite";
 
 type VariantFamilyV1 =
   | "baseline"
@@ -446,6 +547,8 @@ type PhaseOrientedPvQualityV1 = {
   readonly postOpeningEarlyVolumeDropMl: number;
   readonly xTroughVolumeRiseMl: number;
   readonly postXTroughVolumeRiseMl: number;
+  readonly reservoirEarlyPressureOvershootAboveMvOpeningMmHg: number;
+  readonly reservoirEarlyPressureOvershootAboveMvClosureMmHg: number;
   readonly reservoirBelowChordFraction: number;
   readonly meanReservoirBelowChordMmHg: number;
   readonly conduitBelowReservoirChordFraction: number;
@@ -1276,6 +1379,107 @@ export const FULL_LEFT_AV_PLANE_RESIDUAL_ROUTING_VARIANTS_V1: readonly VariantV1
   variant("v52-wall-v16visco35-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit05-pr170-fixed10-pv44-mvsmooth", "full-left-normal-first-wall-viscoelastic-hysteresis-v28", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.076, 0.00044, 6e-6),
   variant("v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcapbelly-traj20-mvimplicit02-pr170-fixed10-pv44-mvsmooth", "full-left-normal-first-wall-viscoelastic-hysteresis-v28", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.076, 0.00044, 6e-6),
   variant("v52-wall-v16visco4-viscosoft-phaselock02-lvrecv3-rcap-traj20-mvimplicit02-pr170-fixed10-pv44-mvloss", "full-left-normal-first-wall-viscoelastic-hysteresis-v28", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.090, 0.00062, 10e-6),
+  variant("v53-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v53-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v53-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-boostfast-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v53-wall-v16lvref64-cap150-visco6-pathmem90-relief45-cupwide-boostsafe-boostfast-phaselock04-lvrecv12-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed12-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 12, 0.22, 52, 0.076, 0.00044, 6e-6),
+  variant("v54-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-lacompliance9-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v54-wall-v16lvref56-cap150-visco6-pathmem90-relief45-boostsafe-lacompliance11-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v54-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-lacompliance9-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v55-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-lvrcup02-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v55-wall-v16lvref48-cap125-visco4-pathmem75-relief36-boostsafe-lvrcup04-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr170-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v55-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup02-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v55-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup04-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v55-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup02-lacompliance11-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v56-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup06-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v56-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup08-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v56-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup06-longrecv-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v56-wall-v16lvref52-cap135-visco5-pathmem82-relief40-boostsafe-lvrcup06-longrecv-phaselock04-lvrecv8-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v60-branchowner-res4-cond4-cap135-pathmem82-boostsafe-phaselock04-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v60-branchowner-res5-cond5-cap135-pathmem82-boostsafe-phaselock04-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v60-branchowner-res6-cond6-cap135-pathmem82-boostsafe-phaselock04-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v60-branchowner-res5-cond7-branchslow-cap135-pathmem82-boostsafe-phaselock04-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v60-branchowner-res6-cond8-branchslow-cap150-pathmem90-boostsafe-phaselock04-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v61-edpvr-a04-b060-cap125-visco3-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v61-edpvr-a06-b050-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v61-edpvr-a08-b045-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v61-edpvr-a10-b040-cap135-visco4-pathmem82-relief36-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v61-edpvr-a12-b035-cap150-visco5-pathmem90-relief40-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v61-edpvr-a08-b035-cap150-visco35-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v62-edpvr-alpha005-beta120-cap125-visco3-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v62-edpvr-alpha010-beta100-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v62-edpvr-alpha015-beta090-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v62-edpvr-alpha020-beta080-cap135-visco4-pathmem82-relief36-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v62-edpvr-alpha010-beta120-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v62-edpvr-alpha020-beta100-cap150-visco5-pathmem90-relief40-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v63-edpvr-a08-b035-act25-cap150-visco35-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v63-edpvr-a08-b035-act35-cap150-visco35-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v63-edpvr-a08-b035-act45-cap150-visco35-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v63-edpvr-alpha015-beta090-act25-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v63-edpvr-alpha015-beta090-act35-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v63-edpvr-alpha020-beta080-act35-cap135-visco4-pathmem82-relief36-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v64-edpvr-alpha008-beta110-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v64-edpvr-alpha010-beta110-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v64-edpvr-alpha012-beta105-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v64-edpvr-alpha015-beta100-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v64-edpvr-alpha018-beta095-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v64-edpvr-alpha012-beta110-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v64-edpvr-alpha008-beta120-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v65-edpvr-alpha0005-beta180-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v65-edpvr-alpha001-beta170-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v65-edpvr-alpha002-beta160-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v65-edpvr-alpha003-beta150-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v65-edpvr-alpha004-beta140-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v65-edpvr-alpha006-beta130-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v65-edpvr-alpha001-beta180-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v65-edpvr-alpha002-beta170-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v66-edpvr-alpha004-beta150-act90-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v66-edpvr-alpha006-beta140-act75-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v66-edpvr-alpha006-beta150-act90-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v66-edpvr-alpha008-beta130-act75-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v66-edpvr-alpha010-beta130-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v66-edpvr-alpha008-beta140-act100-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-rpathslow-rcapslow-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v67-edpvr-alpha015-beta090-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v67-edpvr-alpha015-beta090-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v67-edpvr-alpha015-beta090-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v67-edpvr-alpha012-beta105-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v67-edpvr-alpha010-beta100-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v67-edpvr-alpha020-beta080-cap135-visco4-pathmem82-relief36-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v68-edpvr-alpha002-beta160-aboost4-cap125-visco35-pathmem75-relief16-boostsafe-phaselock04-lvrecv3-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv44-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 44, 0.082, 0.00044, 6e-6),
+  variant("v68-edpvr-alpha003-beta150-aboost4-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v68-edpvr-alpha004-beta140-aboost3-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v68-edpvr-alpha004-beta150-aboost4-cap135-visco4-pathmem82-relief24-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v68-edpvr-alpha006-beta130-aboost3-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v68-edpvr-alpha006-beta140-aboost4-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v68-edpvr-alpha008-beta130-aboost5-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v68-edpvr-alpha010-beta120-aboost5-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v69-edpvr-alpha004-beta140-act65-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v69-edpvr-alpha004-beta140-act75-cap135-visco4-pathmem82-relief28-boostsafe-phaselock04-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v69-edpvr-alpha006-beta130-act65-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v69-edpvr-alpha006-beta130-act75-cap135-visco4-pathmem82-relief32-boostsafe-phaselock04-lvrecv8-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr175-fixed10-pv48-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 48, 0.079, 0.00044, 6e-6),
+  variant("v69-edpvr-alpha008-beta130-act75-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v69-edpvr-alpha010-beta130-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v69-edpvr-alpha008-beta120-act65-cap150-visco5-pathmem90-relief24-boostsafe-phaselock03-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v69-edpvr-alpha010-beta120-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock03-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v70-edpvr-alpha008-beta120-act65-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v70-edpvr-alpha008-beta120-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v70-edpvr-alpha008-beta120-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v70-edpvr-alpha010-beta120-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v70-edpvr-alpha006-beta130-act75-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v70-edpvr-alpha008-beta130-act75-cap150-visco5-pathmem90-relief32-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v70-edpvr-alpha010-beta130-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v70-edpvr-alpha012-beta120-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v71-edpvr-alpha00025-beta220-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v71-edpvr-alpha0005-beta220-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v71-edpvr-alpha001-beta220-act75-cap150-visco5-pathmem90-relief24-boostsafe-phaselock04-lvrecv6-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v71-edpvr-alpha001-beta200-act75-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v71-edpvr-alpha002-beta200-act75-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v71-edpvr-alpha002-beta190-act65-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v71-edpvr-alpha003-beta190-act75-cap150-visco5-pathmem90-relief32-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v72-edpvr-alpha001-beta200-act100-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v72-edpvr-alpha002-beta200-act100-cap150-visco5-pathmem90-relief28-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v72-edpvr-alpha002-beta190-act100-cap150-visco5-pathmem90-relief32-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
+  variant("v72-edpvr-alpha003-beta190-act100-cap150-visco5-pathmem90-relief32-boostsafe-phaselock04-lvrecv8-lvrcup02-longrecv-rpathbelly-rcapbelly-traj20-mvimplicit02-pr180-fixed10-pv52-mvlite", "full-left-normal-first-lv-reference-receiver-v32", "wall-work-cap36-drive6-hyd003-stiff2-damp06-fast", 10, 0.26, 52, 0.076, 0.00044, 6e-6),
 ];
 
 export function runFullLeftAVPlaneResidualRoutingBenchV1(
@@ -2465,6 +2669,8 @@ function applyFullLeftRoutingVariant(
             ? 1.75
             : variantConfig.variantId.includes("cap150")
               ? 1.50
+            : variantConfig.variantId.includes("cap135")
+              ? 1.35
             : variantConfig.variantId.includes("cap125")
               ? 1.25
             : variantConfig.variantId.includes("cap110")
@@ -2478,6 +2684,8 @@ function applyFullLeftRoutingVariant(
             ? 2.00
 	          : variantConfig.variantId.includes("pr180")
 	            ? 1.80
+	          : variantConfig.variantId.includes("pr175")
+	            ? 1.75
 	          : variantConfig.variantId.includes("pr170")
 	            ? 1.70
 	          : variantConfig.variantId.includes("pr160")
@@ -2490,8 +2698,10 @@ function applyFullLeftRoutingVariant(
           : variantConfig.variantId.includes("lvrecv") && variantConfig.family === "full-left-v16-transfer-hysteresis-v22"
             ? 0.45
             : 0,
-	        laReservoirConduitWallViscoelasticGainMmHg:
-	          variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
+		        laReservoirConduitWallViscoelasticGainMmHg:
+              variantConfig.variantId.includes("branchowner")
+                ? 0
+		          : variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
               || variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
       || variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
       || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
@@ -2504,6 +2714,8 @@ function applyFullLeftRoutingVariant(
 	              ? 8.0
 	              : variantConfig.variantId.includes("visco6")
 	                ? 6.0
+	              : variantConfig.variantId.includes("visco5")
+	                ? 5.0
 	              : variantConfig.variantId.includes("visco4")
 	                ? 4.0
 	              : variantConfig.variantId.includes("visco3")
@@ -2573,6 +2785,8 @@ function applyFullLeftRoutingVariant(
               ? 1.0
               : variantConfig.variantId.includes("pathmem90")
                 ? 0.90
+              : variantConfig.variantId.includes("pathmem82")
+                ? 0.82
               : variantConfig.variantId.includes("pathmem75")
                 ? 0.75
                 : 0.60)
@@ -2591,7 +2805,9 @@ function applyFullLeftRoutingVariant(
           variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
           || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
           || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
-            ? (variantConfig.variantId.includes("longmemory")
+            ? (variantConfig.variantId.includes("boostfast")
+              ? 0.18
+              : variantConfig.variantId.includes("longmemory")
               ? 0.52
               : variantConfig.variantId.includes("rpathbelly")
                 ? 0.56
@@ -2601,8 +2817,10 @@ function applyFullLeftRoutingVariant(
             : variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
               ? (variantConfig.variantId.includes("cupsoft") ? 0.58 : 0.48)
             : coordinateBase.laReservoirConduitPathMemoryFallTauSec,
-	        laReservoirConduitPathReliefGainMmHg:
-	          variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
+		        laReservoirConduitPathReliefGainMmHg:
+              variantConfig.variantId.includes("branchowner")
+                ? 0
+		          : variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
 	          || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
 	          || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
 	            ? (variantConfig.variantId.includes("relief60")
@@ -2611,6 +2829,8 @@ function applyFullLeftRoutingVariant(
 	                ? 5.2
 	              : variantConfig.variantId.includes("relief45")
 	                ? 4.5
+	              : variantConfig.variantId.includes("relief40")
+	                ? 4.0
 	              : variantConfig.variantId.includes("relief36")
 	                ? 3.6
 	              : variantConfig.variantId.includes("relief28")
@@ -2655,12 +2875,61 @@ function applyFullLeftRoutingVariant(
           variantConfig.family === "full-left-normal-first-path-state-hysteresis-v29"
           || variantConfig.family === "full-left-normal-first-capacity-path-hysteresis-v31"
           || variantConfig.family === "full-left-normal-first-lv-reference-receiver-v32"
-            ? (variantConfig.variantId.includes("cupwide")
+            ? (variantConfig.variantId.includes("boostfast")
+              ? 0.11
+              : variantConfig.variantId.includes("cupwide")
               ? 0.46
               : variantConfig.variantId.includes("softpath") ? 0.26 : 0.20)
             : variantConfig.family === "full-left-normal-first-conduit-cup-hysteresis-v30"
               ? (variantConfig.variantId.includes("cupsoft") ? 0.42 : 0.34)
             : coordinateBase.laReservoirConduitPathReliefFallTauSec,
+        laReservoirConduitPreABoosterProtection01: variantConfig.variantId.includes("boostsafe") ? 1 : 0,
+        laBranchReservoirPressureGainMmHg: variantConfig.variantId.includes("branchowner")
+          ? (variantConfig.variantId.includes("res6")
+            ? 6
+            : variantConfig.variantId.includes("res5")
+              ? 5
+              : 4)
+          : 0,
+        laBranchReservoirPressureRiseTauSec: variantConfig.variantId.includes("branchowner")
+          ? (variantConfig.variantId.includes("branchslow") ? 0.082 : 0.060)
+          : coordinateBase.laBranchReservoirPressureRiseTauSec,
+        laBranchReservoirPressureFallTauSec: variantConfig.variantId.includes("branchowner")
+          ? (variantConfig.variantId.includes("branchslow") ? 0.44 : 0.32)
+          : coordinateBase.laBranchReservoirPressureFallTauSec,
+        laBranchConduitReliefGainMmHg: variantConfig.variantId.includes("branchowner")
+          ? (variantConfig.variantId.includes("cond8")
+            ? 8
+            : variantConfig.variantId.includes("cond7")
+              ? 7
+              : variantConfig.variantId.includes("cond6")
+                ? 6
+                : variantConfig.variantId.includes("cond5")
+                  ? 5
+                  : 4)
+          : 0,
+        laBranchConduitReliefRiseTauSec: variantConfig.variantId.includes("branchowner")
+          ? (variantConfig.variantId.includes("branchslow") ? 0.064 : 0.040)
+          : coordinateBase.laBranchConduitReliefRiseTauSec,
+        laBranchConduitReliefFallTauSec: variantConfig.variantId.includes("branchowner")
+          ? (variantConfig.variantId.includes("branchslow") ? 0.46 : 0.30)
+          : coordinateBase.laBranchConduitReliefFallTauSec,
+        laBranchReservoirComplianceGain01: variantConfig.variantId.includes("branchowner")
+          ? (variantConfig.variantId.includes("res6")
+            ? 3.2
+            : variantConfig.variantId.includes("res5")
+              ? 2.6
+              : 2.0)
+          : 0,
+        laBranchConduitComplianceGain01: variantConfig.variantId.includes("branchowner")
+          ? (variantConfig.variantId.includes("cond8")
+            ? 3.4
+            : variantConfig.variantId.includes("cond7")
+              ? 2.8
+              : variantConfig.variantId.includes("cond6")
+                ? 2.4
+                : 1.8)
+          : 0,
         laAVPlaneReservoirConduitPressureMemoryRiseTauSec: 0.070,
         laAVPlaneReservoirConduitPressureMemoryFallTauSec: 0.44,
         laAVPlanePhaseLockedTrajectoryGain01: variantConfig.family === "full-left-v16-phase-locked-avplane-hysteresis-v26"
@@ -2684,7 +2953,9 @@ function applyFullLeftRoutingVariant(
               ? 0.65
               : 0.85)
           : 0,
-        laMvLvReceiverPathGain01: variantConfig.family === "full-left-v16-receiver-state-hysteresis-v24"
+        laMvLvReceiverPathGain01: variantConfig.variantId.includes("branchowner")
+          ? 0
+          : variantConfig.family === "full-left-v16-receiver-state-hysteresis-v24"
           || variantConfig.family === "full-left-v16-lvreceiver-capacity-hysteresis-v25"
           || variantConfig.family === "full-left-v16-phase-locked-avplane-hysteresis-v26"
           || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
@@ -2702,14 +2973,18 @@ function applyFullLeftRoutingVariant(
           : variantConfig.variantId.includes("rpathslow")
             ? 0.050
             : 0.032,
-        laMvLvReceiverPathFallTauSec: variantConfig.variantId.includes("rpathslow")
+        laMvLvReceiverPathFallTauSec: variantConfig.variantId.includes("boostfast")
+          ? 0.12
+          : variantConfig.variantId.includes("rpathslow")
           ? 0.30
           : variantConfig.variantId.includes("rpathbelly")
             ? 0.46
           : variantConfig.variantId.includes("rpathfast")
             ? 0.16
             : 0.22,
-        lvEarlyFillingReceiverCapacityGain01: variantConfig.family === "full-left-v16-lvreceiver-capacity-hysteresis-v25"
+        lvEarlyFillingReceiverCapacityGain01: variantConfig.variantId.includes("branchowner")
+          ? 0
+          : variantConfig.family === "full-left-v16-lvreceiver-capacity-hysteresis-v25"
           || variantConfig.family === "full-left-v16-phase-locked-avplane-hysteresis-v26"
           || variantConfig.family === "full-left-normal-first-large-vloop-hysteresis-v27"
           || variantConfig.family === "full-left-normal-first-wall-viscoelastic-hysteresis-v28"
@@ -2726,7 +3001,9 @@ function applyFullLeftRoutingVariant(
           : variantConfig.variantId.includes("rcapslow")
             ? 0.055
             : 0.034,
-        lvEarlyFillingReceiverCapacityFallTauSec: variantConfig.variantId.includes("rcapfast")
+        lvEarlyFillingReceiverCapacityFallTauSec: variantConfig.variantId.includes("boostfast")
+          ? 0.14
+          : variantConfig.variantId.includes("rcapfast")
           ? 0.18
           : variantConfig.variantId.includes("rcapbelly")
             ? 0.52
@@ -2778,7 +3055,9 @@ function applyFullLeftRoutingVariant(
           : variantConfig.variantId.includes("lvrcup02")
             ? 0.20
             : 0,
-        lvEarlyFillingReceiverReliefGainMmHg: variantConfig.variantId.includes("softrecv")
+        lvEarlyFillingReceiverReliefGainMmHg: variantConfig.variantId.includes("branchowner")
+          ? 0
+          : variantConfig.variantId.includes("softrecv")
           ? 0.90
           : variantConfig.variantId.includes("fastrecv")
             ? 2.00
@@ -2808,7 +3087,9 @@ function applyFullLeftRoutingVariant(
             : variantConfig.variantId.includes("lvrecv2") || variantConfig.variantId.includes("lvrecv3")
               ? 0.034
               : 0.040,
-        lvEarlyFillingReceiverReliefFallTauSec: variantConfig.variantId.includes("softrecv")
+        lvEarlyFillingReceiverReliefFallTauSec: variantConfig.variantId.includes("boostfast")
+          ? 0.12
+          : variantConfig.variantId.includes("softrecv")
           ? 0.24
           : variantConfig.variantId.includes("longrecv")
             ? 0.42
@@ -2886,13 +3167,146 @@ function applyFullLeftRoutingVariant(
         laAVPlaneVenousReservoirMaxFlowMlPerSec: coordinateBase.laAVPlaneVenousReservoirMaxFlowMlPerSec,
       }
     : coordinateBase;
-  return {
-    ...residualBase,
+	  return {
+	    ...residualBase,
     transactionMode: "fixed-point",
     transactionIterations: variantConfig.fixedPointIterations,
     transactionRelaxation: variantConfig.fixedPointRelaxation,
     transactionResidualToleranceMl: 0.004,
-    pulmonaryVenousBoundaryMode: "compliance-node",
+    laPressureSourceMode: variantConfig.variantId.includes("edpvr")
+      ? "fiber-active-pressure-additive-shadow"
+      : residualBase.laPressureSourceMode,
+    laPassivePressureLaw: variantConfig.variantId.includes("edpvr")
+      ? "exponential-edpvr"
+      : residualBase.laPassivePressureLaw,
+    laPassiveExponentialAlphaMmHg: variantConfig.variantId.includes("alpha00025")
+      ? 0.0025
+      : variantConfig.variantId.includes("alpha0005")
+        ? 0.005
+      : variantConfig.variantId.includes("alpha001")
+        ? 0.01
+      : variantConfig.variantId.includes("alpha002")
+        ? 0.02
+      : variantConfig.variantId.includes("alpha003")
+        ? 0.03
+      : variantConfig.variantId.includes("alpha004")
+        ? 0.04
+      : variantConfig.variantId.includes("alpha005")
+      ? 0.05
+      : variantConfig.variantId.includes("alpha006")
+        ? 0.06
+      : variantConfig.variantId.includes("alpha008")
+        ? 0.08
+      : variantConfig.variantId.includes("alpha010")
+        ? 0.10
+      : variantConfig.variantId.includes("alpha012")
+        ? 0.12
+      : variantConfig.variantId.includes("alpha015")
+        ? 0.15
+      : variantConfig.variantId.includes("alpha018")
+        ? 0.18
+      : variantConfig.variantId.includes("alpha020")
+        ? 0.20
+      : variantConfig.variantId.includes("a12")
+      ? 1.2
+      : variantConfig.variantId.includes("a10")
+        ? 1.0
+      : variantConfig.variantId.includes("a08")
+        ? 0.8
+      : variantConfig.variantId.includes("a06")
+        ? 0.6
+      : variantConfig.variantId.includes("a04")
+        ? 0.4
+        : residualBase.laPassiveExponentialAlphaMmHg,
+    laPassiveExponentialBetaPerMl: variantConfig.variantId.includes("beta220")
+      ? 0.220
+      : variantConfig.variantId.includes("beta200")
+        ? 0.200
+      : variantConfig.variantId.includes("beta190")
+        ? 0.190
+      : variantConfig.variantId.includes("beta180")
+        ? 0.180
+      : variantConfig.variantId.includes("beta170")
+        ? 0.170
+      : variantConfig.variantId.includes("beta160")
+        ? 0.160
+      : variantConfig.variantId.includes("beta150")
+        ? 0.150
+      : variantConfig.variantId.includes("beta140")
+        ? 0.140
+      : variantConfig.variantId.includes("beta130")
+        ? 0.130
+      : variantConfig.variantId.includes("beta120")
+      ? 0.120
+      : variantConfig.variantId.includes("beta115")
+        ? 0.115
+      : variantConfig.variantId.includes("beta110")
+        ? 0.110
+      : variantConfig.variantId.includes("beta105")
+        ? 0.105
+      : variantConfig.variantId.includes("beta100")
+        ? 0.100
+      : variantConfig.variantId.includes("beta095")
+        ? 0.095
+      : variantConfig.variantId.includes("beta090")
+        ? 0.090
+      : variantConfig.variantId.includes("beta080")
+        ? 0.080
+      : variantConfig.variantId.includes("b060")
+      ? 0.060
+      : variantConfig.variantId.includes("b050")
+        ? 0.050
+      : variantConfig.variantId.includes("b045")
+        ? 0.045
+      : variantConfig.variantId.includes("b040")
+        ? 0.040
+      : variantConfig.variantId.includes("b035")
+        ? 0.035
+        : residualBase.laPassiveExponentialBetaPerMl,
+    laFiberActivePressureGain: variantConfig.variantId.includes("act100")
+      ? 1.0
+      : variantConfig.variantId.includes("act90")
+        ? 0.90
+      : variantConfig.variantId.includes("act75")
+        ? 0.75
+      : variantConfig.variantId.includes("act65")
+        ? 0.65
+      : variantConfig.variantId.includes("act25")
+      ? 0.25
+      : variantConfig.variantId.includes("act35")
+        ? 0.35
+      : variantConfig.variantId.includes("act45")
+        ? 0.45
+      : variantConfig.variantId.includes("edpvr")
+        ? 0.55
+        : residualBase.laFiberActivePressureGain,
+    laBoosterPressureGainMmHg: variantConfig.variantId.includes("aboost5")
+      ? 5.0
+      : variantConfig.variantId.includes("aboost4")
+        ? 4.0
+      : variantConfig.variantId.includes("aboost3")
+        ? 3.0
+      : variantConfig.variantId.includes("aboost2")
+        ? 2.0
+        : residualBase.laBoosterPressureGainMmHg,
+    laBoosterPressureRiseTauSec: variantConfig.variantId.includes("aboost")
+      ? (variantConfig.variantId.includes("aboostsoft") ? 0.065 : 0.045)
+      : residualBase.laBoosterPressureRiseTauSec,
+    laBoosterPressureFallTauSec: variantConfig.variantId.includes("aboost")
+      ? (variantConfig.variantId.includes("aboostsoft") ? 0.18 : 0.13)
+      : residualBase.laBoosterPressureFallTauSec,
+    laBoosterPressureStartTheta: variantConfig.variantId.includes("aboost")
+      ? 0.76
+      : residualBase.laBoosterPressureStartTheta,
+    laBoosterPressureEndTheta: variantConfig.variantId.includes("aboost")
+      ? 0.98
+      : residualBase.laBoosterPressureEndTheta,
+    laComplianceMlPerMmHg: variantConfig.variantId.includes("lacompliance11")
+      ? 11
+      : variantConfig.variantId.includes("lacompliance9")
+        ? 9
+        : residualBase.laComplianceMlPerMmHg,
+	    pulmonaryVenousBoundaryMode: "compliance-node",
     pulmonaryVenousComplianceMlPerMmHg: variantConfig.pvComplianceMlPerMmHg,
     pulmonaryVenousSourceResistanceMmHgSecPerMl: variantConfig.pvSourceResistanceMmHgSecPerMl,
     mv: {
@@ -3293,6 +3707,10 @@ function phaseOrientedPvQualityFor(
     postOpeningEarlyVolumeDropMl: round(phase.postOpeningEarlyVolumeDropMl),
     xTroughVolumeRiseMl: round(phase.xTroughVolumeRiseMl),
     postXTroughVolumeRiseMl: round(phase.postXTroughVolumeRiseMl),
+    reservoirEarlyPressureOvershootAboveMvOpeningMmHg:
+      round(phase.reservoirEarlyPressureOvershootAboveMvOpeningMmHg),
+    reservoirEarlyPressureOvershootAboveMvClosureMmHg:
+      round(phase.reservoirEarlyPressureOvershootAboveMvClosureMmHg),
     reservoirBelowChordFraction: round(phase.reservoirBelowChordFraction),
     meanReservoirBelowChordMmHg: round(phase.meanReservoirBelowChordMmHg),
     conduitBelowReservoirChordFraction: round(phase.conduitBelowReservoirChordFraction),
@@ -3368,6 +3786,8 @@ function phaseOrientationFor(
   readonly postOpeningEarlyVolumeDropMl: number;
   readonly xTroughVolumeRiseMl: number;
   readonly postXTroughVolumeRiseMl: number;
+  readonly reservoirEarlyPressureOvershootAboveMvOpeningMmHg: number;
+  readonly reservoirEarlyPressureOvershootAboveMvClosureMmHg: number;
   readonly reservoirBelowChordFraction: number;
   readonly meanReservoirBelowChordMmHg: number;
   readonly conduitBelowReservoirChordFraction: number;
@@ -3403,6 +3823,8 @@ function phaseOrientationFor(
       postOpeningEarlyVolumeDropMl: 0,
       xTroughVolumeRiseMl: 0,
       postXTroughVolumeRiseMl: 0,
+      reservoirEarlyPressureOvershootAboveMvOpeningMmHg: 0,
+      reservoirEarlyPressureOvershootAboveMvClosureMmHg: 0,
       reservoirBelowChordFraction: 0,
       meanReservoirBelowChordMmHg: 0,
       conduitBelowReservoirChordFraction: 0,
@@ -3427,6 +3849,16 @@ function phaseOrientationFor(
   );
   const xTroughVolumeRise = volumes[minReservoirIndex]! - closureVolume;
   const postXTroughVolumeRise = volumes[mvOpeningIndex]! - volumes[minReservoirIndex]!;
+  const minReservoirPosition = Math.max(0, reservoirIndices.indexOf(minReservoirIndex));
+  const earlyReservoirIndices = reservoirIndices.slice(0, minReservoirPosition + 1);
+  const maxEarlyReservoirPressure = Math.max(
+    closurePressure,
+    ...earlyReservoirIndices.map((index) => pressures[index]!),
+  );
+  const reservoirEarlyPressureOvershootAboveMvOpening =
+    maxEarlyReservoirPressure - pressures[mvOpeningIndex]!;
+  const reservoirEarlyPressureOvershootAboveMvClosure =
+    maxEarlyReservoirPressure - closurePressure;
   const reservoirBelowChordMargins = reservoirIndices
     .filter((index) => index !== mvClosureIndex && index !== mvOpeningIndex)
     .map((index) =>
@@ -3531,6 +3963,8 @@ function phaseOrientationFor(
     postOpeningEarlyVolumeDropMl: postOpeningEarlyVolumeDrop,
     xTroughVolumeRiseMl: xTroughVolumeRise,
     postXTroughVolumeRiseMl: postXTroughVolumeRise,
+    reservoirEarlyPressureOvershootAboveMvOpeningMmHg: reservoirEarlyPressureOvershootAboveMvOpening,
+    reservoirEarlyPressureOvershootAboveMvClosureMmHg: reservoirEarlyPressureOvershootAboveMvClosure,
     reservoirBelowChordFraction,
     meanReservoirBelowChordMmHg: meanReservoirBelowChord,
     conduitBelowReservoirChordFraction,
@@ -3662,7 +4096,10 @@ function findMvOpeningIndex(mvOpen: readonly number[]): number | null {
 }
 
 function findMvClosureIndexAfter(mvOpen: readonly number[], openingIndex: number): number | null {
-  const threshold = 0.45;
+  // Use a near-closed valve state for MVC. The 0.45 crossing still contains substantial
+  // residual forward MV flow in the stateful valve and falsely assigns late conduit
+  // motion to the reservoir limb.
+  const threshold = 0.12;
   for (let step = 1; step <= mvOpen.length; step++) {
     const index = (openingIndex + step) % mvOpen.length;
     const previous = mvOpen[(index + mvOpen.length - 1) % mvOpen.length]!;
