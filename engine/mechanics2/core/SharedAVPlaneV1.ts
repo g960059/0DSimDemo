@@ -6,6 +6,7 @@ export type SharedAVPlaneParamsV1 = {
   readonly atrialFiberProjection01: number;
   readonly ventricularFiberProjection01: number;
   readonly referencePositionCm: number;
+  readonly passiveNeutralPositionCm?: number;
   readonly inertiaNSec2PerCm: number;
   readonly stiffnessNPerCm: number;
   readonly dampingNSecPerCm: number;
@@ -63,11 +64,12 @@ export function stepSharedAVPlaneV1(
   const inertia = Math.max(params.inertiaNSec2PerCm, 1e-9);
   const damping = Math.max(params.dampingNSecPerCm, 0);
   const stiffness = Math.max(params.stiffnessNPerCm, 0);
+  const passiveNeutralPositionCm = passiveNeutralPosition(params);
   const appliedForceN = forces.ventricularActiveForceN -
     forces.atrialActiveForceN + forces.hydraulicForceN;
   const velocityCmPerSec = (
     inertia / dtSec * previous.velocityCmPerSec + appliedForceN -
-    stiffness * (previous.positionCm - params.referencePositionCm)
+    stiffness * (previous.positionCm - passiveNeutralPositionCm)
   ) / Math.max(inertia / dtSec + damping + stiffness * dtSec, 1e-9);
   const positionCm = previous.positionCm + dtSec * velocityCmPerSec;
   return evaluateSharedAVPlaneStateV1(
@@ -91,7 +93,7 @@ export function evaluateSharedAVPlaneStateV1(
     state.velocityCmPerSec - previous.velocityCmPerSec
   ) / dtSec;
   const springForceN = -Math.max(params.stiffnessNPerCm, 0) *
-    (state.positionCm - params.referencePositionCm);
+    (state.positionCm - passiveNeutralPosition(params));
   const dampingForceN = -Math.max(params.dampingNSecPerCm, 0) * velocityCmPerSec;
   const inertialForceN = -Math.max(params.inertiaNSec2PerCm, 0) * accelerationCmPerSec2;
   const netActiveForceN = forces.ventricularActiveForceN - forces.atrialActiveForceN;
@@ -146,4 +148,8 @@ function drivingForces(
 
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function passiveNeutralPosition(params: SharedAVPlaneParamsV1): number {
+  return params.passiveNeutralPositionCm ?? params.referencePositionCm;
 }

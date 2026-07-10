@@ -1,0 +1,3199 @@
+{
+  "reportId": "atrial-av-plane-passive-balance-report-v2",
+  "model": {
+    "atrialBloodVolumeOwner": "Q_PV-minus-Q_MV",
+    "geometryReference": "wall-deformation-only",
+    "passiveNeutral": "spring-force-only",
+    "activeForceSource": "same-one-fiber-active-wall-stress",
+    "forbiddenPressureHooks": [
+      "P_mem",
+      "P_relief",
+      "P_LV_recv"
+    ],
+    "addedStateCount": 0
+  },
+  "variants": [
+    {
+      "variantId": "v1-baseline",
+      "role": "historical-control",
+      "params": {
+        "laWall": {
+          "chamberId": "LA",
+          "wallVolumeMl": 22,
+          "referenceFreeWallVolumeMl": 39,
+          "passiveStiffnessKPa": 30,
+          "passiveExponent": 8,
+          "activeStressMaxKPa": 8,
+          "activeLengthPeakNorm": 1.08,
+          "activeLengthWidthNorm": 0.22,
+          "activationRiseTauSec": 0.025,
+          "activationFallTauSec": 0.075,
+          "wallViscosityKPaSec": 4,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "lvWall": {
+          "chamberId": "LV",
+          "wallVolumeMl": 120,
+          "referenceFreeWallVolumeMl": 80,
+          "passiveStiffnessKPa": 12,
+          "passiveExponent": 24,
+          "activeStressMaxKPa": 72,
+          "activeLengthPeakNorm": 1.22,
+          "activeLengthWidthNorm": 0.18,
+          "activationRiseTauSec": 0.03,
+          "activationFallTauSec": 0.04,
+          "wallViscosityKPaSec": 0,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "avPlane": {
+          "atrialAreaCm2": 25,
+          "ventricularAreaCm2": 37.5,
+          "atrialLongitudinalTissueAreaCm2": 4.5,
+          "ventricularLongitudinalTissueAreaCm2": 36,
+          "atrialFiberProjection01": 0.7,
+          "ventricularFiberProjection01": 0.95,
+          "referencePositionCm": 0,
+          "inertiaNSec2PerCm": 1.1,
+          "stiffnessNPerCm": 25,
+          "dampingNSecPerCm": 20
+        },
+        "mitralValve": {
+          "valveId": "MV",
+          "openAreaCm2": 4.5,
+          "leakAreaCm2": 0.03,
+          "openingMidpointMmHg": 0.12,
+          "openingWidthMmHg": 0.1,
+          "openResistanceMmHgSecPerMl": 0.004,
+          "openInertanceMmHgSec2PerMl": 0.00025,
+          "openBernoulliMmHgSec2PerMl2": 0.00002,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "aorticValve": {
+          "valveId": "AoV",
+          "openAreaCm2": 3.2,
+          "leakAreaCm2": 0.015,
+          "openingMidpointMmHg": 0.5,
+          "openingWidthMmHg": 0.2,
+          "openResistanceMmHgSecPerMl": 0.002,
+          "openInertanceMmHgSec2PerMl": 0.0002,
+          "openBernoulliMmHgSec2PerMl2": 0.00004,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "pulmonaryVenousComplianceMlPerMmHg": 18,
+        "pulmonaryVenousResistanceMmHgSecPerMl": 0.06,
+        "pulmonaryVenousInertanceMmHgSec2PerMl": 0.002,
+        "pulmonarySourceResistanceMmHgSecPerMl": 0.08,
+        "returnReservoirComplianceMlPerMmHg": 35,
+        "initialReturnReservoirPressureMmHg": 17.5,
+        "aorticComplianceMlPerMmHg": 1.3,
+        "systemicResistanceMmHgSecPerMl": 1.12,
+        "nonlinearSolverIterations": 12,
+        "nonlinearResidualTolerance": 1e-8,
+        "nonlinearLineSearchSteps": 12
+      },
+      "profile": {
+        "profileId": "v1-baseline",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          7.514613,
+          12.018566
+        ],
+        "pressureRangeLvMmHg": [
+          6.354215,
+          91.292943
+        ],
+        "pressureRangeAorticMmHg": [
+          59.412922,
+          86.793685
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          12.380835,
+          12.720472
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.485182,
+          16.566172
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          12.842703,
+          79.403819
+        ],
+        "flowRangeSystemicMlPerSec": [
+          38.32358,
+          62.762655
+        ],
+        "volumeRangeLaMl": [
+          88.656119,
+          104.32083
+        ],
+        "volumeRangeLvMl": [
+          62.110381,
+          102.349339
+        ],
+        "cardiacOutputLPerMin": 3.009018,
+        "strokeVolumeMl": 40.12024,
+        "ePeakMlPerSec": 175.988178,
+        "aPeakMlPerSec": 126.937754,
+        "eToARatio": 1.386413,
+        "mitralEPeakVelocityCmPerSec": 39.108484,
+        "mitralAPeakVelocityCmPerSec": 28.20839,
+        "mitralPeakVelocityEToARatio": 1.386413,
+        "mitralEVtiCm": 6.349094,
+        "mitralAVtiCm": 2.509907,
+        "mitralVtiEToARatio": 2.529613,
+        "mitralEarlyForwardVolumeMl": 28.570922,
+        "mitralLateForwardVolumeMl": 11.294581,
+        "mitralAtrialFillingFraction": 0.283317,
+        "mitralEAccelerationTimeSec": 0.052,
+        "mitralEDecelerationTimeSec": 0.163981,
+        "mitralEDecelerationToAccelerationRatio": 3.153479,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 12.961541,
+        "mitralDiastasisDurationSec": 0.168,
+        "mitralEAPeakSeparationSec": 0.321,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.894917,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "pass",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": true,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 68.610821,
+        "pulmonaryVenousSPeakMlPerSec": 60.403985,
+        "pulmonaryVenousDPeakMlPerSec": 79.403819,
+        "pulmonaryVenousSToDRatio": 0.760719,
+        "xDescentDepthMmHg": 1.87615,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 0.981253,
+        "yDescentDepthMmHg": 2.431829,
+        "reservoirVolumeGainMl": 14.434764,
+        "conduitVolumeDropMl": 8.55212,
+        "conduitThroughputMl": 24.455529,
+        "conduitFractionOfStrokeVolume": 0.609556,
+        "mitralReverseVolumeMl": 0.151697,
+        "aorticReverseVolumeMl": 0.406313,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 7.131148,
+        "vLoopAreaMmHgMl": 10.547305,
+        "aLoopSignedAreaMmHgMl": 7.131148,
+        "vLoopSignedAreaMmHgMl": -10.547305,
+        "opposedLobeOrientation": true,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 53.293615,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.931601,
+        "figureEightCrossingAngleDeg": 53.293615,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.996528,
+        "conduitBelowReservoirPathFraction": 0.835664,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 1,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 0.338134,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.019945,
+        "mvoTangentJumpNorm": 0.416435,
+        "avPlaneDisplacementCm": 0.525472,
+        "peakAvPlaneVelocityCmPerSec": 3.176863,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.001025,
+        "cycleClosureLvVolumeMl": 0.000022,
+        "events": {
+          "mitralClosureTheta": 0.01125,
+          "mitralOpeningTheta": 0.39125,
+          "preATheta": 0.78125
+        }
+      },
+      "prime": {
+        "sPrimeCmPerSec": 3.176863,
+        "ePrimeCmPerSec": 1.226437,
+        "aPrimeCmPerSec": 1.141076
+      },
+      "diastasis": {
+        "theta": 0.78125,
+        "positionCm": 0.80426,
+        "velocityCmPerSec": -1.141076,
+        "mitralFlowMlPerSec": 58.326933,
+        "mitralFlowFractionOfPeak": 0.331425,
+        "ventricularActiveForceN": 0.005202,
+        "atrialActiveForceN": 0.047881,
+        "hydraulicForceN": -1.382693,
+        "springForceN": -20.106489,
+        "dampingForceN": 22.821514,
+        "inertialForceN": -1.289654,
+        "quasiStaticResidualN": -21.531861,
+        "fullDynamicResidualN": -0.000001,
+        "quasiStaticAvPlanePass": false
+      },
+      "forceRangesN": {
+        "ventricularActive": [
+          0.000124,
+          142.723428
+        ],
+        "atrialActive": [
+          0.000224,
+          1.856024
+        ],
+        "hydraulic": [
+          -42.462213,
+          -0.510942
+        ],
+        "spring": [
+          -27.610368,
+          -14.473569
+        ],
+        "damping": [
+          -63.537252,
+          24.528742
+        ],
+        "inertial": [
+          -49.728832,
+          33.384145
+        ]
+      }
+    },
+    {
+      "variantId": "passive-balance",
+      "role": "mechanistic-candidate",
+      "params": {
+        "laWall": {
+          "chamberId": "LA",
+          "wallVolumeMl": 22,
+          "referenceFreeWallVolumeMl": 39,
+          "passiveStiffnessKPa": 30,
+          "passiveExponent": 8,
+          "activeStressMaxKPa": 8,
+          "activeLengthPeakNorm": 1.08,
+          "activeLengthWidthNorm": 0.22,
+          "activationRiseTauSec": 0.025,
+          "activationFallTauSec": 0.075,
+          "wallViscosityKPaSec": 4,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "lvWall": {
+          "chamberId": "LV",
+          "wallVolumeMl": 120,
+          "referenceFreeWallVolumeMl": 80,
+          "passiveStiffnessKPa": 12,
+          "passiveExponent": 24,
+          "activeStressMaxKPa": 72,
+          "activeLengthPeakNorm": 1.22,
+          "activeLengthWidthNorm": 0.18,
+          "activationRiseTauSec": 0.03,
+          "activationFallTauSec": 0.04,
+          "wallViscosityKPaSec": 0,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "avPlane": {
+          "atrialAreaCm2": 25,
+          "ventricularAreaCm2": 37.5,
+          "atrialLongitudinalTissueAreaCm2": 4.5,
+          "ventricularLongitudinalTissueAreaCm2": 36,
+          "atrialFiberProjection01": 0.7,
+          "ventricularFiberProjection01": 0.95,
+          "referencePositionCm": 0,
+          "inertiaNSec2PerCm": 0.3,
+          "stiffnessNPerCm": 80,
+          "dampingNSecPerCm": 8,
+          "passiveNeutralPositionCm": 0
+        },
+        "mitralValve": {
+          "valveId": "MV",
+          "openAreaCm2": 4.5,
+          "leakAreaCm2": 0.03,
+          "openingMidpointMmHg": 0.12,
+          "openingWidthMmHg": 0.1,
+          "openResistanceMmHgSecPerMl": 0.004,
+          "openInertanceMmHgSec2PerMl": 0.00025,
+          "openBernoulliMmHgSec2PerMl2": 0.00002,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "aorticValve": {
+          "valveId": "AoV",
+          "openAreaCm2": 3.2,
+          "leakAreaCm2": 0.015,
+          "openingMidpointMmHg": 0.5,
+          "openingWidthMmHg": 0.2,
+          "openResistanceMmHgSecPerMl": 0.002,
+          "openInertanceMmHgSec2PerMl": 0.0002,
+          "openBernoulliMmHgSec2PerMl2": 0.00004,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "pulmonaryVenousComplianceMlPerMmHg": 18,
+        "pulmonaryVenousResistanceMmHgSecPerMl": 0.06,
+        "pulmonaryVenousInertanceMmHgSec2PerMl": 0.002,
+        "pulmonarySourceResistanceMmHgSecPerMl": 0.08,
+        "returnReservoirComplianceMlPerMmHg": 35,
+        "initialReturnReservoirPressureMmHg": 17.5,
+        "aorticComplianceMlPerMmHg": 1.3,
+        "systemicResistanceMmHgSecPerMl": 1.12,
+        "nonlinearSolverIterations": 12,
+        "nonlinearResidualTolerance": 1e-8,
+        "nonlinearLineSearchSteps": 12
+      },
+      "profile": {
+        "profileId": "passive-balance",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          3.851738,
+          11.62729
+        ],
+        "pressureRangeLvMmHg": [
+          5.393654,
+          104.141217
+        ],
+        "pressureRangeAorticMmHg": [
+          66.943735,
+          98.825586
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.547646,
+          12.025614
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.366177,
+          16.442319
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          9.363631,
+          124.609785
+        ],
+        "flowRangeSystemicMlPerSec": [
+          45.153818,
+          73.608672
+        ],
+        "volumeRangeLaMl": [
+          68.288825,
+          94.630103
+        ],
+        "volumeRangeLvMl": [
+          80.813632,
+          128.1186
+        ],
+        "cardiacOutputLPerMin": 3.536676,
+        "strokeVolumeMl": 47.155682,
+        "ePeakMlPerSec": 273.839243,
+        "aPeakMlPerSec": 99.727388,
+        "eToARatio": 2.745878,
+        "mitralEPeakVelocityCmPerSec": 60.853165,
+        "mitralAPeakVelocityCmPerSec": 22.161642,
+        "mitralPeakVelocityEToARatio": 2.745878,
+        "mitralEVtiCm": 8.856337,
+        "mitralAVtiCm": 1.561747,
+        "mitralVtiEToARatio": 5.670788,
+        "mitralEarlyForwardVolumeMl": 39.853515,
+        "mitralLateForwardVolumeMl": 7.027863,
+        "mitralAtrialFillingFraction": 0.149907,
+        "mitralEAccelerationTimeSec": 0.058,
+        "mitralEDecelerationTimeSec": 0.174104,
+        "mitralEDecelerationToAccelerationRatio": 3.00179,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 5.446753,
+        "mitralDiastasisDurationSec": 0.114,
+        "mitralEAPeakSeparationSec": 0.306,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.945051,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 75.216999,
+        "pulmonaryVenousSPeakMlPerSec": 124.609785,
+        "pulmonaryVenousDPeakMlPerSec": 71.93335,
+        "pulmonaryVenousSToDRatio": 1.732295,
+        "xDescentDepthMmHg": 5.979624,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 7.251704,
+        "yDescentDepthMmHg": 3.941911,
+        "reservoirVolumeGainMl": 25.289598,
+        "conduitVolumeDropMl": 25.019915,
+        "conduitThroughputMl": 20.814404,
+        "conduitFractionOfStrokeVolume": 0.441398,
+        "mitralReverseVolumeMl": 0.190848,
+        "aorticReverseVolumeMl": 0.465607,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 5.011983,
+        "vLoopAreaMmHgMl": 47.468954,
+        "aLoopSignedAreaMmHgMl": 5.011983,
+        "vLoopSignedAreaMmHgMl": 47.468954,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 66.550388,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.973726,
+        "figureEightCrossingAngleDeg": 64.046308,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.996575,
+        "conduitBelowReservoirPathFraction": 0.551724,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.57971,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 1.469261,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.006715,
+        "mvoTangentJumpNorm": 0.400639,
+        "avPlaneDisplacementCm": 1.220632,
+        "peakAvPlaneVelocityCmPerSec": 9.458801,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.0021,
+        "cycleClosureLvVolumeMl": 0.000754,
+        "events": {
+          "mitralClosureTheta": 0.00375,
+          "mitralOpeningTheta": 0.4025,
+          "preATheta": 0.78125
+        }
+      },
+      "prime": {
+        "sPrimeCmPerSec": 9.458801,
+        "ePrimeCmPerSec": 6.948497,
+        "aPrimeCmPerSec": 0.155731
+      },
+      "diastasis": {
+        "theta": 0.78125,
+        "positionCm": -0.0216,
+        "velocityCmPerSec": -0.073927,
+        "mitralFlowMlPerSec": 24.510389,
+        "mitralFlowFractionOfPeak": 0.089506,
+        "ventricularActiveForceN": 0.005146,
+        "atrialActiveForceN": 0.049876,
+        "hydraulicForceN": -1.342499,
+        "springForceN": 1.727992,
+        "dampingForceN": 0.591419,
+        "inertialForceN": -0.932182,
+        "quasiStaticResidualN": 0.340763,
+        "fullDynamicResidualN": 0,
+        "quasiStaticAvPlanePass": true
+      },
+      "forceRangesN": {
+        "ventricularActive": [
+          0.000124,
+          172.621085
+        ],
+        "atrialActive": [
+          0.000233,
+          1.919941
+        ],
+        "hydraulic": [
+          -50.657555,
+          0.017038
+        ],
+        "spring": [
+          -94.615947,
+          3.034603
+        ],
+        "damping": [
+          -75.670411,
+          55.587977
+        ],
+        "inertial": [
+          -35.038722,
+          43.998544
+        ]
+      }
+    },
+    {
+      "variantId": "passive-balance-la-contractility-bracket",
+      "role": "physiologic-parameter-bracket",
+      "params": {
+        "laWall": {
+          "chamberId": "LA",
+          "wallVolumeMl": 22,
+          "referenceFreeWallVolumeMl": 39,
+          "passiveStiffnessKPa": 30,
+          "passiveExponent": 8,
+          "activeStressMaxKPa": 12,
+          "activeLengthPeakNorm": 1.08,
+          "activeLengthWidthNorm": 0.22,
+          "activationRiseTauSec": 0.025,
+          "activationFallTauSec": 0.075,
+          "wallViscosityKPaSec": 4,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "lvWall": {
+          "chamberId": "LV",
+          "wallVolumeMl": 120,
+          "referenceFreeWallVolumeMl": 80,
+          "passiveStiffnessKPa": 12,
+          "passiveExponent": 24,
+          "activeStressMaxKPa": 72,
+          "activeLengthPeakNorm": 1.22,
+          "activeLengthWidthNorm": 0.18,
+          "activationRiseTauSec": 0.03,
+          "activationFallTauSec": 0.04,
+          "wallViscosityKPaSec": 0,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "avPlane": {
+          "atrialAreaCm2": 25,
+          "ventricularAreaCm2": 37.5,
+          "atrialLongitudinalTissueAreaCm2": 4.5,
+          "ventricularLongitudinalTissueAreaCm2": 36,
+          "atrialFiberProjection01": 0.7,
+          "ventricularFiberProjection01": 0.95,
+          "referencePositionCm": 0,
+          "inertiaNSec2PerCm": 0.3,
+          "stiffnessNPerCm": 80,
+          "dampingNSecPerCm": 8,
+          "passiveNeutralPositionCm": 0
+        },
+        "mitralValve": {
+          "valveId": "MV",
+          "openAreaCm2": 4.5,
+          "leakAreaCm2": 0.03,
+          "openingMidpointMmHg": 0.12,
+          "openingWidthMmHg": 0.1,
+          "openResistanceMmHgSecPerMl": 0.004,
+          "openInertanceMmHgSec2PerMl": 0.00025,
+          "openBernoulliMmHgSec2PerMl2": 0.00002,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "aorticValve": {
+          "valveId": "AoV",
+          "openAreaCm2": 3.2,
+          "leakAreaCm2": 0.015,
+          "openingMidpointMmHg": 0.5,
+          "openingWidthMmHg": 0.2,
+          "openResistanceMmHgSecPerMl": 0.002,
+          "openInertanceMmHgSec2PerMl": 0.0002,
+          "openBernoulliMmHgSec2PerMl2": 0.00004,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "pulmonaryVenousComplianceMlPerMmHg": 18,
+        "pulmonaryVenousResistanceMmHgSecPerMl": 0.06,
+        "pulmonaryVenousInertanceMmHgSec2PerMl": 0.002,
+        "pulmonarySourceResistanceMmHgSecPerMl": 0.08,
+        "returnReservoirComplianceMlPerMmHg": 35,
+        "initialReturnReservoirPressureMmHg": 17.5,
+        "aorticComplianceMlPerMmHg": 1.3,
+        "systemicResistanceMmHgSecPerMl": 1.12,
+        "nonlinearSolverIterations": 12,
+        "nonlinearResidualTolerance": 1e-8,
+        "nonlinearLineSearchSteps": 12
+      },
+      "profile": {
+        "profileId": "passive-balance-la-contractility-bracket",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          2.991872,
+          12.956223
+        ],
+        "pressureRangeLvMmHg": [
+          5.427884,
+          105.44369
+        ],
+        "pressureRangeAorticMmHg": [
+          67.750552,
+          100.067913
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.453744,
+          12.0558
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.386755,
+          16.461038
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          -9.436886,
+          137.734066
+        ],
+        "flowRangeSystemicMlPerSec": [
+          45.856293,
+          74.698192
+        ],
+        "volumeRangeLaMl": [
+          64.065101,
+          92.546044
+        ],
+        "volumeRangeLvMl": [
+          82.674511,
+          130.697057
+        ],
+        "cardiacOutputLPerMin": 3.590133,
+        "strokeVolumeMl": 47.868445,
+        "ePeakMlPerSec": 261.905962,
+        "aPeakMlPerSec": 142.101434,
+        "eToARatio": 1.843092,
+        "mitralEPeakVelocityCmPerSec": 58.201325,
+        "mitralAPeakVelocityCmPerSec": 31.578096,
+        "mitralPeakVelocityEToARatio": 1.843092,
+        "mitralEVtiCm": 8.394519,
+        "mitralAVtiCm": 2.18279,
+        "mitralVtiEToARatio": 3.845776,
+        "mitralEarlyForwardVolumeMl": 37.775336,
+        "mitralLateForwardVolumeMl": 9.822554,
+        "mitralAtrialFillingFraction": 0.206365,
+        "mitralEAccelerationTimeSec": 0.059,
+        "mitralEDecelerationTimeSec": 0.171908,
+        "mitralEDecelerationToAccelerationRatio": 2.913691,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 5.680498,
+        "mitralDiastasisDurationSec": 0.113,
+        "mitralEAPeakSeparationSec": 0.302,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.725972,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "pass",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": true,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 116.539194,
+        "pulmonaryVenousSPeakMlPerSec": 137.734066,
+        "pulmonaryVenousDPeakMlPerSec": 71.280008,
+        "pulmonaryVenousSToDRatio": 1.932296,
+        "xDescentDepthMmHg": 6.844615,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 7.878612,
+        "yDescentDepthMmHg": 3.758338,
+        "reservoirVolumeGainMl": 28.161222,
+        "conduitVolumeDropMl": 23.19441,
+        "conduitThroughputMl": 19.387501,
+        "conduitFractionOfStrokeVolume": 0.405016,
+        "mitralReverseVolumeMl": 0.197969,
+        "aorticReverseVolumeMl": 0.468522,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 19.517049,
+        "vLoopAreaMmHgMl": 74.109126,
+        "aLoopSignedAreaMmHgMl": 19.517049,
+        "vLoopSignedAreaMmHgMl": 74.109126,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 15.171154,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "outside-preferred-window",
+        "figureEightCrossingProgress01": 0.170232,
+        "figureEightCrossingAngleDeg": 15.171154,
+        "figureEightCrossingInPreferredWindow": false,
+        "conduitBelowReservoirChordFraction": 0.996516,
+        "conduitBelowReservoirPathFraction": 0.063158,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 1,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 0.805085,
+        "pumpingMinimumFigureEightChordMarginMmHg": -0.923816,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": null,
+        "mvoTangentJumpNorm": 0.45904,
+        "avPlaneDisplacementCm": 1.248733,
+        "peakAvPlaneVelocityCmPerSec": 9.677085,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.002413,
+        "cycleClosureLvVolumeMl": 0.000623,
+        "events": {
+          "mitralClosureTheta": 0,
+          "mitralOpeningTheta": 0.40875,
+          "preATheta": 0.78125
+        }
+      },
+      "prime": {
+        "sPrimeCmPerSec": 9.677085,
+        "ePrimeCmPerSec": 7.091433,
+        "aPrimeCmPerSec": 0.253539
+      },
+      "diastasis": {
+        "theta": 0.78125,
+        "positionCm": -0.021697,
+        "velocityCmPerSec": -0.07095,
+        "mitralFlowMlPerSec": 25.56224,
+        "mitralFlowFractionOfPeak": 0.097601,
+        "ventricularActiveForceN": 0.005139,
+        "atrialActiveForceN": 0.075073,
+        "hydraulicForceN": -1.318332,
+        "springForceN": 1.735733,
+        "dampingForceN": 0.567599,
+        "inertialForceN": -0.915066,
+        "quasiStaticResidualN": 0.347467,
+        "fullDynamicResidualN": 0,
+        "quasiStaticAvPlanePass": true
+      },
+      "forceRangesN": {
+        "ventricularActive": [
+          0.000126,
+          175.838744
+        ],
+        "atrialActive": [
+          0.000351,
+          2.969572
+        ],
+        "hydraulic": [
+          -51.615668,
+          -0.043266
+        ],
+        "spring": [
+          -96.04199,
+          3.856654
+        ],
+        "damping": [
+          -77.416677,
+          56.731461
+        ],
+        "inertial": [
+          -35.65199,
+          45.236291
+        ]
+      }
+    },
+    {
+      "variantId": "topology-only-comparator",
+      "role": "morphology-comparator",
+      "params": {
+        "laWall": {
+          "chamberId": "LA",
+          "wallVolumeMl": 22,
+          "referenceFreeWallVolumeMl": 39,
+          "passiveStiffnessKPa": 30,
+          "passiveExponent": 8,
+          "activeStressMaxKPa": 8,
+          "activeLengthPeakNorm": 1.08,
+          "activeLengthWidthNorm": 0.22,
+          "activationRiseTauSec": 0.025,
+          "activationFallTauSec": 0.075,
+          "wallViscosityKPaSec": 4,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "lvWall": {
+          "chamberId": "LV",
+          "wallVolumeMl": 120,
+          "referenceFreeWallVolumeMl": 80,
+          "passiveStiffnessKPa": 12,
+          "passiveExponent": 24,
+          "activeStressMaxKPa": 72,
+          "activeLengthPeakNorm": 1.22,
+          "activeLengthWidthNorm": 0.18,
+          "activationRiseTauSec": 0.03,
+          "activationFallTauSec": 0.04,
+          "wallViscosityKPaSec": 0,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "avPlane": {
+          "atrialAreaCm2": 25,
+          "ventricularAreaCm2": 37.5,
+          "atrialLongitudinalTissueAreaCm2": 4.5,
+          "ventricularLongitudinalTissueAreaCm2": 36,
+          "atrialFiberProjection01": 0.7,
+          "ventricularFiberProjection01": 0.95,
+          "referencePositionCm": 0,
+          "inertiaNSec2PerCm": 0.5,
+          "stiffnessNPerCm": 80,
+          "dampingNSecPerCm": 16,
+          "passiveNeutralPositionCm": 0
+        },
+        "mitralValve": {
+          "valveId": "MV",
+          "openAreaCm2": 4.5,
+          "leakAreaCm2": 0.03,
+          "openingMidpointMmHg": 0.12,
+          "openingWidthMmHg": 0.1,
+          "openResistanceMmHgSecPerMl": 0.004,
+          "openInertanceMmHgSec2PerMl": 0.00025,
+          "openBernoulliMmHgSec2PerMl2": 0.00002,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "aorticValve": {
+          "valveId": "AoV",
+          "openAreaCm2": 3.2,
+          "leakAreaCm2": 0.015,
+          "openingMidpointMmHg": 0.5,
+          "openingWidthMmHg": 0.2,
+          "openResistanceMmHgSecPerMl": 0.002,
+          "openInertanceMmHgSec2PerMl": 0.0002,
+          "openBernoulliMmHgSec2PerMl2": 0.00004,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "pulmonaryVenousComplianceMlPerMmHg": 18,
+        "pulmonaryVenousResistanceMmHgSecPerMl": 0.06,
+        "pulmonaryVenousInertanceMmHgSec2PerMl": 0.002,
+        "pulmonarySourceResistanceMmHgSecPerMl": 0.08,
+        "returnReservoirComplianceMlPerMmHg": 35,
+        "initialReturnReservoirPressureMmHg": 17.5,
+        "aorticComplianceMlPerMmHg": 1.3,
+        "systemicResistanceMmHgSecPerMl": 1.12,
+        "nonlinearSolverIterations": 12,
+        "nonlinearResidualTolerance": 1e-8,
+        "nonlinearLineSearchSteps": 12
+      },
+      "profile": {
+        "profileId": "topology-only-comparator",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          7.202326,
+          11.787219
+        ],
+        "pressureRangeLvMmHg": [
+          6.040289,
+          96.879102
+        ],
+        "pressureRangeAorticMmHg": [
+          62.620621,
+          91.9742
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.990732,
+          12.330273
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.368129,
+          16.447577
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          11.407889,
+          81.05124
+        ],
+        "flowRangeSystemicMlPerSec": [
+          41.291915,
+          67.491478
+        ],
+        "volumeRangeLaMl": [
+          71.144684,
+          91.286545
+        ],
+        "volumeRangeLvMl": [
+          82.442362,
+          125.754029
+        ],
+        "cardiacOutputLPerMin": 3.238562,
+        "strokeVolumeMl": 43.180833,
+        "ePeakMlPerSec": 206.544208,
+        "aPeakMlPerSec": 114.967367,
+        "eToARatio": 1.796546,
+        "mitralEPeakVelocityCmPerSec": 45.898713,
+        "mitralAPeakVelocityCmPerSec": 25.548304,
+        "mitralPeakVelocityEToARatio": 1.796546,
+        "mitralEVtiCm": 7.502643,
+        "mitralAVtiCm": 2.034192,
+        "mitralVtiEToARatio": 3.688266,
+        "mitralEarlyForwardVolumeMl": 33.761891,
+        "mitralLateForwardVolumeMl": 9.153865,
+        "mitralAtrialFillingFraction": 0.213298,
+        "mitralEAccelerationTimeSec": 0.056,
+        "mitralEDecelerationTimeSec": 0.194278,
+        "mitralEDecelerationToAccelerationRatio": 3.469256,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 10.646425,
+        "mitralDiastasisDurationSec": 0.124,
+        "mitralEAPeakSeparationSec": 0.312,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.946291,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "pass",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": true,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 67.058454,
+        "pulmonaryVenousSPeakMlPerSec": 81.05124,
+        "pulmonaryVenousDPeakMlPerSec": 74.046148,
+        "pulmonaryVenousSToDRatio": 1.094604,
+        "xDescentDepthMmHg": 3.009327,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 2.954782,
+        "yDescentDepthMmHg": 2.711819,
+        "reservoirVolumeGainMl": 18.882048,
+        "conduitVolumeDropMl": 15.048255,
+        "conduitThroughputMl": 23.038971,
+        "conduitFractionOfStrokeVolume": 0.533546,
+        "mitralReverseVolumeMl": 0.167494,
+        "aorticReverseVolumeMl": 0.43306,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 6.138139,
+        "vLoopAreaMmHgMl": 0.31219,
+        "aLoopSignedAreaMmHgMl": 6.138139,
+        "vLoopSignedAreaMmHgMl": -0.31219,
+        "opposedLobeOrientation": true,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 26.281908,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.541018,
+        "figureEightCrossingAngleDeg": 26.281908,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.99654,
+        "conduitBelowReservoirPathFraction": 0.181185,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.962963,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 0.880952,
+        "pumpingMinimumFigureEightChordMarginMmHg": -0.209595,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.011806,
+        "mvoTangentJumpNorm": 0.376469,
+        "avPlaneDisplacementCm": 0.702175,
+        "peakAvPlaneVelocityCmPerSec": 5.053378,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.001869,
+        "cycleClosureLvVolumeMl": 0.000598,
+        "events": {
+          "mitralClosureTheta": 0.00625,
+          "mitralOpeningTheta": 0.39625,
+          "preATheta": 0.78125
+        }
+      },
+      "prime": {
+        "sPrimeCmPerSec": 5.053378,
+        "ePrimeCmPerSec": 2.487913,
+        "aPrimeCmPerSec": 0.768215
+      },
+      "diastasis": {
+        "theta": 0.78125,
+        "positionCm": 0.108136,
+        "velocityCmPerSec": -0.768215,
+        "mitralFlowMlPerSec": 47.908912,
+        "mitralFlowFractionOfPeak": 0.231955,
+        "ventricularActiveForceN": 0.005166,
+        "atrialActiveForceN": 0.049003,
+        "hydraulicForceN": -1.343709,
+        "springForceN": -8.650856,
+        "dampingForceN": 12.291439,
+        "inertialForceN": -2.253037,
+        "quasiStaticResidualN": -10.038402,
+        "fullDynamicResidualN": 0,
+        "quasiStaticAvPlanePass": false
+      },
+      "forceRangesN": {
+        "ventricularActive": [
+          0.000124,
+          155.479363
+        ],
+        "atrialActive": [
+          0.000229,
+          1.894768
+        ],
+        "hydraulic": [
+          -45.941308,
+          -0.361043
+        ],
+        "spring": [
+          -56.974582,
+          -0.800587
+        ],
+        "damping": [
+          -80.854053,
+          39.806612
+        ],
+        "inertial": [
+          -33.137604,
+          30.847896
+        ]
+      }
+    },
+    {
+      "variantId": "k0-negative-control",
+      "role": "negative-control",
+      "params": {
+        "laWall": {
+          "chamberId": "LA",
+          "wallVolumeMl": 22,
+          "referenceFreeWallVolumeMl": 39,
+          "passiveStiffnessKPa": 30,
+          "passiveExponent": 8,
+          "activeStressMaxKPa": 8,
+          "activeLengthPeakNorm": 1.08,
+          "activeLengthWidthNorm": 0.22,
+          "activationRiseTauSec": 0.025,
+          "activationFallTauSec": 0.075,
+          "wallViscosityKPaSec": 4,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "lvWall": {
+          "chamberId": "LV",
+          "wallVolumeMl": 120,
+          "referenceFreeWallVolumeMl": 80,
+          "passiveStiffnessKPa": 12,
+          "passiveExponent": 24,
+          "activeStressMaxKPa": 72,
+          "activeLengthPeakNorm": 1.22,
+          "activeLengthWidthNorm": 0.18,
+          "activationRiseTauSec": 0.03,
+          "activationFallTauSec": 0.04,
+          "wallViscosityKPaSec": 0,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "avPlane": {
+          "atrialAreaCm2": 25,
+          "ventricularAreaCm2": 37.5,
+          "atrialLongitudinalTissueAreaCm2": 4.5,
+          "ventricularLongitudinalTissueAreaCm2": 36,
+          "atrialFiberProjection01": 0.7,
+          "ventricularFiberProjection01": 0.95,
+          "referencePositionCm": 0,
+          "inertiaNSec2PerCm": 0.3,
+          "stiffnessNPerCm": 0,
+          "dampingNSecPerCm": 8,
+          "passiveNeutralPositionCm": 0
+        },
+        "mitralValve": {
+          "valveId": "MV",
+          "openAreaCm2": 4.5,
+          "leakAreaCm2": 0.03,
+          "openingMidpointMmHg": 0.12,
+          "openingWidthMmHg": 0.1,
+          "openResistanceMmHgSecPerMl": 0.004,
+          "openInertanceMmHgSec2PerMl": 0.00025,
+          "openBernoulliMmHgSec2PerMl2": 0.00002,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "aorticValve": {
+          "valveId": "AoV",
+          "openAreaCm2": 3.2,
+          "leakAreaCm2": 0.015,
+          "openingMidpointMmHg": 0.5,
+          "openingWidthMmHg": 0.2,
+          "openResistanceMmHgSecPerMl": 0.002,
+          "openInertanceMmHgSec2PerMl": 0.0002,
+          "openBernoulliMmHgSec2PerMl2": 0.00004,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "pulmonaryVenousComplianceMlPerMmHg": 18,
+        "pulmonaryVenousResistanceMmHgSecPerMl": 0.06,
+        "pulmonaryVenousInertanceMmHgSec2PerMl": 0.002,
+        "pulmonarySourceResistanceMmHgSecPerMl": 0.08,
+        "returnReservoirComplianceMlPerMmHg": 35,
+        "initialReturnReservoirPressureMmHg": 17.5,
+        "aorticComplianceMlPerMmHg": 1.3,
+        "systemicResistanceMmHgSecPerMl": 1.12,
+        "nonlinearSolverIterations": 12,
+        "nonlinearResidualTolerance": 1e-8,
+        "nonlinearLineSearchSteps": 12
+      },
+      "profile": {
+        "profileId": "k0-negative-control",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          4.845188,
+          12.199303
+        ],
+        "pressureRangeLvMmHg": [
+          14.010652,
+          114.973795
+        ],
+        "pressureRangeAorticMmHg": [
+          73.52273,
+          95.2087
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.707824,
+          12.034893
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.555642,
+          16.572635
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          -20.738551,
+          73.10515
+        ],
+        "flowRangeSystemicMlPerSec": [
+          50.860957,
+          70.21996
+        ],
+        "volumeRangeLaMl": [
+          153.965755,
+          156.425906
+        ],
+        "volumeRangeLvMl": [
+          0.100002,
+          31.854988
+        ],
+        "cardiacOutputLPerMin": 34.729711,
+        "strokeVolumeMl": 463.062812,
+        "ePeakMlPerSec": 0,
+        "aPeakMlPerSec": 0,
+        "eToARatio": 0,
+        "mitralEPeakVelocityCmPerSec": 0,
+        "mitralAPeakVelocityCmPerSec": 0,
+        "mitralPeakVelocityEToARatio": 0,
+        "mitralEVtiCm": 0,
+        "mitralAVtiCm": 0,
+        "mitralVtiEToARatio": 0,
+        "mitralEarlyForwardVolumeMl": 0,
+        "mitralLateForwardVolumeMl": 0,
+        "mitralAtrialFillingFraction": 0,
+        "mitralEAccelerationTimeSec": 0,
+        "mitralEDecelerationTimeSec": 0,
+        "mitralEDecelerationToAccelerationRatio": 0,
+        "mitralERiseMonotoneFraction": 0,
+        "mitralEDecayMonotoneFraction": 0,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 0,
+        "mitralDiastasisDurationSec": 0,
+        "mitralEAPeakSeparationSec": 0,
+        "mitralWaveFusionClass": "not-measurable",
+        "mitralWaveMeasurementValid": false,
+        "mitralPeakMeasurementValid": false,
+        "mitralDecelerationMeasurementValid": false,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 0,
+        "mitralEWaveAsymmetryRegime": "not-measurable",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "not-applicable-unresolved-peaks",
+          "fusionEligibility": "not-applicable",
+          "ageSpecificPeakEToA": "not-applicable",
+          "atrialFillingFraction": "not-applicable",
+          "decelerationTime": "not-applicable",
+          "resolvedRiseAndDecay": "not-applicable",
+          "resolvedLowFlowDiastasis": "not-applicable",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": false
+        },
+        "atrialKickFlowGainMlPerSec": 1.187839,
+        "pulmonaryVenousSPeakMlPerSec": 73.104423,
+        "pulmonaryVenousDPeakMlPerSec": 73.10515,
+        "pulmonaryVenousSToDRatio": 0.99999,
+        "xDescentDepthMmHg": 7.354115,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 3.04038,
+        "yDescentDepthMmHg": 0.214341,
+        "reservoirVolumeGainMl": 2.460114,
+        "conduitVolumeDropMl": 0,
+        "conduitThroughputMl": 460.602662,
+        "conduitFractionOfStrokeVolume": 0.994687,
+        "mitralReverseVolumeMl": 0.878185,
+        "aorticReverseVolumeMl": 0.02532,
+        "mitralSignificantReverseDuty01": 0.875,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 1.644174,
+        "vLoopAreaMmHgMl": 8.058153,
+        "aLoopSignedAreaMmHgMl": 1.644174,
+        "vLoopSignedAreaMmHgMl": 8.058153,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": false,
+        "reservoirConduitIntersectionAngleDeg": 0,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "none",
+        "figureEightCrossingProgress01": 0,
+        "figureEightCrossingAngleDeg": 0,
+        "figureEightCrossingInPreferredWindow": false,
+        "conduitBelowReservoirChordFraction": 0.972222,
+        "conduitBelowReservoirPathFraction": 0,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 0,
+        "pumpingAboveFigureEightChordFraction": 0,
+        "pumpingMinimumFigureEightChordMarginMmHg": 0,
+        "reservoirSecondaryPeakCount": 1,
+        "mvcTangentJumpNorm": null,
+        "mvoTangentJumpNorm": 0.013245,
+        "avPlaneDisplacementCm": 0.585278,
+        "peakAvPlaneVelocityCmPerSec": 12.808395,
+        "maxAbsMassResidualMl": 0.647378,
+        "maxAbsAvPlaneKinematicResidualCm": 0.012808,
+        "maxAbsAvPlaneForceResidualN": 107.407479,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 81861.492674,
+        "allStepsConverged": false,
+        "periodicSteadyState": false,
+        "beatsSimulated": 3,
+        "cycleClosureLaVolumeMl": 1.890408,
+        "cycleClosureLvVolumeMl": -31.743823,
+        "events": {
+          "mitralClosureTheta": 0,
+          "mitralOpeningTheta": 0.2,
+          "preATheta": 0.78125
+        }
+      },
+      "prime": {
+        "sPrimeCmPerSec": 12.808395,
+        "ePrimeCmPerSec": 0,
+        "aPrimeCmPerSec": 12.808395
+      },
+      "diastasis": {
+        "theta": 0.4625,
+        "positionCm": 3.48945,
+        "velocityCmPerSec": 12.808395,
+        "mitralFlowMlPerSec": -1.187839,
+        "mitralFlowFractionOfPeak": 0.999944,
+        "ventricularActiveForceN": 3.268537,
+        "atrialActiveForceN": 0.005726,
+        "hydraulicForceN": -5.313264,
+        "springForceN": 0,
+        "dampingForceN": -102.467156,
+        "inertialForceN": 0,
+        "quasiStaticResidualN": -2.050453,
+        "fullDynamicResidualN": -104.517609,
+        "quasiStaticAvPlanePass": false
+      },
+      "forceRangesN": {
+        "ventricularActive": [
+          0.000128,
+          196.748994
+        ],
+        "atrialActive": [
+          0.00024,
+          1.92868
+        ],
+        "hydraulic": [
+          -54.870047,
+          -3.012342
+        ],
+        "spring": [
+          0,
+          0
+        ],
+        "damping": [
+          -102.467156,
+          7.944701
+        ],
+        "inertial": [
+          -48.108633,
+          0
+        ]
+      }
+    },
+    {
+      "variantId": "passive-neutral-shift-control",
+      "role": "identifiability-control",
+      "params": {
+        "laWall": {
+          "chamberId": "LA",
+          "wallVolumeMl": 22,
+          "referenceFreeWallVolumeMl": 39,
+          "passiveStiffnessKPa": 30,
+          "passiveExponent": 8,
+          "activeStressMaxKPa": 8,
+          "activeLengthPeakNorm": 1.08,
+          "activeLengthWidthNorm": 0.22,
+          "activationRiseTauSec": 0.025,
+          "activationFallTauSec": 0.075,
+          "wallViscosityKPaSec": 4,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "lvWall": {
+          "chamberId": "LV",
+          "wallVolumeMl": 120,
+          "referenceFreeWallVolumeMl": 80,
+          "passiveStiffnessKPa": 12,
+          "passiveExponent": 24,
+          "activeStressMaxKPa": 72,
+          "activeLengthPeakNorm": 1.22,
+          "activeLengthWidthNorm": 0.18,
+          "activationRiseTauSec": 0.03,
+          "activationFallTauSec": 0.04,
+          "wallViscosityKPaSec": 0,
+          "tensileStrainSmoothing": 0.0001
+        },
+        "avPlane": {
+          "atrialAreaCm2": 25,
+          "ventricularAreaCm2": 37.5,
+          "atrialLongitudinalTissueAreaCm2": 4.5,
+          "ventricularLongitudinalTissueAreaCm2": 36,
+          "atrialFiberProjection01": 0.7,
+          "ventricularFiberProjection01": 0.95,
+          "referencePositionCm": 0,
+          "inertiaNSec2PerCm": 0.3,
+          "stiffnessNPerCm": 80,
+          "dampingNSecPerCm": 8,
+          "passiveNeutralPositionCm": 1
+        },
+        "mitralValve": {
+          "valveId": "MV",
+          "openAreaCm2": 4.5,
+          "leakAreaCm2": 0.03,
+          "openingMidpointMmHg": 0.12,
+          "openingWidthMmHg": 0.1,
+          "openResistanceMmHgSecPerMl": 0.004,
+          "openInertanceMmHgSec2PerMl": 0.00025,
+          "openBernoulliMmHgSec2PerMl2": 0.00002,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "aorticValve": {
+          "valveId": "AoV",
+          "openAreaCm2": 3.2,
+          "leakAreaCm2": 0.015,
+          "openingMidpointMmHg": 0.5,
+          "openingWidthMmHg": 0.2,
+          "openResistanceMmHgSecPerMl": 0.002,
+          "openInertanceMmHgSec2PerMl": 0.0002,
+          "openBernoulliMmHgSec2PerMl2": 0.00004,
+          "flowSmoothingMlPerSec": 0.5,
+          "newtonIterations": 8
+        },
+        "pulmonaryVenousComplianceMlPerMmHg": 18,
+        "pulmonaryVenousResistanceMmHgSecPerMl": 0.06,
+        "pulmonaryVenousInertanceMmHgSec2PerMl": 0.002,
+        "pulmonarySourceResistanceMmHgSecPerMl": 0.08,
+        "returnReservoirComplianceMlPerMmHg": 35,
+        "initialReturnReservoirPressureMmHg": 17.5,
+        "aorticComplianceMlPerMmHg": 1.3,
+        "systemicResistanceMmHgSecPerMl": 1.12,
+        "nonlinearSolverIterations": 12,
+        "nonlinearResidualTolerance": 1e-8,
+        "nonlinearLineSearchSteps": 12
+      },
+      "profile": {
+        "profileId": "passive-neutral-shift-control",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          4.069168,
+          11.806071
+        ],
+        "pressureRangeLvMmHg": [
+          5.558916,
+          104.409904
+        ],
+        "pressureRangeAorticMmHg": [
+          67.188919,
+          99.091944
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.752238,
+          12.228357
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.572197,
+          16.648594
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          9.697415,
+          124.436436
+        ],
+        "flowRangeSystemicMlPerSec": [
+          45.188782,
+          73.66251
+        ],
+        "volumeRangeLaMl": [
+          94.25238,
+          120.587481
+        ],
+        "volumeRangeLvMl": [
+          43.624754,
+          90.964706
+        ],
+        "cardiacOutputLPerMin": 3.539293,
+        "strokeVolumeMl": 47.190572,
+        "ePeakMlPerSec": 276.923218,
+        "aPeakMlPerSec": 97.779365,
+        "eToARatio": 2.832123,
+        "mitralEPeakVelocityCmPerSec": 61.538493,
+        "mitralAPeakVelocityCmPerSec": 21.728748,
+        "mitralPeakVelocityEToARatio": 2.832123,
+        "mitralEVtiCm": 8.900315,
+        "mitralAVtiCm": 1.525338,
+        "mitralVtiEToARatio": 5.834977,
+        "mitralEarlyForwardVolumeMl": 40.051416,
+        "mitralLateForwardVolumeMl": 6.864022,
+        "mitralAtrialFillingFraction": 0.146306,
+        "mitralEAccelerationTimeSec": 0.057,
+        "mitralEDecelerationTimeSec": 0.173205,
+        "mitralEDecelerationToAccelerationRatio": 3.038681,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 5.393753,
+        "mitralDiastasisDurationSec": 0.114,
+        "mitralEAPeakSeparationSec": 0.307,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.724274,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 73.507475,
+        "pulmonaryVenousSPeakMlPerSec": 124.436436,
+        "pulmonaryVenousDPeakMlPerSec": 72.01136,
+        "pulmonaryVenousSToDRatio": 1.728011,
+        "xDescentDepthMmHg": 5.974016,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 7.226445,
+        "yDescentDepthMmHg": 3.938227,
+        "reservoirVolumeGainMl": 25.260688,
+        "conduitVolumeDropMl": 25.21544,
+        "conduitThroughputMl": 20.855471,
+        "conduitFractionOfStrokeVolume": 0.441941,
+        "mitralReverseVolumeMl": 0.190945,
+        "aorticReverseVolumeMl": 0.465989,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 4.651074,
+        "vLoopAreaMmHgMl": 46.949208,
+        "aLoopSignedAreaMmHgMl": 4.651074,
+        "vLoopSignedAreaMmHgMl": 46.949208,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 68.014822,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.98023,
+        "figureEightCrossingAngleDeg": 60.294202,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.996575,
+        "conduitBelowReservoirPathFraction": 0.57931,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.597865,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 1.409418,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.006659,
+        "mvoTangentJumpNorm": 0.403959,
+        "avPlaneDisplacementCm": 1.226515,
+        "peakAvPlaneVelocityCmPerSec": 9.501633,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.000918,
+        "cycleClosureLvVolumeMl": 0.000327,
+        "events": {
+          "mitralClosureTheta": 0.00375,
+          "mitralOpeningTheta": 0.4025,
+          "preATheta": 0.78125
+        }
+      },
+      "prime": {
+        "sPrimeCmPerSec": 9.501633,
+        "ePrimeCmPerSec": 6.982538,
+        "aPrimeCmPerSec": 0.153869
+      },
+      "diastasis": {
+        "theta": 0.78125,
+        "positionCm": 0.977933,
+        "velocityCmPerSec": -0.074379,
+        "mitralFlowMlPerSec": 24.27189,
+        "mitralFlowFractionOfPeak": 0.087648,
+        "ventricularActiveForceN": 0.005167,
+        "atrialActiveForceN": 0.049381,
+        "hydraulicForceN": -1.377774,
+        "springForceN": 1.765325,
+        "dampingForceN": 0.595028,
+        "inertialForceN": -0.938367,
+        "quasiStaticResidualN": 0.343337,
+        "fullDynamicResidualN": -0.000002,
+        "quasiStaticAvPlanePass": true
+      },
+      "forceRangesN": {
+        "ventricularActive": [
+          0.000124,
+          173.290714
+        ],
+        "atrialActive": [
+          0.000231,
+          1.900208
+        ],
+        "hydraulic": [
+          -50.713037,
+          0.008504
+        ],
+        "spring": [
+          -95.064742,
+          3.056427
+        ],
+        "damping": [
+          -76.013062,
+          55.860306
+        ],
+        "inertial": [
+          -35.133583,
+          44.269131
+        ]
+      }
+    }
+  ],
+  "envelope": [
+    {
+      "caseId": "normal-dt1",
+      "axis": "dt",
+      "profile": {
+        "profileId": "normal-dt1",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          3.851738,
+          11.62729
+        ],
+        "pressureRangeLvMmHg": [
+          5.393654,
+          104.141217
+        ],
+        "pressureRangeAorticMmHg": [
+          66.943735,
+          98.825586
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.547646,
+          12.025614
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.366177,
+          16.442319
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          9.363631,
+          124.609785
+        ],
+        "flowRangeSystemicMlPerSec": [
+          45.153818,
+          73.608672
+        ],
+        "volumeRangeLaMl": [
+          68.288825,
+          94.630103
+        ],
+        "volumeRangeLvMl": [
+          80.813632,
+          128.1186
+        ],
+        "cardiacOutputLPerMin": 3.536676,
+        "strokeVolumeMl": 47.155682,
+        "ePeakMlPerSec": 273.839243,
+        "aPeakMlPerSec": 99.727388,
+        "eToARatio": 2.745878,
+        "mitralEPeakVelocityCmPerSec": 60.853165,
+        "mitralAPeakVelocityCmPerSec": 22.161642,
+        "mitralPeakVelocityEToARatio": 2.745878,
+        "mitralEVtiCm": 8.856337,
+        "mitralAVtiCm": 1.561747,
+        "mitralVtiEToARatio": 5.670788,
+        "mitralEarlyForwardVolumeMl": 39.853515,
+        "mitralLateForwardVolumeMl": 7.027863,
+        "mitralAtrialFillingFraction": 0.149907,
+        "mitralEAccelerationTimeSec": 0.058,
+        "mitralEDecelerationTimeSec": 0.174104,
+        "mitralEDecelerationToAccelerationRatio": 3.00179,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 5.446753,
+        "mitralDiastasisDurationSec": 0.114,
+        "mitralEAPeakSeparationSec": 0.306,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.945051,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 75.216999,
+        "pulmonaryVenousSPeakMlPerSec": 124.609785,
+        "pulmonaryVenousDPeakMlPerSec": 71.93335,
+        "pulmonaryVenousSToDRatio": 1.732295,
+        "xDescentDepthMmHg": 5.979624,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 7.251704,
+        "yDescentDepthMmHg": 3.941911,
+        "reservoirVolumeGainMl": 25.289598,
+        "conduitVolumeDropMl": 25.019915,
+        "conduitThroughputMl": 20.814404,
+        "conduitFractionOfStrokeVolume": 0.441398,
+        "mitralReverseVolumeMl": 0.190848,
+        "aorticReverseVolumeMl": 0.465607,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 5.011983,
+        "vLoopAreaMmHgMl": 47.468954,
+        "aLoopSignedAreaMmHgMl": 5.011983,
+        "vLoopSignedAreaMmHgMl": 47.468954,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 66.550388,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.973726,
+        "figureEightCrossingAngleDeg": 64.046308,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.996575,
+        "conduitBelowReservoirPathFraction": 0.551724,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.57971,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 1.469261,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.006715,
+        "mvoTangentJumpNorm": 0.400639,
+        "avPlaneDisplacementCm": 1.220632,
+        "peakAvPlaneVelocityCmPerSec": 9.458801,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.0021,
+        "cycleClosureLvVolumeMl": 0.000754,
+        "events": {
+          "mitralClosureTheta": 0.00375,
+          "mitralOpeningTheta": 0.4025,
+          "preATheta": 0.78125
+        }
+      }
+    },
+    {
+      "caseId": "normal-dt0p5",
+      "axis": "dt",
+      "profile": {
+        "profileId": "normal-dt0p5",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          3.832227,
+          11.631966
+        ],
+        "pressureRangeLvMmHg": [
+          5.380094,
+          104.15023
+        ],
+        "pressureRangeAorticMmHg": [
+          66.954199,
+          98.889081
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.544426,
+          12.024343
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.366211,
+          16.442429
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          9.24545,
+          124.960718
+        ],
+        "flowRangeSystemicMlPerSec": [
+          45.163173,
+          73.665361
+        ],
+        "volumeRangeLaMl": [
+          68.279581,
+          94.663738
+        ],
+        "volumeRangeLvMl": [
+          80.800935,
+          128.127186
+        ],
+        "cardiacOutputLPerMin": 3.538274,
+        "strokeVolumeMl": 47.17699,
+        "ePeakMlPerSec": 275.380753,
+        "aPeakMlPerSec": 100.230747,
+        "eToARatio": 2.747468,
+        "mitralEPeakVelocityCmPerSec": 61.195723,
+        "mitralAPeakVelocityCmPerSec": 22.273499,
+        "mitralPeakVelocityEToARatio": 2.747468,
+        "mitralEVtiCm": 8.863112,
+        "mitralAVtiCm": 1.559726,
+        "mitralVtiEToARatio": 5.682481,
+        "mitralEarlyForwardVolumeMl": 39.884003,
+        "mitralLateForwardVolumeMl": 7.018766,
+        "mitralAtrialFillingFraction": 0.149645,
+        "mitralEAccelerationTimeSec": 0.058,
+        "mitralEDecelerationTimeSec": 0.173614,
+        "mitralEDecelerationToAccelerationRatio": 2.99335,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 5.353422,
+        "mitralDiastasisDurationSec": 0.1135,
+        "mitralEAPeakSeparationSec": 0.3065,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.909799,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 76.140349,
+        "pulmonaryVenousSPeakMlPerSec": 124.960718,
+        "pulmonaryVenousDPeakMlPerSec": 72.049465,
+        "pulmonaryVenousSToDRatio": 1.734374,
+        "xDescentDepthMmHg": 6.008604,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 7.269072,
+        "yDescentDepthMmHg": 3.947532,
+        "reservoirVolumeGainMl": 25.334773,
+        "conduitVolumeDropMl": 25.074537,
+        "conduitThroughputMl": 20.792834,
+        "conduitFractionOfStrokeVolume": 0.440741,
+        "mitralReverseVolumeMl": 0.190957,
+        "aorticReverseVolumeMl": 0.465901,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 5.068346,
+        "vLoopAreaMmHgMl": 47.475177,
+        "aLoopSignedAreaMmHgMl": 5.068346,
+        "vLoopSignedAreaMmHgMl": 47.475177,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 66.899685,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.975221,
+        "figureEightCrossingAngleDeg": 64.225577,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.998273,
+        "conduitBelowReservoirPathFraction": 0.554593,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.581818,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 1.454821,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.0037,
+        "mvoTangentJumpNorm": 0.176293,
+        "avPlaneDisplacementCm": 1.223573,
+        "peakAvPlaneVelocityCmPerSec": 9.496352,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.002099,
+        "cycleClosureLvVolumeMl": 0.000753,
+        "events": {
+          "mitralClosureTheta": 0.003125,
+          "mitralOpeningTheta": 0.4025,
+          "preATheta": 0.780625
+        }
+      }
+    },
+    {
+      "caseId": "normal-dt2",
+      "axis": "dt",
+      "profile": {
+        "profileId": "normal-dt2",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          3.890381,
+          11.617752
+        ],
+        "pressureRangeLvMmHg": [
+          5.419964,
+          104.120735
+        ],
+        "pressureRangeAorticMmHg": [
+          66.925286,
+          98.697861
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.553988,
+          12.028099
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.366118,
+          16.442111
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          9.595095,
+          123.922562
+        ],
+        "flowRangeSystemicMlPerSec": [
+          45.137307,
+          73.494635
+        ],
+        "volumeRangeLaMl": [
+          68.30678,
+          94.562624
+        ],
+        "volumeRangeLvMl": [
+          80.837737,
+          128.100912
+        ],
+        "cardiacOutputLPerMin": 3.533546,
+        "strokeVolumeMl": 47.113942,
+        "ePeakMlPerSec": 270.801691,
+        "aPeakMlPerSec": 98.748777,
+        "eToARatio": 2.74233,
+        "mitralEPeakVelocityCmPerSec": 60.178154,
+        "mitralAPeakVelocityCmPerSec": 21.944173,
+        "mitralPeakVelocityEToARatio": 2.74233,
+        "mitralEVtiCm": 8.847835,
+        "mitralAVtiCm": 1.560545,
+        "mitralVtiEToARatio": 5.669706,
+        "mitralEarlyForwardVolumeMl": 39.815256,
+        "mitralLateForwardVolumeMl": 7.022455,
+        "mitralAtrialFillingFraction": 0.149932,
+        "mitralEAccelerationTimeSec": 0.058,
+        "mitralEDecelerationTimeSec": 0.176347,
+        "mitralEDecelerationToAccelerationRatio": 3.040469,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 5.536053,
+        "mitralDiastasisDurationSec": 0.112,
+        "mitralEAPeakSeparationSec": 0.306,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.724478,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 73.836539,
+        "pulmonaryVenousSPeakMlPerSec": 123.922562,
+        "pulmonaryVenousDPeakMlPerSec": 71.707201,
+        "pulmonaryVenousSToDRatio": 1.728175,
+        "xDescentDepthMmHg": 5.955493,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 7.205441,
+        "yDescentDepthMmHg": 3.919233,
+        "reservoirVolumeGainMl": 25.243977,
+        "conduitVolumeDropMl": 24.908949,
+        "conduitThroughputMl": 20.858097,
+        "conduitFractionOfStrokeVolume": 0.442716,
+        "mitralReverseVolumeMl": 0.190702,
+        "aorticReverseVolumeMl": 0.465128,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 4.959295,
+        "vLoopAreaMmHgMl": 47.383065,
+        "aLoopSignedAreaMmHgMl": 4.959295,
+        "vLoopSignedAreaMmHgMl": 47.383065,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 65.77252,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.974633,
+        "figureEightCrossingAngleDeg": 63.562867,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.993243,
+        "conduitBelowReservoirPathFraction": 0.547945,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.571429,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 1.499065,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.013529,
+        "mvoTangentJumpNorm": 0.855399,
+        "avPlaneDisplacementCm": 1.214849,
+        "peakAvPlaneVelocityCmPerSec": 9.384939,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.002104,
+        "cycleClosureLvVolumeMl": 0.000758,
+        "events": {
+          "mitralClosureTheta": 0.0025,
+          "mitralOpeningTheta": 0.4025,
+          "preATheta": 0.78
+        }
+      }
+    },
+    {
+      "caseId": "hr60",
+      "axis": "heart-rate",
+      "profile": {
+        "profileId": "hr60",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          5.047242,
+          12.595326
+        ],
+        "pressureRangeLvMmHg": [
+          5.03903,
+          101.02326
+        ],
+        "pressureRangeAorticMmHg": [
+          58.781383,
+          95.445028
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.898653,
+          12.484666
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.269332,
+          16.388105
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          -0.631428,
+          113.29752
+        ],
+        "flowRangeSystemicMlPerSec": [
+          37.952188,
+          70.670258
+        ],
+        "volumeRangeLaMl": [
+          69.216222,
+          96.728579
+        ],
+        "volumeRangeLvMl": [
+          76.305953,
+          129.789762
+        ],
+        "cardiacOutputLPerMin": 3.200354,
+        "strokeVolumeMl": 53.339233,
+        "ePeakMlPerSec": 295.859727,
+        "aPeakMlPerSec": 84.070549,
+        "eToARatio": 3.519184,
+        "mitralEPeakVelocityCmPerSec": 65.746606,
+        "mitralAPeakVelocityCmPerSec": 18.682344,
+        "mitralPeakVelocityEToARatio": 3.519184,
+        "mitralEVtiCm": 10.534931,
+        "mitralAVtiCm": 1.233517,
+        "mitralVtiEToARatio": 8.540565,
+        "mitralEarlyForwardVolumeMl": 47.40719,
+        "mitralLateForwardVolumeMl": 5.550826,
+        "mitralAtrialFillingFraction": 0.104816,
+        "mitralEAccelerationTimeSec": 0.059,
+        "mitralEDecelerationTimeSec": 0.181119,
+        "mitralEDecelerationToAccelerationRatio": 3.06981,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 2.85847,
+        "mitralDiastasisDurationSec": 0.311,
+        "mitralEAPeakSeparationSec": 0.513,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.756011,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "fail",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": false
+        },
+        "atrialKickFlowGainMlPerSec": 71.207433,
+        "pulmonaryVenousSPeakMlPerSec": 113.29752,
+        "pulmonaryVenousDPeakMlPerSec": 80.212347,
+        "pulmonaryVenousSToDRatio": 1.41247,
+        "xDescentDepthMmHg": 5.757508,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 6.277169,
+        "yDescentDepthMmHg": 4.291475,
+        "reservoirVolumeGainMl": 22.147915,
+        "conduitVolumeDropMl": 27.365548,
+        "conduitThroughputMl": 25.826877,
+        "conduitFractionOfStrokeVolume": 0.4842,
+        "mitralReverseVolumeMl": 0.180687,
+        "aorticReverseVolumeMl": 0.561741,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 5.423353,
+        "vLoopAreaMmHgMl": 17.726639,
+        "aLoopSignedAreaMmHgMl": 5.423353,
+        "vLoopSignedAreaMmHgMl": 17.726639,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 89.514888,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.942447,
+        "figureEightCrossingAngleDeg": 56.897608,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.995614,
+        "conduitBelowReservoirPathFraction": 0.327434,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.480519,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 1.731664,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": null,
+        "mvoTangentJumpNorm": 0.374518,
+        "avPlaneDisplacementCm": 1.169317,
+        "peakAvPlaneVelocityCmPerSec": 9.079111,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.000363,
+        "cycleClosureLvVolumeMl": 0.00013,
+        "events": {
+          "mitralClosureTheta": 0,
+          "mitralOpeningTheta": 0.307,
+          "preATheta": 0.819
+        }
+      }
+    },
+    {
+      "caseId": "hr100",
+      "axis": "heart-rate",
+      "profile": {
+        "profileId": "hr100",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          2.582498,
+          10.871715
+        ],
+        "pressureRangeLvMmHg": [
+          5.706678,
+          106.833401
+        ],
+        "pressureRangeAorticMmHg": [
+          76.296888,
+          101.986529
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.074461,
+          11.595102
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.475771,
+          16.513415
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          20.253123,
+          137.430225
+        ],
+        "flowRangeSystemicMlPerSec": [
+          53.40803,
+          76.338678
+        ],
+        "volumeRangeLaMl": [
+          61.79852,
+          92.004005
+        ],
+        "volumeRangeLvMl": [
+          85.46221,
+          124.540165
+        ],
+        "cardiacOutputLPerMin": 3.892606,
+        "strokeVolumeMl": 38.92606,
+        "ePeakMlPerSec": 0,
+        "aPeakMlPerSec": 0,
+        "eToARatio": 0,
+        "mitralEPeakVelocityCmPerSec": 0,
+        "mitralAPeakVelocityCmPerSec": 0,
+        "mitralPeakVelocityEToARatio": 0,
+        "mitralEVtiCm": 0,
+        "mitralAVtiCm": 0,
+        "mitralVtiEToARatio": 0,
+        "mitralEarlyForwardVolumeMl": 0,
+        "mitralLateForwardVolumeMl": 0,
+        "mitralAtrialFillingFraction": 0,
+        "mitralEAccelerationTimeSec": 0,
+        "mitralEDecelerationTimeSec": 0,
+        "mitralEDecelerationToAccelerationRatio": 0,
+        "mitralERiseMonotoneFraction": 0,
+        "mitralEDecayMonotoneFraction": 0,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 0,
+        "mitralDiastasisDurationSec": 0,
+        "mitralEAPeakSeparationSec": 0,
+        "mitralWaveFusionClass": "not-measurable",
+        "mitralWaveMeasurementValid": false,
+        "mitralPeakMeasurementValid": false,
+        "mitralDecelerationMeasurementValid": false,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 0,
+        "mitralEWaveAsymmetryRegime": "not-measurable",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "not-applicable-unresolved-peaks",
+          "fusionEligibility": "not-applicable",
+          "ageSpecificPeakEToA": "not-applicable",
+          "atrialFillingFraction": "not-applicable",
+          "decelerationTime": "not-applicable",
+          "resolvedRiseAndDecay": "not-applicable",
+          "resolvedLowFlowDiastasis": "not-applicable",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": false
+        },
+        "atrialKickFlowGainMlPerSec": 0,
+        "pulmonaryVenousSPeakMlPerSec": 137.430225,
+        "pulmonaryVenousDPeakMlPerSec": 50.964596,
+        "pulmonaryVenousSToDRatio": 2.696582,
+        "xDescentDepthMmHg": 6.17255,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 8.269859,
+        "yDescentDepthMmHg": 3.376221,
+        "reservoirVolumeGainMl": 28.696885,
+        "conduitVolumeDropMl": 14.097551,
+        "conduitThroughputMl": 8.720575,
+        "conduitFractionOfStrokeVolume": 0.224029,
+        "mitralReverseVolumeMl": 0.199462,
+        "aorticReverseVolumeMl": 0.343385,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 9.807156,
+        "vLoopAreaMmHgMl": 85.366296,
+        "aLoopSignedAreaMmHgMl": 9.807156,
+        "vLoopSignedAreaMmHgMl": 85.366296,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 11.988548,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "outside-preferred-window",
+        "figureEightCrossingProgress01": 0.229091,
+        "figureEightCrossingAngleDeg": 11.988548,
+        "figureEightCrossingInPreferredWindow": false,
+        "conduitBelowReservoirChordFraction": 0.987805,
+        "conduitBelowReservoirPathFraction": 0.1875,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 1,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 0.479167,
+        "pumpingMinimumFigureEightChordMarginMmHg": -1.75769,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.00576,
+        "mvoTangentJumpNorm": 0.430037,
+        "avPlaneDisplacementCm": 1.259006,
+        "peakAvPlaneVelocityCmPerSec": 9.777699,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.010883,
+        "cycleClosureLvVolumeMl": 0.004228,
+        "events": {
+          "mitralClosureTheta": 0.018333,
+          "mitralOpeningTheta": 0.563333,
+          "preATheta": 0.716667
+        }
+      }
+    },
+    {
+      "caseId": "preload-low",
+      "axis": "preload",
+      "profile": {
+        "profileId": "preload-low",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          1.39351,
+          9.572782
+        ],
+        "pressureRangeLvMmHg": [
+          3.628837,
+          100.792767
+        ],
+        "pressureRangeAorticMmHg": [
+          64.026348,
+          95.544089
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          9.285131,
+          9.787164
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          14.065995,
+          14.139915
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          6.515377,
+          127.112047
+        ],
+        "flowRangeSystemicMlPerSec": [
+          44.60289,
+          72.73319
+        ],
+        "volumeRangeLaMl": [
+          57.306628,
+          83.623787
+        ],
+        "volumeRangeLvMl": [
+          77.102764,
+          123.837389
+        ],
+        "cardiacOutputLPerMin": 3.494013,
+        "strokeVolumeMl": 46.586844,
+        "ePeakMlPerSec": 236.104153,
+        "aPeakMlPerSec": 121.325105,
+        "eToARatio": 1.946045,
+        "mitralEPeakVelocityCmPerSec": 52.46759,
+        "mitralAPeakVelocityCmPerSec": 26.961134,
+        "mitralPeakVelocityEToARatio": 1.946045,
+        "mitralEVtiCm": 8.276435,
+        "mitralAVtiCm": 2.015718,
+        "mitralVtiEToARatio": 4.10595,
+        "mitralEarlyForwardVolumeMl": 37.243955,
+        "mitralLateForwardVolumeMl": 9.070729,
+        "mitralAtrialFillingFraction": 0.19585,
+        "mitralEAccelerationTimeSec": 0.064,
+        "mitralEDecelerationTimeSec": 0.191362,
+        "mitralEDecelerationToAccelerationRatio": 2.990024,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 6.328802,
+        "mitralDiastasisDurationSec": 0.105,
+        "mitralEAPeakSeparationSec": 0.301,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.981868,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "pass",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": true,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 92.845495,
+        "pulmonaryVenousSPeakMlPerSec": 127.112047,
+        "pulmonaryVenousDPeakMlPerSec": 70.512755,
+        "pulmonaryVenousSToDRatio": 1.802682,
+        "xDescentDepthMmHg": 6.165049,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 7.663494,
+        "yDescentDepthMmHg": 4.016435,
+        "reservoirVolumeGainMl": 25.555552,
+        "conduitVolumeDropMl": 22.491314,
+        "conduitThroughputMl": 20.269684,
+        "conduitFractionOfStrokeVolume": 0.435095,
+        "mitralReverseVolumeMl": 0.188772,
+        "aorticReverseVolumeMl": 0.459614,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 9.333689,
+        "vLoopAreaMmHgMl": 54.563115,
+        "aLoopSignedAreaMmHgMl": 9.333689,
+        "vLoopSignedAreaMmHgMl": 54.563115,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 17.600252,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "outside-preferred-window",
+        "figureEightCrossingProgress01": 0.210312,
+        "figureEightCrossingAngleDeg": 17.600252,
+        "figureEightCrossingInPreferredWindow": false,
+        "conduitBelowReservoirChordFraction": 0.996564,
+        "conduitBelowReservoirPathFraction": 0.079585,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 1,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 0.705263,
+        "pumpingMinimumFigureEightChordMarginMmHg": -0.934367,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.007475,
+        "mvoTangentJumpNorm": 0.640277,
+        "avPlaneDisplacementCm": 1.146263,
+        "peakAvPlaneVelocityCmPerSec": 8.916514,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": -0.002483,
+        "cycleClosureLvVolumeMl": -0.001058,
+        "events": {
+          "mitralClosureTheta": 0.0025,
+          "mitralOpeningTheta": 0.405,
+          "preATheta": 0.78125
+        }
+      }
+    },
+    {
+      "caseId": "preload-high",
+      "axis": "preload",
+      "profile": {
+        "profileId": "preload-high",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          6.234233,
+          13.626803
+        ],
+        "pressureRangeLvMmHg": [
+          7.298477,
+          106.970402
+        ],
+        "pressureRangeAorticMmHg": [
+          69.58933,
+          101.653579
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          13.849942,
+          14.311785
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          18.685678,
+          18.763421
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          13.228433,
+          123.452844
+        ],
+        "flowRangeSystemicMlPerSec": [
+          45.444884,
+          74.06202
+        ],
+        "volumeRangeLaMl": [
+          78.056872,
+          105.044436
+        ],
+        "volumeRangeLvMl": [
+          84.172043,
+          131.776311
+        ],
+        "cardiacOutputLPerMin": 3.559057,
+        "strokeVolumeMl": 47.454092,
+        "ePeakMlPerSec": 305.565561,
+        "aPeakMlPerSec": 78.862938,
+        "eToARatio": 3.874641,
+        "mitralEPeakVelocityCmPerSec": 67.903458,
+        "mitralAPeakVelocityCmPerSec": 17.525097,
+        "mitralPeakVelocityEToARatio": 3.874641,
+        "mitralEVtiCm": 9.29168,
+        "mitralAVtiCm": 1.192476,
+        "mitralVtiEToARatio": 7.791923,
+        "mitralEarlyForwardVolumeMl": 41.812559,
+        "mitralLateForwardVolumeMl": 5.366141,
+        "mitralAtrialFillingFraction": 0.113741,
+        "mitralEAccelerationTimeSec": 0.054,
+        "mitralEDecelerationTimeSec": 0.161094,
+        "mitralEDecelerationToAccelerationRatio": 2.983222,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 4.94378,
+        "mitralDiastasisDurationSec": 0.121,
+        "mitralEAPeakSeparationSec": 0.309,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.841689,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "fail",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": false
+        },
+        "atrialKickFlowGainMlPerSec": 56.61593,
+        "pulmonaryVenousSPeakMlPerSec": 123.452844,
+        "pulmonaryVenousDPeakMlPerSec": 72.501108,
+        "pulmonaryVenousSToDRatio": 1.702772,
+        "xDescentDepthMmHg": 5.991141,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 7.00176,
+        "yDescentDepthMmHg": 3.842625,
+        "reservoirVolumeGainMl": 24.874419,
+        "conduitVolumeDropMl": 26.835597,
+        "conduitThroughputMl": 20.466528,
+        "conduitFractionOfStrokeVolume": 0.431291,
+        "mitralReverseVolumeMl": 0.191913,
+        "aorticReverseVolumeMl": 0.468891,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 1.634281,
+        "vLoopAreaMmHgMl": 43.182118,
+        "aLoopSignedAreaMmHgMl": 1.634281,
+        "vLoopSignedAreaMmHgMl": 43.182118,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 79.213573,
+        "reservoirPumpingIntersection": true,
+        "reservoirPumpingIntersectionAngleDeg": 26.837921,
+        "figureEightCrossingPhase": "early-pumping",
+        "figureEightCrossingProgress01": 0.168728,
+        "figureEightCrossingAngleDeg": 26.837921,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.993197,
+        "conduitBelowReservoirPathFraction": 0.344828,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.344828,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 0.171324,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.005219,
+        "mvoTangentJumpNorm": 0.278338,
+        "avPlaneDisplacementCm": 1.281059,
+        "peakAvPlaneVelocityCmPerSec": 9.90342,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.005124,
+        "cycleClosureLvVolumeMl": 0.001782,
+        "events": {
+          "mitralClosureTheta": 0.005,
+          "mitralOpeningTheta": 0.4,
+          "preATheta": 0.78125
+        }
+      }
+    },
+    {
+      "caseId": "afterload-low",
+      "axis": "afterload",
+      "profile": {
+        "profileId": "afterload-low",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          3.959641,
+          11.230332
+        ],
+        "pressureRangeLvMmHg": [
+          4.408421,
+          99.944442
+        ],
+        "pressureRangeAorticMmHg": [
+          59.15123,
+          94.084824
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.526738,
+          11.934476
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.78445,
+          16.895044
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          14.54902,
+          122.214661
+        ],
+        "flowRangeSystemicMlPerSec": [
+          47.064688,
+          85.861589
+        ],
+        "volumeRangeLaMl": [
+          65.844373,
+          92.62625
+        ],
+        "volumeRangeLvMl": [
+          74.931188,
+          127.315246
+        ],
+        "cardiacOutputLPerMin": 3.917981,
+        "strokeVolumeMl": 52.239741,
+        "ePeakMlPerSec": 285.022511,
+        "aPeakMlPerSec": 107.549678,
+        "eToARatio": 2.650147,
+        "mitralEPeakVelocityCmPerSec": 63.338336,
+        "mitralAPeakVelocityCmPerSec": 23.899929,
+        "mitralPeakVelocityEToARatio": 2.650147,
+        "mitralEVtiCm": 9.818105,
+        "mitralAVtiCm": 1.736284,
+        "mitralVtiEToARatio": 5.654666,
+        "mitralEarlyForwardVolumeMl": 44.181472,
+        "mitralLateForwardVolumeMl": 7.813277,
+        "mitralAtrialFillingFraction": 0.150271,
+        "mitralEAccelerationTimeSec": 0.061,
+        "mitralEDecelerationTimeSec": 0.188492,
+        "mitralEDecelerationToAccelerationRatio": 3.090039,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 6.345113,
+        "mitralDiastasisDurationSec": 0.106,
+        "mitralEAPeakSeparationSec": 0.313,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.785043,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 78.996669,
+        "pulmonaryVenousSPeakMlPerSec": 122.214661,
+        "pulmonaryVenousDPeakMlPerSec": 84.60967,
+        "pulmonaryVenousSToDRatio": 1.444453,
+        "xDescentDepthMmHg": 5.483033,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 6.634556,
+        "yDescentDepthMmHg": 4.253379,
+        "reservoirVolumeGainMl": 25.385546,
+        "conduitVolumeDropMl": 25.917325,
+        "conduitThroughputMl": 25.457863,
+        "conduitFractionOfStrokeVolume": 0.487328,
+        "mitralReverseVolumeMl": 0.180433,
+        "aorticReverseVolumeMl": 0.425137,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 4.774328,
+        "vLoopAreaMmHgMl": 28.803047,
+        "aLoopSignedAreaMmHgMl": 4.774328,
+        "vLoopSignedAreaMmHgMl": 28.803047,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 73.607616,
+        "reservoirPumpingIntersection": true,
+        "reservoirPumpingIntersectionAngleDeg": 42.603003,
+        "figureEightCrossingPhase": "early-pumping",
+        "figureEightCrossingProgress01": 0.002069,
+        "figureEightCrossingAngleDeg": 42.603003,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.995671,
+        "conduitBelowReservoirPathFraction": 0.580786,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.580786,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 1.336572,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.006535,
+        "mvoTangentJumpNorm": 0.468706,
+        "avPlaneDisplacementCm": 1.141415,
+        "peakAvPlaneVelocityCmPerSec": 8.894104,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.00113,
+        "cycleClosureLvVolumeMl": 0.000408,
+        "events": {
+          "mitralClosureTheta": 0.00375,
+          "mitralOpeningTheta": 0.3925,
+          "preATheta": 0.78125
+        }
+      }
+    },
+    {
+      "caseId": "afterload-high",
+      "axis": "afterload",
+      "profile": {
+        "profileId": "afterload-high",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          3.764423,
+          12.101484
+        ],
+        "pressureRangeLvMmHg": [
+          6.60615,
+          108.800842
+        ],
+        "pressureRangeAorticMmHg": [
+          76.080287,
+          104.155253
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.589513,
+          12.147073
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          15.871519,
+          15.916285
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          3.360573,
+          126.801518
+        ],
+        "flowRangeSystemicMlPerSec": [
+          41.521546,
+          60.87702
+        ],
+        "volumeRangeLaMl": [
+          71.13265,
+          96.717134
+        ],
+        "volumeRangeLvMl": [
+          87.862125,
+          129.050871
+        ],
+        "cardiacOutputLPerMin": 3.077515,
+        "strokeVolumeMl": 41.033536,
+        "ePeakMlPerSec": 258.727466,
+        "aPeakMlPerSec": 90.614906,
+        "eToARatio": 2.855242,
+        "mitralEPeakVelocityCmPerSec": 57.494993,
+        "mitralAPeakVelocityCmPerSec": 20.136646,
+        "mitralPeakVelocityEToARatio": 2.855242,
+        "mitralEVtiCm": 7.684293,
+        "mitralAVtiCm": 1.366466,
+        "mitralVtiEToARatio": 5.623478,
+        "mitralEarlyForwardVolumeMl": 34.579319,
+        "mitralLateForwardVolumeMl": 6.149098,
+        "mitralAtrialFillingFraction": 0.150978,
+        "mitralEAccelerationTimeSec": 0.054,
+        "mitralEDecelerationTimeSec": 0.157124,
+        "mitralEDecelerationToAccelerationRatio": 2.9097,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 4.413737,
+        "mitralDiastasisDurationSec": 0.122,
+        "mitralEAPeakSeparationSec": 0.298,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.784439,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 70.753089,
+        "pulmonaryVenousSPeakMlPerSec": 126.801518,
+        "pulmonaryVenousDPeakMlPerSec": 56.811982,
+        "pulmonaryVenousSToDRatio": 2.23195,
+        "xDescentDepthMmHg": 6.552614,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 8.020726,
+        "yDescentDepthMmHg": 3.628576,
+        "reservoirVolumeGainMl": 24.975135,
+        "conduitVolumeDropMl": 23.68091,
+        "conduitThroughputMl": 15.449051,
+        "conduitFractionOfStrokeVolume": 0.376498,
+        "mitralReverseVolumeMl": 0.203851,
+        "aorticReverseVolumeMl": 0.510139,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 5.259169,
+        "vLoopAreaMmHgMl": 68.499272,
+        "aLoopSignedAreaMmHgMl": 5.259169,
+        "vLoopSignedAreaMmHgMl": 68.499272,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 50.144964,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.937461,
+        "figureEightCrossingAngleDeg": 50.144964,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.996479,
+        "conduitBelowReservoirPathFraction": 0.283688,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.338983,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 1,
+        "pumpingMinimumFigureEightChordMarginMmHg": 1.62046,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.007664,
+        "mvoTangentJumpNorm": 0.36383,
+        "avPlaneDisplacementCm": 1.297973,
+        "peakAvPlaneVelocityCmPerSec": 10.050755,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.003779,
+        "cycleClosureLvVolumeMl": 0.001356,
+        "events": {
+          "mitralClosureTheta": 0.0025,
+          "mitralOpeningTheta": 0.41625,
+          "preATheta": 0.78125
+        }
+      }
+    },
+    {
+      "caseId": "la-stiffness-low",
+      "axis": "la-stiffness",
+      "profile": {
+        "profileId": "la-stiffness-low",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          5.281027,
+          10.34848
+        ],
+        "pressureRangeLvMmHg": [
+          4.820286,
+          102.615736
+        ],
+        "pressureRangeAorticMmHg": [
+          65.899813,
+          97.365999
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.382349,
+          11.681937
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.046672,
+          16.126261
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          23.663507,
+          99.504982
+        ],
+        "flowRangeSystemicMlPerSec": [
+          44.506132,
+          72.591679
+        ],
+        "volumeRangeLaMl": [
+          86.862864,
+          112.86087
+        ],
+        "volumeRangeLvMl": [
+          78.84368,
+          125.481783
+        ],
+        "cardiacOutputLPerMin": 3.487058,
+        "strokeVolumeMl": 46.494102,
+        "ePeakMlPerSec": 291.973556,
+        "aPeakMlPerSec": 78.525376,
+        "eToARatio": 3.718206,
+        "mitralEPeakVelocityCmPerSec": 64.883012,
+        "mitralAPeakVelocityCmPerSec": 17.450084,
+        "mitralPeakVelocityEToARatio": 3.718206,
+        "mitralEVtiCm": 9.056563,
+        "mitralAVtiCm": 1.213908,
+        "mitralVtiEToARatio": 7.460666,
+        "mitralEarlyForwardVolumeMl": 40.754532,
+        "mitralLateForwardVolumeMl": 5.462586,
+        "mitralAtrialFillingFraction": 0.118194,
+        "mitralEAccelerationTimeSec": 0.06,
+        "mitralEDecelerationTimeSec": 0.16279,
+        "mitralEDecelerationToAccelerationRatio": 2.713172,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 4.509776,
+        "mitralDiastasisDurationSec": 0.117,
+        "mitralEAPeakSeparationSec": 0.303,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.996489,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "fail",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": false
+        },
+        "atrialKickFlowGainMlPerSec": 58.231382,
+        "pulmonaryVenousSPeakMlPerSec": 99.504982,
+        "pulmonaryVenousDPeakMlPerSec": 71.545771,
+        "pulmonaryVenousSToDRatio": 1.390788,
+        "xDescentDepthMmHg": 4.049472,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 4.678837,
+        "yDescentDepthMmHg": 2.971867,
+        "reservoirVolumeGainMl": 22.173498,
+        "conduitVolumeDropMl": 25.813325,
+        "conduitThroughputMl": 20.496096,
+        "conduitFractionOfStrokeVolume": 0.440832,
+        "mitralReverseVolumeMl": 0.184638,
+        "aorticReverseVolumeMl": 0.462751,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 0.215971,
+        "vLoopAreaMmHgMl": 13.942624,
+        "aLoopSignedAreaMmHgMl": 0.215971,
+        "vLoopSignedAreaMmHgMl": 13.942624,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 87.980101,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "late-conduit",
+        "figureEightCrossingProgress01": 0.639226,
+        "figureEightCrossingAngleDeg": 87.980101,
+        "figureEightCrossingInPreferredWindow": true,
+        "conduitBelowReservoirChordFraction": 0.991453,
+        "conduitBelowReservoirPathFraction": 0.353448,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0.16092,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 0,
+        "pumpingAboveFigureEightChordFraction": 0,
+        "pumpingMinimumFigureEightChordMarginMmHg": 0,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": 0.003356,
+        "mvoTangentJumpNorm": 0.337402,
+        "avPlaneDisplacementCm": 1.19205,
+        "peakAvPlaneVelocityCmPerSec": 9.241547,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.007397,
+        "cycleClosureLvVolumeMl": 0.001678,
+        "events": {
+          "mitralClosureTheta": 0.00625,
+          "mitralOpeningTheta": 0.405,
+          "preATheta": 0.78125
+        }
+      }
+    },
+    {
+      "caseId": "la-stiffness-high",
+      "axis": "la-stiffness",
+      "profile": {
+        "profileId": "la-stiffness-high",
+        "allFinite": true,
+        "pressureRangeLaMmHg": [
+          1.62062,
+          13.356678
+        ],
+        "pressureRangeLvMmHg": [
+          6.246014,
+          105.065595
+        ],
+        "pressureRangeAorticMmHg": [
+          67.603603,
+          99.715338
+        ],
+        "pressureRangePulmonaryVenousMmHg": [
+          11.607811,
+          12.326377
+        ],
+        "pressureRangeReturnReservoirMmHg": [
+          16.61739,
+          16.686025
+        ],
+        "flowRangePulmonaryVenousMlPerSec": [
+          0.048987,
+          159.865883
+        ],
+        "flowRangeSystemicMlPerSec": [
+          45.519442,
+          74.178405
+        ],
+        "volumeRangeLaMl": [
+          51.946988,
+          81.657805
+        ],
+        "volumeRangeLvMl": [
+          82.116704,
+          129.799515
+        ],
+        "cardiacOutputLPerMin": 3.564641,
+        "strokeVolumeMl": 47.528552,
+        "ePeakMlPerSec": 259.236461,
+        "aPeakMlPerSec": 101.584923,
+        "eToARatio": 2.551919,
+        "mitralEPeakVelocityCmPerSec": 57.608102,
+        "mitralAPeakVelocityCmPerSec": 22.574427,
+        "mitralPeakVelocityEToARatio": 2.551919,
+        "mitralEVtiCm": 8.879401,
+        "mitralAVtiCm": 1.622488,
+        "mitralVtiEToARatio": 5.472708,
+        "mitralEarlyForwardVolumeMl": 39.957307,
+        "mitralLateForwardVolumeMl": 7.301194,
+        "mitralAtrialFillingFraction": 0.154495,
+        "mitralEAccelerationTimeSec": 0.054,
+        "mitralEDecelerationTimeSec": 0.193958,
+        "mitralEDecelerationToAccelerationRatio": 3.59182,
+        "mitralERiseMonotoneFraction": 1,
+        "mitralEDecayMonotoneFraction": 1,
+        "mitralVelocityAtAtrialActivationOnsetCmPerSec": 6.69441,
+        "mitralDiastasisDurationSec": 0.113,
+        "mitralEAPeakSeparationSec": 0.315,
+        "mitralWaveFusionClass": "separated",
+        "mitralWaveMeasurementValid": true,
+        "mitralPeakMeasurementValid": true,
+        "mitralDecelerationMeasurementValid": true,
+        "mitralMidDiastolicPeakVelocityCmPerSec": 19.785204,
+        "mitralEWaveAsymmetryRegime": "transition",
+        "mitralGateReadback": {
+          "referenceAgeBand": "41-60",
+          "measurementApplicability": "applicable",
+          "fusionEligibility": "pass",
+          "ageSpecificPeakEToA": "fail",
+          "atrialFillingFraction": "pass",
+          "decelerationTime": "pass",
+          "resolvedRiseAndDecay": "pass",
+          "resolvedLowFlowDiastasis": "pass",
+          "hardAcceptancePass": false,
+          "supportiveDiagnosticsPass": true
+        },
+        "atrialKickFlowGainMlPerSec": 71.46008,
+        "pulmonaryVenousSPeakMlPerSec": 159.865883,
+        "pulmonaryVenousDPeakMlPerSec": 69.16072,
+        "pulmonaryVenousSToDRatio": 2.311513,
+        "xDescentDepthMmHg": 8.547977,
+        "earlyReservoirOvershootMmHg": 0,
+        "vWaveRiseMmHg": 11.690767,
+        "yDescentDepthMmHg": 5.807715,
+        "reservoirVolumeGainMl": 29.236409,
+        "conduitVolumeDropMl": 26.487086,
+        "conduitThroughputMl": 17.817736,
+        "conduitFractionOfStrokeVolume": 0.374885,
+        "mitralReverseVolumeMl": 0.195725,
+        "aorticReverseVolumeMl": 0.465893,
+        "mitralSignificantReverseDuty01": 0,
+        "aorticSignificantReverseDuty01": 0,
+        "aLoopAreaMmHgMl": 8.339024,
+        "vLoopAreaMmHgMl": 117.768082,
+        "aLoopSignedAreaMmHgMl": 8.339024,
+        "vLoopSignedAreaMmHgMl": 117.768082,
+        "opposedLobeOrientation": false,
+        "reservoirConduitIntersection": true,
+        "reservoirConduitIntersectionAngleDeg": 4.911604,
+        "reservoirPumpingIntersection": false,
+        "reservoirPumpingIntersectionAngleDeg": 0,
+        "figureEightCrossingPhase": "outside-preferred-window",
+        "figureEightCrossingProgress01": 0.010504,
+        "figureEightCrossingAngleDeg": 4.911604,
+        "figureEightCrossingInPreferredWindow": false,
+        "conduitBelowReservoirChordFraction": 0.996732,
+        "conduitBelowReservoirPathFraction": 0.003289,
+        "conduitBeforeCrossingBelowReservoirPathFraction": 0,
+        "pumpingAfterCrossingAboveReservoirPathFraction": 1,
+        "pumpingAboveFigureEightChordFraction": 0.659341,
+        "pumpingMinimumFigureEightChordMarginMmHg": -1.131996,
+        "reservoirSecondaryPeakCount": 0,
+        "mvcTangentJumpNorm": null,
+        "mvoTangentJumpNorm": 0.412212,
+        "avPlaneDisplacementCm": 1.234093,
+        "peakAvPlaneVelocityCmPerSec": 9.556046,
+        "maxAbsMassResidualMl": 0,
+        "maxAbsAvPlaneKinematicResidualCm": 0,
+        "maxAbsAvPlaneForceResidualN": 0,
+        "maxAbsClosedCircuitVolumeResidualMl": 0,
+        "maxNonlinearResidual": 0,
+        "allStepsConverged": true,
+        "periodicSteadyState": true,
+        "beatsSimulated": 12,
+        "cycleClosureLaVolumeMl": 0.000431,
+        "cycleClosureLvVolumeMl": 0.000383,
+        "events": {
+          "mitralClosureTheta": 0,
+          "mitralOpeningTheta": 0.39375,
+          "preATheta": 0.78125
+        }
+      }
+    }
+  ],
+  "gates": {
+    "numericalPass": true,
+    "conservationPass": true,
+    "dtParityPass": true,
+    "passiveCandidateObservationPass": true,
+    "diastaticPassiveHydraulicOppositionPass": true,
+    "passiveCandidateBloodVolumeTopologyPass": false,
+    "passiveCandidateMitralWavePass": false,
+    "laContractilityBracketMitralPass": true,
+    "laContractilityBracketBloodVolumeTopologyPass": false,
+    "jointMechanisticCandidatePass": false,
+    "k0NegativeControlRetained": true,
+    "passiveNeutralIdentifiabilityWarningPresent": true
+  },
+  "supportingEvidence": {
+    "activeForceProjectionWithinPublishedInputBracket": false,
+    "ventricularActiveForceBracketN": [
+      60,
+      130
+    ],
+    "atrialActiveForceBracketN": [
+      10,
+      25
+    ],
+    "role": "non-blocking-model-input-comparison"
+  },
+  "comparisons": {
+    "passiveCandidateXDepthGainMmHg": 4.103474,
+    "passiveCandidateAvpdGainCm": 0.69516,
+    "passiveCandidatePeakVelocityGainCmPerSec": 6.281938,
+    "passiveCandidatePeakVentricularActiveForceRatioToV1": 1.20948,
+    "contractilityBracketALoopGainMmHgMl": 14.505066,
+    "neutralShiftShapeMaxRelativeDifference": 0.072009,
+    "neutralShiftLaVolumeMidpointChangeMl": 25.960466
+  },
+  "envelopeDiagnostics": {
+    "allNumerical": true,
+    "morphologyPassCount": 0,
+    "caseCount": 11,
+    "dtRelativeErrors": {
+      "halfCardiacOutput": 0.000452,
+      "halfLaPeakPressure": 0.000402,
+      "halfAvpd": 0.002409,
+      "doubleCardiacOutput": 0.000885,
+      "doubleLaPeakPressure": 0.00082,
+      "doubleAvpd": 0.004738
+    },
+    "directionalChecks": {
+      "preloadRaisesLaPressure": true,
+      "preloadRaisesOutput": true,
+      "afterloadRaisesAorticPressure": true,
+      "afterloadReducesOutput": true,
+      "laStiffnessRaisesPressure": true
+    }
+  },
+  "decision": {
+    "status": "mechanistic-tradeoff-no-joint-candidate",
+    "acceptedFinding": "Replacing V1 damper-dominant restraint with an underdamped elastic balance can oppose the 1-3 N diastatic hydraulic force and improve AVPD, prime velocity, and x descent without adding a state; the changed trajectory also amplifies length-dependent active force and is not a pure passive attribution.",
+    "rejectedShortcut": "The passive-neutral coordinate and atrial contractility are not accepted as shape-fitting knobs: neutral shifts are weakly identifiable, and the contractility bracket repairs E/A while moving the blood-volume crossing outside the preferred window.",
+    "nextAction": "Measure or constrain absolute chamber volumes and AV-plane coordinates in the full circulation, then test whether valve/receiver loading resolves conduit ordering before changing the wall law or adding state."
+  },
+  "claimBoundary": {
+    "runtimeWiring": false,
+    "defaultSelection": false,
+    "fullFourChamberValidation": false,
+    "patientSpecificIdentifiability": false
+  },
+  "normalizedSha256": "3a946a99c19574787094ba3cf16968c0d265e0c41ea5fcdb4e76bc18152d3caa"
+}
