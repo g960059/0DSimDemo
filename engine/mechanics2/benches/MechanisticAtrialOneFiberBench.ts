@@ -77,6 +77,12 @@ export type MechanisticAtrialSampleV1 = {
   readonly aorticOpen01: number;
   readonly avPlanePositionCm: number;
   readonly avPlaneVelocityCmPerSec: number;
+  readonly ventricularActiveForceN: number;
+  readonly atrialActiveForceN: number;
+  readonly hydraulicForceN: number;
+  readonly springForceN: number;
+  readonly dampingForceN: number;
+  readonly inertialForceN: number;
   readonly laActivation01: number;
   readonly lvActivation01: number;
   readonly laPassiveStressKPa: number;
@@ -493,6 +499,12 @@ export function runMechanisticAtrialProfileV1(
         aorticOpen01: output.aorticValve.openFraction01,
         avPlanePositionCm: output.avPlane.positionCm,
         avPlaneVelocityCmPerSec: output.avPlane.velocityCmPerSec,
+        ventricularActiveForceN: output.avPlane.ventricularActiveForceN,
+        atrialActiveForceN: output.avPlane.atrialActiveForceN,
+        hydraulicForceN: output.avPlane.hydraulicForceN,
+        springForceN: output.avPlane.springForceN,
+        dampingForceN: output.avPlane.dampingForceN,
+        inertialForceN: output.avPlane.inertialForceN,
         laActivation01: output.la.activation01,
         lvActivation01: output.lv.activation01,
         laPassiveStressKPa: output.la.passiveStressKPa,
