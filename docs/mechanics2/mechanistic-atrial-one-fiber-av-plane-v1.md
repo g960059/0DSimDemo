@@ -388,7 +388,13 @@ Current normal-HR75 sidecar signal:
 - stroke volume: 40.120 mL;
 - fixed-open-area bulk MV E/A: 1.386;
 - fixed-open-area bulk MV E/A peak velocities: 39.108 / 28.208 cm/s;
-- atrial filling fraction from the fixed-open-area bulk MV VTI partition: 0.283;
+- atrial filling fraction from the fixed-open-area bulk MV VTI partition: 0.274936;
+- A-wave VTI is the positive fixed-open-area bulk MV velocity integrated from
+  atrial activation onset (`preATheta = 0.78125`) to the next MVC on the
+  unwrapped MVO-to-MVC sequence. E-wave VTI ends at the earlier of its detected
+  nadir and activation onset, so fused traces cannot double-count an interval;
+  current E VTI / A VTI / E-to-A VTI are
+  6.349094 / 2.407504 / 2.637210 cm;
 - E acceleration time / deceleration time / DT-to-AT ratio: 52.0 ms / 164.0 ms / 3.153;
 - MV velocity at A-activation onset: 12.962 cm/s, so the waveform is classified `separated`;
 - diastasis duration: 168 ms;
@@ -399,13 +405,27 @@ Current normal-HR75 sidecar signal:
 - post-MVC reservoir overshoot: 0 mmHg;
 - reservoir volume gain: 14.435 mL;
 - conduit throughput: 24.456 mL, 61.0% of stroke volume;
-- A-loop / v-loop area: 7.131 / 10.547 mmHg mL, signed areas +7.131 / -10.547, ratio 0.676, so the two lobes have opposed orientation;
-- integrated MV / AoV reverse volume: 0.152 / 0.406 mL per beat, with no reverse interval above the significant-flow threshold;
-- figure-eight crossing: present in late conduit, normalized path progress 0.932, angle 53.294 degrees;
+- true-lobe A / v area from the full-periodic crossing detector:
+  8.427112 / 11.843269 mmHg mL, signed areas +8.427112 / -11.843269,
+  ratio 0.711571, status `measurable`, and opposed orientation `true`;
+- legacy phase-slice A / v area remains separately reported as
+  7.131148 / 10.547305 mmHg mL, signed areas +7.131148 / -10.547305; this is
+  a historical diagnostic, not the true-lobe acceptance area;
+- integrated MV / AoV reverse volume: 0.151697 / 0.406313 mL per beat, with no reverse interval above the significant-flow threshold;
+- figure-eight phase diagnostic: present in late conduit, normalized path progress 0.931601, angle 53.293615 degrees;
+- true-lobe crossing: (95.537051 mL, 9.151932 mmHg), angle 58.054833 degrees, raw crossing count 1, and true/phase crossing match distance 0 with `lobePhaseCrossingMatchPass = true`;
 - conduit-before-crossing below-reservoir path fraction and pumping-after-crossing above-reservoir path fraction: both 1.000;
 - pumping above figure-eight chord fraction: 1.000;
 - normalized MVC/MVO tangent jump: 0.0199 / 0.4164 at 1 ms, 0.0102 / 0.2257 at 0.5 ms, and 0.0368 / 0.6988 at 2 ms; and
-- all ten implicit equation residuals and the closed-circuit volume residual are within the configured numerical gate.
+- all implicit equation residuals and the closed-circuit volume residual are
+  within the configured numerical gate; the JSON and gate keep mass,
+  AV-plane kinematic/force, closed-circuit, and nonlinear residuals unrounded
+  (`maxNonlinearResidual = 9.525764421702832E-9`) so a rendered `0.000000`
+  must not be read as exact zero;
+- periodicity is accepted after 12 beats with `periodicSteadyState = true`,
+  LA/LV cycle-closure drifts 0.001025 / 0.000022 mL, and the periodic
+  activation/A-wave partition wraps across MVC rather than dropping the
+  post-`preATheta` segment.
 
 The reported MV velocities used for E/A are
 

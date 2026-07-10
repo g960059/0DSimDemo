@@ -20,6 +20,7 @@ import {
 import {
   opposedLobeAreasPassV1,
   runMechanisticAtrialOneFiberBenchV1,
+  runMechanisticAtrialProfileV1,
   signedLaPvLoopAreaV1,
 } from
   "@/engine/mechanics2/benches/MechanisticAtrialOneFiberBench";
@@ -142,6 +143,21 @@ describe("mechanistic atrial one-fiber vertical slice", () => {
       mechanismControlsPass: true,
     });
     expect(normal.periodicSteadyState).toBe(true);
+    const rawConservationResiduals = [
+      normal.maxAbsMassResidualMl,
+      normal.maxAbsAvPlaneKinematicResidualCm,
+      normal.maxAbsAvPlaneForceResidualN,
+      normal.maxAbsClosedCircuitVolumeResidualMl,
+    ];
+    expect(rawConservationResiduals.every((value) => value > 0)).toBe(true);
+    expect(rawConservationResiduals.every((value) => value < 1e-7)).toBe(true);
+    expect(rawConservationResiduals.some((value) =>
+      value !== Number(value.toFixed(6))
+    )).toBe(true);
+    expect(normal.samples.some((sample) =>
+      sample.nonlinearResidual > 0 &&
+      sample.nonlinearResidual !== Number(sample.nonlinearResidual.toFixed(6))
+    )).toBe(true);
     expect(normal.mitralGateReadback).toEqual({
       referenceAgeBand: "41-60",
       measurementApplicability: "applicable",
@@ -173,6 +189,10 @@ describe("mechanistic atrial one-fiber vertical slice", () => {
     expect(normal.figureEightCrossingInPreferredWindow).toBe(true);
     expect(["late-conduit", "early-pumping"]).toContain(normal.figureEightCrossingPhase);
     expect(normal.figureEightCrossingAngleDeg).toBeGreaterThanOrEqual(10);
+    expect(normal.lobeMeasurementStatus).toBe("measurable");
+    expect(normal.lobePhaseCrossingMatchPass).toBe(true);
+    expect(normal.lobePhaseCrossingMatchDistance01).toBeLessThanOrEqual(0.02);
+    expect(normal.lobeSelfIntersectionAngleDeg).toBeGreaterThanOrEqual(10);
     expect(normal.conduitBelowReservoirChordFraction).toBeGreaterThan(0.95);
     expect(normal.conduitBeforeCrossingBelowReservoirPathFraction).toBeGreaterThanOrEqual(0.95);
     expect(normal.pumpingAfterCrossingAboveReservoirPathFraction).toBeGreaterThanOrEqual(0.95);
@@ -211,11 +231,44 @@ describe("mechanistic atrial one-fiber vertical slice", () => {
     });
   });
 
+  it("partitions A-wave VTI and volume from atrial activation onset", () => {
+    const normal = runMechanisticAtrialProfileV1({
+      profileId: "normal-hr75",
+      params: DEFAULT_ONE_FIBER_AV_PLANE_LEFT_HEART_PARAMS_V1,
+    });
+    const partition = mitralPartitionReadback(normal);
+
+    expect(normal.mitralWaveFusionClass).toBe("separated");
+    expect(normal.mitralGateReadback.measurementApplicability).toBe("applicable");
+    expect(normal.mitralAVtiCm).toBeCloseTo(partition.preAVtiCm, 3);
+    expect(normal.mitralLateForwardVolumeMl).toBeCloseTo(partition.preAForwardVolumeMl, 3);
+    expect(normal.mitralEVtiCm + normal.mitralAVtiCm)
+      .toBeLessThanOrEqual(partition.totalForwardVtiCm + 1e-3);
+    expect(partition.turningBoundaryVtiCm).toBeGreaterThan(partition.preAVtiCm);
+    expect(partition.turningBoundaryForwardVolumeMl).toBeGreaterThan(
+      partition.preAForwardVolumeMl,
+    );
+
+    const fused = runMechanisticAtrialProfileV1({
+      profileId: "hr100",
+      params: DEFAULT_ONE_FIBER_AV_PLANE_LEFT_HEART_PARAMS_V1,
+      heartRateBpm: 100,
+    });
+    expect(fused.mitralWaveFusionClass).toBe("partial-fusion");
+    expect(fused.mitralWaveMeasurementValid).toBe(false);
+    expect(fused.mitralGateReadback.measurementApplicability)
+      .toBe("not-applicable-fusion");
+    const fusedPartition = mitralPartitionReadback(fused);
+    expect(fused.mitralEVtiCm + fused.mitralAVtiCm)
+      .toBeLessThanOrEqual(fusedPartition.totalForwardVtiCm + 1e-3);
+  });
+
   it("preserves numerics, expected directions, and dt parity across the scout envelope", () => {
     const report = runMechanisticAtrialEnvelopeBenchV1();
     const dtHalf = report.cases.find((row) => row.caseId === "normal-dt0p5")!.result;
     const reference = report.cases.find((row) => row.caseId === "normal-dt1")!.result;
     const dtDouble = report.cases.find((row) => row.caseId === "normal-dt2")!.result;
+    const normalDtTopologyRows = [dtHalf, reference, dtDouble];
     const hr100 = report.cases.find((row) => row.caseId === "hr100")!.result;
     const preloadLow = report.cases.find((row) => row.caseId === "preload-low")!.result;
     const preloadHigh = report.cases.find((row) => row.caseId === "preload-high")!.result;
@@ -242,7 +295,24 @@ describe("mechanistic atrial one-fiber vertical slice", () => {
     expect(reference.mvcTangentJumpNorm).toBeLessThanOrEqual(0.75 * dtDouble.mvcTangentJumpNorm);
     expect(dtHalf.mvoTangentJumpNorm).toBeLessThanOrEqual(0.75 * reference.mvoTangentJumpNorm);
     expect(reference.mvoTangentJumpNorm).toBeLessThanOrEqual(0.75 * dtDouble.mvoTangentJumpNorm);
+    for (const row of normalDtTopologyRows) {
+      expect(row.lobeMeasurementStatus).toBe("measurable");
+      expect(row.lobePhaseCrossingMatchPass).toBe(true);
+      expect(row.lobeSelfIntersectionAngleDeg).toBeGreaterThanOrEqual(10);
+      expect(row.opposedLobeOrientation).toBe(true);
+      expect(row.figureEightCrossingInPreferredWindow).toBe(true);
+      expect(["late-conduit", "early-pumping"]).toContain(row.figureEightCrossingPhase);
+      expect(row.conduitBeforeCrossingBelowReservoirPathFraction).toBeGreaterThanOrEqual(0.95);
+      expect(row.pumpingAfterCrossingAboveReservoirPathFraction).toBeGreaterThanOrEqual(0.95);
+      expect(row.pumpingAboveFigureEightChordFraction).toBeGreaterThanOrEqual(0.80);
+    }
     expect(report.gateScope.diagnosticMorphologyAxes).toContain("heart rate");
+    expect(report.gateScope.normalAndDtReplicasOnly).toContain(
+      "measurable true-lobe LA blood-volume PV self-intersection",
+    );
+    expect(report.gateScope.normalAndDtReplicasOnly).toContain(
+      "legacy phase conduit path stays below reservoir before the crossing",
+    );
     expect(hr100.mitralWaveFusionClass).toBe("partial-fusion");
     expect(hr100.mitralGateReadback.measurementApplicability)
       .toBe("not-applicable-fusion");
@@ -254,3 +324,120 @@ describe("mechanistic atrial one-fiber vertical slice", () => {
     );
   });
 });
+
+type ProfileWithSamples = ReturnType<typeof runMechanisticAtrialProfileV1>;
+
+function mitralPartitionReadback(profile: ProfileWithSamples): {
+  readonly preAVtiCm: number;
+  readonly preAForwardVolumeMl: number;
+  readonly turningBoundaryVtiCm: number;
+  readonly turningBoundaryForwardVolumeMl: number;
+  readonly totalForwardVtiCm: number;
+} {
+  const samples = profile.samples;
+  const openingIndex = nearestThetaIndex(samples, profile.events.mitralOpeningTheta);
+  const closureIndex = nearestThetaIndex(samples, profile.events.mitralClosureTheta);
+  const preAIndex = nearestThetaIndex(samples, profile.events.preATheta);
+  const sequence = unwrapIndexSequence(samples, openingIndex, closureIndex);
+  const preAOrdinal = sequence.findIndex(({ index }) => index === preAIndex);
+  const ePeakOrdinal = maxIndexForTest(
+    sequence.slice(0, preAOrdinal)
+      .map(({ sample }) => Math.max(0, sample.mitralVelocityCmPerSec)),
+  );
+  const aPeakOrdinal = preAOrdinal + maxIndexForTest(
+    sequence.slice(preAOrdinal)
+      .map(({ sample }) => Math.max(0, sample.mitralVelocityCmPerSec)),
+  );
+  const turningOrdinal = ePeakOrdinal + 1 + minIndexForTest(
+    sequence.slice(ePeakOrdinal + 1, aPeakOrdinal)
+      .map(({ sample }) => Math.max(0, sample.mitralVelocityCmPerSec)),
+  );
+  return {
+    preAVtiCm: integrateTestSequence(
+      sequence,
+      preAOrdinal,
+      sequence.length - 1,
+      ({ sample }) => Math.max(0, sample.mitralVelocityCmPerSec),
+    ),
+    preAForwardVolumeMl: integrateTestSequence(
+      sequence,
+      preAOrdinal,
+      sequence.length - 1,
+      ({ sample }) => Math.max(0, sample.qMitralMlPerSec),
+    ),
+    turningBoundaryVtiCm: integrateTestSequence(
+      sequence,
+      turningOrdinal,
+      sequence.length - 1,
+      ({ sample }) => Math.max(0, sample.mitralVelocityCmPerSec),
+    ),
+    turningBoundaryForwardVolumeMl: integrateTestSequence(
+      sequence,
+      turningOrdinal,
+      sequence.length - 1,
+      ({ sample }) => Math.max(0, sample.qMitralMlPerSec),
+    ),
+    totalForwardVtiCm: integrateTestSequence(
+      sequence,
+      0,
+      sequence.length - 1,
+      ({ sample }) => Math.max(0, sample.mitralVelocityCmPerSec),
+    ),
+  };
+}
+
+function unwrapIndexSequence(
+  samples: ProfileWithSamples["samples"],
+  openingIndex: number,
+  closureIndex: number,
+): readonly { readonly index: number; readonly sample: ProfileWithSamples["samples"][number] }[] {
+  const sequence: { readonly index: number; readonly sample: ProfileWithSamples["samples"][number] }[] = [];
+  for (let offset = 0; offset <= samples.length; offset += 1) {
+    const index = (openingIndex + offset) % samples.length;
+    sequence.push({ index, sample: samples[index]! });
+    if (offset > 0 && index === closureIndex) break;
+  }
+  return sequence;
+}
+
+function integrateTestSequence<T>(
+  sequence: readonly T[],
+  startOrdinal: number,
+  endOrdinal: number,
+  value: (point: T) => number,
+): number {
+  const dtSec = 0.001;
+  let integral = 0;
+  for (let i = startOrdinal; i < endOrdinal; i += 1) {
+    integral += 0.5 * (value(sequence[i]!) + value(sequence[i + 1]!)) * dtSec;
+  }
+  return integral;
+}
+
+function nearestThetaIndex(
+  samples: ProfileWithSamples["samples"],
+  theta: number,
+): number {
+  let index = 0;
+  let distance = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < samples.length; i += 1) {
+    const sampleDistance = Math.abs(samples[i]!.theta - theta);
+    if (sampleDistance < distance) {
+      index = i;
+      distance = sampleDistance;
+    }
+  }
+  return index;
+}
+
+function minIndexForTest(values: readonly number[]): number {
+  let index = 0;
+  for (let i = 1; i < values.length; i += 1) if (values[i]! < values[index]!) index = i;
+  return index;
+}
+
+function maxIndexForTest(values: readonly number[]): number {
+  let index = 0;
+  for (let i = 1; i < values.length; i += 1) if (values[i]! > values[index]!) index = i;
+  return index;
+}

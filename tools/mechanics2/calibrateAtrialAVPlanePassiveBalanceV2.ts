@@ -8,9 +8,13 @@ import {
   type MechanisticAtrialProfileResultV1,
 } from "@/engine/mechanics2/benches/MechanisticAtrialOneFiberBench";
 import {
+  ATRIAL_AV_PLANE_PASSIVE_BALANCE_ACCEPTANCE_V2,
   atrialAVPlaneDiastasisReadbackV2,
+  atrialAVPlaneLateDiastolicWindowReadbackV2,
   atrialAVPlanePrimeReadbackV2,
-  AV_PLANE_DIASTASIS_THRESHOLDS_V2,
+  evaluateAtrialAVPlanePassiveBalanceAcceptanceV2,
+  type AtrialAVPlaneLateDiastolicWindowReadbackV2,
+  type AtrialAVPlanePassiveBalanceAcceptanceFlagsV2,
   type AtrialAVPlaneForcePointV2,
 } from "@/engine/mechanics2/benches/AtrialAVPlanePassiveBalanceBenchV2";
 import { DEFAULT_ONE_FIBER_AV_PLANE_LEFT_HEART_PARAMS_V1 } from
@@ -24,6 +28,21 @@ type Candidate = {
   readonly atrialActiveStressMaxKPa: number;
 };
 
+export type AtrialAVPlanePassiveBalanceLateDiastolicWindowAuditV2 = {
+  readonly applicability: AtrialAVPlaneLateDiastolicWindowReadbackV2["applicability"];
+  readonly applicabilityReason: AtrialAVPlaneLateDiastolicWindowReadbackV2[
+    "applicabilityReason"
+  ];
+  readonly durationSec: number;
+  readonly sampleCount: number;
+  readonly hydraulicMedianAbsN: number;
+  readonly passiveHydraulicOpposedSampleFraction: number;
+  readonly quasiStaticResidualMaxAbsN: number;
+  readonly dynamicToHydraulicForceRatioP95: number;
+  readonly velocityMaxAbsCmPerSec: number;
+  readonly mitralFlowFractionOfPeakMax: number;
+};
+
 export type AtrialAVPlanePassiveBalanceCandidateReadbackV2 = Candidate & {
   readonly score: number;
   readonly periodic: boolean;
@@ -32,9 +51,19 @@ export type AtrialAVPlanePassiveBalanceCandidateReadbackV2 = Candidate & {
   readonly sPrimeCmPerSec: number;
   readonly ePrimeCmPerSec: number;
   readonly aPrimeCmPerSec: number;
+  readonly aPrimeBasewardCmPerSec: number;
+  readonly aPrimeApexwardCmPerSec: number;
+  readonly aPrimeDominantDirection: "baseward" | "apexward" | "balanced";
+  readonly aPrimeMagnitudeRatioToV1: number;
   readonly xDepthMmHg: number;
   readonly yDepthMmHg: number;
   readonly figureEight: boolean;
+  readonly lobeMeasurementStatus: MechanisticAtrialProfileResultV1["lobeMeasurementStatus"];
+  readonly lobeMeasurementReason: MechanisticAtrialProfileResultV1["lobeMeasurementReason"];
+  readonly lobeSelfIntersectionAngleDeg: number;
+  readonly lobePhaseCrossingMatchDistance01: number;
+  readonly lobePhaseCrossingMatchPass: boolean;
+  readonly opposedLobeOrientation: boolean;
   readonly eToA: number;
   readonly mitralPeakMeasurementValid: boolean;
   readonly aToVAreaRatio: number;
@@ -48,6 +77,8 @@ export type AtrialAVPlanePassiveBalanceCandidateReadbackV2 = Candidate & {
   readonly pumpingAboveFraction: number;
   readonly events: MechanisticAtrialProfileResultV1["events"];
   readonly diastasis: AtrialAVPlaneForcePointV2;
+  readonly lateDiastolicWindow: AtrialAVPlanePassiveBalanceLateDiastolicWindowAuditV2;
+  readonly passFlags: AtrialAVPlanePassiveBalanceAcceptanceFlagsV2;
 };
 
 const base = DEFAULT_ONE_FIBER_AV_PLANE_LEFT_HEART_PARAMS_V1;
@@ -59,6 +90,11 @@ const passiveNeutralValues = [0] as const;
 
 export function buildAtrialAVPlanePassiveBalanceCalibrationV2() {
   const rows: AtrialAVPlanePassiveBalanceCandidateReadbackV2[] = [];
+  const baseline = runMechanisticAtrialProfileV1({
+    profileId: "passive-balance-calibration-v1-baseline",
+    params: base,
+  });
+  const baselinePrime = atrialAVPlanePrimeReadbackV2(baseline);
   for (const inertiaNSec2PerCm of inertiaValues) {
     for (const dampingNSecPerCm of dampingValues) {
       for (const stiffnessNPerCm of stiffnessValues) {
@@ -85,26 +121,14 @@ export function buildAtrialAVPlanePassiveBalanceCalibrationV2() {
                 },
               },
             });
-            rows.push(summarize(candidate, result));
+            rows.push(summarize(candidate, result, baseline, baselinePrime));
           }
         }
       }
     }
   }
   const sorted = rows.sort((a, b) => a.score - b.score);
-  const jointCandidates = sorted.filter((row) =>
-    row.periodic && row.converged && row.figureEight && row.mitralPeakMeasurementValid &&
-    row.eToA >= 0.69 && row.eToA <= 2.07 &&
-    row.avpdCm >= 0.5 && row.avpdCm <= 1.8 &&
-    row.peakLaPressureMmHg < 30 && row.aLoopAreaMmHgMl >= 5 && row.vLoopAreaMmHgMl >= 10 &&
-    row.conduitBelowFraction >= 0.95 && row.pumpingAboveFraction >= 0.95 &&
-    row.diastasis.quasiStaticAvPlanePass &&
-    row.diastasis.springForceN * row.diastasis.hydraulicForceN < 0 &&
-    Math.abs(row.diastasis.springForceN) >= 0.5 &&
-    Math.abs(row.diastasis.hydraulicForceN) >= 1 &&
-    Math.abs(row.diastasis.hydraulicForceN) <= 3 &&
-    Math.abs(row.diastasis.quasiStaticResidualN) <= 3
-  );
+  const jointCandidates = sorted.filter((row) => row.passFlags.jointCandidatePass);
   return {
     reportId: "atrial-av-plane-passive-balance-calibration-v2",
     searchSpace: {
@@ -114,22 +138,7 @@ export function buildAtrialAVPlanePassiveBalanceCalibrationV2() {
       passiveNeutralPositionCm: passiveNeutralValues,
       atrialActiveStressMaxKPa: atrialActiveStressValues,
     },
-    acceptanceDefinition: {
-      periodicAndConverged: true,
-      bloodVolumeFigureEightPreferredWindow: true,
-      mitralPeakEToARange: [0.69, 2.07],
-      avpdRangeCm: [0.5, 1.8],
-      peakLaPressureCeilingMmHg: 30,
-      minimumALoopAreaMmHgMl: 5,
-      minimumVLoopAreaMmHgMl: 10,
-      conduitBelowReservoirFraction: 0.95,
-      pumpingAboveReservoirFraction: 0.95,
-      passiveHydraulicForcesStrictlyOpposed: true,
-      minimumAbsSpringForceN: 0.5,
-      hydraulicForceRangeN: [1, 3] as const,
-      quasiStaticAvPlaneThresholds: AV_PLANE_DIASTASIS_THRESHOLDS_V2,
-      maximumAbsDiastaticQuasiStaticResidualN: 3,
-    },
+    acceptanceDefinition: ATRIAL_AV_PLANE_PASSIVE_BALANCE_ACCEPTANCE_V2,
     supportingEvidence: {
       activeForceProjectionRole: "non-blocking-model-input-comparison" as const,
       publishedVentricularModelInputBracketN: [60, 130] as const,
@@ -170,24 +179,34 @@ export function writeAtrialAVPlanePassiveBalanceCalibrationV2() {
 function summarize(
   candidate: Candidate,
   result: MechanisticAtrialProfileResultV1,
+  baseline: MechanisticAtrialProfileResultV1,
+  baselinePrime: ReturnType<typeof atrialAVPlanePrimeReadbackV2>,
 ): AtrialAVPlanePassiveBalanceCandidateReadbackV2 {
   const prime = atrialAVPlanePrimeReadbackV2(result);
   const sPrimeCmPerSec = prime.sPrimeCmPerSec;
   const ePrimeCmPerSec = prime.ePrimeCmPerSec;
   const aPrimeCmPerSec = prime.aPrimeCmPerSec;
   const diastasis = atrialAVPlaneDiastasisReadbackV2(result);
+  const lateDiastolicWindow = atrialAVPlaneLateDiastolicWindowReadbackV2(result);
+  const passFlags = evaluateAtrialAVPlanePassiveBalanceAcceptanceV2({
+    profile: result,
+    prime,
+    lateDiastolicWindow,
+    baselineProfile: baseline,
+    baselinePrime,
+  });
+  const aPrimeMagnitudeRatioToV1 = aPrimeCmPerSec /
+    Math.max(baselinePrime.aPrimeCmPerSec, 1e-9);
   const hardPenalty = result.allStepsConverged && result.periodicSteadyState && result.allFinite
     ? 0
     : 1e4;
-  const topologyPenalty = result.figureEightCrossingInPreferredWindow &&
-      result.opposedLobeOrientation && result.conduitBeforeCrossingBelowReservoirPathFraction >= 0.95 &&
-      result.pumpingAfterCrossingAboveReservoirPathFraction >= 0.95
+  const topologyPenalty = passFlags.bloodVolumeTopologyEngineeringPass
     ? 0
     : 200;
   const mitralPenalty = result.mitralGateReadback.ageSpecificPeakEToA === "pass" ? 0 : 100;
-  const forcePenalty = diastasis.springForceN * diastasis.hydraulicForceN <= 0
-    ? Math.abs(diastasis.quasiStaticResidualN)
-    : 50 + Math.abs(diastasis.quasiStaticResidualN);
+  const forcePenalty = passFlags.mechanicsPass
+    ? lateDiastolicWindow.quasiStaticResidualAbsN.max
+    : 50 + lateDiastolicWindow.quasiStaticResidualAbsN.max;
   const score = hardPenalty + topologyPenalty + mitralPenalty +
     8 * Math.abs(result.avPlaneDisplacementCm - 1.3) +
     0.5 * Math.abs(sPrimeCmPerSec - 9) +
@@ -204,9 +223,19 @@ function summarize(
     sPrimeCmPerSec: rounded(sPrimeCmPerSec),
     ePrimeCmPerSec: rounded(ePrimeCmPerSec),
     aPrimeCmPerSec: rounded(aPrimeCmPerSec),
+    aPrimeBasewardCmPerSec: prime.aPrimeBasewardCmPerSec,
+    aPrimeApexwardCmPerSec: prime.aPrimeApexwardCmPerSec,
+    aPrimeDominantDirection: prime.aPrimeDominantDirection,
+    aPrimeMagnitudeRatioToV1: rounded(aPrimeMagnitudeRatioToV1),
     xDepthMmHg: result.xDescentDepthMmHg,
     yDepthMmHg: result.yDescentDepthMmHg,
     figureEight: result.figureEightCrossingInPreferredWindow,
+    lobeMeasurementStatus: result.lobeMeasurementStatus,
+    lobeMeasurementReason: result.lobeMeasurementReason,
+    lobeSelfIntersectionAngleDeg: result.lobeSelfIntersectionAngleDeg,
+    lobePhaseCrossingMatchDistance01: result.lobePhaseCrossingMatchDistance01,
+    lobePhaseCrossingMatchPass: result.lobePhaseCrossingMatchPass,
+    opposedLobeOrientation: result.opposedLobeOrientation,
     eToA: result.mitralPeakVelocityEToARatio,
     mitralPeakMeasurementValid: result.mitralPeakMeasurementValid,
     aToVAreaRatio: rounded(result.aLoopAreaMmHgMl / Math.max(result.vLoopAreaMmHgMl, 1e-9)),
@@ -224,6 +253,25 @@ function summarize(
     pumpingAboveFraction: result.pumpingAfterCrossingAboveReservoirPathFraction,
     events: result.events,
     diastasis,
+    lateDiastolicWindow: compactLateDiastolicWindowAudit(lateDiastolicWindow),
+    passFlags,
+  };
+}
+
+function compactLateDiastolicWindowAudit(
+  window: AtrialAVPlaneLateDiastolicWindowReadbackV2,
+): AtrialAVPlanePassiveBalanceLateDiastolicWindowAuditV2 {
+  return {
+    applicability: window.applicability,
+    applicabilityReason: window.applicabilityReason,
+    durationSec: window.durationSec,
+    sampleCount: window.sampleCount,
+    hydraulicMedianAbsN: window.hydraulicForceN.medianAbs,
+    passiveHydraulicOpposedSampleFraction: window.passiveHydraulicOpposedSampleFraction,
+    quasiStaticResidualMaxAbsN: window.quasiStaticResidualAbsN.max,
+    dynamicToHydraulicForceRatioP95: window.dynamicToHydraulicForceRatio.p95,
+    velocityMaxAbsCmPerSec: window.velocityAbsCmPerSec.max,
+    mitralFlowFractionOfPeakMax: window.mitralFlowFractionOfPeak.max,
   };
 }
 

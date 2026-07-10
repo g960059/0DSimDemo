@@ -79,6 +79,20 @@ function renderPvPanel(out: string[], x: number, y: number, w: number, h: number
   marker(out, xTrough, sx, sy, "#38bdf8", "x", 8, 18);
   marker(out, vPeak, sx, sy, "#60a5fa", "v", -20, -12);
   marker(out, yTrough, sx, sy, "#fb923c", "y", 8, 18);
+  const trueCrossing = row.lobeSelfIntersectionSummaries[0];
+  if (trueCrossing) {
+    markerPoint(
+      out,
+      trueCrossing.volumeMl,
+      trueCrossing.pressureMmHg,
+      sx,
+      sy,
+      "#f43f5e",
+      "true lobe x",
+      10,
+      -16,
+    );
+  }
   out.push(`<text x="${plot.x + plot.w / 2}" y="${y + h - 13}" text-anchor="middle" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="13">V_LA,blood (mL)</text>`);
   out.push(`<text x="${x + 15}" y="${plot.y + plot.h / 2}" transform="rotate(-90 ${x + 15} ${plot.y + plot.h / 2})" text-anchor="middle" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="13">P_LA (mmHg)</text>`);
   const legend = [
@@ -117,13 +131,13 @@ function renderEvidenceReadbacks(out: string[], x: number, y: number, w: number,
       ],
     },
     {
-      title: "Topology and continuity",
+      title: "True-lobe topology",
       lines: [
-        `selected crossing ${row.figureEightCrossingPhase} at ${pct(row.figureEightCrossingProgress01)} path; ${row.figureEightCrossingAngleDeg.toFixed(1)} deg`,
-        `pre-cross conduit below reservoir ${pct(row.conduitBeforeCrossingBelowReservoirPathFraction)}`,
-        `post-cross pumping above reservoir ${pct(row.pumpingAfterCrossingAboveReservoirPathFraction)}`,
-        `pumping chord ${pct(row.pumpingAboveFigureEightChordFraction)}; min margin ${row.pumpingMinimumFigureEightChordMarginMmHg.toFixed(2)} mmHg`,
-        `single-dt tangent diagnostic MVC ${row.mvcTangentJumpNorm.toFixed(3)} / MVO ${row.mvoTangentJumpNorm.toFixed(3)}; figure-eight gate ${passFail(report.gates.normalFigureEightPass)}`,
+        `status ${row.lobeMeasurementStatus}; crossings ${row.lobeSelfIntersectionCount}`,
+        `A/v ${row.aLoopAreaMmHgMl.toFixed(2)} / ${row.vLoopAreaMmHgMl.toFixed(2)}; opposed ${passFail(row.opposedLobeOrientation)}`,
+        `angle ${row.lobeSelfIntersectionAngleDeg.toFixed(1)} deg; match ${passFail(row.lobePhaseCrossingMatchPass)} d=${row.lobePhaseCrossingMatchDistance01.toFixed(3)}`,
+        `legacy A/v ${row.legacyPhaseALoopAreaMmHgMl.toFixed(2)} / ${row.legacyPhaseVLoopAreaMmHgMl.toFixed(2)}`,
+        `phase ${row.figureEightCrossingPhase} ${pct(row.figureEightCrossingProgress01)}; gate ${passFail(report.gates.normalFigureEightPass)}`,
       ],
     },
   ];
@@ -201,6 +215,25 @@ function marker(
   const cx = sx(sample.laVolumeMl);
   const cy = sy(sample.laPressureMmHg);
   out.push(`<circle cx="${cx}" cy="${cy}" r="5" fill="${color}" stroke="#08111f" stroke-width="2"/>`);
+  out.push(`<text x="${cx + dx}" y="${cy + dy}" fill="${color}" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">${label}</text>`);
+}
+
+function markerPoint(
+  out: string[],
+  laVolumeMl: number,
+  laPressureMmHg: number,
+  sx: (value: number) => number,
+  sy: (value: number) => number,
+  color: string,
+  label: string,
+  dx: number,
+  dy: number,
+): void {
+  const cx = sx(laVolumeMl);
+  const cy = sy(laPressureMmHg);
+  out.push(`<circle cx="${cx}" cy="${cy}" r="6" fill="none" stroke="${color}" stroke-width="2.5"/>`);
+  out.push(`<line x1="${cx - 7}" y1="${cy}" x2="${cx + 7}" y2="${cy}" stroke="${color}" stroke-width="2"/>`);
+  out.push(`<line x1="${cx}" y1="${cy - 7}" x2="${cx}" y2="${cy + 7}" stroke="${color}" stroke-width="2"/>`);
   out.push(`<text x="${cx + dx}" y="${cy + dy}" fill="${color}" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">${label}</text>`);
 }
 

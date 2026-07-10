@@ -39,7 +39,19 @@ console.log(JSON.stringify({
     laPressure: result.pressureRangeLaMmHg,
     lvPeakMmHg: result.pressureRangeLvMmHg[1],
     avpdCm: result.avPlaneDisplacementCm,
-    intersection: result.reservoirConduitIntersection,
+    trueLobeMeasurement: {
+      status: result.lobeMeasurementStatus,
+      reason: result.lobeMeasurementReason,
+      phaseCrossingMatchPass: result.lobePhaseCrossingMatchPass,
+      selfIntersectionAngleDeg: result.lobeSelfIntersectionAngleDeg,
+      opposedLobeOrientation: result.opposedLobeOrientation,
+    },
+    legacyPhaseEnvelope: {
+      crossingPhase: result.figureEightCrossingPhase,
+      crossingInPreferredWindow: result.figureEightCrossingInPreferredWindow,
+      reservoirConduitIntersection: result.reservoirConduitIntersection,
+      reservoirPumpingIntersection: result.reservoirPumpingIntersection,
+    },
   })),
   normalizedSha256: reportWithHash.normalizedSha256,
 }, null, 2));

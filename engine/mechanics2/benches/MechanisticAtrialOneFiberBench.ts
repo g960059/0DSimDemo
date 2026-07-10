@@ -5,6 +5,29 @@ import {
   type OneFiberAVPlaneLeftHeartParamsV1,
   type OneFiberAVPlaneLeftHeartStateV1,
 } from "@/engine/mechanics2/subsystems/OneFiberAVPlaneLeftHeartV1";
+import {
+  measureLaPvTwoLobesV2,
+  opposedLobeAreasPassV2,
+  signedLaPvLoopAreaV2,
+  type LaPvLobeMeasurementReasonV2,
+  type LaPvLobeMeasurementStatusV2,
+  type LaPvPointV2,
+  type LaPvSelfIntersectionSummaryV2,
+} from "@/engine/mechanics2/diagnostics/LaPvLobeMeasurementV2";
+
+export {
+  measureLaPvTwoLobesV2,
+};
+
+export type {
+  LaPvLobeMeasurementReasonV2 as MechanisticAtrialLobeMeasurementReasonV2,
+  LaPvLobeMeasurementStatusV2 as MechanisticAtrialLobeMeasurementStatusV2,
+  LaPvLobeMeasurementV2 as MechanisticAtrialLobeMeasurementV2,
+  LaPvLobePointV2 as MechanisticAtrialLobePointV2,
+  LaPvMeasuredLobeV2 as MechanisticAtrialMeasuredLobeV2,
+  LaPvPointV2 as MechanisticLaPvPointV1,
+  LaPvSelfIntersectionSummaryV2 as MechanisticAtrialSelfIntersectionSummaryV2,
+} from "@/engine/mechanics2/diagnostics/LaPvLobeMeasurementV2";
 
 export const MECHANISTIC_ATRIAL_ONE_FIBER_REPORT_ID_V1 =
   "mechanistic-atrial-one-fiber-report-v1" as const;
@@ -158,6 +181,20 @@ export type MechanisticAtrialProfileResultV1 = {
   readonly vLoopAreaMmHgMl: number;
   readonly aLoopSignedAreaMmHgMl: number;
   readonly vLoopSignedAreaMmHgMl: number;
+  readonly legacyPhaseALoopAreaMmHgMl: number;
+  readonly legacyPhaseVLoopAreaMmHgMl: number;
+  readonly legacyPhaseALoopSignedAreaMmHgMl: number;
+  readonly legacyPhaseVLoopSignedAreaMmHgMl: number;
+  readonly legacyPhaseOpposedLobeOrientation: boolean;
+  readonly lobeMeasurementStatus: LaPvLobeMeasurementStatusV2;
+  readonly lobeMeasurementReason: LaPvLobeMeasurementReasonV2;
+  readonly lobeSelfIntersectionCount: number;
+  readonly lobeRawSelfIntersectionCount: number;
+  readonly lobeSelfIntersectionAngleDeg: number;
+  readonly lobePhaseCrossingMatchDistance01: number;
+  readonly lobePhaseCrossingMatchPass: boolean;
+  readonly lobeSelfIntersectionSummaryTruncated: boolean;
+  readonly lobeSelfIntersectionSummaries: readonly LaPvSelfIntersectionSummaryV2[];
   readonly opposedLobeOrientation: boolean;
   readonly reservoirConduitIntersection: boolean;
   readonly reservoirConduitIntersectionAngleDeg: number;
@@ -285,6 +322,7 @@ const MIDDLE_AGE_MITRAL_E_DECELERATION_TIME_SEC_RANGE = [0.143, 0.219] as const;
 const ADULT_ATRIAL_FILLING_FRACTION_RANGE = [0.12, 0.46] as const;
 const ENGINEERING_WAVEFORM_MONOTONICITY_FLOOR = 0.80;
 const ENGINEERING_PUMPING_CHORD_FRACTION_FLOOR = 0.80;
+const TRUE_LOBE_PHASE_CROSSING_MATCH_TOLERANCE_01 = 0.02;
 
 export function runMechanisticAtrialOneFiberBenchV1(): MechanisticAtrialOneFiberReportV1 {
   const profiles = ([
@@ -331,8 +369,10 @@ export function runMechanisticAtrialOneFiberBenchV1(): MechanisticAtrialOneFiber
   const normalMitralWaveformPass =
     normal.mitralGateReadback.hardAcceptancePass;
   const normalFigureEightPass =
+    normal.lobeMeasurementStatus === "measurable" &&
     normal.figureEightCrossingInPreferredWindow &&
-    normal.figureEightCrossingAngleDeg >= 10 &&
+    normal.lobePhaseCrossingMatchPass &&
+    normal.lobeSelfIntersectionAngleDeg >= 10 &&
     normal.conduitBeforeCrossingBelowReservoirPathFraction >= 0.95 &&
     normal.pumpingAfterCrossingAboveReservoirPathFraction >= 0.95 &&
     normal.pumpingAboveFigureEightChordFraction >=
@@ -393,7 +433,7 @@ export function runMechanisticAtrialOneFiberBenchV1(): MechanisticAtrialOneFiber
     gateRationale: {
       conduitVolume: "The 5 mL floor applies to SV_LV minus total LA stroke volume; net post-MVO LA emptying must only remain positive.",
       mitralWaveform: "The reported velocity is the fixed-open-area bulk surrogate Q_MV/A_open, not PW-Doppler modal velocity. Transferring the ASE E-at-A >20 cm/s rule to this surrogate is a conservative engineering applicability screen, not clinical equivalence; it makes E/A, VTI partition, and DT not applicable rather than abnormal. Only the ASE 2025 age-41-60 peak E/A range 0.69-2.07 is a hard sidecar normal gate. AFF 0.12-0.46 and DT 143-219 ms are age-dependent supportive diagnostics; AT, DT/AT, diastasis duration, and rise/decay shape have no clinical hard cutoff here.",
-      figureEight: "Normal reference morphology permits the interior crossing in late conduit or early pumping and requires opposed signed A/v lobe areas. Before it, at least 95% of eligible conduit samples must lie below the lower reservoir envelope; after it, at least 95% of pumping samples must lie above the upper reservoir envelope. The orientation, 80% crossing-to-MVC chord, angle, and area rules are engineering anti-degeneracy diagnostics, not literature normal ranges.",
+      figureEight: "Normal reference morphology requires one proper full-periodic LA blood-volume PV self-intersection and opposed signed A/v true lobe areas; legacy phase path areas are diagnostic readbacks only. Before the phase crossing, at least 95% of eligible conduit samples must lie below the lower reservoir envelope; after it, at least 95% of pumping samples must lie above the upper reservoir envelope. The orientation, 80% crossing-to-MVC chord, angle, and area rules are engineering anti-degeneracy diagnostics, not literature normal ranges.",
       phaseWaveProminence: "The 0.5 mmHg x/y/v prominence floor is only a finite-resolution engineering detector for a named wave, not a clinical normal amplitude. Absolute amplitudes remain reported and are not fitted to this floor.",
       mechanismControls: "The stiff-LA control must raise peak LA pressure by at least 0.5 mmHg. This is a directional attribution margin above numerical noise, not a disease cutoff.",
       reservoirTransition: "Because c-wave mechanics are omitted, post-MVC pressure overshoot must stay below 10% of x-descent depth.",
@@ -677,8 +717,24 @@ function summarizeProfile(
       figureEightCrossing.source === "pumping" ? figureEightCrossing.pathProgress01 : 0,
     )
     : { fraction: 0, minimumMarginMmHg: 0 };
-  const aLoopSignedAreaMmHgMl = signedLaPvLoopAreaV1(pumping);
-  const vLoopSignedAreaMmHgMl = signedLaPvLoopAreaV1([...reservoir, ...conduit]);
+  const legacyPhaseALoopSignedAreaMmHgMl = signedLaPvLoopAreaV1(pumping);
+  const legacyPhaseVLoopSignedAreaMmHgMl = signedLaPvLoopAreaV1([...reservoir, ...conduit]);
+  const lobeMeasurement = measureLaPvTwoLobesV2(samples);
+  const aLoopSignedAreaMmHgMl = lobeMeasurement.status === "measurable"
+    ? lobeMeasurement.aLobe.signedAreaMmHgMl
+    : 0;
+  const vLoopSignedAreaMmHgMl = lobeMeasurement.status === "measurable"
+    ? lobeMeasurement.vLobe.signedAreaMmHgMl
+    : 0;
+  const lobePhaseCrossingMatchDistance01 = trueLobePhaseCrossingDistance01(
+    lobeMeasurement.status === "measurable" ? lobeMeasurement.crossing : undefined,
+    figureEightCrossing,
+    samples,
+  );
+  const lobePhaseCrossingMatchPass =
+    lobeMeasurement.status === "measurable" &&
+    figureEightCrossing !== undefined &&
+    lobePhaseCrossingMatchDistance01 <= TRUE_LOBE_PHASE_CROSSING_MATCH_TOLERANCE_01;
   return {
     profileId,
     allFinite: samples.every((sample) => Object.values(sample).every((value) =>
@@ -759,6 +815,32 @@ function summarizeProfile(
     vLoopAreaMmHgMl: round(Math.abs(vLoopSignedAreaMmHgMl)),
     aLoopSignedAreaMmHgMl: round(aLoopSignedAreaMmHgMl),
     vLoopSignedAreaMmHgMl: round(vLoopSignedAreaMmHgMl),
+    legacyPhaseALoopAreaMmHgMl: round(Math.abs(legacyPhaseALoopSignedAreaMmHgMl)),
+    legacyPhaseVLoopAreaMmHgMl: round(Math.abs(legacyPhaseVLoopSignedAreaMmHgMl)),
+    legacyPhaseALoopSignedAreaMmHgMl: round(legacyPhaseALoopSignedAreaMmHgMl),
+    legacyPhaseVLoopSignedAreaMmHgMl: round(legacyPhaseVLoopSignedAreaMmHgMl),
+    legacyPhaseOpposedLobeOrientation: opposedLobeAreasPassV1(
+      legacyPhaseALoopSignedAreaMmHgMl,
+      legacyPhaseVLoopSignedAreaMmHgMl,
+    ),
+    lobeMeasurementStatus: lobeMeasurement.status,
+    lobeMeasurementReason: lobeMeasurement.reason,
+    lobeSelfIntersectionCount: lobeMeasurement.selfIntersectionCount,
+    lobeRawSelfIntersectionCount: lobeMeasurement.rawSelfIntersectionCount,
+    lobeSelfIntersectionAngleDeg: round(
+      lobeMeasurement.status === "measurable" ? lobeMeasurement.crossing.angleDeg : 0,
+    ),
+    lobePhaseCrossingMatchDistance01: round(lobePhaseCrossingMatchDistance01),
+    lobePhaseCrossingMatchPass,
+    lobeSelfIntersectionSummaryTruncated: lobeMeasurement.crossingSummaryTruncated,
+    lobeSelfIntersectionSummaries: lobeMeasurement.crossings.map((crossing) => ({
+      volumeMl: round(crossing.volumeMl),
+      pressureMmHg: round(crossing.pressureMmHg),
+      angleDeg: round(crossing.angleDeg),
+      firstPathProgress01: round(crossing.firstPathProgress01),
+      secondPathProgress01: round(crossing.secondPathProgress01),
+      rawIntersectionCount: crossing.rawIntersectionCount,
+    })),
     opposedLobeOrientation: opposedLobeAreasPassV1(
       aLoopSignedAreaMmHgMl,
       vLoopSignedAreaMmHgMl,
@@ -788,20 +870,20 @@ function summarizeProfile(
     peakAvPlaneVelocityCmPerSec: round(maxOf(samples.map((sample) =>
       Math.abs(sample.avPlaneVelocityCmPerSec)
     ))),
-    maxAbsMassResidualMl: round(maxOf(samples.flatMap((sample) => [
+    maxAbsMassResidualMl: maxOf(samples.flatMap((sample) => [
       Math.abs(sample.laMassResidualMl),
       Math.abs(sample.lvMassResidualMl),
-    ]))),
-    maxAbsAvPlaneKinematicResidualCm: round(maxOf(samples.map((sample) =>
+    ])),
+    maxAbsAvPlaneKinematicResidualCm: maxOf(samples.map((sample) =>
       Math.abs(sample.avPlaneKinematicResidualCm)
-    ))),
-    maxAbsAvPlaneForceResidualN: round(maxOf(samples.map((sample) =>
+    )),
+    maxAbsAvPlaneForceResidualN: maxOf(samples.map((sample) =>
       Math.abs(sample.avPlaneForceResidualN)
-    ))),
-    maxAbsClosedCircuitVolumeResidualMl: round(maxOf(samples.map((sample) =>
+    )),
+    maxAbsClosedCircuitVolumeResidualMl: maxOf(samples.map((sample) =>
       Math.abs(sample.closedCircuitVolumeResidualMl)
-    ))),
-    maxNonlinearResidual: round(maxOf(samples.map((sample) => sample.nonlinearResidual))),
+    )),
+    maxNonlinearResidual: maxOf(samples.map((sample) => sample.nonlinearResidual)),
     allStepsConverged: allStepsConverged && samples.every((sample) => sample.solverConverged),
     periodicSteadyState,
     beatsSimulated,
@@ -951,27 +1033,28 @@ function analyzeMitralInflow(
     : velocityAtActivationOnset > MITRAL_FUSION_VELOCITY_CM_PER_SEC
       ? "partial-fusion"
       : "separated";
+  const eVtiEndOrdinal = Math.min(turningOrdinal, activationOnsetOrdinal);
   const eVtiCm = integrateMitralSequence(
     sequence,
     0,
-    turningOrdinal,
+    eVtiEndOrdinal,
     ({ sample }) => Math.max(0, sample.mitralVelocityCmPerSec),
   );
   const aVtiCm = integrateMitralSequence(
     sequence,
-    turningOrdinal,
+    activationOnsetOrdinal,
     sequence.length - 1,
     ({ sample }) => Math.max(0, sample.mitralVelocityCmPerSec),
   );
   const earlyForwardVolumeMl = integrateMitralSequence(
     sequence,
     0,
-    turningOrdinal,
+    eVtiEndOrdinal,
     ({ sample }) => Math.max(0, sample.qMitralMlPerSec),
   );
   const lateForwardVolumeMl = integrateMitralSequence(
     sequence,
-    turningOrdinal,
+    activationOnsetOrdinal,
     sequence.length - 1,
     ({ sample }) => Math.max(0, sample.qMitralMlPerSec),
   );
@@ -1145,7 +1228,7 @@ function projectedEDecelerationTime(
   const intercept = meanVelocity - slope * meanTime;
   const projectedZeroSec = -intercept / slope;
   const decelerationTimeSec = projectedZeroSec - peak.elapsedSec;
-  return decelerationTimeSec > 0 && decelerationTimeSec <=
+  return decelerationTimeSec > 0 && projectedZeroSec <=
       sequence.at(-1)!.elapsedSec
     ? decelerationTimeSec
     : 0;
@@ -1483,6 +1566,28 @@ function selectFigureEightCrossing(
   };
 }
 
+function trueLobePhaseCrossingDistance01(
+  trueCrossing: Pick<LaPvSelfIntersectionSummaryV2, "volumeMl" | "pressureMmHg"> | undefined,
+  phaseCrossing: Pick<FigureEightCrossingV1, "volumeMl" | "pressureMmHg"> | undefined,
+  samples: readonly MechanisticAtrialSampleV1[],
+): number {
+  if (!trueCrossing || !phaseCrossing || samples.length === 0) return 1;
+  const volumeScale = Math.max(
+    maxOf(samples.map((sample) => sample.laVolumeMl)) -
+      minOf(samples.map((sample) => sample.laVolumeMl)),
+    1e-9,
+  );
+  const pressureScale = Math.max(
+    maxOf(samples.map((sample) => sample.laPressureMmHg)) -
+      minOf(samples.map((sample) => sample.laPressureMmHg)),
+    1e-9,
+  );
+  return Math.hypot(
+    (phaseCrossing.volumeMl - trueCrossing.volumeMl) / volumeScale,
+    (phaseCrossing.pressureMmHg - trueCrossing.pressureMmHg) / pressureScale,
+  );
+}
+
 function pathAboveChordMetrics(
   path: readonly MechanisticAtrialSampleV1[],
   start: Pick<FigureEightCrossingV1, "volumeMl" | "pressureMmHg">,
@@ -1613,6 +1718,8 @@ function cycleStateConverged(
     Math.abs(end.lvVolumeMl - start.lvVolumeMl) <= 0.05 &&
     Math.abs(end.avPlane.positionCm - start.avPlane.positionCm) <= 5e-4 &&
     Math.abs(end.avPlane.velocityCmPerSec - start.avPlane.velocityCmPerSec) <= 0.005 &&
+    Math.abs(end.laWall.activation01 - start.laWall.activation01) <= 5e-4 &&
+    Math.abs(end.lvWall.activation01 - start.lvWall.activation01) <= 5e-4 &&
     Math.abs(end.mitralValve.qMlPerSec - start.mitralValve.qMlPerSec) <= 0.1 &&
     Math.abs(end.aorticValve.qMlPerSec - start.aorticValve.qMlPerSec) <= 0.1 &&
     Math.abs(end.pulmonaryVenousPressureMmHg - start.pulmonaryVenousPressureMmHg) <= 0.005 &&
@@ -1621,20 +1728,8 @@ function cycleStateConverged(
     Math.abs(end.returnReservoirPressureMmHg - start.returnReservoirPressureMmHg) <= 0.005;
 }
 
-export type MechanisticLaPvPointV1 = Pick<
-  MechanisticAtrialSampleV1,
-  "laVolumeMl" | "laPressureMmHg"
->;
-
-export function signedLaPvLoopAreaV1(samples: readonly MechanisticLaPvPointV1[]): number {
-  if (samples.length < 3) return 0;
-  let twiceArea = 0;
-  for (let i = 0; i < samples.length; i += 1) {
-    const a = samples[i]!;
-    const b = samples[(i + 1) % samples.length]!;
-    twiceArea += a.laVolumeMl * b.laPressureMmHg - b.laVolumeMl * a.laPressureMmHg;
-  }
-  return 0.5 * twiceArea;
+export function signedLaPvLoopAreaV1(samples: readonly LaPvPointV2[]): number {
+  return signedLaPvLoopAreaV2(samples);
 }
 
 export function opposedLobeAreasPassV1(
@@ -1643,9 +1738,12 @@ export function opposedLobeAreasPassV1(
   minimumAAreaMmHgMl = 0,
   minimumVAreaMmHgMl = 0,
 ): boolean {
-  return Math.abs(aSignedAreaMmHgMl) >= minimumAAreaMmHgMl &&
-    Math.abs(vSignedAreaMmHgMl) >= minimumVAreaMmHgMl &&
-    aSignedAreaMmHgMl * vSignedAreaMmHgMl < 0;
+  return opposedLobeAreasPassV2(
+    aSignedAreaMmHgMl,
+    vSignedAreaMmHgMl,
+    minimumAAreaMmHgMl,
+    minimumVAreaMmHgMl,
+  );
 }
 
 function validSlice<T>(values: readonly T[], start: number, end: number): readonly T[] {
@@ -1701,9 +1799,20 @@ function round(value: number): number {
   return Number.isFinite(value) ? Number(value.toFixed(6)) : value;
 }
 
+const RAW_SAMPLE_RESIDUAL_KEYS = new Set([
+  "laMassResidualMl",
+  "lvMassResidualMl",
+  "avPlaneKinematicResidualCm",
+  "avPlaneForceResidualN",
+  "closedCircuitVolumeResidualMl",
+  "nonlinearResidual",
+]);
+
 function roundSample(sample: MechanisticAtrialSampleV1): MechanisticAtrialSampleV1 {
   return Object.fromEntries(Object.entries(sample).map(([key, value]) => [
     key,
-    typeof value === "number" ? round(value) : value,
+    typeof value === "number" && !RAW_SAMPLE_RESIDUAL_KEYS.has(key)
+      ? round(value)
+      : value,
   ])) as unknown as MechanisticAtrialSampleV1;
 }

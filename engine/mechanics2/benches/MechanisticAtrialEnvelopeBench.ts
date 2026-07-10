@@ -224,9 +224,11 @@ export function runMechanisticAtrialEnvelopeBenchV1(): MechanisticAtrialEnvelope
   });
   const moderateTopologyRetentionPass = moderateTopologyIds.every((caseId) => {
     const row = result(caseId);
-    return row.figureEightCrossingInPreferredWindow &&
-      row.figureEightCrossingAngleDeg >= 10 &&
+    return row.lobeMeasurementStatus === "measurable" &&
+      row.lobePhaseCrossingMatchPass &&
+      row.lobeSelfIntersectionAngleDeg >= 10 &&
       row.opposedLobeOrientation &&
+      row.figureEightCrossingInPreferredWindow &&
       row.reservoirSecondaryPeakCount <= 1 &&
       row.conduitBeforeCrossingBelowReservoirPathFraction >= 0.95 &&
       row.pumpingAfterCrossingAboveReservoirPathFraction >= 0.95 &&
@@ -256,12 +258,14 @@ export function runMechanisticAtrialEnvelopeBenchV1(): MechanisticAtrialEnvelope
         "prespecified directional responses",
       ],
       normalAndDtReplicasOnly: [
-        "late-conduit or early-pumping figure-eight intersection",
-        "conduit below reservoir before the intersection",
-        "pumping above reservoir after the intersection",
-        "pumping above the intersection-to-MVC chord",
-        "finite crossing angle",
-        "opposed signed A/v lobe orientation",
+        "measurable true-lobe LA blood-volume PV self-intersection",
+        "true-lobe crossing matches the legacy phase envelope crossing",
+        "true-lobe self-intersection angle at least 10 degrees",
+        "opposed signed true A/v lobe orientation",
+        "legacy phase crossing stays late-conduit or early-pumping",
+        "legacy phase conduit path stays below reservoir before the crossing",
+        "legacy phase pumping path stays above reservoir after the crossing",
+        "legacy phase pumping path stays above the crossing-to-MVC chord",
         "age-41-60 normal MVF eligibility and E/A",
         "MVF supportive diagnostics",
         "valve-event tangent convergence under dt refinement",

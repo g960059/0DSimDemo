@@ -20,10 +20,10 @@ const dtDouble = caseResult("normal-dt2");
 const maxDtRelativeError = Math.max(...Object.values(report.dtRelativeErrors));
 const allSamples = report.cases.flatMap(({ result }) => result.samples);
 const width = 1800;
-const height = 1780;
+const height = 1880;
 const columns = 3;
 const panelWidth = 560;
-const panelHeight = 286;
+const panelHeight = 306;
 const gapX = 24;
 const gapY = 20;
 const originX = 36;
@@ -46,7 +46,7 @@ report.cases.forEach(({ caseId, result }, index) => {
   const row = Math.floor(index / columns);
   const x = originX + column * (panelWidth + gapX);
   const y = originY + row * (panelHeight + gapY);
-  const plot = { x: x + 38, y: y + 132, w: panelWidth - 58, h: panelHeight - 154 };
+  const plot = { x: x + 38, y: y + 150, w: panelWidth - 58, h: panelHeight - 172 };
   const sx = (value: number) => plot.x + sxGlobal(value) * plot.w;
   const sy = (value: number) => plot.y + (1 - syGlobal(value)) * plot.h;
   svg.push(`<rect x="${x}" y="${y}" width="${panelWidth}" height="${panelHeight}" rx="6" fill="#0f1a2b" stroke="${caseStroke(result)}"/>`);
@@ -54,8 +54,9 @@ report.cases.forEach(({ caseId, result }, index) => {
   svg.push(`<text x="${x + 14}" y="${y + 42}" fill="#8797ad" font-family="Inter,Arial,sans-serif" font-size="10.5">CO ${result.cardiacOutputLPerMin.toFixed(2)} L/min | LAmax ${result.pressureRangeLaMmHg[1].toFixed(1)} | AVPD ${result.avPlaneDisplacementCm.toFixed(2)} | x/y ${result.xDescentDepthMmHg.toFixed(1)}/${result.yDescentDepthMmHg.toFixed(1)}</text>`);
   svg.push(`<text x="${x + 14}" y="${y + 60}" fill="#aebbd0" font-family="Inter,Arial,sans-serif" font-size="10.5">MVF ${result.mitralWaveFusionClass}; ${result.mitralGateReadback.measurementApplicability}; H/S ${passFail(result.mitralGateReadback.hardAcceptancePass)}/${passFail(result.mitralGateReadback.supportiveDiagnosticsPass)}</text>`);
   svg.push(`<text x="${x + 14}" y="${y + 78}" fill="#aebbd0" font-family="Inter,Arial,sans-serif" font-size="10.5">peak E/A ${result.mitralPeakVelocityEToARatio.toFixed(2)} | E-VTI/A-VTI ${result.mitralVtiEToARatio.toFixed(2)} | AFF ${pct(result.mitralAtrialFillingFraction)} | DT ${ms(result.mitralEDecelerationTimeSec)}</text>`);
-  svg.push(`<text x="${x + 14}" y="${y + 96}" fill="#aebbd0" font-family="Inter,Arial,sans-serif" font-size="10.5">diastasis ${ms(result.mitralDiastasisDurationSec)} | E-at-A ${result.mitralVelocityAtAtrialActivationOnsetCmPerSec.toFixed(1)} cm/s | X ${result.figureEightCrossingPhase} ${pct(result.figureEightCrossingProgress01)} ${result.figureEightCrossingAngleDeg.toFixed(1)} deg</text>`);
-  svg.push(`<text x="${x + 14}" y="${y + 114}" fill="#aebbd0" font-family="Inter,Arial,sans-serif" font-size="10.5">pre/post branch order ${pct(result.conduitBeforeCrossingBelowReservoirPathFraction)}/${pct(result.pumpingAfterCrossingAboveReservoirPathFraction)} | tangent MVC/MVO ${result.mvcTangentJumpNorm.toFixed(3)}/${result.mvoTangentJumpNorm.toFixed(3)}</text>`);
+  svg.push(`<text x="${x + 14}" y="${y + 96}" fill="#aebbd0" font-family="Inter,Arial,sans-serif" font-size="10.5">true lobe ${result.lobeMeasurementStatus}; A/v ${result.aLoopAreaMmHgMl.toFixed(1)}/${result.vLoopAreaMmHgMl.toFixed(1)}; angle ${result.lobeSelfIntersectionAngleDeg.toFixed(1)}; match ${passFail(result.lobePhaseCrossingMatchPass)}</text>`);
+  svg.push(`<text x="${x + 14}" y="${y + 114}" fill="#aebbd0" font-family="Inter,Arial,sans-serif" font-size="10.5">legacy X ${result.figureEightCrossingPhase} ${pct(result.figureEightCrossingProgress01)} | diastasis ${ms(result.mitralDiastasisDurationSec)} | E-at-A ${result.mitralVelocityAtAtrialActivationOnsetCmPerSec.toFixed(1)} cm/s</text>`);
+  svg.push(`<text x="${x + 14}" y="${y + 132}" fill="#aebbd0" font-family="Inter,Arial,sans-serif" font-size="10.5">pre/post branch order ${pct(result.conduitBeforeCrossingBelowReservoirPathFraction)}/${pct(result.pumpingAfterCrossingAboveReservoirPathFraction)} | tangent MVC/MVO ${result.mvcTangentJumpNorm.toFixed(3)}/${result.mvoTangentJumpNorm.toFixed(3)}</text>`);
   grid(svg, plot.x, plot.y, plot.w, plot.h);
   const reservoir = result.samples.filter((sample) =>
     sample.theta >= result.events.mitralClosureTheta && sample.theta <= result.events.mitralOpeningTheta
@@ -74,7 +75,7 @@ report.cases.forEach(({ caseId, result }, index) => {
   svg.push(`<circle cx="${sx(opening.laVolumeMl)}" cy="${sy(opening.laPressureMmHg)}" r="3.5" fill="#fbbf24" stroke="#08111f" stroke-width="1.5"/>`);
 });
 
-svg.push(`<text x="36" y="1758" fill="#64748b" font-family="Inter,Arial,sans-serif" font-size="12">Generated from mechanistic-atrial-envelope-report-v1 | common axes | closed-circuit periodic solutions | dt continuity from 0.5/1/2 ms replicas</text>`);
+svg.push(`<text x="36" y="1858" fill="#64748b" font-family="Inter,Arial,sans-serif" font-size="12">Generated from mechanistic-atrial-envelope-report-v1 | common axes | closed-circuit periodic solutions | dt continuity from 0.5/1/2 ms replicas</text>`);
 svg.push(`</svg>`);
 mkdirSync(dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, `${svg.join("\n")}\n`);
