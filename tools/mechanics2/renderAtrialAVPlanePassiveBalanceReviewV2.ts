@@ -39,7 +39,7 @@ const pressureScale = scale(allSamples.map((sample) => sample.laPressureMmHg), 0
 svg.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`);
 svg.push(`<rect width="${width}" height="${height}" fill="#08111f"/>`);
 svg.push(text(38, 42, "AV-plane passive-balance V2 | common-solver comparison", 26, "#e7eef9", 700));
-svg.push(text(38, 69, "Experimental sidecar. Candidate is not selected: physical force balance improves, but blood-volume PV topology and MVF do not pass jointly.", 14, "#fbbf24", 600));
+svg.push(text(38, 69, "Experimental sidecar. Candidate is not selected: pointwise force opposition improves, but continuous-window mechanics, PV topology, and MVF fail jointly.", 14, "#fbbf24", 600));
 svg.push(text(38, 94, "LA blood volume remains Q_PV - Q_MV. No P_mem, P_relief, P_LV_recv, hidden capacity state, or runtime wiring.", 13, "#94a3b8"));
 
 selected.forEach((row, index) => {
@@ -98,12 +98,22 @@ function renderPvPanel(
   drawPath(out, phases.pumping, sx, sy, "#a8b2c1", 3.5);
   mark(out, nearest(row.result.samples, row.result.events.mitralOpeningTheta), sx, sy, "#fbbf24");
   mark(out, nearest(row.result.samples, row.result.events.mitralClosureTheta), sx, sy, "#22c55e");
+  row.summary.profile.lobeSelfIntersectionSummaries.slice(0, 4).forEach((crossing, index) => {
+    markCross(out, crossing.volumeMl, crossing.pressureMmHg, sx, sy, index + 1);
+  });
   out.push(text(
     x + 17,
     y + 49,
-    `AVPD ${row.summary.profile.avPlaneDisplacementCm.toFixed(2)} cm | x ${row.summary.profile.xDescentDepthMmHg.toFixed(2)} | E/A ${row.summary.profile.mitralPeakVelocityEToARatio.toFixed(2)} | A/v ${(row.summary.profile.aLoopAreaMmHgMl / Math.max(row.summary.profile.vLoopAreaMmHgMl, 1e-9)).toFixed(2)}`,
+    `true lobe ${row.summary.profile.lobeMeasurementStatus}:${row.summary.profile.lobeMeasurementReason} | A/v ${row.summary.profile.aLoopAreaMmHgMl.toFixed(2)} / ${row.summary.profile.vLoopAreaMmHgMl.toFixed(2)} | angle ${row.summary.profile.lobeSelfIntersectionAngleDeg.toFixed(1)} | match ${passFail(row.summary.profile.lobePhaseCrossingMatchPass)}`,
     12,
     "#b8c5d8",
+  ));
+  out.push(text(
+    x + 17,
+    y + h - 32,
+    `legacy phase A/v ${row.summary.profile.legacyPhaseALoopAreaMmHgMl.toFixed(2)} / ${row.summary.profile.legacyPhaseVLoopAreaMmHgMl.toFixed(2)} mmHg mL; diagnostic only`,
+    12,
+    "#94a3b8",
   ));
   out.push(text(
     x + 17,
@@ -117,36 +127,41 @@ function renderPvPanel(
 function renderReadback(out: string[], x: number, y: number, w: number, h: number): void {
   panel(out, x, y, w, h, "Decision readback");
   const passive = report.variants.find((row) => row.variantId === "passive-balance")!;
+  const baseline = report.variants.find((row) => row.variantId === "v1-baseline")!;
   const bracket = report.variants.find((row) =>
     row.variantId === "passive-balance-la-contractility-bracket"
   )!;
+  const window = passive.lateDiastolicWindow;
+  const k0 = report.negativeControlDiagnostics;
   const columns = [
     {
-      title: "Mechanics signal, not model acceptance",
+      title: "Continuous-window mechanics",
       lines: [
-        `M/D/K ${passive.params.avPlane.inertiaNSec2PerCm.toFixed(1)} / ${passive.params.avPlane.dampingNSecPerCm.toFixed(0)} / ${passive.params.avPlane.stiffnessNPerCm.toFixed(0)}`,
-        `quasi-static AVP ${passFail(passive.diastasis.quasiStaticAvPlanePass)}; flow ${pct(passive.diastasis.mitralFlowFractionOfPeak)} peak`,
-        `hydraulic ${passive.diastasis.hydraulicForceN.toFixed(2)} N; spring ${passive.diastasis.springForceN.toFixed(2)} N; residual ${passive.diastasis.quasiStaticResidualN.toFixed(2)} N`,
-        `x gain ${report.comparisons.passiveCandidateXDepthGainMmHg.toFixed(2)} mmHg; AVPD gain ${report.comparisons.passiveCandidateAvpdGainCm.toFixed(2)} cm`,
-        `peak LV active ${report.comparisons.passiveCandidatePeakVentricularActiveForceRatioToV1.toFixed(2)}x V1; input-bracket advisory ${passFail(report.supportingEvidence.activeForceProjectionWithinPublishedInputBracket)}`,
+        `window ${ms(window.durationSec)} / ${window.sampleCount} samples; applicability ${window.applicability}`,
+        `hyd median ${window.hydraulicForceN.median.toFixed(2)} N; spring median ${window.springForceN.median.toFixed(2)} N; opposed ${pct(window.passiveHydraulicOpposedSampleFraction)}`,
+        `u max ${window.velocityAbsCmPerSec.max.toFixed(3)} cm/s; flow max ${pct(window.mitralFlowFractionOfPeak.max)} peak`,
+        `damping/inertial max ${window.dampingForceAbsN.max.toFixed(2)} / ${window.inertialForceAbsN.max.toFixed(2)} N; dyn/hyd p95 ${window.dynamicToHydraulicForceRatio.p95.toFixed(2)}`,
+        `quasi-static ${passFail(window.quasiStaticAvPlanePass)}; mechanics gate ${passFail(report.gates.diastaticPassiveHydraulicOppositionPass)}; best-point role ${passive.diastasis.diagnosticRole}`,
       ],
     },
     {
-      title: "Unresolved normal morphology",
+      title: "True lobe vs legacy phase",
       lines: [
-        `passive E/A ${passive.profile.mitralPeakVelocityEToARatio.toFixed(2)}: ${passFail(report.gates.passiveCandidateMitralWavePass)}`,
-        `passive conduit ordering ${pct(passive.profile.conduitBeforeCrossingBelowReservoirPathFraction)}: ${passFail(report.gates.passiveCandidateBloodVolumeTopologyPass)}`,
-        `T_A=${bracket.params.laWall.activeStressMaxKPa.toFixed(0)} kPa restores E/A ${bracket.profile.mitralPeakVelocityEToARatio.toFixed(2)} but crossing ${bracket.profile.figureEightCrossingPhase}`,
-        `joint physical + PV + MVF gate: ${passFail(report.gates.jointMechanisticCandidatePass)}`,
+        `passive true ${passive.profile.lobeMeasurementStatus}:${passive.profile.lobeMeasurementReason}; crossings ${passive.profile.lobeSelfIntersectionCount}`,
+        `passive true A/v ${passive.profile.aLoopAreaMmHgMl.toFixed(2)} / ${passive.profile.vLoopAreaMmHgMl.toFixed(2)}; legacy ${passive.profile.legacyPhaseALoopAreaMmHgMl.toFixed(2)} / ${passive.profile.legacyPhaseVLoopAreaMmHgMl.toFixed(2)}`,
+        `phase path order ${pct(passive.profile.conduitBeforeCrossingBelowReservoirPathFraction)} / ${pct(passive.profile.pumpingAfterCrossingAboveReservoirPathFraction)}; topology gate ${passFail(report.gates.passiveCandidateBloodVolumeTopologyPass)}`,
+        `T_A=${bracket.params.laWall.activeStressMaxKPa.toFixed(0)} kPa E/A ${bracket.profile.mitralPeakVelocityEToARatio.toFixed(2)} pass, true A/v ${bracket.profile.aLoopAreaMmHgMl.toFixed(2)} / ${bracket.profile.vLoopAreaMmHgMl.toFixed(2)}, crossing ${bracket.profile.figureEightCrossingPhase}`,
+        `joint mechanics + PV + MVF gate: ${passFail(report.gates.jointMechanisticCandidatePass)}`,
       ],
     },
     {
       title: "Boundary and next step",
       lines: [
+        `a-prime ${passive.prime.aPrimeCmPerSec.toFixed(3)} vs V1 ${baseline.prime.aPrimeCmPerSec.toFixed(3)} cm/s; ratio ${report.comparisons.passiveCandidateAPrimeMagnitudeRatioToV1.toFixed(3)}`,
+        `K=0 drift ${k0.k0ClosureDriftMl.toFixed(2)} mL; non-periodic ${passFail(k0.k0NonPeriodicPass)}; solver failure ${passFail(k0.k0SolverFailureObserved)}`,
         `normal/dt/envelope numerics ${passFail(report.envelopeDiagnostics.allNumerical)}; topology ${report.envelopeDiagnostics.morphologyPassCount}/${report.envelopeDiagnostics.caseCount}`,
         `neutral shift changes LA midpoint ${report.comparisons.neutralShiftLaVolumeMidpointChangeMl.toFixed(1)} mL with <=${pct(report.comparisons.neutralShiftShapeMaxRelativeDifference)} shape drift`,
-        "absolute chamber volume and AV-plane coordinate data are needed to identify z0",
-        "test valve/receiver loading in full circulation before adding any state",
+        "PV floors are engineering anti-degeneracy diagnostics; force brackets are literature input context",
       ],
     },
   ];
@@ -258,6 +273,20 @@ function mark(
   out.push(`<circle cx="${sx(sample.laVolumeMl)}" cy="${sy(sample.laPressureMmHg)}" r="4" fill="${color}" stroke="#08111f" stroke-width="2"/>`);
 }
 
+function markCross(
+  out: string[],
+  laVolumeMl: number,
+  laPressureMmHg: number,
+  sx: (value: number) => number,
+  sy: (value: number) => number,
+  index: number,
+): void {
+  const cx = sx(laVolumeMl);
+  const cy = sy(laPressureMmHg);
+  out.push(`<circle cx="${cx}" cy="${cy}" r="6" fill="none" stroke="#f43f5e" stroke-width="2"/>`);
+  out.push(text(cx + 8, cy - 8, `x${index}`, 10, "#f43f5e", 700));
+}
+
 function nearest(values: readonly MechanisticAtrialSampleV1[], theta: number) {
   return values.reduce((best, sample) =>
     Math.abs(sample.theta - theta) < Math.abs(best.theta - theta) ? sample : best
@@ -289,6 +318,10 @@ function text(x: number, y: number, value: string, size: number, fill: string, w
 
 function pct(value: number): string {
   return `${(100 * value).toFixed(1)}%`;
+}
+
+function ms(valueSec: number): string {
+  return `${Math.round(valueSec * 1000)} ms`;
 }
 
 function passFail(value: boolean): "pass" | "fail" {

@@ -8,7 +8,9 @@ V2 asks one narrow question: can the V1 shared AV-plane be changed from a dampin
 
 The answer is mixed.
 
-- The candidate reproduces AV-plane displacement and velocity more plausibly, deepens the x descent, and makes passive tension oppose the measured-order diastatic hydraulic force.
+- The candidate reproduces AV-plane displacement and velocity more plausibly,
+  deepens the x descent, and shows passive/hydraulic opposition at the legacy
+  best point and in the median continuous-window readback.
 - It remains conservative, periodic, and numerically converged across the tested left-heart envelope.
 - It does not preserve the required blood-volume PV ordering and normal mitral E/A simultaneously.
 - Increasing the physiologic LA contractility parameter restores E/A, but moves the PV intersection outside the preferred late-conduit/early-pumping window.
@@ -320,18 +322,28 @@ Therefore:
 | s-prime (cm/s) | 3.18 | 9.46 | 9.68 |
 | e-prime (cm/s) | 1.23 | 6.95 | 7.09 |
 | a-prime (cm/s) | 1.14 | 0.16 | 0.25 |
+| a-prime ratio to V1 | 1.00 | 0.136 | 0.222 |
 | x descent (mmHg) | 1.88 | 5.98 | 6.84 |
 | y descent (mmHg) | 2.43 | 3.94 | 3.76 |
 | MV peak E/A | 1.39 | 2.75 | 1.84 |
-| A-loop area (mmHg mL) | 7.13 | 5.01 | 19.52 |
-| v-loop area (mmHg mL) | 10.55 | 47.47 | 74.11 |
-| A/v area ratio | 0.68 | 0.11 | 0.26 |
+| true-lobe status | measurable | not-measurable: multiple-self-intersections | measurable |
+| true A-loop area (mmHg mL) | 8.43 | 0 | 94.13 |
+| true v-loop area (mmHg mL) | 11.84 | 0 | 0.51 |
+| legacy phase A/v area (mmHg mL) | 7.13 / 10.55 | 5.01 / 47.47 | 19.52 / 74.11 |
 | conduit below reservoir before crossing | 1.00 | 0.58 | 1.00 only before an early crossing |
 | selected crossing | late conduit | late conduit | outside preferred window |
 
-The passive candidate improves the x trough and AV-plane kinematics, but its conduit path crosses too early/often relative to the reservoir envelope and its A wave is too small. The LA-contractility bracket restores E/A and A-loop area, but the interior crossing becomes early-conduit rather than late-conduit/early-pumping.
+The passive candidate improves the x trough and AV-plane kinematics, but its
+true-lobe detector is not measurable because the blood-volume PV curve has three
+topological crossings. The reported 5.01 / 47.47 mmHg mL areas are legacy
+phase-slice diagnostics only. The LA-contractility bracket restores E/A and
+large true A-loop area, but the true v lobe collapses below the shared area
+floor and the phase crossing is outside the preferred late-conduit/early-pumping
+window.
 
-The passive candidate's selected late-diastolic sample satisfies the declared quasi-static AV-plane criteria:
+The passive candidate's best-point late-diastolic readback is retained only as a
+legacy diagnostic (`diagnosticRole = legacy-best-point-not-acceptance`). It is a
+single selected sample, not the acceptance result. At that point:
 
 \[
 |u_{AV}|=0.074\ \mathrm{cm/s}\le0.1,
@@ -363,7 +375,20 @@ r_{quasi}=0.341\ \mathrm N,
 r_F\approx0\ \mathrm N.
 \]
 
-This satisfies the intended force-direction experiment under explicit sidecar thresholds. Those thresholds classify a near-static model sample; they are not claimed as clinical normal limits and do not validate the entire model.
+This explains the retained legacy force-direction diagnostic only. It is not
+the mechanics acceptance result, and those point thresholds are not claimed as
+clinical normal limits.
+
+The predeclared continuous late-diastolic window is the current mechanics
+readback. For the passive candidate it spans 36 ms, from theta 0.73625 to 0.78,
+with 36 samples. It preserves the median passive/hydraulic opposition signal
+(`F_hyd` median -1.336882 N, `F_K` median +1.572385 N, opposed fraction 1.0)
+and the median hydraulic magnitude remains inside the 1-3 N engineering window.
+However it fails the quasi-static/dynamic criteria: max AV-plane speed
+0.241005 cm/s, max mitral-flow fraction 0.115926, max damping force 1.928040 N,
+max inertial force 1.943365 N, and dynamic-to-hydraulic p95 2.842629 all exceed
+their predeclared limits. The quasi-static residual itself remains bounded
+(max 0.340888 N), but the continuous-window mechanics gate is false.
 
 ## 10. Passive-neutral identifiability
 
@@ -377,7 +402,13 @@ changes the periodic LA blood-volume midpoint by approximately 26.0 mL while the
 
 The closed sidecar can redistribute blood volume and shift the absolute AV-plane orbit to compensate for `z_p`. Thus `z_p` is weakly identifiable from normalized PV morphology alone. It must not be fitted from loop shape. It needs absolute chamber-volume and AV-plane-coordinate measurements, with a declared anatomical origin.
 
-The `K=0` control is non-periodic and develops coordinate drift. This shows that the current sidecar needs a restoring constraint, but it does not prove that a linear spring with `K=80 N/cm` is the correct biological representation.
+The `K=0` control is non-periodic and develops actual state drift. Its LV
+cycle-closure drift is -31.743823 mL, the retained absolute drift diagnostic is
+31.743823 mL, all-steps convergence is false, solver failure is observed,
+`maxAbsAvPlaneForceResidualN` is 107.407479, and `maxNonlinearResidual` is
+81861.492674. This shows that the current sidecar needs a restoring constraint,
+but it does not prove that a linear spring with `K=80 N/cm` is the correct
+biological representation.
 
 ## 11. Calibration and envelope evidence
 
@@ -399,7 +430,18 @@ K\in\{60,70,80\},
 T_{A,max}\in\{8,10,12,14,16,18\}\ \mathrm{kPa}.
 \]
 
-Acceptance is the intersection of independently stated gates: periodic numerics, blood-volume figure-eight location and ordering, peak E/A 0.69-2.07, AVPD 0.5-1.8 cm, finite lobe areas, strictly opposed passive/hydraulic forces with `|F_K| >= 0.5 N` and `1 <= |F_hyd| <= 3 N`, the quasi-static AV-plane criteria above, and a bounded quasi-static residual.
+Acceptance is the intersection of shared, independently stated gates: periodic
+numerics and conservation; observation readbacks for AVPD, s-prime, e-prime,
+x-depth gain, non-collapse, a-prime non-collapse, and LA pressure sanity; the
+predeclared continuous late-diastolic mechanics window; true blood-volume lobe
+measurement with opposed orientation, phase-crossing coordinate match, true-lobe
+area floors, angle floor, and 95% path-ordering floors; and the fixed-open-area
+bulk MV E/A gate. The PV thresholds are explicitly tagged
+`engineering-anti-degeneracy-diagnostic-not-clinical-cutoff`; the continuous
+mechanics window is tagged
+`engineering-late-diastolic-mechanics-window-not-literature-normal-range`; the
+published active-force comparison is non-blocking model-input context, not an
+in-vivo reference interval.
 
 The joint candidate count is zero. The stored ranking score only orders rows for review; it is not an acceptance objective and is not used to fit a loop shape.
 
@@ -419,7 +461,9 @@ Hard evidence:
 
 Comparative mechanistic evidence:
 
-- sign and magnitude of hydraulic/passive forces at a threshold-qualified quasi-static late-diastolic point;
+- sign and magnitude of hydraulic/passive forces across the predeclared
+  continuous late-diastolic window; the old best-point sample is legacy-only and
+  not an acceptance result;
 - AVPD and prime readbacks;
 - x/y/v wave prominence;
 - K=0 and neutral-shift controls;
@@ -427,7 +471,8 @@ Comparative mechanistic evidence:
 
 Normal morphology evidence, currently failed:
 
-- blood-volume figure-eight intersection in late conduit or early pumping;
+- exactly one measurable true-lobe blood-volume self-intersection whose
+  coordinate matches the legacy phase-crossing coordinate;
 - conduit below reservoir before crossing;
 - pumping above reservoir after crossing;
 - opposed, non-degenerate A and v lobe areas;

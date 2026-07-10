@@ -30,6 +30,10 @@
 <text x="692.8070193284591" y="417.7912617404434" fill="#60a5fa" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">v</text>
 <circle cx="519.965305742491" cy="689.5172413793103" r="5" fill="#fb923c" stroke="#08111f" stroke-width="2"/>
 <text x="527.965305742491" y="707.5172413793103" fill="#fb923c" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">y</text>
+<circle cx="399.50042187841507" cy="514.6470999111683" r="6" fill="none" stroke="#f43f5e" stroke-width="2.5"/>
+<line x1="392.50042187841507" y1="514.6470999111683" x2="406.50042187841507" y2="514.6470999111683" stroke="#f43f5e" stroke-width="2"/>
+<line x1="399.50042187841507" y1="507.6470999111683" x2="399.50042187841507" y2="521.6470999111683" stroke="#f43f5e" stroke-width="2"/>
+<text x="409.50042187841507" y="498.6470999111683" fill="#f43f5e" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">true lobe x</text>
 <text x="435" y="759" text-anchor="middle" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="13">V_LA,blood (mL)</text>
 <text x="53" y="449" transform="rotate(-90 53 449)" text-anchor="middle" fill="#94a3b8" font-family="Inter,Arial,sans-serif" font-size="13">P_LA (mmHg)</text>
 <line x1="388" y1="149" x2="410" y2="149" stroke="#60a5fa" stroke-width="4"/>
@@ -89,18 +93,18 @@
 <text x="56" y="917" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">CO 3.01 L/min; SV 40.1 mL; AVPD 0.53 cm</text>
 <text x="56" y="945" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">x 1.88 mmHg; v-rise 0.98; y 2.43</text>
 <text x="56" y="973" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">conduit 24.5 mL (61.0% of SV)</text>
-<text x="56" y="1001" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">A/v 0.676; opposed pass; reverse MV/Ao 0.15/0.41 mL</text>
+<text x="56" y="1001" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">A/v 0.712; opposed pass; reverse MV/Ao 0.15/0.41 mL</text>
 <text x="518.6666666666667" y="863" fill="#e2e8f0" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">MVF evidence</text>
 <text x="518.6666666666667" y="889" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">fusion separated; applicability applicable</text>
-<text x="518.6666666666667" y="917" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">peak E/A 1.39; E-VTI/A-VTI 2.53; AFF 28.3%</text>
+<text x="518.6666666666667" y="917" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">peak E/A 1.39; E-VTI/A-VTI 2.64; AFF 27.5%</text>
 <text x="518.6666666666667" y="945" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">DT 164 ms; diastasis 168 ms; E-at-A 13.0 cm/s</text>
 <text x="518.6666666666667" y="973" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">gates fusion pass; peak pass; AFF pass; DT pass</text>
 <text x="518.6666666666667" y="1001" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">hard pass; support pass; fixed-area bulk surrogate</text>
-<text x="981.3333333333334" y="863" fill="#e2e8f0" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">Topology and continuity</text>
-<text x="981.3333333333334" y="889" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">selected crossing late-conduit at 93.2% path; 53.3 deg</text>
-<text x="981.3333333333334" y="917" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">pre-cross conduit below reservoir 100.0%</text>
-<text x="981.3333333333334" y="945" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">post-cross pumping above reservoir 100.0%</text>
-<text x="981.3333333333334" y="973" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">pumping chord 100.0%; min margin 0.34 mmHg</text>
-<text x="981.3333333333334" y="1001" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">single-dt tangent diagnostic MVC 0.020 / MVO 0.416; figure-eight gate pass</text>
+<text x="981.3333333333334" y="863" fill="#e2e8f0" font-family="Inter,Arial,sans-serif" font-size="13" font-weight="700">True-lobe topology</text>
+<text x="981.3333333333334" y="889" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">status measurable; crossings 1</text>
+<text x="981.3333333333334" y="917" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">A/v 8.43 / 11.84; opposed pass</text>
+<text x="981.3333333333334" y="945" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">angle 58.1 deg; match pass d=0.000</text>
+<text x="981.3333333333334" y="973" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">legacy A/v 7.13 / 10.55</text>
+<text x="981.3333333333334" y="1001" fill="#b8c5d8" font-family="Inter,Arial,sans-serif" font-size="13">phase late-conduit 93.2%; gate pass</text>
 <text x="38" y="1088" fill="#64748b" font-family="Inter,Arial,sans-serif" font-size="12">Generated from mechanistic-atrial-one-fiber-report-v1 | all ten implicit equations converged | closed-circuit volume conserved | periodic beat 12</text>
 </svg>
