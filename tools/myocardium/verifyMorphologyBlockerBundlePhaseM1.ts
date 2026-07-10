@@ -33,7 +33,7 @@ const VERIFIER_PATH = "tools/myocardium/verifyMorphologyBlockerBundlePhaseM1.ts"
 const MORPHOLOGY_RUNNER_PATH = "tools/myocardium/verifyPvLoopMorphologyQuality.ts";
 const README_PATH = "docs/myocardium/README.md";
 const MORPHOLOGY_README_PATH = "docs/myocardium/morphology/README.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PACKAGE_PATH = "package.json";
 const BASE_COMMIT = "503d6555f4ff46cf677abcc620dd939580efa238";
 const EXPECTED_CASE_IDS = [
@@ -366,7 +366,7 @@ function validateSourceText(rootDir: string, errors: MorphologyBlockerBundlePhas
     readRequiredText(rootDir, MORPHOLOGY_RUNNER_PATH, errors),
     readRequiredText(rootDir, README_PATH, errors),
     readRequiredText(rootDir, MORPHOLOGY_README_PATH, errors),
-    readRequiredText(rootDir, CURRENT_LANES_PATH, errors),
+    readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors),
     readRequiredText(rootDir, PACKAGE_PATH, errors),
   ];
   for (const file of files) {
@@ -376,7 +376,7 @@ function validateSourceText(rootDir: string, errors: MorphologyBlockerBundlePhas
       file.path === RESULT_ARTIFACT_PATH
       || file.path === README_PATH
       || file.path === MORPHOLOGY_README_PATH
-      || file.path === CURRENT_LANES_PATH
+      || file.path === HISTORICAL_LANES_PATH
     ) {
       validateNoForbiddenPositiveClaims(
         file.path,
@@ -404,7 +404,7 @@ function validateSourceText(rootDir: string, errors: MorphologyBlockerBundlePhas
   }
   const readmeText = files.find((file) => file?.path === README_PATH)?.text ?? "";
   const morphologyReadmeText = files.find((file) => file?.path === MORPHOLOGY_README_PATH)?.text ?? "";
-  const lanesText = files.find((file) => file?.path === CURRENT_LANES_PATH)?.text ?? "";
+  const lanesText = files.find((file) => file?.path === HISTORICAL_LANES_PATH)?.text ?? "";
   if (
     !readmeText.includes("Phase M1")
     || !morphologyReadmeText.includes("Phase M1")

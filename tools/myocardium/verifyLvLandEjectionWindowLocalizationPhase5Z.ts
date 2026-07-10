@@ -35,7 +35,7 @@ const VERIFIER_PATH = "tools/myocardium/verifyLvLandEjectionWindowLocalizationPh
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
 const MORPHOLOGY_README_PATH = "docs/myocardium/morphology/README.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PACKAGE_PATH = "package.json";
 const EXPECTED_MODEL_PATH_IDS = ["stock-active-no-provider-v0", "developer-only-lv-land-v0"] as const;
 const EXPECTED_POINT_IDS = [
@@ -403,7 +403,7 @@ function validateSourceText(
     readRequiredText(rootDir, README_PATH, errors),
     readRequiredText(rootDir, ROADMAP_PATH, errors),
     readRequiredText(rootDir, MORPHOLOGY_README_PATH, errors),
-    readRequiredText(rootDir, CURRENT_LANES_PATH, errors),
+    readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors),
     readRequiredText(rootDir, PACKAGE_PATH, errors),
   ];
   for (const file of files) {
@@ -414,7 +414,7 @@ function validateSourceText(
   const readmeText = textFor(files, README_PATH);
   const roadmapText = textFor(files, ROADMAP_PATH);
   const morphologyText = textFor(files, MORPHOLOGY_README_PATH);
-  const lanesText = textFor(files, CURRENT_LANES_PATH);
+  const lanesText = textFor(files, HISTORICAL_LANES_PATH);
   if (
     !builderText.includes("qao-high-core-50")
     || !builderText.includes("classifier-window-denominator-amplification-dominant")

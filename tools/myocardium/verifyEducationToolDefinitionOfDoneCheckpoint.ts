@@ -26,7 +26,7 @@ const RESULT_ARTIFACT_PATH =
 const BUILDER_PATH = "tools/myocardium/buildEducationToolDefinitionOfDoneCheckpoint.ts";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const STUDIO_ROADMAP_PATH = "docs/studio/roadmap/mvp-roadmap.md";
 
 export function validateEducationToolDefinitionOfDoneCheckpoint(rootDir = process.cwd()):
@@ -250,7 +250,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const builderText = readRequiredText(rootDir, BUILDER_PATH, errors);
   const readmeText = readRequiredText(rootDir, README_PATH, errors);
   const roadmapText = readRequiredText(rootDir, ROADMAP_PATH, errors);
-  const lanesText = readRequiredText(rootDir, CURRENT_LANES_PATH, errors);
+  const lanesText = readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors);
   const studioRoadmapText = readRequiredText(rootDir, STUDIO_ROADMAP_PATH, errors);
   const packageText = readRequiredText(rootDir, "package.json", errors);
 
@@ -285,7 +285,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
       || !lanesText.includes("owner-review-ready-not-accepted")
       || !lanesText.includes("developer-only LV Land runtime-flag design RFC"))
   ) {
-    addIssue(errors, "phase5t_current_lanes", CURRENT_LANES_PATH, "Current lanes must point from Phase 5T to the developer-only runtime-flag RFC decision.");
+    addIssue(errors, "phase5t_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must point from Phase 5T to the developer-only runtime-flag RFC decision.");
   }
   if (
     studioRoadmapText

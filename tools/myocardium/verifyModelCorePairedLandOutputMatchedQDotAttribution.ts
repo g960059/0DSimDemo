@@ -32,7 +32,7 @@ const BUILDER_PATH =
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
 const ROUTE_DOC_PATH = "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 
 export function validateModelCorePairedLandOutputMatchedQDotAttribution(rootDir = process.cwd()):
 ModelCorePairedLandOutputMatchedQDotAttributionValidationReport {
@@ -232,7 +232,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const readmeText = readOptionalText(rootDir, README_PATH);
   const roadmapText = readOptionalText(rootDir, ROADMAP_PATH);
   const routeDocText = readOptionalText(rootDir, ROUTE_DOC_PATH);
-  const lanesText = readOptionalText(rootDir, CURRENT_LANES_PATH);
+  const lanesText = readOptionalText(rootDir, HISTORICAL_LANES_PATH);
   const packageText = readOptionalText(rootDir, "package.json");
   if (
     !builderText.includes("predeclared-diagnostic-grid-not-accepted-tuning")
@@ -253,7 +253,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
     addIssue(errors, "phase5n_route_doc", ROUTE_DOC_PATH, "Route gate doc must keep the Phase 5C-N boundary visible.");
   }
   if (lanesText && !lanesText.includes("output-match not-overlapped")) {
-    addIssue(errors, "phase5n_current_lanes", CURRENT_LANES_PATH, "Current lanes must show the Phase 5C-N output-match result as still unresolved for structural attribution.");
+    addIssue(errors, "phase5n_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must show the Phase 5C-N output-match result as still unresolved for structural attribution.");
   }
   if (packageText && !packageText.includes("verify:myocardium-modelcore-paired-land-output-matched-qdot-attribution")) {
     addIssue(errors, "phase5n_package_script", "package.json", "package.json must expose the Phase 5C-N verifier script.");

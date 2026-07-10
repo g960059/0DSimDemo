@@ -26,7 +26,7 @@ const RESULT_ARTIFACT_PATH = "data/myocardium/protocols/modelcore-land-operating
 const BUILDER_PATH = "tools/myocardium/buildModelCoreLandOperatingPointCalibrationEvidence.ts";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const EXPECTED_DELTAS = [-1250, 0, 1000] as const;
 const MAIN_DOMAIN_DELTAS = [0, 1000] as const;
 
@@ -293,7 +293,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const builderText = readFileSync(path.join(rootDir, BUILDER_PATH), "utf8");
   const readmeText = readOptionalText(rootDir, README_PATH);
   const roadmapText = readOptionalText(rootDir, ROADMAP_PATH);
-  const lanesText = readOptionalText(rootDir, CURRENT_LANES_PATH);
+  const lanesText = readOptionalText(rootDir, HISTORICAL_LANES_PATH);
   const packageText = readOptionalText(rootDir, "package.json");
   if (
     !builderText.includes("operating-point-calibration-diagnostic-only")
@@ -310,7 +310,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
     addIssue(errors, "phase5s_roadmap", ROADMAP_PATH, "Roadmap must record the Phase 5S education DoD checkpoint.");
   }
   if (lanesText && (!lanesText.includes("Phase 5S") || !lanesText.includes("operating-point"))) {
-    addIssue(errors, "phase5s_current_lanes", CURRENT_LANES_PATH, "Current lanes must show the Phase 5S operating-point result and next owner-review direction.");
+    addIssue(errors, "phase5s_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must show the Phase 5S operating-point result and next owner-review direction.");
   }
   if (packageText && !packageText.includes("verify:myocardium-modelcore-land-operating-point-calibration")) {
     addIssue(errors, "phase5s_package_script", "package.json", "package.json must expose the Phase 5S verifier script.");

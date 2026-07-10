@@ -33,7 +33,7 @@ const SOURCE_LOCALIZATION_PATH =
   "data/myocardium/protocols/atrial-bridge-blocker-localization-phase5p5b-result-v1.json";
 const BUILDER_PATH = "tools/myocardium/buildAtrialBridgeHighHrRuntimeBaseline.ts";
 const PACKAGE_PATH = "package.json";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/atrial-bridge-shootout-roadmap.md";
 const DECISION_PATH = "data/myocardium/decisions/atrial-bridge-decision21-phase6-selection-v1.json";
@@ -254,13 +254,13 @@ function validateSourceText(rootDir: string, errors: AtrialBridgeRuntimeBaseline
 }
 
 function validateDocs(rootDir: string, errors: AtrialBridgeRuntimeBaselineValidationIssue[]): void {
-  const currentLanes = readOptional(rootDir, CURRENT_LANES_PATH);
+  const currentLanes = readOptional(rootDir, HISTORICAL_LANES_PATH);
   if (
     !currentLanes.includes("Phase 5.5C")
     || !currentLanes.includes("runtime-boundary-likely")
     || !currentLanes.includes("stock active no-provider")
   ) {
-    addIssue(errors, "phase5p5c_current_lanes", CURRENT_LANES_PATH, "Current lanes must record Phase 5.5C runtime-boundary baseline evidence.");
+    addIssue(errors, "phase5p5c_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must record Phase 5.5C runtime-boundary baseline evidence.");
   }
   const readme = readOptional(rootDir, README_PATH);
   if (!readme.includes("Phase 5.5C") || !readme.includes("runtime-boundary")) {

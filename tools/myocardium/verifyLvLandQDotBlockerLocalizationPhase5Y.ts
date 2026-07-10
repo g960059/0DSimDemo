@@ -35,7 +35,7 @@ const VERIFIER_PATH = "tools/myocardium/verifyLvLandQDotBlockerLocalizationPhase
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
 const MORPHOLOGY_README_PATH = "docs/myocardium/morphology/README.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PACKAGE_PATH = "package.json";
 const MODELCORE_PATH = "engine/ModelCore.ts";
 const MORPHOLOGY_RUNNER_PATH = "tools/myocardium/verifyPvLoopMorphologyQuality.ts";
@@ -424,7 +424,7 @@ function validateSourceText(
     readRequiredText(rootDir, README_PATH, errors),
     readRequiredText(rootDir, ROADMAP_PATH, errors),
     readRequiredText(rootDir, MORPHOLOGY_README_PATH, errors),
-    readRequiredText(rootDir, CURRENT_LANES_PATH, errors),
+    readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors),
     readRequiredText(rootDir, PACKAGE_PATH, errors),
     readRequiredText(rootDir, MODELCORE_PATH, errors),
     readRequiredText(rootDir, MORPHOLOGY_RUNNER_PATH, errors),
@@ -437,7 +437,7 @@ function validateSourceText(
   const readmeText = textFor(files, README_PATH);
   const roadmapText = textFor(files, ROADMAP_PATH);
   const morphologyText = textFor(files, MORPHOLOGY_README_PATH);
-  const lanesText = textFor(files, CURRENT_LANES_PATH);
+  const lanesText = textFor(files, HISTORICAL_LANES_PATH);
   const modelCoreText = textFor(files, MODELCORE_PATH);
   const morphologyRunnerText = textFor(files, MORPHOLOGY_RUNNER_PATH);
   if (

@@ -34,7 +34,7 @@ const SOURCE_SHOOTOUT_PATH =
 const BUILDER_PATH = "tools/myocardium/buildAtrialBridgeBlockerLocalization.ts";
 const SHOOTOUT_BUILDER_PATH = "tools/myocardium/buildAtrialBridgeShootout.ts";
 const PACKAGE_PATH = "package.json";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/atrial-bridge-shootout-roadmap.md";
 const DECISION_PATH = "data/myocardium/decisions/atrial-bridge-decision21-phase6-selection-v1.json";
@@ -351,14 +351,14 @@ function validateSourceText(rootDir: string, errors: AtrialBridgeLocalizationVal
 }
 
 function validateDocs(rootDir: string, errors: AtrialBridgeLocalizationValidationIssue[]): void {
-  const currentLanes = readOptional(rootDir, CURRENT_LANES_PATH);
+  const currentLanes = readOptional(rootDir, HISTORICAL_LANES_PATH);
   if (
     !currentLanes.includes("Phase 5.5B")
     || !currentLanes.includes("HR105")
     || !currentLanes.includes("repeatability")
     || !currentLanes.includes("not-supported")
   ) {
-    addIssue(errors, "phase5p5b_current_lanes", CURRENT_LANES_PATH, "Current lanes must record Phase 5.5B blocker localization and updated blocker status.");
+    addIssue(errors, "phase5p5b_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must record Phase 5.5B blocker localization and updated blocker status.");
   }
   const readme = readOptional(rootDir, README_PATH);
   if (!readme.includes("Phase 5.5B") || !readme.includes("blocker localization")) {

@@ -34,7 +34,7 @@ const RESULT_ARTIFACT_PATH =
 const BUILDER_PATH = "tools/myocardium/buildAtrialBridgeShootout.ts";
 const VERIFIER_PATH = "tools/myocardium/verifyAtrialBridgeShootout.ts";
 const PACKAGE_PATH = "package.json";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/atrial-bridge-shootout-roadmap.md";
 const DECISION_PATH = "data/myocardium/decisions/atrial-bridge-decision21-phase6-selection-v1.json";
@@ -331,14 +331,14 @@ function validateSourceText(rootDir: string, errors: AtrialBridgeShootoutValidat
 }
 
 function validateDocs(rootDir: string, errors: AtrialBridgeShootoutValidationIssue[]): void {
-  const currentLanes = readOptional(rootDir, CURRENT_LANES_PATH);
+  const currentLanes = readOptional(rootDir, HISTORICAL_LANES_PATH);
   if (
     !currentLanes.includes("Phase 5.5")
     || !currentLanes.includes("atrial bridge shootout")
     || !currentLanes.includes("high-HR")
     || !currentLanes.includes("owner selection remains pending")
   ) {
-    addIssue(errors, "phase5p5_current_lanes", CURRENT_LANES_PATH, "Current lanes must record measured atrial shootout evidence and the high-HR/owner-selection blocker.");
+    addIssue(errors, "phase5p5_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must record measured atrial shootout evidence and the high-HR/owner-selection blocker.");
   }
   const readme = readOptional(rootDir, README_PATH);
   if (!readme.includes("Phase 5.5") || !readme.includes("A1") || !readme.includes("high-HR")) {

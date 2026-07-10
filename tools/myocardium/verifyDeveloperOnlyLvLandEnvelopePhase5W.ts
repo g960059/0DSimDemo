@@ -32,7 +32,7 @@ const VERIFIER_PATH = "tools/myocardium/verifyDeveloperOnlyLvLandEnvelopePhase5W
 const HELPER_PATH = "tools/myocardium/modelCoreDeveloperOnlyLandRuntimeFlag.ts";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PACKAGE_PATH = "package.json";
 const EXPECTED_POINT_IDS = [
   "hr75-tbv4350-low-edge",
@@ -319,7 +319,7 @@ function validateSourceText(rootDir: string, errors: DeveloperOnlyLvLandEnvelope
   const packageText = readRequiredText(rootDir, PACKAGE_PATH, errors);
   const readmeText = readRequiredText(rootDir, README_PATH, errors);
   const roadmapText = readRequiredText(rootDir, ROADMAP_PATH, errors);
-  const lanesText = readRequiredText(rootDir, CURRENT_LANES_PATH, errors);
+  const lanesText = readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors);
 
   if (
     builderText
@@ -350,7 +350,7 @@ function validateSourceText(rootDir: string, errors: DeveloperOnlyLvLandEnvelope
     addIssue(errors, "phase5w_roadmap", ROADMAP_PATH, "Roadmap must record Phase 5W and keep production replacement blocked.");
   }
   if (lanesText && (!lanesText.includes("Phase 5W") || !lanesText.includes("developer-only LV Land envelope"))) {
-    addIssue(errors, "phase5w_current_lanes", CURRENT_LANES_PATH, "Current lanes must advance myocardium from Phase 5V to Phase 5W envelope evidence.");
+    addIssue(errors, "phase5w_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must advance myocardium from Phase 5V to Phase 5W envelope evidence.");
   }
 }
 

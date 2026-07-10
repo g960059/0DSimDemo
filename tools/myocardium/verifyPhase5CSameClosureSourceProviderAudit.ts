@@ -29,6 +29,8 @@ const PHASE5C_E_ENTRY_GATE_VERIFIER_PATH =
   "tools/myocardium/verifyPhase5CPostFidelityEntryGate.ts";
 const PHASE5C_E_ENTRY_GATE_TEST_PATH =
   "__tests__/myocardiumPhase5CPostFidelityEntryGate.test.ts";
+const HISTORICAL_CURRENT_LANES_PATH =
+  "docs/status/archive/current-lanes-through-2026-07-10.md";
 
 export type ValidationSeverity = "error" | "warning";
 
@@ -520,7 +522,7 @@ export async function loadPhase5CSameClosureSourceProviderAuditValidationInput(
       readTextFile(rootDir, MODELCORE_EQUIVALENT_CLOSURE_PATH),
       readTextFile(rootDir, PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH),
       readTextFile(rootDir, "docs/myocardium/review-notes/phase5c-positive-control-no-go-analysis.md"),
-      readTextFile(rootDir, "docs/status/current-lanes.md"),
+      readTextFile(rootDir, HISTORICAL_CURRENT_LANES_PATH),
       readTextFile(rootDir, "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md"),
       readTextFile(rootDir, "docs/myocardium/README.md"),
     ],
@@ -992,7 +994,7 @@ function validateSourceFiles(sourceFiles: readonly TextFileInput[], issues: Vali
     MODELCORE_EQUIVALENT_CLOSURE_PATH,
     PHASE5C_D_FIDELITY_AUDIT_EVIDENCE_PATH,
     "docs/myocardium/review-notes/phase5c-positive-control-no-go-analysis.md",
-    "docs/status/current-lanes.md",
+    HISTORICAL_CURRENT_LANES_PATH,
     "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md",
     "docs/myocardium/README.md",
   ] as const;
@@ -1023,7 +1025,7 @@ function validateSourceFiles(sourceFiles: readonly TextFileInput[], issues: Vali
     validateNoAffirmativeBoundaryProse(file.path, normalizeWhitespace(getPhase5CGBoundaryText(file)), issues);
   }
 
-  const currentLanes = sourceFiles.find((file) => file.path === "docs/status/current-lanes.md");
+  const currentLanes = sourceFiles.find((file) => file.path === HISTORICAL_CURRENT_LANES_PATH);
   const keepsOldModelCoreRouteVisible = currentLanes?.text.includes("ModelCore-equivalent positive-control closure route") === true;
   const keepsForwardPartialRouteVisible =
     currentLanes?.text.includes("experimental ModelCore source-provider hook") === true

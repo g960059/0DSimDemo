@@ -1,4 +1,0 @@
-interface:
-  display_name: "0DSimDemo Myocardium Lead"
-  short_description: "Lead workflow for myocardium PR phases"
-  default_prompt: "Use $0dsimdemo-myocardium-lead to run the next myocardium phase with the established lead workflow."

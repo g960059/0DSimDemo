@@ -34,7 +34,7 @@ const PROVIDER_PATH = "tools/myocardium/modelCoreLand2017LvSourceProvider.ts";
 const ENGINE_PROVIDER_PATH = "engine/myocardium/modelCoreLand2017LvSourceProvider.ts";
 const BUILDER_PATH = "tools/myocardium/buildModelCorePairedLandSourceProviderEvidence.ts";
 const ROUTE_DOC_PATH = "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 
 export function validateModelCorePairedLandSourceProvider(rootDir = process.cwd()):
 ModelCorePairedLandSourceProviderValidationReport {
@@ -291,7 +291,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const providerText = engineProviderText ?? readFileSync(path.join(rootDir, PROVIDER_PATH), "utf8");
   const builderText = readFileSync(path.join(rootDir, BUILDER_PATH), "utf8");
   const routeDocText = readOptionalText(rootDir, ROUTE_DOC_PATH);
-  const currentLanesText = readOptionalText(rootDir, CURRENT_LANES_PATH);
+  const currentLanesText = readOptionalText(rootDir, HISTORICAL_LANES_PATH);
   if (
     !providerText.includes("initialProviderState")
     || !providerText.includes("cloneProviderState")
@@ -318,7 +318,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
     addIssue(errors, "phase5l_route_doc", ROUTE_DOC_PATH, "Route doc must record the paired Land source-provider run result boundary.");
   }
   if (currentLanesText && !currentLanesText.includes("paired Land source-provider")) {
-    addIssue(errors, "phase5l_current_lanes", CURRENT_LANES_PATH, "Current lanes must keep the paired Land source-provider run visible.");
+    addIssue(errors, "phase5l_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must keep the paired Land source-provider run visible.");
   }
 }
 

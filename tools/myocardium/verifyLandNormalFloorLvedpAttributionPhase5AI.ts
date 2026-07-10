@@ -34,7 +34,7 @@ const VERIFIER_PATH = "tools/myocardium/verifyLandNormalFloorLvedpAttributionPha
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
 const MORPHOLOGY_README_PATH = "docs/myocardium/morphology/README.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PACKAGE_PATH = "package.json";
 
 const EXPECTED_DOES_NOT_UNLOCK = [
@@ -327,7 +327,7 @@ function validateSourceText(
     readRequiredText(rootDir, README_PATH, errors),
     readRequiredText(rootDir, ROADMAP_PATH, errors),
     readRequiredText(rootDir, MORPHOLOGY_README_PATH, errors),
-    readRequiredText(rootDir, CURRENT_LANES_PATH, errors),
+    readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors),
     readRequiredText(rootDir, PACKAGE_PATH, errors),
   ];
   for (const file of files) {
@@ -338,7 +338,7 @@ function validateSourceText(
   const readmeText = textFor(files, README_PATH);
   const roadmapText = textFor(files, ROADMAP_PATH);
   const morphologyText = textFor(files, MORPHOLOGY_README_PATH);
-  const currentLanesText = textFor(files, CURRENT_LANES_PATH);
+  const currentLanesText = textFor(files, HISTORICAL_LANES_PATH);
 
   if (
     !builderText.includes("land-normal-floor-lvedp-attribution-diagnostic-only")
@@ -371,7 +371,7 @@ function validateSourceText(
     "passive-proxy",
     "not morphology acceptance",
   ]);
-  validateDocText(CURRENT_LANES_PATH, currentLanesText, errors, [
+  validateDocText(HISTORICAL_LANES_PATH, currentLanesText, errors, [
     "Phase 5AI",
     "land-normal-floor-lvedp-attribution-phase5ai-result-v1",
     "bounded-small-lvedp-excess-diagnostic-only",

@@ -32,7 +32,7 @@ const HELPER_PATH = "tools/myocardium/modelCoreDeveloperOnlyLandRuntimeFlag.ts";
 const VERIFIER_PATH = "tools/myocardium/verifyDeveloperOnlyLvLandRuntimeFlagSuite.ts";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
-const CURRENT_LANES_PATH = "docs/status/current-lanes.md";
+const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PRODUCTION_TARGET_PATHS = [
   "caseCloud.ts",
   "caseDoc.ts",
@@ -298,7 +298,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const verifierText = readRequiredText(rootDir, VERIFIER_PATH, errors);
   const readmeText = readRequiredText(rootDir, README_PATH, errors);
   const roadmapText = readRequiredText(rootDir, ROADMAP_PATH, errors);
-  const lanesText = readRequiredText(rootDir, CURRENT_LANES_PATH, errors);
+  const lanesText = readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors);
   const packageText = readRequiredText(rootDir, "package.json", errors);
 
   if (
@@ -344,7 +344,7 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
       || !lanesText.includes("developer-only measured operating suite")
       || !lanesText.includes("static/mock"))
   ) {
-    addIssue(errors, "phase5v_current_lanes", CURRENT_LANES_PATH, "Current lanes must advance from Phase 5V measurement toward static/mock education UX or further developer-only envelopes.");
+    addIssue(errors, "phase5v_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must advance from Phase 5V measurement toward static/mock education UX or further developer-only envelopes.");
   }
   if (packageText && !packageText.includes("verify:myocardium-developer-only-lv-land-runtime-flag-suite")) {
     addIssue(errors, "phase5v_package_script", "package.json", "package.json must expose the Phase 5V verifier script.");
