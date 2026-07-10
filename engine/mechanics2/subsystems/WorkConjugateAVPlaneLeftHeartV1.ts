@@ -154,7 +154,10 @@ export type WorkConjugateAVPlaneLeftHeartOutputV1 = {
   readonly pressureArea: WorkConjugateAVPlaneLeftHeartPressureAreaReadbackV1;
   readonly avForce: WorkConjugateAVPlaneLeftHeartForceReadbackV1;
   readonly power: WorkConjugateAVPlaneLeftHeartPowerReadbackV1;
+  /** Numeric finiteness only; this does not imply wall validity or solver convergence. */
   readonly allFinite: boolean;
+  /** True only when all numeric values are finite, both walls are valid, and the solve converged. */
+  readonly acceptedStep: boolean;
 };
 
 type EvaluatedSystem = {
@@ -273,6 +276,7 @@ export function initialWorkConjugateAVPlaneLeftHeartStateV1(
   params: WorkConjugateAVPlaneLeftHeartParamsV1 =
     DEFAULT_WORK_CONJUGATE_AV_PLANE_LEFT_HEART_PARAMS_V1,
 ): WorkConjugateAVPlaneLeftHeartStateV1 {
+  validateWallChamberOwnership(params);
   return {
     laVolumeMl: overrides.laVolumeMl ?? 65,
     lvVolumeMl: overrides.lvVolumeMl ?? 120,
@@ -300,9 +304,9 @@ export function stepWorkConjugateAVPlaneLeftHeartV1(
   const activation = nextActivationStates(previous, input, params);
   const initial = predictorVector(previous, input, params, activation);
   const solved = solveImplicitStep(previous, activation, initial, input, params);
-  const accepted = stateFromVector(solved.vector, activation);
-  const evaluated = evaluateSystem(previous, accepted, input, params);
-  return outputFromEvaluation(previous, accepted, evaluated, solved, params);
+  const candidateState = stateFromVector(solved.vector, activation);
+  const evaluated = evaluateSystem(previous, candidateState, input, params);
+  return outputFromEvaluation(previous, candidateState, evaluated, solved, params);
 }
 
 export function evaluateWorkConjugateAVPlaneLeftHeartStateV1(
@@ -329,6 +333,7 @@ export function estimateStaticNetForceDerivativeNPerCmV1(
     DEFAULT_WORK_CONJUGATE_AV_PLANE_LEFT_HEART_PARAMS_V1,
   stepCm = 1e-4,
 ): number {
+  validateWallChamberOwnership(params);
   const dz = Math.max(Math.abs(stepCm), 1e-8);
   const plus = staticWallForceSumN({ ...input, avPlanePositionCm: input.avPlanePositionCm + dz }, params);
   const minus = staticWallForceSumN({ ...input, avPlanePositionCm: input.avPlanePositionCm - dz }, params);
@@ -699,6 +704,8 @@ function outputFromEvaluation(
     evaluated.power.beInertialPowerW,
     evaluated.power.coupledRawPowerResidualW,
   ];
+  const allFinite = evaluated.la.finite && evaluated.lv.finite &&
+    numericValues.every((value) => Number.isFinite(value));
   return {
     state,
     la: evaluated.la,
@@ -712,9 +719,8 @@ function outputFromEvaluation(
     pressureArea: evaluated.pressureArea,
     avForce: evaluated.avForce,
     power: evaluated.power,
-    allFinite: evaluated.la.valid && evaluated.lv.valid &&
-      evaluated.la.finite && evaluated.lv.finite &&
-      numericValues.every((value) => Number.isFinite(value)),
+    allFinite,
+    acceptedStep: allFinite && evaluated.la.valid && evaluated.lv.valid && solved.converged,
   };
 }
 
@@ -947,6 +953,7 @@ function validateParamsAndInput(
   params: WorkConjugateAVPlaneLeftHeartParamsV1,
   input: WorkConjugateAVPlaneLeftHeartInputV1,
 ): void {
+  validateWallChamberOwnership(params);
   if (!Number.isFinite(input.dtSec) || input.dtSec <= 0) {
     throw new RangeError("dtSec must be positive finite");
   }
@@ -994,6 +1001,21 @@ function validateParamsAndInput(
   }
   if (!Number.isFinite(params.nonlinearLineSearchSteps) || params.nonlinearLineSearchSteps <= 0) {
     throw new RangeError("nonlinearLineSearchSteps must be positive finite");
+  }
+}
+
+function validateWallChamberOwnership(
+  params: WorkConjugateAVPlaneLeftHeartParamsV1,
+): void {
+  if (params.laWall.chamberId !== "LA") {
+    throw new RangeError(
+      `params.laWall.chamberId must be "LA"; received ${JSON.stringify(params.laWall.chamberId)}`,
+    );
+  }
+  if (params.lvWall.chamberId !== "LV") {
+    throw new RangeError(
+      `params.lvWall.chamberId must be "LV"; received ${JSON.stringify(params.lvWall.chamberId)}`,
+    );
   }
 }
 

@@ -62,6 +62,7 @@ describe("WorkConjugateAVPlaneLeftHeartV1", () => {
       "P_return",
     ]);
     expect(output.allFinite).toBe(true);
+    expect(output.acceptedStep).toBe(true);
     expect(output.residual.solverConverged).toBe(true);
     expect(output.residual.maxNormalizedEquationResidual).toBeLessThan(1e-7);
     expect(Math.abs(output.residual.laMassResidualMl)).toBeLessThan(1e-7);
@@ -166,6 +167,84 @@ describe("WorkConjugateAVPlaneLeftHeartV1", () => {
       expect(output.residual.avPlaneKinematicResidualCm)
         .toBe(trial.avPlanePositionCm - previous.avPlanePositionCm - input.dtSec * trial.avPlaneVelocityCmPerSec);
     }
+  });
+
+  it("converges actual implicit steps in quasistatic and overdamped modes", () => {
+    const base = DEFAULT_WORK_CONJUGATE_AV_PLANE_LEFT_HEART_PARAMS_V1;
+    const cases = [
+      {
+        order: "quasistatic" as const,
+        externalDampingNSecPerCm: 0,
+        inertiaNSec2PerCm: base.avPlane.inertiaNSec2PerCm,
+      },
+      {
+        order: "overdamped" as const,
+        externalDampingNSecPerCm: 0.1,
+        inertiaNSec2PerCm: base.avPlane.inertiaNSec2PerCm,
+      },
+    ];
+
+    for (const avPlane of cases) {
+      const params = { ...base, avPlane };
+      const output = stepWorkConjugateAVPlaneLeftHeartV1(
+        initialWorkConjugateAVPlaneLeftHeartStateV1({}, params),
+        {
+          dtSec: 0.001,
+          laElectricalActivation01: 0.2,
+          lvElectricalActivation01: 0.15,
+        },
+        params,
+      );
+
+      expect(output.residual.solverConverged, avPlane.order).toBe(true);
+      expect(output.acceptedStep, avPlane.order).toBe(true);
+      expect(output.allFinite, avPlane.order).toBe(true);
+    }
+  });
+
+  it("keeps a short driven transient finite, converged, and accepted", () => {
+    let state = initialWorkConjugateAVPlaneLeftHeartStateV1();
+
+    for (let stepIndex = 0; stepIndex < 24; stepIndex += 1) {
+      const output = stepWorkConjugateAVPlaneLeftHeartV1(state, {
+        dtSec: 0.001,
+        laElectricalActivation01: stepIndex < 12 ? 0.35 : 0.05,
+        lvElectricalActivation01: stepIndex < 6 ? 0.05 : 0.30,
+      });
+
+      expect(output.allFinite, `step ${stepIndex}`).toBe(true);
+      expect(output.residual.solverConverged, `step ${stepIndex}`).toBe(true);
+      expect(output.acceptedStep, `step ${stepIndex}`).toBe(true);
+      expect(output.residual.hiddenBloodVolumeSourceMl, `step ${stepIndex}`).toBe(0);
+      state = output.state;
+    }
+
+    expect(state.laActivation01).toBeGreaterThan(0);
+    expect(state.lvActivation01).toBeGreaterThan(0);
+  });
+
+  it("marks a finite nonconverged solve as unaccepted", () => {
+    const base = DEFAULT_WORK_CONJUGATE_AV_PLANE_LEFT_HEART_PARAMS_V1;
+    const params = {
+      ...base,
+      nonlinearSolverIterations: 1,
+      nonlinearResidualTolerance: 1e-30,
+    };
+    const output = stepWorkConjugateAVPlaneLeftHeartV1(
+      initialWorkConjugateAVPlaneLeftHeartStateV1({}, params),
+      {
+        dtSec: 0.001,
+        laElectricalActivation01: 0.8,
+        lvElectricalActivation01: 0.7,
+      },
+      params,
+    );
+
+    expect(output.la.finite).toBe(true);
+    expect(output.lv.finite).toBe(true);
+    expect(output.allFinite).toBe(true);
+    expect(output.residual.solverConverged).toBe(false);
+    expect(output.acceptedStep).toBe(false);
   });
 
   it("does not double count hydraulic pressure-area or forbidden AV-plane hooks", () => {
@@ -276,6 +355,31 @@ describe("WorkConjugateAVPlaneLeftHeartV1", () => {
     );
     expect(invalid.residual.solverConverged).toBe(false);
     expect(invalid.allFinite).toBe(false);
+    expect(invalid.acceptedStep).toBe(false);
+  });
+
+  it("rejects swapped LA and LV wall ownership at the left-heart boundary", () => {
+    const base = DEFAULT_WORK_CONJUGATE_AV_PLANE_LEFT_HEART_PARAMS_V1;
+    const swapped: WorkConjugateAVPlaneLeftHeartParamsV1 = {
+      ...base,
+      laWall: base.lvWall,
+      lvWall: base.laWall,
+    };
+
+    expect(() => stepWorkConjugateAVPlaneLeftHeartV1(
+      initialWorkConjugateAVPlaneLeftHeartStateV1(),
+      { dtSec: 0.001, laElectricalActivation01: 0, lvElectricalActivation01: 0 },
+      swapped,
+    )).toThrowError(RangeError);
+    expect(() => stepWorkConjugateAVPlaneLeftHeartV1(
+      initialWorkConjugateAVPlaneLeftHeartStateV1(),
+      { dtSec: 0.001, laElectricalActivation01: 0, lvElectricalActivation01: 0 },
+      swapped,
+    )).toThrow(/params\.laWall\.chamberId must be "LA"; received "LV"/);
+
+    const wrongLv = { ...base, lvWall: base.laWall };
+    expect(() => initialWorkConjugateAVPlaneLeftHeartStateV1({}, wrongLv))
+      .toThrow(/params\.lvWall\.chamberId must be "LV"; received "LA"/);
   });
 });
 
