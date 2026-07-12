@@ -98,6 +98,28 @@ describe("WorkConjugateAtrialComplianceRelaxationScreen V1", () => {
     expectMechanics2ReportArtifactParity(artifact, report);
   });
 
+  it("does not turn E/A separation into an AVPD tuning artifact", () => {
+    const followup = report.avpdOrthogonalFollowup;
+    expect(followup.avPlaneTrajectoryPrescribed).toBe(false);
+    expect(followup.cases).toHaveLength(6);
+    expect(followup.allMechanicalHardGatesPass).toBe(true);
+    expect(followup.anySeparatedEa).toBe(false);
+    expect(followup.anyPositiveDiastasis).toBe(false);
+    expect(followup.interactionResolvesEaFusion).toBe(false);
+    expect(new Set(followup.cases.map((row) => row.mitralFusionClass)))
+      .toEqual(new Set(["complete-fusion"]));
+    for (const passiveScale of [0.4, 1]) {
+      const doseRows = followup.cases.filter((row) =>
+        row.laPassiveStressScale === passiveScale
+      );
+      expect(new Set(doseRows.map((row) =>
+        row.lvLongitudinalToCircumferentialActiveStressMaxRatio
+      ))).toEqual(new Set([0.45, 0.55, 0.65]));
+      expect(new Set(doseRows.map((row) => row.avPlaneExcursionCm)).size)
+        .toBeGreaterThan(1);
+    }
+  });
+
   function caseByDose(
     passiveScale: number,
     offRatePerSec: number,

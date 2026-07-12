@@ -520,6 +520,110 @@
     "allMechanicalHardGatesPass": true,
     "allClassificationsStable": true
   },
+  "avpdOrthogonalFollowup": {
+    "role": "report-only-passive-compliance-by-avpd-driver-screen",
+    "fixedContractileOffRatePerSec": 30,
+    "passiveStressScales": [
+      0.4,
+      1
+    ],
+    "lvLongitudinalToCircumferentialActiveStressMaxRatios": [
+      0.45,
+      0.55,
+      0.65
+    ],
+    "avPlaneTrajectoryPrescribed": false,
+    "cases": [
+      {
+        "caseId": "passive-0.4-avpd-0.45",
+        "laPassiveStressScale": 0.4,
+        "lvLongitudinalToCircumferentialActiveStressMaxRatio": 0.45,
+        "lvLongitudinalActiveStressMaxKPa": 24.75,
+        "avPlaneExcursionCm": 1.3010953887221754,
+        "avPlanePeakAbsVelocityCmPerSec": 23.164051388040402,
+        "xTheta": 0.05125,
+        "yDepthMmHg": 2.0519080600226136,
+        "mitralFusionClass": "complete-fusion",
+        "diastasisDurationSec": 0,
+        "velocityAtAtrialActivationOnsetCmPerSec": 44.76015001590242,
+        "mechanicalHardGatePass": true
+      },
+      {
+        "caseId": "passive-0.4-avpd-0.55",
+        "laPassiveStressScale": 0.4,
+        "lvLongitudinalToCircumferentialActiveStressMaxRatio": 0.55,
+        "lvLongitudinalActiveStressMaxKPa": 30.250000000000004,
+        "avPlaneExcursionCm": 1.1008800915882908,
+        "avPlanePeakAbsVelocityCmPerSec": 16.74901225455396,
+        "xTheta": 0.05125,
+        "yDepthMmHg": 1.9292455678651623,
+        "mitralFusionClass": "complete-fusion",
+        "diastasisDurationSec": 0,
+        "velocityAtAtrialActivationOnsetCmPerSec": 47.26362512001438,
+        "mechanicalHardGatePass": true
+      },
+      {
+        "caseId": "passive-0.4-avpd-0.65",
+        "laPassiveStressScale": 0.4,
+        "lvLongitudinalToCircumferentialActiveStressMaxRatio": 0.65,
+        "lvLongitudinalActiveStressMaxKPa": 35.75,
+        "avPlaneExcursionCm": 0.9591147048647035,
+        "avPlanePeakAbsVelocityCmPerSec": 11.27225590828956,
+        "xTheta": 0.19875,
+        "yDepthMmHg": 1.8151895049146716,
+        "mitralFusionClass": "complete-fusion",
+        "diastasisDurationSec": 0,
+        "velocityAtAtrialActivationOnsetCmPerSec": 49.10922588994091,
+        "mechanicalHardGatePass": true
+      },
+      {
+        "caseId": "passive-1-avpd-0.45",
+        "laPassiveStressScale": 1,
+        "lvLongitudinalToCircumferentialActiveStressMaxRatio": 0.45,
+        "lvLongitudinalActiveStressMaxKPa": 24.75,
+        "avPlaneExcursionCm": 1.2186635300299629,
+        "avPlanePeakAbsVelocityCmPerSec": 10.97086361257884,
+        "xTheta": 0.22875,
+        "yDepthMmHg": 2.823943266648985,
+        "mitralFusionClass": "complete-fusion",
+        "diastasisDurationSec": 0,
+        "velocityAtAtrialActivationOnsetCmPerSec": 41.71491056145702,
+        "mechanicalHardGatePass": true
+      },
+      {
+        "caseId": "passive-1-avpd-0.55",
+        "laPassiveStressScale": 1,
+        "lvLongitudinalToCircumferentialActiveStressMaxRatio": 0.55,
+        "lvLongitudinalActiveStressMaxKPa": 30.250000000000004,
+        "avPlaneExcursionCm": 0.9451536275765591,
+        "avPlanePeakAbsVelocityCmPerSec": 8.538021913520392,
+        "xTheta": 0.21,
+        "yDepthMmHg": 2.7608265825401905,
+        "mitralFusionClass": "complete-fusion",
+        "diastasisDurationSec": 0,
+        "velocityAtAtrialActivationOnsetCmPerSec": 44.69747433086363,
+        "mechanicalHardGatePass": true
+      },
+      {
+        "caseId": "passive-1-avpd-0.65",
+        "laPassiveStressScale": 1,
+        "lvLongitudinalToCircumferentialActiveStressMaxRatio": 0.65,
+        "lvLongitudinalActiveStressMaxKPa": 35.75,
+        "avPlaneExcursionCm": 0.9815766710669628,
+        "avPlanePeakAbsVelocityCmPerSec": 8.067319175389377,
+        "xTheta": 0.20125,
+        "yDepthMmHg": 2.665560877564445,
+        "mitralFusionClass": "complete-fusion",
+        "diastasisDurationSec": 0,
+        "velocityAtAtrialActivationOnsetCmPerSec": 47.01396993072737,
+        "mechanicalHardGatePass": true
+      }
+    ],
+    "allMechanicalHardGatesPass": true,
+    "anySeparatedEa": false,
+    "anyPositiveDiastasis": false,
+    "interactionResolvesEaFusion": false
+  },
   "result": {
     "allCasesPassMechanicalHardGates": true,
     "anySeparatedEa": false,
@@ -535,5 +639,5 @@
     "retainPassiveAndActiveRelaxationSeparation": true,
     "doNotPromoteFromThisScreen": true
   },
-  "normalizedSha256": "cdf2613c1472326c8b4970818196c97a0a5624b699a245469bdd6d8611ab0fb6"
+  "normalizedSha256": "a74dc9970fac61626812d0d678707f01c54d8a94309b9f18ce99c52156e5fd3e"
 }

@@ -64,6 +64,13 @@ The bounded conclusion is therefore:
 > it is not a sufficient E/A-separation or y-descent solution. Faster active
 > relaxation over the tested range is also insufficient by itself.
 
+A sparse orthogonal follow-up combines passive scales 0.4 and 1.0 with LV
+longitudinal/circumferential active-stress maxima ratios 0.45, 0.55 and 0.65.
+The shared AV-plane remains a solved force-balance coordinate, not a prescribed
+trajectory. All six cases pass the mechanical gates, but all remain complete
+E/A fusion with zero diastasis. Thus the tested passive-compliance by AVPD-driver
+interaction is not an E/A solution either.
+
 This direction is consistent with the hydrodynamic relation reported by Thomas
 et al.: for a fixed effective mitral area, larger net atrioventricular
 compliance is associated with a less steep E-wave downslope rather than an
@@ -74,11 +81,11 @@ complete x-descent mechanism.
 
 ## Next experiment
 
-Retain passive stiffness and active relaxation as independent axes. Add the
-shared AV-plane driver as an orthogonal factor, then attribute E-wave tail
-duration to the early-diastolic LA-LV pressure-gradient system (LV relaxation,
-mitral inertance/resistance and pulmonary venous loading) before changing the
-active-stress source law. No case in this report is a promotion candidate.
+Retain passive stiffness, active relaxation and the shared AV-plane driver as
+independent axes. Attribute E-wave tail duration to the early-diastolic LA-LV
+pressure-gradient system (LV relaxation, mitral inertance/resistance and
+pulmonary venous loading) before changing the active-stress source law. No case
+in this report is a promotion candidate.
 
 ## Literature used for mechanism interpretation
 

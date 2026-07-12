@@ -19,6 +19,7 @@ const CONTRACTILE_OFF_RATES_PER_SEC_V1 = [20, 30, 50] as const;
 const FIXED_Z_COMPLIANCE_VOLUME_ML_V1 = 75;
 const FIXED_Z_COMPLIANCE_DELTA_VOLUME_ML_V1 = 0.1;
 const DISCRETIZATION_DT_SEC_V1 = [0.0005, 0.001, 0.002] as const;
+const AVPD_DRIVER_RATIOS_V1 = [0.45, 0.55, 0.65] as const;
 
 export type WorkConjugateAtrialComplianceRelaxationCaseV1 = {
   readonly caseId: string;
@@ -118,6 +119,32 @@ export type WorkConjugateAtrialComplianceRelaxationScreenV1 = {
     readonly allMechanicalHardGatesPass: boolean;
     readonly allClassificationsStable: boolean;
   };
+  readonly avpdOrthogonalFollowup: {
+    readonly role: "report-only-passive-compliance-by-avpd-driver-screen";
+    readonly fixedContractileOffRatePerSec: 30;
+    readonly passiveStressScales: readonly [0.4, 1];
+    readonly lvLongitudinalToCircumferentialActiveStressMaxRatios:
+      typeof AVPD_DRIVER_RATIOS_V1;
+    readonly avPlaneTrajectoryPrescribed: false;
+    readonly cases: readonly {
+      readonly caseId: string;
+      readonly laPassiveStressScale: 0.4 | 1;
+      readonly lvLongitudinalToCircumferentialActiveStressMaxRatio: number;
+      readonly lvLongitudinalActiveStressMaxKPa: number;
+      readonly avPlaneExcursionCm: number;
+      readonly avPlanePeakAbsVelocityCmPerSec: number;
+      readonly xTheta: number;
+      readonly yDepthMmHg: number;
+      readonly mitralFusionClass: string;
+      readonly diastasisDurationSec: number;
+      readonly velocityAtAtrialActivationOnsetCmPerSec: number;
+      readonly mechanicalHardGatePass: boolean;
+    }[];
+    readonly allMechanicalHardGatesPass: boolean;
+    readonly anySeparatedEa: boolean;
+    readonly anyPositiveDiastasis: boolean;
+    readonly interactionResolvesEaFusion: boolean;
+  };
   readonly result: {
     readonly allCasesPassMechanicalHardGates: boolean;
     readonly anySeparatedEa: boolean;
@@ -149,6 +176,7 @@ WorkConjugateAtrialComplianceRelaxationScreenV1 {
   const compliant = caseByDose(cases, 0.4, 30);
   const fastRelaxation = caseByDose(cases, 1, 50);
   const discretizationRobustness = buildDiscretizationRobustness();
+  const avpdOrthogonalFollowup = buildAvpdOrthogonalFollowup();
 
   return {
     reportId: WORK_CONJUGATE_ATRIAL_COMPLIANCE_RELAXATION_SCREEN_ID_V1,
@@ -180,6 +208,7 @@ WorkConjugateAtrialComplianceRelaxationScreenV1 {
     cases,
     baselineCaseId: "passive-1-off-30",
     discretizationRobustness,
+    avpdOrthogonalFollowup,
     result: {
       allCasesPassMechanicalHardGates: cases.every((row) =>
         row.mechanicalHardGates.pass
@@ -225,36 +254,7 @@ function runCase(
     activationModel,
     dtSec,
   });
-  const residuals = profile.residualExtrema;
-  const massAndPowerResiduals =
-    residuals.maxNormalizedEquationResidual <=
-      HARD_GATE_THRESHOLDS_V1.maxNormalizedEquationResidual &&
-    residuals.maxAbsMassResidualMl <=
-      HARD_GATE_THRESHOLDS_V1.maxAbsMassResidualMl &&
-    residuals.maxAbsClosedCircuitVolumeResidualMl <=
-      HARD_GATE_THRESHOLDS_V1.maxAbsClosedCircuitVolumeResidualMl &&
-    residuals.maxAbsTotalVolumeDriftMl <=
-      HARD_GATE_THRESHOLDS_V1.maxAbsTotalVolumeDriftMl &&
-    residuals.maxAbsWallRawPowerResidualW <=
-      HARD_GATE_THRESHOLDS_V1.maxAbsWallRawPowerResidualW &&
-    residuals.maxAbsPressureAreaIdentityResidualN <=
-      HARD_GATE_THRESHOLDS_V1.maxAbsPressureAreaIdentityResidualN &&
-    residuals.maxAbsAvPlaneForceResidualN <=
-      HARD_GATE_THRESHOLDS_V1.maxAbsAvPlaneForceResidualN &&
-    residuals.maxAbsAvForcePowerResidualW <=
-      HARD_GATE_THRESHOLDS_V1.maxAbsAvForcePowerResidualW &&
-    residuals.maxAbsCoupledRawPowerResidualW <=
-      HARD_GATE_THRESHOLDS_V1.maxAbsCoupledRawPowerResidualW &&
-    residuals.maxHiddenBloodVolumeSourceMl === 0;
-  const mechanicalHardGates = {
-    finite: profile.allFinite,
-    solverConverged: profile.allStepsConverged && profile.allAcceptedSteps,
-    periodic: profile.periodicSteadyState && profile.cycleClosure.pass,
-    massAndPowerResiduals,
-    pass: profile.allFinite && profile.allStepsConverged &&
-      profile.allAcceptedSteps && profile.periodicSteadyState &&
-      profile.cycleClosure.pass && massAndPowerResiduals,
-  };
+  const mechanicalHardGates = mechanicalHardGatesFor(profile);
 
   return {
     caseId: `passive-${passiveScale}-off-${offRatePerSec}`,
@@ -279,6 +279,113 @@ function runCase(
     },
     waveformReadback: waveformReadback(profile),
     mechanicalHardGates,
+  };
+}
+
+function buildAvpdOrthogonalFollowup():
+WorkConjugateAtrialComplianceRelaxationScreenV1["avpdOrthogonalFollowup"] {
+  const passiveStressScales = [0.4, 1] as const;
+  const cases = passiveStressScales.flatMap((passiveScale) =>
+    AVPD_DRIVER_RATIOS_V1.map((ratio) => {
+      const baseParams = paramsWithLaPassiveScale(passiveScale);
+      const lvCircumferentialActiveStressMaxKPa =
+        baseParams.lvWall.axes.circumferential.activeStressMaxKPa;
+      const lvLongitudinalActiveStressMaxKPa =
+        ratio * lvCircumferentialActiveStressMaxKPa;
+      const params: WorkConjugateAVPlaneLeftHeartParamsV1 = {
+        ...baseParams,
+        lvWall: {
+          ...baseParams.lvWall,
+          axes: {
+            ...baseParams.lvWall.axes,
+            longitudinal: {
+              ...baseParams.lvWall.axes.longitudinal,
+              activeStressMaxKPa: lvLongitudinalActiveStressMaxKPa,
+            },
+          },
+        },
+      };
+      const profile = runWorkConjugateAtrialAVPlaneProfileV1({
+        profileId: `passive-${passiveScale}-avpd-${ratio}`,
+        variantId: "event-driven-atrial-activation-ablation",
+        params,
+        activationModel: activationModelWithOffRate(30),
+      });
+      return {
+        caseId: `passive-${passiveScale}-avpd-${ratio}`,
+        laPassiveStressScale: passiveScale,
+        lvLongitudinalToCircumferentialActiveStressMaxRatio: ratio,
+        lvLongitudinalActiveStressMaxKPa,
+        avPlaneExcursionCm: profile.zRangeCm[1] - profile.zRangeCm[0],
+        avPlanePeakAbsVelocityCmPerSec: Math.max(
+          Math.abs(profile.uRangeCmPerSec[0]),
+          Math.abs(profile.uRangeCmPerSec[1]),
+        ),
+        xTheta: profile.xvyPressureReadback.xTheta,
+        yDepthMmHg: profile.xvyPressureReadback.yDescentDepthMmHg,
+        mitralFusionClass: profile.mitral.fusionClass,
+        diastasisDurationSec: profile.mitral.diastasisDurationSec,
+        velocityAtAtrialActivationOnsetCmPerSec:
+          profile.mitral.velocityAtAtrialActivationOnsetCmPerSec,
+        mechanicalHardGatePass: mechanicalHardGatesFor(profile).pass,
+      };
+    })
+  );
+  return {
+    role: "report-only-passive-compliance-by-avpd-driver-screen",
+    fixedContractileOffRatePerSec: 30,
+    passiveStressScales,
+    lvLongitudinalToCircumferentialActiveStressMaxRatios:
+      AVPD_DRIVER_RATIOS_V1,
+    avPlaneTrajectoryPrescribed: false,
+    cases,
+    allMechanicalHardGatesPass: cases.every((row) =>
+      row.mechanicalHardGatePass
+    ),
+    anySeparatedEa: cases.some((row) =>
+      row.mitralFusionClass === "separated"
+    ),
+    anyPositiveDiastasis: cases.some((row) =>
+      row.diastasisDurationSec > 0
+    ),
+    interactionResolvesEaFusion: cases.some((row) =>
+      row.mitralFusionClass === "separated" || row.diastasisDurationSec > 0
+    ),
+  };
+}
+
+function mechanicalHardGatesFor(
+  profile: WorkConjugateAtrialAVPlaneProfileV1,
+): WorkConjugateAtrialComplianceRelaxationCaseV1["mechanicalHardGates"] {
+  const residuals = profile.residualExtrema;
+  const massAndPowerResiduals =
+    residuals.maxNormalizedEquationResidual <=
+      HARD_GATE_THRESHOLDS_V1.maxNormalizedEquationResidual &&
+    residuals.maxAbsMassResidualMl <=
+      HARD_GATE_THRESHOLDS_V1.maxAbsMassResidualMl &&
+    residuals.maxAbsClosedCircuitVolumeResidualMl <=
+      HARD_GATE_THRESHOLDS_V1.maxAbsClosedCircuitVolumeResidualMl &&
+    residuals.maxAbsTotalVolumeDriftMl <=
+      HARD_GATE_THRESHOLDS_V1.maxAbsTotalVolumeDriftMl &&
+    residuals.maxAbsWallRawPowerResidualW <=
+      HARD_GATE_THRESHOLDS_V1.maxAbsWallRawPowerResidualW &&
+    residuals.maxAbsPressureAreaIdentityResidualN <=
+      HARD_GATE_THRESHOLDS_V1.maxAbsPressureAreaIdentityResidualN &&
+    residuals.maxAbsAvPlaneForceResidualN <=
+      HARD_GATE_THRESHOLDS_V1.maxAbsAvPlaneForceResidualN &&
+    residuals.maxAbsAvForcePowerResidualW <=
+      HARD_GATE_THRESHOLDS_V1.maxAbsAvForcePowerResidualW &&
+    residuals.maxAbsCoupledRawPowerResidualW <=
+      HARD_GATE_THRESHOLDS_V1.maxAbsCoupledRawPowerResidualW &&
+    residuals.maxHiddenBloodVolumeSourceMl === 0;
+  return {
+    finite: profile.allFinite,
+    solverConverged: profile.allStepsConverged && profile.allAcceptedSteps,
+    periodic: profile.periodicSteadyState && profile.cycleClosure.pass,
+    massAndPowerResiduals,
+    pass: profile.allFinite && profile.allStepsConverged &&
+      profile.allAcceptedSteps && profile.periodicSteadyState &&
+      profile.cycleClosure.pass && massAndPowerResiduals,
   };
 }
 
