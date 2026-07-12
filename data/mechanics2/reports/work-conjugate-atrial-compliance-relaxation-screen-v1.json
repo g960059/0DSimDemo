@@ -1,0 +1,539 @@
+{
+  "reportId": "work-conjugate-atrial-compliance-relaxation-screen-v1",
+  "role": "report-only-two-factor-mechanism-screen",
+  "modelBoundary": {
+    "sidecar": "WorkConjugateAVPlaneLeftHeartV1",
+    "runtimeWiring": false,
+    "clinicalFit": false,
+    "atrialComplianceMeasurement": false
+  },
+  "factors": {
+    "passive": {
+      "parameterPaths": [
+        "params.laWall.axes.circumferential.passiveStressScaleKPa",
+        "params.laWall.axes.longitudinal.passiveStressScaleKPa"
+      ],
+      "scales": [
+        0.4,
+        0.7,
+        1
+      ],
+      "interpretation": "wall-passive-stress-scale-not-a-direct-global-compliance-parameter"
+    },
+    "activeRelaxation": {
+      "parameterPath": "activationModel.params.contractileKinetics.offRatePerSec",
+      "dosesPerSec": [
+        20,
+        30,
+        50
+      ],
+      "interpretation": "kinetic-dose-with-realized-rt50-readback-not-a-measured-relaxation-time"
+    }
+  },
+  "cases": [
+    {
+      "caseId": "passive-0.4-off-20",
+      "laPassiveStressScale": 0.4,
+      "contractileOffRatePerSec": 20,
+      "changedParameterPaths": [
+        "params.laWall.axes.circumferential.passiveStressScaleKPa",
+        "params.laWall.axes.longitudinal.passiveStressScaleKPa",
+        "activationModel.params.contractileKinetics.offRatePerSec"
+      ],
+      "fixedZPassiveComplianceReadback": {
+        "role": "local-tangent-diagnostic-not-global-atrial-compliance",
+        "activation01": 0,
+        "avPlanePositionCm": 0,
+        "evaluationVolumeMl": 75,
+        "deltaVolumeMl": 0.1,
+        "pressureSlopeMmHgPerMl": 0.07034072412754666,
+        "complianceMlPerMmHg": 14.21651557335024
+      },
+      "activationReadback": {
+        "eventToPeakSec": 0.12,
+        "rt50Sec": 0.1081426434465621,
+        "activationAtMitralClosing01": 0.42274145784529066
+      },
+      "waveformReadback": {
+        "xTheta": 0.05125,
+        "cToXDepthMmHg": 1.5283193687656302,
+        "postMitralClosingSecondaryRiseMmHg": 0,
+        "yDepthMmHg": 1.8958808182974098,
+        "yStatus": "right-censored-at-atrial-event",
+        "mitralFusionClass": "complete-fusion",
+        "ePeakVelocityCmPerSec": 51.17428932573521,
+        "aPeakVelocityCmPerSec": 47.045559577770696,
+        "eDecelerationTimeSec": 0,
+        "velocityAtAtrialActivationOnsetCmPerSec": 47.045559577770696,
+        "diastasisDurationSec": 0,
+        "cardiacOutputLPerMin": 4.411364809700074
+      },
+      "mechanicalHardGates": {
+        "finite": true,
+        "solverConverged": true,
+        "periodic": true,
+        "massAndPowerResiduals": true,
+        "pass": true
+      }
+    },
+    {
+      "caseId": "passive-0.4-off-30",
+      "laPassiveStressScale": 0.4,
+      "contractileOffRatePerSec": 30,
+      "changedParameterPaths": [
+        "params.laWall.axes.circumferential.passiveStressScaleKPa",
+        "params.laWall.axes.longitudinal.passiveStressScaleKPa"
+      ],
+      "fixedZPassiveComplianceReadback": {
+        "role": "local-tangent-diagnostic-not-global-atrial-compliance",
+        "activation01": 0,
+        "avPlanePositionCm": 0,
+        "evaluationVolumeMl": 75,
+        "deltaVolumeMl": 0.1,
+        "pressureSlopeMmHgPerMl": 0.07034072412754666,
+        "complianceMlPerMmHg": 14.21651557335024
+      },
+      "activationReadback": {
+        "eventToPeakSec": 0.113,
+        "rt50Sec": 0.09489164442565638,
+        "activationAtMitralClosing01": 0.29766572319456935
+      },
+      "waveformReadback": {
+        "xTheta": 0.05125,
+        "cToXDepthMmHg": 1.575115899495839,
+        "postMitralClosingSecondaryRiseMmHg": 0,
+        "yDepthMmHg": 1.9292455678651623,
+        "yStatus": "right-censored-at-atrial-event",
+        "mitralFusionClass": "complete-fusion",
+        "ePeakVelocityCmPerSec": 51.45841333112482,
+        "aPeakVelocityCmPerSec": 47.26362512001438,
+        "eDecelerationTimeSec": 0,
+        "velocityAtAtrialActivationOnsetCmPerSec": 47.26362512001438,
+        "diastasisDurationSec": 0,
+        "cardiacOutputLPerMin": 4.392487716390349
+      },
+      "mechanicalHardGates": {
+        "finite": true,
+        "solverConverged": true,
+        "periodic": true,
+        "massAndPowerResiduals": true,
+        "pass": true
+      }
+    },
+    {
+      "caseId": "passive-0.4-off-50",
+      "laPassiveStressScale": 0.4,
+      "contractileOffRatePerSec": 50,
+      "changedParameterPaths": [
+        "params.laWall.axes.circumferential.passiveStressScaleKPa",
+        "params.laWall.axes.longitudinal.passiveStressScaleKPa",
+        "activationModel.params.contractileKinetics.offRatePerSec"
+      ],
+      "fixedZPassiveComplianceReadback": {
+        "role": "local-tangent-diagnostic-not-global-atrial-compliance",
+        "activation01": 0,
+        "avPlanePositionCm": 0,
+        "evaluationVolumeMl": 75,
+        "deltaVolumeMl": 0.1,
+        "pressureSlopeMmHgPerMl": 0.07034072412754666,
+        "complianceMlPerMmHg": 14.21651557335024
+      },
+      "activationReadback": {
+        "eventToPeakSec": 0.105,
+        "rt50Sec": 0.0820445069535866,
+        "activationAtMitralClosing01": 0.1666111635830635
+      },
+      "waveformReadback": {
+        "xTheta": 0.05125,
+        "cToXDepthMmHg": 1.7008352491179615,
+        "postMitralClosingSecondaryRiseMmHg": 0,
+        "yDepthMmHg": 1.973631129403143,
+        "yStatus": "right-censored-at-atrial-event",
+        "mitralFusionClass": "complete-fusion",
+        "ePeakVelocityCmPerSec": 51.83983301503244,
+        "aPeakVelocityCmPerSec": 47.59076763176067,
+        "eDecelerationTimeSec": 0,
+        "velocityAtAtrialActivationOnsetCmPerSec": 47.59076763176067,
+        "diastasisDurationSec": 0,
+        "cardiacOutputLPerMin": 4.364477933233064
+      },
+      "mechanicalHardGates": {
+        "finite": true,
+        "solverConverged": true,
+        "periodic": true,
+        "massAndPowerResiduals": true,
+        "pass": true
+      }
+    },
+    {
+      "caseId": "passive-0.7-off-20",
+      "laPassiveStressScale": 0.7,
+      "contractileOffRatePerSec": 20,
+      "changedParameterPaths": [
+        "params.laWall.axes.circumferential.passiveStressScaleKPa",
+        "params.laWall.axes.longitudinal.passiveStressScaleKPa",
+        "activationModel.params.contractileKinetics.offRatePerSec"
+      ],
+      "fixedZPassiveComplianceReadback": {
+        "role": "local-tangent-diagnostic-not-global-atrial-compliance",
+        "activation01": 0,
+        "avPlanePositionCm": 0,
+        "evaluationVolumeMl": 75,
+        "deltaVolumeMl": 0.1,
+        "pressureSlopeMmHgPerMl": 0.12309626722320388,
+        "complianceMlPerMmHg": 8.123723184771748
+      },
+      "activationReadback": {
+        "eventToPeakSec": 0.12,
+        "rt50Sec": 0.1081426434465633,
+        "activationAtMitralClosing01": 0.4227447777805028
+      },
+      "waveformReadback": {
+        "xTheta": 0.21375,
+        "cToXDepthMmHg": 1.2423207722548026,
+        "postMitralClosingSecondaryRiseMmHg": 0.6662617476200374,
+        "yDepthMmHg": 2.224359483492935,
+        "yStatus": "right-censored-at-atrial-event",
+        "mitralFusionClass": "complete-fusion",
+        "ePeakVelocityCmPerSec": 52.28212076289598,
+        "aPeakVelocityCmPerSec": 45.756150256533694,
+        "eDecelerationTimeSec": 0.22594466359493048,
+        "velocityAtAtrialActivationOnsetCmPerSec": 45.756150256533694,
+        "diastasisDurationSec": 0,
+        "cardiacOutputLPerMin": 4.702378158416096
+      },
+      "mechanicalHardGates": {
+        "finite": true,
+        "solverConverged": true,
+        "periodic": true,
+        "massAndPowerResiduals": true,
+        "pass": true
+      }
+    },
+    {
+      "caseId": "passive-0.7-off-30",
+      "laPassiveStressScale": 0.7,
+      "contractileOffRatePerSec": 30,
+      "changedParameterPaths": [
+        "params.laWall.axes.circumferential.passiveStressScaleKPa",
+        "params.laWall.axes.longitudinal.passiveStressScaleKPa"
+      ],
+      "fixedZPassiveComplianceReadback": {
+        "role": "local-tangent-diagnostic-not-global-atrial-compliance",
+        "activation01": 0,
+        "avPlanePositionCm": 0,
+        "evaluationVolumeMl": 75,
+        "deltaVolumeMl": 0.1,
+        "pressureSlopeMmHgPerMl": 0.12309626722320388,
+        "complianceMlPerMmHg": 8.123723184771748
+      },
+      "activationReadback": {
+        "eventToPeakSec": 0.113,
+        "rt50Sec": 0.09489164442565738,
+        "activationAtMitralClosing01": 0.2976823609091969
+      },
+      "waveformReadback": {
+        "xTheta": 0.21125,
+        "cToXDepthMmHg": 1.1770050022670366,
+        "postMitralClosingSecondaryRiseMmHg": 0.7969956103065954,
+        "yDepthMmHg": 2.282207344059882,
+        "yStatus": "right-censored-at-atrial-event",
+        "mitralFusionClass": "complete-fusion",
+        "ePeakVelocityCmPerSec": 52.70271680072491,
+        "aPeakVelocityCmPerSec": 46.09247560857571,
+        "eDecelerationTimeSec": 0.22667703990465893,
+        "velocityAtAtrialActivationOnsetCmPerSec": 46.09247560857571,
+        "diastasisDurationSec": 0,
+        "cardiacOutputLPerMin": 4.680158007973115
+      },
+      "mechanicalHardGates": {
+        "finite": true,
+        "solverConverged": true,
+        "periodic": true,
+        "massAndPowerResiduals": true,
+        "pass": true
+      }
+    },
+    {
+      "caseId": "passive-0.7-off-50",
+      "laPassiveStressScale": 0.7,
+      "contractileOffRatePerSec": 50,
+      "changedParameterPaths": [
+        "params.laWall.axes.circumferential.passiveStressScaleKPa",
+        "params.laWall.axes.longitudinal.passiveStressScaleKPa",
+        "activationModel.params.contractileKinetics.offRatePerSec"
+      ],
+      "fixedZPassiveComplianceReadback": {
+        "role": "local-tangent-diagnostic-not-global-atrial-compliance",
+        "activation01": 0,
+        "avPlanePositionCm": 0,
+        "evaluationVolumeMl": 75,
+        "deltaVolumeMl": 0.1,
+        "pressureSlopeMmHgPerMl": 0.12309626722320388,
+        "complianceMlPerMmHg": 8.123723184771748
+      },
+      "activationReadback": {
+        "eventToPeakSec": 0.105,
+        "rt50Sec": 0.08204450695358707,
+        "activationAtMitralClosing01": 0.16662688224874822
+      },
+      "waveformReadback": {
+        "xTheta": 0.21,
+        "cToXDepthMmHg": 1.1275803312569295,
+        "postMitralClosingSecondaryRiseMmHg": 0.9990632414562746,
+        "yDepthMmHg": 2.3565067461185887,
+        "yStatus": "right-censored-at-atrial-event",
+        "mitralFusionClass": "complete-fusion",
+        "ePeakVelocityCmPerSec": 53.25093714608074,
+        "aPeakVelocityCmPerSec": 46.59682789746988,
+        "eDecelerationTimeSec": 0.2277801356906322,
+        "velocityAtAtrialActivationOnsetCmPerSec": 46.59682789746988,
+        "diastasisDurationSec": 0,
+        "cardiacOutputLPerMin": 4.646753361063809
+      },
+      "mechanicalHardGates": {
+        "finite": true,
+        "solverConverged": true,
+        "periodic": true,
+        "massAndPowerResiduals": true,
+        "pass": true
+      }
+    },
+    {
+      "caseId": "passive-1-off-20",
+      "laPassiveStressScale": 1,
+      "contractileOffRatePerSec": 20,
+      "changedParameterPaths": [
+        "activationModel.params.contractileKinetics.offRatePerSec"
+      ],
+      "fixedZPassiveComplianceReadback": {
+        "role": "local-tangent-diagnostic-not-global-atrial-compliance",
+        "activation01": 0,
+        "avPlanePositionCm": 0,
+        "evaluationVolumeMl": 75,
+        "deltaVolumeMl": 0.1,
+        "pressureSlopeMmHgPerMl": 0.1758518103188611,
+        "complianceMlPerMmHg": 5.686606229340275
+      },
+      "activationReadback": {
+        "eventToPeakSec": 0.12,
+        "rt50Sec": 0.1081426434465633,
+        "activationAtMitralClosing01": 0.42286321639320384
+      },
+      "waveformReadback": {
+        "xTheta": 0.2125,
+        "cToXDepthMmHg": 0.9881291936568277,
+        "postMitralClosingSecondaryRiseMmHg": 0.24888400065716043,
+        "yDepthMmHg": 2.6850522275173643,
+        "yStatus": "right-censored-at-atrial-event",
+        "mitralFusionClass": "complete-fusion",
+        "ePeakVelocityCmPerSec": 53.21463807759462,
+        "aPeakVelocityCmPerSec": 44.3105687898307,
+        "eDecelerationTimeSec": 0.22962327928852913,
+        "velocityAtAtrialActivationOnsetCmPerSec": 44.3105687898307,
+        "diastasisDurationSec": 0,
+        "cardiacOutputLPerMin": 4.811025094219627
+      },
+      "mechanicalHardGates": {
+        "finite": true,
+        "solverConverged": true,
+        "periodic": true,
+        "massAndPowerResiduals": true,
+        "pass": true
+      }
+    },
+    {
+      "caseId": "passive-1-off-30",
+      "laPassiveStressScale": 1,
+      "contractileOffRatePerSec": 30,
+      "changedParameterPaths": [],
+      "fixedZPassiveComplianceReadback": {
+        "role": "local-tangent-diagnostic-not-global-atrial-compliance",
+        "activation01": 0,
+        "avPlanePositionCm": 0,
+        "evaluationVolumeMl": 75,
+        "deltaVolumeMl": 0.1,
+        "pressureSlopeMmHgPerMl": 0.1758518103188611,
+        "complianceMlPerMmHg": 5.686606229340275
+      },
+      "activationReadback": {
+        "eventToPeakSec": 0.113,
+        "rt50Sec": 0.09489164442565738,
+        "activationAtMitralClosing01": 0.2978282437856217
+      },
+      "waveformReadback": {
+        "xTheta": 0.21,
+        "cToXDepthMmHg": 0.9075975897707571,
+        "postMitralClosingSecondaryRiseMmHg": 0.3710513338813546,
+        "yDepthMmHg": 2.7608265825401905,
+        "yStatus": "right-censored-at-atrial-event",
+        "mitralFusionClass": "complete-fusion",
+        "ePeakVelocityCmPerSec": 53.69488835123603,
+        "aPeakVelocityCmPerSec": 44.69747433086363,
+        "eDecelerationTimeSec": 0.22956530178570947,
+        "velocityAtAtrialActivationOnsetCmPerSec": 44.69747433086363,
+        "diastasisDurationSec": 0,
+        "cardiacOutputLPerMin": 4.787812458210304
+      },
+      "mechanicalHardGates": {
+        "finite": true,
+        "solverConverged": true,
+        "periodic": true,
+        "massAndPowerResiduals": true,
+        "pass": true
+      }
+    },
+    {
+      "caseId": "passive-1-off-50",
+      "laPassiveStressScale": 1,
+      "contractileOffRatePerSec": 50,
+      "changedParameterPaths": [
+        "activationModel.params.contractileKinetics.offRatePerSec"
+      ],
+      "fixedZPassiveComplianceReadback": {
+        "role": "local-tangent-diagnostic-not-global-atrial-compliance",
+        "activation01": 0,
+        "avPlanePositionCm": 0,
+        "evaluationVolumeMl": 75,
+        "deltaVolumeMl": 0.1,
+        "pressureSlopeMmHgPerMl": 0.1758518103188611,
+        "complianceMlPerMmHg": 5.686606229340275
+      },
+      "activationReadback": {
+        "eventToPeakSec": 0.105,
+        "rt50Sec": 0.08204450695358707,
+        "activationAtMitralClosing01": 0.16669221890504476
+      },
+      "waveformReadback": {
+        "xTheta": 0.20875,
+        "cToXDepthMmHg": 0.8679253557367499,
+        "postMitralClosingSecondaryRiseMmHg": 0.5831715675949072,
+        "yDepthMmHg": 2.857180478822815,
+        "yStatus": "right-censored-at-atrial-event",
+        "mitralFusionClass": "complete-fusion",
+        "ePeakVelocityCmPerSec": 54.31631898529257,
+        "aPeakVelocityCmPerSec": 45.27981036131954,
+        "eDecelerationTimeSec": 0.23178417872156812,
+        "velocityAtAtrialActivationOnsetCmPerSec": 45.27981036131954,
+        "diastasisDurationSec": 0,
+        "cardiacOutputLPerMin": 4.7524270615594135
+      },
+      "mechanicalHardGates": {
+        "finite": true,
+        "solverConverged": true,
+        "periodic": true,
+        "massAndPowerResiduals": true,
+        "pass": true
+      }
+    }
+  ],
+  "baselineCaseId": "passive-1-off-30",
+  "discretizationRobustness": {
+    "role": "anchor-dose-dt-continuity-not-global-convergence-proof",
+    "dtSec": [
+      0.0005,
+      0.001,
+      0.002
+    ],
+    "anchors": [
+      {
+        "anchorId": "baseline",
+        "laPassiveStressScale": 1,
+        "contractileOffRatePerSec": 30,
+        "replicas": [
+          {
+            "dtSec": 0.0005,
+            "mechanicalHardGatePass": true,
+            "xTheta": 0.210625,
+            "yDepthMmHg": 2.7600038256657626,
+            "mitralFusionClass": "complete-fusion",
+            "diastasisDurationSec": 0,
+            "velocityAtAtrialActivationOnsetCmPerSec": 44.844188025768645
+          },
+          {
+            "dtSec": 0.001,
+            "mechanicalHardGatePass": true,
+            "xTheta": 0.21,
+            "yDepthMmHg": 2.7608265825401905,
+            "mitralFusionClass": "complete-fusion",
+            "diastasisDurationSec": 0,
+            "velocityAtAtrialActivationOnsetCmPerSec": 44.69747433086363
+          },
+          {
+            "dtSec": 0.002,
+            "mechanicalHardGatePass": true,
+            "xTheta": 0.21,
+            "yDepthMmHg": 2.761715514374237,
+            "mitralFusionClass": "complete-fusion",
+            "diastasisDurationSec": 0,
+            "velocityAtAtrialActivationOnsetCmPerSec": 44.411938842913294
+          }
+        ],
+        "classificationStable": true,
+        "coarseToFineAbsoluteDifference": {
+          "xTheta": 0.0006250000000000144,
+          "yDepthMmHg": 0.0017116887084744903,
+          "velocityAtAtrialActivationOnsetCmPerSec": 0.43224918285535097
+        }
+      },
+      {
+        "anchorId": "high-passive-compliance",
+        "laPassiveStressScale": 0.4,
+        "contractileOffRatePerSec": 30,
+        "replicas": [
+          {
+            "dtSec": 0.0005,
+            "mechanicalHardGatePass": true,
+            "xTheta": 0.050625,
+            "yDepthMmHg": 1.9272226339137988,
+            "mitralFusionClass": "complete-fusion",
+            "diastasisDurationSec": 0,
+            "velocityAtAtrialActivationOnsetCmPerSec": 47.44492187614286
+          },
+          {
+            "dtSec": 0.001,
+            "mechanicalHardGatePass": true,
+            "xTheta": 0.05125,
+            "yDepthMmHg": 1.9292455678651623,
+            "mitralFusionClass": "complete-fusion",
+            "diastasisDurationSec": 0,
+            "velocityAtAtrialActivationOnsetCmPerSec": 47.26362512001438
+          },
+          {
+            "dtSec": 0.002,
+            "mechanicalHardGatePass": true,
+            "xTheta": 0.0525,
+            "yDepthMmHg": 1.9329748521961703,
+            "mitralFusionClass": "complete-fusion",
+            "diastasisDurationSec": 0,
+            "velocityAtAtrialActivationOnsetCmPerSec": 46.90909297598702
+          }
+        ],
+        "classificationStable": true,
+        "coarseToFineAbsoluteDifference": {
+          "xTheta": 0.0018749999999999947,
+          "yDepthMmHg": 0.005752218282371491,
+          "velocityAtAtrialActivationOnsetCmPerSec": 0.5358289001558347
+        }
+      }
+    ],
+    "allMechanicalHardGatesPass": true,
+    "allClassificationsStable": true
+  },
+  "result": {
+    "allCasesPassMechanicalHardGates": true,
+    "anySeparatedEa": false,
+    "anyPositiveDiastasis": false,
+    "lowerPassiveStressCanAdvanceX": true,
+    "lowerPassiveStressMakesYShallowerAtBaselineOffRate": true,
+    "lowerPassiveStressIncreasesResidualEAtAtrialOnsetAtBaselineOffRate": true,
+    "fasterActiveRelaxationAloneSeparatesEaAtBaselinePassiveStress": false,
+    "verdict": "passive-expansibility-is-an-x-lever-not-a-sufficient-ea-or-y-solution"
+  },
+  "nextExperiment": {
+    "addAvpdAsOrthogonalFactor": true,
+    "retainPassiveAndActiveRelaxationSeparation": true,
+    "doNotPromoteFromThisScreen": true
+  },
+  "normalizedSha256": "cdf2613c1472326c8b4970818196c97a0a5624b699a245469bdd6d8611ab0fb6"
+}
