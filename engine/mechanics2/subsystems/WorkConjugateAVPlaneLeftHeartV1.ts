@@ -89,11 +89,68 @@ export type WorkConjugateAVPlaneLeftHeartStateV1 = {
   readonly lvActivation01: number;
 };
 
-export type WorkConjugateAVPlaneLeftHeartInputV1 = {
+export type WorkConjugateAVPlaneLeftHeartActivationSourceV1 =
+  | "legacy-first-order-filter"
+  | "prescribed-contractile-state";
+
+type WorkConjugateAVPlaneLeftHeartSharedInputV1 = {
   readonly dtSec: number;
-  readonly laElectricalActivation01: number;
-  readonly lvElectricalActivation01: number;
   readonly pericardialPressureMmHg?: number;
+};
+
+type WorkConjugateAVPlaneLeftHeartLaActivationInputV1 =
+    | {
+        readonly laActivationSource?: "legacy-first-order-filter";
+        readonly laElectricalActivation01: number;
+        readonly laPrescribedContractileActivation01?: never;
+      }
+    | {
+        /**
+         * Upstream owns the bounded endpoint state. This bypasses only the
+         * legacy LA first-order filter; mechanics and blood ownership remain.
+         */
+        readonly laActivationSource: "prescribed-contractile-state";
+        /** Protocol marker retained for attribution; it is not the state driver. */
+        readonly laElectricalActivation01: number;
+        readonly laPrescribedContractileActivation01: number;
+      };
+
+type WorkConjugateAVPlaneLeftHeartLvActivationInputV1 =
+    | {
+        readonly lvActivationSource?: "legacy-first-order-filter";
+        readonly lvElectricalActivation01: number;
+        readonly lvPrescribedContractileActivation01?: never;
+      }
+    | {
+        /**
+         * Upstream owns the bounded endpoint state. This bypasses only the
+         * legacy LV first-order filter; mechanics and blood ownership remain.
+         */
+        readonly lvActivationSource: "prescribed-contractile-state";
+        /** Protocol marker retained for attribution; it is not the state driver. */
+        readonly lvElectricalActivation01: number;
+        readonly lvPrescribedContractileActivation01: number;
+      };
+
+export type WorkConjugateAVPlaneLeftHeartInputV1 =
+  WorkConjugateAVPlaneLeftHeartSharedInputV1 &
+  WorkConjugateAVPlaneLeftHeartLaActivationInputV1 &
+  WorkConjugateAVPlaneLeftHeartLvActivationInputV1;
+
+export type WorkConjugateAVPlaneLeftHeartChamberActivationReadbackV1 = {
+  readonly source: WorkConjugateAVPlaneLeftHeartActivationSourceV1;
+  readonly stateOwner: "subsystem-first-order-filter" | "upstream-prescribed-contractile-state";
+  readonly previousContractileActivation01: number;
+  readonly currentContractileActivation01: number;
+  /** Electrical drive for the legacy filter, or a non-driving protocol marker when prescribed. */
+  readonly electricalProtocolMarker01: number;
+  /** Null means the subsystem, rather than the upstream caller, advanced the state this step. */
+  readonly prescribedContractileActivation01: number | null;
+};
+
+export type WorkConjugateAVPlaneLeftHeartActivationReadbackV1 = {
+  readonly la: WorkConjugateAVPlaneLeftHeartChamberActivationReadbackV1;
+  readonly lv: WorkConjugateAVPlaneLeftHeartChamberActivationReadbackV1;
 };
 
 export type WorkConjugateAVPlaneLeftHeartResidualV1 = {
@@ -143,6 +200,8 @@ export type WorkConjugateAVPlaneLeftHeartPowerReadbackV1 = {
 
 export type WorkConjugateAVPlaneLeftHeartOutputV1 = {
   readonly state: WorkConjugateAVPlaneLeftHeartStateV1;
+  /** Per-step LA/LV ownership and realized contractile states; neither is a solver unknown. */
+  readonly activation: WorkConjugateAVPlaneLeftHeartActivationReadbackV1;
   readonly la: WorkConjugateAVPlaneChamberWallOutputV1;
   readonly lv: WorkConjugateAVPlaneChamberWallOutputV1;
   readonly mitralValve: SmoothInertialValveOutputV2;
@@ -306,7 +365,7 @@ export function stepWorkConjugateAVPlaneLeftHeartV1(
   const solved = solveImplicitStep(previous, activation, initial, input, params);
   const candidateState = stateFromVector(solved.vector, activation);
   const evaluated = evaluateSystem(previous, candidateState, input, params);
-  return outputFromEvaluation(previous, candidateState, evaluated, solved, params);
+  return outputFromEvaluation(previous, candidateState, evaluated, solved, input, params);
 }
 
 export function evaluateWorkConjugateAVPlaneLeftHeartStateV1(
@@ -324,7 +383,7 @@ export function evaluateWorkConjugateAVPlaneLeftHeartStateV1(
     converged: false,
     maxNormalizedResidual: maxAbs(evaluated.normalizedResiduals),
   };
-  return outputFromEvaluation(previous, state, evaluated, solved, params);
+  return outputFromEvaluation(previous, state, evaluated, solved, input, params);
 }
 
 export function estimateStaticNetForceDerivativeNPerCmV1(
@@ -355,20 +414,24 @@ function nextActivationStates(
   params: WorkConjugateAVPlaneLeftHeartParamsV1,
 ): Pick<WorkConjugateAVPlaneLeftHeartStateV1, "laActivation01" | "lvActivation01"> {
   return {
-    laActivation01: firstOrderActivation(
-      previous.laActivation01,
-      input.laElectricalActivation01,
-      input.dtSec,
-      params.activation.laRiseTauSec,
-      params.activation.laFallTauSec,
-    ),
-    lvActivation01: firstOrderActivation(
-      previous.lvActivation01,
-      input.lvElectricalActivation01,
-      input.dtSec,
-      params.activation.lvRiseTauSec,
-      params.activation.lvFallTauSec,
-    ),
+    laActivation01: input.laActivationSource === "prescribed-contractile-state"
+      ? input.laPrescribedContractileActivation01
+      : firstOrderActivation(
+        previous.laActivation01,
+        input.laElectricalActivation01,
+        input.dtSec,
+        params.activation.laRiseTauSec,
+        params.activation.laFallTauSec,
+      ),
+    lvActivation01: input.lvActivationSource === "prescribed-contractile-state"
+      ? input.lvPrescribedContractileActivation01
+      : firstOrderActivation(
+        previous.lvActivation01,
+        input.lvElectricalActivation01,
+        input.dtSec,
+        params.activation.lvRiseTauSec,
+        params.activation.lvFallTauSec,
+      ),
   };
 }
 
@@ -673,6 +736,7 @@ function outputFromEvaluation(
   state: WorkConjugateAVPlaneLeftHeartStateV1,
   evaluated: EvaluatedSystem,
   solved: SolverResult,
+  input: WorkConjugateAVPlaneLeftHeartInputV1,
   params: WorkConjugateAVPlaneLeftHeartParamsV1,
 ): WorkConjugateAVPlaneLeftHeartOutputV1 {
   const residual = residualReadback(previous, state, evaluated, solved, params);
@@ -708,6 +772,7 @@ function outputFromEvaluation(
     numericValues.every((value) => Number.isFinite(value));
   return {
     state,
+    activation: activationReadback(previous, state, input),
     la: evaluated.la,
     lv: evaluated.lv,
     mitralValve: evaluated.mitralValve,
@@ -721,6 +786,41 @@ function outputFromEvaluation(
     power: evaluated.power,
     allFinite,
     acceptedStep: allFinite && evaluated.la.valid && evaluated.lv.valid && solved.converged,
+  };
+}
+
+function activationReadback(
+  previous: WorkConjugateAVPlaneLeftHeartStateV1,
+  state: WorkConjugateAVPlaneLeftHeartStateV1,
+  input: WorkConjugateAVPlaneLeftHeartInputV1,
+): WorkConjugateAVPlaneLeftHeartActivationReadbackV1 {
+  const laPrescribed = input.laActivationSource === "prescribed-contractile-state";
+  const lvPrescribed = input.lvActivationSource === "prescribed-contractile-state";
+  return {
+    la: {
+      source: laPrescribed ? "prescribed-contractile-state" : "legacy-first-order-filter",
+      stateOwner: laPrescribed
+        ? "upstream-prescribed-contractile-state"
+        : "subsystem-first-order-filter",
+      previousContractileActivation01: previous.laActivation01,
+      currentContractileActivation01: state.laActivation01,
+      electricalProtocolMarker01: input.laElectricalActivation01,
+      prescribedContractileActivation01: laPrescribed
+        ? input.laPrescribedContractileActivation01
+        : null,
+    },
+    lv: {
+      source: lvPrescribed ? "prescribed-contractile-state" : "legacy-first-order-filter",
+      stateOwner: lvPrescribed
+        ? "upstream-prescribed-contractile-state"
+        : "subsystem-first-order-filter",
+      previousContractileActivation01: previous.lvActivation01,
+      currentContractileActivation01: state.lvActivation01,
+      electricalProtocolMarker01: input.lvElectricalActivation01,
+      prescribedContractileActivation01: lvPrescribed
+        ? input.lvPrescribedContractileActivation01
+        : null,
+    },
   };
 }
 
@@ -959,6 +1059,26 @@ function validateParamsAndInput(
   }
   if (!Number.isFinite(input.laElectricalActivation01) || !Number.isFinite(input.lvElectricalActivation01)) {
     throw new RangeError("electrical activation inputs must be finite");
+  }
+  if (
+    input.laActivationSource === "prescribed-contractile-state" &&
+    (!Number.isFinite(input.laPrescribedContractileActivation01) ||
+      input.laPrescribedContractileActivation01 < 0 ||
+      input.laPrescribedContractileActivation01 > 1)
+  ) {
+    throw new RangeError(
+      "laPrescribedContractileActivation01 must be finite and within [0, 1]",
+    );
+  }
+  if (
+    input.lvActivationSource === "prescribed-contractile-state" &&
+    (!Number.isFinite(input.lvPrescribedContractileActivation01) ||
+      input.lvPrescribedContractileActivation01 < 0 ||
+      input.lvPrescribedContractileActivation01 > 1)
+  ) {
+    throw new RangeError(
+      "lvPrescribedContractileActivation01 must be finite and within [0, 1]",
+    );
   }
   const positiveValues: readonly [string, number][] = [
     ["activation.laRiseTauSec", params.activation.laRiseTauSec],

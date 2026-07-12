@@ -73,6 +73,100 @@ describe("WorkConjugateAVPlaneLeftHeartV1", () => {
     expect(output.residual.normalizedResiduals).toHaveLength(10);
   });
 
+  it("owns legacy or upstream-prescribed LA/LV contractile states symmetrically", () => {
+    const previous = initialWorkConjugateAVPlaneLeftHeartStateV1({
+      laActivation01: 0.13,
+      lvActivation01: 0.21,
+    });
+    const output = stepWorkConjugateAVPlaneLeftHeartV1(
+      previous,
+      {
+        dtSec: 0.001,
+        laActivationSource: "prescribed-contractile-state",
+        laElectricalActivation01: 1,
+        lvElectricalActivation01: 0,
+        laPrescribedContractileActivation01: 0.42,
+      },
+    );
+
+    expect(output.state.laActivation01).toBe(0.42);
+    expect(output.state.lvActivation01).toBeLessThan(0.21);
+    expect(output.activation.la).toEqual({
+      source: "prescribed-contractile-state",
+      stateOwner: "upstream-prescribed-contractile-state",
+      previousContractileActivation01: 0.13,
+      currentContractileActivation01: 0.42,
+      electricalProtocolMarker01: 1,
+      prescribedContractileActivation01: 0.42,
+    });
+    expect(output.activation.lv).toEqual({
+      source: "legacy-first-order-filter",
+      stateOwner: "subsystem-first-order-filter",
+      previousContractileActivation01: 0.21,
+      currentContractileActivation01: output.state.lvActivation01,
+      electricalProtocolMarker01: 0,
+      prescribedContractileActivation01: null,
+    });
+    expect(output.residual.physicalResiduals).toHaveLength(10);
+    expect(output.acceptedStep).toBe(true);
+    expect(output.residual.hiddenBloodVolumeSourceMl).toBe(0);
+
+    const alternateProtocolMarker = stepWorkConjugateAVPlaneLeftHeartV1(
+      previous,
+      {
+        dtSec: 0.001,
+        laActivationSource: "prescribed-contractile-state",
+        laElectricalActivation01: 0,
+        lvElectricalActivation01: 0,
+        laPrescribedContractileActivation01: 0.42,
+      },
+    );
+    expect(alternateProtocolMarker.state).toEqual(output.state);
+
+    const lvPrescribed = stepWorkConjugateAVPlaneLeftHeartV1(previous, {
+      dtSec: 0.001,
+      laElectricalActivation01: 0,
+      lvActivationSource: "prescribed-contractile-state",
+      lvElectricalActivation01: 1,
+      lvPrescribedContractileActivation01: 0.31,
+    });
+    expect(lvPrescribed.state.laActivation01).toBeLessThan(0.13);
+    expect(lvPrescribed.state.lvActivation01).toBe(0.31);
+    expect(lvPrescribed.activation.la.source).toBe("legacy-first-order-filter");
+    expect(lvPrescribed.activation.la.stateOwner).toBe("subsystem-first-order-filter");
+    expect(lvPrescribed.activation.lv).toEqual({
+      source: "prescribed-contractile-state",
+      stateOwner: "upstream-prescribed-contractile-state",
+      previousContractileActivation01: 0.21,
+      currentContractileActivation01: 0.31,
+      electricalProtocolMarker01: 1,
+      prescribedContractileActivation01: 0.31,
+    });
+    expect(lvPrescribed.residual.physicalResiduals).toHaveLength(10);
+    expect(lvPrescribed.residual.hiddenBloodVolumeSourceMl).toBe(0);
+
+    expect(() => stepWorkConjugateAVPlaneLeftHeartV1(
+      initialWorkConjugateAVPlaneLeftHeartStateV1(),
+      {
+        dtSec: 0.001,
+        laActivationSource: "prescribed-contractile-state",
+        laElectricalActivation01: 0,
+        lvElectricalActivation01: 0,
+        laPrescribedContractileActivation01: 1.01,
+      },
+    )).toThrow(/laPrescribedContractileActivation01 must be finite and within \[0, 1\]/);
+    expect(() => stepWorkConjugateAVPlaneLeftHeartV1(
+      initialWorkConjugateAVPlaneLeftHeartStateV1(),
+      {
+        dtSec: 0.001,
+        laElectricalActivation01: 0,
+        lvActivationSource: "prescribed-contractile-state",
+        lvElectricalActivation01: 0,
+        lvPrescribedContractileActivation01: -0.01,
+      },
+    )).toThrow(/lvPrescribedContractileActivation01 must be finite and within \[0, 1\]/);
+  });
+
   it("keeps hidden blood source exactly zero and preserves closed-circuit volume delta", () => {
     const previous = initialWorkConjugateAVPlaneLeftHeartStateV1();
     const output = stepWorkConjugateAVPlaneLeftHeartV1(previous, {
