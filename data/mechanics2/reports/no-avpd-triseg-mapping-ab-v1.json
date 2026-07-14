@@ -1,0 +1,386 @@
+{
+  "artifactId": "no-avpd-triseg-mapping-ab-report-v1",
+  "benchId": "no-avpd-triseg-mapping-ab-bench-v1",
+  "protocol": {
+    "protocolId": "no-avpd-triseg-mapping-ab-v1",
+    "mappingOrder": [
+      "lumens-2009-representative-tension-area-work",
+      "full-fiber-energy-gradient"
+    ],
+    "comparison": "literature-faithful-lumens-equation-16-mapping-vs-opt-in-full-fiber-energy-gradient-variational-interpretation",
+    "parameterIsolation": "triSegGeneralizedForceMapping-only-all-other-parameters-byte-identical-after-removing-that-key",
+    "passiveProtocol": "fixed-default-biventricular-blood-volumes-zero-activation-long-time-passive-wall-equilibrium",
+    "passiveInitialCoordinates": {
+      "junctionRadiusCm": 3.3,
+      "septalCapVolumeMl": 0
+    },
+    "closedLoopInitialization": "independent-passive-reequilibrated-cold-start-per-mapping-no-cross-mapping-warm-checkpoint",
+    "closedLoopSampleRetention": "last-two-complete-beats",
+    "bloodVolumeLedger": "unchanged-eight-compartment-ledger-no-geometry-owned-hidden-blood-volume",
+    "mappingClosure": "selected-mapping-owns-left-and-right-ventricular-pressures-plus-septal-volume-and-junction-radius-residuals",
+    "fullGradientResidualScaling": "per-coordinate-sum-absolute-wall-contributions",
+    "stressMeasureBoundary": "constant-incompressible-wall-volume-J-equals-1-so-declared-one-dimensional-kirchhoff-stress-is-numerically-equal-to-cauchy-stress",
+    "structuralNumericalStatusOnly": true,
+    "physiologyGateApplied": false,
+    "mitralEAUse": "retained-report-only-never-gate-or-ranking",
+    "winnerSelected": false,
+    "defaultMappingChanged": false
+  },
+  "runOptions": {
+    "beats": 32,
+    "dtSec": 0.005,
+    "sampleEverySteps": 1
+  },
+  "diagnostic": {
+    "diagnosticId": "no-avpd-triseg-mapping-ab-diagnostic-v1",
+    "claimBoundary": {
+      "evidenceStatus": "report-only-literature-vs-variational-work-mapping-structural-numerical-comparison",
+      "researchSidecarOnly": true,
+      "runtimeReplacementAuthorized": false,
+      "physiologyPromotionAuthorized": false,
+      "parameterCalibrationAuthorized": false,
+      "winnerSelectionApplied": false,
+      "legacyInterpretation": "literature-faithful-lumens-2009-equation-16-representative-tension-area-work-with-stated-polynomial-approximation",
+      "alternativeInterpretation": "full-fiber-energy-gradient-variational-interpretation-not-an-automatic-correction",
+      "thisScreenCannotSelectDefault": true,
+      "mappingIsOnlyDeclaredParameterDifference": true,
+      "passiveReequilibrationRequiredBeforeClosedLoopInterpretation": true,
+      "coldStartFailureMustBeRetained": true,
+      "bloodVolumeLedgerOwner": "closed-loop-compartment-ledger-Qvenous-minus-QAV-no-hidden-geometry-volume",
+      "mitralEAUse": "continuous-report-only-never-a-gate-or-ranking-term",
+      "mappingClosure": "one-mapping-must-own-both-ventricular-pressures-and-both-algebraic-residuals-no-mixed-closure",
+      "wallStressMeasureBoundary": "constant-incompressible-wall-volume-J-equals-1-makes-declared-one-dimensional-kirchhoff-stress-numerically-equal-cauchy-stress",
+      "warmCheckpointCrossingMappingAllowed": false
+    },
+    "statusScope": "execution-availability-and-structural-numerical-comparison-only",
+    "candidates": [
+      {
+        "mappingMode": "lumens-2009-representative-tension-area-work",
+        "parameterSha256": "dec57d98cb320e496be58be5297681c4c8b6b054c7a958e890d69b8901dabc27",
+        "nonMappingParameterSha256": "d577bf7ef47534613fd0b2274dd13473f197cf8fa2272fa6a0a65eedb8b25aa5",
+        "passiveReequilibration": {
+          "protocol": "fixed-default-biventricular-blood-volumes-zero-activation-long-time-passive-wall-equilibrium",
+          "fixedBloodVolumesMl": {
+            "leftVentricle": 140,
+            "rightVentricle": 150
+          },
+          "initialCoordinates": {
+            "junctionRadiusCm": 3.3,
+            "septalCapVolumeMl": 0
+          },
+          "mappingClosure": {
+            "pressureAndTwoResidualCoordinatesUseSameMapping": true,
+            "residualScaling": "lumens-line-tension-relative-magnitude"
+          },
+          "executionStatus": "pass",
+          "failureReason": null,
+          "structuredFailure": null,
+          "equilibratedCoordinates": {
+            "junctionRadiusCm": 3.058242263109602,
+            "septalCapVolumeMl": 20.54822828998511
+          },
+          "coordinateShiftFromInitial": {
+            "junctionRadiusCm": -0.2417577368903978,
+            "septalCapVolumeMl": 20.54822828998511
+          },
+          "equilibriumReadback": {
+            "leftVentricleTransmuralMmHg": 8.27641939312814,
+            "rightVentricleTransmuralMmHg": 1.4391751120636158,
+            "septalCapResidualPa": 3.4748603638945497e-7,
+            "junctionRadiusResidualN": 1.0343111811472738e-8,
+            "relativeResidual": 1.2584538981200854e-9,
+            "iterations": 4,
+            "functionEvaluations": 21,
+            "jacobianEvaluations": null,
+            "termination": "converged",
+            "initialCoordinatesWereClamped": false,
+            "boundContact": {
+              "junctionRadius": "none",
+              "septalCapVolume": "none"
+            }
+          }
+        },
+        "closedLoop": {
+          "initialization": "independent-passive-reequilibrated-cold-start",
+          "coldStartExceptionCaptured": false,
+          "structuralStatus": "pass",
+          "failureReason": null,
+          "beatsRequested": 32,
+          "beatsCompleted": 32,
+          "dtSec": 0.005,
+          "allStepsAccepted": true,
+          "hardDiagnostics": {
+            "allStepsAccepted": true,
+            "maxAbsTotalBloodVolumeDriftMl": 1.1823431123048067e-11,
+            "maxAbsStepBloodVolumeResidualMl": 1.8189894035458565e-12,
+            "maxGlobalScaledResidual": 9.996680189194862e-8,
+            "maxTriSegRelativeResidual": 9.980496627429806e-8,
+            "maxSerialEquilibriumResidualPa": 0.000006139111064840108,
+            "maxSlsBalanceResidualJPerM3": 1.1871769843227464e-14,
+            "maxSerialWorkBalanceResidualJPerM3": 1.9296464870421914e-8
+          },
+          "solverWork": {
+            "stepsAttempted": 6400,
+            "stepsAccepted": 6400,
+            "totalGlobalIterations": 30139,
+            "totalGlobalResidualEvaluations": 229236,
+            "totalGlobalJacobianEvaluations": 13591,
+            "totalGlobalJacobianReusedIterations": 16587,
+            "totalGlobalFreshJacobianRetries": 39,
+            "totalGlobalLineSearchBacktracks": 2423,
+            "maximumGlobalIterationsPerStep": 14,
+            "maximumGlobalResidualEvaluationsPerStep": 116,
+            "meanGlobalIterationsPerAcceptedStep": 4.70921875,
+            "meanGlobalResidualEvaluationsPerAcceptedStep": 35.818125
+          },
+          "exactOneBeatReturnMap": {
+            "availability": "available-exact-integer-step-boundaries",
+            "maxAbsNormalizedStateDrift": 0.0004505806766238488
+          },
+          "reportOnlyMitralEA": {
+            "ePeakMlPerSec": 164.88213435554067,
+            "aPeakMlPerSec": 294.4413544659309,
+            "eToA": 0.5599829366856781,
+            "usedForGateOrRanking": false
+          },
+          "mappingClosureVerifiedAtEveryAcceptedStep": true,
+          "warmCheckpointCrossedMapping": false
+        }
+      },
+      {
+        "mappingMode": "full-fiber-energy-gradient",
+        "parameterSha256": "530f5f803e2714246ca009354f75dfcbafdc3c4a4d5a8e06eff850c1d2160881",
+        "nonMappingParameterSha256": "d577bf7ef47534613fd0b2274dd13473f197cf8fa2272fa6a0a65eedb8b25aa5",
+        "passiveReequilibration": {
+          "protocol": "fixed-default-biventricular-blood-volumes-zero-activation-long-time-passive-wall-equilibrium",
+          "fixedBloodVolumesMl": {
+            "leftVentricle": 140,
+            "rightVentricle": 150
+          },
+          "initialCoordinates": {
+            "junctionRadiusCm": 3.3,
+            "septalCapVolumeMl": 0
+          },
+          "mappingClosure": {
+            "pressureAndTwoResidualCoordinatesUseSameMapping": true,
+            "residualScaling": "per-coordinate-sum-absolute-wall-contributions"
+          },
+          "executionStatus": "pass",
+          "failureReason": null,
+          "structuredFailure": null,
+          "equilibratedCoordinates": {
+            "junctionRadiusCm": 2.984316812121737,
+            "septalCapVolumeMl": 22.586000906241402
+          },
+          "coordinateShiftFromInitial": {
+            "junctionRadiusCm": -0.31568318787826266,
+            "septalCapVolumeMl": 22.586000906241402
+          },
+          "equilibriumReadback": {
+            "leftVentricleTransmuralMmHg": 8.309053634206006,
+            "rightVentricleTransmuralMmHg": 1.531534341328625,
+            "septalCapResidualPa": 8.643041837785859e-11,
+            "junctionRadiusResidualN": 9.159895064669854e-13,
+            "relativeResidual": 1.8474287864001548e-13,
+            "iterations": 5,
+            "functionEvaluations": 26,
+            "jacobianEvaluations": 5,
+            "termination": "converged",
+            "initialCoordinatesWereClamped": false,
+            "boundContact": {
+              "junctionRadius": "none",
+              "septalCapVolume": "none"
+            }
+          }
+        },
+        "closedLoop": {
+          "initialization": "independent-passive-reequilibrated-cold-start",
+          "coldStartExceptionCaptured": false,
+          "structuralStatus": "pass",
+          "failureReason": null,
+          "beatsRequested": 32,
+          "beatsCompleted": 32,
+          "dtSec": 0.005,
+          "allStepsAccepted": true,
+          "hardDiagnostics": {
+            "allStepsAccepted": true,
+            "maxAbsTotalBloodVolumeDriftMl": 3.001332515850663e-11,
+            "maxAbsStepBloodVolumeResidualMl": 1.8189894035458565e-12,
+            "maxGlobalScaledResidual": 9.944882095602736e-8,
+            "maxTriSegRelativeResidual": 9.9988093286827e-8,
+            "maxSerialEquilibriumResidualPa": 0.000005757319740951061,
+            "maxSlsBalanceResidualJPerM3": 1.1685361396701079e-14,
+            "maxSerialWorkBalanceResidualJPerM3": 1.5519598939306434e-8
+          },
+          "solverWork": {
+            "stepsAttempted": 6400,
+            "stepsAccepted": 6400,
+            "totalGlobalIterations": 30266,
+            "totalGlobalResidualEvaluations": 228412,
+            "totalGlobalJacobianEvaluations": 13568,
+            "totalGlobalJacobianReusedIterations": 16714,
+            "totalGlobalFreshJacobianRetries": 16,
+            "totalGlobalLineSearchBacktracks": 1794,
+            "maximumGlobalIterationsPerStep": 14,
+            "maximumGlobalResidualEvaluationsPerStep": 85,
+            "meanGlobalIterationsPerAcceptedStep": 4.7290625,
+            "meanGlobalResidualEvaluationsPerAcceptedStep": 35.689375
+          },
+          "exactOneBeatReturnMap": {
+            "availability": "available-exact-integer-step-boundaries",
+            "maxAbsNormalizedStateDrift": 0.0004695915033294932
+          },
+          "reportOnlyMitralEA": {
+            "ePeakMlPerSec": 164.7067423553589,
+            "aPeakMlPerSec": 295.2339124836825,
+            "eToA": 0.5578855795045639,
+            "usedForGateOrRanking": false
+          },
+          "mappingClosureVerifiedAtEveryAcceptedStep": true,
+          "warmCheckpointCrossedMapping": false
+        }
+      }
+    ],
+    "parameterIsolation": {
+      "nonMappingParametersIdentical": true,
+      "legacyParameterSha256": "dec57d98cb320e496be58be5297681c4c8b6b054c7a958e890d69b8901dabc27",
+      "fullFiberEnergyGradientParameterSha256": "530f5f803e2714246ca009354f75dfcbafdc3c4a4d5a8e06eff850c1d2160881",
+      "sharedNonMappingParameterSha256": "d577bf7ef47534613fd0b2274dd13473f197cf8fa2272fa6a0a65eedb8b25aa5"
+    },
+    "mappingClosureVerification": {
+      "verified": true,
+      "allFourGeneralizedCoordinatesRequired": true,
+      "mixedPressureResidualMappingAllowed": false,
+      "crossMappingWarmResumeAllowed": false
+    },
+    "passiveComparison": {
+      "availability": "available",
+      "bothCandidatesReequilibrated": true,
+      "fullFiberEnergyGradientMinusLumens": {
+        "junctionRadiusCm": -0.07392545098786485,
+        "septalCapVolumeMl": 2.037772616256291,
+        "leftVentricleTransmuralMmHg": 0.032634241077865056,
+        "rightVentricleTransmuralMmHg": 0.09235922926500928,
+        "iterations": 1
+      }
+    },
+    "closedLoopComparison": {
+      "availability": "available",
+      "bothCandidatesStructuralPass": true,
+      "fullFiberEnergyGradientMinusLumens": {
+        "maxAbsTotalBloodVolumeDriftMl": 1.8189894035458565e-11,
+        "maxAbsStepBloodVolumeResidualMl": 0,
+        "maxGlobalScaledResidual": -5.179809359212584e-10,
+        "maxTriSegRelativeResidual": 1.83127012528934e-10,
+        "maxSerialEquilibriumResidualPa": -3.817913238890469e-7,
+        "maxSlsBalanceResidualJPerM3": -1.864084465263852e-16,
+        "maxSerialWorkBalanceResidualJPerM3": -3.776865931115481e-9,
+        "totalGlobalIterations": 127,
+        "totalGlobalResidualEvaluations": -824,
+        "totalGlobalJacobianEvaluations": -23,
+        "totalGlobalLineSearchBacktracks": -629,
+        "meanGlobalIterationsPerAcceptedStep": 0.019843750000000604,
+        "maxAbsNormalizedOneBeatStateDrift": 0.000019010826705644394
+      },
+      "failedCandidates": []
+    },
+    "interpretation": {
+      "comparisonComplete": true,
+      "fullFiberEnergyGradientPromoted": false,
+      "lumensMappingRejected": false,
+      "physiologyWinnerSelected": false,
+      "mitralEAUsedForDecision": false,
+      "mixedMappingClosureAccepted": false,
+      "warmCheckpointCrossingMappingAccepted": false,
+      "nextDecision": "inspect-structural-numerical-differences-and-dt-refinement-before-any-physiology-or-default-change"
+    }
+  },
+  "candidateEvidence": [
+    {
+      "mappingMode": "lumens-2009-representative-tension-area-work",
+      "mappingIdIncludedInStateAndParameters": true,
+      "sourceReportAvailability": "available",
+      "compressedSourceReportPath": "data/mechanics2/reports/no-avpd-triseg-mapping-ab-v1/candidates/lumens-2009-representative-tension-area-work.json.gz",
+      "completeSourceReportSha256": "cede925fb141fd4e60254c61c5789ab0bb332e116e6d275f69bfbe5227d93e86",
+      "completeSourceReportHashMethod": "sha256-of-canonical-compact-JSON-before-pretty-print-and-gzip"
+    },
+    {
+      "mappingMode": "full-fiber-energy-gradient",
+      "mappingIdIncludedInStateAndParameters": true,
+      "sourceReportAvailability": "available",
+      "compressedSourceReportPath": "data/mechanics2/reports/no-avpd-triseg-mapping-ab-v1/candidates/full-fiber-energy-gradient.json.gz",
+      "completeSourceReportSha256": "fc812251f6cd208b7b68ed8178ee31b6c3bd144c149e91a128336f3557717365",
+      "completeSourceReportHashMethod": "sha256-of-canonical-compact-JSON-before-pretty-print-and-gzip"
+    }
+  ],
+  "provenance": {
+    "deterministic": true,
+    "generatedAtIncluded": false,
+    "mappingIds": [
+      "lumens-2009-representative-tension-area-work",
+      "full-fiber-energy-gradient"
+    ],
+    "mappingIdPresentInEachParameterAndAvailableState": true,
+    "crossMappingWarmCheckpointUsed": false,
+    "coldStartFailureRetention": "candidate-remains-in-compact-artifact-even-when-source-report-is-unavailable",
+    "completeReportTreatment": "one-gzip-json-per-candidate-when-cold-start-produces-a-bench-report",
+    "compactArtifactTreatment": "passive-and-closed-loop-structural-numerical-summaries-no-waveform-imputation",
+    "implementationSha256": "7f116e64444e1806640c9cade7b9933e930f7b9d5dcb5bf0a1b5e45e296336db",
+    "harnessImplementationSha256": "f748f1d06c3468a5f4369eeda30d6f1ef6fc7b5e3969b202c7a78f2064dde2bf",
+    "sourceFiles": [
+      {
+        "path": "engine/mechanics2/activation/LandFormCaTroponinActivationV1.ts",
+        "sha256": "4b2e7718fd900259a2daf82093d03152e83fdc09ccb022c18116ed54b234ca0c"
+      },
+      {
+        "path": "engine/mechanics2/activation/PeriodicPrescribedCalciumDriverV2.ts",
+        "sha256": "124dd0c222548c115f387a1e7fd880b7f921a855d35979ec6bdd271782075bd2"
+      },
+      {
+        "path": "engine/mechanics2/constitutive/HillCeSeeSlsV1.ts",
+        "sha256": "ff58c722edf6e0f53f38d2ee3d11b4f9e06983a5f5b802c182f714c800ee2baf"
+      },
+      {
+        "path": "engine/mechanics2/geometry/OneFiberVolumeGeometryV1.ts",
+        "sha256": "d02ab75bdb005c1c797577f114acd003c4e46732cfed6cd63be7bf4388f670c8"
+      },
+      {
+        "path": "engine/mechanics2/geometry/TriSegGeometryV1.ts",
+        "sha256": "468fb3c1108b60c1787d28b8ad6c0a01b3f346f77c4fb3520ec4bdfeac569d44"
+      },
+      {
+        "path": "engine/mechanics2/solver/DampedNewtonV1.ts",
+        "sha256": "54b817992a2822748fce352fc481dabc407c9e1aea29e063d170b3239e60443c"
+      },
+      {
+        "path": "engine/mechanics2/subsystems/NoAvpdFourChamberHillTriSegV1.ts",
+        "sha256": "a9218b92d52b05559930e524c4b58d2a8134c9be87209c8a4161cae1dbf7f069"
+      },
+      {
+        "path": "engine/mechanics2/valve/SmoothInertialValveV2.ts",
+        "sha256": "31d345c04cdccbbe01976da8a0f5da7dbf46c70da3abba604b397dfd639e8778"
+      },
+      {
+        "path": "engine/mechanics2/benches/NoAvpdFourChamberHillTriSegBenchV1.ts",
+        "sha256": "aa68ea1a00d8ba07eb2421851998d85b8000ec292033f2e27426594744f0484a"
+      },
+      {
+        "path": "engine/mechanics2/benches/NoAvpdTriSegMappingAbBenchV1.ts",
+        "sha256": "6396965e788821cba8b3f3a8d6a1f798d44138947915c596fce9e6847a7480a8"
+      },
+      {
+        "path": "engine/mechanics2/diagnostics/NoAvpdEventResolvedDiagnosticsV1.ts",
+        "sha256": "f78e51dc255b64c69cbb50ade2062a7b65e1aaad89948226b5e784753c326392"
+      },
+      {
+        "path": "engine/mechanics2/diagnostics/NoAvpdTriSegMappingAbDiagnosticsV1.ts",
+        "sha256": "dffe89f4d24dadd7d5e16ea21f6c8fa463b34c51b850162ab3c4285e5415fb8a"
+      },
+      {
+        "path": "tools/mechanics2/runNoAvpdTriSegMappingAbV1.ts",
+        "sha256": "cc6ab1024fe22a0aaaea3ef9d0af19398020278814c85f0fcc1b08f7ef26d8dd"
+      }
+    ]
+  },
+  "normalizedSha256": "63221c1ce44dc41a19bc8f721b20817788c906b23d27d4f20571ec397d6b8cd3"
+}

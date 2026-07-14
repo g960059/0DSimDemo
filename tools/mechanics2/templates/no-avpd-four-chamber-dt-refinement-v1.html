@@ -1,0 +1,284 @@
+<meta charset="utf-8">
+<div id="no-avpd-dt-refinement-v1">
+  <style>
+    #no-avpd-dt-refinement-v1 { color: var(--foreground); width: 100%; }
+    #no-avpd-dt-refinement-v1 .legend { margin-bottom: 10px; }
+    #no-avpd-dt-refinement-v1 .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    #no-avpd-dt-refinement-v1 .line-key { width: 24px; height: 0; border-top: 2px solid currentColor; }
+    #no-avpd-dt-refinement-v1 .plots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    #no-avpd-dt-refinement-v1 .plot { min-width: 0; overflow-x: auto; }
+    #no-avpd-dt-refinement-v1 .plot.wide { grid-column: 1 / -1; }
+    #no-avpd-dt-refinement-v1 h3 { margin: 0 0 5px; font-weight: 500; }
+    #no-avpd-dt-refinement-v1 svg { display: block; width: 100%; height: auto; overflow: visible; }
+    #no-avpd-dt-refinement-v1 .grid-line { stroke: var(--border); stroke-width: 1; opacity: .45; }
+    #no-avpd-dt-refinement-v1 .axis-line { stroke: var(--border); stroke-width: 1; }
+    #no-avpd-dt-refinement-v1 .axis-text { fill: var(--muted-foreground); font-size: 11px; }
+    #no-avpd-dt-refinement-v1 .series { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+    #no-avpd-dt-refinement-v1 .event-line { stroke: var(--muted-foreground); stroke-width: 1; stroke-dasharray: 3 4; opacity: .7; }
+    #no-avpd-dt-refinement-v1 .event-text { fill: var(--foreground); font-size: 10px; }
+    #no-avpd-dt-refinement-v1 .event-dot { stroke: var(--background); stroke-width: 1.5; }
+    #no-avpd-dt-refinement-v1 .raw-node { fill: var(--background); stroke-width: 1; opacity: .5; }
+    #no-avpd-dt-refinement-v1 .readout { min-height: 1.5em; margin: 4px 0 12px; }
+    #no-avpd-dt-refinement-v1 .tables { margin-top: 18px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    #no-avpd-dt-refinement-v1 table { border-collapse: collapse; width: 100%; }
+    #no-avpd-dt-refinement-v1 th, #no-avpd-dt-refinement-v1 td { padding: 5px 7px; border-bottom: 1px solid var(--border); text-align: right; vertical-align: top; }
+    #no-avpd-dt-refinement-v1 th:first-child, #no-avpd-dt-refinement-v1 td:first-child { text-align: left; }
+    #no-avpd-dt-refinement-v1 th { color: var(--muted-foreground); font-weight: 500; }
+    @media (max-width: 620px) {
+      #no-avpd-dt-refinement-v1 .plots, #no-avpd-dt-refinement-v1 .tables { grid-template-columns: 1fr; }
+      #no-avpd-dt-refinement-v1 .plot.wide { grid-column: auto; }
+      #no-avpd-dt-refinement-v1 .plot svg { min-width: 360px; }
+      #no-avpd-dt-refinement-v1 .plot.wide svg { min-width: 740px; }
+    }
+  </style>
+
+  <div class="viz-row legend text-small" data-run-legend aria-label="Time-step series legend">
+    <span class="legend-item">straight raw-node segments; no smoothing or decimation</span>
+  </div>
+  <div class="readout text-small text-muted" aria-live="polite">Move across a phase plot for finest-grid raw values.</div>
+
+  <div class="plots">
+    <section class="plot"><h3>LA blood-volume PV</h3><svg data-plot="la-pv" viewBox="0 0 360 250" role="img" aria-label="Left atrial blood-volume pressure-volume loop time-step overlay"></svg></section>
+    <section class="plot"><h3>LV blood-volume PV</h3><svg data-plot="lv-pv" viewBox="0 0 360 250" role="img" aria-label="Left ventricular pressure-volume loop time-step overlay"></svg></section>
+    <section class="plot"><h3>RA blood-volume PV</h3><svg data-plot="ra-pv" viewBox="0 0 360 250" role="img" aria-label="Right atrial blood-volume pressure-volume loop time-step overlay"></svg></section>
+    <section class="plot"><h3>RV blood-volume PV</h3><svg data-plot="rv-pv" viewBox="0 0 360 250" role="img" aria-label="Right ventricular pressure-volume loop time-step overlay"></svg></section>
+    <section class="plot"><h3>LAP</h3><svg data-plot="lap" viewBox="0 0 360 230" role="img" aria-label="Left atrial pressure raw time-step overlay with operational events"></svg></section>
+    <section class="plot"><h3>RAP</h3><svg data-plot="rap" viewBox="0 0 360 230" role="img" aria-label="Right atrial pressure raw time-step overlay with operational events"></svg></section>
+    <section class="plot wide"><h3>MV flow</h3><svg data-plot="mv" viewBox="0 0 740 245" role="img" aria-label="Mitral flow raw time-step overlay with E and A operational events"></svg></section>
+    <section class="plot wide"><h3>LVP / RVP</h3><svg data-plot="vp" viewBox="0 0 740 245" role="img" aria-label="Left and right ventricular pressure at finest time step"></svg></section>
+    <section class="plot wide"><h3>LA Ca &rarr; CaTRPN &rarr; thin filament &rarr; SEE tension</h3><svg data-plot="la-chain" viewBox="0 0 740 245" role="img" aria-label="Normalized left atrial activation and tension chain at finest time step"></svg></section>
+  </div>
+
+  <div class="tables">
+    <section><h3>Operational event phase</h3><table class="text-small" data-table="events"><thead><tr><th>Event</th></tr></thead><tbody></tbody></table></section>
+    <section><h3>Fine-pair raw difference</h3><table class="text-small" data-table="differences"><thead><tr><th>Signal</th><th>max |&#916;|</th><th>RMS</th><th>ratio</th></tr></thead><tbody></tbody></table></section>
+  </div>
+
+  <script type="application/json" id="no-avpd-dt-refinement-data">__NO_AVPD_DT_REFINEMENT_DATA__</script>
+  <script>
+    (() => {
+      const root = document.getElementById("no-avpd-dt-refinement-v1");
+      const dataNode = document.getElementById("no-avpd-dt-refinement-data");
+      if (!root || !dataNode) return;
+      const artifact = JSON.parse(dataNode.textContent || "{}");
+      const report = artifact.diagnostics;
+      const columns = Object.fromEntries(report.traceColumns.map((name, index) => [name, index]));
+      const runs = report.runs.slice().sort((a, b) => a.stepsPerCycle - b.stepsPerCycle);
+      const finest = runs[runs.length - 1];
+      const NS = "http://www.w3.org/2000/svg";
+      const dashPatterns = ["", "7 5", "2 4", "10 3 2 3"];
+      const styles = runs.map((run, index) => ({
+        color: `var(--viz-series-${index % 5 + 1})`,
+        dash: dashPatterns[index % dashPatterns.length],
+        width: Math.max(1.4, 2.2 - index * .2),
+      }));
+      const readout = root.querySelector(".readout");
+      if (readout) readout.textContent = `Move across a phase plot for N=${finest.stepsPerCycle} raw values.`;
+      const legend = root.querySelector("[data-run-legend]");
+      runs.slice().reverse().forEach((run, reverseIndex) => {
+        const index = runs.length - 1 - reverseIndex;
+        const item = document.createElement("span");
+        item.className = "legend-item";
+        const key = document.createElement("i");
+        key.className = "line-key";
+        key.style.color = styles[index].color;
+        key.style.borderTopStyle = index === 0 ? "solid" : index === 1 ? "dashed" : "dotted";
+        item.appendChild(key);
+        item.append(`N=${run.stepsPerCycle}${index === 0 ? ", raw nodes shown" : ""}`);
+        legend?.prepend(item);
+      });
+
+      const add = (parent, name, attrs, content) => {
+        const node = document.createElementNS(NS, name);
+        Object.entries(attrs || {}).forEach(([key, value]) => node.setAttribute(key, String(value)));
+        if (content !== undefined) node.textContent = content;
+        parent.appendChild(node);
+        return node;
+      };
+      const extent = (values) => {
+        const low = Math.min(...values), high = Math.max(...values);
+        const span = Math.max(high - low, Math.abs(high || 1) * .02, .01);
+        return [low - span * .07, high + span * .07];
+      };
+      const scale = (domain, range) => (value) => range[0] + (value - domain[0]) * (range[1] - range[0]) / Math.max(domain[1] - domain[0], 1e-12);
+      const path = (rows, x, y) => rows.map((row, index) => `${index ? "L" : "M"}${x(row).toFixed(2)},${y(row).toFixed(2)}`).join(" ");
+      const fmt = (value, digits = 3) => value == null || !Number.isFinite(value) ? "—" : Number(value).toFixed(digits);
+      const fmtDifference = value => {
+        if (value == null || !Number.isFinite(value)) return "—";
+        const magnitude = Math.abs(value);
+        return magnitude > 0 && magnitude < 1e-3
+          ? Number(value).toExponential(3)
+          : Number(value).toFixed(4);
+      };
+      const axes = (svg, xDomain, yDomain, width, height, xLabel, yLabel) => {
+        const box = { left: 52, right: width - 14, top: 18, bottom: height - 38 };
+        const x = scale(xDomain, [box.left, box.right]);
+        const y = scale(yDomain, [box.bottom, box.top]);
+        for (let index = 0; index <= 4; index += 1) {
+          const px = box.left + (box.right - box.left) * index / 4;
+          const py = box.bottom - (box.bottom - box.top) * index / 4;
+          add(svg, "line", { x1: px, x2: px, y1: box.top, y2: box.bottom, class: "grid-line" });
+          add(svg, "line", { x1: box.left, x2: box.right, y1: py, y2: py, class: "grid-line" });
+          add(svg, "text", { x: px, y: box.bottom + 15, "text-anchor": "middle", class: "axis-text" }, fmt(xDomain[0] + (xDomain[1] - xDomain[0]) * index / 4, xDomain[1] - xDomain[0] < 3 ? 2 : 0));
+          add(svg, "text", { x: box.left - 7, y: py + 4, "text-anchor": "end", class: "axis-text" }, fmt(yDomain[0] + (yDomain[1] - yDomain[0]) * index / 4, yDomain[1] - yDomain[0] < 20 ? 1 : 0));
+        }
+        add(svg, "line", { x1: box.left, x2: box.right, y1: box.bottom, y2: box.bottom, class: "axis-line" });
+        add(svg, "line", { x1: box.left, x2: box.left, y1: box.top, y2: box.bottom, class: "axis-line" });
+        add(svg, "text", { x: (box.left + box.right) / 2, y: height - 5, "text-anchor": "middle", class: "axis-text" }, xLabel);
+        add(svg, "text", { x: 12, y: (box.top + box.bottom) / 2, transform: `rotate(-90 12 ${(box.top + box.bottom) / 2})`, "text-anchor": "middle", class: "axis-text" }, yLabel);
+        return { ...box, x, y };
+      };
+      const seriesPath = (svg, rows, x, y, style, sampleCount) => add(svg, "path", {
+        d: path(rows, x, y), class: "series", stroke: style.color, "stroke-width": style.width,
+        "stroke-dasharray": style.dash, "data-sample-count": sampleCount,
+      });
+      const attachReadout = (svg) => {
+        svg.addEventListener("pointermove", (event) => {
+          const rect = svg.getBoundingClientRect();
+          const width = svg.viewBox.baseVal.width;
+          const cursor = (event.clientX - rect.left) * width / rect.width;
+          const phase = Math.max(0, Math.min(1, (cursor - 52) / Math.max(width - 66, 1)));
+          const row = finest.trace.reduce((best, candidate) => Math.abs(candidate[0] - phase) < Math.abs(best[0] - phase) ? candidate : best);
+          if (readout) readout.textContent = `phase ${fmt(row[0], 4)} · LAP ${fmt(row[columns.leftAtriumPressureMmHg], 2)} · RAP ${fmt(row[columns.rightAtriumPressureMmHg], 2)} mmHg · MV ${fmt(row[columns.mitralFlowMlPerSec], 1)} mL/s · LA Ca ${fmt(row[columns.leftAtriumFreeCalciumUm], 3)} µM · SEE ${fmt(row[columns.leftAtriumSeriesTensionKPa], 2)} kPa`;
+        });
+      };
+
+      const drawPv = (name, xColumn, yColumn, xLabel, yLabel, eventSide) => {
+        const svg = root.querySelector(`[data-plot="${name}"]`);
+        const width = 360, height = 250;
+        const xDomain = extent(runs.flatMap(run => run.trace.map(row => row[columns[xColumn]])));
+        const yDomain = extent(runs.flatMap(run => run.trace.map(row => row[columns[yColumn]])));
+        const chart = axes(svg, xDomain, yDomain, width, height, xLabel, yLabel);
+        runs.forEach((run, index) => {
+          seriesPath(svg, run.trace, row => chart.x(row[columns[xColumn]]), row => chart.y(row[columns[yColumn]]), styles[index], run.rawEndpointSampleCount);
+          if (index === 0) run.trace.forEach(row => add(svg, "circle", { cx: chart.x(row[columns[xColumn]]), cy: chart.y(row[columns[yColumn]]), r: .85, class: "raw-node", stroke: styles[index].color }));
+        });
+        if (eventSide) {
+          const events = finest.events[eventSide];
+          const markers = events ? [
+            ["x", events.pressureVolumeEvents.xTrough], ["v", events.pressureVolumeEvents.vPeak],
+            ["y", events.pressureVolumeEvents.yTrough], ["a", events.pressureVolumeEvents.aPeak],
+          ] : [];
+          markers.forEach(([label, point]) => {
+            if (!point) return;
+            add(svg, "circle", { cx: chart.x(point.atrialVolumeMl), cy: chart.y(point.atrialPressureMmHg), r: 3.4, class: "event-dot", fill: "var(--viz-series-4)" });
+            add(svg, "text", { x: chart.x(point.atrialVolumeMl) + 5, y: chart.y(point.atrialPressureMmHg) - 5, class: "event-text" }, label);
+          });
+        }
+      };
+
+      const eventSet = (side) => {
+        const events = finest.events[side];
+        if (!events) return [];
+        return side === "left" ? [
+          ["MVO50", events.valveTransitions.modelHalfOpen.opening],
+          ["Ca", events.prescribedCalciumReleaseOnset],
+          ["MVC50", events.valveTransitions.modelHalfOpen.closure],
+        ] : [
+          ["TVO50", events.valveTransitions.modelHalfOpen.opening],
+          ["Ca", events.prescribedCalciumReleaseOnset],
+          ["TVC50", events.valveTransitions.modelHalfOpen.closure],
+        ];
+      };
+      const drawPhase = (name, specs, yLabel, events, wide = false) => {
+        const svg = root.querySelector(`[data-plot="${name}"]`);
+        const width = wide ? 740 : 360, height = wide ? 245 : 230;
+        const values = [];
+        runs.forEach(run => specs.forEach(spec => run.trace.forEach(row => values.push(row[columns[spec.column]]))));
+        const chart = axes(svg, [0, 1], extent(values), width, height, "cardiac phase", yLabel);
+        runs.forEach((run, index) => specs.forEach(spec => seriesPath(svg, run.trace, row => chart.x(row[0]), row => chart.y(row[columns[spec.column]]), styles[index], run.rawEndpointSampleCount)));
+        events.forEach(([label, point], index) => {
+          if (!point) return;
+          const x = chart.x(point.phase01);
+          add(svg, "line", { x1: x, x2: x, y1: chart.top, y2: chart.bottom, class: "event-line" });
+          add(svg, "text", { x: x + 3, y: chart.top + 10 + (index % 2) * 11, class: "event-text" }, label);
+        });
+        attachReadout(svg);
+      };
+
+      drawPv("la-pv", "leftAtriumVolumeMl", "leftAtriumPressureMmHg", "LA blood volume (mL)", "LAP (mmHg)", "left");
+      drawPv("lv-pv", "leftVentricleVolumeMl", "leftVentriclePressureMmHg", "LV volume (mL)", "LVP (mmHg)", null);
+      drawPv("ra-pv", "rightAtriumVolumeMl", "rightAtriumPressureMmHg", "RA blood volume (mL)", "RAP (mmHg)", "right");
+      drawPv("rv-pv", "rightVentricleVolumeMl", "rightVentriclePressureMmHg", "RV volume (mL)", "RVP (mmHg)", null);
+      drawPhase("lap", [{ column: "leftAtriumPressureMmHg" }], "LAP (mmHg)", eventSet("left"));
+      drawPhase("rap", [{ column: "rightAtriumPressureMmHg" }], "RAP (mmHg)", eventSet("right"));
+      const leftEvents = finest.events.left;
+      drawPhase("mv", [{ column: "mitralFlowMlPerSec" }], "MV flow (mL/s)", leftEvents ? [
+        ["MVO50", leftEvents.valveTransitions.modelHalfOpen.opening], ["E", leftEvents.inflowEvents.ePeak],
+        ["Ca", leftEvents.prescribedCalciumReleaseOnset], ["A start", leftEvents.inflowEvents.aStartInterpeakMinimum],
+        ["A", leftEvents.inflowEvents.aPeak], ["MVC50", leftEvents.valveTransitions.modelHalfOpen.closure],
+      ] : [], true);
+
+      const vpSvg = root.querySelector('[data-plot="vp"]');
+      const vpValues = finest.trace.flatMap(row => [row[columns.leftVentriclePressureMmHg], row[columns.rightVentriclePressureMmHg]]);
+      const vpChart = axes(vpSvg, [0, 1], extent(vpValues), 740, 245, "cardiac phase", "pressure (mmHg)");
+      seriesPath(vpSvg, finest.trace, row => vpChart.x(row[0]), row => vpChart.y(row[columns.leftVentriclePressureMmHg]), { color: "var(--viz-series-1)", dash: "", width: 2 }, finest.rawEndpointSampleCount);
+      seriesPath(vpSvg, finest.trace, row => vpChart.x(row[0]), row => vpChart.y(row[columns.rightVentriclePressureMmHg]), { color: "var(--viz-series-2)", dash: "7 5", width: 2 }, finest.rawEndpointSampleCount);
+      add(vpSvg, "text", { x: vpChart.right - 48, y: vpChart.top + 13, class: "event-text" }, "LVP");
+      add(vpSvg, "text", { x: vpChart.right - 48, y: vpChart.top + 27, class: "event-text" }, "RVP");
+      attachReadout(vpSvg);
+
+      const chainSvg = root.querySelector('[data-plot="la-chain"]');
+      const chainSpecs = [
+        ["leftAtriumFreeCalciumUm", "Ca", "var(--viz-series-1)"],
+        ["leftAtriumCaTroponin01", "CaTRPN", "var(--viz-series-2)"],
+        ["leftAtriumThinFilament01", "thin", "var(--viz-series-3)"],
+        ["leftAtriumSeriesTensionKPa", "SEE", "var(--viz-series-4)"],
+      ];
+      const chainChart = axes(chainSvg, [0, 1], [-.04, 1.08], 740, 245, "cardiac phase", "fraction of own peak");
+      chainSpecs.forEach(([column, label, color], index) => {
+        const peak = Math.max(...finest.trace.map(row => Math.abs(row[columns[column]]))) || 1;
+        const normalized = finest.trace.map(row => [row[0], row[columns[column]] / peak]);
+        seriesPath(chainSvg, normalized, row => chainChart.x(row[0]), row => chainChart.y(row[1]), { color, dash: index === 0 ? "" : `${2 + index * 2} 4`, width: 1.8 }, normalized.length);
+        add(chainSvg, "text", { x: chainChart.left + 8 + index * 70, y: chainChart.top + 12, class: "event-text" }, label);
+      });
+      eventSet("left").forEach(([label, point], index) => {
+        if (!point) return;
+        const x = chainChart.x(point.phase01);
+        add(chainSvg, "line", { x1: x, x2: x, y1: chainChart.top, y2: chainChart.bottom, class: "event-line" });
+        add(chainSvg, "text", { x: x + 3, y: chainChart.top + 25 + index * 11, class: "event-text" }, label);
+      });
+      attachReadout(chainSvg);
+
+      const eventRows = [
+        ["MVO50", side => side.valveTransitions.modelHalfOpen.opening], ["MVC50", side => side.valveTransitions.modelHalfOpen.closure],
+        ["LA Ca release", side => side.prescribedCalciumReleaseOnset], ["E peak", side => side.inflowEvents.ePeak],
+        ["A start", side => side.inflowEvents.aStartInterpeakMinimum], ["A flow peak", side => side.inflowEvents.aPeak],
+        ["LA a", side => side.pressureVolumeEvents.aPeak], ["LA x", side => side.pressureVolumeEvents.xTrough],
+        ["LA v", side => side.pressureVolumeEvents.vPeak], ["LA y", side => side.pressureVolumeEvents.yTrough],
+      ];
+      const eventBody = root.querySelector('[data-table="events"] tbody');
+      const eventHeader = root.querySelector('[data-table="events"] thead tr');
+      runs.forEach(run => {
+        const th = document.createElement("th");
+        th.textContent = `N${run.stepsPerCycle}`;
+        eventHeader.appendChild(th);
+      });
+      eventRows.forEach(([label, getter]) => {
+        const tr = document.createElement("tr");
+        const tdLabel = document.createElement("td"); tdLabel.textContent = label; tr.appendChild(tdLabel);
+        runs.forEach(run => { const td = document.createElement("td"); td.textContent = fmt(run.events.left ? getter(run.events.left)?.phase01 : null, 4); tr.appendChild(td); });
+        eventBody.appendChild(tr);
+      });
+
+      const differenceBody = root.querySelector('[data-table="differences"] tbody');
+      const finePair = report.pairwise[report.pairwise.length - 1];
+      const ratioMap = report.successiveChangeRatioFinePairOverCoarsePair || {};
+      [
+        ["LAP", "leftAtriumPressureMmHg"], ["RAP", "rightAtriumPressureMmHg"],
+        ["LA volume", "leftAtriumVolumeMl"], ["MV flow", "mitralFlowMlPerSec"],
+        ["LA Ca", "leftAtriumFreeCalciumUm"], ["LA CaTRPN", "leftAtriumCaTroponin01"],
+        ["LA thin", "leftAtriumThinFilament01"], ["LA SEE", "leftAtriumSeriesTensionKPa"],
+      ].forEach(([label, key]) => {
+        const stats = finePair.channelDifferences[key];
+        const roundoffScale = 1e-8 * Math.max(1, stats.jointCommonNodeSpanNative);
+        const ratio = stats.maxAbsNative <= roundoffScale
+          ? "roundoff"
+          : fmt(ratioMap[key]?.maxAbsRatio, 3);
+        const tr = document.createElement("tr");
+        [label, `${fmtDifference(stats.maxAbsNative)} ${stats.unit}`, `${fmtDifference(stats.rmsNative)} ${stats.unit}`, ratio].forEach(value => { const td = document.createElement("td"); td.textContent = value; tr.appendChild(td); });
+        differenceBody.appendChild(tr);
+      });
+    })();
+  </script>
+</div>

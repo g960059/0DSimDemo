@@ -1,0 +1,1361 @@
+<meta charset="utf-8" />
+<div id="no-avpd-physiology-matrix-v1">
+  <style>
+    #no-avpd-physiology-matrix-v1 {
+      color: var(--foreground, #e5edf7);
+      background: var(--background, #07111f);
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      box-sizing: border-box;
+      padding: 14px;
+      width: 100%;
+    }
+    #no-avpd-physiology-matrix-v1 .matrix-controls {
+      margin-bottom: 8px;
+    }
+    #no-avpd-physiology-matrix-v1 .series-choice {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #no-avpd-physiology-matrix-v1 .series-key {
+      width: 25px;
+      height: 0;
+      border-top: 2px solid currentColor;
+    }
+    #no-avpd-physiology-matrix-v1 .signal-key {
+      width: 25px;
+      height: 0;
+      border-top: 2px solid var(--muted-foreground);
+    }
+    #no-avpd-physiology-matrix-v1 .signal-key.dashed {
+      border-top-style: dashed;
+    }
+    #no-avpd-physiology-matrix-v1 .signal-key.dotted {
+      border-top-style: dotted;
+    }
+    #no-avpd-physiology-matrix-v1 .failure {
+      margin: 6px 0 10px;
+      color: var(--destructive, #fb7185);
+    }
+    #no-avpd-physiology-matrix-v1 .readout {
+      min-height: 1.5em;
+      margin: 5px 0 12px;
+      color: var(--muted-foreground, #9aa9bd);
+    }
+    #no-avpd-physiology-matrix-v1 .plots {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    #no-avpd-physiology-matrix-v1 .plot {
+      min-width: 0;
+      position: relative;
+    }
+    #no-avpd-physiology-matrix-v1 .plot.wide {
+      grid-column: 1 / -1;
+    }
+    #no-avpd-physiology-matrix-v1 h3 {
+      margin: 0 0 5px;
+      font-weight: 500;
+    }
+    #no-avpd-physiology-matrix-v1 svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+      touch-action: none;
+    }
+    #no-avpd-physiology-matrix-v1 .grid-line {
+      stroke: var(--border, #26354a);
+      stroke-width: 1;
+      opacity: 0.45;
+    }
+    #no-avpd-physiology-matrix-v1 .zero-line {
+      stroke: var(--muted-foreground, #9aa9bd);
+      stroke-width: 1;
+      opacity: 0.8;
+    }
+    #no-avpd-physiology-matrix-v1 .axis-line {
+      stroke: var(--border, #26354a);
+      stroke-width: 1;
+    }
+    #no-avpd-physiology-matrix-v1 .axis-text {
+      fill: var(--muted-foreground, #9aa9bd);
+      font-size: 11px;
+    }
+    #no-avpd-physiology-matrix-v1 .direct-label {
+      fill: var(--foreground, #e5edf7);
+      font-size: 10px;
+    }
+    #no-avpd-physiology-matrix-v1 .series {
+      fill: none;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+    #no-avpd-physiology-matrix-v1 .raw-node {
+      fill: var(--background, #07111f);
+      stroke-width: 0.45;
+      opacity: 0.38;
+      pointer-events: none;
+    }
+    #no-avpd-physiology-matrix-v1 .event-line {
+      stroke-width: 1;
+      stroke-dasharray: 3 4;
+      opacity: 0.72;
+    }
+    #no-avpd-physiology-matrix-v1 .event-dot {
+      stroke: var(--background, #07111f);
+      stroke-width: 1.4;
+    }
+    #no-avpd-physiology-matrix-v1 .envelope {
+      stroke-width: 2;
+    }
+    #no-avpd-physiology-matrix-v1 .envelope-mean {
+      stroke: var(--background, #07111f);
+      stroke-width: 1.2;
+    }
+    #no-avpd-physiology-matrix-v1 .table-wrap {
+      margin-top: 22px;
+      overflow-x: auto;
+    }
+    #no-avpd-physiology-matrix-v1 table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 610px;
+    }
+    #no-avpd-physiology-matrix-v1 th,
+    #no-avpd-physiology-matrix-v1 td {
+      padding: 6px 8px;
+      border-bottom: 1px solid var(--border, #26354a);
+      text-align: right;
+      vertical-align: top;
+    }
+    #no-avpd-physiology-matrix-v1 th:first-child,
+    #no-avpd-physiology-matrix-v1 td:first-child {
+      text-align: left;
+    }
+    #no-avpd-physiology-matrix-v1 th {
+      color: var(--muted-foreground, #9aa9bd);
+      font-weight: 500;
+    }
+    #no-avpd-physiology-matrix-v1 .boundary {
+      margin-top: 7px;
+    }
+    @media (max-width: 680px) {
+      #no-avpd-physiology-matrix-v1 .plots {
+        grid-template-columns: 1fr;
+      }
+      #no-avpd-physiology-matrix-v1 .plot.wide {
+        grid-column: auto;
+      }
+    }
+  </style>
+
+  <div
+    class="viz-controls matrix-controls"
+    data-candidate-controls
+    aria-label="Candidate visibility"
+  ></div>
+  <div class="viz-row text-small" aria-label="Signal line styles">
+    <span class="series-choice"
+      ><i class="signal-key"></i>ventricular / effective head</span
+    >
+    <span class="series-choice"
+      ><i class="signal-key dashed"></i>atrial / raw pressure gradient</span
+    >
+    <span>straight raw-node segments; no smoothing or decimation</span>
+  </div>
+  <div
+    class="viz-row text-small"
+    aria-label="Matched-volume decomposition line styles"
+  >
+    <span>matched gap:</span>
+    <span class="series-choice"><i class="signal-key"></i>total</span>
+    <span class="series-choice"
+      ><i class="signal-key dashed"></i>series tension</span
+    >
+    <span class="series-choice"><i class="signal-key dashed"></i>SLS</span>
+    <span class="series-choice"><i class="signal-key dotted"></i>passive</span>
+  </div>
+  <div
+    class="failure text-small text-destructive"
+    data-failure
+    aria-live="polite"
+  ></div>
+  <div class="readout text-small text-muted" data-readout aria-live="polite">
+    Move across a plot to inspect raw accepted-step values.
+  </div>
+
+  <div class="plots">
+    <section class="plot">
+      <h3>LA blood-volume PV</h3>
+      <svg
+        data-plot="la-pv"
+        viewBox="0 0 600 350"
+        role="img"
+        aria-label="Left atrial blood-volume pressure-volume loop, baseline and 136 millisecond calcium decay"
+      ></svg>
+    </section>
+    <section class="plot">
+      <h3>LV blood-volume PV</h3>
+      <svg
+        data-plot="lv-pv"
+        viewBox="0 0 600 350"
+        role="img"
+        aria-label="Left ventricular pressure-volume loop, baseline and 136 millisecond calcium decay"
+      ></svg>
+    </section>
+    <section class="plot wide">
+      <h3>Mitral flow and operational events</h3>
+      <svg
+        data-plot="mv-flow"
+        viewBox="0 0 1220 365"
+        role="img"
+        aria-label="Mitral flow with MVO50, E peak, interpeak valley, A peak, and MVC50"
+      ></svg>
+    </section>
+    <section class="plot wide">
+      <h3>LAP / LVP</h3>
+      <svg
+        data-plot="lap-lvp"
+        viewBox="0 0 1220 365"
+        role="img"
+        aria-label="Left atrial and left ventricular pressure"
+      ></svg>
+    </section>
+    <section class="plot wide">
+      <h3>Mitral raw gradient vs effective acceleration head</h3>
+      <svg
+        data-plot="mitral-head"
+        viewBox="0 0 1220 365"
+        role="img"
+        aria-label="Raw LAP minus LVP and valve acceleration head after resistance and Bernoulli losses"
+      ></svg>
+    </section>
+    <section class="plot">
+      <h3>Pulmonary venous flow</h3>
+      <svg
+        data-plot="pv-flow"
+        viewBox="0 0 600 350"
+        role="img"
+        aria-label="Pulmonary venous flow"
+      ></svg>
+    </section>
+    <section class="plot">
+      <h3>Reservoir − conduit matched-volume gap decomposition</h3>
+      <svg
+        data-plot="matched-gap"
+        viewBox="0 0 600 350"
+        role="img"
+        aria-label="Matched-volume left atrial reservoir minus conduit pressure gap decomposed into series tension, SLS, and passive terms"
+      ></svg>
+    </section>
+    <section class="plot wide">
+      <h3>Closed-loop pressure envelope</h3>
+      <svg
+        data-plot="pressure-envelope"
+        viewBox="0 0 1220 350"
+        role="img"
+        aria-label="Minimum, mean, and maximum pressure in systemic and pulmonary vessels and left chambers"
+      ></svg>
+    </section>
+  </div>
+
+  <section class="table-wrap">
+    <h3>Report-only comparison</h3>
+    <table class="text-small" data-metrics>
+      <thead>
+        <tr>
+          <th>Metric</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div class="boundary text-small text-muted">
+      Raw LAP−LVP is not the mitral acceleration head when resistive and
+      Bernoulli losses are nonzero. Pressure-decay readbacks are model fits, not
+      clinical acceptance gates; the dynamic LV loop is not an EDPVR
+      measurement. Pumping extrema and matched-volume stress decomposition are
+      raw report-only morphology evidence. E/A remains a continuous readback; no
+      wave-separation gate is applied.
+    </div>
+  </section>
+
+  <script type="application/json" id="no-avpd-physiology-matrix-data">
+    __NO_AVPD_PHYSIOLOGY_MATRIX_DATA__
+  </script>
+  <script>
+    (() => {
+      const root = document.getElementById("no-avpd-physiology-matrix-v1");
+      const dataNode = document.getElementById(
+        "no-avpd-physiology-matrix-data",
+      );
+      if (!root || !dataNode) return;
+      const artifact = JSON.parse(dataNode.textContent || "{}");
+      const NS = "http://www.w3.org/2000/svg";
+      const readout = root.querySelector("[data-readout]");
+      const passing = artifact.candidates
+        .filter(
+          (candidate) =>
+            candidate.structuralStatus === "pass" &&
+            candidate.diagnostics.availability === "available",
+        )
+        .map((candidate, index) => ({
+          ...candidate,
+          trace: candidate.diagnostics.compactRawAnchorCycle,
+          columns: Object.fromEntries(
+            candidate.diagnostics.traceColumns.map((name, columnIndex) => [
+              name,
+              columnIndex,
+            ]),
+          ),
+          color:
+            index === 0
+              ? "var(--viz-series-1, #38bdf8)"
+              : "var(--viz-series-2, #fb923c)",
+          shortLabel: candidate.candidateId.includes("155ms")
+            ? "155 ms"
+            : "136 ms",
+        }));
+      const active = new Set(passing.map((candidate) => candidate.candidateId));
+
+      const add = (parent, name, attrs, content) => {
+        const node = document.createElementNS(NS, name);
+        Object.entries(attrs || {}).forEach(([key, value]) =>
+          node.setAttribute(key, String(value)),
+        );
+        if (content !== undefined) node.textContent = content;
+        parent.appendChild(node);
+        return node;
+      };
+      const finite = (values) => values.filter(Number.isFinite);
+      const extent = (values, padding = 0.07) => {
+        const clean = finite(values);
+        const low = Math.min(...clean),
+          high = Math.max(...clean);
+        const span = Math.max(high - low, Math.abs(high || 1) * 0.02, 0.01);
+        return [low - span * padding, high + span * padding];
+      };
+      const scale = (domain, range) => (value) =>
+        range[0] +
+        ((value - domain[0]) * (range[1] - range[0])) /
+          Math.max(domain[1] - domain[0], 1e-12);
+      const fmt = (value, digits = 3) =>
+        value == null || !Number.isFinite(value)
+          ? "—"
+          : Number(value).toFixed(digits);
+      const fmtFlexible = (value) => {
+        if (value == null || !Number.isFinite(value)) return "—";
+        return Math.abs(value) > 0 && Math.abs(value) < 1e-3
+          ? Number(value).toExponential(3)
+          : Number(value).toFixed(4);
+      };
+      const path = (rows, x, y) =>
+        rows
+          .map(
+            (row, index) =>
+              `${index ? "L" : "M"}${x(row).toFixed(2)},${y(row).toFixed(2)}`,
+          )
+          .join(" ");
+      const candidateGroup = (svg, candidate) =>
+        add(svg, "g", { "data-candidate-id": candidate.candidateId });
+      const drawRawSeries = (group, candidate, rows, x, y, options = {}) => {
+        add(group, "path", {
+          d: path(rows, x, y),
+          class: "series",
+          stroke: candidate.color,
+          "stroke-width": options.width || 2,
+          "stroke-dasharray": options.dash || "",
+          "data-sample-count": rows.length,
+          "data-raw-accepted-step-vertices": "true",
+        });
+        if (options.nodes !== false)
+          rows.forEach((row) =>
+            add(group, "circle", {
+              cx: x(row),
+              cy: y(row),
+              r: options.nodeRadius || 0.35,
+              class: "raw-node",
+              stroke: candidate.color,
+            }),
+          );
+      };
+      const axes = (
+        svg,
+        xDomain,
+        yDomain,
+        width,
+        height,
+        xLabel,
+        yLabel,
+        options = {},
+      ) => {
+        const box = {
+          left: options.left || 70,
+          right: width - (options.right || 18),
+          top: 20,
+          bottom: height - 45,
+        };
+        const x = scale(xDomain, [box.left, box.right]);
+        const y = scale(yDomain, [box.bottom, box.top]);
+        for (let index = 0; index <= 5; index += 1) {
+          const px = box.left + ((box.right - box.left) * index) / 5;
+          const py = box.bottom - ((box.bottom - box.top) * index) / 5;
+          add(svg, "line", {
+            x1: px,
+            x2: px,
+            y1: box.top,
+            y2: box.bottom,
+            class: "grid-line",
+          });
+          add(svg, "line", {
+            x1: box.left,
+            x2: box.right,
+            y1: py,
+            y2: py,
+            class: "grid-line",
+          });
+          const xValue = xDomain[0] + ((xDomain[1] - xDomain[0]) * index) / 5;
+          const yValue = yDomain[0] + ((yDomain[1] - yDomain[0]) * index) / 5;
+          add(
+            svg,
+            "text",
+            {
+              x: px,
+              y: box.bottom + 17,
+              "text-anchor": "middle",
+              class: "axis-text",
+            },
+            fmt(xValue, Math.abs(xDomain[1] - xDomain[0]) < 5 ? 2 : 0),
+          );
+          add(
+            svg,
+            "text",
+            {
+              x: box.left - 8,
+              y: py + 4,
+              "text-anchor": "end",
+              class: "axis-text",
+            },
+            fmt(
+              yValue,
+              Math.abs(yDomain[1] - yDomain[0]) < 10
+                ? 2
+                : Math.abs(yDomain[1] - yDomain[0]) < 50
+                  ? 1
+                  : 0,
+            ),
+          );
+        }
+        if (yDomain[0] < 0 && yDomain[1] > 0)
+          add(svg, "line", {
+            x1: box.left,
+            x2: box.right,
+            y1: y(0),
+            y2: y(0),
+            class: "zero-line",
+          });
+        add(svg, "line", {
+          x1: box.left,
+          x2: box.right,
+          y1: box.bottom,
+          y2: box.bottom,
+          class: "axis-line",
+        });
+        add(svg, "line", {
+          x1: box.left,
+          x2: box.left,
+          y1: box.top,
+          y2: box.bottom,
+          class: "axis-line",
+        });
+        add(
+          svg,
+          "text",
+          {
+            x: (box.left + box.right) / 2,
+            y: height - 7,
+            "text-anchor": "middle",
+            class: "axis-text",
+          },
+          xLabel,
+        );
+        add(
+          svg,
+          "text",
+          {
+            x: 14,
+            y: (box.top + box.bottom) / 2,
+            transform: `rotate(-90 14 ${(box.top + box.bottom) / 2})`,
+            "text-anchor": "middle",
+            class: "axis-text",
+          },
+          yLabel,
+        );
+        return { ...box, x, y };
+      };
+      const rowNearestValue = (candidate, column, target) =>
+        candidate.trace.reduce((best, row) =>
+          Math.abs(row[candidate.columns[column]] - target) <
+          Math.abs(best[candidate.columns[column]] - target)
+            ? row
+            : best,
+        );
+      const interpolatedCrossings = (candidate, valueAtRow) => {
+        const crossings = [];
+        for (let index = 1; index < candidate.trace.length; index += 1) {
+          const before = candidate.trace[index - 1],
+            after = candidate.trace[index];
+          const y0 = valueAtRow(before),
+            y1 = valueAtRow(after);
+          if ((y0 <= 0 && y1 > 0) || (y0 >= 0 && y1 < 0)) {
+            const fraction = Math.abs(y1 - y0) < 1e-12 ? 0 : -y0 / (y1 - y0);
+            crossings.push({
+              phase01: before[0] + (after[0] - before[0]) * fraction,
+              direction: y1 > y0 ? "opening" : "closure",
+            });
+          }
+        }
+        return crossings;
+      };
+      const mitralHead = (candidate, row) => {
+        const c = candidate.columns;
+        const valve = candidate.parameterSnapshot.valves.mitral;
+        const gradient =
+          row[c.leftAtriumPressureMmHg] - row[c.leftVentriclePressureMmHg];
+        const openFraction =
+          1 /
+          (1 +
+            Math.exp(
+              -(gradient - valve.openingMidpointMmHg) / valve.openingWidthMmHg,
+            ));
+        const effectiveArea =
+          valve.leakAreaCm2 +
+          (valve.openAreaCm2 - valve.leakAreaCm2) * openFraction;
+        const areaRatio = valve.openAreaCm2 / Math.max(effectiveArea, 1e-12);
+        const flow = row[c.mitralFlowMlPerSec];
+        const resistance =
+          valve.openResistanceMmHgSecPerMl * areaRatio * areaRatio;
+        const bernoulli =
+          valve.openBernoulliMmHgSec2PerMl2 * areaRatio * areaRatio;
+        const steadyLoss =
+          resistance * flow +
+          bernoulli *
+            flow *
+            Math.sqrt(
+              flow * flow +
+                valve.flowSmoothingMlPerSec * valve.flowSmoothingMlPerSec,
+            );
+        return {
+          rawGradient: gradient,
+          accelerationHead: gradient - steadyLoss,
+        };
+      };
+      const events = (candidate) => {
+        const d = candidate.diagnostics;
+        if (!d.eaSeparation) return {};
+        const c = candidate.columns;
+        const e = rowNearestValue(
+          candidate,
+          "mitralFlowMlPerSec",
+          d.eaSeparation.ePeakMlPerSec,
+        );
+        const valley = rowNearestValue(
+          candidate,
+          "mitralFlowMlPerSec",
+          d.eaSeparation.interpeakValleyMlPerSec,
+        );
+        const a = rowNearestValue(
+          candidate,
+          "mitralFlowMlPerSec",
+          d.eaSeparation.aPeakMlPerSec,
+        );
+        const threshold =
+          candidate.parameterSnapshot.valves.mitral.openingMidpointMmHg;
+        const halfOpen = interpolatedCrossings(
+          candidate,
+          (row) =>
+            row[c.leftAtriumPressureMmHg] -
+            row[c.leftVentriclePressureMmHg] -
+            threshold,
+        );
+        return {
+          e,
+          valley,
+          a,
+          mvo: halfOpen.find((point) => point.direction === "opening"),
+          mvc: halfOpen.find((point) => point.direction === "closure"),
+        };
+      };
+
+      const controls = root.querySelector("[data-candidate-controls]");
+      passing.forEach((candidate) => {
+        const label = document.createElement("label");
+        label.className = "form-check series-choice";
+        const input = document.createElement("input");
+        input.type = "checkbox";
+        input.checked = true;
+        input.className = "form-check-input";
+        input.setAttribute("aria-label", `Show ${candidate.label}`);
+        input.addEventListener("change", () => {
+          if (input.checked) active.add(candidate.candidateId);
+          else active.delete(candidate.candidateId);
+          applyVisibility();
+        });
+        const key = document.createElement("i");
+        key.className = "series-key";
+        key.style.color = candidate.color;
+        const text = document.createElement("span");
+        text.textContent = candidate.label;
+        label.append(input, key, text);
+        controls?.appendChild(label);
+      });
+      const failed = artifact.candidates.filter(
+        (candidate) => candidate.structuralStatus !== "pass",
+      );
+      const failureNode = root.querySelector("[data-failure]");
+      if (failureNode)
+        failureNode.textContent = failed
+          .map(
+            (candidate) =>
+              `${candidate.label}: structural failure (allStepsAccepted=${candidate.hardDiagnostics.allStepsAccepted}); no cycle waveform is shown or imputed.`,
+          )
+          .join(" ");
+
+      const applyVisibility = () => {
+        root.querySelectorAll("[data-candidate-id]").forEach((node) => {
+          node.style.display = active.has(
+            node.getAttribute("data-candidate-id"),
+          )
+            ? ""
+            : "none";
+        });
+      };
+      const pointerInSvg = (svg, event) => {
+        const rect = svg.getBoundingClientRect();
+        return {
+          x:
+            ((event.clientX - rect.left) * svg.viewBox.baseVal.width) /
+            Math.max(rect.width, 1),
+          y:
+            ((event.clientY - rect.top) * svg.viewBox.baseVal.height) /
+            Math.max(rect.height, 1),
+        };
+      };
+      const attachPhaseReadout = (svg, chart, describe) => {
+        svg.addEventListener("pointermove", (event) => {
+          const point = pointerInSvg(svg, event);
+          const phase = Math.max(
+            0,
+            Math.min(
+              1,
+              (point.x - chart.left) / Math.max(chart.right - chart.left, 1),
+            ),
+          );
+          const values = passing
+            .filter((candidate) => active.has(candidate.candidateId))
+            .map((candidate) => {
+              const row = candidate.trace.reduce((best, current) =>
+                Math.abs(current[0] - phase) < Math.abs(best[0] - phase)
+                  ? current
+                  : best,
+              );
+              return `${candidate.shortLabel}: ${describe(candidate, row)}`;
+            });
+          if (readout)
+            readout.textContent = `phase ${fmt(phase, 4)} · ${values.join(" · ")}`;
+        });
+      };
+
+      const drawPv = (
+        plotName,
+        volumeColumn,
+        pressureColumn,
+        volumeLabel,
+        pressureLabel,
+        atrial,
+      ) => {
+        const svg = root.querySelector(`[data-plot="${plotName}"]`);
+        const xDomain = extent(
+          passing.flatMap((candidate) =>
+            candidate.trace.map((row) => row[candidate.columns[volumeColumn]]),
+          ),
+        );
+        const yDomain = extent(
+          passing.flatMap((candidate) =>
+            candidate.trace.map(
+              (row) => row[candidate.columns[pressureColumn]],
+            ),
+          ),
+        );
+        const chart = axes(
+          svg,
+          xDomain,
+          yDomain,
+          600,
+          350,
+          volumeLabel,
+          pressureLabel,
+        );
+        passing.forEach((candidate, candidateIndex) => {
+          const c = candidate.columns;
+          const group = candidateGroup(svg, candidate);
+          drawRawSeries(
+            group,
+            candidate,
+            candidate.trace,
+            (row) => chart.x(row[c[volumeColumn]]),
+            (row) => chart.y(row[c[pressureColumn]]),
+            { nodeRadius: 0.3, width: 2.2 },
+          );
+          if (atrial && candidate.diagnostics.pressureVolume) {
+            const pv = candidate.diagnostics.pressureVolume;
+            const pumping = candidate.diagnostics.pumpingMorphology;
+            const rebound = pumping?.lateRebound;
+            const markers = [
+              ["P1", pv.volumeMl.a, pv.pressureMmHg.a],
+              ["x", pv.volumeMl.x, pv.pressureMmHg.x],
+              ["v†", pv.volumeMl.v, pv.pressureMmHg.v],
+              ["y", pv.volumeMl.y, pv.pressureMmHg.y],
+            ];
+            if (pumping?.interveningTrough)
+              markers.push([
+                "T",
+                pumping.interveningTrough.volumeMl,
+                pumping.interveningTrough.pressureMmHg,
+              ]);
+            if (pumping?.latePeak)
+              markers.push([
+                `P2 +${fmt(rebound?.amplitudeMmHg, 2)} mmHg`,
+                pumping.latePeak.volumeMl,
+                pumping.latePeak.pressureMmHg,
+              ]);
+            markers.forEach(([label, volume, pressure], index) => {
+              add(group, "circle", {
+                cx: chart.x(volume),
+                cy: chart.y(pressure),
+                r: 3.7,
+                class: "event-dot",
+                fill: candidate.color,
+              });
+              add(
+                group,
+                "text",
+                {
+                  x: chart.x(volume) + 5,
+                  y:
+                    chart.y(pressure) -
+                    (candidateIndex === 0 ? 10 : -16) -
+                    (index % 3) * 5,
+                  class: "direct-label",
+                },
+                `${candidate.shortLabel.replace(" ms", "")} ${label}`,
+              );
+            });
+          }
+        });
+        svg.addEventListener("pointermove", (event) => {
+          const point = pointerInSvg(svg, event);
+          let nearest = null;
+          passing
+            .filter((candidate) => active.has(candidate.candidateId))
+            .forEach((candidate) =>
+              candidate.trace.forEach((row) => {
+                const dx =
+                  chart.x(row[candidate.columns[volumeColumn]]) - point.x;
+                const dy =
+                  chart.y(row[candidate.columns[pressureColumn]]) - point.y;
+                const distance = dx * dx + dy * dy;
+                if (!nearest || distance < nearest.distance)
+                  nearest = { candidate, row, distance };
+              }),
+            );
+          if (nearest && readout)
+            readout.textContent = `${nearest.candidate.shortLabel} · phase ${fmt(nearest.row[0], 4)} · ${fmt(nearest.row[nearest.candidate.columns[volumeColumn]], 2)} mL · ${fmt(nearest.row[nearest.candidate.columns[pressureColumn]], 2)} mmHg`;
+        });
+      };
+      drawPv(
+        "la-pv",
+        "leftAtriumVolumeMl",
+        "leftAtriumPressureMmHg",
+        "LA blood volume (mL)",
+        "LAP (mmHg)",
+        true,
+      );
+      drawPv(
+        "lv-pv",
+        "leftVentricleVolumeMl",
+        "leftVentriclePressureMmHg",
+        "LV blood volume (mL)",
+        "LVP (mmHg)",
+        false,
+      );
+
+      const drawPhase = (plotName, valueSpecs, yLabel, options = {}) => {
+        const svg = root.querySelector(`[data-plot="${plotName}"]`);
+        const width = options.wide ? 1220 : 600;
+        const height = options.wide ? 365 : 350;
+        const values = passing.flatMap((candidate) =>
+          candidate.trace.flatMap((row) =>
+            valueSpecs.map((spec) => spec.value(candidate, row)),
+          ),
+        );
+        const chart = axes(
+          svg,
+          [0, 1],
+          extent(values, 0.08),
+          width,
+          height,
+          "cardiac phase",
+          yLabel,
+        );
+        passing.forEach((candidate, candidateIndex) => {
+          const group = candidateGroup(svg, candidate);
+          valueSpecs.forEach((spec) =>
+            drawRawSeries(
+              group,
+              candidate,
+              candidate.trace,
+              (row) => chart.x(row[0]),
+              (row) => chart.y(spec.value(candidate, row)),
+              {
+                dash: spec.dash || "",
+                width: spec.width || 2,
+                nodeRadius: options.nodeRadius || 0.32,
+              },
+            ),
+          );
+          if (options.events) {
+            options.events(group, candidate, chart, candidateIndex);
+          }
+        });
+        attachPhaseReadout(
+          svg,
+          chart,
+          options.describe ||
+            ((candidate, row) =>
+              valueSpecs
+                .map(
+                  (spec) =>
+                    `${spec.label} ${fmt(spec.value(candidate, row), 2)}`,
+                )
+                .join(", ")),
+        );
+        return chart;
+      };
+
+      drawPhase(
+        "mv-flow",
+        [
+          {
+            label: "MV",
+            value: (candidate, row) =>
+              row[candidate.columns.mitralFlowMlPerSec],
+          },
+        ],
+        "MV flow (mL/s)",
+        {
+          wide: true,
+          events: (group, candidate, chart, candidateIndex) => {
+            const marker = events(candidate);
+            [
+              ["MVO50", marker.mvo],
+              ["MVC50", marker.mvc],
+            ].forEach(([label, point], index) => {
+              if (!point) return;
+              const x = chart.x(point.phase01);
+              add(group, "line", {
+                x1: x,
+                x2: x,
+                y1: chart.top,
+                y2: chart.bottom,
+                class: "event-line",
+                stroke: candidate.color,
+              });
+              add(
+                group,
+                "text",
+                {
+                  x: x > chart.right - 90 ? x - 4 : x + 4,
+                  y: chart.top + 12 + index * 12 + candidateIndex * 28,
+                  "text-anchor": x > chart.right - 90 ? "end" : "start",
+                  class: "direct-label",
+                },
+                `${candidate.shortLabel} ${label}`,
+              );
+            });
+            [
+              ["E", marker.e],
+              ["valley", marker.valley],
+              ["A", marker.a],
+            ].forEach(([label, row], index) => {
+              if (!row) return;
+              const x = chart.x(row[0]),
+                y = chart.y(row[candidate.columns.mitralFlowMlPerSec]);
+              add(group, "circle", {
+                cx: x,
+                cy: y,
+                r: 4,
+                class: "event-dot",
+                fill: candidate.color,
+              });
+              add(
+                group,
+                "text",
+                {
+                  x: x + 5,
+                  y: y - 7 - index * 2 + candidateIndex * 12,
+                  class: "direct-label",
+                },
+                `${candidate.shortLabel} ${label}`,
+              );
+            });
+          },
+          describe: (candidate, row) =>
+            `MV ${fmt(row[candidate.columns.mitralFlowMlPerSec], 1)} mL/s`,
+        },
+      );
+
+      drawPhase(
+        "lap-lvp",
+        [
+          {
+            label: "LVP",
+            value: (candidate, row) =>
+              row[candidate.columns.leftVentriclePressureMmHg],
+          },
+          {
+            label: "LAP",
+            value: (candidate, row) =>
+              row[candidate.columns.leftAtriumPressureMmHg],
+            dash: "7 5",
+            width: 1.8,
+          },
+        ],
+        "pressure (mmHg)",
+        {
+          wide: true,
+          describe: (candidate, row) =>
+            `LAP ${fmt(row[candidate.columns.leftAtriumPressureMmHg], 2)}, LVP ${fmt(row[candidate.columns.leftVentriclePressureMmHg], 2)} mmHg`,
+        },
+      );
+
+      drawPhase(
+        "mitral-head",
+        [
+          {
+            label: "effective head",
+            value: (candidate, row) =>
+              mitralHead(candidate, row).accelerationHead,
+          },
+          {
+            label: "raw LAP−LVP",
+            value: (candidate, row) => mitralHead(candidate, row).rawGradient,
+            dash: "7 5",
+            width: 1.8,
+          },
+        ],
+        "pressure head (mmHg)",
+        {
+          wide: true,
+          events: (group, candidate, chart, candidateIndex) => {
+            const gradient =
+              candidate.diagnostics.lvRelaxation.earlyFillingPressureGradient;
+            const phase = gradient.firstPostEAccelerationHeadCrossoverPhase01;
+            if (phase == null) return;
+            const x = chart.x(phase);
+            add(group, "line", {
+              x1: x,
+              x2: x,
+              y1: chart.top,
+              y2: chart.bottom,
+              class: "event-line",
+              stroke: candidate.color,
+            });
+            add(
+              group,
+              "text",
+              {
+                x: x + 4,
+                y: chart.top + 12 + candidateIndex * 15,
+                class: "direct-label",
+              },
+              `${candidate.shortLabel} effective-head zero`,
+            );
+          },
+          describe: (candidate, row) => {
+            const head = mitralHead(candidate, row);
+            return `raw ΔP ${fmt(head.rawGradient, 3)}, effective head ${fmt(head.accelerationHead, 3)} mmHg`;
+          },
+        },
+      );
+
+      drawPhase(
+        "pv-flow",
+        [
+          {
+            label: "PVF",
+            value: (candidate, row) =>
+              row[candidate.columns.pulmonaryVenousFlowMlPerSec],
+          },
+        ],
+        "PV flow (mL/s)",
+        {
+          describe: (candidate, row) =>
+            `PVF ${fmt(row[candidate.columns.pulmonaryVenousFlowMlPerSec], 1)} mL/s, Ppv ${fmt(row[candidate.columns.pulmonaryVenousPressureMmHg], 2)} mmHg`,
+        },
+      );
+
+      (() => {
+        const svg = root.querySelector('[data-plot="matched-gap"]');
+        const traces = passing.filter(
+          (candidate) =>
+            candidate.diagnostics.matchedVolume?.componentDecomposition
+              ?.availability === "available",
+        );
+        const xDomain = extent(
+          traces.flatMap((candidate) =>
+            candidate.diagnostics.matchedVolume.componentDecomposition.trace.map(
+              (row) => row.volumeMl,
+            ),
+          ),
+        );
+        const yDomain = extent(
+          traces.flatMap((candidate) =>
+            candidate.diagnostics.matchedVolume.componentDecomposition.trace.flatMap(
+              (row) => [
+                row.totalGapMmHg,
+                row.seriesTensionGapMmHg,
+                row.slsGapMmHg,
+                row.passiveGapMmHg,
+              ],
+            ),
+          ),
+        );
+        const chart = axes(
+          svg,
+          xDomain,
+          yDomain,
+          600,
+          350,
+          "matched LA volume (mL)",
+          "reservoir − conduit (mmHg)",
+        );
+        traces.forEach((candidate) => {
+          const group = candidateGroup(svg, candidate);
+          const trace =
+            candidate.diagnostics.matchedVolume.componentDecomposition.trace;
+          [
+            ["passiveGapMmHg", "2 4", 1.2],
+            ["slsGapMmHg", "5 4", 1.4],
+            ["seriesTensionGapMmHg", "10 4", 1.5],
+          ].forEach(([key, dash, width]) =>
+            drawRawSeries(
+              group,
+              candidate,
+              trace,
+              (row) => chart.x(row.volumeMl),
+              (row) => chart.y(row[key]),
+              { nodes: false, dash, width },
+            ),
+          );
+          drawRawSeries(
+            group,
+            candidate,
+            trace,
+            (row) => chart.x(row.volumeMl),
+            (row) => chart.y(row.totalGapMmHg),
+            { nodeRadius: 1.1 },
+          );
+        });
+        svg.addEventListener("pointermove", (event) => {
+          const point = pointerInSvg(svg, event);
+          const volume =
+            xDomain[0] +
+            ((point.x - chart.left) / Math.max(chart.right - chart.left, 1)) *
+              (xDomain[1] - xDomain[0]);
+          const values = traces
+            .filter((candidate) => active.has(candidate.candidateId))
+            .map((candidate) => {
+              const trace =
+                candidate.diagnostics.matchedVolume.componentDecomposition
+                  .trace;
+              const row = trace.reduce((best, current) =>
+                Math.abs(current.volumeMl - volume) <
+                Math.abs(best.volumeMl - volume)
+                  ? current
+                  : best,
+              );
+              return `${candidate.shortLabel}: total ${fmt(row.totalGapMmHg, 3)}, series ${fmt(row.seriesTensionGapMmHg, 3)}, SLS ${fmt(row.slsGapMmHg, 3)}, passive ${fmt(row.passiveGapMmHg, 3)} mmHg`;
+            });
+          if (readout)
+            readout.textContent = `matched LA volume ${fmt(volume, 2)} mL · ${values.join(" · ")}`;
+        });
+      })();
+
+      (() => {
+        const svg = root.querySelector('[data-plot="pressure-envelope"]');
+        const width = 1220,
+          height = 350;
+        const rows = [
+          ["Systemic artery", "systemicArtery"],
+          ["Pulmonary artery", "pulmonaryArtery"],
+          ["Pulmonary vein", "pulmonaryVein"],
+          ["LA", "la"],
+          ["LV", "lv"],
+        ];
+        const values = passing.flatMap((candidate) =>
+          rows.flatMap(([, key]) => {
+            const value = candidate.diagnostics.circulation.pressureMmHg[key];
+            return [value.minimum, value.mean, value.maximum];
+          }),
+        );
+        const chart = axes(
+          svg,
+          [Math.min(0, ...values), Math.max(...values) * 1.05],
+          [0, rows.length],
+          width,
+          height,
+          "pressure (mmHg)",
+          "",
+          { left: 135, right: 24 },
+        );
+        rows.forEach(([label], index) =>
+          add(
+            svg,
+            "text",
+            {
+              x: chart.left - 9,
+              y: chart.y(rows.length - index - 0.5) + 4,
+              "text-anchor": "end",
+              class: "axis-text",
+            },
+            label,
+          ),
+        );
+        passing.forEach((candidate, candidateIndex) => {
+          const group = candidateGroup(svg, candidate);
+          rows.forEach(([, key], index) => {
+            const value = candidate.diagnostics.circulation.pressureMmHg[key];
+            const y =
+              chart.y(rows.length - index - 0.5) + (candidateIndex ? 4 : -4);
+            add(group, "line", {
+              x1: chart.x(value.minimum),
+              x2: chart.x(value.maximum),
+              y1: y,
+              y2: y,
+              class: "envelope",
+              stroke: candidate.color,
+            });
+            add(group, "circle", {
+              cx: chart.x(value.mean),
+              cy: y,
+              r: 4,
+              class: "envelope-mean",
+              fill: candidate.color,
+            });
+          });
+        });
+      })();
+
+      const metricRows = [
+        ["Structural status", (candidate) => candidate.structuralStatus, ""],
+        [
+          "LVFW + septum Ca decay target",
+          (candidate) => candidate.intervention.appliedHr60ValueSec * 1000,
+          "ms",
+        ],
+        [
+          "one-beat normalized drift",
+          (candidate) => candidate.orbitReadiness.oneBeatNormalizedMax,
+          "",
+        ],
+        ["E/A", (candidate) => candidate.diagnostics.eaSeparation?.eToA, ""],
+        [
+          "interpeak valley / E",
+          (candidate) => candidate.diagnostics.eaSeparation?.valleyOverE,
+          "",
+        ],
+        [
+          "LA x depth from a",
+          (candidate) =>
+            candidate.diagnostics.pressureVolume?.xDepthFromAPeakMmHg,
+          "mmHg",
+        ],
+        [
+          "LA y depth from v†",
+          (candidate) =>
+            candidate.diagnostics.pressureVolume?.yDepthFromVPeakMmHg,
+          "mmHg",
+        ],
+        [
+          "early reservoir filling fraction",
+          (candidate) =>
+            candidate.diagnostics.pressureVolume?.earlyReservoirFillingFraction,
+          "",
+        ],
+        [
+          "A-loop local pressure extrema",
+          (candidate) =>
+            candidate.diagnostics.pumpingMorphology?.localExtremaCount,
+          "count",
+        ],
+        [
+          "A-loop late rebound amplitude",
+          (candidate) =>
+            candidate.diagnostics.pumpingMorphology?.lateRebound?.amplitudeMmHg,
+          "mmHg",
+        ],
+        [
+          "A-loop late rebound duration",
+          (candidate) => {
+            const value =
+              candidate.diagnostics.pumpingMorphology?.lateRebound?.durationSec;
+            return value == null ? null : value * 1000;
+          },
+          "ms",
+        ],
+        [
+          "matched reservoir−conduit mean gap",
+          (candidate) => candidate.diagnostics.matchedVolume?.gapMmHg.mean,
+          "mmHg",
+        ],
+        [
+          "matched gap mean: series tension",
+          (candidate) =>
+            candidate.diagnostics.matchedVolume?.componentDecomposition?.summary
+              ?.seriesTension.meanMmHg,
+          "mmHg",
+        ],
+        [
+          "matched gap mean: SLS",
+          (candidate) =>
+            candidate.diagnostics.matchedVolume?.componentDecomposition?.summary
+              ?.sls.meanMmHg,
+          "mmHg",
+        ],
+        [
+          "matched gap mean: passive",
+          (candidate) =>
+            candidate.diagnostics.matchedVolume?.componentDecomposition?.summary
+              ?.passive.meanMmHg,
+          "mmHg",
+        ],
+        [
+          "matched gap reconstruction max |residual|",
+          (candidate) =>
+            candidate.diagnostics.matchedVolume?.componentDecomposition
+              ?.reconstructionResidual?.maximumAbsoluteMmHg,
+          "mmHg",
+        ],
+        [
+          "LV pressure τ, zero asymptote",
+          (candidate) =>
+            candidate.diagnostics.lvRelaxation?.zeroAsymptoteFit?.tauSec == null
+              ? null
+              : candidate.diagnostics.lvRelaxation.zeroAsymptoteFit.tauSec *
+                1000,
+          "ms",
+        ],
+        [
+          "LV pressure τ, free asymptote",
+          (candidate) =>
+            candidate.diagnostics.lvRelaxation?.freeAsymptoteFit?.tauSec == null
+              ? null
+              : candidate.diagnostics.lvRelaxation.freeAsymptoteFit.tauSec *
+                1000,
+          "ms",
+        ],
+        [
+          "raw ΔP post-E zero crossing",
+          (candidate) =>
+            candidate.diagnostics.lvRelaxation?.earlyFillingPressureGradient
+              ?.firstPostEPositiveToNegativeCrossoverPhase01,
+          "phase",
+        ],
+        [
+          "effective-head post-E zero crossing",
+          (candidate) =>
+            candidate.diagnostics.lvRelaxation?.earlyFillingPressureGradient
+              ?.firstPostEAccelerationHeadCrossoverPhase01,
+          "phase",
+        ],
+        [
+          "negative effective-head area, E→valley",
+          (candidate) =>
+            candidate.diagnostics.lvRelaxation?.earlyFillingPressureGradient
+              ?.negativeAccelerationHeadAreaEToValleyMmHgSec,
+          "mmHg·s",
+        ],
+        [
+          "LV ejection fraction",
+          (candidate) =>
+            candidate.diagnostics.lvRelaxation?.lvEjectionFraction01,
+          "",
+        ],
+        [
+          "LV EDV / ESV",
+          (candidate) =>
+            candidate.diagnostics.lvRelaxation
+              ? `${fmt(candidate.diagnostics.lvRelaxation.lvEndDiastolicVolumeMl, 1)} / ${fmt(candidate.diagnostics.lvRelaxation.lvEndSystolicVolumeMl, 1)}`
+              : null,
+          "mL",
+        ],
+        [
+          "systemic artery mean pressure",
+          (candidate) =>
+            candidate.diagnostics.circulation?.pressureMmHg.systemicArtery.mean,
+          "mmHg",
+        ],
+        [
+          "pulmonary vein mean pressure",
+          (candidate) =>
+            candidate.diagnostics.circulation?.pressureMmHg.pulmonaryVein.mean,
+          "mmHg",
+        ],
+        [
+          "mitral net cycle volume",
+          (candidate) =>
+            candidate.diagnostics.circulation?.flowMlPerSec.mitral.netVolumeMl,
+          "mL",
+        ],
+      ];
+      const table = root.querySelector("[data-metrics]");
+      const header = table?.querySelector("thead tr");
+      artifact.candidates.forEach((candidate) => {
+        const th = document.createElement("th");
+        th.textContent = candidate.label;
+        header?.appendChild(th);
+      });
+      const body = table?.querySelector("tbody");
+      metricRows.forEach(([label, getter, unit]) => {
+        const tr = document.createElement("tr");
+        const labelCell = document.createElement("td");
+        labelCell.textContent = `${label}${unit ? ` (${unit})` : ""}`;
+        tr.appendChild(labelCell);
+        artifact.candidates.forEach((candidate) => {
+          const cell = document.createElement("td");
+          const value = getter(candidate);
+          cell.textContent =
+            typeof value === "string" ? value : fmtFlexible(value);
+          if (
+            candidate.structuralStatus !== "pass" &&
+            label !== "Structural status" &&
+            label !== "LVFW + septum Ca decay target"
+          )
+            cell.textContent = "—";
+          tr.appendChild(cell);
+        });
+        body?.appendChild(tr);
+      });
+      applyVisibility();
+    })();
+  </script>
+</div>

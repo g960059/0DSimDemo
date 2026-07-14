@@ -1,0 +1,743 @@
+<meta charset="utf-8" />
+<div id="no-avpd-passive-rv-owner-sensitivity-v1">
+  <style>
+    #no-avpd-passive-rv-owner-sensitivity-v1 {
+      --series-load-candidate-1: var(--viz-series-1, #51b8f4);
+      --series-load-candidate-2: var(--viz-series-2, #65d3a1);
+      --series-reference: var(--viz-series-3, #f5c35b);
+      --series-stiffness-candidate-1: var(--viz-series-4, #e58ad0);
+      --series-stiffness-candidate-2: var(--viz-series-5, #a997ff);
+      box-sizing: border-box;
+      width: 100%;
+      padding: 14px;
+      color: var(--foreground, #e7edf7);
+      background: var(--background, #07111f);
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 *,
+    #no-avpd-passive-rv-owner-sensitivity-v1 *::before,
+    #no-avpd-passive-rv-owner-sensitivity-v1 *::after {
+      box-sizing: border-box;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 [hidden] {
+      display: none !important;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .boundary,
+    #no-avpd-passive-rv-owner-sensitivity-v1 .policy,
+    #no-avpd-passive-rv-owner-sensitivity-v1 .caption,
+    #no-avpd-passive-rv-owner-sensitivity-v1 .family-note {
+      color: var(--muted-foreground, #9eacc0);
+      font-size: 12px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .boundary {
+      margin-bottom: 4px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .policy {
+      margin-bottom: 12px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 8px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 fieldset {
+      min-width: 0;
+      margin: 0;
+      padding: 0 0 0 10px;
+      border: 0;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 fieldset[data-family="load"] {
+      border-left: 3px solid var(--series-load-candidate-2);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 fieldset[data-family="stiffness"] {
+      border-left: 3px dashed var(--series-stiffness-candidate-1);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 legend {
+      padding: 0;
+      color: var(--foreground, #e7edf7);
+      font-weight: 500;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px 15px;
+      margin-top: 5px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--foreground, #e7edf7);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .toggle input {
+      margin: 0;
+      accent-color: var(--primary, #71b7ff);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .swatch {
+      display: inline-block;
+      width: 22px;
+      height: 0;
+      border-top: 2px solid currentColor;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .swatch.stiffness {
+      border-top-style: dashed;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .swatch.reference {
+      border-top-style: dotted;
+      border-top-width: 3px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-load-candidate-1 {
+      color: var(--series-load-candidate-1);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-load-candidate-2 {
+      color: var(--series-load-candidate-2);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-shared-reference {
+      color: var(--series-reference);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-stiffness-candidate-1 {
+      color: var(--series-stiffness-candidate-1);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-stiffness-candidate-2 {
+      color: var(--series-stiffness-candidate-2);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .readout {
+      min-height: 2.9em;
+      margin: 5px 0 11px;
+      padding: 7px 9px;
+      border-left: 2px solid var(--border, #2a3a52);
+      color: var(--foreground, #e7edf7);
+      background: var(--muted, #101d2f);
+      font-size: 12px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .plots {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .plot {
+      position: relative;
+      min-width: 0;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 h3 {
+      margin: 0 0 4px;
+      color: var(--foreground, #e7edf7);
+      font-weight: 500;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+      touch-action: none;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .grid-line {
+      stroke: var(--border, #2a3a52);
+      stroke-width: 1;
+      opacity: 0.48;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .axis-line {
+      stroke: var(--border, #2a3a52);
+      stroke-width: 1;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .zero-line {
+      stroke: var(--muted-foreground, #9eacc0);
+      stroke-width: 1;
+      stroke-dasharray: 3 4;
+      opacity: 0.72;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .axis-text {
+      fill: var(--muted-foreground, #9eacc0);
+      font-size: 11px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-line {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-line.stiffness {
+      stroke-dasharray: 7 4;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-line.shared-reference {
+      stroke-width: 2.5;
+      stroke-dasharray: 2 4;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .raw-marker {
+      fill: var(--background, #07111f);
+      stroke: currentColor;
+      stroke-width: 1.25;
+      vector-effect: non-scaling-stroke;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .raw-marker.cross {
+      fill: none;
+      stroke-width: 1.6;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .hit-target {
+      fill: transparent;
+      stroke: none;
+      pointer-events: all;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .tooltip {
+      position: absolute;
+      z-index: 2;
+      max-width: min(290px, 85%);
+      padding: 6px 8px;
+      border: 1px solid var(--border, #2a3a52);
+      border-radius: 5px;
+      color: var(--popover-foreground, #e7edf7);
+      background: var(--popover, #101d2f);
+      box-shadow: 0 5px 18px rgb(0 0 0 / 28%);
+      font-size: 11px;
+      pointer-events: none;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .caption {
+      margin-top: 9px;
+    }
+    @media (max-width: 720px) {
+      #no-avpd-passive-rv-owner-sensitivity-v1 .controls,
+      #no-avpd-passive-rv-owner-sensitivity-v1 .plots {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <div class="boundary" data-boundary></div>
+  <div class="policy" data-policy></div>
+
+  <div class="controls" aria-label="Candidate visibility controls">
+    <fieldset data-family="load">
+      <legend>
+        <span data-family-title="load">RV load family</span> · solid lines
+      </legend>
+      <div class="toggle-row">
+        <label class="toggle" for="rv-owner-toggle-load-candidate-1">
+          <input
+            id="rv-owner-toggle-load-candidate-1"
+            type="checkbox"
+            data-series-toggle="load-candidate-1"
+            checked
+          />
+          <span class="swatch series-load-candidate-1"></span>
+          <span data-series-label="load-candidate-1">load candidate 1</span> ○
+        </label>
+        <label class="toggle" for="rv-owner-toggle-load-candidate-2">
+          <input
+            id="rv-owner-toggle-load-candidate-2"
+            type="checkbox"
+            data-series-toggle="load-candidate-2"
+            checked
+          />
+          <span class="swatch series-load-candidate-2"></span>
+          <span data-series-label="load-candidate-2">load candidate 2</span> □
+        </label>
+        <label class="toggle" for="rv-owner-toggle-shared-reference">
+          <input
+            id="rv-owner-toggle-shared-reference"
+            type="checkbox"
+            data-series-toggle="shared-reference"
+            checked
+          />
+          <span class="swatch reference series-shared-reference"></span>
+          <span data-series-label="shared-reference">shared reference</span> ◇
+        </label>
+      </div>
+    </fieldset>
+    <fieldset data-family="stiffness">
+      <legend>
+        <span data-family-title="stiffness">RVFW passive tangent family</span> ·
+        dashed lines
+      </legend>
+      <div class="family-note" data-reference-note>
+        The family reference uses the shared toggle at left.
+      </div>
+      <div class="toggle-row">
+        <label class="toggle" for="rv-owner-toggle-stiffness-candidate-1">
+          <input
+            id="rv-owner-toggle-stiffness-candidate-1"
+            type="checkbox"
+            data-series-toggle="stiffness-candidate-1"
+            checked
+          />
+          <span class="swatch stiffness series-stiffness-candidate-1"></span>
+          <span data-series-label="stiffness-candidate-1"
+            >stiffness candidate 1</span
+          >
+          △
+        </label>
+        <label class="toggle" for="rv-owner-toggle-stiffness-candidate-2">
+          <input
+            id="rv-owner-toggle-stiffness-candidate-2"
+            type="checkbox"
+            data-series-toggle="stiffness-candidate-2"
+            checked
+          />
+          <span class="swatch stiffness series-stiffness-candidate-2"></span>
+          <span data-series-label="stiffness-candidate-2"
+            >stiffness candidate 2</span
+          >
+          ＋
+        </label>
+      </div>
+    </fieldset>
+  </div>
+
+  <div class="readout" data-readout aria-live="polite">
+    Hover a raw marker to inspect all four owner readbacks at one LV-volume grid
+    point.
+  </div>
+
+  <div class="plots">
+    <section class="plot">
+      <h3>Required RV volume vs LV volume</h3>
+      <svg
+        data-plot="required-rv-volume"
+        viewBox="0 0 640 360"
+        role="img"
+        aria-label="Required right ventricular volume against prescribed left ventricular volume"
+      ></svg>
+      <div class="tooltip" data-tooltip-box hidden></div>
+    </section>
+    <section class="plot">
+      <h3>LV transmural pressure–volume</h3>
+      <svg
+        data-plot="lv-pressure-volume"
+        viewBox="0 0 640 360"
+        role="img"
+        aria-label="Left ventricular transmural pressure against prescribed left ventricular volume"
+      ></svg>
+      <div class="tooltip" data-tooltip-box hidden></div>
+    </section>
+    <section class="plot">
+      <h3>TriSeg septal-cap volume</h3>
+      <svg
+        data-plot="septal-cap-volume"
+        viewBox="0 0 640 360"
+        role="img"
+        aria-label="TriSeg septal cap volume against prescribed left ventricular volume"
+      ></svg>
+      <div class="tooltip" data-tooltip-box hidden></div>
+    </section>
+    <section class="plot">
+      <h3>Centered-secant dP/dV</h3>
+      <svg
+        data-plot="centered-pressure-slope"
+        viewBox="0 0 640 360"
+        role="img"
+        aria-label="Bench-provided centered secant left ventricular pressure slope against prescribed left ventricular volume"
+      ></svg>
+      <div class="tooltip" data-tooltip-box hidden></div>
+    </section>
+  </div>
+
+  <div class="caption">
+    Every marker is one retained equilibrium point. Straight SVG segments are
+    visual guides between adjacent raw grid points; no smoothing, interpolation,
+    decimation, or derivative reconstruction is applied. Compare only within a
+    declared one-factor family.
+  </div>
+
+  <script
+    type="application/json"
+    id="no-avpd-passive-rv-owner-sensitivity-data"
+  >
+    __NO_AVPD_PASSIVE_RV_OWNER_SENSITIVITY_DATA__
+  </script>
+  <script>
+    (() => {
+      const root = document.getElementById(
+        "no-avpd-passive-rv-owner-sensitivity-v1",
+      );
+      const dataNode = document.getElementById(
+        "no-avpd-passive-rv-owner-sensitivity-data",
+      );
+      if (!root || !dataNode) return;
+      const data = JSON.parse(dataNode.textContent || "{}");
+      const NS = "http://www.w3.org/2000/svg";
+      const seriesById = new Map(
+        data.series.map((series) => [series.seriesId, series]),
+      );
+      const enabled = new Set(data.series.map((series) => series.seriesId));
+      const readout = root.querySelector("[data-readout]");
+      const plotSpecs = [
+        {
+          id: "required-rv-volume",
+          key: "requiredRvVolumeMl",
+          yLabel: "required RV volume (mL)",
+          digits: 1,
+          includeZero: false,
+          description:
+            "Required RV cavity volume at the candidate's prescribed RV transmural pressure.",
+        },
+        {
+          id: "lv-pressure-volume",
+          key: "lvTransmuralPressureMmHg",
+          yLabel: "LV Ptm (mmHg)",
+          digits: 2,
+          includeZero: false,
+          description:
+            "Passive left ventricular transmural pressure from the unchanged EDPVR bench.",
+        },
+        {
+          id: "septal-cap-volume",
+          key: "septalCapVolumeMl",
+          yLabel: "septal cap volume (mL)",
+          digits: 1,
+          includeZero: true,
+          description:
+            "Signed TriSeg septal-cap volume at the algebraic equilibrium root.",
+        },
+        {
+          id: "centered-pressure-slope",
+          key: "centeredSecantPressureSlopeMmHgPerMl",
+          yLabel: "centered dP/dV (mmHg/mL)",
+          digits: 4,
+          includeZero: false,
+          description:
+            "Bench-provided centered secant; endpoint values are intentionally absent.",
+        },
+      ];
+
+      const boundary = root.querySelector("[data-boundary]");
+      if (boundary) {
+        boundary.textContent = `Claim boundary: ${data.protocol.claimBoundary}.`;
+      }
+      const policy = root.querySelector("[data-policy]");
+      if (policy) {
+        policy.textContent =
+          "Report-only owner localization · no physiology gate · no scalar winner · cross-family ranking is prohibited. The 5 mmHg load and 1× stiffness references are byte-identical and rendered once.";
+      }
+
+      data.series.forEach((series) => {
+        const label = root.querySelector(
+          `[data-series-label="${series.seriesId}"]`,
+        );
+        if (label) label.textContent = series.label;
+      });
+      const conciseNumber = (value) =>
+        Number.isInteger(value) ? value.toFixed(0) : String(value);
+      const loadValues = data.series
+        .filter(
+          (series) =>
+            series.visualFamily === "load" ||
+            series.visualFamily === "shared-reference",
+        )
+        .map((series) => series.effectiveInputs.targetRvTransmuralPressureMmHg)
+        .sort((left, right) => left - right);
+      const stiffnessValues = data.series
+        .filter(
+          (series) =>
+            series.visualFamily === "stiffness" ||
+            series.visualFamily === "shared-reference",
+        )
+        .map(
+          (series) =>
+            series.declaration.rightFreeWallPassiveTangentModulusScale,
+        )
+        .sort((left, right) => left - right);
+      const loadFamilyTitle = root.querySelector('[data-family-title="load"]');
+      if (loadFamilyTitle) {
+        loadFamilyTitle.textContent = `RV load family (${loadValues.map(conciseNumber).join(" / ")} mmHg)`;
+      }
+      const stiffnessFamilyTitle = root.querySelector(
+        '[data-family-title="stiffness"]',
+      );
+      if (stiffnessFamilyTitle) {
+        stiffnessFamilyTitle.textContent = `RVFW passive tangent family (${stiffnessValues.map(conciseNumber).join("× / ")}×)`;
+      }
+      const referenceNote = root.querySelector("[data-reference-note]");
+      if (referenceNote) {
+        referenceNote.textContent = `${data.referenceIdentity.label} uses the single shared toggle in the load-family legend.`;
+      }
+
+      const format = (value, digits = 2) =>
+        value == null || !Number.isFinite(value)
+          ? "—"
+          : Number(value).toFixed(digits);
+      const add = (parent, name, attrs, content) => {
+        const node = document.createElementNS(NS, name);
+        Object.entries(attrs || {}).forEach(([key, value]) =>
+          node.setAttribute(key, String(value)),
+        );
+        if (content !== undefined) node.textContent = content;
+        parent.appendChild(node);
+        return node;
+      };
+      const extent = (values, includeZero) => {
+        const clean = values.filter(Number.isFinite);
+        let low = Math.min(...clean);
+        let high = Math.max(...clean);
+        if (includeZero) {
+          low = Math.min(low, 0);
+          high = Math.max(high, 0);
+        }
+        const span = Math.max(high - low, Math.abs(high || 1) * 0.02, 0.01);
+        return [low - 0.08 * span, high + 0.08 * span];
+      };
+      const scale = (domain, range) => (value) =>
+        range[0] +
+        ((value - domain[0]) * (range[1] - range[0])) /
+          Math.max(domain[1] - domain[0], 1e-12);
+      const allPoints = data.series.flatMap((series) => series.points);
+      const xDomain = extent(
+        allPoints.map((point) => point.lvVolumeMl),
+        false,
+      );
+
+      const axes = (svg, yDomain, spec) => {
+        const box = { left: 78, right: 620, top: 22, bottom: 310 };
+        const x = scale(xDomain, [box.left, box.right]);
+        const y = scale(yDomain, [box.bottom, box.top]);
+        for (let index = 0; index <= 5; index += 1) {
+          const px = box.left + ((box.right - box.left) * index) / 5;
+          const py = box.bottom - ((box.bottom - box.top) * index) / 5;
+          add(svg, "line", {
+            x1: px,
+            x2: px,
+            y1: box.top,
+            y2: box.bottom,
+            class: "grid-line",
+          });
+          add(svg, "line", {
+            x1: box.left,
+            x2: box.right,
+            y1: py,
+            y2: py,
+            class: "grid-line",
+          });
+          const xValue = xDomain[0] + ((xDomain[1] - xDomain[0]) * index) / 5;
+          const yValue = yDomain[0] + ((yDomain[1] - yDomain[0]) * index) / 5;
+          add(
+            svg,
+            "text",
+            {
+              x: px,
+              y: box.bottom + 18,
+              "text-anchor": "middle",
+              class: "axis-text",
+            },
+            format(xValue, 0),
+          );
+          add(
+            svg,
+            "text",
+            {
+              x: box.left - 9,
+              y: py + 4,
+              "text-anchor": "end",
+              class: "axis-text",
+            },
+            format(yValue, spec.digits),
+          );
+        }
+        add(svg, "line", {
+          x1: box.left,
+          x2: box.right,
+          y1: box.bottom,
+          y2: box.bottom,
+          class: "axis-line",
+        });
+        add(svg, "line", {
+          x1: box.left,
+          x2: box.left,
+          y1: box.top,
+          y2: box.bottom,
+          class: "axis-line",
+        });
+        if (yDomain[0] < 0 && yDomain[1] > 0) {
+          add(svg, "line", {
+            x1: box.left,
+            x2: box.right,
+            y1: y(0),
+            y2: y(0),
+            class: "zero-line",
+          });
+        }
+        add(
+          svg,
+          "text",
+          {
+            x: (box.left + box.right) / 2,
+            y: 352,
+            "text-anchor": "middle",
+            class: "axis-text",
+          },
+          "LV volume (mL)",
+        );
+        add(
+          svg,
+          "text",
+          {
+            x: 18,
+            y: (box.top + box.bottom) / 2,
+            transform: `rotate(-90 18 ${(box.top + box.bottom) / 2})`,
+            "text-anchor": "middle",
+            class: "axis-text",
+          },
+          spec.yLabel,
+        );
+        return { box, x, y };
+      };
+
+      const marker = (group, series, x, y) => {
+        const attrs = {
+          class: `raw-marker ${series.marker === "cross" ? "cross" : ""}`,
+          "data-marker-shape": series.marker,
+        };
+        if (series.marker === "circle") {
+          add(group, "circle", { ...attrs, cx: x, cy: y, r: 2.4 });
+        } else if (series.marker === "square") {
+          add(group, "rect", {
+            ...attrs,
+            x: x - 2.4,
+            y: y - 2.4,
+            width: 4.8,
+            height: 4.8,
+          });
+        } else if (series.marker === "diamond") {
+          add(group, "path", {
+            ...attrs,
+            d: `M ${x} ${y - 3.2} L ${x + 3.2} ${y} L ${x} ${y + 3.2} L ${x - 3.2} ${y} Z`,
+          });
+        } else if (series.marker === "triangle") {
+          add(group, "path", {
+            ...attrs,
+            d: `M ${x} ${y - 3.3} L ${x + 3.3} ${y + 2.7} L ${x - 3.3} ${y + 2.7} Z`,
+          });
+        } else {
+          add(group, "path", {
+            ...attrs,
+            d: `M ${x - 3} ${y} L ${x + 3} ${y} M ${x} ${y - 3} L ${x} ${y + 3}`,
+          });
+        }
+        return add(group, "circle", {
+          cx: x,
+          cy: y,
+          r: 7,
+          class: "hit-target",
+        });
+      };
+
+      const detailText = (series, point) =>
+        `${series.label} · LV ${format(point.lvVolumeMl, 0)} mL · required RV ${format(point.requiredRvVolumeMl, 2)} mL · LV Ptm ${format(point.lvTransmuralPressureMmHg, 3)} mmHg · septal cap ${format(point.septalCapVolumeMl, 3)} mL · centered dP/dV ${format(point.centeredSecantPressureSlopeMmHgPerMl, 5)} mmHg/mL`;
+
+      const showPoint = (plot, hitTarget, series, point) => {
+        const text = detailText(series, point);
+        if (readout) readout.textContent = text;
+        const tooltip = plot.querySelector("[data-tooltip-box]");
+        if (!tooltip) return;
+        tooltip.textContent = text;
+        tooltip.hidden = false;
+        const plotRect = plot.getBoundingClientRect();
+        const markRect = hitTarget.getBoundingClientRect();
+        const preferredLeft =
+          markRect.left - plotRect.left + markRect.width / 2 + 9;
+        const preferredTop =
+          markRect.top - plotRect.top - tooltip.offsetHeight - 7;
+        tooltip.style.left = `${Math.max(4, Math.min(preferredLeft, plot.clientWidth - tooltip.offsetWidth - 4))}px`;
+        tooltip.style.top = `${Math.max(25, preferredTop)}px`;
+      };
+
+      const draw = (spec) => {
+        const svg = root.querySelector(`[data-plot="${spec.id}"]`);
+        if (!svg) return;
+        svg.replaceChildren();
+        add(svg, "title", {}, spec.yLabel);
+        add(svg, "desc", {}, spec.description);
+        const values = allPoints
+          .map((point) => point[spec.key])
+          .filter((value) => value != null && Number.isFinite(value));
+        const yDomain = extent(values, spec.includeZero);
+        const geometry = axes(svg, yDomain, spec);
+
+        for (const series of data.series) {
+          if (!enabled.has(series.seriesId)) continue;
+          const points = series.points.filter(
+            (point) =>
+              point[spec.key] != null && Number.isFinite(point[spec.key]),
+          );
+          const coordinates = points.map((point) => ({
+            point,
+            x: geometry.x(point.lvVolumeMl),
+            y: geometry.y(point[spec.key]),
+          }));
+          const className = `series-${series.seriesId}`;
+          const lineFamily =
+            series.visualFamily === "stiffness"
+              ? "stiffness"
+              : series.visualFamily === "shared-reference"
+                ? "shared-reference"
+                : "load";
+          add(svg, "path", {
+            d: coordinates
+              .map(
+                (coordinate, index) =>
+                  `${index === 0 ? "M" : "L"} ${coordinate.x.toFixed(2)} ${coordinate.y.toFixed(2)}`,
+              )
+              .join(" "),
+            class: `series-line ${lineFamily} ${className}`,
+            "data-series-id": series.seriesId,
+            "data-raw-sample-count": points.length,
+          });
+          coordinates.forEach((coordinate, index) => {
+            const group = add(svg, "g", {
+              class: className,
+              "data-series-id": series.seriesId,
+              "data-raw-point-index": index,
+            });
+            const hitTarget = marker(group, series, coordinate.x, coordinate.y);
+            hitTarget.addEventListener("pointerenter", () =>
+              showPoint(
+                svg.closest(".plot"),
+                hitTarget,
+                series,
+                coordinate.point,
+              ),
+            );
+          });
+        }
+      };
+
+      const drawAll = () => plotSpecs.forEach(draw);
+      root.querySelectorAll("[data-series-toggle]").forEach((input) => {
+        const seriesId = input.getAttribute("data-series-toggle");
+        input.addEventListener("change", () => {
+          if (input.checked) enabled.add(seriesId);
+          else enabled.delete(seriesId);
+          const series = seriesById.get(seriesId);
+          if (readout && series) {
+            readout.textContent = `${series.label}: ${input.checked ? "shown" : "hidden"}. ${series.points.length} raw LV-volume grid points retained in the embedded source.`;
+          }
+          root.querySelectorAll("[data-tooltip-box]").forEach((tooltip) => {
+            tooltip.hidden = true;
+          });
+          drawAll();
+        });
+        input.addEventListener("focus", () => {
+          const series = seriesById.get(seriesId);
+          if (readout && series) {
+            readout.textContent = `${series.label} · ${series.rootAvailability.availablePointCount}/${series.rootAvailability.availablePointCount + series.rootAvailability.unavailablePointCount + series.rootAvailability.ambiguousPointCount} roots available.`;
+          }
+        });
+      });
+      root.querySelectorAll(".plot").forEach((plot) => {
+        plot.addEventListener("pointerleave", () => {
+          const tooltip = plot.querySelector("[data-tooltip-box]");
+          if (tooltip) tooltip.hidden = true;
+        });
+      });
+      drawAll();
+    })();
+  </script>
+</div>

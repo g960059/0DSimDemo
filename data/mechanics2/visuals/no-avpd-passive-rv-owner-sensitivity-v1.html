@@ -1,0 +1,743 @@
+<meta charset="utf-8" />
+<div id="no-avpd-passive-rv-owner-sensitivity-v1">
+  <style>
+    #no-avpd-passive-rv-owner-sensitivity-v1 {
+      --series-load-candidate-1: var(--viz-series-1, #51b8f4);
+      --series-load-candidate-2: var(--viz-series-2, #65d3a1);
+      --series-reference: var(--viz-series-3, #f5c35b);
+      --series-stiffness-candidate-1: var(--viz-series-4, #e58ad0);
+      --series-stiffness-candidate-2: var(--viz-series-5, #a997ff);
+      box-sizing: border-box;
+      width: 100%;
+      padding: 14px;
+      color: var(--foreground, #e7edf7);
+      background: var(--background, #07111f);
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 *,
+    #no-avpd-passive-rv-owner-sensitivity-v1 *::before,
+    #no-avpd-passive-rv-owner-sensitivity-v1 *::after {
+      box-sizing: border-box;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 [hidden] {
+      display: none !important;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .boundary,
+    #no-avpd-passive-rv-owner-sensitivity-v1 .policy,
+    #no-avpd-passive-rv-owner-sensitivity-v1 .caption,
+    #no-avpd-passive-rv-owner-sensitivity-v1 .family-note {
+      color: var(--muted-foreground, #9eacc0);
+      font-size: 12px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .boundary {
+      margin-bottom: 4px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .policy {
+      margin-bottom: 12px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 8px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 fieldset {
+      min-width: 0;
+      margin: 0;
+      padding: 0 0 0 10px;
+      border: 0;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 fieldset[data-family="load"] {
+      border-left: 3px solid var(--series-load-candidate-2);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 fieldset[data-family="stiffness"] {
+      border-left: 3px dashed var(--series-stiffness-candidate-1);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 legend {
+      padding: 0;
+      color: var(--foreground, #e7edf7);
+      font-weight: 500;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px 15px;
+      margin-top: 5px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--foreground, #e7edf7);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .toggle input {
+      margin: 0;
+      accent-color: var(--primary, #71b7ff);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .swatch {
+      display: inline-block;
+      width: 22px;
+      height: 0;
+      border-top: 2px solid currentColor;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .swatch.stiffness {
+      border-top-style: dashed;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .swatch.reference {
+      border-top-style: dotted;
+      border-top-width: 3px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-load-candidate-1 {
+      color: var(--series-load-candidate-1);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-load-candidate-2 {
+      color: var(--series-load-candidate-2);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-shared-reference {
+      color: var(--series-reference);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-stiffness-candidate-1 {
+      color: var(--series-stiffness-candidate-1);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-stiffness-candidate-2 {
+      color: var(--series-stiffness-candidate-2);
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .readout {
+      min-height: 2.9em;
+      margin: 5px 0 11px;
+      padding: 7px 9px;
+      border-left: 2px solid var(--border, #2a3a52);
+      color: var(--foreground, #e7edf7);
+      background: var(--muted, #101d2f);
+      font-size: 12px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .plots {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .plot {
+      position: relative;
+      min-width: 0;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 h3 {
+      margin: 0 0 4px;
+      color: var(--foreground, #e7edf7);
+      font-weight: 500;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      overflow: visible;
+      touch-action: none;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .grid-line {
+      stroke: var(--border, #2a3a52);
+      stroke-width: 1;
+      opacity: 0.48;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .axis-line {
+      stroke: var(--border, #2a3a52);
+      stroke-width: 1;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .zero-line {
+      stroke: var(--muted-foreground, #9eacc0);
+      stroke-width: 1;
+      stroke-dasharray: 3 4;
+      opacity: 0.72;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .axis-text {
+      fill: var(--muted-foreground, #9eacc0);
+      font-size: 11px;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-line {
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-line.stiffness {
+      stroke-dasharray: 7 4;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .series-line.shared-reference {
+      stroke-width: 2.5;
+      stroke-dasharray: 2 4;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .raw-marker {
+      fill: var(--background, #07111f);
+      stroke: currentColor;
+      stroke-width: 1.25;
+      vector-effect: non-scaling-stroke;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .raw-marker.cross {
+      fill: none;
+      stroke-width: 1.6;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .hit-target {
+      fill: transparent;
+      stroke: none;
+      pointer-events: all;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .tooltip {
+      position: absolute;
+      z-index: 2;
+      max-width: min(290px, 85%);
+      padding: 6px 8px;
+      border: 1px solid var(--border, #2a3a52);
+      border-radius: 5px;
+      color: var(--popover-foreground, #e7edf7);
+      background: var(--popover, #101d2f);
+      box-shadow: 0 5px 18px rgb(0 0 0 / 28%);
+      font-size: 11px;
+      pointer-events: none;
+    }
+    #no-avpd-passive-rv-owner-sensitivity-v1 .caption {
+      margin-top: 9px;
+    }
+    @media (max-width: 720px) {
+      #no-avpd-passive-rv-owner-sensitivity-v1 .controls,
+      #no-avpd-passive-rv-owner-sensitivity-v1 .plots {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+
+  <div class="boundary" data-boundary></div>
+  <div class="policy" data-policy></div>
+
+  <div class="controls" aria-label="Candidate visibility controls">
+    <fieldset data-family="load">
+      <legend>
+        <span data-family-title="load">RV load family</span> · solid lines
+      </legend>
+      <div class="toggle-row">
+        <label class="toggle" for="rv-owner-toggle-load-candidate-1">
+          <input
+            id="rv-owner-toggle-load-candidate-1"
+            type="checkbox"
+            data-series-toggle="load-candidate-1"
+            checked
+          />
+          <span class="swatch series-load-candidate-1"></span>
+          <span data-series-label="load-candidate-1">load candidate 1</span> ○
+        </label>
+        <label class="toggle" for="rv-owner-toggle-load-candidate-2">
+          <input
+            id="rv-owner-toggle-load-candidate-2"
+            type="checkbox"
+            data-series-toggle="load-candidate-2"
+            checked
+          />
+          <span class="swatch series-load-candidate-2"></span>
+          <span data-series-label="load-candidate-2">load candidate 2</span> □
+        </label>
+        <label class="toggle" for="rv-owner-toggle-shared-reference">
+          <input
+            id="rv-owner-toggle-shared-reference"
+            type="checkbox"
+            data-series-toggle="shared-reference"
+            checked
+          />
+          <span class="swatch reference series-shared-reference"></span>
+          <span data-series-label="shared-reference">shared reference</span> ◇
+        </label>
+      </div>
+    </fieldset>
+    <fieldset data-family="stiffness">
+      <legend>
+        <span data-family-title="stiffness">RVFW passive tangent family</span> ·
+        dashed lines
+      </legend>
+      <div class="family-note" data-reference-note>
+        The family reference uses the shared toggle at left.
+      </div>
+      <div class="toggle-row">
+        <label class="toggle" for="rv-owner-toggle-stiffness-candidate-1">
+          <input
+            id="rv-owner-toggle-stiffness-candidate-1"
+            type="checkbox"
+            data-series-toggle="stiffness-candidate-1"
+            checked
+          />
+          <span class="swatch stiffness series-stiffness-candidate-1"></span>
+          <span data-series-label="stiffness-candidate-1"
+            >stiffness candidate 1</span
+          >
+          △
+        </label>
+        <label class="toggle" for="rv-owner-toggle-stiffness-candidate-2">
+          <input
+            id="rv-owner-toggle-stiffness-candidate-2"
+            type="checkbox"
+            data-series-toggle="stiffness-candidate-2"
+            checked
+          />
+          <span class="swatch stiffness series-stiffness-candidate-2"></span>
+          <span data-series-label="stiffness-candidate-2"
+            >stiffness candidate 2</span
+          >
+          ＋
+        </label>
+      </div>
+    </fieldset>
+  </div>
+
+  <div class="readout" data-readout aria-live="polite">
+    Hover a raw marker to inspect all four owner readbacks at one LV-volume grid
+    point.
+  </div>
+
+  <div class="plots">
+    <section class="plot">
+      <h3>Required RV volume vs LV volume</h3>
+      <svg
+        data-plot="required-rv-volume"
+        viewBox="0 0 640 360"
+        role="img"
+        aria-label="Required right ventricular volume against prescribed left ventricular volume"
+      ></svg>
+      <div class="tooltip" data-tooltip-box hidden></div>
+    </section>
+    <section class="plot">
+      <h3>LV transmural pressure–volume</h3>
+      <svg
+        data-plot="lv-pressure-volume"
+        viewBox="0 0 640 360"
+        role="img"
+        aria-label="Left ventricular transmural pressure against prescribed left ventricular volume"
+      ></svg>
+      <div class="tooltip" data-tooltip-box hidden></div>
+    </section>
+    <section class="plot">
+      <h3>TriSeg septal-cap volume</h3>
+      <svg
+        data-plot="septal-cap-volume"
+        viewBox="0 0 640 360"
+        role="img"
+        aria-label="TriSeg septal cap volume against prescribed left ventricular volume"
+      ></svg>
+      <div class="tooltip" data-tooltip-box hidden></div>
+    </section>
+    <section class="plot">
+      <h3>Centered-secant dP/dV</h3>
+      <svg
+        data-plot="centered-pressure-slope"
+        viewBox="0 0 640 360"
+        role="img"
+        aria-label="Bench-provided centered secant left ventricular pressure slope against prescribed left ventricular volume"
+      ></svg>
+      <div class="tooltip" data-tooltip-box hidden></div>
+    </section>
+  </div>
+
+  <div class="caption">
+    Every marker is one retained equilibrium point. Straight SVG segments are
+    visual guides between adjacent raw grid points; no smoothing, interpolation,
+    decimation, or derivative reconstruction is applied. Compare only within a
+    declared one-factor family.
+  </div>
+
+  <script
+    type="application/json"
+    id="no-avpd-passive-rv-owner-sensitivity-data"
+  >
+    {"artifactId":"no-avpd-passive-rv-owner-sensitivity-report-v1","sourceNormalizedSha256":"443c97ccdabe4039e4b894ed54af4b5ca1bd8858b2c72e5c72dd8e49527c12c3","protocol":{"evidenceStatus":"report-only-restricted-component-sensitivity-not-physiology-gate","familyIsolation":"each-family-has-its-own-reference-and-varies-one-declared-input-only","scalarWinnerSelected":false,"physiologyGateApplied":false,"claimBoundary":"restricted-two-family-passive-biventricular-triseg-sensitivity-not-exhaustive-owner-localization-parameter-calibration-or-clinical-edpvr-validation"},"referenceIdentity":{"visualSeriesId":"shared-reference","loadFamilyCandidateId":"rv-load-5-mmHg-reference","stiffnessFamilyCandidateId":"rv-passive-tangent-1x-reference","completeEdpvrReportsByteIdentical":true,"label":"5 mmHg / 1x shared reference"},"series":[{"seriesId":"load-candidate-1","label":"RV load 1.5 mmHg","visualFamily":"load","marker":"circle","sourceCandidateIds":["rv-load-1p5-mmHg"],"declaration":{"candidateId":"rv-load-1p5-mmHg","role":"sensitivity-candidate","targetRvTransmuralPressureMmHg":1.5,"rightFreeWallPassiveTangentModulusScale":1},"effectiveInputs":{"targetRvTransmuralPressureMmHg":1.5,"externalPressureMmHg":0,"baselineRightFreeWallPassiveTangentModulusPa":10000,"effectiveRightFreeWallPassiveTangentModulusPa":10000},"rootAvailability":{"availablePointCount":25,"unavailablePointCount":0,"ambiguousPointCount":0,"allPointsAvailable":true},"points":[{"lvVolumeMl":60,"requiredRvVolumeMl":169.66796875,"lvTransmuralPressureMmHg":1.584987036249084,"septalCapVolumeMl":0.8870891318410774,"centeredSecantPressureSlopeMmHgPerMl":null},{"lvVolumeMl":65,"requiredRvVolumeMl":167.24609375,"lvTransmuralPressureMmHg":1.8471116246969652,"septalCapVolumeMl":3.3750771272574647,"centeredSecantPressureSlopeMmHgPerMl":0.055126115024433674},{"lvVolumeMl":70,"requiredRvVolumeMl":164.931640625,"lvTransmuralPressureMmHg":2.136248186493421,"septalCapVolumeMl":5.672500584651124,"centeredSecantPressureSlopeMmHgPerMl":0.06087704196110209},{"lvVolumeMl":75,"requiredRvVolumeMl":162.8125,"lvTransmuralPressureMmHg":2.455882044307986,"septalCapVolumeMl":7.73179600370154,"centeredSecantPressureSlopeMmHgPerMl":0.0669965543238877},{"lvVolumeMl":80,"requiredRvVolumeMl":160.947265625,"lvTransmuralPressureMmHg":2.8062137297322978,"septalCapVolumeMl":9.534420151003046,"centeredSecantPressureSlopeMmHgPerMl":0.07287696799544471},{"lvVolumeMl":85,"requiredRvVolumeMl":159.365234375,"lvTransmuralPressureMmHg":3.1846517242624333,"septalCapVolumeMl":11.090262758670134,"centeredSecantPressureSlopeMmHgPerMl":0.07807787019796356},{"lvVolumeMl":90,"requiredRvVolumeMl":158.056640625,"lvTransmuralPressureMmHg":3.5869924317119333,"septalCapVolumeMl":12.429998837669729,"centeredSecantPressureSlopeMmHgPerMl":0.08241714938674805},{"lvVolumeMl":95,"requiredRvVolumeMl":156.9921875,"lvTransmuralPressureMmHg":4.008823218129914,"septalCapVolumeMl":13.59201000211579,"centeredSecantPressureSlopeMmHgPerMl":0.08593159095775213},{"lvVolumeMl":100,"requiredRvVolumeMl":156.1328125,"lvTransmuralPressureMmHg":4.446308341289455,"septalCapVolumeMl":14.613637286989558,"centeredSecantPressureSlopeMmHgPerMl":0.08875996605922953},{"lvVolumeMl":105,"requiredRvVolumeMl":155.4296875,"lvTransmuralPressureMmHg":4.896422878722209,"septalCapVolumeMl":15.527472331056684,"centeredSecantPressureSlopeMmHgPerMl":0.09107099976996454},{"lvVolumeMl":110,"requiredRvVolumeMl":154.853515625,"lvTransmuralPressureMmHg":5.3570183389891,"septalCapVolumeMl":16.35831334977701,"centeredSecantPressureSlopeMmHgPerMl":0.09301915173034248},{"lvVolumeMl":115,"requiredRvVolumeMl":154.39453125,"lvTransmuralPressureMmHg":5.826614396025634,"septalCapVolumeMl":17.124334770020944,"centeredSecantPressureSlopeMmHgPerMl":0.09470378537109721},{"lvVolumeMl":120,"requiredRvVolumeMl":154.00390625,"lvTransmuralPressureMmHg":6.304056192700072,"septalCapVolumeMl":17.84207358273377,"centeredSecantPressureSlopeMmHgPerMl":0.09620524052433028},{"lvVolumeMl":125,"requiredRvVolumeMl":153.681640625,"lvTransmuralPressureMmHg":6.788666801268937,"septalCapVolumeMl":18.52143932375197,"centeredSecantPressureSlopeMmHgPerMl":0.09758961857063939},{"lvVolumeMl":130,"requiredRvVolumeMl":153.41796875,"lvTransmuralPressureMmHg":7.279952378406466,"septalCapVolumeMl":19.17064500039891,"centeredSecantPressureSlopeMmHgPerMl":0.09888886654462467},{"lvVolumeMl":135,"requiredRvVolumeMl":153.193359375,"lvTransmuralPressureMmHg":7.777555466715183,"septalCapVolumeMl":19.79657728200801,"centeredSecantPressureSlopeMmHgPerMl":0.10012984985178149},{"lvVolumeMl":140,"requiredRvVolumeMl":152.998046875,"lvTransmuralPressureMmHg":8.28125087692428,"septalCapVolumeMl":20.40415451488076,"centeredSecantPressureSlopeMmHgPerMl":0.10133471711863215},{"lvVolumeMl":145,"requiredRvVolumeMl":152.83203125,"lvTransmuralPressureMmHg":8.790902637901505,"septalCapVolumeMl":20.99680371690658,"centeredSecantPressureSlopeMmHgPerMl":0.10251709524868105},{"lvVolumeMl":150,"requiredRvVolumeMl":152.6953125,"lvTransmuralPressureMmHg":9.306421829411091,"septalCapVolumeMl":21.57723857820613,"centeredSecantPressureSlopeMmHgPerMl":0.10368262698555686},{"lvVolumeMl":155,"requiredRvVolumeMl":152.568359375,"lvTransmuralPressureMmHg":9.827728907757074,"septalCapVolumeMl":22.148439002791722,"centeredSecantPressureSlopeMmHgPerMl":0.10483862703230748},{"lvVolumeMl":160,"requiredRvVolumeMl":152.4609375,"lvTransmuralPressureMmHg":10.354808099734166,"septalCapVolumeMl":22.71164428537982,"centeredSecantPressureSlopeMmHgPerMl":0.10599056747302349},{"lvVolumeMl":165,"requiredRvVolumeMl":152.36328125,"lvTransmuralPressureMmHg":10.887634582487308,"septalCapVolumeMl":23.26859175554268,"centeredSecantPressureSlopeMmHgPerMl":0.10713981509301504},{"lvVolumeMl":170,"requiredRvVolumeMl":152.275390625,"lvTransmuralPressureMmHg":11.426206250664316,"septalCapVolumeMl":23.82034300874847,"centeredSecantPressureSlopeMmHgPerMl":0.10828840541516697},{"lvVolumeMl":175,"requiredRvVolumeMl":152.1875,"lvTransmuralPressureMmHg":11.970518636638978,"septalCapVolumeMl":24.368111305908094,"centeredSecantPressureSlopeMmHgPerMl":0.10943835393221146},{"lvVolumeMl":180,"requiredRvVolumeMl":152.109375,"lvTransmuralPressureMmHg":12.520589789986431,"septalCapVolumeMl":24.912232838715642,"centeredSecantPressureSlopeMmHgPerMl":null}]},{"seriesId":"load-candidate-2","label":"RV load 2 mmHg","visualFamily":"load","marker":"square","sourceCandidateIds":["rv-load-2-mmHg"],"declaration":{"candidateId":"rv-load-2-mmHg","role":"sensitivity-candidate","targetRvTransmuralPressureMmHg":2,"rightFreeWallPassiveTangentModulusScale":1},"effectiveInputs":{"targetRvTransmuralPressureMmHg":2,"externalPressureMmHg":0,"baselineRightFreeWallPassiveTangentModulusPa":10000,"effectiveRightFreeWallPassiveTangentModulusPa":10000},"rootAvailability":{"availablePointCount":25,"unavailablePointCount":0,"ambiguousPointCount":0,"allPointsAvailable":true},"points":[{"lvVolumeMl":60,"requiredRvVolumeMl":194.6875,"lvTransmuralPressureMmHg":1.8039610857329853,"septalCapVolumeMl":-1.6263936986914322,"centeredSecantPressureSlopeMmHgPerMl":null},{"lvVolumeMl":65,"requiredRvVolumeMl":192.67578125,"lvTransmuralPressureMmHg":2.079934930345691,"septalCapVolumeMl":0.6344407804315115,"centeredSecantPressureSlopeMmHgPerMl":0.05683929832075307},{"lvVolumeMl":70,"requiredRvVolumeMl":190.6640625,"lvTransmuralPressureMmHg":2.372354068940516,"septalCapVolumeMl":2.798806756697718,"centeredSecantPressureSlopeMmHgPerMl":0.060504404357801266},{"lvVolumeMl":75,"requiredRvVolumeMl":188.720703125,"lvTransmuralPressureMmHg":2.6849789739237035,"septalCapVolumeMl":4.826588922832061,"centeredSecantPressureSlopeMmHgPerMl":0.06476974400367297},{"lvVolumeMl":80,"requiredRvVolumeMl":186.904296875,"lvTransmuralPressureMmHg":3.0200515089772457,"septalCapVolumeMl":6.689519981476804,"centeredSecantPressureSlopeMmHgPerMl":0.06930829299689281},{"lvVolumeMl":85,"requiredRvVolumeMl":185.25390625,"lvTransmuralPressureMmHg":3.3780619038926316,"septalCapVolumeMl":8.374900345856295,"centeredSecantPressureSlopeMmHgPerMl":0.0738001388859502},{"lvVolumeMl":90,"requiredRvVolumeMl":183.798828125,"lvTransmuralPressureMmHg":3.758052897836748,"septalCapVolumeMl":9.884042252111616,"centeredSecantPressureSlopeMmHgPerMl":0.07799742861983479},{"lvVolumeMl":95,"requiredRvVolumeMl":182.548828125,"lvTransmuralPressureMmHg":4.1580361900909795,"septalCapVolumeMl":11.229980320055658,"centeredSecantPressureSlopeMmHgPerMl":0.08173987076501406},{"lvVolumeMl":100,"requiredRvVolumeMl":181.474609375,"lvTransmuralPressureMmHg":4.575451605486888,"septalCapVolumeMl":12.434587935853056,"centeredSecantPressureSlopeMmHgPerMl":0.08499250522359594},{"lvVolumeMl":105,"requiredRvVolumeMl":180.56640625,"lvTransmuralPressureMmHg":5.007961242326939,"septalCapVolumeMl":13.518993678575638,"centeredSecantPressureSlopeMmHgPerMl":0.08779748231513933},{"lvVolumeMl":110,"requiredRvVolumeMl":179.794921875,"lvTransmuralPressureMmHg":5.453426428638282,"septalCapVolumeMl":14.50473727679343,"centeredSecantPressureSlopeMmHgPerMl":0.0902215705196359},{"lvVolumeMl":115,"requiredRvVolumeMl":179.150390625,"lvTransmuralPressureMmHg":5.910176947523298,"septalCapVolumeMl":15.409272066742473,"centeredSecantPressureSlopeMmHgPerMl":0.09233940202591633},{"lvVolumeMl":120,"requiredRvVolumeMl":178.603515625,"lvTransmuralPressureMmHg":6.376820448897445,"septalCapVolumeMl":16.248757244231157,"centeredSecantPressureSlopeMmHgPerMl":0.09421730455025487},{"lvVolumeMl":125,"requiredRvVolumeMl":178.14453125,"lvTransmuralPressureMmHg":6.852349993025847,"septalCapVolumeMl":17.03525587907123,"centeredSecantPressureSlopeMmHgPerMl":0.09591771044948239},{"lvVolumeMl":130,"requiredRvVolumeMl":177.763671875,"lvTransmuralPressureMmHg":7.335997553392269,"septalCapVolumeMl":17.7786340639469,"centeredSecantPressureSlopeMmHgPerMl":0.09747892360004276},{"lvVolumeMl":135,"requiredRvVolumeMl":177.431640625,"lvTransmuralPressureMmHg":7.827139229026274,"septalCapVolumeMl":18.488015176827926,"centeredSecantPressureSlopeMmHgPerMl":0.09893778228759205},{"lvVolumeMl":140,"requiredRvVolumeMl":177.1484375,"lvTransmuralPressureMmHg":8.32537537626819,"septalCapVolumeMl":19.169192998425242,"centeredSecantPressureSlopeMmHgPerMl":0.10032478404319818},{"lvVolumeMl":145,"requiredRvVolumeMl":176.904296875,"lvTransmuralPressureMmHg":8.830387069458256,"septalCapVolumeMl":19.8273713306698,"centeredSecantPressureSlopeMmHgPerMl":0.10165782061632492},{"lvVolumeMl":150,"requiredRvVolumeMl":176.69921875,"lvTransmuralPressureMmHg":9.341953582431438,"septalCapVolumeMl":20.466305358758973,"centeredSecantPressureSlopeMmHgPerMl":0.10295081137071893},{"lvVolumeMl":155,"requiredRvVolumeMl":176.5234375,"lvTransmuralPressureMmHg":9.859895183165445,"septalCapVolumeMl":21.089513524359287,"centeredSecantPressureSlopeMmHgPerMl":0.1042125815831442},{"lvVolumeMl":160,"requiredRvVolumeMl":176.3671875,"lvTransmuralPressureMmHg":10.38407939826288,"septalCapVolumeMl":21.69988157588066,"centeredSecantPressureSlopeMmHgPerMl":0.10545257414047135},{"lvVolumeMl":165,"requiredRvVolumeMl":176.23046875,"lvTransmuralPressureMmHg":10.914420924570159,"septalCapVolumeMl":22.2993709615732,"centeredSecantPressureSlopeMmHgPerMl":0.10667771317694807},{"lvVolumeMl":170,"requiredRvVolumeMl":176.11328125,"lvTransmuralPressureMmHg":11.450856530032361,"septalCapVolumeMl":22.889601175536605,"centeredSecantPressureSlopeMmHgPerMl":0.10789085009665769},{"lvVolumeMl":175,"requiredRvVolumeMl":176.005859375,"lvTransmuralPressureMmHg":11.993329425536736,"septalCapVolumeMl":23.472301973685433,"centeredSecantPressureSlopeMmHgPerMl":0.10909556950164703},{"lvVolumeMl":180,"requiredRvVolumeMl":175.9130859375,"lvTransmuralPressureMmHg":12.541812225048831,"septalCapVolumeMl":24.04836445239855,"centeredSecantPressureSlopeMmHgPerMl":null}]},{"seriesId":"shared-reference","label":"5 mmHg / 1x shared reference","visualFamily":"shared-reference","marker":"diamond","sourceCandidateIds":["rv-load-5-mmHg-reference","rv-passive-tangent-1x-reference"],"declaration":{"candidateId":"rv-load-5-mmHg-reference","role":"family-reference","targetRvTransmuralPressureMmHg":5,"rightFreeWallPassiveTangentModulusScale":1},"effectiveInputs":{"targetRvTransmuralPressureMmHg":5,"externalPressureMmHg":0,"baselineRightFreeWallPassiveTangentModulusPa":10000,"effectiveRightFreeWallPassiveTangentModulusPa":10000},"rootAvailability":{"availablePointCount":25,"unavailablePointCount":0,"ambiguousPointCount":0,"allPointsAvailable":true},"points":[{"lvVolumeMl":60,"requiredRvVolumeMl":319.3212890625,"lvTransmuralPressureMmHg":2.4425420672790548,"septalCapVolumeMl":-9.972914806933787,"centeredSecantPressureSlopeMmHgPerMl":null},{"lvVolumeMl":65,"requiredRvVolumeMl":318.5546875,"lvTransmuralPressureMmHg":2.7940667400980184,"septalCapVolumeMl":-8.607688310687783,"centeredSecantPressureSlopeMmHgPerMl":0.07034814423794229},{"lvVolumeMl":70,"requiredRvVolumeMl":317.724609375,"lvTransmuralPressureMmHg":3.1460235096584777,"septalCapVolumeMl":-7.215628787097292,"centeredSecantPressureSlopeMmHgPerMl":0.07056873172807596},{"lvVolumeMl":75,"requiredRvVolumeMl":316.8359375,"lvTransmuralPressureMmHg":3.499754057378778,"septalCapVolumeMl":-5.804772121007703,"centeredSecantPressureSlopeMmHgPerMl":0.07105974958835577},{"lvVolumeMl":80,"requiredRvVolumeMl":315.9033203125,"lvTransmuralPressureMmHg":3.8566210055420354,"septalCapVolumeMl":-4.384196063577766,"centeredSecantPressureSlopeMmHgPerMl":0.07181428257908835},{"lvVolumeMl":85,"requiredRvVolumeMl":314.931640625,"lvTransmuralPressureMmHg":4.2178968831696615,"septalCapVolumeMl":-2.9624871984315124,"centeredSecantPressureSlopeMmHgPerMl":0.07282267519744426},{"lvVolumeMl":90,"requiredRvVolumeMl":313.9404296875,"lvTransmuralPressureMmHg":4.584847757516478,"septalCapVolumeMl":-1.5490681007626106,"centeredSecantPressureSlopeMmHgPerMl":0.07406634032351649},{"lvVolumeMl":95,"requiredRvVolumeMl":312.9345703125,"lvTransmuralPressureMmHg":4.958560286404826,"septalCapVolumeMl":-0.15183531863637012,"centeredSecantPressureSlopeMmHgPerMl":0.07551886714802122},{"lvVolumeMl":100,"requiredRvVolumeMl":311.9287109375,"lvTransmuralPressureMmHg":5.34003642899669,"septalCapVolumeMl":1.2213848747697558,"centeredSecantPressureSlopeMmHgPerMl":0.07715379092441657},{"lvVolumeMl":105,"requiredRvVolumeMl":310.9326171875,"lvTransmuralPressureMmHg":5.730098195648992,"septalCapVolumeMl":2.5641329570909357,"centeredSecantPressureSlopeMmHgPerMl":0.07893904730266907},{"lvVolumeMl":110,"requiredRvVolumeMl":309.9609375,"lvTransmuralPressureMmHg":6.129426902023381,"septalCapVolumeMl":3.870728269037234,"centeredSecantPressureSlopeMmHgPerMl":0.0808358101954088},{"lvVolumeMl":115,"requiredRvVolumeMl":309.013671875,"lvTransmuralPressureMmHg":6.53845629760308,"septalCapVolumeMl":5.137882889976152,"centeredSecantPressureSlopeMmHgPerMl":0.0828134638455996},{"lvVolumeMl":120,"requiredRvVolumeMl":308.1103515625,"lvTransmuralPressureMmHg":6.957561540479377,"septalCapVolumeMl":6.361996387603538,"centeredSecantPressureSlopeMmHgPerMl":0.08483879027942223},{"lvVolumeMl":125,"requiredRvVolumeMl":307.24609375,"lvTransmuralPressureMmHg":7.386844200397302,"septalCapVolumeMl":7.542536230412569,"centeredSecantPressureSlopeMmHgPerMl":0.08688184883556663},{"lvVolumeMl":130,"requiredRvVolumeMl":306.435546875,"lvTransmuralPressureMmHg":7.826380028835043,"septalCapVolumeMl":8.678447380249539,"centeredSecantPressureSlopeMmHgPerMl":0.08892045050296175},{"lvVolumeMl":135,"requiredRvVolumeMl":305.673828125,"lvTransmuralPressureMmHg":8.27604870542692,"septalCapVolumeMl":9.771017605199141,"centeredSecantPressureSlopeMmHgPerMl":0.09093020351171752},{"lvVolumeMl":140,"requiredRvVolumeMl":304.9609375,"lvTransmuralPressureMmHg":8.735682063952218,"septalCapVolumeMl":10.821776002111545,"centeredSecantPressureSlopeMmHgPerMl":0.09290128665317372},{"lvVolumeMl":145,"requiredRvVolumeMl":304.296875,"lvTransmuralPressureMmHg":9.205061571958657,"septalCapVolumeMl":11.832698657865393,"centeredSecantPressureSlopeMmHgPerMl":0.09482553072600801},{"lvVolumeMl":150,"requiredRvVolumeMl":303.681640625,"lvTransmuralPressureMmHg":9.683937371212298,"septalCapVolumeMl":12.80605306468906,"centeredSecantPressureSlopeMmHgPerMl":0.09670160052980847},{"lvVolumeMl":155,"requiredRvVolumeMl":303.125,"lvTransmuralPressureMmHg":10.172077577256742,"septalCapVolumeMl":13.74361143885277,"centeredSecantPressureSlopeMmHgPerMl":0.098520527367981},{"lvVolumeMl":160,"requiredRvVolumeMl":302.607421875,"lvTransmuralPressureMmHg":10.669142644892109,"septalCapVolumeMl":14.649193648014709,"centeredSecantPressureSlopeMmHgPerMl":0.10027970534081394},{"lvVolumeMl":165,"requiredRvVolumeMl":302.12890625,"lvTransmuralPressureMmHg":11.174874630664881,"septalCapVolumeMl":15.525210548218384,"centeredSecantPressureSlopeMmHgPerMl":0.1019910563020602},{"lvVolumeMl":170,"requiredRvVolumeMl":301.69921875,"lvTransmuralPressureMmHg":11.68905320791271,"septalCapVolumeMl":16.373397294626717,"centeredSecantPressureSlopeMmHgPerMl":0.10365262711992909},{"lvVolumeMl":175,"requiredRvVolumeMl":301.3037109375,"lvTransmuralPressureMmHg":12.211400901864172,"septalCapVolumeMl":17.19690706164268,"centeredSecantPressureSlopeMmHgPerMl":0.10526619633457716},{"lvVolumeMl":180,"requiredRvVolumeMl":300.947265625,"lvTransmuralPressureMmHg":12.741715171258482,"septalCapVolumeMl":17.997520486814892,"centeredSecantPressureSlopeMmHgPerMl":null}]},{"seriesId":"stiffness-candidate-1","label":"RVFW passive tangent 0.5x","visualFamily":"stiffness","marker":"triangle","sourceCandidateIds":["rv-passive-tangent-0p5x"],"declaration":{"candidateId":"rv-passive-tangent-0p5x","role":"sensitivity-candidate","targetRvTransmuralPressureMmHg":5,"rightFreeWallPassiveTangentModulusScale":0.5},"effectiveInputs":{"targetRvTransmuralPressureMmHg":5,"externalPressureMmHg":0,"baselineRightFreeWallPassiveTangentModulusPa":10000,"effectiveRightFreeWallPassiveTangentModulusPa":5000},"rootAvailability":{"availablePointCount":25,"unavailablePointCount":0,"ambiguousPointCount":0,"allPointsAvailable":true},"points":[{"lvVolumeMl":60,"requiredRvVolumeMl":464.19921875,"lvTransmuralPressureMmHg":2.3307702304519444,"septalCapVolumeMl":-9.566676211243108,"centeredSecantPressureSlopeMmHgPerMl":null},{"lvVolumeMl":65,"requiredRvVolumeMl":463.5546875,"lvTransmuralPressureMmHg":2.688949201054498,"septalCapVolumeMl":-8.284101246893393,"centeredSecantPressureSlopeMmHgPerMl":0.07172956269867589},{"lvVolumeMl":70,"requiredRvVolumeMl":462.861328125,"lvTransmuralPressureMmHg":3.0480658574387034,"septalCapVolumeMl":-6.979441812024552,"centeredSecantPressureSlopeMmHgPerMl":0.07202764274193099},{"lvVolumeMl":75,"requiredRvVolumeMl":462.119140625,"lvTransmuralPressureMmHg":3.409225628473808,"septalCapVolumeMl":-5.658947659196367,"centeredSecantPressureSlopeMmHgPerMl":0.07254398707177305},{"lvVolumeMl":80,"requiredRvVolumeMl":461.328125,"lvTransmuralPressureMmHg":3.773505728156434,"septalCapVolumeMl":-4.329102884424599,"centeredSecantPressureSlopeMmHgPerMl":0.07327965165428182},{"lvVolumeMl":85,"requiredRvVolumeMl":460.517578125,"lvTransmuralPressureMmHg":4.142022145016626,"septalCapVolumeMl":-2.997758146366837,"centeredSecantPressureSlopeMmHgPerMl":0.0742195019078559},{"lvVolumeMl":90,"requiredRvVolumeMl":459.66796875,"lvTransmuralPressureMmHg":4.515700747234993,"septalCapVolumeMl":-1.6705105146385326,"centeredSecantPressureSlopeMmHgPerMl":0.07535029957180236},{"lvVolumeMl":95,"requiredRvVolumeMl":458.80859375,"lvTransmuralPressureMmHg":4.89552514073465,"septalCapVolumeMl":-0.35481447098599145,"centeredSecantPressureSlopeMmHgPerMl":0.07666295437384427},{"lvVolumeMl":100,"requiredRvVolumeMl":457.94921875,"lvTransmuralPressureMmHg":5.2823302909734355,"septalCapVolumeMl":0.94324786596322,"centeredSecantPressureSlopeMmHgPerMl":0.07812835546421396},{"lvVolumeMl":105,"requiredRvVolumeMl":457.08984375,"lvTransmuralPressureMmHg":5.676808695376789,"septalCapVolumeMl":2.2187857320329485,"centeredSecantPressureSlopeMmHgPerMl":0.07972317928865129},{"lvVolumeMl":110,"requiredRvVolumeMl":456.240234375,"lvTransmuralPressureMmHg":6.0795620838599485,"septalCapVolumeMl":3.467243932343346,"centeredSecantPressureSlopeMmHgPerMl":0.08142894177823638},{"lvVolumeMl":115,"requiredRvVolumeMl":455.419921875,"lvTransmuralPressureMmHg":6.491098113159153,"septalCapVolumeMl":4.684434587260953,"centeredSecantPressureSlopeMmHgPerMl":0.08321477474232344},{"lvVolumeMl":120,"requiredRvVolumeMl":454.619140625,"lvTransmuralPressureMmHg":6.911709831283183,"septalCapVolumeMl":5.868578680917919,"centeredSecantPressureSlopeMmHgPerMl":0.08505673143434729},{"lvVolumeMl":125,"requiredRvVolumeMl":453.857421875,"lvTransmuralPressureMmHg":7.341665427502626,"septalCapVolumeMl":7.017258511608189,"centeredSecantPressureSlopeMmHgPerMl":0.08693315518715652},{"lvVolumeMl":130,"requiredRvVolumeMl":453.125,"lvTransmuralPressureMmHg":7.781041383154748,"septalCapVolumeMl":8.130359758708966,"centeredSecantPressureSlopeMmHgPerMl":0.0888245467162152},{"lvVolumeMl":135,"requiredRvVolumeMl":452.44140625,"lvTransmuralPressureMmHg":8.229910894664778,"septalCapVolumeMl":9.206968220153836,"centeredSecantPressureSlopeMmHgPerMl":0.09071750231736724},{"lvVolumeMl":140,"requiredRvVolumeMl":451.806640625,"lvTransmuralPressureMmHg":8.68821640632842,"septalCapVolumeMl":10.247757459104092,"centeredSecantPressureSlopeMmHgPerMl":0.09259108095157575},{"lvVolumeMl":145,"requiredRvVolumeMl":451.2109375,"lvTransmuralPressureMmHg":9.155821704180536,"septalCapVolumeMl":11.254325059381886,"centeredSecantPressureSlopeMmHgPerMl":0.09443840788712539},{"lvVolumeMl":150,"requiredRvVolumeMl":450.6640625,"lvTransmuralPressureMmHg":9.632600485199674,"septalCapVolumeMl":12.22764296270124,"centeredSecantPressureSlopeMmHgPerMl":0.09625309045092152},{"lvVolumeMl":155,"requiredRvVolumeMl":450.15625,"lvTransmuralPressureMmHg":10.11835260868975,"septalCapVolumeMl":13.169849589229873,"centeredSecantPressureSlopeMmHgPerMl":0.0980305594022413},{"lvVolumeMl":160,"requiredRvVolumeMl":449.697265625,"lvTransmuralPressureMmHg":10.612906079222087,"septalCapVolumeMl":14.082302705039403,"centeredSecantPressureSlopeMmHgPerMl":0.09976878367096909},{"lvVolumeMl":165,"requiredRvVolumeMl":449.27734375,"lvTransmuralPressureMmHg":11.116040445399442,"septalCapVolumeMl":14.967322480323427,"centeredSecantPressureSlopeMmHgPerMl":0.10146669315926235},{"lvVolumeMl":170,"requiredRvVolumeMl":448.90625,"lvTransmuralPressureMmHg":11.62757301081471,"septalCapVolumeMl":15.82636193520787,"centeredSecantPressureSlopeMmHgPerMl":0.10312344123104822},{"lvVolumeMl":175,"requiredRvVolumeMl":448.564453125,"lvTransmuralPressureMmHg":12.147274857709924,"septalCapVolumeMl":16.662095375729198,"centeredSecantPressureSlopeMmHgPerMl":0.10474033833423953},{"lvVolumeMl":180,"requiredRvVolumeMl":448.26171875,"lvTransmuralPressureMmHg":12.674976394157106,"septalCapVolumeMl":17.47586452626752,"centeredSecantPressureSlopeMmHgPerMl":null}]},{"seriesId":"stiffness-candidate-2","label":"RVFW passive tangent 2x","visualFamily":"stiffness","marker":"cross","sourceCandidateIds":["rv-passive-tangent-2x"],"declaration":{"candidateId":"rv-passive-tangent-2x","role":"sensitivity-candidate","targetRvTransmuralPressureMmHg":5,"rightFreeWallPassiveTangentModulusScale":2},"effectiveInputs":{"targetRvTransmuralPressureMmHg":5,"externalPressureMmHg":0,"baselineRightFreeWallPassiveTangentModulusPa":10000,"effectiveRightFreeWallPassiveTangentModulusPa":20000},"rootAvailability":{"availablePointCount":25,"unavailablePointCount":0,"ambiguousPointCount":0,"allPointsAvailable":true},"points":[{"lvVolumeMl":60,"requiredRvVolumeMl":227.4609375,"lvTransmuralPressureMmHg":2.5485445393808446,"septalCapVolumeMl":-10.372431171649993,"centeredSecantPressureSlopeMmHgPerMl":null},{"lvVolumeMl":65,"requiredRvVolumeMl":226.5576171875,"lvTransmuralPressureMmHg":2.8928514611337293,"septalCapVolumeMl":-8.928634482365592,"centeredSecantPressureSlopeMmHgPerMl":0.06884909928502977},{"lvVolumeMl":70,"requiredRvVolumeMl":225.5810546875,"lvTransmuralPressureMmHg":3.2370355322311424,"septalCapVolumeMl":-7.451832060246828,"centeredSecantPressureSlopeMmHgPerMl":0.06898983951135121},{"lvVolumeMl":75,"requiredRvVolumeMl":224.5458984375,"lvTransmuralPressureMmHg":3.5827498562472413,"septalCapVolumeMl":-5.9527274519771165,"centeredSecantPressureSlopeMmHgPerMl":0.06945429181623534},{"lvVolumeMl":80,"requiredRvVolumeMl":223.45947265625,"lvTransmuralPressureMmHg":3.931578450393496,"septalCapVolumeMl":-4.441915758824744,"centeredSecantPressureSlopeMmHgPerMl":0.07023340129085516},{"lvVolumeMl":85,"requiredRvVolumeMl":222.333984375,"lvTransmuralPressureMmHg":4.285083869155793,"septalCapVolumeMl":-2.9306379998172734,"centeredSecantPressureSlopeMmHgPerMl":0.07132404806308408},{"lvVolumeMl":90,"requiredRvVolumeMl":221.19140625,"lvTransmuralPressureMmHg":4.644818931024337,"septalCapVolumeMl":-1.4310403038340058,"centeredSecantPressureSlopeMmHgPerMl":0.07269354513761535},{"lvVolumeMl":95,"requiredRvVolumeMl":220.0341796875,"lvTransmuralPressureMmHg":5.012019320531946,"septalCapVolumeMl":0.047681117288317004,"centeredSecantPressureSlopeMmHgPerMl":0.07431218773966117},{"lvVolumeMl":100,"requiredRvVolumeMl":218.88671875,"lvTransmuralPressureMmHg":5.387940808420948,"septalCapVolumeMl":1.4948058721382742,"centeredSecantPressureSlopeMmHgPerMl":0.07615231727455862},{"lvVolumeMl":105,"requiredRvVolumeMl":217.763671875,"lvTransmuralPressureMmHg":5.7735424932775326,"septalCapVolumeMl":2.9021316273412032,"centeredSecantPressureSlopeMmHgPerMl":0.07814848006577098},{"lvVolumeMl":110,"requiredRvVolumeMl":216.6650390625,"lvTransmuralPressureMmHg":6.169425609078658,"septalCapVolumeMl":4.264866234568192,"centeredSecantPressureSlopeMmHgPerMl":0.08026533487680335},{"lvVolumeMl":115,"requiredRvVolumeMl":215.615234375,"lvTransmuralPressureMmHg":6.576195842045566,"septalCapVolumeMl":5.576843365037631,"centeredSecantPressureSlopeMmHgPerMl":0.08245642397352153},{"lvVolumeMl":120,"requiredRvVolumeMl":214.609375,"lvTransmuralPressureMmHg":6.993989848813873,"septalCapVolumeMl":6.837099053028801,"centeredSecantPressureSlopeMmHgPerMl":0.08467071264601289},{"lvVolumeMl":125,"requiredRvVolumeMl":213.6572265625,"lvTransmuralPressureMmHg":7.422902968505695,"septalCapVolumeMl":8.044266368736725,"centeredSecantPressureSlopeMmHgPerMl":0.08688556880598534},{"lvVolumeMl":130,"requiredRvVolumeMl":212.763671875,"lvTransmuralPressureMmHg":7.862845536873727,"septalCapVolumeMl":9.198762279827346,"centeredSecantPressureSlopeMmHgPerMl":0.08906820373119376},{"lvVolumeMl":135,"requiredRvVolumeMl":211.9287109375,"lvTransmuralPressureMmHg":8.313585005817632,"septalCapVolumeMl":10.302488707235849,"centeredSecantPressureSlopeMmHgPerMl":0.09119761878883788},{"lvVolumeMl":140,"requiredRvVolumeMl":211.15234375,"lvTransmuralPressureMmHg":8.774821724762106,"septalCapVolumeMl":11.357974151515995,"centeredSecantPressureSlopeMmHgPerMl":0.09326317429851586},{"lvVolumeMl":145,"requiredRvVolumeMl":210.4345703125,"lvTransmuralPressureMmHg":9.24621674880279,"septalCapVolumeMl":12.368146335289149,"centeredSecantPressureSlopeMmHgPerMl":0.09525324189588495},{"lvVolumeMl":150,"requiredRvVolumeMl":209.765625,"lvTransmuralPressureMmHg":9.727354143720955,"septalCapVolumeMl":13.33715869831917,"centeredSecantPressureSlopeMmHgPerMl":0.09717001408727466},{"lvVolumeMl":155,"requiredRvVolumeMl":209.150390625,"lvTransmuralPressureMmHg":10.217916889675537,"septalCapVolumeMl":14.267628032467988,"centeredSecantPressureSlopeMmHgPerMl":0.09901581737997542},{"lvVolumeMl":160,"requiredRvVolumeMl":208.5791015625,"lvTransmuralPressureMmHg":10.71751231752071,"septalCapVolumeMl":15.16361941145731,"centeredSecantPressureSlopeMmHgPerMl":0.10079121662950338},{"lvVolumeMl":165,"requiredRvVolumeMl":208.0517578125,"lvTransmuralPressureMmHg":11.225829055970571,"septalCapVolumeMl":16.028038069186657,"centeredSecantPressureSlopeMmHgPerMl":0.10250652853626789},{"lvVolumeMl":170,"requiredRvVolumeMl":207.568359375,"lvTransmuralPressureMmHg":11.742577602883388,"septalCapVolumeMl":16.863629618068895,"centeredSecantPressureSlopeMmHgPerMl":0.10416200422757722},{"lvVolumeMl":175,"requiredRvVolumeMl":207.119140625,"lvTransmuralPressureMmHg":12.267449098246344,"septalCapVolumeMl":17.67381822445544,"centeredSecantPressureSlopeMmHgPerMl":0.10576330211363079},{"lvVolumeMl":180,"requiredRvVolumeMl":206.7041015625,"lvTransmuralPressureMmHg":12.800210624019696,"septalCapVolumeMl":18.46088447820952,"centeredSecantPressureSlopeMmHgPerMl":null}]}],"visualizationProvenance":{"sourceNormalizedSha256":"443c97ccdabe4039e4b894ed54af4b5ca1bd8858b2c72e5c72dd8e49527c12c3","rendererSha256":"dd637501f1b50a18e150b9d44e68e7da0a69f9c6c2a9c27f845f59bb2d3e347b","fullRequestedLvVolumeGridRetainedPerVisualSeries":true,"duplicatedReferenceRenderedOnce":true,"rawIndependentEquilibriumPoints":true,"smoothingApplied":false,"decimationApplied":false,"derivativeRecalculated":false,"dataValueRoundingAppliedBeforeProjection":false,"svgCoordinatePrecisionDigits":2}}
+  </script>
+  <script>
+    (() => {
+      const root = document.getElementById(
+        "no-avpd-passive-rv-owner-sensitivity-v1",
+      );
+      const dataNode = document.getElementById(
+        "no-avpd-passive-rv-owner-sensitivity-data",
+      );
+      if (!root || !dataNode) return;
+      const data = JSON.parse(dataNode.textContent || "{}");
+      const NS = "http://www.w3.org/2000/svg";
+      const seriesById = new Map(
+        data.series.map((series) => [series.seriesId, series]),
+      );
+      const enabled = new Set(data.series.map((series) => series.seriesId));
+      const readout = root.querySelector("[data-readout]");
+      const plotSpecs = [
+        {
+          id: "required-rv-volume",
+          key: "requiredRvVolumeMl",
+          yLabel: "required RV volume (mL)",
+          digits: 1,
+          includeZero: false,
+          description:
+            "Required RV cavity volume at the candidate's prescribed RV transmural pressure.",
+        },
+        {
+          id: "lv-pressure-volume",
+          key: "lvTransmuralPressureMmHg",
+          yLabel: "LV Ptm (mmHg)",
+          digits: 2,
+          includeZero: false,
+          description:
+            "Passive left ventricular transmural pressure from the unchanged EDPVR bench.",
+        },
+        {
+          id: "septal-cap-volume",
+          key: "septalCapVolumeMl",
+          yLabel: "septal cap volume (mL)",
+          digits: 1,
+          includeZero: true,
+          description:
+            "Signed TriSeg septal-cap volume at the algebraic equilibrium root.",
+        },
+        {
+          id: "centered-pressure-slope",
+          key: "centeredSecantPressureSlopeMmHgPerMl",
+          yLabel: "centered dP/dV (mmHg/mL)",
+          digits: 4,
+          includeZero: false,
+          description:
+            "Bench-provided centered secant; endpoint values are intentionally absent.",
+        },
+      ];
+
+      const boundary = root.querySelector("[data-boundary]");
+      if (boundary) {
+        boundary.textContent = `Claim boundary: ${data.protocol.claimBoundary}.`;
+      }
+      const policy = root.querySelector("[data-policy]");
+      if (policy) {
+        policy.textContent =
+          "Report-only owner localization · no physiology gate · no scalar winner · cross-family ranking is prohibited. The 5 mmHg load and 1× stiffness references are byte-identical and rendered once.";
+      }
+
+      data.series.forEach((series) => {
+        const label = root.querySelector(
+          `[data-series-label="${series.seriesId}"]`,
+        );
+        if (label) label.textContent = series.label;
+      });
+      const conciseNumber = (value) =>
+        Number.isInteger(value) ? value.toFixed(0) : String(value);
+      const loadValues = data.series
+        .filter(
+          (series) =>
+            series.visualFamily === "load" ||
+            series.visualFamily === "shared-reference",
+        )
+        .map((series) => series.effectiveInputs.targetRvTransmuralPressureMmHg)
+        .sort((left, right) => left - right);
+      const stiffnessValues = data.series
+        .filter(
+          (series) =>
+            series.visualFamily === "stiffness" ||
+            series.visualFamily === "shared-reference",
+        )
+        .map(
+          (series) =>
+            series.declaration.rightFreeWallPassiveTangentModulusScale,
+        )
+        .sort((left, right) => left - right);
+      const loadFamilyTitle = root.querySelector('[data-family-title="load"]');
+      if (loadFamilyTitle) {
+        loadFamilyTitle.textContent = `RV load family (${loadValues.map(conciseNumber).join(" / ")} mmHg)`;
+      }
+      const stiffnessFamilyTitle = root.querySelector(
+        '[data-family-title="stiffness"]',
+      );
+      if (stiffnessFamilyTitle) {
+        stiffnessFamilyTitle.textContent = `RVFW passive tangent family (${stiffnessValues.map(conciseNumber).join("× / ")}×)`;
+      }
+      const referenceNote = root.querySelector("[data-reference-note]");
+      if (referenceNote) {
+        referenceNote.textContent = `${data.referenceIdentity.label} uses the single shared toggle in the load-family legend.`;
+      }
+
+      const format = (value, digits = 2) =>
+        value == null || !Number.isFinite(value)
+          ? "—"
+          : Number(value).toFixed(digits);
+      const add = (parent, name, attrs, content) => {
+        const node = document.createElementNS(NS, name);
+        Object.entries(attrs || {}).forEach(([key, value]) =>
+          node.setAttribute(key, String(value)),
+        );
+        if (content !== undefined) node.textContent = content;
+        parent.appendChild(node);
+        return node;
+      };
+      const extent = (values, includeZero) => {
+        const clean = values.filter(Number.isFinite);
+        let low = Math.min(...clean);
+        let high = Math.max(...clean);
+        if (includeZero) {
+          low = Math.min(low, 0);
+          high = Math.max(high, 0);
+        }
+        const span = Math.max(high - low, Math.abs(high || 1) * 0.02, 0.01);
+        return [low - 0.08 * span, high + 0.08 * span];
+      };
+      const scale = (domain, range) => (value) =>
+        range[0] +
+        ((value - domain[0]) * (range[1] - range[0])) /
+          Math.max(domain[1] - domain[0], 1e-12);
+      const allPoints = data.series.flatMap((series) => series.points);
+      const xDomain = extent(
+        allPoints.map((point) => point.lvVolumeMl),
+        false,
+      );
+
+      const axes = (svg, yDomain, spec) => {
+        const box = { left: 78, right: 620, top: 22, bottom: 310 };
+        const x = scale(xDomain, [box.left, box.right]);
+        const y = scale(yDomain, [box.bottom, box.top]);
+        for (let index = 0; index <= 5; index += 1) {
+          const px = box.left + ((box.right - box.left) * index) / 5;
+          const py = box.bottom - ((box.bottom - box.top) * index) / 5;
+          add(svg, "line", {
+            x1: px,
+            x2: px,
+            y1: box.top,
+            y2: box.bottom,
+            class: "grid-line",
+          });
+          add(svg, "line", {
+            x1: box.left,
+            x2: box.right,
+            y1: py,
+            y2: py,
+            class: "grid-line",
+          });
+          const xValue = xDomain[0] + ((xDomain[1] - xDomain[0]) * index) / 5;
+          const yValue = yDomain[0] + ((yDomain[1] - yDomain[0]) * index) / 5;
+          add(
+            svg,
+            "text",
+            {
+              x: px,
+              y: box.bottom + 18,
+              "text-anchor": "middle",
+              class: "axis-text",
+            },
+            format(xValue, 0),
+          );
+          add(
+            svg,
+            "text",
+            {
+              x: box.left - 9,
+              y: py + 4,
+              "text-anchor": "end",
+              class: "axis-text",
+            },
+            format(yValue, spec.digits),
+          );
+        }
+        add(svg, "line", {
+          x1: box.left,
+          x2: box.right,
+          y1: box.bottom,
+          y2: box.bottom,
+          class: "axis-line",
+        });
+        add(svg, "line", {
+          x1: box.left,
+          x2: box.left,
+          y1: box.top,
+          y2: box.bottom,
+          class: "axis-line",
+        });
+        if (yDomain[0] < 0 && yDomain[1] > 0) {
+          add(svg, "line", {
+            x1: box.left,
+            x2: box.right,
+            y1: y(0),
+            y2: y(0),
+            class: "zero-line",
+          });
+        }
+        add(
+          svg,
+          "text",
+          {
+            x: (box.left + box.right) / 2,
+            y: 352,
+            "text-anchor": "middle",
+            class: "axis-text",
+          },
+          "LV volume (mL)",
+        );
+        add(
+          svg,
+          "text",
+          {
+            x: 18,
+            y: (box.top + box.bottom) / 2,
+            transform: `rotate(-90 18 ${(box.top + box.bottom) / 2})`,
+            "text-anchor": "middle",
+            class: "axis-text",
+          },
+          spec.yLabel,
+        );
+        return { box, x, y };
+      };
+
+      const marker = (group, series, x, y) => {
+        const attrs = {
+          class: `raw-marker ${series.marker === "cross" ? "cross" : ""}`,
+          "data-marker-shape": series.marker,
+        };
+        if (series.marker === "circle") {
+          add(group, "circle", { ...attrs, cx: x, cy: y, r: 2.4 });
+        } else if (series.marker === "square") {
+          add(group, "rect", {
+            ...attrs,
+            x: x - 2.4,
+            y: y - 2.4,
+            width: 4.8,
+            height: 4.8,
+          });
+        } else if (series.marker === "diamond") {
+          add(group, "path", {
+            ...attrs,
+            d: `M ${x} ${y - 3.2} L ${x + 3.2} ${y} L ${x} ${y + 3.2} L ${x - 3.2} ${y} Z`,
+          });
+        } else if (series.marker === "triangle") {
+          add(group, "path", {
+            ...attrs,
+            d: `M ${x} ${y - 3.3} L ${x + 3.3} ${y + 2.7} L ${x - 3.3} ${y + 2.7} Z`,
+          });
+        } else {
+          add(group, "path", {
+            ...attrs,
+            d: `M ${x - 3} ${y} L ${x + 3} ${y} M ${x} ${y - 3} L ${x} ${y + 3}`,
+          });
+        }
+        return add(group, "circle", {
+          cx: x,
+          cy: y,
+          r: 7,
+          class: "hit-target",
+        });
+      };
+
+      const detailText = (series, point) =>
+        `${series.label} · LV ${format(point.lvVolumeMl, 0)} mL · required RV ${format(point.requiredRvVolumeMl, 2)} mL · LV Ptm ${format(point.lvTransmuralPressureMmHg, 3)} mmHg · septal cap ${format(point.septalCapVolumeMl, 3)} mL · centered dP/dV ${format(point.centeredSecantPressureSlopeMmHgPerMl, 5)} mmHg/mL`;
+
+      const showPoint = (plot, hitTarget, series, point) => {
+        const text = detailText(series, point);
+        if (readout) readout.textContent = text;
+        const tooltip = plot.querySelector("[data-tooltip-box]");
+        if (!tooltip) return;
+        tooltip.textContent = text;
+        tooltip.hidden = false;
+        const plotRect = plot.getBoundingClientRect();
+        const markRect = hitTarget.getBoundingClientRect();
+        const preferredLeft =
+          markRect.left - plotRect.left + markRect.width / 2 + 9;
+        const preferredTop =
+          markRect.top - plotRect.top - tooltip.offsetHeight - 7;
+        tooltip.style.left = `${Math.max(4, Math.min(preferredLeft, plot.clientWidth - tooltip.offsetWidth - 4))}px`;
+        tooltip.style.top = `${Math.max(25, preferredTop)}px`;
+      };
+
+      const draw = (spec) => {
+        const svg = root.querySelector(`[data-plot="${spec.id}"]`);
+        if (!svg) return;
+        svg.replaceChildren();
+        add(svg, "title", {}, spec.yLabel);
+        add(svg, "desc", {}, spec.description);
+        const values = allPoints
+          .map((point) => point[spec.key])
+          .filter((value) => value != null && Number.isFinite(value));
+        const yDomain = extent(values, spec.includeZero);
+        const geometry = axes(svg, yDomain, spec);
+
+        for (const series of data.series) {
+          if (!enabled.has(series.seriesId)) continue;
+          const points = series.points.filter(
+            (point) =>
+              point[spec.key] != null && Number.isFinite(point[spec.key]),
+          );
+          const coordinates = points.map((point) => ({
+            point,
+            x: geometry.x(point.lvVolumeMl),
+            y: geometry.y(point[spec.key]),
+          }));
+          const className = `series-${series.seriesId}`;
+          const lineFamily =
+            series.visualFamily === "stiffness"
+              ? "stiffness"
+              : series.visualFamily === "shared-reference"
+                ? "shared-reference"
+                : "load";
+          add(svg, "path", {
+            d: coordinates
+              .map(
+                (coordinate, index) =>
+                  `${index === 0 ? "M" : "L"} ${coordinate.x.toFixed(2)} ${coordinate.y.toFixed(2)}`,
+              )
+              .join(" "),
+            class: `series-line ${lineFamily} ${className}`,
+            "data-series-id": series.seriesId,
+            "data-raw-sample-count": points.length,
+          });
+          coordinates.forEach((coordinate, index) => {
+            const group = add(svg, "g", {
+              class: className,
+              "data-series-id": series.seriesId,
+              "data-raw-point-index": index,
+            });
+            const hitTarget = marker(group, series, coordinate.x, coordinate.y);
+            hitTarget.addEventListener("pointerenter", () =>
+              showPoint(
+                svg.closest(".plot"),
+                hitTarget,
+                series,
+                coordinate.point,
+              ),
+            );
+          });
+        }
+      };
+
+      const drawAll = () => plotSpecs.forEach(draw);
+      root.querySelectorAll("[data-series-toggle]").forEach((input) => {
+        const seriesId = input.getAttribute("data-series-toggle");
+        input.addEventListener("change", () => {
+          if (input.checked) enabled.add(seriesId);
+          else enabled.delete(seriesId);
+          const series = seriesById.get(seriesId);
+          if (readout && series) {
+            readout.textContent = `${series.label}: ${input.checked ? "shown" : "hidden"}. ${series.points.length} raw LV-volume grid points retained in the embedded source.`;
+          }
+          root.querySelectorAll("[data-tooltip-box]").forEach((tooltip) => {
+            tooltip.hidden = true;
+          });
+          drawAll();
+        });
+        input.addEventListener("focus", () => {
+          const series = seriesById.get(seriesId);
+          if (readout && series) {
+            readout.textContent = `${series.label} · ${series.rootAvailability.availablePointCount}/${series.rootAvailability.availablePointCount + series.rootAvailability.unavailablePointCount + series.rootAvailability.ambiguousPointCount} roots available.`;
+          }
+        });
+      });
+      root.querySelectorAll(".plot").forEach((plot) => {
+        plot.addEventListener("pointerleave", () => {
+          const tooltip = plot.querySelector("[data-tooltip-box]");
+          if (tooltip) tooltip.hidden = true;
+        });
+      });
+      drawAll();
+    })();
+  </script>
+</div>

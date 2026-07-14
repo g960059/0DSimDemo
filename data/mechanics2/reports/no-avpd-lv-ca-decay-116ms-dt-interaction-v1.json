@@ -1,0 +1,186 @@
+{
+  "artifactId": "no-avpd-lv-ca-decay-116ms-dt-interaction-v1",
+  "statusScope": "report-only-diagnostic-bundle",
+  "evidenceStatus": "report-only-solver-time-step-interaction-not-convergence-order-evidence",
+  "protocol": {
+    "protocolId": "no-avpd-lv-ca-decay-116ms-cold32-hr60-dt-interaction-v1",
+    "evidenceStatus": "report-only-solver-time-step-interaction-not-convergence-order-evidence",
+    "candidateId": "lv-ca-decay-116ms",
+    "heartRateBpm": 60,
+    "cycleLengthSec": 1,
+    "beats": 32,
+    "requestedDurationSec": 32,
+    "initialization": "independent-cold-start-per-time-step",
+    "crossTimeStepWarmStartAllowed": false,
+    "dtSec": [
+      0.005,
+      0.0025
+    ],
+    "sampleEverySteps": 1,
+    "sampleRetention": "last-two-complete-beats",
+    "parameterChangesAcrossRuns": false,
+    "convergenceOrderEstimated": false,
+    "waveformDifferenceComputed": false,
+    "physiologyThresholdsApplied": false,
+    "interpretationBoundary": "two-time-step-fail-pass-reproduction-identifies-solver-time-step-interaction-only-and-does-not-establish-convergence-order-accuracy-stability-or-physiological-validity"
+  },
+  "protocolSha256": "55c2f1f448d38d9996c35835bf3ace66dd67edbf68a34c3485165ef2b2af116e",
+  "candidate": {
+    "candidateId": "lv-ca-decay-116ms",
+    "parentCandidateId": "lv-ca-decay-155ms-baseline",
+    "family": "lv-active-relaxation-calcium-decay",
+    "label": "faster decay 116 ms",
+    "hr60DecayHalfTimeSec": 0.116,
+    "intervention": {
+      "path": "calciumDrivers.{leftFreeWall,septum}.calcium.rateTargets[*].decayHalfTimeSec",
+      "operation": "multiply-all-rate-anchors",
+      "baselineHr60ValueSec": 0.155,
+      "appliedHr60ValueSec": 0.116,
+      "scale": 0.7483870967741936,
+      "unit": "s",
+      "rationale": "isolate-ventricular-active-deactivation-before-la-mv-or-pulmonary-retuning"
+    }
+  },
+  "provenance": {
+    "parameterSha256": "e6ec958cab85c42f00d49c8d4b378810cf5d18575ce01157ec22ba84925cf075",
+    "sameParameterSnapshotAcrossRuns": true,
+    "implementationSha256": "9a7fe479c711e681e122e03756d7a4cb89ea6fecf4e9f08f9d5d30c171c32cff",
+    "sourceHarnessImplementationSha256": "15b65589e5735640875d66f18a5f432f08edd5f2ea91b6443c5959be0ac28702",
+    "interactionHarnessImplementationSha256": "ccf326c81e6d3de0393453cc025bfd25c082e9fed02046fd7b4d6bc209b89c8c"
+  },
+  "comparison": {
+    "reproducedExpectedInteraction": true,
+    "coarseOutcome": "dt-5ms-structural-fail-at-step-202-after-time-1.01s",
+    "fineOutcome": "dt-2.5ms-completes-cold32",
+    "convergenceOrderEstimated": false,
+    "errorEstimateComputed": false,
+    "waveformComparisonPerformed": false,
+    "physiologyClassificationPerformed": false,
+    "interpretation": "the-coarse-failure-and-fine-completion-localize-a-solver-time-step-interaction-but-neither-outcome-is-a-physiology-acceptance-result"
+  },
+  "runs": [
+    {
+      "dtSec": 0.005,
+      "stepsPerCycle": 200,
+      "requestedBeats": 32,
+      "requestedDurationSec": 32,
+      "structuralStatus": "fail",
+      "failureReason": "step-202:global-solver:maximum-iterations,final-candidate-invalid",
+      "failureLocalization": {
+        "failedStepIndex": 202,
+        "failedStepNumberOneBased": 203,
+        "acceptedTimeSec": 1.0100000000000005,
+        "acceptedBeatsCompleted": 1
+      },
+      "initialization": {
+        "mode": "cold",
+        "initialTimeSec": 0,
+        "phaseAnchor": "cycle-boundary",
+        "warmStartIsAcceptanceEvidence": false,
+        "provenanceVerification": "caller-owned-runner-may-verify",
+        "provenance": null
+      },
+      "solverWork": {
+        "stepsAttempted": 203,
+        "stepsAccepted": 202,
+        "totalGlobalIterations": 973,
+        "totalGlobalResidualEvaluations": 7400,
+        "totalGlobalJacobianEvaluations": 437,
+        "totalGlobalJacobianReusedIterations": 536,
+        "totalGlobalFreshJacobianRetries": 0,
+        "totalGlobalLineSearchBacktracks": 106,
+        "maximumGlobalIterationsPerStep": 14,
+        "maximumGlobalResidualEvaluationsPerStep": 211,
+        "meanGlobalIterationsPerAcceptedStep": 4.816831683168317,
+        "meanGlobalResidualEvaluationsPerAcceptedStep": 36.633663366336634
+      },
+      "hardDiagnostics": {
+        "allStepsAccepted": false,
+        "maxAbsTotalBloodVolumeDriftMl": 3.637978807091713e-12,
+        "maxAbsStepBloodVolumeResidualMl": 1.8189894035458565e-12,
+        "maxGlobalScaledResidual": 9.962426905651967e-8,
+        "maxTriSegRelativeResidual": 9.388434652853444e-8,
+        "maxSerialEquilibriumResidualPa": 0.00000561485649086535,
+        "maxSlsBalanceResidualJPerM3": 1.4981071938535706e-14,
+        "maxSerialWorkBalanceResidualJPerM3": 1.4867126196804747e-8
+      },
+      "exactReturnMap": {
+        "availability": "available-exact-integer-step-boundaries",
+        "oneBeatNormalizedMax": 1.2969088834283151,
+        "twoBeatNormalizedMax": null,
+        "thresholdsApplied": false
+      },
+      "retainedRawSampleCount": 202,
+      "rawEvidence": {
+        "storage": "gzip-full-source-report-including-raw-retained-samples-no-smoothing-no-decimation",
+        "sourceReportPath": "data/mechanics2/reports/no-avpd-lv-ca-decay-116ms-dt-interaction-v1/dt-5ms.json.gz",
+        "sourceNormalizedSha256": "49b1069cc16548bf2da7bfe5037be7a4eca4b2827ef884f75f72a636250f4015",
+        "sourcePlaintextSha256": "e47eb8d374ac032bf5eca8ecf61706486bcc3ef40f141dd0201a64aa955e7480",
+        "sourceCompressedSha256": "411eb7031cd1de0e74a6288611dcc347fa45390b79660fefcded8d0af9d9e160",
+        "compressedByteLength": 568051
+      }
+    },
+    {
+      "dtSec": 0.0025,
+      "stepsPerCycle": 400,
+      "requestedBeats": 32,
+      "requestedDurationSec": 32,
+      "structuralStatus": "pass",
+      "failureReason": null,
+      "failureLocalization": {
+        "failedStepIndex": null,
+        "failedStepNumberOneBased": null,
+        "acceptedTimeSec": 32.00000000000714,
+        "acceptedBeatsCompleted": 32
+      },
+      "initialization": {
+        "mode": "cold",
+        "initialTimeSec": 0,
+        "phaseAnchor": "cycle-boundary",
+        "warmStartIsAcceptanceEvidence": false,
+        "provenanceVerification": "caller-owned-runner-may-verify",
+        "provenance": null
+      },
+      "solverWork": {
+        "stepsAttempted": 12800,
+        "stepsAccepted": 12800,
+        "totalGlobalIterations": 55906,
+        "totalGlobalResidualEvaluations": 422800,
+        "totalGlobalJacobianEvaluations": 24997,
+        "totalGlobalJacobianReusedIterations": 30980,
+        "totalGlobalFreshJacobianRetries": 71,
+        "totalGlobalLineSearchBacktracks": 4136,
+        "maximumGlobalIterationsPerStep": 13,
+        "maximumGlobalResidualEvaluationsPerStep": 112,
+        "meanGlobalIterationsPerAcceptedStep": 4.36765625,
+        "meanGlobalResidualEvaluationsPerAcceptedStep": 33.03125
+      },
+      "hardDiagnostics": {
+        "allStepsAccepted": true,
+        "maxAbsTotalBloodVolumeDriftMl": 1.6370904631912708e-11,
+        "maxAbsStepBloodVolumeResidualMl": 1.8189894035458565e-12,
+        "maxGlobalScaledResidual": 9.992234728528615e-8,
+        "maxTriSegRelativeResidual": 9.99511655651417e-8,
+        "maxSerialEquilibriumResidualPa": 0.000007473368896171451,
+        "maxSlsBalanceResidualJPerM3": 1.4813671123103944e-14,
+        "maxSerialWorkBalanceResidualJPerM3": 1.0842065023553005e-8
+      },
+      "exactReturnMap": {
+        "availability": "available-exact-integer-step-boundaries",
+        "oneBeatNormalizedMax": 0.0003780662823138479,
+        "twoBeatNormalizedMax": 0.0008243185637803824,
+        "thresholdsApplied": false
+      },
+      "retainedRawSampleCount": 801,
+      "rawEvidence": {
+        "storage": "gzip-full-source-report-including-raw-retained-samples-no-smoothing-no-decimation",
+        "sourceReportPath": "data/mechanics2/reports/no-avpd-lv-ca-decay-116ms-dt-interaction-v1/dt-2p5ms.json.gz",
+        "sourceNormalizedSha256": "16713388c209b9004714d2f556c3a699ac0cdc1d47ec47f1b262568bfe57c99b",
+        "sourcePlaintextSha256": "490cd2a5ea075a8c9082a7ffcc51f7c852d07dac8801e44014d14e25d7ee11c4",
+        "sourceCompressedSha256": "bafb7ddbba4c6cef07809b299b46e64cfa41e90e0d256d5848b7850cf8372b93",
+        "compressedByteLength": 1760265
+      }
+    }
+  ],
+  "normalizedSha256": "722af08afa9886604f4bc0b5e4124dc9afb8b037f84836ebfb519aa481d742e4"
+}
