@@ -35,6 +35,28 @@
       ]
     },
     {
+      "id": "land-niederer2018-atrial-contraction",
+      "verificationStatus": "verified",
+      "normativeForPhaseA": false,
+      "authors": [
+        "Land S",
+        "Niederer SA"
+      ],
+      "title": "Influence of atrial contraction dynamics on cardiac function",
+      "venue": "International Journal for Numerical Methods in Biomedical Engineering",
+      "year": 2018,
+      "volume": "34",
+      "issue": "3",
+      "pages": "e2931",
+      "doi": "10.1002/cnm.2931",
+      "roles": [
+        "atrial-contraction-literature-prior",
+        "atrial-crossbridge-cycling-rate",
+        "atrial-calcium-sensitivity-context"
+      ],
+      "restriction": "Literature prior only; not a digitized experimental target or a patient-specific fit."
+    },
+    {
       "id": "regazzoni-quarteroni2020-active-stiffness",
       "verificationStatus": "verified",
       "normativeForPhaseA": true,

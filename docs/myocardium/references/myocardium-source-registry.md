@@ -24,6 +24,7 @@ source_of_truth: "../../../data/myocardium/sources.json"
 
 ## Verified comparison sources
 
+- Land & Niederer 2018 — atrial cross-bridge cycling and calcium-sensitivity literature prior; not a digitized target or patient fit.
 - Marchesseau et al. 2013 — BCS calibration/identifiability comparison.
 - Caruel et al. 2014 — dimensional reduction and calibration methodology.
 - Regazzoni, Dedè & Quarteroni 2020 — RDQ20 research comparison.

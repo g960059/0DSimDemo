@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Atrial active-law shootout V1</title>
+  <style>
+    :root { color-scheme: dark; --bg:#07111f; --panel:#101b2d; --grid:#2a3850; --text:#eef5ff; --muted:#9fb0c8; }
+    * { box-sizing:border-box; }
+    body { margin:0; padding:24px; background:var(--bg); color:var(--text); font:14px/1.45 system-ui,sans-serif; }
+    h1 { margin:0 0 6px; font-size:27px; }
+    .sub { color:var(--muted); max-width:1050px; }
+    .bar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:20px 0; padding:14px; background:var(--panel); border:1px solid #263651; border-radius:12px; }
+    select,button,label { font:inherit; }
+    select,button { color:var(--text); background:#16243a; border:1px solid #41516b; padding:8px 10px; border-radius:7px; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .card { background:var(--panel); border:1px solid #263651; border-radius:12px; padding:14px; min-width:0; }
+    .card h2 { margin:0 0 8px; font-size:16px; }
+    svg { width:100%; height:330px; display:block; overflow:visible; }
+    .metrics { margin-top:16px; overflow:auto; }
+    table { width:100%; border-collapse:collapse; white-space:nowrap; }
+    th,td { text-align:right; padding:8px 10px; border-bottom:1px solid #2b3a52; }
+    th:first-child,td:first-child { text-align:left; position:sticky; left:0; background:var(--panel); }
+    .pass { color:#77e6a0; } .warn { color:#ffc766; }
+    .legend { display:flex; flex-wrap:wrap; gap:14px; color:var(--muted); margin:6px 0 0; }
+    .swatch { display:inline-block; width:18px; height:3px; vertical-align:middle; margin-right:5px; }
+    .foot { color:var(--muted); margin-top:18px; font-size:12px; }
+    @media(max-width:900px){ .grid{grid-template-columns:1fr;} body{padding:14px;} }
+  </style>
+</head>
+<body>
+  <h1>Atrial active-law causal shootout V1</h1>
+  <div class="sub">Same dimensional prescribed Ca and same fiber-strain history for every arm. Passive stress and SLS are excluded. The sphere pressure is a work-conjugate projection only—not a closed-loop LA pressure or physiology winner.</div>
+  <div class="bar">
+    <label>Protocol <select id="protocol"></select></label>
+    <label><input id="normalize" type="checkbox" checked> Normalize each curve by its own peak (shape view)</label>
+    <span id="gate"></span>
+  </div>
+  <div id="legend" class="legend"></div>
+  <div class="grid">
+    <section class="card"><h2>Active stress vs phase</h2><svg id="stress"></svg></section>
+    <section class="card"><h2>Sphere-projected active pressure vs LA volume</h2><svg id="pv"></svg></section>
+    <section class="card"><h2>Common forcing: free Ca and fiber strain</h2><svg id="forcing"></svg></section>
+    <section class="card"><h2>Explicit Hill force–velocity factor</h2><svg id="fv"></svg></section>
+  </div>
+  <section class="card metrics"><h2>Report-only causal diagnostics</h2><table id="metrics"></table></section>
+  <div class="foot" id="foot"></div>
+  <script>
+    const data=__ATRIAL_ACTIVE_LAW_SHOOTOUT_DATA__;
+    const colors={
+      'hill-algebraic-classical-fv':'#ffb020',
+      'hill-lag25-classical-fv':'#ef6bb6',
+      'hill-algebraic-fv-near-unity':'#5cc8ff',
+      'hill-lag25-fv-near-unity':'#a67cff',
+      'land2017-atrial-active-only':'#72e39a'
+    };
+    const labels={
+      'hill-algebraic-classical-fv':'Hill ALG + classical fV',
+      'hill-lag25-classical-fv':'Hill LAG25 + classical fV',
+      'hill-algebraic-fv-near-unity':'Hill ALG + near-unity fV',
+      'hill-lag25-fv-near-unity':'Hill LAG25 + near-unity fV',
+      'land2017-atrial-active-only':'Atrial Land active-only'
+    };
+    const protocol=document.querySelector('#protocol');
+    data.protocol.protocolDefinitions.forEach(p=>protocol.add(new Option(p.label,p.protocolId)));
+    protocol.value='a-wave-shortening-stop';
+    document.querySelector('#legend').innerHTML=Object.keys(labels).map(k=>`<span><i class="swatch" style="background:${colors[k]}"></i>${labels[k]}</span>`).join('');
+    document.querySelector('#gate').innerHTML=(data.numericalGates.allNumericalGatesPass?'<b class="pass">numerical structure: PASS</b>':'<b class="warn">numerical structure: FAIL</b>')+` <span style="color:#9fb0c8">A-wave peak-phase interaction ΔΔ=${data.factorialContrasts.peakPhase.differenceInDifferences.toFixed(3)}</span>`;
+    protocol.onchange=render; document.querySelector('#normalize').onchange=render;
+    function rows(){return data.results.filter(r=>r.protocolId===protocol.value)}
+    function render(){
+      const rs=rows(), norm=document.querySelector('#normalize').checked;
+      plot('#stress',rs.map(r=>series(r.trace,'phase01','activeKirchhoffStressKPa',r.variantId,norm)),{x:'cardiac phase',y:norm?'active stress / own peak':'active stress (kPa)',vline:stopPhase()});
+      plot('#pv',rs.map(r=>series(r.trace,'cavityVolumeMl','sphereProjectedActivePressureMmHg',r.variantId,norm)),{x:'LA volume (mL)',y:norm?'active pressure / own peak':'active pressure (mmHg)'});
+      const common=rs[0]?.trace??[];
+      plot('#forcing',[
+        {id:'Ca',color:'#b49cff',points:common.map(s=>[s.phase01,s.freeCalciumUm]),dash:false},
+        {id:'strain',color:'#ffffff',points:common.map(s=>[s.phase01,s.fiberLogStrain]),dash:true}
+      ],{x:'cardiac phase',y:'Ca (uM) / log strain (raw overlay)',vline:stopPhase()});
+      const fvs=rs.filter(r=>r.trace.some(s=>s.forceVelocityFactor!==null)).map(r=>({id:r.variantId,color:colors[r.variantId],points:r.trace.filter(s=>s.forceVelocityFactor!==null).map(s=>[s.phase01,s.forceVelocityFactor]),dash:false}));
+      plot('#fv',fvs,{x:'cardiac phase',y:'fV factor',vline:stopPhase()});
+      metrics(rs); foot(rs,norm);
+    }
+    function series(trace,x,y,id,norm){
+      const peak=Math.max(1e-12,...trace.map(s=>Math.abs(s[y])));
+      return {id,color:colors[id],points:trace.map(s=>[s[x],norm?s[y]/peak:s[y]]),dash:false};
+    }
+    function stopPhase(){return data.protocol.protocolDefinitions.find(p=>p.protocolId===protocol.value)?.shorteningEndPhase01??null}
+    function plot(selector,series,opt){
+      const svg=document.querySelector(selector), W=720,H=330,m={l:65,r:18,t:14,b:48}; svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+      const pts=series.flatMap(s=>s.points).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+      if(!pts.length){svg.innerHTML='<text x="20" y="40" fill="#9fb0c8">no data</text>';return}
+      let xmin=Math.min(...pts.map(p=>p[0])),xmax=Math.max(...pts.map(p=>p[0])),ymin=Math.min(...pts.map(p=>p[1])),ymax=Math.max(...pts.map(p=>p[1]));
+      if(xmax===xmin){xmax+=1} if(ymax===ymin){ymax+=1} const yp=(ymax-ymin)*.08; ymin-=yp;ymax+=yp;
+      const X=x=>m.l+(x-xmin)/(xmax-xmin)*(W-m.l-m.r),Y=y=>H-m.b-(y-ymin)/(ymax-ymin)*(H-m.t-m.b);
+      let h=''; for(let i=0;i<=4;i++){const x=xmin+(xmax-xmin)*i/4,y=ymin+(ymax-ymin)*i/4;h+=`<line x1="${X(x)}" y1="${m.t}" x2="${X(x)}" y2="${H-m.b}" stroke="#2a3850"/><text x="${X(x)}" y="${H-25}" text-anchor="middle" fill="#9fb0c8">${fmt(x)}</text><line x1="${m.l}" y1="${Y(y)}" x2="${W-m.r}" y2="${Y(y)}" stroke="#2a3850"/><text x="${m.l-8}" y="${Y(y)+4}" text-anchor="end" fill="#9fb0c8">${fmt(y)}</text>`}
+      if(opt.vline!==null&&opt.vline>=xmin&&opt.vline<=xmax)h+=`<line x1="${X(opt.vline)}" y1="${m.t}" x2="${X(opt.vline)}" y2="${H-m.b}" stroke="#ff6b6b" stroke-dasharray="5 5"/><text x="${X(opt.vline)+5}" y="${m.t+12}" fill="#ff9b9b">stop</text>`;
+      series.forEach(s=>{const d=s.points.map((p,i)=>`${i?'L':'M'}${X(p[0]).toFixed(2)},${Y(p[1]).toFixed(2)}`).join(' ');h+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2.5" ${s.dash?'stroke-dasharray="7 5"':''}/>`});
+      h+=`<text x="${(m.l+W-m.r)/2}" y="${H-5}" text-anchor="middle" fill="#cbd8ea">${opt.x}</text><text transform="translate(16 ${(m.t+H-m.b)/2}) rotate(-90)" text-anchor="middle" fill="#cbd8ea">${opt.y}</text>`; svg.innerHTML=h;
+    }
+    function metrics(rs){
+      const head='<tr><th>variant</th><th>peak kPa</th><th>peak phase</th><th>fast→stop recovery / peak</th><th>post-stop gain / peak</th><th>post-stop gain kPa</th><th>remaining shortening at peak</th><th>A-wave dt peak diff</th></tr>';
+      const body=rs.map(r=>{const d=protocol.value==='a-wave-shortening-stop'?data.dtRefinement.find(x=>x.variantId===r.variantId):undefined;return `<tr><td>${labels[r.variantId]}</td><td>${fmt(r.peakActiveStressKPa)}</td><td>${fmt(r.peakActiveStressPhase01)}</td><td>${fmt(r.velocityStopDiagnostics.recoveryFromFastestToStopNormalizedByPeak)}</td><td>${fmt(r.velocityStopDiagnostics.postStopGainNormalizedByPeak)}</td><td>${fmt(r.velocityStopDiagnostics.postStopGainKPa)}</td><td>${fmt(r.velocityStopDiagnostics.remainingShorteningAtGlobalStressPeak01)}</td><td>${fmt(d?.peakStressRelativeDifference)}</td></tr>`}).join('');
+      document.querySelector('#metrics').innerHTML=head+body;
+    }
+    function foot(rs,norm){document.querySelector('#foot').textContent=`${data.evidenceStatus}; ${norm?'per-curve normalized shape view':'raw amplitude view'}. Raw vertices, straight segments, no smoothing. Artifact ${data.normalizedSha256.slice(0,16)}…`}
+    function fmt(v){return v===null||v===undefined||!Number.isFinite(v)?'—':Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=10?v.toFixed(2):v.toFixed(3)}
+    render();
+  </script>
+</body>
+</html>

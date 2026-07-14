@@ -98,6 +98,8 @@
     "verify:no-avpd-triseg-mapping-ab-v1": "vite-node --script tools/mechanics2/runNoAvpdTriSegMappingAbV1.ts",
     "verify:no-avpd-atrial-thin-filament-sls-matrix-v1": "vite-node --script tools/mechanics2/runNoAvpdAtrialThinFilamentSlsMatrixV1.ts",
     "render:no-avpd-atrial-thin-filament-sls-matrix-v1": "vite-node --script tools/mechanics2/renderNoAvpdAtrialThinFilamentSlsMatrixV1.ts",
+    "verify:atrial-active-law-shootout-v1": "vite-node --script tools/mechanics2/runAtrialActiveLawShootoutV1.ts",
+    "render:atrial-active-law-shootout-v1": "vite-node --script tools/mechanics2/renderAtrialActiveLawShootoutV1.ts",
     "verify:starling-low-preload-matrix": "STARLING_LOW_PRELOAD_MATRIX_MAIN=1 vite-node tools/verifyStarlingLowPreloadMatrix.ts",
     "debug:starling-low-preload": "STARLING_LOW_PRELOAD_DEBUG_MAIN=1 vite-node tools/debugStarlingLowPreload.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",
