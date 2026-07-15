@@ -1,15 +1,20 @@
 import { LAND_NIEDERER_2018_HUMAN_ATRIAL_PARAMETER_PACK_V1 } from
   "@/engine/myocardium/atrialLandNiederer2018";
 import {
+  evaluateLand2017AlgebraicTerms,
+  land2017CaTRPNUnblockingFactor,
+  type Land2017EquationParameters,
+} from "@/engine/myocardium/myofilament/land2017/equations";
+import { evaluateLand2017ContinuousOutput } from
+  "@/engine/myocardium/myofilament/land2017/outputs";
+import {
+  solveLand2017BackwardEulerSubsteps,
+  type Land2017SubstepSolveOptions,
+} from "@/engine/myocardium/myofilament/land2017/solver";
+import {
   LAND2017_EQUATIONS_VERSION,
   LAND2017_STATE_LABELS,
-  evaluateLand2017AlgebraicTerms,
-  evaluateLand2017ContinuousOutput,
-  land2017CaTRPNUnblockingFactor,
-  solveLand2017BackwardEulerSubsteps,
-  type Land2017EquationParameters,
-  type Land2017SubstepSolveOptions,
-} from "@/engine/myocardium/myofilament/land2017";
+} from "@/engine/myocardium/myofilament/land2017/types";
 
 export const LAND2017_ACTIVE_ONLY_V1_ID =
   "land2017-active-only-log-strain-adapter-v1" as const;

@@ -3,7 +3,7 @@ import {
   effectiveCalciumRateTargetAtCycleLength,
   evaluatePrescribedCalciumOutput,
   type PrescribedCalciumOdeParameters,
-} from "@/engine/myocardium/calcium";
+} from "@/engine/myocardium/calcium/PrescribedCalciumTransientV1";
 import {
   ATRIAL_PRESCRIBED_CALCIUM_REPORT_ONLY_SEED_V1,
   VENTRICULAR_PRESCRIBED_CALCIUM_REPORT_ONLY_SEED_V1,

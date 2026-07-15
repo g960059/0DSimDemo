@@ -3,7 +3,7 @@ import {
   deriveLand2017DerivedParameters,
   stableHash,
   type Land2017SourceParameterSet,
-} from "@/engine/myocardium/myofilament/land2017";
+} from "@/engine/myocardium/myofilament/land2017/parameterSets";
 
 export const LAND_NIEDERER_2018_HUMAN_ATRIAL_PARAMETER_SET_ID =
   "land-niederer-2018-human-atrial-literature-prior-v1" as const;

@@ -4,7 +4,7 @@ import {
   effectiveCalciumRateTargetAtCycleLength,
   stepPrescribedCalciumTransientV1,
   type PrescribedCalciumParams,
-} from "@/engine/myocardium/calcium";
+} from "@/engine/myocardium/calcium/PrescribedCalciumTransientV1";
 
 export const PERIODIC_PRESCRIBED_CALCIUM_DRIVER_ID_V1 =
   "periodic-prescribed-calcium-driver-v1" as const;
