@@ -1,0 +1,31 @@
+export const PHASE_B1_EVENT_FREE_MONOLITHIC_NUMERICAL_POLICY_V1 = Object.freeze({
+  policyId: "phase-b1-event-free-monolithic-reference-numerics-v1",
+  algorithmicJacobian: "constraint-aware-scaled-five-point-full-system" as const,
+  algorithmicJacobianScaledStep: 2 ** -19,
+  independentDirectionalAuditStepRatioToConstruction: 0.25,
+  semismoothDirectionalConsistencyRelativeTwoNormTolerance: 1e-6,
+  minimumRequiredScaledCrossBlockMagnitude: 1e-6,
+  differentiatedKinematicsDirectionalStepSec: 1e-7,
+  differentiatedKinematicsStepHalvingFactor: 2,
+  differentiatedKinematicsHalvingRelativeTolerance: 1e-6,
+  differentiatedTriSegConstraintResidualToleranceNPerMSec: 1e-5,
+  maxNewtonIterations: 24,
+  armijoCoefficient: 1e-4,
+  lineSearchContraction: 0.5,
+  maxLineSearchBacktracks: 24,
+  minimumStepLength: 1e-12,
+  fractionToBoundarySafety: 0.995,
+  relativePivotTolerance: 64 * Number.EPSILON,
+  strictBloodVolumeLowerBoundM3: 1e-12,
+  strictJunctionRadiusLowerBoundM: 1e-6,
+  landSimplexStrictInterior: true,
+  landPopulationProjection: false,
+  hiddenStateClipping: false,
+  adaptiveRescaling: false,
+  testReferenceOnly: true,
+  physiologicalParameter: false,
+  releaseRuntimeReachable: false,
+} as const);
+
+export type PhaseB1EventFreeMonolithicNumericalPolicyV1 =
+  typeof PHASE_B1_EVENT_FREE_MONOLITHIC_NUMERICAL_POLICY_V1;

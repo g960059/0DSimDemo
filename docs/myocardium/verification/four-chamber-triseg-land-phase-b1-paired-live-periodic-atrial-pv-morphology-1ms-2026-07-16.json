@@ -1,0 +1,174 @@
+{
+  "artifactId": "phase-b1-paired-atrial-pv-morphology-artifact-v1",
+  "status": "paired-morphology-report-complete-anti-overfit-evidence-only",
+  "analysisManifestContentSha256": "0694b0fadb4a4938c7f8e17f4a8f4efab237df05cb22036c3f59924b892449f2",
+  "modeOrder": [
+    "off",
+    "on"
+  ],
+  "atriumOrder": [
+    "LA",
+    "RA"
+  ],
+  "morphologyByMode": {
+    "off": {
+      "LA": {
+        "atriumId": "LA",
+        "classification": "indeterminate",
+        "sampleCount": 800,
+        "nonAdjacentSegmentPairCount": 318800,
+        "rawPointIntersectionCount": 1,
+        "qualifiedIntersectionCount": 1,
+        "ambiguousContactCount": 0,
+        "primaryCrossing": {
+          "firstSegmentIndex": 51,
+          "secondSegmentIndex": 340,
+          "firstPhase01": 0.0646146527329752,
+          "secondPhase01": 0.4260710294261266,
+          "circularPhaseSeparation01": 0.36145637669315145,
+          "dimensionlessVolume": 0.5065642219475536,
+          "dimensionlessPressure": 0.06290968401813878,
+          "crossingAngleDeg": 67.43344675245628
+        },
+        "signedDimensionlessLobeAreas": [
+          0.03632971078248763,
+          -0.00010931116645297376
+        ],
+        "opposedSignedLobes": true,
+        "reasons": [
+          "lobe-area-below-minimum"
+        ],
+        "morphologyOutcomeUsedAsAcceptanceGate": false,
+        "analysisCompleted": true
+      },
+      "RA": {
+        "atriumId": "RA",
+        "classification": "indeterminate",
+        "sampleCount": 800,
+        "nonAdjacentSegmentPairCount": 318800,
+        "rawPointIntersectionCount": 1,
+        "qualifiedIntersectionCount": 1,
+        "ambiguousContactCount": 0,
+        "primaryCrossing": {
+          "firstSegmentIndex": 21,
+          "secondSegmentIndex": 310,
+          "firstPhase01": 0.027215655153934218,
+          "secondPhase01": 0.3875126510997657,
+          "circularPhaseSeparation01": 0.3602969959458315,
+          "dimensionlessVolume": 0.5811497855080466,
+          "dimensionlessPressure": 0.055838920210692575,
+          "crossingAngleDeg": 68.22844013892184
+        },
+        "signedDimensionlessLobeAreas": [
+          0.0405426494699008,
+          -0.00009698021096720723
+        ],
+        "opposedSignedLobes": true,
+        "reasons": [
+          "lobe-area-below-minimum"
+        ],
+        "morphologyOutcomeUsedAsAcceptanceGate": false,
+        "analysisCompleted": true
+      }
+    },
+    "on": {
+      "LA": {
+        "atriumId": "LA",
+        "classification": "indeterminate",
+        "sampleCount": 800,
+        "nonAdjacentSegmentPairCount": 318800,
+        "rawPointIntersectionCount": 1,
+        "qualifiedIntersectionCount": 1,
+        "ambiguousContactCount": 0,
+        "primaryCrossing": {
+          "firstSegmentIndex": 51,
+          "secondSegmentIndex": 341,
+          "firstPhase01": 0.06462935362693907,
+          "secondPhase01": 0.4267850761280166,
+          "circularPhaseSeparation01": 0.3621557225010775,
+          "dimensionlessVolume": 0.5066005336776851,
+          "dimensionlessPressure": 0.06295994783546666,
+          "crossingAngleDeg": 67.39923584340168
+        },
+        "signedDimensionlessLobeAreas": [
+          0.03611469354726135,
+          -0.0001117571453266037
+        ],
+        "opposedSignedLobes": true,
+        "reasons": [
+          "lobe-area-below-minimum"
+        ],
+        "morphologyOutcomeUsedAsAcceptanceGate": false,
+        "analysisCompleted": true
+      },
+      "RA": {
+        "atriumId": "RA",
+        "classification": "indeterminate",
+        "sampleCount": 800,
+        "nonAdjacentSegmentPairCount": 318800,
+        "rawPointIntersectionCount": 1,
+        "qualifiedIntersectionCount": 1,
+        "ambiguousContactCount": 0,
+        "primaryCrossing": {
+          "firstSegmentIndex": 21,
+          "secondSegmentIndex": 310,
+          "firstPhase01": 0.027243052381094923,
+          "secondPhase01": 0.38817978323767965,
+          "circularPhaseSeparation01": 0.36093673085658473,
+          "dimensionlessVolume": 0.5812590230480799,
+          "dimensionlessPressure": 0.05590944375385857,
+          "crossingAngleDeg": 68.36294426229004
+        },
+        "signedDimensionlessLobeAreas": [
+          0.040360322588720396,
+          -0.00009904614618430965
+        ],
+        "opposedSignedLobes": true,
+        "reasons": [
+          "lobe-area-below-minimum"
+        ],
+        "morphologyOutcomeUsedAsAcceptanceGate": false,
+        "analysisCompleted": true
+      }
+    }
+  },
+  "pairedOutcomeByAtrium": {
+    "LA": "indeterminate",
+    "RA": "indeterminate"
+  },
+  "reportCompleteness": {
+    "scope": "pv-morphology-only",
+    "bothModesReported": true,
+    "bothAtriaReportedInEachMode": true,
+    "allFourAnalysesCompleted": true,
+    "analysisManifestAuthenticated": true,
+    "morphologyOutcomeUsedAsAcceptanceGate": false,
+    "reservoirConduitPumpPhaseOwnershipIncluded": false,
+    "matchedVolumePressureAttributionIncluded": false,
+    "waveformAmplitudeDeltasIncluded": false,
+    "fullRequiredSlsAblationReportComplete": false
+  },
+  "morphologyReportCompletenessGatePass": true,
+  "slsCausalityEstablished": false,
+  "physiologicalValidationPass": false,
+  "phaseB1AcceptancePass": false,
+  "claimBoundary": {
+    "mandatoryPairedMorphologyReporting": true,
+    "fullRequiredSlsAblationReportComplete": false,
+    "reservoirConduitPumpPhaseOwnershipIncluded": false,
+    "matchedVolumePressureAttributionIncluded": false,
+    "waveformAmplitudeDeltasIncluded": false,
+    "antiOverfitEvidenceOnly": true,
+    "morphologyOutcomeUsedAsAcceptanceGate": false,
+    "morphologyReportCompletenessIsOnlyGate": true,
+    "slsCausalityEstablished": false,
+    "physiologicalValidationEstablished": false,
+    "phaseB1AcceptanceEstablished": false,
+    "modelCoreOrBrowserRuntimeAdopted": false,
+    "releaseRuntimeReachable": false,
+    "testOnly": true
+  },
+  "hashAlgorithm": "sha256-canonical-json-v1",
+  "testOnly": true,
+  "contentSha256": "32eeb5546834b6044fa6376c676754ae9dbb77667062fda5e3940e38daad9811"
+}

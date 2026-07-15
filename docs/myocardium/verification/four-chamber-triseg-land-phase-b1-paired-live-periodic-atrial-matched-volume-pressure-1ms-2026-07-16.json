@@ -1,0 +1,426 @@
+{
+  "artifactId": "phase-b1-paired-atrial-matched-volume-pressure-attribution-artifact-v1",
+  "status": "matched-volume-attribution-report",
+  "analysisManifestContentSha256": "7b26e55f6e436ccc65aedbbe32cacb6a0679b431063e6265b54c7cc60433d4eb",
+  "analyzedSeriesContentSha256": "d43061c8dfb789fb885e8fbca8e38dde0348d8c9c80063abc8a2c08ca52267f7",
+  "sourceProvenanceByMode": {
+    "off": {
+      "sourceArtifactId": "phase-b1-normal-sinus-be-terminal-timestep-observation-v1",
+      "sourceContentSha256": "c439e6b63d3e4c2dbaa525d5d677db608dddb3c85180bc89d95636bb2e96b5e8"
+    },
+    "on": {
+      "sourceArtifactId": "phase-b1-normal-sinus-be-terminal-timestep-observation-v1",
+      "sourceContentSha256": "e35943dffa7c6d92fe031539af3f51d01263d84f404ea8047ebd39d638f12f7e"
+    }
+  },
+  "sourceProvenanceAuthenticationStatus": "unverified-reference-only",
+  "modeOrder": [
+    "off",
+    "on"
+  ],
+  "atriumOrder": [
+    "LA",
+    "RA"
+  ],
+  "attributionByAtrium": {
+    "LA": [
+      {
+        "phaseId": "reservoir-av-closure-to-opening",
+        "role": "reservoir",
+        "startBoundary": "functional-av-main-positive-flow-lobe-closing-crossing",
+        "endBoundary": "functional-av-main-positive-flow-lobe-opening-crossing",
+        "measuredWindowByMode": {
+          "off": {
+            "status": "resolved",
+            "startPhaseSec": 0.14586570720377967,
+            "endPhaseSec": 0.5012924653750546,
+            "reason": null
+          },
+          "on": {
+            "status": "resolved",
+            "startPhaseSec": 0.1458467406245385,
+            "endPhaseSec": 0.5012363540297751,
+            "reason": null
+          }
+        },
+        "status": "ambiguous",
+        "reasons": [
+          "off-volume-not-strict-monotone",
+          "on-volume-not-strict-monotone"
+        ],
+        "branchByMode": {
+          "off": {
+            "sampleCount": 358,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.0000017587026649836258,
+            "maximumVolumeM3": 0.0000562815483594315,
+            "maximumAbsoluteSourceReconstructionResidualPa": 2.2737367544323206e-13,
+            "sourceReconstructionPass": true
+          },
+          "on": {
+            "sampleCount": 358,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.0000018286541709671436,
+            "maximumVolumeM3": 0.00005627816875785054,
+            "maximumAbsoluteSourceReconstructionResidualPa": 4.547473508864641e-13,
+            "sourceReconstructionPass": true
+          }
+        },
+        "commonVolumeOverlapM3": null,
+        "matchedGrid": [],
+        "reconstructionAudit": {
+          "maximumAbsoluteMatchedResidualPaByMode": {
+            "off": null,
+            "on": null
+          },
+          "maximumAbsoluteDeltaResidualPa": null,
+          "sourceAndMatchedReconstructionPass": true
+        },
+        "mathematicalIntegrityGatePass": false,
+        "pressureDeltaSignUsedAsAcceptanceGate": false,
+        "pvTopologyUsedAsAcceptanceGate": false
+      },
+      {
+        "phaseId": "conduit-av-opening-to-next-atrial-calcium-drive",
+        "role": "conduit",
+        "startBoundary": "functional-av-main-positive-flow-lobe-opening-crossing",
+        "endBoundary": "next-scheduled-atrial-calcium-drive",
+        "measuredWindowByMode": {
+          "off": {
+            "status": "resolved",
+            "startPhaseSec": 0.5012924653750546,
+            "endPhaseSec": 0.8420000000000001,
+            "reason": null
+          },
+          "on": {
+            "status": "resolved",
+            "startPhaseSec": 0.5012363540297751,
+            "endPhaseSec": 0.8420000000000001,
+            "reason": null
+          }
+        },
+        "status": "ambiguous",
+        "reasons": [
+          "off-volume-not-strict-monotone",
+          "on-volume-not-strict-monotone"
+        ],
+        "branchByMode": {
+          "off": {
+            "sampleCount": 342,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.00004776384721367199,
+            "maximumVolumeM3": 0.000056414801968280235,
+            "maximumAbsoluteSourceReconstructionResidualPa": 2.2737367544323206e-13,
+            "sourceReconstructionPass": true
+          },
+          "on": {
+            "sampleCount": 342,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.000047790014762015295,
+            "maximumVolumeM3": 0.00005641153294331125,
+            "maximumAbsoluteSourceReconstructionResidualPa": 2.2737367544323206e-13,
+            "sourceReconstructionPass": true
+          }
+        },
+        "commonVolumeOverlapM3": null,
+        "matchedGrid": [],
+        "reconstructionAudit": {
+          "maximumAbsoluteMatchedResidualPaByMode": {
+            "off": null,
+            "on": null
+          },
+          "maximumAbsoluteDeltaResidualPa": null,
+          "sourceAndMatchedReconstructionPass": true
+        },
+        "mathematicalIntegrityGatePass": false,
+        "pressureDeltaSignUsedAsAcceptanceGate": false,
+        "pvTopologyUsedAsAcceptanceGate": false
+      },
+      {
+        "phaseId": "pump-atrial-calcium-drive-to-av-closure",
+        "role": "pump",
+        "startBoundary": "scheduled-atrial-calcium-drive",
+        "endBoundary": "functional-av-main-positive-flow-lobe-closing-crossing",
+        "measuredWindowByMode": {
+          "off": {
+            "status": "resolved",
+            "startPhaseSec": 0.041999999999999996,
+            "endPhaseSec": 0.14586570720377967,
+            "reason": null
+          },
+          "on": {
+            "status": "resolved",
+            "startPhaseSec": 0.041999999999999996,
+            "endPhaseSec": 0.1458467406245385,
+            "reason": null
+          }
+        },
+        "status": "ambiguous",
+        "reasons": [
+          "off-volume-not-strict-monotone",
+          "on-volume-not-strict-monotone"
+        ],
+        "branchByMode": {
+          "off": {
+            "sampleCount": 106,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.000003228823594398388,
+            "maximumVolumeM3": 0.00005072009792176645,
+            "maximumAbsoluteSourceReconstructionResidualPa": 2.2737367544323206e-13,
+            "sourceReconstructionPass": true
+          },
+          "on": {
+            "sampleCount": 106,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.000003281609476777514,
+            "maximumVolumeM3": 0.00005072298211250932,
+            "maximumAbsoluteSourceReconstructionResidualPa": 4.547473508864641e-13,
+            "sourceReconstructionPass": true
+          }
+        },
+        "commonVolumeOverlapM3": null,
+        "matchedGrid": [],
+        "reconstructionAudit": {
+          "maximumAbsoluteMatchedResidualPaByMode": {
+            "off": null,
+            "on": null
+          },
+          "maximumAbsoluteDeltaResidualPa": null,
+          "sourceAndMatchedReconstructionPass": true
+        },
+        "mathematicalIntegrityGatePass": false,
+        "pressureDeltaSignUsedAsAcceptanceGate": false,
+        "pvTopologyUsedAsAcceptanceGate": false
+      }
+    ],
+    "RA": [
+      {
+        "phaseId": "reservoir-av-closure-to-opening",
+        "role": "reservoir",
+        "startBoundary": "functional-av-main-positive-flow-lobe-closing-crossing",
+        "endBoundary": "functional-av-main-positive-flow-lobe-opening-crossing",
+        "measuredWindowByMode": {
+          "off": {
+            "status": "resolved",
+            "startPhaseSec": 0.12256586715300155,
+            "endPhaseSec": 0.5033107152648595,
+            "reason": null
+          },
+          "on": {
+            "status": "resolved",
+            "startPhaseSec": 0.12262715579537053,
+            "endPhaseSec": 0.5032454690286454,
+            "reason": null
+          }
+        },
+        "status": "ambiguous",
+        "reasons": [
+          "off-volume-not-strict-monotone",
+          "on-volume-not-strict-monotone"
+        ],
+        "branchByMode": {
+          "off": {
+            "sampleCount": 383,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.000005046412383387911,
+            "maximumVolumeM3": 0.00006540534789926926,
+            "maximumAbsoluteSourceReconstructionResidualPa": 2.2737367544323206e-13,
+            "sourceReconstructionPass": true
+          },
+          "on": {
+            "sampleCount": 383,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.000005112742865683637,
+            "maximumVolumeM3": 0.00006540497921177113,
+            "maximumAbsoluteSourceReconstructionResidualPa": 2.2737367544323206e-13,
+            "sourceReconstructionPass": true
+          }
+        },
+        "commonVolumeOverlapM3": null,
+        "matchedGrid": [],
+        "reconstructionAudit": {
+          "maximumAbsoluteMatchedResidualPaByMode": {
+            "off": null,
+            "on": null
+          },
+          "maximumAbsoluteDeltaResidualPa": null,
+          "sourceAndMatchedReconstructionPass": true
+        },
+        "mathematicalIntegrityGatePass": false,
+        "pressureDeltaSignUsedAsAcceptanceGate": false,
+        "pvTopologyUsedAsAcceptanceGate": false
+      },
+      {
+        "phaseId": "conduit-av-opening-to-next-atrial-calcium-drive",
+        "role": "conduit",
+        "startBoundary": "functional-av-main-positive-flow-lobe-opening-crossing",
+        "endBoundary": "next-scheduled-atrial-calcium-drive",
+        "measuredWindowByMode": {
+          "off": {
+            "status": "resolved",
+            "startPhaseSec": 0.5033107152648595,
+            "endPhaseSec": 0.812,
+            "reason": null
+          },
+          "on": {
+            "status": "resolved",
+            "startPhaseSec": 0.5032454690286454,
+            "endPhaseSec": 0.812,
+            "reason": null
+          }
+        },
+        "status": "ambiguous",
+        "reasons": [
+          "off-volume-not-strict-monotone",
+          "on-volume-not-strict-monotone"
+        ],
+        "branchByMode": {
+          "off": {
+            "sampleCount": 310,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.00005622788375254907,
+            "maximumVolumeM3": 0.00006557365601039136,
+            "maximumAbsoluteSourceReconstructionResidualPa": 2.2737367544323206e-13,
+            "sourceReconstructionPass": true
+          },
+          "on": {
+            "sampleCount": 310,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.00005625827519066966,
+            "maximumVolumeM3": 0.00006557322985178591,
+            "maximumAbsoluteSourceReconstructionResidualPa": 2.2737367544323206e-13,
+            "sourceReconstructionPass": true
+          }
+        },
+        "commonVolumeOverlapM3": null,
+        "matchedGrid": [],
+        "reconstructionAudit": {
+          "maximumAbsoluteMatchedResidualPaByMode": {
+            "off": null,
+            "on": null
+          },
+          "maximumAbsoluteDeltaResidualPa": null,
+          "sourceAndMatchedReconstructionPass": true
+        },
+        "mathematicalIntegrityGatePass": false,
+        "pressureDeltaSignUsedAsAcceptanceGate": false,
+        "pvTopologyUsedAsAcceptanceGate": false
+      },
+      {
+        "phaseId": "pump-atrial-calcium-drive-to-av-closure",
+        "role": "pump",
+        "startBoundary": "scheduled-atrial-calcium-drive",
+        "endBoundary": "functional-av-main-positive-flow-lobe-closing-crossing",
+        "measuredWindowByMode": {
+          "off": {
+            "status": "resolved",
+            "startPhaseSec": 0.012,
+            "endPhaseSec": 0.12256586715300155,
+            "reason": null
+          },
+          "on": {
+            "status": "resolved",
+            "startPhaseSec": 0.012,
+            "endPhaseSec": 0.12262715579537053,
+            "reason": null
+          }
+        },
+        "status": "ambiguous",
+        "reasons": [
+          "off-volume-not-strict-monotone",
+          "on-volume-not-strict-monotone"
+        ],
+        "branchByMode": {
+          "off": {
+            "sampleCount": 112,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.000006249190120130018,
+            "maximumVolumeM3": 0.00005815599092047503,
+            "maximumAbsoluteSourceReconstructionResidualPa": 2.2737367544323206e-13,
+            "sourceReconstructionPass": true
+          },
+          "on": {
+            "sampleCount": 112,
+            "observedVolumeDirection": null,
+            "strictlyMonotone": false,
+            "expectedDirectionSatisfied": false,
+            "minimumVolumeM3": 0.000006295695991978207,
+            "maximumVolumeM3": 0.00005816564663745672,
+            "maximumAbsoluteSourceReconstructionResidualPa": 4.547473508864641e-13,
+            "sourceReconstructionPass": true
+          }
+        },
+        "commonVolumeOverlapM3": null,
+        "matchedGrid": [],
+        "reconstructionAudit": {
+          "maximumAbsoluteMatchedResidualPaByMode": {
+            "off": null,
+            "on": null
+          },
+          "maximumAbsoluteDeltaResidualPa": null,
+          "sourceAndMatchedReconstructionPass": true
+        },
+        "mathematicalIntegrityGatePass": false,
+        "pressureDeltaSignUsedAsAcceptanceGate": false,
+        "pvTopologyUsedAsAcceptanceGate": false
+      }
+    ]
+  },
+  "gateAudit": {
+    "inputInventoryComplete": true,
+    "allInputValuesFinite": true,
+    "allRequiredBranchesSufficient": true,
+    "allRequiredBranchesStrictlyMonotone": false,
+    "allExpectedVolumeDirectionsSatisfied": false,
+    "allRequiredPhasesHaveCommonVolumeOverlap": false,
+    "allPressureReconstructionsPass": true,
+    "artifactIntegrityGatePass": false,
+    "pressureDeltaSignUsedAsAcceptanceGate": false,
+    "pvTopologyUsedAsAcceptanceGate": false
+  },
+  "claimBoundary": {
+    "matchedVolumePressureAttributionIncluded": true,
+    "sourceProvenanceReferencesRecorded": true,
+    "sourceObservationsAuthenticatedByThisModule": false,
+    "serializedRoundTripIsAuthentication": false,
+    "upstreamObservationAuthenticationMustBeEstablishedSeparately": true,
+    "pressureComponentOwnershipEstablishedByCaller": true,
+    "pressureDeltaSignUsedAsAcceptanceGate": false,
+    "pvTopologyUsedAsAcceptanceGate": false,
+    "slsOffFigureEightTopologyRequired": false,
+    "slsCausalityEstablished": false,
+    "physiologicalValidationEstablished": false,
+    "phaseB1AcceptanceEstablished": false,
+    "modelCoreOrBrowserRuntimeAdopted": false,
+    "releaseRuntimeReachable": false,
+    "testOnly": true
+  },
+  "slsCausalityEstablished": false,
+  "physiologicalValidationPass": false,
+  "phaseB1AcceptancePass": false,
+  "hashAlgorithm": "sha256-canonical-json-v1",
+  "testOnly": true,
+  "contentSha256": "0ce82ced0b9478a0f4285ac18572b758d217a0747b0b9221460555261c74c61a"
+}

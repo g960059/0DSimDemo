@@ -43,20 +43,20 @@ export type LandStepKinematics = {
   stageZetaDriveFiberEngineeringStrainRatePerSec: number;
 };
 
-export type LandSourceOutput = {
+export type LandSourceOutput = Readonly<{
   sourceActiveFiberStressPa: number;
   sourceStressConvention: "land2017-Ta";
   stabilizationStiffnessPa: number;
   algorithmicTangentPa?: number;
   frozenStateTangentPa?: number;
   sourceActivePowerDensityWPerM3: number;
-  health: {
+  health: Readonly<{
     finite: boolean;
     stateConservationResidual: number;
     minimumPopulation: number;
     projectionUsed: boolean;
-  };
-};
+  }>;
+}>;
 
 export function makeLand2017StateBlockDescriptor(
   instance: ModelInstancePath,

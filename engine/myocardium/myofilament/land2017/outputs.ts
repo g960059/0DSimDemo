@@ -70,18 +70,18 @@ export function evaluateLand2017ContinuousOutput(
       minimumPopulation,
     ]);
 
-  return {
+  return Object.freeze({
     sourceActiveFiberStressPa,
     sourceStressConvention: "land2017-Ta",
     stabilizationStiffnessPa,
     sourceActivePowerDensityWPerM3,
-    health: {
+    health: Object.freeze({
       finite,
       stateConservationResidual,
       minimumPopulation,
       projectionUsed: false,
-    },
-  };
+    }),
+  });
 }
 
 export function evaluateLand2017StepOutput(
