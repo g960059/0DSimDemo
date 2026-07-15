@@ -136,6 +136,7 @@ type ScreeningVisualRunV1 = FivePatchScreeningRunSummaryV1 & {
     mitralOpenFraction01: number,
     leftVentricularPressureBackwardDifferenceRateMmHgPerSec: number | null,
     leftVentricularPressureDecayRatePositiveMmHgPerSec: number | null,
+    leftVentricleVolumeMl: number,
   ])[];
 };
 
@@ -275,7 +276,7 @@ export function renderFivePatchModelEnvelopeScreeningHtmlV1(
 <table class="counts" aria-label="Screening counts by structural arm"><thead><tr><th>structural arm</th><th>complete</th><th>failure</th><th>periodic</th><th>not periodic</th><th>periodicity unavailable</th><th>true lobes measurable</th><th>morphology display eligible</th></tr></thead><tbody>${countRows}</tbody></table>
 <section class="top-grid"><div class="panel"><h2>Evaluation-eligible raw true A-lobe area vs V-lobe area</h2><svg id="scatter" viewBox="0 0 660 390" role="img" aria-label="Scatter plot of raw true A and V lobe areas only for evaluation-eligible screening runs"></svg><div class="legend">Color identifies the structural arm. Ineligible raw geometric areas are retained in JSON but suppressed here.</div></div><div class="panel"><h2>Selected canonical coordinate</h2><div id="selection-summary"></div></div></section>
 <div class="detail-head"><h2>Selected raw retained endpoints</h2><span id="selected-warning"></span></div>
-<section class="plots"><div class="panel"><h2>LA blood-volume PV</h2><svg id="la-pv" viewBox="0 0 520 330" role="img" aria-label="Selected raw left atrial blood-volume pressure-volume loop"></svg></div><div class="panel"><h2>Mitral flow vs phase</h2><svg id="mv-flow" viewBox="0 0 520 330" role="img" aria-label="Selected raw mitral flow waveform"></svg></div><div class="panel"><h2>PV, LA, and LV pressures</h2><svg id="pressures" viewBox="0 0 520 330" role="img" aria-label="Selected raw pulmonary vein, left atrial, and left ventricular pressure waveforms"></svg><div class="legend"><span><i class="swatch" style="--arm:#54bdff"></i>LAP</span><span><i class="swatch" style="--arm:#ffb020"></i>LVP</span><span><i class="swatch" style="--arm:#ed70bd"></i>PPV</span></div></div></section>
+<section class="plots"><div class="panel"><h2>LA blood-volume PV</h2><svg id="la-pv" viewBox="0 0 520 330" role="img" aria-label="Selected raw left atrial blood-volume pressure-volume loop"></svg></div><div class="panel"><h2>LV blood-volume PV</h2><svg id="lv-pv" viewBox="0 0 520 330" role="img" aria-label="Selected raw left ventricular blood-volume pressure-volume loop"></svg></div><div class="panel"><h2>Mitral flow vs phase</h2><svg id="mv-flow" viewBox="0 0 520 330" role="img" aria-label="Selected raw mitral flow waveform"></svg></div><div class="panel"><h2>PV, LA, and LV pressures</h2><svg id="pressures" viewBox="0 0 520 330" role="img" aria-label="Selected raw pulmonary vein, left atrial, and left ventricular pressure waveforms"></svg><div class="legend"><span><i class="swatch" style="--arm:#54bdff"></i>LAP</span><span><i class="swatch" style="--arm:#ffb020"></i>LVP</span><span><i class="swatch" style="--arm:#ed70bd"></i>PPV</span></div></div></section>
 <section class="plots mechanism-plots"><div class="panel"><h2>LA work-conjugate pressure components</h2><svg id="la-pressure-components" viewBox="0 0 520 330" role="img" aria-label="Selected left atrial equilibrium passive, effective Land active, SLS overstress, and total pressure components"></svg><div class="legend"><span><i class="swatch" style="--arm:#54bdff"></i>equilibrium passive</span><span><i class="swatch" style="--arm:#ffb020"></i>effective Land active</span><span><i class="swatch" style="--arm:#ed70bd"></i>SLS overstress</span><span><i class="swatch" style="--arm:#7bdc9c"></i>total</span></div></div><div class="panel"><h2>Pulmonary venous and mitral flows</h2><svg id="pv-mv-flow" viewBox="0 0 520 330" role="img" aria-label="Selected raw pulmonary venous and mitral flows"></svg><div class="legend"><span><i class="swatch" style="--arm:#ed70bd"></i>QPV</span><span><i class="swatch" style="--arm:#54bdff"></i>QMV</span></div></div><div class="panel"><h2>LA fiber log strain</h2><svg id="la-strain" viewBox="0 0 520 330" role="img" aria-label="Selected left atrial fiber natural log strain"></svg></div><div class="panel"><h2>LA fiber strain-rate proxy</h2><svg id="la-strain-rate" viewBox="0 0 520 330" role="img" aria-label="Selected left atrial backward-difference fiber log strain rate proxy"></svg></div><div class="panel"><h2>Mitral pressure gradient</h2><svg id="mv-gradient" viewBox="0 0 520 330" role="img" aria-label="Selected raw mitral pressure gradient"></svg></div><div class="panel"><h2>Mitral open fraction</h2><svg id="mv-open" viewBox="0 0 520 330" role="img" aria-label="Selected mitral open fraction"></svg></div><div class="panel"><h2>LV pressure-rate relaxation proxy</h2><svg id="lv-pressure-rate" viewBox="0 0 520 330" role="img" aria-label="Selected left ventricular pressure backward difference and positive decay rate"></svg><div class="legend"><span><i class="swatch" style="--arm:#ffb020"></i>dP/dt</span><span><i class="swatch" style="--arm:#7bdc9c"></i>max(0,-dP/dt)</span></div></div></section>
 <div class="table-wrap"><table class="runs" aria-label="All screening coordinates in canonical order"><thead><tr><th>order</th><th>arm</th><th>LHS index</th><th>status</th><th>periodicity</th><th>A area (mmHg·mL)</th><th>V area (mmHg·mL)</th></tr></thead><tbody>${tableRows}</tbody></table></div>
 <div class="footer">Every displayed trace connects retained raw endpoints with straight line segments. Failed runs may contain a partial current cycle or no retained endpoints. Missing or evaluation-ineligible true-lobe points are not imputed onto the scatter.</div>
@@ -402,6 +403,7 @@ function validateRawSampleV1(
   const required = [
     sample.phase01,
     sample.volumesMl.leftAtriumMl,
+    sample.volumesMl.leftVentricleMl,
     sample.pressuresMmHg.leftAtriumMmHg,
     sample.pressuresMmHg.leftVentricleMmHg,
     sample.flowsMlPerSec.mitralMlPerSec,
@@ -458,6 +460,7 @@ function compactRawSampleV1(
     mechanism.mitralValve.openFraction01,
     mechanism.leftVentricularPressureBackwardDifferenceRateMmHgPerSec,
     mechanism.leftVentricularPressureDecayRatePositiveMmHgPerSec,
+    sample.volumesMl.leftVentricleMl,
   ]);
 }
 

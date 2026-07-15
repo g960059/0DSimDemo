@@ -88,6 +88,7 @@ describe("renderFivePatchModelEnvelopeScreeningV1", () => {
     expect(html).toContain("selectRun(initialOrdinal)");
     expect(html).toContain("canonical #");
     expect(html).toContain("LA blood-volume PV");
+    expect(html).toContain("LV blood-volume PV");
     expect(html).toContain("Mitral flow vs phase");
     expect(html).toContain("PV, LA, and LV pressures");
     expect(html).toContain("LA work-conjugate pressure components");

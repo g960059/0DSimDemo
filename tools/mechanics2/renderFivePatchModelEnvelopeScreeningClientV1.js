@@ -352,6 +352,12 @@ function selectRun(ordinal) {
     "LAP (mmHg)",
   );
   drawLinePanel(
+    "lv-pv",
+    [{ points: samples.map((sample) => [sample[17], sample[3]]), className: "single" }],
+    "LV blood volume (mL)",
+    "LVP (mmHg)",
+  );
+  drawLinePanel(
     "mv-flow",
     [{ points: samples.map((sample) => [sample[0], sample[4]]), className: "single" }],
     "cardiac phase",
