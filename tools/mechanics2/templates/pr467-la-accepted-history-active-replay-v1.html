@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PR467 LA accepted-history active replay V1</title>
+  <style>
+    :root{color-scheme:dark;--bg:#07111f;--panel:#101b2d;--grid:#2a3850;--text:#eef5ff;--muted:#9fb0c8;--hill:#ffb020;--land:#72e39a;--actual:#62b7ff;--pump:#ef6bb6}
+    *{box-sizing:border-box}body{margin:0;padding:22px;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,sans-serif}h1{margin:0 0 5px;font-size:25px;font-weight:500}.sub,.foot{color:var(--muted);max-width:1100px}.bar{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:18px 0;padding:13px;background:var(--panel);border:1px solid #263651;border-radius:11px}select,label{font:inherit}select{color:var(--text);background:#16243a;border:1px solid #41516b;padding:7px 9px;border-radius:7px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.card{background:var(--panel);border:1px solid #263651;border-radius:11px;padding:13px;min-width:0}.card h2{margin:0 0 5px;font-size:16px;font-weight:500}.legend{display:flex;flex-wrap:wrap;gap:13px;color:var(--muted);margin:0 0 5px}.swatch{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:5px}svg{width:100%;height:325px;display:block;overflow:visible}.metrics{margin-top:15px;overflow:auto}table{width:100%;border-collapse:collapse;white-space:nowrap}th,td{text-align:right;padding:7px 9px;border-bottom:1px solid #2b3a52}th:first-child,td:first-child{text-align:left}.pass{color:#77e6a0}.warn{color:#ffc766}.foot{margin-top:15px;font-size:12px}@media(max-width:900px){.grid{grid-template-columns:1fr}body{padding:13px}}
+  </style>
+</head>
+<body>
+  <h1>PR #467 accepted-history active replay</h1>
+  <div class="sub">The recorded closed-loop Ca, LA volume, and fiber strain are held fixed. Hill is replayed as a source-closure control; Land is active-only. Land stress does not feed back into this circulation.</div>
+  <div class="bar"><label>Source history <select id="candidate" disabled>__PR467_LA_REPLAY_CANDIDATE_OPTIONS__</select></label><span id="gate">__PR467_LA_REPLAY_INITIAL_GATE__</span></div>
+  <div class="legend"><span><i class="swatch" style="background:var(--actual)"></i>actual PR #467 closed loop</span><span><i class="swatch" style="background:var(--hill)"></i>source Hill active</span><span><i class="swatch" style="background:var(--land)"></i>Land active-only replay</span><span><i class="swatch" style="background:var(--pump)"></i>late-cycle atrial activation window</span></div>
+  <div class="grid">
+    <section class="card"><h2>Actual LA blood-volume PV</h2><svg id="lapv" viewBox="0 0 720 325" role="img" aria-label="Actual left atrial pressure volume loop">__PR467_LA_REPLAY_INITIAL_LAPV__</svg></section>
+    <section class="card"><h2>Active wall stress vs phase</h2><svg id="stress" viewBox="0 0 720 325" role="img" aria-label="Hill and Land active wall stress over cardiac phase">__PR467_LA_REPLAY_INITIAL_STRESS__</svg></section>
+    <section class="card"><h2>Projected active pressure vs LA volume</h2><svg id="activepv" viewBox="0 0 720 325" role="img" aria-label="Projected active pressure volume paths">__PR467_LA_REPLAY_INITIAL_ACTIVEPV__</svg></section>
+    <section class="card"><h2>Recorded forcing and MV flow</h2><svg id="forcing" viewBox="0 0 720 325" role="img" aria-label="Recorded calcium, fiber strain, and mitral flow">__PR467_LA_REPLAY_INITIAL_FORCING__</svg></section>
+  </div>
+  <section class="card metrics"><h2>Replay readback</h2><table id="metrics">__PR467_LA_REPLAY_INITIAL_METRICS__</table></section>
+  <div class="foot" id="foot">__PR467_LA_REPLAY_INITIAL_FOOT__</div>
+  <script>
+    (()=>{try{
+    const data=__PR467_LA_ACCEPTED_HISTORY_REPLAY_DATA__;
+    const labels={ALG_SLS4:'algebraic / SLS 4 kPa',ALG_SLS8:'algebraic / SLS 8 kPa',LAG25_SLS4:'lag 25 ms / SLS 4 kPa',LAG25_SLS8:'lag 25 ms / SLS 8 kPa'};
+    const colors={actual:'#62b7ff',hill:'#ffb020',land:'#72e39a',pump:'#ef6bb6'};
+    const select=document.querySelector('#candidate');select.value='ALG_SLS4';select.disabled=false;select.onchange=render;
+    function current(){return data.results.find(r=>r.candidateId===select.value)}
+    function render(){const r=current(),t=r.trace;document.querySelector('#gate').innerHTML=r.status==='pass'?'<b class="pass">replay gates: PASS</b>':'<b class="warn">replay gates: FAIL</b>';
+      plot('#lapv',[{color:colors.actual,points:t.map(s=>[s.laVolumeMl,s.laPressureMmHg]),width:2.3},{color:colors.pump,points:t.filter(s=>s.plotPhase01>=.75).map(s=>[s.laVolumeMl,s.laPressureMmHg]),width:3}],{x:'LA volume (mL)',y:'LAP (mmHg)'});
+      plot('#stress',[{color:colors.hill,points:t.map(s=>[s.plotPhase01,s.sourceHillActiveStressKPa]),width:2.3},{color:colors.land,points:t.map(s=>[s.plotPhase01,s.landActiveStressKPa]),width:2.3}],{x:'cardiac phase',y:'active Kirchhoff stress (kPa)',vline:.78});
+      plot('#activepv',[{color:colors.hill,points:t.map(s=>[s.laVolumeMl,s.sourceHillProjectedActivePressureMmHg]),width:2.3},{color:colors.land,points:t.map(s=>[s.laVolumeMl,s.landProjectedActivePressureMmHg]),width:2.3}],{x:'LA volume (mL)',y:'projected active pressure (mmHg)'});
+      const caPeak=Math.max(...t.map(s=>s.freeCalciumUm)),strainScale=caPeak/Math.max(1e-12,...t.map(s=>Math.abs(s.totalFiberLogStrain))),flowScale=caPeak/Math.max(1e-12,...t.map(s=>Math.abs(s.mitralFlowMlPerSec)));
+      plot('#forcing',[{color:'#b49cff',points:t.map(s=>[s.plotPhase01,s.freeCalciumUm]),width:2.2},{color:'#ffffff',points:t.map(s=>[s.plotPhase01,s.totalFiberLogStrain*strainScale]),width:1.8,dash:true},{color:colors.actual,points:t.map(s=>[s.plotPhase01,s.mitralFlowMlPerSec*flowScale]),width:1.8,dash:true}],{x:'cardiac phase',y:'Ca (uM); strain & MV flow scaled',vline:.78});
+      document.querySelector('#metrics').innerHTML='<tr><th>source</th><th>Hill peak kPa</th><th>Hill peak phase</th><th>Land peak kPa</th><th>Land peak phase</th><th>cyclic phase shift</th><th>Land/Hill peak</th><th>Hill closure Pa</th></tr>'+`<tr><td>${labels[r.candidateId]}</td><td>${fmt(r.summary.sourceHillPeakActiveStressKPa)}</td><td>${fmt(r.summary.sourceHillPeakPhase01)}</td><td>${fmt(r.summary.landPeakActiveStressKPa)}</td><td>${fmt(r.summary.landPeakPhase01)}</td><td>${fmt(r.summary.landMinusHillPeakPhase01)}</td><td>${fmt(r.summary.landToHillPeakActiveStressRatio)}</td><td>${r.diagnostics.maximumAbsoluteHillTotalStressClosurePa.toExponential(2)}</td></tr>`;
+      document.querySelector('#foot').textContent=`201 raw final-beat vertices at 5 ms; straight segments; no smoothing. Source ${r.sourceNormalizedSha256.slice(0,16)}…; replay ${data.normalizedSha256.slice(0,16)}…`;
+    }
+    function plot(selector,series,opt){const svg=document.querySelector(selector),W=720,H=325,m={l:65,r:18,t:14,b:48};svg.setAttribute('viewBox',`0 0 ${W} ${H}`);const pts=series.flatMap(s=>s.points).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));let xmin=Math.min(...pts.map(p=>p[0])),xmax=Math.max(...pts.map(p=>p[0])),ymin=Math.min(...pts.map(p=>p[1])),ymax=Math.max(...pts.map(p=>p[1]));if(xmin===xmax)xmax=xmin+1;if(ymin===ymax)ymax=ymin+1;const xp=(xmax-xmin)*.03,yp=(ymax-ymin)*.08;xmin-=xp;xmax+=xp;ymin-=yp;ymax+=yp;const X=x=>m.l+(x-xmin)/(xmax-xmin)*(W-m.l-m.r),Y=y=>H-m.b-(y-ymin)/(ymax-ymin)*(H-m.t-m.b);let h='';for(let i=0;i<=4;i++){const x=xmin+(xmax-xmin)*i/4,y=ymin+(ymax-ymin)*i/4;h+=`<line x1="${X(x)}" y1="${m.t}" x2="${X(x)}" y2="${H-m.b}" stroke="var(--grid)"/><text x="${X(x)}" y="${H-25}" text-anchor="middle" fill="var(--muted)">${fmt(x)}</text><line x1="${m.l}" y1="${Y(y)}" x2="${W-m.r}" y2="${Y(y)}" stroke="var(--grid)"/><text x="${m.l-8}" y="${Y(y)+4}" text-anchor="end" fill="var(--muted)">${fmt(y)}</text>`}if(opt.vline!=null)h+=`<line x1="${X(opt.vline)}" y1="${m.t}" x2="${X(opt.vline)}" y2="${H-m.b}" stroke="var(--pump)" stroke-dasharray="5 5"/><text x="${X(opt.vline)+5}" y="${m.t+12}" fill="var(--muted)">LA Ca onset</text>`;series.forEach(s=>{const d=s.points.map((p,i)=>`${i?'L':'M'}${X(p[0]).toFixed(2)},${Y(p[1]).toFixed(2)}`).join(' ');h+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="${s.width||2}" ${s.dash?'stroke-dasharray="7 5"':''}/>`});h+=`<text x="${(m.l+W-m.r)/2}" y="${H-5}" text-anchor="middle" fill="var(--text)">${opt.x}</text><text transform="translate(16 ${(m.t+H-m.b)/2}) rotate(-90)" text-anchor="middle" fill="var(--text)">${opt.y}</text>`;svg.innerHTML=h}
+    function fmt(v){return v==null||!Number.isFinite(v)?'—':Math.abs(v)>=100?v.toFixed(0):Math.abs(v)>=10?v.toFixed(2):v.toFixed(3)}render();
+    }catch(error){document.documentElement.dataset.replayEnhancement='failed';console.error(error)}})();
+  </script>
+</body>
+</html>

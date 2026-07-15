@@ -100,6 +100,8 @@
     "render:no-avpd-atrial-thin-filament-sls-matrix-v1": "vite-node --script tools/mechanics2/renderNoAvpdAtrialThinFilamentSlsMatrixV1.ts",
     "verify:atrial-active-law-shootout-v1": "vite-node --script tools/mechanics2/runAtrialActiveLawShootoutV1.ts",
     "render:atrial-active-law-shootout-v1": "vite-node --script tools/mechanics2/renderAtrialActiveLawShootoutV1.ts",
+    "verify:pr467-la-accepted-history-active-replay-v1": "vite-node --script tools/mechanics2/runPr467LaAcceptedHistoryActiveReplayV1.ts",
+    "render:pr467-la-accepted-history-active-replay-v1": "vite-node --script tools/mechanics2/renderPr467LaAcceptedHistoryActiveReplayV1.ts",
     "verify:starling-low-preload-matrix": "STARLING_LOW_PRELOAD_MATRIX_MAIN=1 vite-node tools/verifyStarlingLowPreloadMatrix.ts",
     "debug:starling-low-preload": "STARLING_LOW_PRELOAD_DEBUG_MAIN=1 vite-node tools/debugStarlingLowPreload.ts",
     "fit:left-filling": "vite-node tools/fitLeftFilling.ts",
