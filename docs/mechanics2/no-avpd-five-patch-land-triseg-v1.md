@@ -331,11 +331,54 @@ verifies the canonical parameter identity and full-fiber mapping. It performs
 no time marching and is therefore an initialization-contract check, not
 evidence that all 696 committed time-domain runs will complete.
 
-As of this artifact, the 696-run full envelope has been constructed and its
-count and per-run/assembly provenance contracts tested, but it has **not** been
-executed. No model-class
-viability fraction, connected viable region, physiology envelope, or preferred
-SLS arm is therefore claimed yet.
+## Fixed HR60 screening evidence
+
+The complete predeclared HR60 screening phase has now been executed from the
+source-frozen implementation and assembled from exactly 192 independently
+cold-started artifacts. Exact membership, normalized artifact hashes,
+parameter identities, protocol hashes, and implementation/source closure were
+revalidated before rendering. The assembly normalized SHA-256 is
+`4c5a2d61e91de37c117e540661c64da6cca3175f9d0c83ba0e338da3a894dd9a`.
+
+| structural arm | total | 32-beat complete | numerical failure | periodic | periodic + measurable true A/V lobes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| SLS off | 64 | 19 | 45 | 2 | 0 |
+| atrial SLS | 64 | 22 | 42 | 2 | 1 |
+| all-patch SLS | 64 | 19 | 45 | 2 | 1 |
+
+Across all arms, 60/192 runs completed 32 beats and 132/192 ended as retained
+numerical failures: 61 at a global line-search failure and 71 at the fixed
+maximum Newton iteration count. Only six runs met both fixed full-state return
+maps at `1e-4`. The two periodic SLS-off runs had multiple or degenerate
+self-intersections, so neither supplied a measurable two-lobe topology.
+
+The only periodic, one-true-crossing coordinate was the same fixed LHS index
+24 in both SLS-enabled arms:
+
+| arm at LHS 24 | return maps | A-lobe area (mmHg mL) | V-lobe area (mmHg mL) | unbounded A/V ratio |
+| --- | --- | ---: | ---: | ---: |
+| atrial SLS | `6.891e-5`, `5.494e-5` | 101.882 | 1.132 | 90.04 |
+| all-patch SLS | `6.888e-5`, `5.492e-5` | 101.867 | 1.128 | 90.34 |
+
+At that same coordinate, SLS-off completed all 32 beats but missed periodicity
+with return maps `1.663e-4` and `1.340e-4` and retained two self-intersections.
+Thus atrial SLS changed periodic stability and projected topology at this
+coordinate, while adding ventricular SLS produced essentially no additional
+V-lobe area. The measurable V lobe remained very small relative to the A lobe.
+This isolated coordinate is not a connected viable prior region and is not a
+normal-human fit, preferred arm, or physiology acceptance result.
+
+Raw geometric lobes were measurable in 2/64 SLS-off, 14/64 atrial-SLS, and
+13/64 all-patch artifacts, but all except LHS 24 in the SLS-enabled arms were
+unsteady or incomplete. They remain selectable in the interactive artifact for
+diagnosis and are excluded from steady-state morphology display. In particular,
+an unsteady lobe is not converted into evidence by averaging areas or relaxing
+the return-map tolerance after observing the result.
+
+The remaining 504 predeclared time-domain coordinates (480 stress-validation
+and 24 dt-refinement runs) have not been executed. No held-out HR/load
+viability, connected viable region, physiology envelope, or structural winner
+is claimed.
 
 ## Model-class boundary
 
