@@ -432,4 +432,13 @@ document.querySelectorAll("button[data-ordinal]").forEach((button) =>
     selectRun(Number(button.dataset.ordinal));
   }),
 );
-selectRun(0);
+const initialOrdinal =
+  runs.find(
+    (run) =>
+      run.evaluationEligible &&
+      Number.isFinite(run.aLobeAreaMmHgMl) &&
+      Number.isFinite(run.vLobeAreaMmHgMl),
+  )?.canonicalOrdinal ??
+  runs.find((run) => run.evaluationEligible)?.canonicalOrdinal ??
+  0;
+selectRun(initialOrdinal);

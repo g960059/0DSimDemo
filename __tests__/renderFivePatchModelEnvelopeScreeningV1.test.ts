@@ -84,7 +84,8 @@ describe("renderFivePatchModelEnvelopeScreeningV1", () => {
     expect(html).toContain("true-lobe morphology display suppressed");
     expect(html).toContain("No ranking, winner selection, physiology gate, smoothing, resampling");
     expect(html).toContain("raw-path");
-    expect(html).toContain("selectRun(0)");
+    expect(html).toContain("const initialOrdinal =");
+    expect(html).toContain("selectRun(initialOrdinal)");
     expect(html).toContain("canonical #");
     expect(html).toContain("LA blood-volume PV");
     expect(html).toContain("Mitral flow vs phase");
