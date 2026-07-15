@@ -1,0 +1,349 @@
+{
+  "protocolId": "five-patch-model-envelope-v1",
+  "evidenceStatus": "report-only-global-prior-viability-envelope-not-calibration-physiology-acceptance-or-winner-selection",
+  "modelClass": {
+    "materialTopology": "Land-active-only-plus-equilibrium-passive-plus-optional-parallel-one-state-SLS-in-all-five-patches",
+    "ventricularGeometry": "three-wall-TriSeg-spherical-cap",
+    "ventricularGeneralizedForceMapping": "full-fiber-energy-gradient",
+    "representativeTensionMappingRole": "explicit-comparator-not-default",
+    "dynamicAvPlaneState": false
+  },
+  "design": {
+    "algorithmId": "deterministic-maximin-latin-hypercube-v1",
+    "sampleCount": 64,
+    "dimensionCount": 16,
+    "candidateSeeds": [
+      314159265,
+      271828182,
+      161803399,
+      141421356,
+      173205080,
+      223606797,
+      244948974,
+      316227766,
+      123456789,
+      362436069,
+      521288629,
+      88675123,
+      5783321,
+      6615241,
+      998244353,
+      1000000007,
+      2166136261,
+      2246822519,
+      3266489917,
+      668265263,
+      374761393,
+      1274126177,
+      42595009,
+      256789123,
+      905123457,
+      19088743,
+      2309737967,
+      305419896,
+      3735928559,
+      3405691582,
+      195948557,
+      610839776
+    ],
+    "selectedSeed": 19088743,
+    "selectedMinimumPairwiseDistance": 0.8946623518269499,
+    "selectionUsesSimulationOutcomes": false,
+    "sameUnitPointsAcrossStructuralArms": true
+  },
+  "structuralArms": [
+    {
+      "armId": "land-equilibrium-passive-sls-off",
+      "activeLaw": "Land2017-active-only",
+      "passiveLaw": "equilibrium-passive",
+      "slsTopology": "off",
+      "slsEnabledPatches": []
+    },
+    {
+      "armId": "land-equilibrium-passive-sls-atrial-only",
+      "activeLaw": "Land2017-active-only",
+      "passiveLaw": "equilibrium-passive",
+      "slsTopology": "atrial-only",
+      "slsEnabledPatches": ["leftAtrium", "rightAtrium"]
+    },
+    {
+      "armId": "land-equilibrium-passive-sls-all-patch",
+      "activeLaw": "Land2017-active-only",
+      "passiveLaw": "equilibrium-passive",
+      "slsTopology": "all-patch",
+      "slsEnabledPatches": [
+        "leftAtrium",
+        "rightAtrium",
+        "leftFreeWall",
+        "septum",
+        "rightFreeWall"
+      ]
+    }
+  ],
+  "parameterDimensions": [
+    {
+      "dimensionId": "atrialActiveScale",
+      "ownerGroup": "atrial",
+      "sharedByPatches": ["leftAtrium", "rightAtrium"],
+      "transform": "linear",
+      "minimum": 0.6,
+      "maximum": 1.4,
+      "unit": "baseline-ratio",
+      "role": "active-capacity-prior-scale"
+    },
+    {
+      "dimensionId": "ventricularActiveScale",
+      "ownerGroup": "ventricular",
+      "sharedByPatches": ["leftFreeWall", "septum", "rightFreeWall"],
+      "transform": "linear",
+      "minimum": 0.6,
+      "maximum": 1.4,
+      "unit": "baseline-ratio",
+      "role": "active-capacity-prior-scale"
+    },
+    {
+      "dimensionId": "atrialPassiveTangentScale",
+      "ownerGroup": "atrial",
+      "sharedByPatches": ["leftAtrium", "rightAtrium"],
+      "transform": "log",
+      "minimum": 0.25,
+      "maximum": 4,
+      "unit": "baseline-ratio",
+      "role": "equilibrium-passive-tangent-prior-scale"
+    },
+    {
+      "dimensionId": "atrialPassiveExponentScale",
+      "ownerGroup": "atrial",
+      "sharedByPatches": ["leftAtrium", "rightAtrium"],
+      "transform": "log",
+      "minimum": 0.6,
+      "maximum": 1.6,
+      "unit": "baseline-ratio",
+      "role": "equilibrium-passive-nonlinearity-prior-scale"
+    },
+    {
+      "dimensionId": "ventricularPassiveTangentScale",
+      "ownerGroup": "ventricular",
+      "sharedByPatches": ["leftFreeWall", "septum", "rightFreeWall"],
+      "transform": "log",
+      "minimum": 0.25,
+      "maximum": 4,
+      "unit": "baseline-ratio",
+      "role": "equilibrium-passive-tangent-prior-scale"
+    },
+    {
+      "dimensionId": "ventricularPassiveExponentScale",
+      "ownerGroup": "ventricular",
+      "sharedByPatches": ["leftFreeWall", "septum", "rightFreeWall"],
+      "transform": "log",
+      "minimum": 0.6,
+      "maximum": 1.6,
+      "unit": "baseline-ratio",
+      "role": "equilibrium-passive-nonlinearity-prior-scale"
+    },
+    {
+      "dimensionId": "atrialSlsModulusOverEquilibriumTangent",
+      "ownerGroup": "atrial",
+      "sharedByPatches": ["leftAtrium", "rightAtrium"],
+      "transform": "log",
+      "minimum": 0.03,
+      "maximum": 1.5,
+      "unit": "ratio",
+      "role": "parallel-passive-memory-modulus-ratio"
+    },
+    {
+      "dimensionId": "atrialSlsRelaxationTimeSec",
+      "ownerGroup": "atrial",
+      "sharedByPatches": ["leftAtrium", "rightAtrium"],
+      "transform": "log",
+      "minimum": 0.015,
+      "maximum": 0.6,
+      "unit": "s",
+      "role": "parallel-passive-memory-time"
+    },
+    {
+      "dimensionId": "ventricularSlsModulusOverEquilibriumTangent",
+      "ownerGroup": "ventricular",
+      "sharedByPatches": ["leftFreeWall", "septum", "rightFreeWall"],
+      "transform": "log",
+      "minimum": 0.02,
+      "maximum": 1,
+      "unit": "ratio",
+      "role": "parallel-passive-memory-modulus-ratio"
+    },
+    {
+      "dimensionId": "ventricularSlsRelaxationTimeSec",
+      "ownerGroup": "ventricular",
+      "sharedByPatches": ["leftFreeWall", "septum", "rightFreeWall"],
+      "transform": "log",
+      "minimum": 0.015,
+      "maximum": 0.6,
+      "unit": "s",
+      "role": "parallel-passive-memory-time"
+    },
+    {
+      "dimensionId": "atrialCalciumAmplitudeScale",
+      "ownerGroup": "atrial",
+      "sharedByPatches": ["leftAtrium", "rightAtrium"],
+      "transform": "linear",
+      "minimum": 0.65,
+      "maximum": 1.35,
+      "unit": "baseline-ratio",
+      "role": "prescribed-free-calcium-amplitude-prior-scale"
+    },
+    {
+      "dimensionId": "atrialCalciumDecayScale",
+      "ownerGroup": "atrial",
+      "sharedByPatches": ["leftAtrium", "rightAtrium"],
+      "transform": "log",
+      "minimum": 0.6,
+      "maximum": 1.6,
+      "unit": "baseline-ratio",
+      "role": "prescribed-free-calcium-decay-prior-scale"
+    },
+    {
+      "dimensionId": "atrialCalciumOnsetOffsetCycleFraction",
+      "ownerGroup": "atrial",
+      "sharedByPatches": ["leftAtrium", "rightAtrium"],
+      "transform": "linear",
+      "minimum": -0.05,
+      "maximum": 0.05,
+      "unit": "cycle-fraction",
+      "role": "prescribed-free-calcium-event-offset"
+    },
+    {
+      "dimensionId": "ventricularCalciumAmplitudeScale",
+      "ownerGroup": "ventricular",
+      "sharedByPatches": ["leftFreeWall", "septum", "rightFreeWall"],
+      "transform": "linear",
+      "minimum": 0.7,
+      "maximum": 1.3,
+      "unit": "baseline-ratio",
+      "role": "prescribed-free-calcium-amplitude-prior-scale"
+    },
+    {
+      "dimensionId": "ventricularCalciumDecayScale",
+      "ownerGroup": "ventricular",
+      "sharedByPatches": ["leftFreeWall", "septum", "rightFreeWall"],
+      "transform": "log",
+      "minimum": 0.6,
+      "maximum": 1.6,
+      "unit": "baseline-ratio",
+      "role": "prescribed-free-calcium-decay-prior-scale"
+    },
+    {
+      "dimensionId": "ventricularCalciumOnsetOffsetCycleFraction",
+      "ownerGroup": "ventricular",
+      "sharedByPatches": ["leftFreeWall", "septum", "rightFreeWall"],
+      "transform": "linear",
+      "minimum": -0.03,
+      "maximum": 0.03,
+      "unit": "cycle-fraction",
+      "role": "prescribed-free-calcium-event-offset"
+    }
+  ],
+  "protocolMatrix": [
+    { "scenarioId": "hr50-reference", "heartRateBpm": 50, "bloodVolumeScale": 1, "systemicResistanceScale": 1, "pulmonaryResistanceScale": 1 },
+    { "scenarioId": "hr60-reference", "heartRateBpm": 60, "bloodVolumeScale": 1, "systemicResistanceScale": 1, "pulmonaryResistanceScale": 1 },
+    { "scenarioId": "hr75-reference", "heartRateBpm": 75, "bloodVolumeScale": 1, "systemicResistanceScale": 1, "pulmonaryResistanceScale": 1 },
+    { "scenarioId": "hr100-reference", "heartRateBpm": 100, "bloodVolumeScale": 1, "systemicResistanceScale": 1, "pulmonaryResistanceScale": 1 },
+    { "scenarioId": "hr60-blood-volume-low", "heartRateBpm": 60, "bloodVolumeScale": 0.85, "systemicResistanceScale": 1, "pulmonaryResistanceScale": 1 },
+    { "scenarioId": "hr60-blood-volume-high", "heartRateBpm": 60, "bloodVolumeScale": 1.15, "systemicResistanceScale": 1, "pulmonaryResistanceScale": 1 },
+    { "scenarioId": "hr60-afterload-low", "heartRateBpm": 60, "bloodVolumeScale": 1, "systemicResistanceScale": 0.75, "pulmonaryResistanceScale": 1 },
+    { "scenarioId": "hr60-afterload-high", "heartRateBpm": 60, "bloodVolumeScale": 1, "systemicResistanceScale": 1.35, "pulmonaryResistanceScale": 1 },
+    { "scenarioId": "hr60-pvr-low", "heartRateBpm": 60, "bloodVolumeScale": 1, "systemicResistanceScale": 1, "pulmonaryResistanceScale": 0.65 },
+    { "scenarioId": "hr60-pvr-high", "heartRateBpm": 60, "bloodVolumeScale": 1, "systemicResistanceScale": 1, "pulmonaryResistanceScale": 1.5 }
+  ],
+  "executionPolicy": {
+    "initialization": "independent-cold-start-each-arm-point-scenario",
+    "bloodVolumeAllocation": {
+      "meaning": "exact-total-blood-volume-scale-with-fixed-compliant-venous-allocation",
+      "mutableCompartments": ["systemicVeinMl", "pulmonaryVeinMl"],
+      "systemicVeinWeight": 60,
+      "pulmonaryVeinWeight": 13,
+      "preservedCompartments": [
+        "leftAtriumMl",
+        "leftVentricleMl",
+        "systemicArteryMl",
+        "rightAtriumMl",
+        "rightVentricleMl",
+        "pulmonaryArteryMl"
+      ]
+    },
+    "crossCandidateWarmStartAllowed": false,
+    "simulationOutcomeAdaptiveSamplingAllowed": false,
+    "gradientOrLocalOptimizerAllowed": false,
+    "scalarWinnerScoreAllowed": false,
+    "automaticWinnerSelectionAllowed": false,
+    "parameterRangeChangeAfterOutcomeInspectionAllowed": false,
+    "fullStateReturnMapMaxAbsDimensionlessTolerance": 0.0001,
+    "settleAndAssess": {
+      "appliesToPhases": ["screening", "stress-validation", "dt-refinement"],
+      "singleContinuousRun": true,
+      "resultDependentExtensionAllowed": false,
+      "calciumAmplitudeRamp": {
+        "beatNumbers": [1, 2, 3, 4],
+        "commonMultipliers": [0.25, 0.5, 0.75, 1]
+      },
+      "discardSettleBeatNumbersInclusive": [5, 29],
+      "assessmentBeatNumbersInclusive": [30, 32],
+      "retainedAssessmentCycleBoundaryStateCount": 3,
+      "retainedRawCycleCount": 2,
+      "consecutiveFullStateReturnMapCount": 2,
+      "evaluationRequiresCompletedRun": true,
+      "morphologyMetricsUsedAsSettlingGate": false
+    },
+    "screening": {
+      "candidateIndices": "all-64",
+      "scenarioIds": ["hr60-reference"],
+      "beats": 32,
+      "dtSec": 0.005,
+      "retainEveryEndpointOfFinalCycle": true
+    },
+    "armNumericalReadiness": {
+      "selection": "fixed-index-zero-each-arm-before-envelope",
+      "candidateIndices": [0],
+      "scenarioIds": ["hr60-reference"],
+      "beats": 1,
+      "dtSec": 0.005,
+      "retainEveryEndpointOfFinalCycle": true,
+      "requiredBeforeFullEnvelope": true,
+      "failureInterpretation": "numerical-readiness-failure-only-not-physiology-morphology-or-model-class-rejection"
+    },
+    "stressValidation": {
+      "selection": "fixed-index-modulo-4-before-results",
+      "candidateIndices": [0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60],
+      "scenarioIds": [
+        "hr50-reference",
+        "hr60-reference",
+        "hr75-reference",
+        "hr100-reference",
+        "hr60-blood-volume-low",
+        "hr60-blood-volume-high",
+        "hr60-afterload-low",
+        "hr60-afterload-high",
+        "hr60-pvr-low",
+        "hr60-pvr-high"
+      ],
+      "beats": 32,
+      "dtSec": 0.005,
+      "retainEveryEndpointOfFinalCycle": true
+    },
+    "dtRefinement": {
+      "selection": "fixed-index-quartiles-before-results",
+      "candidateIndices": [0, 16, 32, 48],
+      "scenarioIds": ["hr60-reference"],
+      "dtSec": [0.005, 0.0025],
+      "beats": 32,
+      "retainEveryEndpointOfFinalCycle": true
+    }
+  },
+  "claimBoundary": {
+    "runtimeAdoption": false,
+    "patientFit": false,
+    "normalHumanCalibration": false,
+    "physiologyAcceptance": false,
+    "structuralWinnerDeclared": false,
+    "designMayBeChangedAfterResults": false
+  }
+}
