@@ -1,0 +1,168 @@
+{
+  "artifactId": "no-avpd-four-chamber-atrial-land-triseg-dt-refinement-report-v2",
+  "statusScope": "report-only-time-step-refinement",
+  "status": "report-only",
+  "claim": {
+    "physiologyAcceptanceClaimed": false,
+    "morphologyAcceptanceClaimed": false,
+    "smoothingApplied": false,
+    "comparisonGrid": "coarse-final-beat-phases-exactly-matched-in-fine-final-beat",
+    "bothRunsRequiredStructurallyAccepted": true,
+    "bothRunsRequiredOneBeatReturnAtCallerTolerance": true,
+    "bothRunsRequiredIndependentColdStart": true,
+    "thresholdAppliedToWaveformDifferences": false
+  },
+  "protocol": {
+    "coarseDtSec": 0.001,
+    "fineDtSec": 0.0005,
+    "refinementRatio": 2,
+    "commonRawVertexCount": 1001,
+    "parameterSha256": "670711267a68684aa557ed8eb98b2becf5548f824d9f041cb5ec1159890379f6"
+  },
+  "sources": {
+    "coarse": {
+      "path": "data/mechanics2/reports/no-avpd-four-chamber-atrial-land-triseg-report-v2.json",
+      "contentEncoding": "identity",
+      "fileByteLength": 7391220,
+      "fileSha256": "6177def4de4f23a633cfe2505aa168f2229d575468bf2537e485b52a20fabf93",
+      "normalizedSha256": "0189b8bbeb4d1a8b45727507a5438c11ed946463de61f660f02692f7f95559f5",
+      "dtSec": 0.001,
+      "beats": 30,
+      "initialization": "independent-cold-start"
+    },
+    "fine": {
+      "path": "data/mechanics2/reports/no-avpd-four-chamber-atrial-land-triseg-dt0p5ms-v2.json.gz",
+      "contentEncoding": "gzip",
+      "fileByteLength": 2551785,
+      "fileSha256": "607731c4f4e68f5539394c49e7c0b5537e1054af7634f0f51037bbeee1be2f78",
+      "normalizedSha256": "5a5f90e6efb8d619b87e0b48dea0fe1680cc977d9f2c6a2aa393d81b06621df1",
+      "dtSec": 0.0005,
+      "beats": 30,
+      "initialization": "independent-cold-start"
+    }
+  },
+  "periodicity": {
+    "coarse": {
+      "componentCount": 52,
+      "maxAbsDimensionless": 0.00006782949999271987,
+      "rmsDimensionless": 0.000023042958448981402,
+      "maximumComponentPath": "walls.leftAtrium.passiveSls.slsOverstressPa",
+      "allComponentsFinite": true
+    },
+    "fine": {
+      "componentCount": 52,
+      "maxAbsDimensionless": 0.00006702192322988868,
+      "rmsDimensionless": 0.00002297398533922179,
+      "maximumComponentPath": "triSegContinuation.septalCapVolumeMl",
+      "allComponentsFinite": true
+    }
+  },
+  "fieldComparisons": {
+    "laVolumeMl": {
+      "maximumAbsoluteDifference": 0.19376766433508408,
+      "rmsDifference": 0.07095592077476978,
+      "fineMaximumAbsoluteScale": 104.81165073705111,
+      "maximumDifferenceRelativeToFineMaximum": 0.001848722570176894,
+      "rmsDifferenceRelativeToFineMaximum": 0.0006769850515262111
+    },
+    "lvVolumeMl": {
+      "maximumAbsoluteDifference": 0.18853150650356554,
+      "rmsDifference": 0.055040352995294486,
+      "fineMaximumAbsoluteScale": 153.81325693812065,
+      "maximumDifferenceRelativeToFineMaximum": 0.0012257168871953091,
+      "rmsDifferenceRelativeToFineMaximum": 0.0003578388111074023
+    },
+    "laPressureMmHg": {
+      "maximumAbsoluteDifference": 0.1049177931401637,
+      "rmsDifference": 0.018282437259235403,
+      "fineMaximumAbsoluteScale": 20.5086170760187,
+      "maximumDifferenceRelativeToFineMaximum": 0.005115790730855617,
+      "rmsDifferenceRelativeToFineMaximum": 0.0008914514904378203
+    },
+    "lvPressureMmHg": {
+      "maximumAbsoluteDifference": 0.23352623937381622,
+      "rmsDifference": 0.041950503566096184,
+      "fineMaximumAbsoluteScale": 93.84262800468169,
+      "maximumDifferenceRelativeToFineMaximum": 0.0024884878475714247,
+      "rmsDifferenceRelativeToFineMaximum": 0.00044703035771763905
+    },
+    "mitralFlowMlPerSec": {
+      "maximumAbsoluteDifference": 16.69895258966423,
+      "rmsDifference": 1.3198618191021885,
+      "fineMaximumAbsoluteScale": 618.8186034442004,
+      "maximumDifferenceRelativeToFineMaximum": 0.026985214240040203,
+      "rmsDifferenceRelativeToFineMaximum": 0.002132873529910291
+    },
+    "pulmonaryVenousFlowMlPerSec": {
+      "maximumAbsoluteDifference": 1.0826602979561102,
+      "rmsDifference": 0.3664534484883807,
+      "fineMaximumAbsoluteScale": 158.20251134129484,
+      "maximumDifferenceRelativeToFineMaximum": 0.0068435089226899564,
+      "rmsDifferenceRelativeToFineMaximum": 0.002316356708761848
+    },
+    "laFreeCalciumUm": {
+      "maximumAbsoluteDifference": 7.452209960234768e-10,
+      "rmsDifference": 1.0073864293250064e-10,
+      "fineMaximumAbsoluteScale": 0.6014641805530176,
+      "maximumDifferenceRelativeToFineMaximum": 1.239011432631419e-9,
+      "rmsDifferenceRelativeToFineMaximum": 1.674890146240733e-10
+    },
+    "laActiveStressKPa": {
+      "maximumAbsoluteDifference": 0.19686722339875828,
+      "rmsDifference": 0.028012338245013667,
+      "fineMaximumAbsoluteScale": 25.751118792971802,
+      "maximumDifferenceRelativeToFineMaximum": 0.0076449969021341645,
+      "rmsDifferenceRelativeToFineMaximum": 0.0010878105324363234
+    },
+    "laPassiveStressKPa": {
+      "maximumAbsoluteDifference": 0.07717255900446318,
+      "rmsDifference": 0.02160315243092273,
+      "fineMaximumAbsoluteScale": 22.692372881582983,
+      "maximumDifferenceRelativeToFineMaximum": 0.0034008148644118236,
+      "rmsDifferenceRelativeToFineMaximum": 0.0009520005926068551
+    },
+    "laSlsOverstressKPa": {
+      "maximumAbsoluteDifference": 0.002728797610537237,
+      "rmsDifference": 0.001009480560791079,
+      "fineMaximumAbsoluteScale": 0.5075806730768815,
+      "maximumDifferenceRelativeToFineMaximum": 0.005376086512505797,
+      "rmsDifferenceRelativeToFineMaximum": 0.0019888081133423623
+    },
+    "laTotalStressKPa": {
+      "maximumAbsoluteDifference": 0.2760871386056678,
+      "rmsDifference": 0.045044357612772534,
+      "fineMaximumAbsoluteScale": 38.42186627524277,
+      "maximumDifferenceRelativeToFineMaximum": 0.007185677463657336,
+      "rmsDifferenceRelativeToFineMaximum": 0.0011723625627679877
+    }
+  },
+  "loopAreaComparisons": {
+    "laPv": {
+      "coarseSignedArea": 495.3643353922457,
+      "fineSignedArea": 498.4783414393135,
+      "absoluteDifference": 3.1140060470677895,
+      "relativeDifference": 0.006247023768527964
+    },
+    "lvPv": {
+      "coarseSignedArea": 4900.463222924722,
+      "fineSignedArea": 4908.826998353132,
+      "absoluteDifference": 8.363775428410008,
+      "relativeDifference": 0.001703823628580918
+    }
+  },
+  "eventAndPeakComparisons": {
+    "mitralOpeningPhaseAbsoluteDifference": 0.00004591282509924799,
+    "mitralClosurePhaseAbsoluteDifference": 0.00025096102806743126,
+    "ePeakPhaseAbsoluteDifference": 0.0004999999999999449,
+    "ePeakFlowRelativeDifference": 0.005742690271271013,
+    "aPeakPhaseAbsoluteDifference": 0,
+    "aPeakFlowRelativeDifference": 0.00843387657964883,
+    "eaPeakRatioAbsoluteDifference": 0.0007480744127781325,
+    "lvEjectionFractionAbsoluteDifference": 0.0001562296331494295
+  },
+  "provenance": {
+    "harnessPath": "tools/mechanics2/runNoAvpdFourChamberAtrialLandTriSegDtRefinementV2.ts",
+    "harnessSha256": "40cb8b6c45b063e184f6a3ddde7c7c68442a3922dc84608df76a2791f73b714f"
+  },
+  "normalizedSha256": "f39de990935ce9d575a0a60d03ba1b6ba0f043d7b282681983f0933e48c5334b"
+}
