@@ -84,31 +84,41 @@ export function stepParallelOneStateSlsBackwardEulerV1(
     input.previousFiberLogStrain - previous.viscousLogStrain;
   const nextElasticStrain =
     input.nextFiberLogStrain - nextViscousLogStrain;
-  const previousOverstressPa = params.branchModulusPa * previousElasticStrain;
-  const nextOverstressPa = params.branchModulusPa * nextElasticStrain;
+  const previousOverstressPa = canonicalZero(
+    params.branchModulusPa * previousElasticStrain,
+  );
+  const nextOverstressPa = canonicalZero(
+    params.branchModulusPa * nextElasticStrain,
+  );
   const dNextOverstressDNextFiberLogStrainPa =
     params.branchModulusPa / (1 + ratio);
   const stateResidual =
     nextViscousLogStrain - previous.viscousLogStrain -
     ratio * nextElasticStrain;
 
-  const previousStoredEnergyDensityJPerM3 =
-    0.5 * params.branchModulusPa * previousElasticStrain ** 2;
-  const nextStoredEnergyDensityJPerM3 =
-    0.5 * params.branchModulusPa * nextElasticStrain ** 2;
-  const stressWorkIncrementDensityJPerM3 =
+  const previousStoredEnergyDensityJPerM3 = canonicalZero(
+    0.5 * params.branchModulusPa * previousElasticStrain ** 2,
+  );
+  const nextStoredEnergyDensityJPerM3 = canonicalZero(
+    0.5 * params.branchModulusPa * nextElasticStrain ** 2,
+  );
+  const stressWorkIncrementDensityJPerM3 = canonicalZero(
     nextOverstressPa *
-    (input.nextFiberLogStrain - input.previousFiberLogStrain);
-  const physicalDissipationIncrementDensityJPerM3 =
-    params.branchModulusPa * ratio * nextElasticStrain ** 2;
-  const backwardEulerNumericalDissipationIncrementDensityJPerM3 =
+    (input.nextFiberLogStrain - input.previousFiberLogStrain),
+  );
+  const physicalDissipationIncrementDensityJPerM3 = canonicalZero(
+    params.branchModulusPa * ratio * nextElasticStrain ** 2,
+  );
+  const backwardEulerNumericalDissipationIncrementDensityJPerM3 = canonicalZero(
     0.5 * params.branchModulusPa *
-    (nextElasticStrain - previousElasticStrain) ** 2;
-  const discreteEnergyBalanceResidualJPerM3 =
+    (nextElasticStrain - previousElasticStrain) ** 2,
+  );
+  const discreteEnergyBalanceResidualJPerM3 = canonicalZero(
     stressWorkIncrementDensityJPerM3 -
     (nextStoredEnergyDensityJPerM3 - previousStoredEnergyDensityJPerM3) -
     physicalDissipationIncrementDensityJPerM3 -
-    backwardEulerNumericalDissipationIncrementDensityJPerM3;
+    backwardEulerNumericalDissipationIncrementDensityJPerM3,
+  );
 
   const finite = Object.values({
     nextViscousLogStrain,
@@ -159,7 +169,7 @@ function validateParams(params: ParallelOneStateSlsParamsV1): void {
   if (typeof params.parameterSetId !== "string" || params.parameterSetId.trim() === "") {
     throw new Error("params.parameterSetId must be non-empty");
   }
-  requirePositive(params.branchModulusPa, "params.branchModulusPa");
+  requireNonnegative(params.branchModulusPa, "params.branchModulusPa");
   requirePositive(params.relaxationTimeSec, "params.relaxationTimeSec");
 }
 
@@ -171,4 +181,14 @@ function requirePositive(value: number, label: string): void {
   if (!(value > 0) || !Number.isFinite(value)) {
     throw new Error(`${label} must be positive and finite`);
   }
+}
+
+function requireNonnegative(value: number, label: string): void {
+  if (value < 0 || !Number.isFinite(value)) {
+    throw new Error(`${label} must be nonnegative and finite`);
+  }
+}
+
+function canonicalZero(value: number): number {
+  return value === 0 ? 0 : value;
 }

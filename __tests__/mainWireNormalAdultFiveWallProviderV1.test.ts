@@ -12,6 +12,7 @@ import {
   MAIN_WIRE_NORMAL_ADULT_SYSTOLIC_AUDIT_VOLUMES_ML_V1,
   asMainWireFiveWallFreeCalciumDriveV1,
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
+  createMainWireNormalAdultFiveWallMaterialKernelsV1,
   createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultWallMaterialReadbackV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
@@ -168,6 +169,34 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
       createCanonicalMainWireNormalAdultFiveWallProviderV1()
         .parameterIdentityHash,
     );
+  }, 60_000);
+
+  it("makes the paired LA-only SLS ablation mechanically exact-off", () => {
+    const on = createMainWireNormalAdultFiveWallMaterialKernelsV1("on");
+    const off = createMainWireNormalAdultFiveWallMaterialKernelsV1("exact-off");
+    const cold = off.LA.initializeColdAtFixedInput({
+      fiberLogStrain: 0,
+      freeCalciumUM: 0.1,
+    });
+    const trial = off.LA.evaluateTrialFromAccepted({
+      previousAcceptedState: cold.state,
+      candidateFiberLogStrain: 0.08,
+      candidateFreeCalciumUM: 0.1,
+      stepDtSec: 0.002,
+    });
+    const rb = wallReadback(trial.readback);
+
+    expect(Number.isFinite(trial.fiberKirchhoffStressPa)).toBe(true);
+    expect(rb.slsOverstressPa).toBe(0);
+    expect(rb.energyLedger.slsPreviousStoredEnergyDensityJPerM3).toBe(0);
+    expect(rb.energyLedger.slsNextStoredEnergyDensityJPerM3).toBe(0);
+    expect(rb.energyLedger.slsPhysicalDissipationIncrementDensityJPerM3).toBe(0);
+    expect(rb.energyLedger.slsBackwardEulerNumericalDissipationIncrementDensityJPerM3)
+      .toBe(0);
+    expect(rb.energyLedger.slsDiscreteEnergyBalanceResidualJPerM3).toBe(0);
+    expect(off.LA.parameterIdentityHash).not.toBe(on.LA.parameterIdentityHash);
+    expect(off.RA.parameterIdentityHash).toBe(on.RA.parameterIdentityHash);
+    expect(off.LVFW.parameterIdentityHash).toBe(on.LVFW.parameterIdentityHash);
   }, 60_000);
 });
 

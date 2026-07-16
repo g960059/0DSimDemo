@@ -1,4 +1,4 @@
-# Main-wire four-chamber Land–TriSeg–long-axis V1 設計境界
+# Main-wire four-chamber Land–TriSeg V1 設計境界（long-axis陰性記録を含む）
 
 ## 状態
 
@@ -7,6 +7,26 @@
 
 目的は特定のLA PV形状を直接fitすることではない。正常域を含む広い負荷域で、reservoir、
 conduit、booster pumpを同じ物理stateから生じさせ、将来は各parameterを独立計測へ対応づける。
+
+## 2026-07-16 構造判定
+
+固定HR 60、`dt=2 ms`、main-wire noncoronary循環、同一Ca priorでの反証試験から、canonical
+構造を次のように更新した。
+
+- shared long-axis $q_L$：棄却。onでは第1心拍52 msで$|q_L|=0.1$の宣言boundへ到達した。
+  gain、bound、spring、dashpot、慣性を追加して救済しない。
+- LAA+body、common pericardial constraint：追加しない。過去の固定比較でV-loop拡大を所有しなかった。
+- 弁：chamber間の独立flow inertanceを棄却し、EOA由来Bernoulli損失を持つ準定常orificeへ簡約した。
+  Ao/PA rootと血管edgeのinertanceはmain-wire側に残る。
+- atrial parallel SLS：保持。LAだけをexact-offにすると、最終心拍の自己交差が1から4へ増え、
+  reservoir-minus-conduit等容量差が0.409から0.261 mmHgへ36%低下した。onでは物理散逸
+  0.349 mJ/beat、BE数値散逸0.029 mJ/beatで、物理散逸が約12.1倍を占めた。
+- 2本目のMaxwell branch、LAA補正、long-axis補正は追加しない。
+
+canonicalの最終心拍は自己交差1個、A/V lobe面積7.22/3.35 mmHg mL、reservoirが
+conduitより上にあるprobe割合100%、LV EF 59.4%、CO 3.77 L/minであった。これは正常ヒト
+acceptanceでも症例fitでもなく、構造比較のraw accepted-step結果である。LA volume
+20.1--35.9 mLとCOはpopulation priorより低く、main-wire全血液量分配・冠循環統合後の未解決課題とする。
 
 ## 陰性だった構造を本体へ積層しない
 
@@ -69,14 +89,14 @@ transactionとして次を所有する。
 
 - LA、RA：Land active + equilibrium passive + 必要最小限のparallel Maxwell
 - LV、RV、septum：Land active + equilibrium passive + parallel Maxwell + TriSeg
-- 横方向ひずみを解析的に消去したreduced one-fiber isochoric long-axis座標
+- q-offのTriSeg内部座標。reduced long-axisは陰性結果を再現するfalsification pathだけに残す
 - 四心腔transmural pressure
 - pure trial、明示commit、cold initialization、parameter identity
 
 per-chamber providerが共有可変stateを参照する構造は禁止する。TriSegとlong-axisは四心腔を横断する
 ため、一つのproviderが一貫したcandidateを評価する。
 
-## 共有reduced isochoric long-axis座標
+## 棄却された共有reduced isochoric long-axis座標
 
 初手は左心系に無次元の準静的座標 $q_L$ を一つ置く。$q_L>0$をLA effective longitudinal
 fiber lengtheningとLV shorteningの向きとする。
@@ -134,9 +154,14 @@ $$
 初手ではdashpot、慣性、時定数を足さない。$q$がboundへ張り付く、または総接線が負になる場合、
 parameter調整で救済せず構造failとする。
 
+実際の固定閉ループでは52 msでboundへ到達したため、この停止規則を発動した。以下の式は
+陰性仮説の再現性を保つための記録であり、canonical pressure ownerではない。
+
 ## 弁
 
-弁はmain wireのparameter namespaceを唯一のownerとする。
+弁の接続先、EOA、leak EOA、線形loss、opening stateはmain wire graphをownerとする。
+一方、旧edge `B`と`L`はnormal chamber間flowに物理的でない高周波modeを作ったため、新しい
+四心腔transactionではそのまま移植しない。
 
 $$
 A(\xi)=A_{leak}+\xi(A_{max}-A_{leak}),
@@ -145,21 +170,27 @@ $$
 $$
 R(A)=R_{open}\left(\frac{A_{ref}}{A}\right)^2,
 \quad
-B(A)=B_{open}\left(\frac{A_{ref}}{A}\right)^2,
+B(A)=\frac{\rho}{2\cdot133.322}
+\left(\frac{10^{-6}}{A_{m^2}}\right)^2,
 $$
 
 $$
-L=L_{open}+L_{root}.
+\Delta P=R(A)Q+B(A)Q|Q|.
 $$
 
-$L(A)$を採用するには、流体運動エネルギー$L(\xi)q^2/2$とleafletへの相反generalized forceが
-必要になる。初手ではそのstateを増やさず、main wireと同じ一定inertanceを用いる。
+$A$はeffective orifice area（EOA）、$\rho=1060\ \mathrm{kg/m^3}$、$C_d=1$とする。EOAが既に
+contraction/dischargeを含むため、追加の$C_d$をfitしない。旧edge Bはこの構成に対しMV 0.50倍、
+AoV 0.031倍、TV 1.61倍、PV 0.081倍で、特にsemilunar peak flowを過小減衰にしていた。
 
-$q$と$\xi$を独立stateとし、accepted-state backward Euler residualを用いる。
+$Q$は各candidate pressureから単調な代数rootとして求め、独立memory stateにしない。$\xi$だけを
+bounded opening stateとしてaccepted-state backward Eulerで進める。これにより旧モデルで
+MV約10 Hz、AoV約33 Hzだったinertance--compliance ringingを除去した。root/vessel inertanceは
+別pressure区間のmain-wire dynamic edgeが所有する。
+
 $A_{leak}$は病的な双方向regurgitant orificeである。数値area floorとは別parameterにする。
 
 - $A_{leak}=0$：完全閉鎖時の持続逆流をゼロにする
-- $A_{leak}=0$：半滑らかな片側制約$q\ge 0$とし、圧逆転後の正方向coastingは慣性式に残す
+- $A_{leak}=0$：半滑らかな片側制約$Q\ge 0$とする
 - $A_{leak}>0$：病的逆流として双方向flowを許す
 - 固定reverse-flow capや$q$/$\dot q$ clampを形状調整には使わない
 
@@ -170,7 +201,8 @@ $A_{leak}$は病的な双方向regurgitant orificeである。数値area floor�
 1. main wire circulation + joint four-chamber mechanics、$q_L$ off
 2. 同一条件、$q_L$ on
 
-atrial SLS、弁parameter、血管parameterは同じ固定priorに保つ。初回は$q_L$以外をfactorにしない。
+この比較で$q_L$を棄却した後、弁hydraulicsとLA SLSをそれぞれ一回だけ固定ablationした。
+Cd、B、L、$E_v$、$\tau_v$のscanは行っていない。
 
 評価はLA/LV PV、LAP/LVP、MVF、PVFだけでなく、
 
@@ -245,6 +277,10 @@ PV loopからfitしない。bound hitはclamp後の成功ではなくstructural 
 
 初回の主比較はSLSを固定onにした$q_L$ off/onである。その後、SLSの存在意義だけを判定する
 off/on ablationを一度行う。これはparameter searchではない。効果がなければSLSを削除する。
+
+exact-off比較では$E_v=0$とし、LA SLSのstress、tangent、stored energy、物理散逸、BE数値散逸を
+すべて厳密に0とした。RAと心室3壁はonのまま固定した。offでV-loop topologyと等容量枝差が
+明確に悪化し、onの散逸は数値散逸でなく物理散逸が支配したため、一状態SLSを保持する。
 
 ## main-wire接続の段階境界
 

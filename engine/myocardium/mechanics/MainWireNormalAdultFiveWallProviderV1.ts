@@ -112,6 +112,8 @@ export type MainWireNormalAdultWallMaterialReadbackV1 = Readonly<{
 export type MainWireNormalAdultFiveWallProviderV1 =
   MainWireFiveWallLandTriSegProviderV1<LandSlsWallMaterialStateV1>;
 
+export type MainWireNormalAdultLaSlsModeV1 = "on" | "exact-off";
+
 type PassiveEvaluationV1 = Readonly<{
   modelId: MainWireNormalAdultWallMaterialReadbackV1["passiveModelId"];
   parameterIdentityHash: string;
@@ -128,17 +130,21 @@ const LAND_SLS_STATE_CODEC: WholeHeartMechanicsStateCodecV1<
   decode: decodeLandSlsState,
 });
 
-export function createCanonicalMainWireNormalAdultFiveWallProviderV1():
+export function createCanonicalMainWireNormalAdultFiveWallProviderV1(
+  laSlsMode: MainWireNormalAdultLaSlsModeV1 = "on",
+):
 MainWireNormalAdultFiveWallProviderV1 {
-  return createNormalAdultProvider(false);
+  return createNormalAdultProvider(false, laSlsMode);
 }
 
 export function createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1():
 MainWireNormalAdultFiveWallProviderV1 {
-  return createNormalAdultProvider(true);
+  return createNormalAdultProvider(true, "on");
 }
 
-export function createMainWireNormalAdultFiveWallMaterialKernelsV1():
+export function createMainWireNormalAdultFiveWallMaterialKernelsV1(
+  laSlsMode: MainWireNormalAdultLaSlsModeV1 = "on",
+):
 MainWireFiveWallRecordV1<
   MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
 > {
@@ -149,9 +155,13 @@ MainWireFiveWallRecordV1<
     const passive = isAtrium
       ? createMoyerPassiveEvaluator(prior.passive.atrial.compiled)
       : createKlotzPassiveEvaluator(prior.passive.ventricular.compiled);
+    const baseParams = prior.active.wallMaterialByWall[wallId];
+    const materialParams = wallId === "LA" && laSlsMode === "exact-off"
+      ? exactLaSlsOffParams(baseParams)
+      : baseParams;
     return createWallKernel(
       wallId,
-      prior.active.wallMaterialByWall[wallId],
+      materialParams,
       passive,
       prior.parameterIdentityHash,
     );
@@ -160,6 +170,7 @@ MainWireFiveWallRecordV1<
 
 function createNormalAdultProvider(
   longAxisEnabled: boolean,
+  laSlsMode: MainWireNormalAdultLaSlsModeV1,
 ): MainWireNormalAdultFiveWallProviderV1 {
   const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
   assertNormalAdultFiveWallPriorV1(prior);
@@ -167,8 +178,8 @@ function createNormalAdultProvider(
   return createMainWireFiveWallLandTriSegProviderV1({
     parameterSetId: longAxisEnabled
       ? `${prior.priorId}-q-on-structural-falsification`
-      : `${prior.priorId}-q-off-canonical`,
-    materialByWall: createMainWireNormalAdultFiveWallMaterialKernelsV1(),
+      : `${prior.priorId}-q-off-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}`,
+    materialByWall: createMainWireNormalAdultFiveWallMaterialKernelsV1(laSlsMode),
     atria: Object.freeze({
       LA: atrialGeometry("LA"),
       RA: atrialGeometry("RA"),
@@ -189,6 +200,20 @@ function createNormalAdultProvider(
         modeParams: q,
       })
       : Object.freeze({ enabled: false as const }),
+  });
+}
+
+function exactLaSlsOffParams(
+  base: LandSlsWallMaterialParamsV1,
+): LandSlsWallMaterialParamsV1 {
+  return Object.freeze({
+    ...base,
+    parameterSetId: `${base.parameterSetId}-la-sls-exact-off`,
+    sls: Object.freeze({
+      ...base.sls,
+      parameterSetId: `${base.sls.parameterSetId}-la-exact-off`,
+      branchModulusPa: 0,
+    }),
   });
 }
 

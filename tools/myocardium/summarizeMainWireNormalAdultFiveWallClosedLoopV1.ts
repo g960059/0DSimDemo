@@ -10,6 +10,9 @@ import type {
   MainWireNormalAdultFiveWallClosedLoopResultV1,
   MainWireNormalAdultFiveWallClosedLoopSampleV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
+import {
+  NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
+} from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
 
 const inputPath = valueAfter("--input");
 const result = JSON.parse(readFileSync(inputPath, "utf8")) as
@@ -19,9 +22,9 @@ if (beat.length === 0) throw new Error("input has no complete beat");
 
 const peakMvFlow = maximum(beat.map((sample) => sample.flowMlPerSec.MV));
 const openThreshold = Math.max(1, 0.01 * peakMvFlow);
-const mvoIndex = beat.findIndex((sample, index) =>
-  sample.flowMlPerSec.MV > openThreshold &&
-  (index === 0 || beat[index - 1]!.flowMlPerSec.MV <= openThreshold));
+const mvoIndex = cyclicOpeningAfterLongestClosedRun(
+  beat.map((sample) => sample.flowMlPerSec.MV > openThreshold),
+);
 const atrialOnsetIndex = beat.findIndex((sample) => sample.cyclePhase01 >= 0.852);
 const reservoir = mvoIndex > 0 ? beat.slice(0, mvoIndex + 1) : [];
 const conduit = mvoIndex >= 0 && atrialOnsetIndex > mvoIndex
@@ -47,6 +50,7 @@ const early = beat.filter((sample) =>
   sample.cyclePhase01 >= beat[mvoIndex]!.cyclePhase01 &&
   sample.cyclePhase01 < 0.65);
 const late = beat.filter((sample) => sample.cyclePhase01 >= 0.75);
+const laSlsCycleLedger = measureLaSlsCycleLedger(result, beat);
 
 process.stdout.write(`${JSON.stringify({
   inputPath,
@@ -83,7 +87,20 @@ process.stdout.write(`${JSON.stringify({
     mitralAPeakMlPerSec: late.length > 0
       ? maximum(late.map((sample) => sample.flowMlPerSec.MV))
       : null,
+    mitralPeakCountAboveFivePercent: localPeakCount(
+      beat.map((sample) => sample.flowMlPerSec.MV),
+      0.05,
+    ),
+    aorticValvePeakCountAboveFivePercent: localPeakCount(
+      beat.map((sample) => sample.flowMlPerSec.AoV),
+      0.05,
+    ),
+    lvPressurePeakCountAboveFivePercent: localPeakCount(
+      beat.map((sample) => sample.chamberTransmuralPressureMmHg.LV),
+      0.05,
+    ),
   },
+  laSlsCycleLedger,
   laPvTwoLobes: lobe,
   reservoirConduitOrder: branchOrder,
   residualMaxima: {
@@ -136,6 +153,122 @@ function mean(values: readonly number[]): number {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+/**
+ * The atrial A-wave can remain above threshold across phase 1 -> 0. Early
+ * diastolic MVO is therefore the opening transition preceded by the longest
+ * cyclic closed interval, not necessarily the first positive sample.
+ */
+function cyclicOpeningAfterLongestClosedRun(open: readonly boolean[]): number {
+  if (open.length === 0 || open.every(Boolean) || open.every((value) => !value)) {
+    return -1;
+  }
+  let bestOpening = -1;
+  let bestClosedCount = -1;
+  for (let index = 0; index < open.length; index += 1) {
+    const previous = (index - 1 + open.length) % open.length;
+    if (!open[index] || open[previous]) continue;
+    let closedCount = 0;
+    let cursor = previous;
+    while (!open[cursor] && closedCount < open.length) {
+      closedCount += 1;
+      cursor = (cursor - 1 + open.length) % open.length;
+    }
+    if (closedCount > bestClosedCount) {
+      bestClosedCount = closedCount;
+      bestOpening = index;
+    }
+  }
+  return bestOpening;
+}
+
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
+}
+
+function localPeakCount(values: readonly number[], thresholdFraction: number): number {
+  if (values.length < 3) return 0;
+  const threshold = thresholdFraction * maximum(values);
+  let count = 0;
+  for (let index = 1; index < values.length - 1; index += 1) {
+    if (
+      values[index]! > threshold &&
+      values[index]! > values[index - 1]! &&
+      values[index]! >= values[index + 1]!
+    ) count += 1;
+  }
+  return count;
+}
+
+function measureLaSlsCycleLedger(
+  result: MainWireNormalAdultFiveWallClosedLoopResultV1,
+  beat: readonly MainWireNormalAdultFiveWallClosedLoopSampleV1[],
+) {
+  const mode = result.laSlsMode ?? "on";
+  const wallVolumeMl = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria.LA
+    .wallMaterialVolumeMl;
+  const onModulusPa = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.wallMaterialByWall.LA
+    .sls.branchModulusPa;
+  const tauSec = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.wallMaterialByWall.LA
+    .sls.relaxationTimeSec;
+  const end = result.completedBeatCount * result.stepsPerBeat;
+  const preceding = result.samples[end - result.stepsPerBeat - 1] ?? null;
+  const sequence = preceding === null ? [...beat] : [preceding, ...beat];
+  const maximumAbsoluteStressPa = maximum(
+    beat.map((sample) => Math.abs(sample.wallStressPa.LA.sls)),
+  );
+  if (mode === "exact-off") {
+    return Object.freeze({
+      mode,
+      mechanicallyExactOff: maximumAbsoluteStressPa === 0,
+      maximumAbsoluteStressPa,
+      stressWorkMilliJ: 0,
+      storedEnergyChangeMilliJ: 0,
+      physicalDissipationMilliJ: 0,
+      backwardEulerNumericalDissipationMilliJ: 0,
+      physicalToNumericalDissipationRatio: null,
+      discreteBalanceResidualMilliJ: 0,
+    });
+  }
+  let stressWorkDensity = 0;
+  let storedEnergyChangeDensity = 0;
+  let physicalDissipationDensity = 0;
+  let numericalDissipationDensity = 0;
+  for (let index = 1; index < sequence.length; index += 1) {
+    const previous = sequence[index - 1]!;
+    const next = sequence[index]!;
+    const previousElastic = previous.wallStressPa.LA.sls / onModulusPa;
+    const nextElastic = next.wallStressPa.LA.sls / onModulusPa;
+    const previousStrain = Math.log(
+      previous.nodeVolumeMl.LA + 0.5 * wallVolumeMl,
+    ) / 3;
+    const nextStrain = Math.log(
+      next.nodeVolumeMl.LA + 0.5 * wallVolumeMl,
+    ) / 3;
+    stressWorkDensity += next.wallStressPa.LA.sls *
+      (nextStrain - previousStrain);
+    storedEnergyChangeDensity += 0.5 * onModulusPa *
+      (nextElastic ** 2 - previousElastic ** 2);
+    physicalDissipationDensity += onModulusPa * result.dtSec / tauSec *
+      nextElastic ** 2;
+    numericalDissipationDensity += 0.5 * onModulusPa *
+      (nextElastic - previousElastic) ** 2;
+  }
+  const densityToMilliJ = (densityJPerM3: number) =>
+    densityJPerM3 * wallVolumeMl * 1e-3;
+  const balanceDensity = stressWorkDensity - storedEnergyChangeDensity -
+    physicalDissipationDensity - numericalDissipationDensity;
+  return Object.freeze({
+    mode,
+    mechanicallyExactOff: false,
+    maximumAbsoluteStressPa,
+    stressWorkMilliJ: densityToMilliJ(stressWorkDensity),
+    storedEnergyChangeMilliJ: densityToMilliJ(storedEnergyChangeDensity),
+    physicalDissipationMilliJ: densityToMilliJ(physicalDissipationDensity),
+    backwardEulerNumericalDissipationMilliJ:
+      densityToMilliJ(numericalDissipationDensity),
+    physicalToNumericalDissipationRatio: numericalDissipationDensity > 0
+      ? physicalDissipationDensity / numericalDissipationDensity
+      : null,
+    discreteBalanceResidualMilliJ: densityToMilliJ(balanceDensity),
+  });
 }

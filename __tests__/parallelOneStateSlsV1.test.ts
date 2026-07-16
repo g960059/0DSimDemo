@@ -61,4 +61,23 @@ describe("parallel one-state SLS V1", () => {
       }
     }
   });
+
+  it("supports an exact mechanical-off ablation with every ledger term zero", () => {
+    const output = stepParallelOneStateSlsBackwardEulerV1(
+      initialParallelOneStateSlsStateV1(-0.04),
+      { previousFiberLogStrain: 0.08, nextFiberLogStrain: -0.12, dtSec: 0.01 },
+      { ...PARAMS, parameterSetId: "exact-off", branchModulusPa: 0 },
+    );
+    expect(output.previousOverstressPa).toBe(0);
+    expect(output.nextOverstressPa).toBe(0);
+    expect(output.dNextOverstressDNextFiberLogStrainPa).toBe(0);
+    expect(output.previousStoredEnergyDensityJPerM3).toBe(0);
+    expect(output.nextStoredEnergyDensityJPerM3).toBe(0);
+    expect(output.stressWorkIncrementDensityJPerM3).toBe(0);
+    expect(output.physicalDissipationIncrementDensityJPerM3).toBe(0);
+    expect(output.backwardEulerNumericalDissipationIncrementDensityJPerM3)
+      .toBe(0);
+    expect(output.discreteEnergyBalanceResidualJPerM3).toBe(0);
+    expect(output.passive).toBe(true);
+  });
 });

@@ -17,6 +17,7 @@ import type {
 import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1,
+  type MainWireNormalAdultLaSlsModeV1,
   type MainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultWallMaterialReadbackV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
@@ -36,6 +37,7 @@ export type MainWireNormalAdultFiveWallExperimentModeV1 =
 
 export type MainWireNormalAdultFiveWallClosedLoopOptionsV1 = Readonly<{
   mode: MainWireNormalAdultFiveWallExperimentModeV1;
+  laSlsMode?: MainWireNormalAdultLaSlsModeV1;
   dtSec: number;
   beatCount: number;
 }>;
@@ -121,6 +123,7 @@ export type MainWireNormalAdultFiveWallBeatClosureV1 = Readonly<{
 export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
   experimentId: typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID;
   mode: MainWireNormalAdultFiveWallExperimentModeV1;
+  laSlsMode: MainWireNormalAdultLaSlsModeV1;
   completed: boolean;
   requestedBeatCount: number;
   completedBeatCount: number;
@@ -141,6 +144,7 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
     pericardialConstraint: false;
     parameterSearch: false;
     smoothingAppliedToSamples: false;
+    laSlsExactOffIsPairedAblationOnly: boolean;
   }>;
 }>;
 
@@ -178,8 +182,9 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
 ): MainWireNormalAdultFiveWallClosedLoopResultV1 {
   validateOptions(options);
   const stepsPerBeat = Math.round(CYCLE_LENGTH_SEC / options.dtSec);
+  const laSlsMode = options.laSlsMode ?? "on";
   const runtime = normalAdultMainWireRuntimeV1();
-  const provider = providerForMode(options.mode);
+  const provider = providerForMode(options.mode, laSlsMode);
   const cold = initializeMainWireFiveWallNonCoronaryV1({
     provider,
     runtime,
@@ -233,6 +238,7 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
   return Object.freeze({
     experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID,
     mode: options.mode,
+    laSlsMode,
     completed: failure === null && beatClosure.length === options.beatCount,
     requestedBeatCount: options.beatCount,
     completedBeatCount: beatClosure.length,
@@ -249,6 +255,7 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
       pericardialConstraint: false as const,
       parameterSearch: false as const,
       smoothingAppliedToSamples: false as const,
+      laSlsExactOffIsPairedAblationOnly: laSlsMode === "exact-off",
     }),
   });
 }
@@ -369,12 +376,19 @@ function physicalCirculationState(state: AcceptedState): Readonly<{
   nodeVolumesMl: AcceptedState["circulation"]["nodeVolumesMl"];
   dynamicEdgeFlowsMlPerSec:
     AcceptedState["circulation"]["dynamicEdgeFlowsMlPerSec"];
-  valveStates: AcceptedState["circulation"]["valveStates"];
+  valveOpeningFraction01: Readonly<Record<"MV" | "AoV" | "TV" | "PV", number>>;
 }> {
   return Object.freeze({
     nodeVolumesMl: state.circulation.nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: state.circulation.dynamicEdgeFlowsMlPerSec,
-    valveStates: state.circulation.valveStates,
+    // Quasi-steady valve q is an algebraic readback, not a memory state. Only
+    // leaflet opening belongs in the beat-boundary closure vector.
+    valveOpeningFraction01: Object.freeze({
+      MV: state.circulation.valveStates.MV.openingFraction01,
+      AoV: state.circulation.valveStates.AoV.openingFraction01,
+      TV: state.circulation.valveStates.TV.openingFraction01,
+      PV: state.circulation.valveStates.PV.openingFraction01,
+    }),
   });
 }
 
@@ -401,9 +415,10 @@ function numericLeaves(value: unknown): readonly number[] {
 
 function providerForMode(
   mode: MainWireNormalAdultFiveWallExperimentModeV1,
+  laSlsMode: MainWireNormalAdultLaSlsModeV1,
 ): MainWireNormalAdultFiveWallProviderV1 {
   return mode === "q-off-canonical"
-    ? createCanonicalMainWireNormalAdultFiveWallProviderV1()
+    ? createCanonicalMainWireNormalAdultFiveWallProviderV1(laSlsMode)
     : createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1();
 }
 
@@ -434,6 +449,13 @@ function validateOptions(
   if (options.mode !== "q-off-canonical" &&
       options.mode !== "q-on-structural-falsification") {
     throw new Error("unsupported five-wall experiment mode");
+  }
+  if (options.laSlsMode !== undefined &&
+      options.laSlsMode !== "on" && options.laSlsMode !== "exact-off") {
+    throw new Error("unsupported LA SLS mode");
+  }
+  if (options.mode !== "q-off-canonical" && options.laSlsMode === "exact-off") {
+    throw new Error("LA SLS exact-off is only defined for the canonical q-off pair");
   }
   if (!(options.dtSec > 0) || !Number.isFinite(options.dtSec)) {
     throw new Error("dtSec must be positive and finite");

@@ -5,9 +5,13 @@ import {
   runMainWireNormalAdultFiveWallClosedLoopV1,
   type MainWireNormalAdultFiveWallExperimentModeV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
+import type {
+  MainWireNormalAdultLaSlsModeV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 
 const mode = argument("--mode", "q-off-canonical") as
   MainWireNormalAdultFiveWallExperimentModeV1;
+const laSlsMode = argument("--la-sls", "on") as MainWireNormalAdultLaSlsModeV1;
 const beatCount = integerArgument("--beats", 1);
 const dtSec = numberArgument("--dt", 0.005);
 const outputPath = argument(
@@ -20,6 +24,7 @@ const outputPath = argument(
 
 const result = runMainWireNormalAdultFiveWallClosedLoopV1({
   mode,
+  laSlsMode,
   beatCount,
   dtSec,
 });
@@ -30,6 +35,7 @@ const finalClosure = result.beatClosure.at(-1) ?? null;
 process.stdout.write(`${JSON.stringify({
   outputPath,
   mode: result.mode,
+  laSlsMode: result.laSlsMode,
   completed: result.completed,
   completedBeatCount: result.completedBeatCount,
   sampleCount: result.samples.length,
