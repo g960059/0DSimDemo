@@ -51,4 +51,3 @@ function optionalValueAfter(name: string): string | null {
   }
   return value;
 }
-
