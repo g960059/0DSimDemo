@@ -74,6 +74,20 @@ import {
 export const PHASE_B1_EVENT_FREE_MONOLITHIC_BE_V1_ID =
   "four-chamber-phase-b1-event-free-monolithic-backward-euler-v1" as const;
 
+export const PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID =
+  "four-chamber-phase-b1-candidate-prior-test-reference-v1" as const;
+
+export const PHASE_B1_EVENT_FREE_PHYSIOLOGY_ENVELOPE_CANDIDATE_MODEL_V1_ID =
+  "four-chamber-phase-b1-physiology-envelope-candidate-v1" as const;
+
+export const PHASE_B1_EVENT_FREE_MONOLITHIC_MODEL_IDS_V1 = Object.freeze([
+  PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID,
+  PHASE_B1_EVENT_FREE_PHYSIOLOGY_ENVELOPE_CANDIDATE_MODEL_V1_ID,
+] as const);
+
+export type PhaseB1EventFreeMonolithicModelIdV1 =
+  typeof PHASE_B1_EVENT_FREE_MONOLITHIC_MODEL_IDS_V1[number];
+
 export const PHASE_B1_EVENT_FREE_GLOBAL_JACOBIAN_AUDIT_V1_ID =
   "phase-b1-event-free-global-semismooth-jacobian-audit-v1" as const;
 
@@ -95,7 +109,7 @@ export type PhaseB1EventFreeClosedLoopParametersV1 = Omit<
 >;
 
 export type PhaseB1EventFreeMonolithicModelV1 = Readonly<{
-  modelId: "four-chamber-phase-b1-candidate-prior-test-reference-v1";
+  modelId: PhaseB1EventFreeMonolithicModelIdV1;
   closedLoopParameters: PhaseB1EventFreeClosedLoopParametersV1;
   newtonScaleRegistry: FourChamberNewtonScaleRegistryV1;
   candidatePriorOnly: true;
@@ -103,6 +117,21 @@ export type PhaseB1EventFreeMonolithicModelV1 = Readonly<{
   phaseB1Acceptance: false;
   releaseRuntimeReachable: false;
 }>;
+
+export function assertPhaseB1EventFreeMonolithicModelIdV1(
+  value: unknown,
+): asserts value is PhaseB1EventFreeMonolithicModelIdV1 {
+  if (
+    typeof value !== "string"
+    || !PHASE_B1_EVENT_FREE_MONOLITHIC_MODEL_IDS_V1.includes(
+      value as PhaseB1EventFreeMonolithicModelIdV1,
+    )
+  ) {
+    throw new Error(
+      "Phase B1 event-free modelId must be an explicitly supported candidate ID",
+    );
+  }
+}
 
 export type PhaseB1EventFreeEndpointEvaluationV1 = Readonly<{
   evaluationId: "phase-b1-event-free-same-time-level-evaluation-v1";
@@ -1528,14 +1557,14 @@ function validateModelBoundary(model: PhaseB1EventFreeMonolithicModelV1): void {
     "phaseB1Acceptance",
     "releaseRuntimeReachable",
   ], "Phase B1 event-free monolithic model");
+  assertPhaseB1EventFreeMonolithicModelIdV1(model.modelId);
   if (
-    model.modelId !== "four-chamber-phase-b1-candidate-prior-test-reference-v1"
-    || model.candidatePriorOnly !== true
+    model.candidatePriorOnly !== true
     || model.physiologicalValidation !== false
     || model.phaseB1Acceptance !== false
     || model.releaseRuntimeReachable !== false
   ) {
-    throw new Error("Phase B1 event-free solver accepts only its candidate-prior test reference");
+    throw new Error("Phase B1 event-free solver accepts only an unvalidated candidate model");
   }
   assertCanonicalFourChamberNewtonScaleRegistryV1(model.newtonScaleRegistry);
 }

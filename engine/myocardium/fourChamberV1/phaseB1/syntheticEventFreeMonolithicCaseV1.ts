@@ -5,6 +5,7 @@ import type {
   SymmetricClosedLoopScaffoldV1,
 } from "@/engine/myocardium/fourChamberV1/testSupport/symmetricClosedLoopScaffoldV1";
 import {
+  PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID,
   type PhaseB1EventFreeMonolithicModelV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/eventFreeMonolithicBackwardEulerV1";
 import {
@@ -26,12 +27,17 @@ import type {
 export const PHASE_B1_SYNTHETIC_EVENT_FREE_MONOLITHIC_CASE_V1_ID =
   "four-chamber-phase-b1-synthetic-event-free-monolithic-case-v1" as const;
 
+type PhaseB1ProjectSyntheticEventFreeMonolithicModelV1 =
+  PhaseB1EventFreeMonolithicModelV1 & Readonly<{
+    modelId: typeof PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID;
+  }>;
+
 export type PhaseB1SyntheticEventFreeMonolithicCaseV1 = Readonly<{
   caseId: typeof PHASE_B1_SYNTHETIC_EVENT_FREE_MONOLITHIC_CASE_V1_ID;
   slsMode: PhaseB1SlsModeV1;
   scaffold: SymmetricClosedLoopScaffoldV1;
   scaffoldConfigurationSha256: string;
-  model: PhaseB1EventFreeMonolithicModelV1;
+  model: PhaseB1ProjectSyntheticEventFreeMonolithicModelV1;
   wallMaterialBinding: PhaseB1WallMaterialBindingV1;
   warmStart: PhaseB1SyntheticGeometryWarmStartV1;
   testOnly: true;
@@ -66,8 +72,8 @@ export function buildPhaseB1SyntheticEventFreeMonolithicCaseV1(
   ) {
     throw new Error("synthetic event-free case provenance is inconsistent");
   }
-  const model: PhaseB1EventFreeMonolithicModelV1 = Object.freeze({
-    modelId: "four-chamber-phase-b1-candidate-prior-test-reference-v1",
+  const model: PhaseB1ProjectSyntheticEventFreeMonolithicModelV1 = Object.freeze({
+    modelId: PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID,
     closedLoopParameters: Object.freeze({
       atrialGeometryPriorByChamber: scaffold.atrialGeometryPriorByChamber,
       triSegWalls: scaffold.triSegReference.walls,

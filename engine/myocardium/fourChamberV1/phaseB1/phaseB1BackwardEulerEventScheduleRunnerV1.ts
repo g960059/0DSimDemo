@@ -2,8 +2,9 @@ import {
   assertCanonicalFourChamberNewtonScaleRegistryV1,
   type FourChamberNewtonScaleRegistryV1,
 } from "@/engine/myocardium/fourChamberV1/numerics/newtonScaleRegistryV1";
-import type {
-  PhaseB1EventFreeMonolithicModelV1,
+import {
+  assertPhaseB1EventFreeMonolithicModelIdV1,
+  type PhaseB1EventFreeMonolithicModelV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/eventFreeMonolithicBackwardEulerV1";
 import {
   PHASE_B1_EVENT_INTEGRATED_MONOLITHIC_TRANSACTION_V1_ID,
@@ -1216,14 +1217,14 @@ function validateModel(model: PhaseB1EventFreeMonolithicModelV1): void {
     "phaseB1Acceptance",
     "releaseRuntimeReachable",
   ], "Phase B1 event schedule model");
+  assertPhaseB1EventFreeMonolithicModelIdV1(model.modelId);
   if (
-    model.modelId !== "four-chamber-phase-b1-candidate-prior-test-reference-v1"
-    || model.candidatePriorOnly !== true
+    model.candidatePriorOnly !== true
     || model.physiologicalValidation !== false
     || model.phaseB1Acceptance !== false
     || model.releaseRuntimeReachable !== false
   ) {
-    throw new Error("event schedule accepts only the Phase B1 test reference model");
+    throw new Error("event schedule accepts only an unvalidated Phase B1 candidate model");
   }
   assertCanonicalFourChamberNewtonScaleRegistryV1(model.newtonScaleRegistry);
 }
