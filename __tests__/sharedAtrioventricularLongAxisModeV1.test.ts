@@ -9,7 +9,7 @@ import {
 } from "@/engine/mechanics2/atrial/SharedAtrioventricularLongAxisModeV1";
 
 const PARAMS: SharedAtrioventricularLongAxisModeParamsV1 = Object.freeze({
-  parameterSetId: "trace-free-left-heart-fixture-v1",
+  parameterSetId: "reduced-isochoric-left-heart-fixture-v1",
   atrialEffectiveStrainGain: 0.35,
   leftFreeWallEffectiveStrainGain: -0.2,
   septalEffectiveStrainGain: -0.1,
@@ -38,7 +38,7 @@ const STRESS = Object.freeze({
 });
 
 describe("SharedAtrioventricularLongAxisModeV1", () => {
-  it("projects one left-heart trace-free mode without shifting cavity volume", () => {
+  it("projects one reduced left-heart isochoric mode without shifting cavity volume", () => {
     const q = 0.2;
     const kinematics = evaluateSharedAtrioventricularLongAxisKinematicsV1(
       q,
@@ -64,7 +64,7 @@ describe("SharedAtrioventricularLongAxisModeV1", () => {
       BASE.rightVentricularFreeWall,
     );
     expect(kinematics.cavityVolumeShiftMl).toBe(0);
-    expect(kinematics.modeInterpretation).toContain("trace-free-tensor-mode");
+    expect(kinematics.modeInterpretation).toContain("reduced-one-fiber-isochoric");
   });
 
   it("satisfies the finite-difference virtual-work identity", () => {

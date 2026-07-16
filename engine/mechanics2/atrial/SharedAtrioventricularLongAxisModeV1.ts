@@ -1,10 +1,11 @@
 /**
  * Quasi-static shared left-heart long-axis coordinate.
  *
- * The scalar gains below are fiber projections of one trace-free tensor mode;
- * they are not scalar volumetric strains.  q therefore changes the strains
- * supplied to the external LA/LV/septal constitutive owners without changing
- * any chamber blood-volume coordinate.
+ * The scalar gains below define a reduced one-fiber isochoric mode after its
+ * transverse strains have been analytically eliminated; they are not scalar
+ * volumetric strains and this module does not claim a full tensor basis.
+ * q therefore changes the strains supplied to the external LA/LV/septal
+ * constitutive owners without changing any chamber blood-volume coordinate.
  */
 export const SHARED_ATRIOVENTRICULAR_LONG_AXIS_MODE_V1_ID =
   "shared-atrioventricular-long-axis-mode-v1" as const;
@@ -14,12 +15,15 @@ export const SHARED_ATRIOVENTRICULAR_LONG_AXIS_MODE_CLAIM_V1 = Object.freeze({
   side: "left-heart" as const,
   dynamics: "quasi-static-generalized-wall-work-balance" as const,
   modeInterpretation:
-    "each-scalar-gain-is-a-fiber-projection-of-one-trace-free-tensor-mode" as const,
+    "reduced-one-fiber-isochoric-mode-with-eliminated-transverse-strains" as const,
   hiddenBloodVolume: false as const,
   cavityVolumeShift: false as const,
   avPlaneBloodVolumePiston: false as const,
   rightHeartEffectiveStrainsChanged: false as const,
-  wallStressInput: "actual-transmitted-wall-stress" as const,
+  wallStressInput:
+    "owner-supplied-fiber-stress-work-conjugate-to-effective-log-strain" as const,
+  wallVolumeInput:
+    "owner-consistent-load-bearing-wall-volume-for-the-supplied-stress-measure" as const,
   wallConstitutiveOwnership:
     "external-land-passive-and-sls-constitutive-owners" as const,
   ownsDynamicState: false as const,
@@ -85,7 +89,7 @@ export type SharedAtrioventricularLongAxisKinematicsV1 = {
   };
   readonly modeInterpretation:
     typeof SHARED_ATRIOVENTRICULAR_LONG_AXIS_MODE_CLAIM_V1.modeInterpretation;
-  /** q is trace-free shape mechanics, never a cavity-volume offset. */
+  /** q is reduced isochoric shape mechanics, never a cavity-volume offset. */
   readonly cavityVolumeShiftMl: 0;
 };
 
@@ -164,7 +168,7 @@ export function validateSharedAtrioventricularLongAxisModeParamsV1(
   return issues;
 }
 
-/** Pure trace-free effective-strain projection; no cavity volume is accepted. */
+/** Pure reduced-isochoric effective-strain projection; no cavity volume is accepted. */
 export function evaluateSharedAtrioventricularLongAxisKinematicsV1(
   coordinate: number,
   baseLogStrains: SharedAtrioventricularLongAxisBaseLogStrainsV1,
@@ -212,8 +216,11 @@ export function evaluateSharedAtrioventricularLongAxisKinematicsV1(
  *   G_q = sum_i V_i a_i sigma_i,       residual = G_q / G_scale.
  *
  * Volumes are converted from mL to m^3, so every contribution has units J.
- * The supplied stresses are the actual stresses transmitted by the external
- * wall constitutive laws; this function applies no active/passive reshaping.
+ * The supplied stresses and wall volumes must form the stress-volume measure
+ * work-conjugate to the owner's effective fiber log strain (for example,
+ * Cauchy stress/current wall volume in a coaxial incompressible reduction).
+ * This function applies no active/passive reshaping and does not infer a full
+ * tensor stress from the scalar input.
  */
 export function evaluateSharedAtrioventricularLongAxisModeV1(
   coordinate: number,
