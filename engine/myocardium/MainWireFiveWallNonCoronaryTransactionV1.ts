@@ -33,7 +33,9 @@ export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID =
 
 export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1 =
   Object.freeze({
-    circulationOwner: "authoritative-main-wire-noncoronary-graph" as const,
+    circulationOwner:
+      "main-wire-derived-noncoronary-experimental-transaction" as const,
+    modelCoreRuntimeAdopted: false as const,
     mechanicsOwner: "one-joint-five-wall-provider" as const,
     chamberPressureInterface: "transmural-provider-to-absolute-node" as const,
     commonIntrathoracicPressureAppliedOnce: true as const,

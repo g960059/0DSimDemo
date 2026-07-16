@@ -11,6 +11,9 @@ import type {
   MainWireNormalAdultFiveWallClosedLoopSampleV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+} from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
 
@@ -22,34 +25,38 @@ if (beat.length === 0) throw new Error("input has no complete beat");
 
 const peakMvFlow = maximum(beat.map((sample) => sample.flowMlPerSec.MV));
 const openThreshold = Math.max(1, 0.01 * peakMvFlow);
+const mvOpen = beat.map((sample) => sample.flowMlPerSec.MV > openThreshold);
 const mvoIndex = cyclicOpeningAfterLongestClosedRun(
-  beat.map((sample) => sample.flowMlPerSec.MV > openThreshold),
+  mvOpen,
 );
-const atrialOnsetIndex = beat.findIndex((sample) => sample.cyclePhase01 >= 0.852);
-const reservoir = mvoIndex > 0 ? beat.slice(0, mvoIndex + 1) : [];
-const conduit = mvoIndex >= 0 && atrialOnsetIndex > mvoIndex
-  ? beat.slice(mvoIndex, atrialOnsetIndex + 1)
-  : [];
-const lobe = measureLaPvTwoLobesV2(beat.map((sample) => ({
+const mvcIndex = cyclicClosingBeforeOpening(mvOpen, mvoIndex);
+const atrialOnsetPhase01 = normalAtrialCalciumOnsetPhase01();
+const atrialOnsetIndex = beat.findIndex((sample) =>
+  sample.cyclePhase01 >= atrialOnsetPhase01);
+const reservoir = cyclicSegmentInclusive(beat, mvcIndex, mvoIndex);
+const conduit = cyclicSegmentInclusive(beat, mvoIndex, atrialOnsetIndex);
+const pumping = cyclicSegmentInclusive(beat, atrialOnsetIndex, mvcIndex);
+const phaseByIndex = new Map<number, "reservoir" | "conduit" | "pumping">();
+markCyclicSegment(phaseByIndex, beat.length, mvcIndex, mvoIndex, "reservoir");
+markCyclicSegment(phaseByIndex, beat.length, mvoIndex, atrialOnsetIndex, "conduit");
+markCyclicSegment(phaseByIndex, beat.length, atrialOnsetIndex, mvcIndex, "pumping");
+const atrialCalcium = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial;
+const lobe = measureLaPvTwoLobesV2(beat.map((sample, index) => ({
   theta: sample.cyclePhase01,
   laVolumeMl: sample.nodeVolumeMl.LA,
   laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
-  laActivation01: clamp01((sample.freeCalciumUM.LA - 0.1) / 0.5),
-  phase: sample.cyclePhase01 >= 0.852
-    ? "pumping" as const
-    : mvoIndex >= 0 && sample.cyclePhase01 >= beat[mvoIndex]!.cyclePhase01
-      ? "conduit" as const
-      : "reservoir" as const,
+  laActivation01: clamp01(
+    (sample.freeCalciumUM.LA - atrialCalcium.diastolicCalciumUM) /
+      Math.max(atrialCalcium.peakAmplitudeUM, Number.EPSILON),
+  ),
+  phase: phaseByIndex.get(index) ?? "transition" as const,
 })));
 const branchOrder = measureLaPvReservoirConduitOrderV1({
   reservoir: reservoir.map(pvPoint),
   conduit: conduit.map(pvPoint),
 });
-const early = beat.filter((sample) =>
-  mvoIndex >= 0 &&
-  sample.cyclePhase01 >= beat[mvoIndex]!.cyclePhase01 &&
-  sample.cyclePhase01 < 0.65);
-const late = beat.filter((sample) => sample.cyclePhase01 >= 0.75);
+const early = conduit;
+const late = pumping;
 const laSlsCycleLedger = measureLaSlsCycleLedger(result, beat);
 
 process.stdout.write(`${JSON.stringify({
@@ -61,7 +68,8 @@ process.stdout.write(`${JSON.stringify({
   beatTimeRangeSec: [beat[0]!.timeSec, beat.at(-1)!.timeSec],
   events: {
     mvoPhase01: mvoIndex >= 0 ? beat[mvoIndex]!.cyclePhase01 : null,
-    atrialCalciumOnsetPhase01: 0.852,
+    mvcPhase01: mvcIndex >= 0 ? beat[mvcIndex]!.cyclePhase01 : null,
+    atrialCalciumOnsetPhase01: atrialOnsetPhase01,
     mvOpenThresholdMlPerSec: openThreshold,
   },
   ranges: {
@@ -179,6 +187,67 @@ function cyclicOpeningAfterLongestClosedRun(open: readonly boolean[]): number {
     }
   }
   return bestOpening;
+}
+
+function cyclicClosingBeforeOpening(
+  open: readonly boolean[],
+  openingIndex: number,
+): number {
+  if (openingIndex < 0 || open.length === 0) return -1;
+  let cursor = (openingIndex - 1 + open.length) % open.length;
+  if (open[cursor]) return -1;
+  for (let guard = 0; guard < open.length; guard += 1) {
+    const previous = (cursor - 1 + open.length) % open.length;
+    if (open[previous]) return cursor;
+    cursor = previous;
+  }
+  return -1;
+}
+
+function cyclicSegmentInclusive<T>(
+  values: readonly T[],
+  startIndex: number,
+  endIndex: number,
+): readonly T[] {
+  if (startIndex < 0 || endIndex < 0 || values.length === 0) return [];
+  const output: T[] = [];
+  let cursor = startIndex;
+  for (let guard = 0; guard <= values.length; guard += 1) {
+    output.push(values[cursor]!);
+    if (cursor === endIndex) return output;
+    cursor = (cursor + 1) % values.length;
+  }
+  return [];
+}
+
+function markCyclicSegment<T>(
+  target: Map<number, T>,
+  length: number,
+  startIndex: number,
+  endIndex: number,
+  value: T,
+): void {
+  if (startIndex < 0 || endIndex < 0 || length === 0) return;
+  let cursor = startIndex;
+  for (let guard = 0; guard <= length; guard += 1) {
+    target.set(cursor, value);
+    if (cursor === endIndex) return;
+    cursor = (cursor + 1) % length;
+  }
+}
+
+function normalAtrialCalciumOnsetPhase01(): number {
+  const params = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  return positiveModulo(
+    params.cycleLengthSec - params.atrioventricularDelaySec +
+      params.atrial.electricalToCalciumDelaySec,
+    params.cycleLengthSec,
+  ) / params.cycleLengthSec;
+}
+
+function positiveModulo(value: number, modulus: number): number {
+  const result = value % modulus;
+  return result < 0 ? result + modulus : result;
 }
 
 function clamp01(value: number): number {

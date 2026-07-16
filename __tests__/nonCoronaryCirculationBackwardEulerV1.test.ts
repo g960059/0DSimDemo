@@ -39,7 +39,7 @@ const RUNTIME: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
   }),
 });
 
-describe("authoritative non-coronary circulation backward Euler V1", () => {
+describe("main-wire-derived non-coronary experimental backward Euler V1", () => {
   it("derives the 15-node scope from the authoritative graph and excludes every coronary element", () => {
     const graph = buildNonCoronaryCirculationGraphV1();
     expect(graph.nodes.map((node) => node.name)).toEqual(

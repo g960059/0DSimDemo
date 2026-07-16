@@ -5,7 +5,7 @@
     "heartRateBpm": 60,
     "dtSec": 0.002,
     "beatCount": 8,
-    "circulation": "authoritative-main-wire-noncoronary",
+    "circulation": "main-wire-derived-noncoronary-experimental",
     "activation": "fixed-five-wall-periodic-calcium-prior",
     "pericardialConstraint": false,
     "laaBodyCompartments": false,

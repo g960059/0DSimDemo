@@ -24,7 +24,7 @@ import {
 } from "@/engine/vascularPv";
 
 export const NON_CORONARY_CIRCULATION_BE_V1_ID =
-  "authoritative-main-wire-noncoronary-backward-euler-v1" as const;
+  "main-wire-derived-noncoronary-experimental-backward-euler-v1" as const;
 
 export const NON_CORONARY_NODE_NAMES_V1 = Object.freeze([
   "LV", "LA", "RV", "RA",
@@ -55,7 +55,9 @@ export type NonCoronaryValveNameV1 =
   (typeof NON_CORONARY_VALVE_NAMES_V1)[number];
 
 export const NON_CORONARY_CIRCULATION_SCOPE_V1 = Object.freeze({
-  topologySource: "buildAuthoritativeCirculationGraphV1" as const,
+  topologySource: "main-wire-buildNodes-buildEdges" as const,
+  dynamicsOwner: "independent-experimental-backward-euler" as const,
+  modelCoreRuntimeAdopted: false as const,
   includedNodes: NON_CORONARY_NODE_NAMES_V1,
   includedEdges: NON_CORONARY_EDGE_NAMES_V1,
   excludedCoronaryNodes: Object.freeze([
@@ -280,7 +282,7 @@ NonCoronaryCirculationGraphV1 {
     || edges.length !== NON_CORONARY_EDGE_NAMES_V1.length
     || nodes.some((node, index) => node.name !== NON_CORONARY_NODE_NAMES_V1[index])
     || edges.some((edge, index) => edge.name !== NON_CORONARY_EDGE_NAMES_V1[index])
-  ) throw new Error("authoritative non-coronary topology changed");
+  ) throw new Error("main-wire source topology changed outside experimental scope");
   for (const excluded of NON_CORONARY_CIRCULATION_SCOPE_V1.excludedCoronaryNodes) {
     if (nodes.some((node) => node.name === excluded)) {
       throw new Error(`coronary node ${excluded} entered the non-coronary graph`);

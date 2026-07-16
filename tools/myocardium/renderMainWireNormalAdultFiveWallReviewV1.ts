@@ -31,11 +31,20 @@ const previous = result.completedBeatCount > 1
 if (current.length === 0) throw new Error("result has no complete beat to render");
 
 const mvoPhase = numberAt(summary, ["events", "mvoPhase01"]);
+const mvcPhase = numberAt(summary, ["events", "mvcPhase01"]);
 const atrialOnsetPhase = numberAt(summary, ["events", "atrialCalciumOnsetPhase01"]);
-const reservoir = current.filter((sample) => sample.cyclePhase01 <= mvoPhase);
+const reservoir = current.filter((sample) => cyclicPhaseBetween(
+  sample.cyclePhase01,
+  mvcPhase,
+  mvoPhase,
+));
 const conduit = current.filter((sample) =>
-  sample.cyclePhase01 >= mvoPhase && sample.cyclePhase01 <= atrialOnsetPhase);
-const pumping = current.filter((sample) => sample.cyclePhase01 >= atrialOnsetPhase);
+  cyclicPhaseBetween(sample.cyclePhase01, mvoPhase, atrialOnsetPhase));
+const pumping = current.filter((sample) => cyclicPhaseBetween(
+  sample.cyclePhase01,
+  atrialOnsetPhase,
+  mvcPhase,
+));
 const crossings = arrayAt(summary, ["laPvTwoLobes", "crossings"])
   .map((value) => value as { volumeMl: number; pressureMmHg: number; angleDeg: number });
 
@@ -161,7 +170,7 @@ const html = `<!doctype html>
 </head>
 <body><main>
   <h1>Main-wire normal adult five-wall q-off review</h1>
-  <div class="subtitle">HR 60 · raw accepted 2 ms steps · main-wire noncoronary circulation and valves · Land active + equilibrium passive + one parallel SLS · TriSeg membrane only · no AVPD/q, no LAA+body, no smoothing.</div>
+  <div class="subtitle">HR 60 · raw accepted 2 ms steps · main-wire-derived noncoronary experimental transaction (not ModelCore runtime) · Land active + equilibrium passive + one parallel SLS · TriSeg membrane only · no AVPD/q, no LAA+body, no smoothing.</div>
   <div class="cards">
     ${card("completed beats", String(result.completedBeatCount))}
     ${card("period-1 closure", format(lastClosure(result, "period1MaximumRelativeStateDifference"), 4))}
@@ -310,6 +319,17 @@ function lastClosure(
 
 function safeLog10(value: number): number {
   return Math.log10(Math.max(Math.abs(value), 1e-16));
+}
+
+function cyclicPhaseBetween(phase: number, start: number, end: number): boolean {
+  const span = positiveModulo(end - start, 1);
+  const progress = positiveModulo(phase - start, 1);
+  return progress <= span + 1e-12;
+}
+
+function positiveModulo(value: number, modulus: number): number {
+  const result = value % modulus;
+  return result < 0 ? result + modulus : result;
 }
 
 function tick(value: number): string {
