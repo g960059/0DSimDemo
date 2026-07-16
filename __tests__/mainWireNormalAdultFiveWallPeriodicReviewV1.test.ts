@@ -50,6 +50,12 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
 
     expect(review.run.latestBeatIndex).toBe(7);
     expect(review.run.previousBeatIndex).toBe(6);
+    expect(review.run.protocolIdentityHash).toBe("review-fixture-protocol-hash");
+    expect(review.run.jacobianFiniteDifferenceWidthAudit).toEqual({
+      nominalScaledStep: 2e-5,
+      nominalStepCount: 10,
+      alternateStepCount: 0,
+    });
     expect(review.currentBeatSamples).toHaveLength(10);
     expect(review.previousBeatSamples).toHaveLength(10);
     expect(review.cycleDiagnostics.sampleCount).toBe(10);
@@ -79,6 +85,8 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(rendered.html).toContain("Latest group-wise closure");
     expect(rendered.html).toContain("Phasic flow ledger");
     expect(rendered.html).toContain("Wall work and SLS balance");
+    expect(rendered.html).toContain("Jacobian FD nominal / alternate");
+    expect(rendered.html).toContain("review-fixt");
     expect(rendered.html).toContain("Claim boundaries");
     expect(rendered.html).toContain('id="periodic-review-data"');
     expect(rendered.svg).toContain('role="img"');
@@ -126,6 +134,7 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
   return Object.freeze({
     experimentId: "main-wire-normal-adult-five-wall-periodic-steady-v1",
     mode: "canonical",
+    protocolIdentityHash: "review-fixture-protocol-hash",
     laSlsMode: "on",
     initialization: "canonical",
     dtSec: DT_SEC,

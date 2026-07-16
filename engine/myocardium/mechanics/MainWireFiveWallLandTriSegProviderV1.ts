@@ -1012,10 +1012,13 @@ function finiteDifferenceJacobian(
 
 /**
  * The nominal central-difference step remains the first audit. If it crosses a
- * constitutive branch boundary, smaller dyadic steps can recover the local
- * same-branch tangent; if small steps instead expose the constitutive residual
- * floor, the existing larger dyadic steps remain available. Retain the most
- * symmetric Jacobian without relaxing the declared symmetry tolerance.
+ * constitutive branch boundary, smaller dyadic steps can recover a local
+ * tangent that does not straddle that boundary; if small steps instead expose
+ * the constitutive residual floor, the existing larger dyadic steps remain
+ * available. Accept the first width in the declared priority order that meets
+ * the unchanged symmetry tolerance. If none passes, retain the least
+ * antisymmetric attempted Jacobian only so the existing hard gate can report
+ * the failure.
  */
 export function finiteDifferenceJacobianWithSymmetryAudit(
   evaluate: (scaledUnknowns: readonly number[]) => readonly number[],

@@ -105,6 +105,16 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
     expect(measured.ivrtLike.fitR2).toBeGreaterThan(0);
 
     expect(measured.workEnergy.stressWorkCoverageFraction).toBe(1);
+    // Positive p*dV is work on the wall. Here only LA volume changes:
+    // sum(p_next * deltaV) = 24 mmHg mL and
+    // 1 mmHg mL = 0.133322 mJ.
+    expect(measured.workEnergy.cavityWorkOnWallMilliJ.LA)
+      .toBeCloseTo(24 * 0.133322, 12);
+    expect(measured.workEnergy.cavityWorkOnWallMilliJ.LV).toBe(0);
+    expect(measured.workEnergy.cavityWorkOnWallMilliJ.RA).toBe(0);
+    expect(measured.workEnergy.cavityWorkOnWallMilliJ.RV).toBe(0);
+    expect(measured.workEnergy.workConjugacyResidualMilliJ.leftAtrium)
+      .toBeCloseTo(0.06 - 24 * 0.133322, 12);
     for (const wallId of MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_WALL_IDS_V1) {
       const wall = measured.workEnergy.perWall[wallId];
       expect(wall.stressWorkOnWallMilliJ.total).toBeCloseTo(0.06, 12);

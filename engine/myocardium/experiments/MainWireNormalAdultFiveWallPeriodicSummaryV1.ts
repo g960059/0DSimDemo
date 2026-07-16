@@ -116,6 +116,12 @@ export type MainWireNormalAdultFiveWallJacobianWidthAuditV1 = Readonly<{
 export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
   summaryId:
     typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_V1_ID;
+  protocol: Readonly<{
+    identity: MainWireNormalAdultFiveWallPeriodicResultV1["protocolIdentity"];
+    identityHash: string;
+    componentHashes:
+      MainWireNormalAdultFiveWallPeriodicResultV1["protocolComponentHashes"];
+  }>;
   source: Readonly<{
     experimentId: MainWireNormalAdultFiveWallPeriodicResultV1["experimentId"];
     initialization: MainWireNormalAdultFiveWallPeriodicResultV1["initialization"];
@@ -272,6 +278,11 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
 
   return Object.freeze({
     summaryId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_V1_ID,
+    protocol: Object.freeze({
+      identity: result.protocolIdentity,
+      identityHash: result.protocolIdentityHash,
+      componentHashes: result.protocolComponentHashes,
+    }),
     source: Object.freeze({
       experimentId: result.experimentId,
       initialization: result.initialization,

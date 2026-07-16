@@ -20,6 +20,9 @@ import type {
   MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
 
@@ -112,6 +115,12 @@ export type MainWireNormalAdultFiveWallPeriodicReviewV1 = Readonly<{
     previousBeatIndex: number | null;
     laSlsMode: string;
     initialization: string;
+    protocolIdentityHash: string;
+    jacobianFiniteDifferenceWidthAudit: Readonly<{
+      nominalScaledStep: number;
+      nominalStepCount: number;
+      alternateStepCount: number;
+    }>;
   }>;
   currentBeatSamples:
     readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[];
@@ -175,6 +184,11 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       wallMaterialVolumeMlByWall: wallMaterialVolumesMl(),
     });
   const latestClosure = result.beatClosure.at(-1)?.period1 ?? null;
+  const nominalJacobianStep =
+    MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1;
+  const nominalJacobianStepCount = currentBeat.samples.filter((sample) =>
+    sample.acceptedMechanicsJacobianAudit.finiteDifferenceScaledStepUsed
+      === nominalJacobianStep).length;
   return Object.freeze({
     reviewId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_V1_ID,
     generatedFromExperimentId: result.experimentId,
@@ -192,6 +206,13 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       previousBeatIndex: previousBeat?.beatIndex ?? null,
       laSlsMode: result.laSlsMode,
       initialization: result.initialization,
+      protocolIdentityHash: result.protocolIdentityHash,
+      jacobianFiniteDifferenceWidthAudit: Object.freeze({
+        nominalScaledStep: nominalJacobianStep,
+        nominalStepCount: nominalJacobianStepCount,
+        alternateStepCount:
+          currentBeat.samples.length - nominalJacobianStepCount,
+      }),
     }),
     currentBeatSamples: currentBeat.samples,
     previousBeatSamples: previousBeat?.samples ?? Object.freeze([]),
@@ -260,6 +281,8 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
     ${card("LA Vmax / Vmin", `${format(diagnostics.leftAtrialVolumes.maximumMl, 1)} / ${format(diagnostics.leftAtrialVolumes.minimumMl, 1)} mL`)}
     ${card("MV peak E/A", nullableRatio(diagnostics.mitral.peakERatioToA))}
     ${card("PV S/D volume", nullableRatio(safeRatio(diagnostics.pulmonaryVenous.S.forwardVolumeMl, diagnostics.pulmonaryVenous.D.forwardVolumeMl)))}
+    ${card("Jacobian FD nominal / alternate", `${review.run.jacobianFiniteDifferenceWidthAudit.nominalStepCount} / ${review.run.jacobianFiniteDifferenceWidthAudit.alternateStepCount}`)}
+    ${card("protocol identity", review.run.protocolIdentityHash.slice(0, 12))}
   </section>
   <section class="figure" aria-label="Periodic review plots">${svg}</section>
   <section class="table-grid">
@@ -276,6 +299,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
       <li>Pulmonary venous flow is one aggregate PVein→LA edge, not four separately measured veins.</li>
       <li>Mitral VTI is modeled bulk flow divided by modeled instantaneous physical EOA; it is not a validated clinical Doppler VTI.</li>
       <li>Land active stress has no thermodynamic stored-energy claim. Work signs follow the diagnostic API: positive means work on the wall.</li>
+      <li>The normalized free-Ca used for PV-lobe selection is a diagnostic proxy, not the Land activation or tension state.</li>
       <li>The relaxation time is a report-only fixed-asymptote fit between AoV closure and MVO.</li>
     </ul>
   </section>

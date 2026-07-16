@@ -26,6 +26,11 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
   it("summarizes only the final retained cycle with its preceding sample", () => {
     const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result);
 
+    expect(summary.protocol).toEqual({
+      identity: result.protocolIdentity,
+      identityHash: result.protocolIdentityHash,
+      componentHashes: result.protocolComponentHashes,
+    });
     expect(summary.selectedBeat).toMatchObject({
       beatIndex: 2,
       sampleCount: 100,
