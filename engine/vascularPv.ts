@@ -30,10 +30,7 @@ export type PtmFromStressedVolumeOptions = {
   stressedVolumeToleranceMl?: number;
 };
 
-export const MAIN_WIRE_ARTERIAL_LOG_STRAIN_BOUNDS = Object.freeze({
-  minimum: -30,
-  maximum: 5,
-});
+export const MAIN_WIRE_ARTERIAL_MINIMUM_LOG_STRAIN = Math.log(0.05);
 export const MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG = Object.freeze({
   minimum: -20,
   maximum: 45,
@@ -42,9 +39,7 @@ export const MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG = Object.freeze({
 export function stressedVolumeFromPtm(law: VascularPvLaw, Ptm: number): number {
   if (law.kind === "arterial") {
     const p0 = Math.max(law.P0, 1e-6);
-    const minimumPressure = p0 * Math.expm1(MAIN_WIRE_ARTERIAL_LOG_STRAIN_BOUNDS.minimum);
-    const maximumPressure = p0 * Math.expm1(MAIN_WIRE_ARTERIAL_LOG_STRAIN_BOUNDS.maximum);
-    const pressure = Math.max(minimumPressure, Math.min(maximumPressure, Ptm));
+    const pressure = Math.max(Ptm, -0.95 * p0);
     return Math.max(law.VsEff, 1e-6) * Math.log1p(pressure / p0);
   }
   if (law.kind === "linear") {
@@ -83,13 +78,14 @@ export function ptmFromStressedVolume(
     const p0 = Math.max(law.P0, 1e-6);
     const vs = Math.max(law.VsEff, 1e-6);
     const strain = Math.max(
-      MAIN_WIRE_ARTERIAL_LOG_STRAIN_BOUNDS.minimum,
-      Math.min(
-        MAIN_WIRE_ARTERIAL_LOG_STRAIN_BOUNDS.maximum,
-        targetStressedVolumeMl / vs,
-      ),
+      MAIN_WIRE_ARTERIAL_MINIMUM_LOG_STRAIN,
+      targetStressedVolumeMl / vs,
     );
-    return p0 * Math.expm1(strain);
+    const pressure = p0 * Math.expm1(strain);
+    if (!Number.isFinite(pressure)) {
+      throw new RangeError("arterial stressed volume maps outside finite pressure");
+    }
+    return pressure;
   }
 
   if (law.kind === "linear") {

@@ -78,7 +78,7 @@ describe("circulation graph kernel V1", () => {
     const arterial = vascularPvLawFromNodeV1(graph.nodes[graph.nodeIndex.get("Ao")!]!, params);
     const linear = vascularPvLawFromNodeV1(graph.nodes[graph.nodeIndex.get("Cap")!]!, params);
     for (const [lawToCheck, pressures] of [
-      [arterial, [-40, 0, 90]],
+      [arterial, [-40, 0, 90, 1000]],
       [linear, [-8, 0, 25]],
     ] as const) {
       for (const pressure of pressures) {
@@ -88,6 +88,12 @@ describe("circulation graph kernel V1", () => {
         );
       }
     }
+
+    if (arterial.kind !== "arterial") throw new Error("Ao must use an arterial law");
+    expect(ptmFromStressedVolume(
+      arterial,
+      stressedVolumeFromPtm(arterial, -1e6),
+    )).toBeCloseTo(-0.95 * arterial.P0, 12);
 
     expect(() => ptmFromStressedVolume({
       ...law,
