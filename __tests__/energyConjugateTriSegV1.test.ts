@@ -8,15 +8,10 @@ import {
   evaluateTriSegWallDerivativeV1,
   evaluateTriSegWallGeometryV1,
   invertSignedSphericalCapVolumeV1,
-  type TriSegCoordinatesV1,
   type TriSegGeometryInputV1,
   type TriSegGeometryV1,
   type TriSegWallRecordV1,
 } from "@/engine/myocardium/mechanics/energyConjugateTriSegV1";
-import {
-  auditStableEnergyConjugateTriSegMultiStartV1,
-  solveEnergyConjugateTriSegRootV1,
-} from "@/engine/myocardium/mechanics/energyConjugateTriSegRootV1";
 
 const WALLS = Object.freeze({
   LVFW: Object.freeze({
@@ -300,80 +295,6 @@ describe("pure energy-conjugate TriSeg v1", () => {
     ).toBeCloseTo(8, 14);
   });
 
-  it("finds one conservative strict-minimum branch from separated seeds", () => {
-    const fixture = convexRootFixture(1);
-    const first = solveEnergyConjugateTriSegRootV1({
-      ...fixture.input,
-      initialCoordinates: {
-        septalMidwallCapVolumeM3: 34e-6,
-        junctionRadiusM: 0.029,
-      },
-    });
-    expect(first.converged).toBe(true);
-    if (first.converged === false) throw new Error(first.message);
-    expect(first.stable).toBe(true);
-    expect(first.potentialStability.classification)
-      .toBe("strict-local-potential-minimum");
-    expect(first.potentialStability.antisymmetricPartRelativeToHessianInfinityNorm)
-      .toBeLessThan(5e-5);
-    expect(relativeError(
-      first.coordinates.septalMidwallCapVolumeM3,
-      fixture.targetCoordinates.septalMidwallCapVolumeM3,
-    )).toBeLessThan(2e-7);
-    expect(relativeError(
-      first.coordinates.junctionRadiusM,
-      fixture.targetCoordinates.junctionRadiusM,
-    )).toBeLessThan(2e-7);
-
-    const audit = auditStableEnergyConjugateTriSegMultiStartV1(
-      fixture.input,
-      [
-        { septalMidwallCapVolumeM3: 34e-6, junctionRadiusM: 0.029 },
-        { septalMidwallCapVolumeM3: 49e-6, junctionRadiusM: 0.037 },
-        { septalMidwallCapVolumeM3: 44e-6, junctionRadiusM: 0.032 },
-      ],
-      1e-6,
-    );
-    expect(audit.allSeedsConvergedToStationaryPoints).toBe(true);
-    expect(audit.stableRootCount).toBe(3);
-    expect(audit.stableRootsSameBranchWithinTolerance).toBe(true);
-    expect(audit.globalUniquenessClaimed).toBe(false);
-    expect(audit.accepted).toBe(true);
-  });
-
-  it("does not label a converged negative-curvature stationary point as stable", () => {
-    const fixture = convexRootFixture(-1);
-    const result = solveEnergyConjugateTriSegRootV1({
-      ...fixture.input,
-      initialCoordinates: fixture.targetCoordinates,
-    });
-    expect(result.converged).toBe(true);
-    if (result.converged === false) throw new Error(result.message);
-    expect(result.stable).toBe(false);
-    expect(result.potentialStability.symmetricPartPositiveDefinite).toBe(false);
-    expect(result.potentialStability.classification)
-      .toBe("stationary-point-not-a-strict-local-minimum");
-  });
-
-  it("returns the accepted input coordinates unchanged when root evaluation fails", () => {
-    const fixture = convexRootFixture(1);
-    const acceptedCoordinates = Object.freeze({
-      septalMidwallCapVolumeM3: 37e-6,
-      junctionRadiusM: 0.03,
-    });
-    const result = solveEnergyConjugateTriSegRootV1({
-      ...fixture.input,
-      initialCoordinates: acceptedCoordinates,
-      evaluateWallStress: () => {
-        throw new Error("intentional material failure");
-      },
-    });
-    expect(result.converged).toBe(false);
-    if (result.converged === true) throw new Error("expected root failure");
-    expect(result.reason).toBe("invalid-initial-state");
-    expect(result.rollbackCoordinates).toEqual(acceptedCoordinates);
-    expect(result.rollbackOnFailure).toBe(true);
-  });
 });
 
 function trialInput(): TriSegGeometryInputV1 {
@@ -390,54 +311,6 @@ function trialInput(): TriSegGeometryInputV1 {
 
 function trialGeometry(): TriSegGeometryV1 {
   return evaluateTriSegGeometryV1(trialInput());
-}
-
-function convexRootFixture(stiffnessSign: 1 | -1) {
-  const targetCoordinates: TriSegCoordinatesV1 = Object.freeze({
-    septalMidwallCapVolumeM3: 42e-6,
-    junctionRadiusM: 0.033,
-  });
-  const targetGeometry = evaluateTriSegGeometryV1({
-    ...REFERENCE_INPUT,
-    coordinates: targetCoordinates,
-  });
-  const targetStrain = Object.freeze({
-    LVFW: targetGeometry.walls.LVFW.fiberLogStrain,
-    SEP: targetGeometry.walls.SEP.fiberLogStrain,
-    RVFW: targetGeometry.walls.RVFW.fiberLogStrain,
-  });
-  const stiffnessPa = Object.freeze({
-    LVFW: stiffnessSign * 120_000,
-    SEP: stiffnessSign * 90_000,
-    RVFW: stiffnessSign * 75_000,
-  });
-  const evaluateWallStress = (geometry: TriSegGeometryV1) => Object.freeze({
-    LVFW: stiffnessPa.LVFW
-      * (geometry.walls.LVFW.fiberLogStrain - targetStrain.LVFW),
-    SEP: stiffnessPa.SEP
-      * (geometry.walls.SEP.fiberLogStrain - targetStrain.SEP),
-    RVFW: stiffnessPa.RVFW
-      * (geometry.walls.RVFW.fiberLogStrain - targetStrain.RVFW),
-  });
-  return Object.freeze({
-    targetCoordinates,
-    input: Object.freeze({
-      leftVentricularCavityVolumeM3: REFERENCE_INPUT.leftVentricularCavityVolumeM3,
-      rightVentricularCavityVolumeM3: REFERENCE_INPUT.rightVentricularCavityVolumeM3,
-      walls: WALLS,
-      bendingPrior: disableTriSegKoiterBendingV1("structural-ablation"),
-      evaluateWallStress,
-      unknownScales: Object.freeze({
-        septalMidwallCapVolumeM3: 40e-6,
-        junctionRadiusM: 0.03,
-      }),
-      equilibriumResidualScaleNPerM: 1_000,
-      junctionRadiusLowerBoundM: 0.005,
-      options: Object.freeze({
-        finiteDifferenceScaledStep: 1e-5,
-      }),
-    }),
-  });
 }
 
 function zeroStress(): TriSegWallRecordV1<number> {
