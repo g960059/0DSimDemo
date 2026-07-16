@@ -2,6 +2,8 @@ export const LAND2017_SOURCE_ID = "land2017-human-contraction";
 export const LAND2017_SOURCE_DOI = "10.1016/j.yjmcc.2017.03.008";
 export const LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET_ID =
   "land2017-intact-human-37c-source-v1";
+export const LAND2017_INTACT_HUMAN_37C_WHOLE_ORGAN_PARAMETER_SET_V1_ID =
+  "land2017-intact-human-37c-whole-organ-column-v1";
 
 export type Land2017RuntimeParameters = {
   readonly kTRPN: number;
@@ -137,6 +139,53 @@ export const LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET: Land2017SourceParam
   ...parameterSetHashInput,
   parameterSetStableHash: stableHash(parameterSetHashInput),
 });
+
+/**
+ * Land et al. publish distinct Tref values for the skinned-cell and whole-organ
+ * contexts.  The historical parameter set above deliberately retains the
+ * 40.5 kPa cellular value.  This second immutable source set selects the
+ * Appendix-B 120 kPa whole-organ column without hiding the change in a chamber
+ * pressure gain, calcium amplitude, orientation factor, or viability factor.
+ */
+const wholeOrganRuntimeValues: Land2017RuntimeParameters = {
+  ...runtimeValues,
+  Tref: 120_000,
+};
+
+const wholeOrganSourceParameters: readonly Land2017SourceParameterProvenance[] =
+  sourceParameters.map((entry) => entry.parameter === "Tref"
+    ? sourceParameter(
+      "Tref",
+      120,
+      "kPa",
+      wholeOrganRuntimeValues.Tref,
+      "Pa",
+      "Appendix B model parameters table, whole-organ model column; Eq 53",
+    )
+    : Object.freeze({
+      ...entry,
+      original: Object.freeze({ ...entry.original }),
+      runtime: Object.freeze({ ...entry.runtime }),
+    }));
+
+const wholeOrganParameterSetHashInput: Omit<
+  Land2017SourceParameterSet,
+  "parameterSetStableHash"
+> = {
+  parameterSetId: LAND2017_INTACT_HUMAN_37C_WHOLE_ORGAN_PARAMETER_SET_V1_ID,
+  sourceId: LAND2017_SOURCE_ID,
+  doi: LAND2017_SOURCE_DOI,
+  values: wholeOrganRuntimeValues,
+  derived: deriveLand2017DerivedParameters(wholeOrganRuntimeValues),
+  sourceParameters: wholeOrganSourceParameters,
+  derivedParameters,
+};
+
+export const LAND2017_INTACT_HUMAN_37C_WHOLE_ORGAN_PARAMETER_SET_V1:
+  Land2017SourceParameterSet = deepFreeze({
+    ...wholeOrganParameterSetHashInput,
+    parameterSetStableHash: stableHash(wholeOrganParameterSetHashInput),
+  });
 
 export function deriveLand2017DerivedParameters(
   values: Land2017RuntimeParameters,
