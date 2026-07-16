@@ -5,8 +5,6 @@ import {
   mainWireDefaultHemodynamicRuntimeControlsV1,
   type MainWireNonCoronaryCirculationNodeNameV1,
 } from "@/engine/core/mainWireHemodynamicGraphV1";
-import type { ValveLossParametersV1 } from
-  "@/engine/myocardium/fourChamberV1/flows/signedFlowLossV1";
 import {
   MAIN_WIRE_NON_CORONARY_ALGEBRAIC_FLOW_NAMES_V1,
   evaluateMainWireNonCoronarySameTimeLevelV1,
@@ -102,16 +100,16 @@ describe("main-wire non-coronary vascular initializer V1", () => {
           Q_PuV: 0,
           ...initialized.solverFlowPartition.dynamicRootFlowsM3PerSec,
         },
+        valveApertureState01ByFlow: {
+          Q_MV: 0,
+          Q_AoV: 0,
+          Q_TV: 0,
+          Q_PuV: 0,
+        },
       },
       chamberAbsolutePressurePa: initialized.chamberAbsolutePressurePaByNode,
       externalPressurePa: input.externalPressurePa,
       mainWireRuntimeControls: input.mainWireRuntimeControls,
-      valveLossParametersByFlow: {
-        Q_MV: valveFixtureV1(),
-        Q_AoV: valveFixtureV1(),
-        Q_TV: valveFixtureV1(),
-        Q_PuV: valveFixtureV1(),
-      },
     });
     for (const edgeName of MAIN_WIRE_NON_CORONARY_VASCULAR_EDGE_NAMES_V1) {
       expect(evaluated.vascularFlowEvaluationByFlow[edgeName].flowM3PerSec)
@@ -220,20 +218,5 @@ function typicalInputV1(): MainWireNonCoronaryVascularInitializerInputV1 {
       pth: 0,
       palv: 0,
     },
-  };
-}
-
-function valveFixtureV1(): ValveLossParametersV1 {
-  return {
-    openAreaM2: 4e-4,
-    physiologicalRegurgitantAreaM2: 0,
-    numericalReverseAreaM2: 2e-6,
-    pressureGateWidthPa: 200,
-    bloodDynamicViscosityPaSec: 3.5e-3,
-    bloodDensityKgPerM3: 1_060,
-    viscousEffectiveLengthM: 0.01,
-    inertialEffectiveLengthM: 0.01,
-    inertialReferenceAreaM2: 4e-4,
-    flowSmoothingM3PerSec: 1e-8,
   };
 }

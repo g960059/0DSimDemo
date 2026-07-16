@@ -99,6 +99,8 @@ export const PHASE_B1_MAIN_WIRE_DISTRIBUTED_DIRECT_NUMERICAL_OWNER_PATHS_V1 =
       "engine/myocardium/fourChamberV1/vascular/mainWireVascularPvLawSiV1.ts",
     sameTimeCirculationKernel:
       "engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1.ts",
+    dynamicValveAperture:
+      "engine/myocardium/fourChamberV1/hydromechanics/mainWireDynamicValveApertureV1.ts",
     vascularInitializer:
       "engine/myocardium/fourChamberV1/vascular/mainWireNonCoronaryVascularInitializerV1.ts",
     distributedEndpoint:
@@ -392,7 +394,8 @@ export const MAIN_WIRE_ARTIFACT_CLAIM_BOUNDARY_V1 = Object.freeze({
   adaptiveRetrySubdivisionUseReportedInArtifact: true as const,
   fixedTimeStepIntegrationClaimed: false as const,
   coronaryNetworkIncluded: false as const,
-  valvesRemainPhaseB1SmoothPressureGated: true as const,
+  dynamicValveApertureStoredAndCondensed: true as const,
+  valvePhysicalParametersOwnedByEngineCore: true as const,
   mainWireNonCoronaryVascularGraphUsed: true as const,
   modelCoreNumericalRuntimeParityClaimed: false as const,
   browserRuntimeAdopted: false as const,
@@ -1216,6 +1219,10 @@ function runCliAfterCanonicalOutputResetV1(
   const transformed = transformPhaseB1EndpointToMainWireDistributedV1({
     sourceEndpoint: initialOldEndpoint,
     vascularBloodVolumesM3: initialVascular.vascularVolumeM3ByNode,
+    chamberAbsolutePressurePaByNode:
+      initialVascular.chamberAbsolutePressurePaByNode,
+    vascularAbsolutePressurePaByNode:
+      initialVascular.vascularAbsolutePressurePaByNode,
     rootDynamicFlowsM3PerSec:
       initialVascular.solverFlowPartition.dynamicRootFlowsM3PerSec,
   });
@@ -2304,6 +2311,7 @@ function distanceScaleV1(label: string, first: number, second: number): number {
     return Math.max(1e-6, Math.abs(first), Math.abs(second));
   }
   if (label.startsWith("circulation.main-wire.dynamic-flow.")) return 100e-6;
+  if (label.startsWith("circulation.main-wire.valve-aperture.")) return 1;
   if (label.includes(".calcium.") || /\.land\.(CaTRPN|B|W|S)$/.test(label)) {
     return 1;
   }

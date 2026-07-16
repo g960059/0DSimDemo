@@ -1,13 +1,20 @@
 import {
   MAIN_WIRE_NON_CORONARY_CIRCULATION_NODE_NAMES_V1,
   MAIN_WIRE_NON_CORONARY_VASCULAR_NODE_NAMES_V1,
+  type MainWireHeartBoundaryNodeNameV1,
   type MainWireNonCoronaryCirculationNodeNameV1,
   type MainWireNonCoronaryVascularNodeNameV1,
 } from "@/engine/core/mainWireHemodynamicGraphV1";
 import {
   MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1,
+  MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
   type MainWireNonCoronaryDynamicFlowNameV1,
+  type MainWirePhaseB1ValveFlowNameV1,
 } from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1";
+import {
+  compileMainWireDynamicValveParametersByFlowV1,
+  initializeMainWireDynamicValveApertureV1,
+} from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireDynamicValveApertureV1";
 import type {
   RateFreeLand2017StateV1,
 } from "@/engine/myocardium/fourChamberV1/land/rateFreeLand2017V1";
@@ -39,8 +46,8 @@ export const PHASE_B1_MAIN_WIRE_DISTRIBUTED_TOPOLOGY_V1 = Object.freeze({
   dynamicFlowOrder: MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1,
   wallOrder: WALL_IDS,
   storedDifferentialStateCount: Object.freeze({
-    slsOn: 66,
-    slsOff: 61,
+    slsOn: 70,
+    slsOff: 65,
   }),
   newtonUnknownCount: Object.freeze({
     slsOn: 58,
@@ -54,6 +61,10 @@ export const PHASE_B1_MAIN_WIRE_DISTRIBUTED_TOPOLOGY_V1 = Object.freeze({
   exactCalciumNewtonUnknownCount: 0,
   exactCalciumResidualCount: 0,
   algebraicTriSegCoordinateCount: 2,
+  storedValveApertureStateCount: 4,
+  valveApertureNewtonUnknownCount: 0,
+  valveApertureIntegration:
+    "exact-backward-euler-static-condensation",
   slsOffRepresentation: "physically-absent-no-placeholder",
   projectionApplied: false,
   hiddenStateClippingApplied: false,
@@ -65,6 +76,9 @@ type DistributedCommonStateV1 = Readonly<{
   >;
   dynamicFlowsM3PerSec: Readonly<
     Record<MainWireNonCoronaryDynamicFlowNameV1, number>
+  >;
+  valveApertureState01ByFlow: Readonly<
+    Record<MainWirePhaseB1ValveFlowNameV1, number>
   >;
   calciumByWall: PhaseB1CalciumStateByWallV1;
   landByWall: Readonly<Record<FourChamberWallId, RateFreeLand2017StateV1>>;
@@ -119,6 +133,9 @@ export type PhaseB1MainWireDistributedEndpointTransformV1 = Readonly<{
     valveFlowsCopiedExactly: true;
     suppliedVascularVolumeCount: 11;
     suppliedRootDynamicFlowCount: 2;
+    valveApertureStateCount: 4;
+    valveApertureDerivedFromInitialPressureGradientAndFlow: true;
+    topologyXi0Consumed: false;
     vascularInitializationInferred: false;
     parameterFitApplied: false;
     legacyAggregateVascularVolumesImported: false;
@@ -168,6 +185,9 @@ export function encodePhaseB1MainWireDistributedStoredStateV1(
     ...MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1.map(
       (flowName) => state.dynamicFlowsM3PerSec[flowName],
     ),
+    ...MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.map(
+      (flowName) => state.valveApertureState01ByFlow[flowName],
+    ),
   ];
   for (const wallId of WALL_IDS) {
     encoded.push(
@@ -208,6 +228,13 @@ export function decodePhaseB1MainWireDistributedStoredStateV1(
     "dynamicFlowsM3PerSec",
     requireFinite,
   );
+  const valveApertureState01ByFlow = numericRecordFromVector(
+    encoded,
+    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+    () => offset++,
+    "valveApertureState01ByFlow",
+    requireUnitInterval,
+  );
   const calciumEntries: Array<readonly [FourChamberWallId, Readonly<{
     r: number;
     d: number;
@@ -240,6 +267,7 @@ export function decodePhaseB1MainWireDistributedStoredStateV1(
   const common = Object.freeze({
     bloodVolumesM3,
     dynamicFlowsM3PerSec,
+    valveApertureState01ByFlow,
     calciumByWall: Object.freeze(Object.fromEntries(calciumEntries)) as
       PhaseB1CalciumStateByWallV1,
     landByWall: Object.freeze(Object.fromEntries(landEntries)) as Readonly<
@@ -363,12 +391,21 @@ export function decodePhaseB1MainWireDistributedEndpointNewtonUnknownsV1(
     timeSec: number;
     slsMode: PhaseB1SlsModeV1;
     calciumByWall: PhaseB1CalciumStateByWallV1;
+    valveApertureState01ByFlow: Readonly<
+      Record<MainWirePhaseB1ValveFlowNameV1, number>
+    >;
     unknowns: readonly number[];
   }>,
 ): PhaseB1MainWireDistributedEndpointV1 {
   assertExactPlainRecordV1(
     input,
-    ["timeSec", "slsMode", "calciumByWall", "unknowns"],
+    [
+      "timeSec",
+      "slsMode",
+      "calciumByWall",
+      "valveApertureState01ByFlow",
+      "unknowns",
+    ],
     "distributed endpoint Newton decode input",
   );
   const state = decodePhaseB1MainWireDistributedNewtonStateV1(
@@ -381,6 +418,12 @@ export function decodePhaseB1MainWireDistributedEndpointNewtonUnknownsV1(
           slsMode: "on" as const,
           bloodVolumesM3: state.bloodVolumesM3,
           dynamicFlowsM3PerSec: state.dynamicFlowsM3PerSec,
+          valveApertureState01ByFlow: copyNumericRecord(
+            input.valveApertureState01ByFlow,
+            MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+            "valveApertureState01ByFlow",
+            requireUnitInterval,
+          ),
           calciumByWall: copyCalcium(input.calciumByWall),
           landByWall: state.landByWall,
           slsAlphaVByWall: state.slsAlphaVByWall,
@@ -389,6 +432,12 @@ export function decodePhaseB1MainWireDistributedEndpointNewtonUnknownsV1(
           slsMode: "off" as const,
           bloodVolumesM3: state.bloodVolumesM3,
           dynamicFlowsM3PerSec: state.dynamicFlowsM3PerSec,
+          valveApertureState01ByFlow: copyNumericRecord(
+            input.valveApertureState01ByFlow,
+            MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+            "valveApertureState01ByFlow",
+            requireUnitInterval,
+          ),
           calciumByWall: copyCalcium(input.calciumByWall),
           landByWall: state.landByWall,
         });
@@ -429,11 +478,23 @@ export function transformPhaseB1EndpointToMainWireDistributedV1(input: Readonly<
   vascularBloodVolumesM3: Readonly<
     Record<MainWireNonCoronaryVascularNodeNameV1, number>
   >;
+  chamberAbsolutePressurePaByNode: Readonly<
+    Record<MainWireHeartBoundaryNodeNameV1, number>
+  >;
+  vascularAbsolutePressurePaByNode: Readonly<
+    Record<MainWireNonCoronaryVascularNodeNameV1, number>
+  >;
   rootDynamicFlowsM3PerSec: Readonly<Record<"Ao_SA" | "PA_PArt", number>>;
 }>): PhaseB1MainWireDistributedEndpointTransformV1 {
   assertExactPlainRecordV1(
     input,
-    ["sourceEndpoint", "vascularBloodVolumesM3", "rootDynamicFlowsM3PerSec"],
+    [
+      "sourceEndpoint",
+      "vascularBloodVolumesM3",
+      "chamberAbsolutePressurePaByNode",
+      "vascularAbsolutePressurePaByNode",
+      "rootDynamicFlowsM3PerSec",
+    ],
     "Phase B1 main-wire distributed transform input",
   );
   assertExactPlainRecordV1(
@@ -445,6 +506,18 @@ export function transformPhaseB1EndpointToMainWireDistributedV1(input: Readonly<
     input.rootDynamicFlowsM3PerSec,
     ["Ao_SA", "PA_PArt"],
     "rootDynamicFlowsM3PerSec",
+  );
+  const chamberAbsolutePressurePaByNode = copyNumericRecord(
+    input.chamberAbsolutePressurePaByNode,
+    ["LV", "LA", "RV", "RA"] as const,
+    "chamberAbsolutePressurePaByNode",
+    requireFinite,
+  );
+  const vascularAbsolutePressurePaByNode = copyNumericRecord(
+    input.vascularAbsolutePressurePaByNode,
+    MAIN_WIRE_NON_CORONARY_VASCULAR_NODE_NAMES_V1,
+    "vascularAbsolutePressurePaByNode",
+    requireFinite,
   );
   const source = input.sourceEndpoint.differentialState;
   const bloodVolumesM3 = Object.freeze({
@@ -470,12 +543,35 @@ export function transformPhaseB1EndpointToMainWireDistributedV1(input: Readonly<
       "root PA_PArt",
     ),
   });
+  const initialPressureGradientPaByFlow = Object.freeze({
+    Q_MV: chamberAbsolutePressurePaByNode.LA
+      - chamberAbsolutePressurePaByNode.LV,
+    Q_AoV: chamberAbsolutePressurePaByNode.LV
+      - vascularAbsolutePressurePaByNode.Ao,
+    Q_TV: chamberAbsolutePressurePaByNode.RA
+      - chamberAbsolutePressurePaByNode.RV,
+    Q_PuV: chamberAbsolutePressurePaByNode.RV
+      - vascularAbsolutePressurePaByNode.PA,
+  });
+  const dynamicValveParametersByFlow =
+    compileMainWireDynamicValveParametersByFlowV1();
+  const valveApertureState01ByFlow = Object.freeze(Object.fromEntries(
+    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.map((flowName) => [
+      flowName,
+      initializeMainWireDynamicValveApertureV1({
+        parameters: dynamicValveParametersByFlow[flowName],
+        pressureGradientPa: initialPressureGradientPaByFlow[flowName],
+        flowM3PerSec: dynamicFlowsM3PerSec[flowName],
+      }).apertureState01,
+    ]),
+  )) as Readonly<Record<MainWirePhaseB1ValveFlowNameV1, number>>;
   const differentialState: PhaseB1MainWireDistributedDifferentialStateV1 =
     source.slsMode === "on"
       ? Object.freeze({
           slsMode: "on" as const,
           bloodVolumesM3,
           dynamicFlowsM3PerSec,
+          valveApertureState01ByFlow,
           calciumByWall: copyCalcium(source.calciumByWall),
           landByWall: copyLand(source.landByWall),
           slsAlphaVByWall: copyNumericRecord(
@@ -489,6 +585,7 @@ export function transformPhaseB1EndpointToMainWireDistributedV1(input: Readonly<
           slsMode: "off" as const,
           bloodVolumesM3,
           dynamicFlowsM3PerSec,
+          valveApertureState01ByFlow,
           calciumByWall: copyCalcium(source.calciumByWall),
           landByWall: copyLand(source.landByWall),
         });
@@ -505,6 +602,9 @@ export function transformPhaseB1EndpointToMainWireDistributedV1(input: Readonly<
       valveFlowsCopiedExactly: true as const,
       suppliedVascularVolumeCount: 11 as const,
       suppliedRootDynamicFlowCount: 2 as const,
+      valveApertureStateCount: 4 as const,
+      valveApertureDerivedFromInitialPressureGradientAndFlow: true as const,
+      topologyXi0Consumed: false as const,
       vascularInitializationInferred: false as const,
       parameterFitApplied: false as const,
       legacyAggregateVascularVolumesImported: false as const,
@@ -520,6 +620,9 @@ function buildStoredLabels(mode: PhaseB1SlsModeV1): readonly string[] {
     ),
     ...MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1.map(
       (flow) => `circulation.main-wire.dynamic-flow.${flow}`,
+    ),
+    ...MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.map(
+      (flow) => `circulation.main-wire.valve-aperture.${flow}`,
     ),
   ];
   for (const wallId of WALL_IDS) {
@@ -574,6 +677,7 @@ function normalizeDifferentialState(
           "slsMode",
           "bloodVolumesM3",
           "dynamicFlowsM3PerSec",
+          "valveApertureState01ByFlow",
           "calciumByWall",
           "landByWall",
           "slsAlphaVByWall",
@@ -582,6 +686,7 @@ function normalizeDifferentialState(
           "slsMode",
           "bloodVolumesM3",
           "dynamicFlowsM3PerSec",
+          "valveApertureState01ByFlow",
           "calciumByWall",
           "landByWall",
         ],
@@ -599,6 +704,12 @@ function normalizeDifferentialState(
       MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1,
       "dynamicFlowsM3PerSec",
       requireFinite,
+    ),
+    valveApertureState01ByFlow: copyNumericRecord(
+      value.valveApertureState01ByFlow,
+      MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+      "valveApertureState01ByFlow",
+      requireUnitInterval,
     ),
     calciumByWall: copyCalcium(value.calciumByWall),
     landByWall: copyLand(value.landByWall),
@@ -790,8 +901,8 @@ function requireSlsMode(value: unknown, field: string): PhaseB1SlsModeV1 {
   return value;
 }
 
-function storedCount(mode: PhaseB1SlsModeV1): 66 | 61 {
-  return mode === "on" ? 66 : 61;
+function storedCount(mode: PhaseB1SlsModeV1): 70 | 65 {
+  return mode === "on" ? 70 : 65;
 }
 
 function newtonCount(mode: PhaseB1SlsModeV1): 58 | 53 {
@@ -814,5 +925,13 @@ function requireNonNegativeFinite(value: unknown, field: string): number {
 function requirePositiveFinite(value: unknown, field: string): number {
   const finite = requireFinite(value, field);
   if (!(finite > 0)) throw new Error(`${field} must be positive`);
+  return finite;
+}
+
+function requireUnitInterval(value: unknown, field: string): number {
+  const finite = requireFinite(value, field);
+  if (finite < 0 || finite > 1) {
+    throw new Error(`${field} must lie in [0,1] without clamp or projection`);
+  }
   return finite;
 }

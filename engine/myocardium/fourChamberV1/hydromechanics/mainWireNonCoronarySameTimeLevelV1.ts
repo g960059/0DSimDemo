@@ -13,10 +13,11 @@ import {
   type ResolvedMainWireVascularEdgeV1,
 } from "@/engine/core/mainWireHemodynamicGraphV1";
 import {
-  evaluateValveMomentumV1,
-  type ValveLossParametersV1,
-  type ValveMomentumOutputV1,
-} from "@/engine/myocardium/fourChamberV1/flows/signedFlowLossV1";
+  compileMainWireDynamicValveParametersByFlowV1,
+  evaluateMainWireDynamicValveMomentumV1,
+  type CompiledMainWireDynamicValveParametersV1,
+  type MainWireDynamicValveMomentumV1,
+} from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireDynamicValveApertureV1";
 import { assertExactPlainRecordV1 } from
   "@/engine/myocardium/fourChamberV1/validation/strictClosedRecordV1";
 import {
@@ -135,11 +136,12 @@ export const MAIN_WIRE_NON_CORONARY_KERNEL_OWNERSHIP_AUDIT_V1 = Object.freeze({
   vascularPvOwner: "engine/vascularPv.ts",
   valveFlowIdentityOwner: "phase-b1-four-chamber-valve-ids",
   valveTopologyOwner: "same-time-level-heart-boundary-adapter",
-  valveConstitutiveOwner: "phase-b1-smooth-pressure-gated",
-  valveApertureState: "absent",
+  valveConstitutiveOwner: "engine-core-dynamic-aperture-condensed-be",
+  valvePhysicalParameterOwner: "engine/core/topology.ts+engine/core/params.ts",
+  valveApertureState: "four-stored-states-statically-condensed-from-newton",
   coronaryNetwork: "excluded",
   integrationMode: "replace-not-augment",
-  fixedDynamicFlowVariant: "six-flow-v1",
+  fixedDynamicFlowVariant: "six-flow-plus-four-condensed-aperture-states-v1",
   positivePVeinLaOstialInertanceSupport:
     "unsupported-requires-seven-dynamic-flow-variant",
   modelCoreNumericalRuntimeParityClaimed: false,
@@ -159,16 +161,19 @@ export const MAIN_WIRE_NON_CORONARY_KERNEL_OWNERSHIP_AUDIT_V1 = Object.freeze({
       "15 blood volumes + 6 dynamic flows + 30 Land states + 5/0 SLS states + 2 TriSeg coordinates",
   }),
   intendedMonolithicStoredDifferentialStateCount: Object.freeze({
-    slsOn: 66,
-    slsOff: 61,
+    slsOn: 70,
+    slsOff: 65,
     derivation:
-      "15 blood volumes + 6 dynamic flows + 10 prescribed-calcium states + 30 Land states + 5/0 SLS states; TriSeg coordinates are algebraic",
+      "15 blood volumes + 6 dynamic flows + 4 valve apertures + 10 prescribed-calcium states + 30 Land states + 5/0 SLS states; valve apertures are exactly BE-condensed and TriSeg coordinates are algebraic",
   }),
 } as const);
 
 export type MainWireNonCoronaryKernelStateV1 = Readonly<{
   bloodVolumesM3: Readonly<Record<MainWireNonCoronaryCirculationNodeNameV1, number>>;
   dynamicFlowsM3PerSec: Readonly<Record<MainWireNonCoronaryDynamicFlowNameV1, number>>;
+  valveApertureState01ByFlow: Readonly<
+    Record<MainWirePhaseB1ValveFlowNameV1, number>
+  >;
 }>;
 
 export type MainWireNonCoronarySameTimeLevelInputV1 = Readonly<{
@@ -176,9 +181,6 @@ export type MainWireNonCoronarySameTimeLevelInputV1 = Readonly<{
   chamberAbsolutePressurePa: Readonly<Record<MainWireHeartBoundaryNodeNameV1, number>>;
   externalPressurePa: Readonly<{ pth: number; palv: number }>;
   mainWireRuntimeControls: MainWireHemodynamicRuntimeControlsV1;
-  valveLossParametersByFlow: Readonly<
-    Record<MainWirePhaseB1ValveFlowNameV1, ValveLossParametersV1>
-  >;
 }>;
 
 export type MainWireNonCoronaryPrecompiledContextV1 = Readonly<{
@@ -187,6 +189,10 @@ export type MainWireNonCoronaryPrecompiledContextV1 = Readonly<{
   vascularPvLawByNode: Readonly<Record<
     MainWireNonCoronaryVascularNodeNameV1,
     CompiledMainWireVascularPvLawSiV1
+  >>;
+  dynamicValveParametersByFlow: Readonly<Record<
+    MainWirePhaseB1ValveFlowNameV1,
+    CompiledMainWireDynamicValveParametersV1
   >>;
   internalPerformanceContextOnly: true;
   physiologyOrNumericalAcceptanceClaimed: false;
@@ -197,6 +203,8 @@ export type MainWireNonCoronaryPrecompiledContextV1 = Readonly<{
 type MainWireNonCoronaryPrecompiledContextSourceBindingV1 = Readonly<{
   resolvedGraph: ResolvedMainWireNonCoronaryHemodynamicGraphV1;
   vascularPvLawByNode: MainWireNonCoronaryPrecompiledContextV1["vascularPvLawByNode"];
+  dynamicValveParametersByFlow:
+    MainWireNonCoronaryPrecompiledContextV1["dynamicValveParametersByFlow"];
 }>;
 
 // A structural type and frozen public fields are not an authenticity boundary:
@@ -279,7 +287,7 @@ export type MainWireNonCoronarySameTimeLevelEvaluationV1 = Readonly<{
     Record<MainWireNonCoronaryCirculationNodeNameV1, number>
   >;
   valveMomentumByFlow: Readonly<
-    Record<MainWirePhaseB1ValveFlowNameV1, ValveMomentumOutputV1>
+    Record<MainWirePhaseB1ValveFlowNameV1, MainWireDynamicValveMomentumV1>
   >;
   vascularFlowEvaluationByFlow: Readonly<
     Record<MainWireNonCoronaryVascularEdgeNameV1, MainWireVascularFlowEvaluationV1>
@@ -319,10 +327,13 @@ export function compileMainWireNonCoronaryPrecompiledContextV1(
         : { nodeOverrides: resolvedGraph.runtimeControls.nodeOverrides }),
     }),
   );
+  const dynamicValveParametersByFlow =
+    compileMainWireDynamicValveParametersByFlowV1();
   const context = Object.freeze({
     contextId: MAIN_WIRE_NON_CORONARY_PRECOMPILED_CONTEXT_V1_ID,
     resolvedGraph,
     vascularPvLawByNode,
+    dynamicValveParametersByFlow,
     internalPerformanceContextOnly: true as const,
     physiologyOrNumericalAcceptanceClaimed: false as const,
     claimBoundary:
@@ -330,7 +341,11 @@ export function compileMainWireNonCoronaryPrecompiledContextV1(
   });
   MAIN_WIRE_NON_CORONARY_PRECOMPILED_CONTEXT_SOURCE_BINDINGS_V1.set(
     context,
-    Object.freeze({ resolvedGraph, vascularPvLawByNode }),
+    Object.freeze({
+      resolvedGraph,
+      vascularPvLawByNode,
+      dynamicValveParametersByFlow,
+    }),
   );
   return context;
 }
@@ -355,7 +370,6 @@ export function evaluateMainWireNonCoronaryWithPrecompiledContextV1(
     "state",
     "chamberAbsolutePressurePa",
     "externalPressurePa",
-    "valveLossParametersByFlow",
     "precompiledContext",
   ], "precompiled main-wire same-time-level input");
   assertPrecompiledContextV1(input.precompiledContext);
@@ -364,7 +378,6 @@ export function evaluateMainWireNonCoronaryWithPrecompiledContextV1(
     chamberAbsolutePressurePa: input.chamberAbsolutePressurePa,
     externalPressurePa: input.externalPressurePa,
     mainWireRuntimeControls: input.precompiledContext.resolvedGraph.runtimeControls,
-    valveLossParametersByFlow: input.valveLossParametersByFlow,
   };
   validateSameTimeLevelInputV1(compatibilityInput);
   return evaluateMainWireNonCoronaryWithPrecompiledContextUncheckedV1(
@@ -414,26 +427,30 @@ function evaluateMainWireNonCoronaryWithPrecompiledContextUncheckedV1(
     downstream: MainWireNonCoronaryCirculationNodeNameV1,
   ) => absolutePressurePaByNode[upstream] - absolutePressurePaByNode[downstream];
   const valveMomentumByFlow = Object.freeze({
-    Q_MV: evaluateValveMomentumV1(
-      input.valveLossParametersByFlow.Q_MV,
-      pressureGradient("LA", "LV"),
-      input.state.dynamicFlowsM3PerSec.Q_MV,
-    ),
-    Q_AoV: evaluateValveMomentumV1(
-      input.valveLossParametersByFlow.Q_AoV,
-      pressureGradient("LV", "Ao"),
-      input.state.dynamicFlowsM3PerSec.Q_AoV,
-    ),
-    Q_TV: evaluateValveMomentumV1(
-      input.valveLossParametersByFlow.Q_TV,
-      pressureGradient("RA", "RV"),
-      input.state.dynamicFlowsM3PerSec.Q_TV,
-    ),
-    Q_PuV: evaluateValveMomentumV1(
-      input.valveLossParametersByFlow.Q_PuV,
-      pressureGradient("RV", "PA"),
-      input.state.dynamicFlowsM3PerSec.Q_PuV,
-    ),
+    Q_MV: evaluateMainWireDynamicValveMomentumV1({
+      parameters: precompiledContext.dynamicValveParametersByFlow.Q_MV,
+      valveApertureState01: input.state.valveApertureState01ByFlow.Q_MV,
+      pressureGradientPa: pressureGradient("LA", "LV"),
+      flowM3PerSec: input.state.dynamicFlowsM3PerSec.Q_MV,
+    }),
+    Q_AoV: evaluateMainWireDynamicValveMomentumV1({
+      parameters: precompiledContext.dynamicValveParametersByFlow.Q_AoV,
+      valveApertureState01: input.state.valveApertureState01ByFlow.Q_AoV,
+      pressureGradientPa: pressureGradient("LV", "Ao"),
+      flowM3PerSec: input.state.dynamicFlowsM3PerSec.Q_AoV,
+    }),
+    Q_TV: evaluateMainWireDynamicValveMomentumV1({
+      parameters: precompiledContext.dynamicValveParametersByFlow.Q_TV,
+      valveApertureState01: input.state.valveApertureState01ByFlow.Q_TV,
+      pressureGradientPa: pressureGradient("RA", "RV"),
+      flowM3PerSec: input.state.dynamicFlowsM3PerSec.Q_TV,
+    }),
+    Q_PuV: evaluateMainWireDynamicValveMomentumV1({
+      parameters: precompiledContext.dynamicValveParametersByFlow.Q_PuV,
+      valveApertureState01: input.state.valveApertureState01ByFlow.Q_PuV,
+      pressureGradientPa: pressureGradient("RV", "PA"),
+      flowM3PerSec: input.state.dynamicFlowsM3PerSec.Q_PuV,
+    }),
   });
 
   const vascularFlowEntries = graph.edges.map((edge) => {
@@ -831,6 +848,7 @@ function assertPrecompiledContextV1(
     "contextId",
     "resolvedGraph",
     "vascularPvLawByNode",
+    "dynamicValveParametersByFlow",
     "internalPerformanceContextOnly",
     "physiologyOrNumericalAcceptanceClaimed",
     "claimBoundary",
@@ -845,11 +863,14 @@ function assertPrecompiledContextV1(
   if (!Object.isFrozen(context)
       || !Object.isFrozen(context.resolvedGraph)
       || !Object.isFrozen(context.resolvedGraph.runtimeControls)
-      || !Object.isFrozen(context.vascularPvLawByNode)) {
+      || !Object.isFrozen(context.vascularPvLawByNode)
+      || !Object.isFrozen(context.dynamicValveParametersByFlow)) {
     throw new Error("main-wire precompiled context must be immutable");
   }
   if (context.resolvedGraph !== sourceBinding.resolvedGraph
-      || context.vascularPvLawByNode !== sourceBinding.vascularPvLawByNode) {
+      || context.vascularPvLawByNode !== sourceBinding.vascularPvLawByNode
+      || context.dynamicValveParametersByFlow
+        !== sourceBinding.dynamicValveParametersByFlow) {
     throw new Error(
       "main-wire precompiled context graph and PV laws lost their compiler source binding",
     );
@@ -866,6 +887,17 @@ function assertPrecompiledContextV1(
       throw new Error(`main-wire precompiled PV law ${nodeName} is invalid`);
     }
   }
+  assertExactPlainRecordV1(
+    context.dynamicValveParametersByFlow,
+    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+    "main-wire precompiled dynamic valve parameters",
+  );
+  for (const flowName of MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1) {
+    const compiled = context.dynamicValveParametersByFlow[flowName];
+    if (!Object.isFrozen(compiled) || compiled.flowName !== flowName) {
+      throw new Error(`main-wire dynamic valve parameter ${flowName} is invalid`);
+    }
+  }
 }
 
 function validateSameTimeLevelInputV1(
@@ -876,11 +908,11 @@ function validateSameTimeLevelInputV1(
     "chamberAbsolutePressurePa",
     "externalPressurePa",
     "mainWireRuntimeControls",
-    "valveLossParametersByFlow",
   ], "input");
   assertExactPlainRecordV1(input.state, [
     "bloodVolumesM3",
     "dynamicFlowsM3PerSec",
+    "valveApertureState01ByFlow",
   ], "input.state");
   assertExactPlainRecordV1(
     input.state.bloodVolumesM3,
@@ -893,6 +925,11 @@ function validateSameTimeLevelInputV1(
     "input.state.dynamicFlowsM3PerSec",
   );
   assertExactPlainRecordV1(
+    input.state.valveApertureState01ByFlow,
+    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+    "input.state.valveApertureState01ByFlow",
+  );
+  assertExactPlainRecordV1(
     input.chamberAbsolutePressurePa,
     MAIN_WIRE_HEART_BOUNDARY_NODE_NAMES_V1,
     "input.chamberAbsolutePressurePa",
@@ -901,11 +938,6 @@ function validateSameTimeLevelInputV1(
     input.externalPressurePa,
     ["pth", "palv"],
     "input.externalPressurePa",
-  );
-  assertExactPlainRecordV1(
-    input.valveLossParametersByFlow,
-    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
-    "input.valveLossParametersByFlow",
   );
   for (const nodeName of MAIN_WIRE_NON_CORONARY_CIRCULATION_NODE_NAMES_V1) {
     requirePositiveFinite(
@@ -918,6 +950,17 @@ function validateSameTimeLevelInputV1(
       input.state.dynamicFlowsM3PerSec[flowName],
       `input.state.dynamicFlowsM3PerSec.${flowName}`,
     );
+  }
+  for (const flowName of MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1) {
+    const xi = requireFinite(
+      input.state.valveApertureState01ByFlow[flowName],
+      `input.state.valveApertureState01ByFlow.${flowName}`,
+    );
+    if (xi < 0 || xi > 1) {
+      throw new Error(
+        `input.state.valveApertureState01ByFlow.${flowName} must lie in [0,1]`,
+      );
+    }
   }
   for (const chamberName of MAIN_WIRE_HEART_BOUNDARY_NODE_NAMES_V1) {
     requireFinite(
