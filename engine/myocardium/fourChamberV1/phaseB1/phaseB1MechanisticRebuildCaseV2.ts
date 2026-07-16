@@ -57,6 +57,7 @@ import type {
 } from "@/engine/myocardium/fourChamberV1/phaseB1/phaseB1QuiescentReferenceEventFreeCaseV1";
 import {
   buildPhaseB1MechanisticRebuildWallMaterialBindingV4,
+  buildPhaseB1MechanisticRebuildSourceDistortionControlBindingV6,
   getPhaseB1WallPassiveStressScalesV1,
   type PhaseB1WallMaterialBindingV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/phaseB1WallMaterialBindingV1";
@@ -127,6 +128,10 @@ export const PHASE_B1_MECHANISTIC_REBUILD_CASE_V2_POLICY = Object.freeze({
   runtimeAdopted: false as const,
 } as const);
 
+export type PhaseB1AtrialLandKinematicClosureV1 =
+  | "population-only"
+  | "source-distortion-control";
+
 const PA_PER_MMHG = 133.322387415;
 
 export type PhaseB1MechanisticRebuildCaseV2 = Readonly<{
@@ -135,6 +140,7 @@ export type PhaseB1MechanisticRebuildCaseV2 = Readonly<{
   atrialMechanics: NormalAdultAtrialMechanicsCandidateV3;
   ventricularMechanics: NormalAdultVentricularMechanicsCandidateV2;
   activeTissueClassPrior: NormalAdultActiveTissueClassPriorAuditV1;
+  atrialLandKinematicClosure: PhaseB1AtrialLandKinematicClosureV1;
   wallMaterialBinding: PhaseB1WallMaterialBindingV1;
   operatingPoint: PhaseB1PreAOperatingPointSuccessV2;
   initialization: PhaseB1RelaxedEndpointAtDeclaredCoordinatesV2;
@@ -209,17 +215,22 @@ export type PhaseB1MechanisticRebuildCaseV2 = Readonly<{
 export function buildPhaseB1MechanisticRebuildCaseV2(input: Readonly<{
   sourceCase: PhaseB1QuiescentReferenceEventFreeCaseV1;
   overlay: PhaseB1PhysiologyEnvelopeOverlayV1;
+  atrialLandKinematicClosure: PhaseB1AtrialLandKinematicClosureV1;
   sha256Hex: CanonicalSha256HexProvider;
 }>): PhaseB1MechanisticRebuildCaseV2 {
   assertExactPlainRecordV1(
     input,
-    ["sourceCase", "overlay", "sha256Hex"],
+    ["sourceCase", "overlay", "atrialLandKinematicClosure", "sha256Hex"],
     "Phase B1 mechanistic-rebuild case input",
   );
   if (typeof input.sha256Hex !== "function") {
     throw new Error("mechanistic-rebuild case requires a SHA-256 provider");
   }
-  const sourcePhysiologyCase = buildPhaseB1PhysiologyEnvelopeCaseV1(input);
+  const sourcePhysiologyCase = buildPhaseB1PhysiologyEnvelopeCaseV1({
+    sourceCase: input.sourceCase,
+    overlay: input.overlay,
+    sha256Hex: input.sha256Hex,
+  });
   const bsa = PHASE_B1_MECHANISTIC_REBUILD_CASE_V2_POLICY.bodySurfaceAreaM2;
   const postAEdpvrCalibrationAnchorPa =
     PHASE_B1_MECHANISTIC_REBUILD_CASE_V2_POLICY
@@ -235,8 +246,22 @@ export function buildPhaseB1MechanisticRebuildCaseV2(input: Readonly<{
   const activeTissueClassPrior =
     buildNormalAdultActiveTissueClassPriorAuditV1(input.sha256Hex);
   const sourceBundle = buildPhaseA1TissueManifestBundleV1(input.sha256Hex);
-  const wallMaterialBinding =
-    buildPhaseB1MechanisticRebuildWallMaterialBindingV4(
+  if (
+    input.atrialLandKinematicClosure !== "population-only"
+    && input.atrialLandKinematicClosure !== "source-distortion-control"
+  ) {
+    throw new Error("mechanistic-rebuild case requires a declared atrial Land kinematic closure");
+  }
+  const wallMaterialBinding = input.atrialLandKinematicClosure
+      === "population-only"
+    ? buildPhaseB1MechanisticRebuildWallMaterialBindingV4(
+      sourceBundle,
+      ventricularMechanics.passiveFit,
+      atrialMechanics,
+      activeTissueClassPrior,
+      input.sha256Hex,
+    )
+    : buildPhaseB1MechanisticRebuildSourceDistortionControlBindingV6(
       sourceBundle,
       ventricularMechanics.passiveFit,
       atrialMechanics,
@@ -705,6 +730,7 @@ export function buildPhaseB1MechanisticRebuildCaseV2(input: Readonly<{
     atrialMechanics,
     ventricularMechanics,
     activeTissueClassPrior,
+    atrialLandKinematicClosure: input.atrialLandKinematicClosure,
     wallMaterialBinding,
     operatingPoint,
     initialization,

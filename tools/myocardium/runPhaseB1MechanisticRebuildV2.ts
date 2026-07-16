@@ -184,6 +184,7 @@ function run(): void {
   const candidate = buildPhaseB1MechanisticRebuildCaseV2({
     sourceCase,
     overlay: buildPhaseB1PhysiologyEnvelopeCenterOverlayV1(sourceCase),
+    atrialLandKinematicClosure: "population-only",
     sha256Hex: sha256,
   });
   const scheduleCandidateCalciumTimingParityPass =

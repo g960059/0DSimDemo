@@ -38,8 +38,8 @@ export function landDistortionEquivalenceParametersV1(
 ): Readonly<LandDistortionEquivalenceParametersV1> {
   return deepFreeze({
     A: {
-      w: requirePositiveFinite(derived.Aw, "derived.Aw"),
-      s: requirePositiveFinite(derived.As, "derived.As"),
+      w: requireNonNegativeFinite(derived.Aw, "derived.Aw"),
+      s: requireNonNegativeFinite(derived.As, "derived.As"),
     },
     cPerSec: {
       w: requirePositiveFinite(derived.cw, "derived.cw"),
@@ -170,8 +170,8 @@ function validateParameters(
   assertExactKeys(parameters, ["A", "cPerSec"], "parameters");
   const A = validatePair(parameters.A, "parameters.A");
   const cPerSec = validatePair(parameters.cPerSec, "parameters.cPerSec");
-  requirePositiveFinite(A.w, "parameters.A.w");
-  requirePositiveFinite(A.s, "parameters.A.s");
+  requireNonNegativeFinite(A.w, "parameters.A.w");
+  requireNonNegativeFinite(A.s, "parameters.A.s");
   requirePositiveFinite(cPerSec.w, "parameters.cPerSec.w");
   requirePositiveFinite(cPerSec.s, "parameters.cPerSec.s");
   return { A, cPerSec };
@@ -217,6 +217,12 @@ function requireFinite(value: unknown, field: string): number {
 function requirePositiveFinite(value: unknown, field: string): number {
   const finite = requireFinite(value, field);
   if (finite <= 0) throw new Error(`${field} must be positive`);
+  return finite;
+}
+
+function requireNonNegativeFinite(value: unknown, field: string): number {
+  const finite = requireFinite(value, field);
+  if (finite < 0) throw new Error(`${field} must be nonnegative`);
   return finite;
 }
 

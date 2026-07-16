@@ -12,6 +12,9 @@ import {
   computeCanonicalSha256,
 } from "@/engine/myocardium/fourChamberV1/manifests/canonicalJson";
 import {
+  NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2,
+} from "@/engine/myocardium/fourChamberV1/calcium/normalAdultHumanAtrialCalciumTimingCandidateV2";
+import {
   buildAtrialHumanPriorLandEquationParametersV1,
 } from "@/engine/myocardium/fourChamberV1/manifests/phaseA1TissueManifestBundleV1";
 import {
@@ -73,14 +76,18 @@ describe("normal-adult active tissue-class prior v1", () => {
     expect(report.exclusionBoundary.chamberSpecificActiveGainUsed).toBe(false);
   });
 
-  it("reconstructs component timing while recording the ventricular RT90 miss", () => {
+  it("uses the human-atrial timing-bounded V2 candidate while recording the ventricular RT90 miss", () => {
     const report = audit();
 
+    expect(NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2).toMatchObject({
+      tauRiseSec: 0.020,
+      tauDecaySec: 0.215,
+      calciumDiastolicUM: 0.1,
+      calciumAmplitudeUM: 0.5,
+    });
     expect(NORMAL_ADULT_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1).toMatchObject({
       tauRiseSec: 0.0125,
       tauDecaySec: 0.3,
-      calciumDiastolicUM: 0.1,
-      calciumAmplitudeUM: 0.5,
     });
     expect(NORMAL_ADULT_VENTRICULAR_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1).toMatchObject({
       tauRiseSec: 0.07,
@@ -91,8 +98,23 @@ describe("normal-adult active tissue-class prior v1", () => {
     expect(report.calciumTiming.reconstructionClass)
       .toBe("low-order-component-metric-reconstruction-not-measured-waveform");
     expect(report.calciumTiming.digitizedCalciumTraceUsed).toBe(false);
-    expect(report.calciumTiming.atrial.replay.timeToPeakMs).toBeCloseTo(85, 0);
-    expect(report.calciumTiming.atrial.replay.relaxationTime50Ms).toBeCloseTo(71, 0);
+    expect(report.calciumTiming.atrial.parameters)
+      .toBe(NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2);
+    expect(report.calciumTiming.atrial.calciumCandidateAudit
+      .unscaledBiexponentialMetrics.timeToPeakSec * 1000)
+      .toBeCloseTo(52.3697166393, 9);
+    expect(report.calciumTiming.atrial.calciumCandidateAudit
+      .unscaledBiexponentialMetrics.postPeakRelaxationTime50Sec * 1000)
+      .toBeCloseTo(170.0099459483, 9);
+    expect(report.calciumTiming.atrial.calciumCandidateAudit
+      .unscaledBiexponentialMetrics.timeToTenPercentFromOnsetSec * 1000)
+      .toBeCloseTo(568.4177825879, 9);
+    expect(report.calciumTiming.atrial.calciumCandidateAudit.acceptance)
+      .toMatchObject({
+        allTimingMetricsWithinReportedRanges: true,
+        tt90IsOnlySurrogateForReportedTtCa: true,
+        pvLoopOrClosedLoopMetricUsed: false,
+      });
     expect(report.calciumTiming.ventricular.replay.timeToPeakMs).toBeCloseTo(171, 0);
     expect(report.calciumTiming.ventricular.replay.relaxationTime50Ms).toBeCloseTo(122, 0);
     expect(report.calciumTiming.ventricular.replay.relaxationTime90Ms).toBeCloseTo(224, 0);

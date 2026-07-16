@@ -21,6 +21,9 @@ import {
   evaluateMoyer2015AtrialEquibiaxialPassiveV3,
 } from "@/engine/myocardium/fourChamberV1/passive/moyer2015AtrialEquibiaxialPassiveV3";
 import {
+  stepOneStateAlphaVSlsBackwardEulerV1,
+} from "@/engine/myocardium/fourChamberV1/passive/oneStateAlphaVSlsV1";
+import {
   PHASE_B1_MECHANISTIC_REBUILD_ATRIAL_PASSIVE_SLS_BINDING_V3_ID,
   PHASE_B1_MECHANISTIC_REBUILD_PASSIVE_SLS_BINDING_V2_ID,
   buildPhaseB1FullMechanisticRebuildWallMaterialBindingV3,
@@ -74,6 +77,52 @@ describe("Phase B1 mechanistic rebuild wall-material binding V3", () => {
       expect("calibration" in material.passiveSls).toBe(true);
       expect("atrialConstruction" in material.passiveSls).toBe(false);
     }
+  });
+
+  it("rebinds one shared atrial SLS to the Moyer zero-strain tangent without changing the passive BE identity", () => {
+    const left = binding.runtimeByWall.LA.passiveSls;
+    const right = binding.runtimeByWall.RA.passiveSls;
+    expect(left).toBe(right);
+    expect(left.compiledSls).toBe(right.compiledSls);
+    if (!("atrialConstruction" in left)) {
+      throw new Error("LA did not receive the Moyer atrial construction");
+    }
+
+    const sls = left.compiledSls;
+    expect(sls.equilibriumPassivePriorId)
+      .toBe(left.compiledPassive.prior.priorId);
+    expect(sls.equilibriumReferenceTangentPa)
+      .toBe(left.compiledPassive.zeroStrainTangentPa);
+    expect(sls.equilibriumReferenceTangentSource)
+      .toBe("moyer-equibiaxial-zero-strain-tangent");
+    expect(sls.prior.rClass).toBe(0.25);
+    expect(sls.tauSec).toBe(0.05);
+    expect(sls.EVPa).toBeCloseTo(9_950.1375, 8);
+    expect(left.atrialConstruction.slsEquilibriumRebinding).toEqual({
+      equilibriumPassivePriorId: left.compiledPassive.prior.priorId,
+      equilibriumReferenceTangentPa: left.compiledPassive.zeroStrainTangentPa,
+      equilibriumReferenceTangentSource:
+        "moyer-equibiaxial-zero-strain-tangent",
+      rClass: 0.25,
+      tauSec: 0.05,
+      derivedEVPa: sls.EVPa,
+      sameClassPriorAppliedToLaAndRa: true,
+      wallWiseFreeFitApplied: false,
+      pvLoopMorphologyUsedForFit: false,
+    });
+
+    const step = stepOneStateAlphaVSlsBackwardEulerV1({
+      previousFiberLogStrain: -0.01,
+      previousAlphaV: 0.025,
+      nextFiberLogStrain: 0.09,
+      dtSec: 0.012,
+    }, sls);
+    expect(step.numericalDissipationIncrementDensityJPerM3)
+      .toBeGreaterThanOrEqual(0);
+    expect(step.physicalDissipationIncrementDensityJPerM3)
+      .toBeGreaterThanOrEqual(0);
+    expect(Math.abs(step.discretePassivityIdentityResidualJPerM3))
+      .toBeLessThan(1e-10);
   });
 
   it("predicts the pre-A RV pressure from the coupled passive path instead of imposing an RV Klotz target", () => {

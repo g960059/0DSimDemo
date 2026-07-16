@@ -3,6 +3,11 @@ import {
   type ExactEventCalciumParametersV1,
 } from "@/engine/myocardium/fourChamberV1/calcium/exactEventPrescribedCalciumV1";
 import {
+  NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2,
+  buildNormalAdultHumanAtrialCalciumTimingCandidateAuditV2,
+  type NormalAdultHumanAtrialCalciumTimingCandidateAuditV2,
+} from "@/engine/myocardium/fourChamberV1/calcium/normalAdultHumanAtrialCalciumTimingCandidateV2";
+import {
   buildIsolatedLandTargetPackV1,
   initializeLand2017IsometricSteadyStateV1,
 } from "@/engine/myocardium/fourChamberV1/land/isolatedLandTargetPackV1";
@@ -30,9 +35,9 @@ export const NORMAL_ADULT_ACTIVE_TISSUE_CLASS_PRIOR_V1_CLAIM_BOUNDARY =
   "component-metric-reconstruction-and-skinned-la-force-scale-not-pv-fit-not-intact-twitch-validation" as const;
 
 export const NORMAL_ADULT_ACTIVE_TISSUE_CLASS_PRIOR_V1_PINNED_HASHES = Object.freeze({
-  audit: "7c9d619818a88792c7e475588ba23d625e954bdfb9c9e0a05d60ff11c1cb99a8",
+  audit: "39a371e5133552313590da240d912fa6a198cf20e8e180c0dc954d91202242db",
   atrialParameterSetStableHash: "6771c89b",
-  atrialTargetPack: "d7882821f6b872bd78c6d648742bd28fcdf8a8599c80d5b37ec00996f7208be3",
+  atrialTargetPack: "dcd09d87d602ff5943491fbebef1aa9f3c7ad80f03bda5082c9984401fde6f5a",
   ventricularTargetPack: "382e4f0c38828af15dd1afd7ccb3bd768a3ec5bcce8c0f393b5a5cd1bcc05b8b",
 } as const);
 
@@ -125,13 +130,10 @@ export type NormalAdultActiveTissueClassPriorAuditV1 = {
       "low-order-component-metric-reconstruction-not-measured-waveform";
     readonly digitizedCalciumTraceUsed: false;
     readonly atrial: {
-      readonly parameters: typeof NORMAL_ADULT_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1;
-      readonly sourceContext: {
-        readonly sourceDoi: "10.1002/cnm.2931";
-        readonly timeToPeakMs: 82;
-        readonly relaxationTime50Ms: 75;
-        readonly interpretation: "adjusted-model-output-context-not-independent-measurement";
-      };
+      readonly parameters:
+        typeof NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2;
+      readonly calciumCandidateAudit:
+        NormalAdultHumanAtrialCalciumTimingCandidateAuditV2;
       readonly replay: IsolatedTwitchMetricAuditV1;
     };
     readonly ventricular: {
@@ -168,6 +170,7 @@ export type NormalAdultActiveTissueClassPriorAuditV1 = {
   readonly provenance: {
     readonly activeEquationSourceDoi: "10.1016/j.yjmcc.2017.03.008";
     readonly atrialKineticsSourceDoi: "10.1002/cnm.2931";
+    readonly atrialCalciumTimingSourceDoi: "10.1113/JP283974";
     readonly atrialForceScaleSourceDoi: "10.1016/j.yjmcc.2025.12.001";
     readonly transformationRules: readonly string[];
   };
@@ -229,7 +232,7 @@ export function buildNormalAdultActiveTissueClassPriorAuditV1(
   sha256Hex: CanonicalSha256HexProvider,
 ): NormalAdultActiveTissueClassPriorAuditV1 {
   validateExactEventCalciumParametersV1(
-    NORMAL_ADULT_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
+    NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2,
   );
   validateExactEventCalciumParametersV1(
     NORMAL_ADULT_VENTRICULAR_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
@@ -237,10 +240,12 @@ export function buildNormalAdultActiveTissueClassPriorAuditV1(
   const legacy = buildAtrialHumanPriorLandEquationParametersV1();
   const atrial = buildNormalAdultAtrialActiveLandParameterSetV1();
   const saturation = replayAtrialSaturationMapping(atrial);
+  const atrialCalciumAudit =
+    buildNormalAdultHumanAtrialCalciumTimingCandidateAuditV2();
   const atrialPack = buildIsolatedLandTargetPackV1(
     "atrial-human-prior-v1",
     atrial,
-    NORMAL_ADULT_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
+    NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2,
     sha256Hex,
   );
   const ventricularPack = buildIsolatedLandTargetPackV1(
@@ -290,13 +295,8 @@ export function buildNormalAdultActiveTissueClassPriorAuditV1(
       reconstructionClass: "low-order-component-metric-reconstruction-not-measured-waveform",
       digitizedCalciumTraceUsed: false,
       atrial: {
-        parameters: NORMAL_ADULT_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
-        sourceContext: {
-          sourceDoi: "10.1002/cnm.2931",
-          timeToPeakMs: 82,
-          relaxationTime50Ms: 75,
-          interpretation: "adjusted-model-output-context-not-independent-measurement",
-        },
+        parameters: NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2,
+        calciumCandidateAudit: atrialCalciumAudit,
         replay: twitchMetrics(atrialPack.isolatedTwitchTarget),
       },
       ventricular: {
@@ -334,13 +334,17 @@ export function buildNormalAdultActiveTissueClassPriorAuditV1(
     provenance: {
       activeEquationSourceDoi: "10.1016/j.yjmcc.2017.03.008",
       atrialKineticsSourceDoi: "10.1002/cnm.2931",
+      atrialCalciumTimingSourceDoi: "10.1113/JP283974",
       atrialForceScaleSourceDoi: "10.1016/j.yjmcc.2025.12.001",
       transformationRules: [
         "retain every atrial-human-prior-v1 primitive except Tref bit-exactly",
         "retain all Land-derived kinetic values bit-exactly because Tref is an output scale",
         "map 11.6 kPa at pCa4.5 and lambda=1 through the actual six-state steady-state saturation factor",
         "share one active parameter set between LA and RA; RA use is an explicit LA-derived extrapolation",
-        "reconstruct only source component timing metrics with two exponentials; do not claim a measured calcium waveform",
+        "set only atrial biexponential timing constants from Mazhar et al. 37 C human-atrial Table 2 ranges",
+        "retain atrial calcium baseline, amplitude, and electrical delay without claiming they were identified by Mazhar et al.",
+        "treat onset-to-10-percent TT90 only as a surrogate for reported TT_Ca, not as an identity",
+        "do not use a digitized calcium trace, chamber pressure, flow, volume, or PV-loop morphology",
       ],
     },
     hashAlgorithm: "sha256-canonical-json-v1",

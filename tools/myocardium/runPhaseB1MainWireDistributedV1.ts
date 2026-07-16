@@ -33,6 +33,7 @@ import {
 } from "@/engine/myocardium/fourChamberV1/phaseB1/phaseB1QuiescentReferenceNumericalEvidenceV1";
 import {
   buildPhaseB1MechanisticRebuildCaseV2,
+  type PhaseB1AtrialLandKinematicClosureV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/phaseB1MechanisticRebuildCaseV2";
 import {
   buildPhaseB1PhysiologyEnvelopeCenterOverlayV1,
@@ -1182,15 +1183,24 @@ function runCliAfterCanonicalOutputResetV1(
     "PHASE_B1_MAIN_WIRE_PALV_MMHG",
     0,
   ) * PA_PER_MMHG;
+  const atrialLandKinematicClosure = parseAtrialLandKinematicClosureEnv(
+    "PHASE_B1_MAIN_WIRE_ATRIAL_LAND_KINEMATICS",
+    "population-only",
+  );
+  const requestedSlsMode = requireSlsModeV1(
+    process.env.PHASE_B1_MAIN_WIRE_SLS_MODE ?? "on",
+    "PHASE_B1_MAIN_WIRE_SLS_MODE",
+  );
   const manifest = buildPhaseB1QuiescentReferenceEvidenceManifestV1(sha256);
   const numerical = buildPhaseB1QuiescentReferenceNumericalEvidenceV1(
     manifest,
     sha256,
   );
-  const sourceCase = numerical.results.on.eventFreeCase;
+  const sourceCase = numerical.results[requestedSlsMode].eventFreeCase;
   const candidate = buildPhaseB1MechanisticRebuildCaseV2({
     sourceCase,
     overlay: buildPhaseB1PhysiologyEnvelopeCenterOverlayV1(sourceCase),
+    atrialLandKinematicClosure,
     sha256Hex: sha256,
   });
   const schedule = buildPhaseB1ProjectSyntheticNormalSinusEventScheduleV1(sha256);
@@ -2512,6 +2522,17 @@ function parsePositiveIntegerEnv(name: string, fallback: number): number {
 function parseNonNegativeIntegerEnv(name: string, fallback: number): number {
   const raw = process.env[name];
   return raw === undefined ? fallback : requireNonNegativeInteger(Number(raw), name);
+}
+
+function parseAtrialLandKinematicClosureEnv(
+  name: string,
+  fallback: PhaseB1AtrialLandKinematicClosureV1,
+): PhaseB1AtrialLandKinematicClosureV1 {
+  const value = process.env[name] ?? fallback;
+  if (value !== "population-only" && value !== "source-distortion-control") {
+    throw new Error(`${name} must be population-only or source-distortion-control`);
+  }
+  return value;
 }
 
 function requireNonEmptyString(value: string, field: string): string {

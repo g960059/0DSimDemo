@@ -11,6 +11,15 @@ export const ONE_STATE_ALPHA_V_SLS_V1_ID = "one-state-alpha-v-sls-v1" as const;
 
 export type PassiveSlsTissueClassV1 = "atrial" | "ventricular";
 
+export type OneStateAlphaVSlsEquilibriumReferenceV1 = Readonly<{
+  readonly tissueClass: PassiveSlsTissueClassV1;
+  readonly equilibriumPassivePriorId: string;
+  readonly equilibriumReferenceTangentPa: number;
+  readonly equilibriumReferenceTangentSource:
+    | "compiled-equilibrium-passive-central-tangent"
+    | "moyer-equibiaxial-zero-strain-tangent";
+}>;
+
 export type ClassSharedPassiveSlsPriorV1 = {
   readonly priorId: string;
   readonly status: "candidate-prior";
@@ -68,6 +77,14 @@ export type CompiledOneStateAlphaVSlsV1 = {
   readonly modelId: typeof ONE_STATE_ALPHA_V_SLS_V1_ID;
   readonly prior: ClassSharedPassiveSlsPriorV1;
   readonly equilibriumPassivePriorId: string;
+  readonly equilibriumReferenceTangentPa: number;
+  readonly equilibriumReferenceTangentSource:
+    OneStateAlphaVSlsEquilibriumReferenceV1["equilibriumReferenceTangentSource"];
+  /**
+   * Backward-compatible name for the reference tangent used to derive E_v.
+   * Callers must inspect equilibriumReferenceTangentSource before assigning a
+   * constitutive meaning to the reference point.
+   */
   readonly equilibriumCentralTangentPa: number;
   readonly EVPa: number;
   readonly tauSec: number;
@@ -125,16 +142,55 @@ export function compileOneStateAlphaVSlsV1(
   source: ClassSharedPassiveSlsPriorV1,
 ): CompiledOneStateAlphaVSlsV1 {
   assertCompiledEquilibriumPassivePriorV1(passive);
+  return compileOneStateAlphaVSlsFromEquilibriumReferenceV1({
+    tissueClass: passive.prior.tissueClass,
+    equilibriumPassivePriorId: passive.prior.priorId,
+    equilibriumReferenceTangentPa: passive.centralTangentPa,
+    equilibriumReferenceTangentSource:
+      "compiled-equilibrium-passive-central-tangent",
+  }, source);
+}
+
+/**
+ * Compiles the same passive one-state SLS from a tangent supplied by an
+ * independently compiled equilibrium material. The reference carries its
+ * tissue class, prior identity, and constitutive tangent source explicitly so
+ * a replacement equilibrium law cannot silently retain another law's modulus.
+ */
+export function compileOneStateAlphaVSlsFromEquilibriumReferenceV1(
+  reference: OneStateAlphaVSlsEquilibriumReferenceV1,
+  source: ClassSharedPassiveSlsPriorV1,
+): CompiledOneStateAlphaVSlsV1 {
+  assertExactPlainRecordV1(reference, [
+    "tissueClass",
+    "equilibriumPassivePriorId",
+    "equilibriumReferenceTangentPa",
+    "equilibriumReferenceTangentSource",
+  ], "slsEquilibriumReference");
   assertSlsPrior(source);
-  requirePositiveFinite(passive.centralTangentPa, "passive.centralTangentPa");
-  requireNonEmpty(passive.prior.priorId, "passive.prior.priorId");
+  requireNonEmpty(
+    reference.equilibriumPassivePriorId,
+    "reference.equilibriumPassivePriorId",
+  );
+  requirePositiveFinite(
+    reference.equilibriumReferenceTangentPa,
+    "reference.equilibriumReferenceTangentPa",
+  );
+  if (
+    reference.equilibriumReferenceTangentSource
+      !== "compiled-equilibrium-passive-central-tangent"
+    && reference.equilibriumReferenceTangentSource
+      !== "moyer-equibiaxial-zero-strain-tangent"
+  ) {
+    throw new Error("Unsupported SLS equilibrium reference tangent source");
+  }
   const prior = deepFreezeSlsPrior(source);
-  if (passive.prior.tissueClass !== prior.tissueClass) {
+  if (reference.tissueClass !== prior.tissueClass) {
     throw new Error(
-      `Passive tissue class ${passive.prior.tissueClass} does not match SLS class ${prior.tissueClass}`,
+      `Passive tissue class ${reference.tissueClass} does not match SLS class ${prior.tissueClass}`,
     );
   }
-  const EVPa = prior.rClass * passive.centralTangentPa;
+  const EVPa = prior.rClass * reference.equilibriumReferenceTangentPa;
   const dashpotViscosityPaSec = EVPa * prior.tauSec;
   requirePositiveFinite(EVPa, "EVPa");
   requirePositiveFinite(dashpotViscosityPaSec, "dashpotViscosityPaSec");
@@ -142,8 +198,11 @@ export function compileOneStateAlphaVSlsV1(
     [COMPILED_SLS_BRAND]: true,
     modelId: ONE_STATE_ALPHA_V_SLS_V1_ID,
     prior,
-    equilibriumPassivePriorId: passive.prior.priorId,
-    equilibriumCentralTangentPa: passive.centralTangentPa,
+    equilibriumPassivePriorId: reference.equilibriumPassivePriorId,
+    equilibriumReferenceTangentPa: reference.equilibriumReferenceTangentPa,
+    equilibriumReferenceTangentSource:
+      reference.equilibriumReferenceTangentSource,
+    equilibriumCentralTangentPa: reference.equilibriumReferenceTangentPa,
     EVPa,
     tauSec: prior.tauSec,
     dashpotViscosityPaSec,

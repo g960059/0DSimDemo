@@ -6,6 +6,10 @@ import type {
   ExactEventCalciumParametersV1,
 } from "@/engine/myocardium/fourChamberV1/calcium/exactEventPrescribedCalciumV1";
 import {
+  NORMAL_ADULT_HUMAN_ATRIAL_CALCIUM_TIMING_CANDIDATE_V2_ID,
+  NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2,
+} from "@/engine/myocardium/fourChamberV1/calcium/normalAdultHumanAtrialCalciumTimingCandidateV2";
+import {
   assertCanonicalSha256,
   computeCanonicalSha256,
   type CanonicalSha256HexProvider,
@@ -19,6 +23,7 @@ import {
   type CompiledEquilibriumPassivePriorV1,
 } from "@/engine/myocardium/fourChamberV1/passive/equilibriumPassiveEnergyC2V1";
 import {
+  compileOneStateAlphaVSlsFromEquilibriumReferenceV1,
   type CompiledOneStateAlphaVSlsV1,
 } from "@/engine/myocardium/fourChamberV1/passive/oneStateAlphaVSlsV1";
 import {
@@ -34,12 +39,15 @@ import type {
 } from "@/engine/myocardium/fourChamberV1/passive/moyer2015AtrialEquibiaxialPassiveV3";
 import {
   NORMAL_ADULT_ACTIVE_TISSUE_CLASS_PRIOR_V1_ID,
-  NORMAL_ADULT_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
   NORMAL_ADULT_VENTRICULAR_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
   buildNormalAdultAtrialActiveLandParameterSetV1,
   normalAdultActiveTissueClassPriorAuditHashPayloadV1,
   type NormalAdultActiveTissueClassPriorAuditV1,
 } from "@/engine/myocardium/fourChamberV1/land/normalAdultActiveTissueClassPriorV1";
+import {
+  ATRIAL_POPULATION_ONLY_LAND_V1_ID,
+  buildAtrialPopulationOnlyLandV1,
+} from "@/engine/myocardium/fourChamberV1/land/atrialPopulationOnlyLandV1";
 import {
   ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
   VENTRICULAR_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
@@ -67,6 +75,8 @@ export const PHASE_B1_MECHANISTIC_REBUILD_ACTIVE_TISSUE_CLASS_BINDING_V4_ID =
   "four-chamber-phase-b1-mechanistic-rebuild-active-tissue-class-binding-v4" as const;
 export const PHASE_B1_MECHANISTIC_REBUILD_VENTRICULAR_CALCIUM_ABLATION_BINDING_V5_ID =
   "four-chamber-phase-b1-mechanistic-rebuild-ventricular-calcium-ablation-binding-v5" as const;
+export const PHASE_B1_MECHANISTIC_REBUILD_SOURCE_DISTORTION_CONTROL_BINDING_V6_ID =
+  "four-chamber-phase-b1-mechanistic-rebuild-source-distortion-control-binding-v6" as const;
 
 const PHASE_B1_WALL_RUNTIME_MATERIAL_V1_BRAND: unique symbol =
   Symbol("PhaseB1WallRuntimeMaterialV1");
@@ -118,6 +128,18 @@ export type PhaseB1WallMaterialDescriptorV1 = Readonly<{
     unloadedReferenceCavityVolumeM3ByAtrium: Readonly<Record<"LA" | "RA", number>>;
     loadedMinimumFiberLogPrestrainByAtrium: Readonly<Record<"LA" | "RA", number>>;
     minimumPressureUsedForInverseUnloadingByAtrium: Readonly<Record<"LA" | "RA", number>>;
+    slsEquilibriumRebinding: Readonly<{
+      equilibriumPassivePriorId: string;
+      equilibriumReferenceTangentPa: number;
+      equilibriumReferenceTangentSource:
+        "moyer-equibiaxial-zero-strain-tangent";
+      rClass: number;
+      tauSec: number;
+      derivedEVPa: number;
+      sameClassPriorAppliedToLaAndRa: true;
+      wallWiseFreeFitApplied: false;
+      pvLoopMorphologyUsedForFit: false;
+    }>;
     sameHumanMaterialAppliedToLaAndRa: true;
     chamberPressureGainApplied: false;
     additiveResidualStressApplied: false;
@@ -130,6 +152,8 @@ export type PhaseB1WallMaterialDescriptorV1 = Readonly<{
     priorContentSha256: string;
     parameterSetId: string;
     parameterSetStableHash: string;
+    forceScaleSourceParameterSetId: string;
+    forceScaleSourceParameterSetStableHash: string;
     leftAtrialForceScaleSourceDoi: "10.1016/j.yjmcc.2025.12.001";
     targetSaturatedActiveStressPa: 11600;
     saturationPca: 4.5;
@@ -142,6 +166,21 @@ export type PhaseB1WallMaterialDescriptorV1 = Readonly<{
     pvLoopMorphologyUsedForFit: false;
     kineticsClaim:
       "published-atrial-timing-informed-surrogate-not-experimentally-identified-human-atrial-land-kinetics";
+    calciumTimingCandidateId:
+      typeof NORMAL_ADULT_HUMAN_ATRIAL_CALCIUM_TIMING_CANDIDATE_V2_ID;
+    calciumTimingSourceDoi: "10.1113/JP283974";
+    calciumTraceDigitized: false;
+    calciumAmplitudeIdentifiedFromTimingSource: false;
+    calciumTt90IsOnlySurrogateForReportedTtCa: true;
+    organScaleKinematicReduction:
+      | typeof ATRIAL_POPULATION_ONLY_LAND_V1_ID
+      | "land-2017-source-distortion-control";
+    globalAtrialVolumeRateUsedAsSarcomereRate: boolean;
+    microscopicForceVelocityIdentifiedForRuntime: false;
+    activeSeriesElementPresent: false;
+    landAeff: number;
+    landAw: number;
+    landAs: number;
   }>;
 }>;
 
@@ -364,6 +403,7 @@ export function buildPhaseB1MechanisticRebuildWallMaterialBindingV4(
     atrialCandidate,
     activeTissueClassPrior,
     false,
+    true,
   );
 }
 
@@ -394,6 +434,38 @@ export function buildPhaseB1MechanisticRebuildVentricularCalciumAblationBindingV
     atrialCandidate,
     activeTissueClassPrior,
     true,
+    true,
+  );
+}
+
+/**
+ * Causal control for V4. It restores the source Land distortion closure while
+ * holding the passive material, SLS, calcium, force scale, and ventricular
+ * model fixed. It exists only to attribute the organ-scale population-only
+ * reduction; it is not the preferred normal-adult construction.
+ */
+export function buildPhaseB1MechanisticRebuildSourceDistortionControlBindingV6(
+  bundle: PhaseA1TissueManifestBundleV1,
+  passiveCalibration: VentricularPassiveScaleFitV2,
+  atrialCandidate: NormalAdultAtrialMechanicsCandidateV3,
+  activeTissueClassPrior: NormalAdultActiveTissueClassPriorAuditV1,
+  sha256Hex: CanonicalSha256HexProvider,
+): PhaseB1WallMaterialBindingV1 {
+  assertVentricularPassiveScaleFitV2(passiveCalibration);
+  assertNormalAdultAtrialMechanicsCandidateV3(atrialCandidate);
+  assertNormalAdultActiveTissueClassPriorForBindingV1(
+    activeTissueClassPrior,
+    sha256Hex,
+  );
+  return buildPhaseB1WallMaterialBindingWithVentricularLand(
+    bundle,
+    LAND2017_INTACT_HUMAN_37C_WHOLE_ORGAN_PARAMETER_SET_V2,
+    sha256Hex,
+    passiveCalibration,
+    atrialCandidate,
+    activeTissueClassPrior,
+    false,
+    false,
   );
 }
 
@@ -405,14 +477,22 @@ function buildPhaseB1WallMaterialBindingWithVentricularLand(
   atrialCandidate: NormalAdultAtrialMechanicsCandidateV3 | null,
   activeTissueClassPrior: NormalAdultActiveTissueClassPriorAuditV1 | null,
   useReconstructedVentricularCalcium: boolean,
+  useAtrialPopulationOnlyReduction = false,
 ): PhaseB1WallMaterialBindingV1 {
   validatePhaseA1TissueManifestBundleV1(bundle, sha256Hex);
-  const atrialLand = activeTissueClassPrior === null
+  const atrialLandForceScaleSource = activeTissueClassPrior === null
     ? buildAtrialHumanPriorLandEquationParametersV1()
     : buildNormalAdultAtrialActiveLandParameterSetV1();
+  const atrialPopulationOnlyReduction = activeTissueClassPrior === null
+      || !useAtrialPopulationOnlyReduction
+    ? null
+    : buildAtrialPopulationOnlyLandV1(atrialLandForceScaleSource);
+  const atrialLand = atrialPopulationOnlyReduction === null
+    ? atrialLandForceScaleSource
+    : atrialPopulationOnlyReduction.parameterSet;
   const atrialCalcium = activeTissueClassPrior === null
     ? ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1
-    : NORMAL_ADULT_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1;
+    : NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2;
   const ventricularCalcium = activeTissueClassPrior !== null
       && useReconstructedVentricularCalcium
     ? NORMAL_ADULT_VENTRICULAR_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1
@@ -420,16 +500,20 @@ function buildPhaseB1WallMaterialBindingWithVentricularLand(
   if (
     activeTissueClassPrior !== null
     && (
-      atrialLand.parameterSetStableHash
+      atrialLandForceScaleSource.parameterSetStableHash
         !== activeTissueClassPrior.atrialClass.parameterSetStableHash
       || !Object.is(
-        atrialLand.values.Tref,
+        atrialLandForceScaleSource.values.Tref,
         activeTissueClassPrior.atrialClass.saturationMapping.mappedTrefPa,
+      )
+      || !exactCalciumParametersEqual(
+        activeTissueClassPrior.calciumTiming.atrial.parameters,
+        NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2,
       )
     )
   ) {
     throw new Error(
-      "active tissue-class prior and reconstructed atrial Land material disagree",
+      "active tissue-class prior and reconstructed atrial material or calcium candidate disagree",
     );
   }
   const atrialPassiveSlsSource = bindPhaseA1PassiveSlsFromTissueManifestV1(
@@ -491,8 +575,11 @@ function buildPhaseB1WallMaterialBindingWithVentricularLand(
         "primary-human-la-active-force-amplitude-anchored-shared-atrial-tissue-class-candidate-prior" as const,
       priorId: NORMAL_ADULT_ACTIVE_TISSUE_CLASS_PRIOR_V1_ID,
       priorContentSha256: activeTissueClassPrior.contentSha256,
-      parameterSetId: activeTissueClassPrior.atrialClass.parameterSetId,
-      parameterSetStableHash:
+      parameterSetId: atrialLand.parameterSetId,
+      parameterSetStableHash: atrialLand.parameterSetStableHash,
+      forceScaleSourceParameterSetId:
+        activeTissueClassPrior.atrialClass.parameterSetId,
+      forceScaleSourceParameterSetStableHash:
         activeTissueClassPrior.atrialClass.parameterSetStableHash,
       leftAtrialForceScaleSourceDoi: "10.1016/j.yjmcc.2025.12.001" as const,
       targetSaturatedActiveStressPa: 11_600 as const,
@@ -509,6 +596,22 @@ function buildPhaseB1WallMaterialBindingWithVentricularLand(
       pvLoopMorphologyUsedForFit: false as const,
       kineticsClaim:
         "published-atrial-timing-informed-surrogate-not-experimentally-identified-human-atrial-land-kinetics" as const,
+      calciumTimingCandidateId:
+        NORMAL_ADULT_HUMAN_ATRIAL_CALCIUM_TIMING_CANDIDATE_V2_ID,
+      calciumTimingSourceDoi: "10.1113/JP283974" as const,
+      calciumTraceDigitized: false as const,
+      calciumAmplitudeIdentifiedFromTimingSource: false as const,
+      calciumTt90IsOnlySurrogateForReportedTtCa: true as const,
+      organScaleKinematicReduction: atrialPopulationOnlyReduction === null
+        ? "land-2017-source-distortion-control"
+        : ATRIAL_POPULATION_ONLY_LAND_V1_ID,
+      globalAtrialVolumeRateUsedAsSarcomereRate:
+        atrialPopulationOnlyReduction === null,
+      microscopicForceVelocityIdentifiedForRuntime: false as const,
+      activeSeriesElementPresent: false as const,
+      landAeff: atrialLand.values.Aeff,
+      landAw: atrialLand.derived.Aw,
+      landAs: atrialLand.derived.As,
     });
   const wallBindings = Object.freeze(WALL_IDS.map((wallId) => {
     const runtime = runtimeByWall[wallId];
@@ -614,6 +717,14 @@ function buildMechanisticRebuildAtrialPassiveSlsBindingV3(
     );
   }
   const prior = candidate.compiledPassive.prior;
+  const compiledSls = compileOneStateAlphaVSlsFromEquilibriumReferenceV1({
+    tissueClass: "atrial",
+    equilibriumPassivePriorId: prior.priorId,
+    equilibriumReferenceTangentPa:
+      candidate.compiledPassive.zeroStrainTangentPa,
+    equilibriumReferenceTangentSource:
+      "moyer-equibiaxial-zero-strain-tangent",
+  }, source.compiledSls.prior);
   const atrialConstruction = Object.freeze({
     constructionModel: "moyer-equibiaxial-inverse-unloading-v3" as const,
     candidateId: candidate.candidateId,
@@ -635,6 +746,19 @@ function buildMechanisticRebuildAtrialPassiveSlsBindingV3(
       LA: candidate.inverseUnloadingByAtrium.LA.targetMinimumTransmuralPressurePa,
       RA: candidate.inverseUnloadingByAtrium.RA.targetMinimumTransmuralPressurePa,
     }),
+    slsEquilibriumRebinding: Object.freeze({
+      equilibriumPassivePriorId: compiledSls.equilibriumPassivePriorId,
+      equilibriumReferenceTangentPa:
+        compiledSls.equilibriumReferenceTangentPa,
+      equilibriumReferenceTangentSource:
+        "moyer-equibiaxial-zero-strain-tangent" as const,
+      rClass: compiledSls.prior.rClass,
+      tauSec: compiledSls.tauSec,
+      derivedEVPa: compiledSls.EVPa,
+      sameClassPriorAppliedToLaAndRa: true as const,
+      wallWiseFreeFitApplied: false as const,
+      pvLoopMorphologyUsedForFit: false as const,
+    }),
     sameHumanMaterialAppliedToLaAndRa: true as const,
     chamberPressureGainApplied: false as const,
     additiveResidualStressApplied: false as const,
@@ -649,7 +773,7 @@ function buildMechanisticRebuildAtrialPassiveSlsBindingV3(
     targetPackSha256: source.targetPackSha256,
     completeParameterParity: false as const,
     compiledPassive: candidate.compiledPassive,
-    compiledSls: source.compiledSls,
+    compiledSls,
     atrialConstruction,
     candidatePrior: true as const,
     closedLoopReleaseEligible: false as const,
@@ -742,6 +866,12 @@ function assertNormalAdultActiveTissueClassPriorForBindingV1(
     || prior.atrialClass.sharedBy[1] !== "RA"
     || !prior.atrialClass.allOtherPrimitiveValuesBitExact
     || !prior.atrialClass.derivedKineticsBitExact
+    || prior.calciumTiming.atrial.calciumCandidateAudit.candidateId
+      !== NORMAL_ADULT_HUMAN_ATRIAL_CALCIUM_TIMING_CANDIDATE_V2_ID
+    || !prior.calciumTiming.atrial.calciumCandidateAudit.acceptance
+      .allTimingMetricsWithinReportedRanges
+    || prior.calciumTiming.atrial.calciumCandidateAudit.acceptance
+      .pvLoopOrClosedLoopMetricUsed
     || prior.exclusionBoundary.pvLoopOrPvMorphologyFitUsed
     || prior.exclusionBoundary.moyerPassiveMaterialUsed
     || prior.exclusionBoundary.passiveMaterialCalibrationUsed
@@ -753,6 +883,22 @@ function assertNormalAdultActiveTissueClassPriorForBindingV1(
       "active tissue-class binding requires the canonical shared candidate without gains, passive fitting, or closed-loop claims",
     );
   }
+}
+
+function exactCalciumParametersEqual(
+  left: Readonly<ExactEventCalciumParametersV1>,
+  right: Readonly<ExactEventCalciumParametersV1>,
+): boolean {
+  return Object.is(left.tauRiseSec, right.tauRiseSec)
+    && Object.is(left.tauDecaySec, right.tauDecaySec)
+    && Object.is(left.calciumDiastolicUM, right.calciumDiastolicUM)
+    && Object.is(left.calciumAmplitudeUM, right.calciumAmplitudeUM)
+    && Object.is(
+      left.electricalToCalciumDelaySec,
+      right.electricalToCalciumDelaySec,
+    )
+    && left.status === right.status
+    && left.evidenceId === right.evidenceId;
 }
 
 export function assertPhaseB1WallMaterialBindingV1(

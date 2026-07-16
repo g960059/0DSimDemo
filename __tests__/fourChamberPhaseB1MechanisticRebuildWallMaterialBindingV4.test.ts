@@ -8,10 +8,12 @@ import {
   buildNormalAdultVentricularMechanicsCandidateV2,
 } from "@/engine/myocardium/fourChamberV1/calibration/normalAdultVentricularMechanicsCandidateV2";
 import {
-  NORMAL_ADULT_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
   NORMAL_ADULT_VENTRICULAR_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
   buildNormalAdultActiveTissueClassPriorAuditV1,
 } from "@/engine/myocardium/fourChamberV1/land/normalAdultActiveTissueClassPriorV1";
+import {
+  NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2,
+} from "@/engine/myocardium/fourChamberV1/calcium/normalAdultHumanAtrialCalciumTimingCandidateV2";
 import {
   buildPhaseA1TissueManifestBundleV1,
   VENTRICULAR_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1,
@@ -56,11 +58,14 @@ describe("Phase B1 mechanistic rebuild wall-material binding V4", () => {
     expect(la.landEquationParameters).toBe(ra.landEquationParameters);
     expect(la.prescribedCalciumParameters).toBe(ra.prescribedCalciumParameters);
     expect(la.prescribedCalciumParameters)
-      .toBe(NORMAL_ADULT_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_PRIOR_V1);
+      .toBe(NORMAL_ADULT_HUMAN_ATRIAL_EXACT_EVENT_CALCIUM_CANDIDATE_V2);
     expect(la.landEquationParameters.values.Tref)
       .toBeCloseTo(11_661.151010550097, 10);
     expect(la.landEquationParameters.parameterSetStableHash)
-      .toBe(activePrior.atrialClass.parameterSetStableHash);
+      .not.toBe(activePrior.atrialClass.parameterSetStableHash);
+    expect(la.landEquationParameters.values.Aeff).toBe(0);
+    expect(la.landEquationParameters.derived.Aw).toBe(0);
+    expect(la.landEquationParameters.derived.As).toBe(0);
 
     for (const wallId of ["LA", "RA"] as const) {
       const descriptor = binding.descriptor.wallBindings.find(
@@ -74,6 +79,12 @@ describe("Phase B1 mechanistic rebuild wall-material binding V4", () => {
         chamberSpecificActiveGainApplied: false,
         moyerTmaxUsedAsLandTref: false,
         pvLoopMorphologyUsedForFit: false,
+        globalAtrialVolumeRateUsedAsSarcomereRate: false,
+        microscopicForceVelocityIdentifiedForRuntime: false,
+        activeSeriesElementPresent: false,
+        landAeff: 0,
+        landAw: 0,
+        landAs: 0,
       });
     }
   });
