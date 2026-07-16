@@ -54,6 +54,7 @@ export type MainWireNormalAdultFiveWallDtHalvingInterpretabilityReasonV1 =
   | "la-sls-mode-mismatch"
   | "initialization-mismatch"
   | "maximum-beat-count-mismatch"
+  | "protocol-identity-mismatch"
   | "coarse-integration-failed"
   | "fine-integration-failed"
   | "coarse-period1-not-converged"
@@ -152,6 +153,9 @@ export function compareMainWireNormalAdultFiveWallDtHalvingV1(
   if (coarse.requestedMaximumBeatCount !== fine.requestedMaximumBeatCount) {
     reasons.push("maximum-beat-count-mismatch");
   }
+  if (!matchingProtocolIdentity(coarse, fine)) {
+    reasons.push("protocol-identity-mismatch");
+  }
   if (coarse.integrationCompletedWithoutFailure === false) {
     reasons.push("coarse-integration-failed");
   }
@@ -226,6 +230,17 @@ export function compareMainWireNormalAdultFiveWallDtHalvingV1(
       parameterSearch: false as const,
     }),
   });
+}
+
+function matchingProtocolIdentity(
+  left: MainWireNormalAdultFiveWallPeriodicResultV1,
+  right: MainWireNormalAdultFiveWallPeriodicResultV1,
+): boolean {
+  return typeof left.protocolIdentityHash === "string"
+    && left.protocolIdentityHash.length > 0
+    && typeof right.protocolIdentityHash === "string"
+    && right.protocolIdentityHash.length > 0
+    && left.protocolIdentityHash === right.protocolIdentityHash;
 }
 
 /** Runs identical cases at dt and dt/2, then applies the pure comparison. */

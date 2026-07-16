@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  sanitizeForStableHash,
+  stableHash,
+} from "@/engine/myocardium/kinematics/stableHash";
+import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
@@ -37,6 +41,38 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(result.policy.retainedCompleteBeatCount).toBe(3);
     expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1
       .period1NormalizedTolerance).toBe(1e-3);
+    expect(result.protocolIdentity.mechanicsProvider).toMatchObject({
+      providerId: "main-wire-five-wall-land-triseg-provider-v1",
+      parameterSetId: expect.stringContaining("canonical"),
+      stateSchemaVersion: 2,
+    });
+    expect(result.protocolIdentity.mechanicsProvider.parameterIdentityHash)
+      .toMatch(/^[0-9a-f]{8}$/);
+    expect(result.protocolIdentity.calciumDrive).toMatchObject({
+      driveId: "five-wall-normal-prescribed-calcium-drive-v1",
+      parameterSetId: "five-wall-normal-calcium-component-timing-prior-v1",
+    });
+    expect(result.protocolIdentity.circulation.topologyGraphSnapshot.nodes)
+      .toHaveLength(15);
+    expect(result.protocolIdentity.circulation.topologyGraphSnapshot.edges)
+      .toHaveLength(15);
+    expect(result.protocolIdentity.periodicPolicy.policyId)
+      .toBe("fixed-groupwise-periodic-policy-v1");
+    expect(Object.values(result.protocolComponentHashes))
+      .toHaveLength(5);
+    expect(Object.values(result.protocolComponentHashes)
+      .every((hash) => /^[0-9a-f]{8}$/.test(hash))).toBe(true);
+    expect(result.protocolIdentity.calciumDrive.fixedParamsStableHash)
+      .toBe(result.protocolComponentHashes.calciumDriveFixedParamsStableHash);
+    expect(result.protocolIdentity.circulation.topologyGraphStableHash)
+      .toBe(result.protocolComponentHashes.circulationTopologyGraphStableHash);
+    expect(result.protocolIdentity.circulation.runtimeStableHash)
+      .toBe(result.protocolComponentHashes.circulationRuntimeStableHash);
+    expect(result.protocolIdentity.periodicPolicy.policyStableHash)
+      .toBe(result.protocolComponentHashes.periodicPolicyStableHash);
+    expect(result.protocolIdentityHash).toBe(stableHash(sanitizeForStableHash(
+      result.protocolIdentity,
+    )));
   }, 60_000);
 
   it("keeps the fixed PVen-to-PVein basin audit exactly TBV-neutral", () => {
@@ -68,6 +104,7 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       .toBe(true);
     expect(result.claim.samePeriodicOrbitAcrossInitializationsClaimed).toBe(false);
     expect(result.periodicSteadyStateClaimed).toBe(false);
+    expect(result.protocolIdentityHash).toMatch(/^[0-9a-f]{8}$/);
   }, 60_000);
 
   it("rejects a non-integral HR60 beat grid before running the model", () => {

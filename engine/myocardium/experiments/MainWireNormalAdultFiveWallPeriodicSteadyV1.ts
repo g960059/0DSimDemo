@@ -1,15 +1,20 @@
 import {
+  buildNonCoronaryCirculationGraphV1,
   createInitialNonCoronaryCirculationStateV1,
+  NON_CORONARY_CIRCULATION_SCOPE_V1,
   NON_CORONARY_NODE_NAMES_V1,
   type NonCoronaryCirculationInitialStateInputV1,
+  type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
+import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
   initializeMainWireFiveWallNonCoronaryV1,
   stepMainWireFiveWallNonCoronaryV1,
   type MainWireFiveWallNonCoronaryAcceptedStateV1,
 } from "@/engine/myocardium/MainWireFiveWallNonCoronaryTransactionV1";
 import {
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
@@ -24,6 +29,10 @@ import {
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
+  sanitizeForStableHash,
+  stableHash,
+} from "@/engine/myocardium/kinematics/stableHash";
+import {
   sampleMainWireNormalAdultFiveWallDiagnosticStepV2,
   type MainWireNormalAdultFiveWallDiagnosticSampleV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
@@ -34,6 +43,9 @@ import {
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID =
   "main-wire-normal-adult-five-wall-periodic-steady-v1" as const;
+
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V1_ID =
+  "main-wire-normal-adult-five-wall-periodic-protocol-identity-v1" as const;
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1 =
   Object.freeze({
@@ -61,6 +73,47 @@ export type MainWireNormalAdultFiveWallPeriodicInitializationV1 =
   | "canonical"
   | typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PULMONARY_REDISTRIBUTION_V1.variant;
 
+export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
+  Readonly<{
+    mechanicsProviderMetadataStableHash: string;
+    calciumDriveFixedParamsStableHash: string;
+    circulationTopologyGraphStableHash: string;
+    circulationRuntimeStableHash: string;
+    periodicPolicyStableHash: string;
+  }>;
+
+export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
+  identityId:
+    typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V1_ID;
+  mechanicsProvider: Readonly<{
+    providerId: string;
+    parameterSetId: string;
+    /** Includes the provider's material, geometry, and internal solver options. */
+    parameterIdentityHash: string;
+    stateSchemaVersion: number;
+  }>;
+  calciumDrive: Readonly<{
+    driveId: typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID;
+    parameterSetId: string;
+    fixedParamsStableHash: string;
+  }>;
+  circulation: Readonly<{
+    topologyGraphSnapshot: Readonly<{
+      topologyId: string;
+      nodes: readonly Readonly<NodeSpec>[];
+      edges: readonly Readonly<EdgeSpec>[];
+      scope: typeof NON_CORONARY_CIRCULATION_SCOPE_V1;
+    }>;
+    topologyGraphStableHash: string;
+    runtimeStableHash: string;
+  }>;
+  periodicPolicy: Readonly<{
+    policyId:
+      typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId;
+    policyStableHash: string;
+  }>;
+}>;
+
 export type MainWireNormalAdultFiveWallPeriodicOptionsV1 = Readonly<{
   dtSec: number;
   maximumBeatCount?: number;
@@ -85,6 +138,10 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   experimentId:
     typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID;
   mode: "canonical";
+  protocolIdentity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+  protocolIdentityHash: string;
+  protocolComponentHashes:
+    MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   dtSec: number;
@@ -164,6 +221,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(
     resolved.laSlsMode,
   );
+  const protocol = buildPeriodicProtocolIdentity(provider, runtime);
   const canonicalCirculation = createInitialNonCoronaryCirculationStateV1({
     timeSec: 0,
     runtime,
@@ -275,6 +333,9 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   return Object.freeze({
     experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID,
     mode: "canonical" as const,
+    protocolIdentity: protocol.identity,
+    protocolIdentityHash: protocol.identityHash,
+    protocolComponentHashes: protocol.componentHashes,
     laSlsMode: resolved.laSlsMode,
     initialization: resolved.initialization,
     dtSec: resolved.dtSec,
@@ -305,6 +366,84 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       smoothingAppliedToSamples: false as const,
     }),
   });
+}
+
+function buildPeriodicProtocolIdentity(
+  provider: ReturnType<typeof createCanonicalMainWireNormalAdultFiveWallProviderV1>,
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): Readonly<{
+  identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+  identityHash: string;
+  componentHashes: MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
+}> {
+  const mechanicsProvider = deepFreezeProtocolValue({
+    providerId: provider.providerId,
+    parameterSetId: provider.parameterSetId,
+    parameterIdentityHash: provider.parameterIdentityHash,
+    stateSchemaVersion: provider.stateSchemaVersion,
+  });
+  const topologyGraph = buildNonCoronaryCirculationGraphV1();
+  const topologyGraphSnapshot = deepFreezeProtocolValue({
+    topologyId: topologyGraph.topologyId,
+    nodes: topologyGraph.nodes,
+    edges: topologyGraph.edges,
+    scope: topologyGraph.scope,
+  }) as MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1["circulation"]["topologyGraphSnapshot"];
+  const componentHashes = Object.freeze({
+    mechanicsProviderMetadataStableHash: hashProtocolValue(mechanicsProvider),
+    calciumDriveFixedParamsStableHash:
+      hashProtocolValue(FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1),
+    circulationTopologyGraphStableHash:
+      hashProtocolValue(topologyGraphSnapshot),
+    circulationRuntimeStableHash: hashProtocolValue(runtime),
+    periodicPolicyStableHash:
+      hashProtocolValue(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1),
+  });
+  const identity = deepFreezeProtocolValue({
+    identityId:
+      MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V1_ID,
+    mechanicsProvider,
+    calciumDrive: {
+      driveId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
+      parameterSetId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
+      fixedParamsStableHash:
+        componentHashes.calciumDriveFixedParamsStableHash,
+    },
+    circulation: {
+      topologyGraphSnapshot,
+      topologyGraphStableHash:
+        componentHashes.circulationTopologyGraphStableHash,
+      runtimeStableHash: componentHashes.circulationRuntimeStableHash,
+    },
+    periodicPolicy: {
+      policyId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId,
+      policyStableHash: componentHashes.periodicPolicyStableHash,
+    },
+  }) as MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+  return Object.freeze({
+    identity,
+    identityHash: hashProtocolValue(identity),
+    componentHashes,
+  });
+}
+
+function hashProtocolValue(value: unknown): string {
+  return stableHash(sanitizeForStableHash(value));
+}
+
+function deepFreezeProtocolValue<T>(value: T): Readonly<T> {
+  const sanitized = sanitizeForStableHash(value) as T;
+  return deepFreezeObject(sanitized);
+}
+
+function deepFreezeObject<T>(value: T): Readonly<T> {
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value as Record<string, unknown>)) {
+      deepFreezeObject(child);
+    }
+    Object.freeze(value);
+  }
+  return value;
 }
 
 function initialStateInput(

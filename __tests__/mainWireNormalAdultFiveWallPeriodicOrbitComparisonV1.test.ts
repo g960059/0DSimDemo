@@ -121,6 +121,28 @@ describe("main-wire normal-adult five-wall periodic orbit comparison V1", () => 
       .toBe(false);
   });
 
+  it("rejects protocol identity mismatches before comparing an orbit", () => {
+    const primary = result({
+      initialization: "canonical",
+      protocolIdentityHash: "protocol-a",
+      samples: [sample(0.5), sample(0)],
+    });
+    const alternate = result({
+      initialization: "pven-to-pvein-10ml",
+      protocolIdentityHash: "protocol-b",
+      samples: [sample(0.5), sample(0)],
+    });
+    const comparison = compareMainWireNormalAdultFiveWallPeriodicOrbitsV1(
+      primary,
+      alternate,
+    );
+
+    expect(comparison.interpretable).toBe(false);
+    expect(comparison.interpretabilityReasons)
+      .toContain("protocol-identity-mismatch");
+    expect(comparison.signalMetrics).toBeNull();
+  });
+
   it("rejects reversed basin roles and phase-misaligned accepted indices", () => {
     const reversed = compareMainWireNormalAdultFiveWallPeriodicOrbitsV1(
       result({
@@ -257,6 +279,7 @@ function result(input: Readonly<{
   periodic?: boolean;
   canonicalTotalBloodVolumeMl?: number;
   initializedTotalBloodVolumeMl?: number;
+  protocolIdentityHash?: string;
 }>): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const canonicalTotalBloodVolumeMl = input.canonicalTotalBloodVolumeMl ?? 5000;
   const initializedTotalBloodVolumeMl =
@@ -268,6 +291,7 @@ function result(input: Readonly<{
     dtSec: input.dtSec ?? 0.5,
     stepsPerBeat: input.samples.length,
     requestedMaximumBeatCount: input.maximumBeatCount ?? 32,
+    protocolIdentityHash: input.protocolIdentityHash ?? "same-protocol",
     periodicSteadyStateClaimed: input.periodic ?? true,
     retainedCompleteBeats: [{
       beatIndex: 7,

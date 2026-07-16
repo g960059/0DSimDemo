@@ -193,6 +193,35 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
     });
     expect(compareMainWireNormalAdultFiveWallDtHalvingV1(coarse, otherMaximum)
       .interpretabilityReasons).toContain("maximum-beat-count-mismatch");
+
+    const otherProtocol = result({
+      dtSec: 0.25,
+      protocolIdentityHash: "different-protocol",
+      samples: [sample(0.25), sample(0.5), sample(0.75), sample(0)],
+    });
+    const protocolMismatch = compareMainWireNormalAdultFiveWallDtHalvingV1(
+      coarse,
+      otherProtocol,
+    );
+    expect(protocolMismatch.interpretable).toBe(false);
+    expect(protocolMismatch.interpretabilityReasons)
+      .toContain("protocol-identity-mismatch");
+    expect(protocolMismatch.signalMetrics).toBeNull();
+  });
+
+  it("does not treat absent protocol identities as compatible", () => {
+    const coarse = result({
+      dtSec: 0.5,
+      protocolIdentityHash: "",
+      samples: [sample(0.5), sample(0)],
+    });
+    const fine = result({
+      dtSec: 0.25,
+      protocolIdentityHash: "",
+      samples: [sample(0.25), sample(0.5), sample(0.75), sample(0)],
+    });
+    expect(compareMainWireNormalAdultFiveWallDtHalvingV1(coarse, fine)
+      .interpretabilityReasons).toContain("protocol-identity-mismatch");
   });
 
   it("validates wrapper input before starting either expensive run", () => {
@@ -251,6 +280,7 @@ function result(input: Readonly<{
   periodic?: boolean;
   initialization?: "canonical" | "pven-to-pvein-10ml";
   requestedMaximumBeatCount?: number;
+  protocolIdentityHash?: string;
 }>): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const periodic = input.periodic ?? true;
   return {
@@ -258,6 +288,7 @@ function result(input: Readonly<{
     laSlsMode: "on",
     initialization: input.initialization ?? "canonical",
     requestedMaximumBeatCount: input.requestedMaximumBeatCount ?? 32,
+    protocolIdentityHash: input.protocolIdentityHash ?? "same-protocol",
     dtSec: input.dtSec,
     stepsPerBeat: input.samples.length,
     periodicSteadyStateClaimed: periodic,
