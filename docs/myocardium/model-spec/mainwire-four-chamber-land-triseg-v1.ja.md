@@ -22,6 +22,8 @@ conduit、booster pumpを同じ物理stateから生じさせ、将来は各param
 - LA parallel SLS：暫定保持。LAだけをexact-offにすると、最終心拍の自己交差が1から4へ増え、
   reservoir-minus-conduit等容量差が0.409から0.261 mmHgへ36%低下した。onでは物理散逸
   0.349 mJ/beat、BE数値散逸0.029 mJ/beatで、物理散逸が約12.1倍を占めた。
+- RAと3 ventricular wallのSLS：固定exact-off監査で効果を確認したため、各1-stateを保持する。
+  ただしcross-wallで共有したovine-RV由来priorの値は同定済みとみなさない。
 - 2本目のMaxwell branch、LAA補正、long-axis補正は追加しない。
 
 canonicalの最終心拍は自己交差1個、A/V lobe面積7.22/3.35 mmHg mL、reservoirが
@@ -312,9 +314,22 @@ PV loopからfitしない。bound hitはclamp後の成功ではなくstructural 
 初回の主比較はSLSを固定onにした$q_L$ off/onである。その後、SLSの存在意義だけを判定する
 off/on ablationを一度行う。これはparameter searchではない。効果がなければSLSを削除する。
 
-exact-off比較では$E_v=0$とし、LA SLSのstress、tangent、stored energy、物理散逸、BE数値散逸を
+LA exact-off比較では$E_v=0$とし、LA SLSのstress、tangent、stored energy、物理散逸、BE数値散逸を
 すべて厳密に0とした。RAと心室3壁はonのまま固定した。offでV-loop topologyと等容量枝差が
 明確に悪化し、onの散逸は数値散逸でなく物理散逸が支配したため、一状態SLSを保持する。
+
+追加の固定構造監査はHR 60、`dt=5 ms`、同一cold stateで12拍を各1回だけ行った。RA exact-offでは
+RA loopが1 crossingから2 crossingsへ崩れてlobe測定不能となり、RA等容量枝差は
+0.403から0.247 mmHgへ38.8%低下した。canonical RA SLSの物理散逸は0.300 mJ/beatであった。
+RA stateは左心への影響が小さくても右心hysteresisを所有するため削除しない。
+
+LVFW/SEP/RVFWを一括exact-offにするとLA V-loopは3.397から5.859 mmHg mLへ増えたが、A-loopは
+5.690から0.516 mmHg mLへ90.9%減少し、LAP/LVP minimum、MVO、E/A、COも同時に変わった。
+これはV-loopだけの改善でなく別の拡張期生理への移行である。V-loop拡大を目的にventricular SLSを
+削除しない。canonicalでの物理散逸はLA/RA/LVFW/SEP/RVFWの順に
+0.350/0.300/16.49/7.22/6.21 mJ/beatで、各離散energy balanceは丸め誤差内で閉じた。
+ただし12拍時点のperiod-1 closureは0.8--1.6%であり、これらはparameter同定ではなく暫定的な
+構造保持判断である。
 
 ## main-wire接続の段階境界
 
@@ -338,6 +353,8 @@ $T_{ref}$、Ca振幅、orientation、viabilityはactive stress上で強く交絡
 viabilityを1に固定し、症例fitでも独立計測がなければ同時に自由化しない。reference volumeとpassive
 stiffness、Land slack stretchも同時fitしない。数値area floorとsmoothing幅はsolver regularizationであり、
 患者parameterにしない。Ca pulse振幅0とviability 0は新しいstateを足さずexact-offを表現できる。
+現V1の`parameterIdentityHash`は物理係数だけでなくprovenance、policy、claim metadataも含む
+configuration identityであり、同定済みphysics hashとは呼ばない。
 
 ## 生理学的根拠と限界
 
