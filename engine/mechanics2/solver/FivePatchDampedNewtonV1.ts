@@ -46,6 +46,9 @@ export type FivePatchDampedNewtonResultV1 = {
   readonly freshJacobianRetries: number;
   readonly lineSearchBacktracks: number;
   readonly maxScaledResidual: number;
+  /** Final scaled residual vector retained for fail-closed attribution. */
+  readonly finalScaledResiduals: readonly number[];
+  readonly maximumResidualIndex: number | null;
   readonly residualHistory: readonly number[];
   readonly failureReason: string | null;
 };
@@ -92,13 +95,19 @@ export function solveFivePatchDampedNewtonV1(
   }
 
   for (let iteration = 0; iteration <= options.maxIterations; iteration += 1) {
-    const norm = maxAbs(residual);
-    history.push(norm);
-    if (norm <= options.residualTolerance) {
-      return result(true, true, iteration, norm, null);
+    const convergenceNorm = maxAbs(residual);
+    history.push(convergenceNorm);
+    if (convergenceNorm <= options.residualTolerance) {
+      return result(true, true, iteration, convergenceNorm, null);
     }
     if (iteration === options.maxIterations) {
-      return result(false, true, iteration, norm, "maximum-iterations");
+      return result(
+        false,
+        true,
+        iteration,
+        convergenceNorm,
+        "maximum-iterations",
+      );
     }
 
     const mustRebuild = jacobian == null
@@ -106,7 +115,13 @@ export function solveFivePatchDampedNewtonV1(
     if (mustRebuild) {
       const rebuilt = buildJacobian(unknowns, residual);
       if (rebuilt.matrix == null) {
-        return result(false, false, iteration, norm, rebuilt.failureReason);
+        return result(
+          false,
+          false,
+          iteration,
+          convergenceNorm,
+          rebuilt.failureReason,
+        );
       }
       jacobian = rebuilt.matrix;
       acceptedStepsSinceJacobian = 0;
@@ -133,7 +148,10 @@ export function solveFivePatchDampedNewtonV1(
         ) {
           const candidate = unknowns.map((value, index) => value + alpha * step![index]!);
           const candidateResidual = evaluate(candidate);
-          if (candidateResidual != null && maxAbs(candidateResidual) < norm) {
+          if (
+            candidateResidual != null &&
+            maxAbs(candidateResidual) < convergenceNorm
+          ) {
             acceptedUnknowns = candidate;
             acceptedResidual = candidateResidual;
             break;
@@ -143,7 +161,7 @@ export function solveFivePatchDampedNewtonV1(
       }
 
       if (acceptedUnknowns != null && acceptedResidual != null) {
-        const residualRatio = maxAbs(acceptedResidual) / norm;
+        const residualRatio = maxAbs(acceptedResidual) / convergenceNorm;
         unknowns = acceptedUnknowns;
         residual = acceptedResidual;
         acceptedStepsSinceJacobian += 1;
@@ -161,7 +179,13 @@ export function solveFivePatchDampedNewtonV1(
       ) {
         const rebuilt = buildJacobian(unknowns, residual);
         if (rebuilt.matrix == null) {
-          return result(false, false, iteration, norm, rebuilt.failureReason);
+          return result(
+            false,
+            false,
+            iteration,
+            convergenceNorm,
+            rebuilt.failureReason,
+          );
         }
         jacobian = rebuilt.matrix;
         acceptedStepsSinceJacobian = 0;
@@ -173,7 +197,7 @@ export function solveFivePatchDampedNewtonV1(
         false,
         step != null,
         iteration,
-        norm,
+        convergenceNorm,
         step == null ? "singular-jacobian" : "line-search-failed",
       );
     }
@@ -188,6 +212,18 @@ export function solveFivePatchDampedNewtonV1(
     maxScaledResidual: number,
     failureReason: string | null,
   ): FivePatchDampedNewtonResultV1 {
+    const finalScaledResiduals = residual == null
+      ? Object.freeze([] as number[])
+      : Object.freeze([...residual]);
+    const maximumResidualIndex = finalScaledResiduals.length === 0
+      ? null
+      : finalScaledResiduals.reduce(
+          (best, value, index) =>
+            Math.abs(value) > Math.abs(finalScaledResiduals[best]!)
+              ? index
+              : best,
+          0,
+        );
     return {
       unknowns,
       converged,
@@ -199,6 +235,8 @@ export function solveFivePatchDampedNewtonV1(
       freshJacobianRetries,
       lineSearchBacktracks: backtracks,
       maxScaledResidual,
+      finalScaledResiduals,
+      maximumResidualIndex,
       residualHistory: history,
       failureReason,
     };

@@ -12,6 +12,15 @@ import {
   createLand2017VentricularActiveOnlyParamsV1,
 } from "@/engine/mechanics2/activation/LiteratureLand2017ActiveOnlyParamsV1";
 import {
+  commitParallelBodyAppendageWallTrialV1,
+  initialParallelBodyAppendageWallStateV1,
+  trialParallelBodyAppendageWallAtPartitionV1,
+  trialParallelBodyAppendageWallV1,
+  type ParallelBodyAppendageWallParamsV1,
+  type ParallelBodyAppendageWallStateV1,
+  type ParallelBodyAppendageWallTrialV1,
+} from "@/engine/mechanics2/atrial/ParallelBodyAppendageWallV1";
+import {
   evaluateEquilibriumPassiveStressV1,
   prepareEquilibriumPassiveSlsParallelParamsV1,
 } from "@/engine/mechanics2/constitutive/EquilibriumPassiveSlsParallelV1";
@@ -33,6 +42,12 @@ import {
   type OneFiberVolumeGeometryV1,
 } from "@/engine/mechanics2/geometry/OneFiberVolumeGeometryV1";
 import {
+  computeIntrapericardialHeartVolumeMlV1,
+  evaluateCommonPericardiumV1,
+  type CommonPericardiumOutputV1,
+  type CommonPericardiumParamsV1,
+} from "@/engine/mechanics2/constraints/CommonPericardiumV1";
+import {
   representativeTriSegMidwallTensionFromFiberStressV1,
   solveTriSegAlgebraicEquilibriumV1,
   solveTriSegFullFiberEnergyGradientEquilibriumV1,
@@ -51,10 +66,18 @@ import {
 import {
   evaluateSmoothInertialValveStateV2,
   initialSmoothInertialValveStateV2,
+  stepSmoothInertialValveV2,
   type SmoothInertialValveOutputV2,
   type SmoothInertialValveParamsV2,
   type SmoothInertialValveStateV2,
 } from "@/engine/mechanics2/valve/SmoothInertialValveV2";
+import {
+  backwardEulerDynamicValveFlowV1,
+  backwardEulerDynamicValveOpeningFractionV1,
+  evaluateDynamicInertialValveV1,
+  type DynamicInertialValveOutputV1,
+  type DynamicInertialValveParamsV1,
+} from "@/engine/mechanics2/valve/DynamicInertialValveV1";
 import { effectiveCalciumRateTargetAtCycleLength } from "@/engine/myocardium/calcium/PrescribedCalciumTransientV1";
 import { LAND_NIEDERER_2018_HUMAN_ATRIAL_PARAMETER_PACK_V1 } from "@/engine/myocardium/atrialLandNiederer2018";
 
@@ -192,6 +215,13 @@ export type NoAvpdFlowStateV1 = {
   readonly systemicVenousFlowMlPerSec: number;
 };
 
+export type NoAvpdDynamicValveOpeningFractionsV1 = {
+  readonly mitral: number;
+  readonly aortic: number;
+  readonly tricuspid: number;
+  readonly pulmonary: number;
+};
+
 export type NoAvpdFivePatchLandWallStateV1 = LandActivePassiveSlsStateV1;
 export type NoAvpdFivePatchLandWallStatesV1 = Readonly<
   Record<NoAvpdWallIdV1, NoAvpdFivePatchLandWallStateV1>
@@ -206,8 +236,16 @@ export type NoAvpdFivePatchLandTriSegStateV1 = {
   readonly timeSec: number;
   readonly volumes: NoAvpdBloodVolumesV1;
   readonly flows: NoAvpdFlowStateV1;
+  /**
+   * Present only in structural V2. V1 retains its exact 14-variable state;
+   * V2 owns four independent bounded valve-area memory coordinates.
+   */
+  readonly dynamicValveOpeningFractions01?:
+    NoAvpdDynamicValveOpeningFractionsV1;
   readonly calciumDrivers: NoAvpdCalciumDriverStatesV1;
   readonly walls: NoAvpdFivePatchLandWallStatesV1;
+  /** Present only in the structural V2 body--LAA parallel-wall arm. */
+  readonly leftAtrialParallelWall?: ParallelBodyAppendageWallStateV1;
   /** Mapping changes require a cold state reinitialization. */
   readonly triSegGeneralizedForceMapping: TriSegGeneralizedForceMappingV1;
   /** Algebraic warm-start cache only; it is not a physiological dynamic state. */
@@ -261,6 +299,21 @@ export type NoAvpdFivePatchLandTriSegParamsV1 = {
     readonly tricuspid: SmoothInertialValveParamsV2;
     readonly pulmonary: SmoothInertialValveParamsV2;
   };
+  /**
+   * Optional research-sidecar structural factors.  Absence preserves the V1
+   * five-wall equations and serialized state exactly.
+   */
+  readonly structuralExtension?: {
+    readonly leftAtrialParallelWall?: ParallelBodyAppendageWallParamsV1;
+    readonly commonPericardium?: CommonPericardiumParamsV1;
+    readonly dynamicValves?: {
+      readonly mitral: DynamicInertialValveParamsV1;
+      readonly aortic: DynamicInertialValveParamsV1;
+      readonly tricuspid: DynamicInertialValveParamsV1;
+      readonly pulmonary: DynamicInertialValveParamsV1;
+    };
+    readonly intrathoracicPressureMmHg: number;
+  };
   readonly solver: {
     readonly maxIterations: number;
     readonly residualTolerance: number;
@@ -291,6 +344,13 @@ export type NoAvpdPressureReadbackV1 = {
   readonly rightVentricleMmHg: number;
   readonly pulmonaryArteryMmHg: number;
   readonly pulmonaryVeinMmHg: number;
+};
+
+export type NoAvpdTransmuralPressureReadbackV1 = {
+  readonly leftAtriumMmHg: number;
+  readonly leftVentricleMmHg: number;
+  readonly rightAtriumMmHg: number;
+  readonly rightVentricleMmHg: number;
 };
 
 export type NoAvpdFlowReadbackV1 = {
@@ -342,15 +402,18 @@ export type NoAvpdFivePatchLandEvaluationV1 = {
   readonly freeCalciumUm: Readonly<Record<NoAvpdWallIdV1, number>>;
   readonly activations01: Readonly<Record<NoAvpdWallIdV1, number>>;
   readonly pressures: NoAvpdPressureReadbackV1;
+  readonly transmuralPressures: NoAvpdTransmuralPressureReadbackV1;
+  readonly commonPericardium: CommonPericardiumOutputV1 | null;
   readonly flowReadback: NoAvpdFlowReadbackV1;
   readonly leftAtrium: NoAvpdFivePatchLandWallEvaluationV1;
+  readonly leftAtrialParallelWall: ParallelBodyAppendageWallTrialV1 | null;
   readonly rightAtrium: NoAvpdFivePatchLandWallEvaluationV1;
   readonly ventricles: NoAvpdVentricularEvaluationV1;
   readonly valves: {
-    readonly mitral: SmoothInertialValveOutputV2;
-    readonly aortic: SmoothInertialValveOutputV2;
-    readonly tricuspid: SmoothInertialValveOutputV2;
-    readonly pulmonary: SmoothInertialValveOutputV2;
+    readonly mitral: SmoothInertialValveOutputV2 | DynamicInertialValveOutputV1;
+    readonly aortic: SmoothInertialValveOutputV2 | DynamicInertialValveOutputV1;
+    readonly tricuspid: SmoothInertialValveOutputV2 | DynamicInertialValveOutputV1;
+    readonly pulmonary: SmoothInertialValveOutputV2 | DynamicInertialValveOutputV1;
   };
   readonly totalBloodVolumeMl: number;
 };
@@ -446,9 +509,26 @@ export function initialNoAvpdFivePatchLandTriSegStateV1(
     );
   }
   const volumes = { ...DEFAULT_INITIAL_VOLUMES, ...volumeOverrides };
+  const leftAtrialParallelParams =
+    params.structuralExtension?.leftAtrialParallelWall;
+  const leftAtrialCalciumTarget = effectiveCalciumRateTargetAtCycleLength(
+    params.calciumDrivers.leftAtrium.calcium,
+    params.calciumDrivers.leftAtrium.cycleLengthSec,
+  );
+  const leftAtrialParallelWall = leftAtrialParallelParams === undefined
+    ? undefined
+    : initialParallelBodyAppendageWallStateV1(
+        volumes.leftAtriumMl,
+        leftAtrialCalciumTarget.diastolicCalciumUM,
+        leftAtrialParallelParams,
+      );
+  const initialLeftAtrialBodyVolumeMl = leftAtrialParallelParams === undefined
+    ? volumes.leftAtriumMl
+    : volumes.leftAtriumMl *
+      (1 - leftAtrialParallelParams.initialAppendageFraction01);
   const leftAtrialGeometry = evaluateOneFiberVolumeGeometryV1(
-    volumes.leftAtriumMl,
-    params.atria.left.geometry,
+    initialLeftAtrialBodyVolumeMl,
+    leftAtrialParallelParams?.body.geometry ?? params.atria.left.geometry,
   );
   const rightAtrialGeometry = evaluateOneFiberVolumeGeometryV1(
     volumes.rightAtriumMl,
@@ -477,11 +557,13 @@ export function initialNoAvpdFivePatchLandTriSegStateV1(
     );
   }
   const walls: NoAvpdFivePatchLandWallStatesV1 = {
-    leftAtrium: initialWallState(
-      leftAtrialGeometry.fiberNaturalStrain,
-      params.atria.left.material,
-      params.calciumDrivers.leftAtrium,
-    ),
+    leftAtrium:
+      leftAtrialParallelWall?.body ??
+      initialWallState(
+        leftAtrialGeometry.fiberNaturalStrain,
+        params.atria.left.material,
+        params.calciumDrivers.leftAtrium,
+      ),
     rightAtrium: initialWallState(
       rightAtrialGeometry.fiberNaturalStrain,
       params.atria.right.material,
@@ -516,10 +598,23 @@ export function initialNoAvpdFivePatchLandTriSegStateV1(
       pulmonaryVenousFlowMlPerSec: 80,
       systemicVenousFlowMlPerSec: 80,
     },
+    ...(params.structuralExtension?.dynamicValves === undefined
+      ? {}
+      : {
+          dynamicValveOpeningFractions01: Object.freeze({
+            mitral: 0,
+            aortic: 0,
+            tricuspid: 0,
+            pulmonary: 0,
+          }),
+        }),
     calciumDrivers: mapWallIds(() =>
       initialPeriodicPrescribedCalciumDriverStateV2(),
     ),
     walls,
+    ...(leftAtrialParallelWall === undefined
+      ? {}
+      : { leftAtrialParallelWall }),
     triSegGeneralizedForceMapping: params.triSegGeneralizedForceMapping,
     triSegContinuation: triSegGeometry.coordinates,
   };
@@ -535,6 +630,7 @@ export function stepNoAvpdFivePatchLandTriSegV1(
   assertCalciumDriverOwnership(params);
   assertSubsystemParameterOwnership(previous, params);
   assertWallMaterialOwnership(previous.walls, params);
+  assertStructuralExtensionOwnership(previous, params);
   if (
     previous.triSegGeneralizedForceMapping !==
     params.triSegGeneralizedForceMapping
@@ -570,7 +666,28 @@ export function stepNoAvpdFivePatchLandTriSegV1(
   const freeCalciumUm = mapWallIds(
     (wallId) => calciumTrials[wallId].freeCalciumUM,
   );
-  const initialUnknowns = stateToUnknowns(previous);
+  let initialUnknowns = stateToUnknowns(previous);
+  const dynamicValveParams = params.structuralExtension?.dynamicValves;
+  if (dynamicValveParams !== undefined && calciumDriversValid) {
+    initialUnknowns = dynamicValveMonolithicPredictor(
+      previous,
+      initialUnknowns,
+      dtSec,
+      freeCalciumUm,
+      params,
+    );
+  } else if (initialUnknowns.length === 15 && calciumDriversValid) {
+    initialUnknowns = structuralMonolithicFlowPredictor(
+      previous,
+      initialUnknowns,
+      dtSec,
+      freeCalciumUm,
+      params,
+    );
+  }
+  const globalUnknownCount = initialUnknowns.length;
+  const parallelGlobalParams =
+    params.structuralExtension?.leftAtrialParallelWall;
   let finalCandidate: Candidate | null = null;
   let cachedUnknowns: readonly number[] | null = null;
   let cachedCandidate: Candidate | null = null;
@@ -613,8 +730,9 @@ export function stepNoAvpdFivePatchLandTriSegV1(
     {
       unknownScales: [
         65, 140, 700, 3_000, 65, 150, 180, 650, 100, 100, 100, 100, 80, 80,
+        ...(parallelGlobalParams === undefined ? [] : [10]),
       ],
-      residualScales: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+      residualScales: new Array<number>(globalUnknownCount).fill(1),
       maxIterations: params.solver.maxIterations,
       residualTolerance: params.solver.residualTolerance,
       derivativeRelativeStep: params.solver.derivativeRelativeStep,
@@ -622,7 +740,10 @@ export function stepNoAvpdFivePatchLandTriSegV1(
       minLineSearchStep: params.solver.minLineSearchStep,
       jacobianReuse: params.solver.jacobianReuse,
       analyticJacobianColumn: (unknowns, column) => {
-        if (![2, 3, 6, 7, 8, 9, 10, 11, 12, 13].includes(column)) {
+        const analyticColumns = dynamicValveParams === undefined
+          ? [2, 3, 6, 7, 8, 9, 10, 11, 12, 13]
+          : [8, 9, 10, 11, 12, 13];
+        if (!analyticColumns.includes(column)) {
           return null;
         }
         const candidate = evaluateUnknowns(unknowns);
@@ -634,17 +755,26 @@ export function stepNoAvpdFivePatchLandTriSegV1(
               dtSec,
               params,
               column,
+              globalUnknownCount,
             );
       },
       admissible: (unknowns) =>
-        unknowns.length === 14 &&
+        unknowns.length === globalUnknownCount &&
         unknowns.every(Number.isFinite) &&
         unknowns
           .slice(0, 8)
-          .every((volume) => volume >= params.solver.minimumBloodVolumeMl),
+          .every((volume) => volume >= params.solver.minimumBloodVolumeMl) &&
+        (parallelGlobalParams === undefined ||
+          (unknowns[14]! >=
+              parallelGlobalParams.minimumAppendageFraction01 *
+                unknowns[0]! &&
+            unknowns[14]! <=
+              parallelGlobalParams.maximumAppendageFraction01 *
+                unknowns[0]!)),
     },
   );
-  if (solver.converged) finalCandidate = evaluateUnknowns(solver.unknowns);
+  const solverEndpointCandidate = evaluateUnknowns(solver.unknowns);
+  if (solver.converged) finalCandidate = solverEndpointCandidate;
 
   const failureReasons: string[] = [];
   if (!calciumDriversValid) {
@@ -658,7 +788,32 @@ export function stepNoAvpdFivePatchLandTriSegV1(
     failureReasons.push(
       `global-solver:${solver.failureReason ?? "not-converged"}`,
     );
-  if (finalCandidate === null) failureReasons.push("final-candidate-invalid");
+  if (
+    !solver.converged &&
+    params.structuralExtension?.leftAtrialParallelWall !== undefined &&
+    previous.leftAtrialParallelWall !== undefined &&
+    calciumDriversValid
+  ) {
+    const local = trialParallelBodyAppendageWallV1(
+      previous.leftAtrialParallelWall,
+      {
+        dtSec,
+        totalVolumeMl: previous.volumes.leftAtriumMl,
+        freeCalciumUm: freeCalciumUm.leftAtrium,
+      },
+      params.structuralExtension.leftAtrialParallelWall,
+    );
+    if (!local.valid) {
+      failureReasons.push(
+        ...local.issues.map((issue) => `left-atrial-parallel:${issue}`),
+        `left-atrial-parallel:brackets=${local.pressureBracketCount}`,
+        `left-atrial-parallel:monotone=${String(local.residualMonotone)}`,
+      );
+    }
+  }
+  if (solverEndpointCandidate === null) {
+    failureReasons.push("final-candidate-invalid");
+  }
   if (
     finalCandidate !== null &&
     !finalCandidate.evaluation.ventricles.triSeg.converged
@@ -672,9 +827,9 @@ export function stepNoAvpdFivePatchLandTriSegV1(
     failureReasons.push("local-material-trial-invalid");
   }
   const totalBloodVolumeResidualMl =
-    finalCandidate === null
+    solverEndpointCandidate === null
       ? null
-      : totalBloodVolumeMl(finalCandidate.volumes) -
+      : totalBloodVolumeMl(solverEndpointCandidate.volumes) -
         totalBloodVolumeMl(previous.volumes);
   if (
     totalBloodVolumeResidualMl !== null &&
@@ -690,7 +845,7 @@ export function stepNoAvpdFivePatchLandTriSegV1(
       accepted: false,
       state: previous,
       candidateState: null,
-      evaluation: finalCandidate?.evaluation ?? null,
+      evaluation: solverEndpointCandidate?.evaluation ?? null,
       solver,
       totalBloodVolumeResidualMl,
       failureReasons,
@@ -698,16 +853,36 @@ export function stepNoAvpdFivePatchLandTriSegV1(
     };
   }
 
+  const committedLeftAtrialParallelWall =
+    finalCandidate.evaluation.leftAtrialParallelWall === null
+      ? undefined
+      : commitParallelBodyAppendageWallTrialV1(
+          finalCandidate.evaluation.leftAtrialParallelWall,
+        );
   const candidateState: NoAvpdFivePatchLandTriSegStateV1 = {
     parameterIdentityCanonicalJson: previous.parameterIdentityCanonicalJson,
     timeSec: nextTimeSec,
     volumes: finalCandidate.volumes,
     flows: finalCandidate.flows,
+    ...(params.structuralExtension?.dynamicValves === undefined
+      ? {}
+      : {
+          dynamicValveOpeningFractions01: Object.freeze({
+            mitral: finalCandidate.evaluation.valves.mitral.openFraction01,
+            aortic: finalCandidate.evaluation.valves.aortic.openFraction01,
+            tricuspid:
+              finalCandidate.evaluation.valves.tricuspid.openFraction01,
+            pulmonary:
+              finalCandidate.evaluation.valves.pulmonary.openFraction01,
+          }),
+        }),
     calciumDrivers: mapWallIds((wallId) => calciumTrials[wallId].nextState),
     walls: {
-      leftAtrium: commitLandActivePassiveSlsTrialV1(
-        finalCandidate.evaluation.leftAtrium.materialTrial,
-      ),
+      leftAtrium:
+        committedLeftAtrialParallelWall?.body ??
+        commitLandActivePassiveSlsTrialV1(
+          finalCandidate.evaluation.leftAtrium.materialTrial,
+        ),
       rightAtrium: commitLandActivePassiveSlsTrialV1(
         finalCandidate.evaluation.rightAtrium.materialTrial,
       ),
@@ -721,6 +896,9 @@ export function stepNoAvpdFivePatchLandTriSegV1(
         finalCandidate.evaluation.ventricles.materialTrials.rightFreeWall,
       ),
     },
+    ...(committedLeftAtrialParallelWall === undefined
+      ? {}
+      : { leftAtrialParallelWall: committedLeftAtrialParallelWall }),
     triSegGeneralizedForceMapping: previous.triSegGeneralizedForceMapping,
     triSegContinuation: finalCandidate.evaluation.ventricles.triSeg.coordinates,
   };
@@ -752,6 +930,7 @@ export function evaluateNoAvpdFivePatchGlobalSystemDiagnosticV1(
   assertCalciumDriverOwnership(params);
   assertSubsystemParameterOwnership(previous, params);
   assertWallMaterialOwnership(previous.walls, params);
+  assertStructuralExtensionOwnership(previous, params);
   if (!Number.isFinite(dtSec) || dtSec <= 0) {
     throw new Error("dtSec must be positive and finite");
   }
@@ -797,6 +976,7 @@ export function evaluateNoAvpdFivePatchGlobalSystemDiagnosticV1(
       dtSec,
       params,
       column,
+      14,
     ),
     valvePressureGradientsMmHg: Object.freeze({
       mitral: candidate.evaluation.valves.mitral.pressureGradientMmHg,
@@ -820,24 +1000,58 @@ function evaluateCandidate(
   freeCalciumUm: Readonly<Record<NoAvpdWallIdV1, number>>,
   params: NoAvpdFivePatchLandTriSegParamsV1,
 ): Candidate | null {
-  const { volumes, flows } = unknownsToStateParts(unknowns);
-  const leftAtrialGeometry = evaluateOneFiberVolumeGeometryV1(
-    volumes.leftAtriumMl,
-    params.atria.left.geometry,
+  const leftAtrialParallelParams =
+    params.structuralExtension?.leftAtrialParallelWall;
+  const dynamicValveParams = params.structuralExtension?.dynamicValves;
+  const {
+    volumes,
+    flows,
+    appendageVolumeMl,
+  } = unknownsToStateParts(
+    unknowns,
+    leftAtrialParallelParams !== undefined,
   );
+  const leftAtrialParallelTrial =
+    leftAtrialParallelParams === undefined
+      ? null
+      : previous.leftAtrialParallelWall === undefined
+        ? null
+        : appendageVolumeMl === null
+          ? null
+          : trialParallelBodyAppendageWallAtPartitionV1(
+            previous.leftAtrialParallelWall,
+            {
+              dtSec,
+              totalVolumeMl: volumes.leftAtriumMl,
+              appendageVolumeMl,
+              freeCalciumUm: freeCalciumUm.leftAtrium,
+            },
+            leftAtrialParallelParams,
+          );
+  if (
+    leftAtrialParallelParams !== undefined &&
+    (leftAtrialParallelTrial === null || !leftAtrialParallelTrial.valid ||
+      leftAtrialParallelTrial.body === null)
+  ) return null;
+  const leftAtrialGeometry = leftAtrialParallelTrial?.body.geometry ??
+    evaluateOneFiberVolumeGeometryV1(
+      volumes.leftAtriumMl,
+      params.atria.left.geometry,
+    );
   const rightAtrialGeometry = evaluateOneFiberVolumeGeometryV1(
     volumes.rightAtriumMl,
     params.atria.right.geometry,
   );
-  const leftAtrialTrial = trialLandActivePassiveSlsV1(
-    previous.walls.leftAtrium,
-    {
-      dtSec,
-      fiberLogStrain: leftAtrialGeometry.fiberNaturalStrain,
-      freeCalciumUm: freeCalciumUm.leftAtrium,
-    },
-    params.atria.left.material,
-  );
+  const leftAtrialTrial = leftAtrialParallelTrial?.body.materialTrial ??
+    trialLandActivePassiveSlsV1(
+      previous.walls.leftAtrium,
+      {
+        dtSec,
+        fiberLogStrain: leftAtrialGeometry.fiberNaturalStrain,
+        freeCalciumUm: freeCalciumUm.leftAtrium,
+      },
+      params.atria.left.material,
+    );
   const rightAtrialTrial = trialLandActivePassiveSlsV1(
     previous.walls.rightAtrium,
     {
@@ -940,13 +1154,58 @@ function evaluateCandidate(
   const ventricularTrials = ventricularTrialsAt(triSeg.geometry);
   if (!Object.values(ventricularTrials).every(trialAccepted)) return null;
 
-  const pressures: NoAvpdPressureReadbackV1 = {
+  const transmuralPressures: NoAvpdTransmuralPressureReadbackV1 = {
     leftAtriumMmHg:
+      leftAtrialParallelTrial?.commonPressureMmHg ??
       oneFiberCavityPressurePaV1(
         leftAtrialGeometry,
         leftAtrialTrial.readback.stresses.totalTransmittedPa,
       ) / PA_PER_MMHG,
-    leftVentricleMmHg: ventricularPressureReadback.leftVentricleTransmuralMmHg,
+    leftVentricleMmHg:
+      ventricularPressureReadback.leftVentricleTransmuralMmHg,
+    rightAtriumMmHg:
+      oneFiberCavityPressurePaV1(
+        rightAtrialGeometry,
+        rightAtrialTrial.readback.stresses.totalTransmittedPa,
+      ) / PA_PER_MMHG,
+    rightVentricleMmHg:
+      ventricularPressureReadback.rightVentricleTransmuralMmHg,
+  };
+  if (!Object.values(transmuralPressures).every(Number.isFinite)) return null;
+
+  const pericardiumParams =
+    params.structuralExtension?.commonPericardium;
+  const commonPericardium = pericardiumParams === undefined
+    ? null
+    : evaluateCommonPericardiumV1(
+        pericardiumParams,
+        computeIntrapericardialHeartVolumeMlV1({
+          chamberBloodVolumesMl: [
+            volumes.leftAtriumMl,
+            volumes.leftVentricleMl,
+            volumes.rightAtriumMl,
+            volumes.rightVentricleMl,
+          ],
+          wallMaterialVolumesMl: [
+            leftAtrialParallelParams === undefined
+              ? params.atria.left.geometry.wallVolumeMl
+              : leftAtrialParallelParams.body.geometry.wallVolumeMl +
+                leftAtrialParallelParams.appendage.geometry.wallVolumeMl,
+            params.atria.right.geometry.wallVolumeMl,
+            params.triSeg.leftFreeWall.wallVolumeMl,
+            params.triSeg.septum.wallVolumeMl,
+            params.triSeg.rightFreeWall.wallVolumeMl,
+          ],
+        }),
+      );
+  const commonExternalPressureMmHg =
+    (params.structuralExtension?.intrathoracicPressureMmHg ?? 0) +
+    (commonPericardium?.pressureMmHg ?? 0);
+  const pressures: NoAvpdPressureReadbackV1 = {
+    leftAtriumMmHg:
+      transmuralPressures.leftAtriumMmHg + commonExternalPressureMmHg,
+    leftVentricleMmHg:
+      transmuralPressures.leftVentricleMmHg + commonExternalPressureMmHg,
     systemicArteryMmHg: vascularPressure(
       volumes.systemicArteryMl,
       params.vascular.systemicArtery,
@@ -956,12 +1215,9 @@ function evaluateCandidate(
       params.vascular.systemicVein,
     ),
     rightAtriumMmHg:
-      oneFiberCavityPressurePaV1(
-        rightAtrialGeometry,
-        rightAtrialTrial.readback.stresses.totalTransmittedPa,
-      ) / PA_PER_MMHG,
+      transmuralPressures.rightAtriumMmHg + commonExternalPressureMmHg,
     rightVentricleMmHg:
-      ventricularPressureReadback.rightVentricleTransmuralMmHg,
+      transmuralPressures.rightVentricleMmHg + commonExternalPressureMmHg,
     pulmonaryArteryMmHg: vascularPressure(
       volumes.pulmonaryArteryMl,
       params.vascular.pulmonaryArtery,
@@ -973,48 +1229,143 @@ function evaluateCandidate(
   };
   if (!Object.values(pressures).every(Number.isFinite)) return null;
 
-  const valves = {
-    mitral: evaluateSmoothInertialValveStateV2(
-      previous.flows.mitralValve,
-      flows.mitralValve,
-      {
-        dtSec,
-        upstreamPressureMmHg: pressures.leftAtriumMmHg,
-        downstreamPressureMmHg: pressures.leftVentricleMmHg,
-      },
-      params.valves.mitral,
-    ),
-    aortic: evaluateSmoothInertialValveStateV2(
-      previous.flows.aorticValve,
-      flows.aorticValve,
-      {
-        dtSec,
-        upstreamPressureMmHg: pressures.leftVentricleMmHg,
-        downstreamPressureMmHg: pressures.systemicArteryMmHg,
-      },
-      params.valves.aortic,
-    ),
-    tricuspid: evaluateSmoothInertialValveStateV2(
-      previous.flows.tricuspidValve,
-      flows.tricuspidValve,
-      {
-        dtSec,
-        upstreamPressureMmHg: pressures.rightAtriumMmHg,
-        downstreamPressureMmHg: pressures.rightVentricleMmHg,
-      },
-      params.valves.tricuspid,
-    ),
-    pulmonary: evaluateSmoothInertialValveStateV2(
-      previous.flows.pulmonaryValve,
-      flows.pulmonaryValve,
-      {
-        dtSec,
-        upstreamPressureMmHg: pressures.rightVentricleMmHg,
-        downstreamPressureMmHg: pressures.pulmonaryArteryMmHg,
-      },
-      params.valves.pulmonary,
-    ),
-  };
+  const previousDynamicOpenings = previous.dynamicValveOpeningFractions01;
+  if (
+    dynamicValveParams !== undefined && previousDynamicOpenings === undefined
+  ) return null;
+  const valves = dynamicValveParams === undefined
+    ? {
+        mitral: evaluateSmoothInertialValveStateV2(
+          previous.flows.mitralValve,
+          flows.mitralValve,
+          {
+            dtSec,
+            upstreamPressureMmHg: pressures.leftAtriumMmHg,
+            downstreamPressureMmHg: pressures.leftVentricleMmHg,
+          },
+          params.valves.mitral,
+        ),
+        aortic: evaluateSmoothInertialValveStateV2(
+          previous.flows.aorticValve,
+          flows.aorticValve,
+          {
+            dtSec,
+            upstreamPressureMmHg: pressures.leftVentricleMmHg,
+            downstreamPressureMmHg: pressures.systemicArteryMmHg,
+          },
+          params.valves.aortic,
+        ),
+        tricuspid: evaluateSmoothInertialValveStateV2(
+          previous.flows.tricuspidValve,
+          flows.tricuspidValve,
+          {
+            dtSec,
+            upstreamPressureMmHg: pressures.rightAtriumMmHg,
+            downstreamPressureMmHg: pressures.rightVentricleMmHg,
+          },
+          params.valves.tricuspid,
+        ),
+        pulmonary: evaluateSmoothInertialValveStateV2(
+          previous.flows.pulmonaryValve,
+          flows.pulmonaryValve,
+          {
+            dtSec,
+            upstreamPressureMmHg: pressures.rightVentricleMmHg,
+            downstreamPressureMmHg: pressures.pulmonaryArteryMmHg,
+          },
+          params.valves.pulmonary,
+        ),
+      }
+    : {
+        mitral: evaluateDynamicInertialValveV1(
+          {
+            qMlPerSec: previous.flows.mitralValve.qMlPerSec,
+            openingFraction01: previousDynamicOpenings!.mitral,
+          },
+          {
+            qMlPerSec: flows.mitralValve.qMlPerSec,
+            openingFraction01:
+              backwardEulerDynamicValveOpeningFractionV1(
+                previousDynamicOpenings!.mitral,
+                pressures.leftAtriumMmHg - pressures.leftVentricleMmHg,
+                dtSec,
+                dynamicValveParams.mitral,
+              ),
+          },
+          {
+            dtSec,
+            upstreamPressureMmHg: pressures.leftAtriumMmHg,
+            downstreamPressureMmHg: pressures.leftVentricleMmHg,
+          },
+          dynamicValveParams.mitral,
+        ),
+        aortic: evaluateDynamicInertialValveV1(
+          {
+            qMlPerSec: previous.flows.aorticValve.qMlPerSec,
+            openingFraction01: previousDynamicOpenings!.aortic,
+          },
+          {
+            qMlPerSec: flows.aorticValve.qMlPerSec,
+            openingFraction01:
+              backwardEulerDynamicValveOpeningFractionV1(
+                previousDynamicOpenings!.aortic,
+                pressures.leftVentricleMmHg - pressures.systemicArteryMmHg,
+                dtSec,
+                dynamicValveParams.aortic,
+              ),
+          },
+          {
+            dtSec,
+            upstreamPressureMmHg: pressures.leftVentricleMmHg,
+            downstreamPressureMmHg: pressures.systemicArteryMmHg,
+          },
+          dynamicValveParams.aortic,
+        ),
+        tricuspid: evaluateDynamicInertialValveV1(
+          {
+            qMlPerSec: previous.flows.tricuspidValve.qMlPerSec,
+            openingFraction01: previousDynamicOpenings!.tricuspid,
+          },
+          {
+            qMlPerSec: flows.tricuspidValve.qMlPerSec,
+            openingFraction01:
+              backwardEulerDynamicValveOpeningFractionV1(
+                previousDynamicOpenings!.tricuspid,
+                pressures.rightAtriumMmHg - pressures.rightVentricleMmHg,
+                dtSec,
+                dynamicValveParams.tricuspid,
+              ),
+          },
+          {
+            dtSec,
+            upstreamPressureMmHg: pressures.rightAtriumMmHg,
+            downstreamPressureMmHg: pressures.rightVentricleMmHg,
+          },
+          dynamicValveParams.tricuspid,
+        ),
+        pulmonary: evaluateDynamicInertialValveV1(
+          {
+            qMlPerSec: previous.flows.pulmonaryValve.qMlPerSec,
+            openingFraction01: previousDynamicOpenings!.pulmonary,
+          },
+          {
+            qMlPerSec: flows.pulmonaryValve.qMlPerSec,
+            openingFraction01:
+              backwardEulerDynamicValveOpeningFractionV1(
+                previousDynamicOpenings!.pulmonary,
+                pressures.rightVentricleMmHg - pressures.pulmonaryArteryMmHg,
+                dtSec,
+                dynamicValveParams.pulmonary,
+              ),
+          },
+          {
+            dtSec,
+            upstreamPressureMmHg: pressures.rightVentricleMmHg,
+            downstreamPressureMmHg: pressures.pulmonaryArteryMmHg,
+          },
+          dynamicValveParams.pulmonary,
+        ),
+      };
   const flowReadback: NoAvpdFlowReadbackV1 = {
     mitralMlPerSec: flows.mitralValve.qMlPerSec,
     aorticMlPerSec: flows.aorticValve.qMlPerSec,
@@ -1046,21 +1397,24 @@ function evaluateCandidate(
       freeCalciumUm,
       activations01,
       pressures,
+      transmuralPressures,
+      commonPericardium,
       flowReadback,
       leftAtrium: {
         geometry: leftAtrialGeometry,
         materialTrial: leftAtrialTrial,
-        transmuralPressureMmHg: pressures.leftAtriumMmHg,
+        transmuralPressureMmHg: transmuralPressures.leftAtriumMmHg,
         mechanismReadback: oneFiberWallMechanismReadbackV1(
           leftAtrialGeometry,
           leftAtrialTrial,
           dtSec,
         ),
       },
+      leftAtrialParallelWall: leftAtrialParallelTrial,
       rightAtrium: {
         geometry: rightAtrialGeometry,
         materialTrial: rightAtrialTrial,
-        transmuralPressureMmHg: pressures.rightAtriumMmHg,
+        transmuralPressureMmHg: transmuralPressures.rightAtriumMmHg,
         mechanismReadback: oneFiberWallMechanismReadbackV1(
           rightAtrialGeometry,
           rightAtrialTrial,
@@ -1072,6 +1426,194 @@ function evaluateCandidate(
       totalBloodVolumeMl: totalBloodVolumeMl(volumes),
     },
   };
+}
+
+/**
+ * Equation-derived predictor for the structural V2 dynamic-valve solve.
+ *
+ * The four bounded opening equations are linearly and exactly condensed at
+ * each candidate pressure. This predictor evaluates that same backward-Euler
+ * update and the corresponding monotone fixed-area momentum solve only to
+ * select a nearby Newton starting point.
+ */
+function dynamicValveMonolithicPredictor(
+  previous: NoAvpdFivePatchLandTriSegStateV1,
+  seedUnknowns: readonly number[],
+  dtSec: number,
+  freeCalciumUm: Readonly<Record<NoAvpdWallIdV1, number>>,
+  params: NoAvpdFivePatchLandTriSegParamsV1,
+): readonly number[] {
+  const dynamic = params.structuralExtension?.dynamicValves;
+  const previousOpening = previous.dynamicValveOpeningFractions01;
+  if (dynamic === undefined || previousOpening === undefined) {
+    return seedUnknowns;
+  }
+  const seedCandidate = evaluateCandidate(
+    previous,
+    seedUnknowns,
+    dtSec,
+    freeCalciumUm,
+    params,
+  );
+  if (seedCandidate === null) return seedUnknowns;
+  const p = seedCandidate.evaluation.pressures;
+  const predicted = [...seedUnknowns];
+  const inputs = {
+    mitral: {
+      dtSec,
+      upstreamPressureMmHg: p.leftAtriumMmHg,
+      downstreamPressureMmHg: p.leftVentricleMmHg,
+    },
+    aortic: {
+      dtSec,
+      upstreamPressureMmHg: p.leftVentricleMmHg,
+      downstreamPressureMmHg: p.systemicArteryMmHg,
+    },
+    tricuspid: {
+      dtSec,
+      upstreamPressureMmHg: p.rightAtriumMmHg,
+      downstreamPressureMmHg: p.rightVentricleMmHg,
+    },
+    pulmonary: {
+      dtSec,
+      upstreamPressureMmHg: p.rightVentricleMmHg,
+      downstreamPressureMmHg: p.pulmonaryArteryMmHg,
+    },
+  } as const;
+  const valveOrder = [
+    ["mitral", 8],
+    ["aortic", 9],
+    ["tricuspid", 10],
+    ["pulmonary", 11],
+  ] as const;
+  for (const [valveId, flowIndex] of valveOrder) {
+    const pressureGradientMmHg =
+      inputs[valveId].upstreamPressureMmHg -
+      inputs[valveId].downstreamPressureMmHg;
+    const openingFraction01 =
+      backwardEulerDynamicValveOpeningFractionV1(
+        previousOpening[valveId],
+        pressureGradientMmHg,
+        dtSec,
+        dynamic[valveId],
+      );
+    predicted[flowIndex] = backwardEulerDynamicValveFlowV1(
+      {
+        qMlPerSec: previous.flows[`${valveId}Valve` as const].qMlPerSec,
+        openingFraction01: previousOpening[valveId],
+      },
+      openingFraction01,
+      inputs[valveId],
+      dynamic[valveId],
+    );
+  }
+  predicted[12] = linearInertialFlowPredictor(
+    p.pulmonaryVeinMmHg - p.leftAtriumMmHg,
+    previous.flows.pulmonaryVenousFlowMlPerSec,
+    dtSec,
+    params.vascular.pulmonaryVenousSegment,
+  );
+  predicted[13] = linearInertialFlowPredictor(
+    p.systemicVeinMmHg - p.rightAtriumMmHg,
+    previous.flows.systemicVenousFlowMlPerSec,
+    dtSec,
+    params.vascular.systemicVenousSegment,
+  );
+  return predicted;
+}
+
+/**
+ * Equation-derived predictor for the legacy 15-variable structural solve.
+ *
+ * A valve may decelerate sharply while its pressure-controlled effective area
+ * changes. Starting the coupled Newton step from the previous flow can then
+ * jump to a reverse-flow branch before the chamber volumes have moved. This
+ * predictor solves each existing valve/venous momentum equation once at the
+ * previous accepted volumes and new constitutive forcing. It changes no model
+ * equation or parameter and is deliberately confined to the new 15-variable
+ * path so the V1 14-variable numerical trajectory remains exact.
+ */
+function structuralMonolithicFlowPredictor(
+  previous: NoAvpdFivePatchLandTriSegStateV1,
+  seedUnknowns: readonly number[],
+  dtSec: number,
+  freeCalciumUm: Readonly<Record<NoAvpdWallIdV1, number>>,
+  params: NoAvpdFivePatchLandTriSegParamsV1,
+): readonly number[] {
+  const seedCandidate = evaluateCandidate(
+    previous,
+    seedUnknowns,
+    dtSec,
+    freeCalciumUm,
+    params,
+  );
+  if (seedCandidate === null) return seedUnknowns;
+  const p = seedCandidate.evaluation.pressures;
+  const predicted = [...seedUnknowns];
+  predicted[8] = stepSmoothInertialValveV2(
+    previous.flows.mitralValve,
+    {
+      dtSec,
+      upstreamPressureMmHg: p.leftAtriumMmHg,
+      downstreamPressureMmHg: p.leftVentricleMmHg,
+    },
+    params.valves.mitral,
+  ).qMlPerSec;
+  predicted[9] = stepSmoothInertialValveV2(
+    previous.flows.aorticValve,
+    {
+      dtSec,
+      upstreamPressureMmHg: p.leftVentricleMmHg,
+      downstreamPressureMmHg: p.systemicArteryMmHg,
+    },
+    params.valves.aortic,
+  ).qMlPerSec;
+  predicted[10] = stepSmoothInertialValveV2(
+    previous.flows.tricuspidValve,
+    {
+      dtSec,
+      upstreamPressureMmHg: p.rightAtriumMmHg,
+      downstreamPressureMmHg: p.rightVentricleMmHg,
+    },
+    params.valves.tricuspid,
+  ).qMlPerSec;
+  predicted[11] = stepSmoothInertialValveV2(
+    previous.flows.pulmonaryValve,
+    {
+      dtSec,
+      upstreamPressureMmHg: p.rightVentricleMmHg,
+      downstreamPressureMmHg: p.pulmonaryArteryMmHg,
+    },
+    params.valves.pulmonary,
+  ).qMlPerSec;
+  predicted[12] = linearInertialFlowPredictor(
+    p.pulmonaryVeinMmHg - p.leftAtriumMmHg,
+    previous.flows.pulmonaryVenousFlowMlPerSec,
+    dtSec,
+    params.vascular.pulmonaryVenousSegment,
+  );
+  predicted[13] = linearInertialFlowPredictor(
+    p.systemicVeinMmHg - p.rightAtriumMmHg,
+    previous.flows.systemicVenousFlowMlPerSec,
+    dtSec,
+    params.vascular.systemicVenousSegment,
+  );
+  return predicted;
+}
+
+function linearInertialFlowPredictor(
+  pressureGradientMmHg: number,
+  previousFlowMlPerSec: number,
+  dtSec: number,
+  segment: {
+    readonly resistanceMmHgSecPerMl: number;
+    readonly inertanceMmHgSec2PerMl: number;
+  },
+): number {
+  const momentum = segment.inertanceMmHgSec2PerMl / dtSec;
+  return (
+    pressureGradientMmHg + momentum * previousFlowMlPerSec
+  ) / (segment.resistanceMmHgSecPerMl + momentum);
 }
 
 function oneFiberWallMechanismReadbackV1(
@@ -1124,7 +1666,7 @@ function massAndMomentumResiduals(
   const v = candidate.volumes;
   const q = candidate.evaluation.flowReadback;
   const p = candidate.evaluation.pressures;
-  return [
+  const residuals = [
     v.leftAtriumMl -
       v0.leftAtriumMl -
       dtSec * (q.pulmonaryVenousMlPerSec - q.mitralMlPerSec),
@@ -1167,9 +1709,17 @@ function massAndMomentumResiduals(
         q.systemicVenousMlPerSec -
       (params.vascular.systemicVenousSegment.inertanceMmHgSec2PerMl *
         (q.systemicVenousMlPerSec -
-          previous.flows.systemicVenousFlowMlPerSec)) /
+      previous.flows.systemicVenousFlowMlPerSec)) /
         dtSec,
   ];
+  const parallel = candidate.evaluation.leftAtrialParallelWall;
+  if (parallel !== null) {
+    if (parallel.pressureMismatchMmHg === null) {
+      throw new Error("parallel pressure mismatch is unavailable");
+    }
+    residuals.push(parallel.pressureMismatchMmHg);
+  }
+  return residuals;
 }
 
 /**
@@ -1184,8 +1734,9 @@ function analyticGlobalJacobianColumn(
   dtSec: number,
   params: NoAvpdFivePatchLandTriSegParamsV1,
   column: number,
+  globalUnknownCount = 14,
 ): readonly number[] | null {
-  const derivative = new Array<number>(14).fill(0);
+  const derivative = new Array<number>(globalUnknownCount).fill(0);
   switch (column) {
     case 2: {
       const pressurePerVolume =
@@ -1240,7 +1791,7 @@ function analyticGlobalJacobianColumn(
       derivative[1] = -dtSec;
       derivative[8] = valveFlowResidualDerivative(
         candidate.evaluation.valves.mitral,
-        params.valves.mitral.flowSmoothingMlPerSec,
+        valveFlowSmoothingMlPerSec(params, "mitral"),
         dtSec,
       );
       break;
@@ -1249,7 +1800,7 @@ function analyticGlobalJacobianColumn(
       derivative[2] = -dtSec;
       derivative[9] = valveFlowResidualDerivative(
         candidate.evaluation.valves.aortic,
-        params.valves.aortic.flowSmoothingMlPerSec,
+        valveFlowSmoothingMlPerSec(params, "aortic"),
         dtSec,
       );
       break;
@@ -1258,7 +1809,7 @@ function analyticGlobalJacobianColumn(
       derivative[5] = -dtSec;
       derivative[10] = valveFlowResidualDerivative(
         candidate.evaluation.valves.tricuspid,
-        params.valves.tricuspid.flowSmoothingMlPerSec,
+        valveFlowSmoothingMlPerSec(params, "tricuspid"),
         dtSec,
       );
       break;
@@ -1267,7 +1818,7 @@ function analyticGlobalJacobianColumn(
       derivative[6] = -dtSec;
       derivative[11] = valveFlowResidualDerivative(
         candidate.evaluation.valves.pulmonary,
-        params.valves.pulmonary.flowSmoothingMlPerSec,
+        valveFlowSmoothingMlPerSec(params, "pulmonary"),
         dtSec,
       );
       break;
@@ -1334,6 +1885,14 @@ function valveFlowResidualDerivative(
       (2 * q * q + flowSmoothingMlPerSec ** 2) /
       Math.max(smoothAbs, 1e-9)
   );
+}
+
+function valveFlowSmoothingMlPerSec(
+  params: NoAvpdFivePatchLandTriSegParamsV1,
+  valveId: "mitral" | "aortic" | "tricuspid" | "pulmonary",
+): number {
+  return params.structuralExtension?.dynamicValves?.[valveId]
+    .flowSmoothingMlPerSec ?? params.valves[valveId].flowSmoothingMlPerSec;
 }
 
 function sameUnknownVector(
@@ -1409,14 +1968,24 @@ function stateToUnknowns(
     state.flows.pulmonaryValve.qMlPerSec,
     state.flows.pulmonaryVenousFlowMlPerSec,
     state.flows.systemicVenousFlowMlPerSec,
+    ...(state.leftAtrialParallelWall === undefined
+      ? []
+      : [state.leftAtrialParallelWall.appendageVolumeMl]),
   ];
 }
 
-function unknownsToStateParts(unknowns: readonly number[]): {
+function unknownsToStateParts(
+  unknowns: readonly number[],
+  hasParallelAppendageCoordinate: boolean,
+): {
   readonly volumes: NoAvpdBloodVolumesV1;
   readonly flows: NoAvpdFlowStateV1;
+  readonly appendageVolumeMl: number | null;
 } {
-  if (unknowns.length !== 14) throw new Error("expected 14 global unknowns");
+  const expected = hasParallelAppendageCoordinate ? 15 : 14;
+  if (unknowns.length !== expected) {
+    throw new Error(`expected ${expected} global unknowns`);
+  }
   return {
     volumes: {
       leftAtriumMl: unknowns[0]!,
@@ -1436,6 +2005,9 @@ function unknownsToStateParts(unknowns: readonly number[]): {
       pulmonaryVenousFlowMlPerSec: unknowns[12]!,
       systemicVenousFlowMlPerSec: unknowns[13]!,
     },
+    appendageVolumeMl: hasParallelAppendageCoordinate
+      ? unknowns[14]!
+      : null,
   };
 }
 
@@ -1562,6 +2134,12 @@ function allMaterialTrialsAccepted(
 ): boolean {
   return (
     trialAccepted(evaluation.leftAtrium.materialTrial) &&
+    (evaluation.leftAtrialParallelWall === null ||
+      (evaluation.leftAtrialParallelWall.valid &&
+        evaluation.leftAtrialParallelWall.appendage !== null &&
+        trialAccepted(
+          evaluation.leftAtrialParallelWall.appendage.materialTrial,
+        ))) &&
     trialAccepted(evaluation.rightAtrium.materialTrial) &&
     Object.values(evaluation.ventricles.materialTrials).every(trialAccepted)
   );
@@ -1661,13 +2239,103 @@ function assertWallMaterialOwnership(
   }
 }
 
+function assertStructuralExtensionOwnership(
+  state: NoAvpdFivePatchLandTriSegStateV1,
+  params: NoAvpdFivePatchLandTriSegParamsV1,
+): void {
+  const parallelParams =
+    params.structuralExtension?.leftAtrialParallelWall;
+  const parallelState = state.leftAtrialParallelWall;
+  if ((parallelParams === undefined) !== (parallelState === undefined)) {
+    throw new Error(
+      "left-atrial parallel-wall topology changed; cold initialization is required",
+    );
+  }
+  const dynamicValveParams = params.structuralExtension?.dynamicValves;
+  const dynamicValveState = state.dynamicValveOpeningFractions01;
+  if (
+    (dynamicValveParams === undefined) !== (dynamicValveState === undefined)
+  ) {
+    throw new Error(
+      "dynamic-valve topology changed; cold initialization is required",
+    );
+  }
+  if (
+    dynamicValveState !== undefined &&
+    Object.values(dynamicValveState).some((opening) =>
+      !Number.isFinite(opening) || opening < 0 || opening > 1)
+  ) {
+    throw new Error("accepted dynamic-valve opening state lies outside [0, 1]");
+  }
+  const intrathoracicPressureMmHg =
+    params.structuralExtension?.intrathoracicPressureMmHg ?? 0;
+  if (!Number.isFinite(intrathoracicPressureMmHg)) {
+    throw new Error("intrathoracicPressureMmHg must be finite");
+  }
+  if (parallelParams === undefined || parallelState === undefined) return;
+  const aggregate = params.atria.left.geometry;
+  const bodyGeometry = parallelParams.body.geometry;
+  const appendageGeometry = parallelParams.appendage.geometry;
+  if (
+    Math.abs(
+      bodyGeometry.wallVolumeMl + appendageGeometry.wallVolumeMl -
+        aggregate.wallVolumeMl,
+    ) > 1e-12 ||
+    Math.abs(
+      bodyGeometry.referenceCavityVolumeMl +
+        appendageGeometry.referenceCavityVolumeMl -
+        aggregate.referenceCavityVolumeMl,
+    ) > 1e-12
+  ) {
+    throw new Error(
+      "body and appendage wall/reference volumes must exactly partition the aggregate LA prior",
+    );
+  }
+  if (
+    parallelState.body.materialIdentityCanonicalJson !==
+      landActivePassiveSlsMaterialIdentityV1(parallelParams.body.material) ||
+    parallelState.appendage.materialIdentityCanonicalJson !==
+      landActivePassiveSlsMaterialIdentityV1(
+        parallelParams.appendage.material,
+      )
+  ) {
+    throw new Error(
+      "parallel body-appendage material changed; cold initialization is required",
+    );
+  }
+  const acceptedAppendageFraction01 =
+    parallelState.appendageVolumeMl / state.volumes.leftAtriumMl;
+  if (
+    !Number.isFinite(parallelState.appendageVolumeMl) ||
+    acceptedAppendageFraction01 <
+      parallelParams.minimumAppendageFraction01 ||
+    acceptedAppendageFraction01 >
+      parallelParams.maximumAppendageFraction01
+  ) {
+    throw new Error(
+      "accepted appendage algebraic coordinate lies outside its declared bounds",
+    );
+  }
+  if (
+    parallelState.body.materialIdentityCanonicalJson !==
+      state.walls.leftAtrium.materialIdentityCanonicalJson ||
+    Math.abs(
+      parallelState.body.passiveSls.totalStrain -
+        state.walls.leftAtrium.passiveSls.totalStrain,
+    ) > 1e-12
+  ) {
+    throw new Error("aggregate LA body state diverged from parallel-wall body");
+  }
+}
+
 function wallMaterialParams(
   params: NoAvpdFivePatchLandTriSegParamsV1,
   wallId: NoAvpdWallIdV1,
 ): LandActivePassiveSlsParamsV1 {
   switch (wallId) {
     case "leftAtrium":
-      return params.atria.left.material;
+      return params.structuralExtension?.leftAtrialParallelWall?.body
+        .material ?? params.atria.left.material;
     case "rightAtrium":
       return params.atria.right.material;
     case "leftFreeWall":

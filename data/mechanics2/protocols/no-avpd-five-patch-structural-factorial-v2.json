@@ -1,0 +1,99 @@
+{
+  "protocolId": "no-avpd-five-patch-structural-factorial-v2",
+  "evidenceStatus": "structural-ablation-numerical-readiness-not-normal-human-calibration-or-physiology-acceptance",
+  "claimBoundary": {
+    "adoption": "research-sidecar-only",
+    "browserRuntimeReplacement": false,
+    "patientFit": false,
+    "normalHumanCalibration": false,
+    "avpdState": false,
+    "laBloodVolumeStateCount": 1,
+    "laaOstialFlowState": false,
+    "pericardialDynamicState": false,
+    "fourValveOpeningStates": true,
+    "exactLeafletOrSinusVortexKinematics": false,
+    "legacyV1ComparatorKeptSeparate": true
+  },
+  "fixedFactors": {
+    "leftAtrialWall": [
+      "single-wall",
+      "common-pressure-body-plus-laa-parallel-wall"
+    ],
+    "externalConstraint": [
+      "none",
+      "energy-derived-common-pericardium"
+    ]
+  },
+  "canonicalArmOrder": [
+    "single-wall__no-pericardium",
+    "single-wall__common-pericardium",
+    "body-laa-parallel__no-pericardium",
+    "body-laa-parallel__common-pericardium"
+  ],
+  "sharedAcrossArms": [
+    "circulation",
+    "prescribed-calcium",
+    "Land-active-law",
+    "equilibrium-passive-law-family",
+    "one-state-parallel-SLS-topology",
+    "total-LA-wall-material-volume",
+    "total-LA-reference-cavity-volume",
+    "four-valve-pressure-driven-opening-state-topology",
+    "four-valve-opening-rate-and-threshold-priors",
+    "blood-density-and-area-derived-valve-loss-laws",
+    "cold-start-coordinate"
+  ],
+  "fixedEngineeringPriors": {
+    "initialLaaReferenceFraction01": 0.15,
+    "minimumInstantaneousLaaBloodFraction01": 0.05,
+    "maximumInstantaneousLaaBloodFraction01": 0.3,
+    "laaPassiveAndSlsModulusScale": 0.4,
+    "laaActiveScaleRelativeToBody": 1,
+    "commonPericardiumReferenceHeartVolumeMl": 575.7,
+    "commonPericardiumPressureScaleMmHg": 3.750393774630593,
+    "commonPericardiumExponentialStiffness": 8,
+    "commonPericardiumBiasPressureMmHg": 0,
+    "valveBloodDensityKgPerM3": 1060,
+    "valveOpeningRatePerMmHgSec": 26.7,
+    "valveClosingRatePerMmHgSec": 26.7,
+    "valveOpeningThresholdMmHg": 0,
+    "valveClosingThresholdMmHg": 0,
+    "valveDriveTransitionWidthMmHg": 0.05,
+    "valveMinimumAreaMeaning": "hydraulic-floor-not-claimed-normal-regurgitant-eroa",
+    "valveOpeningColdState": "all-closed"
+  },
+  "numericalReadinessArtifact": {
+    "candidateIndex": 0,
+    "scenarioId": "hr60-reference",
+    "beats": 4,
+    "dtSec": 0.005,
+    "calciumRamp": "off-full-amplitude",
+    "morphologyInterpretation": "forbidden-unless-full-state-periodicity-established"
+  },
+  "requiredPreMorphologyChecks": [
+    "all-arms-run-complete",
+    "total-blood-volume-conservation",
+    "bounded-monolithic-body-laa-pressure-equilibrium",
+    "body-laa-pressure-residual-within-tolerance",
+    "finite-common-pericardial-energy-pressure-and-tangent",
+    "bounded-unclipped-four-valve-opening-state",
+    "four-valve-opening-state-in-full-return-map",
+    "nonnegative-resistive-and-bernoulli-valve-dissipation",
+    "two-consecutive-full-state-return-maps-within-fixed-tolerance"
+  ],
+  "antiOptimizationPolicy": {
+    "localOptimization": false,
+    "outcomeAdaptiveParameterChanges": false,
+    "crossArmWarmStart": false,
+    "scalarWinnerScore": false,
+    "vLoopMetrics": "report-only"
+  },
+  "nextValidationAxes": [
+    "dt-half",
+    "HR-50-60-75-100",
+    "blood-volume-low-high",
+    "systemic-resistance-low-high",
+    "pulmonary-resistance-low-high",
+    "LAA-closure-counterfactual"
+  ]
+}

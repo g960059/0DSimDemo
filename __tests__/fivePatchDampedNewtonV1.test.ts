@@ -66,5 +66,7 @@ describe("FivePatchDampedNewtonV1", () => {
     expect(mixed.residualEvaluations).toBeLessThan(
       finiteDifference.residualEvaluations,
     );
+    expect(mixed.finalScaledResiduals).toHaveLength(2);
+    expect(mixed.maximumResidualIndex).not.toBeNull();
   });
 });
