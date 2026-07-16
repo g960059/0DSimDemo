@@ -26,6 +26,10 @@ describe("main-wire normal-adult five-wall periodic orbit comparison V1", () => 
     );
 
     expect(comparison.interpretable).toBe(true);
+    expect(comparison.protocolIdentity).toMatchObject({
+      exactMatch: true,
+      identityHash: "same-protocol",
+    });
     expect(comparison.interpretabilityReasons).toEqual([]);
     expect(comparison.dtSec).toBe(0.5);
     expect(comparison.stepsPerBeat).toBe(2);
@@ -126,6 +130,7 @@ describe("main-wire normal-adult five-wall periodic orbit comparison V1", () => 
     );
     expect(collisionGuard.interpretabilityReasons)
       .toContain("protocol-identity-mismatch");
+    expect(collisionGuard.protocolIdentity.exactMatch).toBe(false);
     expect(comparison.interpretabilityReasons).toEqual(expect.arrayContaining([
       "dt-mismatch",
       "steps-per-beat-mismatch",
@@ -158,6 +163,11 @@ describe("main-wire normal-adult five-wall periodic orbit comparison V1", () => 
     expect(comparison.interpretabilityReasons)
       .toContain("protocol-identity-mismatch");
     expect(comparison.signalMetrics).toBeNull();
+    expect(comparison.protocolIdentity).toEqual({
+      exactMatch: false,
+      identityHash: null,
+      componentHashes: null,
+    });
   });
 
   it("rejects reversed basin roles and phase-misaligned accepted indices", () => {
@@ -313,6 +323,13 @@ function result(input: Readonly<{
     protocolIdentity: {
       fixtureProtocolIdentity:
         input.protocolIdentityToken ?? "same-full-protocol-identity",
+    },
+    protocolComponentHashes: {
+      mechanicsProviderMetadataStableHash: "fixture-mechanics",
+      calciumDriveFixedParamsStableHash: "fixture-calcium",
+      circulationTopologyGraphStableHash: "fixture-topology",
+      circulationRuntimeStableHash: "fixture-runtime",
+      periodicPolicyStableHash: "fixture-policy",
     },
     periodicSteadyStateClaimed: input.periodic ?? true,
     retainedCompleteBeats: [{

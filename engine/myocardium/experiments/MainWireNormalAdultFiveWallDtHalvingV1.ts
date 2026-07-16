@@ -65,6 +65,13 @@ export type MainWireNormalAdultFiveWallDtHalvingInterpretabilityReasonV1 =
 
 export type MainWireNormalAdultFiveWallDtHalvingComparisonV1 = Readonly<{
   comparisonId: typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DT_HALVING_V1_ID;
+  protocolIdentity: Readonly<{
+    exactMatch: boolean;
+    identityHash: string | null;
+    componentHashes:
+      MainWireNormalAdultFiveWallPeriodicResultV1["protocolComponentHashes"]
+      | null;
+  }>;
   coarseDtSec: number;
   fineDtSec: number;
   fineAcceptedStepsPerCoarseAcceptedStep: 2 | null;
@@ -153,7 +160,8 @@ export function compareMainWireNormalAdultFiveWallDtHalvingV1(
   if (coarse.requestedMaximumBeatCount !== fine.requestedMaximumBeatCount) {
     reasons.push("maximum-beat-count-mismatch");
   }
-  if (!matchingProtocolIdentity(coarse, fine)) {
+  const protocolIdentityMatches = matchingProtocolIdentity(coarse, fine);
+  if (!protocolIdentityMatches) {
     reasons.push("protocol-identity-mismatch");
   }
   if (coarse.integrationCompletedWithoutFailure === false) {
@@ -210,6 +218,15 @@ export function compareMainWireNormalAdultFiveWallDtHalvingV1(
     : null;
   return Object.freeze({
     comparisonId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DT_HALVING_V1_ID,
+    protocolIdentity: Object.freeze({
+      exactMatch: protocolIdentityMatches,
+      identityHash: protocolIdentityMatches
+        ? coarse.protocolIdentityHash
+        : null,
+      componentHashes: protocolIdentityMatches
+        ? coarse.protocolComponentHashes
+        : null,
+    }),
     coarseDtSec: coarse.dtSec,
     fineDtSec: fine.dtSec,
     fineAcceptedStepsPerCoarseAcceptedStep: dtHalved && stepsNested ? 2 : null,

@@ -27,6 +27,10 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
     );
 
     expect(comparison.interpretable).toBe(true);
+    expect(comparison.protocolIdentity).toMatchObject({
+      exactMatch: true,
+      identityHash: "same-protocol",
+    });
     expect(comparison.interpretabilityReasons).toEqual([]);
     expect(comparison.fineAcceptedStepsPerCoarseAcceptedStep).toBe(2);
     expect(comparison.commonAcceptedSampleMapping).toEqual([
@@ -207,6 +211,11 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
     expect(protocolMismatch.interpretabilityReasons)
       .toContain("protocol-identity-mismatch");
     expect(protocolMismatch.signalMetrics).toBeNull();
+    expect(protocolMismatch.protocolIdentity).toEqual({
+      exactMatch: false,
+      identityHash: null,
+      componentHashes: null,
+    });
 
     const sameHashDifferentIdentity = result({
       dtSec: 0.25,
@@ -304,6 +313,13 @@ function result(input: Readonly<{
     protocolIdentity: {
       fixtureProtocolIdentity:
         input.protocolIdentityToken ?? "same-full-protocol-identity",
+    },
+    protocolComponentHashes: {
+      mechanicsProviderMetadataStableHash: "fixture-mechanics",
+      calciumDriveFixedParamsStableHash: "fixture-calcium",
+      circulationTopologyGraphStableHash: "fixture-topology",
+      circulationRuntimeStableHash: "fixture-runtime",
+      periodicPolicyStableHash: "fixture-policy",
     },
     dtSec: input.dtSec,
     stepsPerBeat: input.samples.length,

@@ -50,6 +50,13 @@ export type MainWireNormalAdultFiveWallPeriodicOrbitInterpretabilityReasonV1 =
 export type MainWireNormalAdultFiveWallPeriodicOrbitComparisonV1 = Readonly<{
   comparisonId:
     typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_ORBIT_COMPARISON_V1_ID;
+  protocolIdentity: Readonly<{
+    exactMatch: boolean;
+    identityHash: string | null;
+    componentHashes:
+      MainWireNormalAdultFiveWallPeriodicResultV1["protocolComponentHashes"]
+      | null;
+  }>;
   dtSec: number | null;
   stepsPerBeat: number | null;
   primaryInitialization: string;
@@ -147,7 +154,8 @@ export function compareMainWireNormalAdultFiveWallPeriodicOrbitsV1(
   if (primary.requestedMaximumBeatCount !== alternate.requestedMaximumBeatCount) {
     reasons.push("maximum-beat-count-mismatch");
   }
-  if (!matchingProtocolIdentity(primary, alternate)) {
+  const protocolIdentityMatches = matchingProtocolIdentity(primary, alternate);
+  if (!protocolIdentityMatches) {
     reasons.push("protocol-identity-mismatch");
   }
   if (!primary.periodicSteadyStateClaimed) {
@@ -201,6 +209,15 @@ export function compareMainWireNormalAdultFiveWallPeriodicOrbitsV1(
   return Object.freeze({
     comparisonId:
       MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_ORBIT_COMPARISON_V1_ID,
+    protocolIdentity: Object.freeze({
+      exactMatch: protocolIdentityMatches,
+      identityHash: protocolIdentityMatches
+        ? primary.protocolIdentityHash
+        : null,
+      componentHashes: protocolIdentityMatches
+        ? primary.protocolComponentHashes
+        : null,
+    }),
     dtSec: sameDt ? primary.dtSec : null,
     stepsPerBeat: sameSteps ? primary.stepsPerBeat : null,
     primaryInitialization: primary.initialization,
