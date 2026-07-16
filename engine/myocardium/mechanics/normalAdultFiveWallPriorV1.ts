@@ -3,11 +3,7 @@ import {
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
 import {
-  createFixedLiteratureBoundedTriSegKoiterBendingPriorV1,
-  disableTriSegKoiterBendingV1,
   evaluateTriSegGeometryV1,
-  type DisabledTriSegKoiterBendingPriorV1,
-  type FixedTriSegKoiterBendingPriorV1,
   type TriSegCoordinatesV1,
   type TriSegGeometryV1,
   type TriSegWallGeometryParametersV1,
@@ -118,13 +114,6 @@ export type NormalAdultFiveWallPriorV1 = Readonly<{
       targetFiberStretchAtLoadedReference: 1.1;
       targetStretchIdentificationBoundary:
         "construction-prior-not-direct-human-measurement";
-      koiterBendingPrior: FixedTriSegKoiterBendingPriorV1;
-      canonicalBendingPrior: DisabledTriSegKoiterBendingPriorV1;
-      canonicalBendingMode: "disabled";
-      koiterRuntimeStatus:
-        "available-fixed-reference-prior-not-enabled-by-this-bundle";
-      koiterStopRule:
-        "retain-bending-disabled-when-membrane-only-root-is-stable";
     }>;
   }>;
   passive: Readonly<{
@@ -397,14 +386,6 @@ function buildFixedPrior(): NormalAdultFiveWallPriorV1 {
       throw new Error(`${wallId} fixed reference area does not replay lambda=1.1`);
     }
   }
-  const koiterBendingPrior =
-    createFixedLiteratureBoundedTriSegKoiterBendingPriorV1(
-      "fixed-normal-loaded-reference-koiter-v1",
-      loadedReferenceGeometry,
-    );
-  const canonicalBendingPrior = disableTriSegKoiterBendingV1(
-    "not-required-by-current-evidence",
-  );
   const atrialPassive = compileMoyer2015AtrialEquibiaxialPassiveV1(
     MOYER_2015_NORMAL_HUMAN_LA_EQUIBIAXIAL_PASSIVE_PRIOR_V1,
   );
@@ -446,13 +427,6 @@ function buildFixedPrior(): NormalAdultFiveWallPriorV1 {
         targetFiberStretchAtLoadedReference: 1.1 as const,
         targetStretchIdentificationBoundary:
           "construction-prior-not-direct-human-measurement" as const,
-        koiterBendingPrior,
-        canonicalBendingPrior,
-        canonicalBendingMode: "disabled" as const,
-        koiterRuntimeStatus:
-          "available-fixed-reference-prior-not-enabled-by-this-bundle" as const,
-        koiterStopRule:
-          "retain-bending-disabled-when-membrane-only-root-is-stable" as const,
       },
     },
     passive: {

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  disableTriSegKoiterBendingV1,
   evaluateTriSegGeometryV1,
 } from "@/engine/myocardium/mechanics/energyConjugateTriSegV1";
 import {
@@ -272,7 +271,6 @@ function providerParams(
     materialByWall,
     atria: ATRIA,
     trisegWalls: TRISEG_WALLS,
-    trisegBendingPrior: disableTriSegKoiterBendingV1("structural-ablation"),
     initialTriSegCoordinates: INITIAL_COORDINATES,
     internalCoordinateScales: Object.freeze({
       septalMidwallCapVolumeM3: 40e-6,

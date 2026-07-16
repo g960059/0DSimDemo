@@ -51,7 +51,6 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM = Object.freeze({
   landThermodynamicStoredEnergyClaimed: false as const,
   totalThermodynamicPotentialIncludingLandClaimed: false as const,
   providerTopology: "fixed-two-coordinate-TriSeg" as const,
-  koiterCanonicalMode: "disabled" as const,
   parameterFittingIncluded: false as const,
 });
 
@@ -163,7 +162,6 @@ function createNormalAdultProvider(
       RA: atrialGeometry("RA"),
     }),
     trisegWalls: prior.anatomy.triSeg.wallGeometryParameters,
-    trisegBendingPrior: prior.anatomy.triSeg.canonicalBendingPrior,
     initialTriSegCoordinates: prior.anatomy.triSeg.loadedCoordinates,
     internalCoordinateScales: Object.freeze({
       septalMidwallCapVolumeM3:

@@ -5,10 +5,6 @@ import {
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
 import {
-  evaluateEnergyConjugateTriSegV1,
-  evaluateTriSegGeometryV1,
-} from "@/engine/myocardium/mechanics/energyConjugateTriSegV1";
-import {
   assertNormalAdultFiveWallPriorV1,
   evaluateNormalAdultAtrialPassivePressureReplayV1,
   normalAdultFiveWallPriorHashInputV1,
@@ -62,15 +58,6 @@ describe("normal adult immutable five-wall prior V1", () => {
         junctionRadiusM: 0.033,
       },
       targetFiberStretchAtLoadedReference: 1.1,
-      koiterRuntimeStatus:
-        "available-fixed-reference-prior-not-enabled-by-this-bundle",
-      canonicalBendingMode: "disabled",
-      canonicalBendingPrior: {
-        mode: "disabled",
-        reason: "not-required-by-current-evidence",
-      },
-      koiterStopRule:
-        "retain-bending-disabled-when-membrane-only-root-is-stable",
     });
     expect(triSeg.wallGeometryParameters).toEqual({
       LVFW: {
@@ -89,9 +76,6 @@ describe("normal adult immutable five-wall prior V1", () => {
     for (const wallId of WALL_IDS) {
       expect(triSeg.loadedReferenceGeometry.walls[wallId].geometryStretch)
         .toBeCloseTo(1.1, 14);
-      expect(triSeg.koiterBendingPrior.referenceCurvaturePerMByWall[wallId])
-        .toBe(triSeg.loadedReferenceGeometry.walls[wallId]
-          .signedMidwallCurvaturePerM);
     }
     expect(prior.claim.parameterScanIncluded).toBe(false);
     expect(prior.claim.fitterIncluded).toBe(false);
@@ -99,45 +83,6 @@ describe("normal adult immutable five-wall prior V1", () => {
     expect(Object.isFrozen(prior)).toBe(true);
     expect(Object.isFrozen(prior.anatomy)).toBe(true);
     expect(Object.isFrozen(triSeg.loadedReferenceGeometry.walls.LVFW)).toBe(true);
-  });
-
-  it("keeps the available Koiter prior moment-free at its fixed reference without enabling runtime", () => {
-    const triSeg = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg;
-    const zero = Object.freeze({ LVFW: 0, SEP: 0, RVFW: 0 });
-    const evaluation = evaluateEnergyConjugateTriSegV1({
-      geometry: triSeg.loadedReferenceGeometry,
-      fiberKirchhoffStressPaByWall: zero,
-      bendingPrior: triSeg.koiterBendingPrior,
-    });
-    expect(evaluation.bendingStoredEnergyJ).toBe(0);
-    expect(evaluation.bendingGeneralizedForce).toEqual({
-      leftVentricularPressurePa: 0,
-      rightVentricularPressurePa: 0,
-      septalMidwallCapVolumePa: 0,
-      junctionRadiusN: 0,
-    });
-    const perturbedGeometry = evaluateTriSegGeometryV1({
-      leftVentricularCavityVolumeM3:
-        triSeg.loadedReferenceGeometry.leftVentricularCavityVolumeM3 + 2e-6,
-      rightVentricularCavityVolumeM3:
-        triSeg.loadedReferenceGeometry.rightVentricularCavityVolumeM3 - 2e-6,
-      coordinates: triSeg.loadedCoordinates,
-      walls: triSeg.wallGeometryParameters,
-    });
-    const canonicalOff = evaluateEnergyConjugateTriSegV1({
-      geometry: perturbedGeometry,
-      fiberKirchhoffStressPaByWall: zero,
-      bendingPrior: triSeg.canonicalBendingPrior,
-    });
-    expect(canonicalOff.bendingStoredEnergyJ).toBe(0);
-    expect(canonicalOff.bendingGeneralizedForce).toEqual({
-      leftVentricularPressurePa: 0,
-      rightVentricularPressurePa: 0,
-      septalMidwallCapVolumePa: 0,
-      junctionRadiusN: 0,
-    });
-    expect(triSeg.canonicalBendingMode).toBe("disabled");
-    expect(triSeg.koiterRuntimeStatus).toMatch(/not-enabled/);
   });
 
   it("binds exactly two material classes to five walls with no hidden active gains", () => {
@@ -215,7 +160,7 @@ describe("normal adult immutable five-wall prior V1", () => {
     expect(prior.parameterIdentityHash).toBe(stableHash(sanitizeForStableHash(
       normalAdultFiveWallPriorHashInputV1(prior),
     )));
-    expect(prior.parameterIdentityHash).toBe("1ee2dcb8");
+    expect(prior.parameterIdentityHash).toBe("02e09d03");
     expect(() => assertNormalAdultFiveWallPriorV1({
       ...prior,
     } as NormalAdultFiveWallPriorV1)).toThrow(/live immutable fixed prior/i);

@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  createFixedLiteratureBoundedTriSegKoiterBendingPriorV1,
-  disableTriSegKoiterBendingV1,
   evaluateEnergyConjugateTriSegV1,
   evaluateSignedSphericalCapVolumeV1,
   evaluateTriSegGeometryV1,
@@ -10,7 +8,6 @@ import {
   invertSignedSphericalCapVolumeV1,
   type TriSegGeometryInputV1,
   type TriSegGeometryV1,
-  type TriSegWallRecordV1,
 } from "@/engine/myocardium/mechanics/energyConjugateTriSegV1";
 
 const WALLS = Object.freeze({
@@ -94,7 +91,7 @@ describe("pure energy-conjugate TriSeg v1", () => {
     })).toThrow(/LV cavity volume.*nonnegative/i);
   });
 
-  it("matches analytic log-strain and curvature derivatives", () => {
+  it("matches analytic log-strain derivatives", () => {
     const geometry = trialGeometry();
     for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
       const wall = geometry.walls[wallId];
@@ -126,47 +123,25 @@ describe("pure energy-conjugate TriSeg v1", () => {
       );
       const dStrainDVolume = (capUpper.fiberLogStrain - capLower.fiberLogStrain)
         / (2 * capStep);
-      const dCurvatureDVolume = (
-        capUpper.signedMidwallCurvaturePerM
-          - capLower.signedMidwallCurvaturePerM
-      ) / (2 * capStep);
       const dStrainDRadius = (
         radiusUpper.fiberLogStrain - radiusLower.fiberLogStrain
-      ) / (2 * radiusStep);
-      const dCurvatureDRadius = (
-        radiusUpper.signedMidwallCurvaturePerM
-          - radiusLower.signedMidwallCurvaturePerM
       ) / (2 * radiusStep);
       expect(relativeError(
         analytic.dFiberLogStrainDCapVolumePerM3,
         dStrainDVolume,
       )).toBeLessThan(2e-8);
       expect(relativeError(
-        analytic.dCurvatureDCapVolumePerM4,
-        dCurvatureDVolume,
-      )).toBeLessThan(2e-8);
-      expect(relativeError(
         analytic.dFiberLogStrainDJunctionRadiusPerM,
         dStrainDRadius,
-      )).toBeLessThan(2e-8);
-      expect(relativeError(
-        analytic.dCurvatureDJunctionRadiusPerM2,
-        dCurvatureDRadius,
       )).toBeLessThan(2e-8);
     }
   });
 
   it("derives cavity pressures and both shape forces from one frozen-state virtual potential", () => {
-    const reference = evaluateTriSegGeometryV1(REFERENCE_INPUT);
-    const bendingPrior = createFixedLiteratureBoundedTriSegKoiterBendingPriorV1(
-      "fixed-loaded-reference-test-v1",
-      reference,
-    );
     const input = trialInput();
     const result = evaluateEnergyConjugateTriSegV1({
       geometry: evaluateTriSegGeometryV1(input),
       fiberKirchhoffStressPaByWall: FROZEN_STRESS,
-      bendingPrior,
     });
     const volumeStep = 1e-10;
     const radiusStep = 1e-7;
@@ -174,8 +149,7 @@ describe("pure energy-conjugate TriSeg v1", () => {
       evaluateEnergyConjugateTriSegV1({
         geometry: evaluateTriSegGeometryV1(candidate),
         fiberKirchhoffStressPaByWall: FROZEN_STRESS,
-        bendingPrior,
-      }).frozenMaterialStatePotentialJ;
+      }).frozenMaterialStateMembranePotentialJ;
     const cavityDerivative = (
       field: "leftVentricularCavityVolumeM3" | "rightVentricularCavityVolumeM3",
     ) => (potential({ ...input, [field]: input[field] + volumeStep })
@@ -211,88 +185,24 @@ describe("pure energy-conjugate TriSeg v1", () => {
     })) / (2 * radiusStep);
 
     expect(relativeError(
-      result.totalGeneralizedForce.leftVentricularPressurePa,
+      result.membraneGeneralizedForce.leftVentricularPressurePa,
       cavityDerivative("leftVentricularCavityVolumeM3"),
     )).toBeLessThan(2e-7);
     expect(relativeError(
-      result.totalGeneralizedForce.rightVentricularPressurePa,
+      result.membraneGeneralizedForce.rightVentricularPressurePa,
       cavityDerivative("rightVentricularCavityVolumeM3"),
     )).toBeLessThan(2e-7);
     expect(relativeError(
-      result.totalGeneralizedForce.septalMidwallCapVolumePa,
+      result.membraneGeneralizedForce.septalMidwallCapVolumePa,
       septalDerivative,
     )).toBeLessThan(2e-7);
     expect(relativeError(
-      result.totalGeneralizedForce.junctionRadiusN,
+      result.membraneGeneralizedForce.junctionRadiusN,
       radiusDerivative,
     )).toBeLessThan(2e-7);
     expect(result.fiberKirchhoffStressPaByWall.SEP).toBe(-800);
     expect(result.claim.negativeWallStressClipped).toBe(false);
     expect(result.claim.numericalShapeSpringApplied).toBe(false);
-  });
-
-  it("keeps Koiter bending fixed, moment-free at its reference, and exactly disable-able", () => {
-    const reference = evaluateTriSegGeometryV1(REFERENCE_INPUT);
-    const disabled = evaluateEnergyConjugateTriSegV1({
-      geometry: trialGeometry(),
-      fiberKirchhoffStressPaByWall: zeroStress(),
-      bendingPrior: disableTriSegKoiterBendingV1("structural-ablation"),
-    });
-    expect(disabled.bendingStoredEnergyJ).toBe(0);
-    expect(disabled.bendingGeneralizedForce).toEqual({
-      leftVentricularPressurePa: 0,
-      rightVentricularPressurePa: 0,
-      septalMidwallCapVolumePa: 0,
-      junctionRadiusN: 0,
-    });
-    for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
-      expect(disabled.bendingByWall[wallId].enabled).toBe(false);
-      expect(disabled.bendingByWall[wallId].plateFlexuralRigidityNm).toBe(0);
-    }
-
-    const prior = createFixedLiteratureBoundedTriSegKoiterBendingPriorV1(
-      "fixed-not-pv-fit-v1",
-      reference,
-    );
-    const enabledAtReference = evaluateEnergyConjugateTriSegV1({
-      geometry: reference,
-      fiberKirchhoffStressPaByWall: zeroStress(),
-      bendingPrior: prior,
-    });
-    expect(prior.effectiveYoungModulusPa).toBe(3_000);
-    expect(prior.poissonRatio).toBe(0.45);
-    expect(prior.pvLoopMorphologyFitAllowed).toBe(false);
-    expect(enabledAtReference.bendingStoredEnergyJ).toBe(0);
-    expect(enabledAtReference.bendingGeneralizedForce).toEqual({
-      leftVentricularPressurePa: 0,
-      rightVentricularPressurePa: 0,
-      septalMidwallCapVolumePa: 0,
-      junctionRadiusN: 0,
-    });
-
-    const doubledWalls = Object.freeze({
-      ...WALLS,
-      LVFW: Object.freeze({
-        ...WALLS.LVFW,
-        wallMaterialVolumeM3: 2 * WALLS.LVFW.wallMaterialVolumeM3,
-      }),
-    });
-    const doubledReference = evaluateTriSegGeometryV1({
-      ...REFERENCE_INPUT,
-      walls: doubledWalls,
-    });
-    const doubled = evaluateEnergyConjugateTriSegV1({
-      geometry: doubledReference,
-      fiberKirchhoffStressPaByWall: zeroStress(),
-      bendingPrior: createFixedLiteratureBoundedTriSegKoiterBendingPriorV1(
-        "fixed-double-thickness-test-v1",
-        doubledReference,
-      ),
-    });
-    expect(
-      doubled.bendingByWall.LVFW.plateFlexuralRigidityNm
-        / enabledAtReference.bendingByWall.LVFW.plateFlexuralRigidityNm,
-    ).toBeCloseTo(8, 14);
   });
 
 });
@@ -311,10 +221,6 @@ function trialInput(): TriSegGeometryInputV1 {
 
 function trialGeometry(): TriSegGeometryV1 {
   return evaluateTriSegGeometryV1(trialInput());
-}
-
-function zeroStress(): TriSegWallRecordV1<number> {
-  return Object.freeze({ LVFW: 0, SEP: 0, RVFW: 0 });
 }
 
 function relativeError(left: number, right: number): number {

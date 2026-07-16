@@ -37,13 +37,6 @@ export const ENERGY_CONJUGATE_TRISEG_CLAIM_V1 = Object.freeze({
 });
 
 const SIX_OVER_PI = 6 / Math.PI;
-const FIXED_KOITER_EFFECTIVE_YOUNG_MODULUS_PA = 3_000;
-const FIXED_KOITER_POISSON_RATIO = 0.45;
-
-export const TRISEG_KOITER_BENDING_SENSITIVITY_RANGE_PA_V1 = Object.freeze([
-  300,
-  30_000,
-] as const);
 
 export type TriSegWallGeometryParametersV1 = Readonly<{
   wallMaterialVolumeM3: number;
@@ -98,51 +91,6 @@ export type TriSegWallDerivativeV1 = Readonly<{
   dCapHeightDJunctionRadiusAtFixedVolume: number;
   dFiberLogStrainDCapVolumePerM3: number;
   dFiberLogStrainDJunctionRadiusPerM: number;
-  dCurvatureDCapVolumePerM4: number;
-  dCurvatureDJunctionRadiusPerM2: number;
-}>;
-
-export type DisabledTriSegKoiterBendingPriorV1 = Readonly<{
-  mode: "disabled";
-  priorId: "triseg-koiter-bending-disabled-v1";
-  reason: "structural-ablation" | "not-required-by-current-evidence";
-  pvLoopMorphologyFitAllowed: false;
-}>;
-
-export type FixedTriSegKoiterBendingPriorV1 = Readonly<{
-  mode: "fixed-literature-bounded-structural-prior";
-  priorId: string;
-  effectiveYoungModulusPa: typeof FIXED_KOITER_EFFECTIVE_YOUNG_MODULUS_PA;
-  poissonRatio: typeof FIXED_KOITER_POISSON_RATIO;
-  referenceCurvaturePerMByWall: TriSegWallRecordV1<number>;
-  sensitivityRangePa: typeof TRISEG_KOITER_BENDING_SENSITIVITY_RANGE_PA_V1;
-  evidenceSource: Readonly<{
-    sourceId: "palit-2018-human-passive-inverse-range";
-    doi: "10.1007/s11517-017-1768-x";
-    claimBoundary:
-      "bounds-passive-material-scale-not-a-direct-measurement-of-reduced-shell-bending";
-  }>;
-  referenceCurvatureMeaning:
-    "declared-loaded-reference-is-moment-free-not-stress-free";
-  identificationBoundary: "structural-prior-not-identified-from-pv-loop";
-  pvLoopMorphologyFitAllowed: false;
-}>;
-
-export type TriSegKoiterBendingPriorV1 =
-  | DisabledTriSegKoiterBendingPriorV1
-  | FixedTriSegKoiterBendingPriorV1;
-
-export type TriSegWallBendingEvaluationV1 = Readonly<{
-  wallId: TriSegWallIdV1;
-  enabled: boolean;
-  referenceThicknessM: number;
-  plateFlexuralRigidityNm: number;
-  reducedSphericalBendingRigidityNm: number;
-  referenceCurvaturePerM: number | null;
-  curvatureDifferencePerM: number | null;
-  storedEnergyJ: number;
-  generalizedForceByCapVolumePa: number;
-  generalizedForceByJunctionRadiusN: number;
 }>;
 
 export type TriSegGeneralizedForceV1 = Readonly<{
@@ -157,10 +105,7 @@ export type EnergyConjugateTriSegEvaluationV1 = Readonly<{
   geometry: TriSegGeometryV1;
   fiberKirchhoffStressPaByWall: TriSegWallRecordV1<number>;
   wallDerivativeByWall: TriSegWallRecordV1<TriSegWallDerivativeV1>;
-  bendingByWall: TriSegWallRecordV1<TriSegWallBendingEvaluationV1>;
   membraneGeneralizedForce: TriSegGeneralizedForceV1;
-  bendingGeneralizedForce: TriSegGeneralizedForceV1;
-  totalGeneralizedForce: TriSegGeneralizedForceV1;
   cavityTransmuralPressuresPa: Readonly<{ LV: number; RV: number }>;
   equilibriumResidual: Readonly<{
     axialNPerM: number;
@@ -168,8 +113,6 @@ export type EnergyConjugateTriSegEvaluationV1 = Readonly<{
     euclideanNPerM: number;
   }>;
   frozenMaterialStateMembranePotentialJ: number;
-  bendingStoredEnergyJ: number;
-  frozenMaterialStatePotentialJ: number;
   membranePotentialClaim:
     "linearized-frozen-stress-virtual-potential-not-the-wall-constitutive-energy";
   generalizedForceDefinition:
@@ -393,20 +336,12 @@ export function evaluateTriSegWallDerivativeV1(
   const dStrainDyAtFixedVolume = 0.5 * dAreaDyAtFixedVolume / area
     + dStrainDZeta * dZetaDyAtFixedVolume;
 
-  const dCurvatureDHeight = 2 * (y * y - h * h) / (r2 * r2);
-  const dCurvatureDyAtFixedHeight = -4 * h * y / (r2 * r2);
-  const dCurvatureDVolume = dCurvatureDHeight * dHeightDVolume;
-  const dCurvatureDyAtFixedVolume = dCurvatureDyAtFixedHeight
-    + dCurvatureDHeight * dHeightDyAtFixedVolume;
-
   const result = {
     wallId: geometry.wallId,
     dCapHeightDCapVolumePerM2: dHeightDVolume,
     dCapHeightDJunctionRadiusAtFixedVolume: dHeightDyAtFixedVolume,
     dFiberLogStrainDCapVolumePerM3: dStrainDVolume,
     dFiberLogStrainDJunctionRadiusPerM: dStrainDyAtFixedVolume,
-    dCurvatureDCapVolumePerM4: dCurvatureDVolume,
-    dCurvatureDJunctionRadiusPerM2: dCurvatureDyAtFixedVolume,
   } as const;
   for (const [label, value] of Object.entries(result)) {
     if (label !== "wallId") requireFinite(value as number, `${geometry.wallId}.${label}`);
@@ -414,55 +349,9 @@ export function evaluateTriSegWallDerivativeV1(
   return Object.freeze(result);
 }
 
-export function disableTriSegKoiterBendingV1(
-  reason: DisabledTriSegKoiterBendingPriorV1["reason"] =
-    "not-required-by-current-evidence",
-): DisabledTriSegKoiterBendingPriorV1 {
-  return Object.freeze({
-    mode: "disabled" as const,
-    priorId: "triseg-koiter-bending-disabled-v1" as const,
-    reason,
-    pvLoopMorphologyFitAllowed: false as const,
-  });
-}
-
-/**
- * Builds one immutable construction prior. E=3 kPa is the log midpoint of a
- * deliberately broad 0.3--30 kPa passive-material sensitivity bracket; it is
- * not fitted to a PV loop. Poisson ratio is fixed and no wall multipliers are
- * exposed.
- */
-export function createFixedLiteratureBoundedTriSegKoiterBendingPriorV1(
-  priorId: string,
-  referenceGeometry: TriSegGeometryV1,
-): FixedTriSegKoiterBendingPriorV1 {
-  requireNonEmpty(priorId, "priorId");
-  return Object.freeze({
-    mode: "fixed-literature-bounded-structural-prior" as const,
-    priorId,
-    effectiveYoungModulusPa: FIXED_KOITER_EFFECTIVE_YOUNG_MODULUS_PA,
-    poissonRatio: FIXED_KOITER_POISSON_RATIO,
-    referenceCurvaturePerMByWall: wallRecord((wallId) =>
-      referenceGeometry.walls[wallId].signedMidwallCurvaturePerM),
-    sensitivityRangePa: TRISEG_KOITER_BENDING_SENSITIVITY_RANGE_PA_V1,
-    evidenceSource: Object.freeze({
-      sourceId: "palit-2018-human-passive-inverse-range" as const,
-      doi: "10.1007/s11517-017-1768-x" as const,
-      claimBoundary:
-        "bounds-passive-material-scale-not-a-direct-measurement-of-reduced-shell-bending" as const,
-    }),
-    referenceCurvatureMeaning:
-      "declared-loaded-reference-is-moment-free-not-stress-free" as const,
-    identificationBoundary:
-      "structural-prior-not-identified-from-pv-loop" as const,
-    pvLoopMorphologyFitAllowed: false as const,
-  });
-}
-
 export function evaluateEnergyConjugateTriSegV1(input: Readonly<{
   geometry: TriSegGeometryV1;
   fiberKirchhoffStressPaByWall: TriSegWallRecordV1<number>;
-  bendingPrior: TriSegKoiterBendingPriorV1;
 }>): EnergyConjugateTriSegEvaluationV1 {
   assertWallRecord(input.fiberKirchhoffStressPaByWall, "fiberKirchhoffStressPaByWall");
   const derivativeByWall = wallRecord((wallId) =>
@@ -484,26 +373,9 @@ export function evaluateEnergyConjugateTriSegV1(input: Readonly<{
     membraneCapForcePa,
     membraneRadiusForceN,
   );
-
-  const bendingByWall = wallRecord((wallId) => evaluateWallBending(
-    input.geometry.walls[wallId],
-    derivativeByWall[wallId],
-    input.bendingPrior,
-  ));
-  const bendingCapForcePa = wallRecord((wallId) =>
-    bendingByWall[wallId].generalizedForceByCapVolumePa);
-  const bendingRadiusForceN = wallRecord((wallId) =>
-    bendingByWall[wallId].generalizedForceByJunctionRadiusN);
-  const bending = generalizedForceFromWallForces(
-    bendingCapForcePa,
-    bendingRadiusForceN,
-  );
-  const total = addGeneralizedForces(membrane, bending);
   const y = input.geometry.coordinates.junctionRadiusM;
-  const axialNPerM = 0.5 * y * total.septalMidwallCapVolumePa;
-  const radialNPerM = total.junctionRadiusN / (2 * Math.PI * y);
-  const bendingStoredEnergyJ = sumWalls((wallId) =>
-    bendingByWall[wallId].storedEnergyJ);
+  const axialNPerM = 0.5 * y * membrane.septalMidwallCapVolumePa;
+  const radialNPerM = membrane.junctionRadiusN / (2 * Math.PI * y);
   const frozenMaterialStateMembranePotentialJ = sumWalls((wallId) => {
     const wall = input.geometry.walls[wallId];
     return wall.parameters.wallMaterialVolumeM3
@@ -518,13 +390,10 @@ export function evaluateEnergyConjugateTriSegV1(input: Readonly<{
       ...input.fiberKirchhoffStressPaByWall,
     }),
     wallDerivativeByWall: derivativeByWall,
-    bendingByWall,
     membraneGeneralizedForce: membrane,
-    bendingGeneralizedForce: bending,
-    totalGeneralizedForce: total,
     cavityTransmuralPressuresPa: Object.freeze({
-      LV: total.leftVentricularPressurePa,
-      RV: total.rightVentricularPressurePa,
+      LV: membrane.leftVentricularPressurePa,
+      RV: membrane.rightVentricularPressurePa,
     }),
     equilibriumResidual: Object.freeze({
       axialNPerM,
@@ -532,67 +401,11 @@ export function evaluateEnergyConjugateTriSegV1(input: Readonly<{
       euclideanNPerM: Math.hypot(axialNPerM, radialNPerM),
     }),
     frozenMaterialStateMembranePotentialJ,
-    bendingStoredEnergyJ,
-    frozenMaterialStatePotentialJ:
-      frozenMaterialStateMembranePotentialJ + bendingStoredEnergyJ,
     membranePotentialClaim:
       "linearized-frozen-stress-virtual-potential-not-the-wall-constitutive-energy" as const,
     generalizedForceDefinition:
       "P_L=dPi/dV_L;P_R=dPi/dV_R;G_VS=dPi/dV_S;G_y=dPi/dy" as const,
     claim: ENERGY_CONJUGATE_TRISEG_CLAIM_V1,
-  });
-}
-
-function evaluateWallBending(
-  wall: TriSegWallGeometryV1,
-  derivative: TriSegWallDerivativeV1,
-  prior: TriSegKoiterBendingPriorV1,
-): TriSegWallBendingEvaluationV1 {
-  const referenceThicknessM = wall.parameters.wallMaterialVolumeM3
-    / wall.parameters.referenceMidwallAreaM2;
-  if (prior.mode === "disabled") {
-    return Object.freeze({
-      wallId: wall.wallId,
-      enabled: false,
-      referenceThicknessM,
-      plateFlexuralRigidityNm: 0,
-      reducedSphericalBendingRigidityNm: 0,
-      referenceCurvaturePerM: null,
-      curvatureDifferencePerM: null,
-      storedEnergyJ: 0,
-      generalizedForceByCapVolumePa: 0,
-      generalizedForceByJunctionRadiusN: 0,
-    });
-  }
-  validateFixedBendingPrior(prior);
-  const plateFlexuralRigidityNm = prior.effectiveYoungModulusPa
-    * referenceThicknessM ** 3
-    / (12 * (1 - prior.poissonRatio ** 2));
-  // C is the curvature trace. For equal principal-curvature increments,
-  // isotropic Koiter energy is D(1+nu)(delta C)^2/4.
-  const reducedSphericalBendingRigidityNm = 0.5
-    * (1 + prior.poissonRatio)
-    * plateFlexuralRigidityNm;
-  const referenceCurvaturePerM = prior.referenceCurvaturePerMByWall[wall.wallId];
-  const curvatureDifferencePerM = wall.signedMidwallCurvaturePerM
-    - referenceCurvaturePerM;
-  const coefficientJm2 = reducedSphericalBendingRigidityNm
-    * wall.parameters.referenceMidwallAreaM2;
-  return Object.freeze({
-    wallId: wall.wallId,
-    enabled: true,
-    referenceThicknessM,
-    plateFlexuralRigidityNm,
-    reducedSphericalBendingRigidityNm,
-    referenceCurvaturePerM,
-    curvatureDifferencePerM,
-    storedEnergyJ: 0.5 * coefficientJm2 * curvatureDifferencePerM ** 2,
-    generalizedForceByCapVolumePa: coefficientJm2
-      * curvatureDifferencePerM
-      * derivative.dCurvatureDCapVolumePerM4,
-    generalizedForceByJunctionRadiusN: coefficientJm2
-      * curvatureDifferencePerM
-      * derivative.dCurvatureDJunctionRadiusPerM2,
   });
 }
 
@@ -618,26 +431,6 @@ function validateWallParameters(
   requirePositive(parameters.referenceMidwallAreaM2, `${label}.referenceMidwallAreaM2`);
 }
 
-function validateFixedBendingPrior(
-  prior: FixedTriSegKoiterBendingPriorV1,
-): void {
-  requireNonEmpty(prior.priorId, "bending prior id");
-  if (
-    prior.effectiveYoungModulusPa !== FIXED_KOITER_EFFECTIVE_YOUNG_MODULUS_PA
-    || prior.poissonRatio !== FIXED_KOITER_POISSON_RATIO
-    || prior.sensitivityRangePa[0] !== 300
-    || prior.sensitivityRangePa[1] !== 30_000
-    || prior.pvLoopMorphologyFitAllowed !== false
-  ) throw new Error("fixed Koiter bending prior was mutated or re-parameterized");
-  assertWallRecord(prior.referenceCurvaturePerMByWall, "reference curvature");
-  for (const wallId of TRISEG_WALL_IDS_V1) {
-    requireFinite(
-      prior.referenceCurvaturePerMByWall[wallId],
-      `${wallId}.referenceCurvaturePerM`,
-    );
-  }
-}
-
 function generalizedForceFromWallForces(
   capForcePa: TriSegWallRecordV1<number>,
   radiusForceN: TriSegWallRecordV1<number>,
@@ -651,21 +444,6 @@ function generalizedForceFromWallForces(
     junctionRadiusN: canonicalZero(
       sumWalls((wallId) => radiusForceN[wallId]),
     ),
-  });
-}
-
-function addGeneralizedForces(
-  left: TriSegGeneralizedForceV1,
-  right: TriSegGeneralizedForceV1,
-): TriSegGeneralizedForceV1 {
-  return Object.freeze({
-    leftVentricularPressurePa:
-      left.leftVentricularPressurePa + right.leftVentricularPressurePa,
-    rightVentricularPressurePa:
-      left.rightVentricularPressurePa + right.rightVentricularPressurePa,
-    septalMidwallCapVolumePa:
-      left.septalMidwallCapVolumePa + right.septalMidwallCapVolumePa,
-    junctionRadiusN: left.junctionRadiusN + right.junctionRadiusN,
   });
 }
 
@@ -711,13 +489,6 @@ function requirePositive(value: number, label: string): number {
 function requireNonnegative(value: number, label: string): number {
   if (!Number.isFinite(value) || value < 0) {
     throw new Error(`${label} must be nonnegative and finite`);
-  }
-  return value;
-}
-
-function requireNonEmpty(value: string, label: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error(`${label} must be non-empty`);
   }
   return value;
 }

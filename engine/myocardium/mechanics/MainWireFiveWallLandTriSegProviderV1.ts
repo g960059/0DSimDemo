@@ -8,7 +8,6 @@ import {
   type EnergyConjugateTriSegEvaluationV1,
   type TriSegCoordinatesV1,
   type TriSegGeometryV1,
-  type TriSegKoiterBendingPriorV1,
   type TriSegWallGeometryParametersV1,
   type TriSegWallRecordV1,
 } from "@/engine/myocardium/mechanics/energyConjugateTriSegV1";
@@ -137,7 +136,6 @@ export type MainWireFiveWallLandTriSegProviderParamsV1<TWallState> = Readonly<{
     RA: MainWireAtrialOneFiberGeometryParamsV1;
   }>;
   trisegWalls: TriSegWallRecordV1<TriSegWallGeometryParametersV1>;
-  trisegBendingPrior: TriSegKoiterBendingPriorV1;
   initialTriSegCoordinates: TriSegCoordinatesV1;
   internalCoordinateScales: TriSegCoordinatesV1;
   solver?: MainWireFiveWallInternalSolverOptionsV1;
@@ -184,7 +182,6 @@ export type MainWireFiveWallLandTriSegReadbackV1 = Readonly<{
   triseg: Readonly<{
     leftVentricularPressurePa: number;
     rightVentricularPressurePa: number;
-    bendingStoredEnergyJ: number;
   }>;
   wallMaterialReadbackByWall:
     MainWireFiveWallRecordV1<WholeHeartMechanicsSerializableValueV1 | null>;
@@ -731,7 +728,6 @@ function evaluateCandidate<TWallState>(
       SEP: fiberKirchhoffStressPaByWall.SEP,
       RVFW: fiberKirchhoffStressPaByWall.RVFW,
     }),
-    bendingPrior: params.trisegBendingPrior,
   });
   const wallVolumeM3ByWall = fiveWallRecord((wallId) => wallId === "LA"
     ? params.atria.LA.wallMaterialVolumeM3
@@ -747,12 +743,11 @@ function evaluateCandidate<TWallState>(
     algorithmicStressPrimitiveJByWall[wallId] !== null);
   const totalAlgorithmicStressPrimitiveJ = allPrimitivesAvailable
     ? sumFiveWalls((wallId) => algorithmicStressPrimitiveJByWall[wallId]!)
-      + triseg.bendingStoredEnergyJ
     : null;
   const rawAlgorithmicGeneralizedForce = Object.freeze({
     septalMidwallCapVolumePa:
-      triseg.totalGeneralizedForce.septalMidwallCapVolumePa,
-    junctionRadiusN: triseg.totalGeneralizedForce.junctionRadiusN,
+      triseg.membraneGeneralizedForce.septalMidwallCapVolumePa,
+    junctionRadiusN: triseg.membraneGeneralizedForce.junctionRadiusN,
   });
   const scaledAlgorithmicGeneralizedForceByOneJ = Object.freeze([
     rawAlgorithmicGeneralizedForce.septalMidwallCapVolumePa
@@ -933,7 +928,6 @@ function buildReadback<TWallState>(
         candidate.triseg.cavityTransmuralPressuresPa.LV,
       rightVentricularPressurePa:
         candidate.triseg.cavityTransmuralPressuresPa.RV,
-      bendingStoredEnergyJ: candidate.triseg.bendingStoredEnergyJ,
     }),
     wallMaterialReadbackByWall: fiveWallRecord((wallId) =>
       candidate.materialByWall[wallId].readback),
@@ -1223,7 +1217,6 @@ function providerParameterIdentityHash<TWallState>(
     })),
     atria: params.atria,
     trisegWalls: params.trisegWalls,
-    trisegBendingPrior: params.trisegBendingPrior,
     initialTriSegCoordinates: params.initialTriSegCoordinates,
     internalCoordinateScales: params.internalCoordinateScales,
     solver,
