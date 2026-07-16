@@ -54,7 +54,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM = Object.freeze({
   parameterFittingIncluded: false as const,
 });
 
-export const MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1 = Object.freeze({
+/** Mechanics-only fixture; not a circulation cold-state or periodic solution. */
+export const MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1 = Object.freeze({
   LA: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria.LA
     .cavityBloodVolumeMl.minimum,
   LV: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg

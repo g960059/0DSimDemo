@@ -7,7 +7,7 @@ import type {
   MainWireFiveWallLandTriSegReadbackV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
-  MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
+  MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1,
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM,
   asMainWireFiveWallFreeCalciumDriveV1,
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
@@ -31,7 +31,7 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
     );
     const cold = initializeWholeHeartMechanicsColdV1(provider, {
       timeSec: 0,
-      volumesMl: MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
+      volumesMl: MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1,
       drivingInputs: coldDrive,
     });
     const rb = providerReadback(cold.diagnostics.readback);
@@ -75,14 +75,14 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
       previousAcceptedState: cold.acceptedState,
       candidateTimeSec: nextTimeSec,
       stepDtSec: nextTimeSec,
-      candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
+      candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1,
       drivingInputs: nextDrive,
     });
     const repeatedTrial = evaluateWholeHeartMechanicsTrialV1(provider, {
       previousAcceptedState: cold.acceptedState,
       candidateTimeSec: nextTimeSec,
       stepDtSec: nextTimeSec,
-      candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
+      candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1,
       drivingInputs: nextDrive,
     });
     expect(trial.diagnostics.converged).toBe(true);

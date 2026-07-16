@@ -99,7 +99,11 @@ export type WholeHeartMechanicsTrialInputV1<TState, TDrive> = {
 export type WholeHeartMechanicsProviderV1<TState, TDrive> = {
   readonly contractId: typeof WHOLE_HEART_MECHANICS_CONTRACT_V1_ID;
   readonly providerId: string;
-  /** Human-readable prior/case identity plus a stable hash of all effective parameters. */
+  /**
+   * Human-readable prior/case identity plus a provider-defined stable
+   * configuration hash. The provider must document whether provenance-only
+   * metadata is included; this generic contract does not call it a physics hash.
+   */
   readonly parameterSetId: string;
   readonly parameterIdentityHash: string;
   readonly stateSchemaVersion: number;
