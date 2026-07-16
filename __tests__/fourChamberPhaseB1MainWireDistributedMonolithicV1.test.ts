@@ -158,6 +158,20 @@ describe("Phase B1 main-wire distributed monolithic research step", () => {
     expect(Math.abs(
       result.residualEvaluation.volumeResidual.summedIncidenceVolumeRateM3PerSec,
     )).toBeLessThan(1e-18);
+    const expectedDimensionlessLandMargin = Math.min(
+      ...Object.values(
+        result.nextEndpointLeftLimit.differentialState.landByWall,
+      ).flatMap(([caTrpn, b, w, s]) => [
+        caTrpn,
+        b,
+        w,
+        s,
+        1 - caTrpn,
+        1 - b - w - s,
+      ]),
+    );
+    expect(result.minimumLandSimplexMargin)
+      .toBeCloseTo(expectedDimensionlessLandMargin, 15);
     expect(result.minimumLandSimplexMargin).toBeGreaterThan(0);
     expect(result.minimumVascularPvDomainMarginM3).toBeGreaterThan(0);
     expect(result.algorithmicJacobian).toBe(

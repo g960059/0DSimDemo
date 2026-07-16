@@ -676,6 +676,10 @@ function evaluateDistributedResidual(
     wallMaterialBinding: binding,
     endpoint: nextEndpointWithCondensedValveApertures,
   });
+  assertValvePressureGradientInvariantAcrossApertureCondensation(
+    provisionalEvaluation,
+    nextEvaluation,
+  );
   const volumeResidual = evaluateMainWireNonCoronaryBackwardEulerVolumeResidualV1({
     previousBloodVolumesM3: previous.bloodVolumesM3,
     nextBloodVolumesM3: next.bloodVolumesM3,
@@ -866,7 +870,7 @@ function buildLayout(
   strictLowerBounds[labels.length - 1] =
     PHASE_B1_EVENT_FREE_MONOLITHIC_NUMERICAL_POLICY_V1
       .strictJunctionRadiusLowerBoundM;
-  const strictAffineConstraints: StrictAffineConstraintV1[] = [];
+  const vascularStrictAffineConstraints: StrictAffineConstraintV1[] = [];
   for (const nodeName of MAIN_WIRE_NON_CORONARY_VASCULAR_NODE_NAMES_V1) {
     const law = circulationContext.vascularPvLawByNode[nodeName];
     const bounds = mainWireVascularPhysicalVolumeBoundsM3V1(law);
@@ -879,12 +883,13 @@ function buildLayout(
       strictLowerBounds[volumeIndex] ?? Number.NEGATIVE_INFINITY,
       bounds.minimumM3,
     );
-    strictAffineConstraints.push(Object.freeze({
+    vascularStrictAffineConstraints.push(Object.freeze({
       constraintId: `${nodeName}.vascular-pv-upper-volume-bound`,
       coefficients: basis(labels.length, [[volumeIndex, -1]]),
       lowerBound: -bounds.maximumM3,
     }));
   }
+  const landStrictAffineConstraints: StrictAffineConstraintV1[] = [];
   for (const wallId of WALL_IDS) {
     const ca = requiredLabelIndex(
       labels,
@@ -893,17 +898,21 @@ function buildLayout(
     const b = requiredLabelIndex(labels, `tissue.${wallId}.patch-0.land.B`);
     const w = requiredLabelIndex(labels, `tissue.${wallId}.patch-0.land.W`);
     const s = requiredLabelIndex(labels, `tissue.${wallId}.patch-0.land.S`);
-    strictAffineConstraints.push(Object.freeze({
+    landStrictAffineConstraints.push(Object.freeze({
       constraintId: `${wallId}.one-minus-CaTRPN-positive`,
       coefficients: basis(labels.length, [[ca, -1]]),
       lowerBound: -1,
     }));
-    strictAffineConstraints.push(Object.freeze({
+    landStrictAffineConstraints.push(Object.freeze({
       constraintId: `${wallId}.unbound-population-U-positive`,
       coefficients: basis(labels.length, [[b, -1], [w, -1], [s, -1]]),
       lowerBound: -1,
     }));
   }
+  const strictAffineConstraints = Object.freeze([
+    ...vascularStrictAffineConstraints,
+    ...landStrictAffineConstraints,
+  ]);
   const unknownCount = labels.length as 58 | 53;
   if (
     unknownCount !== (slsMode === "on" ? 58 : 53)
@@ -919,7 +928,10 @@ function buildLayout(
     unknownScales: Object.freeze(unknownScales),
     residualScales: Object.freeze(residualScales),
     strictLowerBounds: Object.freeze(strictLowerBounds),
-    strictAffineConstraints: Object.freeze(strictAffineConstraints),
+    vascularStrictAffineConstraints:
+      Object.freeze(vascularStrictAffineConstraints),
+    landStrictAffineConstraints: Object.freeze(landStrictAffineConstraints),
+    strictAffineConstraints,
   });
 }
 
@@ -1174,7 +1186,7 @@ function minimumLandMargin(
       minimum = Math.min(minimum, unknowns[index] - lower);
     }
   }
-  for (const constraint of layout.strictAffineConstraints) {
+  for (const constraint of layout.landStrictAffineConstraints) {
     const value = constraint.coefficients.reduce(
       (sum, coefficient, index) => sum + coefficient * unknowns[index],
       0,
@@ -1182,6 +1194,28 @@ function minimumLandMargin(
     minimum = Math.min(minimum, value - constraint.lowerBound);
   }
   return requireFinite(minimum, "minimum Land simplex margin");
+}
+
+function assertValvePressureGradientInvariantAcrossApertureCondensation(
+  provisional: PhaseB1MainWireDistributedEndpointEvaluationV1,
+  condensed: PhaseB1MainWireDistributedEndpointEvaluationV1,
+): void {
+  for (const flowName of MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1) {
+    const before = provisional.distributedCirculation
+      .valveMomentumByFlow[flowName].pressureGradientPa;
+    const after = condensed.distributedCirculation
+      .valveMomentumByFlow[flowName].pressureGradientPa;
+    const tolerancePa = 32 * Number.EPSILON * Math.max(
+      1,
+      Math.abs(before),
+      Math.abs(after),
+    );
+    if (Math.abs(after - before) > tolerancePa) {
+      throw new Error(
+        `${flowName} pressure gradient changed across algebraic valve-aperture condensation`,
+      );
+    }
+  }
 }
 
 function assertInsideLandDomain(
