@@ -28,6 +28,16 @@
       "bloodDensityKgPerM3": 1060,
       "dischargeCoefficientFitAdded": false,
       "chamberToChamberFlowInertance": 0,
+      "acceptedValveMemory": "leafletOpeningFraction01-only",
+      "valveFlowPersistedAsState": false,
+      "bernoulliCoefficientPublicFitKnob": false,
+      "bernoulliConstruction": "derived-from-instantaneous-effective-orifice-area",
+      "competentValveClosure": "unilateral-flow-with-contact-reaction-complementarity",
+      "mitralOpeningDeadband": {
+        "source": "engine/core/topology.MV_PRESSURE_DEADBAND_MMHG",
+        "valueMmHg": 0.6,
+        "status": "unvalidated-main-wire-prior-not-fit-knob"
+      },
       "separateRootAndVesselInertanceRetained": true,
       "oldInertialEdgeBLastBeat": {
         "laPvSelfIntersectionCount": 4,
@@ -95,7 +105,7 @@
     ]
   },
   "reproduction": {
-    "canonicalCommand": "npx vite-node --script tools/myocardium/runMainWireNormalAdultFiveWallClosedLoopV1.ts --mode q-off-canonical --la-sls on --beats 8 --dt 0.002 --output /tmp/mainwire-final-canonical-8beat.json",
-    "laSlsExactOffCommand": "npx vite-node --script tools/myocardium/runMainWireNormalAdultFiveWallClosedLoopV1.ts --mode q-off-canonical --la-sls exact-off --beats 8 --dt 0.002 --output /tmp/mainwire-la-sls-off-8beat.json"
+    "canonicalCommand": "npx vite-node --script tools/myocardium/runMainWireNormalAdultFiveWallClosedLoopV1.ts --mode canonical --la-sls on --beats 8 --dt 0.002 --output /tmp/mainwire-final-canonical-8beat.json",
+    "laSlsExactOffCommand": "npx vite-node --script tools/myocardium/runMainWireNormalAdultFiveWallClosedLoopV1.ts --mode canonical --la-sls exact-off --beats 8 --dt 0.002 --output /tmp/mainwire-la-sls-off-8beat.json"
   }
 }

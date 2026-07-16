@@ -12,12 +12,12 @@ import {
 } from "@/engine/core/circulationGraphKernelV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
-  initialMainWireFlowStateValveStateV2,
-  mainWireFlowStateValveParamsFromEdgeV2,
-  stepMainWireFlowStateValveV2,
-  type MainWireFlowStateValveEvaluationV2,
-  type MainWireFlowStateValveStateV2,
-} from "@/engine/mechanics2/valve/MainWireFlowStateValveV2";
+  initialMainWireQuasiSteadyOrificeValveStateV1,
+  mainWireQuasiSteadyOrificeValveParamsFromEdgeV1,
+  stepMainWireQuasiSteadyOrificeValveV1,
+  type MainWireQuasiSteadyOrificeValveEvaluationV1,
+  type MainWireQuasiSteadyOrificeValveStateV1,
+} from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV1";
 import {
   ptmFromStressedVolume,
   stressedVolumeFromPtm,
@@ -69,7 +69,9 @@ export const NON_CORONARY_CIRCULATION_SCOPE_V1 = Object.freeze({
     "Ao_RCA", "RCA_Art_IM", "RCA_IM_Ven", "RCA_Ven_CS", "CS_RA",
   ] as const),
   dependentBloodVolumeNode: "SV" as const,
-  valveOwner: "MainWireQuasiSteadyOrificeValveV2" as const,
+  valveOwner: "MainWireQuasiSteadyOrificeValveV1" as const,
+  valveAcceptedMemory: "leaflet-opening-fraction-only" as const,
+  valveFlow: "algebraic-candidate-readback" as const,
   coronaryBloodVolumeIncluded: false as const,
   chamberPressureCallback: "absolute-pressure-mmHg" as const,
   pericardialConstraintOwnedHere: false as const,
@@ -140,7 +142,7 @@ export type NonCoronaryCirculationAcceptedStateV1 = Readonly<{
   totalBloodVolumeMl: number;
   nodeVolumesMl: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
-  valveStates: ValveRecord<MainWireFlowStateValveStateV2>;
+  valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
 }>;
 
 export type NonCoronaryCirculationInitialStateInputV1 = Readonly<{
@@ -148,7 +150,7 @@ export type NonCoronaryCirculationInitialStateInputV1 = Readonly<{
   runtime: NonCoronaryCirculationRuntimeParamsV1;
   nodeVolumesMl?: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec?: DynamicEdgeRecord<number>;
-  valveStates?: ValveRecord<MainWireFlowStateValveStateV2>;
+  valveStates?: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
 }>;
 
 export type NonCoronaryCirculationNewtonOptionsV1 = Readonly<{
@@ -191,10 +193,10 @@ export type NonCoronaryCirculationTrialSuccessV1<TEvaluation> = Readonly<{
   dtSec: number;
   candidateNodeVolumesMl: NodeRecord<number>;
   candidateDynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
-  candidateValveStates: ValveRecord<MainWireFlowStateValveStateV2>;
+  candidateValveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
   nodeAbsolutePressuresMmHg: NodeRecord<number>;
   edgeFlowsMlPerSec: EdgeRecord<number>;
-  valveEvaluations: ValveRecord<MainWireFlowStateValveEvaluationV2>;
+  valveEvaluations: ValveRecord<MainWireQuasiSteadyOrificeValveEvaluationV1>;
   candidateMechanicsEvaluation: TEvaluation;
   diagnostics: NonCoronaryCirculationTrialDiagnosticsV1;
   mechanicsCommitted: false;
@@ -231,8 +233,8 @@ type CandidateEvaluation<TEvaluation> = Readonly<{
   nodeAbsolutePressuresMmHg: NodeRecord<number>;
   edgeFlowsMlPerSec: EdgeRecord<number>;
   dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
-  valveStates: ValveRecord<MainWireFlowStateValveStateV2>;
-  valveEvaluations: ValveRecord<MainWireFlowStateValveEvaluationV2>;
+  valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
+  valveEvaluations: ValveRecord<MainWireQuasiSteadyOrificeValveEvaluationV1>;
   candidateMechanicsEvaluation: TEvaluation;
   continuityResidualMlByNode: NodeRecord<number>;
   scaledIndependentResidual: readonly number[];
@@ -313,7 +315,7 @@ export function createInitialNonCoronaryCirculationStateV1(
     ? copyValveStates(input.valveStates)
     : valveRecord((name) => {
       const edge = graph.edges[graph.edgeIndex.get(name)!];
-      return initialMainWireFlowStateValveStateV2(edge.q0 ?? 0, edge.xi0 ?? 0);
+      return initialMainWireQuasiSteadyOrificeValveStateV1(edge.xi0 ?? 0);
     });
   return acceptedState({
     revision: 0,
@@ -629,7 +631,7 @@ function evaluateCandidate<TEvaluation>(
   });
   const valveEvaluations = {} as Record<
     NonCoronaryValveNameV1,
-    MainWireFlowStateValveEvaluationV2
+    MainWireQuasiSteadyOrificeValveEvaluationV1
   >;
   const flows = {} as Record<NonCoronaryEdgeNameV1, number>;
   const dynamicFlows = {} as Record<NonCoronaryDynamicEdgeNameV1, number>;
@@ -643,20 +645,20 @@ function evaluateCandidate<TEvaluation>(
     ];
     if (edge.kind === "valve") {
       const valveName = name as NonCoronaryValveNameV1;
-      const evaluation = stepMainWireFlowStateValveV2(
+      const evaluation = stepMainWireQuasiSteadyOrificeValveV1(
         previous.valveStates[valveName],
         {
           dtSec: input.dtSec,
           upstreamPressureMmHg: upstreamPressure,
           downstreamPressureMmHg: downstreamPressure,
         },
-        mainWireFlowStateValveParamsFromEdgeV2(edge),
+        mainWireQuasiSteadyOrificeValveParamsFromEdgeV1(edge),
       );
       if (!evaluation.valid || !evaluation.finite) {
         throw new Error(`${name} valve trial failed: ${evaluation.issues.join("; ")}`);
       }
       valveEvaluations[valveName] = evaluation;
-      flows[name] = evaluation.state.qMlPerSec;
+      flows[name] = evaluation.flowMlPerSec;
       continue;
     }
     const effectiveDownstreamPressure = downstreamEffectivePressureV1({
@@ -720,7 +722,7 @@ function evaluateCandidate<TEvaluation>(
     ),
     valveStates: valveRecord((name) => valveEvaluations[name].state),
     valveEvaluations: Object.freeze({ ...valveEvaluations }) as ValveRecord<
-      MainWireFlowStateValveEvaluationV2
+      MainWireQuasiSteadyOrificeValveEvaluationV1
     >,
     candidateMechanicsEvaluation: mechanics.evaluation,
     continuityResidualMlByNode,
@@ -830,7 +832,7 @@ function acceptedState(input: Readonly<{
   acceptedTimeSec: number;
   nodeVolumesMl: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
-  valveStates: ValveRecord<MainWireFlowStateValveStateV2>;
+  valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
 }>): NonCoronaryCirculationAcceptedStateV1 {
   requireInteger(input.revision, "revision");
   requireNonnegative(input.acceptedTimeSec, "acceptedTimeSec");
@@ -1174,16 +1176,15 @@ function copyDynamicEdgeRecord(
 }
 
 function copyValveStates(
-  source: ValveRecord<MainWireFlowStateValveStateV2>,
-): ValveRecord<MainWireFlowStateValveStateV2> {
+  source: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>,
+): ValveRecord<MainWireQuasiSteadyOrificeValveStateV1> {
   assertExactKeys(source, NON_CORONARY_VALVE_NAMES_V1, "valveStates");
   return valveRecord((name) => {
     const state = source[name];
-    requireFinite(state.qMlPerSec, `${name}.qMlPerSec`);
-    if (!Number.isFinite(state.openingFraction01)
-      || state.openingFraction01 < 0
-      || state.openingFraction01 > 1) {
-      throw new Error(`${name}.openingFraction01 must lie in [0,1]`);
+    if (!Number.isFinite(state.leafletOpeningFraction01)
+      || state.leafletOpeningFraction01 < 0
+      || state.leafletOpeningFraction01 > 1) {
+      throw new Error(`${name}.leafletOpeningFraction01 must lie in [0,1]`);
     }
     return Object.freeze({ ...state });
   });
