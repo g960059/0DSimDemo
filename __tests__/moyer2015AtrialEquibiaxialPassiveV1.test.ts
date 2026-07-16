@@ -99,8 +99,6 @@ describe("Moyer 2015 exact atrial equibiaxial passive V1", () => {
       expect(center.stressClipped).toBe(false);
       expect(center.claim.energyStressTangentFromSamePotential).toBe(true);
       expect(center.claim.stressMeasure).toMatch(/generalized.*not-a-single-fiber/i);
-      expect(center.claim.effectiveStrainOffsetUseBoundary)
-        .toMatch(/reduced-scalar-extrapolation/);
     }
   });
 

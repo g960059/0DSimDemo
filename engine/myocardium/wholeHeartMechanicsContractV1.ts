@@ -3,7 +3,7 @@
  *
  * Main wire owns blood/vascular nodes, edges, and valves. One mechanics
  * provider jointly maps the four candidate chamber volumes to four transmural
- * pressures while owning all coupled Land/passive/Maxwell/TriSeg/long-axis
+ * pressures while owning all coupled Land/passive/Maxwell/TriSeg internal
  * history. Trials are pure; only an explicitly accepted trial advances state.
  */
 
@@ -22,7 +22,6 @@ export const WHOLE_HEART_MECHANICS_OWNERSHIP_V1 = Object.freeze({
     "four-chamber-transmural-pressure",
     "Land-passive-Maxwell-material-state",
     "TriSeg-state",
-    "trace-free-long-axis-state",
   ] as const),
   trialSemantics: "pure-candidate-evaluation" as const,
   commitSemantics: "explicit-accepted-trial-promotion" as const,

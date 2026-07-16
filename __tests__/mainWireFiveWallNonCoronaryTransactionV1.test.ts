@@ -148,7 +148,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     })).toBe(before);
   });
 
-  it("advances one actual q-off Moyer/Klotz + Land/SLS + TriSeg step", () => {
+  it("advances one actual Moyer/Klotz + Land/SLS + TriSeg step", () => {
     const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
     const runtime = Object.freeze({
       ...RUNTIME,
@@ -178,8 +178,8 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     expect(stepped.mechanicsTrial.diagnostics.finite).toBe(true);
     expect(stepped.circulationTrial.diagnostics.totalBloodVolumeErrorMl)
       .toBeCloseTo(0, 9);
-    expect(stepped.acceptedState.mechanics.materialState.longAxisCoordinate)
-      .toBe(0);
+    expect(Object.keys(stepped.acceptedState.mechanics.materialState).sort())
+      .toEqual(["trisegCoordinates", "wallStateByWall"]);
     expect(Object.values(stepped.mechanicsTrial.transmuralPressuresMmHg)
       .every(Number.isFinite)).toBe(true);
   }, 60_000);

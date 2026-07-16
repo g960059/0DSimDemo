@@ -50,10 +50,7 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM = Object.freeze({
   slsStoredEnergyAndDissipationReported: true as const,
   landThermodynamicStoredEnergyClaimed: false as const,
   totalThermodynamicPotentialIncludingLandClaimed: false as const,
-  qOffBuilderStatus: "canonical-first-whole-heart-replay" as const,
-  qOnBuilderStatus: "fixed-prior-structural-falsification-only" as const,
-  qOnViableDefaultClaimed: false as const,
-  qGainOrBoundRetunedHere: false as const,
+  providerTopology: "fixed-two-coordinate-TriSeg" as const,
   koiterCanonicalMode: "disabled" as const,
   parameterFittingIncluded: false as const,
 });
@@ -67,17 +64,6 @@ export const MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1 = Object.freeze({
     .cavityBloodVolumeMl.minimum,
   RV: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg
     .rightVentricularEndDiastolicVolumeMl,
-});
-
-export const MAIN_WIRE_NORMAL_ADULT_SYSTOLIC_AUDIT_VOLUMES_ML_V1 = Object.freeze({
-  LA: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria.LA
-    .cavityBloodVolumeMl.maximum,
-  LV: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg
-    .leftVentricularEndSystolicVolumeMl,
-  RA: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria.RA
-    .cavityBloodVolumeMl.maximum,
-  RV: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.triSeg
-    .rightVentricularEndSystolicVolumeMl,
 });
 
 export type MainWireNormalAdultWallEnergyLedgerV1 = Readonly<{
@@ -134,12 +120,7 @@ export function createCanonicalMainWireNormalAdultFiveWallProviderV1(
   laSlsMode: MainWireNormalAdultLaSlsModeV1 = "on",
 ):
 MainWireNormalAdultFiveWallProviderV1 {
-  return createNormalAdultProvider(false, laSlsMode);
-}
-
-export function createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1():
-MainWireNormalAdultFiveWallProviderV1 {
-  return createNormalAdultProvider(true, "on");
+  return createNormalAdultProvider(laSlsMode);
 }
 
 export function createMainWireNormalAdultFiveWallMaterialKernelsV1(
@@ -169,16 +150,13 @@ MainWireFiveWallRecordV1<
 }
 
 function createNormalAdultProvider(
-  longAxisEnabled: boolean,
   laSlsMode: MainWireNormalAdultLaSlsModeV1,
 ): MainWireNormalAdultFiveWallProviderV1 {
   const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
   assertNormalAdultFiveWallPriorV1(prior);
-  const q = prior.longAxis.params;
   return createMainWireFiveWallLandTriSegProviderV1({
-    parameterSetId: longAxisEnabled
-      ? `${prior.priorId}-q-on-structural-falsification`
-      : `${prior.priorId}-q-off-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}`,
+    parameterSetId:
+      `${prior.priorId}-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}`,
     materialByWall: createMainWireNormalAdultFiveWallMaterialKernelsV1(laSlsMode),
     atria: Object.freeze({
       LA: atrialGeometry("LA"),
@@ -192,14 +170,6 @@ function createNormalAdultProvider(
         Math.abs(prior.anatomy.triSeg.loadedCoordinates.septalMidwallCapVolumeM3),
       junctionRadiusM: prior.anatomy.triSeg.loadedCoordinates.junctionRadiusM,
     }),
-    longAxis: longAxisEnabled
-      ? Object.freeze({
-        enabled: true as const,
-        initialCoordinate: 0,
-        coordinateScale: q.maximumAbsoluteCoordinate,
-        modeParams: q,
-      })
-      : Object.freeze({ enabled: false as const }),
   });
 }
 

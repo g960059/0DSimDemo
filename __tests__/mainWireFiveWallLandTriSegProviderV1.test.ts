@@ -75,7 +75,7 @@ const ATRIA = Object.freeze({
 
 describe("MainWireFiveWallLandTriSegProviderV1", () => {
   it("cold-initializes five Land/SLS wall states at one finite stable joint root", () => {
-    const provider = createProvider(true);
+    const provider = createProvider();
     const cold = initializeWholeHeartMechanicsColdV1(provider, {
       timeSec: 0,
       volumesMl: REFERENCE_VOLUMES,
@@ -105,7 +105,7 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
   });
 
   it("repeats pure trials from one accepted state without mutating it", () => {
-    const provider = createProvider(true);
+    const provider = createProvider();
     const cold = coldStart(provider);
     const acceptedEncoding = provider.stateCodec.encode(cold.acceptedState.materialState);
     const first = trial(provider, cold.acceptedState, candidateVolumes(), activeDrive());
@@ -130,8 +130,8 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
     )).toThrow(/fingerprint mismatch/);
   });
 
-  it("solves exactly two TriSeg coordinates with q_L structurally off", () => {
-    const provider = createProvider(false);
+  it("solves exactly the two declared TriSeg coordinates", () => {
+    const provider = createProvider();
     const cold = coldStart(provider);
     const evaluated = trial(
       provider,
@@ -142,21 +142,18 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
     const rb = readback(evaluated.diagnostics.readback);
 
     expect(evaluated.diagnostics.converged).toBe(true);
-    expect(cold.acceptedState.materialState.longAxisCoordinate).toBe(0);
-    expect(evaluated.candidateMaterialState.longAxisCoordinate).toBe(0);
-    expect(rb.longAxisEnabled).toBe(false);
+    expect(Object.keys(cold.acceptedState.materialState).sort())
+      .toEqual(["trisegCoordinates", "wallStateByWall"]);
+    expect(Object.keys(rb.internalCoordinates).sort())
+      .toEqual(["junctionRadiusM", "septalMidwallCapVolumeM3"]);
     expect(rb.scaledAlgorithmicGeneralizedForceByOneJ).toHaveLength(2);
     expect(rb.scaledAlgorithmicJacobianByOneJ).toHaveLength(2);
-    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
-      .longAxisSpringApplied).toBe(false);
-    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
-      .longAxisDampingApplied).toBe(false);
-    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
-      .longAxisClampApplied).toBe(false);
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM.internalUnknowns)
+      .toEqual(["V_m_S", "y_m"]);
   });
 
-  it("matches chamber pressure and q generalized force to virtual work", () => {
-    const provider = createProvider(true);
+  it("matches chamber pressure and TriSeg generalized force to virtual work", () => {
+    const provider = createProvider();
     const cold = coldStart(provider);
     const center = candidateVolumes();
     const hMl = 0.01;
@@ -185,49 +182,26 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
     const rb = readback(middle.diagnostics.readback);
 
     expect(relativeError(derivativePa, pressurePa)).toBeLessThan(3e-4);
-    expect(Math.abs(rb.rawAlgorithmicGeneralizedForce.longAxisJ)).toBeLessThan(1e-8);
+    expect(Object.keys(rb.rawAlgorithmicGeneralizedForce).sort())
+      .toEqual(["junctionRadiusN", "septalMidwallCapVolumePa"]);
     expect(rb.scaledAlgorithmicGeneralizedForceByOneJ.every(
       (value) => Math.abs(value) < 1e-8,
     )).toBe(true);
     expect(rb.claim.thermodynamicPotentialForLandActiveClaimed).toBe(false);
   });
 
-  it("fails transactionally when q_L equilibrium lies beyond its declared bound", () => {
-    const provider = createProvider(true, 5e-4);
+  it("rejects serialized states with undeclared internal coordinates", () => {
+    const provider = createProvider();
     const cold = coldStart(provider);
-    const acceptedEncoding = provider.stateCodec.encode(cold.acceptedState.materialState);
-    const forced = trial(
-      provider,
-      cold.acceptedState,
-      REFERENCE_VOLUMES,
-      Object.freeze({
-        freeCalciumUMByWall:
-          fiveWallRecord((wallId) => wallId === "LA" ? 10 : 0),
-      }),
-    );
-    const rb = forced.diagnostics.readback as {
-      qBoundHit: boolean;
-      failureReason: string;
-      rollbackOnFailure: boolean;
-    };
-
-    expect(forced.diagnostics.converged).toBe(false);
-    expect(rb.qBoundHit).toBe(true);
-    expect(rb.failureReason).toBe("q-bound-hit");
-    expect(rb.rollbackOnFailure).toBe(true);
-    expect(provider.stateCodec.encode(forced.candidateMaterialState))
-      .toEqual(acceptedEncoding);
-    expect(provider.stateCodec.encode(cold.acceptedState.materialState))
-      .toEqual(acceptedEncoding);
-    expect(() => commitWholeHeartMechanicsTrialV1(
-      provider,
-      cold.acceptedState,
-      forced,
-    )).toThrow(/not ready/);
+    const encoded = provider.stateCodec.encode(cold.acceptedState.materialState);
+    expect(() => provider.stateCodec.decode({
+      ...(encoded as Record<string, unknown>),
+      extraInternalCoordinate: 0,
+    })).toThrow(/must contain exactly/);
   });
 
   it("round-trips codec/checkpoint identity and rejects cross-prior restore", () => {
-    const provider = createProvider(true);
+    const provider = createProvider();
     const cold = coldStart(provider);
     const accepted = commitWholeHeartMechanicsTrialV1(
       provider,
@@ -239,28 +213,24 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       provider,
       JSON.parse(JSON.stringify(checkpoint)) as typeof checkpoint,
     );
-    const qOff = createProvider(false);
+    const alternate = createProvider("alternate");
 
     expect(restored).toEqual(accepted);
-    expect(provider.parameterIdentityHash).not.toBe(qOff.parameterIdentityHash);
-    expect(() => restoreWholeHeartMechanicsStateV1(qOff, checkpoint))
+    expect(provider.parameterIdentityHash).not.toBe(alternate.parameterIdentityHash);
+    expect(() => restoreWholeHeartMechanicsStateV1(alternate, checkpoint))
       .toThrow(/identity mismatch/);
   });
 
 });
 
-function createProvider(
-  longAxisEnabled: boolean,
-  maximumAbsoluteCoordinate = 0.25,
-) {
+function createProvider(parameterSetSuffix = "canonical") {
   return createMainWireFiveWallLandTriSegProviderV1(
-    providerParams(longAxisEnabled, maximumAbsoluteCoordinate),
+    providerParams(parameterSetSuffix),
   );
 }
 
 function providerParams(
-  longAxisEnabled: boolean,
-  maximumAbsoluteCoordinate = 0.25,
+  parameterSetSuffix = "canonical",
 ): MainWireFiveWallLandTriSegProviderParamsV1<TestWallState> {
   const geometry = evaluateTriSegGeometryV1({
     leftVentricularCavityVolumeM3: REFERENCE_VOLUMES.LV * 1e-6,
@@ -298,9 +268,7 @@ function providerParams(
     slsRelaxationTimeSec: 0.08,
   }));
   return Object.freeze({
-    parameterSetId: longAxisEnabled
-      ? `five-wall-test-q-on-${maximumAbsoluteCoordinate}`
-      : "five-wall-test-q-off",
+    parameterSetId: `five-wall-test-${parameterSetSuffix}`,
     materialByWall,
     atria: ATRIA,
     trisegWalls: TRISEG_WALLS,
@@ -310,21 +278,6 @@ function providerParams(
       septalMidwallCapVolumeM3: 40e-6,
       junctionRadiusM: 0.033,
     }),
-    longAxis: longAxisEnabled
-      ? Object.freeze({
-        enabled: true as const,
-        initialCoordinate: 0,
-        coordinateScale: 0.1,
-        modeParams: Object.freeze({
-          parameterSetId: "fixed-shared-long-axis-test-v1",
-          atrialEffectiveStrainGain: 0.35,
-          leftFreeWallEffectiveStrainGain: -0.22,
-          septalEffectiveStrainGain: -0.16,
-          maximumAbsoluteCoordinate,
-          generalizedForceScaleJ: 1,
-        }),
-      })
-      : Object.freeze({ enabled: false as const }),
     solver: Object.freeze({
       maximumIterations: 48,
       scaledResidualInfinityTolerance: 1e-9,

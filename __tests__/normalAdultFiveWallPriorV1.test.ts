@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  evaluateSharedAtrioventricularLongAxisKinematicsV1,
-} from "@/engine/mechanics2/atrial/SharedAtrioventricularLongAxisModeV1";
-import {
   sanitizeForStableHash,
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
@@ -146,8 +143,6 @@ describe("normal adult immutable five-wall prior V1", () => {
   it("binds exactly two material classes to five walls with no hidden active gains", () => {
     const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
     expect(prior.active.ventricularLand.values.Tref).toBe(120_000);
-    expect(prior.passive.atrial.effectiveStrainOffsetBoundary)
-      .toMatch(/reduced-scalar-extrapolation/);
     expect(prior.active.atrialLand.values.Tref)
       .toBeCloseTo(11_661.151010550097, 10);
     expect(Object.isFrozen(prior.active.atrialLand.sourceParameters)).toBe(true);
@@ -214,57 +209,13 @@ describe("normal adult immutable five-wall prior V1", () => {
     }
   });
 
-  it("fixes the q gauge, remains inside Moyer support, and rejects bound overflow", () => {
-    const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
-    const params = prior.longAxis.params;
-    expect(params).toEqual({
-      parameterSetId: "fixed-normal-residual-isochoric-long-axis-v1",
-      atrialEffectiveStrainGain: 1.6,
-      leftFreeWallEffectiveStrainGain: -1,
-      septalEffectiveStrainGain: -1,
-      maximumAbsoluteCoordinate: 0.1,
-      generalizedForceScaleJ: 1,
-    });
-    const base = {
-      leftAtrium: prior.anatomy.atria.LA.baseFiberLogStrain.maximum,
-      rightAtrium: prior.anatomy.atria.RA.baseFiberLogStrain.maximum,
-      leftVentricularFreeWall: Math.log(1.1),
-      rightVentricularFreeWall: Math.log(1.1),
-      septum: Math.log(1.1),
-    };
-    const positive = evaluateSharedAtrioventricularLongAxisKinematicsV1(
-      0.1,
-      base,
-      params,
-    )!;
-    expect(positive.effectiveLogStrains.leftAtrium)
-      .toBeCloseTo(0.4780732193289124, 14);
-    expect(positive.effectiveLogStrains.leftAtrium).toBeLessThan(0.5);
-    expect(evaluateSharedAtrioventricularLongAxisKinematicsV1(
-      0.1000001,
-      base,
-      params,
-    )).toBeNull();
-    const negativeBase = {
-      ...base,
-      leftAtrium: prior.anatomy.atria.LA.baseFiberLogStrain.minimum,
-    };
-    const negative = evaluateSharedAtrioventricularLongAxisKinematicsV1(
-      -0.1,
-      negativeBase,
-      params,
-    )!;
-    expect(negative.effectiveLogStrains.leftAtrium).toBeGreaterThan(-0.5);
-    expect(prior.longAxis.boundPolicy).toMatch(/structural-failure/);
-  });
-
   it("pins one stable live identity and rejects structurally identical forgeries", () => {
     const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
     assertNormalAdultFiveWallPriorV1(prior);
     expect(prior.parameterIdentityHash).toBe(stableHash(sanitizeForStableHash(
       normalAdultFiveWallPriorHashInputV1(prior),
     )));
-    expect(prior.parameterIdentityHash).toBe("b8c9e918");
+    expect(prior.parameterIdentityHash).toBe("1ee2dcb8");
     expect(() => assertNormalAdultFiveWallPriorV1({
       ...prior,
     } as NormalAdultFiveWallPriorV1)).toThrow(/live immutable fixed prior/i);

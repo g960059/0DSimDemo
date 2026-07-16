@@ -1,9 +1,4 @@
 import {
-  evaluateSharedAtrioventricularLongAxisKinematicsV1,
-  validateSharedAtrioventricularLongAxisModeParamsV1,
-  type SharedAtrioventricularLongAxisModeParamsV1,
-} from "@/engine/mechanics2/atrial/SharedAtrioventricularLongAxisModeV1";
-import {
   sanitizeForStableHash,
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
@@ -138,8 +133,6 @@ export type NormalAdultFiveWallPriorV1 = Readonly<{
       sharedBy: readonly ["LA", "RA"];
       rightAtriumEvidenceBoundary:
         "human-LA-material-extrapolated-to-RA";
-      effectiveStrainOffsetBoundary:
-        "q-effective-strain-is-a-reduced-scalar-extrapolation-not-Moyer-equibiaxial-kinematics";
     }>;
     ventricular: Readonly<{
       compiled: CompiledEquilibriumOneFiberPassiveV1;
@@ -169,13 +162,6 @@ export type NormalAdultFiveWallPriorV1 = Readonly<{
     }>;
     removalPolicy:
       "remove-the-state-if-fixed-on-off-ablation-shows-no-material-hysteresis-effect";
-  }>;
-  longAxis: Readonly<{
-    params: SharedAtrioventricularLongAxisModeParamsV1;
-    gauge: "left-free-wall-effective-strain-gain-fixed-to-minus-one";
-    gainEvidenceBoundary:
-      "residual-isochoric-construction-not-total-imaging-strain-fit";
-    boundPolicy: "bound-contact-is-structural-failure-not-clamp-acceptance";
   }>;
   parameterPolicy: Readonly<{
     fixedNormal: readonly string[];
@@ -247,20 +233,10 @@ const VENTRICULAR_WALL_MATERIAL: LandSlsWallMaterialParamsV1 = Object.freeze({
   sls: VENTRICULAR_SLS_PARAMS,
 });
 
-const LONG_AXIS_PARAMS: SharedAtrioventricularLongAxisModeParamsV1 =
-  Object.freeze({
-    parameterSetId: "fixed-normal-residual-isochoric-long-axis-v1",
-    atrialEffectiveStrainGain: 1.6,
-    leftFreeWallEffectiveStrainGain: -1,
-    septalEffectiveStrainGain: -1,
-    maximumAbsoluteCoordinate: 0.1,
-    generalizedForceScaleJ: 1,
-  });
-
 export const NORMAL_ADULT_FIVE_WALL_PRIOR_V1: NormalAdultFiveWallPriorV1 =
   buildFixedPrior();
 
-/** Pure reference-volume pressure replay; no activation, q, SLS, or circulation. */
+/** Pure reference-volume pressure replay; no activation, SLS, or circulation. */
 export function evaluateNormalAdultAtrialPassivePressureReplayV1(
   atriumId: NormalAdultAtrialIdV1,
   cavityBloodVolumeMl: number,
@@ -319,8 +295,6 @@ export function normalAdultFiveWallPriorHashInputV1(
         prior.passive.atrial.compiled.parameterIdentityHash,
       atrialSharedBy: prior.passive.atrial.sharedBy,
       atrialEvidenceBoundary: prior.passive.atrial.rightAtriumEvidenceBoundary,
-      atrialEffectiveStrainOffsetBoundary:
-        prior.passive.atrial.effectiveStrainOffsetBoundary,
       ventricularParameterIdentityHash:
         prior.passive.ventricular.compiled.parameterIdentityHash,
       ventricularSharedBy: prior.passive.ventricular.sharedBy,
@@ -341,7 +315,6 @@ export function normalAdultFiveWallPriorHashInputV1(
       ),
     },
     sls: prior.sls,
-    longAxis: prior.longAxis,
     parameterPolicy: prior.parameterPolicy,
     excluded: prior.excluded,
     claim: prior.claim,
@@ -366,9 +339,6 @@ export function assertNormalAdultFiveWallPriorV1(
   if (prior.parameterIdentityHash !== expectedHash) {
     throw new Error("five-wall fixed-prior identity hash is stale");
   }
-  if (validateSharedAtrioventricularLongAxisModeParamsV1(
-    prior.longAxis.params,
-  ).length > 0) throw new Error("five-wall long-axis prior is invalid");
 }
 
 function buildFixedPrior(): NormalAdultFiveWallPriorV1 {
@@ -491,8 +461,6 @@ function buildFixedPrior(): NormalAdultFiveWallPriorV1 {
         sharedBy: ["LA", "RA"] as const,
         rightAtriumEvidenceBoundary:
           "human-LA-material-extrapolated-to-RA" as const,
-        effectiveStrainOffsetBoundary:
-          "q-effective-strain-is-a-reduced-scalar-extrapolation-not-Moyer-equibiaxial-kinematics" as const,
       },
       ventricular: {
         compiled: ventricularPassive,
@@ -523,21 +491,12 @@ function buildFixedPrior(): NormalAdultFiveWallPriorV1 {
       removalPolicy:
         "remove-the-state-if-fixed-on-off-ablation-shows-no-material-hysteresis-effect" as const,
     },
-    longAxis: {
-      params: LONG_AXIS_PARAMS,
-      gauge: "left-free-wall-effective-strain-gain-fixed-to-minus-one" as const,
-      gainEvidenceBoundary:
-        "residual-isochoric-construction-not-total-imaging-strain-fit" as const,
-      boundPolicy:
-        "bound-contact-is-structural-failure-not-clamp-acceptance" as const,
-    },
     parameterPolicy: {
       fixedNormal: [
         "myocardial-density",
         "Land-kinetic-class",
         "land-slack-stretch",
         "orientation-fraction",
-        "long-axis-gauge",
         "numerical-generalized-force-scale",
       ],
       futurePatientFitOnlyWithIndependentData: [
@@ -546,12 +505,10 @@ function buildFixedPrior(): NormalAdultFiveWallPriorV1 {
         "viable-active-fraction-from-scar-or-LGE",
         "Tref-or-calcium-amplitude-from-independent-contractility-data",
         "SLS-modulus-and-time-from-relaxation-or-strain-rate-data",
-        "long-axis-gain-ratios-from-simultaneous-LA-LV-septal-strain-or-MAPSE",
       ],
       forbiddenJointFits: [
         "Tref-calcium-amplitude-viability-and-orientation-from-one-PV-loop",
         "unloaded-reference-and-passive-stiffness-from-PV-shape-alone",
-        "long-axis-gains-from-PV-loop-alone",
       ],
     },
     excluded: {
@@ -627,30 +584,6 @@ function validateFixedConstruction(prior: NormalAdultFiveWallPriorV1): void {
     prior.active.atrialWallMaterial.sls !== prior.sls.atrial
     || prior.active.ventricularWallMaterial.sls !== prior.sls.ventricular
   ) throw new Error("five-wall material and SLS class identities diverged");
-  const la = prior.anatomy.atria.LA;
-  const lowerEffective = la.baseFiberLogStrain.minimum
-    - prior.longAxis.params.atrialEffectiveStrainGain
-      * prior.longAxis.params.maximumAbsoluteCoordinate;
-  const upperEffective = la.baseFiberLogStrain.maximum
-    + prior.longAxis.params.atrialEffectiveStrainGain
-      * prior.longAxis.params.maximumAbsoluteCoordinate;
-  const [supportLower, supportUpper] =
-    prior.passive.atrial.compiled.prior.supportedFiberLogStrainRange;
-  if (lowerEffective < supportLower || upperEffective > supportUpper) {
-    throw new Error("fixed long-axis bound leaves the Moyer material support");
-  }
-  const baseStrains = {
-    leftAtrium: la.baseFiberLogStrain.maximum,
-    rightAtrium: prior.anatomy.atria.RA.baseFiberLogStrain.maximum,
-    leftVentricularFreeWall: Math.log(1.1),
-    rightVentricularFreeWall: Math.log(1.1),
-    septum: Math.log(1.1),
-  };
-  if (evaluateSharedAtrioventricularLongAxisKinematicsV1(
-    prior.longAxis.params.maximumAbsoluteCoordinate,
-    baseStrains,
-    prior.longAxis.params,
-  ) === null) throw new Error("fixed long-axis bound is not executable");
 }
 
 function wallMaterialHashInput(params: LandSlsWallMaterialParamsV1): unknown {

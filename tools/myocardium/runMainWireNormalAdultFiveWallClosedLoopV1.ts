@@ -9,7 +9,7 @@ import type {
   MainWireNormalAdultLaSlsModeV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 
-const mode = argument("--mode", "q-off-canonical") as
+const mode = argument("--mode", "canonical") as
   MainWireNormalAdultFiveWallExperimentModeV1;
 const laSlsMode = argument("--la-sls", "on") as MainWireNormalAdultLaSlsModeV1;
 const beatCount = integerArgument("--beats", 1);
