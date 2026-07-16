@@ -187,6 +187,73 @@ atrial SLS、弁parameter、血管parameterは同じ固定priorに保つ。初�
 $q_L$ onがV-loopの因果方向を改善しない、または追加damping/gainなしでは成立しない場合、
 そこで停止する。さらにshape stateを追加して救済しない。
 
+## 初回normal construction prior
+
+初回比較はBSA 1.9 m2の一組だけを使う。これは患者fitでも、正常ヒトの完全な統計分布でもない。
+解剖、材料、activationを別々の測定軸へ結び付けるためのpopulation-center constructionである。
+
+| owner | 固定値 | 根拠と境界 |
+|---|---:|---|
+| LA blood volume | max/pre-A/min = 80.18/57.95/35.72 mL | healthy SSFP CMR population anchor |
+| RA blood volume | 98.04/72.58/47.31 mL | 同上 |
+| LA wall / unloaded cavity | 25.982906 / 22.890043 mL | mass+density、5 mmHg loaded-minimum inverse |
+| RA wall / unloaded cavity | 23.399810 / 32.596871 mL | total atrial mass residual、3.5 mmHg construction |
+| LVFW/SEP/RVFW wall | 67.075437/35.773566/36.087369 mL | pooled CMR mass、septumは一度だけcount |
+| LVFW/SEP/RVFW reference area | 0.009354353/0.003965082/0.012911295 m2 | loaded ED geometryでlambda=1.10とするconstruction |
+| TriSeg seed | V_S=42 mL, y=0.033 m | published initialization seed、runtime rootそのものではない |
+
+心房equilibrium passiveはMoyer et al. の人LA材料を、
+
+$$
+F=\mathrm{diag}(\lambda,\lambda,\lambda^{-2})
+$$
+
+のincompressible equibiaxial pathへ厳密に縮約する。係数は
+
+$$
+C_1=1650\ \mathrm{Pa},\quad C_2=0,\quad
+C_3=15\ \mathrm{Pa},\quad C_4=13.37
+$$
+
+である。RAへ同じ材料classを用いることは明示的な外挿である。心室equilibrium passiveは
+CMR+TriSeg geometry上で正常Klotz EDPVR centerを再生する一つのorgan-scale constructionとし、
+直接の組織材料同定とは主張しない。
+
+Land activeは、心室3壁にAppendix B whole-organ列の$T_{ref}=120$ kPa、心房2壁にhuman LA
+37 C force scaleから得た$T_{ref}=11.661151$ kPaを用いる。normalではorientation、viability、
+slack stretchをすべて1に固定し、$T_{ref}$との冗長gainを作らない。
+
+parallel SLSは一状態だけとする。beat-scaleの暫定priorは、healthy ovine RVFWのfast Prony branchを
+単一Maxwell branchへ射影した
+
+$$
+E_v=0.149425\,K_{eq,ref},\qquad \tau_v=0.30\ \mathrm{s}
+$$
+
+である。これは種・壁をまたぐ外挿なので、固定ablationで独立したhysteresisと正の散逸へ寄与しない
+場合、$E_v$や$\tau_v$を探索せずstateごと削除する。2本目のMaxwell branchは追加しない。
+
+long-axis modeのgaugeは$a_{LVFW}=-1$に固定し、
+
+$$
+a_{LA}=1.6,\qquad a_{LVFW}=a_S=-1,
+\qquad |q_L|<0.10
+$$
+
+とする。$a_{LA}$は正常LA reservoir strainとLV GLSの比から得たkinematic constructionであり、
+PV loopからfitしない。bound hitはclamp後の成功ではなくstructural failureである。
+
+初回の主比較はSLSを固定onにした$q_L$ off/onである。その後、SLSの存在意義だけを判定する
+off/on ablationを一度行う。これはparameter searchではない。効果がなければSLSを削除する。
+
+## main-wire接続の段階境界
+
+最初の閉ループtransactionはauthoritative main-wire node/edge定義から4心腔、体循環、肺循環を
+そのまま抽出する。冠循環は心筋内外圧とactivation-dependent compressionを同時に移植するまで
+一時的にscope外とし、独自の簡略冠血管へ置換しない。弁、血管PV law、waterfall、呼吸外圧、
+total blood volumeはmain wire側だけが所有する。冠循環を除いた初回結果をfull main-wire runtimeと
+呼ばない。
+
 ## 生理学的根拠と限界
 
 LA reservoirはLA relaxationだけでなくLV systolic long-axis shortening/base descentに依存することが
