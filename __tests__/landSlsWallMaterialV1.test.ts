@@ -99,4 +99,32 @@ describe("Land active + external equilibrium passive + parallel SLS wall V1", ()
     expect(trial.valid).toBe(true);
     expect(trial.parameterSetId).toBe("fixed-normal-atrial-wall-material-v1");
   });
+
+  it("represents complete loss of viable active myocardium without another state", () => {
+    const exactOff = Object.freeze({
+      ...VENTRICULAR_PARAMS,
+      parameterSetId: "complete-active-loss-wall-material-v1",
+      viableActiveFraction01: 0,
+    });
+    const cold = initializeLandSlsWallAtFixedInputV1(0, 0.1, exactOff);
+    const trial = trialLandSlsWallMaterialV1(
+      cold.state,
+      {
+        nextFiberLogStrain: 0.03,
+        nextFreeCalciumUM: 0.8,
+        dtSec: 0.005,
+        equilibriumPassive: {
+          stressPa: 600,
+          tangentPa: 9000,
+          storedEnergyDensityJPerM3: 12,
+        },
+      },
+      exactOff,
+    );
+
+    expect(trial.valid).toBe(true);
+    expect(trial.activeNominalStressPa).toBeGreaterThan(0);
+    expect(trial.activeKirchhoffStressPa).toBe(0);
+    expect(trial.claim.exactZeroViabilityAllowed).toBe(true);
+  });
 });

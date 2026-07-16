@@ -22,6 +22,7 @@ export const LAND_SLS_WALL_MATERIAL_CLAIM_V1 = Object.freeze({
   externalSeriesElasticElement: false as const,
   postHocForceVelocityMultiplier: false as const,
   intrinsicLandDistortionStatesRetained: true as const,
+  exactZeroViabilityAllowed: true as const,
   equilibriumPassiveLawOwnedHere: false as const,
   phasePressureOrFlowShapeInput: false as const,
 });
@@ -35,7 +36,7 @@ export type LandSlsWallMaterialParamsV1 = {
   readonly landSlackStretch: number;
   /** Effective fiber-family projection; a measurable homogenization axis. */
   readonly orientationFraction01: number;
-  /** Viable active myocardium fraction; one in the fixed normal prior. */
+  /** Viable active myocardium fraction; zero is an exact active-stress off state. */
   readonly viableActiveFraction01: number;
   readonly sls: ParallelOneStateSlsParamsV1;
 };
@@ -344,7 +345,7 @@ function validateParams(params: LandSlsWallMaterialParamsV1): void {
   }
   requirePositive(params.landSlackStretch, "landSlackStretch");
   requireUnitIntervalPositive(params.orientationFraction01, "orientationFraction01");
-  requireUnitIntervalPositive(params.viableActiveFraction01, "viableActiveFraction01");
+  requireUnitIntervalInclusive(params.viableActiveFraction01, "viableActiveFraction01");
 }
 
 function validateState(state: LandSlsWallMaterialStateV1): void {
@@ -456,5 +457,11 @@ function requireNonnegative(value: number, label: string): void {
 function requireUnitIntervalPositive(value: number, label: string): void {
   if (!(value > 0 && value <= 1) || !Number.isFinite(value)) {
     throw new Error(`${label} must lie in (0, 1]`);
+  }
+}
+
+function requireUnitIntervalInclusive(value: number, label: string): void {
+  if (!(value >= 0 && value <= 1) || !Number.isFinite(value)) {
+    throw new Error(`${label} must lie in [0, 1]`);
   }
 }

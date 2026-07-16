@@ -37,6 +37,7 @@ export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1 = Object.freeze({
   pvLoopPhaseInput: false as const,
   conservedCalciumCyclingClaimed: false as const,
   measuredCalciumTraceClaimed: false as const,
+  exactZeroPulseAmplitudeAllowed: true as const,
   pvLoopMorphologyFitAllowed: false as const,
 });
 
@@ -213,7 +214,7 @@ function validateClass(
   cycleLengthSec: number,
 ): void {
   requireNonnegative(value.diastolicCalciumUM, `${label}.diastolicCalciumUM`);
-  requirePositive(value.peakAmplitudeUM, `${label}.peakAmplitudeUM`);
+  requireNonnegative(value.peakAmplitudeUM, `${label}.peakAmplitudeUM`);
   requirePositive(value.riseTimeConstantSec, `${label}.riseTimeConstantSec`);
   requirePositive(value.decayTimeConstantSec, `${label}.decayTimeConstantSec`);
   requireNonnegative(

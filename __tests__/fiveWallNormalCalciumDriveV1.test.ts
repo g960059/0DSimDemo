@@ -59,4 +59,19 @@ describe("five-wall normal prescribed calcium drive V1", () => {
     expect(output.claim.pvLoopMorphologyFitAllowed).toBe(false);
     expect(output.claim.conservedCalciumCyclingClaimed).toBe(false);
   });
+
+  it("allows an exact zero transient amplitude for loss-of-drive cases", () => {
+    const p = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+    const noAtrialPulse = {
+      ...p,
+      parameterSetId: "zero-atrial-calcium-pulse-v1",
+      atrial: { ...p.atrial, peakAmplitudeUM: 0 },
+    };
+    for (const timeSec of [0, 0.25, 0.5, 0.75, 1]) {
+      const output = evaluateFiveWallNormalCalciumDriveV1(timeSec, noAtrialPulse);
+      expect(output.freeCalciumUMByWall.LA).toBe(p.atrial.diastolicCalciumUM);
+      expect(output.freeCalciumUMByWall.RA).toBe(p.atrial.diastolicCalciumUM);
+      expect(output.claim.exactZeroPulseAmplitudeAllowed).toBe(true);
+    }
+  });
 });
