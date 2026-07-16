@@ -3,12 +3,6 @@ import {
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
 import {
-  evaluateSharedAtrioventricularLongAxisKinematicsV1,
-  evaluateSharedAtrioventricularLongAxisModeV1,
-  validateSharedAtrioventricularLongAxisModeParamsV1,
-  type SharedAtrioventricularLongAxisModeParamsV1,
-} from "@/engine/mechanics2/atrial/SharedAtrioventricularLongAxisModeV1";
-import {
   evaluateEnergyConjugateTriSegV1,
   evaluateTriSegGeometryV1,
   type EnergyConjugateTriSegEvaluationV1,
@@ -37,13 +31,8 @@ export const MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM = Object.freeze({
   wallCount: 5 as const,
   ventricularGeometry: "energy-conjugate-TriSeg" as const,
   atrialGeometry: "fixed-wall-self-similar-one-fiber" as const,
-  longAxisCoordinate: "reduced-shared-isochoric-effective-strain-mode" as const,
-  longAxisOnStatus:
-    "structural-falsification-path-not-a-viable-default-claim" as const,
-  longAxisOffStatus: "primary-provider-path-for-first-whole-heart-replay" as const,
   internalSolve: "simultaneous-scaled-damped-Newton" as const,
-  internalUnknownsWhenLongAxisOff: Object.freeze(["V_m_S", "y_m"] as const),
-  internalUnknownsWhenLongAxisOn: Object.freeze(["V_m_S", "y_m", "q_L"] as const),
+  internalUnknowns: Object.freeze(["V_m_S", "y_m"] as const),
   residual:
     "algorithmic-virtual-work-gradient-times-coordinate-scale-divided-by-one-joule" as const,
   finiteDifferenceJacobian: true as const,
@@ -54,10 +43,6 @@ export const MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM = Object.freeze({
     "owner-must-supply-fiber-stress-work-conjugate-to-effective-log-strain;an-equibiaxial-scalar-is-not-automatically-admissible" as const,
   hiddenBloodVolumeMl: 0 as const,
   pistonVolumeApplied: false as const,
-  longAxisSpringApplied: false as const,
-  longAxisDampingApplied: false as const,
-  longAxisInertiaApplied: false as const,
-  longAxisClampApplied: false as const,
   circulationOwnedHere: false as const,
   valveOwnedHere: false as const,
   parameterFittingOwnedHere: false as const,
@@ -129,21 +114,6 @@ export type MainWireAtrialOneFiberGeometryParamsV1 = Readonly<{
   referenceCavityBloodVolumeM3: number;
 }>;
 
-export type MainWireFiveWallLongAxisOffV1 = Readonly<{
-  enabled: false;
-}>;
-
-export type MainWireFiveWallLongAxisOnV1 = Readonly<{
-  enabled: true;
-  initialCoordinate: number;
-  coordinateScale: number;
-  modeParams: SharedAtrioventricularLongAxisModeParamsV1;
-}>;
-
-export type MainWireFiveWallLongAxisParamsV1 =
-  | MainWireFiveWallLongAxisOffV1
-  | MainWireFiveWallLongAxisOnV1;
-
 export type MainWireFiveWallInternalSolverOptionsV1 = Readonly<{
   maximumIterations?: number;
   scaledResidualInfinityTolerance?: number;
@@ -170,14 +140,12 @@ export type MainWireFiveWallLandTriSegProviderParamsV1<TWallState> = Readonly<{
   trisegBendingPrior: TriSegKoiterBendingPriorV1;
   initialTriSegCoordinates: TriSegCoordinatesV1;
   internalCoordinateScales: TriSegCoordinatesV1;
-  longAxis: MainWireFiveWallLongAxisParamsV1;
   solver?: MainWireFiveWallInternalSolverOptionsV1;
 }>;
 
 export type MainWireFiveWallLandTriSegStateV1<TWallState> = Readonly<{
   wallStateByWall: MainWireFiveWallRecordV1<TWallState>;
   trisegCoordinates: TriSegCoordinatesV1;
-  longAxisCoordinate: number;
 }>;
 
 export type MainWireFiveWallScaledAlgorithmicJacobianByOneJV1 =
@@ -186,13 +154,11 @@ export type MainWireFiveWallScaledAlgorithmicJacobianByOneJV1 =
 export type MainWireFiveWallLandTriSegReadbackV1 = Readonly<{
   providerModelId: typeof MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID;
   solveMode: "cold" | "trial";
-  longAxisEnabled: boolean;
   hiddenBloodVolumeMl: 0;
   pistonVolumeApplied: false;
   internalCoordinates: Readonly<{
     septalMidwallCapVolumeM3: number;
     junctionRadiusM: number;
-    longAxisCoordinate: number;
   }>;
   effectiveFiberLogStrainByWall: MainWireFiveWallRecordV1<number>;
   fiberKirchhoffStressPaByWall: MainWireFiveWallRecordV1<number>;
@@ -201,7 +167,6 @@ export type MainWireFiveWallLandTriSegReadbackV1 = Readonly<{
   rawAlgorithmicGeneralizedForce: Readonly<{
     septalMidwallCapVolumePa: number;
     junctionRadiusN: number;
-    longAxisJ: number;
   }>;
   scaledAlgorithmicGeneralizedForceByOneJ: readonly number[];
   scaledAlgorithmicJacobianByOneJ:
@@ -212,10 +177,6 @@ export type MainWireFiveWallLandTriSegReadbackV1 = Readonly<{
   jacobianSymmetricWithinTolerance: boolean;
   symmetricJacobianMinimumEigenvalueByOneJ: number;
   strictLocalStableEquilibrium: boolean;
-  qBoundHit: boolean;
-  longAxisSpringApplied: false;
-  longAxisDampingApplied: false;
-  longAxisClampApplied: false;
   materialIterationCount: number;
   maximumMaterialResidualNorm: number;
   coldConsistencyIterations: number | null;
@@ -252,7 +213,6 @@ type CandidateEvaluationV1<TWallState> = Readonly<{
   rawAlgorithmicGeneralizedForce: Readonly<{
     septalMidwallCapVolumePa: number;
     junctionRadiusN: number;
-    longAxisJ: number;
   }>;
   scaledAlgorithmicGeneralizedForceByOneJ: readonly number[];
   transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
@@ -272,7 +232,6 @@ type InternalSolveSuccessV1<TWallState> = Readonly<{
   jacobianSymmetricWithinTolerance: boolean;
   symmetricJacobianMinimumEigenvalueByOneJ: number;
   strictLocalStableEquilibrium: true;
-  qBoundHit: false;
   iterations: number;
   acceptedLineSearchSteps: number;
   lineSearchBacktracks: number;
@@ -287,13 +246,11 @@ type InternalSolveFailureV1<TWallState> = Readonly<{
     | "singular-jacobian"
     | "line-search-failed"
     | "maximum-iterations"
-    | "q-bound-hit"
     | "algorithmic-force-jacobian-not-symmetric"
     | "stationary-point-not-strict-local-stable-equilibrium";
   message: string;
   rollbackCandidate: CandidateEvaluationV1<TWallState> | null;
   lastCandidate: CandidateEvaluationV1<TWallState> | null;
-  qBoundHit: boolean;
   iterations: number;
   acceptedLineSearchSteps: number;
   lineSearchBacktracks: number;
@@ -314,7 +271,7 @@ type EvaluationModeV1<TWallState> =
 
 const PA_PER_MMHG = 133.322;
 const ONE_JOULE = 1;
-const STATE_SCHEMA_VERSION = 1;
+const STATE_SCHEMA_VERSION = 2;
 const DEFAULT_SOLVER: ResolvedSolverOptionsV1 = Object.freeze({
   maximumIterations: 48,
   scaledResidualInfinityTolerance: 1e-9,
@@ -344,7 +301,6 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
       validateVolumes(input.volumesMl);
       const initialUnknowns = coordinatesToScaledUnknowns(
         params.initialTriSegCoordinates,
-        params.longAxis.enabled ? params.longAxis.initialCoordinate : 0,
         params,
       );
       const initialCandidate = evaluateCandidate(
@@ -381,7 +337,6 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
             initialCandidate.transmuralPressuresMmHg,
             solved,
             "cold",
-            params,
             coldConsistencyIterations,
             Number.isFinite(lastCoordinateUpdate) ? lastCoordinateUpdate : null,
           );
@@ -397,7 +352,6 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
           return successfulProviderEvaluation(
             solved,
             "cold",
-            params,
             coldConsistencyIterations,
             lastCoordinateUpdate,
           );
@@ -410,7 +364,6 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
           message: "cold consistency iteration did not settle",
           rollbackCandidate: initialCandidate,
           lastCandidate: lastSolve?.converged ? lastSolve.candidate : initialCandidate,
-          qBoundHit: false,
           iterations: lastSolve?.converged ? lastSolve.iterations : 0,
           acceptedLineSearchSteps:
             lastSolve?.converged ? lastSolve.acceptedLineSearchSteps : 0,
@@ -425,7 +378,6 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
           initialCandidate.transmuralPressuresMmHg,
           failure,
           "cold",
-          params,
           coldConsistencyIterations,
           Number.isFinite(lastCoordinateUpdate) ? lastCoordinateUpdate : null,
         );
@@ -435,7 +387,6 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
         initialCandidate.transmuralPressuresMmHg,
         lastSolve,
         "cold",
-        params,
         coldConsistencyIterations,
         Number.isFinite(lastCoordinateUpdate) ? lastCoordinateUpdate : null,
       );
@@ -450,7 +401,6 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
       const previous = stateCodec.clone(input.previousAcceptedState.materialState);
       const initialUnknowns = coordinatesToScaledUnknowns(
         previous.trisegCoordinates,
-        params.longAxis.enabled ? previous.longAxisCoordinate : 0,
         params,
       );
       const solved = solveInternalCoordinates(
@@ -467,12 +417,11 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
           zeroChambers(),
           solved,
           "trial",
-          params,
           null,
           null,
         );
       }
-      return successfulProviderEvaluation(solved, "trial", params, null, null);
+      return successfulProviderEvaluation(solved, "trial", null, null);
     };
 
   return Object.freeze({
@@ -499,7 +448,6 @@ function solveInternalCoordinates<TWallState>(
   let currentCandidate: CandidateEvaluationV1<TWallState>;
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
-  let qBoundHit = false;
   try {
     currentCandidate = evaluateCandidate(
       volumesMl,
@@ -511,11 +459,10 @@ function solveInternalCoordinates<TWallState>(
     );
   } catch (error) {
     return internalFailure({
-      reason: isQBoundError(error) ? "q-bound-hit" : "invalid-initial-state",
+      reason: "invalid-initial-state",
       message: errorMessage(error),
       rollbackCandidate: null,
       lastCandidate: null,
-      qBoundHit: isQBoundError(error),
       iterations: 0,
       acceptedLineSearchSteps,
       lineSearchBacktracks,
@@ -545,11 +492,10 @@ function solveInternalCoordinates<TWallState>(
         );
       } catch (error) {
         return internalFailure({
-          reason: isQBoundError(error) ? "q-bound-hit" : "finite-difference-failed",
+          reason: "finite-difference-failed",
           message: errorMessage(error),
           rollbackCandidate,
           lastCandidate: currentCandidate,
-          qBoundHit: isQBoundError(error),
           iterations: iteration,
           acceptedLineSearchSteps,
           lineSearchBacktracks,
@@ -568,7 +514,6 @@ function solveInternalCoordinates<TWallState>(
             + `scaled step ${stepUsed}`,
           rollbackCandidate,
           lastCandidate: currentCandidate,
-          qBoundHit: false,
           iterations: iteration,
           acceptedLineSearchSteps,
           lineSearchBacktracks,
@@ -582,7 +527,6 @@ function solveInternalCoordinates<TWallState>(
             "internal stationary point is not a strict local stable algorithmic equilibrium",
           rollbackCandidate,
           lastCandidate: currentCandidate,
-          qBoundHit: false,
           iterations: iteration,
           acceptedLineSearchSteps,
           lineSearchBacktracks,
@@ -597,7 +541,6 @@ function solveInternalCoordinates<TWallState>(
         jacobianFiniteDifferenceScaledStepUsed: stepUsed,
         ...stability,
         strictLocalStableEquilibrium: true as const,
-        qBoundHit: false as const,
         iterations: iteration,
         acceptedLineSearchSteps,
         lineSearchBacktracks,
@@ -606,13 +549,10 @@ function solveInternalCoordinates<TWallState>(
     }
     if (iteration === solver.maximumIterations) {
       return internalFailure({
-        reason: qBoundHit ? "q-bound-hit" : "maximum-iterations",
-        message: qBoundHit
-          ? "long-axis equilibrium requires leaving its declared bounds"
-          : "internal Newton solve reached its iteration limit",
+        reason: "maximum-iterations",
+        message: "internal Newton solve reached its iteration limit",
         rollbackCandidate,
         lastCandidate: currentCandidate,
-        qBoundHit,
         iterations: iteration,
         acceptedLineSearchSteps,
         lineSearchBacktracks,
@@ -635,13 +575,11 @@ function solveInternalCoordinates<TWallState>(
         solver.finiteDifferenceScaledStep,
       );
     } catch (error) {
-      const hit = isQBoundError(error);
       return internalFailure({
-        reason: hit ? "q-bound-hit" : "finite-difference-failed",
+        reason: "finite-difference-failed",
         message: errorMessage(error),
         rollbackCandidate,
         lastCandidate: currentCandidate,
-        qBoundHit: hit,
         iterations: iteration,
         acceptedLineSearchSteps,
         lineSearchBacktracks,
@@ -659,7 +597,6 @@ function solveInternalCoordinates<TWallState>(
         message: "scaled internal Newton Jacobian is singular or ill-conditioned",
         rollbackCandidate,
         lastCandidate: currentCandidate,
-        qBoundHit: false,
         iterations: iteration,
         acceptedLineSearchSteps,
         lineSearchBacktracks,
@@ -668,13 +605,10 @@ function solveInternalCoordinates<TWallState>(
     }
     if (infinityNorm(update) <= solver.scaledUpdateInfinityTolerance) {
       return internalFailure({
-        reason: qBoundHit ? "q-bound-hit" : "singular-jacobian",
-        message: qBoundHit
-          ? "long-axis Newton update stagnated at its declared bounds"
-          : "internal Newton update stagnated above residual tolerance",
+        reason: "singular-jacobian",
+        message: "internal Newton update stagnated above residual tolerance",
         rollbackCandidate,
         lastCandidate: currentCandidate,
-        qBoundHit,
         iterations: iteration,
         acceptedLineSearchSteps,
         lineSearchBacktracks,
@@ -713,21 +647,18 @@ function solveInternalCoordinates<TWallState>(
           });
           break;
         }
-      } catch (error) {
-        qBoundHit ||= isQBoundError(error);
+      } catch {
+        // Candidate left the admissible TriSeg/material domain. Backtrack.
       }
       stepLength *= 0.5;
       lineSearchBacktracks += 1;
     }
     if (accepted === null) {
       return internalFailure({
-        reason: qBoundHit ? "q-bound-hit" : "line-search-failed",
-        message: qBoundHit
-          ? "long-axis equilibrium requires leaving its declared bounds"
-          : "damped Newton could not find a residual-decreasing admissible step",
+        reason: "line-search-failed",
+        message: "damped Newton could not find a residual-decreasing admissible step",
         rollbackCandidate,
         lastCandidate: currentCandidate,
-        qBoundHit,
         iterations: iteration,
         acceptedLineSearchSteps,
         lineSearchBacktracks,
@@ -749,15 +680,11 @@ function evaluateCandidate<TWallState>(
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   solver: ResolvedSolverOptionsV1,
 ): CandidateEvaluationV1<TWallState> {
-  validateScaledUnknownCount(scaledUnknowns, params.longAxis.enabled);
+  validateScaledUnknownCount(scaledUnknowns);
   const coordinates = scaledUnknownsToCoordinates(scaledUnknowns, params);
   if (!(coordinates.junctionRadiusM > solver.junctionRadiusLowerBoundM)) {
     throw new Error("junction radius left its strict admissible domain");
   }
-  const q = params.longAxis.enabled
-    ? scaledUnknowns[2]! * params.longAxis.coordinateScale
-    : 0;
-  assertLongAxisInterior(q, params.longAxis);
   const geometry = evaluateTriSegGeometryV1({
     leftVentricularCavityVolumeM3: volumesMl.LV * 1e-6,
     rightVentricularCavityVolumeM3: volumesMl.RV * 1e-6,
@@ -768,30 +695,12 @@ function evaluateCandidate<TWallState>(
     LA: atrialFiberLogStrain(volumesMl.LA * 1e-6, params.atria.LA),
     RA: atrialFiberLogStrain(volumesMl.RA * 1e-6, params.atria.RA),
   });
-  const baseLogStrains = Object.freeze({
-    leftAtrium: atrialBaseStrain.LA,
-    rightAtrium: atrialBaseStrain.RA,
-    leftVentricularFreeWall: geometry.walls.LVFW.fiberLogStrain,
-    rightVentricularFreeWall: geometry.walls.RVFW.fiberLogStrain,
-    septum: geometry.walls.SEP.fiberLogStrain,
-  });
-  const longAxisKinematics = params.longAxis.enabled
-    ? evaluateSharedAtrioventricularLongAxisKinematicsV1(
-      q,
-      baseLogStrains,
-      params.longAxis.modeParams,
-    )
-    : null;
-  if (params.longAxis.enabled && longAxisKinematics === null) {
-    throw new Error("q-bound-hit: shared long-axis kinematics rejected the coordinate");
-  }
-  const effective = longAxisKinematics?.effectiveLogStrains ?? baseLogStrains;
   const effectiveFiberLogStrainByWall = Object.freeze({
-    LA: effective.leftAtrium,
-    LVFW: effective.leftVentricularFreeWall,
-    SEP: effective.septum,
-    RVFW: effective.rightVentricularFreeWall,
-    RA: effective.rightAtrium,
+    LA: atrialBaseStrain.LA,
+    LVFW: geometry.walls.LVFW.fiberLogStrain,
+    SEP: geometry.walls.SEP.fiberLogStrain,
+    RVFW: geometry.walls.RVFW.fiberLogStrain,
+    RA: atrialBaseStrain.RA,
   });
   const materialByWall = fiveWallRecord((wallId) => {
     const kernel = params.materialByWall[wallId];
@@ -840,48 +749,16 @@ function evaluateCandidate<TWallState>(
     ? sumFiveWalls((wallId) => algorithmicStressPrimitiveJByWall[wallId]!)
       + triseg.bendingStoredEnergyJ
     : null;
-  const longAxisEvaluation = params.longAxis.enabled
-    ? evaluateSharedAtrioventricularLongAxisModeV1(
-      q,
-      baseLogStrains,
-      {
-        leftAtriumMl: params.atria.LA.wallMaterialVolumeM3 * 1e6,
-        leftVentricularFreeWallMl:
-          params.trisegWalls.LVFW.wallMaterialVolumeM3 * 1e6,
-        septumMl: params.trisegWalls.SEP.wallMaterialVolumeM3 * 1e6,
-      },
-      {
-        leftAtriumPa: fiberKirchhoffStressPaByWall.LA,
-        leftVentricularFreeWallPa: fiberKirchhoffStressPaByWall.LVFW,
-        septumPa: fiberKirchhoffStressPaByWall.SEP,
-      },
-      params.longAxis.modeParams,
-    )
-    : null;
-  if (longAxisEvaluation !== null && (
-    !longAxisEvaluation.valid
-    || longAxisEvaluation.totalGeneralizedForceJ === null
-  )) {
-    throw new Error(
-      `shared long-axis evaluation failed: ${longAxisEvaluation.issues.join("; ")}`,
-    );
-  }
-  const longAxisJ = longAxisEvaluation?.totalGeneralizedForceJ ?? 0;
   const rawAlgorithmicGeneralizedForce = Object.freeze({
     septalMidwallCapVolumePa:
       triseg.totalGeneralizedForce.septalMidwallCapVolumePa,
     junctionRadiusN: triseg.totalGeneralizedForce.junctionRadiusN,
-    longAxisJ,
   });
   const scaledAlgorithmicGeneralizedForceByOneJ = Object.freeze([
     rawAlgorithmicGeneralizedForce.septalMidwallCapVolumePa
       * params.internalCoordinateScales.septalMidwallCapVolumeM3 / ONE_JOULE,
     rawAlgorithmicGeneralizedForce.junctionRadiusN
       * params.internalCoordinateScales.junctionRadiusM / ONE_JOULE,
-    ...(params.longAxis.enabled
-      ? [rawAlgorithmicGeneralizedForce.longAxisJ
-        * params.longAxis.coordinateScale / ONE_JOULE]
-      : []),
   ]);
   const leftAtrialPressurePa = atrialPressurePa(
     volumesMl.LA * 1e-6,
@@ -905,7 +782,6 @@ function evaluateCandidate<TWallState>(
     (wallId) => materialByWall[wallId].residualNorm,
   ));
   assertFiniteNumbers({
-    longAxisJ,
     materialIterationCount,
     maximumMaterialResidualNorm,
     ...transmuralPressuresMmHg,
@@ -920,7 +796,6 @@ function evaluateCandidate<TWallState>(
     wallStateByWall: fiveWallRecord((wallId) =>
       params.materialByWall[wallId].stateCodec.clone(materialByWall[wallId].state)),
     trisegCoordinates: Object.freeze({ ...coordinates }),
-    longAxisCoordinate: q,
   });
   return Object.freeze({
     state,
@@ -942,7 +817,6 @@ function evaluateCandidate<TWallState>(
 function successfulProviderEvaluation<TWallState>(
   solved: InternalSolveSuccessV1<TWallState>,
   solveMode: "cold" | "trial",
-  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   coldConsistencyIterations: number | null,
   coldConsistencyScaledCoordinateUpdate: number | null,
 ): WholeHeartMechanicsProviderEvaluationV1<
@@ -951,7 +825,6 @@ function successfulProviderEvaluation<TWallState>(
   const readback = buildReadback(
     solved,
     solveMode,
-    params,
     coldConsistencyIterations,
     coldConsistencyScaledCoordinateUpdate,
   );
@@ -976,7 +849,6 @@ function failedProviderEvaluation<TWallState>(
   rollbackPressures: WholeHeartMechanicsChamberValuesV1,
   failure: InternalSolveFailureV1<TWallState>,
   solveMode: "cold" | "trial",
-  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   coldConsistencyIterations: number | null,
   coldConsistencyScaledCoordinateUpdate: number | null,
 ): WholeHeartMechanicsProviderEvaluationV1<
@@ -988,20 +860,12 @@ function failedProviderEvaluation<TWallState>(
     solveMode,
     failureReason: failure.reason,
     failureMessage: failure.message,
-    longAxisEnabled: params.longAxis.enabled,
     hiddenBloodVolumeMl: 0,
     pistonVolumeApplied: false,
-    qBoundHit: failure.qBoundHit,
-    longAxisSpringApplied: false,
-    longAxisDampingApplied: false,
-    longAxisClampApplied: false,
     rollbackOnFailure: true,
     coldConsistencyIterations,
     coldConsistencyScaledCoordinateUpdate,
-    lastInternalCoordinates: fallback === null ? null : {
-      ...fallback.state.trisegCoordinates,
-      longAxisCoordinate: fallback.state.longAxisCoordinate,
-    },
+    lastInternalCoordinates: fallback?.state.trisegCoordinates ?? null,
     lastScaledAlgorithmicGeneralizedForceByOneJ:
       fallback?.scaledAlgorithmicGeneralizedForceByOneJ ?? null,
     lastRawAlgorithmicGeneralizedForce:
@@ -1030,7 +894,6 @@ function failedProviderEvaluation<TWallState>(
 function buildReadback<TWallState>(
   solved: InternalSolveSuccessV1<TWallState>,
   solveMode: "cold" | "trial",
-  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   coldConsistencyIterations: number | null,
   coldConsistencyScaledCoordinateUpdate: number | null,
 ): MainWireFiveWallLandTriSegReadbackV1 {
@@ -1038,13 +901,9 @@ function buildReadback<TWallState>(
   return Object.freeze({
     providerModelId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
     solveMode,
-    longAxisEnabled: params.longAxis.enabled,
     hiddenBloodVolumeMl: 0 as const,
     pistonVolumeApplied: false as const,
-    internalCoordinates: Object.freeze({
-      ...candidate.state.trisegCoordinates,
-      longAxisCoordinate: candidate.state.longAxisCoordinate,
-    }),
+    internalCoordinates: candidate.state.trisegCoordinates,
     effectiveFiberLogStrainByWall: candidate.effectiveFiberLogStrainByWall,
     fiberKirchhoffStressPaByWall: candidate.fiberKirchhoffStressPaByWall,
     algorithmicStressPrimitiveJByWall:
@@ -1065,10 +924,6 @@ function buildReadback<TWallState>(
     symmetricJacobianMinimumEigenvalueByOneJ:
       solved.symmetricJacobianMinimumEigenvalueByOneJ,
     strictLocalStableEquilibrium: solved.strictLocalStableEquilibrium,
-    qBoundHit: solved.qBoundHit,
-    longAxisSpringApplied: false as const,
-    longAxisDampingApplied: false as const,
-    longAxisClampApplied: false as const,
     materialIterationCount: candidate.materialIterationCount,
     maximumMaterialResidualNorm: candidate.maximumMaterialResidualNorm,
     coldConsistencyIterations,
@@ -1299,10 +1154,14 @@ function createStateCodec<TWallState>(
         ]),
       )),
       trisegCoordinates: Object.freeze({ ...state.trisegCoordinates }),
-      longAxisCoordinate: state.longAxisCoordinate,
     }),
     decode: (encoded) => {
       const record = requirePlainRecord(encoded, "encoded provider state");
+      assertExactKeys(
+        record,
+        ["schemaVersion", "wallStateByWall", "trisegCoordinates"],
+        "encoded provider state",
+      );
       if (record.schemaVersion !== STATE_SCHEMA_VERSION) {
         throw new Error("encoded provider state schema version mismatch");
       }
@@ -1310,6 +1169,11 @@ function createStateCodec<TWallState>(
       assertExactKeys(walls, MAIN_WIRE_FIVE_WALL_IDS_V1, "encoded wall states");
       const coordinates = requirePlainRecord(
         record.trisegCoordinates,
+        "encoded TriSeg coordinates",
+      );
+      assertExactKeys(
+        coordinates,
+        ["septalMidwallCapVolumeM3", "junctionRadiusM"],
         "encoded TriSeg coordinates",
       );
       const state = Object.freeze({
@@ -1325,10 +1189,6 @@ function createStateCodec<TWallState>(
             "encoded junctionRadiusM",
           ),
         }),
-        longAxisCoordinate: requireFinite(
-          record.longAxisCoordinate,
-          "encoded longAxisCoordinate",
-        ),
       });
       return cloneState(state, materialByWall);
     },
@@ -1345,7 +1205,6 @@ function cloneState<TWallState>(
     wallStateByWall: fiveWallRecord((wallId) =>
       materialByWall[wallId].stateCodec.clone(state.wallStateByWall[wallId])),
     trisegCoordinates: Object.freeze({ ...state.trisegCoordinates }),
-    longAxisCoordinate: state.longAxisCoordinate,
   });
 }
 
@@ -1367,7 +1226,6 @@ function providerParameterIdentityHash<TWallState>(
     trisegBendingPrior: params.trisegBendingPrior,
     initialTriSegCoordinates: params.initialTriSegCoordinates,
     internalCoordinateScales: params.internalCoordinateScales,
-    longAxis: params.longAxis,
     solver,
     fixedResidualEnergyScaleJ: ONE_JOULE,
   }));
@@ -1439,21 +1297,6 @@ function validateParams<TWallState>(
     > solver.junctionRadiusLowerBoundM)) {
     throw new Error("initial junction radius must exceed its strict lower bound");
   }
-  if (params.longAxis.enabled) {
-    requirePositive(params.longAxis.coordinateScale, "longAxis.coordinateScale");
-    const issues = validateSharedAtrioventricularLongAxisModeParamsV1(
-      params.longAxis.modeParams,
-    );
-    if (issues.length > 0) {
-      throw new Error(`invalid shared long-axis mode: ${issues.join("; ")}`);
-    }
-    if (params.longAxis.modeParams.generalizedForceScaleJ !== ONE_JOULE) {
-      throw new Error(
-        "shared long-axis generalizedForceScaleJ must equal the fixed one-joule scale",
-      );
-    }
-    assertLongAxisInterior(params.longAxis.initialCoordinate, params.longAxis);
-  }
 }
 
 function validateMaterialEvaluation<TWallState>(
@@ -1496,7 +1339,6 @@ function validateStateShape<TWallState>(
     state.trisegCoordinates.junctionRadiusM,
     "state.junctionRadiusM",
   );
-  requireFinite(state.longAxisCoordinate, "state.longAxisCoordinate");
 }
 
 function validateDrive(drive: MainWireFiveWallFreeCalciumDriveV1): void {
@@ -1551,7 +1393,6 @@ function resolveSolverOptions(
 
 function coordinatesToScaledUnknowns<TWallState>(
   coordinates: TriSegCoordinatesV1,
-  q: number,
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
 ): readonly number[] {
   return Object.freeze([
@@ -1559,7 +1400,6 @@ function coordinatesToScaledUnknowns<TWallState>(
       / params.internalCoordinateScales.septalMidwallCapVolumeM3,
     coordinates.junctionRadiusM
       / params.internalCoordinateScales.junctionRadiusM,
-    ...(params.longAxis.enabled ? [q / params.longAxis.coordinateScale] : []),
   ]);
 }
 
@@ -1594,25 +1434,6 @@ function atrialPressurePa(
   const midwallVolumeM3 = cavityVolumeM3 + 0.5 * params.wallMaterialVolumeM3;
   return params.wallMaterialVolumeM3
     * fiberKirchhoffStressPa / (3 * midwallVolumeM3);
-}
-
-function assertLongAxisInterior(
-  q: number,
-  params: MainWireFiveWallLongAxisParamsV1,
-): void {
-  requireFinite(q, "longAxisCoordinate");
-  if (
-    params.enabled
-    && !(Math.abs(q) < params.modeParams.maximumAbsoluteCoordinate)
-  ) {
-    throw new Error(
-      `q-bound-hit: |longAxisCoordinate| ${Math.abs(q)} reached `
-        + params.modeParams.maximumAbsoluteCoordinate,
-    );
-  }
-  if (!params.enabled && q !== 0) {
-    throw new Error("disabled longAxisCoordinate must be exactly zero");
-  }
 }
 
 function internalFailure<TWallState>(
@@ -1682,9 +1503,8 @@ function validateAtrialGeometry(
 
 function validateScaledUnknownCount(
   scaled: readonly number[],
-  longAxisEnabled: boolean,
 ): void {
-  const expected = longAxisEnabled ? 3 : 2;
+  const expected = 2;
   if (scaled.length !== expected || !scaled.every(Number.isFinite)) {
     throw new Error(`scaled internal unknowns must contain ${expected} finite values`);
   }
@@ -1701,10 +1521,6 @@ function infinityNorm(values: readonly number[]): number {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function isQBoundError(error: unknown): boolean {
-  return errorMessage(error).includes("q-bound-hit");
 }
 
 function zeroChambers(): WholeHeartMechanicsChamberValuesV1 {

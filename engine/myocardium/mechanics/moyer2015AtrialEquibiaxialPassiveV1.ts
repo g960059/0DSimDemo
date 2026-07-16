@@ -23,8 +23,6 @@ export const MOYER_2015_ATRIAL_EQUIBIAXIAL_PASSIVE_CLAIM_V1 = Object.freeze({
   pressureOrPhaseInput: false as const,
   pvLoopMorphologyFitAllowed: false as const,
   fullFiniteElementOrganModelReproduced: false as const,
-  effectiveStrainOffsetUseBoundary:
-    "q-offset-use-is-a-reduced-scalar-extrapolation-not-the-original-equibiaxial-deformation-path" as const,
 });
 
 export type Moyer2015AtrialEquibiaxialPassivePriorV1 = Readonly<{

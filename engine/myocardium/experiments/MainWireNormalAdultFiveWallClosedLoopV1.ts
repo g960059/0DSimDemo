@@ -16,7 +16,6 @@ import type {
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
-  createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultLaSlsModeV1,
   type MainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultWallMaterialReadbackV1,
@@ -32,8 +31,7 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID =
   "main-wire-normal-adult-five-wall-closed-loop-v1" as const;
 
 export type MainWireNormalAdultFiveWallExperimentModeV1 =
-  | "q-off-canonical"
-  | "q-on-structural-falsification";
+  "canonical";
 
 export type MainWireNormalAdultFiveWallClosedLoopOptionsV1 = Readonly<{
   mode: MainWireNormalAdultFiveWallExperimentModeV1;
@@ -84,12 +82,10 @@ export type MainWireNormalAdultFiveWallClosedLoopSampleV1 = Readonly<{
   internalCoordinates: Readonly<{
     septalMidwallCapVolumeMl: number;
     junctionRadiusM: number;
-    longAxisCoordinate: number;
   }>;
   generalizedForce: Readonly<{
     septalScaledByOneJ: number;
     junctionScaledByOneJ: number;
-    longAxisScaledByOneJ: number | null;
   }>;
   wallStressPa: Readonly<Record<
     "LA" | "LVFW" | "SEP" | "RVFW" | "RA",
@@ -109,7 +105,6 @@ export type MainWireNormalAdultFiveWallClosedLoopSampleV1 = Readonly<{
     mechanicsCallbackCount: number;
     mechanicsCallbackCacheHits: number;
     symmetricJacobianMinimumEigenvalueByOneJ: number;
-    qBoundHit: boolean;
   }>;
 }>;
 
@@ -184,7 +179,7 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
   const stepsPerBeat = Math.round(CYCLE_LENGTH_SEC / options.dtSec);
   const laSlsMode = options.laSlsMode ?? "on";
   const runtime = normalAdultMainWireRuntimeV1();
-  const provider = providerForMode(options.mode, laSlsMode);
+  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(laSlsMode);
   const cold = initializeMainWireFiveWallNonCoronaryV1({
     provider,
     runtime,
@@ -321,12 +316,10 @@ function sampleFromStep(
       septalMidwallCapVolumeMl:
         mechanics.internalCoordinates.septalMidwallCapVolumeM3 * 1e6,
       junctionRadiusM: mechanics.internalCoordinates.junctionRadiusM,
-      longAxisCoordinate: mechanics.internalCoordinates.longAxisCoordinate,
     }),
     generalizedForce: Object.freeze({
       septalScaledByOneJ: force[0]!,
       junctionScaledByOneJ: force[1]!,
-      longAxisScaledByOneJ: force.length > 2 ? force[2]! : null,
     }),
     wallStressPa,
     diagnostics: Object.freeze({
@@ -342,7 +335,6 @@ function sampleFromStep(
         circulation.diagnostics.mechanicsCallbackCacheHitCount,
       symmetricJacobianMinimumEigenvalueByOneJ:
         mechanics.symmetricJacobianMinimumEigenvalueByOneJ,
-      qBoundHit: mechanics.qBoundHit,
     }),
   });
 }
@@ -413,15 +405,6 @@ function numericLeaves(value: unknown): readonly number[] {
   return Object.freeze(output);
 }
 
-function providerForMode(
-  mode: MainWireNormalAdultFiveWallExperimentModeV1,
-  laSlsMode: MainWireNormalAdultLaSlsModeV1,
-): MainWireNormalAdultFiveWallProviderV1 {
-  return mode === "q-off-canonical"
-    ? createCanonicalMainWireNormalAdultFiveWallProviderV1(laSlsMode)
-    : createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1();
-}
-
 function providerReadback(
   value: WholeHeartMechanicsSerializableValueV1 | null,
 ): MainWireFiveWallLandTriSegReadbackV1 {
@@ -446,16 +429,12 @@ function fiveWallRecord<T>(
 function validateOptions(
   options: MainWireNormalAdultFiveWallClosedLoopOptionsV1,
 ): void {
-  if (options.mode !== "q-off-canonical" &&
-      options.mode !== "q-on-structural-falsification") {
+  if (options.mode !== "canonical") {
     throw new Error("unsupported five-wall experiment mode");
   }
   if (options.laSlsMode !== undefined &&
       options.laSlsMode !== "on" && options.laSlsMode !== "exact-off") {
     throw new Error("unsupported LA SLS mode");
-  }
-  if (options.mode !== "q-off-canonical" && options.laSlsMode === "exact-off") {
-    throw new Error("LA SLS exact-off is only defined for the canonical q-off pair");
   }
   if (!(options.dtSec > 0) || !Number.isFinite(options.dtSec)) {
     throw new Error("dtSec must be positive and finite");

@@ -9,11 +9,9 @@ import type {
 import {
   MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM,
-  MAIN_WIRE_NORMAL_ADULT_SYSTOLIC_AUDIT_VOLUMES_ML_V1,
   asMainWireFiveWallFreeCalciumDriveV1,
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   createMainWireNormalAdultFiveWallMaterialKernelsV1,
-  createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultWallMaterialReadbackV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
@@ -26,7 +24,7 @@ import {
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 
 describe("main-wire normal-adult five-wall provider adapter V1", () => {
-  it("cold-starts the canonical q-off actual Land/SLS/Moyer/Klotz provider", () => {
+  it("cold-starts the canonical actual Land/SLS/Moyer/Klotz provider", () => {
     const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
     const coldDrive = asMainWireFiveWallFreeCalciumDriveV1(
       evaluateFiveWallNormalCalciumDriveV1(0).freeCalciumUMByWall,
@@ -40,8 +38,8 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
 
     expect(cold.diagnostics.converged).toBe(true);
     expect(cold.diagnostics.finite).toBe(true);
-    expect(rb.longAxisEnabled).toBe(false);
-    expect(rb.internalCoordinates.longAxisCoordinate).toBe(0);
+    expect(Object.keys(rb.internalCoordinates).sort())
+      .toEqual(["junctionRadiusM", "septalMidwallCapVolumeM3"]);
     expect(rb.strictLocalStableEquilibrium).toBe(true);
     expect(rb.jacobianSymmetricWithinTolerance).toBe(true);
     expect(rb.totalAlgorithmicStressPrimitiveJ).toBeNull();
@@ -122,53 +120,8 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
     )).toEqual(accepted);
     expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
       .landThermodynamicStoredEnergyClaimed).toBe(false);
-  }, 60_000);
-
-  it("returns q-bound structural failure without retuning the q-on prior", () => {
-    const provider =
-      createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1();
-    const coldDrive = evaluateFiveWallNormalCalciumDriveV1(0);
-    const cold = initializeWholeHeartMechanicsColdV1(provider, {
-      timeSec: 0,
-      volumesMl: MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
-      drivingInputs: asMainWireFiveWallFreeCalciumDriveV1(
-        coldDrive.freeCalciumUMByWall,
-      ),
-    });
-    // Fixed late-systolic / LA-reservoir point from the declared normal drive,
-    // paired with the fixed systolic chamber volumes. This is one structural
-    // falsification case, not a parameter/time scan.
-    const auditTimeSec = 0.30;
-    const auditDrive = evaluateFiveWallNormalCalciumDriveV1(auditTimeSec);
-    const result = evaluateWholeHeartMechanicsTrialV1(provider, {
-      previousAcceptedState: cold.acceptedState,
-      candidateTimeSec: auditTimeSec,
-      stepDtSec: auditTimeSec,
-      candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_SYSTOLIC_AUDIT_VOLUMES_ML_V1,
-      drivingInputs: asMainWireFiveWallFreeCalciumDriveV1(
-        auditDrive.freeCalciumUMByWall,
-      ),
-    });
-    const rb = result.diagnostics.readback as {
-      failureReason: string;
-      qBoundHit: boolean;
-      rollbackOnFailure: boolean;
-      longAxisEnabled: boolean;
-    };
-
-    expect(result.diagnostics.converged).toBe(false);
-    expect(rb.longAxisEnabled).toBe(true);
-    expect(rb.qBoundHit).toBe(true);
-    expect(rb.failureReason).toBe("q-bound-hit");
-    expect(rb.rollbackOnFailure).toBe(true);
-    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
-      .qOnViableDefaultClaimed).toBe(false);
-    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
-      .qGainOrBoundRetunedHere).toBe(false);
-    expect(provider.parameterIdentityHash).not.toBe(
-      createCanonicalMainWireNormalAdultFiveWallProviderV1()
-        .parameterIdentityHash,
-    );
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM.providerTopology)
+      .toBe("fixed-two-coordinate-TriSeg");
   }, 60_000);
 
   it("makes the paired LA-only SLS ablation mechanically exact-off", () => {
