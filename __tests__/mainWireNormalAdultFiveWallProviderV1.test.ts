@@ -1,0 +1,184 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  evaluateFiveWallNormalCalciumDriveV1,
+} from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import type {
+  MainWireFiveWallLandTriSegReadbackV1,
+} from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
+import {
+  MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM,
+  MAIN_WIRE_NORMAL_ADULT_SYSTOLIC_AUDIT_VOLUMES_ML_V1,
+  asMainWireFiveWallFreeCalciumDriveV1,
+  createCanonicalMainWireNormalAdultFiveWallProviderV1,
+  createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1,
+  type MainWireNormalAdultWallMaterialReadbackV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  checkpointWholeHeartMechanicsStateV1,
+  commitWholeHeartMechanicsTrialV1,
+  evaluateWholeHeartMechanicsTrialV1,
+  initializeWholeHeartMechanicsColdV1,
+  restoreWholeHeartMechanicsStateV1,
+  type WholeHeartMechanicsSerializableValueV1,
+} from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+
+describe("main-wire normal-adult five-wall provider adapter V1", () => {
+  it("cold-starts the canonical q-off actual Land/SLS/Moyer/Klotz provider", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const coldDrive = asMainWireFiveWallFreeCalciumDriveV1(
+      evaluateFiveWallNormalCalciumDriveV1(0).freeCalciumUMByWall,
+    );
+    const cold = initializeWholeHeartMechanicsColdV1(provider, {
+      timeSec: 0,
+      volumesMl: MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
+      drivingInputs: coldDrive,
+    });
+    const rb = providerReadback(cold.diagnostics.readback);
+
+    expect(cold.diagnostics.converged).toBe(true);
+    expect(cold.diagnostics.finite).toBe(true);
+    expect(rb.longAxisEnabled).toBe(false);
+    expect(rb.internalCoordinates.longAxisCoordinate).toBe(0);
+    expect(rb.strictLocalStableEquilibrium).toBe(true);
+    expect(rb.jacobianSymmetricWithinTolerance).toBe(true);
+    expect(rb.totalAlgorithmicStressPrimitiveJ).toBeNull();
+    expect(rb.triseg.bendingStoredEnergyJ).toBe(0);
+    expect(Object.values(cold.transmuralPressuresMmHg).every(Number.isFinite))
+      .toBe(true);
+
+    for (const wallId of ["LA", "RA", "LVFW", "SEP", "RVFW"] as const) {
+      const wall = wallReadback(rb.wallMaterialReadbackByWall[wallId]);
+      expect(wall.passiveModelId).toBe(
+        wallId === "LA" || wallId === "RA"
+          ? "moyer-2015-atrial-equibiaxial-passive-v1"
+          : "equilibrium-one-fiber-passive-log-strain-v1",
+      );
+      expect(wall.energyLedger.equilibriumPassiveStoredEnergyDensityJPerM3)
+        .toBeGreaterThanOrEqual(0);
+      expect(wall.energyLedger.slsNextStoredEnergyDensityJPerM3).toBe(0);
+      expect(wall.energyLedger.slsPassive).toBe(true);
+      expect(wall.coldLandMaximumStateUpdate).not.toBeNull();
+      expect(wall.coldLandMaximumStateUpdate!).toBeLessThanOrEqual(1e-10);
+      expect(wall.energyLedger.landThermodynamicStoredEnergyClaimed).toBe(false);
+      expect(wall.energyLedger.totalThermodynamicPotentialIncludingLandClaimed)
+        .toBe(false);
+    }
+
+    const nextTimeSec = 0.005;
+    const nextDrive = asMainWireFiveWallFreeCalciumDriveV1(
+      evaluateFiveWallNormalCalciumDriveV1(nextTimeSec).freeCalciumUMByWall,
+    );
+    const acceptedBeforeTrial = provider.stateCodec.encode(
+      cold.acceptedState.materialState,
+    );
+    const trial = evaluateWholeHeartMechanicsTrialV1(provider, {
+      previousAcceptedState: cold.acceptedState,
+      candidateTimeSec: nextTimeSec,
+      stepDtSec: nextTimeSec,
+      candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
+      drivingInputs: nextDrive,
+    });
+    const repeatedTrial = evaluateWholeHeartMechanicsTrialV1(provider, {
+      previousAcceptedState: cold.acceptedState,
+      candidateTimeSec: nextTimeSec,
+      stepDtSec: nextTimeSec,
+      candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
+      drivingInputs: nextDrive,
+    });
+    expect(trial.diagnostics.converged).toBe(true);
+    expect(provider.stateCodec.encode(repeatedTrial.candidateMaterialState))
+      .toEqual(provider.stateCodec.encode(trial.candidateMaterialState));
+    expect(repeatedTrial.transmuralPressuresMmHg)
+      .toEqual(trial.transmuralPressuresMmHg);
+    expect(provider.stateCodec.encode(cold.acceptedState.materialState))
+      .toEqual(acceptedBeforeTrial);
+    const trialReadback = providerReadback(trial.diagnostics.readback);
+    for (const wallId of ["LA", "RA", "LVFW", "SEP", "RVFW"] as const) {
+      const ledger = wallReadback(
+        trialReadback.wallMaterialReadbackByWall[wallId],
+      ).energyLedger;
+      expect(ledger.slsPreviousStoredEnergyDensityJPerM3).toBeGreaterThanOrEqual(0);
+      expect(ledger.slsNextStoredEnergyDensityJPerM3).toBeGreaterThanOrEqual(0);
+      expect(ledger.slsPhysicalDissipationIncrementDensityJPerM3)
+        .toBeGreaterThanOrEqual(0);
+      expect(ledger.slsBackwardEulerNumericalDissipationIncrementDensityJPerM3)
+        .toBeGreaterThanOrEqual(0);
+      expect(Math.abs(ledger.slsDiscreteEnergyBalanceResidualJPerM3))
+        .toBeLessThan(1e-8);
+      expect(ledger.slsPassive).toBe(true);
+    }
+    const accepted = commitWholeHeartMechanicsTrialV1(
+      provider,
+      cold.acceptedState,
+      trial,
+    );
+    const checkpoint = checkpointWholeHeartMechanicsStateV1(provider, accepted);
+    expect(restoreWholeHeartMechanicsStateV1(
+      provider,
+      JSON.parse(JSON.stringify(checkpoint)) as typeof checkpoint,
+    )).toEqual(accepted);
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
+      .landThermodynamicStoredEnergyClaimed).toBe(false);
+  }, 60_000);
+
+  it("returns q-bound structural failure without retuning the q-on prior", () => {
+    const provider =
+      createStructuralFalsificationMainWireNormalAdultFiveWallProviderV1();
+    const coldDrive = evaluateFiveWallNormalCalciumDriveV1(0);
+    const cold = initializeWholeHeartMechanicsColdV1(provider, {
+      timeSec: 0,
+      volumesMl: MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
+      drivingInputs: asMainWireFiveWallFreeCalciumDriveV1(
+        coldDrive.freeCalciumUMByWall,
+      ),
+    });
+    // Fixed late-systolic / LA-reservoir point from the declared normal drive,
+    // paired with the fixed systolic chamber volumes. This is one structural
+    // falsification case, not a parameter/time scan.
+    const auditTimeSec = 0.30;
+    const auditDrive = evaluateFiveWallNormalCalciumDriveV1(auditTimeSec);
+    const result = evaluateWholeHeartMechanicsTrialV1(provider, {
+      previousAcceptedState: cold.acceptedState,
+      candidateTimeSec: auditTimeSec,
+      stepDtSec: auditTimeSec,
+      candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_SYSTOLIC_AUDIT_VOLUMES_ML_V1,
+      drivingInputs: asMainWireFiveWallFreeCalciumDriveV1(
+        auditDrive.freeCalciumUMByWall,
+      ),
+    });
+    const rb = result.diagnostics.readback as {
+      failureReason: string;
+      qBoundHit: boolean;
+      rollbackOnFailure: boolean;
+      longAxisEnabled: boolean;
+    };
+
+    expect(result.diagnostics.converged).toBe(false);
+    expect(rb.longAxisEnabled).toBe(true);
+    expect(rb.qBoundHit).toBe(true);
+    expect(rb.failureReason).toBe("q-bound-hit");
+    expect(rb.rollbackOnFailure).toBe(true);
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
+      .qOnViableDefaultClaimed).toBe(false);
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
+      .qGainOrBoundRetunedHere).toBe(false);
+    expect(provider.parameterIdentityHash).not.toBe(
+      createCanonicalMainWireNormalAdultFiveWallProviderV1()
+        .parameterIdentityHash,
+    );
+  }, 60_000);
+});
+
+function providerReadback(
+  value: WholeHeartMechanicsSerializableValueV1 | null,
+): MainWireFiveWallLandTriSegReadbackV1 {
+  return value as unknown as MainWireFiveWallLandTriSegReadbackV1;
+}
+
+function wallReadback(
+  value: WholeHeartMechanicsSerializableValueV1 | null,
+): MainWireNormalAdultWallMaterialReadbackV1 {
+  return value as unknown as MainWireNormalAdultWallMaterialReadbackV1;
+}
