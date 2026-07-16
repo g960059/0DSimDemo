@@ -105,6 +105,15 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
       period2MaximumNormalizedDelta:
         observation.period2?.overall.maximumNormalizedDelta ?? null,
     }]);
+    expect(withEvidence.convergence
+      .evidenceJacobianFiniteDifferenceWidthAudits).toHaveLength(1);
+    expect(withEvidence.convergence
+      .evidenceJacobianFiniteDifferenceWidthAudits[0]).toMatchObject({
+      beatIndex: observation.beatIndex,
+      audit: {
+        acceptedStepCount: result.stepsPerBeat,
+      },
+    });
 
     const mismatchedObservation = Object.freeze({
       ...observation,

@@ -138,6 +138,10 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     classifier: MainWireNormalAdultFiveWallPeriodicResultV1["periodicity"];
     evidenceClosures:
       readonly MainWireNormalAdultFiveWallClassifierEvidenceClosureV1[];
+    evidenceJacobianFiniteDifferenceWidthAudits: readonly Readonly<{
+      beatIndex: number;
+      audit: MainWireNormalAdultFiveWallJacobianWidthAuditV1;
+    }>[];
     periodicSteadyStateClaimed: boolean;
     period2OrbitSuspected: boolean;
     latestPeriod1Closure: MainWireNormalAdultFiveWallCompactClosureV1 | null;
@@ -235,6 +239,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const samples = selectedBeat.samples;
   assertClosureReferenceScaleSetMatchesPolicy(result);
   const evidenceClosures = classifierEvidenceClosures(result);
+  const evidenceJacobianAudits = classifierEvidenceJacobianAudits(result);
   const atrialOnsetPhase01 = normalAtrialCalciumOnsetPhase01();
   const cycle = measureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
     samples,
@@ -299,6 +304,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       policy: result.policy,
       classifier: result.periodicity,
       evidenceClosures,
+      evidenceJacobianFiniteDifferenceWidthAudits: evidenceJacobianAudits,
       periodicSteadyStateClaimed: result.periodicSteadyStateClaimed,
       period2OrbitSuspected: result.period2OrbitSuspected,
       latestPeriod1Closure: latestClosure?.period1 === null
@@ -421,6 +427,28 @@ function classifierEvidenceClosures(
         observation.period1?.overall.maximumNormalizedDelta ?? null,
       period2MaximumNormalizedDelta:
         observation.period2?.overall.maximumNormalizedDelta ?? null,
+    });
+  }));
+}
+
+function classifierEvidenceJacobianAudits(
+  result: MainWireNormalAdultFiveWallPeriodicResultV1,
+): readonly Readonly<{
+  beatIndex: number;
+  audit: MainWireNormalAdultFiveWallJacobianWidthAuditV1;
+}>[] {
+  const retainedByBeat = new Map(result.retainedCompleteBeats.map((beat) =>
+    [beat.beatIndex, beat] as const));
+  return Object.freeze(result.periodicity.evidenceBeatIndices.map((beatIndex) => {
+    const beat = retainedByBeat.get(beatIndex);
+    if (beat === undefined) {
+      throw new Error(
+        `periodicity evidence beat ${beatIndex} has no retained complete beat`,
+      );
+    }
+    return Object.freeze({
+      beatIndex,
+      audit: summarizeJacobianFiniteDifferenceWidths(beat.samples),
     });
   }));
 }
