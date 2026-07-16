@@ -1,19 +1,21 @@
 import type { EdgeSpec, ValveName } from "@/engine/core/topology";
 
 export const MAIN_WIRE_FLOW_STATE_VALVE_V2_ID =
-  "main-wire-flow-state-valve-v2" as const;
+  "main-wire-quasi-steady-orifice-valve-v2" as const;
 
 export const MAIN_WIRE_VALVE_BLOOD_DENSITY_KG_PER_M3_V2 = 1060 as const;
 export const MAIN_WIRE_VALVE_PA_PER_MMHG_V2 = 133.322387415 as const;
 
 export const MAIN_WIRE_FLOW_STATE_VALVE_CLAIM_V2 = Object.freeze({
-  topology: "independent-flow-and-bounded-opening-state" as const,
-  timeDiscretization: "backward-euler-accepted-state-residual" as const,
+  topology: "derived-quasi-steady-flow-and-bounded-opening-state" as const,
+  timeDiscretization:
+    "backward-euler-opening-state-plus-algebraic-monotone-flow-root" as const,
   pressureFlowLaw:
-    "inertance-plus-linear-and-smooth-quadratic-loss" as const,
-  areaScaling: "R-and-B-inverse-area-squared-L-constant" as const,
+    "quasi-steady-linear-and-smooth-quadratic-orifice-loss" as const,
+  flowMemory: false as const,
+  areaScaling: "R-and-B-inverse-effective-orifice-area-squared" as const,
   parameterSemantics:
-    "main-wire-Aref-as-effective-orifice-area-rho-1060-Cd-1-edge-B-not-used" as const,
+    "main-wire-Aref-as-effective-orifice-area-rho-1060-Cd-1-edge-B-and-L-not-used" as const,
   bernoulliConstruction:
     "rho-over-two-effective-orifice-area-squared" as const,
   physiologicalLeakSeparatedFromNumericalAreaFloor: true as const,
@@ -26,8 +28,6 @@ export type MainWireFlowStateValveParamsV2 = {
   readonly parameterSetId: string;
   readonly valveId: ValveName;
   readonly openResistanceMmHgSecPerMl: number;
-  readonly openInertanceMmHgSec2PerMl: number;
-  readonly rootInertanceMmHgSec2PerMl: number;
   readonly openBernoulliMmHgSec2PerMl2: number;
   readonly referenceAreaCm2: number;
   readonly maximumAreaCm2: number;
@@ -88,7 +88,6 @@ export type MainWireFlowStateValveEvaluationV2 = {
 
 export function mainWireFlowStateValveParamsFromEdgeV2(
   edge: EdgeSpec,
-  rootInertanceMmHgSec2PerMl = 0,
 ): MainWireFlowStateValveParamsV2 {
   if (edge.kind !== "valve") {
     throw new Error(`edge ${edge.name} is not a valve`);
@@ -96,11 +95,9 @@ export function mainWireFlowStateValveParamsFromEdgeV2(
   const valveId = edge.name as ValveName;
   const referenceAreaCm2 = edge.Aref ?? edge.Amax ?? 1;
   return Object.freeze({
-    parameterSetId: `main-wire-${valveId}-physical-orifice-flow-state-v2`,
+    parameterSetId: `main-wire-${valveId}-quasi-steady-physical-orifice-v2`,
     valveId,
     openResistanceMmHgSecPerMl: edge.R,
-    openInertanceMmHgSec2PerMl: edge.L ?? 0,
-    rootInertanceMmHgSec2PerMl,
     openBernoulliMmHgSec2PerMl2:
       idealBernoulliLossFromEffectiveOrificeAreaV2(referenceAreaCm2),
     referenceAreaCm2,
@@ -150,10 +147,11 @@ export function validateMainWireFlowStateValveParamsV2(
     issues.push("valveId must be a main-wire valve");
   }
   nonnegative(params.openResistanceMmHgSecPerMl, "openResistanceMmHgSecPerMl", issues);
-  nonnegative(params.openInertanceMmHgSec2PerMl, "openInertanceMmHgSec2PerMl", issues);
-  nonnegative(params.rootInertanceMmHgSec2PerMl, "rootInertanceMmHgSec2PerMl", issues);
-  if (!(params.openInertanceMmHgSec2PerMl + params.rootInertanceMmHgSec2PerMl > 0)) {
-    issues.push("total open inertance must be positive");
+  if (!(
+    params.openResistanceMmHgSecPerMl > 0 ||
+    params.openBernoulliMmHgSec2PerMl2 > 0
+  )) {
+    issues.push("at least one resistance or Bernoulli loss must be positive");
   }
   nonnegative(params.openBernoulliMmHgSec2PerMl2, "openBernoulliMmHgSec2PerMl2", issues);
   positive(params.referenceAreaCm2, "referenceAreaCm2", issues);
@@ -351,14 +349,9 @@ function lossTerms(
     bernoulli:
       params.openBernoulliMmHgSec2PerMl2 /
       Math.max(areaRatio ** 2, 1e-12),
-    // Keep inertance independent of leaflet area. An L(xi) law would require
-    // the reciprocal leaflet/fluid generalized-force term in both the
-    // momentum equation and the discrete energy ledger. Main wire does not
-    // own that extra coupling, so adding only L(xi) would create or destroy
-    // kinetic energy when xi changes.
-    inertance:
-      params.openInertanceMmHgSec2PerMl +
-      params.rootInertanceMmHgSec2PerMl,
+    // Chamber-to-chamber bulk flow is a quasi-steady orifice. Root and vessel
+    // inertances remain separately owned by their main-wire graph edges.
+    inertance: 0,
   });
 }
 

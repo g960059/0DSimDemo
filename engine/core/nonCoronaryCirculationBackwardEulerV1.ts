@@ -69,7 +69,7 @@ export const NON_CORONARY_CIRCULATION_SCOPE_V1 = Object.freeze({
     "Ao_RCA", "RCA_Art_IM", "RCA_IM_Ven", "RCA_Ven_CS", "CS_RA",
   ] as const),
   dependentBloodVolumeNode: "SV" as const,
-  valveOwner: "MainWireFlowStateValveV2" as const,
+  valveOwner: "MainWireQuasiSteadyOrificeValveV2" as const,
   coronaryBloodVolumeIncluded: false as const,
   chamberPressureCallback: "absolute-pressure-mmHg" as const,
   pericardialConstraintOwnedHere: false as const,

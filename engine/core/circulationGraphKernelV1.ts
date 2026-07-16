@@ -154,7 +154,7 @@ export type BaseNonValveEdgeLossV1 = {
 /**
  * Resolve the same base R/B scaling used by ModelCore for non-valve edges.
  *
- * Valve R/B/A/L has exactly one owner: MainWireFlowStateValveV2. This function
+ * Valve R/B/EOA has exactly one owner: MainWireQuasiSteadyOrificeValveV2. This function
  * therefore rejects valves as well as coronary edges, and reports (but does
  * not apply) collapsible-tube chi scaling. Those mechanisms require additional
  * pressure and myocardial-activation inputs and are outside the Phase-1 kernel.

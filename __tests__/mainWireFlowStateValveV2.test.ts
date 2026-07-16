@@ -15,7 +15,6 @@ const MV = mainWireFlowStateValveParamsFromEdgeV2(MV_EDGE);
 describe("MainWireFlowStateValveV2", () => {
   it("uses main-wire geometry with a fixed physical ideal-orifice loss", () => {
     expect(MV.openResistanceMmHgSecPerMl).toBe(MV_EDGE.R);
-    expect(MV.openInertanceMmHgSec2PerMl).toBe(MV_EDGE.L);
     expect(MV.openBernoulliMmHgSec2PerMl2)
       .toBeCloseTo(idealBernoulliLossFromEffectiveOrificeAreaV2(5), 15);
     expect(MV.openBernoulliMmHgSec2PerMl2).not.toBe(MV_EDGE.B);
@@ -31,7 +30,6 @@ describe("MainWireFlowStateValveV2", () => {
       const params = mainWireFlowStateValveParamsFromEdgeV2(edge);
       expect(params.valveId).toBe(edge.name);
       expect(params.openResistanceMmHgSecPerMl).toBe(edge.R);
-      expect(params.openInertanceMmHgSec2PerMl).toBe(edge.L);
       expect(params.openBernoulliMmHgSec2PerMl2).toBeCloseTo(
         idealBernoulliLossFromEffectiveOrificeAreaV2(edge.Aref!),
         15,
@@ -47,6 +45,30 @@ describe("MainWireFlowStateValveV2", () => {
       .toBeCloseTo(idealBernoulliLossFromEffectiveOrificeAreaV2(1) / 4, 15);
     expect(() => idealBernoulliLossFromEffectiveOrificeAreaV2(0))
       .toThrow(/finite and positive/);
+  });
+
+  it("has no hidden flow-memory dependence in the quasi-steady orifice", () => {
+    const input = {
+      dtSec: 0.005,
+      upstreamPressureMmHg: 12,
+      downstreamPressureMmHg: 8,
+    } as const;
+    const fromZero = stepMainWireFlowStateValveV2(
+      initialMainWireFlowStateValveStateV2(0, 0.5),
+      input,
+      MV,
+    );
+    const fromLargePriorFlow = stepMainWireFlowStateValveV2(
+      initialMainWireFlowStateValveStateV2(900, 0.5),
+      input,
+      MV,
+    );
+    expect(fromLargePriorFlow.state.openingFraction01)
+      .toBe(fromZero.state.openingFraction01);
+    expect(fromLargePriorFlow.state.qMlPerSec).toBeCloseTo(
+      fromZero.state.qMlPerSec,
+      12,
+    );
   });
 
   it("rejects a numerical area floor larger than the physical maximum area", () => {
@@ -153,9 +175,7 @@ describe("MainWireFlowStateValveV2", () => {
       MV,
     );
     expect(closing.state.openingFraction01).toBeLessThan(previous.openingFraction01);
-    expect(closing.inertanceMmHgSec2PerMl).toBe(
-      MV.openInertanceMmHgSec2PerMl + MV.rootInertanceMmHgSec2PerMl,
-    );
+    expect(closing.inertanceMmHgSec2PerMl).toBe(0);
     expect(Math.abs(closing.discreteEnergyBalanceResidualMmHgMlPerSec))
       .toBeLessThan(1e-6);
 

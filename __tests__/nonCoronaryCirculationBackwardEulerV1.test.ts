@@ -55,7 +55,7 @@ describe("authoritative non-coronary circulation backward Euler V1", () => {
       expect(graph.nodeIndex.has(name)).toBe(false);
     }
     expect(NON_CORONARY_CIRCULATION_SCOPE_V1.valveOwner)
-      .toBe("MainWireFlowStateValveV2");
+      .toBe("MainWireQuasiSteadyOrificeValveV2");
     expect(NON_CORONARY_CIRCULATION_UNITS_V1.edgeFlow).toBe("mL/s");
     expect(NON_CORONARY_CIRCULATION_UNITS_V1.inertance)
       .toBe("mmHg*s^2/mL");
