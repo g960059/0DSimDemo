@@ -17,6 +17,7 @@ import {
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 
 describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
@@ -46,6 +47,7 @@ describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
       diagnosticSampleId: _diagnosticSampleId,
       wallFiberLogStrain: _wallFiberLogStrain,
       wallEnergyLedgerDensity: _wallEnergyLedgerDensity,
+      acceptedMechanicsJacobianAudit: _acceptedMechanicsJacobianAudit,
       valveHydraulics: _valveHydraulics,
       ...baseProjection
     } = diagnostic;
@@ -57,6 +59,15 @@ describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
     expect(Object.values(diagnostic.wallEnergyLedgerDensity).every((ledger) =>
       Object.values(ledger).every((value) =>
         typeof value !== "number" || Number.isFinite(value))))
+      .toBe(true);
+    expect(diagnostic.acceptedMechanicsJacobianAudit).toMatchObject({
+      finiteDifferenceScaledStepUsed:
+        MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
+      symmetricWithinTolerance: true,
+      strictLocalStableEquilibrium: true,
+    });
+    expect(Object.entries(diagnostic.acceptedMechanicsJacobianAudit)
+      .every(([, value]) => typeof value !== "number" || Number.isFinite(value)))
       .toBe(true);
     expect(Object.values(diagnostic.valveHydraulics).every((valve) =>
       Object.values(valve).every(Number.isFinite))).toBe(true);

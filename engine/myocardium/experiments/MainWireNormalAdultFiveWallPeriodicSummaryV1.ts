@@ -25,6 +25,9 @@ import type {
   MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
 
@@ -89,6 +92,27 @@ export type MainWireNormalAdultFiveWallCompactClosureV1 = Readonly<{
   >>;
 }>;
 
+export type MainWireNormalAdultFiveWallClassifierEvidenceClosureV1 = Readonly<{
+  beatIndex: number;
+  period1MaximumNormalizedDelta: number | null;
+  period2MaximumNormalizedDelta: number | null;
+}>;
+
+export type MainWireNormalAdultFiveWallJacobianWidthHistogramEntryV1 = Readonly<{
+  absoluteScaledStep: number;
+  count: number;
+  classification: "nominal" | "alternate";
+}>;
+
+export type MainWireNormalAdultFiveWallJacobianWidthAuditV1 = Readonly<{
+  nominalScaledStep: number;
+  acceptedStepCount: number;
+  nominalStepCount: number;
+  alternateStepCount: number;
+  histogram:
+    readonly MainWireNormalAdultFiveWallJacobianWidthHistogramEntryV1[];
+}>;
+
 export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
   summaryId:
     typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_V1_ID;
@@ -104,7 +128,10 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     failure: MainWireNormalAdultFiveWallPeriodicResultV1["failure"];
   }>;
   convergence: Readonly<{
+    policy: MainWireNormalAdultFiveWallPeriodicResultV1["policy"];
     classifier: MainWireNormalAdultFiveWallPeriodicResultV1["periodicity"];
+    evidenceClosures:
+      readonly MainWireNormalAdultFiveWallClassifierEvidenceClosureV1[];
     periodicSteadyStateClaimed: boolean;
     period2OrbitSuspected: boolean;
     latestPeriod1Closure: MainWireNormalAdultFiveWallCompactClosureV1 | null;
@@ -126,10 +153,14 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     sampleCount: number;
     precedingAcceptedSampleAvailable: boolean;
     precedingBeatIndex: number | null;
+    jacobianFiniteDifferenceWidthAudit:
+      MainWireNormalAdultFiveWallJacobianWidthAuditV1;
   }>;
   fixedActivationPrior: Readonly<{
     parameterSetId: string;
     atrialCalciumOnsetPhase01: number;
+    purpose:
+      "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law";
     activationNormalization:
       "clamp((freeCa-diastolicCa)/peakAmplitude,0,1)";
   }>;
@@ -196,6 +227,8 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
     ? precedingBeat.samples.at(-1) ?? null
     : null;
   const samples = selectedBeat.samples;
+  assertClosureReferenceScaleSetMatchesPolicy(result);
+  const evidenceClosures = classifierEvidenceClosures(result);
   const atrialOnsetPhase01 = normalAtrialCalciumOnsetPhase01();
   const cycle = measureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
     samples,
@@ -252,7 +285,9 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       failure: result.failure,
     }),
     convergence: Object.freeze({
+      policy: result.policy,
       classifier: result.periodicity,
+      evidenceClosures,
       periodicSteadyStateClaimed: result.periodicSteadyStateClaimed,
       period2OrbitSuspected: result.period2OrbitSuspected,
       latestPeriod1Closure: latestClosure?.period1 === null
@@ -274,11 +309,15 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       precedingBeatIndex: precedingSample === null
         ? null
         : precedingBeat!.beatIndex,
+      jacobianFiniteDifferenceWidthAudit:
+        summarizeJacobianFiniteDifferenceWidths(samples),
     }),
     fixedActivationPrior: Object.freeze({
       parameterSetId:
         FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
       atrialCalciumOnsetPhase01: atrialOnsetPhase01,
+      purpose:
+        "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law" as const,
       activationNormalization:
         "clamp((freeCa-diastolicCa)/peakAmplitude,0,1)" as const,
     }),
@@ -331,6 +370,85 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
             .powerBalanceResidualMmHgMlPerSec))),
     }),
     claim: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_CLAIM_V1,
+  });
+}
+
+function assertClosureReferenceScaleSetMatchesPolicy(
+  result: MainWireNormalAdultFiveWallPeriodicResultV1,
+): void {
+  const expected = result.policy.referenceScaleSetId;
+  for (const observation of result.beatClosure) {
+    for (const [period, closure] of [
+      ["period1", observation.period1],
+      ["period2", observation.period2],
+    ] as const) {
+      if (closure !== null && closure.referenceScaleSetId !== expected) {
+        throw new Error(
+          `beat ${observation.beatIndex} ${period} referenceScaleSetId `
+            + `does not match periodic policy ${expected}`,
+        );
+      }
+    }
+  }
+}
+
+function classifierEvidenceClosures(
+  result: MainWireNormalAdultFiveWallPeriodicResultV1,
+): readonly MainWireNormalAdultFiveWallClassifierEvidenceClosureV1[] {
+  const closureByBeat = new Map(result.beatClosure.map((observation) =>
+    [observation.beatIndex, observation] as const));
+  return Object.freeze(result.periodicity.evidenceBeatIndices.map((beatIndex) => {
+    const observation = closureByBeat.get(beatIndex);
+    if (observation === undefined) {
+      throw new Error(
+        `periodicity evidence beat ${beatIndex} has no closure observation`,
+      );
+    }
+    return Object.freeze({
+      beatIndex,
+      period1MaximumNormalizedDelta:
+        observation.period1?.overall.maximumNormalizedDelta ?? null,
+      period2MaximumNormalizedDelta:
+        observation.period2?.overall.maximumNormalizedDelta ?? null,
+    });
+  }));
+}
+
+function summarizeJacobianFiniteDifferenceWidths(
+  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
+): MainWireNormalAdultFiveWallJacobianWidthAuditV1 {
+  const nominalScaledStep =
+    MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1;
+  const counts = new Map<number, number>();
+  for (const sample of samples) {
+    const absoluteScaledStep = Math.abs(
+      sample.acceptedMechanicsJacobianAudit.finiteDifferenceScaledStepUsed,
+    );
+    if (!(absoluteScaledStep > 0) || !Number.isFinite(absoluteScaledStep)) {
+      throw new Error(
+        "accepted mechanics Jacobian finite-difference step must be positive and finite",
+      );
+    }
+    counts.set(absoluteScaledStep, (counts.get(absoluteScaledStep) ?? 0) + 1);
+  }
+  const histogram = Object.freeze(Array.from(counts, ([absoluteScaledStep, count]) =>
+    Object.freeze({
+      absoluteScaledStep,
+      count,
+      classification: absoluteScaledStep === nominalScaledStep
+        ? "nominal" as const
+        : "alternate" as const,
+    })).sort((left, right) =>
+      left.absoluteScaledStep - right.absoluteScaledStep));
+  const nominalStepCount = histogram
+    .filter((entry) => entry.classification === "nominal")
+    .reduce((sum, entry) => sum + entry.count, 0);
+  return Object.freeze({
+    nominalScaledStep,
+    acceptedStepCount: samples.length,
+    nominalStepCount,
+    alternateStepCount: samples.length - nominalStepCount,
+    histogram,
   });
 }
 

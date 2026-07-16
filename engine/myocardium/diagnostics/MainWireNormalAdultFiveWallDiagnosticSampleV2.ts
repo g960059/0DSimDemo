@@ -47,6 +47,15 @@ export type MainWireNormalAdultFiveWallDiagnosticSampleV2 =
       MainWireNormalAdultFiveWallDiagnosticWallIdV2,
       MainWireNormalAdultWallEnergyLedgerV1
     >>;
+    /** Accepted mechanics solve audit; copied readback, never solver feedback. */
+    acceptedMechanicsJacobianAudit: Readonly<{
+      finiteDifferenceScaledStepUsed: number;
+      antisymmetricMaximumAbsoluteByOneJ: number;
+      antisymmetricRelative: number;
+      symmetricWithinTolerance: boolean;
+      symmetricMinimumEigenvalueByOneJ: number;
+      strictLocalStableEquilibrium: boolean;
+    }>;
     /** Algebraic valve hydraulics at the accepted candidate, not valve memory. */
     valveHydraulics: Readonly<Record<
       "MV" | "AoV" | "TV" | "PV",
@@ -80,6 +89,17 @@ export function sampleMainWireNormalAdultFiveWallDiagnosticStepV2(
     }),
     wallEnergyLedgerDensity: wallRecord((wallId) =>
       Object.freeze({ ...wallReadbackByWall[wallId].energyLedger })),
+    acceptedMechanicsJacobianAudit: Object.freeze({
+      finiteDifferenceScaledStepUsed:
+        mechanics.jacobianFiniteDifferenceScaledStepUsed,
+      antisymmetricMaximumAbsoluteByOneJ:
+        mechanics.jacobianAntisymmetricMaximumAbsoluteByOneJ,
+      antisymmetricRelative: mechanics.jacobianAntisymmetricRelative,
+      symmetricWithinTolerance: mechanics.jacobianSymmetricWithinTolerance,
+      symmetricMinimumEigenvalueByOneJ:
+        mechanics.symmetricJacobianMinimumEigenvalueByOneJ,
+      strictLocalStableEquilibrium: mechanics.strictLocalStableEquilibrium,
+    }),
     valveHydraulics: Object.freeze(Object.fromEntries(
       (["MV", "AoV", "TV", "PV"] as const).map((valveId) => {
         const valve = circulation.valveEvaluations[valveId];

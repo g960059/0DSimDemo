@@ -335,6 +335,14 @@ function sample(
       landThermodynamicStoredEnergyClaimed: false,
       totalThermodynamicPotentialIncludingLandClaimed: false,
     })),
+    acceptedMechanicsJacobianAudit: Object.freeze({
+      finiteDifferenceScaledStepUsed: 2e-5,
+      antisymmetricMaximumAbsoluteByOneJ: 0,
+      antisymmetricRelative: 0,
+      symmetricWithinTolerance: true,
+      symmetricMinimumEigenvalueByOneJ: 1,
+      strictLocalStableEquilibrium: true,
+    }),
     valveHydraulics: Object.freeze({
       MV: valve(2),
       AoV: valve(2),
