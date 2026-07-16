@@ -42,7 +42,7 @@ export function buildPhaseB1MainWireDistributedReviewFragmentV1(
   <style>
     #mw-four-chamber-v1{--mw-grid:color-mix(in srgb,var(--border) 58%,transparent);--mw-muted:var(--muted-foreground);--mw-fg:var(--foreground);--mw-bg:var(--background);--mw-c1:var(--viz-series-1);--mw-c2:var(--viz-series-2);--mw-c3:var(--viz-series-3);--mw-c4:var(--viz-series-4);color:var(--mw-fg);background:transparent;width:100%}
     #mw-four-chamber-v1 *{box-sizing:border-box}
-    #mw-four-chamber-v1 .mw-status{margin:0 0 .55rem;color:var(--mw-muted)}
+    #mw-four-chamber-v1 .mw-status{display:flex;flex-wrap:wrap;gap:.25rem .8rem;margin:0 0 .55rem;color:var(--mw-muted)}
     #mw-four-chamber-v1 .mw-status strong{color:var(--mw-fg);font-weight:500}
     #mw-four-chamber-v1 .mw-atrial{margin:.2rem 0 .8rem}
     #mw-four-chamber-v1 .mw-atrial section{min-width:0}

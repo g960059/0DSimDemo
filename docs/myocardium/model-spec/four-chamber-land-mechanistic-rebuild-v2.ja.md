@@ -1114,7 +1114,25 @@ $$
 | main-wire exploratory repeated-cycle runner | [`runPhaseB1MainWireDistributedV1.ts`](../../../tools/myocardium/runPhaseB1MainWireDistributedV1.ts) |
 | main-wire 4心腔PV・圧・弁流量HTML | [`renderPhaseB1MainWireDistributedHtmlV1.ts`](../../../tools/myocardium/renderPhaseB1MainWireDistributedHtmlV1.ts) |
 
-## 18. 一次文献
+## 18. main-wire 3拍 exploratory artifactの読出し
+
+clean tracked source commit `2361461efab778d460e83e53c133657cb025f031`から、SLS-on、nominal $\Delta t=4$ ms、最大3段retry、60 Newton iteration、3拍で非冠15区町main-wire exploratory runを行った。reportは[`phase-b1-main-wire-distributed-exploratory-v1.json`](../../../data/myocardium/reports/phase-b1-main-wire-distributed-exploratory-v1.json)、waveformは[`phase-b1-main-wire-distributed-exploratory-v1.waveform.json`](../../../data/myocardium/visuals/phase-b1-main-wire-distributed-exploratory-v1.waveform.json)である。content SHA-256はそれぞれ`2afc64c59a2a22e447294893e564af881558d279593d302604543aaa441317a1`、`2b48bd8d9c4e88614c66c1960acd810dc3f2bc01dc95a12f9ad18626c5fcd719`である。
+
+拍ごとのcomplete-state endpoint distanceは$15.5222\rightarrow0.6789\rightarrow0.4002$へ低下した。ただしformal period-1判定は実装しておらず、terminal拍も非周期として扱う。全3拍でNewton failureによるretry subdivisionは0、model/constitutive fallbackは0、terminal拍のTBV最大相対driftは$4.65\times10^{-16}$、run全体の最小血管PV-domain marginは21.886 mLだった。
+
+terminal拍のLAでは、functional MV openingは0.52010 s、50.958 mLであり、開放後に0.803 mLの短いovershootを経て0.536 sに51.761 mLとなった。その後35.575 mLまで16.186 mL emptyingしたが、0.648 sの最小値から観測拍末まで9.761 mL再充満した。これはearly emptyingの60.3%であり、RAの1.808 mL、9.5%より明らかに大きい。
+
+このLA右向き区間はvolume bookkeeping errorではない。開放から拍末までの右censored質量収支は、$\int Q_{PVein\_LA}dt=50.946$ mL、$\int Q_{MV}dt=56.524$ mL、その差$-5.578$ mLに対して観測$\Delta V_{LA}=-5.622$ mL、coarse waveform台形積分のclosure errorは$-0.0436$ mLである。最小容積後は$Q_{MV}$ E-waveが$Q_{PVein\_LA}$より早く減衰し、平均で$Q_{PVein\_LA}=172.36$ mL/s、$Q_{MV}=109.39$ mL/sとなった。同区間でPVein、PVen、PCap storageはそれぞれ9.88、8.86、7.10 mL減少し、最小値付近の$P_{PVein}-P_{LA}=7.64$ mmHgは拍末でも3.26 mmHg残った。したがって直接的な方向反転は
+
+$$
+Q_{PVein\_LA}-Q_{MV}:\quad -\ \longrightarrow\ +
+$$
+
+であり、その大きさと持続を肺静脈系storageの放出が支えている。LA passive/Land/SLSを直接調整してこの形を消す根拠にはならない。一方、terminal拍でもLA later-refillが大いことは確かであり、period-1継続後も残る場合は、肺循環storage時定数、LV弛緩・受動圧上昇、MVの有効開口と慣性を同時に分解する。
+
+terminal拍の左心系は、Ao 74.8–104.0 mmHg、CO 5.82 L/min、LV EDV/ESV 156.9/76.8 mL、EF 51.0%であった。したがって全身血圧はなお低め、LVはなお大きく収縮性もnormal-adult targetを満たしたとは言えない。現段階で詳細parameter fittingは行わず、次のmain-wire上で弁の開口状態・慣性・閉鎖を物理的に分離し、その後にformal periodic continuationとtime-step convergenceを行うのが優先である。
+
+## 19. 一次文献
 
 1. Moyer CB, Norton PT, Ferguson JD, Holmes JW. Changes in Global and Regional Mechanics Due to Atrial Fibrillation: Insights from a Coupled Finite-Element and Circulation Model. [doi:10.1007/s10439-015-1256-0](https://doi.org/10.1007/s10439-015-1256-0), [PMC4497915](https://pmc.ncbi.nlm.nih.gov/articles/PMC4497915/).
 2. Li W et al. Reference value of left and right atrial size and phasic function by SSFP CMR at 3.0 T in healthy Chinese adults. [doi:10.1038/s41598-017-03377-6](https://doi.org/10.1038/s41598-017-03377-6).
