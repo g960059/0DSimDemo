@@ -206,6 +206,7 @@ export type MainWireFiveWallLandTriSegReadbackV1 = Readonly<{
   scaledAlgorithmicGeneralizedForceByOneJ: readonly number[];
   scaledAlgorithmicJacobianByOneJ:
     MainWireFiveWallScaledAlgorithmicJacobianByOneJV1;
+  jacobianFiniteDifferenceScaledStepUsed: number;
   jacobianAntisymmetricMaximumAbsoluteByOneJ: number;
   jacobianAntisymmetricRelative: number;
   jacobianSymmetricWithinTolerance: boolean;
@@ -265,6 +266,7 @@ type InternalSolveSuccessV1<TWallState> = Readonly<{
   scaledUnknowns: readonly number[];
   scaledAlgorithmicJacobianByOneJ:
     MainWireFiveWallScaledAlgorithmicJacobianByOneJV1;
+  jacobianFiniteDifferenceScaledStepUsed: number;
   jacobianAntisymmetricMaximumAbsoluteByOneJ: number;
   jacobianAntisymmetricRelative: number;
   jacobianSymmetricWithinTolerance: boolean;
@@ -527,9 +529,9 @@ function solveInternalCoordinates<TWallState>(
       currentCandidate.scaledAlgorithmicGeneralizedForceByOneJ,
     );
     if (residualNorm <= solver.scaledResidualInfinityTolerance) {
-      let jacobian: MainWireFiveWallScaledAlgorithmicJacobianByOneJV1;
+      let audited: ReturnType<typeof finiteDifferenceJacobianWithSymmetryAudit>;
       try {
-        jacobian = finiteDifferenceJacobian(
+        audited = finiteDifferenceJacobianWithSymmetryAudit(
           (candidate) => evaluateCandidate(
             volumesMl,
             drive,
@@ -539,7 +541,7 @@ function solveInternalCoordinates<TWallState>(
             solver,
           ).scaledAlgorithmicGeneralizedForceByOneJ,
           current,
-          solver.finiteDifferenceScaledStep,
+          solver,
         );
       } catch (error) {
         return internalFailure({
@@ -554,12 +556,16 @@ function solveInternalCoordinates<TWallState>(
           residualNorm,
         });
       }
-      const stability = evaluateAlgorithmicJacobianStability(jacobian, solver);
+      const { jacobian, stability, stepUsed } = audited;
       if (!stability.jacobianSymmetricWithinTolerance) {
         return internalFailure({
           reason: "algorithmic-force-jacobian-not-symmetric",
           message:
-            "finite-difference algorithmic generalized-force Jacobian is not symmetric",
+            "finite-difference algorithmic generalized-force Jacobian is not symmetric: "
+            + `relative antisymmetry ${stability.jacobianAntisymmetricRelative} `
+            + `exceeds ${solver.jacobianSymmetryRelativeTolerance}; maximum absolute `
+            + `${stability.jacobianAntisymmetricMaximumAbsoluteByOneJ} 1/J; `
+            + `scaled step ${stepUsed}`,
           rollbackCandidate,
           lastCandidate: currentCandidate,
           qBoundHit: false,
@@ -588,6 +594,7 @@ function solveInternalCoordinates<TWallState>(
         candidate: currentCandidate,
         scaledUnknowns: Object.freeze([...current]),
         scaledAlgorithmicJacobianByOneJ: jacobian,
+        jacobianFiniteDifferenceScaledStepUsed: stepUsed,
         ...stability,
         strictLocalStableEquilibrium: true as const,
         qBoundHit: false as const,
@@ -1049,6 +1056,8 @@ function buildReadback<TWallState>(
       candidate.scaledAlgorithmicGeneralizedForceByOneJ,
     scaledAlgorithmicJacobianByOneJ:
       solved.scaledAlgorithmicJacobianByOneJ,
+    jacobianFiniteDifferenceScaledStepUsed:
+      solved.jacobianFiniteDifferenceScaledStepUsed,
     jacobianAntisymmetricMaximumAbsoluteByOneJ:
       solved.jacobianAntisymmetricMaximumAbsoluteByOneJ,
     jacobianAntisymmetricRelative: solved.jacobianAntisymmetricRelative,
@@ -1098,7 +1107,9 @@ function evaluateAlgorithmicJacobianStability(
     for (let column = 0; column < n; column += 1) {
       antisymmetricMaximum = Math.max(
         antisymmetricMaximum,
-        Math.abs(jacobian[row]![column]! - jacobian[column]![row]!),
+        0.5 * Math.abs(
+          jacobian[row]![column]! - jacobian[column]![row]!,
+        ),
       );
       rowSum += Math.abs(jacobian[row]![column]!);
     }
@@ -1148,6 +1159,48 @@ function finiteDifferenceJacobian(
     throw new Error("finite-difference algorithmic Jacobian contains non-finite values");
   }
   return Object.freeze(result);
+}
+
+/**
+ * Constitutive subsolves have a finite residual floor. A central-difference
+ * step that is too small differentiates that floor and creates an artificial
+ * antisymmetric component. Audit fixed dyadic scales and retain the most
+ * symmetric Jacobian without relaxing the declared symmetry tolerance.
+ */
+function finiteDifferenceJacobianWithSymmetryAudit(
+  evaluate: (scaledUnknowns: readonly number[]) => readonly number[],
+  center: readonly number[],
+  solver: ResolvedSolverOptionsV1,
+): Readonly<{
+  jacobian: MainWireFiveWallScaledAlgorithmicJacobianByOneJV1;
+  stability: ReturnType<typeof evaluateAlgorithmicJacobianStability>;
+  stepUsed: number;
+}> {
+  let best: Readonly<{
+    jacobian: MainWireFiveWallScaledAlgorithmicJacobianByOneJV1;
+    stability: ReturnType<typeof evaluateAlgorithmicJacobianStability>;
+    stepUsed: number;
+  }> | null = null;
+  let lastError: unknown = null;
+  for (const factor of [1, 2, 4, 8] as const) {
+    const stepUsed = solver.finiteDifferenceScaledStep * factor;
+    try {
+      const jacobian = finiteDifferenceJacobian(evaluate, center, stepUsed);
+      const stability = evaluateAlgorithmicJacobianStability(jacobian, solver);
+      if (
+        best === null ||
+        stability.jacobianAntisymmetricRelative <
+          best.stability.jacobianAntisymmetricRelative
+      ) {
+        best = Object.freeze({ jacobian, stability, stepUsed });
+      }
+      if (stability.jacobianSymmetricWithinTolerance) return best;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (best !== null) return best;
+  throw lastError ?? new Error("finite-difference symmetry audit produced no Jacobian");
 }
 
 function solveLinearSystem(
