@@ -201,6 +201,7 @@ export type PhaseB1MainWireDistributedCycleRunFailureV1 = Readonly<{
     endTimeSec: number;
     maximumRetryDepth: number;
     failure: PhaseB1MainWireDistributedStepFailureV1;
+    rollbackEndpoint: PhaseB1MainWireDistributedEndpointV1;
   }>;
   acceptedIntervals: readonly PhaseB1MainWireDistributedAcceptedIntervalV1[];
   samples: readonly PhaseB1MainWireDistributedWaveformSampleV1[];
@@ -412,6 +413,7 @@ type RetryResultV1 = Readonly<{
 }> | Readonly<{
   ok: false;
   failure: PhaseB1MainWireDistributedStepFailureV1;
+  rollbackEndpoint: PhaseB1MainWireDistributedEndpointV1;
   subdivisions: number;
   maximumRetryDepthUsed: number;
 }>;
@@ -490,6 +492,7 @@ export function runPhaseB1MainWireDistributedCycleV1(input: Readonly<{
           endTimeSec: end,
           maximumRetryDepth: input.maximumRetryDepth,
           failure: result.failure,
+          rollbackEndpoint: result.rollbackEndpoint,
         }),
         acceptedIntervals: Object.freeze(accepted.slice()),
         samples: samplesFromAcceptedIntervalsV1(
@@ -1532,6 +1535,7 @@ function attemptWithRetryV1(input: Readonly<{
     return Object.freeze({
       ok: false as const,
       failure: step,
+      rollbackEndpoint: input.entryEndpoint,
       subdivisions: 0,
       maximumRetryDepthUsed: input.retryDepth,
     });
@@ -1540,6 +1544,7 @@ function attemptWithRetryV1(input: Readonly<{
     return Object.freeze({
       ok: false as const,
       failure: step,
+      rollbackEndpoint: input.entryEndpoint,
       subdivisions: 0,
       maximumRetryDepthUsed: input.retryDepth,
     });
@@ -1550,6 +1555,7 @@ function attemptWithRetryV1(input: Readonly<{
     return Object.freeze({
       ok: false as const,
       failure: step,
+      rollbackEndpoint: input.entryEndpoint,
       subdivisions: 0,
       maximumRetryDepthUsed: input.retryDepth,
     });
@@ -1564,6 +1570,7 @@ function attemptWithRetryV1(input: Readonly<{
   if (left.ok === false) {
     return Object.freeze({
       ...left,
+      rollbackEndpoint: input.entryEndpoint,
       subdivisions: left.subdivisions + 1,
     });
   }
@@ -1576,6 +1583,7 @@ function attemptWithRetryV1(input: Readonly<{
   if (right.ok === false) {
     return Object.freeze({
       ...right,
+      rollbackEndpoint: input.entryEndpoint,
       subdivisions: left.subdivisions + right.subdivisions + 1,
       maximumRetryDepthUsed: Math.max(
         left.maximumRetryDepthUsed,
