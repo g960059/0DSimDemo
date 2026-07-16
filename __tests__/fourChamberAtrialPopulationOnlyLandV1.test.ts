@@ -4,6 +4,13 @@ import {
   buildAtrialPopulationOnlyLandV1,
 } from "@/engine/myocardium/fourChamberV1/land/atrialPopulationOnlyLandV1";
 import {
+  initializeLand2017IsometricSteadyStateV1,
+} from "@/engine/myocardium/fourChamberV1/land/isolatedLandTargetPackV1";
+import {
+  sourceLand2017StateToRateFreeV1,
+  writeRateFreeLand2017BackwardEulerResidualV1,
+} from "@/engine/myocardium/fourChamberV1/land/rateFreeLand2017V1";
+import {
   evaluateLandBackwardEulerDistortionEquivalenceV1,
   landDistortionEquivalenceParametersV1,
 } from "@/engine/myocardium/fourChamberV1/land/rateFreeDistortionEquivalenceV1";
@@ -22,7 +29,9 @@ describe("atrial population-only Land reduction", () => {
     expect(reduced.parameterSet.derived.Aw).toBe(0);
     expect(reduced.parameterSet.derived.As).toBe(0);
     expect(reduced.parameterSet.values.Tref).toBe(source.values.Tref);
-    expect(reduced.audit.pvLoopMorphologyUsedForReduction).toBe(false);
+    expect(reduced.audit.pvMetricConsumedByReductionConstructor).toBe(false);
+    expect(reduced.audit.architectureSelectionInformedByPriorClosedLoopDiagnostics)
+      .toBe(true);
   });
 
   it("admits the zero-distortion invariant manifold at changing stretch", () => {
@@ -46,5 +55,38 @@ describe("atrial population-only Land reduction", () => {
     expect(step.reconstructedZetaNext.s).toBe(0);
     expect(Math.max(...Object.values(step.sourceResidual).map(Math.abs)))
       .toBe(0);
+  });
+
+  it("initializes and advances the dormant distortion rows exactly on zero", () => {
+    const reduced = buildAtrialPopulationOnlyLandV1(
+      buildAtrialHumanPriorLandEquationParametersV1(),
+    );
+    for (const previousStretch of [0.87, 1, 1.15]) {
+      const source = initializeLand2017IsometricSteadyStateV1(
+        previousStretch,
+        0.1,
+        reduced.parameterSet,
+      );
+      const rateFree = sourceLand2017StateToRateFreeV1(
+        source,
+        previousStretch,
+        reduced.parameterSet,
+      );
+      expect(Object.is(rateFree[4], 0)).toBe(true);
+      expect(Object.is(rateFree[5], 0)).toBe(true);
+      const residual = writeRateFreeLand2017BackwardEulerResidualV1(
+        rateFree,
+        rateFree,
+        {
+          freeCalciumUM: 0.1,
+          previousLandStretch: previousStretch,
+          stageLandStretch: previousStretch + 0.01,
+          dtSec: 0.004,
+        },
+        reduced.parameterSet,
+      );
+      expect(Object.is(residual[4], 0)).toBe(true);
+      expect(Object.is(residual[5], 0)).toBe(true);
+    }
   });
 });

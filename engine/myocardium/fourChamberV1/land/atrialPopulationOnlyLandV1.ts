@@ -27,7 +27,8 @@ export type AtrialPopulationOnlyLandAuditV1 = Readonly<{
   as: 0;
   allOtherPrimitiveValuesBitExact: true;
   allOtherDerivedValuesBitExact: true;
-  pvLoopMorphologyUsedForReduction: false;
+  pvMetricConsumedByReductionConstructor: false;
+  architectureSelectionInformedByPriorClosedLoopDiagnostics: true;
   claimBoundary:
     "reduced-organ-scale-active-closure-not-a-human-atrial-force-velocity-identification";
 }>;
@@ -53,8 +54,9 @@ export type AtrialPopulationOnlyLandV1 = Readonly<{
  *
  * The six-slot numerical state is retained temporarily so this causal
  * reduction can be compared in the existing monolithic solver.  xiW/xiS are
- * exponentially driven to the zero source-distortion manifold and have no
- * active-stress contribution when Aeff=0.
+ * exponentially driven to the zero source-distortion manifold.  On that
+ * manifold they have no distortion-stress contribution; Aeff=0 alone would
+ * not make an arbitrary non-zero compatibility state stress-inert.
  */
 export function buildAtrialPopulationOnlyLandV1(
   source: Land2017SourceParameterSet,
@@ -120,7 +122,8 @@ export function buildAtrialPopulationOnlyLandV1(
     as: 0,
     allOtherPrimitiveValuesBitExact: true,
     allOtherDerivedValuesBitExact: true,
-    pvLoopMorphologyUsedForReduction: false,
+    pvMetricConsumedByReductionConstructor: false,
+    architectureSelectionInformedByPriorClosedLoopDiagnostics: true,
     claimBoundary:
       "reduced-organ-scale-active-closure-not-a-human-atrial-force-velocity-identification",
   });

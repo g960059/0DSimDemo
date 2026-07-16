@@ -1446,6 +1446,8 @@ function runCliAfterCanonicalOutputResetV1(
       physiologyEnvelopeOverlayAuthenticatedFromSlsMode: "on",
       candidatePhysicalSlsMode:
         transformed.endpoint.differentialState.slsMode,
+      atrialPvReadbackRoleForThisCandidate:
+        "development-diagnostic-not-held-out-after-architecture-selection",
       directNumericalOwnerSourceSnapshotAtStart: sourceFileSnapshotAtStart,
       gitSourceReproducibilityAtRunStart:
         gitSourceReproducibilityAtStart,

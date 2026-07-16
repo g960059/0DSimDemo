@@ -555,7 +555,7 @@ A_{eff}=0
 A_W=A_S=0
 $$
 
-とする。$CaTRPN,B,W,S$のpopulation kineticsとLewalle由来force scaleは保持するが、global atrial volume-rateからmicroscopic distortion forceを生成しない。既存solverとの同一layout比較のため$\xi_W,\xi_S$ slotは一時的に残るものの、zero-distortion manifoldへ減衰するdormant compatibility stateでありactive stressに寄与しない。これはseries elementを加える操作ではなく、series elementは引き続き存在しない。
+とする。$CaTRPN,B,W,S$のpopulation kineticsとLewalle由来force scaleは保持するが、global atrial volume-rateからmicroscopic distortion forceを生成しない。既存solverとの同一layout比較のため$\xi_W,\xi_S$ slotは一時的に残るものの、zero-distortion manifoldへ減衰するdormant compatibility stateである。この多様体上ではdistortion-stress寄与を持たないが、$A_{eff}=0$だけで任意の非零$\xi_W,\xi_S$がstress-inertになるわけではない。これはseries elementを加える操作ではなく、series elementは引き続き存在しない。
 
 旧source-distortionを保持するarmは、受動材料、SLS、calcium、$T_{ref}$、循環、弁を固定した**causal control**としてのみ残す。このcontrolで`rate-free` $\xi$を用いても上記のとおりsource Landと完全同値である。従ってcanonical armとの差は座標表現ではなく、$A_{eff}$を介したglobal-volume-rate distortion closureの有無へ一意に帰属できる。心室Landの$A_{eff}$とforce–velocity couplingは変更しない。
 
@@ -966,7 +966,7 @@ $$
 
 ### 12.2 component監査と未接続のformal gate
 
-main-wire distributed stepで現在fail-closedにしているのは、状態domain/finite、Newton残差、15区画TBV保存、TriSeg平衡、Land simplex、vascular PV上下限、SLS topology、projection/clamp/model fallback不使用である。recoverable trial-domain、recoverable nonlinear convergence、terminal model evaluation、terminal accepted-state evaluationを分離し、外側runnerは明示的にretry可能な前二者だけを二分する。構成要素testでは、さらに次を独立に監査する。
+main-wire distributed stepで現在fail-closedにしているのは、状態domain/finite、Newton残差、15区画TBV保存、TriSeg平衡、Land simplex、vascular PV上下限、SLS topology、projection/clamp/model fallback不使用である。Land simplex marginは無次元Land population制約だけから算出し、単位を持つvascular volume marginと混ぜない。LA/RAがpopulation-only構成なら、previous/accepted endpointの$|\xi_W|,|\xi_S|$がroundoff幅（$1024\epsilon_{mach}$）を越えてzero-distortion manifoldを離れた時点でprojectionせずfail-closedにする。recoverable trial-domain、recoverable nonlinear convergence、terminal model evaluation、terminal accepted-state evaluationを分離し、外側runnerは明示的にretry可能な前二者だけを二分する。構成要素testでは、さらに次を独立に監査する。
 
 - 全状態と全導関数がfinite。
 - 血液量closure。
@@ -1055,7 +1055,7 @@ $$
 
 PV形状を先に合わせて1–6の誤りを隠すことは禁止する。とくに、LV EDV/ESVが過大なときは、最初にpre-A cardiac pool、LA/RA booster volume、periodicity、Klotz replayを分解し、直ちにLand $T_{ref}$や弁areaを動かさない。
 
-心房PVのheld-out読出しでは、最大の正味順行MV/TV lobeから弁opening/closureを決める。reservoir branchはclosure後の局所最小容積からopening前最大容積まで、early-conduit branchはopeningから最初のpost-opening局所最小容積までとする。同じ容積上のreservoir-minus-conduit圧差を報告するが、parameter選択には使わない。formal period-1が成立した場合に限り、観測された閉曲線のshoelace面積または$\oint P\,dV$を生理的loop workの候補として扱う。現在のexploratory拍は始点と終点を直線chordで閉じた幾何診断だけを報告し、これは生理的loop workではない。
+歴史的にheld-outとして実装された心房PV読出しは、最大の正味順行MV/TV lobeから弁opening/closureを決める。reservoir branchはclosure後の局所最小容積からopening前最大容積まで、early-conduit branchはopeningから最初のpost-opening局所最小容積までとする。同じ容積上のreservoir-minus-conduit圧差を報告する。この読出し値をconstructorまたは連続parameterの数値目的関数には渡さないが、本V2 architectureの選択は旧closed-loopのbranch inversionとhook診断に明示的にinformされている。従って本candidateに対しては**development diagnosticであり、独立held-out validationではない**。formal period-1が成立した場合に限り、観測された閉曲線のshoelace面積または$\oint P\,dV$を生理的loop workの候補として扱う。現在のexploratory拍は始点と終点を直線chordで閉じた幾何診断だけを報告し、これは生理的loop workではない。
 
 弁開放中ずっと心房容積が単調減少することは要求しない。肺静脈・大静脈からの流入が房室流を上回れば、diastasisや心房収縮前に小さい再充満が生じ得るからである。一方、early-conduitで空になった量に対するその後の最大再充満量
 
@@ -1208,7 +1208,7 @@ $$
 | pre-A 7D root | [`phaseB1PreAOperatingPointInitializerV2.ts`](../../../engine/myocardium/fourChamberV1/phaseB1/phaseB1PreAOperatingPointInitializerV2.ts) |
 | full candidate case | [`phaseB1MechanisticRebuildCaseV2.ts`](../../../engine/myocardium/fourChamberV1/phaseB1/phaseB1MechanisticRebuildCaseV2.ts) |
 | periodic continuation | [`phaseB1MechanisticPeriodicContinuationV1.ts`](../../../tools/myocardium/phaseB1MechanisticPeriodicContinuationV1.ts) |
-| 心房PV held-out読出し | [`phaseB1AtrialPvReservoirConduitReadbackV1.ts`](../../../tools/myocardium/phaseB1AtrialPvReservoirConduitReadbackV1.ts) |
+| 心房PV読出し（現candidateではdevelopment diagnostic） | [`phaseB1AtrialPvReservoirConduitReadbackV1.ts`](../../../tools/myocardium/phaseB1AtrialPvReservoirConduitReadbackV1.ts) |
 | 旧8区画比較runner | [`runPhaseB1MechanisticRebuildV2.ts`](../../../tools/myocardium/runPhaseB1MechanisticRebuildV2.ts) |
 | main-wire exploratory repeated-cycle runner | [`runPhaseB1MainWireDistributedV1.ts`](../../../tools/myocardium/runPhaseB1MainWireDistributedV1.ts) |
 | main-wire 4心腔PV・圧・弁流量HTML | [`renderPhaseB1MainWireDistributedHtmlV1.ts`](../../../tools/myocardium/renderPhaseB1MainWireDistributedHtmlV1.ts) |
@@ -1274,7 +1274,7 @@ $$
 3. 心房CaはMazhar 2024の37 ℃human atrial timing aggregateに基づくV2を使う。ただし絶対振幅は未同定のまま明示する。
 4. 4弁はmain-wire ownerのdynamic aperture stateを用い、開閉遅延、面積依存loss、慣性を分離する。弁stateで心房active stressを補正しない。
 
-この順序は「PV loopをそれらしく描くため」の自由度追加ではない。旧圧反転を作ったactive kinematic closure、誤った平衡tangentへ結ばれていた受動memory、測定timingから外れていたCa duration、開口履歴を欠いた弁境界を、それぞれ独立のownerで修正する。
+この順序は「PV loopをそれらしく描くため」の連続自由度追加ではない。各constructorはPV metricを入力として消費せず、旧圧反転を作ったactive kinematic closure、誤った平衡tangentへ結ばれていた受動memory、測定timingから外れていたCa duration、開口履歴を欠いた弁境界を、それぞれ独立のownerで修正する。ただしarchitecture選択自体は旧圧反転とhookのclosed-loop診断にinformされているため、同じ診断を独立held-out validationと呼ばない。
 
 time-varying elastance、phase-gated force、圧波形filter、PV座標依存の補正項は、自律系・仕事共役性・病態parameterの識別性を損なうため採用しない。追加の非自己相似shape coordinate $q_A$は将来の有力な競合topologyになり得るが、局所壁strain、弁輪形状、regional volumeの独立データなしではPV形状を吸収する未同定自由度になる。従って現段階では追加せず、population-only構成が画像由来local strainを説明できないときに限り再検討する。
 

@@ -405,6 +405,10 @@ export function stepPhaseB1MainWireDistributedMonolithicBackwardEulerV1(
     differentialState: input.previousEndpoint.differentialState,
     triSegCoordinates: input.previousEndpoint.triSegCoordinates,
   });
+  assertAcceptedAtrialPopulationOnlyZeroDistortionV1(
+    previousEndpoint,
+    input.wallMaterialBinding,
+  );
   const slsMode = previousEndpoint.differentialState.slsMode;
   const layout = buildLayout(
     input.model.mechanicsProxyModel.newtonScaleRegistry,
@@ -554,6 +558,10 @@ export function stepPhaseB1MainWireDistributedMonolithicBackwardEulerV1(
       dtSec,
     );
     const nextEndpointLeftLimit = residualEvaluation.nextEndpoint;
+    assertAcceptedAtrialPopulationOnlyZeroDistortionV1(
+      nextEndpointLeftLimit,
+      input.wallMaterialBinding,
+    );
     const minimumLandSimplexMargin = minimumLandMargin(
       newton.unknowns,
       layout,
@@ -1224,6 +1232,30 @@ function assertInsideLandDomain(
 ): void {
   if (!(minimumLandMargin(unknowns, layout) > 0)) {
     throw new Error("initial distributed Land state is outside its strict simplex");
+  }
+}
+
+function assertAcceptedAtrialPopulationOnlyZeroDistortionV1(
+  endpoint: PhaseB1MainWireDistributedEndpointV1,
+  binding: PhaseB1WallMaterialBindingV1,
+): void {
+  const tolerance = 1024 * Number.EPSILON;
+  for (const wallId of ["LA", "RA"] as const) {
+    const material = binding.runtimeByWall[wallId].landEquationParameters;
+    const isPopulationOnly = Object.is(material.values.Aeff, 0)
+      && Object.is(material.derived.Aw, 0)
+      && Object.is(material.derived.As, 0);
+    if (!isPopulationOnly) continue;
+    const state = endpoint.differentialState.landByWall[wallId];
+    const maximumAbsoluteDistortion = Math.max(
+      Math.abs(state[4]),
+      Math.abs(state[5]),
+    );
+    if (maximumAbsoluteDistortion > tolerance) {
+      throw new Error(
+        `${wallId} population-only Land left the accepted zero-distortion manifold`,
+      );
+    }
   }
 }
 
