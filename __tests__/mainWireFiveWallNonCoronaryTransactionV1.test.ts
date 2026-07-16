@@ -138,6 +138,10 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       .every(Number.isFinite)).toBe(true);
     expect(stepped.circulationDiagnostics.mechanicsCallbackCallCount)
       .toBeGreaterThan(0);
+    expect(stepped.circulationDiagnostics.lineSearchFailure).toBeNull();
+    expect(stepped.circulationDiagnostics.failureNewtonTrace).toEqual([]);
+    expect(stepped.circulationDiagnostics.worstIndependentContinuityResidual)
+      .toBeNull();
     expect(stepped.rollbackState.revision).toBe(0);
     expect(JSON.stringify({
       circulation: stepped.rollbackState.circulation,

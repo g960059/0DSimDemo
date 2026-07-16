@@ -14,6 +14,7 @@ import {
   NON_CORONARY_NODE_NAMES_V1,
   NON_CORONARY_VALVE_NAMES_V1,
   buildNonCoronaryCirculationGraphV1,
+  classifyNonCoronaryLineSearchRejectionOwnerV1,
   commitNonCoronaryCirculationTrialV1,
   createInitialNonCoronaryCirculationStateV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
@@ -101,6 +102,9 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     expect(trial.converged).toBe(true);
     if (trial.converged === false) throw new Error(trial.message);
     expect(trial.diagnostics.iterations).toBe(0);
+    expect(trial.diagnostics.failureNewtonTrace).toEqual([]);
+    expect(trial.diagnostics.lineSearchFailure).toBeNull();
+    expect(trial.diagnostics.worstIndependentContinuityResidual).not.toBeNull();
     expect(trial.diagnostics.finalMaximumContinuityResidualMl).toBeLessThan(1e-9);
     expect(Math.abs(trial.diagnostics.totalBloodVolumeErrorMl)).toBeLessThan(1e-10);
     expect(Math.abs(trial.diagnostics.dependentNodeContinuityResidualMl))
@@ -183,6 +187,83 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     expect(trial.rollbackState).not.toBe(initial);
     expect(trial.mechanicsCommitted).toBe(false);
     expect(JSON.stringify(initial)).toBe(snapshot);
+  });
+
+  it("classifies line-search rejection ownership without changing solver policy", () => {
+    expect(classifyNonCoronaryLineSearchRejectionOwnerV1(3, 0))
+      .toBe("candidate-evaluation-exception");
+    expect(classifyNonCoronaryLineSearchRejectionOwnerV1(0, 4))
+      .toBe("armijo-residual-rejection");
+    expect(classifyNonCoronaryLineSearchRejectionOwnerV1(2, 2))
+      .toBe("mixed-equal");
+    expect(classifyNonCoronaryLineSearchRejectionOwnerV1(0, 0)).toBe("none");
+    expect(() => classifyNonCoronaryLineSearchRejectionOwnerV1(-1, 0))
+      .toThrow(/nonnegative integer/);
+  });
+
+  it("records candidate exceptions separately when every line-search trial is inadmissible", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+    });
+    const initialChambers = Object.freeze({
+      LA: initial.nodeVolumesMl.LA,
+      LV: initial.nodeVolumesMl.LV,
+      RA: initial.nodeVolumesMl.RA,
+      RV: initial.nodeVolumesMl.RV,
+    });
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      options: { maximumLineSearchBacktracks: 1 },
+      evaluateCandidateMechanics: (volumes) => {
+        const displacementMl = (Object.keys(initialChambers) as
+          (keyof typeof initialChambers)[]).reduce(
+          (sum, chamber) =>
+            sum + Math.abs(volumes[chamber] - initialChambers[chamber]),
+          0,
+        );
+        if (displacementMl > 0.001) {
+          throw new Error(`diagnostic admissibility boundary ${displacementMl}`);
+        }
+        return Object.freeze({
+          absolutePressuresMmHg: Object.freeze({
+            LA: 12,
+            LV: 16,
+            RA: 7,
+            RV: 11,
+          }),
+          evaluation: null,
+        });
+      },
+    });
+
+    expect(trial.converged).toBe(false);
+    if (trial.converged === true) throw new Error("expected line-search failure");
+    expect(trial.reason).toBe("line-search-failed");
+    expect(trial.diagnostics.lineSearchFailure).toMatchObject({
+      attemptCount: 2,
+      candidateEvaluationExceptionCount: 2,
+      armijoResidualRejectionCount: 0,
+      dominantRejectionOwner: "candidate-evaluation-exception",
+    });
+    expect(trial.diagnostics.lineSearchFailure!
+      .lastCandidateEvaluationException?.message)
+      .toMatch(/diagnostic admissibility boundary/);
+    expect(trial.diagnostics.lineSearchFailure!.lastArmijoResidualRejection)
+      .toBeNull();
+    expect(trial.diagnostics.failureNewtonTrace.length).toBeGreaterThan(0);
+    expect(trial.diagnostics.failureNewtonTrace.at(-1)).toMatchObject({
+      lineSearchAttemptCount: 2,
+      candidateEvaluationExceptionCount: 2,
+      armijoResidualRejectionCount: 0,
+      acceptedStepLength: null,
+    });
+    expect(trial.diagnostics.worstIndependentContinuityResidual?.node)
+      .not.toBe("SV");
+    expect(trial.diagnostics.worstIndependentContinuityResidual
+      ?.absoluteResidualMl).toBeGreaterThan(0);
   });
 
   it("solves dynamic constant-L BE and signed resistive laws without a reverse-flow clamp", () => {

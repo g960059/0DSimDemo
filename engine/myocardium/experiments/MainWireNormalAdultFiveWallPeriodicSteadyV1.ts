@@ -2,6 +2,7 @@ import {
   createInitialNonCoronaryCirculationStateV1,
   NON_CORONARY_NODE_NAMES_V1,
   type NonCoronaryCirculationInitialStateInputV1,
+  type NonCoronaryCirculationTrialDiagnosticsV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
   initializeMainWireFiveWallNonCoronaryV1,
@@ -115,19 +116,7 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
       | "line-search-failed"
       | "maximum-iterations";
     lastAcceptedCandidateNodeVolumesMl: Readonly<Record<string, number>>;
-    circulationDiagnostics: Readonly<{
-      iterations: number;
-      acceptedLineSearchSteps: number;
-      lineSearchBacktracks: number;
-      finalScaledResidualInfinityNorm: number;
-      finalMaximumContinuityResidualMl: number;
-      dependentNodeContinuityResidualMl: number;
-      totalBloodVolumeErrorMl: number;
-      finiteDifferenceScaledStep: number;
-      mechanicsCallbackCallCount: number;
-      mechanicsCallbackCacheHitCount: number;
-      mechanicsCallbackUniqueCandidateCount: number;
-    }>;
+    circulationDiagnostics: NonCoronaryCirculationTrialDiagnosticsV1;
   }>;
   initializationAudit: Readonly<{
     canonicalTotalBloodVolumeMl: number;
