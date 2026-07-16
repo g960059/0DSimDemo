@@ -6,6 +6,8 @@ import {
   type NonCoronaryCirculationInitialStateInputV1,
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
+  type NonCoronaryCirculationTrialFailureReasonV1,
+  type NonCoronaryCirculationTrialFailureV1,
   type NonCoronaryCirculationTrialSuccessV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
@@ -97,6 +99,9 @@ export type MainWireFiveWallNonCoronaryStepFailureV1<TWallState> = Readonly<{
   reason: "circulation-or-mechanics-trial-failed";
   message: string;
   rollbackState: MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState>;
+  circulationFailureReason: NonCoronaryCirculationTrialFailureReasonV1;
+  lastAcceptedCandidateNodeVolumesMl:
+    NonCoronaryCirculationTrialFailureV1["lastAcceptedCandidateNodeVolumesMl"];
   circulationDiagnostics: NonCoronaryCirculationTrialDiagnosticsV1;
   mechanicsCommitted: false;
   circulationCommitted: false;
@@ -212,6 +217,9 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
       reason: "circulation-or-mechanics-trial-failed" as const,
       message: circulationTrial.message,
       rollbackState: rollbackPair(provider, previous, circulationTrial.rollbackState),
+      circulationFailureReason: circulationTrial.reason,
+      lastAcceptedCandidateNodeVolumesMl:
+        circulationTrial.lastAcceptedCandidateNodeVolumesMl,
       circulationDiagnostics: circulationTrial.diagnostics,
       mechanicsCommitted: false as const,
       circulationCommitted: false as const,

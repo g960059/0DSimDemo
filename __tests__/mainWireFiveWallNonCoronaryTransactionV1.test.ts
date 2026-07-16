@@ -133,6 +133,11 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     if (stepped.converged === true) throw new Error("expected rollback");
     expect(stepped.mechanicsCommitted).toBe(false);
     expect(stepped.circulationCommitted).toBe(false);
+    expect(stepped.circulationFailureReason).toBe("initial-evaluation-failed");
+    expect(Object.values(stepped.lastAcceptedCandidateNodeVolumesMl)
+      .every(Number.isFinite)).toBe(true);
+    expect(stepped.circulationDiagnostics.mechanicsCallbackCallCount)
+      .toBeGreaterThan(0);
     expect(stepped.rollbackState.revision).toBe(0);
     expect(JSON.stringify({
       circulation: stepped.rollbackState.circulation,

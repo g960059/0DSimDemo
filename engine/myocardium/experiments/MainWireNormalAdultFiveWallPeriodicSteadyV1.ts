@@ -107,6 +107,27 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     globalStepIndex: number;
     timeSec: number;
     message: string;
+    circulationFailureReason:
+      "invalid-input"
+      | "initial-evaluation-failed"
+      | "jacobian-failed"
+      | "singular-jacobian"
+      | "line-search-failed"
+      | "maximum-iterations";
+    lastAcceptedCandidateNodeVolumesMl: Readonly<Record<string, number>>;
+    circulationDiagnostics: Readonly<{
+      iterations: number;
+      acceptedLineSearchSteps: number;
+      lineSearchBacktracks: number;
+      finalScaledResidualInfinityNorm: number;
+      finalMaximumContinuityResidualMl: number;
+      dependentNodeContinuityResidualMl: number;
+      totalBloodVolumeErrorMl: number;
+      finiteDifferenceScaledStep: number;
+      mechanicsCallbackCallCount: number;
+      mechanicsCallbackCacheHitCount: number;
+      mechanicsCallbackUniqueCandidateCount: number;
+    }>;
   }>;
   initializationAudit: Readonly<{
     canonicalTotalBloodVolumeMl: number;
@@ -216,6 +237,10 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
             (beatIndex - 1) * resolved.stepsPerBeat + stepWithinBeat,
           timeSec: state.acceptedTimeSec + resolved.dtSec,
           message: stepped.message,
+          circulationFailureReason: stepped.circulationFailureReason,
+          lastAcceptedCandidateNodeVolumesMl:
+            stepped.lastAcceptedCandidateNodeVolumesMl,
+          circulationDiagnostics: stepped.circulationDiagnostics,
         });
         break beatLoop;
       }
