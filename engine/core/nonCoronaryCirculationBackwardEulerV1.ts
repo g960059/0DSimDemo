@@ -943,24 +943,35 @@ function finiteDifferenceJacobian(
   for (let column = 0; column < size; column += 1) {
     let step = requestedStep;
     let derivative: readonly number[] | null = null;
+    let lastLowerIssue = "not-evaluated";
+    let lastUpperIssue = "not-evaluated";
     for (let attempt = 0; attempt < 8 && derivative === null; attempt += 1) {
       const lower = [...center];
       const upper = [...center];
       lower[column] -= step;
       upper[column] += step;
-      const lowerValue = tryEvaluateVector(evaluate, lower);
-      const upperValue = tryEvaluateVector(evaluate, upper);
-      if (lowerValue && upperValue) {
-        derivative = upperValue.map((value, row) =>
-          (value - lowerValue[row]!) / (2 * step));
-      } else if (upperValue) {
-        derivative = upperValue.map((value, row) =>
+      const lowerAttempt = tryEvaluateVector(evaluate, lower);
+      const upperAttempt = tryEvaluateVector(evaluate, upper);
+      lastLowerIssue = lowerAttempt.issue;
+      lastUpperIssue = upperAttempt.issue;
+      if (lowerAttempt.value && upperAttempt.value) {
+        derivative = upperAttempt.value.map((value, row) =>
+          (value - lowerAttempt.value![row]!) / (2 * step));
+      } else if (upperAttempt.value) {
+        derivative = upperAttempt.value.map((value, row) =>
           (value - centerValue[row]!) / step);
+      } else if (lowerAttempt.value) {
+        derivative = lowerAttempt.value.map((_value, row) =>
+          (centerValue[row]! - lowerAttempt.value![row]!) / step);
       }
       step *= 0.5;
     }
     if (derivative === null || derivative.some((value) => !Number.isFinite(value))) {
-      throw new Error(`failed to differentiate circulation volume ${column}`);
+      throw new Error(
+        `failed to differentiate circulation volume ${column} `
+        + `(${INDEPENDENT_NODE_NAMES[column]}): lower=${lastLowerIssue}; `
+        + `upper=${lastUpperIssue}`,
+      );
     }
     for (let row = 0; row < size; row += 1) {
       jacobian[row]![column] = derivative[row]!;
@@ -1251,12 +1262,14 @@ function respiratoryKind(ext: NodeSpec["ext"] | EdgeSpec["ext"]):
 function tryEvaluateVector(
   evaluate: (unknowns: readonly number[]) => readonly number[],
   unknowns: readonly number[],
-): readonly number[] | null {
+): Readonly<{ value: readonly number[] | null; issue: string }> {
   try {
     const value = evaluate(unknowns);
-    return value.every(Number.isFinite) ? value : null;
-  } catch {
-    return null;
+    return value.every(Number.isFinite)
+      ? Object.freeze({ value, issue: "none" })
+      : Object.freeze({ value: null, issue: "non-finite-residual" });
+  } catch (error) {
+    return Object.freeze({ value: null, issue: errorMessage(error) });
   }
 }
 

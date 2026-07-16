@@ -13,6 +13,9 @@ import type {
   MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
+  createCanonicalMainWireNormalAdultFiveWallProviderV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
@@ -144,6 +147,42 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       ),
     })).toBe(before);
   });
+
+  it("advances one actual q-off Moyer/Klotz + Land/SLS + TriSeg step", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({
+        ...RUNTIME.respiratory,
+        Pth0: 0,
+      }),
+    });
+    const cold = initializeMainWireFiveWallNonCoronaryV1({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    });
+    const stepped = stepMainWireFiveWallNonCoronaryV1(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.002,
+        runtime,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      },
+    );
+
+    expect(stepped.converged).toBe(true);
+    if (stepped.converged === false) throw new Error(stepped.message);
+    expect(stepped.mechanicsTrial.diagnostics.converged).toBe(true);
+    expect(stepped.mechanicsTrial.diagnostics.finite).toBe(true);
+    expect(stepped.circulationTrial.diagnostics.totalBloodVolumeErrorMl)
+      .toBeCloseTo(0, 9);
+    expect(stepped.acceptedState.mechanics.materialState.longAxisCoordinate)
+      .toBe(0);
+    expect(Object.values(stepped.mechanicsTrial.transmuralPressuresMmHg)
+      .every(Number.isFinite)).toBe(true);
+  }, 60_000);
 });
 
 function testProvider(
