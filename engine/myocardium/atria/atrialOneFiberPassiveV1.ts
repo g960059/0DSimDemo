@@ -2,6 +2,12 @@ import {
   sanitizeForStableHash,
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
+import {
+  assertCompiledEquilibriumOneFiberPassiveV1,
+  compileEquilibriumOneFiberPassiveV1,
+  evaluateEquilibriumOneFiberPassiveV1,
+  type CompiledEquilibriumOneFiberPassiveV1,
+} from "@/engine/myocardium/mechanics/equilibriumOneFiberPassiveV1";
 
 export const ATRIAL_ONE_FIBER_PASSIVE_V1_ID =
   "atrial-one-fiber-passive-v1" as const;
@@ -44,6 +50,7 @@ export type CompiledAtrialOneFiberPassiveV1 = {
   readonly parameterSetId: string;
   readonly parameterIdentityHash: string;
   readonly params: AtrialOneFiberPassiveParamsV1;
+  readonly equilibriumPassive: CompiledEquilibriumOneFiberPassiveV1;
   readonly claim: typeof ATRIAL_ONE_FIBER_PASSIVE_CLAIM_V1;
 };
 
@@ -83,18 +90,6 @@ export type AtrialOneFiberPassiveEvaluationV1 = AtrialOneFiberBaseGeometryV1 & {
   readonly claim: typeof ATRIAL_ONE_FIBER_PASSIVE_CLAIM_V1;
 };
 
-type C2PositivePart = {
-  readonly value: number;
-  readonly firstDerivative: number;
-  readonly secondDerivative: number;
-};
-
-type PassiveEnergyEvaluation = {
-  readonly energyDensityJPerM3: number;
-  readonly stressPa: number;
-  readonly tangentPa: number;
-};
-
 const PA_PER_MMHG = 133.322;
 
 export function compileAtrialOneFiberPassiveV1(
@@ -106,11 +101,20 @@ export function compileAtrialOneFiberPassiveV1(
     modelId: ATRIAL_ONE_FIBER_PASSIVE_V1_ID,
     params,
   }));
+  const equilibriumPassive = compileEquilibriumOneFiberPassiveV1({
+    parameterSetId: params.parameterSetId,
+    centralTangentPa: params.centralTangentPa,
+    tensionScalePa: params.tensionScalePa,
+    tensionExponent: params.tensionExponent,
+    compressionAdditionalTangentPa: params.compressionAdditionalTangentPa,
+    transitionWidthStrain: params.transitionWidthStrain,
+  });
   return Object.freeze({
     modelId: ATRIAL_ONE_FIBER_PASSIVE_V1_ID,
     parameterSetId: params.parameterSetId,
     parameterIdentityHash,
     params,
+    equilibriumPassive,
     claim: ATRIAL_ONE_FIBER_PASSIVE_CLAIM_V1,
   });
 }
@@ -194,16 +198,23 @@ export function evaluateAtrialOneFiberPassiveAtEffectiveStrainV1(
   if (!Number.isFinite(effectiveFiberLogStrain)) {
     throw new Error("effectiveFiberLogStrain must be finite");
   }
-  const passive = evaluatePassiveEnergy(effectiveFiberLogStrain, compiled.params);
+  const passive = evaluateEquilibriumOneFiberPassiveV1(
+    effectiveFiberLogStrain,
+    compiled.equilibriumPassive,
+  );
   const wallVolumeMl = compiled.params.wallReferenceMaterialVolumeMl;
   const virtualWorkCoefficient =
     wallVolumeMl * geometry.dFiberLogStrainDCavityVolumePerMl;
-  const transmuralPressurePa = virtualWorkCoefficient * passive.stressPa;
+  const transmuralPressurePa = virtualWorkCoefficient
+    * passive.equilibriumKirchhoffStressPa;
   const dTransmuralPressureDCavityVolumePaPerMl = wallVolumeMl * (
-    passive.tangentPa * geometry.dFiberLogStrainDCavityVolumePerMl ** 2
-    + passive.stressPa * geometry.d2FiberLogStrainDCavityVolume2PerMl2
+    passive.dStressDFiberLogStrainPa
+      * geometry.dFiberLogStrainDCavityVolumePerMl ** 2
+    + passive.equilibriumKirchhoffStressPa
+      * geometry.d2FiberLogStrainDCavityVolume2PerMl2
   );
-  const storedEnergyJ = passive.energyDensityJPerM3 * wallVolumeMl * 1e-6;
+  const storedEnergyJ = passive.storedEnergyDensityJPerM3
+    * wallVolumeMl * 1e-6;
   requireFiniteOutputs({
     effectiveFiberLogStrain,
     storedEnergyJ,
@@ -213,10 +224,10 @@ export function evaluateAtrialOneFiberPassiveAtEffectiveStrainV1(
   return Object.freeze({
     ...geometry,
     effectiveFiberLogStrain,
-    storedEnergyDensityJPerM3: passive.energyDensityJPerM3,
+    storedEnergyDensityJPerM3: passive.storedEnergyDensityJPerM3,
     storedEnergyJ,
-    equilibriumKirchhoffStressPa: passive.stressPa,
-    dStressDFiberLogStrainPa: passive.tangentPa,
+    equilibriumKirchhoffStressPa: passive.equilibriumKirchhoffStressPa,
+    dStressDFiberLogStrainPa: passive.dStressDFiberLogStrainPa,
     transmuralPressurePa,
     transmuralPressureMmHg: transmuralPressurePa / PA_PER_MMHG,
     dTransmuralPressureDCavityVolumePaPerMl,
@@ -229,73 +240,6 @@ export function evaluateAtrialOneFiberPassiveAtEffectiveStrainV1(
   });
 }
 
-function evaluatePassiveEnergy(
-  strain: number,
-  params: AtrialOneFiberPassiveParamsV1,
-): PassiveEnergyEvaluation {
-  const tension = c2PositivePart(strain, params.transitionWidthStrain);
-  const compression = c2PositivePart(-strain, params.transitionWidthStrain);
-  const tensionExponent = params.tensionExponent * tension.value;
-  const tensionExpMinusOne = Math.expm1(tensionExponent);
-  const tensionEnergy = params.tensionScalePa /
-    (params.tensionExponent * params.tensionExponent) *
-    expm1MinusX(tensionExponent);
-  const tensionStressDHinge = params.tensionScalePa /
-    params.tensionExponent * tensionExpMinusOne;
-  const tensionTangentDHinge = params.tensionScalePa *
-    (tensionExpMinusOne + 1);
-  const compressionDerivative = -compression.firstDerivative;
-  const energyDensityJPerM3 =
-    0.5 * params.centralTangentPa * strain * strain +
-    tensionEnergy +
-    0.5 * params.compressionAdditionalTangentPa * compression.value ** 2;
-  const stressPa =
-    params.centralTangentPa * strain +
-    tensionStressDHinge * tension.firstDerivative +
-    params.compressionAdditionalTangentPa *
-      compression.value * compressionDerivative;
-  const tangentPa =
-    params.centralTangentPa +
-    tensionTangentDHinge * tension.firstDerivative ** 2 +
-    tensionStressDHinge * tension.secondDerivative +
-    params.compressionAdditionalTangentPa * (
-      compressionDerivative ** 2 +
-      compression.value * compression.secondDerivative
-    );
-  requireFiniteOutputs({ energyDensityJPerM3, stressPa, tangentPa });
-  if (tangentPa <= 0) {
-    throw new Error("atrial passive material tangent must remain positive");
-  }
-  return { energyDensityJPerM3, stressPa, tangentPa };
-}
-
-/** C2 positive part: zero in compression, identity minus a constant after recruitment. */
-function c2PositivePart(value: number, width: number): C2PositivePart {
-  if (value <= 0) {
-    return { value: 0, firstDerivative: 0, secondDerivative: 0 };
-  }
-  if (value >= width) {
-    return { value: value - 0.5 * width, firstDerivative: 1, secondDerivative: 0 };
-  }
-  const normalized = value / width;
-  return {
-    value: width * (normalized ** 3 - 0.5 * normalized ** 4),
-    firstDerivative: 3 * normalized ** 2 - 2 * normalized ** 3,
-    secondDerivative: (6 * normalized - 6 * normalized ** 2) / width,
-  };
-}
-
-function expm1MinusX(value: number): number {
-  if (Math.abs(value) >= 1e-4) return Math.expm1(value) - value;
-  let term = 0.5 * value * value;
-  let sum = term;
-  for (let order = 3; order <= 12; order += 1) {
-    term *= value / order;
-    sum += term;
-  }
-  return sum;
-}
-
 function validateCompiled(compiled: CompiledAtrialOneFiberPassiveV1): void {
   if (
     compiled.modelId !== ATRIAL_ONE_FIBER_PASSIVE_V1_ID ||
@@ -304,6 +248,19 @@ function validateCompiled(compiled: CompiledAtrialOneFiberPassiveV1): void {
     throw new Error("compiled atrial one-fiber passive identity is inconsistent");
   }
   validateParams(compiled.params);
+  assertCompiledEquilibriumOneFiberPassiveV1(compiled.equilibriumPassive);
+  const material = compiled.equilibriumPassive.params;
+  if (
+    material.parameterSetId !== compiled.params.parameterSetId
+    || material.centralTangentPa !== compiled.params.centralTangentPa
+    || material.tensionScalePa !== compiled.params.tensionScalePa
+    || material.tensionExponent !== compiled.params.tensionExponent
+    || material.compressionAdditionalTangentPa
+      !== compiled.params.compressionAdditionalTangentPa
+    || material.transitionWidthStrain !== compiled.params.transitionWidthStrain
+  ) {
+    throw new Error("atrial geometry and equilibrium passive kernel parameters diverged");
+  }
   const expectedHash = stableHash(sanitizeForStableHash({
     modelId: ATRIAL_ONE_FIBER_PASSIVE_V1_ID,
     params: compiled.params,
