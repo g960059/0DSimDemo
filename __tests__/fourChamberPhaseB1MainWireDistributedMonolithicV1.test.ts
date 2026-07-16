@@ -7,7 +7,7 @@ import {
   advanceMainWireDynamicValveApertureBackwardEulerV1,
 } from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireDynamicValveApertureV1";
 import {
-  MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+  MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
 } from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1";
 import {
   evaluatePhaseB1EventFreeEndpointV1,
@@ -185,7 +185,7 @@ describe("Phase B1 main-wire distributed monolithic research step", () => {
     expect(result.fallbackApplied).toBe(false);
     expect(result.residualEvaluation.mechanicsProxyCirculationResidualConsumed)
       .toBe(false);
-    for (const flowName of MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1) {
+    for (const flowName of MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1) {
       const expected = advanceMainWireDynamicValveApertureBackwardEulerV1({
         parameters:
           fixture.model.internalPrecompiledCirculationContext

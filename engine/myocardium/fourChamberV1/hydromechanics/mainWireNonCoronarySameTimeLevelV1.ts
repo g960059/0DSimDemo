@@ -39,7 +39,7 @@ export const MAIN_WIRE_NON_CORONARY_SAME_TIME_LEVEL_V1_ID =
 export const MAIN_WIRE_NON_CORONARY_PRECOMPILED_CONTEXT_V1_ID =
   "four-chamber-main-wire-non-coronary-precompiled-context-v1" as const;
 
-export const MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1 = Object.freeze([
+export const MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1 = Object.freeze([
   "Q_MV",
   "Q_AoV",
   "Q_TV",
@@ -47,7 +47,7 @@ export const MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1 = Object.freeze([
 ] as const);
 
 export const MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1 = Object.freeze([
-  ...MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+  ...MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
   "Ao_SA",
   "PA_PArt",
 ] as const);
@@ -65,12 +65,12 @@ export const MAIN_WIRE_NON_CORONARY_ALGEBRAIC_FLOW_NAMES_V1 = Object.freeze([
 ] as const);
 
 export const MAIN_WIRE_NON_CORONARY_ALL_FLOW_NAMES_V1 = Object.freeze([
-  ...MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+  ...MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
   ...MAIN_WIRE_NON_CORONARY_VASCULAR_EDGE_NAMES_V1,
 ] as const);
 
-export type MainWirePhaseB1ValveFlowNameV1 =
-  (typeof MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1)[number];
+export type MainWireNonCoronaryValveFlowNameV1 =
+  (typeof MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1)[number];
 export type MainWireNonCoronaryDynamicFlowNameV1 =
   (typeof MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1)[number];
 export type MainWireNonCoronaryAlgebraicFlowNameV1 =
@@ -85,7 +85,7 @@ type DirectedEdgeV1 = Readonly<{
   owner: "heart-boundary-valve-adapter" | "main-wire-vascular-graph";
 }>;
 
-const PHASE_B1_VALVE_DIRECTED_EDGES_V1 = Object.freeze([
+const MAIN_WIRE_VALVE_DIRECTED_EDGES_V1 = Object.freeze([
   Object.freeze({
     flowName: "Q_MV" as const,
     upstream: "LA" as const,
@@ -172,7 +172,7 @@ export type MainWireNonCoronaryKernelStateV1 = Readonly<{
   bloodVolumesM3: Readonly<Record<MainWireNonCoronaryCirculationNodeNameV1, number>>;
   dynamicFlowsM3PerSec: Readonly<Record<MainWireNonCoronaryDynamicFlowNameV1, number>>;
   valveApertureState01ByFlow: Readonly<
-    Record<MainWirePhaseB1ValveFlowNameV1, number>
+    Record<MainWireNonCoronaryValveFlowNameV1, number>
   >;
 }>;
 
@@ -191,7 +191,7 @@ export type MainWireNonCoronaryPrecompiledContextV1 = Readonly<{
     CompiledMainWireVascularPvLawSiV1
   >>;
   dynamicValveParametersByFlow: Readonly<Record<
-    MainWirePhaseB1ValveFlowNameV1,
+    MainWireNonCoronaryValveFlowNameV1,
     CompiledMainWireDynamicValveParametersV1
   >>;
   internalPerformanceContextOnly: true;
@@ -287,7 +287,7 @@ export type MainWireNonCoronarySameTimeLevelEvaluationV1 = Readonly<{
     Record<MainWireNonCoronaryCirculationNodeNameV1, number>
   >;
   valveMomentumByFlow: Readonly<
-    Record<MainWirePhaseB1ValveFlowNameV1, MainWireDynamicValveMomentumV1>
+    Record<MainWireNonCoronaryValveFlowNameV1, MainWireDynamicValveMomentumV1>
   >;
   vascularFlowEvaluationByFlow: Readonly<
     Record<MainWireNonCoronaryVascularEdgeNameV1, MainWireVascularFlowEvaluationV1>
@@ -470,10 +470,10 @@ function evaluateMainWireNonCoronaryWithPrecompiledContextUncheckedV1(
   >>;
   const allFlowsM3PerSec = freezeRecordFromKeysV1(
     MAIN_WIRE_NON_CORONARY_ALL_FLOW_NAMES_V1,
-    (flowName) => MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.includes(
-      flowName as MainWirePhaseB1ValveFlowNameV1,
+    (flowName) => MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1.includes(
+      flowName as MainWireNonCoronaryValveFlowNameV1,
     )
-      ? input.state.dynamicFlowsM3PerSec[flowName as MainWirePhaseB1ValveFlowNameV1]
+      ? input.state.dynamicFlowsM3PerSec[flowName as MainWireNonCoronaryValveFlowNameV1]
       : vascularFlowEvaluationByFlow[flowName as MainWireNonCoronaryVascularEdgeNameV1]
         .flowM3PerSec,
   );
@@ -633,7 +633,7 @@ function buildDirectedEdgesV1(): readonly DirectedEdgeV1[] {
     owner: "main-wire-vascular-graph" as const,
   }));
   const edges: readonly DirectedEdgeV1[] = Object.freeze([
-    ...PHASE_B1_VALVE_DIRECTED_EDGES_V1,
+    ...MAIN_WIRE_VALVE_DIRECTED_EDGES_V1,
     ...vascularEdges,
   ]);
   const actualNames = edges.map((edge) => edge.flowName);
@@ -889,10 +889,10 @@ function assertPrecompiledContextV1(
   }
   assertExactPlainRecordV1(
     context.dynamicValveParametersByFlow,
-    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+    MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
     "main-wire precompiled dynamic valve parameters",
   );
-  for (const flowName of MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1) {
+  for (const flowName of MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1) {
     const compiled = context.dynamicValveParametersByFlow[flowName];
     if (!Object.isFrozen(compiled) || compiled.flowName !== flowName) {
       throw new Error(`main-wire dynamic valve parameter ${flowName} is invalid`);
@@ -926,7 +926,7 @@ function validateSameTimeLevelInputV1(
   );
   assertExactPlainRecordV1(
     input.state.valveApertureState01ByFlow,
-    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+    MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
     "input.state.valveApertureState01ByFlow",
   );
   assertExactPlainRecordV1(
@@ -951,7 +951,7 @@ function validateSameTimeLevelInputV1(
       `input.state.dynamicFlowsM3PerSec.${flowName}`,
     );
   }
-  for (const flowName of MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1) {
+  for (const flowName of MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1) {
     const xi = requireFinite(
       input.state.valveApertureState01ByFlow[flowName],
       `input.state.valveApertureState01ByFlow.${flowName}`,

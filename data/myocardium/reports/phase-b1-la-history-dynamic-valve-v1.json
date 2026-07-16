@@ -1,0 +1,3096 @@
+{
+  "reportId": "phase-b1-main-wire-distributed-exploratory-report-v1",
+  "schemaId": "phase-b1-main-wire-distributed-report-schema-v1",
+  "generatedAt": "2026-07-16T17:08:00.634Z",
+  "runnerId": "phase-b1-main-wire-distributed-exploratory-repeated-cycle-v1",
+  "config": {
+    "nominalDtSec": 0.004,
+    "configuredCycleCount": 3,
+    "maximumRetryDepth": 3,
+    "maximumNewtonIterations": 60,
+    "cycleLengthSec": 0.8,
+    "intrathoracicPressurePa": 0,
+    "alveolarPressurePa": 0,
+    "slsMode": "on"
+  },
+  "provenance": {
+    "sourceManifestContentSha256": "218d5abd7b53dd0e4db594bac1ac1848d3ac49acc3efbdd02b843ee27338bf24",
+    "sourceNumericalEvidenceContentSha256": "7dd2cc61e9f5da24d9495a89b20369bfea143eb03e511fa312ee0c55a3acc9ec",
+    "scheduleContentSha256": "341c9f3eee1df13cc4e5615741c9911ac8315191d3ce5fbd90611985b5ea8c50",
+    "wallMaterialBindingContentSha256": "636609797ad5961bdef4a11c8b848c067cc82b274cc7c833e4017039b46215be",
+    "atrialLandKinematicClosure": "population-only",
+    "physiologyEnvelopeOverlayAuthenticatedFromSlsMode": "on",
+    "candidatePhysicalSlsMode": "on",
+    "atrialPvReadbackRoleForThisCandidate": "development-diagnostic-not-held-out-after-architecture-selection",
+    "directNumericalOwnerSourceSnapshotAtStart": {
+      "coreTopology": {
+        "relativePath": "engine/core/topology.ts",
+        "contentSha256": "780d35ad0edf1096a85e749368b1320ca45490cb94c6ba91edd1d906645aedc5"
+      },
+      "coreParams": {
+        "relativePath": "engine/core/params.ts",
+        "contentSha256": "36550b05e009cf0fa3a30a19a9f79a102d630831b472817d1ecd45c6f0c66520"
+      },
+      "graphResolver": {
+        "relativePath": "engine/core/mainWireHemodynamicGraphV1.ts",
+        "contentSha256": "5842b0952fccb001f814883cc225c60abd82bc8298105a82e2cb7363f36fefb6"
+      },
+      "vascularTopologyAdapter": {
+        "relativePath": "engine/myocardium/fourChamberV1/vascular/mainWireNonCoronaryVascularTopologyV1.ts",
+        "contentSha256": "2ec3eda9faf931dbaf28f8ace67d69e625d9e214cc589e33337ed204633f8e76"
+      },
+      "vascularPvLaw": {
+        "relativePath": "engine/myocardium/fourChamberV1/vascular/mainWireVascularPvLawSiV1.ts",
+        "contentSha256": "55cfe6bdd9767d9303b35a72e104b09d1729bf8c2445f0db46d292e54edeacf9"
+      },
+      "sameTimeCirculationKernel": {
+        "relativePath": "engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1.ts",
+        "contentSha256": "86a2ea022ca00546f928613150f7fff7bea5073a35ef7bdbc722e33ab9e65d46"
+      },
+      "dynamicValveAperture": {
+        "relativePath": "engine/myocardium/fourChamberV1/hydromechanics/mainWireDynamicValveApertureV1.ts",
+        "contentSha256": "a8e9b5b4552b08d7a341e7c65eaaa49858284ceb77fe5a5e12b59682df6d74ab"
+      },
+      "vascularInitializer": {
+        "relativePath": "engine/myocardium/fourChamberV1/vascular/mainWireNonCoronaryVascularInitializerV1.ts",
+        "contentSha256": "675238d8cbe2cde2cbda5e476ede83880c0625a28910af0ede09aae56aaf3ded"
+      },
+      "distributedEndpoint": {
+        "relativePath": "engine/myocardium/fourChamberV1/phaseB1/phaseB1MainWireDistributedEndpointV1.ts",
+        "contentSha256": "c57ce6347aa6dea3acf9ac5af249b06286ef4792bb63d0dd50f758f59a76ee6d"
+      },
+      "distributedSolver": {
+        "relativePath": "engine/myocardium/fourChamberV1/phaseB1/phaseB1MainWireDistributedMonolithicBackwardEulerV1.ts",
+        "contentSha256": "806f90d81e055cf1603c8044f39c27955ebf1197794d493cada253104f0adf01"
+      },
+      "runner": {
+        "relativePath": "tools/myocardium/runPhaseB1MainWireDistributedV1.ts",
+        "contentSha256": "bc0746b8d04e2b184e06a4e471dd89c2f3b80feeefbfa5a9498d6b54d0d80c53"
+      }
+    },
+    "gitSourceReproducibilityAtRunStart": {
+      "repositoryHeadCommit": "33b035787afcc98aa40da438520b7c8cbceb8876",
+      "repositoryHeadTree": "dc3d41fb336481278bf178fb6505f664d686e20f",
+      "trackedWorktreeClean": true,
+      "trackedWorktreePatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "trackedIndexPatchSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "packageLockContentSha256": "1d09fb356bb9e133fa9ae7a2c801e647f23182f4ef79210848a6e1bbc9bf55e7",
+      "nodeVersion": "v26.4.0",
+      "untrackedPathsExcludedFromCleanlinessCheck": true,
+      "hashAlgorithm": "sha256-file-or-bytes-v1"
+    },
+    "sourceFileHashAlgorithm": "sha256-file-bytes-v1",
+    "canonicalObjectHashAlgorithm": "sha256-canonical-json-v1"
+  },
+  "initialization": {
+    "oldCandidateBuiltOnce": true,
+    "oldCandidateConfigurationContentSha256": "a2f7dd7d7d84a8467c2a4ce136261b7c2c4dd2517461da3b4436d62d8a96f768",
+    "vascular": {
+      "chamberBloodVolumeM3": 0.00040049504849492905,
+      "vascularBloodVolumeM3": 0.005199504951505047,
+      "reconstructedTotalBloodVolumeM3": 0.0055999999999999765,
+      "totalBloodVolumeResidualM3": -2.3418766925686896e-17,
+      "relativeTotalBloodVolumeResidual": 4.1819226653012315e-15,
+      "relativeTotalBloodVolumeTolerance": 1e-12,
+      "exactTotalBloodVolumeClosurePass": true,
+      "allVascularVolumesPositive": true,
+      "maximumAbsoluteEdgePressureDropResidualPa": 9.094947017729282e-13,
+      "edgePressureDropResidualTolerancePa": 1e-9,
+      "allEdgePressureDropResidualsPass": true,
+      "root": {
+        "method": "deterministic-bracket-expansion-plus-bisection",
+        "lowerBracketFlowM3PerSec": 0.000064,
+        "upperBracketFlowM3PerSec": 0.000128,
+        "expansionIterations": 8,
+        "supportBoundaryBisectionIterations": 0,
+        "rootBisectionIterations": 42
+      },
+      "provenance": {
+        "graphAndParameterOwner": "engine/core/mainWireHemodynamicGraphV1.ts#resolveMainWireNonCoronaryHemodynamicGraphV1",
+        "vascularPvOwner": "engine/myocardium/fourChamberV1/vascular/mainWireVascularPvLawSiV1.ts",
+        "edgePressureApplicationReference": "engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1.ts",
+        "modelCoreNumericalRuntimeParityClaimed": false,
+        "coronaryNetworkIncluded": false,
+        "heartValvesIncluded": false
+      },
+      "claimBoundary": {
+        "commonFlowPurpose": "quasi-steady fixed-boundary state construction",
+        "commonFlowIsNormalCardiacOutputClaim": false,
+        "cardiacOutputOrBloodPressureTargetUsed": false,
+        "pressureOrVolumePostProjectionApplied": false,
+        "runtimeControlOrPvParameterAdjustedAfterRoot": false,
+        "leftAndRightVentricularPressuresUsedForVascularRecursion": false,
+        "coronaryInitialStateClaimed": false
+      }
+    },
+    "transform": {
+      "sourceEndpointStateId": "four-chamber-phase-b1-endpoint-state-v1",
+      "chamberVolumesCopiedExactly": true,
+      "valveFlowsCopiedExactly": true,
+      "suppliedVascularVolumeCount": 11,
+      "suppliedRootDynamicFlowCount": 2,
+      "valveApertureStateCount": 4,
+      "valveApertureDerivedFromInitialPressureGradientAndFlow": true,
+      "topologyXi0Consumed": false,
+      "vascularInitializationInferred": false,
+      "parameterFitApplied": false,
+      "legacyAggregateVascularVolumesImported": false,
+      "legacyInletFlowsImported": false
+    }
+  },
+  "cycleSummaries": [
+    {
+      "cycleIndex": 0,
+      "startTimeSec": 0,
+      "endTimeSec": 0.8,
+      "endpointDistance": {
+        "maximumNormalizedDistance": 7.442225812757648,
+        "maximizingScalarLabel": "circulation.main-wire.dynamic-flow.Q_TV",
+        "rootMeanSquareNormalizedDistance": 1.0358922994263824,
+        "scalarCount": 72,
+        "timeExcluded": true
+      },
+      "totalBloodVolume": {
+        "initialM3": 0.0055999999999999765,
+        "minimumM3": 0.005599999999999973,
+        "maximumM3": 0.005599999999999978,
+        "maximumRelativeDrift": 6.19544098563148e-16
+      },
+      "acceptedIntervalCount": 202,
+      "requestedSegmentCount": 202,
+      "solverRetrySubdivisionCount": 0,
+      "maximumRetryDepthUsed": 0,
+      "acceptedTimeStepSec": {
+        "minimum": 0.001999999999999974,
+        "maximum": 0.0040000000000000036
+      },
+      "adaptiveRetrySubdivisionApplied": false,
+      "modelOrConstitutiveFallbackApplied": false,
+      "fixedTimeStepIntegrationClaimed": false,
+      "minimumVascularPvDomainMarginM3": 0.00002177772690016077,
+      "trend": {
+        "atrialRightCensoredConduitAndLaterRefill": {
+          "LA": {
+            "status": "diagnostic-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "sourceConduitBranchStatus": "ambiguous",
+            "sourceReasons": [
+              "conduit-branch-is-not-strictly-decreasing"
+            ],
+            "strictEarlyConduitDecreaseResolved": false,
+            "earlyConduitMinimum": {
+              "phaseSec": 0.708,
+              "volumeM3": 0.000034934089223403305,
+              "pressurePa": 550.3587832441318
+            },
+            "maximumLaterRefill": {
+              "phaseSec": 0.8,
+              "volumeM3": 0.0000448281569555179,
+              "pressurePa": 882.14171817349
+            },
+            "laterRefillIncreaseM3": 0.000009894067732114599,
+            "laterRefillVolumeIncreaseObserved": true,
+            "rightCensoredAtCycleEnd": true,
+            "observationEndPhaseSec": 0.8,
+            "intervalDefinition": "first-post-opening-conduit-minimum-through-observed-cycle-end",
+            "shapeFitOrGateUsed": false
+          },
+          "RA": {
+            "status": "diagnostic-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "sourceConduitBranchStatus": "ambiguous",
+            "sourceReasons": [
+              "conduit-branch-is-not-strictly-decreasing"
+            ],
+            "strictEarlyConduitDecreaseResolved": false,
+            "earlyConduitMinimum": {
+              "phaseSec": 0.744,
+              "volumeM3": 0.00003843781261017104,
+              "pressurePa": 192.61552919524038
+            },
+            "maximumLaterRefill": {
+              "phaseSec": 0.8,
+              "volumeM3": 0.000042744995742512833,
+              "pressurePa": 376.7545872728106
+            },
+            "laterRefillIncreaseM3": 0.000004307183132341795,
+            "laterRefillVolumeIncreaseObserved": true,
+            "rightCensoredAtCycleEnd": true,
+            "observationEndPhaseSec": 0.8,
+            "intervalDefinition": "first-post-opening-conduit-minimum-through-observed-cycle-end",
+            "shapeFitOrGateUsed": false
+          }
+        },
+        "atrialPostOpeningMassBalanceDiagnostic": {
+          "LA": {
+            "status": "resolved-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "venousFlowId": "PVein_LA",
+            "avFlowId": "Q_MV",
+            "intervalStartPhaseSec": 0.5360020015376463,
+            "intervalEndPhaseSec": 0.8,
+            "intervalDurationSec": 0.2639979984623537,
+            "rightCensoredAtCycleEnd": true,
+            "formalPeriodOne": false,
+            "integrationRule": "piecewise-linear-trapezoidal-on-waveform-samples-v1",
+            "volumeBalanceConvention": "deltaV=integral(Qvenous-Qav)dt",
+            "trapezoidalVenousInflowVolumeM3": 0.000047483313199456434,
+            "trapezoidalAvOutflowVolumeM3": 0.0000608581645509608,
+            "netIntegratedInflowMinusOutflowM3": -0.000013374851351504367,
+            "observedAtrialVolumeChangeM3": -0.000013602671584176816,
+            "trapezoidalDiscreteMassBalanceClosureErrorM3": -2.2782023267244874e-7,
+            "absoluteTrapezoidalDiscreteMassBalanceClosureErrorM3": 2.2782023267244874e-7,
+            "shapeFitOrGateUsed": false
+          },
+          "RA": {
+            "status": "resolved-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "venousFlowId": "VC_RA",
+            "avFlowId": "Q_TV",
+            "intervalStartPhaseSec": 0.5125131544805682,
+            "intervalEndPhaseSec": 0.8,
+            "intervalDurationSec": 0.2874868455194318,
+            "rightCensoredAtCycleEnd": true,
+            "formalPeriodOne": false,
+            "integrationRule": "piecewise-linear-trapezoidal-on-waveform-samples-v1",
+            "volumeBalanceConvention": "deltaV=integral(Qvenous-Qav)dt",
+            "trapezoidalVenousInflowVolumeM3": 0.00003033971139083719,
+            "trapezoidalAvOutflowVolumeM3": 0.00005109124252777344,
+            "netIntegratedInflowMinusOutflowM3": -0.00002075153113693625,
+            "observedAtrialVolumeChangeM3": -0.00002074901984624995,
+            "trapezoidalDiscreteMassBalanceClosureErrorM3": 2.51129068630046e-9,
+            "absoluteTrapezoidalDiscreteMassBalanceClosureErrorM3": 2.51129068630046e-9,
+            "shapeFitOrGateUsed": false
+          }
+        },
+        "chamberPvClosedPolygonDiagnosticPaM3": {
+          "LA": {
+            "observedOpenPathIntegralPdvPaM3": -0.044762807855820756,
+            "closingChordContributionPdvPaM3": 0.010846467902139554,
+            "closedPolygonIntegralPdvPaM3": -0.0339163399536812,
+            "signedShoelaceAreaPaM3": 0.03391633995368125,
+            "absoluteShoelaceAreaPaM3": 0.03391633995368125,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          },
+          "LV": {
+            "observedOpenPathIntegralPdvPaM3": -1.0849800609862268,
+            "closingChordContributionPdvPaM3": -0.0019889144403481204,
+            "closedPolygonIntegralPdvPaM3": -1.086968975426575,
+            "signedShoelaceAreaPaM3": 1.086968975426574,
+            "absoluteShoelaceAreaPaM3": 1.086968975426574,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          },
+          "RA": {
+            "observedOpenPathIntegralPdvPaM3": -0.019756341999329626,
+            "closingChordContributionPdvPaM3": 0.014261881939362477,
+            "closedPolygonIntegralPdvPaM3": -0.005494460059967149,
+            "signedShoelaceAreaPaM3": 0.005494460059967151,
+            "absoluteShoelaceAreaPaM3": 0.005494460059967151,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          },
+          "RV": {
+            "observedOpenPathIntegralPdvPaM3": -0.4297363565217113,
+            "closingChordContributionPdvPaM3": -0.0027328870287714273,
+            "closedPolygonIntegralPdvPaM3": -0.4324692435504828,
+            "signedShoelaceAreaPaM3": 0.432469243550483,
+            "absoluteShoelaceAreaPaM3": 0.432469243550483,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          }
+        },
+        "selectedWaveformSummary": {
+          "volumeByChamberM3": {
+            "LA": {
+              "minimum": 0.00001921591810337631,
+              "maximum": 0.00006283587032731027,
+              "mean": 0.000042398273940359074
+            },
+            "LV": {
+              "minimum": 0.00007239385139820421,
+              "maximum": 0.00016422343970271731,
+              "mean": 0.00011301630954768266
+            },
+            "RA": {
+              "minimum": 0.000025991758174194744,
+              "maximum": 0.00006930433863185381,
+              "mean": 0.0000484334949503613
+            },
+            "RV": {
+              "minimum": 0.00010579875705678151,
+              "maximum": 0.00019574563313198154,
+              "mean": 0.00014536502634557934
+            }
+          },
+          "absolutePressureBySelectedNodePa": {
+            "LA": {
+              "minimum": 550.3587832441318,
+              "maximum": 2733.03928056762,
+              "mean": 1077.9200832374315
+            },
+            "LV": {
+              "minimum": 293.23362832482155,
+              "maximum": 13728.187677554271,
+              "mean": 4357.609203150764
+            },
+            "Ao": {
+              "minimum": 9317.243904835057,
+              "maximum": 13740.374948178183,
+              "mean": 10645.059598984653
+            },
+            "PVein": {
+              "minimum": 1250.8813593093864,
+              "maximum": 1841.499474181836,
+              "mean": 1489.796911778745
+            },
+            "RA": {
+              "minimum": 158.1149329202859,
+              "maximum": 924.4237295610391,
+              "mean": 544.5555202411671
+            },
+            "RV": {
+              "minimum": 122.93452775073608,
+              "maximum": 6059.583373267151,
+              "mean": 1745.7672257196512
+            },
+            "PA": {
+              "minimum": 834.272531342801,
+              "maximum": 5370.635145629296,
+              "mean": 2449.0952204539885
+            },
+            "VC": {
+              "minimum": 1022.1266761280096,
+              "maximum": 1079.2171787269863,
+              "mean": 1053.3572261381357
+            }
+          },
+          "flowBySelectedEdgeM3PerSec": {
+            "Q_MV": {
+              "minimum": -0.00005179974556121579,
+              "maximum": 0.0005463708656496789,
+              "mean": 0.00011746140097214814
+            },
+            "Q_AoV": {
+              "minimum": -0.000003972050282170482,
+              "maximum": 0.001142262636289641,
+              "mean": 0.00011321100807965856
+            },
+            "PVein_LA": {
+              "minimum": -0.0003038234452507188,
+              "maximum": 0.00023891505415874335,
+              "mean": 0.00010212660597355658
+            },
+            "Q_TV": {
+              "minimum": -0.0000020871485824080794,
+              "maximum": 0.0007993274920778924,
+              "mean": 0.00013048548448572217
+            },
+            "Q_PuV": {
+              "minimum": -9.789185946140828e-7,
+              "maximum": 0.0008875656829440698,
+              "mean": 0.00011236299611898235
+            },
+            "VC_RA": {
+              "minimum": 0.000028729084703228673,
+              "maximum": 0.00017124889302849714,
+              "mean": 0.00009529659868669225
+            }
+          }
+        }
+      }
+    },
+    {
+      "cycleIndex": 1,
+      "startTimeSec": 0.8,
+      "endTimeSec": 1.6,
+      "endpointDistance": {
+        "maximumNormalizedDistance": 0.8828646075683544,
+        "maximizingScalarLabel": "tissue.RVFW.patch-0.land.xiS",
+        "rootMeanSquareNormalizedDistance": 0.1540570933281307,
+        "scalarCount": 72,
+        "timeExcluded": true
+      },
+      "totalBloodVolume": {
+        "initialM3": 0.0055999999999999765,
+        "minimumM3": 0.0055999999999999705,
+        "maximumM3": 0.0055999999999999765,
+        "maximumRelativeDrift": 1.084202172485509e-15
+      },
+      "acceptedIntervalCount": 202,
+      "requestedSegmentCount": 202,
+      "solverRetrySubdivisionCount": 0,
+      "maximumRetryDepthUsed": 0,
+      "acceptedTimeStepSec": {
+        "minimum": 0.0019999999999998908,
+        "maximum": 0.0040000000000000036
+      },
+      "adaptiveRetrySubdivisionApplied": false,
+      "modelOrConstitutiveFallbackApplied": false,
+      "fixedTimeStepIntegrationClaimed": false,
+      "minimumVascularPvDomainMarginM3": 0.000024104017427101562,
+      "trend": {
+        "atrialRightCensoredConduitAndLaterRefill": {
+          "LA": {
+            "status": "diagnostic-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "sourceConduitBranchStatus": "ambiguous",
+            "sourceReasons": [
+              "conduit-branch-is-not-strictly-decreasing"
+            ],
+            "strictEarlyConduitDecreaseResolved": false,
+            "earlyConduitMinimum": {
+              "phaseSec": 0.708,
+              "volumeM3": 0.0000343893731947379,
+              "pressurePa": 532.0122566938749
+            },
+            "maximumLaterRefill": {
+              "phaseSec": 0.8,
+              "volumeM3": 0.000043945855880461705,
+              "pressurePa": 867.1062785578519
+            },
+            "laterRefillIncreaseM3": 0.000009556482685723803,
+            "laterRefillVolumeIncreaseObserved": true,
+            "rightCensoredAtCycleEnd": true,
+            "observationEndPhaseSec": 0.8,
+            "intervalDefinition": "first-post-opening-conduit-minimum-through-observed-cycle-end",
+            "shapeFitOrGateUsed": false
+          },
+          "RA": {
+            "status": "diagnostic-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "sourceConduitBranchStatus": "ambiguous",
+            "sourceReasons": [
+              "conduit-branch-is-not-strictly-decreasing"
+            ],
+            "strictEarlyConduitDecreaseResolved": false,
+            "earlyConduitMinimum": {
+              "phaseSec": 0.736,
+              "volumeM3": 0.00003729682972936045,
+              "pressurePa": 153.68106349186277
+            },
+            "maximumLaterRefill": {
+              "phaseSec": 0.8,
+              "volumeM3": 0.00004177523095673692,
+              "pressurePa": 354.33281000548544
+            },
+            "laterRefillIncreaseM3": 0.000004478401227376471,
+            "laterRefillVolumeIncreaseObserved": true,
+            "rightCensoredAtCycleEnd": true,
+            "observationEndPhaseSec": 0.8,
+            "intervalDefinition": "first-post-opening-conduit-minimum-through-observed-cycle-end",
+            "shapeFitOrGateUsed": false
+          }
+        },
+        "atrialPostOpeningMassBalanceDiagnostic": {
+          "LA": {
+            "status": "resolved-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "venousFlowId": "PVein_LA",
+            "avFlowId": "Q_MV",
+            "intervalStartPhaseSec": 0.5360342956459992,
+            "intervalEndPhaseSec": 0.8,
+            "intervalDurationSec": 0.2639657043540008,
+            "rightCensoredAtCycleEnd": true,
+            "formalPeriodOne": false,
+            "integrationRule": "piecewise-linear-trapezoidal-on-waveform-samples-v1",
+            "volumeBalanceConvention": "deltaV=integral(Qvenous-Qav)dt",
+            "trapezoidalVenousInflowVolumeM3": 0.00004521460953875066,
+            "trapezoidalAvOutflowVolumeM3": 0.000059102219423602414,
+            "netIntegratedInflowMinusOutflowM3": -0.000013887609884851752,
+            "observedAtrialVolumeChangeM3": -0.00001410181072931597,
+            "trapezoidalDiscreteMassBalanceClosureErrorM3": -2.1420084446421693e-7,
+            "absoluteTrapezoidalDiscreteMassBalanceClosureErrorM3": 2.1420084446421693e-7,
+            "shapeFitOrGateUsed": false
+          },
+          "RA": {
+            "status": "resolved-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "venousFlowId": "VC_RA",
+            "avFlowId": "Q_TV",
+            "intervalStartPhaseSec": 0.5080002592603768,
+            "intervalEndPhaseSec": 0.8,
+            "intervalDurationSec": 0.2919997407396232,
+            "rightCensoredAtCycleEnd": true,
+            "formalPeriodOne": false,
+            "integrationRule": "piecewise-linear-trapezoidal-on-waveform-samples-v1",
+            "volumeBalanceConvention": "deltaV=integral(Qvenous-Qav)dt",
+            "trapezoidalVenousInflowVolumeM3": 0.00003091263357254041,
+            "trapezoidalAvOutflowVolumeM3": 0.000050171617792155864,
+            "netIntegratedInflowMinusOutflowM3": -0.000019258984219615453,
+            "observedAtrialVolumeChangeM3": -0.000019285484173032297,
+            "trapezoidalDiscreteMassBalanceClosureErrorM3": -2.6499953416844204e-8,
+            "absoluteTrapezoidalDiscreteMassBalanceClosureErrorM3": 2.6499953416844204e-8,
+            "shapeFitOrGateUsed": false
+          }
+        },
+        "chamberPvClosedPolygonDiagnosticPaM3": {
+          "LA": {
+            "observedOpenPathIntegralPdvPaM3": -0.025753132269060543,
+            "closingChordContributionPdvPaM3": 0.0007716816940279824,
+            "closedPolygonIntegralPdvPaM3": -0.02498145057503256,
+            "signedShoelaceAreaPaM3": 0.024981450575032583,
+            "absoluteShoelaceAreaPaM3": 0.024981450575032583,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          },
+          "LV": {
+            "observedOpenPathIntegralPdvPaM3": -1.061167015103901,
+            "closingChordContributionPdvPaM3": 0.000059282543555437835,
+            "closedPolygonIntegralPdvPaM3": -1.0611077325603455,
+            "signedShoelaceAreaPaM3": 1.0611077325603457,
+            "absoluteShoelaceAreaPaM3": 1.0611077325603457,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          },
+          "RA": {
+            "observedOpenPathIntegralPdvPaM3": -0.010861477966416653,
+            "closingChordContributionPdvPaM3": 0.0003544914066025276,
+            "closedPolygonIntegralPdvPaM3": -0.010506986559814125,
+            "signedShoelaceAreaPaM3": 0.010506986559814125,
+            "absoluteShoelaceAreaPaM3": 0.010506986559814125,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          },
+          "RV": {
+            "observedOpenPathIntegralPdvPaM3": -0.3659641375072997,
+            "closingChordContributionPdvPaM3": 0.0015245149213938575,
+            "closedPolygonIntegralPdvPaM3": -0.36443962258590584,
+            "signedShoelaceAreaPaM3": 0.36443962258590606,
+            "absoluteShoelaceAreaPaM3": 0.36443962258590606,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          }
+        },
+        "selectedWaveformSummary": {
+          "volumeByChamberM3": {
+            "LA": {
+              "minimum": 0.000017754971666223325,
+              "maximum": 0.00006214988080710804,
+              "mean": 0.00004143660440315009
+            },
+            "LV": {
+              "minimum": 0.00007405582803104474,
+              "maximum": 0.00016053881315194893,
+              "mean": 0.00011249584187149943
+            },
+            "RA": {
+              "minimum": 0.0000255096361203975,
+              "maximum": 0.00006244890269676839,
+              "mean": 0.00004610986592119966
+            },
+            "RV": {
+              "minimum": 0.00010015528069621949,
+              "maximum": 0.00018173911945151526,
+              "mean": 0.00013586868538756412
+            }
+          },
+          "absolutePressureBySelectedNodePa": {
+            "LA": {
+              "minimum": 531.2362422038865,
+              "maximum": 2428.486711838666,
+              "mean": 1037.4893365101582
+            },
+            "LV": {
+              "minimum": 290.79544863205524,
+              "maximum": 14098.673393933335,
+              "mean": 4376.588919349642
+            },
+            "Ao": {
+              "minimum": 9843.941579454598,
+              "maximum": 14104.83787417172,
+              "mean": 11062.651875108768
+            },
+            "PVein": {
+              "minimum": 1224.1064318154256,
+              "maximum": 1777.2843990405447,
+              "mean": 1462.807214064434
+            },
+            "RA": {
+              "minimum": 84.81888418544196,
+              "maximum": 1295.8626510149743,
+              "mean": 519.1869299310191
+            },
+            "RV": {
+              "minimum": 102.72433184633134,
+              "maximum": 5734.364561270377,
+              "mean": 1566.982349868936
+            },
+            "PA": {
+              "minimum": 1050.7765577569558,
+              "maximum": 4949.61829364133,
+              "mean": 2448.963460213427
+            },
+            "VC": {
+              "minimum": 988.7510291588732,
+              "maximum": 1034.7618955332146,
+              "mean": 1013.2445727749775
+            }
+          },
+          "flowBySelectedEdgeM3PerSec": {
+            "Q_MV": {
+              "minimum": -0.000046734529360181134,
+              "maximum": 0.0005358156077784383,
+              "mean": 0.00010655297993784862
+            },
+            "Q_AoV": {
+              "minimum": -0.00000411086262959085,
+              "maximum": 0.001073165547690377,
+              "mean": 0.00010666501584866913
+            },
+            "PVein_LA": {
+              "minimum": -0.00025156352089122306,
+              "maximum": 0.00023394868573533998,
+              "mean": 0.00010545937106568238
+            },
+            "Q_TV": {
+              "minimum": -0.0000019671412511392395,
+              "maximum": 0.00036865891360169316,
+              "mean": 0.00009372326156381502
+            },
+            "Q_PuV": {
+              "minimum": -5.5561412719294796e-8,
+              "maximum": 0.0009390598877058111,
+              "mean": 0.00010191485441620183
+            },
+            "VC_RA": {
+              "minimum": -0.00005039410345127388,
+              "maximum": 0.00017643828818737466,
+              "mean": 0.00009251185251717305
+            }
+          }
+        }
+      }
+    },
+    {
+      "cycleIndex": 2,
+      "startTimeSec": 1.6,
+      "endTimeSec": 2.4000000000000004,
+      "endpointDistance": {
+        "maximumNormalizedDistance": 0.5518554595705183,
+        "maximizingScalarLabel": "tissue.RVFW.patch-0.land.xiS",
+        "rootMeanSquareNormalizedDistance": 0.09481115462307547,
+        "scalarCount": 72,
+        "timeExcluded": true
+      },
+      "totalBloodVolume": {
+        "initialM3": 0.005599999999999971,
+        "minimumM3": 0.00559999999999997,
+        "maximumM3": 0.005599999999999974,
+        "maximumRelativeDrift": 4.646580739223615e-16
+      },
+      "acceptedIntervalCount": 202,
+      "requestedSegmentCount": 202,
+      "solverRetrySubdivisionCount": 0,
+      "maximumRetryDepthUsed": 0,
+      "acceptedTimeStepSec": {
+        "minimum": 0.0020000000000000018,
+        "maximum": 0.004000000000000448
+      },
+      "adaptiveRetrySubdivisionApplied": false,
+      "modelOrConstitutiveFallbackApplied": false,
+      "fixedTimeStepIntegrationClaimed": false,
+      "minimumVascularPvDomainMarginM3": 0.000024713601420923065,
+      "trend": {
+        "atrialRightCensoredConduitAndLaterRefill": {
+          "LA": {
+            "status": "diagnostic-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "sourceConduitBranchStatus": "ambiguous",
+            "sourceReasons": [
+              "conduit-branch-is-not-strictly-decreasing"
+            ],
+            "strictEarlyConduitDecreaseResolved": false,
+            "earlyConduitMinimum": {
+              "phaseSec": 0.7079999999999997,
+              "volumeM3": 0.000034145551073383445,
+              "pressurePa": 524.0467576012419
+            },
+            "maximumLaterRefill": {
+              "phaseSec": 0.8,
+              "volumeM3": 0.00004323436887887687,
+              "pressurePa": 853.8111177109726
+            },
+            "laterRefillIncreaseM3": 0.000009088817805493428,
+            "laterRefillVolumeIncreaseObserved": true,
+            "rightCensoredAtCycleEnd": true,
+            "observationEndPhaseSec": 0.8,
+            "intervalDefinition": "first-post-opening-conduit-minimum-through-observed-cycle-end",
+            "shapeFitOrGateUsed": false
+          },
+          "RA": {
+            "status": "diagnostic-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "sourceConduitBranchStatus": "ambiguous",
+            "sourceReasons": [
+              "conduit-branch-is-not-strictly-decreasing"
+            ],
+            "strictEarlyConduitDecreaseResolved": false,
+            "earlyConduitMinimum": {
+              "phaseSec": 0.7319999999999998,
+              "volumeM3": 0.00003669669954985325,
+              "pressurePa": 130.65761650510936
+            },
+            "maximumLaterRefill": {
+              "phaseSec": 0.8,
+              "volumeM3": 0.00004112469575893609,
+              "pressurePa": 337.06765244393097
+            },
+            "laterRefillIncreaseM3": 0.0000044279962090828406,
+            "laterRefillVolumeIncreaseObserved": true,
+            "rightCensoredAtCycleEnd": true,
+            "observationEndPhaseSec": 0.8,
+            "intervalDefinition": "first-post-opening-conduit-minimum-through-observed-cycle-end",
+            "shapeFitOrGateUsed": false
+          }
+        },
+        "atrialPostOpeningMassBalanceDiagnostic": {
+          "LA": {
+            "status": "resolved-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "venousFlowId": "PVein_LA",
+            "avFlowId": "Q_MV",
+            "intervalStartPhaseSec": 0.5400040972131739,
+            "intervalEndPhaseSec": 0.8,
+            "intervalDurationSec": 0.25999590278682616,
+            "rightCensoredAtCycleEnd": true,
+            "formalPeriodOne": false,
+            "integrationRule": "piecewise-linear-trapezoidal-on-waveform-samples-v1",
+            "volumeBalanceConvention": "deltaV=integral(Qvenous-Qav)dt",
+            "trapezoidalVenousInflowVolumeM3": 0.00004296248128369826,
+            "trapezoidalAvOutflowVolumeM3": 0.00005698098271281257,
+            "netIntegratedInflowMinusOutflowM3": -0.000014018501429114308,
+            "observedAtrialVolumeChangeM3": -0.000014230411971231466,
+            "trapezoidalDiscreteMassBalanceClosureErrorM3": -2.119105421171573e-7,
+            "absoluteTrapezoidalDiscreteMassBalanceClosureErrorM3": 2.119105421171573e-7,
+            "shapeFitOrGateUsed": false
+          },
+          "RA": {
+            "status": "resolved-right-censored",
+            "sourceReadbackStatus": "ambiguous",
+            "venousFlowId": "VC_RA",
+            "avFlowId": "Q_TV",
+            "intervalStartPhaseSec": 0.504009398281653,
+            "intervalEndPhaseSec": 0.8,
+            "intervalDurationSec": 0.295990601718347,
+            "rightCensoredAtCycleEnd": true,
+            "formalPeriodOne": false,
+            "integrationRule": "piecewise-linear-trapezoidal-on-waveform-samples-v1",
+            "volumeBalanceConvention": "deltaV=integral(Qvenous-Qav)dt",
+            "trapezoidalVenousInflowVolumeM3": 0.000030975317369946276,
+            "trapezoidalAvOutflowVolumeM3": 0.00004953739912480235,
+            "netIntegratedInflowMinusOutflowM3": -0.000018562081754856075,
+            "observedAtrialVolumeChangeM3": -0.000018598484798136918,
+            "trapezoidalDiscreteMassBalanceClosureErrorM3": -3.640304328084257e-8,
+            "absoluteTrapezoidalDiscreteMassBalanceClosureErrorM3": 3.640304328084257e-8,
+            "shapeFitOrGateUsed": false
+          }
+        },
+        "chamberPvClosedPolygonDiagnosticPaM3": {
+          "LA": {
+            "observedOpenPathIntegralPdvPaM3": -0.02414184935997167,
+            "closingChordContributionPdvPaM3": 0.0006122051791232409,
+            "closedPolygonIntegralPdvPaM3": -0.02352964418084843,
+            "signedShoelaceAreaPaM3": 0.02352964418084845,
+            "absoluteShoelaceAreaPaM3": 0.02352964418084845,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          },
+          "LV": {
+            "observedOpenPathIntegralPdvPaM3": -1.0586384077446933,
+            "closingChordContributionPdvPaM3": 0.00016141654118661644,
+            "closedPolygonIntegralPdvPaM3": -1.0584769912035068,
+            "signedShoelaceAreaPaM3": 1.0584769912035077,
+            "absoluteShoelaceAreaPaM3": 1.0584769912035077,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          },
+          "RA": {
+            "observedOpenPathIntegralPdvPaM3": -0.00836743625097826,
+            "closingChordContributionPdvPaM3": 0.0002248901682995595,
+            "closedPolygonIntegralPdvPaM3": -0.0081425460826787,
+            "signedShoelaceAreaPaM3": 0.008142546082678673,
+            "absoluteShoelaceAreaPaM3": 0.008142546082678673,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          },
+          "RV": {
+            "observedOpenPathIntegralPdvPaM3": -0.3484581825947254,
+            "closingChordContributionPdvPaM3": 0.0007817763210135857,
+            "closedPolygonIntegralPdvPaM3": -0.3476764062737118,
+            "signedShoelaceAreaPaM3": 0.34767640627371166,
+            "absoluteShoelaceAreaPaM3": 0.34767640627371166,
+            "closingChordApplied": true,
+            "formalPeriodOne": false,
+            "physiologicalLoopWorkClaimed": false
+          }
+        },
+        "selectedWaveformSummary": {
+          "volumeByChamberM3": {
+            "LA": {
+              "minimum": 0.000017821385433866455,
+              "maximum": 0.00006112375345268833,
+              "mean": 0.00004091097668896094
+            },
+            "LV": {
+              "minimum": 0.00007594997130925202,
+              "maximum": 0.0001600188364505542,
+              "mean": 0.00011317528021282998
+            },
+            "RA": {
+              "minimum": 0.00002551898434277526,
+              "maximum": 0.00006113744461825195,
+              "mean": 0.00004526739902883096
+            },
+            "RV": {
+              "minimum": 0.00009691995979732609,
+              "maximum": 0.00017510522890601366,
+              "mean": 0.0001314583806279572
+            }
+          },
+          "absolutePressureBySelectedNodePa": {
+            "LA": {
+              "minimum": 524.0467576012419,
+              "maximum": 2371.1067525735584,
+              "mean": 1016.442544212562
+            },
+            "LV": {
+              "minimum": 296.3379408729768,
+              "maximum": 14384.482933603913,
+              "mean": 4448.8965220757345
+            },
+            "Ao": {
+              "minimum": 10210.848910711136,
+              "maximum": 14394.953806787904,
+              "mean": 11389.980295099764
+            },
+            "PVein": {
+              "minimum": 1215.2743408983529,
+              "maximum": 1734.6563271771224,
+              "mean": 1430.0357878560192
+            },
+            "RA": {
+              "minimum": 63.14148379792597,
+              "maximum": 1167.9072574522543,
+              "mean": 493.1614665105616
+            },
+            "RV": {
+              "minimum": 92.42249532714119,
+              "maximum": 5490.358505395795,
+              "mean": 1502.360802675277
+            },
+            "PA": {
+              "minimum": 997.5737738637439,
+              "maximum": 4912.948600705611,
+              "mean": 2386.1177118364344
+            },
+            "VC": {
+              "minimum": 966.0255448609471,
+              "maximum": 999.6907801717964,
+              "mean": 984.6453679809237
+            }
+          },
+          "flowBySelectedEdgeM3PerSec": {
+            "Q_MV": {
+              "minimum": -0.00004411063706574283,
+              "maximum": 0.0005238163747196753,
+              "mean": 0.00010343250978976784
+            },
+            "Q_AoV": {
+              "minimum": -0.000004306845798740208,
+              "maximum": 0.0010443737180360585,
+              "mean": 0.00010370720610197025
+            },
+            "PVein_LA": {
+              "minimum": -0.00023987796495948847,
+              "maximum": 0.00022847342355202308,
+              "mean": 0.00010255219837564525
+            },
+            "Q_TV": {
+              "minimum": -0.000001597138590658738,
+              "maximum": 0.00035003645887177697,
+              "mean": 0.00009284851726084348
+            },
+            "Q_PuV": {
+              "minimum": -4.957437837751297e-8,
+              "maximum": 0.0009121748003764268,
+              "mean": 0.00009767332671013168
+            },
+            "VC_RA": {
+              "minimum": -0.00003279989880861112,
+              "maximum": 0.00017381120748165702,
+              "mean": 0.00009201753968121542
+            }
+          }
+        }
+      }
+    }
+  ],
+  "terminal": {
+    "completedCycleCount": 3,
+    "configuredCycleCount": 3,
+    "status": "completed-configured-exploratory-cycles",
+    "failure": null,
+    "formalPeriodOneConvergenceEvaluated": false,
+    "formalPeriodOneConvergencePass": false,
+    "physiologicalValidationPass": false,
+    "acceptedTimeStepSec": {
+      "minimum": 0.0019999999999998908,
+      "maximum": 0.004000000000000448
+    },
+    "solverRetrySubdivisionCount": 0,
+    "maximumRetryDepthUsed": 0,
+    "adaptiveRetrySubdivisionApplied": false,
+    "modelOrConstitutiveFallbackApplied": false,
+    "fixedTimeStepIntegrationClaimed": false,
+    "minimumVascularPvDomainMarginM3": 0.00002177772690016077
+  },
+  "atrialPvReservoirConduitReadback": {
+    "readbackId": "phase-b1-atrial-pv-reservoir-conduit-held-out-readback-v1",
+    "status": "held-out-atrial-pv-reservoir-conduit-diagnostic",
+    "sourceTraceContentSha256": "034fd92e7bf638d7efa1f3feaddabab483d5a0ee30e98e78923f9e3d3fde1d8a",
+    "atriumOrder": [
+      "LA",
+      "RA"
+    ],
+    "units": {
+      "phase": "s",
+      "volume": "m3",
+      "pressure": "Pa",
+      "flow": "m3/s",
+      "pvArea": "Pa*m3"
+    },
+    "periodicity": {
+      "formalPeriodOneConvergencePass": false,
+      "gateEligible": false,
+      "classification": "nonperiodic-exploratory-readback",
+      "diagnosticComputedRegardlessOfGateEligibility": true
+    },
+    "analysisPolicy": {
+      "functionalValveLobeDefinition": "unique-largest-positive-integrated-volume-interval-on-cyclic-signed-flow",
+      "valveZeroCrossingInterpolation": "linear-chord",
+      "reservoirBranchDefinition": "first-post-closure-local-volume-minimum-through-pre-opening-global-volume-maximum",
+      "conduitBranchDefinition": "exact-av-opening-boundary-through-first-post-opening-local-volume-minimum",
+      "branchInterpolation": "piecewise-linear-on-strict-monotone-volume",
+      "commonVolumeGrid": "fixed-101-point-uniform-grid-including-overlap-endpoints",
+      "pressureDifferenceConvention": "reservoir-minus-conduit",
+      "pressureMeanDefinition": "trapezoidal-volume-integral-divided-by-overlap-width",
+      "pvAreaDefinition": "signed-shoelace-with-explicit-closing-chord",
+      "numericalVolumeComparisonToleranceM3": 1e-15,
+      "uniqueLobeRelativeIntegralTolerance": 1e-12,
+      "uniqueLobeAbsoluteIntegralToleranceM3": 1e-18,
+      "readbackUsedForCandidateSelection": false,
+      "readbackUsedAsFittingObjective": false
+    },
+    "byAtrium": {
+      "LA": {
+        "atrium": "LA",
+        "valveFlow": "Q_MV",
+        "status": "ambiguous",
+        "reasons": [
+          "conduit-branch-is-not-strictly-decreasing"
+        ],
+        "functionalValveLobe": {
+          "status": "resolved",
+          "positiveLobeCount": 1,
+          "selectedIntegratedPositiveVolumeM3": 0.00008357992250733199,
+          "nextLargestIntegratedPositiveVolumeM3": null,
+          "opening": {
+            "phaseSec": 0.5400040972131739,
+            "endpoint": {
+              "phaseSec": 0.5400040972131739,
+              "volumeM3": 0.00005746478085010834,
+              "pressurePa": 1145.5496098463636
+            },
+            "bracketSampleIndices": [
+              137,
+              138
+            ]
+          },
+          "closure": {
+            "phaseSec": 0.13168408157626388,
+            "endpoint": {
+              "phaseSec": 0.13168408157626388,
+              "volumeM3": 0.000019019157192488537,
+              "pressurePa": 732.368194268111
+            },
+            "bracketSampleIndices": [
+              33,
+              34
+            ]
+          },
+          "wrapsCycleBoundary": true,
+          "crossingInterpolation": "linear-chord"
+        },
+        "exactInterpolatedValveBoundaryEndpointsPreserved": true,
+        "reservoirBranch": {
+          "role": "reservoir",
+          "expectedVolumeDirection": "increasing",
+          "status": "resolved",
+          "points": [
+            {
+              "phaseSec": 0.13168408157626388,
+              "volumeM3": 0.000019019157192488537,
+              "pressurePa": 732.368194268111
+            },
+            {
+              "phaseSec": 0.13200000000000012,
+              "volumeM3": 0.00001907103735194989,
+              "pressurePa": 733.740049802147
+            },
+            {
+              "phaseSec": 0.13600000000000012,
+              "volumeM3": 0.000019819182359125387,
+              "pressurePa": 761.4885530879993
+            },
+            {
+              "phaseSec": 0.14000000000000012,
+              "volumeM3": 0.000020562258388446494,
+              "pressurePa": 785.8989530737833
+            },
+            {
+              "phaseSec": 0.14400000000000013,
+              "volumeM3": 0.000021250255375600822,
+              "pressurePa": 803.1365855872974
+            },
+            {
+              "phaseSec": 0.1479999999999999,
+              "volumeM3": 0.00002187456595113311,
+              "pressurePa": 815.1998925559426
+            },
+            {
+              "phaseSec": 0.1519999999999999,
+              "volumeM3": 0.000022446137281387624,
+              "pressurePa": 825.3279844208419
+            },
+            {
+              "phaseSec": 0.15599999999999992,
+              "volumeM3": 0.000022978151697813212,
+              "pressurePa": 835.7668044022241
+            },
+            {
+              "phaseSec": 0.15999999999999992,
+              "volumeM3": 0.00002347963466974849,
+              "pressurePa": 847.5478098186223
+            },
+            {
+              "phaseSec": 0.16399999999999992,
+              "volumeM3": 0.00002395603344587677,
+              "pressurePa": 860.5374530496633
+            },
+            {
+              "phaseSec": 0.16799999999999993,
+              "volumeM3": 0.000024410662159734763,
+              "pressurePa": 874.4076286374121
+            },
+            {
+              "phaseSec": 0.17199999999999993,
+              "volumeM3": 0.000024845834827272236,
+              "pressurePa": 888.7035484201165
+            },
+            {
+              "phaseSec": 0.17599999999999993,
+              "volumeM3": 0.000025263441477320594,
+              "pressurePa": 902.974316111384
+            },
+            {
+              "phaseSec": 0.17999999999999994,
+              "volumeM3": 0.000025665230030262747,
+              "pressurePa": 916.8324682238095
+            },
+            {
+              "phaseSec": 0.18199999999999994,
+              "volumeM3": 0.000025862459471422163,
+              "pressurePa": 923.4725063914318
+            },
+            {
+              "phaseSec": 0.18399999999999994,
+              "volumeM3": 0.000026056213037022636,
+              "pressurePa": 929.9509685441583
+            },
+            {
+              "phaseSec": 0.18799999999999994,
+              "volumeM3": 0.000026431129897270744,
+              "pressurePa": 942.2328961450944
+            },
+            {
+              "phaseSec": 0.19199999999999995,
+              "volumeM3": 0.000026795041962955263,
+              "pressurePa": 953.3974555945899
+            },
+            {
+              "phaseSec": 0.19599999999999995,
+              "volumeM3": 0.0000271494953101312,
+              "pressurePa": 963.369255109959
+            },
+            {
+              "phaseSec": 0.19999999999999996,
+              "volumeM3": 0.000027496031084685728,
+              "pressurePa": 972.1325660085654
+            },
+            {
+              "phaseSec": 0.20399999999999996,
+              "volumeM3": 0.000027836140373614953,
+              "pressurePa": 979.7175887290858
+            },
+            {
+              "phaseSec": 0.20799999999999996,
+              "volumeM3": 0.000028171084712664704,
+              "pressurePa": 986.178367221188
+            },
+            {
+              "phaseSec": 0.21199999999999997,
+              "volumeM3": 0.000028501940431475986,
+              "pressurePa": 991.5886682458189
+            },
+            {
+              "phaseSec": 0.21599999999999997,
+              "volumeM3": 0.000028829659514771054,
+              "pressurePa": 996.0389926816221
+            },
+            {
+              "phaseSec": 0.21999999999999997,
+              "volumeM3": 0.000029155071999546283,
+              "pressurePa": 999.6300229066621
+            },
+            {
+              "phaseSec": 0.22399999999999998,
+              "volumeM3": 0.00002947885020225479,
+              "pressurePa": 1002.4646670297337
+            },
+            {
+              "phaseSec": 0.22799999999999998,
+              "volumeM3": 0.000029801540754474186,
+              "pressurePa": 1004.6456016861817
+            },
+            {
+              "phaseSec": 0.23199999999999998,
+              "volumeM3": 0.000030123586306826883,
+              "pressurePa": 1006.2728087229481
+            },
+            {
+              "phaseSec": 0.236,
+              "volumeM3": 0.00003044533668647248,
+              "pressurePa": 1007.4411960675457
+            },
+            {
+              "phaseSec": 0.24,
+              "volumeM3": 0.00003076705940420773,
+              "pressurePa": 1008.2389069575096
+            },
+            {
+              "phaseSec": 0.244,
+              "volumeM3": 0.000031088948343346267,
+              "pressurePa": 1008.7461591305697
+            },
+            {
+              "phaseSec": 0.248,
+              "volumeM3": 0.00003141113123636958,
+              "pressurePa": 1009.0345577989947
+            },
+            {
+              "phaseSec": 0.252,
+              "volumeM3": 0.00003173368632085572,
+              "pressurePa": 1009.1673392931061
+            },
+            {
+              "phaseSec": 0.256,
+              "volumeM3": 0.0000320566461371467,
+              "pressurePa": 1009.1992396545944
+            },
+            {
+              "phaseSec": 0.26,
+              "volumeM3": 0.00003237996920652488,
+              "pressurePa": 1009.1750439909986
+            },
+            {
+              "phaseSec": 0.264,
+              "volumeM3": 0.00003270357362475207,
+              "pressurePa": 1009.1315911231734
+            },
+            {
+              "phaseSec": 0.268,
+              "volumeM3": 0.00003302735226268583,
+              "pressurePa": 1009.0988196309788
+            },
+            {
+              "phaseSec": 0.272,
+              "volumeM3": 0.00003335118105949669,
+              "pressurePa": 1009.1005333863972
+            },
+            {
+              "phaseSec": 0.276,
+              "volumeM3": 0.00003367492566303491,
+              "pressurePa": 1009.1551504398218
+            },
+            {
+              "phaseSec": 0.28,
+              "volumeM3": 0.00003399844717434108,
+              "pressurePa": 1009.2764474890656
+            },
+            {
+              "phaseSec": 0.28400000000000003,
+              "volumeM3": 0.00003432160714251784,
+              "pressurePa": 1009.4742826017263
+            },
+            {
+              "phaseSec": 0.28800000000000003,
+              "volumeM3": 0.000034644271877002156,
+              "pressurePa": 1009.755279623317
+            },
+            {
+              "phaseSec": 0.29200000000000004,
+              "volumeM3": 0.00003496631683446931,
+              "pressurePa": 1010.1234915281337
+            },
+            {
+              "phaseSec": 0.29600000000000004,
+              "volumeM3": 0.00003528763003285737,
+              "pressurePa": 1010.5809864205485
+            },
+            {
+              "phaseSec": 0.30000000000000004,
+              "volumeM3": 0.000035608114244279044,
+              "pressurePa": 1011.1283435381594
+            },
+            {
+              "phaseSec": 0.30400000000000005,
+              "volumeM3": 0.00003592768522241202,
+              "pressurePa": 1011.7649526249038
+            },
+            {
+              "phaseSec": 0.30800000000000005,
+              "volumeM3": 0.00003624627163509382,
+              "pressurePa": 1012.4893485789285
+            },
+            {
+              "phaseSec": 0.31200000000000006,
+              "volumeM3": 0.000036563824313869423,
+              "pressurePa": 1013.2998523082948
+            },
+            {
+              "phaseSec": 0.31600000000000006,
+              "volumeM3": 0.0000368803156754826,
+              "pressurePa": 1014.1947749397998
+            },
+            {
+              "phaseSec": 0.32000000000000006,
+              "volumeM3": 0.00003719574152547027,
+              "pressurePa": 1015.1726810451116
+            },
+            {
+              "phaseSec": 0.32400000000000007,
+              "volumeM3": 0.000037510116621725574,
+              "pressurePa": 1016.2323968179381
+            },
+            {
+              "phaseSec": 0.32800000000000007,
+              "volumeM3": 0.000037823472209124044,
+              "pressurePa": 1017.3730738631217
+            },
+            {
+              "phaseSec": 0.3320000000000001,
+              "volumeM3": 0.00003813585680960329,
+              "pressurePa": 1018.594339782522
+            },
+            {
+              "phaseSec": 0.3360000000000001,
+              "volumeM3": 0.00003844733671492088,
+              "pressurePa": 1019.8964066487233
+            },
+            {
+              "phaseSec": 0.3400000000000001,
+              "volumeM3": 0.000038757996330499184,
+              "pressurePa": 1021.280149530688
+            },
+            {
+              "phaseSec": 0.3440000000000001,
+              "volumeM3": 0.000039067938354961025,
+              "pressurePa": 1022.7471606498781
+            },
+            {
+              "phaseSec": 0.3480000000000001,
+              "volumeM3": 0.000039377280253916115,
+              "pressurePa": 1024.299673580464
+            },
+            {
+              "phaseSec": 0.35199999999999987,
+              "volumeM3": 0.000039686154087545064,
+              "pressurePa": 1025.9405892028255
+            },
+            {
+              "phaseSec": 0.35599999999999987,
+              "volumeM3": 0.000039994705293597393,
+              "pressurePa": 1027.6734597341174
+            },
+            {
+              "phaseSec": 0.3599999999999999,
+              "volumeM3": 0.00004030309186006795,
+              "pressurePa": 1029.5024798156617
+            },
+            {
+              "phaseSec": 0.3639999999999999,
+              "volumeM3": 0.00004061148345154434,
+              "pressurePa": 1031.4324730050873
+            },
+            {
+              "phaseSec": 0.3679999999999999,
+              "volumeM3": 0.00004092006039004905,
+              "pressurePa": 1033.4688734086426
+            },
+            {
+              "phaseSec": 0.3719999999999999,
+              "volumeM3": 0.00004122901206405412,
+              "pressurePa": 1035.6176930171684
+            },
+            {
+              "phaseSec": 0.3759999999999999,
+              "volumeM3": 0.00004153853452769332,
+              "pressurePa": 1037.8854712805053
+            },
+            {
+              "phaseSec": 0.3799999999999999,
+              "volumeM3": 0.00004184882735915758,
+              "pressurePa": 1040.2792114871852
+            },
+            {
+              "phaseSec": 0.3839999999999999,
+              "volumeM3": 0.000042160094282127444,
+              "pressurePa": 1042.8064251760006
+            },
+            {
+              "phaseSec": 0.3879999999999999,
+              "volumeM3": 0.00004247254449229391,
+              "pressurePa": 1045.4751963364329
+            },
+            {
+              "phaseSec": 0.3919999999999999,
+              "volumeM3": 0.00004278639214495457,
+              "pressurePa": 1048.2942031795665
+            },
+            {
+              "phaseSec": 0.3959999999999999,
+              "volumeM3": 0.00004310185431620863,
+              "pressurePa": 1051.2727135284642
+            },
+            {
+              "phaseSec": 0.3999999999999999,
+              "volumeM3": 0.00004341914857645078,
+              "pressurePa": 1054.420586355945
+            },
+            {
+              "phaseSec": 0.4039999999999999,
+              "volumeM3": 0.000043738490512655986,
+              "pressurePa": 1057.7482877117195
+            },
+            {
+              "phaseSec": 0.4079999999999999,
+              "volumeM3": 0.00004406009117450735,
+              "pressurePa": 1061.2669197271591
+            },
+            {
+              "phaseSec": 0.4119999999999999,
+              "volumeM3": 0.00004438415442825713,
+              "pressurePa": 1064.9882620744236
+            },
+            {
+              "phaseSec": 0.4159999999999999,
+              "volumeM3": 0.000044710874215251646,
+              "pressurePa": 1068.9248259437777
+            },
+            {
+              "phaseSec": 0.41999999999999993,
+              "volumeM3": 0.00004504043171007934,
+              "pressurePa": 1073.089920780743
+            },
+            {
+              "phaseSec": 0.42399999999999993,
+              "volumeM3": 0.0000453729924358569,
+              "pressurePa": 1077.4977355152648
+            },
+            {
+              "phaseSec": 0.42799999999999994,
+              "volumeM3": 0.000045708703296354466,
+              "pressurePa": 1082.1634337023684
+            },
+            {
+              "phaseSec": 0.43199999999999994,
+              "volumeM3": 0.00004604768948101583,
+              "pressurePa": 1087.1032618552606
+            },
+            {
+              "phaseSec": 0.43599999999999994,
+              "volumeM3": 0.00004639005130236615,
+              "pressurePa": 1092.3346721932526
+            },
+            {
+              "phaseSec": 0.43999999999999995,
+              "volumeM3": 0.000046735861001796314,
+              "pressurePa": 1097.8764599101307
+            },
+            {
+              "phaseSec": 0.44399999999999995,
+              "volumeM3": 0.00004708515952810556,
+              "pressurePa": 1103.7489137539194
+            },
+            {
+              "phaseSec": 0.44799999999999995,
+              "volumeM3": 0.000047437953293891796,
+              "pressurePa": 1109.9739779575884
+            },
+            {
+              "phaseSec": 0.45199999999999996,
+              "volumeM3": 0.00004779421091881284,
+              "pressurePa": 1116.5754226376332
+            },
+            {
+              "phaseSec": 0.45599999999999996,
+              "volumeM3": 0.000048153859972854366,
+              "pressurePa": 1123.5790185744656
+            },
+            {
+              "phaseSec": 0.45999999999999996,
+              "volumeM3": 0.0000485167837373525,
+              "pressurePa": 1131.0127107688966
+            },
+            {
+              "phaseSec": 0.46399999999999997,
+              "volumeM3": 0.000048882818497569374,
+              "pressurePa": 1138.9067927449246
+            },
+            {
+              "phaseSec": 0.46799999999999997,
+              "volumeM3": 0.000049252469983298294,
+              "pressurePa": 1146.5413345941397
+            },
+            {
+              "phaseSec": 0.472,
+              "volumeM3": 0.00004962647108242316,
+              "pressurePa": 1153.6329248636368
+            },
+            {
+              "phaseSec": 0.476,
+              "volumeM3": 0.00005000572584417867,
+              "pressurePa": 1159.9482235266921
+            },
+            {
+              "phaseSec": 0.48,
+              "volumeM3": 0.00005039142109932267,
+              "pressurePa": 1165.13058737157
+            },
+            {
+              "phaseSec": 0.484,
+              "volumeM3": 0.00005078485625612463,
+              "pressurePa": 1168.9909793388222
+            },
+            {
+              "phaseSec": 0.488,
+              "volumeM3": 0.0000511872966148606,
+              "pressurePa": 1171.4897522283277
+            },
+            {
+              "phaseSec": 0.492,
+              "volumeM3": 0.00005159986796156469,
+              "pressurePa": 1172.6987174528415
+            },
+            {
+              "phaseSec": 0.496,
+              "volumeM3": 0.00005202349257635987,
+              "pressurePa": 1172.7614164979134
+            },
+            {
+              "phaseSec": 0.5,
+              "volumeM3": 0.00005245885935893813,
+              "pressurePa": 1171.8594776845723
+            },
+            {
+              "phaseSec": 0.504,
+              "volumeM3": 0.000052906418888963485,
+              "pressurePa": 1170.1873745569071
+            },
+            {
+              "phaseSec": 0.508,
+              "volumeM3": 0.00005336639495659731,
+              "pressurePa": 1167.9352151256087
+            },
+            {
+              "phaseSec": 0.512,
+              "volumeM3": 0.00005383880577534601,
+              "pressurePa": 1165.2781352554816
+            },
+            {
+              "phaseSec": 0.516,
+              "volumeM3": 0.00005432348989144676,
+              "pressurePa": 1162.3706495379404
+            },
+            {
+              "phaseSec": 0.52,
+              "volumeM3": 0.000054820133399603376,
+              "pressurePa": 1159.3444704384003
+            },
+            {
+              "phaseSec": 0.524,
+              "volumeM3": 0.00005532829631783293,
+              "pressurePa": 1156.308595547489
+            },
+            {
+              "phaseSec": 0.528,
+              "volumeM3": 0.00005584743688963858,
+              "pressurePa": 1153.3507637204027
+            },
+            {
+              "phaseSec": 0.532,
+              "volumeM3": 0.00005637693321486049,
+              "pressurePa": 1150.5396428361087
+            },
+            {
+              "phaseSec": 0.536,
+              "volumeM3": 0.000056916102028046997,
+              "pressurePa": 1147.9273197039806
+            },
+            {
+              "phaseSec": 0.54,
+              "volumeM3": 0.000057464214695713916,
+              "pressurePa": 1145.5518177290674
+            },
+            {
+              "phaseSec": 0.5400040972131739,
+              "volumeM3": 0.00005746478085010834,
+              "pressurePa": 1145.5496098463636
+            }
+          ],
+          "sampleCount": 106,
+          "strictlyMonotone": true,
+          "minimumVolumeM3": 0.000019019157192488537,
+          "maximumVolumeM3": 0.00005746478085010834,
+          "startPhaseSec": 0.13168408157626388,
+          "endPhaseSec": 0.5400040972131739
+        },
+        "conduitBranch": {
+          "role": "early-conduit",
+          "expectedVolumeDirection": "decreasing",
+          "status": "ambiguous",
+          "points": [
+            {
+              "phaseSec": 0.5400040972131739,
+              "volumeM3": 0.00005746478085010834,
+              "pressurePa": 1145.5496098463636
+            },
+            {
+              "phaseSec": 0.544,
+              "volumeM3": 0.00005801693613870207,
+              "pressurePa": 1143.39632070205
+            },
+            {
+              "phaseSec": 0.548,
+              "volumeM3": 0.00005855911359511247,
+              "pressurePa": 1141.3081707440842
+            },
+            {
+              "phaseSec": 0.552,
+              "volumeM3": 0.00005907671409436636,
+              "pressurePa": 1139.1509350109093
+            },
+            {
+              "phaseSec": 0.556,
+              "volumeM3": 0.00005955711983183823,
+              "pressurePa": 1136.8058321483707
+            },
+            {
+              "phaseSec": 0.56,
+              "volumeM3": 0.000059989121718179316,
+              "pressurePa": 1134.169481088722
+            },
+            {
+              "phaseSec": 0.5640000000000001,
+              "volumeM3": 0.00006036289168267623,
+              "pressurePa": 1131.1518108548237
+            },
+            {
+              "phaseSec": 0.5680000000000001,
+              "volumeM3": 0.000060669942535588834,
+              "pressurePa": 1127.674335240447
+            },
+            {
+              "phaseSec": 0.5720000000000001,
+              "volumeM3": 0.00006090298698198929,
+              "pressurePa": 1123.746370533428
+            },
+            {
+              "phaseSec": 0.5760000000000001,
+              "volumeM3": 0.00006105591202853912,
+              "pressurePa": 1119.3486027341376
+            },
+            {
+              "phaseSec": 0.5800000000000001,
+              "volumeM3": 0.00006112375345268833,
+              "pressurePa": 1114.4343481669123
+            },
+            {
+              "phaseSec": 0.5840000000000001,
+              "volumeM3": 0.00006110265377387233,
+              "pressurePa": 1108.9455321737453
+            },
+            {
+              "phaseSec": 0.5880000000000001,
+              "volumeM3": 0.00006098980810773577,
+              "pressurePa": 1102.823050130681
+            },
+            {
+              "phaseSec": 0.5920000000000001,
+              "volumeM3": 0.00006078340274107802,
+              "pressurePa": 1096.0118964859714
+            },
+            {
+              "phaseSec": 0.5960000000000001,
+              "volumeM3": 0.000060482549984600927,
+              "pressurePa": 1088.462930143402
+            },
+            {
+              "phaseSec": 0.6000000000000001,
+              "volumeM3": 0.00006008722192382038,
+              "pressurePa": 1080.1325937006347
+            },
+            {
+              "phaseSec": 0.6040000000000001,
+              "volumeM3": 0.000059598185113876296,
+              "pressurePa": 1070.9814001157617
+            },
+            {
+              "phaseSec": 0.6080000000000001,
+              "volumeM3": 0.00005901693789476846,
+              "pressurePa": 1060.9716888226953
+            },
+            {
+              "phaseSec": 0.6120000000000001,
+              "volumeM3": 0.00005834565174948188,
+              "pressurePa": 1050.0649748786484
+            },
+            {
+              "phaseSec": 0.6160000000000001,
+              "volumeM3": 0.000057587117953844306,
+              "pressurePa": 1038.21911553129
+            },
+            {
+              "phaseSec": 0.6200000000000001,
+              "volumeM3": 0.00005674476005241838,
+              "pressurePa": 1025.3862805677672
+            },
+            {
+              "phaseSec": 0.6240000000000001,
+              "volumeM3": 0.00005582253459129914,
+              "pressurePa": 1011.509502969119
+            },
+            {
+              "phaseSec": 0.6280000000000001,
+              "volumeM3": 0.00005482487378426467,
+              "pressurePa": 996.5198952805345
+            },
+            {
+              "phaseSec": 0.6320000000000001,
+              "volumeM3": 0.000053756663999382535,
+              "pressurePa": 980.3346076975332
+            },
+            {
+              "phaseSec": 0.6360000000000001,
+              "volumeM3": 0.00005262323100571596,
+              "pressurePa": 962.855278835923
+            },
+            {
+              "phaseSec": 0.6400000000000001,
+              "volumeM3": 0.00005143033328186042,
+              "pressurePa": 943.9671600151873
+            },
+            {
+              "phaseSec": 0.6440000000000001,
+              "volumeM3": 0.000050188783318063904,
+              "pressurePa": 923.6220812005641
+            },
+            {
+              "phaseSec": 0.6480000000000001,
+              "volumeM3": 0.00004891043260720806,
+              "pressurePa": 901.7383243423296
+            },
+            {
+              "phaseSec": 0.6520000000000001,
+              "volumeM3": 0.00004760806397353606,
+              "pressurePa": 877.7771461561804
+            },
+            {
+              "phaseSec": 0.6560000000000001,
+              "volumeM3": 0.000046294365167588165,
+              "pressurePa": 852.0959163874857
+            },
+            {
+              "phaseSec": 0.6600000000000001,
+              "volumeM3": 0.00004498222139564958,
+              "pressurePa": 824.6958179173664
+            },
+            {
+              "phaseSec": 0.6640000000000001,
+              "volumeM3": 0.00004368452703380611,
+              "pressurePa": 795.6915433301646
+            },
+            {
+              "phaseSec": 0.6680000000000001,
+              "volumeM3": 0.00004241398746334269,
+              "pressurePa": 765.3075154936867
+            },
+            {
+              "phaseSec": 0.6720000000000002,
+              "volumeM3": 0.00004118291838954179,
+              "pressurePa": 733.8688681031816
+            },
+            {
+              "phaseSec": 0.6760000000000002,
+              "volumeM3": 0.00004000304425893522,
+              "pressurePa": 701.7926761064195
+            },
+            {
+              "phaseSec": 0.6800000000000002,
+              "volumeM3": 0.00003888529707146325,
+              "pressurePa": 669.5794289427114
+            },
+            {
+              "phaseSec": 0.6840000000000002,
+              "volumeM3": 0.00003783961936017098,
+              "pressurePa": 637.8023789715625
+            },
+            {
+              "phaseSec": 0.6880000000000002,
+              "volumeM3": 0.00003687478424789024,
+              "pressurePa": 607.0922459008701
+            },
+            {
+              "phaseSec": 0.6920000000000002,
+              "volumeM3": 0.000035999021595366966,
+              "pressurePa": 578.1476295184809
+            },
+            {
+              "phaseSec": 0.6960000000000002,
+              "volumeM3": 0.000035251830183059164,
+              "pressurePa": 553.1012984167154
+            },
+            {
+              "phaseSec": 0.7000000000000002,
+              "volumeM3": 0.00003467291142268703,
+              "pressurePa": 534.3570105920088
+            },
+            {
+              "phaseSec": 0.7040000000000002,
+              "volumeM3": 0.00003429675348184394,
+              "pressurePa": 524.1704410727355
+            },
+            {
+              "phaseSec": 0.7079999999999997,
+              "volumeM3": 0.000034145551073383445,
+              "pressurePa": 524.0467576012419
+            }
+          ],
+          "sampleCount": 43,
+          "strictlyMonotone": false,
+          "minimumVolumeM3": 0.000034145551073383445,
+          "maximumVolumeM3": 0.00006112375345268833,
+          "startPhaseSec": 0.5400040972131739,
+          "endPhaseSec": 0.7079999999999997
+        },
+        "matchedVolume": null,
+        "wholeCyclePv": {
+          "signedShoelaceAreaPaM3": 0.02352964418084845,
+          "absoluteShoelaceAreaPaM3": 0.02352964418084845,
+          "volumeRangeM3": {
+            "minimum": 0.000017821385433866455,
+            "maximum": 0.00006112375345268833,
+            "width": 0.00004330236801882188
+          },
+          "pressureRangePa": {
+            "minimum": 524.0467576012419,
+            "maximum": 2371.1067525735584,
+            "width": 1847.0599949723164
+          },
+          "closingChordApplied": true
+        }
+      },
+      "RA": {
+        "atrium": "RA",
+        "valveFlow": "Q_TV",
+        "status": "ambiguous",
+        "reasons": [
+          "conduit-branch-is-not-strictly-decreasing"
+        ],
+        "functionalValveLobe": {
+          "status": "resolved",
+          "positiveLobeCount": 1,
+          "selectedIntegratedPositiveVolumeM3": 0.00007431228074193476,
+          "nextLargestIntegratedPositiveVolumeM3": null,
+          "opening": {
+            "phaseSec": 0.504009398281653,
+            "endpoint": {
+              "phaseSec": 0.504009398281653,
+              "volumeM3": 0.000059723180557073006,
+              "pressurePa": 667.5947466547061
+            },
+            "bracketSampleIndices": [
+              128,
+              129
+            ]
+          },
+          "closure": {
+            "phaseSec": 0.13522208143804526,
+            "endpoint": {
+              "phaseSec": 0.13522208143804526,
+              "volumeM3": 0.000027740836905391273,
+              "pressurePa": 112.97025234675148
+            },
+            "bracketSampleIndices": [
+              34,
+              35
+            ]
+          },
+          "wrapsCycleBoundary": true,
+          "crossingInterpolation": "linear-chord"
+        },
+        "exactInterpolatedValveBoundaryEndpointsPreserved": true,
+        "reservoirBranch": {
+          "role": "reservoir",
+          "expectedVolumeDirection": "increasing",
+          "status": "resolved",
+          "points": [
+            {
+              "phaseSec": 0.13522208143804526,
+              "volumeM3": 0.000027740836905391273,
+              "pressurePa": 112.97025234675148
+            },
+            {
+              "phaseSec": 0.13600000000000012,
+              "volumeM3": 0.00002786903692078513,
+              "pressurePa": 117.22666244023198
+            },
+            {
+              "phaseSec": 0.14000000000000012,
+              "volumeM3": 0.000028512695430706965,
+              "pressurePa": 138.08058207864752
+            },
+            {
+              "phaseSec": 0.14400000000000013,
+              "volumeM3": 0.000029137685389658337,
+              "pressurePa": 158.14432066767526
+            },
+            {
+              "phaseSec": 0.1479999999999999,
+              "volumeM3": 0.000029745590565055633,
+              "pressurePa": 177.83131265091563
+            },
+            {
+              "phaseSec": 0.1519999999999999,
+              "volumeM3": 0.00003033752613949003,
+              "pressurePa": 197.30258734901716
+            },
+            {
+              "phaseSec": 0.15599999999999992,
+              "volumeM3": 0.000030914115412024964,
+              "pressurePa": 216.5549054028518
+            },
+            {
+              "phaseSec": 0.15999999999999992,
+              "volumeM3": 0.000031475808214756865,
+              "pressurePa": 235.5079440138837
+            },
+            {
+              "phaseSec": 0.16399999999999992,
+              "volumeM3": 0.00003202303019473745,
+              "pressurePa": 254.05338712901354
+            },
+            {
+              "phaseSec": 0.16799999999999993,
+              "volumeM3": 0.00003255624052849826,
+              "pressurePa": 272.0815396145839
+            },
+            {
+              "phaseSec": 0.17199999999999993,
+              "volumeM3": 0.000033075856798360746,
+              "pressurePa": 289.61791966246153
+            },
+            {
+              "phaseSec": 0.17599999999999993,
+              "volumeM3": 0.00003358243249363899,
+              "pressurePa": 306.46611970480325
+            },
+            {
+              "phaseSec": 0.17999999999999994,
+              "volumeM3": 0.00003407656628714885,
+              "pressurePa": 322.55832943243206
+            },
+            {
+              "phaseSec": 0.18199999999999994,
+              "volumeM3": 0.00003432064462098595,
+              "pressurePa": 330.28850486316304
+            },
+            {
+              "phaseSec": 0.18399999999999994,
+              "volumeM3": 0.0000345618069385936,
+              "pressurePa": 337.83458831094674
+            },
+            {
+              "phaseSec": 0.18799999999999994,
+              "volumeM3": 0.000035032923349794864,
+              "pressurePa": 352.35570198219165
+            },
+            {
+              "phaseSec": 0.19199999999999995,
+              "volumeM3": 0.00003549347522690875,
+              "pressurePa": 366.05502100877703
+            },
+            {
+              "phaseSec": 0.19599999999999995,
+              "volumeM3": 0.000035944098851397764,
+              "pressurePa": 378.9435080788471
+            },
+            {
+              "phaseSec": 0.19999999999999996,
+              "volumeM3": 0.00003638541583730352,
+              "pressurePa": 391.04258987148927
+            },
+            {
+              "phaseSec": 0.20399999999999996,
+              "volumeM3": 0.00003681803126410973,
+              "pressurePa": 402.3819876792545
+            },
+            {
+              "phaseSec": 0.20799999999999996,
+              "volumeM3": 0.000037242519649628646,
+              "pressurePa": 412.9971269074825
+            },
+            {
+              "phaseSec": 0.21199999999999997,
+              "volumeM3": 0.000037659417043739996,
+              "pressurePa": 422.92712669662944
+            },
+            {
+              "phaseSec": 0.21599999999999997,
+              "volumeM3": 0.00003806922219591255,
+              "pressurePa": 432.21344684051934
+            },
+            {
+              "phaseSec": 0.21999999999999997,
+              "volumeM3": 0.000038472397925522266,
+              "pressurePa": 440.89873560791915
+            },
+            {
+              "phaseSec": 0.22399999999999998,
+              "volumeM3": 0.00003886937038836774,
+              "pressurePa": 449.0257809545049
+            },
+            {
+              "phaseSec": 0.22799999999999998,
+              "volumeM3": 0.00003926053300010097,
+              "pressurePa": 456.63684316484665
+            },
+            {
+              "phaseSec": 0.23199999999999998,
+              "volumeM3": 0.00003964624868641618,
+              "pressurePa": 463.77306847029945
+            },
+            {
+              "phaseSec": 0.236,
+              "volumeM3": 0.00004002685119396895,
+              "pressurePa": 470.47400866712997
+            },
+            {
+              "phaseSec": 0.24,
+              "volumeM3": 0.00004040264666422155,
+              "pressurePa": 476.7772793148132
+            },
+            {
+              "phaseSec": 0.244,
+              "volumeM3": 0.00004077391527418309,
+              "pressurePa": 482.7183283201593
+            },
+            {
+              "phaseSec": 0.248,
+              "volumeM3": 0.00004114091282707884,
+              "pressurePa": 488.3302925305726
+            },
+            {
+              "phaseSec": 0.252,
+              "volumeM3": 0.0000415038731710129,
+              "pressurePa": 493.6439570974323
+            },
+            {
+              "phaseSec": 0.256,
+              "volumeM3": 0.00004186300909319491,
+              "pressurePa": 498.6877187052941
+            },
+            {
+              "phaseSec": 0.26,
+              "volumeM3": 0.00004221851025692117,
+              "pressurePa": 503.4875013354531
+            },
+            {
+              "phaseSec": 0.264,
+              "volumeM3": 0.00004257054812025786,
+              "pressurePa": 508.0669515711451
+            },
+            {
+              "phaseSec": 0.268,
+              "volumeM3": 0.00004291927826342237,
+              "pressurePa": 512.4475621227165
+            },
+            {
+              "phaseSec": 0.272,
+              "volumeM3": 0.00004326484190401065,
+              "pressurePa": 516.6487870744047
+            },
+            {
+              "phaseSec": 0.276,
+              "volumeM3": 0.000043607367276484024,
+              "pressurePa": 520.688167457217
+            },
+            {
+              "phaseSec": 0.28,
+              "volumeM3": 0.00004394697093055098,
+              "pressurePa": 524.5814639446844
+            },
+            {
+              "phaseSec": 0.28400000000000003,
+              "volumeM3": 0.00004428375893748514,
+              "pressurePa": 528.342792171689
+            },
+            {
+              "phaseSec": 0.28800000000000003,
+              "volumeM3": 0.00004461782799514647,
+              "pressurePa": 531.9847571356512
+            },
+            {
+              "phaseSec": 0.29200000000000004,
+              "volumeM3": 0.000044949267670762657,
+              "pressurePa": 535.5186190987852
+            },
+            {
+              "phaseSec": 0.29600000000000004,
+              "volumeM3": 0.00004527816280993222,
+              "pressurePa": 538.9544574662082
+            },
+            {
+              "phaseSec": 0.30000000000000004,
+              "volumeM3": 0.00004560459501215873,
+              "pressurePa": 542.3013011911654
+            },
+            {
+              "phaseSec": 0.30400000000000005,
+              "volumeM3": 0.000045928637137069264,
+              "pressurePa": 545.5670678643381
+            },
+            {
+              "phaseSec": 0.30800000000000005,
+              "volumeM3": 0.00004625034792960538,
+              "pressurePa": 548.7585203698216
+            },
+            {
+              "phaseSec": 0.31200000000000006,
+              "volumeM3": 0.00004656978153318377,
+              "pressurePa": 551.8816152773388
+            },
+            {
+              "phaseSec": 0.31600000000000006,
+              "volumeM3": 0.00004688698835136,
+              "pressurePa": 554.9415974521215
+            },
+            {
+              "phaseSec": 0.32000000000000006,
+              "volumeM3": 0.000047202015581130055,
+              "pressurePa": 557.9430802215597
+            },
+            {
+              "phaseSec": 0.32400000000000007,
+              "volumeM3": 0.000047514907214592986,
+              "pressurePa": 560.8901072656032
+            },
+            {
+              "phaseSec": 0.32800000000000007,
+              "volumeM3": 0.00004782570427366174,
+              "pressurePa": 563.7862160308183
+            },
+            {
+              "phaseSec": 0.3320000000000001,
+              "volumeM3": 0.00004813444531692481,
+              "pressurePa": 566.6345026412798
+            },
+            {
+              "phaseSec": 0.3360000000000001,
+              "volumeM3": 0.00004844116686079429,
+              "pressurePa": 569.4376792614129
+            },
+            {
+              "phaseSec": 0.3400000000000001,
+              "volumeM3": 0.00004874588924422632,
+              "pressurePa": 572.21751163177
+            },
+            {
+              "phaseSec": 0.3440000000000001,
+              "volumeM3": 0.000049048610620227784,
+              "pressurePa": 575.0039709023887
+            },
+            {
+              "phaseSec": 0.3480000000000001,
+              "volumeM3": 0.00004934932004907965,
+              "pressurePa": 577.8092706849548
+            },
+            {
+              "phaseSec": 0.35199999999999987,
+              "volumeM3": 0.00004964800666612761,
+              "pressurePa": 580.6335483201597
+            },
+            {
+              "phaseSec": 0.35599999999999987,
+              "volumeM3": 0.00004994466425096486,
+              "pressurePa": 583.470828268707
+            },
+            {
+              "phaseSec": 0.3599999999999999,
+              "volumeM3": 0.00005023929306322194,
+              "pressurePa": 586.3126987762944
+            },
+            {
+              "phaseSec": 0.3639999999999999,
+              "volumeM3": 0.000050531900153496956,
+              "pressurePa": 589.1503302529476
+            },
+            {
+              "phaseSec": 0.3679999999999999,
+              "volumeM3": 0.00005082249928148681,
+              "pressurePa": 591.9755045171744
+            },
+            {
+              "phaseSec": 0.3719999999999999,
+              "volumeM3": 0.000051111110355606515,
+              "pressurePa": 594.7810720069706
+            },
+            {
+              "phaseSec": 0.3759999999999999,
+              "volumeM3": 0.000051397758488537165,
+              "pressurePa": 597.5610903500326
+            },
+            {
+              "phaseSec": 0.3799999999999999,
+              "volumeM3": 0.000051682472077391613,
+              "pressurePa": 600.3107799664133
+            },
+            {
+              "phaseSec": 0.3839999999999999,
+              "volumeM3": 0.000051965280756282244,
+              "pressurePa": 603.0263990449779
+            },
+            {
+              "phaseSec": 0.3879999999999999,
+              "volumeM3": 0.00005224621517916738,
+              "pressurePa": 605.7051220472243
+            },
+            {
+              "phaseSec": 0.3919999999999999,
+              "volumeM3": 0.000052525307607905594,
+              "pressurePa": 608.3449242874015
+            },
+            {
+              "phaseSec": 0.3959999999999999,
+              "volumeM3": 0.00005280259162800441,
+              "pressurePa": 610.9444537365852
+            },
+            {
+              "phaseSec": 0.3999999999999999,
+              "volumeM3": 0.000053078101659129014,
+              "pressurePa": 613.5029105139716
+            },
+            {
+              "phaseSec": 0.4039999999999999,
+              "volumeM3": 0.00005335187254447674,
+              "pressurePa": 616.0199419269597
+            },
+            {
+              "phaseSec": 0.4079999999999999,
+              "volumeM3": 0.00005362393922717933,
+              "pressurePa": 618.4955532376749
+            },
+            {
+              "phaseSec": 0.4119999999999999,
+              "volumeM3": 0.000053894336495376284,
+              "pressurePa": 620.9300328012946
+            },
+            {
+              "phaseSec": 0.4159999999999999,
+              "volumeM3": 0.00005416309878248926,
+              "pressurePa": 623.3238898912044
+            },
+            {
+              "phaseSec": 0.41999999999999993,
+              "volumeM3": 0.000054430259996901916,
+              "pressurePa": 625.6778032155358
+            },
+            {
+              "phaseSec": 0.42399999999999993,
+              "volumeM3": 0.00005469585343789347,
+              "pressurePa": 627.9925796014204
+            },
+            {
+              "phaseSec": 0.42799999999999994,
+              "volumeM3": 0.00005495991170882899,
+              "pressurePa": 630.2691199217119
+            },
+            {
+              "phaseSec": 0.43199999999999994,
+              "volumeM3": 0.00005522246664177102,
+              "pressurePa": 632.5083913529722
+            },
+            {
+              "phaseSec": 0.43599999999999994,
+              "volumeM3": 0.00005548354924584376,
+              "pressurePa": 634.7114051441793
+            },
+            {
+              "phaseSec": 0.43999999999999995,
+              "volumeM3": 0.0000557431896756799,
+              "pressurePa": 636.8791989428389
+            },
+            {
+              "phaseSec": 0.44399999999999995,
+              "volumeM3": 0.000056001417215071256,
+              "pressurePa": 639.0128228469924
+            },
+            {
+              "phaseSec": 0.44799999999999995,
+              "volumeM3": 0.00005625826027196491,
+              "pressurePa": 641.1133284937099
+            },
+            {
+              "phaseSec": 0.45199999999999996,
+              "volumeM3": 0.000056513746381903086,
+              "pressurePa": 643.1817606168828
+            },
+            {
+              "phaseSec": 0.45599999999999996,
+              "volumeM3": 0.00005676790221771617,
+              "pressurePa": 645.2191506083043
+            },
+            {
+              "phaseSec": 0.45999999999999996,
+              "volumeM3": 0.00005702075360379739,
+              "pressurePa": 647.2265116993829
+            },
+            {
+              "phaseSec": 0.46399999999999997,
+              "volumeM3": 0.00005727232552473206,
+              "pressurePa": 649.2048353168882
+            },
+            {
+              "phaseSec": 0.46799999999999997,
+              "volumeM3": 0.000057522642154997826,
+              "pressurePa": 651.1550887742723
+            },
+            {
+              "phaseSec": 0.472,
+              "volumeM3": 0.000057771726885680376,
+              "pressurePa": 653.0782137227552
+            },
+            {
+              "phaseSec": 0.476,
+              "volumeM3": 0.000058019602341484946,
+              "pressurePa": 654.9751251101293
+            },
+            {
+              "phaseSec": 0.48,
+              "volumeM3": 0.0000582662904033203,
+              "pressurePa": 656.8467107449268
+            },
+            {
+              "phaseSec": 0.484,
+              "volumeM3": 0.00005851181223103193,
+              "pressurePa": 658.693831272568
+            },
+            {
+              "phaseSec": 0.488,
+              "volumeM3": 0.00005875618828596454,
+              "pressurePa": 660.5173204696395
+            },
+            {
+              "phaseSec": 0.492,
+              "volumeM3": 0.00005899943835312911,
+              "pressurePa": 662.3179857806151
+            },
+            {
+              "phaseSec": 0.496,
+              "volumeM3": 0.00005924158156281225,
+              "pressurePa": 664.0966090360043
+            },
+            {
+              "phaseSec": 0.5,
+              "volumeM3": 0.000059482636411512164,
+              "pressurePa": 665.8539473029575
+            },
+            {
+              "phaseSec": 0.504,
+              "volumeM3": 0.00005972262078212134,
+              "pressurePa": 667.5907338291042
+            },
+            {
+              "phaseSec": 0.504009398281653,
+              "volumeM3": 0.000059723180557073006,
+              "pressurePa": 667.5947466547061
+            }
+          ],
+          "sampleCount": 96,
+          "strictlyMonotone": true,
+          "minimumVolumeM3": 0.000027740836905391273,
+          "maximumVolumeM3": 0.000059723180557073006,
+          "startPhaseSec": 0.13522208143804526,
+          "endPhaseSec": 0.504009398281653
+        },
+        "conduitBranch": {
+          "role": "early-conduit",
+          "expectedVolumeDirection": "decreasing",
+          "status": "ambiguous",
+          "points": [
+            {
+              "phaseSec": 0.504009398281653,
+              "volumeM3": 0.000059723180557073006,
+              "pressurePa": 667.5947466547061
+            },
+            {
+              "phaseSec": 0.508,
+              "volumeM3": 0.00005996086644120341,
+              "pressurePa": 669.2986314001928
+            },
+            {
+              "phaseSec": 0.512,
+              "volumeM3": 0.00006019044383839082,
+              "pressurePa": 670.887947685929
+            },
+            {
+              "phaseSec": 0.516,
+              "volumeM3": 0.00006040547530700615,
+              "pressurePa": 672.2873367858541
+            },
+            {
+              "phaseSec": 0.52,
+              "volumeM3": 0.000060600766300354445,
+              "pressurePa": 673.4370410193671
+            },
+            {
+              "phaseSec": 0.524,
+              "volumeM3": 0.00006077169706243581,
+              "pressurePa": 674.2860380574382
+            },
+            {
+              "phaseSec": 0.528,
+              "volumeM3": 0.0000609141785720389,
+              "pressurePa": 674.7903325802823
+            },
+            {
+              "phaseSec": 0.532,
+              "volumeM3": 0.00006102462445411336,
+              "pressurePa": 674.9117074354899
+            },
+            {
+              "phaseSec": 0.536,
+              "volumeM3": 0.00006109992849732933,
+              "pressurePa": 674.6167669836227
+            },
+            {
+              "phaseSec": 0.54,
+              "volumeM3": 0.00006113744461825195,
+              "pressurePa": 673.8762004645794
+            },
+            {
+              "phaseSec": 0.544,
+              "volumeM3": 0.00006113496887421916,
+              "pressurePa": 672.6642284368353
+            },
+            {
+              "phaseSec": 0.548,
+              "volumeM3": 0.0000610907239896295,
+              "pressurePa": 670.9582065485014
+            },
+            {
+              "phaseSec": 0.552,
+              "volumeM3": 0.00006100334211624827,
+              "pressurePa": 668.738302200823
+            },
+            {
+              "phaseSec": 0.556,
+              "volumeM3": 0.0000608718452767099,
+              "pressurePa": 665.9872086379247
+            },
+            {
+              "phaseSec": 0.56,
+              "volumeM3": 0.00006069562575315495,
+              "pressurePa": 662.6898982263612
+            },
+            {
+              "phaseSec": 0.5640000000000001,
+              "volumeM3": 0.000060474426339347036,
+              "pressurePa": 658.8333901252697
+            },
+            {
+              "phaseSec": 0.5680000000000001,
+              "volumeM3": 0.000060208320200045186,
+              "pressurePa": 654.4065101418092
+            },
+            {
+              "phaseSec": 0.5720000000000001,
+              "volumeM3": 0.00005989769061940363,
+              "pressurePa": 649.3996332373868
+            },
+            {
+              "phaseSec": 0.5760000000000001,
+              "volumeM3": 0.00005954321083575718,
+              "pressurePa": 643.8044044395494
+            },
+            {
+              "phaseSec": 0.5800000000000001,
+              "volumeM3": 0.000059145824139216964,
+              "pressurePa": 637.6134401678198
+            },
+            {
+              "phaseSec": 0.5840000000000001,
+              "volumeM3": 0.000058706724390843144,
+              "pressurePa": 630.8200179198118
+            },
+            {
+              "phaseSec": 0.5880000000000001,
+              "volumeM3": 0.00005822733710258788,
+              "pressurePa": 623.417767377823
+            },
+            {
+              "phaseSec": 0.5920000000000001,
+              "volumeM3": 0.00005770930119325815,
+              "pressurePa": 615.400379917857
+            },
+            {
+              "phaseSec": 0.5960000000000001,
+              "volumeM3": 0.00005715445150688661,
+              "pressurePa": 606.7613560245821
+            },
+            {
+              "phaseSec": 0.6000000000000001,
+              "volumeM3": 0.0000565648021467831,
+              "pressurePa": 597.4938111871064
+            },
+            {
+              "phaseSec": 0.6040000000000001,
+              "volumeM3": 0.0000559425306425138,
+              "pressurePa": 587.5903605585088
+            },
+            {
+              "phaseSec": 0.6080000000000001,
+              "volumeM3": 0.000055289962929817384,
+              "pressurePa": 577.0431011945428
+            },
+            {
+              "phaseSec": 0.6120000000000001,
+              "volumeM3": 0.000054609559086072934,
+              "pressurePa": 565.8437082739506
+            },
+            {
+              "phaseSec": 0.6160000000000001,
+              "volumeM3": 0.00005390390005692381,
+              "pressurePa": 553.9836645167221
+            },
+            {
+              "phaseSec": 0.6200000000000001,
+              "volumeM3": 0.000053175908612635975,
+              "pressurePa": 541.4590010114413
+            },
+            {
+              "phaseSec": 0.6240000000000001,
+              "volumeM3": 0.0000524286761394755,
+              "pressurePa": 528.268458113245
+            },
+            {
+              "phaseSec": 0.6280000000000001,
+              "volumeM3": 0.00005166535914732218,
+              "pressurePa": 514.4126856653749
+            },
+            {
+              "phaseSec": 0.6320000000000001,
+              "volumeM3": 0.0000508891624277607,
+              "pressurePa": 499.8950514322309
+            },
+            {
+              "phaseSec": 0.6360000000000001,
+              "volumeM3": 0.000050103322474910474,
+              "pressurePa": 484.72256164582893
+            },
+            {
+              "phaseSec": 0.6400000000000001,
+              "volumeM3": 0.00004931109106288617,
+              "pressurePa": 468.906876623815
+            },
+            {
+              "phaseSec": 0.6440000000000001,
+              "volumeM3": 0.00004851612232971798,
+              "pressurePa": 452.4751097060965
+            },
+            {
+              "phaseSec": 0.6480000000000001,
+              "volumeM3": 0.00004772210839313665,
+              "pressurePa": 435.4642265572547
+            },
+            {
+              "phaseSec": 0.6520000000000001,
+              "volumeM3": 0.00004693270628194827,
+              "pressurePa": 417.92121467178214
+            },
+            {
+              "phaseSec": 0.6560000000000001,
+              "volumeM3": 0.00004615151453983934,
+              "pressurePa": 399.90422977320446
+            },
+            {
+              "phaseSec": 0.6600000000000001,
+              "volumeM3": 0.000045382048536465354,
+              "pressurePa": 381.4835383158966
+            },
+            {
+              "phaseSec": 0.6640000000000001,
+              "volumeM3": 0.00004462771482564965,
+              "pressurePa": 362.74217697005616
+            },
+            {
+              "phaseSec": 0.6680000000000001,
+              "volumeM3": 0.000043891784869927775,
+              "pressurePa": 343.7762456400866
+            },
+            {
+              "phaseSec": 0.6720000000000002,
+              "volumeM3": 0.000043177368499735436,
+              "pressurePa": 324.69475287575375
+            },
+            {
+              "phaseSec": 0.6760000000000002,
+              "volumeM3": 0.00004248738755526885,
+              "pressurePa": 305.6189424042989
+            },
+            {
+              "phaseSec": 0.6800000000000002,
+              "volumeM3": 0.00004182455024892741,
+              "pressurePa": 286.6810477851146
+            },
+            {
+              "phaseSec": 0.6840000000000002,
+              "volumeM3": 0.00004119132687070001,
+              "pressurePa": 268.0224490838319
+            },
+            {
+              "phaseSec": 0.6880000000000002,
+              "volumeM3": 0.00004058992752237576,
+              "pressurePa": 249.79124014798364
+            },
+            {
+              "phaseSec": 0.6920000000000002,
+              "volumeM3": 0.00004002228242914504,
+              "pressurePa": 232.139248840931
+            },
+            {
+              "phaseSec": 0.6960000000000002,
+              "volumeM3": 0.0000394900186402432,
+              "pressurePa": 215.21831549831484
+            },
+            {
+              "phaseSec": 0.7000000000000002,
+              "volumeM3": 0.00003899444092884804,
+              "pressurePa": 199.1762082871275
+            },
+            {
+              "phaseSec": 0.7040000000000002,
+              "volumeM3": 0.000038536518430238685,
+              "pressurePa": 184.15239823809668
+            },
+            {
+              "phaseSec": 0.7079999999999997,
+              "volumeM3": 0.000038116878216488056,
+              "pressurePa": 170.27394599676947
+            },
+            {
+              "phaseSec": 0.7120000000000002,
+              "volumeM3": 0.00003773580739101239,
+              "pressurePa": 157.6517964232891
+            },
+            {
+              "phaseSec": 0.7159999999999997,
+              "volumeM3": 0.00003739498239023119,
+              "pressurePa": 146.45920865120846
+            },
+            {
+              "phaseSec": 0.7200000000000002,
+              "volumeM3": 0.00003710181025337098,
+              "pressurePa": 137.1451830673836
+            },
+            {
+              "phaseSec": 0.7239999999999998,
+              "volumeM3": 0.00003687173493590637,
+              "pressurePa": 130.56153928738294
+            },
+            {
+              "phaseSec": 0.7280000000000002,
+              "volumeM3": 0.000036728243115192276,
+              "pressurePa": 127.96264228859913
+            },
+            {
+              "phaseSec": 0.7319999999999998,
+              "volumeM3": 0.00003669669954985325,
+              "pressurePa": 130.65761650510936
+            }
+          ],
+          "sampleCount": 58,
+          "strictlyMonotone": false,
+          "minimumVolumeM3": 0.00003669669954985325,
+          "maximumVolumeM3": 0.00006113744461825195,
+          "startPhaseSec": 0.504009398281653,
+          "endPhaseSec": 0.7319999999999998
+        },
+        "matchedVolume": null,
+        "wholeCyclePv": {
+          "signedShoelaceAreaPaM3": 0.008142546082678673,
+          "absoluteShoelaceAreaPaM3": 0.008142546082678673,
+          "volumeRangeM3": {
+            "minimum": 0.00002551898434277526,
+            "maximum": 0.00006113744461825195,
+            "width": 0.000035618460275476685
+          },
+          "pressureRangePa": {
+            "minimum": 63.14148379792597,
+            "maximum": 1167.9072574522543,
+            "width": 1104.7657736543283
+          },
+          "closingChordApplied": true
+        }
+      }
+    },
+    "claimBoundary": {
+      "diagnosticOnly": true,
+      "heldOutReadback": true,
+      "candidateSelectionPerformed": false,
+      "parameterFittingPerformed": false,
+      "physiologicalValidationEstablished": false,
+      "formalPeriodOneRequiredForGateEligibility": true,
+      "nonperiodicExploratoryReadbackAllowed": true,
+      "callerPeriodOneAssertionAuthenticatedByThisModule": false,
+      "valveLobeAndBranchResolutionAreDataDriven": true,
+      "unresolvedOrAmbiguousBranchesAreNotForced": true,
+      "pressureDifferenceSignUsedAsPassFailGate": false,
+      "pvAreaUsedAsPassFailGate": false,
+      "modelCoreOrBrowserRuntimeAdopted": false
+    },
+    "hashAlgorithm": "sha256-canonical-json-v1",
+    "contentSha256": "480c9df37e550501b63357ac7c3b5db0baa8f9e390583a1ad1a3fc17132a92ab"
+  },
+  "atrialConduitAndLaterRefill": {
+    "LA": {
+      "status": "diagnostic-right-censored",
+      "sourceReadbackStatus": "ambiguous",
+      "sourceConduitBranchStatus": "ambiguous",
+      "sourceReasons": [
+        "conduit-branch-is-not-strictly-decreasing"
+      ],
+      "strictEarlyConduitDecreaseResolved": false,
+      "earlyConduitMinimum": {
+        "phaseSec": 0.7079999999999997,
+        "volumeM3": 0.000034145551073383445,
+        "pressurePa": 524.0467576012419
+      },
+      "maximumLaterRefill": {
+        "phaseSec": 0.8,
+        "volumeM3": 0.00004323436887887687,
+        "pressurePa": 853.8111177109726
+      },
+      "laterRefillIncreaseM3": 0.000009088817805493428,
+      "laterRefillVolumeIncreaseObserved": true,
+      "rightCensoredAtCycleEnd": true,
+      "observationEndPhaseSec": 0.8,
+      "intervalDefinition": "first-post-opening-conduit-minimum-through-observed-cycle-end",
+      "shapeFitOrGateUsed": false
+    },
+    "RA": {
+      "status": "diagnostic-right-censored",
+      "sourceReadbackStatus": "ambiguous",
+      "sourceConduitBranchStatus": "ambiguous",
+      "sourceReasons": [
+        "conduit-branch-is-not-strictly-decreasing"
+      ],
+      "strictEarlyConduitDecreaseResolved": false,
+      "earlyConduitMinimum": {
+        "phaseSec": 0.7319999999999998,
+        "volumeM3": 0.00003669669954985325,
+        "pressurePa": 130.65761650510936
+      },
+      "maximumLaterRefill": {
+        "phaseSec": 0.8,
+        "volumeM3": 0.00004112469575893609,
+        "pressurePa": 337.06765244393097
+      },
+      "laterRefillIncreaseM3": 0.0000044279962090828406,
+      "laterRefillVolumeIncreaseObserved": true,
+      "rightCensoredAtCycleEnd": true,
+      "observationEndPhaseSec": 0.8,
+      "intervalDefinition": "first-post-opening-conduit-minimum-through-observed-cycle-end",
+      "shapeFitOrGateUsed": false
+    }
+  },
+  "terminalAtrialPostOpeningMassBalanceDiagnostic": {
+    "LA": {
+      "status": "resolved-right-censored",
+      "sourceReadbackStatus": "ambiguous",
+      "venousFlowId": "PVein_LA",
+      "avFlowId": "Q_MV",
+      "intervalStartPhaseSec": 0.5400040972131739,
+      "intervalEndPhaseSec": 0.8,
+      "intervalDurationSec": 0.25999590278682616,
+      "rightCensoredAtCycleEnd": true,
+      "formalPeriodOne": false,
+      "integrationRule": "piecewise-linear-trapezoidal-on-waveform-samples-v1",
+      "volumeBalanceConvention": "deltaV=integral(Qvenous-Qav)dt",
+      "trapezoidalVenousInflowVolumeM3": 0.00004296248128369826,
+      "trapezoidalAvOutflowVolumeM3": 0.00005698098271281257,
+      "netIntegratedInflowMinusOutflowM3": -0.000014018501429114308,
+      "observedAtrialVolumeChangeM3": -0.000014230411971231466,
+      "trapezoidalDiscreteMassBalanceClosureErrorM3": -2.119105421171573e-7,
+      "absoluteTrapezoidalDiscreteMassBalanceClosureErrorM3": 2.119105421171573e-7,
+      "shapeFitOrGateUsed": false
+    },
+    "RA": {
+      "status": "resolved-right-censored",
+      "sourceReadbackStatus": "ambiguous",
+      "venousFlowId": "VC_RA",
+      "avFlowId": "Q_TV",
+      "intervalStartPhaseSec": 0.504009398281653,
+      "intervalEndPhaseSec": 0.8,
+      "intervalDurationSec": 0.295990601718347,
+      "rightCensoredAtCycleEnd": true,
+      "formalPeriodOne": false,
+      "integrationRule": "piecewise-linear-trapezoidal-on-waveform-samples-v1",
+      "volumeBalanceConvention": "deltaV=integral(Qvenous-Qav)dt",
+      "trapezoidalVenousInflowVolumeM3": 0.000030975317369946276,
+      "trapezoidalAvOutflowVolumeM3": 0.00004953739912480235,
+      "netIntegratedInflowMinusOutflowM3": -0.000018562081754856075,
+      "observedAtrialVolumeChangeM3": -0.000018598484798136918,
+      "trapezoidalDiscreteMassBalanceClosureErrorM3": -3.640304328084257e-8,
+      "absoluteTrapezoidalDiscreteMassBalanceClosureErrorM3": 3.640304328084257e-8,
+      "shapeFitOrGateUsed": false
+    }
+  },
+  "chamberPvClosedPolygonDiagnosticPaM3": {
+    "LA": {
+      "observedOpenPathIntegralPdvPaM3": -0.02414184935997167,
+      "closingChordContributionPdvPaM3": 0.0006122051791232409,
+      "closedPolygonIntegralPdvPaM3": -0.02352964418084843,
+      "signedShoelaceAreaPaM3": 0.02352964418084845,
+      "absoluteShoelaceAreaPaM3": 0.02352964418084845,
+      "closingChordApplied": true,
+      "formalPeriodOne": false,
+      "physiologicalLoopWorkClaimed": false
+    },
+    "LV": {
+      "observedOpenPathIntegralPdvPaM3": -1.0586384077446933,
+      "closingChordContributionPdvPaM3": 0.00016141654118661644,
+      "closedPolygonIntegralPdvPaM3": -1.0584769912035068,
+      "signedShoelaceAreaPaM3": 1.0584769912035077,
+      "absoluteShoelaceAreaPaM3": 1.0584769912035077,
+      "closingChordApplied": true,
+      "formalPeriodOne": false,
+      "physiologicalLoopWorkClaimed": false
+    },
+    "RA": {
+      "observedOpenPathIntegralPdvPaM3": -0.00836743625097826,
+      "closingChordContributionPdvPaM3": 0.0002248901682995595,
+      "closedPolygonIntegralPdvPaM3": -0.0081425460826787,
+      "signedShoelaceAreaPaM3": 0.008142546082678673,
+      "absoluteShoelaceAreaPaM3": 0.008142546082678673,
+      "closingChordApplied": true,
+      "formalPeriodOne": false,
+      "physiologicalLoopWorkClaimed": false
+    },
+    "RV": {
+      "observedOpenPathIntegralPdvPaM3": -0.3484581825947254,
+      "closingChordContributionPdvPaM3": 0.0007817763210135857,
+      "closedPolygonIntegralPdvPaM3": -0.3476764062737118,
+      "signedShoelaceAreaPaM3": 0.34767640627371166,
+      "absoluteShoelaceAreaPaM3": 0.34767640627371166,
+      "closingChordApplied": true,
+      "formalPeriodOne": false,
+      "physiologicalLoopWorkClaimed": false
+    }
+  },
+  "waveformSummary": {
+    "sampleCount": 203,
+    "totalBloodVolume": {
+      "initialM3": 0.005599999999999971,
+      "minimumM3": 0.00559999999999997,
+      "maximumM3": 0.005599999999999974,
+      "maximumRelativeDrift": 4.646580739223615e-16
+    },
+    "volumeByNodeM3": {
+      "LV": {
+        "minimum": 0.00007594997130925202,
+        "maximum": 0.0001600188364505542,
+        "mean": 0.00011317528021282998
+      },
+      "LA": {
+        "minimum": 0.000017821385433866455,
+        "maximum": 0.00006112375345268833,
+        "mean": 0.00004091097668896094
+      },
+      "RV": {
+        "minimum": 0.00009691995979732609,
+        "maximum": 0.00017510522890601366,
+        "mean": 0.0001314583806279572
+      },
+      "RA": {
+        "minimum": 0.00002551898434277526,
+        "maximum": 0.00006113744461825195,
+        "mean": 0.00004526739902883096
+      },
+      "Ao": {
+        "minimum": 0.00018578239634595077,
+        "maximum": 0.00023007771527535468,
+        "mean": 0.0001988949740873339
+      },
+      "SA": {
+        "minimum": 0.0004910793968047967,
+        "maximum": 0.000536564931474521,
+        "mean": 0.000512702233373274
+      },
+      "Art": {
+        "minimum": 0.0001508027164895358,
+        "maximum": 0.00016081861019483972,
+        "mean": 0.00015590396894004125
+      },
+      "Cap": {
+        "minimum": 0.0003448408822900967,
+        "maximum": 0.00035070368713008195,
+        "mean": 0.00034724729288965206
+      },
+      "SV": {
+        "minimum": 0.0028981097650311156,
+        "maximum": 0.0029032813164933217,
+        "mean": 0.002900483636792061
+      },
+      "VC": {
+        "minimum": 0.0004469666551144758,
+        "maximum": 0.00045685920474123807,
+        "mean": 0.00045244814891624206
+      },
+      "PA": {
+        "minimum": 0.000025425133239465723,
+        "maximum": 0.00008357491231155277,
+        "mean": 0.00004923082569182129
+      },
+      "PArt": {
+        "minimum": 0.00005392341526730871,
+        "maximum": 0.00010147487887183815,
+        "mean": 0.00007383474230898414
+      },
+      "PCap": {
+        "minimum": 0.00012535201622308433,
+        "maximum": 0.0001386212326815703,
+        "mean": 0.0001310565032610796
+      },
+      "PVen": {
+        "minimum": 0.0001875638325104723,
+        "maximum": 0.00019902113219364014,
+        "mean": 0.0001924770564293306
+      },
+      "PVein": {
+        "minimum": 0.0002494042645544986,
+        "maximum": 0.0002622672338078243,
+        "mean": 0.0002549085807515725
+      }
+    },
+    "absolutePressureByNodePa": {
+      "LV": {
+        "minimum": 296.3379408729768,
+        "maximum": 14384.482933603913,
+        "mean": 4448.8965220757345
+      },
+      "LA": {
+        "minimum": 524.0467576012419,
+        "maximum": 2371.1067525735584,
+        "mean": 1016.442544212562
+      },
+      "RV": {
+        "minimum": 92.42249532714119,
+        "maximum": 5490.358505395795,
+        "mean": 1502.360802675277
+      },
+      "RA": {
+        "minimum": 63.14148379792597,
+        "maximum": 1167.9072574522543,
+        "mean": 493.1614665105616
+      },
+      "Ao": {
+        "minimum": 10210.848910711136,
+        "maximum": 14394.953806787904,
+        "mean": 11389.980295099764
+      },
+      "SA": {
+        "minimum": 10074.059598820884,
+        "maximum": 11564.401011163143,
+        "mean": 10773.422399111265
+      },
+      "Art": {
+        "minimum": 9397.826134895027,
+        "maximum": 10392.497061860726,
+        "mean": 9900.575623755025
+      },
+      "Cap": {
+        "minimum": 3065.000647014046,
+        "maximum": 3117.110189561716,
+        "mean": 3086.3892074296105
+      },
+      "SV": {
+        "minimum": 1539.4334432083288,
+        "maximum": 1545.9141659827899,
+        "mean": 1542.4071916234411
+      },
+      "VC": {
+        "minimum": 966.0255448609471,
+        "maximum": 999.6907801717964,
+        "mean": 984.6453679809237
+      },
+      "PA": {
+        "minimum": 997.5737738637439,
+        "maximum": 4912.948600705611,
+        "mean": 2386.1177118364344
+      },
+      "PArt": {
+        "minimum": 1512.7067341435045,
+        "maximum": 3544.8580408921757,
+        "mean": 2304.671043787585
+      },
+      "PCap": {
+        "minimum": 1463.2246966572593,
+        "maximum": 2746.629205200036,
+        "mean": 1969.9703800235704
+      },
+      "PVen": {
+        "minimum": 1299.877781437691,
+        "maximum": 1949.4545772592664,
+        "mean": 1565.6682136506038
+      },
+      "PVein": {
+        "minimum": 1215.2743408983529,
+        "maximum": 1734.6563271771224,
+        "mean": 1430.0357878560192
+      }
+    },
+    "flowByEdgeM3PerSec": {
+      "Q_MV": {
+        "minimum": -0.00004411063706574283,
+        "maximum": 0.0005238163747196753,
+        "mean": 0.00010343250978976784
+      },
+      "Q_AoV": {
+        "minimum": -0.000004306845798740208,
+        "maximum": 0.0010443737180360585,
+        "mean": 0.00010370720610197025
+      },
+      "Q_TV": {
+        "minimum": -0.000001597138590658738,
+        "maximum": 0.00035003645887177697,
+        "mean": 0.00009284851726084348
+      },
+      "Q_PuV": {
+        "minimum": -4.957437837751297e-8,
+        "maximum": 0.0009121748003764268,
+        "mean": 0.00009767332671013168
+      },
+      "Ao_SA": {
+        "minimum": -0.000022278391326825723,
+        "maximum": 0.0005129774794638394,
+        "mean": 0.00009941168407060253
+      },
+      "SA_Art": {
+        "minimum": 0.00006503526870456759,
+        "maximum": 0.00015327627414303243,
+        "mean": 0.00008797916036796978
+      },
+      "Art_Cap": {
+        "minimum": 0.00007843554660703911,
+        "maximum": 0.00009055194670102704,
+        "mean": 0.00008453419901238062
+      },
+      "Cap_SV": {
+        "minimum": 0.00007596055998720912,
+        "maximum": 0.00007889031376965797,
+        "mean": 0.00007720543892352859
+      },
+      "SV_VC": {
+        "minimum": 0.00008180596813858672,
+        "maximum": 0.0000860182463673566,
+        "mean": 0.00008367114247757056
+      },
+      "VC_RA": {
+        "minimum": -0.00003279989880861112,
+        "maximum": 0.00017381120748165702,
+        "mean": 0.00009201753968121542
+      },
+      "PA_PArt": {
+        "minimum": -0.00024160079431266354,
+        "maximum": 0.0005026093773802558,
+        "mean": 0.00009878866038646851
+      },
+      "PArt_PCap": {
+        "minimum": -0.000021277333542242938,
+        "maximum": 0.0002703079995181949,
+        "mean": 0.00010041844291977009
+      },
+      "PCap_PVen": {
+        "minimum": 0.00003202335740288524,
+        "maximum": 0.0002249657052400406,
+        "mean": 0.00010103879567069859
+      },
+      "PVen_PVein": {
+        "minimum": -0.00003993529854719991,
+        "maximum": 0.00017631090093073138,
+        "mean": 0.00010173267102725611
+      },
+      "PVein_LA": {
+        "minimum": -0.00023987796495948847,
+        "maximum": 0.00022847342355202308,
+        "mean": 0.00010255219837564525
+      }
+    }
+  },
+  "claimBoundary": {
+    "researchOnly": true,
+    "exploratoryRepeatedCycleReadback": true,
+    "configuredCyclesEstablishPeriodOne": false,
+    "physiologicalValidationClaimed": false,
+    "candidateSelectionPerformed": false,
+    "parameterFittingPerformed": false,
+    "postStepProjectionApplied": false,
+    "flowOrVolumeClampApplied": false,
+    "modelOrConstitutiveFallbackApplied": false,
+    "adaptiveRetrySubdivisionPermitted": true,
+    "adaptiveRetrySubdivisionUseReportedInArtifact": true,
+    "fixedTimeStepIntegrationClaimed": false,
+    "coronaryNetworkIncluded": false,
+    "dynamicValveApertureStoredAndCondensed": true,
+    "valvePhysicalParametersOwnedByEngineCore": true,
+    "mainWireNonCoronaryVascularGraphUsed": true,
+    "modelCoreNumericalRuntimeParityClaimed": false,
+    "browserRuntimeAdopted": false,
+    "releaseRuntimeReachable": false
+  },
+  "contentSha256": "3b1f971ab25c975a56a6c0bbb973a1916b90a1ce2cb622449da54b63029bb1b5"
+}

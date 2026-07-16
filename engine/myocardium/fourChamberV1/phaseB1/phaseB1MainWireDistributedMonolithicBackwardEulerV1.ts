@@ -20,12 +20,12 @@ import {
   compileMainWireNonCoronaryPrecompiledContextV1,
   evaluateMainWireNonCoronaryWithPrecompiledContextV1,
   MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1,
-  MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+  MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
   type MainWireNonCoronaryBackwardEulerVolumeResidualV1,
   type MainWireNonCoronaryDynamicFlowNameV1,
   type MainWireNonCoronaryPrecompiledContextV1,
   type MainWireNonCoronarySameTimeLevelEvaluationV1,
-  type MainWirePhaseB1ValveFlowNameV1,
+  type MainWireNonCoronaryValveFlowNameV1,
 } from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1";
 import {
   getRuntimeTriSegEquilibriumResidualV2,
@@ -141,10 +141,10 @@ export type PhaseB1MainWireDistributedEndpointEvaluationV1 = Readonly<{
     Record<MainWireHeartBoundaryNodeNameV1, number>
   >;
   valveApertureState01ByFlow: Readonly<
-    Record<MainWirePhaseB1ValveFlowNameV1, number>
+    Record<MainWireNonCoronaryValveFlowNameV1, number>
   >;
   effectiveValveAreaM2ByFlow: Readonly<
-    Record<MainWirePhaseB1ValveFlowNameV1, number>
+    Record<MainWireNonCoronaryValveFlowNameV1, number>
   >;
   circulationCrossCoupledToChamberWallPressure: true;
   projectionApplied: false;
@@ -1031,11 +1031,11 @@ function dynamicFlowInertance(
   evaluation: MainWireNonCoronarySameTimeLevelEvaluationV1,
   flowName: MainWireNonCoronaryDynamicFlowNameV1,
 ): number {
-  if (MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.includes(
-    flowName as MainWirePhaseB1ValveFlowNameV1,
+  if (MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1.includes(
+    flowName as MainWireNonCoronaryValveFlowNameV1,
   )) {
     return (evaluation.valveMomentumByFlow[
-      flowName as MainWirePhaseB1ValveFlowNameV1
+      flowName as MainWireNonCoronaryValveFlowNameV1
     ] as MainWireDynamicValveMomentumV1).inertancePaSec2PerM3;
   }
   if (flowName !== "Ao_SA" && flowName !== "PA_PArt") {
@@ -1208,7 +1208,7 @@ function assertValvePressureGradientInvariantAcrossApertureCondensation(
   provisional: PhaseB1MainWireDistributedEndpointEvaluationV1,
   condensed: PhaseB1MainWireDistributedEndpointEvaluationV1,
 ): void {
-  for (const flowName of MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1) {
+  for (const flowName of MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1) {
     const before = provisional.distributedCirculation
       .valveMomentumByFlow[flowName].pressureGradientPa;
     const after = condensed.distributedCirculation
@@ -1299,14 +1299,14 @@ function dynamicFlowRecord<T>(
 }
 
 function valveFlowRecord<T>(
-  build: (flowName: MainWirePhaseB1ValveFlowNameV1) => T,
-): Readonly<Record<MainWirePhaseB1ValveFlowNameV1, T>> {
+  build: (flowName: MainWireNonCoronaryValveFlowNameV1) => T,
+): Readonly<Record<MainWireNonCoronaryValveFlowNameV1, T>> {
   return Object.freeze(Object.fromEntries(
-    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.map((flowName) => [
+    MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1.map((flowName) => [
       flowName,
       build(flowName),
     ]),
-  )) as Readonly<Record<MainWirePhaseB1ValveFlowNameV1, T>>;
+  )) as Readonly<Record<MainWireNonCoronaryValveFlowNameV1, T>>;
 }
 
 function requiredLabelIndex(labels: readonly string[], label: string): number {

@@ -171,9 +171,18 @@ describe("four-chamber TriSeg/Land Phase A1 calcium, manifests, target packs, an
       zeta = oracle.sourceZetaNext;
       lambdaPrevious = lambdaNext;
     }
-    expect(() => landDistortionEquivalenceParametersV1({ Aw: 0, As: 1, cw: 1, cs: 1 })).toThrow(
-      /Aw.*positive/,
-    );
+    expect(landDistortionEquivalenceParametersV1({
+      Aw: 0,
+      As: 1,
+      cw: 1,
+      cs: 1,
+    }).A).toEqual({ w: 0, s: 1 });
+    expect(() => landDistortionEquivalenceParametersV1({
+      Aw: -Number.EPSILON,
+      As: 1,
+      cw: 1,
+      cs: 1,
+    })).toThrow(/Aw.*nonnegative/);
     expect(() => sourceZetaToRateFreeXiV1(
       { w: Number.MAX_VALUE, s: 0 },
       2,

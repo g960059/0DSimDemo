@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
   PHASE_B1_EVENT_FREE_MONOLITHIC_MODEL_IDS_V1,
+  PHASE_B1_EVENT_FREE_MECHANISTIC_REBUILD_V2_MODEL_ID,
   PHASE_B1_EVENT_FREE_PHYSIOLOGY_ENVELOPE_CANDIDATE_MODEL_V1_ID,
   PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID,
   assertPhaseB1EventFreeMonolithicModelIdV1,
@@ -23,16 +24,20 @@ describe("Phase B1 physiology-envelope model boundary", () => {
       modelId: PHASE_B1_EVENT_FREE_PHYSIOLOGY_ENVELOPE_CANDIDATE_MODEL_V1_ID,
     });
 
-  it("pins the additive two-ID candidate allowlist", () => {
+  it("pins the additive three-ID research candidate allowlist", () => {
     expect(PHASE_B1_EVENT_FREE_MONOLITHIC_MODEL_IDS_V1).toEqual([
       PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID,
       PHASE_B1_EVENT_FREE_PHYSIOLOGY_ENVELOPE_CANDIDATE_MODEL_V1_ID,
+      PHASE_B1_EVENT_FREE_MECHANISTIC_REBUILD_V2_MODEL_ID,
     ]);
     expect(() => assertPhaseB1EventFreeMonolithicModelIdV1(
       PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID,
     )).not.toThrow();
     expect(() => assertPhaseB1EventFreeMonolithicModelIdV1(
       PHASE_B1_EVENT_FREE_PHYSIOLOGY_ENVELOPE_CANDIDATE_MODEL_V1_ID,
+    )).not.toThrow();
+    expect(() => assertPhaseB1EventFreeMonolithicModelIdV1(
+      PHASE_B1_EVENT_FREE_MECHANISTIC_REBUILD_V2_MODEL_ID,
     )).not.toThrow();
     expect(() => assertPhaseB1EventFreeMonolithicModelIdV1(
       "four-chamber-phase-b1-undeclared-candidate-v1",

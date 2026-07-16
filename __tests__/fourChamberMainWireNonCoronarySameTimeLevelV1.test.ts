@@ -16,7 +16,7 @@ import {
   MAIN_WIRE_NON_CORONARY_INCIDENCE_COLUMN_SUMS_V1,
   MAIN_WIRE_NON_CORONARY_INCIDENCE_MATRIX_V1,
   MAIN_WIRE_NON_CORONARY_KERNEL_OWNERSHIP_AUDIT_V1,
-  MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+  MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
   compileMainWireNonCoronaryPrecompiledContextV1,
   computeMainWireNonCoronaryVolumeRatesV1,
   evaluateMainWireNonCoronaryBackwardEulerVolumeResidualV1,
@@ -179,7 +179,7 @@ describe("main-wire non-coronary same-time-level circulation kernel", () => {
     const input = forwardFixtureV1();
     const output = evaluateMainWireNonCoronarySameTimeLevelV1(input);
     expect(Object.keys(output.valveMomentumByFlow)).toEqual(
-      MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+      MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
     );
 
     for (const flowName of ["Ao_SA", "PA_PArt"] as const) {
@@ -196,7 +196,7 @@ describe("main-wire non-coronary same-time-level circulation kernel", () => {
     }
     expect(output.dynamicFlowAccelerationM3PerSec2.Ao_SA).toBeCloseTo(0, 9);
     expect(output.dynamicFlowAccelerationM3PerSec2.PA_PArt).toBeCloseTo(0, 9);
-    for (const flowName of MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1) {
+    for (const flowName of MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1) {
       expect(output.valveMomentumByFlow[flowName].inertancePaSec2PerM3)
         .toBeGreaterThan(0);
     }

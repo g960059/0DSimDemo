@@ -6,7 +6,7 @@
 
 設計の中心は次の6点である。
 
-1. browser main-wireと同じownerから解決した、非冠循環15血液区画で総血液量を厳密に保存する。
+1. browser main-wireと同じbaseline topology/parameter ownerから解決した、非冠循環15血液区画で総血液量を厳密に保存する。ただしeffective-parameter変換と数値積分はresearch-only経路であり、runtime parityを主張しない。
 2. LA/RAは、それぞれone-fiber壁とし、CMR最小容積を無負荷形状と誤認せず、Moyer 2015の受動則から逆除荷する。
 3. LVFW/SEP/RVFWはone-fiber Land壁として、有限厚・仕事共役なTriSegで結合する。
 4. Landはactive-onlyで使い、巨視的series elementを加えない。SLSはLandとは独立の受動粘弾性として持つ。
@@ -29,7 +29,7 @@
 - time-varying elastance、心周期phaseでon/offする外力、PV座標へ直接加える補正力。
 - 独立な局所ひずみ・弁輪形状データなしに追加する心房shape state。
 
-心房PVループは重要であるが、壁構成則だけの観測量ではない。静脈還流、房室弁流、心室弛緩、心房収縮、心膜圧、SLS履歴が同時に作る**hold-out全体系観測量**として扱う。
+心房PVループは重要であるが、壁構成則だけの観測量ではない。静脈還流、房室弁流、心室弛緩、心房収縮、心膜圧、SLS履歴が同時に作る全体系観測量である。PV metricをconstructorまたは連続parameterの数値目的関数には渡さないが、現architectureの選択は旧closed-loop診断にinformされているため、本candidateでは**development diagnosticであって独立hold-out validationではない**。
 
 ## 1. 状態、代数未知数、責任分離
 
@@ -467,7 +467,7 @@ $$
 
 Backward Eulerでは$\alpha_v^{n+1}$を閉形式で消去し、物理散逸に加えて離散化散逸も非負になるpassivity identityを監査する。
 
-SLSのmodulusは、並列に置かれる**同じ平衡材料**の明示されたreference tangentへ結び付ける。心房Moyer縮約では、旧実装が別のsynthetic central tangentを継承した結果、$E_v\approx175$ Paとなる一方、実際のMoyer経路のzero-strain tangentは
+SLSのmodulusは、並列に置かれる**同じ平衡材料**の明示されたreference tangentへ結び付ける。心房Moyer縮約では、旧実装が別のsynthetic central tangentを継承した結果、$E_v\approx175$ Paとなる一方、実際のtension-only Moyer経路の$e\to0^+$ tensile-side tangentは
 
 $$
 K_{Moyer,0}=39800.55\ \mathrm{Pa}
@@ -485,7 +485,7 @@ $$
 
 とする。これはLA/RAで同一のMoyer material ID、tangent source、$r_A$、$\tau_A$を共有し、壁ごとの自由fitを許さない。LVFW/SEP/RVFWは従来どおり各壁が共有する心室平衡材料のcompiled central tangentに$r_V=0.35,\ \tau_V=0.08$ sを適用する。
 
-$K_{Moyer,0}$への再結合は、SLSを平衡材料と同じ応力scaleに置く**構成整合性の修復**であり、$r_A=0.25$または$\tau_A=50$ msがヒト心房の独立viscoelastic試験から同定されたことを意味しない。また、zero-strain tangentは拍中のsecant/tangent stiffnessを一定に置き換えるものではない。$E_{v,A}$、$\tau_A$の更新に心房PVループ形状は使わない。
+$K_{Moyer,0}$への再結合は、SLSを平衡材料と同じ応力scaleへ置く**parameter-provenance/scale整合化prior**であり、熱力学が要求する一意なmodulus選択ではない。圧縮側の$e\to0^-$ tangentは39600 Paで、ここではtensile-sideを採る。$r_A=0.25$または$\tau_A=50$ msがヒト心房の独立viscoelastic試験から同定されたことも意味しない。reference tangentは拍中のsecant/tangent stiffnessを一定に置き換えるものではない。$E_{v,A}$、$\tau_A$の更新に心房PVループ形状は使わない。
 
 SLS-onはfull-model候補、SLS-offは因果ablationである。SLS-offで8の字ループを維持することは要求しない。病態fitでは、SLSをPV形状の修復項にせず、独立したrate-dependent stress/strainデータがある場合に限り$r_{class},\tau_v$を更新する。現値の生理同定が未完了である以上、SLSだけで同容積branch orderingを満たしてもモデル採択の十分条件にはしない。
 
@@ -616,13 +616,13 @@ $$
 
 | runtime/ablation | $\tau_r$ | $\tau_d$ | $c_d$ | $A_c$ | 位置づけ |
 |---|---:|---:|---:|---:|---|
-| human-atrial timing V2 LA/RA | 20 ms | 215 ms | 0.10 µM | 0.50 µM | Mazhar 2024 Table 2の37 ℃ヒト心房Ca timing aggregateへ対応するcandidate |
+| Mazhar-timing-bounded V2 LA/RA | 20 ms | 215 ms | 0.10 µM | 0.50 µM | Mazhar 2024 Table 2の37 ℃ヒト心房Ca **timingだけ**へ対応する二重指数candidate |
 | V4 LVFW/SEP/RVFW | 30 ms | 120 ms | 0.11 µM | 0.89 µM | 既存project-synthetic priorを保持し、心房変更との因果を分離 |
 | V5 ventricular-Ca ablation | 70 ms | 110 ms | 0.11 µM | 0.89 µM | TTP約171 ms、RT50約122 ms、RT90約224 ms |
 
 心房V2の未scale二重指数は、Ca eventからpeakまで52.3697 ms、peak後50% relaxationまで170.01 ms、eventから10%残存まで568.42 msである。MazharらのTable 2に集約された37 ℃ヒト心房範囲は、それぞれ49.4–55.6 ms、168.5–186.5 ms、508.1–570.1 msであり、V2はこの**timingだけ**をcandidate priorとして使う。最後の値はonset-to-10%というTT90 surrogateであり、文献の$TT_{Ca}$と同一定義だとは主張しない。電気activationからCa eventまでのdelayは12 msである。
 
-Mazharらの値は複数実験sourceを統合したhuman atrial cardiomyocyte modelの入力contextであり、現二重指数を直接digitizeした単一の測定traceではない。また、$c_d=0.10\ \mu\mathrm M$と$A_c=0.50\ \mu\mathrm M$はLand–Niederer contextを保持した値で、Mazhar Table 2から絶対振幅を同定したものではない。従ってV2は`human-atrial-calcium-amplitude-identified`を主張せず、閉ループ採択も未確立である。
+Mazharらの値は複数実験sourceを統合したhuman atrial cardiomyocyte modelの入力contextであり、現二重指数を直接digitizeした単一の測定traceではない。また、$c_d=0.10\ \mu\mathrm M$と$A_c=0.50\ \mu\mathrm M$はLand–Niederer contextを保持した値で、Mazhar Table 2から絶対振幅を同定したものではない。同Tableの集約範囲（diastolic Ca 0.20–0.25 µM、CaT amplitude 0.18–0.40 µM）からも外れる。従ってV2は`human-atrial-calcium-amplitude-identified`を主張せず、Mazhar-timing-bounded candidateとのみ呼び、閉ループ採択も未確立とする。
 
 心室にもLand/Coppini context（TTP 171 ms、RT50 122 ms）を再構成する候補は作るが、RT90は文献contextの281 msを再現せず約224 msである。しかも旧closed-loopでもCa eventからLV圧peakまでの遅延は概ね160 msであり、心房変更と同時に心室Caを変える必然性はない。したがってcanonical candidateは旧心室Caを保持し、新心室CaはV5 causal ablationだけに隔離する。2指数形で3つのtiming metricを同時に満たせない場合はtau探索を続けず、一次波形に基づく最小の別Ca classを比較する。Ca波形とLand kineticsを患者fitで同時に自由化することも避ける。
 
@@ -1013,7 +1013,7 @@ main-wire distributed stepで現在fail-closedにしているのは、状態doma
 4. rate-dependent stress/strainからSLSを同定する。
 5. systolic pressure、EF、strain、ejection durationからLand/Caを同定する。
 6. Doppler/valve imagingから弁areaとlossを同定する。
-7. 最後にPV loop、静脈flow、septal motionをhold-out全体系観測として確認する。
+7. architectureとparameterを事前固定した将来caseでは、最後にPV loop、静脈flow、septal motionをhold-out全体系観測として確認する。現candidateのPV loopは既にarchitecture選択へinformされたdevelopment diagnosticなので例外である。
 
 parameter identifiabilityが不足する場合は、壁別自由parameterを増やす前に、階層priorとpopulation分布を導入する。異なる物理ownerのparameterで同じ波形を相殺するfitは採用しない。
 
@@ -1124,10 +1124,10 @@ $$
 - LA/RA CMR phasic anatomy construction。
 - Moyer 2015受動則の等二軸one-fiber縮約。
 - LA/RA別の単調inverse unloading。
-- 独立1-state SLS、passivity audit、および心房SLSをMoyer zero-strain tangentへ再結合する明示的provenance。
+- 独立1-state SLS、passivity audit、および心房SLSをMoyer $e\to0^+$ tensile-side tangentへscale結合する明示的provenance。
 - Land active-only、Lewalle LA saturation force scaleへ写像したshared atrial $T_{ref}$、whole-organ ventricular $T_{ref}$選択。
 - LA/RAのpopulation-only Land reductionと、旧source-distortionだけを戻すcausal-control binding。
-- Mazhar 2024 Table 2のtiming範囲だけを使うhuman-atrial Ca V2 candidateと、振幅・delay未同定を固定するaudit。
+- Mazhar 2024 Table 2のtiming範囲だけを使うMazhar-timing-bounded atrial Ca V2 candidateと、baseline・振幅が同Table範囲外で未同定であることを固定するaudit。
 - 心房/心室class別の低次数Ca timing reconstructionとisolated twitch component audit。
 - CMR mass/volumeからのTriSeg wall construction。
 - finite-thickness energy-conjugate TriSegとKoiter bending。
@@ -1157,10 +1157,10 @@ $$
 - Lewalle force scale以外の心房Land kineticsがヒトLA/RAで同定済みであること。
 - RA active force scaleがRA組織で直接測定済みであること。
 - 2指数prescribed calciumが測定Ca波形または保存Ca cyclingであること。
-- human-atrial Ca V2の絶対振幅または電気–Ca delayがMazhar 2024から同定済みであること。
+- Mazhar-timing-bounded atrial Ca V2の絶対baseline、振幅、または電気–Ca delayがMazhar 2024から同定済みであること。
 - population-only Land reductionがヒト心房の微視的force–velocity則として同定済みであること。
-- Section 3.2のdynamic aperture lawはmain-wire distributed kernelへ統合済みで、保存・局所消去・rollback・period-distanceのcomponent testを通過している。ただし旧`phase-b1-main-wire-distributed-exploratory-v1` 3拍artifactはpressure-gated static-area valveのままであり、動的弁の証拠へ読み替えない。新しい閉ループartifactもformal period-1または弁parameter validationを主張しない。
-- population-only + Moyer-consistent SLS + Ca V2 + dynamic valveの組合せが、$P_{post\text{-}y}>P_{pre\text{-}y}$または収縮末期hook解消を達成済みであること。
+- 4弁dynamic apertureはmain-wire distributed kernelへ統合済みだが、Mynard式そのものの再現または弁parameter validation済みとは主張できない。現式はmain-wire parameterを使うMynard-inspired低次圧較差駆動modelである。
+- population-only + Moyer-consistent SLS + Mazhar-timing-bounded Ca V2 + dynamic valveが、formal period-1、time-step convergence、同拍数2×2 ablation後にも$P_{post\text{-}y}>P_{pre\text{-}y}$と収縮末期secondary hook消失を維持すること。現3拍結果はSection 18.5のdevelopment diagnosticに留める。
 - 現runは指定回数の単純なcycle-map反復であり、period-1判定を実装していない。したがってterminal拍は非周期であり得て、right-censored atrial readbackや人工closing chordを周期loopまたは生理的仕事として解釈できない。
 - retryなしのno-subdivision runを含むtime-step convergence、multi-start periodic uniqueness、長期安定性。現solverはscaled five-point numerical algorithmic Jacobianを用い、analytic/automatic differentiation Jacobian、generalized Jacobian audit、semismooth active-set convergenceをまだ持たない。
 - main-wire分布循環candidateの正式なperiod-1判定、15 edge平均流gate、whole-cycle committed energy ledger、正常生理target通過。
@@ -1231,7 +1231,7 @@ $$
 
 であり、その大きさと持続を肺静脈系storageの放出が支えている。LA passive/Land/SLSを直接調整してこの形を消す根拠にはならない。一方、terminal拍でもLA later-refillが大いことは確かであり、period-1継続後も残る場合は、肺循環storage時定数、LV弛緩・受動圧上昇、MVの有効開口と慣性を同時に分解する。
 
-terminal拍の左心系は、Ao 74.8–104.0 mmHg、CO 5.82 L/min、LV EDV/ESV 156.9/76.8 mL、EF 51.0%であった。したがって全身血圧はなお低め、LVはなお大きく収縮性もnormal-adult targetを満たしたとは言えない。現段階で詳細parameter fittingは行わず、次のmain-wire上で弁の開口状態・慣性・閉鎖を物理的に分離し、その後にformal periodic continuationとtime-step convergenceを行うのが優先である。
+terminal拍の左心系は、Ao 74.8–104.0 mmHg、CO 5.82 L/min、LV EDV/ESV 156.9/76.8 mL、EF 51.0%であった。したがって全身血圧はなお低め、LVはなお大きく収縮性もnormal-adult targetを満たしたとは言えない。この旧static-area artifactから決めた次段階がmain-wire dynamic valveであり、現candidateでは実装済みである。新しい優先順位はformal periodic continuation、time-step convergence、whole-cycle energy、同拍数causal ablationとnormal envelopeであり、詳細parameter fittingではない。
 
 ### 18.2 LA同容積branch inversionと収縮末期hookの因果分解
 
@@ -1243,7 +1243,7 @@ P_{LA,post\text{-}y}(V)>P_{LA,pre\text{-}y}(V)
 }
 $$
 
-と定義する。`pre-y`はMV開放後、y谷へ向かうearly-conduit、`post-y`はy谷後から心房収縮前までのlate-conduit/recoveryである。LV suctionが弱まり、肺静脈流入でLAが再充満する正常中心candidateでは、同じ容積へ戻ったpost-y側の見かけの圧がpre-y側より回復する、というprospective directional criterionである。これは全病態に成り立つ普遍則ではなく、formal period-1後の正常candidateに対する条件である。
+と定義する。`pre-y`はMV開放後、y谷へ向かうearly-conduit、`post-y`はy谷後から心房収縮前までのlate-conduit/recoveryである。正常中心candidateでは、同じ容積へ戻ったpost-y側の圧がpre-y側より高いことをprospective directional diagnosticとする。ただし、これは直接測定で確立された普遍的正常則ではない。また、LV suctionがLA固有elastanceを直接変えるという意味でもない。現AVPDなしone-fiber modelでは、LVはMV流量とLAの材料履歴を介して軌道を変える。従ってformal period-1後の正常candidateに対する仮説としてのみ扱う。
 
 旧3拍artifactでは
 
@@ -1261,20 +1261,20 @@ P_{LA}=\Gamma(V_{LA})
 \Gamma(V)=\frac{V_{w,LA}}{3(V+V_{w,LA}/2)}
 $$
 
-に分解すると、同じ40 mLで平衡Moyer項と幾何係数は一致し、旧$E_v\approx175$ Pa SLSのbranch差寄与は約$+0.009$ mmHgにすぎなかった。このrunではcommon pericardium項は0で、胸腔圧も0であり、外圧差も原因ではない。従って$-1.101$ mmHgの反転をSLSだけでは説明できず、ほぼLand active-history残留に帰属した。
+に分解すると、同じ40 mLで平衡Moyer項と幾何係数は一致し、旧$E_v\approx175$ Pa SLSのbranch差寄与は約$+0.009$ mmHgにすぎなかった。このrunではcommon pericardium項は0で、胸腔圧も0であり、外圧差も原因ではない。従って$-1.101$ mmHgの反転をSLSだけでは説明できず、その旧軌道のcomponent arithmeticではLand active-history残留が支配的だった。ただし、これはLand内部のどのkinetic termが一意原因かを同定しない。
 
-収縮末期hookでも、旧artifactの該当区間で容積が減る間に平衡受動圧は$-2.296$ mmHg低下したのに対し、Land active寄与は$+3.012$ mmHg上昇し、正味約$+0.716$ mmHgの左上向きhookを作った。これは単なる血液量収支または肺静脈storageの問題ではない。旧`rate-free` $\xi$がsource Landと厳密同値でforce–velocity distortionを保持していること、かつone-fiberの**global atrial volume rate**がそのdriveへ入ることが、両所見に共通する構造的原因である。Land–Niedererおよび後続心房モデルで報告された、心室伸展に伴う心房張力の再上昇という既知のfailure modeとも方向が一致する。ただし、この閉ループ分解だけで微視的crossbridge kineticsを同定したとは主張しない。
+収縮末期hookでも、旧artifactの該当区間で容積が減る間に平衡受動圧は$-2.296$ mmHg低下したのに対し、Land active寄与は$+3.012$ mmHg上昇し、正味約$+0.716$ mmHgの左上向きhookを作った。これは単なる血液量収支または肺静脈storageでは説明できず、**その旧軌道ではLand active成分が支配的だった**ことを示す。一方、旧`rate-free` $\xi$がsource Landのforce–velocity distortionを保持し、one-fiberのglobal atrial volume rateがdriveへ入ることは、原因候補としてimplicatedされるに留まる。Land–Niedererの再伸展時張力応答は方向的根拠を与えるが、同論文も$A_{eff}$を一意原因とはしていない。Ca relaxation、length dependence、弁流量との相互作用を含むため、この閉ループ分解だけで微視的crossbridge kineticsまたはglobal-volume-rate closureを一意同定しない。
 
 ### 18.3 採択する最小構造変更
 
 以上から、中心candidateは次の4変更を**責任分離したまま**組み合わせる。
 
-1. LA/RA Landは$CaTRPN,B,W,S$のstate構造、非distortion基礎遷移係数、calcium依存性、長さ依存性を保持し、$A_{eff}=A_W=A_S=0$とするorgan-scale population-only reductionを使う。canonical zero-distortion manifoldでは$\zeta_W=\zeta_S=0$となるため、$\zeta$依存detachment $\gamma_{wu}W,\gamma_{su}S$、$W\zeta_W$、$S\zeta_S$のstress寄与も除かれる。従ってこれは加算的な旧$F_v$だけを消す操作ではなく、global atrial volume-rate由来のforce--velocityおよびstrain-dependent detachment closure全体を除く縮約であり、source Landの短縮時population kineticsを保存したという主張ではない。旧source-distortionはcausal controlだけに残す。
-2. 独立SLSはMoyer zero-strain tangentへ再結合し、LA/RA共通$E_v=9950.14$ Pa、$\tau_v=50$ msとする。これは構成整合性の修復であり、PV loop fitまたはヒト粘弾性同定ではない。
-3. 心房CaはMazhar 2024の37 ℃human atrial timing aggregateに基づくV2を使う。ただし絶対振幅は未同定のまま明示する。
-4. 4弁はmain-wire ownerのdynamic aperture stateを用い、開閉遅延、面積依存loss、慣性を分離する。弁stateで心房active stressを補正しない。
+1. LA/RA Landは$CaTRPN,B,W,S$のstate構造、非distortion基礎遷移係数、calcium依存性、長さ依存性を保持し、$A_{eff}=A_W=A_S=0$とするorgan-scale population-only reductionを使う。canonical zero-distortion manifoldでは$\zeta_W=\zeta_S=0$となるため、$\zeta$依存detachment $\gamma_{wu}W,\gamma_{su}S$、$W\zeta_W$、$S\zeta_S$のstress寄与も除かれる。従ってこれは加算的な旧$F_v$だけを消す操作ではなく、未解像global atrial volume-rate由来のforce--velocityおよびstrain-dependent detachment closure全体を除く縮約である。source Landの短縮時population kineticsを保存したという主張ではなく、旧source-distortionはcausal controlだけに残す。
+2. 独立SLSはMoyer $e\to0^+$ tensile-side tangentへscaleを結び、LA/RA共通$E_v=9950.14$ Pa、$\tau_v=50$ msとする。これはparameter provenance/scale整合化priorであり、物理必須条件、PV loop fit、またはヒト心房粘弾性同定ではない。
+3. 心房CaはMazhar 2024の37 ℃human atrial timing aggregateに基づく二重指数V2を使う。ただしbaselineと振幅は同文献範囲外のLand-context priorであり、未同定と明示する。
+4. 4弁はmain-wire ownerのMynard-inspired dynamic aperture stateを用い、開閉遅延、面積依存loss、慣性を分離する。Mynard式そのものの再現とは呼ばず、弁stateで心房active stressを補正しない。
 
-この順序は「PV loopをそれらしく描くため」の連続自由度追加ではない。各constructorはPV metricを入力として消費せず、旧圧反転を作ったactive kinematic closure、誤った平衡tangentへ結ばれていた受動memory、測定timingから外れていたCa duration、開口履歴を欠いた弁境界を、それぞれ独立のownerで修正する。ただしarchitecture選択自体は旧圧反転とhookのclosed-loop診断にinformされているため、同じ診断を独立held-out validationと呼ばない。
+この順序は「PV loopをそれらしく描くため」の連続自由度追加ではない。各constructorはPV metricを入力として消費せず、旧軌道でimplicatedされたactive kinematic closure、stress scaleの由来が不整合だった受動memory、測定timingから外れていたCa duration、開口履歴を欠いた弁境界を、それぞれ独立のownerで扱う。ただしarchitecture選択自体は旧圧反転とhookのclosed-loop診断にinformされているため、同じ診断を独立held-out validationと呼ばない。
 
 time-varying elastance、phase-gated force、圧波形filter、PV座標依存の補正項は、自律系・仕事共役性・病態parameterの識別性を損なうため採用しない。追加の非自己相似shape coordinate $q_A$は将来の有力な競合topologyになり得るが、局所壁strain、弁輪形状、regional volumeの独立データなしではPV形状を吸収する未同定自由度になる。従って現段階では追加せず、population-only構成が画像由来local strainを説明できないときに限り再検討する。
 
@@ -1293,13 +1293,38 @@ time-varying elastance、phase-gated force、圧波形filter、PV座標依存の
 正常中心点およびpredeclared envelopeでは、次を同時に読む。
 
 - matched-volume $\Delta P_y(40\ \mathrm{mL})$と$\Delta P_y(45\ \mathrm{mL})$。正常中心candidateの方向条件は両者$>0$であり、補間support外なら欠測として扱って外挿しない。
-- 心房active emptying中、$\dot V_{LA}<0$なのに$\dot P_{LA}>0$となる収縮末期hookの最大振幅、持続時間、active/passive/SLS成分。time-step halvingで残る正のhookを数値noiseとして無視しない。
+- dominant primary A-pressure peak後に一度圧下降が始まり、active emptyingが終わる最小容積まで$\dot V_{LA}<0$のまま再上昇する**secondary hook**の最大振幅、持続時間、active/passive/SLS成分。正常なprimary A-wave上昇をhookへ数えず、MV closure前後とventricular activation後のc-wave候補を別表示する。現動的弁にはleaflet displacementがないため、モデル内の二次上昇を生理的c-waveとして自動的に正当化しない。time-step halvingで残る正のsecondary hookを数値noiseとして無視しない。
 - y谷前後の$Q_{PVein\_LA}-Q_{MV}$、early emptying、later-refill ratio、right-censored質量収支。branch orderingを弁または肺静脈flowの誤りから切り離す。
 - LA/RAのA-loop/V-loop orientationと面積、4弁の開閉時相・正味順行量・逆流量・圧較差、PV/VC flow、E/A。ただしloop面積はformal period-1後だけを生理的仕事候補とする。
 - SA/PA/LA/RA圧、左右CO、LV/RV EDV/ESV/EF、event-local LVEDP。心房形状を改善しても低血圧、過大LV、低収縮性を隠さない。
 - TBV closure、Land population domain、SLS物理・離散散逸、弁flow散逸、TriSeg平衡、projection/clamp/model fallback不使用、complete-state endpoint/streak convergence。
 
 robustness envelopeは、正常中心点だけでなく、HR、preload/TBV、体・肺血管抵抗、心室収縮力、心房activation/force、受動硬さのpredeclaredな軽度変動を含める。全点を同じPV形状へ強制するのではなく、解が有限・保存的で、因果方向が説明可能であり、病態軸が別ownerとして識別可能であることを要求する。envelope結果を見る前にparameterを固定し、各点ごとの再fitはしない。
+
+### 18.5 population-only + SLS-on + dynamic-valve 3拍development readback
+
+clean tracked source commit `33b035787afcc98aa40da438520b7c8cbceb8876`から、SLS-on、population-only Land、Mazhar-timing-bounded Ca V2、main-wire dynamic valve、nominal $\Delta t=4$ ms、3拍で再計算した。reportは[`phase-b1-la-history-dynamic-valve-v1.json`](../../../data/myocardium/reports/phase-b1-la-history-dynamic-valve-v1.json)、waveformは[`phase-b1-la-history-dynamic-valve-v1.waveform.json`](../../../data/myocardium/visuals/phase-b1-la-history-dynamic-valve-v1.waveform.json)である。content SHA-256はそれぞれ`3b1f971ab25c975a56a6c0bbb973a1916b90a1ce2cb622449da54b63029bb1b5`、`795ae53b91cac988e8abd5e9847818a73eb6ed1a709844a6ba9a3de5bf5bf8dc`である。
+
+complete-state endpoint distanceは$7.4422\rightarrow0.8829\rightarrow0.5519$へ低下したが、formal period-1判定は行っておらず、収束済みとは呼ばない。全3拍でretry subdivisionは0、model/constitutive fallbackは0、terminal拍TBV最大相対driftは$4.65\times10^{-16}$、run全体の最小vascular PV-domain marginは21.778 mLだった。population-only LA/RAのaccepted endpointは毎stepでzero-distortion manifoldのroundoff幅内に留まった。
+
+terminal拍LAでは、functional MV openingが0.540004 s、57.465 mLで、その後0.580 sまでに61.124 mLへ3.659 mL右向きに進んだ。従ってopeningからy谷までを厳密単調conduitとする公式readbackは`ambiguous`であり、理由は`conduit-branch-is-not-strictly-decreasing`である。この区間はdynamic apertureの開口遅延中に$Q_{PVein\_LA}>Q_{MV}$となるflow-balance問題として残り、波形を見て$\tau_{open}$またはPV抵抗を調整して消していない。
+
+初期右向き区間後のdecreasing branchは0.708 s、34.146 mL、3.931 mmHgでy谷へ達し、拍末には43.234 mL、6.404 mmHgまで再充満した。post-opening最大容積からy谷までを`pre-y`、y谷から非周期拍末までをright-censored `post-y`としてpiecewise-linear補間したdevelopment readbackでは
+
+$$
+\Delta P_y(36,38,40,42\ \mathrm{mL})
+=(0.381,\ 0.514,\ 0.570,\ 0.567)\ \mathrm{mmHg}
+$$
+
+となり、観測support内では期待方向へ反転した。44、45 mLは両branchの共通support外なので外挿しない。これはSection 18.2のprospective仮説に沿うが、right-censored非周期軌道かつarchitecture-informed diagnosticであり、独立validationではない。
+
+primary A-pressure peakは0.088 s、17.785 mmHgで、その後active emptyingが終わる最小LA容積17.821 mLまで圧は単調に低下し、定義したsecondary hook振幅は0 mmHgだった。ただしsource-distortion、SLS、Ca、dynamic valveを同拍数・同一periodic orbitで直交比較していないため、population-only reductionを一意原因とはしない。
+
+SLS-off 1拍controlは[`phase-b1-la-history-sls-off-control-v1.json`](../../../data/myocardium/reports/phase-b1-la-history-sls-off-control-v1.json)と[`phase-b1-la-history-sls-off-control-v1.waveform.json`](../../../data/myocardium/visuals/phase-b1-la-history-sls-off-control-v1.waveform.json)へ保存した。content SHA-256はそれぞれ`2b3b71f3a6bca2d5d04e3e8079c5ac7a80ee8523ce932895dabb86a9fd0e78ed`、`0cdbab377e512b3cec3e833e13f29b0a3649bdd79662f39fff1b19b4c9f57c73`である。同じ補間で36–44 mLの$\Delta P_y$は$-0.102$から$-0.198$ mmHgだった。SLS historyがbranch memoryへ関与する強い手掛かりだが、SLS-onは3拍、offは1拍で周期状態が異なるため、差をSLSの定量的因果寄与として差し引かない。
+
+terminal拍の全体系readbackは、LA 3.93–17.78 mmHg、RA 0.47–8.76 mmHg、Ao 76.59–107.97 mmHg、SA 75.56–86.74 mmHg、PA 7.48–36.85 mmHgである。LV EDV/ESVは160.02/75.95 mL、EF 52.54%、RVは175.11/96.92 mL、EF 44.65%、AoV/PuV平均flowは6.22/5.86 L/minだった。圧は旧candidateより改善したが、LV/RVはなお大きく収縮性もmodestであり、正常成人validationとは呼ばない。
+
+次の最小検証は、population-only/source-distortion $\times$ SLS-on/offの2×2を同じformal period-1、1/0.5/0.25 ms、同じpredeclared normal envelopeで比較することである。そこで$\Delta P_y$成分、secondary hook、$Q_{PVein\_LA}-Q_{MV}$、SLS $(q_v,\alpha_v)$、弁$(\xi,A_{eff})$を同時保存する。Ca V1/V2とstatic/dynamic valveは、その後にone-factor controlとして分ける。
 
 ## 19. 一次文献
 

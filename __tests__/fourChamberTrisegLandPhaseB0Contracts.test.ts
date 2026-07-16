@@ -396,6 +396,7 @@ describe("four-chamber Phase B0 conservative contracts", () => {
     const testOnlySidecarDirectories = [
       "engine/myocardium/fourChamberV1/phaseB0",
       "engine/myocardium/fourChamberV1/phaseB1",
+      "engine/myocardium/fourChamberV1/calibration",
     ].map((path) => resolve(process.cwd(), path));
     const releaseBoundaryFiles = [...nestedSourceFiles, ...topLevelSourceFiles]
       .filter((absolutePath) => !testOnlySidecarDirectories.some(
@@ -408,6 +409,11 @@ describe("four-chamber Phase B0 conservative contracts", () => {
         /phaseB0|PHASE_B0|phaseB1|PHASE_B1|SmoothActiveStressDouble/,
       );
     }
+    const publicFourChamberIndex = readFileSync(
+      resolve(process.cwd(), "engine/myocardium/fourChamberV1/index.ts"),
+      "utf8",
+    );
+    expect(publicFourChamberIndex).not.toMatch(/fourChamberV1\/calibration/);
     expect(FOUR_CHAMBER_PHASE_B0_STATUS_V1.runtimeBoundary).toEqual({
       testOnly: true,
       releaseRuntimeReachable: false,

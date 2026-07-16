@@ -7,9 +7,9 @@ import {
 } from "@/engine/core/mainWireHemodynamicGraphV1";
 import {
   MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1,
-  MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+  MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
   type MainWireNonCoronaryDynamicFlowNameV1,
-  type MainWirePhaseB1ValveFlowNameV1,
+  type MainWireNonCoronaryValveFlowNameV1,
 } from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1";
 import {
   compileMainWireDynamicValveParametersByFlowV1,
@@ -78,7 +78,7 @@ type DistributedCommonStateV1 = Readonly<{
     Record<MainWireNonCoronaryDynamicFlowNameV1, number>
   >;
   valveApertureState01ByFlow: Readonly<
-    Record<MainWirePhaseB1ValveFlowNameV1, number>
+    Record<MainWireNonCoronaryValveFlowNameV1, number>
   >;
   calciumByWall: PhaseB1CalciumStateByWallV1;
   landByWall: Readonly<Record<FourChamberWallId, RateFreeLand2017StateV1>>;
@@ -185,7 +185,7 @@ export function encodePhaseB1MainWireDistributedStoredStateV1(
     ...MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1.map(
       (flowName) => state.dynamicFlowsM3PerSec[flowName],
     ),
-    ...MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.map(
+    ...MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1.map(
       (flowName) => state.valveApertureState01ByFlow[flowName],
     ),
   ];
@@ -230,7 +230,7 @@ export function decodePhaseB1MainWireDistributedStoredStateV1(
   );
   const valveApertureState01ByFlow = numericRecordFromVector(
     encoded,
-    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+    MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
     () => offset++,
     "valveApertureState01ByFlow",
     requireUnitInterval,
@@ -392,7 +392,7 @@ export function decodePhaseB1MainWireDistributedEndpointNewtonUnknownsV1(
     slsMode: PhaseB1SlsModeV1;
     calciumByWall: PhaseB1CalciumStateByWallV1;
     valveApertureState01ByFlow: Readonly<
-      Record<MainWirePhaseB1ValveFlowNameV1, number>
+      Record<MainWireNonCoronaryValveFlowNameV1, number>
     >;
     unknowns: readonly number[];
   }>,
@@ -420,7 +420,7 @@ export function decodePhaseB1MainWireDistributedEndpointNewtonUnknownsV1(
           dynamicFlowsM3PerSec: state.dynamicFlowsM3PerSec,
           valveApertureState01ByFlow: copyNumericRecord(
             input.valveApertureState01ByFlow,
-            MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+            MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
             "valveApertureState01ByFlow",
             requireUnitInterval,
           ),
@@ -434,7 +434,7 @@ export function decodePhaseB1MainWireDistributedEndpointNewtonUnknownsV1(
           dynamicFlowsM3PerSec: state.dynamicFlowsM3PerSec,
           valveApertureState01ByFlow: copyNumericRecord(
             input.valveApertureState01ByFlow,
-            MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+            MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
             "valveApertureState01ByFlow",
             requireUnitInterval,
           ),
@@ -556,7 +556,7 @@ export function transformPhaseB1EndpointToMainWireDistributedV1(input: Readonly<
   const dynamicValveParametersByFlow =
     compileMainWireDynamicValveParametersByFlowV1();
   const valveApertureState01ByFlow = Object.freeze(Object.fromEntries(
-    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.map((flowName) => [
+    MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1.map((flowName) => [
       flowName,
       initializeMainWireDynamicValveApertureV1({
         parameters: dynamicValveParametersByFlow[flowName],
@@ -564,7 +564,7 @@ export function transformPhaseB1EndpointToMainWireDistributedV1(input: Readonly<
         flowM3PerSec: dynamicFlowsM3PerSec[flowName],
       }).apertureState01,
     ]),
-  )) as Readonly<Record<MainWirePhaseB1ValveFlowNameV1, number>>;
+  )) as Readonly<Record<MainWireNonCoronaryValveFlowNameV1, number>>;
   const differentialState: PhaseB1MainWireDistributedDifferentialStateV1 =
     source.slsMode === "on"
       ? Object.freeze({
@@ -621,7 +621,7 @@ function buildStoredLabels(mode: PhaseB1SlsModeV1): readonly string[] {
     ...MAIN_WIRE_NON_CORONARY_DYNAMIC_FLOW_NAMES_V1.map(
       (flow) => `circulation.main-wire.dynamic-flow.${flow}`,
     ),
-    ...MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.map(
+    ...MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1.map(
       (flow) => `circulation.main-wire.valve-aperture.${flow}`,
     ),
   ];
@@ -707,7 +707,7 @@ function normalizeDifferentialState(
     ),
     valveApertureState01ByFlow: copyNumericRecord(
       value.valveApertureState01ByFlow,
-      MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+      MAIN_WIRE_NON_CORONARY_VALVE_FLOW_NAMES_V1,
       "valveApertureState01ByFlow",
       requireUnitInterval,
     ),
