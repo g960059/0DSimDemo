@@ -158,8 +158,14 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsV1 = Readonly<{
   mitral: Readonly<{
     E: MainWireNormalAdultFiveWallMitralWaveLedgerV1;
     A: MainWireNormalAdultFiveWallMitralWaveLedgerV1;
+    eFlowPeak: MainWireNormalAdultFiveWallCycleEventV1 &
+      Readonly<{ flowMlPerSec: number }>;
+    aFlowPeak: MainWireNormalAdultFiveWallCycleEventV1 &
+      Readonly<{ flowMlPerSec: number }>;
     peakERatioToA: number | null;
     forwardVolumeERatioToA: number | null;
+    flowAtAtrialCalciumOnsetMlPerSec: number;
+    flowAtAtrialCalciumOnsetRatioToEPeak: number | null;
   }>;
   leftAtrialVolumes: Readonly<{
     maximumMl: number;
@@ -186,6 +192,12 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsV1 = Readonly<{
       Readonly<{ pressureMmHg: number }>;
     xDescentMmHg: number;
     yDescentMmHg: number;
+    volumeAtAPeakMl: number;
+    aPeakDelayFromAtrialCalciumOnsetSec: number;
+    /** Positive means the mitral A-flow peak follows the LA-pressure a peak. */
+    aPressurePeakToMitralAFlowPeakSec: number;
+    boosterEmptyingCompletedAtAPeakFraction: number | null;
+    boosterEmptyingRemainingAtAPeakFraction: number | null;
     sequentialAcrossCycle: true;
   }>;
   ivrtLike: Readonly<{
@@ -277,6 +289,18 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
   });
   const eWave = mitralWaveLedger(samples, conduitIndices, input.dtSec);
   const aWave = mitralWaveLedger(samples, pumpingIndices, input.dtSec);
+  const eFlowPeakIndex = extremumIndex(
+    samples,
+    conduitIndices,
+    (sample) => Math.max(sample.flowMlPerSec.MV, 0),
+    "maximum",
+  );
+  const aFlowPeakIndex = extremumIndex(
+    samples,
+    pumpingIndices,
+    (sample) => Math.max(sample.flowMlPerSec.MV, 0),
+    "maximum",
+  );
 
   const laVolumes = samples.map((sample) => sample.nodeVolumeMl.LA);
   const maximumMl = Math.max(...laVolumes);
@@ -321,6 +345,12 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
   );
   const tau = fitReportOnlyRelaxationTau(samples, ivrtIndices, input.dtSec);
   const workEnergy = measureWorkEnergy(input, phaseBySample);
+  const boosterEmptyingMl = preAMl - minimumMl;
+  const volumeAtAPeakMl = samples[aIndex]!.nodeVolumeMl.LA;
+  const boosterCompletedAtAPeak = safeRatio(
+    preAMl - volumeAtAPeakMl,
+    boosterEmptyingMl,
+  );
 
   return Object.freeze({
     diagnosticsId:
@@ -341,6 +371,8 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
     mitral: Object.freeze({
       E: eWave,
       A: aWave,
+      eFlowPeak: flowEvent(samples, eFlowPeakIndex, "MV"),
+      aFlowPeak: flowEvent(samples, aFlowPeakIndex, "MV"),
       peakERatioToA: safeRatio(
         eWave.peakForwardMlPerSec,
         aWave.peakForwardMlPerSec,
@@ -349,6 +381,12 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
         eWave.forwardVolumeMl,
         aWave.forwardVolumeMl,
       ),
+      flowAtAtrialCalciumOnsetMlPerSec:
+        samples[atrialOnsetIndex]!.flowMlPerSec.MV,
+      flowAtAtrialCalciumOnsetRatioToEPeak: safeRatio(
+        samples[atrialOnsetIndex]!.flowMlPerSec.MV,
+        eWave.peakForwardMlPerSec,
+      ),
     }),
     leftAtrialVolumes: Object.freeze({
       maximumMl,
@@ -356,7 +394,7 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
       minimumMl,
       reservoirExpansionMl: totalEmptyingMl,
       conduitEmptyingMl: maximumMl - preAMl,
-      boosterEmptyingMl: preAMl - minimumMl,
+      boosterEmptyingMl,
       conduitFractionOfTotalEmptying: safeRatio(
         maximumMl - preAMl,
         totalEmptyingMl,
@@ -384,6 +422,20 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
       yTrough: yPressure,
       xDescentMmHg: aPressure.pressureMmHg - xPressure.pressureMmHg,
       yDescentMmHg: vPressure.pressureMmHg - yPressure.pressureMmHg,
+      volumeAtAPeakMl,
+      aPeakDelayFromAtrialCalciumOnsetSec: cyclicForwardSampleDelta(
+        atrialOnsetIndex,
+        aIndex,
+        samples.length,
+      ) * input.dtSec,
+      aPressurePeakToMitralAFlowPeakSec: signedCyclicSampleDelta(
+        aIndex,
+        aFlowPeakIndex,
+        samples.length,
+      ) * input.dtSec,
+      boosterEmptyingCompletedAtAPeakFraction: boosterCompletedAtAPeak,
+      boosterEmptyingRemainingAtAPeakFraction:
+        boosterCompletedAtAPeak === null ? null : 1 - boosterCompletedAtAPeak,
       sequentialAcrossCycle: true as const,
     }),
     ivrtLike: Object.freeze({
@@ -799,6 +851,36 @@ function pressureEvent(
     ...event(samples, sampleIndex),
     pressureMmHg: samples[sampleIndex]!.chamberTransmuralPressureMmHg.LA,
   });
+}
+
+function flowEvent(
+  samples: readonly MainWireNormalAdultFiveWallCycleSampleV1[],
+  sampleIndex: number,
+  flowId: "MV",
+) {
+  return Object.freeze({
+    ...event(samples, sampleIndex),
+    flowMlPerSec: samples[sampleIndex]!.flowMlPerSec[flowId],
+  });
+}
+
+function cyclicForwardSampleDelta(
+  startIndex: number,
+  endIndex: number,
+  sampleCount: number,
+): number {
+  return positiveModulo(endIndex - startIndex, sampleCount);
+}
+
+function signedCyclicSampleDelta(
+  startIndex: number,
+  endIndex: number,
+  sampleCount: number,
+): number {
+  let delta = endIndex - startIndex;
+  if (delta > sampleCount / 2) delta -= sampleCount;
+  if (delta < -sampleCount / 2) delta += sampleCount;
+  return delta;
 }
 
 function wallRecord<T>(

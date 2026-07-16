@@ -54,6 +54,16 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
     expect(measured.mitral.E.modeledAreaVtiCm).toBeCloseTo(1.5, 12);
     expect(measured.mitral.A.modeledAreaVtiCm).toBeCloseTo(1, 12);
     expect(measured.mitral.forwardVolumeERatioToA).toBeCloseTo(1.5, 12);
+    expect(measured.mitral.eFlowPeak).toMatchObject({
+      sampleIndex: 6,
+      flowMlPerSec: 20,
+    });
+    expect(measured.mitral.aFlowPeak).toMatchObject({
+      sampleIndex: 8,
+      flowMlPerSec: 15,
+    });
+    expect(measured.mitral.flowAtAtrialCalciumOnsetMlPerSec).toBe(5);
+    expect(measured.mitral.flowAtAtrialCalciumOnsetRatioToEPeak).toBe(0.25);
 
     expect(measured.leftAtrialVolumes).toMatchObject({
       maximumMl: 40,
@@ -69,6 +79,15 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
     expect(measured.leftAtrialPressureWaves.yTrough.sampleIndex).toBe(6);
     expect(measured.leftAtrialPressureWaves.xDescentMmHg).toBe(6);
     expect(measured.leftAtrialPressureWaves.yDescentMmHg).toBe(6);
+    expect(measured.leftAtrialPressureWaves.volumeAtAPeakMl).toBe(30);
+    expect(measured.leftAtrialPressureWaves
+      .aPeakDelayFromAtrialCalciumOnsetSec).toBe(0);
+    expect(measured.leftAtrialPressureWaves
+      .aPressurePeakToMitralAFlowPeakSec).toBeCloseTo(0.1, 12);
+    expect(measured.leftAtrialPressureWaves
+      .boosterEmptyingCompletedAtAPeakFraction).toBe(0);
+    expect(measured.leftAtrialPressureWaves
+      .boosterEmptyingRemainingAtAPeakFraction).toBe(1);
 
     expect(measured.ivrtLike.durationSec).toBeCloseTo(0.3, 12);
     expect(measured.ivrtLike.sampleCount).toBe(3);
