@@ -6,6 +6,7 @@ import {
   initializeMainWireFiveWallNonCoronaryV1,
   stepMainWireFiveWallNonCoronaryV1,
   type MainWireFiveWallNonCoronaryAcceptedStateV1,
+  type MainWireFiveWallNonCoronaryStepSuccessV1,
 } from "@/engine/myocardium/MainWireFiveWallNonCoronaryTransactionV1";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
@@ -142,9 +143,11 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
   }>;
 }>;
 
-type MechanicsState = MainWireFiveWallLandTriSegStateV1<
+export type MainWireNormalAdultFiveWallMechanicsStateV1 =
+  MainWireFiveWallLandTriSegStateV1<
   LandSlsWallMaterialStateV1
 >;
+type MechanicsState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireFiveWallNonCoronaryAcceptedStateV1<MechanicsState>;
 
 const CYCLE_LENGTH_SEC = 1;
@@ -206,7 +209,7 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
       break;
     }
     state = stepped.acceptedState;
-    samples.push(sampleFromStep(stepped));
+    samples.push(sampleMainWireNormalAdultFiveWallStepV1(stepped));
     if (stepIndex % stepsPerBeat === 0) {
       boundaryStates.push(state);
       const beatIndex = boundaryStates.length - 1;
@@ -253,11 +256,8 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
   });
 }
 
-function sampleFromStep(
-  step: Extract<
-    ReturnType<typeof stepMainWireFiveWallNonCoronaryV1<MechanicsState>>,
-    { converged: true }
-  >,
+export function sampleMainWireNormalAdultFiveWallStepV1(
+  step: MainWireFiveWallNonCoronaryStepSuccessV1<MechanicsState>,
 ): MainWireNormalAdultFiveWallClosedLoopSampleV1 {
   const circulation = step.circulationTrial;
   const mechanics = providerReadback(step.mechanicsTrial.diagnostics.readback);
