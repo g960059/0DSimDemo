@@ -302,10 +302,10 @@ function sampleFromStep(
       PVein_LA: circulation.edgeFlowsMlPerSec.PVein_LA,
     }),
     valveOpeningFraction01: Object.freeze({
-      MV: circulation.candidateValveStates.MV.openingFraction01,
-      AoV: circulation.candidateValveStates.AoV.openingFraction01,
-      TV: circulation.candidateValveStates.TV.openingFraction01,
-      PV: circulation.candidateValveStates.PV.openingFraction01,
+      MV: circulation.candidateValveStates.MV.leafletOpeningFraction01,
+      AoV: circulation.candidateValveStates.AoV.leafletOpeningFraction01,
+      TV: circulation.candidateValveStates.TV.leafletOpeningFraction01,
+      PV: circulation.candidateValveStates.PV.leafletOpeningFraction01,
     }),
     freeCalciumUM: Object.freeze({
       ...step.calciumDrive.freeCalciumUMByWall,
@@ -374,10 +374,10 @@ function physicalCirculationState(state: AcceptedState): Readonly<{
     // Quasi-steady valve q is an algebraic readback, not a memory state. Only
     // leaflet opening belongs in the beat-boundary closure vector.
     valveOpeningFraction01: Object.freeze({
-      MV: state.circulation.valveStates.MV.openingFraction01,
-      AoV: state.circulation.valveStates.AoV.openingFraction01,
-      TV: state.circulation.valveStates.TV.openingFraction01,
-      PV: state.circulation.valveStates.PV.openingFraction01,
+      MV: state.circulation.valveStates.MV.leafletOpeningFraction01,
+      AoV: state.circulation.valveStates.AoV.leafletOpeningFraction01,
+      TV: state.circulation.valveStates.TV.leafletOpeningFraction01,
+      PV: state.circulation.valveStates.PV.leafletOpeningFraction01,
     }),
   });
 }

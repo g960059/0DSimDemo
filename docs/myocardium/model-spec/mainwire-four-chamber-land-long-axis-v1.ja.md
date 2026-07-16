@@ -185,10 +185,16 @@ $A$はeffective orifice area（EOA）、$\rho=1060\ \mathrm{kg/m^3}$、$C_d=1$�
 contraction/dischargeを含むため、追加の$C_d$をfitしない。旧edge Bはこの構成に対しMV 0.50倍、
 AoV 0.031倍、TV 1.61倍、PV 0.081倍で、特にsemilunar peak flowを過小減衰にしていた。
 
-$Q$は各candidate pressureから単調な代数rootとして求め、独立memory stateにしない。$\xi$だけを
-bounded opening stateとしてaccepted-state backward Eulerで進める。これにより旧モデルで
+$Q$は各candidate pressureから単調な代数rootとして求め、独立memory stateにしない。accepted
+memoryは`leafletOpeningFraction01`（$\xi$）ただ一つであり、$Q$はevaluation readbackにだけ置く。
+$\xi$をbounded opening stateとしてaccepted-state backward Eulerで進める。これにより旧モデルで
 MV約10 Hz、AoV約33 Hzだったinertance--compliance ringingを除去した。root/vessel inertanceは
 別pressure区間のmain-wire dynamic edgeが所有する。
+
+$B$は公開調整parameterとして保持せず、各evaluationで現在の数値EOAから上式により直接導出する。
+main-wire edgeの旧`B`と`L`はこのchamber間orificeでは読まない。MV opening targetに限っては、既存
+main-wire topologyが所有する0.60 mmHg deadbandを明示的に参照する。これは現行出力を保つための
+未検証main-wire priorであり、この実験のfit knobでも、生理学的に較正済みの弁圧較差でもない。
 
 $A_{leak}$は病的な双方向regurgitant orificeである。数値area floorとは別parameterにする。
 
@@ -196,6 +202,20 @@ $A_{leak}$は病的な双方向regurgitant orificeである。数値area floor�
 - $A_{leak}=0$：半滑らかな片側制約$Q\ge 0$とする
 - $A_{leak}>0$：病的逆流として双方向flowを許す
 - 固定reverse-flow capや$q$/$\dot q$ clampを形状調整には使わない
+
+competent valveの閉鎖時はopen-orifice式の残差を0と偽装せず、contact reaction
+$\lambda_c$を導入した相補性条件として読む。
+
+$$
+Q\ge 0,\qquad \lambda_c\ge 0,\qquad Q\lambda_c=0,
+$$
+
+$$
+\Delta P-R(A)Q-B(A)Q\sqrt{Q^2+\epsilon_Q^2}+\lambda_c=0.
+$$
+
+逆圧較差で$Q=0$のとき、open-orifice residualは負のまま、$\lambda_c=-\Delta P>0$がhydraulic
+balanceを閉じる。したがって閉鎖弁を「開放orifice residualが0」とは報告しない。
 
 ## 固定比較と停止規則
 
@@ -215,7 +235,7 @@ Cd、B、L、$E_v$、$\tau_v$のscanは行っていない。
 - LV EF、EDPVR、relaxation
 - qのbound hit、総接線、root uniqueness
 - graph mass ledger、通常時TBV projection量
-- valve pressure-flow/opening residual、片側projection、離散energy balance
+- valve opening residual、open-orifice residual、contact reaction、相補性積、hydraulic/power balance
 
 を含める。
 
