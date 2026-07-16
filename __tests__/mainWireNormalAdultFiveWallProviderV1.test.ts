@@ -43,7 +43,6 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
     expect(rb.strictLocalStableEquilibrium).toBe(true);
     expect(rb.jacobianSymmetricWithinTolerance).toBe(true);
     expect(rb.totalAlgorithmicStressPrimitiveJ).toBeNull();
-    expect(rb.triseg.bendingStoredEnergyJ).toBe(0);
     expect(Object.values(cold.transmuralPressuresMmHg).every(Number.isFinite))
       .toBe(true);
 

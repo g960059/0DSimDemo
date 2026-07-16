@@ -7,7 +7,6 @@
     "beatCount": 8,
     "circulation": "authoritative-main-wire-noncoronary",
     "activation": "fixed-five-wall-periodic-calcium-prior",
-    "koiterBending": "disabled",
     "pericardialConstraint": false,
     "laaBodyCompartments": false,
     "parameterSearch": false,

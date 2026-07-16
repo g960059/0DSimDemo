@@ -134,7 +134,6 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
   claim: Readonly<{
     heartRateBpm: 60;
     circulation: "authoritative-main-wire-noncoronary";
-    koiterBending: "disabled";
     laaBodyCompartments: false;
     pericardialConstraint: false;
     parameterSearch: false;
@@ -245,7 +244,6 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
     claim: Object.freeze({
       heartRateBpm: 60 as const,
       circulation: "authoritative-main-wire-noncoronary" as const,
-      koiterBending: "disabled" as const,
       laaBodyCompartments: false as const,
       pericardialConstraint: false as const,
       parameterSearch: false as const,
