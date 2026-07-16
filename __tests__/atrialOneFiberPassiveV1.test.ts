@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   ATRIAL_ONE_FIBER_PASSIVE_CLAIM_V1,
   compileAtrialOneFiberPassiveV1,
+  evaluateAtrialOneFiberBaseGeometryV1,
+  evaluateAtrialOneFiberPassiveAtEffectiveStrainV1,
   evaluateAtrialOneFiberPassiveV1,
   type AtrialOneFiberPassiveParamsV1,
 } from "@/engine/myocardium/atria/atrialOneFiberPassiveV1";
@@ -113,5 +115,56 @@ describe("AtrialOneFiberPassiveV1", () => {
       tensionScalePa: LA_PARAMS.tensionScalePa * 1.01,
     });
     expect(changed.parameterIdentityHash).not.toBe(first.parameterIdentityHash);
+  });
+
+  it("remains volume-work-conjugate at a fixed externally supplied strain offset", () => {
+    const compiled = compileAtrialOneFiberPassiveV1(LA_PARAMS);
+    const cavityVolumeMl = 72;
+    const fixedEffectiveStrainOffset = 0.035;
+    const stepMl = 0.001;
+    const evaluateAtFixedOffset = (volumeMl: number) => {
+      const geometry = evaluateAtrialOneFiberBaseGeometryV1(volumeMl, compiled);
+      return evaluateAtrialOneFiberPassiveAtEffectiveStrainV1(
+        geometry,
+        geometry.fiberLogStrain + fixedEffectiveStrainOffset,
+        compiled,
+      );
+    };
+    const center = evaluateAtFixedOffset(cavityVolumeMl);
+    const lower = evaluateAtFixedOffset(cavityVolumeMl - stepMl);
+    const upper = evaluateAtFixedOffset(cavityVolumeMl + stepMl);
+    const pressureFromEnergyPa = (upper.storedEnergyJ - lower.storedEnergyJ) /
+      (2 * stepMl * 1e-6);
+    expect(pressureFromEnergyPa).toBeCloseTo(center.transmuralPressurePa, 5);
+    expect(center.effectiveFiberLogStrain).toBeCloseTo(
+      center.fiberLogStrain + fixedEffectiveStrainOffset,
+      12,
+    );
+  });
+
+  it("provides stress work conjugate to an externally owned q strain projection", () => {
+    const compiled = compileAtrialOneFiberPassiveV1(LA_PARAMS);
+    const geometry = evaluateAtrialOneFiberBaseGeometryV1(72, compiled);
+    const q = 0.04;
+    const externallyOwnedStrainGain = 0.35;
+    const qStep = 1e-6;
+    const energyAtQ = (coordinate: number) =>
+      evaluateAtrialOneFiberPassiveAtEffectiveStrainV1(
+        geometry,
+        geometry.fiberLogStrain + externallyOwnedStrainGain * coordinate,
+        compiled,
+      );
+    const center = energyAtQ(q);
+    const lower = energyAtQ(q - qStep);
+    const upper = energyAtQ(q + qStep);
+    const generalizedForceFiniteDifferenceJ =
+      (upper.storedEnergyJ - lower.storedEnergyJ) / (2 * qStep);
+    const generalizedForceAnalyticJ =
+      LA_PARAMS.wallReferenceMaterialVolumeMl * 1e-6 *
+      center.equilibriumKirchhoffStressPa * externallyOwnedStrainGain;
+    expect(generalizedForceFiniteDifferenceJ)
+      .toBeCloseTo(generalizedForceAnalyticJ, 10);
+    expect("coordinate" in center).toBe(false);
+    expect("effectiveStrainGain" in center).toBe(false);
   });
 });
