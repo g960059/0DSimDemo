@@ -1,5 +1,7 @@
 /**
- * Joint four-chamber mechanics boundary for ModelCore.
+ * Joint four-chamber mechanics boundary intended for host integration.
+ *
+ * This contract does not by itself establish ModelCore runtime wiring.
  *
  * Main wire owns blood/vascular nodes, edges, and valves. One mechanics
  * provider jointly maps the four candidate chamber volumes to four transmural
@@ -42,7 +44,7 @@ export type WholeHeartMechanicsSerializableValueV1 =
   | readonly WholeHeartMechanicsSerializableValueV1[]
   | { readonly [key: string]: WholeHeartMechanicsSerializableValueV1 };
 
-/** Allows efficient internal arrays without exposing their layout to ModelCore. */
+/** Allows efficient internal arrays without exposing their layout to the host. */
 export type WholeHeartMechanicsStateCodecV1<TState> = {
   clone(state: TState): TState;
   encode(state: TState): WholeHeartMechanicsSerializableValueV1;
@@ -276,7 +278,7 @@ export function cloneWholeHeartMechanicsAcceptedStateV1<TState, TDrive>(
   });
 }
 
-/** JSON.stringify(checkpoint) is the stable ModelCore snapshot payload. */
+/** JSON.stringify(checkpoint) is the stable contract snapshot payload. */
 export function checkpointWholeHeartMechanicsStateV1<TState, TDrive>(
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
   state: WholeHeartMechanicsAcceptedStateV1<TState>,

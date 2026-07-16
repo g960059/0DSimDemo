@@ -298,8 +298,10 @@ $$
 である。これは種・壁をまたぐ外挿なので、固定ablationで独立したhysteresisと正の散逸へ寄与しない
 場合、$E_v$や$\tau_v$を探索せずstateごと削除する。2本目のMaxwell branchは追加しない。
 
-現時点でpaired exact-off evidenceがあるのはLAだけである。RAへhuman-LA材料を使うこと、LA/RAと
-LVFW/SEP/RVFWへ同じProny比を使うことはいずれも外挿であり、各壁で検証済みとは主張しない。
+`dt=2 ms`のcanonical paired reportでexact-off evidenceがあるのはLAだけである。後述する
+`dt=5 ms`の固定構造監査ではRA単独offと心室3壁一括offも評価するが、RAへhuman-LA材料を使うこと、
+LA/RAとLVFW/SEP/RVFWへ同じProny比を使うことはいずれも外挿であり、各壁の材料parameterが
+同定済みとは主張しない。
 
 棄却したlong-axis試験ではgaugeを$a_{LVFW}=-1$に固定し、
 
