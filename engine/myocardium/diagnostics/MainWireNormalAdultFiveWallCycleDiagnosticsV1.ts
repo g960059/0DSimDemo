@@ -17,6 +17,12 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_DIAGNOSTICS_CLAIM_V1 =
     smoothingOrInterpolation: false as const,
     phaseOwnership: "cyclic-half-open-exhaustive" as const,
     integration: "backward-Euler-endpoint" as const,
+    valveEventOwnership:
+      "explicit-flow-threshold-transitions" as const,
+    mitralClosureAnchor:
+      "first-closure-transition-at-or-after-atrial-calcium-onset" as const,
+    mitralWaveSeparation:
+      "strict-intervening-forward-flow-valley-between-window-peaks" as const,
     pulmonaryVenousSignal:
       "aggregate-PVein-to-LA-edge-not-separate-vein-measurements" as const,
     mitralVti:
@@ -147,6 +153,8 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsV1 = Readonly<{
     mitralValveClosure: MainWireNormalAdultFiveWallCycleEventV1;
     aorticValveClosure: MainWireNormalAdultFiveWallCycleEventV1;
     atrialCalciumOnset: MainWireNormalAdultFiveWallCycleEventV1;
+    mitralEventSource: "flow-threshold";
+    aorticEventSource: "flow-threshold";
     mitralOpenThresholdMlPerSec: number;
     aorticOpenThresholdMlPerSec: number;
   }>;
@@ -166,6 +174,14 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsV1 = Readonly<{
     forwardVolumeERatioToA: number | null;
     flowAtAtrialCalciumOnsetMlPerSec: number;
     flowAtAtrialCalciumOnsetRatioToEPeak: number | null;
+    waveSeparation: Readonly<{
+      status: "separated" | "fused-or-unresolved";
+      criterion:
+        "strict-intervening-forward-flow-valley-between-window-peaks";
+      valley: (MainWireNormalAdultFiveWallCycleEventV1 &
+        Readonly<{ flowMlPerSec: number }>) | null;
+      valleyToLowerPeakRatio: number | null;
+    }>;
   }>;
   leftAtrialVolumes: Readonly<{
     maximumMl: number;
@@ -198,6 +214,11 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsV1 = Readonly<{
     aPressurePeakToMitralAFlowPeakSec: number;
     boosterEmptyingCompletedAtAPeakFraction: number | null;
     boosterEmptyingRemainingAtAPeakFraction: number | null;
+    boosterEmptyingCompletedAtAPeakStatus:
+      | "within-active-emptying"
+      | "before-net-emptying"
+      | "at-or-after-cycle-minimum"
+      | "not-defined-no-net-booster-emptying";
     sequentialAcrossCycle: true;
   }>;
   ivrtLike: Readonly<{
@@ -238,21 +259,23 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
   const thresholdFraction = input.valveOpenThreshold?.peakFraction ?? 0.01;
   const thresholdFloor =
     input.valveOpenThreshold?.absoluteFloorMlPerSec ?? 1;
+  const atrialOnsetIndex = nearestPhaseAtOrAfter(
+    samples,
+    input.atrialCalciumOnsetPhase01,
+  );
   const mitral = detectValveCycle(
     samples.map((sample) => sample.flowMlPerSec.MV),
     thresholdFraction,
     thresholdFloor,
+    atrialOnsetIndex,
     "mitral",
   );
   const aortic = detectValveCycle(
     samples.map((sample) => sample.flowMlPerSec.AoV),
     thresholdFraction,
     thresholdFloor,
+    null,
     "aortic",
-  );
-  const atrialOnsetIndex = nearestPhaseAtOrAfter(
-    samples,
-    input.atrialCalciumOnsetPhase01,
   );
 
   const reservoirIndices = cyclicHalfOpenIndices(
@@ -300,6 +323,11 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
     pumpingIndices,
     (sample) => Math.max(sample.flowMlPerSec.MV, 0),
     "maximum",
+  );
+  const waveSeparation = measureMitralWaveSeparation(
+    samples,
+    eFlowPeakIndex,
+    aFlowPeakIndex,
   );
 
   const laVolumes = samples.map((sample) => sample.nodeVolumeMl.LA);
@@ -351,6 +379,14 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
     preAMl - volumeAtAPeakMl,
     boosterEmptyingMl,
   );
+  const minimumVolumeIndex = laVolumes.indexOf(minimumMl);
+  const boosterCompletedAtAPeakStatus = boosterEmptyingAtAPeakStatus(
+    boosterCompletedAtAPeak,
+    atrialOnsetIndex,
+    aIndex,
+    minimumVolumeIndex,
+    samples.length,
+  );
 
   return Object.freeze({
     diagnosticsId:
@@ -364,6 +400,8 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
       mitralValveClosure: event(samples, mitral.closingIndex),
       aorticValveClosure: event(samples, aortic.closingIndex),
       atrialCalciumOnset: event(samples, atrialOnsetIndex),
+      mitralEventSource: "flow-threshold" as const,
+      aorticEventSource: "flow-threshold" as const,
       mitralOpenThresholdMlPerSec: mitral.thresholdMlPerSec,
       aorticOpenThresholdMlPerSec: aortic.thresholdMlPerSec,
     }),
@@ -387,6 +425,7 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
         samples[atrialOnsetIndex]!.flowMlPerSec.MV,
         eWave.peakForwardMlPerSec,
       ),
+      waveSeparation,
     }),
     leftAtrialVolumes: Object.freeze({
       maximumMl,
@@ -436,6 +475,8 @@ export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
       boosterEmptyingCompletedAtAPeakFraction: boosterCompletedAtAPeak,
       boosterEmptyingRemainingAtAPeakFraction:
         boosterCompletedAtAPeak === null ? null : 1 - boosterCompletedAtAPeak,
+      boosterEmptyingCompletedAtAPeakStatus:
+        boosterCompletedAtAPeakStatus,
       sequentialAcrossCycle: true as const,
     }),
     ivrtLike: Object.freeze({
@@ -710,15 +751,37 @@ function fitReportOnlyRelaxationTau(
 
 function detectValveCycle(
   flows: readonly number[],
-  thresholdFraction: number,
-  thresholdFloor: number,
+  flowThresholdFraction: number,
+  flowThresholdFloor: number,
+  closureSearchStartIndex: number | null,
   label: string,
 ) {
   const peak = Math.max(...flows);
-  const thresholdMlPerSec = Math.max(thresholdFloor, thresholdFraction * peak);
-  const open = flows.map((flow) => flow > thresholdMlPerSec);
+  const thresholdMlPerSec = Math.max(
+    flowThresholdFloor,
+    flowThresholdFraction * peak,
+  );
+  const transition = detectBinaryValveCycle(
+    flows.map((flow) => flow > thresholdMlPerSec),
+    closureSearchStartIndex,
+    label,
+  );
+  if (transition === null) {
+    throw new Error(`${label} signal has no cyclic opening and closing transition`);
+  }
+  return Object.freeze({
+    ...transition,
+    thresholdMlPerSec,
+  });
+}
+
+function detectBinaryValveCycle(
+  open: readonly boolean[],
+  closureSearchStartIndex: number | null,
+  label: string,
+): Readonly<{ openingIndex: number; closingIndex: number }> | null {
   if (open.every(Boolean) || open.every((value) => !value)) {
-    throw new Error(`${label} flow has no cyclic opening and closing transition`);
+    return null;
   }
   let openingIndex = -1;
   let bestClosedRun = -1;
@@ -737,9 +800,12 @@ function detectValveCycle(
     }
   }
   let closingIndex = -1;
-  let cursor = openingIndex;
+  let cursor = closureSearchStartIndex === null
+    ? openingIndex
+    : closureSearchStartIndex;
   for (let guard = 0; guard < open.length; guard += 1) {
     const next = (cursor + 1) % open.length;
+    if (closureSearchStartIndex !== null && next === openingIndex) break;
     if (open[cursor] && !open[next]) {
       closingIndex = next;
       break;
@@ -747,9 +813,78 @@ function detectValveCycle(
     cursor = next;
   }
   if (openingIndex < 0 || closingIndex < 0) {
-    throw new Error(`${label} flow transition detection failed`);
+    throw new Error(`${label} transition detection failed`);
   }
-  return Object.freeze({ openingIndex, closingIndex, thresholdMlPerSec });
+  return Object.freeze({ openingIndex, closingIndex });
+}
+
+function measureMitralWaveSeparation(
+  samples: readonly MainWireNormalAdultFiveWallCycleSampleV1[],
+  ePeakIndex: number,
+  aPeakIndex: number,
+): MainWireNormalAdultFiveWallCycleDiagnosticsV1["mitral"]["waveSeparation"] {
+  const between = cyclicHalfOpenIndices(
+    samples.length,
+    (ePeakIndex + 1) % samples.length,
+    aPeakIndex,
+  );
+  if (between.length === 0) return unresolvedMitralWaveSeparation();
+  const valleyIndex = extremumIndex(
+    samples,
+    between,
+    (sample) => Math.max(sample.flowMlPerSec.MV, 0),
+    "minimum",
+  );
+  const ePeak = Math.max(samples[ePeakIndex]!.flowMlPerSec.MV, 0);
+  const aPeak = Math.max(samples[aPeakIndex]!.flowMlPerSec.MV, 0);
+  const valleyFlow = Math.max(samples[valleyIndex]!.flowMlPerSec.MV, 0);
+  if (!(ePeak > 0 && aPeak > 0 && valleyFlow < ePeak && valleyFlow < aPeak)) {
+    return unresolvedMitralWaveSeparation();
+  }
+  return Object.freeze({
+    status: "separated" as const,
+    criterion:
+      "strict-intervening-forward-flow-valley-between-window-peaks" as const,
+    valley: flowEvent(samples, valleyIndex, "MV"),
+    valleyToLowerPeakRatio: valleyFlow / Math.min(ePeak, aPeak),
+  });
+}
+
+function unresolvedMitralWaveSeparation():
+MainWireNormalAdultFiveWallCycleDiagnosticsV1["mitral"]["waveSeparation"] {
+  return Object.freeze({
+    status: "fused-or-unresolved" as const,
+    criterion:
+      "strict-intervening-forward-flow-valley-between-window-peaks" as const,
+    valley: null,
+    valleyToLowerPeakRatio: null,
+  });
+}
+
+function boosterEmptyingAtAPeakStatus(
+  fraction: number | null,
+  atrialOnsetIndex: number,
+  aPeakIndex: number,
+  minimumVolumeIndex: number,
+  sampleCount: number,
+): MainWireNormalAdultFiveWallCycleDiagnosticsV1[
+  "leftAtrialPressureWaves"
+]["boosterEmptyingCompletedAtAPeakStatus"] {
+  if (fraction === null) return "not-defined-no-net-booster-emptying";
+  if (fraction < 0) return "before-net-emptying";
+  const aPeakProgress = cyclicForwardSampleDelta(
+    atrialOnsetIndex,
+    aPeakIndex,
+    sampleCount,
+  );
+  const minimumProgress = cyclicForwardSampleDelta(
+    atrialOnsetIndex,
+    minimumVolumeIndex,
+    sampleCount,
+  );
+  return aPeakProgress >= minimumProgress
+    ? "at-or-after-cycle-minimum"
+    : "within-active-emptying";
 }
 
 function assignExhaustivePhases(

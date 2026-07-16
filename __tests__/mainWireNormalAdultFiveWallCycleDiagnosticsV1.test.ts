@@ -43,6 +43,8 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
     expect(measured.events.mitralValveOpening.sampleIndex).toBe(5);
     expect(measured.events.mitralValveClosure.sampleIndex).toBe(9);
     expect(measured.events.aorticValveClosure.sampleIndex).toBe(2);
+    expect(measured.events.mitralEventSource).toBe("flow-threshold");
+    expect(measured.events.aorticEventSource).toBe("flow-threshold");
 
     expect(measured.pulmonaryVenous.S.forwardVolumeMl).toBeCloseTo(2.1, 12);
     expect(measured.pulmonaryVenous.D.forwardVolumeMl).toBeCloseTo(3, 12);
@@ -64,6 +66,11 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
     });
     expect(measured.mitral.flowAtAtrialCalciumOnsetMlPerSec).toBe(5);
     expect(measured.mitral.flowAtAtrialCalciumOnsetRatioToEPeak).toBe(0.25);
+    expect(measured.mitral.waveSeparation).toMatchObject({
+      status: "separated",
+      valley: { sampleIndex: 7, flowMlPerSec: 5 },
+      valleyToLowerPeakRatio: 1 / 3,
+    });
 
     expect(measured.leftAtrialVolumes).toMatchObject({
       maximumMl: 40,
@@ -88,6 +95,8 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
       .boosterEmptyingCompletedAtAPeakFraction).toBe(0);
     expect(measured.leftAtrialPressureWaves
       .boosterEmptyingRemainingAtAPeakFraction).toBe(1);
+    expect(measured.leftAtrialPressureWaves
+      .boosterEmptyingCompletedAtAPeakStatus).toBe("within-active-emptying");
 
     expect(measured.ivrtLike.durationSec).toBeCloseTo(0.3, 12);
     expect(measured.ivrtLike.sampleCount).toBe(3);
@@ -152,6 +161,117 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
     expect(measured.workEnergy.stressWorkCoverageFraction).toBe(0.9);
     expect(measured.workEnergy.perWall.LA.stressWorkOnWallMilliJ.total)
       .toBeCloseTo(0.054, 12);
+  });
+
+  it("keeps valve phases exhaustive across a sub-threshold E/A gap", () => {
+    const separatedFlow = [0, 0, 0, 0, 0, 10, 20, 0, 15, 0];
+    const samples = Array.from({ length: 10 }, (_, index) => Object.freeze({
+      ...sample(index),
+      flowMlPerSec: Object.freeze({
+        ...sample(index).flowMlPerSec,
+        MV: separatedFlow[index]!,
+      }),
+    }));
+    const measured = measureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
+      samples,
+      precedingSample: precedingSample(),
+      dtSec: DT_SEC,
+      atrialCalciumOnsetPhase01: 0.7,
+      wallMaterialVolumeMlByWall: WALL_VOLUMES_ML,
+      valveOpenThreshold: {
+        peakFraction: 0.01,
+        absoluteFloorMlPerSec: 0.1,
+      },
+    });
+
+    expect(measured.events.mitralEventSource).toBe("flow-threshold");
+    expect(measured.events.mitralValveOpening.sampleIndex).toBe(5);
+    expect(measured.events.mitralValveClosure.sampleIndex).toBe(9);
+    expect(measured.events.atrialCalciumOnset.sampleIndex).toBe(7);
+    expect(measured.phaseBySample).toEqual([
+      "reservoir", "reservoir", "reservoir", "reservoir", "reservoir",
+      "conduit", "conduit", "pumping", "pumping", "reservoir",
+    ]);
+    expect(Object.values(measured.phaseSampleCount)
+      .reduce((sum, count) => sum + count, 0)).toBe(samples.length);
+    expect(measured.mitral.waveSeparation).toMatchObject({
+      status: "separated",
+      valley: { sampleIndex: 7, flowMlPerSec: 0 },
+      valleyToLowerPeakRatio: 0,
+    });
+  });
+
+  it("anchors flow-threshold MVC after atrial onset, not at E-wave end", () => {
+    const separatedFlow = [0, 0, 0, 0, 0, 10, 20, 0, 15, 0];
+    const samples = Array.from({ length: 10 }, (_, index) => {
+      const base = sample(index);
+      return Object.freeze({
+        ...base,
+        flowMlPerSec: Object.freeze({
+          ...base.flowMlPerSec,
+          MV: separatedFlow[index]!,
+        }),
+      });
+    });
+    const measured = measureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
+      samples,
+      precedingSample: precedingSample(),
+      dtSec: DT_SEC,
+      atrialCalciumOnsetPhase01: 0.7,
+      wallMaterialVolumeMlByWall: WALL_VOLUMES_ML,
+      valveOpenThreshold: {
+        peakFraction: 0.01,
+        absoluteFloorMlPerSec: 0.1,
+      },
+    });
+
+    expect(measured.events.mitralEventSource).toBe("flow-threshold");
+    expect(measured.events.mitralValveOpening.sampleIndex).toBe(5);
+    expect(measured.events.mitralValveClosure.sampleIndex).toBe(9);
+    expect(measured.phaseSampleCount).toEqual({
+      reservoir: 6,
+      conduit: 2,
+      pumping: 2,
+    });
+  });
+
+  it("reports a negative A-apex emptying fraction without clamping it", () => {
+    const samples = Array.from({ length: 10 }, (_, index) => {
+      const base = sample(index);
+      return index === 7
+        ? Object.freeze({
+          ...base,
+          chamberTransmuralPressureMmHg: Object.freeze({
+            ...base.chamberTransmuralPressureMmHg,
+            LA: 4,
+          }),
+        })
+        : index === 8
+          ? Object.freeze({
+            ...base,
+            nodeVolumeMl: Object.freeze({ ...base.nodeVolumeMl, LA: 35 }),
+            chamberTransmuralPressureMmHg: Object.freeze({
+              ...base.chamberTransmuralPressureMmHg,
+              LA: 9,
+            }),
+          })
+          : base;
+    });
+    const measured = measureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
+      samples,
+      precedingSample: precedingSample(),
+      dtSec: DT_SEC,
+      atrialCalciumOnsetPhase01: 0.7,
+      wallMaterialVolumeMlByWall: WALL_VOLUMES_ML,
+      valveOpenThreshold: { absoluteFloorMlPerSec: 0.1 },
+    });
+
+    expect(measured.leftAtrialPressureWaves
+      .boosterEmptyingCompletedAtAPeakFraction).toBe(-0.5);
+    expect(measured.leftAtrialPressureWaves
+      .boosterEmptyingRemainingAtAPeakFraction).toBe(1.5);
+    expect(measured.leftAtrialPressureWaves
+      .boosterEmptyingCompletedAtAPeakStatus).toBe("before-net-emptying");
   });
 });
 
