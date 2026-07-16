@@ -4,6 +4,7 @@ import {
   buildMainWireNormalAdultFiveWallPeriodicReviewV1,
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V1,
   renderMainWireNormalAdultFiveWallPeriodicReviewV1,
+  unwrapMainWireNormalAdultFiveWallPeriodicReviewPhase01V1,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallPeriodicReviewV1";
 import type {
   MainWireNormalAdultFiveWallDiagnosticSampleV2,
@@ -27,6 +28,22 @@ const GROUPS = [
 ] as const satisfies readonly MainWireFiveWallPeriodicClosureGroupV1[];
 
 describe("main-wire normal-adult five-wall periodic review V1", () => {
+  it("unwraps the terminal accepted phase to one without reversing plot x", () => {
+    const phase = unwrapMainWireNormalAdultFiveWallPeriodicReviewPhase01V1([
+      0.2,
+      0.4,
+      0.6,
+      0.8,
+      2e-15,
+    ]);
+
+    expect(phase).toEqual([0.2, 0.4, 0.6, 0.8, 1]);
+    expect(phase.at(-1)).toBe(1);
+    for (let index = 1; index < phase.length; index += 1) {
+      expect(phase[index]).toBeGreaterThanOrEqual(phase[index - 1]!);
+    }
+  });
+
   it("derives cycle diagnostics from the final retained raw beat", () => {
     const result = periodicResult();
     const review = buildMainWireNormalAdultFiveWallPeriodicReviewV1(result);

@@ -366,11 +366,11 @@ function renderSvg(
       "cardiac phase",
       "pressure (mmHg)",
       [
-        lineSeries("LAP", "#38bdf8", current, phase, (sample) =>
+        phaseDomainLineSeries("LAP", "#38bdf8", current, (sample) =>
           sample.chamberTransmuralPressureMmHg.LA),
-        lineSeries("LVP", "#a78bfa", current, phase, (sample) =>
+        phaseDomainLineSeries("LVP", "#a78bfa", current, (sample) =>
           sample.chamberTransmuralPressureMmHg.LV),
-        lineSeries("AoP", "#f97316", current, phase, (sample) =>
+        phaseDomainLineSeries("AoP", "#f97316", current, (sample) =>
           sample.nodeAbsolutePressureMmHg.Ao),
       ],
     ),
@@ -380,9 +380,9 @@ function renderSvg(
       "cardiac phase",
       "flow (mL/s)",
       [
-        lineSeries("MV", "#ec4899", current, phase, (sample) =>
+        phaseDomainLineSeries("MV", "#ec4899", current, (sample) =>
           sample.flowMlPerSec.MV),
-        lineSeries("PVein→LA", "#22c55e", current, phase, (sample) =>
+        phaseDomainLineSeries("PVein→LA", "#22c55e", current, (sample) =>
           sample.flowMlPerSec.PVein_LA),
       ],
       [0],
@@ -392,10 +392,9 @@ function renderSvg(
       "Left-atrial blood volume",
       "cardiac phase",
       "LA volume (mL)",
-      phaseSeries(
+      phaseDomainPhaseSeries(
         current,
         phases,
-        phase,
         (sample) => sample.nodeVolumeMl.LA,
       ),
     ),
@@ -453,6 +452,27 @@ function phaseSeries(
   }));
 }
 
+function phaseDomainPhaseSeries(
+  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
+  phases: readonly MainWireNormalAdultFiveWallCyclePhaseV1[],
+  y: (sample: MainWireNormalAdultFiveWallDiagnosticSampleV2) => number,
+): LineSeries[] {
+  const unwrapped =
+    unwrapMainWireNormalAdultFiveWallPeriodicReviewPhase01V1(
+      samples.map((sample) => sample.cyclePhase01),
+    );
+  return (["reservoir", "conduit", "pumping"] as const).map((target) => ({
+    label: target,
+    color: PHASE_COLORS[target],
+    paths: contiguousPhaseIndexRuns(phases, target).map((run) =>
+      run.map((index) => ({
+        x: unwrapped[index]!,
+        y: y(samples[index]!),
+      }))),
+    width: 2.4,
+  }));
+}
+
 function contiguousPhaseRuns(
   samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
   phases: readonly MainWireNormalAdultFiveWallCyclePhaseV1[],
@@ -466,6 +486,25 @@ function contiguousPhaseRuns(
         run.push(samples[positiveModulo(index - 1, samples.length)]!);
       }
       run.push(samples[index]!);
+    } else if (run.length > 0) {
+      runs.push(run);
+      run = [];
+    }
+  }
+  if (run.length > 0) runs.push(run);
+  return Object.freeze(runs.map((value) => Object.freeze(value)));
+}
+
+function contiguousPhaseIndexRuns(
+  phases: readonly MainWireNormalAdultFiveWallCyclePhaseV1[],
+  target: MainWireNormalAdultFiveWallCyclePhaseV1,
+): readonly (readonly number[])[] {
+  const runs: number[][] = [];
+  let run: number[] = [];
+  for (let index = 0; index < phases.length; index += 1) {
+    if (phases[index] === target) {
+      if (run.length === 0 && index > 0) run.push(index - 1);
+      run.push(index);
     } else if (run.length > 0) {
       runs.push(run);
       run = [];
@@ -493,6 +532,58 @@ function lineSeries(
     dashed: style.dashed,
     width: style.width,
   });
+}
+
+function phaseDomainLineSeries(
+  label: string,
+  color: string,
+  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
+  y: (sample: MainWireNormalAdultFiveWallDiagnosticSampleV2) => number,
+): LineSeries {
+  const unwrapped =
+    unwrapMainWireNormalAdultFiveWallPeriodicReviewPhase01V1(
+      samples.map((sample) => sample.cyclePhase01),
+    );
+  return Object.freeze({
+    label,
+    color,
+    paths: Object.freeze([Object.freeze(samples.map((sample, index) =>
+      Object.freeze({ x: unwrapped[index]!, y: y(sample) })))]),
+    width: 2.1,
+  });
+}
+
+/**
+ * Plot-only cyclic phase unwrap. Accepted sample order is preserved; a wrapped
+ * terminal phase near zero is shown at one instead of drawing back to zero.
+ */
+export function unwrapMainWireNormalAdultFiveWallPeriodicReviewPhase01V1(
+  phases: readonly number[],
+): readonly number[] {
+  const tolerance = 1e-10;
+  let cycleOffset = 0;
+  let previous = Number.NEGATIVE_INFINITY;
+  return Object.freeze(phases.map((phaseValue, index) => {
+    if (
+      !Number.isFinite(phaseValue)
+      || phaseValue < -tolerance
+      || phaseValue >= 1 + tolerance
+    ) throw new Error(`invalid cycle phase at sample ${index}`);
+    const phase = Math.abs(phaseValue) <= tolerance ? 0 : phaseValue;
+    let unwrapped = phase + cycleOffset;
+    if (index > 0 && unwrapped < previous) {
+      if (previous - unwrapped < 0.5) {
+        throw new Error(`nonmonotone cycle phase without wrap at sample ${index}`);
+      }
+      cycleOffset += 1;
+      unwrapped = phase + cycleOffset;
+    }
+    if (unwrapped < previous) {
+      throw new Error(`cycle phase unwrap decreased at sample ${index}`);
+    }
+    previous = unwrapped;
+    return unwrapped;
+  }));
 }
 
 function convergenceSeries(
@@ -799,10 +890,6 @@ function shortGroupLabel(group: MainWireFiveWallPeriodicClosureGroupV1): string 
     "sls-viscous-strain": "SLS strain",
     "wall-input-history": "wall input history",
   } as const)[group];
-}
-
-function phase(sample: MainWireNormalAdultFiveWallDiagnosticSampleV2): number {
-  return sample.cyclePhase01;
 }
 
 function paddedDomain(values: readonly number[]): readonly [number, number] {
