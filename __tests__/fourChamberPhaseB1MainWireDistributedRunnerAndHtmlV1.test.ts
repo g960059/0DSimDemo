@@ -277,6 +277,31 @@ describe("Phase B1 main-wire distributed exploratory runner and renderer", () =>
     )).toThrow(/report content hash/);
   });
 
+  it("canonicalizes a floating cycle-end phase before binding the cycle trend", () => {
+    const canonical = syntheticArtifactBundleV1().waveform.samples;
+    const finalIndex = canonical.length - 1;
+    const floatingEndSamples = canonical.map((sample, index) => index === finalIndex
+      ? Object.freeze({
+          ...sample,
+          absoluteTimeSec: sample.absoluteTimeSec + 4 * Number.EPSILON,
+          phaseSec: sample.phaseSec + 4 * Number.EPSILON,
+        })
+      : sample);
+    const canonicalTrend = buildPhaseB1MainWireDistributedCycleTrendSummaryV1(
+      canonical,
+      0.8,
+      sha256,
+    );
+    const floatingEndTrend =
+      buildPhaseB1MainWireDistributedCycleTrendSummaryV1(
+        floatingEndSamples,
+        0.8,
+        sha256,
+      );
+    expect(floatingEndTrend.atrialPostOpeningMassBalanceDiagnostic)
+      .toEqual(canonicalTrend.atrialPostOpeningMassBalanceDiagnostic);
+  });
+
   it("rejects coherently rehashed semantic drift in the artifact contract", () => {
     const source = syntheticArtifactBundleV1();
     const report = JSON.parse(JSON.stringify(source.report)) as

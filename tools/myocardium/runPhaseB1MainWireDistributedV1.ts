@@ -2173,8 +2173,13 @@ export function buildPhaseB1MainWireDistributedCycleTrendSummaryV1(
   cycleLengthSec: number,
   sha256Hex: CanonicalSha256HexProvider,
 ): Readonly<Record<string, unknown>> {
+  const canonicalSamples = validateAndCopySamplesV1(
+    samples,
+    samples[0]?.absoluteTimeSec ?? Number.NaN,
+    cycleLengthSec,
+  );
   const readback = buildPhaseB1AtrialPvReservoirConduitReadbackV1({
-    trace: atrialTraceFromSamplesV1(samples, cycleLengthSec),
+    trace: atrialTraceFromSamplesV1(canonicalSamples, cycleLengthSec),
     formalPeriodOneConvergencePass: false,
     sha256Hex,
   });
@@ -2187,29 +2192,33 @@ export function buildPhaseB1MainWireDistributedCycleTrendSummaryV1(
   ] as const);
   return Object.freeze({
     atrialRightCensoredConduitAndLaterRefill:
-      buildAtrialConduitAndLaterRefillV1(readback, samples, cycleLengthSec),
+      buildAtrialConduitAndLaterRefillV1(
+        readback,
+        canonicalSamples,
+        cycleLengthSec,
+      ),
     atrialPostOpeningMassBalanceDiagnostic:
       buildAtrialPostOpeningMassBalanceDiagnosticV1(
         readback,
-        samples,
+        canonicalSamples,
         cycleLengthSec,
       ),
     chamberPvClosedPolygonDiagnosticPaM3:
-      buildChamberPvClosedPolygonDiagnosticV1(samples),
+      buildChamberPvClosedPolygonDiagnosticV1(canonicalSamples),
     selectedWaveformSummary: Object.freeze({
       volumeByChamberM3: summarizeRecordSeriesV1(
         selectedVolumeNodes,
-        samples,
+        canonicalSamples,
         (sample, key) => sample.bloodVolumesM3[key],
       ),
       absolutePressureBySelectedNodePa: summarizeRecordSeriesV1(
         selectedPressureNodes,
-        samples,
+        canonicalSamples,
         (sample, key) => sample.absolutePressurePaByNode[key],
       ),
       flowBySelectedEdgeM3PerSec: summarizeRecordSeriesV1(
         selectedFlows,
-        samples,
+        canonicalSamples,
         (sample, key) => sample.allFlowsM3PerSec[key],
       ),
     }),
