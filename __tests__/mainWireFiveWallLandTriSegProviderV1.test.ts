@@ -6,6 +6,7 @@ import {
 import {
   MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM,
   createMainWireFiveWallLandTriSegProviderV1,
+  finiteDifferenceJacobianWithSymmetryAudit,
   type MainWireFiveWallFreeCalciumDriveV1,
   type MainWireFiveWallIdV1,
   type MainWireFiveWallLandSlsMaterialKernelV1,
@@ -149,6 +150,60 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
     expect(rb.scaledAlgorithmicJacobianByOneJ).toHaveLength(2);
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM.internalUnknowns)
       .toEqual(["V_m_S", "y_m"]);
+  });
+
+  it("uses a smaller same-branch step when the nominal central difference crosses a kink", () => {
+    const nominalStep = 0.01;
+    const kinkOffset = 0.006;
+    const symmetryTolerance = 2e-4;
+    const solver = {
+      maximumIterations: 48,
+      scaledResidualInfinityTolerance: 1e-9,
+      scaledUpdateInfinityTolerance: 1e-11,
+      finiteDifferenceScaledStep: nominalStep,
+      jacobianSymmetryRelativeTolerance: symmetryTolerance,
+      strictStabilityEigenvalueByOneJ: 1e-10,
+      maximumLineSearchBacktracks: 28,
+      junctionRadiusLowerBoundM: 1e-5,
+      coldConsistencyMaximumIterations: 6,
+      coldConsistencyScaledCoordinateTolerance: 1e-10,
+      coldMaterialResidualTolerance: 1e-9,
+    } as const;
+    const conservativePiecewiseForce = (scaled: readonly number[]) => {
+      const [x, y] = scaled;
+      const branchExtension = Math.max(0, x! + 2 * y! + kinkOffset);
+      return Object.freeze([
+        x! + branchExtension,
+        y! + 2 * branchExtension,
+      ]);
+    };
+    const nominalJacobian = centralDifferenceForTest(
+      conservativePiecewiseForce,
+      [0, 0],
+      nominalStep,
+    );
+
+    expect(relativeAntisymmetryForTest(nominalJacobian))
+      .toBeGreaterThan(symmetryTolerance);
+
+    const audited = finiteDifferenceJacobianWithSymmetryAudit(
+      conservativePiecewiseForce,
+      [0, 0],
+      solver,
+    );
+
+    expect(audited.stepUsed).toBeCloseTo(nominalStep * 0.25, 15);
+    expect(audited.stability.jacobianSymmetricWithinTolerance).toBe(true);
+    expect(audited.stability.jacobianAntisymmetricRelative)
+      .toBeLessThan(symmetryTolerance);
+    expect(audited.stability.strictLocalStableEquilibrium).toBe(true);
+
+    const smoothBranchAudit = finiteDifferenceJacobianWithSymmetryAudit(
+      conservativePiecewiseForce,
+      [1, 1],
+      solver,
+    );
+    expect(smoothBranchAudit.stepUsed).toBe(nominalStep);
   });
 
   it("matches chamber pressure and TriSeg generalized force to virtual work", () => {
@@ -480,6 +535,46 @@ function readback(
   value: WholeHeartMechanicsSerializableValueV1 | null,
 ): MainWireFiveWallLandTriSegReadbackV1 {
   return value as unknown as MainWireFiveWallLandTriSegReadbackV1;
+}
+
+function centralDifferenceForTest(
+  evaluate: (scaled: readonly number[]) => readonly number[],
+  center: readonly number[],
+  step: number,
+): readonly (readonly number[])[] {
+  const columns = center.map((_, column) => {
+    const lower = [...center];
+    const upper = [...center];
+    lower[column] -= step;
+    upper[column] += step;
+    const lowerValue = evaluate(lower);
+    const upperValue = evaluate(upper);
+    return upperValue.map((value, row) =>
+      (value - lowerValue[row]!) / (2 * step));
+  });
+  return center.map((_, row) =>
+    center.map((__, column) => columns[column]![row]!));
+}
+
+function relativeAntisymmetryForTest(
+  jacobian: readonly (readonly number[])[],
+): number {
+  let maximumAntisymmetry = 0;
+  let infinityNorm = 0;
+  for (let row = 0; row < jacobian.length; row += 1) {
+    let rowSum = 0;
+    for (let column = 0; column < jacobian.length; column += 1) {
+      maximumAntisymmetry = Math.max(
+        maximumAntisymmetry,
+        0.5 * Math.abs(
+          jacobian[row]![column]! - jacobian[column]![row]!,
+        ),
+      );
+      rowSum += Math.abs(jacobian[row]![column]!);
+    }
+    infinityNorm = Math.max(infinityNorm, rowSum);
+  }
+  return maximumAntisymmetry / infinityNorm;
 }
 
 function relativeError(left: number, right: number): number {

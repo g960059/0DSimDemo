@@ -1011,12 +1011,13 @@ function finiteDifferenceJacobian(
 }
 
 /**
- * Constitutive subsolves have a finite residual floor. A central-difference
- * step that is too small differentiates that floor and creates an artificial
- * antisymmetric component. Audit fixed dyadic scales and retain the most
+ * The nominal central-difference step remains the first audit. If it crosses a
+ * constitutive branch boundary, smaller dyadic steps can recover the local
+ * same-branch tangent; if small steps instead expose the constitutive residual
+ * floor, the existing larger dyadic steps remain available. Retain the most
  * symmetric Jacobian without relaxing the declared symmetry tolerance.
  */
-function finiteDifferenceJacobianWithSymmetryAudit(
+export function finiteDifferenceJacobianWithSymmetryAudit(
   evaluate: (scaledUnknowns: readonly number[]) => readonly number[],
   center: readonly number[],
   solver: ResolvedSolverOptionsV1,
@@ -1031,7 +1032,7 @@ function finiteDifferenceJacobianWithSymmetryAudit(
     stepUsed: number;
   }> | null = null;
   let lastError: unknown = null;
-  for (const factor of [1, 2, 4, 8] as const) {
+  for (const factor of [1, 0.5, 0.25, 0.125, 2, 4, 8] as const) {
     const stepUsed = solver.finiteDifferenceScaledStep * factor;
     try {
       const jacobian = finiteDifferenceJacobian(evaluate, center, stepUsed);
