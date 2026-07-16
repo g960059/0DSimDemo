@@ -207,6 +207,17 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
     expect(protocolMismatch.interpretabilityReasons)
       .toContain("protocol-identity-mismatch");
     expect(protocolMismatch.signalMetrics).toBeNull();
+
+    const sameHashDifferentIdentity = result({
+      dtSec: 0.25,
+      protocolIdentityHash: coarse.protocolIdentityHash,
+      protocolIdentityToken: "different-full-identity",
+      samples: [sample(0.25), sample(0.5), sample(0.75), sample(0)],
+    });
+    expect(compareMainWireNormalAdultFiveWallDtHalvingV1(
+      coarse,
+      sameHashDifferentIdentity,
+    ).interpretabilityReasons).toContain("protocol-identity-mismatch");
   });
 
   it("does not treat absent protocol identities as compatible", () => {
@@ -281,6 +292,7 @@ function result(input: Readonly<{
   initialization?: "canonical" | "pven-to-pvein-10ml";
   requestedMaximumBeatCount?: number;
   protocolIdentityHash?: string;
+  protocolIdentityToken?: string;
 }>): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const periodic = input.periodic ?? true;
   return {
@@ -289,6 +301,10 @@ function result(input: Readonly<{
     initialization: input.initialization ?? "canonical",
     requestedMaximumBeatCount: input.requestedMaximumBeatCount ?? 32,
     protocolIdentityHash: input.protocolIdentityHash ?? "same-protocol",
+    protocolIdentity: {
+      fixtureProtocolIdentity:
+        input.protocolIdentityToken ?? "same-full-protocol-identity",
+    },
     dtSec: input.dtSec,
     stepsPerBeat: input.samples.length,
     periodicSteadyStateClaimed: periodic,

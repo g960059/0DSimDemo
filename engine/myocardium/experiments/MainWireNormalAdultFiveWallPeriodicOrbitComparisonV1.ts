@@ -234,7 +234,15 @@ function matchingProtocolIdentity(
     && left.protocolIdentityHash.length > 0
     && typeof right.protocolIdentityHash === "string"
     && right.protocolIdentityHash.length > 0
-    && left.protocolIdentityHash === right.protocolIdentityHash;
+    && left.protocolIdentityHash === right.protocolIdentityHash
+    && left.protocolIdentity !== null
+    && typeof left.protocolIdentity === "object"
+    && right.protocolIdentity !== null
+    && typeof right.protocolIdentity === "object"
+    // The stable hash is a compact label; exact serialized identity equality
+    // is also required so a hash collision cannot make unlike protocols pass.
+    && JSON.stringify(left.protocolIdentity)
+      === JSON.stringify(right.protocolIdentity);
 }
 
 function compareSignals(
