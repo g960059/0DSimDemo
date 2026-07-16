@@ -3,13 +3,19 @@ import type { EdgeSpec, ValveName } from "@/engine/core/topology";
 export const MAIN_WIRE_FLOW_STATE_VALVE_V2_ID =
   "main-wire-flow-state-valve-v2" as const;
 
+export const MAIN_WIRE_VALVE_BLOOD_DENSITY_KG_PER_M3_V2 = 1060 as const;
+export const MAIN_WIRE_VALVE_PA_PER_MMHG_V2 = 133.322387415 as const;
+
 export const MAIN_WIRE_FLOW_STATE_VALVE_CLAIM_V2 = Object.freeze({
   topology: "independent-flow-and-bounded-opening-state" as const,
   timeDiscretization: "backward-euler-accepted-state-residual" as const,
   pressureFlowLaw:
     "inertance-plus-linear-and-smooth-quadratic-loss" as const,
   areaScaling: "R-and-B-inverse-area-squared-L-constant" as const,
-  parameterSemantics: "model-core-main-wire-Aref-Amax-Aleak-R-L-B" as const,
+  parameterSemantics:
+    "main-wire-Aref-as-effective-orifice-area-rho-1060-Cd-1-edge-B-not-used" as const,
+  bernoulliConstruction:
+    "rho-over-two-effective-orifice-area-squared" as const,
   physiologicalLeakSeparatedFromNumericalAreaFloor: true as const,
   zeroLeakClosedReverseFlow: "semismooth-unilateral-q-greater-than-or-equal-to-zero" as const,
   qOrQdotClampUsedAsPhysiology: false as const,
@@ -88,14 +94,16 @@ export function mainWireFlowStateValveParamsFromEdgeV2(
     throw new Error(`edge ${edge.name} is not a valve`);
   }
   const valveId = edge.name as ValveName;
+  const referenceAreaCm2 = edge.Aref ?? edge.Amax ?? 1;
   return Object.freeze({
-    parameterSetId: `main-wire-${valveId}-flow-state-v2`,
+    parameterSetId: `main-wire-${valveId}-physical-orifice-flow-state-v2`,
     valveId,
     openResistanceMmHgSecPerMl: edge.R,
     openInertanceMmHgSec2PerMl: edge.L ?? 0,
     rootInertanceMmHgSec2PerMl,
-    openBernoulliMmHgSec2PerMl2: edge.B ?? 0,
-    referenceAreaCm2: edge.Aref ?? edge.Amax ?? 1,
+    openBernoulliMmHgSec2PerMl2:
+      idealBernoulliLossFromEffectiveOrificeAreaV2(referenceAreaCm2),
+    referenceAreaCm2,
     maximumAreaCm2: edge.Amax ?? edge.Aref ?? 1,
     physiologicalLeakAreaCm2: edge.Aleak ?? 0,
     numericalAreaFloorCm2: 1e-4,
@@ -107,6 +115,28 @@ export function mainWireFlowStateValveParamsFromEdgeV2(
     closingTimeConstantSec: edge.tauClose ?? 0.02,
     quadraticFlowSmoothingMlPerSec: 0.25,
   });
+}
+
+/**
+ * Fixed convective-orifice construction expressed in the model's native units.
+ *
+ * `effectiveOrificeAreaCm2` already includes contraction/discharge effects, so
+ * Cd is exactly one here. Introducing a second Cd would double-count the EOA
+ * semantics and create an unconstrained fitting knob. Treating this entire
+ * term as dissipative is the explicit zero-dimensional closure used here; it
+ * does not claim to resolve upstream kinetic head or downstream recovery.
+ */
+export function idealBernoulliLossFromEffectiveOrificeAreaV2(
+  effectiveOrificeAreaCm2: number,
+): number {
+  if (!(effectiveOrificeAreaCm2 > 0) || !Number.isFinite(effectiveOrificeAreaCm2)) {
+    throw new Error("effectiveOrificeAreaCm2 must be finite and positive");
+  }
+  const areaM2 = effectiveOrificeAreaCm2 * 1e-4;
+  const mlPerSecToM3PerSec = 1e-6;
+  return MAIN_WIRE_VALVE_BLOOD_DENSITY_KG_PER_M3_V2 /
+    (2 * MAIN_WIRE_VALVE_PA_PER_MMHG_V2) *
+    (mlPerSecToM3PerSec / areaM2) ** 2;
 }
 
 export function validateMainWireFlowStateValveParamsV2(

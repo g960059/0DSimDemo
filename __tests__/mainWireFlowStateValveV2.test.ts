@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildEdges } from "@/engine/core/topology";
 import {
   evaluateMainWireFlowStateValveV2,
+  idealBernoulliLossFromEffectiveOrificeAreaV2,
   initialMainWireFlowStateValveStateV2,
   mainWireFlowStateValveParamsFromEdgeV2,
   stepMainWireFlowStateValveV2,
@@ -12,10 +13,12 @@ const MV_EDGE = buildEdges().find((edge) => edge.name === "MV")!;
 const MV = mainWireFlowStateValveParamsFromEdgeV2(MV_EDGE);
 
 describe("MainWireFlowStateValveV2", () => {
-  it("uses the live main-wire valve parameter namespace without inventing a leak", () => {
+  it("uses main-wire geometry with a fixed physical ideal-orifice loss", () => {
     expect(MV.openResistanceMmHgSecPerMl).toBe(MV_EDGE.R);
     expect(MV.openInertanceMmHgSec2PerMl).toBe(MV_EDGE.L);
-    expect(MV.openBernoulliMmHgSec2PerMl2).toBe(MV_EDGE.B);
+    expect(MV.openBernoulliMmHgSec2PerMl2)
+      .toBeCloseTo(idealBernoulliLossFromEffectiveOrificeAreaV2(5), 15);
+    expect(MV.openBernoulliMmHgSec2PerMl2).not.toBe(MV_EDGE.B);
     expect(MV.referenceAreaCm2).toBe(MV_EDGE.Aref);
     expect(MV.maximumAreaCm2).toBe(MV_EDGE.Amax);
     expect(MV.physiologicalLeakAreaCm2).toBe(0);
@@ -29,8 +32,21 @@ describe("MainWireFlowStateValveV2", () => {
       expect(params.valveId).toBe(edge.name);
       expect(params.openResistanceMmHgSecPerMl).toBe(edge.R);
       expect(params.openInertanceMmHgSec2PerMl).toBe(edge.L);
+      expect(params.openBernoulliMmHgSec2PerMl2).toBeCloseTo(
+        idealBernoulliLossFromEffectiveOrificeAreaV2(edge.Aref!),
+        15,
+      );
       expect(params.physiologicalLeakAreaCm2).toBe(edge.Aleak);
     }
+  });
+
+  it("derives the native-unit Bernoulli coefficient from EOA without a fitted Cd", () => {
+    expect(idealBernoulliLossFromEffectiveOrificeAreaV2(1))
+      .toBeCloseTo(3.9753263519819767e-4, 15);
+    expect(idealBernoulliLossFromEffectiveOrificeAreaV2(2))
+      .toBeCloseTo(idealBernoulliLossFromEffectiveOrificeAreaV2(1) / 4, 15);
+    expect(() => idealBernoulliLossFromEffectiveOrificeAreaV2(0))
+      .toThrow(/finite and positive/);
   });
 
   it("rejects a numerical area floor larger than the physical maximum area", () => {
