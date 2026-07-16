@@ -133,6 +133,9 @@ export function validateMainWireFlowStateValveParamsV2(
     issues.push("physiologicalLeakAreaCm2 must not exceed maximumAreaCm2");
   }
   positive(params.numericalAreaFloorCm2, "numericalAreaFloorCm2", issues);
+  if (params.numericalAreaFloorCm2 > params.maximumAreaCm2) {
+    issues.push("numericalAreaFloorCm2 must not exceed maximumAreaCm2");
+  }
   positive(params.openingGainPerMmHg, "openingGainPerMmHg", issues);
   nonnegative(params.pressureDeadbandMmHg, "pressureDeadbandMmHg", issues);
   if (!Number.isFinite(params.openingPressureOffsetMmHg)) {

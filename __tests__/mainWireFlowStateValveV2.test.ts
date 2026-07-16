@@ -33,6 +33,18 @@ describe("MainWireFlowStateValveV2", () => {
     }
   });
 
+  it("rejects a numerical area floor larger than the physical maximum area", () => {
+    const output = stepMainWireFlowStateValveV2(
+      initialMainWireFlowStateValveStateV2(),
+      { dtSec: 0.005, upstreamPressureMmHg: 10, downstreamPressureMmHg: 8 },
+      { ...MV, numericalAreaFloorCm2: MV.maximumAreaCm2 + 1 },
+    );
+    expect(output.valid).toBe(false);
+    expect(output.issues).toContain(
+      "numericalAreaFloorCm2 must not exceed maximumAreaCm2",
+    );
+  });
+
   it("returns an accepted state satisfying both backward-Euler residuals", () => {
     const previous = initialMainWireFlowStateValveStateV2(0, 0);
     const output = stepMainWireFlowStateValveV2(
