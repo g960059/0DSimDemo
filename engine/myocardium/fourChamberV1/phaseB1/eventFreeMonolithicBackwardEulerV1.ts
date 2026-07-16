@@ -10,6 +10,7 @@ import {
 } from "@/engine/myocardium/fourChamberV1/hemodynamics/conservativeIncidenceLedgerV1";
 import {
   evaluateFourChamberClosedLoopSameTimeLevelV1,
+  getRuntimeTriSegEquilibriumResidualV2,
   type FourChamberClosedLoopSameTimeLevelEvaluationV1,
   type FourChamberClosedLoopSameTimeLevelInputV1,
 } from "@/engine/myocardium/fourChamberV1/hydromechanics/closedLoopSameTimeLevelV1";
@@ -80,9 +81,13 @@ export const PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID =
 export const PHASE_B1_EVENT_FREE_PHYSIOLOGY_ENVELOPE_CANDIDATE_MODEL_V1_ID =
   "four-chamber-phase-b1-physiology-envelope-candidate-v1" as const;
 
+export const PHASE_B1_EVENT_FREE_MECHANISTIC_REBUILD_V2_MODEL_ID =
+  "four-chamber-phase-b1-mechanistic-rebuild-v2" as const;
+
 export const PHASE_B1_EVENT_FREE_MONOLITHIC_MODEL_IDS_V1 = Object.freeze([
   PHASE_B1_EVENT_FREE_PROJECT_SYNTHETIC_MODEL_V1_ID,
   PHASE_B1_EVENT_FREE_PHYSIOLOGY_ENVELOPE_CANDIDATE_MODEL_V1_ID,
+  PHASE_B1_EVENT_FREE_MECHANISTIC_REBUILD_V2_MODEL_ID,
 ] as const);
 
 export type PhaseB1EventFreeMonolithicModelIdV1 =
@@ -607,8 +612,9 @@ export function stepPhaseB1EventFreeMonolithicBackwardEulerV1(
           jacobianRowMajor: rawJacobianRowMajor,
           diagnostic: Object.freeze({
             triSegResidualNPerM:
-              residualEvaluation.nextEvaluation.closedLoop.triSegOracle
-                .equilibriumResidual.euclideanNPerM,
+              getRuntimeTriSegEquilibriumResidualV2(
+                residualEvaluation.nextEvaluation.closedLoop,
+              ).euclideanNPerM,
             minimumLandSimplexMargin:
               minimumPhaseB1LandSimplexMarginV1(
                 unknowns,
@@ -1118,9 +1124,12 @@ function evaluateMonolithicResidual(
       `${wallId}.slsResidualPerSec`,
     ))
     : null;
+  const runtimeTriSegResidual = getRuntimeTriSegEquilibriumResidualV2(
+    nextEvaluation.closedLoop,
+  );
   const triSegResidualNPerM = Object.freeze({
-    axial: nextEvaluation.closedLoop.triSegOracle.equilibriumResidual.axialNPerM,
-    radial: nextEvaluation.closedLoop.triSegOracle.equilibriumResidual.radialNPerM,
+    axial: runtimeTriSegResidual.axialNPerM,
+    radial: runtimeTriSegResidual.radialNPerM,
   });
   const residual = Object.freeze([
     ...BLOOD_COMPARTMENT_IDS.map((id) =>
@@ -1342,6 +1351,9 @@ function evaluateSemismoothLinearizedMonolithicResidual(
       );
     })
     : null;
+  const runtimeTriSegResidual = getRuntimeTriSegEquilibriumResidualV2(
+    trialClosedLoop,
+  );
   const residual = Object.freeze([
     ...BLOOD_COMPARTMENT_IDS.map((id) =>
       volumeResidual.residualsM3PerSec[id]),
@@ -1350,8 +1362,8 @@ function evaluateSemismoothLinearizedMonolithicResidual(
     ...(slsResidualPerSecByWall === null
       ? []
       : WALL_IDS.map((wallId) => slsResidualPerSecByWall[wallId])),
-    trialClosedLoop.triSegOracle.equilibriumResidual.axialNPerM,
-    trialClosedLoop.triSegOracle.equilibriumResidual.radialNPerM,
+    runtimeTriSegResidual.axialNPerM,
+    runtimeTriSegResidual.radialNPerM,
   ]);
   if (residual.length !== baseResidual.residual.length) {
     throw new Error("semismooth global residual dimension drifted");
@@ -1558,6 +1570,19 @@ function validateModelBoundary(model: PhaseB1EventFreeMonolithicModelV1): void {
     "releaseRuntimeReachable",
   ], "Phase B1 event-free monolithic model");
   assertPhaseB1EventFreeMonolithicModelIdV1(model.modelId);
+  const hasFiniteThicknessTriSeg = model.closedLoopParameters
+    .finiteThicknessTriSegBendingPriorV2 !== undefined;
+  if (
+    model.modelId === PHASE_B1_EVENT_FREE_MECHANISTIC_REBUILD_V2_MODEL_ID
+      ? !hasFiniteThicknessTriSeg
+      : hasFiniteThicknessTriSeg
+  ) {
+    throw new Error(
+      model.modelId === PHASE_B1_EVENT_FREE_MECHANISTIC_REBUILD_V2_MODEL_ID
+        ? "mechanistic-rebuild v2 requires finite-thickness energy-conjugate TriSeg"
+        : "legacy Phase B1 model IDs must retain the published-Taylor TriSeg owner",
+    );
+  }
   if (
     model.candidatePriorOnly !== true
     || model.physiologicalValidation !== false

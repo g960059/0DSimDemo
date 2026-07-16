@@ -42,6 +42,11 @@ import {
   type PublishedTriSegTaylorOracle2009V1,
 } from "@/engine/myocardium/fourChamberV1/triseg/publishedTaylorOracle2009V1";
 import {
+  evaluateEnergyConjugateFiniteThicknessTriSegV2,
+  type EnergyConjugateFiniteThicknessTriSegV2,
+  type FiniteThicknessTriSegBendingPriorV2,
+} from "@/engine/myocardium/fourChamberV1/triseg/energyConjugateFiniteThicknessTriSegV2";
+import {
   evaluateLinearVascularComplianceV1,
   type LinearVascularComplianceOutputV1,
   type LinearVascularComplianceParametersV1,
@@ -98,6 +103,8 @@ export type FourChamberClosedLoopSameTimeLevelInputV1 = Readonly<{
   triSegWalls: Readonly<
     Record<TriSegWallId, PublishedTriSegWallGeometryParametersV1>
   >;
+  /** Absent on the preserved legacy Taylor path; present only on rebuild v2. */
+  finiteThicknessTriSegBendingPriorV2?: FiniteThicknessTriSegBendingPriorV2;
   vascularComplianceParametersByCompartment: Readonly<
     Record<"SA" | "SV" | "PA" | "PV", LinearVascularComplianceParametersV1>
   >;
@@ -131,6 +138,9 @@ export type FourChamberClosedLoopSameTimeLevelEvaluationV1 = Readonly<{
   >;
   atria: Readonly<Record<"LA" | "RA", FourChamberClosedLoopAtrialEvaluationV1>>;
   triSegGeometry: PublishedTriSegGeometryV1;
+  /** Runtime owner on rebuild v2; omitted rather than serialized as null on legacy cases. */
+  energyConjugateTriSeg?: EnergyConjugateFiniteThicknessTriSegV2;
+  /** Preserved as a diagnostic on rebuild v2 and as the runtime owner on legacy cases. */
   triSegOracle: PublishedTriSegTaylorOracle2009V1;
   pericardium: CommonPericardiumOutputV1;
   chamberTransmuralPressurePa: Readonly<
@@ -221,6 +231,18 @@ export function evaluateFourChamberClosedLoopSameTimeLevelV1(
       RVFW: wallMechanics.RVFW.totalKirchhoffStressPa,
     },
   );
+  const energyConjugateTriSeg = input.finiteThicknessTriSegBendingPriorV2
+    === undefined
+    ? null
+    : evaluateEnergyConjugateFiniteThicknessTriSegV2({
+      geometry: triSegGeometry,
+      fiberKirchhoffStressPaByWall: {
+        LVFW: wallMechanics.LVFW.totalKirchhoffStressPa,
+        SEP: wallMechanics.SEP.totalKirchhoffStressPa,
+        RVFW: wallMechanics.RVFW.totalKirchhoffStressPa,
+      },
+      bendingPrior: input.finiteThicknessTriSegBendingPriorV2,
+    });
   const atria = Object.freeze({
     LA: Object.freeze({
       geometry: atrialGeometry.LA,
@@ -263,9 +285,11 @@ export function evaluateFourChamberClosedLoopSameTimeLevelV1(
   );
   const chamberTransmuralPressurePa = Object.freeze({
     LA: atria.LA.pressure.transmuralPressurePa,
-    LV: triSegOracle.cavityTransmuralPressuresPa.LV,
+    LV: energyConjugateTriSeg?.cavityTransmuralPressuresPa.LV
+      ?? triSegOracle.cavityTransmuralPressuresPa.LV,
     RA: atria.RA.pressure.transmuralPressurePa,
-    RV: triSegOracle.cavityTransmuralPressuresPa.RV,
+    RV: energyConjugateTriSeg?.cavityTransmuralPressuresPa.RV
+      ?? triSegOracle.cavityTransmuralPressuresPa.RV,
   });
   const chamberComposed = composeFourChamberCavityPressuresV1(
     chamberTransmuralPressurePa,
@@ -363,6 +387,7 @@ export function evaluateFourChamberClosedLoopSameTimeLevelV1(
     wallMechanics,
     atria,
     triSegGeometry,
+    ...(energyConjugateTriSeg === null ? {} : { energyConjugateTriSeg }),
     triSegOracle,
     pericardium,
     chamberTransmuralPressurePa,
@@ -376,6 +401,14 @@ export function evaluateFourChamberClosedLoopSameTimeLevelV1(
     flowClampApplied: false,
     fallbackApplied: false,
   });
+}
+
+/** Selects the declared runtime mechanics while keeping Taylor available as a diagnostic. */
+export function getRuntimeTriSegEquilibriumResidualV2(
+  evaluation: FourChamberClosedLoopSameTimeLevelEvaluationV1,
+): Readonly<{ axialNPerM: number; radialNPerM: number; euclideanNPerM: number }> {
+  return evaluation.energyConjugateTriSeg?.equilibriumResidual
+    ?? evaluation.triSegOracle.equilibriumResidual;
 }
 
 function validateInput(input: FourChamberClosedLoopSameTimeLevelInputV1): void {

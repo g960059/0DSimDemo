@@ -1,0 +1,1138 @@
+# 4腔 One-Fiber–Land–有限厚TriSeg–main-wire分布循環 mechanistic rebuild v2
+
+## 0. 文書の位置づけ
+
+本書は、`phase-b1-four-chamber-mechanistic-rebuild-case-v2` の**現在の実装に対応する数理モデル仕様**である。目的は、心房PVループの形を直接描き合わせることではなく、解剖、材料、能動収縮、循環、弁、心室間相互作用を責任分離したうえで、正常成人から多様な病態へ拡張できる4腔閉鎖循環モデルを作ることである。
+
+設計の中心は次の6点である。
+
+1. browser main-wireと同じownerから解決した、非冠循環15血液区画で総血液量を厳密に保存する。
+2. LA/RAは、それぞれone-fiber壁とし、CMR最小容積を無負荷形状と誤認せず、Moyer 2015の受動則から逆除荷する。
+3. LVFW/SEP/RVFWはone-fiber Land壁として、有限厚・仕事共役なTriSegで結合する。
+4. Landはactive-onlyで使い、巨視的series elementを加えない。SLSはLandとは独立の受動粘弾性として持つ。
+5. pre-A心臓作動点、分布血管のTBV整合初期化、period-1軌道の成立を別問題として解く。
+6. AVPD、MAPSE、TAPSE、s'、a'はcoreの力学自由度にせず、将来のcomputed observableとする。
+
+現ブランチはcandidate/research実装であり、`ModelCore`やbrowser runtimeへ採用済みとはみなさない。また、正常成人の生理学的validation、患者固有fit、疾患parameterの同定を完了したとは主張しない。
+
+### 0.1 設計上の非目標
+
+このphaseでは、以下を目的関数または合否条件にしない。
+
+- LA/RA PVループの自己交差数。
+- SLS-offで8の字トポロジーが残ること。
+- 白背景reference loopへの形状距離。
+- 心房v-loopの面積を増やすための圧gain、残留応力、時相依存補正。
+- 壁ごとの自由なLand gain。
+- pericardiumを使った全身血圧の底上げ。
+- AV-planeばね・質量・ダンパーによるx谷の直接生成。
+
+心房PVループは重要であるが、壁構成則だけの観測量ではない。静脈還流、房室弁流、心室弛緩、心房収縮、心膜圧、SLS履歴が同時に作る**hold-out全体系観測量**として扱う。
+
+## 1. 状態、代数未知数、責任分離
+
+### 1.1 血液区画と流れ
+
+新しい分布循環candidateの血液区画は
+
+$$
+\begin{aligned}
+\mathcal C={}&\{LA,LV,RA,RV,\\
+&Ao,SA,Art,Cap,SV,VC,\\
+&PA,PArt,PCap,PVen,PVein\}.
+\end{aligned}
+$$
+
+4心腔以外の11区画、11血管edge、基準parameterは、Phase-B1内に別のbaseline表を持たず、`buildNodes()`、`buildEdges()`、`defaultParams()`をsource ownerとするresolverから得る。`venousTone`、`arterialStiffness`、体・肺血管抵抗倍率、および症例別`nodeOverrides/edgeOverrides`も同じresolverで有効値へ変換する。ただし、現V1の有効値変換は`ModelCore#setImmediateParameters`の規則を手動でmirrorした実装であり、両経路が単一のcanonical effective-parameter resolverを共有しているわけではない。そのため`modelCoreNumericalRuntimeParityClaimed=false`を固定する。冠循環はこのphaseでは明示的に除外する。
+
+正方向は
+
+$$
+\begin{aligned}
+LV&\xrightarrow{Q_{AoV}}Ao\xrightarrow{Q_{Ao\_SA}}SA
+\xrightarrow{Q_{SA\_Art}}Art\xrightarrow{Q_{Art\_Cap}}Cap\\
+&\xrightarrow{Q_{Cap\_SV}}SV\xrightarrow{Q_{SV\_VC}}VC
+\xrightarrow{Q_{VC\_RA}}RA\xrightarrow{Q_{TV}}RV\\
+&\xrightarrow{Q_{PuV}}PA\xrightarrow{Q_{PA\_PArt}}PArt
+\xrightarrow{Q_{PArt\_PCap}}PCap\\
+&\xrightarrow{Q_{PCap\_PVen}}PVen\xrightarrow{Q_{PVen\_PVein}}PVein
+\xrightarrow{Q_{PVein\_LA}}LA\xrightarrow{Q_{MV}}LV
+\end{aligned}
+$$
+
+とする。
+
+現V1で微分状態として持つ慣性流は
+
+$$
+\{Q_{MV},Q_{AoV},Q_{TV},Q_{PuV},Q_{Ao\_SA},Q_{PA\_PArt}\},
+$$
+
+残る9血管流は同一時刻の圧から解く符号付き代数流である。main-wireには`PVein_LA`を正のostial inertanceで動的化する経路もあるが、現V1は基準の$L_{PVein\_LA}=0$に固定した6-flow topologyである。症例overrideで$L_{PVein\_LA}>0$が指定された場合は、状態数を黙って変えず、7-flow variant未実装としてfail-closedにする。$R$と$B$のoverrideは$L=0$でも有効である。
+
+### 1.2 壁と内部状態
+
+壁は
+
+$$
+\mathcal W=\{LA,RA,LVFW,SEP,RVFW\}
+$$
+
+である。全5壁がone-fiber構成を持ち、各壁の総Kirchhoff線維応力を
+
+$$
+\tau_{f,w}
+=\tau_{\infty,w}(e_{f,w})
++\tau_{Land,w}(\mathbf y_w,Ca_w,\lambda_w)
++q_{v,w}
+$$
+
+と分解する。
+
+- $\tau_\infty$：平衡受動材料。
+- $\tau_{Land}$：Land active-only。
+- $q_v$：独立SLSの超過応力。
+
+心室TriSegの形状未知数は
+
+$$
+\mathbf q_g=(V_{m,S},y_m)
+$$
+
+であり、微分状態ではなく各時刻の力学平衡から決まる代数未知数である。$V_{m,S}$は中隔中壁cap volume、$y_m$は3壁共通のjunction radiusである。
+
+### 1.3 owner表
+
+| 量 | owner | 禁止する代替 |
+|---|---|---|
+| 血液量 | main-wire由来15区画incidence ledger | 隠れreservoir、拍ごとのvolume projection |
+| 血管parameter/topology | `buildNodes/buildEdges/defaultParams` shared resolver | Phase-B1内の複製parameter表 |
+| 慣性流 | 4弁 + Ao/PA root momentum | 負流量clamp、事後zeroing |
+| 末梢・静脈流 | 9本の同時刻符号付き代数root | 旧`Qsys/Qpul/QVC/QPV` aggregateとの併用 |
+| 心房ひずみ | LA/RA one-fiber幾何 | 心房圧gain |
+| 心室ひずみ・圧 | finite-thickness TriSeg | PV形状に合わせる壁別gain |
+| 平衡受動応力 | Moyer atrial / effective ventricular energy | Land内受動応力との二重計上 |
+| 能動応力 | Land 2017 | 巨視的series element、自由な壁別scale |
+| 粘弾性 | 独立1-state SLS | 圧波形平滑化filter |
+| 外圧 | 胸腔圧 + common pericardium | 心房・心室ごとの任意offset |
+| AVPD等 | 将来のobserver | coreへ未同定のAV-plane力学を追加 |
+
+## 2. 15区画閉鎖循環と血液量保存
+
+各区画の保存式は
+
+$$
+\begin{aligned}
+\dot V_{LV}&=Q_{MV}-Q_{AoV},
+&\dot V_{Ao}&=Q_{AoV}-Q_{Ao\_SA},\\
+\dot V_{SA}&=Q_{Ao\_SA}-Q_{SA\_Art},
+&\dot V_{Art}&=Q_{SA\_Art}-Q_{Art\_Cap},\\
+\dot V_{Cap}&=Q_{Art\_Cap}-Q_{Cap\_SV},
+&\dot V_{SV}&=Q_{Cap\_SV}-Q_{SV\_VC},\\
+\dot V_{VC}&=Q_{SV\_VC}-Q_{VC\_RA},
+&\dot V_{RA}&=Q_{VC\_RA}-Q_{TV},\\
+\dot V_{RV}&=Q_{TV}-Q_{PuV},
+&\dot V_{PA}&=Q_{PuV}-Q_{PA\_PArt},\\
+\dot V_{PArt}&=Q_{PA\_PArt}-Q_{PArt\_PCap},
+&\dot V_{PCap}&=Q_{PArt\_PCap}-Q_{PCap\_PVen},\\
+\dot V_{PVen}&=Q_{PCap\_PVen}-Q_{PVen\_PVein},
+&\dot V_{PVein}&=Q_{PVen\_PVein}-Q_{PVein\_LA},\\
+\dot V_{LA}&=Q_{PVein\_LA}-Q_{MV}.&&
+\end{aligned}
+$$
+
+よって、離散化前の連続系では
+
+$$
+\frac{d}{dt}\sum_{c\in\mathcal C}V_c=0
+$$
+
+が恒等的に成り立つ。実装では各edge incidence列が必ず$-1$を1個、$+1$を1個持ち、列和0であることを構造監査する。総血液量$V_{blood}$はparameterであり、解の破綻を後から直す補正量ではない。
+
+## 3. 血管、末梢抵抗、弁、静脈入口
+
+### 3.1 main-wire血管PV則
+
+各血管区画$i$では
+
+$$
+V_i=V_{u,i}+V_{s,i}(P_i^{tm}),
+\qquad
+P_i^{abs}=P_i^{tm}+P_{ext,i}
+$$
+
+とする。$V_u$は固定されたunstressed volumeであり、静脈では`venousTone`によりmain-wireと同じ規則で変化する。preloadまたは総血液量を変えるたびに$V_u$を再同定してはならない。
+
+動脈区画`Ao/SA/Art/PA/PArt`は
+
+$$
+V_s=V_{s,eff}\log\left(1+\frac{P^{tm}}{P_0}\right),
+\qquad
+C(P^{tm})=\frac{V_{s,eff}}{P_0+P^{tm}}
+$$
+
+であり、`arterialStiffness`は$V_{s,eff}$を連続的に変える。`Cap`は線形則$V_s=CP^{tm}$を使う。research adapterでは、stiffness、compliance、transition幅、抵抗、inertance、二次損失の不正値を暗黙floorへ置換せず拒否する。従って、要求parameterと実効parameterが無記録に異なることはない。
+
+`SV/VC/PCap/PVen/PVein`はcollapsible、open、distendedの3領域を滑らかに接続する。complianceは
+
+$$
+\begin{aligned}
+C_v(P)={}&C_{coll}
++(C_{open}-C_{coll})\,s\!\left(\frac{P-P_{open}}{d_{open}}\right)\\
+&-(C_{open}-C_{dist})\,s\!\left(\frac{P-P_{stiff}}{d_{stiff}}\right),
+\end{aligned}
+$$
+
+で、$s$はsigmoidである。$V_s(P)=\int_0^P C_v(p)\,dp$は同じsoftplus primitiveから厳密に評価する。従って肺静脈圧を単一`PV` complianceに保持させず、肺動脈、肺毛細管、肺静脈、近位肺静脈のstorageと圧降下を分ける。
+
+これらのlog動脈則、3領域静脈則、区画数、係数はmain-wireから継承する**project constitutive prior**であり、StergiopulosまたはGerringerの式を直接移植したものではない。両文献はR/C/Iと分布storageを分離して扱う構成概念を支持するが、現在のヒト正常15区画parameterをvalidationしない。したがって病態表現力の根拠と、個々の係数の同定根拠を混同しない。
+
+このtopology変更の直接の根拠は、旧aggregate波形でLA容積が約0.646 s、36.7 mLで最小となり、その時点で$Q_{PV}\approx Q_{MV}\approx240$ mL/sだったにもかかわらず、単一PV区画が約13.3 mmHgの上流圧を保持し、その後$Q_{PV}>Q_{MV}$となって0.8 sまでに約12.7 mLを再充満したことである。心房壁エラスタンスの符号を補正してもこの質量収支は変わらない。そこで壁材料をPV形状へfitせず、肺血管のstorageと圧降下をmain-wireの実在ownerへ分解する。
+
+SI adapterは$\Psi_i(V)=\int P_i^{tm}\,dV$を計算し、$d\Psi_i/dV=P_i^{tm}$を監査する。静脈parameter overrideは、現V1のreviewed逆写像support $[-20,45]$ mmHg全域でraw complianceが正・finiteであることをinterval subdivisionでcompile時に証明できなければ拒否する。volume/inverse/energyで異なるcompliance floorを使わない。有限supportはNewtonのnode別volume上下限制約へ変換し、accepted stateごとに最小domain marginを報告する。support外のtrialだけをtyped recoverable domain rejectionとして扱い、invariant・layout・programming errorと混同しない。main-wireのtopology・parameter適用は共有するが、数値semanticsは意図的に置換する。すなわちflow clampとstate projectionを使わず、PV逆写像のsupport外は端値clipではなく拒否する。なお、この$[-20,45]$ mmHgは病態全域を表す生理的境界ではない。より広い病態で必要なら、raw complianceが単調な最大区間をparameterごとに構成する次variantへ拡張し、端値clipで広げない。
+
+### 3.2 血管flow、waterfall、符号付きmomentum equation
+
+慣性を持つ`Ao_SA`と`PA_PArt`は
+
+$$
+L_j\dot Q_j=\Delta P_j-R_jQ_j-B_jQ_j|Q_j|
+$$
+
+を解く。他の9血管edgeは同じ式の$L=0$ rootを符号付きで解き、逆流をclampしない。`VC_RA`と`PCap_PVen`では、下流実効圧を胸腔圧または肺胞圧に基づくcollapse pressureとのsmooth maximumに置き換えるStarling-resistor型waterfallを使う。
+
+4弁は、葉運動stateをまだ導入せず、Phase-B1の仕事共役な符号付き弁loss lawを維持する。すなわち
+
+4弁は共通形式
+
+$$
+L_j\dot Q_j
+=\Delta P_j-R_jQ_j-B_jQ_j\sqrt{Q_j^2+\varepsilon_Q^2}
+$$
+
+を持つ。ここで$\Delta P_j=P_{up,j}-P_{down,j}$である。散逸は
+
+$$
+\mathcal D_{flow,j}
+=Q_j\left(R_jQ_j+B_jQ_j\sqrt{Q_j^2+\varepsilon_Q^2}\right)\ge0
+$$
+
+である。
+
+弁では圧較差に対する滑らかな開放gate
+
+$$
+g(\Delta P)=\frac12\left[1+\tanh\left(\frac{\Delta P}{\Delta P_w}\right)\right]
+$$
+
+を用い、開放面積$A_{open}$と逆向きloss area$A_{rev}$の逆二乗を
+
+$$
+A_{loss}^{-2}
+=gA_{open}^{-2}+(1-g)A_{rev}^{-2}
+$$
+
+で補間する。$A_{rev}$は生理的regurgitant orifice areaと数値上の微小面積の二乗和平方根である。したがって逆流は有限な損失を持つ符号付き流れとして残り、clampで消されない。
+
+粘性、慣性、二乗損失はそれぞれ
+
+$$
+R=8\pi\mu\ell_vA_{loss}^{-2},
+\qquad
+L=\rho\ell_i/A_i,
+\qquad
+B=\frac12\rho A_{loss}^{-2}
+$$
+
+から構成する。弁狭窄・逆流の病態軸は圧gainではなく、$A_{open}$、生理的EROA、長さ、慣性面積で表す。
+
+## 4. LA/RA one-fiber幾何
+
+心房$A\in\{LA,RA\}$について、壁材積を$V_{w,A}$、血液容積を$V_A$とする。中壁包囲容積は
+
+$$
+V_{m,A}=V_A+\frac12V_{w,A}
+$$
+
+であり、無負荷reference cavity volumeを$V_{A,0}$とすると
+
+$$
+V_{m,A,0}=V_{A,0}+\frac12V_{w,A},
+\qquad
+e_{f,A}=\frac13\log\frac{V_{m,A}}{V_{m,A,0}}.
+$$
+
+仮想仕事
+
+$$
+P_A^{tm}\,\delta V_A
+=V_{w,A}\tau_{f,A}\,\delta e_{f,A}
+$$
+
+より、心房transmural pressureは
+
+$$
+\boxed{
+P_A^{tm}=\frac{V_{w,A}}{3V_{m,A}}\tau_{f,A}
+}
+$$
+
+となる。圧gainは1に固定し、追加Laplace係数、残留圧offset、PV-loop補正項は置かない。
+
+## 5. 心房平衡受動材料：Moyer 2015 exact equibiaxial reduction
+
+### 5.1 3次元則からone-fiber pathへの縮約
+
+MoyerらのヒトLA有限要素モデルで使われた非圧縮・横等方受動則を、等二軸shell path
+
+$$
+\mathbf F=\operatorname{diag}(\lambda,\lambda,\lambda^{-2}),
+\qquad
+\lambda=e^{e_f},
+\qquad J=1
+$$
+
+へ縮約する。このpathでは
+
+$$
+I_1=2\lambda^2+\lambda^{-4},
+\qquad
+I_2=\lambda^4+2\lambda^{-2}.
+$$
+
+使用する係数は
+
+$$
+C_1=1.65\ \mathrm{kPa},\quad
+C_2=0,\quad
+C_3=0.015\ \mathrm{kPa},\quad
+C_4=13.37.
+$$
+
+これらは独立したヒト心房組織試験の普遍parameterではなく、Moyer 2015のヒトLA organ-level FE構成から移したcandidate priorである。同論文の最終parameterはorgan model内の充満容積応答も参照して調整されているため、同じ種類の心房容積を再現しても独立validationにはならない。
+
+線維はtension-onlyとし、$e_f>0$での単位reference volume当たりエネルギーを
+
+$$
+\begin{aligned}
+\Psi_A(e_f)
+={}&C_1\left(2e^{2e_f}+e^{-4e_f}-3\right)
++C_2\left(e^{4e_f}+2e^{-2e_f}-3\right)\\
+&+C_3\left[
+e^{-C_4}\left\{\operatorname{Ei}(C_4e^{e_f})
+-\operatorname{Ei}(C_4)\right\}-e_f
+\right]
+\end{aligned}
+$$
+
+とする。$e_f\le0$では最後の線維項を0とし、matrix項が圧縮を受け持つ。
+
+同じpotentialから
+
+$$
+\begin{aligned}
+\tau_{\infty,A}
+={}&4C_1\left(e^{2e_f}-e^{-4e_f}\right)
++4C_2\left(e^{4e_f}-e^{-2e_f}\right)\\
+&+C_3\operatorname{expm1}
+\left[C_4\left(e^{e_f}-1\right)\right]H(e_f)
+\end{aligned}
+$$
+
+を得る。tangentは
+
+$$
+\begin{aligned}
+K_A
+={}&8C_1e^{2e_f}+16C_1e^{-4e_f}
++16C_2e^{4e_f}+8C_2e^{-2e_f}\\
+&+C_3C_4e^{e_f}
+\exp\left[C_4\left(e^{e_f}-1\right)\right]H_+(e_f)
+\end{aligned}
+$$
+
+である。$H_+(0)$は引張側tangentを選ぶ実装規約である。支持範囲$e_f\in[-0.5,0.5]$では正のtangentを監査し、stress clampを使わない。
+
+### 5.2 loaded CMR geometryの逆除荷
+
+CMRで測られた最小心房容積は、圧が0の形状ではない。そこで、LA/RAそれぞれについて、観測最小容積$V_{A,min}$におけるprestrain$e_{A,min}>0$を
+
+$$
+\frac{V_{w,A}}{3(V_{A,min}+V_{w,A}/2)}
+\tau_{\infty,A}(e_{A,min})
+=P_{A,min}^{target}
+$$
+
+の単調な1変数rootとして求める。使用する圧anchorは
+
+$$
+P_{LA,min}^{target}=5\ \mathrm{mmHg},
+\qquad
+P_{RA,min}^{target}=3.5\ \mathrm{mmHg}
+$$
+
+である。無負荷reference cavity volumeは
+
+$$
+V_{A,0}
+=\left(V_{A,min}+\frac12V_{w,A}\right)e^{-3e_{A,min}}
+-\frac12V_{w,A}
+$$
+
+から決まる。
+
+LAの5 mmHgはMoyer FE構成の外圧0を前提にtransmural anchorとして解釈する。RAの3.5 mmHgはWesselsらのcontrol群x-descent中央値2.0 mmHg（IQR 0.4–3.5）の上側IQRを採ったconstruction anchorであり、代表中央値でも、直接測定されたtransmural pressureでもない。現normal constructionでは外圧0として両者を対応させるが、この対応自体を独立な生理測定とは主張しない。RAの逆除荷を中央値2.0 mmHgへ変更する場合は、別candidateとして再構成し、現在のRA波形を保持するための後付けgainは使わない。
+
+LAとRAは同じMoyer材料を共有するが、$V_{A,0}$は別々に逆同定する。これにより、LA/RA差を壁別圧gainではなく、観測解剖と無負荷reference volumeの差として表す。
+
+center constructionの逆除荷結果は、LAで$e_{min}\approx0.1019,\ V_{LA,0}\approx22.89$ mL、RAで$e_{min}\approx0.0956,\ V_{RA,0}\approx32.60$ mLである。これらは固定した解剖・材料・最小圧からの派生量であり、独立に自由fitするparameterではない。
+
+### 5.3 解剖anchorとhold-out
+
+BSA $1.9\ \mathrm{m^2}$のcenter constructionでは、Li 2017 CMRから
+
+| 心房 | 最大容積 | pre-A容積 | 最小容積 |
+|---|---:|---:|---:|
+| LA | 80.18 mL | 57.95 mL | 35.72 mL |
+| RA | 98.04 mL | 72.58 mL | 47.31 mL |
+
+を得る。壁材積は、LA mass、total atrial mass、心筋密度から構成する。centerの概算はLA $25.98$ mL、RA $23.40$ mLである。
+
+同定に使うのは最小容積と最小圧だけであり、次はhold-outである。
+
+- LA x-to-v reservoir pressure increment。
+- LA filling-limb secant stiffness。
+- RA v-wave pressure。
+- LA/RA PVループの形、lobe面積、自己交差数。
+
+center constructionの現在の受動readbackは、LA reservoir increment約$3.96$ mmHg、RA最大圧約$6.28$ mmHgである。ただし、Moyer parameter自体がorgan-model構成値であるため、これは完全に独立な生理validationではない。とくにRAへの適用はcross-atrium extrapolationである。
+
+## 6. 独立受動SLS
+
+各壁は、平衡受動材料と並列に1-state standard-linear-solidのMaxwell branchを持つ。内部変数を$\alpha_v$として
+
+$$
+q_v=E_v(e_f-\alpha_v),
+\qquad
+\dot\alpha_v=\frac{e_f-\alpha_v}{\tau_v}.
+$$
+
+保存エネルギーと散逸は
+
+$$
+\Psi_v=\frac12E_v(e_f-\alpha_v)^2,
+$$
+
+$$
+\mathcal D_v
+=q_v\dot\alpha_v
+=\frac{q_v^2}{E_v\tau_v}\ge0.
+$$
+
+Backward Eulerでは$\alpha_v^{n+1}$を閉形式で消去し、物理散逸に加えて離散化散逸も非負になるpassivity identityを監査する。
+
+現candidateでは
+
+$$
+E_v=r_{class}K_0
+$$
+
+とし、LA/RAで$r_A=0.25,\ \tau_A=0.05$ s、LVFW/SEP/RVFWで$r_V=0.35,\ \tau_V=0.08$ sを共有する。これらは現時点ではproject-synthetic priorであり、生理同定済みparameterではない。
+
+SLS-onはfull-model候補、SLS-offは因果ablationである。SLS-offで8の字ループを維持することは要求しない。病態fitでは、SLSをPV形状の修復項にせず、独立したrate-dependentデータがある場合に限り$r_{class},\tau_v$を更新する。
+
+## 7. Land active-only、no-series-element
+
+### 7.1 能動状態と応力
+
+全5壁でLand 2017 activeモデルを使用する。rate-free内部状態を概略
+
+$$
+\mathbf y_{Land}
+=(CaTRPN,B,W,S,\xi_W,\xi_S)
+$$
+
+とし、
+
+$$
+\dot{\mathbf y}_{Land}
+=\mathbf f_{Land}
+(\mathbf y_{Land},Ca_i,\lambda_{Land})
+$$
+
+を解く。Land sourceのactive nominal stressは
+
+$$
+T_a
+=\frac{h(\lambda_{Land})T_{ref}}{r_s}
+\left[S(\zeta_S+1)+W\zeta_W\right]
+$$
+
+である。one-fiber壁の仕事共役なKirchhoff stressへ
+
+$$
+\tau_{Land}
+=\lambda_{Land}\,\chi_{orient}\,f_{viable}\,T_a
+$$
+
+と変換する。現在のnormal candidateでは$\chi_{orient}=1$であり、自由gainを許さない。
+
+### 7.2 parameterの責任境界
+
+LVFW/SEP/RVFWはLand 2017 intact-human 37℃ kineticsを保ち、同論文Appendix Bのwhole-organ columnにある
+
+$$
+T_{ref}=120\ \mathrm{kPa}
+$$
+
+を使う。40.5 kPa cellular columnからの変更は明示的なorgan-scale選択であり、Ca振幅、viability、壁別gainに隠さない。
+
+LA/RAは、Land–Niedererのatrial kinetics構成を共有する。ただし、旧candidateの
+
+$$
+T_{ref}=40.5\ \mathrm{kPa}
+$$
+
+は心室skinned-cell source値であり、心房固有の収縮振幅ではない。そこで、Lewalleらが37 ℃、ヒトLA permeabilized fiber、pCa 4.5で報告した中央最大能動張力
+
+$$
+T_{LA,max}=11.6\ \mathrm{kPa}
+$$
+
+を、$lambda_{Land}=1$における現6-state Land定常解へ写像する。定常stress比は
+
+$$
+\gamma_{sat}
+=\left.\frac{T_a}{T_{ref}}\right|_{mathrm{pCa}=4.5,\lambda=1}
+=0.9947560056040118
+$$
+
+なので、実装するreference tensionは
+
+$$
+T_{ref,A}
+=\frac{11.6\ \mathrm{kPa}}{\gamma_{sat}}
+=11.66115101055\ \mathrm{kPa}
+$$
+
+である。これはPV loopを見て合わせたgainではなく、独立ヒトLA組織force scaleを現方程式へ変換したcandidate priorである。LA/RAは同一parameter objectを共有し、RAへの適用はLA evidenceからのtissue-class extrapolationと明示する。Moyer 2015の$T_{max}=10$ kPaはorgan FE内でactive emptyingに合わせて選択された別構成則の値なので、Land $T_{ref}$へ直接移さない。
+
+この変更で触るLand primitiveは$T_{ref}$だけであり、$CaT50$、$k_{ws}$、$k_{wu}$、$k_{su}$、$\beta_0$、$\beta_1$などはbit-exactに保持する。したがって、心房active振幅の過大さとlength-dependent activation/kineticsの不確かさを同時に調整しない。Lewalleらの長さ依存性と$k_{tr}$は将来の独立component gateとし、現時点で異なるOFF-stateを持つ同論文のmicroscopic parameter vectorを6-state Landへ移植しない。
+
+### 7.3 prescribed calciumの責任境界
+
+prescribed calciumは保存されたCa cycling modelではなく、各電気activation eventで駆動される2指数差
+
+$$
+c(t)=c_d+A_c\frac{e^{-t/\tau_d}-e^{-t/\tau_r}}{N},
+\qquad 0<\tau_r<\tau_d
+$$
+
+である。normal candidateでは、壁別調整をせず、心房classと心室classにそれぞれ1組だけ持つ。
+
+| runtime/ablation | $\tau_r$ | $\tau_d$ | $c_d$ | $A_c$ | 位置づけ |
+|---|---:|---:|---:|---:|---|
+| V4 LA/RA | 12.5 ms | 300 ms | 0.10 µM | 0.50 µM | isolated Land TTP約85 ms、RT50約71 ms |
+| V4 LVFW/SEP/RVFW | 30 ms | 120 ms | 0.11 µM | 0.89 µM | 既存project-synthetic priorを保持し、心房変更との因果を分離 |
+| V5 ventricular-Ca ablation | 70 ms | 110 ms | 0.11 µM | 0.89 µM | TTP約171 ms、RT50約122 ms、RT90約224 ms |
+
+心房値はLand–Niedererの出力context（TTP 82 ms、RT50 75 ms）を低次数component metricとして再構成したものであり、測定Ca波形のdigitizeではない。心室にもLand/Coppini context（TTP 171 ms、RT50 122 ms）を再構成する候補は作るが、RT90は文献contextの281 msを再現せず約224 msである。しかも旧closed-loopでもCa eventからLV圧peakまでの遅延は概ね160 msであり、心房変更と同時に心室Caを変える必然性はない。したがってcanonical V4は旧心室Caを保持し、新心室CaはV5 causal ablationだけに隔離する。2指数形で3つのtiming metricを同時に満たせない場合はtau探索を続けず、一次波形に基づく最小の別Ca classを比較する。Ca波形とLand kineticsを患者fitで同時に自由化することも避ける。
+
+心房・心室とも、活性化時刻とprescribed calcium forcingは能動収縮ownerであり、平衡受動材料やSLSで収縮力を補わない。
+
+Landへ巨視的series elementは追加しない。ここでいうno-series-elementは、独立SLSを消す意味ではない。SLSは平衡材料と並列の受動粘弾性であり、Land crossbridgeと直列につないだ長さ分配自由度ではない。
+
+## 8. LV/RV one-fiber + finite-thickness energy-conjugate TriSeg
+
+### 8.1 3壁spherical-cap幾何
+
+TriSegはLV free wall、septum、RV free wallを3つの有限厚spherical segmentとして結合する。各壁$p\in\{LVFW,SEP,RVFW\}$のsigned midwall cap volumeを$V_{m,p}$、junction radiusを$y_m$、signed cap heightを$x_{m,p}$とする。
+
+$$
+A_{m,p}=\pi(x_{m,p}^2+y_m^2),
+\qquad
+C_{m,p}=\frac{2x_{m,p}}{x_{m,p}^2+y_m^2}.
+$$
+
+有限厚補正を含むfiber log strainは
+
+$$
+e_{f,p}
+=\frac12\log\frac{A_{m,p}}{A_{m,ref,p}}
+-\frac{z_p^2}{12}-0.019z_p^4,
+$$
+
+$$
+z_p=\frac32C_{m,p}\frac{V_{w,p}}{A_{m,p}}.
+$$
+
+cap volumeの符号とLV/RV cavity volumeとの関係はLumens 2009 conventionを保持する。
+
+### 8.2 心室平衡受動材料
+
+心室のeffective one-fiber平衡材料は、引張域で
+
+$$
+\Psi_{t}(e_f)
+=\frac{A}{B^2}\left(e^{Be_f}-1-Be_f\right),
+$$
+
+$$
+\tau_t(e_f)=\frac{A}{B}\left(e^{Be_f}-1\right),
+\qquad
+K_t(e_f)=Ae^{Be_f}
+$$
+
+とする。圧縮域は
+
+$$
+\Psi_c(e_f)=\frac12K_{comp}e_f^2,
+\qquad
+\tau_c=K_{comp}e_f
+$$
+
+であり、$|e_f|<10^{-3}$ではenergy、stress、tangentを一致させるconvex quintic transitionを使う。
+
+Klotz EDPVRで同定する自由度は、3心室壁に共通の**引張energy scale 1個**だけである。$A$をscaleするとき、energy、stress、tangentを同じ倍率で変える。$B$、圧縮modulus、SLS、Land、pericardium、心腔圧gain、壁別scaleは同定しない。
+
+### 8.3 frozen-state potentialと一般化力
+
+内部材料状態を固定した瞬間のmembrane virtual workを
+
+$$
+\delta\Pi_m
+=\sum_pV_{w,p}\tau_{f,p}\,\delta e_{f,p}
+$$
+
+とする。したがって一般化座標$q_j$に対する力は
+
+$$
+G_{m,j}
+=\sum_pV_{w,p}\tau_{f,p}
+\frac{\partial e_{f,p}}{\partial q_j}.
+$$
+
+負のmembrane stressもそのまま保持し、stress clampを使わない。
+
+### 8.4 Koiter曲げenergy
+
+有限厚shellが形状foldを無拘束に通過するのを避けるため、数値shape springではなく、moment-free reference curvature $C_{0,p}$を持つKoiter曲げenergyを加える。reference thicknessとplate rigidityは
+
+$$
+h_{0,p}=\frac{V_{w,p}}{A_{m,ref,p}},
+$$
+
+$$
+D_p=\frac{E_bh_{0,p}^3}{12(1-\nu^2)}.
+$$
+
+spherical trace-curvatureに対するreduced rigidityを
+
+$$
+B_p=\frac{1+\nu}{2}D_p
+$$
+
+とし、
+
+$$
+\Psi_{b,p}
+=\frac12B_pA_{m,ref,p}(C_{m,p}-C_{0,p})^2
+$$
+
+を用いる。現normal candidateは$E_b=3$ kPa、$\nu=0.45$、全壁multiplier 1である。$E_b$は0.3–30 kPaの広いsensitivity rangeのlog midpointとして置いたconstruction priorであり、KlotzまたはPV loopから同定していない。
+
+### 8.5 cavity pressureと形状平衡
+
+membraneとbendingを合わせたpotentialの微分を
+
+$$
+P_L^{tm}=\frac{\partial\Pi}{\partial V_L},
+\qquad
+P_R^{tm}=\frac{\partial\Pi}{\partial V_R},
+$$
+
+$$
+G_{V_S}=\frac{\partial\Pi}{\partial V_{m,S}},
+\qquad
+G_y=\frac{\partial\Pi}{\partial y_m}
+$$
+
+と定義する。内部平衡は実装上のscaleに合わせて
+
+$$
+r_{axial}=\frac12y_mG_{V_S}=0,
+\qquad
+r_{radial}=\frac{G_y}{2\pi y_m}=0
+$$
+
+で解く。
+
+Lumens 2009のpublished Taylor assemblyは比較diagnosticとして残すが、mechanistic rebuildのruntime pressureまたはroot ownerには使わない。Taylor defectをenergy balanceから差し引いて新しいassemblyを正当化することもしない。
+
+## 9. 解剖と受動較正
+
+### 9.1 心室CMR anchor
+
+BSA $1.9\ \mathrm{m^2}$のcenter constructionは、pooled adult CMRから
+
+| 量 | LV | RV |
+|---|---:|---:|
+| EDV | 144.4 mL | 155.8 mL |
+| ESV | 53.2 mL | 66.5 mL |
+| mass | 108.3 g（septumを含む） | 38.0 g（RV free wall） |
+
+を参照する。このうちEDVとmassをgeometry/material constructionへ使い、ESVは収縮後のheld-out正常population targetとして使う。ESVから収縮力またはreference geometryを逆fitしない。LV massはseptumを一度だけ所有し、Lumens 2009の初期wall-volume比をpartition priorとしてLVFWとSEPへ分ける。心筋密度$1.053\ \mathrm{g/mL}$でwall material volumeへ変換する。
+
+centerのwall material volumeは概ね
+
+$$
+V_{w,LVFW}=67.08\ \mathrm{mL},\quad
+V_{w,SEP}=35.77\ \mathrm{mL},\quad
+V_{w,RVFW}=36.09\ \mathrm{mL}.
+$$
+
+CMR ED geometryはloaded geometryであり、reference areaへ直接コピーしない。全3壁のED geometry stretchをconstruction prior $\lambda_{ED}=1.1$と置き、有限厚ひずみ式を逆に解いて$A_{m,ref,p}$を得る。この$1.1$は直接測定値ではない。
+
+### 9.2 Klotz EDPVRの使い方
+
+LV construction anchor $(V_{ED},P_{ED})=(144.4\ \mathrm{mL},8\ \mathrm{mmHg})$からKlotz normalized EDPVRを構成する。複数のinflation volumeで、各trialの共通引張scaleごとにfinite-thickness TriSeg内部平衡を解き直す。
+
+同定に使うのはED anchor 1点であり、他のinflation nodesはmultipoint replayである。各nodeで
+
+- active stress = 0。
+- SLS overstress = 0。
+- pericardial pressure = 0。
+- 3壁がpure-tension branch内。
+- finite-thickness energy rootがstrict local minimum。
+
+を要求する。
+
+Klotzはgroup-level LV EDPVRであり、心筋材料そのものではない。RV volumeはCMR EDのRV/LV比を保つ同時inflation pathであり、RV EDPVRがKlotzによりvalidationされたことを意味しない。
+
+## 10. common pericardiumと絶対圧
+
+心膜内総容積を
+
+$$
+V_h=V_{LA}+V_{LV}+V_{RA}+V_{RV}
++\sum_{w\in\mathcal W}V_{w}
+$$
+
+とする。$x=V_h/V_{h,0}-1$にC2のsmooth positive part$\phi_\delta(x)$を適用し、common pericardial pressureを
+
+$$
+P_{peri}
+=P_{eff}
++P_0\left[\exp(k\phi_\delta)-1\right]\phi_\delta'(x)
+$$
+
+とする。対応するenergyは
+
+$$
+\Psi_{peri}
+=P_{eff}(V_h-V_{h,0})
++\frac{P_0V_{h,0}}{k}
+\left[\exp(k\phi_\delta)-1-k\phi_\delta\right].
+$$
+
+$P_{peri}$は全4心腔へ同じ外圧として加わる。絶対圧は
+
+$$
+P_c^{abs}=P_c^{tm}+P_{thorax}+P_{peri}.
+$$
+
+research model factoryは、mechanics proxyの$P_{thorax}$とmain-wire血管外圧の`pth`が同じことを要求し、不一致はfail-closedにする。現normal runnerが構成するmechanics proxyは$P_{thorax}=0$に固定されるため、CLIの非zero胸腔圧だけで血管側をずらすことは許可しない。呼吸・胸腔圧病態は、mechanicsと血管を同じ外圧ownerから再構成する別variantとして接続する。
+
+normal candidateの$V_{h,0}$は、CMR最大心房容積、CMR心室EDV、壁材積の和に5% reserveを持たせて構成する。心膜は血圧を上げるfit knobではなく、心膜内容積過大時の共通constraintである。
+
+## 11. pre-A constructionと周期軌道の責任分離
+
+### 11.1 pre-A心臓rootとmain-wire血管TBV root
+
+初期化は「心房activationがまだなく、拡張末期のdiastasisにあるconstruction seed」で行う。これはschedule上の心房calcium drive直前そのものではない。現在のcycle originからRA driveまでは12 ms、LA driveまでは42 msあり、各心房の真のpre-activation量はそれぞれのevent直前sampleで別に評価する。post-A LVEDPや平均LAPをconstruction seedの一点圧targetとして使わない。
+
+未知数は
+
+$$
+\mathbf u=
+(V_{LA},V_{LV},V_{RA},V_{RV},V_{m,S},y_m,p_{fill})
+$$
+
+の7個である。残差は
+
+1. TriSeg axial/radial equilibrium 2本。
+2. LA/LV/RA/RV absolute pressure replay 4本。
+3. total blood volume closure 1本。
+
+の計7本である。このrootは心臓壁、TriSeg、4心腔の圧・容積を整合させるmechanics seedを作る。新しい分布循環へ渡す際、ここに含まれる旧4血管aggregateの容積・入口流・履歴は一切importしない。
+
+血管$V_0$とcomplianceは固定し、全区画圧shapeに共通offset$p_{fill}$だけを加える。現在のconstruction pressure shapeは概ね
+
+| 区画 | 圧 |
+|---|---:|
+| LA / LV | 7.5 / 5.0 mmHg |
+| SA / SV | 90 / 7 mmHg |
+| RA | 5.3 mmHg |
+| RV | LV 5 mmHgのKlotz volumeにおけるcoupled finite-thickness TriSegの受動予測（正常candidateでは概ね1–2 mmHg） |
+| PA / PV | 14 / 8.5 mmHg |
+
+である。RV圧を独立に固定すると、LVで校正した同一受動エネルギー面と矛盾してRVを過膨張させ得る。そのため、LVのpost-A EDPVR校正anchor 8 mmHgとは別に、LV pre-A target 5 mmHgに対応するKlotz volumeを求め、CMR EDV比を保ったbiventricular loading path上で有限厚TriSeg equilibriumを解き、RV圧を予測する。このRV値はRV Klotz targetでもPV形状fitでもない。残る圧shapeも一意な正常ヒト同定ではなく、弁時相と循環poolを整合させるconstruction priorである。
+
+心臓seedの従来constructionでは、総血液量5.6 LをHeldt 2002のlumped model分布
+
+$$
+SA:SV:pulmonary:heart=15:69:9:7\ \%
+$$
+
+へ分けるpriorを使っていた。これは個人計測値ではなく、新しいmain-wire血管状態のownerでもない。
+
+続いて、4心腔の容積と絶対圧を固定境界として、main-wire 11血管区画を別に初期化する。未知数は共通の非負順行構成流量$q_0$だけである。RAから体循環を、LAから肺循環をedge圧損に沿って上流へ再帰し、各node圧をmain-wire PV逆写像で容積へ変換する。$q_0$は
+
+$$
+\sum_{c\in\mathcal C}V_c(q_0)-V_{blood}=0
+$$
+
+の決定論的bracket+bisectionで解く。これにより、11血管edgeすべての圧損残差、11血管容積、5.6 L TBVを同時に閉じる。代表normal seedの$q_0$は約71.47 mL/sだが、これはCO targetでもfit値でもない。$q_0$を得た後に$V_u$、compliance、抵抗、TBVを動かさない。
+
+`Ao_SA`と`PA_PArt`は$q_0$で初期化する。4弁flowはmechanics seedから連続的に引き継ぐため、全15区画の$\dot V=0$までは要求しない。LandとSLSはcardiac pre-A constructionの段階で新しい解剖・幾何に対して初期化済みであり、main-wire transformerはそのCa/Land/SLS状態を値を変えず厳密に保持する。旧aggregate血管の容積・入口流だけを捨て、handoff時に心筋履歴をもう一度再初期化しない。
+
+このpre-A解が保証するのは**構成整合なrelaxed seed**だけであり、period-1、生理作動点、左右拍出量一致を保証しない。
+
+### 11.2 exploratory repeated cycleと将来のformal fixed-point acceptance
+
+周期解はcycle map
+
+$$
+\mathbf x_{n+1}=\Phi_T(\mathbf x_n)
+$$
+
+を繰り返し適用して求める。pre-A seedを1拍積分し、そのendpointを次拍のinitial stateに渡す。
+
+現在のmain-wire distributed runnerは、指定拍数（既定1拍）だけ同じcycle mapを反復し、complete-state endpoint distance、TBV drift、各拍の波形要約を探索的に報告する。nominal intervalが収束しない場合に限り、`retryableByStepSubdivision=true`のtrial-domainまたは非線形収束failureを二分する。これはadaptive step recoveryであって固定$\Delta t$ evidenceではない。各拍と全runについて、`acceptedTimeStepSec.minimum/maximum`、`solverRetrySubdivisionCount`、`maximumRetryDepthUsed`、`adaptiveRetrySubdivisionApplied`を保存する。`modelOrConstitutiveFallbackApplied=false`は構成則や循環modelを別物へ切り替えていないことだけを意味し、時間区間の二分をしていないことは意味しない。artifactはretryの有無にかかわらず`fixedTimeStepIntegrationClaimed=false`を固定する。invariant、programming、accepted-state domain failureは二分retryせず終了する。これは周期判定器ではなく、artifactもformal period-1を確立しないことをclaim boundaryで明示する。旧8区画比較経路にあるperiodic continuation、committed ledger、whole-cycle energy acceptanceを、新しい15区画経路が実行したものとして流用しない。
+
+main-wire candidateをformal acceptanceへ昇格させる前に接続すべきprotocolは
+
+- 最初の5拍をwarm-upとして捨てる。
+- 6拍目以降にcomplete-state normalized endpoint distance
+
+$$
+d_n=\|\mathbf x_{n+1}-\mathbf x_n\|_{scaled,\infty}<10^{-6}
+$$
+
+を要求する。
+- 左右心拍出量不一致率
+
+$$
+\epsilon_{CO}
+=\frac{|CO_L-CO_R|}
+{\tfrac12(|CO_L|+|CO_R|)}<0.05
+$$
+
+を要求する。
+- 15本すべてのedgeで正味平均流が順行性で、その平均流量間の最大相対不一致を5%未満とする。
+- 各拍のTBV conservation、全区画closure、runtime-resolvedかつ拍内固定のNewton scale、Land simplex、vascular PV domain margin、SLS離散passivity、projection/clamp/model fallbackなしを含むcommitted-interval ledger gateを要求する。formal fixed-step evidenceではretry depthを0に固定し、全accepted intervalが指定$\Delta t$（event alignmentによる既知の短縮区間を除く）であることを別途監査する。現artifactの`fixedTimeStepIntegrationClaimed=false`を、retry回数が0だったという理由だけで上書きしない。
+- 隣接endpointだけでなく、3拍streakの始点から終点までのcomplete-state距離も$10^{-6}$未満とする。これにより、小さな単調driftの偽収束を防ぐ。
+- 全gateを3拍連続で満たして収束とする。
+- 最大30拍に達しても未収束ならfail-closedとする。
+- 1拍だけでperiodic orbitを主張しない。
+
+標準の4 ms実行はvisual exploration用であり、formal periodic evidenceではない。将来のformal対象では少なくとも1/0.5/0.25 msのtime-step convergenceを要求し、whole-cycle energy acceptanceはさらに0.25 msで確認する。4 msでsettleしても、その結果には`exploratory-settled`以上のラベルを与えない。
+
+探索runnerの反復自体は単純なcycle-map iterationであり、高次元Newton shootingは未使用である。formal protocolを実装するときも、まず同じ反復とfail-closed gateを採用し、必要になればcomplete-stateとhemodynamic gateを変えずにmatrix-free shooting/Anderson型へ交換する。
+
+## 12. 数値積分、energy、passivity gate
+
+### 12.1 同一時刻レベル
+
+壁、TriSeg、心膜、血管圧、弁flowを同じendpoint時刻で評価し、monolithic Backward Eulerで解く。既知のcalcium event forcingを除き、圧・流・壁応力を異なる時刻から混ぜない。
+
+main-wire V1の保存微分状態数は、SLS-on/offでそれぞれ
+
+$$
+15\ V+6\ Q+10\ Ca+30\ Land+5/0\ SLS=66/61
+$$
+
+である。既知のexact-event calcium 10状態はNewton未知数にしない。TriSeg 2座標を代数未知数に加えるため、Newton未知数・残差数は
+
+$$
+15\ V+6\ Q+30\ Land+5/0\ SLS+2\ TriSeg=58/53
+$$
+
+で一致する。SLS-offではplaceholderを残さない。
+
+全5壁のmechanical powerに使うひずみ速度は、時刻sampleの中心差分を主値にせず、現在の幾何写像の解析chain ruleから求める。心房は
+
+$$
+\dot e_A=\frac{\partial e_A}{\partial V_A}\dot V_A,
+$$
+
+心室3壁は
+
+$$
+\dot e_p
+=\frac{\partial e_p}{\partial V_{m,p}}\dot V_{m,p}
++\frac{\partial e_p}{\partial y_m}\dot y_m
+$$
+
+とし、signed spherical-capの符号と有限厚補正を含める。中心差分はcoarse/fineの独立auditにだけ残し、解析rateとの一致をgateする。これにより、壁power $V_{w,p}\tau_p\dot e_p$ と有限厚TriSegの一般化仕事率の差を、数値微分stepに依存する見かけの残差と分離する。
+
+### 12.2 component監査と未接続のformal gate
+
+main-wire distributed stepで現在fail-closedにしているのは、状態domain/finite、Newton残差、15区画TBV保存、TriSeg平衡、Land simplex、vascular PV上下限、SLS topology、projection/clamp/model fallback不使用である。recoverable trial-domain、recoverable nonlinear convergence、terminal model evaluation、terminal accepted-state evaluationを分離し、外側runnerは明示的にretry可能な前二者だけを二分する。構成要素testでは、さらに次を独立に監査する。
+
+- 全状態と全導関数がfinite。
+- 血液量closure。
+- TriSeg axial/radial residual。
+- passive energy、stress、tangentの微分整合。
+- finite-thickness generalized forceとpotential finite differenceの一致。
+- mixed shape derivativeの対称性。
+- Koiter referenceで曲げenergy/forceが0。
+- Land nominal-to-Kirchhoff adapterの相対仕事誤差$<10^{-12}$。
+- finite-thickness TriSeg normalized work-conjugacy residual$<10^{-8}$。
+- 各flowの散逸$\ge0$。
+- SLSの物理・数値散逸$\ge0$。
+- 旧aggregate経路のaccepted stage ledger normalized residual$<10^{-5}$。
+- 旧aggregate経路の0.25 ms単一cycle energy diagnosticでnormalized residual$<10^{-3}$。
+
+後二つのledger/whole-cycle thresholdは新しい15区画runnerへまだ接続しておらず、distributed acceptanceの実装済みgateとして数えない。接続時には、旧aggregate血管のenergyを再利用せず、main-wire 11血管PV energy、6 inertial flow、9 algebraic dissipationを同一endpoint ledgerへ明示的に入れる。これらのthreshold自体も、すべてのdt、全beat、全病態での収束を証明するものではない。Backward Eulerの全体系energy acceptance、time-step convergence、ATP chemical energy、mechanical efficiencyは現phaseの主張外である。
+
+## 13. fitting階層と病態表現
+
+病態fitでは、観測量に最も近い任意parameterを動かすのではなく、原因階層に沿ってparameter群を開く。
+
+| 病態・観測 | 第一選択のmechanistic axis | 同時に固定・監査するもの |
+|---|---|---|
+| 心房拡大、AF remodeling | LA/RA loaded phasic volumes、wall mass、unloaded reference volume、activation | PV形状だけでMoyer係数を変更しない |
+| 心房線維化・硬化 | Moyer matrix/fiber係数、SLS class parameter | reservoir pulse、secant、strain-rateデータを別軸で使う |
+| LV hypertrophy/dilation | CMR cavity volume、LVFW/SEP mass、reference area | septumを二重計上しない |
+| RV pressure/volume overload | RV cavity/mass、pulmonary afterload | TriSeg septal geometryをhold-outにする |
+| HFpEF | ventricular tensile law、reference geometry、血液量/静脈容量 | EDPVRと心膜を混同しない |
+| HFrEF | shared ventricular Land $T_{ref}$またはCa transient | EDPVRを収縮力補正に使わない |
+| dyssynchrony/BBB | LVFW/SEP/RVFW activation timing | wall-wise gainで時相差を代替しない |
+| AF/atrial standstill | atrial activation timing・振幅、構造remodeling | SLSでa-waveを作らない |
+| 弁狭窄 | $A_{open}$、loss/inertance geometry | upstream contractilityとの識別を確認 |
+| 弁逆流 | physiological EROA | numerical reverse areaを病態parameterにしない |
+| systemic hypertension | $R_{sys}$、SA compliance、必要ならvascular remodeling | Land gainだけで後負荷を表現しない |
+| pulmonary hypertension | $R_{pul}$、PA compliance、RV/SEP remodeling | LV/RV interactionを保持する |
+| volume depletion/overload | TBV、固定$V_0$下のstressed volume | TBV変更ごとに$V_0$を再fitしない |
+| pericardial effusion/constriction | $P_{eff}$、$V_{h,0}$、pericardial stiffness | chamber別pressure offsetを入れない |
+
+### 13.1 推奨する階層型同定順序
+
+1. BSA、CMR/echo cavity volume、wall massから解剖を固定する。
+2. 血圧、CO、TBV、血管volumeから循環poolと$R/C/V_0$を固定する。
+3. EDPVRまたはdiastolic pressure-strainから平衡受動則を同定する。
+4. rate-dependent stress/strainからSLSを同定する。
+5. systolic pressure、EF、strain、ejection durationからLand/Caを同定する。
+6. Doppler/valve imagingから弁areaとlossを同定する。
+7. 最後にPV loop、静脈flow、septal motionをhold-out全体系観測として確認する。
+
+parameter identifiabilityが不足する場合は、壁別自由parameterを増やす前に、階層priorとpopulation分布を導入する。異なる物理ownerのparameterで同じ波形を相殺するfitは採用しない。
+
+### 13.2 topology変更が必要な病態
+
+ASD/VSD、PDA、Fontan、mechanical support、regional infarct、明示的annular tetheringなどは、現在の15区画・5壁parameter変更だけでは表せない。これらはshunt edge、device、regional wall、または新しい仕事共役座標を追加するtopology extensionとして扱う。冠循環もmain-wireに存在するが、現non-coronary candidateへ暗黙に混ぜず、冠血流と心筋内外圧のenergy boundaryを定義した次のtopology extensionで接続する。
+
+## 14. AVPD、MAPSE、TAPSE、s'、a'
+
+AV-plane変位$z_M$をcoreへ加え、
+
+$$
+M_z\ddot z_M+C_z\dot z_M+
+\frac{\partial\Psi_z}{\partial z_M}
+=F_{z_M}^{wall}
+$$
+
+を解く案は現phaseでは採用しない。独立な長軸幾何・弁輪力データがない状態では、収縮期のx谷を下げる一方、拡張期に逆向きの力が心房へ戻り、conduit pathを不自然に押し上げる自由度になるためである。
+
+設計方針は次である。
+
+- AVPDをcoreのpressure-generating stateにしない。
+- 将来、心尖–弁輪軸と壁幾何からobserverとして算出する。
+- observerは循環・壁力学へfeedbackしない。
+- 現one-fiber幾何には一意な長軸弁輪座標がないため、現在のAVPD/MAPSE/TAPSE/s'/a'は`unavailable`とし、捏造しない。
+- observerが必要な精度を出せないと実証されたときだけ、3次元縮約と仕事共役性を持つdynamic AV-planeを競合topologyとして再検討する。
+
+## 15. acceptanceの順序
+
+正常candidateの正式評価順は次とする。これは採択順序の仕様であり、現在のexploratory distributed runnerが3以降を実装・通過済みという意味ではない。
+
+1. 構成則domain、finite、mass/volume closure。
+2. pre-A rootの圧replay、TriSeg equilibrium、TBV closure。
+3. period-1 complete-state/streak-window convergence、15 edge平均流一致、左右CO一致、committed ledger gate。
+4. SA/PA/心房平均圧、CO、LV/RV EDV/ESV/EF、および最初の心室Ca drive直前のcommitted left-limit LVEDP。
+5. 4弁の開閉時相、正味順行量、逆流量、圧較差。
+6. E/A、TV inflow、PV/VC flow、ejection duration。
+7. LA/RA PV loop、reservoir/conduit/booster分解、septal motion。
+
+PV形状を先に合わせて1–6の誤りを隠すことは禁止する。とくに、LV EDV/ESVが過大なときは、最初にpre-A cardiac pool、LA/RA booster volume、periodicity、Klotz replayを分解し、直ちにLand $T_{ref}$や弁areaを動かさない。
+
+心房PVのheld-out読出しでは、最大の正味順行MV/TV lobeから弁opening/closureを決める。reservoir branchはclosure後の局所最小容積からopening前最大容積まで、early-conduit branchはopeningから最初のpost-opening局所最小容積までとする。同じ容積上のreservoir-minus-conduit圧差を報告するが、parameter選択には使わない。formal period-1が成立した場合に限り、観測された閉曲線のshoelace面積または$\oint P\,dV$を生理的loop workの候補として扱う。現在のexploratory拍は始点と終点を直線chordで閉じた幾何診断だけを報告し、これは生理的loop workではない。
+
+弁開放中ずっと心房容積が単調減少することは要求しない。肺静脈・大静脈からの流入が房室流を上回れば、diastasisや心房収縮前に小さい再充満が生じ得るからである。一方、early-conduitで空になった量に対するその後の最大再充満量
+
+$$
+r_{refill}
+=\frac{\max_{t>t_{min},\,Q_{AV}>0}[V_A(t)-V_A(t_{min})]}
+{V_A(t_{open})-V_A(t_{min})}
+$$
+
+を診断値として分離する。旧単一PV lumpでLAはこの比が約1.30、RAは約0.09であり、LAだけが拡張早期emptyingをほぼ相殺していた。これは合否targetとしてfitする値ではなく、`PVein_LA`流入、MV流出、LV弛緩、肺静脈storageを因果分解するための指標である。
+
+非period-1拍で最大AV正流量lobeが拍境界をまたぐ場合、拍末状態と拍頭状態を周期的に同一視してはならない。その場合のlate-refill読出しは観測拍末でright-censorし、次拍のfunctional closureまでを推定しない。exact openingでは$Q_{AV}=0$なので、静脈流入$Q_{ven}>0$なら連続性
+
+$$
+\dot V_A=Q_{ven}-Q_{AV}
+$$
+
+からopening直後のごく短い容積増加は必ずしも異常ではない。問題にするのは、房室流が十分立ち上がったearly-conduitで$Q_{ven}>Q_{AV}$が再出現してemptyingを大きく相殺する場合である。この区別をせず「弁開放後は全点で単調減少」を課すことは、肺静脈流入または弁の有限な立ち上がりを非物理的に消すため採用しない。
+
+terminal拍では、この因果分解を形状だけでなく連続式から監査するため、LA/RAの`terminalAtrialPostOpeningMassBalanceDiagnostic`も保存する。区間はfunctional AV opening $t_{open}$から観測拍末$T$までであり、period-1を仮定して次拍のclosureへ延長しないright-censored区間である。流れの対応は
+
+$$
+(Q_{ven},Q_{AV})=
+\begin{cases}
+(Q_{PVein\_LA},Q_{MV}) & \mathrm{LA},\\
+(Q_{VC\_RA},Q_{TV}) & \mathrm{RA}
+\end{cases}
+$$
+
+とする。waveform sampleを区分線形補間し、台形則で
+
+$$
+I_{ven}=\int_{t_{open}}^TQ_{ven}\,dt,
+\qquad
+I_{AV}=\int_{t_{open}}^TQ_{AV}\,dt,
+$$
+
+$$
+\Delta V_A=V_A(T)-V_A(t_{open}),
+\qquad
+\epsilon_{trap}=\Delta V_A-(I_{ven}-I_{AV})
+$$
+
+を報告する。保存fieldは、区間、flow ID、`trapezoidalVenousInflowVolumeM3`、`trapezoidalAvOutflowVolumeM3`、`netIntegratedInflowMinusOutflowM3`、`observedAtrialVolumeChangeM3`、`trapezoidalDiscreteMassBalanceClosureErrorM3`、`absoluteTrapezoidalDiscreteMassBalanceClosureErrorM3`、`rightCensoredAtCycleEnd=true`、`formalPeriodOne=false`である。$\epsilon_{trap}$はendpoint Backward Euler残差そのものではなく、保存されたcoarse waveformを台形積分したpost-processing誤差を含む診断値である。したがって、PV形状fitやacceptance gateには使わない。validatorはwaveformからこの診断を再構築し、report直下とterminal cycleの`cycleSummaries[].trend.atrialPostOpeningMassBalanceDiagnostic`とのcanonical equalityを要求する。
+
+exploratory artifactは各拍について、LA/RAのright-censored conduit・later-refill診断、上記mass-balance診断、4心腔のnonperiodic closed-polygon診断、選択した容積・圧・流量の最小値・最大値・時間平均を`cycleSummaries[].trend`へ保存する。closed-polygon診断は、観測open pathの$\int P\,dV$、人工closing chordの寄与、閉多角形積分、符号付き・絶対shoelace面積を分離し、`formalPeriodOne=false`および`physiologicalLoopWorkClaimed=false`を固定する。したがって、周期seamを隠した形状評価や、人工chordを心房仕事と読むことはできない。
+
+LVEDPは最大LV容積時の圧として定義しない。心房収縮後、最初の心室Ca drive（正常scheduleではSEP）を適用する直前のevent transaction left-limitから
+
+$$
+(V_{LV},P_{LV})\big|_{t=t_{V,Ca}^{-}}
+$$
+
+を直接読む。normal prospective bandは5–15 mmHgとし、period-1が成立した拍だけを合否対象にする。これにより、心室activation後に容積がわずかに増え続ける点をEDPVR点と誤認しない。
+
+## 16. 現在の主張境界と未検証事項
+
+### 16.1 実装済みといえるもの
+
+- main-wire owner由来の非冠15区画、11血管edge、4弁edgeからなる閉鎖循環topologyと保存式。
+- main-wireの非線形動脈、線形毛細管、3領域静脈PV則のSI/energy-conjugate adapter。
+- 6動的flow、9符号付き代数flow、waterfallを同じendpointで評価するkernel。
+- 4心腔固定境界、11 edge圧損、5.6 L TBVを同時に閉じる分布血管初期化。
+- 15 volume + Land/SLS/TriSegを同時に解く58/53未知数のresearch-only monolithic Backward Euler経路。
+- LA/RA CMR phasic anatomy construction。
+- Moyer 2015受動則の等二軸one-fiber縮約。
+- LA/RA別の単調inverse unloading。
+- 独立1-state SLSとpassivity audit。
+- Land active-only、Lewalle LA saturation force scaleへ写像したshared atrial $T_{ref}$、whole-organ ventricular $T_{ref}$選択。
+- 心房/心室class別の低次数Ca timing reconstructionとisolated twitch component audit。
+- CMR mass/volumeからのTriSeg wall construction。
+- finite-thickness energy-conjugate TriSegとKoiter bending。
+- Klotz ED anchorによる共通tensile energy scale root。
+- 7未知数pre-A construction root。
+- main-wireの指定拍数exploratory cycle-map runner、endpoint-distance/TBV readback、event alignment、失敗区間だけの二分retry。
+- reportとwaveformへ実際の`SLS on/off` modeを明記し、node/edge順序、時刻、全sample、設定、claim boundary、相互content hashをstrictに検証するartifact bundle。
+- waveformから心房readback、conduit/later-refill、post-opening right-censored mass balance、4心腔closed-polygon診断、waveform summaryを再構築し、埋め込みpayloadとのcanonical equalityを検証するreadback経路。
+- 実行開始時に、Git `HEAD` commit（`repositoryHeadCommit`）、`HEAD^{tree}`（`repositoryHeadTree`）、出力artifactを除くtracked worktree/index patch SHA-256（`trackedWorktreePatchSha256`、`trackedIndexPatchSha256`）、`trackedWorktreeClean`、`package-lock.json` file-byte SHA-256（`packageLockContentSha256`）、`nodeVersion`を`gitSourceReproducibilityAtRunStart`へ保存する。`untrackedPathsExcludedFromCleanlinessCheck=true`も明示する。
+- 実行開始時とartifact書込み直前に、`topology.ts`、`params.ts`、graph resolver、vascular topology/PV adapter、same-time circulation kernel、vascular initializer、distributed endpoint/solver、runnerからなる直接numerical owner 10ファイルをfile-byte SHA-256で`directNumericalOwnerSourceSnapshotAtStart`へsnapshotし、run中にtracked Git/source状態またはowner byteが変わればfail-closedにする。加えてsource manifest、source numerical evidence、event schedule、wall material bindingのcontent SHA-256と、file/canonical-object hash algorithm IDをreport provenanceへ保存する。
+- report/waveformをrun固有temporary pathへ排他的に書き、readback、content hash、report–waveform binding、再構築diagnosticのcanonical equalityを検証してからcanonical pathへrenameし、canonical pairを再読込して検証するartifact integrity gate。
+- 上記SHA-256群は、どのlocal source/tree/runtimeで生成したかを再現・改変検出する**integrity/reproducibility metadata**である。署名commit、署名artifact、provenance attestation、実行主体のidentity、source repositoryの信頼性を認証するauthentication機構ではない。
+- mechanics componentおよび旧aggregate経路のcompact mechanical-energy diagnostic（新main-wire whole-cycle ledgerではない）。
+- 全5壁の解析chain-ruleひずみ速度と、中心差分をaudit-onlyにした仕事共役gate。
+- 最初の心室Ca drive直前committed left-limitからのevent-local LVEDP readback。
+- 旧aggregate whole-heart energy accountingへKoiter energyを含める経路。
+
+### 16.2 まだ主張できないもの
+
+- 正常成人のperiod-1最終波形が全targetを満たすこと。
+- LV/RV、LA/RAのPV loopが生理的にvalidation済みであること。
+- 弁圧較差、E/A、PV flow、VC flowが正常範囲に入ること。
+- SLS parameterがヒト組織データで同定済みであること。
+- Moyer LA materialがRAまたは全populationに普遍であること。
+- Klotz replayがRV受動則をvalidationすること。
+- $E_b=3$ kPaが一意に同定された曲げmodulusであること。
+- Lewalle force scale以外の心房Land kineticsがヒトLA/RAで同定済みであること。
+- RA active force scaleがRA組織で直接測定済みであること。
+- 2指数prescribed calciumが測定Ca波形または保存Ca cyclingであること。
+- 現runは指定回数の単純なcycle-map反復であり、period-1判定を実装していない。したがってterminal拍は非周期であり得て、right-censored atrial readbackや人工closing chordを周期loopまたは生理的仕事として解釈できない。
+- retryなしのno-subdivision runを含むtime-step convergence、multi-start periodic uniqueness、長期安定性。現solverはscaled five-point numerical algorithmic Jacobianを用い、analytic/automatic differentiation Jacobian、generalized Jacobian audit、semismooth active-set convergenceをまだ持たない。
+- main-wire分布循環candidateの正式なperiod-1判定、15 edge平均流gate、whole-cycle committed energy ledger、正常生理target通過。
+- `buildNodes/buildEdges/defaultParams`はbaseline ownerとして共有するが、`venousTone`、`arterialStiffness`、抵抗倍率、`nodeOverrides/edgeOverrides`のeffective値変換は現resolverが`ModelCore`規則を手動mirrorしている。両経路のdriftを構造的に排除するcanonical effective-parameter resolverは未実装である。
+- 現distributed solverは旧8区画`PhaseB1EventFreeMonolithicModelV1`へ分布血管volumeをaggregateして渡し、心房・心室壁、TriSeg、心膜だけを評価するmechanics-only proxyを使う。旧aggregate血管圧・流・volume residualは消費しないが、将来は血管dummy stateを要求しない狭い`HeartMechanicsOnly` APIへ分離する必要がある。
+- 静脈PV inverseのreviewed pressure supportは現V1で$[-20,45]$ mmHgに固定され、node別strict volume boundと最小domain marginへ変換される。これは病態domainではなく、parameterごとの最大単調区間を自動構築するadaptive supportは未実装である。
+- mechanicsと血管を同じ非zero intrathoracic pressureへ同期した呼吸・胸腔圧variant（現runnerのnormal candidateは$P_{th}=0$限定）。
+- `PVein_LA`正inertanceを含む7-dynamic-flow variant。
+- 冠循環のLand–TriSeg energy ledgerへの接続。
+- patient-specific fitのidentifiability。
+- AVPD/MAPSE/TAPSE/s'/a' observerの実装。
+- `ModelCore`、browser product、release runtimeへの採用。
+- reportとwaveformは個別のfilesystem renameで公開するため、2ファイルを単一transactionとしてatomicに交換する機構ではない。通常failureではcanonical pairを削除し、validatorは片側欠損・hash不一致を拒否するが、process/hostが2回のrename間で強制終了した場合のpartial pairまでfilesystem levelで防ぐものではない。
+
+したがって、現時点の正確なラベルは**literature-informed mechanistic candidate**であり、validated normal-human digital twinではない。
+
+## 17. 実装対応表
+
+| 責任 | 実装 |
+|---|---|
+| 心房CMR解剖・wall mass | [`atrialAnatomyPassiveTargetsV2.ts`](../../../engine/myocardium/fourChamberV1/anatomy/atrialAnatomyPassiveTargetsV2.ts) |
+| 心室CMR/Klotz anchor | [`ventricularAnatomyEdpvrTargetsV1.ts`](../../../engine/myocardium/fourChamberV1/anatomy/ventricularAnatomyEdpvrTargetsV1.ts) |
+| Moyer exact reduction | [`moyer2015AtrialEquibiaxialPassiveV3.ts`](../../../engine/myocardium/fourChamberV1/passive/moyer2015AtrialEquibiaxialPassiveV3.ts) |
+| 心房inverse unloading | [`normalAdultAtrialMechanicsCandidateV3.ts`](../../../engine/myocardium/fourChamberV1/calibration/normalAdultAtrialMechanicsCandidateV3.ts) |
+| active tissue-class prior | [`normalAdultActiveTissueClassPriorV1.ts`](../../../engine/myocardium/fourChamberV1/land/normalAdultActiveTissueClassPriorV1.ts) |
+| 心室構造・Klotz scale | [`ventricularStructuralCalibrationV2.ts`](../../../engine/myocardium/fourChamberV1/calibration/ventricularStructuralCalibrationV2.ts) |
+| 正常心室candidate | [`normalAdultVentricularMechanicsCandidateV2.ts`](../../../engine/myocardium/fourChamberV1/calibration/normalAdultVentricularMechanicsCandidateV2.ts) |
+| finite-thickness TriSeg | [`energyConjugateFiniteThicknessTriSegV2.ts`](../../../engine/myocardium/fourChamberV1/triseg/energyConjugateFiniteThicknessTriSegV2.ts) |
+| TriSeg equilibrium root | [`energyConjugateFiniteThicknessTriSegRootV2.ts`](../../../engine/myocardium/fourChamberV1/triseg/energyConjugateFiniteThicknessTriSegRootV2.ts) |
+| SLS | [`oneStateAlphaVSlsV1.ts`](../../../engine/myocardium/fourChamberV1/passive/oneStateAlphaVSlsV1.ts) |
+| Land material binding | [`phaseB1WallMaterialBindingV1.ts`](../../../engine/myocardium/fourChamberV1/phaseB1/phaseB1WallMaterialBindingV1.ts) |
+| main-wire graph shared resolver | [`mainWireHemodynamicGraphV1.ts`](../../../engine/core/mainWireHemodynamicGraphV1.ts) |
+| main-wire非冠topology SI contract | [`mainWireNonCoronaryVascularTopologyV1.ts`](../../../engine/myocardium/fourChamberV1/vascular/mainWireNonCoronaryVascularTopologyV1.ts) |
+| main-wire血管PV/energy adapter | [`mainWireVascularPvLawSiV1.ts`](../../../engine/myocardium/fourChamberV1/vascular/mainWireVascularPvLawSiV1.ts) |
+| main-wire同一時刻循環kernel | [`mainWireNonCoronarySameTimeLevelV1.ts`](../../../engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1.ts) |
+| main-wire血管TBV初期化 | [`mainWireNonCoronaryVascularInitializerV1.ts`](../../../engine/myocardium/fourChamberV1/vascular/mainWireNonCoronaryVascularInitializerV1.ts) |
+| 15区画endpoint topology | [`phaseB1MainWireDistributedEndpointV1.ts`](../../../engine/myocardium/fourChamberV1/phaseB1/phaseB1MainWireDistributedEndpointV1.ts) |
+| 15区画monolithic BE | [`phaseB1MainWireDistributedMonolithicBackwardEulerV1.ts`](../../../engine/myocardium/fourChamberV1/phaseB1/phaseB1MainWireDistributedMonolithicBackwardEulerV1.ts) |
+| 旧8区画比較kernel（新solverでは非owner） | [`closedLoopSameTimeLevelV1.ts`](../../../engine/myocardium/fourChamberV1/hydromechanics/closedLoopSameTimeLevelV1.ts) |
+| pre-A hemodynamic prior | [`preAOperatingPointHemodynamicConstructionPriorV2.ts`](../../../engine/myocardium/fourChamberV1/physiology/preAOperatingPointHemodynamicConstructionPriorV2.ts) |
+| pre-A 7D root | [`phaseB1PreAOperatingPointInitializerV2.ts`](../../../engine/myocardium/fourChamberV1/phaseB1/phaseB1PreAOperatingPointInitializerV2.ts) |
+| full candidate case | [`phaseB1MechanisticRebuildCaseV2.ts`](../../../engine/myocardium/fourChamberV1/phaseB1/phaseB1MechanisticRebuildCaseV2.ts) |
+| periodic continuation | [`phaseB1MechanisticPeriodicContinuationV1.ts`](../../../tools/myocardium/phaseB1MechanisticPeriodicContinuationV1.ts) |
+| 心房PV held-out読出し | [`phaseB1AtrialPvReservoirConduitReadbackV1.ts`](../../../tools/myocardium/phaseB1AtrialPvReservoirConduitReadbackV1.ts) |
+| 旧8区画比較runner | [`runPhaseB1MechanisticRebuildV2.ts`](../../../tools/myocardium/runPhaseB1MechanisticRebuildV2.ts) |
+| main-wire exploratory repeated-cycle runner | [`runPhaseB1MainWireDistributedV1.ts`](../../../tools/myocardium/runPhaseB1MainWireDistributedV1.ts) |
+| main-wire 4心腔PV・圧・弁流量HTML | [`renderPhaseB1MainWireDistributedHtmlV1.ts`](../../../tools/myocardium/renderPhaseB1MainWireDistributedHtmlV1.ts) |
+
+## 18. 一次文献
+
+1. Moyer CB, Norton PT, Ferguson JD, Holmes JW. Changes in Global and Regional Mechanics Due to Atrial Fibrillation: Insights from a Coupled Finite-Element and Circulation Model. [doi:10.1007/s10439-015-1256-0](https://doi.org/10.1007/s10439-015-1256-0), [PMC4497915](https://pmc.ncbi.nlm.nih.gov/articles/PMC4497915/).
+2. Li W et al. Reference value of left and right atrial size and phasic function by SSFP CMR at 3.0 T in healthy Chinese adults. [doi:10.1038/s41598-017-03377-6](https://doi.org/10.1038/s41598-017-03377-6).
+3. Flink IL et al. Left atrial mass: relationship between gross anatomy and quantitative echocardiography. [doi:10.1016/j.carpath.2020.107265](https://doi.org/10.1016/j.carpath.2020.107265).
+4. Gaurilcikas A et al. Human heart atria and appendages: morphometry and clinical importance. [institutional record](https://hdl.handle.net/20.500.12512/83288).
+5. Wright SP et al. Left atrial reservoir pressure-volume relations during exercise in healthy older adults. [doi:10.1152/japplphysiol.00905.2023](https://doi.org/10.1152/japplphysiol.00905.2023).
+6. Dernellis JM et al. Left Atrial Mechanical Adaptation to Long-Standing Hemodynamic Loads Based on Pressure-Volume Relations. [doi:10.1016/S0002-9149(98)00134-9](https://doi.org/10.1016/S0002-9149(98)00134-9).
+7. Wessels JN et al. Right Atrial Adaptation to Precapillary Pulmonary Hypertension: Pressure-Volume, Cardiomyocyte, and Histological Analysis. [doi:10.1016/j.jacc.2023.05.063](https://doi.org/10.1016/j.jacc.2023.05.063).
+8. Zhan Y et al. Derivation of consolidated normal reference values for right and left ventricular quantification by CMR. [doi:10.1186/1532-429X-18-S1-O75](https://doi.org/10.1186/1532-429X-18-S1-O75).
+9. Lumens J, Delhaas T, Kirn B, Arts T. Three-Wall Segment (TriSeg) Model Describing Mechanics and Hemodynamics of Ventricular Interaction. [doi:10.1007/s10439-009-9774-2](https://doi.org/10.1007/s10439-009-9774-2), [PMC2758607](https://pmc.ncbi.nlm.nih.gov/articles/PMC2758607/).
+10. Klotz S et al. Single-beat estimation of end-diastolic pressure-volume relationship. [doi:10.1152/ajpheart.01240.2005](https://doi.org/10.1152/ajpheart.01240.2005).
+11. Vinnakota KC, Bassingthwaighte JB. Myocardial density and composition. [doi:10.1152/ajpheart.00478.2003](https://doi.org/10.1152/ajpheart.00478.2003).
+12. Palit A et al. In vivo estimation of passive biomechanical properties of human myocardium. [doi:10.1007/s11517-017-1768-x](https://doi.org/10.1007/s11517-017-1768-x).
+13. Land S et al. A model of cardiac contraction based on novel measurements of tension development in human cardiomyocytes. [doi:10.1016/j.yjmcc.2017.03.008](https://doi.org/10.1016/j.yjmcc.2017.03.008).
+14. Land S, Niederer SA. Influence of atrial contraction dynamics on cardiac function. [doi:10.1002/cnm.2931](https://doi.org/10.1002/cnm.2931).
+15. Heldt T et al. Computational model of cardiovascular response to orthostatic stress. [doi:10.1152/japplphysiol.00241.2001](https://doi.org/10.1152/japplphysiol.00241.2001).
+16. Magder S, De Varennes B. Clinical death and the measurement of stressed vascular volume. [doi:10.1097/00003246-199806000-00028](https://doi.org/10.1097/00003246-199806000-00028).
+17. Lewalle A et al. Human atrial skinned muscle fibers exhibit reduced length-dependent activation but show faster force development kinetics than ventricular muscle. [doi:10.1016/j.yjmcc.2025.12.001](https://doi.org/10.1016/j.yjmcc.2025.12.001), [PubMed 41349712](https://pubmed.ncbi.nlm.nih.gov/41349712/).
+18. Bowman AW, Kovács SJ. Left atrial conduit volume is generated by deviation from the constant-volume state of the left heart: a combined MRI-echocardiographic study. [doi:10.1152/ajpheart.00969.2003](https://doi.org/10.1152/ajpheart.00969.2003), [PubMed 14751859](https://pubmed.ncbi.nlm.nih.gov/14751859/).
+19. Gerringer JW et al. Lumped-parameter models of the pulmonary vasculature during the progression of pulmonary arterial hypertension. [doi:10.14814/phy2.13586](https://doi.org/10.14814/phy2.13586), [PMC5901176](https://pmc.ncbi.nlm.nih.gov/articles/PMC5901176/).
+20. Stergiopulos N, Segers P, Westerhof N. Use of pulse pressure method for estimating total arterial compliance in vivo. [doi:10.1152/ajpheart.1999.276.2.H424](https://doi.org/10.1152/ajpheart.1999.276.2.H424), [PubMed 9950841](https://pubmed.ncbi.nlm.nih.gov/9950841/).

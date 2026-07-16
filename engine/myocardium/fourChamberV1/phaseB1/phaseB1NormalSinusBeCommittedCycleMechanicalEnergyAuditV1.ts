@@ -48,7 +48,9 @@ export const PHASE_B1_NORMAL_SINUS_BE_COMMITTED_CYCLE_MECHANICAL_ENERGY_POLICY_V
     endpointSpanUsedAsQuadratureWeight: false,
     cycleResidualUsesDirectEndpointEnergyDelta: true,
     l1CancellationMetricsAreDiagnosticOnly: true,
-    publishedTaylorGeometryDefectIsRetainedAndSubtracted: true,
+    publishedTaylorGeometryDefectIsRetainedAndSubtractedOnLegacyStages: true,
+    energyConjugateTriSegBendingStoredEnergyIsIntegrated: true,
+    energyConjugateTriSegTaylorDefectSubtracted: false,
     publishedTaylorGeometryWorkConjugacyAccepted: false,
   } as const);
 
@@ -90,6 +92,14 @@ export type PhaseB1BackwardEulerMechanicalEnergyAggregationStageV1 =
     slsDissipationW: number;
     activeMechanicalOutputPowerW: number;
     prescribedExternalEnvironmentPowerW: number;
+    triSegGeometryRuntimeAssembly:
+      | "published-taylor-2009-with-explicit-defect-correction"
+      | "energy-conjugate-finite-thickness-triseg-v2";
+    triSegBendingStoredEnergyRateW: number;
+    geometryPowerBalanceCorrectionW: number;
+    geometryWorkConjugacyResidualW: number;
+    geometryWorkConjugacyNormalizationDenominatorW: number;
+    geometryWorkConjugacyAccepted: boolean;
     publishedTaylorGeometryPowerResidualW: number;
     publishedTaylorGeometryNormalizationDenominatorW: number;
     sourceCorrectedStageLedgerAccepted: boolean;
@@ -134,6 +144,7 @@ export type PhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggregationDiagnos
       slsDissipation: number;
       activeMechanicalOutput: number;
       prescribedExternalEnvironment: number;
+      geometryPowerBalanceCorrection: number;
       publishedTaylorGeometryPowerResidual: number;
     }>;
     officialCycleBalance: Readonly<{
@@ -178,9 +189,17 @@ export type PhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggregationDiagnos
       maximizingTransactionIndex: number;
       workNormalizedResidual: number;
       rawDefectRetained: true;
-      subtractedFromWholeHeartResidual: true;
+      subtractedFromWholeHeartResidual: boolean;
       diagnosticOnly: true;
       workConjugacyAccepted: false;
+    }>;
+    triSegGeometryPowerAccounting: Readonly<{
+      publishedTaylorStageCount: number;
+      energyConjugateStageCount: number;
+      integratedBendingStoredEnergyRateJ: number;
+      integratedWholeHeartBalanceCorrectionJ: number;
+      maximumNormalizedWorkConjugacyResidual: number;
+      everyEnergyConjugateStageAccepted: boolean;
     }>;
     quarterMillisecondSingleCycleEligibility: boolean;
     quarterMillisecondSingleCycleEnergyGatePass: boolean;
@@ -320,7 +339,7 @@ export function buildPhaseB1NormalSinusBeCommittedCycleMechanicalEnergyAuditV1(
       + snapshot.dissipationByBranchW.sls
       - snapshot.stage.activeMechanicalOutputPowerW
       - snapshot.prescribedExternalEnvironmentPowerW
-      - snapshot.publishedTaylorGeometryPowerAudit.rawGeometryPowerResidualW;
+      - snapshot.triSegGeometryPowerAccounting.wholeHeartBalanceCorrectionW;
     assertRoundoffEqual(
       derivedResidualW,
       snapshot.stage.continuousMechanicalEnergyResidualW,
@@ -343,6 +362,18 @@ export function buildPhaseB1NormalSinusBeCommittedCycleMechanicalEnergyAuditV1(
         snapshot.stage.activeMechanicalOutputPowerW,
       prescribedExternalEnvironmentPowerW:
         snapshot.prescribedExternalEnvironmentPowerW,
+      triSegGeometryRuntimeAssembly:
+        snapshot.triSegGeometryPowerAccounting.runtimeAssembly,
+      triSegBendingStoredEnergyRateW:
+        snapshot.triSegGeometryPowerAccounting.triSegBendingStoredEnergyRateW,
+      geometryPowerBalanceCorrectionW:
+        snapshot.triSegGeometryPowerAccounting.wholeHeartBalanceCorrectionW,
+      geometryWorkConjugacyResidualW:
+        snapshot.triSegGeometryPowerAccounting.workConjugacyResidualW,
+      geometryWorkConjugacyNormalizationDenominatorW:
+        snapshot.triSegGeometryPowerAccounting.normalizationDenominatorW,
+      geometryWorkConjugacyAccepted:
+        snapshot.triSegGeometryPowerAccounting.workConjugacyAccepted,
       publishedTaylorGeometryPowerResidualW:
         snapshot.publishedTaylorGeometryPowerAudit.rawGeometryPowerResidualW,
       publishedTaylorGeometryNormalizationDenominatorW:
@@ -615,13 +646,19 @@ export function evaluatePhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggreg
   const publishedTaylorGeometryPowerResidual = integrate(
     (stage) => stage.publishedTaylorGeometryPowerResidualW,
   );
+  const geometryPowerBalanceCorrection = integrate(
+    (stage) => stage.geometryPowerBalanceCorrectionW,
+  );
+  const integratedBendingStoredEnergyRateJ = integrate(
+    (stage) => stage.triSegBendingStoredEnergyRateW,
+  );
   const signedResidualJ = requireFinite(neumaierSum([
     directDelta,
     flowDissipation,
     slsDissipation,
     -activeMechanicalOutput,
     -prescribedExternalEnvironment,
-    -publishedTaylorGeometryPowerResidual,
+    -geometryPowerBalanceCorrection,
   ]), "official cycle signedResidualJ");
   const normalizationDenominatorJ = requirePositiveFinite(
     neumaierSum([
@@ -634,7 +671,7 @@ export function evaluatePhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggreg
         stage.prescribedExternalEnvironmentPowerW,
       )),
       integrate((stage) => Math.abs(
-        stage.publishedTaylorGeometryPowerResidualW,
+        stage.geometryPowerBalanceCorrectionW,
       )),
     ]),
     "official cycle normalizationDenominatorJ",
@@ -651,14 +688,14 @@ export function evaluatePhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggreg
       + stage.slsDissipationW
       - stage.activeMechanicalOutputPowerW
       - stage.prescribedExternalEnvironmentPowerW
-      - stage.publishedTaylorGeometryPowerResidualW;
+      - stage.geometryPowerBalanceCorrectionW;
     const denominatorW = WHOLE_HEART_ENERGY_POWER_FLOOR_W_V1
       + Math.abs(stage.storedEnergyRateW)
       + stage.flowDissipationW
       + stage.slsDissipationW
       + Math.abs(stage.activeMechanicalOutputPowerW)
       + Math.abs(stage.prescribedExternalEnvironmentPowerW)
-      + Math.abs(stage.publishedTaylorGeometryPowerResidualW);
+      + Math.abs(stage.geometryPowerBalanceCorrectionW);
     return Object.freeze({ residualW, denominatorW, rho: Math.abs(residualW) / denominatorW });
   });
   const maximizingStageIndex = maximumIndex(
@@ -728,7 +765,7 @@ export function evaluatePhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggreg
       + stage.slsDissipationW
       - stage.activeMechanicalOutputPowerW
       - stage.prescribedExternalEnvironmentPowerW
-      - stage.publishedTaylorGeometryPowerResidualW
+      - stage.geometryPowerBalanceCorrectionW
     ));
   const backwardEulerStepBalanceL1J = sumAbsolute(stepBalances)
     + absoluteStoredEnergyJumpL1J;
@@ -741,7 +778,7 @@ export function evaluatePhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggreg
       + integrate((stage) => Math.abs(stage.activeMechanicalOutputPowerW))
       + integrate((stage) => Math.abs(stage.prescribedExternalEnvironmentPowerW))
       + integrate((stage) => Math.abs(
-        stage.publishedTaylorGeometryPowerResidualW,
+        stage.geometryPowerBalanceCorrectionW,
       )),
     "BE step-balance L1 normalization",
   );
@@ -770,6 +807,20 @@ export function evaluatePhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggreg
   );
   const geometryWorkNumeratorJ = integrate((stage) =>
     Math.abs(stage.publishedTaylorGeometryPowerResidualW));
+  const publishedTaylorStageCount = stages.filter((stage) =>
+    stage.triSegGeometryRuntimeAssembly
+      === "published-taylor-2009-with-explicit-defect-correction").length;
+  const energyConjugateStageCount = stages.length - publishedTaylorStageCount;
+  const geometryWorkConjugacyRhos = stages.map((stage) =>
+    Math.abs(stage.geometryWorkConjugacyResidualW)
+      / stage.geometryWorkConjugacyNormalizationDenominatorW);
+  const maximumNormalizedWorkConjugacyResidual = Math.max(
+    ...geometryWorkConjugacyRhos,
+  );
+  const everyEnergyConjugateStageAccepted = stages.every((stage) =>
+    stage.triSegGeometryRuntimeAssembly
+      !== "energy-conjugate-finite-thickness-triseg-v2"
+    || stage.geometryWorkConjugacyAccepted);
 
   const quarterMillisecondSingleCycleEligibility = Object.is(
     nominalDtSec,
@@ -821,6 +872,7 @@ export function evaluatePhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggreg
       slsDissipation,
       activeMechanicalOutput,
       prescribedExternalEnvironment,
+      geometryPowerBalanceCorrection,
       publishedTaylorGeometryPowerResidual,
     },
     officialCycleBalance: {
@@ -875,9 +927,19 @@ export function evaluatePhaseB1BackwardEulerCommittedCycleMechanicalEnergyAggreg
         stages[maximizingGeometryIndex].transactionIndex,
       workNormalizedResidual: geometryWorkNumeratorJ / geometryWorkDenominatorJ,
       rawDefectRetained: true,
-      subtractedFromWholeHeartResidual: true,
+      subtractedFromWholeHeartResidual:
+        publishedTaylorStageCount === stages.length,
       diagnosticOnly: true,
       workConjugacyAccepted: false,
+    },
+    triSegGeometryPowerAccounting: {
+      publishedTaylorStageCount,
+      energyConjugateStageCount,
+      integratedBendingStoredEnergyRateJ,
+      integratedWholeHeartBalanceCorrectionJ:
+        geometryPowerBalanceCorrection,
+      maximumNormalizedWorkConjugacyResidual,
+      everyEnergyConjugateStageAccepted,
     },
     quarterMillisecondSingleCycleEligibility,
     quarterMillisecondSingleCycleEnergyGatePass,
@@ -909,6 +971,12 @@ function validateStage(
     "slsDissipationW",
     "activeMechanicalOutputPowerW",
     "prescribedExternalEnvironmentPowerW",
+    "triSegGeometryRuntimeAssembly",
+    "triSegBendingStoredEnergyRateW",
+    "geometryPowerBalanceCorrectionW",
+    "geometryWorkConjugacyResidualW",
+    "geometryWorkConjugacyNormalizationDenominatorW",
+    "geometryWorkConjugacyAccepted",
     "publishedTaylorGeometryPowerResidualW",
     "publishedTaylorGeometryNormalizationDenominatorW",
     "sourceCorrectedStageLedgerAccepted",
@@ -932,6 +1000,28 @@ function validateStage(
   requireNonNegativeFinite(stage.slsDissipationW, `stage[${index}].slsDissipationW`);
   requireFinite(stage.activeMechanicalOutputPowerW, `stage[${index}].activeMechanicalOutputPowerW`);
   requireFinite(stage.prescribedExternalEnvironmentPowerW, `stage[${index}].prescribedExternalEnvironmentPowerW`);
+  if (
+    stage.triSegGeometryRuntimeAssembly
+      !== "published-taylor-2009-with-explicit-defect-correction"
+    && stage.triSegGeometryRuntimeAssembly
+      !== "energy-conjugate-finite-thickness-triseg-v2"
+  ) throw new Error(`stage[${index}].triSegGeometryRuntimeAssembly is invalid`);
+  requireFinite(
+    stage.triSegBendingStoredEnergyRateW,
+    `stage[${index}].triSegBendingStoredEnergyRateW`,
+  );
+  requireFinite(
+    stage.geometryPowerBalanceCorrectionW,
+    `stage[${index}].geometryPowerBalanceCorrectionW`,
+  );
+  requireFinite(
+    stage.geometryWorkConjugacyResidualW,
+    `stage[${index}].geometryWorkConjugacyResidualW`,
+  );
+  requirePositiveFinite(
+    stage.geometryWorkConjugacyNormalizationDenominatorW,
+    `stage[${index}].geometryWorkConjugacyNormalizationDenominatorW`,
+  );
   requireFinite(stage.publishedTaylorGeometryPowerResidualW, `stage[${index}].publishedTaylorGeometryPowerResidualW`);
   requirePositiveFinite(
     stage.publishedTaylorGeometryNormalizationDenominatorW,
@@ -939,6 +1029,7 @@ function validateStage(
   );
   for (const field of [
     "eventAtEnd",
+    "geometryWorkConjugacyAccepted",
     "sourceCorrectedStageLedgerAccepted",
     "sourceLandAdapterWorkClosureAccepted",
     "sourceSlsBackwardEulerIdentityAccepted",

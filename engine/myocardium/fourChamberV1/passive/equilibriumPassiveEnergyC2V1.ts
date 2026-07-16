@@ -19,7 +19,9 @@ export type EquilibriumPassiveWidthSensitivityFactorV1 =
 export type EffectiveOneFiberPassivePriorV1 = {
   readonly priorId: string;
   readonly status: "candidate-prior";
-  readonly evidenceClass: "project-synthetic-implementation-verification";
+  readonly evidenceClass:
+    | "project-synthetic-implementation-verification"
+    | "literature-informed-organ-scale-edpvr-inverse";
   readonly parameterMeaning: "effective-one-fiber-wall";
   readonly tissueClass: "atrial" | "ventricular";
   readonly APa: number;
@@ -114,10 +116,13 @@ export type EquilibriumPassiveRegionV1 =
   | "compression"
   | "compression-transition"
   | "tension-transition"
-  | "tension";
+  | "tension"
+  | "moyer-equibiaxial";
 
 export type EquilibriumPassiveEvaluationV1 = {
-  readonly modelId: typeof EQUILIBRIUM_PASSIVE_C2_LOGSTRAIN_V1_ID;
+  readonly modelId:
+    | typeof EQUILIBRIUM_PASSIVE_C2_LOGSTRAIN_V1_ID
+    | "moyer-2015-atrial-equibiaxial-passive-v3";
   readonly priorId: string;
   readonly fiberLogStrain: number;
   readonly region: EquilibriumPassiveRegionV1;
@@ -332,8 +337,11 @@ function assertPassivePrior(
   if (prior.status !== "candidate-prior") {
     throw new Error("Equilibrium passive v1 accepts candidate-prior parameters only in Phase A1");
   }
-  if (prior.evidenceClass !== "project-synthetic-implementation-verification") {
-    throw new Error("Phase A1 passive prior must remain project-synthetic implementation evidence");
+  if (
+    prior.evidenceClass !== "project-synthetic-implementation-verification"
+    && prior.evidenceClass !== "literature-informed-organ-scale-edpvr-inverse"
+  ) {
+    throw new Error("passive prior evidenceClass is not supported");
   }
   if (prior.parameterMeaning !== "effective-one-fiber-wall") {
     throw new Error("Passive parameters must be declared as effective one-fiber wall parameters");

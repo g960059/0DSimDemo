@@ -37,6 +37,10 @@ import {
   type PublishedTriSegTaylorOracle2009V1,
 } from "@/engine/myocardium/fourChamberV1/triseg/publishedTaylorOracle2009V1";
 import {
+  evaluateEnergyConjugateFiniteThicknessTriSegV2,
+  type EnergyConjugateFiniteThicknessTriSegV2,
+} from "@/engine/myocardium/fourChamberV1/triseg/energyConjugateFiniteThicknessTriSegV2";
+import {
   assertExactPlainRecordV1,
 } from "@/engine/myocardium/fourChamberV1/validation/strictClosedRecordV1";
 
@@ -48,6 +52,8 @@ export type PhaseB1PostEventTriSegEvaluationV1 = Readonly<{
   wallMaterialByWall: Readonly<
     Record<TriSegWallId, PhaseB1WallMaterialStateEvaluationV1>
   >;
+  energyConjugateMechanics?: EnergyConjugateFiniteThicknessTriSegV2;
+  /** Always retained as a diagnostic, including on the energy-conjugate path. */
   oracle: PublishedTriSegTaylorOracle2009V1;
   residualNPerM: readonly [axial: number, radial: number];
 }>;
@@ -285,13 +291,26 @@ function evaluateAtCoordinates(
     triSegWallRecord((wallId) =>
       wallMaterialByWall[wallId].totalWallKirchhoffStressPa),
   );
+  const energyConjugateMechanics = model.closedLoopParameters
+    .finiteThicknessTriSegBendingPriorV2 === undefined
+    ? null
+    : evaluateEnergyConjugateFiniteThicknessTriSegV2({
+      geometry,
+      fiberKirchhoffStressPaByWall: triSegWallRecord((wallId) =>
+        wallMaterialByWall[wallId].totalWallKirchhoffStressPa),
+      bendingPrior:
+        model.closedLoopParameters.finiteThicknessTriSegBendingPriorV2,
+    });
+  const runtimeResidual = energyConjugateMechanics?.equilibriumResidual
+    ?? oracle.equilibriumResidual;
   return Object.freeze({
     geometry,
     wallMaterialByWall,
+    ...(energyConjugateMechanics === null ? {} : { energyConjugateMechanics }),
     oracle,
     residualNPerM: Object.freeze([
-      oracle.equilibriumResidual.axialNPerM,
-      oracle.equilibriumResidual.radialNPerM,
+      runtimeResidual.axialNPerM,
+      runtimeResidual.radialNPerM,
     ] as [number, number]),
   });
 }
@@ -330,9 +349,20 @@ function evaluateSemismoothLinearizedResidual(
     trialGeometry,
     linearizedStress,
   );
+  const energyConjugate = model.closedLoopParameters
+    .finiteThicknessTriSegBendingPriorV2 === undefined
+    ? null
+    : evaluateEnergyConjugateFiniteThicknessTriSegV2({
+      geometry: trialGeometry,
+      fiberKirchhoffStressPaByWall: linearizedStress,
+      bendingPrior:
+        model.closedLoopParameters.finiteThicknessTriSegBendingPriorV2,
+    });
+  const runtimeResidual = energyConjugate?.equilibriumResidual
+    ?? oracle.equilibriumResidual;
   return Object.freeze([
-    oracle.equilibriumResidual.axialNPerM,
-    oracle.equilibriumResidual.radialNPerM,
+    runtimeResidual.axialNPerM,
+    runtimeResidual.radialNPerM,
   ] as [number, number]);
 }
 

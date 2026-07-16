@@ -21,6 +21,9 @@ import {
   type EquilibriumPassiveEvaluationV1,
 } from "@/engine/myocardium/fourChamberV1/passive/equilibriumPassiveEnergyC2V1";
 import {
+  evaluateMoyer2015AtrialEquibiaxialPassiveV3,
+} from "@/engine/myocardium/fourChamberV1/passive/moyer2015AtrialEquibiaxialPassiveV3";
+import {
   assertPhaseB1WallRuntimeMaterialV1,
   type PhaseB1WallRuntimeMaterialV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/phaseB1WallMaterialBindingV1";
@@ -202,10 +205,14 @@ export function evaluatePhaseB1WallMaterialStateV1(
   ) as PhaseB1WallMaterialStateEvaluationV1[
     "wallActiveStressPartialsPaByLandState"
   ];
-  const passive = evaluateEquilibriumPassiveEnergyV1(
-    fiberLogStrain,
-    wallMaterial.passiveSls.compiledPassive,
-  );
+  const compiledPassive = wallMaterial.passiveSls.compiledPassive;
+  const passive = compiledPassive.modelId
+      === "moyer-2015-atrial-equibiaxial-passive-v3"
+    ? evaluateMoyer2015AtrialEquibiaxialPassiveV3(
+      fiberLogStrain,
+      compiledPassive,
+    )
+    : evaluateEquilibriumPassiveEnergyV1(fiberLogStrain, compiledPassive);
   const sls = evaluateSlsAtState(
     input.slsMode,
     input.alphaV,

@@ -11,6 +11,13 @@ import {
 import {
   assertCanonicalSha256,
 } from "@/engine/myocardium/fourChamberV1/manifests/canonicalJson";
+import {
+  buildPhaseB1AtrialPvReservoirConduitReadbackV1,
+  validatePhaseB1AtrialPvReservoirConduitReadbackV1,
+  type PhaseB1AtrialPvMonotoneBranchV1,
+  type PhaseB1AtrialPvReadbackTraceV1,
+  type PhaseB1AtrialPvReservoirConduitReadbackV1,
+} from "@/tools/myocardium/phaseB1AtrialPvReservoirConduitReadbackV1";
 
 const MMHG_TO_PA = 133.322387415;
 
@@ -46,6 +53,8 @@ type Report = Readonly<{
     physiologicalValidationPass: false;
   }>;
   metrics: Readonly<Record<string, unknown>>;
+  atrialPvReservoirConduitReadback:
+    PhaseB1AtrialPvReservoirConduitReadbackV1;
   claimBoundary: Readonly<Record<string, unknown>>;
   contentSha256: string;
 }>;
@@ -66,6 +75,7 @@ export function buildPhaseB1PhysiologyEnvelopeReviewFragmentV1(
   if (waveform.sourceReportContentSha256 !== report.contentSha256) {
     throw new Error("waveform does not bind the supplied report content hash");
   }
+  assertAtrialPvReadbackBindsWaveform(waveform, report);
   const samples = waveform.samples.map((sample) => ({
     t: round(sample.phaseSec, 6),
     v: mapRecord(sample.bloodVolumesM3, (value) => value * 1e6),
@@ -73,6 +83,11 @@ export function buildPhaseB1PhysiologyEnvelopeReviewFragmentV1(
     q: mapRecord(sample.allFlowsM3PerSec, (value) => value * 1e6),
   }));
   const summary = buildSummary(report.metrics);
+  const atrialPvReadback = buildAtrialPvReadbackCards(
+    report.atrialPvReservoirConduitReadback,
+    waveform.cycleLengthSec,
+    waveform.samples,
+  );
   const embedded = escapeJsonForScript({
     waveformId: waveform.waveformId,
     samples,
@@ -86,6 +101,7 @@ export function buildPhaseB1PhysiologyEnvelopeReviewFragmentV1(
       report.terminal.stageOneGlobalHemodynamicsScreenEligibilityPass,
     stageOneScreenPass:
       report.terminal.stageOneGlobalHemodynamicsScreenPass,
+    atrialPvReadback,
     summary,
   });
   return `<div id="pe-review-v1" data-fragment-contract="single-root-inline-self-contained-v1" aria-label="Four-chamber physiology envelope waveform review">
@@ -97,6 +113,13 @@ export function buildPhaseB1PhysiologyEnvelopeReviewFragmentV1(
     #pe-review-v1 .pe-warning{color:var(--destructive,#ff7b7b)}
     #pe-review-v1 .pe-claims{margin:.2rem 0 .9rem;padding:.55rem .7rem;border:1px solid var(--pe-grid);border-radius:.35rem;color:var(--pe-muted);font-size:12px;line-height:1.45}
     #pe-review-v1 .pe-claims strong{color:var(--pe-fg);font-weight:500}
+    #pe-review-v1 .pe-readback-heading{font-size:var(--font-size-base,14px);font-weight:500;margin:.85rem 0 .4rem;color:var(--pe-fg)}
+    #pe-review-v1 .pe-readback-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem;margin:0 0 .9rem}
+    #pe-review-v1 .pe-readback-card{border:1px solid var(--pe-grid);border-radius:.4rem;padding:.65rem .75rem;min-width:0}
+    #pe-review-v1 .pe-readback-card h3{font-size:13px;font-weight:500;margin:0 0 .35rem;color:var(--pe-fg)}
+    #pe-review-v1 .pe-readback-card p{font-size:11px;line-height:1.42;margin:.18rem 0;color:var(--pe-muted)}
+    #pe-review-v1 .pe-readback-card strong{color:var(--pe-fg);font-weight:500}
+    #pe-review-v1 .pe-readback-card .pe-readback-warning{color:var(--destructive,#ff7b7b)}
     #pe-review-v1 .pe-controls{display:grid;grid-template-columns:minmax(9rem,1fr) 5rem;gap:.7rem;align-items:center;margin:.35rem 0 1rem}
     #pe-review-v1 input[type=range]{width:100%}
     #pe-review-v1 output{font-variant-numeric:tabular-nums;text-align:right;color:var(--pe-fg)}
@@ -114,7 +137,7 @@ export function buildPhaseB1PhysiologyEnvelopeReviewFragmentV1(
     #pe-review-v1 .pe-cursor{stroke:var(--pe-fg);stroke-width:1;opacity:.38;vector-effect:non-scaling-stroke}
     #pe-review-v1 .pe-legend{display:flex;gap:.6rem;flex-wrap:wrap;color:var(--pe-muted);font-size:11px;min-height:1rem}
     #pe-review-v1 .pe-key::before{content:"";display:inline-block;width:.65rem;height:2px;margin:0 .28rem .2rem 0;background:var(--key)}
-    @media(max-width:700px){#pe-review-v1 .pe-grid{grid-template-columns:1fr}}
+    @media(max-width:700px){#pe-review-v1 .pe-grid,#pe-review-v1 .pe-readback-grid{grid-template-columns:1fr}}
   </style>
   <div class="pe-status" aria-live="polite">
     <strong id="pe-run-status"></strong>
@@ -123,8 +146,10 @@ export function buildPhaseB1PhysiologyEnvelopeReviewFragmentV1(
   </div>
   <div class="pe-claims" role="note">
     <strong>Interpretation boundary:</strong>
-    atrial PV trajectories are held-out readback only and never enter fitting, ranking, or the Stage-1 screen. They become loops only after period-1 closure. This prospective readback does not claim physiological validation.
+    atrial PV trajectories and branch readbacks are held-out diagnostics only and never enter fitting, ranking, or the Stage-1 screen. They become loops only after period-1 closure. Late open-valve refill can be physiological; only its magnitude and timing are reported here. A nonperiodic result remains exploratory and this readback does not claim physiological validation.
   </div>
+  <h2 class="pe-readback-heading">Atrial PV reservoir / early-conduit readback</h2>
+  <div class="pe-readback-grid" id="pe-atrial-readback"></div>
   <div class="pe-controls">
     <label for="pe-phase">Phase in terminal beat</label>
     <output id="pe-phase-value" for="pe-phase">0 ms</output>
@@ -137,6 +162,20 @@ export function buildPhaseB1PhysiologyEnvelopeReviewFragmentV1(
     if(!root)return;
     const data=${embedded};
     const pvTopology=data.formalPeriodicConvergencePass?'PV loop':'PV trajectory';
+    const readbackGrid=root.querySelector('#pe-atrial-readback');
+    data.atrialPvReadback.forEach((readback)=>{
+      const card=document.createElement('article');card.className='pe-readback-card';
+      const heading=document.createElement('h3');heading.textContent=readback.atrium+' held-out branch diagnostic';card.appendChild(heading);
+      const line=(label,value,warning=false)=>{const p=document.createElement('p');if(warning)p.className='pe-readback-warning';const strong=document.createElement('strong');strong.textContent=label+': ';p.appendChild(strong);p.appendChild(document.createTextNode(value));card.appendChild(p)};
+      line('Resolution',readback.status+(readback.reasons.length?' · '+readback.reasons.join(', '):''));
+      line('Period-1 gate',readback.gateEligible?'eligible':'ineligible · nonperiodic exploratory readback',!readback.gateEligible);
+      line('Reservoir branch',readback.reservoir);
+      line('Early-conduit branch',readback.earlyConduit);
+      line('After early-conduit minimum → functional AV closure',readback.postEarlyConduit);
+      line('Matched-volume separation',readback.matchedVolume);
+      line('Whole-cycle signed PV area',readback.signedArea);
+      readbackGrid.appendChild(card);
+    });
     const specs=[
       {id:'pv-la',title:'Left atrium '+pvTopology,subtitle:'held-out readback · not a fit target',kind:'pv',x:['v','LA'],ys:[['p','LA']],xLabel:'Volume (mL)',yLabel:'Pressure (mmHg)',labels:['LA']},
       {id:'pv-lv',title:'Left ventricle '+pvTopology,subtitle:'terminal beat',kind:'pv',x:['v','LV'],ys:[['p','LV']],xLabel:'Volume (mL)',yLabel:'Pressure (mmHg)',labels:['LV']},
@@ -386,6 +425,11 @@ function validateReport(value: unknown): Report {
     report.sourceCodeEvidence,
     "report.sourceCodeEvidence",
   );
+  const atrialPvReservoirConduitReadback =
+    validatePhaseB1AtrialPvReservoirConduitReadbackV1(
+      report.atrialPvReservoirConduitReadback as never,
+      sha256,
+    );
   if (
     sourceCodeEvidence.evidenceId
       !== "phase-b1-physiology-envelope-source-code-evidence-v1"
@@ -406,18 +450,25 @@ function validateReport(value: unknown): Report {
     sourceCodeEvidence.sourceFileSha256,
     "report.sourceCodeEvidence.sourceFileSha256",
   );
-  const sourceFileKeys = [
+  const requiredSourceFileKeys = [
     "caseBuilder",
     "protocol",
     "targetPack",
     "metrics",
+    "atrialPvReadback",
     "runner",
   ] as const;
-  if (
-    Object.keys(sourceFileSha256).sort().join("\0")
-      !== [...sourceFileKeys].sort().join("\0")
-  ) throw new Error("report source-code evidence file keys are invalid");
-  for (const key of sourceFileKeys) {
+  for (const key of requiredSourceFileKeys) {
+    if (!Object.hasOwn(sourceFileSha256, key)) {
+      throw new Error(
+        `report source-code evidence is missing required file key ${key}`,
+      );
+    }
+  }
+  for (const key of Object.keys(sourceFileSha256)) {
+    if (key.length === 0) {
+      throw new Error("report source-code evidence file keys must be non-empty");
+    }
     requireCanonicalSha256(
       sourceFileSha256[key],
       `report.sourceCodeEvidence.sourceFileSha256.${key}`,
@@ -446,6 +497,15 @@ function validateReport(value: unknown): Report {
   }
   if (terminal.completePhysiologyEnvelopeGateImplemented !== false) {
     throw new Error("report must not claim a complete physiology-envelope gate");
+  }
+  if (
+    atrialPvReservoirConduitReadback.periodicity
+      .formalPeriodOneConvergencePass
+      !== terminal.formalPeriodicConvergencePass
+  ) {
+    throw new Error(
+      "report atrial PV readback periodicity disagrees with terminal status",
+    );
   }
   const pvHoldout = requirePlainRecord(
     metrics.atrialPvLoopMorphology,
@@ -496,6 +556,306 @@ function validateReport(value: unknown): Report {
       && normalTargetGate.physiologyBandComparisonsAreProvisional !== true)
   ) throw new Error("report Stage-1 eligibility and provisional-readback flags disagree");
   return value as Report;
+}
+
+function assertAtrialPvReadbackBindsWaveform(
+  waveform: Waveform,
+  report: Report,
+): void {
+  const reconstructed = buildPhaseB1AtrialPvReservoirConduitReadbackV1({
+    trace: atrialPvTraceFromWaveform(waveform),
+    formalPeriodOneConvergencePass:
+      report.terminal.formalPeriodicConvergencePass,
+    sha256Hex: sha256,
+  });
+  if (
+    reconstructed.sourceTraceContentSha256
+      !== report.atrialPvReservoirConduitReadback.sourceTraceContentSha256
+    || reconstructed.contentSha256
+      !== report.atrialPvReservoirConduitReadback.contentSha256
+  ) {
+    throw new Error(
+      "atrial PV readback does not bind the supplied terminal waveform trace",
+    );
+  }
+}
+
+function atrialPvTraceFromWaveform(
+  waveform: Waveform,
+): PhaseB1AtrialPvReadbackTraceV1 {
+  return Object.freeze({
+    cycleLengthSec: waveform.cycleLengthSec,
+    samples: Object.freeze(waveform.samples.map((sample, index) => Object.freeze({
+      phaseSec: canonicalAtrialPvReadbackEndpointPhase(
+        sample.phaseSec,
+        index,
+        waveform.samples.length,
+        waveform.cycleLengthSec,
+      ),
+      bloodVolumesM3: Object.freeze({
+        LA: sample.bloodVolumesM3.LA,
+        RA: sample.bloodVolumesM3.RA,
+      }),
+      pressuresPa: Object.freeze({
+        LA: sample.compartmentAbsolutePressurePa.LA,
+        RA: sample.compartmentAbsolutePressurePa.RA,
+      }),
+      allFlowsM3PerSec: Object.freeze({
+        Q_MV: sample.allFlowsM3PerSec.Q_MV,
+        Q_TV: sample.allFlowsM3PerSec.Q_TV,
+      }),
+    }))),
+  });
+}
+
+function canonicalAtrialPvReadbackEndpointPhase(
+  phaseSec: number,
+  sampleIndex: number,
+  sampleCount: number,
+  cycleLengthSec: number,
+): number {
+  const endpoint = sampleIndex === 0
+    ? 0
+    : sampleIndex === sampleCount - 1
+      ? cycleLengthSec
+      : null;
+  if (endpoint === null) return phaseSec;
+  if (!approximatelyEqual(phaseSec, endpoint)) {
+    throw new Error(
+      `atrial PV readback endpoint phase ${phaseSec} does not match ${endpoint}`,
+    );
+  }
+  return endpoint;
+}
+
+type AtrialPvReadbackCard = Readonly<{
+  atrium: "LA" | "RA";
+  status: string;
+  reasons: readonly string[];
+  gateEligible: boolean;
+  reservoir: string;
+  earlyConduit: string;
+  postEarlyConduit: string;
+  matchedVolume: string;
+  signedArea: string;
+}>;
+
+function buildAtrialPvReadbackCards(
+  readback: PhaseB1AtrialPvReservoirConduitReadbackV1,
+  cycleLengthSec: number,
+  waveformSamples: readonly Sample[],
+): readonly AtrialPvReadbackCard[] {
+  return (["LA", "RA"] as const).map((atrium) => {
+    const result = readback.byAtrium[atrium];
+    const opening = result.functionalValveLobe.opening?.endpoint ?? null;
+    const closure = result.functionalValveLobe.closure?.endpoint ?? null;
+    const conduitMinimum = firstGlobalVolumeMinimum(
+      result.conduitBranch.points,
+    );
+    const postEarlyConduit = opening === null
+      || conduitMinimum === null
+      || closure === null
+      ? "unresolved"
+      : describePostEarlyConduitReadback(
+        opening,
+        conduitMinimum,
+        closure,
+        cycleLengthSec,
+        atrium,
+        waveformSamples,
+      );
+    const matchedVolume = result.matchedVolume === null
+      ? "unresolved"
+      : [
+        `overlap ${formatNumber(result.matchedVolume.overlapWidthM3 * 1e6, 2)} mL`,
+        `mean reservoir − early-conduit ${formatNumber(
+          result.matchedVolume.meanReservoirMinusConduitPressurePa
+            / MMHG_TO_PA,
+          2,
+        )} mmHg`,
+        `${formatNumber(
+          100 * result.matchedVolume.positiveGridPointFraction,
+          1,
+        )}% positive grid points`,
+      ].join(" · ");
+    return Object.freeze({
+      atrium,
+      status: result.status,
+      reasons: result.reasons,
+      gateEligible: readback.periodicity.gateEligible,
+      reservoir: describeBranch(result.reservoirBranch),
+      earlyConduit: describeBranch(result.conduitBranch),
+      postEarlyConduit,
+      matchedVolume,
+      signedArea: `${formatNumber(
+        result.wholeCyclePv.signedShoelaceAreaPaM3 * 1e6 / MMHG_TO_PA,
+        2,
+      )} mL·mmHg · sign is descriptive, not a gate`,
+    });
+  });
+}
+
+function describeBranch(branch: PhaseB1AtrialPvMonotoneBranchV1): string {
+  const first = branch.points[0] ?? null;
+  const last = branch.points.at(-1) ?? null;
+  if (first === null || last === null) return `${branch.status} · no branch`;
+  const deltaMl = (last.volumeM3 - first.volumeM3) * 1e6;
+  const expected = branch.expectedVolumeDirection === "increasing" ? "↑" : "↓";
+  return [
+    `${branch.status} · expected ${expected} ${branch.expectedVolumeDirection}`,
+    `observed net ${formatSignedNumber(deltaMl, 2)} mL`,
+    `${formatNumber(first.phaseSec * 1e3, 0)}–${formatNumber(
+      last.phaseSec * 1e3,
+      0,
+    )} ms`,
+  ].join(" · ");
+}
+
+function firstGlobalVolumeMinimum(
+  points: PhaseB1AtrialPvMonotoneBranchV1["points"],
+): PhaseB1AtrialPvMonotoneBranchV1["points"][number] | null {
+  if (points.length === 0) return null;
+  return points.slice(1).reduce(
+    (minimum, point) => point.volumeM3 < minimum.volumeM3 ? point : minimum,
+    points[0],
+  );
+}
+
+function describePostEarlyConduitReadback(
+  opening: Readonly<{ phaseSec: number; volumeM3: number }>,
+  minimum: Readonly<{ phaseSec: number; volumeM3: number }>,
+  closure: Readonly<{ phaseSec: number; volumeM3: number }>,
+  cycleLengthSec: number,
+  atrium: "LA" | "RA",
+  waveformSamples: readonly Sample[],
+): string {
+  const closureNetDeltaMl = (closure.volumeM3 - minimum.volumeM3) * 1e6;
+  const precedingNetEmptyingMl = (opening.volumeM3 - minimum.volumeM3) * 1e6;
+  const closureNetToEmptyingRatio = precedingNetEmptyingMl > 1e-12
+    ? closureNetDeltaMl / precedingNetEmptyingMl
+    : null;
+  const closureDurationMs = forwardPhaseDurationSec(
+    minimum.phaseSec,
+    closure.phaseSec,
+    cycleLengthSec,
+  ) * 1e3;
+  const maximumInterimVolume = maximumOpenValveVolumeAfterMinimum(
+    minimum,
+    closure,
+    cycleLengthSec,
+    atrium,
+    waveformSamples,
+  );
+  const maximumInterimRefillMl =
+    (maximumInterimVolume.volumeM3 - minimum.volumeM3) * 1e6;
+  const maximumRefillDurationMs =
+    (maximumInterimVolume.unwrappedPhaseSec - minimum.phaseSec) * 1e3;
+  const maximumRefillToEmptyingRatio = precedingNetEmptyingMl > 1e-12
+    ? maximumInterimRefillMl / precedingNetEmptyingMl
+    : null;
+  const toleranceMl = 1e-6;
+  const closureDirection = closureNetDeltaMl > toleranceMl
+    ? "net at closure: refill / rightward"
+    : closureNetDeltaMl < -toleranceMl
+      ? "net at closure: below early minimum / leftward"
+      : "net flat";
+  return [
+    `maximum interim refill / rightward ${formatSignedNumber(
+      maximumInterimRefillMl,
+      2,
+    )} mL at ${formatNumber(
+      normalizePhase(maximumInterimVolume.unwrappedPhaseSec, cycleLengthSec)
+        * 1e3,
+      0,
+    )} ms (+${formatNumber(maximumRefillDurationMs, 0)} ms after minimum)`,
+    `${closureDirection} ${formatSignedNumber(closureNetDeltaMl, 2)} mL`,
+    `minimum at ${formatNumber(
+      normalizePhase(minimum.phaseSec, cycleLengthSec) * 1e3,
+      0,
+    )} ms`,
+    `minimum→closure ${formatNumber(closureDurationMs, 0)} ms`,
+    `maximum refill / preceding opening→minimum net emptying ${
+      maximumRefillToEmptyingRatio === null
+        ? "n/a"
+        : formatNumber(maximumRefillToEmptyingRatio, 2)
+    }`,
+    `closure-net / preceding net emptying ${
+      closureNetToEmptyingRatio === null
+        ? "n/a"
+        : formatNumber(closureNetToEmptyingRatio, 2)
+    }`,
+    "late refill can be physiological; magnitude/timing only",
+  ].join(" · ");
+}
+
+function maximumOpenValveVolumeAfterMinimum(
+  minimum: Readonly<{ phaseSec: number; volumeM3: number }>,
+  closure: Readonly<{ phaseSec: number; volumeM3: number }>,
+  cycleLengthSec: number,
+  atrium: "LA" | "RA",
+  waveformSamples: readonly Sample[],
+): Readonly<{ unwrappedPhaseSec: number; volumeM3: number }> {
+  let closureUnwrappedPhaseSec = closure.phaseSec;
+  while (closureUnwrappedPhaseSec < minimum.phaseSec) {
+    closureUnwrappedPhaseSec += cycleLengthSec;
+  }
+  const candidates: Array<Readonly<{
+    unwrappedPhaseSec: number;
+    volumeM3: number;
+  }>> = [
+    {
+      unwrappedPhaseSec: minimum.phaseSec,
+      volumeM3: minimum.volumeM3,
+    },
+    {
+      unwrappedPhaseSec: closureUnwrappedPhaseSec,
+      volumeM3: closure.volumeM3,
+    },
+  ];
+  for (let shift = 0; shift <= 2; shift += 1) {
+    const shifted = shift === 0 ? waveformSamples : waveformSamples.slice(1);
+    for (const sample of shifted) {
+      const unwrappedPhaseSec = sample.phaseSec + shift * cycleLengthSec;
+      if (
+        unwrappedPhaseSec > minimum.phaseSec
+        && unwrappedPhaseSec < closureUnwrappedPhaseSec
+      ) {
+        candidates.push({
+          unwrappedPhaseSec,
+          volumeM3: sample.bloodVolumesM3[atrium],
+        });
+      }
+    }
+  }
+  return candidates.slice(1).reduce(
+    (maximum, point) => point.volumeM3 > maximum.volumeM3 ? point : maximum,
+    candidates[0],
+  );
+}
+
+function forwardPhaseDurationSec(
+  startPhaseSec: number,
+  endPhaseSec: number,
+  cycleLengthSec: number,
+): number {
+  let unwrappedEnd = endPhaseSec;
+  while (unwrappedEnd < startPhaseSec) unwrappedEnd += cycleLengthSec;
+  return unwrappedEnd - startPhaseSec;
+}
+
+function normalizePhase(phaseSec: number, cycleLengthSec: number): number {
+  const normalized = phaseSec % cycleLengthSec;
+  return normalized < 0 ? normalized + cycleLengthSec : normalized;
+}
+
+function formatNumber(value: number, digits: number): string {
+  return Number.isFinite(value) ? value.toFixed(digits) : "n/a";
+}
+
+function formatSignedNumber(value: number, digits: number): string {
+  return Number.isFinite(value)
+    ? `${value >= 0 ? "+" : ""}${value.toFixed(digits)}`
+    : "n/a";
 }
 
 function buildSummary(metrics: Record<string, unknown>): string {

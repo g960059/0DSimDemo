@@ -7,6 +7,9 @@ import {
   buildPhaseB1PhysiologyEnvelopeReviewFragmentV1,
   buildPhaseB1PhysiologyEnvelopeStandaloneHtmlV1,
 } from "@/tools/myocardium/renderPhaseB1PhysiologyEnvelopeHtmlV1";
+import {
+  buildPhaseB1AtrialPvReservoirConduitReadbackV1,
+} from "@/tools/myocardium/phaseB1AtrialPvReservoirConduitReadbackV1";
 
 const chamberPressure = Object.freeze({
   LA: 1_000,
@@ -50,6 +53,68 @@ const reviewClaimBoundary = Object.freeze({
   atrialPvLoopHeldOutFromSelection: true,
   exploratoryTimeStep: true,
 });
+
+const samplePhasesSec = Object.freeze(
+  Array.from({ length: 11 }, (_, index) => index * 0.08),
+);
+const atrialVolumesMl = Object.freeze([
+  50, 55, 60, 65, 70, 71, 60, 50, 58, 54, 50,
+]);
+const avFlowsM3PerSec = Object.freeze([
+  -80e-6, -80e-6, -80e-6, 0, 80e-6, 160e-6,
+  160e-6, 80e-6, 0, -80e-6, -80e-6,
+]);
+const waveformSamples = Object.freeze(samplePhasesSec.map(
+  (phaseSec, index) => {
+    const laVolumeM3 = atrialVolumesMl[index] * 1e-6;
+    const raVolumeM3 = laVolumeM3 + 10e-6;
+    return Object.freeze({
+      absoluteTimeSec: 7.2 + phaseSec,
+      phaseSec,
+      bloodVolumesM3: Object.freeze(Object.fromEntries(
+        Object.entries(chamberVolume).map(([key, value]) => [
+          key,
+          key === "LA" ? laVolumeM3 : key === "RA" ? raVolumeM3 : value,
+        ]),
+      )),
+      compartmentAbsolutePressurePa: Object.freeze(Object.fromEntries(
+        Object.entries(chamberPressure).map(([key, value]) => [
+          key,
+          value,
+        ]),
+      )),
+      allFlowsM3PerSec: Object.freeze({
+        ...flows,
+        Q_MV: avFlowsM3PerSec[index],
+        Q_TV: avFlowsM3PerSec[index],
+      }),
+    });
+  },
+));
+
+const atrialPvReservoirConduitReadback =
+  buildPhaseB1AtrialPvReservoirConduitReadbackV1({
+    trace: {
+      cycleLengthSec: 0.8,
+      samples: waveformSamples.map((sample) => ({
+        phaseSec: sample.phaseSec,
+        bloodVolumesM3: {
+          LA: sample.bloodVolumesM3.LA,
+          RA: sample.bloodVolumesM3.RA,
+        },
+        pressuresPa: {
+          LA: sample.compartmentAbsolutePressurePa.LA,
+          RA: sample.compartmentAbsolutePressurePa.RA,
+        },
+        allFlowsM3PerSec: {
+          Q_MV: sample.allFlowsM3PerSec.Q_MV,
+          Q_TV: sample.allFlowsM3PerSec.Q_TV,
+        },
+      })),
+    },
+    formalPeriodOneConvergencePass: false,
+    sha256Hex: sha256,
+  });
 
 const report = withCanonicalContentHash({
   config: Object.freeze({ formalPeriodicProtocol: false }),
@@ -98,6 +163,7 @@ const report = withCanonicalContentHash({
       fixedFillingWindowReadbackContributesToGate: false,
     }),
   }),
+  atrialPvReservoirConduitReadback,
   sourceCodeEvidence: Object.freeze({
     evidenceId: "phase-b1-physiology-envelope-source-code-evidence-v1",
     canonicalObjectHashAlgorithm: "sha256-canonical-json-v1",
@@ -109,6 +175,7 @@ const report = withCanonicalContentHash({
       protocol: "4".repeat(64),
       targetPack: "5".repeat(64),
       metrics: "6".repeat(64),
+      atrialPvReadback: "8".repeat(64),
       runner: "7".repeat(64),
     }),
     repositoryCommitIdentityClaimed: false,
@@ -123,17 +190,7 @@ const waveform = withCanonicalContentHash({
   cycleLengthSec: 0.8,
   nominalDtSec: 0.004,
   claimBoundary: reviewClaimBoundary,
-  samples: Object.freeze([0, 0.4, 0.8].map((phaseSec, index) => Object.freeze({
-    absoluteTimeSec: 7.2 + phaseSec,
-    phaseSec,
-    bloodVolumesM3: Object.freeze(Object.fromEntries(
-      Object.entries(chamberVolume).map(([key, value]) => [key, value + index * 1e-6]),
-    )),
-    compartmentAbsolutePressurePa: Object.freeze(Object.fromEntries(
-      Object.entries(chamberPressure).map(([key, value]) => [key, value + index * 10]),
-    )),
-    allFlowsM3PerSec: flows,
-  }))),
+  samples: waveformSamples,
   sourceReportContentSha256: report.contentSha256,
 });
 
@@ -176,13 +233,20 @@ describe("Phase B1 physiology-envelope HTML review", () => {
     expect(fragment).toContain("Pressure (mmHg)");
     expect(fragment).toContain("Flow (mL/s)");
     expect(fragment).toContain("held-out readback");
+    expect(fragment).toContain("Atrial PV reservoir / early-conduit readback");
+    expect(fragment).toContain("After early-conduit minimum → functional AV closure");
+    expect(fragment).toContain("nonperiodic exploratory readback");
     expect(fragment).toContain("never enter fitting, ranking, or the Stage-1 screen");
     expect(fragment).toContain("become loops only after period-1 closure");
     expect(fragment).toContain("does not claim physiological validation");
     expect(fragment).toContain("exploratory timestep");
     expect(fragment).toContain('"v":{"LA":50');
     expect(fragment).toContain('"p":{"LA":7.5006158');
-    expect(fragment).toContain('"q":{"Q_MV":80');
+    expect(fragment).toContain('"q":{"Q_MV":-80');
+    expect(fragment).toContain("maximum interim refill / rightward");
+    expect(fragment).toContain("refill / preceding opening→minimum net emptying");
+    expect(atrialPvReservoirConduitReadback.byAtrium.LA.status)
+      .toBe("ambiguous");
     expect(fragment).not.toMatch(/fetch\(|XMLHttpRequest|WebSocket/);
     expect(fragment).not.toContain("<!doctype");
     expect(fragment).not.toContain("\\\"");
@@ -198,6 +262,54 @@ describe("Phase B1 physiology-envelope HTML review", () => {
     expect(html).toContain("<!doctype html>");
     expect(html).toContain("<title>Four-chamber physiology envelope review</title>");
     expect(html).toContain('id="pe-review-v1"');
+  });
+
+  it("normalizes a machine-epsilon terminal phase before authenticating the readback", () => {
+    const roundedTerminalPhaseSec = 0.8 - 3e-15;
+    const roundedWaveform = withCanonicalContentHash({
+      ...waveform,
+      contentSha256: undefined,
+      samples: waveform.samples.map((sample, index) =>
+        index === waveform.samples.length - 1
+          ? {
+            ...sample,
+            phaseSec: roundedTerminalPhaseSec,
+            absoluteTimeSec: waveform.cycleStartTimeSec
+              + roundedTerminalPhaseSec,
+          }
+          : sample),
+    });
+
+    expect(buildPhaseB1PhysiologyEnvelopeStandaloneHtmlV1(
+      roundedWaveform,
+      report,
+    )).toContain("maximum interim refill / rightward");
+  });
+
+  it("accepts authenticated mechanistic source files beyond the base evidence set", () => {
+    const mechanisticReport = withCanonicalContentHash({
+      ...report,
+      contentSha256: undefined,
+      sourceCodeEvidence: {
+        ...report.sourceCodeEvidence,
+        sourceFileSha256: {
+          ...report.sourceCodeEvidence.sourceFileSha256,
+          activeTissueClassPrior: "8".repeat(64),
+          wallMaterialBinding: "9".repeat(64),
+          periodicContinuation: "a".repeat(64),
+        },
+      },
+    });
+    const mechanisticWaveform = withCanonicalContentHash({
+      ...waveform,
+      contentSha256: undefined,
+      sourceReportContentSha256: mechanisticReport.contentSha256,
+    });
+
+    expect(buildPhaseB1PhysiologyEnvelopeStandaloneHtmlV1(
+      mechanisticWaveform,
+      mechanisticReport,
+    )).toContain('id="pe-review-v1"');
   });
 
   it("escapes script-closing payloads and fails closed on malformed units or claims", () => {
@@ -254,6 +366,27 @@ describe("Phase B1 physiology-envelope HTML review", () => {
       waveform,
       independentlyRehashedReport,
     )).toThrow(/does not bind the supplied report/);
+
+    const traceDriftedWaveform = withCanonicalContentHash({
+      ...waveform,
+      contentSha256: undefined,
+      samples: waveform.samples.map((sample, index) => index === 1
+        ? {
+          ...sample,
+          bloodVolumesM3: {
+            ...sample.bloodVolumesM3,
+            LA: sample.bloodVolumesM3.LA + 1e-9,
+          },
+        }
+        : sample),
+    });
+    expect(() => buildPhaseB1PhysiologyEnvelopeReviewFragmentV1(
+      traceDriftedWaveform,
+      withCanonicalContentHash({
+        ...report,
+        contentSha256: undefined,
+      }),
+    )).toThrow(/atrial PV readback does not bind/);
   });
 });
 

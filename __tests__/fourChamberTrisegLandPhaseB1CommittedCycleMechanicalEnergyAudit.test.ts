@@ -579,6 +579,8 @@ function stage(
   endTimeSec: number,
   overrides: Partial<PhaseB1BackwardEulerMechanicalEnergyAggregationStageV1> = {},
 ): PhaseB1BackwardEulerMechanicalEnergyAggregationStageV1 {
+  const publishedTaylorGeometryPowerResidualW =
+    overrides.publishedTaylorGeometryPowerResidualW ?? 0;
   return Object.freeze({
     transactionIndex,
     startTimeSec,
@@ -593,12 +595,26 @@ function stage(
     slsDissipationW: 0,
     activeMechanicalOutputPowerW: 0,
     prescribedExternalEnvironmentPowerW: 0,
-    publishedTaylorGeometryPowerResidualW: 0,
+    triSegGeometryRuntimeAssembly:
+      "published-taylor-2009-with-explicit-defect-correction" as const,
+    triSegBendingStoredEnergyRateW: 0,
+    geometryWorkConjugacyNormalizationDenominatorW:
+      overrides.geometryWorkConjugacyNormalizationDenominatorW
+        ?? overrides.publishedTaylorGeometryNormalizationDenominatorW
+        ?? 1,
+    geometryWorkConjugacyAccepted: false,
+    publishedTaylorGeometryPowerResidualW,
     publishedTaylorGeometryNormalizationDenominatorW: 1,
     sourceCorrectedStageLedgerAccepted: true,
     sourceLandAdapterWorkClosureAccepted: true,
     sourceSlsBackwardEulerIdentityAccepted: true,
     ...overrides,
+    geometryPowerBalanceCorrectionW:
+      overrides.geometryPowerBalanceCorrectionW
+        ?? publishedTaylorGeometryPowerResidualW,
+    geometryWorkConjugacyResidualW:
+      overrides.geometryWorkConjugacyResidualW
+        ?? publishedTaylorGeometryPowerResidualW,
   });
 }
 

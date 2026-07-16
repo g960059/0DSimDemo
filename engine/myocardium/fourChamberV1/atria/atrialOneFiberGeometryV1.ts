@@ -7,7 +7,9 @@ export const ATRIAL_SELF_SIMILAR_ONE_FIBER_GEOMETRY_V1_ID =
 export type AtrialOneFiberGeometryPriorV1 = {
   readonly priorId: string;
   readonly status: "candidate-prior";
-  readonly evidenceClass: "project-synthetic-implementation-verification";
+  readonly evidenceClass:
+    | "project-synthetic-implementation-verification"
+    | "literature-informed-anatomy-construction";
   readonly atriumId: "LA" | "RA";
   readonly wallReferenceMaterialVolumeM3: number;
   readonly referenceCavityVolumeM3: number;
@@ -272,11 +274,14 @@ function assertAtrialGeometryPrior(prior: AtrialOneFiberGeometryPriorV1): void {
     "strain",
   ], "atrialGeometryPrior.units");
   requireNonEmpty(prior.priorId, "priorId");
+  if (prior.status !== "candidate-prior") {
+    throw new Error("Atrial one-fiber geometry accepts candidate-prior status only");
+  }
   if (
-    prior.status !== "candidate-prior"
-    || prior.evidenceClass !== "project-synthetic-implementation-verification"
+    prior.evidenceClass !== "project-synthetic-implementation-verification"
+    && prior.evidenceClass !== "literature-informed-anatomy-construction"
   ) {
-    throw new Error("Phase A1 atrial geometry must remain project-synthetic candidate-prior evidence");
+    throw new Error("Atrial one-fiber geometry evidenceClass is not supported");
   }
   if (prior.atriumId !== "LA" && prior.atriumId !== "RA") {
     throw new Error("atriumId must be LA or RA");

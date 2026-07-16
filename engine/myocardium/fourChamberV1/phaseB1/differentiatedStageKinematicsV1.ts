@@ -29,6 +29,9 @@ import {
   type PhaseB1WallMaterialBindingV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/phaseB1WallMaterialBindingV1";
 import {
+  evaluateFiniteThicknessTriSegWallDerivativeV2,
+} from "@/engine/myocardium/fourChamberV1/triseg/energyConjugateFiniteThicknessTriSegV2";
+import {
   BLOOD_COMPARTMENT_IDS,
   INERTIAL_FLOW_IDS,
   WALL_IDS,
@@ -66,6 +69,8 @@ export type PhaseB1DifferentiatedStageKinematicsV1 = Readonly<{
     junctionRadiusMPerSec: number;
   }>;
   fiberLogStrainRatePerSecByWall: Readonly<Record<FourChamberWallId, number>>;
+  fiberLogStrainRateSource: "analytic-five-wall-geometry-chain-rule";
+  centeredFiniteDifferenceFiberRateUsedForMechanicalPower: false;
   scaledTriSegJacobianDiagnostics: ScaledJacobian2x2DiagnosticsV1;
   differentiatedConstraintResidualNPerMSec: Readonly<{
     axial: number;
@@ -83,7 +88,14 @@ export type PhaseB1DifferentiatedStageKinematicsV1 = Readonly<{
     fineFiberLogStrainRatePerSecByWall:
       Readonly<Record<FourChamberWallId, number>>;
     maximumNormalizedRateDifference: number;
+    analyticFiberLogStrainRatePerSecByWall:
+      Readonly<Record<FourChamberWallId, number>>;
+    maximumCoarseToAnalyticNormalizedRateDifference: number;
+    maximumFineToAnalyticNormalizedRateDifference: number;
     relativeTolerance: number;
+    canonicalRateSource: "analytic-five-wall-geometry-chain-rule";
+    centeredFiniteDifferenceRole: "audit-only";
+    analyticAgreementAccepted: boolean;
     accepted: boolean;
   }>;
   landDirectionCount: 30;
@@ -120,6 +132,8 @@ export type PhaseB1AcceptedBackwardEulerStageKinematicsSnapshotV1 =
     }>;
     fiberLogStrainRatePerSecByWall:
       Readonly<Record<FourChamberWallId, number>>;
+    fiberLogStrainRateSource: "analytic-five-wall-geometry-chain-rule";
+    centeredFiniteDifferenceFiberRateUsedForMechanicalPower: false;
     scaledTriSegJacobianDiagnostics: ScaledJacobian2x2DiagnosticsV1;
     differentiatedConstraintResidualNPerMSec: Readonly<{
       axial: number;
@@ -329,23 +343,38 @@ export function reconstructPhaseB1AcceptedBackwardEulerStageKinematicsSnapshotV1
     coordinateRate,
     fineDirectionalStepSec,
   );
+  const analyticFiberLogStrainRatePerSecByWall =
+    evaluateAnalyticFiveWallFiberLogStrainRateV1(
+      nextEvaluation,
+      volumeRateM3PerSecByCompartment,
+      coordinateRate,
+    );
   const fiberRateScalePerSec = registry.unknownScales.fiberLogStrain / dtSec;
-  const maximumNormalizedRateDifference = Math.max(...WALL_IDS.map(
-    (wallId) => Math.abs(
-      coarseFiberLogStrainRatePerSecByWall[wallId]
-      - fineFiberLogStrainRatePerSecByWall[wallId],
-    ) / (
-      fiberRateScalePerSec
-      + Math.max(
-        Math.abs(coarseFiberLogStrainRatePerSecByWall[wallId]),
-        Math.abs(fineFiberLogStrainRatePerSecByWall[wallId]),
-      )
-    ),
-  ));
+  const maximumNormalizedRateDifference =
+    evaluateMaximumNormalizedFiberRateDifferenceV1(
+      coarseFiberLogStrainRatePerSecByWall,
+      fineFiberLogStrainRatePerSecByWall,
+      fiberRateScalePerSec,
+    );
+  const maximumCoarseToAnalyticNormalizedRateDifference =
+    evaluateMaximumNormalizedFiberRateDifferenceV1(
+      coarseFiberLogStrainRatePerSecByWall,
+      analyticFiberLogStrainRatePerSecByWall,
+      fiberRateScalePerSec,
+    );
+  const maximumFineToAnalyticNormalizedRateDifference =
+    evaluateMaximumNormalizedFiberRateDifferenceV1(
+      fineFiberLogStrainRatePerSecByWall,
+      analyticFiberLogStrainRatePerSecByWall,
+      fiberRateScalePerSec,
+    );
   const halvingTolerance =
     PHASE_B1_EVENT_FREE_MONOLITHIC_NUMERICAL_POLICY_V1
       .differentiatedKinematicsHalvingRelativeTolerance;
   const constraintAccepted = constraintInfinityNorm < constraintTolerance;
+  const analyticAgreementAccepted =
+    maximumCoarseToAnalyticNormalizedRateDifference < halvingTolerance
+    && maximumFineToAnalyticNormalizedRateDifference < halvingTolerance;
   const stepHalvingAudit = Object.freeze({
     coarseDirectionalStepSec,
     fineDirectionalStepSec,
@@ -353,8 +382,16 @@ export function reconstructPhaseB1AcceptedBackwardEulerStageKinematicsSnapshotV1
     coarseFiberLogStrainRatePerSecByWall,
     fineFiberLogStrainRatePerSecByWall,
     maximumNormalizedRateDifference,
+    analyticFiberLogStrainRatePerSecByWall,
+    maximumCoarseToAnalyticNormalizedRateDifference,
+    maximumFineToAnalyticNormalizedRateDifference,
     relativeTolerance: halvingTolerance,
-    accepted: maximumNormalizedRateDifference < halvingTolerance,
+    canonicalRateSource: "analytic-five-wall-geometry-chain-rule" as const,
+    centeredFiniteDifferenceRole: "audit-only" as const,
+    analyticAgreementAccepted,
+    accepted:
+      maximumNormalizedRateDifference < halvingTolerance
+      && analyticAgreementAccepted,
   });
   return Object.freeze({
     kinematicsId: PHASE_B1_ACCEPTED_BE_STAGE_KINEMATICS_SNAPSHOT_V1_ID,
@@ -369,7 +406,10 @@ export function reconstructPhaseB1AcceptedBackwardEulerStageKinematicsSnapshotV1
       septalMidwallCapVolumeM3PerSec: coordinateRate[0],
       junctionRadiusMPerSec: coordinateRate[1],
     }),
-    fiberLogStrainRatePerSecByWall: fineFiberLogStrainRatePerSecByWall,
+    fiberLogStrainRatePerSecByWall: analyticFiberLogStrainRatePerSecByWall,
+    fiberLogStrainRateSource:
+      "analytic-five-wall-geometry-chain-rule" as const,
+    centeredFiniteDifferenceFiberRateUsedForMechanicalPower: false as const,
     scaledTriSegJacobianDiagnostics,
     differentiatedConstraintResidualNPerMSec: Object.freeze({
       axial: differentiatedConstraintResidual[0],
@@ -574,22 +614,37 @@ export function reconstructPhaseB1DifferentiatedStageKinematicsV1(
     coordinateRate,
     fineDirectionalStepSec,
   );
+  const analyticFiberLogStrainRatePerSecByWall =
+    evaluateAnalyticFiveWallFiberLogStrainRateV1(
+      nextEvaluation,
+      volumeRateM3PerSecByCompartment,
+      coordinateRate,
+    );
   const fiberRateScalePerSec = registry.unknownScales.fiberLogStrain / dtSec;
-  const maximumNormalizedRateDifference = Math.max(...WALL_IDS.map(
-    (wallId) => Math.abs(
-      coarseFiberLogStrainRatePerSecByWall[wallId]
-      - fineFiberLogStrainRatePerSecByWall[wallId],
-    ) / (
-      fiberRateScalePerSec
-      + Math.max(
-        Math.abs(coarseFiberLogStrainRatePerSecByWall[wallId]),
-        Math.abs(fineFiberLogStrainRatePerSecByWall[wallId]),
-      )
-    ),
-  ));
+  const maximumNormalizedRateDifference =
+    evaluateMaximumNormalizedFiberRateDifferenceV1(
+      coarseFiberLogStrainRatePerSecByWall,
+      fineFiberLogStrainRatePerSecByWall,
+      fiberRateScalePerSec,
+    );
+  const maximumCoarseToAnalyticNormalizedRateDifference =
+    evaluateMaximumNormalizedFiberRateDifferenceV1(
+      coarseFiberLogStrainRatePerSecByWall,
+      analyticFiberLogStrainRatePerSecByWall,
+      fiberRateScalePerSec,
+    );
+  const maximumFineToAnalyticNormalizedRateDifference =
+    evaluateMaximumNormalizedFiberRateDifferenceV1(
+      fineFiberLogStrainRatePerSecByWall,
+      analyticFiberLogStrainRatePerSecByWall,
+      fiberRateScalePerSec,
+    );
   const halvingTolerance =
     PHASE_B1_EVENT_FREE_MONOLITHIC_NUMERICAL_POLICY_V1
       .differentiatedKinematicsHalvingRelativeTolerance;
+  const analyticAgreementAccepted =
+    maximumCoarseToAnalyticNormalizedRateDifference < halvingTolerance
+    && maximumFineToAnalyticNormalizedRateDifference < halvingTolerance;
   const stepHalvingAudit = Object.freeze({
     coarseDirectionalStepSec,
     fineDirectionalStepSec,
@@ -597,8 +652,16 @@ export function reconstructPhaseB1DifferentiatedStageKinematicsV1(
     coarseFiberLogStrainRatePerSecByWall,
     fineFiberLogStrainRatePerSecByWall,
     maximumNormalizedRateDifference,
+    analyticFiberLogStrainRatePerSecByWall,
+    maximumCoarseToAnalyticNormalizedRateDifference,
+    maximumFineToAnalyticNormalizedRateDifference,
     relativeTolerance: halvingTolerance,
-    accepted: maximumNormalizedRateDifference < halvingTolerance,
+    canonicalRateSource: "analytic-five-wall-geometry-chain-rule" as const,
+    centeredFiniteDifferenceRole: "audit-only" as const,
+    analyticAgreementAccepted,
+    accepted:
+      maximumNormalizedRateDifference < halvingTolerance
+      && analyticAgreementAccepted,
   });
   const constraintAccepted = constraintInfinityNorm < constraintTolerance;
   return Object.freeze({
@@ -614,8 +677,10 @@ export function reconstructPhaseB1DifferentiatedStageKinematicsV1(
       septalMidwallCapVolumeM3PerSec: coordinateRate[0],
       junctionRadiusMPerSec: coordinateRate[1],
     }),
-    fiberLogStrainRatePerSecByWall:
-      fineFiberLogStrainRatePerSecByWall,
+    fiberLogStrainRatePerSecByWall: analyticFiberLogStrainRatePerSecByWall,
+    fiberLogStrainRateSource:
+      "analytic-five-wall-geometry-chain-rule" as const,
+    centeredFiniteDifferenceFiberRateUsedForMechanicalPower: false as const,
     scaledTriSegJacobianDiagnostics,
     differentiatedConstraintResidualNPerMSec: Object.freeze({
       axial: differentiatedConstraintResidual[0],
@@ -641,6 +706,62 @@ export function reconstructPhaseB1DifferentiatedStageKinematicsV1(
     phaseB1Acceptance: false,
     releaseRuntimeReachable: false,
   });
+}
+
+function evaluateAnalyticFiveWallFiberLogStrainRateV1(
+  evaluation: ReturnType<typeof evaluatePhaseB1EventFreeEndpointV1>,
+  volumeRates: Readonly<Record<BloodCompartmentId, number>>,
+  coordinateRate: readonly [number, number],
+): Readonly<Record<FourChamberWallId, number>> {
+  const closedLoop = evaluation.closedLoop;
+  const septalCapVolumeRate = coordinateRate[0];
+  const junctionRadiusRate = coordinateRate[1];
+  const capVolumeRateByVentricularWall = Object.freeze({
+    LVFW: -volumeRates.LV + septalCapVolumeRate,
+    SEP: septalCapVolumeRate,
+    RVFW: volumeRates.RV + septalCapVolumeRate,
+  });
+  const ventricularRate = (wallId: "LVFW" | "SEP" | "RVFW") => {
+    const derivative = evaluateFiniteThicknessTriSegWallDerivativeV2(
+      closedLoop.triSegGeometry.walls[wallId],
+    );
+    return requireFinite(
+      derivative.dFiberLogStrainDCapVolumePerM3
+          * capVolumeRateByVentricularWall[wallId]
+        + derivative.dFiberLogStrainDJunctionRadiusPerM
+          * junctionRadiusRate,
+      `${wallId}.analyticFiberLogStrainRatePerSec`,
+    );
+  };
+  return Object.freeze({
+    LA: requireFinite(
+      closedLoop.atria.LA.geometry.dFiberLogStrainDCavityVolumePerM3
+        * volumeRates.LA,
+      "LA.analyticFiberLogStrainRatePerSec",
+    ),
+    LVFW: ventricularRate("LVFW"),
+    SEP: ventricularRate("SEP"),
+    RVFW: ventricularRate("RVFW"),
+    RA: requireFinite(
+      closedLoop.atria.RA.geometry.dFiberLogStrainDCavityVolumePerM3
+        * volumeRates.RA,
+      "RA.analyticFiberLogStrainRatePerSec",
+    ),
+  });
+}
+
+function evaluateMaximumNormalizedFiberRateDifferenceV1(
+  left: Readonly<Record<FourChamberWallId, number>>,
+  right: Readonly<Record<FourChamberWallId, number>>,
+  additiveRateScalePerSec: number,
+): number {
+  requirePositiveFinite(additiveRateScalePerSec, "fiber rate audit scale");
+  return requireFinite(Math.max(...WALL_IDS.map((wallId) => Math.abs(
+    left[wallId] - right[wallId],
+  ) / (
+    additiveRateScalePerSec
+      + Math.max(Math.abs(left[wallId]), Math.abs(right[wallId]))
+  ))), "maximum normalized fiber-rate difference");
 }
 
 function differentiateFiberStrain(

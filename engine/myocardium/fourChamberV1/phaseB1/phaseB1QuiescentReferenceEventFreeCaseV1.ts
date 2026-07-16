@@ -22,6 +22,7 @@ import type { PhaseB1EndpointStateV1 } from
 import {
   assertPhaseB1WallMaterialBindingV1,
   buildPhaseB1WallMaterialBindingV1,
+  getPhaseB1WallPassiveStressScalesV1,
   type PhaseB1WallMaterialBindingV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/phaseB1WallMaterialBindingV1";
 import {
@@ -234,13 +235,14 @@ export function buildPhaseB1QuiescentReferenceEventFreeCaseV1(
         }),
         tissueStressInputsByWall: wallRecord((wallId) => {
           const material = wallMaterialBinding.runtimeByWall[wallId];
+          const passiveScales = getPhaseB1WallPassiveStressScalesV1(material);
           return Object.freeze({
             landReferenceTensionPa:
               material.landEquationParameters.values.Tref,
             passiveTensileStressScalePa:
-              material.passiveSls.compiledPassive.prior.APa,
+              passiveScales.tensileStressScalePa,
             compressionStressScalePa:
-              material.passiveSls.compiledPassive.prior.KCompEffPa,
+              passiveScales.compressionStressScalePa,
           });
         }),
         triSegInputsByWall: triSegRecord((wallId) => Object.freeze({

@@ -64,6 +64,27 @@ describe("four-chamber Phase B1 differentiated stage kinematics", () => {
           PHASE_B1_EVENT_FREE_MONOLITHIC_NUMERICAL_POLICY_V1
             .differentiatedKinematicsHalvingRelativeTolerance,
         );
+      expect(kinematics.fiberLogStrainRateSource)
+        .toBe("analytic-five-wall-geometry-chain-rule");
+      expect(kinematics.centeredFiniteDifferenceFiberRateUsedForMechanicalPower)
+        .toBe(false);
+      expect(kinematics.stepHalvingAudit.canonicalRateSource)
+        .toBe("analytic-five-wall-geometry-chain-rule");
+      expect(kinematics.stepHalvingAudit.centeredFiniteDifferenceRole)
+        .toBe("audit-only");
+      expect(kinematics.stepHalvingAudit.analyticAgreementAccepted).toBe(true);
+      expect(kinematics.stepHalvingAudit
+        .maximumCoarseToAnalyticNormalizedRateDifference)
+        .toBeLessThan(
+          PHASE_B1_EVENT_FREE_MONOLITHIC_NUMERICAL_POLICY_V1
+            .differentiatedKinematicsHalvingRelativeTolerance,
+        );
+      expect(kinematics.stepHalvingAudit
+        .maximumFineToAnalyticNormalizedRateDifference)
+        .toBeLessThan(
+          PHASE_B1_EVENT_FREE_MONOLITHIC_NUMERICAL_POLICY_V1
+            .differentiatedKinematicsHalvingRelativeTolerance,
+        );
       expect(kinematics.scaledTriSegJacobianDiagnostics.numericallySingular)
         .toBe(false);
       for (const wallId of WALL_IDS) {
@@ -71,6 +92,9 @@ describe("four-chamber Phase B1 differentiated stage kinematics", () => {
         expect(Number.isFinite(
           kinematics.fiberLogStrainRatePerSecByWall[wallId],
         )).toBe(true);
+        expect(kinematics.fiberLogStrainRatePerSecByWall[wallId])
+          .toBe(kinematics.stepHalvingAudit
+            .analyticFiberLogStrainRatePerSecByWall[wallId]);
       }
       if (slsMode === "on") {
         expect(kinematics.slsAlphaRatePerSecByWall).not.toBeNull();

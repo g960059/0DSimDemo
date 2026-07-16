@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  PHASE_B1_EVENT_FREE_MECHANISTIC_REBUILD_V2_MODEL_ID,
   auditPhaseB1EventFreeMonolithicGlobalJacobianV1,
   evaluatePhaseB1EventFreeEndpointV1,
   stepPhaseB1EventFreeMonolithicBackwardEulerV1,
@@ -14,6 +15,12 @@ import {
 import {
   WALL_IDS,
 } from "@/engine/myocardium/fourChamberV1/topology/contracts";
+import {
+  createFiniteThicknessTriSegBendingPriorV2,
+} from "@/engine/myocardium/fourChamberV1/triseg/energyConjugateFiniteThicknessTriSegV2";
+import {
+  evaluatePublishedTriSegGeometryV1,
+} from "@/engine/myocardium/fourChamberV1/triseg/publishedTriSegGeometryV1";
 
 describe("four-chamber Phase B1 event-free monolithic backward Euler", () => {
   const candidates = {
@@ -179,6 +186,49 @@ describe("four-chamber Phase B1 event-free monolithic backward Euler", () => {
       swapped,
       candidate.warmStart.endpoint,
     )).toThrow(/canonical compiled binding/);
+  });
+
+  it("fails closed when a model ID and its declared TriSeg runtime owner disagree", () => {
+    const candidate = candidates.off;
+    const mechanisticWithoutEnergy = Object.freeze({
+      ...candidate.model,
+      modelId: PHASE_B1_EVENT_FREE_MECHANISTIC_REBUILD_V2_MODEL_ID,
+    });
+    expect(() => evaluatePhaseB1EventFreeEndpointV1(
+      mechanisticWithoutEnergy,
+      candidate.wallMaterialBinding,
+      candidate.warmStart.endpoint,
+    )).toThrow(/requires finite-thickness energy-conjugate TriSeg/i);
+
+    const state = candidate.warmStart.endpoint;
+    const referenceGeometry = evaluatePublishedTriSegGeometryV1({
+      leftVentricularCavityVolumeM3:
+        state.differentialState.bloodVolumesM3.LV,
+      rightVentricularCavityVolumeM3:
+        state.differentialState.bloodVolumesM3.RV,
+      septalMidwallCapVolumeM3: state.triSegCoordinates.V_m_S,
+      junctionRadiusM: state.triSegCoordinates.y_m,
+      walls: candidate.model.closedLoopParameters.triSegWalls,
+    });
+    const legacyWithEnergy = Object.freeze({
+      ...candidate.model,
+      closedLoopParameters: Object.freeze({
+        ...candidate.model.closedLoopParameters,
+        finiteThicknessTriSegBendingPriorV2:
+          createFiniteThicknessTriSegBendingPriorV2({
+            priorId: "legacy-owner-mismatch-test",
+            effectiveBendingYoungModulusPa: 3_000,
+            poissonRatio: 0.45,
+            referenceGeometry,
+            wallBendingMultiplierByWall: { LVFW: 1, SEP: 1, RVFW: 1 },
+          }),
+      }),
+    });
+    expect(() => evaluatePhaseB1EventFreeEndpointV1(
+      legacyWithEnergy,
+      candidate.wallMaterialBinding,
+      candidate.warmStart.endpoint,
+    )).toThrow(/legacy Phase B1 model IDs must retain the published-Taylor/i);
   });
 
   it("rejects a copied or rescaled Newton registry before scaled evidence is built", () => {

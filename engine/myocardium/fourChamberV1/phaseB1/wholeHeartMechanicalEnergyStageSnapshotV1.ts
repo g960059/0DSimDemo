@@ -22,7 +22,9 @@ import {
   type PhaseB1WallMaterialBindingV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/phaseB1WallMaterialBindingV1";
 import {
+  evaluatePhaseB1TriSegGeometryPowerAccountingV2,
   evaluatePhaseB1WholeHeartMechanicalStoredEnergyBreakdownFromEndpointEvaluationV1,
+  type PhaseB1TriSegGeometryPowerAccountingV2,
   type PhaseB1WholeHeartMechanicalStoredEnergyBreakdownV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/wholeHeartMechanicalEnergyAuditV1";
 import {
@@ -79,6 +81,7 @@ export type PhaseB1WholeHeartMechanicalEnergyStageSnapshotV1 = Readonly<{
     vascular: number;
     pericardial: number;
     equilibriumPassive: number;
+    triSegBending: number;
     sls: number;
     inertial: number;
     total: number;
@@ -93,6 +96,7 @@ export type PhaseB1WholeHeartMechanicalEnergyStageSnapshotV1 = Readonly<{
   publishedTaylorGeometryPowerAudit: PublishedTaylorTriSegStagePowerAuditV1;
   publishedTaylorGeometryPowerTreatment:
     typeof PUBLISHED_TAYLOR_GEOMETRY_POWER_LEDGER_TREATMENT_V1;
+  triSegGeometryPowerAccounting: PhaseB1TriSegGeometryPowerAccountingV2;
   stage: Readonly<{
     activeStressPowerW: number;
     activeMechanicalOutputPowerW: number;
@@ -100,9 +104,9 @@ export type PhaseB1WholeHeartMechanicalEnergyStageSnapshotV1 = Readonly<{
     normalizationDenominatorW: number;
     normalizedResidual: number;
     normalizedResidualTolerance: 1e-5;
-    publishedTaylorGeometryDefectSubtracted: true;
+    publishedTaylorGeometryDefectSubtracted: boolean;
     correctedStageLedgerAccepted: boolean;
-    geometryQualityOrWorkConjugacyAccepted: false;
+    geometryQualityOrWorkConjugacyAccepted: boolean;
   }>;
   endpointStoredEnergy: Readonly<{
     previous: PhaseB1WholeHeartMechanicalStoredEnergyBreakdownV1;
@@ -125,7 +129,7 @@ export type PhaseB1WholeHeartMechanicalEnergyStageSnapshotV1 = Readonly<{
   publishedTaylorGeometryDefectRetained: true;
   differentiatedLandKinematicsUsed: true;
   correctedStageLedgerAccepted: boolean;
-  geometryWorkConjugacyAccepted: false;
+  geometryWorkConjugacyAccepted: boolean;
   wholeHeartBackwardEulerEnergyAcceptanceClaimed: false;
   testReferenceOnly: true;
   phaseB1Acceptance: false;
@@ -271,10 +275,42 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
     },
     0,
   );
+  const ventricularWallMechanicalPowerByWallW = Object.freeze({
+    LVFW: wallMechanicalPower(nextEvaluation, strainRate, "LVFW"),
+    SEP: wallMechanicalPower(nextEvaluation, strainRate, "SEP"),
+    RVFW: wallMechanicalPower(nextEvaluation, strainRate, "RVFW"),
+  });
+  const publishedTaylorGeometryPowerAudit =
+    evaluatePublishedTaylorTriSegStagePowerAuditV1({
+      wallMechanicalPowerByWallW: ventricularWallMechanicalPowerByWallW,
+      hydraulicPowerW: Object.freeze({
+        LV: requireFinite(
+          nextEvaluation.closedLoop.triSegOracle.cavityTransmuralPressuresPa.LV
+            * volumeRate.LV,
+          "published-Taylor LV hydraulic power",
+        ),
+        RV: requireFinite(
+          nextEvaluation.closedLoop.triSegOracle.cavityTransmuralPressuresPa.RV
+            * volumeRate.RV,
+          "published-Taylor RV hydraulic power",
+        ),
+      }),
+    });
+  const triSegGeometryPowerAccounting = evaluatePhaseB1TriSegGeometryPowerAccountingV2({
+    evaluation: nextEvaluation,
+    ventricularWallMechanicalPowerByWallW,
+    volumeRateM3PerSecByVentricle: Object.freeze({
+      LV: volumeRate.LV,
+      RV: volumeRate.RV,
+    }),
+    triSegCoordinateRate: kinematics.triSegCoordinateRate,
+    publishedTaylorGeometryPowerAudit,
+  });
   const totalStoredEnergyRateW = requireFinite(
     vascularStoredEnergyRateW
       + pericardialStoredEnergyRateW
       + equilibriumPassiveStoredEnergyRateW
+      + triSegGeometryPowerAccounting.triSegBendingStoredEnergyRateW
       + slsStoredEnergyRateW
       + inertialStoredEnergyRateW,
     "totalStoredEnergyRateW",
@@ -283,6 +319,8 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
     vascular: vascularStoredEnergyRateW,
     pericardial: pericardialStoredEnergyRateW,
     equilibriumPassive: equilibriumPassiveStoredEnergyRateW,
+    triSegBending:
+      triSegGeometryPowerAccounting.triSegBendingStoredEnergyRateW,
     sls: slsStoredEnergyRateW,
     inertial: inertialStoredEnergyRateW,
     total: totalStoredEnergyRateW,
@@ -333,28 +371,8 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
     }, 0),
     "prescribedExternalEnvironmentPowerW",
   );
-  const publishedTaylorGeometryPowerAudit =
-    evaluatePublishedTaylorTriSegStagePowerAuditV1({
-      wallMechanicalPowerByWallW: Object.freeze({
-        LVFW: wallMechanicalPower(nextEvaluation, strainRate, "LVFW"),
-        SEP: wallMechanicalPower(nextEvaluation, strainRate, "SEP"),
-        RVFW: wallMechanicalPower(nextEvaluation, strainRate, "RVFW"),
-      }),
-      hydraulicPowerW: Object.freeze({
-        LV: requireFinite(
-          nextEvaluation.closedLoop.chamberTransmuralPressurePa.LV
-            * volumeRate.LV,
-          "LV hydraulic power",
-        ),
-        RV: requireFinite(
-          nextEvaluation.closedLoop.chamberTransmuralPressurePa.RV
-            * volumeRate.RV,
-          "RV hydraulic power",
-        ),
-      }),
-    });
-  const rawGeometryPowerResidualW =
-    publishedTaylorGeometryPowerAudit.rawGeometryPowerResidualW;
+  const geometryPowerCorrectionW =
+    triSegGeometryPowerAccounting.wholeHeartBalanceCorrectionW;
   const activeStressPowerW = sumWallRecord(activeStressPowerByWallW);
   const activeMechanicalOutputPowerW = sumWallRecord(
     activeMechanicalOutputPowerByWallW,
@@ -370,7 +388,7 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
       + slsDissipationW
       - activeMechanicalOutputPowerW
       - prescribedExternalEnvironmentPowerW
-      - rawGeometryPowerResidualW,
+      - geometryPowerCorrectionW,
     "continuousMechanicalEnergyResidualW",
   );
   const stageNormalizationDenominatorW = requirePositiveFinite(
@@ -380,7 +398,7 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
       + slsDissipationW
       + Math.abs(activeMechanicalOutputPowerW)
       + Math.abs(prescribedExternalEnvironmentPowerW)
-      + Math.abs(rawGeometryPowerResidualW),
+      + Math.abs(geometryPowerCorrectionW),
     "stageNormalizationDenominatorW",
   );
   const stageNormalizedResidual = requireNonNegativeFinite(
@@ -397,11 +415,14 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
     normalizedResidualTolerance:
       PHASE_B1_WHOLE_HEART_MECHANICAL_ENERGY_AUDIT_POLICY_V1
         .correctedStageLedgerNormalizedResidualTolerance,
-    publishedTaylorGeometryDefectSubtracted: true as const,
+    publishedTaylorGeometryDefectSubtracted:
+      triSegGeometryPowerAccounting
+        .publishedTaylorDefectSubtractedFromWholeHeartBalance,
     correctedStageLedgerAccepted: stageNormalizedResidual
       < PHASE_B1_WHOLE_HEART_MECHANICAL_ENERGY_AUDIT_POLICY_V1
         .correctedStageLedgerNormalizedResidualTolerance,
-    geometryQualityOrWorkConjugacyAccepted: false as const,
+    geometryQualityOrWorkConjugacyAccepted:
+      triSegGeometryPowerAccounting.workConjugacyAccepted,
   });
   const previousStoredEnergy =
     evaluatePhaseB1WholeHeartMechanicalStoredEnergyBreakdownFromEndpointEvaluationV1(
@@ -421,7 +442,7 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
       + slsDissipationW
       - activeMechanicalOutputPowerW
       - prescribedExternalEnvironmentPowerW
-      - rawGeometryPowerResidualW
+      - geometryPowerCorrectionW
     ),
     "signedUnresolvedEnergyIncrementJ",
   );
@@ -433,7 +454,7 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
         + slsDissipationW
         + Math.abs(activeMechanicalOutputPowerW)
         + Math.abs(prescribedExternalEnvironmentPowerW)
-        + Math.abs(rawGeometryPowerResidualW)
+        + Math.abs(geometryPowerCorrectionW)
       ),
     "backwardEulerDenominatorJ",
   );
@@ -457,6 +478,7 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
     publishedTaylorGeometryPowerAudit,
     publishedTaylorGeometryPowerTreatment:
       PUBLISHED_TAYLOR_GEOMETRY_POWER_LEDGER_TREATMENT_V1,
+    triSegGeometryPowerAccounting,
     stage,
     endpointStoredEnergy: Object.freeze({
       previous: previousStoredEnergy,
@@ -483,8 +505,14 @@ export function buildPhaseB1WholeHeartMechanicalEnergyStageSnapshotV1(
     correctedStageLedgerAccepted:
       kinematics.accepted
       && landAdapterWorkClosure.accepted
+      && (
+        triSegGeometryPowerAccounting.runtimeAssembly
+          === "published-taylor-2009-with-explicit-defect-correction"
+        || triSegGeometryPowerAccounting.workConjugacyAccepted
+      )
       && stage.correctedStageLedgerAccepted,
-    geometryWorkConjugacyAccepted: false as const,
+    geometryWorkConjugacyAccepted:
+      triSegGeometryPowerAccounting.workConjugacyAccepted,
     wholeHeartBackwardEulerEnergyAcceptanceClaimed: false as const,
     testReferenceOnly: true as const,
     phaseB1Acceptance: false as const,
