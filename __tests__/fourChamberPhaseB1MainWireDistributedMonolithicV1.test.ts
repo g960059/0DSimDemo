@@ -4,6 +4,12 @@ import {
   mainWireDefaultHemodynamicRuntimeControlsV1,
 } from "@/engine/core/mainWireHemodynamicGraphV1";
 import {
+  advanceMainWireDynamicValveApertureBackwardEulerV1,
+} from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireDynamicValveApertureV1";
+import {
+  MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1,
+} from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1";
+import {
   evaluatePhaseB1EventFreeEndpointV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/eventFreeMonolithicBackwardEulerV1";
 import {
@@ -49,10 +55,18 @@ describe("Phase B1 main-wire distributed monolithic research step", () => {
       const newton = encodePhaseB1MainWireDistributedEndpointNewtonUnknownsV1(
         fixture.endpoint,
       );
-      expect(stored).toHaveLength(slsMode === "on" ? 66 : 61);
+      expect(stored).toHaveLength(slsMode === "on" ? 70 : 65);
       expect(newton).toHaveLength(slsMode === "on" ? 58 : 53);
       expect(buildPhaseB1MainWireDistributedStoredLabelsV1(slsMode))
         .toHaveLength(stored.length);
+      expect(
+        buildPhaseB1MainWireDistributedStoredLabelsV1(slsMode).slice(21, 25),
+      ).toEqual([
+        "circulation.main-wire.valve-aperture.Q_MV",
+        "circulation.main-wire.valve-aperture.Q_AoV",
+        "circulation.main-wire.valve-aperture.Q_TV",
+        "circulation.main-wire.valve-aperture.Q_PuV",
+      ]);
       expect(buildPhaseB1MainWireDistributedNewtonUnknownLabelsV1(slsMode))
         .toHaveLength(newton.length);
       expect(buildPhaseB1MainWireDistributedNewtonResidualLabelsV1(slsMode))
@@ -66,6 +80,7 @@ describe("Phase B1 main-wire distributed monolithic research step", () => {
       expect(Object.isFrozen(decoded)).toBe(true);
       expect(Object.isFrozen(decoded.bloodVolumesM3)).toBe(true);
       expect(Object.isFrozen(decoded.dynamicFlowsM3PerSec)).toBe(true);
+      expect(Object.isFrozen(decoded.valveApertureState01ByFlow)).toBe(true);
       if (slsMode === "off") {
         expect(Object.hasOwn(decoded, "slsAlphaVByWall")).toBe(false);
         expect(buildPhaseB1MainWireDistributedStoredLabelsV1("off").some(
@@ -77,6 +92,12 @@ describe("Phase B1 main-wire distributed monolithic research step", () => {
       }
       expect(fixture.transform.audit.suppliedVascularVolumeCount).toBe(11);
       expect(fixture.transform.audit.suppliedRootDynamicFlowCount).toBe(2);
+      expect(fixture.transform.audit.valveApertureStateCount).toBe(4);
+      expect(
+        fixture.transform.audit
+          .valveApertureDerivedFromInitialPressureGradientAndFlow,
+      ).toBe(true);
+      expect(fixture.transform.audit.topologyXi0Consumed).toBe(false);
       expect(fixture.transform.audit.vascularInitializationInferred).toBe(false);
       expect(fixture.transform.audit.parameterFitApplied).toBe(false);
     },
@@ -111,24 +132,24 @@ describe("Phase B1 main-wire distributed monolithic research step", () => {
       );
   });
 
-  it("advances one short distributed step with roundoff TBV closure", () => {
+  it("advances one nominal 4-ms distributed step with roundoff TBV closure", () => {
     const fixture = fixtures.off;
     const result = stepPhaseB1MainWireDistributedMonolithicBackwardEulerV1({
       model: fixture.model,
       wallMaterialBinding: fixture.candidate.wallMaterialBinding,
       previousEndpoint: fixture.endpoint,
-      dtSec: 0.025e-3,
+      dtSec: 4e-3,
     });
     if (result.converged === false) {
       throw new Error(`${result.reason}: ${result.message}`);
     }
     expect(result.unknownCount).toBe(53);
     expect(result.residualCount).toBe(53);
-    expect(result.storedDifferentialStateCount).toBe(61);
+    expect(result.storedDifferentialStateCount).toBe(65);
     expect(result.calciumStoredStateCount).toBe(10);
     expect(result.calciumNewtonUnknownCount).toBe(0);
     expect(result.calciumResidualCount).toBe(0);
-    expect(result.nextEndpointLeftLimit.timeSec).toBe(0.025e-3);
+    expect(result.nextEndpointLeftLimit.timeSec).toBe(4e-3);
     expect(Math.abs(result.totalBloodVolumeChangeM3)).toBeLessThan(2e-17);
     expect(Math.abs(result.summedVolumeResidualM3PerSec)).toBeLessThan(1e-12);
     expect(Math.max(...Object.values(
@@ -150,6 +171,34 @@ describe("Phase B1 main-wire distributed monolithic research step", () => {
     expect(result.fallbackApplied).toBe(false);
     expect(result.residualEvaluation.mechanicsProxyCirculationResidualConsumed)
       .toBe(false);
+    for (const flowName of MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1) {
+      const expected = advanceMainWireDynamicValveApertureBackwardEulerV1({
+        parameters:
+          fixture.model.internalPrecompiledCirculationContext
+            .dynamicValveParametersByFlow[flowName],
+        previousApertureState01:
+          fixture.endpoint.differentialState
+            .valveApertureState01ByFlow[flowName],
+        pressureGradientPa:
+          result.nextEvaluation.distributedCirculation
+            .valveMomentumByFlow[flowName].pressureGradientPa,
+        timeStepSec: 4e-3,
+      });
+      expect(
+        result.nextEndpointLeftLimit.differentialState
+          .valveApertureState01ByFlow[flowName],
+      ).toBeCloseTo(expected.nextApertureState01, 15);
+      expect(result.nextEvaluation.valveApertureState01ByFlow[flowName])
+        .toBe(
+          result.nextEndpointLeftLimit.differentialState
+            .valveApertureState01ByFlow[flowName],
+        );
+      expect(result.nextEvaluation.effectiveValveAreaM2ByFlow[flowName])
+        .toBe(
+          result.nextEvaluation.distributedCirculation
+            .valveMomentumByFlow[flowName].effectiveAreaM2,
+        );
+    }
   });
 
   it("rolls back the exact previous endpoint after a capped Newton failure", () => {
@@ -223,12 +272,14 @@ describe("Phase B1 main-wire distributed monolithic research step", () => {
   it("pins the declared topology counts independently of the kernel audit", () => {
     expect(PHASE_B1_MAIN_WIRE_DISTRIBUTED_TOPOLOGY_V1)
       .toMatchObject({
-        storedDifferentialStateCount: { slsOn: 66, slsOff: 61 },
+        storedDifferentialStateCount: { slsOn: 70, slsOff: 65 },
         newtonUnknownCount: { slsOn: 58, slsOff: 53 },
         newtonResidualCount: { slsOn: 58, slsOff: 53 },
         exactCalciumStoredStateCount: 10,
         exactCalciumNewtonUnknownCount: 0,
         exactCalciumResidualCount: 0,
+        storedValveApertureStateCount: 4,
+        valveApertureNewtonUnknownCount: 0,
         slsOffRepresentation: "physically-absent-no-placeholder",
       });
   });
@@ -342,6 +393,10 @@ function buildFixture(slsMode: PhaseB1SlsModeV1) {
   const transform = transformPhaseB1EndpointToMainWireDistributedV1({
     sourceEndpoint: candidate.warmStart.endpoint,
     vascularBloodVolumesM3: initialized.vascularVolumeM3ByNode,
+    chamberAbsolutePressurePaByNode:
+      initialized.chamberAbsolutePressurePaByNode,
+    vascularAbsolutePressurePaByNode:
+      initialized.vascularAbsolutePressurePaByNode,
     rootDynamicFlowsM3PerSec:
       initialized.solverFlowPartition.dynamicRootFlowsM3PerSec,
   });

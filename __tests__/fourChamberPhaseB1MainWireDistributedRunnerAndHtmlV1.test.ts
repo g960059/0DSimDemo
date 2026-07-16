@@ -24,6 +24,7 @@ import {
   evaluatePhaseB1EventFreeEndpointV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/eventFreeMonolithicBackwardEulerV1";
 import {
+  createPhaseB1MainWireDistributedEndpointV1,
   transformPhaseB1EndpointToMainWireDistributedV1,
 } from "@/engine/myocardium/fourChamberV1/phaseB1/phaseB1MainWireDistributedEndpointV1";
 import {
@@ -90,6 +91,10 @@ describe("Phase B1 main-wire distributed exploratory runner and renderer", () =>
     const transformed = transformPhaseB1EndpointToMainWireDistributedV1({
       sourceEndpoint: oldEndpoint,
       vascularBloodVolumesM3: initialized.vascularVolumeM3ByNode,
+      chamberAbsolutePressurePaByNode:
+        initialized.chamberAbsolutePressurePaByNode,
+      vascularAbsolutePressurePaByNode:
+        initialized.vascularAbsolutePressurePaByNode,
       rootDynamicFlowsM3PerSec:
         initialized.solverFlowPartition.dynamicRootFlowsM3PerSec,
     });
@@ -99,6 +104,41 @@ describe("Phase B1 main-wire distributed exploratory runner and renderer", () =>
       vascularExternalPressurePa: externalPressurePa,
       maximumNewtonIterations: 24,
     });
+    const sourceState = transformed.endpoint.differentialState;
+    const shiftedAperture = createPhaseB1MainWireDistributedEndpointV1({
+      timeSec: transformed.endpoint.timeSec,
+      differentialState: sourceState.slsMode === "on"
+        ? Object.freeze({
+            ...sourceState,
+            slsMode: "on" as const,
+            valveApertureState01ByFlow: Object.freeze({
+              ...sourceState.valveApertureState01ByFlow,
+              Q_MV: sourceState.valveApertureState01ByFlow.Q_MV === 0
+                ? 0.25
+                : 0,
+            }),
+          })
+        : Object.freeze({
+            ...sourceState,
+            slsMode: "off" as const,
+            valveApertureState01ByFlow: Object.freeze({
+              ...sourceState.valveApertureState01ByFlow,
+              Q_MV: sourceState.valveApertureState01ByFlow.Q_MV === 0
+                ? 0.25
+                : 0,
+            }),
+          }),
+      triSegCoordinates: transformed.endpoint.triSegCoordinates,
+    });
+    const apertureDistance = evaluatePhaseB1MainWireDistributedEndpointDistanceV1(
+      transformed.endpoint,
+      shiftedAperture,
+    );
+    expect(apertureDistance.maximizingScalarLabel).toBe(
+      "circulation.main-wire.valve-aperture.Q_MV",
+    );
+    expect(apertureDistance.scalarCount).toBe(67);
+    expect(apertureDistance.maximumNormalizedDistance).toBeGreaterThan(0);
     const endTimeSec = 0.025e-3;
     const event = Object.freeze({
       eventKey: "smoke:0:LA",
@@ -152,7 +192,7 @@ describe("Phase B1 main-wire distributed exploratory runner and renderer", () =>
       result.finalEndpoint,
     );
     expect(distance.maximumNormalizedDistance).toBeGreaterThan(0);
-    expect(distance.scalarCount).toBe(63);
+    expect(distance.scalarCount).toBe(67);
     expect(result.projectionApplied).toBe(false);
     expect(result.clampApplied).toBe(false);
     expect(result.modelOrConstitutiveFallbackApplied).toBe(false);

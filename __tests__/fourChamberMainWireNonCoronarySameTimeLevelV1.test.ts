@@ -8,8 +8,6 @@ import {
   type MainWireNonCoronaryCirculationNodeNameV1,
   type MainWireNonCoronaryVascularNodeNameV1,
 } from "@/engine/core/mainWireHemodynamicGraphV1";
-import type { ValveLossParametersV1 } from
-  "@/engine/myocardium/fourChamberV1/flows/signedFlowLossV1";
 import {
   MAIN_WIRE_NON_CORONARY_ALGEBRAIC_FLOW_NAMES_V1,
   MAIN_WIRE_NON_CORONARY_ALL_FLOW_NAMES_V1,
@@ -66,11 +64,12 @@ describe("main-wire non-coronary same-time-level circulation kernel", () => {
 
     expect(MAIN_WIRE_NON_CORONARY_KERNEL_OWNERSHIP_AUDIT_V1).toMatchObject({
       vascularGraphOwner: "main-wire",
-      valveConstitutiveOwner: "phase-b1-smooth-pressure-gated",
-      valveApertureState: "absent",
+      valveConstitutiveOwner: "engine-core-dynamic-aperture-condensed-be",
+      valveApertureState: "four-stored-states-statically-condensed-from-newton",
       coronaryNetwork: "excluded",
       integrationMode: "replace-not-augment",
-      fixedDynamicFlowVariant: "six-flow-v1",
+      fixedDynamicFlowVariant:
+        "six-flow-plus-four-condensed-aperture-states-v1",
       positivePVeinLaOstialInertanceSupport:
         "unsupported-requires-seven-dynamic-flow-variant",
       modelCoreNumericalRuntimeParityClaimed: false,
@@ -86,7 +85,7 @@ describe("main-wire non-coronary same-time-level circulation kernel", () => {
     expect(
       MAIN_WIRE_NON_CORONARY_KERNEL_OWNERSHIP_AUDIT_V1
         .intendedMonolithicStoredDifferentialStateCount,
-    ).toMatchObject({ slsOn: 66, slsOff: 61 });
+    ).toMatchObject({ slsOn: 70, slsOff: 65 });
   });
 
   it("evaluates canonical vascular PV laws and all nine signed algebraic roots", () => {
@@ -130,7 +129,6 @@ describe("main-wire non-coronary same-time-level circulation kernel", () => {
       state: input.state,
       chamberAbsolutePressurePa: input.chamberAbsolutePressurePa,
       externalPressurePa: input.externalPressurePa,
-      valveLossParametersByFlow: input.valveLossParametersByFlow,
       precompiledContext: context,
     });
     expect(precompiled).toEqual(direct);
@@ -139,6 +137,9 @@ describe("main-wire non-coronary same-time-level circulation kernel", () => {
     expect(Object.isFrozen(context.resolvedGraph.runtimeControls)).toBe(true);
     expect(Object.isFrozen(context.vascularPvLawByNode)).toBe(true);
     expect(Object.values(context.vascularPvLawByNode).every(Object.isFrozen)).toBe(true);
+    expect(Object.isFrozen(context.dynamicValveParametersByFlow)).toBe(true);
+    expect(Object.values(context.dynamicValveParametersByFlow).every(Object.isFrozen))
+      .toBe(true);
     expect(context).toMatchObject({
       internalPerformanceContextOnly: true,
       physiologyOrNumericalAcceptanceClaimed: false,
@@ -161,7 +162,6 @@ describe("main-wire non-coronary same-time-level circulation kernel", () => {
         state: input.state,
         chamberAbsolutePressurePa: input.chamberAbsolutePressurePa,
         externalPressurePa: input.externalPressurePa,
-        valveLossParametersByFlow: input.valveLossParametersByFlow,
         precompiledContext,
       });
 
@@ -450,6 +450,12 @@ function forwardFixtureV1(): MainWireNonCoronarySameTimeLevelInputV1 {
         Ao_SA: (90 - 85) / graphAoSaResistance * 1e-6,
         PA_PArt: (16 - 13) / graphPaPartResistance * 1e-6,
       },
+      valveApertureState01ByFlow: {
+        Q_MV: 0.2,
+        Q_AoV: 0.2,
+        Q_TV: 0.2,
+        Q_PuV: 0.2,
+      },
     },
     chamberAbsolutePressurePa: {
       LV: 8 * MAIN_WIRE_PASCAL_PER_MMHG_V1,
@@ -459,12 +465,6 @@ function forwardFixtureV1(): MainWireNonCoronarySameTimeLevelInputV1 {
     },
     externalPressurePa: { pth: 0, palv: 0 },
     mainWireRuntimeControls: controls,
-    valveLossParametersByFlow: {
-      Q_MV: valveFixtureV1(),
-      Q_AoV: valveFixtureV1(),
-      Q_TV: valveFixtureV1(),
-      Q_PuV: valveFixtureV1(),
-    },
   };
 }
 
@@ -481,19 +481,4 @@ function physicalVascularVolumeAtPtmV1(
     compiled,
     pressureMmHg * MAIN_WIRE_PASCAL_PER_MMHG_V1,
   );
-}
-
-function valveFixtureV1(): ValveLossParametersV1 {
-  return {
-    openAreaM2: 4e-4,
-    physiologicalRegurgitantAreaM2: 0,
-    numericalReverseAreaM2: 2e-6,
-    pressureGateWidthPa: 200,
-    bloodDynamicViscosityPaSec: 3.5e-3,
-    bloodDensityKgPerM3: 1_060,
-    viscousEffectiveLengthM: 0.01,
-    inertialEffectiveLengthM: 0.01,
-    inertialReferenceAreaM2: 4e-4,
-    flowSmoothingM3PerSec: 1e-8,
-  };
 }

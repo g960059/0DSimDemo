@@ -11,8 +11,10 @@ import {
 import {
   propagateExactEventCalciumV1,
 } from "@/engine/myocardium/fourChamberV1/calcium/exactEventPrescribedCalciumV1";
-import type { ValveMomentumOutputV1 } from
-  "@/engine/myocardium/fourChamberV1/flows/signedFlowLossV1";
+import {
+  advanceMainWireDynamicValveApertureBackwardEulerV1,
+  type MainWireDynamicValveMomentumV1,
+} from "@/engine/myocardium/fourChamberV1/hydromechanics/mainWireDynamicValveApertureV1";
 import {
   evaluateMainWireNonCoronaryBackwardEulerVolumeResidualV1,
   compileMainWireNonCoronaryPrecompiledContextV1,
@@ -138,6 +140,12 @@ export type PhaseB1MainWireDistributedEndpointEvaluationV1 = Readonly<{
   chamberAbsolutePressurePa: Readonly<
     Record<MainWireHeartBoundaryNodeNameV1, number>
   >;
+  valveApertureState01ByFlow: Readonly<
+    Record<MainWirePhaseB1ValveFlowNameV1, number>
+  >;
+  effectiveValveAreaM2ByFlow: Readonly<
+    Record<MainWirePhaseB1ValveFlowNameV1, number>
+  >;
   circulationCrossCoupledToChamberWallPressure: true;
   projectionApplied: false;
   hiddenStateClippingApplied: false;
@@ -177,7 +185,7 @@ export type PhaseB1MainWireDistributedStepSuccessV1 = Readonly<{
   slsMode: PhaseB1SlsModeV1;
   unknownCount: 58 | 53;
   residualCount: 58 | 53;
-  storedDifferentialStateCount: 66 | 61;
+  storedDifferentialStateCount: 70 | 65;
   calciumStoredStateCount: 10;
   calciumNewtonUnknownCount: 0;
   calciumResidualCount: 0;
@@ -344,13 +352,12 @@ export function evaluatePhaseB1MainWireDistributedEndpointV1(input: Readonly<{
     state: Object.freeze({
       bloodVolumesM3: endpoint.differentialState.bloodVolumesM3,
       dynamicFlowsM3PerSec: endpoint.differentialState.dynamicFlowsM3PerSec,
+      valveApertureState01ByFlow:
+        endpoint.differentialState.valveApertureState01ByFlow,
     }),
     chamberAbsolutePressurePa,
     externalPressurePa: input.model.vascularExternalPressurePa,
     precompiledContext: input.model.internalPrecompiledCirculationContext,
-    valveLossParametersByFlow:
-      input.model.mechanicsProxyModel.closedLoopParameters
-        .valveLossParametersByFlow,
   });
   for (const chamber of ["LV", "LA", "RV", "RA"] as const) {
     assertRoundoffEqual(
@@ -367,6 +374,10 @@ export function evaluatePhaseB1MainWireDistributedEndpointV1(input: Readonly<{
     distributedCirculation,
     mechanicsProxyAudit: PHASE_B1_MAIN_WIRE_MECHANICS_PROXY_AUDIT_V1,
     chamberAbsolutePressurePa,
+    valveApertureState01ByFlow:
+      endpoint.differentialState.valveApertureState01ByFlow,
+    effectiveValveAreaM2ByFlow: valveFlowRecord((flowName) =>
+      distributedCirculation.valveMomentumByFlow[flowName].effectiveAreaM2),
     circulationCrossCoupledToChamberWallPressure: true as const,
     projectionApplied: false as const,
     hiddenStateClippingApplied: false as const,
@@ -419,6 +430,8 @@ export function stepPhaseB1MainWireDistributedMonolithicBackwardEulerV1(
       timeSec: previousEndpoint.timeSec + dtSec,
       slsMode,
       calciumByWall: calciumDriveStateByWallAtEndLeftLimit,
+      valveApertureState01ByFlow:
+        previousEndpoint.differentialState.valveApertureState01ByFlow,
       unknowns,
     });
   const evaluateResidual = (unknowns: readonly number[]) =>
@@ -506,7 +519,14 @@ export function stepPhaseB1MainWireDistributedMonolithicBackwardEulerV1(
   if (newton.converged === false) {
     let lastAcceptedDiagnosticEndpoint: PhaseB1MainWireDistributedEndpointV1 | null = null;
     try {
-      lastAcceptedDiagnosticEndpoint = decodeEndpoint(newton.lastAcceptedUnknowns);
+      lastAcceptedDiagnosticEndpoint = evaluateDistributedResidual(
+        input.model,
+        input.wallMaterialBinding,
+        previousEndpoint,
+        previousEvaluation,
+        decodeEndpoint(newton.lastAcceptedUnknowns),
+        dtSec,
+      ).nextEndpoint;
     } catch {
       lastAcceptedDiagnosticEndpoint = null;
     }
@@ -525,15 +545,15 @@ export function stepPhaseB1MainWireDistributedMonolithicBackwardEulerV1(
     );
   }
   try {
-    const nextEndpointLeftLimit = decodeEndpoint(newton.unknowns);
     const residualEvaluation = evaluateDistributedResidual(
       input.model,
       input.wallMaterialBinding,
       previousEndpoint,
       previousEvaluation,
-      nextEndpointLeftLimit,
+      decodeEndpoint(newton.unknowns),
       dtSec,
     );
+    const nextEndpointLeftLimit = residualEvaluation.nextEndpoint;
     const minimumLandSimplexMargin = minimumLandMargin(
       newton.unknowns,
       layout,
@@ -555,7 +575,7 @@ export function stepPhaseB1MainWireDistributedMonolithicBackwardEulerV1(
       slsMode,
       unknownCount: layout.unknownCount,
       residualCount: layout.unknownCount,
-      storedDifferentialStateCount: slsMode === "on" ? 66 as const : 61 as const,
+      storedDifferentialStateCount: slsMode === "on" ? 70 as const : 65 as const,
       calciumStoredStateCount: 10 as const,
       calciumNewtonUnknownCount: 0 as const,
       calciumResidualCount: 0 as const,
@@ -613,14 +633,48 @@ function evaluateDistributedResidual(
   dtSec: number,
 ): PhaseB1MainWireDistributedResidualEvaluationV1 {
   const previous = previousEndpoint.differentialState;
-  const next = nextEndpoint.differentialState;
-  if (previous.slsMode !== next.slsMode) {
+  const provisionalNext = nextEndpoint.differentialState;
+  if (previous.slsMode !== provisionalNext.slsMode) {
     throw new Error("SLS topology cannot change within a distributed step");
   }
-  const nextEvaluation = evaluatePhaseB1MainWireDistributedEndpointV1({
+  const provisionalEvaluation = evaluatePhaseB1MainWireDistributedEndpointV1({
     model,
     wallMaterialBinding: binding,
     endpoint: nextEndpoint,
+  });
+  const valveApertureState01ByFlow = valveFlowRecord((flowName) =>
+    advanceMainWireDynamicValveApertureBackwardEulerV1({
+      parameters:
+        model.internalPrecompiledCirculationContext
+          .dynamicValveParametersByFlow[flowName],
+      previousApertureState01:
+        previous.valveApertureState01ByFlow[flowName],
+      pressureGradientPa:
+        provisionalEvaluation.distributedCirculation
+          .valveMomentumByFlow[flowName].pressureGradientPa,
+      timeStepSec: dtSec,
+    }).nextApertureState01);
+  const nextEndpointWithCondensedValveApertures =
+    createPhaseB1MainWireDistributedEndpointV1({
+      timeSec: nextEndpoint.timeSec,
+      differentialState: provisionalNext.slsMode === "on"
+        ? Object.freeze({
+            ...provisionalNext,
+            slsMode: "on" as const,
+            valveApertureState01ByFlow,
+          })
+        : Object.freeze({
+            ...provisionalNext,
+            slsMode: "off" as const,
+            valveApertureState01ByFlow,
+          }),
+      triSegCoordinates: nextEndpoint.triSegCoordinates,
+    });
+  const next = nextEndpointWithCondensedValveApertures.differentialState;
+  const nextEvaluation = evaluatePhaseB1MainWireDistributedEndpointV1({
+    model,
+    wallMaterialBinding: binding,
+    endpoint: nextEndpointWithCondensedValveApertures,
   });
   const volumeResidual = evaluateMainWireNonCoronaryBackwardEulerVolumeResidualV1({
     previousBloodVolumesM3: previous.bloodVolumesM3,
@@ -720,7 +774,7 @@ function evaluateDistributedResidual(
     landResidualPerSecByWall,
     slsResidualPerSecByWall,
     triSegResidualNPerM,
-    nextEndpoint,
+    nextEndpoint: nextEndpointWithCondensedValveApertures,
     nextEvaluation,
     calciumResidualCount: 0 as const,
     mechanicsProxyCirculationResidualConsumed: false as const,
@@ -962,7 +1016,7 @@ function dynamicFlowInertance(
   )) {
     return (evaluation.valveMomentumByFlow[
       flowName as MainWirePhaseB1ValveFlowNameV1
-    ] as ValveMomentumOutputV1).inertancePaSec2PerM3;
+    ] as MainWireDynamicValveMomentumV1).inertancePaSec2PerM3;
   }
   if (flowName !== "Ao_SA" && flowName !== "PA_PArt") {
     throw new Error(`unsupported distributed dynamic flow ${flowName}`);
@@ -1176,6 +1230,17 @@ function dynamicFlowRecord<T>(
       build(flowName),
     ]),
   )) as Readonly<Record<MainWireNonCoronaryDynamicFlowNameV1, T>>;
+}
+
+function valveFlowRecord<T>(
+  build: (flowName: MainWirePhaseB1ValveFlowNameV1) => T,
+): Readonly<Record<MainWirePhaseB1ValveFlowNameV1, T>> {
+  return Object.freeze(Object.fromEntries(
+    MAIN_WIRE_PHASE_B1_VALVE_FLOW_NAMES_V1.map((flowName) => [
+      flowName,
+      build(flowName),
+    ]),
+  )) as Readonly<Record<MainWirePhaseB1ValveFlowNameV1, T>>;
 }
 
 function requiredLabelIndex(labels: readonly string[], label: string): number {
