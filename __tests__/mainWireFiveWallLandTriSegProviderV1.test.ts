@@ -1,0 +1,536 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  disableTriSegKoiterBendingV1,
+  evaluateTriSegGeometryV1,
+} from "@/engine/myocardium/mechanics/energyConjugateTriSegV1";
+import {
+  MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM,
+  createMainWireFiveWallLandTriSegProviderV1,
+  type MainWireFiveWallFreeCalciumDriveV1,
+  type MainWireFiveWallIdV1,
+  type MainWireFiveWallLandSlsMaterialKernelV1,
+  type MainWireFiveWallLandTriSegProviderParamsV1,
+  type MainWireFiveWallLandTriSegReadbackV1,
+  type MainWireFiveWallRecordV1,
+} from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
+import {
+  checkpointWholeHeartMechanicsStateV1,
+  commitWholeHeartMechanicsTrialV1,
+  evaluateWholeHeartMechanicsTrialV1,
+  initializeWholeHeartMechanicsColdV1,
+  restoreWholeHeartMechanicsStateV1,
+  type WholeHeartMechanicsChamberValuesV1,
+  type WholeHeartMechanicsSerializableValueV1,
+} from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+import {
+  sanitizeForStableHash,
+  stableHash,
+} from "@/engine/myocardium/kinematics/stableHash";
+
+type TestWallState = Readonly<{
+  landState: Float64Array;
+  parallelSlsState: Readonly<{ viscousLogStrain: number }>;
+  previousFiberLogStrain: number;
+  previousFreeCalciumUM: number;
+}>;
+
+const REFERENCE_VOLUMES: WholeHeartMechanicsChamberValuesV1 = Object.freeze({
+  LA: 68,
+  LV: 144.4,
+  RA: 63,
+  RV: 155.8,
+});
+
+const INITIAL_COORDINATES = Object.freeze({
+  septalMidwallCapVolumeM3: 42e-6,
+  junctionRadiusM: 0.033,
+});
+
+const TRISEG_WALLS = Object.freeze({
+  LVFW: Object.freeze({
+    wallMaterialVolumeM3: 67.07543664065403e-6,
+    referenceMidwallAreaM2: 93.54352893865039e-4,
+  }),
+  SEP: Object.freeze({
+    wallMaterialVolumeM3: 35.77356620834881e-6,
+    referenceMidwallAreaM2: 39.65081992591075e-4,
+  }),
+  RVFW: Object.freeze({
+    wallMaterialVolumeM3: 36.08736942070275e-6,
+    referenceMidwallAreaM2: 129.11294586037828e-4,
+  }),
+});
+
+const ATRIA = Object.freeze({
+  LA: Object.freeze({
+    wallMaterialVolumeM3: 20e-6,
+    referenceCavityBloodVolumeM3: REFERENCE_VOLUMES.LA * 1e-6,
+  }),
+  RA: Object.freeze({
+    wallMaterialVolumeM3: 17e-6,
+    referenceCavityBloodVolumeM3: REFERENCE_VOLUMES.RA * 1e-6,
+  }),
+});
+
+describe("MainWireFiveWallLandTriSegProviderV1", () => {
+  it("cold-initializes five Land/SLS wall states at one finite stable joint root", () => {
+    const provider = createProvider(true);
+    const cold = initializeWholeHeartMechanicsColdV1(provider, {
+      timeSec: 0,
+      volumesMl: REFERENCE_VOLUMES,
+      drivingInputs: zeroDrive(),
+    });
+    const rb = readback(cold.diagnostics.readback);
+
+    expect(cold.diagnostics.converged).toBe(true);
+    expect(cold.diagnostics.finite).toBe(true);
+    expect(cold.diagnostics.residualNorm).toBeLessThan(1e-9);
+    expect(rb.strictLocalStableEquilibrium).toBe(true);
+    expect(rb.jacobianSymmetricWithinTolerance).toBe(true);
+    expect(rb.symmetricJacobianMinimumEigenvalueByOneJ).toBeGreaterThan(0);
+    expect(rb.coldConsistencyIterations).toBeGreaterThanOrEqual(2);
+    expect(rb.hiddenBloodVolumeMl).toBe(0);
+    expect(rb.pistonVolumeApplied).toBe(false);
+    expect(Object.keys(cold.acceptedState.materialState.wallStateByWall).sort())
+      .toEqual(["LA", "LVFW", "RA", "RVFW", "SEP"]);
+    for (const wallId of wallIds()) {
+      expect(cold.acceptedState.materialState.wallStateByWall[wallId].landState)
+        .toHaveLength(6);
+      expect(Number.isFinite(
+        cold.acceptedState.materialState.wallStateByWall[wallId]
+          .parallelSlsState.viscousLogStrain,
+      )).toBe(true);
+    }
+  });
+
+  it("repeats pure trials from one accepted state without mutating it", () => {
+    const provider = createProvider(true);
+    const cold = coldStart(provider);
+    const acceptedEncoding = provider.stateCodec.encode(cold.acceptedState.materialState);
+    const first = trial(provider, cold.acceptedState, candidateVolumes(), activeDrive());
+    const second = trial(provider, cold.acceptedState, candidateVolumes(), activeDrive());
+
+    expect(first.diagnostics.converged).toBe(true);
+    expect(second.diagnostics.converged).toBe(true);
+    expect(provider.stateCodec.encode(first.candidateMaterialState))
+      .toEqual(provider.stateCodec.encode(second.candidateMaterialState));
+    expect(first.transmuralPressuresMmHg).toEqual(second.transmuralPressuresMmHg);
+    expect(first.diagnostics.readback).toEqual(second.diagnostics.readback);
+    expect(provider.stateCodec.encode(cold.acceptedState.materialState))
+      .toEqual(acceptedEncoding);
+
+    first.candidateMaterialState.wallStateByWall.LA.landState[0] = 999;
+    expect(cold.acceptedState.materialState.wallStateByWall.LA.landState[0])
+      .not.toBe(999);
+    expect(() => commitWholeHeartMechanicsTrialV1(
+      provider,
+      cold.acceptedState,
+      first,
+    )).toThrow(/fingerprint mismatch/);
+  });
+
+  it("solves exactly two TriSeg coordinates with q_L structurally off", () => {
+    const provider = createProvider(false);
+    const cold = coldStart(provider);
+    const evaluated = trial(
+      provider,
+      cold.acceptedState,
+      candidateVolumes(),
+      activeDrive(),
+    );
+    const rb = readback(evaluated.diagnostics.readback);
+
+    expect(evaluated.diagnostics.converged).toBe(true);
+    expect(cold.acceptedState.materialState.longAxisCoordinate).toBe(0);
+    expect(evaluated.candidateMaterialState.longAxisCoordinate).toBe(0);
+    expect(rb.longAxisEnabled).toBe(false);
+    expect(rb.scaledAlgorithmicGeneralizedForceByOneJ).toHaveLength(2);
+    expect(rb.scaledAlgorithmicJacobianByOneJ).toHaveLength(2);
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      .longAxisSpringApplied).toBe(false);
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      .longAxisDampingApplied).toBe(false);
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      .longAxisClampApplied).toBe(false);
+  });
+
+  it("matches chamber pressure and q generalized force to virtual work", () => {
+    const provider = createProvider(true);
+    const cold = coldStart(provider);
+    const center = candidateVolumes();
+    const hMl = 0.01;
+    const lower = trial(
+      provider,
+      cold.acceptedState,
+      { ...center, LA: center.LA - hMl },
+      zeroDrive(),
+    );
+    const upper = trial(
+      provider,
+      cold.acceptedState,
+      { ...center, LA: center.LA + hMl },
+      zeroDrive(),
+    );
+    const middle = trial(provider, cold.acceptedState, center, zeroDrive());
+    const lowerPrimitive = readback(lower.diagnostics.readback)
+      .totalAlgorithmicStressPrimitiveJ;
+    const upperPrimitive = readback(upper.diagnostics.readback)
+      .totalAlgorithmicStressPrimitiveJ;
+    if (lowerPrimitive === null || upperPrimitive === null) {
+      throw new Error("test material must expose its algorithmic stress primitive");
+    }
+    const derivativePa = (upperPrimitive - lowerPrimitive) / (2 * hMl * 1e-6);
+    const pressurePa = middle.transmuralPressuresMmHg.LA * 133.322;
+    const rb = readback(middle.diagnostics.readback);
+
+    expect(relativeError(derivativePa, pressurePa)).toBeLessThan(3e-4);
+    expect(Math.abs(rb.rawAlgorithmicGeneralizedForce.longAxisJ)).toBeLessThan(1e-8);
+    expect(rb.scaledAlgorithmicGeneralizedForceByOneJ.every(
+      (value) => Math.abs(value) < 1e-8,
+    )).toBe(true);
+    expect(rb.claim.thermodynamicPotentialForLandActiveClaimed).toBe(false);
+  });
+
+  it("fails transactionally when q_L equilibrium lies beyond its declared bound", () => {
+    const provider = createProvider(true, 5e-4);
+    const cold = coldStart(provider);
+    const acceptedEncoding = provider.stateCodec.encode(cold.acceptedState.materialState);
+    const forced = trial(
+      provider,
+      cold.acceptedState,
+      REFERENCE_VOLUMES,
+      Object.freeze({
+        freeCalciumUMByWall:
+          fiveWallRecord((wallId) => wallId === "LA" ? 10 : 0),
+      }),
+    );
+    const rb = forced.diagnostics.readback as {
+      qBoundHit: boolean;
+      failureReason: string;
+      rollbackOnFailure: boolean;
+    };
+
+    expect(forced.diagnostics.converged).toBe(false);
+    expect(rb.qBoundHit).toBe(true);
+    expect(rb.failureReason).toBe("q-bound-hit");
+    expect(rb.rollbackOnFailure).toBe(true);
+    expect(provider.stateCodec.encode(forced.candidateMaterialState))
+      .toEqual(acceptedEncoding);
+    expect(provider.stateCodec.encode(cold.acceptedState.materialState))
+      .toEqual(acceptedEncoding);
+    expect(() => commitWholeHeartMechanicsTrialV1(
+      provider,
+      cold.acceptedState,
+      forced,
+    )).toThrow(/not ready/);
+  });
+
+  it("round-trips codec/checkpoint identity and rejects cross-prior restore", () => {
+    const provider = createProvider(true);
+    const cold = coldStart(provider);
+    const accepted = commitWholeHeartMechanicsTrialV1(
+      provider,
+      cold.acceptedState,
+      trial(provider, cold.acceptedState, candidateVolumes(), activeDrive()),
+    );
+    const checkpoint = checkpointWholeHeartMechanicsStateV1(provider, accepted);
+    const restored = restoreWholeHeartMechanicsStateV1(
+      provider,
+      JSON.parse(JSON.stringify(checkpoint)) as typeof checkpoint,
+    );
+    const qOff = createProvider(false);
+
+    expect(restored).toEqual(accepted);
+    expect(provider.parameterIdentityHash).not.toBe(qOff.parameterIdentityHash);
+    expect(() => restoreWholeHeartMechanicsStateV1(qOff, checkpoint))
+      .toThrow(/identity mismatch/);
+  });
+
+});
+
+function createProvider(
+  longAxisEnabled: boolean,
+  maximumAbsoluteCoordinate = 0.25,
+) {
+  return createMainWireFiveWallLandTriSegProviderV1(
+    providerParams(longAxisEnabled, maximumAbsoluteCoordinate),
+  );
+}
+
+function providerParams(
+  longAxisEnabled: boolean,
+  maximumAbsoluteCoordinate = 0.25,
+): MainWireFiveWallLandTriSegProviderParamsV1<TestWallState> {
+  const geometry = evaluateTriSegGeometryV1({
+    leftVentricularCavityVolumeM3: REFERENCE_VOLUMES.LV * 1e-6,
+    rightVentricularCavityVolumeM3: REFERENCE_VOLUMES.RV * 1e-6,
+    coordinates: INITIAL_COORDINATES,
+    walls: TRISEG_WALLS,
+  });
+  const targetStrain: MainWireFiveWallRecordV1<number> = Object.freeze({
+    LA: 0,
+    LVFW: geometry.walls.LVFW.fiberLogStrain,
+    SEP: geometry.walls.SEP.fiberLogStrain,
+    RVFW: geometry.walls.RVFW.fiberLogStrain,
+    RA: 0,
+  });
+  const stiffnessPa: MainWireFiveWallRecordV1<number> = Object.freeze({
+    LA: 120_000,
+    LVFW: 320_000,
+    SEP: 260_000,
+    RVFW: 220_000,
+    RA: 100_000,
+  });
+  const activeGainPaPerUM: MainWireFiveWallRecordV1<number> = Object.freeze({
+    LA: 20_000,
+    LVFW: 55_000,
+    SEP: 35_000,
+    RVFW: 42_000,
+    RA: 16_000,
+  });
+  const materialByWall = fiveWallRecord((wallId) => testMaterialKernel({
+    wallId,
+    targetStrain: targetStrain[wallId],
+    stiffnessPa: stiffnessPa[wallId],
+    activeGainPaPerUM: activeGainPaPerUM[wallId],
+    slsBranchModulusPa: 18_000,
+    slsRelaxationTimeSec: 0.08,
+  }));
+  return Object.freeze({
+    parameterSetId: longAxisEnabled
+      ? `five-wall-test-q-on-${maximumAbsoluteCoordinate}`
+      : "five-wall-test-q-off",
+    materialByWall,
+    atria: ATRIA,
+    trisegWalls: TRISEG_WALLS,
+    trisegBendingPrior: disableTriSegKoiterBendingV1("structural-ablation"),
+    initialTriSegCoordinates: INITIAL_COORDINATES,
+    internalCoordinateScales: Object.freeze({
+      septalMidwallCapVolumeM3: 40e-6,
+      junctionRadiusM: 0.033,
+    }),
+    longAxis: longAxisEnabled
+      ? Object.freeze({
+        enabled: true as const,
+        initialCoordinate: 0,
+        coordinateScale: 0.1,
+        modeParams: Object.freeze({
+          parameterSetId: "fixed-shared-long-axis-test-v1",
+          atrialEffectiveStrainGain: 0.35,
+          leftFreeWallEffectiveStrainGain: -0.22,
+          septalEffectiveStrainGain: -0.16,
+          maximumAbsoluteCoordinate,
+          generalizedForceScaleJ: 1,
+        }),
+      })
+      : Object.freeze({ enabled: false as const }),
+    solver: Object.freeze({
+      maximumIterations: 48,
+      scaledResidualInfinityTolerance: 1e-9,
+      finiteDifferenceScaledStep: 1e-5,
+      jacobianSymmetryRelativeTolerance: 3e-4,
+      strictStabilityEigenvalueByOneJ: 1e-10,
+    }),
+  });
+}
+
+function testMaterialKernel(input: Readonly<{
+  wallId: MainWireFiveWallIdV1;
+  targetStrain: number;
+  stiffnessPa: number;
+  activeGainPaPerUM: number;
+  slsBranchModulusPa: number;
+  slsRelaxationTimeSec: number;
+}>): MainWireFiveWallLandSlsMaterialKernelV1<TestWallState> {
+  const parameterSetId = `test-land-sls-${input.wallId}-v1`;
+  const parameterIdentityHash = stableHash(sanitizeForStableHash(input));
+  const stateCodec = Object.freeze({
+    clone: cloneTestWallState,
+    encode: encodeTestWallState,
+    decode: decodeTestWallState,
+  });
+  const evaluate = (
+    fiberLogStrain: number,
+    freeCalciumUM: number,
+    previous: TestWallState | null,
+    dtSec: number | null,
+  ) => {
+    const activeStressPa = input.activeGainPaPerUM * freeCalciumUM;
+    const equilibriumElasticStrain = fiberLogStrain - input.targetStrain;
+    const equilibriumStressPa = input.stiffnessPa * equilibriumElasticStrain;
+    let viscousLogStrain = fiberLogStrain;
+    let slsStressPa = 0;
+    let slsPrimitiveDensity = 0;
+    if (previous !== null && dtSec !== null) {
+      const ratio = dtSec / input.slsRelaxationTimeSec;
+      viscousLogStrain = (
+        previous.parallelSlsState.viscousLogStrain + ratio * fiberLogStrain
+      ) / (1 + ratio);
+      const algorithmicBranchModulusPa = input.slsBranchModulusPa / (1 + ratio);
+      const algorithmicElasticStrain =
+        fiberLogStrain - previous.parallelSlsState.viscousLogStrain;
+      slsStressPa = algorithmicBranchModulusPa * algorithmicElasticStrain;
+      slsPrimitiveDensity = 0.5 * algorithmicBranchModulusPa
+        * algorithmicElasticStrain ** 2;
+    }
+    const stressPa = equilibriumStressPa + activeStressPa + slsStressPa;
+    const state: TestWallState = Object.freeze({
+      landState: Float64Array.from([
+        fiberLogStrain,
+        freeCalciumUM,
+        activeStressPa,
+        0,
+        0,
+        0,
+      ]),
+      parallelSlsState: Object.freeze({ viscousLogStrain }),
+      previousFiberLogStrain: fiberLogStrain,
+      previousFreeCalciumUM: freeCalciumUM,
+    });
+    return Object.freeze({
+      state,
+      fiberLogStrain,
+      fiberKirchhoffStressPa: stressPa,
+      algorithmicStressPrimitiveDensityJPerM3:
+        0.5 * input.stiffnessPa * equilibriumElasticStrain ** 2
+        + activeStressPa * fiberLogStrain
+        + slsPrimitiveDensity,
+      iterationCount: 1,
+      residualNorm: 0,
+      finite: true,
+      valid: true,
+      errors: Object.freeze([]),
+      warnings: Object.freeze([]),
+      readback: Object.freeze({
+        mockOnly: true,
+        activeStressPa,
+        equilibriumStressPa,
+        slsStressPa,
+      }),
+    });
+  };
+  return Object.freeze({
+    modelId: "test-land-active-passive-parallel-sls-v1",
+    parameterSetId,
+    parameterIdentityHash,
+    topology:
+      "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,
+    stateCodec,
+    initializeColdAtFixedInput: ({ fiberLogStrain, freeCalciumUM }) =>
+      evaluate(fiberLogStrain, freeCalciumUM, null, null),
+    evaluateTrialFromAccepted: ({
+      previousAcceptedState,
+      candidateFiberLogStrain,
+      candidateFreeCalciumUM,
+      stepDtSec,
+    }) => evaluate(
+      candidateFiberLogStrain,
+      candidateFreeCalciumUM,
+      previousAcceptedState,
+      stepDtSec,
+    ),
+  });
+}
+
+function coldStart(provider: ReturnType<typeof createProvider>) {
+  return initializeWholeHeartMechanicsColdV1(provider, {
+    timeSec: 0,
+    volumesMl: REFERENCE_VOLUMES,
+    drivingInputs: zeroDrive(),
+  });
+}
+
+function trial(
+  provider: ReturnType<typeof createProvider>,
+  acceptedState: ReturnType<typeof coldStart>["acceptedState"],
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+  drivingInputs: MainWireFiveWallFreeCalciumDriveV1,
+) {
+  return evaluateWholeHeartMechanicsTrialV1(provider, {
+    previousAcceptedState: acceptedState,
+    candidateTimeSec: acceptedState.acceptedTimeSec + 0.005,
+    stepDtSec: 0.005,
+    candidateVolumesMl,
+    drivingInputs,
+  });
+}
+
+function candidateVolumes(): WholeHeartMechanicsChamberValuesV1 {
+  return Object.freeze({ LA: 72, LV: 150, RA: 66, RV: 160 });
+}
+
+function zeroDrive(): MainWireFiveWallFreeCalciumDriveV1 {
+  return Object.freeze({ freeCalciumUMByWall: fiveWallRecord(() => 0) });
+}
+
+function activeDrive(): MainWireFiveWallFreeCalciumDriveV1 {
+  return Object.freeze({
+    freeCalciumUMByWall: Object.freeze({
+      LA: 0.2,
+      LVFW: 0.3,
+      SEP: 0.25,
+      RVFW: 0.2,
+      RA: 0.15,
+    }),
+  });
+}
+
+function fiveWallRecord<T>(
+  build: (wallId: MainWireFiveWallIdV1) => T,
+): MainWireFiveWallRecordV1<T> {
+  return Object.freeze(Object.fromEntries(
+    wallIds().map((wallId) => [wallId, build(wallId)]),
+  )) as MainWireFiveWallRecordV1<T>;
+}
+
+function wallIds(): readonly MainWireFiveWallIdV1[] {
+  return ["LA", "LVFW", "SEP", "RVFW", "RA"];
+}
+
+function cloneTestWallState(state: TestWallState): TestWallState {
+  return Object.freeze({
+    landState: Float64Array.from(state.landState),
+    parallelSlsState: Object.freeze({ ...state.parallelSlsState }),
+    previousFiberLogStrain: state.previousFiberLogStrain,
+    previousFreeCalciumUM: state.previousFreeCalciumUM,
+  });
+}
+
+function encodeTestWallState(
+  state: TestWallState,
+): WholeHeartMechanicsSerializableValueV1 {
+  return Object.freeze({
+    landState: Object.freeze(Array.from(state.landState)),
+    parallelSlsState: Object.freeze({ ...state.parallelSlsState }),
+    previousFiberLogStrain: state.previousFiberLogStrain,
+    previousFreeCalciumUM: state.previousFreeCalciumUM,
+  });
+}
+
+function decodeTestWallState(
+  encoded: WholeHeartMechanicsSerializableValueV1,
+): TestWallState {
+  const value = encoded as {
+    landState: readonly number[];
+    parallelSlsState: { viscousLogStrain: number };
+    previousFiberLogStrain: number;
+    previousFreeCalciumUM: number;
+  };
+  return Object.freeze({
+    landState: Float64Array.from(value.landState),
+    parallelSlsState: Object.freeze({ ...value.parallelSlsState }),
+    previousFiberLogStrain: value.previousFiberLogStrain,
+    previousFreeCalciumUM: value.previousFreeCalciumUM,
+  });
+}
+
+function readback(
+  value: WholeHeartMechanicsSerializableValueV1 | null,
+): MainWireFiveWallLandTriSegReadbackV1 {
+  return value as unknown as MainWireFiveWallLandTriSegReadbackV1;
+}
+
+function relativeError(left: number, right: number): number {
+  return Math.abs(left - right) / Math.max(1, Math.abs(left), Math.abs(right));
+}
