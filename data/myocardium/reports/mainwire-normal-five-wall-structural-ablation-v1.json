@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "reportId": "mainwire-normal-five-wall-structural-ablation-v1",
+  "protocol": {
+    "heartRateBpm": 60,
+    "dtSec": 0.002,
+    "beatCount": 8,
+    "circulation": "authoritative-main-wire-noncoronary",
+    "activation": "fixed-five-wall-periodic-calcium-prior",
+    "koiterBending": "disabled",
+    "pericardialConstraint": false,
+    "laaBodyCompartments": false,
+    "parameterSearch": false,
+    "sampleSmoothing": false
+  },
+  "structuralDecisions": {
+    "sharedLongAxisQ": {
+      "decision": "reject-from-canonical-core",
+      "evidence": {
+        "failureTimeSec": 0.052,
+        "declaredAbsoluteBound": 0.1,
+        "failure": "q-bound-hit"
+      },
+      "rescueParametersAdded": false
+    },
+    "valveHydraulics": {
+      "decision": "quasi-steady-effective-orifice",
+      "bloodDensityKgPerM3": 1060,
+      "dischargeCoefficientFitAdded": false,
+      "chamberToChamberFlowInertance": 0,
+      "separateRootAndVesselInertanceRetained": true,
+      "oldInertialEdgeBLastBeat": {
+        "laPvSelfIntersectionCount": 4,
+        "aorticPeakFlowMlPerSec": 961.94,
+        "mitralPeakPhases01": [0.446, 0.55, 0.65, 0.748, 0.848, 0.92]
+      },
+      "canonicalLastBeat": {
+        "laPvSelfIntersectionCount": 1,
+        "aorticValvePeakCountAboveFivePercent": 1,
+        "lvPressurePeakCountAboveFivePercent": 1
+      }
+    },
+    "leftAtrialParallelSls": {
+      "decision": "retain-one-state-branch",
+      "secondBranchAdded": false,
+      "on": {
+        "laPvStatus": "measurable",
+        "laPvSelfIntersectionCount": 1,
+        "aLobeAreaMmHgMl": 7.215052319959227,
+        "vLobeAreaMmHgMl": 3.352207667875156,
+        "reservoirMinusConduitMeanMmHg": 0.4092753802974906,
+        "physicalDissipationMilliJPerBeat": 0.34917068473669655,
+        "backwardEulerNumericalDissipationMilliJPerBeat": 0.028939848288300835,
+        "physicalToNumericalDissipationRatio": 12.065394443613984
+      },
+      "laExactOff": {
+        "mechanicallyExactOff": true,
+        "laPvStatus": "not-measurable",
+        "laPvSelfIntersectionCount": 4,
+        "reservoirMinusConduitMeanMmHg": 0.2611834558100693,
+        "physicalDissipationMilliJPerBeat": 0,
+        "backwardEulerNumericalDissipationMilliJPerBeat": 0
+      }
+    }
+  },
+  "canonicalLastBeat": {
+    "laVolumeRangeMl": [20.064829399416404, 35.86498693139376],
+    "laPressureRangeMmHg": [2.702950035853206, 5.483255109733515],
+    "lvVolumeRangeMl": [42.975424969500956, 105.8728345042864],
+    "lvPressureRangeMmHg": [1.5835867568546156, 91.35266354339981],
+    "lvEjectionFraction": 0.5940844960775935,
+    "cardiacOutputLPerMin": 3.773844567971203,
+    "mitralEPeakMlPerSec": 210.6889075514759,
+    "mitralAPeakMlPerSec": 233.68019969828595,
+    "mvoPhase01": 0.3759999999994097,
+    "reservoirAboveConduitFraction01": 1,
+    "reservoirConduitUsableProbeFraction01": 0.9702970297029703,
+    "period1MaximumRelativeMemoryStateDifference": 0.014283731507750017,
+    "period2MaximumRelativeMemoryStateDifference": 0.04178628844283061,
+    "maximumMechanicsResidual": 9.900226798364997e-10,
+    "maximumCirculationResidual": 1.8904734386601752e-10,
+    "maximumContinuityResidualMl": 1.075255956495269e-8,
+    "maximumAbsoluteTotalBloodVolumeErrorMl": 1.8189894035458565e-12
+  },
+  "acceptanceBoundary": {
+    "normalHumanCalibrationClaimed": false,
+    "patientFitClaimed": false,
+    "browserRuntimeReplacementClaimed": false,
+    "fullMainWireIncludingCoronariesClaimed": false,
+    "remainingIssues": [
+      "left-atrial blood-volume range remains below the population construction prior",
+      "cardiac output remains low for the BSA 1.9 construction",
+      "small late-A tail flow peak remains below ten percent of the dominant A peak",
+      "coronary circulation and runtime adoption remain outside this report"
+    ]
+  },
+  "reproduction": {
+    "canonicalCommand": "npx vite-node --script tools/myocardium/runMainWireNormalAdultFiveWallClosedLoopV1.ts --mode q-off-canonical --la-sls on --beats 8 --dt 0.002 --output /tmp/mainwire-final-canonical-8beat.json",
+    "laSlsExactOffCommand": "npx vite-node --script tools/myocardium/runMainWireNormalAdultFiveWallClosedLoopV1.ts --mode q-off-canonical --la-sls exact-off --beats 8 --dt 0.002 --output /tmp/mainwire-la-sls-off-8beat.json"
+  }
+}

@@ -27,6 +27,9 @@ canonicalの最終心拍は自己交差1個、A/V lobe面積7.22/3.35 mmHg mL、
 conduitより上にあるprobe割合100%、LV EF 59.4%、CO 3.77 L/minであった。これは正常ヒト
 acceptanceでも症例fitでもなく、構造比較のraw accepted-step結果である。LA volume
 20.1--35.9 mLとCOはpopulation priorより低く、main-wire全血液量分配・冠循環統合後の未解決課題とする。
+固定数値は
+`data/myocardium/reports/mainwire-normal-five-wall-structural-ablation-v1.json`
+に再現commandとともに保存する。
 
 ## 陰性だった構造を本体へ積層しない
 
