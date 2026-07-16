@@ -27,7 +27,8 @@ conduit、booster pumpを同じ物理stateから生じさせ、将来は各param
 - 2本目のMaxwell branch、LAA補正、long-axis補正は追加しない。
 
 canonicalの最終心拍は自己交差1個、A/V lobe面積7.22/3.35 mmHg mL、reservoirが
-conduitより上にあるprobe割合100%、LV EF 59.4%、CO 3.77 L/minであった。これは正常ヒト
+conduitより上にある割合は当時のreportがusableと判定したprobe集合内で100%、LV EF 59.4%、
+CO 3.77 L/minであった。これは正常ヒト
 acceptanceでも症例fitでもなく、構造比較のraw accepted-step結果である。LA volume
 20.1--35.9 mLとCOはpopulation priorより低く、main-wire全血液量分配・冠循環統合後の未解決課題とする。
 固定数値は
@@ -332,6 +333,30 @@ LVFW/SEP/RVFWを一括exact-offにするとLA V-loopは3.397から5.859 mmHg mL�
 0.350/0.300/16.49/7.22/6.21 mJ/beatで、各離散energy balanceは丸め誤差内で閉じた。
 ただし12拍時点のperiod-1 closureは0.8--1.6%であり、これらはparameter同定ではなく暫定的な
 構造保持判断である。
+
+その後の厳密なgroup-wise周期検証は
+`docs/myocardium/verification/mainwire-normal-adult-five-wall-periodic-v1.ja.md`に分離した。canonicalと
+LA-SLS exact-offは`dt=2 ms`でともに27拍目にperiod-1へ収束し、周期解同士でもSLS offはLA PVを
+1交点から小さな追加交点を含む4交点へ変えた。ただし大域的なreservoir--conduit順序はoffでも残るため、
+SLSはV-loopの唯一の生成機序ではなく、このablationの証拠境界は`dt=2 ms`に限る。
+
+canonical `dt=1 ms`も修正後は27拍目にperiod-1へ収束した。初回の`dt=1 ms`停止は、SEP stretchが
+Land length-factor kink `lambda=0.87`の直上にあるとき、nominal central-difference幅がbranch境界を
+跨いだgeneralized-force Jacobian symmetry監査に所有された。nominal幅を先に保ったまま、不成立時だけ
+kinkを跨がない局所接線を得られるsmall dyadic幅、次いで従来のlarge dyadic幅を固定順で監査し、
+同じhard symmetry toleranceを最初に満たす幅を採用するよう修正した。構成則branchのラベル自体は直接判定しない。
+constitutive law、Land kink、parameter、Newton/対称性tolerance、時間積分、solver rescueは変更していない。
+
+`dt=2 : 1 ms`の同一時刻sample比較では、8信号のfixed-scale最大差は`1.97e-2`未満であった。
+LA V-loopは`3.435 : 3.380 mmHg mL`、reservoir--conduit mean gapは`0.414 : 0.417 mmHg`と近いが、
+A-loopは`7.517 : 8.284 mmHg mL`で10.2%変わる。両`dt`でone true crossingと枝順序は保つものの、
+単一の2:1 pairから時間刻み独立性、漸近収束次数、生理的合格を主張しない。従来の12拍結果を
+dt convergenceの証拠として再利用しない。
+
+周期診断のMVO/MVCはflow-threshold transitionであり、MVCはatrial Ca onset以後の最初のclosureを採る。
+E/Aの`separated`はE/A window peak間のforward-flow valley診断で、弁閉鎖とは別の意味を持つ。
+現在もA apexは左寄りで、aggregate pulmonary venous Ar reversalはほぼない。これらをSLS parameterや
+activation timingの形状fitだけで解消せず、独立Ca/force dataとmain-wire統合後のPV physiologyで再評価する。
 
 ## main-wire接続の段階境界
 
