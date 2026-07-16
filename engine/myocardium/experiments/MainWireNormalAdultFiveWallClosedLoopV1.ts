@@ -15,7 +15,6 @@ import type {
   MainWireFiveWallLandTriSegStateV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
-  MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultLaSlsModeV1,
   type MainWireNormalAdultFiveWallProviderV1,
@@ -184,9 +183,6 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
     provider,
     runtime,
     calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-    circulationInitial: Object.freeze({
-      chamberVolumesMl: MAIN_WIRE_NORMAL_ADULT_COLD_VOLUMES_ML_V1,
-    }),
   });
   let state = cold.acceptedState;
   const boundaryStates: AcceptedState[] = [state];

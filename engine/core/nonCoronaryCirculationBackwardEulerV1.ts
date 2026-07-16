@@ -150,13 +150,7 @@ export type NonCoronaryCirculationAcceptedStateV1 = Readonly<{
 export type NonCoronaryCirculationInitialStateInputV1 = Readonly<{
   timeSec: number;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
-  /** Full expert override. Mutually exclusive with chamberVolumesMl. */
   nodeVolumesMl?: NodeRecord<number>;
-  /**
-   * Imaging/prior chamber volumes. The dependent systemic-venous reservoir is
-   * shifted by the opposite net amount so the main-wire initial TBV is exact.
-   */
-  chamberVolumesMl?: NonCoronaryChamberVolumesMlV1;
   dynamicEdgeFlowsMlPerSec?: DynamicEdgeRecord<number>;
   valveStates?: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
 }>;
@@ -308,19 +302,10 @@ export function createInitialNonCoronaryCirculationStateV1(
 ): NonCoronaryCirculationAcceptedStateV1 {
   requireNonnegative(input.timeSec, "timeSec");
   validateRuntime(input.runtime);
-  if (input.nodeVolumesMl !== undefined && input.chamberVolumesMl !== undefined) {
-    throw new Error("nodeVolumesMl and chamberVolumesMl are mutually exclusive");
-  }
   const graph = buildNonCoronaryCirculationGraphV1();
   const nodeVolumesMl = input.nodeVolumesMl
     ? copyNodeRecord(input.nodeVolumesMl, "nodeVolumesMl", requirePositive)
-    : input.chamberVolumesMl
-      ? initialNodeVolumesWithChamberPrior(
-        graph,
-        input.runtime,
-        input.chamberVolumesMl,
-      )
-      : initialNodeVolumes(graph, input.runtime);
+    : initialNodeVolumes(graph, input.runtime);
   const dynamicEdgeFlowsMlPerSec = input.dynamicEdgeFlowsMlPerSec
     ? copyDynamicEdgeRecord(
       input.dynamicEdgeFlowsMlPerSec,
@@ -790,34 +775,6 @@ function initialNodeVolumes(
       : node.x0;
     return requirePositive(volume, `${name} initial volume`);
   });
-}
-
-function initialNodeVolumesWithChamberPrior(
-  graph: NonCoronaryCirculationGraphV1,
-  runtime: NonCoronaryCirculationRuntimeParamsV1,
-  chamberVolumesMl: NonCoronaryChamberVolumesMlV1,
-): NodeRecord<number> {
-  const initial = initialNodeVolumes(graph, runtime);
-  let chamberVolumeDeltaMl = 0;
-  const next = { ...initial } as Record<NonCoronaryNodeNameV1, number>;
-  for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
-    const value = requirePositive(
-      chamberVolumesMl[chamber],
-      `chamberVolumesMl.${chamber}`,
-    );
-    chamberVolumeDeltaMl += value - initial[chamber];
-    next[chamber] = value;
-  }
-  next[DEPENDENT_NODE] = requirePositive(
-    initial[DEPENDENT_NODE] - chamberVolumeDeltaMl,
-    `${DEPENDENT_NODE} after chamber-volume initialization`,
-  );
-  const initialTotal = sumNodeRecord(initial);
-  const nextTotal = sumNodeRecord(next);
-  if (Math.abs(nextTotal - initialTotal) > 1e-9) {
-    throw new Error("chamber-volume initialization changed total blood volume");
-  }
-  return Object.freeze(next) as NodeRecord<number>;
 }
 
 function success<TEvaluation>(

@@ -86,43 +86,6 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     }
   });
 
-  it("applies chamber-volume priors without changing main-wire total blood volume", () => {
-    const baseline = createInitialNonCoronaryCirculationStateV1({
-      timeSec: 0,
-      runtime: RUNTIME,
-    });
-    const chamberVolumesMl = Object.freeze({
-      LA: baseline.nodeVolumesMl.LA - 5,
-      LV: baseline.nodeVolumesMl.LV + 8,
-      RA: baseline.nodeVolumesMl.RA - 4,
-      RV: baseline.nodeVolumesMl.RV + 6,
-    });
-    const initialized = createInitialNonCoronaryCirculationStateV1({
-      timeSec: 0,
-      runtime: RUNTIME,
-      chamberVolumesMl,
-    });
-
-    expect(initialized.nodeVolumesMl.LA).toBe(chamberVolumesMl.LA);
-    expect(initialized.nodeVolumesMl.LV).toBe(chamberVolumesMl.LV);
-    expect(initialized.nodeVolumesMl.RA).toBe(chamberVolumesMl.RA);
-    expect(initialized.nodeVolumesMl.RV).toBe(chamberVolumesMl.RV);
-    expect(initialized.totalBloodVolumeMl).toBeCloseTo(
-      baseline.totalBloodVolumeMl,
-      12,
-    );
-    expect(initialized.nodeVolumesMl.SV).toBeCloseTo(
-      baseline.nodeVolumesMl.SV - 5,
-      12,
-    );
-    expect(() => createInitialNonCoronaryCirculationStateV1({
-      timeSec: 0,
-      runtime: RUNTIME,
-      nodeVolumesMl: baseline.nodeVolumesMl,
-      chamberVolumesMl,
-    })).toThrow(/mutually exclusive/);
-  });
-
   it("keeps a numerically stationary zero-flow state while satisfying TBV and continuity", () => {
     const fixture = steadyStateFixture();
     const sentinel = Object.freeze({ owner: "pure-mechanics-callback", token: 73 });
