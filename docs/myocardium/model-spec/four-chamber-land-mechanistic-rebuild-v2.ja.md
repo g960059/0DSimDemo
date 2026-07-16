@@ -1118,6 +1118,7 @@ $$
 - main-wire owner由来の非冠15区画、11血管edge、4弁edgeからなる閉鎖循環topologyと保存式。
 - main-wireの非線形動脈、線形毛細管、3領域静脈PV則のSI/energy-conjugate adapter。
 - 6動的flow、9符号付き代数flow、waterfallを同じendpointで評価するkernel。
+- 4弁の保存開口state、$C^2$圧較差gate、解析的Backward Euler局所消去、面積依存$R/B$、符号付き逆流、および非負flow散逸。開口stateを含めてもglobal Newton未知数は58/53のままである。
 - 4心腔固定境界、11 edge圧損、5.6 L TBVを同時に閉じる分布血管初期化。
 - 15 volume + Land/SLS/TriSegを同時に解く58/53未知数のresearch-only monolithic Backward Euler経路。
 - LA/RA CMR phasic anatomy construction。
@@ -1136,7 +1137,7 @@ $$
 - reportとwaveformへ実際の`SLS on/off` modeを明記し、node/edge順序、時刻、全sample、設定、claim boundary、相互content hashをstrictに検証するartifact bundle。
 - waveformから心房readback、conduit/later-refill、post-opening right-censored mass balance、4心腔closed-polygon診断、waveform summaryを再構築し、埋め込みpayloadとのcanonical equalityを検証するreadback経路。
 - 実行開始時に、Git `HEAD` commit（`repositoryHeadCommit`）、`HEAD^{tree}`（`repositoryHeadTree`）、出力artifactを除くtracked worktree/index patch SHA-256（`trackedWorktreePatchSha256`、`trackedIndexPatchSha256`）、`trackedWorktreeClean`、`package-lock.json` file-byte SHA-256（`packageLockContentSha256`）、`nodeVersion`を`gitSourceReproducibilityAtRunStart`へ保存する。`untrackedPathsExcludedFromCleanlinessCheck=true`も明示する。
-- 実行開始時とartifact書込み直前に、`topology.ts`、`params.ts`、graph resolver、vascular topology/PV adapter、same-time circulation kernel、vascular initializer、distributed endpoint/solver、runnerからなる直接numerical owner 10ファイルをfile-byte SHA-256で`directNumericalOwnerSourceSnapshotAtStart`へsnapshotし、run中にtracked Git/source状態またはowner byteが変わればfail-closedにする。加えてsource manifest、source numerical evidence、event schedule、wall material bindingのcontent SHA-256と、file/canonical-object hash algorithm IDをreport provenanceへ保存する。
+- 実行開始時とartifact書込み直前に、`topology.ts`、`params.ts`、graph resolver、vascular topology/PV adapter、same-time circulation kernel、dynamic aperture、vascular initializer、distributed endpoint/solver、runnerからなる直接numerical owner 11ファイルをfile-byte SHA-256で`directNumericalOwnerSourceSnapshotAtStart`へsnapshotし、run中にtracked Git/source状態またはowner byteが変わればfail-closedにする。加えてsource manifest、source numerical evidence、event schedule、wall material bindingのcontent SHA-256と、file/canonical-object hash algorithm IDをreport provenanceへ保存する。
 - report/waveformをrun固有temporary pathへ排他的に書き、readback、content hash、report–waveform binding、再構築diagnosticのcanonical equalityを検証してからcanonical pathへrenameし、canonical pairを再読込して検証するartifact integrity gate。
 - 上記SHA-256群は、どのlocal source/tree/runtimeで生成したかを再現・改変検出する**integrity/reproducibility metadata**である。署名commit、署名artifact、provenance attestation、実行主体のidentity、source repositoryの信頼性を認証するauthentication機構ではない。
 - mechanics componentおよび旧aggregate経路のcompact mechanical-energy diagnostic（新main-wire whole-cycle ledgerではない）。
@@ -1158,7 +1159,7 @@ $$
 - 2指数prescribed calciumが測定Ca波形または保存Ca cyclingであること。
 - human-atrial Ca V2の絶対振幅または電気–Ca delayがMazhar 2024から同定済みであること。
 - population-only Land reductionがヒト心房の微視的force–velocity則として同定済みであること。
-- Section 3.2のdynamic aperture lawは数理仕様として選定済みだが、main-wire distributed kernelへの統合と閉ループ検証は進行中である。直近の3拍artifactは旧pressure-gated static-area valveを使っており、動的弁の証拠へ読み替えない。
+- Section 3.2のdynamic aperture lawはmain-wire distributed kernelへ統合済みで、保存・局所消去・rollback・period-distanceのcomponent testを通過している。ただし旧`phase-b1-main-wire-distributed-exploratory-v1` 3拍artifactはpressure-gated static-area valveのままであり、動的弁の証拠へ読み替えない。新しい閉ループartifactもformal period-1または弁parameter validationを主張しない。
 - population-only + Moyer-consistent SLS + Ca V2 + dynamic valveの組合せが、$P_{post\text{-}y}>P_{pre\text{-}y}$または収縮末期hook解消を達成済みであること。
 - 現runは指定回数の単純なcycle-map反復であり、period-1判定を実装していない。したがってterminal拍は非周期であり得て、right-censored atrial readbackや人工closing chordを周期loopまたは生理的仕事として解釈できない。
 - retryなしのno-subdivision runを含むtime-step convergence、multi-start periodic uniqueness、長期安定性。現solverはscaled five-point numerical algorithmic Jacobianを用い、analytic/automatic differentiation Jacobian、generalized Jacobian audit、semismooth active-set convergenceをまだ持たない。
@@ -1198,7 +1199,7 @@ $$
 | main-wire非冠topology SI contract | [`mainWireNonCoronaryVascularTopologyV1.ts`](../../../engine/myocardium/fourChamberV1/vascular/mainWireNonCoronaryVascularTopologyV1.ts) |
 | main-wire血管PV/energy adapter | [`mainWireVascularPvLawSiV1.ts`](../../../engine/myocardium/fourChamberV1/vascular/mainWireVascularPvLawSiV1.ts) |
 | main-wire同一時刻循環kernel | [`mainWireNonCoronarySameTimeLevelV1.ts`](../../../engine/myocardium/fourChamberV1/hydromechanics/mainWireNonCoronarySameTimeLevelV1.ts) |
-| main-wire dynamic aperture | Section 3.2の数理仕様を選定済み、distributed kernel統合検証中 |
+| main-wire dynamic aperture | [`mainWireDynamicValveApertureV1.ts`](../../../engine/myocardium/fourChamberV1/hydromechanics/mainWireDynamicValveApertureV1.ts) |
 | main-wire血管TBV初期化 | [`mainWireNonCoronaryVascularInitializerV1.ts`](../../../engine/myocardium/fourChamberV1/vascular/mainWireNonCoronaryVascularInitializerV1.ts) |
 | 15区画endpoint topology | [`phaseB1MainWireDistributedEndpointV1.ts`](../../../engine/myocardium/fourChamberV1/phaseB1/phaseB1MainWireDistributedEndpointV1.ts) |
 | 15区画monolithic BE | [`phaseB1MainWireDistributedMonolithicBackwardEulerV1.ts`](../../../engine/myocardium/fourChamberV1/phaseB1/phaseB1MainWireDistributedMonolithicBackwardEulerV1.ts) |
@@ -1268,7 +1269,7 @@ $$
 
 以上から、中心candidateは次の4変更を**責任分離したまま**組み合わせる。
 
-1. LA/RA Landは$CaTRPN,B,W,S$ populationを保持し、$A_{eff}=A_W=A_S=0$とするorgan-scale population-only reductionを使う。global atrial volume-rateをsarcomere shortening rateへ同一視しない。旧source-distortionはcausal controlだけに残す。
+1. LA/RA Landは$CaTRPN,B,W,S$のstate構造、非distortion基礎遷移係数、calcium依存性、長さ依存性を保持し、$A_{eff}=A_W=A_S=0$とするorgan-scale population-only reductionを使う。canonical zero-distortion manifoldでは$\zeta_W=\zeta_S=0$となるため、$\zeta$依存detachment $\gamma_{wu}W,\gamma_{su}S$、$W\zeta_W$、$S\zeta_S$のstress寄与も除かれる。従ってこれは加算的な旧$F_v$だけを消す操作ではなく、global atrial volume-rate由来のforce--velocityおよびstrain-dependent detachment closure全体を除く縮約であり、source Landの短縮時population kineticsを保存したという主張ではない。旧source-distortionはcausal controlだけに残す。
 2. 独立SLSはMoyer zero-strain tangentへ再結合し、LA/RA共通$E_v=9950.14$ Pa、$\tau_v=50$ msとする。これは構成整合性の修復であり、PV loop fitまたはヒト粘弾性同定ではない。
 3. 心房CaはMazhar 2024の37 ℃human atrial timing aggregateに基づくV2を使う。ただし絶対振幅は未同定のまま明示する。
 4. 4弁はmain-wire ownerのdynamic aperture stateを用い、開閉遅延、面積依存loss、慣性を分離する。弁stateで心房active stressを補正しない。

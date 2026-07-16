@@ -1203,9 +1203,15 @@ function runCliAfterCanonicalOutputResetV1(
     sha256,
   );
   const sourceCase = numerical.results[requestedSlsMode].eventFreeCase;
+  // The physiology-envelope overlay is a shared hemodynamic parameter object.
+  // Its constructor deliberately authenticates the canonical SLS-on warm start,
+  // but the resulting overlay can be applied to either physical SLS topology.
+  const physiologyEnvelopeOverlay = buildPhaseB1PhysiologyEnvelopeCenterOverlayV1(
+    numerical.results.on.eventFreeCase,
+  );
   const candidate = buildPhaseB1MechanisticRebuildCaseV2({
     sourceCase,
-    overlay: buildPhaseB1PhysiologyEnvelopeCenterOverlayV1(sourceCase),
+    overlay: physiologyEnvelopeOverlay,
     atrialLandKinematicClosure,
     sha256Hex: sha256,
   });
@@ -1435,6 +1441,11 @@ function runCliAfterCanonicalOutputResetV1(
       scheduleContentSha256: schedule.contentSha256,
       wallMaterialBindingContentSha256:
         candidate.wallMaterialBinding.contentSha256,
+      atrialLandKinematicClosure:
+        candidate.atrialLandKinematicClosure,
+      physiologyEnvelopeOverlayAuthenticatedFromSlsMode: "on",
+      candidatePhysicalSlsMode:
+        transformed.endpoint.differentialState.slsMode,
       directNumericalOwnerSourceSnapshotAtStart: sourceFileSnapshotAtStart,
       gitSourceReproducibilityAtRunStart:
         gitSourceReproducibilityAtStart,

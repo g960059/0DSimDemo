@@ -43,8 +43,12 @@ export type AtrialPopulationOnlyLandV1 = Readonly<{
  * In the one-fiber chamber, cavity-volume rate is not an observed sarcomere
  * shortening rate: annular motion, non-self-similar wall deformation, and
  * regional fibre recruitment are unresolved.  Setting Aeff=0 therefore keeps
- * the calcium/troponin and B/W/S population kinetics while refusing to infer a
- * microscopic force-velocity signal from global atrial volume.  The same
+ * the CaTRPN/B/W/S state structure, calcium and length dependence, and the
+ * non-distortion transition coefficients while refusing to infer a microscopic
+ * force-velocity signal from global atrial volume.  On the resulting canonical
+ * zero-distortion manifold, zeta-dependent detachment and the W*zetaW and
+ * S*zetaS stress contributions are also absent; this is not merely deletion of
+ * one additive force term and is not source-Land shortening kinetics.  The same
  * reduction is shared by LA and RA and no chamber PV observable is consumed.
  *
  * The six-slot numerical state is retained temporarily so this causal
