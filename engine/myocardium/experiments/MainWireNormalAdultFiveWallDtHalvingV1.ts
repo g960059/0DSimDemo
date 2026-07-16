@@ -54,6 +54,8 @@ export type MainWireNormalAdultFiveWallDtHalvingInterpretabilityReasonV1 =
   | "la-sls-mode-mismatch"
   | "initialization-mismatch"
   | "maximum-beat-count-mismatch"
+  | "coarse-integration-failed"
+  | "fine-integration-failed"
   | "coarse-period1-not-converged"
   | "fine-period1-not-converged"
   | "coarse-final-complete-beat-missing-or-incomplete"
@@ -149,6 +151,12 @@ export function compareMainWireNormalAdultFiveWallDtHalvingV1(
   }
   if (coarse.requestedMaximumBeatCount !== fine.requestedMaximumBeatCount) {
     reasons.push("maximum-beat-count-mismatch");
+  }
+  if (coarse.integrationCompletedWithoutFailure === false) {
+    reasons.push("coarse-integration-failed");
+  }
+  if (fine.integrationCompletedWithoutFailure === false) {
+    reasons.push("fine-integration-failed");
   }
   if (!coarse.periodicSteadyStateClaimed) {
     reasons.push("coarse-period1-not-converged");

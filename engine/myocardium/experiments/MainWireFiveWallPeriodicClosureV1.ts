@@ -527,6 +527,14 @@ function validateClassifierOptions(
   if (!Number.isInteger(options.consecutiveBeats) || options.consecutiveBeats <= 0) {
     throw new Error("consecutiveBeats must be a positive integer");
   }
+  if (
+    options.period2MinimumPeriod1NormalizedDelta
+    <= options.period1NormalizedTolerance
+  ) {
+    throw new Error(
+      "period2MinimumPeriod1NormalizedDelta must exceed period1NormalizedTolerance",
+    );
+  }
 }
 
 function validateObservations(

@@ -104,6 +104,14 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
     expect(comparison.interpretabilityReasons)
       .toContain("coarse-period1-not-converged");
     expect(comparison.signalMetrics).toBeNull();
+
+    const failedFine = {
+      ...fine,
+      integrationCompletedWithoutFailure: false,
+      periodicSteadyStateClaimed: false,
+    } as MainWireNormalAdultFiveWallPeriodicResultV1;
+    expect(compareMainWireNormalAdultFiveWallDtHalvingV1(coarse, failedFine)
+      .interpretabilityReasons).toContain("fine-integration-failed");
   });
 
   it("marks non-halved and phase-incompatible grids uninterpretable", () => {

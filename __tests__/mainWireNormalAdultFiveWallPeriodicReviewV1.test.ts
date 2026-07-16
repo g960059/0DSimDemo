@@ -62,7 +62,10 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     });
     expect(review.convergence.latestWorstPath)
       .toBe("circulation.nodeVolumesMl.LA");
-    expect(review.claim.smoothingOrInterpolation).toBe(false);
+    expect(review.claim.timeSeriesSmoothingApplied).toBe(false);
+    expect(review.claim.timeSeriesResamplingOrInterpolationApplied).toBe(false);
+    expect(review.claim.piecewiseLinearPlotSegmentsApplied).toBe(true);
+    expect(review.claim.timeStepRobustnessAssessedBySingleReview).toBe(false);
     expect(review.claim.parameterSearchOrTuning).toBe(false);
   });
 
@@ -96,6 +99,19 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(parsed.previousBeatSamples).toHaveLength(10);
     expect(parsed.cycleDiagnostics.pulmonaryVenous.D.forwardVolumeMl)
       .toBeGreaterThan(0);
+  });
+
+  it("qualifies current-dt period-1 without claiming dt robustness", () => {
+    const rendered = renderMainWireNormalAdultFiveWallPeriodicReviewV1({
+      ...periodicResult(),
+      terminationReason: "period1-converged",
+      periodicSteadyStateClaimed: true,
+    });
+
+    expect(rendered.html).toContain("Current-dt period-1 established");
+    expect(rendered.html).toContain("time-step robustness is not assessed");
+    expect(rendered.review.run.timeStepRobustness)
+      .toBe("not-assessed-by-single-result");
   });
 });
 

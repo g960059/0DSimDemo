@@ -38,10 +38,13 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_CLAIM_V1 =
     addsDynamicState: false as const,
     changesPhysiologyOrMaterialParameters: false as const,
     parameterSearchOrTuning: false as const,
-    smoothingOrInterpolation: false as const,
+    timeSeriesSmoothingApplied: false as const,
+    timeSeriesResamplingOrInterpolationApplied: false as const,
+    piecewiseLinearPvGeometryInterpolationApplied: true as const,
     morphologyMetricsComputedWhenNotPeriodic: true as const,
     morphologyInterpretationRequiresPeriod1Convergence: true as const,
     morphologyMetricAcceptanceThresholdApplied: false as const,
+    timeStepRobustnessAssessedBySummary: false as const,
   });
 
 type ChamberId = "LA" | "LV" | "RA" | "RV";
@@ -109,8 +112,10 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
   }>;
   morphologyInterpretation: Readonly<{
     eligible: boolean;
+    scope: "current-dt-period1-only";
+    timeStepRobustnessEstablished: false;
     reason:
-      | "eligible-period1-converged"
+      | "eligible-current-dt-period1-only"
       | "ineligible-period2-suspect"
       | "ineligible-period1-not-converged";
   }>;
@@ -363,8 +368,10 @@ function morphologyInterpretation(
     && result.periodicSteadyStateClaimed;
   return Object.freeze({
     eligible,
+    scope: "current-dt-period1-only" as const,
+    timeStepRobustnessEstablished: false as const,
     reason: eligible
-      ? "eligible-period1-converged" as const
+      ? "eligible-current-dt-period1-only" as const
       : result.terminationReason === "period2-suspect"
           || result.periodicity.status === "period2-suspect"
         ? "ineligible-period2-suspect" as const

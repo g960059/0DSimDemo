@@ -29,12 +29,15 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_V1_ID =
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V1 =
   Object.freeze({
     source: "periodic-runner-retained-accepted-samples" as const,
-    smoothingOrInterpolation: false as const,
+    timeSeriesSmoothingApplied: false as const,
+    timeSeriesResamplingOrInterpolationApplied: false as const,
+    piecewiseLinearPlotSegmentsApplied: true as const,
     plottedSegments: "straight-between-consecutive-accepted-endpoints" as const,
     addsDynamicState: false as const,
     parameterSearchOrTuning: false as const,
     physiologyGateAdded: false as const,
     morphologyInterpretationRequiresPeriod1Convergence: true as const,
+    timeStepRobustnessAssessedBySingleReview: false as const,
     currentModelCoreRuntimeAdoptionClaimed: false as const,
     pulmonaryVenousSignal:
       "aggregate-PVein-to-LA-edge-not-separate-vein-measurements" as const,
@@ -103,6 +106,7 @@ export type MainWireNormalAdultFiveWallPeriodicReviewV1 = Readonly<{
     terminationReason: string;
     integrationCompletedWithoutFailure: boolean;
     periodicSteadyStateClaimed: boolean;
+    timeStepRobustness: "not-assessed-by-single-result";
     period2OrbitSuspected: boolean;
     latestBeatIndex: number;
     previousBeatIndex: number | null;
@@ -182,6 +186,7 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       integrationCompletedWithoutFailure:
         result.integrationCompletedWithoutFailure,
       periodicSteadyStateClaimed: result.periodicSteadyStateClaimed,
+      timeStepRobustness: "not-assessed-by-single-result" as const,
       period2OrbitSuspected: result.period2OrbitSuspected,
       latestBeatIndex: currentBeat.beatIndex,
       previousBeatIndex: previousBeat?.beatIndex ?? null,
@@ -225,10 +230,10 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
   const svg = renderSvg(review, result);
   const diagnostics = review.cycleDiagnostics;
   const statusClass = review.run.periodicSteadyStateClaimed
-    ? "ok"
+    ? "warn"
     : review.run.period2OrbitSuspected ? "danger" : "warn";
   const statusText = review.run.periodicSteadyStateClaimed
-    ? "Period-1 convergence established"
+    ? "Current-dt period-1 established; time-step robustness is not assessed by this page"
     : review.run.period2OrbitSuspected
       ? "Period-2 orbit suspected; morphology is not accepted"
       : "Periodic steady state is not established; morphology is provisional";
@@ -245,7 +250,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
   <header>
     <div class="eyebrow">Research sidecar · fixed-prior review</div>
     <h1>Periodic five-wall physiology review</h1>
-    <p class="subtitle">Raw accepted samples from the retained terminal beat; straight endpoint segments only. No smoothing, interpolation, parameter fitting, or added dynamic state.</p>
+    <p class="subtitle">Raw accepted samples from the retained terminal beat; straight endpoint segments only. No time-series smoothing or resampling, parameter fitting, or added dynamic state.</p>
   </header>
   <div class="status ${statusClass}" role="status"><strong>${escapeHtml(statusText)}</strong><span>termination: ${escapeHtml(review.run.terminationReason)}</span></div>
   <section class="cards" aria-label="Run summary">
@@ -267,6 +272,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
     <ul>
       <li>This is the main-wire-derived noncoronary experimental sidecar, not a claim of current ModelCore/browser-runtime adoption.</li>
       <li>Physiology and PV morphology are interpretable only after period-1 closure; the page remains useful as a numerical settling diagnostic before then.</li>
+      <li>Period-1 closure applies only to the displayed dt. A separate dt comparison is required before claiming time-step robustness.</li>
       <li>Pulmonary venous flow is one aggregate PVein→LA edge, not four separately measured veins.</li>
       <li>Mitral VTI is modeled bulk flow divided by modeled instantaneous physical EOA; it is not a validated clinical Doppler VTI.</li>
       <li>Land active stress has no thermodynamic stored-energy claim. Work signs follow the diagnostic API: positive means work on the wall.</li>
@@ -346,7 +352,7 @@ function renderSvg(
         ...(previous.length > 0 ? [lineSeries(
           "previous beat",
           "#64748b",
-          previous,
+          periodicPvSamples(previous, result.periodicSteadyStateClaimed),
           (sample) => sample.nodeVolumeMl.LV,
           (sample) => sample.chamberTransmuralPressureMmHg.LV,
           { dashed: true, width: 1.35 },
@@ -354,7 +360,7 @@ function renderSvg(
         lineSeries(
           "current beat",
           "#a78bfa",
-          current,
+          periodicPvSamples(current, result.periodicSteadyStateClaimed),
           (sample) => sample.nodeVolumeMl.LV,
           (sample) => sample.chamberTransmuralPressureMmHg.LV,
         ),
@@ -432,7 +438,7 @@ function renderSvg(
   <desc id="review-svg-description">Nine plots show group-wise beat closure, left-atrial and left-ventricular pressure-volume loops, pressures, valve and pulmonary venous flows, left-atrial volume, phasic flow ledgers, wall work, and SLS energy. Lines connect raw accepted endpoints without smoothing.</desc>
   <rect width="100%" height="100%" fill="#081426"/>
   <text x="34" y="39" fill="#e7eef9" font-size="24" font-weight="700">Raw terminal-beat physiology and energy ownership</text>
-  <text x="34" y="66" fill="#9fb0c8" font-size="13">Straight accepted-step segments · no smoothing or interpolation · phase colors: reservoir / conduit / pumping</text>
+  <text x="34" y="66" fill="#9fb0c8" font-size="13">Straight accepted-step segments · no smoothing or time-series resampling · phase colors: reservoir / conduit / pumping</text>
   ${panels}
   </svg>`;
 }
@@ -450,6 +456,14 @@ function phaseSeries(
       run.map((sample) => ({ x: x(sample), y: y(sample) }))),
     width: 2.4,
   }));
+}
+
+function periodicPvSamples(
+  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
+  period1Converged: boolean,
+): readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[] {
+  if (!period1Converged || samples.length === 0) return samples;
+  return Object.freeze([...samples, samples[0]!]);
 }
 
 function phaseDomainPhaseSeries(

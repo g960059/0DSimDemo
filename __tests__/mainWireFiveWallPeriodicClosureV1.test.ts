@@ -173,6 +173,10 @@ describe("MainWireFiveWallPeriodicClosureV1", () => {
       observation(2, 5e-4, 5e-4),
       observation(2, 4e-4, 4e-4),
     ], options)).toThrow(/strictly increasing/);
+    expect(() => classifyMainWireFiveWallPeriodicityV1([], {
+      ...options,
+      period2MinimumPeriod1NormalizedDelta: 1e-3,
+    })).toThrow(/must exceed period1NormalizedTolerance/);
   });
 });
 

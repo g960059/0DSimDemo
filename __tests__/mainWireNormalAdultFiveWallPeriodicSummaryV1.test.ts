@@ -49,6 +49,8 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
 
     expect(summary.morphologyInterpretation).toEqual({
       eligible: false,
+      scope: "current-dt-period1-only",
+      timeStepRobustnessEstablished: false,
       reason: "ineligible-period1-not-converged",
     });
     expect(summary.claim.morphologyMetricsComputedWhenNotPeriodic).toBe(true);
@@ -56,6 +58,9 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
       .toBe(true);
     expect(summary.claim.parameterSearchOrTuning).toBe(false);
     expect(summary.claim.changesPhysiologyOrMaterialParameters).toBe(false);
+    expect(summary.claim.timeSeriesResamplingOrInterpolationApplied).toBe(false);
+    expect(summary.claim.piecewiseLinearPvGeometryInterpolationApplied).toBe(true);
+    expect(summary.claim.timeStepRobustnessAssessedBySummary).toBe(false);
     expect("probes" in summary.laPvMorphology
       .reservoirConduitEqualVolumeOrder).toBe(false);
     if (summary.laPvMorphology.twoLobes.status === "measurable") {
@@ -85,7 +90,9 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
     });
     expect(period1.morphologyInterpretation).toEqual({
       eligible: true,
-      reason: "eligible-period1-converged",
+      scope: "current-dt-period1-only",
+      timeStepRobustnessEstablished: false,
+      reason: "eligible-current-dt-period1-only",
     });
   });
 
