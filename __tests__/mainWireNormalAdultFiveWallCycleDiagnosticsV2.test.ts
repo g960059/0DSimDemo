@@ -89,6 +89,46 @@ describe("main-wire normal-adult five-wall cycle diagnostics V2", () => {
     });
   });
 
+  it("keeps pericardial bag work separate from transmural cavity work", () => {
+    const healthyWindow = acceptedWindow(Array(10).fill(0.1), [0.75]);
+    const effusionWindow = withCommonPericardiumTrace(
+      acceptedWindow(Array(10).fill(0.1), [0.75]),
+      [0.5, 0.7, 1, 1.5, 2, 1.8, 1.4, 1, 0.5, 0],
+      [0.1, 0.2, 0.5, 1, 2, 1.6, 1, 0.5, 0.1, 0],
+    );
+    const healthy = measureMainWireNormalAdultFiveWallCycleDiagnosticsV2({
+      window: healthyWindow,
+      wallMaterialVolumeMlByWall: WALL_VOLUMES_ML,
+      valveOpenThreshold: { absoluteFloorMlPerSec: 0.1 },
+    });
+    const effusion = measureMainWireNormalAdultFiveWallCycleDiagnosticsV2({
+      window: effusionWindow,
+      wallMaterialVolumeMlByWall: WALL_VOLUMES_ML,
+      valveOpenThreshold: { absoluteFloorMlPerSec: 0.1 },
+    });
+
+    expect(healthy.status).toBe("measurable");
+    expect(effusion.status).toBe("measurable");
+    if (healthy.status !== "measurable" || effusion.status !== "measurable") {
+      throw new Error("expected measurable cycles");
+    }
+    expect(healthy.workEnergy.commonPericardium).toEqual({
+      pressureWorkOnBagMilliJ: 0,
+      storedEnergyChangeMilliJ: 0,
+      backwardEulerRemainderMilliJ: 0,
+    });
+    expect(effusion.workEnergy.commonPericardium.pressureWorkOnBagMilliJ)
+      .toBeCloseTo(8.7 * 0.133322, 12);
+    expect(effusion.workEnergy.commonPericardium.storedEnergyChangeMilliJ)
+      .toBe(0);
+    expect(effusion.workEnergy.commonPericardium.backwardEulerRemainderMilliJ)
+      .toBeCloseTo(8.7 * 0.133322, 12);
+    expect(effusion.workEnergy.cavityWorkOnWallMilliJ)
+      .toEqual(healthy.workEnergy.cavityWorkOnWallMilliJ);
+    expect(effusion.claim.pericardialWorkExcludedFromTransmuralWallWork)
+      .toBe(true);
+  });
+
   it("integrates a genuinely nonuniform trace and uses physical-time delays", () => {
     const durations = [0.04, 0.06, 0.08, 0.12, 0.1, 0.15, 0.05, 0.14, 0.11, 0.15];
     const measured = measureMainWireNormalAdultFiveWallCycleDiagnosticsV2({
@@ -147,6 +187,24 @@ describe("main-wire normal-adult five-wall cycle diagnostics V2", () => {
     expect(new Set(multiple.atrialCalciumOnsetCandidates.map(
       (event) => event.eventId,
     )).size).toBe(2);
+  });
+
+  it("captures the current throw when a required valve event is absent", () => {
+    const window = withHemodynamicOverrides(
+      acceptedWindow(Array(10).fill(0.1), [0.75]),
+      {
+        precedingMitralFlowMlPerSec: 0,
+        mitralFlowMlPerSecByIndex: {
+          0: 0, 1: 0, 2: 0, 3: 0, 4: 0,
+          5: 0, 6: 0, 7: 0, 8: 0, 9: 0,
+        },
+      },
+    );
+    expect(() => measureMainWireNormalAdultFiveWallCycleDiagnosticsV2({
+      window,
+      wallMaterialVolumeMlByWall: WALL_VOLUMES_ML,
+      valveOpenThreshold: { absoluteFloorMlPerSec: 0.1 },
+    })).toThrow(/mitral signal has no cyclic opening and closing transition/);
   });
 
   it("retains invalid-EOA interval count and affected accepted duration", () => {
@@ -300,6 +358,37 @@ function withHemodynamicOverrides(
   });
 }
 
+function withCommonPericardiumTrace(
+  window: MainWireNormalAdultFiveWallCycleAcceptedWindowV2,
+  excessPressureMmHgByIndex: readonly number[],
+  storedEnergyMilliJByIndex: readonly number[],
+): MainWireNormalAdultFiveWallCycleAcceptedWindowV2 {
+  if (
+    excessPressureMmHgByIndex.length !== window.intervals.length
+    || storedEnergyMilliJByIndex.length !== window.intervals.length
+  ) throw new Error("pericardium trace length mismatch");
+  return Object.freeze({
+    ...window,
+    intervals: Object.freeze(window.intervals.map((interval, index) => {
+      const endpoint = interval.endpointSample.sample;
+      return Object.freeze({
+        ...interval,
+        endpointSample: Object.freeze({
+          ...interval.endpointSample,
+          sample: Object.freeze({
+            ...endpoint,
+            commonPericardium: Object.freeze({
+              ...endpoint.commonPericardium,
+              excessPressureMmHg: excessPressureMmHgByIndex[index]!,
+              storedEnergyMilliJ: storedEnergyMilliJByIndex[index]!,
+            }),
+          }),
+        }),
+      });
+    })),
+  });
+}
+
 function acceptedWindow(
   durationSec: readonly number[],
   atrialOnsetTimesSec: readonly number[],
@@ -394,6 +483,10 @@ function sample(
       LV: lvPressure,
       RA: 3,
       RV: 20,
+    }),
+    commonPericardium: Object.freeze({
+      excessPressureMmHg: 0,
+      storedEnergyMilliJ: 0,
     }),
     flowMlPerSec: Object.freeze({ MV: mvFlow, AoV: aovFlow, PVein_LA: pvFlow }),
     wallStressPa: wallRecord(() => Object.freeze({

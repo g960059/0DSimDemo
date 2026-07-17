@@ -54,6 +54,34 @@ describe("main-wire normal-adult five-wall periodic summary V2", () => {
     expect(summary.physiologyAvailability.status).toBe("measurable");
     expect(summary.workEnergy).not.toBeNull();
     expect(summary.laPvMorphology.status).toBe("measured");
+    expect(summary.protocol).toEqual({
+      identity: result.protocolIdentity,
+      identityHash: result.protocolIdentityHash,
+      componentHashes: result.protocolComponentHashes,
+    });
+    expect(summary.bloodVolumeOperatingPoint).toMatchObject({
+      status: "available",
+      unavailableReason: null,
+      ownerId: "main-wire-normal-adult-blood-volume-operating-point-v1",
+      fixedTotalBloodVolumeMl: 5522.11,
+      resolvedTotalBloodVolumeMl: 5522.11,
+    });
+    expect(summary.source).toMatchObject({
+      pericardiumMode: result.pericardiumMode,
+      pericardiumCase: result.pericardiumCase,
+      pericardiumParameterSetId: result.pericardiumParameterSetId,
+      valvePreset: result.valvePreset,
+    });
+    expect("calciumDrivePriorVariant" in summary.source).toBe(false);
+    expect("bloodVolumePriorVariant" in summary.source).toBe(false);
+    expect("bloodVolumePriorAudit" in summary.source).toBe(false);
+    expect("variant" in summary.fixedActivationPrior).toBe(false);
+    expect(summary.claim.laPvMorphologyPressureCoordinate)
+      .toBe("intracavitary-absolute-pressure");
+    expect(summary.claim
+      .transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics)
+      .toBe(true);
+    expect(summary.claim.bloodVolumeOperatingPointReadbackOnly).toBe(true);
     expect(stableHash(sanitizeForStableHash(selected.samples))).toBe(beforeHash);
   });
 
@@ -150,6 +178,34 @@ describe("main-wire normal-adult five-wall periodic summary V2", () => {
       .toBeGreaterThan(summary.rawRanges.chamberVolumeMl.LA.minimum);
   });
 
+  it("uses absolute LA pressure for PV shape but transmural pressure for wall work", () => {
+    const baseline = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV2(result);
+    const selectedBeat = result.retainedCompleteBeats.at(-1)!;
+    const retainedCompleteBeats = Object.freeze([
+      ...result.retainedCompleteBeats.slice(0, -1),
+      shiftAcceptedBeatExternalPressure(selectedBeat),
+    ]);
+    const shifted = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV2({
+      ...result,
+      retainedCompleteBeats,
+    });
+    if (baseline.status !== "complete" || shifted.status !== "complete") {
+      throw new Error("expected complete summaries");
+    }
+    if (
+      baseline.cyclePhysiology.status !== "measurable"
+      || shifted.cyclePhysiology.status !== "measurable"
+      || baseline.workEnergy === null
+      || shifted.workEnergy === null
+    ) throw new Error("expected measurable cycle work");
+
+    expect(shifted.laPvMorphology).not.toEqual(baseline.laPvMorphology);
+    expect(shifted.rawRanges.chamberTransmuralPressureMmHg.LA)
+      .toEqual(baseline.rawRanges.chamberTransmuralPressureMmHg.LA);
+    expect(shifted.workEnergy.cavityWorkOnWallMilliJ.LA)
+      .toBe(baseline.workEnergy.cavityWorkOnWallMilliJ.LA);
+  });
+
   it("keeps the uniform analytic control on its 50 accepted intervals", () => {
     const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV2(
       analyticResult,
@@ -166,3 +222,60 @@ describe("main-wire normal-adult five-wall periodic summary V2", () => {
     expect(summary.cyclePhysiology.status).toBe("measurable");
   });
 });
+
+type RetainedBeatV3 =
+  MainWireNormalAdultFiveWallPeriodicResultV3["retainedCompleteBeats"][number];
+type DiagnosticSampleV2 = RetainedBeatV3["samples"][number];
+
+function shiftAcceptedBeatExternalPressure(
+  beat: RetainedBeatV3,
+): RetainedBeatV3 {
+  const trace = beat.acceptedIntervalTrace;
+  if (trace.status !== "complete") {
+    throw new Error("external-pressure regression requires a complete trace");
+  }
+  const samples = Object.freeze(beat.samples.map(shiftExternalPressure));
+  const intervals = Object.freeze(trace.intervals.map((interval, index) =>
+    Object.freeze({
+      ...interval,
+      endpointSample: Object.freeze({
+        ...interval.endpointSample,
+        sample: samples[index]!,
+      }),
+    })));
+  return Object.freeze({
+    ...beat,
+    samples,
+    acceptedIntervalTrace: Object.freeze({
+      ...trace,
+      precedingSample: Object.freeze({
+        ...trace.precedingSample,
+        sample: shiftExternalPressure(trace.precedingSample.sample),
+      }),
+      intervals,
+    }),
+  });
+}
+
+function shiftExternalPressure(
+  sample: DiagnosticSampleV2,
+): DiagnosticSampleV2 {
+  const externalOffsetMmHg = 3 * Math.sin(
+    2 * Math.PI * sample.cyclePhase01 + 0.37,
+  );
+  return Object.freeze({
+    ...sample,
+    nodeAbsolutePressureMmHg: Object.freeze({
+      ...sample.nodeAbsolutePressureMmHg,
+      LA: sample.nodeAbsolutePressureMmHg.LA + externalOffsetMmHg,
+      LV: sample.nodeAbsolutePressureMmHg.LV + externalOffsetMmHg,
+      RA: sample.nodeAbsolutePressureMmHg.RA + externalOffsetMmHg,
+      RV: sample.nodeAbsolutePressureMmHg.RV + externalOffsetMmHg,
+    }),
+    commonPericardium: Object.freeze({
+      ...sample.commonPericardium,
+      excessPressureMmHg:
+        sample.commonPericardium.excessPressureMmHg + externalOffsetMmHg,
+    }),
+  });
+}

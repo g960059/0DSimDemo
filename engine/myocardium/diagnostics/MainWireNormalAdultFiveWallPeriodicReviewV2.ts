@@ -6,8 +6,8 @@ import type {
   MainWireNormalAdultFiveWallCycleWallIdV1,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallCycleDiagnosticsV1";
 import type {
-  MainWireNormalAdultFiveWallDiagnosticSampleV3,
-} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV3";
+  MainWireNormalAdultFiveWallDiagnosticSampleV2,
+} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
 import {
   resolveMainWireNormalAdultFiveWallSelectedCycleContextV2,
   type MainWireNormalAdultFiveWallSelectedCycleEventV2,
@@ -53,6 +53,12 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V2 =
     currentModelCoreRuntimeAdoptionClaimed: false as const,
     pulmonaryVenousSignal:
       "aggregate-PVein-to-LA-edge-not-separate-vein-measurements" as const,
+    pvMorphologyPressureOwnership:
+      "absolute-intracavitary-node-pressure" as const,
+    pressureWaveformOwnership:
+      "absolute-node-pressure-LA-LV-Ao" as const,
+    constitutiveAndWallWorkPressureOwnership: "transmural" as const,
+    totalBloodVolumeOwnership: "protocol-readback-only" as const,
   });
 
 const CLOSURE_GROUP_ORDER_V2 = Object.freeze([
@@ -78,6 +84,7 @@ export type MainWireNormalAdultFiveWallAcceptedEndpointPlotPointV2 = Readonly<{
   phase01: number;
   acceptedDurationSec: number;
   chamberVolumeMl: Readonly<{ LA: number; LV: number }>;
+  /** Absolute intracavitary/node pressures used for PV morphology and waveforms. */
   pressureMmHg: Readonly<{ LA: number; LV: number; Ao: number }>;
   flowMlPerSec: Readonly<{
     MV: number;
@@ -119,6 +126,7 @@ export type MainWireNormalAdultFiveWallPvPlotPointV2 = Readonly<{
   timeSec: number;
   phase01: number;
   volumeMl: number;
+  /** Absolute intracavitary node pressure; never a constitutive transmural value. */
   pressureMmHg: number;
 }>;
 
@@ -350,7 +358,9 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV2(
     <li>PV paths use the real predecessor followed by accepted endpoints. No last-endpoint-to-first-endpoint segment is invented.</li>
     <li>An exact calcium event inside an accepted interval is shown at its exact time; the accepted endpoint remains the state readback owner and no intermediate state is interpolated.</li>
     <li>Without a real predecessor, raw endpoint plots and ranges remain visible, while phase, work, morphology, and closed-cycle claims are unavailable.</li>
-    <li>LA and LV pressures are transmural readbacks; Ao pressure is an absolute node pressure with a different reference zero.</li>
+    <li>LA/LV PV morphology and the LA/LV/Ao pressure waveform use absolute intracavitary/node pressures with one pressure reference.</li>
+    <li>Transmural pressure remains the constitutive-law and wall-work owner; it is not substituted into the displayed PV morphology.</li>
+    <li>Total blood volume is protocol/audit readback only. This review neither defines nor adjusts the 5522.11 mL operating point.</li>
     <li>PVein→LA is one aggregate modeled pulmonary-venous edge, not separate clinical vein measurements.</li>
     <li>This sidecar does not claim current ModelCore/browser-runtime adoption or time-step robustness.</li>
   </ul></section>
@@ -431,23 +441,23 @@ function renderReviewSvg(
     ),
     renderLinePanelV2(
       panel(1, 0),
-      `LA blood-volume PV${review.status === "complete" ? "" : " (open endpoints only)"}`,
+      `LA absolute intracavitary-pressure PV${review.status === "complete" ? "" : " (open endpoints only)"}`,
       "LA volume (mL)",
-      "LAP (mmHg)",
+      "absolute LAP (mmHg)",
       pvSeries(review.pvPaths.LA),
       [],
     ),
     renderLinePanelV2(
       panel(2, 0),
-      `LV blood-volume PV${review.status === "complete" ? "" : " (open endpoints only)"}`,
+      `LV absolute intracavitary-pressure PV${review.status === "complete" ? "" : " (open endpoints only)"}`,
       "LV volume (mL)",
-      "LVP (mmHg)",
+      "absolute LVP (mmHg)",
       pvSeries(review.pvPaths.LV),
       [],
     ),
     renderLinePanelV2(
       panel(0, 1),
-      "Left-heart pressures (LA/LV transmural; Ao absolute)",
+      "Left-heart absolute node pressures (LA/LV/Ao)",
       "accepted cycle fraction",
       "pressure (mmHg)",
       [
@@ -497,7 +507,7 @@ function renderReviewSvg(
   ].join("\n");
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="review-v2-svg-title review-v2-svg-description">
   <title id="review-v2-svg-title">Accepted-interval five-wall physiology review</title>
-  <desc id="review-v2-svg-description">Six panels show all closure groups including calcium event state, atrial and ventricular pressure-volume paths, left-heart pressures, all modeled valve and aggregate pulmonary-venous flows, and accepted interval durations with exact calcium event markers.</desc>
+  <desc id="review-v2-svg-description">Six panels show all closure groups including calcium event state, atrial and ventricular absolute intracavitary pressure-volume paths, absolute left-heart node pressures, all modeled valve and aggregate pulmonary-venous flows, and accepted interval durations with exact calcium event markers.</desc>
   <rect width="100%" height="100%" fill="#081426"/>
   <text x="35" y="35" fill="#e7eef9" font-size="24" font-weight="700">Raw accepted-time physiology and event ownership</text>
   <text x="35" y="61" fill="#9fb0c8" font-size="13">Real predecessor boundary when available · accepted endpoints · exact event markers · no smoothing or interpolation</text>
@@ -753,7 +763,7 @@ function roundNumber(value: number, digits: number): number {
 }
 
 function endpointPlotPoint(
-  sample: MainWireNormalAdultFiveWallDiagnosticSampleV3,
+  sample: MainWireNormalAdultFiveWallDiagnosticSampleV2,
   sampleIndex: number,
   acceptedDurationSec: number,
   cycleStartTimeSec: number,
@@ -773,8 +783,8 @@ function endpointPlotPoint(
       LV: sample.nodeVolumeMl.LV,
     }),
     pressureMmHg: Object.freeze({
-      LA: sample.chamberTransmuralPressureMmHg.LA,
-      LV: sample.chamberTransmuralPressureMmHg.LV,
+      LA: sample.nodeAbsolutePressureMmHg.LA,
+      LV: sample.nodeAbsolutePressureMmHg.LV,
       Ao: sample.nodeAbsolutePressureMmHg.Ao,
     }),
     flowMlPerSec: Object.freeze({
@@ -792,7 +802,7 @@ function endpointPlotPoint(
 }
 
 function precedingBoundaryPlotPoint(
-  sample: MainWireNormalAdultFiveWallDiagnosticSampleV3,
+  sample: MainWireNormalAdultFiveWallDiagnosticSampleV2,
   cycleStartTimeSec: number,
   cycleDurationSec: number,
 ): MainWireNormalAdultFiveWallPrecedingBoundaryPlotPointV2 {
@@ -859,8 +869,8 @@ function exactEventPlotMarker(
 }
 
 function pvPathSet(
-  endpoints: readonly MainWireNormalAdultFiveWallDiagnosticSampleV3[],
-  preceding: MainWireNormalAdultFiveWallDiagnosticSampleV3 | null,
+  endpoints: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
+  preceding: MainWireNormalAdultFiveWallDiagnosticSampleV2 | null,
   cycleStartTimeSec: number,
   cycleDurationSec: number,
   phases: readonly MainWireNormalAdultFiveWallCyclePhaseV1[] | null,
@@ -902,7 +912,7 @@ function pvPathSet(
 }
 
 function pvPoint(
-  sample: MainWireNormalAdultFiveWallDiagnosticSampleV3,
+  sample: MainWireNormalAdultFiveWallDiagnosticSampleV2,
   chamber: ChamberId,
   source: MainWireNormalAdultFiveWallPvPlotPointV2["source"],
   sampleIndex: number | null,
@@ -920,7 +930,7 @@ function pvPoint(
       cycleDurationSec,
     ),
     volumeMl: sample.nodeVolumeMl[chamber],
-    pressureMmHg: sample.chamberTransmuralPressureMmHg[chamber],
+    pressureMmHg: sample.nodeAbsolutePressureMmHg[chamber],
   });
 }
 

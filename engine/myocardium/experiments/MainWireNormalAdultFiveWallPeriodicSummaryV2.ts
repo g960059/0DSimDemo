@@ -8,7 +8,7 @@ import {
   type LaPvMeasuredLobeV2,
 } from "@/engine/mechanics2/diagnostics/LaPvLobeMeasurementV2";
 import {
-  assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1,
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
   type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
@@ -24,14 +24,18 @@ import {
   type MainWireNormalAdultFiveWallCycleDiagnosticsV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallCycleDiagnosticsV2";
 import type {
-  MainWireNormalAdultFiveWallDiagnosticSampleV3,
-} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV3";
+  MainWireNormalAdultFiveWallDiagnosticSampleV2,
+} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
+import {
+  readMainWireNormalAdultBloodVolumeOperatingPointReportV1,
+  type MainWireNormalAdultBloodVolumeOperatingPointReportV1,
+} from "@/engine/myocardium/diagnostics/MainWireNormalAdultBloodVolumeOperatingPointReportV1";
 import {
   resolveMainWireNormalAdultFiveWallSelectedCycleContextV2,
   type MainWireNormalAdultFiveWallSelectedCycleContextV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallSelectedCycleContextV2";
 import {
-  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV2,
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1,
   type MainWireNormalAdultFiveWallPeriodicResultV3,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
@@ -63,8 +67,13 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_CLAIM_V2 =
     timeSeriesSmoothingApplied: false as const,
     timeSeriesResamplingOrInterpolationApplied: false as const,
     piecewiseLinearPvGeometryInterpolationApplied: true as const,
+    laPvMorphologyPressureCoordinate:
+      "intracavitary-absolute-pressure" as const,
+    transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics:
+      true as const,
     morphologyInterpretationRequiresPeriod1Convergence: true as const,
     timeStepRobustnessAssessedBySummary: false as const,
+    bloodVolumeOperatingPointReadbackOnly: true as const,
   });
 
 type ChamberId = "LA" | "LV" | "RA" | "RV";
@@ -158,20 +167,22 @@ type CommonSummaryV2 = Readonly<{
     componentHashes:
       MainWireNormalAdultFiveWallPeriodicResultV3["protocolComponentHashes"];
   }>;
+  bloodVolumeOperatingPoint:
+    MainWireNormalAdultBloodVolumeOperatingPointReportV1;
   source: Readonly<{
     experimentId: MainWireNormalAdultFiveWallPeriodicResultV3["experimentId"];
     schemaVersion: MainWireNormalAdultFiveWallPeriodicResultV3["schemaVersion"];
     initialization:
       MainWireNormalAdultFiveWallPeriodicResultV3["initialization"];
     laSlsMode: MainWireNormalAdultFiveWallPeriodicResultV3["laSlsMode"];
-    calciumDrivePriorVariant:
-      MainWireNormalAdultFiveWallPeriodicResultV3["calciumDrivePriorVariant"];
+    pericardiumMode:
+      MainWireNormalAdultFiveWallPeriodicResultV3["pericardiumMode"];
+    pericardiumCase:
+      MainWireNormalAdultFiveWallPeriodicResultV3["pericardiumCase"];
+    pericardiumParameterSetId: string;
+    valvePreset: MainWireNormalAdultFiveWallPeriodicResultV3["valvePreset"];
     calciumRepresentation:
       MainWireNormalAdultFiveWallPeriodicResultV3["calciumRepresentation"];
-    bloodVolumePriorVariant:
-      MainWireNormalAdultFiveWallPeriodicResultV3["bloodVolumePriorVariant"];
-    bloodVolumePriorAudit:
-      MainWireNormalAdultFiveWallPeriodicResultV3["bloodVolumePriorAudit"];
     nominalDtSec: number;
     requestedMaximumBeatCount: number;
     completedBeatCount: number;
@@ -198,8 +209,6 @@ type CommonSummaryV2 = Readonly<{
   }>;
   selectedCycle: SelectedCycleReadbackV2;
   fixedActivationPrior: Readonly<{
-    variant:
-      MainWireNormalAdultFiveWallPeriodicResultV3["calciumDrivePriorVariant"];
     parameterSetId: string;
     atrialRiseTimeConstantSec: number;
     atrialDecayTimeConstantSec: number;
@@ -371,7 +380,11 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV2(
       reason: cycle.reason,
     });
   const morphology = cycle.status === "measurable"
-    ? measureMorphology(context, cycle, result.calciumDriveFixedParams)
+    ? measureMorphology(
+      context,
+      cycle,
+      FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    )
     : Object.freeze({
       status: "not-measurable" as const,
       reason: cycle.reason,
@@ -392,9 +405,11 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV2(
 function commonSummary(
   result: MainWireNormalAdultFiveWallPeriodicResultV3,
   context: MainWireNormalAdultFiveWallSelectedCycleContextV2,
-  rangeSamples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV3[],
+  rangeSamples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
   boundaryCoverage: SelectedCycleReadbackV2["rangeBoundaryCoverage"],
 ): CommonSummaryV2 {
+  const bloodVolumeOperatingPoint =
+    readMainWireNormalAdultBloodVolumeOperatingPointReportV1(result);
   return Object.freeze({
     summaryId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_V2_ID,
     protocol: Object.freeze({
@@ -402,15 +417,17 @@ function commonSummary(
       identityHash: result.protocolIdentityHash,
       componentHashes: result.protocolComponentHashes,
     }),
+    bloodVolumeOperatingPoint,
     source: Object.freeze({
       experimentId: result.experimentId,
       schemaVersion: result.schemaVersion,
       initialization: result.initialization,
       laSlsMode: result.laSlsMode,
-      calciumDrivePriorVariant: result.calciumDrivePriorVariant,
+      pericardiumMode: result.pericardiumMode,
+      pericardiumCase: result.pericardiumCase,
+      pericardiumParameterSetId: result.pericardiumParameterSetId,
+      valvePreset: result.valvePreset,
       calciumRepresentation: result.calciumRepresentation,
-      bloodVolumePriorVariant: result.bloodVolumePriorVariant,
-      bloodVolumePriorAudit: result.bloodVolumePriorAudit,
       nominalDtSec: result.dtSec,
       requestedMaximumBeatCount: result.requestedMaximumBeatCount,
       completedBeatCount: result.completedBeatCount,
@@ -444,12 +461,14 @@ function commonSummary(
         summarizeJacobianFiniteDifferenceWidths(context.samples),
     }),
     fixedActivationPrior: Object.freeze({
-      variant: result.calciumDrivePriorVariant,
-      parameterSetId: result.calciumDriveFixedParams.parameterSetId,
+      parameterSetId:
+        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
       atrialRiseTimeConstantSec:
-        result.calciumDriveFixedParams.atrial.riseTimeConstantSec,
+        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial
+          .riseTimeConstantSec,
       atrialDecayTimeConstantSec:
-        result.calciumDriveFixedParams.atrial.decayTimeConstantSec,
+        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial
+          .decayTimeConstantSec,
       purpose:
         "normalized-Ca-lobe-selection-proxy-not-event-timing-or-tension-law" as const,
       activationNormalization:
@@ -525,7 +544,7 @@ function measureMorphology(
     (sample, index) => Object.freeze({
       theta: (sample.timeSec - context.startTimeSec) / context.durationSec,
       laVolumeMl: sample.nodeVolumeMl.LA,
-      laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
+      laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
       laActivation01: atrialActivation01(sample, calcium),
       phase: closedPhases[index]!,
     }),
@@ -556,8 +575,8 @@ function physiologicalCyclicSegment(
     { status: "complete" }>,
   startIndex: number,
   endIndex: number,
-): readonly MainWireNormalAdultFiveWallDiagnosticSampleV3[] {
-  const segment: MainWireNormalAdultFiveWallDiagnosticSampleV3[] = [];
+): readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[] {
+  const segment: MainWireNormalAdultFiveWallDiagnosticSampleV2[] = [];
   let index = startIndex;
   for (let guard = 0; guard <= context.samples.length; guard += 1) {
     segment.push(context.samples[index]!);
@@ -571,7 +590,7 @@ function physiologicalCyclicSegment(
 }
 
 function summarizeJacobianFiniteDifferenceWidths(
-  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV3[],
+  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
 ): MainWireNormalAdultFiveWallJacobianWidthAuditV2 {
   const nominalScaledStep =
     MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1;
@@ -612,17 +631,13 @@ function summarizeJacobianFiniteDifferenceWidths(
 function assertProtocolAndCalcium(
   result: MainWireNormalAdultFiveWallPeriodicResultV3,
 ): void {
-  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV2({
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
     identity: result.protocolIdentity,
     identityHash: result.protocolIdentityHash,
     componentHashes: result.protocolComponentHashes,
     periodicPolicy: result.policy,
   });
-  const calcium = result.calciumDriveFixedParams;
-  assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1(
-    result.calciumDrivePriorVariant,
-    calcium,
-  );
+  const calcium = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
   const calciumHash = stableHash(sanitizeForStableHash(calcium));
   if (
     result.protocolIdentity.calciumDrive.driveId
@@ -686,7 +701,7 @@ function compactBranchOrder(
 }
 
 function atrialActivation01(
-  sample: MainWireNormalAdultFiveWallDiagnosticSampleV3,
+  sample: MainWireNormalAdultFiveWallDiagnosticSampleV2,
   calcium: FiveWallNormalCalciumDriveParamsV1,
 ): number {
   return clamp01(
@@ -711,10 +726,10 @@ function wallMaterialVolumesMl() {
   return values;
 }
 
-function pvPoint(sample: MainWireNormalAdultFiveWallDiagnosticSampleV3) {
+function pvPoint(sample: MainWireNormalAdultFiveWallDiagnosticSampleV2) {
   return Object.freeze({
     laVolumeMl: sample.nodeVolumeMl.LA,
-    laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
+    laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
   });
 }
 

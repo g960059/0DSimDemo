@@ -132,6 +132,46 @@ describe("main-wire normal-adult five-wall periodic review V2", () => {
     }
   });
 
+  it("uses absolute intracavitary pressure for PV and pressure waveforms", () => {
+    const review = buildMainWireNormalAdultFiveWallPeriodicReviewV2(
+      exactResult,
+    );
+    expect(review.status).toBe("complete");
+    if (review.status !== "complete") throw new Error("expected complete");
+    const selected = exactResult.retainedCompleteBeats.at(-1)!;
+    const predecessor = selected.acceptedIntervalTrace;
+    if (predecessor.status !== "complete") {
+      throw new Error("expected real predecessor");
+    }
+
+    for (const chamber of ["LA", "LV"] as const) {
+      const path = review.pvPaths[chamber];
+      expect(path.points[0]!.pressureMmHg).toBe(
+        predecessor.precedingSample.sample.nodeAbsolutePressureMmHg[chamber],
+      );
+      selected.samples.forEach((sample, index) => {
+        expect(path.points[index + 1]!.pressureMmHg)
+          .toBe(sample.nodeAbsolutePressureMmHg[chamber]);
+      });
+    }
+    review.acceptedTimebase.endpoints.forEach((point, index) => {
+      const sample = selected.samples[index]!;
+      expect(point.pressureMmHg).toEqual({
+        LA: sample.nodeAbsolutePressureMmHg.LA,
+        LV: sample.nodeAbsolutePressureMmHg.LV,
+        Ao: sample.nodeAbsolutePressureMmHg.Ao,
+      });
+    });
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V2)
+      .toMatchObject({
+        pvMorphologyPressureOwnership:
+          "absolute-intracavitary-node-pressure",
+        pressureWaveformOwnership: "absolute-node-pressure-LA-LV-Ao",
+        constitutiveAndWallWorkPressureOwnership: "transmural",
+        totalBloodVolumeOwnership: "protocol-readback-only",
+      });
+  });
+
   it("retains raw cold-start endpoints but withholds boundary physiology", () => {
     const first = exactResult.retainedCompleteBeats[0]!;
     const coldOnly = Object.freeze({
@@ -179,10 +219,16 @@ describe("main-wire normal-adult five-wall periodic review V2", () => {
     expect(rendered.svg).toContain('role="img"');
     expect(rendered.svg).toContain("Group-wise beat closure");
     expect(rendered.svg).toContain("Ca event state");
-    expect(rendered.svg).toContain("LA blood-volume PV");
-    expect(rendered.svg).toContain("LV blood-volume PV");
+    expect(rendered.svg).toContain("LA absolute intracavitary-pressure PV");
+    expect(rendered.svg).toContain("LV absolute intracavitary-pressure PV");
     expect(rendered.svg).toContain(
-      "Left-heart pressures (LA/LV transmural; Ao absolute)",
+      "Left-heart absolute node pressures (LA/LV/Ao)",
+    );
+    expect(rendered.html).toContain(
+      "Transmural pressure remains the constitutive-law and wall-work owner",
+    );
+    expect(rendered.html).toContain(
+      "Total blood volume is protocol/audit readback only",
     );
     expect(rendered.svg).toContain("Ca LVFW+SEP+RVFW");
     expect(rendered.svg).toContain(

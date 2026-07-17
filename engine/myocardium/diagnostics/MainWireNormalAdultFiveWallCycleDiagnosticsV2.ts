@@ -38,6 +38,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_DIAGNOSTICS_CLAIM_V2 =
       "accepted-endpoints-with-interval-phase-ownership" as const,
     workIncrementOwnership: "accepted-endpoint-unsplit" as const,
     workIncrementMultipliedByDt: false as const,
+    pericardialWorkIntegration:
+      "accepted-backward-Euler-endpoint-unsplit" as const,
     relaxationTauRegression:
       "accepted-duration-weighted-endpoint-time" as const,
   });
@@ -962,6 +964,7 @@ function measureWorkEnergy(
     RA: 0,
     RV: 0,
   };
+  let pericardialPressureWorkMilliJ = 0;
   for (let index = 0; index < samples.length; index += 1) {
     const next = samples[index]!;
     const previous = index === 0
@@ -1006,6 +1009,14 @@ function measureWorkEnergy(
         (next.nodeVolumeMl[chamber] - previous.nodeVolumeMl[chamber]) *
         MMHG_ML_TO_MILLIJ;
     }
+    const totalChamberVolumeChangeMl =
+      (next.nodeVolumeMl.LA - previous.nodeVolumeMl.LA)
+      + (next.nodeVolumeMl.LV - previous.nodeVolumeMl.LV)
+      + (next.nodeVolumeMl.RA - previous.nodeVolumeMl.RA)
+      + (next.nodeVolumeMl.RV - previous.nodeVolumeMl.RV);
+    pericardialPressureWorkMilliJ +=
+      next.commonPericardium.excessPressureMmHg
+      * totalChamberVolumeChangeMl * MMHG_ML_TO_MILLIJ;
   }
   const perWall = wallRecord((wallId) =>
     freezeWallLedger(perWallMutable[wallId]));
@@ -1021,6 +1032,11 @@ function measureWorkEnergy(
   const pairedDurationSec = sum(window.intervals.map(
     (interval) => interval.durationSec,
   ));
+  const initialSample = window.precedingSample.sample;
+  const finalSample = samples.at(-1)!;
+  const pericardialStoredEnergyChangeMilliJ =
+    finalSample.commonPericardium.storedEnergyMilliJ
+    - initialSample.commonPericardium.storedEnergyMilliJ;
   return Object.freeze({
     stressWorkCoverageFraction: pairedDurationSec / window.durationSec,
     perWall,
@@ -1030,6 +1046,13 @@ function measureWorkEnergy(
       pumping: Object.freeze({ ...laByPhase.pumping }),
     }),
     cavityWorkOnWallMilliJ: Object.freeze({ ...cavityWork }),
+    commonPericardium: Object.freeze({
+      pressureWorkOnBagMilliJ: pericardialPressureWorkMilliJ,
+      storedEnergyChangeMilliJ: pericardialStoredEnergyChangeMilliJ,
+      backwardEulerRemainderMilliJ:
+        pericardialPressureWorkMilliJ
+        - pericardialStoredEnergyChangeMilliJ,
+    }),
     workConjugacyResidualMilliJ: Object.freeze({
       leftAtrium: perWall.LA.stressWorkOnWallMilliJ.total - cavityWork.LA,
       rightAtrium: perWall.RA.stressWorkOnWallMilliJ.total - cavityWork.RA,

@@ -4,8 +4,8 @@ import {
   type RetainedAcceptedIntervalWindowV1,
 } from "@/engine/myocardium/diagnostics/AcceptedIntervalTimebaseV1";
 import type {
-  MainWireNormalAdultFiveWallDiagnosticSampleV3,
-} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV3";
+  MainWireNormalAdultFiveWallDiagnosticSampleV2,
+} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
 import type {
   MainWireNormalAdultFiveWallAcceptedCalciumEventV1,
   MainWireNormalAdultFiveWallAcceptedDiagnosticIntervalV1,
@@ -18,7 +18,7 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_SELECTED_CYCLE_CONTEXT_V2_ID =
 
 export type MainWireNormalAdultFiveWallAcceptedDiagnosticWindowV2 =
   RetainedAcceptedIntervalWindowV1<
-    MainWireNormalAdultFiveWallDiagnosticSampleV3,
+    MainWireNormalAdultFiveWallDiagnosticSampleV2,
     MainWireNormalAdultFiveWallAcceptedCalciumEventV1
   >;
 
@@ -41,7 +41,7 @@ type SelectedCycleCommon = Readonly<{
   maximumAcceptedDtSec: number;
   acceptedEventCount: number;
   intervals: readonly MainWireNormalAdultFiveWallAcceptedDiagnosticIntervalV1[];
-  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV3[];
+  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[];
   acceptedEvents: readonly MainWireNormalAdultFiveWallSelectedCycleEventV2[];
 }>;
 
