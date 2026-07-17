@@ -24,6 +24,7 @@ import {
   FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID,
   createFixedSinusFiveWallCalciumEventScheduleV1,
   splitFiveWallCalciumIntervalAtEventsV1,
+  type FiveWallCalciumEventV1,
   type FiveWallCalciumRepresentationV1,
 } from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
 import {
@@ -54,6 +55,14 @@ import {
   type MainWireNormalAdultFiveWallDiagnosticSampleV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
 import {
+  ACCEPTED_INTERVAL_TIMEBASE_V1_ID,
+  validateRetainedAcceptedIntervalWindowV1,
+  type AcceptedIntervalEndpointSampleV1,
+  type AcceptedIntervalOpenClosedEventV1,
+  type AcceptedIntervalV1,
+  type RetainedAcceptedIntervalWindowV1,
+} from "@/engine/myocardium/diagnostics/AcceptedIntervalTimebaseV1";
+import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultLaSlsModeV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
@@ -70,8 +79,14 @@ import type {
   MainWireFourValveDiseasePresetV1,
 } from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
 
+/** @deprecated Historic V1 artifact ID; V1 runner name aliases canonical V3. */
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID =
   "main-wire-normal-adult-five-wall-periodic-steady-v1" as const;
+/** @deprecated Historic V2 artifact ID; V2 runner name aliases canonical V3. */
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V2_ID =
+  "main-wire-normal-adult-five-wall-periodic-steady-v2" as const;
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V3_ID =
+  "main-wire-normal-adult-five-wall-periodic-steady-v3" as const;
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V1_ID =
   "main-wire-normal-adult-five-wall-periodic-protocol-identity-v1" as const;
@@ -204,12 +219,70 @@ export type MainWireNormalAdultFiveWallPeriodicOptionsV1 = Readonly<{
   calciumRepresentation?: FiveWallCalciumRepresentationV1;
 }>;
 
-export type MainWireNormalAdultFiveWallRetainedBeatV1 = Readonly<{
+/**
+ * Provenance copied from the accepted calcium trial. The runner never
+ * reconstructs these events by querying the schedule a second time.
+ */
+export type MainWireNormalAdultFiveWallAcceptedCalciumEventV1 = Readonly<{
+  source: "accepted-calcium-trial";
+  scheduleId: string;
+  scheduleIdentityHash: string;
+  acceptedTrialBaseRevision: number;
+  eventIndexWithinAcceptedTrial: number;
+  calciumEvent: FiveWallCalciumEventV1;
+}>;
+
+export type MainWireNormalAdultFiveWallAcceptedDiagnosticIntervalV1 =
+  AcceptedIntervalV1<
+    MainWireNormalAdultFiveWallDiagnosticSampleV2,
+    MainWireNormalAdultFiveWallAcceptedCalciumEventV1
+  >;
+
+type MainWireNormalAdultFiveWallAcceptedDiagnosticWindowV1 =
+  RetainedAcceptedIntervalWindowV1<
+    MainWireNormalAdultFiveWallDiagnosticSampleV2,
+    MainWireNormalAdultFiveWallAcceptedCalciumEventV1
+  >;
+
+/**
+ * The cold accepted state is not itself a Diagnostic V3 sample. The missing
+ * branch preserves that fact instead of fabricating a predecessor from state
+ * coordinates.
+ */
+export type MainWireNormalAdultFiveWallAcceptedIntervalTraceV1 =
+  | Readonly<MainWireNormalAdultFiveWallAcceptedDiagnosticWindowV1 & {
+    status: "complete";
+  }>
+  | Readonly<
+    Omit<MainWireNormalAdultFiveWallAcceptedDiagnosticWindowV1,
+      "precedingSample"> & {
+      status: "missing-preceding-diagnostic";
+      reason: "cold-start";
+    }
+  >;
+
+export type MainWireNormalAdultFiveWallRetainedBeatV3 = Readonly<{
   beatIndex: number;
   startTimeSec: number;
   endTimeSec: number;
+  startRevision: number;
+  endRevision: number;
+  acceptedIntervalCount: number;
+  acceptedIntervalTrace:
+    MainWireNormalAdultFiveWallAcceptedIntervalTraceV1;
+  /** Compatibility projection; interval endpoints are the canonical owner. */
   samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[];
 }>;
+
+/**
+ * @deprecated Transitional source alias to V3, not a frozen V2 wire schema.
+ */
+export type MainWireNormalAdultFiveWallRetainedBeatV2 =
+  MainWireNormalAdultFiveWallRetainedBeatV3;
+
+/** @deprecated Compatibility alias; the canonical retained-beat schema is V3. */
+export type MainWireNormalAdultFiveWallRetainedBeatV1 =
+  MainWireNormalAdultFiveWallRetainedBeatV3;
 
 export type MainWireNormalAdultFiveWallPeriodicTerminationReasonV1 =
   | "period1-converged"
@@ -217,9 +290,10 @@ export type MainWireNormalAdultFiveWallPeriodicTerminationReasonV1 =
   | "maximum-beats-reached"
   | "step-failure";
 
-export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
+export type MainWireNormalAdultFiveWallPeriodicResultV3 = Readonly<{
   experimentId:
-    typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID;
+    typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V3_ID;
+  schemaVersion: 3;
   mode: "canonical";
   protocolIdentity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
   protocolIdentityHash: string;
@@ -247,9 +321,12 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   periodicity: MainWireFiveWallPeriodicClassificationV1;
   beatClosure: readonly MainWireFiveWallPeriodicBeatObservationV1[];
   retainedCompleteBeats:
-    readonly MainWireNormalAdultFiveWallRetainedBeatV1[];
+    readonly MainWireNormalAdultFiveWallRetainedBeatV3[];
   retainedPartialBeat:
     readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[];
+  /** Accepted-interval provenance retained if a later step in a beat fails. */
+  retainedPartialAcceptedIntervals:
+    readonly MainWireNormalAdultFiveWallAcceptedDiagnosticIntervalV1[];
   terminalCycleBoundaryWarmStart:
     MainWireNormalAdultFiveWallCycleWarmStartV1 | null;
   failure: null | Readonly<{
@@ -303,9 +380,14 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     parameterSearch: false;
     calciumRepresentationSelectionIsFixedEnum: true;
     exactEventCalciumStatesIncludedInPeriodClosure: true;
-    eventIntervalsSplitAtOffGridEvents: true;
+    exactEventRepresentationIntervalsSplitAtOffGridEvents: true;
     stepsPerBeatIsNominalGridCount: true;
     acceptedSubstepsMayExceedNominalStepsPerBeat: true;
+    acceptedIntervalTimebaseId: typeof ACCEPTED_INTERVAL_TIMEBASE_V1_ID;
+    acceptedIntervalOwnership: "open-start-closed-end";
+    acceptedIntervalEventsCopiedFromAcceptedCalciumTrial: true;
+    retainedIntervalEventScheduleRequeryApplied: false;
+    retainedPrecedingDiagnosticFabricated: false;
     initializationVariantChangesRuntimeOrMaterialParameters: false;
     pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true;
     samePeriodicOrbitAcrossInitializationsClaimed: false;
@@ -319,6 +401,13 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     valveDiseaseBracketIsClinicalDiagnosis: false;
   }>;
 }>;
+
+/** @deprecated Transitional source alias to V3. */
+export type MainWireNormalAdultFiveWallPeriodicResultV2 =
+  MainWireNormalAdultFiveWallPeriodicResultV3;
+/** @deprecated Transitional source alias to V3. */
+export type MainWireNormalAdultFiveWallPeriodicResultV1 =
+  MainWireNormalAdultFiveWallPeriodicResultV3;
 
 export type MainWireNormalAdultFiveWallPeriodicProtocolResolutionV1 =
   Readonly<{
@@ -394,9 +483,9 @@ export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
   return protocol;
 }
 
-export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
+export function runMainWireNormalAdultFiveWallPeriodicSteadyV3(
   options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
-): MainWireNormalAdultFiveWallPeriodicResultV1 {
+): MainWireNormalAdultFiveWallPeriodicResultV3 {
   const resolved = validateAndResolveOptions(options);
   const runtime = normalAdultMainWireRuntimeV1(
     resolved.valveDiseaseBracketIds,
@@ -480,10 +569,16 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   let state = initializedState;
   const boundaryStates: AcceptedState[] = [state];
   const observations: MainWireFiveWallPeriodicBeatObservationV1[] = [];
-  const retainedCompleteBeats: MainWireNormalAdultFiveWallRetainedBeatV1[] = [];
+  const retainedCompleteBeats: MainWireNormalAdultFiveWallRetainedBeatV3[] = [];
   let retainedPartialBeat: MainWireNormalAdultFiveWallDiagnosticSampleV2[] = [];
+  let retainedPartialAcceptedIntervals:
+    MainWireNormalAdultFiveWallAcceptedDiagnosticIntervalV1[] = [];
+  let lastAcceptedDiagnosticEndpoint:
+    AcceptedIntervalEndpointSampleV1<
+      MainWireNormalAdultFiveWallDiagnosticSampleV2
+    > | null = null;
   let classification = classify(observations);
-  let failure: MainWireNormalAdultFiveWallPeriodicResultV1["failure"] = null;
+  let failure: MainWireNormalAdultFiveWallPeriodicResultV3["failure"] = null;
 
   beatLoop:
   for (
@@ -492,7 +587,11 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     beatIndex += 1
   ) {
     const beatSamples: MainWireNormalAdultFiveWallDiagnosticSampleV2[] = [];
+    const beatIntervals:
+      MainWireNormalAdultFiveWallAcceptedDiagnosticIntervalV1[] = [];
     const startTimeSec = state.acceptedTimeSec;
+    const startRevision = state.revision;
+    const precedingDiagnosticAtBeatStart = lastAcceptedDiagnosticEndpoint;
     for (
       let stepWithinBeat = 1;
       stepWithinBeat <= resolved.stepsPerBeat;
@@ -511,6 +610,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
         )
         : Object.freeze([nominalEndTimeSec]);
       for (const subintervalEndTimeSec of subintervalEndTimes) {
+        const intervalStartTimeSec = state.acceptedTimeSec;
+        const intervalStartRevision = state.revision;
         const stepped = stepMainWireFiveWallNonCoronaryV1(provider, state, {
           dtSec: resolved.calciumRepresentation === "exact-event-state"
             ? subintervalEndTimeSec - state.acceptedTimeSec
@@ -522,6 +623,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
         });
         if (stepped.converged === false) {
           retainedPartialBeat = beatSamples;
+          retainedPartialAcceptedIntervals = beatIntervals;
           failure = Object.freeze({
             beatIndex,
             stepWithinBeat,
@@ -536,8 +638,29 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
           });
           break beatLoop;
         }
+        if (stepped.calciumTrial.baseRevision !== intervalStartRevision) {
+          throw new Error(
+            "accepted calcium trial base revision differs from the coupled interval",
+          );
+        }
+        const sample = sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped);
+        const endpointSample = Object.freeze({
+          timeSec: stepped.acceptedState.acceptedTimeSec,
+          sample,
+        });
+        const interval = acceptedDiagnosticInterval(
+          intervalStartTimeSec,
+          stepped.acceptedState.acceptedTimeSec,
+          endpointSample,
+          stepped.calciumTrial.events,
+          stepped.calciumTrial.baseRevision,
+          stepped.acceptedState.calcium.scheduleId,
+          stepped.acceptedState.calcium.scheduleIdentityHash,
+        );
         state = stepped.acceptedState;
-        beatSamples.push(sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped));
+        beatSamples.push(sample);
+        beatIntervals.push(interval);
+        lastAcceptedDiagnosticEndpoint = endpointSample;
       }
     }
 
@@ -557,12 +680,25 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       : null;
     observations.push(Object.freeze({ beatIndex, period1, period2 }));
     classification = classify(observations);
-    retainedCompleteBeats.push(Object.freeze({
+    const acceptedIntervalTrace = retainedAcceptedIntervalTrace(
+      startTimeSec,
+      state.acceptedTimeSec,
+      precedingDiagnosticAtBeatStart,
+      Object.freeze(beatIntervals),
+      beatIndex === 1 ? "cold-start" : null,
+    );
+    const retainedBeat = Object.freeze({
       beatIndex,
       startTimeSec,
       endTimeSec: state.acceptedTimeSec,
+      startRevision,
+      endRevision: state.revision,
+      acceptedIntervalCount: beatIntervals.length,
+      acceptedIntervalTrace,
       samples: Object.freeze(beatSamples),
-    }));
+    });
+    validateRetainedBeat(retainedBeat);
+    retainedCompleteBeats.push(retainedBeat);
     if (
       retainedCompleteBeats.length
       > MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1
@@ -587,7 +723,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     )
     : null;
   return Object.freeze({
-    experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID,
+    experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V3_ID,
+    schemaVersion: 3 as const,
     mode: "canonical" as const,
     protocolIdentity: protocol.identity,
     protocolIdentityHash: protocol.identityHash,
@@ -613,6 +750,9 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     retainedCompleteBeats: Object.freeze(retainedCompleteBeats),
     retainedPartialBeat: Object.freeze(retainedPartialBeat),
     terminalCycleBoundaryWarmStart,
+    retainedPartialAcceptedIntervals: Object.freeze(
+      retainedPartialAcceptedIntervals,
+    ),
     failure,
     initializationAudit,
     policy: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
@@ -624,9 +764,14 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       parameterSearch: false as const,
       calciumRepresentationSelectionIsFixedEnum: true as const,
       exactEventCalciumStatesIncludedInPeriodClosure: true as const,
-      eventIntervalsSplitAtOffGridEvents: true as const,
+      exactEventRepresentationIntervalsSplitAtOffGridEvents: true as const,
       stepsPerBeatIsNominalGridCount: true as const,
       acceptedSubstepsMayExceedNominalStepsPerBeat: true as const,
+      acceptedIntervalTimebaseId: ACCEPTED_INTERVAL_TIMEBASE_V1_ID,
+      acceptedIntervalOwnership: "open-start-closed-end" as const,
+      acceptedIntervalEventsCopiedFromAcceptedCalciumTrial: true as const,
+      retainedIntervalEventScheduleRequeryApplied: false as const,
+      retainedPrecedingDiagnosticFabricated: false as const,
       initializationVariantChangesRuntimeOrMaterialParameters: false as const,
       pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true as const,
       samePeriodicOrbitAcrossInitializationsClaimed: false as const,
@@ -640,6 +785,219 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       valveDiseaseBracketIsClinicalDiagnosis: false as const,
     }),
   });
+}
+
+/**
+ * @deprecated Transitional source alias returning V3; use the explicit V3
+ * runner and inspect its experiment ID/schema version.
+ */
+export const runMainWireNormalAdultFiveWallPeriodicSteadyV2 =
+  runMainWireNormalAdultFiveWallPeriodicSteadyV3;
+/**
+ * @deprecated Transitional source alias returning V3; use the explicit V3
+ * runner and inspect its experiment ID/schema version.
+ */
+export const runMainWireNormalAdultFiveWallPeriodicSteadyV1 =
+  runMainWireNormalAdultFiveWallPeriodicSteadyV3;
+
+function acceptedDiagnosticInterval(
+  startTimeSec: number,
+  endTimeSec: number,
+  endpointSample: AcceptedIntervalEndpointSampleV1<
+    MainWireNormalAdultFiveWallDiagnosticSampleV2
+  >,
+  calciumEvents: readonly FiveWallCalciumEventV1[],
+  acceptedTrialBaseRevision: number,
+  scheduleId: string,
+  scheduleIdentityHash: string,
+): MainWireNormalAdultFiveWallAcceptedDiagnosticIntervalV1 {
+  const eventsOpenClosed = Object.freeze(calciumEvents.map((calciumEvent, index) => {
+    const event = Object.freeze({
+      source: "accepted-calcium-trial" as const,
+      scheduleId,
+      scheduleIdentityHash,
+      acceptedTrialBaseRevision,
+      eventIndexWithinAcceptedTrial: index,
+      calciumEvent,
+    });
+    return Object.freeze({
+      eventId: acceptedCalciumEventId(event),
+      timeSec: calciumEvent.timeSec,
+      event,
+    }) satisfies AcceptedIntervalOpenClosedEventV1<
+      MainWireNormalAdultFiveWallAcceptedCalciumEventV1
+    >;
+  }));
+  return Object.freeze({
+    startTimeSec,
+    endTimeSec,
+    durationSec: endTimeSec - startTimeSec,
+    endpointSample,
+    eventsOpenClosed,
+  });
+}
+
+function acceptedCalciumEventId(
+  event: MainWireNormalAdultFiveWallAcceptedCalciumEventV1,
+): string {
+  return [
+    "calcium",
+    event.scheduleIdentityHash,
+    `r${event.acceptedTrialBaseRevision}`,
+    `i${event.eventIndexWithinAcceptedTrial}`,
+    stableHash(sanitizeForStableHash(event.calciumEvent)),
+  ].join(":");
+}
+
+function retainedAcceptedIntervalTrace(
+  startTimeSec: number,
+  endTimeSec: number,
+  precedingSample: AcceptedIntervalEndpointSampleV1<
+    MainWireNormalAdultFiveWallDiagnosticSampleV2
+  > | null,
+  intervals: readonly MainWireNormalAdultFiveWallAcceptedDiagnosticIntervalV1[],
+  missingReason: "cold-start" | null,
+): MainWireNormalAdultFiveWallAcceptedIntervalTraceV1 {
+  const common = {
+    timebaseId: ACCEPTED_INTERVAL_TIMEBASE_V1_ID,
+    startTimeSec,
+    endTimeSec,
+    durationSec: endTimeSec - startTimeSec,
+    intervals,
+  } as const;
+  if (precedingSample === null) {
+    if (missingReason === null) {
+      throw new Error(
+        "retained beat is missing a preceding diagnostic without provenance",
+      );
+    }
+    return Object.freeze({
+      status: "missing-preceding-diagnostic" as const,
+      reason: missingReason,
+      ...common,
+    });
+  }
+  if (missingReason !== null) {
+    throw new Error(
+      "retained beat cannot report a missing predecessor when one is present",
+    );
+  }
+  return Object.freeze({
+    status: "complete" as const,
+    ...common,
+    precedingSample,
+  });
+}
+
+function validateRetainedBeat(
+  beat: MainWireNormalAdultFiveWallRetainedBeatV3,
+): void {
+  if (!Number.isInteger(beat.beatIndex) || beat.beatIndex < 1) {
+    throw new Error("retained beat index must be a positive integer");
+  }
+  if (!Number.isInteger(beat.startRevision) || beat.startRevision < 0) {
+    throw new Error("retained beat start revision must be nonnegative integer");
+  }
+  if (!Number.isInteger(beat.endRevision) || beat.endRevision < 0) {
+    throw new Error("retained beat end revision must be nonnegative integer");
+  }
+  if (
+    beat.acceptedIntervalCount !== beat.acceptedIntervalTrace.intervals.length
+    || beat.acceptedIntervalCount !== beat.samples.length
+    || beat.acceptedIntervalCount !== beat.endRevision - beat.startRevision
+  ) {
+    throw new Error(
+      "retained beat accepted interval, sample, and revision counts differ",
+    );
+  }
+  if (beat.acceptedIntervalCount === 0) {
+    throw new Error("retained complete beat has no accepted intervals");
+  }
+  const trace = beat.acceptedIntervalTrace;
+  if (
+    !acceptedTimeEqual(trace.startTimeSec, beat.startTimeSec)
+    || !acceptedTimeEqual(trace.endTimeSec, beat.endTimeSec)
+    || !acceptedTimeEqual(trace.durationSec, beat.endTimeSec - beat.startTimeSec)
+  ) throw new Error("retained beat and accepted interval timebase differ");
+
+  let expectedStartTimeSec = beat.startTimeSec;
+  let durationSumSec = 0;
+  const eventIds = new Set<string>();
+  let previousEventTimeSec = Number.NEGATIVE_INFINITY;
+  trace.intervals.forEach((interval, intervalIndex) => {
+    if (!acceptedTimeEqual(interval.startTimeSec, expectedStartTimeSec)) {
+      throw new Error("retained beat accepted intervals are not contiguous");
+    }
+    if (!(interval.durationSec > 0) || !Number.isFinite(interval.durationSec)) {
+      throw new Error("retained beat accepted interval duration is invalid");
+    }
+    if (
+      !acceptedTimeEqual(
+        interval.durationSec,
+        interval.endTimeSec - interval.startTimeSec,
+      )
+      || !acceptedTimeEqual(
+        interval.endpointSample.timeSec,
+        interval.endTimeSec,
+      )
+      || interval.endpointSample.sample !== beat.samples[intervalIndex]
+      || !acceptedTimeEqual(
+        interval.endpointSample.sample.timeSec,
+        interval.endTimeSec,
+      )
+    ) throw new Error("retained accepted endpoint provenance is inconsistent");
+    let previousLocalEventTimeSec = Number.NEGATIVE_INFINITY;
+    interval.eventsOpenClosed.forEach((ownedEvent, localEventIndex) => {
+      if (eventIds.has(ownedEvent.eventId)) {
+        throw new Error("retained accepted event identity is duplicated");
+      }
+      eventIds.add(ownedEvent.eventId);
+      if (
+        ownedEvent.event.source !== "accepted-calcium-trial"
+        || ownedEvent.event.acceptedTrialBaseRevision
+          !== beat.startRevision + intervalIndex
+        || ownedEvent.event.eventIndexWithinAcceptedTrial !== localEventIndex
+        || ownedEvent.eventId !== acceptedCalciumEventId(ownedEvent.event)
+        || ownedEvent.timeSec !== ownedEvent.event.calciumEvent.timeSec
+        || ownedEvent.timeSec < interval.startTimeSec
+        || acceptedTimeEqual(ownedEvent.timeSec, interval.startTimeSec)
+        || (ownedEvent.timeSec > interval.endTimeSec
+          && !acceptedTimeEqual(ownedEvent.timeSec, interval.endTimeSec))
+        || (ownedEvent.timeSec < previousLocalEventTimeSec
+          && !acceptedTimeEqual(
+            ownedEvent.timeSec,
+            previousLocalEventTimeSec,
+          ))
+        || (ownedEvent.timeSec < previousEventTimeSec
+          && !acceptedTimeEqual(ownedEvent.timeSec, previousEventTimeSec))
+      ) throw new Error("retained accepted event provenance is inconsistent");
+      previousLocalEventTimeSec = ownedEvent.timeSec;
+      previousEventTimeSec = ownedEvent.timeSec;
+    });
+    expectedStartTimeSec = interval.endTimeSec;
+    durationSumSec += interval.durationSec;
+  });
+  if (
+    !acceptedTimeEqual(expectedStartTimeSec, beat.endTimeSec)
+    || !acceptedTimeEqual(durationSumSec, beat.endTimeSec - beat.startTimeSec)
+  ) throw new Error("retained accepted interval duration ledger is inconsistent");
+  if (trace.status === "complete") {
+    validateRetainedAcceptedIntervalWindowV1(trace);
+  } else {
+    if ("precedingSample" in trace) {
+      throw new Error("missing-predecessor trace contains a fabricated sample");
+    }
+    if (trace.reason === "cold-start" && beat.startRevision !== 0) {
+      throw new Error("cold-start predecessor may be missing only at revision zero");
+    }
+  }
+}
+
+function acceptedTimeEqual(left: number, right: number): boolean {
+  return Math.abs(left - right) <= Math.max(
+    1e-12,
+    64 * Number.EPSILON * Math.max(1, Math.abs(left), Math.abs(right)),
+  );
 }
 
 export function assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1(
@@ -913,7 +1271,7 @@ function auditInitialization(
   canonical: AcceptedState,
   initialized: AcceptedState,
   variant: MainWireNormalAdultFiveWallPeriodicInitializationV1,
-): MainWireNormalAdultFiveWallPeriodicResultV1["initializationAudit"] {
+): MainWireNormalAdultFiveWallPeriodicResultV3["initializationAudit"] {
   if (variant === "cycle-boundary-warm-start") {
     throw new Error("warm-start initialization requires its dedicated audit");
   }
@@ -1232,7 +1590,7 @@ function classify(
 }
 
 function resolveTerminationReason(
-  failure: MainWireNormalAdultFiveWallPeriodicResultV1["failure"],
+  failure: MainWireNormalAdultFiveWallPeriodicResultV3["failure"],
   classification: MainWireFiveWallPeriodicClassificationV1,
 ): MainWireNormalAdultFiveWallPeriodicTerminationReasonV1 {
   if (failure !== null) return "step-failure";
