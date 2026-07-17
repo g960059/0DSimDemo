@@ -31,6 +31,25 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
       identityHash: result.protocolIdentityHash,
       componentHashes: result.protocolComponentHashes,
     });
+    expect(summary.bloodVolumeOperatingPoint).toMatchObject({
+      status: "available",
+      unavailableReason: null,
+      ownerId: "main-wire-normal-adult-blood-volume-operating-point-v1",
+      fixedTotalBloodVolumeMl: 5522.11,
+      coldSeedTotalBloodVolumeMl: expect.closeTo(4589.457569593876, 9),
+      addedBloodVolumeMl: expect.closeTo(
+        5522.11 - 4589.457569593876,
+        8,
+      ),
+      sharedSvVcTransmuralPressureOffsetMmHg:
+        expect.closeTo(6.051930745, 8),
+      excludedCoronaryColdSeedVolumeMl: 77.89,
+      unchangedNodeMaximumAbsoluteDeltaMl: 0,
+    });
+    if (summary.bloodVolumeOperatingPoint.status === "available") {
+      expect(summary.bloodVolumeOperatingPoint
+        .maximumInverseOffsetResidualMmHg).toBeLessThan(1e-8);
+    }
     expect(summary.selectedBeat).toMatchObject({
       beatIndex: 2,
       sampleCount: 100,
@@ -78,6 +97,7 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
     expect(summary.claim.laPvMorphologyPressureCoordinate)
       .toBe("intracavitary-absolute-pressure");
     expect(summary.claim.timeStepRobustnessAssessedBySummary).toBe(false);
+    expect(summary.claim.bloodVolumeOperatingPointReadbackOnly).toBe(true);
     expect(summary.fixedActivationPrior.purpose).toBe(
       "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law",
     );
@@ -245,5 +265,32 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
       ...result,
       retainedCompleteBeats: [],
     })).toThrow("no retained complete beat");
+  });
+
+  it("marks a historical result without the new owner/audit as legacy unavailable", () => {
+    const {
+      bloodVolumeOperatingPointAudit: _audit,
+      protocolIdentity,
+      ...withoutAudit
+    } = result;
+    const {
+      bloodVolumeOperatingPoint: _owner,
+      ...legacyProtocolIdentity
+    } = protocolIdentity;
+    const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...withoutAudit,
+      protocolIdentity: legacyProtocolIdentity,
+    } as unknown as MainWireNormalAdultFiveWallPeriodicResultV1);
+
+    expect(summary.bloodVolumeOperatingPoint).toMatchObject({
+      status: "legacy-unavailable",
+      unavailableReason:
+        "legacy-result-missing-semantic-owner-or-construction-audit",
+      ownerId: null,
+      fixedTotalBloodVolumeMl: null,
+      coldSeedTotalBloodVolumeMl: null,
+      addedBloodVolumeMl: null,
+      maximumInverseOffsetResidualMmHg: null,
+    });
   });
 });
