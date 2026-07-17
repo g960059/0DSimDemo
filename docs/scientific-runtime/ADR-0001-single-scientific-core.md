@@ -158,6 +158,14 @@ Two checkpoint roles remain distinct:
 - **warm-start seed**: carries declared physical seed fields into an approved
   initialization protocol and is never presented as an exact resume.
 
+Generic exact resume uses checkpoint V3. V3 binds the complete
+`SimulationReleaseRef` and the SHA-256 of a separately verified resolved
+session input, in addition to accepted state and periodic-settlement tracker.
+The bundled healthy checkpoint V2 remains immutable and is accepted only by a
+separately named, fixed-canonical official-preset path. A session restored from
+that V2 asset emits V3 for every new generic checkpoint; V2 is not accepted by
+the generic Worker restore command.
+
 Exact resume means that the stored accepted state is restored bit-for-bit under
 the identical release and state schema. It does not claim that future
 continuation is bitwise-identical across different JavaScript engines or build
@@ -178,6 +186,16 @@ The rewrite separates scientific and presentation documents:
 - `RunArtifact`: exact execution inputs, checkpoints, results, and audits;
 - `CalibrationRecord`: data identity, priors, objective, optimizer, and result;
 - `WorkspaceDocument`: panels, signals, layout, and notes only.
+
+The first implemented document schemas make `PresetDocumentV1` an immutable,
+content-addressed release-bound intent and `CaseDocumentV1` an immutable,
+content-addressed revision containing the exact release, intent, verified
+resolved session input, approved protocol selection, start identity, and
+lineage. Neither document can assert official trust. Official status comes
+only from an independently pinned catalog-to-document SHA chain. Editing or
+forking an official preset creates a user case revision that retains source
+lineage without inheriting official trust. Checkpoint bytes, run outputs,
+workspace layout, and notes are not case content.
 
 Preset operations declare a composition policy. Supported policies begin with
 exclusive-set, commutative scale/add, bundle-owned, and replace-component.

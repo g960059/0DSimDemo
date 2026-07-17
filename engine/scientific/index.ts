@@ -1,5 +1,6 @@
 export * from "@/engine/scientific/records";
 export * from "@/engine/scientific/assembly";
+export * from "@/engine/scientific/documents";
 export * from "@/engine/scientific/inputs";
 export * from "@/engine/scientific/observables";
 export * from "@/engine/scientific/presets";

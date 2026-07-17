@@ -43,7 +43,10 @@ describe("single scientific core architecture boundary", () => {
       for (const specifier of importedSpecifiers(source)) {
         const allowed = specifier.startsWith(".") || specifier.startsWith("@/engine/");
         if (!allowed) violations.push(`${relative}: forbidden import ${specifier}`);
-        if (/ModelCore|previewController|previewWorker|case(?:Doc|Persist|Cloud)/i.test(specifier)) {
+        if (
+          /ModelCore|previewController|previewWorker|(?:^|\/)case(?:Doc|Persist|Cloud)(?:$|[./])/i
+            .test(specifier)
+        ) {
           violations.push(`${relative}: legacy runtime import ${specifier}`);
         }
       }
@@ -64,6 +67,17 @@ describe("single scientific core architecture boundary", () => {
       'globalThis.document.body; window["location"]; new Worker("x");',
       "host-bound.ts",
     )).toEqual(["Worker", "document", "window"]);
+  });
+
+  it("does not confuse greenfield scientific CaseDocument contracts with legacy case modules", () => {
+    const scientificCaseDocument =
+      "@/engine/scientific/documents/MainWireScientificCaseDocumentV1";
+    const legacyCaseDocument = "@/caseDoc";
+    const legacyPattern =
+      /ModelCore|previewController|previewWorker|(?:^|\/)case(?:Doc|Persist|Cloud)(?:$|[./])/i;
+
+    expect(legacyPattern.test(scientificCaseDocument)).toBe(false);
+    expect(legacyPattern.test(legacyCaseDocument)).toBe(true);
   });
 });
 

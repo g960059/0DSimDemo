@@ -22,10 +22,13 @@ requires the identical full release reference, including its SHA-256.
   canonical initialization or exact-checkpoint identity, execution ledger,
   outputs, and audits. Its reference is the SHA-256 of the full canonical run
   content; it has no generated timestamp or random run ID.
-- A future `CaseDocument` stores editable scientific intent and its resolved
-  release/protocol inputs. A future `WorkspaceDocument` stores presentation
-  state. Either may reference a run artifact, but neither can be substituted
-  for its immutable execution evidence.
+- `MainWireScientificCaseDocumentV1` stores an immutable case revision with
+  exact release, intent, verified resolved session input, approved protocol,
+  start identity, and lineage. It can refer to a V3 checkpoint by identity but
+  does not embed checkpoint bytes or execution results. A future
+  `WorkspaceDocument` stores presentation state. Either may reference a run
+  artifact, but neither can be substituted for its immutable execution
+  evidence.
 
 Release and evidence manifests deliberately do not embed the commit that
 contains themselves. The #478 commit `f229143...` appears only as the source of
