@@ -12,6 +12,10 @@ import './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { detectPreferredLocale, isLocale, prefixPath, stripLocaleFromPathname } from './localeRouting';
 
+const ScientificRuntimeAlphaPage = React.lazy(
+  () => import('./components/scientificAlpha/ScientificRuntimeAlphaPage'),
+);
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");
@@ -26,8 +30,25 @@ const appRoutes = () => (
     <Route path="lesson/:id" element={<LessonReadingRoute />} />
     <Route path="workbench" element={<Workbench />} />
     <Route path="workbench/:caseId" element={<Workbench />} />
+    <Route
+      path="scientific-alpha"
+      element={(
+        <React.Suspense fallback={<ScientificAlphaLoading />}>
+          <ScientificRuntimeAlphaPage />
+        </React.Suspense>
+      )}
+    />
     <Route path="*" element={<Navigate to="." replace />} />
   </>
+);
+
+const ScientificAlphaLoading = () => (
+  <div
+    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    role="status"
+  >
+    Loading scientific runtime alpha…
+  </div>
 );
 
 const LocalizedLayout = () => {
