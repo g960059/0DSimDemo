@@ -56,6 +56,112 @@ unhashed auditへ保存する。warm-start envelope schemaは`2`へ更新し、c
 source/target protocol identityのTBVとbit-exactに一致しないpayloadを、再fingerprint済みでも拒否する。
 旧schema `1`との後方互換性は意図的に持たない。
 
+## 2026-07-17 fixed-TBV / shared-circulation 再検証
+
+上記ownerを実際に用い、循環graph、PV law、pressure source、edge lossをmain-wireと共通kernelへ集約した
+実装を、parameter searchなしで再検証した。健康caseの`dt=2 ms`と`dt=1 ms`は、同じ収束済み
+`dt=4 ms` cycle-boundary checkpointから直接分岐し、互いをwarm-startには用いていない。両runの
+`maximumBeatCount=32`、initialization label、full protocol identityは同一である。
+
+| case | dt | initialization | termination | completed beats | morphologyの扱い |
+|---|---:|---|---|---:|---|
+| healthy H2 | 2 ms | 同一S0 warm-start | period-1 | 8 | 採用可能 |
+| healthy H1 | 1 ms | 同一S0 warm-start | period-1 | 10 | 採用可能 |
+| effusion E2 | 2 ms | 同一S0 warm-start | max 32 beats | 32 | 記述のみ |
+| effusion E1 | 1 ms | 同一S0 warm-start | max 32 beats | 32 | 記述のみ |
+| LA SLS exact-off A2 | 2 ms | canonical cold | period-1 | 27 | topology gateなし |
+
+健康H2/H1のdt-halving比較は`interpretable=true`で、全23 signalを同一accepted時刻で比較できた。
+bulk hemodynamicsは安定している。
+
+| metric | H2 2 ms | H1 1 ms |
+|---|---:|---:|
+| LVEF | 0.5802 | 0.5808 |
+| RVEF | 0.5428 | 0.5435 |
+| aortic SV | 87.736 mL | 87.803 mL |
+| cardiac output | 5.264 L/min | 5.268 L/min |
+| mean absolute Ao pressure | 87.858 mmHg | 87.931 mmHg |
+| LA volume range | 25.23--57.69 mL | 25.11--57.40 mL |
+| LA pressure range | 5.40--13.43 mmHg | 5.36--13.54 mmHg |
+| conduit emptying | 8.403 mL | 8.323 mL |
+| booster emptying | 24.053 mL | 23.960 mL |
+| reservoir--conduit mean gap | 1.177 mmHg | 1.139 mmHg |
+
+利用可能な等容量probeでは両dtともreservoirがconduitより上にある割合が`1.0`で、重複volume幅も
+`18.04 : 17.99 mL`であった。したがって、以前問題だった「y trough後も圧が回復せず、後半conduitが
+前半より下へ落ちる」現象は現runにはない。`dt=1 ms`ではconduit volume反転はphase
+`0.546--0.547`に起き、aggregate PV inflowがMV outflowを上回るflow crossoverが直接ownerである。
+反転直後25 msの`+0.598 mL, +0.123 mmHg`は、主にpassive reload `+0.166 mmHg`、次いで
+SLS recovery `+0.047 mmHg`から生じ、Landは`-0.028 mmHg`でまだ弛緩方向にある。LV suctionを
+独立したLA pressure sourceとして加えなくても、pressure gradient、MV flow、LA volumeを介して
+期待した右上向き回復が生じた。
+
+同様に、a-peakからMVCまでのlate booster pathは`V=40.277→25.121 mL`、
+`P=13.539→11.677 mmHg`で左下へ進む。圧差分のexact midpoint product分解は、geometry
+`+4.313`、passive stress `-5.798`、Land `+0.425`、SLS `-0.802 mmHg`である。したがって、
+左下向き下降は主にpassive unloadingがgeometry増幅と残存active contributionを上回ることで成立し、
+SLSは補助的である。旧Hill CE--SEEで問題になったような、収縮末期を左上へ曲げる独立$F_v$項はない。
+
+ただし、LA PV raw pathにはH2/H1とも自己交差が2個残る。H1の交点は
+`(49.168 mL, 8.814 mmHg)`と`(49.417 mL, 7.456 mmHg)`であり、既存のone-crossing
+two-lobe診断は`multiple-self-intersections`として不採用になる。この2交点は`dt=4, 2, 1 ms`で
+残り、SLS exact-off A2でも2個である。したがって、これは時間刻みartifactでも、現在のparallel SLS
+だけのparameter不足でもない。H1の圧assembly residualは`7.1e-15 mmHg`以下、continuity residualは
+`7.2e-9 mL`以下であり、残差による偽交差とも説明できない。
+
+交点をbranchへ戻すと、上側はphase `0.3347`のreservoirと`0.8679`のearly pumping、下側は
+phase `0.4640`のearly conduitと`0.8631`のlate-refill/very-early pumping移行部である。下側の
+後者はCa onset後なのでevent owner上はpumpingだが、幾何学的にはlate conduit refillが最大volumeで
+booster emptyingへ反転する瞬間である。同じvolumeでのpassive pressure差は両交点とも
+`4e-6 mmHg`未満で、上側ではLand `+0.18338`とSLS `-0.18338 mmHg`、下側ではLand
+`+0.00776`とSLS `-0.00777 mmHg`がほぼ相殺してtotal pressureを一致させる。
+
+機序的には、自己相似one-fiber LAでは、低activation期の圧はほぼ
+
+$$
+P_{LA}^{tm}=G(V_{LA})
+\left[\sigma_{passive}(e(V_{LA}))+\sigma_{Land}+\sigma_{SLS}\right]
+$$
+
+であり、Land/SLS contributionが小さいearly fillingとlate diastasisでは、同じvolumeがほぼ同じ
+passive $P(V)$へ戻る。そのため、MV runoffで左下へ進む前半conduitと、PV refillingで右上へ戻る
+後半refill-to-booster移行部が近いpassive branchを逆向きに通り、履歴成分が相殺する点で下側の追加交差を
+作る。SLS exact-offの再実行でもtrajectoryを変えた上で2交点が残るため、このexact cancellationをもって
+SLSだけをtopology ownerとはしない。これは「conduitの後半が右上へ回復する」という局所的な生理条件と、
+「全周期pathが一交点だけ」という大域topology条件が、現在の一自由度geometryでは同時に満たされて
+いないことを意味する。
+
+この結果から、次の変更をLand/SLSの局所parameter tuningにはしない。必要なら次段では、volumeだけで
+駆動する受動shape stateを再導入するのではなく、独立に計測可能なannular/longitudinal boundaryまたは
+心房shape coordinateを持つwork-conjugate membrane構造を比較対象にする。その候補は
+
+$$
+P_{LA}^{tm}=\frac{\partial\Psi_A(V,q,\xi)}{\partial V},
+\qquad
+\eta_q\dot q+\frac{\partial\Psi_A(V,q,\xi)}{\partial q}=Q_q^{boundary}
+$$
+
+とし、$q$の仕事を$P\,dV$へ重複計上せず、$Q_q^{boundary}$を波形fit用の処方forcingにしない。
+AVPDをprescribed core driverにはせず、導入する場合もこの境界運動から計算されるobservableとする。
+過去に棄却したvolume-only aspect-ratio stateや、boundへ衝突したshared long-axis prototypeをそのまま
+復活させない。弁・肺静脈boundaryのmain-wire統合を先に固定し、その後に同一envelopeで反証する。
+
+300 mL effusion positive controlは、両dtの全sampleで心膜constraintがengageし、`dt=1 ms`で
+`Pperi=3.507--11.832 mmHg`、stored energy `10.315--64.910 mJ`、CO `2.583 L/min`を示した。
+数値failureはないが、事前に固定した32拍でperiod-1 toleranceを3拍連続では満たさなかったため、
+effusionのPV topologyとdt-halving signal差は採択しない。追加beatやcase別parameter変更で救済せず、
+この未収束をload-envelope blockerとして残す。
+
+LA SLS exact-off A2は27拍でperiod-1へ収束し、LA SLS stress、stored energy、physical dissipation、
+BE numerical dissipation、balance residualはすべて厳密に0である。CO `5.272 L/min`、mean Ao pressure
+`87.97 mmHg`、reservoir--conduit mean gap `1.093 mmHg`で、自己交差はonと同じ2個であった。
+この結果はSLSを削除する判断ではなく、SLS-offにもone-crossing topologyを要求しないという事前境界と、
+現追加交差の主要ownerがSLSではないという反証を支持する。
+
+この再検証にもparameter search、morphology fit、時間補間、収束次数claim、post-hoc pass thresholdはない。
+健康caseのdt差で最も敏感なのはvalve opening transitionで、bulk volume/pressureより先に弁の構造・数値境界を
+再検討する根拠になる。
+
 ## claim boundary
 
 この検証は`MainWireNormalAdultFiveWallPeriodicSteadyV1` sidecarだけを対象とする。
