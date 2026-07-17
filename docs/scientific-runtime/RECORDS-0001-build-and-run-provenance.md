@@ -8,8 +8,9 @@ editable saved cases.
   state, and executable artifact SHA-256. The loader does not inspect Git or
   infer host state. Whoever creates the reference must hash the actual Worker
   or native artifact before supplying the digest. For a dirty build,
-  `gitTreeSha` identifies the actual source tree used to build (for example a
-  CI-created synthetic tree), not merely the tree attached to `HEAD`.
+  `gitTreeSha` must identify a synthetic Git tree containing all actual source
+  content used by the build. Reusing the `HEAD` tree while uncommitted source
+  changes participated in the build is invalid.
 - A run artifact binds that build reference to an exact protocol descriptor,
   canonical initialization or exact-checkpoint identity, execution ledger,
   outputs, and audits. Its reference is the SHA-256 of the full canonical run
