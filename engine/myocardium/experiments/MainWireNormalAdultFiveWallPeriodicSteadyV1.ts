@@ -3,7 +3,6 @@ import {
   createInitialNonCoronaryCirculationStateV1,
   NON_CORONARY_CIRCULATION_SCOPE_V1,
   NON_CORONARY_NODE_NAMES_V1,
-  resolveNonCoronaryCirculationColdSeedV1,
   type NonCoronaryCirculationInitialStateInputV1,
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
@@ -32,6 +31,11 @@ import {
   normalAdultMainWireRuntimeV1,
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
+import {
+  resolveMainWireNormalAdultBloodVolumeOperatingPointV1,
+  type MainWireNormalAdultBloodVolumeOperatingPointAuditV1,
+  type MainWireNormalAdultBloodVolumeOperatingPointIdentityV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
 import {
   sanitizeForStableHash,
   stableHash,
@@ -95,6 +99,7 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
     calciumDriveFixedParamsStableHash: string;
     circulationTopologyGraphStableHash: string;
     circulationRuntimeStableHash: string;
+    bloodVolumeOperatingPointStableHash: string;
     commonPericardiumStableHash: string;
     periodicPolicyStableHash: string;
   }>;
@@ -102,7 +107,7 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
 export type MainWireNormalAdultFiveWallCycleWarmStartV1 = Readonly<{
   warmStartId:
     typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_WARM_START_V1_ID;
-  schemaVersion: 1;
+  schemaVersion: 2;
   sourceProtocolIdentity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
   sourceProtocolIdentityHash: string;
   sourceComponentHashes:
@@ -146,6 +151,8 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
     topologyGraphStableHash: string;
     runtimeStableHash: string;
   }>;
+  bloodVolumeOperatingPoint:
+    MainWireNormalAdultBloodVolumeOperatingPointIdentityV1;
   commonPericardium: Readonly<{
     bindingId: string;
     parameterSetId: string;
@@ -191,6 +198,9 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   protocolIdentityHash: string;
   protocolComponentHashes:
     MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
+  /** Deterministic construction readback; intentionally excluded from hashes. */
+  bloodVolumeOperatingPointAudit:
+    MainWireNormalAdultBloodVolumeOperatingPointAuditV1;
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
   pericardiumMode: MainWireCommonPericardiumModeV1;
   pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
@@ -291,12 +301,20 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     resolved.pericardiumMode,
     resolved.pericardiumCase,
   );
-  const protocol = buildPeriodicProtocolIdentity(provider, runtime, pericardium);
-  const canonicalColdSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
+  const bloodVolumeOperatingPoint =
+    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+  const protocol = buildPeriodicProtocolIdentity(
+    provider,
+    runtime,
+    pericardium,
+    bloodVolumeOperatingPoint.identity,
+  );
   const canonicalCirculation = createInitialNonCoronaryCirculationStateV1({
     timeSec: 0,
     runtime,
-    ...canonicalColdSeed,
+    fixedTotalBloodVolumeMl:
+      bloodVolumeOperatingPoint.fixedTotalBloodVolumeMl,
+    nodeVolumesMl: bloodVolumeOperatingPoint.nodeVolumesMl,
   });
   const canonicalCold = initializeMainWireFiveWallNonCoronaryV1({
     provider,
@@ -431,6 +449,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     protocolIdentity: protocol.identity,
     protocolIdentityHash: protocol.identityHash,
     protocolComponentHashes: protocol.componentHashes,
+    bloodVolumeOperatingPointAudit: bloodVolumeOperatingPoint.audit,
     laSlsMode: resolved.laSlsMode,
     pericardiumMode: resolved.pericardiumMode,
     pericardiumCase: resolved.pericardiumCase,
@@ -475,6 +494,8 @@ function buildPeriodicProtocolIdentity(
   provider: ReturnType<typeof createCanonicalMainWireNormalAdultFiveWallProviderV1>,
   runtime: NonCoronaryCirculationRuntimeParamsV1,
   pericardium: MainWireCommonPericardiumBindingV1,
+  bloodVolumeOperatingPoint:
+    MainWireNormalAdultBloodVolumeOperatingPointIdentityV1,
 ): Readonly<{
   identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
   identityHash: string;
@@ -509,6 +530,8 @@ function buildPeriodicProtocolIdentity(
     circulationTopologyGraphStableHash:
       hashProtocolValue(topologyGraphSnapshot),
     circulationRuntimeStableHash: hashProtocolValue(runtime),
+    bloodVolumeOperatingPointStableHash:
+      hashProtocolValue(bloodVolumeOperatingPoint),
     commonPericardiumStableHash: hashProtocolValue(commonPericardium),
     periodicPolicyStableHash:
       hashProtocolValue(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1),
@@ -529,6 +552,7 @@ function buildPeriodicProtocolIdentity(
         componentHashes.circulationTopologyGraphStableHash,
       runtimeStableHash: componentHashes.circulationRuntimeStableHash,
     },
+    bloodVolumeOperatingPoint,
     commonPericardium: {
       bindingId: pericardium.bindingId,
       parameterSetId: pericardium.parameterSetId,
@@ -688,7 +712,7 @@ function restoreWarmStart(
   if (
     warmStart.warmStartId
       !== MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_WARM_START_V1_ID
-    || warmStart.schemaVersion !== 1
+    || warmStart.schemaVersion !== 2
   ) throw new Error("unsupported five-wall cycle warm start");
   const { envelopeFingerprint, ...fingerprintedEnvelope } = warmStart;
   if (hashProtocolValue(fingerprintedEnvelope) !== envelopeFingerprint) {
@@ -705,6 +729,7 @@ function restoreWarmStart(
     "calciumDriveFixedParamsStableHash",
     "circulationTopologyGraphStableHash",
     "circulationRuntimeStableHash",
+    "bloodVolumeOperatingPointStableHash",
     "periodicPolicyStableHash",
   ] as const) {
     if (warmStart.sourceComponentHashes[key] !== targetHashes[key]) {
@@ -717,6 +742,18 @@ function restoreWarmStart(
     === targetProtocol.identityHash;
   if (pericardiumMatches !== sourceAndTargetIdentityMatch) {
     throw new Error("warm-start protocol difference is not common-pericardium-only");
+  }
+  const checkpointBloodVolumeOwnerMl =
+    warmStart.checkpoint.circulation.state.totalBloodVolumeMl;
+  if (
+    !Number.isFinite(checkpointBloodVolumeOwnerMl)
+    || checkpointBloodVolumeOwnerMl
+      !== warmStart.sourceProtocolIdentity.bloodVolumeOperatingPoint
+        .fixedTotalBloodVolumeMl
+    || checkpointBloodVolumeOwnerMl
+      !== targetProtocol.identity.bloodVolumeOperatingPoint.fixedTotalBloodVolumeMl
+  ) {
+    throw new Error("warm-start checkpoint TBV owner does not match protocol identity");
   }
   const phase = positiveModulo(warmStart.checkpoint.acceptedTimeSec, CYCLE_LENGTH_SEC);
   if (Math.min(phase, CYCLE_LENGTH_SEC - phase) > 1e-9) {
@@ -762,6 +799,9 @@ function validateWarmStartSourceProtocolConsistency(
       !== hashes.circulationTopologyGraphStableHash
     || identity.circulation.runtimeStableHash
       !== hashes.circulationRuntimeStableHash
+    || identity.bloodVolumeOperatingPoint === undefined
+    || hashProtocolValue(identity.bloodVolumeOperatingPoint)
+      !== hashes.bloodVolumeOperatingPointStableHash
     || identity.commonPericardium.stableHash
       !== hashes.commonPericardiumStableHash
     || hashProtocolValue(identity.commonPericardium.bindingSnapshot)
@@ -797,7 +837,7 @@ function buildCycleBoundaryWarmStart(
   }
   const envelope = {
     warmStartId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_WARM_START_V1_ID,
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
     sourceProtocolIdentity: protocol.identity,
     sourceProtocolIdentityHash: protocol.identityHash,
     sourceComponentHashes: Object.freeze({ ...protocol.componentHashes }),

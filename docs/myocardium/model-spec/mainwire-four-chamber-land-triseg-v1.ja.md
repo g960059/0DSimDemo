@@ -500,6 +500,14 @@ activation timingの形状fitだけで解消せず、独立Ca/force dataとmain-
 total blood volumeのparameter sourceはmain wireに置く。冠循環を除いた初回結果をfull main-wire runtimeと
 呼ばず、弁のEOA解釈もこの実験の仮説境界に限定する。
 
+normal-adult noncoronary運転点の固定TBV ownerは`5522.11 mL`とする。これはfull graph reference
+`5600 mL`から、scope外の冠循環cold-seed ledger `77.89 mL`を除いた値であり、`5600 mL`を
+noncoronary modelへそのまま与えるものではない。初期追加volumeはSV/VCの現PV lawへ共通の
+transmural-pressure offsetを与えて決定し、他のcold-seed nodeをexactに保存する。このoffsetや
+root-solve auditはderived readbackであり、protocolにはTBV ownerのsemantic identityだけを含める。
+除外量`77.89 mL`は独立な算術定数として信用せず、authoritative full graphの除外冠循環nodeへ
+共通cold-seed volume則を適用して毎回再導出し、pinned provenanceとの差をhard gateする。
+
 ## Fit-readyで守る同定規則
 
 状態数を増やす前に、各parameterを独立データへ対応づける。

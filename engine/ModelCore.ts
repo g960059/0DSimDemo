@@ -56,6 +56,7 @@ import {
   downstreamEffectivePressureV1,
   effectiveUnstressedVolumeFromNodeV1,
   nonValveEdgeLossV1,
+  physicalColdSeedVolumeFromNodeV1,
   respiratoryExternalPressureForKindV1,
   vascularPvLawFromNodeV1,
   vascularTransmuralPressureFromPhysicalVolumeV1,
@@ -1155,9 +1156,8 @@ export class ModelCore {
   reset() {
     this.x.fill(0);
     for (const n of this.nodes) {
-      this.x[this.idx.node[n.name as NodeName]] = n.kind === "venousPressure"
-        ? this.venousVolumeFromPtm(n, n.x0)
-        : n.x0;
+      this.x[this.idx.node[n.name as NodeName]] =
+        physicalColdSeedVolumeFromNodeV1(n, this.p);
     }
     for (const e of this.edges) {
       if (e.kind === "dynamic" || e.kind === "valve") {

@@ -2,6 +2,7 @@ import {
   buildAuthoritativeCirculationGraphV1,
   downstreamEffectivePressureV1,
   effectiveUnstressedVolumeFromNodeV1,
+  physicalColdSeedVolumeFromNodeV1,
   incidenceVolumeRatesFromEdgeFlowsV1,
   nonValveEdgeLossV1,
   respiratoryExternalPressureForKindV1,
@@ -999,12 +1000,7 @@ function initialNodeVolumes(
 ): NodeRecord<number> {
   return nodeRecord((name) => {
     const node = graph.nodes[graph.nodeIndex.get(name)!];
-    if (isChamberName(name)) return requirePositive(node.x0, `${name}.x0`);
-    const law = vascularPvLawFromNodeV1(node, runtime.vascular);
-    const unstressed = effectiveUnstressedVolumeFromNodeV1(node, runtime.vascular);
-    const volume = node.kind === "venousPressure"
-      ? unstressed + stressedVolumeFromPtm(law, node.x0)
-      : node.x0;
+    const volume = physicalColdSeedVolumeFromNodeV1(node, runtime.vascular);
     return requirePositive(volume, `${name} initial volume`);
   });
 }

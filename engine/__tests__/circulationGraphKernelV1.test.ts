@@ -12,6 +12,7 @@ import {
   effectiveUnstressedVolumeFromNodeV1,
   incidenceVolumeRatesFromEdgeFlowsV1,
   nonValveEdgeLossV1,
+  physicalColdSeedVolumeFromNodeV1,
   respiratoryExternalPressureForKindV1,
   respiratoryExternalPressuresV1,
   vascularPvLawFromNodeV1,
@@ -95,6 +96,21 @@ describe("circulation graph kernel V1", () => {
       svLaw,
       adaptivePhysicalVolumeMl - svLaw.Vu,
     ));
+  });
+
+  it("owns the main-wire x0-to-physical-cold-volume interpretation", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const params = { venousTone: 0.15, arterialStiffness: 0.75 };
+    const lv = graph.nodes[graph.nodeIndex.get("LV")]!;
+    const lad = graph.nodes[graph.nodeIndex.get("LAD_Art")]!;
+    const sv = graph.nodes[graph.nodeIndex.get("SV")]!;
+    const svLaw = vascularPvLawFromNodeV1(sv, params);
+
+    expect(physicalColdSeedVolumeFromNodeV1(lv, params)).toBe(lv.x0);
+    expect(physicalColdSeedVolumeFromNodeV1(lad, params)).toBe(lad.x0);
+    expect(physicalColdSeedVolumeFromNodeV1(sv, params)).toBe(
+      svLaw.Vu + stressedVolumeFromPtm(svLaw, sv.x0),
+    );
   });
 
   it("creates arterial, linear, and nonlinear venous laws from NodeSpec and the minimal runtime view", () => {

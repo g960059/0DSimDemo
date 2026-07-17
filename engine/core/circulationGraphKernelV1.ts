@@ -94,6 +94,20 @@ export function vascularPvLawFromNodeV1(
 }
 
 /**
+ * Authoritative main-wire cold-seed volume rule. `x0` is a physical volume
+ * for every node except `venousPressure`, where it is the initial transmural
+ * pressure and must be mapped through the current venous PV law.
+ */
+export function physicalColdSeedVolumeFromNodeV1(
+  node: NodeSpec,
+  params: VascularPvRuntimeParameterViewV1,
+): number {
+  if (node.kind !== "venousPressure") return node.x0;
+  const law = vascularPvLawFromNodeV1(node, params);
+  return law.Vu + stressedVolumeFromPtm(law, node.x0);
+}
+
+/**
  * Shared main-wire volume-to-pressure map with an explicit numerical policy.
  *
  * ModelCore's shipped fixed-iteration and arterial-clamp semantics differ from

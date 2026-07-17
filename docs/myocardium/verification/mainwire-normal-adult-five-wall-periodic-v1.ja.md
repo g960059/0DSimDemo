@@ -21,6 +21,41 @@ kinkを跨がない局所接線を得られるより小さなdyadic幅も固定�
 tolerance、Land kink、時間積分、solver rescueは変更していない。修正後の`dt=1 ms`は上記の通り
 period-1へ収束したため、pre-fix failureは現在のblockerではなく数値監査境界の履歴として残す。
 
+## 2026-07-17 fixed-TBV operating-point owner更新
+
+現行canonical runnerは、topology cold seedから暗黙に得られる`4589.457569594 mL`を
+正常成人の運転点として採用しない。full graphのreference `5600 mL`から、現noncoronary scopeに
+含まれない冠循環cold-seed ledger `77.89 mL`を明示的に除いた
+
+$$
+5600-77.89=5522.11\ \mathrm{mL}
+$$
+
+を、一つの固定TBV ownerとしてcanonical initializationに与える。`5600 mL`をnoncoronary TBVと
+読み替えない。追加volumeはmain-wire由来の現SV/VC PV lawを固定したまま、SVとVCの初期transmural
+pressureへ同じoffsetを加えることで決定し、それ以外のcold-seed node、venous tone、$V_u$、compliance、
+resistance、弁、Ca、Land、SLS、geometryは変更しない。resolved offset、root iteration、volume auditは
+決定論的readbackでありprotocol hashへ入れず、次の5 fieldだけをsemantic owner identityとする。
+
+- `ownerId`
+- `parameterSetId`
+- `topologyScopeId`
+- `fixedTotalBloodVolumeMl`
+- `initialDistributionPolicyId`
+
+periodic protocolはこのowner identityを独立componentとしてhashする。同じprovider、circulation
+topology/runtime、common pericardium、periodic policyで、overall identityは導入前`f715dacc`から
+導入後`9d3d3dba`へ意図的に変化し、ownerの異なるwarm startは拒否する。owner component hashは
+`337d28cc`である。構築auditはperiodic resultへunhashed readbackとして残す。以下の周期波形・PV形状・
+hemodynamicsの数値表は旧`4589.457569594 mL` ownerで生成したhistorical evidenceであり、新ownerの
+生理的結果へ読み替えない。新しい運転点での周期解は別artifactとして再生成・再評価する必要がある。
+
+除外冠循環volumeはauthoritative full graphと共通cold-seed volume則から再導出し、`77.89 mL`との
+一致をdrift gateとする。SV/VC resolved volumeを再度PV inverseへ通したpressure-offset residualも
+unhashed auditへ保存する。warm-start envelope schemaは`2`へ更新し、checkpoint内の固定TBV ownerが
+source/target protocol identityのTBVとbit-exactに一致しないpayloadを、再fingerprint済みでも拒否する。
+旧schema `1`との後方互換性は意図的に持たない。
+
 ## claim boundary
 
 この検証は`MainWireNormalAdultFiveWallPeriodicSteadyV1` sidecarだけを対象とする。
