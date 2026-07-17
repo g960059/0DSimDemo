@@ -15,6 +15,9 @@ import { detectPreferredLocale, isLocale, prefixPath, stripLocaleFromPathname } 
 const ScientificRuntimeAlphaPage = React.lazy(
   () => import('./components/scientificAlpha/ScientificRuntimeAlphaPage'),
 );
+const ScientificWorkbenchPage = React.lazy(
+  () => import('./components/scientificWorkbench/ScientificWorkbenchPageV1'),
+);
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -38,6 +41,14 @@ const appRoutes = () => (
         </React.Suspense>
       )}
     />
+    <Route
+      path="scientific-workbench"
+      element={(
+        <React.Suspense fallback={<ScientificWorkbenchLoading />}>
+          <ScientificWorkbenchPage />
+        </React.Suspense>
+      )}
+    />
     <Route path="*" element={<Navigate to="." replace />} />
   </>
 );
@@ -48,6 +59,15 @@ const ScientificAlphaLoading = () => (
     role="status"
   >
     Loading scientific runtime alpha…
+  </div>
+);
+
+const ScientificWorkbenchLoading = () => (
+  <div
+    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    role="status"
+  >
+    Loading document-bound scientific workspace…
   </div>
 );
 

@@ -23,6 +23,12 @@ import {
   OFFICIAL_SCIENTIFIC_PRESET_CATALOG_V1_SCHEMA_ID,
 } from "@/engine/scientific/presets";
 import {
+  OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING,
+  OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID,
+  type LoadedOfficialHealthyPeriodicDocumentChainV1,
+  type OfficialHealthyPeriodicDocumentChainIdentityV1,
+} from "@/engine/scientific/documents";
+import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
@@ -79,6 +85,10 @@ export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM = Object.freeze({
   officialPresetCapability:
     "host-injected-bundled-catalog-identity-only-exact-checkpoint-restore" as const,
   officialPresetArbitraryAssetInputAccepted: false as const,
+  officialDocumentCaseCapability:
+    "host-injected-pinned-document-chain-identity-only-v3-restore" as const,
+  officialDocumentCaseArbitraryAssetInputAccepted: false as const,
+  officialDocumentCaseSilentV2SubstitutionApplied: false as const,
   researchPresetCapability:
     "built-in-catalog-id-version-only-cold-start" as const,
   researchPresetOfficialTrustClaimed: false as const,
@@ -108,11 +118,16 @@ export type MainWireScientificInProcessKernelOptionsV1 = Readonly<{
   maximumCommandJsonBytes?: number;
   maximumCommandJsonNodeCount?: number;
   officialPresetLoader?: MainWireScientificOfficialPresetLoaderV1;
+  officialDocumentCaseLoader?: MainWireScientificOfficialDocumentCaseLoaderV1;
 }>;
 
 export type MainWireScientificOfficialPresetLoaderV1 = (
   identity: BundledOfficialHealthyPeriodicPresetIdentityV1,
 ) => Promise<LoadedBundledOfficialHealthyPeriodicPresetV1>;
+
+export type MainWireScientificOfficialDocumentCaseLoaderV1 = (
+  identity: OfficialHealthyPeriodicDocumentChainIdentityV1,
+) => Promise<LoadedOfficialHealthyPeriodicDocumentChainV1>;
 
 type CapturedInput = Readonly<{
   value: CanonicalJsonValue | null;
@@ -167,6 +182,8 @@ export class MainWireScientificInProcessKernelV1 {
   readonly maximumCommandJsonNodeCount: number;
   private readonly officialPresetLoader:
     MainWireScientificOfficialPresetLoaderV1 | null;
+  private readonly officialDocumentCaseLoader:
+    MainWireScientificOfficialDocumentCaseLoaderV1 | null;
 
   private readonly sessions = new Map<string, MainWireScientificSessionV1>();
   private readonly sessionOrigins = new Map<string, ScientificSessionOriginV1>();
@@ -177,6 +194,8 @@ export class MainWireScientificInProcessKernelV1 {
 
   constructor(options: MainWireScientificInProcessKernelOptionsV1 = {}) {
     this.officialPresetLoader = options.officialPresetLoader ?? null;
+    this.officialDocumentCaseLoader =
+      options.officialDocumentCaseLoader ?? null;
     this.maximumSessionCount = boundedPositiveInteger(
       options.maximumSessionCount ?? DEFAULT_MAXIMUM_SESSION_COUNT,
       MAXIMUM_CONFIGURED_SESSION_COUNT,
@@ -312,6 +331,8 @@ export class MainWireScientificInProcessKernelV1 {
         return this.createResolved(command);
       case "createOfficialPresetSession":
         return this.createOfficialPreset(command);
+      case "createOfficialDocumentCaseSession":
+        return this.createOfficialDocumentCase(command);
       case "createResearchPresetSession":
         return this.createResearchPreset(command);
       case "runTransient":
@@ -470,6 +491,94 @@ export class MainWireScientificInProcessKernelV1 {
       return errorResponseForCommand(
         command,
         "official-preset-restore-rejected",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private async createOfficialDocumentCase(
+    command: Extract<ScientificCommandV1, {
+      kind: "createOfficialDocumentCaseSession";
+    }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const allocationError = this.sessionAllocationError(command);
+    if (allocationError !== null) return allocationError;
+    if (this.officialDocumentCaseLoader === null) {
+      return errorResponseForCommand(
+        command,
+        "capability-unavailable",
+        "official V3 document-chain assets are not bound to this host-neutral kernel",
+      );
+    }
+    try {
+      const loaded = await this.officialDocumentCaseLoader({
+        presetId: command.presetId,
+        presetVersion: command.presetVersion,
+      });
+      assertOfficialDocumentCaseLoadMatchesCommand(command, loaded);
+      const session = await MainWireScientificSessionV1.restoreExactV3(
+        loaded.release,
+        loaded.caseDocument.content.resolvedSessionInput,
+        loaded.checkpoint,
+      );
+      if (
+        session.sessionInputSha256 !== loaded.provenance.sessionInputSha256
+        || !sameReleaseRef(session.releaseRef, loaded.release.ref)
+      ) throw new Error("restored V3 session identity does not match its official case");
+      const terminal = session.settlePeriodic();
+      if (
+        !terminal.completed
+        || terminal.status !== "period1-converged"
+        || !terminal.periodicSteadyStateClaimed
+        || terminal.period2OrbitSuspected
+        || terminal.beatCompletedThisCall
+        || terminal.completedStepCountThisCall !== 0
+      ) throw new Error("restored V3 case did not preserve terminal P1 state");
+
+      const observableFrame = project(session);
+      const binding =
+        OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING;
+      const sessionOrigin = Object.freeze({
+        kind:
+          "official-document-case-v3-exact-checkpoint-restore" as const,
+        presetId: loaded.identity.presetId,
+        presetVersion: loaded.identity.presetVersion,
+        catalogSchemaId:
+          OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID,
+        catalogSchemaVersion: 1 as const,
+        catalogRawFileSha256: binding.rawFileSha256,
+        checkpointRawFileSha256: binding.checkpointRawFileSha256,
+        checkpointSha256: binding.checkpointSha256,
+        sessionInputSha256: binding.sessionInputSha256,
+        caseRef: Object.freeze({ ...binding.caseRef }),
+        workspaceRef: Object.freeze({ ...binding.workspaceRef }),
+        periodicSteadyStateClaimed: true as const,
+        clinicalValidationClaimed: false as const,
+      });
+      const response = successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "officialDocumentCaseSessionCreated" as const,
+          presetId: loaded.identity.presetId,
+          presetVersion: loaded.identity.presetVersion,
+          checkpointSha256: binding.checkpointSha256,
+          sessionInputSha256: binding.sessionInputSha256,
+          caseRef: Object.freeze({ ...binding.caseRef }),
+          workspaceRef: Object.freeze({ ...binding.workspaceRef }),
+          periodicSteadyStateClaimed: true as const,
+          observableFrame,
+        }),
+      );
+      this.sessions.set(command.sessionId, session);
+      this.sessionOrigins.set(command.sessionId, sessionOrigin);
+      this.allocatedSessionIds.add(command.sessionId);
+      return response;
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "official-document-case-restore-rejected",
         errorMessage(error),
       );
     }
@@ -760,6 +869,7 @@ export class MainWireScientificInProcessKernelV1 {
         | "createCanonicalSession"
         | "createResolvedSession"
         | "createOfficialPresetSession"
+        | "createOfficialDocumentCaseSession"
         | "createResearchPresetSession"
         | "restoreExactSession";
     }>,
@@ -908,6 +1018,46 @@ function assertOfficialPresetLoadMatchesCommand(
   ) throw new Error("official preset loader result does not match the command trust anchor");
 }
 
+function assertOfficialDocumentCaseLoadMatchesCommand(
+  command: Extract<ScientificCommandV1, {
+    kind: "createOfficialDocumentCaseSession";
+  }>,
+  loaded: LoadedOfficialHealthyPeriodicDocumentChainV1,
+): void {
+  const binding =
+    OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING;
+  if (
+    loaded.identity.presetId !== command.presetId
+    || loaded.identity.presetVersion !== command.presetVersion
+    || loaded.catalog.entry.presetId !== command.presetId
+    || loaded.catalog.entry.presetVersion !== command.presetVersion
+    || loaded.provenance.catalogSchemaId
+      !== OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID
+    || loaded.provenance.catalogSchemaVersion !== 1
+    || loaded.provenance.catalogRawFileSha256 !== binding.rawFileSha256
+    || loaded.provenance.checkpointRawFileSha256
+      !== binding.checkpointRawFileSha256
+    || loaded.provenance.checkpointSha256 !== binding.checkpointSha256
+    || loaded.provenance.sessionInputSha256 !== binding.sessionInputSha256
+    || canonicalJsonStringify(loaded.provenance.caseRef)
+      !== canonicalJsonStringify(binding.caseRef)
+    || canonicalJsonStringify(loaded.provenance.workspaceRef)
+      !== canonicalJsonStringify(binding.workspaceRef)
+    || loaded.checkpoint.schemaVersion !== 3
+    || loaded.checkpoint.checkpointSha256 !== binding.checkpointSha256
+    || loaded.checkpoint.sessionInputSha256 !== binding.sessionInputSha256
+    || canonicalJsonStringify(loaded.caseDocument.ref)
+      !== canonicalJsonStringify(binding.caseRef)
+    || canonicalJsonStringify(loaded.workspaceDocument.ref)
+      !== canonicalJsonStringify(binding.workspaceRef)
+    || !sameReleaseRef(loaded.release.ref, binding.releaseRef)
+  ) {
+    throw new Error(
+      "official V3 document-case loader result does not match the command trust anchor",
+    );
+  }
+}
+
 function captureInput(
   value: unknown,
   identity: ReturnType<typeof partialIdentity>,
@@ -1046,6 +1196,7 @@ function parseCommand(
       : value.kind === "createResolvedSession"
         ? [...common, "resolvedSessionInput"]
         : value.kind === "createOfficialPresetSession"
+          || value.kind === "createOfficialDocumentCaseSession"
           ? [...common, "presetId", "presetVersion"]
           : value.kind === "createResearchPresetSession"
             ? [...common, "presetId", "presetVersion"]
@@ -1081,7 +1232,10 @@ function parseCommand(
       );
     }
   }
-  if (value.kind === "createOfficialPresetSession") {
+  if (
+    value.kind === "createOfficialPresetSession"
+    || value.kind === "createOfficialDocumentCaseSession"
+  ) {
     if (value.presetId !== "circleheart/official-healthy-periodic") {
       return invalid(identity, "presetId is not present in the bundled catalog");
     }
@@ -1335,12 +1489,21 @@ function copyReleaseRef(ref: SimulationReleaseRef): SimulationReleaseRef {
 function copySessionOrigin(
   origin: ScientificSessionOriginV1,
 ): ScientificSessionOriginV1 {
-  return origin.kind === "research-preset-cold-start"
-    ? Object.freeze({
+  if (origin.kind === "research-preset-cold-start") {
+    return Object.freeze({
       ...origin,
       releaseRef: copyReleaseRef(origin.releaseRef),
-    })
-    : Object.freeze({ ...origin });
+    });
+  }
+  if (origin.kind
+    === "official-document-case-v3-exact-checkpoint-restore") {
+    return Object.freeze({
+      ...origin,
+      caseRef: Object.freeze({ ...origin.caseRef }),
+      workspaceRef: Object.freeze({ ...origin.workspaceRef }),
+    });
+  }
+  return Object.freeze({ ...origin });
 }
 
 function sameReleaseRef(

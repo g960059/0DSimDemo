@@ -72,33 +72,29 @@ describe("main-wire scientific document chain V1", () => {
     );
     expect(chain.workspaceDocument.content.panels.map(({ panelId }) => panelId))
       .toEqual([
-        "four-chamber-pv",
+        "la-pv",
+        "ra-pv",
+        "lv-pv",
+        "rv-pv",
         "four-valve-flow",
         "atrial-pressure",
         "ventricular-pressure",
         "vascular-pressure",
       ]);
-    expect(panelById["four-chamber-pv"].view).toMatchObject({
-      kind: "pressure-volume",
-      trajectories: [
-        {
-          volumeObservableId: "hemodynamics.volume.LA",
-          pressureObservableId: "hemodynamics.pressure.absolute.LA",
-        },
-        {
-          volumeObservableId: "hemodynamics.volume.RA",
-          pressureObservableId: "hemodynamics.pressure.absolute.RA",
-        },
-        {
-          volumeObservableId: "hemodynamics.volume.LV",
-          pressureObservableId: "hemodynamics.pressure.absolute.LV",
-        },
-        {
-          volumeObservableId: "hemodynamics.volume.RV",
-          pressureObservableId: "hemodynamics.pressure.absolute.RV",
-        },
-      ],
-    });
+    for (const [panelId, chamber] of [
+      ["la-pv", "LA"],
+      ["ra-pv", "RA"],
+      ["lv-pv", "LV"],
+      ["rv-pv", "RV"],
+    ] as const) {
+      expect(panelById[panelId].view).toMatchObject({
+        kind: "pressure-volume",
+        trajectories: [{
+          volumeObservableId: `hemodynamics.volume.${chamber}`,
+          pressureObservableId: `hemodynamics.pressure.absolute.${chamber}`,
+        }],
+      });
+    }
     expect(panelById["four-valve-flow"].view).toEqual({
       kind: "time-series",
       observableIds: [

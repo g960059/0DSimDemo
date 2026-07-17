@@ -261,19 +261,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const DEFAULT_WORKSPACE_PANELS_V1 = Object.freeze([
-  Object.freeze({
-    panelId: "four-chamber-pv",
-    title: "Four-chamber pressure-volume loops",
-    view: Object.freeze({
-      kind: "pressure-volume" as const,
-      trajectories: Object.freeze([
-        pvTrajectory("la", "Left atrium", "LA"),
-        pvTrajectory("ra", "Right atrium", "RA"),
-        pvTrajectory("lv", "Left ventricle", "LV"),
-        pvTrajectory("rv", "Right ventricle", "RV"),
-      ]),
-    }),
-    layout: Object.freeze({ x: 0, y: 0, width: 8, height: 6 }),
+  pvPanel("la-pv", "Left atrium pressure-volume loop", "la", "Left atrium", "LA", {
+    x: 0, y: 0, width: 3, height: 4,
+  }),
+  pvPanel("ra-pv", "Right atrium pressure-volume loop", "ra", "Right atrium", "RA", {
+    x: 3, y: 0, width: 3, height: 4,
+  }),
+  pvPanel("lv-pv", "Left ventricle pressure-volume loop", "lv", "Left ventricle", "LV", {
+    x: 6, y: 0, width: 3, height: 4,
+  }),
+  pvPanel("rv-pv", "Right ventricle pressure-volume loop", "rv", "Right ventricle", "RV", {
+    x: 9, y: 0, width: 3, height: 4,
   }),
   Object.freeze({
     panelId: "four-valve-flow",
@@ -287,7 +285,7 @@ const DEFAULT_WORKSPACE_PANELS_V1 = Object.freeze([
         "valve.PV.flow",
       ] as const),
     }),
-    layout: Object.freeze({ x: 8, y: 0, width: 4, height: 6 }),
+    layout: Object.freeze({ x: 0, y: 4, width: 12, height: 4 }),
   }),
   pressurePanel(
     "atrial-pressure",
@@ -296,7 +294,7 @@ const DEFAULT_WORKSPACE_PANELS_V1 = Object.freeze([
       "hemodynamics.pressure.absolute.LA",
       "hemodynamics.pressure.absolute.RA",
     ],
-    { x: 0, y: 6, width: 4, height: 4 },
+    { x: 0, y: 8, width: 4, height: 4 },
   ),
   pressurePanel(
     "ventricular-pressure",
@@ -305,7 +303,7 @@ const DEFAULT_WORKSPACE_PANELS_V1 = Object.freeze([
       "hemodynamics.pressure.absolute.LV",
       "hemodynamics.pressure.absolute.RV",
     ],
-    { x: 4, y: 6, width: 4, height: 4 },
+    { x: 4, y: 8, width: 4, height: 4 },
   ),
   pressurePanel(
     "vascular-pressure",
@@ -315,9 +313,30 @@ const DEFAULT_WORKSPACE_PANELS_V1 = Object.freeze([
       "hemodynamics.pressure.absolute.PA",
       "hemodynamics.pressure.absolute.PVein",
     ],
-    { x: 8, y: 6, width: 4, height: 4 },
+    { x: 8, y: 8, width: 4, height: 4 },
   ),
 ] satisfies readonly MainWireScientificWorkspacePanelV1[]);
+
+function pvPanel(
+  panelId: string,
+  title: string,
+  trajectoryId: "la" | "ra" | "lv" | "rv",
+  label: string,
+  chamber: "LA" | "RA" | "LV" | "RV",
+  layout: Readonly<{ x: number; y: number; width: number; height: number }>,
+): MainWireScientificWorkspacePanelV1 {
+  return Object.freeze({
+    panelId,
+    title,
+    view: Object.freeze({
+      kind: "pressure-volume" as const,
+      trajectories: Object.freeze([
+        pvTrajectory(trajectoryId, label, chamber),
+      ]),
+    }),
+    layout: Object.freeze({ ...layout }),
+  });
+}
 
 function pvTrajectory(
   trajectoryId: "la" | "ra" | "lv" | "rv",

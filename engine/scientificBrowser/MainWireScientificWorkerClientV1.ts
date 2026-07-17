@@ -8,6 +8,10 @@ import {
 import {
   OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING,
 } from "@/engine/scientific/presets";
+import {
+  OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING,
+  OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID,
+} from "@/engine/scientific/documents";
 import type {
   SimulationReleaseRef,
 } from "@/engine/scientific/release";
@@ -117,6 +121,10 @@ type PendingCommandIdentityV1 = Readonly<{
     releaseRef: SimulationReleaseRef;
   }> | null;
   officialPreset: Readonly<{
+    presetId: "circleheart/official-healthy-periodic";
+    presetVersion: "1.0.0";
+  }> | null;
+  officialDocumentCase: Readonly<{
     presetId: "circleheart/official-healthy-periodic";
     presetVersion: "1.0.0";
   }> | null;
@@ -477,6 +485,39 @@ function isSessionOrigin(value: unknown): boolean {
           .checkpointSha256
       && value.parameterization === "fixed-canonical-only";
   }
+  if (value.kind
+    === "official-document-case-v3-exact-checkpoint-restore") {
+    const binding =
+      OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING;
+    return hasExactKeys(value, [
+      "kind",
+      "presetId",
+      "presetVersion",
+      "catalogSchemaId",
+      "catalogSchemaVersion",
+      "catalogRawFileSha256",
+      "checkpointRawFileSha256",
+      "checkpointSha256",
+      "sessionInputSha256",
+      "caseRef",
+      "workspaceRef",
+      "periodicSteadyStateClaimed",
+      "clinicalValidationClaimed",
+    ])
+      && value.presetId === "circleheart/official-healthy-periodic"
+      && value.presetVersion === "1.0.0"
+      && value.catalogSchemaId
+        === OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID
+      && value.catalogSchemaVersion === 1
+      && value.catalogRawFileSha256 === binding.rawFileSha256
+      && value.checkpointRawFileSha256 === binding.checkpointRawFileSha256
+      && value.checkpointSha256 === binding.checkpointSha256
+      && value.sessionInputSha256 === binding.sessionInputSha256
+      && sameDocumentRef(value.caseRef, binding.caseRef)
+      && sameDocumentRef(value.workspaceRef, binding.workspaceRef)
+      && value.periodicSteadyStateClaimed === true
+      && value.clinicalValidationClaimed === false;
+  }
   if (value.kind === "research-preset-cold-start") {
     return hasExactKeys(value, [
       "kind",
@@ -537,6 +578,13 @@ function capturePendingCommandIdentity(
         presetVersion: command.presetVersion,
       })
       : null,
+    officialDocumentCase:
+      command.kind === "createOfficialDocumentCaseSession"
+        ? Object.freeze({
+          presetId: command.presetId,
+          presetVersion: command.presetVersion,
+        })
+        : null,
     researchPreset: command.kind === "createResearchPresetSession"
       ? Object.freeze({
         presetId: command.presetId,
@@ -630,6 +678,45 @@ function isResponseCompatibleWithSubmittedCommand(
       && payload.presetVersion === expected.presetVersion
       && isRecord(payload.observableFrame)
       && exactOfficialReleaseRef(payload.observableFrame.releaseRef);
+  }
+  if (submitted.kind === "createOfficialDocumentCaseSession") {
+    const expected = submitted.officialDocumentCase;
+    if (expected === null) return false;
+    const binding =
+      OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING;
+    const origin = response.sessionOrigin;
+    const payload = response.payload;
+    return origin.kind
+      === "official-document-case-v3-exact-checkpoint-restore"
+      && exactOfficialDocumentChainReleaseRef(response.releaseRef)
+      && origin.presetId === expected.presetId
+      && origin.presetVersion === expected.presetVersion
+      && isRecord(payload)
+      && hasExactKeys(payload, [
+        "kind",
+        "presetId",
+        "presetVersion",
+        "checkpointSha256",
+        "sessionInputSha256",
+        "caseRef",
+        "workspaceRef",
+        "periodicSteadyStateClaimed",
+        "observableFrame",
+      ])
+      && payload.kind === "officialDocumentCaseSessionCreated"
+      && payload.presetId === expected.presetId
+      && payload.presetVersion === expected.presetVersion
+      && payload.checkpointSha256 === binding.checkpointSha256
+      && payload.sessionInputSha256 === binding.sessionInputSha256
+      && sameDocumentRef(payload.caseRef, binding.caseRef)
+      && sameDocumentRef(payload.workspaceRef, binding.workspaceRef)
+      && sameDocumentRef(payload.caseRef, origin.caseRef)
+      && sameDocumentRef(payload.workspaceRef, origin.workspaceRef)
+      && payload.periodicSteadyStateClaimed === true
+      && isRecord(payload.observableFrame)
+      && exactOfficialDocumentChainReleaseRef(
+        payload.observableFrame.releaseRef,
+      );
   }
   if (submitted.kind === "createResearchPresetSession") {
     const expected = submitted.researchPreset;
@@ -732,6 +819,11 @@ function isExactCheckpointResponseCompatible(
     return origin.sessionInputSha256 === checkpoint.sessionInputSha256
       && sameReleaseRef(origin.releaseRef, checkpoint.releaseRef);
   }
+  if (origin.kind
+    === "official-document-case-v3-exact-checkpoint-restore") {
+    return origin.sessionInputSha256 === checkpoint.sessionInputSha256
+      && exactOfficialDocumentChainReleaseRef(checkpoint.releaseRef);
+  }
   return true;
 }
 
@@ -742,6 +834,16 @@ function sameReleaseRef(left: unknown, right: unknown): boolean {
     && left.sha256 === right.sha256;
 }
 
+function sameDocumentRef(left: unknown, right: unknown): boolean {
+  return isRecord(left) && isRecord(right)
+    && hasExactKeys(left, ["schemaId", "sha256"])
+    && hasExactKeys(right, ["schemaId", "sha256"])
+    && left.schemaId === right.schemaId
+    && left.sha256 === right.sha256
+    && typeof left.sha256 === "string"
+    && /^[0-9a-f]{64}$/.test(left.sha256);
+}
+
 function exactOfficialReleaseRef(value: unknown): boolean {
   return isRecord(value)
     && value.id
@@ -750,6 +852,15 @@ function exactOfficialReleaseRef(value: unknown): boolean {
       === OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING.releaseRef.version
     && value.sha256
       === OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING.releaseRef.sha256;
+}
+
+function exactOfficialDocumentChainReleaseRef(value: unknown): boolean {
+  const releaseRef =
+    OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING.releaseRef;
+  return isRecord(value)
+    && value.id === releaseRef.id
+    && value.version === releaseRef.version
+    && value.sha256 === releaseRef.sha256;
 }
 
 function hasExactKeys(

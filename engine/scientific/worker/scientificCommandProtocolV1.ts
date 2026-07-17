@@ -10,6 +10,12 @@ import type {
   SimulationReleaseRef,
 } from "@/engine/scientific/release";
 import type {
+  MainWireScientificCaseDocumentRefV1,
+} from "@/engine/scientific/documents/MainWireScientificCaseDocumentV1";
+import type {
+  MainWireScientificWorkspaceDocumentRefV1,
+} from "@/engine/scientific/documents/MainWireScientificWorkspaceDocumentV1";
+import type {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
   MainWireScientificResearchPresetIdV1,
@@ -22,6 +28,7 @@ export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "createCanonicalSession",
   "createResolvedSession",
   "createOfficialPresetSession",
+  "createOfficialDocumentCaseSession",
   "createResearchPresetSession",
   "runTransient",
   "observe",
@@ -61,6 +68,17 @@ export type CreateOfficialPresetSessionCommandV1 =
   }>;
 
 /**
+ * Starts the separately catalogued V3 official case. As with the retained V2
+ * command, the browser may select only the exact identity/version; all bytes
+ * and trust anchors are Worker-owned.
+ */
+export type CreateOfficialDocumentCaseSessionCommandV1 =
+  CommandBaseV1<"createOfficialDocumentCaseSession"> & Readonly<{
+    presetId: "circleheart/official-healthy-periodic";
+    presetVersion: "1.0.0";
+  }>;
+
+/**
  * Starts one built-in research bracket by exact browser-safe catalog identity.
  * There is deliberately no parameter patch or caller-supplied release field.
  */
@@ -95,6 +113,7 @@ export type ScientificCommandV1 =
   | CreateCanonicalSessionCommandV1
   | CreateResolvedSessionCommandV1
   | CreateOfficialPresetSessionCommandV1
+  | CreateOfficialDocumentCaseSessionCommandV1
   | CreateResearchPresetSessionCommandV1
   | RunTransientCommandV1
   | ObserveCommandV1
@@ -117,6 +136,7 @@ export type ScientificCommandErrorCodeV1 =
   | "session-creation-failed"
   | "resolved-session-input-rejected"
   | "official-preset-restore-rejected"
+  | "official-document-case-restore-rejected"
   | "research-preset-resolution-rejected"
   | "checkpoint-failed"
   | "exact-restore-rejected"
@@ -153,6 +173,22 @@ export type ScientificSessionOriginV1 =
     checkpointRawFileSha256: string;
     checkpointSha256: string;
     parameterization: "fixed-canonical-only";
+  }>
+  | Readonly<{
+    kind: "official-document-case-v3-exact-checkpoint-restore";
+    presetId: "circleheart/official-healthy-periodic";
+    presetVersion: "1.0.0";
+    catalogSchemaId:
+      "circleheart-official-scientific-document-chain-catalog-v1";
+    catalogSchemaVersion: 1;
+    catalogRawFileSha256: string;
+    checkpointRawFileSha256: string;
+    checkpointSha256: string;
+    sessionInputSha256: string;
+    caseRef: MainWireScientificCaseDocumentRefV1;
+    workspaceRef: MainWireScientificWorkspaceDocumentRefV1;
+    periodicSteadyStateClaimed: true;
+    clinicalValidationClaimed: false;
   }>
   | Readonly<{
     kind: "research-preset-cold-start";
@@ -234,6 +270,17 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       kind: "officialPresetSessionCreated";
       presetId: "circleheart/official-healthy-periodic";
       presetVersion: "1.0.0";
+      observableFrame: TObservableFrame;
+    }>;
+    createOfficialDocumentCaseSession: Readonly<{
+      kind: "officialDocumentCaseSessionCreated";
+      presetId: "circleheart/official-healthy-periodic";
+      presetVersion: "1.0.0";
+      checkpointSha256: string;
+      sessionInputSha256: string;
+      caseRef: MainWireScientificCaseDocumentRefV1;
+      workspaceRef: MainWireScientificWorkspaceDocumentRefV1;
+      periodicSteadyStateClaimed: true;
       observableFrame: TObservableFrame;
     }>;
     createResearchPresetSession: Readonly<{

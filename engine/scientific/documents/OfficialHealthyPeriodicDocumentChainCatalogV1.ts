@@ -1,17 +1,21 @@
 import {
   mainWireScientificCaseDocumentRefIssuesV1,
+  type MainWireScientificCaseDocumentV1,
   type MainWireScientificCaseDocumentRefV1,
 } from "@/engine/scientific/documents/MainWireScientificCaseDocumentV1";
 import {
   mainWireScientificPresetDocumentRefIssuesV1,
+  type MainWireScientificPresetDocumentV1,
   type MainWireScientificPresetDocumentRefV1,
 } from "@/engine/scientific/documents/MainWireScientificPresetDocumentV1";
 import {
   mainWireScientificWorkspaceDocumentRefIssuesV1,
+  type MainWireScientificWorkspaceDocumentV1,
   type MainWireScientificWorkspaceDocumentRefV1,
 } from "@/engine/scientific/documents/MainWireScientificWorkspaceDocumentV1";
 import {
   MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V3_ID,
+  type MainWireScientificSessionExactCheckpointV3,
 } from "@/engine/scientific/runtime/MainWireScientificExactCheckpointV3";
 import {
   OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING,
@@ -24,6 +28,7 @@ import {
   simulationReleaseRefIssuesV1,
   type CanonicalJsonObject,
   type SimulationReleaseRef,
+  type SimulationReleaseV1,
 } from "@/engine/scientific/release";
 
 export const OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID =
@@ -49,7 +54,37 @@ export const OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING =
   Object.freeze({
     byteLength: 2_715 as const,
     rawFileSha256:
-      "955d1b11c4a83e01d9aaceda140f544987f526cfdb50a58e4e0ed3199acd29fc" as const,
+      "a02ef9c8b9834dbdcbbff28e3aa9eeb0b5ae462ff4c899759d2a77fe9ca2c83b" as const,
+    releaseRef: Object.freeze({
+      id: "circleheart/adult-five-wall-noncoronary" as const,
+      version: "0.2.0" as const,
+      sha256:
+        "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4" as const,
+    }),
+    sessionInputSha256:
+      "4c637109b4c858b4cc5755e7b0bb039bfb4dbb57fc5e1b2b156fc2f1f6e3eae1" as const,
+    checkpointRawFileSha256:
+      "f3d8913125bfcd8e5d2066674157b4882164bcb0f9575d1ac67f8baf6aec2a14" as const,
+    checkpointSha256:
+      "e63b33b17b3d62bdca417aa8315ba3046b0758c6401a3633e917b6b5114511f6" as const,
+    presetRef: Object.freeze({
+      schemaId:
+        "circleheart-main-wire-scientific-preset-document-ref-v1" as const,
+      sha256:
+        "0e4ff59d0f55485e954374ca18138ab164c3428132455a6465eb3f79d553c8aa" as const,
+    }),
+    caseRef: Object.freeze({
+      schemaId:
+        "circleheart-main-wire-scientific-case-document-ref-v1" as const,
+      sha256:
+        "c5644512b2e2589847f6b4471794c9fbca062b68190f06fd8405002a664f7861" as const,
+    }),
+    workspaceRef: Object.freeze({
+      schemaId:
+        "circleheart-main-wire-scientific-workspace-document-ref-v1" as const,
+      sha256:
+        "5faed3f4de4750cfaadd21dfd37a9b3be5f50ac669e4e99575c2e75c8f9c9bab" as const,
+    }),
   });
 
 export type OfficialScientificJsonAssetBindingV1 = Readonly<{
@@ -106,6 +141,35 @@ export type OfficialHealthyPeriodicDocumentChainCatalogV1 = Readonly<{
       clinicalValidationClaimed: false;
       patientSpecificFitClaimed: false;
     }>;
+  }>;
+}>;
+
+export type OfficialHealthyPeriodicDocumentChainIdentityV1 = Readonly<{
+  presetId: typeof OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_ID;
+  presetVersion:
+    typeof OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_VERSION;
+}>;
+
+/** Host-neutral verified asset bundle supplied to the scientific kernel. */
+export type LoadedOfficialHealthyPeriodicDocumentChainV1 = Readonly<{
+  identity: OfficialHealthyPeriodicDocumentChainIdentityV1;
+  release: SimulationReleaseV1;
+  catalog: OfficialHealthyPeriodicDocumentChainCatalogV1;
+  checkpoint: MainWireScientificSessionExactCheckpointV3;
+  presetDocument: MainWireScientificPresetDocumentV1;
+  caseDocument: MainWireScientificCaseDocumentV1;
+  workspaceDocument: MainWireScientificWorkspaceDocumentV1;
+  provenance: Readonly<{
+    catalogSchemaId:
+      OfficialHealthyPeriodicDocumentChainCatalogV1["schema"]["id"];
+    catalogSchemaVersion: 1;
+    catalogRawFileSha256: string;
+    checkpointRawFileSha256: string;
+    checkpointSha256: string;
+    sessionInputSha256: string;
+    presetRef: MainWireScientificPresetDocumentRefV1;
+    caseRef: MainWireScientificCaseDocumentRefV1;
+    workspaceRef: MainWireScientificWorkspaceDocumentRefV1;
   }>;
 }>;
 

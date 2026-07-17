@@ -334,6 +334,55 @@ describe("main-wire scientific browser Worker transport V1", () => {
     ));
     await expectTransportError(wrongReleasePending, "protocol-mismatch");
   });
+
+  it("binds the V3 official document-case response to its pinned refs", async () => {
+    const worker = new FakeWorker();
+    const client = clientFor(worker);
+    const submitted = officialDocumentCaseCommand(
+      "request-official-document-case",
+      "official-document-case-session",
+    );
+    const pending = client.request(submitted);
+    worker.emitMessage(successResponse(
+      submitted,
+      officialDocumentCasePayload(),
+      OFFICIAL_DOCUMENT_CASE_ORIGIN,
+      OFFICIAL_RELEASE_REF,
+    ));
+    await expect(pending).resolves.toMatchObject({
+      commandKind: "createOfficialDocumentCaseSession",
+      sessionOrigin: OFFICIAL_DOCUMENT_CASE_ORIGIN,
+      payload: {
+        kind: "officialDocumentCaseSessionCreated",
+        caseRef: OFFICIAL_CASE_REF,
+        workspaceRef: OFFICIAL_WORKSPACE_REF,
+      },
+    });
+    expect(client.status).toBe("open");
+    client.terminate();
+
+    const forgedWorker = new FakeWorker();
+    const forgedClient = clientFor(forgedWorker);
+    const forgedSubmitted = officialDocumentCaseCommand(
+      "request-forged-workspace-ref",
+      "forged-workspace-ref-session",
+    );
+    const forgedPending = forgedClient.request(forgedSubmitted);
+    forgedWorker.emitMessage(successResponse(
+      forgedSubmitted,
+      officialDocumentCasePayload(),
+      {
+        ...OFFICIAL_DOCUMENT_CASE_ORIGIN,
+        workspaceRef: {
+          ...OFFICIAL_WORKSPACE_REF,
+          sha256: "f".repeat(64),
+        },
+      },
+      OFFICIAL_RELEASE_REF,
+    ));
+    await expectTransportError(forgedPending, "protocol-mismatch");
+    expect(forgedClient.status).toBe("failed");
+  });
 });
 
 class FakeWorker {
@@ -414,6 +463,39 @@ function officialPresetCommand(
     presetId: "circleheart/official-healthy-periodic" as const,
     presetVersion: "1.0.0" as const,
   });
+}
+
+function officialDocumentCaseCommand(
+  requestId: string,
+  sessionId: string,
+): ScientificCommandV1 {
+  return Object.freeze({
+    protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+    kind: "createOfficialDocumentCaseSession" as const,
+    requestId,
+    sessionId,
+    presetId: "circleheart/official-healthy-periodic" as const,
+    presetVersion: "1.0.0" as const,
+  });
+}
+
+function officialDocumentCasePayload() {
+  return {
+    kind: "officialDocumentCaseSessionCreated",
+    presetId: "circleheart/official-healthy-periodic",
+    presetVersion: "1.0.0",
+    checkpointSha256:
+      "e63b33b17b3d62bdca417aa8315ba3046b0758c6401a3633e917b6b5114511f6",
+    sessionInputSha256:
+      "4c637109b4c858b4cc5755e7b0bb039bfb4dbb57fc5e1b2b156fc2f1f6e3eae1",
+    caseRef: OFFICIAL_CASE_REF,
+    workspaceRef: OFFICIAL_WORKSPACE_REF,
+    periodicSteadyStateClaimed: true,
+    observableFrame: {
+      revision: 13_000,
+      releaseRef: OFFICIAL_RELEASE_REF,
+    },
+  };
 }
 
 function successResponse(
@@ -507,4 +589,37 @@ const OFFICIAL_PRESET_SESSION_ORIGIN = Object.freeze({
   checkpointSha256:
     "2f1c0b477905b07dfefc8a37ee7e1b7ab3d856d7f017770c6bc92a22fb529ff0",
   parameterization: "fixed-canonical-only",
+});
+
+const OFFICIAL_CASE_REF = Object.freeze({
+  schemaId: "circleheart-main-wire-scientific-case-document-ref-v1",
+  sha256:
+    "c5644512b2e2589847f6b4471794c9fbca062b68190f06fd8405002a664f7861",
+});
+
+const OFFICIAL_WORKSPACE_REF = Object.freeze({
+  schemaId: "circleheart-main-wire-scientific-workspace-document-ref-v1",
+  sha256:
+    "5faed3f4de4750cfaadd21dfd37a9b3be5f50ac669e4e99575c2e75c8f9c9bab",
+});
+
+const OFFICIAL_DOCUMENT_CASE_ORIGIN = Object.freeze({
+  kind: "official-document-case-v3-exact-checkpoint-restore",
+  presetId: "circleheart/official-healthy-periodic",
+  presetVersion: "1.0.0",
+  catalogSchemaId:
+    "circleheart-official-scientific-document-chain-catalog-v1",
+  catalogSchemaVersion: 1,
+  catalogRawFileSha256:
+    "a02ef9c8b9834dbdcbbff28e3aa9eeb0b5ae462ff4c899759d2a77fe9ca2c83b",
+  checkpointRawFileSha256:
+    "f3d8913125bfcd8e5d2066674157b4882164bcb0f9575d1ac67f8baf6aec2a14",
+  checkpointSha256:
+    "e63b33b17b3d62bdca417aa8315ba3046b0758c6401a3633e917b6b5114511f6",
+  sessionInputSha256:
+    "4c637109b4c858b4cc5755e7b0bb039bfb4dbb57fc5e1b2b156fc2f1f6e3eae1",
+  caseRef: OFFICIAL_CASE_REF,
+  workspaceRef: OFFICIAL_WORKSPACE_REF,
+  periodicSteadyStateClaimed: true,
+  clinicalValidationClaimed: false,
 });
