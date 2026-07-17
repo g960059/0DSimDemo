@@ -89,6 +89,7 @@ const GROUP_COLORS = Object.freeze({
   "land-state": "#a78bfa",
   "sls-viscous-strain": "#facc15",
   "wall-input-history": "#fb7185",
+  "calcium-event-state": "#2dd4bf",
 } as const);
 
 type Point = Readonly<{ x: number; y: number }>;
@@ -122,6 +123,7 @@ export type MainWireNormalAdultFiveWallPeriodicReviewV1 = Readonly<{
     laSlsMode: string;
     initialization: string;
     calciumDrivePriorVariant: string;
+    calciumRepresentation: string;
     calciumParameterSetId: string;
     bloodVolumePriorVariant: string;
     targetTotalBloodVolumeMl: number;
@@ -244,6 +246,7 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       laSlsMode: result.laSlsMode,
       initialization: result.initialization,
       calciumDrivePriorVariant: result.calciumDrivePriorVariant,
+      calciumRepresentation: result.calciumRepresentation,
       calciumParameterSetId: calcium.parameterSetId,
       bloodVolumePriorVariant: result.bloodVolumePriorVariant,
       targetTotalBloodVolumeMl:

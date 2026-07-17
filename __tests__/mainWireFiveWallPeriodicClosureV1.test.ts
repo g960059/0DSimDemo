@@ -7,6 +7,9 @@ import {
   MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID,
 } from "@/engine/myocardium/MainWireFiveWallNonCoronaryTransactionV1";
 import {
+  FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID,
+} from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
+import {
   MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
   classifyMainWireFiveWallPeriodicityV1,
   compareMainWireFiveWallAcceptedStatesV1,
@@ -29,7 +32,7 @@ describe("MainWireFiveWallPeriodicClosureV1", () => {
     );
 
     expect(report.elapsedTimeSec).toBe(1);
-    expect(report.overall.entryCount).toBe(68);
+    expect(report.overall.entryCount).toBe(78);
     expect(report.overall.maximumNormalizedDelta).toBe(0);
     expect(report.groups["circulation-node-volume"].entryCount).toBe(15);
     expect(report.groups["dynamic-edge-flow"].entryCount).toBe(2);
@@ -38,6 +41,7 @@ describe("MainWireFiveWallPeriodicClosureV1", () => {
     expect(report.groups["land-state"].entryCount).toBe(30);
     expect(report.groups["sls-viscous-strain"].entryCount).toBe(5);
     expect(report.groups["wall-input-history"].entryCount).toBe(10);
+    expect(report.groups["calcium-event-state"].entryCount).toBe(10);
   });
 
   it("normalizes by fixed dimensional scales and retains physical maxima by quantity", () => {
@@ -82,6 +86,26 @@ describe("MainWireFiveWallPeriodicClosureV1", () => {
       .toBeCloseTo(0.2, 14);
   });
 
+  it("includes all ten exact-event calcium states in formal period closure", () => {
+    const reference = acceptedState({ revision: 200, timeSec: 2 });
+    const current = acceptedState({
+      revision: 300,
+      timeSec: 3,
+      laCalciumRiseDrive: 0.35,
+    });
+    const report = compareMainWireFiveWallAcceptedStatesV1(
+      current,
+      reference,
+      MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
+    );
+
+    expect(report.groups["calcium-event-state"].entryCount).toBe(10);
+    expect(report.groups["calcium-event-state"].maximumNormalizedDelta)
+      .toBeCloseTo(0.25, 14);
+    expect(report.groups["calcium-event-state"].worstPath)
+      .toBe("calcium.stateByWall.LA.riseDrive");
+  });
+
   it("rejects incompatible identities, malformed wall state, and nonpositive scales", () => {
     const reference = acceptedState({ revision: 200, timeSec: 2 });
     const incompatible = acceptedState({
@@ -91,6 +115,16 @@ describe("MainWireFiveWallPeriodicClosureV1", () => {
     });
     expect(() => compareMainWireFiveWallAcceptedStatesV1(
       incompatible,
+      reference,
+      MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
+    )).toThrow(/identities differ/);
+    const differentScheduleContent = acceptedState({
+      revision: 300,
+      timeSec: 3,
+      calciumScheduleIdentityHash: "deadbeef",
+    });
+    expect(() => compareMainWireFiveWallAcceptedStatesV1(
+      differentScheduleContent,
       reference,
       MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
     )).toThrow(/identities differ/);
@@ -190,6 +224,8 @@ type StateOptions = Readonly<{
   laPreviousFiberLogStrain?: number;
   laPreviousFreeCalciumUM?: number;
   laLandCaTrpn?: number;
+  laCalciumRiseDrive?: number;
+  calciumScheduleIdentityHash?: string;
 }>;
 
 function acceptedState(options: StateOptions): MainWireFiveWallPeriodicAcceptedStateV1 {
@@ -265,6 +301,25 @@ function acceptedState(options: StateOptions): MainWireFiveWallPeriodicAcceptedS
         }),
       }),
       materialStateFingerprint: "test-fingerprint",
+    }),
+    calcium: Object.freeze({
+      stateSchemaId: FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID,
+      stateSchemaVersion: 1 as const,
+      representation: "exact-event-state" as const,
+      initializationId: "regular-periodic-prehistory-from-fixed-prior" as const,
+      scheduleId: "test-fixed-sinus-schedule-v1",
+      scheduleIdentityHash:
+        options.calciumScheduleIdentityHash ?? "1234abcd",
+      parameterSetId: "test-calcium-prior-v1",
+      revision: options.revision,
+      acceptedTimeSec: options.timeSec,
+      stateByWall: Object.freeze({
+        LA: Object.freeze([options.laCalciumRiseDrive ?? 0.1, 0.2] as const),
+        RA: Object.freeze([0.1, 0.2] as const),
+        LVFW: Object.freeze([0.1, 0.2] as const),
+        SEP: Object.freeze([0.1, 0.2] as const),
+        RVFW: Object.freeze([0.1, 0.2] as const),
+      }),
     }),
   });
 }

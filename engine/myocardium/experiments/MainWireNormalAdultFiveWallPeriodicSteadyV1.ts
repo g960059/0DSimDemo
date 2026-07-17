@@ -20,6 +20,15 @@ import {
   type FiveWallNormalCalciumDrivePriorVariantV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
+  FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID,
+  createFixedSinusFiveWallCalciumEventScheduleV1,
+  splitFiveWallCalciumIntervalAtEventsV1,
+  type FiveWallCalciumRepresentationV1,
+} from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
+import {
+  EXACT_EVENT_PRESCRIBED_CALCIUM_V1_ID,
+} from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
+import {
   classifyMainWireFiveWallPeriodicityV1,
   compareMainWireFiveWallAcceptedStatesV1,
   MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
@@ -90,6 +99,7 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
   Readonly<{
     mechanicsProviderMetadataStableHash: string;
     calciumDriveFixedParamsStableHash: string;
+    calciumStateContractStableHash: string;
     circulationTopologyGraphStableHash: string;
     circulationRuntimeStableHash: string;
     circulationConfigurationSnapshotStableHash: string;
@@ -111,6 +121,15 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
     driveId: typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID;
     parameterSetId: string;
     fixedParamsStableHash: string;
+    representation: FiveWallCalciumRepresentationV1;
+    stateSchemaId: typeof FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID;
+    stateSchemaVersion: 1;
+    eventScheduleId: string;
+    eventScheduleIdentityHash: string;
+    initializationId: "regular-periodic-prehistory-from-fixed-prior";
+    eventKernelId: typeof EXACT_EVENT_PRESCRIBED_CALCIUM_V1_ID;
+    periodicConversionId: "analytic-periodic-biexponential-to-exact-event-v1";
+    stateContractStableHash: string;
   }>;
   circulation: Readonly<{
     topologyGraphSnapshot: Readonly<{
@@ -142,6 +161,7 @@ export type MainWireNormalAdultFiveWallPeriodicOptionsV1 = Readonly<{
   laSlsMode?: MainWireNormalAdultLaSlsModeV1;
   initialization?: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   calciumDrivePriorVariant?: FiveWallNormalCalciumDrivePriorVariantV1;
+  calciumRepresentation?: FiveWallCalciumRepresentationV1;
   bloodVolumePriorVariant?: MainWireNormalAdultBloodVolumePriorVariantV1;
 }>;
 
@@ -169,6 +189,7 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   calciumDrivePriorVariant: FiveWallNormalCalciumDrivePriorVariantV1;
+  calciumRepresentation: FiveWallCalciumRepresentationV1;
   calciumDriveFixedParams: FiveWallNormalCalciumDriveParamsV1;
   bloodVolumePriorVariant: MainWireNormalAdultBloodVolumePriorVariantV1;
   bloodVolumePriorAudit:
@@ -213,6 +234,7 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     valveOpeningStatesChanged: false;
     mechanicsColdInputChanged: false;
     mechanicsColdStateFingerprintChanged: false;
+    calciumColdStateChanged: false;
     transferredVolumeMl: number;
     sourceNode: "PVen" | null;
     destinationNode: "PVein" | null;
@@ -230,6 +252,11 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     parameterSearch: false;
     calciumDriveSelectionIsFixedRegistryVariant: true;
     calciumDriveParameterSearch: false;
+    calciumRepresentationSelectionIsFixedEnum: true;
+    exactEventCalciumStatesIncludedInPeriodClosure: true;
+    eventIntervalsSplitAtOffGridEvents: true;
+    stepsPerBeatIsNominalGridCount: true;
+    acceptedSubstepsMayExceedNominalStepsPerBeat: true;
     bloodVolumePriorSelectionIsFixedRegistryVariant: true;
     bloodVolumePriorParameterSearch: false;
     initializationVariantChangesRuntimeOrMaterialParameters: false;
@@ -263,6 +290,7 @@ export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
   options: Readonly<{
     laSlsMode?: MainWireNormalAdultLaSlsModeV1;
     calciumDrivePriorVariant?: FiveWallNormalCalciumDrivePriorVariantV1;
+    calciumRepresentation?: FiveWallCalciumRepresentationV1;
     bloodVolumePriorVariant?: MainWireNormalAdultBloodVolumePriorVariantV1;
   }> = {},
 ): MainWireNormalAdultFiveWallPeriodicProtocolResolutionV1 {
@@ -280,6 +308,9 @@ export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
   const calciumDriveParams = resolveFiveWallNormalCalciumDriveFixedPriorV1(
     calciumDrivePriorVariant,
   );
+  const calciumRepresentation = options.calciumRepresentation
+    ?? "analytic-periodic-control-with-exact-event-shadow";
+  validateCalciumRepresentation(calciumRepresentation);
   const bloodVolumePrior = resolveMainWireNormalAdultBloodVolumePriorV1(
     options.bloodVolumePriorVariant ?? "cold-seed-control",
   );
@@ -289,6 +320,7 @@ export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
     calciumDriveParams,
     circulationConfiguration.snapshot,
     bloodVolumePrior.snapshot,
+    calciumRepresentation,
   );
   assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
     identity: protocol.identity,
@@ -312,6 +344,9 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const calciumDriveParams = resolveFiveWallNormalCalciumDriveFixedPriorV1(
     resolved.calciumDrivePriorVariant,
   );
+  const calciumEventSchedule = createFixedSinusFiveWallCalciumEventScheduleV1(
+    calciumDriveParams,
+  );
   const bloodVolumePrior = resolveMainWireNormalAdultBloodVolumePriorV1(
     resolved.bloodVolumePriorVariant,
   );
@@ -321,6 +356,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     calciumDriveParams,
     circulationConfiguration.snapshot,
     bloodVolumePrior.snapshot,
+    resolved.calciumRepresentation,
   );
   assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
     identity: protocol.identity,
@@ -343,6 +379,10 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     provider,
     runtime,
     calciumDriveParams,
+    calciumRepresentation: resolved.calciumRepresentation,
+    calciumEventSchedule,
+    calciumInitialization:
+      "regular-periodic-prehistory-from-fixed-prior",
     circulationInitial: initialStateInput(canonicalCirculation),
   });
   const initializedCold = resolved.initialization === "canonical"
@@ -351,6 +391,10 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       provider,
       runtime,
       calciumDriveParams,
+      calciumRepresentation: resolved.calciumRepresentation,
+      calciumEventSchedule,
+      calciumInitialization:
+        "regular-periodic-prehistory-from-fixed-prior",
       circulationInitial: pulmonaryRedistributionInitialState(
         canonicalCirculation,
       ),
@@ -383,29 +427,46 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       stepWithinBeat <= resolved.stepsPerBeat;
       stepWithinBeat += 1
     ) {
-      const stepped = stepMainWireFiveWallNonCoronaryV1(provider, state, {
-        dtSec: resolved.dtSec,
-        runtime,
-        calciumDriveParams,
-      });
-      if (stepped.converged === false) {
-        retainedPartialBeat = beatSamples;
-        failure = Object.freeze({
-          beatIndex,
-          stepWithinBeat,
-          globalStepIndex:
-            (beatIndex - 1) * resolved.stepsPerBeat + stepWithinBeat,
-          timeSec: state.acceptedTimeSec + resolved.dtSec,
-          message: stepped.message,
-          circulationFailureReason: stepped.circulationFailureReason,
-          lastAcceptedCandidateNodeVolumesMl:
-            stepped.lastAcceptedCandidateNodeVolumesMl,
-          circulationDiagnostics: stepped.circulationDiagnostics,
+      const nominalEndTimeSec = resolved.calciumRepresentation
+          === "exact-event-state"
+        ? startTimeSec + stepWithinBeat * resolved.dtSec
+        : state.acceptedTimeSec + resolved.dtSec;
+      const subintervalEndTimes = resolved.calciumRepresentation
+          === "exact-event-state"
+        ? splitFiveWallCalciumIntervalAtEventsV1(
+          state.acceptedTimeSec,
+          nominalEndTimeSec,
+          calciumEventSchedule,
+        )
+        : Object.freeze([nominalEndTimeSec]);
+      for (const subintervalEndTimeSec of subintervalEndTimes) {
+        const stepped = stepMainWireFiveWallNonCoronaryV1(provider, state, {
+          dtSec: resolved.calciumRepresentation === "exact-event-state"
+            ? subintervalEndTimeSec - state.acceptedTimeSec
+            : resolved.dtSec,
+          runtime,
+          calciumDriveParams,
+          calciumEventSchedule,
         });
-        break beatLoop;
+        if (stepped.converged === false) {
+          retainedPartialBeat = beatSamples;
+          failure = Object.freeze({
+            beatIndex,
+            stepWithinBeat,
+            globalStepIndex:
+              (beatIndex - 1) * resolved.stepsPerBeat + stepWithinBeat,
+            timeSec: subintervalEndTimeSec,
+            message: stepped.message,
+            circulationFailureReason: stepped.circulationFailureReason,
+            lastAcceptedCandidateNodeVolumesMl:
+              stepped.lastAcceptedCandidateNodeVolumesMl,
+            circulationDiagnostics: stepped.circulationDiagnostics,
+          });
+          break beatLoop;
+        }
+        state = stepped.acceptedState;
+        beatSamples.push(sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped));
       }
-      state = stepped.acceptedState;
-      beatSamples.push(sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped));
     }
 
     boundaryStates.push(state);
@@ -452,6 +513,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     laSlsMode: resolved.laSlsMode,
     initialization: resolved.initialization,
     calciumDrivePriorVariant: resolved.calciumDrivePriorVariant,
+    calciumRepresentation: resolved.calciumRepresentation,
     calciumDriveFixedParams: calciumDriveParams,
     bloodVolumePriorVariant: resolved.bloodVolumePriorVariant,
     bloodVolumePriorAudit: bloodVolumePrior.audit,
@@ -478,6 +540,11 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       parameterSearch: false as const,
       calciumDriveSelectionIsFixedRegistryVariant: true as const,
       calciumDriveParameterSearch: false as const,
+      calciumRepresentationSelectionIsFixedEnum: true as const,
+      exactEventCalciumStatesIncludedInPeriodClosure: true as const,
+      eventIntervalsSplitAtOffGridEvents: true as const,
+      stepsPerBeatIsNominalGridCount: true as const,
+      acceptedSubstepsMayExceedNominalStepsPerBeat: true as const,
       bloodVolumePriorSelectionIsFixedRegistryVariant: true as const,
       bloodVolumePriorParameterSearch: false as const,
       initializationVariantChangesRuntimeOrMaterialParameters: false as const,
@@ -511,6 +578,31 @@ export function assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegri
     componentHashes.calciumDriveFixedParamsStableHash
       !== identity.calciumDrive.fixedParamsStableHash
   ) throw new Error("periodic calcium component hash is inconsistent");
+  const calciumStateContractHash = hashProtocolValue({
+    representation: identity.calciumDrive.representation,
+    stateSchemaId: identity.calciumDrive.stateSchemaId,
+    stateSchemaVersion: identity.calciumDrive.stateSchemaVersion,
+    eventScheduleId: identity.calciumDrive.eventScheduleId,
+    eventScheduleIdentityHash:
+      identity.calciumDrive.eventScheduleIdentityHash,
+    initializationId: identity.calciumDrive.initializationId,
+    eventKernelId: identity.calciumDrive.eventKernelId,
+    periodicConversionId: identity.calciumDrive.periodicConversionId,
+  });
+  if (
+    componentHashes.calciumStateContractStableHash !== calciumStateContractHash
+    || identity.calciumDrive.stateContractStableHash !== calciumStateContractHash
+    || identity.calciumDrive.stateSchemaId
+      !== FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID
+    || identity.calciumDrive.stateSchemaVersion !== 1
+    || identity.calciumDrive.eventKernelId
+      !== EXACT_EVENT_PRESCRIBED_CALCIUM_V1_ID
+    || identity.calciumDrive.periodicConversionId
+      !== "analytic-periodic-biexponential-to-exact-event-v1"
+    || !/^[0-9a-f]{8}$/.test(identity.calciumDrive.eventScheduleIdentityHash)
+    || identity.calciumDrive.initializationId
+      !== "regular-periodic-prehistory-from-fixed-prior"
+  ) throw new Error("periodic calcium state contract hash is inconsistent");
   const topologyHash = hashProtocolValue(
     identity.circulation.topologyGraphSnapshot,
   );
@@ -578,6 +670,7 @@ function buildPeriodicProtocolIdentity(
     MainWireNormalAdultCirculationConfigurationSnapshotV1,
   bloodVolumePriorSnapshot:
     MainWireNormalAdultBloodVolumePriorSnapshotV1,
+  calciumRepresentation: FiveWallCalciumRepresentationV1,
 ): Readonly<{
   identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
   identityHash: string;
@@ -590,6 +683,22 @@ function buildPeriodicProtocolIdentity(
     stateSchemaVersion: provider.stateSchemaVersion,
   });
   const topologyGraph = buildNonCoronaryCirculationGraphV1();
+  validateCalciumRepresentation(calciumRepresentation);
+  const calciumEventSchedule = createFixedSinusFiveWallCalciumEventScheduleV1(
+    calciumDriveParams,
+  );
+  const calciumStateContract = deepFreezeProtocolValue({
+    representation: calciumRepresentation,
+    stateSchemaId: FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID,
+    stateSchemaVersion: 1 as const,
+    eventScheduleId: calciumEventSchedule.scheduleId,
+    eventScheduleIdentityHash: calciumEventSchedule.scheduleIdentityHash,
+    initializationId:
+      "regular-periodic-prehistory-from-fixed-prior" as const,
+    eventKernelId: EXACT_EVENT_PRESCRIBED_CALCIUM_V1_ID,
+    periodicConversionId:
+      "analytic-periodic-biexponential-to-exact-event-v1" as const,
+  });
   const topologyGraphSnapshot = deepFreezeProtocolValue({
     topologyId: topologyGraph.topologyId,
     nodes: topologyGraph.nodes,
@@ -600,6 +709,8 @@ function buildPeriodicProtocolIdentity(
     mechanicsProviderMetadataStableHash: hashProtocolValue(mechanicsProvider),
     calciumDriveFixedParamsStableHash:
       hashProtocolValue(calciumDriveParams),
+    calciumStateContractStableHash:
+      hashProtocolValue(calciumStateContract),
     circulationTopologyGraphStableHash:
       hashProtocolValue(topologyGraphSnapshot),
     circulationRuntimeStableHash: hashProtocolValue(runtime),
@@ -619,6 +730,9 @@ function buildPeriodicProtocolIdentity(
       parameterSetId: calciumDriveParams.parameterSetId,
       fixedParamsStableHash:
         componentHashes.calciumDriveFixedParamsStableHash,
+      ...calciumStateContract,
+      stateContractStableHash:
+        componentHashes.calciumStateContractStableHash,
     },
     circulation: {
       topologyGraphSnapshot,
@@ -749,6 +863,9 @@ function auditInitialization(
   if (mechanicsChanged) {
     throw new Error("periodic basin audit changed the mechanics cold state");
   }
+  if (JSON.stringify(initialized.calcium) !== JSON.stringify(canonical.calcium)) {
+    throw new Error("periodic basin audit changed the calcium cold state");
+  }
   return Object.freeze({
     canonicalTotalBloodVolumeMl: canonicalTotal,
     initializedTotalBloodVolumeMl: initializedTotal,
@@ -758,6 +875,7 @@ function auditInitialization(
     valveOpeningStatesChanged: false as const,
     mechanicsColdInputChanged: false as const,
     mechanicsColdStateFingerprintChanged: false as const,
+    calciumColdStateChanged: false as const,
     transferredVolumeMl: transfer,
     sourceNode: redistributed ? "PVen" as const : null,
     destinationNode: redistributed ? "PVein" as const : null,
@@ -802,6 +920,7 @@ function validateAndResolveOptions(
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   calciumDrivePriorVariant: FiveWallNormalCalciumDrivePriorVariantV1;
+  calciumRepresentation: FiveWallCalciumRepresentationV1;
   bloodVolumePriorVariant: MainWireNormalAdultBloodVolumePriorVariantV1;
 }> {
   if (!(options.dtSec > 0) || !Number.isFinite(options.dtSec)) {
@@ -833,6 +952,9 @@ function validateAndResolveOptions(
   // The resolver is the closed registry boundary. It rejects arbitrary or
   // misspelled waveform choices before any model state is constructed.
   resolveFiveWallNormalCalciumDriveFixedPriorV1(calciumDrivePriorVariant);
+  const calciumRepresentation = options.calciumRepresentation
+    ?? "analytic-periodic-control-with-exact-event-shadow";
+  validateCalciumRepresentation(calciumRepresentation);
   const bloodVolumePriorVariant = options.bloodVolumePriorVariant
     ?? "cold-seed-control";
   resolveMainWireNormalAdultBloodVolumePriorV1(bloodVolumePriorVariant);
@@ -843,8 +965,18 @@ function validateAndResolveOptions(
     laSlsMode,
     initialization,
     calciumDrivePriorVariant,
+    calciumRepresentation,
     bloodVolumePriorVariant,
   });
+}
+
+function validateCalciumRepresentation(
+  value: FiveWallCalciumRepresentationV1,
+): void {
+  if (
+    value !== "analytic-periodic-control-with-exact-event-shadow"
+    && value !== "exact-event-state"
+  ) throw new Error("unsupported five-wall calcium representation");
 }
 
 function sumNodeVolumes(

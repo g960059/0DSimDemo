@@ -12,6 +12,9 @@ import type {
   FiveWallNormalCalciumDrivePriorVariantV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import type {
+  FiveWallCalciumRepresentationV1,
+} from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
+import type {
   MainWireNormalAdultBloodVolumePriorVariantV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumePriorV1";
 
@@ -25,6 +28,10 @@ const calciumDrivePriorVariant = argument(
   "--calcium-prior",
   "land-atrial-twitch-output",
 ) as FiveWallNormalCalciumDrivePriorVariantV1;
+const calciumRepresentation = argument(
+  "--calcium-representation",
+  "analytic-periodic-control-with-exact-event-shadow",
+) as FiveWallCalciumRepresentationV1;
 const bloodVolumePriorVariant = argument(
   "--blood-volume-prior",
   "cold-seed-control",
@@ -43,6 +50,7 @@ const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
   laSlsMode,
   initialization,
   calciumDrivePriorVariant,
+  calciumRepresentation,
   bloodVolumePriorVariant,
 });
 mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -54,6 +62,7 @@ process.stdout.write(`${JSON.stringify({
   initialization: result.initialization,
   laSlsMode: result.laSlsMode,
   calciumDrivePriorVariant: result.calciumDrivePriorVariant,
+  calciumRepresentation: result.calciumRepresentation,
   bloodVolumePriorVariant: result.bloodVolumePriorVariant,
   bloodVolumePriorAudit: result.bloodVolumePriorAudit,
   calciumParameterSetId:
