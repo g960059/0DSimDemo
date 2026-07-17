@@ -8,7 +8,7 @@ PR #475 の最小 five-wall Land--TriSeg sidecar は、circulation configuration
 `1.97e-2`未満で、LA V-loop面積は`3.435`から`3.380 mmHg mL`、reservoir--conduit mean gapは
 `0.414`から`0.417 mmHg`であった。一方、A-loop面積は`7.517`から`8.284 mmHg mL`へ変わるため、
 この一組だけを完全な時間刻み独立性、収束次数、または生理的合格gateとはしない。これらの
-`dt=2 : 1 ms`数値はpre-snapshotのhistorical numerical baselineであり、現行6-component schemaの
+`dt=2 : 1 ms`数値はpre-snapshotのhistorical numerical baselineであり、現行7-component schemaの
 qualified pairを主張しない。
 
 同じpre-snapshot schemaでLA parallel SLSを厳密に切ると、`dt=2 ms`の同じperiodic条件でもLA PV loopは単一交点の
@@ -62,10 +62,13 @@ periodic policyの5 componentを`protocolIdentityHash`に束ねていた。そ�
 initialization-basin比較にfull serialized identityの完全一致を要求し、canonical `dt=2 ms`と
 `dt=1 ms`はmatched pairであった。旧identity hash `745d9200`はこのpre-snapshot schemaだけのlabelである。
 
-現行schemaは上記5 componentにmain-wire circulation configuration snapshotを加えた6 componentである。
+現行schemaは上記5 componentにmain-wire circulation configuration snapshotとfixed initial
+blood-volume priorを加えた7 componentである。
 現canonical `dt=2 ms`は現行schemaで再生成され、snapshot materialization前のraw sampleとの数値parityを
-確認した。一方、本書の`dt=1 ms`、SLS exact-off、initialization-basin、dt-halving artifactsは現行schemaで
-再生成していない。このため、旧5-component identityを現行identityと比較せず、現時点では
+確認した。TBV owner追加時には既存control summaryへ`cold-seed-control` identityだけを決定論的に
+metadata migrationし、raw dynamicsを変更していない。一方、本書の`dt=1 ms`、SLS exact-off、
+initialization-basin、dt-halving artifactsは現行schemaで再生成していない。このため、旧5-component
+identityを現行identityと比較せず、現時点では
 `dt=2 ms`と`dt=1 ms`の現行schema上のidentity一致も主張しない。現行identity/hashのsource of truthは
 committed JSONであり、hashはcompact labelであって暗号学的provenanceではない。
 
@@ -235,7 +238,7 @@ V-loop面積は`3.435 : 3.380 mmHg mL`（fineで1.6%低下）、mean branch gap�
 `0.414 : 0.417 mmHg`である。これに対しA-loop面積は`7.517 : 8.284 mmHg mL`（fineで10.2%増加）で、
 A/Vは`2.188 : 2.451`となる。したがって旧schema内ではV-loopと枝順序はこのrefinementで
 定性的・定量的に近いが、A-loop面積は同じ程度には収束していない。単一の2:1 pairから漸近収束域や
-次数を推定せず、この数値を現行6-component schemaのqualified comparisonへ読み替えない。
+次数を推定せず、この数値を現行7-component schemaのqualified comparisonへ読み替えない。
 
 ### pre-fix `dt=1 ms` failureの所有者
 
@@ -277,15 +280,22 @@ pre-fix failureを物理不安定性または現在のdt-halving blockerとは�
 6. activation challengerは棄却した。main-wire circulation configuration snapshotを追加し、default raw sample
    parityを確認した。詳細は`mainwire-normal-adult-circulation-configuration-snapshot-v1.ja.md`に置く。
 7. snapshotで現cold TBV `4589.458 mL`がofficial full-graph target `5600 mL`を採用していないことを
-   確認した。次は`5600 - excluded coronary cold seed 77.89 = 5522.11 mL`だけを固定比較し、
-   systemic venous $V_u$を同時に変更しない。
+   確認した。`5600 - excluded coronary cold seed 77.89 = 5522.11 mL`だけを固定比較し、
+   systemic venous $V_u$を同時に変更しなかった。両caseはperiod-1へ収束したが、challengerは
+   自己交差が2個となったため、TBV ownerは採用してもchallenger形状をcanonicalとはしない。
 8. main-wire runtime、冠循環、弁、呼吸へ接続した後、PV S/D/Ar、LA volume envelope、A apexを再評価する。
 
 ## committed evidence
 
-現行6-component snapshot schemaで再生成済み:
+現行7-component schemaのcontrol identityへmetadata migration済み（raw dynamicsは未変更）:
 
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-canonical-dt2ms-summary-v1.json`
+
+現行7-component schemaで固定TBV pairを再生成済み:
+
+- `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-tbv-control-dt2ms-summary-v1.json`
+- `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-tbv-challenger-dt2ms-summary-v1.json`
+- `data/myocardium/reports/mainwire-normal-adult-five-wall-tbv-comparison-dt2ms-v1.json`
 
 以下はpre-snapshot historical schemaの数値証拠であり、現行`dt=2 ms`とのprotocol identity一致を
 主張する資料ではない:

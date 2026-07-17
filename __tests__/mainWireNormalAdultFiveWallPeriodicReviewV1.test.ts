@@ -26,6 +26,9 @@ import {
   resolveMainWireNormalAdultCirculationConfigurationV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultCirculationConfigurationV1";
 import {
+  resolveMainWireNormalAdultBloodVolumePriorV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumePriorV1";
+import {
   sanitizeForStableHash,
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
@@ -36,6 +39,8 @@ const CALCIUM_HASH = stableHash(sanitizeForStableHash(
 ));
 const CONFIGURATION =
   resolveMainWireNormalAdultCirculationConfigurationV1();
+const BLOOD_VOLUME_PRIOR =
+  resolveMainWireNormalAdultBloodVolumePriorV1("cold-seed-control");
 const MECHANICS_PROVIDER = Object.freeze({
   providerId: "review-fixture-provider",
   parameterSetId: "review-fixture-provider-params",
@@ -67,6 +72,11 @@ const PROTOCOL_IDENTITY = Object.freeze({
     runtimeStableHash: RUNTIME_HASH,
     configurationSnapshot: CONFIGURATION.snapshot,
     configurationSnapshotStableHash: CONFIGURATION.snapshotStableHash,
+  }),
+  operatingPoint: Object.freeze({
+    bloodVolumePriorSnapshot: BLOOD_VOLUME_PRIOR.snapshot,
+    bloodVolumePriorSnapshotStableHash:
+      BLOOD_VOLUME_PRIOR.snapshotStableHash,
   }),
   periodicPolicy: Object.freeze({
     policyId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId,
@@ -232,12 +242,15 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
       circulationRuntimeStableHash: RUNTIME_HASH,
       circulationConfigurationSnapshotStableHash:
         CONFIGURATION.snapshotStableHash,
+      bloodVolumePriorStableHash: BLOOD_VOLUME_PRIOR.snapshotStableHash,
       periodicPolicyStableHash: POLICY_HASH,
     }),
     laSlsMode: "on",
     initialization: "canonical",
     calciumDrivePriorVariant: "land-atrial-twitch-output",
     calciumDriveFixedParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    bloodVolumePriorVariant: "cold-seed-control",
+    bloodVolumePriorAudit: BLOOD_VOLUME_PRIOR.audit,
     dtSec: DT_SEC,
     stepsPerBeat: 10,
     requestedMaximumBeatCount: 7,
@@ -292,6 +305,10 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
       ordinaryBeatIterationOnly: true,
       shootingOrAndersonAccelerationApplied: false,
       parameterSearch: false,
+      calciumDriveSelectionIsFixedRegistryVariant: true,
+      calciumDriveParameterSearch: false,
+      bloodVolumePriorSelectionIsFixedRegistryVariant: true,
+      bloodVolumePriorParameterSearch: false,
       initializationVariantChangesRuntimeOrMaterialParameters: false,
       pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true,
       samePeriodicOrbitAcrossInitializationsClaimed: false,

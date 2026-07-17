@@ -5,7 +5,8 @@
 独立したhuman atrial calcium biomarker timingから固定した一つのchallengerは、現canonicalの
 A-loop apexとV-loopを改善しなかった。`dt=2 ms`、HR 60、LA SLS on、canonical initialization、
 最大32拍を固定し、両caseとも27拍目にperiod-1へ収束した。Ca drive以外のmechanics、循環graph、
-循環runtime、循環configuration snapshot、periodic policyの5つのcomponent hashは完全一致し、
+循環runtime、循環configuration snapshot、fixed TBV prior、periodic policyの6つの
+non-Ca component hashは完全一致し、
 full protocol identityではCa driveだけが異なった。
 
 challengerでは、
@@ -52,13 +53,13 @@ twitch outputのTPT/RT50を約82/75 msへ合わせるため、Land parameterとC
 
 - 両方がperiod-1でmorphology interpretation eligible
 - `dt`、initialization、LA SLS mode、requested maximum beatsが一致
-- 全6 componentのうちCa以外の5 component hashが完全一致
+- 全7 componentのうちCa以外の6 component hashが完全一致
 - full protocol identityからCa parameter set/hashだけを除いた値が一致
 - drive ID、variant、parameter set、time constants、fixed-param hashがregistryと整合
 - A/V lobeのactivation-dependent labelがsigned orientationを反転していない
 
-現行artifactでは、mechanics、Ca、循環topology、循環runtime、循環configuration snapshot、periodic
-policyの6 componentをprotocol identityへ束ねる。canonical/challengerの具体的なidentity hashは
+現行artifactでは、mechanics、Ca、循環topology、循環runtime、循環configuration snapshot、fixed TBV
+prior、periodic policyの7 componentをprotocol identityへ束ねる。canonical/challengerの具体的なidentity hashは
 committed JSONをsource of truthとし、文書へ複製しない。hashはcompact labelであって暗号学的
 provenanceではない。
 
@@ -112,17 +113,20 @@ volume partitionとmain-wire設定反映を次のownerとして調べる。
    default parityを確認した。node/edge override、coronary、collapsible-tube $\chi$、変更された
    legacy valve $L/B$、非zero PV ostial inertanceは黙って無視せずfail closedにする。
 2. snapshotにより、現cold TBV `4589.458 mL`とmain-wire official target `5600 mL`の不一致を
-   確認した。除外冠床のcold seed `77.89 mL`を差し引いた`5522.11 mL`を、次の固定TBV候補とする。
-   これはanthropometric normalの新しい主張ではなく、main-wire source-owned operating pointの
-   構造比較である。systemic venous unstressed volumeは同時に自由化しない。
-3. LA/LV volume envelope、fiber operating stretch、CI/MAP、filling pressure、V-loop、A apex、
-   MV/PV flowをperiod-1で再評価する。
+   確認した。除外冠床のcold seed `77.89 mL`を差し引いた`5522.11 mL`を一回だけ固定比較した。
+   systemic venous unstressed volumeは変更しなかった。
+3. 固定TBV pairは両方period-1へ収束し、CO/容積域は改善したが、challenger LA PVは自己交差2個と
+   なった。結果は`mainwire-normal-adult-five-wall-fixed-tbv-v1.ja.md`へ分離し、TBVを形状knobとして
+   追加探索しない。
 
 旧main-wireのchamber-valve `L/B`をそのまま戻すと、過去に約10--33 Hzのringingとclamp依存を
 生じたため、dynamic valveを直ちに再導入しない。operating pointを確認した後も弁flow dynamicsが
 必要なら、全4弁をenergy/power balanceと相補性を保つmonolithic stateとして独立に比較する。
 
 ## committed evidence
+
+以下の2 summaryとcomparisonはTBV owner追加時に同じ`cold-seed-control` identityへmetadata migration
+した。raw dynamicsは再生成していない。
 
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-canonical-dt2ms-summary-v1.json`
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-human-atrial-calcium-biomarker-dt2ms-summary-v1.json`

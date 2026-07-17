@@ -106,6 +106,7 @@ periodic protocol identityは次を別々にhashする。
 - circulation topology
 - circulation runtime
 - full circulation configuration snapshot
+- fixed initial blood-volume prior
 - periodic policy
 
 summaryとreviewはpayload、component hash、embedded hash、overall identity hashを再検証する。
@@ -120,3 +121,8 @@ systemic venous `SV/VC`へ、両者のtransmural pressureへ同じoffsetを加�
 判定はV-loop最大化ではなく、period-1、mass/continuity、LA/LV volume envelope、CI/MAP、
 filling pressure、one-crossing/opposed lobes、reservoir--conduit orderを同時に読む。V-loop面積、
 A apex、MV/PV flowは下流readbackとして報告し、個別shape gateにはしない。
+
+この固定比較は両群とも27拍目にformal period-1へ収束した。challengerはCO、MAP、LA/LV容積、
+LA excursionを増加させた一方、LA PV自己交差も1個から2個へ増やした。したがってTBV ownerの
+明示化は採用するが、challengerを形状調整済みcanonicalとはみなさない。詳細は
+`docs/myocardium/verification/mainwire-normal-adult-five-wall-fixed-tbv-v1.ja.md`に記録する。

@@ -1590,16 +1590,102 @@
       "periodicPolicy": {
         "policyId": "fixed-groupwise-periodic-policy-v1",
         "policyStableHash": "00e13e40"
+      },
+      "operatingPoint": {
+        "bloodVolumePriorSnapshot": {
+          "priorId": "main-wire-normal-adult-blood-volume-prior-v1",
+          "variant": "cold-seed-control",
+          "parameterSetId": "main-wire-noncoronary-cold-seed-tbv-v1",
+          "source": {
+            "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+            "fullGraphOfficialTargetBloodVolumeMl": 5600,
+            "excludedCoronaryColdSeedVolumeMl": 77.89,
+            "officialTargetMinusExcludedCoronaryColdSeedVolumeMl": 5522.11
+          },
+          "construction": {
+            "method": "unchanged-cold-seed",
+            "targetTotalBloodVolumeMl": 4589.457569593876,
+            "adjustedNodes": [],
+            "sharedTransmuralPressureOffsetMmHg": 0,
+            "baselineTransmuralPressuresMmHg": {
+              "SV": 6,
+              "VC": 4
+            },
+            "resolvedTransmuralPressuresMmHg": {
+              "SV": 6,
+              "VC": 4
+            },
+            "nodeVolumesMl": {
+              "LV": 130,
+              "LA": 45,
+              "RV": 140,
+              "RA": 55,
+              "Ao": 154.44291257717376,
+              "SA": 397.3007092041134,
+              "Art": 112.59235663115165,
+              "Cap": 375,
+              "SV": 2255.800155413116,
+              "VC": 312.9755874744277,
+              "PA": 35.267199894127145,
+              "PArt": 45.06977591212404,
+              "PCap": 119.95448306556352,
+              "PVen": 177.1255623826341,
+              "PVein": 233.92882703944443
+            },
+            "nodeVolumeDeltasMl": {
+              "LV": 0,
+              "LA": 0,
+              "RV": 0,
+              "RA": 0,
+              "Ao": 0,
+              "SA": 0,
+              "Art": 0,
+              "Cap": 0,
+              "SV": 0,
+              "VC": 0,
+              "PA": 0,
+              "PArt": 0,
+              "PCap": 0,
+              "PVen": 0,
+              "PVein": 0
+            }
+          },
+          "audit": {
+            "baselineTotalBloodVolumeMl": 4589.457569593876,
+            "targetTotalBloodVolumeMl": 4589.457569593876,
+            "resolvedTotalBloodVolumeMl": 4589.457569593876,
+            "addedBloodVolumeMl": 0,
+            "targetResidualMl": 0,
+            "changedNodes": [],
+            "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+            "chamberVolumesChanged": false,
+            "vascularRuntimeChanged": false,
+            "venousToneChanged": false,
+            "venousPressureLawChanged": false,
+            "parameterSearchApplied": false
+          },
+          "claim": {
+            "operatingPointOwner": "fixed-initial-total-blood-volume",
+            "runtimeBloodVolumeProjectionApplied": false,
+            "vascularOrMaterialParameterChanged": false,
+            "venousToneOrUnstressedVolumeChanged": false,
+            "parameterSearchApplied": false,
+            "physiologicalNormalityClaimed": false,
+            "scopeCorrectionClaimed": false
+          }
+        },
+        "bloodVolumePriorSnapshotStableHash": "64afcc20"
       }
     },
-    "identityHash": "fc93ce9a",
+    "identityHash": "ea9c9966",
     "componentHashes": {
       "mechanicsProviderMetadataStableHash": "78789398",
       "calciumDriveFixedParamsStableHash": "9660029d",
       "circulationTopologyGraphStableHash": "27a8ce3f",
       "circulationRuntimeStableHash": "6a2d35d3",
       "circulationConfigurationSnapshotStableHash": "f918cfff",
-      "periodicPolicyStableHash": "00e13e40"
+      "periodicPolicyStableHash": "00e13e40",
+      "bloodVolumePriorStableHash": "64afcc20"
     }
   },
   "source": {
@@ -1612,7 +1698,22 @@
     "completedBeatCount": 27,
     "terminationReason": "period1-converged",
     "integrationCompletedWithoutFailure": true,
-    "failure": null
+    "failure": null,
+    "bloodVolumePriorVariant": "cold-seed-control",
+    "bloodVolumePriorAudit": {
+      "baselineTotalBloodVolumeMl": 4589.457569593876,
+      "targetTotalBloodVolumeMl": 4589.457569593876,
+      "resolvedTotalBloodVolumeMl": 4589.457569593876,
+      "addedBloodVolumeMl": 0,
+      "targetResidualMl": 0,
+      "changedNodes": [],
+      "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+      "chamberVolumesChanged": false,
+      "vascularRuntimeChanged": false,
+      "venousToneChanged": false,
+      "venousPressureLawChanged": false,
+      "parameterSearchApplied": false
+    }
   },
   "convergence": {
     "policy": {

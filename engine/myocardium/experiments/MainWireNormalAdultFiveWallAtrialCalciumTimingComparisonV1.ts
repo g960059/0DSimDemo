@@ -562,6 +562,8 @@ function sameNonCalciumComponentHashes(
     && left.circulationRuntimeStableHash === right.circulationRuntimeStableHash
     && left.circulationConfigurationSnapshotStableHash
       === right.circulationConfigurationSnapshotStableHash
+    && left.bloodVolumePriorStableHash
+      === right.bloodVolumePriorStableHash
     && left.periodicPolicyStableHash === right.periodicPolicyStableHash;
 }
 

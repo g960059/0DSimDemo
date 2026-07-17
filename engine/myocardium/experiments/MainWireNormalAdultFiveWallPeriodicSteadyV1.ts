@@ -35,6 +35,12 @@ import {
   type MainWireNormalAdultCirculationConfigurationSnapshotV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultCirculationConfigurationV1";
 import {
+  assertMainWireNormalAdultBloodVolumePriorMatchesFixedRegistryV1,
+  resolveMainWireNormalAdultBloodVolumePriorV1,
+  type MainWireNormalAdultBloodVolumePriorSnapshotV1,
+  type MainWireNormalAdultBloodVolumePriorVariantV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumePriorV1";
+import {
   sanitizeForStableHash,
   stableCanonicalStringify,
   stableHash,
@@ -87,6 +93,7 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
     circulationTopologyGraphStableHash: string;
     circulationRuntimeStableHash: string;
     circulationConfigurationSnapshotStableHash: string;
+    bloodVolumePriorStableHash: string;
     periodicPolicyStableHash: string;
   }>;
 
@@ -118,6 +125,10 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
       MainWireNormalAdultCirculationConfigurationSnapshotV1;
     configurationSnapshotStableHash: string;
   }>;
+  operatingPoint: Readonly<{
+    bloodVolumePriorSnapshot: MainWireNormalAdultBloodVolumePriorSnapshotV1;
+    bloodVolumePriorSnapshotStableHash: string;
+  }>;
   periodicPolicy: Readonly<{
     policyId:
       typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId;
@@ -131,6 +142,7 @@ export type MainWireNormalAdultFiveWallPeriodicOptionsV1 = Readonly<{
   laSlsMode?: MainWireNormalAdultLaSlsModeV1;
   initialization?: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   calciumDrivePriorVariant?: FiveWallNormalCalciumDrivePriorVariantV1;
+  bloodVolumePriorVariant?: MainWireNormalAdultBloodVolumePriorVariantV1;
 }>;
 
 export type MainWireNormalAdultFiveWallRetainedBeatV1 = Readonly<{
@@ -158,6 +170,9 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   calciumDrivePriorVariant: FiveWallNormalCalciumDrivePriorVariantV1;
   calciumDriveFixedParams: FiveWallNormalCalciumDriveParamsV1;
+  bloodVolumePriorVariant: MainWireNormalAdultBloodVolumePriorVariantV1;
+  bloodVolumePriorAudit:
+    ReturnType<typeof resolveMainWireNormalAdultBloodVolumePriorV1>["audit"];
   dtSec: number;
   stepsPerBeat: number;
   requestedMaximumBeatCount: number;
@@ -215,6 +230,8 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     parameterSearch: false;
     calciumDriveSelectionIsFixedRegistryVariant: true;
     calciumDriveParameterSearch: false;
+    bloodVolumePriorSelectionIsFixedRegistryVariant: true;
+    bloodVolumePriorParameterSearch: false;
     initializationVariantChangesRuntimeOrMaterialParameters: false;
     pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true;
     samePeriodicOrbitAcrossInitializationsClaimed: false;
@@ -246,6 +263,7 @@ export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
   options: Readonly<{
     laSlsMode?: MainWireNormalAdultLaSlsModeV1;
     calciumDrivePriorVariant?: FiveWallNormalCalciumDrivePriorVariantV1;
+    bloodVolumePriorVariant?: MainWireNormalAdultBloodVolumePriorVariantV1;
   }> = {},
 ): MainWireNormalAdultFiveWallPeriodicProtocolResolutionV1 {
   const laSlsMode = options.laSlsMode ?? "on";
@@ -262,11 +280,15 @@ export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
   const calciumDriveParams = resolveFiveWallNormalCalciumDriveFixedPriorV1(
     calciumDrivePriorVariant,
   );
+  const bloodVolumePrior = resolveMainWireNormalAdultBloodVolumePriorV1(
+    options.bloodVolumePriorVariant ?? "cold-seed-control",
+  );
   const protocol = buildPeriodicProtocolIdentity(
     provider,
     circulationConfiguration.runtime,
     calciumDriveParams,
     circulationConfiguration.snapshot,
+    bloodVolumePrior.snapshot,
   );
   assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
     identity: protocol.identity,
@@ -290,11 +312,15 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const calciumDriveParams = resolveFiveWallNormalCalciumDriveFixedPriorV1(
     resolved.calciumDrivePriorVariant,
   );
+  const bloodVolumePrior = resolveMainWireNormalAdultBloodVolumePriorV1(
+    resolved.bloodVolumePriorVariant,
+  );
   const protocol = buildPeriodicProtocolIdentity(
     provider,
     runtime,
     calciumDriveParams,
     circulationConfiguration.snapshot,
+    bloodVolumePrior.snapshot,
   );
   assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
     identity: protocol.identity,
@@ -305,7 +331,14 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const canonicalCirculation = createInitialNonCoronaryCirculationStateV1({
     timeSec: 0,
     runtime,
+    nodeVolumesMl: bloodVolumePrior.nodeVolumesMl,
   });
+  if (
+    Math.abs(
+      canonicalCirculation.totalBloodVolumeMl
+        - bloodVolumePrior.audit.targetTotalBloodVolumeMl,
+    ) > 1e-8
+  ) throw new Error("resolved blood-volume prior was not applied exactly");
   const canonicalCold = initializeMainWireFiveWallNonCoronaryV1({
     provider,
     runtime,
@@ -420,6 +453,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     initialization: resolved.initialization,
     calciumDrivePriorVariant: resolved.calciumDrivePriorVariant,
     calciumDriveFixedParams: calciumDriveParams,
+    bloodVolumePriorVariant: resolved.bloodVolumePriorVariant,
+    bloodVolumePriorAudit: bloodVolumePrior.audit,
     dtSec: resolved.dtSec,
     stepsPerBeat: resolved.stepsPerBeat,
     requestedMaximumBeatCount: resolved.maximumBeatCount,
@@ -443,6 +478,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       parameterSearch: false as const,
       calciumDriveSelectionIsFixedRegistryVariant: true as const,
       calciumDriveParameterSearch: false as const,
+      bloodVolumePriorSelectionIsFixedRegistryVariant: true as const,
+      bloodVolumePriorParameterSearch: false as const,
       initializationVariantChangesRuntimeOrMaterialParameters: false as const,
       pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true as const,
       samePeriodicOrbitAcrossInitializationsClaimed: false as const,
@@ -514,6 +551,17 @@ export function assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegri
       "periodic circulation topology/runtime differs from its configuration snapshot",
     );
   }
+  assertMainWireNormalAdultBloodVolumePriorMatchesFixedRegistryV1(
+    identity.operatingPoint.bloodVolumePriorSnapshot,
+  );
+  const bloodVolumePriorHash = hashProtocolValue(
+    identity.operatingPoint.bloodVolumePriorSnapshot,
+  );
+  if (
+    componentHashes.bloodVolumePriorStableHash !== bloodVolumePriorHash
+    || identity.operatingPoint.bloodVolumePriorSnapshotStableHash
+      !== bloodVolumePriorHash
+  ) throw new Error("periodic blood-volume prior hash is inconsistent");
   const policyHash = hashProtocolValue(periodicPolicy);
   if (
     componentHashes.periodicPolicyStableHash !== policyHash
@@ -528,6 +576,8 @@ function buildPeriodicProtocolIdentity(
   calciumDriveParams: FiveWallNormalCalciumDriveParamsV1,
   circulationConfigurationSnapshot:
     MainWireNormalAdultCirculationConfigurationSnapshotV1,
+  bloodVolumePriorSnapshot:
+    MainWireNormalAdultBloodVolumePriorSnapshotV1,
 ): Readonly<{
   identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
   identityHash: string;
@@ -555,6 +605,8 @@ function buildPeriodicProtocolIdentity(
     circulationRuntimeStableHash: hashProtocolValue(runtime),
     circulationConfigurationSnapshotStableHash:
       hashProtocolValue(circulationConfigurationSnapshot),
+    bloodVolumePriorStableHash:
+      hashProtocolValue(bloodVolumePriorSnapshot),
     periodicPolicyStableHash:
       hashProtocolValue(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1),
   });
@@ -576,6 +628,11 @@ function buildPeriodicProtocolIdentity(
       configurationSnapshot: circulationConfigurationSnapshot,
       configurationSnapshotStableHash:
         componentHashes.circulationConfigurationSnapshotStableHash,
+    },
+    operatingPoint: {
+      bloodVolumePriorSnapshot,
+      bloodVolumePriorSnapshotStableHash:
+        componentHashes.bloodVolumePriorStableHash,
     },
     periodicPolicy: {
       policyId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId,
@@ -745,6 +802,7 @@ function validateAndResolveOptions(
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   calciumDrivePriorVariant: FiveWallNormalCalciumDrivePriorVariantV1;
+  bloodVolumePriorVariant: MainWireNormalAdultBloodVolumePriorVariantV1;
 }> {
   if (!(options.dtSec > 0) || !Number.isFinite(options.dtSec)) {
     throw new Error("dtSec must be positive and finite");
@@ -775,6 +833,9 @@ function validateAndResolveOptions(
   // The resolver is the closed registry boundary. It rejects arbitrary or
   // misspelled waveform choices before any model state is constructed.
   resolveFiveWallNormalCalciumDriveFixedPriorV1(calciumDrivePriorVariant);
+  const bloodVolumePriorVariant = options.bloodVolumePriorVariant
+    ?? "cold-seed-control";
+  resolveMainWireNormalAdultBloodVolumePriorV1(bloodVolumePriorVariant);
   return Object.freeze({
     dtSec: options.dtSec,
     stepsPerBeat,
@@ -782,6 +843,7 @@ function validateAndResolveOptions(
     laSlsMode,
     initialization,
     calciumDrivePriorVariant,
+    bloodVolumePriorVariant,
   });
 }
 

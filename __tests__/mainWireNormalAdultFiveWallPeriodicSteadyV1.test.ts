@@ -56,6 +56,11 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       .toBe("land-atrial-twitch-output");
     expect(result.calciumDriveFixedParams.parameterSetId)
       .toBe(result.protocolIdentity.calciumDrive.parameterSetId);
+    expect(result.bloodVolumePriorVariant).toBe("cold-seed-control");
+    expect(result.bloodVolumePriorAudit.resolvedTotalBloodVolumeMl)
+      .toBeCloseTo(4589.457569593876, 9);
+    expect(result.protocolIdentity.operatingPoint.bloodVolumePriorSnapshot.variant)
+      .toBe("cold-seed-control");
     expect(result.protocolIdentity.circulation.topologyGraphSnapshot.nodes)
       .toHaveLength(15);
     expect(result.protocolIdentity.circulation.topologyGraphSnapshot.edges)
@@ -63,7 +68,7 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(result.protocolIdentity.periodicPolicy.policyId)
       .toBe("fixed-groupwise-periodic-policy-v1");
     expect(Object.values(result.protocolComponentHashes))
-      .toHaveLength(6);
+      .toHaveLength(7);
     expect(Object.values(result.protocolComponentHashes)
       .every((hash) => /^[0-9a-f]{8}$/.test(hash))).toBe(true);
     expect(result.protocolIdentity.calciumDrive.fixedParamsStableHash)
@@ -75,6 +80,9 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(result.protocolIdentity.circulation.configurationSnapshotStableHash)
       .toBe(result.protocolComponentHashes
         .circulationConfigurationSnapshotStableHash);
+    expect(
+      result.protocolIdentity.operatingPoint.bloodVolumePriorSnapshotStableHash,
+    ).toBe(result.protocolComponentHashes.bloodVolumePriorStableHash);
     expect(stableHash(sanitizeForStableHash(
       result.protocolIdentity.circulation.configurationSnapshot,
     ))).toBe(result.protocolIdentity.circulation.configurationSnapshotStableHash);
@@ -129,6 +137,35 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(challenger.claim.calciumDriveParameterSearch).toBe(false);
   }, 90_000);
 
+  it("changes only the fixed blood-volume operating-point component for the challenger", () => {
+    const control = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.01,
+      maximumBeatCount: 1,
+    });
+    const challenger = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.01,
+      maximumBeatCount: 1,
+      bloodVolumePriorVariant:
+        "official-target-minus-excluded-coronary-cold-seed",
+    });
+
+    expect(challenger.integrationCompletedWithoutFailure).toBe(true);
+    expect(challenger.bloodVolumePriorAudit.targetTotalBloodVolumeMl)
+      .toBeCloseTo(5522.11, 8);
+    expect(challenger.initializationAudit.canonicalTotalBloodVolumeMl)
+      .toBeCloseTo(5522.11, 8);
+    expect(challenger.protocolComponentHashes.bloodVolumePriorStableHash)
+      .not.toBe(control.protocolComponentHashes.bloodVolumePriorStableHash);
+    expect(challenger.protocolComponentHashes).toEqual({
+      ...control.protocolComponentHashes,
+      bloodVolumePriorStableHash:
+        challenger.protocolComponentHashes.bloodVolumePriorStableHash,
+    });
+    expect(challenger.claim.bloodVolumePriorSelectionIsFixedRegistryVariant)
+      .toBe(true);
+    expect(challenger.claim.bloodVolumePriorParameterSearch).toBe(false);
+  }, 90_000);
+
   it("keeps the fixed PVen-to-PVein basin audit exactly TBV-neutral", () => {
     const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
       dtSec: 0.01,
@@ -174,5 +211,13 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       maximumBeatCount: 1,
       calciumDrivePriorVariant: "pv-shape-fit" as never,
     })).toThrow(/unsupported five-wall calcium drive prior variant/);
+  });
+
+  it("rejects blood-volume operating points outside the fixed registry", () => {
+    expect(() => runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.01,
+      maximumBeatCount: 1,
+      bloodVolumePriorVariant: "shape-fit" as never,
+    })).toThrow(/unsupported blood-volume prior variant/);
   });
 });

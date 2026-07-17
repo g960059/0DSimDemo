@@ -11,6 +11,9 @@ import type {
 import type {
   FiveWallNormalCalciumDrivePriorVariantV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import type {
+  MainWireNormalAdultBloodVolumePriorVariantV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumePriorV1";
 
 const dtSec = numberArgument("--dt", 0.002);
 const maximumBeatCount = integerArgument("--max-beats", 32);
@@ -22,6 +25,10 @@ const calciumDrivePriorVariant = argument(
   "--calcium-prior",
   "land-atrial-twitch-output",
 ) as FiveWallNormalCalciumDrivePriorVariantV1;
+const bloodVolumePriorVariant = argument(
+  "--blood-volume-prior",
+  "cold-seed-control",
+) as MainWireNormalAdultBloodVolumePriorVariantV1;
 const outputPath = argument(
   "--output",
   path.resolve(
@@ -36,6 +43,7 @@ const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
   laSlsMode,
   initialization,
   calciumDrivePriorVariant,
+  bloodVolumePriorVariant,
 });
 mkdirSync(path.dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
@@ -46,6 +54,8 @@ process.stdout.write(`${JSON.stringify({
   initialization: result.initialization,
   laSlsMode: result.laSlsMode,
   calciumDrivePriorVariant: result.calciumDrivePriorVariant,
+  bloodVolumePriorVariant: result.bloodVolumePriorVariant,
+  bloodVolumePriorAudit: result.bloodVolumePriorAudit,
   calciumParameterSetId:
     result.protocolIdentity.calciumDrive.parameterSetId,
   dtSec: result.dtSec,

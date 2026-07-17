@@ -136,6 +136,10 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     laSlsMode: MainWireNormalAdultFiveWallPeriodicResultV1["laSlsMode"];
     calciumDrivePriorVariant:
       MainWireNormalAdultFiveWallPeriodicResultV1["calciumDrivePriorVariant"];
+    bloodVolumePriorVariant:
+      MainWireNormalAdultFiveWallPeriodicResultV1["bloodVolumePriorVariant"];
+    bloodVolumePriorAudit:
+      MainWireNormalAdultFiveWallPeriodicResultV1["bloodVolumePriorAudit"];
     dtSec: number;
     requestedMaximumBeatCount: number;
     completedBeatCount: number;
@@ -315,6 +319,8 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       initialization: result.initialization,
       laSlsMode: result.laSlsMode,
       calciumDrivePriorVariant: result.calciumDrivePriorVariant,
+      bloodVolumePriorVariant: result.bloodVolumePriorVariant,
+      bloodVolumePriorAudit: result.bloodVolumePriorAudit,
       dtSec: result.dtSec,
       requestedMaximumBeatCount: result.requestedMaximumBeatCount,
       completedBeatCount: result.completedBeatCount,

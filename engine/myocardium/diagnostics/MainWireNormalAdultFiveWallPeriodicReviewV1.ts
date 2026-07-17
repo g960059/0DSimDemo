@@ -123,6 +123,10 @@ export type MainWireNormalAdultFiveWallPeriodicReviewV1 = Readonly<{
     initialization: string;
     calciumDrivePriorVariant: string;
     calciumParameterSetId: string;
+    bloodVolumePriorVariant: string;
+    targetTotalBloodVolumeMl: number;
+    resolvedTotalBloodVolumeMl: number;
+    initialSystemicVenousPressureOffsetMmHg: number;
     protocolIdentityHash: string;
     jacobianFiniteDifferenceWidthAudit: Readonly<{
       nominalScaledStep: number;
@@ -241,6 +245,14 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       initialization: result.initialization,
       calciumDrivePriorVariant: result.calciumDrivePriorVariant,
       calciumParameterSetId: calcium.parameterSetId,
+      bloodVolumePriorVariant: result.bloodVolumePriorVariant,
+      targetTotalBloodVolumeMl:
+        result.bloodVolumePriorAudit.targetTotalBloodVolumeMl,
+      resolvedTotalBloodVolumeMl:
+        result.bloodVolumePriorAudit.resolvedTotalBloodVolumeMl,
+      initialSystemicVenousPressureOffsetMmHg:
+        result.protocolIdentity.operatingPoint.bloodVolumePriorSnapshot
+          .construction.sharedTransmuralPressureOffsetMmHg,
       protocolIdentityHash: result.protocolIdentityHash,
       jacobianFiniteDifferenceWidthAudit: Object.freeze({
         nominalScaledStep: nominalJacobianStep,
@@ -317,6 +329,9 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
     ${card("MV peak E/A", nullableRatio(diagnostics.mitral.peakERatioToA))}
     ${card("PV S/D volume", nullableRatio(safeRatio(diagnostics.pulmonaryVenous.S.forwardVolumeMl, diagnostics.pulmonaryVenous.D.forwardVolumeMl)))}
     ${card("atrial Ca prior", review.run.calciumDrivePriorVariant)}
+    ${card("TBV prior", review.run.bloodVolumePriorVariant)}
+    ${card("resolved TBV", `${format(review.run.resolvedTotalBloodVolumeMl, 1)} mL`)}
+    ${card("initial SV/VC ΔPtm", `${format(review.run.initialSystemicVenousPressureOffsetMmHg, 3)} mmHg`)}
     ${card("Jacobian FD nominal / alternate", `${review.run.jacobianFiniteDifferenceWidthAudit.nominalStepCount} / ${review.run.jacobianFiniteDifferenceWidthAudit.alternateStepCount}`)}
     ${card("protocol identity", review.run.protocolIdentityHash.slice(0, 12))}
   </section>
@@ -336,6 +351,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
       <li>Mitral VTI is modeled bulk flow divided by modeled instantaneous physical EOA; it is not a validated clinical Doppler VTI.</li>
       <li>Land active stress has no thermodynamic stored-energy claim. Work signs follow the diagnostic API: positive means work on the wall.</li>
       <li>The normalized free-Ca used for PV-lobe selection is a diagnostic proxy, not the Land activation or tension state.</li>
+      <li>The fixed TBV prior changes only initial SV/VC blood volume through a shared transmural-pressure offset; it is not a fitted physiology target.</li>
       <li>The relaxation time is a report-only fixed-asymptote fit between AoV closure and MVO.</li>
     </ul>
   </section>

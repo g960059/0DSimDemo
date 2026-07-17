@@ -1,0 +1,138 @@
+{
+  "comparisonId": "main-wire-normal-adult-five-wall-blood-volume-comparison-v1",
+  "interpretable": true,
+  "interpretabilityReasons": [],
+  "pairing": {
+    "controlVariant": "cold-seed-control",
+    "challengerVariant": "official-target-minus-excluded-coronary-cold-seed",
+    "controlProtocolIdentityHash": "ea9c9966",
+    "challengerProtocolIdentityHash": "08b3db12",
+    "bloodVolumeHashChanged": true,
+    "nonBloodVolumeComponentHashesExactMatch": true,
+    "nonBloodVolumeProtocolIdentityExactMatch": true,
+    "dtSec": 0.002,
+    "initialization": "canonical",
+    "laSlsMode": "on",
+    "calciumDrivePriorVariant": "land-atrial-twitch-output"
+  },
+  "metrics": {
+    "totalBloodVolumeMl": {
+      "control": 4589.457569593876,
+      "challenger": 5522.109999999999,
+      "absoluteDifference": 932.6524304061231,
+      "relativeDifference": 0.20321626603220871
+    },
+    "cardiacOutputLPerMin": {
+      "control": 3.8522041807975933,
+      "challenger": 5.264450075860189,
+      "absoluteDifference": 1.412245895062596,
+      "relativeDifference": 0.3666072276496498
+    },
+    "cardiacIndexLPerMinPerM2": {
+      "control": 2.0274758846303125,
+      "challenger": 2.7707631978211524,
+      "absoluteDifference": 0.74328731319084,
+      "relativeDifference": 0.36660722764964976
+    },
+    "meanAorticPressureMmHg": {
+      "control": 63.7878047384593,
+      "challenger": 87.84877103010933,
+      "absoluteDifference": 24.060966291650033,
+      "relativeDifference": 0.3772032348550641
+    },
+    "leftVentricularEjectionFraction01": {
+      "control": 0.6073949056020989,
+      "challenger": 0.5802727214355878,
+      "absoluteDifference": -0.02712218416651102,
+      "relativeDifference": -0.0446532954365584
+    },
+    "rightVentricularEjectionFraction01": {
+      "control": 0.5431891093755572,
+      "challenger": 0.5427708435407514,
+      "absoluteDifference": -0.0004182658348057533,
+      "relativeDifference": -0.0007700188158900793
+    },
+    "leftAtrialMinimumVolumeMl": {
+      "control": 20.125041177938886,
+      "challenger": 25.232379735044248,
+      "absoluteDifference": 5.107338557105361,
+      "relativeDifference": 0.25378027860653707
+    },
+    "leftAtrialMaximumVolumeMl": {
+      "control": 36.202762212602295,
+      "challenger": 57.68896909069238,
+      "absoluteDifference": 21.486206878090087,
+      "relativeDifference": 0.5934963401939168
+    },
+    "leftAtrialExcursionMl": {
+      "control": 16.07772103466341,
+      "challenger": 32.456589355648134,
+      "absoluteDifference": 16.378868320984726,
+      "relativeDifference": 1.018730719712828
+    },
+    "leftAtrialMinimumPressureMmHg": {
+      "control": 2.791698235920022,
+      "challenger": 5.395863472269273,
+      "absoluteDifference": 2.604165236349251,
+      "relativeDifference": 0.9328247597975186
+    },
+    "leftAtrialMaximumPressureMmHg": {
+      "control": 5.56744478050469,
+      "challenger": 13.425555566387905,
+      "absoluteDifference": 7.858110785883214,
+      "relativeDifference": 1.4114393758155739
+    },
+    "leftVentricularMinimumVolumeMl": {
+      "control": 41.49949710929979,
+      "challenger": 63.46536795039904,
+      "absoluteDifference": 21.965870841099253,
+      "relativeDifference": 0.5293045065882698
+    },
+    "leftVentricularMaximumVolumeMl": {
+      "control": 105.7029001952799,
+      "challenger": 151.2062026739573,
+      "absoluteDifference": 45.50330247867741,
+      "relativeDifference": 0.4304830084568421
+    },
+    "mitralPeakERatioToA": {
+      "control": 0.8912835288746292,
+      "challenger": 1.0162408144389448,
+      "absoluteDifference": 0.12495728556431551,
+      "relativeDifference": 0.1401992536786713
+    },
+    "pulmonaryVenousSOverDForwardVolume": {
+      "control": 0.33869177605392037,
+      "challenger": 0.5151878467599452,
+      "absoluteDifference": 0.17649607070602485,
+      "relativeDifference": 0.5211111789083605
+    },
+    "aLobeAreaMmHgMl": null,
+    "vLobeAreaMmHgMl": null,
+    "reservoirMinusConduitMeanMmHg": {
+      "control": 0.41391340306761293,
+      "challenger": 1.1766548038494153,
+      "absoluteDifference": 0.7627414007818024,
+      "relativeDifference": 1.8427559850174948
+    }
+  },
+  "topology": {
+    "controlSelfIntersectionCount": 1,
+    "challengerSelfIntersectionCount": null,
+    "controlOpposedLobeOrientation": true,
+    "challengerOpposedLobeOrientation": null,
+    "controlReservoirAboveConduitFraction01": 1,
+    "challengerReservoirAboveConduitFraction01": 1
+  },
+  "claim": {
+    "comparison": "fixed-prior-paired-periodic-summary-readback",
+    "intervention": "initial-total-blood-volume-only",
+    "allowedProtocolDifference": "blood-volume-prior-only",
+    "vascularOrMaterialParameterChanged": false,
+    "venousToneOrUnstressedVolumeChanged": false,
+    "parameterSearchOrPvShapeFitting": false,
+    "automaticPhysiologyAcceptanceGate": false,
+    "morphologyInterpretationRequiresBothPeriod1": true,
+    "timeStepRobustnessAssessed": false,
+    "physiologicalNormalityClaimedForChallenger": false
+  }
+}
