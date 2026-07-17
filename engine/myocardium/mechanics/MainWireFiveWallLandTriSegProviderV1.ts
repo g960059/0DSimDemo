@@ -29,6 +29,8 @@ export const MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM = Object.freeze({
     "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,
   wallCount: 5 as const,
   ventricularGeometry: "energy-conjugate-TriSeg" as const,
+  ventricularGeometryMechanics: "finite-thickness-membrane-only" as const,
+  koiterBendingApplied: false as const,
   atrialGeometry: "fixed-wall-self-similar-one-fiber" as const,
   internalSolve: "simultaneous-scaled-damped-Newton" as const,
   internalUnknowns: Object.freeze(["V_m_S", "y_m"] as const),
@@ -1011,12 +1013,16 @@ function finiteDifferenceJacobian(
 }
 
 /**
- * Constitutive subsolves have a finite residual floor. A central-difference
- * step that is too small differentiates that floor and creates an artificial
- * antisymmetric component. Audit fixed dyadic scales and retain the most
- * symmetric Jacobian without relaxing the declared symmetry tolerance.
+ * The nominal central-difference step remains the first audit. If it crosses a
+ * constitutive branch boundary, smaller dyadic steps can recover a local
+ * tangent that does not straddle that boundary; if small steps instead expose
+ * the constitutive residual floor, the existing larger dyadic steps remain
+ * available. Accept the first width in the declared priority order that meets
+ * the unchanged symmetry tolerance. If none passes, retain the least
+ * antisymmetric attempted Jacobian only so the existing hard gate can report
+ * the failure.
  */
-function finiteDifferenceJacobianWithSymmetryAudit(
+export function finiteDifferenceJacobianWithSymmetryAudit(
   evaluate: (scaledUnknowns: readonly number[]) => readonly number[],
   center: readonly number[],
   solver: ResolvedSolverOptionsV1,
@@ -1031,7 +1037,7 @@ function finiteDifferenceJacobianWithSymmetryAudit(
     stepUsed: number;
   }> | null = null;
   let lastError: unknown = null;
-  for (const factor of [1, 2, 4, 8] as const) {
+  for (const factor of [1, 0.5, 0.25, 0.125, 2, 4, 8] as const) {
     const stepUsed = solver.finiteDifferenceScaledStep * factor;
     try {
       const jacobian = finiteDifferenceJacobian(evaluate, center, stepUsed);

@@ -147,6 +147,15 @@ export type NonCoronaryCirculationAcceptedStateV1 = Readonly<{
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
 }>;
 
+export const NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID =
+  "main-wire-noncoronary-circulation-checkpoint-v1" as const;
+export type NonCoronaryCirculationCheckpointV1 = Readonly<{
+  checkpointId: typeof NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID;
+  schemaVersion: 1;
+  state: NonCoronaryCirculationAcceptedStateV1;
+  stateFingerprint: string;
+}>;
+
 export type NonCoronaryCirculationInitialStateInputV1 = Readonly<{
   timeSec: number;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
@@ -184,6 +193,50 @@ export type NonCoronaryCirculationTrialDiagnosticsV1 = Readonly<{
   mechanicsCallbackCallCount: number;
   mechanicsCallbackCacheHitCount: number;
   mechanicsCallbackUniqueCandidateCount: number;
+  worstIndependentContinuityResidual: null | Readonly<{
+    node: Exclude<NonCoronaryNodeNameV1, "SV">;
+    residualMl: number;
+    absoluteResidualMl: number;
+    scaledResidual: number;
+  }>;
+  failureNewtonTrace: readonly NonCoronaryNewtonFailureTraceEntryV1[];
+  lineSearchFailure: NonCoronaryLineSearchFailureDiagnosticsV1 | null;
+}>;
+
+export type NonCoronaryLineSearchRejectionOwnerV1 =
+  | "candidate-evaluation-exception"
+  | "armijo-residual-rejection"
+  | "mixed-equal"
+  | "none";
+
+export type NonCoronaryNewtonFailureTraceEntryV1 = Readonly<{
+  iteration: number;
+  currentScaledResidualInfinityNorm: number;
+  updateScaledInfinityNorm: number | null;
+  lineSearchAttemptCount: number;
+  candidateEvaluationExceptionCount: number;
+  armijoResidualRejectionCount: number;
+  acceptedStepLength: number | null;
+  acceptedTrialScaledResidualInfinityNorm: number | null;
+}>;
+
+export type NonCoronaryLineSearchFailureDiagnosticsV1 = Readonly<{
+  iteration: number;
+  attemptCount: number;
+  candidateEvaluationExceptionCount: number;
+  armijoResidualRejectionCount: number;
+  dominantRejectionOwner: NonCoronaryLineSearchRejectionOwnerV1;
+  lastCandidateEvaluationException: null | Readonly<{
+    backtrackIndex: number;
+    stepLength: number;
+    message: string;
+  }>;
+  lastArmijoResidualRejection: null | Readonly<{
+    backtrackIndex: number;
+    stepLength: number;
+    trialScaledResidualInfinityNorm: number;
+    requiredMaximumScaledResidualInfinityNorm: number;
+  }>;
 }>;
 
 export type NonCoronaryCirculationTrialSuccessV1<TEvaluation> = Readonly<{
@@ -230,6 +283,29 @@ export type NonCoronaryCirculationTrialResultV1<TEvaluation> =
   | NonCoronaryCirculationTrialSuccessV1<TEvaluation>
   | NonCoronaryCirculationTrialFailureV1;
 
+export function classifyNonCoronaryLineSearchRejectionOwnerV1(
+  candidateEvaluationExceptionCount: number,
+  armijoResidualRejectionCount: number,
+): NonCoronaryLineSearchRejectionOwnerV1 {
+  requireInteger(
+    candidateEvaluationExceptionCount,
+    "candidateEvaluationExceptionCount",
+  );
+  requireInteger(
+    armijoResidualRejectionCount,
+    "armijoResidualRejectionCount",
+  );
+  if (candidateEvaluationExceptionCount === 0
+      && armijoResidualRejectionCount === 0) return "none";
+  if (candidateEvaluationExceptionCount > armijoResidualRejectionCount) {
+    return "candidate-evaluation-exception";
+  }
+  if (armijoResidualRejectionCount > candidateEvaluationExceptionCount) {
+    return "armijo-residual-rejection";
+  }
+  return "mixed-equal";
+}
+
 type CandidateEvaluation<TEvaluation> = Readonly<{
   nodeVolumesMl: NodeRecord<number>;
   nodeAbsolutePressuresMmHg: NodeRecord<number>;
@@ -241,6 +317,17 @@ type CandidateEvaluation<TEvaluation> = Readonly<{
   continuityResidualMlByNode: NodeRecord<number>;
   scaledIndependentResidual: readonly number[];
 }>;
+
+type MutableNewtonFailureTraceEntryV1 = {
+  iteration: number;
+  currentScaledResidualInfinityNorm: number;
+  updateScaledInfinityNorm: number | null;
+  lineSearchAttemptCount: number;
+  candidateEvaluationExceptionCount: number;
+  armijoResidualRejectionCount: number;
+  acceptedStepLength: number | null;
+  acceptedTrialScaledResidualInfinityNorm: number | null;
+};
 
 type CandidateMechanicsCache<TEvaluation> = {
   readonly values: Map<
@@ -262,6 +349,8 @@ const DEFAULT_NEWTON_OPTIONS = Object.freeze({
   finiteDifferenceScaledStep: 2e-6,
   maximumLineSearchBacktracks: 24,
 });
+const MAX_NEWTON_FAILURE_TRACE_ENTRIES = 32;
+const MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS = 1024;
 
 export function buildNonCoronaryCirculationGraphV1():
 NonCoronaryCirculationGraphV1 {
@@ -368,6 +457,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
   let current: CandidateEvaluation<TEvaluation>;
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
+  const failureTrace: MutableNewtonFailureTraceEntryV1[] = [];
   try {
     current = evaluateCandidate(
       graph,
@@ -389,6 +479,17 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
 
   for (let iteration = 0; iteration <= options.maxIterations; iteration += 1) {
     const residualNorm = infinityNorm(current.scaledIndependentResidual);
+    const traceEntry: MutableNewtonFailureTraceEntryV1 = {
+      iteration,
+      currentScaledResidualInfinityNorm: residualNorm,
+      updateScaledInfinityNorm: null,
+      lineSearchAttemptCount: 0,
+      candidateEvaluationExceptionCount: 0,
+      armijoResidualRejectionCount: 0,
+      acceptedStepLength: null,
+      acceptedTrialScaledResidualInfinityNorm: null,
+    };
+    pushBoundedFailureTrace(failureTrace, traceEntry);
     if (residualNorm <= options.scaledResidualInfinityTolerance) {
       return success(
         previous,
@@ -422,6 +523,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           previous.totalBloodVolumeMl,
           options.finiteDifferenceScaledStep,
           mechanicsCache,
+          freezeFailureTrace(failureTrace),
         ),
       );
     }
@@ -454,6 +556,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           previous.totalBloodVolumeMl,
           options.finiteDifferenceScaledStep,
           mechanicsCache,
+          freezeFailureTrace(failureTrace),
         ),
       );
     }
@@ -461,6 +564,9 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
       jacobian,
       current.scaledIndependentResidual.map((value) => -value),
     );
+    traceEntry.updateScaledInfinityNorm = update === null
+      ? null
+      : infinityNorm(update);
     if (update === null) {
       return failure(
         previous,
@@ -476,6 +582,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           previous.totalBloodVolumeMl,
           options.finiteDifferenceScaledStep,
           mechanicsCache,
+          freezeFailureTrace(failureTrace),
         ),
       );
     }
@@ -497,6 +604,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           previous.totalBloodVolumeMl,
           options.finiteDifferenceScaledStep,
           mechanicsCache,
+          freezeFailureTrace(failureTrace),
         ),
       );
     }
@@ -505,11 +613,20 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
       evaluation: CandidateEvaluation<TEvaluation>;
     }> | null = null;
     let stepLength = 1;
+    let lastCandidateEvaluationException:
+      NonCoronaryLineSearchFailureDiagnosticsV1[
+        "lastCandidateEvaluationException"
+      ] = null;
+    let lastArmijoResidualRejection:
+      NonCoronaryLineSearchFailureDiagnosticsV1[
+        "lastArmijoResidualRejection"
+      ] = null;
     for (
       let backtrack = 0;
       backtrack <= options.maximumLineSearchBacktracks;
       backtrack += 1
     ) {
+      traceEntry.lineSearchAttemptCount += 1;
       const candidateUnknowns = scaledUnknowns.map(
         (value, index) => value + stepLength * update[index]!,
       );
@@ -522,21 +639,58 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           candidateTimeSec,
           mechanicsCache,
         );
-        if (infinityNorm(evaluation.scaledIndependentResidual)
-          <= (1 - 1e-4 * stepLength) * residualNorm) {
+        const trialResidualNorm = infinityNorm(
+          evaluation.scaledIndependentResidual,
+        );
+        const requiredMaximumResidualNorm =
+          (1 - 1e-4 * stepLength) * residualNorm;
+        if (trialResidualNorm <= requiredMaximumResidualNorm) {
           accepted = Object.freeze({
             scaledUnknowns: Object.freeze(candidateUnknowns),
             evaluation,
           });
+          traceEntry.acceptedStepLength = stepLength;
+          traceEntry.acceptedTrialScaledResidualInfinityNorm =
+            trialResidualNorm;
           break;
         }
-      } catch {
+        traceEntry.armijoResidualRejectionCount += 1;
+        lastArmijoResidualRejection = Object.freeze({
+          backtrackIndex: backtrack,
+          stepLength,
+          trialScaledResidualInfinityNorm: trialResidualNorm,
+          requiredMaximumScaledResidualInfinityNorm:
+            requiredMaximumResidualNorm,
+        });
+      } catch (error) {
+        traceEntry.candidateEvaluationExceptionCount += 1;
+        lastCandidateEvaluationException = Object.freeze({
+          backtrackIndex: backtrack,
+          stepLength,
+          message: boundedDiagnosticMessage(errorMessage(error)),
+        });
         // Inadmissible volume or callback state follows the same backtracking path.
       }
       stepLength *= 0.5;
       lineSearchBacktracks += 1;
     }
     if (accepted === null) {
+      const lineSearchFailure: NonCoronaryLineSearchFailureDiagnosticsV1 =
+        Object.freeze({
+          iteration,
+          attemptCount: traceEntry.lineSearchAttemptCount,
+          candidateEvaluationExceptionCount:
+            traceEntry.candidateEvaluationExceptionCount,
+          armijoResidualRejectionCount:
+            traceEntry.armijoResidualRejectionCount,
+          dominantRejectionOwner:
+            classifyNonCoronaryLineSearchRejectionOwnerV1(
+              traceEntry.candidateEvaluationExceptionCount,
+              traceEntry.armijoResidualRejectionCount,
+            ),
+          lastCandidateEvaluationException,
+          lastArmijoResidualRejection,
+        });
       return failure(
         previous,
         "line-search-failed",
@@ -551,6 +705,8 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           previous.totalBloodVolumeMl,
           options.finiteDifferenceScaledStep,
           mechanicsCache,
+          freezeFailureTrace(failureTrace),
+          lineSearchFailure,
         ),
       );
     }
@@ -583,6 +739,46 @@ export function commitNonCoronaryCirculationTrialV1<TEvaluation>(
     nodeVolumesMl: trial.candidateNodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: trial.candidateDynamicEdgeFlowsMlPerSec,
     valveStates: trial.candidateValveStates,
+  });
+}
+
+/** JSON-safe accepted-state checkpoint; contains no callback or solver cache. */
+export function checkpointNonCoronaryCirculationStateV1(
+  state: NonCoronaryCirculationAcceptedStateV1,
+): NonCoronaryCirculationCheckpointV1 {
+  validateAcceptedState(state);
+  const cloned = cloneAcceptedState(state);
+  return Object.freeze({
+    checkpointId: NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID,
+    schemaVersion: 1 as const,
+    state: cloned,
+    stateFingerprint: fingerprintCirculationStateV1(cloned),
+  });
+}
+
+/**
+ * Restores a checkpoint and optionally rebases revision/time at the same
+ * cardiac phase. Rephasing is deliberately owned by the caller.
+ */
+export function restoreNonCoronaryCirculationStateV1(
+  checkpoint: NonCoronaryCirculationCheckpointV1,
+  rebase?: Readonly<{ revision: number; acceptedTimeSec: number }>,
+): NonCoronaryCirculationAcceptedStateV1 {
+  if (
+    checkpoint.checkpointId !== NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID
+    || checkpoint.schemaVersion !== 1
+  ) throw new Error("unsupported non-coronary circulation checkpoint");
+  validateAcceptedState(checkpoint.state);
+  if (
+    fingerprintCirculationStateV1(checkpoint.state)
+      !== checkpoint.stateFingerprint
+  ) throw new Error("non-coronary circulation checkpoint fingerprint mismatch");
+  return acceptedState({
+    revision: rebase?.revision ?? checkpoint.state.revision,
+    acceptedTimeSec: rebase?.acceptedTimeSec ?? checkpoint.state.acceptedTimeSec,
+    nodeVolumesMl: checkpoint.state.nodeVolumesMl,
+    dynamicEdgeFlowsMlPerSec: checkpoint.state.dynamicEdgeFlowsMlPerSec,
+    valveStates: checkpoint.state.valveStates,
   });
 }
 
@@ -1034,7 +1230,11 @@ function trialDiagnostics<TEvaluation>(
   expectedTbv: number,
   finiteDifferenceScaledStep: number,
   mechanicsCache: CandidateMechanicsCache<TEvaluation>,
+  failureNewtonTrace: readonly NonCoronaryNewtonFailureTraceEntryV1[] = [],
+  lineSearchFailure: NonCoronaryLineSearchFailureDiagnosticsV1 | null = null,
 ): NonCoronaryCirculationTrialDiagnosticsV1 {
+  const worstIndependentContinuityResidual =
+    worstIndependentContinuityResidualFromEvaluation(evaluation);
   return Object.freeze({
     iterations,
     acceptedLineSearchSteps,
@@ -1052,6 +1252,9 @@ function trialDiagnostics<TEvaluation>(
     mechanicsCallbackCallCount: mechanicsCache.callCount,
     mechanicsCallbackCacheHitCount: mechanicsCache.hitCount,
     mechanicsCallbackUniqueCandidateCount: mechanicsCache.values.size,
+    worstIndependentContinuityResidual,
+    failureNewtonTrace: Object.freeze([...failureNewtonTrace]),
+    lineSearchFailure,
   });
 }
 
@@ -1071,7 +1274,57 @@ function emptyDiagnostics<TEvaluation>(
     mechanicsCallbackCallCount: mechanicsCache?.callCount ?? 0,
     mechanicsCallbackCacheHitCount: mechanicsCache?.hitCount ?? 0,
     mechanicsCallbackUniqueCandidateCount: mechanicsCache?.values.size ?? 0,
+    worstIndependentContinuityResidual: null,
+    failureNewtonTrace: Object.freeze([]),
+    lineSearchFailure: null,
   });
+}
+
+function worstIndependentContinuityResidualFromEvaluation<TEvaluation>(
+  evaluation: CandidateEvaluation<TEvaluation>,
+): NonNullable<
+  NonCoronaryCirculationTrialDiagnosticsV1[
+    "worstIndependentContinuityResidual"
+  ]
+> {
+  let worstIndex = 0;
+  for (let index = 1; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
+    const candidateNode = INDEPENDENT_NODE_NAMES[index]!;
+    const worstNode = INDEPENDENT_NODE_NAMES[worstIndex]!;
+    if (Math.abs(evaluation.continuityResidualMlByNode[candidateNode])
+        > Math.abs(evaluation.continuityResidualMlByNode[worstNode])) {
+      worstIndex = index;
+    }
+  }
+  const node = INDEPENDENT_NODE_NAMES[worstIndex]!;
+  const residualMl = evaluation.continuityResidualMlByNode[node];
+  return Object.freeze({
+    node,
+    residualMl,
+    absoluteResidualMl: Math.abs(residualMl),
+    scaledResidual: evaluation.scaledIndependentResidual[worstIndex]!,
+  });
+}
+
+function pushBoundedFailureTrace(
+  trace: MutableNewtonFailureTraceEntryV1[],
+  entry: MutableNewtonFailureTraceEntryV1,
+): void {
+  trace.push(entry);
+  if (trace.length > MAX_NEWTON_FAILURE_TRACE_ENTRIES) trace.shift();
+}
+
+function freezeFailureTrace(
+  trace: readonly MutableNewtonFailureTraceEntryV1[],
+): readonly NonCoronaryNewtonFailureTraceEntryV1[] {
+  return Object.freeze(trace.map((entry) => Object.freeze({ ...entry })));
+}
+
+function boundedDiagnosticMessage(message: string): string {
+  if (message.length <= MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS) {
+    return message;
+  }
+  return `${message.slice(0, MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS - 1)}…`;
 }
 
 function resolveNewtonOptions(
@@ -1282,6 +1535,38 @@ function infinityNorm(values: readonly number[]): number {
 
 function nearlyEqual(left: number, right: number): boolean {
   return Math.abs(left - right) <= 1e-10 * Math.max(1, Math.abs(left), Math.abs(right));
+}
+
+function fingerprintCirculationStateV1(
+  state: NonCoronaryCirculationAcceptedStateV1,
+): string {
+  const text = canonicalCheckpointString(state);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+function canonicalCheckpointString(value: unknown): string {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("checkpoint contains non-finite number");
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalCheckpointString).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Readonly<Record<string, unknown>>;
+    return `{${Object.keys(record).sort().map((key) =>
+      `${JSON.stringify(key)}:${canonicalCheckpointString(record[key])}`
+    ).join(",")}}`;
+  }
+  throw new Error("checkpoint contains unsupported value");
 }
 
 function errorMessage(error: unknown): string {

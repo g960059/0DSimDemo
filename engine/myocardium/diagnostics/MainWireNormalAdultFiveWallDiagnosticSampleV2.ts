@@ -1,0 +1,137 @@
+import type {
+  MainWireFiveWallNonCoronaryStepSuccessV1,
+} from "@/engine/myocardium/MainWireFiveWallNonCoronaryTransactionV1";
+import {
+  sampleMainWireNormalAdultFiveWallStepV1,
+  type MainWireNormalAdultFiveWallClosedLoopSampleV1,
+  type MainWireNormalAdultFiveWallMechanicsStateV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
+import type {
+  MainWireFiveWallLandTriSegReadbackV1,
+} from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
+import type {
+  MainWireNormalAdultWallEnergyLedgerV1,
+  MainWireNormalAdultWallMaterialReadbackV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import type {
+  WholeHeartMechanicsSerializableValueV1,
+} from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID =
+  "main-wire-normal-adult-five-wall-diagnostic-sample-v2" as const;
+
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_CLAIM =
+  Object.freeze({
+    baseSampleSchema: "unchanged-V1" as const,
+    acceptedStepReadbackOnly: true as const,
+    addsDynamicState: false as const,
+    changesFixedV1RunnerJson: false as const,
+  });
+
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_WALL_IDS_V2 =
+  Object.freeze(["LA", "LVFW", "SEP", "RVFW", "RA"] as const);
+export type MainWireNormalAdultFiveWallDiagnosticWallIdV2 =
+  (typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_WALL_IDS_V2)[number];
+
+export type MainWireNormalAdultFiveWallDiagnosticSampleV2 =
+  MainWireNormalAdultFiveWallClosedLoopSampleV1 & Readonly<{
+    diagnosticSampleId:
+      typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID;
+    /** Accepted-step material strain; diagnostic readback, never a new state. */
+    wallFiberLogStrain: Readonly<Record<
+      MainWireNormalAdultFiveWallDiagnosticWallIdV2,
+      number
+    >>;
+    /** Constitutive energy ledger copied from the accepted wall trial. */
+    wallEnergyLedgerDensity: Readonly<Record<
+      MainWireNormalAdultFiveWallDiagnosticWallIdV2,
+      MainWireNormalAdultWallEnergyLedgerV1
+    >>;
+    /** Accepted mechanics solve audit; copied readback, never solver feedback. */
+    acceptedMechanicsJacobianAudit: Readonly<{
+      finiteDifferenceScaledStepUsed: number;
+      antisymmetricMaximumAbsoluteByOneJ: number;
+      antisymmetricRelative: number;
+      symmetricWithinTolerance: boolean;
+      symmetricMinimumEigenvalueByOneJ: number;
+      strictLocalStableEquilibrium: boolean;
+    }>;
+    /** Algebraic valve hydraulics at the accepted candidate, not valve memory. */
+    valveHydraulics: Readonly<Record<
+      "MV" | "AoV" | "TV" | "PV",
+      Readonly<{
+        physicalAreaCm2: number;
+        dissipativePowerProxyMmHgMlPerSec: number;
+        powerBalanceResidualMmHgMlPerSec: number;
+      }>
+    >>;
+  }>;
+
+/**
+ * Enriches the byte-stable V1 sample without changing its fixed runner schema.
+ */
+export function sampleMainWireNormalAdultFiveWallDiagnosticStepV2(
+  step: MainWireFiveWallNonCoronaryStepSuccessV1<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >,
+): MainWireNormalAdultFiveWallDiagnosticSampleV2 {
+  const base = sampleMainWireNormalAdultFiveWallStepV1(step);
+  const mechanics = providerReadback(step.mechanicsTrial.diagnostics.readback);
+  const wallReadbackByWall = wallRecord((wallId) =>
+    wallReadback(mechanics.wallMaterialReadbackByWall[wallId]));
+  const circulation = step.circulationTrial;
+  return Object.freeze({
+    ...base,
+    diagnosticSampleId:
+      MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID,
+    wallFiberLogStrain: Object.freeze({
+      ...mechanics.effectiveFiberLogStrainByWall,
+    }),
+    wallEnergyLedgerDensity: wallRecord((wallId) =>
+      Object.freeze({ ...wallReadbackByWall[wallId].energyLedger })),
+    acceptedMechanicsJacobianAudit: Object.freeze({
+      finiteDifferenceScaledStepUsed:
+        mechanics.jacobianFiniteDifferenceScaledStepUsed,
+      antisymmetricMaximumAbsoluteByOneJ:
+        mechanics.jacobianAntisymmetricMaximumAbsoluteByOneJ,
+      antisymmetricRelative: mechanics.jacobianAntisymmetricRelative,
+      symmetricWithinTolerance: mechanics.jacobianSymmetricWithinTolerance,
+      symmetricMinimumEigenvalueByOneJ:
+        mechanics.symmetricJacobianMinimumEigenvalueByOneJ,
+      strictLocalStableEquilibrium: mechanics.strictLocalStableEquilibrium,
+    }),
+    valveHydraulics: Object.freeze(Object.fromEntries(
+      (["MV", "AoV", "TV", "PV"] as const).map((valveId) => {
+        const valve = circulation.valveEvaluations[valveId];
+        return [valveId, Object.freeze({
+          physicalAreaCm2: valve.physicalAreaCm2,
+          dissipativePowerProxyMmHgMlPerSec:
+            valve.dissipativePowerProxyMmHgMlPerSec,
+          powerBalanceResidualMmHgMlPerSec:
+            valve.powerBalanceResidualMmHgMlPerSec,
+        })];
+      }),
+    )) as MainWireNormalAdultFiveWallDiagnosticSampleV2["valveHydraulics"],
+  });
+}
+
+function providerReadback(
+  value: WholeHeartMechanicsSerializableValueV1 | null,
+): MainWireFiveWallLandTriSegReadbackV1 {
+  return value as unknown as MainWireFiveWallLandTriSegReadbackV1;
+}
+
+function wallReadback(
+  value: WholeHeartMechanicsSerializableValueV1 | null,
+): MainWireNormalAdultWallMaterialReadbackV1 {
+  return value as unknown as MainWireNormalAdultWallMaterialReadbackV1;
+}
+
+function wallRecord<T>(
+  build: (wallId: MainWireNormalAdultFiveWallDiagnosticWallIdV2) => T,
+): Readonly<Record<MainWireNormalAdultFiveWallDiagnosticWallIdV2, T>> {
+  return Object.freeze(Object.fromEntries(
+    MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_WALL_IDS_V2.map((wallId) =>
+      [wallId, build(wallId)]),
+  )) as Readonly<Record<MainWireNormalAdultFiveWallDiagnosticWallIdV2, T>>;
+}

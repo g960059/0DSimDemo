@@ -40,11 +40,19 @@ import type {
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID =
   "main-wire-normal-adult-five-wall-material-adapter-v1" as const;
 
+/** Fixed canonical control, exposed so accepted-step diagnostics can audit it. */
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1 =
+  2e-5 as const;
+
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM = Object.freeze({
   priorId: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.priorId,
   atrialEquilibriumPassiveOwner: "Moyer-2015-exact-equibiaxial-reduction" as const,
   ventricularEquilibriumPassiveOwner: "Klotz-normal-center-one-fiber" as const,
   activeOwner: "Land-2017-active-only" as const,
+  fullLandKernelOnAllFiveWalls: true as const,
+  landStateCountPerWall: 6 as const,
+  atrialPopulationOnlyReductionApplied: false as const,
+  externalSeriesElementApplied: false as const,
   viscousOwner: "one-state-parallel-SLS" as const,
   passiveStoredEnergyReported: true as const,
   slsStoredEnergyAndDissipationReported: true as const,
@@ -168,6 +176,10 @@ function createNormalAdultProvider(
       septalMidwallCapVolumeM3:
         Math.abs(prior.anatomy.triSeg.loadedCoordinates.septalMidwallCapVolumeM3),
       junctionRadiusM: prior.anatomy.triSeg.loadedCoordinates.junctionRadiusM,
+    }),
+    solver: Object.freeze({
+      finiteDifferenceScaledStep:
+        MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
     }),
   });
 }

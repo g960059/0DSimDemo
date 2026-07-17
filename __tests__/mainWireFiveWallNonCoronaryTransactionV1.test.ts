@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { defaultParams } from "@/engine/core/params";
 import {
   MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1,
+  checkpointMainWireFiveWallNonCoronaryV1,
   initializeMainWireFiveWallNonCoronaryV1,
+  restoreMainWireFiveWallNonCoronaryV1,
   stepMainWireFiveWallNonCoronaryV1,
 } from "@/engine/myocardium/MainWireFiveWallNonCoronaryTransactionV1";
 import {
@@ -16,6 +18,9 @@ import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
+  createMainWireNormalAdultCommonPericardiumV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
+import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
@@ -23,6 +28,20 @@ import {
 type TestState = Readonly<{ timeSec: number; volumeSumMl: number }>;
 
 const base = defaultParams();
+const OFF_PERICARDIUM = createMainWireNormalAdultCommonPericardiumV1(
+  "exact-off",
+);
+const EFFUSION_PERICARDIUM = Object.freeze({
+  ...OFF_PERICARDIUM,
+  parameterSetId: "test-prescribed-4mmhg-pericardial-offset",
+  mode: "on" as const,
+  parameters: Object.freeze({
+    referenceHeartVolumeM3: 1,
+    exponentialPressureScalePa: 1,
+    exponentialStiffness: 1,
+    prescribedPressureOffsetPa: 4 * 133.322,
+  }),
+});
 const RUNTIME = Object.freeze({
   vascular: Object.freeze({
     venousTone: base.venousTone,
@@ -48,6 +67,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       provider,
       runtime: RUNTIME,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: OFF_PERICARDIUM,
     });
     const stepped = stepMainWireFiveWallNonCoronaryV1(
       provider,
@@ -56,6 +76,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
         dtSec: 0.001,
         runtime: RUNTIME,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: OFF_PERICARDIUM,
       },
     );
 
@@ -71,6 +92,43 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       .toBe(stepped.mechanicsTrial.candidateVolumesMl.LA);
     expect(stepped.circulationTrial.diagnostics.totalBloodVolumeErrorMl)
       .toBeCloseTo(0, 9);
+    const checkpoint = checkpointMainWireFiveWallNonCoronaryV1(
+      provider,
+      stepped.acceptedState,
+    );
+    const serialized = JSON.parse(JSON.stringify(checkpoint)) as
+      typeof checkpoint;
+    expect(restoreMainWireFiveWallNonCoronaryV1(provider, serialized))
+      .toEqual(stepped.acceptedState);
+    const rebased = restoreMainWireFiveWallNonCoronaryV1(
+      provider,
+      serialized,
+      { revision: 0, acceptedTimeSec: 0 },
+    );
+    expect(rebased).toMatchObject({
+      revision: 0,
+      acceptedTimeSec: 0,
+      circulation: { revision: 0, acceptedTimeSec: 0 },
+      mechanics: { revision: 0, acceptedTimeSec: 0 },
+    });
+    expect(rebased.circulation.nodeVolumesMl)
+      .toEqual(stepped.acceptedState.circulation.nodeVolumesMl);
+    const tampered = {
+      ...serialized,
+      circulation: {
+        ...serialized.circulation,
+        state: {
+          ...serialized.circulation.state,
+          dynamicEdgeFlowsMlPerSec: {
+            ...serialized.circulation.state.dynamicEdgeFlowsMlPerSec,
+            Ao_SA:
+              serialized.circulation.state.dynamicEdgeFlowsMlPerSec.Ao_SA + 1,
+          },
+        },
+      },
+    } as typeof checkpoint;
+    expect(() => restoreMainWireFiveWallNonCoronaryV1(provider, tampered))
+      .toThrow(/fingerprint mismatch/);
   });
 
   it("adds common intrathoracic pressure exactly once at the node interface", () => {
@@ -79,6 +137,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       provider,
       runtime: RUNTIME,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: EFFUSION_PERICARDIUM,
     });
     const stepped = stepMainWireFiveWallNonCoronaryV1(
       provider,
@@ -87,6 +146,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
         dtSec: 0.001,
         runtime: RUNTIME,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: EFFUSION_PERICARDIUM,
       },
     );
 
@@ -96,12 +156,14 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
       expect(stepped.circulationTrial.nodeAbsolutePressuresMmHg[chamber])
         .toBeCloseTo(
-          stepped.mechanicsTrial.transmuralPressuresMmHg[chamber] - 3,
+          stepped.mechanicsTrial.transmuralPressuresMmHg[chamber] + 1,
           12,
         );
     }
+    expect(stepped.pericardium.excessPressureMmHg).toBeCloseTo(4, 12);
     expect(MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1
-      .pericardialConstraintApplied).toBe(false);
+      .pericardialConstraintInterface)
+      .toBe("required-conservative-common-pressure-binding");
     expect(MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1
       .laaBodyCompartmentsApplied).toBe(false);
   });
@@ -112,6 +174,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       provider,
       runtime: RUNTIME,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: OFF_PERICARDIUM,
     });
     const before = JSON.stringify({
       circulation: cold.acceptedState.circulation,
@@ -126,6 +189,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
         dtSec: 0.001,
         runtime: RUNTIME,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: OFF_PERICARDIUM,
       },
     );
 
@@ -133,6 +197,15 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     if (stepped.converged === true) throw new Error("expected rollback");
     expect(stepped.mechanicsCommitted).toBe(false);
     expect(stepped.circulationCommitted).toBe(false);
+    expect(stepped.circulationFailureReason).toBe("initial-evaluation-failed");
+    expect(Object.values(stepped.lastAcceptedCandidateNodeVolumesMl)
+      .every(Number.isFinite)).toBe(true);
+    expect(stepped.circulationDiagnostics.mechanicsCallbackCallCount)
+      .toBeGreaterThan(0);
+    expect(stepped.circulationDiagnostics.lineSearchFailure).toBeNull();
+    expect(stepped.circulationDiagnostics.failureNewtonTrace).toEqual([]);
+    expect(stepped.circulationDiagnostics.worstIndependentContinuityResidual)
+      .toBeNull();
     expect(stepped.rollbackState.revision).toBe(0);
     expect(JSON.stringify({
       circulation: stepped.rollbackState.circulation,
@@ -161,6 +234,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       provider,
       runtime,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: createMainWireNormalAdultCommonPericardiumV1(),
     });
     const stepped = stepMainWireFiveWallNonCoronaryV1(
       provider,
@@ -169,6 +243,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
         dtSec: 0.002,
         runtime,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: createMainWireNormalAdultCommonPericardiumV1(),
       },
     );
 
