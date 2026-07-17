@@ -7,10 +7,9 @@ import {
   unwrapMainWireNormalAdultFiveWallPeriodicReviewPhase01V1,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallPeriodicReviewV1";
 import type {
-  MainWireNormalAdultFiveWallDiagnosticSampleV2,
-} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
+  MainWireNormalAdultFiveWallDiagnosticSampleV3,
+} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV3";
 import {
-  FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import type {
@@ -21,71 +20,19 @@ import type {
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+  resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
-import {
-  resolveMainWireNormalAdultCirculationConfigurationV1,
-} from "@/engine/myocardium/experiments/MainWireNormalAdultCirculationConfigurationV1";
 import {
   resolveMainWireNormalAdultBloodVolumePriorV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumePriorV1";
-import {
-  sanitizeForStableHash,
-  stableHash,
-} from "@/engine/myocardium/kinematics/stableHash";
 
 const DT_SEC = 0.1;
-const CALCIUM_HASH = stableHash(sanitizeForStableHash(
-  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-));
-const CONFIGURATION =
-  resolveMainWireNormalAdultCirculationConfigurationV1();
 const BLOOD_VOLUME_PRIOR =
   resolveMainWireNormalAdultBloodVolumePriorV1("cold-seed-control");
-const MECHANICS_PROVIDER = Object.freeze({
-  providerId: "review-fixture-provider",
-  parameterSetId: "review-fixture-provider-params",
-  parameterIdentityHash: "review-fixture-provider-hash",
-  stateSchemaVersion: 1,
-});
-const MECHANICS_HASH = stableHash(sanitizeForStableHash(MECHANICS_PROVIDER));
-const TOPOLOGY = CONFIGURATION.snapshot.effective.topology;
-const TOPOLOGY_HASH = stableHash(sanitizeForStableHash(TOPOLOGY));
-const RUNTIME_HASH = stableHash(sanitizeForStableHash(
-  CONFIGURATION.snapshot.effective.runtime,
-));
-const POLICY_HASH = stableHash(sanitizeForStableHash(
-  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
-));
-const PROTOCOL_IDENTITY = Object.freeze({
-  identityId:
-    "main-wire-normal-adult-five-wall-periodic-protocol-identity-v1" as const,
-  mechanicsProvider: MECHANICS_PROVIDER,
-  calciumDrive: Object.freeze({
-    driveId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
-    parameterSetId:
-      FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
-    fixedParamsStableHash: CALCIUM_HASH,
-  }),
-  circulation: Object.freeze({
-    topologyGraphSnapshot: TOPOLOGY,
-    topologyGraphStableHash: TOPOLOGY_HASH,
-    runtimeStableHash: RUNTIME_HASH,
-    configurationSnapshot: CONFIGURATION.snapshot,
-    configurationSnapshotStableHash: CONFIGURATION.snapshotStableHash,
-  }),
-  operatingPoint: Object.freeze({
-    bloodVolumePriorSnapshot: BLOOD_VOLUME_PRIOR.snapshot,
-    bloodVolumePriorSnapshotStableHash:
-      BLOOD_VOLUME_PRIOR.snapshotStableHash,
-  }),
-  periodicPolicy: Object.freeze({
-    policyId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId,
-    policyStableHash: POLICY_HASH,
-  }),
-});
-const PROTOCOL_IDENTITY_HASH = stableHash(sanitizeForStableHash(
-  PROTOCOL_IDENTITY,
-));
+const PROTOCOL =
+  resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2();
+const PROTOCOL_IDENTITY = PROTOCOL.identity;
+const PROTOCOL_IDENTITY_HASH = PROTOCOL.identityHash;
 const GROUPS = [
   "circulation-node-volume",
   "dynamic-edge-flow",
@@ -231,26 +178,22 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
     period2: beatIndex === 6 ? null : closure(9e-4),
   }));
   return Object.freeze({
-    experimentId: "main-wire-normal-adult-five-wall-periodic-steady-v1",
+    experimentId: "main-wire-normal-adult-five-wall-periodic-steady-v2",
+    schemaVersion: 2,
     mode: "canonical",
     protocolIdentity: PROTOCOL_IDENTITY,
     protocolIdentityHash: PROTOCOL_IDENTITY_HASH,
-    protocolComponentHashes: Object.freeze({
-      mechanicsProviderMetadataStableHash: MECHANICS_HASH,
-      calciumDriveFixedParamsStableHash: CALCIUM_HASH,
-      circulationTopologyGraphStableHash: TOPOLOGY_HASH,
-      circulationRuntimeStableHash: RUNTIME_HASH,
-      circulationConfigurationSnapshotStableHash:
-        CONFIGURATION.snapshotStableHash,
-      bloodVolumePriorStableHash: BLOOD_VOLUME_PRIOR.snapshotStableHash,
-      periodicPolicyStableHash: POLICY_HASH,
-    }),
+    protocolComponentHashes: PROTOCOL.componentHashes,
     laSlsMode: "on",
     initialization: "canonical",
     calciumDrivePriorVariant: "land-atrial-twitch-output",
+    calciumRepresentation:
+      "analytic-periodic-control-with-exact-event-shadow",
     calciumDriveFixedParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
     bloodVolumePriorVariant: "cold-seed-control",
     bloodVolumePriorAudit: BLOOD_VOLUME_PRIOR.audit,
+    pericardiumMode: "on",
+    pericardiumCase: "healthy-slack",
     dtSec: DT_SEC,
     stepsPerBeat: 10,
     requestedMaximumBeatCount: 7,
@@ -293,6 +236,7 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
       valveOpeningStatesChanged: false,
       mechanicsColdInputChanged: false,
       mechanicsColdStateFingerprintChanged: false,
+      calciumColdStateChanged: false,
       transferredVolumeMl: 0,
       sourceNode: null,
       destinationNode: null,
@@ -307,8 +251,17 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
       parameterSearch: false,
       calciumDriveSelectionIsFixedRegistryVariant: true,
       calciumDriveParameterSearch: false,
+      calciumRepresentationSelectionIsFixedEnum: true,
+      exactEventCalciumStatesIncludedInPeriodClosure: true,
+      eventIntervalsSplitAtOffGridEvents: true,
+      stepsPerBeatIsNominalGridCount: true,
+      acceptedSubstepsMayExceedNominalStepsPerBeat: true,
       bloodVolumePriorSelectionIsFixedRegistryVariant: true,
       bloodVolumePriorParameterSearch: false,
+      pericardialConstraintInterfaceIncluded: true,
+      pericardialConstraintEnabled: true,
+      pericardiumSelectionIsFixedRegistryVariant: true,
+      pericardiumParameterSearch: false,
       initializationVariantChangesRuntimeOrMaterialParameters: false,
       pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true,
       samePeriodicOrbitAcrossInitializationsClaimed: false,
@@ -367,7 +320,7 @@ function closure(maximum: number) {
 function sample(
   index: number,
   beatOffset: number,
-): MainWireNormalAdultFiveWallDiagnosticSampleV2 {
+): MainWireNormalAdultFiveWallDiagnosticSampleV3 {
   const laVolume = [25, 27, 30, 35, 40, 38, 34, 30, 25, 20][index]!;
   const laPressure = [3, 4, 5, 6, 7, 4, 1, 8, 5, 2][index]!;
   const lvPressure = [110, 100, 90, 50, 30, 10, 8, 7, 6, 5][index]!;
@@ -440,6 +393,20 @@ function sample(
     }),
     diagnosticSampleId:
       "main-wire-normal-adult-five-wall-diagnostic-sample-v2",
+    diagnosticSampleV3Id:
+      "main-wire-normal-adult-five-wall-diagnostic-sample-v3",
+    diagnosticSchemaVersion: 3,
+    commonPericardium: Object.freeze({
+      heartVolumeMl: laVolume + 120 - index + 50 + 110 + 100,
+      prescribedFluidVolumeMl: 0,
+      occupiedVolumeMl: laVolume + 120 - index + 50 + 110 + 100,
+      storedEnergyMilliJ: 0,
+      excessPressurePa: 0,
+      excessPressureMmHg: 0,
+      pressureDerivativePaPerM3: 0,
+      smoothingBranch: "zero",
+      elasticConstraintEngaged: false,
+    }),
     wallFiberLogStrain: wallRecord(() => strain),
     wallEnergyLedgerDensity: wallRecord(() => Object.freeze({
       equilibriumPassiveStoredEnergyDensityJPerM3: 0.2 * (index + 1),

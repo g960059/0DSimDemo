@@ -55,19 +55,33 @@ import {
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
 import {
-  sampleMainWireNormalAdultFiveWallDiagnosticStepV2,
-  type MainWireNormalAdultFiveWallDiagnosticSampleV2,
-} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
+  sampleMainWireNormalAdultFiveWallDiagnosticStepV3,
+  type MainWireNormalAdultFiveWallDiagnosticSampleV3,
+} from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV3";
 import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultLaSlsModeV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  createMainWireNormalAdultCommonPericardiumV1,
+  type MainWireNormalAdultCommonPericardiumCaseV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
+import type {
+  MainWireCommonPericardiumBindingV1,
+  MainWireCommonPericardiumModeV1,
+} from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 
+/** @deprecated Historic V1 artifact ID; V1 runner name is a V2 API alias. */
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID =
   "main-wire-normal-adult-five-wall-periodic-steady-v1" as const;
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V2_ID =
+  "main-wire-normal-adult-five-wall-periodic-steady-v2" as const;
 
+/** @deprecated Historic V1 identity ID; use the V2 identity constant. */
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V1_ID =
   "main-wire-normal-adult-five-wall-periodic-protocol-identity-v1" as const;
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V2_ID =
+  "main-wire-normal-adult-five-wall-periodic-protocol-identity-v2" as const;
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1 =
   Object.freeze({
@@ -95,7 +109,7 @@ export type MainWireNormalAdultFiveWallPeriodicInitializationV1 =
   | "canonical"
   | typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PULMONARY_REDISTRIBUTION_V1.variant;
 
-export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
+export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV2 =
   Readonly<{
     mechanicsProviderMetadataStableHash: string;
     calciumDriveFixedParamsStableHash: string;
@@ -104,12 +118,14 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
     circulationRuntimeStableHash: string;
     circulationConfigurationSnapshotStableHash: string;
     bloodVolumePriorStableHash: string;
+    commonPericardiumStableHash: string;
     periodicPolicyStableHash: string;
   }>;
 
-export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
+export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV2 = Readonly<{
   identityId:
-    typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V1_ID;
+    typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V2_ID;
+  schemaVersion: 2;
   mechanicsProvider: Readonly<{
     providerId: string;
     parameterSetId: string;
@@ -148,6 +164,11 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
     bloodVolumePriorSnapshot: MainWireNormalAdultBloodVolumePriorSnapshotV1;
     bloodVolumePriorSnapshotStableHash: string;
   }>;
+  commonPericardium: Readonly<{
+    caseId: MainWireNormalAdultCommonPericardiumCaseV1;
+    binding: MainWireCommonPericardiumBindingV1;
+    bindingStableHash: string;
+  }>;
   periodicPolicy: Readonly<{
     policyId:
       typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId;
@@ -155,7 +176,7 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
   }>;
 }>;
 
-export type MainWireNormalAdultFiveWallPeriodicOptionsV1 = Readonly<{
+export type MainWireNormalAdultFiveWallPeriodicOptionsV2 = Readonly<{
   dtSec: number;
   maximumBeatCount?: number;
   laSlsMode?: MainWireNormalAdultLaSlsModeV1;
@@ -163,13 +184,15 @@ export type MainWireNormalAdultFiveWallPeriodicOptionsV1 = Readonly<{
   calciumDrivePriorVariant?: FiveWallNormalCalciumDrivePriorVariantV1;
   calciumRepresentation?: FiveWallCalciumRepresentationV1;
   bloodVolumePriorVariant?: MainWireNormalAdultBloodVolumePriorVariantV1;
+  pericardiumMode?: MainWireCommonPericardiumModeV1;
+  pericardiumCase?: MainWireNormalAdultCommonPericardiumCaseV1;
 }>;
 
-export type MainWireNormalAdultFiveWallRetainedBeatV1 = Readonly<{
+export type MainWireNormalAdultFiveWallRetainedBeatV2 = Readonly<{
   beatIndex: number;
   startTimeSec: number;
   endTimeSec: number;
-  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[];
+  samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV3[];
 }>;
 
 export type MainWireNormalAdultFiveWallPeriodicTerminationReasonV1 =
@@ -178,14 +201,15 @@ export type MainWireNormalAdultFiveWallPeriodicTerminationReasonV1 =
   | "maximum-beats-reached"
   | "step-failure";
 
-export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
+export type MainWireNormalAdultFiveWallPeriodicResultV2 = Readonly<{
   experimentId:
-    typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID;
+    typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V2_ID;
+  schemaVersion: 2;
   mode: "canonical";
-  protocolIdentity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+  protocolIdentity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV2;
   protocolIdentityHash: string;
   protocolComponentHashes:
-    MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
+    MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV2;
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   calciumDrivePriorVariant: FiveWallNormalCalciumDrivePriorVariantV1;
@@ -194,6 +218,8 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   bloodVolumePriorVariant: MainWireNormalAdultBloodVolumePriorVariantV1;
   bloodVolumePriorAudit:
     ReturnType<typeof resolveMainWireNormalAdultBloodVolumePriorV1>["audit"];
+  pericardiumMode: MainWireCommonPericardiumModeV1;
+  pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
   dtSec: number;
   stepsPerBeat: number;
   requestedMaximumBeatCount: number;
@@ -206,9 +232,9 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   periodicity: MainWireFiveWallPeriodicClassificationV1;
   beatClosure: readonly MainWireFiveWallPeriodicBeatObservationV1[];
   retainedCompleteBeats:
-    readonly MainWireNormalAdultFiveWallRetainedBeatV1[];
+    readonly MainWireNormalAdultFiveWallRetainedBeatV2[];
   retainedPartialBeat:
-    readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[];
+    readonly MainWireNormalAdultFiveWallDiagnosticSampleV3[];
   failure: null | Readonly<{
     beatIndex: number;
     stepWithinBeat: number;
@@ -259,6 +285,10 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     acceptedSubstepsMayExceedNominalStepsPerBeat: true;
     bloodVolumePriorSelectionIsFixedRegistryVariant: true;
     bloodVolumePriorParameterSearch: false;
+    pericardialConstraintInterfaceIncluded: true;
+    pericardialConstraintEnabled: boolean;
+    pericardiumSelectionIsFixedRegistryVariant: true;
+    pericardiumParameterSearch: false;
     initializationVariantChangesRuntimeOrMaterialParameters: false;
     pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true;
     samePeriodicOrbitAcrossInitializationsClaimed: false;
@@ -267,13 +297,32 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   }>;
 }>;
 
-export type MainWireNormalAdultFiveWallPeriodicProtocolResolutionV1 =
+export type MainWireNormalAdultFiveWallPeriodicProtocolResolutionV2 =
   Readonly<{
-    identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+    identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV2;
     identityHash: string;
     componentHashes:
-      MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
+      MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV2;
   }>;
+
+/** @deprecated Compatibility aliases; the canonical protocol schema is V2. */
+export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
+  MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV2;
+/** @deprecated Compatibility alias; the canonical protocol schema is V2. */
+export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 =
+  MainWireNormalAdultFiveWallPeriodicProtocolIdentityV2;
+/** @deprecated Compatibility alias; the canonical protocol schema is V2. */
+export type MainWireNormalAdultFiveWallPeriodicOptionsV1 =
+  MainWireNormalAdultFiveWallPeriodicOptionsV2;
+/** @deprecated Compatibility alias; the canonical retained-beat schema is V2. */
+export type MainWireNormalAdultFiveWallRetainedBeatV1 =
+  MainWireNormalAdultFiveWallRetainedBeatV2;
+/** @deprecated Compatibility alias; the canonical result schema is V2. */
+export type MainWireNormalAdultFiveWallPeriodicResultV1 =
+  MainWireNormalAdultFiveWallPeriodicResultV2;
+/** @deprecated Compatibility alias; the canonical protocol schema is V2. */
+export type MainWireNormalAdultFiveWallPeriodicProtocolResolutionV1 =
+  MainWireNormalAdultFiveWallPeriodicProtocolResolutionV2;
 
 type AcceptedState = MainWireFiveWallNonCoronaryAcceptedStateV1<
   MainWireNormalAdultFiveWallMechanicsStateV1
@@ -286,14 +335,16 @@ const CYCLE_LENGTH_SEC = 1;
  * beat. Diagnostics and pure-comparison fixtures use this boundary instead of
  * inventing protocol-shaped objects that could bypass registry validation.
  */
-export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
+export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2(
   options: Readonly<{
     laSlsMode?: MainWireNormalAdultLaSlsModeV1;
     calciumDrivePriorVariant?: FiveWallNormalCalciumDrivePriorVariantV1;
     calciumRepresentation?: FiveWallCalciumRepresentationV1;
     bloodVolumePriorVariant?: MainWireNormalAdultBloodVolumePriorVariantV1;
+    pericardiumMode?: MainWireCommonPericardiumModeV1;
+    pericardiumCase?: MainWireNormalAdultCommonPericardiumCaseV1;
   }> = {},
-): MainWireNormalAdultFiveWallPeriodicProtocolResolutionV1 {
+): MainWireNormalAdultFiveWallPeriodicProtocolResolutionV2 {
   const laSlsMode = options.laSlsMode ?? "on";
   if (laSlsMode !== "on" && laSlsMode !== "exact-off") {
     throw new Error("unsupported LA SLS mode");
@@ -314,6 +365,12 @@ export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
   const bloodVolumePrior = resolveMainWireNormalAdultBloodVolumePriorV1(
     options.bloodVolumePriorVariant ?? "cold-seed-control",
   );
+  const pericardiumMode = options.pericardiumMode ?? "on";
+  const pericardiumCase = options.pericardiumCase ?? "healthy-slack";
+  const pericardium = createMainWireNormalAdultCommonPericardiumV1(
+    pericardiumMode,
+    pericardiumCase,
+  );
   const protocol = buildPeriodicProtocolIdentity(
     provider,
     circulationConfiguration.runtime,
@@ -321,8 +378,10 @@ export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
     circulationConfiguration.snapshot,
     bloodVolumePrior.snapshot,
     calciumRepresentation,
+    pericardium,
+    pericardiumCase,
   );
-  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV2({
     identity: protocol.identity,
     identityHash: protocol.identityHash,
     componentHashes: protocol.componentHashes,
@@ -331,9 +390,13 @@ export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
   return protocol;
 }
 
-export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
-  options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
-): MainWireNormalAdultFiveWallPeriodicResultV1 {
+/** @deprecated Use the explicit V2 protocol resolver. */
+export const resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 =
+  resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2;
+
+export function runMainWireNormalAdultFiveWallPeriodicSteadyV2(
+  options: MainWireNormalAdultFiveWallPeriodicOptionsV2,
+): MainWireNormalAdultFiveWallPeriodicResultV2 {
   const resolved = validateAndResolveOptions(options);
   const circulationConfiguration =
     resolveMainWireNormalAdultCirculationConfigurationV1();
@@ -350,6 +413,10 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const bloodVolumePrior = resolveMainWireNormalAdultBloodVolumePriorV1(
     resolved.bloodVolumePriorVariant,
   );
+  const pericardium = createMainWireNormalAdultCommonPericardiumV1(
+    resolved.pericardiumMode,
+    resolved.pericardiumCase,
+  );
   const protocol = buildPeriodicProtocolIdentity(
     provider,
     runtime,
@@ -357,8 +424,10 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     circulationConfiguration.snapshot,
     bloodVolumePrior.snapshot,
     resolved.calciumRepresentation,
+    pericardium,
+    resolved.pericardiumCase,
   );
-  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV2({
     identity: protocol.identity,
     identityHash: protocol.identityHash,
     componentHashes: protocol.componentHashes,
@@ -384,6 +453,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     calciumInitialization:
       "regular-periodic-prehistory-from-fixed-prior",
     circulationInitial: initialStateInput(canonicalCirculation),
+    pericardium,
   });
   const initializedCold = resolved.initialization === "canonical"
     ? canonicalCold
@@ -398,6 +468,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       circulationInitial: pulmonaryRedistributionInitialState(
         canonicalCirculation,
       ),
+      pericardium,
     });
   const initializationAudit = auditInitialization(
     provider,
@@ -409,10 +480,10 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   let state = initializedCold.acceptedState;
   const boundaryStates: AcceptedState[] = [state];
   const observations: MainWireFiveWallPeriodicBeatObservationV1[] = [];
-  const retainedCompleteBeats: MainWireNormalAdultFiveWallRetainedBeatV1[] = [];
-  let retainedPartialBeat: MainWireNormalAdultFiveWallDiagnosticSampleV2[] = [];
+  const retainedCompleteBeats: MainWireNormalAdultFiveWallRetainedBeatV2[] = [];
+  let retainedPartialBeat: MainWireNormalAdultFiveWallDiagnosticSampleV3[] = [];
   let classification = classify(observations);
-  let failure: MainWireNormalAdultFiveWallPeriodicResultV1["failure"] = null;
+  let failure: MainWireNormalAdultFiveWallPeriodicResultV2["failure"] = null;
 
   beatLoop:
   for (
@@ -420,7 +491,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     beatIndex <= resolved.maximumBeatCount;
     beatIndex += 1
   ) {
-    const beatSamples: MainWireNormalAdultFiveWallDiagnosticSampleV2[] = [];
+    const beatSamples: MainWireNormalAdultFiveWallDiagnosticSampleV3[] = [];
     const startTimeSec = state.acceptedTimeSec;
     for (
       let stepWithinBeat = 1;
@@ -447,6 +518,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
           runtime,
           calciumDriveParams,
           calciumEventSchedule,
+          pericardium,
         });
         if (stepped.converged === false) {
           retainedPartialBeat = beatSamples;
@@ -465,7 +537,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
           break beatLoop;
         }
         state = stepped.acceptedState;
-        beatSamples.push(sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped));
+        beatSamples.push(sampleMainWireNormalAdultFiveWallDiagnosticStepV3(stepped));
       }
     }
 
@@ -505,7 +577,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     classification,
   );
   return Object.freeze({
-    experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID,
+    experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V2_ID,
+    schemaVersion: 2 as const,
     mode: "canonical" as const,
     protocolIdentity: protocol.identity,
     protocolIdentityHash: protocol.identityHash,
@@ -517,6 +590,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     calciumDriveFixedParams: calciumDriveParams,
     bloodVolumePriorVariant: resolved.bloodVolumePriorVariant,
     bloodVolumePriorAudit: bloodVolumePrior.audit,
+    pericardiumMode: resolved.pericardiumMode,
+    pericardiumCase: resolved.pericardiumCase,
     dtSec: resolved.dtSec,
     stepsPerBeat: resolved.stepsPerBeat,
     requestedMaximumBeatCount: resolved.maximumBeatCount,
@@ -547,6 +622,10 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       acceptedSubstepsMayExceedNominalStepsPerBeat: true as const,
       bloodVolumePriorSelectionIsFixedRegistryVariant: true as const,
       bloodVolumePriorParameterSearch: false as const,
+      pericardialConstraintInterfaceIncluded: true as const,
+      pericardialConstraintEnabled: resolved.pericardiumMode === "on",
+      pericardiumSelectionIsFixedRegistryVariant: true as const,
+      pericardiumParameterSearch: false as const,
       initializationVariantChangesRuntimeOrMaterialParameters: false as const,
       pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true as const,
       samePeriodicOrbitAcrossInitializationsClaimed: false as const,
@@ -556,17 +635,26 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   });
 }
 
-export function assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1(
+/** @deprecated Use the explicit V2 runner. */
+export const runMainWireNormalAdultFiveWallPeriodicSteadyV1 =
+  runMainWireNormalAdultFiveWallPeriodicSteadyV2;
+
+export function assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV2(
   input: Readonly<{
-    identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+    identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV2;
     identityHash: string;
     componentHashes:
-      MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
+      MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV2;
     periodicPolicy:
       typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1;
   }>,
 ): void {
   const { identity, identityHash, componentHashes, periodicPolicy } = input;
+  if (
+    identity.identityId
+      !== MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V2_ID
+    || identity.schemaVersion !== 2
+  ) throw new Error("periodic protocol schema is not V2");
   if (identityHash !== hashProtocolValue(identity)) {
     throw new Error("periodic protocol identity hash is inconsistent");
   }
@@ -654,6 +742,26 @@ export function assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegri
     || identity.operatingPoint.bloodVolumePriorSnapshotStableHash
       !== bloodVolumePriorHash
   ) throw new Error("periodic blood-volume prior hash is inconsistent");
+  const commonPericardiumHash = hashProtocolValue(
+    identity.commonPericardium.binding,
+  );
+  if (
+    componentHashes.commonPericardiumStableHash !== commonPericardiumHash
+    || identity.commonPericardium.bindingStableHash !== commonPericardiumHash
+    || identity.commonPericardium.binding.parameterSetId
+      !== createMainWireNormalAdultCommonPericardiumV1(
+        identity.commonPericardium.binding.mode,
+        identity.commonPericardium.caseId,
+      ).parameterSetId
+    || stableCanonicalStringify(sanitizeForStableHash(
+      identity.commonPericardium.binding,
+    )) !== stableCanonicalStringify(sanitizeForStableHash(
+      createMainWireNormalAdultCommonPericardiumV1(
+        identity.commonPericardium.binding.mode,
+        identity.commonPericardium.caseId,
+      ),
+    ))
+  ) throw new Error("periodic common-pericardium hash is inconsistent");
   const policyHash = hashProtocolValue(periodicPolicy);
   if (
     componentHashes.periodicPolicyStableHash !== policyHash
@@ -661,6 +769,10 @@ export function assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegri
     || identity.periodicPolicy.policyId !== periodicPolicy.policyId
   ) throw new Error("periodic policy component hash is inconsistent");
 }
+
+/** @deprecated Use the explicit V2 protocol integrity assertion. */
+export const assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1 =
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV2;
 
 function buildPeriodicProtocolIdentity(
   provider: ReturnType<typeof createCanonicalMainWireNormalAdultFiveWallProviderV1>,
@@ -671,10 +783,12 @@ function buildPeriodicProtocolIdentity(
   bloodVolumePriorSnapshot:
     MainWireNormalAdultBloodVolumePriorSnapshotV1,
   calciumRepresentation: FiveWallCalciumRepresentationV1,
+  pericardium: MainWireCommonPericardiumBindingV1,
+  pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1,
 ): Readonly<{
-  identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+  identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV2;
   identityHash: string;
-  componentHashes: MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
+  componentHashes: MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV2;
 }> {
   const mechanicsProvider = deepFreezeProtocolValue({
     providerId: provider.providerId,
@@ -704,7 +818,10 @@ function buildPeriodicProtocolIdentity(
     nodes: topologyGraph.nodes,
     edges: topologyGraph.edges,
     scope: topologyGraph.scope,
-  }) as MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1["circulation"]["topologyGraphSnapshot"];
+  }) as MainWireNormalAdultFiveWallPeriodicProtocolIdentityV2["circulation"]["topologyGraphSnapshot"];
+  const commonPericardiumBinding = (
+    deepFreezeProtocolValue(pericardium)
+  ) as MainWireCommonPericardiumBindingV1;
   const componentHashes = Object.freeze({
     mechanicsProviderMetadataStableHash: hashProtocolValue(mechanicsProvider),
     calciumDriveFixedParamsStableHash:
@@ -718,12 +835,15 @@ function buildPeriodicProtocolIdentity(
       hashProtocolValue(circulationConfigurationSnapshot),
     bloodVolumePriorStableHash:
       hashProtocolValue(bloodVolumePriorSnapshot),
+    commonPericardiumStableHash:
+      hashProtocolValue(commonPericardiumBinding),
     periodicPolicyStableHash:
       hashProtocolValue(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1),
   });
   const identity = deepFreezeProtocolValue({
     identityId:
-      MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V1_ID,
+      MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_PROTOCOL_IDENTITY_V2_ID,
+    schemaVersion: 2 as const,
     mechanicsProvider,
     calciumDrive: {
       driveId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
@@ -748,11 +868,16 @@ function buildPeriodicProtocolIdentity(
       bloodVolumePriorSnapshotStableHash:
         componentHashes.bloodVolumePriorStableHash,
     },
+    commonPericardium: {
+      caseId: pericardiumCase,
+      binding: commonPericardiumBinding,
+      bindingStableHash: componentHashes.commonPericardiumStableHash,
+    },
     periodicPolicy: {
       policyId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId,
       policyStableHash: componentHashes.periodicPolicyStableHash,
     },
-  }) as MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+  }) as MainWireNormalAdultFiveWallPeriodicProtocolIdentityV2;
   return Object.freeze({
     identity,
     identityHash: hashProtocolValue(identity),
@@ -820,7 +945,7 @@ function auditInitialization(
   canonical: AcceptedState,
   initialized: AcceptedState,
   variant: MainWireNormalAdultFiveWallPeriodicInitializationV1,
-): MainWireNormalAdultFiveWallPeriodicResultV1["initializationAudit"] {
+): MainWireNormalAdultFiveWallPeriodicResultV2["initializationAudit"] {
   const canonicalTotal = canonical.circulation.totalBloodVolumeMl;
   const initializedTotal = initialized.circulation.totalBloodVolumeMl;
   const totalDifference = initializedTotal - canonicalTotal;
@@ -900,7 +1025,7 @@ function classify(
 }
 
 function resolveTerminationReason(
-  failure: MainWireNormalAdultFiveWallPeriodicResultV1["failure"],
+  failure: MainWireNormalAdultFiveWallPeriodicResultV2["failure"],
   classification: MainWireFiveWallPeriodicClassificationV1,
 ): MainWireNormalAdultFiveWallPeriodicTerminationReasonV1 {
   if (failure !== null) return "step-failure";
@@ -912,7 +1037,7 @@ function resolveTerminationReason(
 }
 
 function validateAndResolveOptions(
-  options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
+  options: MainWireNormalAdultFiveWallPeriodicOptionsV2,
 ): Readonly<{
   dtSec: number;
   stepsPerBeat: number;
@@ -922,6 +1047,8 @@ function validateAndResolveOptions(
   calciumDrivePriorVariant: FiveWallNormalCalciumDrivePriorVariantV1;
   calciumRepresentation: FiveWallCalciumRepresentationV1;
   bloodVolumePriorVariant: MainWireNormalAdultBloodVolumePriorVariantV1;
+  pericardiumMode: MainWireCommonPericardiumModeV1;
+  pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
 }> {
   if (!(options.dtSec > 0) || !Number.isFinite(options.dtSec)) {
     throw new Error("dtSec must be positive and finite");
@@ -958,6 +1085,12 @@ function validateAndResolveOptions(
   const bloodVolumePriorVariant = options.bloodVolumePriorVariant
     ?? "cold-seed-control";
   resolveMainWireNormalAdultBloodVolumePriorV1(bloodVolumePriorVariant);
+  const pericardiumMode = options.pericardiumMode ?? "on";
+  const pericardiumCase = options.pericardiumCase ?? "healthy-slack";
+  createMainWireNormalAdultCommonPericardiumV1(
+    pericardiumMode,
+    pericardiumCase,
+  );
   return Object.freeze({
     dtSec: options.dtSec,
     stepsPerBeat,
@@ -967,6 +1100,8 @@ function validateAndResolveOptions(
     calciumDrivePriorVariant,
     calciumRepresentation,
     bloodVolumePriorVariant,
+    pericardiumMode,
+    pericardiumCase,
   });
 }
 

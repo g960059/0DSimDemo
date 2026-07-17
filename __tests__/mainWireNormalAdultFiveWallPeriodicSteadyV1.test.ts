@@ -5,19 +5,30 @@ import {
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
 import {
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV2,
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
-  resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1,
+  resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
+  runMainWireNormalAdultFiveWallPeriodicSteadyV2,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
-describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
+describe("main-wire normal-adult five-wall periodic steady runner V2", () => {
   it("runs one canonical coarse beat without overstating periodic closure", () => {
-    const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+    const result = runMainWireNormalAdultFiveWallPeriodicSteadyV2({
       dtSec: 0.01,
       maximumBeatCount: 1,
       initialization: "canonical",
     });
+    const exactOff = runMainWireNormalAdultFiveWallPeriodicSteadyV2({
+      dtSec: 0.01,
+      maximumBeatCount: 1,
+      initialization: "canonical",
+      pericardiumMode: "exact-off",
+    });
 
+    expect(result.experimentId)
+      .toBe("main-wire-normal-adult-five-wall-periodic-steady-v2");
+    expect(result.schemaVersion).toBe(2);
     expect(result.terminationReason).toBe("maximum-beats-reached");
     expect(result.integrationCompletedWithoutFailure).toBe(true);
     expect(result.periodicSteadyStateClaimed).toBe(false);
@@ -33,6 +44,8 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(result.retainedCompleteBeats[0]!.samples).toHaveLength(100);
     expect(result.retainedCompleteBeats[0]!.samples[0]!.diagnosticSampleId)
       .toBe("main-wire-normal-adult-five-wall-diagnostic-sample-v2");
+    expect(result.retainedCompleteBeats[0]!.samples[0]!.diagnosticSampleV3Id)
+      .toBe("main-wire-normal-adult-five-wall-diagnostic-sample-v3");
     expect(result.retainedPartialBeat).toHaveLength(0);
     expect(result.initializationAudit.totalBloodVolumeDifferenceMl).toBe(0);
     expect(result.initializationAudit.transferredVolumeMl).toBe(0);
@@ -68,8 +81,29 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       .toHaveLength(15);
     expect(result.protocolIdentity.periodicPolicy.policyId)
       .toBe("fixed-groupwise-periodic-policy-v1");
-    expect(Object.values(result.protocolComponentHashes))
-      .toHaveLength(8);
+    expect(result.protocolIdentity).toMatchObject({
+      identityId:
+        "main-wire-normal-adult-five-wall-periodic-protocol-identity-v2",
+      schemaVersion: 2,
+      commonPericardium: {
+        caseId: "healthy-slack",
+        binding: {
+          bindingId: "main-wire-common-pericardium-binding-v1",
+          mode: "on",
+        },
+      },
+    });
+    expect(Object.keys(result.protocolComponentHashes).sort()).toEqual([
+      "bloodVolumePriorStableHash",
+      "calciumDriveFixedParamsStableHash",
+      "calciumStateContractStableHash",
+      "circulationConfigurationSnapshotStableHash",
+      "circulationRuntimeStableHash",
+      "circulationTopologyGraphStableHash",
+      "commonPericardiumStableHash",
+      "mechanicsProviderMetadataStableHash",
+      "periodicPolicyStableHash",
+    ]);
     expect(Object.values(result.protocolComponentHashes)
       .every((hash) => /^[0-9a-f]{8}$/.test(hash))).toBe(true);
     expect(result.protocolIdentity.calciumDrive.fixedParamsStableHash)
@@ -99,9 +133,33 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       .toBe("27a8ce3f");
     expect(result.protocolComponentHashes.circulationRuntimeStableHash)
       .toBe("6a2d35d3");
+    const healthySamples = result.retainedCompleteBeats[0]!.samples;
+    const offSamples = exactOff.retainedCompleteBeats[0]!.samples;
+    expect(healthySamples.every((sample) =>
+      sample.commonPericardium.excessPressurePa === 0
+      && sample.commonPericardium.excessPressureMmHg === 0
+      && sample.commonPericardium.storedEnergyMilliJ === 0
+      && sample.commonPericardium.pressureDerivativePaPerM3 === 0
+      && sample.commonPericardium.elasticConstraintEngaged === false
+      && sample.commonPericardium.smoothingBranch === "zero"
+    )).toBe(true);
+    expect(offSamples.every((sample) =>
+      sample.commonPericardium.excessPressurePa === 0
+      && sample.commonPericardium.smoothingBranch === "off"
+    )).toBe(true);
+    expect(legacyV2Projection(healthySamples))
+      .toEqual(legacyV2Projection(offSamples));
     expect(stableHash(sanitizeForStableHash(
-      result.retainedCompleteBeats[0]!.samples,
+      legacyV2Projection(healthySamples),
     ))).toBe("58a24381");
+    expect(exactOff.protocolComponentHashes).toEqual({
+      ...result.protocolComponentHashes,
+      commonPericardiumStableHash:
+        exactOff.protocolComponentHashes.commonPericardiumStableHash,
+    });
+    expect(exactOff.protocolComponentHashes.commonPericardiumStableHash)
+      .not.toBe(result.protocolComponentHashes.commonPericardiumStableHash);
+    expect(exactOff.protocolIdentityHash).not.toBe(result.protocolIdentityHash);
     expect(result.protocolIdentity.periodicPolicy.policyStableHash)
       .toBe(result.protocolComponentHashes.periodicPolicyStableHash);
     expect(result.protocolIdentityHash).toBe(stableHash(sanitizeForStableHash(
@@ -111,8 +169,8 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
 
   it("separates analytic-control and exact-event state protocol identities", () => {
     const analytic =
-      resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1();
-    const exact = resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1({
+      resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2();
+    const exact = resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2({
       calciumRepresentation: "exact-event-state",
     });
 
@@ -265,4 +323,67 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       bloodVolumePriorVariant: "shape-fit" as never,
     })).toThrow(/unsupported blood-volume prior variant/);
   });
+
+  it("rejects common-pericardium choices outside the fixed registry", () => {
+    expect(() => resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2({
+      pericardiumMode: "bad" as never,
+    })).toThrow(/unsupported normal-adult common-pericardium mode/);
+    expect(() => resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2({
+      pericardiumCase: "shape-fit" as never,
+    })).toThrow(/unsupported normal-adult common-pericardium case/);
+  });
+
+  it("rejects a self-consistently rehashed but non-registry pericardium binding", () => {
+    const valid =
+      resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2();
+    const tamperedBinding = Object.freeze({
+      ...valid.identity.commonPericardium.binding,
+      parameters: Object.freeze({
+        ...valid.identity.commonPericardium.binding.parameters,
+        exponentialStiffness:
+          valid.identity.commonPericardium.binding.parameters
+            .exponentialStiffness + 1,
+      }),
+    });
+    const commonPericardiumStableHash = stableHash(sanitizeForStableHash(
+      tamperedBinding,
+    ));
+    const identity = Object.freeze({
+      ...valid.identity,
+      commonPericardium: Object.freeze({
+        ...valid.identity.commonPericardium,
+        binding: tamperedBinding,
+        bindingStableHash: commonPericardiumStableHash,
+      }),
+    });
+    const componentHashes = Object.freeze({
+      ...valid.componentHashes,
+      commonPericardiumStableHash,
+    });
+    expect(() =>
+      assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV2({
+        identity,
+        identityHash: stableHash(sanitizeForStableHash(identity)),
+        componentHashes,
+        periodicPolicy:
+          MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+      })
+    ).toThrow("periodic common-pericardium hash is inconsistent");
+  });
 });
+
+function legacyV2Projection(
+  samples: ReturnType<
+    typeof runMainWireNormalAdultFiveWallPeriodicSteadyV2
+  >["retainedCompleteBeats"][number]["samples"],
+): readonly unknown[] {
+  return samples.map((sample) => {
+    const {
+      diagnosticSampleV3Id: _diagnosticSampleV3Id,
+      diagnosticSchemaVersion: _diagnosticSchemaVersion,
+      commonPericardium: _commonPericardium,
+      ...legacyV2
+    } = sample;
+    return legacyV2;
+  });
+}

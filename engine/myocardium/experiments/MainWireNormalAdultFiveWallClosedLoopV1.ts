@@ -23,6 +23,13 @@ import {
   type MainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultWallMaterialReadbackV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  createMainWireNormalAdultCommonPericardiumV1,
+  type MainWireNormalAdultCommonPericardiumCaseV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
+import type {
+  MainWireCommonPericardiumModeV1,
+} from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 import type {
   LandSlsWallMaterialStateV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
@@ -30,18 +37,26 @@ import type {
   WholeHeartMechanicsSerializableValueV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 
+/** @deprecated Historic V1 artifact ID; V1 runner name is a V2 API alias. */
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID =
   "main-wire-normal-adult-five-wall-closed-loop-v1" as const;
+export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V2_ID =
+  "main-wire-normal-adult-five-wall-closed-loop-v2" as const;
 
 export type MainWireNormalAdultFiveWallExperimentModeV1 =
   "canonical";
 
-export type MainWireNormalAdultFiveWallClosedLoopOptionsV1 = Readonly<{
+export type MainWireNormalAdultFiveWallClosedLoopOptionsV2 = Readonly<{
   mode: MainWireNormalAdultFiveWallExperimentModeV1;
   laSlsMode?: MainWireNormalAdultLaSlsModeV1;
+  pericardiumMode?: MainWireCommonPericardiumModeV1;
+  pericardiumCase?: MainWireNormalAdultCommonPericardiumCaseV1;
   dtSec: number;
   beatCount: number;
 }>;
+/** @deprecated Compatibility alias; the returned schema is explicitly V2. */
+export type MainWireNormalAdultFiveWallClosedLoopOptionsV1 =
+  MainWireNormalAdultFiveWallClosedLoopOptionsV2;
 
 export type MainWireNormalAdultFiveWallClosedLoopSampleV1 = Readonly<{
   timeSec: number;
@@ -118,10 +133,13 @@ export type MainWireNormalAdultFiveWallBeatClosureV1 = Readonly<{
   period2MaximumRelativeStateDifference: number | null;
 }>;
 
-export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
-  experimentId: typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID;
+export type MainWireNormalAdultFiveWallClosedLoopResultV2 = Readonly<{
+  experimentId: typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V2_ID;
+  schemaVersion: 2;
   mode: MainWireNormalAdultFiveWallExperimentModeV1;
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
+  pericardiumMode: MainWireCommonPericardiumModeV1;
+  pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
   completed: boolean;
   requestedBeatCount: number;
   completedBeatCount: number;
@@ -138,12 +156,16 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
     heartRateBpm: 60;
     circulation: "main-wire-derived-noncoronary-experimental";
     laaBodyCompartments: false;
-    pericardialConstraint: false;
+    pericardialConstraintInterfaceIncluded: true;
+    pericardialConstraintEnabled: boolean;
     parameterSearch: false;
     smoothingAppliedToSamples: false;
     laSlsExactOffIsPairedAblationOnly: boolean;
   }>;
 }>;
+/** @deprecated Compatibility alias; the returned schema is explicitly V2. */
+export type MainWireNormalAdultFiveWallClosedLoopResultV1 =
+  MainWireNormalAdultFiveWallClosedLoopResultV2;
 
 export type MainWireNormalAdultFiveWallMechanicsStateV1 =
   MainWireFiveWallLandTriSegStateV1<
@@ -159,18 +181,25 @@ NonCoronaryCirculationRuntimeParamsV1 {
   return resolveMainWireNormalAdultCirculationConfigurationV1().runtime;
 }
 
-export function runMainWireNormalAdultFiveWallClosedLoopV1(
-  options: MainWireNormalAdultFiveWallClosedLoopOptionsV1,
-): MainWireNormalAdultFiveWallClosedLoopResultV1 {
+export function runMainWireNormalAdultFiveWallClosedLoopV2(
+  options: MainWireNormalAdultFiveWallClosedLoopOptionsV2,
+): MainWireNormalAdultFiveWallClosedLoopResultV2 {
   validateOptions(options);
   const stepsPerBeat = Math.round(CYCLE_LENGTH_SEC / options.dtSec);
   const laSlsMode = options.laSlsMode ?? "on";
+  const pericardiumMode = options.pericardiumMode ?? "on";
+  const pericardiumCase = options.pericardiumCase ?? "healthy-slack";
+  const pericardium = createMainWireNormalAdultCommonPericardiumV1(
+    pericardiumMode,
+    pericardiumCase,
+  );
   const runtime = normalAdultMainWireRuntimeV1();
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(laSlsMode);
   const cold = initializeMainWireFiveWallNonCoronaryV1({
     provider,
     runtime,
     calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    pericardium,
   });
   let state = cold.acceptedState;
   const boundaryStates: AcceptedState[] = [state];
@@ -184,6 +213,7 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
       dtSec: options.dtSec,
       runtime,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
     });
     if (stepped.converged === false) {
       failure = Object.freeze({
@@ -218,9 +248,12 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
     }
   }
   return Object.freeze({
-    experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID,
+    experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V2_ID,
+    schemaVersion: 2 as const,
     mode: options.mode,
     laSlsMode,
+    pericardiumMode,
+    pericardiumCase,
     completed: failure === null && beatClosure.length === options.beatCount,
     requestedBeatCount: options.beatCount,
     completedBeatCount: beatClosure.length,
@@ -233,13 +266,18 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
       heartRateBpm: 60 as const,
       circulation: "main-wire-derived-noncoronary-experimental" as const,
       laaBodyCompartments: false as const,
-      pericardialConstraint: false as const,
+      pericardialConstraintInterfaceIncluded: true as const,
+      pericardialConstraintEnabled: pericardiumMode === "on",
       parameterSearch: false as const,
       smoothingAppliedToSamples: false as const,
       laSlsExactOffIsPairedAblationOnly: laSlsMode === "exact-off",
     }),
   });
 }
+
+/** @deprecated Use the explicit V2 runner. */
+export const runMainWireNormalAdultFiveWallClosedLoopV1 =
+  runMainWireNormalAdultFiveWallClosedLoopV2;
 
 export function sampleMainWireNormalAdultFiveWallStepV1(
   step: MainWireFiveWallNonCoronaryStepSuccessV1<MechanicsState>,
@@ -410,7 +448,7 @@ function fiveWallRecord<T>(
 }
 
 function validateOptions(
-  options: MainWireNormalAdultFiveWallClosedLoopOptionsV1,
+  options: MainWireNormalAdultFiveWallClosedLoopOptionsV2,
 ): void {
   if (options.mode !== "canonical") {
     throw new Error("unsupported five-wall experiment mode");
@@ -418,6 +456,11 @@ function validateOptions(
   if (options.laSlsMode !== undefined &&
       options.laSlsMode !== "on" && options.laSlsMode !== "exact-off") {
     throw new Error("unsupported LA SLS mode");
+  }
+  if (options.pericardiumMode !== undefined &&
+      options.pericardiumMode !== "on" &&
+      options.pericardiumMode !== "exact-off") {
+    throw new Error("unsupported common pericardium mode");
   }
   if (!(options.dtSec > 0) || !Number.isFinite(options.dtSec)) {
     throw new Error("dtSec must be positive and finite");

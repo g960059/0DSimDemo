@@ -32,6 +32,11 @@ import type {
   MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
+  evaluateMainWireCommonPericardiumBindingV1,
+  type MainWireCommonPericardiumBindingV1,
+  type MainWireCommonPericardiumEvaluationV1,
+} from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
+import {
   cloneWholeHeartMechanicsAcceptedStateV1,
   commitWholeHeartMechanicsTrialV1,
   evaluateWholeHeartMechanicsTrialV1,
@@ -56,7 +61,11 @@ export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1 =
     circulationMechanicsAndCalciumCommit:
       "atomic-after-all-trials-succeed" as const,
     failureSemantics: "rollback-all-three-accepted-states" as const,
-    pericardialConstraintApplied: false as const,
+    pericardialConstraintInterface:
+      "required-conservative-common-pressure-binding" as const,
+    pericardialPressureAppliedOnceToFourAbsoluteChamberPressures: true as const,
+    pericardialPressureAppliedToTriSegInternalForce: false as const,
+    pericardialFluidOwnedAsBloodVolume: false as const,
     laaBodyCompartmentsApplied: false as const,
     coronaryCirculationIncluded: false as const,
     parameterFittingOwnedHere: false as const,
@@ -81,6 +90,7 @@ export type MainWireFiveWallNonCoronaryInitializeInputV1<TWallState> = Readonly<
   calciumRepresentation?: FiveWallCalciumRepresentationV1;
   calciumInitialization?: FiveWallCalciumInitializationV1;
   calciumEventSchedule?: FiveWallCalciumEventScheduleProviderV1;
+  pericardium: MainWireCommonPericardiumBindingV1;
   circulationInitial?: Omit<
     NonCoronaryCirculationInitialStateInputV1,
     "timeSec" | "runtime"
@@ -98,6 +108,7 @@ export type MainWireFiveWallNonCoronaryColdResultV1<TWallState> = Readonly<{
     RV: number;
   }>;
   commonIntrathoracicPressureMmHg: number;
+  pericardium: MainWireCommonPericardiumEvaluationV1;
 }>;
 
 export type MainWireFiveWallNonCoronaryStepSuccessV1<TWallState> = Readonly<{
@@ -110,6 +121,7 @@ export type MainWireFiveWallNonCoronaryStepSuccessV1<TWallState> = Readonly<{
   calciumTrial: FiveWallCalciumTrialV1;
   calciumDrive: MainWireFiveWallFreeCalciumDriveV1;
   commonIntrathoracicPressureMmHg: number;
+  pericardium: MainWireCommonPericardiumEvaluationV1;
 }>;
 
 export type MainWireFiveWallNonCoronaryStepFailureV1<TWallState> = Readonly<{
@@ -164,6 +176,10 @@ export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
     volumesMl: chamberVolumes(circulation),
     drivingInputs: calciumDrive,
   });
+  const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+    input.pericardium,
+    chamberVolumes(circulation),
+  );
   const acceptedState = acceptedPair(
     0,
     circulation,
@@ -180,6 +196,7 @@ export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
       timeSec,
       input.runtime,
     ),
+    pericardium,
   });
 }
 
@@ -194,6 +211,7 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     runtime: NonCoronaryCirculationRuntimeParamsV1;
     calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
     calciumEventSchedule?: FiveWallCalciumEventScheduleProviderV1;
+    pericardium: MainWireCommonPericardiumBindingV1;
   }>,
 ): MainWireFiveWallNonCoronaryStepResultV1<TWallState> {
   validateAcceptedPair(previous);
@@ -236,12 +254,20 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
           }`,
         );
       }
+      const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+        input.pericardium,
+        volumesMl,
+      );
       return Object.freeze({
         absolutePressuresMmHg: Object.freeze({
-          LA: mechanicsTrial.transmuralPressuresMmHg.LA + pthMmHg,
-          LV: mechanicsTrial.transmuralPressuresMmHg.LV + pthMmHg,
-          RA: mechanicsTrial.transmuralPressuresMmHg.RA + pthMmHg,
-          RV: mechanicsTrial.transmuralPressuresMmHg.RV + pthMmHg,
+          LA: mechanicsTrial.transmuralPressuresMmHg.LA + pthMmHg
+            + pericardium.excessPressureMmHg,
+          LV: mechanicsTrial.transmuralPressuresMmHg.LV + pthMmHg
+            + pericardium.excessPressureMmHg,
+          RA: mechanicsTrial.transmuralPressuresMmHg.RA + pthMmHg
+            + pericardium.excessPressureMmHg,
+          RV: mechanicsTrial.transmuralPressuresMmHg.RV + pthMmHg
+            + pericardium.excessPressureMmHg,
         }),
         evaluation: mechanicsTrial,
       });
@@ -263,6 +289,10 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     });
   }
   const mechanicsTrial = circulationTrial.candidateMechanicsEvaluation;
+  const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+    input.pericardium,
+    circulationTrial.candidateNodeVolumesMl,
+  );
   validateCoupledTrial(previous, circulationTrial, mechanicsTrial, calciumTrial);
   const nextCirculation = commitNonCoronaryCirculationTrialV1(
     previous.circulation,
@@ -291,6 +321,7 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     calciumTrial,
     calciumDrive,
     commonIntrathoracicPressureMmHg: pthMmHg,
+    pericardium,
   });
 }
 

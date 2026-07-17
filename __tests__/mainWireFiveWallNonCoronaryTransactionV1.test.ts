@@ -19,6 +19,9 @@ import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
+  createMainWireNormalAdultCommonPericardiumV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
+import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
@@ -26,6 +29,13 @@ import {
 type TestState = Readonly<{ timeSec: number; volumeSumMl: number }>;
 
 const base = defaultParams();
+const OFF_PERICARDIUM = createMainWireNormalAdultCommonPericardiumV1(
+  "exact-off",
+);
+const ENGAGED_PERICARDIUM = createMainWireNormalAdultCommonPericardiumV1(
+  "on",
+  "global-capacity-vh0-430ml-positive-control",
+);
 const RUNTIME = Object.freeze({
   vascular: Object.freeze({
     venousTone: base.venousTone,
@@ -51,6 +61,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       provider,
       runtime: RUNTIME,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: OFF_PERICARDIUM,
     });
     const stepped = stepMainWireFiveWallNonCoronaryV1(
       provider,
@@ -59,9 +70,15 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
         dtSec: 0.001,
         runtime: RUNTIME,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: OFF_PERICARDIUM,
       },
     );
 
+    expect(cold.pericardium).toMatchObject({
+      mode: "exact-off",
+      excessPressurePa: 0,
+      storedEnergyJ: 0,
+    });
     expect(stepped.converged).toBe(true);
     if (stepped.converged === false) throw new Error(stepped.message);
     expect(stepped.acceptedState.revision).toBe(1);
@@ -80,12 +97,13 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       .toBeCloseTo(0, 9);
   });
 
-  it("adds common intrathoracic pressure exactly once at the node interface", () => {
+  it("adds intrathoracic and common-pericardial pressure once at the node interface", () => {
     const provider = testProvider(false);
     const cold = initializeMainWireFiveWallNonCoronaryV1({
       provider,
       runtime: RUNTIME,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: ENGAGED_PERICARDIUM,
     });
     const stepped = stepMainWireFiveWallNonCoronaryV1(
       provider,
@@ -94,21 +112,25 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
         dtSec: 0.001,
         runtime: RUNTIME,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: ENGAGED_PERICARDIUM,
       },
     );
 
+    expect(cold.pericardium.excessPressureMmHg).toBeGreaterThan(0);
     expect(stepped.converged).toBe(true);
     if (stepped.converged === false) throw new Error(stepped.message);
     expect(stepped.commonIntrathoracicPressureMmHg).toBe(-3);
     for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
       expect(stepped.circulationTrial.nodeAbsolutePressuresMmHg[chamber])
         .toBeCloseTo(
-          stepped.mechanicsTrial.transmuralPressuresMmHg[chamber] - 3,
+          stepped.mechanicsTrial.transmuralPressuresMmHg[chamber] - 3
+            + stepped.pericardium.excessPressureMmHg,
           12,
         );
     }
+    expect(stepped.pericardium.excessPressureMmHg).toBeGreaterThan(0);
     expect(MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1
-      .pericardialConstraintApplied).toBe(false);
+      .pericardialPressureAppliedOnceToFourAbsoluteChamberPressures).toBe(true);
     expect(MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1
       .laaBodyCompartmentsApplied).toBe(false);
   });
@@ -119,6 +141,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       provider,
       runtime: RUNTIME,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: OFF_PERICARDIUM,
     });
     const before = JSON.stringify({
       circulation: cold.acceptedState.circulation,
@@ -134,6 +157,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
         dtSec: 0.001,
         runtime: RUNTIME,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: OFF_PERICARDIUM,
       },
     );
 
@@ -183,6 +207,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       provider,
       runtime,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: createMainWireNormalAdultCommonPericardiumV1(),
     });
     const stepped = stepMainWireFiveWallNonCoronaryV1(
       provider,
@@ -191,6 +216,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
         dtSec: 0.002,
         runtime,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: createMainWireNormalAdultCommonPericardiumV1(),
       },
     );
 
@@ -220,6 +246,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       calciumEventSchedule: schedule,
       calciumInitialization:
         "regular-periodic-prehistory-from-fixed-prior",
+      pericardium: OFF_PERICARDIUM,
     }).acceptedState;
     let exact = initializeMainWireFiveWallNonCoronaryV1({
       provider,
@@ -229,6 +256,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       calciumEventSchedule: schedule,
       calciumInitialization:
         "regular-periodic-prehistory-from-fixed-prior",
+      pericardium: OFF_PERICARDIUM,
     }).acceptedState;
 
     for (let step = 1; step <= 500; step += 1) {
@@ -240,6 +268,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
           runtime: RUNTIME,
           calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
           calciumEventSchedule: schedule,
+          pericardium: OFF_PERICARDIUM,
         },
       );
       const exactStep = stepMainWireFiveWallNonCoronaryV1(
@@ -250,6 +279,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
           runtime: RUNTIME,
           calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
           calciumEventSchedule: schedule,
+          pericardium: OFF_PERICARDIUM,
         },
       );
       if (analyticStep.converged === false) throw new Error(analyticStep.message);
