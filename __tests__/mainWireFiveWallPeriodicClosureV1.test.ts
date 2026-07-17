@@ -310,7 +310,16 @@ function acceptedState(options: StateOptions): MainWireFiveWallPeriodicAcceptedS
       scheduleId: "test-fixed-sinus-schedule-v1",
       scheduleIdentityHash:
         options.calciumScheduleIdentityHash ?? "1234abcd",
+      scheduleTemporalSemantics: Object.freeze({
+        semanticsId: "five-wall-calcium-schedule-temporal-semantics-v1" as const,
+        kind: "fixed-periodic" as const,
+        periodSec: 1,
+        phaseOriginSec: 0,
+        eventIntervalConvention: "open-start-closed-end" as const,
+        integerPeriodTranslationInvariant: true as const,
+      }),
       parameterSetId: "test-calcium-prior-v1",
+      parameterIdentityHash: "89abcdef",
       revision: options.revision,
       acceptedTimeSec: options.timeSec,
       stateByWall: Object.freeze({

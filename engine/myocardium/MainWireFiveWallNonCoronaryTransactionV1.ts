@@ -1,7 +1,10 @@
 import {
+  checkpointNonCoronaryCirculationStateV2,
   commitNonCoronaryCirculationTrialV1,
   createInitialNonCoronaryCirculationStateV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
+  restoreNonCoronaryCirculationStateV2,
+  type NonCoronaryCirculationCheckpointV2,
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationInitialStateInputV1,
   type NonCoronaryCirculationRuntimeParamsV1,
@@ -28,26 +31,51 @@ import {
   type FiveWallCalciumRepresentationV1,
   type FiveWallCalciumTrialV1,
 } from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
+import {
+  checkpointFiveWallCalciumAcceptedStateV2,
+  restoreFiveWallCalciumAcceptedStateV2,
+  restoreFiveWallCalciumAtFixedPeriodicCycleWithRevisionResetV2,
+  type FiveWallCalciumCheckpointV2,
+} from "@/engine/myocardium/checkpoint/fiveWallCalciumCheckpointV2";
 import type {
   MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
+import {
+  isCanonicalMainWireNormalAdultFiveWallProviderV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
   evaluateMainWireCommonPericardiumBindingV1,
   type MainWireCommonPericardiumBindingV1,
   type MainWireCommonPericardiumEvaluationV1,
 } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 import {
+  checkpointWholeHeartMechanicsStateV1,
   cloneWholeHeartMechanicsAcceptedStateV1,
   commitWholeHeartMechanicsTrialV1,
   evaluateWholeHeartMechanicsTrialV1,
   initializeWholeHeartMechanicsColdV1,
+  restoreWholeHeartMechanicsStateV1,
+  type WholeHeartMechanicsCheckpointV1,
   type WholeHeartMechanicsAcceptedStateV1,
   type WholeHeartMechanicsProviderV1,
   type WholeHeartMechanicsTrialV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+import {
+  exactFiniteJsonCanonicalStringV1,
+  exactFiniteJsonFingerprintV1,
+  requireCheckpointRecordV1,
+  requireExactCheckpointKeysV1,
+} from "@/engine/core/exactFiniteJsonCheckpointV1";
+import { stableHash } from "@/engine/myocardium/kinematics/stableHash";
 
 export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID =
   "main-wire-five-wall-noncoronary-transaction-v1" as const;
+
+export const MAIN_WIRE_FIVE_WALL_NONCORONARY_CHECKPOINT_V2_ID =
+  "main-wire-five-wall-noncoronary-checkpoint-v2" as const;
+
+export const MAIN_WIRE_FIVE_WALL_NONCORONARY_PROTOCOL_BINDING_V2_ID =
+  "main-wire-five-wall-noncoronary-protocol-binding-v2" as const;
 
 export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1 =
   Object.freeze({
@@ -66,6 +94,12 @@ export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1 =
     pericardialPressureAppliedOnceToFourAbsoluteChamberPressures: true as const,
     pericardialPressureAppliedToTriSegInternalForce: false as const,
     pericardialFluidOwnedAsBloodVolume: false as const,
+    checkpointSchema: 2 as const,
+    checkpointRestore: "exact-time-by-default" as const,
+    revisionSemantics:
+      "accepted-coupled-subinterval-count-not-nominal-grid-step-count" as const,
+    cycleTranslation:
+      "canonical-fixed-periodic-phase-boundary-with-revision-reset-only" as const,
     laaBodyCompartmentsApplied: false as const,
     coronaryCirculationIncluded: false as const,
     parameterFittingOwnedHere: false as const,
@@ -78,6 +112,27 @@ export type MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState> = Readonly<{
   circulation: NonCoronaryCirculationAcceptedStateV1;
   mechanics: WholeHeartMechanicsAcceptedStateV1<TWallState>;
   calcium: FiveWallCalciumAcceptedStateV1;
+}>;
+
+export type MainWireFiveWallNonCoronaryProtocolBindingV2 = Readonly<{
+  bindingId: typeof MAIN_WIRE_FIVE_WALL_NONCORONARY_PROTOCOL_BINDING_V2_ID;
+  circulationRuntimeSnapshot: NonCoronaryCirculationRuntimeParamsV1;
+  circulationRuntimeStableHash: string;
+  commonPericardiumBindingSnapshot: MainWireCommonPericardiumBindingV1;
+  commonPericardiumBindingStableHash: string;
+}>;
+
+export type MainWireFiveWallNonCoronaryCheckpointV2 = Readonly<{
+  checkpointId: typeof MAIN_WIRE_FIVE_WALL_NONCORONARY_CHECKPOINT_V2_ID;
+  schemaVersion: 2;
+  transactionId: typeof MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID;
+  revision: number;
+  acceptedTimeSec: number;
+  protocolBinding: MainWireFiveWallNonCoronaryProtocolBindingV2;
+  circulation: NonCoronaryCirculationCheckpointV2;
+  mechanics: WholeHeartMechanicsCheckpointV1;
+  calcium: FiveWallCalciumCheckpointV2;
+  fingerprint: string;
 }>;
 
 export type MainWireFiveWallNonCoronaryInitializeInputV1<TWallState> = Readonly<{
@@ -198,6 +253,129 @@ export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
     ),
     pericardium,
   });
+}
+
+export function checkpointMainWireFiveWallNonCoronaryStateV2<TWallState>(
+  provider: WholeHeartMechanicsProviderV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  state: MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState>,
+  input: Readonly<{
+    runtime: NonCoronaryCirculationRuntimeParamsV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    calciumEventSchedule: FiveWallCalciumEventScheduleProviderV1;
+    pericardium: MainWireCommonPericardiumBindingV1;
+  }>,
+): MainWireFiveWallNonCoronaryCheckpointV2 {
+  validateAcceptedPair(state);
+  evaluateMainWireCommonPericardiumBindingV1(
+    input.pericardium,
+    chamberVolumes(state.circulation),
+  );
+  const protocolBinding = createProtocolBindingV2(
+    input.runtime,
+    input.pericardium,
+  );
+  const payload = Object.freeze({
+    checkpointId: MAIN_WIRE_FIVE_WALL_NONCORONARY_CHECKPOINT_V2_ID,
+    schemaVersion: 2 as const,
+    transactionId: MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID,
+    revision: state.revision,
+    acceptedTimeSec: state.acceptedTimeSec,
+    protocolBinding,
+    circulation: checkpointNonCoronaryCirculationStateV2(state.circulation),
+    mechanics: checkpointWholeHeartMechanicsStateV1(provider, state.mechanics),
+    calcium: checkpointFiveWallCalciumAcceptedStateV2(
+      state.calcium,
+      input.calciumDriveParams,
+      input.calciumEventSchedule,
+    ),
+  });
+  return Object.freeze({
+    ...payload,
+    fingerprint: exactFiniteJsonFingerprintV1(payload),
+  });
+}
+
+/** Exact same-time/same-revision resume. This API never rebases time. */
+export function restoreMainWireFiveWallNonCoronaryStateV2<TWallState>(
+  provider: WholeHeartMechanicsProviderV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  candidate: unknown,
+  input: Readonly<{
+    runtime: NonCoronaryCirculationRuntimeParamsV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    calciumEventSchedule: FiveWallCalciumEventScheduleProviderV1;
+    pericardium: MainWireCommonPericardiumBindingV1;
+  }>,
+): MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState> {
+  const checkpoint = parseMainWireFiveWallNonCoronaryCheckpointV2(candidate);
+  return restoreExactCheckpointComponentsV2(provider, checkpoint, input);
+}
+
+/**
+ * Canonical-only cycle-boundary translation. The exact checkpoint is first
+ * validated against the same runtime/protocol. The returned transaction starts
+ * at revision zero; arbitrary time rebase and absolute schedules are
+ * intentionally unavailable.
+ */
+export function restoreMainWireFiveWallNonCoronaryAtFixedPeriodicCycleWithRevisionResetV2<
+  TWallState,
+>(
+  provider: WholeHeartMechanicsProviderV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  candidate: unknown,
+  input: Readonly<{
+    runtime: NonCoronaryCirculationRuntimeParamsV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    calciumEventSchedule: FiveWallCalciumEventScheduleProviderV1;
+    pericardium: MainWireCommonPericardiumBindingV1;
+    targetAcceptedTimeSec: number;
+  }>,
+): MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState> {
+  const checkpoint = parseMainWireFiveWallNonCoronaryCheckpointV2(candidate);
+  const source = restoreExactCheckpointComponentsV2(provider, checkpoint, input);
+  if (!isCanonicalMainWireNormalAdultFiveWallProviderV1(provider)) {
+    throw new Error(
+      "cycle translation requires a factory-issued canonical autonomous five-wall provider",
+    );
+  }
+  assertNoTimeVaryingRespirationV2(input.runtime);
+  const translatedCalcium =
+    restoreFiveWallCalciumAtFixedPeriodicCycleWithRevisionResetV2(
+      checkpoint.calcium,
+      input.calciumDriveParams,
+      input.calciumEventSchedule,
+      input.targetAcceptedTimeSec,
+    );
+  const translatedCirculation = createInitialNonCoronaryCirculationStateV1({
+    timeSec: input.targetAcceptedTimeSec,
+    runtime: input.runtime,
+    nodeVolumesMl: source.circulation.nodeVolumesMl,
+    dynamicEdgeFlowsMlPerSec: source.circulation.dynamicEdgeFlowsMlPerSec,
+    valveStates: source.circulation.valveStates,
+  });
+  const translatedMechanicsCheckpoint: WholeHeartMechanicsCheckpointV1 =
+    Object.freeze({
+      ...checkpoint.mechanics,
+      revision: 0,
+      acceptedTimeSec: input.targetAcceptedTimeSec,
+    });
+  const translatedMechanics = restoreWholeHeartMechanicsStateV1(
+    provider,
+    translatedMechanicsCheckpoint,
+  );
+  return acceptedPair(
+    0,
+    translatedCirculation,
+    translatedMechanics,
+    translatedCalcium,
+  );
 }
 
 export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
@@ -422,4 +600,252 @@ function commonIntrathoracicPressureMmHg(
     timeSec,
     runtime.respiratory,
   );
+}
+
+function restoreExactCheckpointComponentsV2<TWallState>(
+  provider: WholeHeartMechanicsProviderV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  checkpoint: MainWireFiveWallNonCoronaryCheckpointV2,
+  input: Readonly<{
+    runtime: NonCoronaryCirculationRuntimeParamsV1;
+    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    calciumEventSchedule: FiveWallCalciumEventScheduleProviderV1;
+    pericardium: MainWireCommonPericardiumBindingV1;
+  }>,
+): MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState> {
+  assertProtocolBindingMatchesV2(
+    checkpoint.protocolBinding,
+    input.runtime,
+    input.pericardium,
+  );
+  const circulation = restoreNonCoronaryCirculationStateV2(
+    checkpoint.circulation,
+  );
+  const mechanics = restoreWholeHeartMechanicsStateV1(
+    provider,
+    checkpoint.mechanics,
+  );
+  if (
+    exactFiniteJsonCanonicalStringV1(
+      checkpointWholeHeartMechanicsStateV1(provider, mechanics),
+    ) !== exactFiniteJsonCanonicalStringV1(checkpoint.mechanics)
+  ) throw new Error("mechanics checkpoint contains noncanonical nested state");
+  const calcium = restoreFiveWallCalciumAcceptedStateV2(
+    checkpoint.calcium,
+    input.calciumDriveParams,
+    input.calciumEventSchedule,
+  );
+  if (
+    checkpoint.revision !== circulation.revision
+    || checkpoint.revision !== mechanics.revision
+    || checkpoint.revision !== calcium.revision
+    || checkpoint.acceptedTimeSec !== circulation.acceptedTimeSec
+    || checkpoint.acceptedTimeSec !== mechanics.acceptedTimeSec
+    || checkpoint.acceptedTimeSec !== calcium.acceptedTimeSec
+  ) throw new Error("coupled checkpoint revision/time alignment mismatch");
+  for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
+    if (circulation.nodeVolumesMl[chamber] !== mechanics.acceptedVolumesMl[chamber]) {
+      throw new Error(`coupled checkpoint ${chamber} volume alignment mismatch`);
+    }
+  }
+  evaluateMainWireCommonPericardiumBindingV1(
+    input.pericardium,
+    chamberVolumes(circulation),
+  );
+  return acceptedPair(
+    checkpoint.revision,
+    circulation,
+    mechanics,
+    calcium,
+  );
+}
+
+function parseMainWireFiveWallNonCoronaryCheckpointV2(
+  candidate: unknown,
+): MainWireFiveWallNonCoronaryCheckpointV2 {
+  const record = requireCheckpointRecordV1(candidate, "coupled checkpoint");
+  if (
+    record.checkpointId !== MAIN_WIRE_FIVE_WALL_NONCORONARY_CHECKPOINT_V2_ID
+    || record.schemaVersion !== 2
+  ) throw new Error("unsupported coupled checkpoint schema; schema V2 is required");
+  requireExactCheckpointKeysV1(record, [
+    "checkpointId",
+    "schemaVersion",
+    "transactionId",
+    "revision",
+    "acceptedTimeSec",
+    "protocolBinding",
+    "circulation",
+    "mechanics",
+    "calcium",
+    "fingerprint",
+  ], "coupled checkpoint");
+  if (
+    record.transactionId !== MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID
+  ) throw new Error("coupled checkpoint transaction identity mismatch");
+  if (typeof record.fingerprint !== "string" || !/^[0-9a-f]{8}$/.test(record.fingerprint)) {
+    throw new Error("coupled checkpoint fingerprint is invalid");
+  }
+  const { fingerprint, ...payload } = record;
+  if (exactFiniteJsonFingerprintV1(payload) !== fingerprint) {
+    throw new Error("coupled checkpoint fingerprint mismatch");
+  }
+  if (!Number.isInteger(record.revision) || (record.revision as number) < 0) {
+    throw new Error("coupled checkpoint revision must be nonnegative integer");
+  }
+  if (
+    typeof record.acceptedTimeSec !== "number"
+    || !Number.isFinite(record.acceptedTimeSec)
+    || record.acceptedTimeSec < 0
+  ) throw new Error("coupled checkpoint acceptedTimeSec is invalid");
+  const protocol = parseProtocolBindingV2(record.protocolBinding);
+  const mechanics = requireCheckpointRecordV1(
+    record.mechanics,
+    "coupled checkpoint mechanics",
+  );
+  requireExactCheckpointKeysV1(mechanics, [
+    "contractId",
+    "providerId",
+    "parameterSetId",
+    "parameterIdentityHash",
+    "stateSchemaVersion",
+    "revision",
+    "acceptedTimeSec",
+    "acceptedVolumesMl",
+    "materialState",
+    "materialStateFingerprint",
+  ], "coupled checkpoint mechanics");
+  const mechanicsVolumes = requireCheckpointRecordV1(
+    mechanics.acceptedVolumesMl,
+    "coupled checkpoint mechanics.acceptedVolumesMl",
+  );
+  requireExactCheckpointKeysV1(
+    mechanicsVolumes,
+    ["LA", "LV", "RA", "RV"],
+    "coupled checkpoint mechanics.acceptedVolumesMl",
+  );
+  requireCheckpointRecordV1(record.circulation, "coupled checkpoint circulation");
+  requireCheckpointRecordV1(record.calcium, "coupled checkpoint calcium");
+  return Object.freeze({
+    checkpointId: MAIN_WIRE_FIVE_WALL_NONCORONARY_CHECKPOINT_V2_ID,
+    schemaVersion: 2 as const,
+    transactionId: MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID,
+    revision: record.revision as number,
+    acceptedTimeSec: record.acceptedTimeSec,
+    protocolBinding: protocol,
+    circulation:
+      record.circulation as NonCoronaryCirculationCheckpointV2,
+    mechanics: mechanics as WholeHeartMechanicsCheckpointV1,
+    calcium: record.calcium as FiveWallCalciumCheckpointV2,
+    fingerprint,
+  });
+}
+
+function createProtocolBindingV2(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  pericardium: MainWireCommonPericardiumBindingV1,
+): MainWireFiveWallNonCoronaryProtocolBindingV2 {
+  exactFiniteJsonCanonicalStringV1(runtime);
+  exactFiniteJsonCanonicalStringV1(pericardium);
+  const circulationRuntimeSnapshot = deepFreezeCheckpointValue(
+    runtime,
+  ) as NonCoronaryCirculationRuntimeParamsV1;
+  const commonPericardiumBindingSnapshot = deepFreezeCheckpointValue(
+    pericardium,
+  ) as MainWireCommonPericardiumBindingV1;
+  return Object.freeze({
+    bindingId: MAIN_WIRE_FIVE_WALL_NONCORONARY_PROTOCOL_BINDING_V2_ID,
+    circulationRuntimeSnapshot,
+    circulationRuntimeStableHash: stableHash(circulationRuntimeSnapshot),
+    commonPericardiumBindingSnapshot,
+    commonPericardiumBindingStableHash:
+      stableHash(commonPericardiumBindingSnapshot),
+  });
+}
+
+function parseProtocolBindingV2(
+  candidate: unknown,
+): MainWireFiveWallNonCoronaryProtocolBindingV2 {
+  const record = requireCheckpointRecordV1(
+    candidate,
+    "coupled checkpoint protocolBinding",
+  );
+  requireExactCheckpointKeysV1(record, [
+    "bindingId",
+    "circulationRuntimeSnapshot",
+    "circulationRuntimeStableHash",
+    "commonPericardiumBindingSnapshot",
+    "commonPericardiumBindingStableHash",
+  ], "coupled checkpoint protocolBinding");
+  if (
+    record.bindingId !== MAIN_WIRE_FIVE_WALL_NONCORONARY_PROTOCOL_BINDING_V2_ID
+    || typeof record.circulationRuntimeStableHash !== "string"
+    || !/^[0-9a-f]{8}$/.test(record.circulationRuntimeStableHash)
+    || typeof record.commonPericardiumBindingStableHash !== "string"
+    || !/^[0-9a-f]{8}$/.test(record.commonPericardiumBindingStableHash)
+    || stableHash(record.circulationRuntimeSnapshot)
+      !== record.circulationRuntimeStableHash
+    || stableHash(record.commonPericardiumBindingSnapshot)
+      !== record.commonPericardiumBindingStableHash
+  ) throw new Error("coupled checkpoint protocol binding identity mismatch");
+  exactFiniteJsonCanonicalStringV1(record.circulationRuntimeSnapshot);
+  exactFiniteJsonCanonicalStringV1(record.commonPericardiumBindingSnapshot);
+  return Object.freeze({
+    bindingId: MAIN_WIRE_FIVE_WALL_NONCORONARY_PROTOCOL_BINDING_V2_ID,
+    circulationRuntimeSnapshot: deepFreezeCheckpointValue(
+      record.circulationRuntimeSnapshot,
+    ) as NonCoronaryCirculationRuntimeParamsV1,
+    circulationRuntimeStableHash: record.circulationRuntimeStableHash,
+    commonPericardiumBindingSnapshot: deepFreezeCheckpointValue(
+      record.commonPericardiumBindingSnapshot,
+    ) as MainWireCommonPericardiumBindingV1,
+    commonPericardiumBindingStableHash:
+      record.commonPericardiumBindingStableHash,
+  });
+}
+
+function assertProtocolBindingMatchesV2(
+  actual: MainWireFiveWallNonCoronaryProtocolBindingV2,
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  pericardium: MainWireCommonPericardiumBindingV1,
+): void {
+  const expected = createProtocolBindingV2(runtime, pericardium);
+  if (
+    actual.bindingId !== expected.bindingId
+    || actual.circulationRuntimeStableHash
+      !== expected.circulationRuntimeStableHash
+    || actual.commonPericardiumBindingStableHash
+      !== expected.commonPericardiumBindingStableHash
+    || exactFiniteJsonCanonicalStringV1(actual.circulationRuntimeSnapshot)
+      !== exactFiniteJsonCanonicalStringV1(expected.circulationRuntimeSnapshot)
+    || exactFiniteJsonCanonicalStringV1(
+      actual.commonPericardiumBindingSnapshot,
+    ) !== exactFiniteJsonCanonicalStringV1(
+      expected.commonPericardiumBindingSnapshot,
+    )
+  ) throw new Error("coupled checkpoint protocol binding differs from runtime");
+}
+
+function assertNoTimeVaryingRespirationV2(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): void {
+  if (
+    runtime.respiratory.respAmpTh !== 0
+    || runtime.respiratory.respAmpAlv !== 0
+    || runtime.respiratory.respRate !== 0
+  ) throw new Error("cycle translation requires time-invariant respiration");
+}
+
+function deepFreezeCheckpointValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map((child) => deepFreezeCheckpointValue(child)));
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.freeze(Object.fromEntries(Object.entries(value).map(
+      ([key, child]) => [key, deepFreezeCheckpointValue(child)],
+    )));
+  }
+  return value;
 }

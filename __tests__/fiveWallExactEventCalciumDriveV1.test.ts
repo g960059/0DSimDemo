@@ -8,6 +8,7 @@ import {
   evaluateFiveWallCalciumOutputV1,
   evaluateFiveWallCalciumTrialV1,
   initializeFiveWallCalciumAcceptedStateV1,
+  listFiveWallCalciumEventsOpenClosedV1,
   splitFiveWallCalciumIntervalAtEventsV1,
 } from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
 import {
@@ -243,5 +244,23 @@ describe("five-wall exact-event calcium transaction drive V1", () => {
       PARAMS,
       second,
     )).toThrow(/schedule content changed/);
+  });
+
+  it("derives dynamics from the hash-owned snapshot rather than an opaque callback", () => {
+    const schedule = createFixedSinusFiveWallCalciumEventScheduleV1(PARAMS);
+    const forgedCallback = Object.freeze({
+      ...schedule,
+      listEventsOpenClosed: () => Object.freeze([Object.freeze({
+        timeSec: 0.005,
+        strengthByWall: Object.freeze({ LA: 999 }),
+      })]),
+    });
+    expect(listFiveWallCalciumEventsOpenClosedV1(
+      forgedCallback,
+      0,
+      0.02,
+    )).toEqual(listFiveWallCalciumEventsOpenClosedV1(schedule, 0, 0.02));
+    expect(splitFiveWallCalciumIntervalAtEventsV1(0, 0.02, forgedCallback))
+      .toEqual([0.012, 0.02]);
   });
 });

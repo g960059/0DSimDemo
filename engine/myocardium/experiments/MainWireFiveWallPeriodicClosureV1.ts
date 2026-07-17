@@ -10,6 +10,7 @@ import {
 import {
   FIVE_WALL_CALCIUM_WALL_IDS_V1,
   FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID,
+  sameFiveWallCalciumScheduleTemporalSemanticsV1,
 } from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
 import {
   MAIN_WIRE_FIVE_WALL_IDS_V1,
@@ -506,7 +507,13 @@ function validateCompatibleStates(
     && current.calcium.scheduleId === reference.calcium.scheduleId
     && current.calcium.scheduleIdentityHash
       === reference.calcium.scheduleIdentityHash
-    && current.calcium.parameterSetId === reference.calcium.parameterSetId;
+    && sameFiveWallCalciumScheduleTemporalSemanticsV1(
+      current.calcium.scheduleTemporalSemantics,
+      reference.calcium.scheduleTemporalSemantics,
+    )
+    && current.calcium.parameterSetId === reference.calcium.parameterSetId
+    && current.calcium.parameterIdentityHash
+      === reference.calcium.parameterIdentityHash;
   if (!compatible) throw new Error("periodic closure state identities differ");
 }
 
@@ -538,6 +545,13 @@ function validateAcceptedState(
   if (!/^[0-9a-f]{8}$/.test(state.calcium.scheduleIdentityHash)) {
     throw new Error(`${label} periodic calcium schedule hash is invalid`);
   }
+  if (!/^[0-9a-f]{8}$/.test(state.calcium.parameterIdentityHash)) {
+    throw new Error(`${label} periodic calcium parameter hash is invalid`);
+  }
+  sameFiveWallCalciumScheduleTemporalSemanticsV1(
+    state.calcium.scheduleTemporalSemantics,
+    state.calcium.scheduleTemporalSemantics,
+  );
   for (const wall of FIVE_WALL_CALCIUM_WALL_IDS_V1) {
     const wallState = state.calcium.stateByWall[wall];
     if (wallState.length !== 2) {

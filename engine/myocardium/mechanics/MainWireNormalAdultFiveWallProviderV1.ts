@@ -114,6 +114,9 @@ export type MainWireNormalAdultFiveWallProviderV1 =
 
 export type MainWireNormalAdultLaSlsModeV1 = "on" | "exact-off";
 
+const CANONICAL_MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PROVIDERS_V1 =
+  new WeakSet<object>();
+
 type PassiveEvaluationV1 = Readonly<{
   modelId: MainWireNormalAdultWallMaterialReadbackV1["passiveModelId"];
   parameterIdentityHash: string;
@@ -134,7 +137,22 @@ export function createCanonicalMainWireNormalAdultFiveWallProviderV1(
   laSlsMode: MainWireNormalAdultLaSlsModeV1 = "on",
 ):
 MainWireNormalAdultFiveWallProviderV1 {
-  return createNormalAdultProvider(laSlsMode);
+  const provider = createNormalAdultProvider(laSlsMode);
+  CANONICAL_MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PROVIDERS_V1.add(provider);
+  return provider;
+}
+
+/**
+ * Capability check for the exact object issued by the canonical factory.
+ * Structural IDs cannot establish autonomous time-translation semantics
+ * because provider callbacks are otherwise opaque and structurally copyable.
+ */
+export function isCanonicalMainWireNormalAdultFiveWallProviderV1(
+  candidate: unknown,
+): boolean {
+  return candidate !== null
+    && typeof candidate === "object"
+    && CANONICAL_MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PROVIDERS_V1.has(candidate);
 }
 
 export function createMainWireNormalAdultFiveWallMaterialKernelsV1(

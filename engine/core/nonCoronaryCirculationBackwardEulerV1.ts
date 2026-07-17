@@ -22,9 +22,18 @@ import {
   ptmFromStressedVolume,
   stressedVolumeFromPtm,
 } from "@/engine/vascularPv";
+import {
+  exactFiniteJsonCanonicalStringV1,
+  exactFiniteJsonFingerprintV1,
+  requireCheckpointRecordV1,
+  requireExactCheckpointKeysV1,
+} from "@/engine/core/exactFiniteJsonCheckpointV1";
 
 export const NON_CORONARY_CIRCULATION_BE_V1_ID =
   "main-wire-derived-noncoronary-experimental-backward-euler-v1" as const;
+
+export const NON_CORONARY_CIRCULATION_CHECKPOINT_V2_ID =
+  "noncoronary-circulation-checkpoint-v2" as const;
 
 export const NON_CORONARY_NODE_NAMES_V1 = Object.freeze([
   "LV", "LA", "RV", "RA",
@@ -145,6 +154,29 @@ export type NonCoronaryCirculationAcceptedStateV1 = Readonly<{
   nodeVolumesMl: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
+}>;
+
+export type NonCoronaryCirculationTopologySnapshotV2 = Readonly<{
+  topologyId: typeof NON_CORONARY_CIRCULATION_BE_V1_ID;
+  nodes: readonly NodeSpec[];
+  edges: readonly EdgeSpec[];
+  scope: typeof NON_CORONARY_CIRCULATION_SCOPE_V1;
+}>;
+
+export type NonCoronaryCirculationCheckpointV2 = Readonly<{
+  checkpointId: typeof NON_CORONARY_CIRCULATION_CHECKPOINT_V2_ID;
+  schemaVersion: 2;
+  topology: Readonly<{
+    snapshot: NonCoronaryCirculationTopologySnapshotV2;
+    stableHash: string;
+  }>;
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+  nodeVolumesMl: NodeRecord<number>;
+  dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
+  valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
+  fingerprint: string;
 }>;
 
 export type NonCoronaryCirculationInitialStateInputV1 = Readonly<{
@@ -407,6 +439,160 @@ export function createInitialNonCoronaryCirculationStateV1(
     dynamicEdgeFlowsMlPerSec,
     valveStates,
   });
+}
+
+export function checkpointNonCoronaryCirculationStateV2(
+  state: NonCoronaryCirculationAcceptedStateV1,
+): NonCoronaryCirculationCheckpointV2 {
+  validateAcceptedState(state);
+  const topologySnapshot = currentTopologySnapshotV2();
+  const payload = Object.freeze({
+    checkpointId: NON_CORONARY_CIRCULATION_CHECKPOINT_V2_ID,
+    schemaVersion: 2 as const,
+    topology: Object.freeze({
+      snapshot: topologySnapshot,
+      stableHash: exactFiniteJsonFingerprintV1(topologySnapshot),
+    }),
+    revision: state.revision,
+    acceptedTimeSec: state.acceptedTimeSec,
+    totalBloodVolumeMl: state.totalBloodVolumeMl,
+    nodeVolumesMl: copyNodeRecord(
+      state.nodeVolumesMl,
+      "checkpoint nodeVolumesMl",
+      requirePositive,
+    ),
+    dynamicEdgeFlowsMlPerSec: copyDynamicEdgeRecord(
+      state.dynamicEdgeFlowsMlPerSec,
+      "checkpoint dynamicEdgeFlowsMlPerSec",
+      requireFinite,
+    ),
+    valveStates: copyValveStates(state.valveStates),
+  });
+  return Object.freeze({
+    ...payload,
+    fingerprint: exactFiniteJsonFingerprintV1(payload),
+  });
+}
+
+/** Exact-time decode only. Any time translation belongs to the coupled owner. */
+export function restoreNonCoronaryCirculationStateV2(
+  candidate: unknown,
+): NonCoronaryCirculationAcceptedStateV1 {
+  const record = requireCheckpointRecordV1(
+    candidate,
+    "noncoronary circulation checkpoint",
+  );
+  if (
+    record.checkpointId !== NON_CORONARY_CIRCULATION_CHECKPOINT_V2_ID
+    || record.schemaVersion !== 2
+  ) {
+    throw new Error(
+      "unsupported noncoronary circulation checkpoint schema; schema V2 is required",
+    );
+  }
+  requireExactCheckpointKeysV1(record, [
+    "checkpointId",
+    "schemaVersion",
+    "topology",
+    "revision",
+    "acceptedTimeSec",
+    "totalBloodVolumeMl",
+    "nodeVolumesMl",
+    "dynamicEdgeFlowsMlPerSec",
+    "valveStates",
+    "fingerprint",
+  ], "noncoronary circulation checkpoint");
+  if (typeof record.fingerprint !== "string" || !/^[0-9a-f]{8}$/.test(record.fingerprint)) {
+    throw new Error("noncoronary circulation checkpoint fingerprint is invalid");
+  }
+  const { fingerprint, ...payload } = record;
+  if (exactFiniteJsonFingerprintV1(payload) !== fingerprint) {
+    throw new Error("noncoronary circulation checkpoint fingerprint mismatch");
+  }
+  if (!Number.isInteger(record.revision) || (record.revision as number) < 0) {
+    throw new Error("circulation checkpoint revision must be nonnegative integer");
+  }
+  requireNonnegative(record.acceptedTimeSec as number, "checkpoint acceptedTimeSec");
+  requirePositive(record.totalBloodVolumeMl as number, "checkpoint totalBloodVolumeMl");
+  const topology = requireCheckpointRecordV1(
+    record.topology,
+    "circulation checkpoint topology",
+  );
+  requireExactCheckpointKeysV1(
+    topology,
+    ["snapshot", "stableHash"],
+    "circulation checkpoint topology",
+  );
+  if (typeof topology.stableHash !== "string" || !/^[0-9a-f]{8}$/.test(topology.stableHash)) {
+    throw new Error("circulation checkpoint topology hash is invalid");
+  }
+  if (exactFiniteJsonFingerprintV1(topology.snapshot) !== topology.stableHash) {
+    throw new Error("circulation checkpoint topology hash mismatch");
+  }
+  const expectedTopology = currentTopologySnapshotV2();
+  if (
+    exactFiniteJsonFingerprintV1(expectedTopology) !== topology.stableHash
+    || exactFiniteJsonCanonicalStringV1(topology.snapshot)
+      !== exactFiniteJsonCanonicalStringV1(expectedTopology)
+  ) throw new Error("circulation checkpoint topology identity mismatch");
+  const nodeVolumes = requireCheckpointRecordV1(
+    record.nodeVolumesMl,
+    "checkpoint nodeVolumesMl",
+  );
+  requireRecordKeySet(
+    nodeVolumes,
+    NON_CORONARY_NODE_NAMES_V1,
+    "checkpoint nodeVolumesMl",
+  );
+  const dynamicFlows = requireCheckpointRecordV1(
+    record.dynamicEdgeFlowsMlPerSec,
+    "checkpoint dynamicEdgeFlowsMlPerSec",
+  );
+  requireRecordKeySet(
+    dynamicFlows,
+    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
+    "checkpoint dynamicEdgeFlowsMlPerSec",
+  );
+  const valveStates = requireCheckpointRecordV1(
+    record.valveStates,
+    "checkpoint valveStates",
+  );
+  requireRecordKeySet(
+    valveStates,
+    NON_CORONARY_VALVE_NAMES_V1,
+    "checkpoint valveStates",
+  );
+  for (const valve of NON_CORONARY_VALVE_NAMES_V1) {
+    const valveState = requireCheckpointRecordV1(
+      valveStates[valve],
+      `checkpoint valveStates.${valve}`,
+    );
+    requireExactCheckpointKeysV1(
+      valveState,
+      ["leafletOpeningFraction01"],
+      `checkpoint valveStates.${valve}`,
+    );
+  }
+  const restored = acceptedState({
+    revision: record.revision as number,
+    acceptedTimeSec: record.acceptedTimeSec as number,
+    nodeVolumesMl: nodeVolumes as Record<NonCoronaryNodeNameV1, number>,
+    dynamicEdgeFlowsMlPerSec:
+      dynamicFlows as Record<NonCoronaryDynamicEdgeNameV1, number>,
+    valveStates: valveStates as Record<
+      NonCoronaryValveNameV1,
+      MainWireQuasiSteadyOrificeValveStateV1
+    >,
+  });
+  if (restored.totalBloodVolumeMl !== record.totalBloodVolumeMl) {
+    throw new Error("circulation checkpoint TBV identity mismatch");
+  }
+  if (
+    exactFiniteJsonCanonicalStringV1(
+      checkpointNonCoronaryCirculationStateV2(restored),
+    ) !== exactFiniteJsonCanonicalStringV1(record)
+  ) throw new Error("circulation checkpoint contains noncanonical nested state");
+  return restored;
 }
 
 export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
@@ -1036,6 +1222,29 @@ function validateAcceptedState(
   if (!nearlyEqual(sumNodeRecord(state.nodeVolumesMl), state.totalBloodVolumeMl)) {
     throw new Error("accepted circulation state TBV identity is stale");
   }
+}
+
+function currentTopologySnapshotV2(): NonCoronaryCirculationTopologySnapshotV2 {
+  const graph = buildNonCoronaryCirculationGraphV1();
+  return Object.freeze({
+    topologyId: graph.topologyId,
+    nodes: graph.nodes,
+    edges: graph.edges,
+    scope: graph.scope,
+  });
+}
+
+function requireRecordKeySet(
+  value: Record<string, unknown>,
+  expectedKeys: readonly string[],
+  label: string,
+): void {
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  if (
+    actual.length !== expected.length
+    || actual.some((key, index) => key !== expected[index])
+  ) throw new Error(`${label} has an unexpected field set`);
 }
 
 function scaledToNodeVolumes(
