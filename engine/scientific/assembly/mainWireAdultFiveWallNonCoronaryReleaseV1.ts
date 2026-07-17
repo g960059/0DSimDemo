@@ -70,6 +70,19 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID =
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION =
   "0.1.0" as const;
 
+export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID =
+  "main-wire-normal-adult-five-wall-fixed-tbv-cold-initialization-v1" as const;
+
+export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1 =
+  Object.freeze({
+    protocolVersion: "1.0.0" as const,
+    approvedDtSec: Object.freeze([0.002] as const),
+    dtSensitivityEvidenceSec: Object.freeze([0.001] as const),
+    nonApprovedDtClassification: "exploratory-parameterization" as const,
+    stepCommitPolicy: "each-step-atomic-partial-progress-retained" as const,
+    observationPolicy: "explicit-accepted-step-stride-plus-final" as const,
+  });
+
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_SOURCE_V1 = Object.freeze({
   repository: "g960059/0DSimDemo" as const,
   commitSha: "f229143d5e7cb728227dd41d07d55e186c131063" as const,
@@ -282,9 +295,24 @@ SimulationReleaseManifestInputV1 {
     },
     approvedProtocols: [
       {
-        protocolId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID,
+        protocolId:
+          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID,
         protocolVersion: "1.0.0",
-        snapshot: { role: "fixed-duration-transient-research-protocol" },
+        snapshot: {
+          role: "fixed-tbv-canonical-cold-initialization",
+          exactResolvedOperatingPoint:
+            bloodVolume.identity,
+        },
+      },
+      {
+        protocolId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID,
+        protocolVersion:
+          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1
+            .protocolVersion,
+        snapshot: {
+          role: "fixed-duration-transient-research-protocol",
+          ...MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1,
+        },
       },
       {
         protocolId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID,

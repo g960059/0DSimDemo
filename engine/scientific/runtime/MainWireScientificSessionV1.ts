@@ -90,6 +90,7 @@ export type MainWireScientificSessionSignalAvailabilityV1 =
 export type MainWireScientificSessionObservationV1 = Readonly<{
   observationId: "main-wire-scientific-session-observation-v1";
   sessionId: typeof MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID;
+  releaseRef: SimulationReleaseRef;
   revision: number;
   acceptedTimeSec: number;
   source: "cold-initialization" | "accepted-step" | "exact-checkpoint-restore";
@@ -194,6 +195,11 @@ export class MainWireScientificSessionV1 {
     acceptedState: AcceptedState,
     observation: MainWireScientificSessionObservationV1,
   ) {
+    assertObservationMatchesAcceptedState(
+      releaseRef,
+      acceptedState,
+      observation,
+    );
     this.releaseRef = copyReleaseRef(releaseRef);
     this.dependencies = dependencies;
     this.acceptedState = acceptedState;
@@ -230,7 +236,7 @@ export class MainWireScientificSessionV1 {
       release.ref,
       dependencies,
       acceptedState,
-      restoredObservation(acceptedState),
+      restoredObservation(release.ref, acceptedState),
     );
   }
 
@@ -289,10 +295,28 @@ export class MainWireScientificSessionV1 {
       });
     }
 
-    const observation = acceptedStepObservation(
-      sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped),
-      stepped.acceptedState.revision,
-    );
+    let observation: MainWireScientificSessionObservationV1;
+    try {
+      observation = acceptedStepObservation(
+        this.releaseRef,
+        sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped),
+        stepped.acceptedState.revision,
+      );
+      assertObservationMatchesAcceptedState(
+        this.releaseRef,
+        stepped.acceptedState,
+        observation,
+      );
+    } catch (error) {
+      assertSessionStateNotPromoted(this.acceptedState, before);
+      return Object.freeze({
+        converged: false as const,
+        reason: "step-evaluation-threw" as const,
+        message: `accepted observation rejected: ${errorMessage(error)}`,
+        acceptedStateUnchanged: true as const,
+        observation: this.lastObservation,
+      });
+    }
     this.acceptedState = stepped.acceptedState;
     this.lastObservation = observation;
     return Object.freeze({
@@ -379,7 +403,7 @@ export class MainWireScientificSessionV1 {
       release.ref,
       dependencies,
       cold.acceptedState,
-      coldObservation(cold),
+      coldObservation(release.ref, cold),
     );
   }
 }
@@ -432,6 +456,7 @@ function buildFixedAssemblyDependencies(): FixedAssemblyDependencies {
 }
 
 function coldObservation(
+  releaseRef: SimulationReleaseRef,
   cold: MainWireFiveWallNonCoronaryColdResultV1<MechanicsState>,
 ): MainWireScientificSessionObservationV1 {
   const state = cold.acceptedState;
@@ -440,6 +465,7 @@ function coldObservation(
   return Object.freeze({
     observationId: "main-wire-scientific-session-observation-v1" as const,
     sessionId: MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID,
+    releaseRef: copyReleaseRef(releaseRef),
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
     source: "cold-initialization" as const,
@@ -478,12 +504,14 @@ function coldObservation(
 }
 
 function acceptedStepObservation(
+  releaseRef: SimulationReleaseRef,
   sample: MainWireNormalAdultFiveWallDiagnosticSampleV2,
   revision: number,
 ): MainWireScientificSessionObservationV1 {
   return Object.freeze({
     observationId: "main-wire-scientific-session-observation-v1" as const,
     sessionId: MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID,
+    releaseRef: copyReleaseRef(releaseRef),
     revision,
     acceptedTimeSec: sample.timeSec,
     source: "accepted-step" as const,
@@ -522,11 +550,13 @@ function acceptedStepObservation(
 }
 
 function restoredObservation(
+  releaseRef: SimulationReleaseRef,
   state: AcceptedState,
 ): MainWireScientificSessionObservationV1 {
   return Object.freeze({
     observationId: "main-wire-scientific-session-observation-v1" as const,
     sessionId: MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID,
+    releaseRef: copyReleaseRef(releaseRef),
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
     source: "exact-checkpoint-restore" as const,
@@ -644,6 +674,99 @@ function assertSessionStateNotPromoted(
     || current.revision !== before.revision
     || current.acceptedTimeSec !== before.acceptedTimeSec
   ) throw new Error("failed scientific step promoted session state");
+}
+
+function assertObservationMatchesAcceptedState(
+  releaseRef: SimulationReleaseRef,
+  state: AcceptedState,
+  observation: MainWireScientificSessionObservationV1,
+): void {
+  if (!sameSimulationReleaseRef(releaseRef, observation.releaseRef)) {
+    throw new Error("observation release identity mismatch");
+  }
+  if (
+    observation.revision !== state.revision
+    || observation.acceptedTimeSec !== state.acceptedTimeSec
+  ) throw new Error("observation accepted-state identity mismatch");
+  if (!Number.isSafeInteger(observation.revision) || observation.revision < 0) {
+    throw new Error("observation revision must be a non-negative safe integer");
+  }
+  requireFiniteObservationValue(
+    observation.acceptedTimeSec,
+    "observation.acceptedTimeSec",
+  );
+  for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
+    const value = observation.chamber[chamber];
+    requireFiniteObservationValue(value.volumeMl, `${chamber}.volumeMl`);
+    if (!(value.volumeMl > 0)) throw new Error(`${chamber}.volumeMl must be positive`);
+    if (value.volumeMl !== state.circulation.nodeVolumesMl[chamber]) {
+      throw new Error(`${chamber}.volumeMl does not match accepted state`);
+    }
+    assertAvailableObservationValue(
+      value.absolutePressureMmHg,
+      value.pressureAvailability,
+      `${chamber}.absolutePressureMmHg`,
+    );
+    assertAvailableObservationValue(
+      value.transmuralPressureMmHg,
+      value.pressureAvailability,
+      `${chamber}.transmuralPressureMmHg`,
+    );
+  }
+  for (const node of ["Ao", "PA", "PVein"] as const) {
+    const value = observation.vascularPressure[node];
+    assertAvailableObservationValue(
+      value.absolutePressureMmHg,
+      value.pressureAvailability,
+      `${node}.absolutePressureMmHg`,
+    );
+  }
+  for (const valve of ["MV", "AoV", "TV", "PV"] as const) {
+    const value = observation.valve[valve];
+    requireFiniteObservationValue(
+      value.openingFraction01,
+      `${valve}.openingFraction01`,
+    );
+    if (value.openingFraction01 < 0 || value.openingFraction01 > 1) {
+      throw new Error(`${valve}.openingFraction01 must be within [0, 1]`);
+    }
+    if (
+      value.openingFraction01
+        !== state.circulation.valveStates[valve].leafletOpeningFraction01
+    ) throw new Error(`${valve}.openingFraction01 does not match accepted state`);
+    assertAvailableObservationValue(
+      value.flowMlPerSec,
+      value.flowAvailability,
+      `${valve}.flowMlPerSec`,
+    );
+  }
+  assertAvailableObservationValue(
+    observation.pulmonaryVenousFlowMlPerSec,
+    observation.pulmonaryVenousFlowAvailability,
+    "pulmonaryVenousFlowMlPerSec",
+  );
+  for (const [name, value] of Object.entries(observation.diagnostics)) {
+    if (value !== null) requireFiniteObservationValue(value, `diagnostics.${name}`);
+  }
+}
+
+function assertAvailableObservationValue(
+  value: number | null,
+  availability: MainWireScientificSessionSignalAvailabilityV1,
+  label: string,
+): void {
+  if (availability === "available") {
+    if (value === null) throw new Error(`${label} is available but null`);
+    requireFiniteObservationValue(value, label);
+    return;
+  }
+  if (value !== null) {
+    throw new Error(`${label} is unevaluated but carries a value`);
+  }
+}
+
+function requireFiniteObservationValue(value: number, label: string): void {
+  if (!Number.isFinite(value)) throw new Error(`${label} must be finite`);
 }
 
 function chamberRecord<T>(

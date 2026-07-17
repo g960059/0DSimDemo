@@ -56,6 +56,7 @@ describe("main-wire scientific observable registry V1", () => {
       .toMatchObject({
         unavailableValuePolicy: "null-never-zero",
         availabilityAndQualityAreSeparate: true,
+        frameProvenance: "exact-simulation-release-ref-required",
       });
     expect(Object.isFrozen(MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1)).toBe(true);
     expect(MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1.every(Object.isFrozen))
@@ -71,6 +72,8 @@ describe("main-wire scientific observable registry V1", () => {
     expect(replay).toEqual(first);
     expect(replay).not.toBe(first);
     expect(first.registryId).toBe(MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID);
+    expect(first.releaseRef).toEqual(session.releaseRef);
+    expect(Object.isFrozen(first.releaseRef)).toBe(true);
     expect(first.schemaVersion)
       .toBe(MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION);
     expect(Object.keys(first.values)).toHaveLength(

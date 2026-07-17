@@ -2,6 +2,9 @@ import type {
   MainWireScientificSessionObservationV1,
   MainWireScientificSessionSignalAvailabilityV1,
 } from "@/engine/scientific/runtime/MainWireScientificSessionV1";
+import type {
+  SimulationReleaseRef,
+} from "@/engine/scientific/release";
 
 export const MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID =
   "main-wire-scientific-observable-registry-v1" as const;
@@ -126,6 +129,7 @@ export type MainWireScientificObservableFrameV1 = Readonly<{
   registryId: typeof MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID;
   schemaVersion:
     typeof MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION;
+  releaseRef: SimulationReleaseRef;
   sourceObservationId: MainWireScientificSessionObservationV1["observationId"];
   source: MainWireScientificSessionObservationV1["source"];
   revision: number;
@@ -146,6 +150,9 @@ export const MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_SNAPSHOT_V1 =
     catalog: MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1,
     unavailableValuePolicy: "null-never-zero" as const,
     availabilityAndQualityAreSeparate: true as const,
+    frameProvenance: "exact-simulation-release-ref-required" as const,
+    frameReplayPolicy:
+      "frame-is-a-release-bound-sample-run-artifact-also-requires-session-origin-and-command-ledger" as const,
   });
 
 /** Pure host-neutral projection; it never evaluates or feeds back into science. */
@@ -257,6 +264,7 @@ export function projectMainWireScientificObservationV1(
     registryId: MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID,
     schemaVersion:
       MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION,
+    releaseRef: Object.freeze({ ...observation.releaseRef }),
     sourceObservationId: observation.observationId,
     source: observation.source,
     revision: observation.revision,
