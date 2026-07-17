@@ -36,6 +36,9 @@ describe('scientific browser alpha entry V1', () => {
     expect(page).toContain('SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT');
     expect(page).toContain("plotEvidence: 'periodic-non-converged'");
     expect(page).toContain('These plots are not claimed as steady state.');
+    expect(page).toContain('the acquired endpoint was not independently reclassified');
+    expect(page).toContain('planScientificAlphaPostPeriod1CaptureV1');
+    expect(page).not.toContain('data-scientific-alpha-steady-plot');
     expect(page).toContain('requestInFlightRef.current');
     expect(page).toContain('<ScientificAlphaPvTrajectories');
     expect(page).toContain('<ScientificAlphaWaveforms');

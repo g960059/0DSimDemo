@@ -24,7 +24,7 @@ import {
   SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT,
   SCIENTIFIC_ALPHA_TERMINAL_WINDOW_SEC,
   appendBoundedScientificAlphaHistoryV1,
-  beginScientificAlphaTerminalBeatHistoryV1,
+  planScientificAlphaPostPeriod1CaptureV1,
   scientificAlphaPeriodicDirectiveV1,
   selectTerminalScientificAlphaHistoryV1,
 } from './scientificRuntimeAlphaHistoryV1';
@@ -218,17 +218,23 @@ export default function ScientificRuntimeAlphaPage() {
         );
         const settlingStillActive = runModeRef.current === 'settling-periodic';
 
-        if (directive === 'capture-period1-terminal-beat' && settlingStillActive) {
-          historyRef.current = beginScientificAlphaTerminalBeatHistoryV1(finalFrame);
-          terminalBeatChunksRemainingRef.current =
-            SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT;
-          beatTargetTimeSecRef.current =
-            finalFrame.acceptedTimeSec + SCIENTIFIC_ALPHA_CYCLE_LENGTH_SEC;
-          runModeRef.current = 'period1-terminal-beat';
+        if (directive === 'capture-period1-terminal-beat') {
+          const capturePlan = planScientificAlphaPostPeriod1CaptureV1(
+            finalFrame,
+            settlingStillActive,
+          );
+          historyRef.current = capturePlan.history;
+          terminalBeatChunksRemainingRef.current = capturePlan.remainingChunkCount;
+          beatTargetTimeSecRef.current = capturePlan.targetTimeSec;
+          runModeRef.current = capturePlan.continueImmediately
+            ? 'period1-terminal-beat'
+            : 'idle';
           setState((previous) => ({
             ...previous,
-            phase: 'running',
-            message: 'P1 convergence established. Acquiring exactly one clean terminal beat for the plots.',
+            phase: capturePlan.continueImmediately ? 'running' : 'paused',
+            message: capturePlan.continueImmediately
+              ? 'P1 convergence established at the source boundary. Acquiring exactly one following beat for the plots.'
+              : 'P1 convergence established at the source boundary. The following-beat acquisition is reserved and paused.',
             history: historyRef.current,
             simulationCommandCount: simulationCommandCountRef.current,
             periodicProgress,
@@ -255,9 +261,7 @@ export default function ScientificRuntimeAlphaPage() {
           setState((previous) => ({
             ...previous,
             phase: settlingStillActive ? 'running' : 'paused',
-            message: directive === 'capture-period1-terminal-beat'
-              ? 'P1 convergence detected; terminal-beat acquisition is paused and no steady-state plot is claimed yet.'
-              : settlingStillActive
+            message: settlingStillActive
                 ? `Periodic settling: completed beat ${payload.completedBeatCount}/${payload.executionProtocol.maximumBeatCount}.`
                 : `Paused between periodic beats after beat ${payload.completedBeatCount}.`,
             history: historyRef.current,
@@ -308,7 +312,7 @@ export default function ScientificRuntimeAlphaPage() {
           setState((previous) => ({
             ...previous,
             phase: 'ready',
-            message: 'P1-converged terminal beat acquired; plots contain exactly one steady beat.',
+            message: 'One complete beat immediately following the P1-classified source boundary was acquired.',
             history: historyRef.current,
             simulationCommandCount: simulationCommandCountRef.current,
             plotEvidence: 'period1-terminal-beat',
@@ -494,7 +498,7 @@ export default function ScientificRuntimeAlphaPage() {
       setState((previous) => ({
         ...previous,
         phase: 'running',
-        message: 'Resuming the bounded clean terminal-beat acquisition.',
+        message: 'Resuming the bounded post-P1 beat acquisition.',
       }));
       pumpRef.current(generationRef.current);
       return;
@@ -620,7 +624,10 @@ function ReadyPanel({
 }>) {
   const frame = state.history.at(-1);
   if (frame === undefined) return null;
-  const terminalFrames = selectTerminalScientificAlphaHistoryV1(state.history);
+  const postPeriod1Beat = state.plotEvidence === 'period1-terminal-beat';
+  const terminalFrames = postPeriod1Beat
+    ? state.history
+    : selectTerminalScientificAlphaHistoryV1(state.history);
   const values = frame.values;
   const chamberRows = (['LA', 'RA', 'LV', 'RV'] as const).map((chamber) => ({
     chamber,
@@ -630,13 +637,12 @@ function ReadyPanel({
   const running = state.phase === 'running';
   const terminalBeatPaused = state.plotEvidence === 'period1-terminal-acquiring'
     && !running;
-  const steadyTerminalBeat = state.plotEvidence === 'period1-terminal-beat';
 
   return (
     <div
       className="space-y-7"
       data-testid="scientific-alpha-ready"
-      data-scientific-alpha-steady-plot={steadyTerminalBeat ? 'true' : 'false'}
+      data-scientific-alpha-plot-evidence={state.plotEvidence}
     >
       <StatusPanel
         tone={state.phase === 'failed' ? 'failed' : running ? 'running' : 'ready'}
@@ -644,8 +650,8 @@ function ReadyPanel({
           ? 'Scientific Worker failed closed'
           : state.plotEvidence === 'periodic-non-converged'
             ? 'Periodic result is non-converged'
-            : steadyTerminalBeat
-              ? 'P1 terminal beat ready'
+            : postPeriod1Beat
+              ? 'Post-P1 beat ready'
               : running
                 ? 'Scientific Worker running'
                 : 'Scientific Worker ready'}
@@ -750,13 +756,13 @@ function ReadyPanel({
       </div>
 
       <div
-        className={steadyTerminalBeat
+        className={postPeriod1Beat
           ? 'rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100'
           : 'rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100'}
         data-testid="scientific-alpha-plot-provenance"
       >
-        {steadyTerminalBeat
-          ? 'Steady-state evidence: exactly one post-convergence P1 terminal beat.'
+        {postPeriod1Beat
+          ? 'Provenance: one beat acquired immediately after a P1-classified source boundary; the acquired endpoint was not independently reclassified.'
           : 'These plots are not claimed as steady state.'}
       </div>
 
@@ -892,7 +898,7 @@ function alphaPlotEvidenceLabel(evidence: AlphaPlotEvidence): string {
     case 'periodic-settling': return 'Periodic settling — not steady';
     case 'periodic-non-converged': return 'Periodic non-converged — not steady';
     case 'period1-terminal-acquiring': return 'P1 found; terminal beat incomplete';
-    case 'period1-terminal-beat': return 'P1-converged terminal beat';
+    case 'period1-terminal-beat': return 'Post-P1 captured beat — source boundary classified';
   }
 }
 

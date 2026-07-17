@@ -29,6 +29,13 @@ export type ScientificAlphaPlotPointV1 = Readonly<{
   y: number;
 }>;
 
+export type ScientificAlphaPostPeriod1CapturePlanV1 = Readonly<{
+  history: readonly MainWireScientificObservableFrameV1[];
+  remainingChunkCount: number;
+  targetTimeSec: number;
+  continueImmediately: boolean;
+}>;
+
 /**
  * Interpret the release-bound periodic result without ever promoting P2 or a
  * maximum-beat stop to a steady-state claim. Inconsistent Worker payloads fail
@@ -52,6 +59,24 @@ export function beginScientificAlphaTerminalBeatHistoryV1(
   anchor: MainWireScientificObservableFrameV1,
 ): readonly MainWireScientificObservableFrameV1[] {
   return Object.freeze([anchor]);
+}
+
+/**
+ * Reserve the complete post-P1 waveform acquisition as one atomic UI
+ * transition. The plan is created even when Pause won the race with the
+ * in-flight settlement response, so Resume never needs another settlement
+ * command or a second P1 decision.
+ */
+export function planScientificAlphaPostPeriod1CaptureV1(
+  anchor: MainWireScientificObservableFrameV1,
+  continueImmediately: boolean,
+): ScientificAlphaPostPeriod1CapturePlanV1 {
+  return Object.freeze({
+    history: beginScientificAlphaTerminalBeatHistoryV1(anchor),
+    remainingChunkCount: SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT,
+    targetTimeSec: anchor.acceptedTimeSec + SCIENTIFIC_ALPHA_CYCLE_LENGTH_SEC,
+    continueImmediately,
+  });
 }
 
 /**
@@ -105,7 +130,7 @@ export function selectTerminalScientificAlphaHistoryV1(
   }
   const finalTimeSec = history.at(-1)?.acceptedTimeSec;
   if (finalTimeSec === undefined) return Object.freeze([]);
-  const firstIncludedTimeSec = finalTimeSec - durationSec - 1e-12;
+  const firstIncludedTimeSec = finalTimeSec - durationSec - 1e-9;
   const firstIndex = history.findIndex(
     ({ acceptedTimeSec }) => acceptedTimeSec >= firstIncludedTimeSec,
   );

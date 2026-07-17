@@ -9,6 +9,7 @@ import {
 import {
   appendBoundedScientificAlphaHistoryV1,
   beginScientificAlphaTerminalBeatHistoryV1,
+  planScientificAlphaPostPeriod1CaptureV1,
   SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT,
   scientificAlphaPlotDomainV1,
   scientificAlphaPeriodicDirectiveV1,
@@ -60,6 +61,16 @@ describe('scientific browser alpha viewer V1', () => {
     expect(selectTerminalScientificAlphaHistoryV1(terminal)).toEqual(terminal);
   });
 
+  it('reserves the full post-P1 capture when Pause wins the in-flight response race', () => {
+    const anchor = frame(13_000, 26);
+    const pausedPlan = planScientificAlphaPostPeriod1CaptureV1(anchor, false);
+
+    expect(pausedPlan.continueImmediately).toBe(false);
+    expect(pausedPlan.history).toEqual([anchor]);
+    expect(pausedPlan.remainingChunkCount).toBe(125);
+    expect(pausedPlan.targetTimeSec).toBe(27);
+  });
+
   it('retains a bounded monotone frame history without using the fixed observation id as a key', () => {
     const frames = [1, 2, 3, 4, 5].map((revision) =>
       frame(revision, revision * 0.002));
@@ -104,6 +115,15 @@ describe('scientific browser alpha viewer V1', () => {
       'valve.MV.flow',
     ).map(({ x }) => x)).toEqual([0, 0.5, 0.5020000000000007]);
     expect(terminal.at(-1)?.acceptedTimeSec).toBe(11.002);
+  });
+
+  it('retains the same-phase anchor across accepted-time accumulation tolerance', () => {
+    const history = [
+      frame(1, 26),
+      frame(501, 27.0000000005),
+    ];
+
+    expect(selectTerminalScientificAlphaHistoryV1(history, 1)).toEqual(history);
   });
 
   it('drops unavailable paired PV samples instead of plotting invented zeros', () => {
