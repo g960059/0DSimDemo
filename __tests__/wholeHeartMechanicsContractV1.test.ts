@@ -52,6 +52,14 @@ describe("whole-heart mechanics transaction contract v1", () => {
     expect(highLv.baseRevision).toBe(0);
     expect(highLv.transmuralPressuresMmHg.LA)
       .not.toBe(lowLv.transmuralPressuresMmHg.LA);
+    expect(highLv.transmuralPressureVolumeTangentMmHgPerMl)
+      .toEqual(testPressureVolumeTangent());
+    expect(Object.isFrozen(
+      highLv.transmuralPressureVolumeTangentMmHgPerMl,
+    )).toBe(true);
+    expect(Object.isFrozen(
+      highLv.transmuralPressureVolumeTangentMmHgPerMl!.LV,
+    )).toBe(true);
     expect(accepted.revision).toBe(0);
     expect(accepted.materialState.landState[0]).toBe(originalLand0);
     expect(providerCallCount(provider)).toEqual({ cold: 1, trial: 2 });
@@ -141,6 +149,29 @@ describe("whole-heart mechanics transaction contract v1", () => {
       "stateSchemaVersion",
     ]);
   });
+
+  it("rejects a non-finite optional pressure-volume tangent", () => {
+    const provider = testProvider();
+    const accepted = coldStart(provider).acceptedState;
+    const invalidProvider: TestProvider = {
+      ...provider,
+      evaluateTrial: (input) => {
+        const evaluated = provider.evaluateTrial(input);
+        return {
+          ...evaluated,
+          transmuralPressureVolumeTangentMmHgPerMl: {
+            ...testPressureVolumeTangent(),
+            LV: { ...testPressureVolumeTangent().LV, RV: Number.NaN },
+          },
+        };
+      },
+    };
+    expect(() => trial(
+      invalidProvider,
+      accepted,
+      { LA: 70, LV: 125, RA: 65, RV: 110 },
+    )).toThrow(/LV\.RV must be finite/);
+  });
 });
 
 type TestProvider = WholeHeartMechanicsProviderV1<MaterialState, DrivingInputs> & {
@@ -206,6 +237,8 @@ function testProvider(): TestProvider {
           candidateVolumesMl,
           materialState.longAxisCoordinate,
         ),
+        transmuralPressureVolumeTangentMmHgPerMl:
+          testPressureVolumeTangent(),
         diagnostics: healthyDiagnostics(1),
       };
     },
@@ -249,6 +282,15 @@ function pressures(
     RA: 0.05 * volumes.RA + 0.001 * total,
     RV: 0.2 * volumes.RV + 0.02 * volumes.LV,
   };
+}
+
+function testPressureVolumeTangent() {
+  return {
+    LA: { LA: 0.08, LV: 0.002, RA: 0.001, RV: 0.001 },
+    LV: { LA: 0.001, LV: 0.799, RA: 0, RV: 0.02 },
+    RA: { LA: 0.001, LV: 0.001, RA: 0.051, RV: 0.001 },
+    RV: { LA: 0, LV: 0.02, RA: 0, RV: 0.2 },
+  } as const;
 }
 
 function healthyDiagnostics(iterationCount: number): WholeHeartMechanicsDiagnosticsV1 {

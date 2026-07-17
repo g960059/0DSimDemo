@@ -21,6 +21,7 @@ import {
   initializeWholeHeartMechanicsColdV1,
   restoreWholeHeartMechanicsStateV1,
   type WholeHeartMechanicsChamberValuesV1,
+  type WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
   type WholeHeartMechanicsSerializableValueV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import {
@@ -156,13 +157,25 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       .koiterBendingApplied).toBe(false);
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
       .trialMaterialLinearization)
-      .toBe("exact-one-step-BE-consistent-material-tangent");
+      .toBe(
+        "smooth-branch-exact-one-step-BE-tangent-with-declared-Clarke-midpoints",
+      );
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
       .trialGeometryLinearization)
       .toBe("central-finite-difference-with-center-material-tangent");
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
       .coldOrMissingTangentFallback)
       .toBe("full-constitutive-central-finite-difference");
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      .trialTransmuralPressureVolumeTangent)
+      .toBe("center-material-consistent-four-chamber-Schur-complement");
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      .trialTransmuralPressureVolumeTangentUnits).toBe("mmHg-per-mL");
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      .trialTransmuralPressureVolumeTangentIncludesPericardium).toBe(false);
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      .pressureVolumeTangentUnavailableWhen)
+      .toBe("cold-or-any-wall-material-tangent-missing");
   });
 
   it("uses a smaller same-branch step when the nominal central difference crosses a kink", () => {
@@ -333,6 +346,40 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
         shadow.transmuralPressuresMmHg[chamber],
       )).toBeLessThan(2e-8);
     }
+  });
+
+  it("returns a symmetric four-chamber mmHg/mL tangent matching full constitutive re-solves", () => {
+    const provider = createProvider("pressure-tangent", true);
+    const cold = coldStart(provider);
+    const volumes = candidateVolumes();
+    const drive = activeDrive();
+    const center = trial(provider, cold.acceptedState, volumes, drive);
+    const tangent = center.transmuralPressureVolumeTangentMmHgPerMl;
+    const shadow = fullResolvedPressureVolumeTangent(
+      provider,
+      cold.acceptedState,
+      volumes,
+      drive,
+    );
+
+    expect(cold.transmuralPressureVolumeTangentMmHgPerMl).toBeUndefined();
+    expect(tangent).toBeDefined();
+    expect(maximumPressureTangentAbsoluteError(tangent!, shadow))
+      .toBeLessThan(5e-6);
+    expect(maximumPressureTangentAntisymmetry(tangent!)).toBeLessThan(1e-8);
+    expect(Math.abs(tangent!.LV.RV)).toBeGreaterThan(1e-5);
+    for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
+      expect(tangent![chamber][chamber]).toBeGreaterThan(0);
+    }
+
+    const missingTangentProvider = createProvider("missing-tangent", false);
+    const missingCold = coldStart(missingTangentProvider);
+    expect(trial(
+      missingTangentProvider,
+      missingCold.acceptedState,
+      volumes,
+      drive,
+    ).transmuralPressureVolumeTangentMmHgPerMl).toBeUndefined();
   });
 
 });
@@ -662,4 +709,45 @@ function maximumMatrixRelativeError(
   return Math.max(...left.flatMap((row, rowIndex) =>
     row.map((value, columnIndex) =>
       relativeError(value, right[rowIndex]![columnIndex]!))));
+}
+
+function fullResolvedPressureVolumeTangent(
+  provider: ReturnType<typeof createProvider>,
+  acceptedState: ReturnType<typeof coldStart>["acceptedState"],
+  centerVolumesMl: WholeHeartMechanicsChamberValuesV1,
+  drive: MainWireFiveWallFreeCalciumDriveV1,
+): WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1 {
+  const chambers = ["LA", "LV", "RA", "RV"] as const;
+  const stepMl = 0.001;
+  const rows = Object.fromEntries(chambers.map((row) => [
+    row,
+    Object.fromEntries(chambers.map((column) => {
+      const lower = { ...centerVolumesMl, [column]: centerVolumesMl[column] - stepMl };
+      const upper = { ...centerVolumesMl, [column]: centerVolumesMl[column] + stepMl };
+      const lowerTrial = trial(provider, acceptedState, lower, drive);
+      const upperTrial = trial(provider, acceptedState, upper, drive);
+      return [column, (
+        upperTrial.transmuralPressuresMmHg[row]
+        - lowerTrial.transmuralPressuresMmHg[row]
+      ) / (2 * stepMl)];
+    })),
+  ]));
+  return rows as WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
+}
+
+function maximumPressureTangentAbsoluteError(
+  left: WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
+  right: WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
+): number {
+  const chambers = ["LA", "LV", "RA", "RV"] as const;
+  return Math.max(...chambers.flatMap((row) => chambers.map((column) =>
+    Math.abs(left[row][column] - right[row][column]))));
+}
+
+function maximumPressureTangentAntisymmetry(
+  tangent: WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
+): number {
+  const chambers = ["LA", "LV", "RA", "RV"] as const;
+  return Math.max(...chambers.flatMap((row) => chambers.map((column) =>
+    Math.abs(tangent[row][column] - tangent[column][row]))));
 }

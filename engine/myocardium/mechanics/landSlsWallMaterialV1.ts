@@ -26,6 +26,8 @@ export const LAND_SLS_WALL_MATERIAL_CLAIM_V1 = Object.freeze({
   exactZeroViabilityAllowed: true as const,
   equilibriumPassiveLawOwnedHere: false as const,
   phasePressureOrFlowShapeInput: false as const,
+  algorithmicTangent:
+    "smooth-branch-exact-one-step-BE-with-Clarke-midpoint-at-zetaS-0-and-minus-1" as const,
 });
 
 const DEFAULT_LAND_STATE = Object.freeze([0.18, 0.22, 0.04, 0.02, 0, 0] as const);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import protocolDescriptor from "@/data/myocardium/protocols/land2017-phase1c-source-protocols.json";
 import {
   LAND2017_ACTIVE_STIFFNESS_PROVENANCE,
+  LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
   computeLand2017ActiveStiffnessPa,
   computeLand2017AlgorithmicTangentPa,
   computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep,
@@ -121,6 +122,66 @@ describe("myocardium Phase 1C Land protocol closure", () => {
         epsilonStrain: 1e-6,
       });
       expect(relativeError(consistent, shadow)).toBeLessThan(2e-6);
+    }
+  });
+
+  it("uses the declared centered semismooth tangent at both zetaS recruitment kinks", () => {
+    const parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
+    const dtSec = 0.0002;
+    const cases = [
+      {
+        expectedSolvedZetaS: 0,
+        previousZetaS: 0,
+      },
+      {
+        expectedSolvedZetaS: -1,
+        previousZetaS: -(1 + dtSec * parameterSet.derived.cs),
+      },
+    ] as const;
+    for (const testCase of cases) {
+      const previous = Float64Array.from([
+        0.55,
+        0.12,
+        0.08,
+        0.04,
+        0,
+        testCase.previousZetaS,
+      ]);
+      const input: LandStepInput = {
+        freeCalciumUM: 0.92,
+        previousFiberEngineeringStrain: 0.02,
+        stageFiberEngineeringStrain: 0.02,
+        dtSec,
+        stage: { scheme: "BE", stageIndex: 0 },
+      };
+      const solved = solveLand2017BackwardEulerStep(
+        previous,
+        input,
+        { residualTolerance: 1e-12, maxIterations: 20 },
+        parameterSet,
+      );
+      expect(solved.ok).toBe(true);
+      expect(solved.nextState[5]).toBeCloseTo(
+        testCase.expectedSolvedZetaS,
+        13,
+      );
+      const consistent =
+        computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+          solved.nextState,
+          input,
+          parameterSet,
+        );
+      const centeredShadow = computeLand2017AlgorithmicTangentPa(
+        previous,
+        input,
+        {
+          epsilonStrain: 1e-7,
+          residualTolerance: 1e-12,
+          maxIterations: 20,
+        },
+        parameterSet,
+      );
+      expect(relativeError(consistent, centeredShadow)).toBeLessThan(2e-6);
     }
   });
 

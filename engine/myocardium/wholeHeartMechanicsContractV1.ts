@@ -36,6 +36,18 @@ export type WholeHeartMechanicsChamberValuesV1 = {
   readonly RV: number;
 };
 
+/**
+ * Row = transmural chamber pressure, column = chamber blood volume.
+ * Every entry is expressed in mmHg/mL. External/common pericardial pressure is
+ * outside this mechanics contract and must not be included here.
+ */
+export type WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1 = Readonly<{
+  LA: WholeHeartMechanicsChamberValuesV1;
+  LV: WholeHeartMechanicsChamberValuesV1;
+  RA: WholeHeartMechanicsChamberValuesV1;
+  RV: WholeHeartMechanicsChamberValuesV1;
+}>;
+
 export type WholeHeartMechanicsSerializableValueV1 =
   | null
   | boolean
@@ -85,6 +97,8 @@ export type WholeHeartMechanicsColdInputV1<TDrive> = {
 export type WholeHeartMechanicsProviderEvaluationV1<TState> = {
   readonly materialState: TState;
   readonly transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
+  readonly transmuralPressureVolumeTangentMmHgPerMl?:
+    WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
   readonly diagnostics: WholeHeartMechanicsDiagnosticsV1;
 };
 
@@ -121,6 +135,8 @@ export type WholeHeartMechanicsProviderV1<TState, TDrive> = {
 export type WholeHeartMechanicsColdResultV1<TState> = {
   readonly acceptedState: WholeHeartMechanicsAcceptedStateV1<TState>;
   readonly transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
+  readonly transmuralPressureVolumeTangentMmHgPerMl?:
+    WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
   readonly diagnostics: WholeHeartMechanicsDiagnosticsV1;
 };
 
@@ -138,6 +154,8 @@ export type WholeHeartMechanicsTrialV1<TState> = {
   readonly candidateMaterialState: TState;
   readonly candidateMaterialStateFingerprint: string;
   readonly transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
+  readonly transmuralPressureVolumeTangentMmHgPerMl?:
+    WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
   readonly diagnostics: WholeHeartMechanicsDiagnosticsV1;
 };
 
@@ -174,6 +192,14 @@ export function initializeWholeHeartMechanicsColdV1<TState, TDrive>(
       materialState: result.materialState,
     }),
     transmuralPressuresMmHg: copyChambers(result.transmuralPressuresMmHg),
+    ...(result.transmuralPressureVolumeTangentMmHgPerMl === undefined
+      ? {}
+      : {
+        transmuralPressureVolumeTangentMmHgPerMl:
+          copyPressureVolumeTangent(
+            result.transmuralPressureVolumeTangentMmHgPerMl,
+          ),
+      }),
     diagnostics: copyDiagnostics(result.diagnostics),
   });
 }
@@ -221,6 +247,14 @@ export function evaluateWholeHeartMechanicsTrialV1<TState, TDrive>(
     candidateMaterialState,
     candidateMaterialStateFingerprint,
     transmuralPressuresMmHg: copyChambers(result.transmuralPressuresMmHg),
+    ...(result.transmuralPressureVolumeTangentMmHgPerMl === undefined
+      ? {}
+      : {
+        transmuralPressureVolumeTangentMmHgPerMl:
+          copyPressureVolumeTangent(
+            result.transmuralPressureVolumeTangentMmHgPerMl,
+          ),
+      }),
     diagnostics: copyDiagnostics(result.diagnostics),
   });
 }
@@ -363,6 +397,12 @@ function assertReady<TState>(
   label: string,
 ): void {
   validateDiagnostics(result.diagnostics);
+  if (result.transmuralPressureVolumeTangentMmHgPerMl !== undefined) {
+    validatePressureVolumeTangent(
+      result.transmuralPressureVolumeTangentMmHgPerMl,
+      "transmuralPressureVolumeTangentMmHgPerMl",
+    );
+  }
   if (
     !result.diagnostics.converged ||
     !result.diagnostics.finite ||
@@ -516,6 +556,41 @@ function copyChambers(
   value: WholeHeartMechanicsChamberValuesV1,
 ): WholeHeartMechanicsChamberValuesV1 {
   return Object.freeze({ LA: value.LA, LV: value.LV, RA: value.RA, RV: value.RV });
+}
+
+function copyPressureVolumeTangent(
+  value: WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
+): WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1 {
+  validatePressureVolumeTangent(
+    value,
+    "transmuralPressureVolumeTangentMmHgPerMl",
+  );
+  return Object.freeze({
+    LA: copyChambers(value.LA),
+    LV: copyChambers(value.LV),
+    RA: copyChambers(value.RA),
+    RV: copyChambers(value.RV),
+  });
+}
+
+function validatePressureVolumeTangent(
+  value: WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
+  label: string,
+): void {
+  if (!value || typeof value !== "object") throw new Error(`${label} is required`);
+  for (const pressureChamber of ["LA", "LV", "RA", "RV"] as const) {
+    const row = value[pressureChamber];
+    if (!row || typeof row !== "object") {
+      throw new Error(`${label}.${pressureChamber} is required`);
+    }
+    for (const volumeChamber of ["LA", "LV", "RA", "RV"] as const) {
+      if (!Number.isFinite(row[volumeChamber])) {
+        throw new Error(
+          `${label}.${pressureChamber}.${volumeChamber} must be finite`,
+        );
+      }
+    }
+  }
 }
 
 function copyDiagnostics(

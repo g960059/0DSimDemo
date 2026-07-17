@@ -26,9 +26,11 @@ export type Land2017TangentOptions = Land2017StepSolveOptions & {
 
 /**
  * Consistent derivative of the converged BE active nominal stress with
- * respect to the stage engineering strain. This is implicit differentiation
- * of the same six-state residual used by the local Newton solve, not a second
- * constitutive solve.
+ * respect to the stage engineering strain. Smooth branches use exact implicit
+ * differentiation of the same six-state residual used by the local Newton
+ * solve. At zetaS=0 and zetaS=-1, where gamma_su is nonsmooth, the declared
+ * centered Clarke-midpoint selection matches the consuming centered geometry
+ * linearization without changing the local Newton active-branch Jacobian.
  */
 export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
   solvedNextState: ArrayLike<number>,
@@ -44,6 +46,12 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
   // correspondence inside the API prevents callers from accidentally pairing
   // a state with a Jacobian from another local solve.
   const jacobian = writeLand2017BackwardEulerResidualJacobian(
+    solvedNextState,
+    input,
+    parameterSet,
+  );
+  applyCentralSemismoothLandJacobianSelection(
+    jacobian,
     solvedNextState,
     input,
     parameterSet,
@@ -93,6 +101,35 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
     throw new Error("Land 2017 consistent tangent is non-finite");
   }
   return tangentPa;
+}
+
+/**
+ * At the two one-sided gamma_su recruitment corners, the classical derivative
+ * is undefined. The material tangent is consumed by a centered geometry
+ * linearization, so use the midpoint of the two valid one-sided derivatives.
+ * Away from those exact corners the Newton and tangent Jacobians are identical.
+ */
+function applyCentralSemismoothLandJacobianSelection(
+  jacobian: Float64Array,
+  solvedNextState: ArrayLike<number>,
+  input: LandStepInput,
+  parameterSet: Land2017EquationParameters,
+): void {
+  const zetaS = solvedNextState[LAND2017_STATE_INDEX.zetaS];
+  let midpointGammaDerivative = 0;
+  const kinkTolerance = 64 * Number.EPSILON;
+  if (Math.abs(zetaS) <= kinkTolerance) {
+    midpointGammaDerivative = 0.5 * parameterSet.values.gammaS;
+  }
+  if (Math.abs(zetaS + 1) <= kinkTolerance) {
+    midpointGammaDerivative = -0.5 * parameterSet.values.gammaS;
+  }
+  if (midpointGammaDerivative === 0) return;
+  const S = solvedNextState[LAND2017_STATE_INDEX.S];
+  jacobian[
+    LAND2017_STATE_INDEX.S * LAND2017_STATE_SIZE
+    + LAND2017_STATE_INDEX.zetaS
+  ] += input.dtSec * S * midpointGammaDerivative;
 }
 
 export function computeLand2017AlgorithmicTangentPa(
