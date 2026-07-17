@@ -17,12 +17,16 @@ import type {
   LandSlsWallMaterialParamsV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
 import {
-  assertCompiledMoyer2015AtrialEquibiaxialPassiveV1,
-  compileMoyer2015AtrialEquibiaxialPassiveV1,
-  evaluateMoyer2015AtrialEquibiaxialPassiveV1,
-  MOYER_2015_NORMAL_HUMAN_LA_EQUIBIAXIAL_PASSIVE_PRIOR_V1,
   type CompiledMoyer2015AtrialEquibiaxialPassiveV1,
 } from "@/engine/myocardium/mechanics/moyer2015AtrialEquibiaxialPassiveV1";
+import {
+  NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1,
+  assertNormalAdultAtrialPassiveConstructionV1,
+  evaluateNormalAdultAtrialPassivePressureReplayFromBundleV1,
+  type NormalAdultAtrialConstructionV1,
+  type NormalAdultAtrialIdV1,
+  type NormalAdultAtrialPassivePressureReplayV1,
+} from "@/engine/myocardium/mechanics/normalAdultAtrialPassiveConstructionV1";
 import type {
   ParallelOneStateSlsParamsV1,
 } from "@/engine/myocardium/mechanics/parallelOneStateSlsV1";
@@ -55,30 +59,11 @@ export const NORMAL_ADULT_FIVE_WALL_PRIOR_CLAIM_V1 = Object.freeze({
 
 export type NormalAdultFiveWallIdV1 =
   (typeof NORMAL_ADULT_FIVE_WALL_PRIOR_CLAIM_V1.walls)[number];
-export type NormalAdultAtrialIdV1 = "LA" | "RA";
-
-export type NormalAdultAtrialConstructionV1 = Readonly<{
-  atriumId: NormalAdultAtrialIdV1;
-  cavityBloodVolumeMl: Readonly<{
-    maximum: number;
-    preA: number;
-    minimum: number;
-  }>;
-  wallMaterialVolumeMl: number;
-  inverseUnloadedReferenceCavityVolumeMl: number;
-  baseFiberLogStrain: Readonly<{
-    maximum: number;
-    preA: number;
-    minimum: number;
-  }>;
-  inverseUnloadingAnchor: Readonly<{
-    cavityBloodVolumeMl: number;
-    transmuralPressureMmHg: number;
-    pressureEvidenceBoundary: string;
-  }>;
-  patientFitPolicy:
-    "replace-volumes-and-wall-mass-from-imaging-and-reference-only-from-independent-pressure-volume-data";
-}>;
+export type {
+  NormalAdultAtrialConstructionV1,
+  NormalAdultAtrialIdV1,
+  NormalAdultAtrialPassivePressureReplayV1,
+} from "@/engine/myocardium/mechanics/normalAdultAtrialPassiveConstructionV1";
 
 export type NormalAdultFiveWallRecordV1<T> = Readonly<
   Record<NormalAdultFiveWallIdV1, T>
@@ -166,22 +151,6 @@ export type NormalAdultFiveWallPriorV1 = Readonly<{
   claim: typeof NORMAL_ADULT_FIVE_WALL_PRIOR_CLAIM_V1;
 }>;
 
-export type NormalAdultAtrialPassivePressureReplayV1 = Readonly<{
-  atriumId: NormalAdultAtrialIdV1;
-  cavityBloodVolumeMl: number;
-  wallMaterialVolumeMl: number;
-  referenceCavityBloodVolumeMl: number;
-  fiberLogStrain: number;
-  dFiberLogStrainDCavityVolumePerMl: number;
-  equilibriumKirchhoffStressPa: number;
-  storedEnergyJ: number;
-  transmuralPressurePa: number;
-  transmuralPressureMmHg: number;
-  pressureFormula: "V_wall*sigma*de/dV";
-  hiddenBloodVolumeMl: 0;
-}>;
-
-const PA_PER_MMHG = 133.322387415;
 const fixedPriorRegistry = new WeakSet<object>();
 
 const ATRIAL_LAND_PARAMETER_SET = cloneLandParameterSet(
@@ -192,11 +161,8 @@ const VENTRICULAR_LAND_PARAMETER_SET = cloneLandParameterSet(
   LAND2017_INTACT_HUMAN_37C_WHOLE_ORGAN_PARAMETER_SET_V1,
 );
 
-const ATRIAL_SLS_PARAMS: ParallelOneStateSlsParamsV1 = Object.freeze({
-  parameterSetId: "fixed-normal-atrial-fast-branch-sls-v1",
-  branchModulusPa: 5_947,
-  relaxationTimeSec: 0.3,
-});
+const ATRIAL_SLS_PARAMS: ParallelOneStateSlsParamsV1 =
+  NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.slsByAtrium.LA.derivedOnParams;
 
 const VENTRICULAR_SLS_PARAMS: ParallelOneStateSlsParamsV1 = Object.freeze({
   parameterSetId: "fixed-normal-ventricular-fast-branch-sls-v1",
@@ -231,43 +197,10 @@ export function evaluateNormalAdultAtrialPassivePressureReplayV1(
   cavityBloodVolumeMl: number,
 ): NormalAdultAtrialPassivePressureReplayV1 {
   assertNormalAdultFiveWallPriorV1(NORMAL_ADULT_FIVE_WALL_PRIOR_V1);
-  if (atriumId !== "LA" && atriumId !== "RA") {
-    throw new Error("atriumId must be LA or RA");
-  }
-  if (!Number.isFinite(cavityBloodVolumeMl) || cavityBloodVolumeMl < 0) {
-    throw new Error("cavityBloodVolumeMl must be finite and nonnegative");
-  }
-  const anatomy = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria[atriumId];
-  const wallMaterialVolumeMl = anatomy.wallMaterialVolumeMl;
-  const referenceCavityBloodVolumeMl =
-    anatomy.inverseUnloadedReferenceCavityVolumeMl;
-  const midwallVolumeMl = cavityBloodVolumeMl + 0.5 * wallMaterialVolumeMl;
-  const referenceMidwallVolumeMl =
-    referenceCavityBloodVolumeMl + 0.5 * wallMaterialVolumeMl;
-  const fiberLogStrain = Math.log(midwallVolumeMl / referenceMidwallVolumeMl) / 3;
-  const dFiberLogStrainDCavityVolumePerMl = 1 / (3 * midwallVolumeMl);
-  const material = evaluateMoyer2015AtrialEquibiaxialPassiveV1(
-    fiberLogStrain,
-    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.atrial.compiled,
-  );
-  const transmuralPressurePa = wallMaterialVolumeMl
-    * material.equilibriumKirchhoffStressPa
-    * dFiberLogStrainDCavityVolumePerMl;
-  return Object.freeze({
+  return evaluateNormalAdultAtrialPassivePressureReplayFromBundleV1(
     atriumId,
     cavityBloodVolumeMl,
-    wallMaterialVolumeMl,
-    referenceCavityBloodVolumeMl,
-    fiberLogStrain,
-    dFiberLogStrainDCavityVolumePerMl,
-    equilibriumKirchhoffStressPa: material.equilibriumKirchhoffStressPa,
-    storedEnergyJ:
-      material.storedEnergyDensityJPerM3 * wallMaterialVolumeMl * 1e-6,
-    transmuralPressurePa,
-    transmuralPressureMmHg: transmuralPressurePa / PA_PER_MMHG,
-    pressureFormula: "V_wall*sigma*de/dV" as const,
-    hiddenBloodVolumeMl: 0 as const,
-  });
+  );
 }
 
 export function normalAdultFiveWallPriorHashInputV1(
@@ -319,8 +252,8 @@ export function assertNormalAdultFiveWallPriorV1(
     || !fixedPriorRegistry.has(prior)
     || prior.priorId !== NORMAL_ADULT_FIVE_WALL_PRIOR_V1_ID
   ) throw new Error("five-wall prior must be the live immutable fixed prior");
-  assertCompiledMoyer2015AtrialEquibiaxialPassiveV1(
-    prior.passive.atrial.compiled,
+  assertNormalAdultAtrialPassiveConstructionV1(
+    NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1,
   );
   const expectedHash = stableHash(sanitizeForStableHash(
     normalAdultFiveWallPriorHashInputV1(prior),
@@ -331,30 +264,10 @@ export function assertNormalAdultFiveWallPriorV1(
 }
 
 function buildFixedPrior(): NormalAdultFiveWallPriorV1 {
-  const atria = Object.freeze({
-    LA: atrialConstruction({
-      atriumId: "LA",
-      maximumMl: 80.18,
-      preAMl: 57.95,
-      minimumMl: 35.72,
-      wallMaterialVolumeMl: 25.982905982906,
-      referenceCavityVolumeMl: 22.8900425619,
-      minimumPressureMmHg: 5,
-      pressureEvidenceBoundary:
-        "Moyer-human-LA-FE-filling-anchor-interpreted-as-transmural-at-zero-external-pressure",
-    }),
-    RA: atrialConstruction({
-      atriumId: "RA",
-      maximumMl: 98.04,
-      preAMl: 72.58,
-      minimumMl: 47.31,
-      wallMaterialVolumeMl: 23.399810066477,
-      referenceCavityVolumeMl: 32.5968711181,
-      minimumPressureMmHg: 3.5,
-      pressureEvidenceBoundary:
-        "control-x-descent-intracavitary-pressure-used-as-zero-external-pressure-construction-not-direct-transmural-measurement",
-    }),
-  });
+  assertNormalAdultAtrialPassiveConstructionV1(
+    NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1,
+  );
+  const atria = NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.atria;
   const wallGeometryParameters: TriSegWallRecordV1<TriSegWallGeometryParametersV1> =
     Object.freeze({
       LVFW: Object.freeze({
@@ -386,9 +299,8 @@ function buildFixedPrior(): NormalAdultFiveWallPriorV1 {
       throw new Error(`${wallId} fixed reference area does not replay lambda=1.1`);
     }
   }
-  const atrialPassive = compileMoyer2015AtrialEquibiaxialPassiveV1(
-    MOYER_2015_NORMAL_HUMAN_LA_EQUIBIAXIAL_PASSIVE_PRIOR_V1,
-  );
+  const atrialPassive =
+    NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.equilibriumPassive.compiled;
   const ventricularPassive = compileKlotzNormalCenterVentricularPassiveV1();
   const wallMaterialByWall = Object.freeze({
     LA: ATRIAL_WALL_MATERIAL,
@@ -505,45 +417,14 @@ function buildFixedPrior(): NormalAdultFiveWallPriorV1 {
   return prior;
 }
 
-function atrialConstruction(input: Readonly<{
-  atriumId: NormalAdultAtrialIdV1;
-  maximumMl: number;
-  preAMl: number;
-  minimumMl: number;
-  wallMaterialVolumeMl: number;
-  referenceCavityVolumeMl: number;
-  minimumPressureMmHg: number;
-  pressureEvidenceBoundary: string;
-}>): NormalAdultAtrialConstructionV1 {
-  const strain = (volumeMl: number) => Math.log(
-    (volumeMl + 0.5 * input.wallMaterialVolumeMl)
-    / (input.referenceCavityVolumeMl + 0.5 * input.wallMaterialVolumeMl),
-  ) / 3;
-  return deepFreeze({
-    atriumId: input.atriumId,
-    cavityBloodVolumeMl: {
-      maximum: input.maximumMl,
-      preA: input.preAMl,
-      minimum: input.minimumMl,
-    },
-    wallMaterialVolumeMl: input.wallMaterialVolumeMl,
-    inverseUnloadedReferenceCavityVolumeMl: input.referenceCavityVolumeMl,
-    baseFiberLogStrain: {
-      maximum: strain(input.maximumMl),
-      preA: strain(input.preAMl),
-      minimum: strain(input.minimumMl),
-    },
-    inverseUnloadingAnchor: {
-      cavityBloodVolumeMl: input.minimumMl,
-      transmuralPressureMmHg: input.minimumPressureMmHg,
-      pressureEvidenceBoundary: input.pressureEvidenceBoundary,
-    },
-    patientFitPolicy:
-      "replace-volumes-and-wall-mass-from-imaging-and-reference-only-from-independent-pressure-volume-data" as const,
-  });
-}
-
 function validateFixedConstruction(prior: NormalAdultFiveWallPriorV1): void {
+  if (
+    prior.anatomy.atria !== NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.atria
+    || prior.passive.atrial.compiled
+      !== NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.equilibriumPassive.compiled
+    || prior.sls.atrial
+      !== NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.slsByAtrium.LA.derivedOnParams
+  ) throw new Error("five-wall prior must re-export the atrial passive bundle");
   for (const material of [
     prior.active.atrialWallMaterial,
     prior.active.ventricularWallMaterial,

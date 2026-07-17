@@ -293,11 +293,16 @@ parallel SLSは一状態だけとする。beat-scaleの暫定priorは、healthy 
 単一Maxwell branchへ射影した
 
 $$
-E_v=0.149425\,K_{eq,ref},\qquad \tau_v=0.30\ \mathrm{s}
+G_1=0.13,\qquad
+r_v=\frac{G_1}{1-G_1},\qquad
+E_v=\operatorname{round}_{1\ \mathrm{Pa}}(r_vK_{eq,ref})=5947\ \mathrm{Pa},
+\qquad \tau_v=0.30\ \mathrm{s}
 $$
 
 である。これは種・壁をまたぐ外挿なので、固定ablationで独立したhysteresisと正の散逸へ寄与しない
 場合、$E_v$や$\tau_v$を探索せずstateごと削除する。2本目のMaxwell branchは追加しない。
+Moyer則、LA/RA geometry、inverse-unloaded volume、reference tangent、SLS導出と丸めpolicyの
+単一ownerは`mainwire-normal-adult-atrial-passive-construction-v1.ja.md`に定義する。
 
 `dt=2 ms`のcanonical paired reportでexact-off evidenceがあるのはLAだけである。後述する
 `dt=5 ms`の固定構造監査ではRA単独offと心室3壁一括offも評価するが、RAへhuman-LA材料を使うこと、

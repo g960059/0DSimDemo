@@ -15,6 +15,9 @@ import {
   type MainWireNormalAdultWallMaterialReadbackV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
+  NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1,
+} from "@/engine/myocardium/mechanics/normalAdultAtrialPassiveConstructionV1";
+import {
   checkpointWholeHeartMechanicsStateV1,
   commitWholeHeartMechanicsTrialV1,
   evaluateWholeHeartMechanicsTrialV1,
@@ -52,6 +55,11 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
         wallId === "LA" || wallId === "RA"
           ? "moyer-2015-atrial-equibiaxial-passive-v1"
           : "equilibrium-one-fiber-passive-log-strain-v1",
+      );
+      expect(wall.atrialPassiveConstructionIdentityHash).toBe(
+        wallId === "LA" || wallId === "RA"
+          ? NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.parameterIdentityHash
+          : null,
       );
       expect(wall.energyLedger.equilibriumPassiveStoredEnergyDensityJPerM3)
         .toBeGreaterThanOrEqual(0);
