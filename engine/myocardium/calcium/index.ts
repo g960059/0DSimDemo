@@ -37,3 +37,19 @@ export {
   type PrescribedCalciumProtocolSection,
   type PrescribedCalciumProtocolStatus,
 } from "@/engine/myocardium/calcium/protocols";
+export {
+  EXACT_EVENT_PRESCRIBED_CALCIUM_CLAIM_BOUNDARY_V1,
+  EXACT_EVENT_PRESCRIBED_CALCIUM_V1_ID,
+  advanceExactEventCalciumV1,
+  applyExactEventCalciumStimulusV1,
+  convertPeriodicBiexponentialToExactEventCalciumV1,
+  evaluateExactEventCalciumV1,
+  propagateExactEventCalciumV1,
+  zeroExactEventCalciumStateV1,
+  type ExactEventCalciumEvaluationV1,
+  type ExactEventCalciumEventV1,
+  type ExactEventCalciumParametersV1,
+  type ExactEventCalciumStateV1,
+  type PeriodicBiexponentialCalciumForExactEventConversionV1,
+  type PeriodicBiexponentialExactEventConversionV1,
+} from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
