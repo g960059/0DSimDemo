@@ -261,9 +261,11 @@ pre-fix failureを物理不安定性または現在のdt-halving blockerとは�
 2. 新しいmaterial state、AVPD state、LAA compartment、追加Maxwell branchを足さない。
 3. `dt=2 : 1 ms`の差を数値baselineとして保持するが、単一pairへformal pass gateや収束次数を後付けしない。
 4. SLS exact-offの意味は`dt=2 ms`固定ablationに限定し、V-loopの唯一のownerとはしない。
-5. A apexの左寄りとA-loopのdt差が残るため、shape fittingではなく、独立したatrial Ca/force-rise dataに基づく
-   atrial activation kineticsを一つの構造仮説として比較する。
-6. main-wire runtime、冠循環、弁、呼吸へ接続した後、PV S/D/Ar、LA volume envelope、A apexを再評価する。
+5. 独立human atrial Ca timingに基づく固定challengerを一回だけ比較する。その結果は
+   `mainwire-normal-adult-five-wall-atrial-calcium-timing-v1.ja.md`へ分離する。
+6. challengerが改善しなければactivation parameterを探索せず、main-wire circulation configuration snapshotと
+   閉ループoperating pointを次の構造ownerとして調べる。
+7. main-wire runtime、冠循環、弁、呼吸へ接続した後、PV S/D/Ar、LA volume envelope、A apexを再評価する。
 
 ## committed evidence
 

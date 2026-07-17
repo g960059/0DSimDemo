@@ -358,6 +358,14 @@ E/Aの`separated`はE/A window peak間のforward-flow valley診断で、弁閉�
 現在もA apexは左寄りで、aggregate pulmonary venous Ar reversalはほぼない。これらをSLS parameterや
 activation timingの形状fitだけで解消せず、独立Ca/force dataとmain-wire統合後のPV physiologyで再評価する。
 
+独立human atrial calcium biomarker timingから固定した一つのbiexponential challengerも、`dt=2 ms`の
+period-1 pairで棄却した。Ca振幅、AV delay、Land、SLS、弁、循環を固定してatrial rise/decay time constantだけを
+`12.5/300 ms`から`19.5/233 ms`へ変えると、V-loopは`3.435`から`2.998 mmHg mL`へ12.7%減少し、
+A/V面積比は`2.188`から`2.571`へ増加した。a-pressure peak前のbooster emptyingも`43.4%`から
+`45.8%`へ増えた。この候補を`dt=1 ms`やparameter scanへ進めず、現問題をactivation time constantだけの
+ownerとはしない。詳細は
+`docs/myocardium/verification/mainwire-normal-adult-five-wall-atrial-calcium-timing-v1.ja.md`に置く。
+
 ## main-wire接続の段階境界
 
 最初の閉ループtransactionはmain-wire node/edge定義から4心腔、体循環、肺循環を抽出するが、
