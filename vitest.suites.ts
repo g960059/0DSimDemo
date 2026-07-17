@@ -44,6 +44,7 @@ export const fastTests = [
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireFiveWallPeriodicClosureV1.test.ts",
   "__tests__/mainWireFourValveDiseasePresetV1.test.ts",
+  "__tests__/mainWireHealthyCycleAcceptanceV1.test.ts",
   "__tests__/mainWireNormalAdultBloodVolumeOperatingPointV1.test.ts",
   "__tests__/mainWireNormalAdultFiveWallCycleDiagnosticsV1.test.ts",
   "__tests__/mainWireNormalAdultFiveWallDiagnosticSampleV2.test.ts",
