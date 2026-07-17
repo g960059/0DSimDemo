@@ -5,21 +5,25 @@ import {
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
 import {
+  ACCEPTED_INTERVAL_TIMEBASE_V1_ID,
+  validateRetainedAcceptedIntervalWindowV1,
+} from "@/engine/myocardium/diagnostics/AcceptedIntervalTimebaseV1";
+import {
   assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV2,
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
   resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV2,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
-  runMainWireNormalAdultFiveWallPeriodicSteadyV2,
+  runMainWireNormalAdultFiveWallPeriodicSteadyV3,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
-describe("main-wire normal-adult five-wall periodic steady runner V2", () => {
+describe("main-wire normal-adult five-wall periodic steady runner V3", () => {
   it("runs one canonical coarse beat without overstating periodic closure", () => {
-    const result = runMainWireNormalAdultFiveWallPeriodicSteadyV2({
+    const result = runMainWireNormalAdultFiveWallPeriodicSteadyV3({
       dtSec: 0.01,
       maximumBeatCount: 1,
       initialization: "canonical",
     });
-    const exactOff = runMainWireNormalAdultFiveWallPeriodicSteadyV2({
+    const exactOff = runMainWireNormalAdultFiveWallPeriodicSteadyV3({
       dtSec: 0.01,
       maximumBeatCount: 1,
       initialization: "canonical",
@@ -27,8 +31,8 @@ describe("main-wire normal-adult five-wall periodic steady runner V2", () => {
     });
 
     expect(result.experimentId)
-      .toBe("main-wire-normal-adult-five-wall-periodic-steady-v2");
-    expect(result.schemaVersion).toBe(2);
+      .toBe("main-wire-normal-adult-five-wall-periodic-steady-v3");
+    expect(result.schemaVersion).toBe(3);
     expect(result.terminationReason).toBe("maximum-beats-reached");
     expect(result.integrationCompletedWithoutFailure).toBe(true);
     expect(result.periodicSteadyStateClaimed).toBe(false);
@@ -46,12 +50,43 @@ describe("main-wire normal-adult five-wall periodic steady runner V2", () => {
       .toBe("main-wire-normal-adult-five-wall-diagnostic-sample-v2");
     expect(result.retainedCompleteBeats[0]!.samples[0]!.diagnosticSampleV3Id)
       .toBe("main-wire-normal-adult-five-wall-diagnostic-sample-v3");
+    const retainedBeat = result.retainedCompleteBeats[0]!;
+    expect(retainedBeat).toMatchObject({
+      startRevision: 0,
+      endRevision: 100,
+      acceptedIntervalCount: 100,
+    });
+    expect(retainedBeat.endRevision - retainedBeat.startRevision)
+      .toBe(retainedBeat.acceptedIntervalCount);
+    expect(retainedBeat.acceptedIntervalTrace).toMatchObject({
+      timebaseId: ACCEPTED_INTERVAL_TIMEBASE_V1_ID,
+      status: "missing-preceding-diagnostic",
+      reason: "cold-start",
+      startTimeSec: 0,
+    });
+    expect(retainedBeat.acceptedIntervalTrace.durationSec).toBeCloseTo(1, 12);
+    expect(retainedBeat.acceptedIntervalTrace)
+      .not.toHaveProperty("precedingSample");
+    expect(retainedBeat.acceptedIntervalTrace.intervals).toHaveLength(100);
+    retainedBeat.acceptedIntervalTrace.intervals.forEach((interval, index) => {
+      expect(interval.endpointSample.sample).toBe(retainedBeat.samples[index]);
+      expect(interval.endpointSample.sample.diagnosticSampleV3Id)
+        .toBe("main-wire-normal-adult-five-wall-diagnostic-sample-v3");
+    });
     expect(result.retainedPartialBeat).toHaveLength(0);
+    expect(result.retainedPartialAcceptedIntervals).toHaveLength(0);
     expect(result.initializationAudit.totalBloodVolumeDifferenceMl).toBe(0);
     expect(result.initializationAudit.transferredVolumeMl).toBe(0);
     expect(result.claim.ordinaryBeatIterationOnly).toBe(true);
     expect(result.claim.shootingOrAndersonAccelerationApplied).toBe(false);
     expect(result.claim.parameterSearch).toBe(false);
+    expect(result.claim).toMatchObject({
+      acceptedIntervalTimebaseId: ACCEPTED_INTERVAL_TIMEBASE_V1_ID,
+      acceptedIntervalOwnership: "open-start-closed-end",
+      acceptedIntervalEventsCopiedFromAcceptedCalciumTrial: true,
+      retainedIntervalEventScheduleRequeryApplied: false,
+      retainedPrecedingDiagnosticFabricated: false,
+    });
     expect(result.policy.retainedCompleteBeatCount).toBe(3);
     expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1
       .period1NormalizedTolerance).toBe(1e-3);
@@ -192,23 +227,149 @@ describe("main-wire normal-adult five-wall periodic steady runner V2", () => {
     expect(exact.identityHash).not.toBe(analytic.identityHash);
   });
 
-  it("splits exact-state runner intervals at off-grid sinus events", () => {
-    const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+  it("owns exact-state off-grid events once and completes the second retained window", () => {
+    const result = runMainWireNormalAdultFiveWallPeriodicSteadyV3({
       dtSec: 0.02,
-      maximumBeatCount: 1,
+      maximumBeatCount: 2,
       calciumRepresentation: "exact-event-state",
     });
 
     expect(result.integrationCompletedWithoutFailure).toBe(true);
     expect(result.stepsPerBeat).toBe(50);
-    expect(result.retainedCompleteBeats[0]!.samples).toHaveLength(52);
-    const times = result.retainedCompleteBeats[0]!.samples.map(
-      (sample) => sample.timeSec,
+    expect(result.retainedCompleteBeats).toHaveLength(2);
+    const [firstBeat, secondBeat] = result.retainedCompleteBeats;
+    expect(firstBeat).toBeDefined();
+    expect(secondBeat).toBeDefined();
+    for (const [index, beat] of [firstBeat!, secondBeat!].entries()) {
+      expect(beat.acceptedIntervalCount).toBe(52);
+      expect(beat.samples).toHaveLength(52);
+      expect(beat.acceptedIntervalTrace.intervals).toHaveLength(52);
+      expect(beat.endRevision - beat.startRevision).toBe(52);
+      expect(beat.endTimeSec - beat.startTimeSec).toBeCloseTo(1, 12);
+      expect(beat.acceptedIntervalTrace.durationSec).toBeCloseTo(1, 12);
+      expect(beat.startRevision).toBe(index * 52);
+      expect(beat.endRevision).toBe((index + 1) * 52);
+      beat.acceptedIntervalTrace.intervals.forEach((interval, intervalIndex) => {
+        expect(interval.endpointSample.sample).toBe(beat.samples[intervalIndex]);
+      });
+    }
+    expect(firstBeat!.acceptedIntervalTrace).toMatchObject({
+      status: "missing-preceding-diagnostic",
+      reason: "cold-start",
+    });
+    expect(firstBeat!.acceptedIntervalTrace)
+      .not.toHaveProperty("precedingSample");
+    const secondTrace = secondBeat!.acceptedIntervalTrace;
+    expect(secondTrace.status).toBe("complete");
+    if (secondTrace.status !== "complete") {
+      throw new Error("second retained beat must have a complete timebase");
+    }
+    expect(secondTrace.precedingSample.timeSec)
+      .toBeCloseTo(secondBeat!.startTimeSec, 12);
+    expect(secondTrace.precedingSample.sample)
+      .toBe(firstBeat!.samples.at(-1));
+    expect(() => validateRetainedAcceptedIntervalWindowV1(
+      secondTrace,
+    )).not.toThrow();
+
+    const firstEvents = acceptedEvents(firstBeat!);
+    const secondEvents = acceptedEvents(secondBeat!);
+    expectEventTimes(firstEvents, [0.012, 0.852]);
+    expectEventTimes(secondEvents, [1.012, 1.852]);
+    const eventIds = [...firstEvents, ...secondEvents].map(
+      (event) => event.eventId,
     );
-    expect(times).toContain(0.012);
-    expect(times).toContain(0.852);
+    expect(new Set(eventIds).size).toBe(4);
+    for (const event of [...firstEvents, ...secondEvents]) {
+      expect(event.event).toMatchObject({
+        source: "accepted-calcium-trial",
+        scheduleId: result.protocolIdentity.calciumDrive.eventScheduleId,
+        scheduleIdentityHash:
+          result.protocolIdentity.calciumDrive.eventScheduleIdentityHash,
+      });
+      expect(event.eventId)
+        .toMatch(/^calcium:[0-9a-f]{8}:r\d+:i\d+:[0-9a-f]{8}$/);
+      expect(event.eventId).toBe([
+        "calcium",
+        event.event.scheduleIdentityHash,
+        `r${event.event.acceptedTrialBaseRevision}`,
+        `i${event.event.eventIndexWithinAcceptedTrial}`,
+        stableHash(sanitizeForStableHash(event.event.calciumEvent)),
+      ].join(":"));
+      expect(event.timeSec).toBe(event.event.calciumEvent.timeSec);
+    }
     expect(result.claim.stepsPerBeatIsNominalGridCount).toBe(true);
     expect(result.claim.acceptedSubstepsMayExceedNominalStepsPerBeat).toBe(true);
+    expect(result.claim.exactEventRepresentationIntervalsSplitAtOffGridEvents)
+      .toBe(true);
+    expect(result.claim.retainedIntervalEventScheduleRequeryApplied).toBe(false);
+  }, 120_000);
+
+  it("retains analytic accepted intervals without numerical event splitting", () => {
+    const result = runMainWireNormalAdultFiveWallPeriodicSteadyV3({
+      dtSec: 0.02,
+      maximumBeatCount: 1,
+      calciumRepresentation:
+        "analytic-periodic-control-with-exact-event-shadow",
+    });
+
+    const beat = result.retainedCompleteBeats[0]!;
+    expect(result.integrationCompletedWithoutFailure).toBe(true);
+    expect(beat.acceptedIntervalCount).toBe(50);
+    expect(beat.samples).toHaveLength(50);
+    expect(beat.acceptedIntervalTrace.intervals).toHaveLength(50);
+    expect(beat.endRevision - beat.startRevision).toBe(50);
+    expect(beat.acceptedIntervalTrace.intervals.every((interval) =>
+      Math.abs(interval.durationSec - 0.02) < 1e-12
+    )).toBe(true);
+    const endpointTimes = beat.samples.map((sample) => sample.timeSec);
+    expect(endpointTimes.some((timeSec) => Math.abs(timeSec - 0.012) < 1e-12))
+      .toBe(false);
+    expect(endpointTimes.some((timeSec) => Math.abs(timeSec - 0.852) < 1e-12))
+      .toBe(false);
+    expectEventTimes(acceptedEvents(beat), [0.012, 0.852]);
+    expect(result.claim.acceptedIntervalEventsCopiedFromAcceptedCalciumTrial)
+      .toBe(true);
+  }, 60_000);
+
+  it("retains only committed intervals before a deterministic step failure", () => {
+    const result = runMainWireNormalAdultFiveWallPeriodicSteadyV3({
+      dtSec: 0.04,
+      maximumBeatCount: 1,
+      bloodVolumePriorVariant:
+        "official-target-minus-excluded-coronary-cold-seed",
+    });
+
+    expect(result.integrationCompletedWithoutFailure).toBe(false);
+    expect(result.terminationReason).toBe("step-failure");
+    expect(result.completedBeatCount).toBe(0);
+    expect(result.retainedCompleteBeats).toHaveLength(0);
+    expect(result.failure).toMatchObject({
+      beatIndex: 1,
+      stepWithinBeat: 3,
+      timeSec: 0.12,
+    });
+    expect(result.retainedPartialBeat).toHaveLength(2);
+    expect(result.retainedPartialAcceptedIntervals).toHaveLength(2);
+    expect(result.retainedPartialBeat.map((sample) => sample.timeSec))
+      .toEqual([0.04, 0.08]);
+    result.retainedPartialAcceptedIntervals.forEach((interval, index) => {
+      expect(interval.startTimeSec).toBeCloseTo(index * 0.04, 12);
+      expect(interval.endTimeSec).toBeCloseTo((index + 1) * 0.04, 12);
+      expect(interval.durationSec).toBeCloseTo(0.04, 12);
+      expect(interval.endpointSample.timeSec).toBe(interval.endTimeSec);
+      expect(interval.endpointSample.sample)
+        .toBe(result.retainedPartialBeat[index]);
+    });
+    expect(result.retainedPartialAcceptedIntervals
+      .some((interval) => Math.abs(interval.endTimeSec - 0.12) < 1e-12))
+      .toBe(false);
+    expectEventTimes(
+      result.retainedPartialAcceptedIntervals.flatMap(
+        (interval) => interval.eventsOpenClosed,
+      ),
+      [0.012],
+    );
   }, 60_000);
 
   it("changes only the calcium protocol component for the fixed biomarker challenger", () => {
@@ -374,7 +535,7 @@ describe("main-wire normal-adult five-wall periodic steady runner V2", () => {
 
 function legacyV2Projection(
   samples: ReturnType<
-    typeof runMainWireNormalAdultFiveWallPeriodicSteadyV2
+    typeof runMainWireNormalAdultFiveWallPeriodicSteadyV3
   >["retainedCompleteBeats"][number]["samples"],
 ): readonly unknown[] {
   return samples.map((sample) => {
@@ -385,5 +546,25 @@ function legacyV2Projection(
       ...legacyV2
     } = sample;
     return legacyV2;
+  });
+}
+
+function acceptedEvents(
+  beat: ReturnType<
+    typeof runMainWireNormalAdultFiveWallPeriodicSteadyV3
+  >["retainedCompleteBeats"][number],
+) {
+  return beat.acceptedIntervalTrace.intervals.flatMap(
+    (interval) => interval.eventsOpenClosed,
+  );
+}
+
+function expectEventTimes(
+  events: ReturnType<typeof acceptedEvents>,
+  expectedTimesSec: readonly number[],
+): void {
+  expect(events).toHaveLength(expectedTimesSec.length);
+  events.forEach((event, index) => {
+    expect(event.timeSec).toBeCloseTo(expectedTimesSec[index]!, 12);
   });
 }
