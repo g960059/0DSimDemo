@@ -31,9 +31,15 @@ const MEASURE_OPTIONS = {
 
 function parseArgs(argv: string[]) {
   const outArg = argv.find((arg) => arg.startsWith("--out="));
+  const caseIds = argv
+    .filter((arg) => arg.startsWith("--case-id="))
+    .flatMap((arg) => arg.slice("--case-id=".length).split(","))
+    .map((id) => id.trim())
+    .filter(Boolean);
   return {
     outDir: outArg ? outArg.slice("--out=".length) : DEFAULT_OUT_DIR,
     allowWarnings: argv.includes("--allow-warnings"),
+    caseIds: [...new Set(caseIds)],
   };
 }
 
@@ -147,9 +153,17 @@ function verifyCase(doc: CaseDocument): CaseValidationReport {
   };
 }
 
-const { outDir, allowWarnings } = parseArgs(process.argv.slice(2));
+const { outDir, allowWarnings, caseIds } = parseArgs(process.argv.slice(2));
+const unknownCaseIds = caseIds.filter((id) => !OFFICIAL_CASES.some((doc) => doc.meta.id === id));
+if (unknownCaseIds.length > 0) {
+  throw new Error(`Unknown official case id(s): ${unknownCaseIds.join(", ")}`);
+}
+
+const selectedCases = caseIds.length > 0
+  ? OFFICIAL_CASES.filter((doc) => caseIds.includes(doc.meta.id))
+  : OFFICIAL_CASES;
 mkdirSync(outDir, { recursive: true });
-const reports = OFFICIAL_CASES.map(verifyCase);
+const reports = selectedCases.map(verifyCase);
 writeFileSync(path.join(outDir, "official-case-validation.json"), JSON.stringify(reports, null, 2));
 writeFileSync(path.join(outDir, "report.md"), caseValidationReportToMarkdown(reports));
 
