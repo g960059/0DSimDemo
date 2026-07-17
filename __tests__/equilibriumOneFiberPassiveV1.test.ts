@@ -4,6 +4,7 @@ import {
   EQUILIBRIUM_ONE_FIBER_PASSIVE_CLAIM_V1,
   KLOTZ_NORMAL_CENTER_VENTRICULAR_PASSIVE_PRIOR_V1,
   assertCompiledEquilibriumOneFiberPassiveV1,
+  auditCompiledEquilibriumOneFiberPassiveIdentityV1,
   compileEquilibriumOneFiberPassiveV1,
   compileKlotzNormalCenterVentricularPassiveV1,
   evaluateEquilibriumOneFiberPassiveV1,
@@ -120,6 +121,25 @@ describe("equilibrium one-fiber passive constitutive kernel v1", () => {
     expect(() => assertCompiledEquilibriumOneFiberPassiveV1({
       ...compiled,
     })).toThrow(/compiled by this kernel/i);
+    expect(() => evaluateEquilibriumOneFiberPassiveV1(
+      0.1,
+      { ...compiled },
+    )).toThrow(/compiled by this kernel/i);
+    expect(() => auditCompiledEquilibriumOneFiberPassiveIdentityV1({
+      ...compiled,
+    })).not.toThrow();
+    expect(() => auditCompiledEquilibriumOneFiberPassiveIdentityV1({
+      ...compiled,
+      parameterIdentityHash: "00000000",
+    })).toThrow(/parameter hash is stale/i);
+
+    const beforeMutation = evaluateEquilibriumOneFiberPassiveV1(0.095, compiled);
+    mutable.parameterSetId = "mutated-after-compile";
+    mutable.tensionScalePa = 123_456;
+    expect(evaluateEquilibriumOneFiberPassiveV1(0.095, compiled))
+      .toEqual(beforeMutation);
+    expect(() => assertCompiledEquilibriumOneFiberPassiveV1(compiled))
+      .not.toThrow();
 
     const fixed = KLOTZ_NORMAL_CENTER_VENTRICULAR_PASSIVE_PRIOR_V1;
     const fixedCompiled = compileKlotzNormalCenterVentricularPassiveV1();

@@ -51,6 +51,11 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(review.run.latestBeatIndex).toBe(7);
     expect(review.run.previousBeatIndex).toBe(6);
     expect(review.run.protocolIdentityHash).toBe("review-fixture-protocol-hash");
+    expect(review.bloodVolumeOperatingPoint).toMatchObject({
+      status: "legacy-unavailable",
+      unavailableReason:
+        "legacy-result-missing-semantic-owner-or-construction-audit",
+    });
     expect(review.run.jacobianFiniteDifferenceWidthAudit).toEqual({
       nominalScaledStep: 2e-5,
       nominalStepCount: 10,
@@ -87,6 +92,8 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(rendered.html).toContain("Wall work and SLS balance");
     expect(rendered.html).toContain("Jacobian FD nominal / alternate");
     expect(rendered.html).toContain("review-fixt");
+    expect(rendered.html).toContain("Blood-volume operating point");
+    expect(rendered.html).toContain("Legacy / unavailable");
     expect(rendered.html).toContain("Claim boundaries");
     expect(rendered.html).toContain('id="periodic-review-data"');
     expect(rendered.svg).toContain('role="img"');
@@ -109,6 +116,8 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     )?.[1];
     expect(embedded).toBeDefined();
     const parsed = JSON.parse(embedded!);
+    expect(parsed.bloodVolumeOperatingPoint.status)
+      .toBe("legacy-unavailable");
     expect(parsed.currentBeatSamples).toHaveLength(10);
     expect(parsed.previousBeatSamples).toHaveLength(10);
     expect(parsed.cycleDiagnostics.pulmonaryVenous.D.forwardVolumeMl)
@@ -127,7 +136,71 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(rendered.review.run.timeStepRobustness)
       .toBe("not-assessed-by-single-result");
   });
+
+  it("renders the semantic owner and unhashed deterministic construction audit", () => {
+    const rendered = renderMainWireNormalAdultFiveWallPeriodicReviewV1(
+      currentOperatingPointResult(),
+    );
+
+    expect(rendered.review.bloodVolumeOperatingPoint).toEqual({
+      status: "available",
+      unavailableReason: null,
+      ownerId: "main-wire-normal-adult-blood-volume-operating-point-v1",
+      parameterSetId:
+        "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+      topologyScopeId: "main-wire-noncoronary-15-node-no-coronary-v1",
+      fixedTotalBloodVolumeMl: 5522.11,
+      initialDistributionPolicyId: "shared-SV-VC-transmural-offset",
+      coldSeedTotalBloodVolumeMl: 4589.457569593876,
+      resolvedTotalBloodVolumeMl: 5522.11,
+      addedBloodVolumeMl: 5522.11 - 4589.457569593876,
+      sharedSvVcTransmuralPressureOffsetMmHg: 6.051930745,
+      excludedCoronaryColdSeedVolumeMl: 77.89,
+      maximumInverseOffsetResidualMmHg: 2.5e-10,
+      unchangedNodeMaximumAbsoluteDeltaMl: 0,
+      targetResidualMl: 0,
+    });
+    expect(rendered.html).toContain("fixed target TBV");
+    expect(rendered.html).toContain("5522.11 mL");
+    expect(rendered.html).toContain("cold-seed TBV");
+    expect(rendered.html).toContain("added volume");
+    expect(rendered.html).toContain("shared SV/VC ΔPtm");
+    expect(rendered.html).toContain("excluded coronary cold seed");
+    expect(rendered.html).toContain("77.89 mL");
+    expect(rendered.html).toContain("max inverse-offset residual");
+    expect(rendered.html).toContain("2.500e-10 mmHg");
+    expect(rendered.html).toContain(
+      "Semantic owner is protocol-hashed; construction values below are deterministic, report-only readbacks.",
+    );
+  });
 });
+
+function currentOperatingPointResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
+  const legacy = periodicResult();
+  return Object.freeze({
+    ...legacy,
+    protocolIdentity: Object.freeze({
+      bloodVolumeOperatingPoint: Object.freeze({
+        ownerId: "main-wire-normal-adult-blood-volume-operating-point-v1",
+        parameterSetId:
+          "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        topologyScopeId: "main-wire-noncoronary-15-node-no-coronary-v1",
+        fixedTotalBloodVolumeMl: 5522.11,
+        initialDistributionPolicyId: "shared-SV-VC-transmural-offset",
+      }),
+    }),
+    bloodVolumeOperatingPointAudit: Object.freeze({
+      coldSeedTotalBloodVolumeMl: 4589.457569593876,
+      resolvedTotalBloodVolumeMl: 5522.11,
+      addedBloodVolumeMl: 5522.11 - 4589.457569593876,
+      targetResidualMl: 0,
+      sharedTransmuralPressureOffsetMmHg: 6.051930745,
+      excludedCoronaryColdSeedVolumeMl: 77.89,
+      maximumSharedTransmuralPressureOffsetResidualMmHg: 2.5e-10,
+      unchangedNodeMaximumAbsoluteDeltaMl: 0,
+    }),
+  }) as unknown as MainWireNormalAdultFiveWallPeriodicResultV1;
+}
 
 function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const previous = Array.from({ length: 10 }, (_, index) => sample(index, 0));
@@ -352,6 +425,7 @@ function sample(
     }),
     diagnosticSampleId:
       "main-wire-normal-adult-five-wall-diagnostic-sample-v2",
+    commonIntrathoracicPressureMmHg: 0,
     wallFiberLogStrain: wallRecord(() => strain),
     wallEnergyLedgerDensity: wallRecord(() => Object.freeze({
       equilibriumPassiveStoredEnergyDensityJPerM3: 0.2 * (index + 1),

@@ -1,23 +1,27 @@
-import { smoothMax } from "@/engine/math";
+import { clamp, sigmoid, smoothMax, smoothMin } from "@/engine/math";
 import {
   buildEdges,
   buildNodes,
   type EdgeSpec,
   type NodeSpec,
 } from "@/engine/core/topology";
-import type { VascularPvLaw } from "@/engine/vascularPv";
+import {
+  ptmFromStressedVolume,
+  stressedVolumeFromPtm,
+  type VascularPvLaw,
+} from "@/engine/vascularPv";
 
 /**
  * Explicit Phase-1 boundary: this kernel owns the shipped graph topology,
- * vascular PV laws, respiratory external pressure, base non-coronary losses,
- * and incidence continuity. Coronary compression/stenosis and collapsible-tube
- * chi multipliers remain ModelCore-owned until they are extracted with their
- * activation inputs.
+ * vascular PV laws, respiratory external pressure, non-coronary losses,
+ * collapsible-tube chi, and incidence continuity. Coronary compression and
+ * stenosis remain ModelCore-owned until they are extracted with their
+ * myocardial inputs.
  */
 export const CIRCULATION_GRAPH_KERNEL_V1_BOUNDARY = {
   topology: "buildNodes/buildEdges",
-  edgeLosses: "base-nonvalve-noncoronary",
-  excluded: ["coronary-compression", "coronary-stenosis", "collapsible-tube-chi"] as const,
+  edgeLosses: "nonvalve-noncoronary-with-optional-chi",
+  excluded: ["coronary-compression", "coronary-stenosis"] as const,
 } as const;
 
 export type AuthoritativeCirculationGraphV1 = {
@@ -89,6 +93,75 @@ export function vascularPvLawFromNodeV1(
   throw new Error(`Node ${node.name} has no vascular PV law`);
 }
 
+/**
+ * Authoritative main-wire cold-seed volume rule. `x0` is a physical volume
+ * for every node except `venousPressure`, where it is the initial transmural
+ * pressure and must be mapped through the current venous PV law.
+ */
+export function physicalColdSeedVolumeFromNodeV1(
+  node: NodeSpec,
+  params: VascularPvRuntimeParameterViewV1,
+): number {
+  if (node.kind !== "venousPressure") return node.x0;
+  const law = vascularPvLawFromNodeV1(node, params);
+  return law.Vu + stressedVolumeFromPtm(law, node.x0);
+}
+
+/**
+ * Shared main-wire volume-to-pressure map with an explicit numerical policy.
+ *
+ * ModelCore's shipped fixed-iteration and arterial-clamp semantics differ from
+ * the experimental backward-Euler solver's adaptive-stop inverse. Callers
+ * must name that policy so the extraction preserves both accepted trajectories
+ * without hiding the remaining numerical migration boundary.
+ */
+export type VascularPressureInversePolicyV1 =
+  | "model-core-compatible-fixed32"
+  | "adaptive-volume-tolerance";
+
+export function vascularTransmuralPressureFromPhysicalVolumeV1(
+  node: NodeSpec,
+  physicalVolumeMl: number,
+  params: VascularPvRuntimeParameterViewV1,
+  policy: VascularPressureInversePolicyV1,
+): number {
+  if (!Number.isFinite(physicalVolumeMl)) {
+    throw new RangeError(`${node.name} physical volume must be finite`);
+  }
+  const law = vascularPvLawFromNodeV1(node, params);
+  const stressedVolumeMl = physicalVolumeMl - law.Vu;
+  if (policy === "adaptive-volume-tolerance") {
+    return ptmFromStressedVolume(law, stressedVolumeMl);
+  }
+  if (law.kind === "arterial") {
+    const logStrain = clamp(
+      stressedVolumeMl / Math.max(law.VsEff, 1),
+      -30,
+      5,
+    );
+    return law.P0 * (Math.exp(logStrain) - 1);
+  }
+  if (law.kind === "linear") {
+    return stressedVolumeMl / Math.max(law.C, 1e-6);
+  }
+
+  let lowerPressureMmHg = -20;
+  let upperPressureMmHg = 45;
+  const lowerVolumeMl = stressedVolumeFromPtm(law, lowerPressureMmHg);
+  const upperVolumeMl = stressedVolumeFromPtm(law, upperPressureMmHg);
+  if (stressedVolumeMl <= lowerVolumeMl) return lowerPressureMmHg;
+  if (stressedVolumeMl >= upperVolumeMl) return upperPressureMmHg;
+  for (let iteration = 0; iteration < 32; iteration += 1) {
+    const midpointMmHg = 0.5 * (lowerPressureMmHg + upperPressureMmHg);
+    if (stressedVolumeFromPtm(law, midpointMmHg) < stressedVolumeMl) {
+      lowerPressureMmHg = midpointMmHg;
+    } else {
+      upperPressureMmHg = midpointMmHg;
+    }
+  }
+  return 0.5 * (lowerPressureMmHg + upperPressureMmHg);
+}
+
 export type RespiratoryPressureParameterViewV1 = {
   readonly PEEP: number;
   readonly Pth0: number;
@@ -143,12 +216,28 @@ export function downstreamEffectivePressureV1(input: DownstreamWaterfallInputV1)
 export type BaseEdgeLossRuntimeParameterViewV1 = {
   readonly systemicResistance: number;
   readonly pulmonaryResistance: number;
+  readonly useChiResistance?: boolean;
 };
 
 export type BaseNonValveEdgeLossV1 = {
   readonly resistanceMmHgSecPerMl: number;
   readonly quadraticLossMmHgSec2PerMl2: number;
-  readonly collapsibleTubeCorrectionExcluded: boolean;
+  readonly collapsibleTubeCorrectionDeferred: boolean;
+};
+
+export type NonValveEdgeLossInputV1 = {
+  readonly edge: EdgeSpec;
+  readonly params: BaseEdgeLossRuntimeParameterViewV1;
+  readonly upstreamPressureMmHg: number;
+  readonly downstreamPressureMmHg: number;
+  readonly edgeExternalPressureMmHg: number;
+};
+
+export type NonValveEdgeLossV1 = {
+  readonly resistanceMmHgSecPerMl: number;
+  readonly quadraticLossMmHgSec2PerMl2: number;
+  readonly areaRatio: number;
+  readonly collapsibleTubeApplied: boolean;
 };
 
 /**
@@ -156,8 +245,8 @@ export type BaseNonValveEdgeLossV1 = {
  *
  * Valve R/B/EOA has exactly one owner: MainWireQuasiSteadyOrificeValveV2. This function
  * therefore rejects valves as well as coronary edges, and reports (but does
- * not apply) collapsible-tube chi scaling. Those mechanisms require additional
- * pressure and myocardial-activation inputs and are outside the Phase-1 kernel.
+ * not apply) collapsible-tube chi scaling. Use nonValveEdgeLossV1 when the raw
+ * edge pressures and external pressure are available.
  */
 export function baseNonValveEdgeLossV1(
   edge: EdgeSpec,
@@ -175,8 +264,77 @@ export function baseNonValveEdgeLossV1(
   return {
     resistanceMmHgSecPerMl: Math.max(resistance, 1e-8),
     quadraticLossMmHgSec2PerMl2: Math.max(quadraticLoss, 0),
-    collapsibleTubeCorrectionExcluded: Boolean(edge.useChiResistance || edge.useChiQuadratic),
+    collapsibleTubeCorrectionDeferred: Boolean(edge.useChiResistance || edge.useChiQuadratic),
   };
+}
+
+/**
+ * Resolve the complete non-coronary, non-valve loss law used by ModelCore.
+ *
+ * The chi coordinate intentionally uses the raw upstream/downstream absolute
+ * pressures. The downstream waterfall pressure is a separate flow-gradient
+ * construction and must not be fed back into this area ratio.
+ */
+export function nonValveEdgeLossV1(
+  input: NonValveEdgeLossInputV1,
+): NonValveEdgeLossV1 {
+  const base = baseNonValveEdgeLossV1(input.edge, input.params);
+  const usesChi = Boolean(
+    input.edge.useChiResistance || input.edge.useChiQuadratic,
+  );
+  if (!input.params.useChiResistance || !usesChi) {
+    return {
+      resistanceMmHgSecPerMl: base.resistanceMmHgSecPerMl,
+      quadraticLossMmHgSec2PerMl2: base.quadraticLossMmHgSec2PerMl2,
+      areaRatio: 1,
+      collapsibleTubeApplied: false,
+    };
+  }
+
+  const areaRatio = collapsibleTubeAreaRatioV1({
+    edge: input.edge,
+    upstreamPressureMmHg: input.upstreamPressureMmHg,
+    downstreamPressureMmHg: input.downstreamPressureMmHg,
+    edgeExternalPressureMmHg: input.edgeExternalPressureMmHg,
+  });
+  return {
+    resistanceMmHgSecPerMl: input.edge.useChiResistance
+      ? base.resistanceMmHgSecPerMl
+        * Math.pow(areaRatio, -(input.edge.chiRExp ?? 2))
+      : base.resistanceMmHgSecPerMl,
+    quadraticLossMmHgSec2PerMl2: input.edge.useChiQuadratic
+      ? base.quadraticLossMmHgSec2PerMl2
+        * Math.pow(areaRatio, -(input.edge.chiBExp ?? 2))
+      : base.quadraticLossMmHgSec2PerMl2,
+    areaRatio,
+    collapsibleTubeApplied: true,
+  };
+}
+
+export type CollapsibleTubeAreaRatioInputV1 = {
+  readonly edge: Pick<
+    EdgeSpec,
+    "Pcrit" | "chiWidth" | "chiMin"
+  >;
+  readonly upstreamPressureMmHg: number;
+  readonly downstreamPressureMmHg: number;
+  readonly edgeExternalPressureMmHg: number;
+};
+
+export function collapsibleTubeAreaRatioV1(
+  input: CollapsibleTubeAreaRatioInputV1,
+): number {
+  const transmuralTubePressureMmHg = smoothMin(
+    input.upstreamPressureMmHg - input.edgeExternalPressureMmHg,
+    input.downstreamPressureMmHg - input.edgeExternalPressureMmHg,
+    0.25,
+  );
+  const normalizedPressure = (
+    transmuralTubePressureMmHg - (input.edge.Pcrit ?? 0)
+  ) / Math.max(input.edge.chiWidth ?? 1, 1e-6);
+  const minimumAreaRatio = input.edge.chiMin ?? 0.08;
+  return minimumAreaRatio
+    + (1 - minimumAreaRatio) * sigmoid(normalizedPressure);
 }
 
 /**

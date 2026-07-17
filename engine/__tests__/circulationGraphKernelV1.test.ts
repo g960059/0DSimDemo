@@ -1,15 +1,22 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_PARAMS } from "@/constants";
 import { smoothMax } from "@/engine/math";
+import { ModelCore } from "@/engine/ModelCore";
 import { buildEdges, buildNodes } from "@/engine/core/topology";
 import {
   CIRCULATION_GRAPH_KERNEL_V1_BOUNDARY,
   baseNonValveEdgeLossV1,
   buildAuthoritativeCirculationGraphV1,
+  collapsibleTubeAreaRatioV1,
   downstreamEffectivePressureV1,
+  effectiveUnstressedVolumeFromNodeV1,
   incidenceVolumeRatesFromEdgeFlowsV1,
+  nonValveEdgeLossV1,
+  physicalColdSeedVolumeFromNodeV1,
   respiratoryExternalPressureForKindV1,
   respiratoryExternalPressuresV1,
   vascularPvLawFromNodeV1,
+  vascularTransmuralPressureFromPhysicalVolumeV1,
 } from "@/engine/core/circulationGraphKernelV1";
 import { ptmFromStressedVolume, stressedVolumeFromPtm } from "@/engine/vascularPv";
 
@@ -32,7 +39,78 @@ describe("circulation graph kernel V1", () => {
     expect(graph.nodeIndex.get("PVein")).toBe(14);
     expect(graph.edgeIndex.get("CS_RA")).toBe(27);
     expect(CIRCULATION_GRAPH_KERNEL_V1_BOUNDARY.edgeLosses)
-      .toBe("base-nonvalve-noncoronary");
+      .toBe("nonvalve-noncoronary-with-optional-chi");
+    expect(CIRCULATION_GRAPH_KERNEL_V1_BOUNDARY.excluded)
+      .not.toContain("collapsible-tube-chi");
+  });
+
+  it("preserves the shipped physical-volume-to-pressure domains", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const params = { venousTone: 0.15, arterialStiffness: 0.75 };
+    const ao = graph.nodes[graph.nodeIndex.get("Ao")]!;
+    const aoLaw = vascularPvLawFromNodeV1(ao, params);
+    if (aoLaw.kind !== "arterial") throw new Error("Ao must be arterial");
+    for (const logStrain of [-40, -5, 0, 3, 8]) {
+      const physicalVolumeMl = aoLaw.Vu + aoLaw.VsEff * logStrain;
+      const clamped = Math.max(-30, Math.min(5, logStrain));
+      expect(vascularTransmuralPressureFromPhysicalVolumeV1(
+        ao,
+        physicalVolumeMl,
+        params,
+        "model-core-compatible-fixed32",
+      )).toBe(aoLaw.P0 * (Math.exp(clamped) - 1));
+    }
+
+    const sv = graph.nodes[graph.nodeIndex.get("SV")]!;
+    const svLaw = vascularPvLawFromNodeV1(sv, params);
+    for (const pressureMmHg of [-20, -5, 0, 6, 20, 45]) {
+      const physicalVolumeMl = svLaw.Vu
+        + stressedVolumeFromPtm(svLaw, pressureMmHg);
+      expect(vascularTransmuralPressureFromPhysicalVolumeV1(
+        sv,
+        physicalVolumeMl,
+        params,
+        "model-core-compatible-fixed32",
+      )).toBeCloseTo(pressureMmHg, 7);
+    }
+    expect(vascularTransmuralPressureFromPhysicalVolumeV1(
+      sv,
+      svLaw.Vu + stressedVolumeFromPtm(svLaw, -35),
+      params,
+      "model-core-compatible-fixed32",
+    )).toBe(-20);
+    expect(vascularTransmuralPressureFromPhysicalVolumeV1(
+      sv,
+      svLaw.Vu + stressedVolumeFromPtm(svLaw, 80),
+      params,
+      "model-core-compatible-fixed32",
+    )).toBe(45);
+    const adaptivePhysicalVolumeMl = svLaw.Vu
+      + stressedVolumeFromPtm(svLaw, 6.123456789);
+    expect(vascularTransmuralPressureFromPhysicalVolumeV1(
+      sv,
+      adaptivePhysicalVolumeMl,
+      params,
+      "adaptive-volume-tolerance",
+    )).toBe(ptmFromStressedVolume(
+      svLaw,
+      adaptivePhysicalVolumeMl - svLaw.Vu,
+    ));
+  });
+
+  it("owns the main-wire x0-to-physical-cold-volume interpretation", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const params = { venousTone: 0.15, arterialStiffness: 0.75 };
+    const lv = graph.nodes[graph.nodeIndex.get("LV")]!;
+    const lad = graph.nodes[graph.nodeIndex.get("LAD_Art")]!;
+    const sv = graph.nodes[graph.nodeIndex.get("SV")]!;
+    const svLaw = vascularPvLawFromNodeV1(sv, params);
+
+    expect(physicalColdSeedVolumeFromNodeV1(lv, params)).toBe(lv.x0);
+    expect(physicalColdSeedVolumeFromNodeV1(lad, params)).toBe(lad.x0);
+    expect(physicalColdSeedVolumeFromNodeV1(sv, params)).toBe(
+      svLaw.Vu + stressedVolumeFromPtm(svLaw, sv.x0),
+    );
   });
 
   it("creates arterial, linear, and nonlinear venous laws from NodeSpec and the minimal runtime view", () => {
@@ -59,6 +137,94 @@ describe("circulation graph kernel V1", () => {
     expect(() => vascularPvLawFromNodeV1(graph.nodes[graph.nodeIndex.get("LV")!]!, params)).toThrow(
       "has no vascular PV law",
     );
+  });
+
+  it("is the shared vascular-law and base-loss contract consumed by ModelCore", () => {
+    const runtime = {
+      ...DEFAULT_PARAMS,
+      venousTone: 0.37,
+      arterialStiffness: 1.25,
+      systemicResistance: 1.4,
+      pulmonaryResistance: 0.8,
+      PEEP: 6,
+      Pth0: -3,
+      respAmpTh: 0,
+      respAmpAlv: 0,
+    };
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const core = new ModelCore(runtime);
+    const snapshots = [
+      core.vascularReturnSnapshot("right"),
+      core.vascularReturnSnapshot("left"),
+    ];
+
+    for (const snapshot of snapshots) {
+      for (const nodeReadback of snapshot.nodesDownstreamToUpstream) {
+        const node = graph.nodes[graph.nodeIndex.get(nodeReadback.name)!]!;
+        expect(nodeReadback.law).toEqual(vascularPvLawFromNodeV1(node, runtime));
+        expect(nodeReadback.unstressedVolumeMl)
+          .toBe(effectiveUnstressedVolumeFromNodeV1(node, runtime));
+        expect(nodeReadback.Ptm).toBe(
+          vascularTransmuralPressureFromPhysicalVolumeV1(
+            node,
+            nodeReadback.volumeMl,
+            runtime,
+            "model-core-compatible-fixed32",
+          ),
+        );
+        expect(nodeReadback.Pext).toBe(respiratoryExternalPressureForKindV1(
+          node.ext === "pth" || node.ext === "palv" ? node.ext : "none",
+          0,
+          runtime,
+        ));
+        expect(nodeReadback.Pabs).toBe(nodeReadback.Ptm + nodeReadback.Pext);
+      }
+    }
+
+    const rightEdges = new Map(
+      snapshots[0]!.edgesDownstreamToUpstream.map((edge) => [edge.name, edge] as const),
+    );
+    for (const edgeName of ["SV_VC", "Cap_SV", "Art_Cap", "SA_Art", "Ao_SA"] as const) {
+      const edge = graph.edges[graph.edgeIndex.get(edgeName)!]!;
+      const expectedLoss = baseNonValveEdgeLossV1(edge, runtime);
+      expect(rightEdges.get(edgeName)?.R_mmHg_s_per_mL)
+        .toBe(expectedLoss.resistanceMmHgSecPerMl);
+      expect(rightEdges.get(edgeName)?.B_mmHg_s2_per_mL2)
+        .toBe(expectedLoss.quadraticLossMmHgSec2PerMl2);
+    }
+
+    const chiCore = new ModelCore({ ...runtime, useChiResistance: true });
+    const chiSnapshot = chiCore.vascularReturnSnapshot("right");
+    const vc = chiSnapshot.nodesDownstreamToUpstream.find(({ name }) => name === "VC")!;
+    const vcRa = chiSnapshot.edgesDownstreamToUpstream.find(({ name }) => name === "VC_RA")!;
+    const vcRaSpec = graph.edges[graph.edgeIndex.get("VC_RA")]!;
+    const expectedChiLoss = nonValveEdgeLossV1({
+      edge: vcRaSpec,
+      params: { ...runtime, useChiResistance: true },
+      upstreamPressureMmHg: vc.Pabs,
+      downstreamPressureMmHg: chiCore.debugObservables().RAP,
+      edgeExternalPressureMmHg: vcRa.Pext,
+    });
+    expect(vcRa.R_mmHg_s_per_mL)
+      .toBeCloseTo(expectedChiLoss.resistanceMmHgSecPerMl, 12);
+
+    const chiLeftSnapshot = chiCore.vascularReturnSnapshot("left");
+    const pcap = chiLeftSnapshot.nodesDownstreamToUpstream
+      .find(({ name }) => name === "PCap")!;
+    const pven = chiLeftSnapshot.nodesDownstreamToUpstream
+      .find(({ name }) => name === "PVen")!;
+    const pcapPven = chiLeftSnapshot.edgesDownstreamToUpstream
+      .find(({ name }) => name === "PCap_PVen")!;
+    const pcapPvenSpec = graph.edges[graph.edgeIndex.get("PCap_PVen")]!;
+    const expectedLeftChiLoss = nonValveEdgeLossV1({
+      edge: pcapPvenSpec,
+      params: { ...runtime, useChiResistance: true },
+      upstreamPressureMmHg: pcap.Pabs,
+      downstreamPressureMmHg: pven.Pabs,
+      edgeExternalPressureMmHg: pcapPven.Pext,
+    });
+    expect(pcapPven.R_mmHg_s_per_mL)
+      .toBeCloseTo(expectedLeftChiLoss.resistanceMmHgSecPerMl, 12);
   });
 
   it("round-trips inside and saturates outside the authoritative main-wire PV domains", () => {
@@ -170,6 +336,56 @@ describe("circulation graph kernel V1", () => {
       graph.edges[graph.edgeIndex.get("Ao_LAD")!]!,
       runtime,
     )).toThrow("outside the base non-valve loss boundary");
+  });
+
+  it("applies pressure-translation-invariant chi to raw pressures and is an exact off no-op", () => {
+    const graph = buildAuthoritativeCirculationGraphV1();
+    const edge = graph.edges[graph.edgeIndex.get("VC_RA")]!;
+    const params = { systemicResistance: 1.3, pulmonaryResistance: 0.625 };
+    const base = baseNonValveEdgeLossV1(edge, params);
+    const raw = {
+      edge,
+      upstreamPressureMmHg: -3,
+      downstreamPressureMmHg: -10,
+      edgeExternalPressureMmHg: -2,
+    };
+    const translated = collapsibleTubeAreaRatioV1({
+      ...raw,
+      upstreamPressureMmHg: raw.upstreamPressureMmHg + 7,
+      downstreamPressureMmHg: raw.downstreamPressureMmHg + 7,
+      edgeExternalPressureMmHg: raw.edgeExternalPressureMmHg + 7,
+    });
+    const areaRatio = collapsibleTubeAreaRatioV1(raw);
+    expect(translated).toBe(areaRatio);
+
+    const off = nonValveEdgeLossV1({
+      ...raw,
+      params,
+    });
+    expect(off).toEqual({
+      resistanceMmHgSecPerMl: base.resistanceMmHgSecPerMl,
+      quadraticLossMmHgSec2PerMl2: base.quadraticLossMmHgSec2PerMl2,
+      areaRatio: 1,
+      collapsibleTubeApplied: false,
+    });
+
+    const on = nonValveEdgeLossV1({
+      ...raw,
+      params: { ...params, useChiResistance: true },
+    });
+    expect(on.areaRatio).toBe(areaRatio);
+    expect(on.areaRatio).toBeLessThan(1);
+    expect(on.resistanceMmHgSecPerMl).toBeGreaterThan(base.resistanceMmHgSecPerMl);
+
+    const waterfallDownstream = downstreamEffectivePressureV1({
+      edge,
+      downstreamPressureMmHg: raw.downstreamPressureMmHg,
+      edgeExternalPressureMmHg: raw.edgeExternalPressureMmHg,
+    });
+    expect(areaRatio).not.toBe(collapsibleTubeAreaRatioV1({
+      ...raw,
+      downstreamPressureMmHg: waterfallDownstream,
+    }));
   });
 
   it("applies incidence continuity with an exactly zero total volume rate", () => {

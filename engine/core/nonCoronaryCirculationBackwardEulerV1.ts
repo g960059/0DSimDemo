@@ -1,11 +1,13 @@
 import {
-  baseNonValveEdgeLossV1,
   buildAuthoritativeCirculationGraphV1,
   downstreamEffectivePressureV1,
   effectiveUnstressedVolumeFromNodeV1,
+  physicalColdSeedVolumeFromNodeV1,
   incidenceVolumeRatesFromEdgeFlowsV1,
+  nonValveEdgeLossV1,
   respiratoryExternalPressureForKindV1,
   vascularPvLawFromNodeV1,
+  vascularTransmuralPressureFromPhysicalVolumeV1,
   type BaseEdgeLossRuntimeParameterViewV1,
   type RespiratoryPressureParameterViewV1,
   type VascularPvRuntimeParameterViewV1,
@@ -18,10 +20,7 @@ import {
   type MainWireQuasiSteadyOrificeValveEvaluationV1,
   type MainWireQuasiSteadyOrificeValveStateV1,
 } from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV1";
-import {
-  ptmFromStressedVolume,
-  stressedVolumeFromPtm,
-} from "@/engine/vascularPv";
+import { stressedVolumeFromPtm } from "@/engine/vascularPv";
 
 export const NON_CORONARY_CIRCULATION_BE_V1_ID =
   "main-wire-derived-noncoronary-experimental-backward-euler-v1" as const;
@@ -141,10 +140,16 @@ export type NonCoronaryCirculationAcceptedStateV1 = Readonly<{
   transactionId: typeof NON_CORONARY_CIRCULATION_BE_V1_ID;
   revision: number;
   acceptedTimeSec: number;
+  /** Fixed conserved-volume owner; never re-derived during state promotion. */
   totalBloodVolumeMl: number;
   nodeVolumesMl: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
+}>;
+
+export type NonCoronaryCirculationColdSeedV1 = Readonly<{
+  fixedTotalBloodVolumeMl: number;
+  nodeVolumesMl: NodeRecord<number>;
 }>;
 
 export const NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID =
@@ -159,6 +164,8 @@ export type NonCoronaryCirculationCheckpointV1 = Readonly<{
 export type NonCoronaryCirculationInitialStateInputV1 = Readonly<{
   timeSec: number;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
+  /** Explicit conserved-volume owner for this circulation transaction. */
+  fixedTotalBloodVolumeMl: number;
   nodeVolumesMl?: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec?: DynamicEdgeRecord<number>;
   valveStates?: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
@@ -386,11 +393,29 @@ NonCoronaryCirculationGraphV1 {
   });
 }
 
+/**
+ * Resolves the deterministic topology/runtime cold seed without selecting a
+ * physiological operating point. Callers explicitly promote its total as the
+ * fixed TBV owner, or supply another volume record with its own explicit owner.
+ */
+export function resolveNonCoronaryCirculationColdSeedV1(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): NonCoronaryCirculationColdSeedV1 {
+  validateRuntime(runtime);
+  const graph = buildNonCoronaryCirculationGraphV1();
+  const nodeVolumesMl = initialNodeVolumes(graph, runtime);
+  return Object.freeze({
+    fixedTotalBloodVolumeMl: sumNodeRecord(nodeVolumesMl),
+    nodeVolumesMl,
+  });
+}
+
 export function createInitialNonCoronaryCirculationStateV1(
   input: NonCoronaryCirculationInitialStateInputV1,
 ): NonCoronaryCirculationAcceptedStateV1 {
   requireNonnegative(input.timeSec, "timeSec");
   validateRuntime(input.runtime);
+  requirePositive(input.fixedTotalBloodVolumeMl, "fixedTotalBloodVolumeMl");
   const graph = buildNonCoronaryCirculationGraphV1();
   const nodeVolumesMl = input.nodeVolumesMl
     ? copyNodeRecord(input.nodeVolumesMl, "nodeVolumesMl", requirePositive)
@@ -411,6 +436,7 @@ export function createInitialNonCoronaryCirculationStateV1(
   return acceptedState({
     revision: 0,
     acceptedTimeSec: input.timeSec,
+    totalBloodVolumeMl: input.fixedTotalBloodVolumeMl,
     nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec,
     valveStates,
@@ -736,6 +762,7 @@ export function commitNonCoronaryCirculationTrialV1<TEvaluation>(
   return acceptedState({
     revision: previous.revision + 1,
     acceptedTimeSec: trial.candidateTimeSec,
+    totalBloodVolumeMl: previous.totalBloodVolumeMl,
     nodeVolumesMl: trial.candidateNodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: trial.candidateDynamicEdgeFlowsMlPerSec,
     valveStates: trial.candidateValveStates,
@@ -776,6 +803,7 @@ export function restoreNonCoronaryCirculationStateV1(
   return acceptedState({
     revision: rebase?.revision ?? checkpoint.state.revision,
     acceptedTimeSec: rebase?.acceptedTimeSec ?? checkpoint.state.acceptedTimeSec,
+    totalBloodVolumeMl: checkpoint.state.totalBloodVolumeMl,
     nodeVolumesMl: checkpoint.state.nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: checkpoint.state.dynamicEdgeFlowsMlPerSec,
     valveStates: checkpoint.state.valveStates,
@@ -811,14 +839,11 @@ function evaluateCandidate<TEvaluation>(
   const nodeAbsolutePressuresMmHg = nodeRecord((name) => {
     if (isChamberName(name)) return mechanics.absolutePressuresMmHg[name];
     const node = graph.nodes[graph.nodeIndex.get(name)!];
-    const law = vascularPvLawFromNodeV1(node, input.runtime.vascular);
-    const unstressedVolumeMl = effectiveUnstressedVolumeFromNodeV1(
+    const ptmMmHg = vascularTransmuralPressureFromPhysicalVolumeV1(
       node,
+      nodeVolumesMl[name],
       input.runtime.vascular,
-    );
-    const ptmMmHg = ptmFromStressedVolume(
-      law,
-      nodeVolumesMl[name] - unstressedVolumeMl,
+      "adaptive-volume-tolerance",
     );
     const ext = respiratoryExternalPressureForKindV1(
       respiratoryKind(node.ext),
@@ -869,11 +894,23 @@ function evaluateCandidate<TEvaluation>(
       ),
     });
     const gradientMmHg = upstreamPressure - effectiveDownstreamPressure;
-    const losses = baseNonValveEdgeLossV1(edge, input.runtime.losses);
+    const losses = nonValveEdgeLossV1({
+      edge,
+      params: input.runtime.losses,
+      upstreamPressureMmHg: upstreamPressure,
+      downstreamPressureMmHg: downstreamPressure,
+      edgeExternalPressureMmHg: respiratoryExternalPressureForKindV1(
+        respiratoryKind(edge.ext),
+        candidateTimeSec,
+        input.runtime.respiratory,
+      ),
+    });
     if (edge.kind === "dynamic") {
       const dynamicName = name as NonCoronaryDynamicEdgeNameV1;
       const inertance = requirePositive(
-        edge.L ?? 0,
+        (edge.L ?? 0) / (
+          edge.useChiResistance ? Math.max(losses.areaRatio, 1e-6) : 1
+        ),
         `${name} inertanceMmHgSec2PerMl`,
       );
       const flow = solveSignedLinearQuadraticFlowV1(
@@ -963,12 +1000,7 @@ function initialNodeVolumes(
 ): NodeRecord<number> {
   return nodeRecord((name) => {
     const node = graph.nodes[graph.nodeIndex.get(name)!];
-    if (isChamberName(name)) return requirePositive(node.x0, `${name}.x0`);
-    const law = vascularPvLawFromNodeV1(node, runtime.vascular);
-    const unstressed = effectiveUnstressedVolumeFromNodeV1(node, runtime.vascular);
-    const volume = node.kind === "venousPressure"
-      ? unstressed + stressedVolumeFromPtm(law, node.x0)
-      : node.x0;
+    const volume = physicalColdSeedVolumeFromNodeV1(node, runtime.vascular);
     return requirePositive(volume, `${name} initial volume`);
   });
 }
@@ -1028,22 +1060,27 @@ function failure(
 function acceptedState(input: Readonly<{
   revision: number;
   acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
   nodeVolumesMl: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
 }>): NonCoronaryCirculationAcceptedStateV1 {
   requireInteger(input.revision, "revision");
   requireNonnegative(input.acceptedTimeSec, "acceptedTimeSec");
+  requirePositive(input.totalBloodVolumeMl, "totalBloodVolumeMl");
   const nodeVolumesMl = copyNodeRecord(
     input.nodeVolumesMl,
     "nodeVolumesMl",
     requirePositive,
   );
+  if (!nearlyEqual(sumNodeRecord(nodeVolumesMl), input.totalBloodVolumeMl)) {
+    throw new Error("node volumes do not match the fixed TBV owner");
+  }
   return Object.freeze({
     transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
     revision: input.revision,
     acceptedTimeSec: input.acceptedTimeSec,
-    totalBloodVolumeMl: sumNodeRecord(nodeVolumesMl),
+    totalBloodVolumeMl: input.totalBloodVolumeMl,
     nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: copyDynamicEdgeRecord(
       input.dynamicEdgeFlowsMlPerSec,
@@ -1060,6 +1097,7 @@ function cloneAcceptedState(
   return acceptedState({
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
+    totalBloodVolumeMl: state.totalBloodVolumeMl,
     nodeVolumesMl: state.nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: state.dynamicEdgeFlowsMlPerSec,
     valveStates: state.valveStates,
@@ -1074,6 +1112,7 @@ function validateAcceptedState(
   }
   requireInteger(state.revision, "accepted revision");
   requireNonnegative(state.acceptedTimeSec, "acceptedTimeSec");
+  requirePositive(state.totalBloodVolumeMl, "accepted totalBloodVolumeMl");
   copyNodeRecord(state.nodeVolumesMl, "accepted nodeVolumesMl", requirePositive);
   copyDynamicEdgeRecord(
     state.dynamicEdgeFlowsMlPerSec,
@@ -1356,6 +1395,12 @@ function validateRuntime(runtime: NonCoronaryCirculationRuntimeParamsV1): void {
   requirePositive(runtime.vascular.arterialStiffness, "arterialStiffness");
   requirePositive(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
+  if (
+    runtime.losses.useChiResistance !== undefined
+    && typeof runtime.losses.useChiResistance !== "boolean"
+  ) {
+    throw new Error("useChiResistance must be boolean when provided");
+  }
   requireFinite(runtime.respiratory.PEEP, "PEEP");
   requireFinite(runtime.respiratory.Pth0, "Pth0");
   requireFinite(runtime.respiratory.respAmpTh, "respAmpTh");

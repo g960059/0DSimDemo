@@ -14,6 +14,10 @@ import {
   measureMainWireNormalAdultFiveWallCycleDiagnosticsV1,
   type MainWireNormalAdultFiveWallCycleDiagnosticsV1,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallCycleDiagnosticsV1";
+import {
+  readMainWireNormalAdultBloodVolumeOperatingPointReportV1,
+  type MainWireNormalAdultBloodVolumeOperatingPointReportV1,
+} from "@/engine/myocardium/diagnostics/MainWireNormalAdultBloodVolumeOperatingPointReportV1";
 import type {
   MainWireNormalAdultFiveWallDiagnosticSampleV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
@@ -44,10 +48,13 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_CLAIM_V1 =
     timeSeriesSmoothingApplied: false as const,
     timeSeriesResamplingOrInterpolationApplied: false as const,
     piecewiseLinearPvGeometryInterpolationApplied: true as const,
+    laPvMorphologyPressureCoordinate:
+      "intracavitary-absolute-pressure" as const,
     morphologyMetricsComputedWhenNotPeriodic: true as const,
     morphologyInterpretationRequiresPeriod1Convergence: true as const,
     morphologyMetricAcceptanceThresholdApplied: false as const,
     timeStepRobustnessAssessedBySummary: false as const,
+    bloodVolumeOperatingPointReadbackOnly: true as const,
   });
 
 type ChamberId = "LA" | "LV" | "RA" | "RV";
@@ -122,6 +129,8 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     componentHashes:
       MainWireNormalAdultFiveWallPeriodicResultV1["protocolComponentHashes"];
   }>;
+  bloodVolumeOperatingPoint:
+    MainWireNormalAdultBloodVolumeOperatingPointReportV1;
   source: Readonly<{
     experimentId: MainWireNormalAdultFiveWallPeriodicResultV1["experimentId"];
     initialization: MainWireNormalAdultFiveWallPeriodicResultV1["initialization"];
@@ -264,7 +273,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
     Object.freeze({
       theta: sample.cyclePhase01,
       laVolumeMl: sample.nodeVolumeMl.LA,
-      laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
+      laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
       laActivation01: atrialActivation01(sample),
       phase: cycle.phaseBySample[index]!,
     })));
@@ -292,6 +301,8 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
     0,
   );
   const { phaseBySample: _phaseBySample, ...compactCycle } = cycle;
+  const bloodVolumeOperatingPoint =
+    readMainWireNormalAdultBloodVolumeOperatingPointReportV1(result);
 
   return Object.freeze({
     summaryId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_V1_ID,
@@ -300,6 +311,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       identityHash: result.protocolIdentityHash,
       componentHashes: result.protocolComponentHashes,
     }),
+    bloodVolumeOperatingPoint,
     source: Object.freeze({
       experimentId: result.experimentId,
       initialization: result.initialization,
@@ -637,7 +649,7 @@ function cyclicSegmentInclusive<T>(
 function pvPoint(sample: MainWireNormalAdultFiveWallDiagnosticSampleV2) {
   return Object.freeze({
     laVolumeMl: sample.nodeVolumeMl.LA,
-    laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
+    laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
   });
 }
 

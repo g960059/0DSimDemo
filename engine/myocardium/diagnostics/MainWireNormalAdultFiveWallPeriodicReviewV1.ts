@@ -12,6 +12,10 @@ import {
 import type {
   MainWireNormalAdultFiveWallDiagnosticSampleV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
+import {
+  readMainWireNormalAdultBloodVolumeOperatingPointReportV1,
+  type MainWireNormalAdultBloodVolumeOperatingPointReportV1,
+} from "@/engine/myocardium/diagnostics/MainWireNormalAdultBloodVolumeOperatingPointReportV1";
 import type {
   MainWireFiveWallPeriodicClosureGroupReportV1,
   MainWireFiveWallPeriodicClosureGroupV1,
@@ -53,6 +57,7 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V1 =
     landThermodynamicStoredEnergyClaimed: false as const,
     embeddedHtmlData:
       "plot-trace-projection-plus-cycle-diagnostics-not-full-material-readback" as const,
+    bloodVolumeOperatingPointReadbackOnly: true as const,
   });
 
 const CLOSURE_GROUP_ORDER = Object.freeze([
@@ -133,6 +138,8 @@ export type MainWireNormalAdultFiveWallPeriodicReviewV1 = Readonly<{
     readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[];
   previousBeatSamples:
     readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[];
+  bloodVolumeOperatingPoint:
+    MainWireNormalAdultBloodVolumeOperatingPointReportV1;
   cycleDiagnostics: MainWireNormalAdultFiveWallCycleDiagnosticsV1;
   convergence: Readonly<{
     policyTolerance: number;
@@ -226,6 +233,8 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
     }),
     currentBeatSamples: currentBeat.samples,
     previousBeatSamples: previousBeat?.samples ?? Object.freeze([]),
+    bloodVolumeOperatingPoint:
+      readMainWireNormalAdultBloodVolumeOperatingPointReportV1(result),
     cycleDiagnostics,
     convergence: Object.freeze({
       policyTolerance: result.policy.period1NormalizedTolerance,
@@ -296,6 +305,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
     ${card("Jacobian FD nominal / alternate", `${review.run.jacobianFiniteDifferenceWidthAudit.nominalStepCount} / ${review.run.jacobianFiniteDifferenceWidthAudit.alternateStepCount}`)}
     ${card("protocol identity", review.run.protocolIdentityHash.slice(0, 12))}
   </section>
+  ${bloodVolumeOperatingPointSection(review.bloodVolumeOperatingPoint)}
   <section class="figure" aria-label="Periodic review plots">${svg}</section>
   <section class="table-grid">
     ${convergenceTable(review)}
@@ -319,6 +329,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
   </section>
   <details><summary>Numerical diagnostics and claim metadata</summary><pre>${escapeHtml(JSON.stringify({
     run: review.run,
+    bloodVolumeOperatingPoint: review.bloodVolumeOperatingPoint,
     convergence: review.convergence,
     cycleDiagnostics: review.cycleDiagnostics,
     claim: review.claim,
@@ -942,9 +953,13 @@ function gridMarkup(
     const y = plot.y + fraction * plot.height;
     const xv = xDomain[0] + fraction * (xDomain[1] - xDomain[0]);
     const yv = yDomain[1] - fraction * (yDomain[1] - yDomain[0]);
-    return `${vertical ? `<line x1="${x}" y1="${plot.y}" x2="${x}" y2="${plot.y + plot.height}" stroke="#1c2d45"/><text x="${x}" y="${plot.y + plot.height + 17}" fill="#8296af" font-size="10" text-anchor="middle">${escapeXml(tick(xv))}</text>` : ""}
-      <line x1="${plot.x}" y1="${y}" x2="${plot.x + plot.width}" y2="${y}" stroke="#1c2d45"/>
-      <text x="${plot.x - 8}" y="${y + 3}" fill="#8296af" font-size="10" text-anchor="end">${escapeXml(tick(yv))}</text>`;
+    return [
+      vertical
+        ? `<line x1="${x}" y1="${plot.y}" x2="${x}" y2="${plot.y + plot.height}" stroke="#1c2d45"/><text x="${x}" y="${plot.y + plot.height + 17}" fill="#8296af" font-size="10" text-anchor="middle">${escapeXml(tick(xv))}</text>`
+        : null,
+      `<line x1="${plot.x}" y1="${y}" x2="${plot.x + plot.width}" y2="${y}" stroke="#1c2d45"/>`,
+      `<text x="${plot.x - 8}" y="${y + 3}" fill="#8296af" font-size="10" text-anchor="end">${escapeXml(tick(yv))}</text>`,
+    ].filter((line): line is string => line !== null).join("\n");
   }).join("\n");
 }
 
@@ -1050,6 +1065,35 @@ function card(label: string, value: string): string {
   return `<div class="card"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
 }
 
+function bloodVolumeOperatingPointSection(
+  operatingPoint: MainWireNormalAdultBloodVolumeOperatingPointReportV1,
+): string {
+  if (operatingPoint.status === "legacy-unavailable") {
+    return `<section class="operating-point" aria-labelledby="blood-volume-operating-point">
+      <h2 id="blood-volume-operating-point">Blood-volume operating point</h2>
+      <p class="note"><strong>Legacy / unavailable.</strong> This result predates the semantic TBV owner and/or its unhashed construction audit; no owner or volume construction is inferred from historical state.</p>
+    </section>`;
+  }
+  return `<section class="operating-point" aria-labelledby="blood-volume-operating-point">
+    <h2 id="blood-volume-operating-point">Blood-volume operating point</h2>
+    <p class="note">Semantic owner is protocol-hashed; construction values below are deterministic, report-only readbacks.</p>
+    <div class="cards operating-point-cards">
+      ${card("owner", operatingPoint.ownerId)}
+      ${card("parameter set", operatingPoint.parameterSetId)}
+      ${card("topology scope", operatingPoint.topologyScopeId)}
+      ${card("distribution policy", operatingPoint.initialDistributionPolicyId)}
+      ${card("fixed target TBV", `${format(operatingPoint.fixedTotalBloodVolumeMl, 2)} mL`)}
+      ${card("cold-seed TBV", `${format(operatingPoint.coldSeedTotalBloodVolumeMl, 3)} mL`)}
+      ${card("added volume", `${format(operatingPoint.addedBloodVolumeMl, 3)} mL`)}
+      ${card("shared SV/VC ΔPtm", `${format(operatingPoint.sharedSvVcTransmuralPressureOffsetMmHg, 6)} mmHg`)}
+      ${card("excluded coronary cold seed", `${format(operatingPoint.excludedCoronaryColdSeedVolumeMl, 2)} mL`)}
+      ${card("max inverse-offset residual", `${scientific(operatingPoint.maximumInverseOffsetResidualMmHg)} mmHg`)}
+      ${card("max unchanged-node delta", `${scientific(operatingPoint.unchangedNodeMaximumAbsoluteDeltaMl)} mL`)}
+      ${card("target residual", `${scientific(operatingPoint.targetResidualMl)} mL`)}
+    </div>
+  </section>`;
+}
+
 function htmlCss(): string {
   return `:root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -1071,7 +1115,7 @@ function htmlCss(): string {
   .figure { background: #081426; border: 1px solid #203451; border-radius: 11px; overflow: hidden; }
   svg { width: 100%; height: auto; display: block; }
   .table-grid { display: grid; grid-template-columns: 1.15fr 1fr 1.2fr; gap: 14px; margin-top: 16px; }
-  article, .boundary, details { background: #0d1a2d; border: 1px solid #203451; border-radius: 9px; padding: 14px; min-width: 0; }
+  article, .boundary, .operating-point, details { background: #0d1a2d; border: 1px solid #203451; border-radius: 9px; padding: 14px; min-width: 0; }
   table { border-collapse: collapse; width: 100%; font-size: 12px; }
   th, td { border-bottom: 1px solid #203451; padding: 7px 8px; text-align: right; vertical-align: top; }
   th:first-child, td:first-child { text-align: left; }
@@ -1082,6 +1126,9 @@ function htmlCss(): string {
   .note { margin: 10px 0 0; color: #8fa4bf; font-size: 11px; line-height: 1.45; }
   .boundary { margin-top: 16px; }
   .boundary ul { margin: 0; padding-left: 20px; color: #b8c6d9; line-height: 1.55; }
+  .operating-point { margin: 0 0 16px; }
+  .operating-point > .note { margin: -4px 0 12px; }
+  .operating-point-cards { margin-bottom: 0; }
   details { margin-top: 14px; }
   summary { cursor: pointer; color: #dbeafe; font-weight: 600; }
   pre { white-space: pre-wrap; word-break: break-word; font-size: 11px; color: #aebed1; }
@@ -1118,6 +1165,7 @@ function embeddedReviewPayload(
     reviewId: review.reviewId,
     generatedFromExperimentId: review.generatedFromExperimentId,
     run: review.run,
+    bloodVolumeOperatingPoint: review.bloodVolumeOperatingPoint,
     currentBeatSamples: Object.freeze(review.currentBeatSamples.map(project)),
     previousBeatSamples: Object.freeze(review.previousBeatSamples.map(project)),
     cycleDiagnostics: review.cycleDiagnostics,

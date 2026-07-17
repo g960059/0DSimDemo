@@ -1,4 +1,4 @@
-import { clamp, frac, sigmoid, smoothMax, smoothMin, softplus, solveQuadraticFlow } from "@/engine/math";
+import { clamp, frac, sigmoid, smoothMax, solveQuadraticFlow } from "@/engine/math";
 import {
   ActiveStressChamberModel,
   ElastanceChamberModel,
@@ -52,12 +52,20 @@ import {
 } from "@/engine/mechanics/septum";
 import { defaultParams } from "@/engine/core/params";
 import {
+  buildAuthoritativeCirculationGraphV1,
+  downstreamEffectivePressureV1,
+  effectiveUnstressedVolumeFromNodeV1,
+  nonValveEdgeLossV1,
+  physicalColdSeedVolumeFromNodeV1,
+  respiratoryExternalPressureForKindV1,
+  vascularPvLawFromNodeV1,
+  vascularTransmuralPressureFromPhysicalVolumeV1,
+} from "@/engine/core/circulationGraphKernelV1";
+import {
   CORONARY_SPECS,
   CORONARY_TERRITORIES,
   DYNAMIC_FLOW_CLAMP_ML_PER_S,
   MV_PRESSURE_DEADBAND_MMHG,
-  buildEdges,
-  buildNodes,
   dynamicEdgeNames,
   nodeNames,
   pulmonaryVenousNodeNames,
@@ -77,7 +85,11 @@ import {
   makeIndex,
 } from "@/engine/core/stateLayout";
 import { valveFlowIntegral } from "@/engine/flowIntegrals";
-import { complianceFromPtm, type VascularPvLaw } from "@/engine/vascularPv";
+import {
+  complianceFromPtm,
+  stressedVolumeFromPtm,
+  type VascularPvLaw,
+} from "@/engine/vascularPv";
 import type {
   VascularEdgeSnapshot,
   VascularNodeSnapshot,
@@ -1010,8 +1022,8 @@ function normalizeExperimentalTemporalSubstep(
 
 export class ModelCore {
   private readonly idx = makeIndex();
-  private nodes = buildNodes();
-  private edges = buildEdges();
+  private nodes = buildAuthoritativeCirculationGraphV1().nodes.slice();
+  private edges = buildAuthoritativeCirculationGraphV1().edges.slice();
   private readonly nodeIndex = new Map<string, number>();
   private readonly dynamicEdgeIndex = new Map<string, number>();
   private readonly valveIndex = new Map<string, number>();
@@ -1144,9 +1156,8 @@ export class ModelCore {
   reset() {
     this.x.fill(0);
     for (const n of this.nodes) {
-      this.x[this.idx.node[n.name as NodeName]] = n.kind === "venousPressure"
-        ? this.venousVolumeFromPtm(n, n.x0)
-        : n.x0;
+      this.x[this.idx.node[n.name as NodeName]] =
+        physicalColdSeedVolumeFromNodeV1(n, this.p);
     }
     for (const e of this.edges) {
       if (e.kind === "dynamic" || e.kind === "valve") {
@@ -1330,7 +1341,8 @@ export class ModelCore {
     this.pTarget = { ...this.pTarget, ...effectivePatch };
     
     // Apply advanced overrides to nodes and edges by deep merging
-    this.nodes = buildNodes().map(n => {
+    const authoritativeGraph = buildAuthoritativeCirculationGraphV1();
+    this.nodes = authoritativeGraph.nodes.map(n => {
         if (this.p.nodeOverrides?.[n.name]) {
             const overrides = this.p.nodeOverrides[n.name];
             const updated = { ...n, ...overrides };
@@ -1342,7 +1354,7 @@ export class ModelCore {
         return n;
     });
 
-    this.edges = buildEdges().map(e => {
+    this.edges = authoritativeGraph.edges.map(e => {
         const edge = this.applyEdgeOverrides(e);
         return this.configurePVOstialEdge(edge);
     });
@@ -4208,30 +4220,25 @@ export class ModelCore {
 
     for (let i = 0; i < this.nodes.length; i++) {
       const n = this.nodes[i];
-      const xi = this.idx.node[n.name as NodeName];
       const Pext = this.externalPressure(n.ext ?? "none", coronaryExt);
-
-      if (n.kind === "venousPressure") {
-        const volume = x[xi];
-        const ptm = this.venousPtmFromVolume(n, volume);
+      const V = Vphys[i];
+      if (
+        n.kind === "arterial"
+        || n.kind === "linear"
+        || n.kind === "venousPressure"
+      ) {
+        const ptm = vascularTransmuralPressureFromPhysicalVolumeV1(
+          n,
+          V,
+          this.p,
+          "model-core-compatible-fixed32",
+        );
         Ptm[i] = ptm;
-        Vphys[i] = volume;
         P[i] = Pext + ptm;
         continue;
       }
 
-      const V = Vphys[i];
-      if (n.kind === "arterial") {
-        const VsEff = Math.max((n.Vs ?? 100) / Math.max(this.p.arterialStiffness, 0.25), 1);
-        const s = clamp((V - this.effectiveVu(n)) / VsEff, -30, 5);
-        const ptm = (n.P0 ?? 50) * (Math.exp(s) - 1);
-        Ptm[i] = ptm;
-        P[i] = Pext + ptm;
-      } else if (n.kind === "linear") {
-        const ptm = (V - this.effectiveVu(n)) / Math.max(n.C ?? 1, 1e-6);
-        Ptm[i] = ptm;
-        P[i] = Pext + ptm;
-      } else if (n.kind === "heartElastance" || n.kind === "heartActive") {
+      if (n.kind === "heartElastance" || n.kind === "heartActive") {
         const ptm = n.chamber === "LV" ? PLVfw : n.chamber === "RV" ? PRVfw : this.heartTransmuralPressure(n, V, x);
         Ptm[i] = ptm;
         P[i] = peri.Pperi + ptm;
@@ -4974,23 +4981,11 @@ export class ModelCore {
   }
 
   private venousCompliance(n: NodeSpec, Ptm: number): number {
-    const c = (n.Ccoll ?? 5)
-      + ((n.Copen ?? 50) - (n.Ccoll ?? 5)) * sigmoid((Ptm - (n.Popen ?? -1)) / Math.max(n.dOpen ?? 1, 1e-6))
-      - ((n.Copen ?? 50) - (n.Cdist ?? 15)) * sigmoid((Ptm - (n.Pstiff ?? 14)) / Math.max(n.dStiff ?? 3, 1e-6));
-    return Math.max(c, 1e-4);
+    return complianceFromPtm(this.vascularPvLaw(n), Ptm);
   }
 
   private venousStressedVolume(n: NodeSpec, Ptm: number): number {
-    const Ccoll = n.Ccoll ?? 5;
-    const Copen = n.Copen ?? 50;
-    const Cdist = n.Cdist ?? 15;
-    const Popen = n.Popen ?? -1;
-    const Pstiff = n.Pstiff ?? 14;
-    const dOpen = n.dOpen ?? 1;
-    const dStiff = n.dStiff ?? 3;
-    return Ccoll * Ptm
-      + (Copen - Ccoll) * dOpen * (softplus((Ptm - Popen) / dOpen) - softplus((0 - Popen) / dOpen))
-      - (Copen - Cdist) * dStiff * (softplus((Ptm - Pstiff) / dStiff) - softplus((0 - Pstiff) / dStiff));
+    return stressedVolumeFromPtm(this.vascularPvLaw(n), Ptm);
   }
 
   private venousVolumeFromPtm(n: NodeSpec, Ptm: number, params: CoreRuntimeParams = this.p): number {
@@ -5004,33 +4999,27 @@ export class ModelCore {
     };
   }
 
-  private venousPtmFromVolume(n: NodeSpec, targetVolume: number): number {
-    const targetStressed = targetVolume - this.effectiveVu(n);
-    let lo = -20;
-    let hi = 45;
-    const volumeAt = (ptm: number) => this.venousStressedVolume(n, ptm);
-    if (targetStressed <= volumeAt(lo)) return lo;
-    if (targetStressed >= volumeAt(hi)) return hi;
-    for (let iter = 0; iter < 32; iter++) {
-      const mid = 0.5 * (lo + hi);
-      if (volumeAt(mid) < targetStressed) lo = mid;
-      else hi = mid;
-    }
-    return 0.5 * (lo + hi);
-  }
-
   private downstreamEffective(e: EdgeSpec, Pd: number): number {
-    if (!e.waterfall) return Pd;
-    const Pcoll = this.externalPressure(e.ext ?? "none") + (e.Pcrit ?? 0);
-    return smoothMax(Pd, Pcoll, 0.25);
+    return downstreamEffectivePressureV1({
+      edge: e,
+      downstreamPressureMmHg: Pd,
+      edgeExternalPressureMmHg: this.externalPressure(e.ext ?? "none"),
+    });
   }
 
   private effectiveLosses(e: EdgeSpec, Pu: number, Pd: number, x: Float64Array): { R: number; B: number; areaRatio: number } {
-    let R = e.R;
-    let B = e.B ?? 0;
-    let areaRatio = 1.0;
-    if (e.group === "systemic") R *= this.p.systemicResistance;
-    if (e.group === "pulmonary") R *= this.p.pulmonaryResistance;
+    const sharedNonCoronaryLosses = e.kind !== "valve" && e.group !== "coronary"
+      ? nonValveEdgeLossV1({
+        edge: e,
+        params: this.p,
+        upstreamPressureMmHg: Pu,
+        downstreamPressureMmHg: Pd,
+        edgeExternalPressureMmHg: this.externalPressure(e.ext ?? "none"),
+      })
+      : null;
+    let R = sharedNonCoronaryLosses?.resistanceMmHgSecPerMl ?? e.R;
+    let B = sharedNonCoronaryLosses?.quadraticLossMmHgSec2PerMl2 ?? e.B ?? 0;
+    let areaRatio = sharedNonCoronaryLosses?.areaRatio ?? 1.0;
     if (e.group === "coronary") {
       if (!this.p.coronaryEnabled) {
         R *= 1e8;
@@ -5075,11 +5064,6 @@ export class ModelCore {
       const areaLoss = Math.pow(Math.max(areaRatio, 1e-4), -2);
       R = vR * areaLoss;
       B = vB * areaLoss;
-    } else if ((e.useChiResistance || e.useChiQuadratic) && this.p.useChiResistance) {
-      const chi = this.edgeChi(e, Pu, Pd);
-      areaRatio = chi;
-      if (e.useChiResistance) R = R * Math.pow(chi, -(e.chiRExp ?? 2));
-      if (e.useChiQuadratic) B = B * Math.pow(chi, -(e.chiBExp ?? 2));
     }
     return { R: Math.max(R, 1e-8), B: Math.max(B, 0), areaRatio };
   }
@@ -5089,14 +5073,6 @@ export class ModelCore {
     const rvA = clamp(x[this.activeInternalIndex("RV").a], 0, 1);
     if (territory === "RCA") return clamp(0.45 * lvA + 0.55 * rvA, 0, 1);
     return lvA;
-  }
-
-  private edgeChi(e: EdgeSpec, Pu: number, Pd: number): number {
-    const Pext = this.externalPressure(e.ext ?? "none");
-    const Ptube = smoothMin(Pu - Pext, Pd - Pext, 0.25);
-    const z = (Ptube - (e.Pcrit ?? 0)) / Math.max(e.chiWidth ?? 1, 1e-6);
-    const chiMin = e.chiMin ?? 0.08;
-    return chiMin + (1 - chiMin) * sigmoid(z);
   }
 
   private externalPressure(ext: ExtKind, coronaryExt?: CoronaryExternalPressures): number {
@@ -5134,15 +5110,15 @@ export class ModelCore {
   }
 
   private Pth(): number {
-    return this.p.Pth0 + 0.20 * this.p.PEEP + this.p.respAmpTh * Math.sin(2 * Math.PI * this.p.respRate * this.t);
+    return respiratoryExternalPressureForKindV1("pth", this.t, this.p);
   }
 
   private Palv(): number {
-    return this.p.PEEP + this.p.respAmpAlv * Math.sin(2 * Math.PI * this.p.respRate * this.t);
+    return respiratoryExternalPressureForKindV1("palv", this.t, this.p);
   }
 
   private effectiveVu(n: NodeSpec, params: CoreRuntimeParams = this.p): number {
-    return (n.Vu ?? 0) - (n.venousToneGain ?? 0) * params.venousTone;
+    return effectiveUnstressedVolumeFromNodeV1(n, params);
   }
 
   private smoothParams(dt: number) {
@@ -5551,36 +5527,7 @@ export class ModelCore {
   }
 
   private vascularPvLaw(node: NodeSpec): VascularPvLaw {
-    const Vu = this.effectiveVu(node);
-    if (node.kind === "arterial") {
-      return {
-        kind: "arterial",
-        Vu,
-        P0: node.P0 ?? 50,
-        VsEff: Math.max((node.Vs ?? 100) / Math.max(this.p.arterialStiffness, 0.25), 1),
-      };
-    }
-    if (node.kind === "linear") {
-      return {
-        kind: "linear",
-        Vu,
-        C: Math.max(node.C ?? 1, 1e-6),
-      };
-    }
-    if (node.kind === "venousPressure") {
-      return {
-        kind: "venous3",
-        Vu,
-        Ccoll: node.Ccoll ?? 5,
-        Copen: node.Copen ?? 50,
-        Cdist: node.Cdist ?? 15,
-        Popen: node.Popen ?? -1,
-        Pstiff: node.Pstiff ?? 14,
-        dOpen: Math.max(node.dOpen ?? 1, 1e-6),
-        dStiff: Math.max(node.dStiff ?? 3, 1e-6),
-      };
-    }
-    throw new Error(`Node ${node.name} has no vascular PV law`);
+    return vascularPvLawFromNodeV1(node, this.p);
   }
 
   /**

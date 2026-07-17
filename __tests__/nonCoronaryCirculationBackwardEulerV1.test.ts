@@ -4,6 +4,7 @@ import {
   baseNonValveEdgeLossV1,
   downstreamEffectivePressureV1,
   effectiveUnstressedVolumeFromNodeV1,
+  nonValveEdgeLossV1,
   respiratoryExternalPressureForKindV1,
   vascularPvLawFromNodeV1,
 } from "@/engine/core/circulationGraphKernelV1";
@@ -15,9 +16,12 @@ import {
   NON_CORONARY_VALVE_NAMES_V1,
   buildNonCoronaryCirculationGraphV1,
   classifyNonCoronaryLineSearchRejectionOwnerV1,
+  checkpointNonCoronaryCirculationStateV1,
   commitNonCoronaryCirculationTrialV1,
   createInitialNonCoronaryCirculationStateV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
+  resolveNonCoronaryCirculationColdSeedV1,
+  restoreNonCoronaryCirculationStateV1,
   solveSignedLinearQuadraticFlowV1,
   type NonCoronaryCandidateMechanicsCallbackV1,
   type NonCoronaryChamberPressuresMmHgV1,
@@ -68,10 +72,14 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
 
   it("uses physical node volume and preserves the venous x0-as-Ptm main-wire initialization", () => {
     const graph = buildNonCoronaryCirculationGraphV1();
+    const coldSeed = resolveNonCoronaryCirculationColdSeedV1(RUNTIME);
     const state = createInitialNonCoronaryCirculationStateV1({
       timeSec: 0,
       runtime: RUNTIME,
+      fixedTotalBloodVolumeMl: coldSeed.fixedTotalBloodVolumeMl,
     });
+    expect(state.nodeVolumesMl).toEqual(coldSeed.nodeVolumesMl);
+    expect(state.totalBloodVolumeMl).toBe(coldSeed.fixedTotalBloodVolumeMl);
     for (const name of ["SV", "VC", "PCap", "PVen", "PVein"] as const) {
       const node = graph.nodes[graph.nodeIndex.get(name)!];
       const law = vascularPvLawFromNodeV1(node, RUNTIME.vascular);
@@ -85,6 +93,58 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       const node = graph.nodes[graph.nodeIndex.get(name)!];
       expect(state.nodeVolumesMl[name]).toBe(node.x0);
     }
+  });
+
+  it("requires an explicit TBV owner that matches the supplied node volumes", () => {
+    const coldSeed = resolveNonCoronaryCirculationColdSeedV1(RUNTIME);
+    expect(() => createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      fixedTotalBloodVolumeMl: coldSeed.fixedTotalBloodVolumeMl + 1,
+      nodeVolumesMl: coldSeed.nodeVolumesMl,
+    })).toThrow(/fixed TBV owner/);
+
+    const accepted = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeed,
+    });
+    expect(accepted.totalBloodVolumeMl)
+      .toBe(coldSeed.fixedTotalBloodVolumeMl);
+  });
+
+  it("preserves the owner bit-exactly through checkpoint restore and rejects a stale identity", () => {
+    const coldSeed = resolveNonCoronaryCirculationColdSeedV1(RUNTIME);
+    const accepted = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeed,
+    });
+    expect(Object.keys(accepted)).toEqual([
+      "transactionId",
+      "revision",
+      "acceptedTimeSec",
+      "totalBloodVolumeMl",
+      "nodeVolumesMl",
+      "dynamicEdgeFlowsMlPerSec",
+      "valveStates",
+    ]);
+    const checkpoint = checkpointNonCoronaryCirculationStateV1(accepted);
+    const restored = restoreNonCoronaryCirculationStateV1(
+      JSON.parse(JSON.stringify(checkpoint)) as typeof checkpoint,
+    );
+    expect(restored.totalBloodVolumeMl).toBe(accepted.totalBloodVolumeMl);
+    expect(restored).toEqual(accepted);
+
+    const staleOwner = Object.freeze({
+      ...checkpoint,
+      state: Object.freeze({
+        ...checkpoint.state,
+        totalBloodVolumeMl: checkpoint.state.totalBloodVolumeMl + 1,
+      }),
+    });
+    expect(() => restoreNonCoronaryCirculationStateV1(staleOwner))
+      .toThrow(/TBV identity is stale/);
   });
 
   it("keeps a numerically stationary zero-flow state while satisfying TBV and continuity", () => {
@@ -127,10 +187,8 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
 
     const accepted = commitNonCoronaryCirculationTrialV1(fixture.state, trial);
     expect(accepted.revision).toBe(1);
-    expect(accepted.totalBloodVolumeMl).toBeCloseTo(
-      fixture.state.totalBloodVolumeMl,
-      11,
-    );
+    expect(accepted.totalBloodVolumeMl)
+      .toBe(fixture.state.totalBloodVolumeMl);
     expect(() => commitNonCoronaryCirculationTrialV1(accepted, trial))
       .toThrow(/stale or foreign/i);
   });
@@ -170,6 +228,7 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     const initial = createInitialNonCoronaryCirculationStateV1({
       timeSec: 0,
       runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
     });
     const snapshot = JSON.stringify(initial);
     const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
@@ -185,6 +244,8 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     expect(trial.reason).toBe("initial-evaluation-failed");
     expect(trial.rollbackState).toEqual(initial);
     expect(trial.rollbackState).not.toBe(initial);
+    expect(trial.rollbackState.totalBloodVolumeMl)
+      .toBe(initial.totalBloodVolumeMl);
     expect(trial.mechanicsCommitted).toBe(false);
     expect(JSON.stringify(initial)).toBe(snapshot);
   });
@@ -205,6 +266,7 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     const initial = createInitialNonCoronaryCirculationStateV1({
       timeSec: 0,
       runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
     });
     const initialChambers = Object.freeze({
       LA: initial.nodeVolumesMl.LA,
@@ -270,6 +332,7 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     const initial = createInitialNonCoronaryCirculationStateV1({
       timeSec: 0,
       runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
     });
     const callback = elasticMechanicsCallback(initial);
     const dtSec = 0.001;
@@ -325,6 +388,7 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     const initial = createInitialNonCoronaryCirculationStateV1({
       timeSec: 0,
       runtime,
+      ...coldSeedOwner(runtime),
     });
     const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
       previousAcceptedState: initial,
@@ -365,17 +429,82 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     }
   });
 
+  it("supports graph-owned collapsible-tube chi without changing the TBV ledger", () => {
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      losses: Object.freeze({
+        ...RUNTIME.losses,
+        useChiResistance: true,
+      }),
+    });
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime,
+      ...coldSeedOwner(runtime),
+    });
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime,
+      evaluateCandidateMechanics: elasticMechanicsCallback(initial),
+    });
+    expect(trial.converged).toBe(true);
+    if (trial.converged === false) throw new Error(trial.message);
+    expect(Math.abs(trial.diagnostics.totalBloodVolumeErrorMl)).toBeLessThan(1e-10);
+
+    const graph = buildNonCoronaryCirculationGraphV1();
+    for (const name of ["VC_RA", "PCap_PVen"] as const) {
+      const edge = graph.edges[graph.edgeIndex.get(name)]!;
+      const upstreamPressure = trial.nodeAbsolutePressuresMmHg[
+        edge.up as keyof typeof trial.nodeAbsolutePressuresMmHg
+      ];
+      const downstreamPressure = trial.nodeAbsolutePressuresMmHg[
+        edge.down as keyof typeof trial.nodeAbsolutePressuresMmHg
+      ];
+      const extKind = edge.ext === "pth" || edge.ext === "palv"
+        ? edge.ext
+        : "none";
+      const edgeExternalPressure = respiratoryExternalPressureForKindV1(
+        extKind,
+        trial.candidateTimeSec,
+        runtime.respiratory,
+      );
+      const effectiveDownstream = downstreamEffectivePressureV1({
+        edge,
+        downstreamPressureMmHg: downstreamPressure,
+        edgeExternalPressureMmHg: edgeExternalPressure,
+      });
+      const losses = nonValveEdgeLossV1({
+        edge,
+        params: runtime.losses,
+        upstreamPressureMmHg: upstreamPressure,
+        downstreamPressureMmHg: downstreamPressure,
+        edgeExternalPressureMmHg: edgeExternalPressure,
+      });
+      expect(losses.collapsibleTubeApplied).toBe(true);
+      expect(trial.edgeFlowsMlPerSec[name]).toBeCloseTo(
+        solveSignedLinearQuadraticFlowV1(
+          upstreamPressure - effectiveDownstream,
+          losses.resistanceMmHgSecPerMl,
+          losses.quadraticLossMmHgSec2PerMl2,
+        ),
+        10,
+      );
+    }
+  });
+
   it("conserves TBV and shows backward-Euler time-step refinement", () => {
     const initial = createInitialNonCoronaryCirculationStateV1({
       timeSec: 0,
       runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
     });
     const callback = elasticMechanicsCallback(initial);
     const coarse = advance(initial, 0.004, 1, callback);
     const medium = advance(initial, 0.002, 2, callback);
     const fine = advance(initial, 0.001, 4, callback);
     for (const state of [coarse, medium, fine]) {
-      expect(state.totalBloodVolumeMl).toBeCloseTo(initial.totalBloodVolumeMl, 10);
+      expect(state.totalBloodVolumeMl).toBe(initial.totalBloodVolumeMl);
     }
     const mediumError = maximumNodeVolumeDifference(coarse, medium);
     const fineError = maximumNodeVolumeDifference(medium, fine);
@@ -437,6 +566,7 @@ function steadyStateFixture() {
   const state = createInitialNonCoronaryCirculationStateV1({
     timeSec: 0,
     runtime: RUNTIME,
+    fixedTotalBloodVolumeMl: sumNodeVolumes(nodeVolumes),
     nodeVolumesMl: nodeVolumes,
     dynamicEdgeFlowsMlPerSec: Object.freeze({ Ao_SA: 0, PA_PArt: 0 }),
     valveStates: Object.freeze({
@@ -447,6 +577,25 @@ function steadyStateFixture() {
     }),
   });
   return Object.freeze({ state, chamberPressures });
+}
+
+function coldSeedOwner(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): Readonly<{ fixedTotalBloodVolumeMl: number }> {
+  return Object.freeze({
+    fixedTotalBloodVolumeMl:
+      resolveNonCoronaryCirculationColdSeedV1(runtime)
+        .fixedTotalBloodVolumeMl,
+  });
+}
+
+function sumNodeVolumes(
+  volumes: NonCoronaryCirculationAcceptedStateV1["nodeVolumesMl"],
+): number {
+  return NON_CORONARY_NODE_NAMES_V1.reduce(
+    (sum, name) => sum + volumes[name],
+    0,
+  );
 }
 
 function elasticMechanicsCallback(

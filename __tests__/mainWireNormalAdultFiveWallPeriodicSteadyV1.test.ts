@@ -62,6 +62,38 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       .toHaveLength(15);
     expect(result.protocolIdentity.circulation.topologyGraphSnapshot.edges)
       .toHaveLength(15);
+    expect(result.protocolIdentity.bloodVolumeOperatingPoint).toEqual({
+      ownerId: "main-wire-normal-adult-blood-volume-operating-point-v1",
+      parameterSetId:
+        "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+      topologyScopeId: "main-wire-noncoronary-15-node-no-coronary-v1",
+      fixedTotalBloodVolumeMl: 5522.11,
+      initialDistributionPolicyId: "shared-SV-VC-transmural-offset",
+    });
+    expect(result.initializationAudit.canonicalTotalBloodVolumeMl)
+      .toBeCloseTo(5522.11, 8);
+    expect(result.bloodVolumeOperatingPointAudit).toMatchObject({
+      coldSeedTotalBloodVolumeMl: expect.closeTo(4589.457569593876, 9),
+      resolvedTotalBloodVolumeMl: expect.closeTo(5522.11, 8),
+      addedBloodVolumeMl: expect.closeTo(
+        5522.11 - 4589.457569593876,
+        8,
+      ),
+      sharedTransmuralPressureOffsetMmHg: expect.closeTo(6.051930745, 8),
+      changedNodes: ["SV", "VC"],
+      unchangedNodeMaximumAbsoluteDeltaMl: 0,
+      excludedCoronaryColdSeedVolumeMl: 77.89,
+    });
+    expect(Object.keys(result.protocolIdentity))
+      .not.toContain("bloodVolumeOperatingPointAudit");
+    expect(Object.keys(result.protocolIdentity.bloodVolumeOperatingPoint))
+      .toEqual([
+        "ownerId",
+        "parameterSetId",
+        "topologyScopeId",
+        "fixedTotalBloodVolumeMl",
+        "initialDistributionPolicyId",
+      ]);
     expect(result.protocolIdentity.periodicPolicy.policyId)
       .toBe("fixed-groupwise-periodic-policy-v1");
     expect(result.protocolIdentity.commonPericardium).toMatchObject({
@@ -69,7 +101,7 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       mode: "on",
     });
     expect(Object.values(result.protocolComponentHashes))
-      .toHaveLength(6);
+      .toHaveLength(7);
     expect(Object.values(result.protocolComponentHashes)
       .every((hash) => /^[0-9a-f]{8}$/.test(hash))).toBe(true);
     expect(result.protocolIdentity.calciumDrive.fixedParamsStableHash)
@@ -78,6 +110,10 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       .toBe(result.protocolComponentHashes.circulationTopologyGraphStableHash);
     expect(result.protocolIdentity.circulation.runtimeStableHash)
       .toBe(result.protocolComponentHashes.circulationRuntimeStableHash);
+    expect(result.protocolComponentHashes.bloodVolumeOperatingPointStableHash)
+      .toBe(stableHash(sanitizeForStableHash(
+        result.protocolIdentity.bloodVolumeOperatingPoint,
+      )));
     expect(result.protocolIdentity.commonPericardium.stableHash)
       .toBe(result.protocolComponentHashes.commonPericardiumStableHash);
     expect(result.protocolIdentity.periodicPolicy.policyStableHash)
@@ -123,7 +159,7 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(continued.retainedCompleteBeats[0]!.endTimeSec).toBeCloseTo(1, 12);
     expect(continued.terminalCycleBoundaryWarmStart?.sourcePericardiumMode)
       .toBe("exact-off");
-    expect(warmStart.schemaVersion).toBe(1);
+    expect(warmStart.schemaVersion).toBe(2);
     expect(warmStart.envelopeFingerprint).toMatch(/^[0-9a-f]{8}$/);
 
     expect(continued.terminalCycleBoundaryWarmStart?.checkpoint)
@@ -190,6 +226,108 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       ...candidate,
       envelopeFingerprint: stableHash(sanitizeForStableHash(candidate)),
     });
+    const {
+      envelopeFingerprint: _oldSchemaFingerprint,
+      ...schema2Unsigned
+    } = warmStart;
+    const schema1Unsigned = { ...schema2Unsigned, schemaVersion: 1 };
+    const schema1WarmStart = Object.freeze({
+      ...schema1Unsigned,
+      envelopeFingerprint: stableHash(sanitizeForStableHash(schema1Unsigned)),
+    }) as unknown as typeof warmStart;
+    expect(() => runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.02,
+      maximumBeatCount: 1,
+      warmStart: schema1WarmStart,
+    })).toThrow("unsupported five-wall cycle warm start");
+
+    const ownerDriftMl = 5e-10;
+    const ownerDriftState = {
+      ...warmStart.checkpoint.circulation.state,
+      totalBloodVolumeMl:
+        warmStart.checkpoint.circulation.state.totalBloodVolumeMl
+        + ownerDriftMl,
+      nodeVolumesMl: {
+        ...warmStart.checkpoint.circulation.state.nodeVolumesMl,
+        SV: warmStart.checkpoint.circulation.state.nodeVolumesMl.SV
+          + ownerDriftMl,
+      },
+    };
+    const ownerDriftCirculation = {
+      checkpointId: warmStart.checkpoint.circulation.checkpointId,
+      schemaVersion: warmStart.checkpoint.circulation.schemaVersion,
+      state: ownerDriftState,
+      stateFingerprint: stableHash(ownerDriftState),
+    };
+    const ownerDriftCheckpointUnsigned = {
+      checkpointId: warmStart.checkpoint.checkpointId,
+      schemaVersion: warmStart.checkpoint.schemaVersion,
+      transactionId: warmStart.checkpoint.transactionId,
+      revision: warmStart.checkpoint.revision,
+      acceptedTimeSec: warmStart.checkpoint.acceptedTimeSec,
+      circulation: ownerDriftCirculation,
+      mechanics: warmStart.checkpoint.mechanics,
+    };
+    const ownerDriftCheckpoint = {
+      ...ownerDriftCheckpointUnsigned,
+      checkpointFingerprint: stableHash(ownerDriftCheckpointUnsigned),
+    };
+    const {
+      envelopeFingerprint: _oldOwnerDriftFingerprint,
+      ...ownerDriftWarmUnsigned
+    } = warmStart;
+    const ownerDriftEnvelopeUnsigned = {
+      ...ownerDriftWarmUnsigned,
+      checkpoint: ownerDriftCheckpoint,
+    };
+    const ownerDriftWarmStart = Object.freeze({
+      ...ownerDriftEnvelopeUnsigned,
+      envelopeFingerprint: stableHash(sanitizeForStableHash(
+        ownerDriftEnvelopeUnsigned,
+      )),
+    }) as typeof warmStart;
+    expect(() => runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.02,
+      maximumBeatCount: 1,
+      warmStart: ownerDriftWarmStart,
+    })).toThrow(
+      "warm-start checkpoint TBV owner does not match protocol identity",
+    );
+
+    const differentOwner = Object.freeze({
+      ...warmStart.sourceProtocolIdentity.bloodVolumeOperatingPoint,
+      fixedTotalBloodVolumeMl:
+        warmStart.sourceProtocolIdentity.bloodVolumeOperatingPoint
+          .fixedTotalBloodVolumeMl + 1,
+    });
+    const differentOwnerIdentity = Object.freeze({
+      ...warmStart.sourceProtocolIdentity,
+      bloodVolumeOperatingPoint: differentOwner,
+    });
+    const differentOwnerBase = {
+      ...warmStart,
+      sourceProtocolIdentity: differentOwnerIdentity,
+      sourceProtocolIdentityHash: stableHash(sanitizeForStableHash(
+        differentOwnerIdentity,
+      )),
+      sourceComponentHashes: Object.freeze({
+        ...warmStart.sourceComponentHashes,
+        bloodVolumeOperatingPointStableHash:
+          stableHash(sanitizeForStableHash(differentOwner)),
+      }),
+    };
+    const {
+      envelopeFingerprint: _oldDifferentOwnerFingerprint,
+      ...differentOwnerUnsigned
+    } = differentOwnerBase;
+    expect(() => runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.02,
+      maximumBeatCount: 1,
+      warmStart: resignWarmStart(differentOwnerUnsigned),
+    })).toThrow(
+      "warm-start component mismatch: bloodVolumeOperatingPointStableHash",
+    );
+
     const inconsistentPericardiumIdentity = Object.freeze({
       ...warmStart.sourceProtocolIdentity,
       commonPericardium: Object.freeze({

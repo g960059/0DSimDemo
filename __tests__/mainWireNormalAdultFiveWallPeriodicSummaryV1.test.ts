@@ -31,6 +31,25 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
       identityHash: result.protocolIdentityHash,
       componentHashes: result.protocolComponentHashes,
     });
+    expect(summary.bloodVolumeOperatingPoint).toMatchObject({
+      status: "available",
+      unavailableReason: null,
+      ownerId: "main-wire-normal-adult-blood-volume-operating-point-v1",
+      fixedTotalBloodVolumeMl: 5522.11,
+      coldSeedTotalBloodVolumeMl: expect.closeTo(4589.457569593876, 9),
+      addedBloodVolumeMl: expect.closeTo(
+        5522.11 - 4589.457569593876,
+        8,
+      ),
+      sharedSvVcTransmuralPressureOffsetMmHg:
+        expect.closeTo(6.051930745, 8),
+      excludedCoronaryColdSeedVolumeMl: 77.89,
+      unchangedNodeMaximumAbsoluteDeltaMl: 0,
+    });
+    if (summary.bloodVolumeOperatingPoint.status === "available") {
+      expect(summary.bloodVolumeOperatingPoint
+        .maximumInverseOffsetResidualMmHg).toBeLessThan(1e-8);
+    }
     expect(summary.selectedBeat).toMatchObject({
       beatIndex: 2,
       sampleCount: 100,
@@ -75,7 +94,10 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
     expect(summary.claim.changesPhysiologyOrMaterialParameters).toBe(false);
     expect(summary.claim.timeSeriesResamplingOrInterpolationApplied).toBe(false);
     expect(summary.claim.piecewiseLinearPvGeometryInterpolationApplied).toBe(true);
+    expect(summary.claim.laPvMorphologyPressureCoordinate)
+      .toBe("intracavitary-absolute-pressure");
     expect(summary.claim.timeStepRobustnessAssessedBySummary).toBe(false);
+    expect(summary.claim.bloodVolumeOperatingPointReadbackOnly).toBe(true);
     expect(summary.fixedActivationPrior.purpose).toBe(
       "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law",
     );
@@ -170,6 +192,49 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
     });
   });
 
+  it("measures LA PV shape in absolute pressure while retaining transmural wall work", () => {
+    const baseline = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result);
+    const retainedCompleteBeats = Object.freeze(result.retainedCompleteBeats.map(
+      (beat) => Object.freeze({
+        ...beat,
+        samples: Object.freeze(beat.samples.map((sample) => {
+          const externalOffsetMmHg = 3 * Math.sin(
+            2 * Math.PI * sample.cyclePhase01 + 0.37,
+          );
+          return Object.freeze({
+            ...sample,
+            nodeAbsolutePressureMmHg: Object.freeze({
+              ...sample.nodeAbsolutePressureMmHg,
+              LA: sample.nodeAbsolutePressureMmHg.LA + externalOffsetMmHg,
+              LV: sample.nodeAbsolutePressureMmHg.LV + externalOffsetMmHg,
+              RA: sample.nodeAbsolutePressureMmHg.RA + externalOffsetMmHg,
+              RV: sample.nodeAbsolutePressureMmHg.RV + externalOffsetMmHg,
+            }),
+            commonPericardium: Object.freeze({
+              ...sample.commonPericardium,
+              excessPressureMmHg:
+                sample.commonPericardium.excessPressureMmHg
+                + externalOffsetMmHg,
+            }),
+          });
+        })),
+      }),
+    ));
+    const shifted = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      retainedCompleteBeats,
+    });
+
+    expect(shifted.laPvMorphology.twoLobes)
+      .not.toEqual(baseline.laPvMorphology.twoLobes);
+    expect(shifted.laPvMorphology.reservoirConduitEqualVolumeOrder)
+      .not.toEqual(baseline.laPvMorphology.reservoirConduitEqualVolumeOrder);
+    expect(shifted.ranges.chamberTransmuralPressureMmHg.LA)
+      .toEqual(baseline.ranges.chamberTransmuralPressureMmHg.LA);
+    expect(shifted.cyclePhysiology.workEnergy.cavityWorkOnWallMilliJ.LA)
+      .toBe(baseline.cyclePhysiology.workEnergy.cavityWorkOnWallMilliJ.LA);
+  });
+
   it("allows morphology interpretation only for a consistent period-1 result", () => {
     const inconsistent = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
       ...result,
@@ -200,5 +265,32 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
       ...result,
       retainedCompleteBeats: [],
     })).toThrow("no retained complete beat");
+  });
+
+  it("marks a historical result without the new owner/audit as legacy unavailable", () => {
+    const {
+      bloodVolumeOperatingPointAudit: _audit,
+      protocolIdentity,
+      ...withoutAudit
+    } = result;
+    const {
+      bloodVolumeOperatingPoint: _owner,
+      ...legacyProtocolIdentity
+    } = protocolIdentity;
+    const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...withoutAudit,
+      protocolIdentity: legacyProtocolIdentity,
+    } as unknown as MainWireNormalAdultFiveWallPeriodicResultV1);
+
+    expect(summary.bloodVolumeOperatingPoint).toMatchObject({
+      status: "legacy-unavailable",
+      unavailableReason:
+        "legacy-result-missing-semantic-owner-or-construction-audit",
+      ownerId: null,
+      fixedTotalBloodVolumeMl: null,
+      coldSeedTotalBloodVolumeMl: null,
+      addedBloodVolumeMl: null,
+      maximumInverseOffsetResidualMmHg: null,
+    });
   });
 });

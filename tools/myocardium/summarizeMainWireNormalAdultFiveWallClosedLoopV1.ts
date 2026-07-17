@@ -44,7 +44,7 @@ const atrialCalcium = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial;
 const lobe = measureLaPvTwoLobesV2(beat.map((sample, index) => ({
   theta: sample.cyclePhase01,
   laVolumeMl: sample.nodeVolumeMl.LA,
-  laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
+  laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
   laActivation01: clamp01(
     (sample.freeCalciumUM.LA - atrialCalcium.diastolicCalciumUM) /
       Math.max(atrialCalcium.peakAmplitudeUM, Number.EPSILON),
@@ -65,6 +65,7 @@ process.stdout.write(`${JSON.stringify({
   completed: result.completed,
   completedBeatCount: result.completedBeatCount,
   failure: result.failure,
+  laPvPressureCoordinate: "intracavitary-absolute-pressure",
   beatTimeRangeSec: [beat[0]!.timeSec, beat.at(-1)!.timeSec],
   events: {
     mvoPhase01: mvoIndex >= 0 ? beat[mvoIndex]!.cyclePhase01 : null,
@@ -75,7 +76,7 @@ process.stdout.write(`${JSON.stringify({
   ranges: {
     laVolumeMl: range(beat.map((sample) => sample.nodeVolumeMl.LA)),
     laPressureMmHg: range(beat.map((sample) =>
-      sample.chamberTransmuralPressureMmHg.LA)),
+      sample.nodeAbsolutePressureMmHg.LA)),
     lvVolumeMl: range(beat.map((sample) => sample.nodeVolumeMl.LV)),
     lvPressureMmHg: range(beat.map((sample) =>
       sample.chamberTransmuralPressureMmHg.LV)),
@@ -134,7 +135,7 @@ function lastCompleteBeat(
 function pvPoint(sample: MainWireNormalAdultFiveWallClosedLoopSampleV1) {
   return Object.freeze({
     laVolumeMl: sample.nodeVolumeMl.LA,
-    laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
+    laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
   });
 }
 
