@@ -6,7 +6,7 @@ import {
   createMainWireScientificSessionV1,
 } from "@/engine/scientific/runtime/MainWireScientificSessionV1";
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
   mainWireAdultFiveWallNonCoronaryReleaseInputV1,
 } from "@/engine/scientific/assembly";
 import { createSimulationReleaseV1 } from "@/engine/scientific/release";
@@ -83,7 +83,7 @@ describe("main-wire ScientificSession V1", () => {
 
   it("validates the full release and restores only its SHA-256-bound checkpoint", async () => {
     const canonicalRelease =
-      await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+      await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
     const source = await MainWireScientificSessionV1.initialize(
       JSON.parse(JSON.stringify(canonicalRelease)),
     );

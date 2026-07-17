@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
   OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_MANIFEST_PATH,
@@ -218,7 +218,7 @@ describe("main-wire scientific official preset Worker load V1", () => {
 
   it("fails closed on raw manifest/checkpoint tamper and stale inner SHA", async () => {
     const assets = readBundleAssets();
-    const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
 
     const manifest = JSON.parse(assets.presetRawJson) as Record<string, any>;
     manifest.protocol.result.terminalTotalBloodVolumeErrorMl += 1;
@@ -276,7 +276,7 @@ describe("main-wire scientific official preset Worker load V1", () => {
   });
 
   it("rejects a preset chain bound to any release other than the exact current ref", async () => {
-    const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
     const wrongRelease = Object.freeze({
       ...release,
       ref: Object.freeze({ ...release.ref, sha256: "0".repeat(64) }),

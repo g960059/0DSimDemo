@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
   MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM,
@@ -180,7 +180,7 @@ describe("main-wire scientific in-process kernel V1", () => {
     });
     expect(structuredClone(checkpointResponse)).toEqual(checkpointResponse);
     const canonicalRelease =
-      await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+      await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
     const restored = await kernel.handle({
       ...baseCommand(
         "restoreExactSession",
@@ -352,7 +352,7 @@ describe("main-wire scientific in-process kernel V1", () => {
     ));
     alteredCheckpoint.transaction.circulation.state
       .dynamicEdgeFlowsMlPerSec.Ao_SA += 1;
-    const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
     const rejected = await kernel.handle({
       ...baseCommand(
         "restoreExactSession",

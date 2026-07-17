@@ -86,6 +86,16 @@ The immutable manifest separately locks:
 Canonical JSON plus SHA-256 is used for release identity. Existing short stable
 hashes remain cache or diagnostic keys and are not release identities.
 
+A published release is a checked-in, complete canonical `{ref, manifest}`
+artifact. Browser, Worker, CLI, and tests load and digest-validate those same
+resolved bytes; production hosts do not reconstruct the release manifest from
+live constructors. The source builder remains an authoring and audit tool
+behind an explicit generate/check command. This distinction is required
+because standards-compliant JavaScript engines can differ in the last bit of
+libm-derived values or accumulated sums even when they execute the same source.
+Rounding those differences only at the hash boundary is rejected: it would let
+different resolved numerical inputs share one exact-checkpoint identity.
+
 The #478 Git commit recorded by the first release is the immutable source of
 its oracle evidence, not the identity of every future executable. A manifest
 cannot contain the Git commit that contains that same manifest without a
@@ -147,6 +157,12 @@ Two checkpoint roles remain distinct:
   checkpoint schema and fails closed on identity mismatch;
 - **warm-start seed**: carries declared physical seed fields into an approved
   initialization protocol and is never presented as an exact resume.
+
+Exact resume means that the stored accepted state is restored bit-for-bit under
+the identical release and state schema. It does not claim that future
+continuation is bitwise-identical across different JavaScript engines or build
+artifacts. Cross-engine continuation is an acceptance-envelope claim; bitwise
+continuation requires an independently locked executable build and engine.
 
 Numerical-ABI changes may still permit a separately declared warm-start import,
 but they never imply exact-checkpoint compatibility. No such `0.1.0` to `0.2.0`

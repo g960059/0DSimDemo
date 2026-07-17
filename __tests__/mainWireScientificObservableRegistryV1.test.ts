@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1,
@@ -176,7 +176,7 @@ describe("main-wire scientific observable registry V1", () => {
   });
 
   it("locks the exact registry catalog into the canonical release", async () => {
-    const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
     expect(release.manifest.observableSchema).toMatchObject({
       schemaId: MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID,
       schemaVersion:

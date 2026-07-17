@@ -4,7 +4,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
   loadOfficialHealthyPeriodicCheckpointPresetDocumentV1,
@@ -134,7 +134,7 @@ export async function verifyOfficialHealthyPeriodicCheckpointPresetV1(
   }
   if (catalog !== null && document !== null && checkpoint !== null) {
     try {
-      const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+      const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
       releaseRefMatches = sameSimulationReleaseRef(
         release.ref,
         document.releaseRef,

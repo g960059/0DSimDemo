@@ -47,7 +47,7 @@ import type {
   MainWireCommonPericardiumBindingV1,
 } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
   loadSimulationReleaseV1,
@@ -328,7 +328,7 @@ export class MainWireScientificSessionV1 {
   }
 
   static async createCanonical(): Promise<MainWireScientificSessionV1> {
-    const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
     return MainWireScientificSessionV1.constructCold(release);
   }
 
@@ -949,7 +949,7 @@ async function loadFixedAssemblyRelease(
 ): Promise<SimulationReleaseV1> {
   const [loaded, canonical] = await Promise.all([
     loadSimulationReleaseV1(untrustedRelease),
-    createMainWireAdultFiveWallNonCoronaryReleaseV1(),
+    loadMainWireAdultFiveWallNonCoronaryReleaseV1(),
   ]);
   if (!sameSimulationReleaseRef(loaded.ref, canonical.ref)) {
     throw new Error(

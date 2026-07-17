@@ -39,7 +39,7 @@ import {
   MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_V2_ID,
 } from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_ORACLE_EVIDENCE_SOURCE_V1,
@@ -118,15 +118,14 @@ describe("SimulationRelease V1", () => {
     const originalTransactionId = (
       input.scientificModel.snapshot as { transaction: { id: string } }
     ).transaction.id;
-    const release = await createSimulationReleaseV1(input);
-    const productionRelease =
-      await createMainWireAdultFiveWallNonCoronaryReleaseV1();
-    expect(productionRelease).toEqual(release);
+    const authoredRelease = await createSimulationReleaseV1(input);
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
 
     expect(release.ref).toEqual({
       id: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID,
       version: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION,
-      sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      sha256:
+        "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4",
     });
     expect(release.ref.sha256).toBe(
       await sha256CanonicalJsonHex(release.manifest),
@@ -261,7 +260,11 @@ describe("SimulationRelease V1", () => {
     expect(originalTransactionId).toBe(
       MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID,
     );
-    expect((release.manifest.scientificModel.snapshot.transaction as { id: string }).id)
+    expect((
+      authoredRelease.manifest.scientificModel.snapshot.transaction as {
+        id: string;
+      }
+    ).id)
       .toBe(MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID);
 
     const loaded = await loadSimulationReleaseV1(JSON.parse(JSON.stringify(release)));
@@ -307,7 +310,7 @@ describe("SimulationRelease V1", () => {
       /manifest.evidence.status must match manifest.evidenceStatus/,
     );
 
-    const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
 
     const manifestTamper = mutableRelease(release);
     manifestTamper.manifest.scientificModel.snapshot.transaction = {
@@ -340,7 +343,7 @@ describe("SimulationRelease V1", () => {
   });
 
   it("rejects semantically non-canonical protocol ordering even with a valid digest", async () => {
-    const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
     const reordered = mutableRelease(release);
     reordered.manifest.approvedProtocols.reverse();
     reordered.ref.sha256 = await sha256CanonicalJsonHex(reordered.manifest);

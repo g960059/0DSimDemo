@@ -6,7 +6,7 @@ import {
   createMainWireScientificSessionV1,
 } from "@/engine/scientific/runtime";
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
 
@@ -62,7 +62,7 @@ describe("main-wire scientific periodic settlement V1", () => {
   }, 120_000);
 
   it("stores tracker state in checkpoint V2 and resumes command-exactly", async () => {
-    const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
     const source = await createMainWireScientificSessionV1();
     const first = source.settlePeriodic();
     if (first.completed === false) throw new Error(first.message);

@@ -3,7 +3,7 @@ import presetRawJson from "@/data/scientific/presets/official-healthy-periodic-v
 import checkpointRawJson from "@/data/scientific/checkpoints/0.2.0/normal-adult-periodic-steady-v1.json?raw";
 
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
   verifyOfficialHealthyPeriodicPresetBundleAssetsV1,
@@ -42,7 +42,7 @@ export const BUNDLED_OFFICIAL_HEALTHY_PERIODIC_RAW_ASSETS_FOR_TEST_V1 =
 export async function loadBundledOfficialHealthyPeriodicPresetV1(
   identity: BundledOfficialHealthyPeriodicPresetIdentityV1,
 ): Promise<LoadedBundledOfficialHealthyPeriodicPresetV1> {
-  const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+  const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
   return verifyOfficialHealthyPeriodicPresetBundleAssetsV1(
     identity,
     release,

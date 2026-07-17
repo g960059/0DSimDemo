@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_ORACLE_EVIDENCE_SOURCE_V1,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID,
@@ -150,7 +150,7 @@ describe("scientific release 0.2.0 numerical validation identity", () => {
     expect(artifact.numericalRuntime).not.toHaveProperty("commitSha");
     expect(artifact.numericalRuntime).not.toHaveProperty("repository");
 
-    const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
     const numericalSnapshot = release.manifest.numericalRuntime.snapshot;
     expect(numericalSnapshot).not.toHaveProperty("implementationProvenance");
     expect(JSON.stringify(numericalSnapshot)).not.toContain("commitSha");

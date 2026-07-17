@@ -69,6 +69,10 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID =
   "circleheart/adult-five-wall-noncoronary" as const;
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION =
   "0.2.0" as const;
+export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_SHA256 =
+  "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4" as const;
+export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ARTIFACT_PATH =
+  "engine/scientific/assembly/releases/main-wire-adult-five-wall-noncoronary-0.2.0.json" as const;
 
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID =
   "main-wire-normal-adult-five-wall-fixed-tbv-cold-initialization-v1" as const;
@@ -400,7 +404,11 @@ SimulationReleaseManifestInputV1 {
   return detached as SimulationReleaseManifestInputV1;
 }
 
-export async function createMainWireAdultFiveWallNonCoronaryReleaseV1():
+/**
+ * Build-time authoring path. Production hosts must load the checked-in release
+ * artifact instead of reconstructing identity from host-dependent libm results.
+ */
+export async function buildMainWireAdultFiveWallNonCoronaryReleaseFromSourceV1():
 Promise<SimulationReleaseV1> {
   return createSimulationReleaseV1(
     mainWireAdultFiveWallNonCoronaryReleaseInputV1(),

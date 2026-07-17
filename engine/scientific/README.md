@@ -16,11 +16,15 @@ The intended layers are:
 
 ```text
 release    immutable identity and capability locks
-assembly   typed, build-time approved scientific configurations
+assembly   typed source builders plus digest-validated published artifacts
 runtime    accepted-state session, protocols, checkpoints, observables
 host       worker/CLI/fitting adapters outside this directory
 ```
 
+Production hosts load the checked-in complete release artifact. Rebuilding a
+release from source is reserved for the explicit generator/audit path because
+host math-library differences must not mint different identities for one
+published version.
+
 See `docs/scientific-runtime/ADR-0001-single-scientific-core.md` for the
 decision, evidence boundary, and cutover gates.
-

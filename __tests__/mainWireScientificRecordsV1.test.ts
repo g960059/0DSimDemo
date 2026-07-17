@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   BUILD_ARTIFACT_REF_V1_SCHEMA_ID,
   BuildArtifactRefValidationErrorV1,
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
   createRunArtifactV1,
   loadBuildArtifactRefV1,
   loadRunArtifactV1,
@@ -197,7 +197,7 @@ describe("RunArtifact V1", () => {
 });
 
 async function mutableBuildArtifactRef(): Promise<any> {
-  const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+  const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
   return {
     schemaId: BUILD_ARTIFACT_REF_V1_SCHEMA_ID,
     simulationReleaseRef: mutable(release.ref),

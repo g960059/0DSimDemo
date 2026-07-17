@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 
 import {
-  createMainWireAdultFiveWallNonCoronaryReleaseV1,
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
   loadOfficialHealthyPeriodicCheckpointPresetDocumentV1,
@@ -35,7 +35,7 @@ export type BuiltOfficialHealthyPeriodicCheckpointPresetV1 = Readonly<{
  */
 export async function buildOfficialHealthyPeriodicCheckpointPresetV1():
 Promise<BuiltOfficialHealthyPeriodicCheckpointPresetV1> {
-  const release = await createMainWireAdultFiveWallNonCoronaryReleaseV1();
+  const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
   const session = await MainWireScientificSessionV1.initialize(release);
   const settlement = settleHealthyPeriod1(session);
   const checkpoint = await session.checkpointExact();
