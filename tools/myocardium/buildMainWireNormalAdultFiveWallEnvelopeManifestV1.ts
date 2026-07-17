@@ -30,12 +30,8 @@ const runSpecs = Object.freeze({
   healthyDt2ms: Object.freeze({
     raw: verificationPath("healthy-dt2ms.json"),
     summary: verificationPath("healthy-summary-dt2ms.json"),
-    visualHtml: visualPath(
-      "mainwire-shared-circulation-kernel-v1-healthy-dt1ms.html",
-    ),
-    visualSvg: visualPath(
-      "mainwire-shared-circulation-kernel-v1-healthy-dt1ms.svg",
-    ),
+    visualHtml: null,
+    visualSvg: null,
     visualNominalDtMatchesRun: false,
     warmStartSource: bootstrapPath,
   }),
