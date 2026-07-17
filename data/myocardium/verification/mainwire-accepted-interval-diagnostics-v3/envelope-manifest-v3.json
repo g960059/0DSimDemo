@@ -1,0 +1,793 @@
+{
+  "manifestId": "main-wire-accepted-interval-diagnostics-evidence-manifest-v3",
+  "sourceRevision": "fb93c2ad2ed381094ea5f6b028fd33ec0424c350",
+  "evidenceScope": {
+    "modelCoreRuntimeAdoptionClaimed": false,
+    "parameterSearchOrFitting": false,
+    "smoothingOrResampling": false,
+    "rawResultsCommitted": false,
+    "fixedTotalBloodVolumeMl": 5522.11,
+    "pressureOwnership": {
+      "pvMorphology": "intracavitary-absolute-pressure",
+      "wallWorkAndConstitutiveDiagnostics": "transmural-pressure"
+    },
+    "bloodVolumeOperatingPointUse": "readback-only"
+  },
+  "bootstrap": {
+    "role": "shared-cycle-boundary-warm-start-source",
+    "artifact": {
+      "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/bootstrap-analytic-dt4ms-raw.json",
+      "bytes": 19893501,
+      "repositoryDisposition": "local-not-committed",
+      "sha256": null,
+      "integrity": "not-hashed-reproducible-intermediate"
+    }
+  },
+  "cases": {
+    "healthy-analytic-dt2ms": {
+      "protocol": {
+        "calciumRepresentation": "analytic-periodic-control-with-exact-event-shadow",
+        "nominalDtSec": 0.002,
+        "initialization": "cycle-boundary-warm-start",
+        "laSlsMode": "on",
+        "pericardiumMode": "on",
+        "pericardiumCase": "healthy-slack",
+        "protocolIdentityHash": "f724e172",
+        "protocolComponentHashes": {
+          "mechanicsProviderMetadataStableHash": "78789398",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "calciumStateContractStableHash": "a2b30a32",
+          "circulationTopologyGraphStableHash": "33b45f99",
+          "circulationRuntimeStableHash": "fec95546",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "ff9ebb6d",
+          "periodicPolicyStableHash": "00e13e40"
+        }
+      },
+      "bloodVolumeOperatingPoint": {
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "resolvedTotalBloodVolumeMl": 5522.11,
+        "readbackOnly": true
+      },
+      "pressureOwnership": {
+        "laPvMorphologyPressureCoordinate": "intracavitary-absolute-pressure",
+        "transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics": true
+      },
+      "integration": {
+        "completedWithoutFailure": true,
+        "failure": null,
+        "requestedMaximumBeatCount": 32,
+        "completedBeatCount": 8,
+        "terminationReason": "period1-converged",
+        "summaryStatus": "complete",
+        "summaryReason": "complete-accepted-window"
+      },
+      "convergence": {
+        "periodicSteadyStateClaimed": true,
+        "period2OrbitSuspected": false,
+        "classifier": {
+          "status": "period1-converged",
+          "latestBeatIndex": 8,
+          "consecutiveBeatsRequired": 3,
+          "evidenceBeatIndices": [
+            6,
+            7,
+            8
+          ],
+          "latestPeriod1MaximumNormalizedDelta": 0.0005483664863709103,
+          "latestPeriod2MaximumNormalizedDelta": 0.0012533881527954094
+        }
+      },
+      "morphologyInterpretation": {
+        "eligible": true,
+        "scope": "current-accepted-timebase-period1-only",
+        "timeStepRobustnessEstablished": false,
+        "reason": "eligible-current-accepted-timebase-period1-only"
+      },
+      "acceptedTimebase": {
+        "selectedBeatIndex": 8,
+        "nominalGridCount": 500,
+        "acceptedIntervalCount": 500,
+        "acceptedEventCount": 2,
+        "minimumAcceptedDtSec": 0.0019999999999997797,
+        "maximumAcceptedDtSec": 0.002000000000000668,
+        "precedingAcceptedSampleAvailable": true
+      },
+      "artifacts": {
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/healthy-analytic-dt2ms-summary-v2.json",
+          "bytes": 333223,
+          "sha256": "23915e7532dbbbaf969cd4f1b74a28612be0505f412c806411c2491b2faf3e63",
+          "repositoryDisposition": "commit"
+        },
+        "reviewHtml": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-healthy-analytic-dt2ms-review-v2.html",
+          "bytes": 2514565,
+          "sha256": "0ec0f84f5e0f5a9870b2742b75e665e95c74960817020c4345726e887c60b125",
+          "repositoryDisposition": "commit"
+        },
+        "reviewSvg": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-healthy-analytic-dt2ms-review-v2.svg",
+          "bytes": 98998,
+          "sha256": "1c5fe3a5dc84a7484ba6f1066a3496835284abdcbe7ae85cbf5a940e40a52e7a",
+          "repositoryDisposition": "commit"
+        },
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/healthy-analytic-dt2ms-raw.json",
+          "bytes": 38245285,
+          "repositoryDisposition": "local-not-committed",
+          "sha256": null,
+          "integrity": "not-hashed-reproducible-intermediate"
+        }
+      }
+    },
+    "healthy-analytic-dt1ms": {
+      "protocol": {
+        "calciumRepresentation": "analytic-periodic-control-with-exact-event-shadow",
+        "nominalDtSec": 0.001,
+        "initialization": "cycle-boundary-warm-start",
+        "laSlsMode": "on",
+        "pericardiumMode": "on",
+        "pericardiumCase": "healthy-slack",
+        "protocolIdentityHash": "f724e172",
+        "protocolComponentHashes": {
+          "mechanicsProviderMetadataStableHash": "78789398",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "calciumStateContractStableHash": "a2b30a32",
+          "circulationTopologyGraphStableHash": "33b45f99",
+          "circulationRuntimeStableHash": "fec95546",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "ff9ebb6d",
+          "periodicPolicyStableHash": "00e13e40"
+        }
+      },
+      "bloodVolumeOperatingPoint": {
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "resolvedTotalBloodVolumeMl": 5522.11,
+        "readbackOnly": true
+      },
+      "pressureOwnership": {
+        "laPvMorphologyPressureCoordinate": "intracavitary-absolute-pressure",
+        "transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics": true
+      },
+      "integration": {
+        "completedWithoutFailure": true,
+        "failure": null,
+        "requestedMaximumBeatCount": 32,
+        "completedBeatCount": 10,
+        "terminationReason": "period1-converged",
+        "summaryStatus": "complete",
+        "summaryReason": "complete-accepted-window"
+      },
+      "convergence": {
+        "periodicSteadyStateClaimed": true,
+        "period2OrbitSuspected": false,
+        "classifier": {
+          "status": "period1-converged",
+          "latestBeatIndex": 10,
+          "consecutiveBeatsRequired": 3,
+          "evidenceBeatIndices": [
+            8,
+            9,
+            10
+          ],
+          "latestPeriod1MaximumNormalizedDelta": 0.0004883856434029221,
+          "latestPeriod2MaximumNormalizedDelta": 0.0011195484458720317
+        }
+      },
+      "morphologyInterpretation": {
+        "eligible": true,
+        "scope": "current-accepted-timebase-period1-only",
+        "timeStepRobustnessEstablished": false,
+        "reason": "eligible-current-accepted-timebase-period1-only"
+      },
+      "acceptedTimebase": {
+        "selectedBeatIndex": 10,
+        "nominalGridCount": 1000,
+        "acceptedIntervalCount": 1000,
+        "acceptedEventCount": 2,
+        "minimumAcceptedDtSec": 0.0009999999999994458,
+        "maximumAcceptedDtSec": 0.0010000000000012221,
+        "precedingAcceptedSampleAvailable": true
+      },
+      "artifacts": {
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/healthy-analytic-dt1ms-summary-v2.json",
+          "bytes": 418884,
+          "sha256": "8a053f7f567d9781a8b176750b57cbbd6c69d143572118f201bbf57304e996de",
+          "repositoryDisposition": "commit"
+        },
+        "reviewHtml": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-healthy-analytic-dt1ms-review-v2.html",
+          "bytes": 4453187,
+          "sha256": "a7424e5ed81cf545cccf850e31e898564e09ee0ac5ab4deae266a8c1e6742d9e",
+          "repositoryDisposition": "commit"
+        },
+        "reviewSvg": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-healthy-analytic-dt1ms-review-v2.svg",
+          "bytes": 176472,
+          "sha256": "94570187fd02ccf0b4a370d4105e0490ef0678d866ebb7c2c09bfea95035782b",
+          "repositoryDisposition": "commit"
+        },
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/healthy-analytic-dt1ms-raw.json",
+          "bytes": 76257292,
+          "repositoryDisposition": "local-not-committed",
+          "sha256": null,
+          "integrity": "not-hashed-reproducible-intermediate"
+        }
+      }
+    },
+    "healthy-exact-dt2ms": {
+      "protocol": {
+        "calciumRepresentation": "exact-event-state",
+        "nominalDtSec": 0.002,
+        "initialization": "canonical",
+        "laSlsMode": "on",
+        "pericardiumMode": "on",
+        "pericardiumCase": "healthy-slack",
+        "protocolIdentityHash": "84c4442c",
+        "protocolComponentHashes": {
+          "mechanicsProviderMetadataStableHash": "78789398",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "calciumStateContractStableHash": "77514150",
+          "circulationTopologyGraphStableHash": "33b45f99",
+          "circulationRuntimeStableHash": "fec95546",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "ff9ebb6d",
+          "periodicPolicyStableHash": "00e13e40"
+        }
+      },
+      "bloodVolumeOperatingPoint": {
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "resolvedTotalBloodVolumeMl": 5522.11,
+        "readbackOnly": true
+      },
+      "pressureOwnership": {
+        "laPvMorphologyPressureCoordinate": "intracavitary-absolute-pressure",
+        "transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics": true
+      },
+      "integration": {
+        "completedWithoutFailure": true,
+        "failure": null,
+        "requestedMaximumBeatCount": 32,
+        "completedBeatCount": 26,
+        "terminationReason": "period1-converged",
+        "summaryStatus": "complete",
+        "summaryReason": "complete-accepted-window"
+      },
+      "convergence": {
+        "periodicSteadyStateClaimed": true,
+        "period2OrbitSuspected": false,
+        "classifier": {
+          "status": "period1-converged",
+          "latestBeatIndex": 26,
+          "consecutiveBeatsRequired": 3,
+          "evidenceBeatIndices": [
+            24,
+            25,
+            26
+          ],
+          "latestPeriod1MaximumNormalizedDelta": 0.0006678217807884468,
+          "latestPeriod2MaximumNormalizedDelta": 0.0014892462747898016
+        }
+      },
+      "morphologyInterpretation": {
+        "eligible": true,
+        "scope": "current-accepted-timebase-period1-only",
+        "timeStepRobustnessEstablished": false,
+        "reason": "eligible-current-accepted-timebase-period1-only"
+      },
+      "acceptedTimebase": {
+        "selectedBeatIndex": 26,
+        "nominalGridCount": 500,
+        "acceptedIntervalCount": 500,
+        "acceptedEventCount": 2,
+        "minimumAcceptedDtSec": 0.0019999999999988916,
+        "maximumAcceptedDtSec": 0.0020000000000024443,
+        "precedingAcceptedSampleAvailable": true
+      },
+      "artifacts": {
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/healthy-exact-dt2ms-summary-v2.json",
+          "bytes": 930556,
+          "sha256": "d77229e76563d49aff6a368ff82d34c545680c19808af0f8818ebd2003460f94",
+          "repositoryDisposition": "commit"
+        },
+        "reviewHtml": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-healthy-exact-dt2ms-review-v2.html",
+          "bytes": 3695926,
+          "sha256": "04ae2b2d99c82ecdba3c035c02064fb3daaeeed32f245023045ba2222a3bdaad",
+          "repositoryDisposition": "commit"
+        },
+        "reviewSvg": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-healthy-exact-dt2ms-review-v2.svg",
+          "bytes": 101008,
+          "sha256": "1ef2f5025516a1e37f34abf4c8566433c5be10d71bd3fb131733a8d03754581e",
+          "repositoryDisposition": "commit"
+        },
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/healthy-exact-dt2ms-raw.json",
+          "bytes": 38825028,
+          "repositoryDisposition": "local-not-committed",
+          "sha256": null,
+          "integrity": "not-hashed-reproducible-intermediate"
+        }
+      }
+    },
+    "sls-off-analytic-dt2ms": {
+      "protocol": {
+        "calciumRepresentation": "analytic-periodic-control-with-exact-event-shadow",
+        "nominalDtSec": 0.002,
+        "initialization": "canonical",
+        "laSlsMode": "exact-off",
+        "pericardiumMode": "on",
+        "pericardiumCase": "healthy-slack",
+        "protocolIdentityHash": "ea0155bd",
+        "protocolComponentHashes": {
+          "mechanicsProviderMetadataStableHash": "5667576d",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "calciumStateContractStableHash": "a2b30a32",
+          "circulationTopologyGraphStableHash": "33b45f99",
+          "circulationRuntimeStableHash": "fec95546",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "ff9ebb6d",
+          "periodicPolicyStableHash": "00e13e40"
+        }
+      },
+      "bloodVolumeOperatingPoint": {
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "resolvedTotalBloodVolumeMl": 5522.11,
+        "readbackOnly": true
+      },
+      "pressureOwnership": {
+        "laPvMorphologyPressureCoordinate": "intracavitary-absolute-pressure",
+        "transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics": true
+      },
+      "integration": {
+        "completedWithoutFailure": true,
+        "failure": null,
+        "requestedMaximumBeatCount": 32,
+        "completedBeatCount": 27,
+        "terminationReason": "period1-converged",
+        "summaryStatus": "complete",
+        "summaryReason": "complete-accepted-window"
+      },
+      "convergence": {
+        "periodicSteadyStateClaimed": true,
+        "period2OrbitSuspected": false,
+        "classifier": {
+          "status": "period1-converged",
+          "latestBeatIndex": 27,
+          "consecutiveBeatsRequired": 3,
+          "evidenceBeatIndices": [
+            25,
+            26,
+            27
+          ],
+          "latestPeriod1MaximumNormalizedDelta": 0.0005396825312398157,
+          "latestPeriod2MaximumNormalizedDelta": 0.0012106467690232992
+        }
+      },
+      "morphologyInterpretation": {
+        "eligible": true,
+        "scope": "current-accepted-timebase-period1-only",
+        "timeStepRobustnessEstablished": false,
+        "reason": "eligible-current-accepted-timebase-period1-only"
+      },
+      "acceptedTimebase": {
+        "selectedBeatIndex": 27,
+        "nominalGridCount": 500,
+        "acceptedIntervalCount": 500,
+        "acceptedEventCount": 2,
+        "minimumAcceptedDtSec": 0.0019999999999988916,
+        "maximumAcceptedDtSec": 0.0020000000000024443,
+        "precedingAcceptedSampleAvailable": true
+      },
+      "artifacts": {
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/sls-off-analytic-dt2ms-summary-v2.json",
+          "bytes": 962904,
+          "sha256": "81d895a99441afe81df045f2372532849b14367241e8e0de2e3d7305275dfe48",
+          "repositoryDisposition": "commit"
+        },
+        "reviewHtml": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-sls-off-analytic-dt2ms-review-v2.html",
+          "bytes": 3759809,
+          "sha256": "e4948228c2e8f625b6f9dd862cc3bda1cbfd86b24a9b4e1d187021e3715af503",
+          "repositoryDisposition": "commit"
+        },
+        "reviewSvg": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-sls-off-analytic-dt2ms-review-v2.svg",
+          "bytes": 101123,
+          "sha256": "6f3f9d8e61ef522dce1dc342c8b4eef7cdee031ff1c9c10acbbaf4297d58d6bf",
+          "repositoryDisposition": "commit"
+        },
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/sls-off-analytic-dt2ms-raw.json",
+          "bytes": 38530945,
+          "repositoryDisposition": "local-not-committed",
+          "sha256": null,
+          "integrity": "not-hashed-reproducible-intermediate"
+        }
+      }
+    },
+    "effusion-analytic-dt2ms": {
+      "protocol": {
+        "calciumRepresentation": "analytic-periodic-control-with-exact-event-shadow",
+        "nominalDtSec": 0.002,
+        "initialization": "cycle-boundary-warm-start",
+        "laSlsMode": "on",
+        "pericardiumMode": "on",
+        "pericardiumCase": "effusion-300ml-positive-control",
+        "protocolIdentityHash": "66b6e9f8",
+        "protocolComponentHashes": {
+          "mechanicsProviderMetadataStableHash": "78789398",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "calciumStateContractStableHash": "a2b30a32",
+          "circulationTopologyGraphStableHash": "33b45f99",
+          "circulationRuntimeStableHash": "fec95546",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "00d87c54",
+          "periodicPolicyStableHash": "00e13e40"
+        }
+      },
+      "bloodVolumeOperatingPoint": {
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "resolvedTotalBloodVolumeMl": 5522.11,
+        "readbackOnly": true
+      },
+      "pressureOwnership": {
+        "laPvMorphologyPressureCoordinate": "intracavitary-absolute-pressure",
+        "transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics": true
+      },
+      "integration": {
+        "completedWithoutFailure": true,
+        "failure": null,
+        "requestedMaximumBeatCount": 32,
+        "completedBeatCount": 32,
+        "terminationReason": "maximum-beats-reached",
+        "summaryStatus": "complete",
+        "summaryReason": "complete-accepted-window"
+      },
+      "convergence": {
+        "periodicSteadyStateClaimed": false,
+        "period2OrbitSuspected": false,
+        "classifier": {
+          "status": "not-converged",
+          "latestBeatIndex": 32,
+          "consecutiveBeatsRequired": 3,
+          "evidenceBeatIndices": [],
+          "latestPeriod1MaximumNormalizedDelta": 0.0014155552307238395,
+          "latestPeriod2MaximumNormalizedDelta": 0.003121395013154142
+        }
+      },
+      "morphologyInterpretation": {
+        "eligible": false,
+        "scope": "current-accepted-timebase-period1-only",
+        "timeStepRobustnessEstablished": false,
+        "reason": "ineligible-period1-not-converged"
+      },
+      "acceptedTimebase": {
+        "selectedBeatIndex": 32,
+        "nominalGridCount": 500,
+        "acceptedIntervalCount": 500,
+        "acceptedEventCount": 2,
+        "minimumAcceptedDtSec": 0.0019999999999988916,
+        "maximumAcceptedDtSec": 0.0020000000000024443,
+        "precedingAcceptedSampleAvailable": true
+      },
+      "artifacts": {
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/effusion-analytic-dt2ms-summary-v2.json",
+          "bytes": 1128511,
+          "sha256": "b3110dfa4d80da3466ed82b774f308b8c85ae8ec5be9cfbf14ef2e46faee40b6",
+          "repositoryDisposition": "commit"
+        },
+        "reviewHtml": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-effusion-analytic-dt2ms-review-v2.html",
+          "bytes": 4088646,
+          "sha256": "308a52edde87e70945cc23d6bb3e4bb298672d0a052de809bbbd54e7132295df",
+          "repositoryDisposition": "commit"
+        },
+        "reviewSvg": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-effusion-analytic-dt2ms-review-v2.svg",
+          "bytes": 101665,
+          "sha256": "d92f74badbc4e96e16290e6a4f1c6ca968911adec004dfc87fd8bd51ada4d09f",
+          "repositoryDisposition": "commit"
+        },
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/effusion-analytic-dt2ms-raw.json",
+          "bytes": 39210036,
+          "repositoryDisposition": "local-not-committed",
+          "sha256": null,
+          "integrity": "not-hashed-reproducible-intermediate"
+        }
+      }
+    },
+    "effusion-analytic-dt1ms": {
+      "protocol": {
+        "calciumRepresentation": "analytic-periodic-control-with-exact-event-shadow",
+        "nominalDtSec": 0.001,
+        "initialization": "cycle-boundary-warm-start",
+        "laSlsMode": "on",
+        "pericardiumMode": "on",
+        "pericardiumCase": "effusion-300ml-positive-control",
+        "protocolIdentityHash": "66b6e9f8",
+        "protocolComponentHashes": {
+          "mechanicsProviderMetadataStableHash": "78789398",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "calciumStateContractStableHash": "a2b30a32",
+          "circulationTopologyGraphStableHash": "33b45f99",
+          "circulationRuntimeStableHash": "fec95546",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "00d87c54",
+          "periodicPolicyStableHash": "00e13e40"
+        }
+      },
+      "bloodVolumeOperatingPoint": {
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "resolvedTotalBloodVolumeMl": 5522.11,
+        "readbackOnly": true
+      },
+      "pressureOwnership": {
+        "laPvMorphologyPressureCoordinate": "intracavitary-absolute-pressure",
+        "transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics": true
+      },
+      "integration": {
+        "completedWithoutFailure": true,
+        "failure": null,
+        "requestedMaximumBeatCount": 32,
+        "completedBeatCount": 32,
+        "terminationReason": "maximum-beats-reached",
+        "summaryStatus": "complete",
+        "summaryReason": "complete-accepted-window"
+      },
+      "convergence": {
+        "periodicSteadyStateClaimed": false,
+        "period2OrbitSuspected": false,
+        "classifier": {
+          "status": "not-converged",
+          "latestBeatIndex": 32,
+          "consecutiveBeatsRequired": 3,
+          "evidenceBeatIndices": [],
+          "latestPeriod1MaximumNormalizedDelta": 0.0013830924328385662,
+          "latestPeriod2MaximumNormalizedDelta": 0.003051331210699573
+        }
+      },
+      "morphologyInterpretation": {
+        "eligible": false,
+        "scope": "current-accepted-timebase-period1-only",
+        "timeStepRobustnessEstablished": false,
+        "reason": "ineligible-period1-not-converged"
+      },
+      "acceptedTimebase": {
+        "selectedBeatIndex": 32,
+        "nominalGridCount": 1000,
+        "acceptedIntervalCount": 1000,
+        "acceptedEventCount": 2,
+        "minimumAcceptedDtSec": 0.0009999999999976694,
+        "maximumAcceptedDtSec": 0.0010000000000012221,
+        "precedingAcceptedSampleAvailable": true
+      },
+      "artifacts": {
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/effusion-analytic-dt1ms-summary-v2.json",
+          "bytes": 1146703,
+          "sha256": "6151d40282fa8d5c40863a0948207458701b7a9b957c8bb17f7518a2f1daf9a3",
+          "repositoryDisposition": "commit"
+        },
+        "reviewHtml": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-effusion-analytic-dt1ms-review-v2.html",
+          "bytes": 5899960,
+          "sha256": "4039f0b0d9605fa554aef8d10e0a294c1d6377c583356f6e1c26720dc4c6f649",
+          "repositoryDisposition": "commit"
+        },
+        "reviewSvg": {
+          "path": "data/myocardium/visuals/mainwire-accepted-interval-diagnostics-v3-effusion-analytic-dt1ms-review-v2.svg",
+          "bytes": 178826,
+          "sha256": "85f96570183dde3c0cb93eed9d18170728c63e514efceed86b8e7164ac71aa00",
+          "repositoryDisposition": "commit"
+        },
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/effusion-analytic-dt1ms-raw.json",
+          "bytes": 77358318,
+          "repositoryDisposition": "local-not-committed",
+          "sha256": null,
+          "integrity": "not-hashed-reproducible-intermediate"
+        }
+      }
+    }
+  },
+  "analyticVsEventComparison": {
+    "artifact": {
+      "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/analytic-vs-event-dt2ms-v1.json",
+      "bytes": 95904,
+      "sha256": "a976813ab5507d4eb6a01b9df7615f57fe7b6277d14b05046b28180ba9274263",
+      "repositoryDisposition": "commit"
+    },
+    "rawInputs": {
+      "analyticControl": {
+        "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/healthy-analytic-control-dt2ms-raw.json",
+        "bytes": 38824559,
+        "repositoryDisposition": "local-not-committed",
+        "sha256": null,
+        "integrity": "not-hashed-reproducible-intermediate"
+      },
+      "exactEvent": {
+        "path": "data/myocardium/verification/mainwire-accepted-interval-diagnostics-v3/healthy-exact-dt2ms-raw.json",
+        "bytes": 38825028,
+        "repositoryDisposition": "local-not-committed",
+        "sha256": null,
+        "integrity": "not-hashed-reproducible-intermediate"
+      }
+    },
+    "summary": {
+      "comparisonId": "main-wire-normal-adult-five-wall-analytic-vs-event-v1",
+      "operatingPoint": {
+        "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "analyticResolvedTotalBloodVolumeMl": 5522.11,
+        "eventResolvedTotalBloodVolumeMl": 5522.11,
+        "readbackOnly": true
+      },
+      "protocol": {
+        "representationOnlyDifferenceValidated": true,
+        "sharedComponentHashes": {
+          "mechanicsProviderMetadataStableHash": "78789398",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "circulationTopologyGraphStableHash": "33b45f99",
+          "circulationRuntimeStableHash": "fec95546",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "ff9ebb6d",
+          "periodicPolicyStableHash": "00e13e40"
+        },
+        "analytic": {
+          "representation": "analytic-periodic-control-with-exact-event-shadow",
+          "protocolIdentityHash": "f724e172",
+          "calciumStateContractStableHash": "a2b30a32"
+        },
+        "event": {
+          "representation": "exact-event-state",
+          "protocolIdentityHash": "84c4442c",
+          "calciumStateContractStableHash": "77514150"
+        }
+      },
+      "acceptedEndpointPairing": {
+        "coordinate": "relative-physical-time-from-beat-start",
+        "matching": "one-to-one-without-resampling",
+        "timeToleranceSec": 1e-10,
+        "analyticEndpointCount": 500,
+        "eventEndpointCount": 500,
+        "pairedEndpointCount": 500,
+        "maximumRelativeTimeMismatchSec": 0,
+        "analyticBeat": {
+          "beatIndex": 26,
+          "startTimeSec": 25,
+          "endTimeSec": 26,
+          "durationSec": 1,
+          "acceptedIntervalCount": 500,
+          "precedingAcceptedSampleAvailable": true
+        },
+        "eventBeat": {
+          "beatIndex": 26,
+          "startTimeSec": 25,
+          "endTimeSec": 26,
+          "durationSec": 1,
+          "acceptedIntervalCount": 500,
+          "precedingAcceptedSampleAvailable": true
+        }
+      },
+      "convergence": {
+        "analytic": {
+          "initialization": "canonical",
+          "requestedMaximumBeatCount": 32,
+          "completedBeatCount": 26,
+          "terminationReason": "period1-converged",
+          "integrationCompletedWithoutFailure": true,
+          "periodicSteadyStateClaimed": true,
+          "period2OrbitSuspected": false
+        },
+        "event": {
+          "initialization": "canonical",
+          "requestedMaximumBeatCount": 32,
+          "completedBeatCount": 26,
+          "terminationReason": "period1-converged",
+          "integrationCompletedWithoutFailure": true,
+          "periodicSteadyStateClaimed": true,
+          "period2OrbitSuspected": false
+        }
+      },
+      "signalDifferences": {
+        "nodeVolumeMl": {
+          "signalCount": 4,
+          "maximumAbsoluteDifference": 1.763311274771695e-9,
+          "worstSignalPath": "LA",
+          "worstRelativeTimeSec": 0.347999999999999,
+          "analyticValueAtWorst": 51.09224666488531,
+          "eventValueAtWorst": 51.092246663122
+        },
+        "nodeAbsolutePressureMmHg": {
+          "signalCount": 7,
+          "maximumAbsoluteDifference": 1.5133991837501526e-8,
+          "worstSignalPath": "PVein",
+          "worstRelativeTimeSec": 0.08200000000000074,
+          "analyticValueAtWorst": 10.544849968864582,
+          "eventValueAtWorst": 10.544849983998574
+        },
+        "chamberTransmuralPressureMmHg": {
+          "signalCount": 4,
+          "maximumAbsoluteDifference": 9.899174813199352e-10,
+          "worstSignalPath": "LA",
+          "worstRelativeTimeSec": 0.08200000000000074,
+          "analyticValueAtWorst": 8.820309378498933,
+          "eventValueAtWorst": 8.820309377509016
+        },
+        "flowMlPerSec": {
+          "signalCount": 5,
+          "maximumAbsoluteDifference": 5.33021797366473e-7,
+          "worstSignalPath": "PVein_LA",
+          "worstRelativeTimeSec": 0.08200000000000074,
+          "analyticValueAtWorst": 57.00960629307931,
+          "eventValueAtWorst": 57.009606826101106
+        },
+        "freeCalciumUM": {
+          "signalCount": 5,
+          "maximumAbsoluteDifference": 1.8041124150158794e-15,
+          "worstSignalPath": "LVFW",
+          "worstRelativeTimeSec": 0.015999999999998238,
+          "analyticValueAtWorst": 0.21706424136008462,
+          "eventValueAtWorst": 0.21706424136008282
+        },
+        "wallStressPa": {
+          "signalCount": 20,
+          "maximumAbsoluteDifference": 8.768620318733156e-7,
+          "worstSignalPath": "LA.total",
+          "worstRelativeTimeSec": 0.08200000000000074,
+          "analyticValueAtWorst": 6410.733338817576,
+          "eventValueAtWorst": 6410.733337940714
+        },
+        "wallEnergyLedgerDensity": {
+          "signalCount": 30,
+          "maximumAbsoluteDifference": 6.341690550470958e-8,
+          "worstSignalPath": "LA.equilibriumPassiveStoredEnergyDensityJPerM3",
+          "worstRelativeTimeSec": 0.347999999999999,
+          "analyticValueAtWorst": 682.2024356176405,
+          "eventValueAtWorst": 682.2024355542236
+        }
+      },
+      "headline": {
+        "pairedEndpointCount": 500,
+        "maximumRelativeTimeMismatchSec": 0,
+        "maximumAbsoluteDifferenceBySignalGroup": {
+          "nodeVolumeMl": 1.763311274771695e-9,
+          "nodeAbsolutePressureMmHg": 1.5133991837501526e-8,
+          "chamberTransmuralPressureMmHg": 9.899174813199352e-10,
+          "flowMlPerSec": 5.33021797366473e-7,
+          "freeCalciumUM": 1.8041124150158794e-15,
+          "wallStressPa": 8.768620318733156e-7,
+          "wallEnergyLedgerDensity": 6.341690550470958e-8
+        }
+      },
+      "claim": {
+        "input": "periodic-result-v3-raw-json",
+        "selectedCycle": "terminal-retained-complete-beat",
+        "pairingCoordinate": "accepted-endpoint-relative-physical-time",
+        "parameterFittingApplied": false,
+        "timeSeriesSmoothingApplied": false,
+        "timeSeriesResamplingOrInterpolationApplied": false,
+        "laPvMorphologyPressureCoordinate": "intracavitary-absolute-pressure",
+        "wallWorkPressureCoordinate": "transmural-pressure",
+        "transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics": true,
+        "bloodVolumeOperatingPointReadbackOnly": true
+      }
+    }
+  }
+}

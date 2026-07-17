@@ -1,0 +1,2162 @@
+{
+  "comparisonId": "main-wire-normal-adult-five-wall-analytic-vs-event-v1",
+  "schemaVersion": 1,
+  "inputs": {
+    "analytic": {
+      "path": "healthy-analytic-control-dt2ms-raw.json",
+      "experimentId": "main-wire-normal-adult-five-wall-periodic-steady-v3",
+      "schemaVersion": 3,
+      "initialization": "canonical",
+      "calciumRepresentation": "analytic-periodic-control-with-exact-event-shadow",
+      "dtSec": 0.002,
+      "stepsPerBeat": 500,
+      "laSlsMode": "on",
+      "pericardiumMode": "on",
+      "pericardiumCase": "healthy-slack",
+      "pericardiumParameterSetId": "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on",
+      "valvePresetParameterSetId": "main-wire-four-valve-normal-legacy-topology-cec9719f-v1",
+      "protocolIdentityHash": "f724e172",
+      "bloodVolumeOperatingPoint": {
+        "status": "available",
+        "unavailableReason": null,
+        "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "initialDistributionPolicyId": "shared-SV-VC-transmural-offset",
+        "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+        "resolvedTotalBloodVolumeMl": 5522.11,
+        "addedBloodVolumeMl": 932.652430406124,
+        "sharedSvVcTransmuralPressureOffsetMmHg": 6.051930744065123,
+        "excludedCoronaryColdSeedVolumeMl": 77.89,
+        "maximumInverseOffsetResidualMmHg": 4.28796020912614e-9,
+        "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+        "targetResidualMl": 0
+      }
+    },
+    "event": {
+      "path": "healthy-exact-dt2ms-raw.json",
+      "experimentId": "main-wire-normal-adult-five-wall-periodic-steady-v3",
+      "schemaVersion": 3,
+      "initialization": "canonical",
+      "calciumRepresentation": "exact-event-state",
+      "dtSec": 0.002,
+      "stepsPerBeat": 500,
+      "laSlsMode": "on",
+      "pericardiumMode": "on",
+      "pericardiumCase": "healthy-slack",
+      "pericardiumParameterSetId": "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on",
+      "valvePresetParameterSetId": "main-wire-four-valve-normal-legacy-topology-cec9719f-v1",
+      "protocolIdentityHash": "84c4442c",
+      "bloodVolumeOperatingPoint": {
+        "status": "available",
+        "unavailableReason": null,
+        "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "initialDistributionPolicyId": "shared-SV-VC-transmural-offset",
+        "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+        "resolvedTotalBloodVolumeMl": 5522.11,
+        "addedBloodVolumeMl": 932.652430406124,
+        "sharedSvVcTransmuralPressureOffsetMmHg": 6.051930744065123,
+        "excludedCoronaryColdSeedVolumeMl": 77.89,
+        "maximumInverseOffsetResidualMmHg": 4.28796020912614e-9,
+        "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+        "targetResidualMl": 0
+      }
+    }
+  },
+  "operatingPoint": {
+    "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+    "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+    "fixedTotalBloodVolumeMl": 5522.11,
+    "analyticResolvedTotalBloodVolumeMl": 5522.11,
+    "eventResolvedTotalBloodVolumeMl": 5522.11,
+    "readbackOnly": true
+  },
+  "protocol": {
+    "representationOnlyDifferenceValidated": true,
+    "sharedComponentHashes": {
+      "mechanicsProviderMetadataStableHash": "78789398",
+      "calciumDriveFixedParamsStableHash": "9660029d",
+      "circulationTopologyGraphStableHash": "33b45f99",
+      "circulationRuntimeStableHash": "fec95546",
+      "bloodVolumeOperatingPointStableHash": "337d28cc",
+      "commonPericardiumStableHash": "ff9ebb6d",
+      "periodicPolicyStableHash": "00e13e40"
+    },
+    "analytic": {
+      "representation": "analytic-periodic-control-with-exact-event-shadow",
+      "protocolIdentityHash": "f724e172",
+      "calciumStateContractStableHash": "a2b30a32"
+    },
+    "event": {
+      "representation": "exact-event-state",
+      "protocolIdentityHash": "84c4442c",
+      "calciumStateContractStableHash": "77514150"
+    }
+  },
+  "acceptedEndpointPairing": {
+    "coordinate": "relative-physical-time-from-beat-start",
+    "matching": "one-to-one-without-resampling",
+    "timeToleranceSec": 1e-10,
+    "analyticEndpointCount": 500,
+    "eventEndpointCount": 500,
+    "pairedEndpointCount": 500,
+    "maximumRelativeTimeMismatchSec": 0,
+    "analyticBeat": {
+      "beatIndex": 26,
+      "startTimeSec": 25,
+      "endTimeSec": 26,
+      "durationSec": 1,
+      "acceptedIntervalCount": 500,
+      "precedingAcceptedSampleAvailable": true
+    },
+    "eventBeat": {
+      "beatIndex": 26,
+      "startTimeSec": 25,
+      "endTimeSec": 26,
+      "durationSec": 1,
+      "acceptedIntervalCount": 500,
+      "precedingAcceptedSampleAvailable": true
+    }
+  },
+  "signalDifferences": {
+    "nodeVolumeMl": {
+      "signalCount": 4,
+      "maximumAbsoluteDifference": 1.763311274771695e-9,
+      "worstSignalPath": "LA",
+      "worstRelativeTimeSec": 0.347999999999999,
+      "analyticValueAtWorst": 51.09224666488531,
+      "eventValueAtWorst": 51.092246663122,
+      "bySignal": {
+        "LA": {
+          "maximumAbsoluteDifference": 1.763311274771695e-9,
+          "relativeTimeSec": 0.347999999999999,
+          "analyticValue": 51.09224666488531,
+          "eventValue": 51.092246663122
+        },
+        "LV": {
+          "maximumAbsoluteDifference": 4.6502179884555517e-10,
+          "relativeTimeSec": 0.5799999999999983,
+          "analyticValue": 117.0794992767291,
+          "eventValue": 117.07949927626407
+        },
+        "RA": {
+          "maximumAbsoluteDifference": 5.99797544964531e-10,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": 39.46975959074737,
+          "eventValue": 39.469759590147575
+        },
+        "RV": {
+          "maximumAbsoluteDifference": 6.186269274621736e-10,
+          "relativeTimeSec": 0.22800000000000153,
+          "analyticValue": 87.41347093799814,
+          "eventValue": 87.41347093737951
+        }
+      }
+    },
+    "nodeAbsolutePressureMmHg": {
+      "signalCount": 7,
+      "maximumAbsoluteDifference": 1.5133991837501526e-8,
+      "worstSignalPath": "PVein",
+      "worstRelativeTimeSec": 0.08200000000000074,
+      "analyticValueAtWorst": 10.544849968864582,
+      "eventValueAtWorst": 10.544849983998574,
+      "bySignal": {
+        "Ao": {
+          "maximumAbsoluteDifference": 8.151346264639869e-11,
+          "relativeTimeSec": 0.24399999999999977,
+          "analyticValue": 99.79847768466338,
+          "eventValue": 99.7984776847449
+        },
+        "LA": {
+          "maximumAbsoluteDifference": 9.899174813199352e-10,
+          "relativeTimeSec": 0.08200000000000074,
+          "analyticValue": 8.820309378498933,
+          "eventValue": 8.820309377509016
+        },
+        "LV": {
+          "maximumAbsoluteDifference": 4.2308556658099405e-10,
+          "relativeTimeSec": 0.053999999999998494,
+          "analyticValue": 79.4411572707308,
+          "eventValue": 79.44115727115388
+        },
+        "PA": {
+          "maximumAbsoluteDifference": 3.1255353860615287e-10,
+          "relativeTimeSec": 0.1700000000000017,
+          "analyticValue": 37.073536850466915,
+          "eventValue": 37.07353685015436
+        },
+        "PVein": {
+          "maximumAbsoluteDifference": 1.5133991837501526e-8,
+          "relativeTimeSec": 0.08200000000000074,
+          "analyticValue": 10.544849968864582,
+          "eventValue": 10.544849983998574
+        },
+        "RA": {
+          "maximumAbsoluteDifference": 3.426627870339871e-10,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": 3.019987308131993,
+          "eventValue": 3.01998730778933
+        },
+        "RV": {
+          "maximumAbsoluteDifference": 2.5844570927802124e-10,
+          "relativeTimeSec": 0.23000000000000043,
+          "analyticValue": 35.77775655417959,
+          "eventValue": 35.777756553921144
+        }
+      }
+    },
+    "chamberTransmuralPressureMmHg": {
+      "signalCount": 4,
+      "maximumAbsoluteDifference": 9.899174813199352e-10,
+      "worstSignalPath": "LA",
+      "worstRelativeTimeSec": 0.08200000000000074,
+      "analyticValueAtWorst": 8.820309378498933,
+      "eventValueAtWorst": 8.820309377509016,
+      "bySignal": {
+        "LA": {
+          "maximumAbsoluteDifference": 9.899174813199352e-10,
+          "relativeTimeSec": 0.08200000000000074,
+          "analyticValue": 8.820309378498933,
+          "eventValue": 8.820309377509016
+        },
+        "LV": {
+          "maximumAbsoluteDifference": 4.2308556658099405e-10,
+          "relativeTimeSec": 0.053999999999998494,
+          "analyticValue": 79.4411572707308,
+          "eventValue": 79.44115727115388
+        },
+        "RA": {
+          "maximumAbsoluteDifference": 3.426627870339871e-10,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": 3.019987308131993,
+          "eventValue": 3.01998730778933
+        },
+        "RV": {
+          "maximumAbsoluteDifference": 2.5844570927802124e-10,
+          "relativeTimeSec": 0.23000000000000043,
+          "analyticValue": 35.77775655417959,
+          "eventValue": 35.777756553921144
+        }
+      }
+    },
+    "flowMlPerSec": {
+      "signalCount": 5,
+      "maximumAbsoluteDifference": 5.33021797366473e-7,
+      "worstSignalPath": "PVein_LA",
+      "worstRelativeTimeSec": 0.08200000000000074,
+      "analyticValueAtWorst": 57.00960629307931,
+      "eventValueAtWorst": 57.009606826101106,
+      "bySignal": {
+        "AoV": {
+          "maximumAbsoluteDifference": 4.5237129597808234e-9,
+          "relativeTimeSec": 0.05999999999999872,
+          "analyticValue": 333.12498160033715,
+          "eventValue": 333.12498160486086
+        },
+        "MV": {
+          "maximumAbsoluteDifference": 1.8639610743775847e-8,
+          "relativeTimeSec": 0.5740000000000016,
+          "analyticValue": 146.03403138699528,
+          "eventValue": 146.03403136835567
+        },
+        "PV": {
+          "maximumAbsoluteDifference": 5.739295261264488e-9,
+          "relativeTimeSec": 0.05000000000000071,
+          "analyticValue": 107.79940668869598,
+          "eventValue": 107.79940668295669
+        },
+        "PVein_LA": {
+          "maximumAbsoluteDifference": 5.33021797366473e-7,
+          "relativeTimeSec": 0.08200000000000074,
+          "analyticValue": 57.00960629307931,
+          "eventValue": 57.009606826101106
+        },
+        "TV": {
+          "maximumAbsoluteDifference": 4.2890945906037814e-8,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": 188.9331356966279,
+          "eventValue": 188.93313565373694
+        }
+      }
+    },
+    "freeCalciumUM": {
+      "signalCount": 5,
+      "maximumAbsoluteDifference": 1.8041124150158794e-15,
+      "worstSignalPath": "LVFW",
+      "worstRelativeTimeSec": 0.015999999999998238,
+      "analyticValueAtWorst": 0.21706424136008462,
+      "eventValueAtWorst": 0.21706424136008282,
+      "bySignal": {
+        "LA": {
+          "maximumAbsoluteDifference": 9.43689570931383e-16,
+          "relativeTimeSec": 0.0019999999999988916,
+          "analyticValue": 0.4566474889690588,
+          "eventValue": 0.45664748896905977
+        },
+        "LVFW": {
+          "maximumAbsoluteDifference": 1.8041124150158794e-15,
+          "relativeTimeSec": 0.015999999999998238,
+          "analyticValue": 0.21706424136008462,
+          "eventValue": 0.21706424136008282
+        },
+        "RA": {
+          "maximumAbsoluteDifference": 9.43689570931383e-16,
+          "relativeTimeSec": 0.0019999999999988916,
+          "analyticValue": 0.4566474889690588,
+          "eventValue": 0.45664748896905977
+        },
+        "RVFW": {
+          "maximumAbsoluteDifference": 1.8041124150158794e-15,
+          "relativeTimeSec": 0.015999999999998238,
+          "analyticValue": 0.21706424136008462,
+          "eventValue": 0.21706424136008282
+        },
+        "SEP": {
+          "maximumAbsoluteDifference": 1.8041124150158794e-15,
+          "relativeTimeSec": 0.015999999999998238,
+          "analyticValue": 0.21706424136008462,
+          "eventValue": 0.21706424136008282
+        }
+      }
+    },
+    "wallStressPa": {
+      "signalCount": 20,
+      "maximumAbsoluteDifference": 8.768620318733156e-7,
+      "worstSignalPath": "LA.total",
+      "worstRelativeTimeSec": 0.08200000000000074,
+      "analyticValueAtWorst": 6410.733338817576,
+      "eventValueAtWorst": 6410.733337940714,
+      "bySignal": {
+        "LA.active": {
+          "maximumAbsoluteDifference": 5.437696017907001e-7,
+          "relativeTimeSec": 0.08200000000000074,
+          "analyticValue": 3154.736483973205,
+          "eventValue": 3154.7364834294353
+        },
+        "LA.passive": {
+          "maximumAbsoluteDifference": 3.2860134524526075e-7,
+          "relativeTimeSec": 0.347999999999999,
+          "analyticValue": 6914.283234405588,
+          "eventValue": 6914.283234076986
+        },
+        "LA.sls": {
+          "maximumAbsoluteDifference": 5.039618145019631e-8,
+          "relativeTimeSec": 0.347999999999999,
+          "analyticValue": 358.23952740064465,
+          "eventValue": 358.23952735024847
+        },
+        "LA.total": {
+          "maximumAbsoluteDifference": 8.768620318733156e-7,
+          "relativeTimeSec": 0.08200000000000074,
+          "analyticValue": 6410.733338817576,
+          "eventValue": 6410.733337940714
+        },
+        "LVFW.active": {
+          "maximumAbsoluteDifference": 3.601089701987803e-7,
+          "relativeTimeSec": 0.053999999999998494,
+          "analyticValue": 58603.76012822099,
+          "eventValue": 58603.760128581096
+        },
+        "LVFW.passive": {
+          "maximumAbsoluteDifference": 1.24256985145621e-7,
+          "relativeTimeSec": 0.9980000000000011,
+          "analyticValue": 9177.66814308166,
+          "eventValue": 9177.668143205918
+        },
+        "LVFW.sls": {
+          "maximumAbsoluteDifference": 1.86581701200339e-8,
+          "relativeTimeSec": 0.5779999999999994,
+          "analyticValue": 994.3488773392955,
+          "eventValue": 994.3488773206374
+        },
+        "LVFW.total": {
+          "maximumAbsoluteDifference": 4.888861440122128e-7,
+          "relativeTimeSec": 0.053999999999998494,
+          "analyticValue": 69016.0884833179,
+          "eventValue": 69016.08848380679
+        },
+        "RA.active": {
+          "maximumAbsoluteDifference": 1.629886128284852e-7,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": 843.7753573520113,
+          "eventValue": 843.7753571890227
+        },
+        "RA.passive": {
+          "maximumAbsoluteDifference": 1.4348165677802172e-7,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": 1834.80752155499,
+          "eventValue": 1834.8075214115083
+        },
+        "RA.sls": {
+          "maximumAbsoluteDifference": 2.4193646197545604e-8,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": -37.21780647049511,
+          "eventValue": -37.21780649468876
+        },
+        "RA.total": {
+          "maximumAbsoluteDifference": 3.3066407922888175e-7,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": 2641.365072436506,
+          "eventValue": 2641.365072105842
+        },
+        "RVFW.active": {
+          "maximumAbsoluteDifference": 5.761903594247997e-7,
+          "relativeTimeSec": 0.1960000000000015,
+          "analyticValue": 64506.472971098236,
+          "eventValue": 64506.472970522045
+        },
+        "RVFW.passive": {
+          "maximumAbsoluteDifference": 3.604509402066469e-8,
+          "relativeTimeSec": 0.9379999999999988,
+          "analyticValue": 5459.236420440551,
+          "eventValue": 5459.236420404506
+        },
+        "RVFW.sls": {
+          "maximumAbsoluteDifference": 1.714920472295489e-8,
+          "relativeTimeSec": 0.22800000000000153,
+          "analyticValue": -1843.1554956121201,
+          "eventValue": -1843.1554956292694
+        },
+        "RVFW.total": {
+          "maximumAbsoluteDifference": 5.932088242843747e-7,
+          "relativeTimeSec": 0.1960000000000015,
+          "analyticValue": 62924.67314832716,
+          "eventValue": 62924.67314773395
+        },
+        "SEP.active": {
+          "maximumAbsoluteDifference": 2.7824717108160257e-7,
+          "relativeTimeSec": 0.053999999999998494,
+          "analyticValue": 38445.377514532585,
+          "eventValue": 38445.37751481083
+        },
+        "SEP.passive": {
+          "maximumAbsoluteDifference": 9.321956895291805e-8,
+          "relativeTimeSec": 1,
+          "analyticValue": 5671.889245109616,
+          "eventValue": 5671.889245202836
+        },
+        "SEP.sls": {
+          "maximumAbsoluteDifference": 2.0537527234409936e-8,
+          "relativeTimeSec": 0.5779999999999994,
+          "analyticValue": 1140.7557062983058,
+          "eventValue": 1140.7557062777682
+        },
+        "SEP.total": {
+          "maximumAbsoluteDifference": 3.6233541322872043e-7,
+          "relativeTimeSec": 0.053999999999998494,
+          "analyticValue": 44276.07804200392,
+          "eventValue": 44276.07804236626
+        }
+      }
+    },
+    "wallEnergyLedgerDensity": {
+      "signalCount": 30,
+      "maximumAbsoluteDifference": 6.341690550470958e-8,
+      "worstSignalPath": "LA.equilibriumPassiveStoredEnergyDensityJPerM3",
+      "worstRelativeTimeSec": 0.347999999999999,
+      "analyticValueAtWorst": 682.2024356176405,
+      "eventValueAtWorst": 682.2024355542236,
+      "bySignal": {
+        "LA.equilibriumPassiveStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 6.341690550470958e-8,
+          "relativeTimeSec": 0.347999999999999,
+          "analyticValue": 682.2024356176405,
+          "eventValue": 682.2024355542236
+        },
+        "LA.slsBackwardEulerNumericalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 5.854703354069013e-11,
+          "relativeTimeSec": 0.010000000000001563,
+          "analyticValue": 0.009828743740258898,
+          "eventValue": 0.009828743681711865
+        },
+        "LA.slsDiscreteEnergyBalanceResidualJPerM3": {
+          "maximumAbsoluteDifference": 2.975874754951313e-14,
+          "relativeTimeSec": 0.9540000000000006,
+          "analyticValue": -1.8581924193794563e-14,
+          "eventValue": 1.1176823355718568e-14
+        },
+        "LA.slsNextStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 3.0358009439623856e-9,
+          "relativeTimeSec": 0.347999999999999,
+          "analyticValue": 10.789941062068037,
+          "eventValue": 10.789941059032236
+        },
+        "LA.slsPhysicalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 4.0477343699052426e-11,
+          "relativeTimeSec": 0.347999999999999,
+          "analyticValue": 0.1438658808274941,
+          "eventValue": 0.14386588078701676
+        },
+        "LA.slsPreviousStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 3.0358009439623856e-9,
+          "relativeTimeSec": 0.3500000000000014,
+          "analyticValue": 10.789941062068037,
+          "eventValue": 10.789941059032236
+        },
+        "LVFW.equilibriumPassiveStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 6.124707851995481e-9,
+          "relativeTimeSec": 0.9980000000000011,
+          "analyticValue": 364.57352703717135,
+          "eventValue": 364.57352704329605
+        },
+        "LVFW.slsBackwardEulerNumericalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 8.656998728984178e-13,
+          "relativeTimeSec": 0.5180000000000007,
+          "analyticValue": 0.012174408386339507,
+          "eventValue": 0.012174408385473807
+        },
+        "LVFW.slsDiscreteEnergyBalanceResidualJPerM3": {
+          "maximumAbsoluteDifference": 5.236783229278785e-14,
+          "relativeTimeSec": 0.19000000000000128,
+          "analyticValue": 4.3000325522513094e-14,
+          "eventValue": -9.367506770274758e-15
+        },
+        "LVFW.slsNextStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 9.997904726333218e-10,
+          "relativeTimeSec": 0.5799999999999983,
+          "analyticValue": 26.84400804723229,
+          "eventValue": 26.8440080462325
+        },
+        "LVFW.slsPhysicalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 1.3330558878976717e-11,
+          "relativeTimeSec": 0.5799999999999983,
+          "analyticValue": 0.3579201072962322,
+          "eventValue": 0.35792010728290163
+        },
+        "LVFW.slsPreviousStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 9.997904726333218e-10,
+          "relativeTimeSec": 0.5820000000000007,
+          "analyticValue": 26.84400804723229,
+          "eventValue": 26.8440080462325
+        },
+        "RA.equilibriumPassiveStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 7.168871718477021e-9,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": 44.700493254495136,
+          "eventValue": 44.700493247326264
+        },
+        "RA.slsBackwardEulerNumericalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 3.289556994856557e-11,
+          "relativeTimeSec": 0.879999999999999,
+          "analyticValue": 0.005109106812069682,
+          "eventValue": 0.005109106844965252
+        },
+        "RA.slsDiscreteEnergyBalanceResidualJPerM3": {
+          "maximumAbsoluteDifference": 9.285974766903848e-15,
+          "relativeTimeSec": 0.9200000000000017,
+          "analyticValue": -4.2847669856627135e-15,
+          "eventValue": 5.001207781241135e-15
+        },
+        "RA.slsNextStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 7.271663271524176e-10,
+          "relativeTimeSec": 0.47800000000000153,
+          "analyticValue": 3.488721591078035,
+          "eventValue": 3.4887215903508686
+        },
+        "RA.slsPhysicalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 9.695549918475876e-12,
+          "relativeTimeSec": 0.47800000000000153,
+          "analyticValue": 0.04651628788109732,
+          "eventValue": 0.04651628787140177
+        },
+        "RA.slsPreviousStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 7.271663271524176e-10,
+          "relativeTimeSec": 0.4800000000000004,
+          "analyticValue": 3.488721591078035,
+          "eventValue": 3.4887215903508686
+        },
+        "RVFW.equilibriumPassiveStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 1.6425474314019084e-9,
+          "relativeTimeSec": 0.9379999999999988,
+          "analyticValue": 187.17457041219907,
+          "eventValue": 187.17457041055653
+        },
+        "RVFW.slsBackwardEulerNumericalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 1.5881150561281032e-12,
+          "relativeTimeSec": 0.47800000000000153,
+          "analyticValue": 0.010966812264806948,
+          "eventValue": 0.010966812266395063
+        },
+        "RVFW.slsDiscreteEnergyBalanceResidualJPerM3": {
+          "maximumAbsoluteDifference": 6.901250404478532e-14,
+          "relativeTimeSec": 0.21000000000000085,
+          "analyticValue": 3.553754512886087e-14,
+          "eventValue": -3.3474958915924447e-14
+        },
+        "RVFW.slsNextStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 1.7561490039952332e-9,
+          "relativeTimeSec": 0.24200000000000088,
+          "analyticValue": 100.5158787275145,
+          "eventValue": 100.51587872927065
+        },
+        "RVFW.slsPhysicalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 2.3415269723159327e-11,
+          "relativeTimeSec": 0.24200000000000088,
+          "analyticValue": 1.340211716368498,
+          "eventValue": 1.3402117163919132
+        },
+        "RVFW.slsPreviousStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 1.7561490039952332e-9,
+          "relativeTimeSec": 0.24399999999999977,
+          "analyticValue": 100.5158787275145,
+          "eventValue": 100.51587872927065
+        },
+        "SEP.equilibriumPassiveStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 4.278177812011563e-9,
+          "relativeTimeSec": 1,
+          "analyticValue": 196.89992239141333,
+          "eventValue": 196.8999223956915
+        },
+        "SEP.slsBackwardEulerNumericalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 1.6663476154477053e-12,
+          "relativeTimeSec": 0.5040000000000013,
+          "analyticValue": 0.03284185080600012,
+          "eventValue": 0.03284185080433377
+        },
+        "SEP.slsDiscreteEnergyBalanceResidualJPerM3": {
+          "maximumAbsoluteDifference": 1.1817109790701608e-13,
+          "relativeTimeSec": 0.2240000000000002,
+          "analyticValue": 4.3152113826661065e-14,
+          "eventValue": -7.501898408035501e-14
+        },
+        "SEP.slsNextStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 1.2623715406334668e-9,
+          "relativeTimeSec": 0.5799999999999983,
+          "analyticValue": 35.19846392068481,
+          "eventValue": 35.19846391942244
+        },
+        "SEP.slsPhysicalDissipationIncrementDensityJPerM3": {
+          "maximumAbsoluteDifference": 1.6831647187132148e-11,
+          "relativeTimeSec": 0.5799999999999983,
+          "analyticValue": 0.46931285227553743,
+          "eventValue": 0.4693128522587058
+        },
+        "SEP.slsPreviousStoredEnergyDensityJPerM3": {
+          "maximumAbsoluteDifference": 1.2623715406334668e-9,
+          "relativeTimeSec": 0.5820000000000007,
+          "analyticValue": 35.19846392068481,
+          "eventValue": 35.19846391942244
+        }
+      }
+    }
+  },
+  "convergence": {
+    "analytic": {
+      "initialization": "canonical",
+      "requestedMaximumBeatCount": 32,
+      "completedBeatCount": 26,
+      "terminationReason": "period1-converged",
+      "integrationCompletedWithoutFailure": true,
+      "periodicSteadyStateClaimed": true,
+      "period2OrbitSuspected": false,
+      "classifier": {
+        "status": "period1-converged",
+        "latestBeatIndex": 26,
+        "consecutiveBeatsRequired": 3,
+        "evidenceBeatIndices": [
+          24,
+          25,
+          26
+        ],
+        "latestPeriod1MaximumNormalizedDelta": 0.0006678217743913417,
+        "latestPeriod2MaximumNormalizedDelta": 0.0014892462567961395
+      },
+      "latestClosure": {
+        "beatIndex": 26,
+        "period1": {
+          "closureId": "main-wire-five-wall-periodic-closure-v1",
+          "referenceScaleSetId": "normal-adult-fixed-dimensional-reference-scales-v1",
+          "currentRevision": 13000,
+          "referenceRevision": 12500,
+          "elapsedTimeSec": 1,
+          "groups": {
+            "circulation-node-volume": {
+              "group": "circulation-node-volume",
+              "entryCount": 15,
+              "maximumNormalizedDelta": 0.0003987126778781658,
+              "worstPath": "circulation.nodeVolumesMl.Cap",
+              "worstEntry": {
+                "group": "circulation-node-volume",
+                "quantity": "node-volume",
+                "unit": "mL",
+                "path": "circulation.nodeVolumesMl.Cap",
+                "currentValue": 363.93507359524114,
+                "referenceValue": 363.8952023274533,
+                "referenceScale": 100,
+                "absoluteDelta": 0.03987126778781658,
+                "normalizedDelta": 0.0003987126778781658
+              },
+              "physicalMaximumByQuantity": {
+                "node-volume": {
+                  "quantity": "node-volume",
+                  "unit": "mL",
+                  "maximumAbsoluteDelta": 0.03987126778781658,
+                  "worstPath": "circulation.nodeVolumesMl.Cap",
+                  "referenceScale": 100,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0003987126778781658
+                }
+              }
+            },
+            "dynamic-edge-flow": {
+              "group": "dynamic-edge-flow",
+              "entryCount": 2,
+              "maximumNormalizedDelta": 0.000001677970446735344,
+              "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt",
+              "worstEntry": {
+                "group": "dynamic-edge-flow",
+                "quantity": "dynamic-edge-flow",
+                "unit": "mL/s",
+                "path": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt",
+                "currentValue": -130.92434931998395,
+                "referenceValue": -130.92351033476058,
+                "referenceScale": 500,
+                "absoluteDelta": 0.000838985223367672,
+                "normalizedDelta": 0.000001677970446735344
+              },
+              "physicalMaximumByQuantity": {
+                "dynamic-edge-flow": {
+                  "quantity": "dynamic-edge-flow",
+                  "unit": "mL/s",
+                  "maximumAbsoluteDelta": 0.000838985223367672,
+                  "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt",
+                  "referenceScale": 500,
+                  "normalizedDeltaAtPhysicalMaximum": 0.000001677970446735344
+                }
+              }
+            },
+            "valve-opening": {
+              "group": "valve-opening",
+              "entryCount": 4,
+              "maximumNormalizedDelta": 0.0002026888144692346,
+              "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+              "worstEntry": {
+                "group": "valve-opening",
+                "quantity": "valve-opening-fraction",
+                "unit": "fraction",
+                "path": "circulation.valveStates.TV.leafletOpeningFraction01",
+                "currentValue": 0.05971419930971075,
+                "referenceValue": 0.05951151049524152,
+                "referenceScale": 1,
+                "absoluteDelta": 0.0002026888144692346,
+                "normalizedDelta": 0.0002026888144692346
+              },
+              "physicalMaximumByQuantity": {
+                "valve-opening-fraction": {
+                  "quantity": "valve-opening-fraction",
+                  "unit": "fraction",
+                  "maximumAbsoluteDelta": 0.0002026888144692346,
+                  "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0002026888144692346
+                }
+              }
+            },
+            "triseg-coordinate": {
+              "group": "triseg-coordinate",
+              "entryCount": 2,
+              "maximumNormalizedDelta": 0.00003236749645922372,
+              "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+              "worstEntry": {
+                "group": "triseg-coordinate",
+                "quantity": "septal-midwall-cap-volume",
+                "unit": "m3",
+                "path": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                "currentValue": 0.00003872655258445984,
+                "referenceValue": 0.00003872978933410576,
+                "referenceScale": 0.0001,
+                "absoluteDelta": 3.2367496459223717e-9,
+                "normalizedDelta": 0.00003236749645922372
+              },
+              "physicalMaximumByQuantity": {
+                "septal-midwall-cap-volume": {
+                  "quantity": "septal-midwall-cap-volume",
+                  "unit": "m3",
+                  "maximumAbsoluteDelta": 3.2367496459223717e-9,
+                  "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                  "referenceScale": 0.0001,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00003236749645922372
+                },
+                "junction-radius": {
+                  "quantity": "junction-radius",
+                  "unit": "m",
+                  "maximumAbsoluteDelta": 7.547928356499423e-7,
+                  "worstPath": "mechanics.materialState.trisegCoordinates.junctionRadiusM",
+                  "referenceScale": 0.04,
+                  "normalizedDeltaAtPhysicalMaximum": 0.000018869820891248557
+                }
+              }
+            },
+            "land-state": {
+              "group": "land-state",
+              "entryCount": 30,
+              "maximumNormalizedDelta": 0.00010628740717189,
+              "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+              "worstEntry": {
+                "group": "land-state",
+                "quantity": "land-state",
+                "unit": "dimensionless",
+                "path": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                "currentValue": 0.7456836955285124,
+                "referenceValue": 0.7455774081213405,
+                "referenceScale": 1,
+                "absoluteDelta": 0.00010628740717189,
+                "normalizedDelta": 0.00010628740717189
+              },
+              "physicalMaximumByQuantity": {
+                "land-state": {
+                  "quantity": "land-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0.00010628740717189,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00010628740717189
+                }
+              }
+            },
+            "sls-viscous-strain": {
+              "group": "sls-viscous-strain",
+              "entryCount": 5,
+              "maximumNormalizedDelta": 0.0006678217743913417,
+              "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+              "worstEntry": {
+                "group": "sls-viscous-strain",
+                "quantity": "sls-viscous-log-strain",
+                "unit": "log-strain",
+                "path": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                "currentValue": 0.1262557706220953,
+                "referenceValue": 0.12632255279953444,
+                "referenceScale": 0.1,
+                "absoluteDelta": 0.00006678217743913417,
+                "normalizedDelta": 0.0006678217743913417
+              },
+              "physicalMaximumByQuantity": {
+                "sls-viscous-log-strain": {
+                  "quantity": "sls-viscous-log-strain",
+                  "unit": "log-strain",
+                  "maximumAbsoluteDelta": 0.00006678217743913417,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                  "referenceScale": 0.1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0006678217743913417
+                }
+              }
+            },
+            "wall-input-history": {
+              "group": "wall-input-history",
+              "entryCount": 10,
+              "maximumNormalizedDelta": 0.00026207473277445326,
+              "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+              "worstEntry": {
+                "group": "wall-input-history",
+                "quantity": "wall-fiber-log-strain",
+                "unit": "log-strain",
+                "path": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                "currentValue": 0.11792305084133853,
+                "referenceValue": 0.11794925831461597,
+                "referenceScale": 0.1,
+                "absoluteDelta": 0.000026207473277445326,
+                "normalizedDelta": 0.00026207473277445326
+              },
+              "physicalMaximumByQuantity": {
+                "wall-fiber-log-strain": {
+                  "quantity": "wall-fiber-log-strain",
+                  "unit": "log-strain",
+                  "maximumAbsoluteDelta": 0.000026207473277445326,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                  "referenceScale": 0.1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00026207473277445326
+                },
+                "wall-free-calcium": {
+                  "quantity": "wall-free-calcium",
+                  "unit": "uM",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.previousFreeCalciumUM",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                }
+              }
+            },
+            "calcium-event-state": {
+              "group": "calcium-event-state",
+              "entryCount": 10,
+              "maximumNormalizedDelta": 0,
+              "worstPath": "calcium.stateByWall.LA.riseDrive",
+              "worstEntry": {
+                "group": "calcium-event-state",
+                "quantity": "calcium-rise-drive-state",
+                "unit": "dimensionless",
+                "path": "calcium.stateByWall.LA.riseDrive",
+                "currentValue": 0.000007210299990312977,
+                "referenceValue": 0.000007210299990312977,
+                "referenceScale": 1,
+                "absoluteDelta": 0,
+                "normalizedDelta": 0
+              },
+              "physicalMaximumByQuantity": {
+                "calcium-rise-drive-state": {
+                  "quantity": "calcium-rise-drive-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "calcium.stateByWall.LA.riseDrive",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                },
+                "calcium-decay-drive-state": {
+                  "quantity": "calcium-decay-drive-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "calcium.stateByWall.LA.decayDrive",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                }
+              }
+            }
+          },
+          "overall": {
+            "entryCount": 78,
+            "maximumNormalizedDelta": 0.0006678217743913417,
+            "worstGroup": "sls-viscous-strain",
+            "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+            "worstEntry": {
+              "group": "sls-viscous-strain",
+              "quantity": "sls-viscous-log-strain",
+              "unit": "log-strain",
+              "path": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+              "currentValue": 0.1262557706220953,
+              "referenceValue": 0.12632255279953444,
+              "referenceScale": 0.1,
+              "absoluteDelta": 0.00006678217743913417,
+              "normalizedDelta": 0.0006678217743913417
+            },
+            "physicalMaximumByQuantity": {
+              "node-volume": {
+                "quantity": "node-volume",
+                "unit": "mL",
+                "maximumAbsoluteDelta": 0.03987126778781658,
+                "worstPath": "circulation.nodeVolumesMl.Cap",
+                "referenceScale": 100,
+                "normalizedDeltaAtPhysicalMaximum": 0.0003987126778781658
+              },
+              "dynamic-edge-flow": {
+                "quantity": "dynamic-edge-flow",
+                "unit": "mL/s",
+                "maximumAbsoluteDelta": 0.000838985223367672,
+                "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt",
+                "referenceScale": 500,
+                "normalizedDeltaAtPhysicalMaximum": 0.000001677970446735344
+              },
+              "valve-opening-fraction": {
+                "quantity": "valve-opening-fraction",
+                "unit": "fraction",
+                "maximumAbsoluteDelta": 0.0002026888144692346,
+                "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0002026888144692346
+              },
+              "septal-midwall-cap-volume": {
+                "quantity": "septal-midwall-cap-volume",
+                "unit": "m3",
+                "maximumAbsoluteDelta": 3.2367496459223717e-9,
+                "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                "referenceScale": 0.0001,
+                "normalizedDeltaAtPhysicalMaximum": 0.00003236749645922372
+              },
+              "junction-radius": {
+                "quantity": "junction-radius",
+                "unit": "m",
+                "maximumAbsoluteDelta": 7.547928356499423e-7,
+                "worstPath": "mechanics.materialState.trisegCoordinates.junctionRadiusM",
+                "referenceScale": 0.04,
+                "normalizedDeltaAtPhysicalMaximum": 0.000018869820891248557
+              },
+              "land-state": {
+                "quantity": "land-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0.00010628740717189,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0.00010628740717189
+              },
+              "sls-viscous-log-strain": {
+                "quantity": "sls-viscous-log-strain",
+                "unit": "log-strain",
+                "maximumAbsoluteDelta": 0.00006678217743913417,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                "referenceScale": 0.1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0006678217743913417
+              },
+              "wall-fiber-log-strain": {
+                "quantity": "wall-fiber-log-strain",
+                "unit": "log-strain",
+                "maximumAbsoluteDelta": 0.000026207473277445326,
+                "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                "referenceScale": 0.1,
+                "normalizedDeltaAtPhysicalMaximum": 0.00026207473277445326
+              },
+              "wall-free-calcium": {
+                "quantity": "wall-free-calcium",
+                "unit": "uM",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.previousFreeCalciumUM",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              },
+              "calcium-rise-drive-state": {
+                "quantity": "calcium-rise-drive-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "calcium.stateByWall.LA.riseDrive",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              },
+              "calcium-decay-drive-state": {
+                "quantity": "calcium-decay-drive-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "calcium.stateByWall.LA.decayDrive",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              }
+            }
+          }
+        },
+        "period2": {
+          "closureId": "main-wire-five-wall-periodic-closure-v1",
+          "referenceScaleSetId": "normal-adult-fixed-dimensional-reference-scales-v1",
+          "currentRevision": 13000,
+          "referenceRevision": 12000,
+          "elapsedTimeSec": 2,
+          "groups": {
+            "circulation-node-volume": {
+              "group": "circulation-node-volume",
+              "entryCount": 15,
+              "maximumNormalizedDelta": 0.0009608962514880659,
+              "worstPath": "circulation.nodeVolumesMl.Cap",
+              "worstEntry": {
+                "group": "circulation-node-volume",
+                "quantity": "node-volume",
+                "unit": "mL",
+                "path": "circulation.nodeVolumesMl.Cap",
+                "currentValue": 363.93507359524114,
+                "referenceValue": 363.83898397009233,
+                "referenceScale": 100,
+                "absoluteDelta": 0.09608962514880659,
+                "normalizedDelta": 0.0009608962514880659
+              },
+              "physicalMaximumByQuantity": {
+                "node-volume": {
+                  "quantity": "node-volume",
+                  "unit": "mL",
+                  "maximumAbsoluteDelta": 0.09608962514880659,
+                  "worstPath": "circulation.nodeVolumesMl.Cap",
+                  "referenceScale": 100,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0009608962514880659
+                }
+              }
+            },
+            "dynamic-edge-flow": {
+              "group": "dynamic-edge-flow",
+              "entryCount": 2,
+              "maximumNormalizedDelta": 0.000004327601646686219,
+              "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.Ao_SA",
+              "worstEntry": {
+                "group": "dynamic-edge-flow",
+                "quantity": "dynamic-edge-flow",
+                "unit": "mL/s",
+                "path": "circulation.dynamicEdgeFlowsMlPerSec.Ao_SA",
+                "currentValue": 18.909047489913682,
+                "referenceValue": 18.90688368909034,
+                "referenceScale": 500,
+                "absoluteDelta": 0.0021638008233431094,
+                "normalizedDelta": 0.000004327601646686219
+              },
+              "physicalMaximumByQuantity": {
+                "dynamic-edge-flow": {
+                  "quantity": "dynamic-edge-flow",
+                  "unit": "mL/s",
+                  "maximumAbsoluteDelta": 0.0021638008233431094,
+                  "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.Ao_SA",
+                  "referenceScale": 500,
+                  "normalizedDeltaAtPhysicalMaximum": 0.000004327601646686219
+                }
+              }
+            },
+            "valve-opening": {
+              "group": "valve-opening",
+              "entryCount": 4,
+              "maximumNormalizedDelta": 0.0004936390235661878,
+              "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+              "worstEntry": {
+                "group": "valve-opening",
+                "quantity": "valve-opening-fraction",
+                "unit": "fraction",
+                "path": "circulation.valveStates.TV.leafletOpeningFraction01",
+                "currentValue": 0.05971419930971075,
+                "referenceValue": 0.059220560286144565,
+                "referenceScale": 1,
+                "absoluteDelta": 0.0004936390235661878,
+                "normalizedDelta": 0.0004936390235661878
+              },
+              "physicalMaximumByQuantity": {
+                "valve-opening-fraction": {
+                  "quantity": "valve-opening-fraction",
+                  "unit": "fraction",
+                  "maximumAbsoluteDelta": 0.0004936390235661878,
+                  "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0004936390235661878
+                }
+              }
+            },
+            "triseg-coordinate": {
+              "group": "triseg-coordinate",
+              "entryCount": 2,
+              "maximumNormalizedDelta": 0.00006917921570485995,
+              "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+              "worstEntry": {
+                "group": "triseg-coordinate",
+                "quantity": "septal-midwall-cap-volume",
+                "unit": "m3",
+                "path": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                "currentValue": 0.00003872655258445984,
+                "referenceValue": 0.000038733470506030326,
+                "referenceScale": 0.0001,
+                "absoluteDelta": 6.917921570485995e-9,
+                "normalizedDelta": 0.00006917921570485995
+              },
+              "physicalMaximumByQuantity": {
+                "septal-midwall-cap-volume": {
+                  "quantity": "septal-midwall-cap-volume",
+                  "unit": "m3",
+                  "maximumAbsoluteDelta": 6.917921570485995e-9,
+                  "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                  "referenceScale": 0.0001,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00006917921570485995
+                },
+                "junction-radius": {
+                  "quantity": "junction-radius",
+                  "unit": "m",
+                  "maximumAbsoluteDelta": 0.0000017669323972291373,
+                  "worstPath": "mechanics.materialState.trisegCoordinates.junctionRadiusM",
+                  "referenceScale": 0.04,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00004417330993072843
+                }
+              }
+            },
+            "land-state": {
+              "group": "land-state",
+              "entryCount": 30,
+              "maximumNormalizedDelta": 0.00023848504712342677,
+              "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+              "worstEntry": {
+                "group": "land-state",
+                "quantity": "land-state",
+                "unit": "dimensionless",
+                "path": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                "currentValue": 0.7456836955285124,
+                "referenceValue": 0.745445210481389,
+                "referenceScale": 1,
+                "absoluteDelta": 0.00023848504712342677,
+                "normalizedDelta": 0.00023848504712342677
+              },
+              "physicalMaximumByQuantity": {
+                "land-state": {
+                  "quantity": "land-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0.00023848504712342677,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00023848504712342677
+                }
+              }
+            },
+            "sls-viscous-strain": {
+              "group": "sls-viscous-strain",
+              "entryCount": 5,
+              "maximumNormalizedDelta": 0.0014892462567961395,
+              "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+              "worstEntry": {
+                "group": "sls-viscous-strain",
+                "quantity": "sls-viscous-log-strain",
+                "unit": "log-strain",
+                "path": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                "currentValue": 0.1262557706220953,
+                "referenceValue": 0.12640469524777492,
+                "referenceScale": 0.1,
+                "absoluteDelta": 0.00014892462567961395,
+                "normalizedDelta": 0.0014892462567961395
+              },
+              "physicalMaximumByQuantity": {
+                "sls-viscous-log-strain": {
+                  "quantity": "sls-viscous-log-strain",
+                  "unit": "log-strain",
+                  "maximumAbsoluteDelta": 0.00014892462567961395,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                  "referenceScale": 0.1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0014892462567961395
+                }
+              }
+            },
+            "wall-input-history": {
+              "group": "wall-input-history",
+              "entryCount": 10,
+              "maximumNormalizedDelta": 0.0005853371715673628,
+              "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+              "worstEntry": {
+                "group": "wall-input-history",
+                "quantity": "wall-fiber-log-strain",
+                "unit": "log-strain",
+                "path": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                "currentValue": 0.11792305084133853,
+                "referenceValue": 0.11798158455849526,
+                "referenceScale": 0.1,
+                "absoluteDelta": 0.000058533717156736276,
+                "normalizedDelta": 0.0005853371715673628
+              },
+              "physicalMaximumByQuantity": {
+                "wall-fiber-log-strain": {
+                  "quantity": "wall-fiber-log-strain",
+                  "unit": "log-strain",
+                  "maximumAbsoluteDelta": 0.000058533717156736276,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                  "referenceScale": 0.1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0005853371715673628
+                },
+                "wall-free-calcium": {
+                  "quantity": "wall-free-calcium",
+                  "unit": "uM",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.previousFreeCalciumUM",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                }
+              }
+            },
+            "calcium-event-state": {
+              "group": "calcium-event-state",
+              "entryCount": 10,
+              "maximumNormalizedDelta": 0,
+              "worstPath": "calcium.stateByWall.LA.riseDrive",
+              "worstEntry": {
+                "group": "calcium-event-state",
+                "quantity": "calcium-rise-drive-state",
+                "unit": "dimensionless",
+                "path": "calcium.stateByWall.LA.riseDrive",
+                "currentValue": 0.000007210299990312977,
+                "referenceValue": 0.000007210299990312977,
+                "referenceScale": 1,
+                "absoluteDelta": 0,
+                "normalizedDelta": 0
+              },
+              "physicalMaximumByQuantity": {
+                "calcium-rise-drive-state": {
+                  "quantity": "calcium-rise-drive-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "calcium.stateByWall.LA.riseDrive",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                },
+                "calcium-decay-drive-state": {
+                  "quantity": "calcium-decay-drive-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "calcium.stateByWall.LA.decayDrive",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                }
+              }
+            }
+          },
+          "overall": {
+            "entryCount": 78,
+            "maximumNormalizedDelta": 0.0014892462567961395,
+            "worstGroup": "sls-viscous-strain",
+            "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+            "worstEntry": {
+              "group": "sls-viscous-strain",
+              "quantity": "sls-viscous-log-strain",
+              "unit": "log-strain",
+              "path": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+              "currentValue": 0.1262557706220953,
+              "referenceValue": 0.12640469524777492,
+              "referenceScale": 0.1,
+              "absoluteDelta": 0.00014892462567961395,
+              "normalizedDelta": 0.0014892462567961395
+            },
+            "physicalMaximumByQuantity": {
+              "node-volume": {
+                "quantity": "node-volume",
+                "unit": "mL",
+                "maximumAbsoluteDelta": 0.09608962514880659,
+                "worstPath": "circulation.nodeVolumesMl.Cap",
+                "referenceScale": 100,
+                "normalizedDeltaAtPhysicalMaximum": 0.0009608962514880659
+              },
+              "dynamic-edge-flow": {
+                "quantity": "dynamic-edge-flow",
+                "unit": "mL/s",
+                "maximumAbsoluteDelta": 0.0021638008233431094,
+                "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.Ao_SA",
+                "referenceScale": 500,
+                "normalizedDeltaAtPhysicalMaximum": 0.000004327601646686219
+              },
+              "valve-opening-fraction": {
+                "quantity": "valve-opening-fraction",
+                "unit": "fraction",
+                "maximumAbsoluteDelta": 0.0004936390235661878,
+                "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0004936390235661878
+              },
+              "septal-midwall-cap-volume": {
+                "quantity": "septal-midwall-cap-volume",
+                "unit": "m3",
+                "maximumAbsoluteDelta": 6.917921570485995e-9,
+                "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                "referenceScale": 0.0001,
+                "normalizedDeltaAtPhysicalMaximum": 0.00006917921570485995
+              },
+              "junction-radius": {
+                "quantity": "junction-radius",
+                "unit": "m",
+                "maximumAbsoluteDelta": 0.0000017669323972291373,
+                "worstPath": "mechanics.materialState.trisegCoordinates.junctionRadiusM",
+                "referenceScale": 0.04,
+                "normalizedDeltaAtPhysicalMaximum": 0.00004417330993072843
+              },
+              "land-state": {
+                "quantity": "land-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0.00023848504712342677,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0.00023848504712342677
+              },
+              "sls-viscous-log-strain": {
+                "quantity": "sls-viscous-log-strain",
+                "unit": "log-strain",
+                "maximumAbsoluteDelta": 0.00014892462567961395,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                "referenceScale": 0.1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0014892462567961395
+              },
+              "wall-fiber-log-strain": {
+                "quantity": "wall-fiber-log-strain",
+                "unit": "log-strain",
+                "maximumAbsoluteDelta": 0.000058533717156736276,
+                "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                "referenceScale": 0.1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0005853371715673628
+              },
+              "wall-free-calcium": {
+                "quantity": "wall-free-calcium",
+                "unit": "uM",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.previousFreeCalciumUM",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              },
+              "calcium-rise-drive-state": {
+                "quantity": "calcium-rise-drive-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "calcium.stateByWall.LA.riseDrive",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              },
+              "calcium-decay-drive-state": {
+                "quantity": "calcium-decay-drive-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "calcium.stateByWall.LA.decayDrive",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              }
+            }
+          }
+        }
+      },
+      "selectedTerminalCompleteBeat": {
+        "beatIndex": 26,
+        "startTimeSec": 25,
+        "endTimeSec": 26,
+        "durationSec": 1,
+        "acceptedIntervalCount": 500,
+        "precedingAcceptedSampleAvailable": true
+      }
+    },
+    "event": {
+      "initialization": "canonical",
+      "requestedMaximumBeatCount": 32,
+      "completedBeatCount": 26,
+      "terminationReason": "period1-converged",
+      "integrationCompletedWithoutFailure": true,
+      "periodicSteadyStateClaimed": true,
+      "period2OrbitSuspected": false,
+      "classifier": {
+        "status": "period1-converged",
+        "latestBeatIndex": 26,
+        "consecutiveBeatsRequired": 3,
+        "evidenceBeatIndices": [
+          24,
+          25,
+          26
+        ],
+        "latestPeriod1MaximumNormalizedDelta": 0.0006678217807884468,
+        "latestPeriod2MaximumNormalizedDelta": 0.0014892462747898016
+      },
+      "latestClosure": {
+        "beatIndex": 26,
+        "period1": {
+          "closureId": "main-wire-five-wall-periodic-closure-v1",
+          "referenceScaleSetId": "normal-adult-fixed-dimensional-reference-scales-v1",
+          "currentRevision": 13000,
+          "referenceRevision": 12500,
+          "elapsedTimeSec": 1,
+          "groups": {
+            "circulation-node-volume": {
+              "group": "circulation-node-volume",
+              "entryCount": 15,
+              "maximumNormalizedDelta": 0.00039871267823457404,
+              "worstPath": "circulation.nodeVolumesMl.Cap",
+              "worstEntry": {
+                "group": "circulation-node-volume",
+                "quantity": "node-volume",
+                "unit": "mL",
+                "path": "circulation.nodeVolumesMl.Cap",
+                "currentValue": 363.93507359521516,
+                "referenceValue": 363.8952023273917,
+                "referenceScale": 100,
+                "absoluteDelta": 0.0398712678234574,
+                "normalizedDelta": 0.00039871267823457404
+              },
+              "physicalMaximumByQuantity": {
+                "node-volume": {
+                  "quantity": "node-volume",
+                  "unit": "mL",
+                  "maximumAbsoluteDelta": 0.0398712678234574,
+                  "worstPath": "circulation.nodeVolumesMl.Cap",
+                  "referenceScale": 100,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00039871267823457404
+                }
+              }
+            },
+            "dynamic-edge-flow": {
+              "group": "dynamic-edge-flow",
+              "entryCount": 2,
+              "maximumNormalizedDelta": 0.0000016779851268893254,
+              "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt",
+              "worstEntry": {
+                "group": "dynamic-edge-flow",
+                "quantity": "dynamic-edge-flow",
+                "unit": "mL/s",
+                "path": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt",
+                "currentValue": -130.92434932436882,
+                "referenceValue": -130.92351033180537,
+                "referenceScale": 500,
+                "absoluteDelta": 0.0008389925634446627,
+                "normalizedDelta": 0.0000016779851268893254
+              },
+              "physicalMaximumByQuantity": {
+                "dynamic-edge-flow": {
+                  "quantity": "dynamic-edge-flow",
+                  "unit": "mL/s",
+                  "maximumAbsoluteDelta": 0.0008389925634446627,
+                  "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt",
+                  "referenceScale": 500,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0000016779851268893254
+                }
+              }
+            },
+            "valve-opening": {
+              "group": "valve-opening",
+              "entryCount": 4,
+              "maximumNormalizedDelta": 0.0002026888176134764,
+              "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+              "worstEntry": {
+                "group": "valve-opening",
+                "quantity": "valve-opening-fraction",
+                "unit": "fraction",
+                "path": "circulation.valveStates.TV.leafletOpeningFraction01",
+                "currentValue": 0.059714199316780625,
+                "referenceValue": 0.05951151049916715,
+                "referenceScale": 1,
+                "absoluteDelta": 0.0002026888176134764,
+                "normalizedDelta": 0.0002026888176134764
+              },
+              "physicalMaximumByQuantity": {
+                "valve-opening-fraction": {
+                  "quantity": "valve-opening-fraction",
+                  "unit": "fraction",
+                  "maximumAbsoluteDelta": 0.0002026888176134764,
+                  "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0002026888176134764
+                }
+              }
+            },
+            "triseg-coordinate": {
+              "group": "triseg-coordinate",
+              "entryCount": 2,
+              "maximumNormalizedDelta": 0.00003236749634700879,
+              "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+              "worstEntry": {
+                "group": "triseg-coordinate",
+                "quantity": "septal-midwall-cap-volume",
+                "unit": "m3",
+                "path": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                "currentValue": 0.00003872655258461893,
+                "referenceValue": 0.000038729789334253634,
+                "referenceScale": 0.0001,
+                "absoluteDelta": 3.2367496347008792e-9,
+                "normalizedDelta": 0.00003236749634700879
+              },
+              "physicalMaximumByQuantity": {
+                "septal-midwall-cap-volume": {
+                  "quantity": "septal-midwall-cap-volume",
+                  "unit": "m3",
+                  "maximumAbsoluteDelta": 3.2367496347008792e-9,
+                  "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                  "referenceScale": 0.0001,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00003236749634700879
+                },
+                "junction-radius": {
+                  "quantity": "junction-radius",
+                  "unit": "m",
+                  "maximumAbsoluteDelta": 7.547928352891198e-7,
+                  "worstPath": "mechanics.materialState.trisegCoordinates.junctionRadiusM",
+                  "referenceScale": 0.04,
+                  "normalizedDeltaAtPhysicalMaximum": 0.000018869820882227994
+                }
+              }
+            },
+            "land-state": {
+              "group": "land-state",
+              "entryCount": 30,
+              "maximumNormalizedDelta": 0.00010628740962193017,
+              "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+              "worstEntry": {
+                "group": "land-state",
+                "quantity": "land-state",
+                "unit": "dimensionless",
+                "path": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                "currentValue": 0.7456836955386876,
+                "referenceValue": 0.7455774081290657,
+                "referenceScale": 1,
+                "absoluteDelta": 0.00010628740962193017,
+                "normalizedDelta": 0.00010628740962193017
+              },
+              "physicalMaximumByQuantity": {
+                "land-state": {
+                  "quantity": "land-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0.00010628740962193017,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00010628740962193017
+                }
+              }
+            },
+            "sls-viscous-strain": {
+              "group": "sls-viscous-strain",
+              "entryCount": 5,
+              "maximumNormalizedDelta": 0.0006678217807884468,
+              "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+              "worstEntry": {
+                "group": "sls-viscous-strain",
+                "quantity": "sls-viscous-log-strain",
+                "unit": "log-strain",
+                "path": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                "currentValue": 0.1262557706216897,
+                "referenceValue": 0.12632255279976853,
+                "referenceScale": 0.1,
+                "absoluteDelta": 0.00006678217807884468,
+                "normalizedDelta": 0.0006678217807884468
+              },
+              "physicalMaximumByQuantity": {
+                "sls-viscous-log-strain": {
+                  "quantity": "sls-viscous-log-strain",
+                  "unit": "log-strain",
+                  "maximumAbsoluteDelta": 0.00006678217807884468,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                  "referenceScale": 0.1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0006678217807884468
+                }
+              }
+            },
+            "wall-input-history": {
+              "group": "wall-input-history",
+              "entryCount": 10,
+              "maximumNormalizedDelta": 0.00026207473215855703,
+              "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+              "worstEntry": {
+                "group": "wall-input-history",
+                "quantity": "wall-fiber-log-strain",
+                "unit": "log-strain",
+                "path": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                "currentValue": 0.1179230508420059,
+                "referenceValue": 0.11794925831522175,
+                "referenceScale": 0.1,
+                "absoluteDelta": 0.000026207473215855703,
+                "normalizedDelta": 0.00026207473215855703
+              },
+              "physicalMaximumByQuantity": {
+                "wall-fiber-log-strain": {
+                  "quantity": "wall-fiber-log-strain",
+                  "unit": "log-strain",
+                  "maximumAbsoluteDelta": 0.000026207473215855703,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                  "referenceScale": 0.1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00026207473215855703
+                },
+                "wall-free-calcium": {
+                  "quantity": "wall-free-calcium",
+                  "unit": "uM",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.previousFreeCalciumUM",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                }
+              }
+            },
+            "calcium-event-state": {
+              "group": "calcium-event-state",
+              "entryCount": 10,
+              "maximumNormalizedDelta": 0,
+              "worstPath": "calcium.stateByWall.LA.riseDrive",
+              "worstEntry": {
+                "group": "calcium-event-state",
+                "quantity": "calcium-rise-drive-state",
+                "unit": "dimensionless",
+                "path": "calcium.stateByWall.LA.riseDrive",
+                "currentValue": 0.000007210299990312977,
+                "referenceValue": 0.000007210299990312977,
+                "referenceScale": 1,
+                "absoluteDelta": 0,
+                "normalizedDelta": 0
+              },
+              "physicalMaximumByQuantity": {
+                "calcium-rise-drive-state": {
+                  "quantity": "calcium-rise-drive-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "calcium.stateByWall.LA.riseDrive",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                },
+                "calcium-decay-drive-state": {
+                  "quantity": "calcium-decay-drive-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "calcium.stateByWall.LA.decayDrive",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                }
+              }
+            }
+          },
+          "overall": {
+            "entryCount": 78,
+            "maximumNormalizedDelta": 0.0006678217807884468,
+            "worstGroup": "sls-viscous-strain",
+            "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+            "worstEntry": {
+              "group": "sls-viscous-strain",
+              "quantity": "sls-viscous-log-strain",
+              "unit": "log-strain",
+              "path": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+              "currentValue": 0.1262557706216897,
+              "referenceValue": 0.12632255279976853,
+              "referenceScale": 0.1,
+              "absoluteDelta": 0.00006678217807884468,
+              "normalizedDelta": 0.0006678217807884468
+            },
+            "physicalMaximumByQuantity": {
+              "node-volume": {
+                "quantity": "node-volume",
+                "unit": "mL",
+                "maximumAbsoluteDelta": 0.0398712678234574,
+                "worstPath": "circulation.nodeVolumesMl.Cap",
+                "referenceScale": 100,
+                "normalizedDeltaAtPhysicalMaximum": 0.00039871267823457404
+              },
+              "dynamic-edge-flow": {
+                "quantity": "dynamic-edge-flow",
+                "unit": "mL/s",
+                "maximumAbsoluteDelta": 0.0008389925634446627,
+                "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt",
+                "referenceScale": 500,
+                "normalizedDeltaAtPhysicalMaximum": 0.0000016779851268893254
+              },
+              "valve-opening-fraction": {
+                "quantity": "valve-opening-fraction",
+                "unit": "fraction",
+                "maximumAbsoluteDelta": 0.0002026888176134764,
+                "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0002026888176134764
+              },
+              "septal-midwall-cap-volume": {
+                "quantity": "septal-midwall-cap-volume",
+                "unit": "m3",
+                "maximumAbsoluteDelta": 3.2367496347008792e-9,
+                "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                "referenceScale": 0.0001,
+                "normalizedDeltaAtPhysicalMaximum": 0.00003236749634700879
+              },
+              "junction-radius": {
+                "quantity": "junction-radius",
+                "unit": "m",
+                "maximumAbsoluteDelta": 7.547928352891198e-7,
+                "worstPath": "mechanics.materialState.trisegCoordinates.junctionRadiusM",
+                "referenceScale": 0.04,
+                "normalizedDeltaAtPhysicalMaximum": 0.000018869820882227994
+              },
+              "land-state": {
+                "quantity": "land-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0.00010628740962193017,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0.00010628740962193017
+              },
+              "sls-viscous-log-strain": {
+                "quantity": "sls-viscous-log-strain",
+                "unit": "log-strain",
+                "maximumAbsoluteDelta": 0.00006678217807884468,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                "referenceScale": 0.1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0006678217807884468
+              },
+              "wall-fiber-log-strain": {
+                "quantity": "wall-fiber-log-strain",
+                "unit": "log-strain",
+                "maximumAbsoluteDelta": 0.000026207473215855703,
+                "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                "referenceScale": 0.1,
+                "normalizedDeltaAtPhysicalMaximum": 0.00026207473215855703
+              },
+              "wall-free-calcium": {
+                "quantity": "wall-free-calcium",
+                "unit": "uM",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.previousFreeCalciumUM",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              },
+              "calcium-rise-drive-state": {
+                "quantity": "calcium-rise-drive-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "calcium.stateByWall.LA.riseDrive",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              },
+              "calcium-decay-drive-state": {
+                "quantity": "calcium-decay-drive-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "calcium.stateByWall.LA.decayDrive",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              }
+            }
+          }
+        },
+        "period2": {
+          "closureId": "main-wire-five-wall-periodic-closure-v1",
+          "referenceScaleSetId": "normal-adult-fixed-dimensional-reference-scales-v1",
+          "currentRevision": 13000,
+          "referenceRevision": 12000,
+          "elapsedTimeSec": 2,
+          "groups": {
+            "circulation-node-volume": {
+              "group": "circulation-node-volume",
+              "entryCount": 15,
+              "maximumNormalizedDelta": 0.0009608962513237884,
+              "worstPath": "circulation.nodeVolumesMl.Cap",
+              "worstEntry": {
+                "group": "circulation-node-volume",
+                "quantity": "node-volume",
+                "unit": "mL",
+                "path": "circulation.nodeVolumesMl.Cap",
+                "currentValue": 363.93507359521516,
+                "referenceValue": 363.8389839700828,
+                "referenceScale": 100,
+                "absoluteDelta": 0.09608962513237884,
+                "normalizedDelta": 0.0009608962513237884
+              },
+              "physicalMaximumByQuantity": {
+                "node-volume": {
+                  "quantity": "node-volume",
+                  "unit": "mL",
+                  "maximumAbsoluteDelta": 0.09608962513237884,
+                  "worstPath": "circulation.nodeVolumesMl.Cap",
+                  "referenceScale": 100,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0009608962513237884
+                }
+              }
+            },
+            "dynamic-edge-flow": {
+              "group": "dynamic-edge-flow",
+              "entryCount": 2,
+              "maximumNormalizedDelta": 0.0000043276016784403735,
+              "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.Ao_SA",
+              "worstEntry": {
+                "group": "dynamic-edge-flow",
+                "quantity": "dynamic-edge-flow",
+                "unit": "mL/s",
+                "path": "circulation.dynamicEdgeFlowsMlPerSec.Ao_SA",
+                "currentValue": 18.909047489922806,
+                "referenceValue": 18.906883689083585,
+                "referenceScale": 500,
+                "absoluteDelta": 0.002163800839220187,
+                "normalizedDelta": 0.0000043276016784403735
+              },
+              "physicalMaximumByQuantity": {
+                "dynamic-edge-flow": {
+                  "quantity": "dynamic-edge-flow",
+                  "unit": "mL/s",
+                  "maximumAbsoluteDelta": 0.002163800839220187,
+                  "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.Ao_SA",
+                  "referenceScale": 500,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0000043276016784403735
+                }
+              }
+            },
+            "valve-opening": {
+              "group": "valve-opening",
+              "entryCount": 4,
+              "maximumNormalizedDelta": 0.0004936390247731459,
+              "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+              "worstEntry": {
+                "group": "valve-opening",
+                "quantity": "valve-opening-fraction",
+                "unit": "fraction",
+                "path": "circulation.valveStates.TV.leafletOpeningFraction01",
+                "currentValue": 0.059714199316780625,
+                "referenceValue": 0.05922056029200748,
+                "referenceScale": 1,
+                "absoluteDelta": 0.0004936390247731459,
+                "normalizedDelta": 0.0004936390247731459
+              },
+              "physicalMaximumByQuantity": {
+                "valve-opening-fraction": {
+                  "quantity": "valve-opening-fraction",
+                  "unit": "fraction",
+                  "maximumAbsoluteDelta": 0.0004936390247731459,
+                  "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0004936390247731459
+                }
+              }
+            },
+            "triseg-coordinate": {
+              "group": "triseg-coordinate",
+              "entryCount": 2,
+              "maximumNormalizedDelta": 0.00006917921442245207,
+              "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+              "worstEntry": {
+                "group": "triseg-coordinate",
+                "quantity": "septal-midwall-cap-volume",
+                "unit": "m3",
+                "path": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                "currentValue": 0.00003872655258461893,
+                "referenceValue": 0.00003873347050606118,
+                "referenceScale": 0.0001,
+                "absoluteDelta": 6.917921442245207e-9,
+                "normalizedDelta": 0.00006917921442245207
+              },
+              "physicalMaximumByQuantity": {
+                "septal-midwall-cap-volume": {
+                  "quantity": "septal-midwall-cap-volume",
+                  "unit": "m3",
+                  "maximumAbsoluteDelta": 6.917921442245207e-9,
+                  "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                  "referenceScale": 0.0001,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00006917921442245207
+                },
+                "junction-radius": {
+                  "quantity": "junction-radius",
+                  "unit": "m",
+                  "maximumAbsoluteDelta": 0.000001766932390706577,
+                  "worstPath": "mechanics.materialState.trisegCoordinates.junctionRadiusM",
+                  "referenceScale": 0.04,
+                  "normalizedDeltaAtPhysicalMaximum": 0.000044173309767664426
+                }
+              }
+            },
+            "land-state": {
+              "group": "land-state",
+              "entryCount": 30,
+              "maximumNormalizedDelta": 0.00023848505558776711,
+              "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+              "worstEntry": {
+                "group": "land-state",
+                "quantity": "land-state",
+                "unit": "dimensionless",
+                "path": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                "currentValue": 0.7456836955386876,
+                "referenceValue": 0.7454452104830999,
+                "referenceScale": 1,
+                "absoluteDelta": 0.00023848505558776711,
+                "normalizedDelta": 0.00023848505558776711
+              },
+              "physicalMaximumByQuantity": {
+                "land-state": {
+                  "quantity": "land-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0.00023848505558776711,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.00023848505558776711
+                }
+              }
+            },
+            "sls-viscous-strain": {
+              "group": "sls-viscous-strain",
+              "entryCount": 5,
+              "maximumNormalizedDelta": 0.0014892462747898016,
+              "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+              "worstEntry": {
+                "group": "sls-viscous-strain",
+                "quantity": "sls-viscous-log-strain",
+                "unit": "log-strain",
+                "path": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                "currentValue": 0.1262557706216897,
+                "referenceValue": 0.12640469524916867,
+                "referenceScale": 0.1,
+                "absoluteDelta": 0.00014892462747898016,
+                "normalizedDelta": 0.0014892462747898016
+              },
+              "physicalMaximumByQuantity": {
+                "sls-viscous-log-strain": {
+                  "quantity": "sls-viscous-log-strain",
+                  "unit": "log-strain",
+                  "maximumAbsoluteDelta": 0.00014892462747898016,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                  "referenceScale": 0.1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0014892462747898016
+                }
+              }
+            },
+            "wall-input-history": {
+              "group": "wall-input-history",
+              "entryCount": 10,
+              "maximumNormalizedDelta": 0.0005853371645564431,
+              "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+              "worstEntry": {
+                "group": "wall-input-history",
+                "quantity": "wall-fiber-log-strain",
+                "unit": "log-strain",
+                "path": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                "currentValue": 0.1179230508420059,
+                "referenceValue": 0.11798158455846154,
+                "referenceScale": 0.1,
+                "absoluteDelta": 0.000058533716455644313,
+                "normalizedDelta": 0.0005853371645564431
+              },
+              "physicalMaximumByQuantity": {
+                "wall-fiber-log-strain": {
+                  "quantity": "wall-fiber-log-strain",
+                  "unit": "log-strain",
+                  "maximumAbsoluteDelta": 0.000058533716455644313,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                  "referenceScale": 0.1,
+                  "normalizedDeltaAtPhysicalMaximum": 0.0005853371645564431
+                },
+                "wall-free-calcium": {
+                  "quantity": "wall-free-calcium",
+                  "unit": "uM",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "mechanics.materialState.wallStateByWall.LA.previousFreeCalciumUM",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                }
+              }
+            },
+            "calcium-event-state": {
+              "group": "calcium-event-state",
+              "entryCount": 10,
+              "maximumNormalizedDelta": 0,
+              "worstPath": "calcium.stateByWall.LA.riseDrive",
+              "worstEntry": {
+                "group": "calcium-event-state",
+                "quantity": "calcium-rise-drive-state",
+                "unit": "dimensionless",
+                "path": "calcium.stateByWall.LA.riseDrive",
+                "currentValue": 0.000007210299990312977,
+                "referenceValue": 0.000007210299990312977,
+                "referenceScale": 1,
+                "absoluteDelta": 0,
+                "normalizedDelta": 0
+              },
+              "physicalMaximumByQuantity": {
+                "calcium-rise-drive-state": {
+                  "quantity": "calcium-rise-drive-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "calcium.stateByWall.LA.riseDrive",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                },
+                "calcium-decay-drive-state": {
+                  "quantity": "calcium-decay-drive-state",
+                  "unit": "dimensionless",
+                  "maximumAbsoluteDelta": 0,
+                  "worstPath": "calcium.stateByWall.LA.decayDrive",
+                  "referenceScale": 1,
+                  "normalizedDeltaAtPhysicalMaximum": 0
+                }
+              }
+            }
+          },
+          "overall": {
+            "entryCount": 78,
+            "maximumNormalizedDelta": 0.0014892462747898016,
+            "worstGroup": "sls-viscous-strain",
+            "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+            "worstEntry": {
+              "group": "sls-viscous-strain",
+              "quantity": "sls-viscous-log-strain",
+              "unit": "log-strain",
+              "path": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+              "currentValue": 0.1262557706216897,
+              "referenceValue": 0.12640469524916867,
+              "referenceScale": 0.1,
+              "absoluteDelta": 0.00014892462747898016,
+              "normalizedDelta": 0.0014892462747898016
+            },
+            "physicalMaximumByQuantity": {
+              "node-volume": {
+                "quantity": "node-volume",
+                "unit": "mL",
+                "maximumAbsoluteDelta": 0.09608962513237884,
+                "worstPath": "circulation.nodeVolumesMl.Cap",
+                "referenceScale": 100,
+                "normalizedDeltaAtPhysicalMaximum": 0.0009608962513237884
+              },
+              "dynamic-edge-flow": {
+                "quantity": "dynamic-edge-flow",
+                "unit": "mL/s",
+                "maximumAbsoluteDelta": 0.002163800839220187,
+                "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.Ao_SA",
+                "referenceScale": 500,
+                "normalizedDeltaAtPhysicalMaximum": 0.0000043276016784403735
+              },
+              "valve-opening-fraction": {
+                "quantity": "valve-opening-fraction",
+                "unit": "fraction",
+                "maximumAbsoluteDelta": 0.0004936390247731459,
+                "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0004936390247731459
+              },
+              "septal-midwall-cap-volume": {
+                "quantity": "septal-midwall-cap-volume",
+                "unit": "m3",
+                "maximumAbsoluteDelta": 6.917921442245207e-9,
+                "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3",
+                "referenceScale": 0.0001,
+                "normalizedDeltaAtPhysicalMaximum": 0.00006917921442245207
+              },
+              "junction-radius": {
+                "quantity": "junction-radius",
+                "unit": "m",
+                "maximumAbsoluteDelta": 0.000001766932390706577,
+                "worstPath": "mechanics.materialState.trisegCoordinates.junctionRadiusM",
+                "referenceScale": 0.04,
+                "normalizedDeltaAtPhysicalMaximum": 0.000044173309767664426
+              },
+              "land-state": {
+                "quantity": "land-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0.00023848505558776711,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0.00023848505558776711
+              },
+              "sls-viscous-log-strain": {
+                "quantity": "sls-viscous-log-strain",
+                "unit": "log-strain",
+                "maximumAbsoluteDelta": 0.00014892462747898016,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.slsState.viscousLogStrain",
+                "referenceScale": 0.1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0014892462747898016
+              },
+              "wall-fiber-log-strain": {
+                "quantity": "wall-fiber-log-strain",
+                "unit": "log-strain",
+                "maximumAbsoluteDelta": 0.000058533716455644313,
+                "worstPath": "mechanics.materialState.wallStateByWall.LVFW.previousFiberLogStrain",
+                "referenceScale": 0.1,
+                "normalizedDeltaAtPhysicalMaximum": 0.0005853371645564431
+              },
+              "wall-free-calcium": {
+                "quantity": "wall-free-calcium",
+                "unit": "uM",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "mechanics.materialState.wallStateByWall.LA.previousFreeCalciumUM",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              },
+              "calcium-rise-drive-state": {
+                "quantity": "calcium-rise-drive-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "calcium.stateByWall.LA.riseDrive",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              },
+              "calcium-decay-drive-state": {
+                "quantity": "calcium-decay-drive-state",
+                "unit": "dimensionless",
+                "maximumAbsoluteDelta": 0,
+                "worstPath": "calcium.stateByWall.LA.decayDrive",
+                "referenceScale": 1,
+                "normalizedDeltaAtPhysicalMaximum": 0
+              }
+            }
+          }
+        }
+      },
+      "selectedTerminalCompleteBeat": {
+        "beatIndex": 26,
+        "startTimeSec": 25,
+        "endTimeSec": 26,
+        "durationSec": 1,
+        "acceptedIntervalCount": 500,
+        "precedingAcceptedSampleAvailable": true
+      }
+    }
+  },
+  "headline": {
+    "pairedEndpointCount": 500,
+    "maximumRelativeTimeMismatchSec": 0,
+    "maximumAbsoluteDifferenceBySignalGroup": {
+      "nodeVolumeMl": 1.763311274771695e-9,
+      "nodeAbsolutePressureMmHg": 1.5133991837501526e-8,
+      "chamberTransmuralPressureMmHg": 9.899174813199352e-10,
+      "flowMlPerSec": 5.33021797366473e-7,
+      "freeCalciumUM": 1.8041124150158794e-15,
+      "wallStressPa": 8.768620318733156e-7,
+      "wallEnergyLedgerDensity": 6.341690550470958e-8
+    }
+  },
+  "claim": {
+    "input": "periodic-result-v3-raw-json",
+    "selectedCycle": "terminal-retained-complete-beat",
+    "pairingCoordinate": "accepted-endpoint-relative-physical-time",
+    "parameterFittingApplied": false,
+    "timeSeriesSmoothingApplied": false,
+    "timeSeriesResamplingOrInterpolationApplied": false,
+    "laPvMorphologyPressureCoordinate": "intracavitary-absolute-pressure",
+    "wallWorkPressureCoordinate": "transmural-pressure",
+    "transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics": true,
+    "bloodVolumeOperatingPointReadbackOnly": true
+  }
+}
