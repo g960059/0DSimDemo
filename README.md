@@ -355,14 +355,19 @@ npm run preview
 | `npm run dev` | Vite 開発サーバーを起動 |
 | `npm run build` | TypeScript check と production build |
 | `npm run preview` | production build をローカルで確認 |
-| `npm run test` | fast Vitest suite を実行（Firestore emulator、diagnostic phase tests、opt-in heavy verification tests は除外） |
+| `npm run test` | 60秒上限の fail-closed fast Vitest suite を実行 |
 | `npm run test:fast` | `npm run test` と同じ fast suite を実行 |
+| `npm run test:related -- <source...>` | 変更sourceに関連するfast testだけを実行 |
 | `npm run test:regression` | slow engine convergence / physiology regression tests を明示実行 |
-| `npm run test:all` | fast + slow regression + opt-in heavy verification tests を実行（manual-only historical research phase tests は除外） |
-| `npm run test:heavy` | opt-in heavy cases を有効にして Guyton/Starling と low-preload verification files を実行 |
+| `npm run test:scientific:canonical` | 現行 `mainWire` 科学検証を実行 |
+| `npm run test:scientific:archive` | 過去phaseの研究bench / artifact replayを明示実行 |
+| `npm run test:heavy` | opt-in heavy casesを有効にしてGuyton/Starlingとlow-preloadを実行 |
+| `npm run test:all` | emulator以外の全tierを明示実行（非常に重い） |
 | `npm run test:rules` | Firestore rules emulator test を実行 |
-| `npm run test:watch` | watch mode で Vitest を実行 |
+| `npm run test:watch` | fast suiteだけをwatch modeで実行 |
+| `npm run test:watch:all` | 全test fileをwatch対象にする |
 | `npm run verify:baseline` | baseline verification script を実行 |
+| `npm run verify:cases:smoke` | 代表3症例だけを検証 |
 | `npm run fit:left-filling` | 左心系 filling 関連の fitting tool |
 | `npm run fit:right-pvf-headroom` | 右心系 / PVF headroom 関連の fitting tool |
 
@@ -440,7 +445,7 @@ npm run test
 
 - 何の生理学的問題を直すのか
 - どの文献・実測・ベンチマークに基づくのか
-- Guyton/Starling や low-preload 挙動に触れる変更では、`npm run test:heavy` または `npm run test:all` を実行したかどうか
+- 変更責任に応じてfast / regression / canonical scientific / heavyのどこまで実行したか
 - どの波形・PV ループ・metric が改善するのか
 - どのケースが影響を受けるのか
 - baseline freeze を更新する必要があるのか
