@@ -366,6 +366,14 @@ A/V面積比は`2.188`から`2.571`へ増加した。a-pressure peak前のbooste
 ownerとはしない。詳細は
 `docs/myocardium/verification/mainwire-normal-adult-five-wall-atrial-calcium-timing-v1.ja.md`に置く。
 
+main-wire circulation configurationのbaseline snapshotも追加した。これは数値経路を変えず、
+source/effective runtime、15 node/15 edge、全quasi-steady valve parameter、Newton policy、
+PV ostial law、cold TBV、除外されたcoronary/chi/respiration/valve memoryをprotocol identityへ固定する。
+`dt=10 ms` 1拍の全raw sampleは導入前と完全一致した。現sidecar cold TBVは`4589.458 mL`で、
+main-wire official target `5600 mL`を使っていない。除外冠床cold seed `77.89 mL`を差し引いた
+`5522.11 mL`を次の固定TBV challengerとするが、厳密なnormal-human補正値とは呼ばない。
+詳細は`docs/myocardium/verification/mainwire-normal-adult-circulation-configuration-snapshot-v1.ja.md`に置く。
+
 ## main-wire接続の段階境界
 
 最初の閉ループtransactionはmain-wire node/edge定義から4心腔、体循環、肺循環を抽出するが、

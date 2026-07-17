@@ -2,13 +2,16 @@
 
 ## 結論
 
-PR #475 の最小 five-wall Land--TriSeg sidecar は、固定parameterのまま`dt=2 ms`と`dt=1 ms`の
-双方で27拍目にperiod-1へ収束した。2:1の同一時刻比較では8信号のfixed-scale最大差はすべて
+PR #475 の最小 five-wall Land--TriSeg sidecar は、circulation configuration snapshot導入前の
+同一protocol schemaで、固定parameterのまま`dt=2 ms`と`dt=1 ms`の双方で27拍目にperiod-1へ
+収束した。2:1の同一時刻比較では8信号のfixed-scale最大差はすべて
 `1.97e-2`未満で、LA V-loop面積は`3.435`から`3.380 mmHg mL`、reservoir--conduit mean gapは
 `0.414`から`0.417 mmHg`であった。一方、A-loop面積は`7.517`から`8.284 mmHg mL`へ変わるため、
-この一組だけを完全な時間刻み独立性、収束次数、または生理的合格gateとはしない。
+この一組だけを完全な時間刻み独立性、収束次数、または生理的合格gateとはしない。これらの
+`dt=2 : 1 ms`数値はpre-snapshotのhistorical numerical baselineであり、現行6-component schemaの
+qualified pairを主張しない。
 
-LA parallel SLSを厳密に切ると、`dt=2 ms`の同じperiodic条件でもLA PV loopは単一交点の
+同じpre-snapshot schemaでLA parallel SLSを厳密に切ると、`dt=2 ms`の同じperiodic条件でもLA PV loopは単一交点の
 figure-eightから小さな追加交点を含む4交点となり、reservoir--conduitの等容量枝差も低下した。
 したがって、現時点で1-state parallel SLSは削除しない。ただし、SLS offでも大域的な枝分離は残るため、
 SLSをV-loopの唯一の生成機序とはしない。このablationは`dt=2 ms`だけの構造証拠であり、SLS効果の
@@ -39,7 +42,7 @@ period-1へ収束したため、pre-fix failureは現在のblockerではなく�
 - `normal-adult`は固定prior/protocolの名称であり、現周期解が正常ヒトの運転点として
   validation済みであることを意味しない。
 
-## 固定protocol
+## historical fixed protocol（pre-snapshot）
 
 | case | dt | LA SLS | initialization | max beats | 変更したもの |
 |---|---:|---|---|---:|---|
@@ -54,13 +57,19 @@ Land state、SLS viscous strain、wall input historyの7群へ分けて比較す
 period-1の代替として採用しない。通常のbeat iterationだけを用い、shooting、Anderson acceleration、
 隠れたsubstep rescueは用いない。
 
-各raw runは、mechanics providerのparameter/solver identity、fixed Ca prior、main-wire由来のnoncoronary
-graph、circulation runtime、periodic policyのstable hashを`protocolIdentityHash`に束ねる。hashはcompact labelであり、
-dt比較とinitialization-basin比較はhashに加えてfull serialized identityの完全一致も必須とする。
-欠落または不一致時は`uninterpretable`とする。
+pre-snapshot raw runは、mechanics provider、fixed Ca prior、noncoronary graph、circulation runtime、
+periodic policyの5 componentを`protocolIdentityHash`に束ねていた。そのschema内ではdt比較と
+initialization-basin比較にfull serialized identityの完全一致を要求し、canonical `dt=2 ms`と
+`dt=1 ms`はmatched pairであった。旧identity hash `745d9200`はこのpre-snapshot schemaだけのlabelである。
+
+現行schemaは上記5 componentにmain-wire circulation configuration snapshotを加えた6 componentである。
+現canonical `dt=2 ms`は現行schemaで再生成され、snapshot materialization前のraw sampleとの数値parityを
+確認した。一方、本書の`dt=1 ms`、SLS exact-off、initialization-basin、dt-halving artifactsは現行schemaで
+再生成していない。このため、旧5-component identityを現行identityと比較せず、現時点では
+`dt=2 ms`と`dt=1 ms`の現行schema上のidentity一致も主張しない。現行identity/hashのsource of truthは
+committed JSONであり、hashはcompact labelであって暗号学的provenanceではない。
+
 compact summaryはpolicyそのものとclassifierが根拠にした3拍すべてのperiod-1/2 closureを保持する。
-canonical `dt=2 ms`と`dt=1 ms`のmatched protocol identityは`745d9200`で、5つのcomponent hashと
-full serialized identityも一致した。このhashはcompact labelであり、単独で暗号学的provenanceを主張しない。
 
 ## canonical `dt=2 ms`
 
@@ -160,7 +169,7 @@ stress workは正の`tau de`をwallへの仕事とする。両者のendpoint qua
 conjugacy residualは`dt=2 : 1 ms`で`4.349 : 2.184 mJ`、LAで`0.0416 : 0.0217 mJ`へ約半減した。
 現時点でworkは所有・符号・散逸の診断であり、この残差にformal acceptance gateを設けない。
 
-## LA-SLS exact-off control
+## historical LA-SLS exact-off control（pre-snapshot identity schema）
 
 exact-offもbeat 27でperiod-1へ収束したので、transient同士の形状比較ではない。
 
@@ -179,7 +188,7 @@ V-loopの唯一の生成機序ではないが、LA wall historyの独立ownerと
 piecewise-linear topologyへ寄与している。この固定ablationは`E_v`または`tau_v`の最適化ではなく、
 dt refinement前にtopology robustnessを一般化しない。
 
-## initialization-basin audit
+## historical initialization-basin audit（pre-snapshot identity schema）
 
 canonicalと、PVenからPVeinへ10 mLだけ移した初期条件は、いずれもbeat 27でperiod-1へ収束した。
 最終拍を同じaccepted indexで比較した最大fixed-scale差は、8信号すべてで`1.70e-6`以下であった。
@@ -188,9 +197,9 @@ LA volumeの最大物理差は`2.47e-5 mL`、MV flowは`3.97e-4 mL/s`である�
 この比較器自体は閾値を設定せず「同じ軌道」と自動判定しない。ただし、少なくとも今回の固定10 mL
 再分配に対して、報告された周期波形が実用上無視できない初期値依存を示す証拠はない。
 
-## dt-halving evidence
+## historical dt-halving evidence（pre-snapshot identity schema）
 
-修正後の`dt=1 ms`もbeat 25--27の3拍連続でperiod-1へ収束した。
+同じ旧5-component schema内で、修正後の`dt=1 ms`もbeat 25--27の3拍連続でperiod-1へ収束した。
 
 - beat 27のperiod-1最大正規化差: `3.6457e-4`
 - worst owner: `SEP.previousFiberLogStrain`
@@ -224,8 +233,9 @@ coarseの各accepted sampleをfineの2 sampleごとの同一時刻endpointへ直
 （各requested 101点中4点は曖昧/利用不可）。`dt=2 : 1 ms`で
 V-loop面積は`3.435 : 3.380 mmHg mL`（fineで1.6%低下）、mean branch gapは
 `0.414 : 0.417 mmHg`である。これに対しA-loop面積は`7.517 : 8.284 mmHg mL`（fineで10.2%増加）で、
-A/Vは`2.188 : 2.451`となる。したがってV-loopと枝順序はこのrefinementで定性的・定量的に近いが、
-A-loop面積は同じ程度には収束していない。単一の2:1 pairから漸近収束域や次数を推定しない。
+A/Vは`2.188 : 2.451`となる。したがって旧schema内ではV-loopと枝順序はこのrefinementで
+定性的・定量的に近いが、A-loop面積は同じ程度には収束していない。単一の2:1 pairから漸近収束域や
+次数を推定せず、この数値を現行6-component schemaのqualified comparisonへ読み替えない。
 
 ### pre-fix `dt=1 ms` failureの所有者
 
@@ -259,17 +269,27 @@ pre-fix failureを物理不安定性または現在のdt-halving blockerとは�
 
 1. PR #475のcore mechanicsと1-state parallel SLSを保持する。
 2. 新しいmaterial state、AVPD state、LAA compartment、追加Maxwell branchを足さない。
-3. `dt=2 : 1 ms`の差を数値baselineとして保持するが、単一pairへformal pass gateや収束次数を後付けしない。
+3. pre-snapshotの`dt=2 : 1 ms`差をhistorical numerical baselineとして保持するが、現行schemaの
+   qualified pairとはせず、formal pass gateや収束次数を後付けしない。
 4. SLS exact-offの意味は`dt=2 ms`固定ablationに限定し、V-loopの唯一のownerとはしない。
 5. 独立human atrial Ca timingに基づく固定challengerを一回だけ比較する。その結果は
    `mainwire-normal-adult-five-wall-atrial-calcium-timing-v1.ja.md`へ分離する。
-6. challengerが改善しなければactivation parameterを探索せず、main-wire circulation configuration snapshotと
-   閉ループoperating pointを次の構造ownerとして調べる。
-7. main-wire runtime、冠循環、弁、呼吸へ接続した後、PV S/D/Ar、LA volume envelope、A apexを再評価する。
+6. activation challengerは棄却した。main-wire circulation configuration snapshotを追加し、default raw sample
+   parityを確認した。詳細は`mainwire-normal-adult-circulation-configuration-snapshot-v1.ja.md`に置く。
+7. snapshotで現cold TBV `4589.458 mL`がofficial full-graph target `5600 mL`を採用していないことを
+   確認した。次は`5600 - excluded coronary cold seed 77.89 = 5522.11 mL`だけを固定比較し、
+   systemic venous $V_u$を同時に変更しない。
+8. main-wire runtime、冠循環、弁、呼吸へ接続した後、PV S/D/Ar、LA volume envelope、A apexを再評価する。
 
 ## committed evidence
 
+現行6-component snapshot schemaで再生成済み:
+
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-canonical-dt2ms-summary-v1.json`
+
+以下はpre-snapshot historical schemaの数値証拠であり、現行`dt=2 ms`とのprotocol identity一致を
+主張する資料ではない:
+
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-canonical-dt1ms-summary-v1.json`
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-la-sls-exact-off-dt2ms-summary-v1.json`
 - `data/myocardium/reports/mainwire-normal-adult-five-wall-periodic-initialization-basin-dt2ms-v1.json`

@@ -5,7 +5,8 @@
 独立したhuman atrial calcium biomarker timingから固定した一つのchallengerは、現canonicalの
 A-loop apexとV-loopを改善しなかった。`dt=2 ms`、HR 60、LA SLS on、canonical initialization、
 最大32拍を固定し、両caseとも27拍目にperiod-1へ収束した。Ca drive以外のmechanics、循環graph、
-循環runtime、periodic policyのcomponent hashとfull protocol identityは完全一致した。
+循環runtime、循環configuration snapshot、periodic policyの5つのcomponent hashは完全一致し、
+full protocol identityではCa driveだけが異なった。
 
 challengerでは、
 
@@ -51,13 +52,15 @@ twitch outputのTPT/RT50を約82/75 msへ合わせるため、Land parameterとC
 
 - 両方がperiod-1でmorphology interpretation eligible
 - `dt`、initialization、LA SLS mode、requested maximum beatsが一致
-- Ca以外の4 component hashが完全一致
+- 全6 componentのうちCa以外の5 component hashが完全一致
 - full protocol identityからCa parameter set/hashだけを除いた値が一致
 - drive ID、variant、parameter set、time constants、fixed-param hashがregistryと整合
 - A/V lobeのactivation-dependent labelがsigned orientationを反転していない
 
-今回のprotocol identity hashはcanonical `745d9200`、challenger `89da710a`で、Ca componentだけが
-異なる。hashはcompact labelであって暗号学的provenanceではない。
+現行artifactでは、mechanics、Ca、循環topology、循環runtime、循環configuration snapshot、periodic
+policyの6 componentをprotocol identityへ束ねる。canonical/challengerの具体的なidentity hashは
+committed JSONをsource of truthとし、文書へ複製しない。hashはcompact labelであって暗号学的
+provenanceではない。
 
 LA PV lobeのA/V選択には処方Caから作るactivation burdenを使うため、この介入はlabel ownerにも
 影響し得る。そこでselection evidence source、A/V activation burden、signed orientationを比較結果へ
@@ -104,15 +107,16 @@ volume partitionとmain-wire設定反映を次のownerとして調べる。
 
 次は二段階に分ける。
 
-1. main-wire circulation configuration snapshotをpureにmaterializeし、node/edge override、
-   supported valve parameter、PV law、呼吸外圧、TBV constructionをsidecar protocol identityへ
-   明示的に取り込む。現canonical defaultはroundoff範囲で不変でなければならない。未接続の
-   coronary、collapsible-tube $\chi$、変更されたlegacy valve $L/B$、非zero PV ostial inertanceを
-   黙って無視せずfail closedにする。
-2. snapshot parity後に、独立データで決めた一つのoperating-point ownerだけを固定比較する。
-   anthropometric TBVまたはsystemic venous unstressed-volume offsetを同時には自由化しない。
-   LA/LV volume envelope、fiber operating stretch、CI/MAP、V-loop、A apex、MV/PV flowを
-   period-1で再評価する。
+1. main-wire circulation configuration snapshotをpureにmaterializeする。これは
+   `mainwire-normal-adult-circulation-configuration-snapshot-v1.ja.md`で完了し、旧raw sampleとの
+   default parityを確認した。node/edge override、coronary、collapsible-tube $\chi$、変更された
+   legacy valve $L/B$、非zero PV ostial inertanceは黙って無視せずfail closedにする。
+2. snapshotにより、現cold TBV `4589.458 mL`とmain-wire official target `5600 mL`の不一致を
+   確認した。除外冠床のcold seed `77.89 mL`を差し引いた`5522.11 mL`を、次の固定TBV候補とする。
+   これはanthropometric normalの新しい主張ではなく、main-wire source-owned operating pointの
+   構造比較である。systemic venous unstressed volumeは同時に自由化しない。
+3. LA/LV volume envelope、fiber operating stretch、CI/MAP、filling pressure、V-loop、A apex、
+   MV/PV flowをperiod-1で再評価する。
 
 旧main-wireのchamber-valve `L/B`をそのまま戻すと、過去に約10--33 Hzのringingとclamp依存を
 生じたため、dynamic valveを直ちに再導入しない。operating pointを確認した後も弁flow dynamicsが
