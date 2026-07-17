@@ -63,6 +63,7 @@ export const fastTests = [
   "__tests__/mainWireScientificResearchPresetWorkerV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
+  "__tests__/mainWireRestingCycleMorphologyV1.test.ts",
   "__tests__/mainWireValveDiseaseCycleMetricsV1.test.ts",
   "__tests__/moyer2015AtrialEquibiaxialPassiveV1.test.ts",
   "__tests__/nonCoronaryCirculationBackwardEulerV1.test.ts",

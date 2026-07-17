@@ -84,6 +84,29 @@ itself identify low contractility as the sole cause. Pulmonary systolic pressure
 is also slightly above the V1 review threshold. These are explicit model-level
 blockers; the target range was not widened to make the current release pass.
 
+### Morphology readback
+
+The same accepted cycle now has an observation-only morphology report. Its
+metrics are review evidence; literature-calibrated morphology acceptance
+thresholds have not yet been established.
+
+- LA PV has two proper self-intersections, so a unique two-lobe decomposition
+  is not measurable. Equal-volume reservoir pressure is above conduit pressure
+  at every usable probe, but only 39/101 probes are single-valued; the remaining
+  ambiguity is itself a review flag.
+- RA PV has one crossing with opposed lobe orientation. Its v-to-a lobe-area
+  ratio is 1.405, and 88/101 equal-volume probes are usable with reservoir above
+  conduit at every usable probe.
+- MV and TV each have two significant forward-flow peaks in the fixed healthy
+  cycle. Thus the current quasi-steady official baseline does not show an extra
+  inertance-like AV-flow peak under this explicit 5%-of-peak detector. This does
+  not yet prove robustness over HR or load changes.
+
+This reproduces the qualitative asymmetry seen in visual review: RA is already
+topologically cleaner, while LA still contains an extra crossing and a poorly
+single-valued reservoir/conduit overlap despite the correct sign at usable
+equal-volume probes.
+
 ## Still required before production cutover
 
 - atrial reservoir/conduit/pump PV topology and ordering;

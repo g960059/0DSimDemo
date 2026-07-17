@@ -20,6 +20,7 @@ import {
 import {
   evaluateMainWireHealthyReferenceAcceptanceV1,
   MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1,
+  measureMainWireRestingCycleMorphologyV1,
 } from "@/engine/scientific/validation";
 import {
   verifyOfficialHealthyPeriodicCheckpointPresetV1,
@@ -76,6 +77,9 @@ export async function buildMainWireOfficialHealthyReferenceAcceptanceV1(
   const acceptance = evaluateMainWireHealthyReferenceAcceptanceV1(
     cycle.observations,
   );
+  const morphology = measureMainWireRestingCycleMorphologyV1(
+    cycle.observations,
+  );
   const failedGateIds = acceptance.gateResults
     .filter(({ status }) => status !== "pass")
     .map(({ gateId }) => gateId);
@@ -104,10 +108,13 @@ export async function buildMainWireOfficialHealthyReferenceAcceptanceV1(
     }),
     targetPack: MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1,
     acceptance,
+    morphology,
     cutoverReadiness: Object.freeze({
       evaluatedTargetGatesPassed: acceptance.overallStatus === "pass",
       productionDefaultCutoverAllowed: false as const,
       failedOrUnavailableGateIds: Object.freeze(failedGateIds),
+      morphologyInterpretationStatus: morphology.interpretationStatus,
+      morphologyReviewFlags: morphology.reviewFlags,
       deferredBlockers:
         MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.deferredAcceptance,
       reason:
