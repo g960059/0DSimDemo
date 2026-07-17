@@ -24,6 +24,9 @@ export const ENERGY_CONJUGATE_TRISEG_CLAIM_V1 = Object.freeze({
     "finite-thickness-one-fiber-log-strain-with-analytic-coordinate-derivatives" as const,
   membraneVirtualWork:
     "wall-material-volume-times-fiber-kirchhoff-stress-times-log-strain-variation" as const,
+  koiterBendingEnergyApplied: false as const,
+  bendingMomentApplied: false as const,
+  referenceCurvatureFitApplied: false as const,
   internalCoordinates: Object.freeze([
     "septal-midwall-cap-volume",
     "junction-radius",

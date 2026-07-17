@@ -126,6 +126,11 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     experimentId: MainWireNormalAdultFiveWallPeriodicResultV1["experimentId"];
     initialization: MainWireNormalAdultFiveWallPeriodicResultV1["initialization"];
     laSlsMode: MainWireNormalAdultFiveWallPeriodicResultV1["laSlsMode"];
+    pericardiumMode:
+      MainWireNormalAdultFiveWallPeriodicResultV1["pericardiumMode"];
+    pericardiumCase:
+      MainWireNormalAdultFiveWallPeriodicResultV1["pericardiumCase"];
+    pericardiumParameterSetId: string;
     dtSec: number;
     requestedMaximumBeatCount: number;
     completedBeatCount: number;
@@ -183,6 +188,13 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
       MainWireNormalAdultFiveWallRangeV1>>;
     flowMlPerSec: Readonly<Record<FlowId,
       MainWireNormalAdultFiveWallRangeV1>>;
+    commonPericardium: Readonly<{
+      heartVolumeMl: MainWireNormalAdultFiveWallRangeV1;
+      totalOccupiedVolumeMl: MainWireNormalAdultFiveWallRangeV1;
+      excessPressureMmHg: MainWireNormalAdultFiveWallRangeV1;
+      storedEnergyMilliJ: MainWireNormalAdultFiveWallRangeV1;
+      elasticConstraintEngagedSampleCount: number;
+    }>;
   }>;
   hemodynamics: Readonly<{
     leftVentricularEjectionFraction01: number;
@@ -292,6 +304,9 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       experimentId: result.experimentId,
       initialization: result.initialization,
       laSlsMode: result.laSlsMode,
+      pericardiumMode: result.pericardiumMode,
+      pericardiumCase: result.pericardiumCase,
+      pericardiumParameterSetId: result.pericardiumParameterSetId,
       dtSec: result.dtSec,
       requestedMaximumBeatCount: result.requestedMaximumBeatCount,
       completedBeatCount: result.completedBeatCount,
@@ -348,6 +363,18 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
         range(samples.map((sample) => sample.nodeAbsolutePressureMmHg[node]))),
       flowMlPerSec: flowRecord((flow) =>
         range(samples.map((sample) => sample.flowMlPerSec[flow]))),
+      commonPericardium: Object.freeze({
+        heartVolumeMl: range(samples.map((sample) =>
+          sample.commonPericardium.totalHeartVolumeMl)),
+        totalOccupiedVolumeMl: range(samples.map((sample) =>
+          sample.commonPericardium.totalOccupiedVolumeMl)),
+        excessPressureMmHg: range(samples.map((sample) =>
+          sample.commonPericardium.excessPressureMmHg)),
+        storedEnergyMilliJ: range(samples.map((sample) =>
+          sample.commonPericardium.storedEnergyMilliJ)),
+        elasticConstraintEngagedSampleCount: samples.filter((sample) =>
+          sample.commonPericardium.elasticConstraintEngaged).length,
+      }),
     }),
     hemodynamics: Object.freeze({
       leftVentricularEjectionFraction01: ejectionFraction(

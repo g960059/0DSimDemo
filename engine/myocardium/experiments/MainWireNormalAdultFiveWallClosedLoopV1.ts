@@ -21,6 +21,13 @@ import {
   type MainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultWallMaterialReadbackV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  createMainWireNormalAdultCommonPericardiumV1,
+  type MainWireNormalAdultCommonPericardiumCaseV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
+import type {
+  MainWireCommonPericardiumModeV1,
+} from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 import type {
   LandSlsWallMaterialStateV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
@@ -37,6 +44,8 @@ export type MainWireNormalAdultFiveWallExperimentModeV1 =
 export type MainWireNormalAdultFiveWallClosedLoopOptionsV1 = Readonly<{
   mode: MainWireNormalAdultFiveWallExperimentModeV1;
   laSlsMode?: MainWireNormalAdultLaSlsModeV1;
+  pericardiumMode?: MainWireCommonPericardiumModeV1;
+  pericardiumCase?: MainWireNormalAdultCommonPericardiumCaseV1;
   dtSec: number;
   beatCount: number;
 }>;
@@ -59,6 +68,16 @@ export type MainWireNormalAdultFiveWallClosedLoopSampleV1 = Readonly<{
     LV: number;
     RA: number;
     RV: number;
+  }>;
+  commonPericardium: Readonly<{
+    totalHeartVolumeMl: number;
+    prescribedFluidVolumeMl: number;
+    totalOccupiedVolumeMl: number;
+    excessPressureMmHg: number;
+    storedEnergyMilliJ: number;
+    pressureDerivativePaPerM3: number;
+    smoothingBranch: "off" | "zero" | "transition" | "linear";
+    elasticConstraintEngaged: boolean;
   }>;
   flowMlPerSec: Readonly<{
     MV: number;
@@ -120,6 +139,9 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
   experimentId: typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID;
   mode: MainWireNormalAdultFiveWallExperimentModeV1;
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
+  pericardiumMode: MainWireCommonPericardiumModeV1;
+  pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
+  pericardiumParameterSetId: string;
   completed: boolean;
   requestedBeatCount: number;
   completedBeatCount: number;
@@ -136,7 +158,9 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
     heartRateBpm: 60;
     circulation: "main-wire-derived-noncoronary-experimental";
     laaBodyCompartments: false;
-    pericardialConstraint: false;
+    pericardialConstraintInterfaceIncluded: true;
+    pericardialConstraintEnabled: boolean;
+    pericardialConstraintMayBeSlackAtHealthyBaseline: true;
     parameterSearch: false;
     smoothingAppliedToSamples: false;
     laSlsExactOffIsPairedAblationOnly: boolean;
@@ -180,12 +204,19 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
   validateOptions(options);
   const stepsPerBeat = Math.round(CYCLE_LENGTH_SEC / options.dtSec);
   const laSlsMode = options.laSlsMode ?? "on";
+  const pericardiumMode = options.pericardiumMode ?? "on";
+  const pericardiumCase = options.pericardiumCase ?? "healthy-slack";
   const runtime = normalAdultMainWireRuntimeV1();
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(laSlsMode);
+  const pericardium = createMainWireNormalAdultCommonPericardiumV1(
+    pericardiumMode,
+    pericardiumCase,
+  );
   const cold = initializeMainWireFiveWallNonCoronaryV1({
     provider,
     runtime,
     calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    pericardium,
   });
   let state = cold.acceptedState;
   const boundaryStates: AcceptedState[] = [state];
@@ -199,6 +230,7 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
       dtSec: options.dtSec,
       runtime,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
     });
     if (stepped.converged === false) {
       failure = Object.freeze({
@@ -236,6 +268,9 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
     experimentId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID,
     mode: options.mode,
     laSlsMode,
+    pericardiumMode,
+    pericardiumCase,
+    pericardiumParameterSetId: pericardium.parameterSetId,
     completed: failure === null && beatClosure.length === options.beatCount,
     requestedBeatCount: options.beatCount,
     completedBeatCount: beatClosure.length,
@@ -248,7 +283,9 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
       heartRateBpm: 60 as const,
       circulation: "main-wire-derived-noncoronary-experimental" as const,
       laaBodyCompartments: false as const,
-      pericardialConstraint: false as const,
+      pericardialConstraintInterfaceIncluded: true as const,
+      pericardialConstraintEnabled: pericardiumMode === "on",
+      pericardialConstraintMayBeSlackAtHealthyBaseline: true as const,
       parameterSearch: false as const,
       smoothingAppliedToSamples: false as const,
       laSlsExactOffIsPairedAblationOnly: laSlsMode === "exact-off",
@@ -293,6 +330,19 @@ export function sampleMainWireNormalAdultFiveWallStepV1(
     }),
     chamberTransmuralPressureMmHg: Object.freeze({
       ...step.mechanicsTrial.transmuralPressuresMmHg,
+    }),
+    commonPericardium: Object.freeze({
+      totalHeartVolumeMl: step.pericardium.heartVolumeM3 * 1e6,
+      prescribedFluidVolumeMl:
+        step.pericardium.prescribedPericardialFluidVolumeM3 * 1e6,
+      totalOccupiedVolumeMl:
+        step.pericardium.totalOccupiedVolumeM3 * 1e6,
+      excessPressureMmHg: step.pericardium.excessPressureMmHg,
+      storedEnergyMilliJ: step.pericardium.storedEnergyJ * 1e3,
+      pressureDerivativePaPerM3:
+        step.pericardium.pressureDerivativePaPerM3,
+      smoothingBranch: step.pericardium.smoothingBranch,
+      elasticConstraintEngaged: step.pericardium.elasticConstraintEngaged,
     }),
     flowMlPerSec: Object.freeze({
       MV: circulation.edgeFlowsMlPerSec.MV,
@@ -433,6 +483,18 @@ function validateOptions(
   if (options.laSlsMode !== undefined &&
       options.laSlsMode !== "on" && options.laSlsMode !== "exact-off") {
     throw new Error("unsupported LA SLS mode");
+  }
+  if (options.pericardiumMode !== undefined
+    && options.pericardiumMode !== "on"
+    && options.pericardiumMode !== "exact-off") {
+    throw new Error("unsupported common-pericardium mode");
+  }
+  if (options.pericardiumCase !== undefined
+    && options.pericardiumCase !== "healthy-slack"
+    && options.pericardiumCase !== "effusion-300ml-positive-control"
+    && options.pericardiumCase
+      !== "global-capacity-vh0-430ml-positive-control") {
+    throw new Error("unsupported common-pericardium case");
   }
   if (!(options.dtSec > 0) || !Number.isFinite(options.dtSec)) {
     throw new Error("dtSec must be positive and finite");

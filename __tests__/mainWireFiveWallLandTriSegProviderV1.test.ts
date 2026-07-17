@@ -150,6 +150,10 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
     expect(rb.scaledAlgorithmicJacobianByOneJ).toHaveLength(2);
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM.internalUnknowns)
       .toEqual(["V_m_S", "y_m"]);
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      .ventricularGeometryMechanics).toBe("finite-thickness-membrane-only");
+    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+      .koiterBendingApplied).toBe(false);
   });
 
   it("uses a smaller same-branch step when the nominal central difference crosses a kink", () => {

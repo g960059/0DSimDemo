@@ -147,6 +147,15 @@ export type NonCoronaryCirculationAcceptedStateV1 = Readonly<{
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
 }>;
 
+export const NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID =
+  "main-wire-noncoronary-circulation-checkpoint-v1" as const;
+export type NonCoronaryCirculationCheckpointV1 = Readonly<{
+  checkpointId: typeof NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID;
+  schemaVersion: 1;
+  state: NonCoronaryCirculationAcceptedStateV1;
+  stateFingerprint: string;
+}>;
+
 export type NonCoronaryCirculationInitialStateInputV1 = Readonly<{
   timeSec: number;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
@@ -730,6 +739,46 @@ export function commitNonCoronaryCirculationTrialV1<TEvaluation>(
     nodeVolumesMl: trial.candidateNodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: trial.candidateDynamicEdgeFlowsMlPerSec,
     valveStates: trial.candidateValveStates,
+  });
+}
+
+/** JSON-safe accepted-state checkpoint; contains no callback or solver cache. */
+export function checkpointNonCoronaryCirculationStateV1(
+  state: NonCoronaryCirculationAcceptedStateV1,
+): NonCoronaryCirculationCheckpointV1 {
+  validateAcceptedState(state);
+  const cloned = cloneAcceptedState(state);
+  return Object.freeze({
+    checkpointId: NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID,
+    schemaVersion: 1 as const,
+    state: cloned,
+    stateFingerprint: fingerprintCirculationStateV1(cloned),
+  });
+}
+
+/**
+ * Restores a checkpoint and optionally rebases revision/time at the same
+ * cardiac phase. Rephasing is deliberately owned by the caller.
+ */
+export function restoreNonCoronaryCirculationStateV1(
+  checkpoint: NonCoronaryCirculationCheckpointV1,
+  rebase?: Readonly<{ revision: number; acceptedTimeSec: number }>,
+): NonCoronaryCirculationAcceptedStateV1 {
+  if (
+    checkpoint.checkpointId !== NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID
+    || checkpoint.schemaVersion !== 1
+  ) throw new Error("unsupported non-coronary circulation checkpoint");
+  validateAcceptedState(checkpoint.state);
+  if (
+    fingerprintCirculationStateV1(checkpoint.state)
+      !== checkpoint.stateFingerprint
+  ) throw new Error("non-coronary circulation checkpoint fingerprint mismatch");
+  return acceptedState({
+    revision: rebase?.revision ?? checkpoint.state.revision,
+    acceptedTimeSec: rebase?.acceptedTimeSec ?? checkpoint.state.acceptedTimeSec,
+    nodeVolumesMl: checkpoint.state.nodeVolumesMl,
+    dynamicEdgeFlowsMlPerSec: checkpoint.state.dynamicEdgeFlowsMlPerSec,
+    valveStates: checkpoint.state.valveStates,
   });
 }
 
@@ -1486,6 +1535,38 @@ function infinityNorm(values: readonly number[]): number {
 
 function nearlyEqual(left: number, right: number): boolean {
   return Math.abs(left - right) <= 1e-10 * Math.max(1, Math.abs(left), Math.abs(right));
+}
+
+function fingerprintCirculationStateV1(
+  state: NonCoronaryCirculationAcceptedStateV1,
+): string {
+  const text = canonicalCheckpointString(state);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+function canonicalCheckpointString(value: unknown): string {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("checkpoint contains non-finite number");
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalCheckpointString).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Readonly<Record<string, unknown>>;
+    return `{${Object.keys(record).sort().map((key) =>
+      `${JSON.stringify(key)}:${canonicalCheckpointString(record[key])}`
+    ).join(",")}}`;
+  }
+  throw new Error("checkpoint contains unsupported value");
 }
 
 function errorMessage(error: unknown): string {

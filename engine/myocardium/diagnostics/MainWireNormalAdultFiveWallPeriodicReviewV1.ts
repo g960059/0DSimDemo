@@ -36,6 +36,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V1 =
     timeSeriesResamplingOrInterpolationApplied: false as const,
     piecewiseLinearPlotSegmentsApplied: true as const,
     plottedSegments: "straight-between-consecutive-accepted-endpoints" as const,
+    pvLoopPressure: "intracavitary-absolute-pressure" as const,
+    transmuralPressureReservedForWallWorkAndConstitutiveDiagnostics: true as const,
     addsDynamicState: false as const,
     parameterSearchOrTuning: false as const,
     physiologyGateAdded: false as const,
@@ -49,6 +51,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V1 =
     relaxationTau:
       "report-only-fixed-asymptote-log-linear-fit-over-AoV-closure-to-MVO" as const,
     landThermodynamicStoredEnergyClaimed: false as const,
+    embeddedHtmlData:
+      "plot-trace-projection-plus-cycle-diagnostics-not-full-material-readback" as const,
   });
 
 const CLOSURE_GROUP_ORDER = Object.freeze([
@@ -114,6 +118,9 @@ export type MainWireNormalAdultFiveWallPeriodicReviewV1 = Readonly<{
     latestBeatIndex: number;
     previousBeatIndex: number | null;
     laSlsMode: string;
+    pericardiumMode: string;
+    pericardiumCase: string;
+    pericardiumParameterSetId: string;
     initialization: string;
     protocolIdentityHash: string;
     jacobianFiniteDifferenceWidthAudit: Readonly<{
@@ -205,6 +212,9 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       latestBeatIndex: currentBeat.beatIndex,
       previousBeatIndex: previousBeat?.beatIndex ?? null,
       laSlsMode: result.laSlsMode,
+      pericardiumMode: result.pericardiumMode,
+      pericardiumCase: result.pericardiumCase,
+      pericardiumParameterSetId: result.pericardiumParameterSetId,
       initialization: result.initialization,
       protocolIdentityHash: result.protocolIdentityHash,
       jacobianFiniteDifferenceWidthAudit: Object.freeze({
@@ -258,7 +268,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
     : review.run.period2OrbitSuspected
       ? "Period-2 orbit suspected; morphology is not accepted"
       : "Periodic steady state is not established; morphology is provisional";
-  const embedded = safeScriptJson(review);
+  const embedded = safeScriptJson(embeddedReviewPayload(review));
   const html = `<!doctype html>
 <html lang="en">
 <head>
@@ -281,6 +291,8 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
     ${card("LA Vmax / Vmin", `${format(diagnostics.leftAtrialVolumes.maximumMl, 1)} / ${format(diagnostics.leftAtrialVolumes.minimumMl, 1)} mL`)}
     ${card("MV peak E/A", nullableRatio(diagnostics.mitral.peakERatioToA))}
     ${card("PV S/D volume", nullableRatio(safeRatio(diagnostics.pulmonaryVenous.S.forwardVolumeMl, diagnostics.pulmonaryVenous.D.forwardVolumeMl)))}
+    ${card("pericardium", `${review.run.pericardiumMode} · ${review.run.pericardiumCase}`)}
+    ${card("peak Pperi", `${format(maximum(review.currentBeatSamples.map((sample) => sample.commonPericardium.excessPressureMmHg)), 3)} mmHg`)}
     ${card("Jacobian FD nominal / alternate", `${review.run.jacobianFiniteDifferenceWidthAudit.nominalStepCount} / ${review.run.jacobianFiniteDifferenceWidthAudit.alternateStepCount}`)}
     ${card("protocol identity", review.run.protocolIdentityHash.slice(0, 12))}
   </section>
@@ -296,6 +308,8 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
       <li>This is the main-wire-derived noncoronary experimental sidecar, not a claim of current ModelCore/browser-runtime adoption.</li>
       <li>Physiology and PV morphology are interpretable only after period-1 closure; the page remains useful as a numerical settling diagnostic before then.</li>
       <li>Period-1 closure applies only to the displayed dt. A separate dt comparison is required before claiming time-step robustness.</li>
+      <li>PV panels use intracavitary absolute pressure. Wall-work and constitutive diagnostics use transmural pressure, so common pericardial work is not counted twice.</li>
+      <li>A zero common-pericardial pressure means the structural model is in its exact slack branch; it does not mean the pericardium was omitted.</li>
       <li>Pulmonary venous flow is one aggregate PVein→LA edge, not four separately measured veins.</li>
       <li>Mitral VTI is modeled bulk flow divided by modeled instantaneous physical EOA; it is not a validated clinical Doppler VTI.</li>
       <li>Land active stress has no thermodynamic stored-energy claim. Work signs follow the diagnostic API: positive means work on the wall.</li>
@@ -321,9 +335,9 @@ function renderSvg(
   const current = review.currentBeatSamples;
   const previous = review.previousBeatSamples;
   const phases = review.cycleDiagnostics.phaseBySample;
-  const width = 1660;
-  const panelWidth = 520;
-  const panelHeight = 330;
+  const width = 2140;
+  const panelWidth = 500;
+  const panelHeight = 310;
   const gapX = 26;
   const gapY = 42;
   const left = 34;
@@ -334,91 +348,175 @@ function renderSvg(
     width: panelWidth,
     height: panelHeight,
   });
-  const pvSeries = phaseSeries(
-    current,
-    phases,
-    (sample) => sample.nodeVolumeMl.LA,
-    (sample) => sample.chamberTransmuralPressureMmHg.LA,
-  );
-  if (previous.length > 0) {
-    pvSeries.unshift(lineSeries(
+  const atrialPvSeries = (chamber: "LA" | "RA"): LineSeries[] => {
+    const series = phaseSeries(
+      current,
+      phases,
+      (sample) => sample.nodeVolumeMl[chamber],
+      (sample) => sample.nodeAbsolutePressureMmHg[chamber],
+    );
+    if (previous.length > 0) {
+      series.unshift(lineSeries(
+        "previous beat",
+        "#64748b",
+        previous,
+        (sample) => sample.nodeVolumeMl[chamber],
+        (sample) => sample.nodeAbsolutePressureMmHg[chamber],
+        { dashed: true, width: 1.35 },
+      ));
+    }
+    return series;
+  };
+  const ventricularPvSeries = (
+    chamber: "LV" | "RV",
+    color: string,
+  ): LineSeries[] => [
+    ...(previous.length > 0 ? [lineSeries(
       "previous beat",
       "#64748b",
-      previous,
-      (sample) => sample.nodeVolumeMl.LA,
-      (sample) => sample.chamberTransmuralPressureMmHg.LA,
+      periodicPvSamples(previous, result.periodicSteadyStateClaimed),
+      (sample) => sample.nodeVolumeMl[chamber],
+      (sample) => sample.nodeAbsolutePressureMmHg[chamber],
       { dashed: true, width: 1.35 },
-    ));
-  }
+    )] : []),
+    lineSeries(
+      "current beat",
+      color,
+      periodicPvSamples(current, result.periodicSteadyStateClaimed),
+      (sample) => sample.nodeVolumeMl[chamber],
+      (sample) => sample.nodeAbsolutePressureMmHg[chamber],
+    ),
+  ];
   const convergence = convergenceSeries(result);
   const panels = [
     renderLinePanel(
       panel(0, 0),
-      "Group-wise beat closure",
-      "completed beat",
-      "log10 normalized delta",
-      convergence,
-      [Math.log10(result.policy.period1NormalizedTolerance)],
+      "LA blood-volume PV",
+      "LA blood volume (mL)",
+      "absolute LAP (mmHg)",
+      atrialPvSeries("LA"),
     ),
     renderLinePanel(
       panel(1, 0),
-      "LA blood-volume PV",
-      "LA blood volume (mL)",
-      "LAP (mmHg)",
-      pvSeries,
+      "LV blood-volume PV",
+      "LV blood volume (mL)",
+      "absolute LVP (mmHg)",
+      ventricularPvSeries("LV", "#a78bfa"),
     ),
     renderLinePanel(
       panel(2, 0),
-      "LV blood-volume PV",
-      "LV blood volume (mL)",
-      "LVP (mmHg)",
-      [
-        ...(previous.length > 0 ? [lineSeries(
-          "previous beat",
-          "#64748b",
-          periodicPvSamples(previous, result.periodicSteadyStateClaimed),
-          (sample) => sample.nodeVolumeMl.LV,
-          (sample) => sample.chamberTransmuralPressureMmHg.LV,
-          { dashed: true, width: 1.35 },
-        )] : []),
-        lineSeries(
-          "current beat",
-          "#a78bfa",
-          periodicPvSamples(current, result.periodicSteadyStateClaimed),
-          (sample) => sample.nodeVolumeMl.LV,
-          (sample) => sample.chamberTransmuralPressureMmHg.LV,
-        ),
-      ],
+      "RA blood-volume PV",
+      "RA blood volume (mL)",
+      "absolute RAP (mmHg)",
+      atrialPvSeries("RA"),
+    ),
+    renderLinePanel(
+      panel(3, 0),
+      "RV blood-volume PV",
+      "RV blood volume (mL)",
+      "absolute RVP (mmHg)",
+      ventricularPvSeries("RV", "#22c55e"),
     ),
     renderLinePanel(
       panel(0, 1),
-      "Left-heart pressures",
+      "Left-heart absolute pressures",
       "cardiac phase",
       "pressure (mmHg)",
       [
         phaseDomainLineSeries("LAP", "#38bdf8", current, (sample) =>
-          sample.chamberTransmuralPressureMmHg.LA),
+          sample.nodeAbsolutePressureMmHg.LA),
         phaseDomainLineSeries("LVP", "#a78bfa", current, (sample) =>
-          sample.chamberTransmuralPressureMmHg.LV),
+          sample.nodeAbsolutePressureMmHg.LV),
         phaseDomainLineSeries("AoP", "#f97316", current, (sample) =>
           sample.nodeAbsolutePressureMmHg.Ao),
+        phaseDomainLineSeries("PVein", "#22c55e", current, (sample) =>
+          sample.nodeAbsolutePressureMmHg.PVein),
       ],
     ),
     renderLinePanel(
       panel(1, 1),
-      "Mitral and aggregate pulmonary-venous flow",
+      "Right-heart absolute pressures",
+      "cardiac phase",
+      "pressure (mmHg)",
+      [
+        phaseDomainLineSeries("RAP", "#fb7185", current, (sample) =>
+          sample.nodeAbsolutePressureMmHg.RA),
+        phaseDomainLineSeries("RVP", "#22c55e", current, (sample) =>
+          sample.nodeAbsolutePressureMmHg.RV),
+        phaseDomainLineSeries("PAP", "#f59e0b", current, (sample) =>
+          sample.nodeAbsolutePressureMmHg.PA),
+      ],
+    ),
+    renderLinePanel(
+      panel(2, 1),
+      "AV-valve and pulmonary-venous flow",
       "cardiac phase",
       "flow (mL/s)",
       [
         phaseDomainLineSeries("MV", "#ec4899", current, (sample) =>
           sample.flowMlPerSec.MV),
+        phaseDomainLineSeries("TV", "#38bdf8", current, (sample) =>
+          sample.flowMlPerSec.TV),
         phaseDomainLineSeries("PVein→LA", "#22c55e", current, (sample) =>
           sample.flowMlPerSec.PVein_LA),
       ],
       [0],
     ),
     renderLinePanel(
-      panel(2, 1),
+      panel(3, 1),
+      "Semilunar-valve flow",
+      "cardiac phase",
+      "flow (mL/s)",
+      [
+        phaseDomainLineSeries("AoV", "#f97316", current, (sample) =>
+          sample.flowMlPerSec.AoV),
+        phaseDomainLineSeries("PV", "#f59e0b", current, (sample) =>
+          sample.flowMlPerSec.PV),
+      ],
+      [0],
+    ),
+    renderLinePanel(
+      panel(0, 2),
+      "Valve opening memory",
+      "cardiac phase",
+      "opening fraction",
+      [
+        phaseDomainLineSeries("MV", "#ec4899", current, (sample) =>
+          sample.valveOpeningFraction01.MV),
+        phaseDomainLineSeries("AoV", "#f97316", current, (sample) =>
+          sample.valveOpeningFraction01.AoV),
+        phaseDomainLineSeries("TV", "#38bdf8", current, (sample) =>
+          sample.valveOpeningFraction01.TV),
+        phaseDomainLineSeries("PV", "#f59e0b", current, (sample) =>
+          sample.valveOpeningFraction01.PV),
+      ],
+      [0, 1],
+    ),
+    renderLinePanel(
+      panel(1, 2),
+      "Atrial and pulmonary-venous pressures",
+      "cardiac phase",
+      "absolute pressure (mmHg)",
+      [
+        phaseDomainLineSeries("LAP", "#38bdf8", current, (sample) =>
+          sample.nodeAbsolutePressureMmHg.LA),
+        phaseDomainLineSeries("RAP", "#fb7185", current, (sample) =>
+          sample.nodeAbsolutePressureMmHg.RA),
+        phaseDomainLineSeries("PVein", "#22c55e", current, (sample) =>
+          sample.nodeAbsolutePressureMmHg.PVein),
+      ],
+    ),
+    renderLinePanel(
+      panel(2, 2),
+      "Common pericardial pressure",
+      "cardiac phase",
+      "pressure (mmHg)",
+      [phaseDomainLineSeries("Pperi", "#e879f9", current, (sample) =>
+        sample.commonPericardium.excessPressureMmHg)],
+      [0],
+    ),
+    renderLinePanel(
+      panel(3, 2),
       "Left-atrial blood volume",
       "cardiac phase",
       "LA volume (mL)",
@@ -428,8 +526,16 @@ function renderSvg(
         (sample) => sample.nodeVolumeMl.LA,
       ),
     ),
+    renderLinePanel(
+      panel(0, 3),
+      "Group-wise beat closure",
+      "completed beat",
+      "log10 normalized delta",
+      convergence,
+      [Math.log10(result.policy.period1NormalizedTolerance)],
+    ),
     renderBarPanel(
-      panel(0, 2),
+      panel(1, 3),
       "Phasic flow-volume ledger",
       "window",
       "integrated volume (mL)",
@@ -438,7 +544,7 @@ function renderSvg(
       true,
     ),
     renderBarPanel(
-      panel(1, 2),
+      panel(2, 3),
       "Wall stress work",
       "wall",
       "work on wall (mJ)",
@@ -447,7 +553,7 @@ function renderSvg(
       true,
     ),
     renderBarPanel(
-      panel(2, 2),
+      panel(3, 3),
       "SLS energy ledger",
       "wall",
       "energy per cycle (mJ)",
@@ -456,10 +562,10 @@ function renderSvg(
       true,
     ),
   ].join("\n");
-  const height = 1240;
+  const height = 1485;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="review-svg-title review-svg-description">
   <title id="review-svg-title">Periodic five-wall raw physiology and numerical diagnostics</title>
-  <desc id="review-svg-description">Nine plots show group-wise beat closure, left-atrial and left-ventricular pressure-volume loops, pressures, valve and pulmonary venous flows, left-atrial volume, phasic flow ledgers, wall work, and SLS energy. Lines connect raw accepted endpoints without smoothing.</desc>
+  <desc id="review-svg-description">Sixteen plots show four-chamber intracavitary pressure-volume loops, bilateral and atrial pressure waveforms, all four valve flows and openings, aggregate pulmonary-venous flow, common pericardial pressure, left-atrial volume, group-wise beat closure, phasic flow, wall work, and SLS energy. Lines connect raw accepted endpoints without smoothing.</desc>
   <rect width="100%" height="100%" fill="#081426"/>
   <text x="34" y="39" fill="#e7eef9" font-size="24" font-weight="700">Raw terminal-beat physiology and energy ownership</text>
   <text x="34" y="66" fill="#9fb0c8" font-size="13">Straight accepted-step segments · no smoothing or time-series resampling · phase colors: reservoir / conduit / pumping</text>
@@ -993,9 +1099,41 @@ function safeScriptJson(value: unknown): string {
   })[character]!);
 }
 
+function embeddedReviewPayload(
+  review: MainWireNormalAdultFiveWallPeriodicReviewV1,
+): unknown {
+  const project = (sample: MainWireNormalAdultFiveWallDiagnosticSampleV2) =>
+    Object.freeze({
+      timeSec: sample.timeSec,
+      cyclePhase01: sample.cyclePhase01,
+      nodeVolumeMl: sample.nodeVolumeMl,
+      nodeAbsolutePressureMmHg: sample.nodeAbsolutePressureMmHg,
+      chamberTransmuralPressureMmHg: sample.chamberTransmuralPressureMmHg,
+      commonPericardium: sample.commonPericardium,
+      flowMlPerSec: sample.flowMlPerSec,
+      valveOpeningFraction01: sample.valveOpeningFraction01,
+      diagnostics: sample.diagnostics,
+    });
+  return Object.freeze({
+    reviewId: review.reviewId,
+    generatedFromExperimentId: review.generatedFromExperimentId,
+    run: review.run,
+    currentBeatSamples: Object.freeze(review.currentBeatSamples.map(project)),
+    previousBeatSamples: Object.freeze(review.previousBeatSamples.map(project)),
+    cycleDiagnostics: review.cycleDiagnostics,
+    convergence: review.convergence,
+    claim: review.claim,
+  });
+}
+
 function safeRatio(numerator: number, denominator: number): number | null {
   return Number.isFinite(numerator) && Number.isFinite(denominator)
     && Math.abs(denominator) > 1e-12 ? numerator / denominator : null;
+}
+
+function maximum(values: readonly number[]): number {
+  const finite = values.filter(Number.isFinite);
+  return finite.length > 0 ? Math.max(...finite) : Number.NaN;
 }
 
 function safeLog10(value: number): number {

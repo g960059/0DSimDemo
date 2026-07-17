@@ -29,6 +29,8 @@ export const MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM = Object.freeze({
     "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,
   wallCount: 5 as const,
   ventricularGeometry: "energy-conjugate-TriSeg" as const,
+  ventricularGeometryMechanics: "finite-thickness-membrane-only" as const,
+  koiterBendingApplied: false as const,
   atrialGeometry: "fixed-wall-self-similar-one-fiber" as const,
   internalSolve: "simultaneous-scaled-damped-Newton" as const,
   internalUnknowns: Object.freeze(["V_m_S", "y_m"] as const),

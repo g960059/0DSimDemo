@@ -121,6 +121,12 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
       .landThermodynamicStoredEnergyClaimed).toBe(false);
     expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM.providerTopology)
       .toBe("fixed-two-coordinate-TriSeg");
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
+      .fullLandKernelOnAllFiveWalls).toBe(true);
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
+      .atrialPopulationOnlyReductionApplied).toBe(false);
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM
+      .externalSeriesElementApplied).toBe(false);
   }, 60_000);
 
   it("makes the paired LA-only SLS ablation mechanically exact-off", () => {

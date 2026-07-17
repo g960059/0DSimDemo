@@ -8,23 +8,39 @@ import {
 import type {
   MainWireNormalAdultLaSlsModeV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import type {
+  MainWireNormalAdultCommonPericardiumCaseV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
+import type {
+  MainWireCommonPericardiumModeV1,
+} from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 
 const mode = argument("--mode", "canonical") as
   MainWireNormalAdultFiveWallExperimentModeV1;
 const laSlsMode = argument("--la-sls", "on") as MainWireNormalAdultLaSlsModeV1;
+const pericardiumMode = argument("--pericardium", "on") as
+  MainWireCommonPericardiumModeV1;
+const pericardiumCase = argument(
+  "--pericardium-case",
+  "healthy-slack",
+) as MainWireNormalAdultCommonPericardiumCaseV1;
 const beatCount = integerArgument("--beats", 1);
 const dtSec = numberArgument("--dt", 0.005);
 const outputPath = argument(
   "--output",
   path.resolve(
     "data/myocardium/protocols",
-    `mainwire-normal-adult-five-wall-${mode}-v1.json`,
+    `mainwire-normal-adult-five-wall-${mode}-${laSlsMode}`
+      + `-pericardium-${pericardiumMode}-${pericardiumCase}`
+      + `-${Math.round(dtSec * 1e6)}us-v1.json`,
   ),
 );
 
 const result = runMainWireNormalAdultFiveWallClosedLoopV1({
   mode,
   laSlsMode,
+  pericardiumMode,
+  pericardiumCase,
   beatCount,
   dtSec,
 });
@@ -36,6 +52,9 @@ process.stdout.write(`${JSON.stringify({
   outputPath,
   mode: result.mode,
   laSlsMode: result.laSlsMode,
+  pericardiumMode: result.pericardiumMode,
+  pericardiumCase: result.pericardiumCase,
+  pericardiumParameterSetId: result.pericardiumParameterSetId,
   completed: result.completed,
   completedBeatCount: result.completedBeatCount,
   sampleCount: result.samples.length,

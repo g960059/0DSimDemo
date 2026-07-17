@@ -91,12 +91,18 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(rendered.html).toContain('id="periodic-review-data"');
     expect(rendered.svg).toContain('role="img"');
     expect(rendered.svg).toContain("LA blood-volume PV");
+    expect(rendered.svg).toContain("RA blood-volume PV");
+    expect(rendered.svg).toContain("RV blood-volume PV");
+    expect(rendered.svg).toContain("Valve opening memory");
+    expect(rendered.svg).toContain("Common pericardial pressure");
     expect(rendered.svg).toContain("SLS energy ledger");
     expect(rendered.svg).toContain("<polyline");
     expect(rendered.svg).not.toMatch(/<path\b/);
     expect(rendered.svg).not.toMatch(/\b(?:C|S|Q|T)\s*-?\d/);
     expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V1
       .plottedSegments).toBe("straight-between-consecutive-accepted-endpoints");
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V1
+      .pvLoopPressure).toBe("intracavitary-absolute-pressure");
 
     const embedded = rendered.html.match(
       /<script type="application\/json" id="periodic-review-data">([^<]+)<\/script>/,
@@ -136,6 +142,10 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
     mode: "canonical",
     protocolIdentityHash: "review-fixture-protocol-hash",
     laSlsMode: "on",
+    pericardiumMode: "on",
+    pericardiumCase: "healthy-slack",
+    pericardiumParameterSetId:
+      "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on",
     initialization: "canonical",
     dtSec: DT_SEC,
     stepsPerBeat: 10,
@@ -290,6 +300,16 @@ function sample(
       LV: lvPressure,
       RA: 3,
       RV: 20,
+    }),
+    commonPericardium: Object.freeze({
+      totalHeartVolumeMl: 500,
+      prescribedFluidVolumeMl: 0,
+      totalOccupiedVolumeMl: 500,
+      excessPressureMmHg: 0,
+      storedEnergyMilliJ: 0,
+      pressureDerivativePaPerM3: 0,
+      smoothingBranch: "zero" as const,
+      elasticConstraintEngaged: false,
     }),
     flowMlPerSec: Object.freeze({
       MV: mvFlow,

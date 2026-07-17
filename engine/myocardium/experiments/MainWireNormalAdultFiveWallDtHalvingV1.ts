@@ -17,10 +17,25 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DT_HALVING_SIGNAL_SCALES_V1 =
   Object.freeze({
     laBloodVolumeMl: 100,
     lvBloodVolumeMl: 150,
+    raBloodVolumeMl: 100,
+    rvBloodVolumeMl: 200,
     laAbsolutePressureMmHg: 10,
     lvAbsolutePressureMmHg: 100,
+    raAbsolutePressureMmHg: 10,
+    rvAbsolutePressureMmHg: 40,
+    aorticAbsolutePressureMmHg: 100,
+    pulmonaryArteryAbsolutePressureMmHg: 30,
     mitralFlowMlPerSec: 500,
+    aorticValveFlowMlPerSec: 500,
+    tricuspidFlowMlPerSec: 500,
+    pulmonaryValveFlowMlPerSec: 500,
     pulmonaryVeinToLaFlowMlPerSec: 500,
+    mitralOpeningFraction01: 1,
+    aorticValveOpeningFraction01: 1,
+    tricuspidOpeningFraction01: 1,
+    pulmonaryValveOpeningFraction01: 1,
+    commonPericardialPressureMmHg: 10,
+    intrapericardialOccupiedVolumeMl: 600,
     laTotalWallStressPa: 100_000,
     laFiberLogStrain: 0.1,
   } as const);
@@ -32,6 +47,7 @@ export type MainWireNormalAdultFiveWallDtHalvingSignalUnitV1 =
   | "mL"
   | "mmHg"
   | "mL/s"
+  | "fraction"
   | "Pa"
   | "log-strain";
 
@@ -124,14 +140,42 @@ type SignalDefinition = Readonly<{
 const SIGNAL_DEFINITIONS: readonly SignalDefinition[] = Object.freeze([
   signal("laBloodVolumeMl", "mL", (sample) => sample.nodeVolumeMl.LA),
   signal("lvBloodVolumeMl", "mL", (sample) => sample.nodeVolumeMl.LV),
+  signal("raBloodVolumeMl", "mL", (sample) => sample.nodeVolumeMl.RA),
+  signal("rvBloodVolumeMl", "mL", (sample) => sample.nodeVolumeMl.RV),
   signal("laAbsolutePressureMmHg", "mmHg", (sample) =>
     sample.nodeAbsolutePressureMmHg.LA),
   signal("lvAbsolutePressureMmHg", "mmHg", (sample) =>
     sample.nodeAbsolutePressureMmHg.LV),
+  signal("raAbsolutePressureMmHg", "mmHg", (sample) =>
+    sample.nodeAbsolutePressureMmHg.RA),
+  signal("rvAbsolutePressureMmHg", "mmHg", (sample) =>
+    sample.nodeAbsolutePressureMmHg.RV),
+  signal("aorticAbsolutePressureMmHg", "mmHg", (sample) =>
+    sample.nodeAbsolutePressureMmHg.Ao),
+  signal("pulmonaryArteryAbsolutePressureMmHg", "mmHg", (sample) =>
+    sample.nodeAbsolutePressureMmHg.PA),
   signal("mitralFlowMlPerSec", "mL/s", (sample) =>
     sample.flowMlPerSec.MV),
+  signal("aorticValveFlowMlPerSec", "mL/s", (sample) =>
+    sample.flowMlPerSec.AoV),
+  signal("tricuspidFlowMlPerSec", "mL/s", (sample) =>
+    sample.flowMlPerSec.TV),
+  signal("pulmonaryValveFlowMlPerSec", "mL/s", (sample) =>
+    sample.flowMlPerSec.PV),
   signal("pulmonaryVeinToLaFlowMlPerSec", "mL/s", (sample) =>
     sample.flowMlPerSec.PVein_LA),
+  signal("mitralOpeningFraction01", "fraction", (sample) =>
+    sample.valveOpeningFraction01.MV),
+  signal("aorticValveOpeningFraction01", "fraction", (sample) =>
+    sample.valveOpeningFraction01.AoV),
+  signal("tricuspidOpeningFraction01", "fraction", (sample) =>
+    sample.valveOpeningFraction01.TV),
+  signal("pulmonaryValveOpeningFraction01", "fraction", (sample) =>
+    sample.valveOpeningFraction01.PV),
+  signal("commonPericardialPressureMmHg", "mmHg", (sample) =>
+    sample.commonPericardium.excessPressureMmHg),
+  signal("intrapericardialOccupiedVolumeMl", "mL", (sample) =>
+    sample.commonPericardium.totalOccupiedVolumeMl),
   signal("laTotalWallStressPa", "Pa", (sample) =>
     sample.wallStressPa.LA.total),
   signal("laFiberLogStrain", "log-strain", (sample) =>

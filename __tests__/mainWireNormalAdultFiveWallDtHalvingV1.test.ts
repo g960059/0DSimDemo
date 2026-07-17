@@ -254,10 +254,25 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
 type SampleValues = Readonly<{
   laBloodVolumeMl: number;
   lvBloodVolumeMl: number;
+  raBloodVolumeMl: number;
+  rvBloodVolumeMl: number;
   laAbsolutePressureMmHg: number;
   lvAbsolutePressureMmHg: number;
+  raAbsolutePressureMmHg: number;
+  rvAbsolutePressureMmHg: number;
+  aorticAbsolutePressureMmHg: number;
+  pulmonaryArteryAbsolutePressureMmHg: number;
   mitralFlowMlPerSec: number;
+  aorticValveFlowMlPerSec: number;
+  tricuspidFlowMlPerSec: number;
+  pulmonaryValveFlowMlPerSec: number;
   pulmonaryVeinToLaFlowMlPerSec: number;
+  mitralOpeningFraction01: number;
+  aorticValveOpeningFraction01: number;
+  tricuspidOpeningFraction01: number;
+  pulmonaryValveOpeningFraction01: number;
+  commonPericardialPressureMmHg: number;
+  intrapericardialOccupiedVolumeMl: number;
   laTotalWallStressPa: number;
   laFiberLogStrain: number;
 }>;
@@ -265,10 +280,25 @@ type SampleValues = Readonly<{
 const DEFAULT_VALUES: SampleValues = Object.freeze({
   laBloodVolumeMl: 50,
   lvBloodVolumeMl: 120,
+  raBloodVolumeMl: 60,
+  rvBloodVolumeMl: 140,
   laAbsolutePressureMmHg: 8,
   lvAbsolutePressureMmHg: 80,
+  raAbsolutePressureMmHg: 5,
+  rvAbsolutePressureMmHg: 25,
+  aorticAbsolutePressureMmHg: 90,
+  pulmonaryArteryAbsolutePressureMmHg: 18,
   mitralFlowMlPerSec: 100,
+  aorticValveFlowMlPerSec: 90,
+  tricuspidFlowMlPerSec: 110,
+  pulmonaryValveFlowMlPerSec: 95,
   pulmonaryVeinToLaFlowMlPerSec: 80,
+  mitralOpeningFraction01: 0.8,
+  aorticValveOpeningFraction01: 0.7,
+  tricuspidOpeningFraction01: 0.9,
+  pulmonaryValveOpeningFraction01: 0.75,
+  commonPericardialPressureMmHg: 0.5,
+  intrapericardialOccupiedVolumeMl: 500,
   laTotalWallStressPa: 50_000,
   laFiberLogStrain: 0.05,
 });
@@ -280,14 +310,36 @@ function sample(
   const values = { ...DEFAULT_VALUES, ...overrides };
   return {
     cyclePhase01,
-    nodeVolumeMl: { LA: values.laBloodVolumeMl, LV: values.lvBloodVolumeMl },
+    nodeVolumeMl: {
+      LA: values.laBloodVolumeMl,
+      LV: values.lvBloodVolumeMl,
+      RA: values.raBloodVolumeMl,
+      RV: values.rvBloodVolumeMl,
+    },
     nodeAbsolutePressureMmHg: {
       LA: values.laAbsolutePressureMmHg,
       LV: values.lvAbsolutePressureMmHg,
+      RA: values.raAbsolutePressureMmHg,
+      RV: values.rvAbsolutePressureMmHg,
+      Ao: values.aorticAbsolutePressureMmHg,
+      PA: values.pulmonaryArteryAbsolutePressureMmHg,
     },
     flowMlPerSec: {
       MV: values.mitralFlowMlPerSec,
+      AoV: values.aorticValveFlowMlPerSec,
+      TV: values.tricuspidFlowMlPerSec,
+      PV: values.pulmonaryValveFlowMlPerSec,
       PVein_LA: values.pulmonaryVeinToLaFlowMlPerSec,
+    },
+    valveOpeningFraction01: {
+      MV: values.mitralOpeningFraction01,
+      AoV: values.aorticValveOpeningFraction01,
+      TV: values.tricuspidOpeningFraction01,
+      PV: values.pulmonaryValveOpeningFraction01,
+    },
+    commonPericardium: {
+      excessPressureMmHg: values.commonPericardialPressureMmHg,
+      totalOccupiedVolumeMl: values.intrapericardialOccupiedVolumeMl,
     },
     wallStressPa: { LA: { total: values.laTotalWallStressPa } },
     wallFiberLogStrain: { LA: values.laFiberLogStrain },

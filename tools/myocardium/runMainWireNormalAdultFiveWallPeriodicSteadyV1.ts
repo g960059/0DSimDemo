@@ -1,25 +1,45 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import {
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
+  type MainWireNormalAdultFiveWallCycleWarmStartV1,
   type MainWireNormalAdultFiveWallPeriodicInitializationV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import type {
   MainWireNormalAdultLaSlsModeV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import type {
+  MainWireNormalAdultCommonPericardiumCaseV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
+import type {
+  MainWireCommonPericardiumModeV1,
+} from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 
 const dtSec = numberArgument("--dt", 0.002);
 const maximumBeatCount = integerArgument("--max-beats", 32);
 const laSlsMode = argument("--la-sls", "on") as
   MainWireNormalAdultLaSlsModeV1;
-const initialization = argument("--init", "canonical") as
+const pericardiumMode = argument("--pericardium", "on") as
+  MainWireCommonPericardiumModeV1;
+const pericardiumCase = argument(
+  "--pericardium-case",
+  "healthy-slack",
+) as MainWireNormalAdultCommonPericardiumCaseV1;
+const warmStartPath = optionalArgument("--warm-start");
+const warmStart = warmStartPath === null ? undefined : loadWarmStart(warmStartPath);
+const initialization = argument(
+  "--init",
+  warmStart === undefined ? "canonical" : "cycle-boundary-warm-start",
+) as
   MainWireNormalAdultFiveWallPeriodicInitializationV1;
 const outputPath = argument(
   "--output",
   path.resolve(
     "data/myocardium/protocols",
-    `mainwire-normal-adult-five-wall-periodic-${initialization}-v1.json`,
+    `mainwire-normal-adult-five-wall-periodic-${initialization}-${laSlsMode}`
+      + `-pericardium-${pericardiumMode}-${pericardiumCase}`
+      + `-${Math.round(dtSec * 1e6)}us-v1.json`,
   ),
 );
 
@@ -27,7 +47,10 @@ const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
   dtSec,
   maximumBeatCount,
   laSlsMode,
+  pericardiumMode,
+  pericardiumCase,
   initialization,
+  warmStart,
 });
 mkdirSync(path.dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
@@ -37,6 +60,9 @@ process.stdout.write(`${JSON.stringify({
   outputPath,
   initialization: result.initialization,
   laSlsMode: result.laSlsMode,
+  pericardiumMode: result.pericardiumMode,
+  pericardiumCase: result.pericardiumCase,
+  pericardiumParameterSetId: result.pericardiumParameterSetId,
   dtSec: result.dtSec,
   requestedMaximumBeatCount: result.requestedMaximumBeatCount,
   completedBeatCount: result.completedBeatCount,
@@ -45,6 +71,8 @@ process.stdout.write(`${JSON.stringify({
   period2OrbitSuspected: result.period2OrbitSuspected,
   retainedBeatIndices: result.retainedCompleteBeats.map((beat) =>
     beat.beatIndex),
+  terminalWarmStartAvailable:
+    result.terminalCycleBoundaryWarmStart !== null,
   initializationAudit: result.initializationAudit,
   latestClosure: latestClosure === null ? null : {
     beatIndex: latestClosure.beatIndex,
@@ -66,6 +94,29 @@ function argument(name: string, fallback: string): string {
     throw new Error(`${name} requires a value`);
   }
   return value;
+}
+
+function optionalArgument(name: string): string | null {
+  const index = process.argv.indexOf(name);
+  if (index < 0) return null;
+  const value = process.argv[index + 1];
+  if (value === undefined || value.startsWith("--")) {
+    throw new Error(`${name} requires a value`);
+  }
+  return value;
+}
+
+function loadWarmStart(pathname: string): MainWireNormalAdultFiveWallCycleWarmStartV1 {
+  const parsed = JSON.parse(readFileSync(pathname, "utf8")) as unknown;
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("warm-start file must contain an object");
+  }
+  const record = parsed as Record<string, unknown>;
+  const candidate = record.terminalCycleBoundaryWarmStart ?? parsed;
+  if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) {
+    throw new Error("warm-start file has no terminal cycle-boundary checkpoint");
+  }
+  return candidate as MainWireNormalAdultFiveWallCycleWarmStartV1;
 }
 
 function numberArgument(name: string, fallback: number): number {

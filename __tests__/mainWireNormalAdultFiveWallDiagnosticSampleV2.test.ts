@@ -19,15 +19,20 @@ import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  createMainWireNormalAdultCommonPericardiumV1,
+} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
 
 describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
   it("wraps the byte-stable V1 sample with accepted readbacks only", () => {
     const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
     const runtime = normalAdultMainWireRuntimeV1();
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
     const cold = initializeMainWireFiveWallNonCoronaryV1({
       provider,
       runtime,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
     });
     const stepped = stepMainWireFiveWallNonCoronaryV1(
       provider,
@@ -36,6 +41,7 @@ describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
         dtSec: 0.002,
         runtime,
         calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium,
       },
     );
     expect(stepped.converged).toBe(true);

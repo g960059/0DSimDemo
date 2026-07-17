@@ -31,6 +31,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_DIAGNOSTICS_CLAIM_V1 =
       "report-only-fixed-asymptote-log-linear-fit-over-AoV-closure-to-MVO" as const,
     landThermodynamicStoredEnergyClaimed: false as const,
     cavityWorkSign: "positive-is-work-on-wall" as const,
+    pericardialWorkSign: "positive-is-work-stored-in-common-bag" as const,
+    pericardialWorkExcludedFromTransmuralWallWork: true as const,
   });
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_WALL_IDS_V1 =
@@ -61,6 +63,10 @@ export type MainWireNormalAdultFiveWallCycleSampleV1 = Readonly<{
   cyclePhase01: number;
   nodeVolumeMl: ChamberRecord<number>;
   chamberTransmuralPressureMmHg: ChamberRecord<number>;
+  commonPericardium: Readonly<{
+    excessPressureMmHg: number;
+    storedEnergyMilliJ: number;
+  }>;
   flowMlPerSec: Readonly<{
     MV: number;
     AoV: number;
@@ -237,6 +243,11 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsV1 = Readonly<{
       StressWorkComponents
     >>;
     cavityWorkOnWallMilliJ: ChamberRecord<number>;
+    commonPericardium: Readonly<{
+      pressureWorkOnBagMilliJ: number;
+      storedEnergyChangeMilliJ: number;
+      backwardEulerRemainderMilliJ: number;
+    }>;
     workConjugacyResidualMilliJ: Readonly<{
       leftAtrium: number;
       rightAtrium: number;
@@ -576,6 +587,7 @@ function measureWorkEnergy(
     RA: 0,
     RV: 0,
   };
+  let pericardialPressureWorkMilliJ = 0;
 
   for (let index = firstPairedIndex; index < samples.length; index += 1) {
     const next = samples[index]!;
@@ -619,6 +631,14 @@ function measureWorkEnergy(
         (next.nodeVolumeMl[chamber] - previous.nodeVolumeMl[chamber]) *
         MMHG_ML_TO_MILLIJ;
     }
+    const totalChamberVolumeChangeMl =
+      (next.nodeVolumeMl.LA - previous.nodeVolumeMl.LA)
+      + (next.nodeVolumeMl.LV - previous.nodeVolumeMl.LV)
+      + (next.nodeVolumeMl.RA - previous.nodeVolumeMl.RA)
+      + (next.nodeVolumeMl.RV - previous.nodeVolumeMl.RV);
+    pericardialPressureWorkMilliJ +=
+      next.commonPericardium.excessPressureMmHg
+      * totalChamberVolumeChangeMl * MMHG_ML_TO_MILLIJ;
   }
 
   const perWall = wallRecord((wallId) => freezeWallLedger(perWallMutable[wallId]));
@@ -631,6 +651,11 @@ function measureWorkEnergy(
       sum + perWall[wallId].stressWorkOnWallMilliJ.total, 0);
   const totalCavityWork = cavityWork.LA + cavityWork.LV +
     cavityWork.RA + cavityWork.RV;
+  const initialSample = input.precedingSample ?? samples[0]!;
+  const finalSample = samples.at(-1)!;
+  const pericardialStoredEnergyChangeMilliJ =
+    finalSample.commonPericardium.storedEnergyMilliJ
+    - initialSample.commonPericardium.storedEnergyMilliJ;
   return Object.freeze({
     stressWorkCoverageFraction:
       (samples.length - firstPairedIndex) / samples.length,
@@ -641,6 +666,13 @@ function measureWorkEnergy(
       pumping: Object.freeze({ ...laByPhase.pumping }),
     }),
     cavityWorkOnWallMilliJ: Object.freeze({ ...cavityWork }),
+    commonPericardium: Object.freeze({
+      pressureWorkOnBagMilliJ: pericardialPressureWorkMilliJ,
+      storedEnergyChangeMilliJ: pericardialStoredEnergyChangeMilliJ,
+      backwardEulerRemainderMilliJ:
+        pericardialPressureWorkMilliJ
+        - pericardialStoredEnergyChangeMilliJ,
+    }),
     workConjugacyResidualMilliJ: Object.freeze({
       leftAtrium: perWall.LA.stressWorkOnWallMilliJ.total - cavityWork.LA,
       rightAtrium: perWall.RA.stressWorkOnWallMilliJ.total - cavityWork.RA,

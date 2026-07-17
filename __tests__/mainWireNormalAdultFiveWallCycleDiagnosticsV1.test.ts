@@ -158,6 +158,45 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
     expect(measured.mitral.E.positiveFlowSamplesWithoutPhysicalArea).toBe(1);
   });
 
+  it("keeps common-pericardium stored work separate from transmural wall work", () => {
+    const stiffnessMmHgPerMl = 0.2;
+    const referenceTotalChamberVolumeMl = 280;
+    const addPericardium = (value: MainWireNormalAdultFiveWallCycleSampleV1) => {
+      const totalVolumeMl = Object.values(value.nodeVolumeMl)
+        .reduce((sum, volume) => sum + volume, 0);
+      const excessMl = totalVolumeMl - referenceTotalChamberVolumeMl;
+      return Object.freeze({
+        ...value,
+        commonPericardium: Object.freeze({
+          excessPressureMmHg: stiffnessMmHgPerMl * excessMl,
+          storedEnergyMilliJ: 0.5 * stiffnessMmHgPerMl * excessMl * excessMl
+            * 0.133322,
+        }),
+      });
+    };
+    const samples = Array.from({ length: 10 }, (_, index) =>
+      addPericardium(sample(index)));
+    const measured = measureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
+      samples,
+      precedingSample: addPericardium(precedingSample()),
+      dtSec: DT_SEC,
+      atrialCalciumOnsetPhase01: 0.7,
+      wallMaterialVolumeMlByWall: WALL_VOLUMES_ML,
+      valveOpenThreshold: { absoluteFloorMlPerSec: 0.1 },
+    });
+
+    expect(measured.workEnergy.commonPericardium.storedEnergyChangeMilliJ)
+      .toBeCloseTo(0, 12);
+    const expectedBackwardEulerRemainder =
+      0.5 * stiffnessMmHgPerMl * 174 * 0.133322;
+    expect(measured.workEnergy.commonPericardium.pressureWorkOnBagMilliJ)
+      .toBeCloseTo(expectedBackwardEulerRemainder, 12);
+    expect(measured.workEnergy.commonPericardium.backwardEulerRemainderMilliJ)
+      .toBeCloseTo(expectedBackwardEulerRemainder, 12);
+    expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_DIAGNOSTICS_CLAIM_V1
+      .pericardialWorkExcludedFromTransmuralWallWork).toBe(true);
+  });
+
   it("reports incomplete stress-work coverage without a preceding sample", () => {
     const samples = Array.from({ length: 10 }, (_, index) => sample(index));
     const measured = measureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
@@ -305,6 +344,10 @@ function sample(
       LV: lvPressure,
       RA: 3,
       RV: 20,
+    }),
+    commonPericardium: Object.freeze({
+      excessPressureMmHg: 0,
+      storedEnergyMilliJ: 0,
     }),
     flowMlPerSec: Object.freeze({
       MV: mvFlow,

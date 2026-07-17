@@ -1,8 +1,11 @@
 import {
   commitNonCoronaryCirculationTrialV1,
+  checkpointNonCoronaryCirculationStateV1,
   createInitialNonCoronaryCirculationStateV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
+  restoreNonCoronaryCirculationStateV1,
   type NonCoronaryCirculationAcceptedStateV1,
+  type NonCoronaryCirculationCheckpointV1,
   type NonCoronaryCirculationInitialStateInputV1,
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
@@ -21,11 +24,19 @@ import type {
   MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
+  evaluateMainWireCommonPericardiumBindingV1,
+  type MainWireCommonPericardiumBindingV1,
+  type MainWireCommonPericardiumEvaluationV1,
+} from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
+import {
   cloneWholeHeartMechanicsAcceptedStateV1,
+  checkpointWholeHeartMechanicsStateV1,
   commitWholeHeartMechanicsTrialV1,
   evaluateWholeHeartMechanicsTrialV1,
   initializeWholeHeartMechanicsColdV1,
+  restoreWholeHeartMechanicsStateV1,
   type WholeHeartMechanicsAcceptedStateV1,
+  type WholeHeartMechanicsCheckpointV1,
   type WholeHeartMechanicsProviderV1,
   type WholeHeartMechanicsTrialV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
@@ -43,7 +54,9 @@ export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1 =
     commonIntrathoracicPressureAppliedOnce: true as const,
     circulationAndMechanicsCommit: "atomic-after-both-trials-succeed" as const,
     failureSemantics: "rollback-both-accepted-states" as const,
-    pericardialConstraintApplied: false as const,
+    pericardialConstraintInterface:
+      "required-conservative-common-pressure-binding" as const,
+    pericardialPressureWorkCountedAsPrescribedExternalWork: false as const,
     laaBodyCompartmentsApplied: false as const,
     coronaryCirculationIncluded: false as const,
     parameterFittingOwnedHere: false as const,
@@ -57,6 +70,17 @@ export type MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState> = Readonly<{
   mechanics: WholeHeartMechanicsAcceptedStateV1<TWallState>;
 }>;
 
+export type MainWireFiveWallNonCoronaryCheckpointV1 = Readonly<{
+  checkpointId: "main-wire-five-wall-noncoronary-checkpoint-v1";
+  schemaVersion: 1;
+  transactionId: typeof MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID;
+  revision: number;
+  acceptedTimeSec: number;
+  circulation: NonCoronaryCirculationCheckpointV1;
+  mechanics: WholeHeartMechanicsCheckpointV1;
+  checkpointFingerprint: string;
+}>;
+
 export type MainWireFiveWallNonCoronaryInitializeInputV1<TWallState> = Readonly<{
   provider: WholeHeartMechanicsProviderV1<
     TWallState,
@@ -64,6 +88,7 @@ export type MainWireFiveWallNonCoronaryInitializeInputV1<TWallState> = Readonly<
   >;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
   calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+  pericardium: MainWireCommonPericardiumBindingV1;
   circulationInitial?: Omit<
     NonCoronaryCirculationInitialStateInputV1,
     "timeSec" | "runtime"
@@ -81,6 +106,7 @@ export type MainWireFiveWallNonCoronaryColdResultV1<TWallState> = Readonly<{
     RV: number;
   }>;
   commonIntrathoracicPressureMmHg: number;
+  pericardium: MainWireCommonPericardiumEvaluationV1;
 }>;
 
 export type MainWireFiveWallNonCoronaryStepSuccessV1<TWallState> = Readonly<{
@@ -92,6 +118,7 @@ export type MainWireFiveWallNonCoronaryStepSuccessV1<TWallState> = Readonly<{
   mechanicsTrial: WholeHeartMechanicsTrialV1<TWallState>;
   calciumDrive: MainWireFiveWallFreeCalciumDriveV1;
   commonIntrathoracicPressureMmHg: number;
+  pericardium: MainWireCommonPericardiumEvaluationV1;
 }>;
 
 export type MainWireFiveWallNonCoronaryStepFailureV1<TWallState> = Readonly<{
@@ -110,6 +137,70 @@ export type MainWireFiveWallNonCoronaryStepFailureV1<TWallState> = Readonly<{
 export type MainWireFiveWallNonCoronaryStepResultV1<TWallState> =
   | MainWireFiveWallNonCoronaryStepSuccessV1<TWallState>
   | MainWireFiveWallNonCoronaryStepFailureV1<TWallState>;
+
+export function checkpointMainWireFiveWallNonCoronaryV1<TWallState>(
+  provider: WholeHeartMechanicsProviderV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  state: MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState>,
+): MainWireFiveWallNonCoronaryCheckpointV1 {
+  validateAcceptedPair(state);
+  const checkpoint = {
+    checkpointId: "main-wire-five-wall-noncoronary-checkpoint-v1" as const,
+    schemaVersion: 1 as const,
+    transactionId: MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID,
+    revision: state.revision,
+    acceptedTimeSec: state.acceptedTimeSec,
+    circulation: checkpointNonCoronaryCirculationStateV1(state.circulation),
+    mechanics: checkpointWholeHeartMechanicsStateV1(provider, state.mechanics),
+  };
+  return Object.freeze({
+    ...checkpoint,
+    checkpointFingerprint: fingerprintJsonValueV1(checkpoint),
+  });
+}
+
+export function restoreMainWireFiveWallNonCoronaryV1<TWallState>(
+  provider: WholeHeartMechanicsProviderV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  checkpoint: MainWireFiveWallNonCoronaryCheckpointV1,
+  rebase?: Readonly<{ revision: number; acceptedTimeSec: number }>,
+): MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState> {
+  if (
+    checkpoint.checkpointId !== "main-wire-five-wall-noncoronary-checkpoint-v1"
+    || checkpoint.schemaVersion !== 1
+    || checkpoint.transactionId
+      !== MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID
+    || checkpoint.revision !== checkpoint.circulation.state.revision
+    || checkpoint.revision !== checkpoint.mechanics.revision
+    || checkpoint.acceptedTimeSec !== checkpoint.circulation.state.acceptedTimeSec
+    || checkpoint.acceptedTimeSec !== checkpoint.mechanics.acceptedTimeSec
+  ) throw new Error("five-wall checkpoint transaction identity mismatch");
+  const { checkpointFingerprint, ...fingerprinted } = checkpoint;
+  if (fingerprintJsonValueV1(fingerprinted) !== checkpointFingerprint) {
+    throw new Error("five-wall checkpoint fingerprint mismatch");
+  }
+  const revision = rebase?.revision ?? checkpoint.revision;
+  const acceptedTimeSec = rebase?.acceptedTimeSec ?? checkpoint.acceptedTimeSec;
+  const circulation = restoreNonCoronaryCirculationStateV1(
+    checkpoint.circulation,
+    { revision, acceptedTimeSec },
+  );
+  const mechanics = restoreWholeHeartMechanicsStateV1(provider, Object.freeze({
+    ...checkpoint.mechanics,
+    revision,
+    acceptedTimeSec,
+  }));
+  for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
+    if (circulation.nodeVolumesMl[chamber] !== mechanics.acceptedVolumesMl[chamber]) {
+      throw new Error(`five-wall checkpoint ${chamber} volume mismatch`);
+    }
+  }
+  return acceptedPair(revision, circulation, mechanics);
+}
 
 export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
   input: MainWireFiveWallNonCoronaryInitializeInputV1<TWallState>,
@@ -132,6 +223,10 @@ export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
     volumesMl: chamberVolumes(circulation),
     drivingInputs: calciumDrive,
   });
+  const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+    input.pericardium,
+    chamberVolumes(circulation),
+  );
   const acceptedState = acceptedPair(
     0,
     circulation,
@@ -147,6 +242,7 @@ export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
       timeSec,
       input.runtime,
     ),
+    pericardium,
   });
 }
 
@@ -160,6 +256,7 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     dtSec: number;
     runtime: NonCoronaryCirculationRuntimeParamsV1;
     calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    pericardium: MainWireCommonPericardiumBindingV1;
   }>,
 ): MainWireFiveWallNonCoronaryStepResultV1<TWallState> {
   validateAcceptedPair(previous);
@@ -200,12 +297,20 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
           }`,
         );
       }
+      const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+        input.pericardium,
+        volumesMl,
+      );
       return Object.freeze({
         absolutePressuresMmHg: Object.freeze({
-          LA: mechanicsTrial.transmuralPressuresMmHg.LA + pthMmHg,
-          LV: mechanicsTrial.transmuralPressuresMmHg.LV + pthMmHg,
-          RA: mechanicsTrial.transmuralPressuresMmHg.RA + pthMmHg,
-          RV: mechanicsTrial.transmuralPressuresMmHg.RV + pthMmHg,
+          LA: mechanicsTrial.transmuralPressuresMmHg.LA + pthMmHg
+            + pericardium.excessPressureMmHg,
+          LV: mechanicsTrial.transmuralPressuresMmHg.LV + pthMmHg
+            + pericardium.excessPressureMmHg,
+          RA: mechanicsTrial.transmuralPressuresMmHg.RA + pthMmHg
+            + pericardium.excessPressureMmHg,
+          RV: mechanicsTrial.transmuralPressuresMmHg.RV + pthMmHg
+            + pericardium.excessPressureMmHg,
         }),
         evaluation: mechanicsTrial,
       });
@@ -226,6 +331,10 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     });
   }
   const mechanicsTrial = circulationTrial.candidateMechanicsEvaluation;
+  const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+    input.pericardium,
+    circulationTrial.candidateNodeVolumesMl,
+  );
   validateCoupledTrial(previous, circulationTrial, mechanicsTrial);
   const nextCirculation = commitNonCoronaryCirculationTrialV1(
     previous.circulation,
@@ -248,6 +357,7 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     mechanicsTrial,
     calciumDrive,
     commonIntrathoracicPressureMmHg: pthMmHg,
+    pericardium,
   });
 }
 
@@ -338,4 +448,34 @@ function commonIntrathoracicPressureMmHg(
     timeSec,
     runtime.respiratory,
   );
+}
+
+function fingerprintJsonValueV1(value: unknown): string {
+  const text = canonicalJsonValueV1(value);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+function canonicalJsonValueV1(value: unknown): string {
+  if (value === null || typeof value === "boolean" || typeof value === "string") {
+    return JSON.stringify(value);
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error("checkpoint contains non-finite number");
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJsonValueV1).join(",")}]`;
+  }
+  if (value && typeof value === "object") {
+    const record = value as Readonly<Record<string, unknown>>;
+    return `{${Object.keys(record).sort().map((key) =>
+      `${JSON.stringify(key)}:${canonicalJsonValueV1(record[key])}`
+    ).join(",")}}`;
+  }
+  throw new Error("checkpoint contains unsupported value");
 }
