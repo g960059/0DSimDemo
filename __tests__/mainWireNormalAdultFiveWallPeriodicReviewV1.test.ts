@@ -9,14 +9,25 @@ import {
 import type {
   MainWireNormalAdultFiveWallDiagnosticSampleV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
+import {
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+} from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import type {
   MainWireFiveWallPeriodicClosureGroupV1,
 } from "@/engine/myocardium/experiments/MainWireFiveWallPeriodicClosureV1";
 import type {
   MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+import {
+  sanitizeForStableHash,
+  stableHash,
+} from "@/engine/myocardium/kinematics/stableHash";
 
 const DT_SEC = 0.1;
+const CALCIUM_HASH = stableHash(sanitizeForStableHash(
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+));
 const GROUPS = [
   "circulation-node-volume",
   "dynamic-edge-flow",
@@ -51,6 +62,10 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(review.run.latestBeatIndex).toBe(7);
     expect(review.run.previousBeatIndex).toBe(6);
     expect(review.run.protocolIdentityHash).toBe("review-fixture-protocol-hash");
+    expect(review.run.calciumDrivePriorVariant)
+      .toBe("land-atrial-twitch-output");
+    expect(review.run.calciumParameterSetId)
+      .toBe("five-wall-normal-calcium-component-timing-prior-v1");
     expect(review.run.jacobianFiniteDifferenceWidthAudit).toEqual({
       nominalScaledStep: 2e-5,
       nominalStepCount: 10,
@@ -121,6 +136,21 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(rendered.review.run.timeStepRobustness)
       .toBe("not-assessed-by-single-result");
   });
+
+  it("rejects a raw review whose calcium params do not match the registry", () => {
+    const result = periodicResult();
+    expect(() => buildMainWireNormalAdultFiveWallPeriodicReviewV1({
+      ...result,
+      calciumDriveFixedParams: Object.freeze({
+        ...result.calciumDriveFixedParams,
+        atrial: Object.freeze({
+          ...result.calciumDriveFixedParams.atrial,
+          peakAmplitudeUM:
+            result.calciumDriveFixedParams.atrial.peakAmplitudeUM + 0.01,
+        }),
+      }),
+    })).toThrow(/fixed params do not match registry variant/);
+  });
 });
 
 function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
@@ -134,9 +164,48 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
   return Object.freeze({
     experimentId: "main-wire-normal-adult-five-wall-periodic-steady-v1",
     mode: "canonical",
+    protocolIdentity: Object.freeze({
+      identityId:
+        "main-wire-normal-adult-five-wall-periodic-protocol-identity-v1",
+      mechanicsProvider: Object.freeze({
+        providerId: "review-fixture-provider",
+        parameterSetId: "review-fixture-provider-params",
+        parameterIdentityHash: "review-fixture-provider-hash",
+        stateSchemaVersion: 1,
+      }),
+      calciumDrive: Object.freeze({
+        driveId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
+        parameterSetId:
+          FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
+        fixedParamsStableHash: CALCIUM_HASH,
+      }),
+      circulation: Object.freeze({
+        topologyGraphSnapshot: Object.freeze({
+          topologyId: "review-fixture-topology",
+          nodes: Object.freeze([]),
+          edges: Object.freeze([]),
+          scope: "noncoronary-main-wire-closed-loop-v1",
+        }),
+        topologyGraphStableHash: "review-fixture-topology-hash",
+        runtimeStableHash: "review-fixture-runtime-hash",
+      }),
+      periodicPolicy: Object.freeze({
+        policyId: "fixed-groupwise-periodic-policy-v1",
+        policyStableHash: "review-fixture-periodic-policy-hash",
+      }),
+    }),
     protocolIdentityHash: "review-fixture-protocol-hash",
+    protocolComponentHashes: Object.freeze({
+      mechanicsProviderMetadataStableHash: "review-fixture-provider-hash",
+      calciumDriveFixedParamsStableHash: CALCIUM_HASH,
+      circulationTopologyGraphStableHash: "review-fixture-topology-hash",
+      circulationRuntimeStableHash: "review-fixture-runtime-hash",
+      periodicPolicyStableHash: "review-fixture-periodic-policy-hash",
+    }),
     laSlsMode: "on",
     initialization: "canonical",
+    calciumDrivePriorVariant: "land-atrial-twitch-output",
+    calciumDriveFixedParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
     dtSec: DT_SEC,
     stepsPerBeat: 10,
     requestedMaximumBeatCount: 7,

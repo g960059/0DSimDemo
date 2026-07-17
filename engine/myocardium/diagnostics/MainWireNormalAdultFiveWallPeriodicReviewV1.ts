@@ -1,5 +1,6 @@
 import {
-  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1,
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_DIAGNOSTICS_CLAIM_V1,
@@ -22,6 +23,10 @@ import type {
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  sanitizeForStableHash,
+  stableHash,
+} from "@/engine/myocardium/kinematics/stableHash";
 import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
@@ -115,6 +120,8 @@ export type MainWireNormalAdultFiveWallPeriodicReviewV1 = Readonly<{
     previousBeatIndex: number | null;
     laSlsMode: string;
     initialization: string;
+    calciumDrivePriorVariant: string;
+    calciumParameterSetId: string;
     protocolIdentityHash: string;
     jacobianFiniteDifferenceWidthAudit: Readonly<{
       nominalScaledStep: number;
@@ -169,7 +176,26 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
     && previousCandidate.samples.length === result.stepsPerBeat
     ? previousCandidate
     : null;
-  const calcium = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+  const calcium = result.calciumDriveFixedParams;
+  assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1(
+    result.calciumDrivePriorVariant,
+    calcium,
+  );
+  const calciumHash = stableHash(sanitizeForStableHash(calcium));
+  if (
+    result.protocolIdentity.calciumDrive.driveId
+      !== FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID
+    || result.protocolIdentity.calciumDrive.parameterSetId
+      !== calcium.parameterSetId
+    || result.protocolIdentity.calciumDrive.fixedParamsStableHash
+      !== calciumHash
+    || result.protocolComponentHashes.calciumDriveFixedParamsStableHash
+      !== calciumHash
+  ) {
+    throw new Error(
+      "periodic review calcium identity/hash does not match fixed params",
+    );
+  }
   const atrialOnsetPhase01 = positiveModulo(
     calcium.cycleLengthSec - calcium.atrioventricularDelaySec
       + calcium.atrial.electricalToCalciumDelaySec,
@@ -206,6 +232,8 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       previousBeatIndex: previousBeat?.beatIndex ?? null,
       laSlsMode: result.laSlsMode,
       initialization: result.initialization,
+      calciumDrivePriorVariant: result.calciumDrivePriorVariant,
+      calciumParameterSetId: calcium.parameterSetId,
       protocolIdentityHash: result.protocolIdentityHash,
       jacobianFiniteDifferenceWidthAudit: Object.freeze({
         nominalScaledStep: nominalJacobianStep,
@@ -281,6 +309,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
     ${card("LA Vmax / Vmin", `${format(diagnostics.leftAtrialVolumes.maximumMl, 1)} / ${format(diagnostics.leftAtrialVolumes.minimumMl, 1)} mL`)}
     ${card("MV peak E/A", nullableRatio(diagnostics.mitral.peakERatioToA))}
     ${card("PV S/D volume", nullableRatio(safeRatio(diagnostics.pulmonaryVenous.S.forwardVolumeMl, diagnostics.pulmonaryVenous.D.forwardVolumeMl)))}
+    ${card("atrial Ca prior", review.run.calciumDrivePriorVariant)}
     ${card("Jacobian FD nominal / alternate", `${review.run.jacobianFiniteDifferenceWidthAudit.nominalStepCount} / ${review.run.jacobianFiniteDifferenceWidthAudit.alternateStepCount}`)}
     ${card("protocol identity", review.run.protocolIdentityHash.slice(0, 12))}
   </section>

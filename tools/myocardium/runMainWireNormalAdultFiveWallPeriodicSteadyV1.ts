@@ -8,6 +8,9 @@ import {
 import type {
   MainWireNormalAdultLaSlsModeV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import type {
+  FiveWallNormalCalciumDrivePriorVariantV1,
+} from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 
 const dtSec = numberArgument("--dt", 0.002);
 const maximumBeatCount = integerArgument("--max-beats", 32);
@@ -15,6 +18,10 @@ const laSlsMode = argument("--la-sls", "on") as
   MainWireNormalAdultLaSlsModeV1;
 const initialization = argument("--init", "canonical") as
   MainWireNormalAdultFiveWallPeriodicInitializationV1;
+const calciumDrivePriorVariant = argument(
+  "--calcium-prior",
+  "land-atrial-twitch-output",
+) as FiveWallNormalCalciumDrivePriorVariantV1;
 const outputPath = argument(
   "--output",
   path.resolve(
@@ -28,6 +35,7 @@ const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
   maximumBeatCount,
   laSlsMode,
   initialization,
+  calciumDrivePriorVariant,
 });
 mkdirSync(path.dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
@@ -37,6 +45,9 @@ process.stdout.write(`${JSON.stringify({
   outputPath,
   initialization: result.initialization,
   laSlsMode: result.laSlsMode,
+  calciumDrivePriorVariant: result.calciumDrivePriorVariant,
+  calciumParameterSetId:
+    result.protocolIdentity.calciumDrive.parameterSetId,
   dtSec: result.dtSec,
   requestedMaximumBeatCount: result.requestedMaximumBeatCount,
   completedBeatCount: result.completedBeatCount,

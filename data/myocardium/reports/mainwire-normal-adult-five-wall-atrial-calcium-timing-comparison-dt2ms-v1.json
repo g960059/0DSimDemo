@@ -1,0 +1,143 @@
+{
+  "comparisonId": "main-wire-normal-adult-five-wall-atrial-calcium-timing-comparison-v1",
+  "interpretable": true,
+  "interpretabilityReasons": [],
+  "pairing": {
+    "canonicalVariant": "land-atrial-twitch-output",
+    "challengerVariant": "human-atrial-calcium-biomarker",
+    "canonicalProtocolIdentityHash": "745d9200",
+    "challengerProtocolIdentityHash": "89da710a",
+    "calciumHashChanged": true,
+    "nonCalciumComponentHashesExactMatch": true,
+    "nonCalciumProtocolIdentityExactMatch": true,
+    "dtSec": 0.002,
+    "initialization": "canonical",
+    "laSlsMode": "on"
+  },
+  "metrics": {
+    "aLobeAreaMmHgMl": {
+      "canonical": 7.517081099339656,
+      "challenger": 7.707995483789894,
+      "absoluteDifference": 0.19091438445023812,
+      "relativeDifference": 0.025397409170829506
+    },
+    "vLobeAreaMmHgMl": {
+      "canonical": 3.4352875811109556,
+      "challenger": 2.997892777933181,
+      "absoluteDifference": -0.43739480317777435,
+      "relativeDifference": -0.12732407195915835
+    },
+    "aToVLobeAreaRatio": {
+      "canonical": 2.1881955795120556,
+      "challenger": 2.571137814042826,
+      "absoluteDifference": 0.38294223453077025,
+      "relativeDifference": 0.17500365968939682
+    },
+    "reservoirMinusConduitMeanMmHg": {
+      "canonical": 0.41391340306761293,
+      "challenger": 0.36190941593520065,
+      "absoluteDifference": -0.05200398713241228,
+      "relativeDifference": -0.12563977572844484
+    },
+    "boosterEmptyingCompletedAtAPeakFraction": {
+      "canonical": 0.4342058198794291,
+      "challenger": 0.45810473644903865,
+      "absoluteDifference": 0.023898916569609574,
+      "relativeDifference": 0.05504052565726977
+    },
+    "aPeakDelayFromAtrialCalciumOnsetSec": {
+      "canonical": 0.042,
+      "challenger": 0.048,
+      "absoluteDifference": 0.005999999999999998,
+      "relativeDifference": 0.14285714285714282
+    },
+    "aPressurePeakToMitralAFlowPeakSec": {
+      "canonical": 0.002,
+      "challenger": 0.002,
+      "absoluteDifference": 0,
+      "relativeDifference": 0
+    },
+    "mitralPeakERatioToA": {
+      "canonical": 0.8912835288746292,
+      "challenger": 0.9230909031833098,
+      "absoluteDifference": 0.031807374308680525,
+      "relativeDifference": 0.03568715597026886
+    },
+    "mitralAForwardVolumeMl": {
+      "canonical": 11.238570388770619,
+      "challenger": 11.684356325633226,
+      "absoluteDifference": 0.4457859368626078,
+      "relativeDifference": 0.039665715606322066
+    },
+    "pulmonaryVenousSOverDForwardVolume": {
+      "canonical": 0.33869177605392037,
+      "challenger": 0.3380850510582201,
+      "absoluteDifference": -0.0006067249957002474,
+      "relativeDifference": -0.0017913779979223813
+    },
+    "pulmonaryVenousArReverseVolumeMl": {
+      "canonical": 0.0007320373351363203,
+      "challenger": 0,
+      "absoluteDifference": -0.0007320373351363203,
+      "relativeDifference": -1
+    },
+    "leftAtrialVolumeExcursionMl": {
+      "canonical": 16.07772103466341,
+      "challenger": 16.273878925371164,
+      "absoluteDifference": 0.1961578907077559,
+      "relativeDifference": 0.012200602951428342
+    },
+    "cardiacIndexLPerMinPerM2": {
+      "canonical": 2.0274758846303125,
+      "challenger": 2.0305370881465854,
+      "absoluteDifference": 0.0030612035162729256,
+      "relativeDifference": 0.0015098593968386961
+    },
+    "meanAorticPressureMmHg": {
+      "canonical": 63.7878047384593,
+      "challenger": 63.86809871307491,
+      "absoluteDifference": 0.08029397461560706,
+      "relativeDifference": 0.0012587668590387428
+    },
+    "leftAtrialSlsPhysicalDissipationMilliJ": {
+      "canonical": 0.3583833072556409,
+      "challenger": 0.3733239916710385,
+      "absoluteDifference": 0.014940684415397643,
+      "relativeDifference": 0.04168911919979632
+    }
+  },
+  "topology": {
+    "canonicalSelfIntersectionCount": 1,
+    "challengerSelfIntersectionCount": 1,
+    "canonicalOpposedLobeOrientation": true,
+    "challengerOpposedLobeOrientation": true,
+    "canonicalReservoirAboveConduitFraction01": 1,
+    "challengerReservoirAboveConduitFraction01": 1,
+    "canonicalSelectionEvidenceSource": "activation-burden",
+    "challengerSelectionEvidenceSource": "activation-burden",
+    "aLobeSignedOrientationPreserved": true,
+    "canonicalAActivationBurden01": 0.7590145220403027,
+    "challengerAActivationBurden01": 0.7569013551292597,
+    "canonicalVActivationBurden01": 0.17710343342188212,
+    "challengerVActivationBurden01": 0.14635044723106397
+  },
+  "directionReadback": {
+    "challengerReducedEmptyingBeforeAPeak": false,
+    "challengerMovedAPeakEarlierFromCalciumOnset": false,
+    "challengerPreservedSingleOpposedLobes": true,
+    "challengerPreservedGlobalReservoirAboveConduit": true
+  },
+  "claim": {
+    "comparison": "fixed-prior-paired-periodic-summary-readback",
+    "intervention": "prescribed-biatrial-free-calcium-time-constants-only",
+    "allowedProtocolDifference": "calcium-drive-fixed-params-only",
+    "calciumAmplitudeChanged": false,
+    "ventricularCalciumChanged": false,
+    "landActivationOrCrossbridgeKineticsChanged": false,
+    "parameterSearchOrPvShapeFitting": false,
+    "automaticPhysiologyAcceptanceGate": false,
+    "morphologyInterpretationRequiresBothPeriod1": true,
+    "timeStepRobustnessAssessed": false,
+    "clinicalValidationClaimed": false
+  }
+}

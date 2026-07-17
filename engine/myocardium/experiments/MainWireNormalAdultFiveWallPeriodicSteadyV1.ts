@@ -15,7 +15,9 @@ import {
 } from "@/engine/myocardium/MainWireFiveWallNonCoronaryTransactionV1";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
-  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  resolveFiveWallNormalCalciumDriveFixedPriorV1,
+  type FiveWallNormalCalciumDriveParamsV1,
+  type FiveWallNormalCalciumDrivePriorVariantV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   classifyMainWireFiveWallPeriodicityV1,
@@ -119,6 +121,7 @@ export type MainWireNormalAdultFiveWallPeriodicOptionsV1 = Readonly<{
   maximumBeatCount?: number;
   laSlsMode?: MainWireNormalAdultLaSlsModeV1;
   initialization?: MainWireNormalAdultFiveWallPeriodicInitializationV1;
+  calciumDrivePriorVariant?: FiveWallNormalCalciumDrivePriorVariantV1;
 }>;
 
 export type MainWireNormalAdultFiveWallRetainedBeatV1 = Readonly<{
@@ -144,6 +147,8 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
+  calciumDrivePriorVariant: FiveWallNormalCalciumDrivePriorVariantV1;
+  calciumDriveFixedParams: FiveWallNormalCalciumDriveParamsV1;
   dtSec: number;
   stepsPerBeat: number;
   requestedMaximumBeatCount: number;
@@ -199,6 +204,8 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     ordinaryBeatIterationOnly: true;
     shootingOrAndersonAccelerationApplied: false;
     parameterSearch: false;
+    calciumDriveSelectionIsFixedRegistryVariant: true;
+    calciumDriveParameterSearch: false;
     initializationVariantChangesRuntimeOrMaterialParameters: false;
     pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true;
     samePeriodicOrbitAcrossInitializationsClaimed: false;
@@ -221,7 +228,14 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(
     resolved.laSlsMode,
   );
-  const protocol = buildPeriodicProtocolIdentity(provider, runtime);
+  const calciumDriveParams = resolveFiveWallNormalCalciumDriveFixedPriorV1(
+    resolved.calciumDrivePriorVariant,
+  );
+  const protocol = buildPeriodicProtocolIdentity(
+    provider,
+    runtime,
+    calciumDriveParams,
+  );
   const canonicalCirculation = createInitialNonCoronaryCirculationStateV1({
     timeSec: 0,
     runtime,
@@ -229,7 +243,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const canonicalCold = initializeMainWireFiveWallNonCoronaryV1({
     provider,
     runtime,
-    calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    calciumDriveParams,
     circulationInitial: initialStateInput(canonicalCirculation),
   });
   const initializedCold = resolved.initialization === "canonical"
@@ -237,7 +251,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     : initializeMainWireFiveWallNonCoronaryV1({
       provider,
       runtime,
-      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      calciumDriveParams,
       circulationInitial: pulmonaryRedistributionInitialState(
         canonicalCirculation,
       ),
@@ -273,7 +287,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       const stepped = stepMainWireFiveWallNonCoronaryV1(provider, state, {
         dtSec: resolved.dtSec,
         runtime,
-        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        calciumDriveParams,
       });
       if (stepped.converged === false) {
         retainedPartialBeat = beatSamples;
@@ -338,6 +352,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     protocolComponentHashes: protocol.componentHashes,
     laSlsMode: resolved.laSlsMode,
     initialization: resolved.initialization,
+    calciumDrivePriorVariant: resolved.calciumDrivePriorVariant,
+    calciumDriveFixedParams: calciumDriveParams,
     dtSec: resolved.dtSec,
     stepsPerBeat: resolved.stepsPerBeat,
     requestedMaximumBeatCount: resolved.maximumBeatCount,
@@ -359,6 +375,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       ordinaryBeatIterationOnly: true as const,
       shootingOrAndersonAccelerationApplied: false as const,
       parameterSearch: false as const,
+      calciumDriveSelectionIsFixedRegistryVariant: true as const,
+      calciumDriveParameterSearch: false as const,
       initializationVariantChangesRuntimeOrMaterialParameters: false as const,
       pulmonaryRedistributionIsInitialConditionBasinAuditOnly: true as const,
       samePeriodicOrbitAcrossInitializationsClaimed: false as const,
@@ -371,6 +389,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
 function buildPeriodicProtocolIdentity(
   provider: ReturnType<typeof createCanonicalMainWireNormalAdultFiveWallProviderV1>,
   runtime: NonCoronaryCirculationRuntimeParamsV1,
+  calciumDriveParams: FiveWallNormalCalciumDriveParamsV1,
 ): Readonly<{
   identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
   identityHash: string;
@@ -392,7 +411,7 @@ function buildPeriodicProtocolIdentity(
   const componentHashes = Object.freeze({
     mechanicsProviderMetadataStableHash: hashProtocolValue(mechanicsProvider),
     calciumDriveFixedParamsStableHash:
-      hashProtocolValue(FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1),
+      hashProtocolValue(calciumDriveParams),
     circulationTopologyGraphStableHash:
       hashProtocolValue(topologyGraphSnapshot),
     circulationRuntimeStableHash: hashProtocolValue(runtime),
@@ -405,7 +424,7 @@ function buildPeriodicProtocolIdentity(
     mechanicsProvider,
     calciumDrive: {
       driveId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
-      parameterSetId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
+      parameterSetId: calciumDriveParams.parameterSetId,
       fixedParamsStableHash:
         componentHashes.calciumDriveFixedParamsStableHash,
     },
@@ -582,6 +601,7 @@ function validateAndResolveOptions(
   maximumBeatCount: number;
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
+  calciumDrivePriorVariant: FiveWallNormalCalciumDrivePriorVariantV1;
 }> {
   if (!(options.dtSec > 0) || !Number.isFinite(options.dtSec)) {
     throw new Error("dtSec must be positive and finite");
@@ -607,12 +627,18 @@ function validateAndResolveOptions(
     && initialization
       !== MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PULMONARY_REDISTRIBUTION_V1.variant
   ) throw new Error("unsupported periodic initialization variant");
+  const calciumDrivePriorVariant = options.calciumDrivePriorVariant
+    ?? "land-atrial-twitch-output";
+  // The resolver is the closed registry boundary. It rejects arbitrary or
+  // misspelled waveform choices before any model state is constructed.
+  resolveFiveWallNormalCalciumDriveFixedPriorV1(calciumDrivePriorVariant);
   return Object.freeze({
     dtSec: options.dtSec,
     stepsPerBeat,
     maximumBeatCount,
     laSlsMode,
     initialization,
+    calciumDrivePriorVariant,
   });
 }
 

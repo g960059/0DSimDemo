@@ -41,6 +41,14 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
     expect(summary.cyclePhysiology.workEnergy.stressWorkCoverageFraction).toBe(1);
     expect(summary.fixedActivationPrior.atrialCalciumOnsetPhase01)
       .toBeCloseTo(0.852, 12);
+    expect(summary.fixedActivationPrior).toMatchObject({
+      variant: "land-atrial-twitch-output",
+      parameterSetId: "five-wall-normal-calcium-component-timing-prior-v1",
+      atrialRiseTimeConstantSec: 0.0125,
+      atrialDecayTimeConstantSec: 0.3,
+    });
+    expect(summary.source.calciumDrivePriorVariant)
+      .toBe("land-atrial-twitch-output");
     expect(summary.ranges.chamberVolumeMl.LA.maximum)
       .toBeGreaterThan(summary.ranges.chamberVolumeMl.LA.minimum);
     expect(summary.ranges.chamberTransmuralPressureMmHg.LV.maximum)
@@ -129,6 +137,65 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
         mismatchedObservation,
       ]),
     })).toThrow(/referenceScaleSetId does not match periodic policy/);
+  });
+
+  it("rejects calcium registry, identity, and hash inconsistencies", () => {
+    expect(() => summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      calciumDriveFixedParams: Object.freeze({
+        ...result.calciumDriveFixedParams,
+        atrial: Object.freeze({
+          ...result.calciumDriveFixedParams.atrial,
+          riseTimeConstantSec:
+            result.calciumDriveFixedParams.atrial.riseTimeConstantSec + 0.001,
+        }),
+      }),
+    })).toThrow(/fixed params do not match registry variant/);
+
+    expect(() => summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      calciumDriveFixedParams: Object.freeze({
+        ...result.calciumDriveFixedParams,
+        atrial: Object.freeze({
+          ...result.calciumDriveFixedParams.atrial,
+          peakAmplitudeUM:
+            result.calciumDriveFixedParams.atrial.peakAmplitudeUM + 0.01,
+        }),
+      }),
+    })).toThrow(/fixed params do not match registry variant/);
+
+    expect(() => summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      calciumDriveFixedParams: Object.freeze({
+        ...result.calciumDriveFixedParams,
+        ventricular: Object.freeze({
+          ...result.calciumDriveFixedParams.ventricular,
+          decayTimeConstantSec:
+            result.calciumDriveFixedParams.ventricular.decayTimeConstantSec
+              + 0.01,
+        }),
+      }),
+    })).toThrow(/fixed params do not match registry variant/);
+
+    expect(() => summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      protocolIdentity: Object.freeze({
+        ...result.protocolIdentity,
+        calciumDrive: Object.freeze({
+          ...result.protocolIdentity.calciumDrive,
+          driveId: "wrong-calcium-drive",
+        }),
+      }) as unknown as
+        MainWireNormalAdultFiveWallPeriodicResultV1["protocolIdentity"],
+    })).toThrow(/calcium identity does not match/);
+
+    expect(() => summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      protocolComponentHashes: Object.freeze({
+        ...result.protocolComponentHashes,
+        calciumDriveFixedParamsStableHash: "wrong-calcium-hash",
+      }),
+    })).toThrow(/calcium hash does not match/);
   });
 
   it("counts nominal and alternate accepted Jacobian widths on the selected beat", () => {

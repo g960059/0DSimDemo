@@ -25,6 +25,10 @@ export type FiveWallNormalCalciumDriveParamsV1 = Readonly<{
   ventricular: PeriodicBiexponentialCalciumClassV1;
 }>;
 
+export type FiveWallNormalCalciumDrivePriorVariantV1 =
+  | "land-atrial-twitch-output"
+  | "human-atrial-calcium-biomarker";
+
 export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1 = Object.freeze({
   waveform: "periodic-analytically-normalized-biexponential" as const,
   tissueClasses: Object.freeze(["atrial-shared", "ventricular-shared"] as const),
@@ -67,12 +71,79 @@ export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1:
     },
   });
 
+/**
+ * Fixed human-atrial calcium-timing challenger.
+ *
+ * Only the atrial biexponential time constants differ from the default prior.
+ * At a 1 s cycle length, analytic periodic normalization gives TTP=52.497 ms
+ * and RT50=177.546 ms. The pair is a construction from the independent human
+ * atrial calcium biomarker compilation in Mazhar et al. (2024), not a
+ * digitized trace, PV-loop fit, or conserved intracellular calcium-cycling
+ * model.
+ */
+export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_HUMAN_ATRIAL_CALCIUM_BIOMARKER_PRIOR_V1:
+  FiveWallNormalCalciumDriveParamsV1 = deepFreeze({
+    ...FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    parameterSetId: "five-wall-normal-human-atrial-calcium-biomarker-prior-v1",
+    atrial: {
+      ...FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial,
+      riseTimeConstantSec: 0.0195,
+      decayTimeConstantSec: 0.233,
+    },
+  });
+
+export function resolveFiveWallNormalCalciumDriveFixedPriorV1(
+  variant: FiveWallNormalCalciumDrivePriorVariantV1,
+): FiveWallNormalCalciumDriveParamsV1 {
+  switch (variant) {
+    case "land-atrial-twitch-output":
+      return FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+    case "human-atrial-calcium-biomarker":
+      return FIVE_WALL_NORMAL_CALCIUM_DRIVE_HUMAN_ATRIAL_CALCIUM_BIOMARKER_PRIOR_V1;
+  }
+  throw new Error(`unsupported five-wall calcium drive prior variant: ${String(variant)}`);
+}
+
+export function assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1(
+  variant: FiveWallNormalCalciumDrivePriorVariantV1,
+  actual: FiveWallNormalCalciumDriveParamsV1,
+): void {
+  const expected = resolveFiveWallNormalCalciumDriveFixedPriorV1(variant);
+  if (
+    actual.parameterSetId !== expected.parameterSetId
+    || actual.cycleLengthSec !== expected.cycleLengthSec
+    || actual.atrioventricularDelaySec !== expected.atrioventricularDelaySec
+    || !sameCalciumClass(actual.atrial, expected.atrial)
+    || !sameCalciumClass(actual.ventricular, expected.ventricular)
+  ) {
+    throw new Error(
+      "five-wall calcium fixed params do not match registry variant",
+    );
+  }
+}
+
 export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_PROVENANCE_V1 = Object.freeze({
   atrialTimingSource: Object.freeze({
     doi: "10.1002/cnm.2931" as const,
     context: "adjusted-human-atrial-Land-output-timing" as const,
     reportedTimeToPeakMs: 82,
     reportedRelaxationTime50Ms: 75,
+  }),
+  humanAtrialCalciumBiomarkerTimingSource: Object.freeze({
+    doi: "10.1113/JP283974" as const,
+    authors: "Mazhar et al." as const,
+    publicationYear: 2024,
+    context:
+      "independent-human-atrial-calcium-biomarker-mean-range-compilation" as const,
+    constructedTimeToPeakMs: 52.5,
+    constructedRelaxationTime50Ms: 177.5,
+    riseTimeConstantSec: 0.0195,
+    decayTimeConstantSec: 0.233,
+    construction:
+      "analytic-periodic-biexponential-biomarker-construction" as const,
+    digitizedTraceUsed: false as const,
+    pvLoopMorphologyFitUsed: false as const,
+    conservedCalciumCyclingClaimed: false as const,
   }),
   ventricularTimingSource: Object.freeze({
     doi: "10.1016/j.yjmcc.2017.03.008" as const,
@@ -99,6 +170,18 @@ export type FiveWallNormalCalciumEvaluationV1 = Readonly<{
   finite: true;
   claim: typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1;
 }>;
+
+function sameCalciumClass(
+  actual: PeriodicBiexponentialCalciumClassV1,
+  expected: PeriodicBiexponentialCalciumClassV1,
+): boolean {
+  return actual.diastolicCalciumUM === expected.diastolicCalciumUM
+    && actual.peakAmplitudeUM === expected.peakAmplitudeUM
+    && actual.riseTimeConstantSec === expected.riseTimeConstantSec
+    && actual.decayTimeConstantSec === expected.decayTimeConstantSec
+    && actual.electricalToCalciumDelaySec
+      === expected.electricalToCalciumDelaySec;
+}
 
 export function evaluateFiveWallNormalCalciumDriveV1(
   timeSec: number,

@@ -8,7 +8,10 @@ import {
   type LaPvMeasuredLobeV2,
 } from "@/engine/mechanics2/diagnostics/LaPvLobeMeasurementV2";
 import {
-  FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1,
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
+  resolveFiveWallNormalCalciumDriveFixedPriorV1,
+  type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   measureMainWireNormalAdultFiveWallCycleDiagnosticsV1,
@@ -27,6 +30,10 @@ import type {
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  sanitizeForStableHash,
+  stableHash,
+} from "@/engine/myocardium/kinematics/stableHash";
 import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
@@ -126,6 +133,8 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     experimentId: MainWireNormalAdultFiveWallPeriodicResultV1["experimentId"];
     initialization: MainWireNormalAdultFiveWallPeriodicResultV1["initialization"];
     laSlsMode: MainWireNormalAdultFiveWallPeriodicResultV1["laSlsMode"];
+    calciumDrivePriorVariant:
+      MainWireNormalAdultFiveWallPeriodicResultV1["calciumDrivePriorVariant"];
     dtSec: number;
     requestedMaximumBeatCount: number;
     completedBeatCount: number;
@@ -167,7 +176,11 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
       MainWireNormalAdultFiveWallJacobianWidthAuditV1;
   }>;
   fixedActivationPrior: Readonly<{
+    variant:
+      MainWireNormalAdultFiveWallPeriodicResultV1["calciumDrivePriorVariant"];
     parameterSetId: string;
+    atrialRiseTimeConstantSec: number;
+    atrialDecayTimeConstantSec: number;
     atrialCalciumOnsetPhase01: number;
     purpose:
       "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law";
@@ -237,10 +250,12 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
     ? precedingBeat.samples.at(-1) ?? null
     : null;
   const samples = selectedBeat.samples;
+  const calciumDriveParams = result.calciumDriveFixedParams;
+  assertCalciumDriveIdentity(result, calciumDriveParams);
   assertClosureReferenceScaleSetMatchesPolicy(result);
   const evidenceClosures = classifierEvidenceClosures(result);
   const evidenceJacobianAudits = classifierEvidenceJacobianAudits(result);
-  const atrialOnsetPhase01 = normalAtrialCalciumOnsetPhase01();
+  const atrialOnsetPhase01 = atrialCalciumOnsetPhase01(calciumDriveParams);
   const cycle = measureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
     samples,
     precedingSample,
@@ -253,7 +268,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       theta: sample.cyclePhase01,
       laVolumeMl: sample.nodeVolumeMl.LA,
       laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
-      laActivation01: atrialActivation01(sample),
+      laActivation01: atrialActivation01(sample, calciumDriveParams),
       phase: cycle.phaseBySample[index]!,
     })));
   const branchOrder = measureLaPvReservoirConduitOrderV1({
@@ -292,6 +307,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       experimentId: result.experimentId,
       initialization: result.initialization,
       laSlsMode: result.laSlsMode,
+      calciumDrivePriorVariant: result.calciumDrivePriorVariant,
       dtSec: result.dtSec,
       requestedMaximumBeatCount: result.requestedMaximumBeatCount,
       completedBeatCount: result.completedBeatCount,
@@ -330,8 +346,12 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
         summarizeJacobianFiniteDifferenceWidths(samples),
     }),
     fixedActivationPrior: Object.freeze({
-      parameterSetId:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
+      variant: result.calciumDrivePriorVariant,
+      parameterSetId: calciumDriveParams.parameterSetId,
+      atrialRiseTimeConstantSec:
+        calciumDriveParams.atrial.riseTimeConstantSec,
+      atrialDecayTimeConstantSec:
+        calciumDriveParams.atrial.decayTimeConstantSec,
       atrialCalciumOnsetPhase01: atrialOnsetPhase01,
       purpose:
         "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law" as const,
@@ -563,21 +583,65 @@ function compactBranchOrder(
 
 function atrialActivation01(
   sample: MainWireNormalAdultFiveWallDiagnosticSampleV2,
+  prior: FiveWallNormalCalciumDriveParamsV1,
 ): number {
-  const atrial = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial;
+  const atrial = prior.atrial;
   return clamp01(
     (sample.freeCalciumUM.LA - atrial.diastolicCalciumUM)
       / atrial.peakAmplitudeUM,
   );
 }
 
-function normalAtrialCalciumOnsetPhase01(): number {
-  const prior = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+function atrialCalciumOnsetPhase01(
+  prior: FiveWallNormalCalciumDriveParamsV1,
+): number {
   return positiveModulo(
     prior.cycleLengthSec - prior.atrioventricularDelaySec
       + prior.atrial.electricalToCalciumDelaySec,
     prior.cycleLengthSec,
   ) / prior.cycleLengthSec;
+}
+
+function assertCalciumDriveIdentity(
+  result: MainWireNormalAdultFiveWallPeriodicResultV1,
+  prior: FiveWallNormalCalciumDriveParamsV1,
+): void {
+  const expected = resolveFiveWallNormalCalciumDriveFixedPriorV1(
+    result.calciumDrivePriorVariant,
+  );
+  assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1(
+    result.calciumDrivePriorVariant,
+    prior,
+  );
+  const expectedHash = stableHash(sanitizeForStableHash(expected));
+  const actualHash = stableHash(sanitizeForStableHash(prior));
+  const identity = result.protocolIdentity.calciumDrive;
+  const componentHash =
+    result.protocolComponentHashes.calciumDriveFixedParamsStableHash;
+  if (
+    actualHash !== expectedHash
+    || prior.parameterSetId !== expected.parameterSetId
+  ) {
+    throw new Error(
+      "periodic result calcium fixed params do not match registry variant",
+    );
+  }
+  if (
+    identity.driveId !== FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID
+    || identity.parameterSetId !== prior.parameterSetId
+  ) {
+    throw new Error(
+      "periodic result calcium identity does not match its fixed params",
+    );
+  }
+  if (
+    componentHash !== expectedHash
+    || identity.fixedParamsStableHash !== componentHash
+  ) {
+    throw new Error(
+      "periodic result calcium hash does not match its fixed params",
+    );
+  }
 }
 
 function wallMaterialVolumesMl() {

@@ -52,6 +52,10 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       driveId: "five-wall-normal-prescribed-calcium-drive-v1",
       parameterSetId: "five-wall-normal-calcium-component-timing-prior-v1",
     });
+    expect(result.calciumDrivePriorVariant)
+      .toBe("land-atrial-twitch-output");
+    expect(result.calciumDriveFixedParams.parameterSetId)
+      .toBe(result.protocolIdentity.calciumDrive.parameterSetId);
     expect(result.protocolIdentity.circulation.topologyGraphSnapshot.nodes)
       .toHaveLength(15);
     expect(result.protocolIdentity.circulation.topologyGraphSnapshot.edges)
@@ -74,6 +78,35 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       result.protocolIdentity,
     )));
   }, 60_000);
+
+  it("changes only the calcium protocol component for the fixed biomarker challenger", () => {
+    const canonical = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.01,
+      maximumBeatCount: 1,
+    });
+    const challenger = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.01,
+      maximumBeatCount: 1,
+      calciumDrivePriorVariant: "human-atrial-calcium-biomarker",
+    });
+
+    expect(challenger.integrationCompletedWithoutFailure).toBe(true);
+    expect(challenger.calciumDrivePriorVariant)
+      .toBe("human-atrial-calcium-biomarker");
+    expect(challenger.protocolIdentity.calciumDrive.parameterSetId)
+      .toBe("five-wall-normal-human-atrial-calcium-biomarker-prior-v1");
+    expect(challenger.protocolComponentHashes.calciumDriveFixedParamsStableHash)
+      .not.toBe(canonical.protocolComponentHashes.calciumDriveFixedParamsStableHash);
+    expect(challenger.protocolIdentityHash).not.toBe(canonical.protocolIdentityHash);
+    expect(challenger.protocolComponentHashes).toEqual({
+      ...canonical.protocolComponentHashes,
+      calciumDriveFixedParamsStableHash:
+        challenger.protocolComponentHashes.calciumDriveFixedParamsStableHash,
+    });
+    expect(challenger.claim.calciumDriveSelectionIsFixedRegistryVariant)
+      .toBe(true);
+    expect(challenger.claim.calciumDriveParameterSearch).toBe(false);
+  }, 90_000);
 
   it("keeps the fixed PVen-to-PVein basin audit exactly TBV-neutral", () => {
     const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
@@ -112,5 +145,13 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       dtSec: 0.003,
       maximumBeatCount: 1,
     })).toThrow("dtSec must divide the fixed HR60 one-second cycle exactly");
+  });
+
+  it("rejects calcium waveforms outside the fixed registry", () => {
+    expect(() => runMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      dtSec: 0.01,
+      maximumBeatCount: 1,
+      calciumDrivePriorVariant: "pv-shape-fit" as never,
+    })).toThrow(/unsupported five-wall calcium drive prior variant/);
   });
 });

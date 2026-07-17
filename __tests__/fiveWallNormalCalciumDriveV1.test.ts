@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_HUMAN_ATRIAL_CALCIUM_BIOMARKER_PRIOR_V1,
+  FIVE_WALL_NORMAL_CALCIUM_DRIVE_PROVENANCE_V1,
+  assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1,
   evaluateFiveWallNormalCalciumDriveV1,
+  resolveFiveWallNormalCalciumDriveFixedPriorV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 
 describe("five-wall normal prescribed calcium drive V1", () => {
@@ -74,4 +78,93 @@ describe("five-wall normal prescribed calcium drive V1", () => {
       expect(output.claim.exactZeroPulseAmplitudeAllowed).toBe(true);
     }
   });
+
+  it("offers one fixed human-atrial calcium-biomarker timing challenger", () => {
+    const baseline = FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
+    const challenger =
+      FIVE_WALL_NORMAL_CALCIUM_DRIVE_HUMAN_ATRIAL_CALCIUM_BIOMARKER_PRIOR_V1;
+
+    expect(resolveFiveWallNormalCalciumDriveFixedPriorV1(
+      "land-atrial-twitch-output",
+    )).toBe(baseline);
+    expect(resolveFiveWallNormalCalciumDriveFixedPriorV1(
+      "human-atrial-calcium-biomarker",
+    )).toBe(challenger);
+    expect(challenger.cycleLengthSec).toBe(baseline.cycleLengthSec);
+    expect(challenger.atrioventricularDelaySec).toBe(
+      baseline.atrioventricularDelaySec,
+    );
+    expect(challenger.ventricular).toBe(baseline.ventricular);
+    expect(challenger.atrial).toEqual({
+      ...baseline.atrial,
+      riseTimeConstantSec: 0.0195,
+      decayTimeConstantSec: 0.233,
+    });
+    expect(() => assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1(
+      "human-atrial-calcium-biomarker",
+      challenger,
+    )).not.toThrow();
+    expect(() => assertFiveWallNormalCalciumDriveMatchesFixedRegistryV1(
+      "human-atrial-calcium-biomarker",
+      Object.freeze({
+        ...challenger,
+        atrial: Object.freeze({
+          ...challenger.atrial,
+          peakAmplitudeUM: challenger.atrial.peakAmplitudeUM + 0.01,
+        }),
+      }),
+    )).toThrow(/fixed params do not match registry variant/);
+  });
+
+  it("analytically reproduces the fixed human atrial TTP and RT50 biomarkers", () => {
+    const challenger =
+      FIVE_WALL_NORMAL_CALCIUM_DRIVE_HUMAN_ATRIAL_CALCIUM_BIOMARKER_PRIOR_V1;
+    const { timeToPeakSec, relaxationTime50Sec } = periodicBiomarkers(
+      challenger.cycleLengthSec,
+      challenger.atrial.riseTimeConstantSec,
+      challenger.atrial.decayTimeConstantSec,
+    );
+
+    expect(timeToPeakSec * 1_000).toBeCloseTo(52.5, 1);
+    expect(relaxationTime50Sec * 1_000).toBeCloseTo(177.5, 1);
+    expect(FIVE_WALL_NORMAL_CALCIUM_DRIVE_PROVENANCE_V1
+      .humanAtrialCalciumBiomarkerTimingSource).toMatchObject({
+      doi: "10.1113/JP283974",
+      construction: "analytic-periodic-biexponential-biomarker-construction",
+      digitizedTraceUsed: false,
+      pvLoopMorphologyFitUsed: false,
+      conservedCalciumCyclingClaimed: false,
+    });
+  });
 });
+
+function periodicBiomarkers(
+  cycleLengthSec: number,
+  riseTimeConstantSec: number,
+  decayTimeConstantSec: number,
+): Readonly<{ timeToPeakSec: number; relaxationTime50Sec: number }> {
+  const decayCarry = 1 / (1 - Math.exp(-cycleLengthSec / decayTimeConstantSec));
+  const riseCarry = 1 / (1 - Math.exp(-cycleLengthSec / riseTimeConstantSec));
+  const raw = (timeSec: number): number =>
+    decayCarry * Math.exp(-timeSec / decayTimeConstantSec) -
+    riseCarry * Math.exp(-timeSec / riseTimeConstantSec);
+  const timeToPeakSec = Math.log(
+    (riseCarry / riseTimeConstantSec) /
+      (decayCarry / decayTimeConstantSec),
+  ) / (1 / riseTimeConstantSec - 1 / decayTimeConstantSec);
+  const minimum = raw(0);
+  const amplitude = raw(timeToPeakSec) - minimum;
+  const normalized = (timeSec: number): number =>
+    (raw(timeSec) - minimum) / amplitude;
+  let lowerSec = timeToPeakSec;
+  let upperSec = cycleLengthSec;
+  for (let iteration = 0; iteration < 80; iteration += 1) {
+    const midpointSec = (lowerSec + upperSec) / 2;
+    if (normalized(midpointSec) > 0.5) lowerSec = midpointSec;
+    else upperSec = midpointSec;
+  }
+  return Object.freeze({
+    timeToPeakSec,
+    relaxationTime50Sec: (lowerSec + upperSec) / 2 - timeToPeakSec,
+  });
+}

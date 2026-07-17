@@ -11,8 +11,8 @@
       },
       "calciumDrive": {
         "driveId": "five-wall-normal-prescribed-calcium-drive-v1",
-        "parameterSetId": "five-wall-normal-calcium-component-timing-prior-v1",
-        "fixedParamsStableHash": "9660029d"
+        "parameterSetId": "five-wall-normal-human-atrial-calcium-biomarker-prior-v1",
+        "fixedParamsStableHash": "818a37c1"
       },
       "circulation": {
         "topologyGraphSnapshot": {
@@ -664,10 +664,10 @@
         "policyStableHash": "00e13e40"
       }
     },
-    "identityHash": "745d9200",
+    "identityHash": "89da710a",
     "componentHashes": {
       "mechanicsProviderMetadataStableHash": "78789398",
-      "calciumDriveFixedParamsStableHash": "9660029d",
+      "calciumDriveFixedParamsStableHash": "818a37c1",
       "circulationTopologyGraphStableHash": "27a8ce3f",
       "circulationRuntimeStableHash": "6a2d35d3",
       "periodicPolicyStableHash": "00e13e40"
@@ -677,7 +677,7 @@
     "experimentId": "main-wire-normal-adult-five-wall-periodic-steady-v1",
     "initialization": "canonical",
     "laSlsMode": "on",
-    "calciumDrivePriorVariant": "land-atrial-twitch-output",
+    "calciumDrivePriorVariant": "human-atrial-calcium-biomarker",
     "dtSec": 0.002,
     "requestedMaximumBeatCount": 32,
     "completedBeatCount": 27,
@@ -705,24 +705,24 @@
         26,
         27
       ],
-      "latestPeriod1MaximumNormalizedDelta": 0.0003838682751851081,
-      "latestPeriod2MaximumNormalizedDelta": 0.0009550732587241661
+      "latestPeriod1MaximumNormalizedDelta": 0.0003693641810288261,
+      "latestPeriod2MaximumNormalizedDelta": 0.0009252775431178341
     },
     "evidenceClosures": [
       {
         "beatIndex": 25,
-        "period1MaximumNormalizedDelta": 0.0008219903447188176,
-        "period2MaximumNormalizedDelta": 0.001972607715995719
+        "period1MaximumNormalizedDelta": 0.0008078388274528232,
+        "period2MaximumNormalizedDelta": 0.001949539235489373
       },
       {
         "beatIndex": 26,
-        "period1MaximumNormalizedDelta": 0.000571204983539058,
-        "period2MaximumNormalizedDelta": 0.0013931953282578756
+        "period1MaximumNormalizedDelta": 0.000555913362089008,
+        "period2MaximumNormalizedDelta": 0.0013637521895418312
       },
       {
         "beatIndex": 27,
-        "period1MaximumNormalizedDelta": 0.0003838682751851081,
-        "period2MaximumNormalizedDelta": 0.0009550732587241661
+        "period1MaximumNormalizedDelta": 0.0003693641810288261,
+        "period2MaximumNormalizedDelta": 0.0009252775431178341
       }
     ],
     "evidenceJacobianFiniteDifferenceWidthAudits": [
@@ -780,36 +780,36 @@
     "latestPeriod1Closure": {
       "elapsedTimeSec": 0.9999999999994458,
       "entryCount": 68,
-      "maximumNormalizedDelta": 0.0003838682751851081,
+      "maximumNormalizedDelta": 0.0003693641810288261,
       "worstGroup": "wall-input-history",
       "worstPath": "mechanics.materialState.wallStateByWall.SEP.previousFiberLogStrain",
       "groupMaximumNormalizedDelta": {
         "circulation-node-volume": {
-          "maximumNormalizedDelta": 0.0002601108379667494,
+          "maximumNormalizedDelta": 0.00027149932876454843,
           "worstPath": "circulation.nodeVolumesMl.SV"
         },
         "dynamic-edge-flow": {
-          "maximumNormalizedDelta": 0.000015871605600679573,
+          "maximumNormalizedDelta": 0.000014405740387744003,
           "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt"
         },
         "valve-opening": {
-          "maximumNormalizedDelta": 0.00001889059315696162,
+          "maximumNormalizedDelta": 0.000022831473440509953,
           "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01"
         },
         "triseg-coordinate": {
-          "maximumNormalizedDelta": 0.00003738689073457782,
+          "maximumNormalizedDelta": 0.00003646953522492083,
           "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3"
         },
         "land-state": {
-          "maximumNormalizedDelta": 0.000004713479218876326,
+          "maximumNormalizedDelta": 0.000004795572217275446,
           "worstPath": "mechanics.materialState.wallStateByWall.SEP.landState.zetaS"
         },
         "sls-viscous-strain": {
-          "maximumNormalizedDelta": 0.00030059811634092215,
+          "maximumNormalizedDelta": 0.0002896901775266414,
           "worstPath": "mechanics.materialState.wallStateByWall.SEP.slsState.viscousLogStrain"
         },
         "wall-input-history": {
-          "maximumNormalizedDelta": 0.0003838682751851081,
+          "maximumNormalizedDelta": 0.0003693641810288261,
           "worstPath": "mechanics.materialState.wallStateByWall.SEP.previousFiberLogStrain"
         }
       }
@@ -817,36 +817,36 @@
     "latestPeriod2Closure": {
       "elapsedTimeSec": 1.9999999999988916,
       "entryCount": 68,
-      "maximumNormalizedDelta": 0.0009550732587241661,
+      "maximumNormalizedDelta": 0.0009252775431178341,
       "worstGroup": "wall-input-history",
       "worstPath": "mechanics.materialState.wallStateByWall.SEP.previousFiberLogStrain",
       "groupMaximumNormalizedDelta": {
         "circulation-node-volume": {
-          "maximumNormalizedDelta": 0.0005365792024940674,
+          "maximumNormalizedDelta": 0.0005639467301398327,
           "worstPath": "circulation.nodeVolumesMl.SV"
         },
         "dynamic-edge-flow": {
-          "maximumNormalizedDelta": 0.000045508879939376354,
+          "maximumNormalizedDelta": 0.00004228772053214413,
           "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt"
         },
         "valve-opening": {
-          "maximumNormalizedDelta": 0.00004500086676589854,
+          "maximumNormalizedDelta": 0.000055168091954549414,
           "worstPath": "circulation.valveStates.TV.leafletOpeningFraction01"
         },
         "triseg-coordinate": {
-          "maximumNormalizedDelta": 0.0000910483908395359,
+          "maximumNormalizedDelta": 0.00008930521909878661,
           "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3"
         },
         "land-state": {
-          "maximumNormalizedDelta": 0.000012784815108024539,
-          "worstPath": "mechanics.materialState.wallStateByWall.LA.landState.B"
+          "maximumNormalizedDelta": 0.000012694231121573862,
+          "worstPath": "mechanics.materialState.wallStateByWall.SEP.landState.zetaS"
         },
         "sls-viscous-strain": {
-          "maximumNormalizedDelta": 0.0007363446947009078,
+          "maximumNormalizedDelta": 0.0007137355994554784,
           "worstPath": "mechanics.materialState.wallStateByWall.SEP.slsState.viscousLogStrain"
         },
         "wall-input-history": {
-          "maximumNormalizedDelta": 0.0009550732587241661,
+          "maximumNormalizedDelta": 0.0009252775431178341,
           "worstPath": "mechanics.materialState.wallStateByWall.SEP.previousFiberLogStrain"
         }
       }
@@ -880,10 +880,10 @@
     }
   },
   "fixedActivationPrior": {
-    "variant": "land-atrial-twitch-output",
-    "parameterSetId": "five-wall-normal-calcium-component-timing-prior-v1",
-    "atrialRiseTimeConstantSec": 0.0125,
-    "atrialDecayTimeConstantSec": 0.3,
+    "variant": "human-atrial-calcium-biomarker",
+    "parameterSetId": "five-wall-normal-human-atrial-calcium-biomarker-prior-v1",
+    "atrialRiseTimeConstantSec": 0.0195,
+    "atrialDecayTimeConstantSec": 0.233,
     "atrialCalciumOnsetPhase01": 0.852,
     "purpose": "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law",
     "activationNormalization": "clamp((freeCa-diastolicCa)/peakAmplitude,0,1)"
@@ -891,94 +891,94 @@
   "ranges": {
     "chamberVolumeMl": {
       "LA": {
-        "minimum": 20.125041177938886,
-        "maximum": 36.202762212602295
+        "minimum": 20.086267452211565,
+        "maximum": 36.36014637758273
       },
       "LV": {
-        "minimum": 41.49949710929979,
-        "maximum": 105.7029001952799
+        "minimum": 41.555898644701635,
+        "maximum": 105.85966643278792
       },
       "RA": {
-        "minimum": 27.96181989868853,
-        "maximum": 45.3463222327582
+        "minimum": 27.883621538712546,
+        "maximum": 45.55842593421822
       },
       "RV": {
-        "minimum": 54.004865457240044,
-        "maximum": 118.22149288826604
+        "minimum": 53.98611019584981,
+        "maximum": 118.29895831926756
       }
     },
     "chamberTransmuralPressureMmHg": {
       "LA": {
-        "minimum": 2.791698235920022,
-        "maximum": 5.56744478050469
+        "minimum": 2.7882893278215692,
+        "maximum": 5.550071272968875
       },
       "LV": {
-        "minimum": 1.6511509038696324,
-        "maximum": 88.10476278749773
+        "minimum": 1.6519793817255222,
+        "maximum": 88.22567384142613
       },
       "RA": {
-        "minimum": 1.018087786797754,
-        "maximum": 3.5468641636318927
+        "minimum": 1.0081101875413174,
+        "maximum": 3.5475359541732643
       },
       "RV": {
-        "minimum": 0.36886674401902503,
-        "maximum": 32.07900037586401
+        "minimum": 0.3702549491589939,
+        "maximum": 32.06945819643121
       }
     },
     "absolutePressureMmHg": {
       "Ao": {
-        "minimum": 58.2993412087513,
-        "maximum": 81.14256646623492
+        "minimum": 58.3693844830072,
+        "maximum": 81.2430808083928
       },
       "PA": {
-        "minimum": 1.2648528975293187,
-        "maximum": 28.208599069804468
+        "minimum": 1.2359431872975608,
+        "maximum": 28.19617533342946
       },
       "PVein": {
-        "minimum": 4.479127380182035,
-        "maximum": 7.578713029506616
+        "minimum": 4.468302565510385,
+        "maximum": 7.55708098586183
       }
     },
     "flowMlPerSec": {
       "MV": {
         "minimum": 0,
-        "maximum": 238.91970569502405
+        "maximum": 231.68170771481533
       },
       "AoV": {
         "minimum": 0,
-        "maximum": 676.5051059626876
+        "maximum": 676.6559450048242
       },
       "TV": {
         "minimum": 0,
-        "maximum": 262.98125748191865
+        "maximum": 255.0665067427451
       },
       "PV": {
         "minimum": 0,
-        "maximum": 576.5962778352985
+        "maximum": 576.9626431789984
       },
       "PVein_LA": {
-        "minimum": -0.36601866756816015,
-        "maximum": 145.80411026173232
+        "minimum": 3.742668124852817,
+        "maximum": 145.1988570397638
       }
     }
   },
   "hemodynamics": {
-    "leftVentricularEjectionFraction01": 0.6073949056020989,
-    "rightVentricularEjectionFraction01": 0.5431891093755572,
-    "netAorticStrokeVolumeMl": 64.20340301329323,
-    "forwardAorticStrokeVolumeMl": 64.20340301329323,
-    "netAorticCardiacOutputLPerMin": 3.8522041807975933,
-    "cardiacIndexLPerMinPerM2": 2.0274758846303125,
-    "meanAorticAbsolutePressureMmHg": 63.7878047384593
+    "leftVentricularEjectionFraction01": 0.6074435141821821,
+    "rightVentricularEjectionFraction01": 0.5436467830075813,
+    "netAorticStrokeVolumeMl": 64.30034112464186,
+    "forwardAorticStrokeVolumeMl": 64.30034112464186,
+    "netAorticCardiacOutputLPerMin": 3.8580204674785117,
+    "cardiacIndexLPerMinPerM2": 2.0305370881465854,
+    "meanAorticAbsolutePressureMmHg": 63.86809871307491
   },
   "cyclePhysiology": {
     "diagnosticsId": "main-wire-normal-adult-five-wall-cycle-diagnostics-v1",
     "sampleCount": 500,
     "dtSec": 0.002,
     "phaseSampleCount": {
-      "reservoir": 206,
+      "reservoir": 202,
       "conduit": 242,
-      "pumping": 52
+      "pumping": 56
     },
     "events": {
       "mitralValveOpening": {
@@ -987,9 +987,9 @@
         "timeSec": 26.369999999996264
       },
       "mitralValveClosure": {
-        "sampleIndex": 478,
-        "phase01": 0.9579999999959377,
-        "timeSec": 26.957999999995938
+        "sampleIndex": 482,
+        "phase01": 0.9659999999959332,
+        "timeSec": 26.965999999995933
       },
       "aorticValveClosure": {
         "sampleIndex": 107,
@@ -1003,134 +1003,134 @@
       },
       "mitralEventSource": "flow-threshold",
       "aorticEventSource": "flow-threshold",
-      "mitralOpenThresholdMlPerSec": 2.3891970569502408,
-      "aorticOpenThresholdMlPerSec": 6.7650510596268765
+      "mitralOpenThresholdMlPerSec": 2.3168170771481535,
+      "aorticOpenThresholdMlPerSec": 6.766559450048241
     },
     "pulmonaryVenous": {
       "S": {
-        "sampleCount": 206,
-        "peakForwardMlPerSec": 62.22412166304849,
+        "sampleCount": 202,
+        "peakForwardMlPerSec": 63.72226521724387,
         "peakReverseMlPerSec": 0,
-        "signedVolumeMl": 15.353910856605609,
-        "forwardVolumeMl": 15.353910856605609,
+        "signedVolumeMl": 15.257468391138481,
+        "forwardVolumeMl": 15.257468391138481,
         "reverseVolumeMl": 0
       },
       "D": {
         "sampleCount": 242,
-        "peakForwardMlPerSec": 145.80411026173232,
+        "peakForwardMlPerSec": 145.1988570397638,
         "peakReverseMlPerSec": 0,
-        "signedVolumeMl": 45.33298988092713,
-        "forwardVolumeMl": 45.33298988092713,
+        "signedVolumeMl": 45.129083180051815,
+        "forwardVolumeMl": 45.129083180051815,
         "reverseVolumeMl": 0
       },
       "Ar": {
-        "sampleCount": 52,
-        "peakForwardMlPerSec": 56.690287281725105,
-        "peakReverseMlPerSec": 0.36601866756816015,
-        "signedVolumeMl": 3.524057473526783,
-        "forwardVolumeMl": 3.524789510861919,
-        "reverseVolumeMl": 0.0007320373351363203
+        "sampleCount": 56,
+        "peakForwardMlPerSec": 55.622190012702795,
+        "peakReverseMlPerSec": 0,
+        "signedVolumeMl": 3.9210269846209567,
+        "forwardVolumeMl": 3.9210269846209567,
+        "reverseVolumeMl": 0
       }
     },
     "mitral": {
       "E": {
         "sampleCount": 242,
-        "peakForwardMlPerSec": 212.94519840954888,
-        "forwardVolumeMl": 52.65292194578201,
-        "modeledAreaVtiCm": 15.893986332077326,
+        "peakForwardMlPerSec": 213.86327682552047,
+        "forwardVolumeMl": 52.599212657133535,
+        "modeledAreaVtiCm": 15.88015209230655,
         "positiveFlowSamplesWithoutPhysicalArea": 0
       },
       "A": {
-        "sampleCount": 52,
-        "peakForwardMlPerSec": 238.91970569502405,
-        "forwardVolumeMl": 11.238570388770619,
-        "modeledAreaVtiCm": 3.327474561252676,
+        "sampleCount": 56,
+        "peakForwardMlPerSec": 231.68170771481533,
+        "forwardVolumeMl": 11.684356325633226,
+        "modeledAreaVtiCm": 3.5057756526838064,
         "positiveFlowSamplesWithoutPhysicalArea": 0
       },
       "eFlowPeak": {
         "sampleIndex": 208,
         "phase01": 0.41799999999623694,
         "timeSec": 26.417999999996237,
-        "flowMlPerSec": 212.94519840954888
+        "flowMlPerSec": 213.86327682552047
       },
       "aFlowPeak": {
-        "sampleIndex": 448,
-        "phase01": 0.8979999999959709,
-        "timeSec": 26.89799999999597,
-        "flowMlPerSec": 238.91970569502405
+        "sampleIndex": 451,
+        "phase01": 0.9039999999959676,
+        "timeSec": 26.903999999995968,
+        "flowMlPerSec": 231.68170771481533
       },
-      "peakERatioToA": 0.8912835288746292,
-      "forwardVolumeERatioToA": 4.685019546471132,
-      "flowAtAtrialCalciumOnsetMlPerSec": 49.60551990641167,
-      "flowAtAtrialCalciumOnsetRatioToEPeak": 0.23294969915690414,
+      "peakERatioToA": 0.9230909031833098,
+      "forwardVolumeERatioToA": 4.501678243220039,
+      "flowAtAtrialCalciumOnsetMlPerSec": 49.43642203615721,
+      "flowAtAtrialCalciumOnsetRatioToEPeak": 0.23115900387372126,
       "waveSeparation": {
         "status": "separated",
         "criterion": "strict-intervening-forward-flow-valley-between-window-peaks",
         "valley": {
-          "sampleIndex": 426,
-          "phase01": 0.8539999999959953,
-          "timeSec": 26.853999999995995,
-          "flowMlPerSec": 49.60551990641167
+          "sampleIndex": 427,
+          "phase01": 0.8559999999959942,
+          "timeSec": 26.855999999995994,
+          "flowMlPerSec": 49.433483964706056
         },
-        "valleyToLowerPeakRatio": 0.23294969915690414
+        "valleyToLowerPeakRatio": 0.23114526579070502
       }
     },
     "leftAtrialVolumes": {
-      "maximumMl": 36.202762212602295,
-      "preAMl": 28.64965143989153,
-      "minimumMl": 20.125041177938886,
-      "reservoirExpansionMl": 16.07772103466341,
-      "conduitEmptyingMl": 7.553110772710763,
-      "boosterEmptyingMl": 8.524610261952645,
-      "conduitFractionOfTotalEmptying": 0.46978740061643876,
-      "boosterFractionOfTotalEmptying": 0.5302125993835612,
+      "maximumMl": 36.36014637758273,
+      "preAMl": 28.647369047697374,
+      "minimumMl": 20.086267452211565,
+      "reservoirExpansionMl": 16.273878925371164,
+      "conduitEmptyingMl": 7.7127773298853555,
+      "boosterEmptyingMl": 8.561101595485809,
+      "conduitFractionOfTotalEmptying": 0.47393601520907513,
+      "boosterFractionOfTotalEmptying": 0.5260639847909249,
       "eventAnchoredNetChangeMl": {
-        "reservoir": 15.011273071400016,
-        "conduit": -7.401369994648558,
-        "pumping": -7.609903076751458
+        "reservoir": 15.212685362028598,
+        "conduit": -7.55201630250054,
+        "pumping": -7.6606690595280575
       }
     },
     "leftAtrialPressureWaves": {
       "aPeak": {
-        "sampleIndex": 447,
-        "phase01": 0.895999999995972,
-        "timeSec": 26.895999999995972,
-        "pressureMmHg": 4.823263274076008
+        "sampleIndex": 450,
+        "phase01": 0.9019999999959687,
+        "timeSec": 26.90199999999597,
+        "pressureMmHg": 4.70047823690081
       },
       "xTrough": {
-        "sampleIndex": 487,
-        "phase01": 0.9759999999959277,
-        "timeSec": 26.975999999995928,
-        "pressureMmHg": 3.249621776317984
+        "sampleIndex": 496,
+        "phase01": 0.9939999999959177,
+        "timeSec": 26.993999999995918,
+        "pressureMmHg": 3.209994111116446
       },
       "vPeak": {
         "sampleIndex": 183,
         "phase01": 0.36799999999626465,
         "timeSec": 26.367999999996265,
-        "pressureMmHg": 5.521129934843294
+        "pressureMmHg": 5.499996574752893
       },
       "yTrough": {
         "sampleIndex": 385,
         "phase01": 0.7719999999960407,
         "timeSec": 26.77199999999604,
-        "pressureMmHg": 2.791698235920022
+        "pressureMmHg": 2.7882893278215692
       },
-      "xDescentMmHg": 1.573641497758024,
-      "yDescentMmHg": 2.7294316989232716,
-      "volumeAtAPeakMl": 24.94821605194779,
-      "aPeakDelayFromAtrialCalciumOnsetSec": 0.042,
+      "xDescentMmHg": 1.4904841257843637,
+      "yDescentMmHg": 2.7117072469313235,
+      "volumeAtAPeakMl": 24.725487857583904,
+      "aPeakDelayFromAtrialCalciumOnsetSec": 0.048,
       "aPressurePeakToMitralAFlowPeakSec": 0.002,
-      "boosterEmptyingCompletedAtAPeakFraction": 0.4342058198794291,
-      "boosterEmptyingRemainingAtAPeakFraction": 0.5657941801205709,
+      "boosterEmptyingCompletedAtAPeakFraction": 0.45810473644903865,
+      "boosterEmptyingRemainingAtAPeakFraction": 0.5418952635509613,
       "boosterEmptyingCompletedAtAPeakStatus": "within-active-emptying",
       "sequentialAcrossCycle": true
     },
     "ivrtLike": {
       "durationSec": 0.154,
       "sampleCount": 77,
-      "relaxationTauSec": 0.04053384235143531,
-      "fitR2": 0.9381480713593917,
-      "fixedAsymptoteMmHg": 3.623820415207746,
+      "relaxationTauSec": 0.04053653405735938,
+      "fitR2": 0.9379487744640703,
+      "fixedAsymptoteMmHg": 3.6469042105228624,
       "reason": "available"
     },
     "workEnergy": {
@@ -1138,131 +1138,131 @@
       "perWall": {
         "LA": {
           "stressWorkOnWallMilliJ": {
-            "total": -0.47280120828604577,
-            "active": -1.0617981396502258,
-            "passive": 0.2007548446659995,
-            "sls": 0.38824208669818494
+            "total": -0.558832582418867,
+            "active": -1.160858610230646,
+            "passive": 0.19911870287707972,
+            "sls": 0.4029073249346937
           },
-          "stressAssemblyResidualMilliJ": -4.3298697960381105e-15,
-          "equilibriumPassiveStoredEnergyChangeMilliJ": 0.000016204572013945456,
-          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.20073864009398554,
+          "stressAssemblyResidualMilliJ": 5.495603971894525e-15,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": 0.000004139275458121599,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.1991145636016216,
           "sls": {
-            "storedEnergyChangeMilliJ": 0.000005461649708517029,
-            "physicalDissipationMilliJ": 0.3583833072556409,
-            "backwardEulerNumericalDissipationMilliJ": 0.0298533177928356,
-            "reportedDiscreteBalanceResidualMilliJ": 3.6573467566686413e-16,
-            "reconstructedDiscreteBalanceResidualMilliJ": -3.469446951953614e-17,
-            "readbackAgreementResidualMilliJ": -4.0042914518640028e-16
+            "storedEnergyChangeMilliJ": 0.000007059174326340054,
+            "physicalDissipationMilliJ": 0.3733239916710385,
+            "backwardEulerNumericalDissipationMilliJ": 0.029576274089329026,
+            "reportedDiscreteBalanceResidualMilliJ": -5.244444244430404e-17,
+            "reconstructedDiscreteBalanceResidualMilliJ": -1.9081958235744878e-16,
+            "readbackAgreementResidualMilliJ": -1.3837513991314474e-16
           }
         },
         "LVFW": {
           "stressWorkOnWallMilliJ": {
-            "total": -517.2207954143582,
-            "active": -534.9836164890619,
-            "passive": 0.1137633572862333,
-            "sls": 17.64905771741847
+            "total": -518.4623565078236,
+            "active": -536.2082079589513,
+            "passive": 0.11456781997307221,
+            "sls": 17.631283631154243
           },
-          "stressAssemblyResidualMilliJ": -1.0516032489249483e-12,
-          "equilibriumPassiveStoredEnergyChangeMilliJ": 0.00044982482675775355,
-          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.11331353245947555,
+          "stressAssemblyResidualMilliJ": 3.765876499528531e-13,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": 0.0004387608053204664,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.11412905916775173,
           "sls": {
-            "storedEnergyChangeMilliJ": -0.00020870096541908065,
-            "physicalDissipationMilliJ": 17.26162984402804,
-            "backwardEulerNumericalDissipationMilliJ": 0.387636574355861,
-            "reportedDiscreteBalanceResidualMilliJ": -2.008601831540136e-15,
-            "reconstructedDiscreteBalanceResidualMilliJ": -1.226796442210798e-14,
-            "readbackAgreementResidualMilliJ": -1.0259362590567844e-14
+            "storedEnergyChangeMilliJ": -0.00021393270864493788,
+            "physicalDissipationMilliJ": 17.244030629002303,
+            "backwardEulerNumericalDissipationMilliJ": 0.3874669348605627,
+            "reportedDiscreteBalanceResidualMilliJ": -7.365042786258261e-15,
+            "reconstructedDiscreteBalanceResidualMilliJ": 2.0761170560490427e-14,
+            "readbackAgreementResidualMilliJ": 2.812621334674869e-14
           }
         },
         "SEP": {
           "stressWorkOnWallMilliJ": {
-            "total": -174.08860353738456,
-            "active": -182.15933866445718,
-            "passive": 0.01824049470735816,
-            "sls": 8.052494632365244
+            "total": -174.71254867541998,
+            "active": -182.79342917125248,
+            "passive": 0.018308773247658238,
+            "sls": 8.06257172258485
           },
-          "stressAssemblyResidualMilliJ": 2.1316282072803006e-14,
-          "equilibriumPassiveStoredEnergyChangeMilliJ": -0.00000920094574372672,
-          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.01824969565310189,
+          "stressAssemblyResidualMilliJ": -7.105427357601002e-15,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": -0.0000063321487847962235,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.018315105396443033,
           "sls": {
-            "storedEnergyChangeMilliJ": 0.0003299873216774177,
-            "physicalDissipationMilliJ": 7.797544577181542,
-            "backwardEulerNumericalDissipationMilliJ": 0.2546200678620281,
-            "reportedDiscreteBalanceResidualMilliJ": 5.973488415761348e-15,
-            "reconstructedDiscreteBalanceResidualMilliJ": -3.608224830031759e-15,
-            "readbackAgreementResidualMilliJ": -9.581713245793107e-15
+            "storedEnergyChangeMilliJ": 0.0003236542059430695,
+            "physicalDissipationMilliJ": 7.807472111599197,
+            "backwardEulerNumericalDissipationMilliJ": 0.25477595677971976,
+            "reportedDiscreteBalanceResidualMilliJ": -1.1765495314444345e-15,
+            "reconstructedDiscreteBalanceResidualMilliJ": -8.770761894538737e-15,
+            "readbackAgreementResidualMilliJ": -7.594212363094302e-15
           }
         },
         "RVFW": {
           "stressWorkOnWallMilliJ": {
-            "total": -226.2248482496324,
-            "active": -232.7775232302585,
-            "passive": 0.018582848248167697,
-            "sls": 6.534092132378034
+            "total": -226.41225892001657,
+            "active": -232.974377065714,
+            "passive": 0.019192478223188328,
+            "sls": 6.542925667474298
           },
-          "stressAssemblyResidualMilliJ": -9.414691248821327e-14,
-          "equilibriumPassiveStoredEnergyChangeMilliJ": 0.000026580639765901503,
-          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.018556267608401796,
+          "stressAssemblyResidualMilliJ": -4.707345624410664e-14,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": 0.000024452943849494657,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.01916802527933883,
           "sls": {
-            "storedEnergyChangeMilliJ": -0.00003101042589197418,
-            "physicalDissipationMilliJ": 6.37762379344473,
-            "backwardEulerNumericalDissipationMilliJ": 0.1564993493591915,
-            "reportedDiscreteBalanceResidualMilliJ": -2.4168451687485e-15,
-            "reconstructedDiscreteBalanceResidualMilliJ": 4.468647674116255e-15,
-            "readbackAgreementResidualMilliJ": 6.885492842864755e-15
+            "storedEnergyChangeMilliJ": -0.000029451858013035404,
+            "physicalDissipationMilliJ": 6.386295300249094,
+            "backwardEulerNumericalDissipationMilliJ": 0.15665981908320425,
+            "reportedDiscreteBalanceResidualMilliJ": 3.081733546055515e-15,
+            "reconstructedDiscreteBalanceResidualMilliJ": 1.3322676295501878e-14,
+            "readbackAgreementResidualMilliJ": 1.0240942749446363e-14
           }
         },
         "RA": {
           "stressWorkOnWallMilliJ": {
-            "total": -0.21707082828297009,
-            "active": -0.6917931230516362,
-            "passive": 0.1390643712676217,
-            "sls": 0.33565792350104623
+            "total": -0.28448290591388,
+            "active": -0.7729173552764307,
+            "passive": 0.14028547879291528,
+            "sls": 0.34814897056963034
           },
-          "stressAssemblyResidualMilliJ": -1.8318679906315083e-15,
-          "equilibriumPassiveStoredEnergyChangeMilliJ": -0.000001595970139572911,
-          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.13906596723776127,
+          "stressAssemblyResidualMilliJ": 5.10702591327572e-15,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": -3.28022905856859e-7,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.14028580681582115,
           "sls": {
-            "storedEnergyChangeMilliJ": -0.0000011233468599262074,
-            "physicalDissipationMilliJ": 0.31562437001016475,
-            "backwardEulerNumericalDissipationMilliJ": 0.020034676837741558,
-            "reportedDiscreteBalanceResidualMilliJ": 1.89898407906127e-16,
-            "reconstructedDiscreteBalanceResidualMilliJ": -1.5265566588595902e-16,
-            "readbackAgreementResidualMilliJ": -3.42554073792086e-16
+            "storedEnergyChangeMilliJ": -0.0000011448209431127662,
+            "physicalDissipationMilliJ": 0.3279581860263038,
+            "backwardEulerNumericalDissipationMilliJ": 0.020191929364269907,
+            "reportedDiscreteBalanceResidualMilliJ": -6.677251384309323e-17,
+            "reconstructedDiscreteBalanceResidualMilliJ": -2.393918396847994e-16,
+            "readbackAgreementResidualMilliJ": -1.7261932584170616e-16
           }
         }
       },
       "laStressWorkOnWallByPhaseMilliJ": {
         "reservoir": {
-          "total": 8.289842894329457,
-          "active": 3.107671829533192,
-          "passive": 5.101027666199134,
-          "sls": 0.08114339859713411
+          "total": 8.205322678864405,
+          "active": 2.924087175977011,
+          "passive": 5.1944514072910835,
+          "sls": 0.08678409559630838
         },
         "conduit": {
-          "total": -4.139858803091744,
-          "active": -0.06423356609222663,
-          "passive": -3.9765884612639506,
-          "sls": -0.09903677573556088
+          "total": -4.209677750061368,
+          "active": -0.03668813609556086,
+          "passive": -4.076727043970609,
+          "sls": -0.09626256999519704
         },
         "pumping": {
-          "total": -4.622785299523762,
-          "active": -4.105236403091195,
-          "passive": -0.9236843602691805,
-          "sls": 0.40613546383661203
+          "total": -4.554477511221913,
+          "active": -4.048257650112096,
+          "passive": -0.9186056604433973,
+          "sls": 0.41238579933358244
         }
       },
       "cavityWorkOnWallMilliJ": {
-        "LA": -0.5143688506955996,
-        "LV": -700.7476491892336,
-        "RA": -0.23552897617301366,
-        "RV": -221.07532758745802
+        "LA": -0.5993216700377977,
+        "LV": -702.6620281522294,
+        "RA": -0.3027481748762165,
+        "RV": -221.22211352453203
       },
       "workConjugacyResidualMilliJ": {
-        "leftAtrium": 0.041567642409553796,
-        "rightAtrium": 0.018458147890043575,
-        "ventriclesCombined": 4.288729575316438,
-        "wholeHeart": 4.348755365616057
+        "leftAtrium": 0.040489087618930664,
+        "rightAtrium": 0.018265268962336545,
+        "ventriclesCombined": 4.296977573501181,
+        "wholeHeart": 4.35573193008247
       }
     },
     "claim": {
@@ -1291,49 +1291,49 @@
       "crossingSummaryTruncated": false,
       "crossings": [
         {
-          "volumeMl": 27.917368029337048,
-          "pressureMmHg": 3.9762066493387613,
-          "angleDeg": 65.58393639568432,
-          "firstPathProgress01": 0.08708298609971808,
-          "secondPathProgress01": 0.6877770058201164,
+          "volumeMl": 28.056232235686966,
+          "pressureMmHg": 3.7941371495378946,
+          "angleDeg": 63.86625367951831,
+          "firstPathProgress01": 0.09349494554392099,
+          "secondPathProgress01": 0.6970313206490506,
           "rawIntersectionCount": 1
         }
       ],
       "crossing": {
-        "volumeMl": 27.917368029337048,
-        "pressureMmHg": 3.9762066493387613,
-        "angleDeg": 65.58393639568432,
-        "firstPathProgress01": 0.08708298609971808,
-        "secondPathProgress01": 0.6877770058201164,
+        "volumeMl": 28.056232235686966,
+        "pressureMmHg": 3.7941371495378946,
+        "angleDeg": 63.86625367951831,
+        "firstPathProgress01": 0.09349494554392099,
+        "secondPathProgress01": 0.6970313206490506,
         "rawIntersectionCount": 1
       },
       "selectionEvidenceSource": "activation-burden",
       "activationEvidenceCoverage01": 1,
       "aLobe": {
-        "signedAreaMmHgMl": 7.517081099339656,
-        "areaMmHgMl": 7.517081099339656,
-        "startPathProgress01": 0.6877770058201164,
-        "endPathProgress01": 0.08708298609971808,
-        "maxActivation01": 0.9998627917819081,
+        "signedAreaMmHgMl": 7.707995483789894,
+        "areaMmHgMl": 7.707995483789894,
+        "startPathProgress01": 0.6970313206490506,
+        "endPathProgress01": 0.09349494554392099,
+        "maxActivation01": 0.9999720303938529,
         "activationCoverage01": 1,
-        "activationBurden01": 0.7590145220403027,
-        "pumpingFraction01": 0.3543100089764094,
-        "pumpingPointFraction": 0.3543100089764094,
-        "selectionEvidence01": 0.7590145220403027,
-        "pointCount": 109
+        "activationBurden01": 0.7569013551292597,
+        "pumpingFraction01": 0.3861085481913109,
+        "pumpingPointFraction": 0.3861085481913109,
+        "selectionEvidence01": 0.7569013551292597,
+        "pointCount": 106
       },
       "vLobe": {
-        "signedAreaMmHgMl": -3.4352875811109556,
-        "areaMmHgMl": 3.4352875811109556,
-        "startPathProgress01": 0.08708298609971808,
-        "endPathProgress01": 0.6877770058201164,
-        "maxActivation01": 0.9653306000623423,
+        "signedAreaMmHgMl": -2.997892777933181,
+        "areaMmHgMl": 2.997892777933181,
+        "startPathProgress01": 0.09349494554392099,
+        "endPathProgress01": 0.6970313206490506,
+        "maxActivation01": 0.9290635091398476,
         "activationCoverage01": 1,
-        "activationBurden01": 0.17710343342188212,
-        "pumpingFraction01": 0.035720311092028,
-        "pumpingPointFraction": 0.035720311092028,
-        "selectionEvidence01": 0.17710343342188212,
-        "pointCount": 395
+        "activationBurden01": 0.14635044723106397,
+        "pumpingFraction01": 0.03933023678588114,
+        "pumpingPointFraction": 0.03933023678588114,
+        "selectionEvidence01": 0.14635044723106397,
+        "pointCount": 398
       },
       "opposedLobeOrientation": true
     },
@@ -1341,33 +1341,33 @@
       "diagnosticId": "la-pv-reservoir-conduit-equal-volume-order-v1",
       "status": "measurable",
       "reason": "measurable",
-      "overlapMinimumVolumeMl": 28.410107619824284,
-      "overlapMaximumVolumeMl": 36.05102143454009,
-      "overlapWidthMl": 7.640913814715805,
+      "overlapMinimumVolumeMl": 28.412768619452034,
+      "overlapMaximumVolumeMl": 36.199385350197915,
+      "overlapWidthMl": 7.78661673074588,
       "requestedProbeCount": 101,
       "usableProbeCount": 97,
       "ambiguousProbeCount": 4,
       "unusableProbeCount": 4,
       "usableFraction01": 0.9603960396039604,
       "reservoirAboveConduitFraction01": 1,
-      "reservoirMinusConduitMeanMmHg": 0.41391340306761293,
-      "reservoirMinusConduitMedianMmHg": 0.3140123178289249,
-      "reservoirMinusConduitMinimumMmHg": 0.030404842258195508,
-      "reservoirMinusConduitMaximumMmHg": 1.173650642939061,
+      "reservoirMinusConduitMeanMmHg": 0.36190941593520065,
+      "reservoirMinusConduitMedianMmHg": 0.277417987269474,
+      "reservoirMinusConduitMinimumMmHg": 0.02617527300179301,
+      "reservoirMinusConduitMaximumMmHg": 1.000618319674325,
       "segmentationOwner": "caller-supplied-physiological-events-not-pv-shape-inference",
       "acceptanceThresholdApplied": false
     }
   },
   "residualMaxima": {
-    "mechanicsResidualNorm": 9.763434565823737e-10,
-    "circulationScaledResidualInfinityNorm": 1.9985213119408618e-10,
-    "absoluteContinuityResidualMl": 1.0692604635043068e-8,
-    "absoluteTotalBloodVolumeErrorMl": 9.094947017729282e-13,
+    "mechanicsResidualNorm": 9.885439868351222e-10,
+    "circulationScaledResidualInfinityNorm": 1.9937948043541228e-10,
+    "absoluteContinuityResidualMl": 1.0604766315092107e-8,
+    "absoluteTotalBloodVolumeErrorMl": 1.8189894035458565e-12,
     "absoluteValvePowerBalanceResidualMmHgMlPerSec": {
       "MV": 1.7053025658242404e-13,
       "AoV": 5.4569682106375694e-12,
       "TV": 1.1368683772161603e-13,
-      "PV": 2.7284841053187847e-12
+      "PV": 3.637978807091713e-12
     }
   },
   "claim": {
