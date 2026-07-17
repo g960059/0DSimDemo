@@ -57,6 +57,11 @@ import {
   type SimulationReleaseV1,
   type SimulationReleaseRef,
 } from "@/engine/scientific/release";
+import {
+  createMainWireScientificSessionExactCheckpointV3,
+  loadMainWireScientificSessionExactCheckpointV3,
+  type MainWireScientificSessionExactCheckpointV3,
+} from "@/engine/scientific/runtime/MainWireScientificExactCheckpointV3";
 
 export const MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID =
   "main-wire-scientific-session-v1" as const;
@@ -384,6 +389,44 @@ export class MainWireScientificSessionV1 {
     );
   }
 
+  static async restoreExactV3(
+    untrustedRelease: unknown,
+    untrustedSessionInput: unknown,
+    checkpoint: unknown,
+  ): Promise<MainWireScientificSessionV1> {
+    const release = await loadFixedAssemblyRelease(untrustedRelease);
+    const sessionInput = await loadMainWireScientificResolvedSessionInputV1(
+      release,
+      untrustedSessionInput,
+    );
+    const validatedCheckpoint =
+      await loadMainWireScientificSessionExactCheckpointV3(
+        {
+          releaseRef: release.ref,
+          sessionInputSha256: sessionInput.sessionInputSha256,
+        },
+        checkpoint,
+      );
+    const dependencies = buildFixedAssemblyDependencies(sessionInput);
+    const acceptedState = restoreMainWireFiveWallNonCoronaryV1(
+      dependencies.provider,
+      validatedCheckpoint.transaction,
+    );
+    const periodicSettlementTracker = restorePeriodicTracker(
+      dependencies.provider,
+      acceptedState,
+      validatedCheckpoint.periodicSettlementTracker,
+    );
+    return new MainWireScientificSessionV1(
+      release.ref,
+      sessionInput,
+      dependencies,
+      acceptedState,
+      restoredObservation(release.ref, acceptedState),
+      periodicSettlementTracker,
+    );
+  }
+
   stateIdentity(): Readonly<{
     revision: number;
     acceptedTimeSec: number;
@@ -672,6 +715,26 @@ export class MainWireScientificSessionV1 {
     });
   }
 
+  async checkpointExactV3():
+  Promise<MainWireScientificSessionExactCheckpointV3> {
+    return createMainWireScientificSessionExactCheckpointV3(
+      {
+        releaseRef: this.releaseRef,
+        sessionInputSha256: this.sessionInputSha256,
+      },
+      {
+        transaction: checkpointMainWireFiveWallNonCoronaryV1(
+          this.dependencies.provider,
+          this.acceptedState,
+        ),
+        periodicSettlementTracker: checkpointPeriodicTracker(
+          this.dependencies.provider,
+          this.periodicSettlementTracker,
+        ),
+      },
+    );
+  }
+
   private static constructCold(
     release: SimulationReleaseV1,
     sessionInput: MainWireScientificResolvedSessionInputV1,
@@ -729,6 +792,18 @@ export async function restoreMainWireScientificSessionExactV2(
 ): Promise<MainWireScientificSessionV1> {
   return MainWireScientificSessionV1.restoreExact(
     untrustedRelease,
+    checkpoint,
+  );
+}
+
+export async function restoreMainWireScientificSessionExactV3(
+  untrustedRelease: unknown,
+  untrustedSessionInput: unknown,
+  checkpoint: unknown,
+): Promise<MainWireScientificSessionV1> {
+  return MainWireScientificSessionV1.restoreExactV3(
+    untrustedRelease,
+    untrustedSessionInput,
     checkpoint,
   );
 }
