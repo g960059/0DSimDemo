@@ -143,6 +143,8 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
       MainWireNormalAdultFiveWallPeriodicResultV1["pericardiumCase"];
     pericardiumParameterSetId: string;
     valvePreset: MainWireNormalAdultFiveWallPeriodicResultV1["valvePreset"];
+    calciumRepresentation:
+      MainWireNormalAdultFiveWallPeriodicResultV1["calciumRepresentation"];
     dtSec: number;
     requestedMaximumBeatCount: number;
     completedBeatCount: number;
@@ -354,6 +356,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       pericardiumCase: result.pericardiumCase,
       pericardiumParameterSetId: result.pericardiumParameterSetId,
       valvePreset: result.valvePreset,
+      calciumRepresentation: result.calciumRepresentation,
       dtSec: result.dtSec,
       requestedMaximumBeatCount: result.requestedMaximumBeatCount,
       completedBeatCount: result.completedBeatCount,

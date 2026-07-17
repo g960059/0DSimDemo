@@ -68,6 +68,7 @@ const CLOSURE_GROUP_ORDER = Object.freeze([
   "land-state",
   "sls-viscous-strain",
   "wall-input-history",
+  "calcium-event-state",
 ] as const satisfies readonly MainWireFiveWallPeriodicClosureGroupV1[]);
 
 const WALL_COLORS = Object.freeze({
@@ -92,6 +93,7 @@ const GROUP_COLORS = Object.freeze({
   "land-state": "#a78bfa",
   "sls-viscous-strain": "#facc15",
   "wall-input-history": "#fb7185",
+  "calcium-event-state": "#2dd4bf",
 } as const);
 
 type Point = Readonly<{ x: number; y: number }>;
@@ -126,6 +128,7 @@ export type MainWireNormalAdultFiveWallPeriodicReviewV1 = Readonly<{
     pericardiumMode: string;
     pericardiumCase: string;
     pericardiumParameterSetId: string;
+    calciumRepresentation: string;
     initialization: string;
     protocolIdentityHash: string;
     jacobianFiniteDifferenceWidthAudit: Readonly<{
@@ -222,6 +225,7 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       pericardiumMode: result.pericardiumMode,
       pericardiumCase: result.pericardiumCase,
       pericardiumParameterSetId: result.pericardiumParameterSetId,
+      calciumRepresentation: result.calciumRepresentation,
       initialization: result.initialization,
       protocolIdentityHash: result.protocolIdentityHash,
       jacobianFiniteDifferenceWidthAudit: Object.freeze({
@@ -246,7 +250,7 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
           beat.period2?.overall.maximumNormalizedDelta ?? null,
         period1MaximumNormalizedDeltaByGroup: Object.freeze(
           Object.fromEntries(CLOSURE_GROUP_ORDER.flatMap((group) => {
-            const value = beat.period1?.groups[group].maximumNormalizedDelta;
+            const value = beat.period1?.groups[group]?.maximumNormalizedDelta;
             return value === undefined ? [] : [[group, value]];
           })),
         ),
@@ -256,7 +260,10 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       latestMaximumNormalizedDelta:
         latestClosure?.overall.maximumNormalizedDelta ?? null,
       latestGroupReports: Object.freeze(latestClosure
-        ? CLOSURE_GROUP_ORDER.map((group) => latestClosure.groups[group])
+        ? CLOSURE_GROUP_ORDER.flatMap((group) => {
+          const report = latestClosure.groups[group];
+          return report === undefined ? [] : [report];
+        })
         : []),
     }),
     claim: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_CLAIM_V1,
@@ -748,7 +755,7 @@ function convergenceSeries(
     label: shortGroupLabel(group),
     color: GROUP_COLORS[group],
     paths: Object.freeze([Object.freeze(result.beatClosure.flatMap((beat) => {
-      const value = beat.period1?.groups[group].maximumNormalizedDelta;
+      const value = beat.period1?.groups[group]?.maximumNormalizedDelta;
       return value === undefined ? [] : [{
         x: beat.beatIndex,
         y: safeLog10(value),

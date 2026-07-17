@@ -78,13 +78,12 @@ $C_{rest}$ではない。この区別により、欠落拍でCaを人為的に�
 | prior | $C_{rest}$ |
 |---|---:|
 | baseline atrial | 0.077712 µM |
-| human atrial biomarker challenger | 0.090471 µM |
 | ventricular | 0.109395 µM |
 
 である。これは新しいfit値ではなく、旧周期波形を完全保存する解析変換の結果である。
 
 reference cycleを10000分割して旧評価関数と比較した最大絶対差は、baseline atrial
-`1.11e-16 µM`、human atrial challenger `1.11e-16 µM`、ventricular `2.22e-16 µM`だった。
+`1.11e-16 µM`、ventricular `2.22e-16 µM`だった。
 
 ## transactionへの将来統合
 

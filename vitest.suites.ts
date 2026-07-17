@@ -10,6 +10,7 @@
 export const FAST_SUITE_FILE_BUDGET = 120;
 
 export const fastTests = [
+  "__tests__/acceptedIntervalTimebaseV1.test.ts",
   "__tests__/caseCloud.test.ts",
   "__tests__/casePublish.test.ts",
   "__tests__/caseValidation.test.ts",
@@ -23,6 +24,8 @@ export const fastTests = [
   "__tests__/controls.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
   "__tests__/equilibriumOneFiberPassiveV1.test.ts",
+  "__tests__/exactEventPrescribedCalciumV1.test.ts",
+  "__tests__/fiveWallExactEventCalciumDriveV1.test.ts",
   "__tests__/fiveWallNormalCalciumDriveV1.test.ts",
   "__tests__/homeLinks.test.ts",
   "__tests__/instanceColors.test.ts",

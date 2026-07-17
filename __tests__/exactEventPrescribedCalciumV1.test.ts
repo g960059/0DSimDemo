@@ -11,7 +11,6 @@ import {
 } from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-  FIVE_WALL_NORMAL_CALCIUM_DRIVE_HUMAN_ATRIAL_CALCIUM_BIOMARKER_PRIOR_V1,
   evaluateFiveWallNormalCalciumDriveV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 
@@ -137,11 +136,6 @@ describe("exact-event prescribed calcium V1", () => {
       {
         label: "atrial Land-output baseline",
         prior: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-        tissueClass: "atrial",
-      },
-      {
-        label: "human atrial calcium-biomarker challenger",
-        prior: FIVE_WALL_NORMAL_CALCIUM_DRIVE_HUMAN_ATRIAL_CALCIUM_BIOMARKER_PRIOR_V1,
         tissueClass: "atrial",
       },
       {

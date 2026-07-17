@@ -18,9 +18,20 @@ import {
   respiratoryExternalPressureForKindV1,
 } from "@/engine/core/circulationGraphKernelV1";
 import {
-  evaluateFiveWallNormalCalciumDriveV1,
   type FiveWallNormalCalciumDriveParamsV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
+  cloneFiveWallCalciumAcceptedStateV1,
+  commitFiveWallCalciumTrialV1,
+  createFixedSinusFiveWallCalciumEventScheduleV1,
+  evaluateFiveWallCalciumTrialV1,
+  initializeFiveWallCalciumAcceptedStateV1,
+  type FiveWallCalciumAcceptedStateV1,
+  type FiveWallCalciumEventScheduleProviderV1,
+  type FiveWallCalciumInitializationV1,
+  type FiveWallCalciumRepresentationV1,
+  type FiveWallCalciumTrialV1,
+} from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
 import type {
   MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
@@ -53,8 +64,10 @@ export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1 =
     mechanicsOwner: "one-joint-five-wall-provider" as const,
     chamberPressureInterface: "transmural-provider-to-absolute-node" as const,
     commonIntrathoracicPressureAppliedOnce: true as const,
-    circulationAndMechanicsCommit: "atomic-after-both-trials-succeed" as const,
-    failureSemantics: "rollback-both-accepted-states" as const,
+    calciumStateOwner: "five-wall-two-state-exact-event-driver" as const,
+    circulationMechanicsAndCalciumCommit:
+      "atomic-after-all-trials-succeed" as const,
+    failureSemantics: "rollback-all-three-accepted-states" as const,
     pericardialConstraintInterface:
       "required-conservative-common-pressure-binding" as const,
     pericardialPressureWorkCountedAsPrescribedExternalWork: false as const,
@@ -69,6 +82,7 @@ export type MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState> = Readonly<{
   acceptedTimeSec: number;
   circulation: NonCoronaryCirculationAcceptedStateV1;
   mechanics: WholeHeartMechanicsAcceptedStateV1<TWallState>;
+  calcium: FiveWallCalciumAcceptedStateV1;
 }>;
 
 export type MainWireFiveWallNonCoronaryCheckpointV1 = Readonly<{
@@ -79,6 +93,7 @@ export type MainWireFiveWallNonCoronaryCheckpointV1 = Readonly<{
   acceptedTimeSec: number;
   circulation: NonCoronaryCirculationCheckpointV1;
   mechanics: WholeHeartMechanicsCheckpointV1;
+  calcium: FiveWallCalciumAcceptedStateV1;
   checkpointFingerprint: string;
 }>;
 
@@ -89,6 +104,9 @@ export type MainWireFiveWallNonCoronaryInitializeInputV1<TWallState> = Readonly<
   >;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
   calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+  calciumRepresentation?: FiveWallCalciumRepresentationV1;
+  calciumInitialization?: FiveWallCalciumInitializationV1;
+  calciumEventSchedule?: FiveWallCalciumEventScheduleProviderV1;
   pericardium: MainWireCommonPericardiumBindingV1;
   circulationInitial?: Omit<
     NonCoronaryCirculationInitialStateInputV1,
@@ -117,6 +135,7 @@ export type MainWireFiveWallNonCoronaryStepSuccessV1<TWallState> = Readonly<{
     WholeHeartMechanicsTrialV1<TWallState>
   >;
   mechanicsTrial: WholeHeartMechanicsTrialV1<TWallState>;
+  calciumTrial: FiveWallCalciumTrialV1;
   calciumDrive: MainWireFiveWallFreeCalciumDriveV1;
   commonIntrathoracicPressureMmHg: number;
   pericardium: MainWireCommonPericardiumEvaluationV1;
@@ -133,6 +152,7 @@ export type MainWireFiveWallNonCoronaryStepFailureV1<TWallState> = Readonly<{
   circulationDiagnostics: NonCoronaryCirculationTrialDiagnosticsV1;
   mechanicsCommitted: false;
   circulationCommitted: false;
+  calciumCommitted: false;
 }>;
 
 export type MainWireFiveWallNonCoronaryStepResultV1<TWallState> =
@@ -155,6 +175,7 @@ export function checkpointMainWireFiveWallNonCoronaryV1<TWallState>(
     acceptedTimeSec: state.acceptedTimeSec,
     circulation: checkpointNonCoronaryCirculationStateV1(state.circulation),
     mechanics: checkpointWholeHeartMechanicsStateV1(provider, state.mechanics),
+    calcium: cloneFiveWallCalciumAcceptedStateV1(state.calcium),
   };
   return Object.freeze({
     ...checkpoint,
@@ -177,8 +198,10 @@ export function restoreMainWireFiveWallNonCoronaryV1<TWallState>(
       !== MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID
     || checkpoint.revision !== checkpoint.circulation.state.revision
     || checkpoint.revision !== checkpoint.mechanics.revision
+    || checkpoint.revision !== checkpoint.calcium.revision
     || checkpoint.acceptedTimeSec !== checkpoint.circulation.state.acceptedTimeSec
     || checkpoint.acceptedTimeSec !== checkpoint.mechanics.acceptedTimeSec
+    || checkpoint.acceptedTimeSec !== checkpoint.calcium.acceptedTimeSec
   ) throw new Error("five-wall checkpoint transaction identity mismatch");
   const { checkpointFingerprint, ...fingerprinted } = checkpoint;
   if (fingerprintJsonValueV1(fingerprinted) !== checkpointFingerprint) {
@@ -195,12 +218,20 @@ export function restoreMainWireFiveWallNonCoronaryV1<TWallState>(
     revision,
     acceptedTimeSec,
   }));
+  const checkpointCalcium = cloneFiveWallCalciumAcceptedStateV1(
+    checkpoint.calcium,
+  );
+  const calcium = Object.freeze({
+    ...checkpointCalcium,
+    revision,
+    acceptedTimeSec,
+  });
   for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
     if (circulation.nodeVolumesMl[chamber] !== mechanics.acceptedVolumesMl[chamber]) {
       throw new Error(`five-wall checkpoint ${chamber} volume mismatch`);
     }
   }
-  return acceptedPair(revision, circulation, mechanics);
+  return acceptedPair(revision, circulation, mechanics, calcium);
 }
 
 export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
@@ -214,13 +245,26 @@ export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
     timeSec,
     runtime: input.runtime,
   });
-  const calciumEvaluation = evaluateFiveWallNormalCalciumDriveV1(
+  const calciumEventSchedule = input.calciumEventSchedule
+    ?? createFixedSinusFiveWallCalciumEventScheduleV1(input.calciumDriveParams);
+  const calciumInitialization = input.calciumInitialization
+    ?? (input.calciumEventSchedule === undefined
+      ? "regular-periodic-prehistory-from-fixed-prior"
+      : (() => {
+        throw new Error(
+          "a custom calcium event schedule requires an explicit calciumInitialization",
+        );
+      })());
+  const calciumCold = initializeFiveWallCalciumAcceptedStateV1(
     timeSec,
+    0,
+    input.calciumRepresentation
+      ?? "analytic-periodic-control-with-exact-event-shadow",
     input.calciumDriveParams,
+    calciumEventSchedule,
+    calciumInitialization,
   );
-  const calciumDrive = Object.freeze({
-    freeCalciumUMByWall: calciumEvaluation.freeCalciumUMByWall,
-  });
+  const calciumDrive = calciumCold.calciumDrive;
   const mechanicsCold = initializeWholeHeartMechanicsColdV1(input.provider, {
     timeSec,
     volumesMl: chamberVolumes(circulation),
@@ -234,6 +278,7 @@ export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
     0,
     circulation,
     mechanicsCold.acceptedState,
+    calciumCold.acceptedState,
   );
   return Object.freeze({
     acceptedState,
@@ -259,6 +304,7 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     dtSec: number;
     runtime: NonCoronaryCirculationRuntimeParamsV1;
     calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+    calciumEventSchedule?: FiveWallCalciumEventScheduleProviderV1;
     pericardium: MainWireCommonPericardiumBindingV1;
   }>,
 ): MainWireFiveWallNonCoronaryStepResultV1<TWallState> {
@@ -267,13 +313,15 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     throw new Error("dtSec must be positive and finite");
   }
   const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
-  const calciumEvaluation = evaluateFiveWallNormalCalciumDriveV1(
+  const calciumEventSchedule = input.calciumEventSchedule
+    ?? createFixedSinusFiveWallCalciumEventScheduleV1(input.calciumDriveParams);
+  const calciumTrial = evaluateFiveWallCalciumTrialV1(
+    previous.calcium,
     candidateTimeSec,
     input.calciumDriveParams,
+    calciumEventSchedule,
   );
-  const calciumDrive = Object.freeze({
-    freeCalciumUMByWall: calciumEvaluation.freeCalciumUMByWall,
-  });
+  const calciumDrive = calciumTrial.calciumDrive;
   const pthMmHg = commonIntrathoracicPressureMmHg(
     candidateTimeSec,
     input.runtime,
@@ -331,6 +379,7 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
       circulationDiagnostics: circulationTrial.diagnostics,
       mechanicsCommitted: false as const,
       circulationCommitted: false as const,
+      calciumCommitted: false as const,
     });
   }
   const mechanicsTrial = circulationTrial.candidateMechanicsEvaluation;
@@ -338,7 +387,7 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     input.pericardium,
     circulationTrial.candidateNodeVolumesMl,
   );
-  validateCoupledTrial(previous, circulationTrial, mechanicsTrial);
+  validateCoupledTrial(previous, circulationTrial, mechanicsTrial, calciumTrial);
   const nextCirculation = commitNonCoronaryCirculationTrialV1(
     previous.circulation,
     circulationTrial,
@@ -348,16 +397,22 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     previous.mechanics,
     mechanicsTrial,
   );
+  const nextCalcium = commitFiveWallCalciumTrialV1(
+    previous.calcium,
+    calciumTrial,
+  );
   const acceptedState = acceptedPair(
     previous.revision + 1,
     nextCirculation,
     nextMechanics,
+    nextCalcium,
   );
   return Object.freeze({
     converged: true as const,
     acceptedState,
     circulationTrial,
     mechanicsTrial,
+    calciumTrial,
     calciumDrive,
     commonIntrathoracicPressureMmHg: pthMmHg,
     pericardium,
@@ -370,12 +425,15 @@ function validateCoupledTrial<TWallState>(
     WholeHeartMechanicsTrialV1<TWallState>
   >,
   mechanics: WholeHeartMechanicsTrialV1<TWallState>,
+  calcium: FiveWallCalciumTrialV1,
 ): void {
   if (circulation.baseRevision !== previous.circulation.revision ||
       mechanics.baseRevision !== previous.mechanics.revision ||
+      calcium.baseRevision !== previous.calcium.revision ||
       circulation.candidateTimeSec !== mechanics.candidateTimeSec ||
+      circulation.candidateTimeSec !== calcium.candidateTimeSec ||
       circulation.dtSec !== mechanics.stepDtSec) {
-    throw new Error("coupled circulation/mechanics trial identity mismatch");
+    throw new Error("coupled circulation/mechanics/calcium trial identity mismatch");
   }
   for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
     if (circulation.candidateNodeVolumesMl[chamber] !==
@@ -397,6 +455,7 @@ function rollbackPair<TWallState>(
     previous.revision,
     circulationRollback,
     cloneWholeHeartMechanicsAcceptedStateV1(provider, previous.mechanics),
+    cloneFiveWallCalciumAcceptedStateV1(previous.calcium),
   );
 }
 
@@ -404,11 +463,14 @@ function acceptedPair<TWallState>(
   revision: number,
   circulation: NonCoronaryCirculationAcceptedStateV1,
   mechanics: WholeHeartMechanicsAcceptedStateV1<TWallState>,
+  calcium: FiveWallCalciumAcceptedStateV1,
 ): MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState> {
   if (circulation.acceptedTimeSec !== mechanics.acceptedTimeSec ||
+      circulation.acceptedTimeSec !== calcium.acceptedTimeSec ||
       circulation.revision !== mechanics.revision ||
+      circulation.revision !== calcium.revision ||
       circulation.revision !== revision) {
-    throw new Error("accepted circulation/mechanics revisions or times differ");
+    throw new Error("accepted circulation/mechanics/calcium revisions or times differ");
   }
   return Object.freeze({
     transactionId: MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID,
@@ -416,6 +478,7 @@ function acceptedPair<TWallState>(
     acceptedTimeSec: circulation.acceptedTimeSec,
     circulation,
     mechanics,
+    calcium,
   });
 }
 
@@ -425,8 +488,10 @@ function validateAcceptedPair<TWallState>(
   if (state.transactionId !== MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID ||
       state.revision !== state.circulation.revision ||
       state.revision !== state.mechanics.revision ||
+      state.revision !== state.calcium.revision ||
       state.acceptedTimeSec !== state.circulation.acceptedTimeSec ||
-      state.acceptedTimeSec !== state.mechanics.acceptedTimeSec) {
+      state.acceptedTimeSec !== state.mechanics.acceptedTimeSec ||
+      state.acceptedTimeSec !== state.calcium.acceptedTimeSec) {
     throw new Error("accepted coupled transaction state is inconsistent");
   }
 }

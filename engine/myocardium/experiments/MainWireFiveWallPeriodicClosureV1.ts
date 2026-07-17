@@ -8,6 +8,10 @@ import {
   type MainWireFiveWallNonCoronaryAcceptedStateV1,
 } from "@/engine/myocardium/MainWireFiveWallNonCoronaryTransactionV1";
 import {
+  FIVE_WALL_CALCIUM_WALL_IDS_V1,
+  FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID,
+} from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
+import {
   MAIN_WIRE_FIVE_WALL_IDS_V1,
   type MainWireFiveWallLandTriSegStateV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
@@ -33,6 +37,7 @@ export const MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1 = Object.freeze({
   slsViscousLogStrain: 0.1,
   wallFiberLogStrain: 0.1,
   wallFreeCalciumUM: 1,
+  calciumEventDriveState: 1,
 } as const satisfies MainWireFiveWallPeriodicReferenceScalesV1);
 
 export type MainWireFiveWallPeriodicAcceptedStateV1 =
@@ -47,7 +52,8 @@ export type MainWireFiveWallPeriodicClosureGroupV1 =
   | "triseg-coordinate"
   | "land-state"
   | "sls-viscous-strain"
-  | "wall-input-history";
+  | "wall-input-history"
+  | "calcium-event-state";
 
 export type MainWireFiveWallPeriodicQuantityV1 =
   | "node-volume"
@@ -58,7 +64,9 @@ export type MainWireFiveWallPeriodicQuantityV1 =
   | "land-state"
   | "sls-viscous-log-strain"
   | "wall-fiber-log-strain"
-  | "wall-free-calcium";
+  | "wall-free-calcium"
+  | "calcium-rise-drive-state"
+  | "calcium-decay-drive-state";
 
 export type MainWireFiveWallPeriodicUnitV1 =
   | "mL"
@@ -86,6 +94,7 @@ export type MainWireFiveWallPeriodicReferenceScalesV1 = Readonly<{
   slsViscousLogStrain: number;
   wallFiberLogStrain: number;
   wallFreeCalciumUM: number;
+  calciumEventDriveState: number;
 }>;
 
 export type MainWireFiveWallPeriodicDeltaEntryV1 = Readonly<{
@@ -194,6 +203,7 @@ const GROUP_ORDER = Object.freeze([
   "land-state",
   "sls-viscous-strain",
   "wall-input-history",
+  "calcium-event-state",
 ] as const satisfies readonly MainWireFiveWallPeriodicClosureGroupV1[]);
 
 export function compareMainWireFiveWallAcceptedStatesV1(
@@ -300,6 +310,26 @@ export function compareMainWireFiveWallAcceptedStatesV1(
       currentWall.previousFreeCalciumUM,
       referenceWall.previousFreeCalciumUM,
       scales.wallFreeCalciumUM,
+    ));
+  }
+  for (const wall of FIVE_WALL_CALCIUM_WALL_IDS_V1) {
+    seeds.push(seed(
+      "calcium-event-state",
+      "calcium-rise-drive-state",
+      "dimensionless",
+      `calcium.stateByWall.${wall}.riseDrive`,
+      current.calcium.stateByWall[wall][0],
+      reference.calcium.stateByWall[wall][0],
+      scales.calciumEventDriveState,
+    ));
+    seeds.push(seed(
+      "calcium-event-state",
+      "calcium-decay-drive-state",
+      "dimensionless",
+      `calcium.stateByWall.${wall}.decayDrive`,
+      current.calcium.stateByWall[wall][1],
+      reference.calcium.stateByWall[wall][1],
+      scales.calciumEventDriveState,
     ));
   }
   const entries = Object.freeze(seeds.map(deltaEntry));
@@ -468,7 +498,15 @@ function validateCompatibleStates(
     && current.mechanics.parameterIdentityHash
       === reference.mechanics.parameterIdentityHash
     && current.mechanics.stateSchemaVersion
-      === reference.mechanics.stateSchemaVersion;
+      === reference.mechanics.stateSchemaVersion
+    && current.calcium.stateSchemaId === reference.calcium.stateSchemaId
+    && current.calcium.stateSchemaVersion === reference.calcium.stateSchemaVersion
+    && current.calcium.representation === reference.calcium.representation
+    && current.calcium.initializationId === reference.calcium.initializationId
+    && current.calcium.scheduleId === reference.calcium.scheduleId
+    && current.calcium.scheduleIdentityHash
+      === reference.calcium.scheduleIdentityHash
+    && current.calcium.parameterSetId === reference.calcium.parameterSetId;
   if (!compatible) throw new Error("periodic closure state identities differ");
 }
 
@@ -482,9 +520,32 @@ function validateAcceptedState(
   if (
     state.revision !== state.circulation.revision
     || state.revision !== state.mechanics.revision
+    || state.revision !== state.calcium.revision
     || state.acceptedTimeSec !== state.circulation.acceptedTimeSec
     || state.acceptedTimeSec !== state.mechanics.acceptedTimeSec
+    || state.acceptedTimeSec !== state.calcium.acceptedTimeSec
   ) throw new Error(`${label} periodic state revision or time is inconsistent`);
+  if (
+    state.calcium.stateSchemaId
+      !== FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID
+    || state.calcium.stateSchemaVersion !== 1
+  ) throw new Error(`${label} periodic calcium state has the wrong schema`);
+  if (
+    state.calcium.initializationId
+      !== "regular-periodic-prehistory-from-fixed-prior"
+    && state.calcium.initializationId !== "event-free-rest"
+  ) throw new Error(`${label} periodic calcium state has an invalid initialization`);
+  if (!/^[0-9a-f]{8}$/.test(state.calcium.scheduleIdentityHash)) {
+    throw new Error(`${label} periodic calcium schedule hash is invalid`);
+  }
+  for (const wall of FIVE_WALL_CALCIUM_WALL_IDS_V1) {
+    const wallState = state.calcium.stateByWall[wall];
+    if (wallState.length !== 2) {
+      throw new Error(`${label}.calcium.${wall} must contain two states`);
+    }
+    requireFinite(wallState[0], `${label}.calcium.${wall}.riseDrive`);
+    requireFinite(wallState[1], `${label}.calcium.${wall}.decayDrive`);
+  }
   requireFinite(state.acceptedTimeSec, `${label}.acceptedTimeSec`);
 }
 

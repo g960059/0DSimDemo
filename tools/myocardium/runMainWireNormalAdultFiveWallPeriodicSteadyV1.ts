@@ -18,9 +18,16 @@ import type {
 import type {
   MainWireFourValveDiseaseBracketIdV1,
 } from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
+import type {
+  FiveWallCalciumRepresentationV1,
+} from "@/engine/myocardium/calcium/fiveWallExactEventCalciumDriveV1";
 
 const dtSec = numberArgument("--dt", 0.002);
 const maximumBeatCount = integerArgument("--max-beats", 32);
+const calciumRepresentation = argument(
+  "--calcium-representation",
+  "analytic-periodic-control-with-exact-event-shadow",
+) as FiveWallCalciumRepresentationV1;
 const laSlsMode = argument("--la-sls", "on") as
   MainWireNormalAdultLaSlsModeV1;
 const pericardiumMode = argument("--pericardium", "on") as
@@ -50,6 +57,7 @@ const outputPath = argument(
     `mainwire-normal-adult-five-wall-periodic-${initialization}-${laSlsMode}`
       + `-pericardium-${pericardiumMode}-${pericardiumCase}`
       + `-${valveDiseasePathTag}`
+      + `-${calciumRepresentation}`
       + `-${Math.round(dtSec * 1e6)}us-v1.json`,
   ),
 );
@@ -61,6 +69,7 @@ const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
   pericardiumMode,
   pericardiumCase,
   valveDiseaseBracketIds,
+  calciumRepresentation,
   initialization,
   warmStart,
 });
@@ -77,6 +86,7 @@ process.stdout.write(`${JSON.stringify({
   pericardiumParameterSetId: result.pericardiumParameterSetId,
   valvePresetParameterSetId: result.valvePreset.parameterSetId,
   valveDiseaseBracketIds: result.valvePreset.bracketIds,
+  calciumRepresentation: result.calciumRepresentation,
   dtSec: result.dtSec,
   requestedMaximumBeatCount: result.requestedMaximumBeatCount,
   completedBeatCount: result.completedBeatCount,
