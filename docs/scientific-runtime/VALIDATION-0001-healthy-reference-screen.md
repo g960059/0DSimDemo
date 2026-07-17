@@ -111,7 +111,8 @@ equal-volume probes.
 
 - atrial reservoir/conduit/pump PV topology and ordering;
 - mitral and tricuspid E/A morphology without spurious peaks;
-- HR, preload/TBV, systemic afterload/compliance, and PVR envelopes;
+- the initial SVR/PVR resistance screen is recorded in `VALIDATION-0002`;
+- HR, preload/TBV, vascular-compliance, and broader load envelopes;
 - inotropy and lusitropy perturbations;
 - background-flow resistance sensitivity;
 - independent multi-start periodic basins;
