@@ -92,10 +92,14 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
       .toBe(stepped.mechanicsTrial.candidateVolumesMl.LA);
     expect(stepped.circulationTrial.diagnostics.totalBloodVolumeErrorMl)
       .toBeCloseTo(0, 9);
+    expect(stepped.acceptedState.circulation.totalBloodVolumeMl)
+      .toBe(cold.acceptedState.circulation.totalBloodVolumeMl);
     const checkpoint = checkpointMainWireFiveWallNonCoronaryV1(
       provider,
       stepped.acceptedState,
     );
+    expect(checkpoint.circulation.state.totalBloodVolumeMl)
+      .toBe(cold.acceptedState.circulation.totalBloodVolumeMl);
     const serialized = JSON.parse(JSON.stringify(checkpoint)) as
       typeof checkpoint;
     expect(restoreMainWireFiveWallNonCoronaryV1(provider, serialized))
@@ -113,6 +117,8 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     });
     expect(rebased.circulation.nodeVolumesMl)
       .toEqual(stepped.acceptedState.circulation.nodeVolumesMl);
+    expect(rebased.circulation.totalBloodVolumeMl)
+      .toBe(stepped.acceptedState.circulation.totalBloodVolumeMl);
     const tampered = {
       ...serialized,
       circulation: {
@@ -207,6 +213,8 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     expect(stepped.circulationDiagnostics.worstIndependentContinuityResidual)
       .toBeNull();
     expect(stepped.rollbackState.revision).toBe(0);
+    expect(stepped.rollbackState.circulation.totalBloodVolumeMl)
+      .toBe(cold.acceptedState.circulation.totalBloodVolumeMl);
     expect(JSON.stringify({
       circulation: stepped.rollbackState.circulation,
       mechanics: provider.stateCodec.encode(

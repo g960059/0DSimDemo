@@ -3,6 +3,7 @@ import {
   createInitialNonCoronaryCirculationStateV1,
   NON_CORONARY_CIRCULATION_SCOPE_V1,
   NON_CORONARY_NODE_NAMES_V1,
+  resolveNonCoronaryCirculationColdSeedV1,
   type NonCoronaryCirculationInitialStateInputV1,
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
@@ -291,9 +292,11 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     resolved.pericardiumCase,
   );
   const protocol = buildPeriodicProtocolIdentity(provider, runtime, pericardium);
+  const canonicalColdSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
   const canonicalCirculation = createInitialNonCoronaryCirculationStateV1({
     timeSec: 0,
     runtime,
+    ...canonicalColdSeed,
   });
   const canonicalCold = initializeMainWireFiveWallNonCoronaryV1({
     provider,
@@ -568,6 +571,7 @@ function initialStateInput(
   state: ReturnType<typeof createInitialNonCoronaryCirculationStateV1>,
 ): Omit<NonCoronaryCirculationInitialStateInputV1, "timeSec" | "runtime"> {
   return Object.freeze({
+    fixedTotalBloodVolumeMl: state.totalBloodVolumeMl,
     nodeVolumesMl: state.nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: state.dynamicEdgeFlowsMlPerSec,
     valveStates: state.valveStates,
@@ -594,6 +598,7 @@ function pulmonaryRedistributionInitialState(
     throw new Error("fixed pulmonary redistribution changed total blood volume");
   }
   return Object.freeze({
+    fixedTotalBloodVolumeMl: canonical.totalBloodVolumeMl,
     nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: canonical.dynamicEdgeFlowsMlPerSec,
     valveStates: canonical.valveStates,

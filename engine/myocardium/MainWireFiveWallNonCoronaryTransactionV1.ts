@@ -3,6 +3,7 @@ import {
   checkpointNonCoronaryCirculationStateV1,
   createInitialNonCoronaryCirculationStateV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
+  resolveNonCoronaryCirculationColdSeedV1,
   restoreNonCoronaryCirculationStateV1,
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationCheckpointV1,
@@ -206,8 +207,10 @@ export function initializeMainWireFiveWallNonCoronaryV1<TWallState>(
   input: MainWireFiveWallNonCoronaryInitializeInputV1<TWallState>,
 ): MainWireFiveWallNonCoronaryColdResultV1<TWallState> {
   const timeSec = input.timeSec ?? 0;
+  const circulationInitial = input.circulationInitial
+    ?? resolveNonCoronaryCirculationColdSeedV1(input.runtime);
   const circulation = createInitialNonCoronaryCirculationStateV1({
-    ...input.circulationInitial,
+    ...circulationInitial,
     timeSec,
     runtime: input.runtime,
   });

@@ -139,10 +139,16 @@ export type NonCoronaryCirculationAcceptedStateV1 = Readonly<{
   transactionId: typeof NON_CORONARY_CIRCULATION_BE_V1_ID;
   revision: number;
   acceptedTimeSec: number;
+  /** Fixed conserved-volume owner; never re-derived during state promotion. */
   totalBloodVolumeMl: number;
   nodeVolumesMl: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
+}>;
+
+export type NonCoronaryCirculationColdSeedV1 = Readonly<{
+  fixedTotalBloodVolumeMl: number;
+  nodeVolumesMl: NodeRecord<number>;
 }>;
 
 export const NON_CORONARY_CIRCULATION_CHECKPOINT_V1_ID =
@@ -157,6 +163,8 @@ export type NonCoronaryCirculationCheckpointV1 = Readonly<{
 export type NonCoronaryCirculationInitialStateInputV1 = Readonly<{
   timeSec: number;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
+  /** Explicit conserved-volume owner for this circulation transaction. */
+  fixedTotalBloodVolumeMl: number;
   nodeVolumesMl?: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec?: DynamicEdgeRecord<number>;
   valveStates?: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
@@ -384,11 +392,29 @@ NonCoronaryCirculationGraphV1 {
   });
 }
 
+/**
+ * Resolves the deterministic topology/runtime cold seed without selecting a
+ * physiological operating point. Callers explicitly promote its total as the
+ * fixed TBV owner, or supply another volume record with its own explicit owner.
+ */
+export function resolveNonCoronaryCirculationColdSeedV1(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): NonCoronaryCirculationColdSeedV1 {
+  validateRuntime(runtime);
+  const graph = buildNonCoronaryCirculationGraphV1();
+  const nodeVolumesMl = initialNodeVolumes(graph, runtime);
+  return Object.freeze({
+    fixedTotalBloodVolumeMl: sumNodeRecord(nodeVolumesMl),
+    nodeVolumesMl,
+  });
+}
+
 export function createInitialNonCoronaryCirculationStateV1(
   input: NonCoronaryCirculationInitialStateInputV1,
 ): NonCoronaryCirculationAcceptedStateV1 {
   requireNonnegative(input.timeSec, "timeSec");
   validateRuntime(input.runtime);
+  requirePositive(input.fixedTotalBloodVolumeMl, "fixedTotalBloodVolumeMl");
   const graph = buildNonCoronaryCirculationGraphV1();
   const nodeVolumesMl = input.nodeVolumesMl
     ? copyNodeRecord(input.nodeVolumesMl, "nodeVolumesMl", requirePositive)
@@ -409,6 +435,7 @@ export function createInitialNonCoronaryCirculationStateV1(
   return acceptedState({
     revision: 0,
     acceptedTimeSec: input.timeSec,
+    totalBloodVolumeMl: input.fixedTotalBloodVolumeMl,
     nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec,
     valveStates,
@@ -734,6 +761,7 @@ export function commitNonCoronaryCirculationTrialV1<TEvaluation>(
   return acceptedState({
     revision: previous.revision + 1,
     acceptedTimeSec: trial.candidateTimeSec,
+    totalBloodVolumeMl: previous.totalBloodVolumeMl,
     nodeVolumesMl: trial.candidateNodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: trial.candidateDynamicEdgeFlowsMlPerSec,
     valveStates: trial.candidateValveStates,
@@ -774,6 +802,7 @@ export function restoreNonCoronaryCirculationStateV1(
   return acceptedState({
     revision: rebase?.revision ?? checkpoint.state.revision,
     acceptedTimeSec: rebase?.acceptedTimeSec ?? checkpoint.state.acceptedTimeSec,
+    totalBloodVolumeMl: checkpoint.state.totalBloodVolumeMl,
     nodeVolumesMl: checkpoint.state.nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: checkpoint.state.dynamicEdgeFlowsMlPerSec,
     valveStates: checkpoint.state.valveStates,
@@ -1035,22 +1064,27 @@ function failure(
 function acceptedState(input: Readonly<{
   revision: number;
   acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
   nodeVolumesMl: NodeRecord<number>;
   dynamicEdgeFlowsMlPerSec: DynamicEdgeRecord<number>;
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV1>;
 }>): NonCoronaryCirculationAcceptedStateV1 {
   requireInteger(input.revision, "revision");
   requireNonnegative(input.acceptedTimeSec, "acceptedTimeSec");
+  requirePositive(input.totalBloodVolumeMl, "totalBloodVolumeMl");
   const nodeVolumesMl = copyNodeRecord(
     input.nodeVolumesMl,
     "nodeVolumesMl",
     requirePositive,
   );
+  if (!nearlyEqual(sumNodeRecord(nodeVolumesMl), input.totalBloodVolumeMl)) {
+    throw new Error("node volumes do not match the fixed TBV owner");
+  }
   return Object.freeze({
     transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
     revision: input.revision,
     acceptedTimeSec: input.acceptedTimeSec,
-    totalBloodVolumeMl: sumNodeRecord(nodeVolumesMl),
+    totalBloodVolumeMl: input.totalBloodVolumeMl,
     nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: copyDynamicEdgeRecord(
       input.dynamicEdgeFlowsMlPerSec,
@@ -1067,6 +1101,7 @@ function cloneAcceptedState(
   return acceptedState({
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
+    totalBloodVolumeMl: state.totalBloodVolumeMl,
     nodeVolumesMl: state.nodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: state.dynamicEdgeFlowsMlPerSec,
     valveStates: state.valveStates,
@@ -1081,6 +1116,7 @@ function validateAcceptedState(
   }
   requireInteger(state.revision, "accepted revision");
   requireNonnegative(state.acceptedTimeSec, "acceptedTimeSec");
+  requirePositive(state.totalBloodVolumeMl, "accepted totalBloodVolumeMl");
   copyNodeRecord(state.nodeVolumesMl, "accepted nodeVolumesMl", requirePositive);
   copyDynamicEdgeRecord(
     state.dynamicEdgeFlowsMlPerSec,
