@@ -30,6 +30,22 @@ export type PtmFromStressedVolumeOptions = {
   stressedVolumeToleranceMl?: number;
 };
 
+export type PtmFromStressedVolumeTangentBranch =
+  | "arterial-lower-saturation"
+  | "arterial-interior"
+  | "linear"
+  | "venous-lower-saturation"
+  | "venous-interior"
+  | "venous-upper-saturation";
+
+export type PtmAndVolumeTangent = Readonly<{
+  /** Exactly the same primal value returned by ptmFromStressedVolume. */
+  transmuralPressure: number;
+  /** Constitutive dPtm/d(stressed volume) on the active inverse branch. */
+  dPtmDStressedVolume: number;
+  branch: PtmFromStressedVolumeTangentBranch;
+}>;
+
 export const MAIN_WIRE_ARTERIAL_MINIMUM_LOG_STRAIN = Math.log(0.05);
 export const MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG = Object.freeze({
   minimum: -20,
@@ -120,6 +136,79 @@ export function ptmFromStressedVolume(
     }
   }
   return 0.5 * (lo + hi);
+}
+
+/**
+ * Paired inverse-PV value and constitutive tangent.
+ *
+ * The primal delegates to `ptmFromStressedVolume`, preserving its accepted
+ * value bit-for-bit. The tangent differentiates the underlying constitutive
+ * inverse rather than the finite sequence of adaptive bisection iterates.
+ * Saturated inverse branches deliberately return zero tangent.
+ */
+export function ptmAndVolumeTangentFromStressedVolume(
+  law: VascularPvLaw,
+  targetStressedVolumeMl: number,
+  options: PtmFromStressedVolumeOptions = {},
+): PtmAndVolumeTangent {
+  const transmuralPressure = ptmFromStressedVolume(
+    law,
+    targetStressedVolumeMl,
+    options,
+  );
+
+  if (law.kind === "arterial") {
+    const vs = Math.max(law.VsEff, 1e-6);
+    if (targetStressedVolumeMl / vs <= MAIN_WIRE_ARTERIAL_MINIMUM_LOG_STRAIN) {
+      return Object.freeze({
+        transmuralPressure,
+        dPtmDStressedVolume: 0,
+        branch: "arterial-lower-saturation" as const,
+      });
+    }
+    const p0 = Math.max(law.P0, 1e-6);
+    return Object.freeze({
+      transmuralPressure,
+      dPtmDStressedVolume: (p0 + transmuralPressure) / vs,
+      branch: "arterial-interior" as const,
+    });
+  }
+
+  if (law.kind === "linear") {
+    return Object.freeze({
+      transmuralPressure,
+      dPtmDStressedVolume: 1 / Math.max(law.C, 1e-6),
+      branch: "linear" as const,
+    });
+  }
+
+  const lowerVolumeMl = stressedVolumeFromPtm(
+    law,
+    MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.minimum,
+  );
+  if (targetStressedVolumeMl <= lowerVolumeMl) {
+    return Object.freeze({
+      transmuralPressure,
+      dPtmDStressedVolume: 0,
+      branch: "venous-lower-saturation" as const,
+    });
+  }
+  const upperVolumeMl = stressedVolumeFromPtm(
+    law,
+    MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.maximum,
+  );
+  if (targetStressedVolumeMl >= upperVolumeMl) {
+    return Object.freeze({
+      transmuralPressure,
+      dPtmDStressedVolume: 0,
+      branch: "venous-upper-saturation" as const,
+    });
+  }
+  return Object.freeze({
+    transmuralPressure,
+    dPtmDStressedVolume: 1 / complianceFromPtm(law, transmuralPressure),
+    branch: "venous-interior" as const,
+  });
 }
 
 function validateVenousLaw(

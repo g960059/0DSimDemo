@@ -38,6 +38,7 @@ export const fastTests = [
   "__tests__/lessonDoc.steps.test.ts",
   "__tests__/lessonKnobs.test.ts",
   "__tests__/lessonPersist.test.ts",
+  "__tests__/localCirculationTangentsV1.test.ts",
   "__tests__/locales.test.ts",
   "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",

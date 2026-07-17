@@ -1,12 +1,15 @@
 import {
   buildAuthoritativeCirculationGraphV1,
+  downstreamEffectivePressureAndDerivativeV1,
   downstreamEffectivePressureV1,
   effectiveUnstressedVolumeFromNodeV1,
   physicalColdSeedVolumeFromNodeV1,
   incidenceVolumeRatesFromEdgeFlowsV1,
   nonValveEdgeLossV1,
+  nonValveEdgeLossAndPressureDerivativesV1,
   respiratoryExternalPressureForKindV1,
   vascularPvLawFromNodeV1,
+  vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1,
   vascularTransmuralPressureFromPhysicalVolumeV1,
   type BaseEdgeLossRuntimeParameterViewV1,
   type RespiratoryPressureParameterViewV1,
@@ -84,6 +87,10 @@ export const NON_CORONARY_CIRCULATION_SCOPE_V1 = Object.freeze({
   valveLegacyEdgeHydraulicsUsed: false as const,
   coronaryBloodVolumeIncluded: false as const,
   chamberPressureCallback: "absolute-pressure-mmHg" as const,
+  chamberPressureTangent:
+    "optional-same-candidate-absolute-4x4-mmHg-per-mL" as const,
+  circulationJacobian:
+    "analytic-semismooth-when-pressure-tangent-available-otherwise-full-fd" as const,
   pericardialConstraintOwnedHere: false as const,
   parameterFittingAllowed: false as const,
   reverseFlowCapOrClampOnNonvalveEdges: false as const,
@@ -118,9 +125,47 @@ export type NonCoronaryChamberPressuresMmHgV1 = Readonly<{
   RA: number;
 }>;
 
+export const NON_CORONARY_CHAMBER_TANGENT_ORDER_V1 = Object.freeze([
+  "LV",
+  "LA",
+  "RV",
+  "RA",
+] as const);
+export type NonCoronaryChamberNameV1 =
+  (typeof NON_CORONARY_CHAMBER_TANGENT_ORDER_V1)[number];
+export type NonCoronaryChamberPressureTangentMatrixV1 = readonly [
+  readonly [number, number, number, number],
+  readonly [number, number, number, number],
+  readonly [number, number, number, number],
+  readonly [number, number, number, number],
+];
+
+/**
+ * Same-candidate algorithmic derivative of absolute chamber-node pressure.
+ * The callback owns composition of transmural mechanics, common pericardium,
+ * and any other chamber pressure offset. The circulation kernel must not add
+ * the common-pericardium rank-one term a second time.
+ */
+export type NonCoronaryAbsoluteChamberPressureTangentV1 = Readonly<{
+  rowPressureOrder: typeof NON_CORONARY_CHAMBER_TANGENT_ORDER_V1;
+  columnVolumeOrder: typeof NON_CORONARY_CHAMBER_TANGENT_ORDER_V1;
+  units: "mmHg/mL";
+  pressureKind: "absolute";
+  derivativeSemantics:
+    "candidate-algorithmic-at-fixed-accepted-state-time-dt-and-drive";
+  dPressureDVolumeMmHgPerMl:
+    NonCoronaryChamberPressureTangentMatrixV1;
+}>;
+
 export type NonCoronaryCandidateMechanicsResultV1<TEvaluation> = Readonly<{
   /** Absolute chamber-node pressures; callback owns any pericardial offset. */
   absolutePressuresMmHg: NonCoronaryChamberPressuresMmHgV1;
+  /**
+   * Optional only for custom/test compatibility. When present, the circulation
+   * Newton uses the analytic/semismooth Jacobian. When absent, it explicitly
+   * falls back to the historical full finite-difference Jacobian.
+   */
+  absolutePressureTangent?: NonCoronaryAbsoluteChamberPressureTangentV1;
   /** Opaque readback only. This circulation kernel never commits mechanics. */
   evaluation: TEvaluation;
 }>;
@@ -190,6 +235,8 @@ export type NonCoronaryCirculationNewtonOptionsV1 = Readonly<{
   scaledUpdateInfinityTolerance?: number;
   finiteDifferenceScaledStep?: number;
   maximumLineSearchBacktracks?: number;
+  /** Development/test-only; production leaves the expensive shadow disabled. */
+  analyticJacobianFiniteDifferenceShadow?: boolean;
 }>;
 
 export type NonCoronaryCirculationTrialInputV1<TEvaluation> = Readonly<{
@@ -212,7 +259,21 @@ export type NonCoronaryCirculationTrialDiagnosticsV1 = Readonly<{
   finalMaximumContinuityResidualMl: number;
   dependentNodeContinuityResidualMl: number;
   totalBloodVolumeErrorMl: number;
-  finiteDifferenceScaledStep: number;
+  jacobianMode:
+    | "not-required"
+    | "analytic-semismooth"
+    | "full-fd-fallback"
+    | "mixed";
+  pressureTangentAvailableAtFinalCandidate: boolean;
+  finiteDifferenceScaledStep: number | null;
+  finiteDifferenceJacobianFallbackReason:
+    | "absolute-chamber-pressure-tangent-not-provided"
+    | null;
+  analyticJacobianAssemblyCount: number;
+  finiteDifferenceJacobianFallbackCount: number;
+  finiteDifferenceJacobianShadowCount: number;
+  jacobianMaximumAbsoluteShadowDifference: number | null;
+  jacobianMaximumRelativeFrobeniusShadowDifference: number | null;
   mechanicsCallbackCallCount: number;
   mechanicsCallbackCacheHitCount: number;
   mechanicsCallbackUniqueCandidateCount: number;
@@ -344,9 +405,19 @@ type CandidateEvaluation<TEvaluation> = Readonly<{
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV2>;
   valveEvaluations: ValveRecord<MainWireQuasiSteadyOrificeValveEvaluationV2>;
   candidateMechanicsEvaluation: TEvaluation;
+  absoluteChamberPressureTangent:
+    NonCoronaryAbsoluteChamberPressureTangentV1 | null;
   continuityResidualMlByNode: NodeRecord<number>;
   scaledIndependentResidual: readonly number[];
 }>;
+
+type JacobianUsageDiagnosticsV1 = {
+  analyticAssemblyCount: number;
+  finiteDifferenceFallbackCount: number;
+  finiteDifferenceShadowCount: number;
+  maximumAbsoluteShadowDifference: number | null;
+  maximumRelativeFrobeniusShadowDifference: number | null;
+};
 
 type MixedContinuityResidualAudit = Readonly<{
   infinityNorm: number;
@@ -368,6 +439,7 @@ type MutableNewtonFailureTraceEntryV1 = {
 
 type CandidateMechanicsCache<TEvaluation> = {
   readonly values: CandidateMechanicsTimeCache<TEvaluation>;
+  readonly jacobianUsage: JacobianUsageDiagnosticsV1;
   callCount: number;
   hitCount: number;
   uniqueCandidateCount: number;
@@ -405,6 +477,7 @@ const DEFAULT_NEWTON_OPTIONS = Object.freeze({
   scaledUpdateInfinityTolerance: 2e-11,
   finiteDifferenceScaledStep: 2e-6,
   maximumLineSearchBacktracks: 24,
+  analyticJacobianFiniteDifferenceShadow: false,
 });
 const MAX_NEWTON_FAILURE_TRACE_ENTRIES = 32;
 const MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS = 1024;
@@ -522,6 +595,13 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
   const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
   const mechanicsCache: CandidateMechanicsCache<TEvaluation> = {
     values: new Map(),
+    jacobianUsage: {
+      analyticAssemblyCount: 0,
+      finiteDifferenceFallbackCount: 0,
+      finiteDifferenceShadowCount: 0,
+      maximumAbsoluteShadowDifference: null,
+      maximumRelativeFrobeniusShadowDifference: null,
+    },
     callCount: 0,
     hitCount: 0,
     uniqueCandidateCount: 0,
@@ -614,18 +694,48 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
     }
     let jacobian: number[][];
     try {
-      jacobian = finiteDifferenceJacobian(
-        (candidate) => evaluateCandidate(
+      if (current.absoluteChamberPressureTangent !== null) {
+        jacobian = analyticCirculationJacobian(
           graph,
           input,
-          candidate,
+          current,
           volumeScales,
-          candidateTimeSec,
-          mechanicsCache,
-        ).scaledIndependentResidual,
-        scaledUnknowns,
-        options.finiteDifferenceScaledStep,
-      );
+        );
+        mechanicsCache.jacobianUsage.analyticAssemblyCount += 1;
+        if (options.analyticJacobianFiniteDifferenceShadow) {
+          const shadow = finiteDifferenceJacobian(
+            (candidate) => evaluateCandidate(
+              graph,
+              input,
+              candidate,
+              volumeScales,
+              candidateTimeSec,
+              mechanicsCache,
+            ).scaledIndependentResidual,
+            scaledUnknowns,
+            options.finiteDifferenceScaledStep,
+          );
+          recordJacobianShadowDifference(
+            mechanicsCache.jacobianUsage,
+            jacobian,
+            shadow,
+          );
+        }
+      } else {
+        mechanicsCache.jacobianUsage.finiteDifferenceFallbackCount += 1;
+        jacobian = finiteDifferenceJacobian(
+          (candidate) => evaluateCandidate(
+            graph,
+            input,
+            candidate,
+            volumeScales,
+            candidateTimeSec,
+            mechanicsCache,
+          ).scaledIndependentResidual,
+          scaledUnknowns,
+          options.finiteDifferenceScaledStep,
+        );
+      }
     } catch (error) {
       return failure(
         previous,
@@ -1020,9 +1130,239 @@ function evaluateCandidate<TEvaluation>(
       MainWireQuasiSteadyOrificeValveEvaluationV2
     >,
     candidateMechanicsEvaluation: mechanics.evaluation,
+    absoluteChamberPressureTangent:
+      mechanics.absolutePressureTangent ?? null,
     continuityResidualMlByNode,
     scaledIndependentResidual,
   });
+}
+
+/**
+ * Exact chain rule for the current BE residual, using the same candidate's
+ * chamber algorithmic tangent and active vascular/edge/valve branches.
+ *
+ * For scaled independent volumes x_j = V_j / s_j and dependent
+ * V_SV = TBV - sum_j V_j, this assembles
+ *
+ *   J = I - dt S^-1 E A (dq/dP) (dP/dV) (dV/dx).
+ *
+ * The -s_j derivative of the fixed-TBV SV volume is included explicitly in
+ * the node-pressure chain below.
+ */
+function analyticCirculationJacobian<TEvaluation>(
+  graph: NonCoronaryCirculationGraphV1,
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation>,
+  current: CandidateEvaluation<TEvaluation>,
+  volumeScales: readonly number[],
+): number[][] {
+  const chamberTangent = current.absoluteChamberPressureTangent;
+  if (chamberTangent === null) {
+    throw new Error("analytic circulation Jacobian requires chamber pressure tangent");
+  }
+  if (volumeScales.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new Error("circulation volume-scale count is incompatible");
+  }
+  const independentIndex = new Map<NonCoronaryNodeNameV1, number>();
+  INDEPENDENT_NODE_NAMES.forEach((name, index) =>
+    independentIndex.set(name, index));
+  const nodePressureDerivativeByScaledVolume = Array.from(
+    { length: graph.nodes.length },
+    () => Array(INDEPENDENT_NODE_NAMES.length).fill(0) as number[],
+  );
+
+  // The mechanics callback tangent is already absolute and already contains
+  // the common-pericardium rank-one contribution exactly once.
+  for (
+    let pressureRow = 0;
+    pressureRow < NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length;
+    pressureRow += 1
+  ) {
+    const pressureChamber =
+      NON_CORONARY_CHAMBER_TANGENT_ORDER_V1[pressureRow]!;
+    const nodeRow = graph.nodeIndex.get(pressureChamber)!;
+    for (
+      let volumeColumn = 0;
+      volumeColumn < NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length;
+      volumeColumn += 1
+    ) {
+      const volumeChamber =
+        NON_CORONARY_CHAMBER_TANGENT_ORDER_V1[volumeColumn]!;
+      const independentColumn = independentIndex.get(volumeChamber);
+      if (independentColumn === undefined) {
+        throw new Error(`chamber ${volumeChamber} is not an independent node`);
+      }
+      nodePressureDerivativeByScaledVolume[nodeRow]![independentColumn] =
+        chamberTangent.dPressureDVolumeMmHgPerMl[pressureRow]![volumeColumn]!
+          * volumeScales[independentColumn]!;
+    }
+  }
+
+  for (const node of graph.nodes) {
+    const name = node.name as NonCoronaryNodeNameV1;
+    if (isChamberName(name)) continue;
+    const paired =
+      vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
+        node,
+        current.nodeVolumesMl[name],
+        input.runtime.vascular,
+        "adaptive-volume-tolerance",
+      );
+    const pressureTangentMmHgPerMl =
+      paired.dTransmuralPressureDPhysicalVolumeMmHgPerMl;
+    requireFinite(pressureTangentMmHgPerMl, `${name} vascular pressure tangent`);
+    const nodeRow = graph.nodeIndex.get(name)!;
+    if (name === DEPENDENT_NODE) {
+      // Fixed TBV: dV_SV/dx_j = -s_j for every independent column.
+      for (let column = 0; column < volumeScales.length; column += 1) {
+        nodePressureDerivativeByScaledVolume[nodeRow]![column] =
+          -pressureTangentMmHgPerMl * volumeScales[column]!;
+      }
+    } else {
+      const column = independentIndex.get(name);
+      if (column === undefined) {
+        throw new Error(`vascular node ${name} is not represented in the volume map`);
+      }
+      nodePressureDerivativeByScaledVolume[nodeRow]![column] =
+        pressureTangentMmHgPerMl * volumeScales[column]!;
+    }
+  }
+
+  const size = INDEPENDENT_NODE_NAMES.length;
+  const jacobian = Array.from(
+    { length: size },
+    (_, row) => Array.from({ length: size }, (_unused, column) =>
+      row === column ? 1 : 0),
+  );
+  const candidateTimeSec =
+    input.previousAcceptedState.acceptedTimeSec + input.dtSec;
+  for (const edge of graph.edges) {
+    const edgeName = edge.name as NonCoronaryEdgeNameV1;
+    const upstreamName = edge.up as NonCoronaryNodeNameV1;
+    const downstreamName = edge.down as NonCoronaryNodeNameV1;
+    const upstreamPressureMmHg =
+      current.nodeAbsolutePressuresMmHg[upstreamName];
+    const downstreamPressureMmHg =
+      current.nodeAbsolutePressuresMmHg[downstreamName];
+    let dFlowDUpstreamPressureMlPerSecPerMmHg: number;
+    let dFlowDDownstreamPressureMlPerSecPerMmHg: number;
+
+    if (edge.kind === "valve") {
+      const evaluation = current.valveEvaluations[
+        edgeName as NonCoronaryValveNameV1
+      ];
+      const dFlowDGradient =
+        evaluation.dFlowDPressureGradientMlPerSecPerMmHg;
+      requireFinite(dFlowDGradient, `${edgeName} valve flow tangent`);
+      dFlowDUpstreamPressureMlPerSecPerMmHg = dFlowDGradient;
+      dFlowDDownstreamPressureMlPerSecPerMmHg = -dFlowDGradient;
+    } else {
+      const edgeExternalPressureMmHg = respiratoryExternalPressureForKindV1(
+        respiratoryKind(edge.ext),
+        candidateTimeSec,
+        input.runtime.respiratory,
+      );
+      const downstream = downstreamEffectivePressureAndDerivativeV1({
+        edge,
+        downstreamPressureMmHg,
+        edgeExternalPressureMmHg,
+      });
+      const losses = nonValveEdgeLossAndPressureDerivativesV1({
+        edge,
+        params: input.runtime.losses,
+        upstreamPressureMmHg,
+        downstreamPressureMmHg,
+        edgeExternalPressureMmHg,
+      });
+      const flowMlPerSec = current.edgeFlowsMlPerSec[edgeName];
+      const signedQuadraticFlow = flowMlPerSec * Math.abs(flowMlPerSec);
+      let inertanceMmHgSec2PerMl = 0;
+      let dInertanceDUpstreamPressureSec2PerMl = 0;
+      let dInertanceDDownstreamPressureSec2PerMl = 0;
+      let previousFlowMlPerSec = flowMlPerSec;
+      if (edge.kind === "dynamic") {
+        const areaDenominator = edge.useChiResistance
+          ? Math.max(losses.areaRatio, 1e-6)
+          : 1;
+        inertanceMmHgSec2PerMl = requirePositive(
+          (edge.L ?? 0) / areaDenominator,
+          `${edgeName} inertance tangent base`,
+        );
+        if (edge.useChiResistance && losses.areaRatio > 1e-6) {
+          const inertanceAreaFactor =
+            -inertanceMmHgSec2PerMl / losses.areaRatio;
+          dInertanceDUpstreamPressureSec2PerMl = inertanceAreaFactor
+            * losses.dAreaRatioDUpstreamPressurePerMmHg;
+          dInertanceDDownstreamPressureSec2PerMl = inertanceAreaFactor
+            * losses.dAreaRatioDDownstreamPressurePerMmHg;
+        }
+        previousFlowMlPerSec = input.previousAcceptedState
+          .dynamicEdgeFlowsMlPerSec[
+            edgeName as NonCoronaryDynamicEdgeNameV1
+          ];
+      }
+      const denominator = losses.resistanceMmHgSecPerMl
+        + (edge.kind === "dynamic"
+          ? inertanceMmHgSec2PerMl / input.dtSec
+          : 0)
+        + 2 * losses.quadraticLossMmHgSec2PerMl2
+          * Math.abs(flowMlPerSec);
+      requirePositive(denominator, `${edgeName} flow tangent denominator`);
+      const dynamicInertanceFactor = edge.kind === "dynamic"
+        ? (previousFlowMlPerSec - flowMlPerSec) / input.dtSec
+        : 0;
+      dFlowDUpstreamPressureMlPerSecPerMmHg = (
+        1
+        - flowMlPerSec
+          * losses.dResistanceDUpstreamPressureSecPerMl
+        - signedQuadraticFlow
+          * losses.dQuadraticLossDUpstreamPressureSec2PerMl2
+        + dynamicInertanceFactor
+          * dInertanceDUpstreamPressureSec2PerMl
+      ) / denominator;
+      dFlowDDownstreamPressureMlPerSecPerMmHg = (
+        -downstream.dEffectivePressureDDownstreamPressure
+        - flowMlPerSec
+          * losses.dResistanceDDownstreamPressureSecPerMl
+        - signedQuadraticFlow
+          * losses.dQuadraticLossDDownstreamPressureSec2PerMl2
+        + dynamicInertanceFactor
+          * dInertanceDDownstreamPressureSec2PerMl
+      ) / denominator;
+    }
+    requireFinite(
+      dFlowDUpstreamPressureMlPerSecPerMmHg,
+      `${edgeName} upstream pressure-flow tangent`,
+    );
+    requireFinite(
+      dFlowDDownstreamPressureMlPerSecPerMmHg,
+      `${edgeName} downstream pressure-flow tangent`,
+    );
+    const upstreamPressureRow = graph.nodeIndex.get(upstreamName)!;
+    const downstreamPressureRow = graph.nodeIndex.get(downstreamName)!;
+    const upstreamResidualRow = independentIndex.get(upstreamName);
+    const downstreamResidualRow = independentIndex.get(downstreamName);
+    for (let column = 0; column < size; column += 1) {
+      const dFlowDScaledVolume =
+        dFlowDUpstreamPressureMlPerSecPerMmHg
+          * nodePressureDerivativeByScaledVolume[upstreamPressureRow]![column]!
+        + dFlowDDownstreamPressureMlPerSecPerMmHg
+          * nodePressureDerivativeByScaledVolume[downstreamPressureRow]![column]!;
+      // incidence(upstream)=-q, so residual(upstream)=...+dt*q.
+      if (upstreamResidualRow !== undefined) {
+        jacobian[upstreamResidualRow]![column] += input.dtSec
+          * dFlowDScaledVolume / volumeScales[upstreamResidualRow]!;
+      }
+      // incidence(downstream)=+q, so residual(downstream)=...-dt*q.
+      if (downstreamResidualRow !== undefined) {
+        jacobian[downstreamResidualRow]![column] -= input.dtSec
+          * dFlowDScaledVolume / volumeScales[downstreamResidualRow]!;
+      }
+    }
+  }
+  if (jacobian.some((row) => row.some((value) => !Number.isFinite(value)))) {
+    throw new Error("analytic circulation Jacobian produced non-finite values");
+  }
+  return jacobian;
 }
 
 /** Exact signed solution of R q + B q |q| = pressure drive. */
@@ -1315,6 +1655,45 @@ function finiteDifferenceJacobian(
   return jacobian;
 }
 
+function recordJacobianShadowDifference(
+  usage: JacobianUsageDiagnosticsV1,
+  analytic: readonly (readonly number[])[],
+  finiteDifference: readonly (readonly number[])[],
+): void {
+  if (
+    analytic.length !== finiteDifference.length
+    || analytic.some((row, index) =>
+      row.length !== finiteDifference[index]?.length)
+  ) throw new Error("analytic and finite-difference Jacobian shapes differ");
+  let maximumAbsolute = 0;
+  let differenceSquared = 0;
+  let referenceSquared = 0;
+  for (let row = 0; row < analytic.length; row += 1) {
+    for (let column = 0; column < analytic[row]!.length; column += 1) {
+      const analyticValue = analytic[row]![column]!;
+      const referenceValue = finiteDifference[row]![column]!;
+      const difference = analyticValue - referenceValue;
+      if (![analyticValue, referenceValue, difference].every(Number.isFinite)) {
+        throw new Error("Jacobian shadow comparison produced non-finite values");
+      }
+      maximumAbsolute = Math.max(maximumAbsolute, Math.abs(difference));
+      differenceSquared += difference * difference;
+      referenceSquared += referenceValue * referenceValue;
+    }
+  }
+  const relativeFrobenius = Math.sqrt(differenceSquared)
+    / Math.max(Math.sqrt(referenceSquared), 1e-14);
+  usage.finiteDifferenceShadowCount += 1;
+  usage.maximumAbsoluteShadowDifference = Math.max(
+    usage.maximumAbsoluteShadowDifference ?? 0,
+    maximumAbsolute,
+  );
+  usage.maximumRelativeFrobeniusShadowDifference = Math.max(
+    usage.maximumRelativeFrobeniusShadowDifference ?? 0,
+    relativeFrobenius,
+  );
+}
+
 function solveDenseLinearSystem(
   sourceMatrix: readonly (readonly number[])[],
   sourceRight: readonly number[],
@@ -1395,7 +1774,28 @@ function trialDiagnostics<TEvaluation>(
       evaluation.continuityResidualMlByNode[DEPENDENT_NODE],
     totalBloodVolumeErrorMl:
       sumNodeRecord(evaluation.nodeVolumesMl) - previous.totalBloodVolumeMl,
-    finiteDifferenceScaledStep: options.finiteDifferenceScaledStep,
+    jacobianMode: jacobianModeFromUsage(mechanicsCache.jacobianUsage),
+    pressureTangentAvailableAtFinalCandidate:
+      evaluation.absoluteChamberPressureTangent !== null,
+    finiteDifferenceScaledStep:
+      mechanicsCache.jacobianUsage.finiteDifferenceFallbackCount > 0
+        || mechanicsCache.jacobianUsage.finiteDifferenceShadowCount > 0
+        ? options.finiteDifferenceScaledStep
+        : null,
+    finiteDifferenceJacobianFallbackReason:
+      mechanicsCache.jacobianUsage.finiteDifferenceFallbackCount > 0
+        ? "absolute-chamber-pressure-tangent-not-provided"
+        : null,
+    analyticJacobianAssemblyCount:
+      mechanicsCache.jacobianUsage.analyticAssemblyCount,
+    finiteDifferenceJacobianFallbackCount:
+      mechanicsCache.jacobianUsage.finiteDifferenceFallbackCount,
+    finiteDifferenceJacobianShadowCount:
+      mechanicsCache.jacobianUsage.finiteDifferenceShadowCount,
+    jacobianMaximumAbsoluteShadowDifference:
+      mechanicsCache.jacobianUsage.maximumAbsoluteShadowDifference,
+    jacobianMaximumRelativeFrobeniusShadowDifference:
+      mechanicsCache.jacobianUsage.maximumRelativeFrobeniusShadowDifference,
     mechanicsCallbackCallCount: mechanicsCache.callCount,
     mechanicsCallbackCacheHitCount: mechanicsCache.hitCount,
     mechanicsCallbackUniqueCandidateCount: mechanicsCache.uniqueCandidateCount,
@@ -1423,8 +1823,26 @@ function emptyDiagnostics<TEvaluation>(
     finalMaximumContinuityResidualMl: Number.POSITIVE_INFINITY,
     dependentNodeContinuityResidualMl: Number.NaN,
     totalBloodVolumeErrorMl: Number.NaN,
-    finiteDifferenceScaledStep:
-      options?.finiteDifferenceScaledStep ?? Number.NaN,
+    jacobianMode: mechanicsCache
+      ? jacobianModeFromUsage(mechanicsCache.jacobianUsage)
+      : "not-required",
+    pressureTangentAvailableAtFinalCandidate: false,
+    finiteDifferenceScaledStep: null,
+    finiteDifferenceJacobianFallbackReason:
+      (mechanicsCache?.jacobianUsage.finiteDifferenceFallbackCount ?? 0) > 0
+        ? "absolute-chamber-pressure-tangent-not-provided"
+        : null,
+    analyticJacobianAssemblyCount:
+      mechanicsCache?.jacobianUsage.analyticAssemblyCount ?? 0,
+    finiteDifferenceJacobianFallbackCount:
+      mechanicsCache?.jacobianUsage.finiteDifferenceFallbackCount ?? 0,
+    finiteDifferenceJacobianShadowCount:
+      mechanicsCache?.jacobianUsage.finiteDifferenceShadowCount ?? 0,
+    jacobianMaximumAbsoluteShadowDifference:
+      mechanicsCache?.jacobianUsage.maximumAbsoluteShadowDifference ?? null,
+    jacobianMaximumRelativeFrobeniusShadowDifference:
+      mechanicsCache?.jacobianUsage.maximumRelativeFrobeniusShadowDifference
+        ?? null,
     mechanicsCallbackCallCount: mechanicsCache?.callCount ?? 0,
     mechanicsCallbackCacheHitCount: mechanicsCache?.hitCount ?? 0,
     mechanicsCallbackUniqueCandidateCount:
@@ -1434,6 +1852,22 @@ function emptyDiagnostics<TEvaluation>(
     failureNewtonTrace: Object.freeze([]),
     lineSearchFailure: null,
   });
+}
+
+function jacobianModeFromUsage(
+  usage: JacobianUsageDiagnosticsV1,
+): NonCoronaryCirculationTrialDiagnosticsV1["jacobianMode"] {
+  if (
+    usage.analyticAssemblyCount === 0
+    && usage.finiteDifferenceFallbackCount === 0
+  ) return "not-required";
+  if (
+    usage.analyticAssemblyCount > 0
+    && usage.finiteDifferenceFallbackCount > 0
+  ) return "mixed";
+  return usage.analyticAssemblyCount > 0
+    ? "analytic-semismooth"
+    : "full-fd-fallback";
 }
 
 function worstIndependentContinuityResidualFromEvaluation<TEvaluation>(
@@ -1508,6 +1942,9 @@ function resolveNewtonOptions(
     "scaledUpdateInfinityTolerance",
   );
   requirePositive(resolved.finiteDifferenceScaledStep, "finiteDifferenceScaledStep");
+  if (typeof resolved.analyticJacobianFiniteDifferenceShadow !== "boolean") {
+    throw new Error("analyticJacobianFiniteDifferenceShadow must be boolean");
+  }
   return Object.freeze(resolved);
 }
 
@@ -1546,6 +1983,63 @@ function validateChamberPressures(
   }
 }
 
+function copyAndValidateAbsoluteChamberPressureTangent(
+  tangent: NonCoronaryAbsoluteChamberPressureTangentV1,
+): NonCoronaryAbsoluteChamberPressureTangentV1 {
+  if (tangent === null || typeof tangent !== "object") {
+    throw new Error("absolutePressureTangent must be an object when provided");
+  }
+  for (const [label, order] of [
+    ["rowPressureOrder", tangent.rowPressureOrder],
+    ["columnVolumeOrder", tangent.columnVolumeOrder],
+  ] as const) {
+    if (
+      !Array.isArray(order)
+      || order.length !== NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length
+      || order.some(
+        (name, index) =>
+          name !== NON_CORONARY_CHAMBER_TANGENT_ORDER_V1[index],
+      )
+    ) {
+      throw new Error(
+        `absolutePressureTangent.${label} must be LV,LA,RV,RA`,
+      );
+    }
+  }
+  if (
+    tangent.units !== "mmHg/mL"
+    || tangent.pressureKind !== "absolute"
+    || tangent.derivativeSemantics
+      !== "candidate-algorithmic-at-fixed-accepted-state-time-dt-and-drive"
+  ) {
+    throw new Error("absolutePressureTangent metadata is incompatible");
+  }
+  const matrix = tangent.dPressureDVolumeMmHgPerMl;
+  if (
+    !Array.isArray(matrix)
+    || matrix.length !== 4
+    || matrix.some((row) =>
+      !Array.isArray(row)
+      || row.length !== 4
+      || row.some((value) => !Number.isFinite(value)))
+  ) {
+    throw new Error(
+      "absolutePressureTangent matrix must be finite 4x4 mmHg/mL",
+    );
+  }
+  const copy = matrix.map((row) => Object.freeze([...row])) as unknown as
+    NonCoronaryChamberPressureTangentMatrixV1;
+  return Object.freeze({
+    rowPressureOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+    columnVolumeOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+    units: "mmHg/mL" as const,
+    pressureKind: "absolute" as const,
+    derivativeSemantics:
+      "candidate-algorithmic-at-fixed-accepted-state-time-dt-and-drive" as const,
+    dPressureDVolumeMmHgPerMl: copy,
+  });
+}
+
 function evaluateCandidateMechanicsCached<TEvaluation>(
   cache: CandidateMechanicsCache<TEvaluation>,
   callback: NonCoronaryCandidateMechanicsCallbackV1<TEvaluation>,
@@ -1564,8 +2058,16 @@ function evaluateCandidateMechanicsCached<TEvaluation>(
   cache.callCount += 1;
   const raw = callback(Object.freeze({ ...volumes }), candidateTimeSec);
   validateChamberPressures(raw.absolutePressuresMmHg);
+  const absolutePressureTangent = raw.absolutePressureTangent === undefined
+    ? undefined
+    : copyAndValidateAbsoluteChamberPressureTangent(
+      raw.absolutePressureTangent,
+    );
   const result = Object.freeze({
     absolutePressuresMmHg: Object.freeze({ ...raw.absolutePressuresMmHg }),
+    ...(absolutePressureTangent === undefined
+      ? {}
+      : { absolutePressureTangent }),
     evaluation: raw.evaluation,
   });
   const writableTimeCache = timeCache
