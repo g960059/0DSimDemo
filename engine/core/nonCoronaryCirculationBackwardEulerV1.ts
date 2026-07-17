@@ -1,11 +1,12 @@
 import {
-  baseNonValveEdgeLossV1,
   buildAuthoritativeCirculationGraphV1,
   downstreamEffectivePressureV1,
   effectiveUnstressedVolumeFromNodeV1,
   incidenceVolumeRatesFromEdgeFlowsV1,
+  nonValveEdgeLossV1,
   respiratoryExternalPressureForKindV1,
   vascularPvLawFromNodeV1,
+  vascularTransmuralPressureFromPhysicalVolumeV1,
   type BaseEdgeLossRuntimeParameterViewV1,
   type RespiratoryPressureParameterViewV1,
   type VascularPvRuntimeParameterViewV1,
@@ -18,10 +19,7 @@ import {
   type MainWireQuasiSteadyOrificeValveEvaluationV1,
   type MainWireQuasiSteadyOrificeValveStateV1,
 } from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV1";
-import {
-  ptmFromStressedVolume,
-  stressedVolumeFromPtm,
-} from "@/engine/vascularPv";
+import { stressedVolumeFromPtm } from "@/engine/vascularPv";
 
 export const NON_CORONARY_CIRCULATION_BE_V1_ID =
   "main-wire-derived-noncoronary-experimental-backward-euler-v1" as const;
@@ -811,14 +809,11 @@ function evaluateCandidate<TEvaluation>(
   const nodeAbsolutePressuresMmHg = nodeRecord((name) => {
     if (isChamberName(name)) return mechanics.absolutePressuresMmHg[name];
     const node = graph.nodes[graph.nodeIndex.get(name)!];
-    const law = vascularPvLawFromNodeV1(node, input.runtime.vascular);
-    const unstressedVolumeMl = effectiveUnstressedVolumeFromNodeV1(
+    const ptmMmHg = vascularTransmuralPressureFromPhysicalVolumeV1(
       node,
+      nodeVolumesMl[name],
       input.runtime.vascular,
-    );
-    const ptmMmHg = ptmFromStressedVolume(
-      law,
-      nodeVolumesMl[name] - unstressedVolumeMl,
+      "adaptive-volume-tolerance",
     );
     const ext = respiratoryExternalPressureForKindV1(
       respiratoryKind(node.ext),
@@ -869,11 +864,23 @@ function evaluateCandidate<TEvaluation>(
       ),
     });
     const gradientMmHg = upstreamPressure - effectiveDownstreamPressure;
-    const losses = baseNonValveEdgeLossV1(edge, input.runtime.losses);
+    const losses = nonValveEdgeLossV1({
+      edge,
+      params: input.runtime.losses,
+      upstreamPressureMmHg: upstreamPressure,
+      downstreamPressureMmHg: downstreamPressure,
+      edgeExternalPressureMmHg: respiratoryExternalPressureForKindV1(
+        respiratoryKind(edge.ext),
+        candidateTimeSec,
+        input.runtime.respiratory,
+      ),
+    });
     if (edge.kind === "dynamic") {
       const dynamicName = name as NonCoronaryDynamicEdgeNameV1;
       const inertance = requirePositive(
-        edge.L ?? 0,
+        (edge.L ?? 0) / (
+          edge.useChiResistance ? Math.max(losses.areaRatio, 1e-6) : 1
+        ),
         `${name} inertanceMmHgSec2PerMl`,
       );
       const flow = solveSignedLinearQuadraticFlowV1(
@@ -1356,6 +1363,12 @@ function validateRuntime(runtime: NonCoronaryCirculationRuntimeParamsV1): void {
   requirePositive(runtime.vascular.arterialStiffness, "arterialStiffness");
   requirePositive(runtime.losses.systemicResistance, "systemicResistance");
   requirePositive(runtime.losses.pulmonaryResistance, "pulmonaryResistance");
+  if (
+    runtime.losses.useChiResistance !== undefined
+    && typeof runtime.losses.useChiResistance !== "boolean"
+  ) {
+    throw new Error("useChiResistance must be boolean when provided");
+  }
   requireFinite(runtime.respiratory.PEEP, "PEEP");
   requireFinite(runtime.respiratory.Pth0, "Pth0");
   requireFinite(runtime.respiratory.respAmpTh, "respAmpTh");

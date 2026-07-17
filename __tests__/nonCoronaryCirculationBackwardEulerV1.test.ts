@@ -4,6 +4,7 @@ import {
   baseNonValveEdgeLossV1,
   downstreamEffectivePressureV1,
   effectiveUnstressedVolumeFromNodeV1,
+  nonValveEdgeLossV1,
   respiratoryExternalPressureForKindV1,
   vascularPvLawFromNodeV1,
 } from "@/engine/core/circulationGraphKernelV1";
@@ -362,6 +363,69 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
         losses.quadraticLossMmHgSec2PerMl2,
       );
       expect(trial.edgeFlowsMlPerSec[name]).toBeCloseTo(expectedFlow, 11);
+    }
+  });
+
+  it("supports graph-owned collapsible-tube chi without changing the TBV ledger", () => {
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      losses: Object.freeze({
+        ...RUNTIME.losses,
+        useChiResistance: true,
+      }),
+    });
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime,
+    });
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime,
+      evaluateCandidateMechanics: elasticMechanicsCallback(initial),
+    });
+    expect(trial.converged).toBe(true);
+    if (trial.converged === false) throw new Error(trial.message);
+    expect(Math.abs(trial.diagnostics.totalBloodVolumeErrorMl)).toBeLessThan(1e-10);
+
+    const graph = buildNonCoronaryCirculationGraphV1();
+    for (const name of ["VC_RA", "PCap_PVen"] as const) {
+      const edge = graph.edges[graph.edgeIndex.get(name)]!;
+      const upstreamPressure = trial.nodeAbsolutePressuresMmHg[
+        edge.up as keyof typeof trial.nodeAbsolutePressuresMmHg
+      ];
+      const downstreamPressure = trial.nodeAbsolutePressuresMmHg[
+        edge.down as keyof typeof trial.nodeAbsolutePressuresMmHg
+      ];
+      const extKind = edge.ext === "pth" || edge.ext === "palv"
+        ? edge.ext
+        : "none";
+      const edgeExternalPressure = respiratoryExternalPressureForKindV1(
+        extKind,
+        trial.candidateTimeSec,
+        runtime.respiratory,
+      );
+      const effectiveDownstream = downstreamEffectivePressureV1({
+        edge,
+        downstreamPressureMmHg: downstreamPressure,
+        edgeExternalPressureMmHg: edgeExternalPressure,
+      });
+      const losses = nonValveEdgeLossV1({
+        edge,
+        params: runtime.losses,
+        upstreamPressureMmHg: upstreamPressure,
+        downstreamPressureMmHg: downstreamPressure,
+        edgeExternalPressureMmHg: edgeExternalPressure,
+      });
+      expect(losses.collapsibleTubeApplied).toBe(true);
+      expect(trial.edgeFlowsMlPerSec[name]).toBeCloseTo(
+        solveSignedLinearQuadraticFlowV1(
+          upstreamPressure - effectiveDownstream,
+          losses.resistanceMmHgSecPerMl,
+          losses.quadraticLossMmHgSec2PerMl2,
+        ),
+        10,
+      );
     }
   });
 
