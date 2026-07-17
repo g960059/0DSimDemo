@@ -18,7 +18,6 @@ import {
   type MainWireNormalAdultFiveWallDiagnosticSampleV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
 import {
-  normalAdultMainWireRuntimeV1,
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
@@ -34,21 +33,21 @@ import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  resolveMainWireNormalAdultBloodVolumeOperatingPointV1,
-} from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
-import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultFiveWallProviderV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
-import {
-  createMainWireNormalAdultCommonPericardiumV1,
-} from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
 import type {
   MainWireCommonPericardiumBindingV1,
 } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 import {
   loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
+import {
+  loadMainWireScientificResolvedSessionInputV1,
+  mainWireScientificSessionIntentV1,
+  resolveMainWireScientificSessionInputV1,
+  type MainWireScientificResolvedSessionInputV1,
+} from "@/engine/scientific/inputs";
 import {
   loadSimulationReleaseV1,
   sameSimulationReleaseRef,
@@ -96,7 +95,7 @@ export const MAIN_WIRE_SCIENTIFIC_SESSION_V1_CLAIM = Object.freeze({
   mechanics:
     "full-Land-parallel-SLS-membrane-TriSeg-common-pericardium" as const,
   circulation: "main-wire-derived-15-node-noncoronary" as const,
-  valvePreset: "healthy-quasi-steady-V2" as const,
+  valvePreset: "release-resolved-complete-quasi-steady-V2-preset" as const,
   commonPericardium: "healthy-slack-on" as const,
   coronaryCirculationIncluded: false as const,
   deviceGraphIncluded: false as const,
@@ -289,11 +288,14 @@ type FixedAssemblyDependencies = Readonly<{
   provider: MainWireNormalAdultFiveWallProviderV1;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
   pericardium: MainWireCommonPericardiumBindingV1;
+  calciumDriveParams: typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
 }>;
 
 export class MainWireScientificSessionV1 {
   readonly sessionId = MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID;
   readonly releaseRef: SimulationReleaseRef;
+  readonly sessionInput: MainWireScientificResolvedSessionInputV1;
+  readonly sessionInputSha256: string;
   readonly claim = MAIN_WIRE_SCIENTIFIC_SESSION_V1_CLAIM;
 
   private readonly dependencies: FixedAssemblyDependencies;
@@ -303,6 +305,7 @@ export class MainWireScientificSessionV1 {
 
   private constructor(
     releaseRef: SimulationReleaseRef,
+    sessionInput: MainWireScientificResolvedSessionInputV1,
     dependencies: FixedAssemblyDependencies,
     acceptedState: AcceptedState,
     observation: MainWireScientificSessionObservationV1,
@@ -313,7 +316,12 @@ export class MainWireScientificSessionV1 {
       acceptedState,
       observation,
     );
+    if (!sameSimulationReleaseRef(releaseRef, sessionInput.releaseRef)) {
+      throw new Error("session input release identity mismatch");
+    }
     this.releaseRef = copyReleaseRef(releaseRef);
+    this.sessionInput = sessionInput;
+    this.sessionInputSha256 = sessionInput.sessionInputSha256;
     this.dependencies = dependencies;
     this.acceptedState = acceptedState;
     this.lastObservation = observation;
@@ -324,12 +332,26 @@ export class MainWireScientificSessionV1 {
     untrustedRelease: unknown,
   ): Promise<MainWireScientificSessionV1> {
     const release = await loadFixedAssemblyRelease(untrustedRelease);
-    return MainWireScientificSessionV1.constructCold(release);
+    const sessionInput = await canonicalHealthySessionInput(release);
+    return MainWireScientificSessionV1.constructCold(release, sessionInput);
+  }
+
+  static async initializeResolved(
+    untrustedRelease: unknown,
+    untrustedSessionInput: unknown,
+  ): Promise<MainWireScientificSessionV1> {
+    const release = await loadFixedAssemblyRelease(untrustedRelease);
+    const sessionInput = await loadMainWireScientificResolvedSessionInputV1(
+      release,
+      untrustedSessionInput,
+    );
+    return MainWireScientificSessionV1.constructCold(release, sessionInput);
   }
 
   static async createCanonical(): Promise<MainWireScientificSessionV1> {
     const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
-    return MainWireScientificSessionV1.constructCold(release);
+    const sessionInput = await canonicalHealthySessionInput(release);
+    return MainWireScientificSessionV1.constructCold(release, sessionInput);
   }
 
   static async restoreExact(
@@ -341,7 +363,8 @@ export class MainWireScientificSessionV1 {
       release.ref,
       checkpoint,
     );
-    const dependencies = buildFixedAssemblyDependencies();
+    const sessionInput = await canonicalHealthySessionInput(release);
+    const dependencies = buildFixedAssemblyDependencies(sessionInput);
     const acceptedState = restoreMainWireFiveWallNonCoronaryV1(
       dependencies.provider,
       validatedCheckpoint.transaction,
@@ -353,6 +376,7 @@ export class MainWireScientificSessionV1 {
     );
     return new MainWireScientificSessionV1(
       release.ref,
+      sessionInput,
       dependencies,
       acceptedState,
       restoredObservation(release.ref, acceptedState),
@@ -429,7 +453,7 @@ export class MainWireScientificSessionV1 {
         {
           dtSec,
           runtime: this.dependencies.runtime,
-          calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+          calciumDriveParams: this.dependencies.calciumDriveParams,
           pericardium: this.dependencies.pericardium,
         },
       );
@@ -613,6 +637,11 @@ export class MainWireScientificSessionV1 {
   }
 
   async checkpointExact(): Promise<MainWireScientificSessionExactCheckpointV2> {
+    if (this.sessionInput.sourceIntent.parameterOperations.length !== 0) {
+      throw new Error(
+        "checkpoint V2 is fixed-canonical-only; parameterized sessions require checkpoint V3",
+      );
+    }
     const payload = exactCheckpointPayload({
       checkpointId: MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V2_ID,
       schemaVersion: 2 as const,
@@ -645,23 +674,27 @@ export class MainWireScientificSessionV1 {
 
   private static constructCold(
     release: SimulationReleaseV1,
+    sessionInput: MainWireScientificResolvedSessionInputV1,
   ): MainWireScientificSessionV1 {
-    const dependencies = buildFixedAssemblyDependencies();
-    const bloodVolume = resolveMainWireNormalAdultBloodVolumeOperatingPointV1(
-      dependencies.runtime,
-    );
+    const dependencies = buildFixedAssemblyDependencies(sessionInput);
+    if (
+      sessionInput.initialization.initialTimeSec !== 0
+      || sessionInput.initialization.initialRevision !== 0
+    ) throw new Error("resolved cold initialization identity is unsupported");
     const cold = initializeMainWireFiveWallNonCoronaryV1({
       provider: dependencies.provider,
       runtime: dependencies.runtime,
-      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      calciumDriveParams: dependencies.calciumDriveParams,
       pericardium: dependencies.pericardium,
       circulationInitial: Object.freeze({
-        fixedTotalBloodVolumeMl: bloodVolume.fixedTotalBloodVolumeMl,
-        nodeVolumesMl: bloodVolume.nodeVolumesMl,
+        fixedTotalBloodVolumeMl:
+          sessionInput.initialization.fixedTotalBloodVolumeMl,
+        nodeVolumesMl: sessionInput.initialization.resolvedNodeVolumesMl,
       }),
     });
     return new MainWireScientificSessionV1(
       release.ref,
+      sessionInput,
       dependencies,
       cold.acceptedState,
       coldObservation(release.ref, cold),
@@ -678,6 +711,16 @@ export async function initializeMainWireScientificSessionV1(
   untrustedRelease: unknown,
 ): Promise<MainWireScientificSessionV1> {
   return MainWireScientificSessionV1.initialize(untrustedRelease);
+}
+
+export async function initializeMainWireScientificSessionFromResolvedInputV1(
+  untrustedRelease: unknown,
+  untrustedSessionInput: unknown,
+): Promise<MainWireScientificSessionV1> {
+  return MainWireScientificSessionV1.initializeResolved(
+    untrustedRelease,
+    untrustedSessionInput,
+  );
 }
 
 export async function restoreMainWireScientificSessionExactV2(
@@ -959,15 +1002,35 @@ async function loadFixedAssemblyRelease(
   return loaded;
 }
 
-function buildFixedAssemblyDependencies(): FixedAssemblyDependencies {
+function buildFixedAssemblyDependencies(
+  sessionInput: MainWireScientificResolvedSessionInputV1,
+): FixedAssemblyDependencies {
+  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1("on");
+  const expectedMechanics = sessionInput.resolvedParameters.mechanics;
+  if (
+    provider.providerId !== expectedMechanics.providerId
+    || provider.parameterSetId !== expectedMechanics.parameterSetId
+    || provider.parameterIdentityHash !== expectedMechanics.parameterIdentityHash
+    || expectedMechanics.laSlsMode !== "on"
+  ) throw new Error("resolved mechanics provider metadata mismatch");
   return Object.freeze({
-    provider: createCanonicalMainWireNormalAdultFiveWallProviderV1("on"),
-    runtime: normalAdultMainWireRuntimeV1(),
-    pericardium: createMainWireNormalAdultCommonPericardiumV1(
-      "on",
-      "healthy-slack",
-    ),
+    provider,
+    runtime: sessionInput.resolvedParameters.circulationRuntime,
+    pericardium:
+      sessionInput.resolvedParameters.commonPericardium.resolvedBinding,
+    calciumDriveParams:
+      sessionInput.resolvedParameters.calciumDrive.fixedPrior as unknown as
+        typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
   });
+}
+
+async function canonicalHealthySessionInput(
+  release: SimulationReleaseV1,
+): Promise<MainWireScientificResolvedSessionInputV1> {
+  return resolveMainWireScientificSessionInputV1(
+    release,
+    mainWireScientificSessionIntentV1(release.ref),
+  );
 }
 
 function coldObservation(

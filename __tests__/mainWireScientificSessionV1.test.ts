@@ -9,6 +9,10 @@ import {
   loadMainWireAdultFiveWallNonCoronaryReleaseV1,
   mainWireAdultFiveWallNonCoronaryReleaseInputV1,
 } from "@/engine/scientific/assembly";
+import {
+  mainWireScientificSessionIntentV1,
+  resolveMainWireScientificSessionInputV1,
+} from "@/engine/scientific/inputs";
 import { createSimulationReleaseV1 } from "@/engine/scientific/release";
 
 describe("main-wire ScientificSession V1", () => {
@@ -174,5 +178,37 @@ describe("main-wire ScientificSession V1", () => {
     await expect(MainWireScientificSessionV1.initialize({
       ref: canonicalRelease.ref,
     })).rejects.toThrow(/simulation release rejected/);
+  }, 60_000);
+
+  it("consumes a release-resolved severe valve input without live parameter reconstruction", async () => {
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const input = await resolveMainWireScientificSessionInputV1(
+      release,
+      mainWireScientificSessionIntentV1(release.ref, "AS-severe"),
+    );
+    const session = await MainWireScientificSessionV1.initializeResolved(
+      release,
+      JSON.parse(JSON.stringify(input)),
+    );
+
+    expect(session.sessionInputSha256).toBe(input.sessionInputSha256);
+    expect(session.sessionInput.resolvedParameters.circulationRuntime
+      .valvePreset.bracketIds).toEqual(["AS-severe"]);
+    expect(session.stateIdentity()).toEqual({
+      revision: input.initialization.initialRevision,
+      acceptedTimeSec: input.initialization.initialTimeSec,
+      totalBloodVolumeMl: input.initialization.fixedTotalBloodVolumeMl,
+    });
+    expect(session.observe().chamber.LV.volumeMl)
+      .toBe(input.initialization.resolvedNodeVolumesMl.LV);
+
+    const result = session.runTransient({ dtSec: 0.002, stepCount: 1 });
+    expect(result).toMatchObject({
+      completed: true,
+      completedStepCount: 1,
+      failure: null,
+    });
+    await expect(session.checkpointExact())
+      .rejects.toThrow(/parameterized sessions require checkpoint V3/);
   }, 60_000);
 });
