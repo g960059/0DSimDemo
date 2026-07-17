@@ -16,6 +16,7 @@ describe("document-bound scientific workbench page V1", () => {
     expect(markup).toContain("Official healthy periodic workspace");
     expect(markup).toContain("Loading verified case");
     expect(markup).toContain("Research reference");
+    expect(markup).toContain("overflow-y-auto");
     expect(markup).not.toContain("backend selector");
   });
 

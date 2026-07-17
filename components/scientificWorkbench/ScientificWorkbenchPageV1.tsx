@@ -72,7 +72,7 @@ export default function ScientificWorkbenchPageV1() {
 
   return (
     <main
-      className="min-h-full bg-slate-950 px-4 py-6 text-slate-100 sm:px-6 lg:px-8"
+      className="h-full overflow-y-auto bg-slate-950 px-4 py-6 text-slate-100 sm:px-6 lg:px-8"
       data-testid="scientific-workbench-page-v1"
     >
       <header className="mx-auto mb-6 max-w-[1600px] space-y-3">
