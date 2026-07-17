@@ -51,6 +51,7 @@ export const fastTests = [
   "__tests__/mainWireNormalAdultFiveWallPeriodicOrbitComparisonV1.test.ts",
   "__tests__/mainWireNormalAdultFiveWallPeriodicReviewV1.test.ts",
   "__tests__/mainWireNormalAdultFiveWallProviderV1.test.ts",
+  "__tests__/mainWireOfficialHealthyPeriodicCheckpointPresetV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/mainWireValveDiseaseCycleMetricsV1.test.ts",

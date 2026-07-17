@@ -22,6 +22,8 @@
     "test:watch": "vitest --config vitest.fast.config.ts",
     "test:watch:all": "vitest --config vitest.config.ts",
     "benchmark:scientific:session": "vite-node --script tools/scientific/benchmarkMainWireScientificSessionV1.ts",
+    "generate:scientific:official-healthy-periodic-checkpoint": "vite-node --script tools/scientific/generateOfficialHealthyPeriodicCheckpointPresetV1.ts",
+    "verify:scientific:official-healthy-periodic-checkpoint": "vite-node --script tools/scientific/verifyOfficialHealthyPeriodicCheckpointPresetV1.ts",
     "verify:scientific:valve-preset-numerical-envelope": "vite-node --script tools/scientific/runMainWireValvePresetNumericalRobustnessEnvelopeV1.ts",
     "verify:baseline": "vite-node tools/verifyBaseline.ts",
     "verify:cases": "vite-node tools/verifyCases.ts",
