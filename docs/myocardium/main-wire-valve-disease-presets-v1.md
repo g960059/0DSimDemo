@@ -474,6 +474,11 @@ pericardiumを用い、弁preset以外を変更しない。
 - period-1 fixed-scale closure $\le10^{-3}$を3拍連続で満たしたterminal cycleだけ解釈する。
 - period-2または最大拍数到達をperiod-1の代用にしない。
 - continuity residual、TBV error、mechanics assembly residualを既存normal protocolと同じ単位・gateで保存する。
+- circulation Newtonのaccepted-step gateは各nodeで
+  $|r_i|\le10^{-8}\ \mathrm{mL}+2\times10^{-10}\max(10\ \mathrm{mL},|V_i^n|)$とする。
+  相対項だけの閾値跨ぎで正常解を棄却しないためのmixed toleranceであり、弁flowの平滑化、physical leak、
+  または生理parameterではない。有限差分幅は従来の$2\times10^{-6}$を維持し、coarse two-beat回帰では
+  maximum continuity residual $<10^{-7}$ mLを別のhard auditとする。
 - $\xi$、$Q$、各node volume/pressureにNaN、Inf、負のblood volumeがない。
 - valve flow、opening target、$\xi$、$\Delta P$をaccepted timeで同時保存し、時間補間やsmoothingでpeakを消さない。
 - `dt=2 ms`と`dt=1 ms`を同じaccepted checkpointから独立に分岐し、相互warm-startを使わない。

@@ -47,6 +47,10 @@ describe("main-wire normal-adult LA mechanism ledger V1", () => {
 
     expect(ledger.samples).toHaveLength(source.length);
     expect(ledger.intervals).toHaveLength(source.length);
+    expect(Math.max(...source.map((sample) =>
+      sample.diagnostics.maximumContinuityResidualMl))).toBeLessThan(1e-7);
+    expect(source.every((sample) =>
+      Math.abs(sample.diagnostics.totalBloodVolumeErrorMl) < 1e-9)).toBe(true);
     expect(ledger.intervals[0]).toMatchObject({
       previousSampleIndex: -1,
       currentSampleIndex: 0,

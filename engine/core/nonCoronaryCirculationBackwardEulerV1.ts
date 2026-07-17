@@ -184,6 +184,8 @@ export type NonCoronaryCirculationInitialStateInputV1 = Readonly<{
 
 export type NonCoronaryCirculationNewtonOptionsV1 = Readonly<{
   maxIterations?: number;
+  /** Absolute term in the per-node mixed continuity-residual gate. */
+  absoluteContinuityResidualToleranceMl?: number;
   scaledResidualInfinityTolerance?: number;
   scaledUpdateInfinityTolerance?: number;
   finiteDifferenceScaledStep?: number;
@@ -204,6 +206,9 @@ export type NonCoronaryCirculationTrialDiagnosticsV1 = Readonly<{
   acceptedLineSearchSteps: number;
   lineSearchBacktracks: number;
   finalScaledResidualInfinityNorm: number;
+  finalMixedContinuityResidualInfinityNorm: number;
+  absoluteContinuityResidualToleranceMl: number;
+  relativeContinuityResidualTolerance: number;
   finalMaximumContinuityResidualMl: number;
   dependentNodeContinuityResidualMl: number;
   totalBloodVolumeErrorMl: number;
@@ -216,6 +221,13 @@ export type NonCoronaryCirculationTrialDiagnosticsV1 = Readonly<{
     residualMl: number;
     absoluteResidualMl: number;
     scaledResidual: number;
+  }>;
+  worstMixedContinuityResidual: null | Readonly<{
+    node: NonCoronaryNodeNameV1;
+    residualMl: number;
+    absoluteResidualMl: number;
+    toleranceMl: number;
+    normalizedResidual: number;
   }>;
   failureNewtonTrace: readonly NonCoronaryNewtonFailureTraceEntryV1[];
   lineSearchFailure: NonCoronaryLineSearchFailureDiagnosticsV1 | null;
@@ -336,6 +348,13 @@ type CandidateEvaluation<TEvaluation> = Readonly<{
   scaledIndependentResidual: readonly number[];
 }>;
 
+type MixedContinuityResidualAudit = Readonly<{
+  infinityNorm: number;
+  worst: NonNullable<
+    NonCoronaryCirculationTrialDiagnosticsV1["worstMixedContinuityResidual"]
+  >;
+}>;
+
 type MutableNewtonFailureTraceEntryV1 = {
   iteration: number;
   currentScaledResidualInfinityNorm: number;
@@ -362,6 +381,7 @@ const INDEPENDENT_NODE_NAMES = Object.freeze(
 );
 const DEFAULT_NEWTON_OPTIONS = Object.freeze({
   maxIterations: 30,
+  absoluteContinuityResidualToleranceMl: 1e-8,
   scaledResidualInfinityTolerance: 2e-10,
   scaledUpdateInfinityTolerance: 2e-11,
   finiteDifferenceScaledStep: 2e-6,
@@ -510,12 +530,20 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
       "initial-evaluation-failed",
       errorMessage(error),
       previous.nodeVolumesMl,
-      emptyDiagnostics(options.finiteDifferenceScaledStep, mechanicsCache),
+      emptyDiagnostics(options, mechanicsCache),
     );
   }
 
   for (let iteration = 0; iteration <= options.maxIterations; iteration += 1) {
     const residualNorm = infinityNorm(current.scaledIndependentResidual);
+    const mixedContinuityResidual = mixedContinuityResidualAudit(
+      current,
+      previous.nodeVolumesMl,
+      options.absoluteContinuityResidualToleranceMl,
+      options.scaledResidualInfinityTolerance,
+    );
+    const continuityResidualConverged =
+      mixedContinuityResidual.infinityNorm <= 1;
     const traceEntry: MutableNewtonFailureTraceEntryV1 = {
       iteration,
       currentScaledResidualInfinityNorm: residualNorm,
@@ -527,7 +555,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
       acceptedTrialScaledResidualInfinityNorm: null,
     };
     pushBoundedFailureTrace(failureTrace, traceEntry);
-    if (residualNorm <= options.scaledResidualInfinityTolerance) {
+    if (continuityResidualConverged) {
       return success(
         previous,
         input.dtSec,
@@ -539,8 +567,8 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous.totalBloodVolumeMl,
-          options.finiteDifferenceScaledStep,
+          previous,
+          options,
           mechanicsCache,
         ),
       );
@@ -557,8 +585,8 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous.totalBloodVolumeMl,
-          options.finiteDifferenceScaledStep,
+          previous,
+          options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
         ),
@@ -590,8 +618,8 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous.totalBloodVolumeMl,
-          options.finiteDifferenceScaledStep,
+          previous,
+          options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
         ),
@@ -616,8 +644,8 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous.totalBloodVolumeMl,
-          options.finiteDifferenceScaledStep,
+          previous,
+          options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
         ),
@@ -625,7 +653,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
     }
     if (
       infinityNorm(update) <= options.scaledUpdateInfinityTolerance
-      && residualNorm > options.scaledResidualInfinityTolerance
+      && !continuityResidualConverged
     ) {
       return failure(
         previous,
@@ -638,8 +666,8 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous.totalBloodVolumeMl,
-          options.finiteDifferenceScaledStep,
+          previous,
+          options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
         ),
@@ -739,8 +767,8 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
           lineSearchBacktracks,
           residualNorm,
           current,
-          previous.totalBloodVolumeMl,
-          options.finiteDifferenceScaledStep,
+          previous,
+          options,
           mechanicsCache,
           freezeFailureTrace(failureTrace),
           lineSearchFailure,
@@ -1175,6 +1203,42 @@ function independentVolumesToScaled(
     volumes[name] / scales[index]!));
 }
 
+/**
+ * A pure relative gate is brittle once residuals reach the finite-difference
+ * noise floor. Keep the existing scale-relative term and add a tiny absolute
+ * volume term, node by node, as in a standard mixed atol + rtol criterion.
+ */
+function mixedContinuityResidualAudit<TEvaluation>(
+  evaluation: CandidateEvaluation<TEvaluation>,
+  referenceVolumesMl: NodeRecord<number>,
+  absoluteToleranceMl: number,
+  scaledTolerance: number,
+): MixedContinuityResidualAudit {
+  const entries = NON_CORONARY_NODE_NAMES_V1.map((node) => {
+    const residualMl = evaluation.continuityResidualMlByNode[node];
+    const absoluteResidualMl = Math.abs(residualMl);
+    const toleranceMl = absoluteToleranceMl + scaledTolerance * Math.max(
+      10,
+      Math.abs(referenceVolumesMl[node]),
+    );
+    return Object.freeze({
+      node,
+      residualMl,
+      absoluteResidualMl,
+      toleranceMl,
+      normalizedResidual: absoluteResidualMl / toleranceMl,
+    });
+  });
+  const worst = entries.reduce((current, candidate) =>
+    candidate.normalizedResidual > current.normalizedResidual
+      ? candidate
+      : current);
+  return Object.freeze({
+    infinityNorm: worst.normalizedResidual,
+    worst,
+  });
+}
+
 function independentVolumeScales(
   volumes: NodeRecord<number>,
 ): readonly number[] {
@@ -1278,19 +1342,31 @@ function trialDiagnostics<TEvaluation>(
   lineSearchBacktracks: number,
   residualNorm: number,
   evaluation: CandidateEvaluation<TEvaluation>,
-  expectedTbv: number,
-  finiteDifferenceScaledStep: number,
+  previous: NonCoronaryCirculationAcceptedStateV1,
+  options: Required<NonCoronaryCirculationNewtonOptionsV1>,
   mechanicsCache: CandidateMechanicsCache<TEvaluation>,
   failureNewtonTrace: readonly NonCoronaryNewtonFailureTraceEntryV1[] = [],
   lineSearchFailure: NonCoronaryLineSearchFailureDiagnosticsV1 | null = null,
 ): NonCoronaryCirculationTrialDiagnosticsV1 {
   const worstIndependentContinuityResidual =
     worstIndependentContinuityResidualFromEvaluation(evaluation);
+  const mixedContinuityResidual = mixedContinuityResidualAudit(
+    evaluation,
+    previous.nodeVolumesMl,
+    options.absoluteContinuityResidualToleranceMl,
+    options.scaledResidualInfinityTolerance,
+  );
   return Object.freeze({
     iterations,
     acceptedLineSearchSteps,
     lineSearchBacktracks,
     finalScaledResidualInfinityNorm: residualNorm,
+    finalMixedContinuityResidualInfinityNorm:
+      mixedContinuityResidual.infinityNorm,
+    absoluteContinuityResidualToleranceMl:
+      options.absoluteContinuityResidualToleranceMl,
+    relativeContinuityResidualTolerance:
+      options.scaledResidualInfinityTolerance,
     finalMaximumContinuityResidualMl: Math.max(
       ...NON_CORONARY_NODE_NAMES_V1.map((name) =>
         Math.abs(evaluation.continuityResidualMlByNode[name])),
@@ -1298,19 +1374,20 @@ function trialDiagnostics<TEvaluation>(
     dependentNodeContinuityResidualMl:
       evaluation.continuityResidualMlByNode[DEPENDENT_NODE],
     totalBloodVolumeErrorMl:
-      sumNodeRecord(evaluation.nodeVolumesMl) - expectedTbv,
-    finiteDifferenceScaledStep,
+      sumNodeRecord(evaluation.nodeVolumesMl) - previous.totalBloodVolumeMl,
+    finiteDifferenceScaledStep: options.finiteDifferenceScaledStep,
     mechanicsCallbackCallCount: mechanicsCache.callCount,
     mechanicsCallbackCacheHitCount: mechanicsCache.hitCount,
     mechanicsCallbackUniqueCandidateCount: mechanicsCache.values.size,
     worstIndependentContinuityResidual,
+    worstMixedContinuityResidual: mixedContinuityResidual.worst,
     failureNewtonTrace: Object.freeze([...failureNewtonTrace]),
     lineSearchFailure,
   });
 }
 
 function emptyDiagnostics<TEvaluation>(
-  finiteDifferenceScaledStep = Number.NaN,
+  options?: Required<NonCoronaryCirculationNewtonOptionsV1>,
   mechanicsCache?: CandidateMechanicsCache<TEvaluation>,
 ): NonCoronaryCirculationTrialDiagnosticsV1 {
   return Object.freeze({
@@ -1318,14 +1395,21 @@ function emptyDiagnostics<TEvaluation>(
     acceptedLineSearchSteps: 0,
     lineSearchBacktracks: 0,
     finalScaledResidualInfinityNorm: Number.POSITIVE_INFINITY,
+    finalMixedContinuityResidualInfinityNorm: Number.POSITIVE_INFINITY,
+    absoluteContinuityResidualToleranceMl:
+      options?.absoluteContinuityResidualToleranceMl ?? Number.NaN,
+    relativeContinuityResidualTolerance:
+      options?.scaledResidualInfinityTolerance ?? Number.NaN,
     finalMaximumContinuityResidualMl: Number.POSITIVE_INFINITY,
     dependentNodeContinuityResidualMl: Number.NaN,
     totalBloodVolumeErrorMl: Number.NaN,
-    finiteDifferenceScaledStep,
+    finiteDifferenceScaledStep:
+      options?.finiteDifferenceScaledStep ?? Number.NaN,
     mechanicsCallbackCallCount: mechanicsCache?.callCount ?? 0,
     mechanicsCallbackCacheHitCount: mechanicsCache?.hitCount ?? 0,
     mechanicsCallbackUniqueCandidateCount: mechanicsCache?.values.size ?? 0,
     worstIndependentContinuityResidual: null,
+    worstMixedContinuityResidual: null,
     failureNewtonTrace: Object.freeze([]),
     lineSearchFailure: null,
   });
@@ -1393,6 +1477,10 @@ function resolveNewtonOptions(
   requirePositive(
     resolved.scaledResidualInfinityTolerance,
     "scaledResidualInfinityTolerance",
+  );
+  requireNonnegative(
+    resolved.absoluteContinuityResidualToleranceMl,
+    "absoluteContinuityResidualToleranceMl",
   );
   requirePositive(
     resolved.scaledUpdateInfinityTolerance,

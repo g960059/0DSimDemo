@@ -564,9 +564,38 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     });
     expect(finalTrial.converged).toBe(true);
     if (finalTrial.converged === false) throw new Error(finalTrial.message);
+    expect(finalTrial.diagnostics.finalMixedContinuityResidualInfinityNorm)
+      .toBeLessThanOrEqual(1);
+    expect(finalTrial.diagnostics.absoluteContinuityResidualToleranceMl)
+      .toBe(1e-8);
+    expect(finalTrial.diagnostics.relativeContinuityResidualTolerance)
+      .toBe(2e-10);
+    expect(finalTrial.diagnostics.worstMixedContinuityResidual).not.toBeNull();
+    expect(finalTrial.diagnostics.worstMixedContinuityResidual!
+      .normalizedResidual).toBeLessThanOrEqual(1);
     expect(finalTrial.diagnostics.finalScaledResidualInfinityNorm).toBeLessThan(2e-10);
     expect(finalTrial.diagnostics.finalMaximumContinuityResidualMl).toBeLessThan(2e-7);
     expect(Math.abs(finalTrial.diagnostics.totalBloodVolumeErrorMl)).toBeLessThan(1e-9);
+  });
+
+  it("rejects a negative absolute continuity tolerance", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      options: { absoluteContinuityResidualToleranceMl: -1e-8 },
+      evaluateCandidateMechanics: elasticMechanicsCallback(initial),
+    });
+
+    expect(trial.converged).toBe(false);
+    if (trial.converged === true) throw new Error("expected invalid input");
+    expect(trial.reason).toBe("invalid-input");
+    expect(trial.message).toMatch(/absoluteContinuityResidualToleranceMl/);
   });
 });
 
