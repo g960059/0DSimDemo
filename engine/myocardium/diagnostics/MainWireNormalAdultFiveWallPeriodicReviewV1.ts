@@ -953,9 +953,13 @@ function gridMarkup(
     const y = plot.y + fraction * plot.height;
     const xv = xDomain[0] + fraction * (xDomain[1] - xDomain[0]);
     const yv = yDomain[1] - fraction * (yDomain[1] - yDomain[0]);
-    return `${vertical ? `<line x1="${x}" y1="${plot.y}" x2="${x}" y2="${plot.y + plot.height}" stroke="#1c2d45"/><text x="${x}" y="${plot.y + plot.height + 17}" fill="#8296af" font-size="10" text-anchor="middle">${escapeXml(tick(xv))}</text>` : ""}
-      <line x1="${plot.x}" y1="${y}" x2="${plot.x + plot.width}" y2="${y}" stroke="#1c2d45"/>
-      <text x="${plot.x - 8}" y="${y + 3}" fill="#8296af" font-size="10" text-anchor="end">${escapeXml(tick(yv))}</text>`;
+    return [
+      vertical
+        ? `<line x1="${x}" y1="${plot.y}" x2="${x}" y2="${plot.y + plot.height}" stroke="#1c2d45"/><text x="${x}" y="${plot.y + plot.height + 17}" fill="#8296af" font-size="10" text-anchor="middle">${escapeXml(tick(xv))}</text>`
+        : null,
+      `<line x1="${plot.x}" y1="${y}" x2="${plot.x + plot.width}" y2="${y}" stroke="#1c2d45"/>`,
+      `<text x="${plot.x - 8}" y="${y + 3}" fill="#8296af" font-size="10" text-anchor="end">${escapeXml(tick(yv))}</text>`,
+    ].filter((line): line is string => line !== null).join("\n");
   }).join("\n");
 }
 
