@@ -99,6 +99,10 @@ export type MainWireScientificSessionObservationV1 = Readonly<{
     transmuralPressureMmHg: number | null;
     pressureAvailability: MainWireScientificSessionSignalAvailabilityV1;
   }>>>;
+  vascularPressure: Readonly<Record<"Ao" | "PA" | "PVein", Readonly<{
+    absolutePressureMmHg: number | null;
+    pressureAvailability: MainWireScientificSessionSignalAvailabilityV1;
+  }>>>;
   valve: Readonly<Record<"MV" | "AoV" | "TV" | "PV", Readonly<{
     flowMlPerSec: number | null;
     openingFraction01: number;
@@ -446,6 +450,10 @@ function coldObservation(
       transmuralPressureMmHg: cold.transmuralPressuresMmHg[chamber],
       pressureAvailability: "available" as const,
     })),
+    vascularPressure: vascularPressureRecord(() => Object.freeze({
+      absolutePressureMmHg: null,
+      pressureAvailability: "not-evaluated-at-accepted-state" as const,
+    })),
     valve: valveRecord((valve) => Object.freeze({
       flowMlPerSec: null,
       openingFraction01:
@@ -485,6 +493,10 @@ function acceptedStepObservation(
       transmuralPressureMmHg: sample.chamberTransmuralPressureMmHg[chamber],
       pressureAvailability: "available" as const,
     })),
+    vascularPressure: vascularPressureRecord((node) => Object.freeze({
+      absolutePressureMmHg: sample.nodeAbsolutePressureMmHg[node],
+      pressureAvailability: "available" as const,
+    })),
     valve: valveRecord((valve) => Object.freeze({
       flowMlPerSec: sample.flowMlPerSec[valve],
       openingFraction01: sample.valveOpeningFraction01[valve],
@@ -522,6 +534,10 @@ function restoredObservation(
       volumeMl: state.circulation.nodeVolumesMl[chamber],
       absolutePressureMmHg: null,
       transmuralPressureMmHg: null,
+      pressureAvailability: "not-evaluated-at-accepted-state" as const,
+    })),
+    vascularPressure: vascularPressureRecord(() => Object.freeze({
+      absolutePressureMmHg: null,
       pressureAvailability: "not-evaluated-at-accepted-state" as const,
     })),
     valve: valveRecord((valve) => Object.freeze({
@@ -646,6 +662,15 @@ function valveRecord<T>(
     (["MV", "AoV", "TV", "PV"] as const)
       .map((valve) => [valve, build(valve)]),
   )) as Readonly<Record<"MV" | "AoV" | "TV" | "PV", T>>;
+}
+
+function vascularPressureRecord<T>(
+  build: (node: "Ao" | "PA" | "PVein") => T,
+): Readonly<Record<"Ao" | "PA" | "PVein", T>> {
+  return Object.freeze(Object.fromEntries(
+    (["Ao", "PA", "PVein"] as const)
+      .map((node) => [node, build(node)]),
+  )) as Readonly<Record<"Ao" | "PA" | "PVein", T>>;
 }
 
 function errorMessage(error: unknown): string {

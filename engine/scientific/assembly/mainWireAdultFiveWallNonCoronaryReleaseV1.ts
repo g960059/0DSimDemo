@@ -53,6 +53,11 @@ import {
   MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_V2_ID,
 } from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
 import {
+  MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_SNAPSHOT_V1,
+  MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID,
+  MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION,
+} from "@/engine/scientific/observables";
+import {
   cloneAndFreezeCanonicalJson,
   createSimulationReleaseV1,
   type CanonicalJsonObject,
@@ -256,9 +261,11 @@ SimulationReleaseManifestInputV1 {
       },
     },
     observableSchema: {
-      schemaId: "main-wire-normal-adult-five-wall-observables",
-      schemaVersion: 2,
+      schemaId: MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID,
+      schemaVersion:
+        MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION,
       snapshot: {
+        registry: MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_SNAPSHOT_V1,
         diagnosticSampleId:
           MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID,
         claim:

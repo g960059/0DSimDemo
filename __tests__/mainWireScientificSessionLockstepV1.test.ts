@@ -89,6 +89,12 @@ describe("ScientificSession migration lockstep", () => {
           flowAvailability: "available",
         });
       }
+      for (const node of ["Ao", "PA", "PVein"] as const) {
+        expect(actual.vascularPressure[node]).toEqual({
+          absolutePressureMmHg: expected.nodeAbsolutePressureMmHg[node],
+          pressureAvailability: "available",
+        });
+      }
       expect(actual.pulmonaryVenousFlowMlPerSec)
         .toBe(expected.flowMlPerSec.PVein_LA);
       expect(actual.diagnostics).toEqual({
