@@ -10,21 +10,47 @@ const budgetMs = Number.isFinite(configuredBudget) && configuredBudget > 0
   : DEFAULT_FAST_SUITE_WALL_BUDGET_MS;
 const startedAt = Date.now();
 const vitestEntry = path.resolve("node_modules/vitest/vitest.mjs");
+const usesProcessGroup = process.platform !== "win32";
 const child = spawn(
   process.execPath,
   [vitestEntry, "run", "--config", "vitest.fast.config.ts", ...process.argv.slice(2)],
-  { stdio: "inherit", env: process.env },
+  {
+    stdio: "inherit",
+    env: process.env,
+    // Vitest fans out into worker processes. A dedicated process group lets a
+    // wall-budget timeout terminate the complete worker tree instead of
+    // leaving CPU-consuming orphans behind.
+    detached: usesProcessGroup,
+  },
 );
 
 let exceededBudget = false;
+let escalationTimer;
+
+const terminateChildTree = (signal) => {
+  if (!child.pid) return;
+
+  try {
+    if (usesProcessGroup) {
+      process.kill(-child.pid, signal);
+    } else {
+      child.kill(signal);
+    }
+  } catch (error) {
+    if (error?.code !== "ESRCH") throw error;
+  }
+};
+
 const timer = setTimeout(() => {
   exceededBudget = true;
   console.error(`\nFast suite exceeded its ${(budgetMs / 1000).toFixed(0)} s wall-clock budget.`);
-  child.kill("SIGTERM");
+  terminateChildTree("SIGTERM");
+  escalationTimer = setTimeout(() => terminateChildTree("SIGKILL"), 2_000);
+  escalationTimer.unref();
 }, budgetMs);
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.on(signal, () => child.kill(signal));
+  process.on(signal, () => terminateChildTree(signal));
 }
 
 child.on("error", (error) => {
@@ -35,6 +61,7 @@ child.on("error", (error) => {
 
 child.on("exit", (code, signal) => {
   clearTimeout(timer);
+  clearTimeout(escalationTimer);
   const elapsedSeconds = (Date.now() - startedAt) / 1000;
 
   if (exceededBudget) {

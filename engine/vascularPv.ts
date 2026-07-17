@@ -24,11 +24,23 @@ export type VascularPvLaw =
       dStiff: number;
     };
 
+export type PtmFromStressedVolumeOptions = {
+  maxIterations?: number;
+  pressureToleranceMmHg?: number;
+  stressedVolumeToleranceMl?: number;
+};
+
+export const MAIN_WIRE_ARTERIAL_MINIMUM_LOG_STRAIN = Math.log(0.05);
+export const MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG = Object.freeze({
+  minimum: -20,
+  maximum: 45,
+});
+
 export function stressedVolumeFromPtm(law: VascularPvLaw, Ptm: number): number {
   if (law.kind === "arterial") {
     const p0 = Math.max(law.P0, 1e-6);
-    const p = Math.max(Ptm, -0.95 * p0);
-    return Math.max(law.VsEff, 1e-6) * Math.log1p(p / p0);
+    const pressure = Math.max(Ptm, -0.95 * p0);
+    return Math.max(law.VsEff, 1e-6) * Math.log1p(pressure / p0);
   }
   if (law.kind === "linear") {
     return Math.max(law.C, 1e-6) * Ptm;
@@ -44,6 +56,92 @@ export function complianceFromPtm(law: VascularPvLaw, Ptm: number): number {
     return Math.max(law.C, 1e-6);
   }
   return venousCompliance3(law, Ptm);
+}
+
+/**
+ * Invert the main-wire vascular PV law in stressed-volume coordinates.
+ *
+ * Arterial and venous domains intentionally preserve ModelCore's shipped
+ * saturation semantics. Changing these bounds is a main-wire model change,
+ * not a private inverse-solver option.
+ */
+export function ptmFromStressedVolume(
+  law: VascularPvLaw,
+  targetStressedVolumeMl: number,
+  options: PtmFromStressedVolumeOptions = {},
+): number {
+  if (!Number.isFinite(targetStressedVolumeMl)) {
+    throw new RangeError("targetStressedVolumeMl must be finite");
+  }
+
+  if (law.kind === "arterial") {
+    const p0 = Math.max(law.P0, 1e-6);
+    const vs = Math.max(law.VsEff, 1e-6);
+    const strain = Math.max(
+      MAIN_WIRE_ARTERIAL_MINIMUM_LOG_STRAIN,
+      targetStressedVolumeMl / vs,
+    );
+    const pressure = p0 * Math.expm1(strain);
+    if (!Number.isFinite(pressure)) {
+      throw new RangeError("arterial stressed volume maps outside finite pressure");
+    }
+    return pressure;
+  }
+
+  if (law.kind === "linear") {
+    return targetStressedVolumeMl / Math.max(law.C, 1e-6);
+  }
+
+  validateVenousLaw(law);
+  let lo: number = MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.minimum;
+  let hi: number = MAIN_WIRE_VENOUS_PTM_BOUNDS_MMHG.maximum;
+
+  let loVolume = stressedVolumeFromPtm(law, lo);
+  let hiVolume = stressedVolumeFromPtm(law, hi);
+  if (targetStressedVolumeMl <= loVolume) return lo;
+  if (targetStressedVolumeMl >= hiVolume) return hi;
+
+  const maxIterations = Math.max(1, Math.floor(options.maxIterations ?? 32));
+  const pressureTolerance = Math.max(options.pressureToleranceMmHg ?? 1e-10, 0);
+  const volumeTolerance = Math.max(options.stressedVolumeToleranceMl ?? 1e-10, 0);
+  for (let iteration = 0; iteration < maxIterations; iteration++) {
+    const mid = 0.5 * (lo + hi);
+    const midVolume = stressedVolumeFromPtm(law, mid);
+    if (
+      Math.abs(midVolume - targetStressedVolumeMl) <= volumeTolerance
+      || 0.5 * (hi - lo) <= pressureTolerance
+    ) {
+      return mid;
+    }
+    if (midVolume < targetStressedVolumeMl) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+  return 0.5 * (lo + hi);
+}
+
+function validateVenousLaw(
+  law: Extract<VascularPvLaw, { kind: "venous3" }>,
+): void {
+  for (const [name, value] of [
+    ["Ccoll", law.Ccoll],
+    ["Copen", law.Copen],
+    ["Cdist", law.Cdist],
+    ["dOpen", law.dOpen],
+    ["dStiff", law.dStiff],
+  ] as const) {
+    if (!(value > 0) || !Number.isFinite(value)) {
+      throw new RangeError(`venous ${name} must be positive and finite`);
+    }
+  }
+  if (!(law.Copen >= law.Ccoll && law.Copen >= law.Cdist)) {
+    throw new RangeError("venous Copen must be at least Ccoll and Cdist");
+  }
+  if (!Number.isFinite(law.Popen) || !Number.isFinite(law.Pstiff)) {
+    throw new RangeError("venous transition pressures must be finite");
+  }
 }
 
 function venousCompliance3(law: Extract<VascularPvLaw, { kind: "venous3" }>, Ptm: number): number {

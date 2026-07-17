@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "reportId": "mainwire-normal-five-wall-structural-ablation-v1",
+  "protocol": {
+    "heartRateBpm": 60,
+    "dtSec": 0.002,
+    "beatCount": 8,
+    "circulation": "main-wire-derived-noncoronary-experimental",
+    "activation": "fixed-five-wall-periodic-calcium-prior",
+    "coldState": "main-wire-topology-x0",
+    "periodicInitialization": false,
+    "pericardialConstraint": false,
+    "laaBodyCompartments": false,
+    "parameterSearch": false,
+    "sampleSmoothing": false
+  },
+  "structuralDecisions": {
+    "sharedLongAxisQ": {
+      "decision": "reject-from-canonical-core",
+      "evidence": {
+        "failureTimeSec": 0.052,
+        "declaredAbsoluteBound": 0.1,
+        "failure": "q-bound-hit"
+      },
+      "rescueParametersAdded": false
+    },
+    "directChamberPriorColdStart": {
+      "decision": "reject-and-remove",
+      "canonicalOnFailure": {
+        "timeSec": 6.14,
+        "failure": "mechanics-admissibility-boundary-during-circulation-newton",
+        "circulationScaledResidualAtStop": 0.000027436294,
+        "mechanicsRelativeJacobianAntisymmetryLimit": 0.0002
+      },
+      "laSlsExactOffFailure": {
+        "timeSec": 0.395,
+        "failure": "mechanics-jacobian-symmetry-audit",
+        "relativeAntisymmetry": 0.00031658238839628165
+      },
+      "solverRescueAdded": false,
+      "periodicInitializationDeferred": true
+    },
+    "valveHydraulics": {
+      "decision": "quasi-steady-effective-orifice",
+      "bloodDensityKgPerM3": 1060,
+      "dischargeCoefficientFitAdded": false,
+      "chamberToChamberFlowInertance": 0,
+      "acceptedValveMemory": "leafletOpeningFraction01-only",
+      "valveFlowPersistedAsState": false,
+      "bernoulliCoefficientPublicFitKnob": false,
+      "bernoulliConstruction": "derived-from-instantaneous-effective-orifice-area",
+      "competentValveClosure": "unilateral-flow-with-contact-reaction-complementarity",
+      "mitralOpeningDeadband": {
+        "source": "engine/core/topology.MV_PRESSURE_DEADBAND_MMHG",
+        "valueMmHg": 0.6,
+        "status": "unvalidated-main-wire-prior-not-fit-knob"
+      },
+      "separateRootAndVesselInertanceRetained": true,
+      "oldInertialEdgeBLastBeat": {
+        "laPvSelfIntersectionCount": 4,
+        "aorticPeakFlowMlPerSec": 961.94,
+        "mitralPeakPhases01": [0.446, 0.55, 0.65, 0.748, 0.848, 0.92]
+      },
+      "canonicalLastBeat": {
+        "laPvSelfIntersectionCount": 1,
+        "aorticValvePeakCountAboveFivePercent": 1,
+        "lvPressurePeakCountAboveFivePercent": 1
+      }
+    },
+    "leftAtrialParallelSls": {
+      "decision": "retain-one-state-branch",
+      "secondBranchAdded": false,
+      "on": {
+        "laPvStatus": "measurable",
+        "laPvSelfIntersectionCount": 1,
+        "aLobeAreaMmHgMl": 7.215052319959227,
+        "vLobeAreaMmHgMl": 3.352207667875156,
+        "reservoirMinusConduitMeanMmHg": 0.4092753802974906,
+        "physicalDissipationMilliJPerBeat": 0.34917068473669655,
+        "backwardEulerNumericalDissipationMilliJPerBeat": 0.028939848288300835,
+        "physicalToNumericalDissipationRatio": 12.065394443613984,
+        "period1MaximumRelativeAcceptedStateDifference": 0.014283731507750017,
+        "period2MaximumRelativeAcceptedStateDifference": 0.04178628844283061
+      },
+      "laExactOff": {
+        "mechanicallyExactOff": true,
+        "laPvStatus": "not-measurable",
+        "laPvSelfIntersectionCount": 4,
+        "reservoirMinusConduitMeanMmHg": 0.2611834558100693,
+        "physicalDissipationMilliJPerBeat": 0,
+        "backwardEulerNumericalDissipationMilliJPerBeat": 0,
+        "period1MaximumRelativeAcceptedStateDifference": 0.01376230231909083,
+        "period2MaximumRelativeAcceptedStateDifference": 0.03982079595614218
+      }
+    },
+    "crossWallParallelSlsFixedAblation": {
+      "protocol": {
+        "heartRateBpm": 60,
+        "dtSec": 0.005,
+        "beatCount": 12,
+        "parameterSearch": false,
+        "periodicSteadyStateClaimed": false,
+        "temporaryAblationInstrumentationIncludedInCanonicalCore": false
+      },
+      "allOn": {
+        "laALobeAreaMmHgMl": 5.690082346311989,
+        "laVLobeAreaMmHgMl": 3.397270657104997,
+        "raSelfIntersectionCount": 1,
+        "raReservoirMinusConduitMeanMmHg": 0.40314840440441463,
+        "physicalDissipationMilliJPerBeatByWall": {
+          "LA": 0.35044885647520035,
+          "RA": 0.29995332859342455,
+          "LVFW": 16.488379521610753,
+          "SEP": 7.222439083350208,
+          "RVFW": 6.212462834897464
+        },
+        "period1MaximumRelativeAcceptedStateDifference": 0.016004753220409028
+      },
+      "raExactOff": {
+        "raSelfIntersectionCount": 2,
+        "raLobesMeasurable": false,
+        "raReservoirMinusConduitMeanMmHg": 0.2469197200730226,
+        "leftHeartEffectSmallButRaTopologyOwner": true
+      },
+      "threeVentricularWallsExactOff": {
+        "laALobeAreaMmHgMl": 0.5162170655741569,
+        "laVLobeAreaMmHgMl": 5.859021657576811,
+        "aLobeChangeFraction": -0.9093,
+        "vLobeChangeFraction": 0.725,
+        "cardiacOutputLPerMin": 3.9448356282428674,
+        "notAcceptedAsVLoopFix": true
+      },
+      "rawArtifactSha256": {
+        "allOn": "18a0e7a67a35775c652b03fe104aebc0813fa759ef29064bd547c756be0ae565",
+        "raExactOff": "fc2f606486d835035db016a919f8e20d9f3edca526d915d8a49af5a6bf1d8796",
+        "threeVentricularWallsExactOff": "9c307613b23ad42cbe0462cd4be841338fc5bf636740ce8eea7d47a44ad51671"
+      },
+      "decision": "retain-one-state-per-wall-with-unvalidated-cross-wall-prior"
+    }
+  },
+  "canonicalLastBeat": {
+    "laVolumeRangeMl": [20.064829399416404, 35.86498693139376],
+    "laPressureRangeMmHg": [2.702950035853206, 5.483255109733515],
+    "lvVolumeRangeMl": [42.975424969500956, 105.8728345042864],
+    "lvPressureRangeMmHg": [1.5835867568546156, 91.35266354339981],
+    "lvEjectionFraction": 0.5940844960775935,
+    "cardiacOutputLPerMin": 3.773844567971203,
+    "mitralEPeakMlPerSec": 210.6889075514759,
+    "mitralAPeakMlPerSec": 233.68019969828595,
+    "mvoPhase01": 0.3759999999994097,
+    "reservoirAboveConduitFraction01": 1,
+    "reservoirConduitUsableProbeFraction01": 0.9702970297029703,
+    "period1MaximumRelativeAcceptedStateDifference": 0.014283731507750017,
+    "period2MaximumRelativeAcceptedStateDifference": 0.04178628844283061,
+    "closureIncludesTriSegAlgebraicWarmStartCoordinates": true,
+    "maximumMechanicsResidual": 9.900226798364997e-10,
+    "maximumCirculationResidual": 1.8904734386601752e-10,
+    "maximumContinuityResidualMl": 1.075255956495269e-8,
+    "maximumAbsoluteTotalBloodVolumeErrorMl": 1.8189894035458565e-12
+  },
+  "acceptanceBoundary": {
+    "normalHumanCalibrationClaimed": false,
+    "patientFitClaimed": false,
+    "browserRuntimeReplacementClaimed": false,
+    "fullMainWireIncludingCoronariesClaimed": false,
+    "periodicSteadyStateClaimed": false,
+    "slsParameterValuesIdentified": false,
+    "effectiveOrificeAreaInterpretationGloballyValidated": false,
+    "remainingIssues": [
+      "left-atrial blood-volume range remains below the population construction prior",
+      "cardiac output remains low for the BSA 1.9 construction",
+      "small late-A tail flow peak remains below ten percent of the dominant A peak",
+      "eight beats do not satisfy a declared periodic steady-state acceptance threshold",
+      "direct population chamber-volume cold start was rejected; a periodic initializer remains future work",
+      "the shared cross-wall SLS modulus and relaxation-time prior remains an explicit extrapolation",
+      "coronary circulation and runtime adoption remain outside this report"
+    ]
+  },
+  "reproduction": {
+    "canonicalCommand": "npx vite-node --script tools/myocardium/runMainWireNormalAdultFiveWallClosedLoopV1.ts --mode canonical --la-sls on --beats 8 --dt 0.002 --output /tmp/mainwire-final-minimal-on-8beat.json",
+    "canonicalSummaryCommand": "npx vite-node --script tools/myocardium/summarizeMainWireNormalAdultFiveWallClosedLoopV1.ts --input /tmp/mainwire-final-minimal-on-8beat.json > /tmp/mainwire-final-minimal-on-summary.json",
+    "canonicalRawSha256": "97422b39ba8e3957516fed8b517a325b78184d8db67ed08ccca4b225073ceb0c",
+    "canonicalSummarySha256": "2e203aecab4ee0a8ddf030787a695e60ddb2252881d183a84beba039c0f35fe4",
+    "laSlsExactOffCommand": "npx vite-node --script tools/myocardium/runMainWireNormalAdultFiveWallClosedLoopV1.ts --mode canonical --la-sls exact-off --beats 8 --dt 0.002 --output /tmp/mainwire-final-minimal-la-off-8beat.json",
+    "laSlsExactOffSummaryCommand": "npx vite-node --script tools/myocardium/summarizeMainWireNormalAdultFiveWallClosedLoopV1.ts --input /tmp/mainwire-final-minimal-la-off-8beat.json > /tmp/mainwire-final-minimal-la-off-summary.json",
+    "laSlsExactOffRawSha256": "23b0665fa29bc2f053c1a05d662db3abf037e2a5fab33b1e6fec5dbc05559a2c",
+    "laSlsExactOffSummarySha256": "3b722f72475a2c2f52b633f2322b9c419696d092ae1c340e9663c5a8c039a909"
+  }
+}
