@@ -117,6 +117,22 @@ describe("main-wire normal-adult accepted-interval runner V2", () => {
       .toBe(false);
     expectEventTimes(acceptedEvents(beat), [0.012, 0.852]);
   }, 60_000);
+
+  it("keeps late-cycle event ownership stable across accumulated beat time", () => {
+    const result = runMainWireNormalAdultFiveWallPeriodicSteadyV3({
+      dtSec: 0.004,
+      maximumBeatCount: 5,
+      calciumRepresentation:
+        "analytic-periodic-control-with-exact-event-shadow",
+    });
+
+    expect(result.integrationCompletedWithoutFailure).toBe(true);
+    expect(result.completedBeatCount).toBe(5);
+    for (const beat of result.retainedCompleteBeats) {
+      expect(beat.acceptedIntervalCount).toBe(250);
+      expect(acceptedEvents(beat)).toHaveLength(2);
+    }
+  }, 60_000);
 });
 
 function acceptedEvents(

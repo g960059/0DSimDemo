@@ -597,10 +597,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV3(
       stepWithinBeat <= resolved.stepsPerBeat;
       stepWithinBeat += 1
     ) {
-      const nominalEndTimeSec = resolved.calciumRepresentation
-          === "exact-event-state"
-        ? startTimeSec + stepWithinBeat * resolved.dtSec
-        : state.acceptedTimeSec + resolved.dtSec;
+      const nominalEndTimeSec =
+        startTimeSec + stepWithinBeat * resolved.dtSec;
       const subintervalEndTimes = resolved.calciumRepresentation
           === "exact-event-state"
         ? splitFiveWallCalciumIntervalAtEventsV1(
@@ -613,9 +611,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV3(
         const intervalStartTimeSec = state.acceptedTimeSec;
         const intervalStartRevision = state.revision;
         const stepped = stepMainWireFiveWallNonCoronaryV1(provider, state, {
-          dtSec: resolved.calciumRepresentation === "exact-event-state"
-            ? subintervalEndTimeSec - state.acceptedTimeSec
-            : resolved.dtSec,
+          dtSec: subintervalEndTimeSec - state.acceptedTimeSec,
           runtime,
           calciumDriveParams,
           calciumEventSchedule,
@@ -970,7 +966,25 @@ function validateRetainedBeat(
           ))
         || (ownedEvent.timeSec < previousEventTimeSec
           && !acceptedTimeEqual(ownedEvent.timeSec, previousEventTimeSec))
-      ) throw new Error("retained accepted event provenance is inconsistent");
+      ) {
+        throw new Error(
+          "retained accepted event provenance is inconsistent: "
+            + JSON.stringify({
+              beatIndex: beat.beatIndex,
+              intervalIndex,
+              localEventIndex,
+              intervalStartTimeSec: interval.startTimeSec,
+              intervalEndTimeSec: interval.endTimeSec,
+              eventTimeSec: ownedEvent.timeSec,
+              previousLocalEventTimeSec,
+              previousEventTimeSec,
+              acceptedTrialBaseRevision:
+                ownedEvent.event.acceptedTrialBaseRevision,
+              expectedAcceptedTrialBaseRevision:
+                beat.startRevision + intervalIndex,
+            }),
+        );
+      }
       previousLocalEventTimeSec = ownedEvent.timeSec;
       previousEventTimeSec = ownedEvent.timeSec;
     });

@@ -84,7 +84,7 @@ $$
 ## retained window と predecessor union
 
 差分診断には window start の diagnostic sample が必要だが、cold accepted state
-自体は Diagnostic V3 sample ではない。したがって偽の sample を state 座標から
+自体は Diagnostic V2 sample ではない。したがって偽の sample を state 座標から
 合成しない。
 
 retained trace は次の discriminated union とする。
@@ -140,16 +140,15 @@ claim である。
 この milestone が主張するのは次だけである。
 
 - accepted physical interval の runner 配線
-- endpoint Diagnostic V3 の provenance
+- endpoint Diagnostic V2 の provenance
 - accepted calcium trial からの event copy
 - open-start / closed-end の一意な event ownership
 - retained beat の revision / interval count invariant
 - cold-start predecessor を捏造しないこと
 
-既存 `CycleDiagnosticsV1`、`PeriodicSummaryV1`、`PeriodicReviewV1` はこの段階では
-書き換えない。それらは V3 exact-event trace の accepted-time semantics へ完全移行
-した downstream consumer ではない。各積分、delay、regression を V1 timebase へ
-移す作業は、指標ごとの owner と window を監査する次 milestone とする。
+legacy `CycleDiagnosticsV1`、`PeriodicSummaryV1`、`PeriodicReviewV1` は固定sample
+consumerとして残す。accepted-time semantics を使う downstream consumer は明示的な
+Cycle/Summary/Review V2 とし、各積分、delay、regression の owner と window を分離する。
 
 したがって、この変更だけから PV loop、E/A、v-loop、tau、圧・流量の正常性改善を
 主張しない。従来 sample trajectory の stable hash を不変 gate とし、readback
