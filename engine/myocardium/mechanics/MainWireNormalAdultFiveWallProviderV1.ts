@@ -25,9 +25,14 @@ import {
   type MainWireFiveWallRecordV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
-  evaluateMoyer2015AtrialEquibiaxialPassiveV1,
-  type CompiledMoyer2015AtrialEquibiaxialPassiveV1,
-} from "@/engine/myocardium/mechanics/moyer2015AtrialEquibiaxialPassiveV1";
+  NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1,
+  assertNormalAdultAtrialPassiveConstructionV1,
+  evaluateNormalAdultAtrialEquilibriumPassiveV1,
+  normalAdultAtrialPassiveGeometryV1,
+  resolveNormalAdultAtrialParallelSlsParamsV1,
+  type NormalAdultAtrialIdV1,
+  type NormalAdultAtrialPassiveSlsModeV1,
+} from "@/engine/myocardium/mechanics/normalAdultAtrialPassiveConstructionV1";
 import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
   assertNormalAdultFiveWallPriorV1,
@@ -46,6 +51,10 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1 =
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM = Object.freeze({
   priorId: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.priorId,
+  atrialPassiveConstructionId:
+    NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.constructionId,
+  atrialPassiveConstructionIdentityHash:
+    NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.parameterIdentityHash,
   atrialEquilibriumPassiveOwner: "Moyer-2015-exact-equibiaxial-reduction" as const,
   ventricularEquilibriumPassiveOwner: "Klotz-normal-center-one-fiber" as const,
   activeOwner: "Land-2017-active-only" as const,
@@ -89,6 +98,7 @@ export type MainWireNormalAdultWallMaterialReadbackV1 = Readonly<{
     | "moyer-2015-atrial-equibiaxial-passive-v1"
     | "equilibrium-one-fiber-passive-log-strain-v1";
   passiveParameterIdentityHash: string;
+  atrialPassiveConstructionIdentityHash: string | null;
   landParameterSetStableHash: string;
   landActiveKirchhoffStressPa: number;
   slsOverstressPa: number;
@@ -135,14 +145,23 @@ MainWireFiveWallRecordV1<
 > {
   const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
   assertNormalAdultFiveWallPriorV1(prior);
+  assertNormalAdultAtrialPassiveConstructionV1(
+    NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1,
+  );
   return fiveWallRecord((wallId) => {
     const isAtrium = wallId === "LA" || wallId === "RA";
     const passive = isAtrium
-      ? createMoyerPassiveEvaluator(prior.passive.atrial.compiled)
+      ? createAtrialPassiveEvaluator()
       : createKlotzPassiveEvaluator(prior.passive.ventricular.compiled);
     const baseParams = prior.active.wallMaterialByWall[wallId];
-    const materialParams = wallId === "LA" && laSlsMode === "exact-off"
-      ? exactLaSlsOffParams(baseParams)
+    const materialParams = isAtrium
+      ? atrialMaterialParams(
+        baseParams,
+        wallId,
+        wallId === "LA" && laSlsMode === "exact-off"
+          ? "exact-off"
+          : "derived-on",
+      )
       : baseParams;
     return createWallKernel(
       wallId,
@@ -158,6 +177,9 @@ function createNormalAdultProvider(
 ): MainWireNormalAdultFiveWallProviderV1 {
   const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
   assertNormalAdultFiveWallPriorV1(prior);
+  assertNormalAdultAtrialPassiveConstructionV1(
+    NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1,
+  );
   return createMainWireFiveWallLandTriSegProviderV1({
     parameterSetId:
       `${prior.priorId}-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}`,
@@ -180,27 +202,23 @@ function createNormalAdultProvider(
   });
 }
 
-function exactLaSlsOffParams(
+function atrialMaterialParams(
   base: LandSlsWallMaterialParamsV1,
+  atriumId: NormalAdultAtrialIdV1,
+  mode: NormalAdultAtrialPassiveSlsModeV1,
 ): LandSlsWallMaterialParamsV1 {
+  const sls = resolveNormalAdultAtrialParallelSlsParamsV1(atriumId, mode);
   return Object.freeze({
     ...base,
-    parameterSetId: `${base.parameterSetId}-la-sls-exact-off`,
-    sls: Object.freeze({
-      ...base.sls,
-      parameterSetId: `${base.sls.parameterSetId}-la-exact-off`,
-      branchModulusPa: 0,
-    }),
+    parameterSetId: mode === "derived-on"
+      ? base.parameterSetId
+      : `${base.parameterSetId}-${atriumId.toLowerCase()}-sls-exact-off`,
+    sls,
   });
 }
 
-function atrialGeometry(atriumId: "LA" | "RA") {
-  const anatomy = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.anatomy.atria[atriumId];
-  return Object.freeze({
-    wallMaterialVolumeM3: anatomy.wallMaterialVolumeMl * 1e-6,
-    referenceCavityBloodVolumeM3:
-      anatomy.inverseUnloadedReferenceCavityVolumeMl * 1e-6,
-  });
+function atrialGeometry(atriumId: NormalAdultAtrialIdV1) {
+  return normalAdultAtrialPassiveGeometryV1(atriumId);
 }
 
 function createWallKernel(
@@ -214,6 +232,12 @@ function createWallKernel(
     adapterId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
     priorIdentityHash,
     wallId,
+    ...(wallId === "LA" || wallId === "RA"
+      ? {
+        atrialPassiveConstructionIdentityHash:
+          NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.parameterIdentityHash,
+      }
+      : {}),
     passiveModelId: passiveAtZero.modelId,
     passiveParameterIdentityHash: passiveAtZero.parameterIdentityHash,
     landSls: landSlsParameterHashInput(params),
@@ -327,13 +351,10 @@ function createWallKernel(
   });
 }
 
-function createMoyerPassiveEvaluator(
-  compiled: CompiledMoyer2015AtrialEquibiaxialPassiveV1,
-): PassiveEvaluatorV1 {
+function createAtrialPassiveEvaluator(): PassiveEvaluatorV1 {
   return (fiberLogStrain) => {
-    const evaluated = evaluateMoyer2015AtrialEquibiaxialPassiveV1(
+    const evaluated = evaluateNormalAdultAtrialEquilibriumPassiveV1(
       fiberLogStrain,
-      compiled,
     );
     return Object.freeze({
       modelId: evaluated.modelId,
@@ -414,6 +435,10 @@ function wallReadback(input: Readonly<{
     wallId: input.wallId,
     passiveModelId: input.passive.modelId,
     passiveParameterIdentityHash: input.passive.parameterIdentityHash,
+    atrialPassiveConstructionIdentityHash:
+      input.wallId === "LA" || input.wallId === "RA"
+        ? NORMAL_ADULT_ATRIAL_PASSIVE_CONSTRUCTION_V1.parameterIdentityHash
+        : null,
     landParameterSetStableHash:
       input.params.landEquationParameters.parameterSetStableHash,
     landActiveKirchhoffStressPa: input.landActiveKirchhoffStressPa,
