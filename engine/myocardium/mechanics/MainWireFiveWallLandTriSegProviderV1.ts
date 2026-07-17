@@ -291,11 +291,15 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
   const solver = resolveSolverOptions(params.solver);
   validateParams(params, solver);
   const parameterIdentityHash = providerParameterIdentityHash(params, solver);
+  const parameterIdentityInputsAreImmutable =
+    providerParameterIdentityInputsAreImmutableV1(params, solver);
   const stateCodec = createStateCodec(params.materialByWall);
 
   const initializeCold: MainWireFiveWallLandTriSegProviderV1<TWallState>["initializeCold"] =
     (input) => {
-      assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      if (!parameterIdentityInputsAreImmutable) {
+        assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      }
       validateDrive(input.drivingInputs);
       validateVolumes(input.volumesMl);
       const initialUnknowns = coordinatesToScaledUnknowns(
@@ -393,7 +397,9 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
 
   const evaluateTrial: MainWireFiveWallLandTriSegProviderV1<TWallState>["evaluateTrial"] =
     (input) => {
-      assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      if (!parameterIdentityInputsAreImmutable) {
+        assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      }
       validateDrive(input.drivingInputs);
       validateVolumes(input.candidateVolumesMl);
       requirePositive(input.stepDtSec, "stepDtSec");
@@ -1238,6 +1244,37 @@ function assertEffectiveParameterIdentity<TWallState>(
   if (providerParameterIdentityHash(params, solver) !== expected) {
     throw new Error("effective provider parameters changed after construction");
   }
+}
+
+/**
+ * The identity hash only reads the fields checked here. When every owning
+ * object is frozen, re-hashing the same immutable parameter tree for every
+ * nonlinear trial cannot detect a mutation and is pure hot-path overhead.
+ * Mutable/custom providers deliberately retain the per-call fail-closed
+ * identity audit above.
+ */
+function providerParameterIdentityInputsAreImmutableV1<TWallState>(
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  solver: ResolvedSolverOptionsV1,
+): boolean {
+  if (
+    !Object.isFrozen(params)
+    || !Object.isFrozen(params.materialByWall)
+    || !Object.isFrozen(params.atria)
+    || !Object.isFrozen(params.atria.LA)
+    || !Object.isFrozen(params.atria.RA)
+    || !Object.isFrozen(params.trisegWalls)
+    || !Object.isFrozen(params.initialTriSegCoordinates)
+    || !Object.isFrozen(params.internalCoordinateScales)
+    || !Object.isFrozen(solver)
+  ) return false;
+  for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
+    if (!Object.isFrozen(params.materialByWall[wallId])) return false;
+  }
+  for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
+    if (!Object.isFrozen(params.trisegWalls[wallId])) return false;
+  }
+  return true;
 }
 
 function validateParams<TWallState>(

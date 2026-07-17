@@ -367,13 +367,32 @@ type MutableNewtonFailureTraceEntryV1 = {
 };
 
 type CandidateMechanicsCache<TEvaluation> = {
-  readonly values: Map<
-    string,
-    NonCoronaryCandidateMechanicsResultV1<TEvaluation>
-  >;
+  readonly values: CandidateMechanicsTimeCache<TEvaluation>;
   callCount: number;
   hitCount: number;
+  uniqueCandidateCount: number;
 };
+
+type CandidateMechanicsTimeCache<TEvaluation> = Map<
+  number,
+  CandidateMechanicsLvCache<TEvaluation>
+>;
+type CandidateMechanicsLvCache<TEvaluation> = Map<
+  number,
+  CandidateMechanicsLaCache<TEvaluation>
+>;
+type CandidateMechanicsLaCache<TEvaluation> = Map<
+  number,
+  CandidateMechanicsRvCache<TEvaluation>
+>;
+type CandidateMechanicsRvCache<TEvaluation> = Map<
+  number,
+  CandidateMechanicsRaCache<TEvaluation>
+>;
+type CandidateMechanicsRaCache<TEvaluation> = Map<
+  number,
+  NonCoronaryCandidateMechanicsResultV1<TEvaluation>
+>;
 
 const DEPENDENT_NODE: NonCoronaryNodeNameV1 = "SV";
 const INDEPENDENT_NODE_NAMES = Object.freeze(
@@ -505,6 +524,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
     values: new Map(),
     callCount: 0,
     hitCount: 0,
+    uniqueCandidateCount: 0,
   };
   const volumeScales = independentVolumeScales(previous.nodeVolumesMl);
   let scaledUnknowns = independentVolumesToScaled(
@@ -1378,7 +1398,7 @@ function trialDiagnostics<TEvaluation>(
     finiteDifferenceScaledStep: options.finiteDifferenceScaledStep,
     mechanicsCallbackCallCount: mechanicsCache.callCount,
     mechanicsCallbackCacheHitCount: mechanicsCache.hitCount,
-    mechanicsCallbackUniqueCandidateCount: mechanicsCache.values.size,
+    mechanicsCallbackUniqueCandidateCount: mechanicsCache.uniqueCandidateCount,
     worstIndependentContinuityResidual,
     worstMixedContinuityResidual: mixedContinuityResidual.worst,
     failureNewtonTrace: Object.freeze([...failureNewtonTrace]),
@@ -1407,7 +1427,8 @@ function emptyDiagnostics<TEvaluation>(
       options?.finiteDifferenceScaledStep ?? Number.NaN,
     mechanicsCallbackCallCount: mechanicsCache?.callCount ?? 0,
     mechanicsCallbackCacheHitCount: mechanicsCache?.hitCount ?? 0,
-    mechanicsCallbackUniqueCandidateCount: mechanicsCache?.values.size ?? 0,
+    mechanicsCallbackUniqueCandidateCount:
+      mechanicsCache?.uniqueCandidateCount ?? 0,
     worstIndependentContinuityResidual: null,
     worstMixedContinuityResidual: null,
     failureNewtonTrace: Object.freeze([]),
@@ -1531,14 +1552,11 @@ function evaluateCandidateMechanicsCached<TEvaluation>(
   volumes: NonCoronaryChamberVolumesMlV1,
   candidateTimeSec: number,
 ): NonCoronaryCandidateMechanicsResultV1<TEvaluation> {
-  const key = JSON.stringify([
-    candidateTimeSec,
-    volumes.LV,
-    volumes.LA,
-    volumes.RV,
-    volumes.RA,
-  ]);
-  const cached = cache.values.get(key);
+  const timeCache = cache.values.get(candidateTimeSec);
+  const lvCache = timeCache?.get(volumes.LV);
+  const laCache = lvCache?.get(volumes.LA);
+  const rvCache = laCache?.get(volumes.RV);
+  const cached = rvCache?.get(volumes.RA);
   if (cached !== undefined) {
     cache.hitCount += 1;
     return cached;
@@ -1550,8 +1568,26 @@ function evaluateCandidateMechanicsCached<TEvaluation>(
     absolutePressuresMmHg: Object.freeze({ ...raw.absolutePressuresMmHg }),
     evaluation: raw.evaluation,
   });
-  cache.values.set(key, result);
+  const writableTimeCache = timeCache
+    ?? insertChildCache(cache.values, candidateTimeSec);
+  const writableLvCache = lvCache
+    ?? insertChildCache(writableTimeCache, volumes.LV);
+  const writableLaCache = laCache
+    ?? insertChildCache(writableLvCache, volumes.LA);
+  const writableRvCache = rvCache
+    ?? insertChildCache(writableLaCache, volumes.RV);
+  writableRvCache.set(volumes.RA, result);
+  cache.uniqueCandidateCount += 1;
   return result;
+}
+
+function insertChildCache<TValue>(
+  parent: Map<number, Map<number, TValue>>,
+  key: number,
+): Map<number, TValue> {
+  const child = new Map<number, TValue>();
+  parent.set(key, child);
+  return child;
 }
 
 function copyNodeRecord(

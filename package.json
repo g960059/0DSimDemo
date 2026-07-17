@@ -21,6 +21,7 @@
     "test:rules": "vitest run __tests__/firestoreRules.emulator.test.ts",
     "test:watch": "vitest --config vitest.fast.config.ts",
     "test:watch:all": "vitest --config vitest.config.ts",
+    "benchmark:scientific:session": "vite-node --script tools/scientific/benchmarkMainWireScientificSessionV1.ts",
     "verify:baseline": "vite-node tools/verifyBaseline.ts",
     "verify:cases": "vite-node tools/verifyCases.ts",
     "verify:cases:smoke": "vite-node tools/verifyCases.ts --case-id=normal-sinus,acute-anterior-mi,aortic-stenosis",

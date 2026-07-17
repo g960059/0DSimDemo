@@ -279,6 +279,22 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       .toThrow(/identity mismatch/);
   });
 
+  it("retains the per-call identity audit for mutable custom parameters", () => {
+    const frozen = providerParams();
+    const mutable = {
+      ...frozen,
+      atria: {
+        LA: { ...frozen.atria.LA },
+        RA: { ...frozen.atria.RA },
+      },
+    };
+    const provider = createMainWireFiveWallLandTriSegProviderV1(mutable);
+    mutable.atria.LA.wallMaterialVolumeM3 *= 1.01;
+
+    expect(() => coldStart(provider))
+      .toThrow(/effective provider parameters changed after construction/);
+  });
+
 });
 
 function createProvider(parameterSetSuffix = "canonical") {

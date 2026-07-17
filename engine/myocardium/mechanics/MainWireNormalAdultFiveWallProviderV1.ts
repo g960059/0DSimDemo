@@ -162,7 +162,7 @@ function createNormalAdultProvider(
 ): MainWireNormalAdultFiveWallProviderV1 {
   const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
   assertNormalAdultFiveWallPriorV1(prior);
-  return createMainWireFiveWallLandTriSegProviderV1({
+  return createMainWireFiveWallLandTriSegProviderV1(Object.freeze({
     parameterSetId:
       `${prior.priorId}-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}`,
     materialByWall: createMainWireNormalAdultFiveWallMaterialKernelsV1(laSlsMode),
@@ -181,7 +181,7 @@ function createNormalAdultProvider(
       finiteDifferenceScaledStep:
         MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
     }),
-  });
+  }));
 }
 
 function exactLaSlsOffParams(
