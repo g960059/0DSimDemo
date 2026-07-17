@@ -17,7 +17,6 @@ import type {
   MainWireFiveWallFreeCalciumDriveV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
-  sanitizeForStableHash,
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
 
@@ -26,6 +25,9 @@ export const FIVE_WALL_EXACT_EVENT_CALCIUM_STATE_SCHEMA_V1_ID =
 
 export const FIXED_SINUS_FIVE_WALL_CALCIUM_EVENT_SCHEDULE_V1_ID =
   "fixed-sinus-five-wall-calcium-event-schedule-v1" as const;
+
+export const FIVE_WALL_CALCIUM_SCHEDULE_TEMPORAL_SEMANTICS_V1_ID =
+  "five-wall-calcium-schedule-temporal-semantics-v1" as const;
 
 export const FIVE_WALL_CALCIUM_REPRESENTATIONS_V1 = Object.freeze([
   "analytic-periodic-control-with-exact-event-shadow",
@@ -65,14 +67,60 @@ export type FiveWallCalciumEventV1 = Readonly<{
   strengthByWall: Readonly<Partial<Record<FiveWallCalciumWallIdV1, number>>>;
 }>;
 
+/**
+ * Serializable time-axis ownership. A periodic schedule may be translated
+ * only by an integer number of its periods. Explicit schedules own absolute
+ * event times and therefore cannot be rebased.
+ */
+export type FiveWallCalciumScheduleTemporalSemanticsV1 =
+  | Readonly<{
+    semanticsId:
+      typeof FIVE_WALL_CALCIUM_SCHEDULE_TEMPORAL_SEMANTICS_V1_ID;
+    kind: "fixed-periodic";
+    periodSec: number;
+    phaseOriginSec: number;
+    eventIntervalConvention: "open-start-closed-end";
+    integerPeriodTranslationInvariant: true;
+  }>
+  | Readonly<{
+    semanticsId:
+      typeof FIVE_WALL_CALCIUM_SCHEDULE_TEMPORAL_SEMANTICS_V1_ID;
+    kind: "absolute-explicit";
+    eventIntervalConvention: "open-start-closed-end";
+    integerPeriodTranslationInvariant: false;
+  }>;
+
+export type FiveWallCalciumScheduleIdentitySnapshotV1 =
+  | Readonly<{
+    scheduleType:
+      typeof FIXED_SINUS_FIVE_WALL_CALCIUM_EVENT_SCHEDULE_V1_ID;
+    temporalSemantics: Extract<
+      FiveWallCalciumScheduleTemporalSemanticsV1,
+      { kind: "fixed-periodic" }
+    >;
+    cycleLengthSec: number;
+    atrioventricularDelaySec: number;
+    atrialElectricalToCalciumDelaySec: number;
+    ventricularElectricalToCalciumDelaySec: number;
+    atrialWallStrengths: Readonly<{ LA: 1; RA: 1 }>;
+    ventricularWallStrengths: Readonly<{ LVFW: 1; SEP: 1; RVFW: 1 }>;
+  }>
+  | Readonly<{
+    scheduleType: "explicit-five-wall-calcium-event-schedule-v1";
+    scheduleId: string;
+    temporalSemantics: Extract<
+      FiveWallCalciumScheduleTemporalSemanticsV1,
+      { kind: "absolute-explicit" }
+    >;
+    events: readonly FiveWallCalciumEventV1[];
+  }>;
+
 export type FiveWallCalciumEventScheduleProviderV1 = Readonly<{
   scheduleId: string;
   scheduleIdentityHash: string;
+  identitySnapshot: FiveWallCalciumScheduleIdentitySnapshotV1;
+  temporalSemantics: FiveWallCalciumScheduleTemporalSemanticsV1;
   timingOwner: "event-schedule-provider";
-  listEventsOpenClosed: (
-    startTimeSec: number,
-    endTimeSec: number,
-  ) => readonly FiveWallCalciumEventV1[];
 }>;
 
 export type FiveWallCalciumAcceptedStateV1 = Readonly<{
@@ -82,7 +130,9 @@ export type FiveWallCalciumAcceptedStateV1 = Readonly<{
   initializationId: FiveWallCalciumInitializationV1;
   scheduleId: string;
   scheduleIdentityHash: string;
+  scheduleTemporalSemantics: FiveWallCalciumScheduleTemporalSemanticsV1;
   parameterSetId: string;
+  parameterIdentityHash: string;
   revision: number;
   acceptedTimeSec: number;
   stateByWall: FiveWallExactEventCalciumStateByWallV1;
@@ -111,6 +161,10 @@ export const FIVE_WALL_EXACT_EVENT_CALCIUM_CLAIM_V1 = Object.freeze({
   eventTimingOwnedByKernel: false as const,
   fixedSinusScheduleIsFirstProviderNotKernelLogic: true as const,
   wallSelectiveEventsSupported: true as const,
+  scheduleTemporalIdentity:
+    "hash-owned-serializable-fixed-periodic-or-absolute-explicit" as const,
+  checkpointSchema: 2 as const,
+  checkpointStateFingerprint: "exact-finite-json-without-rounding" as const,
   calciumCyclingClaimed: false as const,
   restitutionClaimed: false as const,
   refractorinessClaimed: false as const,
@@ -122,15 +176,6 @@ export function createFixedSinusFiveWallCalciumEventScheduleV1(
 ): FiveWallCalciumEventScheduleProviderV1 {
   validateDriveParamsForEvents(params);
   const cycle = params.cycleLengthSec;
-  const ventricularPhaseSec = positiveModulo(
-    params.ventricular.electricalToCalciumDelaySec,
-    cycle,
-  );
-  const atrialPhaseSec = positiveModulo(
-    cycle - params.atrioventricularDelaySec
-      + params.atrial.electricalToCalciumDelaySec,
-    cycle,
-  );
   const scheduleId = [
     FIXED_SINUS_FIVE_WALL_CALCIUM_EVENT_SCHEDULE_V1_ID,
     `cycle=${cycle}`,
@@ -138,41 +183,38 @@ export function createFixedSinusFiveWallCalciumEventScheduleV1(
     `atrialCaDelay=${params.atrial.electricalToCalciumDelaySec}`,
     `ventricularCaDelay=${params.ventricular.electricalToCalciumDelaySec}`,
   ].join(":");
-  const scheduleIdentityHash = stableHash(sanitizeForStableHash({
-    scheduleType: FIXED_SINUS_FIVE_WALL_CALCIUM_EVENT_SCHEDULE_V1_ID,
-    cycleLengthSec: cycle,
-    atrioventricularDelaySec: params.atrioventricularDelaySec,
-    atrialElectricalToCalciumDelaySec:
-      params.atrial.electricalToCalciumDelaySec,
-    ventricularElectricalToCalciumDelaySec:
-      params.ventricular.electricalToCalciumDelaySec,
-    atrialWallStrengths: { LA: 1, RA: 1 },
-    ventricularWallStrengths: { LVFW: 1, SEP: 1, RVFW: 1 },
-  }));
+  const temporalSemantics = Object.freeze({
+    semanticsId: FIVE_WALL_CALCIUM_SCHEDULE_TEMPORAL_SEMANTICS_V1_ID,
+    kind: "fixed-periodic" as const,
+    periodSec: cycle,
+    phaseOriginSec: 0,
+    eventIntervalConvention: "open-start-closed-end" as const,
+    integerPeriodTranslationInvariant: true as const,
+  });
+  const identitySnapshot: FiveWallCalciumScheduleIdentitySnapshotV1 =
+    Object.freeze({
+      scheduleType: FIXED_SINUS_FIVE_WALL_CALCIUM_EVENT_SCHEDULE_V1_ID,
+      temporalSemantics,
+      cycleLengthSec: cycle,
+      atrioventricularDelaySec: params.atrioventricularDelaySec,
+      atrialElectricalToCalciumDelaySec:
+        params.atrial.electricalToCalciumDelaySec,
+      ventricularElectricalToCalciumDelaySec:
+        params.ventricular.electricalToCalciumDelaySec,
+      atrialWallStrengths: Object.freeze({ LA: 1 as const, RA: 1 as const }),
+      ventricularWallStrengths: Object.freeze({
+        LVFW: 1 as const,
+        SEP: 1 as const,
+        RVFW: 1 as const,
+      }),
+    });
+  const scheduleIdentityHash = stableHash(identitySnapshot);
   return Object.freeze({
     scheduleId,
     scheduleIdentityHash,
+    identitySnapshot,
+    temporalSemantics,
     timingOwner: "event-schedule-provider" as const,
-    listEventsOpenClosed: (startTimeSec: number, endTimeSec: number) => {
-      validateInterval(startTimeSec, endTimeSec);
-      const events = [
-        ...periodicEventsOpenClosed(
-          startTimeSec,
-          endTimeSec,
-          cycle,
-          ventricularPhaseSec,
-          Object.freeze({ LVFW: 1, SEP: 1, RVFW: 1 }),
-        ),
-        ...periodicEventsOpenClosed(
-          startTimeSec,
-          endTimeSec,
-          cycle,
-          atrialPhaseSec,
-          Object.freeze({ LA: 1, RA: 1 }),
-        ),
-      ].sort((left, right) => left.timeSec - right.timeSec);
-      return Object.freeze(events);
-    },
   });
 }
 
@@ -183,21 +225,73 @@ export function createExplicitFiveWallCalciumEventScheduleV1(
 ): FiveWallCalciumEventScheduleProviderV1 {
   if (scheduleId.trim() === "") throw new Error("scheduleId must be non-empty");
   const validated = freezeAndValidateEvents(events);
-  const scheduleIdentityHash = stableHash(sanitizeForStableHash({
-    scheduleType: "explicit-five-wall-calcium-event-schedule-v1",
-    scheduleId,
-    events: validated,
-  }));
+  const temporalSemantics = Object.freeze({
+    semanticsId: FIVE_WALL_CALCIUM_SCHEDULE_TEMPORAL_SEMANTICS_V1_ID,
+    kind: "absolute-explicit" as const,
+    eventIntervalConvention: "open-start-closed-end" as const,
+    integerPeriodTranslationInvariant: false as const,
+  });
+  const identitySnapshot: FiveWallCalciumScheduleIdentitySnapshotV1 =
+    Object.freeze({
+      scheduleType: "explicit-five-wall-calcium-event-schedule-v1",
+      scheduleId,
+      temporalSemantics,
+      events: validated,
+    });
+  const scheduleIdentityHash = stableHash(identitySnapshot);
   return Object.freeze({
     scheduleId,
     scheduleIdentityHash,
+    identitySnapshot,
+    temporalSemantics,
     timingOwner: "event-schedule-provider" as const,
-    listEventsOpenClosed: (startTimeSec: number, endTimeSec: number) => {
-      validateInterval(startTimeSec, endTimeSec);
-      return Object.freeze(validated.filter((event) =>
-        event.timeSec > startTimeSec && event.timeSec <= endTimeSec));
-    },
   });
+}
+
+/**
+ * Authoritative event enumeration. Dynamics are derived from the hash-owned
+ * snapshot and never trust an opaque callback.
+ */
+export function listFiveWallCalciumEventsOpenClosedV1(
+  schedule: FiveWallCalciumEventScheduleProviderV1,
+  startTimeSec: number,
+  endTimeSec: number,
+): readonly FiveWallCalciumEventV1[] {
+  validateInterval(startTimeSec, endTimeSec);
+  validateSchedule(schedule);
+  const snapshot = schedule.identitySnapshot;
+  if (snapshot.scheduleType === FIXED_SINUS_FIVE_WALL_CALCIUM_EVENT_SCHEDULE_V1_ID) {
+    const cycle = snapshot.cycleLengthSec;
+    const ventricularPhaseSec = positiveModulo(
+      snapshot.ventricularElectricalToCalciumDelaySec
+        + snapshot.temporalSemantics.phaseOriginSec,
+      cycle,
+    );
+    const atrialPhaseSec = positiveModulo(
+      cycle - snapshot.atrioventricularDelaySec
+        + snapshot.atrialElectricalToCalciumDelaySec
+        + snapshot.temporalSemantics.phaseOriginSec,
+      cycle,
+    );
+    return Object.freeze([
+      ...periodicEventsOpenClosed(
+        startTimeSec,
+        endTimeSec,
+        cycle,
+        ventricularPhaseSec,
+        snapshot.ventricularWallStrengths,
+      ),
+      ...periodicEventsOpenClosed(
+        startTimeSec,
+        endTimeSec,
+        cycle,
+        atrialPhaseSec,
+        snapshot.atrialWallStrengths,
+      ),
+    ].sort((left, right) => left.timeSec - right.timeSec));
+  }
+  return Object.freeze(snapshot.events.filter((event) =>
+    event.timeSec > startTimeSec && event.timeSec <= endTimeSec));
 }
 
 export function initializeFiveWallCalciumAcceptedStateV1(
@@ -233,7 +327,9 @@ export function initializeFiveWallCalciumAcceptedStateV1(
     initializationId,
     scheduleId: schedule.scheduleId,
     scheduleIdentityHash: schedule.scheduleIdentityHash,
+    scheduleTemporalSemantics: schedule.temporalSemantics,
     parameterSetId: params.parameterSetId,
+    parameterIdentityHash: fiveWallCalciumParameterIdentityHashV1(params),
     revision,
     acceptedTimeSec: timeSec,
     stateByWall,
@@ -258,15 +354,28 @@ export function evaluateFiveWallCalciumTrialV1(
   if (schedule.scheduleIdentityHash !== previous.scheduleIdentityHash) {
     throw new Error("calcium event schedule content changed within a transaction");
   }
+  if (!sameFiveWallCalciumScheduleTemporalSemanticsV1(
+    schedule.temporalSemantics,
+    previous.scheduleTemporalSemantics,
+  )) {
+    throw new Error("calcium event schedule temporal semantics changed within a transaction");
+  }
   if (params.parameterSetId !== previous.parameterSetId) {
     throw new Error("calcium parameter identity changed within a transaction");
+  }
+  if (fiveWallCalciumParameterIdentityHashV1(params) !== previous.parameterIdentityHash) {
+    throw new Error("calcium parameter content changed within a transaction");
   }
   requireNonnegativeFinite(candidateTimeSec, "candidateTimeSec");
   if (!(candidateTimeSec > previous.acceptedTimeSec)) {
     throw new Error("candidateTimeSec must exceed the accepted calcium time");
   }
   const events = freezeAndValidateEvents(
-    schedule.listEventsOpenClosed(previous.acceptedTimeSec, candidateTimeSec),
+    listFiveWallCalciumEventsOpenClosedV1(
+      schedule,
+      previous.acceptedTimeSec,
+      candidateTimeSec,
+    ),
     previous.acceptedTimeSec,
     candidateTimeSec,
   );
@@ -309,7 +418,9 @@ export function evaluateFiveWallCalciumTrialV1(
     initializationId: previous.initializationId,
     scheduleId: previous.scheduleId,
     scheduleIdentityHash: previous.scheduleIdentityHash,
+    scheduleTemporalSemantics: previous.scheduleTemporalSemantics,
     parameterSetId: previous.parameterSetId,
+    parameterIdentityHash: previous.parameterIdentityHash,
     revision: previous.revision + 1,
     acceptedTimeSec: candidateTimeSec,
     stateByWall: candidateStateByWall,
@@ -341,7 +452,9 @@ export function commitFiveWallCalciumTrialV1(
     initializationId: previous.initializationId,
     scheduleId: previous.scheduleId,
     scheduleIdentityHash: previous.scheduleIdentityHash,
+    scheduleTemporalSemantics: previous.scheduleTemporalSemantics,
     parameterSetId: previous.parameterSetId,
+    parameterIdentityHash: previous.parameterIdentityHash,
     revision: previous.revision + 1,
     acceptedTimeSec: trial.candidateTimeSec,
     stateByWall: trial.candidateStateByWall,
@@ -357,7 +470,9 @@ export function cloneFiveWallCalciumAcceptedStateV1(
     initializationId: state.initializationId,
     scheduleId: state.scheduleId,
     scheduleIdentityHash: state.scheduleIdentityHash,
+    scheduleTemporalSemantics: state.scheduleTemporalSemantics,
     parameterSetId: state.parameterSetId,
+    parameterIdentityHash: state.parameterIdentityHash,
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
     stateByWall: state.stateByWall,
@@ -371,6 +486,9 @@ export function evaluateFiveWallCalciumOutputV1(
   validateAcceptedState(state);
   if (params.parameterSetId !== state.parameterSetId) {
     throw new Error("calcium output parameter identity mismatch");
+  }
+  if (fiveWallCalciumParameterIdentityHashV1(params) !== state.parameterIdentityHash) {
+    throw new Error("calcium output parameter content mismatch");
   }
   if (state.representation === "analytic-periodic-control-with-exact-event-shadow") {
     const analytic = evaluateFiveWallNormalCalciumDriveV1(
@@ -408,7 +526,11 @@ export function splitFiveWallCalciumIntervalAtEventsV1(
   }
   validateSchedule(schedule);
   const events = freezeAndValidateEvents(
-    schedule.listEventsOpenClosed(startTimeSec, endTimeSec),
+    listFiveWallCalciumEventsOpenClosedV1(
+      schedule,
+      startTimeSec,
+      endTimeSec,
+    ),
     startTimeSec,
     endTimeSec,
   );
@@ -543,7 +665,9 @@ function freezeAcceptedState(input: Readonly<{
   initializationId: FiveWallCalciumInitializationV1;
   scheduleId: string;
   scheduleIdentityHash: string;
+  scheduleTemporalSemantics: FiveWallCalciumScheduleTemporalSemanticsV1;
   parameterSetId: string;
+  parameterIdentityHash: string;
   revision: number;
   acceptedTimeSec: number;
   stateByWall: FiveWallExactEventCalciumStateByWallV1;
@@ -555,7 +679,11 @@ function freezeAcceptedState(input: Readonly<{
     initializationId: input.initializationId,
     scheduleId: input.scheduleId,
     scheduleIdentityHash: input.scheduleIdentityHash,
+    scheduleTemporalSemantics: freezeTemporalSemantics(
+      input.scheduleTemporalSemantics,
+    ),
     parameterSetId: input.parameterSetId,
+    parameterIdentityHash: input.parameterIdentityHash,
     revision: input.revision,
     acceptedTimeSec: input.acceptedTimeSec,
     stateByWall: freezeStateByWall(input.stateByWall),
@@ -589,12 +717,18 @@ function validateAcceptedState(state: FiveWallCalciumAcceptedStateV1): void {
   validateRepresentation(state.representation);
   validateInitialization(state.initializationId);
   if (
+    state.representation === "analytic-periodic-control-with-exact-event-shadow"
+    && state.initializationId === "event-free-rest"
+  ) throw new Error("event-free calcium state cannot drive analytic-periodic output");
+  if (
     state.scheduleId.trim() === ""
     || !/^[0-9a-f]{8}$/.test(state.scheduleIdentityHash)
     || state.parameterSetId.trim() === ""
+    || !/^[0-9a-f]{8}$/.test(state.parameterIdentityHash)
   ) {
     throw new Error("accepted calcium schedule and parameter identities must be non-empty");
   }
+  validateTemporalSemantics(state.scheduleTemporalSemantics);
   freezeStateByWall(state.stateByWall);
 }
 
@@ -608,9 +742,128 @@ function validateSchedule(schedule: FiveWallCalciumEventScheduleProviderV1): voi
   if (
     schedule.scheduleId.trim() === ""
     || !/^[0-9a-f]{8}$/.test(schedule.scheduleIdentityHash)
+    || stableHash(schedule.identitySnapshot) !== schedule.scheduleIdentityHash
     || schedule.timingOwner !== "event-schedule-provider"
-    || typeof schedule.listEventsOpenClosed !== "function"
   ) throw new Error("invalid calcium event schedule provider");
+  validateTemporalSemantics(schedule.temporalSemantics);
+  if (!sameFiveWallCalciumScheduleTemporalSemanticsV1(
+    schedule.temporalSemantics,
+    schedule.identitySnapshot.temporalSemantics,
+  )) throw new Error("calcium schedule temporal semantics are not hash-owned");
+  const snapshot = schedule.identitySnapshot;
+  if (snapshot.scheduleType === FIXED_SINUS_FIVE_WALL_CALCIUM_EVENT_SCHEDULE_V1_ID) {
+    requirePositiveFinite(snapshot.cycleLengthSec, "schedule cycleLengthSec");
+    requirePositiveFinite(
+      snapshot.atrioventricularDelaySec,
+      "schedule atrioventricularDelaySec",
+    );
+    requireNonnegativeFinite(
+      snapshot.atrialElectricalToCalciumDelaySec,
+      "schedule atrialElectricalToCalciumDelaySec",
+    );
+    requireNonnegativeFinite(
+      snapshot.ventricularElectricalToCalciumDelaySec,
+      "schedule ventricularElectricalToCalciumDelaySec",
+    );
+    const expectedScheduleId = [
+      FIXED_SINUS_FIVE_WALL_CALCIUM_EVENT_SCHEDULE_V1_ID,
+      `cycle=${snapshot.cycleLengthSec}`,
+      `avDelay=${snapshot.atrioventricularDelaySec}`,
+      `atrialCaDelay=${snapshot.atrialElectricalToCalciumDelaySec}`,
+      `ventricularCaDelay=${snapshot.ventricularElectricalToCalciumDelaySec}`,
+    ].join(":");
+    if (
+      snapshot.temporalSemantics.kind !== "fixed-periodic"
+      || snapshot.temporalSemantics.periodSec !== snapshot.cycleLengthSec
+      || snapshot.temporalSemantics.phaseOriginSec !== 0
+      || schedule.scheduleId !== expectedScheduleId
+      || snapshot.atrioventricularDelaySec >= snapshot.cycleLengthSec
+      || snapshot.atrialWallStrengths.LA !== 1
+      || snapshot.atrialWallStrengths.RA !== 1
+      || snapshot.ventricularWallStrengths.LVFW !== 1
+      || snapshot.ventricularWallStrengths.SEP !== 1
+      || snapshot.ventricularWallStrengths.RVFW !== 1
+    ) throw new Error("fixed calcium schedule snapshot is temporally inconsistent");
+  } else {
+    if (
+      snapshot.scheduleType !== "explicit-five-wall-calcium-event-schedule-v1"
+      || snapshot.temporalSemantics.kind !== "absolute-explicit"
+      || snapshot.scheduleId !== schedule.scheduleId
+    ) throw new Error("explicit calcium schedule snapshot is temporally inconsistent");
+    freezeAndValidateEvents(snapshot.events);
+  }
+}
+
+export function assertFiveWallCalciumEventScheduleProviderV1(
+  schedule: FiveWallCalciumEventScheduleProviderV1,
+): void {
+  validateSchedule(schedule);
+}
+
+export function fiveWallCalciumParameterIdentityHashV1(
+  params: FiveWallNormalCalciumDriveParamsV1,
+): string {
+  validateDriveParamsForEvents(params);
+  validateCalciumClass(params.atrial, "atrial");
+  validateCalciumClass(params.ventricular, "ventricular");
+  return stableHash(params);
+}
+
+function validateCalciumClass(
+  value: PeriodicBiexponentialCalciumClassV1,
+  label: string,
+): void {
+  requireNonnegativeFinite(value.diastolicCalciumUM, `${label}.diastolicCalciumUM`);
+  requireNonnegativeFinite(value.peakAmplitudeUM, `${label}.peakAmplitudeUM`);
+  requirePositiveFinite(value.riseTimeConstantSec, `${label}.riseTimeConstantSec`);
+  requirePositiveFinite(value.decayTimeConstantSec, `${label}.decayTimeConstantSec`);
+  if (!(value.decayTimeConstantSec > value.riseTimeConstantSec)) {
+    throw new Error(`${label}.decayTimeConstantSec must exceed riseTimeConstantSec`);
+  }
+  requireNonnegativeFinite(
+    value.electricalToCalciumDelaySec,
+    `${label}.electricalToCalciumDelaySec`,
+  );
+}
+
+function validateTemporalSemantics(
+  value: FiveWallCalciumScheduleTemporalSemanticsV1,
+): void {
+  if (
+    value.semanticsId
+      !== FIVE_WALL_CALCIUM_SCHEDULE_TEMPORAL_SEMANTICS_V1_ID
+    || value.eventIntervalConvention !== "open-start-closed-end"
+  ) throw new Error("invalid calcium schedule temporal semantics");
+  if (value.kind === "fixed-periodic") {
+    requirePositiveFinite(value.periodSec, "schedule periodSec");
+    requireNonnegativeFinite(value.phaseOriginSec, "schedule phaseOriginSec");
+    if (value.integerPeriodTranslationInvariant !== true) {
+      throw new Error("fixed-periodic schedule must be integer-period invariant");
+    }
+    return;
+  }
+  if (
+    value.kind !== "absolute-explicit"
+    || value.integerPeriodTranslationInvariant !== false
+  ) throw new Error("absolute schedule must prohibit time translation");
+}
+
+function freezeTemporalSemantics(
+  value: FiveWallCalciumScheduleTemporalSemanticsV1,
+): FiveWallCalciumScheduleTemporalSemanticsV1 {
+  validateTemporalSemantics(value);
+  return value.kind === "fixed-periodic"
+    ? Object.freeze({ ...value })
+    : Object.freeze({ ...value });
+}
+
+export function sameFiveWallCalciumScheduleTemporalSemanticsV1(
+  left: FiveWallCalciumScheduleTemporalSemanticsV1,
+  right: FiveWallCalciumScheduleTemporalSemanticsV1,
+): boolean {
+  validateTemporalSemantics(left);
+  validateTemporalSemantics(right);
+  return stableHash(left) === stableHash(right);
 }
 
 function validateInitialization(value: FiveWallCalciumInitializationV1): void {
