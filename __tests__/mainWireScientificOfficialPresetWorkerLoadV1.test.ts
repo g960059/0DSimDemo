@@ -243,7 +243,7 @@ describe("main-wire scientific official preset Worker load V1", () => {
       presetId: PRESET_ID,
       presetVersion: PRESET_VERSION,
     });
-    await expect(MainWireScientificSessionV1.restoreExact(
+    await expect(MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
       loaded.release,
       checkpoint,
     )).rejects.toThrow(/exact-checkpoint outer SHA-256 mismatch/);

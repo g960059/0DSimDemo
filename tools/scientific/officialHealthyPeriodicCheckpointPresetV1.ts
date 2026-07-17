@@ -38,7 +38,7 @@ Promise<BuiltOfficialHealthyPeriodicCheckpointPresetV1> {
   const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
   const session = await MainWireScientificSessionV1.initialize(release);
   const settlement = settleHealthyPeriod1(session);
-  const checkpoint = await session.checkpointExact();
+  const checkpoint = await session.checkpointLegacyCanonicalExactV2();
   if (checkpoint.periodicSettlementTracker === null) {
     throw new Error("healthy periodic checkpoint lacks its settlement tracker");
   }

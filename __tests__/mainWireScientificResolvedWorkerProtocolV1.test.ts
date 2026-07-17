@@ -220,6 +220,137 @@ describe("main-wire resolved-session Worker protocol V1", () => {
     expect(forgedClient.status).toBe("failed");
     expect(forgedWorker.terminateCount).toBe(1);
   });
+
+  it("accepts only V3 checkpoint responses and binds exact restore identities", async () => {
+    const releaseRef = Object.freeze({
+      id: "circleheart/adult-five-wall-noncoronary",
+      version: "0.2.0",
+      sha256:
+        "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4",
+    });
+    const sessionInputSha256 = "a".repeat(64);
+    const checkpointSha256 = "c".repeat(64);
+    const checkpoint = checkpointIdentity(
+      releaseRef,
+      sessionInputSha256,
+      checkpointSha256,
+    );
+
+    const getWorker = new FakeWorker();
+    const getClient = clientFor(getWorker);
+    const getCommand = Object.freeze({
+      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+      kind: "getExactCheckpoint" as const,
+      requestId: "request-browser-get-v3",
+      sessionId: "session-browser-get-v3",
+    });
+    const getPending = getClient.request(getCommand);
+    getWorker.emitMessage({
+      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+      ok: true,
+      requestId: getCommand.requestId,
+      sessionId: getCommand.sessionId,
+      releaseRef,
+      sessionOrigin: canonicalOrigin(),
+      commandKind: getCommand.kind,
+      payload: {
+        kind: "exactCheckpoint",
+        checkpoint,
+        observableFrame: { releaseRef },
+      },
+      error: null,
+    });
+    await expect(getPending).resolves.toMatchObject({
+      payload: {
+        kind: "exactCheckpoint",
+        checkpoint: {
+          checkpointId: "main-wire-scientific-session-exact-checkpoint-v3",
+          schemaVersion: 3,
+          checkpointSha256,
+          sessionInputSha256,
+        },
+      },
+    });
+    getClient.terminate();
+
+    const v2Worker = new FakeWorker();
+    const v2Client = clientFor(v2Worker);
+    const v2Command = Object.freeze({
+      ...getCommand,
+      requestId: "request-browser-get-v2-rejected",
+      sessionId: "session-browser-get-v2-rejected",
+    });
+    const v2Pending = v2Client.request(v2Command);
+    v2Worker.emitMessage({
+      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+      ok: true,
+      requestId: v2Command.requestId,
+      sessionId: v2Command.sessionId,
+      releaseRef,
+      sessionOrigin: canonicalOrigin(),
+      commandKind: v2Command.kind,
+      payload: {
+        kind: "exactCheckpoint",
+        checkpoint: {
+          ...checkpoint,
+          checkpointId: "main-wire-scientific-session-exact-checkpoint-v2",
+          schemaVersion: 2,
+        },
+        observableFrame: { releaseRef },
+      },
+      error: null,
+    });
+    await expect(v2Pending).rejects.toMatchObject({
+      code: "protocol-mismatch",
+    });
+    expect(v2Client.status).toBe("failed");
+
+    const restoreWorker = new FakeWorker();
+    const restoreClient = clientFor(restoreWorker);
+    const restore = restoreCommand(
+      "request-browser-restore-v3",
+      "session-browser-restore-v3",
+      { releaseRef, sessionInputSha256 },
+      checkpoint,
+    );
+    const restorePending = restoreClient.request(restore);
+    restoreWorker.emitMessage(exactRestoreSuccessResponse(
+      restore,
+      releaseRef,
+      sessionInputSha256,
+      checkpointSha256,
+    ));
+    await expect(restorePending).resolves.toMatchObject({
+      sessionOrigin: {
+        kind: "exact-checkpoint-restore",
+        checkpointSchemaVersion: 3,
+        checkpointSha256,
+        sessionInputSha256,
+      },
+      payload: { kind: "sessionRestored" },
+    });
+    restoreClient.terminate();
+
+    const forgedWorker = new FakeWorker();
+    const forgedClient = clientFor(forgedWorker);
+    const forged = restoreCommand(
+      "request-browser-restore-forged",
+      "session-browser-restore-forged",
+      { releaseRef, sessionInputSha256 },
+      checkpoint,
+    );
+    const forgedPending = forgedClient.request(forged);
+    forgedWorker.emitMessage(exactRestoreSuccessResponse(
+      forged,
+      releaseRef,
+      "b".repeat(64),
+      checkpointSha256,
+    ));
+    await expect(forgedPending).rejects.toMatchObject({
+      code: "protocol-mismatch",
+    });
+    expect(forgedClient.status).toBe("failed");
+  });
 });
 
 function resolvedCommand(
@@ -261,6 +392,72 @@ function resolvedSuccessResponse(
     payload: {
       kind: "resolvedSessionCreated",
       sessionInputSha256,
+      observableFrame: { releaseRef },
+    },
+    error: null,
+  };
+}
+
+function restoreCommand(
+  requestId: string,
+  sessionId: string,
+  resolvedSessionInput: unknown,
+  checkpoint: unknown,
+): Extract<ScientificCommandV1, { kind: "restoreExactSession" }> {
+  return Object.freeze({
+    protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+    kind: "restoreExactSession" as const,
+    requestId,
+    sessionId,
+    resolvedSessionInput,
+    checkpoint,
+  });
+}
+
+function checkpointIdentity(
+  releaseRef: Readonly<{ id: string; version: string; sha256: string }>,
+  sessionInputSha256: string,
+  checkpointSha256: string,
+): Record<string, unknown> {
+  return {
+    checkpointId: "main-wire-scientific-session-exact-checkpoint-v3",
+    schemaVersion: 3,
+    releaseRef,
+    sessionInputSha256,
+    checkpointSha256,
+  };
+}
+
+function canonicalOrigin(): Record<string, unknown> {
+  return {
+    kind: "canonical-cold-start",
+    initializationProtocolId:
+      "main-wire-adult-five-wall-noncoronary-fixed-tbv-initialization-v1",
+    initializationProtocolVersion: "1.0.0",
+  };
+}
+
+function exactRestoreSuccessResponse(
+  submitted: Extract<ScientificCommandV1, { kind: "restoreExactSession" }>,
+  releaseRef: Readonly<{ id: string; version: string; sha256: string }>,
+  sessionInputSha256: string,
+  checkpointSha256: string,
+): Record<string, unknown> {
+  return {
+    protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+    ok: true,
+    requestId: submitted.requestId,
+    sessionId: submitted.sessionId,
+    releaseRef,
+    sessionOrigin: {
+      kind: "exact-checkpoint-restore",
+      checkpointSchemaVersion: 3,
+      checkpointSha256,
+      sessionInputSha256,
+    },
+    commandKind: submitted.kind,
+    payload: {
+      kind: "sessionRestored",
       observableFrame: { releaseRef },
     },
     error: null,

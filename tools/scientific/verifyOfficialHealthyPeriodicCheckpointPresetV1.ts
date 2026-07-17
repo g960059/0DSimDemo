@@ -151,12 +151,13 @@ export async function verifyOfficialHealthyPeriodicCheckpointPresetV1(
       )) {
         issues.push("SimulationRelease must not embed preset/checkpoint asset references");
       }
-      const restored = await MainWireScientificSessionV1.restoreExact(
-        release,
-        checkpoint,
-      );
+      const restored =
+        await MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
+          release,
+          checkpoint,
+        );
       exactRestoreSucceeded = true;
-      const roundTrip = await restored.checkpointExact();
+      const roundTrip = await restored.checkpointLegacyCanonicalExactV2();
       if (canonicalJsonStringify(roundTrip) !== canonicalJsonStringify(checkpoint)) {
         issues.push("restored exact checkpoint did not round-trip identically");
       }

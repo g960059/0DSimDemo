@@ -1,7 +1,7 @@
 import type {
   MainWireScientificPeriodicBeatSummaryV1,
   MainWireScientificPeriodicSettlementStatusV1,
-  MainWireScientificSessionExactCheckpointV2,
+  MainWireScientificSessionExactCheckpointV3,
 } from "@/engine/scientific/runtime";
 import type {
   MainWireFiveWallPeriodicClassificationV1,
@@ -67,7 +67,7 @@ export type GetExactCheckpointCommandV1 =
 
 export type RestoreExactSessionCommandV1 =
   CommandBaseV1<"restoreExactSession"> & Readonly<{
-    release: unknown;
+    resolvedSessionInput: unknown;
     checkpoint: unknown;
   }>;
 
@@ -121,7 +121,9 @@ export type ScientificSessionOriginV1 =
   }>
   | Readonly<{
     kind: "exact-checkpoint-restore";
+    checkpointSchemaVersion: 3;
     checkpointSha256: string;
+    sessionInputSha256: string;
   }>
   | Readonly<{
     kind: "official-preset-exact-checkpoint-restore";
@@ -214,7 +216,7 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
     }>;
     getExactCheckpoint: Readonly<{
       kind: "exactCheckpoint";
-      checkpoint: MainWireScientificSessionExactCheckpointV2;
+      checkpoint: MainWireScientificSessionExactCheckpointV3;
       observableFrame: TObservableFrame;
     }>;
     restoreExactSession: Readonly<{

@@ -87,7 +87,7 @@ export const MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1 = Object.freeze({
   commitPolicy: "each-step-atomic-partial-progress-retained" as const,
   failedTrialPromotion: false as const,
   trackerCheckpointPolicy:
-    "exact-command-continuation-stored-in-v2-checkpoint" as const,
+    "exact-command-continuation-stored-in-exact-checkpoint" as const,
 });
 
 /**
@@ -359,7 +359,7 @@ export class MainWireScientificSessionV1 {
     return MainWireScientificSessionV1.constructCold(release, sessionInput);
   }
 
-  static async restoreExact(
+  static async restoreLegacyCanonicalExactV2(
     untrustedRelease: unknown,
     checkpoint: unknown,
   ): Promise<MainWireScientificSessionV1> {
@@ -424,6 +424,18 @@ export class MainWireScientificSessionV1 {
       acceptedState,
       restoredObservation(release.ref, acceptedState),
       periodicSettlementTracker,
+    );
+  }
+
+  static async restoreExact(
+    untrustedRelease: unknown,
+    untrustedSessionInput: unknown,
+    checkpoint: unknown,
+  ): Promise<MainWireScientificSessionV1> {
+    return MainWireScientificSessionV1.restoreExactV3(
+      untrustedRelease,
+      untrustedSessionInput,
+      checkpoint,
     );
   }
 
@@ -679,7 +691,8 @@ export class MainWireScientificSessionV1 {
     });
   }
 
-  async checkpointExact(): Promise<MainWireScientificSessionExactCheckpointV2> {
+  async checkpointLegacyCanonicalExactV2():
+  Promise<MainWireScientificSessionExactCheckpointV2> {
     if (this.sessionInput.sourceIntent.parameterOperations.length !== 0) {
       throw new Error(
         "checkpoint V2 is fixed-canonical-only; parameterized sessions require checkpoint V3",
@@ -733,6 +746,11 @@ export class MainWireScientificSessionV1 {
         ),
       },
     );
+  }
+
+  async checkpointExact():
+  Promise<MainWireScientificSessionExactCheckpointV3> {
+    return this.checkpointExactV3();
   }
 
   private static constructCold(
@@ -790,7 +808,7 @@ export async function restoreMainWireScientificSessionExactV2(
   untrustedRelease: unknown,
   checkpoint: unknown,
 ): Promise<MainWireScientificSessionV1> {
-  return MainWireScientificSessionV1.restoreExact(
+  return MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
     untrustedRelease,
     checkpoint,
   );
@@ -801,7 +819,7 @@ export async function restoreMainWireScientificSessionExactV3(
   untrustedSessionInput: unknown,
   checkpoint: unknown,
 ): Promise<MainWireScientificSessionV1> {
-  return MainWireScientificSessionV1.restoreExactV3(
+  return MainWireScientificSessionV1.restoreExact(
     untrustedRelease,
     untrustedSessionInput,
     checkpoint,

@@ -170,8 +170,8 @@ describe("main-wire scientific exact checkpoint V3", () => {
     );
     expect(session.runTransient({ dtSec: 0.002, stepCount: 2 }).completed)
       .toBe(true);
-    const checkpoint = await session.checkpointExactV3();
-    const restored = await MainWireScientificSessionV1.restoreExactV3(
+    const checkpoint = await session.checkpointExact();
+    const restored = await MainWireScientificSessionV1.restoreExact(
       release,
       input,
       JSON.parse(JSON.stringify(checkpoint)),
@@ -184,13 +184,13 @@ describe("main-wire scientific exact checkpoint V3", () => {
       revision: 2,
       acceptedTimeSec: 0.004,
     });
-    await expect(restored.checkpointExactV3()).resolves.toEqual(checkpoint);
+    await expect(restored.checkpointExact()).resolves.toEqual(checkpoint);
 
     const incompatibleInput = await resolveMainWireScientificSessionInputV1(
       release,
       mainWireScientificSessionIntentV1(release.ref, "AS-severe"),
     );
-    await expect(MainWireScientificSessionV1.restoreExactV3(
+    await expect(MainWireScientificSessionV1.restoreExact(
       release,
       incompatibleInput,
       checkpoint,

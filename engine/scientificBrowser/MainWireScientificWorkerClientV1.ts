@@ -105,6 +105,11 @@ type PendingCommandIdentityV1 = Readonly<{
     sessionInputSha256: string;
     releaseRef: SimulationReleaseRef;
   }> | null;
+  exactCheckpoint: Readonly<{
+    checkpointSha256: string;
+    sessionInputSha256: string;
+    releaseRef: SimulationReleaseRef;
+  }> | null;
   officialPreset: Readonly<{
     presetId: "circleheart/official-healthy-periodic";
     presetVersion: "1.0.0";
@@ -420,9 +425,17 @@ function isSessionOrigin(value: unknown): boolean {
       && value.initializationProtocolVersion.length > 0;
   }
   if (value.kind === "exact-checkpoint-restore") {
-    return hasExactKeys(value, ["kind", "checkpointSha256"])
+    return hasExactKeys(value, [
+      "kind",
+      "checkpointSchemaVersion",
+      "checkpointSha256",
+      "sessionInputSha256",
+    ])
+      && value.checkpointSchemaVersion === 3
       && typeof value.checkpointSha256 === "string"
-      && /^[0-9a-f]{64}$/.test(value.checkpointSha256);
+      && /^[0-9a-f]{64}$/.test(value.checkpointSha256)
+      && typeof value.sessionInputSha256 === "string"
+      && /^[0-9a-f]{64}$/.test(value.sessionInputSha256);
   }
   if (value.kind === "official-preset-exact-checkpoint-restore") {
     return hasExactKeys(value, [
@@ -465,7 +478,11 @@ function capturePendingCommandIdentity(
     requestId: command.requestId,
     sessionId: command.sessionId,
     resolvedSessionInput: command.kind === "createResolvedSession"
+      || command.kind === "restoreExactSession"
       ? captureResolvedSessionInputIdentity(command.resolvedSessionInput)
+      : null,
+    exactCheckpoint: command.kind === "restoreExactSession"
+      ? captureExactCheckpointIdentity(command.checkpoint)
       : null,
     officialPreset: command.kind === "createOfficialPresetSession"
       ? Object.freeze({
@@ -499,6 +516,38 @@ function isResponseCompatibleWithSubmittedCommand(
       && payload.sessionInputSha256 === expected.sessionInputSha256
       && isRecord(payload.observableFrame)
       && sameReleaseRef(payload.observableFrame.releaseRef, expected.releaseRef);
+  }
+  if (submitted.kind === "getExactCheckpoint") {
+    return isExactCheckpointResponseCompatible(response);
+  }
+  if (submitted.kind === "restoreExactSession") {
+    const expectedInput = submitted.resolvedSessionInput;
+    const expectedCheckpoint = submitted.exactCheckpoint;
+    if (
+      expectedInput === null
+      || expectedCheckpoint === null
+      || expectedInput.sessionInputSha256
+        !== expectedCheckpoint.sessionInputSha256
+      || !sameReleaseRef(
+        expectedInput.releaseRef,
+        expectedCheckpoint.releaseRef,
+      )
+    ) return false;
+    const origin = response.sessionOrigin;
+    const payload = response.payload;
+    return origin.kind === "exact-checkpoint-restore"
+      && origin.checkpointSchemaVersion === 3
+      && origin.checkpointSha256 === expectedCheckpoint.checkpointSha256
+      && origin.sessionInputSha256 === expectedInput.sessionInputSha256
+      && sameReleaseRef(response.releaseRef, expectedInput.releaseRef)
+      && isRecord(payload)
+      && hasExactKeys(payload, ["kind", "observableFrame"])
+      && payload.kind === "sessionRestored"
+      && isRecord(payload.observableFrame)
+      && sameReleaseRef(
+        payload.observableFrame.releaseRef,
+        expectedInput.releaseRef,
+      );
   }
   if (submitted.kind === "createOfficialPresetSession") {
     const expected = submitted.officialPreset;
@@ -541,6 +590,50 @@ function captureResolvedSessionInputIdentity(
       sha256: releaseRef.sha256,
     }),
   });
+}
+
+function captureExactCheckpointIdentity(
+  value: unknown,
+): PendingCommandIdentityV1["exactCheckpoint"] {
+  if (!isRecord(value)
+    || value.checkpointId
+      !== "main-wire-scientific-session-exact-checkpoint-v3"
+    || value.schemaVersion !== 3
+    || typeof value.checkpointSha256 !== "string"
+    || !/^[0-9a-f]{64}$/.test(value.checkpointSha256)
+    || typeof value.sessionInputSha256 !== "string"
+    || !/^[0-9a-f]{64}$/.test(value.sessionInputSha256)
+    || !isReleaseRef(value.releaseRef)) return null;
+  return Object.freeze({
+    checkpointSha256: value.checkpointSha256,
+    sessionInputSha256: value.sessionInputSha256,
+    releaseRef: Object.freeze({ ...value.releaseRef }),
+  });
+}
+
+function isExactCheckpointResponseCompatible(
+  response: ProtocolEnvelope,
+): boolean {
+  const payload = response.payload;
+  if (!isRecord(payload)
+    || !hasExactKeys(payload, ["kind", "checkpoint", "observableFrame"])
+    || payload.kind !== "exactCheckpoint"
+    || !isRecord(payload.observableFrame)) return false;
+  const checkpoint = captureExactCheckpointIdentity(payload.checkpoint);
+  if (checkpoint === null
+    || !sameReleaseRef(response.releaseRef, checkpoint.releaseRef)
+    || !sameReleaseRef(
+      payload.observableFrame.releaseRef,
+      checkpoint.releaseRef,
+    )) return false;
+  const origin = response.sessionOrigin;
+  if (origin.kind === "resolved-session-input-cold-start") {
+    return origin.sessionInputSha256 === checkpoint.sessionInputSha256;
+  }
+  if (origin.kind === "exact-checkpoint-restore") {
+    return origin.sessionInputSha256 === checkpoint.sessionInputSha256;
+  }
+  return true;
 }
 
 function sameReleaseRef(left: unknown, right: unknown): boolean {

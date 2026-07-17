@@ -66,7 +66,7 @@ describe("main-wire scientific periodic settlement V1", () => {
     const source = await createMainWireScientificSessionV1();
     const first = source.settlePeriodic();
     if (first.completed === false) throw new Error(first.message);
-    const checkpoint = await source.checkpointExact();
+    const checkpoint = await source.checkpointLegacyCanonicalExactV2();
 
     expect(checkpoint).toMatchObject({
       checkpointId: "main-wire-scientific-session-exact-checkpoint-v2",
@@ -86,11 +86,13 @@ describe("main-wire scientific periodic settlement V1", () => {
       },
     });
 
-    const restored = await MainWireScientificSessionV1.restoreExact(
+    const restored =
+      await MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
       release,
       JSON.parse(JSON.stringify(checkpoint)),
     );
-    await expect(restored.checkpointExact()).resolves.toEqual(checkpoint);
+    await expect(restored.checkpointLegacyCanonicalExactV2())
+      .resolves.toEqual(checkpoint);
 
     const sourceSecond = source.settlePeriodic();
     const restoredSecond = restored.settlePeriodic();
@@ -115,7 +117,7 @@ describe("main-wire scientific periodic settlement V1", () => {
     forgedAnchor.periodicSettlementTracker.anchorAcceptedTimeSec += 1;
     const { checkpointSha256: _oldSha, ...forgedPayload } = forgedAnchor;
     forgedAnchor.checkpointSha256 = await sha256CanonicalJsonHex(forgedPayload);
-    await expect(MainWireScientificSessionV1.restoreExact(
+    await expect(MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
       release,
       forgedAnchor,
     )).rejects.toThrow(/terminal time mismatch/);

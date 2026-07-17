@@ -36,6 +36,8 @@ export const MAIN_WIRE_SCIENTIFIC_RESOLVED_SESSION_INPUT_V1_SCHEMA_ID =
   "circleheart-main-wire-resolved-session-input-v1" as const;
 export const MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_RESOLVER_V1_ID =
   "main-wire-five-wall-session-input-resolver-v1" as const;
+export const MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_V1_DIGEST_SEMANTICS =
+  "sha256-canonical-json-payload-without-sessionInputSha256" as const;
 
 export const MAIN_WIRE_SCIENTIFIC_SEVERE_VALVE_RESEARCH_BRACKET_IDS_V1 =
   Object.freeze([
@@ -86,7 +88,7 @@ export type MainWireScientificResolvedSessionInputV1 = Readonly<{
     id: typeof MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_RESOLVER_V1_ID;
     version: "1.0.0";
     digestSemantics:
-      "sha256-canonical-json-payload-without-sessionInputSha256";
+      typeof MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_V1_DIGEST_SEMANTICS;
   }>;
   sourceIntent: MainWireScientificSessionIntentV1;
   resolvedParameters: Readonly<{
@@ -292,7 +294,7 @@ function resolvedPayload(
       id: MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_RESOLVER_V1_ID,
       version: "1.0.0" as const,
       digestSemantics:
-        "sha256-canonical-json-payload-without-sessionInputSha256" as const,
+        MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_V1_DIGEST_SEMANTICS,
     },
     sourceIntent: intent,
     resolvedParameters: {
@@ -484,7 +486,7 @@ function resolvedEnvelopeIssues(value: unknown): string[] {
     id: MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_RESOLVER_V1_ID,
     version: "1.0.0",
     digestSemantics:
-      "sha256-canonical-json-payload-without-sessionInputSha256",
+      MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_V1_DIGEST_SEMANTICS,
   }, "resolved session input.resolver"));
   issues.push(...sessionIntentIssues(value.sourceIntent));
   if (typeof value.sessionInputSha256 !== "string"

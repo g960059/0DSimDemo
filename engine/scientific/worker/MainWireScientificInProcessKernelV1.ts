@@ -74,6 +74,11 @@ export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM = Object.freeze({
   resolvedSessionInputCapability:
     "complete-input-release-bound-revalidation" as const,
   resolvedSessionArbitraryParameterPatchAccepted: false as const,
+  genericExactCheckpointCapability:
+    "v3-exact-release-and-session-input-bound" as const,
+  genericExactRestoreCallerSuppliedReleaseAccepted: false as const,
+  legacyV2RestoreCapability:
+    "official-fixed-canonical-preset-internal-only" as const,
 });
 
 export type MainWireScientificCommandResponseV1 =
@@ -407,10 +412,11 @@ export class MainWireScientificInProcessKernelV1 {
         presetVersion: command.presetVersion,
       });
       assertOfficialPresetLoadMatchesCommand(command, loaded);
-      const session = await MainWireScientificSessionV1.restoreExact(
-        loaded.release,
-        loaded.checkpoint,
-      );
+      const session = await MainWireScientificSessionV1
+        .restoreLegacyCanonicalExactV2(
+          loaded.release,
+          loaded.checkpoint,
+        );
       const observableFrame = project(session);
       const sessionOrigin = Object.freeze({
         kind: "official-preset-exact-checkpoint-restore" as const,
@@ -553,12 +559,14 @@ export class MainWireScientificInProcessKernelV1 {
     const allocationError = this.sessionAllocationError(command);
     if (allocationError !== null) return allocationError;
     try {
+      const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
       const session = await MainWireScientificSessionV1.restoreExact(
-        command.release,
+        release,
+        command.resolvedSessionInput,
         command.checkpoint,
       );
       const observableFrame = project(session);
-      const sessionOrigin = exactRestoreOrigin(command);
+      const sessionOrigin = exactRestoreOrigin(command, session);
       const response = successResponse(
         command,
         session.releaseRef,
@@ -940,7 +948,7 @@ function parseCommand(
   const expectedKeys = value.kind === "runTransient"
     ? [...common, "dtSec", "stepCount", "observationStride"]
     : value.kind === "restoreExactSession"
-      ? [...common, "release", "checkpoint"]
+      ? [...common, "resolvedSessionInput", "checkpoint"]
       : value.kind === "createResolvedSession"
         ? [...common, "resolvedSessionInput"]
         : value.kind === "createOfficialPresetSession"
@@ -1078,15 +1086,24 @@ function transientExecutionProtocol(
 
 function exactRestoreOrigin(
   command: Extract<ScientificCommandV1, { kind: "restoreExactSession" }>,
+  session: MainWireScientificSessionV1,
 ): ScientificSessionOriginV1 {
   if (
     !isRecord(command.checkpoint)
+    || command.checkpoint.checkpointId
+      !== "main-wire-scientific-session-exact-checkpoint-v3"
+    || command.checkpoint.schemaVersion !== 3
     || typeof command.checkpoint.checkpointSha256 !== "string"
     || !SHA256_HEX_PATTERN.test(command.checkpoint.checkpointSha256)
-  ) throw new Error("validated exact checkpoint lacks its SHA-256 identity");
+    || typeof command.checkpoint.sessionInputSha256 !== "string"
+    || !SHA256_HEX_PATTERN.test(command.checkpoint.sessionInputSha256)
+    || command.checkpoint.sessionInputSha256 !== session.sessionInputSha256
+  ) throw new Error("validated exact V3 checkpoint lacks its bound identities");
   return Object.freeze({
     kind: "exact-checkpoint-restore" as const,
+    checkpointSchemaVersion: 3 as const,
     checkpointSha256: command.checkpoint.checkpointSha256,
+    sessionInputSha256: session.sessionInputSha256,
   });
 }
 

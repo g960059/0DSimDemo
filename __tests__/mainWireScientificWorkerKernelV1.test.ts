@@ -4,6 +4,10 @@ import {
   loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
+  mainWireScientificSessionIntentV1,
+  resolveMainWireScientificSessionInputV1,
+} from "@/engine/scientific/inputs";
+import {
   MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM,
   MainWireScientificInProcessKernelV1,
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
@@ -169,8 +173,10 @@ describe("main-wire scientific in-process kernel V1", () => {
     expect(checkpointResponse.payload.checkpoint.checkpointSha256)
       .toMatch(/^[0-9a-f]{64}$/);
     expect(checkpointResponse.payload.checkpoint).toMatchObject({
-      checkpointId: "main-wire-scientific-session-exact-checkpoint-v2",
-      schemaVersion: 2,
+      checkpointId: "main-wire-scientific-session-exact-checkpoint-v3",
+      schemaVersion: 3,
+      releaseRef: created.releaseRef,
+      sessionInputSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
       periodicSettlementTracker: {
         completedBeatCount: 1,
         boundaryTransactions: expect.arrayContaining([
@@ -181,13 +187,28 @@ describe("main-wire scientific in-process kernel V1", () => {
     expect(structuredClone(checkpointResponse)).toEqual(checkpointResponse);
     const canonicalRelease =
       await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const resolvedSessionInput = await resolveMainWireScientificSessionInputV1(
+      canonicalRelease,
+      mainWireScientificSessionIntentV1(canonicalRelease.ref),
+    );
+    const callerReleaseRejected = await kernel.handle({
+      ...baseCommand(
+        "restoreExactSession",
+        "request-restore-caller-release",
+        "caller-release-session",
+      ),
+      resolvedSessionInput,
+      checkpoint: checkpointResponse.payload.checkpoint,
+      release: canonicalRelease,
+    });
+    expect(errorCode(callerReleaseRejected)).toBe("invalid-command");
     const restored = await kernel.handle({
       ...baseCommand(
         "restoreExactSession",
         "request-restore-1",
         "session-2",
       ),
-      release: canonicalRelease,
+      resolvedSessionInput,
       checkpoint: checkpointResponse.payload.checkpoint,
     });
     expect(restored).toMatchObject({
@@ -195,7 +216,9 @@ describe("main-wire scientific in-process kernel V1", () => {
       sessionId: "session-2",
       sessionOrigin: {
         kind: "exact-checkpoint-restore",
+        checkpointSchemaVersion: 3,
         checkpointSha256: checkpointResponse.payload.checkpoint.checkpointSha256,
+        sessionInputSha256: resolvedSessionInput.sessionInputSha256,
       },
       payload: {
         kind: "sessionRestored",
@@ -251,6 +274,11 @@ describe("main-wire scientific in-process kernel V1", () => {
       periodicSettlementCapability:
         "release-bound-one-beat-progress-per-command",
       periodicSettlementHostCancellationBoundary: "between-commands",
+      genericExactCheckpointCapability:
+        "v3-exact-release-and-session-input-bound",
+      genericExactRestoreCallerSuppliedReleaseAccepted: false,
+      legacyV2RestoreCapability:
+        "official-fixed-canonical-preset-internal-only",
     });
   }, 120_000);
 
@@ -353,13 +381,17 @@ describe("main-wire scientific in-process kernel V1", () => {
     alteredCheckpoint.transaction.circulation.state
       .dynamicEdgeFlowsMlPerSec.Ao_SA += 1;
     const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const resolvedSessionInput = await resolveMainWireScientificSessionInputV1(
+      release,
+      mainWireScientificSessionIntentV1(release.ref),
+    );
     const rejected = await kernel.handle({
       ...baseCommand(
         "restoreExactSession",
         "request-restore-altered",
         "rejected-session",
       ),
-      release,
+      resolvedSessionInput,
       checkpoint: alteredCheckpoint,
     });
 
@@ -381,6 +413,30 @@ describe("main-wire scientific in-process kernel V1", () => {
       "rejected-session",
     ));
     expect(errorCode(unknown)).toBe("unknown-session-id");
+
+    const v2LikeCheckpoint = {
+      ...checkpointResponse.payload.checkpoint,
+      checkpointId: "main-wire-scientific-session-exact-checkpoint-v2",
+      schemaVersion: 2,
+    };
+    const v2Rejected = await kernel.handle({
+      ...baseCommand(
+        "restoreExactSession",
+        "request-restore-v2-rejected",
+        "v2-rejected-session",
+      ),
+      resolvedSessionInput,
+      checkpoint: v2LikeCheckpoint,
+    });
+    expect(v2Rejected).toMatchObject({
+      ok: false,
+      error: {
+        code: "exact-restore-rejected",
+        message: expect.stringMatching(
+          /scientific exact checkpoint V3 rejected: envelope mismatch/,
+        ),
+      },
+    });
   }, 120_000);
 
   it("bounds queue, request replay, input size, and retired session identities", async () => {
@@ -444,7 +500,7 @@ describe("main-wire scientific in-process kernel V1", () => {
         "request-aliased-json",
         "aliased-session",
       ),
-      release: { left: shared, right: shared },
+      resolvedSessionInput: { left: shared, right: shared },
       checkpoint: {},
     };
     const aliasedResult = await kernel.handle(aliasedInput);

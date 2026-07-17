@@ -13,6 +13,9 @@ import {
 import type {
   MainWireScientificSessionPeriodicTrackerCheckpointV1,
 } from "@/engine/scientific/runtime/MainWireScientificSessionV1";
+import {
+  MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_V1_DIGEST_SEMANTICS,
+} from "@/engine/scientific/inputs";
 
 export const MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V3_ID =
   "main-wire-scientific-session-exact-checkpoint-v3" as const;
@@ -21,7 +24,7 @@ export const MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V3_ASSEMBLY =
   "fixed-normal-adult-five-wall-noncoronary" as const;
 
 export const MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_DIGEST_SEMANTICS_V1 =
-  "sha256-canonical-json-payload-without-sessionInputSha256" as const;
+  MAIN_WIRE_SCIENTIFIC_SESSION_INPUT_V1_DIGEST_SEMANTICS;
 
 export type MainWireScientificSessionExactCheckpointV3 = Readonly<{
   checkpointId:

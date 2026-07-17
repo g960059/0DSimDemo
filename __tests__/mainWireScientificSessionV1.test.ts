@@ -92,9 +92,12 @@ describe("main-wire ScientificSession V1", () => {
       JSON.parse(JSON.stringify(canonicalRelease)),
     );
     const checkpoint = JSON.parse(
-      JSON.stringify(await source.checkpointExact()),
-    ) as Awaited<ReturnType<typeof source.checkpointExact>>;
-    const restored = await MainWireScientificSessionV1.restoreExact(
+      JSON.stringify(await source.checkpointLegacyCanonicalExactV2()),
+    ) as Awaited<
+      ReturnType<typeof source.checkpointLegacyCanonicalExactV2>
+    >;
+    const restored =
+      await MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
       canonicalRelease,
       checkpoint,
     );
@@ -110,7 +113,12 @@ describe("main-wire ScientificSession V1", () => {
       && chamber.pressureAvailability
         === "not-evaluated-at-accepted-state"))
       .toBe(true);
-    await expect(restored.checkpointExact()).resolves.toEqual(checkpoint);
+    await expect(restored.checkpointLegacyCanonicalExactV2())
+      .resolves.toEqual(checkpoint);
+    await expect(restored.checkpointExact()).resolves.toMatchObject({
+      schemaVersion: 3,
+      sessionInputSha256: restored.sessionInputSha256,
+    });
 
     const fakeInput = JSON.parse(JSON.stringify(
       mainWireAdultFiveWallNonCoronaryReleaseInputV1(),
@@ -126,7 +134,7 @@ describe("main-wire ScientificSession V1", () => {
       ...checkpoint,
       releaseRef: wellFormedFakeRelease.ref,
     };
-    await expect(MainWireScientificSessionV1.restoreExact(
+    await expect(MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
       canonicalRelease,
       mismatchedCheckpoint,
     )).rejects.toThrow(/release identity mismatch/);
@@ -138,7 +146,7 @@ describe("main-wire ScientificSession V1", () => {
         sha256: "0".repeat(64),
       },
     };
-    await expect(MainWireScientificSessionV1.restoreExact(
+    await expect(MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
       canonicalRelease,
       staleReleaseShaCheckpoint,
     )).rejects.toThrow(/release identity mismatch/);
@@ -151,7 +159,7 @@ describe("main-wire ScientificSession V1", () => {
         sha256: "1".repeat(64),
       },
     };
-    await expect(MainWireScientificSessionV1.restoreExact(
+    await expect(MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
       canonicalRelease,
       release0_1_0Checkpoint,
     )).rejects.toThrow(/release identity mismatch/);
@@ -166,12 +174,12 @@ describe("main-wire ScientificSession V1", () => {
     const tamperedCheckpoint = JSON.parse(JSON.stringify(checkpoint));
     tamperedCheckpoint.transaction.circulation.state
       .dynamicEdgeFlowsMlPerSec.Ao_SA += 1;
-    await expect(MainWireScientificSessionV1.restoreExact(
+    await expect(MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
       canonicalRelease,
       tamperedCheckpoint,
     )).rejects.toThrow(/outer SHA-256 mismatch/);
 
-    await expect(MainWireScientificSessionV1.restoreExact(
+    await expect(MainWireScientificSessionV1.restoreLegacyCanonicalExactV2(
       canonicalRelease,
       null,
     )).rejects.toThrow(/exact-checkpoint envelope mismatch/);
@@ -208,7 +216,11 @@ describe("main-wire ScientificSession V1", () => {
       completedStepCount: 1,
       failure: null,
     });
-    await expect(session.checkpointExact())
+    await expect(session.checkpointLegacyCanonicalExactV2())
       .rejects.toThrow(/parameterized sessions require checkpoint V3/);
+    await expect(session.checkpointExact()).resolves.toMatchObject({
+      schemaVersion: 3,
+      sessionInputSha256: input.sessionInputSha256,
+    });
   }, 60_000);
 });
