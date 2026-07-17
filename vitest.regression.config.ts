@@ -1,6 +1,6 @@
 import path from "path";
 import { configDefaults, defineConfig } from "vitest/config";
-import { diagnosticEngineTests, fastEngineTests } from "./vitest.suites";
+import { regressionTests } from "./vitest.suites";
 
 export default defineConfig({
   resolve: {
@@ -10,18 +10,15 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: [
-      "engine/__tests__/*.test.ts",
-    ],
+    include: [...regressionTests],
     exclude: [
       ...configDefaults.exclude,
       ".claude/**",
       ".codex/**",
       ".firebase/**",
-      "__tests__/firestoreRules.emulator.test.ts",
-      ...fastEngineTests,
-      ...diagnosticEngineTests,
     ],
+    testTimeout: 120_000,
+    hookTimeout: 120_000,
     snapshotFormat: {
       printBasicPrototype: false,
     },
