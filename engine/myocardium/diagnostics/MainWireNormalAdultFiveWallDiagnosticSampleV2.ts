@@ -24,6 +24,7 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_CLAIM =
   Object.freeze({
     baseSampleSchema: "unchanged-V1" as const,
     acceptedStepReadbackOnly: true as const,
+    emitsAuthoritativeCommonIntrathoracicPressure: true as const,
     addsDynamicState: false as const,
     changesFixedV1RunnerJson: false as const,
   });
@@ -37,6 +38,8 @@ export type MainWireNormalAdultFiveWallDiagnosticSampleV2 =
   MainWireNormalAdultFiveWallClosedLoopSampleV1 & Readonly<{
     diagnosticSampleId:
       typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID;
+    /** Authoritative accepted-step respiratory Pth used by the transaction. */
+    commonIntrathoracicPressureMmHg: number;
     /** Accepted-step material strain; diagnostic readback, never a new state. */
     wallFiberLogStrain: Readonly<Record<
       MainWireNormalAdultFiveWallDiagnosticWallIdV2,
@@ -84,6 +87,8 @@ export function sampleMainWireNormalAdultFiveWallDiagnosticStepV2(
     ...base,
     diagnosticSampleId:
       MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID,
+    commonIntrathoracicPressureMmHg:
+      step.commonIntrathoracicPressureMmHg,
     wallFiberLogStrain: Object.freeze({
       ...mechanics.effectiveFiberLogStrainByWall,
     }),

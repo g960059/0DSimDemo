@@ -352,6 +352,7 @@ function sample(
     }),
     diagnosticSampleId:
       "main-wire-normal-adult-five-wall-diagnostic-sample-v2",
+    commonIntrathoracicPressureMmHg: 0,
     wallFiberLogStrain: wallRecord(() => strain),
     wallEnergyLedgerDensity: wallRecord(() => Object.freeze({
       equilibriumPassiveStoredEnergyDensityJPerM3: 0.2 * (index + 1),
