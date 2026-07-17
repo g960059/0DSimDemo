@@ -34,6 +34,11 @@ import type {
 import type {
   WholeHeartMechanicsSerializableValueV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+import {
+  composeMainWireFourValveDiseasePresetV1,
+  type MainWireFourValveDiseaseBracketIdV1,
+  type MainWireFourValveDiseasePresetV1,
+} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID =
   "main-wire-normal-adult-five-wall-closed-loop-v1" as const;
@@ -46,6 +51,7 @@ export type MainWireNormalAdultFiveWallClosedLoopOptionsV1 = Readonly<{
   laSlsMode?: MainWireNormalAdultLaSlsModeV1;
   pericardiumMode?: MainWireCommonPericardiumModeV1;
   pericardiumCase?: MainWireNormalAdultCommonPericardiumCaseV1;
+  valveDiseaseBracketIds?: readonly MainWireFourValveDiseaseBracketIdV1[];
   dtSec: number;
   beatCount: number;
 }>;
@@ -142,6 +148,7 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
   pericardiumMode: MainWireCommonPericardiumModeV1;
   pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
   pericardiumParameterSetId: string;
+  valvePreset: MainWireFourValveDiseasePresetV1;
   completed: boolean;
   requestedBeatCount: number;
   completedBeatCount: number;
@@ -164,6 +171,8 @@ export type MainWireNormalAdultFiveWallClosedLoopResultV1 = Readonly<{
     parameterSearch: false;
     smoothingAppliedToSamples: false;
     laSlsExactOffIsPairedAblationOnly: boolean;
+    valveDiseasePresetIsProtocolParameterNotAcceptedState: true;
+    valveDiseaseBracketIsClinicalDiagnosis: false;
   }>;
 }>;
 
@@ -176,7 +185,9 @@ type AcceptedState = MainWireFiveWallNonCoronaryAcceptedStateV1<MechanicsState>;
 
 const CYCLE_LENGTH_SEC = 1;
 
-export function normalAdultMainWireRuntimeV1():
+export function normalAdultMainWireRuntimeV1(
+  valveDiseaseBracketIds: readonly MainWireFourValveDiseaseBracketIdV1[] = [],
+):
 NonCoronaryCirculationRuntimeParamsV1 {
   const base = defaultParams();
   return Object.freeze({
@@ -195,6 +206,9 @@ NonCoronaryCirculationRuntimeParamsV1 {
       respAmpAlv: 0,
       respRate: 0,
     }),
+    valvePreset: composeMainWireFourValveDiseasePresetV1(
+      valveDiseaseBracketIds,
+    ),
   });
 }
 
@@ -206,7 +220,9 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
   const laSlsMode = options.laSlsMode ?? "on";
   const pericardiumMode = options.pericardiumMode ?? "on";
   const pericardiumCase = options.pericardiumCase ?? "healthy-slack";
-  const runtime = normalAdultMainWireRuntimeV1();
+  const runtime = normalAdultMainWireRuntimeV1(
+    options.valveDiseaseBracketIds,
+  );
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(laSlsMode);
   const pericardium = createMainWireNormalAdultCommonPericardiumV1(
     pericardiumMode,
@@ -271,6 +287,7 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
     pericardiumMode,
     pericardiumCase,
     pericardiumParameterSetId: pericardium.parameterSetId,
+    valvePreset: runtime.valvePreset,
     completed: failure === null && beatClosure.length === options.beatCount,
     requestedBeatCount: options.beatCount,
     completedBeatCount: beatClosure.length,
@@ -289,6 +306,8 @@ export function runMainWireNormalAdultFiveWallClosedLoopV1(
       parameterSearch: false as const,
       smoothingAppliedToSamples: false as const,
       laSlsExactOffIsPairedAblationOnly: laSlsMode === "exact-off",
+      valveDiseasePresetIsProtocolParameterNotAcceptedState: true as const,
+      valveDiseaseBracketIsClinicalDiagnosis: false as const,
     }),
   });
 }

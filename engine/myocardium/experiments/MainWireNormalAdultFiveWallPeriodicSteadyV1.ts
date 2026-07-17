@@ -56,6 +56,10 @@ import type {
   MainWireCommonPericardiumBindingV1,
   MainWireCommonPericardiumModeV1,
 } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
+import type {
+  MainWireFourValveDiseaseBracketIdV1,
+  MainWireFourValveDiseasePresetV1,
+} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID =
   "main-wire-normal-adult-five-wall-periodic-steady-v1" as const;
@@ -107,7 +111,7 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
 export type MainWireNormalAdultFiveWallCycleWarmStartV1 = Readonly<{
   warmStartId:
     typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_WARM_START_V1_ID;
-  schemaVersion: 2;
+  schemaVersion: 3;
   sourceProtocolIdentity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
   sourceProtocolIdentityHash: string;
   sourceComponentHashes:
@@ -150,6 +154,8 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
     }>;
     topologyGraphStableHash: string;
     runtimeStableHash: string;
+    valvePresetStableHash: string;
+    valvePresetSnapshot: MainWireFourValveDiseasePresetV1;
   }>;
   bloodVolumeOperatingPoint:
     MainWireNormalAdultBloodVolumeOperatingPointIdentityV1;
@@ -173,6 +179,7 @@ export type MainWireNormalAdultFiveWallPeriodicOptionsV1 = Readonly<{
   laSlsMode?: MainWireNormalAdultLaSlsModeV1;
   pericardiumMode?: MainWireCommonPericardiumModeV1;
   pericardiumCase?: MainWireNormalAdultCommonPericardiumCaseV1;
+  valveDiseaseBracketIds?: readonly MainWireFourValveDiseaseBracketIdV1[];
   initialization?: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   warmStart?: MainWireNormalAdultFiveWallCycleWarmStartV1;
 }>;
@@ -205,6 +212,7 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   pericardiumMode: MainWireCommonPericardiumModeV1;
   pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
   pericardiumParameterSetId: string;
+  valvePreset: MainWireFourValveDiseasePresetV1;
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   dtSec: number;
   stepsPerBeat: number;
@@ -280,6 +288,8 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     pericardialConstraintEnabled: boolean;
     pericardialConstraintMayBeSlackAtHealthyBaseline: true;
     warmStartIsInitialConditionOnly: true;
+    valveDiseasePresetIsProtocolParameterNotAcceptedState: true;
+    valveDiseaseBracketIsClinicalDiagnosis: false;
   }>;
 }>;
 
@@ -293,7 +303,9 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
 ): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const resolved = validateAndResolveOptions(options);
-  const runtime = normalAdultMainWireRuntimeV1();
+  const runtime = normalAdultMainWireRuntimeV1(
+    resolved.valveDiseaseBracketIds,
+  );
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(
     resolved.laSlsMode,
   );
@@ -454,6 +466,7 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     pericardiumMode: resolved.pericardiumMode,
     pericardiumCase: resolved.pericardiumCase,
     pericardiumParameterSetId: pericardium.parameterSetId,
+    valvePreset: runtime.valvePreset,
     initialization: resolved.initialization,
     dtSec: resolved.dtSec,
     stepsPerBeat: resolved.stepsPerBeat,
@@ -486,6 +499,8 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       pericardialConstraintEnabled: resolved.pericardiumMode === "on",
       pericardialConstraintMayBeSlackAtHealthyBaseline: true as const,
       warmStartIsInitialConditionOnly: true as const,
+      valveDiseasePresetIsProtocolParameterNotAcceptedState: true as const,
+      valveDiseaseBracketIsClinicalDiagnosis: false as const,
     }),
   });
 }
@@ -551,6 +566,8 @@ function buildPeriodicProtocolIdentity(
       topologyGraphStableHash:
         componentHashes.circulationTopologyGraphStableHash,
       runtimeStableHash: componentHashes.circulationRuntimeStableHash,
+      valvePresetStableHash: hashProtocolValue(runtime.valvePreset),
+      valvePresetSnapshot: runtime.valvePreset,
     },
     bloodVolumeOperatingPoint,
     commonPericardium: {
@@ -712,7 +729,7 @@ function restoreWarmStart(
   if (
     warmStart.warmStartId
       !== MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_WARM_START_V1_ID
-    || warmStart.schemaVersion !== 2
+    || warmStart.schemaVersion !== 3
   ) throw new Error("unsupported five-wall cycle warm start");
   const { envelopeFingerprint, ...fingerprintedEnvelope } = warmStart;
   if (hashProtocolValue(fingerprintedEnvelope) !== envelopeFingerprint) {
@@ -799,6 +816,8 @@ function validateWarmStartSourceProtocolConsistency(
       !== hashes.circulationTopologyGraphStableHash
     || identity.circulation.runtimeStableHash
       !== hashes.circulationRuntimeStableHash
+    || hashProtocolValue(identity.circulation.valvePresetSnapshot)
+      !== identity.circulation.valvePresetStableHash
     || identity.bloodVolumeOperatingPoint === undefined
     || hashProtocolValue(identity.bloodVolumeOperatingPoint)
       !== hashes.bloodVolumeOperatingPointStableHash
@@ -837,7 +856,7 @@ function buildCycleBoundaryWarmStart(
   }
   const envelope = {
     warmStartId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_WARM_START_V1_ID,
-    schemaVersion: 2 as const,
+    schemaVersion: 3 as const,
     sourceProtocolIdentity: protocol.identity,
     sourceProtocolIdentityHash: protocol.identityHash,
     sourceComponentHashes: Object.freeze({ ...protocol.componentHashes }),
@@ -953,6 +972,7 @@ function validateAndResolveOptions(
   laSlsMode: MainWireNormalAdultLaSlsModeV1;
   pericardiumMode: MainWireCommonPericardiumModeV1;
   pericardiumCase: MainWireNormalAdultCommonPericardiumCaseV1;
+  valveDiseaseBracketIds: readonly MainWireFourValveDiseaseBracketIdV1[];
   initialization: MainWireNormalAdultFiveWallPeriodicInitializationV1;
   warmStart: MainWireNormalAdultFiveWallCycleWarmStartV1 | null;
 }> {
@@ -1011,6 +1031,9 @@ function validateAndResolveOptions(
     laSlsMode,
     pericardiumMode,
     pericardiumCase,
+    valveDiseaseBracketIds: Object.freeze([
+      ...(options.valveDiseaseBracketIds ?? []),
+    ]),
     initialization,
     warmStart,
   });

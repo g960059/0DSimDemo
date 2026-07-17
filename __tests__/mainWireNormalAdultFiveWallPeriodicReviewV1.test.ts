@@ -458,6 +458,20 @@ function sample(
 function valve(physicalAreaCm2: number) {
   return Object.freeze({
     physicalAreaCm2,
+    forwardActiveEoaCm2: physicalAreaCm2,
+    closedReverseEroaCm2: 0,
+    activeEoaCm2: physicalAreaCm2,
+    pressureGradientMmHg: 0,
+    flowMlPerSec: 0,
+    activeDirection: "zero-gradient" as const,
+    openingTarget01: 0,
+    openingEquationResidual01: 0,
+    resistanceMmHgSecPerMl: 0,
+    bernoulliMmHgSec2PerMl2: 0,
+    competentReverseClosureActive: false,
+    subthresholdForwardSupportActive: false,
+    competentReverseClosureReactionMmHg: 0,
+    subthresholdForwardSupportReactionMmHg: 0,
     dissipativePowerProxyMmHgMlPerSec: 0,
     powerBalanceResidualMmHgMlPerSec: 0,
   });

@@ -15,6 +15,9 @@ import type {
 import type {
   MainWireCommonPericardiumModeV1,
 } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
+import type {
+  MainWireFourValveDiseaseBracketIdV1,
+} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
 
 const dtSec = numberArgument("--dt", 0.002);
 const maximumBeatCount = integerArgument("--max-beats", 32);
@@ -28,6 +31,13 @@ const pericardiumCase = argument(
 ) as MainWireNormalAdultCommonPericardiumCaseV1;
 const warmStartPath = optionalArgument("--warm-start");
 const warmStart = warmStartPath === null ? undefined : loadWarmStart(warmStartPath);
+const valveDiseaseBracketIds = Object.freeze(
+  [...commaSeparatedArgument("--valve-disease")].sort((left, right) =>
+    left.localeCompare(right)),
+) as readonly MainWireFourValveDiseaseBracketIdV1[];
+const valveDiseasePathTag = valveDiseaseBracketIds.length === 0
+  ? "healthy-valves"
+  : valveDiseaseBracketIds.join("+").toLowerCase();
 const initialization = argument(
   "--init",
   warmStart === undefined ? "canonical" : "cycle-boundary-warm-start",
@@ -39,6 +49,7 @@ const outputPath = argument(
     "data/myocardium/protocols",
     `mainwire-normal-adult-five-wall-periodic-${initialization}-${laSlsMode}`
       + `-pericardium-${pericardiumMode}-${pericardiumCase}`
+      + `-${valveDiseasePathTag}`
       + `-${Math.round(dtSec * 1e6)}us-v1.json`,
   ),
 );
@@ -49,6 +60,7 @@ const result = runMainWireNormalAdultFiveWallPeriodicSteadyV1({
   laSlsMode,
   pericardiumMode,
   pericardiumCase,
+  valveDiseaseBracketIds,
   initialization,
   warmStart,
 });
@@ -63,6 +75,8 @@ process.stdout.write(`${JSON.stringify({
   pericardiumMode: result.pericardiumMode,
   pericardiumCase: result.pericardiumCase,
   pericardiumParameterSetId: result.pericardiumParameterSetId,
+  valvePresetParameterSetId: result.valvePreset.parameterSetId,
+  valveDiseaseBracketIds: result.valvePreset.bracketIds,
   dtSec: result.dtSec,
   requestedMaximumBeatCount: result.requestedMaximumBeatCount,
   completedBeatCount: result.completedBeatCount,
@@ -104,6 +118,13 @@ function optionalArgument(name: string): string | null {
     throw new Error(`${name} requires a value`);
   }
   return value;
+}
+
+function commaSeparatedArgument(name: string): readonly string[] {
+  const value = optionalArgument(name);
+  if (value === null || value.trim() === "") return Object.freeze([]);
+  const entries = value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  return Object.freeze(entries);
 }
 
 function loadWarmStart(pathname: string): MainWireNormalAdultFiveWallCycleWarmStartV1 {

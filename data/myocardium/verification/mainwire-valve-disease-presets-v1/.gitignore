@@ -1,0 +1,5 @@
+# Full accepted-sample periodic results are intentionally local because each
+# file is about 16--18 MB. Compact summaries, valve metrics, dt comparisons,
+# and rendered review artifacts are the committed reproducible evidence.
+/*-raw.json
+/periodic-*.json

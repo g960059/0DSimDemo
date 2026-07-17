@@ -11,8 +11,10 @@ import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
-  measureMainWireNormalAdultFiveWallCycleDiagnosticsV1,
+  tryMeasureMainWireNormalAdultFiveWallCycleDiagnosticsV1,
   type MainWireNormalAdultFiveWallCycleDiagnosticsV1,
+  type MainWireNormalAdultFiveWallCycleDiagnosticsUnavailabilityReasonV1,
+  type MainWireNormalAdultFiveWallValveEventDetectionEvidenceV1,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallCycleDiagnosticsV1";
 import {
   readMainWireNormalAdultBloodVolumeOperatingPointReportV1,
@@ -140,6 +142,7 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     pericardiumCase:
       MainWireNormalAdultFiveWallPeriodicResultV1["pericardiumCase"];
     pericardiumParameterSetId: string;
+    valvePreset: MainWireNormalAdultFiveWallPeriodicResultV1["valvePreset"];
     dtSec: number;
     requestedMaximumBeatCount: number;
     completedBeatCount: number;
@@ -168,7 +171,8 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     reason:
       | "eligible-current-dt-period1-only"
       | "ineligible-period2-suspect"
-      | "ineligible-period1-not-converged";
+      | "ineligible-period1-not-converged"
+      | "ineligible-cycle-physiology-not-measurable";
   }>;
   selectedBeat: Readonly<{
     beatIndex: number;
@@ -214,15 +218,24 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     cardiacIndexLPerMinPerM2: number;
     meanAorticAbsolutePressureMmHg: number;
   }>;
+  cyclePhysiologyAvailability:
+    | Readonly<{ status: "available" }>
+    | Readonly<{
+      status: "not-measurable";
+      reason:
+        MainWireNormalAdultFiveWallCycleDiagnosticsUnavailabilityReasonV1;
+      eventDetectionEvidence:
+        MainWireNormalAdultFiveWallValveEventDetectionEvidenceV1;
+    }>;
   cyclePhysiology: Omit<
     MainWireNormalAdultFiveWallCycleDiagnosticsV1,
     "phaseBySample"
-  >;
+  > | null;
   laPvMorphology: Readonly<{
     twoLobes: MainWireNormalAdultFiveWallCompactTwoLobesV1;
     reservoirConduitEqualVolumeOrder:
       MainWireNormalAdultFiveWallCompactBranchOrderV1;
-  }>;
+  }> | null;
   residualMaxima: Readonly<{
     mechanicsResidualNorm: number;
     circulationScaledResidualInfinityNorm: number;
@@ -262,35 +275,44 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const evidenceClosures = classifierEvidenceClosures(result);
   const evidenceJacobianAudits = classifierEvidenceJacobianAudits(result);
   const atrialOnsetPhase01 = normalAtrialCalciumOnsetPhase01();
-  const cycle = measureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
+  const cycleMeasurement =
+    tryMeasureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
     samples,
     precedingSample,
     dtSec: result.dtSec,
     atrialCalciumOnsetPhase01: atrialOnsetPhase01,
     wallMaterialVolumeMlByWall: wallMaterialVolumesMl(),
   });
-  const lobeMeasurement = measureLaPvTwoLobesV2(samples.map((sample, index) =>
-    Object.freeze({
-      theta: sample.cyclePhase01,
-      laVolumeMl: sample.nodeVolumeMl.LA,
-      laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
-      laActivation01: atrialActivation01(sample),
-      phase: cycle.phaseBySample[index]!,
-    })));
-  const branchOrder = measureLaPvReservoirConduitOrderV1({
-    reservoir: cyclicSegmentInclusive(
-      samples,
-      cycle.events.mitralValveClosure.sampleIndex,
-      cycle.events.mitralValveOpening.sampleIndex,
-    ).map(pvPoint),
-    conduit: cyclicSegmentInclusive(
-      samples,
-      cycle.events.mitralValveOpening.sampleIndex,
-      cycle.events.atrialCalciumOnset.sampleIndex,
-    ).map(pvPoint),
-  });
+  const cycle = cycleMeasurement.diagnostics;
+  const lobeMeasurement = cycle === null
+    ? null
+    : measureLaPvTwoLobesV2(samples.map((sample, index) =>
+      Object.freeze({
+        theta: sample.cyclePhase01,
+        laVolumeMl: sample.nodeVolumeMl.LA,
+        laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
+        laActivation01: atrialActivation01(sample),
+        phase: cycle.phaseBySample[index]!,
+      })));
+  const branchOrder = cycle === null
+    ? null
+    : measureLaPvReservoirConduitOrderV1({
+      reservoir: cyclicSegmentInclusive(
+        samples,
+        cycle.events.mitralValveClosure.sampleIndex,
+        cycle.events.mitralValveOpening.sampleIndex,
+      ).map(pvPoint),
+      conduit: cyclicSegmentInclusive(
+        samples,
+        cycle.events.mitralValveOpening.sampleIndex,
+        cycle.events.atrialCalciumOnset.sampleIndex,
+      ).map(pvPoint),
+    });
   const latestClosure = result.beatClosure.at(-1) ?? null;
-  const morphologyEligibility = morphologyInterpretation(result);
+  const morphologyEligibility = morphologyInterpretation(
+    result,
+    cycleMeasurement.status,
+  );
   const netAorticStrokeVolumeMl = samples.reduce(
     (sum, sample) => sum + sample.flowMlPerSec.AoV * result.dtSec,
     0,
@@ -300,7 +322,19 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       sum + Math.max(sample.flowMlPerSec.AoV, 0) * result.dtSec,
     0,
   );
-  const { phaseBySample: _phaseBySample, ...compactCycle } = cycle;
+  const compactCycle = cycle === null
+    ? null
+    : (() => {
+      const { phaseBySample: _phaseBySample, ...compact } = cycle;
+      return compact;
+    })();
+  const cyclePhysiologyAvailability = cycleMeasurement.status === "available"
+    ? Object.freeze({ status: "available" as const })
+    : Object.freeze({
+      status: "not-measurable" as const,
+      reason: cycleMeasurement.reason,
+      eventDetectionEvidence: cycleMeasurement.eventDetectionEvidence,
+    });
   const bloodVolumeOperatingPoint =
     readMainWireNormalAdultBloodVolumeOperatingPointReportV1(result);
 
@@ -319,6 +353,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       pericardiumMode: result.pericardiumMode,
       pericardiumCase: result.pericardiumCase,
       pericardiumParameterSetId: result.pericardiumParameterSetId,
+      valvePreset: result.valvePreset,
       dtSec: result.dtSec,
       requestedMaximumBeatCount: result.requestedMaximumBeatCount,
       completedBeatCount: result.completedBeatCount,
@@ -405,11 +440,16 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       meanAorticAbsolutePressureMmHg: mean(samples.map((sample) =>
         sample.nodeAbsolutePressureMmHg.Ao)),
     }),
-    cyclePhysiology: Object.freeze(compactCycle),
-    laPvMorphology: Object.freeze({
-      twoLobes: compactTwoLobes(lobeMeasurement),
-      reservoirConduitEqualVolumeOrder: compactBranchOrder(branchOrder),
-    }),
+    cyclePhysiologyAvailability,
+    cyclePhysiology: compactCycle === null
+      ? null
+      : Object.freeze(compactCycle),
+    laPvMorphology: lobeMeasurement === null || branchOrder === null
+      ? null
+      : Object.freeze({
+        twoLobes: compactTwoLobes(lobeMeasurement),
+        reservoirConduitEqualVolumeOrder: compactBranchOrder(branchOrder),
+      }),
     residualMaxima: Object.freeze({
       mechanicsResidualNorm: maximumAbsolute(samples.map((sample) =>
         sample.diagnostics.mechanicsResidualNorm)),
@@ -555,10 +595,12 @@ function compactClosure(
 
 function morphologyInterpretation(
   result: MainWireNormalAdultFiveWallPeriodicResultV1,
+  cyclePhysiologyStatus: "available" | "not-measurable",
 ): MainWireNormalAdultFiveWallPeriodicSummaryV1[
   "morphologyInterpretation"
 ] {
-  const eligible = result.integrationCompletedWithoutFailure
+  const eligible = cyclePhysiologyStatus === "available"
+    && result.integrationCompletedWithoutFailure
     && result.terminationReason === "period1-converged"
     && result.periodicity.status === "period1-converged"
     && result.periodicSteadyStateClaimed;
@@ -566,7 +608,9 @@ function morphologyInterpretation(
     eligible,
     scope: "current-dt-period1-only" as const,
     timeStepRobustnessEstablished: false as const,
-    reason: eligible
+    reason: cyclePhysiologyStatus === "not-measurable"
+      ? "ineligible-cycle-physiology-not-measurable" as const
+      : eligible
       ? "eligible-current-dt-period1-only" as const
       : result.terminationReason === "period2-suspect"
           || result.periodicity.status === "period2-suspect"

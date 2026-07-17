@@ -4,6 +4,7 @@ import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_DIAGNOSTICS_CLAIM_V1,
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_WALL_IDS_V1,
   measureMainWireNormalAdultFiveWallCycleDiagnosticsV1,
+  tryMeasureMainWireNormalAdultFiveWallCycleDiagnosticsV1,
   type MainWireNormalAdultFiveWallCycleSampleV1,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallCycleDiagnosticsV1";
 
@@ -281,6 +282,48 @@ describe("main-wire normal-adult five-wall cycle diagnostics V1", () => {
       reservoir: 6,
       conduit: 2,
       pumping: 2,
+    });
+  });
+
+  it("reports absent post-atrial MVC as not measurable without inventing a time", () => {
+    const eOnlyFlow = [0, 0, 0, 0, 0, 10, 20, 0, 0, 0];
+    const samples = Array.from({ length: 10 }, (_, index) => {
+      const base = sample(index);
+      return Object.freeze({
+        ...base,
+        flowMlPerSec: Object.freeze({
+          ...base.flowMlPerSec,
+          MV: eOnlyFlow[index]!,
+        }),
+      });
+    });
+    const measurement =
+      tryMeasureMainWireNormalAdultFiveWallCycleDiagnosticsV1({
+        samples,
+        precedingSample: precedingSample(),
+        dtSec: DT_SEC,
+        atrialCalciumOnsetPhase01: 0.7,
+        wallMaterialVolumeMlByWall: WALL_VOLUMES_ML,
+        valveOpenThreshold: {
+          peakFraction: 0.01,
+          absoluteFloorMlPerSec: 0.1,
+        },
+      });
+
+    expect(measurement).toEqual({
+      status: "not-measurable",
+      reason: "mitral-closing-transition-after-atrial-onset-not-observed",
+      eventDetectionEvidence: {
+        valve: "mitral",
+        peakForwardFlowMlPerSec: 20,
+        openThresholdMlPerSec: 0.2,
+        aboveThresholdSampleCount: 2,
+        openingTransitionCount: 1,
+        closingTransitionCount: 1,
+        primaryOpeningCandidateSampleIndex: 5,
+        closureSearchStartSampleIndex: 7,
+      },
+      diagnostics: null,
     });
   });
 

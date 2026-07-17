@@ -28,8 +28,12 @@ import {
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationRuntimeParamsV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
-import { initialMainWireQuasiSteadyOrificeValveStateV1 } from
-  "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV1";
+import { initialMainWireQuasiSteadyOrificeValveStateV2 } from
+  "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
+import {
+  MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
+  composeMainWireFourValveDiseasePresetV1,
+} from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
 import { stressedVolumeFromPtm } from "@/engine/vascularPv";
 
 const RUNTIME: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
@@ -42,6 +46,7 @@ const RUNTIME: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
     respAmpAlv: 0,
     respRate: 0,
   }),
+  valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
 });
 
 describe("main-wire-derived non-coronary experimental backward Euler V1", () => {
@@ -60,7 +65,7 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       expect(graph.nodeIndex.has(name)).toBe(false);
     }
     expect(NON_CORONARY_CIRCULATION_SCOPE_V1.valveOwner)
-      .toBe("MainWireQuasiSteadyOrificeValveV1");
+      .toBe("MainWireQuasiSteadyOrificeValveV2");
     expect(NON_CORONARY_CIRCULATION_SCOPE_V1.valveAcceptedMemory)
       .toBe("leaflet-opening-fraction-only");
     expect(NON_CORONARY_CIRCULATION_SCOPE_V1.valveFlow)
@@ -214,14 +219,53 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     if (trial.converged === false) throw new Error(trial.message);
     for (const name of NON_CORONARY_VALVE_NAMES_V1) {
       expect(trial.edgeFlowsMlPerSec[name]).toBe(0);
-      expect(trial.valveEvaluations[name].pathologicalLeakEnabled).toBe(false);
+      expect(trial.valveEvaluations[name].reverseRegurgitantFlowEnabled)
+        .toBe(false);
       expect(trial.valveEvaluations[name].state.leafletOpeningFraction01).toBe(0);
-      expect(trial.valveEvaluations[name].contactReactionMmHg)
+      expect(trial.valveEvaluations[name].competentReverseClosureReactionMmHg)
         .toBeGreaterThanOrEqual(0);
       expect(Math.abs(trial.valveEvaluations[name].hydraulicBalanceResidualMmHg))
         .toBeLessThan(1e-8);
     }
     expect(trial.reverseFlowCapOrClampOnNonvalveEdges).toBe(false);
+  });
+
+  it("applies a disease preset only to the requested reverse EROA", () => {
+    const fixture = steadyStateFixture();
+    const runtime: NonCoronaryCirculationRuntimeParamsV1 = Object.freeze({
+      ...RUNTIME,
+      valvePreset: composeMainWireFourValveDiseasePresetV1(["MR-moderate"]),
+    });
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: fixture.state,
+      dtSec: 0.001,
+      runtime,
+      evaluateCandidateMechanics: () => Object.freeze({
+        absolutePressuresMmHg: Object.freeze({
+          LA: 5,
+          LV: 20,
+          RA: 2,
+          RV: 5,
+        }),
+        evaluation: null,
+      }),
+    });
+    expect(trial.converged).toBe(true);
+    if (trial.converged === false) throw new Error(trial.message);
+    expect(trial.edgeFlowsMlPerSec.MV).toBeLessThan(0);
+    expect(trial.valveEvaluations.MV.reverseActiveEoaCm2).toBe(0.25);
+    expect(trial.valveEvaluations.MV.activeEoaCm2).toBe(0.25);
+    expect(trial.valveEvaluations.MV.competentReverseClosureActive).toBe(false);
+    for (const name of ["AoV", "TV", "PV"] as const) {
+      expect(trial.edgeFlowsMlPerSec[name]).toBe(0);
+      expect(trial.valveEvaluations[name].reverseActiveEoaCm2).toBe(0);
+      expect(trial.valveEvaluations[name].reverseRegurgitantFlowEnabled)
+        .toBe(false);
+      if (trial.valveEvaluations[name].pressureGradientMmHg < 0) {
+        expect(trial.valveEvaluations[name].competentReverseClosureActive)
+          .toBe(true);
+      }
+    }
   });
 
   it("rolls back without mutating accepted circulation or committing mechanics", () => {
@@ -570,10 +614,10 @@ function steadyStateFixture() {
     nodeVolumesMl: nodeVolumes,
     dynamicEdgeFlowsMlPerSec: Object.freeze({ Ao_SA: 0, PA_PArt: 0 }),
     valveStates: Object.freeze({
-      MV: initialMainWireQuasiSteadyOrificeValveStateV1(0),
-      AoV: initialMainWireQuasiSteadyOrificeValveStateV1(0),
-      TV: initialMainWireQuasiSteadyOrificeValveStateV1(0),
-      PV: initialMainWireQuasiSteadyOrificeValveStateV1(0),
+      MV: initialMainWireQuasiSteadyOrificeValveStateV2(0),
+      AoV: initialMainWireQuasiSteadyOrificeValveStateV2(0),
+      TV: initialMainWireQuasiSteadyOrificeValveStateV2(0),
+      PV: initialMainWireQuasiSteadyOrificeValveStateV2(0),
     }),
   });
   return Object.freeze({ state, chamberPressures });

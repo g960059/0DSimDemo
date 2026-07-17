@@ -197,10 +197,12 @@ function runEvidence(
     morphologyInterpretation: summary.morphologyInterpretation,
     laPvMorphology: summary.laPvMorphology,
     hemodynamics: summary.hemodynamics,
-    leftAtrialVolumes: summary.cyclePhysiology.leftAtrialVolumes,
-    leftAtrialPressureWaves: summary.cyclePhysiology.leftAtrialPressureWaves,
+    cyclePhysiologyAvailability: summary.cyclePhysiologyAvailability,
+    leftAtrialVolumes: summary.cyclePhysiology?.leftAtrialVolumes ?? null,
+    leftAtrialPressureWaves:
+      summary.cyclePhysiology?.leftAtrialPressureWaves ?? null,
     commonPericardium: summary.ranges.commonPericardium,
-    laSlsEnergy: summary.cyclePhysiology.workEnergy.perWall.LA.sls,
+    laSlsEnergy: summary.cyclePhysiology?.workEnergy.perWall.LA.sls ?? null,
     residualMaxima: summary.residualMaxima,
   });
 }

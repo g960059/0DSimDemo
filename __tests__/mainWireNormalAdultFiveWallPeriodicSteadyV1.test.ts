@@ -110,6 +110,10 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       .toBe(result.protocolComponentHashes.circulationTopologyGraphStableHash);
     expect(result.protocolIdentity.circulation.runtimeStableHash)
       .toBe(result.protocolComponentHashes.circulationRuntimeStableHash);
+    expect(result.protocolIdentity.circulation.valvePresetSnapshot)
+      .toEqual(result.valvePreset);
+    expect(result.protocolIdentity.circulation.valvePresetStableHash)
+      .toMatch(/^[0-9a-f]{8}$/);
     expect(result.protocolComponentHashes.bloodVolumeOperatingPointStableHash)
       .toBe(stableHash(sanitizeForStableHash(
         result.protocolIdentity.bloodVolumeOperatingPoint,
@@ -159,7 +163,7 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(continued.retainedCompleteBeats[0]!.endTimeSec).toBeCloseTo(1, 12);
     expect(continued.terminalCycleBoundaryWarmStart?.sourcePericardiumMode)
       .toBe("exact-off");
-    expect(warmStart.schemaVersion).toBe(2);
+    expect(warmStart.schemaVersion).toBe(3);
     expect(warmStart.envelopeFingerprint).toMatch(/^[0-9a-f]{8}$/);
 
     expect(continued.terminalCycleBoundaryWarmStart?.checkpoint)
@@ -228,17 +232,17 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     });
     const {
       envelopeFingerprint: _oldSchemaFingerprint,
-      ...schema2Unsigned
+      ...schema3Unsigned
     } = warmStart;
-    const schema1Unsigned = { ...schema2Unsigned, schemaVersion: 1 };
-    const schema1WarmStart = Object.freeze({
-      ...schema1Unsigned,
-      envelopeFingerprint: stableHash(sanitizeForStableHash(schema1Unsigned)),
+    const schema2Unsigned = { ...schema3Unsigned, schemaVersion: 2 };
+    const schema2WarmStart = Object.freeze({
+      ...schema2Unsigned,
+      envelopeFingerprint: stableHash(sanitizeForStableHash(schema2Unsigned)),
     }) as unknown as typeof warmStart;
     expect(() => runMainWireNormalAdultFiveWallPeriodicSteadyV1({
       dtSec: 0.02,
       maximumBeatCount: 1,
-      warmStart: schema1WarmStart,
+      warmStart: schema2WarmStart,
     })).toThrow("unsupported five-wall cycle warm start");
 
     const ownerDriftMl = 5e-10;

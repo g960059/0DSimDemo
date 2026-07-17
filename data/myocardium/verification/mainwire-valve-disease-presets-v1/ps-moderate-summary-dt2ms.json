@@ -1,0 +1,1678 @@
+{
+  "summaryId": "main-wire-normal-adult-five-wall-periodic-summary-v1",
+  "protocol": {
+    "identity": {
+      "identityId": "main-wire-normal-adult-five-wall-periodic-protocol-identity-v1",
+      "mechanicsProvider": {
+        "providerId": "main-wire-five-wall-land-triseg-provider-v1",
+        "parameterSetId": "normal-adult-five-wall-fixed-prior-v1-canonical",
+        "parameterIdentityHash": "b41e09f8",
+        "stateSchemaVersion": 2
+      },
+      "calciumDrive": {
+        "driveId": "five-wall-normal-prescribed-calcium-drive-v1",
+        "parameterSetId": "five-wall-normal-calcium-component-timing-prior-v1",
+        "fixedParamsStableHash": "9660029d"
+      },
+      "circulation": {
+        "topologyGraphSnapshot": {
+          "topologyId": "main-wire-derived-noncoronary-experimental-backward-euler-v1",
+          "nodes": [
+            {
+              "name": "LV",
+              "kind": "heartActive",
+              "chamber": "LV",
+              "V0": 10,
+              "alpha": 0.015,
+              "beta": 0.8,
+              "Ees": 1.6,
+              "x0": 130,
+              "active": {
+                "V0": 10,
+                "Vw": 150,
+                "Vref": 120,
+                "Vmin": 2,
+                "Trel0": 0.08,
+                "TrelMin": 0.045,
+                "TrelMax": 0.12,
+                "etaRel": 0.35,
+                "HR0": 75,
+                "tauCa0": 0.18,
+                "etaCa": 0.4,
+                "cDia": 0,
+                "Arel0": 0.18,
+                "gFFR": 0.15,
+                "gFFR2": 0.06,
+                "Kd0": 0.18,
+                "betaLambda": 3,
+                "betaKd": -0.2,
+                "hillN": 3,
+                "kOn": 25,
+                "kOff": 12,
+                "sigmaPas0": 200.133,
+                "bPas": 23.2,
+                "lambdaPas0": 0.9025,
+                "Tmax0": 135000,
+                "tauTensionRiseSec": 0,
+                "tauTensionFallSec": 0,
+                "tensionInstantMix": 1,
+                "forceVelocityShorteningCoeff": 0.001,
+                "forceVelocityLengtheningCoeff": 0.0005,
+                "forceVelocityMin": 0.98,
+                "forceVelocityMax": 1.01,
+                "kOver": 35,
+                "lambdaFail": 1.45,
+                "geomChi": 1.359637,
+                "thetaOn": 0,
+                "pressureFloorMmHg": -5,
+                "reservoirBranchGain": 0,
+                "reservoirStrokeMl": 0,
+                "reservoirSleeveVuMl": 12,
+                "reservoirSleeveCompliance": 3,
+                "reservoirSleeveP0": 0,
+                "reservoirSleeveMinVolumeMl": 1,
+                "reservoirSleeveMaxVolumeMl": 35,
+                "reservoirQPressureFloorGuard": 0,
+                "reservoirSleeveMinPressureGuard": 0,
+                "reservoirSleeveMinPressureGuardWidthMl": 4,
+                "reservoirTauFill": 0.1,
+                "reservoirTauRecoil": 0.15,
+                "reservoirTauRecoilIVR": 0.035,
+                "reservoirReleaseTheta": 0.55,
+                "reservoirValveThreshold": 0.15
+              }
+            },
+            {
+              "name": "LA",
+              "kind": "heartActive",
+              "chamber": "LA",
+              "V0": 5,
+              "alpha": 0.05,
+              "beta": 0.4,
+              "Ees": 0.25,
+              "x0": 45,
+              "active": {
+                "V0": 5,
+                "Vw": 16,
+                "Vref": 45,
+                "Vmin": 1,
+                "Trel0": 0.1,
+                "TrelMin": 0.06,
+                "TrelMax": 0.13,
+                "etaRel": 0.35,
+                "HR0": 75,
+                "tauCa0": 0.08,
+                "etaCa": 0.4,
+                "cDia": 0,
+                "Arel0": 0.15,
+                "gFFR": 0.15,
+                "gFFR2": 0.06,
+                "Kd0": 0.18,
+                "betaLambda": 2,
+                "betaKd": -0.2,
+                "hillN": 2.5,
+                "kOn": 15,
+                "kOff": 8,
+                "sigmaPas0": 1900,
+                "bPas": 10,
+                "lambdaPas0": 0.88,
+                "Tmax0": 92000,
+                "tauTensionRiseSec": 0,
+                "tauTensionFallSec": 0,
+                "tensionInstantMix": 1,
+                "forceVelocityShorteningCoeff": 0,
+                "forceVelocityLengtheningCoeff": 0,
+                "forceVelocityMin": 0.98,
+                "forceVelocityMax": 1.01,
+                "kOver": 35,
+                "lambdaFail": 1.45,
+                "geomChi": 1.1,
+                "thetaOn": 0.8,
+                "pressureFloorMmHg": -2,
+                "reservoirBranchGain": 0,
+                "reservoirStrokeMl": 0,
+                "reservoirSleeveVuMl": 8,
+                "reservoirSleeveCompliance": 3,
+                "reservoirSleeveP0": 0,
+                "reservoirSleeveMinVolumeMl": 1,
+                "reservoirSleeveMaxVolumeMl": 35,
+                "reservoirQPressureFloorGuard": 1,
+                "reservoirSleeveMinPressureGuard": 1,
+                "reservoirSleeveMinPressureGuardWidthMl": 4,
+                "reservoirTauFill": 0.1,
+                "reservoirTauRecoil": 0.15,
+                "reservoirTauRecoilIVR": 0.035,
+                "reservoirReleaseTheta": 0.55,
+                "reservoirValveThreshold": 0.15,
+                "atrialLeadSec": 0.16,
+                "avPlaneGainMl": 10
+              }
+            },
+            {
+              "name": "RV",
+              "kind": "heartActive",
+              "chamber": "RV",
+              "V0": 15,
+              "alpha": 0.012,
+              "beta": 0.5,
+              "Ees": 0.85,
+              "x0": 140,
+              "active": {
+                "V0": 15,
+                "Vw": 55,
+                "Vref": 135,
+                "Vmin": 2,
+                "Trel0": 0.08,
+                "TrelMin": 0.045,
+                "TrelMax": 0.12,
+                "etaRel": 0.35,
+                "HR0": 75,
+                "tauCa0": 0.18,
+                "etaCa": 0.4,
+                "cDia": 0,
+                "Arel0": 0.18,
+                "gFFR": 0.15,
+                "gFFR2": 0.06,
+                "Kd0": 0.18,
+                "betaLambda": 3,
+                "betaKd": -0.2,
+                "hillN": 3,
+                "kOn": 25,
+                "kOff": 12,
+                "sigmaPas0": 492,
+                "bPas": 10,
+                "lambdaPas0": 0.85,
+                "Tmax0": 74088,
+                "tauTensionRiseSec": 0,
+                "tauTensionFallSec": 0,
+                "tensionInstantMix": 1,
+                "forceVelocityShorteningCoeff": 0.0008,
+                "forceVelocityLengtheningCoeff": 0.0004,
+                "forceVelocityMin": 0.98,
+                "forceVelocityMax": 1.01,
+                "kOver": 35,
+                "lambdaFail": 1.45,
+                "geomChi": 1.138505,
+                "thetaOn": 0,
+                "pressureFloorMmHg": -5,
+                "reservoirBranchGain": 0,
+                "reservoirStrokeMl": 0,
+                "reservoirSleeveVuMl": 12,
+                "reservoirSleeveCompliance": 3,
+                "reservoirSleeveP0": 0,
+                "reservoirSleeveMinVolumeMl": 1,
+                "reservoirSleeveMaxVolumeMl": 35,
+                "reservoirQPressureFloorGuard": 0,
+                "reservoirSleeveMinPressureGuard": 0,
+                "reservoirSleeveMinPressureGuardWidthMl": 4,
+                "reservoirTauFill": 0.1,
+                "reservoirTauRecoil": 0.15,
+                "reservoirTauRecoilIVR": 0.035,
+                "reservoirReleaseTheta": 0.55,
+                "reservoirValveThreshold": 0.15
+              }
+            },
+            {
+              "name": "RA",
+              "kind": "heartActive",
+              "chamber": "RA",
+              "V0": 5,
+              "alpha": 0.05,
+              "beta": 0.35,
+              "Ees": 0.22,
+              "x0": 55,
+              "active": {
+                "V0": 5,
+                "Vw": 18,
+                "Vref": 45,
+                "Vmin": 1,
+                "Trel0": 0.085,
+                "TrelMin": 0.055,
+                "TrelMax": 0.12,
+                "etaRel": 0.35,
+                "HR0": 75,
+                "tauCa0": 0.055,
+                "etaCa": 0.4,
+                "cDia": 0,
+                "Arel0": 0.16,
+                "gFFR": 0.15,
+                "gFFR2": 0.06,
+                "Kd0": 0.18,
+                "betaLambda": 1.8,
+                "betaKd": -0.2,
+                "hillN": 2.5,
+                "kOn": 18,
+                "kOff": 12,
+                "sigmaPas0": 240,
+                "bPas": 10,
+                "lambdaPas0": 0.88,
+                "Tmax0": 28000,
+                "tauTensionRiseSec": 0,
+                "tauTensionFallSec": 0,
+                "tensionInstantMix": 1,
+                "forceVelocityShorteningCoeff": 0,
+                "forceVelocityLengtheningCoeff": 0,
+                "forceVelocityMin": 0.98,
+                "forceVelocityMax": 1.01,
+                "kOver": 35,
+                "lambdaFail": 1.45,
+                "geomChi": 1.1,
+                "thetaOn": 0.8,
+                "pressureFloorMmHg": -2,
+                "reservoirBranchGain": 0,
+                "reservoirStrokeMl": 0,
+                "reservoirSleeveVuMl": 12,
+                "reservoirSleeveCompliance": 3,
+                "reservoirSleeveP0": 0,
+                "reservoirSleeveMinVolumeMl": 1,
+                "reservoirSleeveMaxVolumeMl": 35,
+                "reservoirQPressureFloorGuard": 0,
+                "reservoirSleeveMinPressureGuard": 0,
+                "reservoirSleeveMinPressureGuardWidthMl": 4,
+                "reservoirTauFill": 0.1,
+                "reservoirTauRecoil": 0.15,
+                "reservoirTauRecoilIVR": 0.035,
+                "reservoirReleaseTheta": 0.55,
+                "reservoirValveThreshold": 0.15,
+                "atrialLeadSec": 0.17,
+                "avPlaneGainMl": 12
+              }
+            },
+            {
+              "name": "Ao",
+              "kind": "arterial",
+              "Vu": 0,
+              "P0": 50,
+              "Vs": 150,
+              "x0": 154.442912577174
+            },
+            {
+              "name": "SA",
+              "kind": "arterial",
+              "Vu": 0,
+              "P0": 50,
+              "Vs": 400,
+              "x0": 397.300709204113
+            },
+            {
+              "name": "Art",
+              "kind": "arterial",
+              "Vu": 0,
+              "P0": 45,
+              "Vs": 120,
+              "x0": 112.592356631152
+            },
+            {
+              "name": "Cap",
+              "kind": "linear",
+              "Vu": 0,
+              "C": 15,
+              "x0": 375
+            },
+            {
+              "name": "SV",
+              "kind": "venousPressure",
+              "Vu": 1590.909,
+              "venousToneGain": 350,
+              "Ccoll": 15,
+              "Copen": 130,
+              "Cdist": 35,
+              "Popen": -2,
+              "Pstiff": 16,
+              "dOpen": 1.5,
+              "dStiff": 4,
+              "x0": 6
+            },
+            {
+              "name": "VC",
+              "kind": "venousPressure",
+              "ext": "pth",
+              "Vu": 159.091,
+              "venousToneGain": 60,
+              "Ccoll": 5,
+              "Copen": 45,
+              "Cdist": 12,
+              "Popen": -1,
+              "Pstiff": 12,
+              "dOpen": 1,
+              "dStiff": 3,
+              "x0": 4
+            },
+            {
+              "name": "PA",
+              "kind": "arterial",
+              "ext": "pth",
+              "Vu": 0,
+              "P0": 20,
+              "Vs": 60,
+              "x0": 35.267199894127
+            },
+            {
+              "name": "PArt",
+              "kind": "arterial",
+              "ext": "pth",
+              "Vu": 0,
+              "P0": 20,
+              "Vs": 90,
+              "x0": 45.069775912124
+            },
+            {
+              "name": "PCap",
+              "kind": "venousPressure",
+              "ext": "palv",
+              "Vu": 105,
+              "Ccoll": 1,
+              "Copen": 2,
+              "Cdist": 1,
+              "Popen": 0,
+              "Pstiff": 14,
+              "dOpen": 1,
+              "dStiff": 3,
+              "x0": 8
+            },
+            {
+              "name": "PVen",
+              "kind": "venousPressure",
+              "ext": "pth",
+              "Vu": 160,
+              "Ccoll": 1.2,
+              "Copen": 3,
+              "Cdist": 1.2,
+              "Popen": -1,
+              "Pstiff": 14,
+              "dOpen": 1,
+              "dStiff": 3,
+              "x0": 6
+            },
+            {
+              "name": "PVein",
+              "kind": "venousPressure",
+              "ext": "pth",
+              "Vu": 215,
+              "Ccoll": 1.5,
+              "Copen": 4,
+              "Cdist": 1.5,
+              "Popen": -1,
+              "Pstiff": 14,
+              "dOpen": 1,
+              "dStiff": 3,
+              "x0": 5
+            }
+          ],
+          "edges": [
+            {
+              "name": "MV",
+              "up": "LA",
+              "down": "LV",
+              "kind": "valve",
+              "R": 0.0027,
+              "L": 0.0005,
+              "B": 0.000008,
+              "Aref": 5,
+              "Amax": 5.5,
+              "Aleak": 0,
+              "kOpen": 2,
+              "tauOpen": 0.024,
+              "tauClose": 0.016,
+              "q0": 80,
+              "xi0": 0.2
+            },
+            {
+              "name": "AoV",
+              "up": "LV",
+              "down": "Ao",
+              "kind": "valve",
+              "R": 0.0015,
+              "L": 0.00025,
+              "B": 0.000001,
+              "Aref": 3.5,
+              "Amax": 3.5,
+              "Aleak": 0,
+              "kOpen": 3,
+              "tauOpen": 0.006,
+              "tauClose": 0.008,
+              "q0": 80,
+              "xi0": 0.2
+            },
+            {
+              "name": "TV",
+              "up": "RA",
+              "down": "RV",
+              "kind": "valve",
+              "R": 0.0035,
+              "L": 0.0008,
+              "B": 0.00001,
+              "Aref": 8,
+              "Amax": 8,
+              "Aleak": 0,
+              "kOpen": 2,
+              "tauOpen": 0.018,
+              "tauClose": 0.01,
+              "q0": 80,
+              "xi0": 0.2
+            },
+            {
+              "name": "PV",
+              "up": "RV",
+              "down": "PA",
+              "kind": "valve",
+              "R": 0.005,
+              "L": 0.001,
+              "B": 0.000002,
+              "Aref": 4,
+              "Amax": 4,
+              "Aleak": 0,
+              "kOpen": 2,
+              "tauOpen": 0.01,
+              "tauClose": 0.006,
+              "q0": 80,
+              "xi0": 0.2
+            },
+            {
+              "name": "Ao_SA",
+              "up": "Ao",
+              "down": "SA",
+              "kind": "dynamic",
+              "R": 0.0465088,
+              "L": 0.002,
+              "B": 0,
+              "group": "systemic",
+              "q0": 80
+            },
+            {
+              "name": "SA_Art",
+              "up": "SA",
+              "down": "Art",
+              "kind": "resistive",
+              "R": 0.07441408,
+              "B": 0,
+              "group": "systemic"
+            },
+            {
+              "name": "Art_Cap",
+              "up": "Art",
+              "down": "Cap",
+              "kind": "resistive",
+              "R": 0.6046144,
+              "B": 0,
+              "group": "systemic"
+            },
+            {
+              "name": "Cap_SV",
+              "up": "Cap",
+              "down": "SV",
+              "kind": "resistive",
+              "R": 0.15,
+              "B": 0
+            },
+            {
+              "name": "SV_VC",
+              "up": "SV",
+              "down": "VC",
+              "kind": "resistive",
+              "R": 0.05,
+              "B": 0
+            },
+            {
+              "name": "VC_RA",
+              "up": "VC",
+              "down": "RA",
+              "kind": "resistive",
+              "R": 0.04,
+              "B": 0,
+              "ext": "pth",
+              "waterfall": true,
+              "Pcrit": 0,
+              "useChiResistance": true,
+              "useChiQuadratic": false
+            },
+            {
+              "name": "PA_PArt",
+              "up": "PA",
+              "down": "PArt",
+              "kind": "dynamic",
+              "R": 0.01,
+              "L": 0.004,
+              "B": 0,
+              "group": "pulmonary",
+              "q0": 80
+            },
+            {
+              "name": "PArt_PCap",
+              "up": "PArt",
+              "down": "PCap",
+              "kind": "resistive",
+              "R": 0.04,
+              "B": 0,
+              "group": "pulmonary"
+            },
+            {
+              "name": "PCap_PVen",
+              "up": "PCap",
+              "down": "PVen",
+              "kind": "resistive",
+              "R": 0.03,
+              "B": 0,
+              "ext": "palv",
+              "waterfall": true,
+              "Pcrit": 0,
+              "useChiResistance": true,
+              "useChiQuadratic": false
+            },
+            {
+              "name": "PVen_PVein",
+              "up": "PVen",
+              "down": "PVein",
+              "kind": "resistive",
+              "R": 0.01,
+              "B": 0
+            },
+            {
+              "name": "PVein_LA",
+              "up": "PVein",
+              "down": "LA",
+              "kind": "resistive",
+              "R": 0.03025,
+              "B": 0,
+              "q0": 80,
+              "pvOstialResistanceR": 0.03025,
+              "pvOstialInertanceL": 0,
+              "pvOstialQuadraticB": 0
+            }
+          ],
+          "scope": {
+            "topologySource": "main-wire-buildNodes-buildEdges",
+            "dynamicsOwner": "independent-experimental-backward-euler",
+            "modelCoreRuntimeAdopted": false,
+            "includedNodes": [
+              "LV",
+              "LA",
+              "RV",
+              "RA",
+              "Ao",
+              "SA",
+              "Art",
+              "Cap",
+              "SV",
+              "VC",
+              "PA",
+              "PArt",
+              "PCap",
+              "PVen",
+              "PVein"
+            ],
+            "includedEdges": [
+              "MV",
+              "AoV",
+              "TV",
+              "PV",
+              "Ao_SA",
+              "SA_Art",
+              "Art_Cap",
+              "Cap_SV",
+              "SV_VC",
+              "VC_RA",
+              "PA_PArt",
+              "PArt_PCap",
+              "PCap_PVen",
+              "PVen_PVein",
+              "PVein_LA"
+            ],
+            "excludedCoronaryNodes": [
+              "LAD_Art",
+              "LAD_IM",
+              "LAD_Ven",
+              "LCx_Art",
+              "LCx_IM",
+              "LCx_Ven",
+              "RCA_Art",
+              "RCA_IM",
+              "RCA_Ven",
+              "CS"
+            ],
+            "excludedCoronaryEdges": [
+              "Ao_LAD",
+              "LAD_Art_IM",
+              "LAD_IM_Ven",
+              "LAD_Ven_CS",
+              "Ao_LCx",
+              "LCx_Art_IM",
+              "LCx_IM_Ven",
+              "LCx_Ven_CS",
+              "Ao_RCA",
+              "RCA_Art_IM",
+              "RCA_IM_Ven",
+              "RCA_Ven_CS",
+              "CS_RA"
+            ],
+            "dependentBloodVolumeNode": "SV",
+            "valveOwner": "MainWireQuasiSteadyOrificeValveV2",
+            "valveAcceptedMemory": "leaflet-opening-fraction-only",
+            "valveFlow": "algebraic-candidate-readback",
+            "valveLocalBulkInertance": "omitted-from-canonical",
+            "semilunarRootInertanceOwners": {
+              "AoV": "Ao_SA",
+              "PV": "PA_PArt"
+            },
+            "valveLegacyEdgeHydraulicsUsed": false,
+            "coronaryBloodVolumeIncluded": false,
+            "chamberPressureCallback": "absolute-pressure-mmHg",
+            "pericardialConstraintOwnedHere": false,
+            "parameterFittingAllowed": false,
+            "reverseFlowCapOrClampOnNonvalveEdges": false
+          }
+        },
+        "topologyGraphStableHash": "33b45f99",
+        "runtimeStableHash": "9e3e045d",
+        "valvePresetStableHash": "4d79bae0",
+        "valvePresetSnapshot": {
+          "presetId": "main-wire-four-valve-disease-preset-v1",
+          "parameterSetId": "main-wire-four-valve-ps-moderate-a8a297a7-v1",
+          "parameterIdentityHash": "a8a297a7",
+          "bracketIds": [
+            "PS-moderate"
+          ],
+          "brackets": [
+            {
+              "bracketId": "PS-moderate",
+              "lesionCode": "PS",
+              "lesionKind": "stenosis",
+              "targetValveId": "PV",
+              "severity": "moderate",
+              "severityRank": 2,
+              "label": "PS moderate research bracket (not a clinical diagnosis)",
+              "labelSemantics": "research-bracket-not-clinical-diagnosis",
+              "evidenceBasis": "hemodynamic-calibration-required",
+              "clinicalAreaThresholdStatus": "no-fixed-clinical-area-threshold",
+              "areaParameter": "maximumForwardEoaCm2",
+              "areaCm2": 0.7,
+              "openingKinetics": "healthy-fixed-not-disease-calibrated",
+              "requiresClosedLoopHemodynamicValidation": true,
+              "requiresPostSolveAreaCalibration": true
+            }
+          ],
+          "valves": {
+            "MV": {
+              "parameterSetId": "main-wire-mv-quasi-steady-orifice-normal-legacy-topology-v2",
+              "valveId": "MV",
+              "backgroundLinearResistanceMmHgSecPerMl": 0.0027,
+              "maximumForwardEoaCm2": 5.5,
+              "closedReverseEroaCm2": 0,
+              "openingGainPerMmHg": 2,
+              "openingPressureOffsetMmHg": 0,
+              "openingDriveDeadbandMmHg": 0.6,
+              "openingDriveSmoothingMmHg": 0.1,
+              "openingTimeConstantSec": 0.024,
+              "closingTimeConstantSec": 0.016
+            },
+            "AoV": {
+              "parameterSetId": "main-wire-aov-quasi-steady-orifice-normal-legacy-topology-v2",
+              "valveId": "AoV",
+              "backgroundLinearResistanceMmHgSecPerMl": 0.0015,
+              "maximumForwardEoaCm2": 3.5,
+              "closedReverseEroaCm2": 0,
+              "openingGainPerMmHg": 3,
+              "openingPressureOffsetMmHg": 0,
+              "openingDriveDeadbandMmHg": 0,
+              "openingDriveSmoothingMmHg": 0.1,
+              "openingTimeConstantSec": 0.006,
+              "closingTimeConstantSec": 0.008
+            },
+            "TV": {
+              "parameterSetId": "main-wire-tv-quasi-steady-orifice-normal-legacy-topology-v2",
+              "valveId": "TV",
+              "backgroundLinearResistanceMmHgSecPerMl": 0.0035,
+              "maximumForwardEoaCm2": 8,
+              "closedReverseEroaCm2": 0,
+              "openingGainPerMmHg": 2,
+              "openingPressureOffsetMmHg": 0,
+              "openingDriveDeadbandMmHg": 0,
+              "openingDriveSmoothingMmHg": 0.1,
+              "openingTimeConstantSec": 0.018,
+              "closingTimeConstantSec": 0.01
+            },
+            "PV": {
+              "parameterSetId": "main-wire-pv-quasi-steady-orifice-ps-moderate-v2",
+              "valveId": "PV",
+              "backgroundLinearResistanceMmHgSecPerMl": 0.005,
+              "maximumForwardEoaCm2": 0.7,
+              "closedReverseEroaCm2": 0,
+              "openingGainPerMmHg": 2,
+              "openingPressureOffsetMmHg": 0,
+              "openingDriveDeadbandMmHg": 0,
+              "openingDriveSmoothingMmHg": 0.1,
+              "openingTimeConstantSec": 0.01,
+              "closingTimeConstantSec": 0.006
+            }
+          },
+          "claim": {
+            "presetRole": "ordered-research-bracket-not-clinical-diagnosis",
+            "clinicalDiagnosisOrSeverityClaimed": false,
+            "completeFourValveParameterSet": true,
+            "clinicalEoaSemantics": "effective-orifice-area-with-discharge-coefficient-absorbed-exactly-once",
+            "backgroundLinearResistance": "legacy-topology-derived-series-loss-fixed-across-brackets-not-effective-area-scaled",
+            "closedReverseEroaInterpretation": "clinical-reverse-phase-EROA-seeded-bidirectional-residual-hydraulic-gap",
+            "numericalAreaFloorIsPhysicalEroa": false,
+            "valveBulkFlowMemory": false,
+            "valveOpeningMemoryOnly": true,
+            "openingKinetics": "healthy-fixed-across-all-research-brackets",
+            "rootInertanceOwnership": {
+              "systemic": "Ao_SA",
+              "pulmonary": "PA_PArt"
+            },
+            "valveInertanceOwnership": "none",
+            "stenosisAndRegurgitationParameterFieldsComposeWithoutConflict": true,
+            "allDirectionFlowResponsesAreIndependent": false,
+            "parameterSearchOrPatientFitting": false
+          }
+        }
+      },
+      "bloodVolumeOperatingPoint": {
+        "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+        "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+        "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+        "fixedTotalBloodVolumeMl": 5522.11,
+        "initialDistributionPolicyId": "shared-SV-VC-transmural-offset"
+      },
+      "commonPericardium": {
+        "bindingId": "main-wire-common-pericardium-binding-v1",
+        "parameterSetId": "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on",
+        "mode": "on",
+        "stableHash": "ff9ebb6d",
+        "bindingSnapshot": {
+          "bindingId": "main-wire-common-pericardium-binding-v1",
+          "parameterSetId": "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on",
+          "mode": "on",
+          "parameters": {
+            "referenceHeartVolumeM3": 0.000600126543,
+            "exponentialPressureScalePa": 500,
+            "exponentialStiffness": 8,
+            "prescribedPressureOffsetPa": 0
+          },
+          "wallMaterialVolumesM3": [
+            0.000025982906,
+            0.000067075437,
+            0.000035773566,
+            0.000036087369,
+            0.00002339981
+          ],
+          "prescribedPericardialFluidVolumeM3": 0
+        }
+      },
+      "periodicPolicy": {
+        "policyId": "fixed-groupwise-periodic-policy-v1",
+        "policyStableHash": "00e13e40"
+      }
+    },
+    "identityHash": "c7716bf9",
+    "componentHashes": {
+      "mechanicsProviderMetadataStableHash": "78789398",
+      "calciumDriveFixedParamsStableHash": "9660029d",
+      "circulationTopologyGraphStableHash": "33b45f99",
+      "circulationRuntimeStableHash": "9e3e045d",
+      "bloodVolumeOperatingPointStableHash": "337d28cc",
+      "commonPericardiumStableHash": "ff9ebb6d",
+      "periodicPolicyStableHash": "00e13e40"
+    }
+  },
+  "bloodVolumeOperatingPoint": {
+    "status": "available",
+    "unavailableReason": null,
+    "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+    "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+    "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+    "fixedTotalBloodVolumeMl": 5522.11,
+    "initialDistributionPolicyId": "shared-SV-VC-transmural-offset",
+    "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+    "resolvedTotalBloodVolumeMl": 5522.11,
+    "addedBloodVolumeMl": 932.652430406124,
+    "sharedSvVcTransmuralPressureOffsetMmHg": 6.051930744065123,
+    "excludedCoronaryColdSeedVolumeMl": 77.89,
+    "maximumInverseOffsetResidualMmHg": 4.28796020912614e-9,
+    "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+    "targetResidualMl": 0
+  },
+  "source": {
+    "experimentId": "main-wire-normal-adult-five-wall-periodic-steady-v1",
+    "initialization": "canonical",
+    "laSlsMode": "on",
+    "pericardiumMode": "on",
+    "pericardiumCase": "healthy-slack",
+    "pericardiumParameterSetId": "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on",
+    "valvePreset": {
+      "presetId": "main-wire-four-valve-disease-preset-v1",
+      "parameterSetId": "main-wire-four-valve-ps-moderate-a8a297a7-v1",
+      "parameterIdentityHash": "a8a297a7",
+      "bracketIds": [
+        "PS-moderate"
+      ],
+      "brackets": [
+        {
+          "bracketId": "PS-moderate",
+          "lesionCode": "PS",
+          "lesionKind": "stenosis",
+          "targetValveId": "PV",
+          "severity": "moderate",
+          "severityRank": 2,
+          "label": "PS moderate research bracket (not a clinical diagnosis)",
+          "labelSemantics": "research-bracket-not-clinical-diagnosis",
+          "evidenceBasis": "hemodynamic-calibration-required",
+          "clinicalAreaThresholdStatus": "no-fixed-clinical-area-threshold",
+          "areaParameter": "maximumForwardEoaCm2",
+          "areaCm2": 0.7,
+          "openingKinetics": "healthy-fixed-not-disease-calibrated",
+          "requiresClosedLoopHemodynamicValidation": true,
+          "requiresPostSolveAreaCalibration": true
+        }
+      ],
+      "valves": {
+        "MV": {
+          "parameterSetId": "main-wire-mv-quasi-steady-orifice-normal-legacy-topology-v2",
+          "valveId": "MV",
+          "backgroundLinearResistanceMmHgSecPerMl": 0.0027,
+          "maximumForwardEoaCm2": 5.5,
+          "closedReverseEroaCm2": 0,
+          "openingGainPerMmHg": 2,
+          "openingPressureOffsetMmHg": 0,
+          "openingDriveDeadbandMmHg": 0.6,
+          "openingDriveSmoothingMmHg": 0.1,
+          "openingTimeConstantSec": 0.024,
+          "closingTimeConstantSec": 0.016
+        },
+        "AoV": {
+          "parameterSetId": "main-wire-aov-quasi-steady-orifice-normal-legacy-topology-v2",
+          "valveId": "AoV",
+          "backgroundLinearResistanceMmHgSecPerMl": 0.0015,
+          "maximumForwardEoaCm2": 3.5,
+          "closedReverseEroaCm2": 0,
+          "openingGainPerMmHg": 3,
+          "openingPressureOffsetMmHg": 0,
+          "openingDriveDeadbandMmHg": 0,
+          "openingDriveSmoothingMmHg": 0.1,
+          "openingTimeConstantSec": 0.006,
+          "closingTimeConstantSec": 0.008
+        },
+        "TV": {
+          "parameterSetId": "main-wire-tv-quasi-steady-orifice-normal-legacy-topology-v2",
+          "valveId": "TV",
+          "backgroundLinearResistanceMmHgSecPerMl": 0.0035,
+          "maximumForwardEoaCm2": 8,
+          "closedReverseEroaCm2": 0,
+          "openingGainPerMmHg": 2,
+          "openingPressureOffsetMmHg": 0,
+          "openingDriveDeadbandMmHg": 0,
+          "openingDriveSmoothingMmHg": 0.1,
+          "openingTimeConstantSec": 0.018,
+          "closingTimeConstantSec": 0.01
+        },
+        "PV": {
+          "parameterSetId": "main-wire-pv-quasi-steady-orifice-ps-moderate-v2",
+          "valveId": "PV",
+          "backgroundLinearResistanceMmHgSecPerMl": 0.005,
+          "maximumForwardEoaCm2": 0.7,
+          "closedReverseEroaCm2": 0,
+          "openingGainPerMmHg": 2,
+          "openingPressureOffsetMmHg": 0,
+          "openingDriveDeadbandMmHg": 0,
+          "openingDriveSmoothingMmHg": 0.1,
+          "openingTimeConstantSec": 0.01,
+          "closingTimeConstantSec": 0.006
+        }
+      },
+      "claim": {
+        "presetRole": "ordered-research-bracket-not-clinical-diagnosis",
+        "clinicalDiagnosisOrSeverityClaimed": false,
+        "completeFourValveParameterSet": true,
+        "clinicalEoaSemantics": "effective-orifice-area-with-discharge-coefficient-absorbed-exactly-once",
+        "backgroundLinearResistance": "legacy-topology-derived-series-loss-fixed-across-brackets-not-effective-area-scaled",
+        "closedReverseEroaInterpretation": "clinical-reverse-phase-EROA-seeded-bidirectional-residual-hydraulic-gap",
+        "numericalAreaFloorIsPhysicalEroa": false,
+        "valveBulkFlowMemory": false,
+        "valveOpeningMemoryOnly": true,
+        "openingKinetics": "healthy-fixed-across-all-research-brackets",
+        "rootInertanceOwnership": {
+          "systemic": "Ao_SA",
+          "pulmonary": "PA_PArt"
+        },
+        "valveInertanceOwnership": "none",
+        "stenosisAndRegurgitationParameterFieldsComposeWithoutConflict": true,
+        "allDirectionFlowResponsesAreIndependent": false,
+        "parameterSearchOrPatientFitting": false
+      }
+    },
+    "dtSec": 0.002,
+    "requestedMaximumBeatCount": 64,
+    "completedBeatCount": 31,
+    "terminationReason": "period1-converged",
+    "integrationCompletedWithoutFailure": true,
+    "failure": null
+  },
+  "convergence": {
+    "policy": {
+      "policyId": "fixed-groupwise-periodic-policy-v1",
+      "period1NormalizedTolerance": 0.001,
+      "period2NormalizedTolerance": 0.001,
+      "period2MinimumPeriod1NormalizedDelta": 0.005,
+      "consecutiveBeats": 3,
+      "defaultMaximumBeatCount": 32,
+      "retainedCompleteBeatCount": 3,
+      "referenceScaleSetId": "normal-adult-fixed-dimensional-reference-scales-v1"
+    },
+    "classifier": {
+      "status": "period1-converged",
+      "latestBeatIndex": 31,
+      "consecutiveBeatsRequired": 3,
+      "evidenceBeatIndices": [
+        29,
+        30,
+        31
+      ],
+      "latestPeriod1MaximumNormalizedDelta": 0.0005976798028839991,
+      "latestPeriod2MaximumNormalizedDelta": 0.0013547592225352512
+    },
+    "evidenceClosures": [
+      {
+        "beatIndex": 29,
+        "period1MaximumNormalizedDelta": 0.0009564533179971524,
+        "period2MaximumNormalizedDelta": 0.0021613061985742976
+      },
+      {
+        "beatIndex": 30,
+        "period1MaximumNormalizedDelta": 0.000757079419651252,
+        "period2MaximumNormalizedDelta": 0.0017135327376484044
+      },
+      {
+        "beatIndex": 31,
+        "period1MaximumNormalizedDelta": 0.0005976798028839991,
+        "period2MaximumNormalizedDelta": 0.0013547592225352512
+      }
+    ],
+    "evidenceJacobianFiniteDifferenceWidthAudits": [
+      {
+        "beatIndex": 29,
+        "audit": {
+          "nominalScaledStep": 0.00002,
+          "acceptedStepCount": 500,
+          "nominalStepCount": 500,
+          "alternateStepCount": 0,
+          "histogram": [
+            {
+              "absoluteScaledStep": 0.00002,
+              "count": 500,
+              "classification": "nominal"
+            }
+          ]
+        }
+      },
+      {
+        "beatIndex": 30,
+        "audit": {
+          "nominalScaledStep": 0.00002,
+          "acceptedStepCount": 500,
+          "nominalStepCount": 500,
+          "alternateStepCount": 0,
+          "histogram": [
+            {
+              "absoluteScaledStep": 0.00002,
+              "count": 500,
+              "classification": "nominal"
+            }
+          ]
+        }
+      },
+      {
+        "beatIndex": 31,
+        "audit": {
+          "nominalScaledStep": 0.00002,
+          "acceptedStepCount": 500,
+          "nominalStepCount": 500,
+          "alternateStepCount": 0,
+          "histogram": [
+            {
+              "absoluteScaledStep": 0.00002,
+              "count": 500,
+              "classification": "nominal"
+            }
+          ]
+        }
+      }
+    ],
+    "periodicSteadyStateClaimed": true,
+    "period2OrbitSuspected": false,
+    "latestPeriod1Closure": {
+      "elapsedTimeSec": 0.9999999999994458,
+      "entryCount": 68,
+      "maximumNormalizedDelta": 0.0005976798028839991,
+      "worstGroup": "valve-opening",
+      "worstPath": "circulation.valveStates.PV.leafletOpeningFraction01",
+      "groupMaximumNormalizedDelta": {
+        "circulation-node-volume": {
+          "maximumNormalizedDelta": 0.00030701751232982134,
+          "worstPath": "circulation.nodeVolumesMl.SA"
+        },
+        "dynamic-edge-flow": {
+          "maximumNormalizedDelta": 0.00003002330728573366,
+          "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt"
+        },
+        "valve-opening": {
+          "maximumNormalizedDelta": 0.0005976798028839991,
+          "worstPath": "circulation.valveStates.PV.leafletOpeningFraction01"
+        },
+        "triseg-coordinate": {
+          "maximumNormalizedDelta": 0.000027109826035145925,
+          "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3"
+        },
+        "land-state": {
+          "maximumNormalizedDelta": 0.000014444353471754212,
+          "worstPath": "mechanics.materialState.wallStateByWall.RA.landState.B"
+        },
+        "sls-viscous-strain": {
+          "maximumNormalizedDelta": 0.00018394692095108356,
+          "worstPath": "mechanics.materialState.wallStateByWall.RA.slsState.viscousLogStrain"
+        },
+        "wall-input-history": {
+          "maximumNormalizedDelta": 0.00008152011086143274,
+          "worstPath": "mechanics.materialState.wallStateByWall.RVFW.previousFiberLogStrain"
+        }
+      }
+    },
+    "latestPeriod2Closure": {
+      "elapsedTimeSec": 1.9999999999988916,
+      "entryCount": 68,
+      "maximumNormalizedDelta": 0.0013547592225352512,
+      "worstGroup": "valve-opening",
+      "worstPath": "circulation.valveStates.PV.leafletOpeningFraction01",
+      "groupMaximumNormalizedDelta": {
+        "circulation-node-volume": {
+          "maximumNormalizedDelta": 0.0006968870738307942,
+          "worstPath": "circulation.nodeVolumesMl.SA"
+        },
+        "dynamic-edge-flow": {
+          "maximumNormalizedDelta": 0.000067245517095607,
+          "worstPath": "circulation.dynamicEdgeFlowsMlPerSec.PA_PArt"
+        },
+        "valve-opening": {
+          "maximumNormalizedDelta": 0.0013547592225352512,
+          "worstPath": "circulation.valveStates.PV.leafletOpeningFraction01"
+        },
+        "triseg-coordinate": {
+          "maximumNormalizedDelta": 0.00006247263555064149,
+          "worstPath": "mechanics.materialState.trisegCoordinates.septalMidwallCapVolumeM3"
+        },
+        "land-state": {
+          "maximumNormalizedDelta": 0.000032703757505525566,
+          "worstPath": "mechanics.materialState.wallStateByWall.RA.landState.B"
+        },
+        "sls-viscous-strain": {
+          "maximumNormalizedDelta": 0.0004153024804419425,
+          "worstPath": "mechanics.materialState.wallStateByWall.RA.slsState.viscousLogStrain"
+        },
+        "wall-input-history": {
+          "maximumNormalizedDelta": 0.00018393931266097452,
+          "worstPath": "mechanics.materialState.wallStateByWall.RVFW.previousFiberLogStrain"
+        }
+      }
+    }
+  },
+  "morphologyInterpretation": {
+    "eligible": true,
+    "scope": "current-dt-period1-only",
+    "timeStepRobustnessEstablished": false,
+    "reason": "eligible-current-dt-period1-only"
+  },
+  "selectedBeat": {
+    "beatIndex": 31,
+    "startTimeSec": 29.99999999999425,
+    "endTimeSec": 30.999999999993697,
+    "sampleCount": 500,
+    "precedingAcceptedSampleAvailable": true,
+    "precedingBeatIndex": 30,
+    "jacobianFiniteDifferenceWidthAudit": {
+      "nominalScaledStep": 0.00002,
+      "acceptedStepCount": 500,
+      "nominalStepCount": 500,
+      "alternateStepCount": 0,
+      "histogram": [
+        {
+          "absoluteScaledStep": 0.00002,
+          "count": 500,
+          "classification": "nominal"
+        }
+      ]
+    }
+  },
+  "fixedActivationPrior": {
+    "parameterSetId": "five-wall-normal-calcium-component-timing-prior-v1",
+    "atrialCalciumOnsetPhase01": 0.852,
+    "purpose": "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law",
+    "activationNormalization": "clamp((freeCa-diastolicCa)/peakAmplitude,0,1)"
+  },
+  "ranges": {
+    "chamberVolumeMl": {
+      "LA": {
+        "minimum": 22.271264186616676,
+        "maximum": 46.35706108791302
+      },
+      "LV": {
+        "minimum": 43.50372935076596,
+        "maximum": 114.14040760119109
+      },
+      "RA": {
+        "minimum": 33.75299842577724,
+        "maximum": 67.46903836758707
+      },
+      "RV": {
+        "minimum": 174.64897794706712,
+        "maximum": 245.26213669697765
+      }
+    },
+    "chamberTransmuralPressureMmHg": {
+      "LA": {
+        "minimum": 3.926579897230747,
+        "maximum": 9.534421011439933
+      },
+      "LV": {
+        "minimum": 2.685398727312429,
+        "maximum": 97.76848333464757
+      },
+      "RA": {
+        "minimum": 3.6389749757951644,
+        "maximum": 9.125360371206678
+      },
+      "RV": {
+        "minimum": 2.920411695173056,
+        "maximum": 68.64673380803278
+      }
+    },
+    "absolutePressureMmHg": {
+      "Ao": {
+        "minimum": 67.05886152273315,
+        "maximum": 91.07129870595101
+      },
+      "PA": {
+        "minimum": 7.215967860339152,
+        "maximum": 22.12138100569615
+      },
+      "PVein": {
+        "minimum": 7.011730389785953,
+        "maximum": 9.614863718743436
+      }
+    },
+    "flowMlPerSec": {
+      "MV": {
+        "minimum": 0,
+        "maximum": 315.8088145583464
+      },
+      "AoV": {
+        "minimum": 0,
+        "maximum": 629.2261760157412
+      },
+      "TV": {
+        "minimum": 0,
+        "maximum": 474.74774371148675
+      },
+      "PV": {
+        "minimum": 0,
+        "maximum": 243.1582251638286
+      },
+      "PVein_LA": {
+        "minimum": -73.50778660893964,
+        "maximum": 171.87340537305397
+      }
+    },
+    "commonPericardium": {
+      "heartVolumeMl": {
+        "minimum": 514.8072062187525,
+        "maximum": 613.932647340708
+      },
+      "totalOccupiedVolumeMl": {
+        "minimum": 514.8072062187525,
+        "maximum": 613.932647340708
+      },
+      "excessPressureMmHg": {
+        "minimum": 0,
+        "maximum": 0.7578156838566107
+      },
+      "storedEnergyMilliJ": {
+        "minimum": 0,
+        "maximum": 0.6760585243711519
+      },
+      "elasticConstraintEngagedSampleCount": 139
+    }
+  },
+  "hemodynamics": {
+    "leftVentricularEjectionFraction01": 0.6188577711867923,
+    "rightVentricularEjectionFraction01": 0.28790892756982445,
+    "netAorticStrokeVolumeMl": 70.63642338823193,
+    "forwardAorticStrokeVolumeMl": 70.63642338823193,
+    "netAorticCardiacOutputLPerMin": 4.238185403293916,
+    "cardiacIndexLPerMinPerM2": 2.2306238964704823,
+    "meanAorticAbsolutePressureMmHg": 73.31657841537066
+  },
+  "cyclePhysiologyAvailability": {
+    "status": "available"
+  },
+  "cyclePhysiology": {
+    "diagnosticsId": "main-wire-normal-adult-five-wall-cycle-diagnostics-v1",
+    "sampleCount": 500,
+    "dtSec": 0.002,
+    "phaseSampleCount": {
+      "reservoir": 237,
+      "conduit": 221,
+      "pumping": 42
+    },
+    "events": {
+      "mitralValveOpening": {
+        "sampleIndex": 205,
+        "phase01": 0.41199999999402337,
+        "timeSec": 30.411999999994023
+      },
+      "mitralValveClosure": {
+        "sampleIndex": 468,
+        "phase01": 0.9379999999937318,
+        "timeSec": 30.937999999993732
+      },
+      "aorticValveClosure": {
+        "sampleIndex": 117,
+        "phase01": 0.2359999999941209,
+        "timeSec": 30.23599999999412
+      },
+      "atrialCalciumOnset": {
+        "sampleIndex": 426,
+        "phase01": 0.8539999999937784,
+        "timeSec": 30.85399999999378
+      },
+      "mitralEventSource": "flow-threshold",
+      "aorticEventSource": "flow-threshold",
+      "mitralOpenThresholdMlPerSec": 3.158088145583464,
+      "aorticOpenThresholdMlPerSec": 6.2922617601574125
+    },
+    "pulmonaryVenous": {
+      "S": {
+        "sampleCount": 237,
+        "peakForwardMlPerSec": 69.27149082235587,
+        "peakReverseMlPerSec": 0,
+        "signedVolumeMl": 23.84866301811715,
+        "forwardVolumeMl": 23.84866301811715,
+        "reverseVolumeMl": 0
+      },
+      "D": {
+        "sampleCount": 221,
+        "peakForwardMlPerSec": 171.87340537305397,
+        "peakReverseMlPerSec": 0,
+        "signedVolumeMl": 48.47399904446326,
+        "forwardVolumeMl": 48.47399904446326,
+        "reverseVolumeMl": 0
+      },
+      "Ar": {
+        "sampleCount": 42,
+        "peakForwardMlPerSec": 44.39023364749699,
+        "peakReverseMlPerSec": 73.50778660893964,
+        "signedVolumeMl": -1.6863093368087765,
+        "forwardVolumeMl": 0.7029347327324126,
+        "reverseVolumeMl": 2.3892440695411894
+      }
+    },
+    "mitral": {
+      "E": {
+        "sampleCount": 221,
+        "peakForwardMlPerSec": 315.8088145583464,
+        "forwardVolumeMl": 57.25323577399052,
+        "modeledAreaVtiCm": 20.18964107101063,
+        "positiveFlowSamplesWithoutPhysicalArea": 0
+      },
+      "A": {
+        "sampleCount": 42,
+        "peakForwardMlPerSec": 313.1552151740029,
+        "forwardVolumeMl": 13.38074212048011,
+        "modeledAreaVtiCm": 4.490553090300645,
+        "positiveFlowSamplesWithoutPhysicalArea": 0
+      },
+      "eFlowPeak": {
+        "sampleIndex": 233,
+        "phase01": 0.46799999999399233,
+        "timeSec": 30.467999999993992,
+        "flowMlPerSec": 315.8088145583464
+      },
+      "aFlowPeak": {
+        "sampleIndex": 447,
+        "phase01": 0.8959999999937551,
+        "timeSec": 30.895999999993755,
+        "flowMlPerSec": 313.1552151740029
+      },
+      "peakERatioToA": 1.0084737512126984,
+      "forwardVolumeERatioToA": 4.278778804529882,
+      "flowAtAtrialCalciumOnsetMlPerSec": 28.810697491935606,
+      "flowAtAtrialCalciumOnsetRatioToEPeak": 0.0912282880141484,
+      "waveSeparation": {
+        "status": "separated",
+        "criterion": "strict-intervening-forward-flow-valley-between-window-peaks",
+        "valley": {
+          "sampleIndex": 428,
+          "phase01": 0.8579999999937762,
+          "timeSec": 30.857999999993776,
+          "flowMlPerSec": 28.16850725256912
+        },
+        "valleyToLowerPeakRatio": 0.0899506247626036
+      }
+    },
+    "leftAtrialVolumes": {
+      "maximumMl": 46.35706108791302,
+      "preAMl": 37.36947473218908,
+      "minimumMl": 22.271264186616676,
+      "reservoirExpansionMl": 24.08579690129634,
+      "conduitEmptyingMl": 8.987586355723934,
+      "boosterEmptyingMl": 15.098210545572407,
+      "conduitFractionOfTotalEmptying": 0.3731488060185464,
+      "boosterFractionOfTotalEmptying": 0.6268511939814536,
+      "eventAnchoredNetChangeMl": {
+        "reservoir": 23.941853981298408,
+        "conduit": -8.853013718495994,
+        "pumping": -15.088840262802414
+      }
+    },
+    "leftAtrialPressureWaves": {
+      "aPeak": {
+        "sampleIndex": 446,
+        "phase01": 0.8939999999937562,
+        "timeSec": 30.893999999993756,
+        "pressureMmHg": 9.534421011439933
+      },
+      "xTrough": {
+        "sampleIndex": 467,
+        "phase01": 0.935999999993733,
+        "timeSec": 30.935999999993733,
+        "pressureMmHg": 7.925213408707458
+      },
+      "vPeak": {
+        "sampleIndex": 468,
+        "phase01": 0.9379999999937318,
+        "timeSec": 30.937999999993732,
+        "pressureMmHg": 7.863124949904513
+      },
+      "yTrough": {
+        "sampleIndex": 276,
+        "phase01": 0.5539999999939447,
+        "timeSec": 30.553999999993945,
+        "pressureMmHg": 3.926579897230747
+      },
+      "xDescentMmHg": 1.609207602732475,
+      "yDescentMmHg": 3.9365450526737664,
+      "volumeAtAPeakMl": 30.867651446789313,
+      "aPeakDelayFromAtrialCalciumOnsetSec": 0.04,
+      "aPressurePeakToMitralAFlowPeakSec": 0.002,
+      "boosterEmptyingCompletedAtAPeakFraction": 0.4306353568043498,
+      "boosterEmptyingRemainingAtAPeakFraction": 0.5693646431956503,
+      "boosterEmptyingCompletedAtAPeakStatus": "within-active-emptying",
+      "sequentialAcrossCycle": true
+    },
+    "ivrtLike": {
+      "durationSec": 0.176,
+      "sampleCount": 88,
+      "relaxationTauSec": 0.04513430575638541,
+      "fitR2": 0.9390135058575075,
+      "fixedAsymptoteMmHg": 5.575744386668806,
+      "reason": "available"
+    },
+    "workEnergy": {
+      "stressWorkCoverageFraction": 1,
+      "perWall": {
+        "LA": {
+          "stressWorkOnWallMilliJ": {
+            "total": -5.257141011306739,
+            "active": -6.472519082636404,
+            "passive": 0.39988052083062353,
+            "sls": 0.8154975504990338
+          },
+          "stressAssemblyResidualMilliJ": 6.8833827526759706e-15,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": -0.0000674856037520162,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.39994800643437556,
+          "sls": {
+            "storedEnergyChangeMilliJ": -0.0000512059052218336,
+            "physicalDissipationMilliJ": 0.7526468331207112,
+            "backwardEulerNumericalDissipationMilliJ": 0.06290192328354303,
+            "reportedDiscreteBalanceResidualMilliJ": 1.7132213557296536e-15,
+            "reconstructedDiscreteBalanceResidualMilliJ": 1.3461454173580023e-15,
+            "readbackAgreementResidualMilliJ": -3.6707593837165125e-16
+          }
+        },
+        "LVFW": {
+          "stressWorkOnWallMilliJ": {
+            "total": -612.3063823491755,
+            "active": -626.5840054769008,
+            "passive": 0.5526744665927346,
+            "sls": 13.724948661133272
+          },
+          "stressAssemblyResidualMilliJ": -7.140954494389007e-13,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": -0.0019517829312840173,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.5546262495240186,
+          "sls": {
+            "storedEnergyChangeMilliJ": -0.00005596098882415697,
+            "physicalDissipationMilliJ": 13.348395961756712,
+            "backwardEulerNumericalDissipationMilliJ": 0.37660866036537083,
+            "reportedDiscreteBalanceResidualMilliJ": 1.0777213540623631e-15,
+            "reconstructedDiscreteBalanceResidualMilliJ": 1.3822276656583199e-14,
+            "readbackAgreementResidualMilliJ": 1.2744555302520836e-14
+          }
+        },
+        "SEP": {
+          "stressWorkOnWallMilliJ": {
+            "total": -185.43426522352857,
+            "active": -194.25365472798617,
+            "passive": 0.1913396891232362,
+            "sls": 8.628049815334363
+          },
+          "stressAssemblyResidualMilliJ": 5.329070518200751e-15,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": -0.0006420690299747387,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.19198175815321095,
+          "sls": {
+            "storedEnergyChangeMilliJ": 0.00005827998867517607,
+            "physicalDissipationMilliJ": 8.324623711898113,
+            "backwardEulerNumericalDissipationMilliJ": 0.3033678234475788,
+            "reportedDiscreteBalanceResidualMilliJ": -1.5366314118035057e-15,
+            "reconstructedDiscreteBalanceResidualMilliJ": -4.052314039881821e-15,
+            "readbackAgreementResidualMilliJ": -2.5156826280783157e-15
+          }
+        },
+        "RVFW": {
+          "stressWorkOnWallMilliJ": {
+            "total": -511.98352194046345,
+            "active": -516.2966746335053,
+            "passive": 0.740152925861018,
+            "sls": 3.572999767180953
+          },
+          "stressAssemblyResidualMilliJ": -1.2789769243681803e-13,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": -0.005561061496997546,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.7457139873580155,
+          "sls": {
+            "storedEnergyChangeMilliJ": 0.00001928074141861833,
+            "physicalDissipationMilliJ": 3.487718110190783,
+            "backwardEulerNumericalDissipationMilliJ": 0.08526237624874827,
+            "reportedDiscreteBalanceResidualMilliJ": 5.3379870653543125e-15,
+            "reconstructedDiscreteBalanceResidualMilliJ": 3.164135620181696e-15,
+            "readbackAgreementResidualMilliJ": -2.1738514451726163e-15
+          }
+        },
+        "RA": {
+          "stressWorkOnWallMilliJ": {
+            "total": -10.282314723472561,
+            "active": -11.62540984483617,
+            "passive": 0.38111094609766194,
+            "sls": 0.9619841752659455
+          },
+          "stressAssemblyResidualMilliJ": 1.4432899320127035e-15,
+          "equilibriumPassiveStoredEnergyChangeMilliJ": -0.00005735914748990906,
+          "equilibriumPassiveBackwardEulerRemainderMilliJ": 0.38116830524515183,
+          "sls": {
+            "storedEnergyChangeMilliJ": -0.00016146953350722366,
+            "physicalDissipationMilliJ": 0.9016721005171758,
+            "backwardEulerNumericalDissipationMilliJ": 0.060473544282279176,
+            "reportedDiscreteBalanceResidualMilliJ": -1.5846710189869462e-15,
+            "reconstructedDiscreteBalanceResidualMilliJ": -2.2620794126737565e-15,
+            "readbackAgreementResidualMilliJ": -6.774083936868103e-16
+          }
+        }
+      },
+      "laStressWorkOnWallByPhaseMilliJ": {
+        "reservoir": {
+          "total": 19.909683613739222,
+          "active": 6.581040617191838,
+          "passive": 13.267156995602244,
+          "sls": 0.06148600094513084
+        },
+        "conduit": {
+          "total": -7.376118985167313,
+          "active": -0.29535938527571437,
+          "passive": -6.948029471652758,
+          "sls": -0.1327301282388511
+        },
+        "pumping": {
+          "total": -17.790705639878635,
+          "active": -12.758200314552532,
+          "passive": -5.919247003118858,
+          "sls": 0.8867416777927541
+        }
+      },
+      "cavityWorkOnWallMilliJ": {
+        "LA": -5.436691084322642,
+        "LV": -834.8179990565782,
+        "RA": -10.52193964407136,
+        "RV": -478.18477541904224
+      },
+      "commonPericardium": {
+        "pressureWorkOnBagMilliJ": 0.06864386338230578,
+        "storedEnergyChangeMilliJ": -0.0006839656045233844,
+        "backwardEulerRemainderMilliJ": 0.06932782898682917
+      },
+      "workConjugacyResidualMilliJ": {
+        "leftAtrium": 0.17955007301590253,
+        "rightAtrium": 0.23962492059879814,
+        "ventriclesCombined": 3.278604962452846,
+        "wholeHeart": 3.6977799560675066
+      }
+    },
+    "claim": {
+      "input": "accepted-step-readback-only",
+      "addsDynamicState": false,
+      "parameterFitting": false,
+      "smoothingOrInterpolation": false,
+      "phaseOwnership": "cyclic-half-open-exhaustive",
+      "integration": "backward-Euler-endpoint",
+      "valveEventOwnership": "explicit-flow-threshold-transitions",
+      "absentRequiredValveEventHandling": "explicit-not-measurable-without-substitute-timing",
+      "mitralClosureAnchor": "first-closure-transition-at-or-after-atrial-calcium-onset",
+      "mitralWaveSeparation": "strict-intervening-forward-flow-valley-between-window-peaks",
+      "pulmonaryVenousSignal": "aggregate-PVein-to-LA-edge-not-separate-vein-measurements",
+      "mitralVti": "modeled-bulk-flow-divided-by-modeled-instantaneous-physical-EOA",
+      "relaxationTau": "report-only-fixed-asymptote-log-linear-fit-over-AoV-closure-to-MVO",
+      "landThermodynamicStoredEnergyClaimed": false,
+      "cavityWorkSign": "positive-is-work-on-wall",
+      "pericardialWorkSign": "positive-is-work-stored-in-common-bag",
+      "pericardialWorkExcludedFromTransmuralWallWork": true
+    }
+  },
+  "laPvMorphology": {
+    "twoLobes": {
+      "status": "measurable",
+      "reason": "measurable",
+      "selfIntersectionCount": 1,
+      "rawSelfIntersectionCount": 1,
+      "crossingSummaryTruncated": false,
+      "crossings": [
+        {
+          "volumeMl": 37.3916150846065,
+          "pressureMmHg": 6.39136274873615,
+          "angleDeg": 84.24169453189943,
+          "firstPathProgress01": 0.14621273402637566,
+          "secondPathProgress01": 0.5879148504878522,
+          "rawIntersectionCount": 1
+        }
+      ],
+      "crossing": {
+        "volumeMl": 37.3916150846065,
+        "pressureMmHg": 6.39136274873615,
+        "angleDeg": 84.24169453189943,
+        "firstPathProgress01": 0.14621273402637566,
+        "secondPathProgress01": 0.5879148504878522,
+        "rawIntersectionCount": 1
+      },
+      "selectionEvidenceSource": "activation-burden",
+      "activationEvidenceCoverage01": 1,
+      "aLobe": {
+        "signedAreaMmHgMl": 44.102938612780804,
+        "areaMmHgMl": 44.102938612780804,
+        "startPathProgress01": 0.5879148504878522,
+        "endPathProgress01": 0.14621273402637566,
+        "maxActivation01": 0.9998627917812779,
+        "activationCoverage01": 1,
+        "activationBurden01": 0.6374324681061201,
+        "pumpingFraction01": 0.19137884672851332,
+        "pumpingPointFraction": 0.19137884672851332,
+        "selectionEvidence01": 0.6374324681061201,
+        "pointCount": 179
+      },
+      "vLobe": {
+        "signedAreaMmHgMl": -3.397265263980806,
+        "areaMmHgMl": 3.397265263980806,
+        "startPathProgress01": 0.14621273402637566,
+        "endPathProgress01": 0.5879148504878522,
+        "maxActivation01": 0.8050362061595611,
+        "activationCoverage01": 1,
+        "activationBurden01": 0.1181433261167557,
+        "pumpingFraction01": 0.025233942291200927,
+        "pumpingPointFraction": 0.025233942291200927,
+        "selectionEvidence01": 0.1181433261167557,
+        "pointCount": 325
+      },
+      "opposedLobeOrientation": true
+    },
+    "reservoirConduitEqualVolumeOrder": {
+      "diagnosticId": "la-pv-reservoir-conduit-equal-volume-order-v1",
+      "status": "measurable",
+      "reason": "measurable",
+      "overlapMinimumVolumeMl": 32.31346744285424,
+      "overlapMaximumVolumeMl": 46.22248845068508,
+      "overlapWidthMl": 13.909021007830837,
+      "requestedProbeCount": 101,
+      "usableProbeCount": 64,
+      "ambiguousProbeCount": 37,
+      "unusableProbeCount": 37,
+      "usableFraction01": 0.6336633663366337,
+      "reservoirAboveConduitFraction01": 1,
+      "reservoirMinusConduitMeanMmHg": 0.36288479619088343,
+      "reservoirMinusConduitMedianMmHg": 0.30719772414683577,
+      "reservoirMinusConduitMinimumMmHg": 0.03599576023477802,
+      "reservoirMinusConduitMaximumMmHg": 0.9122696081564925,
+      "segmentationOwner": "caller-supplied-physiological-events-not-pv-shape-inference",
+      "acceptanceThresholdApplied": false
+    }
+  },
+  "residualMaxima": {
+    "mechanicsResidualNorm": 9.184984932630869e-10,
+    "circulationScaledResidualInfinityNorm": 1.860535486971537e-10,
+    "absoluteContinuityResidualMl": 8.229872561216212e-9,
+    "absoluteTotalBloodVolumeErrorMl": 1.8189894035458565e-12,
+    "absoluteValvePowerBalanceResidualMmHgMlPerSec": {
+      "MV": 3.410605131648481e-13,
+      "AoV": 3.637978807091713e-12,
+      "TV": 2.2737367544323206e-13,
+      "PV": 3.637978807091713e-12
+    }
+  },
+  "claim": {
+    "input": "periodic-runner-accepted-readback-only",
+    "selectedCycle": "last-retained-complete-beat",
+    "addsDynamicState": false,
+    "changesPhysiologyOrMaterialParameters": false,
+    "parameterSearchOrTuning": false,
+    "timeSeriesSmoothingApplied": false,
+    "timeSeriesResamplingOrInterpolationApplied": false,
+    "piecewiseLinearPvGeometryInterpolationApplied": true,
+    "laPvMorphologyPressureCoordinate": "intracavitary-absolute-pressure",
+    "morphologyMetricsComputedWhenNotPeriodic": true,
+    "morphologyInterpretationRequiresPeriod1Convergence": true,
+    "morphologyMetricAcceptanceThresholdApplied": false,
+    "timeStepRobustnessAssessedBySummary": false,
+    "bloodVolumeOperatingPointReadbackOnly": true
+  }
+}
