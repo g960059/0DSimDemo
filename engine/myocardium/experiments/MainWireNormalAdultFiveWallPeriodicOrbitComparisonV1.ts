@@ -6,9 +6,14 @@ import {
   type MainWireNormalAdultFiveWallDtHalvingSignalIdV1,
   type MainWireNormalAdultFiveWallDtHalvingSignalUnitV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallDtHalvingV1";
-import type {
-  MainWireNormalAdultFiveWallPeriodicResultV1,
+import {
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1,
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+  type MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+import {
+  stableCanonicalStringify,
+} from "@/engine/myocardium/kinematics/stableHash";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_ORBIT_COMPARISON_V1_ID =
   "main-wire-normal-adult-five-wall-same-grid-periodic-orbit-comparison-v1" as const;
@@ -40,6 +45,8 @@ export type MainWireNormalAdultFiveWallPeriodicOrbitInterpretabilityReasonV1 =
   | "primary-initialization-must-be-canonical"
   | "alternate-initialization-must-be-fixed-pulmonary-redistribution"
   | "maximum-beat-count-mismatch"
+  | "primary-protocol-identity-invalid"
+  | "alternate-protocol-identity-invalid"
   | "protocol-identity-mismatch"
   | "primary-period1-not-converged"
   | "alternate-period1-not-converged"
@@ -154,8 +161,22 @@ export function compareMainWireNormalAdultFiveWallPeriodicOrbitsV1(
   if (primary.requestedMaximumBeatCount !== alternate.requestedMaximumBeatCount) {
     reasons.push("maximum-beat-count-mismatch");
   }
-  const protocolIdentityMatches = matchingProtocolIdentity(primary, alternate);
-  if (!protocolIdentityMatches) {
+  const primaryProtocolIdentityValid = protocolIdentityIsValid(primary);
+  const alternateProtocolIdentityValid = protocolIdentityIsValid(alternate);
+  if (!primaryProtocolIdentityValid) {
+    reasons.push("primary-protocol-identity-invalid");
+  }
+  if (!alternateProtocolIdentityValid) {
+    reasons.push("alternate-protocol-identity-invalid");
+  }
+  const protocolIdentityMatches = primaryProtocolIdentityValid
+    && alternateProtocolIdentityValid
+    && matchingProtocolIdentity(primary, alternate);
+  if (
+    primaryProtocolIdentityValid
+    && alternateProtocolIdentityValid
+    && !protocolIdentityMatches
+  ) {
     reasons.push("protocol-identity-mismatch");
   }
   if (!primary.periodicSteadyStateClaimed) {
@@ -258,8 +279,31 @@ function matchingProtocolIdentity(
     && typeof right.protocolIdentity === "object"
     // The stable hash is a compact label; exact serialized identity equality
     // is also required so a hash collision cannot make unlike protocols pass.
-    && JSON.stringify(left.protocolIdentity)
-      === JSON.stringify(right.protocolIdentity);
+    && stableCanonicalStringify(left.protocolIdentity)
+      === stableCanonicalStringify(right.protocolIdentity);
+}
+
+function protocolIdentityIsValid(
+  result: MainWireNormalAdultFiveWallPeriodicResultV1,
+): boolean {
+  try {
+    if (
+      stableCanonicalStringify(result.policy)
+        !== stableCanonicalStringify(
+          MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+        )
+    ) return false;
+    assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
+      identity: result.protocolIdentity,
+      identityHash: result.protocolIdentityHash,
+      componentHashes: result.protocolComponentHashes,
+      periodicPolicy:
+        MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function compareSignals(

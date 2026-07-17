@@ -333,7 +333,8 @@ const DEPENDENT_NODE: NonCoronaryNodeNameV1 = "SV";
 const INDEPENDENT_NODE_NAMES = Object.freeze(
   NON_CORONARY_NODE_NAMES_V1.filter((name) => name !== DEPENDENT_NODE),
 );
-const DEFAULT_NEWTON_OPTIONS = Object.freeze({
+export const NON_CORONARY_CIRCULATION_NEWTON_POLICY_V1 = Object.freeze({
+  policyId: "noncoronary-circulation-newton-policy-v1" as const,
   maxIterations: 30,
   scaledResidualInfinityTolerance: 2e-10,
   scaledUpdateInfinityTolerance: 2e-11,
@@ -1281,7 +1282,11 @@ function boundedDiagnosticMessage(message: string): string {
 function resolveNewtonOptions(
   options: NonCoronaryCirculationNewtonOptionsV1 | undefined,
 ): Required<NonCoronaryCirculationNewtonOptionsV1> {
-  const resolved = { ...DEFAULT_NEWTON_OPTIONS, ...options };
+  const {
+    policyId: _policyId,
+    ...defaults
+  } = NON_CORONARY_CIRCULATION_NEWTON_POLICY_V1;
+  const resolved = { ...defaults, ...options };
   requireInteger(resolved.maxIterations, "maxIterations");
   requireInteger(
     resolved.maximumLineSearchBacktracks,

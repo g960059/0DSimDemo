@@ -27,11 +27,16 @@ import {
   type MainWireFiveWallPeriodicClassificationV1,
 } from "@/engine/myocardium/experiments/MainWireFiveWallPeriodicClosureV1";
 import {
-  normalAdultMainWireRuntimeV1,
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
+  assertMainWireNormalAdultCirculationConfigurationMatchesFixedRegistryV1,
+  resolveMainWireNormalAdultCirculationConfigurationV1,
+  type MainWireNormalAdultCirculationConfigurationSnapshotV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultCirculationConfigurationV1";
+import {
   sanitizeForStableHash,
+  stableCanonicalStringify,
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
 import {
@@ -81,6 +86,7 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1 =
     calciumDriveFixedParamsStableHash: string;
     circulationTopologyGraphStableHash: string;
     circulationRuntimeStableHash: string;
+    circulationConfigurationSnapshotStableHash: string;
     periodicPolicyStableHash: string;
   }>;
 
@@ -108,6 +114,9 @@ export type MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1 = Readonly<{
     }>;
     topologyGraphStableHash: string;
     runtimeStableHash: string;
+    configurationSnapshot:
+      MainWireNormalAdultCirculationConfigurationSnapshotV1;
+    configurationSnapshotStableHash: string;
   }>;
   periodicPolicy: Readonly<{
     policyId:
@@ -214,17 +223,67 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
   }>;
 }>;
 
+export type MainWireNormalAdultFiveWallPeriodicProtocolResolutionV1 =
+  Readonly<{
+    identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+    identityHash: string;
+    componentHashes:
+      MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
+  }>;
+
 type AcceptedState = MainWireFiveWallNonCoronaryAcceptedStateV1<
   MainWireNormalAdultFiveWallMechanicsStateV1
 >;
 
 const CYCLE_LENGTH_SEC = 1;
 
+/**
+ * Resolves and validates the fixed protocol identity without integrating a
+ * beat. Diagnostics and pure-comparison fixtures use this boundary instead of
+ * inventing protocol-shaped objects that could bypass registry validation.
+ */
+export function resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1(
+  options: Readonly<{
+    laSlsMode?: MainWireNormalAdultLaSlsModeV1;
+    calciumDrivePriorVariant?: FiveWallNormalCalciumDrivePriorVariantV1;
+  }> = {},
+): MainWireNormalAdultFiveWallPeriodicProtocolResolutionV1 {
+  const laSlsMode = options.laSlsMode ?? "on";
+  if (laSlsMode !== "on" && laSlsMode !== "exact-off") {
+    throw new Error("unsupported LA SLS mode");
+  }
+  const calciumDrivePriorVariant = options.calciumDrivePriorVariant
+    ?? "land-atrial-twitch-output";
+  const circulationConfiguration =
+    resolveMainWireNormalAdultCirculationConfigurationV1();
+  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(
+    laSlsMode,
+  );
+  const calciumDriveParams = resolveFiveWallNormalCalciumDriveFixedPriorV1(
+    calciumDrivePriorVariant,
+  );
+  const protocol = buildPeriodicProtocolIdentity(
+    provider,
+    circulationConfiguration.runtime,
+    calciumDriveParams,
+    circulationConfiguration.snapshot,
+  );
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
+    identity: protocol.identity,
+    identityHash: protocol.identityHash,
+    componentHashes: protocol.componentHashes,
+    periodicPolicy: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+  });
+  return protocol;
+}
+
 export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
 ): MainWireNormalAdultFiveWallPeriodicResultV1 {
   const resolved = validateAndResolveOptions(options);
-  const runtime = normalAdultMainWireRuntimeV1();
+  const circulationConfiguration =
+    resolveMainWireNormalAdultCirculationConfigurationV1();
+  const runtime = circulationConfiguration.runtime;
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(
     resolved.laSlsMode,
   );
@@ -235,7 +294,14 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
     provider,
     runtime,
     calciumDriveParams,
+    circulationConfiguration.snapshot,
   );
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
+    identity: protocol.identity,
+    identityHash: protocol.identityHash,
+    componentHashes: protocol.componentHashes,
+    periodicPolicy: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+  });
   const canonicalCirculation = createInitialNonCoronaryCirculationStateV1({
     timeSec: 0,
     runtime,
@@ -386,10 +452,82 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   });
 }
 
+export function assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1(
+  input: Readonly<{
+    identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
+    identityHash: string;
+    componentHashes:
+      MainWireNormalAdultFiveWallPeriodicProtocolComponentHashesV1;
+    periodicPolicy:
+      typeof MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1;
+  }>,
+): void {
+  const { identity, identityHash, componentHashes, periodicPolicy } = input;
+  if (identityHash !== hashProtocolValue(identity)) {
+    throw new Error("periodic protocol identity hash is inconsistent");
+  }
+  if (
+    componentHashes.mechanicsProviderMetadataStableHash
+      !== hashProtocolValue(identity.mechanicsProvider)
+  ) throw new Error("periodic mechanics component hash is inconsistent");
+  if (
+    componentHashes.calciumDriveFixedParamsStableHash
+      !== identity.calciumDrive.fixedParamsStableHash
+  ) throw new Error("periodic calcium component hash is inconsistent");
+  const topologyHash = hashProtocolValue(
+    identity.circulation.topologyGraphSnapshot,
+  );
+  if (
+    componentHashes.circulationTopologyGraphStableHash !== topologyHash
+    || identity.circulation.topologyGraphStableHash !== topologyHash
+  ) throw new Error("periodic circulation topology hash is inconsistent");
+  assertMainWireNormalAdultCirculationConfigurationMatchesFixedRegistryV1(
+    identity.circulation.configurationSnapshot,
+  );
+  const configurationHash = hashProtocolValue(
+    identity.circulation.configurationSnapshot,
+  );
+  if (
+    componentHashes.circulationConfigurationSnapshotStableHash
+      !== configurationHash
+    || identity.circulation.configurationSnapshotStableHash
+      !== configurationHash
+  ) {
+    throw new Error(
+      "periodic circulation configuration snapshot hash is inconsistent",
+    );
+  }
+  const snapshot = identity.circulation.configurationSnapshot;
+  if (
+    hashProtocolValue(snapshot.effective.topology) !== topologyHash
+    || stableCanonicalStringify(sanitizeForStableHash(
+      snapshot.effective.topology,
+    )) !== stableCanonicalStringify(sanitizeForStableHash(
+      identity.circulation.topologyGraphSnapshot,
+    ))
+    || hashProtocolValue(snapshot.effective.runtime)
+      !== identity.circulation.runtimeStableHash
+    || componentHashes.circulationRuntimeStableHash
+      !== identity.circulation.runtimeStableHash
+  ) {
+    throw new Error(
+      "periodic circulation topology/runtime differs from its configuration snapshot",
+    );
+  }
+  const policyHash = hashProtocolValue(periodicPolicy);
+  if (
+    componentHashes.periodicPolicyStableHash !== policyHash
+    || identity.periodicPolicy.policyStableHash !== policyHash
+    || identity.periodicPolicy.policyId !== periodicPolicy.policyId
+  ) throw new Error("periodic policy component hash is inconsistent");
+}
+
 function buildPeriodicProtocolIdentity(
   provider: ReturnType<typeof createCanonicalMainWireNormalAdultFiveWallProviderV1>,
   runtime: NonCoronaryCirculationRuntimeParamsV1,
   calciumDriveParams: FiveWallNormalCalciumDriveParamsV1,
+  circulationConfigurationSnapshot:
+    MainWireNormalAdultCirculationConfigurationSnapshotV1,
 ): Readonly<{
   identity: MainWireNormalAdultFiveWallPeriodicProtocolIdentityV1;
   identityHash: string;
@@ -415,6 +553,8 @@ function buildPeriodicProtocolIdentity(
     circulationTopologyGraphStableHash:
       hashProtocolValue(topologyGraphSnapshot),
     circulationRuntimeStableHash: hashProtocolValue(runtime),
+    circulationConfigurationSnapshotStableHash:
+      hashProtocolValue(circulationConfigurationSnapshot),
     periodicPolicyStableHash:
       hashProtocolValue(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1),
   });
@@ -433,6 +573,9 @@ function buildPeriodicProtocolIdentity(
       topologyGraphStableHash:
         componentHashes.circulationTopologyGraphStableHash,
       runtimeStableHash: componentHashes.circulationRuntimeStableHash,
+      configurationSnapshot: circulationConfigurationSnapshot,
+      configurationSnapshotStableHash:
+        componentHashes.circulationConfigurationSnapshotStableHash,
     },
     periodicPolicy: {
       policyId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId,

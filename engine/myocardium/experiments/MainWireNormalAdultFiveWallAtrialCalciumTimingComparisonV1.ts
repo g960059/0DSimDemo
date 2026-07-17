@@ -8,8 +8,12 @@ import {
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   sanitizeForStableHash,
+  stableCanonicalStringify,
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
+import {
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ATRIAL_CALCIUM_TIMING_COMPARISON_V1_ID =
   "main-wire-normal-adult-five-wall-atrial-calcium-timing-comparison-v1" as const;
@@ -503,6 +507,20 @@ function protocolIdentityConsistencyReasons(
   const reasons: string[] = [];
   const identity = summary.protocol.identity;
   const hashes = summary.protocol.componentHashes;
+  try {
+    assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
+      identity,
+      identityHash: summary.protocol.identityHash,
+      componentHashes: hashes,
+      periodicPolicy: summary.convergence.policy,
+    });
+  } catch (error) {
+    reasons.push(
+      `${label} protocol identity failed strict integrity: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
   if (summary.protocol.identityHash !== protocolHash(identity)) {
     reasons.push(`${label} protocol identity hash is inconsistent`);
   }
@@ -542,6 +560,8 @@ function sameNonCalciumComponentHashes(
     && left.circulationTopologyGraphStableHash
       === right.circulationTopologyGraphStableHash
     && left.circulationRuntimeStableHash === right.circulationRuntimeStableHash
+    && left.circulationConfigurationSnapshotStableHash
+      === right.circulationConfigurationSnapshotStableHash
     && left.periodicPolicyStableHash === right.periodicPolicyStableHash;
 }
 
@@ -559,6 +579,9 @@ function sameNonCalciumProtocolIdentity(
       calciumDrive: Object.freeze({ driveId: calciumDrive.driveId }),
     });
   };
-  return stableHash(sanitizeForStableHash(stripCalcium(canonical)))
-    === stableHash(sanitizeForStableHash(stripCalcium(challenger)));
+  return stableCanonicalStringify(sanitizeForStableHash(
+    stripCalcium(canonical),
+  )) === stableCanonicalStringify(sanitizeForStableHash(
+    stripCalcium(challenger),
+  ));
 }

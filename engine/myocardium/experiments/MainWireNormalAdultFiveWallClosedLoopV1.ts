@@ -1,4 +1,3 @@
-import { defaultParams } from "@/engine/core/params";
 import type {
   NonCoronaryCirculationRuntimeParamsV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
@@ -11,6 +10,9 @@ import {
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
+import {
+  resolveMainWireNormalAdultCirculationConfigurationV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultCirculationConfigurationV1";
 import type {
   MainWireFiveWallLandTriSegReadbackV1,
   MainWireFiveWallLandTriSegStateV1,
@@ -154,24 +156,7 @@ const CYCLE_LENGTH_SEC = 1;
 
 export function normalAdultMainWireRuntimeV1():
 NonCoronaryCirculationRuntimeParamsV1 {
-  const base = defaultParams();
-  return Object.freeze({
-    vascular: Object.freeze({
-      venousTone: base.venousTone,
-      arterialStiffness: base.arterialStiffness,
-    }),
-    losses: Object.freeze({
-      systemicResistance: base.systemicResistance,
-      pulmonaryResistance: base.pulmonaryResistance,
-    }),
-    respiratory: Object.freeze({
-      PEEP: base.PEEP,
-      Pth0: base.Pth0,
-      respAmpTh: 0,
-      respAmpAlv: 0,
-      respRate: 0,
-    }),
-  });
+  return resolveMainWireNormalAdultCirculationConfigurationV1().runtime;
 }
 
 export function runMainWireNormalAdultFiveWallClosedLoopV1(

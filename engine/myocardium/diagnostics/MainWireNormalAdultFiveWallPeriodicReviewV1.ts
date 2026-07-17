@@ -17,8 +17,9 @@ import type {
   MainWireFiveWallPeriodicClosureGroupReportV1,
   MainWireFiveWallPeriodicClosureGroupV1,
 } from "@/engine/myocardium/experiments/MainWireFiveWallPeriodicClosureV1";
-import type {
-  MainWireNormalAdultFiveWallPeriodicResultV1,
+import {
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1,
+  type MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
@@ -196,6 +197,12 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       "periodic review calcium identity/hash does not match fixed params",
     );
   }
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
+    identity: result.protocolIdentity,
+    identityHash: result.protocolIdentityHash,
+    componentHashes: result.protocolComponentHashes,
+    periodicPolicy: result.policy,
+  });
   const atrialOnsetPhase01 = positiveModulo(
     calcium.cycleLengthSec - calcium.atrioventricularDelaySec
       + calcium.atrial.electricalToCalciumDelaySec,

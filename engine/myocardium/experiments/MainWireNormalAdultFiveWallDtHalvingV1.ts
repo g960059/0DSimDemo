@@ -2,10 +2,15 @@ import type {
   MainWireNormalAdultFiveWallDiagnosticSampleV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
 import {
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1,
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
   type MainWireNormalAdultFiveWallPeriodicInitializationV1,
   type MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+import {
+  stableCanonicalStringify,
+} from "@/engine/myocardium/kinematics/stableHash";
 import type {
   MainWireNormalAdultLaSlsModeV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
@@ -54,6 +59,8 @@ export type MainWireNormalAdultFiveWallDtHalvingInterpretabilityReasonV1 =
   | "la-sls-mode-mismatch"
   | "initialization-mismatch"
   | "maximum-beat-count-mismatch"
+  | "coarse-protocol-identity-invalid"
+  | "fine-protocol-identity-invalid"
   | "protocol-identity-mismatch"
   | "coarse-integration-failed"
   | "fine-integration-failed"
@@ -160,8 +167,22 @@ export function compareMainWireNormalAdultFiveWallDtHalvingV1(
   if (coarse.requestedMaximumBeatCount !== fine.requestedMaximumBeatCount) {
     reasons.push("maximum-beat-count-mismatch");
   }
-  const protocolIdentityMatches = matchingProtocolIdentity(coarse, fine);
-  if (!protocolIdentityMatches) {
+  const coarseProtocolIdentityValid = protocolIdentityIsValid(coarse);
+  const fineProtocolIdentityValid = protocolIdentityIsValid(fine);
+  if (!coarseProtocolIdentityValid) {
+    reasons.push("coarse-protocol-identity-invalid");
+  }
+  if (!fineProtocolIdentityValid) {
+    reasons.push("fine-protocol-identity-invalid");
+  }
+  const protocolIdentityMatches = coarseProtocolIdentityValid
+    && fineProtocolIdentityValid
+    && matchingProtocolIdentity(coarse, fine);
+  if (
+    coarseProtocolIdentityValid
+    && fineProtocolIdentityValid
+    && !protocolIdentityMatches
+  ) {
     reasons.push("protocol-identity-mismatch");
   }
   if (coarse.integrationCompletedWithoutFailure === false) {
@@ -264,8 +285,31 @@ function matchingProtocolIdentity(
     && typeof right.protocolIdentity === "object"
     // The stable hash is a compact label; exact serialized identity equality
     // is also required so a hash collision cannot make unlike protocols pass.
-    && JSON.stringify(left.protocolIdentity)
-      === JSON.stringify(right.protocolIdentity);
+    && stableCanonicalStringify(left.protocolIdentity)
+      === stableCanonicalStringify(right.protocolIdentity);
+}
+
+function protocolIdentityIsValid(
+  result: MainWireNormalAdultFiveWallPeriodicResultV1,
+): boolean {
+  try {
+    if (
+      stableCanonicalStringify(result.policy)
+        !== stableCanonicalStringify(
+          MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+        )
+    ) return false;
+    assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
+      identity: result.protocolIdentity,
+      identityHash: result.protocolIdentityHash,
+      componentHashes: result.protocolComponentHashes,
+      periodicPolicy:
+        MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Runs identical cases at dt and dt/2, then applies the pure comparison. */

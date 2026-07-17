@@ -5,8 +5,8 @@
   "pairing": {
     "canonicalVariant": "land-atrial-twitch-output",
     "challengerVariant": "human-atrial-calcium-biomarker",
-    "canonicalProtocolIdentityHash": "745d9200",
-    "challengerProtocolIdentityHash": "89da710a",
+    "canonicalProtocolIdentityHash": "fc93ce9a",
+    "challengerProtocolIdentityHash": "49c468cc",
     "calciumHashChanged": true,
     "nonCalciumComponentHashesExactMatch": true,
     "nonCalciumProtocolIdentityExactMatch": true,

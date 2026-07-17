@@ -1,14 +1,19 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+  resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1,
+  type MainWireNormalAdultFiveWallPeriodicResultV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import type {
   MainWireNormalAdultFiveWallDiagnosticSampleV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
 import {
   compareMainWireNormalAdultFiveWallPeriodicOrbitsV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicOrbitComparisonV1";
-import type {
-  MainWireNormalAdultFiveWallPeriodicResultV1,
-} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+
+const FIXED_PROTOCOL =
+  resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1();
 
 describe("main-wire normal-adult five-wall periodic orbit comparison V1", () => {
   it("compares fixed basin initializations at identical accepted indices only", () => {
@@ -28,7 +33,7 @@ describe("main-wire normal-adult five-wall periodic orbit comparison V1", () => 
     expect(comparison.interpretable).toBe(true);
     expect(comparison.protocolIdentity).toMatchObject({
       exactMatch: true,
-      identityHash: "same-protocol",
+      identityHash: FIXED_PROTOCOL.identityHash,
     });
     expect(comparison.interpretabilityReasons).toEqual([]);
     expect(comparison.dtSec).toBe(0.5);
@@ -129,8 +134,12 @@ describe("main-wire normal-adult five-wall periodic orbit comparison V1", () => 
       }),
     );
     expect(collisionGuard.interpretabilityReasons)
-      .toContain("protocol-identity-mismatch");
+      .toEqual(expect.arrayContaining([
+        "primary-protocol-identity-invalid",
+        "alternate-protocol-identity-invalid",
+      ]));
     expect(collisionGuard.protocolIdentity.exactMatch).toBe(false);
+    expect(collisionGuard.signalMetrics).toBeNull();
     expect(comparison.interpretabilityReasons).toEqual(expect.arrayContaining([
       "dt-mismatch",
       "steps-per-beat-mismatch",
@@ -143,7 +152,7 @@ describe("main-wire normal-adult five-wall periodic orbit comparison V1", () => 
       .toBe(false);
   });
 
-  it("rejects protocol identity mismatches before comparing an orbit", () => {
+  it("rejects invalid protocol identity hashes before comparing an orbit", () => {
     const primary = result({
       initialization: "canonical",
       protocolIdentityHash: "protocol-a",
@@ -160,14 +169,40 @@ describe("main-wire normal-adult five-wall periodic orbit comparison V1", () => 
     );
 
     expect(comparison.interpretable).toBe(false);
-    expect(comparison.interpretabilityReasons)
-      .toContain("protocol-identity-mismatch");
+    expect(comparison.interpretabilityReasons).toEqual(expect.arrayContaining([
+      "primary-protocol-identity-invalid",
+      "alternate-protocol-identity-invalid",
+    ]));
     expect(comparison.signalMetrics).toBeNull();
     expect(comparison.protocolIdentity).toEqual({
       exactMatch: false,
       identityHash: null,
       componentHashes: null,
     });
+  });
+
+  it("does not treat the same tampered protocol identity as compatible", () => {
+    const primary = result({
+      initialization: "canonical",
+      protocolIdentityToken: "same-tampered-identity",
+      samples: [sample(0.5), sample(0)],
+    });
+    const alternate = result({
+      initialization: "pven-to-pvein-10ml",
+      protocolIdentityToken: "same-tampered-identity",
+      samples: [sample(0.5), sample(0)],
+    });
+    const comparison = compareMainWireNormalAdultFiveWallPeriodicOrbitsV1(
+      primary,
+      alternate,
+    );
+
+    expect(comparison.interpretable).toBe(false);
+    expect(comparison.interpretabilityReasons).toEqual(expect.arrayContaining([
+      "primary-protocol-identity-invalid",
+      "alternate-protocol-identity-invalid",
+    ]));
+    expect(comparison.signalMetrics).toBeNull();
   });
 
   it("rejects reversed basin roles and phase-misaligned accepted indices", () => {
@@ -319,18 +354,19 @@ function result(input: Readonly<{
     dtSec: input.dtSec ?? 0.5,
     stepsPerBeat: input.samples.length,
     requestedMaximumBeatCount: input.maximumBeatCount ?? 32,
-    protocolIdentityHash: input.protocolIdentityHash ?? "same-protocol",
-    protocolIdentity: {
-      fixtureProtocolIdentity:
-        input.protocolIdentityToken ?? "same-full-protocol-identity",
-    },
-    protocolComponentHashes: {
-      mechanicsProviderMetadataStableHash: "fixture-mechanics",
-      calciumDriveFixedParamsStableHash: "fixture-calcium",
-      circulationTopologyGraphStableHash: "fixture-topology",
-      circulationRuntimeStableHash: "fixture-runtime",
-      periodicPolicyStableHash: "fixture-policy",
-    },
+    protocolIdentityHash:
+      input.protocolIdentityHash ?? FIXED_PROTOCOL.identityHash,
+    protocolIdentity: input.protocolIdentityToken === undefined
+      ? FIXED_PROTOCOL.identity
+      : {
+          ...FIXED_PROTOCOL.identity,
+          mechanicsProvider: {
+            ...FIXED_PROTOCOL.identity.mechanicsProvider,
+            parameterIdentityHash: input.protocolIdentityToken,
+          },
+        },
+    protocolComponentHashes: FIXED_PROTOCOL.componentHashes,
+    policy: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
     periodicSteadyStateClaimed: input.periodic ?? true,
     retainedCompleteBeats: [{
       beatIndex: 7,

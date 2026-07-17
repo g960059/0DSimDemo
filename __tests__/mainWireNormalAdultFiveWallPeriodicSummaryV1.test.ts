@@ -11,6 +11,10 @@ import {
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
+import {
+  sanitizeForStableHash,
+  stableHash,
+} from "@/engine/myocardium/kinematics/stableHash";
 
 describe("main-wire normal-adult five-wall periodic summary V1", () => {
   let result: MainWireNormalAdultFiveWallPeriodicResultV1;
@@ -196,6 +200,70 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
         calciumDriveFixedParamsStableHash: "wrong-calcium-hash",
       }),
     })).toThrow(/calcium hash does not match/);
+  });
+
+  it("rejects circulation snapshot payload and every enclosing hash layer", () => {
+    const snapshot = result.protocolIdentity.circulation.configurationSnapshot;
+    const tamperedSnapshot = Object.freeze({
+      ...snapshot,
+      effective: Object.freeze({
+        ...snapshot.effective,
+        initialVolumeConstruction: Object.freeze({
+          ...snapshot.effective.initialVolumeConstruction,
+          coldSeedTotalBloodVolumeMl:
+            snapshot.effective.initialVolumeConstruction
+              .coldSeedTotalBloodVolumeMl + 1,
+        }),
+      }),
+    });
+    const tamperedSnapshotHash = stableHash(sanitizeForStableHash(
+      tamperedSnapshot,
+    ));
+    const tamperedIdentity = Object.freeze({
+      ...result.protocolIdentity,
+      circulation: Object.freeze({
+        ...result.protocolIdentity.circulation,
+        configurationSnapshot: tamperedSnapshot,
+        configurationSnapshotStableHash: tamperedSnapshotHash,
+      }),
+    });
+    expect(() => summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      protocolIdentity: tamperedIdentity,
+      protocolIdentityHash: stableHash(sanitizeForStableHash(tamperedIdentity)),
+      protocolComponentHashes: Object.freeze({
+        ...result.protocolComponentHashes,
+        circulationConfigurationSnapshotStableHash: tamperedSnapshotHash,
+      }),
+    })).toThrow(/does not match the fixed main-wire registry/);
+
+    expect(() => summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      protocolComponentHashes: Object.freeze({
+        ...result.protocolComponentHashes,
+        circulationConfigurationSnapshotStableHash: "wrong-component-hash",
+      }),
+    })).toThrow(/configuration snapshot hash is inconsistent/);
+
+    const wrongEmbeddedIdentity = Object.freeze({
+      ...result.protocolIdentity,
+      circulation: Object.freeze({
+        ...result.protocolIdentity.circulation,
+        configurationSnapshotStableHash: "wrong-embedded-hash",
+      }),
+    });
+    expect(() => summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      protocolIdentity: wrongEmbeddedIdentity,
+      protocolIdentityHash: stableHash(sanitizeForStableHash(
+        wrongEmbeddedIdentity,
+      )),
+    })).toThrow(/configuration snapshot hash is inconsistent/);
+
+    expect(() => summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      protocolIdentityHash: "wrong-overall-hash",
+    })).toThrow(/protocol identity hash is inconsistent/);
   });
 
   it("counts nominal and alternate accepted Jacobian widths on the selected beat", () => {

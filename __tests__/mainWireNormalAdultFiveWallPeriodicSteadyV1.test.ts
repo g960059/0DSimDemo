@@ -63,7 +63,7 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
     expect(result.protocolIdentity.periodicPolicy.policyId)
       .toBe("fixed-groupwise-periodic-policy-v1");
     expect(Object.values(result.protocolComponentHashes))
-      .toHaveLength(5);
+      .toHaveLength(6);
     expect(Object.values(result.protocolComponentHashes)
       .every((hash) => /^[0-9a-f]{8}$/.test(hash))).toBe(true);
     expect(result.protocolIdentity.calciumDrive.fixedParamsStableHash)
@@ -72,6 +72,27 @@ describe("main-wire normal-adult five-wall periodic steady runner V1", () => {
       .toBe(result.protocolComponentHashes.circulationTopologyGraphStableHash);
     expect(result.protocolIdentity.circulation.runtimeStableHash)
       .toBe(result.protocolComponentHashes.circulationRuntimeStableHash);
+    expect(result.protocolIdentity.circulation.configurationSnapshotStableHash)
+      .toBe(result.protocolComponentHashes
+        .circulationConfigurationSnapshotStableHash);
+    expect(stableHash(sanitizeForStableHash(
+      result.protocolIdentity.circulation.configurationSnapshot,
+    ))).toBe(result.protocolIdentity.circulation.configurationSnapshotStableHash);
+    expect(stableHash(sanitizeForStableHash(
+      result.protocolIdentity.circulation.configurationSnapshot
+        .effective.topology,
+    ))).toBe(result.protocolComponentHashes.circulationTopologyGraphStableHash);
+    expect(stableHash(sanitizeForStableHash(
+      result.protocolIdentity.circulation.configurationSnapshot
+        .effective.runtime,
+    ))).toBe(result.protocolComponentHashes.circulationRuntimeStableHash);
+    expect(result.protocolComponentHashes.circulationTopologyGraphStableHash)
+      .toBe("27a8ce3f");
+    expect(result.protocolComponentHashes.circulationRuntimeStableHash)
+      .toBe("6a2d35d3");
+    expect(stableHash(sanitizeForStableHash(
+      result.retainedCompleteBeats[0]!.samples,
+    ))).toBe("58a24381");
     expect(result.protocolIdentity.periodicPolicy.policyStableHash)
       .toBe(result.protocolComponentHashes.periodicPolicyStableHash);
     expect(result.protocolIdentityHash).toBe(stableHash(sanitizeForStableHash(

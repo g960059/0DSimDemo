@@ -24,8 +24,9 @@ import type {
   MainWireFiveWallPeriodicClosureGroupV1,
   MainWireFiveWallPeriodicClosureReportV1,
 } from "@/engine/myocardium/experiments/MainWireFiveWallPeriodicClosureV1";
-import type {
-  MainWireNormalAdultFiveWallPeriodicResultV1,
+import {
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1,
+  type MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
@@ -252,6 +253,12 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
   const samples = selectedBeat.samples;
   const calciumDriveParams = result.calciumDriveFixedParams;
   assertCalciumDriveIdentity(result, calciumDriveParams);
+  assertMainWireNormalAdultFiveWallPeriodicProtocolIdentityIntegrityV1({
+    identity: result.protocolIdentity,
+    identityHash: result.protocolIdentityHash,
+    componentHashes: result.protocolComponentHashes,
+    periodicPolicy: result.policy,
+  });
   assertClosureReferenceScaleSetMatchesPolicy(result);
   const evidenceClosures = classifierEvidenceClosures(result);
   const evidenceJacobianAudits = classifierEvidenceJacobianAudits(result);

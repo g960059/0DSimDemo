@@ -20,6 +20,12 @@ import type {
   MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+import {
+  resolveMainWireNormalAdultCirculationConfigurationV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultCirculationConfigurationV1";
+import {
   sanitizeForStableHash,
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
@@ -27,6 +33,48 @@ import {
 const DT_SEC = 0.1;
 const CALCIUM_HASH = stableHash(sanitizeForStableHash(
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+));
+const CONFIGURATION =
+  resolveMainWireNormalAdultCirculationConfigurationV1();
+const MECHANICS_PROVIDER = Object.freeze({
+  providerId: "review-fixture-provider",
+  parameterSetId: "review-fixture-provider-params",
+  parameterIdentityHash: "review-fixture-provider-hash",
+  stateSchemaVersion: 1,
+});
+const MECHANICS_HASH = stableHash(sanitizeForStableHash(MECHANICS_PROVIDER));
+const TOPOLOGY = CONFIGURATION.snapshot.effective.topology;
+const TOPOLOGY_HASH = stableHash(sanitizeForStableHash(TOPOLOGY));
+const RUNTIME_HASH = stableHash(sanitizeForStableHash(
+  CONFIGURATION.snapshot.effective.runtime,
+));
+const POLICY_HASH = stableHash(sanitizeForStableHash(
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+));
+const PROTOCOL_IDENTITY = Object.freeze({
+  identityId:
+    "main-wire-normal-adult-five-wall-periodic-protocol-identity-v1" as const,
+  mechanicsProvider: MECHANICS_PROVIDER,
+  calciumDrive: Object.freeze({
+    driveId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
+    parameterSetId:
+      FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
+    fixedParamsStableHash: CALCIUM_HASH,
+  }),
+  circulation: Object.freeze({
+    topologyGraphSnapshot: TOPOLOGY,
+    topologyGraphStableHash: TOPOLOGY_HASH,
+    runtimeStableHash: RUNTIME_HASH,
+    configurationSnapshot: CONFIGURATION.snapshot,
+    configurationSnapshotStableHash: CONFIGURATION.snapshotStableHash,
+  }),
+  periodicPolicy: Object.freeze({
+    policyId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.policyId,
+    policyStableHash: POLICY_HASH,
+  }),
+});
+const PROTOCOL_IDENTITY_HASH = stableHash(sanitizeForStableHash(
+  PROTOCOL_IDENTITY,
 ));
 const GROUPS = [
   "circulation-node-volume",
@@ -61,7 +109,7 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
 
     expect(review.run.latestBeatIndex).toBe(7);
     expect(review.run.previousBeatIndex).toBe(6);
-    expect(review.run.protocolIdentityHash).toBe("review-fixture-protocol-hash");
+    expect(review.run.protocolIdentityHash).toBe(PROTOCOL_IDENTITY_HASH);
     expect(review.run.calciumDrivePriorVariant)
       .toBe("land-atrial-twitch-output");
     expect(review.run.calciumParameterSetId)
@@ -101,7 +149,7 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(rendered.html).toContain("Phasic flow ledger");
     expect(rendered.html).toContain("Wall work and SLS balance");
     expect(rendered.html).toContain("Jacobian FD nominal / alternate");
-    expect(rendered.html).toContain("review-fixt");
+    expect(rendered.html).toContain(PROTOCOL_IDENTITY_HASH.slice(0, 8));
     expect(rendered.html).toContain("Claim boundaries");
     expect(rendered.html).toContain('id="periodic-review-data"');
     expect(rendered.svg).toContain('role="img"');
@@ -151,6 +199,17 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
       }),
     })).toThrow(/fixed params do not match registry variant/);
   });
+
+  it("rejects a raw review whose circulation snapshot hash was tampered", () => {
+    const result = periodicResult();
+    expect(() => buildMainWireNormalAdultFiveWallPeriodicReviewV1({
+      ...result,
+      protocolComponentHashes: Object.freeze({
+        ...result.protocolComponentHashes,
+        circulationConfigurationSnapshotStableHash: "tampered-config-hash",
+      }),
+    })).toThrow(/configuration snapshot hash is inconsistent/);
+  });
 });
 
 function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
@@ -164,43 +223,16 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
   return Object.freeze({
     experimentId: "main-wire-normal-adult-five-wall-periodic-steady-v1",
     mode: "canonical",
-    protocolIdentity: Object.freeze({
-      identityId:
-        "main-wire-normal-adult-five-wall-periodic-protocol-identity-v1",
-      mechanicsProvider: Object.freeze({
-        providerId: "review-fixture-provider",
-        parameterSetId: "review-fixture-provider-params",
-        parameterIdentityHash: "review-fixture-provider-hash",
-        stateSchemaVersion: 1,
-      }),
-      calciumDrive: Object.freeze({
-        driveId: FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
-        parameterSetId:
-          FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.parameterSetId,
-        fixedParamsStableHash: CALCIUM_HASH,
-      }),
-      circulation: Object.freeze({
-        topologyGraphSnapshot: Object.freeze({
-          topologyId: "review-fixture-topology",
-          nodes: Object.freeze([]),
-          edges: Object.freeze([]),
-          scope: "noncoronary-main-wire-closed-loop-v1",
-        }),
-        topologyGraphStableHash: "review-fixture-topology-hash",
-        runtimeStableHash: "review-fixture-runtime-hash",
-      }),
-      periodicPolicy: Object.freeze({
-        policyId: "fixed-groupwise-periodic-policy-v1",
-        policyStableHash: "review-fixture-periodic-policy-hash",
-      }),
-    }),
-    protocolIdentityHash: "review-fixture-protocol-hash",
+    protocolIdentity: PROTOCOL_IDENTITY,
+    protocolIdentityHash: PROTOCOL_IDENTITY_HASH,
     protocolComponentHashes: Object.freeze({
-      mechanicsProviderMetadataStableHash: "review-fixture-provider-hash",
+      mechanicsProviderMetadataStableHash: MECHANICS_HASH,
       calciumDriveFixedParamsStableHash: CALCIUM_HASH,
-      circulationTopologyGraphStableHash: "review-fixture-topology-hash",
-      circulationRuntimeStableHash: "review-fixture-runtime-hash",
-      periodicPolicyStableHash: "review-fixture-periodic-policy-hash",
+      circulationTopologyGraphStableHash: TOPOLOGY_HASH,
+      circulationRuntimeStableHash: RUNTIME_HASH,
+      circulationConfigurationSnapshotStableHash:
+        CONFIGURATION.snapshotStableHash,
+      periodicPolicyStableHash: POLICY_HASH,
     }),
     laSlsMode: "on",
     initialization: "canonical",
@@ -253,17 +285,7 @@ function periodicResult(): MainWireNormalAdultFiveWallPeriodicResultV1 {
       destinationNode: null,
       pulmonaryNodeVolumeDeltaMl: Object.freeze({ PVen: 0, PVein: 0 }),
     }),
-    policy: Object.freeze({
-      policyId: "fixed-groupwise-periodic-policy-v1",
-      period1NormalizedTolerance: 1e-3,
-      period2NormalizedTolerance: 1e-3,
-      period2MinimumPeriod1NormalizedDelta: 5e-3,
-      consecutiveBeats: 3,
-      defaultMaximumBeatCount: 32,
-      retainedCompleteBeatCount: 3,
-      referenceScaleSetId:
-        "normal-adult-fixed-dimensional-reference-scales-v1",
-    }),
+    policy: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
     claim: Object.freeze({
       heartRateBpm: 60,
       circulation: "main-wire-derived-noncoronary-experimental",

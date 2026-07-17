@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+  resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1,
+  type MainWireNormalAdultFiveWallPeriodicResultV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import type {
   MainWireNormalAdultFiveWallDiagnosticSampleV2,
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
@@ -7,9 +12,9 @@ import {
   compareMainWireNormalAdultFiveWallDtHalvingV1,
   runMainWireNormalAdultFiveWallDtHalvingV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallDtHalvingV1";
-import type {
-  MainWireNormalAdultFiveWallPeriodicResultV1,
-} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+
+const FIXED_PROTOCOL =
+  resolveMainWireNormalAdultFiveWallPeriodicProtocolIdentityV1();
 
 describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
   it("maps only common accepted samples on the strict nested grid", () => {
@@ -29,7 +34,7 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
     expect(comparison.interpretable).toBe(true);
     expect(comparison.protocolIdentity).toMatchObject({
       exactMatch: true,
-      identityHash: "same-protocol",
+      identityHash: FIXED_PROTOCOL.identityHash,
     });
     expect(comparison.interpretabilityReasons).toEqual([]);
     expect(comparison.fineAcceptedStepsPerCoarseAcceptedStep).toBe(2);
@@ -209,7 +214,7 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
     );
     expect(protocolMismatch.interpretable).toBe(false);
     expect(protocolMismatch.interpretabilityReasons)
-      .toContain("protocol-identity-mismatch");
+      .toContain("fine-protocol-identity-invalid");
     expect(protocolMismatch.signalMetrics).toBeNull();
     expect(protocolMismatch.protocolIdentity).toEqual({
       exactMatch: false,
@@ -226,10 +231,10 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
     expect(compareMainWireNormalAdultFiveWallDtHalvingV1(
       coarse,
       sameHashDifferentIdentity,
-    ).interpretabilityReasons).toContain("protocol-identity-mismatch");
+    ).interpretabilityReasons).toContain("fine-protocol-identity-invalid");
   });
 
-  it("does not treat absent protocol identities as compatible", () => {
+  it("does not treat the same absent protocol identities as compatible", () => {
     const coarse = result({
       dtSec: 0.5,
       protocolIdentityHash: "",
@@ -240,8 +245,40 @@ describe("main-wire normal-adult five-wall dt-halving difference V1", () => {
       protocolIdentityHash: "",
       samples: [sample(0.25), sample(0.5), sample(0.75), sample(0)],
     });
-    expect(compareMainWireNormalAdultFiveWallDtHalvingV1(coarse, fine)
-      .interpretabilityReasons).toContain("protocol-identity-mismatch");
+    const comparison = compareMainWireNormalAdultFiveWallDtHalvingV1(
+      coarse,
+      fine,
+    );
+    expect(comparison.interpretable).toBe(false);
+    expect(comparison.interpretabilityReasons).toEqual(expect.arrayContaining([
+      "coarse-protocol-identity-invalid",
+      "fine-protocol-identity-invalid",
+    ]));
+    expect(comparison.signalMetrics).toBeNull();
+  });
+
+  it("does not treat the same tampered protocol identity as compatible", () => {
+    const coarse = result({
+      dtSec: 0.5,
+      protocolIdentityToken: "same-tampered-identity",
+      samples: [sample(0.5), sample(0)],
+    });
+    const fine = result({
+      dtSec: 0.25,
+      protocolIdentityToken: "same-tampered-identity",
+      samples: [sample(0.25), sample(0.5), sample(0.75), sample(0)],
+    });
+    const comparison = compareMainWireNormalAdultFiveWallDtHalvingV1(
+      coarse,
+      fine,
+    );
+
+    expect(comparison.interpretable).toBe(false);
+    expect(comparison.interpretabilityReasons).toEqual(expect.arrayContaining([
+      "coarse-protocol-identity-invalid",
+      "fine-protocol-identity-invalid",
+    ]));
+    expect(comparison.signalMetrics).toBeNull();
   });
 
   it("validates wrapper input before starting either expensive run", () => {
@@ -309,18 +346,19 @@ function result(input: Readonly<{
     laSlsMode: "on",
     initialization: input.initialization ?? "canonical",
     requestedMaximumBeatCount: input.requestedMaximumBeatCount ?? 32,
-    protocolIdentityHash: input.protocolIdentityHash ?? "same-protocol",
-    protocolIdentity: {
-      fixtureProtocolIdentity:
-        input.protocolIdentityToken ?? "same-full-protocol-identity",
-    },
-    protocolComponentHashes: {
-      mechanicsProviderMetadataStableHash: "fixture-mechanics",
-      calciumDriveFixedParamsStableHash: "fixture-calcium",
-      circulationTopologyGraphStableHash: "fixture-topology",
-      circulationRuntimeStableHash: "fixture-runtime",
-      periodicPolicyStableHash: "fixture-policy",
-    },
+    protocolIdentityHash:
+      input.protocolIdentityHash ?? FIXED_PROTOCOL.identityHash,
+    protocolIdentity: input.protocolIdentityToken === undefined
+      ? FIXED_PROTOCOL.identity
+      : {
+          ...FIXED_PROTOCOL.identity,
+          mechanicsProvider: {
+            ...FIXED_PROTOCOL.identity.mechanicsProvider,
+            parameterIdentityHash: input.protocolIdentityToken,
+          },
+        },
+    protocolComponentHashes: FIXED_PROTOCOL.componentHashes,
+    policy: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
     dtSec: input.dtSec,
     stepsPerBeat: input.samples.length,
     periodicSteadyStateClaimed: periodic,
