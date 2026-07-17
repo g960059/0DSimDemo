@@ -25,6 +25,12 @@ describe('scientific browser alpha entry V1', () => {
 
     expect(page).toContain('new MainWireScientificWorkerClientV1()');
     expect(page).toContain("kind: 'createCanonicalSession'");
+    expect(page).toContain("kind: 'runTransient'");
+    expect(page).toContain('Run one beat');
+    expect(page).toContain('Reset cold start');
+    expect(page).toContain('SCIENTIFIC_ALPHA_HISTORY_CAPACITY');
+    expect(page).toContain('<ScientificAlphaPvTrajectories');
+    expect(page).toContain('<ScientificAlphaWaveforms');
     expect(client).toContain(
       'new URL("./mainWireScientificWorkerV1.ts", import.meta.url)',
     );
