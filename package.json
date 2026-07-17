@@ -26,6 +26,8 @@
     "verify:scientific:main-wire-release": "vite-node --script tools/scientific/generateMainWireAdultFiveWallNonCoronaryReleaseV1.ts --check",
     "generate:scientific:official-healthy-periodic-checkpoint": "vite-node --script tools/scientific/generateOfficialHealthyPeriodicCheckpointPresetV1.ts",
     "verify:scientific:official-healthy-periodic-checkpoint": "vite-node --script tools/scientific/verifyOfficialHealthyPeriodicCheckpointPresetV1.ts",
+    "generate:scientific:official-healthy-document-chain": "vite-node --script tools/scientific/generateOfficialHealthyPeriodicDocumentChainV1.ts",
+    "verify:scientific:official-healthy-document-chain": "vite-node --script tools/scientific/generateOfficialHealthyPeriodicDocumentChainV1.ts --check",
     "generate:scientific:healthy-reference-acceptance": "vite-node --script tools/scientific/generateMainWireOfficialHealthyReferenceAcceptanceV1.ts",
     "verify:scientific:healthy-reference-acceptance": "vite-node --script tools/scientific/generateMainWireOfficialHealthyReferenceAcceptanceV1.ts --check",
     "verify:scientific:valve-preset-numerical-envelope": "vite-node --script tools/scientific/runMainWireValvePresetNumericalRobustnessEnvelopeV1.ts",

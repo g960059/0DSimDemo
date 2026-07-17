@@ -137,7 +137,7 @@ export async function buildMainWireScientificDocumentChainV1(
         },
       },
     );
-    const workspaceDocument = await createDefaultWorkspaceDocument(
+    const workspaceDocument = await createMainWireScientificDefaultWorkspaceDocumentV1(
       caseDocument,
     );
 
@@ -181,7 +181,11 @@ export async function buildMainWireScientificDocumentChainV1(
   }
 }
 
-async function createDefaultWorkspaceDocument(
+/**
+ * Builds the shared presentation-only starting workspace for an already
+ * verified case. The helper does not confer catalog trust on either document.
+ */
+export async function createMainWireScientificDefaultWorkspaceDocumentV1(
   caseDocument: MainWireScientificCaseDocumentV1,
 ): Promise<MainWireScientificWorkspaceDocumentV1> {
   return createMainWireScientificWorkspaceDocumentV1({

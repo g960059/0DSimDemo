@@ -33,6 +33,17 @@ requires the identical full release reference, including its SHA-256.
   A case or workspace may reference a run artifact, but neither can be
   substituted for its immutable execution evidence.
 
+The checked-in official healthy document chain is generated with
+`npm run generate:scientific:official-healthy-document-chain` and verified with
+`npm run verify:scientific:official-healthy-document-chain`. The migration
+first verifies the legacy official V2 asset against its existing application
+trust anchor, restores it through the legacy exact loader, resolves the healthy
+session input for the identical release, and serializes a new V3 checkpoint.
+It never relabels a V2 envelope. The content-addressed preset, case, and
+workspace documents contain no official status; only the separately pinned
+`data/scientific/catalogs/official-healthy-periodic-document-chain-v1.json`
+catalog binds official trust to their exact refs and raw bytes.
+
 Release and evidence manifests deliberately do not embed the commit that
 contains themselves. The #478 commit `f229143...` appears only as the source of
 the historical scientific oracle pack. The deterministic
