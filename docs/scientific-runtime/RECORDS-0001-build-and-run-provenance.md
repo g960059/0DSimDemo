@@ -25,10 +25,13 @@ requires the identical full release reference, including its SHA-256.
 - `MainWireScientificCaseDocumentV1` stores an immutable case revision with
   exact release, intent, verified resolved session input, approved protocol,
   start identity, and lineage. It can refer to a V3 checkpoint by identity but
-  does not embed checkpoint bytes or execution results. A future
-  `WorkspaceDocument` stores presentation state. Either may reference a run
-  artifact, but neither can be substituted for its immutable execution
-  evidence.
+  does not embed checkpoint bytes or execution results.
+- `MainWireScientificWorkspaceDocumentV1` stores a separate immutable
+  presentation revision: a case reference, ordered panels, catalogued
+  observable-backed time-series/PV/table views, grid layout, and notes. It
+  cannot carry release parameters, protocols, checkpoints, results, or trust.
+  A case or workspace may reference a run artifact, but neither can be
+  substituted for its immutable execution evidence.
 
 Release and evidence manifests deliberately do not embed the commit that
 contains themselves. The #478 commit `f229143...` appears only as the source of

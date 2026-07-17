@@ -191,11 +191,16 @@ The first implemented document schemas make `PresetDocumentV1` an immutable,
 content-addressed release-bound intent and `CaseDocumentV1` an immutable,
 content-addressed revision containing the exact release, intent, verified
 resolved session input, approved protocol selection, start identity, and
-lineage. Neither document can assert official trust. Official status comes
-only from an independently pinned catalog-to-document SHA chain. Editing or
-forking an official preset creates a user case revision that retains source
-lineage without inheriting official trust. Checkpoint bytes, run outputs,
-workspace layout, and notes are not case content.
+lineage. `WorkspaceDocumentV1` is a separate content-addressed presentation
+revision that references one case and contains only ordered panels, strict
+observable-backed views, grid layout, and notes. Its pressure-volume view binds
+each trajectory to one catalogued volume observable and one catalogued pressure
+observable; hosts do not infer those pairings from chart names. None of these
+documents can assert official trust. Official status comes only from an
+independently pinned catalog-to-document SHA chain. Editing or forking an
+official preset creates a user case revision that retains source lineage
+without inheriting official trust. Checkpoint bytes and run outputs are not
+case or workspace content; workspace layout and notes are not case content.
 
 Preset operations declare a composition policy. Supported policies begin with
 exclusive-set, commutative scale/add, bundle-owned, and replace-component.
