@@ -74,6 +74,7 @@ export const fastTests = [
   "__tests__/readingConversion.test.ts",
   "__tests__/readingPresenter.realNotePanel.test.ts",
   "__tests__/readingPresenter.test.ts",
+  "__tests__/simulationReleaseV1.test.ts",
   "__tests__/testSuiteManifest.test.ts",
   "__tests__/usePreviewRuntime.test.ts",
   "__tests__/waveformPhaseWipe.test.ts",
