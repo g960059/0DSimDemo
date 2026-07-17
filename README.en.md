@@ -344,12 +344,18 @@ npm run preview
 | `npm run dev` | Start the Vite dev server |
 | `npm run build` | TypeScript check and production build |
 | `npm run preview` | Preview the production build locally |
-| `npm run test` | Run the fast Vitest suite used by PR CI (excluding Firestore emulator and opt-in heavy verification tests) |
-| `npm run test:all` | Run the full Vitest suite, including opt-in heavy verification tests |
-| `npm run test:heavy` | Run the Guyton/Starling and low-preload verification files with opt-in heavy cases enabled |
+| `npm run test` | Run the fail-closed fast Vitest suite with a 60-second wall budget |
+| `npm run test:related -- <source...>` | Run fast tests statically related to edited sources |
+| `npm run test:regression` | Run slower engine convergence and physiology regression tests |
+| `npm run test:scientific:canonical` | Run the current `mainWire` scientific lane |
+| `npm run test:scientific:archive` | Explicitly replay historical research and artifact tests |
+| `npm run test:heavy` | Run Guyton/Starling and low-preload opt-in heavy tests |
+| `npm run test:all` | Run every non-emulator tier; this is intentionally very slow |
 | `npm run test:rules` | Run the Firestore rules emulator test |
-| `npm run test:watch` | Run Vitest in watch mode |
+| `npm run test:watch` | Watch only the fast suite |
+| `npm run test:watch:all` | Watch every test file |
 | `npm run verify:baseline` | Run the baseline verification script |
+| `npm run verify:cases:smoke` | Verify three representative official cases |
 | `npm run fit:left-filling` | Fitting tool for left-heart filling |
 | `npm run fit:right-pvf-headroom` | Fitting tool for right-heart / PVF headroom |
 
@@ -427,7 +433,7 @@ When changing the model or parameters, make the following explicit:
 
 - which physiological problem it fixes
 - which literature, measurement, or benchmark it is based on
-- whether `npm run test:heavy` or `npm run test:all` was run, when the change touches Guyton/Starling or low-preload behavior
+- which of fast, regression, canonical scientific, and heavy verification was run for the changed responsibility
 - which waveform / PV loop / metric improves
 - which cases are affected
 - whether the baseline freeze needs updating
