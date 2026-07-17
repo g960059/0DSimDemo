@@ -5,6 +5,9 @@ import {
   type ScientificCommandResponseV1,
   type ScientificCommandV1,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import {
+  OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING,
+} from "@/engine/scientific/presets";
 
 export const MAIN_WIRE_SCIENTIFIC_WORKER_CLIENT_V1_ID =
   "main-wire-scientific-worker-client-v1" as const;
@@ -86,8 +89,19 @@ type PendingRequest = Readonly<{
   requestId: string;
   sessionId: string;
   commandKind: ScientificCommandKindV1;
+  submittedCommand: PendingCommandIdentityV1;
   resolve: (response: MainWireScientificWorkerResponseV1) => void;
   reject: (error: MainWireScientificWorkerTransportErrorV1) => void;
+}>;
+
+type PendingCommandIdentityV1 = Readonly<{
+  kind: ScientificCommandKindV1;
+  requestId: string;
+  sessionId: string;
+  officialPreset: Readonly<{
+    presetId: "circleheart/official-healthy-periodic";
+    presetVersion: "1.0.0";
+  }> | null;
 }>;
 
 /**
@@ -210,6 +224,7 @@ export class MainWireScientificWorkerClientV1 {
         requestId: command.requestId,
         sessionId: command.sessionId,
         commandKind: command.kind,
+        submittedCommand: capturePendingCommandIdentity(command),
         resolve,
         reject,
       });
@@ -269,6 +284,16 @@ export class MainWireScientificWorkerClientV1 {
       this.failClosed(newTransportError(
         "protocol-mismatch",
         `scientific Worker response identity does not match requestId ${value.requestId}`,
+      ));
+      return;
+    }
+    if (!isResponseCompatibleWithSubmittedCommand(
+      value,
+      pending.submittedCommand,
+    )) {
+      this.failClosed(newTransportError(
+        "protocol-mismatch",
+        `scientific Worker response payload/origin does not match requestId ${value.requestId}`,
       ));
       return;
     }
@@ -373,7 +398,91 @@ function isSessionOrigin(value: unknown): boolean {
       && typeof value.checkpointSha256 === "string"
       && /^[0-9a-f]{64}$/.test(value.checkpointSha256);
   }
+  if (value.kind === "official-preset-exact-checkpoint-restore") {
+    return hasExactKeys(value, [
+      "kind",
+      "presetId",
+      "presetVersion",
+      "catalogSchemaId",
+      "catalogSchemaVersion",
+      "manifestRawFileSha256",
+      "checkpointRawFileSha256",
+      "checkpointSha256",
+      "parameterization",
+    ])
+      && value.presetId === "circleheart/official-healthy-periodic"
+      && value.presetVersion === "1.0.0"
+      && value.catalogSchemaId === "circleheart-official-preset-catalog-v1"
+      && value.catalogSchemaVersion === 1
+      && typeof value.manifestRawFileSha256 === "string"
+      && value.manifestRawFileSha256
+        === OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+          .manifestRawFileSha256
+      && typeof value.checkpointRawFileSha256 === "string"
+      && value.checkpointRawFileSha256
+        === OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+          .checkpointRawFileSha256
+      && typeof value.checkpointSha256 === "string"
+      && value.checkpointSha256
+        === OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+          .checkpointSha256
+      && value.parameterization === "fixed-canonical-only";
+  }
   return false;
+}
+
+function capturePendingCommandIdentity(
+  command: ScientificCommandV1,
+): PendingCommandIdentityV1 {
+  return Object.freeze({
+    kind: command.kind,
+    requestId: command.requestId,
+    sessionId: command.sessionId,
+    officialPreset: command.kind === "createOfficialPresetSession"
+      ? Object.freeze({
+        presetId: command.presetId,
+        presetVersion: command.presetVersion,
+      })
+      : null,
+  });
+}
+
+function isResponseCompatibleWithSubmittedCommand(
+  response: ProtocolEnvelope,
+  submitted: PendingCommandIdentityV1,
+): boolean {
+  if (response.ok === false) return true;
+  if (submitted.kind !== "createOfficialPresetSession") return true;
+  const expected = submitted.officialPreset;
+  if (expected === null) return false;
+  const origin = response.sessionOrigin;
+  const payload = response.payload;
+  return origin.kind === "official-preset-exact-checkpoint-restore"
+    && exactOfficialReleaseRef(response.releaseRef)
+    && origin.presetId === expected.presetId
+    && origin.presetVersion === expected.presetVersion
+    && isRecord(payload)
+    && hasExactKeys(payload, [
+      "kind",
+      "presetId",
+      "presetVersion",
+      "observableFrame",
+    ])
+    && payload.kind === "officialPresetSessionCreated"
+    && payload.presetId === expected.presetId
+    && payload.presetVersion === expected.presetVersion
+    && isRecord(payload.observableFrame)
+    && exactOfficialReleaseRef(payload.observableFrame.releaseRef);
+}
+
+function exactOfficialReleaseRef(value: unknown): boolean {
+  return isRecord(value)
+    && value.id
+      === OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING.releaseRef.id
+    && value.version
+      === OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING.releaseRef.version
+    && value.sha256
+      === OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING.releaseRef.sha256;
 }
 
 function hasExactKeys(

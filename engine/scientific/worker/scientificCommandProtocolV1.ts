@@ -15,6 +15,7 @@ export const SCIENTIFIC_COMMAND_PROTOCOL_V1_ID =
 
 export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "createCanonicalSession",
+  "createOfficialPresetSession",
   "runTransient",
   "observe",
   "getExactCheckpoint",
@@ -35,6 +36,12 @@ type CommandBaseV1<TKind extends ScientificCommandKindV1> = Readonly<{
 
 export type CreateCanonicalSessionCommandV1 =
   CommandBaseV1<"createCanonicalSession">;
+
+export type CreateOfficialPresetSessionCommandV1 =
+  CommandBaseV1<"createOfficialPresetSession"> & Readonly<{
+    presetId: "circleheart/official-healthy-periodic";
+    presetVersion: "1.0.0";
+  }>;
 
 export type RunTransientCommandV1 = CommandBaseV1<"runTransient"> & Readonly<{
   dtSec: number;
@@ -59,6 +66,7 @@ export type SettlePeriodicCommandV1 = CommandBaseV1<"settlePeriodic">;
 
 export type ScientificCommandV1 =
   | CreateCanonicalSessionCommandV1
+  | CreateOfficialPresetSessionCommandV1
   | RunTransientCommandV1
   | ObserveCommandV1
   | GetExactCheckpointCommandV1
@@ -78,6 +86,7 @@ export type ScientificCommandErrorCodeV1 =
   | "capability-unavailable"
   | "simulation-step-failed"
   | "session-creation-failed"
+  | "official-preset-restore-rejected"
   | "checkpoint-failed"
   | "exact-restore-rejected"
   | "command-failed";
@@ -91,6 +100,17 @@ export type ScientificSessionOriginV1 =
   | Readonly<{
     kind: "exact-checkpoint-restore";
     checkpointSha256: string;
+  }>
+  | Readonly<{
+    kind: "official-preset-exact-checkpoint-restore";
+    presetId: "circleheart/official-healthy-periodic";
+    presetVersion: "1.0.0";
+    catalogSchemaId: "circleheart-official-preset-catalog-v1";
+    catalogSchemaVersion: 1;
+    manifestRawFileSha256: string;
+    checkpointRawFileSha256: string;
+    checkpointSha256: string;
+    parameterization: "fixed-canonical-only";
   }>;
 
 export type ScientificTransientExecutionProtocolV1 = Readonly<{
@@ -145,6 +165,12 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
   Readonly<{
     createCanonicalSession: Readonly<{
       kind: "sessionCreated";
+      observableFrame: TObservableFrame;
+    }>;
+    createOfficialPresetSession: Readonly<{
+      kind: "officialPresetSessionCreated";
+      presetId: "circleheart/official-healthy-periodic";
+      presetVersion: "1.0.0";
       observableFrame: TObservableFrame;
     }>;
     runTransient: Readonly<{

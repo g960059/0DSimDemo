@@ -13,6 +13,14 @@ import {
   MainWireScientificSessionV1,
   createMainWireScientificSessionV1,
 } from "@/engine/scientific/runtime";
+import type {
+  BundledOfficialHealthyPeriodicPresetIdentityV1,
+  LoadedBundledOfficialHealthyPeriodicPresetV1,
+} from "@/engine/scientific/presets";
+import {
+  OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING,
+  OFFICIAL_SCIENTIFIC_PRESET_CATALOG_V1_SCHEMA_ID,
+} from "@/engine/scientific/presets";
 import {
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1,
@@ -58,6 +66,9 @@ export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM = Object.freeze({
   periodicSettlementCapability:
     "release-bound-one-beat-progress-per-command" as const,
   periodicSettlementHostCancellationBoundary: "between-commands" as const,
+  officialPresetCapability:
+    "host-injected-bundled-catalog-identity-only-exact-checkpoint-restore" as const,
+  officialPresetArbitraryAssetInputAccepted: false as const,
 });
 
 export type MainWireScientificCommandResponseV1 =
@@ -72,7 +83,12 @@ export type MainWireScientificInProcessKernelOptionsV1 = Readonly<{
   maximumSessionIdentityCountPerKernelLifetime?: number;
   maximumCommandJsonBytes?: number;
   maximumCommandJsonNodeCount?: number;
+  officialPresetLoader?: MainWireScientificOfficialPresetLoaderV1;
 }>;
+
+export type MainWireScientificOfficialPresetLoaderV1 = (
+  identity: BundledOfficialHealthyPeriodicPresetIdentityV1,
+) => Promise<LoadedBundledOfficialHealthyPeriodicPresetV1>;
 
 type CapturedInput = Readonly<{
   value: CanonicalJsonValue | null;
@@ -125,6 +141,8 @@ export class MainWireScientificInProcessKernelV1 {
   readonly maximumSessionIdentityCountPerKernelLifetime: number;
   readonly maximumCommandJsonBytes: number;
   readonly maximumCommandJsonNodeCount: number;
+  private readonly officialPresetLoader:
+    MainWireScientificOfficialPresetLoaderV1 | null;
 
   private readonly sessions = new Map<string, MainWireScientificSessionV1>();
   private readonly sessionOrigins = new Map<string, ScientificSessionOriginV1>();
@@ -134,6 +152,7 @@ export class MainWireScientificInProcessKernelV1 {
   private commandTail: Promise<void> = Promise.resolve();
 
   constructor(options: MainWireScientificInProcessKernelOptionsV1 = {}) {
+    this.officialPresetLoader = options.officialPresetLoader ?? null;
     this.maximumSessionCount = boundedPositiveInteger(
       options.maximumSessionCount ?? DEFAULT_MAXIMUM_SESSION_COUNT,
       MAXIMUM_CONFIGURED_SESSION_COUNT,
@@ -265,6 +284,8 @@ export class MainWireScientificInProcessKernelV1 {
     switch (command.kind) {
       case "createCanonicalSession":
         return this.createCanonical(command);
+      case "createOfficialPresetSession":
+        return this.createOfficialPreset(command);
       case "runTransient":
         return this.runTransient(command);
       case "observe":
@@ -305,6 +326,72 @@ export class MainWireScientificInProcessKernelV1 {
       return errorResponseForCommand(
         command,
         "session-creation-failed",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private async createOfficialPreset(
+    command: Extract<ScientificCommandV1, {
+      kind: "createOfficialPresetSession";
+    }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const allocationError = this.sessionAllocationError(command);
+    if (allocationError !== null) return allocationError;
+    if (this.officialPresetLoader === null) {
+      return errorResponseForCommand(
+        command,
+        "capability-unavailable",
+        "official preset assets are not bound to this host-neutral kernel",
+      );
+    }
+    try {
+      const loaded = await this.officialPresetLoader({
+        presetId: command.presetId,
+        presetVersion: command.presetVersion,
+      });
+      assertOfficialPresetLoadMatchesCommand(command, loaded);
+      const session = await MainWireScientificSessionV1.restoreExact(
+        loaded.release,
+        loaded.checkpoint,
+      );
+      const observableFrame = project(session);
+      const sessionOrigin = Object.freeze({
+        kind: "official-preset-exact-checkpoint-restore" as const,
+        presetId: loaded.identity.presetId,
+        presetVersion: loaded.identity.presetVersion,
+        catalogSchemaId: OFFICIAL_SCIENTIFIC_PRESET_CATALOG_V1_SCHEMA_ID,
+        catalogSchemaVersion: 1 as const,
+        manifestRawFileSha256:
+          OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+            .manifestRawFileSha256,
+        checkpointRawFileSha256:
+          OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+            .checkpointRawFileSha256,
+        checkpointSha256:
+          OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+            .checkpointSha256,
+        parameterization: "fixed-canonical-only" as const,
+      });
+      const response = successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "officialPresetSessionCreated" as const,
+          presetId: loaded.identity.presetId,
+          presetVersion: loaded.identity.presetVersion,
+          observableFrame,
+        }),
+      );
+      this.sessions.set(command.sessionId, session);
+      this.sessionOrigins.set(command.sessionId, sessionOrigin);
+      this.allocatedSessionIds.add(command.sessionId);
+      return response;
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "official-preset-restore-rejected",
         errorMessage(error),
       );
     }
@@ -512,7 +599,10 @@ export class MainWireScientificInProcessKernelV1 {
 
   private sessionAllocationError(
     command: Extract<ScientificCommandV1, {
-      kind: "createCanonicalSession" | "restoreExactSession";
+      kind:
+        | "createCanonicalSession"
+        | "createOfficialPresetSession"
+        | "restoreExactSession";
     }>,
   ): MainWireScientificCommandResponseV1 | null {
     if (this.sessions.has(command.sessionId)) {
@@ -609,6 +699,54 @@ export class MainWireScientificInProcessKernelV1 {
     this.seenRequestIds.add(identity.requestId);
     return null;
   }
+}
+
+function assertOfficialPresetLoadMatchesCommand(
+  command: Extract<ScientificCommandV1, {
+    kind: "createOfficialPresetSession";
+  }>,
+  loaded: LoadedBundledOfficialHealthyPeriodicPresetV1,
+): void {
+  const entry = loaded.catalog.entries[0];
+  const checkpointDescriptor = loaded.presetDocument.initialization.checkpoint;
+  if (
+    loaded.identity.presetId !== command.presetId
+    || loaded.identity.presetVersion !== command.presetVersion
+    || entry.presetId !== command.presetId
+    || entry.presetVersion !== command.presetVersion
+    || loaded.presetDocument.preset.id !== command.presetId
+    || loaded.presetDocument.preset.version !== command.presetVersion
+    || loaded.provenance.catalogSchemaId
+      !== OFFICIAL_SCIENTIFIC_PRESET_CATALOG_V1_SCHEMA_ID
+    || loaded.provenance.catalogSchemaVersion !== 1
+    || loaded.provenance.manifestRawFileSha256
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+        .manifestRawFileSha256
+    || entry.manifest.rawFileSha256
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+        .manifestRawFileSha256
+    || loaded.provenance.checkpointRawFileSha256
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+        .checkpointRawFileSha256
+    || checkpointDescriptor.rawFileSha256
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+        .checkpointRawFileSha256
+    || loaded.provenance.checkpointSha256
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+        .checkpointSha256
+    || checkpointDescriptor.checkpointEnvelopeSha256
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+        .checkpointSha256
+    || loaded.checkpoint.checkpointSha256
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+        .checkpointSha256
+    || loaded.release.ref.id
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING.releaseRef.id
+    || loaded.release.ref.version
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING.releaseRef.version
+    || loaded.release.ref.sha256
+      !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING.releaseRef.sha256
+  ) throw new Error("official preset loader result does not match the command trust anchor");
 }
 
 function captureInput(
@@ -746,7 +884,9 @@ function parseCommand(
     ? [...common, "dtSec", "stepCount", "observationStride"]
     : value.kind === "restoreExactSession"
       ? [...common, "release", "checkpoint"]
-      : common;
+      : value.kind === "createOfficialPresetSession"
+        ? [...common, "presetId", "presetVersion"]
+        : common;
   if (!hasExactKeys(value, expectedKeys)) {
     return invalid(identity, "command fields do not match its kind");
   }
@@ -776,6 +916,14 @@ function parseCommand(
         identity,
         `observation policy would exceed ${maximumOutputFrameCount} output frames`,
       );
+    }
+  }
+  if (value.kind === "createOfficialPresetSession") {
+    if (value.presetId !== "circleheart/official-healthy-periodic") {
+      return invalid(identity, "presetId is not present in the bundled catalog");
+    }
+    if (value.presetVersion !== "1.0.0") {
+      return invalid(identity, "presetVersion is not present in the bundled catalog");
     }
   }
   return Object.freeze({

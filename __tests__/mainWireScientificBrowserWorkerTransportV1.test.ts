@@ -213,6 +213,127 @@ describe("main-wire scientific browser Worker transport V1", () => {
     expect(lifetimeWorker.posted).toEqual([oneCommand, recovery]);
     lifetimeClient.terminate();
   });
+
+  it("accepts the exact official-preset origin and rejects a malformed chain", async () => {
+    const worker = new FakeWorker();
+    const client = clientFor(worker);
+    const submitted = officialPresetCommand(
+      "request-official-preset",
+      "official-preset-session",
+    );
+    const pending = client.request(submitted);
+    worker.emitMessage(successResponse(
+      submitted,
+      {
+        kind: "officialPresetSessionCreated",
+        presetId: "circleheart/official-healthy-periodic",
+        presetVersion: "1.0.0",
+        observableFrame: {
+          revision: 13_000,
+          releaseRef: OFFICIAL_RELEASE_REF,
+        },
+      },
+      OFFICIAL_PRESET_SESSION_ORIGIN,
+      OFFICIAL_RELEASE_REF,
+    ));
+    await expect(pending).resolves.toMatchObject({
+      commandKind: "createOfficialPresetSession",
+      sessionOrigin: OFFICIAL_PRESET_SESSION_ORIGIN,
+      payload: {
+        kind: "officialPresetSessionCreated",
+        presetId: "circleheart/official-healthy-periodic",
+        presetVersion: "1.0.0",
+      },
+    });
+    expect(client.status).toBe("open");
+    client.terminate();
+
+    const malformedWorker = new FakeWorker();
+    const malformedClient = clientFor(malformedWorker);
+    const malformedSubmitted = officialPresetCommand(
+      "request-malformed-preset",
+      "malformed-preset-session",
+    );
+    const malformedPending = malformedClient.request(malformedSubmitted);
+    malformedWorker.emitMessage(successResponse(
+      malformedSubmitted,
+      { kind: "officialPresetSessionCreated" },
+      {
+        ...OFFICIAL_PRESET_SESSION_ORIGIN,
+        checkpointRawFileSha256: "4".repeat(64),
+      },
+      OFFICIAL_RELEASE_REF,
+    ));
+    await expectTransportError(malformedPending, "protocol-mismatch");
+    expect(malformedClient.status).toBe("failed");
+
+    const wrongKindWorker = new FakeWorker();
+    const wrongKindClient = clientFor(wrongKindWorker);
+    const wrongKindSubmitted = officialPresetCommand(
+      "request-wrong-origin-kind",
+      "wrong-origin-kind-session",
+    );
+    const wrongKindPending = wrongKindClient.request(wrongKindSubmitted);
+    wrongKindWorker.emitMessage(successResponse(
+      wrongKindSubmitted,
+      {
+        kind: "officialPresetSessionCreated",
+        presetId: "circleheart/official-healthy-periodic",
+        presetVersion: "1.0.0",
+        observableFrame: {
+          revision: 13_000,
+          releaseRef: OFFICIAL_RELEASE_REF,
+        },
+      },
+      SESSION_ORIGIN,
+      OFFICIAL_RELEASE_REF,
+    ));
+    await expectTransportError(wrongKindPending, "protocol-mismatch");
+
+    const missingFrameWorker = new FakeWorker();
+    const missingFrameClient = clientFor(missingFrameWorker);
+    const missingFrameSubmitted = officialPresetCommand(
+      "request-missing-frame",
+      "missing-frame-session",
+    );
+    const missingFramePending = missingFrameClient.request(missingFrameSubmitted);
+    missingFrameWorker.emitMessage(successResponse(
+      missingFrameSubmitted,
+      {
+        kind: "officialPresetSessionCreated",
+        presetId: "circleheart/official-healthy-periodic",
+        presetVersion: "1.0.0",
+      },
+      OFFICIAL_PRESET_SESSION_ORIGIN,
+      OFFICIAL_RELEASE_REF,
+    ));
+    await expectTransportError(missingFramePending, "protocol-mismatch");
+
+    const wrongReleaseWorker = new FakeWorker();
+    const wrongReleaseClient = clientFor(wrongReleaseWorker);
+    const wrongReleaseSubmitted = officialPresetCommand(
+      "request-wrong-release",
+      "wrong-release-session",
+    );
+    const wrongReleasePending = wrongReleaseClient.request(
+      wrongReleaseSubmitted,
+    );
+    wrongReleaseWorker.emitMessage(successResponse(
+      wrongReleaseSubmitted,
+      {
+        kind: "officialPresetSessionCreated",
+        presetId: "circleheart/official-healthy-periodic",
+        presetVersion: "1.0.0",
+        observableFrame: {
+          revision: 13_000,
+          releaseRef: OFFICIAL_RELEASE_REF,
+        },
+      },
+      OFFICIAL_PRESET_SESSION_ORIGIN,
+      RELEASE_REF,
+    ));
+    await expectTransportError(wrongReleasePending, "protocol-mismatch");
+  });
 });
 
 class FakeWorker {
@@ -281,17 +402,33 @@ function command(
   });
 }
 
+function officialPresetCommand(
+  requestId: string,
+  sessionId: string,
+): ScientificCommandV1 {
+  return Object.freeze({
+    protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+    kind: "createOfficialPresetSession" as const,
+    requestId,
+    sessionId,
+    presetId: "circleheart/official-healthy-periodic" as const,
+    presetVersion: "1.0.0" as const,
+  });
+}
+
 function successResponse(
   submitted: ScientificCommandV1,
   payload: unknown,
+  sessionOrigin: unknown = SESSION_ORIGIN,
+  releaseRef: unknown = RELEASE_REF,
 ): Record<string, unknown> {
   return {
     protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
     ok: true,
     requestId: submitted.requestId,
     sessionId: submitted.sessionId,
-    releaseRef: RELEASE_REF,
-    sessionOrigin: SESSION_ORIGIN,
+    releaseRef,
+    sessionOrigin,
     commandKind: submitted.kind,
     payload,
     error: null,
@@ -344,8 +481,30 @@ const RELEASE_REF = Object.freeze({
   sha256: "1".repeat(64),
 });
 
+const OFFICIAL_RELEASE_REF = Object.freeze({
+  id: "circleheart/adult-five-wall-noncoronary",
+  version: "0.2.0",
+  sha256:
+    "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4",
+});
+
 const SESSION_ORIGIN = Object.freeze({
   kind: "canonical-cold-start",
   initializationProtocolId: "main-wire-initialization-v1",
   initializationProtocolVersion: "1",
+});
+
+const OFFICIAL_PRESET_SESSION_ORIGIN = Object.freeze({
+  kind: "official-preset-exact-checkpoint-restore",
+  presetId: "circleheart/official-healthy-periodic",
+  presetVersion: "1.0.0",
+  catalogSchemaId: "circleheart-official-preset-catalog-v1",
+  catalogSchemaVersion: 1,
+  manifestRawFileSha256:
+    "eb40d42aa4e8bde3b696eb1257428d2022826137e1f2c994c75f59188e451ca0",
+  checkpointRawFileSha256:
+    "dbe660999758177aa7c72f92ce8da3bf4378a69d11f42454724a4f923d767ea2",
+  checkpointSha256:
+    "2f1c0b477905b07dfefc8a37ee7e1b7ab3d856d7f017770c6bc92a22fb529ff0",
+  parameterization: "fixed-canonical-only",
 });

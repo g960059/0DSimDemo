@@ -1,6 +1,9 @@
 import {
   MainWireScientificInProcessKernelV1,
 } from "@/engine/scientific/worker/MainWireScientificInProcessKernelV1";
+import {
+  loadBundledOfficialHealthyPeriodicPresetV1,
+} from "@/engine/scientificBrowser/bundledOfficialHealthyPeriodicCheckpointPresetV1";
 
 type ScientificWorkerScopeV1 = Readonly<{
   postMessage: (message: unknown) => void;
@@ -9,7 +12,9 @@ type ScientificWorkerScopeV1 = Readonly<{
 };
 
 const scope = globalThis as unknown as ScientificWorkerScopeV1;
-const kernel = new MainWireScientificInProcessKernelV1();
+const kernel = new MainWireScientificInProcessKernelV1({
+  officialPresetLoader: loadBundledOfficialHealthyPeriodicPresetV1,
+});
 
 scope.onmessage = (event: MessageEvent<unknown>): void => {
   void kernel.handle(event.data).then((response) => {
