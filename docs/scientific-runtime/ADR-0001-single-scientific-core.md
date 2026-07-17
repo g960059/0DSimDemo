@@ -84,6 +84,20 @@ The immutable manifest separately locks:
 Canonical JSON plus SHA-256 is used for release identity. Existing short stable
 hashes remain cache or diagnostic keys and are not release identities.
 
+The #478 Git commit recorded by the first release is the immutable source of
+its oracle evidence, not the identity of every future executable. A manifest
+cannot contain the Git commit that contains that same manifest without a
+self-reference. Executable provenance therefore lives in an external build
+artifact reference that binds the simulation release, numerical-runtime ABI,
+Git commit/tree and clean/dirty status, and the Worker or native artifact
+SHA-256. Run artifacts retain both references.
+
+An optimization may keep the numerical-runtime ABI only after the locked suite
+shows bitwise-equivalent accepted states and checkpoints. A change to
+floating-point trajectories, Newton/Jacobian behavior, integration, equations,
+parameters, schemas, topology, or protocols receives a new appropriate
+runtime/release identity and repeats its evidence gates.
+
 Release lifecycle and evidence are separate axes. The first manifest records
 `lifecycleStatus: candidate` and `evidenceStatus: verified-research`, with a
 reference to its curated oracle pack. Version `0.1.0` does not make the model

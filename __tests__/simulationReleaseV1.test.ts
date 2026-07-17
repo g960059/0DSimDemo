@@ -42,9 +42,10 @@ import {
   createMainWireAdultFiveWallNonCoronaryReleaseV1,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_ORACLE_EVIDENCE_SOURCE_V1,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION,
-  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_SOURCE_V1,
+  MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1,
   mainWireAdultFiveWallNonCoronaryReleaseInputV1,
 } from "@/engine/scientific/assembly";
 import {
@@ -141,8 +142,9 @@ describe("SimulationRelease V1", () => {
       snapshot: {
         artifactPath:
           "data/scientific/releases/0.1.0/oracle-pack-v1.json",
-        source: {
+        oracleSource: {
           commitSha: "f229143d5e7cb728227dd41d07d55e186c131063",
+          role: "oracle-evidence-generation-source",
         },
         clinicalValidationClaimed: false,
       },
@@ -165,10 +167,12 @@ describe("SimulationRelease V1", () => {
     const expectedRuntime = normalAdultMainWireRuntimeV1();
     const expectedBloodVolume =
       resolveMainWireNormalAdultBloodVolumeOperatingPointV1(expectedRuntime);
-    expect(scientificSnapshot.implementationProvenance)
-      .toEqual(MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_SOURCE_V1);
-    expect(numericalSnapshot.implementationProvenance)
-      .toEqual(MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_SOURCE_V1);
+    expect(scientificSnapshot).not.toHaveProperty("implementationProvenance");
+    expect(numericalSnapshot).not.toHaveProperty("implementationProvenance");
+    expect(release.manifest.evidence.snapshot.oracleSource)
+      .toEqual(MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_ORACLE_EVIDENCE_SOURCE_V1);
+    expect(numericalSnapshot.numericalContract)
+      .toEqual(MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1);
     expect(scientificSnapshot.mechanics.resolvedNormalAdultPrior)
       .toEqual(NORMAL_ADULT_FIVE_WALL_PRIOR_V1);
     expect(numericalSnapshot.fixedHealthyRuntime).toEqual(expectedRuntime);

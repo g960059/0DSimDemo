@@ -83,14 +83,23 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1 =
     observationPolicy: "explicit-accepted-step-stride-plus-final" as const,
   });
 
-export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_SOURCE_V1 = Object.freeze({
-  repository: "g960059/0DSimDemo" as const,
-  commitSha: "f229143d5e7cb728227dd41d07d55e186c131063" as const,
-  mergedPullRequests: Object.freeze([475, 476, 477, 478] as const),
-  role: "promoted-main-wire-scientific-oracle-source" as const,
-  immutableSourceRequired: true as const,
-  futureReleasePolicy:
-    "update-source-commit-whenever-equation-or-numerical-implementation-changes" as const,
+export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_ORACLE_EVIDENCE_SOURCE_V1 =
+  Object.freeze({
+    repository: "g960059/0DSimDemo" as const,
+    commitSha: "f229143d5e7cb728227dd41d07d55e186c131063" as const,
+    mergedPullRequests: Object.freeze([475, 476, 477, 478] as const),
+    role: "oracle-evidence-generation-source" as const,
+    immutableSourceRequired: true as const,
+    evidenceRefreshPolicy:
+      "regenerate-oracle-pack-when-evidence-source-or-acceptance-set-changes" as const,
+  });
+
+export const MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1 = Object.freeze({
+  id: "main-wire-accepted-state-transition-v1" as const,
+  version: "1.0.0" as const,
+  executableProvenanceScope: "external-build-artifact" as const,
+  compatibilityPolicy:
+    "retain-only-after-locked-suite-bitwise-equivalence" as const,
 });
 
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1 = Object.freeze({
@@ -99,7 +108,8 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1 = Object.freeze({
   artifactPath: "data/scientific/releases/0.1.0/oracle-pack-v1.json" as const,
   artifactSha256:
     "34ea2e7139f1866ab4cd636a1d48a89dc4558c115187cf4b8b2263617b9d7ebb" as const,
-  source: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_SOURCE_V1,
+  oracleSource:
+    MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_ORACLE_EVIDENCE_SOURCE_V1,
   status: "verified-research" as const,
   clinicalValidationClaimed: false as const,
   packLevelSha256Linked: true as const,
@@ -168,7 +178,8 @@ SimulationReleaseManifestInputV1 {
           MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.artifactPath,
         artifactSha256:
           MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.artifactSha256,
-        source: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.source,
+        oracleSource:
+          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.oracleSource,
         clinicalValidationClaimed:
           MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1
             .clinicalValidationClaimed,
@@ -183,8 +194,6 @@ SimulationReleaseManifestInputV1 {
       assemblyId: MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID,
       assemblyVersion: "1.0.0",
       snapshot: {
-        implementationProvenance:
-          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_SOURCE_V1,
         capabilities:
           MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_CAPABILITIES_V1,
         transaction: {
@@ -244,8 +253,8 @@ SimulationReleaseManifestInputV1 {
       solverId: NON_CORONARY_CIRCULATION_BE_V1_ID,
       solverVersion: "1.0.0",
       snapshot: {
-        implementationProvenance:
-          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_SOURCE_V1,
+        numericalContract:
+          MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1,
         circulationSolverId: NON_CORONARY_CIRCULATION_BE_V1_ID,
         fixedHealthyRuntime: runtime,
         mechanicsInternalSolve:
