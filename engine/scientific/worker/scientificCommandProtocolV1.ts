@@ -1,6 +1,11 @@
 import type {
-  MainWireScientificSessionExactCheckpointV1,
+  MainWireScientificPeriodicBeatSummaryV1,
+  MainWireScientificPeriodicSettlementStatusV1,
+  MainWireScientificSessionExactCheckpointV2,
 } from "@/engine/scientific/runtime";
+import type {
+  MainWireFiveWallPeriodicClassificationV1,
+} from "@/engine/myocardium/experiments/MainWireFiveWallPeriodicClosureV1";
 import type {
   SimulationReleaseRef,
 } from "@/engine/scientific/release";
@@ -102,6 +107,40 @@ export type ScientificTransientExecutionProtocolV1 = Readonly<{
   commitPolicy: "each-step-atomic-partial-progress-retained";
 }>;
 
+export type ScientificPeriodicSettlementProgressV1<TObservableFrame> =
+  Readonly<{
+    kind: "periodic-settlement-progress";
+    status: MainWireScientificPeriodicSettlementStatusV1;
+    periodicSteadyStateClaimed: boolean;
+    period2OrbitSuspected: boolean;
+    trackerStartedThisCall: boolean;
+    beatCompletedThisCall: boolean;
+    completedStepCountThisCall: number;
+    completedBeatCount: number;
+    anchorAcceptedTimeSec: number;
+    anchorPhase01: number;
+    periodicity: MainWireFiveWallPeriodicClassificationV1;
+    retainedBeatClosure: readonly MainWireScientificPeriodicBeatSummaryV1[];
+    executionProtocol: Readonly<{
+      protocolId: string;
+      protocolVersion: string;
+      cycleLengthSec: number;
+      dtSec: number;
+      stepsPerBeat: number;
+      maximumBeatCount: number;
+      maximumStepsPerCall: number;
+      maximumBeatCountPerCall: 1;
+      retainedBeatBoundaryCount: number;
+      retainedClosureCount: number;
+      commandProgression: string;
+      hostCancellationBoundary: "between-calls";
+      commitPolicy: "each-step-atomic-partial-progress-retained";
+      failedTrialPromotion: false;
+      trackerCheckpointPolicy: string;
+    }>;
+    finalObservableFrame: TObservableFrame;
+  }>;
+
 export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
   Readonly<{
     createCanonicalSession: Readonly<{
@@ -122,7 +161,7 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
     }>;
     getExactCheckpoint: Readonly<{
       kind: "exactCheckpoint";
-      checkpoint: MainWireScientificSessionExactCheckpointV1;
+      checkpoint: MainWireScientificSessionExactCheckpointV2;
       observableFrame: TObservableFrame;
     }>;
     restoreExactSession: Readonly<{
@@ -133,6 +172,7 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       kind: "sessionDisposed";
       disposedSessionId: string;
     }>;
+    settlePeriodic: ScientificPeriodicSettlementProgressV1<TObservableFrame>;
   }>;
 
 export type ScientificSuccessfulCommandKindV1 =
@@ -171,6 +211,17 @@ export type ScientificTransientPartialProgressV1<TObservableFrame> = Readonly<{
   finalObservableFrame: TObservableFrame;
 }>;
 
+export type ScientificPeriodicSettlementPartialProgressV1<TObservableFrame> =
+  Readonly<{
+    kind: "periodic-settlement-partial-progress";
+    status: "step-failure";
+    completedStepCountThisCall: number;
+    completedBeatCount: 0;
+    periodicTrackerReset: true;
+    acceptedStateUnchangedForFailedStep: true;
+    finalObservableFrame: TObservableFrame;
+  }>;
+
 export type ScientificCommandErrorResponseV1<TObservableFrame> = Readonly<{
   protocolId: typeof SCIENTIFIC_COMMAND_PROTOCOL_V1_ID;
   ok: false;
@@ -186,7 +237,9 @@ export type ScientificCommandErrorResponseV1<TObservableFrame> = Readonly<{
     retryable: false;
     silentFallbackApplied: false;
     observableFrames: readonly TObservableFrame[];
-    partialProgress: ScientificTransientPartialProgressV1<TObservableFrame>
+    partialProgress:
+      | ScientificTransientPartialProgressV1<TObservableFrame>
+      | ScientificPeriodicSettlementPartialProgressV1<TObservableFrame>
       | null;
   }>;
 }>;

@@ -28,7 +28,7 @@ describe("main-wire scientific in-process kernel V1", () => {
       sessionId: "session-1",
       releaseRef: {
         id: "circleheart/adult-five-wall-noncoronary",
-        version: "0.1.0",
+        version: "0.2.0",
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
       },
       sessionOrigin: {
@@ -129,21 +129,33 @@ describe("main-wire scientific in-process kernel V1", () => {
       "session-1",
     ));
     expect(periodic).toMatchObject({
-      ok: false,
+      ok: true,
       releaseRef: created.releaseRef,
-      error: {
-        code: "capability-unavailable",
-        retryable: false,
-        silentFallbackApplied: false,
-        observableFrames: [{ revision: 1 }],
+      payload: {
+        kind: "periodic-settlement-progress",
+        status: "tracking",
+        periodicSteadyStateClaimed: false,
+        trackerStartedThisCall: true,
+        beatCompletedThisCall: true,
+        completedStepCountThisCall: 500,
+        completedBeatCount: 1,
+        anchorAcceptedTimeSec: 0.002,
+        anchorPhase01: 0.002,
+        periodicity: {
+          status: "not-converged",
+          latestBeatIndex: 1,
+        },
+        retainedBeatClosure: [{ beatIndex: 1, period2: null }],
+        finalObservableFrame: { revision: 501 },
       },
+      error: null,
     });
     const afterPeriodic = await kernel.handle(baseCommand(
       "observe",
       "request-observe-after-periodic",
       "session-1",
     ));
-    expect(frameRevision(afterPeriodic)).toBe(frameRevision(beforePeriodic));
+    expect(frameRevision(afterPeriodic)).toBe(frameRevision(beforePeriodic) + 500);
 
     const checkpointResponse = await kernel.handle(baseCommand(
       "getExactCheckpoint",
@@ -156,6 +168,16 @@ describe("main-wire scientific in-process kernel V1", () => {
     }
     expect(checkpointResponse.payload.checkpoint.checkpointSha256)
       .toMatch(/^[0-9a-f]{64}$/);
+    expect(checkpointResponse.payload.checkpoint).toMatchObject({
+      checkpointId: "main-wire-scientific-session-exact-checkpoint-v2",
+      schemaVersion: 2,
+      periodicSettlementTracker: {
+        completedBeatCount: 1,
+        boundaryTransactions: expect.arrayContaining([
+          expect.objectContaining({ revision: 501 }),
+        ]),
+      },
+    });
     expect(structuredClone(checkpointResponse)).toEqual(checkpointResponse);
     const canonicalRelease =
       await createMainWireAdultFiveWallNonCoronaryReleaseV1();
@@ -177,7 +199,7 @@ describe("main-wire scientific in-process kernel V1", () => {
       },
       payload: {
         kind: "sessionRestored",
-        observableFrame: { revision: 1, source: "exact-checkpoint-restore" },
+        observableFrame: { revision: 501, source: "exact-checkpoint-restore" },
       },
     });
     expect(structuredClone(restored)).toEqual(restored);
@@ -226,7 +248,9 @@ describe("main-wire scientific in-process kernel V1", () => {
       internalSessionObjectsReturned: false,
       silentFallbackApplied: false,
       legacyBackendFallbackAvailable: false,
-      periodicSettlementCapability: "unavailable-in-foundation-slice",
+      periodicSettlementCapability:
+        "release-bound-one-beat-progress-per-command",
+      periodicSettlementHostCancellationBoundary: "between-commands",
     });
   }, 120_000);
 

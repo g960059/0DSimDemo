@@ -22,6 +22,18 @@ import {
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
+  classifyMainWireFiveWallPeriodicityV1,
+  compareMainWireFiveWallAcceptedStatesV1,
+  MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
+  type MainWireFiveWallPeriodicBeatObservationV1,
+  type MainWireFiveWallPeriodicClassificationV1,
+  type MainWireFiveWallPeriodicClosureReportV1,
+} from "@/engine/myocardium/experiments/MainWireFiveWallPeriodicClosureV1";
+import {
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+import {
   resolveMainWireNormalAdultBloodVolumeOperatingPointV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
 import {
@@ -50,8 +62,29 @@ import {
 export const MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID =
   "main-wire-scientific-session-v1" as const;
 
-export const MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V1_ID =
-  "main-wire-scientific-session-exact-checkpoint-v1" as const;
+export const MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V2_ID =
+  "main-wire-scientific-session-exact-checkpoint-v2" as const;
+
+export const MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1 = Object.freeze({
+  protocolId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID,
+  protocolVersion: "1.0.0" as const,
+  cycleLengthSec: 1 as const,
+  dtSec: 0.002 as const,
+  stepsPerBeat: 500 as const,
+  maximumBeatCount: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1
+    .defaultMaximumBeatCount,
+  maximumStepsPerCall: 500 as const,
+  maximumBeatCountPerCall: 1 as const,
+  retainedBeatBoundaryCount: 5 as const,
+  retainedClosureCount: 3 as const,
+  commandProgression:
+    "advance-exactly-one-complete-beat-per-call-at-fixed-session-anchor-phase" as const,
+  hostCancellationBoundary: "between-calls" as const,
+  commitPolicy: "each-step-atomic-partial-progress-retained" as const,
+  failedTrialPromotion: false as const,
+  trackerCheckpointPolicy:
+    "exact-command-continuation-stored-in-v2-checkpoint" as const,
+});
 
 /**
  * Transitional vertical slice: one fixed, healthy, five-wall/noncoronary
@@ -76,6 +109,10 @@ export const MAIN_WIRE_SCIENTIFIC_SESSION_V1_CLAIM = Object.freeze({
   failureSemantics: "retain-last-accepted-session-state" as const,
   checkpointKind: "exact-resume-not-warm-start-seed" as const,
   checkpointOuterIntegrity: "canonical-json-sha256" as const,
+  periodicSettlement:
+    MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.commandProgression,
+  periodicTrackerCheckpointPolicy:
+    MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.trackerCheckpointPolicy,
   legacyInnerTransactionFingerprint:
     "transition-compatibility-only-non-authoritative" as const,
 });
@@ -124,13 +161,24 @@ export type MainWireScientificSessionObservationV1 = Readonly<{
   }>;
 }>;
 
-export type MainWireScientificSessionExactCheckpointV1 = Readonly<{
-  checkpointId:
-    typeof MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V1_ID;
+export type MainWireScientificSessionPeriodicTrackerCheckpointV1 = Readonly<{
+  trackerCheckpointId: "main-wire-periodic-settlement-tracker-checkpoint-v1";
   schemaVersion: 1;
+  anchorAcceptedTimeSec: number;
+  anchorPhase01: number;
+  completedBeatCount: number;
+  boundaryTransactions: readonly MainWireFiveWallNonCoronaryCheckpointV1[];
+}>;
+
+export type MainWireScientificSessionExactCheckpointV2 = Readonly<{
+  checkpointId:
+    typeof MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V2_ID;
+  schemaVersion: 2;
   releaseRef: SimulationReleaseRef;
   assembly: typeof MAIN_WIRE_SCIENTIFIC_SESSION_V1_CLAIM.assembly;
   transaction: MainWireFiveWallNonCoronaryCheckpointV1;
+  periodicSettlementTracker:
+    MainWireScientificSessionPeriodicTrackerCheckpointV1 | null;
   claim: Readonly<{
     exactReleaseRequired: true;
     semanticReresolutionAllowedHere: false;
@@ -138,12 +186,14 @@ export type MainWireScientificSessionExactCheckpointV1 = Readonly<{
     outerIntegrity: "canonical-json-sha256";
     innerTransactionFingerprint:
       "transition-compatibility-only-non-authoritative";
+    periodicSettlementTrackerStored: true;
+    periodicSettlementExactCommandContinuation: true;
   }>;
   checkpointSha256: string;
 }>;
 
-type MainWireScientificSessionExactCheckpointPayloadV1 = Omit<
-  MainWireScientificSessionExactCheckpointV1,
+type MainWireScientificSessionExactCheckpointPayloadV2 = Omit<
+  MainWireScientificSessionExactCheckpointV2,
   "checkpointSha256"
 >;
 
@@ -174,6 +224,67 @@ export type MainWireScientificSessionTransientResultV1 = Readonly<{
   >;
 }>;
 
+export type MainWireScientificPeriodicClosureSummaryV1 = Readonly<{
+  maximumNormalizedDelta: number;
+  worstGroup: MainWireFiveWallPeriodicClosureReportV1["overall"]["worstGroup"];
+  worstPath: string;
+  elapsedTimeSec: number;
+}>;
+
+export type MainWireScientificPeriodicBeatSummaryV1 = Readonly<{
+  beatIndex: number;
+  period1: MainWireScientificPeriodicClosureSummaryV1 | null;
+  period2: MainWireScientificPeriodicClosureSummaryV1 | null;
+}>;
+
+export type MainWireScientificPeriodicSettlementStatusV1 =
+  | "tracking"
+  | "period1-converged"
+  | "period2-suspect"
+  | "maximum-beats-reached";
+
+export type MainWireScientificPeriodicSettlementResultV1 =
+  | Readonly<{
+    completed: true;
+    status: MainWireScientificPeriodicSettlementStatusV1;
+    periodicSteadyStateClaimed: boolean;
+    period2OrbitSuspected: boolean;
+    trackerStartedThisCall: boolean;
+    beatCompletedThisCall: boolean;
+    completedStepCountThisCall: number;
+    completedBeatCount: number;
+    anchorAcceptedTimeSec: number;
+    anchorPhase01: number;
+    periodicity: MainWireFiveWallPeriodicClassificationV1;
+    retainedBeatClosure: readonly MainWireScientificPeriodicBeatSummaryV1[];
+    finalObservation: MainWireScientificSessionObservationV1;
+    executionProtocol: typeof MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1;
+  }>
+  | Readonly<{
+    completed: false;
+    status: "step-failure";
+    message: string;
+    acceptedStateUnchangedForFailedStep: true;
+    periodicTrackerReset: true;
+    completedStepCountThisCall: number;
+    completedBeatCount: 0;
+    anchorAcceptedTimeSec: null;
+    anchorPhase01: null;
+    finalObservation: MainWireScientificSessionObservationV1;
+    failure: MainWireScientificSessionStepResultV1 | null;
+    executionProtocol: typeof MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1;
+  }>;
+
+type PeriodicSettlementTracker = {
+  anchorAcceptedTimeSec: number;
+  anchorPhase01: number;
+  boundaryStates: AcceptedState[];
+  observations: MainWireFiveWallPeriodicBeatObservationV1[];
+  completedBeatCount: number;
+  status: MainWireScientificPeriodicSettlementStatusV1;
+  classification: MainWireFiveWallPeriodicClassificationV1;
+};
+
 type FixedAssemblyDependencies = Readonly<{
   provider: MainWireNormalAdultFiveWallProviderV1;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
@@ -188,12 +299,14 @@ export class MainWireScientificSessionV1 {
   private readonly dependencies: FixedAssemblyDependencies;
   private acceptedState: AcceptedState;
   private lastObservation: MainWireScientificSessionObservationV1;
+  private periodicSettlementTracker: PeriodicSettlementTracker | null = null;
 
   private constructor(
     releaseRef: SimulationReleaseRef,
     dependencies: FixedAssemblyDependencies,
     acceptedState: AcceptedState,
     observation: MainWireScientificSessionObservationV1,
+    periodicSettlementTracker: PeriodicSettlementTracker | null = null,
   ) {
     assertObservationMatchesAcceptedState(
       releaseRef,
@@ -204,6 +317,7 @@ export class MainWireScientificSessionV1 {
     this.dependencies = dependencies;
     this.acceptedState = acceptedState;
     this.lastObservation = observation;
+    this.periodicSettlementTracker = periodicSettlementTracker;
   }
 
   static async initialize(
@@ -232,11 +346,17 @@ export class MainWireScientificSessionV1 {
       dependencies.provider,
       validatedCheckpoint.transaction,
     );
+    const periodicSettlementTracker = restorePeriodicTracker(
+      dependencies.provider,
+      acceptedState,
+      validatedCheckpoint.periodicSettlementTracker,
+    );
     return new MainWireScientificSessionV1(
       release.ref,
       dependencies,
       acceptedState,
       restoredObservation(release.ref, acceptedState),
+      periodicSettlementTracker,
     );
   }
 
@@ -257,6 +377,49 @@ export class MainWireScientificSessionV1 {
   }
 
   step(dtSec: number): MainWireScientificSessionStepResultV1 {
+    return this.advanceAcceptedStep(dtSec, true);
+  }
+
+  /**
+   * Performs one bounded periodic-settlement chunk. Every active call advances
+   * exactly one complete beat at the command-start phase anchor, so the host
+   * can observe progress or cancel between calls without a hidden long loop.
+   */
+  settlePeriodic(): MainWireScientificPeriodicSettlementResultV1 {
+    if (this.periodicSettlementTracker !== null) {
+      const terminal = this.periodicSettlementTracker.status !== "tracking";
+      if (terminal) return this.periodicSuccess(false, false, 0);
+      const latestBoundary = this.periodicSettlementTracker.boundaryStates.at(-1);
+      if (latestBoundary !== this.acceptedState) {
+        this.periodicSettlementTracker = null;
+      }
+    }
+
+    let trackerStartedThisCall = false;
+    if (this.periodicSettlementTracker === null) {
+      this.periodicSettlementTracker = newPeriodicTracker(this.acceptedState);
+      trackerStartedThisCall = true;
+    }
+
+    const advanced = this.advancePeriodicSteps(
+      MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.stepsPerBeat,
+    );
+    if (advanced.failure !== null) {
+      this.periodicSettlementTracker = null;
+      return periodicStepFailure(advanced.completedStepCount, advanced.failure);
+    }
+    this.recordPeriodicBeatBoundary();
+    return this.periodicSuccess(
+      trackerStartedThisCall,
+      true,
+      advanced.completedStepCount,
+    );
+  }
+
+  private advanceAcceptedStep(
+    dtSec: number,
+    invalidatePeriodicTrackerOnSuccess: boolean,
+  ): MainWireScientificSessionStepResultV1 {
     const before = this.acceptedState;
     let stepped;
     try {
@@ -317,11 +480,103 @@ export class MainWireScientificSessionV1 {
         observation: this.lastObservation,
       });
     }
+    if (invalidatePeriodicTrackerOnSuccess) {
+      this.periodicSettlementTracker = null;
+    }
     this.acceptedState = stepped.acceptedState;
     this.lastObservation = observation;
     return Object.freeze({
       converged: true as const,
       observation,
+    });
+  }
+
+  private advancePeriodicSteps(stepCount: number): Readonly<{
+    completedStepCount: number;
+    failure: Extract<
+      MainWireScientificSessionStepResultV1,
+      Readonly<{ converged: false }>
+    > | null;
+  }> {
+    for (let index = 0; index < stepCount; index += 1) {
+      const result = this.advanceAcceptedStep(
+        MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.dtSec,
+        false,
+      );
+      if (result.converged === false) {
+        return Object.freeze({
+          completedStepCount: index,
+          failure: result,
+        });
+      }
+    }
+    return Object.freeze({ completedStepCount: stepCount, failure: null });
+  }
+
+  private recordPeriodicBeatBoundary(): void {
+    const tracker = this.periodicSettlementTracker;
+    if (tracker === null) throw new Error("periodic tracker is unavailable");
+    const previous = tracker.boundaryStates.at(-1);
+    if (previous === undefined) throw new Error("periodic tracker lacks a boundary");
+    const period1 = compareMainWireFiveWallAcceptedStatesV1(
+      this.acceptedState,
+      previous,
+      MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
+    );
+    const period2Reference = tracker.boundaryStates.at(-2);
+    const period2 = period2Reference === undefined
+      ? null
+      : compareMainWireFiveWallAcceptedStatesV1(
+        this.acceptedState,
+        period2Reference,
+        MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
+      );
+    tracker.completedBeatCount += 1;
+    tracker.observations.push(Object.freeze({
+      beatIndex: tracker.completedBeatCount,
+      period1,
+      period2,
+    }));
+    tracker.boundaryStates.push(this.acceptedState);
+    trimFront(
+      tracker.observations,
+      MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.retainedClosureCount,
+    );
+    trimFront(
+      tracker.boundaryStates,
+      MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.retainedBeatBoundaryCount,
+    );
+    tracker.classification = classifyPeriodicTracker(tracker.observations);
+    tracker.status = periodicStatus(
+      tracker.classification,
+      tracker.completedBeatCount,
+    );
+  }
+
+  private periodicSuccess(
+    trackerStartedThisCall: boolean,
+    beatCompletedThisCall: boolean,
+    completedStepCountThisCall: number,
+  ): Extract<MainWireScientificPeriodicSettlementResultV1, { completed: true }> {
+    const tracker = this.periodicSettlementTracker;
+    if (tracker === null) throw new Error("periodic tracker is unavailable");
+    return Object.freeze({
+      completed: true as const,
+      status: tracker.status,
+      periodicSteadyStateClaimed: tracker.status === "period1-converged",
+      period2OrbitSuspected: tracker.status === "period2-suspect",
+      trackerStartedThisCall,
+      beatCompletedThisCall,
+      completedStepCountThisCall,
+      completedBeatCount: tracker.completedBeatCount,
+      anchorAcceptedTimeSec: tracker.anchorAcceptedTimeSec,
+      anchorPhase01: tracker.anchorPhase01,
+      periodicity: copyPeriodicClassification(tracker.classification),
+      retainedBeatClosure: Object.freeze(
+        tracker.observations.map(periodicBeatSummary),
+      ),
+      finalObservation: this.lastObservation,
+      executionProtocol: MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1,
     });
   }
 
@@ -357,15 +612,19 @@ export class MainWireScientificSessionV1 {
     });
   }
 
-  async checkpointExact(): Promise<MainWireScientificSessionExactCheckpointV1> {
+  async checkpointExact(): Promise<MainWireScientificSessionExactCheckpointV2> {
     const payload = exactCheckpointPayload({
-      checkpointId: MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V1_ID,
-      schemaVersion: 1 as const,
+      checkpointId: MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V2_ID,
+      schemaVersion: 2 as const,
       releaseRef: copyReleaseRef(this.releaseRef),
       assembly: MAIN_WIRE_SCIENTIFIC_SESSION_V1_CLAIM.assembly,
       transaction: checkpointMainWireFiveWallNonCoronaryV1(
         this.dependencies.provider,
         this.acceptedState,
+      ),
+      periodicSettlementTracker: checkpointPeriodicTracker(
+        this.dependencies.provider,
+        this.periodicSettlementTracker,
       ),
       claim: Object.freeze({
         exactReleaseRequired: true as const,
@@ -374,6 +633,8 @@ export class MainWireScientificSessionV1 {
         outerIntegrity: "canonical-json-sha256" as const,
         innerTransactionFingerprint:
           "transition-compatibility-only-non-authoritative" as const,
+        periodicSettlementTrackerStored: true as const,
+        periodicSettlementExactCommandContinuation: true as const,
       }),
     });
     return Object.freeze({
@@ -419,7 +680,7 @@ export async function initializeMainWireScientificSessionV1(
   return MainWireScientificSessionV1.initialize(untrustedRelease);
 }
 
-export async function restoreMainWireScientificSessionExactV1(
+export async function restoreMainWireScientificSessionExactV2(
   untrustedRelease: unknown,
   checkpoint: unknown,
 ): Promise<MainWireScientificSessionV1> {
@@ -427,6 +688,260 @@ export async function restoreMainWireScientificSessionExactV1(
     untrustedRelease,
     checkpoint,
   );
+}
+
+function newPeriodicTracker(state: AcceptedState): PeriodicSettlementTracker {
+  const observations: MainWireFiveWallPeriodicBeatObservationV1[] = [];
+  return {
+    anchorAcceptedTimeSec: state.acceptedTimeSec,
+    anchorPhase01: cyclePhase01(state.acceptedTimeSec),
+    boundaryStates: [state],
+    observations,
+    completedBeatCount: 0,
+    status: "tracking",
+    classification: classifyPeriodicTracker(observations),
+  };
+}
+
+function checkpointPeriodicTracker(
+  provider: MainWireNormalAdultFiveWallProviderV1,
+  tracker: PeriodicSettlementTracker | null,
+): MainWireScientificSessionPeriodicTrackerCheckpointV1 | null {
+  if (tracker === null) return null;
+  return Object.freeze({
+    trackerCheckpointId:
+      "main-wire-periodic-settlement-tracker-checkpoint-v1" as const,
+    schemaVersion: 1 as const,
+    anchorAcceptedTimeSec: tracker.anchorAcceptedTimeSec,
+    anchorPhase01: tracker.anchorPhase01,
+    completedBeatCount: tracker.completedBeatCount,
+    boundaryTransactions: Object.freeze(tracker.boundaryStates.map((state) =>
+      checkpointMainWireFiveWallNonCoronaryV1(provider, state))),
+  });
+}
+
+function restorePeriodicTracker(
+  provider: MainWireNormalAdultFiveWallProviderV1,
+  acceptedState: AcceptedState,
+  checkpoint: MainWireScientificSessionPeriodicTrackerCheckpointV1 | null,
+): PeriodicSettlementTracker | null {
+  if (checkpoint === null) return null;
+  if (!isRecord(checkpoint) || !hasExactKeys(checkpoint, [
+    "trackerCheckpointId",
+    "schemaVersion",
+    "anchorAcceptedTimeSec",
+    "anchorPhase01",
+    "completedBeatCount",
+    "boundaryTransactions",
+  ])) throw new Error("periodic settlement tracker checkpoint mismatch");
+  if (
+    checkpoint.trackerCheckpointId
+      !== "main-wire-periodic-settlement-tracker-checkpoint-v1"
+    || checkpoint.schemaVersion !== 1
+    || !Number.isFinite(checkpoint.anchorAcceptedTimeSec)
+    || checkpoint.anchorAcceptedTimeSec < 0
+    || !Number.isFinite(checkpoint.anchorPhase01)
+    || checkpoint.anchorPhase01 < 0
+    || checkpoint.anchorPhase01 >= 1
+    || !Number.isSafeInteger(checkpoint.completedBeatCount)
+    || checkpoint.completedBeatCount < 0
+    || checkpoint.completedBeatCount
+      > MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.maximumBeatCount
+    || !Array.isArray(checkpoint.boundaryTransactions)
+  ) throw new Error("periodic settlement tracker checkpoint mismatch");
+  const expectedBoundaryCount = Math.min(
+    checkpoint.completedBeatCount + 1,
+    MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.retainedBeatBoundaryCount,
+  );
+  if (checkpoint.boundaryTransactions.length !== expectedBoundaryCount) {
+    throw new Error("periodic settlement tracker boundary count mismatch");
+  }
+  if (
+    cyclePhaseDistance(
+      cyclePhase01(checkpoint.anchorAcceptedTimeSec),
+      checkpoint.anchorPhase01,
+    ) > 1e-12
+  ) throw new Error("periodic settlement tracker anchor phase mismatch");
+  const boundaryStates = checkpoint.boundaryTransactions.map((transaction) =>
+    restoreMainWireFiveWallNonCoronaryV1(provider, transaction));
+  const latestTransaction = checkpoint.boundaryTransactions.at(-1)!;
+  const acceptedTransaction = checkpointMainWireFiveWallNonCoronaryV1(
+    provider,
+    acceptedState,
+  );
+  if (
+    latestTransaction.checkpointFingerprint
+      !== acceptedTransaction.checkpointFingerprint
+  ) throw new Error("periodic settlement tracker terminal state mismatch");
+  boundaryStates[boundaryStates.length - 1] = acceptedState;
+  const expectedTerminalTimeSec = checkpoint.anchorAcceptedTimeSec
+    + checkpoint.completedBeatCount
+      * MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.cycleLengthSec;
+  if (Math.abs(acceptedState.acceptedTimeSec - expectedTerminalTimeSec) > 1e-9) {
+    throw new Error("periodic settlement tracker terminal time mismatch");
+  }
+  for (let index = 0; index < boundaryStates.length; index += 1) {
+    const state = boundaryStates[index]!;
+    const expectedPhase = checkpoint.anchorPhase01;
+    if (cyclePhaseDistance(cyclePhase01(state.acceptedTimeSec), expectedPhase) > 1e-9) {
+      throw new Error("periodic settlement tracker boundary phase mismatch");
+    }
+    if (index > 0) {
+      const elapsed = state.acceptedTimeSec
+        - boundaryStates[index - 1]!.acceptedTimeSec;
+      if (Math.abs(
+        elapsed - MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.cycleLengthSec
+      ) > 1e-9) {
+        throw new Error("periodic settlement tracker boundary spacing mismatch");
+      }
+      if (
+        state.revision - boundaryStates[index - 1]!.revision
+          !== MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.stepsPerBeat
+      ) throw new Error("periodic settlement tracker revision spacing mismatch");
+    }
+  }
+  const observations = periodicObservationsFromBoundaries(
+    boundaryStates,
+    checkpoint.completedBeatCount,
+  );
+  const classification = classifyPeriodicTracker(observations);
+  return {
+    anchorAcceptedTimeSec: checkpoint.anchorAcceptedTimeSec,
+    anchorPhase01: checkpoint.anchorPhase01,
+    boundaryStates,
+    observations,
+    completedBeatCount: checkpoint.completedBeatCount,
+    status: periodicStatus(classification, checkpoint.completedBeatCount),
+    classification,
+  };
+}
+
+function periodicObservationsFromBoundaries(
+  boundaryStates: readonly AcceptedState[],
+  completedBeatCount: number,
+): MainWireFiveWallPeriodicBeatObservationV1[] {
+  const firstBoundaryBeatIndex = completedBeatCount - boundaryStates.length + 1;
+  const observations: MainWireFiveWallPeriodicBeatObservationV1[] = [];
+  for (let index = 1; index < boundaryStates.length; index += 1) {
+    const current = boundaryStates[index]!;
+    const period1 = compareMainWireFiveWallAcceptedStatesV1(
+      current,
+      boundaryStates[index - 1]!,
+      MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
+    );
+    const period2 = index >= 2
+      ? compareMainWireFiveWallAcceptedStatesV1(
+        current,
+        boundaryStates[index - 2]!,
+        MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
+      )
+      : null;
+    observations.push(Object.freeze({
+      beatIndex: firstBoundaryBeatIndex + index,
+      period1,
+      period2,
+    }));
+  }
+  trimFront(
+    observations,
+    MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.retainedClosureCount,
+  );
+  return observations;
+}
+
+function cyclePhase01(timeSec: number): number {
+  const cycleLengthSec =
+    MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.cycleLengthSec;
+  const raw = timeSec / cycleLengthSec;
+  const phase = raw - Math.floor(raw);
+  return phase >= 1 - 1e-12 || phase < 1e-12 ? 0 : phase;
+}
+
+function cyclePhaseDistance(left: number, right: number): number {
+  const direct = Math.abs(left - right);
+  return Math.min(direct, 1 - direct);
+}
+
+function classifyPeriodicTracker(
+  observations: readonly MainWireFiveWallPeriodicBeatObservationV1[],
+): MainWireFiveWallPeriodicClassificationV1 {
+  return classifyMainWireFiveWallPeriodicityV1(
+    observations,
+    MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
+  );
+}
+
+function periodicStatus(
+  classification: MainWireFiveWallPeriodicClassificationV1,
+  completedBeatCount: number,
+): MainWireScientificPeriodicSettlementStatusV1 {
+  if (classification.status === "period1-converged") {
+    return "period1-converged";
+  }
+  if (classification.status === "period2-suspect") return "period2-suspect";
+  if (
+    completedBeatCount
+      >= MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1.maximumBeatCount
+  ) return "maximum-beats-reached";
+  return "tracking";
+}
+
+function periodicStepFailure(
+  completedStepCountThisCall: number,
+  failure: Extract<
+    MainWireScientificSessionStepResultV1,
+    Readonly<{ converged: false }>
+  >,
+): Extract<MainWireScientificPeriodicSettlementResultV1, { completed: false }> {
+  return Object.freeze({
+    completed: false as const,
+    status: "step-failure" as const,
+    message: failure.message,
+    acceptedStateUnchangedForFailedStep: true as const,
+    periodicTrackerReset: true as const,
+    completedStepCountThisCall,
+    completedBeatCount: 0 as const,
+    anchorAcceptedTimeSec: null,
+    anchorPhase01: null,
+    finalObservation: failure.observation,
+    failure,
+    executionProtocol: MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1,
+  });
+}
+
+function periodicBeatSummary(
+  observation: MainWireFiveWallPeriodicBeatObservationV1,
+): MainWireScientificPeriodicBeatSummaryV1 {
+  return Object.freeze({
+    beatIndex: observation.beatIndex,
+    period1: periodicClosureSummary(observation.period1),
+    period2: periodicClosureSummary(observation.period2),
+  });
+}
+
+function periodicClosureSummary(
+  report: MainWireFiveWallPeriodicClosureReportV1 | null,
+): MainWireScientificPeriodicClosureSummaryV1 | null {
+  if (report === null) return null;
+  return Object.freeze({
+    maximumNormalizedDelta: report.overall.maximumNormalizedDelta,
+    worstGroup: report.overall.worstGroup,
+    worstPath: report.overall.worstPath,
+    elapsedTimeSec: report.elapsedTimeSec,
+  });
+}
+
+function copyPeriodicClassification(
+  classification: MainWireFiveWallPeriodicClassificationV1,
+): MainWireFiveWallPeriodicClassificationV1 {
+  return Object.freeze({
+    ...classification,
+    evidenceBeatIndices: Object.freeze([...classification.evidenceBeatIndices]),
+  });
+}
+
+function trimFront<T>(values: T[], maximumLength: number): void {
+  while (values.length > maximumLength) values.shift();
 }
 
 async function loadFixedAssemblyRelease(
@@ -595,7 +1110,7 @@ function restoredObservation(
 async function validateExactCheckpointEnvelope(
   expectedReleaseRef: SimulationReleaseRef,
   checkpoint: unknown,
-): Promise<MainWireScientificSessionExactCheckpointV1> {
+): Promise<MainWireScientificSessionExactCheckpointV2> {
   if (
     !isRecord(checkpoint)
     || !hasExactKeys(checkpoint, [
@@ -604,6 +1119,7 @@ async function validateExactCheckpointEnvelope(
       "releaseRef",
       "assembly",
       "transaction",
+      "periodicSettlementTracker",
       "claim",
       "checkpointSha256",
     ])
@@ -615,6 +1131,8 @@ async function validateExactCheckpointEnvelope(
       "derivedObservationStored",
       "outerIntegrity",
       "innerTransactionFingerprint",
+      "periodicSettlementTrackerStored",
+      "periodicSettlementExactCommandContinuation",
     ])
   ) {
     throw new Error("scientific session exact-checkpoint envelope mismatch");
@@ -622,8 +1140,8 @@ async function validateExactCheckpointEnvelope(
   const releaseIssues = simulationReleaseRefIssuesV1(checkpoint.releaseRef);
   if (
     checkpoint.checkpointId
-      !== MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V1_ID
-    || checkpoint.schemaVersion !== 1
+      !== MAIN_WIRE_SCIENTIFIC_SESSION_EXACT_CHECKPOINT_V2_ID
+    || checkpoint.schemaVersion !== 2
     || checkpoint.assembly !== MAIN_WIRE_SCIENTIFIC_SESSION_V1_CLAIM.assembly
     || checkpoint.claim.exactReleaseRequired !== true
     || checkpoint.claim.semanticReresolutionAllowedHere !== false
@@ -631,6 +1149,12 @@ async function validateExactCheckpointEnvelope(
     || checkpoint.claim.outerIntegrity !== "canonical-json-sha256"
     || checkpoint.claim.innerTransactionFingerprint
       !== "transition-compatibility-only-non-authoritative"
+    || checkpoint.claim.periodicSettlementTrackerStored !== true
+    || checkpoint.claim.periodicSettlementExactCommandContinuation !== true
+    || (
+      checkpoint.periodicSettlementTracker !== null
+      && !isRecord(checkpoint.periodicSettlementTracker)
+    )
     || typeof checkpoint.checkpointSha256 !== "string"
     || !SHA256_HEX_PATTERN.test(checkpoint.checkpointSha256)
     || releaseIssues.length > 0
@@ -642,7 +1166,7 @@ async function validateExactCheckpointEnvelope(
     throw new Error("scientific session release identity mismatch");
   }
   const typed = checkpoint as unknown as
-    MainWireScientificSessionExactCheckpointV1;
+    MainWireScientificSessionExactCheckpointV2;
   const { checkpointSha256, ...payload } = typed;
   const expectedCheckpointSha256 = await sha256CanonicalJsonHex(payload);
   if (checkpointSha256 !== expectedCheckpointSha256) {
@@ -652,8 +1176,8 @@ async function validateExactCheckpointEnvelope(
 }
 
 function exactCheckpointPayload(
-  payload: MainWireScientificSessionExactCheckpointPayloadV1,
-): MainWireScientificSessionExactCheckpointPayloadV1 {
+  payload: MainWireScientificSessionExactCheckpointPayloadV2,
+): MainWireScientificSessionExactCheckpointPayloadV2 {
   return Object.freeze(payload);
 }
 

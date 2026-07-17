@@ -33,6 +33,7 @@ import {
   type ScientificSuccessfulCommandKindV1,
   type ScientificTransientExecutionProtocolV1,
   type ScientificTransientPartialProgressV1,
+  type ScientificPeriodicSettlementPartialProgressV1,
   type ScientificCommandV1,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
 
@@ -54,7 +55,9 @@ export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM = Object.freeze({
   internalSessionObjectsReturned: false as const,
   silentFallbackApplied: false as const,
   legacyBackendFallbackAvailable: false as const,
-  periodicSettlementCapability: "unavailable-in-foundation-slice" as const,
+  periodicSettlementCapability:
+    "release-bound-one-beat-progress-per-command" as const,
+  periodicSettlementHostCancellationBoundary: "between-commands" as const,
 });
 
 export type MainWireScientificCommandResponseV1 =
@@ -273,7 +276,7 @@ export class MainWireScientificInProcessKernelV1 {
       case "disposeSession":
         return this.dispose(command);
       case "settlePeriodic":
-        return this.periodicUnavailable(command);
+        return this.settlePeriodic(command);
     }
   }
 
@@ -455,20 +458,55 @@ export class MainWireScientificInProcessKernelV1 {
     return response;
   }
 
-  private periodicUnavailable(
+  private settlePeriodic(
     command: Extract<ScientificCommandV1, { kind: "settlePeriodic" }>,
   ): MainWireScientificCommandResponseV1 {
     const session = this.sessions.get(command.sessionId);
     if (session === undefined) return unknownSession(command);
-    return errorResponseForCommand(
+    const sessionOrigin = this.requiredSessionOrigin(command.sessionId);
+    const settlement = session.settlePeriodic();
+    const finalObservableFrame = project(session);
+    if (settlement.completed === false) {
+      return errorResponseForCommand(
+        command,
+        "simulation-step-failed",
+        settlement.message,
+        {
+          releaseRef: session.releaseRef,
+          sessionOrigin,
+          observableFrames: Object.freeze([finalObservableFrame]),
+          partialProgress: Object.freeze({
+            kind: "periodic-settlement-partial-progress" as const,
+            status: settlement.status,
+            completedStepCountThisCall: settlement.completedStepCountThisCall,
+            completedBeatCount: 0 as const,
+            periodicTrackerReset: true as const,
+            acceptedStateUnchangedForFailedStep: true as const,
+            finalObservableFrame,
+          }),
+        },
+      );
+    }
+    return successResponse(
       command,
-      "capability-unavailable",
-      "settlePeriodic is unavailable in the foundation slice",
-      {
-        releaseRef: session.releaseRef,
-        sessionOrigin: this.requiredSessionOrigin(command.sessionId),
-        observableFrames: Object.freeze([project(session)]),
-      },
+      session.releaseRef,
+      sessionOrigin,
+      Object.freeze({
+        kind: "periodic-settlement-progress" as const,
+        status: settlement.status,
+        periodicSteadyStateClaimed: settlement.periodicSteadyStateClaimed,
+        period2OrbitSuspected: settlement.period2OrbitSuspected,
+        trackerStartedThisCall: settlement.trackerStartedThisCall,
+        beatCompletedThisCall: settlement.beatCompletedThisCall,
+        completedStepCountThisCall: settlement.completedStepCountThisCall,
+        completedBeatCount: settlement.completedBeatCount,
+        anchorAcceptedTimeSec: settlement.anchorAcceptedTimeSec,
+        anchorPhase01: settlement.anchorPhase01,
+        periodicity: settlement.periodicity,
+        retainedBeatClosure: settlement.retainedBeatClosure,
+        executionProtocol: settlement.executionProtocol,
+        finalObservableFrame,
+      }),
     );
   }
 
@@ -890,9 +928,14 @@ function errorResponseForCommand(
     releaseRef?: SimulationReleaseRef | null;
     sessionOrigin?: ScientificSessionOriginV1 | null;
     observableFrames?: readonly MainWireScientificObservableFrameV1[];
-    partialProgress?: ScientificTransientPartialProgressV1<
-      MainWireScientificObservableFrameV1
-    > | null;
+    partialProgress?:
+      | ScientificTransientPartialProgressV1<
+        MainWireScientificObservableFrameV1
+      >
+      | ScientificPeriodicSettlementPartialProgressV1<
+        MainWireScientificObservableFrameV1
+      >
+      | null;
   }> = {},
 ): ScientificCommandErrorResponseV1<MainWireScientificObservableFrameV1> {
   return errorResponse(
@@ -918,9 +961,14 @@ function errorResponse(
   message: string,
   observableFrames: readonly MainWireScientificObservableFrameV1[] =
     Object.freeze([]),
-  partialProgress: ScientificTransientPartialProgressV1<
-    MainWireScientificObservableFrameV1
-  > | null = null,
+  partialProgress:
+    | ScientificTransientPartialProgressV1<
+      MainWireScientificObservableFrameV1
+    >
+    | ScientificPeriodicSettlementPartialProgressV1<
+      MainWireScientificObservableFrameV1
+    >
+    | null = null,
 ): ScientificCommandErrorResponseV1<MainWireScientificObservableFrameV1> {
   return Object.freeze({
     protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
