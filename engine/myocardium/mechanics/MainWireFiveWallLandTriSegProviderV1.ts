@@ -36,6 +36,13 @@ export const MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM = Object.freeze({
   internalUnknowns: Object.freeze(["V_m_S", "y_m"] as const),
   residual:
     "algorithmic-virtual-work-gradient-times-coordinate-scale-divided-by-one-joule" as const,
+  trialMaterialLinearization:
+    "exact-one-step-BE-consistent-material-tangent" as const,
+  trialGeometryLinearization:
+    "central-finite-difference-with-center-material-tangent" as const,
+  coldOrMissingTangentFallback:
+    "full-constitutive-central-finite-difference" as const,
+  /** Retained as true because both the fast and fallback paths finite-difference geometry. */
   finiteDifferenceJacobian: true as const,
   localStableEquilibriumRequired: true as const,
   algorithmicJacobianSymmetryRequired: true as const,
@@ -73,6 +80,8 @@ export type MainWireFiveWallMaterialEvaluationV1<TWallState> = Readonly<{
   state: TWallState;
   fiberLogStrain: number;
   fiberKirchhoffStressPa: number;
+  /** Consistent d(tau_fiber)/d(log fiber strain) for this trial state. */
+  algorithmicFiberTangentPa?: number;
   /**
    * Optional local antiderivative of the algorithmic trial-stress map. This is
    * diagnostic only and is never called stored or thermodynamic energy.
@@ -483,15 +492,20 @@ function solveInternalCoordinates<TWallState>(
     if (residualNorm <= solver.scaledResidualInfinityTolerance) {
       let audited: ReturnType<typeof finiteDifferenceJacobianWithSymmetryAudit>;
       try {
-        audited = finiteDifferenceJacobianWithSymmetryAudit(
-          (candidate) => evaluateCandidate(
-            volumesMl,
-            drive,
-            candidate,
-            mode,
+        const consistentTangentEvaluate =
+          consistentTriSegTangentForceEvaluator(
+            currentCandidate,
             params,
-            solver,
-          ).scaledAlgorithmicGeneralizedForceByOneJ,
+          );
+        audited = finiteDifferenceJacobianWithSymmetryAudit(
+          consistentTangentEvaluate ?? ((candidate) => evaluateCandidate(
+              volumesMl,
+              drive,
+              candidate,
+              mode,
+              params,
+              solver,
+            ).scaledAlgorithmicGeneralizedForceByOneJ),
           current,
           solver,
         );
@@ -567,15 +581,20 @@ function solveInternalCoordinates<TWallState>(
 
     let jacobian: MainWireFiveWallScaledAlgorithmicJacobianByOneJV1;
     try {
-      jacobian = finiteDifferenceJacobian(
-        (candidate) => evaluateCandidate(
-          volumesMl,
-          drive,
-          candidate,
-          mode,
+      const consistentTangentEvaluate =
+        consistentTriSegTangentForceEvaluator(
+          currentCandidate,
           params,
-          solver,
-        ).scaledAlgorithmicGeneralizedForceByOneJ,
+        );
+      jacobian = finiteDifferenceJacobian(
+        consistentTangentEvaluate ?? ((candidate) => evaluateCandidate(
+            volumesMl,
+            drive,
+            candidate,
+            mode,
+            params,
+            solver,
+          ).scaledAlgorithmicGeneralizedForceByOneJ),
         current,
         solver.finiteDifferenceScaledStep,
       );
@@ -815,6 +834,63 @@ function evaluateCandidate<TWallState>(
     materialIterationCount,
     maximumMaterialResidualNorm,
   });
+}
+
+/**
+ * Builds the exact local constitutive linearization used inside the existing
+ * central-difference geometry Jacobian. Only geometry is re-evaluated at the
+ * two shape perturbations; Land/SLS history remains the center trial's pure
+ * response from the same accepted state.
+ */
+function consistentTriSegTangentForceEvaluator<TWallState>(
+  center: CandidateEvaluationV1<TWallState>,
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+): ((scaledUnknowns: readonly number[]) => readonly number[]) | null {
+  const wallIds = ["LVFW", "SEP", "RVFW"] as const;
+  const tangentByWall = {} as Record<(typeof wallIds)[number], number>;
+  for (const wallId of wallIds) {
+    const tangent = center.materialByWall[wallId].algorithmicFiberTangentPa;
+    if (tangent === undefined || !Number.isFinite(tangent)) return null;
+    tangentByWall[wallId] = tangent;
+  }
+  return (scaledUnknowns) => {
+    const coordinates = scaledUnknownsToCoordinates(scaledUnknowns, params);
+    const geometry = evaluateTriSegGeometryV1({
+      leftVentricularCavityVolumeM3:
+        center.geometry.leftVentricularCavityVolumeM3,
+      rightVentricularCavityVolumeM3:
+        center.geometry.rightVentricularCavityVolumeM3,
+      coordinates,
+      walls: params.trisegWalls,
+    });
+    const fiberKirchhoffStressPaByWall = Object.freeze({
+      LVFW: center.fiberKirchhoffStressPaByWall.LVFW
+        + tangentByWall.LVFW * (
+          geometry.walls.LVFW.fiberLogStrain
+          - center.effectiveFiberLogStrainByWall.LVFW
+        ),
+      SEP: center.fiberKirchhoffStressPaByWall.SEP
+        + tangentByWall.SEP * (
+          geometry.walls.SEP.fiberLogStrain
+          - center.effectiveFiberLogStrainByWall.SEP
+        ),
+      RVFW: center.fiberKirchhoffStressPaByWall.RVFW
+        + tangentByWall.RVFW * (
+          geometry.walls.RVFW.fiberLogStrain
+          - center.effectiveFiberLogStrainByWall.RVFW
+        ),
+    });
+    const triseg = evaluateEnergyConjugateTriSegV1({
+      geometry,
+      fiberKirchhoffStressPaByWall,
+    });
+    return Object.freeze([
+      triseg.membraneGeneralizedForce.septalMidwallCapVolumePa
+        * params.internalCoordinateScales.septalMidwallCapVolumeM3 / ONE_JOULE,
+      triseg.membraneGeneralizedForce.junctionRadiusN
+        * params.internalCoordinateScales.junctionRadiusM / ONE_JOULE,
+    ]);
+  };
 }
 
 function successfulProviderEvaluation<TWallState>(
@@ -1359,6 +1435,12 @@ function validateMaterialEvaluation<TWallState>(
     requireFinite(
       evaluation.algorithmicStressPrimitiveDensityJPerM3,
       `${wallId}.algorithmicStressPrimitiveDensityJPerM3`,
+    );
+  }
+  if (evaluation.algorithmicFiberTangentPa !== undefined) {
+    requireFinite(
+      evaluation.algorithmicFiberTangentPa,
+      `${wallId}.algorithmicFiberTangentPa`,
     );
   }
 }

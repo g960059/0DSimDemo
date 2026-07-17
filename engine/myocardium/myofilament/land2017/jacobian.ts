@@ -20,6 +20,62 @@ import {
 
 export const LAND2017_LOCAL_JACOBIAN_SIZE = LAND2017_STATE_SIZE * LAND2017_STATE_SIZE;
 
+/**
+ * Exact partial derivative dR_BE/d(epsilon_stage) at fixed next state.
+ * The BE kinematics own the strain-rate derivative; an explicitly prescribed
+ * zeta drive is therefore held fixed.
+ */
+export function writeLand2017BackwardEulerResidualStageStrainDerivative(
+  next: ArrayLike<number>,
+  input: LandStepInput,
+  parameterSet: Land2017EquationParameters =
+    LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
+  outDerivative: Float64Array = new Float64Array(LAND2017_STATE_SIZE),
+): Float64Array {
+  assertLand2017StateVectorLength(
+    next,
+    "Land 2017 BE residual strain derivative next state",
+  );
+  assertLand2017StateVectorLength(
+    outDerivative,
+    "Land 2017 BE residual strain derivative output",
+  );
+  const kinematics = deriveLand2017StepKinematics(input);
+  const rhsInput: LandContinuousInput = {
+    freeCalciumUM: input.freeCalciumUM,
+    fiberEngineeringStrain: input.stageFiberEngineeringStrain,
+    fiberEngineeringStrainRatePerSec:
+      kinematics.stageFiberEngineeringStrainRatePerSec,
+    zetaDriveFiberEngineeringStrainRatePerSec:
+      kinematics.stageZetaDriveFiberEngineeringStrainRatePerSec,
+  };
+  const p = parameterSet.values;
+  const d = parameterSet.derived;
+  validateLand2017ContinuousInput(rhsInput, p);
+  validateLand2017EquationState(next);
+
+  outDerivative.fill(0);
+  const terms = evaluateLand2017AlgebraicTerms(next, rhsInput, parameterSet);
+  const CaTRPN = next[LAND2017_STATE_INDEX.CaTRPN];
+  const calciumDrive = Math.pow(
+    input.freeCalciumUM / terms.CaT50,
+    p.nTRPN,
+  );
+  const dCaT50DStageStrain = terms.lambda < 1.2 ? p.beta1 : 0;
+  const dCalciumDriveDStageStrain = calciumDrive
+    * (-p.nTRPN * dCaT50DStageStrain / terms.CaT50);
+  outDerivative[LAND2017_STATE_INDEX.CaTRPN] = -input.dtSec
+    * p.kTRPN
+    * dCalciumDriveDStageStrain
+    * (1 - CaTRPN);
+
+  if (input.stageZetaDriveFiberEngineeringStrainRatePerSec === undefined) {
+    outDerivative[LAND2017_STATE_INDEX.zetaW] = -d.Aw;
+    outDerivative[LAND2017_STATE_INDEX.zetaS] = -d.As;
+  }
+  return outDerivative;
+}
+
 export function writeLand2017BackwardEulerResidualJacobian(
   next: ArrayLike<number>,
   input: LandStepInput,

@@ -5,10 +5,17 @@ import {
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import {
   solveLand2017BackwardEulerStep,
+  solveLand2017LocalLinearSystem,
   type Land2017StepSolveOptions,
 } from "@/engine/myocardium/myofilament/land2017/solver";
 import {
+  LAND2017_LOCAL_JACOBIAN_SIZE,
+  writeLand2017BackwardEulerResidualJacobian,
+  writeLand2017BackwardEulerResidualStageStrainDerivative,
+} from "@/engine/myocardium/myofilament/land2017/jacobian";
+import {
   LAND2017_STATE_INDEX,
+  LAND2017_STATE_SIZE,
   assertLand2017StateVectorLength,
   type LandStepInput,
 } from "@/engine/myocardium/myofilament/land2017/types";
@@ -16,6 +23,77 @@ import {
 export type Land2017TangentOptions = Land2017StepSolveOptions & {
   readonly epsilonStrain?: number;
 };
+
+/**
+ * Consistent derivative of the converged BE active nominal stress with
+ * respect to the stage engineering strain. This is implicit differentiation
+ * of the same six-state residual used by the local Newton solve, not a second
+ * constitutive solve.
+ */
+export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+  solvedNextState: ArrayLike<number>,
+  input: LandStepInput,
+  parameterSet: Land2017EquationParameters =
+    LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
+): number {
+  assertLand2017StateVectorLength(
+    solvedNextState,
+    "Land 2017 consistent tangent solved state",
+  );
+  // Reassemble at the supplied converged state/input pair. Keeping this
+  // correspondence inside the API prevents callers from accidentally pairing
+  // a state with a Jacobian from another local solve.
+  const jacobian = writeLand2017BackwardEulerResidualJacobian(
+    solvedNextState,
+    input,
+    parameterSet,
+  );
+  if (jacobian.length !== LAND2017_LOCAL_JACOBIAN_SIZE) {
+    throw new Error("Land 2017 consistent tangent requires a 6x6 residual Jacobian");
+  }
+  const residualStrainDerivative =
+    writeLand2017BackwardEulerResidualStageStrainDerivative(
+      solvedNextState,
+      input,
+      parameterSet,
+    );
+  const stateStrainDerivative = solveLand2017LocalLinearSystem(
+    jacobian,
+    Float64Array.from(
+      residualStrainDerivative,
+      (value) => -value,
+    ),
+  );
+
+  const p = parameterSet.values;
+  const terms = evaluateLand2017AlgebraicTerms(
+    solvedNextState,
+    { fiberEngineeringStrain: input.stageFiberEngineeringStrain },
+    parameterSet,
+  );
+  const W = solvedNextState[LAND2017_STATE_INDEX.W];
+  const S = solvedNextState[LAND2017_STATE_INDEX.S];
+  const zetaW = solvedNextState[LAND2017_STATE_INDEX.zetaW];
+  const zetaS = solvedNextState[LAND2017_STATE_INDEX.zetaS];
+  const populationDistortion = S * (zetaS + 1) + W * zetaW;
+  const stressScalePa = terms.h * p.Tref / p.rs;
+  let tangentPa = land2017LengthFactorDerivative(terms.lambda, p.beta0)
+    * p.Tref / p.rs
+    * populationDistortion;
+  tangentPa += stressScalePa * (
+    zetaW * stateStrainDerivative[LAND2017_STATE_INDEX.W]
+    + (zetaS + 1) * stateStrainDerivative[LAND2017_STATE_INDEX.S]
+    + W * stateStrainDerivative[LAND2017_STATE_INDEX.zetaW]
+    + S * stateStrainDerivative[LAND2017_STATE_INDEX.zetaS]
+  );
+  if (
+    stateStrainDerivative.length !== LAND2017_STATE_SIZE
+    || !Number.isFinite(tangentPa)
+  ) {
+    throw new Error("Land 2017 consistent tangent is non-finite");
+  }
+  return tangentPa;
+}
 
 export function computeLand2017AlgorithmicTangentPa(
   previous: ArrayLike<number>,
