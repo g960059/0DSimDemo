@@ -21,16 +21,40 @@ import {
   SCIENTIFIC_ALPHA_DT_SEC,
   SCIENTIFIC_ALPHA_HISTORY_CAPACITY,
   SCIENTIFIC_ALPHA_STEPS_PER_CHUNK,
+  SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT,
   SCIENTIFIC_ALPHA_TERMINAL_WINDOW_SEC,
   appendBoundedScientificAlphaHistoryV1,
+  beginScientificAlphaTerminalBeatHistoryV1,
+  scientificAlphaPeriodicDirectiveV1,
   selectTerminalScientificAlphaHistoryV1,
 } from './scientificRuntimeAlphaHistoryV1';
 
-const MAXIMUM_TRANSIENT_COMMANDS_PER_ALPHA_SESSION = 7_600;
+const MAXIMUM_SIMULATION_COMMANDS_PER_ALPHA_SESSION = 7_600;
 const ALPHA_RENDER_EVERY_TRANSIENT_COMMANDS = 8;
 
 type AlphaPhase = 'starting' | 'ready' | 'running' | 'paused' | 'failed';
-type AlphaRunMode = 'idle' | 'continuous' | 'single-beat';
+type AlphaRunMode =
+  | 'idle'
+  | 'continuous'
+  | 'single-beat'
+  | 'settling-periodic'
+  | 'period1-terminal-beat';
+type AlphaPlotEvidence =
+  | 'cold-start'
+  | 'transient'
+  | 'periodic-settling'
+  | 'periodic-non-converged'
+  | 'period1-terminal-acquiring'
+  | 'period1-terminal-beat';
+
+type AlphaPeriodicProgress = Readonly<{
+  status: 'tracking' | 'period1-converged' | 'period2-suspect' | 'maximum-beats-reached';
+  completedBeatCount: number;
+  maximumBeatCount: number;
+  latestPeriod1MaximumNormalizedDelta: number | null;
+  latestPeriod2MaximumNormalizedDelta: number | null;
+  latestWorstPath: string | null;
+}>;
 
 type AlphaState = Readonly<{
   phase: AlphaPhase;
@@ -38,7 +62,10 @@ type AlphaState = Readonly<{
   releaseRef: SimulationReleaseRef | null;
   sessionOrigin: ScientificSessionOriginV1 | null;
   history: readonly MainWireScientificObservableFrameV1[];
-  transientCommandCount: number;
+  simulationCommandCount: number;
+  periodicProgress: AlphaPeriodicProgress | null;
+  plotEvidence: AlphaPlotEvidence;
+  terminalBeatCompletedChunkCount: number;
 }>;
 
 const INITIAL_STATE: AlphaState = Object.freeze({
@@ -47,7 +74,10 @@ const INITIAL_STATE: AlphaState = Object.freeze({
   releaseRef: null,
   sessionOrigin: null,
   history: Object.freeze([]),
-  transientCommandCount: 0,
+  simulationCommandCount: 0,
+  periodicProgress: null,
+  plotEvidence: 'cold-start',
+  terminalBeatCompletedChunkCount: 0,
 });
 
 /**
@@ -62,13 +92,14 @@ export default function ScientificRuntimeAlphaPage() {
   const clientRef = React.useRef<MainWireScientificWorkerClientV1 | null>(null);
   const generationRef = React.useRef(0);
   const requestSerialRef = React.useRef(0);
-  const transientCommandCountRef = React.useRef(0);
+  const simulationCommandCountRef = React.useRef(0);
   const historyRef = React.useRef<readonly MainWireScientificObservableFrameV1[]>(
     Object.freeze([]),
   );
   const latestFrameRef = React.useRef<MainWireScientificObservableFrameV1 | null>(null);
   const runModeRef = React.useRef<AlphaRunMode>('idle');
   const beatTargetTimeSecRef = React.useRef<number | null>(null);
+  const terminalBeatChunksRemainingRef = React.useRef(0);
   const requestInFlightRef = React.useRef(false);
   const pumpRef = React.useRef<(generation: number) => void>(() => undefined);
 
@@ -76,6 +107,7 @@ export default function ScientificRuntimeAlphaPage() {
     if (generation !== generationRef.current) return;
     runModeRef.current = 'idle';
     beatTargetTimeSecRef.current = null;
+    terminalBeatChunksRemainingRef.current = 0;
     setRequestBusy(false);
     setState((previous) => ({
       ...previous,
@@ -92,36 +124,50 @@ export default function ScientificRuntimeAlphaPage() {
     ) return;
     const client = clientRef.current;
     if (client === null) return;
-    if (
-      transientCommandCountRef.current
-        >= MAXIMUM_TRANSIENT_COMMANDS_PER_ALPHA_SESSION
-    ) {
+    const issuedMode = runModeRef.current;
+    const remainingBudget = MAXIMUM_SIMULATION_COMMANDS_PER_ALPHA_SESSION
+      - simulationCommandCountRef.current;
+    const requiredBudget = issuedMode === 'settling-periodic'
+      ? 1 + SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT
+      : issuedMode === 'period1-terminal-beat'
+        ? terminalBeatChunksRemainingRef.current
+        : 1;
+    if (remainingBudget < requiredBudget) {
       runModeRef.current = 'idle';
       beatTargetTimeSecRef.current = null;
       setRequestBusy(false);
       setState((previous) => ({
         ...previous,
         phase: 'paused',
-        message: 'Bounded request budget reached. Reset to start a fresh Worker session.',
+        message: issuedMode === 'settling-periodic'
+          ? 'The bounded request budget cannot reserve a complete terminal beat. Reset before settling.'
+          : 'Bounded request budget reached. Reset to start a fresh Worker session.',
         history: historyRef.current,
-        transientCommandCount: transientCommandCountRef.current,
+        simulationCommandCount: simulationCommandCountRef.current,
       }));
       return;
     }
 
     requestInFlightRef.current = true;
     const requestId = requestIdentity(generation, ++requestSerialRef.current);
-    transientCommandCountRef.current += 1;
+    simulationCommandCountRef.current += 1;
     try {
-      const response = await client.request({
-        protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
-        kind: 'runTransient',
-        requestId,
-        sessionId: sessionIdentity(generation),
-        dtSec: SCIENTIFIC_ALPHA_DT_SEC,
-        stepCount: SCIENTIFIC_ALPHA_STEPS_PER_CHUNK,
-        observationStride: 1,
-      });
+      const response = issuedMode === 'settling-periodic'
+        ? await client.request({
+          protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+          kind: 'settlePeriodic',
+          requestId,
+          sessionId: sessionIdentity(generation),
+        })
+        : await client.request({
+          protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+          kind: 'runTransient',
+          requestId,
+          sessionId: sessionIdentity(generation),
+          dtSec: SCIENTIFIC_ALPHA_DT_SEC,
+          stepCount: SCIENTIFIC_ALPHA_STEPS_PER_CHUNK,
+          observationStride: 1,
+        });
       if (generation !== generationRef.current) return;
 
       if (!response.ok) {
@@ -134,12 +180,96 @@ export default function ScientificRuntimeAlphaPage() {
           setState((previous) => ({
             ...previous,
             history: historyRef.current,
-            transientCommandCount: transientCommandCountRef.current,
+            simulationCommandCount: simulationCommandCountRef.current,
           }));
           latestFrameRef.current = partialFrames.at(-1) ?? latestFrameRef.current;
         }
         throw new Error(`${response.error.code}: ${response.error.message}`);
       }
+
+      if (issuedMode === 'settling-periodic') {
+        if (
+          response.commandKind !== 'settlePeriodic'
+          || response.payload.kind !== 'periodic-settlement-progress'
+        ) {
+          throw new Error('scientific Worker returned an unexpected periodic payload');
+        }
+        const payload = response.payload;
+        const finalFrame = payload.finalObservableFrame;
+        latestFrameRef.current = finalFrame;
+        historyRef.current = appendBoundedScientificAlphaHistoryV1(
+          historyRef.current,
+          [finalFrame],
+        );
+        const latestClosure = payload.retainedBeatClosure.at(-1);
+        const periodicProgress: AlphaPeriodicProgress = Object.freeze({
+          status: payload.status,
+          completedBeatCount: payload.completedBeatCount,
+          maximumBeatCount: payload.executionProtocol.maximumBeatCount,
+          latestPeriod1MaximumNormalizedDelta:
+            payload.periodicity.latestPeriod1MaximumNormalizedDelta,
+          latestPeriod2MaximumNormalizedDelta:
+            payload.periodicity.latestPeriod2MaximumNormalizedDelta,
+          latestWorstPath: latestClosure?.period1?.worstPath ?? null,
+        });
+        const directive = scientificAlphaPeriodicDirectiveV1(
+          payload.status,
+          payload.periodicSteadyStateClaimed,
+        );
+        const settlingStillActive = runModeRef.current === 'settling-periodic';
+
+        if (directive === 'capture-period1-terminal-beat' && settlingStillActive) {
+          historyRef.current = beginScientificAlphaTerminalBeatHistoryV1(finalFrame);
+          terminalBeatChunksRemainingRef.current =
+            SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT;
+          beatTargetTimeSecRef.current =
+            finalFrame.acceptedTimeSec + SCIENTIFIC_ALPHA_CYCLE_LENGTH_SEC;
+          runModeRef.current = 'period1-terminal-beat';
+          setState((previous) => ({
+            ...previous,
+            phase: 'running',
+            message: 'P1 convergence established. Acquiring exactly one clean terminal beat for the plots.',
+            history: historyRef.current,
+            simulationCommandCount: simulationCommandCountRef.current,
+            periodicProgress,
+            plotEvidence: 'period1-terminal-acquiring',
+            terminalBeatCompletedChunkCount: 0,
+          }));
+        } else if (directive === 'stop-non-converged') {
+          runModeRef.current = 'idle';
+          beatTargetTimeSecRef.current = null;
+          terminalBeatChunksRemainingRef.current = 0;
+          setState((previous) => ({
+            ...previous,
+            phase: 'paused',
+            message: payload.status === 'period2-suspect'
+              ? 'Periodic settling stopped: P2 orbit suspected. No steady-state plot is claimed.'
+              : 'Periodic settling stopped at the 32-beat limit without P1 convergence. No steady-state plot is claimed.',
+            history: historyRef.current,
+            simulationCommandCount: simulationCommandCountRef.current,
+            periodicProgress,
+            plotEvidence: 'periodic-non-converged',
+            terminalBeatCompletedChunkCount: 0,
+          }));
+        } else {
+          setState((previous) => ({
+            ...previous,
+            phase: settlingStillActive ? 'running' : 'paused',
+            message: directive === 'capture-period1-terminal-beat'
+              ? 'P1 convergence detected; terminal-beat acquisition is paused and no steady-state plot is claimed yet.'
+              : settlingStillActive
+                ? `Periodic settling: completed beat ${payload.completedBeatCount}/${payload.executionProtocol.maximumBeatCount}.`
+                : `Paused between periodic beats after beat ${payload.completedBeatCount}.`,
+            history: historyRef.current,
+            simulationCommandCount: simulationCommandCountRef.current,
+            periodicProgress,
+            plotEvidence: 'periodic-settling',
+            terminalBeatCompletedChunkCount: 0,
+          }));
+        }
+        return;
+      }
+
       if (
         response.commandKind !== 'runTransient'
         || response.payload.kind !== 'transientCompleted'
@@ -155,9 +285,52 @@ export default function ScientificRuntimeAlphaPage() {
         frames,
       );
 
+      if (issuedMode === 'period1-terminal-beat') {
+        if (response.payload.completedStepCount !== SCIENTIFIC_ALPHA_STEPS_PER_CHUNK) {
+          throw new Error('terminal beat chunk did not complete exactly four accepted steps');
+        }
+        terminalBeatChunksRemainingRef.current -= 1;
+        if (terminalBeatChunksRemainingRef.current < 0) {
+          throw new Error('terminal beat exceeded its bounded chunk count');
+        }
+        const completedChunkCount = SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT
+          - terminalBeatChunksRemainingRef.current;
+        if (terminalBeatChunksRemainingRef.current === 0) {
+          const targetTimeSec = beatTargetTimeSecRef.current;
+          if (
+            targetTimeSec === null
+            || Math.abs(finalFrame.acceptedTimeSec - targetTimeSec) > 1e-9
+          ) {
+            throw new Error('terminal beat did not end at its exact same-phase boundary');
+          }
+          runModeRef.current = 'idle';
+          beatTargetTimeSecRef.current = null;
+          setState((previous) => ({
+            ...previous,
+            phase: 'ready',
+            message: 'P1-converged terminal beat acquired; plots contain exactly one steady beat.',
+            history: historyRef.current,
+            simulationCommandCount: simulationCommandCountRef.current,
+            plotEvidence: 'period1-terminal-beat',
+            terminalBeatCompletedChunkCount: completedChunkCount,
+          }));
+        } else if (
+          completedChunkCount % ALPHA_RENDER_EVERY_TRANSIENT_COMMANDS === 0
+          || runModeRef.current !== 'period1-terminal-beat'
+        ) {
+          setState((previous) => ({
+            ...previous,
+            history: historyRef.current,
+            simulationCommandCount: simulationCommandCountRef.current,
+            terminalBeatCompletedChunkCount: completedChunkCount,
+          }));
+        }
+        return;
+      }
+
       const targetTimeSec = beatTargetTimeSecRef.current;
       const completedSingleBeat = (
-        runModeRef.current === 'single-beat'
+        issuedMode === 'single-beat'
         && targetTimeSec !== null
         && finalFrame.acceptedTimeSec >= targetTimeSec - 1e-12
       );
@@ -169,17 +342,17 @@ export default function ScientificRuntimeAlphaPage() {
           phase: 'ready',
           message: `Completed one ${SCIENTIFIC_ALPHA_CYCLE_LENGTH_SEC.toFixed(3)} s beat at an accepted chunk boundary.`,
           history: historyRef.current,
-          transientCommandCount: transientCommandCountRef.current,
+          simulationCommandCount: simulationCommandCountRef.current,
         }));
       } else if (
         !alphaRunModeIsActive(runModeRef.current)
-        || transientCommandCountRef.current
+        || simulationCommandCountRef.current
           % ALPHA_RENDER_EVERY_TRANSIENT_COMMANDS === 0
       ) {
         setState((previous) => ({
           ...previous,
           history: historyRef.current,
-          transientCommandCount: transientCommandCountRef.current,
+          simulationCommandCount: simulationCommandCountRef.current,
         }));
       }
     } catch (error: unknown) {
@@ -203,8 +376,9 @@ export default function ScientificRuntimeAlphaPage() {
     generationRef.current = generation;
     runModeRef.current = 'idle';
     beatTargetTimeSecRef.current = null;
+    terminalBeatChunksRemainingRef.current = 0;
     requestSerialRef.current = 0;
-    transientCommandCountRef.current = 0;
+    simulationCommandCountRef.current = 0;
     latestFrameRef.current = null;
     historyRef.current = Object.freeze([]);
     requestInFlightRef.current = false;
@@ -246,7 +420,10 @@ export default function ScientificRuntimeAlphaPage() {
         releaseRef: response.releaseRef,
         sessionOrigin: response.sessionOrigin,
         history: historyRef.current,
-        transientCommandCount: 0,
+        simulationCommandCount: 0,
+        periodicProgress: null,
+        plotEvidence: 'cold-start',
+        terminalBeatCompletedChunkCount: 0,
       });
     }).catch((error: unknown) => {
       if (!mounted) return;
@@ -259,6 +436,7 @@ export default function ScientificRuntimeAlphaPage() {
         generationRef.current += 1;
         runModeRef.current = 'idle';
         beatTargetTimeSecRef.current = null;
+        terminalBeatChunksRemainingRef.current = 0;
       }
       if (clientRef.current === client) clientRef.current = null;
       client.terminate();
@@ -266,22 +444,30 @@ export default function ScientificRuntimeAlphaPage() {
   }, [failClosed, sessionEpoch]);
 
   const beginContinuous = () => {
-    if (state.phase === 'starting' || state.phase === 'failed') return;
+    if (!alphaMayBeginRun(state.phase, runModeRef.current, requestInFlightRef.current)) return;
     runModeRef.current = 'continuous';
     beatTargetTimeSecRef.current = null;
+    terminalBeatChunksRemainingRef.current = 0;
     setRequestBusy(true);
     setState((previous) => ({
       ...previous,
       phase: 'running',
       message: 'Running bounded four-step Worker chunks.',
+      periodicProgress: null,
+      plotEvidence: 'transient',
+      terminalBeatCompletedChunkCount: 0,
     }));
     pumpRef.current(generationRef.current);
   };
 
   const runSingleBeat = () => {
     const latest = latestFrameRef.current;
-    if (latest === null || state.phase === 'starting' || state.phase === 'failed') return;
+    if (
+      latest === null
+      || !alphaMayBeginRun(state.phase, runModeRef.current, requestInFlightRef.current)
+    ) return;
     runModeRef.current = 'single-beat';
+    terminalBeatChunksRemainingRef.current = 0;
     beatTargetTimeSecRef.current =
       latest.acceptedTimeSec + SCIENTIFIC_ALPHA_CYCLE_LENGTH_SEC;
     setRequestBusy(true);
@@ -289,23 +475,63 @@ export default function ScientificRuntimeAlphaPage() {
       ...previous,
       phase: 'running',
       message: `Advancing one ${SCIENTIFIC_ALPHA_CYCLE_LENGTH_SEC.toFixed(3)} s beat in bounded Worker chunks.`,
+      periodicProgress: null,
+      plotEvidence: 'transient',
+      terminalBeatCompletedChunkCount: 0,
+    }));
+    pumpRef.current(generationRef.current);
+  };
+
+  const settleToPeriodic = () => {
+    if (!alphaMayBeginRun(state.phase, runModeRef.current, requestInFlightRef.current)) return;
+    if (
+      state.plotEvidence === 'period1-terminal-acquiring'
+      && terminalBeatChunksRemainingRef.current > 0
+      && beatTargetTimeSecRef.current !== null
+    ) {
+      runModeRef.current = 'period1-terminal-beat';
+      setRequestBusy(true);
+      setState((previous) => ({
+        ...previous,
+        phase: 'running',
+        message: 'Resuming the bounded clean terminal-beat acquisition.',
+      }));
+      pumpRef.current(generationRef.current);
+      return;
+    }
+    runModeRef.current = 'settling-periodic';
+    beatTargetTimeSecRef.current = null;
+    terminalBeatChunksRemainingRef.current = 0;
+    setRequestBusy(true);
+    setState((previous) => ({
+      ...previous,
+      phase: 'running',
+      message: 'Settling one bounded same-phase beat per Worker command.',
+      periodicProgress: null,
+      plotEvidence: 'periodic-settling',
+      terminalBeatCompletedChunkCount: 0,
     }));
     pumpRef.current(generationRef.current);
   };
 
   const pause = () => {
     if (state.phase !== 'running') return;
+    const pausedMode = runModeRef.current;
     runModeRef.current = 'idle';
-    beatTargetTimeSecRef.current = null;
+    if (pausedMode !== 'period1-terminal-beat') {
+      beatTargetTimeSecRef.current = null;
+    }
     if (!requestInFlightRef.current) setRequestBusy(false);
     setState((previous) => ({
       ...previous,
       phase: 'paused',
       message: requestInFlightRef.current
-        ? 'Pause requested; the in-flight four-step chunk will be retained.'
-        : 'Paused at an accepted chunk boundary.',
+        ? pausedMode === 'settling-periodic'
+          ? 'Pause requested; the in-flight beat will finish and be retained.'
+          : 'Pause requested; the in-flight four-step chunk will be retained.'
+        : 'Paused at an accepted command boundary.',
       history: historyRef.current,
-      transientCommandCount: transientCommandCountRef.current,
+      simulationCommandCount: simulationCommandCountRef.current,
     }));
   };
 
@@ -313,6 +539,7 @@ export default function ScientificRuntimeAlphaPage() {
     generationRef.current += 1;
     runModeRef.current = 'idle';
     beatTargetTimeSecRef.current = null;
+    terminalBeatChunksRemainingRef.current = 0;
     requestInFlightRef.current = false;
     historyRef.current = Object.freeze([]);
     setRequestBusy(false);
@@ -362,6 +589,7 @@ export default function ScientificRuntimeAlphaPage() {
             onStart={beginContinuous}
             onPause={pause}
             onSingleBeat={runSingleBeat}
+            onSettlePeriodic={settleToPeriodic}
             onReset={reset}
           />
         )}
@@ -376,6 +604,7 @@ function ReadyPanel({
   onStart,
   onPause,
   onSingleBeat,
+  onSettlePeriodic,
   onReset,
 }: Readonly<{
   state: AlphaState & Readonly<{
@@ -386,6 +615,7 @@ function ReadyPanel({
   onStart: () => void;
   onPause: () => void;
   onSingleBeat: () => void;
+  onSettlePeriodic: () => void;
   onReset: () => void;
 }>) {
   const frame = state.history.at(-1);
@@ -398,16 +628,27 @@ function ReadyPanel({
     pressure: values[`hemodynamics.pressure.absolute.${chamber}`],
   }));
   const running = state.phase === 'running';
+  const terminalBeatPaused = state.plotEvidence === 'period1-terminal-acquiring'
+    && !running;
+  const steadyTerminalBeat = state.plotEvidence === 'period1-terminal-beat';
 
   return (
-    <div className="space-y-7" data-testid="scientific-alpha-ready">
+    <div
+      className="space-y-7"
+      data-testid="scientific-alpha-ready"
+      data-scientific-alpha-steady-plot={steadyTerminalBeat ? 'true' : 'false'}
+    >
       <StatusPanel
         tone={state.phase === 'failed' ? 'failed' : running ? 'running' : 'ready'}
         title={state.phase === 'failed'
           ? 'Scientific Worker failed closed'
-          : running
-            ? 'Scientific Worker running'
-            : 'Scientific Worker ready'}
+          : state.plotEvidence === 'periodic-non-converged'
+            ? 'Periodic result is non-converged'
+            : steadyTerminalBeat
+              ? 'P1 terminal beat ready'
+              : running
+                ? 'Scientific Worker running'
+                : 'Scientific Worker ready'}
       >
         {state.message}
       </StatusPanel>
@@ -427,7 +668,9 @@ function ReadyPanel({
           onClick={onPause}
           disabled={!running}
         >
-          Pause
+          {state.plotEvidence === 'periodic-settling'
+            ? 'Pause between beats'
+            : 'Pause'}
         </button>
         <button
           type="button"
@@ -440,22 +683,42 @@ function ReadyPanel({
         <button
           type="button"
           className={secondaryButtonClass}
+          onClick={onSettlePeriodic}
+          disabled={running || requestBusy || state.phase === 'failed'}
+        >
+          {terminalBeatPaused ? 'Resume terminal beat' : 'Settle to periodic'}
+        </button>
+        <button
+          type="button"
+          className={secondaryButtonClass}
           onClick={onReset}
         >
           Reset cold start
         </button>
         <span className="ml-auto text-xs text-slate-500" aria-live="polite">
-          {requestBusy ? 'Worker request active · ' : ''}
+          {requestBusy ? 'Bounded Worker loop active · ' : ''}
           {state.history.length}/{SCIENTIFIC_ALPHA_HISTORY_CAPACITY} retained · latest{' '}
           {SCIENTIFIC_ALPHA_TERMINAL_WINDOW_SEC.toFixed(1)} s plotted
         </span>
       </div>
 
+      {state.periodicProgress !== null && (
+        <PeriodicProgressPanel
+          progress={state.periodicProgress}
+          terminalBeatCompletedChunkCount={state.terminalBeatCompletedChunkCount}
+          plotEvidence={state.plotEvidence}
+        />
+      )}
+
       <dl className="grid gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <Metadata label="Accepted time" value={`${format(frame.acceptedTimeSec, 3)} s`} />
         <Metadata label="Revision" value={String(frame.revision)} />
-        <Metadata label="Worker chunks" value={String(state.transientCommandCount)} />
+        <Metadata
+          label="Simulation commands"
+          value={`${state.simulationCommandCount}/${MAXIMUM_SIMULATION_COMMANDS_PER_ALPHA_SESSION}`}
+        />
         <Metadata label="Terminal samples" value={String(terminalFrames.length)} />
+        <Metadata label="Plot evidence" value={alphaPlotEvidenceLabel(state.plotEvidence)} wide />
         <Metadata label="Release" value={`${state.releaseRef.id} v${state.releaseRef.version}`} wide />
         <Metadata label="Session origin" value={state.sessionOrigin.kind} wide />
         <Metadata label="Release SHA-256" value={state.releaseRef.sha256} full />
@@ -486,8 +749,58 @@ function ReadyPanel({
         </table>
       </div>
 
+      <div
+        className={steadyTerminalBeat
+          ? 'rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100'
+          : 'rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100'}
+        data-testid="scientific-alpha-plot-provenance"
+      >
+        {steadyTerminalBeat
+          ? 'Steady-state evidence: exactly one post-convergence P1 terminal beat.'
+          : 'These plots are not claimed as steady state.'}
+      </div>
+
       <ScientificAlphaPvTrajectories frames={terminalFrames} />
       <ScientificAlphaWaveforms frames={terminalFrames} />
+    </div>
+  );
+}
+
+function PeriodicProgressPanel({
+  progress,
+  terminalBeatCompletedChunkCount,
+  plotEvidence,
+}: Readonly<{
+  progress: AlphaPeriodicProgress;
+  terminalBeatCompletedChunkCount: number;
+  plotEvidence: AlphaPlotEvidence;
+}>) {
+  const acquiringTerminalBeat = plotEvidence === 'period1-terminal-acquiring';
+  return (
+    <div
+      className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-xs text-slate-300"
+      data-testid="scientific-alpha-periodic-progress"
+      data-periodic-status={progress.status}
+    >
+      <span className="font-semibold text-slate-100">
+        Periodic: {periodicStatusLabel(progress.status)}
+      </span>
+      <span>
+        beat {progress.completedBeatCount}/{progress.maximumBeatCount}
+      </span>
+      <span>P1 Δ {formatNormalizedDelta(progress.latestPeriod1MaximumNormalizedDelta)}</span>
+      <span>P2 Δ {formatNormalizedDelta(progress.latestPeriod2MaximumNormalizedDelta)}</span>
+      {progress.latestWorstPath !== null && (
+        <span className="max-w-xl truncate font-mono" title={progress.latestWorstPath}>
+          worst {progress.latestWorstPath}
+        </span>
+      )}
+      {acquiringTerminalBeat && (
+        <span className="text-cyan-300">
+          terminal beat {terminalBeatCompletedChunkCount}/
+          {SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT} chunks
+        </span>
+      )}
     </div>
   );
 }
@@ -559,6 +872,41 @@ function sessionIdentity(generation: number): string {
 
 function alphaRunModeIsActive(runMode: AlphaRunMode): boolean {
   return runMode !== 'idle';
+}
+
+function alphaMayBeginRun(
+  phase: AlphaPhase,
+  runMode: AlphaRunMode,
+  requestInFlight: boolean,
+): boolean {
+  return phase !== 'starting'
+    && phase !== 'failed'
+    && runMode === 'idle'
+    && !requestInFlight;
+}
+
+function alphaPlotEvidenceLabel(evidence: AlphaPlotEvidence): string {
+  switch (evidence) {
+    case 'cold-start': return 'Cold start — not steady';
+    case 'transient': return 'Transient window — not steady';
+    case 'periodic-settling': return 'Periodic settling — not steady';
+    case 'periodic-non-converged': return 'Periodic non-converged — not steady';
+    case 'period1-terminal-acquiring': return 'P1 found; terminal beat incomplete';
+    case 'period1-terminal-beat': return 'P1-converged terminal beat';
+  }
+}
+
+function periodicStatusLabel(status: AlphaPeriodicProgress['status']): string {
+  switch (status) {
+    case 'tracking': return 'tracking';
+    case 'period1-converged': return 'P1 converged';
+    case 'period2-suspect': return 'P2 suspected — non-converged';
+    case 'maximum-beats-reached': return 'maximum 32 beats — non-converged';
+  }
+}
+
+function formatNormalizedDelta(value: number | null): string {
+  return value === null ? '—' : value.toExponential(2);
 }
 
 function formatObservable(

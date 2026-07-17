@@ -2,17 +2,57 @@ import type {
   MainWireScientificObservableFrameV1,
   MainWireScientificObservableIdV1,
 } from '@/engine/scientific/observables';
+import type {
+  MainWireScientificPeriodicSettlementStatusV1,
+} from '@/engine/scientific/runtime';
 
 export const SCIENTIFIC_ALPHA_DT_SEC = 0.002;
 export const SCIENTIFIC_ALPHA_CYCLE_LENGTH_SEC = 1;
 export const SCIENTIFIC_ALPHA_STEPS_PER_CHUNK = 4;
 export const SCIENTIFIC_ALPHA_HISTORY_CAPACITY = 2_001;
 export const SCIENTIFIC_ALPHA_TERMINAL_WINDOW_SEC = 1;
+export const SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT =
+  SCIENTIFIC_ALPHA_CYCLE_LENGTH_SEC
+  / (SCIENTIFIC_ALPHA_DT_SEC * SCIENTIFIC_ALPHA_STEPS_PER_CHUNK);
+
+if (!Number.isInteger(SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT)) {
+  throw new Error('scientific alpha terminal beat must contain whole Worker chunks');
+}
+
+export type ScientificAlphaPeriodicDirectiveV1 =
+  | 'continue-settling'
+  | 'capture-period1-terminal-beat'
+  | 'stop-non-converged';
 
 export type ScientificAlphaPlotPointV1 = Readonly<{
   x: number;
   y: number;
 }>;
+
+/**
+ * Interpret the release-bound periodic result without ever promoting P2 or a
+ * maximum-beat stop to a steady-state claim. Inconsistent Worker payloads fail
+ * closed instead of silently changing plot provenance.
+ */
+export function scientificAlphaPeriodicDirectiveV1(
+  status: MainWireScientificPeriodicSettlementStatusV1,
+  periodicSteadyStateClaimed: boolean,
+): ScientificAlphaPeriodicDirectiveV1 {
+  const statusClaimsPeriod1 = status === 'period1-converged';
+  if (statusClaimsPeriod1 !== periodicSteadyStateClaimed) {
+    throw new Error('scientific alpha received inconsistent periodic settlement evidence');
+  }
+  if (statusClaimsPeriod1) return 'capture-period1-terminal-beat';
+  if (status === 'tracking') return 'continue-settling';
+  return 'stop-non-converged';
+}
+
+/** Start a fresh plot at the converged same-phase boundary. */
+export function beginScientificAlphaTerminalBeatHistoryV1(
+  anchor: MainWireScientificObservableFrameV1,
+): readonly MainWireScientificObservableFrameV1[] {
+  return Object.freeze([anchor]);
+}
 
 /**
  * Append accepted-state frames while retaining a hard memory bound. Repeated

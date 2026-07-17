@@ -8,7 +8,10 @@ import {
 } from '@/components/scientificAlpha/ScientificRuntimeAlphaPlots';
 import {
   appendBoundedScientificAlphaHistoryV1,
+  beginScientificAlphaTerminalBeatHistoryV1,
+  SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT,
   scientificAlphaPlotDomainV1,
+  scientificAlphaPeriodicDirectiveV1,
   scientificAlphaPvPointsV1,
   scientificAlphaTimeSeriesPointsV1,
   selectTerminalScientificAlphaHistoryV1,
@@ -19,6 +22,44 @@ import type {
 } from '@/engine/scientific/observables';
 
 describe('scientific browser alpha viewer V1', () => {
+  it('maps only P1 convergence to terminal-beat capture and keeps P2/max non-steady', () => {
+    expect(SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT).toBe(125);
+    expect(scientificAlphaPeriodicDirectiveV1('tracking', false))
+      .toBe('continue-settling');
+    expect(scientificAlphaPeriodicDirectiveV1('period1-converged', true))
+      .toBe('capture-period1-terminal-beat');
+    expect(scientificAlphaPeriodicDirectiveV1('period2-suspect', false))
+      .toBe('stop-non-converged');
+    expect(scientificAlphaPeriodicDirectiveV1('maximum-beats-reached', false))
+      .toBe('stop-non-converged');
+    expect(() => scientificAlphaPeriodicDirectiveV1('period2-suspect', true))
+      .toThrow(/inconsistent periodic settlement evidence/);
+  });
+
+  it('clears prior plot history at the P1 anchor and retains exactly one terminal beat', () => {
+    const stale = [frame(1, 0), frame(2, 0.002)];
+    const anchor = frame(13_000, 26);
+    let terminal = beginScientificAlphaTerminalBeatHistoryV1(anchor);
+    expect(terminal).toEqual([anchor]);
+    expect(terminal).not.toContain(stale[0]);
+
+    for (let chunk = 0; chunk < SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT; chunk += 1) {
+      const firstStep = chunk * 4 + 1;
+      terminal = appendBoundedScientificAlphaHistoryV1(
+        terminal,
+        [0, 1, 2, 3].map((offset) => {
+          const step = firstStep + offset;
+          return frame(13_000 + step, 26 + step * 0.002);
+        }),
+      );
+    }
+
+    expect(terminal).toHaveLength(501);
+    expect(terminal[0]?.acceptedTimeSec).toBe(26);
+    expect(terminal.at(-1)?.acceptedTimeSec).toBe(27);
+    expect(selectTerminalScientificAlphaHistoryV1(terminal)).toEqual(terminal);
+  });
+
   it('retains a bounded monotone frame history without using the fixed observation id as a key', () => {
     const frames = [1, 2, 3, 4, 5].map((revision) =>
       frame(revision, revision * 0.002));

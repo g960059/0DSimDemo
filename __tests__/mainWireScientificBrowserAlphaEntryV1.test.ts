@@ -26,9 +26,17 @@ describe('scientific browser alpha entry V1', () => {
     expect(page).toContain('new MainWireScientificWorkerClientV1()');
     expect(page).toContain("kind: 'createCanonicalSession'");
     expect(page).toContain("kind: 'runTransient'");
+    expect(page).toContain("kind: 'settlePeriodic'");
     expect(page).toContain('Run one beat');
+    expect(page).toContain('Settle to periodic');
+    expect(page).toContain('Pause between beats');
+    expect(page).toContain('Resume terminal beat');
     expect(page).toContain('Reset cold start');
     expect(page).toContain('SCIENTIFIC_ALPHA_HISTORY_CAPACITY');
+    expect(page).toContain('SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT');
+    expect(page).toContain("plotEvidence: 'periodic-non-converged'");
+    expect(page).toContain('These plots are not claimed as steady state.');
+    expect(page).toContain('requestInFlightRef.current');
     expect(page).toContain('<ScientificAlphaPvTrajectories');
     expect(page).toContain('<ScientificAlphaWaveforms');
     expect(client).toContain(
