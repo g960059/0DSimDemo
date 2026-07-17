@@ -79,7 +79,12 @@ describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
       .every(([, value]) => typeof value !== "number" || Number.isFinite(value)))
       .toBe(true);
     expect(Object.values(diagnostic.valveHydraulics).every((valve) =>
-      Object.values(valve).every(Number.isFinite))).toBe(true);
+      Object.values(valve).every((value) =>
+        typeof value !== "number" || Number.isFinite(value)))).toBe(true);
+    expect(Object.values(diagnostic.valveHydraulics).every((valve) =>
+      ["forward", "reverse", "zero-gradient"].includes(
+        valve.activeDirection,
+      ))).toBe(true);
     expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_CLAIM
       .changesFixedV1RunnerJson).toBe(false);
     expect(MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_CLAIM

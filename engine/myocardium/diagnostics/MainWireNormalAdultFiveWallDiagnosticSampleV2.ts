@@ -16,6 +16,9 @@ import type {
 import type {
   WholeHeartMechanicsSerializableValueV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+import type {
+  MainWireQuasiSteadyOrificeValveDirectionV2,
+} from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_DIAGNOSTIC_SAMPLE_V2_ID =
   "main-wire-normal-adult-five-wall-diagnostic-sample-v2" as const;
@@ -63,7 +66,23 @@ export type MainWireNormalAdultFiveWallDiagnosticSampleV2 =
     valveHydraulics: Readonly<Record<
       "MV" | "AoV" | "TV" | "PV",
       Readonly<{
+        /** Compatibility alias for the direction-selected active EOA. */
         physicalAreaCm2: number;
+        forwardActiveEoaCm2: number;
+        closedReverseEroaCm2: number;
+        activeEoaCm2: number;
+        pressureGradientMmHg: number;
+        flowMlPerSec: number;
+        activeDirection: MainWireQuasiSteadyOrificeValveDirectionV2;
+        openingTarget01: number;
+        openingEquationResidual01: number;
+        resistanceMmHgSecPerMl: number;
+        bernoulliMmHgSec2PerMl2: number;
+        competentReverseClosureActive: boolean;
+        subthresholdForwardSupportActive: boolean;
+        competentReverseClosureReactionMmHg: number;
+        subthresholdForwardSupportReactionMmHg: number;
+        /** Compatibility alias for V2 dissipativePowerMmHgMlPerSec. */
         dissipativePowerProxyMmHgMlPerSec: number;
         powerBalanceResidualMmHgMlPerSec: number;
       }>
@@ -109,9 +128,27 @@ export function sampleMainWireNormalAdultFiveWallDiagnosticStepV2(
       (["MV", "AoV", "TV", "PV"] as const).map((valveId) => {
         const valve = circulation.valveEvaluations[valveId];
         return [valveId, Object.freeze({
-          physicalAreaCm2: valve.physicalAreaCm2,
+          physicalAreaCm2: valve.activeEoaCm2,
+          forwardActiveEoaCm2: valve.forwardActiveEoaCm2,
+          closedReverseEroaCm2: valve.reverseActiveEoaCm2,
+          activeEoaCm2: valve.activeEoaCm2,
+          pressureGradientMmHg: valve.pressureGradientMmHg,
+          flowMlPerSec: valve.flowMlPerSec,
+          activeDirection: valve.activeDirection,
+          openingTarget01: valve.openingTarget01,
+          openingEquationResidual01: valve.openingEquationResidual01,
+          resistanceMmHgSecPerMl: valve.resistanceMmHgSecPerMl,
+          bernoulliMmHgSec2PerMl2: valve.bernoulliMmHgSec2PerMl2,
+          competentReverseClosureActive:
+            valve.competentReverseClosureActive,
+          subthresholdForwardSupportActive:
+            valve.subthresholdForwardSupportActive,
+          competentReverseClosureReactionMmHg:
+            valve.competentReverseClosureReactionMmHg,
+          subthresholdForwardSupportReactionMmHg:
+            valve.subthresholdForwardSupportReactionMmHg,
           dissipativePowerProxyMmHgMlPerSec:
-            valve.dissipativePowerProxyMmHgMlPerSec,
+            valve.dissipativePowerMmHgMlPerSec,
           powerBalanceResidualMmHgMlPerSec:
             valve.powerBalanceResidualMmHgMlPerSec,
         })];

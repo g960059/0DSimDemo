@@ -56,6 +56,9 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
       precedingAcceptedSampleAvailable: true,
       precedingBeatIndex: 1,
     });
+    expect(summary.cyclePhysiologyAvailability).toEqual({
+      status: "available",
+    });
     expect(summary.cyclePhysiology.sampleCount).toBe(100);
     expect(summary.cyclePhysiology.workEnergy.stressWorkCoverageFraction).toBe(1);
     expect(summary.fixedActivationPrior.atrialCalciumOnsetPhase01)
@@ -258,6 +261,53 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
       timeStepRobustnessEstablished: false,
       reason: "eligible-current-dt-period1-only",
     });
+  });
+
+  it("keeps non-event hemodynamics when post-atrial mitral closure is not measurable", () => {
+    const selected = result.retainedCompleteBeats.at(-1)!;
+    const samples = Object.freeze(selected.samples.map((sample) => {
+      const eOnlyForwardFlow = sample.cyclePhase01 >= 0.35
+          && sample.cyclePhase01 < 0.58
+        ? 100
+        : 0;
+      return Object.freeze({
+        ...sample,
+        flowMlPerSec: Object.freeze({
+          ...sample.flowMlPerSec,
+          MV: eOnlyForwardFlow,
+        }),
+      });
+    }));
+    const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      retainedCompleteBeats: Object.freeze([
+        ...result.retainedCompleteBeats.slice(0, -1),
+        Object.freeze({ ...selected, samples }),
+      ]),
+    });
+
+    expect(summary.cyclePhysiologyAvailability).toMatchObject({
+      status: "not-measurable",
+      reason: "mitral-closing-transition-after-atrial-onset-not-observed",
+      eventDetectionEvidence: {
+        valve: "mitral",
+        peakForwardFlowMlPerSec: 100,
+        openThresholdMlPerSec: 1,
+        aboveThresholdSampleCount: 23,
+        openingTransitionCount: 1,
+        closingTransitionCount: 1,
+      },
+    });
+    expect(summary.cyclePhysiology).toBeNull();
+    expect(summary.laPvMorphology).toBeNull();
+    expect(summary.morphologyInterpretation).toMatchObject({
+      eligible: false,
+      reason: "ineligible-cycle-physiology-not-measurable",
+    });
+    expect(summary.hemodynamics.leftVentricularEjectionFraction01)
+      .toBeGreaterThan(0);
+    expect(summary.residualMaxima.absoluteTotalBloodVolumeErrorMl)
+      .toBeLessThan(1e-6);
   });
 
   it("requires a retained complete beat", () => {

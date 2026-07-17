@@ -19,6 +19,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CYCLE_DIAGNOSTICS_CLAIM_V1 =
     integration: "backward-Euler-endpoint" as const,
     valveEventOwnership:
       "explicit-flow-threshold-transitions" as const,
+    absentRequiredValveEventHandling:
+      "explicit-not-measurable-without-substitute-timing" as const,
     mitralClosureAnchor:
       "first-closure-transition-at-or-after-atrial-calcium-onset" as const,
     mitralWaveSeparation:
@@ -115,6 +117,45 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsInputV1 = Readonly<{
     absoluteFloorMlPerSec?: number;
   }>;
 }>;
+
+export type MainWireNormalAdultFiveWallCycleDiagnosticsUnavailabilityReasonV1 =
+  | "mitral-no-above-threshold-forward-flow"
+  | "mitral-no-below-threshold-interval"
+  | "mitral-closing-transition-after-atrial-onset-not-observed"
+  | "aortic-no-above-threshold-forward-flow"
+  | "aortic-no-below-threshold-interval"
+  | "aortic-closing-transition-not-observed";
+
+export type MainWireNormalAdultFiveWallValveEventDetectionEvidenceV1 =
+  Readonly<{
+    valve: "mitral" | "aortic";
+    peakForwardFlowMlPerSec: number;
+    openThresholdMlPerSec: number;
+    aboveThresholdSampleCount: number;
+    openingTransitionCount: number;
+    closingTransitionCount: number;
+    primaryOpeningCandidateSampleIndex: number | null;
+    closureSearchStartSampleIndex: number | null;
+  }>;
+
+/**
+ * Non-throwing boundary for pathology sweeps. Invalid inputs still throw, but
+ * an absent flow-defined valve event is data: it is returned as not measurable
+ * and no substitute event time or phase partition is invented.
+ */
+export type MainWireNormalAdultFiveWallCycleDiagnosticsMeasurementV1 =
+  | Readonly<{
+    status: "available";
+    diagnostics: MainWireNormalAdultFiveWallCycleDiagnosticsV1;
+  }>
+  | Readonly<{
+    status: "not-measurable";
+    reason:
+      MainWireNormalAdultFiveWallCycleDiagnosticsUnavailabilityReasonV1;
+    eventDetectionEvidence:
+      MainWireNormalAdultFiveWallValveEventDetectionEvidenceV1;
+    diagnostics: null;
+  }>;
 
 export type MainWireNormalAdultFiveWallCycleEventV1 = Readonly<{
   sampleIndex: number;
@@ -261,6 +302,25 @@ export type MainWireNormalAdultFiveWallCycleDiagnosticsV1 = Readonly<{
 
 const PA_PER_MMHG = 133.322;
 const MMHG_ML_TO_MILLIJ = PA_PER_MMHG * 1e-3;
+
+export function tryMeasureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
+  input: MainWireNormalAdultFiveWallCycleDiagnosticsInputV1,
+): MainWireNormalAdultFiveWallCycleDiagnosticsMeasurementV1 {
+  try {
+    return Object.freeze({
+      status: "available" as const,
+      diagnostics: measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(input),
+    });
+  } catch (error) {
+    if (!(error instanceof CycleDiagnosticsNotMeasurableError)) throw error;
+    return Object.freeze({
+      status: "not-measurable" as const,
+      reason: error.reason,
+      eventDetectionEvidence: error.evidence,
+      diagnostics: null,
+    });
+  }
+}
 
 export function measureMainWireNormalAdultFiveWallCycleDiagnosticsV1(
   input: MainWireNormalAdultFiveWallCycleDiagnosticsInputV1,
@@ -786,7 +846,7 @@ function detectValveCycle(
   flowThresholdFraction: number,
   flowThresholdFloor: number,
   closureSearchStartIndex: number | null,
-  label: string,
+  label: "mitral" | "aortic",
 ) {
   const peak = Math.max(...flows);
   const thresholdMlPerSec = Math.max(
@@ -796,24 +856,77 @@ function detectValveCycle(
   const transition = detectBinaryValveCycle(
     flows.map((flow) => flow > thresholdMlPerSec),
     closureSearchStartIndex,
-    label,
   );
-  if (transition === null) {
-    throw new Error(`${label} signal has no cyclic opening and closing transition`);
+  if (transition.status === "not-measurable") {
+    const reason = valveEventUnavailabilityReason(label, transition.reason);
+    throw new CycleDiagnosticsNotMeasurableError(
+      reason,
+      Object.freeze({
+        valve: label === "mitral" ? "mitral" as const : "aortic" as const,
+        peakForwardFlowMlPerSec: peak,
+        openThresholdMlPerSec: thresholdMlPerSec,
+        aboveThresholdSampleCount:
+          transition.aboveThresholdSampleCount,
+        openingTransitionCount: transition.openingTransitionCount,
+        closingTransitionCount: transition.closingTransitionCount,
+        primaryOpeningCandidateSampleIndex:
+          transition.primaryOpeningCandidateSampleIndex,
+        closureSearchStartSampleIndex: closureSearchStartIndex,
+      }),
+    );
   }
   return Object.freeze({
-    ...transition,
+    openingIndex: transition.openingIndex,
+    closingIndex: transition.closingIndex,
     thresholdMlPerSec,
   });
 }
 
+type BinaryValveCycleUnavailableReason =
+  | "no-above-threshold-forward-flow"
+  | "no-below-threshold-interval"
+  | "anchored-closing-transition-not-observed"
+  | "closing-transition-not-observed";
+
+type BinaryValveCycleDetection =
+  | Readonly<{
+    status: "available";
+    openingIndex: number;
+    closingIndex: number;
+  }>
+  | Readonly<{
+    status: "not-measurable";
+    reason: BinaryValveCycleUnavailableReason;
+    aboveThresholdSampleCount: number;
+    openingTransitionCount: number;
+    closingTransitionCount: number;
+    primaryOpeningCandidateSampleIndex: number | null;
+  }>;
+
 function detectBinaryValveCycle(
   open: readonly boolean[],
   closureSearchStartIndex: number | null,
-  label: string,
-): Readonly<{ openingIndex: number; closingIndex: number }> | null {
-  if (open.every(Boolean) || open.every((value) => !value)) {
-    return null;
+): BinaryValveCycleDetection {
+  const aboveThresholdSampleCount = open.filter(Boolean).length;
+  const openingTransitionCount = countCyclicTransitions(open, false, true);
+  const closingTransitionCount = countCyclicTransitions(open, true, false);
+  if (aboveThresholdSampleCount === 0) {
+    return unavailableBinaryValveCycle(
+      "no-above-threshold-forward-flow",
+      aboveThresholdSampleCount,
+      openingTransitionCount,
+      closingTransitionCount,
+      null,
+    );
+  }
+  if (aboveThresholdSampleCount === open.length) {
+    return unavailableBinaryValveCycle(
+      "no-below-threshold-interval",
+      aboveThresholdSampleCount,
+      openingTransitionCount,
+      closingTransitionCount,
+      null,
+    );
   }
   let openingIndex = -1;
   let bestClosedRun = -1;
@@ -831,6 +944,15 @@ function detectBinaryValveCycle(
       openingIndex = index;
     }
   }
+  if (openingIndex < 0) {
+    return unavailableBinaryValveCycle(
+      "closing-transition-not-observed",
+      aboveThresholdSampleCount,
+      openingTransitionCount,
+      closingTransitionCount,
+      null,
+    );
+  }
   let closingIndex = -1;
   let cursor = closureSearchStartIndex === null
     ? openingIndex
@@ -844,10 +966,86 @@ function detectBinaryValveCycle(
     }
     cursor = next;
   }
-  if (openingIndex < 0 || closingIndex < 0) {
-    throw new Error(`${label} transition detection failed`);
+  if (closingIndex < 0) {
+    return unavailableBinaryValveCycle(
+      closureSearchStartIndex === null
+        ? "closing-transition-not-observed"
+        : "anchored-closing-transition-not-observed",
+      aboveThresholdSampleCount,
+      openingTransitionCount,
+      closingTransitionCount,
+      openingIndex,
+    );
   }
-  return Object.freeze({ openingIndex, closingIndex });
+  return Object.freeze({
+    status: "available" as const,
+    openingIndex,
+    closingIndex,
+  });
+}
+
+function unavailableBinaryValveCycle(
+  reason: BinaryValveCycleUnavailableReason,
+  aboveThresholdSampleCount: number,
+  openingTransitionCount: number,
+  closingTransitionCount: number,
+  primaryOpeningCandidateSampleIndex: number | null,
+): BinaryValveCycleDetection {
+  return Object.freeze({
+    status: "not-measurable" as const,
+    reason,
+    aboveThresholdSampleCount,
+    openingTransitionCount,
+    closingTransitionCount,
+    primaryOpeningCandidateSampleIndex,
+  });
+}
+
+function countCyclicTransitions(
+  values: readonly boolean[],
+  from: boolean,
+  to: boolean,
+): number {
+  let count = 0;
+  for (let index = 0; index < values.length; index += 1) {
+    const previous = values[positiveModulo(index - 1, values.length)]!;
+    if (previous === from && values[index] === to) count += 1;
+  }
+  return count;
+}
+
+function valveEventUnavailabilityReason(
+  label: "mitral" | "aortic",
+  reason: BinaryValveCycleUnavailableReason,
+): MainWireNormalAdultFiveWallCycleDiagnosticsUnavailabilityReasonV1 {
+  if (label === "mitral") {
+    if (reason === "no-above-threshold-forward-flow") {
+      return "mitral-no-above-threshold-forward-flow";
+    }
+    if (reason === "no-below-threshold-interval") {
+      return "mitral-no-below-threshold-interval";
+    }
+    return "mitral-closing-transition-after-atrial-onset-not-observed";
+  }
+  if (reason === "no-above-threshold-forward-flow") {
+    return "aortic-no-above-threshold-forward-flow";
+  }
+  if (reason === "no-below-threshold-interval") {
+    return "aortic-no-below-threshold-interval";
+  }
+  return "aortic-closing-transition-not-observed";
+}
+
+class CycleDiagnosticsNotMeasurableError extends Error {
+  constructor(
+    readonly reason:
+      MainWireNormalAdultFiveWallCycleDiagnosticsUnavailabilityReasonV1,
+    readonly evidence:
+      MainWireNormalAdultFiveWallValveEventDetectionEvidenceV1,
+  ) {
+    super(`cycle diagnostics not measurable: ${reason}`);
+    this.name = "CycleDiagnosticsNotMeasurableError";
+  }
 }
 
 function measureMitralWaveSeparation(
