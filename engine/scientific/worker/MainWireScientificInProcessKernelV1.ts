@@ -23,6 +23,11 @@ import {
   OFFICIAL_SCIENTIFIC_PRESET_CATALOG_V1_SCHEMA_ID,
 } from "@/engine/scientific/presets";
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
+} from "@/engine/scientific/presets/mainWireScientificResearchPresetCatalogV1";
+import {
   loadMainWireAdultFiveWallNonCoronaryReleaseV1,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1,
@@ -46,6 +51,9 @@ import {
   type ScientificPeriodicSettlementPartialProgressV1,
   type ScientificCommandV1,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import {
+  resolveMainWireScientificResearchPresetV1,
+} from "@/engine/scientific/worker/MainWireScientificResearchPresetResolverV1";
 
 export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_ID =
   "main-wire-scientific-in-process-kernel-v1" as const;
@@ -71,6 +79,12 @@ export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM = Object.freeze({
   officialPresetCapability:
     "host-injected-bundled-catalog-identity-only-exact-checkpoint-restore" as const,
   officialPresetArbitraryAssetInputAccepted: false as const,
+  researchPresetCapability:
+    "built-in-catalog-id-version-only-cold-start" as const,
+  researchPresetOfficialTrustClaimed: false as const,
+  researchPresetClinicalDiagnosisClaimed: false as const,
+  researchPresetPeriodicSteadyStateClaimedAtCreation: false as const,
+  researchPresetArbitraryParameterPatchAccepted: false as const,
   resolvedSessionInputCapability:
     "complete-input-release-bound-revalidation" as const,
   resolvedSessionArbitraryParameterPatchAccepted: false as const,
@@ -298,6 +312,8 @@ export class MainWireScientificInProcessKernelV1 {
         return this.createResolved(command);
       case "createOfficialPresetSession":
         return this.createOfficialPreset(command);
+      case "createResearchPresetSession":
+        return this.createResearchPreset(command);
       case "runTransient":
         return this.runTransient(command);
       case "observe":
@@ -454,6 +470,83 @@ export class MainWireScientificInProcessKernelV1 {
       return errorResponseForCommand(
         command,
         "official-preset-restore-rejected",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private async createResearchPreset(
+    command: Extract<ScientificCommandV1, {
+      kind: "createResearchPresetSession";
+    }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const allocationError = this.sessionAllocationError(command);
+    if (allocationError !== null) return allocationError;
+    try {
+      const resolved = await resolveMainWireScientificResearchPresetV1({
+        presetId: command.presetId,
+        presetVersion: command.presetVersion,
+      });
+      // The Worker, never the browser command, owns the immutable release.
+      const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
+      if (!sameReleaseRef(release.ref, resolved.releaseRef)) {
+        throw new Error("research preset resolver release does not match the immutable Worker release");
+      }
+      const session =
+        await initializeMainWireScientificSessionFromResolvedInputV1(
+          release,
+          resolved.resolvedSessionInput,
+        );
+      if (
+        session.sessionInputSha256
+          !== resolved.resolvedSessionInput.sessionInputSha256
+        || !sameReleaseRef(session.releaseRef, resolved.releaseRef)
+      ) {
+        throw new Error("research preset session identity does not match its resolved input");
+      }
+      const observableFrame = project(session);
+      const sessionOrigin = Object.freeze({
+        kind: "research-preset-cold-start" as const,
+        presetId: resolved.preset.presetId,
+        presetVersion: resolved.preset.presetVersion,
+        catalogSchemaId:
+          MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID,
+        catalogSchemaVersion: 1 as const,
+        classification: "research-bracket-not-clinical" as const,
+        officialTrustClaimed: false as const,
+        clinicalDiagnosisClaimed: false as const,
+        periodicSteadyStateClaimed: false as const,
+        releaseRef: copyReleaseRef(session.releaseRef),
+        sessionInputSha256: session.sessionInputSha256,
+        initializationProtocolId:
+          session.sessionInput.initialization.protocolId,
+        initializationProtocolVersion:
+          session.sessionInput.initialization.protocolVersion,
+      });
+      const response = successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "researchPresetSessionCreated" as const,
+          presetId: resolved.preset.presetId,
+          presetVersion: resolved.preset.presetVersion,
+          classification: "research-bracket-not-clinical" as const,
+          officialTrustClaimed: false as const,
+          clinicalDiagnosisClaimed: false as const,
+          periodicSteadyStateClaimed: false as const,
+          sessionInputSha256: session.sessionInputSha256,
+          observableFrame,
+        }),
+      );
+      this.sessions.set(command.sessionId, session);
+      this.sessionOrigins.set(command.sessionId, sessionOrigin);
+      this.allocatedSessionIds.add(command.sessionId);
+      return response;
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "research-preset-resolution-rejected",
         errorMessage(error),
       );
     }
@@ -667,6 +760,7 @@ export class MainWireScientificInProcessKernelV1 {
         | "createCanonicalSession"
         | "createResolvedSession"
         | "createOfficialPresetSession"
+        | "createResearchPresetSession"
         | "restoreExactSession";
     }>,
   ): MainWireScientificCommandResponseV1 | null {
@@ -953,6 +1047,8 @@ function parseCommand(
         ? [...common, "resolvedSessionInput"]
         : value.kind === "createOfficialPresetSession"
           ? [...common, "presetId", "presetVersion"]
+          : value.kind === "createResearchPresetSession"
+            ? [...common, "presetId", "presetVersion"]
           : common;
   if (!hasExactKeys(value, expectedKeys)) {
     return invalid(identity, "command fields do not match its kind");
@@ -991,6 +1087,19 @@ function parseCommand(
     }
     if (value.presetVersion !== "1.0.0") {
       return invalid(identity, "presetVersion is not present in the bundled catalog");
+    }
+  }
+  if (value.kind === "createResearchPresetSession") {
+    if (
+      typeof value.presetId !== "string"
+      || !MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1.includes(
+        value.presetId as (typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1)[number],
+      )
+    ) {
+      return invalid(identity, "presetId is not present in the research catalog");
+    }
+    if (value.presetVersion !== MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION) {
+      return invalid(identity, "presetVersion is not present in the research catalog");
     }
   }
   return Object.freeze({
@@ -1226,7 +1335,21 @@ function copyReleaseRef(ref: SimulationReleaseRef): SimulationReleaseRef {
 function copySessionOrigin(
   origin: ScientificSessionOriginV1,
 ): ScientificSessionOriginV1 {
-  return Object.freeze({ ...origin });
+  return origin.kind === "research-preset-cold-start"
+    ? Object.freeze({
+      ...origin,
+      releaseRef: copyReleaseRef(origin.releaseRef),
+    })
+    : Object.freeze({ ...origin });
+}
+
+function sameReleaseRef(
+  left: SimulationReleaseRef,
+  right: SimulationReleaseRef,
+): boolean {
+  return left.id === right.id
+    && left.version === right.version
+    && left.sha256 === right.sha256;
 }
 
 function boundedPositiveInteger(

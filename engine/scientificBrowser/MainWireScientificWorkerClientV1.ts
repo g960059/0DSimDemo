@@ -11,6 +11,12 @@ import {
 import type {
   SimulationReleaseRef,
 } from "@/engine/scientific/release";
+import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
+  type MainWireScientificResearchPresetIdV1,
+} from "@/engine/scientific/presets/mainWireScientificResearchPresetCatalogV1";
 
 export const MAIN_WIRE_SCIENTIFIC_WORKER_CLIENT_V1_ID =
   "main-wire-scientific-worker-client-v1" as const;
@@ -113,6 +119,10 @@ type PendingCommandIdentityV1 = Readonly<{
   officialPreset: Readonly<{
     presetId: "circleheart/official-healthy-periodic";
     presetVersion: "1.0.0";
+  }> | null;
+  researchPreset: Readonly<{
+    presetId: MainWireScientificResearchPresetIdV1;
+    presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
   }> | null;
 }>;
 
@@ -467,6 +477,43 @@ function isSessionOrigin(value: unknown): boolean {
           .checkpointSha256
       && value.parameterization === "fixed-canonical-only";
   }
+  if (value.kind === "research-preset-cold-start") {
+    return hasExactKeys(value, [
+      "kind",
+      "presetId",
+      "presetVersion",
+      "catalogSchemaId",
+      "catalogSchemaVersion",
+      "classification",
+      "officialTrustClaimed",
+      "clinicalDiagnosisClaimed",
+      "periodicSteadyStateClaimed",
+      "releaseRef",
+      "sessionInputSha256",
+      "initializationProtocolId",
+      "initializationProtocolVersion",
+    ])
+      && typeof value.presetId === "string"
+      && MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1.includes(
+        value.presetId as MainWireScientificResearchPresetIdV1,
+      )
+      && value.presetVersion
+        === MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION
+      && value.catalogSchemaId
+        === MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID
+      && value.catalogSchemaVersion === 1
+      && value.classification === "research-bracket-not-clinical"
+      && value.officialTrustClaimed === false
+      && value.clinicalDiagnosisClaimed === false
+      && value.periodicSteadyStateClaimed === false
+      && isReleaseRef(value.releaseRef)
+      && typeof value.sessionInputSha256 === "string"
+      && /^[0-9a-f]{64}$/.test(value.sessionInputSha256)
+      && typeof value.initializationProtocolId === "string"
+      && value.initializationProtocolId.length > 0
+      && typeof value.initializationProtocolVersion === "string"
+      && value.initializationProtocolVersion.length > 0;
+  }
   return false;
 }
 
@@ -490,6 +537,12 @@ function capturePendingCommandIdentity(
         presetVersion: command.presetVersion,
       })
       : null,
+    researchPreset: command.kind === "createResearchPresetSession"
+      ? Object.freeze({
+        presetId: command.presetId,
+        presetVersion: command.presetVersion,
+      })
+      : null,
   });
 }
 
@@ -497,6 +550,13 @@ function isResponseCompatibleWithSubmittedCommand(
   response: ProtocolEnvelope,
   submitted: PendingCommandIdentityV1,
 ): boolean {
+  if (
+    response.sessionOrigin?.kind === "research-preset-cold-start"
+    && !sameReleaseRef(
+      response.releaseRef,
+      response.sessionOrigin.releaseRef,
+    )
+  ) return false;
   if (response.ok === false) return true;
   if (submitted.kind === "createResolvedSession") {
     const expected = submitted.resolvedSessionInput;
@@ -571,6 +631,41 @@ function isResponseCompatibleWithSubmittedCommand(
       && isRecord(payload.observableFrame)
       && exactOfficialReleaseRef(payload.observableFrame.releaseRef);
   }
+  if (submitted.kind === "createResearchPresetSession") {
+    const expected = submitted.researchPreset;
+    if (expected === null) return false;
+    const origin = response.sessionOrigin;
+    const payload = response.payload;
+    return origin.kind === "research-preset-cold-start"
+      && origin.presetId === expected.presetId
+      && origin.presetVersion === expected.presetVersion
+      && sameReleaseRef(response.releaseRef, origin.releaseRef)
+      && isRecord(payload)
+      && hasExactKeys(payload, [
+        "kind",
+        "presetId",
+        "presetVersion",
+        "classification",
+        "officialTrustClaimed",
+        "clinicalDiagnosisClaimed",
+        "periodicSteadyStateClaimed",
+        "sessionInputSha256",
+        "observableFrame",
+      ])
+      && payload.kind === "researchPresetSessionCreated"
+      && payload.presetId === expected.presetId
+      && payload.presetVersion === expected.presetVersion
+      && payload.classification === "research-bracket-not-clinical"
+      && payload.officialTrustClaimed === false
+      && payload.clinicalDiagnosisClaimed === false
+      && payload.periodicSteadyStateClaimed === false
+      && payload.sessionInputSha256 === origin.sessionInputSha256
+      && isRecord(payload.observableFrame)
+      && sameReleaseRef(
+        payload.observableFrame.releaseRef,
+        origin.releaseRef,
+      );
+  }
   return true;
 }
 
@@ -632,6 +727,10 @@ function isExactCheckpointResponseCompatible(
   }
   if (origin.kind === "exact-checkpoint-restore") {
     return origin.sessionInputSha256 === checkpoint.sessionInputSha256;
+  }
+  if (origin.kind === "research-preset-cold-start") {
+    return origin.sessionInputSha256 === checkpoint.sessionInputSha256
+      && sameReleaseRef(origin.releaseRef, checkpoint.releaseRef);
   }
   return true;
 }

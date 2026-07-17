@@ -12,6 +12,11 @@ import {
   OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_VERSION,
 } from '@/engine/scientific/presets/officialHealthyPeriodicCheckpointPresetV1';
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
+  type MainWireScientificResearchPresetIdV1,
+} from '@/engine/scientific/presets/mainWireScientificResearchPresetCatalogV1';
+import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type ScientificSessionOriginV1,
 } from '@/engine/scientific/worker';
@@ -40,7 +45,14 @@ const MAXIMUM_SIMULATION_COMMANDS_PER_ALPHA_SESSION = 7_600;
 const ALPHA_RENDER_EVERY_TRANSIENT_COMMANDS = 8;
 
 type AlphaPhase = 'starting' | 'ready' | 'running' | 'paused' | 'failed';
-type AlphaBootstrapKind = 'official-healthy-periodic' | 'canonical-cold-start';
+type AlphaBootstrapTarget =
+  | Readonly<{ kind: 'official-healthy-periodic' }>
+  | Readonly<{ kind: 'canonical-cold-start' }>
+  | Readonly<{
+    kind: 'research-preset';
+    presetId: MainWireScientificResearchPresetIdV1;
+    presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
+  }>;
 type AlphaRunMode =
   | 'idle'
   | 'continuous'
@@ -76,12 +88,21 @@ type AlphaState = Readonly<{
   terminalBeatCompletedChunkCount: number;
 }>;
 
-function initialAlphaState(bootstrapKind: AlphaBootstrapKind): AlphaState {
+const OFFICIAL_HEALTHY_BOOTSTRAP = Object.freeze({
+  kind: 'official-healthy-periodic' as const,
+});
+const CANONICAL_COLD_BOOTSTRAP = Object.freeze({
+  kind: 'canonical-cold-start' as const,
+});
+
+function initialAlphaState(bootstrap: AlphaBootstrapTarget): AlphaState {
   return Object.freeze({
     phase: 'starting',
-    message: bootstrapKind === 'official-healthy-periodic'
+    message: bootstrap.kind === 'official-healthy-periodic'
       ? 'Verifying and restoring the bundled official healthy periodic checkpoint.'
-      : 'Creating the canonical cold-start session.',
+      : bootstrap.kind === 'canonical-cold-start'
+        ? 'Creating the canonical cold-start session.'
+        : `Resolving ${researchPresetDisplayName(bootstrap.presetId)} into a release-bound cold-start session.`,
     releaseRef: null,
     sessionOrigin: null,
     history: Object.freeze([]),
@@ -99,11 +120,15 @@ function initialAlphaState(bootstrapKind: AlphaBootstrapKind): AlphaState {
  */
 export default function ScientificRuntimeAlphaPage() {
   const [bootstrap, setBootstrap] = React.useState<Readonly<{
-    kind: AlphaBootstrapKind;
+    target: AlphaBootstrapTarget;
     revision: number;
-  }>>(() => Object.freeze({ kind: 'official-healthy-periodic', revision: 0 }));
+  }>>(() => Object.freeze({ target: OFFICIAL_HEALTHY_BOOTSTRAP, revision: 0 }));
   const [state, setState] = React.useState<AlphaState>(() =>
-    initialAlphaState('official-healthy-periodic'));
+    initialAlphaState(OFFICIAL_HEALTHY_BOOTSTRAP));
+  const [selectedResearchPresetId, setSelectedResearchPresetId] =
+    React.useState<MainWireScientificResearchPresetIdV1>(
+      MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.entries[0].presetId,
+    );
   const [requestBusy, setRequestBusy] = React.useState(false);
   const clientRef = React.useRef<MainWireScientificWorkerClientV1 | null>(null);
   const generationRef = React.useRef(0);
@@ -403,7 +428,7 @@ export default function ScientificRuntimeAlphaPage() {
     historyRef.current = Object.freeze([]);
     requestInFlightRef.current = false;
     setRequestBusy(false);
-    setState(initialAlphaState(bootstrap.kind));
+    setState(initialAlphaState(bootstrap.target));
 
     let mounted = true;
     let client: MainWireScientificWorkerClientV1;
@@ -415,7 +440,7 @@ export default function ScientificRuntimeAlphaPage() {
       return undefined;
     }
 
-    const bootstrapCommand = bootstrap.kind === 'official-healthy-periodic'
+    const bootstrapCommand = bootstrap.target.kind === 'official-healthy-periodic'
       ? {
         protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
         kind: 'createOfficialPresetSession' as const,
@@ -424,18 +449,28 @@ export default function ScientificRuntimeAlphaPage() {
         presetId: OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_ID,
         presetVersion: OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_VERSION,
       }
-      : {
-        protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
-        kind: 'createCanonicalSession' as const,
-        requestId: requestIdentity(generation, ++requestSerialRef.current),
-        sessionId: sessionIdentity(generation),
-      };
+      : bootstrap.target.kind === 'canonical-cold-start'
+        ? {
+          protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+          kind: 'createCanonicalSession' as const,
+          requestId: requestIdentity(generation, ++requestSerialRef.current),
+          sessionId: sessionIdentity(generation),
+        }
+        : {
+          protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+          kind: 'createResearchPresetSession' as const,
+          requestId: requestIdentity(generation, ++requestSerialRef.current),
+          sessionId: sessionIdentity(generation),
+          presetId: bootstrap.target.presetId,
+          presetVersion: bootstrap.target.presetVersion,
+        };
     void client.request(bootstrapCommand).then((response) => {
       if (!mounted || generation !== generationRef.current) return;
       if (!response.ok) {
         throw new Error(`${response.error.code}: ${response.error.message}`);
       }
-      const officialBootstrap = bootstrap.kind === 'official-healthy-periodic';
+      const officialBootstrap = bootstrap.target.kind === 'official-healthy-periodic';
+      const researchBootstrap = bootstrap.target.kind === 'research-preset';
       if (officialBootstrap) {
         if (
           response.commandKind !== 'createOfficialPresetSession'
@@ -452,6 +487,31 @@ export default function ScientificRuntimeAlphaPage() {
             !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_VERSION
           || response.payload.observableFrame.source !== 'exact-checkpoint-restore'
         ) throw new Error('scientific Worker returned an unexpected official preset payload');
+      } else if (researchBootstrap) {
+        if (
+          response.commandKind !== 'createResearchPresetSession'
+          || response.payload.kind !== 'researchPresetSessionCreated'
+          || response.payload.presetId !== bootstrap.target.presetId
+          || response.payload.presetVersion !== bootstrap.target.presetVersion
+          || response.payload.classification !== 'research-bracket-not-clinical'
+          || response.payload.officialTrustClaimed !== false
+          || response.payload.clinicalDiagnosisClaimed !== false
+          || response.payload.periodicSteadyStateClaimed !== false
+          || response.sessionOrigin.kind !== 'research-preset-cold-start'
+          || response.sessionOrigin.presetId !== bootstrap.target.presetId
+          || response.sessionOrigin.presetVersion !== bootstrap.target.presetVersion
+          || response.sessionOrigin.classification !== 'research-bracket-not-clinical'
+          || response.sessionOrigin.officialTrustClaimed !== false
+          || response.sessionOrigin.clinicalDiagnosisClaimed !== false
+          || response.sessionOrigin.periodicSteadyStateClaimed !== false
+          || response.sessionOrigin.sessionInputSha256
+            !== response.payload.sessionInputSha256
+          || !sameSimulationReleaseRef(
+            response.sessionOrigin.releaseRef,
+            response.releaseRef,
+          )
+          || response.payload.observableFrame.source !== 'cold-initialization'
+        ) throw new Error('scientific Worker returned an unexpected research preset payload');
       } else if (
         response.commandKind !== 'createCanonicalSession'
         || response.payload.kind !== 'sessionCreated'
@@ -470,7 +530,9 @@ export default function ScientificRuntimeAlphaPage() {
         phase: officialBootstrap ? 'running' : 'ready',
         message: officialBootstrap
           ? 'Verified official P1 checkpoint restored. Confirming its stored closure before acquiring the following beat.'
-          : 'Canonical scientific Worker cold-start session is ready.',
+          : researchBootstrap
+            ? `${researchPresetDisplayName(bootstrap.target.presetId)} is ready as a cold research session. It is neither a clinical diagnosis nor a steady-state result.`
+            : 'Canonical scientific Worker cold-start session is ready.',
         releaseRef: response.releaseRef,
         sessionOrigin: response.sessionOrigin,
         history: historyRef.current,
@@ -592,7 +654,7 @@ export default function ScientificRuntimeAlphaPage() {
     }));
   };
 
-  const restartWith = (kind: AlphaBootstrapKind) => {
+  const restartWith = (target: AlphaBootstrapTarget) => {
     generationRef.current += 1;
     runModeRef.current = 'idle';
     beatTargetTimeSecRef.current = null;
@@ -603,8 +665,16 @@ export default function ScientificRuntimeAlphaPage() {
     clientRef.current?.terminate();
     clientRef.current = null;
     setBootstrap((previous) => Object.freeze({
-      kind,
+      target,
       revision: previous.revision + 1,
+    }));
+  };
+
+  const loadSelectedResearchPreset = () => {
+    restartWith(Object.freeze({
+      kind: 'research-preset' as const,
+      presetId: selectedResearchPresetId,
+      presetVersion: MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
     }));
   };
 
@@ -623,9 +693,48 @@ export default function ScientificRuntimeAlphaPage() {
             Release-bound main-wire science in one module Worker. This explicit
             route is not the default Workbench runtime and has no legacy fallback.
             It starts from the digest-verified official healthy P1 checkpoint;
-            canonical cold start remains available as an explicit diagnostic.
+            canonical cold start and bounded valve-disease research brackets
+            remain explicit cold-start alternatives.
           </p>
         </header>
+
+        <section
+          className="grid gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end"
+          data-testid="scientific-alpha-research-preset-launcher"
+        >
+          <label className="space-y-2 text-sm text-slate-300">
+            <span className="block font-medium text-slate-100">
+              Built-in research preset
+            </span>
+            <select
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              value={selectedResearchPresetId}
+              onChange={(event) => {
+                const entry = MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.entries
+                  .find(({ presetId }) => presetId === event.target.value);
+                if (entry !== undefined) setSelectedResearchPresetId(entry.presetId);
+              }}
+            >
+              {MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.entries.map((entry) => (
+                <option key={entry.presetId} value={entry.presetId}>
+                  {entry.displayName}
+                </option>
+              ))}
+            </select>
+            <span className="block text-xs leading-5 text-amber-200/80">
+              Research bracket only — not an official preset, clinical diagnosis,
+              patient fit, or steady-state result. Loading starts cold; periodic
+              settling remains an explicit action.
+            </span>
+          </label>
+          <button
+            type="button"
+            className={secondaryButtonClass}
+            onClick={loadSelectedResearchPreset}
+          >
+            Load research cold start
+          </button>
+        </section>
 
         {state.phase === 'starting' && (
           <StatusPanel tone="pending" title="Starting real scientific Worker…">
@@ -641,17 +750,15 @@ export default function ScientificRuntimeAlphaPage() {
             <button
               type="button"
               className={secondaryButtonClass}
-              onClick={() => restartWith(bootstrap.kind)}
+              onClick={() => restartWith(bootstrap.target)}
             >
-              Retry {bootstrap.kind === 'official-healthy-periodic'
-                ? 'healthy preset'
-                : 'cold start'}
+              Retry {bootstrapTargetLabel(bootstrap.target)}
             </button>
-            {bootstrap.kind === 'official-healthy-periodic' && (
+            {bootstrap.target.kind === 'official-healthy-periodic' && (
               <button
                 type="button"
                 className={secondaryButtonClass}
-                onClick={() => restartWith('canonical-cold-start')}
+                onClick={() => restartWith(CANONICAL_COLD_BOOTSTRAP)}
               >
                 Start canonical cold
               </button>
@@ -667,12 +774,12 @@ export default function ScientificRuntimeAlphaPage() {
             onPause={pause}
             onSingleBeat={runSingleBeat}
             onSettlePeriodic={settleToPeriodic}
-            bootstrapKind={bootstrap.kind}
-            onReset={() => restartWith(bootstrap.kind)}
+            bootstrapTarget={bootstrap.target}
+            onReset={() => restartWith(bootstrap.target)}
             onSwitchBootstrap={() => restartWith(
-              bootstrap.kind === 'official-healthy-periodic'
-                ? 'canonical-cold-start'
-                : 'official-healthy-periodic',
+              bootstrap.target.kind === 'official-healthy-periodic'
+                ? CANONICAL_COLD_BOOTSTRAP
+                : OFFICIAL_HEALTHY_BOOTSTRAP,
             )}
           />
         )}
@@ -689,7 +796,7 @@ function ReadyPanel({
   onSingleBeat,
   onSettlePeriodic,
   onReset,
-  bootstrapKind,
+  bootstrapTarget,
   onSwitchBootstrap,
 }: Readonly<{
   state: AlphaState & Readonly<{
@@ -702,7 +809,7 @@ function ReadyPanel({
   onSingleBeat: () => void;
   onSettlePeriodic: () => void;
   onReset: () => void;
-  bootstrapKind: AlphaBootstrapKind;
+  bootstrapTarget: AlphaBootstrapTarget;
   onSwitchBootstrap: () => void;
 }>) {
   const frame = state.history.at(-1);
@@ -782,16 +889,18 @@ function ReadyPanel({
           className={secondaryButtonClass}
           onClick={onReset}
         >
-          {bootstrapKind === 'official-healthy-periodic'
+          {bootstrapTarget.kind === 'official-healthy-periodic'
             ? 'Reload healthy preset'
-            : 'Reset cold start'}
+            : bootstrapTarget.kind === 'research-preset'
+              ? 'Reload research preset'
+              : 'Reset cold start'}
         </button>
         <button
           type="button"
           className={secondaryButtonClass}
           onClick={onSwitchBootstrap}
         >
-          {bootstrapKind === 'official-healthy-periodic'
+          {bootstrapTarget.kind === 'official-healthy-periodic'
             ? 'Start canonical cold'
             : 'Load healthy periodic'}
         </button>
@@ -831,6 +940,20 @@ function ReadyPanel({
             <Metadata
               label="Checkpoint SHA-256"
               value={state.sessionOrigin.checkpointSha256}
+              full
+            />
+          </>
+        )}
+        {state.sessionOrigin.kind === 'research-preset-cold-start' && (
+          <>
+            <Metadata
+              label="Research preset"
+              value={`${state.sessionOrigin.presetId} v${state.sessionOrigin.presetVersion}`}
+              wide
+            />
+            <Metadata
+              label="Session input SHA-256"
+              value={state.sessionOrigin.sessionInputSha256}
               full
             />
           </>
@@ -982,6 +1105,26 @@ function requestIdentity(generation: number, serial: number): string {
 
 function sessionIdentity(generation: number): string {
   return `browser-scientific-alpha-session-g${generation}`;
+}
+
+function researchPresetDisplayName(
+  presetId: MainWireScientificResearchPresetIdV1,
+): string {
+  const entry = MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.entries.find(
+    (candidate) => candidate.presetId === presetId,
+  );
+  if (entry === undefined) {
+    throw new Error(`unknown built-in research preset ${presetId}`);
+  }
+  return entry.displayName;
+}
+
+function bootstrapTargetLabel(target: AlphaBootstrapTarget): string {
+  switch (target.kind) {
+    case 'official-healthy-periodic': return 'healthy preset';
+    case 'canonical-cold-start': return 'cold start';
+    case 'research-preset': return researchPresetDisplayName(target.presetId);
+  }
 }
 
 function alphaRunModeIsActive(runMode: AlphaRunMode): boolean {

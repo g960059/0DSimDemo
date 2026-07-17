@@ -26,6 +26,7 @@ describe('scientific browser alpha entry V1', () => {
     expect(page).toContain('new MainWireScientificWorkerClientV1()');
     expect(page).toContain("kind: 'createOfficialPresetSession'");
     expect(page).toContain("kind: 'createCanonicalSession'");
+    expect(page).toContain("kind: 'createResearchPresetSession'");
     expect(page).toContain("kind: 'runTransient'");
     expect(page).toContain("kind: 'settlePeriodic'");
     expect(page).toContain('Run one beat');
@@ -36,6 +37,12 @@ describe('scientific browser alpha entry V1', () => {
     expect(page).toContain('Reload healthy preset');
     expect(page).toContain('Start canonical cold');
     expect(page).toContain('Load healthy periodic');
+    expect(page).toContain('Load research cold start');
+    expect(page).toContain('Reload research preset');
+    expect(page).toContain('Research bracket only');
+    expect(page).toContain('not an official preset, clinical diagnosis');
+    expect(page).toContain("'research-preset-cold-start'");
+    expect(page).toContain("plotEvidence: 'cold-start'");
     expect(page).toContain('official-preset-exact-checkpoint-restore');
     expect(page).toContain('SCIENTIFIC_ALPHA_HISTORY_CAPACITY');
     expect(page).toContain('SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT');
@@ -50,6 +57,12 @@ describe('scientific browser alpha entry V1', () => {
     expect(client).toContain(
       'new URL("./mainWireScientificWorkerV1.ts", import.meta.url)',
     );
+    expect(page).toContain(
+      "from '@/engine/scientific/presets/mainWireScientificResearchPresetCatalogV1'",
+    );
+    expect(page).not.toContain("from '@/engine/scientific/presets';");
+    expect(page).not.toContain('MainWireScientificResearchPresetResolverV1');
+    expect(page).not.toContain('loadMainWireAdultFiveWallNonCoronaryReleaseV1');
     expect(`${page}\n${client}`).not.toMatch(
       /(?:from\s+|import\s*\()["'][^"']*(?:ModelCore|previewController|previewWorker|backendSelector)[^"']*["']/,
     );

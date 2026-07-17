@@ -9,6 +9,11 @@ import type {
 import type {
   SimulationReleaseRef,
 } from "@/engine/scientific/release";
+import type {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
+  MainWireScientificResearchPresetIdV1,
+} from "@/engine/scientific/presets/mainWireScientificResearchPresetCatalogV1";
 
 export const SCIENTIFIC_COMMAND_PROTOCOL_V1_ID =
   "circleheart-scientific-command-protocol-v1" as const;
@@ -17,6 +22,7 @@ export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "createCanonicalSession",
   "createResolvedSession",
   "createOfficialPresetSession",
+  "createResearchPresetSession",
   "runTransient",
   "observe",
   "getExactCheckpoint",
@@ -54,6 +60,16 @@ export type CreateOfficialPresetSessionCommandV1 =
     presetVersion: "1.0.0";
   }>;
 
+/**
+ * Starts one built-in research bracket by exact browser-safe catalog identity.
+ * There is deliberately no parameter patch or caller-supplied release field.
+ */
+export type CreateResearchPresetSessionCommandV1 =
+  CommandBaseV1<"createResearchPresetSession"> & Readonly<{
+    presetId: MainWireScientificResearchPresetIdV1;
+    presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
+  }>;
+
 export type RunTransientCommandV1 = CommandBaseV1<"runTransient"> & Readonly<{
   dtSec: number;
   stepCount: number;
@@ -79,6 +95,7 @@ export type ScientificCommandV1 =
   | CreateCanonicalSessionCommandV1
   | CreateResolvedSessionCommandV1
   | CreateOfficialPresetSessionCommandV1
+  | CreateResearchPresetSessionCommandV1
   | RunTransientCommandV1
   | ObserveCommandV1
   | GetExactCheckpointCommandV1
@@ -100,6 +117,7 @@ export type ScientificCommandErrorCodeV1 =
   | "session-creation-failed"
   | "resolved-session-input-rejected"
   | "official-preset-restore-rejected"
+  | "research-preset-resolution-rejected"
   | "checkpoint-failed"
   | "exact-restore-rejected"
   | "command-failed";
@@ -135,6 +153,22 @@ export type ScientificSessionOriginV1 =
     checkpointRawFileSha256: string;
     checkpointSha256: string;
     parameterization: "fixed-canonical-only";
+  }>
+  | Readonly<{
+    kind: "research-preset-cold-start";
+    presetId: MainWireScientificResearchPresetIdV1;
+    presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
+    catalogSchemaId:
+      typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID;
+    catalogSchemaVersion: 1;
+    classification: "research-bracket-not-clinical";
+    officialTrustClaimed: false;
+    clinicalDiagnosisClaimed: false;
+    periodicSteadyStateClaimed: false;
+    releaseRef: SimulationReleaseRef;
+    sessionInputSha256: string;
+    initializationProtocolId: string;
+    initializationProtocolVersion: string;
   }>;
 
 export type ScientificTransientExecutionProtocolV1 = Readonly<{
@@ -200,6 +234,17 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       kind: "officialPresetSessionCreated";
       presetId: "circleheart/official-healthy-periodic";
       presetVersion: "1.0.0";
+      observableFrame: TObservableFrame;
+    }>;
+    createResearchPresetSession: Readonly<{
+      kind: "researchPresetSessionCreated";
+      presetId: MainWireScientificResearchPresetIdV1;
+      presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
+      classification: "research-bracket-not-clinical";
+      officialTrustClaimed: false;
+      clinicalDiagnosisClaimed: false;
+      periodicSteadyStateClaimed: false;
+      sessionInputSha256: string;
       observableFrame: TObservableFrame;
     }>;
     runTransient: Readonly<{
