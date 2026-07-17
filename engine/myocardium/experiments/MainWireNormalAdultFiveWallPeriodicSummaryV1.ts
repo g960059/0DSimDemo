@@ -44,6 +44,8 @@ export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_SUMMARY_CLAIM_V1 =
     timeSeriesSmoothingApplied: false as const,
     timeSeriesResamplingOrInterpolationApplied: false as const,
     piecewiseLinearPvGeometryInterpolationApplied: true as const,
+    laPvMorphologyPressureCoordinate:
+      "intracavitary-absolute-pressure" as const,
     morphologyMetricsComputedWhenNotPeriodic: true as const,
     morphologyInterpretationRequiresPeriod1Convergence: true as const,
     morphologyMetricAcceptanceThresholdApplied: false as const,
@@ -264,7 +266,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
     Object.freeze({
       theta: sample.cyclePhase01,
       laVolumeMl: sample.nodeVolumeMl.LA,
-      laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
+      laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
       laActivation01: atrialActivation01(sample),
       phase: cycle.phaseBySample[index]!,
     })));
@@ -637,7 +639,7 @@ function cyclicSegmentInclusive<T>(
 function pvPoint(sample: MainWireNormalAdultFiveWallDiagnosticSampleV2) {
   return Object.freeze({
     laVolumeMl: sample.nodeVolumeMl.LA,
-    laPressureMmHg: sample.chamberTransmuralPressureMmHg.LA,
+    laPressureMmHg: sample.nodeAbsolutePressureMmHg.LA,
   });
 }
 

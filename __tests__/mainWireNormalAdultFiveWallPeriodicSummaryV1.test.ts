@@ -75,6 +75,8 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
     expect(summary.claim.changesPhysiologyOrMaterialParameters).toBe(false);
     expect(summary.claim.timeSeriesResamplingOrInterpolationApplied).toBe(false);
     expect(summary.claim.piecewiseLinearPvGeometryInterpolationApplied).toBe(true);
+    expect(summary.claim.laPvMorphologyPressureCoordinate)
+      .toBe("intracavitary-absolute-pressure");
     expect(summary.claim.timeStepRobustnessAssessedBySummary).toBe(false);
     expect(summary.fixedActivationPrior.purpose).toBe(
       "normalized-Ca-lobe-selection-proxy-not-Land-activation-or-tension-law",
@@ -168,6 +170,49 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
         },
       ],
     });
+  });
+
+  it("measures LA PV shape in absolute pressure while retaining transmural wall work", () => {
+    const baseline = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result);
+    const retainedCompleteBeats = Object.freeze(result.retainedCompleteBeats.map(
+      (beat) => Object.freeze({
+        ...beat,
+        samples: Object.freeze(beat.samples.map((sample) => {
+          const externalOffsetMmHg = 3 * Math.sin(
+            2 * Math.PI * sample.cyclePhase01 + 0.37,
+          );
+          return Object.freeze({
+            ...sample,
+            nodeAbsolutePressureMmHg: Object.freeze({
+              ...sample.nodeAbsolutePressureMmHg,
+              LA: sample.nodeAbsolutePressureMmHg.LA + externalOffsetMmHg,
+              LV: sample.nodeAbsolutePressureMmHg.LV + externalOffsetMmHg,
+              RA: sample.nodeAbsolutePressureMmHg.RA + externalOffsetMmHg,
+              RV: sample.nodeAbsolutePressureMmHg.RV + externalOffsetMmHg,
+            }),
+            commonPericardium: Object.freeze({
+              ...sample.commonPericardium,
+              excessPressureMmHg:
+                sample.commonPericardium.excessPressureMmHg
+                + externalOffsetMmHg,
+            }),
+          });
+        })),
+      }),
+    ));
+    const shifted = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
+      ...result,
+      retainedCompleteBeats,
+    });
+
+    expect(shifted.laPvMorphology.twoLobes)
+      .not.toEqual(baseline.laPvMorphology.twoLobes);
+    expect(shifted.laPvMorphology.reservoirConduitEqualVolumeOrder)
+      .not.toEqual(baseline.laPvMorphology.reservoirConduitEqualVolumeOrder);
+    expect(shifted.ranges.chamberTransmuralPressureMmHg.LA)
+      .toEqual(baseline.ranges.chamberTransmuralPressureMmHg.LA);
+    expect(shifted.cyclePhysiology.workEnergy.cavityWorkOnWallMilliJ.LA)
+      .toBe(baseline.cyclePhysiology.workEnergy.cavityWorkOnWallMilliJ.LA);
   });
 
   it("allows morphology interpretation only for a consistent period-1 result", () => {
