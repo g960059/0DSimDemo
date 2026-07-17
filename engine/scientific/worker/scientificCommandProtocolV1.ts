@@ -15,6 +15,7 @@ export const SCIENTIFIC_COMMAND_PROTOCOL_V1_ID =
 
 export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "createCanonicalSession",
+  "createResolvedSession",
   "createOfficialPresetSession",
   "runTransient",
   "observe",
@@ -36,6 +37,16 @@ type CommandBaseV1<TKind extends ScientificCommandKindV1> = Readonly<{
 
 export type CreateCanonicalSessionCommandV1 =
   CommandBaseV1<"createCanonicalSession">;
+
+/**
+ * Starts a cold session from one complete, release-resolved input document.
+ * The Worker treats this field as untrusted and revalidates it against the
+ * immutable bundled release; this command intentionally has no patch field.
+ */
+export type CreateResolvedSessionCommandV1 =
+  CommandBaseV1<"createResolvedSession"> & Readonly<{
+    resolvedSessionInput: unknown;
+  }>;
 
 export type CreateOfficialPresetSessionCommandV1 =
   CommandBaseV1<"createOfficialPresetSession"> & Readonly<{
@@ -66,6 +77,7 @@ export type SettlePeriodicCommandV1 = CommandBaseV1<"settlePeriodic">;
 
 export type ScientificCommandV1 =
   | CreateCanonicalSessionCommandV1
+  | CreateResolvedSessionCommandV1
   | CreateOfficialPresetSessionCommandV1
   | RunTransientCommandV1
   | ObserveCommandV1
@@ -86,6 +98,7 @@ export type ScientificCommandErrorCodeV1 =
   | "capability-unavailable"
   | "simulation-step-failed"
   | "session-creation-failed"
+  | "resolved-session-input-rejected"
   | "official-preset-restore-rejected"
   | "checkpoint-failed"
   | "exact-restore-rejected"
@@ -94,6 +107,15 @@ export type ScientificCommandErrorCodeV1 =
 export type ScientificSessionOriginV1 =
   | Readonly<{
     kind: "canonical-cold-start";
+    initializationProtocolId: string;
+    initializationProtocolVersion: string;
+  }>
+  | Readonly<{
+    kind: "resolved-session-input-cold-start";
+    sessionInputSchemaId:
+      "circleheart-main-wire-resolved-session-input-v1";
+    sessionInputSchemaVersion: 1;
+    sessionInputSha256: string;
     initializationProtocolId: string;
     initializationProtocolVersion: string;
   }>
@@ -165,6 +187,11 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
   Readonly<{
     createCanonicalSession: Readonly<{
       kind: "sessionCreated";
+      observableFrame: TObservableFrame;
+    }>;
+    createResolvedSession: Readonly<{
+      kind: "resolvedSessionCreated";
+      sessionInputSha256: string;
       observableFrame: TObservableFrame;
     }>;
     createOfficialPresetSession: Readonly<{

@@ -12,6 +12,7 @@ import {
 import {
   MainWireScientificSessionV1,
   createMainWireScientificSessionV1,
+  initializeMainWireScientificSessionFromResolvedInputV1,
 } from "@/engine/scientific/runtime";
 import type {
   BundledOfficialHealthyPeriodicPresetIdentityV1,
@@ -22,6 +23,7 @@ import {
   OFFICIAL_SCIENTIFIC_PRESET_CATALOG_V1_SCHEMA_ID,
 } from "@/engine/scientific/presets";
 import {
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1,
 } from "@/engine/scientific/assembly";
@@ -69,6 +71,9 @@ export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM = Object.freeze({
   officialPresetCapability:
     "host-injected-bundled-catalog-identity-only-exact-checkpoint-restore" as const,
   officialPresetArbitraryAssetInputAccepted: false as const,
+  resolvedSessionInputCapability:
+    "complete-input-release-bound-revalidation" as const,
+  resolvedSessionArbitraryParameterPatchAccepted: false as const,
 });
 
 export type MainWireScientificCommandResponseV1 =
@@ -284,6 +289,8 @@ export class MainWireScientificInProcessKernelV1 {
     switch (command.kind) {
       case "createCanonicalSession":
         return this.createCanonical(command);
+      case "createResolvedSession":
+        return this.createResolved(command);
       case "createOfficialPresetSession":
         return this.createOfficialPreset(command);
       case "runTransient":
@@ -326,6 +333,55 @@ export class MainWireScientificInProcessKernelV1 {
       return errorResponseForCommand(
         command,
         "session-creation-failed",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private async createResolved(
+    command: Extract<ScientificCommandV1, { kind: "createResolvedSession" }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const allocationError = this.sessionAllocationError(command);
+    if (allocationError !== null) return allocationError;
+    try {
+      // The command never selects or supplies a release. The Worker owns the
+      // immutable artifact and the session initializer revalidates the whole
+      // untrusted input by release-bound semantic re-resolution.
+      const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
+      const session =
+        await initializeMainWireScientificSessionFromResolvedInputV1(
+          release,
+          command.resolvedSessionInput,
+        );
+      const observableFrame = project(session);
+      const sessionOrigin = Object.freeze({
+        kind: "resolved-session-input-cold-start" as const,
+        sessionInputSchemaId: session.sessionInput.schemaId,
+        sessionInputSchemaVersion: session.sessionInput.schemaVersion,
+        sessionInputSha256: session.sessionInputSha256,
+        initializationProtocolId:
+          session.sessionInput.initialization.protocolId,
+        initializationProtocolVersion:
+          session.sessionInput.initialization.protocolVersion,
+      });
+      const response = successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "resolvedSessionCreated" as const,
+          sessionInputSha256: session.sessionInputSha256,
+          observableFrame,
+        }),
+      );
+      this.sessions.set(command.sessionId, session);
+      this.sessionOrigins.set(command.sessionId, sessionOrigin);
+      this.allocatedSessionIds.add(command.sessionId);
+      return response;
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "resolved-session-input-rejected",
         errorMessage(error),
       );
     }
@@ -601,6 +657,7 @@ export class MainWireScientificInProcessKernelV1 {
     command: Extract<ScientificCommandV1, {
       kind:
         | "createCanonicalSession"
+        | "createResolvedSession"
         | "createOfficialPresetSession"
         | "restoreExactSession";
     }>,
@@ -884,9 +941,11 @@ function parseCommand(
     ? [...common, "dtSec", "stepCount", "observationStride"]
     : value.kind === "restoreExactSession"
       ? [...common, "release", "checkpoint"]
-      : value.kind === "createOfficialPresetSession"
-        ? [...common, "presetId", "presetVersion"]
-        : common;
+      : value.kind === "createResolvedSession"
+        ? [...common, "resolvedSessionInput"]
+        : value.kind === "createOfficialPresetSession"
+          ? [...common, "presetId", "presetVersion"]
+          : common;
   if (!hasExactKeys(value, expectedKeys)) {
     return invalid(identity, "command fields do not match its kind");
   }

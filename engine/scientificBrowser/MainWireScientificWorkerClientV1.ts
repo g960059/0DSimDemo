@@ -8,6 +8,9 @@ import {
 import {
   OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING,
 } from "@/engine/scientific/presets";
+import type {
+  SimulationReleaseRef,
+} from "@/engine/scientific/release";
 
 export const MAIN_WIRE_SCIENTIFIC_WORKER_CLIENT_V1_ID =
   "main-wire-scientific-worker-client-v1" as const;
@@ -98,6 +101,10 @@ type PendingCommandIdentityV1 = Readonly<{
   kind: ScientificCommandKindV1;
   requestId: string;
   sessionId: string;
+  resolvedSessionInput: Readonly<{
+    sessionInputSha256: string;
+    releaseRef: SimulationReleaseRef;
+  }> | null;
   officialPreset: Readonly<{
     presetId: "circleheart/official-healthy-periodic";
     presetVersion: "1.0.0";
@@ -369,7 +376,7 @@ function isProtocolEnvelope(value: unknown): value is ProtocolEnvelope {
     );
 }
 
-function isReleaseRef(value: unknown): boolean {
+function isReleaseRef(value: unknown): value is SimulationReleaseRef {
   return isRecord(value)
     && hasExactKeys(value, ["id", "version", "sha256"])
     && typeof value.id === "string"
@@ -388,6 +395,25 @@ function isSessionOrigin(value: unknown): boolean {
       "initializationProtocolId",
       "initializationProtocolVersion",
     ])
+      && typeof value.initializationProtocolId === "string"
+      && value.initializationProtocolId.length > 0
+      && typeof value.initializationProtocolVersion === "string"
+      && value.initializationProtocolVersion.length > 0;
+  }
+  if (value.kind === "resolved-session-input-cold-start") {
+    return hasExactKeys(value, [
+      "kind",
+      "sessionInputSchemaId",
+      "sessionInputSchemaVersion",
+      "sessionInputSha256",
+      "initializationProtocolId",
+      "initializationProtocolVersion",
+    ])
+      && value.sessionInputSchemaId
+        === "circleheart-main-wire-resolved-session-input-v1"
+      && value.sessionInputSchemaVersion === 1
+      && typeof value.sessionInputSha256 === "string"
+      && /^[0-9a-f]{64}$/.test(value.sessionInputSha256)
       && typeof value.initializationProtocolId === "string"
       && value.initializationProtocolId.length > 0
       && typeof value.initializationProtocolVersion === "string"
@@ -438,6 +464,9 @@ function capturePendingCommandIdentity(
     kind: command.kind,
     requestId: command.requestId,
     sessionId: command.sessionId,
+    resolvedSessionInput: command.kind === "createResolvedSession"
+      ? captureResolvedSessionInputIdentity(command.resolvedSessionInput)
+      : null,
     officialPreset: command.kind === "createOfficialPresetSession"
       ? Object.freeze({
         presetId: command.presetId,
@@ -452,27 +481,73 @@ function isResponseCompatibleWithSubmittedCommand(
   submitted: PendingCommandIdentityV1,
 ): boolean {
   if (response.ok === false) return true;
-  if (submitted.kind !== "createOfficialPresetSession") return true;
-  const expected = submitted.officialPreset;
-  if (expected === null) return false;
-  const origin = response.sessionOrigin;
-  const payload = response.payload;
-  return origin.kind === "official-preset-exact-checkpoint-restore"
-    && exactOfficialReleaseRef(response.releaseRef)
-    && origin.presetId === expected.presetId
-    && origin.presetVersion === expected.presetVersion
-    && isRecord(payload)
-    && hasExactKeys(payload, [
-      "kind",
-      "presetId",
-      "presetVersion",
-      "observableFrame",
-    ])
-    && payload.kind === "officialPresetSessionCreated"
-    && payload.presetId === expected.presetId
-    && payload.presetVersion === expected.presetVersion
-    && isRecord(payload.observableFrame)
-    && exactOfficialReleaseRef(payload.observableFrame.releaseRef);
+  if (submitted.kind === "createResolvedSession") {
+    const expected = submitted.resolvedSessionInput;
+    if (expected === null) return false;
+    const origin = response.sessionOrigin;
+    const payload = response.payload;
+    return origin.kind === "resolved-session-input-cold-start"
+      && sameReleaseRef(response.releaseRef, expected.releaseRef)
+      && origin.sessionInputSha256 === expected.sessionInputSha256
+      && isRecord(payload)
+      && hasExactKeys(payload, [
+        "kind",
+        "sessionInputSha256",
+        "observableFrame",
+      ])
+      && payload.kind === "resolvedSessionCreated"
+      && payload.sessionInputSha256 === expected.sessionInputSha256
+      && isRecord(payload.observableFrame)
+      && sameReleaseRef(payload.observableFrame.releaseRef, expected.releaseRef);
+  }
+  if (submitted.kind === "createOfficialPresetSession") {
+    const expected = submitted.officialPreset;
+    if (expected === null) return false;
+    const origin = response.sessionOrigin;
+    const payload = response.payload;
+    return origin.kind === "official-preset-exact-checkpoint-restore"
+      && exactOfficialReleaseRef(response.releaseRef)
+      && origin.presetId === expected.presetId
+      && origin.presetVersion === expected.presetVersion
+      && isRecord(payload)
+      && hasExactKeys(payload, [
+        "kind",
+        "presetId",
+        "presetVersion",
+        "observableFrame",
+      ])
+      && payload.kind === "officialPresetSessionCreated"
+      && payload.presetId === expected.presetId
+      && payload.presetVersion === expected.presetVersion
+      && isRecord(payload.observableFrame)
+      && exactOfficialReleaseRef(payload.observableFrame.releaseRef);
+  }
+  return true;
+}
+
+function captureResolvedSessionInputIdentity(
+  value: unknown,
+): PendingCommandIdentityV1["resolvedSessionInput"] {
+  if (!isRecord(value)) return null;
+  if (typeof value.sessionInputSha256 !== "string"
+    || !/^[0-9a-f]{64}$/.test(value.sessionInputSha256)
+    || !isReleaseRef(value.releaseRef)) return null;
+  const releaseRef = value.releaseRef;
+  return Object.freeze({
+    sessionInputSha256: value.sessionInputSha256,
+    releaseRef: Object.freeze({
+      id: releaseRef.id,
+      version: releaseRef.version,
+      sha256: releaseRef.sha256,
+    }),
+  });
+}
+
+function sameReleaseRef(left: unknown, right: unknown): boolean {
+  return isRecord(left) && isRecord(right)
+    && left.id === right.id
+    && left.version === right.version
+    && left.sha256 === right.sha256;
 }
 
 function exactOfficialReleaseRef(value: unknown): boolean {
