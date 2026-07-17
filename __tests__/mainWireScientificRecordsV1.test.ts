@@ -7,7 +7,7 @@ import {
   createRunArtifactV1,
   loadBuildArtifactRefV1,
   loadRunArtifactV1,
-  MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1,
+  MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2,
   RUN_ARTIFACT_CONTENT_V1_SCHEMA_ID,
   RUN_ARTIFACT_REF_V1_SCHEMA_ID,
   RunArtifactValidationErrorV1,
@@ -24,8 +24,8 @@ describe("BuildArtifactRef V1", () => {
     expect(loaded).toEqual(input);
     expect(loaded.schemaId).toBe(BUILD_ARTIFACT_REF_V1_SCHEMA_ID);
     expect(loaded.numericalRuntimeAbi).toEqual({
-      id: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1.id,
-      version: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1.version,
+      id: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2.id,
+      version: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2.version,
     });
     expect(loaded.source).toEqual({
       repository: "g960059/0DSimDemo",
@@ -103,6 +103,10 @@ describe("RunArtifact V1", () => {
       sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
     expect(first.content.schemaId).toBe(RUN_ARTIFACT_CONTENT_V1_SCHEMA_ID);
+    expect(first.content.buildArtifactRef.numericalRuntimeAbi).toEqual({
+      id: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2.id,
+      version: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2.version,
+    });
     expect(first.ref.sha256).toBe(
       await sha256CanonicalJsonHex(first.content),
     );
@@ -198,8 +202,8 @@ async function mutableBuildArtifactRef(): Promise<any> {
     schemaId: BUILD_ARTIFACT_REF_V1_SCHEMA_ID,
     simulationReleaseRef: mutable(release.ref),
     numericalRuntimeAbi: {
-      id: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1.id,
-      version: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1.version,
+      id: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2.id,
+      version: MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2.version,
     },
     source: {
       repository: "g960059/0DSimDemo",

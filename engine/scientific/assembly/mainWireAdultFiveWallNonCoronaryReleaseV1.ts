@@ -68,7 +68,7 @@ import {
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID =
   "circleheart/adult-five-wall-noncoronary" as const;
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION =
-  "0.1.0" as const;
+  "0.2.0" as const;
 
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID =
   "main-wire-normal-adult-five-wall-fixed-tbv-cold-initialization-v1" as const;
@@ -102,6 +102,16 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1 = Object.freeze(
     "retain-only-after-locked-suite-bitwise-equivalence" as const,
 });
 
+export const MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2 = Object.freeze({
+  id: "main-wire-accepted-state-transition-v2" as const,
+  version: "2.0.0" as const,
+  executableProvenanceScope: "external-build-artifact" as const,
+  compatibilityPolicy:
+    "breaking-newton-path-no-bitwise-compatibility-with-runtime-abi-v1" as const,
+  exactCheckpointCompatibility:
+    "identical-simulation-release-ref-only" as const,
+});
+
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1 = Object.freeze({
   evidenceSetId: "circleheart-mainwire-five-wall-oracle-pack-v1" as const,
   evidenceSetVersion: "1.0.0" as const,
@@ -113,6 +123,33 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1 = Object.freeze({
   status: "verified-research" as const,
   clinicalValidationClaimed: false as const,
   packLevelSha256Linked: true as const,
+});
+
+export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2 = Object.freeze({
+  evidenceSetId:
+    "circleheart-mainwire-five-wall-numerical-transition-evidence-v2" as const,
+  evidenceSetVersion: "2.0.0" as const,
+  oracleArtifact: Object.freeze({
+    artifactPath:
+      MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.artifactPath,
+    artifactSha256:
+      MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.artifactSha256,
+    oracleSource:
+      MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_ORACLE_EVIDENCE_SOURCE_V1,
+    role: "scientific-envelope-reference-not-bitwise-runtime-oracle" as const,
+  }),
+  numericalValidationArtifact: Object.freeze({
+    artifactPath:
+      "data/scientific/releases/0.2.0/numerical-validation-v1.json" as const,
+    artifactSha256:
+      "586ad27b21709784c868f98aee176641277dba949fce73fe0a87c54f2fb8e7de" as const,
+    digestSemantics: "raw-file-bytes-sha256" as const,
+    role: "numerical-shadow-and-local-performance-classification" as const,
+  }),
+  status: "verified-research" as const,
+  clinicalValidationClaimed: false as const,
+  release0_1_0BitwiseParityClaimed: false as const,
+  executableBuildProvenanceEmbedded: false as const,
 });
 
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_CAPABILITIES_V1 =
@@ -139,6 +176,7 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_CAPABILITIES_V1 =
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_LIMITATIONS_V1 =
   Object.freeze([
     "acute valve presets are research hydraulic brackets, not clinical diagnoses",
+    "release 0.1.0 exact checkpoints are not compatible with this numerical runtime",
     "no coronary circulation",
     "no device graph",
     "no multipatch regional geometry or conduction",
@@ -169,23 +207,25 @@ SimulationReleaseManifestInputV1 {
     evidenceStatus: "verified-research" as const,
     evidence: {
       evidenceSetId:
-        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.evidenceSetId,
+        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2.evidenceSetId,
       evidenceSetVersion:
-        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.evidenceSetVersion,
-      status: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.status,
+        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2.evidenceSetVersion,
+      status: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2.status,
       snapshot: {
-        artifactPath:
-          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.artifactPath,
-        artifactSha256:
-          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.artifactSha256,
-        oracleSource:
-          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.oracleSource,
+        oracleArtifact:
+          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2.oracleArtifact,
+        numericalValidationArtifact:
+          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2
+            .numericalValidationArtifact,
         clinicalValidationClaimed:
-          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1
+          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2
             .clinicalValidationClaimed,
-        packLevelSha256Linked:
-          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1
-            .packLevelSha256Linked,
+        release0_1_0BitwiseParityClaimed:
+          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2
+            .release0_1_0BitwiseParityClaimed,
+        executableBuildProvenanceEmbedded:
+          MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2
+            .executableBuildProvenanceEmbedded,
       },
     },
     scientificModel: {
@@ -249,19 +289,34 @@ SimulationReleaseManifestInputV1 {
     },
     numericalRuntime: {
       runtimeId: "main-wire-five-wall-atomic-runtime",
-      runtimeVersion: "0.1.0",
+      runtimeVersion: "0.2.0",
       solverId: NON_CORONARY_CIRCULATION_BE_V1_ID,
-      solverVersion: "1.0.0",
+      solverVersion: "2.0.0",
       snapshot: {
         numericalContract:
-          MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1,
+          MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2,
         circulationSolverId: NON_CORONARY_CIRCULATION_BE_V1_ID,
         fixedHealthyRuntime: runtime,
         mechanicsInternalSolve:
           MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM.internalSolve,
-        mechanicsFiniteDifferenceJacobian:
+        mechanicsMaterialLinearization:
           MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
-            .finiteDifferenceJacobian,
+            .trialMaterialLinearization,
+        mechanicsGeometryLinearization:
+          MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+            .trialGeometryLinearization,
+        mechanicsPressureVolumeCondensation:
+          MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
+            .trialTransmuralPressureVolumeTangent,
+        circulationJacobian:
+          NON_CORONARY_CIRCULATION_SCOPE_V1.circulationJacobian,
+        canonicalCirculationJacobianMode: "analytic-semismooth",
+        canonicalFiniteDifferenceFallbackCountRequired: 0,
+        release0_1_0BitwiseCompatibility: false,
+        exactCheckpointCompatibility:
+          "identical-simulation-release-ref-only",
+        executableBuildProvenance:
+          "external-BuildArtifactRefV1-and-RunArtifactV1",
         transactionCommit:
           MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1
             .circulationAndMechanicsCommit,
@@ -334,6 +389,7 @@ SimulationReleaseManifestInputV1 {
       },
     ],
     claims: [
+      "analytic-semismooth runtime with finite-difference shadow validation",
       "atomic whole-system commit and rollback",
       "non-coronary verified-research release",
     ],

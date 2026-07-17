@@ -127,6 +127,31 @@ describe("main-wire ScientificSession V1", () => {
       mismatchedCheckpoint,
     )).rejects.toThrow(/release identity mismatch/);
 
+    const staleReleaseShaCheckpoint = {
+      ...checkpoint,
+      releaseRef: {
+        ...canonicalRelease.ref,
+        sha256: "0".repeat(64),
+      },
+    };
+    await expect(MainWireScientificSessionV1.restoreExact(
+      canonicalRelease,
+      staleReleaseShaCheckpoint,
+    )).rejects.toThrow(/release identity mismatch/);
+
+    const release0_1_0Checkpoint = {
+      ...checkpoint,
+      releaseRef: {
+        id: canonicalRelease.ref.id,
+        version: "0.1.0",
+        sha256: "1".repeat(64),
+      },
+    };
+    await expect(MainWireScientificSessionV1.restoreExact(
+      canonicalRelease,
+      release0_1_0Checkpoint,
+    )).rejects.toThrow(/release identity mismatch/);
+
     const tamperedRelease = JSON.parse(JSON.stringify(canonicalRelease));
     tamperedRelease.manifest.scientificModel.snapshot.transaction.id =
       "tampered-transaction";

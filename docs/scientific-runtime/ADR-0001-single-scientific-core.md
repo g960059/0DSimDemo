@@ -2,7 +2,9 @@
 
 - Status: accepted for incremental implementation
 - Date: 2026-07-18
-- First implementation release: `0.1.0`
+- First implementation release (historical): `0.1.0`
+- Current candidate release: `0.2.0`
+- Current numerical-runtime ABI: `main-wire-accepted-state-transition-v2@2.0.0`
 - Evidence status at inception: `verified-research`
 
 ## Decision
@@ -98,6 +100,33 @@ floating-point trajectories, Newton/Jacobian behavior, integration, equations,
 parameters, schemas, topology, or protocols receives a new appropriate
 runtime/release identity and repeats its evidence gates.
 
+Release `0.2.0` is the first application of that rule. It retains the `0.1.0`
+scientific equations, parameters, accepted-state schema, and topology, but
+changes the accepted floating-point/Newton path through:
+
+- a backward-Euler-consistent Land/material tangent that is exact on smooth
+  branches and uses the declared Clarke midpoint at the `gamma_su` kinks
+  `zetaS = 0` and `zetaS = -1`;
+- a material-consistent TriSeg solve with geometry-only finite differences;
+- a condensed same-candidate four-chamber pressure-volume tangent, including
+  the common-pericardium coupling; and
+- an analytic/semismooth 14-volume circulation Jacobian with the dependent-SV
+  fixed-TBV chain rule.
+
+That is a breaking numerical-ABI transition, not a bitwise-preserving
+optimization. `0.2.0` therefore uses runtime version `0.2.0`, solver version
+`2.0.0`, and numerical ABI `main-wire-accepted-state-transition-v2@2.0.0`.
+Exact `0.1.0` checkpoints fail closed under `0.2.0`; only an identical full
+`SimulationReleaseRef` can be restored as an exact checkpoint.
+
+The deterministic, content-addressed numerical record is
+`data/scientific/releases/0.2.0/numerical-validation-v1.json`. It records a
+bounded shadow suite and one local performance smoke measurement. It is not an
+executable build identity. The source commit at `f229143...` remains only the
+lineage of the #478 scientific oracle pack. Exact executable commit/tree and
+artifact hashes remain external in `BuildArtifactRefV1` and `RunArtifactV1`,
+avoiding source-commit self-reference in the release manifest.
+
 Release lifecycle and evidence are separate axes. The first manifest records
 `lifecycleStatus: candidate` and `evidenceStatus: verified-research`, with a
 reference to its curated oracle pack. Version `0.1.0` does not make the model
@@ -118,6 +147,10 @@ Two checkpoint roles remain distinct:
   checkpoint schema and fails closed on identity mismatch;
 - **warm-start seed**: carries declared physical seed fields into an approved
   initialization protocol and is never presented as an exact resume.
+
+Numerical-ABI changes may still permit a separately declared warm-start import,
+but they never imply exact-checkpoint compatibility. No such `0.1.0` to `0.2.0`
+warm-start importer is claimed by this release.
 
 ## Documents and composition
 
@@ -176,6 +209,10 @@ cutover and legacy deletion require both:
   morphology acceptance; and
 - a measured interactive performance envelope on supported hardware.
 
+The `0.2.0` candidate exceeds 500 step/s in one local 500-step smoke run, but
+that result is neither a supported-hardware distribution nor a browser
+end-to-end measurement. It does not by itself authorize production cutover.
+
 ## Delivery sequence
 
 1. Freeze a curated #478 oracle and negative-evidence record.
@@ -195,6 +232,7 @@ reports, golden data, tags, and Git history.
 
 - No detailed parameter fitting.
 - No promise of compatibility with old cases or presets.
-- No browser cutover before parity and performance evidence exists.
+- No browser cutover before required physiology and measured browser
+  performance evidence exists.
 - No coronary, assist-device, or full MultiPatch implementation yet.
 - No general-purpose runtime plugin framework.

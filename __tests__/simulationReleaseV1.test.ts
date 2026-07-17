@@ -40,12 +40,12 @@ import {
 } from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
 import {
   createMainWireAdultFiveWallNonCoronaryReleaseV1,
-  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_ORACLE_EVIDENCE_SOURCE_V1,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID,
   MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION,
-  MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1,
+  MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2,
   mainWireAdultFiveWallNonCoronaryReleaseInputV1,
 } from "@/engine/scientific/assembly";
 import {
@@ -135,18 +135,27 @@ describe("SimulationRelease V1", () => {
     expect(release.manifest.evidenceStatus).toBe("verified-research");
     expect(release.manifest.evidence).toMatchObject({
       evidenceSetId:
-        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.evidenceSetId,
+        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2.evidenceSetId,
       evidenceSetVersion:
-        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V1.evidenceSetVersion,
+        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2.evidenceSetVersion,
       status: "verified-research",
       snapshot: {
-        artifactPath:
-          "data/scientific/releases/0.1.0/oracle-pack-v1.json",
-        oracleSource: {
-          commitSha: "f229143d5e7cb728227dd41d07d55e186c131063",
-          role: "oracle-evidence-generation-source",
+        oracleArtifact: {
+          artifactPath:
+            "data/scientific/releases/0.1.0/oracle-pack-v1.json",
+          oracleSource: {
+            commitSha: "f229143d5e7cb728227dd41d07d55e186c131063",
+            role: "oracle-evidence-generation-source",
+          },
+        },
+        numericalValidationArtifact: {
+          artifactPath:
+            "data/scientific/releases/0.2.0/numerical-validation-v1.json",
+          digestSemantics: "raw-file-bytes-sha256",
         },
         clinicalValidationClaimed: false,
+        release0_1_0BitwiseParityClaimed: false,
+        executableBuildProvenanceEmbedded: false,
       },
     });
     expect(release.manifest.identityPolicy.legacyStableHash32)
@@ -167,12 +176,32 @@ describe("SimulationRelease V1", () => {
     const expectedRuntime = normalAdultMainWireRuntimeV1();
     const expectedBloodVolume =
       resolveMainWireNormalAdultBloodVolumeOperatingPointV1(expectedRuntime);
-    expect(scientificSnapshot).not.toHaveProperty("implementationProvenance");
-    expect(numericalSnapshot).not.toHaveProperty("implementationProvenance");
-    expect(release.manifest.evidence.snapshot.oracleSource)
+    const forbiddenExecutableProvenanceKeys = [
+      "implementationProvenance",
+      "commitSha",
+      "repository",
+    ];
+    const scientificSnapshotKeys = nestedObjectKeys(scientificSnapshot);
+    const numericalSnapshotKeys = nestedObjectKeys(numericalSnapshot);
+    for (const key of forbiddenExecutableProvenanceKeys) {
+      expect(scientificSnapshotKeys).not.toContain(key);
+      expect(numericalSnapshotKeys).not.toContain(key);
+    }
+    expect((release.manifest.evidence.snapshot.oracleArtifact as any).oracleSource)
       .toEqual(MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_ORACLE_EVIDENCE_SOURCE_V1);
     expect(numericalSnapshot.numericalContract)
-      .toEqual(MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V1);
+      .toEqual(MAIN_WIRE_ADULT_FIVE_WALL_NUMERICAL_RUNTIME_ABI_V2);
+    expect(release.manifest.numericalRuntime).toMatchObject({
+      runtimeVersion: "0.2.0",
+      solverVersion: "2.0.0",
+      snapshot: {
+        canonicalCirculationJacobianMode: "analytic-semismooth",
+        canonicalFiniteDifferenceFallbackCountRequired: 0,
+        release0_1_0BitwiseCompatibility: false,
+        executableBuildProvenance:
+          "external-BuildArtifactRefV1-and-RunArtifactV1",
+      },
+    });
     expect(scientificSnapshot.mechanics.resolvedNormalAdultPrior)
       .toEqual(NORMAL_ADULT_FIVE_WALL_PRIOR_V1);
     expect(numericalSnapshot.fixedHealthyRuntime).toEqual(expectedRuntime);
@@ -215,6 +244,7 @@ describe("SimulationRelease V1", () => {
         MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_STEADY_V1_ID,
       ]);
     expect(release.manifest.claims).toEqual([
+      "analytic-semismooth runtime with finite-difference shadow validation",
       "atomic whole-system commit and rollback",
       "non-coronary verified-research release",
     ]);
@@ -320,6 +350,16 @@ describe("SimulationRelease V1", () => {
     );
   });
 });
+
+function nestedObjectKeys(value: unknown): string[] {
+  if (value === null || typeof value !== "object") {
+    return [];
+  }
+  return Object.entries(value).flatMap(([key, child]) => [
+    key,
+    ...nestedObjectKeys(child),
+  ]);
+}
 
 function mutableReleaseInput(): any {
   return JSON.parse(JSON.stringify(

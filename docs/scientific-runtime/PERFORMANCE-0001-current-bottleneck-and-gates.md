@@ -3,7 +3,9 @@
 - Date: 2026-07-18
 - Baseline release candidate: `circleheart/adult-five-wall-noncoronary@0.1.0`
 - Baseline source: merged PRs #475–#478 at `f229143`
-- Status: browser scientific alpha transport may proceed; production cutover is blocked
+- Current candidate: `circleheart/adult-five-wall-noncoronary@0.2.0`
+- Current numerical ABI: `main-wire-accepted-state-transition-v2@2.0.0`
+- Status: local throughput smoke target exceeded; formal and browser cutover gates remain blocked
 
 ## Reproducible baseline
 
@@ -43,6 +45,35 @@ performance gate. The result strengthens the conclusion that allocation and
 hash cleanup cannot make the browser runtime interactive; consistent tangents
 and elimination of nested finite differences remain mandatory.
 
+## Release 0.2.0 candidate result
+
+Release `0.2.0` changes the Newton/floating-point path and is intentionally not
+bitwise-compatible with `0.1.0`. The same one-beat command was run once in a
+local process after the consistent-tangent and analytic/semismooth circulation
+work:
+
+| Measure | `0.1.0` baseline | `0.2.0` local candidate |
+|---|---:|---:|
+| initialization | 214.4 ms | 238.103 ms |
+| 500-step integration | 9,760.1 ms | 785.618 ms |
+| throughput | 51.23 step/s | 636.442 step/s |
+| step p50 / p95 / maximum | 15.86 / 29.59 / 45.98 ms | 1.348 / 2.414 / 9.152 ms |
+| mechanics Newton iterations, mean | 2.282 | 2.282 |
+| mechanics callback calls/step, mean | 22.744 | 3.416 |
+| mechanics callback cache hits/step, mean | 50.736 | 0 |
+
+This is a 12.423x local throughput ratio and a 84.981% reduction in mechanics
+callback calls per step relative to the recorded baseline. The focused
+deterministic numerical/transaction suite passed 77 tests in 10 files,
+including finite-difference shadow comparisons and zero canonical fallback
+calls. The content-addressed record is
+`data/scientific/releases/0.2.0/numerical-validation-v1.json`.
+
+These wall-clock values are a single local smoke measurement. They do not pass
+a formal multi-run supported-hardware performance gate, do not measure Worker
+transport or cancellation, and do not constitute a browser production-cutover
+claim.
+
 ## Root cause
 
 The dominant cost is nested finite differentiation, not rendering or Worker
@@ -70,24 +101,32 @@ the earlier PR #475 execution structure would retain this amplification.
    - replace stringified mechanics-cache keys with numeric tuple keys;
    - avoid generating or retaining dense observables during settling.
 
-2. **Exact Land consistent tangent**
+2. **Land backward-Euler consistent/semismooth tangent — implemented in the
+   `0.2.0` candidate**
    - reuse the converged Land residual Jacobian;
    - compute the algorithmic stress tangent by implicit differentiation rather
      than solving Land again at strain plus/minus epsilon;
+   - use the exact tangent on smooth branches and the declared Clarke midpoint
+     at the `gamma_su` kinks `zetaS = 0` and `zetaS = -1`;
    - retain the existing exact one-state SLS tangent.
 
-3. **Analytic TriSeg internal tangent**
-   - assemble the two-by-two internal-coordinate tangent from material and
-     geometry derivatives;
-   - keep symmetry/stability checks on the analytic tangent;
-   - move finite-difference comparison to tests or low-frequency shadow audit.
+3. **Material-consistent TriSeg internal tangent — implemented with a bounded
+   geometry finite-difference remainder in the `0.2.0` candidate**
+   - assemble the two-by-two internal-coordinate tangent from the consistent
+     material derivative;
+   - retain central differences only for the geometry contribution;
+   - keep the full constitutive finite-difference path as a test shadow, not the
+     canonical candidate path.
 
-4. **Whole-heart pressure tangent and circulation Jacobian**
+4. **Whole-heart pressure tangent and circulation Jacobian — implemented in
+   the `0.2.0` candidate**
    - eliminate TriSeg coordinates by Schur complement;
    - expose the four-chamber pressure-volume tangent;
    - combine it with vascular PV, pericardium, edge-loss, valve, and root-flow
      derivatives in the 14-volume circulation Newton;
-   - permit safeguarded finite difference only at declared branch boundaries.
+   - use declared semismooth derivatives at branch boundaries and count any
+     full finite-difference fallback; the canonical validation path requires
+     that count to be zero.
 
 The first layer must preserve accepted trajectories bit-for-bit. Consistent
 tangent work keeps the equations but changes floating-point/Newton paths and
@@ -96,8 +135,10 @@ therefore requires a new numerical-runtime and release identity.
 ## Hard gates
 
 - hygiene slice: bitwise lockstep and at least 1.5x warmed-median speedup;
-- consistent-tangent candidate: at least 8x versus this baseline;
-- browser production path: at least 500 step/s, stretch goal 1,000 step/s;
+- consistent-tangent candidate: at least 8x versus this baseline — exceeded in
+  the one-run local smoke, formal multi-run acceptance pending;
+- browser production path: at least 500 step/s, stretch goal 1,000 step/s —
+  local process smoke exceeded the lower target, browser end-to-end pending;
 - official checkpoint restore plus terminal-cycle presentation within 1 s;
 - nearby knob continuation to a promoted periodic solution: p95 3–5 s;
 - browser command chunk: default four steps, permitting command boundaries in

@@ -3,6 +3,13 @@
 `BuildArtifactRefV1` and `RunArtifactV1` are immutable evidence records, not
 editable saved cases.
 
+The current `circleheart/adult-five-wall-noncoronary@0.2.0` release binds
+numerical ABI `main-wire-accepted-state-transition-v2@2.0.0`. This ABI is a
+breaking accepted-state-transition identity relative to `0.1.0`: equations and
+parameters are retained, but the Newton/floating-point path is not bitwise
+compatible. An exact `0.1.0` checkpoint is rejected because exact restore
+requires the identical full release reference, including its SHA-256.
+
 - A build reference binds one simulation release and numerical-runtime ABI to
   caller/CI-supplied repository, full Git commit/tree, explicit clean/dirty
   state, and executable artifact SHA-256. The loader does not inspect Git or
@@ -19,6 +26,16 @@ editable saved cases.
   release/protocol inputs. A future `WorkspaceDocument` stores presentation
   state. Either may reference a run artifact, but neither can be substituted
   for its immutable execution evidence.
+
+Release and evidence manifests deliberately do not embed the commit that
+contains themselves. The #478 commit `f229143...` appears only as the source of
+the historical scientific oracle pack. The deterministic
+`data/scientific/releases/0.2.0/numerical-validation-v1.json` record binds
+numerical shadow results and a bounded local performance classification by raw
+file-byte SHA-256; it is not a `BuildArtifactRefV1` and does not identify an
+executable. CI or another caller must separately construct the build reference
+from the exact commit/tree, worktree status, and Worker or native artifact
+digest. `RunArtifactV1` then retains that external build reference.
 
 Unknown envelope and identity fields fail closed. Protocol details, ledger
 entries, outputs, and audits remain canonical JSON so their versioned producer
