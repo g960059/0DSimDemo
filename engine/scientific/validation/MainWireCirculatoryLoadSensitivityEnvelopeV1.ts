@@ -141,6 +141,13 @@ export type MainWireCirculatoryLoadSensitivityEnvelopeV1 = Readonly<{
     researchOnly: true;
     authoritativeFiveWallTransactionReused: true;
     secondBackendIntroduced: false;
+    sourceResearchRunnerOnly: true;
+    simulationReleaseRefBound: false;
+    releaseResolvedSessionInputUsed: false;
+    workerOrCaseDocumentExecutionUsed: false;
+    approvedTwoMillisecondProtocolClaimed: false;
+    executableBuildIdentityRecorded: false;
+    productionCutoverEvidenceEligible: false;
     eachPointStartedFromIndependentCanonicalColdState: true;
     warmStartAcrossPointsApplied: false;
     totalBloodVolumePerturbed: false;
@@ -265,6 +272,13 @@ export async function runMainWireCirculatoryLoadSensitivityEnvelopeV1(
       researchOnly: true as const,
       authoritativeFiveWallTransactionReused: true as const,
       secondBackendIntroduced: false as const,
+      sourceResearchRunnerOnly: true as const,
+      simulationReleaseRefBound: false as const,
+      releaseResolvedSessionInputUsed: false as const,
+      workerOrCaseDocumentExecutionUsed: false as const,
+      approvedTwoMillisecondProtocolClaimed: false as const,
+      executableBuildIdentityRecorded: false as const,
+      productionCutoverEvidenceEligible: false as const,
       eachPointStartedFromIndependentCanonicalColdState: true as const,
       warmStartAcrossPointsApplied: false as const,
       totalBloodVolumePerturbed: false as const,

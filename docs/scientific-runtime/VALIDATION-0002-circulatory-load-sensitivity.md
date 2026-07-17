@@ -1,7 +1,7 @@
 # VALIDATION-0002: circulatory load sensitivity
 
-Status: implemented structural response screen; not a calibration or cutover
-gate.
+Status: implemented source-level structural response screen; not a
+release-resolved validation, calibration, or cutover gate.
 
 ## Purpose
 
@@ -33,13 +33,22 @@ reference remains the separate 2 ms checkpoint measurement in
 `VALIDATION-0001`; absolute values from the two protocols must not be silently
 substituted for each other.
 
+This V1 screen deliberately calls the sealed myocardium experiment runner. It
+does not execute a `MainWireScientificSessionV1`, Worker command, or
+CaseDocument, and it has no `SimulationReleaseRef`, resolved-session-input SHA,
+or executable build identity. Reusing the authoritative accepted-state
+transaction avoids a second equation backend, but does not make this artifact
+release-bound evidence. A future typed SVR/PVR operation must mint a new
+release identity and pass through the shared Session/Worker/Case path before
+the result can contribute to production cutover.
+
 ## Result
 
 All five points converged to period 1 without a step failure. The generated
 artifact is
 `data/scientific/validation/circulatory-load-sensitivity-envelope-v1.json`
 with envelope SHA-256
-`6437e9a410b554056ba211bee91aff61c9c9fd5d0e7d2f46a4bda18a4b68c739`.
+`4d7283c681d16a173c74f25273e6bd8c87538f50513936e8ed4e889fb4e1862b`.
 
 | Point | P1 beat | MAP (mmHg) | mPAP (mmHg) | LV EF | RV EF | CO (L/min) |
 |---|---:|---:|---:|---:|---:|---:|
