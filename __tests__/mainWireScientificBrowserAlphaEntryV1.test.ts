@@ -24,6 +24,7 @@ describe('scientific browser alpha entry V1', () => {
     );
 
     expect(page).toContain('new MainWireScientificWorkerClientV1()');
+    expect(page).toContain("kind: 'createOfficialPresetSession'");
     expect(page).toContain("kind: 'createCanonicalSession'");
     expect(page).toContain("kind: 'runTransient'");
     expect(page).toContain("kind: 'settlePeriodic'");
@@ -32,6 +33,10 @@ describe('scientific browser alpha entry V1', () => {
     expect(page).toContain('Pause between beats');
     expect(page).toContain('Resume terminal beat');
     expect(page).toContain('Reset cold start');
+    expect(page).toContain('Reload healthy preset');
+    expect(page).toContain('Start canonical cold');
+    expect(page).toContain('Load healthy periodic');
+    expect(page).toContain('official-preset-exact-checkpoint-restore');
     expect(page).toContain('SCIENTIFIC_ALPHA_HISTORY_CAPACITY');
     expect(page).toContain('SCIENTIFIC_ALPHA_TERMINAL_BEAT_CHUNK_COUNT');
     expect(page).toContain("plotEvidence: 'periodic-non-converged'");

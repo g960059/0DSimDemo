@@ -3,7 +3,14 @@ import React from 'react';
 import type {
   MainWireScientificObservableFrameV1,
 } from '@/engine/scientific/observables';
-import type { SimulationReleaseRef } from '@/engine/scientific/release';
+import {
+  sameSimulationReleaseRef,
+  type SimulationReleaseRef,
+} from '@/engine/scientific/release';
+import {
+  OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_ID,
+  OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_VERSION,
+} from '@/engine/scientific/presets/officialHealthyPeriodicCheckpointPresetV1';
 import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type ScientificSessionOriginV1,
@@ -33,6 +40,7 @@ const MAXIMUM_SIMULATION_COMMANDS_PER_ALPHA_SESSION = 7_600;
 const ALPHA_RENDER_EVERY_TRANSIENT_COMMANDS = 8;
 
 type AlphaPhase = 'starting' | 'ready' | 'running' | 'paused' | 'failed';
+type AlphaBootstrapKind = 'official-healthy-periodic' | 'canonical-cold-start';
 type AlphaRunMode =
   | 'idle'
   | 'continuous'
@@ -68,17 +76,21 @@ type AlphaState = Readonly<{
   terminalBeatCompletedChunkCount: number;
 }>;
 
-const INITIAL_STATE: AlphaState = Object.freeze({
-  phase: 'starting',
-  message: 'Creating the canonical cold-start session.',
-  releaseRef: null,
-  sessionOrigin: null,
-  history: Object.freeze([]),
-  simulationCommandCount: 0,
-  periodicProgress: null,
-  plotEvidence: 'cold-start',
-  terminalBeatCompletedChunkCount: 0,
-});
+function initialAlphaState(bootstrapKind: AlphaBootstrapKind): AlphaState {
+  return Object.freeze({
+    phase: 'starting',
+    message: bootstrapKind === 'official-healthy-periodic'
+      ? 'Verifying and restoring the bundled official healthy periodic checkpoint.'
+      : 'Creating the canonical cold-start session.',
+    releaseRef: null,
+    sessionOrigin: null,
+    history: Object.freeze([]),
+    simulationCommandCount: 0,
+    periodicProgress: null,
+    plotEvidence: 'cold-start',
+    terminalBeatCompletedChunkCount: 0,
+  });
+}
 
 /**
  * Explicit, non-default integration seam for the release-bound scientific
@@ -86,8 +98,12 @@ const INITIAL_STATE: AlphaState = Object.freeze({
  * import, backend selector, or fallback path.
  */
 export default function ScientificRuntimeAlphaPage() {
-  const [sessionEpoch, setSessionEpoch] = React.useState(0);
-  const [state, setState] = React.useState<AlphaState>(INITIAL_STATE);
+  const [bootstrap, setBootstrap] = React.useState<Readonly<{
+    kind: AlphaBootstrapKind;
+    revision: number;
+  }>>(() => Object.freeze({ kind: 'official-healthy-periodic', revision: 0 }));
+  const [state, setState] = React.useState<AlphaState>(() =>
+    initialAlphaState('official-healthy-periodic'));
   const [requestBusy, setRequestBusy] = React.useState(false);
   const clientRef = React.useRef<MainWireScientificWorkerClientV1 | null>(null);
   const generationRef = React.useRef(0);
@@ -387,7 +403,7 @@ export default function ScientificRuntimeAlphaPage() {
     historyRef.current = Object.freeze([]);
     requestInFlightRef.current = false;
     setRequestBusy(false);
-    setState(INITIAL_STATE);
+    setState(initialAlphaState(bootstrap.kind));
 
     let mounted = true;
     let client: MainWireScientificWorkerClientV1;
@@ -399,36 +415,73 @@ export default function ScientificRuntimeAlphaPage() {
       return undefined;
     }
 
-    void client.request({
-      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
-      kind: 'createCanonicalSession',
-      requestId: requestIdentity(generation, ++requestSerialRef.current),
-      sessionId: sessionIdentity(generation),
-    }).then((response) => {
+    const bootstrapCommand = bootstrap.kind === 'official-healthy-periodic'
+      ? {
+        protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+        kind: 'createOfficialPresetSession' as const,
+        requestId: requestIdentity(generation, ++requestSerialRef.current),
+        sessionId: sessionIdentity(generation),
+        presetId: OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_ID,
+        presetVersion: OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_VERSION,
+      }
+      : {
+        protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+        kind: 'createCanonicalSession' as const,
+        requestId: requestIdentity(generation, ++requestSerialRef.current),
+        sessionId: sessionIdentity(generation),
+      };
+    void client.request(bootstrapCommand).then((response) => {
       if (!mounted || generation !== generationRef.current) return;
       if (!response.ok) {
         throw new Error(`${response.error.code}: ${response.error.message}`);
       }
-      if (
+      const officialBootstrap = bootstrap.kind === 'official-healthy-periodic';
+      if (officialBootstrap) {
+        if (
+          response.commandKind !== 'createOfficialPresetSession'
+          || response.payload.kind !== 'officialPresetSessionCreated'
+          || response.payload.presetId
+            !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_ID
+          || response.payload.presetVersion
+            !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_VERSION
+          || response.sessionOrigin.kind
+            !== 'official-preset-exact-checkpoint-restore'
+          || response.sessionOrigin.presetId
+            !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_ID
+          || response.sessionOrigin.presetVersion
+            !== OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_VERSION
+          || response.payload.observableFrame.source !== 'exact-checkpoint-restore'
+        ) throw new Error('scientific Worker returned an unexpected official preset payload');
+      } else if (
         response.commandKind !== 'createCanonicalSession'
         || response.payload.kind !== 'sessionCreated'
-      ) {
-        throw new Error('scientific Worker returned an unexpected session payload');
-      }
+        || response.sessionOrigin.kind !== 'canonical-cold-start'
+        || response.payload.observableFrame.source !== 'cold-initialization'
+      ) throw new Error('scientific Worker returned an unexpected canonical session payload');
       const frame = response.payload.observableFrame;
+      if (!sameSimulationReleaseRef(response.releaseRef, frame.releaseRef)) {
+        throw new Error('scientific Worker session frame release does not match its response');
+      }
       latestFrameRef.current = frame;
       historyRef.current = Object.freeze([frame]);
+      runModeRef.current = officialBootstrap ? 'settling-periodic' : 'idle';
+      setRequestBusy(officialBootstrap);
       setState({
-        phase: 'ready',
-        message: 'Canonical scientific Worker session is ready.',
+        phase: officialBootstrap ? 'running' : 'ready',
+        message: officialBootstrap
+          ? 'Verified official P1 checkpoint restored. Confirming its stored closure before acquiring the following beat.'
+          : 'Canonical scientific Worker cold-start session is ready.',
         releaseRef: response.releaseRef,
         sessionOrigin: response.sessionOrigin,
         history: historyRef.current,
         simulationCommandCount: 0,
         periodicProgress: null,
-        plotEvidence: 'cold-start',
+        plotEvidence: officialBootstrap ? 'periodic-settling' : 'cold-start',
         terminalBeatCompletedChunkCount: 0,
       });
+      if (officialBootstrap) {
+        window.setTimeout(() => pumpRef.current(generation), 0);
+      }
     }).catch((error: unknown) => {
       if (!mounted) return;
       failClosed(generation, error);
@@ -445,7 +498,7 @@ export default function ScientificRuntimeAlphaPage() {
       if (clientRef.current === client) clientRef.current = null;
       client.terminate();
     };
-  }, [failClosed, sessionEpoch]);
+  }, [bootstrap, failClosed]);
 
   const beginContinuous = () => {
     if (!alphaMayBeginRun(state.phase, runModeRef.current, requestInFlightRef.current)) return;
@@ -539,7 +592,7 @@ export default function ScientificRuntimeAlphaPage() {
     }));
   };
 
-  const reset = () => {
+  const restartWith = (kind: AlphaBootstrapKind) => {
     generationRef.current += 1;
     runModeRef.current = 'idle';
     beatTargetTimeSecRef.current = null;
@@ -549,7 +602,10 @@ export default function ScientificRuntimeAlphaPage() {
     setRequestBusy(false);
     clientRef.current?.terminate();
     clientRef.current = null;
-    setSessionEpoch((value) => value + 1);
+    setBootstrap((previous) => Object.freeze({
+      kind,
+      revision: previous.revision + 1,
+    }));
   };
 
   return (
@@ -566,6 +622,8 @@ export default function ScientificRuntimeAlphaPage() {
           <p className="max-w-3xl text-sm leading-6 text-slate-400">
             Release-bound main-wire science in one module Worker. This explicit
             route is not the default Workbench runtime and has no legacy fallback.
+            It starts from the digest-verified official healthy P1 checkpoint;
+            canonical cold start remains available as an explicit diagnostic.
           </p>
         </header>
 
@@ -580,9 +638,24 @@ export default function ScientificRuntimeAlphaPage() {
             <StatusPanel tone="failed" title="Scientific Worker failed closed">
               {state.message}
             </StatusPanel>
-            <button type="button" className={secondaryButtonClass} onClick={reset}>
-              Reset cold start
+            <button
+              type="button"
+              className={secondaryButtonClass}
+              onClick={() => restartWith(bootstrap.kind)}
+            >
+              Retry {bootstrap.kind === 'official-healthy-periodic'
+                ? 'healthy preset'
+                : 'cold start'}
             </button>
+            {bootstrap.kind === 'official-healthy-periodic' && (
+              <button
+                type="button"
+                className={secondaryButtonClass}
+                onClick={() => restartWith('canonical-cold-start')}
+              >
+                Start canonical cold
+              </button>
+            )}
           </>
         )}
 
@@ -594,7 +667,13 @@ export default function ScientificRuntimeAlphaPage() {
             onPause={pause}
             onSingleBeat={runSingleBeat}
             onSettlePeriodic={settleToPeriodic}
-            onReset={reset}
+            bootstrapKind={bootstrap.kind}
+            onReset={() => restartWith(bootstrap.kind)}
+            onSwitchBootstrap={() => restartWith(
+              bootstrap.kind === 'official-healthy-periodic'
+                ? 'canonical-cold-start'
+                : 'official-healthy-periodic',
+            )}
           />
         )}
       </div>
@@ -610,6 +689,8 @@ function ReadyPanel({
   onSingleBeat,
   onSettlePeriodic,
   onReset,
+  bootstrapKind,
+  onSwitchBootstrap,
 }: Readonly<{
   state: AlphaState & Readonly<{
     releaseRef: SimulationReleaseRef;
@@ -621,6 +702,8 @@ function ReadyPanel({
   onSingleBeat: () => void;
   onSettlePeriodic: () => void;
   onReset: () => void;
+  bootstrapKind: AlphaBootstrapKind;
+  onSwitchBootstrap: () => void;
 }>) {
   const frame = state.history.at(-1);
   if (frame === undefined) return null;
@@ -699,7 +782,18 @@ function ReadyPanel({
           className={secondaryButtonClass}
           onClick={onReset}
         >
-          Reset cold start
+          {bootstrapKind === 'official-healthy-periodic'
+            ? 'Reload healthy preset'
+            : 'Reset cold start'}
+        </button>
+        <button
+          type="button"
+          className={secondaryButtonClass}
+          onClick={onSwitchBootstrap}
+        >
+          {bootstrapKind === 'official-healthy-periodic'
+            ? 'Start canonical cold'
+            : 'Load healthy periodic'}
         </button>
         <span className="ml-auto text-xs text-slate-500" aria-live="polite">
           {requestBusy ? 'Bounded Worker loop active · ' : ''}
@@ -727,6 +821,20 @@ function ReadyPanel({
         <Metadata label="Plot evidence" value={alphaPlotEvidenceLabel(state.plotEvidence)} wide />
         <Metadata label="Release" value={`${state.releaseRef.id} v${state.releaseRef.version}`} wide />
         <Metadata label="Session origin" value={state.sessionOrigin.kind} wide />
+        {state.sessionOrigin.kind === 'official-preset-exact-checkpoint-restore' && (
+          <>
+            <Metadata
+              label="Official preset"
+              value={`${state.sessionOrigin.presetId} v${state.sessionOrigin.presetVersion}`}
+              wide
+            />
+            <Metadata
+              label="Checkpoint SHA-256"
+              value={state.sessionOrigin.checkpointSha256}
+              full
+            />
+          </>
+        )}
         <Metadata label="Release SHA-256" value={state.releaseRef.sha256} full />
       </dl>
 
