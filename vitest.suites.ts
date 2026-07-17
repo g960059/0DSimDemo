@@ -56,6 +56,7 @@ export const fastTests = [
   "__tests__/mainWireScientificExactCheckpointV3.test.ts",
   "__tests__/mainWireScientificDocumentsV1.test.ts",
   "__tests__/mainWireScientificResolvedWorkerProtocolV1.test.ts",
+  "__tests__/mainWireScientificResearchPresetCatalogV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
   "__tests__/mainWireValveDiseaseCycleMetricsV1.test.ts",
