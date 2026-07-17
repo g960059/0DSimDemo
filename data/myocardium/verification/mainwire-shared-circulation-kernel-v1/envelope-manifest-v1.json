@@ -1,0 +1,2012 @@
+{
+  "manifestId": "main-wire-normal-adult-five-wall-fixed-envelope-manifest-v1",
+  "sourceRevision": "0f261e9a606613d6f99ba191eee679d857ef766b",
+  "claims": {
+    "parameterSearch": false,
+    "morphologyFit": false,
+    "timeSeriesSmoothingOrInterpolation": false,
+    "convergenceOrderClaimed": false,
+    "postHocPassThresholdApplied": false,
+    "healthyMorphologyRequiresPeriod1": true,
+    "effusionMorphologyAccepted": false,
+    "slsOffOneCrossingTopologyRequired": false,
+    "rawResultsCommitted": false
+  },
+  "bootstrap": {
+    "role": "shared-cycle-boundary-warm-start-source",
+    "artifact": {
+      "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/periodic-dt4ms-converged.json",
+      "bytes": 7132557,
+      "sha256": "a62d249a656bfacb486fdeca0f9e9761a068d079a98a121ffa3c5e9af47a6d8e",
+      "repositoryDisposition": "local-raw-not-committed"
+    },
+    "evidence": {
+      "options": {
+        "dtSec": 0.004,
+        "requestedMaximumBeatCount": 20,
+        "initialization": "cycle-boundary-warm-start",
+        "laSlsMode": "on",
+        "pericardiumMode": "on",
+        "pericardiumCase": "healthy-slack",
+        "pericardiumParameterSetId": "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on"
+      },
+      "warmStartSource": null,
+      "initializationAudit": {
+        "canonicalTotalBloodVolumeMl": 5522.11,
+        "initializedTotalBloodVolumeMl": 5522.11,
+        "totalBloodVolumeDifferenceMl": 0,
+        "chamberVolumesChanged": true,
+        "dynamicEdgeFlowsChanged": true,
+        "valveOpeningStatesChanged": true,
+        "mechanicsColdInputChanged": true,
+        "mechanicsColdStateFingerprintChanged": true,
+        "transferredVolumeMl": 0,
+        "sourceNode": null,
+        "destinationNode": null,
+        "pulmonaryNodeVolumeDeltaMl": {
+          "PVen": 15.503501942543636,
+          "PVein": 23.053939717273096
+        },
+        "warmStartSourceProtocolIdentityHash": "9d3d3dba",
+        "warmStartTargetProtocolIdentityHash": "9d3d3dba",
+        "warmStartSourcePericardiumStableHash": "ff9ebb6d",
+        "warmStartTargetPericardiumStableHash": "ff9ebb6d",
+        "warmStartProtocolDifference": "none"
+      },
+      "protocol": {
+        "identityHash": "9d3d3dba",
+        "componentHashes": {
+          "mechanicsProviderMetadataStableHash": "78789398",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "circulationTopologyGraphStableHash": "27a8ce3f",
+          "circulationRuntimeStableHash": "6a2d35d3",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "ff9ebb6d",
+          "periodicPolicyStableHash": "00e13e40"
+        },
+        "bloodVolumeOperatingPoint": {
+          "status": "available",
+          "unavailableReason": null,
+          "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+          "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+          "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+          "fixedTotalBloodVolumeMl": 5522.11,
+          "initialDistributionPolicyId": "shared-SV-VC-transmural-offset",
+          "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+          "resolvedTotalBloodVolumeMl": 5522.11,
+          "addedBloodVolumeMl": 932.652430406124,
+          "sharedSvVcTransmuralPressureOffsetMmHg": 6.051930744065123,
+          "excludedCoronaryColdSeedVolumeMl": 77.89,
+          "maximumInverseOffsetResidualMmHg": 4.28796020912614e-9,
+          "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+          "targetResidualMl": 0
+        }
+      },
+      "integration": {
+        "completedWithoutFailure": true,
+        "failure": null,
+        "retainedPartialBeat": [],
+        "terminalCheckpointAvailable": true,
+        "terminalEnvelopeFingerprint": "5988693b",
+        "terminalCheckpointFingerprint": "e7b71f8a",
+        "terminalCheckpointTotalBloodVolumeMl": 5522.11
+      },
+      "periodicity": {
+        "terminationReason": "period1-converged",
+        "completedBeatCount": 15,
+        "periodicSteadyStateClaimed": true,
+        "period2OrbitSuspected": false,
+        "classifier": {
+          "status": "period1-converged",
+          "latestBeatIndex": 15,
+          "consecutiveBeatsRequired": 3,
+          "evidenceBeatIndices": [
+            13,
+            14,
+            15
+          ],
+          "latestPeriod1MaximumNormalizedDelta": 0.0005386698434199644,
+          "latestPeriod2MaximumNormalizedDelta": 0.0012106792143835865
+        },
+        "evidenceClosures": [
+          {
+            "beatIndex": 13,
+            "period1MaximumNormalizedDelta": 0.0008301074680135134,
+            "period2MaximumNormalizedDelta": 0.0018447024838960657
+          },
+          {
+            "beatIndex": 14,
+            "period1MaximumNormalizedDelta": 0.0006720093709636221,
+            "period2MaximumNormalizedDelta": 0.0015021168389771355
+          },
+          {
+            "beatIndex": 15,
+            "period1MaximumNormalizedDelta": 0.0005386698434199644,
+            "period2MaximumNormalizedDelta": 0.0012106792143835865
+          }
+        ]
+      },
+      "morphologyInterpretation": {
+        "eligible": true,
+        "scope": "current-dt-period1-only",
+        "timeStepRobustnessEstablished": false,
+        "reason": "eligible-current-dt-period1-only"
+      },
+      "laPvMorphology": {
+        "twoLobes": {
+          "status": "not-measurable",
+          "reason": "multiple-self-intersections",
+          "selfIntersectionCount": 2,
+          "rawSelfIntersectionCount": 2,
+          "crossingSummaryTruncated": false,
+          "crossings": [
+            {
+              "volumeMl": 49.10205563441473,
+              "pressureMmHg": 8.97871696577662,
+              "angleDeg": 58.73632637766302,
+              "firstPathProgress01": 0.17180597063128594,
+              "secondPathProgress01": 0.5973566332245358,
+              "rawIntersectionCount": 1
+            },
+            {
+              "volumeMl": 49.73422798673355,
+              "pressureMmHg": 7.452166798172277,
+              "angleDeg": 63.89685484065279,
+              "firstPathProgress01": 0.330840834230941,
+              "secondPathProgress01": 0.5473258988862852,
+              "rawIntersectionCount": 1
+            }
+          ],
+          "crossing": {
+            "volumeMl": 49.10205563441473,
+            "pressureMmHg": 8.97871696577662,
+            "angleDeg": 58.73632637766302,
+            "firstPathProgress01": 0.17180597063128594,
+            "secondPathProgress01": 0.5973566332245358,
+            "rawIntersectionCount": 1
+          },
+          "opposedLobeOrientation": false
+        },
+        "reservoirConduitEqualVolumeOrder": {
+          "diagnosticId": "la-pv-reservoir-conduit-equal-volume-order-v1",
+          "status": "measurable",
+          "reason": "measurable",
+          "overlapMinimumVolumeMl": 38.95720295320635,
+          "overlapMaximumVolumeMl": 57.362480591162914,
+          "overlapWidthMl": 18.405277637956566,
+          "requestedProbeCount": 101,
+          "usableProbeCount": 42,
+          "ambiguousProbeCount": 59,
+          "unusableProbeCount": 59,
+          "usableFraction01": 0.4158415841584158,
+          "reservoirAboveConduitFraction01": 1,
+          "reservoirMinusConduitMeanMmHg": 1.2169148821159694,
+          "reservoirMinusConduitMedianMmHg": 1.2748774792533584,
+          "reservoirMinusConduitMinimumMmHg": 0.5245376437294222,
+          "reservoirMinusConduitMaximumMmHg": 1.6499357885701906,
+          "segmentationOwner": "caller-supplied-physiological-events-not-pv-shape-inference",
+          "acceptanceThresholdApplied": false
+        }
+      },
+      "hemodynamics": {
+        "leftVentricularEjectionFraction01": 0.5792055432702251,
+        "rightVentricularEjectionFraction01": 0.5416130464128295,
+        "netAorticStrokeVolumeMl": 87.60576840587129,
+        "forwardAorticStrokeVolumeMl": 87.60576840587129,
+        "netAorticCardiacOutputLPerMin": 5.256346104352278,
+        "cardiacIndexLPerMinPerM2": 2.766497949659094,
+        "meanAorticAbsolutePressureMmHg": 87.72667125590573
+      },
+      "leftAtrialVolumes": {
+        "maximumMl": 58.25720607077485,
+        "preAMl": 49.690482925162556,
+        "minimumMl": 25.46407180417896,
+        "reservoirExpansionMl": 32.793134266595885,
+        "conduitEmptyingMl": 8.566723145612293,
+        "boosterEmptyingMl": 24.226411120983595,
+        "conduitFractionOfTotalEmptying": 0.26123526577142786,
+        "boosterFractionOfTotalEmptying": 0.7387647342285723,
+        "eventAnchoredNetChangeMl": {
+          "reservoir": 31.898408786983953,
+          "conduit": -7.671997666000358,
+          "pumping": -24.226411120983595
+        }
+      },
+      "leftAtrialPressureWaves": {
+        "aPeak": {
+          "sampleIndex": 222,
+          "phase01": 0.891999999998804,
+          "timeSec": 14.891999999998804,
+          "pressureMmHg": 13.25224202607189
+        },
+        "xTrough": {
+          "sampleIndex": 235,
+          "phase01": 0.9439999999987982,
+          "timeSec": 14.943999999998798,
+          "pressureMmHg": 11.848309419013848
+        },
+        "vPeak": {
+          "sampleIndex": 236,
+          "phase01": 0.9479999999987978,
+          "timeSec": 14.947999999998798,
+          "pressureMmHg": 11.61246150537615
+        },
+        "yTrough": {
+          "sampleIndex": 137,
+          "phase01": 0.5519999999988414,
+          "timeSec": 14.551999999998841,
+          "pressureMmHg": 5.462492595788927
+        },
+        "xDescentMmHg": 1.4039326070580422,
+        "yDescentMmHg": 6.149968909587223,
+        "volumeAtAPeakMl": 38.233941572417855,
+        "aPeakDelayFromAtrialCalciumOnsetSec": 0.036000000000000004,
+        "aPressurePeakToMitralAFlowPeakSec": -0.004,
+        "boosterEmptyingCompletedAtAPeakFraction": 0.47289469725962296,
+        "boosterEmptyingRemainingAtAPeakFraction": 0.527105302740377,
+        "boosterEmptyingCompletedAtAPeakStatus": "within-active-emptying",
+        "sequentialAcrossCycle": true
+      },
+      "commonPericardium": {
+        "heartVolumeMl": {
+          "minimum": 424.2288673872508,
+          "maximum": 570.9097070881232
+        },
+        "totalOccupiedVolumeMl": {
+          "minimum": 424.2288673872508,
+          "maximum": 570.9097070881232
+        },
+        "excessPressureMmHg": {
+          "minimum": 0,
+          "maximum": 0
+        },
+        "storedEnergyMilliJ": {
+          "minimum": 0,
+          "maximum": 0
+        },
+        "elasticConstraintEngagedSampleCount": 0
+      },
+      "laSlsEnergy": {
+        "storedEnergyChangeMilliJ": -0.0004621553269920989,
+        "physicalDissipationMilliJ": 1.159441114432617,
+        "backwardEulerNumericalDissipationMilliJ": 0.17883310190436627,
+        "reportedDiscreteBalanceResidualMilliJ": 1.5215378505155836e-15,
+        "reconstructedDiscreteBalanceResidualMilliJ": 1.1379786002407855e-15,
+        "readbackAgreementResidualMilliJ": -3.835592502747981e-16
+      },
+      "residualMaxima": {
+        "mechanicsResidualNorm": 9.604841931798446e-10,
+        "circulationScaledResidualInfinityNorm": 1.9990970568587264e-10,
+        "absoluteContinuityResidualMl": 2.035409951695044e-8,
+        "absoluteTotalBloodVolumeErrorMl": 1.8189894035458565e-12,
+        "absoluteValvePowerBalanceResidualMmHgMlPerSec": {
+          "MV": 6.821210263296962e-13,
+          "AoV": 5.4569682106375694e-12,
+          "TV": 2.2737367544323206e-13,
+          "PV": 1.8189894035458565e-12
+        }
+      }
+    }
+  },
+  "runs": {
+    "healthyDt2ms": {
+      "evidence": {
+        "options": {
+          "dtSec": 0.002,
+          "requestedMaximumBeatCount": 32,
+          "initialization": "cycle-boundary-warm-start",
+          "laSlsMode": "on",
+          "pericardiumMode": "on",
+          "pericardiumCase": "healthy-slack",
+          "pericardiumParameterSetId": "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on"
+        },
+        "warmStartSource": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/periodic-dt4ms-converged.json",
+          "bytes": 7132557,
+          "sha256": "a62d249a656bfacb486fdeca0f9e9761a068d079a98a121ffa3c5e9af47a6d8e",
+          "repositoryDisposition": "local-raw-not-committed"
+        },
+        "initializationAudit": {
+          "canonicalTotalBloodVolumeMl": 5522.11,
+          "initializedTotalBloodVolumeMl": 5522.11,
+          "totalBloodVolumeDifferenceMl": 0,
+          "chamberVolumesChanged": true,
+          "dynamicEdgeFlowsChanged": true,
+          "valveOpeningStatesChanged": true,
+          "mechanicsColdInputChanged": true,
+          "mechanicsColdStateFingerprintChanged": true,
+          "transferredVolumeMl": 0,
+          "sourceNode": null,
+          "destinationNode": null,
+          "pulmonaryNodeVolumeDeltaMl": {
+            "PVen": 15.08681529911047,
+            "PVein": 22.456406800057408
+          },
+          "warmStartSourceProtocolIdentityHash": "9d3d3dba",
+          "warmStartTargetProtocolIdentityHash": "9d3d3dba",
+          "warmStartSourcePericardiumStableHash": "ff9ebb6d",
+          "warmStartTargetPericardiumStableHash": "ff9ebb6d",
+          "warmStartProtocolDifference": "none"
+        },
+        "protocol": {
+          "identityHash": "9d3d3dba",
+          "componentHashes": {
+            "mechanicsProviderMetadataStableHash": "78789398",
+            "calciumDriveFixedParamsStableHash": "9660029d",
+            "circulationTopologyGraphStableHash": "27a8ce3f",
+            "circulationRuntimeStableHash": "6a2d35d3",
+            "bloodVolumeOperatingPointStableHash": "337d28cc",
+            "commonPericardiumStableHash": "ff9ebb6d",
+            "periodicPolicyStableHash": "00e13e40"
+          },
+          "bloodVolumeOperatingPoint": {
+            "status": "available",
+            "unavailableReason": null,
+            "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+            "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+            "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+            "fixedTotalBloodVolumeMl": 5522.11,
+            "initialDistributionPolicyId": "shared-SV-VC-transmural-offset",
+            "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+            "resolvedTotalBloodVolumeMl": 5522.11,
+            "addedBloodVolumeMl": 932.652430406124,
+            "sharedSvVcTransmuralPressureOffsetMmHg": 6.051930744065123,
+            "excludedCoronaryColdSeedVolumeMl": 77.89,
+            "maximumInverseOffsetResidualMmHg": 4.28796020912614e-9,
+            "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+            "targetResidualMl": 0
+          }
+        },
+        "integration": {
+          "completedWithoutFailure": true,
+          "failure": null,
+          "retainedPartialBeat": [],
+          "terminalCheckpointAvailable": true,
+          "terminalEnvelopeFingerprint": "f619d44b",
+          "terminalCheckpointFingerprint": "190f7cc5",
+          "terminalCheckpointTotalBloodVolumeMl": 5522.11
+        },
+        "periodicity": {
+          "terminationReason": "period1-converged",
+          "completedBeatCount": 8,
+          "periodicSteadyStateClaimed": true,
+          "period2OrbitSuspected": false,
+          "classifier": {
+            "status": "period1-converged",
+            "latestBeatIndex": 8,
+            "consecutiveBeatsRequired": 3,
+            "evidenceBeatIndices": [
+              6,
+              7,
+              8
+            ],
+            "latestPeriod1MaximumNormalizedDelta": 0.0005732029839404518,
+            "latestPeriod2MaximumNormalizedDelta": 0.001317927907205363
+          },
+          "evidenceClosures": [
+            {
+              "beatIndex": 6,
+              "period1MaximumNormalizedDelta": 0.0009715662521217472,
+              "period2MaximumNormalizedDelta": 0.0022552916093022957
+            },
+            {
+              "beatIndex": 7,
+              "period1MaximumNormalizedDelta": 0.0007447249232649111,
+              "period2MaximumNormalizedDelta": 0.0017162911753866583
+            },
+            {
+              "beatIndex": 8,
+              "period1MaximumNormalizedDelta": 0.0005732029839404518,
+              "period2MaximumNormalizedDelta": 0.001317927907205363
+            }
+          ]
+        },
+        "morphologyInterpretation": {
+          "eligible": true,
+          "scope": "current-dt-period1-only",
+          "timeStepRobustnessEstablished": false,
+          "reason": "eligible-current-dt-period1-only"
+        },
+        "laPvMorphology": {
+          "twoLobes": {
+            "status": "not-measurable",
+            "reason": "multiple-self-intersections",
+            "selfIntersectionCount": 2,
+            "rawSelfIntersectionCount": 2,
+            "crossingSummaryTruncated": false,
+            "crossings": [
+              {
+                "volumeMl": 49.15756530970058,
+                "pressureMmHg": 8.872129741743143,
+                "angleDeg": 57.04828733362891,
+                "firstPathProgress01": 0.1742417444347758,
+                "secondPathProgress01": 0.58777606023287,
+                "rawIntersectionCount": 1
+              },
+              {
+                "volumeMl": 49.5233907253736,
+                "pressureMmHg": 7.454657254012226,
+                "angleDeg": 58.926739227319466,
+                "firstPathProgress01": 0.32472042099857235,
+                "secondPathProgress01": 0.5431388354472501,
+                "rawIntersectionCount": 1
+              }
+            ],
+            "crossing": {
+              "volumeMl": 49.15756530970058,
+              "pressureMmHg": 8.872129741743143,
+              "angleDeg": 57.04828733362891,
+              "firstPathProgress01": 0.1742417444347758,
+              "secondPathProgress01": 0.58777606023287,
+              "rawIntersectionCount": 1
+            },
+            "opposedLobeOrientation": false
+          },
+          "reservoirConduitEqualVolumeOrder": {
+            "diagnosticId": "la-pv-reservoir-conduit-equal-volume-order-v1",
+            "status": "measurable",
+            "reason": "measurable",
+            "overlapMinimumVolumeMl": 38.60725846275294,
+            "overlapMaximumVolumeMl": 56.64868616453722,
+            "overlapWidthMl": 18.04142770178428,
+            "requestedProbeCount": 101,
+            "usableProbeCount": 41,
+            "ambiguousProbeCount": 60,
+            "unusableProbeCount": 60,
+            "usableFraction01": 0.40594059405940597,
+            "reservoirAboveConduitFraction01": 1,
+            "reservoirMinusConduitMeanMmHg": 1.1766482171724337,
+            "reservoirMinusConduitMedianMmHg": 1.2531915890817684,
+            "reservoirMinusConduitMinimumMmHg": 0.5578244908159355,
+            "reservoirMinusConduitMaximumMmHg": 1.5103339684898414,
+            "segmentationOwner": "caller-supplied-physiological-events-not-pv-shape-inference",
+            "acceptanceThresholdApplied": false
+          }
+        },
+        "hemodynamics": {
+          "leftVentricularEjectionFraction01": 0.5802364673214774,
+          "rightVentricularEjectionFraction01": 0.5427635977800475,
+          "netAorticStrokeVolumeMl": 87.73601243507251,
+          "forwardAorticStrokeVolumeMl": 87.73601243507251,
+          "netAorticCardiacOutputLPerMin": 5.26416074610435,
+          "cardiacIndexLPerMinPerM2": 2.77061091900229,
+          "meanAorticAbsolutePressureMmHg": 87.85755704890161
+        },
+        "leftAtrialVolumes": {
+          "maximumMl": 57.68855564298844,
+          "preAMl": 49.28537150266311,
+          "minimumMl": 25.232093003913377,
+          "reservoirExpansionMl": 32.45646263907506,
+          "conduitEmptyingMl": 8.40318414032533,
+          "boosterEmptyingMl": 24.053278498749734,
+          "conduitFractionOfTotalEmptying": 0.25890634582613287,
+          "boosterFractionOfTotalEmptying": 0.7410936541738671,
+          "eventAnchoredNetChangeMl": {
+            "reservoir": 31.413014736855136,
+            "conduit": -7.3633146618741065,
+            "pumping": -24.04970007498103
+          }
+        },
+        "leftAtrialPressureWaves": {
+          "aPeak": {
+            "sampleIndex": 444,
+            "phase01": 0.8899999999993531,
+            "timeSec": 7.889999999999353,
+            "pressureMmHg": 13.425314063130234
+          },
+          "xTrough": {
+            "sampleIndex": 471,
+            "phase01": 0.9439999999993471,
+            "timeSec": 7.943999999999347,
+            "pressureMmHg": 11.775198166628057
+          },
+          "vPeak": {
+            "sampleIndex": 472,
+            "phase01": 0.9459999999993469,
+            "timeSec": 7.945999999999347,
+            "pressureMmHg": 11.651673655298268
+          },
+          "yTrough": {
+            "sampleIndex": 274,
+            "phase01": 0.5499999999993905,
+            "timeSec": 7.5499999999993905,
+            "pressureMmHg": 5.395900056652534
+          },
+          "xDescentMmHg": 1.650115896502177,
+          "yDescentMmHg": 6.2557735986457335,
+          "volumeAtAPeakMl": 39.884376599319744,
+          "aPeakDelayFromAtrialCalciumOnsetSec": 0.036000000000000004,
+          "aPressurePeakToMitralAFlowPeakSec": 0,
+          "boosterEmptyingCompletedAtAPeakFraction": 0.3908404795559167,
+          "boosterEmptyingRemainingAtAPeakFraction": 0.6091595204440833,
+          "boosterEmptyingCompletedAtAPeakStatus": "within-active-emptying",
+          "sequentialAcrossCycle": true
+        },
+        "commonPericardium": {
+          "heartVolumeMl": {
+            "minimum": 424.06796705431486,
+            "maximum": 571.204406647822
+          },
+          "totalOccupiedVolumeMl": {
+            "minimum": 424.06796705431486,
+            "maximum": 571.204406647822
+          },
+          "excessPressureMmHg": {
+            "minimum": 0,
+            "maximum": 0
+          },
+          "storedEnergyMilliJ": {
+            "minimum": 0,
+            "maximum": 0
+          },
+          "elasticConstraintEngagedSampleCount": 0
+        },
+        "laSlsEnergy": {
+          "storedEnergyChangeMilliJ": -0.0005052831501305768,
+          "physicalDissipationMilliJ": 1.1387267804927808,
+          "backwardEulerNumericalDissipationMilliJ": 0.09320486614640178,
+          "reportedDiscreteBalanceResidualMilliJ": -1.3894120806771137e-15,
+          "reconstructedDiscreteBalanceResidualMilliJ": 0,
+          "readbackAgreementResidualMilliJ": 1.3894120806771137e-15
+        },
+        "residualMaxima": {
+          "mechanicsResidualNorm": 9.846892698988084e-10,
+          "circulationScaledResidualInfinityNorm": 1.9363128742495247e-10,
+          "absoluteContinuityResidualMl": 1.332281296395621e-8,
+          "absoluteTotalBloodVolumeErrorMl": 1.8189894035458565e-12,
+          "absoluteValvePowerBalanceResidualMmHgMlPerSec": {
+            "MV": 6.821210263296962e-13,
+            "AoV": 5.4569682106375694e-12,
+            "TV": 3.410605131648481e-13,
+            "PV": 1.8189894035458565e-12
+          }
+        }
+      },
+      "artifacts": {
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/healthy-dt2ms.json",
+          "bytes": 13623543,
+          "sha256": "1b6caa32c8bae77781d582973c5e692ce1d11b110682fa5b910f954db83de9be",
+          "repositoryDisposition": "local-raw-not-committed"
+        },
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/healthy-summary-dt2ms.json",
+          "bytes": 48513,
+          "sha256": "3086fcd64ba9f2a74cf503303c265ff3bf73b7357d4587f49a0dee15d868e310",
+          "repositoryDisposition": "commit"
+        },
+        "visualHtml": null,
+        "visualSvg": null,
+        "visualNominalDtMatchesRun": false
+      }
+    },
+    "healthyDt1ms": {
+      "evidence": {
+        "options": {
+          "dtSec": 0.001,
+          "requestedMaximumBeatCount": 32,
+          "initialization": "cycle-boundary-warm-start",
+          "laSlsMode": "on",
+          "pericardiumMode": "on",
+          "pericardiumCase": "healthy-slack",
+          "pericardiumParameterSetId": "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on"
+        },
+        "warmStartSource": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/periodic-dt4ms-converged.json",
+          "bytes": 7132557,
+          "sha256": "a62d249a656bfacb486fdeca0f9e9761a068d079a98a121ffa3c5e9af47a6d8e",
+          "repositoryDisposition": "local-raw-not-committed"
+        },
+        "initializationAudit": {
+          "canonicalTotalBloodVolumeMl": 5522.11,
+          "initializedTotalBloodVolumeMl": 5522.11,
+          "totalBloodVolumeDifferenceMl": 0,
+          "chamberVolumesChanged": true,
+          "dynamicEdgeFlowsChanged": true,
+          "valveOpeningStatesChanged": true,
+          "mechanicsColdInputChanged": true,
+          "mechanicsColdStateFingerprintChanged": true,
+          "transferredVolumeMl": 0,
+          "sourceNode": null,
+          "destinationNode": null,
+          "pulmonaryNodeVolumeDeltaMl": {
+            "PVen": 15.08681529911047,
+            "PVein": 22.456406800057408
+          },
+          "warmStartSourceProtocolIdentityHash": "9d3d3dba",
+          "warmStartTargetProtocolIdentityHash": "9d3d3dba",
+          "warmStartSourcePericardiumStableHash": "ff9ebb6d",
+          "warmStartTargetPericardiumStableHash": "ff9ebb6d",
+          "warmStartProtocolDifference": "none"
+        },
+        "protocol": {
+          "identityHash": "9d3d3dba",
+          "componentHashes": {
+            "mechanicsProviderMetadataStableHash": "78789398",
+            "calciumDriveFixedParamsStableHash": "9660029d",
+            "circulationTopologyGraphStableHash": "27a8ce3f",
+            "circulationRuntimeStableHash": "6a2d35d3",
+            "bloodVolumeOperatingPointStableHash": "337d28cc",
+            "commonPericardiumStableHash": "ff9ebb6d",
+            "periodicPolicyStableHash": "00e13e40"
+          },
+          "bloodVolumeOperatingPoint": {
+            "status": "available",
+            "unavailableReason": null,
+            "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+            "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+            "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+            "fixedTotalBloodVolumeMl": 5522.11,
+            "initialDistributionPolicyId": "shared-SV-VC-transmural-offset",
+            "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+            "resolvedTotalBloodVolumeMl": 5522.11,
+            "addedBloodVolumeMl": 932.652430406124,
+            "sharedSvVcTransmuralPressureOffsetMmHg": 6.051930744065123,
+            "excludedCoronaryColdSeedVolumeMl": 77.89,
+            "maximumInverseOffsetResidualMmHg": 4.28796020912614e-9,
+            "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+            "targetResidualMl": 0
+          }
+        },
+        "integration": {
+          "completedWithoutFailure": true,
+          "failure": null,
+          "retainedPartialBeat": [],
+          "terminalCheckpointAvailable": true,
+          "terminalEnvelopeFingerprint": "428f11db",
+          "terminalCheckpointFingerprint": "5605191c",
+          "terminalCheckpointTotalBloodVolumeMl": 5522.11
+        },
+        "periodicity": {
+          "terminationReason": "period1-converged",
+          "completedBeatCount": 10,
+          "periodicSteadyStateClaimed": true,
+          "period2OrbitSuspected": false,
+          "classifier": {
+            "status": "period1-converged",
+            "latestBeatIndex": 10,
+            "consecutiveBeatsRequired": 3,
+            "evidenceBeatIndices": [
+              8,
+              9,
+              10
+            ],
+            "latestPeriod1MaximumNormalizedDelta": 0.0004713800112449462,
+            "latestPeriod2MaximumNormalizedDelta": 0.0010453186949660465
+          },
+          "evidenceClosures": [
+            {
+              "beatIndex": 8,
+              "period1MaximumNormalizedDelta": 0.0007834576984341868,
+              "period2MaximumNormalizedDelta": 0.0018147239614883792
+            },
+            {
+              "beatIndex": 9,
+              "period1MaximumNormalizedDelta": 0.0005950448826477772,
+              "period2MaximumNormalizedDelta": 0.001378502581081964
+            },
+            {
+              "beatIndex": 10,
+              "period1MaximumNormalizedDelta": 0.0004713800112449462,
+              "period2MaximumNormalizedDelta": 0.0010453186949660465
+            }
+          ]
+        },
+        "morphologyInterpretation": {
+          "eligible": true,
+          "scope": "current-dt-period1-only",
+          "timeStepRobustnessEstablished": false,
+          "reason": "eligible-current-dt-period1-only"
+        },
+        "laPvMorphology": {
+          "twoLobes": {
+            "status": "not-measurable",
+            "reason": "multiple-self-intersections",
+            "selfIntersectionCount": 2,
+            "rawSelfIntersectionCount": 2,
+            "crossingSummaryTruncated": false,
+            "crossings": [
+              {
+                "volumeMl": 49.16847205353819,
+                "pressureMmHg": 8.813792649086688,
+                "angleDeg": 56.56456865060087,
+                "firstPathProgress01": 0.17553275063259838,
+                "secondPathProgress01": 0.5825718017207567,
+                "rawIntersectionCount": 1
+              },
+              {
+                "volumeMl": 49.417093471838086,
+                "pressureMmHg": 7.456360197745471,
+                "angleDeg": 60.63737547298304,
+                "firstPathProgress01": 0.3216907524610144,
+                "secondPathProgress01": 0.5408101355838918,
+                "rawIntersectionCount": 1
+              }
+            ],
+            "crossing": {
+              "volumeMl": 49.16847205353819,
+              "pressureMmHg": 8.813792649086688,
+              "angleDeg": 56.56456865060087,
+              "firstPathProgress01": 0.17553275063259838,
+              "secondPathProgress01": 0.5825718017207567,
+              "rawIntersectionCount": 1
+            },
+            "opposedLobeOrientation": false
+          },
+          "reservoirConduitEqualVolumeOrder": {
+            "diagnosticId": "la-pv-reservoir-conduit-equal-volume-order-v1",
+            "status": "measurable",
+            "reason": "measurable",
+            "overlapMinimumVolumeMl": 38.43029713245713,
+            "overlapMaximumVolumeMl": 56.416124704938305,
+            "overlapWidthMl": 17.985827572481178,
+            "requestedProbeCount": 101,
+            "usableProbeCount": 41,
+            "ambiguousProbeCount": 60,
+            "unusableProbeCount": 60,
+            "usableFraction01": 0.40594059405940597,
+            "reservoirAboveConduitFraction01": 1,
+            "reservoirMinusConduitMeanMmHg": 1.1394496633941193,
+            "reservoirMinusConduitMedianMmHg": 1.2275776109415615,
+            "reservoirMinusConduitMinimumMmHg": 0.5431353294776269,
+            "reservoirMinusConduitMaximumMmHg": 1.4379503993714513,
+            "segmentationOwner": "caller-supplied-physiological-events-not-pv-shape-inference",
+            "acceptanceThresholdApplied": false
+          }
+        },
+        "hemodynamics": {
+          "leftVentricularEjectionFraction01": 0.5808123032813789,
+          "rightVentricularEjectionFraction01": 0.5435157150799258,
+          "netAorticStrokeVolumeMl": 87.80307850372381,
+          "forwardAorticStrokeVolumeMl": 87.80307850372381,
+          "netAorticCardiacOutputLPerMin": 5.268184710223429,
+          "cardiacIndexLPerMinPerM2": 2.7727287948544364,
+          "meanAorticAbsolutePressureMmHg": 87.93102065127943
+        },
+        "leftAtrialVolumes": {
+          "maximumMl": 57.396426079834875,
+          "preAMl": 49.073522190098586,
+          "minimumMl": 25.11362349293867,
+          "reservoirExpansionMl": 32.2828025868962,
+          "conduitEmptyingMl": 8.322903889736288,
+          "boosterEmptyingMl": 23.959898697159915,
+          "conduitFractionOfTotalEmptying": 0.2578123094280113,
+          "boosterFractionOfTotalEmptying": 0.7421876905719886,
+          "eventAnchoredNetChangeMl": {
+            "reservoir": 31.294706060313473,
+            "conduit": -7.342602514839719,
+            "pumping": -23.952103545473754
+          }
+        },
+        "leftAtrialPressureWaves": {
+          "aPeak": {
+            "sampleIndex": 889,
+            "phase01": 0.8899999999999579,
+            "timeSec": 9.889999999999958,
+            "pressureMmHg": 13.53908908798041
+          },
+          "xTrough": {
+            "sampleIndex": 943,
+            "phase01": 0.943999999999928,
+            "timeSec": 9.943999999999928,
+            "pressureMmHg": 11.739813956236572
+          },
+          "vPeak": {
+            "sampleIndex": 944,
+            "phase01": 0.9449999999999275,
+            "timeSec": 9.944999999999927,
+            "pressureMmHg": 11.677001193612721
+          },
+          "yTrough": {
+            "sampleIndex": 546,
+            "phase01": 0.547000000000148,
+            "timeSec": 9.547000000000148,
+            "pressureMmHg": 5.361432015864882
+          },
+          "xDescentMmHg": 1.799275131743837,
+          "yDescentMmHg": 6.3155691777478395,
+          "volumeAtAPeakMl": 40.27742394229217,
+          "aPeakDelayFromAtrialCalciumOnsetSec": 0.037,
+          "aPressurePeakToMitralAFlowPeakSec": 0.001,
+          "boosterEmptyingCompletedAtAPeakFraction": 0.36711750575343893,
+          "boosterEmptyingRemainingAtAPeakFraction": 0.6328824942465611,
+          "boosterEmptyingCompletedAtAPeakStatus": "within-active-emptying",
+          "sequentialAcrossCycle": true
+        },
+        "commonPericardium": {
+          "heartVolumeMl": {
+            "minimum": 423.9649202226436,
+            "maximum": 571.3054562549847
+          },
+          "totalOccupiedVolumeMl": {
+            "minimum": 423.9649202226436,
+            "maximum": 571.3054562549847
+          },
+          "excessPressureMmHg": {
+            "minimum": 0,
+            "maximum": 0
+          },
+          "storedEnergyMilliJ": {
+            "minimum": 0,
+            "maximum": 0
+          },
+          "elasticConstraintEngagedSampleCount": 0
+        },
+        "laSlsEnergy": {
+          "storedEnergyChangeMilliJ": -0.00040035187658885724,
+          "physicalDissipationMilliJ": 1.1274355035801331,
+          "backwardEulerNumericalDissipationMilliJ": 0.04763286773305748,
+          "reportedDiscreteBalanceResidualMilliJ": 2.647577884104639e-16,
+          "reconstructedDiscreteBalanceResidualMilliJ": -3.95516952522712e-16,
+          "readbackAgreementResidualMilliJ": -6.602747409331759e-16
+        },
+        "residualMaxima": {
+          "mechanicsResidualNorm": 9.943913773895473e-10,
+          "circulationScaledResidualInfinityNorm": 1.9216892605296668e-10,
+          "absoluteContinuityResidualMl": 1.841222710408097e-8,
+          "absoluteTotalBloodVolumeErrorMl": 1.8189894035458565e-12,
+          "absoluteValvePowerBalanceResidualMmHgMlPerSec": {
+            "MV": 9.094947017729282e-13,
+            "AoV": 5.4569682106375694e-12,
+            "TV": 3.410605131648481e-13,
+            "PV": 2.7284841053187847e-12
+          }
+        }
+      },
+      "artifacts": {
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/healthy-dt1ms.json",
+          "bytes": 27052666,
+          "sha256": "b04d08747a07fbae367cc166d0f7f04b9dd74d855f2840e4585fc671c3ce70ef",
+          "repositoryDisposition": "local-raw-not-committed"
+        },
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/healthy-summary-dt1ms.json",
+          "bytes": 48546,
+          "sha256": "1e3479872f4096dfe26c2ce88b8356644e51e55b6657790a059228a937b3eae8",
+          "repositoryDisposition": "commit"
+        },
+        "visualHtml": {
+          "path": "data/myocardium/visuals/mainwire-shared-circulation-kernel-v1-healthy-dt1ms.html",
+          "bytes": 3294707,
+          "sha256": "06680eea6c349b16b58bc0a7681de158eceb465cb76817f9d821491bc2fbbc4f",
+          "repositoryDisposition": "commit"
+        },
+        "visualSvg": {
+          "path": "data/myocardium/visuals/mainwire-shared-circulation-kernel-v1-healthy-dt1ms.svg",
+          "bytes": 466240,
+          "sha256": "e4e8014d8788d0b23fc01d6c71e77da708ebebf123e7e93760d39aaf696cba12",
+          "repositoryDisposition": "commit"
+        },
+        "visualNominalDtMatchesRun": true
+      }
+    },
+    "effusionDt2ms": {
+      "evidence": {
+        "options": {
+          "dtSec": 0.002,
+          "requestedMaximumBeatCount": 32,
+          "initialization": "cycle-boundary-warm-start",
+          "laSlsMode": "on",
+          "pericardiumMode": "on",
+          "pericardiumCase": "effusion-300ml-positive-control",
+          "pericardiumParameterSetId": "main-wire-normal-adult-common-pericardium-v1-effusion-300ml-positive-control-on"
+        },
+        "warmStartSource": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/periodic-dt4ms-converged.json",
+          "bytes": 7132557,
+          "sha256": "a62d249a656bfacb486fdeca0f9e9761a068d079a98a121ffa3c5e9af47a6d8e",
+          "repositoryDisposition": "local-raw-not-committed"
+        },
+        "initializationAudit": {
+          "canonicalTotalBloodVolumeMl": 5522.11,
+          "initializedTotalBloodVolumeMl": 5522.11,
+          "totalBloodVolumeDifferenceMl": 0,
+          "chamberVolumesChanged": true,
+          "dynamicEdgeFlowsChanged": true,
+          "valveOpeningStatesChanged": true,
+          "mechanicsColdInputChanged": true,
+          "mechanicsColdStateFingerprintChanged": true,
+          "transferredVolumeMl": 0,
+          "sourceNode": null,
+          "destinationNode": null,
+          "pulmonaryNodeVolumeDeltaMl": {
+            "PVen": 15.08681529911047,
+            "PVein": 22.456406800057408
+          },
+          "warmStartSourceProtocolIdentityHash": "9d3d3dba",
+          "warmStartTargetProtocolIdentityHash": "3cf801a0",
+          "warmStartSourcePericardiumStableHash": "ff9ebb6d",
+          "warmStartTargetPericardiumStableHash": "00d87c54",
+          "warmStartProtocolDifference": "common-pericardium-only"
+        },
+        "protocol": {
+          "identityHash": "3cf801a0",
+          "componentHashes": {
+            "mechanicsProviderMetadataStableHash": "78789398",
+            "calciumDriveFixedParamsStableHash": "9660029d",
+            "circulationTopologyGraphStableHash": "27a8ce3f",
+            "circulationRuntimeStableHash": "6a2d35d3",
+            "bloodVolumeOperatingPointStableHash": "337d28cc",
+            "commonPericardiumStableHash": "00d87c54",
+            "periodicPolicyStableHash": "00e13e40"
+          },
+          "bloodVolumeOperatingPoint": {
+            "status": "available",
+            "unavailableReason": null,
+            "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+            "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+            "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+            "fixedTotalBloodVolumeMl": 5522.11,
+            "initialDistributionPolicyId": "shared-SV-VC-transmural-offset",
+            "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+            "resolvedTotalBloodVolumeMl": 5522.11,
+            "addedBloodVolumeMl": 932.652430406124,
+            "sharedSvVcTransmuralPressureOffsetMmHg": 6.051930744065123,
+            "excludedCoronaryColdSeedVolumeMl": 77.89,
+            "maximumInverseOffsetResidualMmHg": 4.28796020912614e-9,
+            "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+            "targetResidualMl": 0
+          }
+        },
+        "integration": {
+          "completedWithoutFailure": true,
+          "failure": null,
+          "retainedPartialBeat": [],
+          "terminalCheckpointAvailable": true,
+          "terminalEnvelopeFingerprint": "e9687c75",
+          "terminalCheckpointFingerprint": "b3334250",
+          "terminalCheckpointTotalBloodVolumeMl": 5522.11
+        },
+        "periodicity": {
+          "terminationReason": "maximum-beats-reached",
+          "completedBeatCount": 32,
+          "periodicSteadyStateClaimed": false,
+          "period2OrbitSuspected": false,
+          "classifier": {
+            "status": "not-converged",
+            "latestBeatIndex": 32,
+            "consecutiveBeatsRequired": 3,
+            "evidenceBeatIndices": [],
+            "latestPeriod1MaximumNormalizedDelta": 0.0014402579145871642,
+            "latestPeriod2MaximumNormalizedDelta": 0.0031745879916798003
+          },
+          "evidenceClosures": []
+        },
+        "morphologyInterpretation": {
+          "eligible": false,
+          "scope": "current-dt-period1-only",
+          "timeStepRobustnessEstablished": false,
+          "reason": "ineligible-period1-not-converged"
+        },
+        "laPvMorphology": {
+          "twoLobes": {
+            "status": "not-measurable",
+            "reason": "no-self-intersection",
+            "selfIntersectionCount": 0,
+            "rawSelfIntersectionCount": 0,
+            "crossingSummaryTruncated": false,
+            "crossings": [],
+            "opposedLobeOrientation": false
+          },
+          "reservoirConduitEqualVolumeOrder": {
+            "diagnosticId": "la-pv-reservoir-conduit-equal-volume-order-v1",
+            "status": "measurable",
+            "reason": "measurable",
+            "overlapMinimumVolumeMl": 26.324235758068788,
+            "overlapMaximumVolumeMl": 40.172079003115584,
+            "overlapWidthMl": 13.847843245046796,
+            "requestedProbeCount": 101,
+            "usableProbeCount": 101,
+            "ambiguousProbeCount": 0,
+            "unusableProbeCount": 0,
+            "usableFraction01": 1,
+            "reservoirAboveConduitFraction01": 0,
+            "reservoirMinusConduitMeanMmHg": -1.9253711620980722,
+            "reservoirMinusConduitMedianMmHg": -1.937311433514033,
+            "reservoirMinusConduitMinimumMmHg": -3.6464416653115617,
+            "reservoirMinusConduitMaximumMmHg": -0.12381227508896586,
+            "segmentationOwner": "caller-supplied-physiological-events-not-pv-shape-inference",
+            "acceptanceThresholdApplied": false
+          }
+        },
+        "hemodynamics": {
+          "leftVentricularEjectionFraction01": 0.5747334676710995,
+          "rightVentricularEjectionFraction01": 0.4589195551606896,
+          "netAorticStrokeVolumeMl": 42.86179107444189,
+          "forwardAorticStrokeVolumeMl": 42.86179107444189,
+          "netAorticCardiacOutputLPerMin": 2.5717074644665137,
+          "cardiacIndexLPerMinPerM2": 1.35353024445606,
+          "meanAorticAbsolutePressureMmHg": 51.302400481110396
+        },
+        "leftAtrialVolumes": {
+          "maximumMl": 40.28065465378947,
+          "preAMl": 26.324235758068788,
+          "minimumMl": 19.391405076306857,
+          "reservoirExpansionMl": 20.889249577482612,
+          "conduitEmptyingMl": 13.956418895720681,
+          "boosterEmptyingMl": 6.932830681761931,
+          "conduitFractionOfTotalEmptying": 0.6681149001525112,
+          "boosterFractionOfTotalEmptying": 0.3318850998474889,
+          "eventAnchoredNetChangeMl": {
+            "reservoir": 20.45239053841686,
+            "conduit": -13.847843245046796,
+            "pumping": -6.604547293370064
+          }
+        },
+        "leftAtrialPressureWaves": {
+          "aPeak": {
+            "sampleIndex": 447,
+            "phase01": 0.8959999999932009,
+            "timeSec": 31.8959999999932,
+            "pressureMmHg": 3.1589764707393577
+          },
+          "xTrough": {
+            "sampleIndex": 29,
+            "phase01": 0.05999999999366423,
+            "timeSec": 31.059999999993664,
+            "pressureMmHg": 0.6697444310188073
+          },
+          "vPeak": {
+            "sampleIndex": 164,
+            "phase01": 0.3299999999935146,
+            "timeSec": 31.329999999993515,
+            "pressureMmHg": 6.596227670596233
+          },
+          "yTrough": {
+            "sampleIndex": 425,
+            "phase01": 0.8519999999932253,
+            "timeSec": 31.851999999993225,
+            "pressureMmHg": 1.7836583007516917
+          },
+          "xDescentMmHg": 2.4892320397205503,
+          "yDescentMmHg": 4.812569369844541,
+          "volumeAtAPeakMl": 23.433308151057172,
+          "aPeakDelayFromAtrialCalciumOnsetSec": 0.042,
+          "aPressurePeakToMitralAFlowPeakSec": 0.004,
+          "boosterEmptyingCompletedAtAPeakFraction": 0.4169909434852816,
+          "boosterEmptyingRemainingAtAPeakFraction": 0.5830090565147183,
+          "boosterEmptyingCompletedAtAPeakStatus": "within-active-emptying",
+          "sequentialAcrossCycle": true
+        },
+        "commonPericardium": {
+          "heartVolumeMl": {
+            "minimum": 349.7647265879025,
+            "maximum": 407.0081218066483
+          },
+          "totalOccupiedVolumeMl": {
+            "minimum": 649.7647265879024,
+            "maximum": 707.0081218066483
+          },
+          "excessPressureMmHg": {
+            "minimum": 3.5181361287270936,
+            "maximum": 11.839656081853835
+          },
+          "storedEnergyMilliJ": {
+            "minimum": 10.366698223905875,
+            "maximum": 64.9706758269604
+          },
+          "elasticConstraintEngagedSampleCount": 500
+        },
+        "laSlsEnergy": {
+          "storedEnergyChangeMilliJ": 0.00002046692776882207,
+          "physicalDissipationMilliJ": 0.8017034002300901,
+          "backwardEulerNumericalDissipationMilliJ": 0.03190906786371838,
+          "reportedDiscreteBalanceResidualMilliJ": 8.81661965671517e-16,
+          "reconstructedDiscreteBalanceResidualMilliJ": -1.547373340571312e-15,
+          "readbackAgreementResidualMilliJ": -2.429035306242829e-15
+        },
+        "residualMaxima": {
+          "mechanicsResidualNorm": 9.845607236158572e-10,
+          "circulationScaledResidualInfinityNorm": 1.9868831076958173e-10,
+          "absoluteContinuityResidualMl": 8.22589285576214e-9,
+          "absoluteTotalBloodVolumeErrorMl": 1.8189894035458565e-12,
+          "absoluteValvePowerBalanceResidualMmHgMlPerSec": {
+            "MV": 1.7053025658242404e-13,
+            "AoV": 4.547473508864641e-12,
+            "TV": 1.1368683772161603e-13,
+            "PV": 9.094947017729282e-13
+          }
+        }
+      },
+      "artifacts": {
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/effusion-dt2ms.json",
+          "bytes": 14380874,
+          "sha256": "bfc29e50ec77eb97d47b9eadc4991a28265b47302aa91e3a5841e694f001962f",
+          "repositoryDisposition": "local-raw-not-committed"
+        },
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/effusion-summary-dt2ms.json",
+          "bytes": 46016,
+          "sha256": "d727ff7548d17fe59c2d1edb0d1dad3d39c12e0246f4df0b4c75c06503d7718e",
+          "repositoryDisposition": "commit"
+        },
+        "visualHtml": {
+          "path": "data/myocardium/visuals/mainwire-shared-circulation-kernel-v1-effusion-dt2ms.html",
+          "bytes": 1796455,
+          "sha256": "dfc3b8a60a4812edc48a48243e20142f1d81fdc38a26bec5b682eabe2a18d02c",
+          "repositoryDisposition": "commit"
+        },
+        "visualSvg": {
+          "path": "data/myocardium/visuals/mainwire-shared-circulation-kernel-v1-effusion-dt2ms.svg",
+          "bytes": 264174,
+          "sha256": "926b47eafa768240eb2283977cf046c3df6d85c9ed925711b11d5a3285ec9a1c",
+          "repositoryDisposition": "commit"
+        },
+        "visualNominalDtMatchesRun": true
+      }
+    },
+    "effusionDt1ms": {
+      "evidence": {
+        "options": {
+          "dtSec": 0.001,
+          "requestedMaximumBeatCount": 32,
+          "initialization": "cycle-boundary-warm-start",
+          "laSlsMode": "on",
+          "pericardiumMode": "on",
+          "pericardiumCase": "effusion-300ml-positive-control",
+          "pericardiumParameterSetId": "main-wire-normal-adult-common-pericardium-v1-effusion-300ml-positive-control-on"
+        },
+        "warmStartSource": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/periodic-dt4ms-converged.json",
+          "bytes": 7132557,
+          "sha256": "a62d249a656bfacb486fdeca0f9e9761a068d079a98a121ffa3c5e9af47a6d8e",
+          "repositoryDisposition": "local-raw-not-committed"
+        },
+        "initializationAudit": {
+          "canonicalTotalBloodVolumeMl": 5522.11,
+          "initializedTotalBloodVolumeMl": 5522.11,
+          "totalBloodVolumeDifferenceMl": 0,
+          "chamberVolumesChanged": true,
+          "dynamicEdgeFlowsChanged": true,
+          "valveOpeningStatesChanged": true,
+          "mechanicsColdInputChanged": true,
+          "mechanicsColdStateFingerprintChanged": true,
+          "transferredVolumeMl": 0,
+          "sourceNode": null,
+          "destinationNode": null,
+          "pulmonaryNodeVolumeDeltaMl": {
+            "PVen": 15.08681529911047,
+            "PVein": 22.456406800057408
+          },
+          "warmStartSourceProtocolIdentityHash": "9d3d3dba",
+          "warmStartTargetProtocolIdentityHash": "3cf801a0",
+          "warmStartSourcePericardiumStableHash": "ff9ebb6d",
+          "warmStartTargetPericardiumStableHash": "00d87c54",
+          "warmStartProtocolDifference": "common-pericardium-only"
+        },
+        "protocol": {
+          "identityHash": "3cf801a0",
+          "componentHashes": {
+            "mechanicsProviderMetadataStableHash": "78789398",
+            "calciumDriveFixedParamsStableHash": "9660029d",
+            "circulationTopologyGraphStableHash": "27a8ce3f",
+            "circulationRuntimeStableHash": "6a2d35d3",
+            "bloodVolumeOperatingPointStableHash": "337d28cc",
+            "commonPericardiumStableHash": "00d87c54",
+            "periodicPolicyStableHash": "00e13e40"
+          },
+          "bloodVolumeOperatingPoint": {
+            "status": "available",
+            "unavailableReason": null,
+            "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+            "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+            "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+            "fixedTotalBloodVolumeMl": 5522.11,
+            "initialDistributionPolicyId": "shared-SV-VC-transmural-offset",
+            "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+            "resolvedTotalBloodVolumeMl": 5522.11,
+            "addedBloodVolumeMl": 932.652430406124,
+            "sharedSvVcTransmuralPressureOffsetMmHg": 6.051930744065123,
+            "excludedCoronaryColdSeedVolumeMl": 77.89,
+            "maximumInverseOffsetResidualMmHg": 4.28796020912614e-9,
+            "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+            "targetResidualMl": 0
+          }
+        },
+        "integration": {
+          "completedWithoutFailure": true,
+          "failure": null,
+          "retainedPartialBeat": [],
+          "terminalCheckpointAvailable": true,
+          "terminalEnvelopeFingerprint": "00d3c77b",
+          "terminalCheckpointFingerprint": "42738ccd",
+          "terminalCheckpointTotalBloodVolumeMl": 5522.11
+        },
+        "periodicity": {
+          "terminationReason": "maximum-beats-reached",
+          "completedBeatCount": 32,
+          "periodicSteadyStateClaimed": false,
+          "period2OrbitSuspected": false,
+          "classifier": {
+            "status": "not-converged",
+            "latestBeatIndex": 32,
+            "consecutiveBeatsRequired": 3,
+            "evidenceBeatIndices": [],
+            "latestPeriod1MaximumNormalizedDelta": 0.001405489847138597,
+            "latestPeriod2MaximumNormalizedDelta": 0.003099430354723154
+          },
+          "evidenceClosures": []
+        },
+        "morphologyInterpretation": {
+          "eligible": false,
+          "scope": "current-dt-period1-only",
+          "timeStepRobustnessEstablished": false,
+          "reason": "ineligible-period1-not-converged"
+        },
+        "laPvMorphology": {
+          "twoLobes": {
+            "status": "not-measurable",
+            "reason": "no-self-intersection",
+            "selfIntersectionCount": 0,
+            "rawSelfIntersectionCount": 0,
+            "crossingSummaryTruncated": false,
+            "crossings": [],
+            "opposedLobeOrientation": false
+          },
+          "reservoirConduitEqualVolumeOrder": {
+            "diagnosticId": "la-pv-reservoir-conduit-equal-volume-order-v1",
+            "status": "measurable",
+            "reason": "measurable",
+            "overlapMinimumVolumeMl": 26.32266789211543,
+            "overlapMaximumVolumeMl": 40.05509356697205,
+            "overlapWidthMl": 13.732425674856618,
+            "requestedProbeCount": 101,
+            "usableProbeCount": 101,
+            "ambiguousProbeCount": 0,
+            "unusableProbeCount": 0,
+            "usableFraction01": 1,
+            "reservoirAboveConduitFraction01": 0,
+            "reservoirMinusConduitMeanMmHg": -1.9230039816141709,
+            "reservoirMinusConduitMedianMmHg": -1.9177323527600478,
+            "reservoirMinusConduitMinimumMmHg": -3.6505063823051227,
+            "reservoirMinusConduitMaximumMmHg": -0.13303359705730955,
+            "segmentationOwner": "caller-supplied-physiological-events-not-pv-shape-inference",
+            "acceptanceThresholdApplied": false
+          }
+        },
+        "hemodynamics": {
+          "leftVentricularEjectionFraction01": 0.5759082695758683,
+          "rightVentricularEjectionFraction01": 0.45732091471125175,
+          "netAorticStrokeVolumeMl": 43.05097561958577,
+          "forwardAorticStrokeVolumeMl": 43.05097561958577,
+          "netAorticCardiacOutputLPerMin": 2.5830585371751464,
+          "cardiacIndexLPerMinPerM2": 1.359504493250077,
+          "meanAorticAbsolutePressureMmHg": 51.45626485647527
+        },
+        "leftAtrialVolumes": {
+          "maximumMl": 40.20597508219893,
+          "preAMl": 26.32266789211543,
+          "minimumMl": 19.291941191364568,
+          "reservoirExpansionMl": 20.914033890834364,
+          "conduitEmptyingMl": 13.883307190083503,
+          "boosterEmptyingMl": 7.030726700750861,
+          "conduitFractionOfTotalEmptying": 0.6638273258306185,
+          "boosterFractionOfTotalEmptying": 0.33617267416938146,
+          "eventAnchoredNetChangeMl": {
+            "reservoir": 20.451910615504982,
+            "conduit": -13.732425674856618,
+            "pumping": -6.719484940648364
+          }
+        },
+        "leftAtrialPressureWaves": {
+          "aPeak": {
+            "sampleIndex": 895,
+            "phase01": 0.8960000000159987,
+            "timeSec": 31.896000000016,
+            "pressureMmHg": 3.2403958576164382
+          },
+          "xTrough": {
+            "sampleIndex": 62,
+            "phase01": 0.06300000001498063,
+            "timeSec": 31.06300000001498,
+            "pressureMmHg": 0.6734004165558353
+          },
+          "vPeak": {
+            "sampleIndex": 329,
+            "phase01": 0.33000000001530694,
+            "timeSec": 31.330000000015307,
+            "pressureMmHg": 6.5811583170463726
+          },
+          "yTrough": {
+            "sampleIndex": 850,
+            "phase01": 0.8510000000159437,
+            "timeSec": 31.851000000015944,
+            "pressureMmHg": 1.7836521804745118
+          },
+          "xDescentMmHg": 2.566995441060603,
+          "yDescentMmHg": 4.797506136571861,
+          "volumeAtAPeakMl": 23.543379656430353,
+          "aPeakDelayFromAtrialCalciumOnsetSec": 0.044,
+          "aPressurePeakToMitralAFlowPeakSec": 0.005,
+          "boosterEmptyingCompletedAtAPeakFraction": 0.3953059696358637,
+          "boosterEmptyingRemainingAtAPeakFraction": 0.6046940303641364,
+          "boosterEmptyingCompletedAtAPeakStatus": "within-active-emptying",
+          "sequentialAcrossCycle": true
+        },
+        "commonPericardium": {
+          "heartVolumeMl": {
+            "minimum": 349.65425602587493,
+            "maximum": 406.9695604221906
+          },
+          "totalOccupiedVolumeMl": {
+            "minimum": 649.6542560258749,
+            "maximum": 706.9695604221906
+          },
+          "excessPressureMmHg": {
+            "minimum": 3.5074402596788614,
+            "maximum": 11.831644217903085
+          },
+          "storedEnergyMilliJ": {
+            "minimum": 10.314961349768039,
+            "maximum": 64.90982779381606
+          },
+          "elasticConstraintEngagedSampleCount": 1000
+        },
+        "laSlsEnergy": {
+          "storedEnergyChangeMilliJ": 0.000020884827704075078,
+          "physicalDissipationMilliJ": 0.7991336818637335,
+          "backwardEulerNumericalDissipationMilliJ": 0.016525397831212166,
+          "reportedDiscreteBalanceResidualMilliJ": 1.1610493965047067e-16,
+          "reconstructedDiscreteBalanceResidualMilliJ": 4.85722573273506e-16,
+          "readbackAgreementResidualMilliJ": 3.696176336230353e-16
+        },
+        "residualMaxima": {
+          "mechanicsResidualNorm": 9.964505338189156e-10,
+          "circulationScaledResidualInfinityNorm": 1.9367903658265815e-10,
+          "absoluteContinuityResidualMl": 1.2387369643929169e-8,
+          "absoluteTotalBloodVolumeErrorMl": 2.7284841053187847e-12,
+          "absoluteValvePowerBalanceResidualMmHgMlPerSec": {
+            "MV": 1.7053025658242404e-13,
+            "AoV": 5.4569682106375694e-12,
+            "TV": 1.1368683772161603e-13,
+            "PV": 9.094947017729282e-13
+          }
+        }
+      },
+      "artifacts": {
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/effusion-dt1ms.json",
+          "bytes": 27845015,
+          "sha256": "a607b1904c8a3fa7a7ac3e2c7a257e26421e8b064920e2171ae015ac13694c5e",
+          "repositoryDisposition": "local-raw-not-committed"
+        },
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/effusion-summary-dt1ms.json",
+          "bytes": 46050,
+          "sha256": "5676d719e4384f4a9317dd02cbfae67e9f6fa9aa49f80fd586eb89aedd65612d",
+          "repositoryDisposition": "commit"
+        },
+        "visualHtml": null,
+        "visualSvg": null,
+        "visualNominalDtMatchesRun": false
+      }
+    },
+    "slsOffDt2ms": {
+      "evidence": {
+        "options": {
+          "dtSec": 0.002,
+          "requestedMaximumBeatCount": 32,
+          "initialization": "canonical",
+          "laSlsMode": "exact-off",
+          "pericardiumMode": "on",
+          "pericardiumCase": "healthy-slack",
+          "pericardiumParameterSetId": "main-wire-normal-adult-common-pericardium-v1-healthy-slack-on"
+        },
+        "warmStartSource": null,
+        "initializationAudit": {
+          "canonicalTotalBloodVolumeMl": 5522.11,
+          "initializedTotalBloodVolumeMl": 5522.11,
+          "totalBloodVolumeDifferenceMl": 0,
+          "chamberVolumesChanged": false,
+          "dynamicEdgeFlowsChanged": false,
+          "valveOpeningStatesChanged": false,
+          "mechanicsColdInputChanged": false,
+          "mechanicsColdStateFingerprintChanged": false,
+          "transferredVolumeMl": 0,
+          "sourceNode": null,
+          "destinationNode": null,
+          "pulmonaryNodeVolumeDeltaMl": {
+            "PVen": 0,
+            "PVein": 0
+          },
+          "warmStartSourceProtocolIdentityHash": null,
+          "warmStartTargetProtocolIdentityHash": null,
+          "warmStartSourcePericardiumStableHash": null,
+          "warmStartTargetPericardiumStableHash": null,
+          "warmStartProtocolDifference": "not-a-warm-start"
+        },
+        "protocol": {
+          "identityHash": "205217d5",
+          "componentHashes": {
+            "mechanicsProviderMetadataStableHash": "5667576d",
+            "calciumDriveFixedParamsStableHash": "9660029d",
+            "circulationTopologyGraphStableHash": "27a8ce3f",
+            "circulationRuntimeStableHash": "6a2d35d3",
+            "bloodVolumeOperatingPointStableHash": "337d28cc",
+            "commonPericardiumStableHash": "ff9ebb6d",
+            "periodicPolicyStableHash": "00e13e40"
+          },
+          "bloodVolumeOperatingPoint": {
+            "status": "available",
+            "unavailableReason": null,
+            "ownerId": "main-wire-normal-adult-blood-volume-operating-point-v1",
+            "parameterSetId": "main-wire-normal-adult-noncoronary-fixed-tbv-5522p11ml-v1",
+            "topologyScopeId": "main-wire-noncoronary-15-node-no-coronary-v1",
+            "fixedTotalBloodVolumeMl": 5522.11,
+            "initialDistributionPolicyId": "shared-SV-VC-transmural-offset",
+            "coldSeedTotalBloodVolumeMl": 4589.457569593876,
+            "resolvedTotalBloodVolumeMl": 5522.11,
+            "addedBloodVolumeMl": 932.652430406124,
+            "sharedSvVcTransmuralPressureOffsetMmHg": 6.051930744065123,
+            "excludedCoronaryColdSeedVolumeMl": 77.89,
+            "maximumInverseOffsetResidualMmHg": 4.28796020912614e-9,
+            "unchangedNodeMaximumAbsoluteDeltaMl": 0,
+            "targetResidualMl": 0
+          }
+        },
+        "integration": {
+          "completedWithoutFailure": true,
+          "failure": null,
+          "retainedPartialBeat": [],
+          "terminalCheckpointAvailable": true,
+          "terminalEnvelopeFingerprint": "8e08a5e7",
+          "terminalCheckpointFingerprint": "56c8fa55",
+          "terminalCheckpointTotalBloodVolumeMl": 5522.11
+        },
+        "periodicity": {
+          "terminationReason": "period1-converged",
+          "completedBeatCount": 27,
+          "periodicSteadyStateClaimed": true,
+          "period2OrbitSuspected": false,
+          "classifier": {
+            "status": "period1-converged",
+            "latestBeatIndex": 27,
+            "consecutiveBeatsRequired": 3,
+            "evidenceBeatIndices": [
+              25,
+              26,
+              27
+            ],
+            "latestPeriod1MaximumNormalizedDelta": 0.0005264403412673369,
+            "latestPeriod2MaximumNormalizedDelta": 0.0011887169386728957
+          },
+          "evidenceClosures": [
+            {
+              "beatIndex": 25,
+              "period1MaximumNormalizedDelta": 0.0008283532510174052,
+              "period2MaximumNormalizedDelta": 0.0018499607346952884
+            },
+            {
+              "beatIndex": 26,
+              "period1MaximumNormalizedDelta": 0.0006622765974055589,
+              "period2MaximumNormalizedDelta": 0.001490629848422964
+            },
+            {
+              "beatIndex": 27,
+              "period1MaximumNormalizedDelta": 0.0005264403412673369,
+              "period2MaximumNormalizedDelta": 0.0011887169386728957
+            }
+          ]
+        },
+        "morphologyInterpretation": {
+          "eligible": true,
+          "scope": "current-dt-period1-only",
+          "timeStepRobustnessEstablished": false,
+          "reason": "eligible-current-dt-period1-only"
+        },
+        "laPvMorphology": {
+          "twoLobes": {
+            "status": "not-measurable",
+            "reason": "multiple-self-intersections",
+            "selfIntersectionCount": 2,
+            "rawSelfIntersectionCount": 2,
+            "crossingSummaryTruncated": false,
+            "crossings": [
+              {
+                "volumeMl": 49.55092720650676,
+                "pressureMmHg": 8.636345478013645,
+                "angleDeg": 57.41924109607179,
+                "firstPathProgress01": 0.17226909041687433,
+                "secondPathProgress01": 0.5687737082330027,
+                "rawIntersectionCount": 1
+              },
+              {
+                "volumeMl": 49.8536030387153,
+                "pressureMmHg": 7.272748215139471,
+                "angleDeg": 64.55150921657112,
+                "firstPathProgress01": 0.31703940402958153,
+                "secondPathProgress01": 0.5263623565549111,
+                "rawIntersectionCount": 1
+              }
+            ],
+            "crossing": {
+              "volumeMl": 49.55092720650676,
+              "pressureMmHg": 8.636345478013645,
+              "angleDeg": 57.41924109607179,
+              "firstPathProgress01": 0.17226909041687433,
+              "secondPathProgress01": 0.5687737082330027,
+              "rawIntersectionCount": 1
+            },
+            "opposedLobeOrientation": false
+          },
+          "reservoirConduitEqualVolumeOrder": {
+            "diagnosticId": "la-pv-reservoir-conduit-equal-volume-order-v1",
+            "status": "measurable",
+            "reason": "measurable",
+            "overlapMinimumVolumeMl": 37.97072197900403,
+            "overlapMaximumVolumeMl": 57.62343685428612,
+            "overlapWidthMl": 19.652714875282086,
+            "requestedProbeCount": 101,
+            "usableProbeCount": 41,
+            "ambiguousProbeCount": 60,
+            "unusableProbeCount": 60,
+            "usableFraction01": 0.40594059405940597,
+            "reservoirAboveConduitFraction01": 1,
+            "reservoirMinusConduitMeanMmHg": 1.0929850955925497,
+            "reservoirMinusConduitMedianMmHg": 1.1579449948979645,
+            "reservoirMinusConduitMinimumMmHg": 0.485906325981702,
+            "reservoirMinusConduitMaximumMmHg": 1.441567120237388,
+            "segmentationOwner": "caller-supplied-physiological-events-not-pv-shape-inference",
+            "acceptanceThresholdApplied": false
+          }
+        },
+        "hemodynamics": {
+          "leftVentricularEjectionFraction01": 0.5801235576846699,
+          "rightVentricularEjectionFraction01": 0.5440158140702875,
+          "netAorticStrokeVolumeMl": 87.86526872168535,
+          "forwardAorticStrokeVolumeMl": 87.86526872168535,
+          "netAorticCardiacOutputLPerMin": 5.271916123301121,
+          "cardiacIndexLPerMinPerM2": 2.7746926964742746,
+          "meanAorticAbsolutePressureMmHg": 87.96633112671284
+        },
+        "leftAtrialVolumes": {
+          "maximumMl": 58.5943849736679,
+          "preAMl": 49.59514529574965,
+          "minimumMl": 24.20495500025249,
+          "reservoirExpansionMl": 34.38942997341541,
+          "conduitEmptyingMl": 8.999239677918247,
+          "boosterEmptyingMl": 25.390190295497163,
+          "conduitFractionOfTotalEmptying": 0.2616862124459483,
+          "boosterFractionOfTotalEmptying": 0.7383137875540517,
+          "eventAnchoredNetChangeMl": {
+            "reservoir": 33.41146073319127,
+            "conduit": -8.028291558536466,
+            "pumping": -25.383169174654803
+          }
+        },
+        "leftAtrialPressureWaves": {
+          "aPeak": {
+            "sampleIndex": 445,
+            "phase01": 0.8919999999959742,
+            "timeSec": 26.891999999995974,
+            "pressureMmHg": 13.552710623844067
+          },
+          "xTrough": {
+            "sampleIndex": 471,
+            "phase01": 0.9439999999959454,
+            "timeSec": 26.943999999995945,
+            "pressureMmHg": 11.830813530725246
+          },
+          "vPeak": {
+            "sampleIndex": 472,
+            "phase01": 0.9459999999959443,
+            "timeSec": 26.945999999995944,
+            "pressureMmHg": 11.69360118455806
+          },
+          "yTrough": {
+            "sampleIndex": 277,
+            "phase01": 0.5559999999961605,
+            "timeSec": 26.55599999999616,
+            "pressureMmHg": 5.512915152668245
+          },
+          "xDescentMmHg": 1.7218970931188213,
+          "yDescentMmHg": 6.180686031889816,
+          "volumeAtAPeakMl": 39.000307170421536,
+          "aPeakDelayFromAtrialCalciumOnsetSec": 0.038,
+          "aPressurePeakToMitralAFlowPeakSec": 0,
+          "boosterEmptyingCompletedAtAPeakFraction": 0.4172807687545006,
+          "boosterEmptyingRemainingAtAPeakFraction": 0.5827192312454994,
+          "boosterEmptyingCompletedAtAPeakStatus": "within-active-emptying",
+          "sequentialAcrossCycle": true
+        },
+        "commonPericardium": {
+          "heartVolumeMl": {
+            "minimum": 424.0379263360241,
+            "maximum": 570.8273666547011
+          },
+          "totalOccupiedVolumeMl": {
+            "minimum": 424.0379263360241,
+            "maximum": 570.8273666547011
+          },
+          "excessPressureMmHg": {
+            "minimum": 0,
+            "maximum": 0
+          },
+          "storedEnergyMilliJ": {
+            "minimum": 0,
+            "maximum": 0
+          },
+          "elasticConstraintEngagedSampleCount": 0
+        },
+        "laSlsEnergy": {
+          "storedEnergyChangeMilliJ": 0,
+          "physicalDissipationMilliJ": 0,
+          "backwardEulerNumericalDissipationMilliJ": 0,
+          "reportedDiscreteBalanceResidualMilliJ": 0,
+          "reconstructedDiscreteBalanceResidualMilliJ": 0,
+          "readbackAgreementResidualMilliJ": 0
+        },
+        "residualMaxima": {
+          "mechanicsResidualNorm": 9.46631647735785e-10,
+          "circulationScaledResidualInfinityNorm": 1.981797503641188e-10,
+          "absoluteContinuityResidualMl": 1.3151231659236373e-8,
+          "absoluteTotalBloodVolumeErrorMl": 1.8189894035458565e-12,
+          "absoluteValvePowerBalanceResidualMmHgMlPerSec": {
+            "MV": 9.094947017729282e-13,
+            "AoV": 5.4569682106375694e-12,
+            "TV": 3.410605131648481e-13,
+            "PV": 2.7284841053187847e-12
+          }
+        }
+      },
+      "artifacts": {
+        "raw": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/sls-off-dt2ms.json",
+          "bytes": 13982926,
+          "sha256": "52fb78ed34d74afd3075d3effe6bc08d540606ba37584f26a0d101536574c1da",
+          "repositoryDisposition": "local-raw-not-committed"
+        },
+        "summary": {
+          "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/sls-off-summary-dt2ms.json",
+          "bytes": 48353,
+          "sha256": "fa24f1e73007d5299d4719f2bc7e1e12de7176ac39a89dac35ae9145cb53118a",
+          "repositoryDisposition": "commit"
+        },
+        "visualHtml": {
+          "path": "data/myocardium/visuals/mainwire-shared-circulation-kernel-v1-sls-off-dt2ms.html",
+          "bytes": 1733371,
+          "sha256": "2019c1878fcc8a4eb4b7236c2c4d2b9cc43984a9b5004e0ab832488bc2d92ed7",
+          "repositoryDisposition": "commit"
+        },
+        "visualSvg": {
+          "path": "data/myocardium/visuals/mainwire-shared-circulation-kernel-v1-sls-off-dt2ms.svg",
+          "bytes": 262464,
+          "sha256": "cccdb121fe0cd0da25d3b937e087d5b1c2eb50df162a3df00fe7b27d9f747038",
+          "repositoryDisposition": "commit"
+        },
+        "visualNominalDtMatchesRun": true
+      }
+    }
+  },
+  "dtHalving": {
+    "healthy": {
+      "artifact": {
+        "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/healthy-dt2ms-to-dt1ms.json",
+        "bytes": 77365,
+        "sha256": "55ba2bfc966935128038a69580dad79e3a9d6226124a9b133241c2997bb58af4",
+        "repositoryDisposition": "commit"
+      },
+      "protocolIdentity": {
+        "exactMatch": true,
+        "identityHash": "9d3d3dba",
+        "componentHashes": {
+          "mechanicsProviderMetadataStableHash": "78789398",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "circulationTopologyGraphStableHash": "27a8ce3f",
+          "circulationRuntimeStableHash": "6a2d35d3",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "ff9ebb6d",
+          "periodicPolicyStableHash": "00e13e40"
+        }
+      },
+      "coarseDtSec": 0.002,
+      "fineDtSec": 0.001,
+      "bothPeriod1Converged": true,
+      "interpretable": true,
+      "interpretabilityReasons": [],
+      "signalMetrics": {
+        "laBloodVolumeMl": {
+          "signalId": "laBloodVolumeMl",
+          "unit": "mL",
+          "referenceScale": 100,
+          "maximumAbsoluteDifference": 0.5002917552066393,
+          "fixedScaleNormalizedMaximumDifference": 0.0050029175520663926,
+          "relativeL2Difference": 0.0046281236588768876,
+          "worstCoarseAcceptedSampleIndex": 232,
+          "worstFineAcceptedSampleIndex": 465,
+          "worstCyclePhase01": 0.4659999999993998
+        },
+        "lvBloodVolumeMl": {
+          "signalId": "lvBloodVolumeMl",
+          "unit": "mL",
+          "referenceScale": 150,
+          "maximumAbsoluteDifference": 0.5159647331300619,
+          "fixedScaleNormalizedMaximumDifference": 0.003439764887533746,
+          "relativeL2Difference": 0.0014368539208032465,
+          "worstCoarseAcceptedSampleIndex": 441,
+          "worstFineAcceptedSampleIndex": 883,
+          "worstCyclePhase01": 0.8839999999993537
+        },
+        "raBloodVolumeMl": {
+          "signalId": "raBloodVolumeMl",
+          "unit": "mL",
+          "referenceScale": 100,
+          "maximumAbsoluteDifference": 0.2015146227239626,
+          "fixedScaleNormalizedMaximumDifference": 0.0020151462272396258,
+          "relativeL2Difference": 0.0015411513713539547,
+          "worstCoarseAcceptedSampleIndex": 444,
+          "worstFineAcceptedSampleIndex": 889,
+          "worstCyclePhase01": 0.8899999999993531
+        },
+        "rvBloodVolumeMl": {
+          "signalId": "rvBloodVolumeMl",
+          "unit": "mL",
+          "referenceScale": 200,
+          "maximumAbsoluteDifference": 0.6260250409603287,
+          "fixedScaleNormalizedMaximumDifference": 0.0031301252048016436,
+          "relativeL2Difference": 0.001954323189219606,
+          "worstCoarseAcceptedSampleIndex": 95,
+          "worstFineAcceptedSampleIndex": 191,
+          "worstCyclePhase01": 0.19199999999942996
+        },
+        "laAbsolutePressureMmHg": {
+          "signalId": "laAbsolutePressureMmHg",
+          "unit": "mmHg",
+          "referenceScale": 10,
+          "maximumAbsoluteDifference": 0.3210569457050827,
+          "fixedScaleNormalizedMaximumDifference": 0.03210569457050827,
+          "relativeL2Difference": 0.006633566515589145,
+          "worstCoarseAcceptedSampleIndex": 433,
+          "worstFineAcceptedSampleIndex": 867,
+          "worstCyclePhase01": 0.8679999999993555
+        },
+        "lvAbsolutePressureMmHg": {
+          "signalId": "lvAbsolutePressureMmHg",
+          "unit": "mmHg",
+          "referenceScale": 100,
+          "maximumAbsoluteDifference": 2.2549868075570103,
+          "fixedScaleNormalizedMaximumDifference": 0.022549868075570103,
+          "relativeL2Difference": 0.005842728466386257,
+          "worstCoarseAcceptedSampleIndex": 20,
+          "worstFineAcceptedSampleIndex": 41,
+          "worstCyclePhase01": 0.04199999999944648
+        },
+        "raAbsolutePressureMmHg": {
+          "signalId": "raAbsolutePressureMmHg",
+          "unit": "mmHg",
+          "referenceScale": 10,
+          "maximumAbsoluteDifference": 0.07337706539258715,
+          "fixedScaleNormalizedMaximumDifference": 0.007337706539258715,
+          "relativeL2Difference": 0.005636844302712521,
+          "worstCoarseAcceptedSampleIndex": 449,
+          "worstFineAcceptedSampleIndex": 899,
+          "worstCyclePhase01": 0.899999999999352
+        },
+        "rvAbsolutePressureMmHg": {
+          "signalId": "rvAbsolutePressureMmHg",
+          "unit": "mmHg",
+          "referenceScale": 40,
+          "maximumAbsoluteDifference": 0.6361355047225548,
+          "fixedScaleNormalizedMaximumDifference": 0.01590338761806387,
+          "relativeL2Difference": 0.007399576412227094,
+          "worstCoarseAcceptedSampleIndex": 21,
+          "worstFineAcceptedSampleIndex": 43,
+          "worstCyclePhase01": 0.04399999999944626
+        },
+        "aorticAbsolutePressureMmHg": {
+          "signalId": "aorticAbsolutePressureMmHg",
+          "unit": "mmHg",
+          "referenceScale": 100,
+          "maximumAbsoluteDifference": 0.2010174090997907,
+          "fixedScaleNormalizedMaximumDifference": 0.002010174090997907,
+          "relativeL2Difference": 0.001092488967152078,
+          "worstCoarseAcceptedSampleIndex": 82,
+          "worstFineAcceptedSampleIndex": 165,
+          "worstCyclePhase01": 0.16599999999943282
+        },
+        "pulmonaryArteryAbsolutePressureMmHg": {
+          "signalId": "pulmonaryArteryAbsolutePressureMmHg",
+          "unit": "mmHg",
+          "referenceScale": 30,
+          "maximumAbsoluteDifference": 0.5551517871558289,
+          "fixedScaleNormalizedMaximumDifference": 0.018505059571860962,
+          "relativeL2Difference": 0.015215485522049148,
+          "worstCoarseAcceptedSampleIndex": 321,
+          "worstFineAcceptedSampleIndex": 643,
+          "worstCyclePhase01": 0.6439999999993802
+        },
+        "mitralFlowMlPerSec": {
+          "signalId": "mitralFlowMlPerSec",
+          "unit": "mL/s",
+          "referenceScale": 500,
+          "maximumAbsoluteDifference": 21.464677559466935,
+          "fixedScaleNormalizedMaximumDifference": 0.04292935511893387,
+          "relativeL2Difference": 0.023079401806027404,
+          "worstCoarseAcceptedSampleIndex": 433,
+          "worstFineAcceptedSampleIndex": 867,
+          "worstCyclePhase01": 0.8679999999993555
+        },
+        "aorticValveFlowMlPerSec": {
+          "signalId": "aorticValveFlowMlPerSec",
+          "unit": "mL/s",
+          "referenceScale": 500,
+          "maximumAbsoluteDifference": 28.498201737993213,
+          "fixedScaleNormalizedMaximumDifference": 0.056996403475986425,
+          "relativeL2Difference": 0.009038837889671535,
+          "worstCoarseAcceptedSampleIndex": 27,
+          "worstFineAcceptedSampleIndex": 55,
+          "worstCyclePhase01": 0.05599999999944494
+        },
+        "tricuspidFlowMlPerSec": {
+          "signalId": "tricuspidFlowMlPerSec",
+          "unit": "mL/s",
+          "referenceScale": 500,
+          "maximumAbsoluteDifference": 10.025452957993139,
+          "fixedScaleNormalizedMaximumDifference": 0.020050905915986277,
+          "relativeL2Difference": 0.019052553979972152,
+          "worstCoarseAcceptedSampleIndex": 450,
+          "worstFineAcceptedSampleIndex": 901,
+          "worstCyclePhase01": 0.9019999999993518
+        },
+        "pulmonaryValveFlowMlPerSec": {
+          "signalId": "pulmonaryValveFlowMlPerSec",
+          "unit": "mL/s",
+          "referenceScale": 500,
+          "maximumAbsoluteDifference": 21.363803268242037,
+          "fixedScaleNormalizedMaximumDifference": 0.042727606536484074,
+          "relativeL2Difference": 0.014819348445283088,
+          "worstCoarseAcceptedSampleIndex": 25,
+          "worstFineAcceptedSampleIndex": 51,
+          "worstCyclePhase01": 0.05199999999944538
+        },
+        "pulmonaryVeinToLaFlowMlPerSec": {
+          "signalId": "pulmonaryVeinToLaFlowMlPerSec",
+          "unit": "mL/s",
+          "referenceScale": 500,
+          "maximumAbsoluteDifference": 9.380679800467442,
+          "fixedScaleNormalizedMaximumDifference": 0.018761359600934883,
+          "relativeL2Difference": 0.01617038236061573,
+          "worstCoarseAcceptedSampleIndex": 433,
+          "worstFineAcceptedSampleIndex": 867,
+          "worstCyclePhase01": 0.8679999999993555
+        },
+        "mitralOpeningFraction01": {
+          "signalId": "mitralOpeningFraction01",
+          "unit": "fraction",
+          "referenceScale": 1,
+          "maximumAbsoluteDifference": 0.031200819470784624,
+          "fixedScaleNormalizedMaximumDifference": 0.031200819470784624,
+          "relativeL2Difference": 0.012729713276522846,
+          "worstCoarseAcceptedSampleIndex": 432,
+          "worstFineAcceptedSampleIndex": 865,
+          "worstCyclePhase01": 0.8659999999993557
+        },
+        "aorticValveOpeningFraction01": {
+          "signalId": "aorticValveOpeningFraction01",
+          "unit": "fraction",
+          "referenceScale": 1,
+          "maximumAbsoluteDifference": 0.06798558153868384,
+          "fixedScaleNormalizedMaximumDifference": 0.06798558153868384,
+          "relativeL2Difference": 0.009253249154216754,
+          "worstCoarseAcceptedSampleIndex": 27,
+          "worstFineAcceptedSampleIndex": 55,
+          "worstCyclePhase01": 0.05599999999944494
+        },
+        "tricuspidOpeningFraction01": {
+          "signalId": "tricuspidOpeningFraction01",
+          "unit": "fraction",
+          "referenceScale": 1,
+          "maximumAbsoluteDifference": 0.07365468535538816,
+          "fixedScaleNormalizedMaximumDifference": 0.07365468535538816,
+          "relativeL2Difference": 0.02486466050837327,
+          "worstCoarseAcceptedSampleIndex": 489,
+          "worstFineAcceptedSampleIndex": 979,
+          "worstCyclePhase01": 0.9799999999993432
+        },
+        "pulmonaryValveOpeningFraction01": {
+          "signalId": "pulmonaryValveOpeningFraction01",
+          "unit": "fraction",
+          "referenceScale": 1,
+          "maximumAbsoluteDifference": 0.11317308210021165,
+          "fixedScaleNormalizedMaximumDifference": 0.11317308210021165,
+          "relativeL2Difference": 0.029749785424797393,
+          "worstCoarseAcceptedSampleIndex": 160,
+          "worstFineAcceptedSampleIndex": 321,
+          "worstCyclePhase01": 0.32199999999941564
+        },
+        "commonPericardialPressureMmHg": {
+          "signalId": "commonPericardialPressureMmHg",
+          "unit": "mmHg",
+          "referenceScale": 10,
+          "maximumAbsoluteDifference": 0,
+          "fixedScaleNormalizedMaximumDifference": 0,
+          "relativeL2Difference": 0,
+          "worstCoarseAcceptedSampleIndex": 0,
+          "worstFineAcceptedSampleIndex": 1,
+          "worstCyclePhase01": 0.0019999999994508855
+        },
+        "intrapericardialOccupiedVolumeMl": {
+          "signalId": "intrapericardialOccupiedVolumeMl",
+          "unit": "mL",
+          "referenceScale": 600,
+          "maximumAbsoluteDifference": 0.7853354666584664,
+          "fixedScaleNormalizedMaximumDifference": 0.0013088924444307774,
+          "relativeL2Difference": 0.0007497912040608545,
+          "worstCoarseAcceptedSampleIndex": 34,
+          "worstFineAcceptedSampleIndex": 69,
+          "worstCyclePhase01": 0.0699999999994434
+        },
+        "laTotalWallStressPa": {
+          "signalId": "laTotalWallStressPa",
+          "unit": "Pa",
+          "referenceScale": 100000,
+          "maximumAbsoluteDifference": 292.7756963274569,
+          "fixedScaleNormalizedMaximumDifference": 0.002927756963274569,
+          "relativeL2Difference": 0.009589789740304151,
+          "worstCoarseAcceptedSampleIndex": 432,
+          "worstFineAcceptedSampleIndex": 865,
+          "worstCyclePhase01": 0.8659999999993557
+        },
+        "laFiberLogStrain": {
+          "signalId": "laFiberLogStrain",
+          "unit": "log-strain",
+          "referenceScale": 0.1,
+          "maximumAbsoluteDifference": 0.0027470392792375287,
+          "fixedScaleNormalizedMaximumDifference": 0.027470392792375287,
+          "relativeL2Difference": 0.0076394106925969565,
+          "worstCoarseAcceptedSampleIndex": 239,
+          "worstFineAcceptedSampleIndex": 479,
+          "worstCyclePhase01": 0.47999999999939824
+        }
+      },
+      "claim": {
+        "comparisonKind": "dt-halving-difference-not-convergence-order",
+        "fineGridUsedAsDifferenceReference": true,
+        "interpolationApplied": false,
+        "comparedBeat": "last-retained-complete-period1-beat-only",
+        "physiologicalOrNumericalPassThresholdApplied": false,
+        "parameterSearch": false
+      }
+    },
+    "effusion": {
+      "artifact": {
+        "path": "data/myocardium/verification/mainwire-shared-circulation-kernel-v1/effusion-dt2ms-to-dt1ms.json",
+        "bytes": 67235,
+        "sha256": "87d972c237ba924fa409d8d267bbc23a91cdbda9be3316996219143e6031663b",
+        "repositoryDisposition": "commit"
+      },
+      "protocolIdentity": {
+        "exactMatch": true,
+        "identityHash": "3cf801a0",
+        "componentHashes": {
+          "mechanicsProviderMetadataStableHash": "78789398",
+          "calciumDriveFixedParamsStableHash": "9660029d",
+          "circulationTopologyGraphStableHash": "27a8ce3f",
+          "circulationRuntimeStableHash": "6a2d35d3",
+          "bloodVolumeOperatingPointStableHash": "337d28cc",
+          "commonPericardiumStableHash": "00d87c54",
+          "periodicPolicyStableHash": "00e13e40"
+        }
+      },
+      "coarseDtSec": 0.002,
+      "fineDtSec": 0.001,
+      "bothPeriod1Converged": false,
+      "interpretable": false,
+      "interpretabilityReasons": [
+        "coarse-period1-not-converged",
+        "fine-period1-not-converged"
+      ],
+      "signalMetrics": null,
+      "claim": {
+        "comparisonKind": "dt-halving-difference-not-convergence-order",
+        "fineGridUsedAsDifferenceReference": true,
+        "interpolationApplied": false,
+        "comparedBeat": "last-retained-complete-period1-beat-only",
+        "physiologicalOrNumericalPassThresholdApplied": false,
+        "parameterSearch": false
+      }
+    }
+  }
+}
