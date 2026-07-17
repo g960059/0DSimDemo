@@ -135,6 +135,7 @@ export function compileMoyer2015AtrialEquibiaxialPassiveV1(
       12 * prior.isotropicC1Pa * Math.cbrt(4),
     claim: MOYER_2015_ATRIAL_EQUIBIAXIAL_PASSIVE_CLAIM_V1,
   });
+  auditCompiledMoyer2015AtrialEquibiaxialPassiveIdentityV1(compiled);
   compiledRegistry.add(compiled);
   return compiled;
 }
@@ -144,7 +145,7 @@ export function evaluateMoyer2015AtrialEquibiaxialPassiveV1(
   fiberLogStrain: number,
   compiled: CompiledMoyer2015AtrialEquibiaxialPassiveV1,
 ): Moyer2015AtrialEquibiaxialPassiveEvaluationV1 {
-  assertCompiledMoyer2015AtrialEquibiaxialPassiveV1(compiled);
+  assertCompiledMoyer2015AtrialEquibiaxialPassiveBrandV1(compiled);
   requireFinite(fiberLogStrain, "fiberLogStrain");
   const [lower, upper] = compiled.prior.supportedFiberLogStrainRange;
   if (fiberLogStrain < lower || fiberLogStrain > upper) {
@@ -227,14 +228,28 @@ export function evaluateMoyer2015AtrialEquibiaxialPassiveV1(
 export function assertCompiledMoyer2015AtrialEquibiaxialPassiveV1(
   compiled: CompiledMoyer2015AtrialEquibiaxialPassiveV1,
 ): void {
+  assertCompiledMoyer2015AtrialEquibiaxialPassiveBrandV1(compiled);
+  auditCompiledMoyer2015AtrialEquibiaxialPassiveIdentityV1(compiled);
+}
+
+/**
+ * Performs the complete structural/hash audit without granting kernel
+ * provenance. Runtime constitutive evaluation uses the private WeakSet brand
+ * gate; callers that need a serialization/checkpoint audit can invoke this
+ * deliberately off the hot path.
+ */
+export function auditCompiledMoyer2015AtrialEquibiaxialPassiveIdentityV1(
+  compiled: CompiledMoyer2015AtrialEquibiaxialPassiveV1,
+): void {
   if (
     compiled === null
     || typeof compiled !== "object"
-    || !compiledRegistry.has(compiled)
+    || compiled.prior === null
+    || typeof compiled.prior !== "object"
     || compiled.modelId !== MOYER_2015_ATRIAL_EQUIBIAXIAL_PASSIVE_V1_ID
     || compiled.parameterSetId !== compiled.prior.parameterSetId
   ) {
-    throw new Error("Moyer passive parameters must be compiled by this kernel");
+    throw new Error("compiled Moyer passive identity is invalid");
   }
   validatePrior(compiled.prior);
   const expectedHash = stableHash(sanitizeForStableHash({
@@ -248,6 +263,20 @@ export function assertCompiledMoyer2015AtrialEquibiaxialPassiveV1(
     12 * compiled.prior.isotropicC1Pa * Math.cbrt(4);
   if (compiled.strictConvexityLowerBoundPa !== expectedLowerBound) {
     throw new Error("compiled Moyer convexity identity is stale");
+  }
+}
+
+function assertCompiledMoyer2015AtrialEquibiaxialPassiveBrandV1(
+  compiled: CompiledMoyer2015AtrialEquibiaxialPassiveV1,
+): void {
+  if (
+    compiled === null
+    || typeof compiled !== "object"
+    || !compiledRegistry.has(compiled)
+    || compiled.modelId !== MOYER_2015_ATRIAL_EQUIBIAXIAL_PASSIVE_V1_ID
+    || compiled.parameterSetId !== compiled.prior.parameterSetId
+  ) {
+    throw new Error("Moyer passive parameters must be compiled by this kernel");
   }
 }
 

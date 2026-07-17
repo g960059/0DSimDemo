@@ -6,6 +6,7 @@ import {
 } from "@/engine/myocardium/kinematics/stableHash";
 import {
   assertCompiledMoyer2015AtrialEquibiaxialPassiveV1,
+  auditCompiledMoyer2015AtrialEquibiaxialPassiveIdentityV1,
   compileMoyer2015AtrialEquibiaxialPassiveV1,
   evaluateMoyer2015AtrialEquibiaxialPassiveV1,
   MOYER_2015_ATRIAL_EQUIBIAXIAL_PASSIVE_V1_ID,
@@ -61,6 +62,49 @@ describe("Moyer 2015 exact atrial equibiaxial passive V1", () => {
     expect(() => assertCompiledMoyer2015AtrialEquibiaxialPassiveV1({
       ...compiled,
     } as CompiledMoyer2015AtrialEquibiaxialPassiveV1)).toThrow(/compiled by this kernel/i);
+    expect(() => evaluateMoyer2015AtrialEquibiaxialPassiveV1(
+      0.1,
+      { ...compiled } as CompiledMoyer2015AtrialEquibiaxialPassiveV1,
+    )).toThrow(/compiled by this kernel/i);
+    expect(() => auditCompiledMoyer2015AtrialEquibiaxialPassiveIdentityV1({
+      ...compiled,
+    })).not.toThrow();
+    expect(() => auditCompiledMoyer2015AtrialEquibiaxialPassiveIdentityV1({
+      ...compiled,
+      parameterIdentityHash: "00000000",
+    })).toThrow(/parameter hash is stale/i);
+  });
+
+  it("isolates the compiled identity from later source mutation", () => {
+    const supportedFiberLogStrainRange: [-0.5, 0.5] = [-0.5, 0.5];
+    const source = {
+      ...MOYER_2015_NORMAL_HUMAN_LA_EQUIBIAXIAL_PASSIVE_PRIOR_V1.source,
+    };
+    const units = {
+      ...MOYER_2015_NORMAL_HUMAN_LA_EQUIBIAXIAL_PASSIVE_PRIOR_V1.units,
+    };
+    const mutable = {
+      ...MOYER_2015_NORMAL_HUMAN_LA_EQUIBIAXIAL_PASSIVE_PRIOR_V1,
+      supportedFiberLogStrainRange,
+      source,
+      units,
+    };
+    const compiled = compileMoyer2015AtrialEquibiaxialPassiveV1(mutable);
+    const before = evaluateMoyer2015AtrialEquibiaxialPassiveV1(0.12, compiled);
+
+    Reflect.set(mutable, "isotropicC1Pa", 99_999);
+    Reflect.set(supportedFiberLogStrainRange, 0, -0.25);
+    Reflect.set(source, "pmcid", "mutated-after-compile");
+    Reflect.set(units, "isotropicC1", "mutated-after-compile");
+
+    expect(compiled.prior.isotropicC1Pa).toBe(1_650);
+    expect(compiled.prior.supportedFiberLogStrainRange).toEqual([-0.5, 0.5]);
+    expect(compiled.prior.source.pmcid).toBe("PMC4497915");
+    expect(compiled.prior.units.isotropicC1).toBe("Pa");
+    expect(evaluateMoyer2015AtrialEquibiaxialPassiveV1(0.12, compiled))
+      .toEqual(before);
+    expect(() => assertCompiledMoyer2015AtrialEquibiaxialPassiveV1(compiled))
+      .not.toThrow();
   });
 
   it("derives stress and tangent from the same potential", () => {

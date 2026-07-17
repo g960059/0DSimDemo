@@ -133,6 +133,7 @@ export function compileEquilibriumOneFiberPassiveV1(
     strictConvexityLowerBoundPa: params.centralTangentPa,
     claim: EQUILIBRIUM_ONE_FIBER_PASSIVE_CLAIM_V1,
   });
+  auditCompiledEquilibriumOneFiberPassiveIdentityV1(compiled);
   compiledRegistry.add(compiled);
   return compiled;
 }
@@ -148,7 +149,7 @@ export function evaluateEquilibriumOneFiberPassiveV1(
   fiberLogStrain: number,
   compiled: CompiledEquilibriumOneFiberPassiveV1,
 ): EquilibriumOneFiberPassiveEvaluationV1 {
-  assertCompiledEquilibriumOneFiberPassiveV1(compiled);
+  assertCompiledEquilibriumOneFiberPassiveBrandV1(compiled);
   requireFinite(fiberLogStrain, "fiberLogStrain");
   const { params } = compiled;
   const tension = c2PositivePartV1(
@@ -225,13 +226,29 @@ export function evaluateEquilibriumOneFiberPassiveV1(
 export function assertCompiledEquilibriumOneFiberPassiveV1(
   compiled: CompiledEquilibriumOneFiberPassiveV1,
 ): void {
+  assertCompiledEquilibriumOneFiberPassiveBrandV1(compiled);
+  auditCompiledEquilibriumOneFiberPassiveIdentityV1(compiled);
+}
+
+/**
+ * Performs the complete structural/hash audit without granting kernel
+ * provenance. Runtime constitutive evaluation uses the private WeakSet brand
+ * gate; callers that need a serialization/checkpoint audit can invoke this
+ * deliberately off the hot path.
+ */
+export function auditCompiledEquilibriumOneFiberPassiveIdentityV1(
+  compiled: CompiledEquilibriumOneFiberPassiveV1,
+): void {
   if (
-    !compiledRegistry.has(compiled)
+    compiled === null
+    || typeof compiled !== "object"
+    || compiled.params === null
+    || typeof compiled.params !== "object"
     || compiled.modelId !== EQUILIBRIUM_ONE_FIBER_PASSIVE_V1_ID
     || compiled.parameterSetId !== compiled.params.parameterSetId
     || compiled.strictConvexityLowerBoundPa !== compiled.params.centralTangentPa
   ) {
-    throw new Error("equilibrium passive parameters must be compiled by this kernel");
+    throw new Error("compiled equilibrium passive identity is invalid");
   }
   validateParams(compiled.params);
   const expectedHash = stableHash(sanitizeForStableHash({
@@ -240,6 +257,21 @@ export function assertCompiledEquilibriumOneFiberPassiveV1(
   }));
   if (compiled.parameterIdentityHash !== expectedHash) {
     throw new Error("compiled equilibrium passive parameter hash is stale");
+  }
+}
+
+function assertCompiledEquilibriumOneFiberPassiveBrandV1(
+  compiled: CompiledEquilibriumOneFiberPassiveV1,
+): void {
+  if (
+    compiled === null
+    || typeof compiled !== "object"
+    || !compiledRegistry.has(compiled)
+    || compiled.modelId !== EQUILIBRIUM_ONE_FIBER_PASSIVE_V1_ID
+    || compiled.parameterSetId !== compiled.params.parameterSetId
+    || compiled.strictConvexityLowerBoundPa !== compiled.params.centralTangentPa
+  ) {
+    throw new Error("equilibrium passive parameters must be compiled by this kernel");
   }
 }
 
