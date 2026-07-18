@@ -39,6 +39,25 @@ export type ScientificWorkbenchTerminalCycleV1 = Readonly<{
   }>;
 }>;
 
+export type ScientificWorkbenchResearchTerminalCycleV1 = Readonly<{
+  frames: readonly MainWireScientificObservableFrameV1[];
+  releaseRef: SimulationReleaseRef;
+  firstRevision: number;
+  finalRevision: number;
+  firstAcceptedTimeSec: number;
+  finalAcceptedTimeSec: number;
+  durationSec: number;
+  evidence: Readonly<{
+    startsAtAcceptedPeriod1Boundary: true;
+    subsequentFramesAreAcceptedSteps: true;
+    exactReleaseRefUniform: true;
+    revisionsContiguous: true;
+    cadenceUniform: true;
+    bothCycleBoundariesRetained: true;
+    smoothingOrInterpolationApplied: false;
+  }>;
+}>;
+
 export class ScientificWorkbenchTerminalCycleValidationErrorV1 extends Error {
   constructor(message: string) {
     super(`scientific workbench terminal cycle rejected: ${message}`);
@@ -61,6 +80,56 @@ export function assembleScientificWorkbenchTerminalCycleV1(
       "the first frame must be the exact V3 checkpoint restore boundary",
     );
   }
+  const cycle = assembleAcceptedCycle(boundaryFrame, acceptedStepFrames);
+  return Object.freeze({
+    ...cycle,
+    evidence: Object.freeze({
+      startsAtExactCheckpointRestore: true as const,
+      subsequentFramesAreAcceptedSteps: true as const,
+      exactReleaseRefUniform: true as const,
+      revisionsContiguous: true as const,
+      cadenceUniform: true as const,
+      bothCycleBoundariesRetained: true as const,
+      smoothingOrInterpolationApplied: false as const,
+    }),
+  });
+}
+
+/**
+ * Builds a following beat for a cold-start research Case only after the
+ * Worker's periodic tracker has classified its current accepted boundary as
+ * P1. Unlike the official V3 path, this boundary is an ordinary accepted
+ * integration state and must never be described as an exact restore.
+ */
+export function assembleScientificWorkbenchResearchTerminalCycleV1(
+  boundaryFrame: MainWireScientificObservableFrameV1,
+  acceptedStepFrames: readonly MainWireScientificObservableFrameV1[],
+): ScientificWorkbenchResearchTerminalCycleV1 {
+  assertFrameEnvelope(boundaryFrame, "research P1 boundary frame");
+  if (boundaryFrame.source !== "accepted-step") {
+    throw new ScientificWorkbenchTerminalCycleValidationErrorV1(
+      "the research cycle must start at an accepted P1 boundary",
+    );
+  }
+  const cycle = assembleAcceptedCycle(boundaryFrame, acceptedStepFrames);
+  return Object.freeze({
+    ...cycle,
+    evidence: Object.freeze({
+      startsAtAcceptedPeriod1Boundary: true as const,
+      subsequentFramesAreAcceptedSteps: true as const,
+      exactReleaseRefUniform: true as const,
+      revisionsContiguous: true as const,
+      cadenceUniform: true as const,
+      bothCycleBoundariesRetained: true as const,
+      smoothingOrInterpolationApplied: false as const,
+    }),
+  });
+}
+
+function assembleAcceptedCycle(
+  boundaryFrame: MainWireScientificObservableFrameV1,
+  acceptedStepFrames: readonly MainWireScientificObservableFrameV1[],
+): Omit<ScientificWorkbenchTerminalCycleV1, "evidence"> {
   if (
     acceptedStepFrames.length
       !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1
@@ -125,15 +194,6 @@ export function assembleScientificWorkbenchTerminalCycleV1(
     firstAcceptedTimeSec: boundaryFrame.acceptedTimeSec,
     finalAcceptedTimeSec: finalFrame.acceptedTimeSec,
     durationSec,
-    evidence: Object.freeze({
-      startsAtExactCheckpointRestore: true as const,
-      subsequentFramesAreAcceptedSteps: true as const,
-      exactReleaseRefUniform: true as const,
-      revisionsContiguous: true as const,
-      cadenceUniform: true as const,
-      bothCycleBoundariesRetained: true as const,
-      smoothingOrInterpolationApplied: false as const,
-    }),
   });
 }
 

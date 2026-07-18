@@ -3,6 +3,10 @@ import React from "react";
 import {
   MainWireScientificWorkerClientV1,
 } from "@/engine/scientificBrowser";
+import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1,
+  type MainWireScientificResearchPresetIdV1,
+} from "@/engine/scientific/presets";
 
 import { ScientificWorkspaceRendererV1 } from "./ScientificWorkspaceRendererV1";
 import {
@@ -12,6 +16,33 @@ import {
   loadScientificWorkbenchOfficialCycleV1,
   type ScientificWorkbenchOfficialCycleV1,
 } from "./scientificWorkbenchOfficialCycleV1";
+import {
+  loadScientificWorkbenchResearchCycleV1,
+  type ScientificWorkbenchResearchCycleV1,
+} from "./scientificWorkbenchResearchCycleV1";
+
+const OFFICIAL_SELECTION = "official-healthy-periodic" as const;
+type ScientificWorkbenchSelectionV1 =
+  | typeof OFFICIAL_SELECTION
+  | MainWireScientificResearchPresetIdV1;
+
+function loadingMessageForSelection(
+  selection: ScientificWorkbenchSelectionV1,
+): string {
+  return selection === OFFICIAL_SELECTION
+    ? "Verifying the official V3 case and restoring its exact P1 state…"
+    : "Resolving the research Case and starting an independent cold periodic run…";
+}
+
+type ScientificWorkbenchReadyResultV1 =
+  | Readonly<{
+    kind: "official";
+    result: ScientificWorkbenchOfficialCycleV1;
+  }>
+  | Readonly<{
+    kind: "research";
+    result: ScientificWorkbenchResearchCycleV1;
+  }>;
 
 type ScientificWorkbenchPageStateV1 =
   | Readonly<{
@@ -20,7 +51,7 @@ type ScientificWorkbenchPageStateV1 =
   }>
   | Readonly<{
     phase: "ready";
-    result: ScientificWorkbenchOfficialCycleV1;
+    result: ScientificWorkbenchReadyResultV1;
   }>
   | Readonly<{
     phase: "failed";
@@ -35,9 +66,11 @@ let sessionOrdinal = 0;
  * surface while the new runtime remains behind explicit validation gates.
  */
 export default function ScientificWorkbenchPageV1() {
+  const [selection, setSelection] =
+    React.useState<ScientificWorkbenchSelectionV1>(OFFICIAL_SELECTION);
   const [state, setState] = React.useState<ScientificWorkbenchPageStateV1>({
     phase: "loading",
-    message: "Verifying the official V3 case and restoring its exact P1 state…",
+    message: loadingMessageForSelection(OFFICIAL_SELECTION),
   });
 
   React.useEffect(() => {
@@ -48,7 +81,39 @@ export default function ScientificWorkbenchPageV1() {
     const sessionId = nextScientificWorkbenchSessionId();
     let active = true;
 
-    void loadScientificWorkbenchOfficialCycleV1(client, { sessionId })
+    setState({
+      phase: "loading",
+      message: loadingMessageForSelection(selection),
+    });
+
+    const load = selection === OFFICIAL_SELECTION
+      ? loadScientificWorkbenchOfficialCycleV1(client, { sessionId }).then(
+        (result): ScientificWorkbenchReadyResultV1 => Object.freeze({
+          kind: "official" as const,
+          result,
+        }),
+      )
+      : loadScientificWorkbenchResearchCycleV1(client, {
+        sessionId,
+        presetId: selection,
+        onProgress: (progress) => {
+          if (active) {
+            setState({
+              phase: "loading",
+              message: progress.status === "period1-converged"
+                ? `P1 convergence confirmed after ${progress.completedBeatCount} beats. Capturing the following complete cycle…`
+                : `Periodic settling: beat ${progress.completedBeatCount}/${progress.maximumBeatCount}. No steady plot is shown before P1 convergence.`,
+            });
+          }
+        },
+      }).then(
+        (result): ScientificWorkbenchReadyResultV1 => Object.freeze({
+          kind: "research" as const,
+          result,
+        }),
+      );
+
+    void load
       .then((result) => {
         if (active) setState({ phase: "ready", result });
       })
@@ -68,7 +133,13 @@ export default function ScientificWorkbenchPageV1() {
       active = false;
       client.terminate();
     };
-  }, []);
+  }, [selection]);
+
+  const selectedResearch = selection === OFFICIAL_SELECTION
+    ? null
+    : MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.entries.find(
+      (entry) => entry.presetId === selection,
+    ) ?? null;
 
   return (
     <main
@@ -82,19 +153,56 @@ export default function ScientificWorkbenchPageV1() {
               Scientific runtime · document-bound preview
             </p>
             <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-              Official healthy periodic workspace
+              {selectedResearch?.displayName ?? "Official healthy periodic workspace"}
             </h1>
           </div>
           <span className="rounded-full border border-amber-700/70 bg-amber-950/40 px-3 py-1 text-xs text-amber-200">
-            Research reference · not clinical validation
+            {selection === OFFICIAL_SELECTION
+              ? "Official catalog reference · not clinical validation"
+              : "Built-in research bracket · not diagnosis"}
           </span>
         </div>
         <p className="max-w-4xl text-sm leading-6 text-slate-400">
-          One immutable release, resolved input, exact V3 checkpoint, case, and
-          presentation workspace. The plots use accepted-state samples only;
-          unavailable values remain unavailable and no smoothing or
-          interpolation is applied.
+          {selection === OFFICIAL_SELECTION
+            ? "One immutable release, resolved input, exact V3 checkpoint, case, and presentation workspace."
+            : "One immutable release and content-addressed Preset, Case, resolved input, and presentation Workspace. Research cases start independently from cold state and are plotted only after numerical P1 convergence."}
+          {" "}Plots use accepted-state samples only; unavailable values remain
+          unavailable and no smoothing or interpolation is applied.
         </p>
+        <label className="block max-w-xl text-sm text-slate-300">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Document-bound case
+          </span>
+          <select
+            className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500 focus:ring-2"
+            data-testid="scientific-workbench-case-selector-v1"
+            value={selection}
+            onChange={(event) => {
+              const nextSelection =
+                event.currentTarget.value as ScientificWorkbenchSelectionV1;
+              // Clear the previous Case before the selection-change commit;
+              // the new Worker is created by the selection-bound effect.
+              setState({
+                phase: "loading",
+                message: loadingMessageForSelection(nextSelection),
+              });
+              setSelection(nextSelection);
+            }}
+          >
+            <option value={OFFICIAL_SELECTION}>
+              Official healthy periodic — exact V3 restore
+            </option>
+            <optgroup label="Research brackets — not diagnosis">
+              {MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.entries.map(
+                (entry) => (
+                  <option key={entry.presetId} value={entry.presetId}>
+                    {entry.displayName}
+                  </option>
+                ),
+              )}
+            </optgroup>
+          </select>
+        </label>
       </header>
 
       <div className="mx-auto max-w-[1600px]">
@@ -118,8 +226,15 @@ export default function ScientificWorkbenchPageV1() {
 
 function ScientificWorkbenchReadyV1({
   result,
-}: Readonly<{ result: ScientificWorkbenchOfficialCycleV1 }>) {
-  const { terminalCycle, workspaceDocument, sessionOrigin } = result;
+}: Readonly<{ result: ScientificWorkbenchReadyResultV1 }>) {
+  const { terminalCycle, workspaceDocument, sessionOrigin } = result.result;
+  const official = result.kind === "official";
+  const periodicValue = result.kind === "official"
+    ? "Terminal P1 confirmed"
+    : `P1 converged after ${result.result.completedBeatCount} beats`;
+  const provenanceDetail = result.kind === "official"
+    ? `checkpoint ${shortDigest(result.result.sessionOrigin.checkpointSha256)}`
+    : `${shortDigest(result.result.sessionOrigin.presetRef.sha256)} · input ${shortDigest(result.result.sessionOrigin.sessionInputSha256)}`;
   return (
     <div className="space-y-5">
       <section
@@ -128,8 +243,10 @@ function ScientificWorkbenchReadyV1({
       >
         <EvidenceCard
           label="Periodic evidence"
-          value="Terminal P1 confirmed"
-          detail="Exact restore; confirmation advanced 0 steps"
+          value={periodicValue}
+          detail={official
+            ? "Exact restore; confirmation advanced 0 steps"
+            : "Independent cold start; whole-beat numerical closure"}
         />
         <EvidenceCard
           label="Captured cycle"
@@ -142,11 +259,17 @@ function ScientificWorkbenchReadyV1({
           detail={shortDigest(terminalCycle.releaseRef.sha256)}
         />
         <EvidenceCard
-          label="Case / workspace"
+          label={official ? "Case / workspace" : "Preset / case / workspace"}
           value={`${shortDigest(sessionOrigin.caseRef.sha256)} / ${shortDigest(workspaceDocument.ref.sha256)}`}
-          detail={`checkpoint ${shortDigest(sessionOrigin.checkpointSha256)}`}
+          detail={provenanceDetail}
         />
       </section>
+      {!official && (
+        <section className="rounded-xl border border-sky-900/80 bg-sky-950/30 px-4 py-3 text-sm text-sky-100">
+          Built-in research bracket only. It is not an official healthy case,
+          clinical diagnosis, patient-specific fit, or clinical validation.
+        </section>
+      )}
       <ScientificWorkspaceRendererV1
         workspaceDocument={workspaceDocument}
         frames={terminalCycle.frames}

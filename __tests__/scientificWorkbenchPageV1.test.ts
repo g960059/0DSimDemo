@@ -15,7 +15,9 @@ describe("document-bound scientific workbench page V1", () => {
 
     expect(markup).toContain("Official healthy periodic workspace");
     expect(markup).toContain("Loading verified case");
-    expect(markup).toContain("Research reference");
+    expect(markup).toContain("Official catalog reference");
+    expect(markup).toContain("Document-bound case");
+    expect(markup).toContain("Mitral regurgitation — severe research bracket");
     expect(markup).toContain("overflow-y-auto");
     expect(markup).not.toContain("backend selector");
   });
@@ -33,6 +35,7 @@ describe("document-bound scientific workbench page V1", () => {
     const source = [
       read("components/scientificWorkbench/ScientificWorkbenchPageV1.tsx"),
       read("components/scientificWorkbench/scientificWorkbenchOfficialCycleV1.ts"),
+      read("components/scientificWorkbench/scientificWorkbenchResearchCycleV1.ts"),
       read("components/scientificWorkbench/scientificWorkbenchTerminalCycleV1.ts"),
     ].join("\n");
     for (const forbidden of [

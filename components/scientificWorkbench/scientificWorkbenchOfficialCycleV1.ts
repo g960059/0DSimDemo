@@ -313,10 +313,11 @@ function sameFrameIdentity(
 }
 
 function assertPortableSessionId(sessionId: string): void {
-  if (!/^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$/.test(sessionId)) {
+  // Keep 12 bytes of headroom for the longest ":capture-125" request suffix.
+  if (!/^[A-Za-z0-9][A-Za-z0-9:._-]{0,115}$/.test(sessionId)) {
     throw new ScientificWorkbenchOfficialCycleLoadErrorV1(
       "worker-restore",
-      "sessionId must be a portable identifier",
+      "sessionId must be a portable identifier of at most 116 bytes",
     );
   }
 }

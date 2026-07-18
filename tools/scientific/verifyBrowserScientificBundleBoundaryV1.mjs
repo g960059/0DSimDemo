@@ -112,6 +112,32 @@ if (!workerSource.includes(officialDocumentCaseCommandMarker)) {
   );
 }
 
+const researchDocumentCaseCommandMarker =
+  "createResearchDocumentCaseSession";
+if (!workbenchSurfaceSource.includes(researchDocumentCaseCommandMarker)) {
+  throw new Error(
+    `Workbench research command marker ${JSON.stringify(researchDocumentCaseCommandMarker)} is missing`,
+  );
+}
+if (!workerSource.includes(researchDocumentCaseCommandMarker)) {
+  throw new Error(
+    `Worker research command marker ${JSON.stringify(researchDocumentCaseCommandMarker)} is missing`,
+  );
+}
+
+const researchDocumentCaseWorkerOnlyMarkers = [
+  "circleheart-main-wire-scientific-preset-document-content-v1",
+  "main-wire-normal-adult-five-wall-fixed-tbv-cold-initialization-v1",
+];
+for (const marker of researchDocumentCaseWorkerOnlyMarkers) {
+  const owners = ownersOf(marker);
+  if (owners.length !== 1 || owners[0] !== workerName) {
+    throw new Error(
+      `research Case/resolved-input marker ${JSON.stringify(marker)} must exist only in ${workerName}; found ${owners.join(", ") || "none"}`,
+    );
+  }
+}
+
 console.log(JSON.stringify({
   pass: true,
   workerChunk: workerName,
@@ -126,6 +152,8 @@ console.log(JSON.stringify({
   officialDocumentChainRawMarkersOwnedOnlyByWorker: officialDocumentChainWorkerOnlyRawMarkers,
   officialLightweightMainThreadMarkers,
   officialDocumentCaseCommandMarker,
+  researchDocumentCaseCommandMarker,
+  researchDocumentCaseWorkerOnlyMarkers,
 }, null, 2));
 
 function ownersOf(marker) {

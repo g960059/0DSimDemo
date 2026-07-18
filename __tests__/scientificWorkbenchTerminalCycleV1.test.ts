@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1,
+  assembleScientificWorkbenchResearchTerminalCycleV1,
   assembleScientificWorkbenchTerminalCycleV1,
 } from "@/components/scientificWorkbench/scientificWorkbenchTerminalCycleV1";
 import {
@@ -42,6 +43,31 @@ describe("scientific workbench terminal cycle V1", () => {
       bothCycleBoundariesRetained: true,
       smoothingOrInterpolationApplied: false,
     });
+  });
+
+  it("keeps a research P1 boundary distinct from an exact checkpoint restore", () => {
+    const boundary = frame(2_000, 12, "accepted-step");
+    const cycle = assembleScientificWorkbenchResearchTerminalCycleV1(
+      boundary,
+      completeAcceptedCycle(),
+    );
+
+    expect(cycle.frames).toHaveLength(501);
+    expect(cycle.frames[0]).toBe(boundary);
+    expect(cycle.durationSec).toBeCloseTo(1, 12);
+    expect(cycle.evidence).toEqual({
+      startsAtAcceptedPeriod1Boundary: true,
+      subsequentFramesAreAcceptedSteps: true,
+      exactReleaseRefUniform: true,
+      revisionsContiguous: true,
+      cadenceUniform: true,
+      bothCycleBoundariesRetained: true,
+      smoothingOrInterpolationApplied: false,
+    });
+    expect(() => assembleScientificWorkbenchResearchTerminalCycleV1(
+      frame(2_000, 12, "exact-checkpoint-restore"),
+      completeAcceptedCycle(),
+    )).toThrow(/accepted P1 boundary/);
   });
 
   it.each([
