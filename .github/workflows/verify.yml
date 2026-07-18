@@ -123,6 +123,10 @@ jobs:
 
       - name: Test
         run: npm run test:fast
+        env:
+          # Shared GitHub runners are markedly slower than local development.
+          # Keep the script's 60 s local gate while allowing CI variance.
+          CIRCLEHEART_FAST_TEST_BUDGET_MS: 90000
 
   browser_e2e:
     name: Production browser E2E
