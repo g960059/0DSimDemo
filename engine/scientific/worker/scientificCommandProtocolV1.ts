@@ -27,6 +27,10 @@ import type {
 import type {
   MainWireScientificResearchControlTargetStateV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
+import type {
+  MainWireScientificGuytonStarlingProtocolResultV1,
+  MainWireScientificPvRelationsProtocolResultV1,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 
 export const SCIENTIFIC_COMMAND_PROTOCOL_V1_ID =
   "circleheart-scientific-command-protocol-v1" as const;
@@ -45,6 +49,8 @@ export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "restoreExactSession",
   "disposeSession",
   "settlePeriodic",
+  "runGuytonStarlingProtocol",
+  "runPvRelationsProtocol",
 ] as const);
 
 export type ScientificCommandKindV1 =
@@ -156,6 +162,12 @@ export type DisposeSessionCommandV1 = CommandBaseV1<"disposeSession">;
 
 export type SettlePeriodicCommandV1 = CommandBaseV1<"settlePeriodic">;
 
+export type RunGuytonStarlingProtocolCommandV1 =
+  CommandBaseV1<"runGuytonStarlingProtocol">;
+
+export type RunPvRelationsProtocolCommandV1 =
+  CommandBaseV1<"runPvRelationsProtocol">;
+
 export type ScientificCommandV1 =
   | CreateCanonicalSessionCommandV1
   | CreateResolvedSessionCommandV1
@@ -169,7 +181,9 @@ export type ScientificCommandV1 =
   | GetExactCheckpointCommandV1
   | RestoreExactSessionCommandV1
   | DisposeSessionCommandV1
-  | SettlePeriodicCommandV1;
+  | SettlePeriodicCommandV1
+  | RunGuytonStarlingProtocolCommandV1
+  | RunPvRelationsProtocolCommandV1;
 
 export type ScientificCommandErrorCodeV1 =
   | "invalid-command"
@@ -446,6 +460,18 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       disposedSessionId: string;
     }>;
     settlePeriodic: ScientificPeriodicSettlementProgressV1<TObservableFrame>;
+    runGuytonStarlingProtocol: Readonly<{
+      kind: "guytonStarlingProtocolCompleted";
+      result: MainWireScientificGuytonStarlingProtocolResultV1;
+      sourceSessionUnchanged: true;
+      observableFrame: TObservableFrame;
+    }>;
+    runPvRelationsProtocol: Readonly<{
+      kind: "pvRelationsProtocolCompleted";
+      result: MainWireScientificPvRelationsProtocolResultV1;
+      sourceSessionUnchanged: true;
+      observableFrame: TObservableFrame;
+    }>;
   }>;
 
 export type ScientificSuccessfulCommandKindV1 =

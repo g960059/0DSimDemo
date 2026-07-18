@@ -108,6 +108,108 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
   });
 
   test(
+    "adds Guyton and PV-relation panes and renders completed scientific protocols",
+    { tag: "@full-e2e" },
+    async ({ page }, testInfo) => {
+      test.setTimeout(240_000);
+      page.setDefaultTimeout(30_000);
+      const browserErrors = captureBrowserErrors(page);
+
+      try {
+        await acknowledgeModelLimitations(page);
+        const { evidence } = await openReadyProductWorkbench(page);
+        const sourceRevision = requiredAttribute(
+          await evidence.getAttribute("data-scientific-final-revision"),
+          "source scientific revision",
+        );
+
+        // Start both independent protocols. Left and right Guyton panes share
+        // one identity-keyed result, while the PV-relation pane owns the
+        // separate fixed-TBV preload-reduction protocol.
+        await addMainGraphPane(page, "ESPVR / EDPVR");
+        const pvRelations = page.getByTestId("scientific-pv-relation-pane-v1");
+        await expect(pvRelations).toBeVisible();
+        await expect(pvRelations).toHaveAttribute(
+          "data-protocol-status",
+          /^(?:running|complete|invalid)$/,
+        );
+
+        await addMainGraphPane(page, "Guyton (R)");
+        const rightGuyton = page.getByTestId(
+          "scientific-right-guyton-starling-pane-v1",
+        );
+        await expect(rightGuyton).toBeVisible();
+        await expect(rightGuyton).toHaveAttribute(
+          "data-protocol-status",
+          /^(?:running|complete|partial)$/,
+        );
+
+        await addMainGraphPane(page, "Guyton (L)");
+        const leftGuyton = page.getByTestId(
+          "scientific-left-guyton-starling-pane-v1",
+        );
+        await expect(leftGuyton).toBeVisible();
+        await expect(leftGuyton).toHaveAttribute(
+          "data-protocol-status",
+          /^(?:complete|partial)$/,
+          { timeout: 180_000 },
+        );
+        await expect(leftGuyton.locator('[data-series="vascular-return"]'))
+          .toBeVisible();
+        await expect(leftGuyton.locator('[data-series="cardiac-preload-locus"]'))
+          .toBeVisible();
+        await expect(leftGuyton.locator('[data-marker="operating-point"]'))
+          .toBeVisible();
+        await expect(leftGuyton.locator('[data-point-classification]'))
+          .not.toHaveCount(0);
+        await expect(leftGuyton.getByTestId("scientific-protocol-qc-callout-v1"))
+          .toBeVisible();
+
+        await dockTab(page, "Guyton Right").click();
+        await expect(rightGuyton).toBeVisible();
+        await expect(rightGuyton).toHaveAttribute(
+          "data-protocol-status",
+          /^(?:complete|partial)$/,
+        );
+        await expect(rightGuyton.locator('[data-series="vascular-return"]'))
+          .toBeVisible();
+        await expect(rightGuyton.locator('[data-series="cardiac-preload-locus"]'))
+          .toBeVisible();
+
+        await dockTab(page, "ESPVR / EDPVR").click();
+        await expect(pvRelations).toBeVisible();
+        await expect(pvRelations).toHaveAttribute(
+          "data-protocol-status",
+          /^(?:complete|invalid)$/,
+        );
+        await expect(pvRelations).toHaveAttribute("data-fit-valid", "false");
+        const diagnosticEspvr = pvRelations.locator(
+          '[data-series="espvr-linear"]',
+        );
+        await expect(diagnosticEspvr).toBeVisible();
+        await expect(diagnosticEspvr).toHaveAttribute("stroke-dasharray", "4 3");
+        await expect(pvRelations.locator('[data-series="edpvr-exponential"]'))
+          .toBeVisible();
+        await expect(pvRelations.getByTestId(
+          "scientific-pv-relation-invalid-reason-v1",
+        )).toBeVisible();
+        await expect(pvRelations.locator('[data-beat-classification]'))
+          .not.toHaveCount(0);
+
+        // Protocol exploration is forked from, rather than promoted into, the
+        // selected product scenario.
+        await expect(evidence).toHaveAttribute(
+          "data-scientific-final-revision",
+          sourceRevision,
+        );
+        expect(browserErrors).toEqual([]);
+      } finally {
+        await attachBrowserErrors(testInfo, browserErrors);
+      }
+    },
+  );
+
+  test(
     "links independent scenarios to overlays, pane membership, inspector, and transitions",
     { tag: "@full-e2e" },
     async ({ page }, testInfo) => {
@@ -944,6 +1046,11 @@ async function exerciseAddAndDelete(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Waveformsを閉じる" }).click();
   await expect.poll(() => tabs.count()).toBe(initialTabCount);
   await expect(dockTab(page, "Waveforms")).toHaveCount(0);
+}
+
+async function addMainGraphPane(page: Page, label: string): Promise<void> {
+  await page.getByRole("button", { name: "メインペインを追加" }).first().click();
+  await page.getByRole("button", { name: label, exact: true }).click();
 }
 
 async function exerciseSplitDuplicateAndDelete(page: Page): Promise<void> {

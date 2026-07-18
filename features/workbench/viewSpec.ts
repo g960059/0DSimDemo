@@ -2,7 +2,7 @@ import type { ControllerItem, LegendPosition, MetricType, PanelDef, PanelInstanc
 
 export type ScenarioBinding = { kind: "active" } | { kind: "scenario"; scenarioId: string };
 
-export type GraphViewType = "pvloop" | "waveform" | "guyton-right" | "guyton-left" | "guyton-3d";
+export type GraphViewType = "pvloop" | "pv-relations" | "waveform" | "guyton-right" | "guyton-left" | "guyton-3d";
 
 export type ViewMembership = Record<string, string[]>;
 
@@ -79,6 +79,8 @@ function graphTypeForPanel(panel: PanelDef): GraphViewType | undefined {
   switch (panel.type) {
     case "PVLOOP":
       return "pvloop";
+    case "PV_RELATIONS":
+      return "pv-relations";
     case "WAVEFORM":
       return "waveform";
     case "GUYTON_RIGHT":

@@ -301,7 +301,7 @@ type ControlSettingsSectionId = 'targets' | 'items' | 'display' | 'custom';
 type SettingsSectionBounds = { top: number; bottom: number };
 type PanelGridT = TFunction<'translation', undefined>;
 
-const GRAPH_SETTINGS_PANEL_TYPES = new Set<PanelType>(['WAVEFORM', 'PVLOOP', 'METRICS', 'GUYTON_LEFT', 'GUYTON_RIGHT', 'GUYTON_3D']);
+const GRAPH_SETTINGS_PANEL_TYPES = new Set<PanelType>(['WAVEFORM', 'PVLOOP', 'PV_RELATIONS', 'METRICS', 'GUYTON_LEFT', 'GUYTON_RIGHT', 'GUYTON_3D']);
 const SIGNAL_CATEGORY_ORDER: SignalCategory[] = ['All', 'Pressure', 'Flow', 'Volume', 'Valve', 'Coupling', 'Derived'];
 const GRAPH_SETTINGS_SECTIONS: Array<{
   id: GraphSettingsSectionId;
@@ -433,6 +433,7 @@ function getPanelItemOptions(
   const selected = Object.values(panel.config).flatMap((cfg) => cfg.selectedSignals);
   let base: string[];
   if (panel.type === 'PVLOOP') base = chambers.length > 0 ? chambers : DEFAULT_CHAMBER_OPTIONS;
+  else if (panel.type === 'PV_RELATIONS') base = ['Default'];
   else if (panel.type === 'WAVEFORM') base = signals.length > 0 ? signals : DEFAULT_WAVEFORM_OPTIONS;
   else if (panel.type === 'METRICS') base = metrics.length > 0 ? metrics : DEFAULT_METRIC_OPTIONS;
   else if (panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_3D') base = ['Default'];
@@ -613,7 +614,7 @@ function LegacyPanelSettingsControls({
                 <input type="color" className="block h-[14px] w-[14px] flex-none cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none" value={cfg?.customBaseColor ?? inst.color} onChange={(e) => updatePanelInstanceColor(panel.id, inst.id, e.target.value)} />
                 <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-xs font-bold text-wb-muted outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent" value={cfg?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
               </div>
-              {cfg?.visible && (panel.type !== 'GUYTON_RIGHT' && panel.type !== 'GUYTON_LEFT') && (
+              {cfg?.visible && !['GUYTON_RIGHT', 'GUYTON_LEFT', 'GUYTON_3D', 'PV_RELATIONS'].includes(panel.type) && (
                 <div className="grid grid-cols-1 gap-1 pl-5">
                   {itemOptions.map(sig => {
                     const isSelected = cfg.selectedSignals.includes(sig);
@@ -753,7 +754,7 @@ function GraphPanelSettingsBoard({
   );
 
   const renderSignalBoard = (layout: 'wide' | 'document' = 'wide') => {
-    if (panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D') {
+    if (panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D' || panel.type === 'PV_RELATIONS') {
       return (
         <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip p-4 text-center">
           <div>
@@ -1056,7 +1057,7 @@ function GraphPanelSettingsBoard({
         </div>
       );
     }
-    if (selectedItems.length === 0 || panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D') {
+    if (selectedItems.length === 0 || panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D' || panel.type === 'PV_RELATIONS') {
       return (
         <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip p-4 text-center">
           <div>
@@ -1438,6 +1439,7 @@ function PanelSettingsButton({ panel, toggleSettings }: PanelSettingsButtonProps
 
 function settingsPaneTypeLabel(panel: PanelDef): string {
   if (panel.type === 'PVLOOP') return 'PV loop pane';
+  if (panel.type === 'PV_RELATIONS') return 'ESPVR / EDPVR pane';
   if (panel.type === 'WAVEFORM') return 'Waveform pane';
   if (panel.type === 'METRICS') return 'Metrics pane';
   if (panel.type === 'CONTROLS') return 'Controller pane';

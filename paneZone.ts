@@ -10,6 +10,7 @@ export function defaultZoneOf(type: PanelType): WorkbenchZoneId {
     case "NOTE":
       return "caseRail";
     case "PVLOOP":
+    case "PV_RELATIONS":
     case "WAVEFORM":
     case "GUYTON_RIGHT":
     case "GUYTON_LEFT":

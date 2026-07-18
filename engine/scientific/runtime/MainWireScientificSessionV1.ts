@@ -71,6 +71,12 @@ import {
   loadMainWireScientificSessionExactCheckpointV3,
   type MainWireScientificSessionExactCheckpointV3,
 } from "@/engine/scientific/runtime/MainWireScientificExactCheckpointV3";
+import {
+  runMainWireScientificGuytonStarlingProtocolV1,
+  runMainWireScientificPvRelationsProtocolV1,
+  type MainWireScientificGuytonStarlingProtocolResultV1,
+  type MainWireScientificPvRelationsProtocolResultV1,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 
 export const MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID =
   "main-wire-scientific-session-v1" as const;
@@ -535,6 +541,23 @@ export class MainWireScientificSessionV1 {
 
   observe(): MainWireScientificSessionObservationV1 {
     return this.lastObservation;
+  }
+
+  /** Read-only, fixed-volume vascular-function + independent-TBV preload map. */
+  runGuytonStarlingProtocolV1():
+  MainWireScientificGuytonStarlingProtocolResultV1 {
+    return runMainWireScientificGuytonStarlingProtocolV1(
+      this.dependencies,
+      this.acceptedState,
+    );
+  }
+
+  /** Read-only fixed-TBV IVC-like multi-beat PV relation protocol. */
+  runPvRelationsProtocolV1(): MainWireScientificPvRelationsProtocolResultV1 {
+    return runMainWireScientificPvRelationsProtocolV1(
+      this.dependencies,
+      this.acceptedState,
+    );
   }
 
   /**

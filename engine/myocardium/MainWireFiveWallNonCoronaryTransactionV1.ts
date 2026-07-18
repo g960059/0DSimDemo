@@ -11,6 +11,7 @@ import {
   type NonCoronaryCirculationCheckpointV1,
   type NonCoronaryCirculationInitialStateInputV1,
   type NonCoronaryCirculationNewtonOptionsV1,
+  type NonCoronaryProtocolResistanceScaleByEdgeV1,
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
   type NonCoronaryCirculationTrialFailureReasonV1,
@@ -270,6 +271,9 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     pericardium: MainWireCommonPericardiumBindingV1;
     /** Optional numerical/audit controls; not a physiological case parameter. */
     circulationNewtonOptions?: NonCoronaryCirculationNewtonOptionsV1;
+    /** Protocol-only transient occlusion; never persisted as a case parameter. */
+    protocolResistanceScaleByEdge?:
+      NonCoronaryProtocolResistanceScaleByEdgeV1;
   }>,
 ): MainWireFiveWallNonCoronaryStepResultV1<TWallState> {
   validateAcceptedPair(previous);
@@ -293,6 +297,8 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     dtSec: input.dtSec,
     runtime: input.runtime,
     options: input.circulationNewtonOptions,
+    protocolResistanceScaleByEdge:
+      input.protocolResistanceScaleByEdge,
     evaluateCandidateMechanics: (volumesMl) => {
       const mechanicsTrial = evaluateWholeHeartMechanicsTrialV1(provider, {
         previousAcceptedState: previous.mechanics,

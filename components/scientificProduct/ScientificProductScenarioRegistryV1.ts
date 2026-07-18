@@ -40,6 +40,13 @@ import {
   MainWireScientificWorkerClientV1,
 } from "@/engine/scientificBrowser";
 import { sameSimulationReleaseRef } from "@/engine/scientific/release";
+import {
+  SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+} from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import type {
+  MainWireScientificGuytonStarlingProtocolResultV1,
+  MainWireScientificPvRelationsProtocolResultV1,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 
 import {
   SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
@@ -111,6 +118,25 @@ export type ScientificProductScenarioPresentationV1 = Readonly<{
   workspaceDocument: MainWireScientificWorkspaceDocumentV1;
 }>;
 
+export type ScientificProductHemodynamicProtocolKindV1 =
+  | "guyton-starling"
+  | "pv-relations";
+
+export type ScientificProductHemodynamicProtocolPresentationV1 = Readonly<{
+  kind: ScientificProductHemodynamicProtocolKindV1;
+  status: "idle" | "running" | "complete" | "error";
+  sourceIdentity: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+  }> | null;
+  result:
+    | MainWireScientificGuytonStarlingProtocolResultV1
+    | MainWireScientificPvRelationsProtocolResultV1
+    | null;
+  errorMessage: string | null;
+}>;
+
 type ScenarioEntryV1 = {
   descriptor: ScientificProductScenarioDescriptorV1;
   generation: number;
@@ -142,6 +168,7 @@ const SCENARIO_COLORS_V1 = Object.freeze([
 
 let scenarioOrdinalV1 = 0;
 let sessionOrdinalV1 = 0;
+let hemodynamicProtocolRequestOrdinalV1 = 0;
 const VALIDATED_CYCLE_BY_FRAME_ARRAY_V1 = new WeakMap<
   object,
   MainWireScientificValidatedTerminalCycleV1
@@ -155,6 +182,11 @@ export class ScientificProductScenarioRegistryV1 {
   private readonly entries = new Map<string, ScenarioEntryV1>();
   private readonly descriptorListeners = new Set<() => void>();
   private readonly frameListeners = new Set<() => void>();
+  private readonly protocolListeners = new Set<() => void>();
+  private readonly hemodynamicProtocols = new Map<
+    string,
+    ScientificProductHemodynamicProtocolPresentationV1
+  >();
   private descriptorSnapshot: readonly ScientificProductScenarioDescriptorV1[] = [];
   private frameVersion = 0;
   private disposed = false;
@@ -202,6 +234,148 @@ export class ScientificProductScenarioRegistryV1 {
   };
 
   readonly getFrameVersionSnapshot = () => this.frameVersion;
+
+  readonly subscribeHemodynamicProtocols = (
+    listener: () => void,
+  ): (() => void) => {
+    this.protocolListeners.add(listener);
+    return () => this.protocolListeners.delete(listener);
+  };
+
+  getHemodynamicProtocol(
+    scenarioId: string,
+    kind: ScientificProductHemodynamicProtocolKindV1,
+  ): ScientificProductHemodynamicProtocolPresentationV1 {
+    return this.hemodynamicProtocols.get(protocolCacheKey(scenarioId, kind))
+      ?? EMPTY_HEMODYNAMIC_PROTOCOL_PRESENTATIONS_V1[kind];
+  }
+
+  requestHemodynamicProtocol(
+    scenarioId: string,
+    kind: ScientificProductHemodynamicProtocolKindV1,
+  ): void {
+    const entry = this.entries.get(scenarioId);
+    const runtime = entry?.runtime;
+    if (entry === undefined || runtime === null || this.disposed) return;
+    const source = runtime.controlStore.getSnapshot().source;
+    const sourceIdentity = Object.freeze({
+      revision: source.context.stateIdentity.revision,
+      acceptedTimeSec: source.context.stateIdentity.acceptedTimeSec,
+      totalBloodVolumeMl: source.context.stateIdentity.totalBloodVolumeMl,
+    });
+    const key = protocolCacheKey(scenarioId, kind);
+    const current = this.hemodynamicProtocols.get(key);
+    if (
+      current?.status === "running"
+      && sameProtocolSourceIdentity(current.sourceIdentity, sourceIdentity)
+    ) return;
+    if (
+      current?.status === "complete"
+      && sameProtocolSourceIdentity(current.sourceIdentity, sourceIdentity)
+    ) return;
+    const generation = entry.generation;
+    this.hemodynamicProtocols.set(key, Object.freeze({
+      kind,
+      status: "running" as const,
+      sourceIdentity,
+      result: null,
+      errorMessage: null,
+    }));
+    this.publishProtocols();
+    const requestId = `workbench-hemodynamic-${
+      ++hemodynamicProtocolRequestOrdinalV1
+    }`;
+    const command = kind === "guyton-starling"
+      ? Object.freeze({
+        protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+        kind: "runGuytonStarlingProtocol" as const,
+        requestId,
+        sessionId: source.sessionId,
+      })
+      : Object.freeze({
+        protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+        kind: "runPvRelationsProtocol" as const,
+        requestId,
+        sessionId: source.sessionId,
+      });
+    void runtime.client.request(command).then((response) => {
+      if (
+        this.disposed
+        || this.entries.get(scenarioId) !== entry
+        || entry.generation !== generation
+      ) return;
+      const latestSource = runtime.controlStore.getSnapshot().source.context
+        .stateIdentity;
+      if (!sameProtocolSourceIdentity(sourceIdentity, latestSource)) {
+        this.hemodynamicProtocols.delete(key);
+        this.publishProtocols();
+        return;
+      }
+      if (!response.ok) {
+        this.hemodynamicProtocols.set(key, Object.freeze({
+          kind,
+          status: "error" as const,
+          sourceIdentity,
+          result: null,
+          errorMessage: response.error.message,
+        }));
+        this.publishProtocols();
+        return;
+      }
+      const payload = response.payload;
+      const result = kind === "guyton-starling"
+        && response.commandKind === "runGuytonStarlingProtocol"
+        && payload.kind === "guytonStarlingProtocolCompleted"
+        ? payload.result
+        : kind === "pv-relations"
+          && response.commandKind === "runPvRelationsProtocol"
+          && payload.kind === "pvRelationsProtocolCompleted"
+          ? payload.result
+          : null;
+      const resultSourceIdentity = result === null
+        ? null
+        : Object.freeze({
+          revision: result.source.revision,
+          acceptedTimeSec: result.source.acceptedTimeSec,
+          totalBloodVolumeMl: result.source.fixedTotalBloodVolumeMl,
+        });
+      if (
+        result === null
+        || !sameProtocolSourceIdentity(resultSourceIdentity, sourceIdentity)
+      ) {
+        this.hemodynamicProtocols.set(key, Object.freeze({
+          kind,
+          status: "error" as const,
+          sourceIdentity,
+          result: null,
+          errorMessage: "Hemodynamic protocol response identity mismatch.",
+        }));
+      } else {
+        this.hemodynamicProtocols.set(key, Object.freeze({
+          kind,
+          status: "complete" as const,
+          sourceIdentity,
+          result,
+          errorMessage: null,
+        }));
+      }
+      this.publishProtocols();
+    }).catch((error: unknown) => {
+      if (
+        this.disposed
+        || this.entries.get(scenarioId) !== entry
+        || entry.generation !== generation
+      ) return;
+      this.hemodynamicProtocols.set(key, Object.freeze({
+        kind,
+        status: "error" as const,
+        sourceIdentity,
+        result: null,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      }));
+      this.publishProtocols();
+    });
+  }
 
   get maximumScenarioCount(): number {
     return MAXIMUM_PRODUCT_SCENARIO_COUNT_V1;
@@ -376,6 +550,9 @@ export class ScientificProductScenarioRegistryV1 {
     this.detachEntry(entry);
     this.entries.delete(id);
     this.transientMetricBeatCache.delete(id);
+    for (const kind of ["guyton-starling", "pv-relations"] as const) {
+      this.hemodynamicProtocols.delete(protocolCacheKey(id, kind));
+    }
     this.publishDescriptors();
     this.publishFrames();
     return true;
@@ -405,6 +582,7 @@ export class ScientificProductScenarioRegistryV1 {
     }
     this.entries.clear();
     this.transientMetricBeatCache.clear();
+    this.hemodynamicProtocols.clear();
     this.publishDescriptors();
     this.publishFrames();
   }
@@ -555,6 +733,55 @@ export class ScientificProductScenarioRegistryV1 {
     this.frameVersion += 1;
     for (const listener of [...this.frameListeners]) listener();
   }
+
+  private publishProtocols(): void {
+    for (const listener of [...this.protocolListeners]) listener();
+  }
+}
+
+function protocolCacheKey(
+  scenarioId: string,
+  kind: ScientificProductHemodynamicProtocolKindV1,
+): string {
+  return `${scenarioId}:${kind}`;
+}
+
+const EMPTY_HEMODYNAMIC_PROTOCOL_PRESENTATIONS_V1 = Object.freeze({
+  "guyton-starling": Object.freeze({
+    kind: "guyton-starling" as const,
+    status: "idle" as const,
+    sourceIdentity: null,
+    result: null,
+    errorMessage: null,
+  }),
+  "pv-relations": Object.freeze({
+    kind: "pv-relations" as const,
+    status: "idle" as const,
+    sourceIdentity: null,
+    result: null,
+    errorMessage: null,
+  }),
+}) satisfies Readonly<Record<
+  ScientificProductHemodynamicProtocolKindV1,
+  ScientificProductHemodynamicProtocolPresentationV1
+>>;
+
+function sameProtocolSourceIdentity(
+  left: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+  }> | null,
+  right: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+  }> | null,
+): boolean {
+  return left !== null && right !== null
+    && left.revision === right.revision
+    && left.acceptedTimeSec === right.acceptedTimeSec
+    && left.totalBloodVolumeMl === right.totalBloodVolumeMl;
 }
 
 export async function loadScientificProductScenarioRuntimeV1(
@@ -585,8 +812,9 @@ export async function loadScientificProductScenarioRuntimeV1(
 
 export function createScientificProductWorkerClientV1(): MainWireScientificWorkerClientV1 {
   return new MainWireScientificWorkerClientV1({
-    maximumPendingRequestCount: 1,
+    maximumPendingRequestCount: 2,
     maximumRequestCountPerClientLifetime: SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0,
+    requestTimeoutMs: 3 * 60_000,
   });
 }
 

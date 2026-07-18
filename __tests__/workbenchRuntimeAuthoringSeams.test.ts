@@ -267,4 +267,20 @@ describe("runtime-specific Workbench authoring seams", () => {
       legendPosition: { xPct: 0.2, yPct: 0.3 },
     });
   });
+
+  it("maps the authored PV-relations graph to its dedicated panel type", () => {
+    const panel = graphViewToPanel({
+      id: "lv-pv-relations",
+      title: "ESPVR / EDPVR",
+      kind: "graph",
+      graphType: "pv-relations",
+      membership: { healthy: ["Default"] },
+    });
+
+    expect(panel.type).toBe("PV_RELATIONS");
+    expect(panel.view).toMatchObject({
+      kind: "graph",
+      graphType: "pv-relations",
+    });
+  });
 });

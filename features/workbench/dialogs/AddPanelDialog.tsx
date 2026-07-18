@@ -55,7 +55,12 @@ export function AddPanelDialog({
                   </div>
                 </div>
               </div>
-              {config[inst.id]?.visible && panelType !== 'GUYTON_RIGHT' && panelType !== 'GUYTON_LEFT' && (
+              {config[inst.id]?.visible && ![
+                'GUYTON_RIGHT',
+                'GUYTON_LEFT',
+                'GUYTON_3D',
+                'PV_RELATIONS',
+              ].includes(panelType) && (
                 <div className="grid grid-cols-3 md:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-700/50">
                   {choices.map(sig => {
                     const isSelected = config[inst.id]?.selectedSignals.includes(sig);

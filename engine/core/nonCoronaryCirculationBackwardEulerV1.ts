@@ -239,6 +239,16 @@ export type NonCoronaryCirculationNewtonOptionsV1 = Readonly<{
   analyticJacobianFiniteDifferenceShadow?: boolean;
 }>;
 
+/**
+ * Protocol-only hydraulic intervention. This is intentionally separate from
+ * the case/runtime parameterization: it represents a transient external
+ * occlusion (for example an IVC-like preload reduction), not a new vascular
+ * phenotype or a persistent controller value.
+ */
+export type NonCoronaryProtocolResistanceScaleByEdgeV1 = Readonly<
+  Partial<Record<NonCoronaryEdgeNameV1, number>>
+>;
+
 export type NonCoronaryCirculationTrialInputV1<TEvaluation> = Readonly<{
   previousAcceptedState: NonCoronaryCirculationAcceptedStateV1;
   dtSec: number;
@@ -246,6 +256,8 @@ export type NonCoronaryCirculationTrialInputV1<TEvaluation> = Readonly<{
   evaluateCandidateMechanics:
     NonCoronaryCandidateMechanicsCallbackV1<TEvaluation>;
   options?: NonCoronaryCirculationNewtonOptionsV1;
+  protocolResistanceScaleByEdge?:
+    NonCoronaryProtocolResistanceScaleByEdgeV1;
 }>;
 
 export type NonCoronaryCirculationTrialDiagnosticsV1 = Readonly<{
@@ -577,6 +589,9 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
   try {
     requirePositive(input.dtSec, "dtSec");
     validateRuntime(input.runtime);
+    validateProtocolResistanceScaleByEdge(
+      input.protocolResistanceScaleByEdge,
+    );
     if (typeof input.evaluateCandidateMechanics !== "function") {
       throw new Error("evaluateCandidateMechanics must be a function");
     }
@@ -1064,7 +1079,8 @@ function evaluateCandidate<TEvaluation>(
       ),
     });
     const gradientMmHg = upstreamPressure - effectiveDownstreamPressure;
-    const losses = nonValveEdgeLossV1({
+    const losses = applyProtocolResistanceScale(
+      nonValveEdgeLossV1({
       edge,
       params: input.runtime.losses,
       upstreamPressureMmHg: upstreamPressure,
@@ -1074,7 +1090,9 @@ function evaluateCandidate<TEvaluation>(
         candidateTimeSec,
         input.runtime.respiratory,
       ),
-    });
+      }),
+      protocolResistanceScaleForEdge(input, name),
+    );
     if (edge.kind === "dynamic") {
       const dynamicName = name as NonCoronaryDynamicEdgeNameV1;
       const inertance = requirePositive(
@@ -1266,13 +1284,16 @@ function analyticCirculationJacobian<TEvaluation>(
         downstreamPressureMmHg,
         edgeExternalPressureMmHg,
       });
-      const losses = nonValveEdgeLossAndPressureDerivativesV1({
+      const losses = applyProtocolResistanceScaleWithDerivatives(
+        nonValveEdgeLossAndPressureDerivativesV1({
         edge,
         params: input.runtime.losses,
         upstreamPressureMmHg,
         downstreamPressureMmHg,
         edgeExternalPressureMmHg,
-      });
+        }),
+        protocolResistanceScaleForEdge(input, edgeName),
+      );
       const flowMlPerSec = current.edgeFlowsMlPerSec[edgeName];
       const signedQuadraticFlow = flowMlPerSec * Math.abs(flowMlPerSec);
       let inertanceMmHgSec2PerMl = 0;
@@ -2202,6 +2223,62 @@ function respiratoryKind(ext: NodeSpec["ext"] | EdgeSpec["ext"]):
   if (ext === undefined || ext === "none") return "none";
   if (ext === "pth" || ext === "palv") return ext;
   throw new Error(`coronary external-pressure kind ${ext} is outside scope`);
+}
+
+function validateProtocolResistanceScaleByEdge(
+  scaleByEdge: NonCoronaryProtocolResistanceScaleByEdgeV1 | undefined,
+): void {
+  if (scaleByEdge === undefined) return;
+  for (const [edgeName, scale] of Object.entries(scaleByEdge)) {
+    if (!(NON_CORONARY_EDGE_NAMES_V1 as readonly string[]).includes(edgeName)) {
+      throw new Error(
+        `protocol resistance scale references unknown edge ${edgeName}`,
+      );
+    }
+    if ((NON_CORONARY_VALVE_NAMES_V1 as readonly string[]).includes(edgeName)) {
+      throw new Error(
+        `protocol resistance scale cannot override valve edge ${edgeName}`,
+      );
+    }
+    requirePositive(scale as number, `${edgeName} protocol resistance scale`);
+  }
+}
+
+function protocolResistanceScaleForEdge<TEvaluation>(
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation>,
+  edgeName: NonCoronaryEdgeNameV1,
+): number {
+  return input.protocolResistanceScaleByEdge?.[edgeName] ?? 1;
+}
+
+function applyProtocolResistanceScale<
+  T extends Readonly<{ resistanceMmHgSecPerMl: number }>,
+>(losses: T, scale: number): T {
+  if (scale === 1) return losses;
+  return Object.freeze({
+    ...losses,
+    resistanceMmHgSecPerMl:
+      losses.resistanceMmHgSecPerMl * scale,
+  }) as T;
+}
+
+function applyProtocolResistanceScaleWithDerivatives<
+  T extends Readonly<{
+    resistanceMmHgSecPerMl: number;
+    dResistanceDUpstreamPressureSecPerMl: number;
+    dResistanceDDownstreamPressureSecPerMl: number;
+  }>,
+>(losses: T, scale: number): T {
+  if (scale === 1) return losses;
+  return Object.freeze({
+    ...losses,
+    resistanceMmHgSecPerMl:
+      losses.resistanceMmHgSecPerMl * scale,
+    dResistanceDUpstreamPressureSecPerMl:
+      losses.dResistanceDUpstreamPressureSecPerMl * scale,
+    dResistanceDDownstreamPressureSecPerMl:
+      losses.dResistanceDDownstreamPressureSecPerMl * scale,
+  }) as T;
 }
 
 function tryEvaluateVector(

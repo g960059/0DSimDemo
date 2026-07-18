@@ -1,7 +1,7 @@
 import type { MetricType, PanelDef, PanelInstanceConfig, PanelType, SimInstance } from "@/types";
 import { effectiveVisibility, type MetricsViewSpec, type ViewMembership } from "@/features/workbench/viewSpec";
 
-const GRAPH_PANEL_TYPES = new Set<PanelType>(["PVLOOP", "WAVEFORM", "GUYTON_RIGHT", "GUYTON_LEFT", "GUYTON_3D"]);
+const GRAPH_PANEL_TYPES = new Set<PanelType>(["PVLOOP", "PV_RELATIONS", "WAVEFORM", "GUYTON_RIGHT", "GUYTON_LEFT", "GUYTON_3D"]);
 
 export type BuiltInMetricsCategoryId = "pressure" | "flowVolume" | "function" | "coronary";
 

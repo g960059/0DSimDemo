@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   loadMainWireAdultFiveWallNonCoronaryReleaseV1,
@@ -13,8 +13,86 @@ import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type ScientificCommandKindV1,
 } from "@/engine/scientific/worker";
+import type {
+  MainWireScientificSessionV1,
+} from "@/engine/scientific/runtime";
 
 describe("main-wire scientific in-process kernel V1", () => {
+  it("returns protocol evidence only when the source session identity remains unchanged", async () => {
+    const kernel = new MainWireScientificInProcessKernelV1();
+    const sessionId = "protocol-identity-session";
+    const created = await kernel.handle(baseCommand(
+      "createCanonicalSession",
+      "request-protocol-identity-create",
+      sessionId,
+    ));
+    expect(created.ok).toBe(true);
+    const session = (kernel as unknown as Readonly<{
+      sessions: Map<string, MainWireScientificSessionV1>;
+    }>).sessions.get(sessionId)!;
+    const source = session.stateIdentity();
+    const pvRunner = vi.spyOn(session, "runPvRelationsProtocolV1")
+      .mockReturnValue(Object.freeze({
+        source: Object.freeze({
+          revision: source.revision,
+          acceptedTimeSec: source.acceptedTimeSec,
+          fixedTotalBloodVolumeMl: source.totalBloodVolumeMl,
+        }),
+      }) as ReturnType<MainWireScientificSessionV1["runPvRelationsProtocolV1"]>);
+
+    const stable = await kernel.handle(baseCommand(
+      "runPvRelationsProtocol",
+      "request-protocol-identity-stable",
+      sessionId,
+    ));
+    expect(stable).toMatchObject({
+      ok: true,
+      commandKind: "runPvRelationsProtocol",
+      payload: {
+        kind: "pvRelationsProtocolCompleted",
+        sourceSessionUnchanged: true,
+        observableFrame: {
+          revision: source.revision,
+          acceptedTimeSec: source.acceptedTimeSec,
+        },
+      },
+    });
+    expect(pvRunner).toHaveBeenCalledOnce();
+    pvRunner.mockRestore();
+
+    const guytonRunner = vi.spyOn(session, "runGuytonStarlingProtocolV1")
+      .mockReturnValue(Object.freeze({
+        source: Object.freeze({
+          revision: source.revision,
+          acceptedTimeSec: source.acceptedTimeSec,
+          fixedTotalBloodVolumeMl: source.totalBloodVolumeMl,
+        }),
+      }) as ReturnType<MainWireScientificSessionV1["runGuytonStarlingProtocolV1"]>);
+    const identity = vi.spyOn(session, "stateIdentity")
+      .mockReturnValueOnce(source)
+      .mockReturnValue(Object.freeze({
+        ...source,
+        revision: source.revision + 1,
+      }));
+    const mutated = await kernel.handle(baseCommand(
+      "runGuytonStarlingProtocol",
+      "request-protocol-identity-mutated",
+      sessionId,
+    ));
+    expect(mutated).toMatchObject({
+      ok: false,
+      commandKind: "runGuytonStarlingProtocol",
+      error: {
+        code: "command-failed",
+        silentFallbackApplied: false,
+      },
+    });
+    expect(mutated.ok === false ? mutated.error.message : "")
+      .toMatch(/mutated its source session/i);
+    expect(guytonRunner).toHaveBeenCalledOnce();
+    expect(identity).toHaveBeenCalledTimes(2);
+  });
+
   it("runs the typed lifecycle and returns observable frames only", async () => {
     const kernel = new MainWireScientificInProcessKernelV1({
       maximumSessionCount: 2,

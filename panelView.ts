@@ -17,6 +17,8 @@ function graphTypeForPanel(type: PanelType): GraphPanelView["graphType"] | undef
   switch (type) {
     case "PVLOOP":
       return "pvloop";
+    case "PV_RELATIONS":
+      return "pv-relations";
     case "WAVEFORM":
       return "waveform";
     case "GUYTON_RIGHT":

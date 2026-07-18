@@ -53,8 +53,23 @@ import type {
 } from "./ScientificWorkbenchDisplayClockV1";
 import {
   type ScientificProductScenarioPresentationV1,
+  type ScientificProductHemodynamicProtocolKindV1,
+  type ScientificProductHemodynamicProtocolPresentationV1,
   type ScientificProductScenarioRegistryV1,
 } from "./ScientificProductScenarioRegistryV1";
+import {
+  ScientificGuytonLeftPaneV1,
+  ScientificGuytonRightPaneV1,
+  ScientificPvRelationPaneV1,
+  type ScientificGuytonStarlingPaneDataV1,
+  type ScientificGuytonSweepPointV1,
+  type ScientificPvRelationPaneDataV1,
+  type ScientificPvPointV1,
+} from "./ScientificHemodynamicProtocolPanesV1";
+import type {
+  MainWireScientificGuytonStarlingProtocolResultV1,
+  MainWireScientificPvRelationsProtocolResultV1,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import {
   scientificWorkbenchMetricPresentationV1,
 } from "./ScientificWorkbenchMetricPresentationV1";
@@ -288,12 +303,23 @@ export function createScientificWorkbenchRuntimeRendererV1({
     if (
       panel.type === "GUYTON_LEFT"
       || panel.type === "GUYTON_RIGHT"
-      || panel.type === "GUYTON_3D"
+      || panel.type === "PV_RELATIONS"
+    ) {
+      return (
+        <ScientificHemodynamicProtocolPanelV1
+          panel={panel}
+          registry={registry}
+          activeScenarioId={context.activeInstanceId}
+        />
+      );
+    }
+    if (
+      panel.type === "GUYTON_3D"
     ) {
       return (
         <ScientificUnavailablePanelV1
-          title="Unavailable for this release"
-          detail="The Guyton/Starling release-bound observable contract is not implemented. No legacy Worker is started."
+          title="A TBV-only surface would be misleading"
+          detail="Total blood volume defines a one-dimensional preload locus, not a CVP–PCWP surface. A future surface requires a second independently controlled coordinate such as venous tone."
         />
       );
     }
@@ -427,6 +453,429 @@ function ScientificGraphPanelV1({
       />
     </div>
   );
+}
+
+function ScientificHemodynamicProtocolPanelV1({
+  panel,
+  registry,
+  activeScenarioId,
+}: Readonly<{
+  panel: PanelDef;
+  registry: ScientificProductScenarioRegistryV1;
+  activeScenarioId?: string;
+}>) {
+  const presentations = useScientificScenarioPresentationsV1(registry);
+  const eligible = presentations.filter(({ descriptor }) =>
+    descriptor.isVisible && panel.config[descriptor.id]?.visible === true);
+  const selected = eligible.find(({ descriptor }) =>
+    descriptor.id === activeScenarioId) ?? eligible[0];
+  const kind: ScientificProductHemodynamicProtocolKindV1 =
+    panel.type === "PV_RELATIONS" ? "pv-relations" : "guyton-starling";
+  const protocol = useScientificHemodynamicProtocolV1(
+    registry,
+    selected?.descriptor.id ?? null,
+    kind,
+  );
+  const periodicSourceAvailable = selected !== undefined
+    && selected.displayedEvidence !== "open-transient-no-periodic-claim";
+  const latestDisplayedFrame = selected?.frames.at(-1);
+  const protocolMatchesDisplayedSource = protocol.sourceIdentity !== null
+    && latestDisplayedFrame !== undefined
+    && protocol.sourceIdentity.revision === latestDisplayedFrame.revision
+    && Math.abs(
+      protocol.sourceIdentity.acceptedTimeSec
+      - latestDisplayedFrame.acceptedTimeSec,
+    ) <= 1e-10;
+  React.useEffect(() => {
+    if (
+      selected === undefined
+      || !periodicSourceAvailable
+      || protocol.status === "error"
+    ) return;
+    registry.requestHemodynamicProtocol(selected.descriptor.id, kind);
+  }, [kind, periodicSourceAvailable, protocol.status, registry, selected]);
+
+  if (selected === undefined) return <NoScientificSelectionV1 />;
+  if (!periodicSourceAvailable) {
+    return (
+      <div className="flex h-full min-h-0 w-full items-center justify-center p-5">
+        <div className="max-w-lg text-center">
+          <p className="text-sm font-semibold text-wb-text">
+            Protocol waits for a periodic source
+          </p>
+          <p className="mt-2 text-xs leading-5 text-wb-subtle">
+            The live transition remains visible in ordinary waveforms. This
+            multi-beat protocol starts after the next accepted periodic state,
+            so transient frames are not relabelled as steady evidence.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (
+    protocol.status === "complete"
+    && !protocolMatchesDisplayedSource
+  ) {
+    return (
+      <div className="flex h-full min-h-0 w-full items-center justify-center p-5 text-center text-xs text-wb-subtle">
+        Updating the protocol for the new periodic source…
+      </div>
+    );
+  }
+  const rerun = () => registry.requestHemodynamicProtocol(
+    selected.descriptor.id,
+    kind,
+  );
+  if (protocol.status === "error") {
+    return (
+      <div className="flex h-full min-h-0 w-full items-center justify-center p-5">
+        <div className="max-w-lg text-center">
+          <p className="text-sm font-semibold text-rose-300">
+            Hemodynamic protocol did not complete
+          </p>
+          <p className="mt-2 text-xs leading-5 text-wb-subtle">
+            {protocol.errorMessage ?? "Unknown protocol error."}
+          </p>
+          <button
+            type="button"
+            onClick={rerun}
+            className="mt-4 rounded border border-wb-accent/50 bg-wb-accent/10 px-3 py-1.5 text-xs font-semibold text-wb-accent hover:bg-wb-accent/15"
+          >
+            Run again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const scenarioName = selected.descriptor.name;
+  if (kind === "guyton-starling") {
+    const result = protocol.result?.protocolId
+      === "main-wire-scientific-guyton-starling-protocol-v1"
+      ? protocol.result as MainWireScientificGuytonStarlingProtocolResultV1
+      : null;
+    const data = guytonPaneDataV1(
+      panel.type === "GUYTON_LEFT" ? "left" : "right",
+      scenarioName,
+      protocol,
+      result,
+    );
+    return panel.type === "GUYTON_LEFT"
+      ? <ScientificGuytonLeftPaneV1 data={data} />
+      : <ScientificGuytonRightPaneV1 data={data} />;
+  }
+  const result = protocol.result?.protocolId
+    === "main-wire-scientific-pv-relations-protocol-v1"
+    ? protocol.result as MainWireScientificPvRelationsProtocolResultV1
+    : null;
+  return (
+    <ScientificPvRelationPaneV1
+      data={pvRelationPaneDataV1(scenarioName, protocol, result)}
+    />
+  );
+}
+
+function useScientificHemodynamicProtocolV1(
+  registry: ScientificProductScenarioRegistryV1,
+  scenarioId: string | null,
+  kind: ScientificProductHemodynamicProtocolKindV1,
+): ScientificProductHemodynamicProtocolPresentationV1 {
+  return React.useSyncExternalStore(
+    registry.subscribeHemodynamicProtocols,
+    () => scenarioId === null
+      ? EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1[kind]
+      : registry.getHemodynamicProtocol(scenarioId, kind),
+    () => EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1[kind],
+  );
+}
+
+const EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1 = Object.freeze({
+  "guyton-starling": Object.freeze({
+    kind: "guyton-starling" as const,
+    status: "idle" as const,
+    sourceIdentity: null,
+    result: null,
+    errorMessage: null,
+  }),
+  "pv-relations": Object.freeze({
+    kind: "pv-relations" as const,
+    status: "idle" as const,
+    sourceIdentity: null,
+    result: null,
+    errorMessage: null,
+  }),
+}) satisfies Readonly<Record<
+  ScientificProductHemodynamicProtocolKindV1,
+  ScientificProductHemodynamicProtocolPresentationV1
+>>;
+
+function guytonPaneDataV1(
+  side: "right" | "left",
+  scenarioName: string,
+  protocol: ScientificProductHemodynamicProtocolPresentationV1,
+  result: MainWireScientificGuytonStarlingProtocolResultV1 | null,
+): ScientificGuytonStarlingPaneDataV1 {
+  const running = protocol.status === "running" || result === null;
+  if (running) {
+    return Object.freeze({
+      side,
+      title: `${scenarioName} · ${side === "right" ? "Right" : "Left"} Guyton / Starling`,
+      vascularReturnCurve: Object.freeze([]),
+      cardiacPreloadLocus: Object.freeze([]),
+      sweepPoints: Object.freeze([]),
+      status: Object.freeze({
+        status: "running" as const,
+        label: "Running full-Land protocol…",
+        phase: "Cycle-mean vascular snapshot and independent fixed-TBV P1/P2 points",
+        qc: Object.freeze({
+          level: "pending" as const,
+          summary: "The source scenario remains unchanged while the Worker runs.",
+        }),
+      }),
+    });
+  }
+  const vascular = side === "right"
+    ? result.rightVascularFunction
+    : result.leftVascularFunction;
+  const pressure = (point: MainWireScientificGuytonStarlingProtocolResultV1[
+    "preloadOperatingPoints"
+  ][number]) => side === "right"
+    ? point.meanRapTransmuralMmHg
+    : point.meanLapTransmuralMmHg;
+  const p1 = result.preloadOperatingPoints.filter((point) =>
+    point.acceptedForPeriod1Locus
+    && pressure(point) !== null
+    && point.netCardiacOutputLMin !== null);
+  const rejectedCount = result.preloadOperatingPoints.length - p1.length;
+  const baseline = p1.find((point) => point.targetScale === 1);
+  return Object.freeze({
+    side,
+    title: `${scenarioName} · ${side === "right" ? "Right" : "Left"} Guyton / Starling`,
+    vascularReturnCurve: Object.freeze(vascular.points.map((point) =>
+      Object.freeze({
+        pressureMmHg: point.pressureTransmuralMmHg,
+        flowLPerMin: point.flowLMin,
+      }))),
+    cardiacPreloadLocus: Object.freeze(p1.map((point) => Object.freeze({
+      pressureMmHg: pressure(point)!,
+      flowLPerMin: point.netCardiacOutputLMin!,
+    }))),
+    sweepPoints: Object.freeze(result.preloadOperatingPoints.flatMap<ScientificGuytonSweepPointV1>((point) => {
+      if (point.status === "period2-suspect" && point.period2Branches !== null) {
+        return point.period2Branches.map((branch) => Object.freeze({
+          id: `tbv-${point.targetScale}-${branch.branchId}`,
+          pressureMmHg: side === "right"
+            ? branch.meanRapTransmuralMmHg
+            : branch.meanLapTransmuralMmHg,
+          flowLPerMin: branch.netCardiacOutputLMin,
+          totalBloodVolumeMl: point.fixedTotalBloodVolumeMl,
+          classification: "period2" as const,
+          reason: `${branch.branchId} branch of a settled period-2-suspect orbit; excluded`,
+        }));
+      }
+      const x = pressure(point);
+      const y = point.netCardiacOutputLMin;
+      if (x === null || y === null) return [];
+      return [Object.freeze({
+        id: `tbv-${point.targetScale}`,
+        pressureMmHg: x,
+        flowLPerMin: y,
+        totalBloodVolumeMl: point.fixedTotalBloodVolumeMl,
+        classification: point.status === "period1-converged"
+          ? "period1" as const
+          : point.status === "period2-suspect"
+            ? "period2" as const
+            : "rejected" as const,
+        reason: point.failureReason ?? undefined,
+      })];
+    })),
+    operatingPoint: baseline === undefined ? undefined : Object.freeze({
+      pressureMmHg: pressure(baseline)!,
+      flowLPerMin: baseline.netCardiacOutputLMin!,
+      label: "Source operating point",
+    }),
+    vascularCurveLabel: "Fixed-volume vascular function (PV-law derived)",
+    cardiacCurveLabel: "Independent-TBV net aortic-output locus (P1 only)",
+    status: Object.freeze({
+      status: rejectedCount === 0 ? "complete" as const : "partial" as const,
+      label: "Protocol complete",
+      qc: Object.freeze({
+        level: result.baselinePeriodicity === "period1-converged"
+          ? rejectedCount === 0 ? "pass" as const : "warning" as const
+          : "fail" as const,
+        summary: result.baselinePeriodicity === "period1-converged"
+          ? `${p1.length} P1 point${p1.length === 1 ? "" : "s"}; ${rejectedCount} P2-suspect/rejected point${rejectedCount === 1 ? "" : "s"}.`
+          : "The source beat did not reproduce period-1 closure.",
+        details: Object.freeze([
+          "TBV sweep is a one-dimensional closed-loop preload locus, not a Guyton pump experiment or a surface.",
+          "Settled period-2-suspect branches are shown separately and never averaged into the P1 curve.",
+        ]),
+      }),
+    }),
+  });
+}
+
+function pvRelationPaneDataV1(
+  scenarioName: string,
+  protocol: ScientificProductHemodynamicProtocolPresentationV1,
+  result: MainWireScientificPvRelationsProtocolResultV1 | null,
+): ScientificPvRelationPaneDataV1 {
+  if (protocol.status === "running" || result === null) {
+    return Object.freeze({
+      title: `${scenarioName} · LV ESPVR / EDPVR`,
+      chamberLabel: "LV",
+      beats: Object.freeze([]),
+      espvr: Object.freeze({ status: "not-run" as const }),
+      edpvr: Object.freeze({ status: "not-run" as const }),
+      prsw: Object.freeze({ status: "not-run" as const }),
+      status: Object.freeze({
+        status: "running" as const,
+        label: "Running fixed-TBV IVC-like protocol…",
+        phase: "8 loading beats, valve-event extraction, recovery and fit QC",
+        qc: Object.freeze({
+          level: "pending" as const,
+          summary: "Transmural LV pressure is used; the source session is read-only.",
+        }),
+      }),
+    });
+  }
+  const analysis = result.analysis;
+  const volumeValues = result.rampBeats.flatMap((beat) => [
+    beat.endDiastolic?.volumeMl,
+    beat.endSystolic?.volumeMl,
+  ].filter((value): value is number => value !== undefined));
+  const volumeMin = volumeValues.length > 0 ? Math.min(...volumeValues) : 0;
+  const volumeMax = volumeValues.length > 0 ? Math.max(...volumeValues) : 1;
+  const volumes = Array.from({ length: 64 }, (_, index) =>
+    volumeMin + (volumeMax - volumeMin) * index / 63);
+  const linear = analysis.espvr.fit;
+  const quadratic = analysis.quadraticEspvrSensitivity;
+  const edpvr = analysis.edpvr.fit;
+  const rejectSummary = (reasons: readonly Readonly<{ message: string }>[]) =>
+    reasons.map(({ message }) => message).join(" ");
+  return Object.freeze({
+    title: `${scenarioName} · LV ESPVR / EDPVR`,
+    chamberLabel: "LV",
+    beats: Object.freeze(result.rampBeats.map((beat) => Object.freeze({
+      id: `ivc-beat-${beat.beatIndex}`,
+      points: Object.freeze(beat.samples.map((sample) => Object.freeze({
+        volumeMl: sample.lvVolumeMl,
+        transmuralPressureMmHg: sample.lvTransmuralPressureMmHg,
+      }))),
+      classification: beat.classification,
+      endDiastolic: beat.endDiastolic === null ? undefined : Object.freeze({
+        event: "end-diastole" as const,
+        volumeMl: beat.endDiastolic.volumeMl,
+        transmuralPressureMmHg: beat.endDiastolic.pressureTransmuralMmHg,
+      }),
+      endSystolic: beat.endSystolic === null ? undefined : Object.freeze({
+        event: "end-systole" as const,
+        volumeMl: beat.endSystolic.volumeMl,
+        transmuralPressureMmHg: beat.endSystolic.pressureTransmuralMmHg,
+      }),
+      rejectionReason: beat.rejectionReason ?? undefined,
+    }))),
+    espvr: linear !== null
+      ? Object.freeze({
+        status: analysis.espvr.status === "accepted"
+          ? "valid" as const
+          : "invalid" as const,
+        linear: Object.freeze({
+          points: pvFitPoints(volumes, (volumeMl) =>
+            linear.endSystolicElastanceMmHgPerMl
+              * (volumeMl - linear.volumeAxisInterceptMl)),
+          rSquared: linear.diagnostics.r2,
+          rmseMmHg: linear.diagnostics.rmse,
+          endSystolicElastanceMmHgPerMl:
+            linear.endSystolicElastanceMmHgPerMl,
+          volumeAxisInterceptMl: linear.volumeAxisInterceptMl,
+        }),
+        quadraticSensitivity: quadratic === null ? undefined : Object.freeze({
+          points: pvFitPoints(volumes, (volumeMl) =>
+            quadratic.quadraticCoefficientMmHgPerMl2 * volumeMl ** 2
+            + quadratic.linearCoefficientMmHgPerMl * volumeMl
+            + quadratic.interceptMmHg),
+          rSquared: quadratic.diagnostics.r2,
+          rmseMmHg: quadratic.diagnostics.rmse,
+          rmseImprovementPercent:
+            100 * quadratic.rmseImprovementFractionOverLinear,
+          localSlopeVariationPercent:
+            100 * quadratic.localSlopeVariationFraction,
+        }),
+        invalidReason: analysis.espvr.status === "accepted"
+          ? undefined
+          : rejectSummary(analysis.espvr.rejectReasons),
+      })
+      : Object.freeze({
+        status: "invalid" as const,
+        invalidReason: rejectSummary(analysis.espvr.rejectReasons),
+      }),
+    edpvr: analysis.edpvr.status === "accepted" && edpvr !== null
+      ? Object.freeze({
+        status: "valid" as const,
+        exponential: Object.freeze({
+          points: pvFitPoints(volumes, (volumeMl) =>
+            edpvr.referencePressureMmHg + edpvr.alphaMmHg
+              * (Math.exp(edpvr.betaPerMl
+                * (volumeMl - edpvr.referenceVolumeMl)) - 1)),
+          rSquared: edpvr.diagnostics.r2,
+          rmseMmHg: edpvr.diagnostics.rmse,
+          pressureOffsetMmHg: edpvr.referencePressureMmHg,
+          alphaMmHg: edpvr.alphaMmHg,
+          betaPerMl: edpvr.betaPerMl,
+          referenceVolumeMl: edpvr.referenceVolumeMl,
+          baselineTangentStiffnessMmHgPerMl:
+            edpvr.tangentStiffnessAtBaselineMmHgPerMl,
+        }),
+      })
+      : Object.freeze({
+        status: "invalid" as const,
+        invalidReason: rejectSummary(analysis.edpvr.rejectReasons),
+      }),
+    prsw: analysis.prsw.status === "accepted" && analysis.prsw.fit !== null
+      ? Object.freeze({
+        status: "valid" as const,
+        slopeMmHg:
+          analysis.prsw.fit.preloadRecruitableStrokeWorkSlopeMmHg,
+        volumeAxisInterceptMl: analysis.prsw.fit.volumeAxisInterceptMl,
+        rSquared: analysis.prsw.fit.diagnostics.r2,
+      })
+      : Object.freeze({
+        status: "invalid" as const,
+        invalidReason: rejectSummary(analysis.prsw.rejectReasons),
+      }),
+    status: Object.freeze({
+      status: analysis.overallStatus === "accepted"
+        ? "complete" as const
+        : "invalid" as const,
+      label: analysis.overallStatus === "accepted"
+        ? "Protocol and fits accepted"
+        : "Raw loops retained; one or more fits withheld",
+      qc: Object.freeze({
+        level: analysis.overallStatus === "accepted"
+          ? "pass" as const
+          : "warning" as const,
+        summary: analysis.overallStatus === "accepted"
+          ? `${analysis.includedFitEligiblePointIds.length} fixed-TBV transient loading beats passed QC.`
+          : "QC withholds one or more relation claims; raw evidence remains visible.",
+        details: Object.freeze([
+          `Baseline: ${result.baselinePeriodicity}`,
+          `Recovery: ${result.recovery.status}; baseline-state delta ${result.recovery.maximumRelativeBaselineStateDelta.toExponential(2)}`,
+          `EDPVR V₀ prior: Klotz-informed ${result.edpvrReference.referenceVolumeMl.toFixed(1)} mL; the multi-beat curve is an operating envelope, not a passive material test.`,
+        ]),
+      }),
+    }),
+  });
+}
+
+function pvFitPoints(
+  volumes: readonly number[],
+  pressure: (volumeMl: number) => number,
+): readonly ScientificPvPointV1[] {
+  return Object.freeze(volumes.map((volumeMl) => Object.freeze({
+    volumeMl,
+    transmuralPressureMmHg: pressure(volumeMl),
+  })));
 }
 
 function ScientificMetricsPanelV1({
@@ -941,9 +1390,11 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
       ? "WAVEFORM"
       : view.graphType === "guyton-left"
         ? "GUYTON_LEFT"
-        : view.graphType === "guyton-right"
+      : view.graphType === "guyton-right"
           ? "GUYTON_RIGHT"
-          : "GUYTON_3D";
+          : view.graphType === "pv-relations"
+            ? "PV_RELATIONS"
+            : "GUYTON_3D";
   return {
     id: view.id,
     sourceViewId: view.id,

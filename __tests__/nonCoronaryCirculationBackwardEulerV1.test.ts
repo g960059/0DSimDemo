@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   baseNonValveEdgeLossV1,
@@ -648,6 +648,107 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
         ),
         10,
       );
+    }
+  });
+
+  it("keeps the protocol resistance seam neutral at unity and applies it only to the selected non-valve edge", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const callback = elasticMechanicsCallback(initial);
+    const baseline = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics: callback,
+    });
+    const unity = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      protocolResistanceScaleByEdge: Object.freeze({ VC_RA: 1 }),
+      evaluateCandidateMechanics: callback,
+    });
+    expect(unity).toEqual(baseline);
+
+    const vcRaResistanceScale = 8;
+    const occluded = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      protocolResistanceScaleByEdge: Object.freeze({
+        VC_RA: vcRaResistanceScale,
+      }),
+      evaluateCandidateMechanics: callback,
+    });
+    expect(occluded.converged).toBe(true);
+    if (occluded.converged === false) throw new Error(occluded.message);
+
+    const graph = buildNonCoronaryCirculationGraphV1();
+    const edge = graph.edges[graph.edgeIndex.get("VC_RA")]!;
+    const upstreamPressure = occluded.nodeAbsolutePressuresMmHg.VC;
+    const downstreamPressure = occluded.nodeAbsolutePressuresMmHg.RA;
+    const edgeExternalPressure = respiratoryExternalPressureForKindV1(
+      edge.ext === "pth" || edge.ext === "palv" ? edge.ext : "none",
+      occluded.candidateTimeSec,
+      RUNTIME.respiratory,
+    );
+    const effectiveDownstream = downstreamEffectivePressureV1({
+      edge,
+      downstreamPressureMmHg: downstreamPressure,
+      edgeExternalPressureMmHg: edgeExternalPressure,
+    });
+    const unscaledLosses = nonValveEdgeLossV1({
+      edge,
+      params: RUNTIME.losses,
+      upstreamPressureMmHg: upstreamPressure,
+      downstreamPressureMmHg: downstreamPressure,
+      edgeExternalPressureMmHg: edgeExternalPressure,
+    });
+    expect(occluded.edgeFlowsMlPerSec.VC_RA).toBeCloseTo(
+      solveSignedLinearQuadraticFlowV1(
+        upstreamPressure - effectiveDownstream,
+        unscaledLosses.resistanceMmHgSecPerMl * vcRaResistanceScale,
+        unscaledLosses.quadraticLossMmHgSec2PerMl2,
+      ),
+      10,
+    );
+    expect(Math.abs(occluded.diagnostics.totalBloodVolumeErrorMl))
+      .toBeLessThan(1e-9);
+    expect(occluded.reverseFlowCapOrClampOnNonvalveEdges).toBe(false);
+  });
+
+  it("rejects malformed protocol resistance scales before evaluating mechanics", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const malformed = [
+      { label: "zero", scale: { VC_RA: 0 } },
+      { label: "non-finite", scale: { VC_RA: Number.NaN } },
+      { label: "valve", scale: { MV: 2 } },
+      { label: "unknown", scale: { caller_owned_edge: 2 } },
+    ] as const;
+
+    for (const fixture of malformed) {
+      const callback = vi.fn(elasticMechanicsCallback(initial));
+      const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+        previousAcceptedState: initial,
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        protocolResistanceScaleByEdge:
+          fixture.scale as unknown as Record<"VC_RA", number>,
+        evaluateCandidateMechanics: callback,
+      });
+      expect(trial.converged, fixture.label).toBe(false);
+      if (trial.converged === true) throw new Error("expected invalid input");
+      expect(trial.reason, fixture.label).toBe("invalid-input");
+      expect(trial.rollbackState, fixture.label).toEqual(initial);
+      expect(trial.diagnostics.mechanicsCallbackCallCount, fixture.label).toBe(0);
+      expect(callback, fixture.label).not.toHaveBeenCalled();
     }
   });
 

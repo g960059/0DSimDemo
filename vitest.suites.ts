@@ -91,6 +91,7 @@ export const fastTests = [
   "__tests__/readingPresenter.test.ts",
   "__tests__/scientificWorkbenchOfficialCycleV1.test.ts",
   "__tests__/scientificProductScenarioRegistryV1.test.ts",
+  "__tests__/scientificHemodynamicProtocolPanesV1.test.ts",
   "__tests__/scientificWorkbenchChartDomainsV1.test.ts",
   "__tests__/scientificWorkbenchDisplayClockV1.test.ts",
   "__tests__/scientificWorkbenchMetricPresentationV1.test.ts",
@@ -110,9 +111,6 @@ export const fastTests = [
   "__tests__/workbenchPersistence.test.ts",
   "__tests__/workbenchRuntimeAuthoringSeams.test.ts",
   "__tests__/workbenchViewSpec.test.ts",
-  "components/__tests__/guytonPaneChrome.test.ts",
-  "components/__tests__/guytonStarlingWorkerClient.test.ts",
-  "components/__tests__/guytonSteadyMapTransition.test.ts",
   "components/__tests__/pvLoopPoints.test.ts",
   "engine/__tests__/activeStressSourcePressureAdapter.test.ts",
   "engine/__tests__/caseDoc.test.ts",
@@ -187,6 +185,9 @@ export const prSmokeTests = [
 
 export const regressionTests = [
   "__tests__/officialAfterloadCase.test.ts",
+  "components/__tests__/guytonPaneChrome.test.ts",
+  "components/__tests__/guytonStarlingWorkerClient.test.ts",
+  "components/__tests__/guytonSteadyMapTransition.test.ts",
   "engine/__tests__/atrialPhysiologyBridgeV2.test.ts",
   "engine/__tests__/baseline.test.ts",
   "engine/__tests__/caseContract.test.ts",

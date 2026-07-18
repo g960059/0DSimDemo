@@ -373,6 +373,10 @@ export class MainWireScientificInProcessKernelV1 {
         return this.dispose(command);
       case "settlePeriodic":
         return this.settlePeriodic(command);
+      case "runGuytonStarlingProtocol":
+        return this.runGuytonStarlingProtocol(command);
+      case "runPvRelationsProtocol":
+        return this.runPvRelationsProtocol(command);
     }
   }
 
@@ -1158,6 +1162,72 @@ export class MainWireScientificInProcessKernelV1 {
         finalObservableFrame,
       }),
     );
+  }
+
+  private runGuytonStarlingProtocol(
+    command: Extract<ScientificCommandV1, {
+      kind: "runGuytonStarlingProtocol";
+    }>,
+  ): MainWireScientificCommandResponseV1 {
+    const session = this.sessions.get(command.sessionId);
+    if (session === undefined) return unknownSession(command);
+    const sessionOrigin = this.requiredSessionOrigin(command.sessionId);
+    const before = session.stateIdentity();
+    try {
+      const result = session.runGuytonStarlingProtocolV1();
+      const after = session.stateIdentity();
+      assertSameStateIdentity(before, after, "Guyton/Starling protocol");
+      return successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "guytonStarlingProtocolCompleted" as const,
+          result,
+          sourceSessionUnchanged: true as const,
+          observableFrame: project(session),
+        }),
+      );
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private runPvRelationsProtocol(
+    command: Extract<ScientificCommandV1, {
+      kind: "runPvRelationsProtocol";
+    }>,
+  ): MainWireScientificCommandResponseV1 {
+    const session = this.sessions.get(command.sessionId);
+    if (session === undefined) return unknownSession(command);
+    const sessionOrigin = this.requiredSessionOrigin(command.sessionId);
+    const before = session.stateIdentity();
+    try {
+      const result = session.runPvRelationsProtocolV1();
+      const after = session.stateIdentity();
+      assertSameStateIdentity(before, after, "PV relations protocol");
+      return successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "pvRelationsProtocolCompleted" as const,
+          result,
+          sourceSessionUnchanged: true as const,
+          observableFrame: project(session),
+        }),
+      );
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        errorMessage(error),
+      );
+    }
   }
 
   private sessionAllocationError(
@@ -1947,4 +2017,24 @@ function hasExactKeys(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function assertSameStateIdentity(
+  before: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+  }>,
+  after: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+  }>,
+  label: string,
+): void {
+  if (
+    before.revision !== after.revision
+    || before.acceptedTimeSec !== after.acceptedTimeSec
+    || before.totalBloodVolumeMl !== after.totalBloodVolumeMl
+  ) throw new Error(`${label} mutated its source session`);
 }
