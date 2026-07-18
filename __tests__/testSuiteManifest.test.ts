@@ -3,12 +3,14 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   FAST_SUITE_FILE_BUDGET,
+  PR_SMOKE_SUITE_FILE_BUDGET,
   classifyTestFile,
   fastTests,
   heavyTests,
   isArchivedResearchTest,
   isCanonicalScientificTest,
   regressionTests,
+  prSmokeTests,
   rulesTests,
 } from "../vitest.suites";
 
@@ -77,6 +79,16 @@ describe("Vitest suite ownership manifest", () => {
 
     expect(fastTests.length).toBeLessThanOrEqual(FAST_SUITE_FILE_BUDGET);
     expect(fastTests.filter((file) => researchMarkers.test(file))).toEqual([]);
+  });
+
+  it("keeps the PR smoke gate bounded and limited to registered tests", () => {
+    const registered = new Set(discoverTestFiles());
+    const duplicates = prSmokeTests.filter((file, index) =>
+      prSmokeTests.indexOf(file) !== index);
+
+    expect(prSmokeTests.length).toBeLessThanOrEqual(PR_SMOKE_SUITE_FILE_BUDGET);
+    expect(prSmokeTests.filter((file) => !registered.has(file))).toEqual([]);
+    expect(duplicates).toEqual([]);
   });
 
   it("keeps classifyTestFile consistent with the ownership checks", () => {

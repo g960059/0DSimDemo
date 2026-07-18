@@ -700,10 +700,9 @@ function ScientificControllerPanelV1({
           })}
         </div>
       </div>
-      {(snapshot.steadyActive || snapshot.liveActive || snapshot.phase === "failed") && (
+      {snapshot.steadyActive && (
         <div className="shrink-0 border-t border-wb-line bg-wb-strip px-2 py-2">
           <div className="flex gap-1">
-          {snapshot.steadyActive && (
             <button
               type="button"
               onClick={actions.cancelSteady}
@@ -711,26 +710,7 @@ function ScientificControllerPanelV1({
             >
               Cancel
             </button>
-          )}
-          {snapshot.liveActive && (
-            <button
-              type="button"
-              onClick={snapshot.phase === "live-paused" ? actions.resumeLive : actions.pauseLive}
-              className="min-h-7 rounded border border-wb-line px-2 text-[11px] text-wb-muted"
-            >
-              {snapshot.phase === "live-paused" ? "Resume" : "Pause"}
-            </button>
-          )}
-          {(snapshot.liveActive || snapshot.phase === "failed") && (
-            <button
-              type="button"
-              onClick={actions.resetLiveOrFailure}
-              className="min-h-7 rounded border border-wb-line px-2 text-[11px] text-wb-muted"
-            >
-              Reset
-            </button>
-          )}
-        </div>
+          </div>
         </div>
       )}
     </div>

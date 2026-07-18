@@ -68,10 +68,38 @@ test("repeated live retargets keep advancing and visibility auto-pause resumes",
     await evidence.getAttribute("data-scientific-final-revision"),
   )).toBeGreaterThan(resumedRevision);
 
-  await controller.getByRole("button", { name: "Pause", exact: true }).click();
+  const headerPause = page.getByRole("button", { name: "一時停止", exact: true });
+  await headerPause.click();
   await expect(controller).toHaveAttribute("data-phase", "live-paused");
-  await controller.getByRole("button", { name: "Reset", exact: true }).click();
-  await expect(controller).toHaveAttribute("data-phase", "idle");
+  const pausedRevision = finiteAttribute(
+    await evidence.getAttribute("data-scientific-final-revision"),
+  );
+  await expect.poll(async () => finiteAttribute(
+    await evidence.getAttribute("data-scientific-final-revision"),
+  )).toBe(pausedRevision);
+  await expect(controller.getByRole("button", { name: /Resume|Reset/ }))
+    .toHaveCount(0);
+
+  // Visibility auto-resume must remain subordinate to the global header gate.
+  await setDocumentHidden(page, true);
+  await setDocumentHidden(page, false);
+  await expect(controller).toHaveAttribute("data-phase", "live-paused");
+  await page.waitForTimeout(200);
+  expect(finiteAttribute(
+    await evidence.getAttribute("data-scientific-final-revision"),
+  )).toBe(pausedRevision);
+
+  await page.getByRole("button", { name: "1x", exact: true }).click();
+  await page.getByRole("button", { name: "5x", exact: true }).click();
+  await expect(page.getByRole("button", { name: "5x", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "再生", exact: true }).click();
+  await expect(controller).toHaveAttribute("data-phase", "live-running");
+  await expect.poll(async () => finiteAttribute(
+    await evidence.getAttribute("data-scientific-final-revision"),
+  )).toBeGreaterThan(pausedRevision);
+
+  await page.getByRole("button", { name: "一時停止", exact: true }).click();
+  await expect(controller).toHaveAttribute("data-phase", "live-paused");
   expect(browserErrors).toEqual([]);
 });
 

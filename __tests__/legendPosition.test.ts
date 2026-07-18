@@ -102,7 +102,8 @@ describe("InteractiveGraphLegend", () => {
     expect(html).toContain('data-testid="scientific-workbench-chart-legend-v1"');
     expect(html).toContain('data-legend-placement="custom"');
     expect(html).toContain('role="button"');
-    expect(html).toContain("Healthy (Left ventricle)");
+    expect(html).toContain('aria-label="Healthy, Left ventricle"');
+    expect(html).toContain(">Left ventricle</span>");
   });
 });
 

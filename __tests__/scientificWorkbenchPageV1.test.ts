@@ -21,6 +21,7 @@ import {
   ScientificWorkbenchResearchControlMirrorV0,
   remainingScientificWorkbenchRegularRequestCountV0,
   reserveScientificWorkbenchRequestIdentityV0,
+  scientificWorkbenchLiveChunkDelayMsV0,
   scientificWorkbenchDisplayedFrameOwnerV0,
   SCIENTIFIC_WORKBENCH_LIVE_HISTORY_FRAME_LIMIT_V0,
   SCIENTIFIC_WORKBENCH_LIVE_STEPS_PER_COMMAND_V0,
@@ -393,6 +394,35 @@ describe("document-bound scientific workbench page V1", () => {
     expect(controller).toContain('current.phase === "live-forking"');
     expect(controller).toContain("operationGenerationRef.current += 1");
     expect(controller).toContain("Live transition cancelled before presentation");
+  });
+
+  it("paces live accepted-step commands from the Workbench speed without changing dt", () => {
+    // 16 accepted 2 ms steps represent 32 ms of simulated time. The header
+    // multiplier changes only the wall-time pacing budget around that exact
+    // scientific command.
+    expect(scientificWorkbenchLiveChunkDelayMsV0(0, 0.5)).toBe(64);
+    expect(scientificWorkbenchLiveChunkDelayMsV0(0, 1)).toBe(32);
+    expect(scientificWorkbenchLiveChunkDelayMsV0(0, 2)).toBe(16);
+    expect(scientificWorkbenchLiveChunkDelayMsV0(0, 5)).toBeCloseTo(6.4);
+    expect(scientificWorkbenchLiveChunkDelayMsV0(40, 0.5)).toBe(24);
+    expect(scientificWorkbenchLiveChunkDelayMsV0(40, 5)).toBe(0);
+    expect(() => scientificWorkbenchLiveChunkDelayMsV0(-1, 1)).toThrow(
+      /elapsed time must be non-negative/,
+    );
+    expect(() => scientificWorkbenchLiveChunkDelayMsV0(0, 0)).toThrow(
+      /time scale must be positive/,
+    );
+
+    const route = read(
+      "components/scientificProduct/ScientificProductWorkbenchRouteV1.tsx",
+    );
+    expect(route).toContain("playbackRunning={isPlaying}");
+    expect(route).toContain("playbackTimeScale={timeScale}");
+    const productRenderer = read(
+      "components/scientificProduct/ScientificWorkbenchRuntimeRendererV1.tsx",
+    );
+    expect(productRenderer).not.toContain(">Resume<");
+    expect(productRenderer).not.toContain(">Reset<");
   });
 
   it("rejects evaluated readbacks and changed accepted state at the fork boundary", () => {

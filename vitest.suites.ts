@@ -8,6 +8,7 @@
  */
 
 export const FAST_SUITE_FILE_BUDGET = 120;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
 
 export const fastTests = [
   "__tests__/caseCloud.test.ts",
@@ -90,6 +91,7 @@ export const fastTests = [
   "__tests__/readingPresenter.test.ts",
   "__tests__/scientificWorkbenchOfficialCycleV1.test.ts",
   "__tests__/scientificProductScenarioRegistryV1.test.ts",
+  "__tests__/scientificWorkbenchChartDomainsV1.test.ts",
   "__tests__/scientificWorkbenchDisplayClockV1.test.ts",
   "__tests__/scientificWorkbenchMetricPresentationV1.test.ts",
   "__tests__/scientificWorkbenchPageV1.test.ts",
@@ -125,11 +127,62 @@ export const fastTests = [
   "engine/__tests__/leftFillingReview.test.ts",
   "engine/__tests__/lessonDoc.test.ts",
   "engine/__tests__/modelCoreExperimentalActiveProviderState.test.ts",
-  "engine/__tests__/modelCoreRuntimeActiveSource.test.ts",
   "engine/__tests__/officialCaseBridge.test.ts",
   "engine/__tests__/starlingFit.test.ts",
   "engine/__tests__/transitionSteadyProtocol.test.ts",
   "engine/__tests__/valveTiming.test.ts",
+] as const;
+
+/**
+ * Bounded pull-request gate for the browser-visible scientific runtime.
+ *
+ * The full fast suite still runs on main and remains the local broad check.
+ * PR iteration instead protects the release/session/control/chart/Workbench
+ * seams that can affect the current product, without collecting every legacy
+ * case, lesson, Reading, and rollback-runtime unit file on a two-core runner.
+ */
+export const prSmokeTests = [
+  "__tests__/commonPericardiumV1.test.ts",
+  "__tests__/controllerBinding.test.ts",
+  "__tests__/controllerItemControl.test.ts",
+  "__tests__/controllerItems.test.ts",
+  "__tests__/energyConjugateTriSegV1.test.ts",
+  "__tests__/layoutOps.test.ts",
+  "__tests__/legendPosition.test.ts",
+  "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
+  "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
+  "__tests__/mainWireHealthyCycleAcceptanceV1.test.ts",
+  "__tests__/mainWireOfficialHealthyPeriodicCheckpointPresetV1.test.ts",
+  "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",
+  "__tests__/mainWireScientificBrowserWorkerTransportV1.test.ts",
+  "__tests__/mainWireScientificDerivedMetricRegistryV1.test.ts",
+  "__tests__/mainWireScientificExactCheckpointV3.test.ts",
+  "__tests__/mainWireScientificResearchControlCatalogV0.test.ts",
+  "__tests__/mainWireScientificResearchControlForkV0.test.ts",
+  "__tests__/mainWireScientificResearchControlWorkerV0.test.ts",
+  "__tests__/mainWireScientificResearchPresetCatalogV1.test.ts",
+  "__tests__/mainWireScientificResolvedSessionInputV1.test.ts",
+  "__tests__/mainWireScientificResolvedWorkerProtocolV1.test.ts",
+  "__tests__/mainWireScientificWorkerKernelV1.test.ts",
+  "__tests__/mainWireScientificWorkspaceRendererV1.test.ts",
+  "__tests__/panelGrid.test.ts",
+  "__tests__/pvLoopPoints.test.ts",
+  "__tests__/pvLoopTransition.test.ts",
+  "__tests__/scientificProductScenarioRegistryV1.test.ts",
+  "__tests__/scientificWorkbenchChartDomainsV1.test.ts",
+  "__tests__/scientificWorkbenchDisplayClockV1.test.ts",
+  "__tests__/scientificWorkbenchMetricPresentationV1.test.ts",
+  "__tests__/scientificWorkbenchOfficialCycleV1.test.ts",
+  "__tests__/scientificWorkbenchPageV1.test.ts",
+  "__tests__/scientificWorkbenchTerminalCycleV1.test.ts",
+  "__tests__/simulationReleaseV1.test.ts",
+  "__tests__/testSuiteManifest.test.ts",
+  "__tests__/waveformPhaseWipe.test.ts",
+  "__tests__/workbenchDefaults.test.ts",
+  "__tests__/workbenchGraphBoardLayout.test.ts",
+  "__tests__/workbenchPanelModel.test.ts",
+  "__tests__/workbenchRuntimeAuthoringSeams.test.ts",
+  "__tests__/workbenchViewSpec.test.ts",
 ] as const;
 
 export const regressionTests = [
@@ -149,6 +202,7 @@ export const regressionTests = [
   "engine/__tests__/interactionMechanics.test.ts",
   "engine/__tests__/knobs.test.ts",
   "engine/__tests__/modelCoreAtrialPressureDecomposition.test.ts",
+  "engine/__tests__/modelCoreRuntimeActiveSource.test.ts",
   "engine/__tests__/objective.test.ts",
   "engine/__tests__/observables.test.ts",
   "engine/__tests__/officialCases.test.ts",

@@ -3,6 +3,8 @@ import path from "node:path";
 import process from "node:process";
 
 const DEFAULT_FAST_SUITE_WALL_BUDGET_MS = 60_000;
+const suiteLabel = process.env.CIRCLEHEART_TEST_SUITE_LABEL || "Fast suite";
+const configFile = process.env.CIRCLEHEART_VITEST_CONFIG || "vitest.fast.config.ts";
 
 const configuredBudget = Number(process.env.CIRCLEHEART_FAST_TEST_BUDGET_MS);
 const budgetMs = Number.isFinite(configuredBudget) && configuredBudget > 0
@@ -13,7 +15,7 @@ const vitestEntry = path.resolve("node_modules/vitest/vitest.mjs");
 const usesProcessGroup = process.platform !== "win32";
 const child = spawn(
   process.execPath,
-  [vitestEntry, "run", "--config", "vitest.fast.config.ts", ...process.argv.slice(2)],
+  [vitestEntry, "run", "--config", configFile, ...process.argv.slice(2)],
   {
     stdio: "inherit",
     env: process.env,
@@ -43,7 +45,7 @@ const terminateChildTree = (signal) => {
 
 const timer = setTimeout(() => {
   exceededBudget = true;
-  console.error(`\nFast suite exceeded its ${(budgetMs / 1000).toFixed(0)} s wall-clock budget.`);
+  console.error(`\n${suiteLabel} exceeded its ${(budgetMs / 1000).toFixed(0)} s wall-clock budget.`);
   terminateChildTree("SIGTERM");
   escalationTimer = setTimeout(() => terminateChildTree("SIGKILL"), 2_000);
   escalationTimer.unref();
@@ -70,13 +72,13 @@ child.on("exit", (code, signal) => {
   }
 
   if (signal) {
-    console.error(`Fast suite terminated by ${signal} after ${elapsedSeconds.toFixed(2)} s.`);
+    console.error(`${suiteLabel} terminated by ${signal} after ${elapsedSeconds.toFixed(2)} s.`);
     process.exitCode = 1;
     return;
   }
 
   if (code === 0) {
-    console.log(`Fast suite completed in ${elapsedSeconds.toFixed(2)} s (budget ${(budgetMs / 1000).toFixed(0)} s).`);
+    console.log(`${suiteLabel} completed in ${elapsedSeconds.toFixed(2)} s (budget ${(budgetMs / 1000).toFixed(0)} s).`);
   }
   process.exitCode = code ?? 1;
 });

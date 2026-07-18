@@ -34,6 +34,8 @@ export type InteractiveGraphLegendProps = Readonly<{
   testId?: string;
   ariaLabel?: string;
   interactionTitle?: string;
+  /** Reports measured legend height without forcing chart rerenders. */
+  onMeasuredHeightChange?: (height: number) => void;
 }>;
 
 const EMPTY_LAYOUT: LegendLayout = {
@@ -77,6 +79,7 @@ export function InteractiveGraphLegend({
   testId,
   ariaLabel = "Open pane settings",
   interactionTitle = "Drag to move · click to edit",
+  onMeasuredHeightChange,
 }: InteractiveGraphLegendProps) {
   const legendRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<LegendDragState | null>(null);
@@ -106,9 +109,10 @@ export function InteractiveGraphLegend({
         height: legend.offsetHeight || rect.height,
       },
     };
+    onMeasuredHeightChange?.(next.legend.height);
     setLayout((previous) => sameLayout(previous, next) ? previous : next);
     return next;
-  }, []);
+  }, [onMeasuredHeightChange]);
 
   useEffect(() => {
     const legend = legendRef.current;

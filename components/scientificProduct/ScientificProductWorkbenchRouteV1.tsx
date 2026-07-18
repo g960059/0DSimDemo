@@ -430,6 +430,8 @@ function ScientificProductWorkbenchShellV1({
             renderController={false}
             renderWorkspace={false}
             surface="product"
+            playbackRunning={isPlaying}
+            playbackTimeScale={timeScale}
           />
         );
       })}

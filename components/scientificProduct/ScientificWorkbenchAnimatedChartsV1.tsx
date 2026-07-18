@@ -65,6 +65,8 @@ export type ScientificWorkbenchPvSeriesV1 = Readonly<{
 }>;
 
 const PLOT_PADDING = Object.freeze({ left: 48, right: 16, top: 24, bottom: 32 });
+const DEFAULT_LEGEND_TOP_PX = 8;
+const LEGEND_TO_PLOT_GAP_PX = 8;
 const SWEEP_GAP_FRACTION = 0.025;
 const CAP_RADIUS_PX = 4;
 const TRANSIENT_VALUE_CACHE = new WeakMap<
@@ -94,10 +96,16 @@ export function ScientificWorkbenchWaveformCanvasV1({
 }>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const legendHeightRef = React.useRef(0);
+  const onLegendHeightChange = React.useCallback((height: number) => {
+    legendHeightRef.current = height;
+  }, []);
   const seriesRef = React.useRef(series);
   seriesRef.current = series;
   const visible = useDocumentVisible();
   const timeWindowSec = Math.max(0.25, timeWindowMs / 1_000);
+  const reserveLegendSpace =
+    showLegend && legendInteraction?.legendPosition === undefined;
   const legend = React.useMemo(() => series.map((item) => ({
     key: item.key,
     color: item.color,
@@ -109,7 +117,14 @@ export function ScientificWorkbenchWaveformCanvasV1({
     if (!visible) return undefined;
     return animateCanvas(containerRef, canvasRef, (ctx, width, height, nowMs) => {
       const currentSeries = seriesRef.current;
-      const plot = plotRect(width, height);
+      const plot = plotRect(
+        width,
+        height,
+        scientificChartPlotTopV1(
+          legendHeightRef.current,
+          reserveLegendSpace,
+        ),
+      );
       const theme = canvasTheme(containerRef.current);
       const clockElapsedSeconds = clock.read(nowMs).elapsedSeconds;
       const sharedElapsedSeconds = scientificSharedOpenTransientElapsedSecondsV1(currentSeries)
@@ -121,7 +136,7 @@ export function ScientificWorkbenchWaveformCanvasV1({
         .map(({ value }) => value)
         .filter((value): value is number => value !== null && Number.isFinite(value));
       drawWaveformAxes(ctx, plot, width, height, finiteValues, timeWindowSec, theme);
-      const domain = paddedDomain(finiteValues, false);
+      const domain = scientificChartDomainV1(finiteValues);
       const x = d3.scaleLinear().domain([0, timeWindowSec]).range([plot.left, plot.right]);
       const y = d3.scaleLinear().domain(domain).range([plot.bottom, plot.top]);
 
@@ -179,7 +194,13 @@ export function ScientificWorkbenchWaveformCanvasV1({
       }
       publishCanvasEvidence(canvasRef.current, cursor, firstCap, width, height);
     });
-  }, [clock, timeWindowSec, visible]);
+  }, [
+    clock,
+    reserveLegendSpace,
+    showLegend,
+    timeWindowSec,
+    visible,
+  ]);
 
   return (
     <div
@@ -191,6 +212,7 @@ export function ScientificWorkbenchWaveformCanvasV1({
         <ScientificWorkbenchChartLegendV1
           entries={legend}
           interaction={legendInteraction}
+          onMeasuredHeightChange={onLegendHeightChange}
         />
       )}
       <canvas ref={canvasRef} className="block pointer-events-auto" data-chart-kind="waveform" />
@@ -215,6 +237,10 @@ export function ScientificWorkbenchPvLoopCanvasV1({
 }>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const legendHeightRef = React.useRef(0);
+  const onLegendHeightChange = React.useCallback((height: number) => {
+    legendHeightRef.current = height;
+  }, []);
   const seriesRef = React.useRef(series);
   seriesRef.current = series;
   const lastPeriodicTrajectoryBySeriesRef = React.useRef(
@@ -229,6 +255,8 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     retainedSourceTrajectoryBySeriesRef.current,
   );
   const visible = useDocumentVisible();
+  const reserveLegendSpace =
+    showLegend && legendInteraction?.legendPosition === undefined;
   const legend = React.useMemo(() => series.map((item) => ({
     key: item.key,
     color: item.color,
@@ -267,7 +295,14 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     if (!visible) return undefined;
     return animateCanvas(containerRef, canvasRef, (ctx, width, height, nowMs) => {
       const currentSeries = seriesRef.current;
-      const plot = plotRect(width, height);
+      const plot = plotRect(
+        width,
+        height,
+        scientificChartPlotTopV1(
+          legendHeightRef.current,
+          reserveLegendSpace,
+        ),
+      );
       const theme = canvasTheme(containerRef.current);
       const visibleTrajectoriesBySeries = new Map(
         currentSeries.map((item) => [
@@ -286,8 +321,8 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       const allPoints = currentSeries.flatMap((item) =>
         (visibleTrajectoriesBySeries.get(item.key) ?? [])
           .flatMap((trajectory) => trajectory.points));
-      const xDomain = paddedDomain(allPoints.map(({ volume }) => volume), false);
-      const yDomain = paddedDomain(allPoints.map(({ pressure }) => pressure), false);
+      const xDomain = scientificChartDomainV1(allPoints.map(({ volume }) => volume));
+      const yDomain = scientificChartDomainV1(allPoints.map(({ pressure }) => pressure));
       const x = d3.scaleLinear().domain(xDomain).range([plot.left, plot.right]);
       const y = d3.scaleLinear().domain(yDomain).range([plot.bottom, plot.top]);
       drawCartesianAxes(ctx, plot, width, height, x, y, "Volume (mL)", "Pressure (mmHg)", theme);
@@ -343,7 +378,14 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       }
       publishCanvasEvidence(canvasRef.current, publishedPhase, firstCap, width, height);
     });
-  }, [clock, historyMode, normalizedHistoryBeats, visible]);
+  }, [
+    clock,
+    historyMode,
+    reserveLegendSpace,
+    normalizedHistoryBeats,
+    showLegend,
+    visible,
+  ]);
 
   return (
     <div
@@ -359,6 +401,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
         <ScientificWorkbenchChartLegendV1
           entries={legend}
           interaction={legendInteraction}
+          onMeasuredHeightChange={onLegendHeightChange}
         />
       )}
       <canvas ref={canvasRef} className="block pointer-events-auto" data-chart-kind="pvloop" />
@@ -369,11 +412,14 @@ export function ScientificWorkbenchPvLoopCanvasV1({
 export function ScientificWorkbenchChartLegendV1({
   entries,
   interaction,
+  onMeasuredHeightChange,
 }: Readonly<{
   entries: readonly ScientificWorkbenchLegendEntryV1[];
   interaction?: ScientificWorkbenchLegendInteractionV1;
+  onMeasuredHeightChange?: (height: number) => void;
 }>) {
   if (entries.length === 0) return null;
+  const showsMultipleModels = new Set(entries.map(({ modelName }) => modelName)).size > 1;
   return (
     <InteractiveGraphLegend
       panelId={interaction?.panelId}
@@ -382,16 +428,25 @@ export function ScientificWorkbenchChartLegendV1({
       position={interaction?.legendPosition}
       onPositionChange={interaction?.onLegendPositionChange}
       ariaLabel={interaction?.ariaLabel}
-      className="flex max-w-[min(28rem,calc(100%-1rem))] flex-wrap gap-x-3 gap-y-1 rounded border border-wb-line bg-wb-panel/90 p-1.5 text-[9px] font-medium tracking-wide text-wb-muted backdrop-blur-sm"
+      onMeasuredHeightChange={onMeasuredHeightChange}
+      className="flex max-w-[min(28rem,calc(100%-1rem))] flex-wrap gap-x-2 gap-y-0.5 rounded border border-wb-line bg-wb-panel/90 px-1.5 py-1 text-[9px] font-medium leading-3 tracking-normal text-wb-muted backdrop-blur-sm"
       testId="scientific-workbench-chart-legend-v1"
     >
       {entries.map((entry) => (
-        <span key={entry.key} className="inline-flex min-w-0 items-center gap-1.5">
+        <span
+          key={entry.key}
+          className="inline-flex min-w-0 items-center gap-1"
+          aria-label={`${entry.modelName}, ${entry.signalName}`}
+        >
           <span
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: entry.color, boxShadow: `0 0 4px ${entry.color}` }}
+            className="h-1.5 w-1.5 shrink-0 rounded-full"
+            style={{ backgroundColor: entry.color, boxShadow: `0 0 3px ${entry.color}` }}
           />
-          <span className="truncate">{entry.modelName} ({entry.signalName})</span>
+          <span className="truncate">
+            {showsMultipleModels
+              ? `${entry.modelName} · ${entry.signalName}`
+              : entry.signalName}
+          </span>
         </span>
       ))}
     </InteractiveGraphLegend>
@@ -877,13 +932,35 @@ function animateCanvas(
   };
 }
 
-function plotRect(width: number, height: number) {
+function plotRect(
+  width: number,
+  height: number,
+  top: number = PLOT_PADDING.top,
+) {
+  const bottom = Math.max(PLOT_PADDING.top + 1, height - PLOT_PADDING.bottom);
+  const safeTop = Math.min(
+    Math.max(PLOT_PADDING.top, top),
+    bottom - 1,
+  );
   return {
     left: PLOT_PADDING.left,
     right: Math.max(PLOT_PADDING.left + 1, width - PLOT_PADDING.right),
-    top: PLOT_PADDING.top,
-    bottom: Math.max(PLOT_PADDING.top + 1, height - PLOT_PADDING.bottom),
+    top: safeTop,
+    bottom,
   };
+}
+
+export function scientificChartPlotTopV1(
+  legendHeightPx: number,
+  reserveDefaultLegendSpace: boolean,
+): number {
+  if (!reserveDefaultLegendSpace || !Number.isFinite(legendHeightPx)) {
+    return PLOT_PADDING.top;
+  }
+  return Math.max(
+    PLOT_PADDING.top,
+    DEFAULT_LEGEND_TOP_PX + Math.max(0, legendHeightPx) + LEGEND_TO_PLOT_GAP_PX,
+  );
 }
 
 function drawWaveformAxes(
@@ -896,7 +973,7 @@ function drawWaveformAxes(
   theme: CanvasTheme,
 ): void {
   const x = d3.scaleLinear().domain([0, windowSec]).range([plot.left, plot.right]);
-  const y = d3.scaleLinear().domain(paddedDomain(values, false)).range([plot.bottom, plot.top]);
+  const y = d3.scaleLinear().domain(scientificChartDomainV1(values)).range([plot.bottom, plot.top]);
   drawCartesianAxes(ctx, plot, width, height, x, y, "Time (s)", "", theme);
 }
 
@@ -962,17 +1039,24 @@ function drawCap(
   ctx.restore();
 }
 
-function paddedDomain(values: readonly number[], zeroFloor: boolean): [number, number] {
+export function scientificChartDomainV1(values: readonly number[]): [number, number] {
   const finite = values.filter(Number.isFinite);
   if (finite.length === 0) return [0, 1];
-  let min = d3.min(finite) ?? 0;
-  let max = d3.max(finite) ?? 1;
+  const observedMin = d3.min(finite) ?? 0;
+  const observedMax = d3.max(finite) ?? 1;
+  if (observedMin >= 0) {
+    if (observedMax <= 1e-12) return [0, 1];
+    const upperPadding = Math.max(1e-6, observedMax * 0.08);
+    return [0, observedMax + upperPadding];
+  }
+  let min = observedMin;
+  let max = observedMax;
   if (Math.abs(max - min) < 1e-12) {
     min -= 0.5;
     max += 0.5;
   }
   const padding = Math.max(1e-6, (max - min) * 0.08);
-  return [zeroFloor ? 0 : min - padding, max + padding];
+  return [min - padding, max + padding];
 }
 
 function phaseWithinForwardGap(

@@ -107,9 +107,10 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
     }
   });
 
-  test("links independent scenarios to overlays, pane membership, inspector, and transitions", async ({
-    page,
-  }, testInfo) => {
+  test(
+    "links independent scenarios to overlays, pane membership, inspector, and transitions",
+    { tag: "@full-e2e" },
+    async ({ page }, testInfo) => {
     test.setTimeout(300_000);
     page.setDefaultTimeout(30_000);
     const browserErrors = captureBrowserErrors(page);
@@ -187,11 +188,11 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         "scientific-workbench-pane-lv-pv",
       );
       await expect(lvLegend).toContainText(
-        `${COMPARISON_SCENARIO_NAME} (Left ventricle)`,
+        `${COMPARISON_SCENARIO_NAME} · Left ventricle`,
         { timeout: 120_000 },
       );
       await expect(lvLegend).toContainText(
-        `${HEALTHY_SCENARIO_NAME} (Left ventricle)`,
+        `${HEALTHY_SCENARIO_NAME} · Left ventricle`,
       );
 
       // Global visibility gates the scenario across graphs.
@@ -227,7 +228,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         page,
         "scientific-workbench-pane-product-mitral-flow-v1",
       )).toContainText(
-        `${COMPARISON_SCENARIO_NAME} (MV flow)`,
+        `${COMPARISON_SCENARIO_NAME} · MV flow`,
       );
 
       // Duplicate and delete own independent lifecycle handles. Deleting a
@@ -299,14 +300,14 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       await expect.poll(async () => numericAttribute(
         await evidence.getAttribute("data-scientific-final-revision"),
       )).toBeGreaterThan(steadyRevision);
-      await controller.getByRole("button", { name: "Pause", exact: true }).click();
+      await page.getByRole("button", { name: "一時停止", exact: true }).click();
       await expect(controller).toHaveAttribute("data-phase", "live-paused");
       await expect(controller).toHaveAttribute(
         "data-displayed-evidence",
         "open-transient-no-periodic-claim",
       );
-      await controller.getByRole("button", { name: "Reset", exact: true }).click();
-      await expect(controller).toHaveAttribute("data-phase", "idle");
+      await expect(controller.getByRole("button", { name: /Resume|Reset/ }))
+        .toHaveCount(0);
 
       await scenarioRow(rail, HEALTHY_SCENARIO_NAME).click();
       await expect(evidence).toHaveAttribute(
@@ -318,7 +319,8 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
     } finally {
       await attachBrowserErrors(testInfo, browserErrors);
     }
-  });
+    },
+  );
 
   test("commits exact-stop sliders on pointer release and keyboard release", async ({
     page,
@@ -459,10 +461,10 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         await pvCanvas.getAttribute("data-pv-history-trajectory-count"),
       ), { timeout: 30_000 }).toBeGreaterThan(1);
 
-      await controller.getByRole("button", { name: "Pause", exact: true }).click();
+      await page.getByRole("button", { name: "一時停止", exact: true }).click();
       await expect(controller).toHaveAttribute("data-phase", "live-paused");
-      await controller.getByRole("button", { name: "Reset", exact: true }).click();
-      await expect(controller).toHaveAttribute("data-phase", "idle");
+      await expect(controller.getByRole("button", { name: /Resume|Reset/ }))
+        .toHaveCount(0);
 
       const systemicSlider = controller.getByRole("slider", {
         name: "Systemic resistance scale",
@@ -470,14 +472,14 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       });
       await systemicSlider.focus();
       await systemicSlider.press("ArrowRight");
-      await expect(systemicSlider).toHaveAttribute("aria-valuetext", "1.5×");
+      await expect(systemicSlider).toHaveAttribute("aria-valuetext", "2.0×");
+      await expect(controller).toHaveAttribute("data-phase", "live-paused");
+      await page.getByRole("button", { name: "再生", exact: true }).click();
       await expect(controller).toHaveAttribute("data-phase", "live-running", {
         timeout: 30_000,
       });
-      await controller.getByRole("button", { name: "Pause", exact: true }).click();
+      await page.getByRole("button", { name: "一時停止", exact: true }).click();
       await expect(controller).toHaveAttribute("data-phase", "live-paused");
-      await controller.getByRole("button", { name: "Reset", exact: true }).click();
-      await expect(controller).toHaveAttribute("data-phase", "idle");
       expect(browserErrors).toEqual([]);
     } finally {
       await attachBrowserErrors(testInfo, browserErrors);
@@ -837,13 +839,10 @@ async function assertWaveformSweepAndFullPaneSizing(page: Page): Promise<void> {
 
   const legend = wrapper.getByTestId("scientific-workbench-chart-legend-v1");
   await expect(legend).toBeVisible();
-  await expect(legend).toContainText(
-    `${HEALTHY_SCENARIO_NAME} (MV flow)`,
-  );
+  await expect(legend).toContainText("MV flow");
   const legendLabels = await legend.locator(":scope > span").allTextContents();
   expect(legendLabels.length).toBeGreaterThan(0);
-  expect(legendLabels.every((label) =>
-    /^Healthy periodic baseline \([^)]+\)$/.test(label.trim())))
+  expect(legendLabels.every((label) => !label.includes(HEALTHY_SCENARIO_NAME)))
     .toBe(true);
   await expect(legend).not.toContainText(/authoritative-state|accepted-derived|\d+\/\d+/i);
 
@@ -874,7 +873,7 @@ async function assertPvCapAndHeaderPause(page: Page): Promise<void> {
   await expect(canvas).toHaveAttribute("data-cap-x", /\d/);
   await assertCanvasFillsPane(canvas, wrapper, pane);
   await expect(wrapper.getByTestId("scientific-workbench-chart-legend-v1"))
-    .toContainText(`${HEALTHY_SCENARIO_NAME} (Left ventricle)`);
+    .toContainText("Left ventricle");
   await assertCanvasEvidenceFreezes(canvas);
 
   await page.getByRole("button", { name: "再生" }).click();

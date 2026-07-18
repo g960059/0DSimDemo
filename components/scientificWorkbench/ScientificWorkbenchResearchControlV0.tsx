@@ -86,6 +86,17 @@ export type ScientificWorkbenchResearchControlV0Props = Readonly<{
   renderWorkspace?: boolean;
   surface?: ScientificWorkbenchSurfaceV1;
   onTransitionActivityChange?: (active: boolean) => void;
+  /**
+   * Product Workbench playback gate. This is intentionally separate from the
+   * scientific session state: pausing retains the accepted candidate boundary
+   * and merely stops requesting further transient chunks.
+   */
+  playbackRunning?: boolean;
+  /**
+   * Real-time pacing multiplier for accepted live-transition chunks. It never
+   * changes dt, step count, or any scientific parameter.
+   */
+  playbackTimeScale?: number;
 }>;
 
 type CandidateV0 = ScientificWorkbenchResearchControlCandidateV0;
@@ -151,7 +162,10 @@ export function ScientificWorkbenchResearchControlV0({
   renderWorkspace = true,
   surface = "research",
   onTransitionActivityChange,
+  playbackRunning = true,
+  playbackTimeScale = 1,
 }: ScientificWorkbenchResearchControlV0Props) {
+  assertLivePlaybackTimeScaleV0(playbackTimeScale);
   const [ownedStore] = React.useState(() =>
     createScientificWorkbenchResearchControlStoreV0(
       initialSource,
@@ -205,6 +219,13 @@ export function ScientificWorkbenchResearchControlV0({
   const cancelSteadyRef = React.useRef(false);
   const liveIntentRef = React.useRef<LiveIntentV0>("paused");
   const visibilityAutoPausedRef = React.useRef(false);
+  const playbackRunningRef = React.useRef(playbackRunning);
+  const playbackTimeScaleRef = React.useRef(playbackTimeScale);
+  const playbackResumePendingRef = React.useRef(false);
+  const runLiveLoopRef = React.useRef<(
+    generation: number,
+    candidate: CandidateV0,
+  ) => Promise<void>>(async () => undefined);
   const liveLoopActiveRef = React.useRef(false);
   const pendingLiveRetargetDraftRef = React.useRef<ControlDraftV0 | null>(null);
   const liveFramesRef = React.useRef<readonly MainWireScientificObservableFrameV1[]>(
@@ -699,17 +720,20 @@ export function ScientificWorkbenchResearchControlV0({
         }
         if (
           liveIntentRef.current === "paused"
+          || !playbackRunningRef.current
           || (typeof document !== "undefined" && document.hidden)
         ) {
           if (typeof document !== "undefined" && document.hidden) {
             visibilityAutoPausedRef.current = true;
+            liveIntentRef.current = "paused";
           }
-          liveIntentRef.current = "paused";
           scheduleLiveRender(true);
           patchView({
             phase: "live-paused",
             inFlight: false,
-            message: "Live transition paused at an accepted 4-step command boundary.",
+            message: !playbackRunningRef.current
+              ? "Live transition paused by the Workbench playback control at an accepted command boundary."
+              : "Live transition paused at an accepted 4-step command boundary.",
           });
           return;
         }
@@ -762,37 +786,78 @@ export function ScientificWorkbenchResearchControlV0({
         // awaited Worker command is in flight. Read through a function so the
         // value is not incorrectly control-flow-narrowed to the pre-await state.
         const intentAfterResponse = readLiveIntentV0(liveIntentRef);
+        const playbackPausedAfterResponse = !playbackRunningRef.current;
         patchView({
           inFlight: false,
-          phase: intentAfterResponse === "paused"
+          phase: intentAfterResponse === "paused" || playbackPausedAfterResponse
             ? "live-pause-requested"
             : intentAfterResponse === "reset" ? "resetting" : "live-running",
         });
         scheduleLiveRender(
-          intentAfterResponse !== "running",
+          intentAfterResponse !== "running" || playbackPausedAfterResponse,
         );
 
         if (intentAfterResponse === "reset") {
           await finishLiveReset(activeCandidate);
           return;
         }
-        if (intentAfterResponse === "paused") {
+        if (intentAfterResponse === "paused" || playbackPausedAfterResponse) {
           scheduleLiveRender(true);
           patchView({
             phase: "live-paused",
             inFlight: false,
-            message: "Live transition paused at an accepted 4-step command boundary.",
+            message: playbackPausedAfterResponse
+              ? "Live transition paused by the Workbench playback control at an accepted command boundary."
+              : "Live transition paused at an accepted 4-step command boundary.",
           });
           return;
         }
-        const remainingMs = LIVE_SIMULATED_CHUNK_MS
-          - (monotonicNowMs() - commandStartedAtMs);
+        const remainingMs = scientificWorkbenchLiveChunkDelayMsV0(
+          monotonicNowMs() - commandStartedAtMs,
+          playbackTimeScaleRef.current,
+        );
         if (remainingMs > 0) await delay(remainingMs);
       }
     } catch (error) {
       await failTransition(error, activeCandidate);
     } finally {
       liveLoopActiveRef.current = false;
+      if (playbackResumePendingRef.current) {
+        playbackResumePendingRef.current = false;
+        const current = viewRef.current;
+        const pageHidden = typeof document !== "undefined" && document.hidden;
+        if (
+          mountedRef.current
+          && generation === operationGenerationRef.current
+          && playbackRunningRef.current
+          && readLiveIntentV0(liveIntentRef) === "running"
+          && !pageHidden
+          && current.candidate !== null
+          && current.remainingRegularRequestCount > 0
+          && (current.phase === "live-paused"
+            || current.phase === "live-pause-requested")
+        ) {
+          patchView({
+            phase: "live-running",
+            message: "Live accepted-step transition resumed from the Workbench playback control.",
+          });
+          globalThis.setTimeout(() => {
+            const latest = viewRef.current;
+            if (
+              mountedRef.current
+              && playbackRunningRef.current
+              && latest.candidate !== null
+              && latest.phase === "live-running"
+              && !liveLoopActiveRef.current
+            ) {
+              void runLiveLoopRef.current(
+                operationGenerationRef.current,
+                latest.candidate,
+              );
+            }
+          }, 0);
+        }
+      }
     }
   }, [
     client,
@@ -804,6 +869,7 @@ export function ScientificWorkbenchResearchControlV0({
     retargetLiveCandidate,
     scheduleLiveRender,
   ]);
+  runLiveLoopRef.current = runLiveLoop;
 
   const applyTransition = React.useCallback(async (
     committedDraft: ControlDraftV0 = draftRef.current,
@@ -896,6 +962,7 @@ export function ScientificWorkbenchResearchControlV0({
       }
 
       const pageHidden = typeof document !== "undefined" && document.hidden;
+      const playbackPaused = !playbackRunningRef.current;
       visibilityAutoPausedRef.current = pageHidden;
       liveIntentRef.current = pageHidden
         ? "paused"
@@ -904,7 +971,7 @@ export function ScientificWorkbenchResearchControlV0({
       lastLiveRenderAtMsRef.current = 0;
       commitView({
         ...viewRef.current,
-        phase: liveIntentRef.current === "running"
+        phase: liveIntentRef.current === "running" && !playbackPaused
           ? "live-running"
           : "live-paused",
         candidate,
@@ -913,9 +980,11 @@ export function ScientificWorkbenchResearchControlV0({
           candidate.boundaryFrame.acceptedTimeSec,
         inFlight: false,
         periodicStatus: "not-claimed-live-transition",
-        message: liveIntentRef.current === "running"
+        message: liveIntentRef.current === "running" && !playbackPaused
           ? "Showing every accepted target step in real time; no steady-state claim is made."
-          : "Page is hidden, so the live target was paused at its fork boundary.",
+          : playbackPaused
+            ? "Workbench playback is paused, so the live target is retained at its fork boundary."
+            : "Page is hidden, so the live target was paused at its fork boundary.",
       });
       void runLiveLoop(generation, candidate);
     } catch (error) {
@@ -1181,6 +1250,50 @@ export function ScientificWorkbenchResearchControlV0({
   ]);
 
   React.useEffect(() => {
+    assertLivePlaybackTimeScaleV0(playbackTimeScale);
+    playbackTimeScaleRef.current = playbackTimeScale;
+  }, [playbackTimeScale]);
+
+  React.useEffect(() => {
+    playbackRunningRef.current = playbackRunning;
+    const current = viewRef.current;
+    if (current.candidate === null || !current.phase.startsWith("live-")) {
+      return;
+    }
+    if (!playbackRunning) {
+      playbackResumePendingRef.current = false;
+      patchView({
+        phase: current.inFlight ? "live-pause-requested" : "live-paused",
+        message: current.inFlight
+          ? "Workbench pause requested; waiting for the current accepted command boundary."
+          : "Live transition paused by the Workbench playback control at an accepted command boundary.",
+      });
+      return;
+    }
+    if (
+      current.remainingRegularRequestCount === 0
+      || readLiveIntentV0(liveIntentRef) !== "running"
+      || (typeof document !== "undefined" && document.hidden)
+    ) return;
+    if (
+      (current.phase === "live-paused"
+        || current.phase === "live-pause-requested")
+      && liveLoopActiveRef.current
+    ) {
+      playbackResumePendingRef.current = true;
+      return;
+    }
+    if (current.phase === "live-paused" && !liveLoopActiveRef.current) {
+      lastLiveRenderAtMsRef.current = monotonicNowMs();
+      patchView({
+        phase: "live-running",
+        message: "Live accepted-step transition resumed from the Workbench playback control.",
+      });
+      void runLiveLoop(operationGenerationRef.current, current.candidate);
+    }
+  }, [patchView, playbackRunning, runLiveLoop]);
+
+  React.useEffect(() => {
     if (typeof document === "undefined") return undefined;
     const onVisibilityChange = (): void => {
       const current = viewRef.current;
@@ -1207,6 +1320,14 @@ export function ScientificWorkbenchResearchControlV0({
         || visible.remainingRegularRequestCount === 0
         || visible.phase === "resetting"
       ) return;
+      if (!playbackRunningRef.current) {
+        liveIntentRef.current = "running";
+        patchView({
+          phase: "live-paused",
+          message: "The tab is visible, but the Workbench playback control remains paused.",
+        });
+        return;
+      }
       liveIntentRef.current = "running";
       lastLiveRenderAtMsRef.current = monotonicNowMs();
       patchView({
@@ -1890,6 +2011,23 @@ function nextTransitionSessionId(): string {
 
 function monotonicNowMs(): number {
   return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
+export function scientificWorkbenchLiveChunkDelayMsV0(
+  commandElapsedMs: number,
+  timeScale: number,
+): number {
+  if (!Number.isFinite(commandElapsedMs) || commandElapsedMs < 0) {
+    throw new Error("live command elapsed time must be non-negative and finite");
+  }
+  assertLivePlaybackTimeScaleV0(timeScale);
+  return Math.max(0, LIVE_SIMULATED_CHUNK_MS / timeScale - commandElapsedMs);
+}
+
+function assertLivePlaybackTimeScaleV0(value: number): void {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("live playback time scale must be positive and finite");
+  }
 }
 
 function delay(durationMs: number): Promise<void> {

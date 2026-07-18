@@ -1,0 +1,74 @@
+name: Verify legacy model
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    name: Legacy ModelCore baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify legacy baseline
+        run: npm run verify:baseline -- --out=artifacts/verification/latest
+
+      - name: Upload baseline verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-baseline-verification-artifacts
+          path: artifacts/verification/latest
+          if-no-files-found: warn
+
+  official_cases:
+    name: Legacy official cases
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify all legacy official cases
+        run: npm run verify:cases -- --out=artifacts/case-validation/latest
+
+      - name: Publish case validation summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f artifacts/case-validation/latest/report.md ]; then
+            cat artifacts/case-validation/latest/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload case validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-case-validation-artifacts
+          path: artifacts/case-validation/latest
+          if-no-files-found: warn

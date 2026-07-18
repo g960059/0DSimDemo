@@ -45,9 +45,10 @@ type TransitionTraceSnapshotV0 = Readonly<{
 }>;
 
 test.describe.serial("research control transitions in the production browser Worker", () => {
-  test("steady mode keeps the source plot intact until a P1 following-cycle promotion", async ({
-    page,
-  }, testInfo) => {
+  test(
+    "steady mode keeps the source plot intact until a P1 following-cycle promotion",
+    { tag: "@full-e2e" },
+    async ({ page }, testInfo) => {
     test.setTimeout(240_000);
     const browserErrors = captureBrowserErrors(page);
 
@@ -171,11 +172,13 @@ test.describe.serial("research control transitions in the production browser Wor
     } finally {
       await attachBrowserErrors(testInfo, browserErrors);
     }
-  });
+    },
+  );
 
-  test("live mode shows accepted four-step transitions, pauses, resumes, and resets exactly", async ({
-    page,
-  }, testInfo) => {
+  test(
+    "live mode shows accepted four-step transitions, pauses, resumes, and resets exactly",
+    { tag: "@full-e2e" },
+    async ({ page }, testInfo) => {
     test.setTimeout(180_000);
     const browserErrors = captureBrowserErrors(page);
 
@@ -300,7 +303,8 @@ test.describe.serial("research control transitions in the production browser Wor
     } finally {
       await attachBrowserErrors(testInfo, browserErrors);
     }
-  });
+    },
+  );
 });
 
 async function openReadyWorkbench(page: Page): Promise<Readonly<{
