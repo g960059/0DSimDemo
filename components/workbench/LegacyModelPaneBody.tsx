@@ -35,7 +35,8 @@ export default function LegacyModelPaneBody({
           presentationMode: ctx.presentationMode,
         })}
         onOpenSettings={ctx.onOpenSettings}
-        legendPosition={ctx.legendPosition}
+        legendPosition={ctx.legendPosition
+          ?? (panel.view?.kind === "graph" ? panel.view.legendPosition : undefined)}
         onLegendPositionChange={ctx.onLegendPositionChange}
       />
     );
@@ -55,7 +56,8 @@ export default function LegacyModelPaneBody({
           presentationMode: ctx.presentationMode,
         })}
         onOpenSettings={ctx.onOpenSettings}
-        legendPosition={ctx.legendPosition}
+        legendPosition={ctx.legendPosition
+          ?? (panel.view?.kind === "graph" ? panel.view.legendPosition : undefined)}
         onLegendPositionChange={ctx.onLegendPositionChange}
       />
     );

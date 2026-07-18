@@ -150,6 +150,24 @@ describe("Workbench ViewSpec model", () => {
     });
   });
 
+  it("retains pane-local legend position in graph presentation migration", () => {
+    const migrated = migratePanelsToViewSpecs([{
+      ...panels[0],
+      view: {
+        kind: "graph",
+        graphType: "pvloop",
+        legendPosition: { xPct: 0.2, yPct: 0.3 },
+      },
+    }]);
+
+    expect(migrated.views[0]).toMatchObject({
+      kind: "graph",
+      presentation: {
+        legendPosition: { xPct: 0.2, yPct: 0.3 },
+      },
+    });
+  });
+
   it("validates graph board invariants and normalizes single-child splits", () => {
     const invalid: GraphBoardLayout = {
       type: "split",

@@ -8,6 +8,11 @@ import { renderPaneBody } from './renderPaneBody';
 import { ControllerItemsBuilder, type ControllerAuthoringCatalog } from './ControllerItemsBuilder';
 import { getScenarioPresetMenuPosition, ScenarioPane, ScenarioPresetMenu, type ScenarioPresetCatalogEntry } from './ScenarioPane';
 import { WorkbenchEmptyState } from './WorkbenchEmptyState';
+import {
+  clampFloatingDialogPosition,
+  moveFloatingDialogPosition,
+  type FloatingDialogPoint,
+} from './floatingDialogPosition';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
 import type { SteadyUpdateStatusMap } from '../../engine/previewController';
@@ -1402,16 +1407,90 @@ function paneSettingsFocusRestoreTarget(panel: PanelDef, preferred: HTMLElement 
     .find((node) => labels.has(node.getAttribute('aria-label') ?? '')) ?? null;
 }
 
+type PaneSettingsDialogDrag = {
+  pointerId: number;
+  startClient: FloatingDialogPoint;
+  startPosition: FloatingDialogPoint;
+  latestPosition: FloatingDialogPoint;
+  moved: boolean;
+};
+
+const PANE_SETTINGS_DESKTOP_MIN_WIDTH_PX = 640;
+const PANE_SETTINGS_DRAG_THRESHOLD_PX = 5;
+const PANE_SETTINGS_KEYBOARD_STEP_PX = 10;
+const PANE_SETTINGS_KEYBOARD_LARGE_STEP_PX = 50;
+
+function isPaneSettingsDesktopViewport(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth >= PANE_SETTINGS_DESKTOP_MIN_WIDTH_PX;
+}
+
+function paneSettingsViewportSize() {
+  return {
+    width: typeof window === 'undefined' ? 0 : window.innerWidth,
+    height: typeof window === 'undefined' ? 0 : window.innerHeight,
+  };
+}
+
+function paneSettingsDialogSize(dialog: HTMLElement) {
+  const rect = dialog.getBoundingClientRect();
+  return { width: rect.width, height: rect.height };
+}
+
 function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsModalProps) {
   const { t } = useTranslation();
   const { panel } = settingsProps;
   const usesBoardSettings = isBoardSettingsPanel(panel.type);
   const titleId = `pane-settings-title-${panel.id}`;
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<PaneSettingsDialogDrag | null>(null);
+  const dragAnimationFrameRef = useRef<number | null>(null);
+  const positionRef = useRef<FloatingDialogPoint | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const latestPanelRef = useRef(panel);
+  const [dialogPosition, setDialogPosition] = useState<FloatingDialogPoint | null>(null);
+  const [dialogMoveEnabled, setDialogMoveEnabled] = useState(false);
   const close = useCallback(() => toggleSettings(panel.id), [panel.id, toggleSettings]);
   latestPanelRef.current = panel;
+  positionRef.current = dialogPosition;
+
+  const applyDialogPosition = useCallback((position: FloatingDialogPoint | null) => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (position === null) {
+      dialog.style.removeProperty('position');
+      dialog.style.removeProperty('left');
+      dialog.style.removeProperty('top');
+      return;
+    }
+    dialog.style.position = 'fixed';
+    dialog.style.left = `${position.x}px`;
+    dialog.style.top = `${position.y}px`;
+  }, []);
+
+  const scheduleDialogPosition = useCallback((position: FloatingDialogPoint) => {
+    if (dragAnimationFrameRef.current !== null) cancelAnimationFrame(dragAnimationFrameRef.current);
+    dragAnimationFrameRef.current = requestAnimationFrame(() => {
+      dragAnimationFrameRef.current = null;
+      applyDialogPosition(position);
+    });
+  }, [applyDialogPosition]);
+
+  const resolveCurrentDialogPosition = useCallback((): FloatingDialogPoint | null => {
+    const dialog = dialogRef.current;
+    if (!dialog || !isPaneSettingsDesktopViewport()) return null;
+    const rect = dialog.getBoundingClientRect();
+    return clampFloatingDialogPosition(
+      { x: rect.left, y: rect.top },
+      paneSettingsViewportSize(),
+      { width: rect.width, height: rect.height },
+    );
+  }, []);
+
+  const commitDialogPosition = useCallback((position: FloatingDialogPoint) => {
+    positionRef.current = position;
+    applyDialogPosition(position);
+    setDialogPosition(position);
+  }, [applyDialogPosition]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -1441,6 +1520,145 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
       document.body.style.overflow = previousOverflow;
     };
   }, []);
+
+  useEffect(() => {
+    const onResize = () => {
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const desktop = isPaneSettingsDesktopViewport();
+      setDialogMoveEnabled(desktop);
+      if (dragAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(dragAnimationFrameRef.current);
+        dragAnimationFrameRef.current = null;
+      }
+      if (!desktop) {
+        dragRef.current = null;
+        positionRef.current = null;
+        applyDialogPosition(null);
+        setDialogPosition(null);
+        return;
+      }
+      const position = dragRef.current?.latestPosition ?? positionRef.current;
+      dragRef.current = null;
+      if (position === null) return;
+      const next = clampFloatingDialogPosition(
+        position,
+        paneSettingsViewportSize(),
+        paneSettingsDialogSize(dialog),
+      );
+      commitDialogPosition(next);
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [applyDialogPosition, commitDialogPosition]);
+
+  useEffect(() => () => {
+    if (dragAnimationFrameRef.current !== null) cancelAnimationFrame(dragAnimationFrameRef.current);
+  }, []);
+
+  const beginDialogDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPaneSettingsDesktopViewport() || event.button !== 0) return;
+    const startPosition = resolveCurrentDialogPosition();
+    if (!startPosition) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.focus({ preventScroll: true });
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startClient: { x: event.clientX, y: event.clientY },
+      startPosition,
+      latestPosition: startPosition,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDialogDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const dialog = dialogRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || !dialog) return;
+    event.stopPropagation();
+    const delta = {
+      x: event.clientX - drag.startClient.x,
+      y: event.clientY - drag.startClient.y,
+    };
+    if (!drag.moved && Math.hypot(delta.x, delta.y) <= PANE_SETTINGS_DRAG_THRESHOLD_PX) return;
+    drag.moved = true;
+    event.preventDefault();
+    const next = moveFloatingDialogPosition(
+      drag.startPosition,
+      delta,
+      paneSettingsViewportSize(),
+      paneSettingsDialogSize(dialog),
+    );
+    drag.latestPosition = next;
+    scheduleDialogPosition(next);
+  };
+
+  const finishDialogDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const dialog = dialogRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || !dialog) return;
+    event.stopPropagation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (dragAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(dragAnimationFrameRef.current);
+      dragAnimationFrameRef.current = null;
+    }
+    if (drag.moved) {
+      commitDialogPosition(moveFloatingDialogPosition(
+        drag.startPosition,
+        {
+          x: event.clientX - drag.startClient.x,
+          y: event.clientY - drag.startClient.y,
+        },
+        paneSettingsViewportSize(),
+        paneSettingsDialogSize(dialog),
+      ));
+    }
+    dragRef.current = null;
+  };
+
+  const cancelDialogDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (dragAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(dragAnimationFrameRef.current);
+      dragAnimationFrameRef.current = null;
+    }
+    applyDialogPosition(positionRef.current);
+    dragRef.current = null;
+  };
+
+  const moveDialogWithKeyboard = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!isPaneSettingsDesktopViewport()) return;
+    const axis = event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+      ? 'x'
+      : event.key === 'ArrowUp' || event.key === 'ArrowDown'
+        ? 'y'
+        : null;
+    if (axis === null) return;
+    const dialog = dialogRef.current;
+    const current = resolveCurrentDialogPosition();
+    if (!dialog || !current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const sign = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+    const step = event.shiftKey ? PANE_SETTINGS_KEYBOARD_LARGE_STEP_PX : PANE_SETTINGS_KEYBOARD_STEP_PX;
+    commitDialogPosition(moveFloatingDialogPosition(
+      current,
+      axis === 'x' ? { x: sign * step, y: 0 } : { x: 0, y: sign * step },
+      paneSettingsViewportSize(),
+      paneSettingsDialogSize(dialog),
+    ));
+  };
 
   const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return;
@@ -1474,14 +1692,39 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
         aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={trapFocus}
+        style={dialogPosition === null ? undefined : {
+          position: 'fixed',
+          left: `${dialogPosition.x}px`,
+          top: `${dialogPosition.y}px`,
+        }}
         className="flex h-dvh w-full flex-col overflow-hidden bg-wb-panel shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-wb-line"
       >
         <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-wb-line px-4">
-          <div className="min-w-0">
+          <div
+            role={dialogMoveEnabled ? 'button' : undefined}
+            tabIndex={dialogMoveEnabled ? 0 : undefined}
+            onPointerDown={beginDialogDrag}
+            onPointerMove={moveDialogDrag}
+            onPointerUp={finishDialogDrag}
+            onPointerCancel={cancelDialogDrag}
+            onKeyDown={moveDialogWithKeyboard}
+            className="min-w-0 flex-1 bg-transparent text-left sm:cursor-move sm:touch-none sm:select-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+            aria-label={dialogMoveEnabled ? t('workbench.panelGrid.movePaneSettings') : undefined}
+            aria-describedby={dialogMoveEnabled ? `${titleId}-move-instructions` : undefined}
+            aria-keyshortcuts={dialogMoveEnabled
+              ? 'ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight'
+              : undefined}
+            title={dialogMoveEnabled ? t('workbench.panelGrid.movePaneSettings') : undefined}
+          >
             <h2 id={titleId} className="truncate text-sm font-bold text-wb-text">{t('workbench.panelGrid.paneSettings')}</h2>
             <div className="truncate text-[11px] font-semibold text-wb-subtle">
               {panel.title} · {settingsPaneTypeLabel(panel)}
             </div>
+            {dialogMoveEnabled && (
+              <span id={`${titleId}-move-instructions`} className="sr-only">
+                {t('workbench.panelGrid.movePaneSettingsInstructions')}
+              </span>
+            )}
           </div>
           <div className="flex flex-none items-center gap-2">
             <button

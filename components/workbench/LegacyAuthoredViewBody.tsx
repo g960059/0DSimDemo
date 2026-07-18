@@ -89,6 +89,7 @@ export default function LegacyAuthoredViewBody({
         config={config}
         showGuides={view.presentation?.showGuides}
         showLegend={view.presentation?.showLegend}
+        legendPosition={view.presentation?.legendPosition}
         pvDebugOverlay={view.presentation?.pvDebugOverlay}
         pvDebugTraceMode={view.presentation?.pvDebugTraceMode}
         activeInstanceId={activeInstanceId}
@@ -104,6 +105,7 @@ export default function LegacyAuthoredViewBody({
         timeWindow={view.presentation?.timeWindow ?? 10_000}
         config={config}
         showLegend={view.presentation?.showLegend}
+        legendPosition={view.presentation?.legendPosition}
         activeInstanceId={activeInstanceId}
         panelId={view.id}
       />

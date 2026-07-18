@@ -7,6 +7,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
 import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, metricsBindingsToDockviewPanels, metricsViewsToDockviewPanels, openPanelSettingsIfClosed, syncMetricsDockviewPanelBindings, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
+import { clampFloatingDialogPosition, moveFloatingDialogPosition } from "@/components/workbench/floatingDialogPosition";
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition, isDockviewHorizontalOnlyDropAllowed, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
 import { standardAuthoredViews } from "@/features/workbench/authoredViews";
@@ -355,9 +356,10 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("cursor-grab");
     expect(html).toContain("hover:ring-1");
     expect(html).toContain("hover:ring-wb-accent");
-    expect(html).toContain("title=\"Drag to move · double-click to edit\"");
+    expect(html).toContain("title=\"Drag to move · click to edit\"");
+    expect(html).toContain("role=\"button\"");
+    expect(html).toContain("aria-label=\"Open pane settings\"");
     expect(html).not.toContain("<button");
-    expect(html).not.toContain("aria-label=\"Open pane settings\"");
     expect(html).not.toContain("aria-label=\"Drag legend\"");
   });
 
@@ -532,6 +534,10 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("Pane settings");
     expect(html).toContain("PV Loop · PV loop pane");
     expect(html).toContain("Done");
+    expect(html).not.toContain("aria-label=\"Move pane settings\"");
+    expect(html).not.toContain("Drag this header to move the dialog");
+    expect(html).toContain("sm:cursor-move");
+    expect(html).toContain("sm:touch-none");
     expect(html).toContain("Pane title");
     expect(html).toContain("Signals");
     expect(html).toContain("Scenarios");
@@ -570,6 +576,11 @@ describe("PanelGrid Dockview layout", () => {
     expect(panelGridSource).toContain("paneSettingsFocusRestoreTarget");
     expect(panelGridSource).toContain("dialogRef.current?.focus({ preventScroll: true })");
     expect(panelGridSource).toContain("document.body.style.overflow = 'hidden'");
+    expect(panelGridSource).toContain("setPointerCapture(event.pointerId)");
+    expect(panelGridSource).toContain("releasePointerCapture(event.pointerId)");
+    expect(panelGridSource).toContain("window.addEventListener('resize', onResize)");
+    expect(panelGridSource).toContain("setDialogMoveEnabled(desktop)");
+    expect(panelGridSource).toContain("role={dialogMoveEnabled ? 'button' : undefined}");
   });
 
   it("does not render pane-local settings for learner mode even if state is open", () => {
@@ -1005,6 +1016,49 @@ describe("PanelGrid settings scroll spy", () => {
       },
       48,
     )).toBe("signals");
+  });
+});
+
+describe("floating pane settings dialog position", () => {
+  it("clamps a desktop dialog inside the viewport margin", () => {
+    expect(clampFloatingDialogPosition(
+      { x: -40, y: 900 },
+      { width: 1200, height: 800 },
+      { width: 600, height: 500 },
+    )).toEqual({ x: 8, y: 292 });
+  });
+
+  it("pins an oversized dialog to the viewport origin", () => {
+    expect(clampFloatingDialogPosition(
+      { x: 90, y: 40 },
+      { width: 500, height: 400 },
+      { width: 620, height: 410 },
+    )).toEqual({ x: 0, y: 0 });
+  });
+
+  it("uses the available narrow gutter when two margins do not fit", () => {
+    expect(clampFloatingDialogPosition(
+      { x: 99, y: 99 },
+      { width: 500, height: 400 },
+      { width: 490, height: 390 },
+    )).toEqual({ x: 10, y: 10 });
+  });
+
+  it("moves and clamps keyboard or pointer deltas in one operation", () => {
+    expect(moveFloatingDialogPosition(
+      { x: 100, y: 100 },
+      { x: -150, y: 250 },
+      { width: 1000, height: 700 },
+      { width: 500, height: 400 },
+    )).toEqual({ x: 8, y: 292 });
+  });
+
+  it("fails closed for non-finite dimensions and coordinates", () => {
+    expect(clampFloatingDialogPosition(
+      { x: Number.NaN, y: Number.POSITIVE_INFINITY },
+      { width: 1000, height: Number.NaN },
+      { width: 500, height: 400 },
+    )).toEqual({ x: 8, y: 0 });
   });
 });
 

@@ -475,6 +475,8 @@
       "selectedCount_other": "{{count}} selected",
       "paneSettings": "Pane settings",
       "paneSettingsAria": "{{title}} pane settings",
+      "movePaneSettings": "Move pane settings",
+      "movePaneSettingsInstructions": "Drag this header to move the dialog. Use the arrow keys to move it, or Shift plus an arrow key to move it farther.",
       "closePaneSettings": "Close pane settings",
       "closeSettings": "Close settings",
       "customizations": "Customizations",

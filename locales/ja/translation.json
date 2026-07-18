@@ -475,6 +475,8 @@
       "selectedCount_other": "{{count}}選択",
       "paneSettings": "ペイン設定",
       "paneSettingsAria": "{{title}}のペイン設定",
+      "movePaneSettings": "ペイン設定を移動",
+      "movePaneSettingsInstructions": "このヘッダーをドラッグしてダイアログを移動できます。矢印キーで移動し、Shiftキーと矢印キーで大きく移動します。",
       "closePaneSettings": "ペイン設定を閉じる",
       "closeSettings": "設定を閉じる",
       "customizations": "カスタマイズ",

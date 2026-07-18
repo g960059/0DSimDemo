@@ -1,7 +1,7 @@
 import type React from "react";
 
 import type { AuthoredViewSpec } from "@/features/workbench/authoredViews";
-import type { PanelDef, SimInstance } from "@/types";
+import type { LegendPosition, PanelDef, SimInstance } from "@/types";
 
 /**
  * Presentation seam between the Workbench shell and a simulation runtime.
@@ -15,6 +15,10 @@ export type WorkbenchRuntimeRenderContext = Readonly<{
   instances: readonly SimInstance[];
   activeInstanceId?: string;
   presentationMode: "studio" | "reading";
+  canConfigure?: boolean;
+  onOpenSettings?: (panelId: string) => void;
+  legendPosition?: LegendPosition;
+  onLegendPositionChange?: (panelId: string, position?: LegendPosition) => void;
 }>;
 
 export type WorkbenchRuntimeRenderer = Readonly<{

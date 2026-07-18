@@ -68,6 +68,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       await page.getByRole("button", { name: "パネルを閉じる" }).click();
 
       await assertDefaultScientificLayout(page);
+      await assertLegendAndPaneSettingsInteractions(page);
       await assertWaveformSweepAndFullPaneSizing(page);
       await assertPvCapAndHeaderPause(page);
       await exerciseAddAndDelete(page);
@@ -541,6 +542,94 @@ async function assertDefaultScientificLayout(page: Page): Promise<void> {
     .toBeLessThanOrEqual(mitralBox!.y + 12);
 }
 
+async function assertLegendAndPaneSettingsInteractions(page: Page): Promise<void> {
+  await dockTab(page, LV_PV_TITLE).click();
+  const pane = page.getByTestId("scientific-workbench-pane-lv-pv");
+  const wrapper = pane.getByTestId("scientific-workbench-pv-canvas-v1");
+  const legend = wrapper.getByTestId("scientific-workbench-chart-legend-v1");
+  await expect(legend).toHaveAttribute("role", "button");
+  await expect(legend).toHaveAttribute("data-legend-placement", "default");
+
+  // A plain click edits the owning pane. The desktop title region can then be
+  // dragged without stealing the Done/Close button interactions.
+  await legend.click();
+  const dialog = page.getByRole("dialog", { name: "ペイン設定" });
+  await expect(dialog).toBeVisible();
+  const moveHandle = dialog.getByRole("button", { name: "ペイン設定を移動" });
+  const dialogBefore = await requiredBoundingBox(dialog, "pane settings dialog");
+  const handleBox = await requiredBoundingBox(moveHandle, "pane settings move handle");
+  await page.mouse.move(
+    handleBox.x + handleBox.width / 2,
+    handleBox.y + handleBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    handleBox.x + handleBox.width / 2 + 56,
+    handleBox.y + handleBox.height / 2,
+    { steps: 6 },
+  );
+  await page.mouse.up();
+  const dialogAfter = await requiredBoundingBox(dialog, "moved pane settings dialog");
+  expect(Math.abs(dialogAfter.x - dialogBefore.x)).toBeGreaterThan(20);
+  await expectElementBoundsInside(dialog, page.locator("body"));
+
+  // The mobile dialog remains full-screen and must not advertise a move
+  // control that cannot move an oversized surface. Restoring desktop enables
+  // the same handle again without reopening the dialog.
+  await page.setViewportSize({ width: 600, height: 900 });
+  await expect(dialog.getByRole("button", { name: "ペイン設定を移動" }))
+    .toHaveCount(0);
+  const mobileDialogHeader = dialog.getByRole("heading", { name: "ペイン設定" })
+    .locator("..");
+  await expect(mobileDialogHeader).not.toHaveAttribute("role", "button");
+  await expect(mobileDialogHeader).not.toHaveAttribute("tabindex", "0");
+  await page.setViewportSize({ width: 1440, height: 1_000 });
+  await expect(moveHandle).toBeVisible();
+  await page.getByRole("button", { name: "ペイン設定を閉じる" }).click();
+  await expect(dialog).toHaveCount(0);
+
+  // Moving a legend is a drag, never an accidental settings click. Its
+  // normalized custom position survives the interaction and remains clickable.
+  const defaultLegendBox = await requiredBoundingBox(legend, "default graph legend");
+  await page.mouse.move(
+    defaultLegendBox.x + defaultLegendBox.width / 2,
+    defaultLegendBox.y + defaultLegendBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    defaultLegendBox.x + defaultLegendBox.width / 2 - 120,
+    defaultLegendBox.y + defaultLegendBox.height / 2 + 80,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(legend).toHaveAttribute("data-legend-placement", "custom");
+  await expect(dialog).toHaveCount(0);
+
+  await legend.click();
+  await expect(dialog).toBeVisible();
+  await page.getByRole("button", { name: "ペイン設定を閉じる" }).click();
+  await expect(dialog).toHaveCount(0);
+
+  // Returning to the initial top-right neighbourhood enters the live magnet
+  // and clears the custom position back to the canonical default.
+  const movedLegendBox = await requiredBoundingBox(legend, "moved graph legend");
+  const wrapperBox = await requiredBoundingBox(wrapper, "PV chart wrapper");
+  const defaultCenter = {
+    x: wrapperBox.x + wrapperBox.width - movedLegendBox.width - 8
+      + movedLegendBox.width / 2,
+    y: wrapperBox.y + 8 + movedLegendBox.height / 2,
+  };
+  await page.mouse.move(
+    movedLegendBox.x + movedLegendBox.width / 2,
+    movedLegendBox.y + movedLegendBox.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(defaultCenter.x, defaultCenter.y, { steps: 8 });
+  await expect(legend).toHaveAttribute("data-legend-magnet", "snapped");
+  await page.mouse.up();
+  await expect(legend).toHaveAttribute("data-legend-placement", "default");
+}
+
 async function assertWaveformSweepAndFullPaneSizing(page: Page): Promise<void> {
   await dockTab(page, MITRAL_FLOW_TITLE).click();
   const pane = page.getByTestId(
@@ -906,6 +995,15 @@ async function expectElementBoundsInside(
     if (elementBox === null || containerBox === null) return Number.POSITIVE_INFINITY;
     return elementBox.x + elementBox.width - (containerBox.x + containerBox.width);
   }).toBeLessThanOrEqual(1);
+}
+
+async function requiredBoundingBox(
+  locator: Locator,
+  label: string,
+): Promise<NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>> {
+  const box = await locator.boundingBox();
+  expect(box, `${label} should have a bounding box`).not.toBeNull();
+  return box!;
 }
 
 function escapeRegExp(value: string): string {

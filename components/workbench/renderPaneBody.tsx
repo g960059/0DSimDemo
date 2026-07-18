@@ -53,6 +53,10 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
       instances: ctx.instances,
       activeInstanceId: ctx.activeInstanceId,
       presentationMode: ctx.presentationMode ?? 'studio',
+      canConfigure: ctx.canConfigure,
+      onOpenSettings: ctx.onOpenSettings,
+      legendPosition: ctx.legendPosition,
+      onLegendPositionChange: ctx.onLegendPositionChange,
     });
     if (runtimeBody !== undefined) return runtimeBody;
   }

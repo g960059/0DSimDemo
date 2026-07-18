@@ -16,6 +16,7 @@ import {
 } from "@/components/workbench/legacyScenarioPresetCatalog";
 import {
   SCIENTIFIC_CONTROL_SYSTEMIC_V1,
+  graphViewToPanel,
   scientificControllerInteractionKeyV1,
   scientificControllerItemForReleaseV1,
 } from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
@@ -205,5 +206,26 @@ describe("runtime-specific Workbench authoring seams", () => {
     expect(runtimeCatalog).toEqual([
       { id: "healthy-v1", label: "Healthy", detail: "Scientific release v1" },
     ]);
+  });
+
+  it("restores authored graph legend position into the scientific panel view", () => {
+    const panel = graphViewToPanel({
+      id: "lv-pv",
+      title: "LV pressure–volume loop",
+      kind: "graph",
+      graphType: "pvloop",
+      membership: { healthy: ["LV"] },
+      presentation: {
+        showLegend: true,
+        legendPosition: { xPct: 0.2, yPct: 0.3 },
+      },
+    });
+
+    expect(panel.view).toMatchObject({
+      kind: "graph",
+      graphType: "pvloop",
+      showLegend: true,
+      legendPosition: { xPct: 0.2, yPct: 0.3 },
+    });
   });
 });

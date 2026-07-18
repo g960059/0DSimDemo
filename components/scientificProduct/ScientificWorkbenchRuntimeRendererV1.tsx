@@ -1,6 +1,7 @@
 import React from "react";
 
 import { ControllerItemControl } from "@/components/controls/ControllerItemControl";
+import { shouldEnableLegendInteractions } from "@/components/InteractiveGraphLegend";
 import {
   deriveMainWireScientificMetricsV1,
   MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1,
@@ -201,6 +202,7 @@ export function createScientificWorkbenchRuntimeRendererV1({
           panel={panel}
           registry={registry}
           clock={clock}
+          renderContext={context}
         />
       );
     }
@@ -276,15 +278,29 @@ function ScientificGraphPanelV1({
   panel,
   registry,
   clock,
+  renderContext,
 }: Readonly<{
   panel: PanelDef;
   registry: ScientificProductScenarioRegistryV1;
   clock: ScientificWorkbenchDisplayClockV1;
+  renderContext: WorkbenchRuntimeRenderContext;
 }>) {
   const presentations = useScientificScenarioPresentationsV1(registry);
   const effective = presentations.filter((presentation) =>
     presentation.descriptor.isVisible
     && panel.config[presentation.descriptor.id]?.visible === true);
+  const legendInteraction = {
+    panelId: panel.id,
+    interactive: shouldEnableLegendInteractions({
+      canConfigure: renderContext.canConfigure,
+      presentationMode: renderContext.presentationMode,
+    }),
+    onOpenSettings: renderContext.onOpenSettings,
+    legendPosition: renderContext.legendPosition
+      ?? (panel.view?.kind === "graph" ? panel.view.legendPosition : undefined),
+    onLegendPositionChange: renderContext.onLegendPositionChange,
+    ariaLabel: `Open ${panel.title} pane settings`,
+  };
 
   if (panel.type === "WAVEFORM") {
     const series = effective.flatMap((presentation) =>
@@ -304,6 +320,7 @@ function ScientificGraphPanelV1({
           timeWindowMs={panel.timeWindow ?? 2_000}
           clock={clock}
           showLegend={panel.showLegend !== false}
+          legendInteraction={legendInteraction}
         />
       </div>
     );
@@ -325,6 +342,7 @@ function ScientificGraphPanelV1({
         series={series}
         clock={clock}
         showLegend={panel.showLegend !== false}
+        legendInteraction={legendInteraction}
       />
     </div>
   );
@@ -728,7 +746,7 @@ function trajectoryCatalogV1(
       : []));
 }
 
-function graphViewToPanel(view: GraphViewSpec): PanelDef {
+export function graphViewToPanel(view: GraphViewSpec): PanelDef {
   const panelType: PanelType = view.graphType === "pvloop"
     ? "PVLOOP"
     : view.graphType === "waveform"
@@ -759,6 +777,7 @@ function graphViewToPanel(view: GraphViewSpec): PanelDef {
       showGuides: view.presentation?.showGuides,
       timeWindow: view.presentation?.timeWindow,
       showLegend: view.presentation?.showLegend,
+      legendPosition: view.presentation?.legendPosition,
     },
     isSettingsOpen: false,
     showGuides: view.presentation?.showGuides,

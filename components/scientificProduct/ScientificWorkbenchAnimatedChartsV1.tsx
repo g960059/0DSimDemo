@@ -8,6 +8,8 @@ import {
   type MainWireScientificObservableIdV1,
   type ScientificObservableUnitV1,
 } from "@/engine/scientific/observables";
+import { InteractiveGraphLegend } from "@/components/InteractiveGraphLegend";
+import type { LegendPosition } from "@/types";
 
 import type { ScientificWorkbenchDisplayClockV1 } from "./ScientificWorkbenchDisplayClockV1";
 
@@ -34,6 +36,15 @@ export type ScientificWorkbenchLegendEntryV1 = Readonly<{
   modelName: string;
   signalName: string;
   hidden?: boolean;
+}>;
+
+export type ScientificWorkbenchLegendInteractionV1 = Readonly<{
+  panelId?: string;
+  interactive?: boolean;
+  onOpenSettings?: (panelId: string) => void;
+  legendPosition?: LegendPosition;
+  onLegendPositionChange?: (panelId: string, position?: LegendPosition) => void;
+  ariaLabel?: string;
 }>;
 
 export type ScientificWorkbenchWaveformSeriesV1 = Readonly<{
@@ -73,11 +84,13 @@ export function ScientificWorkbenchWaveformCanvasV1({
   timeWindowMs,
   clock,
   showLegend = true,
+  legendInteraction,
 }: Readonly<{
   series: readonly ScientificWorkbenchWaveformSeriesV1[];
   timeWindowMs: number;
   clock: ScientificWorkbenchDisplayClockV1;
   showLegend?: boolean;
+  legendInteraction?: ScientificWorkbenchLegendInteractionV1;
 }>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -174,7 +187,12 @@ export function ScientificWorkbenchWaveformCanvasV1({
       className="absolute inset-0 overflow-hidden pointer-events-none"
       data-testid="scientific-workbench-waveform-canvas-v1"
     >
-      {showLegend && <ScientificWorkbenchChartLegendV1 entries={legend} />}
+      {showLegend && (
+        <ScientificWorkbenchChartLegendV1
+          entries={legend}
+          interaction={legendInteraction}
+        />
+      )}
       <canvas ref={canvasRef} className="block pointer-events-auto" data-chart-kind="waveform" />
     </div>
   );
@@ -184,10 +202,12 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   series,
   clock,
   showLegend = true,
+  legendInteraction,
 }: Readonly<{
   series: readonly ScientificWorkbenchPvSeriesV1[];
   clock: ScientificWorkbenchDisplayClockV1;
   showLegend?: boolean;
+  legendInteraction?: ScientificWorkbenchLegendInteractionV1;
 }>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -266,7 +286,12 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       className="absolute inset-0 overflow-hidden pointer-events-none"
       data-testid="scientific-workbench-pv-canvas-v1"
     >
-      {showLegend && <ScientificWorkbenchChartLegendV1 entries={legend} />}
+      {showLegend && (
+        <ScientificWorkbenchChartLegendV1
+          entries={legend}
+          interaction={legendInteraction}
+        />
+      )}
       <canvas ref={canvasRef} className="block pointer-events-auto" data-chart-kind="pvloop" />
     </div>
   );
@@ -274,12 +299,22 @@ export function ScientificWorkbenchPvLoopCanvasV1({
 
 export function ScientificWorkbenchChartLegendV1({
   entries,
-}: Readonly<{ entries: readonly ScientificWorkbenchLegendEntryV1[] }>) {
+  interaction,
+}: Readonly<{
+  entries: readonly ScientificWorkbenchLegendEntryV1[];
+  interaction?: ScientificWorkbenchLegendInteractionV1;
+}>) {
   if (entries.length === 0) return null;
   return (
-    <div
-      className="absolute right-2 top-2 z-30 flex max-w-[min(28rem,calc(100%-1rem))] flex-wrap gap-x-3 gap-y-1 rounded border border-wb-line bg-wb-panel/90 p-1.5 text-[9px] font-medium tracking-wide text-wb-muted backdrop-blur-sm"
-      data-testid="scientific-workbench-chart-legend-v1"
+    <InteractiveGraphLegend
+      panelId={interaction?.panelId}
+      interactive={interaction?.interactive}
+      onOpenSettings={interaction?.onOpenSettings}
+      position={interaction?.legendPosition}
+      onPositionChange={interaction?.onLegendPositionChange}
+      ariaLabel={interaction?.ariaLabel}
+      className="flex max-w-[min(28rem,calc(100%-1rem))] flex-wrap gap-x-3 gap-y-1 rounded border border-wb-line bg-wb-panel/90 p-1.5 text-[9px] font-medium tracking-wide text-wb-muted backdrop-blur-sm"
+      testId="scientific-workbench-chart-legend-v1"
     >
       {entries.map((entry) => (
         <span key={entry.key} className="inline-flex min-w-0 items-center gap-1.5">
@@ -290,7 +325,7 @@ export function ScientificWorkbenchChartLegendV1({
           <span className="truncate">{entry.modelName} ({entry.signalName})</span>
         </span>
       ))}
-    </div>
+    </InteractiveGraphLegend>
   );
 }
 
