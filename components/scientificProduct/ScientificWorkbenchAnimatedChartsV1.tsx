@@ -9,7 +9,7 @@ import {
   type ScientificObservableUnitV1,
 } from "@/engine/scientific/observables";
 import { InteractiveGraphLegend } from "@/components/InteractiveGraphLegend";
-import type { LegendPosition } from "@/types";
+import type { LegendPosition, PvLoopHistoryMode } from "@/types";
 
 import type { ScientificWorkbenchDisplayClockV1 } from "./ScientificWorkbenchDisplayClockV1";
 
@@ -202,11 +202,15 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   series,
   clock,
   showLegend = true,
+  historyBeats = 8,
+  historyMode = "fade",
   legendInteraction,
 }: Readonly<{
   series: readonly ScientificWorkbenchPvSeriesV1[];
   clock: ScientificWorkbenchDisplayClockV1;
   showLegend?: boolean;
+  historyBeats?: number;
+  historyMode?: PvLoopHistoryMode;
   legendInteraction?: ScientificWorkbenchLegendInteractionV1;
 }>) {
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -220,6 +224,18 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     modelName: item.scenario.name,
     signalName: item.signalName,
   })), [series]);
+  const normalizedHistoryBeats = normalizeScientificPvHistoryBeatsV1(historyBeats);
+  const retainedTrajectoryCount = React.useMemo(() => Math.max(
+    0,
+    ...series.map((item) => scientificPvTrajectoriesV1(
+      item,
+      normalizedHistoryBeats,
+    ).filter(({ age }) => scientificPvHistoryAlphaV1(
+      age,
+      normalizedHistoryBeats,
+      historyMode,
+    ) > 0).length),
+  ), [historyMode, normalizedHistoryBeats, series]);
 
   React.useEffect(() => {
     if (!visible) return undefined;
@@ -250,23 +266,33 @@ export function ScientificWorkbenchPvLoopCanvasV1({
             ?? points.at(-1)!.timeSec
           : positiveModulo(sharedElapsedSeconds, duration);
         publishedPhase = phase;
-        ctx.save();
-        ctx.strokeStyle = item.color;
-        ctx.globalAlpha = item.scenario.displayedEvidence === "open-transient-no-periodic-claim"
-          ? 0.45
-          : 1;
-        ctx.lineWidth = 2;
-        ctx.lineJoin = "round";
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        points.forEach((point, index) => {
-          const px = x(point.volume);
-          const py = y(point.pressure);
-          if (index === 0 || point.breakBefore) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        });
-        ctx.stroke();
-        ctx.restore();
+        const trajectories = scientificPvTrajectoriesV1(
+          item,
+          normalizedHistoryBeats,
+        );
+        for (const trajectory of [...trajectories].reverse()) {
+          const alpha = scientificPvHistoryAlphaV1(
+            trajectory.age,
+            normalizedHistoryBeats,
+            historyMode,
+          );
+          if (alpha <= 0 || trajectory.points.length < 2) continue;
+          ctx.save();
+          ctx.strokeStyle = item.color;
+          ctx.globalAlpha = alpha;
+          ctx.lineWidth = trajectory.age === 0 ? 2 : 1.6;
+          ctx.lineJoin = "round";
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          trajectory.points.forEach((point, index) => {
+            const px = x(point.volume);
+            const py = y(point.pressure);
+            if (index === 0 || point.breakBefore) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          });
+          ctx.stroke();
+          ctx.restore();
+        }
         const capPoint = isOpenTransient
           ? points.at(-1)!
           : interpolatePvPoint(points, phase, duration);
@@ -278,13 +304,16 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       }
       publishCanvasEvidence(canvasRef.current, publishedPhase, firstCap, width, height);
     });
-  }, [clock, visible]);
+  }, [clock, historyMode, normalizedHistoryBeats, visible]);
 
   return (
     <div
       ref={containerRef}
       className="absolute inset-0 overflow-hidden pointer-events-none"
       data-testid="scientific-workbench-pv-canvas-v1"
+      data-pv-history-beats={normalizedHistoryBeats}
+      data-pv-history-mode={historyMode}
+      data-pv-history-trajectory-count={retainedTrajectoryCount}
     >
       {showLegend && (
         <ScientificWorkbenchChartLegendV1
@@ -362,7 +391,7 @@ type TimedValue = Readonly<{
   value: number | null;
   breakBefore?: boolean;
 }>;
-type PvValue = Readonly<{
+export type PvValue = Readonly<{
   timeSec: number;
   volume: number;
   pressure: number;
@@ -494,6 +523,81 @@ function pvPoints(item: ScientificWorkbenchPvSeriesV1): PvValue[] {
     previousAvailable = true;
     return [point];
   });
+}
+
+export type ScientificPvTrajectoryV1 = Readonly<{
+  age: number;
+  points: readonly PvValue[];
+}>;
+
+/**
+ * Splits an open accepted-step transition into cardiac-cycle trajectories.
+ * The current (possibly incomplete) beat is age 0. Periodic evidence remains
+ * one canonical trajectory because duplicated steady beats add no information.
+ */
+export function scientificPvTrajectoriesV1(
+  item: ScientificWorkbenchPvSeriesV1,
+  historyBeats = 8,
+): readonly ScientificPvTrajectoryV1[] {
+  const horizon = normalizeScientificPvHistoryBeatsV1(historyBeats);
+  const scenario = item.scenario;
+  const cycleDurationSec = scenario.cycleDurationSec;
+  const origin = scenario.transientOriginAcceptedTimeSec;
+  if (
+    scenario.displayedEvidence !== "open-transient-no-periodic-claim"
+    || cycleDurationSec === null
+    || origin === null
+    || !(cycleDurationSec > 0)
+  ) {
+    const points = pvPoints(item);
+    return points.length === 0
+      ? Object.freeze([])
+      : Object.freeze([Object.freeze({ age: 0, points: Object.freeze(points) })]);
+  }
+
+  const beats = new Map<number, MainWireScientificObservableFrameV1[]>();
+  for (const frame of scenario.frames) {
+    const elapsed = frame.acceptedTimeSec - origin;
+    if (!Number.isFinite(elapsed) || elapsed < -1e-9) continue;
+    const beatIndex = Math.max(0, Math.floor((elapsed + 1e-9) / cycleDurationSec));
+    const bucket = beats.get(beatIndex) ?? [];
+    bucket.push(frame);
+    beats.set(beatIndex, bucket);
+  }
+  const latestBeat = Math.max(-1, ...beats.keys());
+  if (latestBeat < 0) return Object.freeze([]);
+  const trajectories: ScientificPvTrajectoryV1[] = [];
+  for (let beatIndex = Math.max(0, latestBeat - horizon); beatIndex <= latestBeat; beatIndex += 1) {
+    const frames = beats.get(beatIndex);
+    if (frames === undefined) continue;
+    const points = pvPoints({
+      ...item,
+      scenario: { ...scenario, frames, periodicCycleFrames: null },
+    });
+    if (points.length === 0) continue;
+    trajectories.push(Object.freeze({
+      age: latestBeat - beatIndex,
+      points: Object.freeze(points),
+    }));
+  }
+  return Object.freeze(trajectories.sort((a, b) => a.age - b.age));
+}
+
+export function normalizeScientificPvHistoryBeatsV1(value: number): number {
+  if (!Number.isFinite(value)) return 8;
+  return Math.min(16, Math.max(0, Math.round(value)));
+}
+
+export function scientificPvHistoryAlphaV1(
+  age: number,
+  historyBeats: number,
+  mode: PvLoopHistoryMode,
+): number {
+  if (age <= 0) return 1;
+  const horizon = normalizeScientificPvHistoryBeatsV1(historyBeats);
+  if (horizon === 0 || age > horizon) return 0;
+  if (mode === "persistent") return 0.34;
+  return 0.5 * Math.max(0, 1 - age / horizon);
 }
 
 function availableValue(

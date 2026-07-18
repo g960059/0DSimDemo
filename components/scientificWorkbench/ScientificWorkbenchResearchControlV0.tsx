@@ -92,6 +92,7 @@ type TransitionViewV0 = Readonly<{
   candidate: CandidateV0 | null;
   frames: readonly MainWireScientificObservableFrameV1[];
   targetControlStateSha256: string | null;
+  liveTransitionOriginAcceptedTimeSec: number | null;
   inFlight: boolean;
   periodicStatus: string;
   completedBeatCount: number;
@@ -155,6 +156,7 @@ export function ScientificWorkbenchResearchControlV0({
     candidate: null,
     frames: initialSource.frames,
     targetControlStateSha256: null,
+    liveTransitionOriginAcceptedTimeSec: null,
     inFlight: false,
     periodicStatus: "idle",
     completedBeatCount: 0,
@@ -193,6 +195,7 @@ export function ScientificWorkbenchResearchControlV0({
   const cancelSteadyRef = React.useRef(false);
   const liveIntentRef = React.useRef<LiveIntentV0>("paused");
   const liveLoopActiveRef = React.useRef(false);
+  const pendingLiveRetargetDraftRef = React.useRef<ControlDraftV0 | null>(null);
   const liveFramesRef = React.useRef<readonly MainWireScientificObservableFrameV1[]>(
     initialSource.frames,
   );
@@ -303,6 +306,7 @@ export function ScientificWorkbenchResearchControlV0({
     }
     if (!mountedRef.current) return;
     const source = viewRef.current.source;
+    pendingLiveRetargetDraftRef.current = null;
     liveFramesRef.current = source.frames;
     commitView({
       ...viewRef.current,
@@ -310,6 +314,7 @@ export function ScientificWorkbenchResearchControlV0({
       candidate: null,
       frames: source.frames,
       targetControlStateSha256: null,
+      liveTransitionOriginAcceptedTimeSec: null,
       inFlight: false,
       periodicStatus: nextPhase === "idle" ? "idle" : "rejected",
       completedBeatCount: 0,
@@ -440,6 +445,7 @@ export function ScientificWorkbenchResearchControlV0({
       frames: terminalCycle.frames,
       targetControlStateSha256:
         candidate.context.controlState.targetStateSha256,
+      liveTransitionOriginAcceptedTimeSec: null,
       inFlight: false,
       periodicStatus: "period1-converged-and-cycle-validated",
       capturedStepCount: acceptedStepFrames.length,
@@ -553,6 +559,7 @@ export function ScientificWorkbenchResearchControlV0({
     candidate: CandidateV0,
   ): Promise<void> => {
     liveIntentRef.current = "paused";
+    pendingLiveRetargetDraftRef.current = null;
     if (
       liveAnimationFrameRef.current !== null
       && typeof cancelAnimationFrame === "function"
@@ -574,19 +581,109 @@ export function ScientificWorkbenchResearchControlV0({
     replaceDraft(draftFromContext(viewRef.current.source.context));
   }, [patchView, replaceDraft, restoreSourceAfterCandidate]);
 
+  const retargetLiveCandidate = React.useCallback(async (
+    candidate: CandidateV0,
+    committedDraft: ControlDraftV0,
+  ): Promise<CandidateV0> => {
+    if (!draftDiffersFromContext(committedDraft, candidate.context)) {
+      return candidate;
+    }
+    const sourceBoundary = liveFramesRef.current.at(-1);
+    if (sourceBoundary === undefined) {
+      throw new Error("live retarget has no accepted-state boundary");
+    }
+    const source: ScientificWorkbenchResearchControlSourceV0 = Object.freeze({
+      sessionId: candidate.sessionId,
+      context: Object.freeze({
+        stateIdentity: Object.freeze({
+          revision: sourceBoundary.revision,
+          acceptedTimeSec: sourceBoundary.acceptedTimeSec,
+          totalBloodVolumeMl: candidate.context.stateIdentity.totalBloodVolumeMl,
+        }),
+        controlState: candidate.context.controlState,
+        parameterEpoch: candidate.context.parameterEpoch,
+      }),
+      frames: Object.freeze([sourceBoundary]),
+    });
+    patchView({
+      phase: "live-retargeting",
+      inFlight: false,
+      message: "Merging the updated parameter subset at the latest accepted-state boundary…",
+    });
+    const targetControlState =
+      await createMainWireScientificResearchControlTargetStateV0({
+        "circulation.systemic-vascular-resistance-scale": committedDraft.systemic,
+        "circulation.pulmonary-vascular-resistance-scale": committedDraft.pulmonary,
+      });
+    const targetSessionId = nextTransitionSessionId();
+    patchView({
+      targetControlStateSha256: targetControlState.targetStateSha256,
+      inFlight: true,
+    });
+    reserveControllerRequest();
+    const response = await client.request({
+      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+      kind: "forkResearchControlSession",
+      requestId: nextRequestId(targetSessionId, "live-retarget"),
+      sessionId: targetSessionId,
+      sourceSessionId: source.sessionId,
+      expectedSource: {
+        ...source.context.stateIdentity,
+        controlStateSha256: source.context.controlState.targetStateSha256,
+        parameterEpoch: source.context.parameterEpoch,
+      },
+      targetControlState,
+    });
+    if (
+      !response.ok
+      || response.commandKind !== "forkResearchControlSession"
+      || response.payload.kind !== "researchControlSessionForked"
+    ) throw commandFailure("forkResearchControlSession", response);
+    const nextCandidate: CandidateV0 = Object.freeze({
+      sessionId: targetSessionId,
+      context: Object.freeze({
+        stateIdentity: response.payload.targetStateIdentity,
+        controlState: response.payload.targetControlState,
+        parameterEpoch: response.payload.parameterEpoch,
+      }),
+      boundaryFrame: response.payload.observableFrame,
+    });
+    assertForkResponseV0(response, source, targetControlState);
+    patchView({
+      candidate: nextCandidate,
+      phase: liveIntentRef.current === "paused" ? "live-paused" : "live-running",
+      inFlight: false,
+      message: "The cumulative live target was updated without restarting the displayed trajectory.",
+    });
+    try {
+      await disposeSession(candidate.sessionId);
+    } catch (error) {
+      await disposeSession(nextCandidate.sessionId).catch(() => undefined);
+      throw error;
+    }
+    return nextCandidate;
+  }, [
+    client,
+    disposeSession,
+    nextRequestId,
+    patchView,
+    reserveControllerRequest,
+  ]);
+
   const runLiveLoop = React.useCallback(async (
     generation: number,
     candidate: CandidateV0,
   ): Promise<void> => {
     if (liveLoopActiveRef.current) return;
     liveLoopActiveRef.current = true;
+    let activeCandidate = candidate;
     try {
       while (
         mountedRef.current
         && generation === operationGenerationRef.current
       ) {
         if (liveIntentRef.current === "reset") {
-          await finishLiveReset(candidate);
+          await finishLiveReset(activeCandidate);
           return;
         }
         if (
@@ -615,14 +712,24 @@ export function ScientificWorkbenchResearchControlV0({
           return;
         }
 
+        const pendingTarget = pendingLiveRetargetDraftRef.current;
+        if (pendingTarget !== null) {
+          pendingLiveRetargetDraftRef.current = null;
+          activeCandidate = await retargetLiveCandidate(
+            activeCandidate,
+            pendingTarget,
+          );
+          continue;
+        }
+
         const commandStartedAtMs = monotonicNowMs();
         patchView({ phase: "live-running", inFlight: true });
         reserveControllerRequest();
         const response = await client.request({
           protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
           kind: "runTransient",
-          requestId: nextRequestId(candidate.sessionId, "live"),
-          sessionId: candidate.sessionId,
+          requestId: nextRequestId(activeCandidate.sessionId, "live"),
+          sessionId: activeCandidate.sessionId,
           dtSec: SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec,
           stepCount:
             SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepsPerWorkerCommand,
@@ -649,7 +756,7 @@ export function ScientificWorkbenchResearchControlV0({
         );
 
         if (intentAfterResponse === "reset") {
-          await finishLiveReset(candidate);
+          await finishLiveReset(activeCandidate);
           return;
         }
         if (intentAfterResponse === "paused") {
@@ -666,7 +773,7 @@ export function ScientificWorkbenchResearchControlV0({
         if (remainingMs > 0) await delay(remainingMs);
       }
     } catch (error) {
-      await failTransition(error, candidate);
+      await failTransition(error, activeCandidate);
     } finally {
       liveLoopActiveRef.current = false;
     }
@@ -677,6 +784,7 @@ export function ScientificWorkbenchResearchControlV0({
     nextRequestId,
     patchView,
     reserveControllerRequest,
+    retargetLiveCandidate,
     scheduleLiveRender,
   ]);
 
@@ -693,12 +801,14 @@ export function ScientificWorkbenchResearchControlV0({
     const generation = operationGenerationRef.current + 1;
     operationGenerationRef.current = generation;
     cancelSteadyRef.current = false;
+    pendingLiveRetargetDraftRef.current = null;
     const mode = current.mode;
     const forkPhase = mode === "steady" ? "steady-forking" : "live-forking";
     patchView({
       phase: forkPhase,
       candidate: null,
       targetControlStateSha256: null,
+      liveTransitionOriginAcceptedTimeSec: null,
       inFlight: false,
       periodicStatus: "not-started",
       completedBeatCount: 0,
@@ -781,6 +891,8 @@ export function ScientificWorkbenchResearchControlV0({
           : "live-paused",
         candidate,
         frames: liveFramesRef.current,
+        liveTransitionOriginAcceptedTimeSec:
+          candidate.boundaryFrame.acceptedTimeSec,
         inFlight: false,
         periodicStatus: "not-claimed-live-transition",
         message: liveIntentRef.current === "running"
@@ -810,6 +922,7 @@ export function ScientificWorkbenchResearchControlV0({
             candidate: null,
             frames: source.frames,
             targetControlStateSha256: null,
+            liveTransitionOriginAcceptedTimeSec: null,
             inFlight: false,
             periodicStatus: "idle",
             completedBeatCount: 0,
@@ -848,7 +961,10 @@ export function ScientificWorkbenchResearchControlV0({
   }, [patchView]);
 
   const pauseLive = React.useCallback((): void => {
-    if (viewRef.current.phase !== "live-running") return;
+    if (
+      viewRef.current.phase !== "live-running"
+      && viewRef.current.phase !== "live-retargeting"
+    ) return;
     liveIntentRef.current = "paused";
     patchView({
       phase: viewRef.current.inFlight
@@ -904,6 +1020,7 @@ export function ScientificWorkbenchResearchControlV0({
           phase: "idle",
           frames: current.source.frames,
           targetControlStateSha256: null,
+          liveTransitionOriginAcceptedTimeSec: null,
           inFlight: false,
           periodicStatus: "idle",
           message: "Live transition cancelled before allocation; source retained.",
@@ -935,8 +1052,18 @@ export function ScientificWorkbenchResearchControlV0({
     patch: Partial<ControlDraftV0>,
   ): void => {
     const current = viewRef.current;
-    if (current.phase !== "idle" || current.sourceRetirementPending) return;
+    if (current.sourceRetirementPending) return;
     const target = patchDraft(patch);
+    if (current.phase.startsWith("live-")) {
+      pendingLiveRetargetDraftRef.current = target;
+      patchView({
+        message: current.phase === "live-paused"
+          ? "Updated parameters queued; they will merge at the next accepted boundary when live transition resumes."
+          : "Updated parameters queued for the next accepted live-transition boundary.",
+      });
+      return;
+    }
+    if (current.phase !== "idle") return;
     void applyTransition(target);
   };
   ownerActionsRef.current = {
@@ -944,7 +1071,9 @@ export function ScientificWorkbenchResearchControlV0({
     setPulmonaryScale: (pulmonary) => void patchDraft({ pulmonary }),
     commitSystemicScale: (systemic) => commitControlDraft({ systemic }),
     commitPulmonaryScale: (pulmonary) => commitControlDraft({ pulmonary }),
-    setMode: (mode) => patchView({ mode }),
+    setMode: (mode) => {
+      if (viewRef.current.phase === "idle") patchView({ mode });
+    },
     applyTransition: () => void applyTransition(),
     cancelSteady,
     pauseLive,
@@ -1572,6 +1701,17 @@ function draftDiffersFromSource(
   source: ScientificWorkbenchResearchControlSourceV0,
 ): boolean {
   const controls = source.context.controlState.controls;
+  return draft.systemic
+      !== controls["circulation.systemic-vascular-resistance-scale"]
+    || draft.pulmonary
+      !== controls["circulation.pulmonary-vascular-resistance-scale"];
+}
+
+function draftDiffersFromContext(
+  draft: ControlDraftV0,
+  context: ScientificResearchControlContextV0,
+): boolean {
+  const controls = context.controlState.controls;
   return draft.systemic
       !== controls["circulation.systemic-vascular-resistance-scale"]
     || draft.pulmonary

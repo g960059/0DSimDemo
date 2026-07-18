@@ -212,7 +212,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       const comparisonRevision = numericAttribute(
         await evidence.getAttribute("data-scientific-final-revision"),
       );
-      await controller.getByRole("button", { name: "Next steady state" }).click();
+      await selectTransitionMode(page, "次の定常状態");
       await selectControllerScale(
         controller,
         "Systemic vascular resistance",
@@ -247,7 +247,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         "data-controller-scenario-id",
         comparisonScenarioId,
       );
-      await controller.getByRole("button", { name: "Live transition" }).click();
+      await selectTransitionMode(page, "ライブ遷移");
       await selectControllerScale(
         controller,
         "Pulmonary vascular resistance",
@@ -293,6 +293,9 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       const controller = page.getByTestId("scientific-transition-controller-v1");
       await expect(controller).toHaveAttribute("data-owner-connected", "true");
       await expect(controller).toHaveAttribute("data-mode", "live");
+      await expect(controller.getByTestId("scientific-product-transition-mode-v1"))
+        .toHaveCount(0);
+      await assertTransitionModeInRightDrawer(page, "ライブ遷移");
       await expect(controller.getByRole("button", { name: "Apply", exact: true }))
         .toHaveCount(0);
 
@@ -310,6 +313,31 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       await expect.poll(async () => numericAttribute(
         await evidence.getAttribute("data-scientific-final-revision"),
       )).toBeGreaterThan(initialRevision);
+
+      const firstTargetSha = await controller.getAttribute("data-target-control-sha");
+      const firstEpoch = numericAttribute(
+        await controller.getAttribute("data-displayed-parameter-epoch"),
+      );
+      await selectControllerScale(
+        controller,
+        "Pulmonary vascular resistance",
+        "0.75×",
+      );
+      await expect.poll(async () =>
+        controller.getAttribute("data-target-control-sha"),
+      ).not.toBe(firstTargetSha);
+      await expect.poll(async () => numericAttribute(
+        await controller.getAttribute("data-displayed-parameter-epoch"),
+      )).toBeGreaterThan(firstEpoch);
+      await expect(controller).toHaveAttribute("data-phase", "live-running", {
+        timeout: 30_000,
+      });
+      const pvCanvas = page.getByTestId("scientific-workbench-pv-canvas-v1").first();
+      await expect(pvCanvas).toHaveAttribute("data-pv-history-beats", "8");
+      await expect(pvCanvas).toHaveAttribute("data-pv-history-mode", "fade");
+      await expect.poll(async () => numericAttribute(
+        await pvCanvas.getAttribute("data-pv-history-trajectory-count"),
+      ), { timeout: 30_000 }).toBeGreaterThan(1);
 
       await controller.getByRole("button", { name: "Pause", exact: true }).click();
       await expect(controller).toHaveAttribute("data-phase", "live-paused");
@@ -556,6 +584,15 @@ async function assertLegendAndPaneSettingsInteractions(page: Page): Promise<void
   const dialog = page.getByRole("dialog", { name: "ペイン設定" });
   await expect(dialog).toBeVisible();
   const moveHandle = dialog.getByRole("button", { name: "ペイン設定を移動" });
+  const historySettings = dialog.getByTestId("pv-history-settings");
+  await expect(historySettings.getByRole("button", { name: "8", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await historySettings.getByRole("button", { name: "4", exact: true }).click();
+  await historySettings.getByRole("button", { name: "濃さを保持", exact: true }).click();
+  await expect(wrapper).toHaveAttribute("data-pv-history-beats", "4");
+  await expect(wrapper).toHaveAttribute("data-pv-history-mode", "persistent");
+  await historySettings.getByRole("button", { name: "8", exact: true }).click();
+  await historySettings.getByRole("button", { name: "徐々に薄く", exact: true }).click();
   const dialogBefore = await requiredBoundingBox(dialog, "pane settings dialog");
   const handleBox = await requiredBoundingBox(moveHandle, "pane settings move handle");
   await page.mouse.move(
@@ -995,6 +1032,32 @@ async function expectElementBoundsInside(
     if (elementBox === null || containerBox === null) return Number.POSITIVE_INFINITY;
     return elementBox.x + elementBox.width - (containerBox.x + containerBox.width);
   }).toBeLessThanOrEqual(1);
+}
+
+async function selectTransitionMode(
+  page: Page,
+  mode: "ライブ遷移" | "次の定常状態",
+): Promise<void> {
+  await page.getByRole("button", { name: "ワークベンチパネルを開く" }).click();
+  await page.getByRole("button", { name: "設定", exact: true }).click();
+  const settings = page.getByTestId("scientific-product-transition-mode-v1");
+  await settings.getByRole("button", { name: mode, exact: true }).click();
+  await expect(settings.getByRole("button", { name: mode, exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "パネルを閉じる" }).click();
+}
+
+async function assertTransitionModeInRightDrawer(
+  page: Page,
+  mode: "ライブ遷移" | "次の定常状態",
+): Promise<void> {
+  await page.getByRole("button", { name: "ワークベンチパネルを開く" }).click();
+  await page.getByRole("button", { name: "設定", exact: true }).click();
+  const settings = page.getByTestId("scientific-product-transition-mode-v1");
+  await expect(settings).toBeVisible();
+  await expect(settings.getByRole("button", { name: mode, exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "パネルを閉じる" }).click();
 }
 
 async function requiredBoundingBox(

@@ -401,7 +401,14 @@
         "title": "設定",
         "description": "低頻度で使うワークベンチ設定です。",
         "appearance": "外観",
-        "theme": "テーマ"
+        "theme": "テーマ",
+        "transitionBehavior": {
+          "title": "遷移方法",
+          "description": "通常はライブ遷移を使います。次の定常状態への移動は、必要なときだけ明示的に選択します。",
+          "live": "ライブ遷移",
+          "steady": "次の定常状態",
+          "locked": "実行中の遷移方法は維持されます。ライブ遷移中もパラメータ操作は継続できます。"
+        }
       },
       "themes": {
         "dark": "ダーク",
@@ -453,6 +460,16 @@
         "both": "Both"
       },
       "waveformTimeWindow": "波形時間ウィンドウ",
+      "pvHistory": "PV軌跡の履歴",
+      "pvHistoryDescription": "モデル遷移中の過去の心拍軌跡を保持します。",
+      "pvHistoryBeats": "PV履歴の心拍数",
+      "pvHistoryStyle": "PV履歴の表示方法",
+      "pvHistoryModes": {
+        "fade": "徐々に薄く",
+        "persistent": "濃さを保持"
+      },
+      "pvHistoryFadeHint": "{{count}}拍前で完全に透過し、表示から消えます。",
+      "pvHistoryPersistentHint": "直近{{count}}拍を一定の低い不透明度で保持する、上限付きrolling windowです。",
       "adjacentSectionsConfigurable": "シナリオ表示とラベルは隣のセクションでも設定できます。",
       "selectInstanceForStyle": "ラベルと色を編集するシナリオを選択してください。",
       "instanceStylingOnly": "シナリオの見た目のみ",

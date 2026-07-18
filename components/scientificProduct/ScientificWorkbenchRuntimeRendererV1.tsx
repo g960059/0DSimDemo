@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import { ControllerItemControl } from "@/components/controls/ControllerItemControl";
 import { shouldEnableLegendInteractions } from "@/components/InteractiveGraphLegend";
@@ -342,6 +343,8 @@ function ScientificGraphPanelV1({
         series={series}
         clock={clock}
         showLegend={panel.showLegend !== false}
+        historyBeats={panel.pvHistoryBeats ?? (panel.view?.kind === "graph" ? panel.view.pvHistoryBeats : undefined) ?? 8}
+        historyMode={panel.pvHistoryMode ?? (panel.view?.kind === "graph" ? panel.view.pvHistoryMode : undefined) ?? "fade"}
         legendInteraction={legendInteraction}
       />
     </div>
@@ -465,6 +468,9 @@ function ScientificControllerPanelV1({
     );
   }
   const actions = runtime.controlStore.actions;
+  const controlsEditable = snapshot.ownerConnected
+    && (snapshot.phase === "idle" || snapshot.phase.startsWith("live-"))
+    && !snapshot.requestCapacityExhausted;
   return (
     <div
       className="absolute inset-0 flex min-h-0 flex-col overflow-hidden bg-transparent"
@@ -474,33 +480,13 @@ function ScientificControllerPanelV1({
       data-mode={snapshot.mode}
       data-owner-connected={String(snapshot.ownerConnected)}
       data-displayed-evidence={snapshot.provenance.displayedEvidence}
+      data-target-control-sha={snapshot.targetControlStateSha256 ?? ""}
+      data-displayed-parameter-epoch={snapshot.provenance.displayedParameterEpoch}
     >
       <div className="flex shrink-0 items-center gap-2 border-b border-wb-line px-2 py-1.5 text-[11px]">
         <span className="h-2 w-2 rounded-full" style={{ backgroundColor: descriptor.color }} />
         <span className="min-w-0 flex-1 truncate font-semibold text-wb-text">{descriptor.name}</span>
         <span className="truncate text-wb-subtle">{compactPhaseLabelV1(snapshot.phase)}</span>
-      </div>
-      <div
-        className="shrink-0 border-b border-wb-line bg-wb-strip px-2 py-2"
-        data-testid="scientific-product-transition-mode-v1"
-      >
-        <span className="mb-1 block text-[10px] font-semibold text-wb-subtle">
-          Transition behavior
-        </span>
-        <div className="flex gap-1" role="group" aria-label="Transition mode">
-          {(["live", "steady"] as const).map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => actions.setMode(mode)}
-              disabled={snapshot.busy || !snapshot.ownerConnected}
-              aria-pressed={snapshot.mode === mode}
-              className={`flex-1 rounded border px-2 py-1 text-[10px] font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${snapshot.mode === mode ? "border-wb-accent bg-wb-active text-wb-text" : "border-wb-line text-wb-subtle"}`}
-            >
-              {mode === "live" ? "Live transition" : "Next steady state"}
-            </button>
-          ))}
-        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2 custom-scrollbar">
         <div className="grid gap-2">
@@ -549,7 +535,7 @@ function ScientificControllerPanelV1({
                 onReset={() => {
                   commitScale(1);
                 }}
-                disabled={snapshot.busy || !snapshot.ownerConnected}
+                disabled={!controlsEditable}
               />
             );
           })}
@@ -589,6 +575,69 @@ function ScientificControllerPanelV1({
         </div>
       )}
     </div>
+  );
+}
+
+export function ScientificProductTransitionBehaviorSettingsV1({
+  registry,
+  activeScenarioId,
+}: Readonly<{
+  registry: ScientificProductScenarioRegistryV1;
+  activeScenarioId: string;
+}>) {
+  const { t } = useTranslation();
+  const descriptors = React.useSyncExternalStore(
+    registry.subscribeDescriptors,
+    registry.getDescriptorSnapshot,
+    registry.getDescriptorSnapshot,
+  );
+  const descriptor = descriptors.find(({ id }) => id === activeScenarioId);
+  const runtime = descriptor === undefined ? null : registry.getRuntime(descriptor.id);
+  const snapshot = React.useSyncExternalStore(
+    runtime?.controlStore.subscribe ?? EMPTY_SUBSCRIBE,
+    runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT,
+    runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT,
+  );
+  if (descriptor === undefined || snapshot === null) return null;
+  const modeEditable = snapshot.ownerConnected && snapshot.phase === "idle";
+  return (
+    <section
+      className="space-y-3 border-t border-wb-line pt-4"
+      data-testid="scientific-product-transition-mode-v1"
+      data-scenario-id={descriptor.id}
+    >
+      <div>
+        <h3 className="text-[11px] font-medium text-wb-subtle">
+          {t("workbench.sidePanel.settings.transitionBehavior.title")}
+        </h3>
+        <div className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold text-wb-text">
+          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: descriptor.color }} />
+          <span className="truncate">{descriptor.name}</span>
+        </div>
+        <p className="mt-1 text-xs leading-5 text-wb-muted">
+          {t("workbench.sidePanel.settings.transitionBehavior.description")}
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-1" role="group" aria-label="Transition mode">
+        {(["live", "steady"] as const).map((mode) => (
+          <button
+            key={mode}
+            type="button"
+            onClick={() => runtime!.controlStore.actions.setMode(mode)}
+            disabled={!modeEditable}
+            aria-pressed={snapshot.mode === mode}
+            className={`min-h-9 rounded border px-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-45 ${snapshot.mode === mode ? "border-wb-accent bg-wb-active text-wb-text" : "border-wb-line bg-wb-input text-wb-muted hover:text-wb-text"}`}
+          >
+            {t(`workbench.sidePanel.settings.transitionBehavior.${mode}`)}
+          </button>
+        ))}
+      </div>
+      {!modeEditable && (
+        <p className="text-[10px] leading-4 text-wb-subtle">
+          {t("workbench.sidePanel.settings.transitionBehavior.locked")}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -778,11 +827,15 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
       timeWindow: view.presentation?.timeWindow,
       showLegend: view.presentation?.showLegend,
       legendPosition: view.presentation?.legendPosition,
+      pvHistoryBeats: view.presentation?.pvHistoryBeats,
+      pvHistoryMode: view.presentation?.pvHistoryMode,
     },
     isSettingsOpen: false,
     showGuides: view.presentation?.showGuides,
     timeWindow: view.presentation?.timeWindow,
     showLegend: view.presentation?.showLegend,
+    pvHistoryBeats: view.presentation?.pvHistoryBeats,
+    pvHistoryMode: view.presentation?.pvHistoryMode,
   };
 }
 

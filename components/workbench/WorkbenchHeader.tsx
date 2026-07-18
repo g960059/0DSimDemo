@@ -69,6 +69,7 @@ interface WorkbenchHeaderProps {
   publishStatus?: CaseStatus;
   publishVisibility?: CaseVisibility;
   onOpenPublishDialog?: () => void;
+  settingsContent?: React.ReactNode;
 }
 
 const SPEEDS = [0.5, 1, 2, 5];
@@ -118,6 +119,7 @@ export function WorkbenchHeader({
   publishStatus,
   publishVisibility,
   onOpenPublishDialog,
+  settingsContent,
 }: WorkbenchHeaderProps) {
   const { t } = useTranslation();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -368,6 +370,7 @@ export function WorkbenchHeader({
         fileActionsUnavailableReason={fileActionsUnavailableReason}
         theme={theme}
         onThemeChange={onThemeChange}
+        settingsContent={settingsContent}
       />
     </>
   );

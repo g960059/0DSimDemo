@@ -244,6 +244,7 @@ export function WorkbenchRoute() {
         updateTimeWindow={panels.updateTimeWindow}
         togglePvDebugOverlay={panels.togglePvDebugOverlay}
         updatePvDebugTraceMode={panels.updatePvDebugTraceMode}
+        updatePanelPvHistory={panels.updatePanelPvHistory}
         updatePanelControllerItems={panels.updatePanelControllerItems}
         updatePanelLegendPosition={panels.updatePanelLegendPosition}
         noteCaseKey={panels.noteCaseKey}

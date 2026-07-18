@@ -7,9 +7,23 @@ import {
   projectScientificTransientPhasesV1,
   scientificOpenTransientElapsedSecondsV1,
   scientificSharedOpenTransientElapsedSecondsV1,
+  scientificPvHistoryAlphaV1,
+  normalizeScientificPvHistoryBeatsV1,
 } from "@/components/scientificProduct/ScientificWorkbenchAnimatedChartsV1";
 
 describe("scientific Workbench display clock V1", () => {
+  it("fades the eighth prior PV trajectory completely and bounds persistent history", () => {
+    expect(scientificPvHistoryAlphaV1(0, 8, "fade")).toBe(1);
+    expect(scientificPvHistoryAlphaV1(1, 8, "fade")).toBeGreaterThan(0);
+    expect(scientificPvHistoryAlphaV1(7, 8, "fade")).toBeGreaterThan(0);
+    expect(scientificPvHistoryAlphaV1(8, 8, "fade")).toBe(0);
+    expect(scientificPvHistoryAlphaV1(1, 8, "persistent")).toBe(0.34);
+    expect(scientificPvHistoryAlphaV1(8, 8, "persistent")).toBe(0.34);
+    expect(scientificPvHistoryAlphaV1(9, 8, "persistent")).toBe(0);
+    expect(normalizeScientificPvHistoryBeatsV1(99)).toBe(16);
+    expect(normalizeScientificPvHistoryBeatsV1(-2)).toBe(0);
+  });
+
   it("breaks a live waveform path when the sweep phase wraps", () => {
     const projected = projectScientificTransientPhasesV1(
       [1.96, 1.98, 2, 2.02],

@@ -26,6 +26,7 @@ import {
   PanelType,
   PhysicsRefState,
   PvLoopDebugTraceMode,
+  type PvLoopHistoryMode,
   type LegendPosition,
   SignalType,
   SimInstance,
@@ -139,6 +140,7 @@ export interface PanelGridProps {
   updateTimeWindow: (panelId: string, val: number) => void;
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
+  updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
@@ -256,6 +258,7 @@ interface PanelSettingsControlsProps {
   updateTimeWindow: (panelId: string, val: number) => void;
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
+  updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   chambers: ChamberId[];
   signals: SignalType[];
@@ -650,6 +653,7 @@ function GraphPanelSettingsBoard({
   updateTimeWindow,
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
+  updatePanelPvHistory,
   chambers,
   signals,
   metrics,
@@ -901,6 +905,8 @@ function GraphPanelSettingsBoard({
     const hasPvDebug = panel.type === 'PVLOOP';
     const hasWindow = panel.type === 'WAVEFORM';
     const debugTraceMode = panel.pvDebugTraceMode ?? 'raw';
+    const pvHistoryBeats = panel.pvHistoryBeats ?? 8;
+    const pvHistoryMode = panel.pvHistoryMode ?? 'fade';
     return (
       <div className="space-y-2">
         <label className="grid gap-2 rounded bg-wb-strip p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
@@ -972,6 +978,44 @@ function GraphPanelSettingsBoard({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+          {panel.type === 'PVLOOP' && (
+            <div className="space-y-3 px-2 py-3" data-testid="pv-history-settings">
+              <div>
+                <div className="text-sm font-bold text-wb-text">{t('workbench.panelGrid.pvHistory')}</div>
+                <div className="mt-0.5 text-xs font-medium text-wb-subtle">{t('workbench.panelGrid.pvHistoryDescription')}</div>
+              </div>
+              <div className="grid grid-cols-5 gap-1" role="group" aria-label={t('workbench.panelGrid.pvHistoryBeats')}>
+                {[0, 4, 8, 12, 16].map((beats) => (
+                  <button
+                    key={beats}
+                    type="button"
+                    onClick={() => updatePanelPvHistory(panel.id, { beats })}
+                    className={`h-8 rounded border px-1 text-xs font-bold transition-colors ${pvHistoryBeats === beats ? 'border-wb-line-strong bg-wb-active text-wb-text' : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'}`}
+                    aria-pressed={pvHistoryBeats === beats}
+                  >
+                    {beats === 0 ? t('common.off') : beats}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-1" role="group" aria-label={t('workbench.panelGrid.pvHistoryStyle')}>
+                {(['fade', 'persistent'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => updatePanelPvHistory(panel.id, { mode })}
+                    disabled={pvHistoryBeats === 0}
+                    className={`h-8 rounded border px-2 text-xs font-bold transition-colors disabled:opacity-40 ${pvHistoryMode === mode ? 'border-wb-line-strong bg-wb-active text-wb-text' : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'}`}
+                    aria-pressed={pvHistoryMode === mode}
+                  >
+                    {t(`workbench.panelGrid.pvHistoryModes.${mode}`)}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] leading-4 text-wb-subtle">
+                {t(`workbench.panelGrid.${pvHistoryMode === 'fade' ? 'pvHistoryFadeHint' : 'pvHistoryPersistentHint'}`, { count: pvHistoryBeats })}
+              </p>
             </div>
           )}
           {hasWindow && (
@@ -2140,6 +2184,7 @@ interface PanelCardProps {
   updateTimeWindow: (panelId: string, val: number) => void;
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
+  updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
@@ -2225,6 +2270,7 @@ function PanelCard({
   updateTimeWindow,
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
+  updatePanelPvHistory,
   updatePanelControllerItems,
   updatePanelLegendPosition,
   noteCaseKey,
@@ -2571,6 +2617,7 @@ export function PanelGrid({
   updateTimeWindow,
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
+  updatePanelPvHistory,
   updatePanelControllerItems,
   updatePanelLegendPosition,
   noteCaseKey,
@@ -2673,6 +2720,7 @@ export function PanelGrid({
       updateTimeWindow={updateTimeWindow}
       togglePvDebugOverlay={togglePvDebugOverlay}
       updatePvDebugTraceMode={updatePvDebugTraceMode}
+      updatePanelPvHistory={updatePanelPvHistory}
       updatePanelControllerItems={updatePanelControllerItems}
       updatePanelLegendPosition={updatePanelLegendPosition}
       noteCaseKey={noteCaseKey}
@@ -2711,6 +2759,7 @@ export function PanelGrid({
       updateTimeWindow={updateTimeWindow}
       togglePvDebugOverlay={togglePvDebugOverlay}
       updatePvDebugTraceMode={updatePvDebugTraceMode}
+      updatePanelPvHistory={updatePanelPvHistory}
       updatePanelControllerItems={updatePanelControllerItems}
       chambers={chambers}
       signals={signals}

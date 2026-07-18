@@ -86,6 +86,8 @@ export interface LegendPosition {
     yPct: number;
 }
 
+export type PvLoopHistoryMode = 'fade' | 'persistent';
+
 export interface GraphPanelView {
     kind: 'graph';
     graphType: 'pvloop' | 'waveform' | 'guyton-right' | 'guyton-left' | 'guyton-3d';
@@ -100,6 +102,8 @@ export interface GraphPanelView {
     legendPosition?: LegendPosition;
     pvDebugOverlay?: boolean;
     pvDebugTraceMode?: PvLoopDebugTraceMode;
+    pvHistoryBeats?: number;
+    pvHistoryMode?: PvLoopHistoryMode;
 }
 
 export interface OutputPanelView {
@@ -206,6 +210,8 @@ export interface PanelDef {
     showLegend?: boolean;
     pvDebugOverlay?: boolean;
     pvDebugTraceMode?: PvLoopDebugTraceMode;
+    pvHistoryBeats?: number;
+    pvHistoryMode?: PvLoopHistoryMode;
 }
 
 export interface PreviewCoreFacade {

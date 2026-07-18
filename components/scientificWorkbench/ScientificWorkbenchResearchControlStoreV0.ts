@@ -18,6 +18,7 @@ export type ScientificWorkbenchResearchTransitionPhaseV0 =
   | "steady-settling"
   | "steady-capturing"
   | "live-forking"
+  | "live-retargeting"
   | "live-running"
   | "live-pause-requested"
   | "live-paused"
@@ -83,6 +84,7 @@ export type ScientificWorkbenchResearchControlSnapshotV0 = Readonly<{
   candidate: ScientificWorkbenchResearchControlCandidateV0 | null;
   frames: readonly MainWireScientificObservableFrameV1[];
   targetControlStateSha256: string | null;
+  liveTransitionOriginAcceptedTimeSec: number | null;
   inFlight: boolean;
   periodicStatus: string;
   completedBeatCount: number;
@@ -193,6 +195,7 @@ export function createScientificWorkbenchResearchControlStoreV0(
     candidate: null,
     frames: initialSource.frames,
     targetControlStateSha256: null,
+    liveTransitionOriginAcceptedTimeSec: null,
     inFlight: false,
     periodicStatus: "idle",
     completedBeatCount: 0,

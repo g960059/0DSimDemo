@@ -401,7 +401,14 @@
         "title": "Settings",
         "description": "Low-frequency workbench settings.",
         "appearance": "Appearance",
-        "theme": "Theme"
+        "theme": "Theme",
+        "transitionBehavior": {
+          "title": "Transition behavior",
+          "description": "Live is the default. Next steady state remains an explicit, lower-frequency choice.",
+          "live": "Live transition",
+          "steady": "Next steady state",
+          "locked": "The current transition keeps its selected behavior; parameter controls remain available during live transition."
+        }
       },
       "themes": {
         "dark": "Dark",
@@ -453,6 +460,16 @@
         "both": "Both"
       },
       "waveformTimeWindow": "Waveform time window",
+      "pvHistory": "PV trajectory history",
+      "pvHistoryDescription": "Retain prior cardiac-cycle trajectories while the model transitions.",
+      "pvHistoryBeats": "PV history beats",
+      "pvHistoryStyle": "PV history style",
+      "pvHistoryModes": {
+        "fade": "Fade",
+        "persistent": "Keep visible"
+      },
+      "pvHistoryFadeHint": "The oldest trajectory reaches zero opacity at beat {{count}}.",
+      "pvHistoryPersistentHint": "The latest {{count}} prior trajectories keep a constant low opacity in a bounded rolling window.",
       "adjacentSectionsConfigurable": "Scenario visibility and labels are still configurable in the adjacent sections.",
       "selectInstanceForStyle": "Select a scenario to edit labels and colors.",
       "instanceStylingOnly": "Scenario styling only",

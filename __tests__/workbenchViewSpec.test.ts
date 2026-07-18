@@ -29,6 +29,8 @@ const panels: PanelDef[] = [
     showGuides: true,
     pvDebugOverlay: true,
     pvDebugTraceMode: "resampled",
+    pvHistoryBeats: 8,
+    pvHistoryMode: "fade",
   },
   {
     id: "wave",
@@ -110,7 +112,13 @@ describe("Workbench ViewSpec model", () => {
       graphType: "pvloop",
       membership: { normal: ["LV", "RV"] },
       aspect: { ratio: 1, fit: "lock" },
-      presentation: { showGuides: true, pvDebugOverlay: true, pvDebugTraceMode: "resampled" },
+      presentation: {
+        showGuides: true,
+        pvDebugOverlay: true,
+        pvDebugTraceMode: "resampled",
+        pvHistoryBeats: 8,
+        pvHistoryMode: "fade",
+      },
     });
 
     const wave = migrated.views.find((view) => view.id === "wave");

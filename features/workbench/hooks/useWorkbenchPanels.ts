@@ -10,6 +10,7 @@ import type {
   PanelInstanceConfig,
   PanelType,
   PvLoopDebugTraceMode,
+  PvLoopHistoryMode,
   SimInstance,
   WorkbenchWorkspace,
   WorkbenchZoneId,
@@ -381,6 +382,32 @@ export function useWorkbenchPanels({
     ));
   }, [markUserEdited]);
 
+  const updatePanelPvHistory = useCallback((
+    panelId: string,
+    history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>,
+  ) => {
+    markUserEdited();
+    setPanels((prev) => updatePanelWithSourceViewMirrors(
+      prev,
+      panelId,
+      (panel) => {
+        if (panel.type !== 'PVLOOP') return panel;
+        const beats = history.beats === undefined
+          ? panel.pvHistoryBeats ?? 8
+          : Math.min(16, Math.max(0, Math.round(history.beats)));
+        const mode = history.mode ?? panel.pvHistoryMode ?? 'fade';
+        return {
+          ...panel,
+          pvHistoryBeats: beats,
+          pvHistoryMode: mode,
+          view: panel.view?.kind === 'graph'
+            ? { ...panel.view, pvHistoryBeats: beats, pvHistoryMode: mode }
+            : panel.view,
+        };
+      },
+    ));
+  }, [markUserEdited]);
+
   const updatePanelControllerItems = useCallback((panelId: string, items: ControllerItem[]) => {
     markUserEdited();
     setPanels((prev) => prev.map((panel) => panel.id === panelId ? mergePanelControllerItems(panel, items) : panel));
@@ -482,6 +509,7 @@ export function useWorkbenchPanels({
     updateTimeWindow,
     togglePvDebugOverlay,
     updatePvDebugTraceMode,
+    updatePanelPvHistory,
     updatePanelControllerItems,
     updatePanelLegendPosition,
     onNoteChange,

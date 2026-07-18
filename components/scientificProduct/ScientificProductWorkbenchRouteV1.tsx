@@ -52,6 +52,7 @@ import {
 
 import {
   createScientificWorkbenchRuntimeRendererV1,
+  ScientificProductTransitionBehaviorSettingsV1,
   SCIENTIFIC_CONTROL_PULMONARY_V1,
   SCIENTIFIC_CONTROL_SYSTEMIC_V1,
   SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1,
@@ -460,6 +461,12 @@ function ScientificProductWorkbenchShellV1({
           panels.setWorkbenchLayout((previous) => ({ ...previous, metricsSpan }))}
         theme={workbenchTheme}
         onThemeChange={setWorkbenchTheme}
+        settingsContent={(
+          <ScientificProductTransitionBehaviorSettingsV1
+            registry={registry}
+            activeScenarioId={activeInstanceId}
+          />
+        )}
       />
       <PanelGrid
         instances={instances}
@@ -542,6 +549,7 @@ function ScientificProductWorkbenchShellV1({
         updateTimeWindow={panels.updateTimeWindow}
         togglePvDebugOverlay={panels.togglePvDebugOverlay}
         updatePvDebugTraceMode={panels.updatePvDebugTraceMode}
+        updatePanelPvHistory={panels.updatePanelPvHistory}
         updatePanelControllerItems={panels.updatePanelControllerItems}
         updatePanelLegendPosition={panels.updatePanelLegendPosition}
         noteCaseKey={panels.noteCaseKey}
@@ -692,10 +700,14 @@ export function createScientificProductWorkbenchPresentationV1(
         kind: "graph",
         graphType: "pvloop",
         showLegend: true,
+        pvHistoryBeats: 8,
+        pvHistoryMode: "fade",
       },
       isSettingsOpen: false,
       showLegend: true,
       showGuides: false,
+      pvHistoryBeats: 8,
+      pvHistoryMode: "fade",
     },
     {
       id: "product-left-pressure-v1",

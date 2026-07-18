@@ -111,6 +111,11 @@ describe("document-bound scientific workbench page V1", () => {
     ]);
     expect(presentation.panels[0]?.config["scenario-1"]?.selectedSignals)
       .toEqual(["lv"]);
+    expect(presentation.panels[0]).toMatchObject({
+      pvHistoryBeats: 8,
+      pvHistoryMode: "fade",
+      view: { pvHistoryBeats: 8, pvHistoryMode: "fade" },
+    });
     expect(presentation.panels[1]?.config["scenario-1"]?.selectedSignals)
       .toEqual([
         "hemodynamics.pressure.absolute.Ao",

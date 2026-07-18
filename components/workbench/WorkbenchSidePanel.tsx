@@ -28,6 +28,7 @@ interface WorkbenchSidePanelProps {
   fileActionsUnavailableReason?: string;
   theme: WorkbenchThemeId;
   onThemeChange: (theme: WorkbenchThemeId) => void;
+  settingsContent?: React.ReactNode;
 }
 
 type TabId = 'share' | 'files' | 'details' | 'settings';
@@ -44,6 +45,7 @@ export function WorkbenchSidePanel({
   fileActionsUnavailableReason,
   theme,
   onThemeChange,
+  settingsContent,
 }: WorkbenchSidePanelProps) {
   const { t } = useTranslation();
   const tabs = useMemo(() => {
@@ -196,6 +198,7 @@ export function WorkbenchSidePanel({
                   </div>
                 </div>
               </section>
+              {settingsContent}
             </div>
           )}
         </div>

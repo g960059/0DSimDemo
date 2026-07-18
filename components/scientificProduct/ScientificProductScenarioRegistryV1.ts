@@ -210,10 +210,11 @@ export class ScientificProductScenarioRegistryV1 {
       descriptor: entry.descriptor,
       frames: snapshot.frames,
       periodicCycleFrames: validatedCycle?.frames ?? null,
-      cycleDurationSec: validatedCycle?.durationSec ?? null,
+      cycleDurationSec: validatedCycle?.durationSec
+        ?? runtime.result.terminalCycle.durationSec,
       transientOriginAcceptedTimeSec:
         displayedEvidence === "open-transient-no-periodic-claim"
-          ? snapshot.candidate?.boundaryFrame.acceptedTimeSec
+          ? snapshot.liveTransitionOriginAcceptedTimeSec
             ?? snapshot.frames[0]?.acceptedTimeSec
             ?? null
           : null,

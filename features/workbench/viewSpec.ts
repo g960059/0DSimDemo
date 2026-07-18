@@ -1,4 +1,4 @@
-import type { ControllerItem, LegendPosition, MetricType, PanelDef, PanelInstanceConfig, PvLoopDebugTraceMode, WorkbenchWorkspace } from "@/types";
+import type { ControllerItem, LegendPosition, MetricType, PanelDef, PanelInstanceConfig, PvLoopDebugTraceMode, PvLoopHistoryMode, WorkbenchWorkspace } from "@/types";
 
 export type ScenarioBinding = { kind: "active" } | { kind: "scenario"; scenarioId: string };
 
@@ -23,6 +23,8 @@ export interface GraphViewSpec extends ViewSpecBase {
     legendPosition?: LegendPosition;
     pvDebugOverlay?: boolean;
     pvDebugTraceMode?: PvLoopDebugTraceMode;
+    pvHistoryBeats?: number;
+    pvHistoryMode?: PvLoopHistoryMode;
   };
 }
 
@@ -221,6 +223,8 @@ function graphViewSpecFromPanel(panel: PanelDef, graphType: GraphViewType): Grap
         : {}),
       ...(panel.pvDebugOverlay !== undefined ? { pvDebugOverlay: panel.pvDebugOverlay } : {}),
       ...(panel.pvDebugTraceMode !== undefined ? { pvDebugTraceMode: panel.pvDebugTraceMode } : {}),
+      ...(panel.pvHistoryBeats !== undefined ? { pvHistoryBeats: panel.pvHistoryBeats } : {}),
+      ...(panel.pvHistoryMode !== undefined ? { pvHistoryMode: panel.pvHistoryMode } : {}),
     },
   };
 }
