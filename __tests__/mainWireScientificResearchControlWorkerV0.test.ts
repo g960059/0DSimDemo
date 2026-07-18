@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
+import {
   createMainWireScientificResearchControlTargetStateV0,
 } from "@/engine/scientific/controls";
 import {
@@ -53,13 +56,9 @@ describe("main-wire scientific research-control Worker V0", () => {
         revision: created.payload.observableFrame.revision,
         acceptedTimeSec: created.payload.observableFrame.acceptedTimeSec,
       },
-      controlState: {
-        controls: {
-          "circulation.systemic-vascular-resistance-scale": 1,
-          "circulation.pulmonary-vascular-resistance-scale": 1,
-        },
-      },
     });
+    expect(baselineContext.controlState.controls)
+      .toEqual(MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0);
 
     const lowerSvr = await controlState(0.75, 1);
     const forked = await client.request({
@@ -162,7 +161,7 @@ describe("main-wire scientific research-control Worker V0", () => {
       },
     });
 
-    const higherPvr = await controlState(0.75, 1.3333333333333333);
+    const higherPvr = await controlState(0.75, 1.5);
     const chained = await client.request({
       ...baseCommand(
         "forkResearchControlSession",
@@ -481,10 +480,11 @@ function baseCommand<Kind extends ScientificCommandV1["kind"]>(
 }
 
 async function controlState(
-  systemicScale: 0.75 | 1 | 1.3333333333333333,
-  pulmonaryScale: 0.75 | 1 | 1.3333333333333333,
+  systemicScale: number,
+  pulmonaryScale: number,
 ) {
   return createMainWireScientificResearchControlTargetStateV0({
+    ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
     "circulation.systemic-vascular-resistance-scale": systemicScale,
     "circulation.pulmonary-vascular-resistance-scale": pulmonaryScale,
   });

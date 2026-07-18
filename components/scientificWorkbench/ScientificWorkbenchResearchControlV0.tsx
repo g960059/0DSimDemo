@@ -11,7 +11,9 @@ import {
   type MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0,
+  type MainWireScientificResearchControlIdV0,
   type MainWireScientificResearchControlScaleV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
 import {
@@ -28,6 +30,9 @@ import {
 import type {
   MainWireScientificWorkerClientV1,
   MainWireScientificWorkerResponseV1,
+} from "@/engine/scientificBrowser";
+import {
+  MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
 } from "@/engine/scientificBrowser";
 
 import { ScientificWorkspaceRendererV1 } from "./ScientificWorkspaceRendererV1";
@@ -108,9 +113,12 @@ type ControlDraftV0 = ScientificWorkbenchResearchControlDraftV0;
 type LiveIntentV0 = "running" | "paused" | "reset";
 
 const LIVE_RENDER_INTERVAL_MS = 1_000 / 30;
+export const SCIENTIFIC_WORKBENCH_LIVE_STEPS_PER_COMMAND_V0 =
+  MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+    .maximumTransientStepCountPerCommand;
 const LIVE_SIMULATED_CHUNK_MS =
   SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec
-  * SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepsPerWorkerCommand
+  * SCIENTIFIC_WORKBENCH_LIVE_STEPS_PER_COMMAND_V0
   * 1_000;
 const MAXIMUM_STEADY_SETTLEMENT_BEAT_COUNT = 32;
 /** Matches the maximum product Workbench waveform window. */
@@ -120,7 +128,9 @@ export const SCIENTIFIC_WORKBENCH_LIVE_HISTORY_FRAME_LIMIT_V0 =
     SCIENTIFIC_WORKBENCH_LIVE_HISTORY_WINDOW_SEC_V0
       / SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec,
   ) + 1;
-export const SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0 = 8_192 as const;
+export const SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0 =
+  MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+    .maximumRequestCountPerLifetime;
 export const SCIENTIFIC_WORKBENCH_OFFICIAL_BOOTSTRAP_REQUEST_COUNT_V0 =
   2 + SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.workerCommandCount;
 
@@ -194,6 +204,7 @@ export function ScientificWorkbenchResearchControlV0({
   );
   const cancelSteadyRef = React.useRef(false);
   const liveIntentRef = React.useRef<LiveIntentV0>("paused");
+  const visibilityAutoPausedRef = React.useRef(false);
   const liveLoopActiveRef = React.useRef(false);
   const pendingLiveRetargetDraftRef = React.useRef<ControlDraftV0 | null>(null);
   const liveFramesRef = React.useRef<readonly MainWireScientificObservableFrameV1[]>(
@@ -559,6 +570,7 @@ export function ScientificWorkbenchResearchControlV0({
     candidate: CandidateV0,
   ): Promise<void> => {
     liveIntentRef.current = "paused";
+    visibilityAutoPausedRef.current = false;
     pendingLiveRetargetDraftRef.current = null;
     if (
       liveAnimationFrameRef.current !== null
@@ -611,10 +623,9 @@ export function ScientificWorkbenchResearchControlV0({
       message: "Merging the updated parameter subset at the latest accepted-state boundary…",
     });
     const targetControlState =
-      await createMainWireScientificResearchControlTargetStateV0({
-        "circulation.systemic-vascular-resistance-scale": committedDraft.systemic,
-        "circulation.pulmonary-vascular-resistance-scale": committedDraft.pulmonary,
-      });
+      await createMainWireScientificResearchControlTargetStateV0(
+        targetValuesFromDraftV0(committedDraft),
+      );
     const targetSessionId = nextTransitionSessionId();
     patchView({
       targetControlStateSha256: targetControlState.targetStateSha256,
@@ -690,6 +701,9 @@ export function ScientificWorkbenchResearchControlV0({
           liveIntentRef.current === "paused"
           || (typeof document !== "undefined" && document.hidden)
         ) {
+          if (typeof document !== "undefined" && document.hidden) {
+            visibilityAutoPausedRef.current = true;
+          }
           liveIntentRef.current = "paused";
           scheduleLiveRender(true);
           patchView({
@@ -732,11 +746,14 @@ export function ScientificWorkbenchResearchControlV0({
           sessionId: activeCandidate.sessionId,
           dtSec: SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec,
           stepCount:
-            SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepsPerWorkerCommand,
+            SCIENTIFIC_WORKBENCH_LIVE_STEPS_PER_COMMAND_V0,
           observationStride:
             SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.observationStride,
         });
-        const frames = acceptedTransientChunk(response);
+        const frames = acceptedTransientChunk(
+          response,
+          SCIENTIFIC_WORKBENCH_LIVE_STEPS_PER_COMMAND_V0,
+        );
         liveFramesRef.current = appendScientificWorkbenchLiveFramesV0(
           liveFramesRef.current,
           frames,
@@ -820,10 +837,9 @@ export function ScientificWorkbenchResearchControlV0({
     let candidate: CandidateV0 | null = null;
     try {
       const targetControlState =
-        await createMainWireScientificResearchControlTargetStateV0({
-          "circulation.systemic-vascular-resistance-scale": committedDraft.systemic,
-          "circulation.pulmonary-vascular-resistance-scale": committedDraft.pulmonary,
-        });
+        await createMainWireScientificResearchControlTargetStateV0(
+          targetValuesFromDraftV0(committedDraft),
+        );
       if (generation !== operationGenerationRef.current) return;
       const source = viewRef.current.source;
       const targetSessionId = nextTransitionSessionId();
@@ -879,7 +895,9 @@ export function ScientificWorkbenchResearchControlV0({
         return;
       }
 
-      liveIntentRef.current = typeof document !== "undefined" && document.hidden
+      const pageHidden = typeof document !== "undefined" && document.hidden;
+      visibilityAutoPausedRef.current = pageHidden;
+      liveIntentRef.current = pageHidden
         ? "paused"
         : "running";
       liveFramesRef.current = Object.freeze([candidate.boundaryFrame]);
@@ -965,6 +983,7 @@ export function ScientificWorkbenchResearchControlV0({
       viewRef.current.phase !== "live-running"
       && viewRef.current.phase !== "live-retargeting"
     ) return;
+    visibilityAutoPausedRef.current = false;
     liveIntentRef.current = "paused";
     patchView({
       phase: viewRef.current.inFlight
@@ -981,6 +1000,7 @@ export function ScientificWorkbenchResearchControlV0({
       || current.candidate === null
       || current.remainingRegularRequestCount === 0
     ) return;
+    visibilityAutoPausedRef.current = false;
     liveIntentRef.current = "running";
     lastLiveRenderAtMsRef.current = monotonicNowMs();
     patchView({
@@ -993,6 +1013,7 @@ export function ScientificWorkbenchResearchControlV0({
   const resetLiveOrFailure = React.useCallback((): void => {
     const current = viewRef.current;
     if (current.phase === "resetting") return;
+    visibilityAutoPausedRef.current = false;
     if (current.phase === "failed" && current.candidate === null) {
       commitView({
         ...current,
@@ -1067,6 +1088,14 @@ export function ScientificWorkbenchResearchControlV0({
     void applyTransition(target);
   };
   ownerActionsRef.current = {
+    setControlValue: (controlId, value) => {
+      const patch = draftPatchForControlValueV0(controlId, value);
+      if (patch !== null) void patchDraft(patch);
+    },
+    commitControlValue: (controlId, value) => {
+      const patch = draftPatchForControlValueV0(controlId, value);
+      if (patch !== null) commitControlDraft(patch);
+    },
     setSystemicScale: (systemic) => void patchDraft({ systemic }),
     setPulmonaryScale: (pulmonary) => void patchDraft({ pulmonary }),
     commitSystemicScale: (systemic) => commitControlDraft({ systemic }),
@@ -1154,18 +1183,43 @@ export function ScientificWorkbenchResearchControlV0({
   React.useEffect(() => {
     if (typeof document === "undefined") return undefined;
     const onVisibilityChange = (): void => {
-      if (!document.hidden || viewRef.current.phase !== "live-running") return;
-      liveIntentRef.current = "paused";
+      const current = viewRef.current;
+      if (document.hidden) {
+        if (
+          current.candidate === null
+          || !current.phase.startsWith("live-")
+        ) return;
+        visibilityAutoPausedRef.current = true;
+        liveIntentRef.current = "paused";
+        patchView({
+          phase: current.inFlight
+            ? "live-pause-requested"
+            : "live-paused",
+          message: "Live transition auto-paused while this tab is hidden and will resume when visible.",
+        });
+        return;
+      }
+      if (!visibilityAutoPausedRef.current) return;
+      visibilityAutoPausedRef.current = false;
+      const visible = viewRef.current;
+      if (
+        visible.candidate === null
+        || visible.remainingRegularRequestCount === 0
+        || visible.phase === "resetting"
+      ) return;
+      liveIntentRef.current = "running";
+      lastLiveRenderAtMsRef.current = monotonicNowMs();
       patchView({
-        phase: viewRef.current.inFlight
-          ? "live-pause-requested"
-          : "live-paused",
-        message: "Live transition auto-paused because the document became hidden.",
+        phase: "live-running",
+        message: "Live accepted-step transition resumed when the tab became visible.",
       });
+      if (!liveLoopActiveRef.current) {
+        void runLiveLoop(operationGenerationRef.current, visible.candidate);
+      }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [patchView]);
+  }, [patchView, runLiveLoop]);
 
   React.useEffect(() => {
     mountedRef.current = true;
@@ -1518,17 +1572,19 @@ function ControlScaleSelectV0({
 
 function acceptedTransientChunk(
   response: MainWireScientificWorkerResponseV1,
+  expectedStepCount: number =
+    SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepsPerWorkerCommand,
 ): readonly MainWireScientificObservableFrameV1[] {
   if (
     !response.ok
     || response.commandKind !== "runTransient"
     || response.payload.kind !== "transientCompleted"
     || response.payload.requestedStepCount
-      !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepsPerWorkerCommand
+      !== expectedStepCount
     || response.payload.completedStepCount
-      !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepsPerWorkerCommand
+      !== expectedStepCount
     || response.payload.observableFrames.length
-      !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepsPerWorkerCommand
+      !== expectedStepCount
     || response.payload.executionProtocol.dtSec
       !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec
     || response.payload.executionProtocol.observationPolicy.stride
@@ -1693,7 +1749,53 @@ function draftFromContext(
       context.controlState.controls[
         "circulation.pulmonary-vascular-resistance-scale"
       ],
+    venousTone:
+      context.controlState.controls["circulation.venous-tone"],
+    arterialStiffness:
+      context.controlState.controls["circulation.arterial-stiffness"],
+    peepCmH2O:
+      context.controlState.controls["ventilation.peep-cm-h2o"],
+    pericardialFluidVolumeMl:
+      context.controlState.controls[
+        "pericardium.prescribed-fluid-volume-ml"
+      ],
   });
+}
+
+function targetValuesFromDraftV0(draft: ControlDraftV0) {
+  return Object.freeze({
+    "circulation.systemic-vascular-resistance-scale": draft.systemic,
+    "circulation.pulmonary-vascular-resistance-scale": draft.pulmonary,
+    "circulation.venous-tone": draft.venousTone,
+    "circulation.arterial-stiffness": draft.arterialStiffness,
+    "ventilation.peep-cm-h2o": draft.peepCmH2O,
+    "pericardium.prescribed-fluid-volume-ml":
+      draft.pericardialFluidVolumeMl,
+  });
+}
+
+function draftPatchForControlValueV0(
+  controlId: MainWireScientificResearchControlIdV0,
+  value: number,
+): Partial<ControlDraftV0> | null {
+  const allowed = MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
+    controlId
+  ].allowedValues as readonly number[];
+  if (!Number.isFinite(value) || !allowed.includes(value)) return null;
+  switch (controlId) {
+    case "circulation.systemic-vascular-resistance-scale":
+      return { systemic: value as MainWireScientificResearchControlScaleV0 };
+    case "circulation.pulmonary-vascular-resistance-scale":
+      return { pulmonary: value as MainWireScientificResearchControlScaleV0 };
+    case "circulation.venous-tone":
+      return { venousTone: value };
+    case "circulation.arterial-stiffness":
+      return { arterialStiffness: value };
+    case "ventilation.peep-cm-h2o":
+      return { peepCmH2O: value };
+    case "pericardium.prescribed-fluid-volume-ml":
+      return { pericardialFluidVolumeMl: value };
+  }
 }
 
 function draftDiffersFromSource(
@@ -1704,7 +1806,12 @@ function draftDiffersFromSource(
   return draft.systemic
       !== controls["circulation.systemic-vascular-resistance-scale"]
     || draft.pulmonary
-      !== controls["circulation.pulmonary-vascular-resistance-scale"];
+      !== controls["circulation.pulmonary-vascular-resistance-scale"]
+    || draft.venousTone !== controls["circulation.venous-tone"]
+    || draft.arterialStiffness !== controls["circulation.arterial-stiffness"]
+    || draft.peepCmH2O !== controls["ventilation.peep-cm-h2o"]
+    || draft.pericardialFluidVolumeMl
+      !== controls["pericardium.prescribed-fluid-volume-ml"];
 }
 
 function draftDiffersFromContext(
@@ -1715,7 +1822,12 @@ function draftDiffersFromContext(
   return draft.systemic
       !== controls["circulation.systemic-vascular-resistance-scale"]
     || draft.pulmonary
-      !== controls["circulation.pulmonary-vascular-resistance-scale"];
+      !== controls["circulation.pulmonary-vascular-resistance-scale"]
+    || draft.venousTone !== controls["circulation.venous-tone"]
+    || draft.arterialStiffness !== controls["circulation.arterial-stiffness"]
+    || draft.peepCmH2O !== controls["ventilation.peep-cm-h2o"]
+    || draft.pericardialFluidVolumeMl
+      !== controls["pericardium.prescribed-fluid-volume-ml"];
 }
 
 function parseControlScale(value: string): MainWireScientificResearchControlScaleV0 {

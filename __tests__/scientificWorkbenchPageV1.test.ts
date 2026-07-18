@@ -23,6 +23,7 @@ import {
   reserveScientificWorkbenchRequestIdentityV0,
   scientificWorkbenchDisplayedFrameOwnerV0,
   SCIENTIFIC_WORKBENCH_LIVE_HISTORY_FRAME_LIMIT_V0,
+  SCIENTIFIC_WORKBENCH_LIVE_STEPS_PER_COMMAND_V0,
   SCIENTIFIC_WORKBENCH_OFFICIAL_BOOTSTRAP_REQUEST_COUNT_V0,
   SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0,
 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlV0";
@@ -339,6 +340,13 @@ describe("document-bound scientific workbench page V1", () => {
   });
 
   it("auto-pauses before bounded live capacity while preserving recovery capacity", () => {
+    expect(SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0).toBe(100_000);
+    expect(SCIENTIFIC_WORKBENCH_LIVE_STEPS_PER_COMMAND_V0).toBe(16);
+    const minimumContinuousLiveMinutes = (
+      SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0
+      - SCIENTIFIC_WORKBENCH_OFFICIAL_BOOTSTRAP_REQUEST_COUNT_V0
+    ) * SCIENTIFIC_WORKBENCH_LIVE_STEPS_PER_COMMAND_V0 * 0.002 / 60;
+    expect(minimumContinuousLiveMinutes).toBeGreaterThan(50);
     expect(SCIENTIFIC_WORKBENCH_OFFICIAL_BOOTSTRAP_REQUEST_COUNT_V0).toBe(127);
     expect(remainingScientificWorkbenchRegularRequestCountV0(
       SCIENTIFIC_WORKBENCH_OFFICIAL_BOOTSTRAP_REQUEST_COUNT_V0,
@@ -379,6 +387,9 @@ describe("document-bound scientific workbench page V1", () => {
     expect(controller).toContain("live-request-capacity-reached");
     expect(controller).toContain("disabled={requestCapacityExhausted}");
     expect(controller).toContain("reserveControllerRequest(true)");
+    expect(controller).toContain("visibilityAutoPausedRef");
+    expect(controller).toContain("will resume when visible");
+    expect(controller).toContain("resumed when the tab became visible");
     expect(controller).toContain('current.phase === "live-forking"');
     expect(controller).toContain("operationGenerationRef.current += 1");
     expect(controller).toContain("Live transition cancelled before presentation");
@@ -436,6 +447,10 @@ describe("document-bound scientific workbench page V1", () => {
     const initial = store.getSnapshot();
     const calls: string[] = [];
     const ownerActions: ScientificWorkbenchResearchControlOwnerActionsV0 = {
+      setControlValue: (controlId, value) =>
+        calls.push(`control:${controlId}:${value}`),
+      commitControlValue: (controlId, value) =>
+        calls.push(`commit-control:${controlId}:${value}`),
       setSystemicScale: (value) => calls.push(`systemic:${value}`),
       setPulmonaryScale: (value) => calls.push(`pulmonary:${value}`),
       commitSystemicScale: (value) => calls.push(`commit-systemic:${value}`),
@@ -458,13 +473,15 @@ describe("document-bound scientific workbench page V1", () => {
     expect(store.getSnapshot().actions).toBe(initial.actions);
     expect(store.getSnapshot().mode).toBe("live");
     store.actions.setMode("live");
-    store.actions.setSystemicScale(1.3333333333333333);
+    store.actions.setSystemicScale(1.5);
     store.actions.commitPulmonaryScale(0.75);
+    store.actions.commitControlValue("ventilation.peep-cm-h2o", 10);
     store.actions.applyTransition();
     expect(calls).toEqual([
       "mode:live",
-      "systemic:1.3333333333333333",
+      "systemic:1.5",
       "commit-pulmonary:0.75",
+      "commit-control:ventilation.peep-cm-h2o:10",
       "apply",
     ]);
 

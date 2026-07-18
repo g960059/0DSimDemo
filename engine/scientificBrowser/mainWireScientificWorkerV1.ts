@@ -13,6 +13,9 @@ import {
   scientificCommandIdentityForPerformanceSidebandV0,
   type MainWireScientificPerformanceSidebandMessageV0,
 } from "@/engine/scientificBrowser/performance/mainWireScientificPerformanceSidebandV0";
+import {
+  MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
+} from "@/engine/scientificBrowser/mainWireScientificBrowserRuntimeLimitsV1";
 
 type ScientificWorkerScopeV1 = Readonly<{
   postMessage: (message: unknown) => void;
@@ -25,6 +28,18 @@ const kernel = new MainWireScientificInProcessKernelV1({
   officialPresetLoader: loadBundledOfficialHealthyPeriodicPresetV1,
   officialDocumentCaseLoader:
     loadBundledOfficialHealthyPeriodicDocumentChainV1,
+  maximumRequestCountPerKernelLifetime:
+    MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+      .maximumRequestCountPerLifetime,
+  maximumSessionIdentityCountPerKernelLifetime:
+    MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+      .maximumSessionIdentityCountPerLifetime,
+  maximumTransientStepCountPerCommand:
+    MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+      .maximumTransientStepCountPerCommand,
+  maximumOutputFrameCountPerCommand:
+    MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+      .maximumOutputFrameCountPerCommand,
 });
 let performanceSidebandPort: MessagePort | null = null;
 
@@ -48,9 +63,7 @@ scope.onmessage = (event: MessageEvent<unknown>): void => {
   // absent. In particular, do not read the clock, inspect command identity, or
   // allocate timing records for the ordinary scientific Workbench.
   if (performanceSidebandPort === null) {
-    void kernel.handle(event.data).then((response) => {
-      scope.postMessage(response);
-    });
+    void postKernelResponse(event.data);
     return;
   }
 
@@ -77,8 +90,27 @@ scope.onmessage = (event: MessageEvent<unknown>): void => {
         scientificResponsePostReturnedAtWorkerMs,
       });
     }
-  });
+  }).catch(postFatalWorkerFailure);
 };
+
+async function postKernelResponse(command: unknown): Promise<void> {
+  try {
+    const response = await kernel.handle(command);
+    scope.postMessage(response);
+  } catch (error) {
+    postFatalWorkerFailure(error);
+  }
+}
+
+function postFatalWorkerFailure(error: unknown): void {
+  // A missing response would leave the sole pending Workbench request frozen.
+  // This deliberately violates the scientific response envelope so the main
+  // thread transport rejects every pending request and terminates fail-closed.
+  scope.postMessage(Object.freeze({
+    kind: "main-wire-scientific-worker-fatal-v1",
+    message: error instanceof Error ? error.message : String(error),
+  }));
+}
 
 function postPerformanceSidebandMessage(
   message: MainWireScientificPerformanceSidebandMessageV0,

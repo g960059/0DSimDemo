@@ -5,12 +5,17 @@ import {
   createMainWireScientificResearchControlTargetStateV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
+import {
   MainWireScientificSessionV1,
   type MainWireScientificResearchControlForkExpectedSourceIdentityV0,
 } from "@/engine/scientific/runtime/MainWireScientificSessionV1";
 
 describe("main-wire ScientificSession research-control fork V0", () => {
-  it("clones the exact accepted state, replaces only resistance, and resets only the target tracker", async () => {
+  it("clones the exact accepted state, applies the full runtime overlay, and resets only the target tracker", async () => {
     const source = await MainWireScientificSessionV1.createCanonical();
     const initialTransient = source.runTransient({
       dtSec: 0.002,
@@ -28,8 +33,13 @@ describe("main-wire ScientificSession research-control fork V0", () => {
     const baseline =
       await createMainWireScientificResearchControlBaselineTargetStateV0();
     const target = await createMainWireScientificResearchControlTargetStateV0({
-      "circulation.systemic-vascular-resistance-scale": 1.3333333333333333,
+      ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+      "circulation.systemic-vascular-resistance-scale": 1.5,
       "circulation.pulmonary-vascular-resistance-scale": 0.75,
+      "circulation.venous-tone": 0.5,
+      "circulation.arterial-stiffness": 1.5,
+      "ventilation.peep-cm-h2o": 10,
+      "pericardium.prescribed-fluid-volume-ml": 100,
     });
     const sourceIdentity = expectedIdentity(source, baseline.targetStateSha256, 0);
     const sourceCheckpointBefore = await source.checkpointExact();
@@ -65,8 +75,19 @@ describe("main-wire ScientificSession research-control fork V0", () => {
         controlStateSha256: target.targetStateSha256,
       },
       resolvedRuntimeLosses: {
-        systemicResistance: 1.3333333333333333,
+        systemicResistance: 1.5,
         pulmonaryResistance: 0.46875,
+      },
+      resolvedRuntimeOverlay: {
+        vascular: {
+          venousTone: 0.5,
+          arterialStiffness: 1.5,
+        },
+        respiratory: {
+          peepCmH2O: 10,
+          peepMmHg: expect.closeTo(7.355612727081803, 12),
+        },
+        prescribedPericardialFluidVolumeMl: 100,
       },
       transition: {
         transitionCompatibilityFingerprintPreserved: true,
@@ -75,6 +96,14 @@ describe("main-wire ScientificSession research-control fork V0", () => {
         canonicalTransactionCheckpointPreserved: true,
         sourceSessionUnchanged: true,
         periodicSettlementTrackerResetInTargetOnly: true,
+        replacedRuntimePaths: [
+          "circulationRuntime.losses.systemicResistance",
+          "circulationRuntime.losses.pulmonaryResistance",
+          "circulationRuntime.vascular.venousTone",
+          "circulationRuntime.vascular.arterialStiffness",
+          "circulationRuntime.respiratory.PEEP",
+          "commonPericardium.prescribedPericardialFluidVolumeM3",
+        ],
       },
     });
     expect(forked.receipt.transition.targetTransitionCompatibilityFingerprint)
@@ -112,7 +141,8 @@ describe("main-wire ScientificSession research-control fork V0", () => {
       await createMainWireScientificResearchControlBaselineTargetStateV0();
     const highSystemic =
       await createMainWireScientificResearchControlTargetStateV0({
-        "circulation.systemic-vascular-resistance-scale": 1.3333333333333333,
+        ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+        "circulation.systemic-vascular-resistance-scale": 1.5,
         "circulation.pulmonary-vascular-resistance-scale": 1,
       });
     const expected = expectedIdentity(source, baseline.targetStateSha256, 0);
@@ -148,7 +178,7 @@ describe("main-wire ScientificSession research-control fork V0", () => {
         ...highIdentity,
         controlStateSha256: baseline.targetStateSha256,
       },
-    })).rejects.toThrow(/current session runtime losses/);
+    })).rejects.toThrow(/current session runtime overlay/);
 
     const second = await first.targetSession.forkResearchControlTargetV0({
       sourceControlState: highSystemic,
@@ -172,6 +202,133 @@ describe("main-wire ScientificSession research-control fork V0", () => {
       expectedSourceIdentity: expected,
     })).rejects.toThrow(/release-bound catalog|target state payload/);
   }, 60_000);
+
+  it("keeps every one-factor broad-envelope anchor numerically executable at the first accepted step", async () => {
+    const source = await MainWireScientificSessionV1.createCanonical();
+    const baseline =
+      await createMainWireScientificResearchControlBaselineTargetStateV0();
+    const sourceIdentity = expectedIdentity(source, baseline.targetStateSha256, 0);
+
+    const failures: string[] = [];
+    for (const controlId of MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0) {
+      const values = MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
+        controlId
+      ].allowedValues;
+      for (const endpoint of values) {
+        if (endpoint === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0[
+          controlId
+        ]) continue;
+        const target =
+          await createMainWireScientificResearchControlTargetStateV0({
+            ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+            [controlId]: endpoint,
+          });
+        const forked = await source.forkResearchControlTargetV0({
+          sourceControlState: baseline,
+          targetControlState: target,
+          expectedSourceIdentity: sourceIdentity,
+        });
+        const firstStep = forked.targetSession.step(0.002);
+        if (firstStep.converged === false) {
+          failures.push(`${controlId}=${endpoint}: ${firstStep.message}`);
+          continue;
+        }
+        expect(firstStep.observation.revision).toBe(sourceIdentity.revision + 1);
+        expect(firstStep.observation.diagnostics.totalBloodVolumeErrorMl)
+          .toBeLessThan(1e-6);
+      }
+    }
+    expect(failures).toEqual([]);
+  }, 120_000);
+
+  it("keeps selected two-factor clinical-envelope corners executable at the first accepted step", async () => {
+    const source = await MainWireScientificSessionV1.createCanonical();
+    const baseline =
+      await createMainWireScientificResearchControlBaselineTargetStateV0();
+    const sourceIdentity = expectedIdentity(source, baseline.targetStateSha256, 0);
+    const totalBloodVolumeMl = sourceIdentity.totalBloodVolumeMl;
+    const corners = [
+      {
+        label: "PEEP 25 cmH2O + pulmonary resistance scale 4",
+        controls: {
+          "ventilation.peep-cm-h2o": 25,
+          "circulation.pulmonary-vascular-resistance-scale": 4,
+        },
+      },
+      {
+        label: "pericardial occupancy 150 mL + venous tone 1",
+        controls: {
+          "pericardium.prescribed-fluid-volume-ml": 150,
+          "circulation.venous-tone": 1,
+        },
+      },
+      {
+        label: "arterial PV stiffness 3 + systemic resistance scale 4",
+        controls: {
+          "circulation.arterial-stiffness": 3,
+          "circulation.systemic-vascular-resistance-scale": 4,
+        },
+      },
+      {
+        label: "PEEP 25 cmH2O + pericardial occupancy 150 mL",
+        controls: {
+          "ventilation.peep-cm-h2o": 25,
+          "pericardium.prescribed-fluid-volume-ml": 150,
+        },
+      },
+    ] as const;
+
+    const failures: string[] = [];
+    for (const corner of corners) {
+      const target =
+        await createMainWireScientificResearchControlTargetStateV0({
+          ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+          ...corner.controls,
+        });
+      const forked = await source.forkResearchControlTargetV0({
+        sourceControlState: baseline,
+        targetControlState: target,
+        expectedSourceIdentity: sourceIdentity,
+      });
+
+      if ("ventilation.peep-cm-h2o" in corner.controls) {
+        expect(forked.receipt.resolvedRuntimeOverlay.respiratory.peepCmH2O)
+          .toBe(corner.controls["ventilation.peep-cm-h2o"]);
+      }
+      if ("pericardium.prescribed-fluid-volume-ml" in corner.controls) {
+        expect(
+          forked.receipt.resolvedRuntimeOverlay
+            .prescribedPericardialFluidVolumeMl,
+        ).toBe(corner.controls["pericardium.prescribed-fluid-volume-ml"]);
+      }
+
+      const firstStep = forked.targetSession.step(0.002);
+      if (firstStep.converged === false) {
+        failures.push(`${corner.label}: ${firstStep.message}`);
+        continue;
+      }
+      expect(firstStep.observation.revision).toBe(sourceIdentity.revision + 1);
+      expect(Math.abs(
+        firstStep.observation.diagnostics.totalBloodVolumeErrorMl,
+      ))
+        .toBeLessThan(1e-6);
+      expect(forked.targetSession.stateIdentity().totalBloodVolumeMl)
+        .toBeCloseTo(totalBloodVolumeMl, 9);
+      expect(Object.values(firstStep.observation.chamber).every((chamber) =>
+        Number.isFinite(chamber.volumeMl)
+        && Number.isFinite(chamber.absolutePressureMmHg)
+        && Number.isFinite(chamber.transmuralPressureMmHg)))
+        .toBe(true);
+      expect(Object.values(firstStep.observation.valve).every((valve) =>
+        Number.isFinite(valve.flowMlPerSec)
+        && Number.isFinite(valve.openingFraction01)))
+        .toBe(true);
+      expect(Object.values(firstStep.observation.diagnostics).every((value) =>
+        value === null || Number.isFinite(value)))
+        .toBe(true);
+    }
+    expect(failures).toEqual([]);
+  }, 120_000);
 });
 
 function expectedIdentity(

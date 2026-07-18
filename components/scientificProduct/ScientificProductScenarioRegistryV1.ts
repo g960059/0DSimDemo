@@ -28,6 +28,8 @@ import type {
   MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import type {
+  MainWireScientificCompleteTransientBeatV1,
+  MainWireScientificMetricCycleV1,
   MainWireScientificValidatedTerminalCycleV1,
 } from "@/engine/scientific/metrics";
 import {
@@ -37,6 +39,7 @@ import {
 import {
   MainWireScientificWorkerClientV1,
 } from "@/engine/scientificBrowser";
+import { sameSimulationReleaseRef } from "@/engine/scientific/release";
 
 import {
   SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
@@ -98,6 +101,12 @@ export type ScientificProductScenarioPresentationV1 = Readonly<{
   cycleDurationSec: number | null;
   transientOriginAcceptedTimeSec: number | null;
   validatedCycle: MainWireScientificValidatedTerminalCycleV1 | null;
+  metricCycle: MainWireScientificMetricCycleV1 | null;
+  metricEvidence:
+    | "validated-periodic-P1"
+    | "retained-periodic-source"
+    | "provisional-complete-transient-beat"
+    | "unavailable";
   displayedEvidence: ScientificWorkbenchDisplayedEvidenceV0;
   workspaceDocument: MainWireScientificWorkspaceDocumentV1;
 }>;
@@ -133,6 +142,10 @@ const SCENARIO_COLORS_V1 = Object.freeze([
 
 let scenarioOrdinalV1 = 0;
 let sessionOrdinalV1 = 0;
+const VALIDATED_CYCLE_BY_FRAME_ARRAY_V1 = new WeakMap<
+  object,
+  MainWireScientificValidatedTerminalCycleV1
+>();
 
 /**
  * Owns one isolated Worker and one control state machine per scenario. Mutable
@@ -145,6 +158,8 @@ export class ScientificProductScenarioRegistryV1 {
   private descriptorSnapshot: readonly ScientificProductScenarioDescriptorV1[] = [];
   private frameVersion = 0;
   private disposed = false;
+  private readonly transientMetricBeatCache = new Map<string,
+    TransientMetricBeatCacheV1>();
 
   constructor(
     resolution: ScientificProductCaseRouteResolutionV1,
@@ -207,6 +222,21 @@ export class ScientificProductScenarioRegistryV1 {
       snapshot.frames,
       runtime.result.terminalCycle as MainWireScientificValidatedTerminalCycleV1,
     );
+    const sourceCycle = validatedCycleForDisplayV1(
+      "retained-period1-source-cycle",
+      snapshot.source.frames,
+      runtime.result.terminalCycle as MainWireScientificValidatedTerminalCycleV1,
+    );
+    const metricSelection = metricCycleForDisplayV1({
+      scenarioId: entry.descriptor.id,
+      displayedEvidence,
+      frames: snapshot.frames,
+      transientOriginAcceptedTimeSec:
+        snapshot.liveTransitionOriginAcceptedTimeSec,
+      validatedCycle,
+      sourceCycle,
+      cache: this.transientMetricBeatCache,
+    });
     return Object.freeze({
       descriptor: entry.descriptor,
       frames: snapshot.frames,
@@ -220,6 +250,8 @@ export class ScientificProductScenarioRegistryV1 {
             ?? null
           : null,
       validatedCycle,
+      metricCycle: metricSelection.cycle,
+      metricEvidence: metricSelection.evidence,
       displayedEvidence,
       workspaceDocument: runtime.workspaceDocument,
     });
@@ -323,6 +355,11 @@ export class ScientificProductScenarioRegistryV1 {
       pulmonary: committed[
         "circulation.pulmonary-vascular-resistance-scale"
       ],
+      venousTone: committed["circulation.venous-tone"],
+      arterialStiffness: committed["circulation.arterial-stiffness"],
+      peepCmH2O: committed["ventilation.peep-cm-h2o"],
+      pericardialFluidVolumeMl:
+        committed["pericardium.prescribed-fluid-volume-ml"],
     });
     return this.addPreset(source.descriptor.source.caseId, {
       name: `${source.descriptor.name} copy`,
@@ -338,6 +375,7 @@ export class ScientificProductScenarioRegistryV1 {
     entry.generation += 1;
     this.detachEntry(entry);
     this.entries.delete(id);
+    this.transientMetricBeatCache.delete(id);
     this.publishDescriptors();
     this.publishFrames();
     return true;
@@ -366,6 +404,7 @@ export class ScientificProductScenarioRegistryV1 {
       this.detachEntry(entry);
     }
     this.entries.clear();
+    this.transientMetricBeatCache.clear();
     this.publishDescriptors();
     this.publishFrames();
   }
@@ -430,9 +469,34 @@ export class ScientificProductScenarioRegistryV1 {
     const pulmonary = controls[
       "circulation.pulmonary-vascular-resistance-scale"
     ];
-    if (draft.systemic === systemic && draft.pulmonary === pulmonary) return;
+    if (
+      draft.systemic === systemic
+      && draft.pulmonary === pulmonary
+      && draft.venousTone === controls["circulation.venous-tone"]
+      && draft.arterialStiffness
+        === controls["circulation.arterial-stiffness"]
+      && draft.peepCmH2O === controls["ventilation.peep-cm-h2o"]
+      && draft.pericardialFluidVolumeMl
+        === controls["pericardium.prescribed-fluid-volume-ml"]
+    ) return;
     runtime.controlStore.actions.setSystemicScale(draft.systemic);
     runtime.controlStore.actions.setPulmonaryScale(draft.pulmonary);
+    runtime.controlStore.actions.setControlValue(
+      "circulation.venous-tone",
+      draft.venousTone,
+    );
+    runtime.controlStore.actions.setControlValue(
+      "circulation.arterial-stiffness",
+      draft.arterialStiffness,
+    );
+    runtime.controlStore.actions.setControlValue(
+      "ventilation.peep-cm-h2o",
+      draft.peepCmH2O,
+    );
+    runtime.controlStore.actions.setControlValue(
+      "pericardium.prescribed-fluid-volume-ml",
+      draft.pericardialFluidVolumeMl,
+    );
     runtime.controlStore.actions.setMode("steady");
     entry.duplicateTransitionModeState = "awaiting-start";
     globalThis.setTimeout(() => {
@@ -567,6 +631,8 @@ function validatedCycleForDisplayV1(
 ): MainWireScientificValidatedTerminalCycleV1 | null {
   if (displayedEvidence === "open-transient-no-periodic-claim") return null;
   if (frames === initialCycle.frames) return initialCycle;
+  const cached = VALIDATED_CYCLE_BY_FRAME_ARRAY_V1.get(frames as object);
+  if (cached !== undefined) return cached;
   const first = frames[0];
   const last = frames.at(-1);
   if (first === undefined || last === undefined || frames.length !== 501) return null;
@@ -574,7 +640,7 @@ function validatedCycleForDisplayV1(
   if (!Number.isFinite(durationSec) || Math.abs(durationSec - 1) > 1e-10) {
     return null;
   }
-  return Object.freeze({
+  const cycle = Object.freeze({
     frames,
     releaseRef: first.releaseRef,
     durationSec,
@@ -584,6 +650,177 @@ function validatedCycleForDisplayV1(
       cadenceUniform: true as const,
       bothCycleBoundariesRetained: true as const,
       periodicOrbitClassifiedP1: true as const,
+      smoothingOrInterpolationApplied: false as const,
+    }),
+  });
+  VALIDATED_CYCLE_BY_FRAME_ARRAY_V1.set(frames as object, cycle);
+  return cycle;
+}
+
+type TransientMetricBeatCacheV1 = Readonly<{
+  originAcceptedTimeSec: number;
+  anchorAcceptedTimeSec: number;
+  completedBeatIndex: number;
+  beat: MainWireScientificCompleteTransientBeatV1 | null;
+}>;
+
+type MetricCycleSelectionV1 = Readonly<{
+  cycle: MainWireScientificMetricCycleV1 | null;
+  evidence:
+    | "validated-periodic-P1"
+    | "retained-periodic-source"
+    | "provisional-complete-transient-beat"
+    | "unavailable";
+}>;
+
+function metricCycleForDisplayV1({
+  scenarioId,
+  displayedEvidence,
+  frames,
+  transientOriginAcceptedTimeSec,
+  validatedCycle,
+  sourceCycle,
+  cache,
+}: Readonly<{
+  scenarioId: string;
+  displayedEvidence: ScientificWorkbenchDisplayedEvidenceV0;
+  frames: readonly MainWireScientificObservableFrameV1[];
+  transientOriginAcceptedTimeSec: number | null;
+  validatedCycle: MainWireScientificValidatedTerminalCycleV1 | null;
+  sourceCycle: MainWireScientificValidatedTerminalCycleV1 | null;
+  cache: Map<string, TransientMetricBeatCacheV1>;
+}>): MetricCycleSelectionV1 {
+  if (displayedEvidence !== "open-transient-no-periodic-claim") {
+    cache.delete(scenarioId);
+    return validatedCycle === null
+      ? Object.freeze({ cycle: null, evidence: "unavailable" as const })
+      : Object.freeze({
+        cycle: validatedCycle,
+        evidence: "validated-periodic-P1" as const,
+      });
+  }
+
+  const retainedSourceSelection = sourceCycle === null
+    ? Object.freeze({ cycle: null, evidence: "unavailable" as const })
+    : Object.freeze({
+      cycle: sourceCycle,
+      evidence: "retained-periodic-source" as const,
+    });
+  const origin = transientOriginAcceptedTimeSec;
+  const last = frames.at(-1);
+  if (origin === null || last === undefined) return retainedSourceSelection;
+
+  const previous = cache.get(scenarioId);
+  const anchor = previous?.originAcceptedTimeSec === origin
+    ? previous.anchorAcceptedTimeSec
+    : firstAcceptedStepTimeAtOrAfterV1(frames, origin);
+  if (anchor === null) return retainedSourceSelection;
+
+  const completedBeatIndex = Math.floor(
+    last.acceptedTimeSec - anchor + 1e-10,
+  );
+  if (completedBeatIndex < 1) {
+    cache.set(scenarioId, Object.freeze({
+      originAcceptedTimeSec: origin,
+      anchorAcceptedTimeSec: anchor,
+      completedBeatIndex: 0,
+      beat: null,
+    }));
+    return retainedSourceSelection;
+  }
+  if (
+    previous?.originAcceptedTimeSec === origin
+    && previous.completedBeatIndex === completedBeatIndex
+    && previous.beat !== null
+  ) {
+    return Object.freeze({
+      cycle: previous.beat,
+      evidence: "provisional-complete-transient-beat" as const,
+    });
+  }
+
+  const startAcceptedTimeSec = anchor + completedBeatIndex - 1;
+  const beat = completeTransientMetricBeatV1(
+    frames,
+    startAcceptedTimeSec,
+  );
+  cache.set(scenarioId, Object.freeze({
+    originAcceptedTimeSec: origin,
+    anchorAcceptedTimeSec: anchor,
+    completedBeatIndex,
+    beat,
+  }));
+  return beat === null
+    ? retainedSourceSelection
+    : Object.freeze({
+      cycle: beat,
+      evidence: "provisional-complete-transient-beat" as const,
+    });
+}
+
+function firstAcceptedStepTimeAtOrAfterV1(
+  frames: readonly MainWireScientificObservableFrameV1[],
+  originAcceptedTimeSec: number,
+): number | null {
+  for (const frame of frames) {
+    if (
+      frame.source === "accepted-step"
+      && frame.acceptedTimeSec >= originAcceptedTimeSec - 1e-10
+    ) {
+      return frame.acceptedTimeSec;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extracts one exact, complete, accepted-step beat. Partial live histories are
+ * rejected so metric cards update only at a beat boundary rather than on each
+ * render frame.
+ */
+export function completeTransientMetricBeatV1(
+  frames: readonly MainWireScientificObservableFrameV1[],
+  startAcceptedTimeSec: number,
+): MainWireScientificCompleteTransientBeatV1 | null {
+  const startIndex = frames.findIndex((frame) => (
+    frame.source === "accepted-step"
+    && Math.abs(frame.acceptedTimeSec - startAcceptedTimeSec) <= 1e-10
+  ));
+  if (startIndex < 0) return null;
+  const beatFrames = frames.slice(startIndex, startIndex + 501);
+  if (beatFrames.length !== 501) return null;
+  const first = beatFrames[0]!;
+  const last = beatFrames.at(-1)!;
+  if (
+    first.source !== "accepted-step"
+    || last.source !== "accepted-step"
+    || Math.abs(last.acceptedTimeSec - first.acceptedTimeSec - 1) > 1e-10
+  ) {
+    return null;
+  }
+  for (let index = 1; index < beatFrames.length; index += 1) {
+    const previous = beatFrames[index - 1]!;
+    const current = beatFrames[index]!;
+    if (
+      current.source !== "accepted-step"
+      || current.revision !== previous.revision + 1
+      || !sameSimulationReleaseRef(first.releaseRef, current.releaseRef)
+      || Math.abs(current.acceptedTimeSec - previous.acceptedTimeSec - 0.002)
+        > 1e-10
+    ) {
+      return null;
+    }
+  }
+  return Object.freeze({
+    frames: Object.freeze(beatFrames),
+    releaseRef: first.releaseRef,
+    durationSec: 1,
+    evidence: Object.freeze({
+      exactReleaseRefUniform: true as const,
+      revisionsContiguous: true as const,
+      cadenceUniform: true as const,
+      bothBeatBoundariesMeasured: true as const,
+      transientBeatFullyMeasured: true as const,
       smoothingOrInterpolationApplied: false as const,
     }),
   });

@@ -3,8 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   createMainWireScientificResearchControlCatalogV0,
   loadMainWireScientificResearchControlCatalogV0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
 import {
   createMainWireScientificResearchControlBaselineTargetStateV0,
@@ -21,7 +23,7 @@ const EXACT_RELEASE_REF = {
 } as const;
 
 describe("main-wire scientific research control catalog V0", () => {
-  it("publishes only release-bound SVR/PVR scales with canonical provenance", async () => {
+  it("publishes six release-bound broad-envelope controls with canonical provenance", async () => {
     const [catalog, rebuilt] = await Promise.all([
       createMainWireScientificResearchControlCatalogV0(),
       createMainWireScientificResearchControlCatalogV0(),
@@ -35,40 +37,105 @@ describe("main-wire scientific research control catalog V0", () => {
     expect(catalog.controls.map(({ controlId }) => controlId))
       .toEqual(MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0);
     expect(MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0)
-      .toEqual([0.75, 1, 4 / 3]);
+      .toEqual([0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]);
 
     expect(catalog.controls).toEqual([
       expect.objectContaining({
         controlId: "circulation.systemic-vascular-resistance-scale",
-        target: {
+        target: expect.objectContaining({
           resolvedSessionInputPath:
             "resolvedParameters.circulationRuntime.losses.systemicResistance",
           releaseBaselinePath:
             "manifest.numericalRuntime.snapshot.fixedHealthyRuntime.losses.systemicResistance",
           releaseBaselineValue: 1,
-        },
+          runtimeUnit: "dimensionless-group-resistance-multiplier",
+        }),
         valueDomain: {
-          kind: "enumerated-multiplicative-scale",
+          kind: "enumerated-broad-research-envelope",
           baseline: 1,
-          allowedValues: [0.75, 1, 4 / 3],
+          allowedValues: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4],
           unit: "scale-from-release-baseline",
+          uiScale: "log-like-exact-stops",
         },
       }),
       expect.objectContaining({
         controlId: "circulation.pulmonary-vascular-resistance-scale",
-        target: {
+        target: expect.objectContaining({
           resolvedSessionInputPath:
             "resolvedParameters.circulationRuntime.losses.pulmonaryResistance",
           releaseBaselinePath:
             "manifest.numericalRuntime.snapshot.fixedHealthyRuntime.losses.pulmonaryResistance",
           releaseBaselineValue: 0.625,
-        },
+          runtimeUnit: "dimensionless-group-resistance-multiplier",
+        }),
         valueDomain: {
-          kind: "enumerated-multiplicative-scale",
+          kind: "enumerated-broad-research-envelope",
           baseline: 1,
-          allowedValues: [0.75, 1, 4 / 3],
+          allowedValues: [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4],
           unit: "scale-from-release-baseline",
+          uiScale: "log-like-exact-stops",
         },
+      }),
+      expect.objectContaining({
+        controlId: "circulation.venous-tone",
+        target: expect.objectContaining({
+          releaseBaselineValue: 0.15,
+          runtimeUnit: "model-fraction",
+        }),
+        valueDomain: {
+          kind: "enumerated-broad-research-envelope",
+          baseline: 0.15,
+          allowedValues: [0, 0.05, 0.15, 0.3, 0.5, 0.75, 1],
+          unit: "model-fraction",
+          uiScale: "linear-exact-stops",
+        },
+        applicationSemantics: "replace-absolute-runtime-value",
+      }),
+      expect.objectContaining({
+        controlId: "circulation.arterial-stiffness",
+        target: expect.objectContaining({
+          releaseBaselineValue: 0.75,
+          runtimeUnit: "model-scale",
+        }),
+        valueDomain: {
+          kind: "enumerated-broad-research-envelope",
+          baseline: 0.75,
+          allowedValues: [0.4, 0.55, 0.75, 1, 1.5, 2, 3],
+          unit: "model-scale",
+          uiScale: "log-like-exact-stops",
+        },
+        applicationSemantics: "replace-absolute-runtime-value",
+      }),
+      expect.objectContaining({
+        controlId: "ventilation.peep-cm-h2o",
+        target: expect.objectContaining({
+          releaseBaselineValue: 0,
+          runtimeUnit: "mmHg",
+        }),
+        valueDomain: {
+          kind: "enumerated-broad-research-envelope",
+          baseline: 0,
+          allowedValues: [0, 5, 8, 10, 12, 15, 20, 25],
+          unit: "cmH2O",
+          uiScale: "practice-informed-exact-stops",
+        },
+        applicationSemantics: "convert-cmH2O-to-mmHg-then-replace",
+      }),
+      expect.objectContaining({
+        controlId: "pericardium.prescribed-fluid-volume-ml",
+        target: expect.objectContaining({
+          releaseBaselineValue: 0,
+          runtimeUnit: "m3",
+        }),
+        valueDomain: {
+          kind: "enumerated-broad-research-envelope",
+          baseline: 0,
+          allowedValues: [0, 25, 50, 75, 100, 150],
+          unit: "mL",
+          uiScale: "healthy-capacity-static-occupancy-exact-stops",
+        },
+        applicationSemantics:
+          "convert-mL-to-m3-then-replace-static-occupancy",
       }),
     ]);
     expect(catalog.provenance).toMatchObject({
@@ -76,12 +143,23 @@ describe("main-wire scientific research control catalog V0", () => {
         releaseRef: EXACT_RELEASE_REF,
         role: "exact-executable-release-bound-control-domain",
       },
-      sourceLevelEvidence: {
-        envelopeSha256:
-          "4d7283c681d16a173c74f25273e6bd8c87538f50513936e8ed4e889fb4e1862b",
-        role:
-          "source-level-structural-response-screen-not-release-bound-validation",
-      },
+      evidenceSources: [
+        expect.objectContaining({
+          role: "source-level-load-response-screen-not-clinical-validation",
+        }),
+        expect.objectContaining({
+          role: "mechanistic-common-pericardium-positive-control-source",
+        }),
+        expect.objectContaining({
+          role: "authoritative-runtime-pressure-conversion-semantics",
+        }),
+        expect.objectContaining({
+          role: "clinical-practice-context-for-peep-anchors-not-model-validation",
+        }),
+        expect.objectContaining({
+          role: "pericardial-pressure-volume-context-not-patient-specific-validation",
+        }),
+      ],
     });
     expect(catalog.claims).toMatchObject({
       researchOnly: true,
@@ -92,6 +170,8 @@ describe("main-wire scientific research control catalog V0", () => {
       patientSpecificFitClaimed: false,
       arbitraryParameterPatchAccepted: false,
       completeTargetStateRequired: true,
+      broadMechanisticPhysiologyExplorationIntended: true,
+      numericalConvergenceOutsideValidatedBaselineNotGuaranteed: true,
       parameterSearchPerformed: false,
       parameterFittingPerformed: false,
     });
@@ -138,16 +218,14 @@ describe("main-wire scientific research control catalog V0", () => {
 });
 
 describe("main-wire scientific research control target state V0", () => {
-  it("creates a complete immutable neutral state with both baselines at one", async () => {
+  it("creates a complete immutable state with every explicit release baseline", async () => {
     const [baseline, rebuilt] = await Promise.all([
       createMainWireScientificResearchControlBaselineTargetStateV0(),
       createMainWireScientificResearchControlBaselineTargetStateV0(),
     ]);
 
-    expect(baseline.controls).toEqual({
-      "circulation.systemic-vascular-resistance-scale": 1,
-      "circulation.pulmonary-vascular-resistance-scale": 1,
-    });
+    expect(baseline.controls)
+      .toEqual(MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0);
     expect(Object.keys(baseline.controls).sort()).toEqual(
       [...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0].sort(),
     );
@@ -161,7 +239,7 @@ describe("main-wire scientific research control target state V0", () => {
       .toBe("complete-target-state-not-patch");
     expect(baseline.claims).toMatchObject({
       completeTargetState: true,
-      baselineScaleIsOne: true,
+      baselineValuesExplicit: true,
       partialPatchAccepted: false,
       arbitraryParameterPatchAccepted: false,
       implicitLastWriteWinsApplied: false,
@@ -188,13 +266,31 @@ describe("main-wire scientific research control target state V0", () => {
         MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0) {
         const state =
           await createMainWireScientificResearchControlTargetStateV0({
+            ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
             "circulation.systemic-vascular-resistance-scale": systemicScale,
             "circulation.pulmonary-vascular-resistance-scale": pulmonaryScale,
           });
         expect(state.controls).toEqual({
+          ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
           "circulation.systemic-vascular-resistance-scale": systemicScale,
           "circulation.pulmonary-vascular-resistance-scale": pulmonaryScale,
         });
+      }
+    }
+
+    for (const controlId of MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0) {
+      const domain =
+        MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[controlId];
+      for (const endpoint of [
+        domain.allowedValues[0],
+        domain.allowedValues[domain.allowedValues.length - 1],
+      ]) {
+        const state =
+          await createMainWireScientificResearchControlTargetStateV0({
+            ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+            [controlId]: endpoint,
+          });
+        expect(state.controls[controlId]).toBe(endpoint);
       }
     }
   });
@@ -205,14 +301,13 @@ describe("main-wire scientific research control target state V0", () => {
     })).rejects.toThrow(/exactly keys/);
 
     await expect(createMainWireScientificResearchControlTargetStateV0({
-      "circulation.systemic-vascular-resistance-scale": 1,
-      "circulation.pulmonary-vascular-resistance-scale": 1,
-      "circulation.venous-tone-scale": 1,
+      ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+      "legacy.extra-control": 1,
     })).rejects.toThrow(/exactly keys/);
 
     await expect(createMainWireScientificResearchControlTargetStateV0({
+      ...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
       "circulation.systemic-vascular-resistance-scale": 1.1,
-      "circulation.pulmonary-vascular-resistance-scale": 1,
     })).rejects.toThrow(/must be one of/);
   });
 
@@ -225,7 +320,7 @@ describe("main-wire scientific research control target state V0", () => {
         value.fallback = true;
       },
       (value: ReturnType<typeof jsonCopy>) => {
-        value.controls["circulation.venous-tone-scale"] = 1;
+        value.controls["legacy.extra-control"] = 1;
       },
       (value: ReturnType<typeof jsonCopy>) => {
         delete value.controls[

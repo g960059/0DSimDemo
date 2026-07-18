@@ -17,10 +17,18 @@ import {
   canonicalJsonStringify,
 } from "@/engine/scientific/release";
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_ID,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_SCHEMA_ID,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_VERSION,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_SHA256_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
 import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_TARGET_STATE_SHA256_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_TARGET_STATE_RESOLVER_V0_ID,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_TARGET_STATE_V0_SCHEMA_ID,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 import type {
   SimulationReleaseRef,
@@ -46,6 +54,7 @@ export type MainWireScientificWorkerTransportErrorCodeV1 =
   | "protocol-mismatch"
   | "request-capacity-exceeded"
   | "request-id-reused"
+  | "request-timeout"
   | "unsolicited-response"
   | "worker-error";
 
@@ -98,6 +107,7 @@ export type MainWireScientificWorkerClientOptionsV1 = Readonly<{
   workerFactory?: MainWireScientificWorkerFactoryV1;
   maximumPendingRequestCount?: number;
   maximumRequestCountPerClientLifetime?: number;
+  requestTimeoutMs?: number;
 }>;
 
 /** Vite-recognized production Worker factory. */
@@ -114,6 +124,7 @@ type PendingRequest = Readonly<{
   sessionId: string;
   commandKind: ScientificCommandKindV1;
   submittedCommand: PendingCommandIdentityV1;
+  timeoutHandle: ReturnType<typeof setTimeout>;
   resolve: (response: MainWireScientificWorkerResponseV1) => void;
   reject: (error: MainWireScientificWorkerTransportErrorV1) => void;
 }>;
@@ -187,6 +198,7 @@ export class MainWireScientificWorkerClientV1 {
   readonly clientId = MAIN_WIRE_SCIENTIFIC_WORKER_CLIENT_V1_ID;
   readonly maximumPendingRequestCount: number;
   readonly maximumRequestCountPerClientLifetime: number;
+  readonly requestTimeoutMs: number;
 
   private readonly worker: MainWireScientificWorkerLikeV1;
   private readonly pending = new Map<string, PendingRequest>();
@@ -232,6 +244,11 @@ export class MainWireScientificWorkerClientV1 {
         ?? DEFAULT_MAXIMUM_REQUEST_COUNT_PER_CLIENT_LIFETIME,
       MAXIMUM_CONFIGURED_REQUEST_COUNT_PER_CLIENT_LIFETIME,
       "maximumRequestCountPerClientLifetime",
+    );
+    this.requestTimeoutMs = boundedPositiveInteger(
+      options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+      MAXIMUM_CONFIGURED_REQUEST_TIMEOUT_MS,
+      "requestTimeoutMs",
     );
     this.worker = (options.workerFactory
       ?? createDefaultMainWireScientificWorkerV1)();
@@ -301,11 +318,25 @@ export class MainWireScientificWorkerClientV1 {
     }
 
     return new Promise<MainWireScientificWorkerResponseV1>((resolve, reject) => {
+      const timeoutHandle = setTimeout(() => {
+        if (!this.pending.has(command.requestId)) return;
+        this.failClosed(new MainWireScientificWorkerTransportErrorV1(
+          "request-timeout",
+          `scientific Worker did not answer ${command.kind} request ${command.requestId} within ${this.requestTimeoutMs} ms`,
+          Object.freeze({
+            requestId: command.requestId,
+            sessionId: command.sessionId,
+            commandKind: command.kind,
+            timeoutMs: this.requestTimeoutMs,
+          }),
+        ));
+      }, this.requestTimeoutMs);
       const pending = Object.freeze({
         requestId: command.requestId,
         sessionId: command.sessionId,
         commandKind: command.kind,
         submittedCommand: capturePendingCommandIdentity(command),
+        timeoutHandle,
         resolve,
         reject,
       });
@@ -467,6 +498,7 @@ export class MainWireScientificWorkerClientV1 {
       this.researchControlSessionBindings.delete(pending.sessionId);
       this.researchControlSourceInputSha256Bindings.delete(pending.sessionId);
     }
+    clearTimeout(pending.timeoutHandle);
     this.pending.delete(value.requestId);
     this.completedRequestIds.add(value.requestId);
     pending.resolve(value);
@@ -492,7 +524,10 @@ export class MainWireScientificWorkerClientV1 {
     }
     const pending = [...this.pending.values()];
     this.pending.clear();
-    for (const request of pending) request.reject(error);
+    for (const request of pending) {
+      clearTimeout(request.timeoutHandle);
+      request.reject(error);
+    }
   }
 
   private detachListeners(): void {
@@ -1507,7 +1542,7 @@ function isResearchControlTargetStateIdentityV0(
   ])) return false;
   if (
     value.schemaId
-      !== "circleheart-main-wire-scientific-research-control-target-state-v0"
+      !== MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_TARGET_STATE_V0_SCHEMA_ID
     || value.schemaVersion !== 0
     || !exactResearchReleaseRef(value.releaseRef)
     || value.classification !== "research-only-experimental-not-clinical"
@@ -1517,17 +1552,18 @@ function isResearchControlTargetStateIdentityV0(
       && value.targetStateSha256 !== expectedSha256
     )
     || !isRecord(value.controls)
-    || !hasExactKeys(value.controls, [
-      "circulation.systemic-vascular-resistance-scale",
-      "circulation.pulmonary-vascular-resistance-scale",
-    ])
+    || !hasExactKeys(
+      value.controls,
+      MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
+    )
   ) return false;
-  const allowed = [0.75, 1, 4 / 3];
-  return allowed.includes(
-    value.controls["circulation.systemic-vascular-resistance-scale"] as number,
-  ) && allowed.includes(
-    value.controls["circulation.pulmonary-vascular-resistance-scale"] as number,
-  );
+  return MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0.every((controlId) => (
+    (MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
+      controlId
+    ].allowedValues as readonly number[]).includes(
+      value.controls[controlId] as number,
+    )
+  ));
 }
 
 function isOfficialBaselineResearchControlContextV0(
@@ -1564,14 +1600,18 @@ function isOfficialBaselineResearchControlContextV0(
       "catalogSha256",
     ])
     && catalogRef.schemaId
-      === "circleheart-main-wire-scientific-research-control-catalog-v0"
-    && catalogRef.catalogId === "main-wire-release-bound-research-controls"
-    && catalogRef.catalogVersion === "0.0.0"
+      === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_SCHEMA_ID
+    && catalogRef.catalogId
+      === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_ID
+    && catalogRef.catalogVersion
+      === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_VERSION
     && catalogRef.catalogSha256
       === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_SHA256_V0
     && isRecord(controls)
-    && controls["circulation.systemic-vascular-resistance-scale"] === 1
-    && controls["circulation.pulmonary-vascular-resistance-scale"] === 1
+    && MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0.every((controlId) => (
+      controls[controlId]
+        === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0[controlId]
+    ))
     && isRecord(provenance)
     && hasExactKeys(provenance, [
       "resolverId",
@@ -1580,15 +1620,15 @@ function isOfficialBaselineResearchControlContextV0(
       "digestSemantics",
     ])
     && provenance.resolverId
-      === "main-wire-release-bound-research-control-target-state-resolver-v0"
-    && provenance.resolverVersion === "0.0.0"
+      === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_TARGET_STATE_RESOLVER_V0_ID
+    && provenance.resolverVersion === "0.1.0"
     && provenance.resolution === "complete-target-state-not-patch"
     && provenance.digestSemantics
       === "sha256-canonical-json-payload-without-targetStateSha256"
     && isRecord(claims)
     && hasExactKeys(claims, [
       "completeTargetState",
-      "baselineScaleIsOne",
+      "baselineValuesExplicit",
       "partialPatchAccepted",
       "arbitraryParameterPatchAccepted",
       "implicitLastWriteWinsApplied",
@@ -1599,7 +1639,7 @@ function isOfficialBaselineResearchControlContextV0(
       "patientSpecificFitClaimed",
     ])
     && claims.completeTargetState === true
-    && claims.baselineScaleIsOne === true
+    && claims.baselineValuesExplicit === true
     && claims.partialPatchAccepted === false
     && claims.arbitraryParameterPatchAccepted === false
     && claims.implicitLastWriteWinsApplied === false
@@ -1734,6 +1774,8 @@ const DEFAULT_MAXIMUM_PENDING_REQUEST_COUNT = 8;
 const MAXIMUM_CONFIGURED_PENDING_REQUEST_COUNT = 64;
 const DEFAULT_MAXIMUM_REQUEST_COUNT_PER_CLIENT_LIFETIME = 8_192;
 const MAXIMUM_CONFIGURED_REQUEST_COUNT_PER_CLIENT_LIFETIME = 100_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
+const MAXIMUM_CONFIGURED_REQUEST_TIMEOUT_MS = 10 * 60_000;
 const RESERVED_RECOVERY_REQUEST_COUNT = 16;
 
 function boundedPositiveInteger(

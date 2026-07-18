@@ -50,17 +50,21 @@ import type {
 } from "@/engine/scientific/documents";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
+} from "@/engine/scientific/controls";
+import {
   ScientificWorkbenchResearchControlV0,
 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlV0";
 
 import {
   createScientificWorkbenchRuntimeRendererV1,
   ScientificProductTransitionBehaviorSettingsV1,
-  SCIENTIFIC_CONTROL_PULMONARY_V1,
-  SCIENTIFIC_CONTROL_SYSTEMIC_V1,
+  SCIENTIFIC_WORKBENCH_CIRCULATION_CONTROLLER_ITEMS_V1,
   SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1,
   SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1,
   SCIENTIFIC_WORKBENCH_SIGNAL_OPTIONS_V1,
+  SCIENTIFIC_WORKBENCH_VENTILATION_RESTRAINT_CONTROLLER_ITEMS_V1,
 } from "./ScientificWorkbenchRuntimeRendererV1";
 import {
   SCIENTIFIC_WORKBENCH_METRIC_PRESENTATION_CATALOG_V1,
@@ -822,8 +826,18 @@ function initialScientificAuthoredViews(
   return [
     ...graphViews,
     scientificControllerViewV1(
-      "scientific-controller-standard-v1",
-      "Circulation controls",
+      "scientific-controller-circulation-load-v1",
+      "Circulation load",
+      SCIENTIFIC_WORKBENCH_CIRCULATION_CONTROLLER_ITEMS_V1,
+    ),
+    scientificControllerViewV1(
+      "scientific-controller-ventilation-restraint-v1",
+      "Ventilation & pericardium",
+      SCIENTIFIC_WORKBENCH_VENTILATION_RESTRAINT_CONTROLLER_ITEMS_V1,
+    ),
+    scientificControllerViewV1(
+      "scientific-controller-research-complete-v1",
+      "All scientific controls",
       SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1,
     ),
     createMetricsViewSpec(
@@ -851,28 +865,54 @@ const SCIENTIFIC_CONTROLLER_AUTHORING_V1: ControllerAuthoringCatalog = {
   sections: [
     {
       id: "release-bound-circulation",
-      title: "Release-bound controls",
+      title: "Circulation load",
       defaultOpen: true,
-      entries: SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1.map((item) => ({
+      entries: SCIENTIFIC_WORKBENCH_CIRCULATION_CONTROLLER_ITEMS_V1.map((item) => ({
         key: item.paramKey,
         label: item.label ?? item.paramKey,
-        min: item.min ?? 0.75,
-        max: item.max ?? 4 / 3,
-        step: item.step ?? 1 / 12,
-        unit: "×",
+        min: item.min ?? 0,
+        max: item.max ?? 1,
+        step: item.step ?? 0.01,
+        unit: scientificControlUnitV1(item.paramKey),
         defaultKind: "slider" as const,
         allowedKinds: ["slider"] as const,
         options: item.options ?? [],
         lockedDomain: true,
       })),
     },
+    {
+      id: "release-bound-ventilation-restraint",
+      title: "Ventilation & pericardial restraint",
+      defaultOpen: false,
+      entries: SCIENTIFIC_WORKBENCH_VENTILATION_RESTRAINT_CONTROLLER_ITEMS_V1
+        .map((item) => ({
+          key: item.paramKey,
+          label: item.label ?? item.paramKey,
+          min: item.min ?? 0,
+          max: item.max ?? 1,
+          step: item.step ?? 1,
+          unit: scientificControlUnitV1(item.paramKey),
+          defaultKind: "slider" as const,
+          allowedKinds: ["slider"] as const,
+          options: item.options ?? [],
+          lockedDomain: true,
+        })),
+    },
   ],
-  baselineValues: {
-    [SCIENTIFIC_CONTROL_SYSTEMIC_V1]: 1,
-    [SCIENTIFIC_CONTROL_PULMONARY_V1]: 1,
-  },
-  defaultItems: SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1,
+  baselineValues: MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
+  defaultItems: SCIENTIFIC_WORKBENCH_CIRCULATION_CONTROLLER_ITEMS_V1,
 };
+
+function scientificControlUnitV1(paramKey: string): string {
+  const domain = MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
+    paramKey as keyof typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0
+  ];
+  if (domain === undefined) return "";
+  if (domain.unit === "scale-from-release-baseline") return "×";
+  if (domain.unit === "cmH2O") return "cmH₂O";
+  if (domain.unit === "mL") return "mL";
+  return "";
+}
 
 const SCIENTIFIC_METRIC_CATEGORY_TITLES_V1 = {
   pressure: "Pressures",

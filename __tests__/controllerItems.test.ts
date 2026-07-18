@@ -228,13 +228,18 @@ describe("mergePanelControllerItems", () => {
     const scientificItem: ControllerItem = {
       paramKey: "circulation.systemic-vascular-resistance-scale",
       kind: "slider",
-      min: 0.75,
-      max: 4 / 3,
-      step: 1 / 12,
+      min: 0.25,
+      max: 4,
+      step: 0.25,
       options: [
+        { label: "0.25×", value: 0.25 },
+        { label: "0.50×", value: 0.5 },
         { label: "0.75×", value: 0.75 },
-        { label: "1.00×", value: 1 },
-        { label: "1.33×", value: 4 / 3 },
+        { label: "1.0×", value: 1 },
+        { label: "1.5×", value: 1.5 },
+        { label: "2.0×", value: 2 },
+        { label: "3.0×", value: 3 },
+        { label: "4.0×", value: 4 },
       ],
     };
     const merged = mergePanelControllerItems(

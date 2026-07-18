@@ -8,14 +8,19 @@ import type { ControllerItem } from "@/types";
 const sliderItem: ControllerItem = {
   paramKey: "circulation.systemic-vascular-resistance-scale",
   kind: "slider",
-  label: "Systemic vascular resistance",
-  min: 0.75,
-  max: 4 / 3,
-  step: 1 / 12,
+  label: "Systemic resistance scale",
+  min: 0.25,
+  max: 4,
+  step: 0.25,
   options: [
+    { label: "0.25×", value: 0.25 },
+    { label: "0.50×", value: 0.5 },
     { label: "0.75×", value: 0.75 },
-    { label: "1.00×", value: 1 },
-    { label: "1.33×", value: 4 / 3 },
+    { label: "1.0×", value: 1 },
+    { label: "1.5×", value: 1.5 },
+    { label: "2.0×", value: 2 },
+    { label: "3.0×", value: 3 },
+    { label: "4.0×", value: 4 },
   ],
 };
 
@@ -51,29 +56,54 @@ function collectSliders(node: React.ReactNode): React.ReactElement[] {
 }
 
 describe("ControllerItemControl", () => {
-  it("renders an enumerated slider as exactly three indexed stops", () => {
+  it("renders the broad resistance envelope as eight exact indexed stops", () => {
     const html = renderToStaticMarkup(renderControl(sliderItem, 1));
 
+    expect(html).toContain("0.25×");
     expect(html).toContain("0.75×");
-    expect(html).toContain("1.00×");
-    expect(html).toContain("1.33×");
+    expect(html).toContain("1.0×");
+    expect(html).toContain("4.0×");
     expect(html).toContain('type="range"');
     expect(html).toContain('min="0"');
-    expect(html).toContain('max="2"');
+    expect(html).toContain('max="7"');
     expect(html).toContain('step="1"');
-    expect(html).toContain('value="1"');
+    expect(html).toContain('value="3"');
   });
 
   it("uses the control label on the slider without rendering preset buttons", () => {
     const html = renderToStaticMarkup(renderControl(sliderItem, 1));
 
-    expect(html).toContain('aria-label="Systemic vascular resistance"');
+    expect(html).toContain('aria-label="Systemic resistance scale"');
     expect(html).not.toContain('role="group"');
     expect(collectButtons(ControllerItemControl({
       item: sliderItem,
       value: 1,
       onChange: vi.fn(),
     }))).toHaveLength(0);
+  });
+
+  it("shows the exact anchor label instead of rounding an uneven-stop value", () => {
+    const html = renderToStaticMarkup(renderControl({
+      paramKey: "circulation.arterial-stiffness",
+      kind: "slider",
+      label: "Arterial PV stiffness",
+      min: 0.4,
+      max: 3,
+      step: 0.15,
+      options: [
+        { label: "0.4", value: 0.4 },
+        { label: "0.55", value: 0.55 },
+        { label: "0.75", value: 0.75 },
+        { label: "1", value: 1 },
+        { label: "1.5", value: 1.5 },
+        { label: "2", value: 2 },
+        { label: "3", value: 3 },
+      ],
+    }, 0.75));
+
+    expect(html).toContain("0.75");
+    expect(html).not.toContain(">0.8<");
+    expect(html).toContain('aria-valuetext="0.75"');
   });
 
   it("passes only the exact runtime values to the indexed slider", () => {
@@ -87,10 +117,32 @@ describe("ControllerItemControl", () => {
     };
 
     expect(sliderProps.stops?.map(({ value }) => value)).toEqual([
+      0.25,
+      0.5,
       0.75,
       1,
-      4 / 3,
+      1.5,
+      2,
+      3,
+      4,
     ]);
+  });
+
+  it("exposes a precise model description as a hover tooltip and accessible description", () => {
+    const description =
+      "Dimensionless model factor, not PVR in Wood units or a diagnosis.";
+    const html = renderToStaticMarkup(React.createElement(
+      ControllerItemControl,
+      {
+        item: sliderItem,
+        value: 1,
+        description,
+        onChange: vi.fn(),
+      },
+    ));
+
+    expect(html).toContain(`title="${description}"`);
+    expect(html).toContain(`aria-description="${description}"`);
   });
 
   it("forwards drag changes and release commits through separate callbacks", () => {
@@ -107,13 +159,13 @@ describe("ControllerItemControl", () => {
       onCommit?: (v: number) => void;
     };
 
-    sliderProps.onChange?.(4 / 3);
+    sliderProps.onChange?.(4);
 
-    expect(onChange).toHaveBeenCalledWith(4 / 3);
+    expect(onChange).toHaveBeenCalledWith(4);
     expect(onCommit).not.toHaveBeenCalled();
 
-    sliderProps.onCommit?.(4 / 3);
-    expect(onCommit).toHaveBeenCalledWith(4 / 3);
+    sliderProps.onCommit?.(4);
+    expect(onCommit).toHaveBeenCalledWith(4);
   });
 
   it("keeps continuous slider drafts local until their release commit", () => {
@@ -150,17 +202,17 @@ describe("ControllerItemControl", () => {
       onCommit?: (v: number) => void;
     };
 
-    sliderProps.onCommit?.(0.75);
+    sliderProps.onCommit?.(0.25);
 
-    expect(onChange).toHaveBeenCalledWith(0.75);
+    expect(onChange).toHaveBeenCalledWith(0.25);
   });
 
   it("renders pure buttonGroup controls as chips only", () => {
     const html = renderToStaticMarkup(renderControl({ ...sliderItem, kind: "buttonGroup" }, 1));
 
-    expect(html).toContain("0.75×");
-    expect(html).toContain("1.00×");
-    expect(html).toContain("1.33×");
+    expect(html).toContain("0.25×");
+    expect(html).toContain("1.0×");
+    expect(html).toContain("4.0×");
     expect(html).not.toContain('type="range"');
   });
 });

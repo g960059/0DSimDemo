@@ -217,6 +217,17 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const seriesRef = React.useRef(series);
   seriesRef.current = series;
+  const lastPeriodicTrajectoryBySeriesRef = React.useRef(
+    new Map<string, readonly PvValue[]>(),
+  );
+  const retainedSourceTrajectoryBySeriesRef = React.useRef(
+    new Map<string, RetainedScientificPvSourceTrajectoryV1>(),
+  );
+  updateRetainedScientificPvSourceTrajectoriesV1(
+    series,
+    lastPeriodicTrajectoryBySeriesRef.current,
+    retainedSourceTrajectoryBySeriesRef.current,
+  );
   const visible = useDocumentVisible();
   const legend = React.useMemo(() => series.map((item) => ({
     key: item.key,
@@ -225,17 +236,32 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     signalName: item.signalName,
   })), [series]);
   const normalizedHistoryBeats = normalizeScientificPvHistoryBeatsV1(historyBeats);
-  const retainedTrajectoryCount = React.useMemo(() => Math.max(
+  const retainedTrajectoryCount = Math.max(
     0,
     ...series.map((item) => scientificPvTrajectoriesV1(
       item,
       normalizedHistoryBeats,
+      retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
     ).filter(({ age }) => scientificPvHistoryAlphaV1(
       age,
       normalizedHistoryBeats,
       historyMode,
     ) > 0).length),
-  ), [historyMode, normalizedHistoryBeats, series]);
+  );
+  const retainedSourceTrajectoryCount = Math.max(
+    0,
+    ...series.map((item) => scientificPvTrajectoriesV1(
+      item,
+      normalizedHistoryBeats,
+      retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
+    ).filter((trajectory) =>
+      trajectory.kind === "retained-source-periodic"
+      && scientificPvHistoryAlphaV1(
+        trajectory.age,
+        normalizedHistoryBeats,
+        historyMode,
+      ) > 0).length),
+  );
 
   React.useEffect(() => {
     if (!visible) return undefined;
@@ -243,7 +269,23 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       const currentSeries = seriesRef.current;
       const plot = plotRect(width, height);
       const theme = canvasTheme(containerRef.current);
-      const allPoints = currentSeries.flatMap((item) => pvPoints(item));
+      const visibleTrajectoriesBySeries = new Map(
+        currentSeries.map((item) => [
+          item.key,
+          scientificPvTrajectoriesV1(
+            item,
+            normalizedHistoryBeats,
+            retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
+          ).filter(({ age }) => scientificPvHistoryAlphaV1(
+            age,
+            normalizedHistoryBeats,
+            historyMode,
+          ) > 0),
+        ]),
+      );
+      const allPoints = currentSeries.flatMap((item) =>
+        (visibleTrajectoriesBySeries.get(item.key) ?? [])
+          .flatMap((trajectory) => trajectory.points));
       const xDomain = paddedDomain(allPoints.map(({ volume }) => volume), false);
       const yDomain = paddedDomain(allPoints.map(({ pressure }) => pressure), false);
       const x = d3.scaleLinear().domain(xDomain).range([plot.left, plot.right]);
@@ -266,10 +308,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
             ?? points.at(-1)!.timeSec
           : positiveModulo(sharedElapsedSeconds, duration);
         publishedPhase = phase;
-        const trajectories = scientificPvTrajectoriesV1(
-          item,
-          normalizedHistoryBeats,
-        );
+        const trajectories = visibleTrajectoriesBySeries.get(item.key) ?? [];
         for (const trajectory of [...trajectories].reverse()) {
           const alpha = scientificPvHistoryAlphaV1(
             trajectory.age,
@@ -314,6 +353,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       data-pv-history-beats={normalizedHistoryBeats}
       data-pv-history-mode={historyMode}
       data-pv-history-trajectory-count={retainedTrajectoryCount}
+      data-pv-history-source-trajectory-count={retainedSourceTrajectoryCount}
     >
       {showLegend && (
         <ScientificWorkbenchChartLegendV1
@@ -528,6 +568,12 @@ function pvPoints(item: ScientificWorkbenchPvSeriesV1): PvValue[] {
 export type ScientificPvTrajectoryV1 = Readonly<{
   age: number;
   points: readonly PvValue[];
+  kind: "periodic" | "transient" | "retained-source-periodic";
+}>;
+
+type RetainedScientificPvSourceTrajectoryV1 = Readonly<{
+  transientOriginAcceptedTimeSec: number;
+  points: readonly PvValue[];
 }>;
 
 /**
@@ -538,6 +584,7 @@ export type ScientificPvTrajectoryV1 = Readonly<{
 export function scientificPvTrajectoriesV1(
   item: ScientificWorkbenchPvSeriesV1,
   historyBeats = 8,
+  retainedSourcePeriodicPoints?: readonly PvValue[],
 ): readonly ScientificPvTrajectoryV1[] {
   const horizon = normalizeScientificPvHistoryBeatsV1(historyBeats);
   const scenario = item.scenario;
@@ -552,7 +599,11 @@ export function scientificPvTrajectoriesV1(
     const points = pvPoints(item);
     return points.length === 0
       ? Object.freeze([])
-      : Object.freeze([Object.freeze({ age: 0, points: Object.freeze(points) })]);
+      : Object.freeze([Object.freeze({
+        age: 0,
+        points: Object.freeze(points),
+        kind: "periodic" as const,
+      })]);
   }
 
   const beats = new Map<number, MainWireScientificObservableFrameV1[]>();
@@ -578,9 +629,65 @@ export function scientificPvTrajectoriesV1(
     trajectories.push(Object.freeze({
       age: latestBeat - beatIndex,
       points: Object.freeze(points),
+      kind: "transient" as const,
+    }));
+  }
+  // The source periodic loop is the visual state at transition time. Treat it
+  // as history beat 0 until the first new beat completes, then age it with the
+  // accepted-time transition. This prevents a one-frame axis collapse while
+  // preserving the configured fade/persistent history semantics.
+  if (
+    horizon > 0
+    && retainedSourcePeriodicPoints !== undefined
+    && retainedSourcePeriodicPoints.length >= 2
+    && latestBeat <= horizon
+  ) {
+    trajectories.push(Object.freeze({
+      age: latestBeat,
+      points: retainedSourcePeriodicPoints,
+      kind: "retained-source-periodic" as const,
     }));
   }
   return Object.freeze(trajectories.sort((a, b) => a.age - b.age));
+}
+
+function updateRetainedScientificPvSourceTrajectoriesV1(
+  series: readonly ScientificWorkbenchPvSeriesV1[],
+  lastPeriodicTrajectoryBySeries: Map<string, readonly PvValue[]>,
+  retainedSourceTrajectoryBySeries: Map<string, RetainedScientificPvSourceTrajectoryV1>,
+): void {
+  const currentKeys = new Set(series.map(({ key }) => key));
+  for (const key of lastPeriodicTrajectoryBySeries.keys()) {
+    if (!currentKeys.has(key)) lastPeriodicTrajectoryBySeries.delete(key);
+  }
+  for (const key of retainedSourceTrajectoryBySeries.keys()) {
+    if (!currentKeys.has(key)) retainedSourceTrajectoryBySeries.delete(key);
+  }
+
+  for (const item of series) {
+    const scenario = item.scenario;
+    const isOpenTransient =
+      scenario.displayedEvidence === "open-transient-no-periodic-claim";
+    if (!isOpenTransient) {
+      const periodicPoints = pvPoints(item);
+      if (scenario.periodicCycleFrames !== null && periodicPoints.length >= 2) {
+        lastPeriodicTrajectoryBySeries.set(item.key, Object.freeze(periodicPoints));
+      }
+      retainedSourceTrajectoryBySeries.delete(item.key);
+      continue;
+    }
+
+    const origin = scenario.transientOriginAcceptedTimeSec;
+    if (origin === null || !Number.isFinite(origin)) continue;
+    const retained = retainedSourceTrajectoryBySeries.get(item.key);
+    if (retained?.transientOriginAcceptedTimeSec === origin) continue;
+    const sourcePoints = lastPeriodicTrajectoryBySeries.get(item.key);
+    if (sourcePoints === undefined) continue;
+    retainedSourceTrajectoryBySeries.set(item.key, Object.freeze({
+      transientOriginAcceptedTimeSec: origin,
+      points: sourcePoints,
+    }));
+  }
 }
 
 export function normalizeScientificPvHistoryBeatsV1(value: number): number {

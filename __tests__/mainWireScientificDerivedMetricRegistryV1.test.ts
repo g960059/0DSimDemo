@@ -8,6 +8,8 @@ import {
   MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1,
   MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_REGISTRY_SNAPSHOT_V1,
   deriveMainWireScientificMetricsV1,
+  deriveMainWireScientificTransientBeatMetricsV1,
+  type MainWireScientificCompleteTransientBeatV1,
   type MainWireScientificValidatedTerminalCycleV1,
 } from "@/engine/scientific/metrics";
 import {
@@ -307,6 +309,48 @@ describe("main-wire scientific derived metric registry V1", () => {
     expect(rejected.cycleAvailability).toBe("unavailable");
     expect(rejected.cycleUnavailableReason).toMatch(/expected 501/);
     expect(rejected.values["valve.AoV.cycle_volume.net"].value).toBeNull();
+  });
+
+  it("derives provisional metrics only from a fully measured accepted-step transient beat", () => {
+    const periodic = validatedCycle();
+    const frames = periodic.frames.map((sample) => Object.freeze({
+      ...sample,
+      source: "accepted-step" as const,
+    }));
+    const beat = Object.freeze({
+      frames: Object.freeze(frames),
+      releaseRef: RELEASE,
+      durationSec: 1,
+      evidence: Object.freeze({
+        exactReleaseRefUniform: true as const,
+        revisionsContiguous: true as const,
+        cadenceUniform: true as const,
+        bothBeatBoundariesMeasured: true as const,
+        transientBeatFullyMeasured: true as const,
+        smoothingOrInterpolationApplied: false as const,
+      }),
+    }) satisfies MainWireScientificCompleteTransientBeatV1;
+
+    const result = deriveMainWireScientificTransientBeatMetricsV1(beat);
+    expect(result).toMatchObject({
+      cycleAvailability: "provisional",
+      cycleInterpretation: "provisional-complete-transient-beat",
+      inputCycleContractId: "main-wire-scientific-complete-transient-beat-v1",
+      firstRevision: frames[0]!.revision,
+      finalRevision: frames.at(-1)!.revision,
+    });
+    expect(result.values["hemodynamics.pressure.mean.Ao"]).toMatchObject({
+      availability: "available",
+      value: expect.closeTo(90, 10),
+      periodicBoundaryCompletionApplied: false,
+    });
+
+    const partial = deriveMainWireScientificTransientBeatMetricsV1({
+      ...beat,
+      frames: beat.frames.slice(1),
+    });
+    expect(partial.cycleAvailability).toBe("unavailable");
+    expect(partial.cycleUnavailableReason).toMatch(/expected 501/);
   });
 
   it("preserves dependency unavailability without suppressing independent metrics", () => {

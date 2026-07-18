@@ -5,8 +5,12 @@ import { ControllerItemControl } from "@/components/controls/ControllerItemContr
 import { shouldEnableLegendInteractions } from "@/components/InteractiveGraphLegend";
 import {
   deriveMainWireScientificMetricsV1,
+  deriveMainWireScientificTransientBeatMetricsV1,
   MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1,
+  type MainWireScientificCompleteTransientBeatV1,
+  type MainWireScientificDerivedMetricEvaluationV1,
   type MainWireScientificDerivedMetricIdV1,
+  type MainWireScientificValidatedTerminalCycleV1,
 } from "@/engine/scientific/metrics";
 import type {
   MainWireScientificWorkspacePressureVolumeTrajectoryV1,
@@ -31,6 +35,9 @@ import type {
   PanelInstanceConfig,
   PanelType,
 } from "@/types";
+import type {
+  ScientificWorkbenchResearchControlDraftV0,
+} from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
 
 import {
   ScientificWorkbenchPvLoopCanvasV1,
@@ -45,7 +52,6 @@ import type {
   ScientificWorkbenchDisplayClockV1,
 } from "./ScientificWorkbenchDisplayClockV1";
 import {
-  isScientificControlScaleV1,
   type ScientificProductScenarioPresentationV1,
   type ScientificProductScenarioRegistryV1,
 } from "./ScientificProductScenarioRegistryV1";
@@ -54,10 +60,16 @@ import {
 } from "./ScientificWorkbenchMetricPresentationV1";
 import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0,
+  type MainWireScientificResearchControlIdV0,
 } from "@/engine/scientific/controls";
 
 const OBSERVABLE_IDS = new Set<string>(MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1);
+const METRIC_EVALUATION_BY_CYCLE_V1 = new WeakMap<
+  object,
+  MainWireScientificDerivedMetricEvaluationV1
+>();
 
 const WAVEFORM_ALIASES: Readonly<Record<string,
 MainWireScientificObservableIdV1>> = Object.freeze({
@@ -87,6 +99,14 @@ export const SCIENTIFIC_CONTROL_SYSTEMIC_V1 =
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[0];
 export const SCIENTIFIC_CONTROL_PULMONARY_V1 =
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[1];
+export const SCIENTIFIC_CONTROL_VENOUS_TONE_V1 =
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[2];
+export const SCIENTIFIC_CONTROL_ARTERIAL_STIFFNESS_V1 =
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[3];
+export const SCIENTIFIC_CONTROL_PEEP_V1 =
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[4];
+export const SCIENTIFIC_CONTROL_PERICARDIAL_FLUID_V1 =
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[5];
 
 export const SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1 = Object.freeze(
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0.map((value) => Object.freeze({
@@ -94,53 +114,113 @@ export const SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1 = Object.freeze(
     label: `${value.toFixed(2)}×`,
   })),
 );
-const SCIENTIFIC_CONTROL_SCALE_MIN_V1 =
-  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0[0];
-const SCIENTIFIC_CONTROL_SCALE_MAX_V1 =
-  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0.at(-1)!;
+const SCIENTIFIC_CONTROL_PRESENTATION_V1 = Object.freeze({
+  [SCIENTIFIC_CONTROL_SYSTEMIC_V1]: Object.freeze({
+    label: "Systemic resistance scale",
+    description:
+      "Scales the grouped systemic-circulation resistance edges in this model; it is not a directly measured SVR value.",
+    unit: "×",
+    optionLabel: (value: number) => `${value.toFixed(value < 1 ? 2 : 1)}×`,
+  }),
+  [SCIENTIFIC_CONTROL_PULMONARY_V1]: Object.freeze({
+    label: "Pulmonary resistance scale",
+    description:
+      "Scales the grouped pulmonary-circulation resistance edges in this model; it is a dimensionless model factor, not PVR in Wood units or a pulmonary-hypertension diagnosis.",
+    unit: "×",
+    optionLabel: (value: number) => `${value.toFixed(value < 1 ? 2 : 1)}×`,
+  }),
+  [SCIENTIFIC_CONTROL_VENOUS_TONE_V1]: Object.freeze({
+    label: "Venous tone",
+    description:
+      "Shifts the systemic venous compartments' unstressed volume; it is not a direct central-venous-pressure setting.",
+    unit: "",
+    optionLabel: (value: number) => String(value),
+  }),
+  [SCIENTIFIC_CONTROL_ARTERIAL_STIFFNESS_V1]: Object.freeze({
+    label: "Arterial PV stiffness",
+    description:
+      "Scales the systemic and pulmonary arterial pressure–volume stiffness coefficients; it is not a direct pulse-wave-velocity measurement.",
+    unit: "",
+    optionLabel: (value: number) => String(value),
+  }),
+  [SCIENTIFIC_CONTROL_PEEP_V1]: Object.freeze({
+    label: "PEEP boundary",
+    description:
+      "Applies a static positive airway-pressure boundary to the circulation model; it is not a full ventilator simulation.",
+    unit: "cmH₂O",
+    optionLabel: (value: number) => `${value}`,
+  }),
+  [SCIENTIFIC_CONTROL_PERICARDIAL_FLUID_V1]: Object.freeze({
+    label: "Pericardial occupancy",
+    description:
+      "Adds a fixed pericardial occupancy volume against the model's fixed healthy pericardial capacity; it does not simulate accumulation rate, remodeling, or diagnose tamponade.",
+    unit: "mL",
+    optionLabel: (value: number) => `${value}`,
+  }),
+} satisfies Readonly<Record<MainWireScientificResearchControlIdV0,
+Readonly<{
+  label: string;
+  description: string;
+  unit: string;
+  optionLabel: (value: number) => string;
+}>>>);
 
-const SCIENTIFIC_CONTROLLER_ITEM_LIST_V1: ControllerItem[] = [
-    {
-      paramKey: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
-      kind: "slider" as const,
-      label: "Systemic vascular resistance",
-      min: SCIENTIFIC_CONTROL_SCALE_MIN_V1,
-      max: SCIENTIFIC_CONTROL_SCALE_MAX_V1,
-      step: 1 / 12,
-      options: SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1.map((option) => ({ ...option })),
-    },
-    {
-      paramKey: SCIENTIFIC_CONTROL_PULMONARY_V1,
-      kind: "slider" as const,
-      label: "Pulmonary vascular resistance",
-      min: SCIENTIFIC_CONTROL_SCALE_MIN_V1,
-      max: SCIENTIFIC_CONTROL_SCALE_MAX_V1,
-      step: 1 / 12,
-      options: SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1.map((option) => ({ ...option })),
-    },
-  ];
+const SCIENTIFIC_CONTROLLER_ITEM_LIST_V1: ControllerItem[] =
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0.map((controlId) =>
+    controllerItemForControlIdV1(controlId));
 export const SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1:
 readonly ControllerItem[] = Object.freeze(SCIENTIFIC_CONTROLLER_ITEM_LIST_V1);
+export const SCIENTIFIC_WORKBENCH_CIRCULATION_CONTROLLER_ITEMS_V1:
+readonly ControllerItem[] = Object.freeze(
+  SCIENTIFIC_CONTROLLER_ITEM_LIST_V1.slice(0, 4),
+);
+export const SCIENTIFIC_WORKBENCH_VENTILATION_RESTRAINT_CONTROLLER_ITEMS_V1:
+readonly ControllerItem[] = Object.freeze(
+  SCIENTIFIC_CONTROLLER_ITEM_LIST_V1.slice(4),
+);
 
 /**
- * The current release exposes three validated, enumerated resistance scales.
+ * The current release exposes only catalog-enumerated, release-bound values.
  * Authored presentation documents may be older or hand-edited, so the runtime
- * repeats the authoring constraint at the execution surface. The slider is a
- * discrete three-stop control; it never emits an unvalidated intermediate
- * resistance scale.
+ * repeats the authoring constraint at the execution surface. Each slider uses
+ * the catalog's exact research anchors and never emits an unowned intermediate
+ * runtime value.
  */
 export function scientificControllerItemForReleaseV1(
   item: ControllerItem,
 ): ControllerItem {
-  if (scientificControlKindV1(item.paramKey) === null) return item;
+  const controlId = scientificControlKindV1(item.paramKey);
+  return controlId === null ? item : controllerItemForControlIdV1(controlId);
+}
+
+function controllerItemForControlIdV1(
+  controlId: MainWireScientificResearchControlIdV0,
+): ControllerItem {
+  const domain = MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
+    controlId
+  ];
+  const presentation = SCIENTIFIC_CONTROL_PRESENTATION_V1[controlId];
+  const values = domain.allowedValues as readonly number[];
   return {
-    ...item,
+    paramKey: controlId,
     kind: "slider",
-    min: SCIENTIFIC_CONTROL_SCALE_MIN_V1,
-    max: SCIENTIFIC_CONTROL_SCALE_MAX_V1,
-    step: 1 / 12,
-    options: SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1.map((option) => ({ ...option })),
+    label: presentation.label,
+    min: values[0]!,
+    max: values.at(-1)!,
+    step: minimumPositiveGapV1(values),
+    options: values.map((value) => ({
+      value,
+      label: presentation.optionLabel(value),
+    })),
   };
+}
+
+function minimumPositiveGapV1(values: readonly number[]): number {
+  let result = Infinity;
+  for (let index = 1; index < values.length; index += 1) {
+    result = Math.min(result, values[index]! - values[index - 1]!);
+  }
+  return Number.isFinite(result) && result > 0 ? result : 1;
 }
 
 /** A new target/descriptor must own a fresh local slider interaction. */
@@ -374,9 +454,7 @@ function ScientificMetricsPanelV1({
       data-testid="scientific-workbench-metrics-v1"
     >
       {presentations.map((presentation) => {
-        const evaluation = deriveMainWireScientificMetricsV1(
-          presentation.validatedCycle,
-        );
+        const evaluation = metricEvaluationForPresentationV1(presentation);
         const ids = [...new Set((selections[presentation.descriptor.id] ?? [])
           .map(scientificMetricId)
           .filter((id): id is MainWireScientificDerivedMetricIdV1 => id !== null))];
@@ -386,6 +464,8 @@ function ScientificMetricsPanelV1({
             className="grid gap-2 border-b border-wb-line/70 py-2.5 last:border-b-0 @min-[700px]:grid-cols-[minmax(8rem,11rem)_minmax(0,1fr)] @min-[700px]:gap-4"
             data-scenario-id={presentation.descriptor.id}
             data-testid="scientific-metrics-scenario-v1"
+            data-metric-evidence={presentation.metricEvidence}
+            data-metric-cycle-final-revision={evaluation.finalRevision ?? ""}
           >
             <header className="flex min-w-0 items-start gap-2 @min-[700px]:pt-0.5">
               <span
@@ -397,7 +477,17 @@ function ScientificMetricsPanelV1({
                 <h3 className="truncate text-[11px] font-semibold leading-4 text-wb-text">
                   {presentation.descriptor.name}
                 </h3>
-                {evaluation.cycleAvailability !== "validated" && (
+                {presentation.metricEvidence === "retained-periodic-source" && (
+                  <p className="truncate text-[10px] leading-4 text-wb-subtle">
+                    Live · previous complete beat
+                  </p>
+                )}
+                {presentation.metricEvidence === "provisional-complete-transient-beat" && (
+                  <p className="truncate text-[10px] leading-4 text-wb-subtle">
+                    Live · provisional complete beat
+                  </p>
+                )}
+                {evaluation.cycleAvailability === "unavailable" && (
                   <p className="truncate text-[10px] leading-4 text-wb-subtle">
                     Awaiting a complete cycle
                   </p>
@@ -467,6 +557,24 @@ function ScientificMetricsPanelV1({
       })}
     </div>
   );
+}
+
+function metricEvaluationForPresentationV1(
+  presentation: ScientificProductScenarioPresentationV1,
+): MainWireScientificDerivedMetricEvaluationV1 {
+  const cycle = presentation.metricCycle;
+  if (cycle === null) return deriveMainWireScientificMetricsV1(null);
+  const cached = METRIC_EVALUATION_BY_CYCLE_V1.get(cycle as object);
+  if (cached !== undefined) return cached;
+  const evaluation = "periodicOrbitClassifiedP1" in cycle.evidence
+    ? deriveMainWireScientificMetricsV1(
+      cycle as MainWireScientificValidatedTerminalCycleV1,
+    )
+    : deriveMainWireScientificTransientBeatMetricsV1(
+      cycle as MainWireScientificCompleteTransientBeatV1,
+    );
+  METRIC_EVALUATION_BY_CYCLE_V1.set(cycle as object, evaluation);
+  return evaluation;
 }
 
 function ScientificControllerPanelV1({
@@ -543,23 +651,19 @@ function ScientificControllerPanelV1({
       <div className="min-h-0 flex-1 overflow-y-auto p-2 custom-scrollbar">
         <div className="grid gap-2">
           {items.map((item) => {
-            const control = scientificControlKindV1(item.paramKey);
-            if (control === null) {
+            const controlId = scientificControlKindV1(item.paramKey);
+            if (controlId === null) {
               return (
                 <div key={item.paramKey} className="rounded border border-dashed border-wb-line px-2 py-1.5 text-[10px] text-wb-subtle">
                   {item.label ?? item.paramKey}: unavailable in release 0.2.0
                 </div>
               );
             }
-            const value = control === "systemic"
-              ? snapshot.draft.systemic
-              : snapshot.draft.pulmonary;
-            const setDraftScale = control === "systemic"
-              ? actions.setSystemicScale
-              : actions.setPulmonaryScale;
-            const commitScale = control === "systemic"
-              ? actions.commitSystemicScale
-              : actions.commitPulmonaryScale;
+            const value = scientificDraftValueV1(snapshot.draft, controlId);
+            const domain =
+              MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
+                controlId
+              ];
             const releaseItem = scientificControllerItemForReleaseV1(item);
             return (
               <ControllerItemControl
@@ -570,22 +674,25 @@ function ScientificControllerPanelV1({
                 )}
                 item={releaseItem}
                 value={value}
-                baseline={1}
-                unit="×"
+                baseline={domain.baseline}
+                unit={SCIENTIFIC_CONTROL_PRESENTATION_V1[controlId].unit}
+                description={
+                  SCIENTIFIC_CONTROL_PRESENTATION_V1[controlId].description
+                }
                 onChange={(next) => {
-                  if (!isScientificControlScaleV1(next)) return;
-                  setDraftScale(next);
+                  if (!isScientificControlValueV1(controlId, next)) return;
+                  actions.setControlValue(controlId, next);
                 }}
                 onCommit={(next) => {
-                  if (!isScientificControlScaleV1(next)) return;
-                  commitScale(next);
+                  if (!isScientificControlValueV1(controlId, next)) return;
+                  actions.commitControlValue(controlId, next);
                 }}
                 onOptionCommit={(next) => {
-                  if (!isScientificControlScaleV1(next)) return;
-                  commitScale(next);
+                  if (!isScientificControlValueV1(controlId, next)) return;
+                  actions.commitControlValue(controlId, next);
                 }}
                 onReset={() => {
-                  commitScale(1);
+                  actions.commitControlValue(controlId, domain.baseline);
                 }}
                 disabled={!controlsEditable}
               />
@@ -902,14 +1009,41 @@ function controllerTargetScenarioV1(
 
 function scientificControlKindV1(
   paramKey: string,
-): "systemic" | "pulmonary" | null {
-  if (
-    paramKey === SCIENTIFIC_CONTROL_SYSTEMIC_V1
-  ) return "systemic";
-  if (
-    paramKey === SCIENTIFIC_CONTROL_PULMONARY_V1
-  ) return "pulmonary";
-  return null;
+): MainWireScientificResearchControlIdV0 | null {
+  return (MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0 as readonly string[])
+    .includes(paramKey)
+    ? paramKey as MainWireScientificResearchControlIdV0
+    : null;
+}
+
+function isScientificControlValueV1(
+  controlId: MainWireScientificResearchControlIdV0,
+  value: number,
+): boolean {
+  return Number.isFinite(value)
+    && (MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
+      controlId
+    ].allowedValues as readonly number[]).includes(value);
+}
+
+function scientificDraftValueV1(
+  draft: ScientificWorkbenchResearchControlDraftV0,
+  controlId: MainWireScientificResearchControlIdV0,
+): number {
+  switch (controlId) {
+    case "circulation.systemic-vascular-resistance-scale":
+      return draft.systemic;
+    case "circulation.pulmonary-vascular-resistance-scale":
+      return draft.pulmonary;
+    case "circulation.venous-tone":
+      return draft.venousTone;
+    case "circulation.arterial-stiffness":
+      return draft.arterialStiffness;
+    case "ventilation.peep-cm-h2o":
+      return draft.peepCmH2O;
+    case "pericardium.prescribed-fluid-volume-ml":
+      return draft.pericardialFluidVolumeMl;
+  }
 }
 
 function scientificMetricId(

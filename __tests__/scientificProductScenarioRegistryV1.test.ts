@@ -29,6 +29,13 @@ const registryMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/engine/scientificBrowser", () => ({
+  MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1: Object.freeze({
+    maximumRequestCountPerLifetime: 100_000,
+    maximumSessionIdentityCountPerLifetime: 4_096,
+    maximumTransientStepCountPerCommand: 16,
+    maximumOutputFrameCountPerCommand: 16,
+    requestTimeoutMs: 60_000,
+  }),
   MainWireScientificWorkerClientV1: class {
     readonly terminate = vi.fn();
 
@@ -50,6 +57,7 @@ vi.mock(
 );
 
 import {
+  completeTransientMetricBeatV1,
   ScientificProductScenarioRegistryV1,
   uniqueScenarioNameV1,
   type ScientificProductLoadedRuntimeV1,
@@ -218,7 +226,14 @@ describe("scientific product scenario registry V1", () => {
     try {
       const duplicateId = registry.addPreset(resolution.caseEntry.caseId, {
         name: "Settled duplicate",
-        duplicateDraft: Object.freeze({ systemic: 0.75, pulmonary: 1 }),
+        duplicateDraft: Object.freeze({
+          systemic: 0.75,
+          pulmonary: 1,
+          venousTone: 0.15,
+          arterialStiffness: 0.75,
+          peepCmH2O: 0,
+          pericardialFluidVolumeMl: 0,
+        }),
       })!;
       await flushMicrotasks();
 
@@ -233,6 +248,31 @@ describe("scientific product scenario registry V1", () => {
         store.publishOwnerSnapshot(token, { ...input, ...patch });
       };
       const ownerActions: ScientificWorkbenchResearchControlOwnerActionsV0 = {
+        setControlValue: (controlId, value) => {
+          calls.push(`${controlId}:${value}`);
+          const field = {
+            "circulation.venous-tone": "venousTone",
+            "circulation.arterial-stiffness": "arterialStiffness",
+            "ventilation.peep-cm-h2o": "peepCmH2O",
+            "pericardium.prescribed-fluid-volume-ml":
+              "pericardialFluidVolumeMl",
+          }[controlId] as
+            | "venousTone"
+            | "arterialStiffness"
+            | "peepCmH2O"
+            | "pericardialFluidVolumeMl"
+            | undefined;
+          if (field !== undefined) {
+            publish({
+              draft: Object.freeze({
+                ...store.getSnapshot().draft,
+                [field]: value,
+              }),
+              noChange: false,
+            });
+          }
+        },
+        commitControlValue: () => undefined,
         setSystemicScale: (systemic) => {
           calls.push(`systemic:${systemic}`);
           publish({
@@ -275,6 +315,10 @@ describe("scientific product scenario registry V1", () => {
       expect(calls).toEqual([
         "systemic:0.75",
         "pulmonary:1",
+        "circulation.venous-tone:0.15",
+        "circulation.arterial-stiffness:0.75",
+        "ventilation.peep-cm-h2o:0",
+        "pericardium.prescribed-fluid-volume-ml:0",
         "mode:steady",
         "apply",
         "mode:live",
@@ -357,6 +401,28 @@ describe("scientific product scenario registry V1", () => {
     disconnect();
     unsubscribeFrames();
     registry.dispose();
+  });
+
+  it("extracts metrics only at a complete accepted transient-beat boundary", () => {
+    const frames = Object.freeze(Array.from({ length: 501 }, (_, index) =>
+      Object.freeze({
+        releaseRef: SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
+        revision: 90_000 + index,
+        acceptedTimeSec: 40 + index * 0.002,
+        source: "accepted-step" as const,
+      }) as unknown as MainWireScientificObservableFrameV1));
+
+    const beat = completeTransientMetricBeatV1(frames, 40);
+    expect(beat).toMatchObject({
+      durationSec: 1,
+      evidence: {
+        transientBeatFullyMeasured: true,
+        bothBeatBoundariesMeasured: true,
+      },
+    });
+    expect(beat?.frames).toHaveLength(501);
+    expect(completeTransientMetricBeatV1(frames.slice(0, -1), 40)).toBeNull();
+    expect(completeTransientMetricBeatV1(frames, 40.002)).toBeNull();
   });
 });
 

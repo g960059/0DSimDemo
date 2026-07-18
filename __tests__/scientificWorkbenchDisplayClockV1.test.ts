@@ -8,7 +8,9 @@ import {
   scientificOpenTransientElapsedSecondsV1,
   scientificSharedOpenTransientElapsedSecondsV1,
   scientificPvHistoryAlphaV1,
+  scientificPvTrajectoriesV1,
   normalizeScientificPvHistoryBeatsV1,
+  type ScientificWorkbenchPvSeriesV1,
 } from "@/components/scientificProduct/ScientificWorkbenchAnimatedChartsV1";
 
 describe("scientific Workbench display clock V1", () => {
@@ -22,6 +24,49 @@ describe("scientific Workbench display clock V1", () => {
     expect(scientificPvHistoryAlphaV1(9, 8, "persistent")).toBe(0);
     expect(normalizeScientificPvHistoryBeatsV1(99)).toBe(16);
     expect(normalizeScientificPvHistoryBeatsV1(-2)).toBe(0);
+  });
+
+  it("retains the source periodic PV loop at transition age zero and ages it by accepted beats", () => {
+    const sourcePoints = Object.freeze([
+      Object.freeze({
+        timeSec: 0,
+        volume: 40,
+        pressure: 5,
+        breakBefore: true,
+      }),
+      Object.freeze({
+        timeSec: 1,
+        volume: 70,
+        pressure: 120,
+        breakBefore: false,
+      }),
+    ]);
+    const item = pvSeries([
+      pvFrame(10, 55, 10),
+      pvFrame(10.2, 54, 12),
+    ]);
+
+    const initial = scientificPvTrajectoriesV1(item, 8, sourcePoints);
+    expect(initial.map(({ age, kind }) => ({ age, kind }))).toEqual([
+      { age: 0, kind: "transient" },
+      { age: 0, kind: "retained-source-periodic" },
+    ]);
+    expect(initial.find(({ kind }) => kind === "retained-source-periodic")?.points)
+      .toBe(sourcePoints);
+
+    const afterOneBeat = scientificPvTrajectoriesV1(pvSeries([
+      pvFrame(10, 55, 10),
+      pvFrame(10.5, 54, 12),
+      pvFrame(11, 53, 13),
+      pvFrame(11.1, 52, 14),
+    ]), 8, sourcePoints);
+    expect(afterOneBeat.find(({ kind }) =>
+      kind === "retained-source-periodic")?.age).toBe(1);
+    expect(scientificPvHistoryAlphaV1(1, 8, "fade")).toBeLessThan(1);
+    expect(scientificPvTrajectoriesV1(item, 0, sourcePoints))
+      .not.toContainEqual(expect.objectContaining({
+        kind: "retained-source-periodic",
+      }));
   });
 
   it("breaks a live waveform path when the sweep phase wraps", () => {
@@ -120,3 +165,46 @@ describe("scientific Workbench display clock V1", () => {
     expect(clock.read(1_000).elapsedSeconds).toBe(1);
   });
 });
+
+function pvSeries(
+  frames: readonly ReturnType<typeof pvFrame>[],
+): ScientificWorkbenchPvSeriesV1 {
+  return {
+    key: "scenario-1:lv",
+    volumeObservableId: "hemodynamics.volume.LV",
+    pressureObservableId: "hemodynamics.pressure.absolute.LV",
+    signalName: "Left ventricle",
+    color: "#4da3ff",
+    scenario: {
+      id: "scenario-1",
+      name: "Scenario 1",
+      color: "#4da3ff",
+      isVisible: true,
+      frames,
+      periodicCycleFrames: null,
+      cycleDurationSec: 1,
+      transientOriginAcceptedTimeSec: 10,
+      displayedEvidence: "open-transient-no-periodic-claim",
+    },
+  } as ScientificWorkbenchPvSeriesV1;
+}
+
+function pvFrame(
+  acceptedTimeSec: number,
+  volume: number,
+  pressure: number,
+) {
+  return {
+    acceptedTimeSec,
+    values: {
+      "hemodynamics.volume.LV": {
+        availability: "available",
+        value: volume,
+      },
+      "hemodynamics.pressure.absolute.LV": {
+        availability: "available",
+        value: pressure,
+      },
+    },
+  } as const;
+}

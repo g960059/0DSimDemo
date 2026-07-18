@@ -21,6 +21,8 @@ export const MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_DERIVATION_VERSION_V1 =
   1 as const;
 export const MAIN_WIRE_SCIENTIFIC_VALIDATED_TERMINAL_CYCLE_V1_ID =
   "main-wire-scientific-validated-terminal-cycle-v1" as const;
+export const MAIN_WIRE_SCIENTIFIC_COMPLETE_TRANSIENT_BEAT_V1_ID =
+  "main-wire-scientific-complete-transient-beat-v1" as const;
 
 const TERMINAL_CYCLE_SAMPLE_COUNT_V1 = 501;
 const TERMINAL_CYCLE_DURATION_SEC_V1 = 1;
@@ -360,6 +362,31 @@ export type MainWireScientificValidatedTerminalCycleV1 = Readonly<{
   }>;
 }>;
 
+/**
+ * A fully measured one-second beat from an accepted transient trajectory.
+ * Unlike a validated terminal cycle, this contract makes no periodic-orbit
+ * claim and never completes an unevaluated restore boundary from the final
+ * sample. Every frame, including both integration boundaries, must be an
+ * accepted-step observation.
+ */
+export type MainWireScientificCompleteTransientBeatV1 = Readonly<{
+  frames: readonly MainWireScientificObservableFrameV1[];
+  releaseRef: SimulationReleaseRef;
+  durationSec: number;
+  evidence: Readonly<{
+    exactReleaseRefUniform: true;
+    revisionsContiguous: true;
+    cadenceUniform: true;
+    bothBeatBoundariesMeasured: true;
+    transientBeatFullyMeasured: true;
+    smoothingOrInterpolationApplied: false;
+  }>;
+}>;
+
+export type MainWireScientificMetricCycleV1 =
+  | MainWireScientificValidatedTerminalCycleV1
+  | MainWireScientificCompleteTransientBeatV1;
+
 export type MainWireScientificDerivedMetricEvaluationV1 = Readonly<{
   registryId: typeof MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_REGISTRY_V1_ID;
   schemaVersion:
@@ -367,8 +394,13 @@ export type MainWireScientificDerivedMetricEvaluationV1 = Readonly<{
   derivationVersion:
     typeof MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_DERIVATION_VERSION_V1;
   inputCycleContractId:
-    typeof MAIN_WIRE_SCIENTIFIC_VALIDATED_TERMINAL_CYCLE_V1_ID;
-  cycleAvailability: "validated" | "unavailable";
+    | typeof MAIN_WIRE_SCIENTIFIC_VALIDATED_TERMINAL_CYCLE_V1_ID
+    | typeof MAIN_WIRE_SCIENTIFIC_COMPLETE_TRANSIENT_BEAT_V1_ID;
+  cycleAvailability: "validated" | "provisional" | "unavailable";
+  cycleInterpretation:
+    | "validated-periodic-P1"
+    | "provisional-complete-transient-beat"
+    | null;
   cycleUnavailableReason: string | null;
   releaseRef: SimulationReleaseRef | null;
   firstRevision: number | null;
@@ -415,6 +447,15 @@ export const MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_REGISTRY_SNAPSHOT_V1 =
         "measured-final-accepted-same-phase-sample-from-the-same-validated-cycle" as const,
       interpolationOrSmoothingApplied: false as const,
     }),
+    transientBeatPolicy: Object.freeze({
+      inputCycleContractId:
+        MAIN_WIRE_SCIENTIFIC_COMPLETE_TRANSIENT_BEAT_V1_ID,
+      cadence: "501 accepted-step frames spanning one measured second" as const,
+      periodicOrbitClaimed: false as const,
+      boundaryCompletionApplied: false as const,
+      displaySemantics:
+        "provisional-last-complete-beat-during-live-transition" as const,
+    }),
     extremaPolicy: "raw-validated-cycle-samples-no-interpolation" as const,
   });
 
@@ -430,6 +471,7 @@ export function deriveMainWireScientificMetricsV1(
   if (cycle === null || cycle === undefined || cycleIssue !== null) {
     return evaluation(
       "unavailable",
+      null,
       cycleIssue ?? "validated terminal cycle was not supplied",
       null,
       unavailableValuesForCycle(),
@@ -447,7 +489,51 @@ export function deriveMainWireScientificMetricsV1(
     MainWireScientificDerivedMetricValueV1
   >;
 
-  return evaluation("validated", null, cycle, Object.freeze(values));
+  return evaluation(
+    "validated",
+    "validated-periodic-P1",
+    null,
+    cycle,
+    Object.freeze(values),
+  );
+}
+
+/**
+ * Derives provisional metrics from the last fully measured transient beat.
+ * Callers should retain the previous complete beat while a new beat is still
+ * open; this function deliberately rejects partial or sliding windows.
+ */
+export function deriveMainWireScientificTransientBeatMetricsV1(
+  beat: MainWireScientificCompleteTransientBeatV1 | null | undefined,
+): MainWireScientificDerivedMetricEvaluationV1 {
+  const beatIssue = completeTransientBeatIssue(beat);
+  if (beat === null || beat === undefined || beatIssue !== null) {
+    return evaluation(
+      "unavailable",
+      null,
+      beatIssue ?? "complete transient beat was not supplied",
+      null,
+      unavailableValuesForCycle(),
+      MAIN_WIRE_SCIENTIFIC_COMPLETE_TRANSIENT_BEAT_V1_ID,
+    );
+  }
+  const values = Object.fromEntries(
+    MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1.map((entry) => [
+      entry.metricId,
+      deriveMetric(entry, beat.frames, beat.durationSec),
+    ]),
+  ) as Record<
+    MainWireScientificDerivedMetricIdV1,
+    MainWireScientificDerivedMetricValueV1
+  >;
+  return evaluation(
+    "provisional",
+    "provisional-complete-transient-beat",
+    null,
+    beat,
+    Object.freeze(values),
+    MAIN_WIRE_SCIENTIFIC_COMPLETE_TRANSIENT_BEAT_V1_ID,
+  );
 }
 
 function definition<
@@ -642,6 +728,71 @@ function validatedCycleIssue(
     ) > TIME_TOLERANCE_SEC_V1
   ) {
     return "terminal-cycle frame span does not match cycle duration";
+  }
+  return null;
+}
+
+function completeTransientBeatIssue(
+  beat: MainWireScientificCompleteTransientBeatV1 | null | undefined,
+): string | null {
+  if (beat === null || beat === undefined) {
+    return "complete transient beat was not supplied";
+  }
+  if (
+    beat.evidence.exactReleaseRefUniform !== true
+    || beat.evidence.revisionsContiguous !== true
+    || beat.evidence.cadenceUniform !== true
+    || beat.evidence.bothBeatBoundariesMeasured !== true
+    || beat.evidence.transientBeatFullyMeasured !== true
+    || beat.evidence.smoothingOrInterpolationApplied !== false
+  ) {
+    return "complete transient-beat evidence is incomplete";
+  }
+  if (beat.frames.length !== TERMINAL_CYCLE_SAMPLE_COUNT_V1) {
+    return `expected ${TERMINAL_CYCLE_SAMPLE_COUNT_V1} transient-beat frames`;
+  }
+  if (
+    !Number.isFinite(beat.durationSec)
+    || Math.abs(beat.durationSec - TERMINAL_CYCLE_DURATION_SEC_V1)
+      > TIME_TOLERANCE_SEC_V1
+  ) {
+    return "transient-beat duration is not one second";
+  }
+
+  const first = beat.frames[0]!;
+  if (!validFrameEnvelope(first) || first.source !== "accepted-step") {
+    return "first transient-beat frame is not an accepted-step observation";
+  }
+  if (!sameSimulationReleaseRef(beat.releaseRef, first.releaseRef)) {
+    return "transient beat release does not match its first frame";
+  }
+  for (let index = 1; index < beat.frames.length; index += 1) {
+    const previous = beat.frames[index - 1]!;
+    const current = beat.frames[index]!;
+    if (!validFrameEnvelope(current) || current.source !== "accepted-step") {
+      return `transient-beat frame ${index} is not an accepted-step observation`;
+    }
+    if (!sameSimulationReleaseRef(first.releaseRef, current.releaseRef)) {
+      return `transient-beat frame ${index} has a different release`;
+    }
+    if (current.revision !== previous.revision + 1) {
+      return `transient-beat frame ${index} is not revision-contiguous`;
+    }
+    const dtSec = current.acceptedTimeSec - previous.acceptedTimeSec;
+    if (
+      !Number.isFinite(dtSec)
+      || Math.abs(dtSec - TERMINAL_CYCLE_DT_SEC_V1)
+        > TIME_TOLERANCE_SEC_V1
+    ) {
+      return `transient-beat frame ${index} does not preserve 2 ms cadence`;
+    }
+  }
+  const last = beat.frames.at(-1)!;
+  if (
+    Math.abs(last.acceptedTimeSec - first.acceptedTimeSec - beat.durationSec)
+      > TIME_TOLERANCE_SEC_V1
+  ) {
+    return "transient-beat frame span does not match beat duration";
   }
   return null;
 }
@@ -1026,13 +1177,21 @@ function unavailableValuesForCycle(): Readonly<Record<
 }
 
 function evaluation(
-  cycleAvailability: "validated" | "unavailable",
+  cycleAvailability: "validated" | "provisional" | "unavailable",
+  cycleInterpretation:
+    | "validated-periodic-P1"
+    | "provisional-complete-transient-beat"
+    | null,
   cycleUnavailableReason: string | null,
-  cycle: MainWireScientificValidatedTerminalCycleV1 | null,
+  cycle: MainWireScientificMetricCycleV1 | null,
   values: Readonly<Record<
     MainWireScientificDerivedMetricIdV1,
     MainWireScientificDerivedMetricValueV1
   >>,
+  inputCycleContractId:
+    | typeof MAIN_WIRE_SCIENTIFIC_VALIDATED_TERMINAL_CYCLE_V1_ID
+    | typeof MAIN_WIRE_SCIENTIFIC_COMPLETE_TRANSIENT_BEAT_V1_ID =
+      MAIN_WIRE_SCIENTIFIC_VALIDATED_TERMINAL_CYCLE_V1_ID,
 ): MainWireScientificDerivedMetricEvaluationV1 {
   const first = cycle?.frames[0] ?? null;
   const last = cycle?.frames.at(-1) ?? null;
@@ -1042,9 +1201,9 @@ function evaluation(
       MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_REGISTRY_V1_SCHEMA_VERSION,
     derivationVersion:
       MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_DERIVATION_VERSION_V1,
-    inputCycleContractId:
-      MAIN_WIRE_SCIENTIFIC_VALIDATED_TERMINAL_CYCLE_V1_ID,
+    inputCycleContractId,
     cycleAvailability,
+    cycleInterpretation,
     cycleUnavailableReason,
     releaseRef: cycle === null ? null : Object.freeze({ ...cycle.releaseRef }),
     firstRevision: first?.revision ?? null,

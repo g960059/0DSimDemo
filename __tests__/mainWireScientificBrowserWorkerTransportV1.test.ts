@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   MainWireScientificWorkerClientV1,
@@ -141,6 +141,39 @@ describe("main-wire scientific browser Worker transport V1", () => {
     terminatedClient.terminate();
     await expectTransportError(terminated, "client-terminated");
     expect(terminatedWorker.terminateCount).toBe(1);
+  });
+
+  it("fails closed instead of leaving the UI pending when a Worker response is lost", async () => {
+    vi.useFakeTimers();
+    try {
+      const worker = new FakeWorker();
+      const client = new MainWireScientificWorkerClientV1({
+        workerFactory: () => worker.port(),
+        requestTimeoutMs: 25,
+      });
+      const first = client.request(command(
+        "observe",
+        "request-timeout-1",
+        "session-1",
+      ));
+      const second = client.request(command(
+        "observe",
+        "request-timeout-2",
+        "session-2",
+      ));
+      const firstExpectation = expectTransportError(first, "request-timeout");
+      const secondExpectation = expectTransportError(second, "request-timeout");
+
+      await vi.advanceTimersByTimeAsync(25);
+
+      await firstExpectation;
+      await secondExpectation;
+      expect(client.status).toBe("failed");
+      expect(client.pendingRequestCount).toBe(0);
+      expect(worker.terminateCount).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("never reuses or generates request identifiers", async () => {

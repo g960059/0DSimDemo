@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import type {
+  MainWireScientificResearchControlIdV0,
   MainWireScientificResearchControlScaleV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
 import type {
@@ -41,6 +42,10 @@ export type ScientificWorkbenchResearchControlCandidateV0 = Readonly<{
 export type ScientificWorkbenchResearchControlDraftV0 = Readonly<{
   systemic: MainWireScientificResearchControlScaleV0;
   pulmonary: MainWireScientificResearchControlScaleV0;
+  venousTone: number;
+  arterialStiffness: number;
+  peepCmH2O: number;
+  pericardialFluidVolumeMl: number;
 }>;
 
 export type ScientificWorkbenchDisplayedEvidenceV0 =
@@ -56,6 +61,14 @@ export type ScientificWorkbenchResearchControlProvenanceV0 = Readonly<{
 }>;
 
 export type ScientificWorkbenchResearchControlActionsV0 = Readonly<{
+  setControlValue: (
+    controlId: MainWireScientificResearchControlIdV0,
+    value: number,
+  ) => void;
+  commitControlValue: (
+    controlId: MainWireScientificResearchControlIdV0,
+    value: number,
+  ) => void;
   setSystemicScale: (
     value: MainWireScientificResearchControlScaleV0,
   ) => void;
@@ -174,6 +187,10 @@ export function createScientificWorkbenchResearchControlStoreV0(
   };
 
   const actions: ScientificWorkbenchResearchControlActionsV0 = Object.freeze({
+    setControlValue: (controlId, value) =>
+      invoke("setControlValue", controlId, value),
+    commitControlValue: (controlId, value) =>
+      invoke("commitControlValue", controlId, value),
     setSystemicScale: (value) => invoke("setSystemicScale", value),
     setPulmonaryScale: (value) => invoke("setPulmonaryScale", value),
     commitSystemicScale: (value) => invoke("commitSystemicScale", value),
@@ -325,6 +342,16 @@ function draftFromSourceV0(
     pulmonary:
       source.context.controlState.controls[
         "circulation.pulmonary-vascular-resistance-scale"
+      ],
+    venousTone:
+      source.context.controlState.controls["circulation.venous-tone"],
+    arterialStiffness:
+      source.context.controlState.controls["circulation.arterial-stiffness"],
+    peepCmH2O:
+      source.context.controlState.controls["ventilation.peep-cm-h2o"],
+    pericardialFluidVolumeMl:
+      source.context.controlState.controls[
+        "pericardium.prescribed-fluid-volume-ml"
       ],
   });
 }

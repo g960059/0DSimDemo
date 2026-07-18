@@ -262,6 +262,17 @@ export type MainWireScientificResearchControlForkReceiptV0 = Readonly<{
     systemicResistance: number;
     pulmonaryResistance: number;
   }>;
+  resolvedRuntimeOverlay: Readonly<{
+    vascular: Readonly<{
+      venousTone: number;
+      arterialStiffness: number;
+    }>;
+    respiratory: Readonly<{
+      peepCmH2O: number;
+      peepMmHg: number;
+    }>;
+    prescribedPericardialFluidVolumeMl: number;
+  }>;
   transition: Readonly<{
     applicationBoundary: "exact-current-accepted-command-boundary";
     acceptedStateClone:
@@ -274,10 +285,7 @@ export type MainWireScientificResearchControlForkReceiptV0 = Readonly<{
     canonicalTransactionCheckpointPreserved: true;
     sourceSessionUnchanged: true;
     periodicSettlementTrackerResetInTargetOnly: true;
-    replacedRuntimePaths: readonly [
-      "circulationRuntime.losses.systemicResistance",
-      "circulationRuntime.losses.pulmonaryResistance",
-    ];
+    replacedRuntimePaths: readonly string[];
     preservedAcceptedStateOwners: readonly [
       "fixed-total-blood-volume",
       "all-node-volumes",
@@ -532,7 +540,7 @@ export class MainWireScientificSessionV1 {
   /**
    * Experimental state-preserving research-control transition. The accepted
    * physical state is cloned through the authoritative transaction checkpoint;
-   * only the two catalog-owned vascular resistance values are replaced.
+   * only catalog-owned topology-preserving runtime parameters are replaced.
    */
   async forkResearchControlTargetV0(input: Readonly<{
     sourceControlState: unknown;
@@ -565,34 +573,31 @@ export class MainWireScientificSessionV1 {
       input.expectedSourceIdentity,
     );
 
-    const sourceLosses = researchControlRuntimeLosses(
+    const baseTargetDependencies = buildFixedAssemblyDependencies(
+      this.sessionInput,
+    );
+    const sourceOverlay = researchControlDependencyOverlay(
       catalog,
       sourceControlState,
+      baseTargetDependencies,
     );
     assertResearchControlRuntimeMatches(
-      this.dependencies.runtime,
-      sourceLosses,
+      this.dependencies,
+      sourceOverlay,
     );
-    const targetLosses = researchControlRuntimeLosses(
+    const targetOverlay = researchControlDependencyOverlay(
       catalog,
       targetControlState,
+      baseTargetDependencies,
     );
     const sourceCheckpoint = checkpointMainWireFiveWallNonCoronaryV1(
       this.dependencies.provider,
       this.acceptedState,
     );
-    const baseTargetDependencies = buildFixedAssemblyDependencies(
-      this.sessionInput,
-    );
     const targetDependencies: FixedAssemblyDependencies = Object.freeze({
       ...baseTargetDependencies,
-      runtime: Object.freeze({
-        ...baseTargetDependencies.runtime,
-        losses: Object.freeze({
-          ...baseTargetDependencies.runtime.losses,
-          ...targetLosses,
-        }),
-      }),
+      runtime: targetOverlay.runtime,
+      pericardium: targetOverlay.pericardium,
     });
     const targetAcceptedState = restoreMainWireFiveWallNonCoronaryV1(
       targetDependencies.provider,
@@ -645,7 +650,29 @@ export class MainWireScientificSessionV1 {
       source: sourceIdentity,
       target: targetIdentity,
       targetControlState,
-      resolvedRuntimeLosses: Object.freeze({ ...targetLosses }),
+      resolvedRuntimeLosses: Object.freeze({
+        systemicResistance:
+          targetOverlay.runtime.losses.systemicResistance,
+        pulmonaryResistance:
+          targetOverlay.runtime.losses.pulmonaryResistance,
+      }),
+      resolvedRuntimeOverlay: Object.freeze({
+        vascular: Object.freeze({
+          venousTone: targetOverlay.runtime.vascular.venousTone,
+          arterialStiffness:
+            targetOverlay.runtime.vascular.arterialStiffness,
+        }),
+        respiratory: Object.freeze({
+          peepCmH2O: targetControlState.controls[
+            "ventilation.peep-cm-h2o"
+          ],
+          peepMmHg: targetOverlay.runtime.respiratory.PEEP,
+        }),
+        prescribedPericardialFluidVolumeMl:
+          targetControlState.controls[
+            "pericardium.prescribed-fluid-volume-ml"
+          ],
+      }),
       transition: Object.freeze({
         applicationBoundary:
           "exact-current-accepted-command-boundary" as const,
@@ -664,6 +691,10 @@ export class MainWireScientificSessionV1 {
         replacedRuntimePaths: Object.freeze([
           "circulationRuntime.losses.systemicResistance",
           "circulationRuntime.losses.pulmonaryResistance",
+          "circulationRuntime.vascular.venousTone",
+          "circulationRuntime.vascular.arterialStiffness",
+          "circulationRuntime.respiratory.PEEP",
+          "commonPericardium.prescribedPericardialFluidVolumeM3",
         ] as const),
         preservedAcceptedStateOwners: Object.freeze([
           "fixed-total-blood-volume",
@@ -1418,13 +1449,18 @@ function assertResearchControlForkExpectedSourceIdentity(
   }
 }
 
-function researchControlRuntimeLosses(
+const CM_H2O_TO_MMHG_V0 = 98.0665 / 133.322;
+
+type ResearchControlDependencyOverlayV0 = Readonly<{
+  runtime: NonCoronaryCirculationRuntimeParamsV1;
+  pericardium: MainWireCommonPericardiumBindingV1;
+}>;
+
+function researchControlDependencyOverlay(
   catalog: MainWireScientificResearchControlCatalogV0,
   controlState: MainWireScientificResearchControlTargetStateV0,
-): Readonly<{
-  systemicResistance: number;
-  pulmonaryResistance: number;
-}> {
+  base: FixedAssemblyDependencies,
+): ResearchControlDependencyOverlayV0 {
   const systemic = catalog.controls.find((definition) =>
     definition.controlId
       === "circulation.systemic-vascular-resistance-scale"
@@ -1436,35 +1472,66 @@ function researchControlRuntimeLosses(
   if (systemic === undefined || pulmonary === undefined) {
     throw new Error("research control catalog lacks a required resistance owner");
   }
-  return Object.freeze({
-    systemicResistance:
-      systemic.target.releaseBaselineValue
-      * controlState.controls[
-        "circulation.systemic-vascular-resistance-scale"
-      ],
-    pulmonaryResistance:
-      pulmonary.target.releaseBaselineValue
-      * controlState.controls[
-        "circulation.pulmonary-vascular-resistance-scale"
-      ],
+  const peepCmH2O = controlState.controls["ventilation.peep-cm-h2o"];
+  const prescribedPericardialFluidVolumeMl = controlState.controls[
+    "pericardium.prescribed-fluid-volume-ml"
+  ];
+  const runtime = Object.freeze({
+    ...base.runtime,
+    losses: Object.freeze({
+      ...base.runtime.losses,
+      systemicResistance:
+        systemic.target.releaseBaselineValue
+        * controlState.controls[
+          "circulation.systemic-vascular-resistance-scale"
+        ],
+      pulmonaryResistance:
+        pulmonary.target.releaseBaselineValue
+        * controlState.controls[
+          "circulation.pulmonary-vascular-resistance-scale"
+        ],
+    }),
+    vascular: Object.freeze({
+      ...base.runtime.vascular,
+      venousTone: controlState.controls["circulation.venous-tone"],
+      arterialStiffness:
+        controlState.controls["circulation.arterial-stiffness"],
+    }),
+    respiratory: Object.freeze({
+      ...base.runtime.respiratory,
+      PEEP: peepCmH2O * CM_H2O_TO_MMHG_V0,
+    }),
   });
+  const pericardium = Object.freeze({
+    ...base.pericardium,
+    parameterSetId:
+      `${base.pericardium.parameterSetId}-fluid-${prescribedPericardialFluidVolumeMl}ml-control-v0`,
+    prescribedPericardialFluidVolumeM3:
+      prescribedPericardialFluidVolumeMl * 1e-6,
+  });
+  return Object.freeze({ runtime, pericardium });
 }
 
 function assertResearchControlRuntimeMatches(
-  runtime: NonCoronaryCirculationRuntimeParamsV1,
-  expectedLosses: Readonly<{
-    systemicResistance: number;
-    pulmonaryResistance: number;
-  }>,
+  actual: FixedAssemblyDependencies,
+  expected: ResearchControlDependencyOverlayV0,
 ): void {
   if (
-    runtime.losses.systemicResistance
-      !== expectedLosses.systemicResistance
-    || runtime.losses.pulmonaryResistance
-      !== expectedLosses.pulmonaryResistance
+    actual.runtime.losses.systemicResistance
+      !== expected.runtime.losses.systemicResistance
+    || actual.runtime.losses.pulmonaryResistance
+      !== expected.runtime.losses.pulmonaryResistance
+    || actual.runtime.vascular.venousTone
+      !== expected.runtime.vascular.venousTone
+    || actual.runtime.vascular.arterialStiffness
+      !== expected.runtime.vascular.arterialStiffness
+    || actual.runtime.respiratory.PEEP
+      !== expected.runtime.respiratory.PEEP
+    || actual.pericardium.prescribedPericardialFluidVolumeM3
+      !== expected.pericardium.prescribedPericardialFluidVolumeM3
   ) {
     throw new Error(
-      "research control source state does not match the current session runtime losses",
+      "research control source state does not match the current session runtime overlay",
     );
   }
 }
