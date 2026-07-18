@@ -854,6 +854,25 @@ describe("PanelGrid Dockview layout", () => {
     expect(inspectorHtml).not.toContain("0.5x");
   });
 
+  it("keeps long scenario labels and the editing selector within the right rail", () => {
+    const longName = "Aortic stenosis — severe research bracket with an intentionally long scenario suffix";
+    const longScenario = {
+      ...normalInstance,
+      name: longName,
+      params: { ...DEFAULT_PARAMS },
+    };
+    const html = renderPanelGrid("sandbox", [], [longScenario], [], {}, false, {
+      rightRailView: "inspector",
+    });
+
+    expect(html).toContain('class="flex h-full w-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-wb-aux"');
+    expect(html).toContain('class="min-h-0 min-w-0 flex-1 space-y-0.5 overflow-x-hidden overflow-y-auto');
+    expect(html).toContain('class="min-w-0 flex-1 truncate font-medium" title="Aortic stenosis');
+    expect(html).toContain('class="min-w-0 flex-1 truncate text-wb-text" title="Aortic stenosis');
+    expect(html).toContain("max-w-[55%]");
+    expect(html).toContain("shrink-0");
+  });
+
   it("renders the scenario-list resize sash whenever the list is expanded", () => {
     const expandedHtml = renderPanelGrid("sandbox", [], [normalInstance, copiedInstance]);
     const collapsedHtml = renderPanelGrid("sandbox", [], [normalInstance, copiedInstance], [], {}, false, {

@@ -14,6 +14,11 @@ import {
 import {
   LEGACY_SCENARIO_PRESET_CATALOG,
 } from "@/components/workbench/legacyScenarioPresetCatalog";
+import {
+  SCIENTIFIC_CONTROL_SYSTEMIC_V1,
+  scientificControllerInteractionKeyV1,
+  scientificControllerItemForReleaseV1,
+} from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
 
 const authoring: ControllerAuthoringCatalog = {
   sections: [
@@ -28,6 +33,7 @@ const authoring: ControllerAuthoringCatalog = {
           max: 4 / 3,
           step: 1 / 12,
           defaultKind: "buttonGroup",
+          allowedKinds: ["buttonGroup"],
           options: [
             { label: "Low", value: 0.75 },
             { label: "Reference", value: 1 },
@@ -111,6 +117,83 @@ describe("runtime-specific Workbench authoring seams", () => {
     expect(html).toContain("Release-bound controls");
     expect(html).toContain("Systemic vascular resistance");
     expect(html).toContain("Not exposed by this scientific release");
+  });
+
+  it("coerces an authored continuous slider to the enumerated release domain", () => {
+    const result = normalizeControllerItemsForAuthoring([{
+      paramKey: "circulation.systemic-resistance-scale",
+      kind: "slider",
+      label: "SVR",
+      min: 0.75,
+      max: 4 / 3,
+      step: 0.01,
+    }], authoring);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      kind: "buttonGroup",
+      min: 0.75,
+      max: 4 / 3,
+    });
+    expect(result.items[0].options?.map(({ value }) => value)).toEqual([
+      0.75,
+      1,
+      4 / 3,
+    ]);
+    expect(result.warnings.join(" ")).toContain(
+      "runtime domain does not admit slider",
+    );
+
+    const malformed = normalizeControllerItemsForAuthoring([{
+      paramKey: "circulation.systemic-resistance-scale",
+      kind: "buttonGroup",
+      options: [{ label: "Only", value: 1 }],
+    }], authoring);
+    expect(malformed.items[0].kind).toBe("buttonGroup");
+    expect(malformed.items[0].options?.map(({ value }) => value)).toEqual([
+      0.75,
+      1,
+      4 / 3,
+    ]);
+    expect(malformed.warnings.join(" ")).toContain(
+      "Restored canonical button values",
+    );
+  });
+
+  it("reasserts the enumerated domain at render time and remounts on target identity", () => {
+    const authoredSlider = {
+      paramKey: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
+      kind: "slider" as const,
+      min: 0.75,
+      max: 4 / 3,
+      step: 0.01,
+    };
+    const runtimeItem = scientificControllerItemForReleaseV1(authoredSlider);
+
+    expect(runtimeItem.kind).toBe("buttonGroup");
+    expect(runtimeItem.options?.map(({ value }) => value)).toEqual([
+      0.75,
+      1,
+      4 / 3,
+    ]);
+    expect(scientificControllerInteractionKeyV1(
+      "scenario-a",
+      "release-sha",
+      authoredSlider,
+    )).not.toBe(scientificControllerInteractionKeyV1(
+      "scenario-b",
+      "release-sha",
+      authoredSlider,
+    ));
+    expect(scientificControllerInteractionKeyV1(
+      "scenario-a",
+      "release-sha",
+      authoredSlider,
+    )).not.toBe(scientificControllerInteractionKeyV1(
+      "scenario-a",
+      "release-sha",
+      { ...authoredSlider, step: 0.05 },
+    ));
   });
 
   it("keeps the legacy scenario presets as the default while accepting runtime catalogs", () => {

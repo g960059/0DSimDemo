@@ -30,6 +30,14 @@ export type ControllerAuthoringCatalogEntry = Readonly<{
   step: number;
   unit?: string;
   defaultKind?: "slider" | "buttonGroup";
+  /**
+   * Presentation controls admitted by this runtime domain. Omit to retain the
+   * legacy authoring choice between slider and button group. Release-bound
+   * enumerated domains should expose only `buttonGroup`; rendering a
+   * continuous slider for a discrete engine contract creates values that the
+   * runtime must reject after the user releases the thumb.
+   */
+  allowedKinds?: readonly ("slider" | "buttonGroup")[];
   options?: readonly Readonly<{ label: string; value: number; labelKey?: string }>[];
   disabledReason?: string;
 }>;
@@ -214,9 +222,22 @@ export function normalizeControllerItemsForAuthoring(
       min = entry.min;
       max = entry.max;
     }
-    const kind = item.kind === "buttonGroup" || item.kind === "slider" || item.kind === "knob" || item.kind === "custom"
+    const allowedKinds = entry.allowedKinds ?? (["slider", "buttonGroup"] as const);
+    const requestedKind = item.kind === "buttonGroup" || item.kind === "slider"
       ? item.kind
       : entry.defaultKind ?? "slider";
+    const fallbackKind = entry.defaultKind !== undefined
+      && allowedKinds.includes(entry.defaultKind)
+      ? entry.defaultKind
+      : allowedKinds[0] ?? "slider";
+    const kind = allowedKinds.includes(requestedKind)
+      ? requestedKind
+      : fallbackKind;
+    if (kind !== requestedKind) {
+      warnings.push(
+        `Coerced "${item.paramKey}" from ${requestedKind} to ${kind} because the runtime domain does not admit ${requestedKind}.`,
+      );
+    }
     const next: ControllerItem = {
       paramKey: item.paramKey,
       kind,
@@ -241,11 +262,26 @@ export function normalizeControllerItemsForAuthoring(
           ...(option.labelKey?.trim() ? { labelKey: option.labelKey.trim() } : {}),
         });
       }
-      const options = [...optionsByValue.values()].slice(0, 3);
+      let options = [...optionsByValue.values()].slice(0, 3);
+      if (options.length < 2 && entry.options !== undefined) {
+        options = entry.options
+          .filter((option) => Number.isFinite(option.value))
+          .map((option) => ({ ...option }))
+          .slice(0, 3);
+        if (options.length >= 2) {
+          warnings.push(
+            `Restored canonical button values for "${item.paramKey}" because the authored options were incomplete.`,
+          );
+        }
+      }
       if (options.length >= 2) next.options = options;
-      else {
+      else if (allowedKinds.includes("slider")) {
         next.kind = "slider";
         warnings.push(`Coerced "${item.paramKey}" to slider because it has fewer than 2 distinct button values.`);
+      } else {
+        warnings.push(
+          `Kept "${item.paramKey}" as buttonGroup because the runtime domain does not admit sliders, but it has fewer than 2 distinct button values.`,
+        );
       }
     }
     normalized.push(next);
@@ -500,6 +536,7 @@ export function ControllerItemsBuilder({
             <div className="divide-y divide-wb-line">
               {items.map((item, index) => {
                 const meta = catalogMetaFor(item.paramKey, injectedCatalogByKey);
+                const admittedKinds = injectedCatalogByKey?.get(item.paramKey)?.allowedKinds;
                 const baseline = normalizedPreviewValue(item, baselines[item.paramKey], injectedCatalogByKey);
                 const isButton = item.kind === "buttonGroup";
                 const optionWarning = isButton && distinctOptionValues(item) < 2;
@@ -528,11 +565,12 @@ export function ControllerItemsBuilder({
                           <button
                             key={kind}
                             type="button"
+                            disabled={admittedKinds !== undefined && !admittedKinds.includes(kind)}
                             onClick={() => updateItem(index, {
                               kind,
                               ...(kind === "buttonGroup" ? { options: controllerOptionsWithLabelKeys(item, seedButtonOptions(item, baseline, injectedCatalogByKey), baseline) } : { options: undefined }),
                             })}
-                            className={`h-6 rounded px-2 text-[10px] font-bold transition-colors ${item.kind === kind ? "bg-wb-active text-wb-text" : "text-wb-subtle hover:text-wb-muted"}`}
+                            className={`h-6 rounded px-2 text-[10px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${item.kind === kind ? "bg-wb-active text-wb-text" : "text-wb-subtle hover:text-wb-muted"}`}
                           >
                             {kind === "slider" ? t("workbench.controllerBuilder.slider") : t("workbench.controllerBuilder.button")}
                           </button>

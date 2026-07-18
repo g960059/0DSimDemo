@@ -109,6 +109,10 @@ type ScenarioEntryV1 = {
   unsubscribeStore: (() => void) | null;
   unsubscribeFrames: (() => void) | null;
   pendingDuplicateDraft: ScientificWorkbenchResearchControlDraftV0 | null;
+  duplicateTransitionModeState:
+    | "none"
+    | "awaiting-start"
+    | "awaiting-settlement";
 };
 
 export type AddScientificScenarioOptionsV1 = Readonly<{
@@ -162,6 +166,7 @@ export class ScientificProductScenarioRegistryV1 {
       unsubscribeStore: null,
       unsubscribeFrames: null,
       pendingDuplicateDraft: null,
+      duplicateTransitionModeState: "none",
     };
     this.entries.set(id, entry);
     this.attachRuntime(entry, runtime);
@@ -248,6 +253,7 @@ export class ScientificProductScenarioRegistryV1 {
       unsubscribeStore: null,
       unsubscribeFrames: null,
       pendingDuplicateDraft: options.duplicateDraft ?? null,
+      duplicateTransitionModeState: "none",
     };
     this.entries.set(id, entry);
     this.publishDescriptors();
@@ -394,10 +400,25 @@ export class ScientificProductScenarioRegistryV1 {
   }
 
   private tryApplyDuplicateDraft(entry: ScenarioEntryV1): void {
-    const draft = entry.pendingDuplicateDraft;
     const runtime = entry.runtime;
-    if (draft === null || runtime === null) return;
+    if (runtime === null) return;
     const snapshot = runtime.controlStore.getSnapshot();
+
+    // Duplicates settle with the periodic path, but that is an internal
+    // initialization detail. Once the promoted source is idle, restore the
+    // product default so the first user interaction is a live transition.
+    if (entry.duplicateTransitionModeState === "awaiting-settlement") {
+      if (!snapshot.ownerConnected || snapshot.busy) return;
+      entry.duplicateTransitionModeState = "none";
+      if (snapshot.mode !== "live") {
+        runtime.controlStore.actions.setMode("live");
+      }
+      return;
+    }
+    if (entry.duplicateTransitionModeState === "awaiting-start") return;
+
+    const draft = entry.pendingDuplicateDraft;
+    if (draft === null) return;
     if (!snapshot.ownerConnected || snapshot.busy) return;
     entry.pendingDuplicateDraft = null;
     const controls = snapshot.source.context.controlState.controls;
@@ -411,11 +432,18 @@ export class ScientificProductScenarioRegistryV1 {
     runtime.controlStore.actions.setSystemicScale(draft.systemic);
     runtime.controlStore.actions.setPulmonaryScale(draft.pulmonary);
     runtime.controlStore.actions.setMode("steady");
+    entry.duplicateTransitionModeState = "awaiting-start";
     globalThis.setTimeout(() => {
       if (this.entries.get(entry.descriptor.id) !== entry) return;
       const next = runtime.controlStore.getSnapshot();
       if (next.ownerConnected && !next.busy && !next.noChange) {
+        entry.duplicateTransitionModeState = "awaiting-settlement";
         runtime.controlStore.actions.applyTransition();
+      } else {
+        entry.duplicateTransitionModeState = "none";
+        if (next.ownerConnected && next.mode !== "live") {
+          runtime.controlStore.actions.setMode("live");
+        }
       }
     }, 0);
   }
@@ -439,6 +467,7 @@ export class ScientificProductScenarioRegistryV1 {
   }
 
   private detachEntry(entry: ScenarioEntryV1): void {
+    entry.duplicateTransitionModeState = "none";
     entry.unsubscribeStore?.();
     entry.unsubscribeStore = null;
     entry.unsubscribeFrames?.();

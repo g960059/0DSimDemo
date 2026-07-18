@@ -204,8 +204,8 @@ export function ScenarioPane({
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-wb-aux">
-      <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2 custom-scrollbar">
+    <div className="flex h-full w-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-wb-aux">
+      <div className="min-h-0 min-w-0 flex-1 space-y-0.5 overflow-x-hidden overflow-y-auto p-2 custom-scrollbar">
         {instances.map((instance) => {
           const isEditing = instance.id === editingId;
           const isMenuOpen = menuState?.instanceId === instance.id;
@@ -216,7 +216,7 @@ export function ScenarioPane({
               key={instance.id}
               role="button"
               tabIndex={isEditing ? -1 : 0}
-              className={`group relative flex min-h-8 items-center gap-2 rounded-sm px-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
+              className={`group relative flex min-h-8 w-full max-w-full min-w-0 items-center gap-2 overflow-hidden rounded-sm px-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
                 isActive
                   ? 'bg-wb-active text-wb-text'
                   : isMenuOpen
@@ -262,11 +262,11 @@ export function ScenarioPane({
                     if (event.key === 'Enter') commitRename(instance);
                     if (event.key === 'Escape') cancelRename();
                   }}
-                  className="h-6 min-w-0 flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
+                  className="h-6 min-w-0 max-w-full flex-1 rounded border border-wb-accent bg-wb-input px-1.5 text-xs font-semibold text-wb-text outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                   placeholder={t('workbench.scenarioPane.scenarioName')}
                 />
               ) : (
-                <span className="min-w-0 flex-1 truncate font-medium">
+                <span className="min-w-0 flex-1 truncate font-medium" title={instance.name}>
                   {instance.name}
                   {isActive && isHidden && <span className="ml-1 text-[10px] font-bold text-wb-subtle">{t('workbench.scenarioPane.hiddenHint')}</span>}
                 </span>

@@ -8,6 +8,9 @@ import { describe, expect, it } from "vitest";
 
 import ScientificProductWorkbenchPageV1 from "@/components/scientificProduct/ScientificProductWorkbenchPageV1";
 import {
+  createScientificProductWorkbenchPresentationV1,
+} from "@/components/scientificProduct/ScientificProductWorkbenchRouteV1";
+import {
   resolveScientificProductCaseRouteV1,
 } from "@/components/scientificProduct/scientificProductCaseCatalogV1";
 import ScientificWorkbenchPageV1 from "@/components/scientificWorkbench/ScientificWorkbenchPageV1";
@@ -39,6 +42,11 @@ import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION,
   type MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
+import type {
+  MainWireScientificWorkspaceDocumentV1,
+} from "@/engine/scientific/documents";
+import { workspaceForPanelStateReplacement } from "@/features/workbench/hooks/useWorkbenchPanels";
+import { layoutStateFromWorkspace } from "@/features/workbench/workbenchDefaults";
 
 describe("document-bound scientific workbench page V1", () => {
   it("renders an explicit verification state before starting browser effects", () => {
@@ -80,6 +88,76 @@ describe("document-bound scientific workbench page V1", () => {
     expect(markup).not.toContain("scientific-product-workbench-host-v1");
     expect(markup).not.toContain('data-testid="scientific-workbench-page-v1"');
     expect(markup).not.toContain("main-wire/healthy-cold");
+  });
+
+  it("derives the product default graph board and open metrics host without mutating the scientific document", () => {
+    const workspace = JSON.parse(read(
+      "data/scientific/documents/workspaces/official-healthy-periodic-v1.json",
+    )) as MainWireScientificWorkspaceDocumentV1;
+    const canonicalBefore = JSON.stringify(workspace);
+    const presentation = createScientificProductWorkbenchPresentationV1(
+      workspace,
+      "scenario-1",
+    );
+
+    expect(presentation.panels.map(({ id, type, timeWindow }) => ({
+      id,
+      type,
+      timeWindow,
+    }))).toEqual([
+      { id: "lv-pv", type: "PVLOOP", timeWindow: undefined },
+      { id: "product-left-pressure-v1", type: "WAVEFORM", timeWindow: 5_000 },
+      { id: "product-mitral-flow-v1", type: "WAVEFORM", timeWindow: 2_000 },
+    ]);
+    expect(presentation.panels[0]?.config["scenario-1"]?.selectedSignals)
+      .toEqual(["lv"]);
+    expect(presentation.panels[1]?.config["scenario-1"]?.selectedSignals)
+      .toEqual([
+        "hemodynamics.pressure.absolute.Ao",
+        "hemodynamics.pressure.absolute.LV",
+        "hemodynamics.pressure.absolute.LA",
+      ]);
+    expect(presentation.panels[2]?.config["scenario-1"]?.selectedSignals)
+      .toEqual(["valve.MV.flow"]);
+    expect(presentation.graphBoardLayout).toEqual({
+      type: "split",
+      direction: "row",
+      children: [
+        { type: "leaf", graphViewId: "lv-pv" },
+        {
+          type: "split",
+          direction: "column",
+          children: [
+            { type: "leaf", graphViewId: "product-left-pressure-v1" },
+            { type: "leaf", graphViewId: "product-mitral-flow-v1" },
+          ],
+          sizes: [0.5, 0.5],
+        },
+      ],
+      sizes: [0.5, 0.5],
+    });
+    expect(presentation.workbenchWorkspace.hosts.metrics).toEqual({ open: true });
+    expect(presentation.workbenchWorkspace.hosts.main).toEqual({});
+    const normalizedInitialWorkspace = workspaceForPanelStateReplacement({
+      panels: presentation.panels,
+      workspace: presentation.workbenchWorkspace,
+    });
+    expect(normalizedInitialWorkspace.hosts.metrics.open).toBe(true);
+    expect(layoutStateFromWorkspace(normalizedInitialWorkspace))
+      .toMatchObject({ metricsOpen: true, metricsSpan: "main" });
+    expect(JSON.stringify(workspace)).toBe(canonicalBefore);
+
+    const routeSource = read(
+      "components/scientificProduct/ScientificProductWorkbenchRouteV1.tsx",
+    );
+    for (const marker of [
+      "addPanel={panels.addPanel}",
+      "duplicatePanel={panels.duplicatePanel}",
+      "removePanel={panels.removePanel}",
+      "onDockviewViewStateChange={panels.updateDockviewViewState}",
+      "onGraphBoardLayoutChange={setGraphBoardLayout}",
+      "workspace: initialPresentation.workbenchWorkspace",
+    ]) expect(routeSource).toContain(marker);
   });
 
   it("resolves the retained normal-sinus alias to the exact official case", () => {
@@ -355,6 +433,8 @@ describe("document-bound scientific workbench page V1", () => {
     const ownerActions: ScientificWorkbenchResearchControlOwnerActionsV0 = {
       setSystemicScale: (value) => calls.push(`systemic:${value}`),
       setPulmonaryScale: (value) => calls.push(`pulmonary:${value}`),
+      commitSystemicScale: (value) => calls.push(`commit-systemic:${value}`),
+      commitPulmonaryScale: (value) => calls.push(`commit-pulmonary:${value}`),
       setMode: (mode) => calls.push(`mode:${mode}`),
       applyTransition: () => calls.push("apply"),
       cancelSteady: () => calls.push("cancel"),
@@ -371,10 +451,17 @@ describe("document-bound scientific workbench page V1", () => {
 
     expect(store.getSnapshot().ownerConnected).toBe(true);
     expect(store.getSnapshot().actions).toBe(initial.actions);
+    expect(store.getSnapshot().mode).toBe("live");
     store.actions.setMode("live");
     store.actions.setSystemicScale(1.3333333333333333);
+    store.actions.commitPulmonaryScale(0.75);
     store.actions.applyTransition();
-    expect(calls).toEqual(["mode:live", "systemic:1.3333333333333333", "apply"]);
+    expect(calls).toEqual([
+      "mode:live",
+      "systemic:1.3333333333333333",
+      "commit-pulmonary:0.75",
+      "apply",
+    ]);
 
     const publishedInput = controlSnapshotInput(initial, {
       phase: "live-running",

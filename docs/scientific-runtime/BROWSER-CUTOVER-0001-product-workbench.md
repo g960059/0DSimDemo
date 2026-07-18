@@ -63,6 +63,14 @@ The product Workbench continues to support:
   and
 - Reading composition that embeds the same semantic references.
 
+The ordinary product's first-mount presentation is intentionally compact:
+an LV pressure-volume loop occupies the left column, while a five-second
+AoP/LVP/LAP waveform and a two-second MVF waveform are stacked in the right
+column. The metrics role area is open by default. This nested layout is
+non-canonical presentation state derived from the release-bound Workspace;
+it does not rewrite the content-addressed scientific Workspace document and
+remains freely rearrangeable after mount.
+
 Pane identity and authored-view identity are deliberately distinct. A pane is
 a physical placement in the current layout. Its stable `sourceViewId` points
 to the semantic graph/controller/metrics view used by Note and Reading.
@@ -189,6 +197,14 @@ this contract. Both presentation modes begin with the same state-preserving,
 compare-and-swap guarded Worker fork; presentation policy never changes the
 scientific command.
 
+`Live transition` is the product default. The live/next-steady selector lives
+with the controller in the right rail. A discrete controller option is one
+atomic user commit and starts the selected transition immediately; there is
+no separate product Apply action. A slider may update presentation draft state
+while its thumb moves, but it emits exactly one scientific commit on
+pointer/touch release, keyboard commit, or blur. Busy or disconnected
+controllers reject further edits instead of queueing ambiguous transitions.
+
 Each ready scenario mounts one hidden
 `ScientificWorkbenchResearchControlV0` command owner for its own Worker and
 publishes immutable state/frame snapshots into its own external store. Visible
@@ -252,14 +268,16 @@ under the identical scientific release and checkpoint schema. Persistence of a
 controlled fork requires a future control-aware checkpoint contract; the
 current V0 transition does not imply one.
 
-The current product route initializes its panels from the first scenario's
-release-bound Workspace document. Additional scenario descriptors, global and
-per-pane membership, layout edits, authored views, notes, and Reading content
-are in-memory presentation state. They are not yet saved as a new release-bound
-user Workspace or Case revision, and reload may discard them. Header save,
-import, and export actions are therefore explicitly disabled on the scientific
-product route. The old case import/export and saved-case path is not a
-scientific persistence mechanism and is not supported by this cutover.
+The current product route derives its compact initial presentation from the
+first scenario's release-bound Workspace document and fails closed if any
+required trajectory or observable is absent. It does not mutate that document
+or its digest. Additional scenario descriptors, global and per-pane membership,
+layout edits, authored views, notes, and Reading content are in-memory
+presentation state. They are not yet saved as a new release-bound user
+Workspace or Case revision, and reload may discard them. Header save, import,
+and export actions are therefore explicitly disabled on the scientific product
+route. The old case import/export and saved-case path is not a scientific
+persistence mechanism and is not supported by this cutover.
 
 ## Current first-slice limitations
 
@@ -308,6 +326,8 @@ The cutover remains guarded by tests that establish at least the following:
 - the product route retains graph add/delete/rearrange/split behavior and can
   create controller and metrics authored views without mounting a second
   scientific backend;
+- first mount opens the metrics host and produces the nested LV-PV plus
+  AoP/LVP/LAP and MVF layout with five- and two-second waveform windows;
 - Note and Reading can embed graph, controller, and metrics references, and
   duplicated/split panes preserve semantic `sourceViewId` identity;
 - `/cases` links only to case IDs accepted by the product Workbench;
@@ -326,6 +346,8 @@ The cutover remains guarded by tests that establish at least the following:
   following cycle;
 - live mode preserves revision and 2 ms time continuity, pauses at command
   boundaries, and resets to the exact retained source;
+- live is selected by default, discrete controller options auto-commit without
+  an Apply button, and slider motion does not issue a command before release;
 - route unload disposes every owned scenario session and terminates every
   corresponding Worker client; and
 - the product Workbench's reachable scientific execution closure has no import

@@ -124,6 +124,45 @@ describe("ControllerItemControl", () => {
     expect(onChange).toHaveBeenCalledWith(1.2);
   });
 
+  it("keeps slider drafts local until its release commit", () => {
+    const onChange = vi.fn();
+    const onCommit = vi.fn();
+    const sliders = collectSliders(ControllerItemControl({
+      item: { ...sliderItem, options: undefined },
+      value: 1,
+      onChange,
+      onCommit,
+    }));
+    const sliderProps = sliders[0].props as {
+      onChange?: (v: number) => void;
+      onCommit?: (v: number) => void;
+    };
+
+    expect(sliderProps.onChange).toBeUndefined();
+    expect(onChange).not.toHaveBeenCalled();
+    expect(onCommit).not.toHaveBeenCalled();
+
+    sliderProps.onCommit?.(1.2);
+    expect(onCommit).toHaveBeenCalledWith(1.2);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("routes a preset choice to the immediate option commit", () => {
+    const onChange = vi.fn();
+    const onOptionCommit = vi.fn();
+    const buttons = collectButtons(ControllerItemControl({
+      item: sliderItem,
+      value: 1,
+      onChange,
+      onOptionCommit,
+    }));
+
+    (buttons[2].props as { onClick: () => void }).onClick();
+
+    expect(onOptionCommit).toHaveBeenCalledWith(1.4);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("renders pure buttonGroup controls as chips only", () => {
     const html = renderToStaticMarkup(renderControl({ ...sliderItem, kind: "buttonGroup" }, 1));
 

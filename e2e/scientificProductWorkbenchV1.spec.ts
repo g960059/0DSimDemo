@@ -11,9 +11,11 @@ const RELEASE_SHA256 =
   "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4";
 const HEALTHY_SCENARIO_NAME = "Healthy periodic baseline";
 const ADDED_HEALTHY_SCENARIO_NAME = "Healthy periodic baseline 2";
-const COMPARISON_SCENARIO_NAME = "Comparison scenario";
-const LA_PV_TITLE = "Left atrium pressure-volume loop";
-const FOUR_VALVE_FLOW_TITLE = "Four-valve flow";
+const COMPARISON_SCENARIO_NAME =
+  "Comparison scenario with a deliberately long title that must remain inside the narrow right rail without covering its controller controls";
+const LV_PV_TITLE = "LV pressure–volume loop";
+const LEFT_PRESSURE_TITLE = "AoP / LVP / LAP";
+const MITRAL_FLOW_TITLE = "Mitral valve flow (MVF)";
 
 test.describe.serial("scientific runtime in the product Workbench shell", () => {
   test("keeps the original pane UX and renders full-pane animated scientific charts", async ({
@@ -43,7 +45,9 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       // Product routing preserves the established free-form Workbench shell;
       // it does not reuse the vertically stacked research page.
       await expect(host.locator(".workbench-header")).toHaveCount(1);
-      await expect(host.locator(".workbench-dockview")).toHaveCount(1);
+      await expect(host.locator(".workbench-dockview")).toHaveCount(2);
+      await expect(host.locator(".workbench-dockview-main")).toHaveCount(1);
+      await expect(host.locator(".workbench-dockview-metrics")).toHaveCount(1);
       await expect(page.getByTestId("scientific-workbench-page-v1"))
         .toHaveCount(0);
       await expect(page.getByTestId("product-workbench-page-v1"))
@@ -63,6 +67,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         .toBeDisabled();
       await page.getByRole("button", { name: "パネルを閉じる" }).click();
 
+      await assertDefaultScientificLayout(page);
       await assertWaveformSweepAndFullPaneSizing(page);
       await assertPvCapAndHeaderPause(page);
       await exerciseAddAndDelete(page);
@@ -132,29 +137,40 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         { timeout: 120_000 },
       );
       await expect(controller).toHaveAttribute("data-owner-connected", "true");
+      await expect(controller).toHaveAttribute("data-mode", "live");
+      await expect(controller.getByRole("button", { name: "Apply", exact: true }))
+        .toHaveCount(0);
+      await assertLongScenarioTitleFitsRightRail(
+        rail,
+        comparisonRow,
+        COMPARISON_SCENARIO_NAME,
+      );
 
-      await dockTab(page, LA_PV_TITLE).click();
-      const laLegend = visibleChartLegend(page);
-      await expect(laLegend).toContainText(
-        `${COMPARISON_SCENARIO_NAME} (Left atrium)`,
+      await dockTab(page, LV_PV_TITLE).click();
+      const lvLegend = chartLegend(
+        page,
+        "scientific-workbench-pane-lv-pv",
+      );
+      await expect(lvLegend).toContainText(
+        `${COMPARISON_SCENARIO_NAME} (Left ventricle)`,
         { timeout: 120_000 },
       );
-      await expect(laLegend).toContainText(
-        `${HEALTHY_SCENARIO_NAME} (Left atrium)`,
+      await expect(lvLegend).toContainText(
+        `${HEALTHY_SCENARIO_NAME} (Left ventricle)`,
       );
 
       // Global visibility gates the scenario across graphs.
       await exactButton(page, `${COMPARISON_SCENARIO_NAME}をグラフで非表示`)
         .click();
-      await expect(laLegend).not.toContainText(COMPARISON_SCENARIO_NAME);
+      await expect(lvLegend).not.toContainText(COMPARISON_SCENARIO_NAME);
       await exactButton(page, `${COMPARISON_SCENARIO_NAME}をグラフに表示`)
         .click();
-      await expect(laLegend).toContainText(COMPARISON_SCENARIO_NAME);
+      await expect(lvLegend).toContainText(COMPARISON_SCENARIO_NAME);
 
       // Pane membership is local to the authored graph: excluding the
-      // comparison from LA PV must not hide it from Four-valve flow.
+      // comparison from LV PV must not hide it from mitral flow.
       await page.getByRole("button", {
-        name: `${LA_PV_TITLE}のペインメニュー`,
+        name: `${LV_PV_TITLE}のペインメニュー`,
       }).click();
       await page.getByRole("menuitem", { name: "ペイン設定" }).click();
       const membership = page.getByRole("checkbox", {
@@ -163,10 +179,13 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       await expect(membership).toBeChecked();
       await membership.uncheck();
       await page.getByRole("button", { name: "ペイン設定を閉じる" }).click();
-      await expect(laLegend).not.toContainText(COMPARISON_SCENARIO_NAME);
+      await expect(lvLegend).not.toContainText(COMPARISON_SCENARIO_NAME);
 
-      await dockTab(page, FOUR_VALVE_FLOW_TITLE).click();
-      await expect(visibleChartLegend(page)).toContainText(
+      await dockTab(page, MITRAL_FLOW_TITLE).click();
+      await expect(chartLegend(
+        page,
+        "scientific-workbench-pane-product-mitral-flow-v1",
+      )).toContainText(
         `${COMPARISON_SCENARIO_NAME} (MV flow)`,
       );
 
@@ -192,13 +211,12 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       const comparisonRevision = numericAttribute(
         await evidence.getAttribute("data-scientific-final-revision"),
       );
+      await controller.getByRole("button", { name: "Next steady state" }).click();
       await selectControllerScale(
         controller,
         "Systemic vascular resistance",
         "1.33×",
       );
-      await controller.getByRole("button", { name: "Next steady state" }).click();
-      await controller.getByRole("button", { name: "Apply", exact: true }).click();
       await expect(controller).toHaveAttribute(
         "data-displayed-evidence",
         "target-period1-and-following-cycle-validated",
@@ -228,13 +246,12 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         "data-controller-scenario-id",
         comparisonScenarioId,
       );
+      await controller.getByRole("button", { name: "Live transition" }).click();
       await selectControllerScale(
         controller,
         "Pulmonary vascular resistance",
         "0.75×",
       );
-      await controller.getByRole("button", { name: "Live transition" }).click();
-      await controller.getByRole("button", { name: "Apply", exact: true }).click();
       await expect(controller).toHaveAttribute("data-phase", "live-running", {
         timeout: 30_000,
       });
@@ -256,6 +273,47 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         String(originalRevision),
       );
 
+      expect(browserErrors).toEqual([]);
+    } finally {
+      await attachBrowserErrors(testInfo, browserErrors);
+    }
+  });
+
+  test("auto-applies a controller button with live transition as the default", async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(120_000);
+    page.setDefaultTimeout(30_000);
+    const browserErrors = captureBrowserErrors(page);
+
+    try {
+      await acknowledgeModelLimitations(page);
+      const { evidence } = await openReadyProductWorkbench(page);
+      const controller = page.getByTestId("scientific-transition-controller-v1");
+      await expect(controller).toHaveAttribute("data-owner-connected", "true");
+      await expect(controller).toHaveAttribute("data-mode", "live");
+      await expect(controller.getByRole("button", { name: "Apply", exact: true }))
+        .toHaveCount(0);
+
+      const initialRevision = numericAttribute(
+        await evidence.getAttribute("data-scientific-final-revision"),
+      );
+      await selectControllerScale(
+        controller,
+        "Systemic vascular resistance",
+        "1.33×",
+      );
+      await expect(controller).toHaveAttribute("data-phase", "live-running", {
+        timeout: 30_000,
+      });
+      await expect.poll(async () => numericAttribute(
+        await evidence.getAttribute("data-scientific-final-revision"),
+      )).toBeGreaterThan(initialRevision);
+
+      await controller.getByRole("button", { name: "Pause", exact: true }).click();
+      await expect(controller).toHaveAttribute("data-phase", "live-paused");
+      await controller.getByRole("button", { name: "Reset", exact: true }).click();
+      await expect(controller).toHaveAttribute("data-phase", "idle");
       expect(browserErrors).toEqual([]);
     } finally {
       await attachBrowserErrors(testInfo, browserErrors);
@@ -446,9 +504,48 @@ async function openReadyProductWorkbench(page: Page): Promise<{
   return { host, evidence };
 }
 
+async function assertDefaultScientificLayout(page: Page): Promise<void> {
+  const metricsHost = page.getByRole("region", { name: "指標ホスト" });
+  await expect(metricsHost).toBeVisible();
+
+  const mainDockview = page.locator(".workbench-dockview").first();
+  await expect(mainDockview.locator(".dv-groupview")).toHaveCount(3);
+  await expect(dockTab(page, LV_PV_TITLE)).toHaveCount(1);
+  await expect(dockTab(page, LEFT_PRESSURE_TITLE)).toHaveCount(1);
+  await expect(dockTab(page, MITRAL_FLOW_TITLE)).toHaveCount(1);
+
+  const lvPane = page.getByTestId("scientific-workbench-pane-lv-pv");
+  const pressurePane = page.getByTestId(
+    "scientific-workbench-pane-product-left-pressure-v1",
+  );
+  const mitralPane = page.getByTestId(
+    "scientific-workbench-pane-product-mitral-flow-v1",
+  );
+  await expect(lvPane).toBeVisible();
+  await expect(pressurePane).toBeVisible();
+  await expect(mitralPane).toBeVisible();
+
+  const [lvBox, pressureBox, mitralBox] = await Promise.all([
+    lvPane.boundingBox(),
+    pressurePane.boundingBox(),
+    mitralPane.boundingBox(),
+  ]);
+  expect(lvBox).not.toBeNull();
+  expect(pressureBox).not.toBeNull();
+  expect(mitralBox).not.toBeNull();
+  expect(pressureBox!.x).toBeGreaterThan(lvBox!.x + lvBox!.width - 12);
+  expect(Math.abs(pressureBox!.x - mitralBox!.x)).toBeLessThanOrEqual(4);
+  expect(Math.abs(pressureBox!.width - mitralBox!.width)).toBeLessThanOrEqual(4);
+  expect(pressureBox!.y).toBeLessThan(mitralBox!.y);
+  expect(pressureBox!.y + pressureBox!.height)
+    .toBeLessThanOrEqual(mitralBox!.y + 12);
+}
+
 async function assertWaveformSweepAndFullPaneSizing(page: Page): Promise<void> {
-  await dockTab(page, FOUR_VALVE_FLOW_TITLE).click();
-  const pane = page.getByTestId("scientific-workbench-pane-four-valve-flow");
+  await dockTab(page, MITRAL_FLOW_TITLE).click();
+  const pane = page.getByTestId(
+    "scientific-workbench-pane-product-mitral-flow-v1",
+  );
   const wrapper = pane.getByTestId("scientific-workbench-waveform-canvas-v1");
   const canvas = wrapper.locator('canvas[data-chart-kind="waveform"]');
   await expect(wrapper).toBeVisible();
@@ -480,20 +577,22 @@ async function assertPvCapAndHeaderPause(page: Page): Promise<void> {
   await page.getByRole("button", { name: "一時停止" }).click();
   await expect(page.getByRole("button", { name: "再生" })).toBeVisible();
 
-  const waveform = page.locator('canvas[data-chart-kind="waveform"]:visible');
+  const waveform = page.getByTestId(
+    "scientific-workbench-pane-product-mitral-flow-v1",
+  ).locator('canvas[data-chart-kind="waveform"]');
   await expect(waveform).toHaveAttribute("data-cursor", /\d/);
   await assertCanvasEvidenceFreezes(waveform);
 
   // The PV loop uses the same clock and moving cap contract.
-  await dockTab(page, LA_PV_TITLE).click();
-  const pane = page.getByTestId("scientific-workbench-pane-la-pv");
+  await dockTab(page, LV_PV_TITLE).click();
+  const pane = page.getByTestId("scientific-workbench-pane-lv-pv");
   const wrapper = pane.getByTestId("scientific-workbench-pv-canvas-v1");
   const canvas = wrapper.locator('canvas[data-chart-kind="pvloop"]');
   await expect(wrapper).toBeVisible();
   await expect(canvas).toHaveAttribute("data-cap-x", /\d/);
   await assertCanvasFillsPane(canvas, wrapper, pane);
   await expect(wrapper.getByTestId("scientific-workbench-chart-legend-v1"))
-    .toContainText(`${HEALTHY_SCENARIO_NAME} (Left atrium)`);
+    .toContainText(`${HEALTHY_SCENARIO_NAME} (Left ventricle)`);
   await assertCanvasEvidenceFreezes(canvas);
 
   await page.getByRole("button", { name: "再生" }).click();
@@ -550,8 +649,11 @@ async function exerciseAddAndDelete(page: Page): Promise<void> {
   await page.getByRole("button", { name: "波形", exact: true }).click();
 
   await expect.poll(() => tabs.count()).toBe(initialTabCount + 1);
-  await expect(dockTab(page, "Waveforms")).toHaveCount(1);
-  const addedPane = page.locator(
+  const addedTab = dockTab(page, "Waveforms");
+  await expect(addedTab).toHaveCount(1);
+  const addedPane = addedTab.locator(
+    "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' dv-groupview ')][1]",
+  ).locator(
     '[data-testid^="scientific-workbench-pane-"][data-panel-kind="time-series"]:visible',
   );
   await expect(addedPane).toBeVisible();
@@ -564,7 +666,7 @@ async function exerciseAddAndDelete(page: Page): Promise<void> {
 }
 
 async function exerciseSplitDuplicateAndDelete(page: Page): Promise<void> {
-  await dockTab(page, LA_PV_TITLE).click();
+  await dockTab(page, LV_PV_TITLE).click();
   const visibleScientificPanes = page.locator(
     '[data-testid^="scientific-workbench-pane-"]:visible',
   );
@@ -573,12 +675,12 @@ async function exerciseSplitDuplicateAndDelete(page: Page): Promise<void> {
   const initialGroupCount = await mainDockview.locator(".dv-groupview").count();
 
   await page.getByRole("button", {
-    name: `${LA_PV_TITLE}のペインメニュー`,
+    name: `${LV_PV_TITLE}のペインメニュー`,
   }).click();
   await page.getByRole("menuitem", { name: "右に分割" }).click();
 
   const duplicatedPane = page.locator(
-    '[data-testid^="scientific-workbench-pane-la-pv-"]',
+    '[data-testid^="scientific-workbench-pane-lv-pv-"]',
   );
   await expect(duplicatedPane).toBeVisible();
   await expect(duplicatedPane.getByTestId("scientific-workbench-pv-canvas-v1"))
@@ -592,7 +694,7 @@ async function exerciseSplitDuplicateAndDelete(page: Page): Promise<void> {
     "xpath=ancestor::*[contains(concat(' ', normalize-space(@class), ' '), ' dv-groupview ')][1]",
   );
   await duplicatedGroup.getByRole("button", {
-    name: `${LA_PV_TITLE}を閉じる`,
+    name: `${LV_PV_TITLE}を閉じる`,
   }).click();
   await expect(duplicatedPane).toHaveCount(0);
   await expect.poll(() => visibleScientificPanes.count())
@@ -628,9 +730,9 @@ async function assertDerivedMetrics(page: Page): Promise<void> {
 async function assertNoteAuthoredViewEmbeds(page: Page): Promise<void> {
   const authoredViews = [
     {
-      id: "la-pv",
+      id: "lv-pv",
       kind: "graph",
-      title: LA_PV_TITLE,
+      title: LV_PV_TITLE,
       bodyTestId: "scientific-workbench-pv-canvas-v1",
     },
     {
@@ -726,10 +828,9 @@ async function ensureControllerViewMenuOpen(
   return menu;
 }
 
-function visibleChartLegend(page: Page): Locator {
-  return page.getByTestId("scientific-workbench-chart-legend-v1").filter({
-    visible: true,
-  });
+function chartLegend(page: Page, paneTestId: string): Locator {
+  return page.getByTestId(paneTestId)
+    .getByTestId("scientific-workbench-chart-legend-v1");
 }
 
 function exactButton(page: Page, ariaLabel: string): Locator {
@@ -740,6 +841,71 @@ function scenarioRow(rail: Locator, name: string): Locator {
   return rail.locator('div[role="button"]').filter({
     hasText: new RegExp(`^\\s*${escapeRegExp(name)}(?:\\s*非表示)?\\s*$`),
   });
+}
+
+async function assertLongScenarioTitleFitsRightRail(
+  rail: Locator,
+  row: Locator,
+  scenarioName: string,
+): Promise<void> {
+  const rowTitle = row.getByTitle(scenarioName, { exact: true });
+  const controllerSelector = controllerViewSelector(rail, "Circulation controls");
+  const editBadge = rail.getByTitle("編集", { exact: true }).filter({
+    hasText: scenarioName,
+  });
+  const editBadgeTitle = editBadge.getByTitle(scenarioName, { exact: true });
+
+  await expect(row).toBeVisible();
+  await expect(controllerSelector).toBeVisible();
+  await expect(editBadge).toBeVisible();
+  await expectTextToBeVisuallyTruncated(rowTitle);
+  await expectTextToBeVisuallyTruncated(editBadgeTitle);
+
+  for (const element of [row, controllerSelector, editBadge]) {
+    await expectElementBoundsInside(element, rail);
+  }
+}
+
+async function expectTextToBeVisuallyTruncated(text: Locator): Promise<void> {
+  await expect(text).toBeVisible();
+  await expect.poll(async () => text.evaluate((node) =>
+    node.scrollWidth - node.clientWidth,
+  )).toBeGreaterThan(1);
+
+  const styles = await text.evaluate((node) => {
+    const computed = window.getComputedStyle(node);
+    return {
+      overflowX: computed.overflowX,
+      textOverflow: computed.textOverflow,
+      whiteSpace: computed.whiteSpace,
+    };
+  });
+  expect(styles.textOverflow).toBe("ellipsis");
+  expect(styles.whiteSpace).toBe("nowrap");
+  expect(["hidden", "clip"]).toContain(styles.overflowX);
+}
+
+async function expectElementBoundsInside(
+  element: Locator,
+  container: Locator,
+): Promise<void> {
+  await expect.poll(async () => {
+    const [elementBox, containerBox] = await Promise.all([
+      element.boundingBox(),
+      container.boundingBox(),
+    ]);
+    if (elementBox === null || containerBox === null) return Number.POSITIVE_INFINITY;
+    return elementBox.x - containerBox.x;
+  }).toBeGreaterThanOrEqual(-1);
+
+  await expect.poll(async () => {
+    const [elementBox, containerBox] = await Promise.all([
+      element.boundingBox(),
+      container.boundingBox(),
+    ]);
+    if (elementBox === null || containerBox === null) return Number.POSITIVE_INFINITY;
+    return elementBox.x + elementBox.width - (containerBox.x + containerBox.width);
+  }).toBeLessThanOrEqual(1);
 }
 
 function escapeRegExp(value: string): string {

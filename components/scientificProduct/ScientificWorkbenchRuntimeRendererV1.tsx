@@ -99,28 +99,67 @@ export const SCIENTIFIC_CONTROL_SYSTEMIC_V1 =
 export const SCIENTIFIC_CONTROL_PULMONARY_V1 =
   "circulation.pulmonary-vascular-resistance-scale" as const;
 
+const SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1 = Object.freeze(
+  [0.75, 1, 4 / 3].map((value) => Object.freeze({
+    value,
+    label: `${value.toFixed(2)}×`,
+  })),
+);
+
 const SCIENTIFIC_CONTROLLER_ITEM_LIST_V1: ControllerItem[] = [
     {
       paramKey: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
       kind: "buttonGroup" as const,
       label: "Systemic vascular resistance",
-      options: [0.75, 1, 4 / 3].map((value) => ({
-        value,
-        label: `${value.toFixed(2)}×`,
-      })),
+      options: SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1.map((option) => ({ ...option })),
     },
     {
       paramKey: SCIENTIFIC_CONTROL_PULMONARY_V1,
       kind: "buttonGroup" as const,
       label: "Pulmonary vascular resistance",
-      options: [0.75, 1, 4 / 3].map((value) => ({
-        value,
-        label: `${value.toFixed(2)}×`,
-      })),
+      options: SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1.map((option) => ({ ...option })),
     },
   ];
 export const SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1:
 readonly ControllerItem[] = Object.freeze(SCIENTIFIC_CONTROLLER_ITEM_LIST_V1);
+
+/**
+ * The current release exposes three validated, enumerated resistance scales.
+ * Authored presentation documents may be older or hand-edited, so the runtime
+ * repeats the authoring constraint at the execution surface instead of
+ * rendering a continuous slider whose intermediate values the release rejects.
+ */
+export function scientificControllerItemForReleaseV1(
+  item: ControllerItem,
+): ControllerItem {
+  if (scientificControlKindV1(item.paramKey) === null) return item;
+  return {
+    ...item,
+    kind: "buttonGroup",
+    min: 0.75,
+    max: 4 / 3,
+    step: 1 / 12,
+    options: SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1.map((option) => ({ ...option })),
+  };
+}
+
+/** A new target/descriptor must own a fresh local slider interaction. */
+export function scientificControllerInteractionKeyV1(
+  scenarioId: string,
+  releaseSha256: string,
+  item: ControllerItem,
+): string {
+  return JSON.stringify([
+    scenarioId,
+    releaseSha256,
+    item.paramKey,
+    item.kind,
+    item.min ?? null,
+    item.max ?? null,
+    item.step ?? null,
+    item.options?.map(({ value }) => value) ?? null,
+  ]);
+}
 
 export type ScientificWorkbenchRuntimeRendererV1Options = Readonly<{
   registry: ScientificProductScenarioRegistryV1;
@@ -423,6 +462,28 @@ function ScientificControllerPanelV1({
         <span className="min-w-0 flex-1 truncate font-semibold text-wb-text">{descriptor.name}</span>
         <span className="truncate text-wb-subtle">{compactPhaseLabelV1(snapshot.phase)}</span>
       </div>
+      <div
+        className="shrink-0 border-b border-wb-line bg-wb-strip px-2 py-2"
+        data-testid="scientific-product-transition-mode-v1"
+      >
+        <span className="mb-1 block text-[10px] font-semibold text-wb-subtle">
+          Transition behavior
+        </span>
+        <div className="flex gap-1" role="group" aria-label="Transition mode">
+          {(["live", "steady"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => actions.setMode(mode)}
+              disabled={snapshot.busy || !snapshot.ownerConnected}
+              aria-pressed={snapshot.mode === mode}
+              className={`flex-1 rounded border px-2 py-1 text-[10px] font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${snapshot.mode === mode ? "border-wb-accent bg-wb-active text-wb-text" : "border-wb-line text-wb-subtle"}`}
+            >
+              {mode === "live" ? "Live transition" : "Next steady state"}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2 custom-scrollbar">
         <div className="grid gap-2">
           {items.map((item) => {
@@ -437,51 +498,57 @@ function ScientificControllerPanelV1({
             const value = control === "systemic"
               ? snapshot.draft.systemic
               : snapshot.draft.pulmonary;
+            const setDraftScale = control === "systemic"
+              ? actions.setSystemicScale
+              : actions.setPulmonaryScale;
+            const commitScale = control === "systemic"
+              ? actions.commitSystemicScale
+              : actions.commitPulmonaryScale;
+            const releaseItem = scientificControllerItemForReleaseV1(item);
             return (
               <ControllerItemControl
-                key={item.paramKey}
-                item={item}
+                key={scientificControllerInteractionKeyV1(
+                  descriptor.id,
+                  descriptor.source.releaseSha256,
+                  item,
+                )}
+                item={releaseItem}
                 value={value}
                 baseline={1}
                 unit="×"
                 onChange={(next) => {
                   if (!isScientificControlScaleV1(next)) return;
-                  if (control === "systemic") actions.setSystemicScale(next);
-                  else actions.setPulmonaryScale(next);
+                  setDraftScale(next);
+                }}
+                onCommit={(next) => {
+                  if (!isScientificControlScaleV1(next)) return;
+                  commitScale(next);
+                }}
+                onOptionCommit={(next) => {
+                  if (!isScientificControlScaleV1(next)) return;
+                  commitScale(next);
                 }}
                 onReset={() => {
-                  if (control === "systemic") actions.setSystemicScale(1);
-                  else actions.setPulmonaryScale(1);
+                  commitScale(1);
                 }}
+                disabled={snapshot.busy || !snapshot.ownerConnected}
               />
             );
           })}
         </div>
       </div>
-      <div className="shrink-0 border-t border-wb-line bg-wb-strip px-2 py-2">
-        <div className="mb-2 flex gap-1" role="group" aria-label="Transition mode">
-          {(["steady", "live"] as const).map((mode) => (
+      {(snapshot.steadyActive || snapshot.liveActive || snapshot.phase === "failed") && (
+        <div className="shrink-0 border-t border-wb-line bg-wb-strip px-2 py-2">
+          <div className="flex gap-1">
+          {snapshot.steadyActive && (
             <button
-              key={mode}
               type="button"
-              onClick={() => actions.setMode(mode)}
-              disabled={snapshot.busy}
-              aria-pressed={snapshot.mode === mode}
-              className={`flex-1 rounded border px-2 py-1 text-[10px] font-semibold ${snapshot.mode === mode ? "border-wb-accent bg-wb-active text-wb-text" : "border-wb-line text-wb-subtle"}`}
+              onClick={actions.cancelSteady}
+              className="min-h-7 rounded border border-wb-line px-2 text-[11px] text-wb-muted"
             >
-              {mode === "steady" ? "Next steady state" : "Live transition"}
+              Cancel
             </button>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          <button
-            type="button"
-            onClick={actions.applyTransition}
-            disabled={snapshot.busy || snapshot.noChange || !snapshot.ownerConnected}
-            className="min-h-7 flex-1 rounded bg-wb-accent px-2 text-[11px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Apply
-          </button>
+          )}
           {snapshot.liveActive && (
             <button
               type="button"
@@ -501,7 +568,8 @@ function ScientificControllerPanelV1({
             </button>
           )}
         </div>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

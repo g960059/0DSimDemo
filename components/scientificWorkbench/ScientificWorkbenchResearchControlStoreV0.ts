@@ -61,6 +61,12 @@ export type ScientificWorkbenchResearchControlActionsV0 = Readonly<{
   setPulmonaryScale: (
     value: MainWireScientificResearchControlScaleV0,
   ) => void;
+  commitSystemicScale: (
+    value: MainWireScientificResearchControlScaleV0,
+  ) => void;
+  commitPulmonaryScale: (
+    value: MainWireScientificResearchControlScaleV0,
+  ) => void;
   setMode: (mode: ScientificWorkbenchResearchTransitionModeV0) => void;
   applyTransition: () => void;
   cancelSteady: () => void;
@@ -168,6 +174,8 @@ export function createScientificWorkbenchResearchControlStoreV0(
   const actions: ScientificWorkbenchResearchControlActionsV0 = Object.freeze({
     setSystemicScale: (value) => invoke("setSystemicScale", value),
     setPulmonaryScale: (value) => invoke("setPulmonaryScale", value),
+    commitSystemicScale: (value) => invoke("commitSystemicScale", value),
+    commitPulmonaryScale: (value) => invoke("commitPulmonaryScale", value),
     setMode: (mode) => invoke("setMode", mode),
     applyTransition: () => invoke("applyTransition"),
     cancelSteady: () => invoke("cancelSteady"),
@@ -180,7 +188,7 @@ export function createScientificWorkbenchResearchControlStoreV0(
   let snapshot = freezeSnapshotV0({
     ownerConnected: false,
     phase: "idle",
-    mode: "steady",
+    mode: "live",
     source: initialSource,
     candidate: null,
     frames: initialSource.frames,

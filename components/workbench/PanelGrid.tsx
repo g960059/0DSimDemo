@@ -2867,13 +2867,13 @@ export function PanelGrid({
           {hasRightRail && (
             <section
               ref={rightRailRef}
-              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden bg-wb-aux"
+              className="workbench-zone-aux flex min-h-0 min-w-0 max-w-full flex-col overflow-hidden bg-wb-aux"
               style={{ gridColumn: rightRailColumn, gridRow: auxiliaryGridRow }}
               aria-label={t('workbench.panelGrid.railAria')}
             >
               <div
                 ref={scenarioListTierRef}
-                className="flex min-h-0 shrink-0 flex-col overflow-hidden"
+                className="flex min-h-0 min-w-0 max-w-full shrink-0 flex-col overflow-hidden"
                 style={scenarioListTierStyle}
               >
                 <div className="group flex h-9 shrink-0 items-center bg-wb-strip px-2 text-xs font-bold text-wb-muted transition-colors hover:bg-wb-input hover:text-wb-text">
@@ -2910,7 +2910,7 @@ export function PanelGrid({
                   )}
                 </div>
                 {!layoutState.scenarioListCollapsed && (
-                  <div className="flex min-h-0 flex-1 overflow-hidden">
+                  <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
                     <ScenarioPane
                       instances={instances}
                       addInstance={addInstance}
@@ -2960,12 +2960,12 @@ export function PanelGrid({
                   className="h-2"
                 />
               )}
-              <div className="flex min-h-0 flex-1 flex-col">
-                <div className="relative flex h-9 shrink-0 items-center gap-2 bg-wb-strip px-2">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <div className="relative flex h-9 min-w-0 shrink-0 items-center gap-2 overflow-hidden bg-wb-strip px-2">
                   <button
                     type="button"
                     onClick={() => setOpenControllerMenu((open) => !open)}
-                    className={`inline-flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
+                    className={`inline-flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                     aria-expanded={openControllerMenu}
                   >
                     <span className="min-w-0 truncate">
@@ -2977,12 +2977,12 @@ export function PanelGrid({
                     <button
                       type="button"
                       onClick={() => setViewEditor({ mode: 'edit', view: selectedControllerView })}
-                      className={`ml-auto inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded border border-wb-line bg-wb-panel px-2 py-0.5 text-[10px] font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
+                      className={`ml-auto inline-flex min-w-0 max-w-[55%] shrink cursor-pointer items-center gap-1.5 overflow-hidden rounded border border-wb-line bg-wb-panel px-2 py-0.5 text-[10px] font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                       title={t('common.edit')}
                     >
-                      {t('workbench.panelGrid.editingScenario')}
+                      <span className="shrink-0">{t('workbench.panelGrid.editingScenario')}</span>
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: activeInstance.color }} />
-                      <span className="min-w-0 max-w-28 truncate text-wb-text">{activeInstance.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-wb-text" title={activeInstance.name}>{activeInstance.name}</span>
                     </button>
                   )}
                   {openControllerMenu && (

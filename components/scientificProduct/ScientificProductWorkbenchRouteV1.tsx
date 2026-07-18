@@ -25,7 +25,11 @@ import {
   upsertAuthoredView,
   type AuthoredViewSpec,
 } from "@/features/workbench/authoredViews";
-import { migratePanelsToViewSpecs } from "@/features/workbench/viewSpec";
+import {
+  graphBoardLayoutFromPanels,
+  migratePanelsToViewSpecs,
+  type GraphBoardLayout,
+} from "@/features/workbench/viewSpec";
 import { workspaceForPanels } from "@/caseDoc";
 import { localeFromPathname } from "@/localeRouting";
 import { allCasesHref } from "@/homeLinks";
@@ -36,6 +40,7 @@ import type {
   PhysicsRefState,
   SignalType,
   SimInstance,
+  WorkbenchWorkspace,
 } from "@/types";
 import type {
   MainWireScientificWorkspaceDocumentV1,
@@ -250,21 +255,28 @@ function ScientificProductWorkbenchShellV1({
   );
   const initialScenarioId = registry.getDescriptorSnapshot()[0]!.id;
   const markUserEdited = React.useCallback(() => undefined, []);
-  const initialPanels = React.useMemo(
-    () => scientificPanelsFromWorkspace(runtime.result.workspaceDocument, initialScenarioId),
+  const initialPresentation = React.useMemo(
+    () => createScientificProductWorkbenchPresentationV1(
+      runtime.result.workspaceDocument,
+      initialScenarioId,
+    ),
     [initialScenarioId, runtime.result.workspaceDocument],
   );
+  const initialPanels = initialPresentation.panels;
   const panels = useWorkbenchPanels({
     instances,
     headerMode: "sandbox",
     markUserEdited,
     initialPanelState: {
       panels: initialPanels,
-      workspace: workspaceForPanels(initialPanels),
+      workspace: initialPresentation.workbenchWorkspace,
       notes: {},
       noteCaseKey: runtime.result.workspaceDocument.ref.sha256,
     },
   });
+  const [graphBoardLayout, setGraphBoardLayout] = React.useState<
+    GraphBoardLayout | undefined
+  >(initialPresentation.graphBoardLayout);
   const [activeInstanceId, setActiveInstanceId] = React.useState(initialScenarioId);
   const [authoredViews, setAuthoredViews] = React.useState<AuthoredViewSpec[]>(
     () => initialScientificAuthoredViews(initialPanels, initialScenarioId),
@@ -457,6 +469,8 @@ function ScientificProductWorkbenchShellV1({
         dockviewLayoutKey={`${panels.noteCaseKey}:${panels.dockviewLayoutVersion}`}
         mainDockviewViewState={panels.workspace.hosts.main.dockviewState}
         onDockviewViewStateChange={panels.updateDockviewViewState}
+        graphBoardLayout={graphBoardLayout}
+        onGraphBoardLayoutChange={setGraphBoardLayout}
         workbenchTheme={workbenchTheme}
         authoredViews={authoredViews}
         createControllerView={createControllerView}
@@ -605,39 +619,144 @@ function resolveProductRoute(
   );
 }
 
-function scientificPanelsFromWorkspace(
+export type ScientificProductWorkbenchPresentationV1 = Readonly<{
+  panels: PanelDef[];
+  workbenchWorkspace: WorkbenchWorkspace;
+  graphBoardLayout: GraphBoardLayout | undefined;
+}>;
+
+const PRODUCT_LEFT_PRESSURE_OBSERVABLES_V1 = [
+  "hemodynamics.pressure.absolute.Ao",
+  "hemodynamics.pressure.absolute.LV",
+  "hemodynamics.pressure.absolute.LA",
+] as const;
+const PRODUCT_MITRAL_FLOW_OBSERVABLE_V1 = "valve.MV.flow" as const;
+
+/**
+ * Builds the ordinary product's initial presentation without changing the
+ * content-addressed scientific workspace document. The returned panels and
+ * host layout are application state: users remain free to add, delete, split,
+ * and rearrange them after mount.
+ */
+export function createScientificProductWorkbenchPresentationV1(
   workspace: MainWireScientificWorkspaceDocumentV1,
   scenarioId: string,
-): PanelDef[] {
-  return workspace.content.panels.map((panel) => {
-    const selectedSignals = panel.view.kind === "pressure-volume"
-      ? panel.view.trajectories.map(({ trajectoryId }) => trajectoryId)
-      : [...panel.view.observableIds];
-    return {
-      id: panel.panelId,
-      sourceViewId: panel.panelId,
-      type: panel.view.kind === "pressure-volume" ? "PVLOOP" : "WAVEFORM",
-      title: panel.title,
+): ScientificProductWorkbenchPresentationV1 {
+  const lvSource = workspace.content.panels.flatMap((panel) =>
+    panel.view.kind === "pressure-volume"
+      ? panel.view.trajectories.map((trajectory) => ({ panel, trajectory }))
+      : []).find(({ trajectory }) =>
+        trajectory.volumeObservableId === "hemodynamics.volume.LV"
+        && trajectory.pressureObservableId === "hemodynamics.pressure.absolute.LV");
+  if (lvSource === undefined) {
+    throw new Error(
+      "scientific product presentation requires an LV pressure-volume trajectory",
+    );
+  }
+
+  const sourceObservableIds = new Set(workspace.content.panels.flatMap(({ view }) =>
+    view.kind === "pressure-volume"
+      ? view.trajectories.flatMap((trajectory) => [
+        trajectory.volumeObservableId,
+        trajectory.pressureObservableId,
+      ])
+      : [...view.observableIds]));
+  for (const observableId of [
+    ...PRODUCT_LEFT_PRESSURE_OBSERVABLES_V1,
+    PRODUCT_MITRAL_FLOW_OBSERVABLE_V1,
+  ]) {
+    if (!sourceObservableIds.has(observableId)) {
+      throw new Error(
+        `scientific product presentation requires workspace observable ${observableId}`,
+      );
+    }
+  }
+
+  const visibleConfig = (selectedSignals: readonly string[]) => ({
+    [scenarioId]: { visible: true, selectedSignals: [...selectedSignals] },
+  });
+  const panels: PanelDef[] = [
+    {
+      id: lvSource.panel.panelId,
+      sourceViewId: lvSource.panel.panelId,
+      type: "PVLOOP",
+      title: "LV pressure–volume loop",
       role: "graph",
       zone: "main",
-      x: panel.layout.x,
-      y: panel.layout.y,
-      w: panel.layout.width,
-      h: panel.layout.height,
-      config: {
-        [scenarioId]: { visible: true, selectedSignals },
-      },
+      x: 0,
+      y: 0,
+      w: 6,
+      h: 8,
+      config: visibleConfig([lvSource.trajectory.trajectoryId]),
       view: {
         kind: "graph",
-        graphType: panel.view.kind === "pressure-volume" ? "pvloop" : "waveform",
+        graphType: "pvloop",
         showLegend: true,
       },
       isSettingsOpen: false,
       showLegend: true,
       showGuides: false,
-      timeWindow: panel.view.kind === "time-series" ? 2_000 : undefined,
-    };
-  });
+    },
+    {
+      id: "product-left-pressure-v1",
+      sourceViewId: "product-left-pressure-v1",
+      type: "WAVEFORM",
+      title: "AoP / LVP / LAP",
+      role: "graph",
+      zone: "main",
+      x: 6,
+      y: 0,
+      w: 6,
+      h: 4,
+      config: visibleConfig(PRODUCT_LEFT_PRESSURE_OBSERVABLES_V1),
+      view: {
+        kind: "graph",
+        graphType: "waveform",
+        showLegend: true,
+        timeWindow: 5_000,
+      },
+      isSettingsOpen: false,
+      showLegend: true,
+      showGuides: false,
+      timeWindow: 5_000,
+    },
+    {
+      id: "product-mitral-flow-v1",
+      sourceViewId: "product-mitral-flow-v1",
+      type: "WAVEFORM",
+      title: "Mitral valve flow (MVF)",
+      role: "graph",
+      zone: "main",
+      x: 6,
+      y: 4,
+      w: 6,
+      h: 4,
+      config: visibleConfig([PRODUCT_MITRAL_FLOW_OBSERVABLE_V1]),
+      view: {
+        kind: "graph",
+        graphType: "waveform",
+        showLegend: true,
+        timeWindow: 2_000,
+      },
+      isSettingsOpen: false,
+      showLegend: true,
+      showGuides: false,
+      timeWindow: 2_000,
+    },
+  ];
+  const defaultWorkspace = workspaceForPanels(panels);
+  return {
+    panels,
+    workbenchWorkspace: {
+      ...defaultWorkspace,
+      hosts: {
+        ...defaultWorkspace.hosts,
+        metrics: { open: true },
+        main: {},
+      },
+    },
+    graphBoardLayout: graphBoardLayoutFromPanels(panels),
+  };
 }
 
 function scientificControllerViewV1(
@@ -730,6 +849,7 @@ const SCIENTIFIC_CONTROLLER_AUTHORING_V1: ControllerAuthoringCatalog = {
           step: 1 / 12,
           unit: "×",
           defaultKind: "buttonGroup",
+          allowedKinds: ["buttonGroup"],
           options: CONTROL_OPTIONS_V1,
         },
         {
@@ -740,6 +860,7 @@ const SCIENTIFIC_CONTROLLER_AUTHORING_V1: ControllerAuthoringCatalog = {
           step: 1 / 12,
           unit: "×",
           defaultKind: "buttonGroup",
+          allowedKinds: ["buttonGroup"],
           options: CONTROL_OPTIONS_V1,
         },
       ],

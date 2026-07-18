@@ -9,13 +9,15 @@ type ControllerItemControlProps = {
   unit?: string;
   onChange: (v: number) => void;
   onCommit?: (v: number) => void;
+  onOptionCommit?: (v: number) => void;
   onReset?: () => void;
+  disabled?: boolean;
 };
 
 const isActiveOption = (value: number, optionValue: number, step: number | undefined) =>
   Math.abs(value - optionValue) <= Math.max((step ?? 0)/2, 1e-6);
 
-const PresetChips = ({ item, value, unit, onChange }: Pick<ControllerItemControlProps, "item" | "value" | "unit" | "onChange">) => {
+const PresetChips = ({ item, value, unit, onChange, disabled }: Pick<ControllerItemControlProps, "item" | "value" | "unit" | "onChange" | "disabled">) => {
   const options = item.options ?? [];
 
   return (
@@ -29,7 +31,8 @@ const PresetChips = ({ item, value, unit, onChange }: Pick<ControllerItemControl
             aria-pressed={active}
             title={`${option.value}${unit ? ` ${unit}` : ""}`}
             onClick={() => onChange(option.value)}
-            className={`min-h-7 flex flex-1 items-center justify-center rounded px-2 py-1 text-[11px] font-semibold transition-colors ${active ? 'bg-wb-active text-wb-accent ring-1 ring-wb-accent' : 'text-wb-subtle hover:text-wb-muted'}`}
+            disabled={disabled}
+            className={`min-h-7 flex flex-1 items-center justify-center rounded px-2 py-1 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${active ? 'bg-wb-active text-wb-accent ring-1 ring-wb-accent' : 'text-wb-subtle hover:text-wb-muted'}`}
           >
             {option.label}
           </button>
@@ -39,7 +42,7 @@ const PresetChips = ({ item, value, unit, onChange }: Pick<ControllerItemControl
   );
 };
 
-export const ControllerItemControl = ({ item, value, baseline, unit, onChange, onCommit, onReset }: ControllerItemControlProps) => {
+export const ControllerItemControl = ({ item, value, baseline, unit, onChange, onCommit, onOptionCommit, onReset, disabled = false }: ControllerItemControlProps) => {
   const options = item.options ?? [];
   const label = item.label ?? item.paramKey;
   const min = item.min ?? 0;
@@ -50,7 +53,7 @@ export const ControllerItemControl = ({ item, value, baseline, unit, onChange, o
     return (
       <div className="space-y-1">
         <span className="block text-[11px] font-semibold text-wb-muted">{label}</span>
-        <PresetChips item={item} value={value} unit={unit} onChange={onChange} />
+        <PresetChips item={item} value={value} unit={unit} onChange={onOptionCommit ?? onChange} disabled={disabled} />
       </div>
     );
   }
@@ -58,7 +61,7 @@ export const ControllerItemControl = ({ item, value, baseline, unit, onChange, o
   if (options.length > 0) {
     return (
       <div className="space-y-1">
-        <PresetChips item={item} value={value} unit={unit} onChange={onChange} />
+        <PresetChips item={item} value={value} unit={unit} onChange={onOptionCommit ?? onChange} disabled={disabled} />
         <Slider
           label={label}
           value={value}
@@ -69,6 +72,7 @@ export const ControllerItemControl = ({ item, value, baseline, unit, onChange, o
           unit={unit}
           baseline={baseline}
           onReset={onReset}
+          disabled={disabled}
         />
       </div>
     );
@@ -85,6 +89,7 @@ export const ControllerItemControl = ({ item, value, baseline, unit, onChange, o
       unit={unit}
       baseline={baseline}
       onReset={onReset}
+      disabled={disabled}
     />
   );
 };

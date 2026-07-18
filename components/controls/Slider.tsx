@@ -13,14 +13,16 @@ export interface SliderProps {
   unit?: string;
   baseline?: number;
   onReset?: () => void;
+  disabled?: boolean;
 }
 
 export const hasChanged = (value: number, baseline: number | undefined, step: number) =>
   baseline !== undefined && Math.abs(value - baseline) > Math.max(step/2, 1e-6);
 
-export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit, baseline, onReset }: SliderProps) => {
+export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit, baseline, onReset, disabled = false }: SliderProps) => {
   const { t } = useTranslation();
   const [draftValue, setDraftValue] = useState(value);
+  const draftValueRef = useRef(value);
   const editingRef = useRef(false);
   const lastCommittedRef = useRef(value);
   const decimals = step < 0.01 ? 3 : (step < 0.1 ? 2 : (step < 1 ? 1 : 0));
@@ -30,22 +32,31 @@ export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit,
   const valueText = liveValue.toFixed(decimals);
 
   useEffect(() => {
-    lastCommittedRef.current = value;
-    if (!editingRef.current) setDraftValue(value);
+    // When a parent mirrors the in-progress draft, do not move the commit
+    // baseline on every input event. The eventual pointer/key release must
+    // still observe a change and invoke onCommit exactly once.
+    if (!editingRef.current) {
+      lastCommittedRef.current = value;
+      draftValueRef.current = value;
+      setDraftValue(value);
+    }
   }, [value]);
 
   const updateDraft = (next: number) => {
+    if (disabled) return;
     editingRef.current = true;
+    draftValueRef.current = next;
     setDraftValue(next);
-    if (!onCommit) onChange?.(next);
+    onChange?.(next);
   };
 
   const commitDraft = () => {
-    if (!onCommit) return;
+    if (!onCommit || disabled) return;
     editingRef.current = false;
-    if (Math.abs(draftValue - lastCommittedRef.current) <= commitThreshold) return;
-    lastCommittedRef.current = draftValue;
-    onCommit(draftValue);
+    const next = draftValueRef.current;
+    if (Math.abs(next - lastCommittedRef.current) <= commitThreshold) return;
+    lastCommittedRef.current = next;
+    onCommit(next);
   };
 
   const handleKeyUp = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -79,7 +90,7 @@ export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit,
       <button
         type="button"
         onClick={onReset}
-        disabled={!isChanged || !onReset}
+        disabled={disabled || !isChanged || !onReset}
         className={`flex h-5 w-5 items-center justify-center rounded border transition-colors ${isChanged && onReset ? 'border-wb-line bg-wb-active text-wb-text hover:bg-wb-active' : 'pointer-events-none border-transparent text-transparent'}`}
         title={isChanged && baseline !== undefined ? t("workbench.controls.resetTo", { value: baseline.toFixed(decimals), unit: unit ? ` ${unit}` : "" }) : undefined}
         aria-label={t("workbench.controls.resetAria", { label })}
@@ -98,9 +109,10 @@ export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit,
       onTouchEnd={commitDraft}
       onKeyUp={handleKeyUp}
       onBlur={commitDraft}
+      disabled={disabled}
       aria-label={label}
       aria-valuetext={`${valueText}${unit ? ` ${unit}` : ''}`}
-      className="mt-1.5 h-1.5 w-full cursor-pointer appearance-none rounded bg-wb-hover accent-wb-accent hover:accent-wb-accent focus:outline-none"
+      className="mt-1.5 h-1.5 w-full cursor-pointer appearance-none rounded bg-wb-hover accent-wb-accent hover:accent-wb-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
     />
   </div>
   );

@@ -150,7 +150,7 @@ export function ScientificWorkbenchResearchControlV0({
   const controlStore = store ?? ownedStore;
   const initialView = React.useMemo<TransitionViewV0>(() => ({
     phase: "idle",
-    mode: "steady",
+    mode: "live",
     source: initialSource,
     candidate: null,
     frames: initialSource.frames,
@@ -170,6 +170,20 @@ export function ScientificWorkbenchResearchControlV0({
   const viewRef = React.useRef(view);
   const [draft, setDraft] = React.useState<ControlDraftV0>(() =>
     draftFromContext(initialSource.context));
+  const draftRef = React.useRef(draft);
+  const replaceDraft = React.useCallback((next: ControlDraftV0): void => {
+    const frozen = Object.freeze({ ...next });
+    draftRef.current = frozen;
+    setDraft(frozen);
+  }, []);
+  const patchDraft = React.useCallback((
+    patch: Partial<ControlDraftV0>,
+  ): ControlDraftV0 => {
+    const next = Object.freeze({ ...draftRef.current, ...patch });
+    draftRef.current = next;
+    setDraft(next);
+    return next;
+  }, []);
   const mountedRef = React.useRef(true);
   const operationGenerationRef = React.useRef(0);
   const requestOrdinalRef = React.useRef(0);
@@ -433,7 +447,7 @@ export function ScientificWorkbenchResearchControlV0({
       message: "Validated P1 target promoted atomically. The previous source session is being retired.",
       errorMessage: null,
     });
-    setDraft(draftFromContext(promotedSource.context));
+    replaceDraft(draftFromContext(promotedSource.context));
     try {
       await disposeSession(oldSource.sessionId);
       patchView({
@@ -454,6 +468,7 @@ export function ScientificWorkbenchResearchControlV0({
     disposeSession,
     nextRequestId,
     patchView,
+    replaceDraft,
     reserveControllerRequest,
     restoreSourceAfterCandidate,
   ]);
@@ -556,8 +571,8 @@ export function ScientificWorkbenchResearchControlV0({
       "Live target discarded. The exact retained source plot and session were restored.",
       null,
     );
-    setDraft(draftFromContext(viewRef.current.source.context));
-  }, [patchView, restoreSourceAfterCandidate]);
+    replaceDraft(draftFromContext(viewRef.current.source.context));
+  }, [patchView, replaceDraft, restoreSourceAfterCandidate]);
 
   const runLiveLoop = React.useCallback(async (
     generation: number,
@@ -665,9 +680,14 @@ export function ScientificWorkbenchResearchControlV0({
     scheduleLiveRender,
   ]);
 
-  const applyTransition = React.useCallback(async (): Promise<void> => {
+  const applyTransition = React.useCallback(async (
+    committedDraft: ControlDraftV0 = draftRef.current,
+  ): Promise<void> => {
     const current = viewRef.current;
-    if (current.phase !== "idle" || !draftDiffersFromSource(draft, current.source)) {
+    if (
+      current.phase !== "idle"
+      || !draftDiffersFromSource(committedDraft, current.source)
+    ) {
       return;
     }
     const generation = operationGenerationRef.current + 1;
@@ -691,8 +711,8 @@ export function ScientificWorkbenchResearchControlV0({
     try {
       const targetControlState =
         await createMainWireScientificResearchControlTargetStateV0({
-          "circulation.systemic-vascular-resistance-scale": draft.systemic,
-          "circulation.pulmonary-vascular-resistance-scale": draft.pulmonary,
+          "circulation.systemic-vascular-resistance-scale": committedDraft.systemic,
+          "circulation.pulmonary-vascular-resistance-scale": committedDraft.pulmonary,
         });
       if (generation !== operationGenerationRef.current) return;
       const source = viewRef.current.source;
@@ -806,7 +826,6 @@ export function ScientificWorkbenchResearchControlV0({
     client,
     commitView,
     disposeSession,
-    draft,
     failTransition,
     nextRequestId,
     patchView,
@@ -867,7 +886,7 @@ export function ScientificWorkbenchResearchControlV0({
         message: "Choose a complete release-bound target and transition mode.",
         errorMessage: null,
       });
-      setDraft(draftFromContext(current.source.context));
+      replaceDraft(draftFromContext(current.source.context));
       return;
     }
     if (current.phase === "live-forking" && current.candidate === null) {
@@ -906,21 +925,25 @@ export function ScientificWorkbenchResearchControlV0({
         void failTransition(error, current.candidate);
       });
     }
-  }, [commitView, failTransition, finishLiveReset, patchView]);
+  }, [commitView, failTransition, finishLiveReset, patchView, replaceDraft]);
 
   const ownerTokenRef = React.useRef<symbol>(Symbol("scientific-control-owner-v0"));
   const ownerActionsRef = React.useRef<ScientificWorkbenchResearchControlOwnerActionsV0 | null>(
     null,
   );
+  const commitControlDraft = (
+    patch: Partial<ControlDraftV0>,
+  ): void => {
+    const current = viewRef.current;
+    if (current.phase !== "idle" || current.sourceRetirementPending) return;
+    const target = patchDraft(patch);
+    void applyTransition(target);
+  };
   ownerActionsRef.current = {
-    setSystemicScale: (systemic) => setDraft((current) => ({
-      ...current,
-      systemic,
-    })),
-    setPulmonaryScale: (pulmonary) => setDraft((current) => ({
-      ...current,
-      pulmonary,
-    })),
+    setSystemicScale: (systemic) => void patchDraft({ systemic }),
+    setPulmonaryScale: (pulmonary) => void patchDraft({ pulmonary }),
+    commitSystemicScale: (systemic) => commitControlDraft({ systemic }),
+    commitPulmonaryScale: (pulmonary) => commitControlDraft({ pulmonary }),
     setMode: (mode) => patchView({ mode }),
     applyTransition: () => void applyTransition(),
     cancelSteady,

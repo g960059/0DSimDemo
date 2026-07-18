@@ -15,6 +15,10 @@ import type {
 import type {
   MainWireScientificWorkerClientV1,
 } from "@/engine/scientificBrowser";
+import type {
+  ScientificWorkbenchResearchControlOwnerActionsV0,
+  ScientificWorkbenchResearchControlSnapshotInputV0,
+} from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
 
 const registryMocks = vi.hoisted(() => ({
   createdClients: [] as Array<{
@@ -201,6 +205,90 @@ describe("scientific product scenario registry V1", () => {
     ]);
 
     registry.dispose();
+  });
+
+  it("uses steady mode only to initialize a duplicate, then restores the live default", async () => {
+    vi.useFakeTimers();
+    const initialClient = clientFixture();
+    const resolution = healthyResolution();
+    const registry = new ScientificProductScenarioRegistryV1(
+      resolution,
+      loadedRuntime("duplicate-source", initialClient, 55_000),
+    );
+    try {
+      const duplicateId = registry.addPreset(resolution.caseEntry.caseId, {
+        name: "Settled duplicate",
+        duplicateDraft: Object.freeze({ systemic: 0.75, pulmonary: 1 }),
+      })!;
+      await flushMicrotasks();
+
+      const store = registry.getRuntime(duplicateId)!.controlStore;
+      const token = Symbol("duplicate-owner");
+      const calls: string[] = [];
+      const publish = (
+        patch: Partial<ScientificWorkbenchResearchControlSnapshotInputV0>,
+      ) => {
+        const current = store.getSnapshot();
+        const { actions: _actions, ownerConnected: _owner, ...input } = current;
+        store.publishOwnerSnapshot(token, { ...input, ...patch });
+      };
+      const ownerActions: ScientificWorkbenchResearchControlOwnerActionsV0 = {
+        setSystemicScale: (systemic) => {
+          calls.push(`systemic:${systemic}`);
+          publish({
+            draft: Object.freeze({ ...store.getSnapshot().draft, systemic }),
+            noChange: false,
+          });
+        },
+        setPulmonaryScale: (pulmonary) => {
+          calls.push(`pulmonary:${pulmonary}`);
+          publish({
+            draft: Object.freeze({ ...store.getSnapshot().draft, pulmonary }),
+            noChange: false,
+          });
+        },
+        commitSystemicScale: () => undefined,
+        commitPulmonaryScale: () => undefined,
+        setMode: (mode) => {
+          calls.push(`mode:${mode}`);
+          publish({ mode });
+        },
+        applyTransition: () => {
+          calls.push("apply");
+          publish({ phase: "steady-settling", busy: true, steadyActive: true });
+          queueMicrotask(() => publish({
+            phase: "idle",
+            busy: false,
+            steadyActive: false,
+            noChange: true,
+          }));
+        },
+        cancelSteady: () => undefined,
+        pauseLive: () => undefined,
+        resumeLive: () => undefined,
+        resetLiveOrFailure: () => undefined,
+      };
+      const disconnect = store.connectOwner(token, { current: ownerActions });
+
+      await vi.runAllTimersAsync();
+
+      expect(calls).toEqual([
+        "systemic:0.75",
+        "pulmonary:1",
+        "mode:steady",
+        "apply",
+        "mode:live",
+      ]);
+      expect(store.getSnapshot()).toMatchObject({
+        phase: "idle",
+        mode: "live",
+        busy: false,
+      });
+      disconnect();
+    } finally {
+      registry.dispose();
+      vi.useRealTimers();
+    }
   });
 
   it("terminates a loading scenario immediately when it is removed", () => {
