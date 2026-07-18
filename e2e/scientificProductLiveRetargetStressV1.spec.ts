@@ -74,7 +74,8 @@ test("repeated live retargets keep advancing and visibility auto-pause resumes",
   const pausedRevision = finiteAttribute(
     await evidence.getAttribute("data-scientific-final-revision"),
   );
-  await expect.poll(async () => finiteAttribute(
+  await page.waitForTimeout(200);
+  expect(finiteAttribute(
     await evidence.getAttribute("data-scientific-final-revision"),
   )).toBe(pausedRevision);
   await expect(controller.getByRole("button", { name: /Resume|Reset/ }))

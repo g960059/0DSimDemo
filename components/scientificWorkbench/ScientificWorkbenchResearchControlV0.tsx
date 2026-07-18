@@ -292,12 +292,29 @@ export function ScientificWorkbenchResearchControlV0({
 
   const scheduleLiveRender = React.useCallback((force = false): void => {
     if (!mountedRef.current) return;
+    if (force) {
+      if (
+        liveAnimationFrameRef.current !== null
+        && typeof cancelAnimationFrame === "function"
+      ) {
+        cancelAnimationFrame(liveAnimationFrameRef.current);
+      }
+      if (liveRenderTimerRef.current !== null) {
+        clearTimeout(liveRenderTimerRef.current);
+      }
+      liveAnimationFrameRef.current = null;
+      liveRenderTimerRef.current = null;
+      lastLiveRenderAtMsRef.current = monotonicNowMs();
+      // A forced flush is a command-boundary contract, not an animation hint:
+      // publish the final accepted frames before exposing `live-paused`.
+      patchView({ frames: liveFramesRef.current });
+      return;
+    }
     const publish = (): void => {
       liveAnimationFrameRef.current = null;
       const now = monotonicNowMs();
-      const remaining = force
-        ? 0
-        : LIVE_RENDER_INTERVAL_MS - (now - lastLiveRenderAtMsRef.current);
+      const remaining = LIVE_RENDER_INTERVAL_MS
+        - (now - lastLiveRenderAtMsRef.current);
       if (remaining > 0) {
         if (liveRenderTimerRef.current !== null) {
           clearTimeout(liveRenderTimerRef.current);
@@ -1262,10 +1279,11 @@ export function ScientificWorkbenchResearchControlV0({
     }
     if (!playbackRunning) {
       playbackResumePendingRef.current = false;
+      const pauseIsPending = current.inFlight || liveLoopActiveRef.current;
       patchView({
-        phase: current.inFlight ? "live-pause-requested" : "live-paused",
-        message: current.inFlight
-          ? "Workbench pause requested; waiting for the current accepted command boundary."
+        phase: pauseIsPending ? "live-pause-requested" : "live-paused",
+        message: pauseIsPending
+          ? "Workbench pause requested; waiting for the live loop to publish its final accepted command boundary."
           : "Live transition paused by the Workbench playback control at an accepted command boundary.",
       });
       return;
