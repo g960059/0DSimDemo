@@ -79,6 +79,23 @@ describe("single scientific core architecture boundary", () => {
     expect(legacyPattern.test(scientificCaseDocument)).toBe(false);
     expect(legacyPattern.test(legacyCaseDocument)).toBe(true);
   });
+
+  it("keeps research document-case transport free of legacy case and runtime imports", () => {
+    const transportFiles = [
+      "engine/scientific/presets/mainWireScientificResearchPresetCatalogV1.ts",
+      "engine/scientific/worker/scientificCommandProtocolV1.ts",
+      "engine/scientific/worker/MainWireScientificInProcessKernelV1.ts",
+      "engine/scientificBrowser/MainWireScientificWorkerClientV1.ts",
+    ];
+    const legacyPattern =
+      /ModelCore|previewController|previewWorker|(?:^|\/)case(?:Doc|Persist|Cloud)(?:$|[./])/i;
+    const violations = transportFiles.flatMap((relative) =>
+      importedSpecifiers(readFileSync(path.resolve(relative), "utf8"))
+        .filter((specifier) => legacyPattern.test(specifier))
+        .map((specifier) => `${relative}: ${specifier}`)
+    );
+    expect(violations).toEqual([]);
+  });
 });
 
 /** Parse executable syntax so comments and diagnostic strings such as

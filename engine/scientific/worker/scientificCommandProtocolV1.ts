@@ -13,6 +13,10 @@ import type {
   MainWireScientificCaseDocumentRefV1,
 } from "@/engine/scientific/documents/MainWireScientificCaseDocumentV1";
 import type {
+  MainWireScientificPresetDocumentRefV1,
+} from "@/engine/scientific/documents/MainWireScientificPresetDocumentV1";
+import type {
+  MainWireScientificWorkspaceDocumentV1,
   MainWireScientificWorkspaceDocumentRefV1,
 } from "@/engine/scientific/documents/MainWireScientificWorkspaceDocumentV1";
 import type {
@@ -30,6 +34,7 @@ export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "createOfficialPresetSession",
   "createOfficialDocumentCaseSession",
   "createResearchPresetSession",
+  "createResearchDocumentCaseSession",
   "runTransient",
   "observe",
   "getExactCheckpoint",
@@ -88,6 +93,17 @@ export type CreateResearchPresetSessionCommandV1 =
     presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
   }>;
 
+/**
+ * Starts one built-in research bracket through its content-addressed
+ * Preset/Case/Workspace chain. The browser may submit identity and version
+ * only; release, documents, and resolved parameters remain Worker-owned.
+ */
+export type CreateResearchDocumentCaseSessionCommandV1 =
+  CommandBaseV1<"createResearchDocumentCaseSession"> & Readonly<{
+    presetId: MainWireScientificResearchPresetIdV1;
+    presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
+  }>;
+
 export type RunTransientCommandV1 = CommandBaseV1<"runTransient"> & Readonly<{
   dtSec: number;
   stepCount: number;
@@ -115,6 +131,7 @@ export type ScientificCommandV1 =
   | CreateOfficialPresetSessionCommandV1
   | CreateOfficialDocumentCaseSessionCommandV1
   | CreateResearchPresetSessionCommandV1
+  | CreateResearchDocumentCaseSessionCommandV1
   | RunTransientCommandV1
   | ObserveCommandV1
   | GetExactCheckpointCommandV1
@@ -138,6 +155,7 @@ export type ScientificCommandErrorCodeV1 =
   | "official-preset-restore-rejected"
   | "official-document-case-restore-rejected"
   | "research-preset-resolution-rejected"
+  | "research-document-case-resolution-rejected"
   | "checkpoint-failed"
   | "exact-restore-rejected"
   | "command-failed";
@@ -203,6 +221,25 @@ export type ScientificSessionOriginV1 =
     periodicSteadyStateClaimed: false;
     releaseRef: SimulationReleaseRef;
     sessionInputSha256: string;
+    initializationProtocolId: string;
+    initializationProtocolVersion: string;
+  }>
+  | Readonly<{
+    kind: "research-document-case-cold-start";
+    presetId: MainWireScientificResearchPresetIdV1;
+    presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
+    catalogSchemaId:
+      typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID;
+    catalogSchemaVersion: 1;
+    classification: "research-bracket-not-clinical";
+    officialTrustClaimed: false;
+    clinicalDiagnosisClaimed: false;
+    periodicSteadyStateClaimed: false;
+    releaseRef: SimulationReleaseRef;
+    sessionInputSha256: string;
+    presetRef: MainWireScientificPresetDocumentRefV1;
+    caseRef: MainWireScientificCaseDocumentRefV1;
+    workspaceRef: MainWireScientificWorkspaceDocumentRefV1;
     initializationProtocolId: string;
     initializationProtocolVersion: string;
   }>;
@@ -292,6 +329,21 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       clinicalDiagnosisClaimed: false;
       periodicSteadyStateClaimed: false;
       sessionInputSha256: string;
+      observableFrame: TObservableFrame;
+    }>;
+    createResearchDocumentCaseSession: Readonly<{
+      kind: "researchDocumentCaseSessionCreated";
+      presetId: MainWireScientificResearchPresetIdV1;
+      presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
+      classification: "research-bracket-not-clinical";
+      officialTrustClaimed: false;
+      clinicalDiagnosisClaimed: false;
+      periodicSteadyStateClaimed: false;
+      sessionInputSha256: string;
+      presetRef: MainWireScientificPresetDocumentRefV1;
+      caseRef: MainWireScientificCaseDocumentRefV1;
+      workspaceRef: MainWireScientificWorkspaceDocumentRefV1;
+      workspaceDocument: MainWireScientificWorkspaceDocumentV1;
       observableFrame: TObservableFrame;
     }>;
     runTransient: Readonly<{

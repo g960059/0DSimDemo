@@ -4,6 +4,7 @@ import {
   type ScientificCommandKindV1,
   type ScientificCommandResponseV1,
   type ScientificCommandV1,
+  type ScientificSessionOriginV1,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
 import {
   OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING,
@@ -16,6 +17,7 @@ import type {
   SimulationReleaseRef,
 } from "@/engine/scientific/release";
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
@@ -132,6 +134,20 @@ type PendingCommandIdentityV1 = Readonly<{
     presetId: MainWireScientificResearchPresetIdV1;
     presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
   }> | null;
+  researchDocumentCase: Readonly<{
+    presetId: MainWireScientificResearchPresetIdV1;
+    presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
+  }> | null;
+}>;
+
+type ResearchDocumentCaseOriginV1 = Extract<
+  ScientificSessionOriginV1,
+  Readonly<{ kind: "research-document-case-cold-start" }>
+>;
+
+type ResearchDocumentSessionBindingV1 = Readonly<{
+  releaseRef: SimulationReleaseRef;
+  origin: ResearchDocumentCaseOriginV1;
 }>;
 
 /**
@@ -146,6 +162,8 @@ export class MainWireScientificWorkerClientV1 {
   private readonly worker: MainWireScientificWorkerLikeV1;
   private readonly pending = new Map<string, PendingRequest>();
   private readonly completedRequestIds = new Set<string>();
+  private readonly researchDocumentSessionBindings =
+    new Map<string, ResearchDocumentSessionBindingV1>();
   private currentStatus: MainWireScientificWorkerClientStatusV1 = "open";
   private terminalError: MainWireScientificWorkerTransportErrorV1 | null = null;
 
@@ -326,6 +344,38 @@ export class MainWireScientificWorkerClientV1 {
         `scientific Worker response payload/origin does not match requestId ${value.requestId}`,
       ));
       return;
+    }
+    const existingResearchBinding =
+      this.researchDocumentSessionBindings.get(pending.sessionId);
+    if (
+      existingResearchBinding !== undefined
+      && !isResponseBoundToResearchDocumentSession(
+        value,
+        existingResearchBinding,
+      )
+    ) {
+      this.failClosed(newTransportError(
+        "protocol-mismatch",
+        `scientific Worker response escaped the research document session binding for requestId ${value.requestId}`,
+      ));
+      return;
+    }
+    if (
+      value.ok
+      && pending.commandKind === "createResearchDocumentCaseSession"
+    ) {
+      const binding = captureResearchDocumentSessionBinding(value);
+      if (binding === null) {
+        this.failClosed(newTransportError(
+          "protocol-mismatch",
+          `scientific Worker did not establish a research document session binding for requestId ${value.requestId}`,
+        ));
+        return;
+      }
+      this.researchDocumentSessionBindings.set(pending.sessionId, binding);
+    }
+    if (value.ok && pending.commandKind === "disposeSession") {
+      this.researchDocumentSessionBindings.delete(pending.sessionId);
     }
     this.pending.delete(value.requestId);
     this.completedRequestIds.add(value.requestId);
@@ -547,9 +597,46 @@ function isSessionOrigin(value: unknown): boolean {
       && value.officialTrustClaimed === false
       && value.clinicalDiagnosisClaimed === false
       && value.periodicSteadyStateClaimed === false
-      && isReleaseRef(value.releaseRef)
+      && exactResearchReleaseRef(value.releaseRef)
       && typeof value.sessionInputSha256 === "string"
       && /^[0-9a-f]{64}$/.test(value.sessionInputSha256)
+      && typeof value.initializationProtocolId === "string"
+      && value.initializationProtocolId.length > 0
+      && typeof value.initializationProtocolVersion === "string"
+      && value.initializationProtocolVersion.length > 0;
+  }
+  if (value.kind === "research-document-case-cold-start") {
+    return hasExactKeys(value, [
+      "kind",
+      "presetId",
+      "presetVersion",
+      "catalogSchemaId",
+      "catalogSchemaVersion",
+      "classification",
+      "officialTrustClaimed",
+      "clinicalDiagnosisClaimed",
+      "periodicSteadyStateClaimed",
+      "releaseRef",
+      "sessionInputSha256",
+      "presetRef",
+      "caseRef",
+      "workspaceRef",
+      "initializationProtocolId",
+      "initializationProtocolVersion",
+    ])
+      && isResearchPresetIdentity(value.presetId, value.presetVersion)
+      && value.catalogSchemaId
+        === MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID
+      && value.catalogSchemaVersion === 1
+      && value.classification === "research-bracket-not-clinical"
+      && value.officialTrustClaimed === false
+      && value.clinicalDiagnosisClaimed === false
+      && value.periodicSteadyStateClaimed === false
+      && exactResearchReleaseRef(value.releaseRef)
+      && isSha256(value.sessionInputSha256)
+      && isPresetDocumentRef(value.presetRef)
+      && isCaseDocumentRef(value.caseRef)
+      && isWorkspaceDocumentRef(value.workspaceRef)
       && typeof value.initializationProtocolId === "string"
       && value.initializationProtocolId.length > 0
       && typeof value.initializationProtocolVersion === "string"
@@ -591,6 +678,13 @@ function capturePendingCommandIdentity(
         presetVersion: command.presetVersion,
       })
       : null,
+    researchDocumentCase:
+      command.kind === "createResearchDocumentCaseSession"
+        ? Object.freeze({
+          presetId: command.presetId,
+          presetVersion: command.presetVersion,
+        })
+        : null,
   });
 }
 
@@ -599,7 +693,10 @@ function isResponseCompatibleWithSubmittedCommand(
   submitted: PendingCommandIdentityV1,
 ): boolean {
   if (
-    response.sessionOrigin?.kind === "research-preset-cold-start"
+    (
+      response.sessionOrigin?.kind === "research-preset-cold-start"
+      || response.sessionOrigin?.kind === "research-document-case-cold-start"
+    )
     && !sameReleaseRef(
       response.releaseRef,
       response.sessionOrigin.releaseRef,
@@ -726,7 +823,8 @@ function isResponseCompatibleWithSubmittedCommand(
     return origin.kind === "research-preset-cold-start"
       && origin.presetId === expected.presetId
       && origin.presetVersion === expected.presetVersion
-      && sameReleaseRef(response.releaseRef, origin.releaseRef)
+      && exactResearchReleaseRef(response.releaseRef)
+      && exactResearchReleaseRef(origin.releaseRef)
       && isRecord(payload)
       && hasExactKeys(payload, [
         "kind",
@@ -753,7 +851,162 @@ function isResponseCompatibleWithSubmittedCommand(
         origin.releaseRef,
       );
   }
+  if (submitted.kind === "createResearchDocumentCaseSession") {
+    const expected = submitted.researchDocumentCase;
+    if (expected === null) return false;
+    const catalogEntry =
+      MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.entries.find(
+        (entry) => entry.presetId === expected.presetId,
+      );
+    if (catalogEntry === undefined) return false;
+    const documentBinding = catalogEntry.documentChainBinding;
+    const origin = response.sessionOrigin;
+    const payload = response.payload;
+    return origin.kind === "research-document-case-cold-start"
+      && origin.presetId === expected.presetId
+      && origin.presetVersion === expected.presetVersion
+      && exactResearchReleaseRef(response.releaseRef)
+      && exactResearchReleaseRef(origin.releaseRef)
+      && isRecord(payload)
+      && hasExactKeys(payload, [
+        "kind",
+        "presetId",
+        "presetVersion",
+        "classification",
+        "officialTrustClaimed",
+        "clinicalDiagnosisClaimed",
+        "periodicSteadyStateClaimed",
+        "sessionInputSha256",
+        "presetRef",
+        "caseRef",
+        "workspaceRef",
+        "workspaceDocument",
+        "observableFrame",
+      ])
+      && payload.kind === "researchDocumentCaseSessionCreated"
+      && payload.presetId === expected.presetId
+      && payload.presetVersion === expected.presetVersion
+      && payload.classification === "research-bracket-not-clinical"
+      && payload.officialTrustClaimed === false
+      && payload.clinicalDiagnosisClaimed === false
+      && payload.periodicSteadyStateClaimed === false
+      && payload.sessionInputSha256 === origin.sessionInputSha256
+      && payload.sessionInputSha256 === documentBinding.sessionInputSha256
+      && sameDocumentRef(payload.presetRef, origin.presetRef)
+      && sameDocumentRef(payload.caseRef, origin.caseRef)
+      && sameDocumentRef(payload.workspaceRef, origin.workspaceRef)
+      && documentRefHasSha256(
+        payload.presetRef,
+        documentBinding.presetDocumentSha256,
+      )
+      && documentRefHasSha256(
+        payload.caseRef,
+        documentBinding.caseDocumentSha256,
+      )
+      && documentRefHasSha256(
+        payload.workspaceRef,
+        documentBinding.workspaceDocumentSha256,
+      )
+      && isWorkspaceDocumentTransportV1(
+        payload.workspaceDocument,
+        origin.caseRef,
+        origin.workspaceRef,
+      )
+      && isRecord(payload.observableFrame)
+      && exactResearchReleaseRef(payload.observableFrame.releaseRef);
+  }
   return true;
+}
+
+function captureResearchDocumentSessionBinding(
+  response: ProtocolEnvelope,
+): ResearchDocumentSessionBindingV1 | null {
+  if (
+    !response.ok
+    || response.commandKind !== "createResearchDocumentCaseSession"
+    || response.sessionOrigin.kind !== "research-document-case-cold-start"
+  ) return null;
+  const origin = response.sessionOrigin;
+  return Object.freeze({
+    releaseRef: Object.freeze({ ...response.releaseRef }),
+    origin: Object.freeze({
+      ...origin,
+      releaseRef: Object.freeze({ ...origin.releaseRef }),
+      presetRef: Object.freeze({ ...origin.presetRef }),
+      caseRef: Object.freeze({ ...origin.caseRef }),
+      workspaceRef: Object.freeze({ ...origin.workspaceRef }),
+    }),
+  });
+}
+
+/** Every response for a created research Case remains bound to that exact
+ * release, resolved input, and content-addressed document chain. */
+function isResponseBoundToResearchDocumentSession(
+  response: ProtocolEnvelope,
+  binding: ResearchDocumentSessionBindingV1,
+): boolean {
+  if (
+    !sameReleaseRef(response.releaseRef, binding.releaseRef)
+    || !sameResearchDocumentOrigin(response.sessionOrigin, binding.origin)
+  ) return false;
+
+  const frames: unknown[] = [];
+  if (response.ok) {
+    const payload = response.payload;
+    if (isRecord(payload)) {
+      const payloadRecord = payload as unknown as Record<string, unknown>;
+      if ("observableFrame" in payloadRecord) {
+        frames.push(payloadRecord.observableFrame);
+      }
+      if ("finalObservableFrame" in payloadRecord) {
+        frames.push(payloadRecord.finalObservableFrame);
+      }
+      if (Array.isArray(payloadRecord.observableFrames)) {
+        frames.push(...payloadRecord.observableFrames);
+      }
+      if (isRecord(payloadRecord.checkpoint)) {
+        if (!sameReleaseRef(
+          payloadRecord.checkpoint.releaseRef,
+          binding.releaseRef,
+        )) {
+          return false;
+        }
+        if (payloadRecord.checkpoint.sessionInputSha256
+          !== binding.origin.sessionInputSha256) return false;
+      }
+    }
+  } else {
+    frames.push(...response.error.observableFrames);
+    const partial = response.error.partialProgress;
+    if (isRecord(partial) && "finalObservableFrame" in partial) {
+      frames.push(partial.finalObservableFrame);
+    }
+  }
+  return frames.every((frame) =>
+    isRecord(frame) && sameReleaseRef(frame.releaseRef, binding.releaseRef));
+}
+
+function sameResearchDocumentOrigin(
+  value: unknown,
+  expected: ResearchDocumentCaseOriginV1,
+): boolean {
+  if (!isRecord(value) || value.kind !== expected.kind) return false;
+  return value.presetId === expected.presetId
+    && value.presetVersion === expected.presetVersion
+    && value.catalogSchemaId === expected.catalogSchemaId
+    && value.catalogSchemaVersion === expected.catalogSchemaVersion
+    && value.classification === expected.classification
+    && value.officialTrustClaimed === false
+    && value.clinicalDiagnosisClaimed === false
+    && value.periodicSteadyStateClaimed === false
+    && sameReleaseRef(value.releaseRef, expected.releaseRef)
+    && value.sessionInputSha256 === expected.sessionInputSha256
+    && sameDocumentRef(value.presetRef, expected.presetRef)
+    && sameDocumentRef(value.caseRef, expected.caseRef)
+    && sameDocumentRef(value.workspaceRef, expected.workspaceRef)
+    && value.initializationProtocolId === expected.initializationProtocolId
+    && value.initializationProtocolVersion
+      === expected.initializationProtocolVersion;
 }
 
 function captureResolvedSessionInputIdentity(
@@ -819,6 +1072,11 @@ function isExactCheckpointResponseCompatible(
     return origin.sessionInputSha256 === checkpoint.sessionInputSha256
       && sameReleaseRef(origin.releaseRef, checkpoint.releaseRef);
   }
+  if (origin.kind === "research-document-case-cold-start") {
+    return origin.sessionInputSha256 === checkpoint.sessionInputSha256
+      && exactResearchReleaseRef(checkpoint.releaseRef)
+      && sameReleaseRef(origin.releaseRef, checkpoint.releaseRef);
+  }
   if (origin.kind
     === "official-document-case-v3-exact-checkpoint-restore") {
     return origin.sessionInputSha256 === checkpoint.sessionInputSha256
@@ -844,6 +1102,92 @@ function sameDocumentRef(left: unknown, right: unknown): boolean {
     && /^[0-9a-f]{64}$/.test(left.sha256);
 }
 
+function documentRefHasSha256(value: unknown, sha256: string): boolean {
+  return isRecord(value) && value.sha256 === sha256;
+}
+
+function isResearchPresetIdentity(
+  presetId: unknown,
+  presetVersion: unknown,
+): boolean {
+  return typeof presetId === "string"
+    && MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1.includes(
+      presetId as MainWireScientificResearchPresetIdV1,
+    )
+    && presetVersion === MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+}
+
+function isPresetDocumentRef(value: unknown): boolean {
+  return isExactDocumentRef(
+    value,
+    "circleheart-main-wire-scientific-preset-document-ref-v1",
+  );
+}
+
+function isCaseDocumentRef(value: unknown): boolean {
+  return isExactDocumentRef(
+    value,
+    "circleheart-main-wire-scientific-case-document-ref-v1",
+  );
+}
+
+function isWorkspaceDocumentRef(value: unknown): boolean {
+  return isExactDocumentRef(
+    value,
+    "circleheart-main-wire-scientific-workspace-document-ref-v1",
+  );
+}
+
+function isExactDocumentRef(value: unknown, schemaId: string): boolean {
+  return isRecord(value)
+    && hasExactKeys(value, ["schemaId", "sha256"])
+    && value.schemaId === schemaId
+    && isSha256(value.sha256);
+}
+
+/**
+ * Synchronous transport validation only. Content-address verification remains
+ * owned by the Worker document loader; here we require the exact envelope and
+ * both reference links before presentation data can cross into browser UI.
+ */
+function isWorkspaceDocumentTransportV1(
+  value: unknown,
+  caseRef: unknown,
+  workspaceRef: unknown,
+): boolean {
+  if (!isRecord(value) || !hasExactKeys(value, ["ref", "content"])) {
+    return false;
+  }
+  if (
+    !sameDocumentRef(value.ref, workspaceRef)
+    || !isWorkspaceDocumentRef(value.ref)
+    || !isRecord(value.content)
+    || !hasExactKeys(value.content, [
+      "schemaId",
+      "schemaVersion",
+      "revision",
+      "caseDocumentRef",
+      "panels",
+      "notes",
+    ])
+  ) return false;
+  return value.content.schemaId
+      === "circleheart-main-wire-scientific-workspace-document-content-v1"
+    && value.content.schemaVersion === 1
+    && Number.isSafeInteger(value.content.revision)
+    && (value.content.revision as number) >= 0
+    && sameDocumentRef(value.content.caseDocumentRef, caseRef)
+    && Array.isArray(value.content.panels)
+    && (
+      value.content.notes === null
+      || typeof value.content.notes === "string"
+    );
+}
+
 function exactOfficialReleaseRef(value: unknown): boolean {
   return isRecord(value)
     && value.id
@@ -861,6 +1205,13 @@ function exactOfficialDocumentChainReleaseRef(value: unknown): boolean {
     && value.id === releaseRef.id
     && value.version === releaseRef.version
     && value.sha256 === releaseRef.sha256;
+}
+
+function exactResearchReleaseRef(value: unknown): boolean {
+  return sameReleaseRef(
+    value,
+    MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.releaseRef,
+  );
 }
 
 function hasExactKeys(

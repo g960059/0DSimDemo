@@ -147,8 +147,28 @@ describe("main-wire scientific document chain V1", () => {
     expect(new Set(chains.map((chain) =>
       chain.presetDocument.ref.sha256))).toHaveLength(9);
     expect(new Set(chains.map((chain) =>
+      chain.caseDocument.ref.sha256))).toHaveLength(9);
+    expect(new Set(chains.map((chain) =>
+      chain.workspaceDocument.ref.sha256))).toHaveLength(9);
+    expect(new Set(chains.map((chain) =>
       chain.caseDocument.content.resolvedSessionInput.sessionInputSha256)))
       .toHaveLength(9);
+    for (const [index, chain] of chains.entries()) {
+      const binding =
+        MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.entries[index]!
+          .documentChainBinding;
+      expect(chain.presetDocument.content.releaseRef)
+        .toEqual(MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.releaseRef);
+      expect(chain.caseDocument.content.releaseRef)
+        .toEqual(MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.releaseRef);
+      expect(chain.presetDocument.ref.sha256)
+        .toBe(binding.presetDocumentSha256);
+      expect(chain.caseDocument.ref.sha256).toBe(binding.caseDocumentSha256);
+      expect(chain.workspaceDocument.ref.sha256)
+        .toBe(binding.workspaceDocumentSha256);
+      expect(chain.caseDocument.content.resolvedSessionInput.sessionInputSha256)
+        .toBe(binding.sessionInputSha256);
+    }
     expect(chains[0].caseDocument.content.resolvedSessionInput
       .resolvedParameters.circulationRuntime.valvePreset.bracketIds)
       .toEqual([]);

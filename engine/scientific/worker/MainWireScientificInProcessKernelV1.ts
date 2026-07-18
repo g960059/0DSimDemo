@@ -23,12 +23,14 @@ import {
   OFFICIAL_SCIENTIFIC_PRESET_CATALOG_V1_SCHEMA_ID,
 } from "@/engine/scientific/presets";
 import {
+  buildMainWireScientificDocumentChainV1,
   OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING,
   OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID,
   type LoadedOfficialHealthyPeriodicDocumentChainV1,
   type OfficialHealthyPeriodicDocumentChainIdentityV1,
 } from "@/engine/scientific/documents";
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
@@ -91,6 +93,8 @@ export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM = Object.freeze({
   officialDocumentCaseSilentV2SubstitutionApplied: false as const,
   researchPresetCapability:
     "built-in-catalog-id-version-only-cold-start" as const,
+  researchDocumentCaseCapability:
+    "built-in-catalog-id-version-only-content-addressed-chain-cold-start" as const,
   researchPresetOfficialTrustClaimed: false as const,
   researchPresetClinicalDiagnosisClaimed: false as const,
   researchPresetPeriodicSteadyStateClaimedAtCreation: false as const,
@@ -335,6 +339,8 @@ export class MainWireScientificInProcessKernelV1 {
         return this.createOfficialDocumentCase(command);
       case "createResearchPresetSession":
         return this.createResearchPreset(command);
+      case "createResearchDocumentCaseSession":
+        return this.createResearchDocumentCase(command);
       case "runTransient":
         return this.runTransient(command);
       case "observe":
@@ -661,6 +667,116 @@ export class MainWireScientificInProcessKernelV1 {
     }
   }
 
+  private async createResearchDocumentCase(
+    command: Extract<ScientificCommandV1, {
+      kind: "createResearchDocumentCaseSession";
+    }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const allocationError = this.sessionAllocationError(command);
+    if (allocationError !== null) return allocationError;
+    try {
+      const chain = await buildMainWireScientificDocumentChainV1({
+        presetId: command.presetId,
+        presetVersion: command.presetVersion,
+      });
+      const catalogEntry =
+        MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1.entries.find(
+          (entry) => entry.presetId === command.presetId,
+        );
+      if (catalogEntry === undefined) {
+        throw new Error("research document chain is absent from the bundled catalog");
+      }
+      const documentBinding = catalogEntry.documentChainBinding;
+      if (
+        chain.presetDocument.ref.sha256
+          !== documentBinding.presetDocumentSha256
+        || chain.caseDocument.ref.sha256
+          !== documentBinding.caseDocumentSha256
+        || chain.workspaceDocument.ref.sha256
+          !== documentBinding.workspaceDocumentSha256
+        || chain.caseDocument.content.resolvedSessionInput.sessionInputSha256
+          !== documentBinding.sessionInputSha256
+      ) {
+        throw new Error("research document chain escaped its catalog-pinned identities");
+      }
+      const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
+      const resolvedSessionInput =
+        chain.caseDocument.content.resolvedSessionInput;
+      if (
+        !sameReleaseRef(release.ref, chain.presetDocument.content.releaseRef)
+        || !sameReleaseRef(release.ref, chain.caseDocument.content.releaseRef)
+        || !sameReleaseRef(release.ref, resolvedSessionInput.releaseRef)
+      ) throw new Error("research document chain release does not match the immutable Worker release");
+
+      // The session consumes the exact resolved input retained by the verified
+      // Case document; no second resolver output or browser patch is admitted.
+      const session = await initializeMainWireScientificSessionFromResolvedInputV1(
+        release,
+        resolvedSessionInput,
+      );
+      if (
+        session.sessionInputSha256 !== resolvedSessionInput.sessionInputSha256
+        || !sameReleaseRef(session.releaseRef, release.ref)
+      ) throw new Error("research document case session identity does not match its Case input");
+
+      const presetRef = Object.freeze({ ...chain.presetDocument.ref });
+      const caseRef = Object.freeze({ ...chain.caseDocument.ref });
+      const workspaceRef = Object.freeze({ ...chain.workspaceDocument.ref });
+      const observableFrame = project(session);
+      const sessionOrigin = Object.freeze({
+        kind: "research-document-case-cold-start" as const,
+        presetId: command.presetId,
+        presetVersion: command.presetVersion,
+        catalogSchemaId:
+          MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1_SCHEMA_ID,
+        catalogSchemaVersion: 1 as const,
+        classification: "research-bracket-not-clinical" as const,
+        officialTrustClaimed: false as const,
+        clinicalDiagnosisClaimed: false as const,
+        periodicSteadyStateClaimed: false as const,
+        releaseRef: copyReleaseRef(session.releaseRef),
+        sessionInputSha256: session.sessionInputSha256,
+        presetRef,
+        caseRef,
+        workspaceRef,
+        initializationProtocolId:
+          session.sessionInput.initialization.protocolId,
+        initializationProtocolVersion:
+          session.sessionInput.initialization.protocolVersion,
+      });
+      const response = successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "researchDocumentCaseSessionCreated" as const,
+          presetId: command.presetId,
+          presetVersion: command.presetVersion,
+          classification: "research-bracket-not-clinical" as const,
+          officialTrustClaimed: false as const,
+          clinicalDiagnosisClaimed: false as const,
+          periodicSteadyStateClaimed: false as const,
+          sessionInputSha256: session.sessionInputSha256,
+          presetRef,
+          caseRef,
+          workspaceRef,
+          workspaceDocument: chain.workspaceDocument,
+          observableFrame,
+        }),
+      );
+      this.sessions.set(command.sessionId, session);
+      this.sessionOrigins.set(command.sessionId, sessionOrigin);
+      this.allocatedSessionIds.add(command.sessionId);
+      return response;
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "research-document-case-resolution-rejected",
+        errorMessage(error),
+      );
+    }
+  }
+
   private runTransient(
     command: Extract<ScientificCommandV1, { kind: "runTransient" }>,
   ): MainWireScientificCommandResponseV1 {
@@ -871,6 +987,7 @@ export class MainWireScientificInProcessKernelV1 {
         | "createOfficialPresetSession"
         | "createOfficialDocumentCaseSession"
         | "createResearchPresetSession"
+        | "createResearchDocumentCaseSession"
         | "restoreExactSession";
     }>,
   ): MainWireScientificCommandResponseV1 | null {
@@ -1199,6 +1316,7 @@ function parseCommand(
           || value.kind === "createOfficialDocumentCaseSession"
           ? [...common, "presetId", "presetVersion"]
           : value.kind === "createResearchPresetSession"
+            || value.kind === "createResearchDocumentCaseSession"
             ? [...common, "presetId", "presetVersion"]
           : common;
   if (!hasExactKeys(value, expectedKeys)) {
@@ -1243,7 +1361,10 @@ function parseCommand(
       return invalid(identity, "presetVersion is not present in the bundled catalog");
     }
   }
-  if (value.kind === "createResearchPresetSession") {
+  if (
+    value.kind === "createResearchPresetSession"
+    || value.kind === "createResearchDocumentCaseSession"
+  ) {
     if (
       typeof value.presetId !== "string"
       || !MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1.includes(
@@ -1493,6 +1614,15 @@ function copySessionOrigin(
     return Object.freeze({
       ...origin,
       releaseRef: copyReleaseRef(origin.releaseRef),
+    });
+  }
+  if (origin.kind === "research-document-case-cold-start") {
+    return Object.freeze({
+      ...origin,
+      releaseRef: copyReleaseRef(origin.releaseRef),
+      presetRef: Object.freeze({ ...origin.presetRef }),
+      caseRef: Object.freeze({ ...origin.caseRef }),
+      workspaceRef: Object.freeze({ ...origin.workspaceRef }),
     });
   }
   if (origin.kind

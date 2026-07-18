@@ -21,16 +21,28 @@ const BRACKET_BY_PRESET_ID = {
 } as const;
 
 describe("main-wire scientific research preset catalog V1", () => {
-  it("publishes nine lowercase metadata-only research entries without official trust", () => {
+  it("publishes nine release-pinned research entries without official trust", () => {
     const catalog = MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1;
 
     expect(catalog.entries).toHaveLength(9);
     expect(catalog.entries.map((entry) => entry.presetId))
       .toEqual(MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_IDS_V1);
     expect(new Set(catalog.entries.map((entry) => entry.presetId)).size).toBe(9);
+    expect(catalog.releaseRef).toEqual({
+      id: "circleheart/adult-five-wall-noncoronary",
+      version: "0.2.0",
+      sha256:
+        "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4",
+    });
     for (const entry of catalog.entries) {
       expect(entry.presetId).toBe(entry.presetId.toLowerCase());
       expect(entry.presetVersion).toBe("1.0.0");
+      expect(entry.documentChainBinding).toEqual({
+        presetDocumentSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        caseDocumentSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        workspaceDocumentSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        sessionInputSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      });
       expect(entry.claims).toEqual({
         classification: "research-bracket-not-clinical",
         officialTrustClaimed: false,
@@ -43,9 +55,10 @@ describe("main-wire scientific research preset catalog V1", () => {
     }
 
     const serialized = JSON.stringify(catalog);
-    expect(serialized).not.toContain("releaseRef");
+    expect(serialized).toContain("releaseRef");
+    expect(serialized).toContain("documentChainBinding");
+    expect(serialized).toContain("sessionInputSha256");
     expect(serialized).not.toContain("resolvedParameters");
-    expect(serialized).not.toContain("sessionInputSha256");
     expect(serialized).not.toContain("officialDesignation");
   });
 
