@@ -43,12 +43,21 @@ import {
   loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
+  createMainWireScientificResearchControlCatalogV0,
+  type MainWireScientificResearchControlCatalogV0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
+import {
+  loadMainWireScientificResearchControlTargetStateV0,
+  type MainWireScientificResearchControlTargetStateV0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
+import {
   loadMainWireScientificResolvedSessionInputV1,
   mainWireScientificSessionIntentV1,
   resolveMainWireScientificSessionInputV1,
   type MainWireScientificResolvedSessionInputV1,
 } from "@/engine/scientific/inputs";
 import {
+  canonicalJsonStringify,
   loadSimulationReleaseV1,
   sameSimulationReleaseRef,
   SHA256_HEX_PATTERN,
@@ -134,7 +143,11 @@ export type MainWireScientificSessionObservationV1 = Readonly<{
   releaseRef: SimulationReleaseRef;
   revision: number;
   acceptedTimeSec: number;
-  source: "cold-initialization" | "accepted-step" | "exact-checkpoint-restore";
+  source:
+    | "cold-initialization"
+    | "accepted-step"
+    | "exact-checkpoint-restore"
+    | "research-control-state-fork";
   chamber: Readonly<Record<"LA" | "LV" | "RA" | "RV", Readonly<{
     volumeMl: number;
     absolutePressureMmHg: number | null;
@@ -228,6 +241,60 @@ export type MainWireScientificSessionTransientResultV1 = Readonly<{
   >;
 }>;
 
+export type MainWireScientificResearchControlForkExpectedSourceIdentityV0 =
+  Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+    parameterEpoch: number;
+    controlStateSha256: string;
+  }>;
+
+export type MainWireScientificResearchControlForkReceiptV0 = Readonly<{
+  receiptId: "main-wire-scientific-research-control-fork-receipt-v0";
+  schemaVersion: 0;
+  classification: "research-only-experimental-not-clinical";
+  releaseRef: SimulationReleaseRef;
+  source: MainWireScientificResearchControlForkExpectedSourceIdentityV0;
+  target: MainWireScientificResearchControlForkExpectedSourceIdentityV0;
+  targetControlState: MainWireScientificResearchControlTargetStateV0;
+  resolvedRuntimeLosses: Readonly<{
+    systemicResistance: number;
+    pulmonaryResistance: number;
+  }>;
+  transition: Readonly<{
+    applicationBoundary: "exact-current-accepted-command-boundary";
+    acceptedStateClone:
+      "transaction-checkpoint-restore-without-cold-reinitialization";
+    sourceTransitionCompatibilityFingerprint: string;
+    targetTransitionCompatibilityFingerprint: string;
+    transitionCompatibilityFingerprintPreserved: true;
+    transitionCompatibilityFingerprintSemantics:
+      "transition-compatibility-only-non-authoritative";
+    canonicalTransactionCheckpointPreserved: true;
+    sourceSessionUnchanged: true;
+    periodicSettlementTrackerResetInTargetOnly: true;
+    replacedRuntimePaths: readonly [
+      "circulationRuntime.losses.systemicResistance",
+      "circulationRuntime.losses.pulmonaryResistance",
+    ];
+    preservedAcceptedStateOwners: readonly [
+      "fixed-total-blood-volume",
+      "all-node-volumes",
+      "semilunar-root-inertial-flows",
+      "four-valve-opening-memory",
+      "five-wall-Land-SLS-TriSeg-state",
+    ];
+    postForkExactCheckpointV3:
+      "unavailable-until-control-state-aware-checkpoint-schema";
+  }>;
+}>;
+
+export type MainWireScientificResearchControlForkResultV0 = Readonly<{
+  targetSession: MainWireScientificSessionV1;
+  receipt: MainWireScientificResearchControlForkReceiptV0;
+}>;
+
 export type MainWireScientificPeriodicClosureSummaryV1 = Readonly<{
   maximumNormalizedDelta: number;
   worstGroup: MainWireFiveWallPeriodicClosureReportV1["overall"]["worstGroup"];
@@ -296,6 +363,10 @@ type FixedAssemblyDependencies = Readonly<{
   calciumDriveParams: typeof FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1;
 }>;
 
+type CheckpointProvenance =
+  | "resolved-session-input-v1"
+  | "research-control-target-state-v0";
+
 export class MainWireScientificSessionV1 {
   readonly sessionId = MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID;
   readonly releaseRef: SimulationReleaseRef;
@@ -307,6 +378,7 @@ export class MainWireScientificSessionV1 {
   private acceptedState: AcceptedState;
   private lastObservation: MainWireScientificSessionObservationV1;
   private periodicSettlementTracker: PeriodicSettlementTracker | null = null;
+  private readonly checkpointProvenance: CheckpointProvenance;
 
   private constructor(
     releaseRef: SimulationReleaseRef,
@@ -315,6 +387,7 @@ export class MainWireScientificSessionV1 {
     acceptedState: AcceptedState,
     observation: MainWireScientificSessionObservationV1,
     periodicSettlementTracker: PeriodicSettlementTracker | null = null,
+    checkpointProvenance: CheckpointProvenance = "resolved-session-input-v1",
   ) {
     assertObservationMatchesAcceptedState(
       releaseRef,
@@ -331,6 +404,7 @@ export class MainWireScientificSessionV1 {
     this.acceptedState = acceptedState;
     this.lastObservation = observation;
     this.periodicSettlementTracker = periodicSettlementTracker;
+    this.checkpointProvenance = checkpointProvenance;
   }
 
   static async initialize(
@@ -453,6 +527,156 @@ export class MainWireScientificSessionV1 {
 
   observe(): MainWireScientificSessionObservationV1 {
     return this.lastObservation;
+  }
+
+  /**
+   * Experimental state-preserving research-control transition. The accepted
+   * physical state is cloned through the authoritative transaction checkpoint;
+   * only the two catalog-owned vascular resistance values are replaced.
+   */
+  async forkResearchControlTargetV0(input: Readonly<{
+    sourceControlState: unknown;
+    targetControlState: unknown;
+    expectedSourceIdentity:
+      MainWireScientificResearchControlForkExpectedSourceIdentityV0;
+  }>): Promise<MainWireScientificResearchControlForkResultV0> {
+    const [sourceControlState, targetControlState, catalog] = await Promise.all([
+      loadMainWireScientificResearchControlTargetStateV0(
+        input.sourceControlState,
+      ),
+      loadMainWireScientificResearchControlTargetStateV0(
+        input.targetControlState,
+      ),
+      createMainWireScientificResearchControlCatalogV0(),
+    ]);
+    assertResearchControlReleaseMatchesSession(
+      this.releaseRef,
+      sourceControlState,
+      "source",
+    );
+    assertResearchControlReleaseMatchesSession(
+      this.releaseRef,
+      targetControlState,
+      "target",
+    );
+    assertResearchControlForkExpectedSourceIdentity(
+      this.acceptedState,
+      sourceControlState,
+      input.expectedSourceIdentity,
+    );
+
+    const sourceLosses = researchControlRuntimeLosses(
+      catalog,
+      sourceControlState,
+    );
+    assertResearchControlRuntimeMatches(
+      this.dependencies.runtime,
+      sourceLosses,
+    );
+    const targetLosses = researchControlRuntimeLosses(
+      catalog,
+      targetControlState,
+    );
+    const sourceCheckpoint = checkpointMainWireFiveWallNonCoronaryV1(
+      this.dependencies.provider,
+      this.acceptedState,
+    );
+    const baseTargetDependencies = buildFixedAssemblyDependencies(
+      this.sessionInput,
+    );
+    const targetDependencies: FixedAssemblyDependencies = Object.freeze({
+      ...baseTargetDependencies,
+      runtime: Object.freeze({
+        ...baseTargetDependencies.runtime,
+        losses: Object.freeze({
+          ...baseTargetDependencies.runtime.losses,
+          ...targetLosses,
+        }),
+      }),
+    });
+    const targetAcceptedState = restoreMainWireFiveWallNonCoronaryV1(
+      targetDependencies.provider,
+      sourceCheckpoint,
+    );
+    assertResearchControlCloneDoesNotAlias(
+      this.acceptedState,
+      targetAcceptedState,
+    );
+    const targetCheckpoint = checkpointMainWireFiveWallNonCoronaryV1(
+      targetDependencies.provider,
+      targetAcceptedState,
+    );
+    if (
+      canonicalJsonStringify(targetCheckpoint)
+        !== canonicalJsonStringify(sourceCheckpoint)
+    ) {
+      throw new Error(
+        "research control fork did not preserve the canonical accepted-state transaction checkpoint",
+      );
+    }
+
+    const targetSession = new MainWireScientificSessionV1(
+      this.releaseRef,
+      this.sessionInput,
+      targetDependencies,
+      targetAcceptedState,
+      researchControlForkObservation(this.releaseRef, targetAcceptedState),
+      null,
+      "research-control-target-state-v0",
+    );
+    const sourceIdentity = copyResearchControlSourceIdentity(
+      input.expectedSourceIdentity,
+    );
+    const targetIdentity = Object.freeze({
+      revision: targetAcceptedState.revision,
+      acceptedTimeSec: targetAcceptedState.acceptedTimeSec,
+      totalBloodVolumeMl:
+        targetAcceptedState.circulation.totalBloodVolumeMl,
+      parameterEpoch: input.expectedSourceIdentity.parameterEpoch + 1,
+      controlStateSha256: targetControlState.targetStateSha256,
+    });
+    const receipt = Object.freeze({
+      receiptId:
+        "main-wire-scientific-research-control-fork-receipt-v0" as const,
+      schemaVersion: 0 as const,
+      classification:
+        "research-only-experimental-not-clinical" as const,
+      releaseRef: copyReleaseRef(this.releaseRef),
+      source: sourceIdentity,
+      target: targetIdentity,
+      targetControlState,
+      resolvedRuntimeLosses: Object.freeze({ ...targetLosses }),
+      transition: Object.freeze({
+        applicationBoundary:
+          "exact-current-accepted-command-boundary" as const,
+        acceptedStateClone:
+          "transaction-checkpoint-restore-without-cold-reinitialization" as const,
+        sourceTransitionCompatibilityFingerprint:
+          sourceCheckpoint.checkpointFingerprint,
+        targetTransitionCompatibilityFingerprint:
+          targetCheckpoint.checkpointFingerprint,
+        transitionCompatibilityFingerprintPreserved: true as const,
+        transitionCompatibilityFingerprintSemantics:
+          "transition-compatibility-only-non-authoritative" as const,
+        canonicalTransactionCheckpointPreserved: true as const,
+        sourceSessionUnchanged: true as const,
+        periodicSettlementTrackerResetInTargetOnly: true as const,
+        replacedRuntimePaths: Object.freeze([
+          "circulationRuntime.losses.systemicResistance",
+          "circulationRuntime.losses.pulmonaryResistance",
+        ] as const),
+        preservedAcceptedStateOwners: Object.freeze([
+          "fixed-total-blood-volume",
+          "all-node-volumes",
+          "semilunar-root-inertial-flows",
+          "four-valve-opening-memory",
+          "five-wall-Land-SLS-TriSeg-state",
+        ] as const),
+        postForkExactCheckpointV3:
+          "unavailable-until-control-state-aware-checkpoint-schema" as const,
+      }),
+    });
+    return Object.freeze({ targetSession, receipt });
   }
 
   step(dtSec: number): MainWireScientificSessionStepResultV1 {
@@ -693,6 +917,7 @@ export class MainWireScientificSessionV1 {
 
   async checkpointLegacyCanonicalExactV2():
   Promise<MainWireScientificSessionExactCheckpointV2> {
+    this.assertExactCheckpointAvailable();
     if (this.sessionInput.sourceIntent.parameterOperations.length !== 0) {
       throw new Error(
         "checkpoint V2 is fixed-canonical-only; parameterized sessions require checkpoint V3",
@@ -730,6 +955,7 @@ export class MainWireScientificSessionV1 {
 
   async checkpointExactV3():
   Promise<MainWireScientificSessionExactCheckpointV3> {
+    this.assertExactCheckpointAvailable();
     return createMainWireScientificSessionExactCheckpointV3(
       {
         releaseRef: this.releaseRef,
@@ -751,6 +977,14 @@ export class MainWireScientificSessionV1 {
   async checkpointExact():
   Promise<MainWireScientificSessionExactCheckpointV3> {
     return this.checkpointExactV3();
+  }
+
+  private assertExactCheckpointAvailable(): void {
+    if (this.checkpointProvenance === "research-control-target-state-v0") {
+      throw new Error(
+        "exact checkpoint V3 is unavailable for a research-control fork until a control-state-aware checkpoint schema exists",
+      );
+    }
   }
 
   private static constructCold(
@@ -1117,6 +1351,149 @@ function buildFixedAssemblyDependencies(
   });
 }
 
+function assertResearchControlReleaseMatchesSession(
+  sessionReleaseRef: SimulationReleaseRef,
+  controlState: MainWireScientificResearchControlTargetStateV0,
+  role: "source" | "target",
+): void {
+  if (!sameSimulationReleaseRef(sessionReleaseRef, controlState.releaseRef)) {
+    throw new Error(
+      `research control ${role} release identity does not match the session`,
+    );
+  }
+}
+
+function assertResearchControlForkExpectedSourceIdentity(
+  acceptedState: AcceptedState,
+  sourceControlState: MainWireScientificResearchControlTargetStateV0,
+  expected: MainWireScientificResearchControlForkExpectedSourceIdentityV0,
+): void {
+  if (!Number.isSafeInteger(expected.revision) || expected.revision < 0) {
+    throw new Error(
+      "research control fork expected source revision must be a non-negative safe integer",
+    );
+  }
+  if (
+    !Number.isFinite(expected.acceptedTimeSec)
+    || expected.acceptedTimeSec < 0
+  ) {
+    throw new Error(
+      "research control fork expected source time must be finite and non-negative",
+    );
+  }
+  if (
+    !Number.isFinite(expected.totalBloodVolumeMl)
+    || !(expected.totalBloodVolumeMl > 0)
+  ) {
+    throw new Error(
+      "research control fork expected source total blood volume must be finite and positive",
+    );
+  }
+  if (
+    !Number.isSafeInteger(expected.parameterEpoch)
+    || expected.parameterEpoch < 0
+    || !Number.isSafeInteger(expected.parameterEpoch + 1)
+  ) {
+    throw new Error(
+      "research control fork expected source parameter epoch must permit an exact increment",
+    );
+  }
+  if (!SHA256_HEX_PATTERN.test(expected.controlStateSha256)) {
+    throw new Error(
+      "research control fork expected source control digest must be a SHA-256 digest",
+    );
+  }
+  if (expected.controlStateSha256 !== sourceControlState.targetStateSha256) {
+    throw new Error(
+      "research control fork current control digest mismatch",
+    );
+  }
+  if (
+    acceptedState.revision !== expected.revision
+    || acceptedState.acceptedTimeSec !== expected.acceptedTimeSec
+    || acceptedState.circulation.totalBloodVolumeMl
+      !== expected.totalBloodVolumeMl
+  ) {
+    throw new Error("research control fork expected source identity mismatch");
+  }
+}
+
+function researchControlRuntimeLosses(
+  catalog: MainWireScientificResearchControlCatalogV0,
+  controlState: MainWireScientificResearchControlTargetStateV0,
+): Readonly<{
+  systemicResistance: number;
+  pulmonaryResistance: number;
+}> {
+  const systemic = catalog.controls.find((definition) =>
+    definition.controlId
+      === "circulation.systemic-vascular-resistance-scale"
+  );
+  const pulmonary = catalog.controls.find((definition) =>
+    definition.controlId
+      === "circulation.pulmonary-vascular-resistance-scale"
+  );
+  if (systemic === undefined || pulmonary === undefined) {
+    throw new Error("research control catalog lacks a required resistance owner");
+  }
+  return Object.freeze({
+    systemicResistance:
+      systemic.target.releaseBaselineValue
+      * controlState.controls[
+        "circulation.systemic-vascular-resistance-scale"
+      ],
+    pulmonaryResistance:
+      pulmonary.target.releaseBaselineValue
+      * controlState.controls[
+        "circulation.pulmonary-vascular-resistance-scale"
+      ],
+  });
+}
+
+function assertResearchControlRuntimeMatches(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  expectedLosses: Readonly<{
+    systemicResistance: number;
+    pulmonaryResistance: number;
+  }>,
+): void {
+  if (
+    runtime.losses.systemicResistance
+      !== expectedLosses.systemicResistance
+    || runtime.losses.pulmonaryResistance
+      !== expectedLosses.pulmonaryResistance
+  ) {
+    throw new Error(
+      "research control source state does not match the current session runtime losses",
+    );
+  }
+}
+
+function assertResearchControlCloneDoesNotAlias(
+  source: AcceptedState,
+  target: AcceptedState,
+): void {
+  if (
+    source === target
+    || source.circulation === target.circulation
+    || source.mechanics === target.mechanics
+  ) {
+    throw new Error("research control fork reused mutable accepted-state owners");
+  }
+}
+
+function copyResearchControlSourceIdentity(
+  identity: MainWireScientificResearchControlForkExpectedSourceIdentityV0,
+): MainWireScientificResearchControlForkExpectedSourceIdentityV0 {
+  return Object.freeze({
+    revision: identity.revision,
+    acceptedTimeSec: identity.acceptedTimeSec,
+    totalBloodVolumeMl: identity.totalBloodVolumeMl,
+    parameterEpoch: identity.parameterEpoch,
+    controlStateSha256: identity.controlStateSha256,
+  });
+}
+
 async function canonicalHealthySessionInput(
   release: SimulationReleaseV1,
 ): Promise<MainWireScientificResolvedSessionInputV1> {
@@ -1224,13 +1601,36 @@ function restoredObservation(
   releaseRef: SimulationReleaseRef,
   state: AcceptedState,
 ): MainWireScientificSessionObservationV1 {
+  return unevaluatedAcceptedStateObservation(
+    releaseRef,
+    state,
+    "exact-checkpoint-restore",
+  );
+}
+
+function researchControlForkObservation(
+  releaseRef: SimulationReleaseRef,
+  state: AcceptedState,
+): MainWireScientificSessionObservationV1 {
+  return unevaluatedAcceptedStateObservation(
+    releaseRef,
+    state,
+    "research-control-state-fork",
+  );
+}
+
+function unevaluatedAcceptedStateObservation(
+  releaseRef: SimulationReleaseRef,
+  state: AcceptedState,
+  source: "exact-checkpoint-restore" | "research-control-state-fork",
+): MainWireScientificSessionObservationV1 {
   return Object.freeze({
     observationId: "main-wire-scientific-session-observation-v1" as const,
     sessionId: MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID,
     releaseRef: copyReleaseRef(releaseRef),
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
-    source: "exact-checkpoint-restore" as const,
+    source,
     chamber: chamberRecord((chamber) => Object.freeze({
       volumeMl: state.circulation.nodeVolumesMl[chamber],
       absolutePressureMmHg: null,

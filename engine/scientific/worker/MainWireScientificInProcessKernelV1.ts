@@ -62,6 +62,10 @@ import {
 import {
   resolveMainWireScientificResearchPresetV1,
 } from "@/engine/scientific/worker/MainWireScientificResearchPresetResolverV1";
+import {
+  createMainWireScientificResearchControlBaselineTargetStateV0,
+  type MainWireScientificResearchControlTargetStateV0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 
 export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_ID =
   "main-wire-scientific-in-process-kernel-v1" as const;
@@ -99,6 +103,13 @@ export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM = Object.freeze({
   researchPresetClinicalDiagnosisClaimed: false as const,
   researchPresetPeriodicSteadyStateClaimedAtCreation: false as const,
   researchPresetArbitraryParameterPatchAccepted: false as const,
+  researchControlForkCapability:
+    "release-bound-state-preserving-new-session-v0" as const,
+  researchControlSourceSessionRetainedAtFork: true as const,
+  researchControlPeriodicTrackerResetInTargetOnly: true as const,
+  researchControlArbitraryParameterPatchAccepted: false as const,
+  researchControlCheckpointCapability:
+    "unavailable-until-control-state-aware-v4" as const,
   resolvedSessionInputCapability:
     "complete-input-release-bound-revalidation" as const,
   resolvedSessionArbitraryParameterPatchAccepted: false as const,
@@ -149,6 +160,11 @@ type ParseResult =
     message: string;
   }>;
 
+type ResearchControlSessionBindingV0 = Readonly<{
+  controlState: MainWireScientificResearchControlTargetStateV0;
+  parameterEpoch: number;
+}>;
+
 const DEFAULT_MAXIMUM_SESSION_COUNT = 4;
 const DEFAULT_MAXIMUM_TRANSIENT_STEP_COUNT = 4;
 const DEFAULT_MAXIMUM_OUTPUT_FRAME_COUNT = 4;
@@ -191,6 +207,8 @@ export class MainWireScientificInProcessKernelV1 {
 
   private readonly sessions = new Map<string, MainWireScientificSessionV1>();
   private readonly sessionOrigins = new Map<string, ScientificSessionOriginV1>();
+  private readonly researchControlBindings =
+    new Map<string, ResearchControlSessionBindingV0>();
   private readonly allocatedSessionIds = new Set<string>();
   private readonly seenRequestIds = new Set<string>();
   private queuedCommandCount = 0;
@@ -341,6 +359,8 @@ export class MainWireScientificInProcessKernelV1 {
         return this.createResearchPreset(command);
       case "createResearchDocumentCaseSession":
         return this.createResearchDocumentCase(command);
+      case "forkResearchControlSession":
+        return this.forkResearchControlSession(command);
       case "runTransient":
         return this.runTransient(command);
       case "observe":
@@ -544,6 +564,8 @@ export class MainWireScientificInProcessKernelV1 {
       const observableFrame = project(session);
       const binding =
         OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING;
+      const baselineControlState =
+        await createMainWireScientificResearchControlBaselineTargetStateV0();
       const sessionOrigin = Object.freeze({
         kind:
           "official-document-case-v3-exact-checkpoint-restore" as const,
@@ -574,11 +596,20 @@ export class MainWireScientificInProcessKernelV1 {
           caseRef: Object.freeze({ ...binding.caseRef }),
           workspaceRef: Object.freeze({ ...binding.workspaceRef }),
           periodicSteadyStateClaimed: true as const,
+          researchControlContext: Object.freeze({
+            stateIdentity: session.stateIdentity(),
+            controlState: baselineControlState,
+            parameterEpoch: 0,
+          }),
           observableFrame,
         }),
       );
       this.sessions.set(command.sessionId, session);
       this.sessionOrigins.set(command.sessionId, sessionOrigin);
+      this.researchControlBindings.set(command.sessionId, Object.freeze({
+        controlState: baselineControlState,
+        parameterEpoch: 0,
+      }));
       this.allocatedSessionIds.add(command.sessionId);
       return response;
     } catch (error) {
@@ -783,7 +814,10 @@ export class MainWireScientificInProcessKernelV1 {
     const session = this.sessions.get(command.sessionId);
     if (session === undefined) return unknownSession(command);
     const sessionOrigin = this.requiredSessionOrigin(command.sessionId);
-    const executionProtocol = transientExecutionProtocol(command);
+    const executionProtocol = transientExecutionProtocol(
+      command,
+      sessionOrigin,
+    );
     const observableFrames: MainWireScientificObservableFrameV1[] = [];
     for (let index = 0; index < command.stepCount; index += 1) {
       const stepped = session.step(command.dtSec);
@@ -823,6 +857,141 @@ export class MainWireScientificInProcessKernelV1 {
       observableFrames: Object.freeze(observableFrames),
       finalObservableFrame,
     }));
+  }
+
+  private async forkResearchControlSession(
+    command: Extract<ScientificCommandV1, {
+      kind: "forkResearchControlSession";
+    }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const allocationError = this.sessionAllocationError(command);
+    if (allocationError !== null) return allocationError;
+    const source = this.sessions.get(command.sourceSessionId);
+    if (source === undefined) {
+      return errorResponseForCommand(
+        command,
+        "unknown-session-id",
+        `sourceSessionId ${command.sourceSessionId} is not active`,
+      );
+    }
+    const sourceOrigin = this.requiredSessionOrigin(command.sourceSessionId);
+    const sourceBinding = this.researchControlBindings.get(
+      command.sourceSessionId,
+    );
+    if (sourceBinding === undefined) {
+      return errorResponseForCommand(
+        command,
+        "capability-unavailable",
+        "source session is not bound to the experimental research control domain",
+        { releaseRef: source.releaseRef, sessionOrigin: sourceOrigin },
+      );
+    }
+    if (
+      command.expectedSource.controlStateSha256
+        !== sourceBinding.controlState.targetStateSha256
+      || command.expectedSource.parameterEpoch !== sourceBinding.parameterEpoch
+    ) {
+      return errorResponseForCommand(
+        command,
+        "state-precondition-failed",
+        "source control digest or parameter epoch no longer matches",
+        { releaseRef: source.releaseRef, sessionOrigin: sourceOrigin },
+      );
+    }
+    if (
+      command.targetControlState.targetStateSha256
+        === sourceBinding.controlState.targetStateSha256
+    ) {
+      return errorResponseForCommand(
+        command,
+        "research-control-fork-rejected",
+        "target control state must differ from the source control state",
+        { releaseRef: source.releaseRef, sessionOrigin: sourceOrigin },
+      );
+    }
+    try {
+      const forked = await source.forkResearchControlTargetV0({
+        sourceControlState: sourceBinding.controlState,
+        targetControlState: command.targetControlState,
+        expectedSourceIdentity: command.expectedSource,
+      });
+      const target = forked.targetSession;
+      const receipt = forked.receipt;
+      if (
+        receipt.target.parameterEpoch !== sourceBinding.parameterEpoch + 1
+        || receipt.source.parameterEpoch !== sourceBinding.parameterEpoch
+      ) {
+        throw new Error("research control fork parameter epoch mismatch");
+      }
+      const targetOrigin = Object.freeze({
+        kind: "research-control-state-preserving-fork-v0" as const,
+        classification:
+          "research-only-experimental-not-clinical" as const,
+        releaseRef: copyReleaseRef(target.releaseRef),
+        sourceSessionId: command.sourceSessionId,
+        baseSessionInputSha256: target.sessionInputSha256,
+        sourceControlStateSha256:
+          sourceBinding.controlState.targetStateSha256,
+        targetControlStateSha256:
+          receipt.target.controlStateSha256,
+        parameterEpoch: receipt.target.parameterEpoch,
+        transitionProtocolId:
+          "main-wire-research-control-state-preserving-fork-v0" as const,
+        transitionProtocolVersion: "0.0.0" as const,
+        acceptedStatePreservedAtFork: true as const,
+        periodicTrackerResetAtFork: true as const,
+        sourceSessionRetainedAtFork: true as const,
+        exactCheckpointCapability:
+          "unavailable-until-control-aware-checkpoint-v4" as const,
+        periodicSteadyStateClaimed: false as const,
+        officialTrustClaimed: false as const,
+        clinicalDiagnosisClaimed: false as const,
+        clinicalValidationClaimed: false as const,
+      });
+      const response = successResponse(
+        command,
+        target.releaseRef,
+        targetOrigin,
+        Object.freeze({
+          kind: "researchControlSessionForked" as const,
+          sourceSessionId: command.sourceSessionId,
+          sourceStateIdentity: acceptedStateIdentityFromForkReceipt(
+            receipt.source,
+          ),
+          targetStateIdentity: acceptedStateIdentityFromForkReceipt(
+            receipt.target,
+          ),
+          sourceControlStateSha256:
+            receipt.source.controlStateSha256,
+          targetControlState: receipt.targetControlState,
+          parameterEpoch: receipt.target.parameterEpoch,
+          acceptedStatePreservedAtFork: true as const,
+          periodicTrackerResetAtFork: true as const,
+          sourceSessionRetainedAtFork: true as const,
+          exactCheckpointAvailable: false as const,
+          periodicSteadyStateClaimed: false as const,
+          observableFrame: project(target),
+        }),
+      );
+      this.sessions.set(command.sessionId, target);
+      this.sessionOrigins.set(command.sessionId, targetOrigin);
+      this.researchControlBindings.set(command.sessionId, Object.freeze({
+        controlState: receipt.targetControlState,
+        parameterEpoch: receipt.target.parameterEpoch,
+      }));
+      this.allocatedSessionIds.add(command.sessionId);
+      return response;
+    } catch (error) {
+      const code = /expected source|precondition|does not match/.test(
+        errorMessage(error),
+      )
+        ? "state-precondition-failed" as const
+        : "research-control-fork-rejected" as const;
+      return errorResponseForCommand(command, code, errorMessage(error), {
+        releaseRef: source.releaseRef,
+        sessionOrigin: sourceOrigin,
+      });
+    }
   }
 
   private observe(
@@ -924,6 +1093,7 @@ export class MainWireScientificInProcessKernelV1 {
     );
     this.sessions.delete(command.sessionId);
     this.sessionOrigins.delete(command.sessionId);
+    this.researchControlBindings.delete(command.sessionId);
     return response;
   }
 
@@ -988,6 +1158,7 @@ export class MainWireScientificInProcessKernelV1 {
         | "createOfficialDocumentCaseSession"
         | "createResearchPresetSession"
         | "createResearchDocumentCaseSession"
+        | "forkResearchControlSession"
         | "restoreExactSession";
     }>,
   ): MainWireScientificCommandResponseV1 | null {
@@ -1308,6 +1479,13 @@ function parseCommand(
   const common = ["protocolId", "kind", "requestId", "sessionId"];
   const expectedKeys = value.kind === "runTransient"
     ? [...common, "dtSec", "stepCount", "observationStride"]
+    : value.kind === "forkResearchControlSession"
+      ? [
+        ...common,
+        "sourceSessionId",
+        "expectedSource",
+        "targetControlState",
+      ]
     : value.kind === "restoreExactSession"
       ? [...common, "resolvedSessionInput", "checkpoint"]
       : value.kind === "createResolvedSession"
@@ -1348,6 +1526,44 @@ function parseCommand(
         identity,
         `observation policy would exceed ${maximumOutputFrameCount} output frames`,
       );
+    }
+  }
+  if (value.kind === "forkResearchControlSession") {
+    if (!isIdentifier(value.sourceSessionId)) {
+      return invalid(identity, "sourceSessionId is invalid");
+    }
+    if (value.sourceSessionId === value.sessionId) {
+      return invalid(identity, "target sessionId must differ from sourceSessionId");
+    }
+    if (
+      !isRecord(value.expectedSource)
+      || !hasExactKeys(value.expectedSource, [
+        "revision",
+        "acceptedTimeSec",
+        "totalBloodVolumeMl",
+        "controlStateSha256",
+        "parameterEpoch",
+      ])
+      || !Number.isSafeInteger(value.expectedSource.revision)
+      || (value.expectedSource.revision as number) < 0
+      || !Number.isFinite(value.expectedSource.acceptedTimeSec)
+      || (value.expectedSource.acceptedTimeSec as number) < 0
+      || !Number.isFinite(value.expectedSource.totalBloodVolumeMl)
+      || !((value.expectedSource.totalBloodVolumeMl as number) > 0)
+      || typeof value.expectedSource.controlStateSha256 !== "string"
+      || !SHA256_HEX_PATTERN.test(
+        value.expectedSource.controlStateSha256,
+      )
+      || !Number.isSafeInteger(value.expectedSource.parameterEpoch)
+      || (value.expectedSource.parameterEpoch as number) < 0
+      || !Number.isSafeInteger(
+        (value.expectedSource.parameterEpoch as number) + 1,
+      )
+    ) {
+      return invalid(identity, "expectedSource state precondition is invalid");
+    }
+    if (!isRecord(value.targetControlState)) {
+      return invalid(identity, "targetControlState must be an object");
     }
   }
   if (
@@ -1427,6 +1643,22 @@ function project(
   return projectObservation(session.observe());
 }
 
+function acceptedStateIdentityFromForkReceipt(value: Readonly<{
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+}>): Readonly<{
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+}> {
+  return Object.freeze({
+    revision: value.revision,
+    acceptedTimeSec: value.acceptedTimeSec,
+    totalBloodVolumeMl: value.totalBloodVolumeMl,
+  });
+}
+
 function projectObservation(
   observation: Parameters<typeof projectMainWireScientificObservationV1>[0],
 ): MainWireScientificObservableFrameV1 {
@@ -1447,13 +1679,16 @@ function appendDistinctFinalFrame(
 
 function transientExecutionProtocol(
   command: Extract<ScientificCommandV1, { kind: "runTransient" }>,
+  sessionOrigin: ScientificSessionOriginV1,
 ): ScientificTransientExecutionProtocolV1 {
   return Object.freeze({
     protocolId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID,
     protocolVersion:
       MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1.protocolVersion,
-    classification:
-      MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1
+    classification: sessionOrigin.kind
+      === "research-control-state-preserving-fork-v0"
+      ? "exploratory-parameterization" as const
+      : MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1
         .approvedDtSec.some((approved) => approved === command.dtSec)
       ? "approved-release-protocol" as const
       : "exploratory-parameterization" as const,
@@ -1623,6 +1858,12 @@ function copySessionOrigin(
       presetRef: Object.freeze({ ...origin.presetRef }),
       caseRef: Object.freeze({ ...origin.caseRef }),
       workspaceRef: Object.freeze({ ...origin.workspaceRef }),
+    });
+  }
+  if (origin.kind === "research-control-state-preserving-fork-v0") {
+    return Object.freeze({
+      ...origin,
+      releaseRef: copyReleaseRef(origin.releaseRef),
     });
   }
   if (origin.kind

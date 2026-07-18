@@ -1,0 +1,397 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  createMainWireScientificResearchControlTargetStateV0,
+} from "@/engine/scientific/controls";
+import {
+  MainWireScientificInProcessKernelV1,
+  SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+  type ScientificCommandV1,
+} from "@/engine/scientific/worker";
+import {
+  MainWireScientificWorkerClientV1,
+  type MainWireScientificWorkerLikeV1,
+  type MainWireScientificWorkerTransportErrorV1,
+} from "@/engine/scientificBrowser";
+import {
+  loadBundledOfficialHealthyPeriodicDocumentChainV1,
+} from "@/engine/scientificBrowser/bundledOfficialHealthyPeriodicDocumentChainV1";
+
+describe("main-wire scientific research-control Worker V0", () => {
+  it("forks exact accepted state, retains source, and binds exploratory target execution", async () => {
+    const kernel = new MainWireScientificInProcessKernelV1({
+      maximumSessionCount: 8,
+      officialDocumentCaseLoader:
+        loadBundledOfficialHealthyPeriodicDocumentChainV1,
+    });
+    expect(kernel.claim).toMatchObject({
+      researchControlForkCapability:
+        "release-bound-state-preserving-new-session-v0",
+      researchControlSourceSessionRetainedAtFork: true,
+      researchControlPeriodicTrackerResetInTargetOnly: true,
+      researchControlArbitraryParameterPatchAccepted: false,
+      researchControlCheckpointCapability:
+        "unavailable-until-control-state-aware-v4",
+    });
+    const worker = new KernelWorkerBridge(kernel);
+    const client = new MainWireScientificWorkerClientV1({
+      workerFactory: () => worker.port(),
+    });
+
+    const created = await client.request(officialCreateCommand(
+      "request-control-source-create",
+      "control-source",
+    ));
+    if (
+      !created.ok
+      || created.payload.kind !== "officialDocumentCaseSessionCreated"
+    ) throw new Error("official control source creation failed");
+    const baselineContext = created.payload.researchControlContext;
+    expect(baselineContext).toMatchObject({
+      parameterEpoch: 0,
+      stateIdentity: {
+        revision: created.payload.observableFrame.revision,
+        acceptedTimeSec: created.payload.observableFrame.acceptedTimeSec,
+      },
+      controlState: {
+        controls: {
+          "circulation.systemic-vascular-resistance-scale": 1,
+          "circulation.pulmonary-vascular-resistance-scale": 1,
+        },
+      },
+    });
+
+    const lowerSvr = await controlState(0.75, 1);
+    const forked = await client.request({
+      ...baseCommand(
+        "forkResearchControlSession",
+        "request-control-fork",
+        "control-target",
+      ),
+      sourceSessionId: "control-source",
+      expectedSource: {
+        ...baselineContext.stateIdentity,
+        controlStateSha256:
+          baselineContext.controlState.targetStateSha256,
+        parameterEpoch: baselineContext.parameterEpoch,
+      },
+      targetControlState: lowerSvr,
+    });
+    if (!forked.ok || forked.payload.kind !== "researchControlSessionForked") {
+      throw new Error("research control fork failed");
+    }
+    expect(forked.sessionOrigin).toMatchObject({
+      kind: "research-control-state-preserving-fork-v0",
+      sourceSessionId: "control-source",
+      sourceControlStateSha256:
+        baselineContext.controlState.targetStateSha256,
+      targetControlStateSha256: lowerSvr.targetStateSha256,
+      parameterEpoch: 1,
+      acceptedStatePreservedAtFork: true,
+      periodicTrackerResetAtFork: true,
+      sourceSessionRetainedAtFork: true,
+      exactCheckpointCapability:
+        "unavailable-until-control-aware-checkpoint-v4",
+      periodicSteadyStateClaimed: false,
+    });
+    expect(forked.payload.sourceStateIdentity)
+      .toEqual(baselineContext.stateIdentity);
+    expect(forked.payload.targetStateIdentity)
+      .toEqual(baselineContext.stateIdentity);
+    expect(forked.payload.observableFrame).toMatchObject({
+      source: "research-control-state-fork",
+      revision: baselineContext.stateIdentity.revision,
+      acceptedTimeSec: baselineContext.stateIdentity.acceptedTimeSec,
+      values: {
+        "hemodynamics.pressure.absolute.LA": {
+          value: null,
+          availability: "not-evaluated-at-accepted-state",
+        },
+        "valve.MV.flow": {
+          value: null,
+          availability: "not-evaluated-at-accepted-state",
+        },
+      },
+    });
+
+    const sourceAfterFork = await client.request(baseCommand(
+      "observe",
+      "request-source-after-fork",
+      "control-source",
+    ));
+    expect(successFrame(sourceAfterFork)).toMatchObject({
+      revision: baselineContext.stateIdentity.revision,
+      acceptedTimeSec: baselineContext.stateIdentity.acceptedTimeSec,
+    });
+
+    const transient = await client.request({
+      ...baseCommand(
+        "runTransient",
+        "request-target-transient",
+        "control-target",
+      ),
+      dtSec: 0.002,
+      stepCount: 4,
+      observationStride: 1,
+    });
+    if (!transient.ok || transient.payload.kind !== "transientCompleted") {
+      throw new Error("target transient failed");
+    }
+    expect(transient.payload.executionProtocol).toMatchObject({
+      classification: "exploratory-parameterization",
+      dtSec: 0.002,
+      stepCount: 4,
+      observationPolicy: { stride: 1 },
+    });
+    expect(transient.payload.observableFrames).toHaveLength(4);
+    expect(transient.payload.finalObservableFrame.revision)
+      .toBe(baselineContext.stateIdentity.revision + 4);
+
+    const checkpoint = await client.request(baseCommand(
+      "getExactCheckpoint",
+      "request-target-checkpoint",
+      "control-target",
+    ));
+    expect(checkpoint).toMatchObject({
+      ok: false,
+      sessionOrigin: forked.sessionOrigin,
+      error: {
+        code: "checkpoint-failed",
+        retryable: false,
+        silentFallbackApplied: false,
+      },
+    });
+
+    const higherPvr = await controlState(0.75, 1.3333333333333333);
+    const chained = await client.request({
+      ...baseCommand(
+        "forkResearchControlSession",
+        "request-control-chain",
+        "control-target-epoch-2",
+      ),
+      sourceSessionId: "control-target",
+      expectedSource: {
+        revision: transient.payload.finalObservableFrame.revision,
+        acceptedTimeSec:
+          transient.payload.finalObservableFrame.acceptedTimeSec,
+        totalBloodVolumeMl:
+          forked.payload.targetStateIdentity.totalBloodVolumeMl,
+        controlStateSha256: lowerSvr.targetStateSha256,
+        parameterEpoch: 1,
+      },
+      targetControlState: higherPvr,
+    });
+    expect(chained).toMatchObject({
+      ok: true,
+      sessionOrigin: {
+        kind: "research-control-state-preserving-fork-v0",
+        sourceSessionId: "control-target",
+        sourceControlStateSha256: lowerSvr.targetStateSha256,
+        targetControlStateSha256: higherPvr.targetStateSha256,
+        parameterEpoch: 2,
+      },
+      payload: {
+        kind: "researchControlSessionForked",
+        parameterEpoch: 2,
+        targetControlState: higherPvr,
+      },
+    });
+
+    const noOp = await client.request({
+      ...baseCommand(
+        "forkResearchControlSession",
+        "request-control-no-op",
+        "control-no-op-target",
+      ),
+      sourceSessionId: "control-source",
+      expectedSource: {
+        ...baselineContext.stateIdentity,
+        controlStateSha256:
+          baselineContext.controlState.targetStateSha256,
+        parameterEpoch: 0,
+      },
+      targetControlState: baselineContext.controlState,
+    });
+    expect(noOp).toMatchObject({
+      ok: false,
+      error: { code: "research-control-fork-rejected" },
+    });
+
+    const staleState = await client.request({
+      ...baseCommand(
+        "forkResearchControlSession",
+        "request-control-stale-state",
+        "control-stale-target",
+      ),
+      sourceSessionId: "control-source",
+      expectedSource: {
+        ...baselineContext.stateIdentity,
+        revision: baselineContext.stateIdentity.revision + 1,
+        controlStateSha256:
+          baselineContext.controlState.targetStateSha256,
+        parameterEpoch: 0,
+      },
+      targetControlState: lowerSvr,
+    });
+    expect(staleState).toMatchObject({
+      ok: false,
+      error: { code: "state-precondition-failed" },
+    });
+
+    const staleEpoch = await client.request({
+      ...baseCommand(
+        "forkResearchControlSession",
+        "request-control-stale-epoch",
+        "control-stale-epoch-target",
+      ),
+      sourceSessionId: "control-source",
+      expectedSource: {
+        ...baselineContext.stateIdentity,
+        controlStateSha256:
+          baselineContext.controlState.targetStateSha256,
+        parameterEpoch: 1,
+      },
+      targetControlState: lowerSvr,
+    });
+    expect(staleEpoch).toMatchObject({
+      ok: false,
+      error: { code: "state-precondition-failed" },
+    });
+
+    await client.request(baseCommand(
+      "disposeSession",
+      "request-dispose-target",
+      "control-target",
+    ));
+    const sourceAfterTargetDispose = await client.request(baseCommand(
+      "observe",
+      "request-source-after-target-dispose",
+      "control-source",
+    ));
+    expect(successFrame(sourceAfterTargetDispose)).toMatchObject({
+      revision: baselineContext.stateIdentity.revision,
+      acceptedTimeSec: baselineContext.stateIdentity.acceptedTimeSec,
+    });
+
+    worker.transformNextResponse((response) => {
+      const forged = structuredClone(response) as Record<string, any>;
+      forged.sessionOrigin.sourceSessionId = "forged-source-session";
+      return forged;
+    });
+    const forgedTargetResponse = client.request(baseCommand(
+      "observe",
+      "request-forged-target-origin",
+      "control-target-epoch-2",
+    ));
+    await expectTransportError(forgedTargetResponse, "protocol-mismatch");
+    expect(client.status).toBe("failed");
+  }, 30_000);
+});
+
+function officialCreateCommand(
+  requestId: string,
+  sessionId: string,
+): ScientificCommandV1 {
+  return {
+    ...baseCommand("createOfficialDocumentCaseSession", requestId, sessionId),
+    presetId: "circleheart/official-healthy-periodic",
+    presetVersion: "1.0.0",
+  };
+}
+
+function baseCommand<Kind extends ScientificCommandV1["kind"]>(
+  kind: Kind,
+  requestId: string,
+  sessionId: string,
+): Readonly<{
+  protocolId: typeof SCIENTIFIC_COMMAND_PROTOCOL_V1_ID;
+  kind: Kind;
+  requestId: string;
+  sessionId: string;
+}> {
+  return Object.freeze({
+    protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+    kind,
+    requestId,
+    sessionId,
+  });
+}
+
+async function controlState(
+  systemicScale: 0.75 | 1 | 1.3333333333333333,
+  pulmonaryScale: 0.75 | 1 | 1.3333333333333333,
+) {
+  return createMainWireScientificResearchControlTargetStateV0({
+    "circulation.systemic-vascular-resistance-scale": systemicScale,
+    "circulation.pulmonary-vascular-resistance-scale": pulmonaryScale,
+  });
+}
+
+function successFrame(
+  response: Awaited<ReturnType<MainWireScientificWorkerClientV1["request"]>>,
+) {
+  if (
+    !response.ok
+    || response.payload.kind !== "observation"
+  ) throw new Error("expected observation response");
+  return response.payload.observableFrame;
+}
+
+async function expectTransportError(
+  promise: Promise<unknown>,
+  code: MainWireScientificWorkerTransportErrorV1["code"],
+): Promise<void> {
+  await expect(promise).rejects.toMatchObject({
+    name: "MainWireScientificWorkerTransportErrorV1",
+    code,
+  });
+}
+
+class KernelWorkerBridge {
+  terminateCount = 0;
+  private readonly listeners =
+    new Map<string, Set<(event: unknown) => void>>();
+  private nextResponseTransform: ((response: unknown) => unknown) | null = null;
+
+  constructor(
+    private readonly kernel: MainWireScientificInProcessKernelV1,
+  ) {}
+
+  port(): MainWireScientificWorkerLikeV1 {
+    return this as unknown as MainWireScientificWorkerLikeV1;
+  }
+
+  postMessage(message: unknown): void {
+    void this.kernel.handle(message).then((response) => {
+      const transform = this.nextResponseTransform;
+      this.nextResponseTransform = null;
+      this.emit("message", {
+        data: transform === null ? response : transform(response),
+      });
+    });
+  }
+
+  terminate(): void {
+    this.terminateCount += 1;
+  }
+
+  addEventListener(type: string, listener: (event: unknown) => void): void {
+    const listeners = this.listeners.get(type) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  removeEventListener(type: string, listener: (event: unknown) => void): void {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  transformNextResponse(transform: (response: unknown) => unknown): void {
+    this.nextResponseTransform = transform;
+  }
+
+  private emit(type: string, event: unknown): void {
+    for (const listener of [...(this.listeners.get(type) ?? [])]) {
+      listener(event);
+    }
+  }
+}

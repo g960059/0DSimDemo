@@ -9,6 +9,10 @@ import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type ScientificCommandV1,
 } from "@/engine/scientific/worker";
+import {
+  createMainWireScientificResearchControlBaselineTargetStateV0,
+  type MainWireScientificResearchControlTargetStateV0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 
 describe("main-wire scientific browser Worker transport V1", () => {
   it("matches concurrent responses by caller-supplied requestId", async () => {
@@ -338,6 +342,8 @@ describe("main-wire scientific browser Worker transport V1", () => {
   it("binds the V3 official document-case response to its pinned refs", async () => {
     const worker = new FakeWorker();
     const client = clientFor(worker);
+    const baselineControlState =
+      await createMainWireScientificResearchControlBaselineTargetStateV0();
     const submitted = officialDocumentCaseCommand(
       "request-official-document-case",
       "official-document-case-session",
@@ -345,7 +351,7 @@ describe("main-wire scientific browser Worker transport V1", () => {
     const pending = client.request(submitted);
     worker.emitMessage(successResponse(
       submitted,
-      officialDocumentCasePayload(),
+      officialDocumentCasePayload(baselineControlState),
       OFFICIAL_DOCUMENT_CASE_ORIGIN,
       OFFICIAL_RELEASE_REF,
     ));
@@ -361,6 +367,29 @@ describe("main-wire scientific browser Worker transport V1", () => {
     expect(client.status).toBe("open");
     client.terminate();
 
+    const tamperedControlWorker = new FakeWorker();
+    const tamperedControlClient = clientFor(tamperedControlWorker);
+    const tamperedControlSubmitted = officialDocumentCaseCommand(
+      "request-tampered-baseline-control",
+      "tampered-baseline-control-session",
+    );
+    const tamperedControlPending = tamperedControlClient.request(
+      tamperedControlSubmitted,
+    );
+    const tamperedControlPayload = structuredClone(
+      officialDocumentCasePayload(baselineControlState),
+    ) as Record<string, any>;
+    tamperedControlPayload.researchControlContext.controlState.controls[
+      "circulation.pulmonary-vascular-resistance-scale"
+    ] = 0.75;
+    tamperedControlWorker.emitMessage(successResponse(
+      tamperedControlSubmitted,
+      tamperedControlPayload,
+      OFFICIAL_DOCUMENT_CASE_ORIGIN,
+      OFFICIAL_RELEASE_REF,
+    ));
+    await expectTransportError(tamperedControlPending, "protocol-mismatch");
+
     const forgedWorker = new FakeWorker();
     const forgedClient = clientFor(forgedWorker);
     const forgedSubmitted = officialDocumentCaseCommand(
@@ -370,7 +399,7 @@ describe("main-wire scientific browser Worker transport V1", () => {
     const forgedPending = forgedClient.request(forgedSubmitted);
     forgedWorker.emitMessage(successResponse(
       forgedSubmitted,
-      officialDocumentCasePayload(),
+      officialDocumentCasePayload(baselineControlState),
       {
         ...OFFICIAL_DOCUMENT_CASE_ORIGIN,
         workspaceRef: {
@@ -479,7 +508,9 @@ function officialDocumentCaseCommand(
   });
 }
 
-function officialDocumentCasePayload() {
+function officialDocumentCasePayload(
+  controlState: MainWireScientificResearchControlTargetStateV0,
+) {
   return {
     kind: "officialDocumentCaseSessionCreated",
     presetId: "circleheart/official-healthy-periodic",
@@ -491,8 +522,18 @@ function officialDocumentCasePayload() {
     caseRef: OFFICIAL_CASE_REF,
     workspaceRef: OFFICIAL_WORKSPACE_REF,
     periodicSteadyStateClaimed: true,
+    researchControlContext: {
+      stateIdentity: {
+        revision: 13_000,
+        acceptedTimeSec: 26,
+        totalBloodVolumeMl: 5_000,
+      },
+      controlState,
+      parameterEpoch: 0,
+    },
     observableFrame: {
       revision: 13_000,
+      acceptedTimeSec: 26,
       releaseRef: OFFICIAL_RELEASE_REF,
     },
   };

@@ -24,6 +24,9 @@ import type {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION,
   MainWireScientificResearchPresetIdV1,
 } from "@/engine/scientific/presets/mainWireScientificResearchPresetCatalogV1";
+import type {
+  MainWireScientificResearchControlTargetStateV0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 
 export const SCIENTIFIC_COMMAND_PROTOCOL_V1_ID =
   "circleheart-scientific-command-protocol-v1" as const;
@@ -35,6 +38,7 @@ export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "createOfficialDocumentCaseSession",
   "createResearchPresetSession",
   "createResearchDocumentCaseSession",
+  "forkResearchControlSession",
   "runTransient",
   "observe",
   "getExactCheckpoint",
@@ -104,6 +108,33 @@ export type CreateResearchDocumentCaseSessionCommandV1 =
     presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
   }>;
 
+export type MainWireScientificAcceptedStateIdentityV0 = Readonly<{
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+}>;
+
+export type ScientificResearchControlContextV0 = Readonly<{
+  stateIdentity: MainWireScientificAcceptedStateIdentityV0;
+  controlState: MainWireScientificResearchControlTargetStateV0;
+  parameterEpoch: number;
+}>;
+
+/**
+ * Experimental release-bound state-preserving parameter transition. The
+ * target receives a new sessionId while sourceSessionId remains active, so a
+ * host can either promote the target after P1 or discard it during live reset.
+ */
+export type ForkResearchControlSessionCommandV0 =
+  CommandBaseV1<"forkResearchControlSession"> & Readonly<{
+    sourceSessionId: string;
+    expectedSource: MainWireScientificAcceptedStateIdentityV0 & Readonly<{
+      controlStateSha256: string;
+      parameterEpoch: number;
+    }>;
+    targetControlState: MainWireScientificResearchControlTargetStateV0;
+  }>;
+
 export type RunTransientCommandV1 = CommandBaseV1<"runTransient"> & Readonly<{
   dtSec: number;
   stepCount: number;
@@ -132,6 +163,7 @@ export type ScientificCommandV1 =
   | CreateOfficialDocumentCaseSessionCommandV1
   | CreateResearchPresetSessionCommandV1
   | CreateResearchDocumentCaseSessionCommandV1
+  | ForkResearchControlSessionCommandV0
   | RunTransientCommandV1
   | ObserveCommandV1
   | GetExactCheckpointCommandV1
@@ -156,6 +188,8 @@ export type ScientificCommandErrorCodeV1 =
   | "official-document-case-restore-rejected"
   | "research-preset-resolution-rejected"
   | "research-document-case-resolution-rejected"
+  | "research-control-fork-rejected"
+  | "state-precondition-failed"
   | "checkpoint-failed"
   | "exact-restore-rejected"
   | "command-failed";
@@ -242,6 +276,28 @@ export type ScientificSessionOriginV1 =
     workspaceRef: MainWireScientificWorkspaceDocumentRefV1;
     initializationProtocolId: string;
     initializationProtocolVersion: string;
+  }>
+  | Readonly<{
+    kind: "research-control-state-preserving-fork-v0";
+    classification: "research-only-experimental-not-clinical";
+    releaseRef: SimulationReleaseRef;
+    sourceSessionId: string;
+    baseSessionInputSha256: string;
+    sourceControlStateSha256: string;
+    targetControlStateSha256: string;
+    parameterEpoch: number;
+    transitionProtocolId:
+      "main-wire-research-control-state-preserving-fork-v0";
+    transitionProtocolVersion: "0.0.0";
+    acceptedStatePreservedAtFork: true;
+    periodicTrackerResetAtFork: true;
+    sourceSessionRetainedAtFork: true;
+    exactCheckpointCapability:
+      "unavailable-until-control-aware-checkpoint-v4";
+    periodicSteadyStateClaimed: false;
+    officialTrustClaimed: false;
+    clinicalDiagnosisClaimed: false;
+    clinicalValidationClaimed: false;
   }>;
 
 export type ScientificTransientExecutionProtocolV1 = Readonly<{
@@ -318,6 +374,7 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       caseRef: MainWireScientificCaseDocumentRefV1;
       workspaceRef: MainWireScientificWorkspaceDocumentRefV1;
       periodicSteadyStateClaimed: true;
+      researchControlContext: ScientificResearchControlContextV0;
       observableFrame: TObservableFrame;
     }>;
     createResearchPresetSession: Readonly<{
@@ -344,6 +401,22 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       caseRef: MainWireScientificCaseDocumentRefV1;
       workspaceRef: MainWireScientificWorkspaceDocumentRefV1;
       workspaceDocument: MainWireScientificWorkspaceDocumentV1;
+      observableFrame: TObservableFrame;
+    }>;
+    forkResearchControlSession: Readonly<{
+      kind: "researchControlSessionForked";
+      sourceSessionId: string;
+      sourceStateIdentity: MainWireScientificAcceptedStateIdentityV0;
+      targetStateIdentity: MainWireScientificAcceptedStateIdentityV0;
+      sourceControlStateSha256: string;
+      targetControlState:
+        MainWireScientificResearchControlTargetStateV0;
+      parameterEpoch: number;
+      acceptedStatePreservedAtFork: true;
+      periodicTrackerResetAtFork: true;
+      sourceSessionRetainedAtFork: true;
+      exactCheckpointAvailable: false;
+      periodicSteadyStateClaimed: false;
       observableFrame: TObservableFrame;
     }>;
     runTransient: Readonly<{

@@ -13,6 +13,15 @@ import {
   OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING,
   OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID,
 } from "@/engine/scientific/documents";
+import {
+  canonicalJsonStringify,
+} from "@/engine/scientific/release";
+import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_SHA256_V0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
+import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_TARGET_STATE_SHA256_V0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 import type {
   SimulationReleaseRef,
 } from "@/engine/scientific/release";
@@ -138,6 +147,16 @@ type PendingCommandIdentityV1 = Readonly<{
     presetId: MainWireScientificResearchPresetIdV1;
     presetVersion: typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_V1_VERSION;
   }> | null;
+  researchControlFork: Readonly<{
+    sourceSessionId: string;
+    expectedRevision: number;
+    expectedAcceptedTimeSec: number;
+    expectedTotalBloodVolumeMl: number;
+    expectedControlStateSha256: string;
+    expectedParameterEpoch: number;
+    targetControlStateSha256: string;
+    targetControlStateCanonicalJson: string;
+  }> | null;
 }>;
 
 type ResearchDocumentCaseOriginV1 = Extract<
@@ -148,6 +167,16 @@ type ResearchDocumentCaseOriginV1 = Extract<
 type ResearchDocumentSessionBindingV1 = Readonly<{
   releaseRef: SimulationReleaseRef;
   origin: ResearchDocumentCaseOriginV1;
+}>;
+
+type ResearchControlForkOriginV0 = Extract<
+  ScientificSessionOriginV1,
+  Readonly<{ kind: "research-control-state-preserving-fork-v0" }>
+>;
+
+type ResearchControlSessionBindingV0 = Readonly<{
+  releaseRef: SimulationReleaseRef;
+  origin: ResearchControlForkOriginV0;
 }>;
 
 /**
@@ -164,6 +193,8 @@ export class MainWireScientificWorkerClientV1 {
   private readonly completedRequestIds = new Set<string>();
   private readonly researchDocumentSessionBindings =
     new Map<string, ResearchDocumentSessionBindingV1>();
+  private readonly researchControlSessionBindings =
+    new Map<string, ResearchControlSessionBindingV0>();
   private currentStatus: MainWireScientificWorkerClientStatusV1 = "open";
   private terminalError: MainWireScientificWorkerTransportErrorV1 | null = null;
 
@@ -360,6 +391,21 @@ export class MainWireScientificWorkerClientV1 {
       ));
       return;
     }
+    const existingControlBinding =
+      this.researchControlSessionBindings.get(pending.sessionId);
+    if (
+      existingControlBinding !== undefined
+      && !isResponseBoundToResearchControlSession(
+        value,
+        existingControlBinding,
+      )
+    ) {
+      this.failClosed(newTransportError(
+        "protocol-mismatch",
+        `scientific Worker response escaped the research control session binding for requestId ${value.requestId}`,
+      ));
+      return;
+    }
     if (
       value.ok
       && pending.commandKind === "createResearchDocumentCaseSession"
@@ -374,8 +420,20 @@ export class MainWireScientificWorkerClientV1 {
       }
       this.researchDocumentSessionBindings.set(pending.sessionId, binding);
     }
+    if (value.ok && pending.commandKind === "forkResearchControlSession") {
+      const binding = captureResearchControlSessionBinding(value);
+      if (binding === null) {
+        this.failClosed(newTransportError(
+          "protocol-mismatch",
+          `scientific Worker did not establish a research control session binding for requestId ${value.requestId}`,
+        ));
+        return;
+      }
+      this.researchControlSessionBindings.set(pending.sessionId, binding);
+    }
     if (value.ok && pending.commandKind === "disposeSession") {
       this.researchDocumentSessionBindings.delete(pending.sessionId);
+      this.researchControlSessionBindings.delete(pending.sessionId);
     }
     this.pending.delete(value.requestId);
     this.completedRequestIds.add(value.requestId);
@@ -642,6 +700,50 @@ function isSessionOrigin(value: unknown): boolean {
       && typeof value.initializationProtocolVersion === "string"
       && value.initializationProtocolVersion.length > 0;
   }
+  if (value.kind === "research-control-state-preserving-fork-v0") {
+    return hasExactKeys(value, [
+      "kind",
+      "classification",
+      "releaseRef",
+      "sourceSessionId",
+      "baseSessionInputSha256",
+      "sourceControlStateSha256",
+      "targetControlStateSha256",
+      "parameterEpoch",
+      "transitionProtocolId",
+      "transitionProtocolVersion",
+      "acceptedStatePreservedAtFork",
+      "periodicTrackerResetAtFork",
+      "sourceSessionRetainedAtFork",
+      "exactCheckpointCapability",
+      "periodicSteadyStateClaimed",
+      "officialTrustClaimed",
+      "clinicalDiagnosisClaimed",
+      "clinicalValidationClaimed",
+    ])
+      && value.classification
+        === "research-only-experimental-not-clinical"
+      && exactResearchReleaseRef(value.releaseRef)
+      && typeof value.sourceSessionId === "string"
+      && value.sourceSessionId.length > 0
+      && isSha256(value.baseSessionInputSha256)
+      && isSha256(value.sourceControlStateSha256)
+      && isSha256(value.targetControlStateSha256)
+      && Number.isSafeInteger(value.parameterEpoch)
+      && (value.parameterEpoch as number) > 0
+      && value.transitionProtocolId
+        === "main-wire-research-control-state-preserving-fork-v0"
+      && value.transitionProtocolVersion === "0.0.0"
+      && value.acceptedStatePreservedAtFork === true
+      && value.periodicTrackerResetAtFork === true
+      && value.sourceSessionRetainedAtFork === true
+      && value.exactCheckpointCapability
+        === "unavailable-until-control-aware-checkpoint-v4"
+      && value.periodicSteadyStateClaimed === false
+      && value.officialTrustClaimed === false
+      && value.clinicalDiagnosisClaimed === false
+      && value.clinicalValidationClaimed === false;
+  }
   return false;
 }
 
@@ -685,6 +787,22 @@ function capturePendingCommandIdentity(
           presetVersion: command.presetVersion,
         })
         : null,
+    researchControlFork: command.kind === "forkResearchControlSession"
+      ? Object.freeze({
+        sourceSessionId: command.sourceSessionId,
+        expectedRevision: command.expectedSource.revision,
+        expectedAcceptedTimeSec: command.expectedSource.acceptedTimeSec,
+        expectedTotalBloodVolumeMl:
+          command.expectedSource.totalBloodVolumeMl,
+        expectedControlStateSha256:
+          command.expectedSource.controlStateSha256,
+        expectedParameterEpoch: command.expectedSource.parameterEpoch,
+        targetControlStateSha256:
+          command.targetControlState.targetStateSha256,
+        targetControlStateCanonicalJson:
+          canonicalJsonStringify(command.targetControlState),
+      })
+      : null,
   });
 }
 
@@ -798,6 +916,7 @@ function isResponseCompatibleWithSubmittedCommand(
         "caseRef",
         "workspaceRef",
         "periodicSteadyStateClaimed",
+        "researchControlContext",
         "observableFrame",
       ])
       && payload.kind === "officialDocumentCaseSessionCreated"
@@ -811,6 +930,10 @@ function isResponseCompatibleWithSubmittedCommand(
       && sameDocumentRef(payload.workspaceRef, origin.workspaceRef)
       && payload.periodicSteadyStateClaimed === true
       && isRecord(payload.observableFrame)
+      && isOfficialBaselineResearchControlContextV0(
+        payload.researchControlContext,
+        payload.observableFrame,
+      )
       && exactOfficialDocumentChainReleaseRef(
         payload.observableFrame.releaseRef,
       );
@@ -915,6 +1038,71 @@ function isResponseCompatibleWithSubmittedCommand(
       && isRecord(payload.observableFrame)
       && exactResearchReleaseRef(payload.observableFrame.releaseRef);
   }
+  if (submitted.kind === "forkResearchControlSession") {
+    const expected = submitted.researchControlFork;
+    if (expected === null) return false;
+    const origin = response.sessionOrigin;
+    const payload = response.payload;
+    if (
+      origin.kind !== "research-control-state-preserving-fork-v0"
+      || !exactResearchReleaseRef(response.releaseRef)
+      || origin.sourceControlStateSha256
+        !== expected.expectedControlStateSha256
+      || origin.targetControlStateSha256
+        !== expected.targetControlStateSha256
+      || origin.parameterEpoch !== expected.expectedParameterEpoch + 1
+      || !isRecord(payload)
+      || !hasExactKeys(payload, [
+        "kind",
+        "sourceSessionId",
+        "sourceStateIdentity",
+        "targetStateIdentity",
+        "sourceControlStateSha256",
+        "targetControlState",
+        "parameterEpoch",
+        "acceptedStatePreservedAtFork",
+        "periodicTrackerResetAtFork",
+        "sourceSessionRetainedAtFork",
+        "exactCheckpointAvailable",
+        "periodicSteadyStateClaimed",
+        "observableFrame",
+      ])
+      || payload.kind !== "researchControlSessionForked"
+      || payload.sourceSessionId !== expected.sourceSessionId
+      || origin.sourceSessionId !== expected.sourceSessionId
+      || payload.sourceControlStateSha256
+        !== expected.expectedControlStateSha256
+      || payload.parameterEpoch !== expected.expectedParameterEpoch + 1
+      || payload.acceptedStatePreservedAtFork !== true
+      || payload.periodicTrackerResetAtFork !== true
+      || payload.sourceSessionRetainedAtFork !== true
+      || payload.exactCheckpointAvailable !== false
+      || payload.periodicSteadyStateClaimed !== false
+      || !isAcceptedStateIdentityV0(payload.sourceStateIdentity)
+      || !isAcceptedStateIdentityV0(payload.targetStateIdentity)
+      || !sameAcceptedStateIdentityV0(
+        payload.sourceStateIdentity,
+        payload.targetStateIdentity,
+      )
+      || payload.sourceStateIdentity.revision !== expected.expectedRevision
+      || payload.sourceStateIdentity.acceptedTimeSec
+        !== expected.expectedAcceptedTimeSec
+      || payload.sourceStateIdentity.totalBloodVolumeMl
+        !== expected.expectedTotalBloodVolumeMl
+      || !isResearchControlTargetStateIdentityV0(
+        payload.targetControlState,
+        expected.targetControlStateSha256,
+      )
+      || canonicalJsonStringify(payload.targetControlState)
+        !== expected.targetControlStateCanonicalJson
+      || !isRecord(payload.observableFrame)
+      || payload.observableFrame.revision !== expected.expectedRevision
+      || payload.observableFrame.acceptedTimeSec
+        !== expected.expectedAcceptedTimeSec
+      || payload.observableFrame.source !== "research-control-state-fork"
+    ) return false;
+    return true;
+  }
   return true;
 }
 
@@ -937,6 +1125,87 @@ function captureResearchDocumentSessionBinding(
       workspaceRef: Object.freeze({ ...origin.workspaceRef }),
     }),
   });
+}
+
+function captureResearchControlSessionBinding(
+  response: ProtocolEnvelope,
+): ResearchControlSessionBindingV0 | null {
+  if (
+    !response.ok
+    || response.commandKind !== "forkResearchControlSession"
+    || response.sessionOrigin.kind
+      !== "research-control-state-preserving-fork-v0"
+  ) return null;
+  return Object.freeze({
+    releaseRef: Object.freeze({ ...response.releaseRef }),
+    origin: Object.freeze({
+      ...response.sessionOrigin,
+      releaseRef: Object.freeze({ ...response.sessionOrigin.releaseRef }),
+    }),
+  });
+}
+
+function isResponseBoundToResearchControlSession(
+  response: ProtocolEnvelope,
+  binding: ResearchControlSessionBindingV0,
+): boolean {
+  if (
+    !sameReleaseRef(response.releaseRef, binding.releaseRef)
+    || !sameResearchControlOriginV0(response.sessionOrigin, binding.origin)
+  ) return false;
+  const frames: unknown[] = [];
+  if (response.ok) {
+    const payload = response.payload;
+    if (isRecord(payload)) {
+      const payloadRecord = payload as unknown as Record<string, unknown>;
+      if ("observableFrame" in payloadRecord) {
+        frames.push(payloadRecord.observableFrame);
+      }
+      if ("finalObservableFrame" in payloadRecord) {
+        frames.push(payloadRecord.finalObservableFrame);
+      }
+      if (Array.isArray(payloadRecord.observableFrames)) {
+        frames.push(...payloadRecord.observableFrames);
+      }
+      if ("checkpoint" in payloadRecord) return false;
+    }
+  } else {
+    frames.push(...response.error.observableFrames);
+    const partial = response.error.partialProgress;
+    if (isRecord(partial) && "finalObservableFrame" in partial) {
+      frames.push(partial.finalObservableFrame);
+    }
+  }
+  return frames.every((frame) =>
+    isRecord(frame) && sameReleaseRef(frame.releaseRef, binding.releaseRef));
+}
+
+function sameResearchControlOriginV0(
+  value: unknown,
+  expected: ResearchControlForkOriginV0,
+): boolean {
+  return isRecord(value)
+    && value.kind === expected.kind
+    && value.classification === expected.classification
+    && sameReleaseRef(value.releaseRef, expected.releaseRef)
+    && value.sourceSessionId === expected.sourceSessionId
+    && value.baseSessionInputSha256 === expected.baseSessionInputSha256
+    && value.sourceControlStateSha256
+      === expected.sourceControlStateSha256
+    && value.targetControlStateSha256
+      === expected.targetControlStateSha256
+    && value.parameterEpoch === expected.parameterEpoch
+    && value.transitionProtocolId === expected.transitionProtocolId
+    && value.transitionProtocolVersion === expected.transitionProtocolVersion
+    && value.acceptedStatePreservedAtFork === true
+    && value.periodicTrackerResetAtFork === true
+    && value.sourceSessionRetainedAtFork === true
+    && value.exactCheckpointCapability
+      === "unavailable-until-control-aware-checkpoint-v4"
+    && value.periodicSteadyStateClaimed === false
+    && value.officialTrustClaimed === false
+    && value.clinicalDiagnosisClaimed === false
+    && value.clinicalValidationClaimed === false;
 }
 
 /** Every response for a created research Case remains bound to that exact
@@ -1119,6 +1388,162 @@ function isResearchPresetIdentity(
 
 function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+}
+
+function isAcceptedStateIdentityV0(value: unknown): value is Readonly<{
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+}> {
+  return isRecord(value)
+    && hasExactKeys(value, [
+      "revision",
+      "acceptedTimeSec",
+      "totalBloodVolumeMl",
+    ])
+    && Number.isSafeInteger(value.revision)
+    && (value.revision as number) >= 0
+    && Number.isFinite(value.acceptedTimeSec)
+    && (value.acceptedTimeSec as number) >= 0
+    && Number.isFinite(value.totalBloodVolumeMl)
+    && (value.totalBloodVolumeMl as number) > 0;
+}
+
+function sameAcceptedStateIdentityV0(
+  left: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+  }>,
+  right: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+  }>,
+): boolean {
+  return left.revision === right.revision
+    && left.acceptedTimeSec === right.acceptedTimeSec
+    && left.totalBloodVolumeMl === right.totalBloodVolumeMl;
+}
+
+function isResearchControlTargetStateIdentityV0(
+  value: unknown,
+  expectedSha256?: string,
+): boolean {
+  if (!isRecord(value) || !hasExactKeys(value, [
+    "schemaId",
+    "schemaVersion",
+    "releaseRef",
+    "catalogRef",
+    "classification",
+    "controls",
+    "provenance",
+    "claims",
+    "targetStateSha256",
+  ])) return false;
+  if (
+    value.schemaId
+      !== "circleheart-main-wire-scientific-research-control-target-state-v0"
+    || value.schemaVersion !== 0
+    || !exactResearchReleaseRef(value.releaseRef)
+    || value.classification !== "research-only-experimental-not-clinical"
+    || !isSha256(value.targetStateSha256)
+    || (
+      expectedSha256 !== undefined
+      && value.targetStateSha256 !== expectedSha256
+    )
+    || !isRecord(value.controls)
+    || !hasExactKeys(value.controls, [
+      "circulation.systemic-vascular-resistance-scale",
+      "circulation.pulmonary-vascular-resistance-scale",
+    ])
+  ) return false;
+  const allowed = [0.75, 1, 4 / 3];
+  return allowed.includes(
+    value.controls["circulation.systemic-vascular-resistance-scale"] as number,
+  ) && allowed.includes(
+    value.controls["circulation.pulmonary-vascular-resistance-scale"] as number,
+  );
+}
+
+function isOfficialBaselineResearchControlContextV0(
+  value: unknown,
+  observableFrame: Readonly<Record<string, unknown>>,
+): boolean {
+  if (
+    !isRecord(value)
+    || !hasExactKeys(value, [
+      "stateIdentity",
+      "controlState",
+      "parameterEpoch",
+    ])
+    || !isAcceptedStateIdentityV0(value.stateIdentity)
+    || value.parameterEpoch !== 0
+    || value.stateIdentity.revision !== observableFrame.revision
+    || value.stateIdentity.acceptedTimeSec !== observableFrame.acceptedTimeSec
+    || !isResearchControlTargetStateIdentityV0(
+      value.controlState,
+      MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_TARGET_STATE_SHA256_V0,
+    )
+  ) return false;
+
+  const controlState = value.controlState as Record<string, unknown>;
+  const catalogRef = controlState.catalogRef;
+  const controls = controlState.controls;
+  const provenance = controlState.provenance;
+  const claims = controlState.claims;
+  return isRecord(catalogRef)
+    && hasExactKeys(catalogRef, [
+      "schemaId",
+      "catalogId",
+      "catalogVersion",
+      "catalogSha256",
+    ])
+    && catalogRef.schemaId
+      === "circleheart-main-wire-scientific-research-control-catalog-v0"
+    && catalogRef.catalogId === "main-wire-release-bound-research-controls"
+    && catalogRef.catalogVersion === "0.0.0"
+    && catalogRef.catalogSha256
+      === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_SHA256_V0
+    && isRecord(controls)
+    && controls["circulation.systemic-vascular-resistance-scale"] === 1
+    && controls["circulation.pulmonary-vascular-resistance-scale"] === 1
+    && isRecord(provenance)
+    && hasExactKeys(provenance, [
+      "resolverId",
+      "resolverVersion",
+      "resolution",
+      "digestSemantics",
+    ])
+    && provenance.resolverId
+      === "main-wire-release-bound-research-control-target-state-resolver-v0"
+    && provenance.resolverVersion === "0.0.0"
+    && provenance.resolution === "complete-target-state-not-patch"
+    && provenance.digestSemantics
+      === "sha256-canonical-json-payload-without-targetStateSha256"
+    && isRecord(claims)
+    && hasExactKeys(claims, [
+      "completeTargetState",
+      "baselineScaleIsOne",
+      "partialPatchAccepted",
+      "arbitraryParameterPatchAccepted",
+      "implicitLastWriteWinsApplied",
+      "researchOnly",
+      "experimental",
+      "clinicalDiagnosisClaimed",
+      "clinicalValidationClaimed",
+      "patientSpecificFitClaimed",
+    ])
+    && claims.completeTargetState === true
+    && claims.baselineScaleIsOne === true
+    && claims.partialPatchAccepted === false
+    && claims.arbitraryParameterPatchAccepted === false
+    && claims.implicitLastWriteWinsApplied === false
+    && claims.researchOnly === true
+    && claims.experimental === true
+    && claims.clinicalDiagnosisClaimed === false
+    && claims.clinicalValidationClaimed === false
+    && claims.patientSpecificFitClaimed === false;
 }
 
 function isPresetDocumentRef(value: unknown): boolean {

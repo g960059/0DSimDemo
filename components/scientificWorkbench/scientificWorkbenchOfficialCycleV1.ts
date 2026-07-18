@@ -12,6 +12,7 @@ import {
   type SimulationReleaseRef,
 } from "@/engine/scientific/release";
 import type {
+  ScientificResearchControlContextV0,
   ScientificSessionOriginV1,
 } from "@/engine/scientific/worker";
 import {
@@ -40,6 +41,7 @@ export type ScientificWorkbenchOfficialCycleV1 = Readonly<{
   workspaceDocument: MainWireScientificWorkspaceDocumentV1;
   terminalCycle: ScientificWorkbenchTerminalCycleV1;
   sessionOrigin: OfficialDocumentCaseOriginV1;
+  researchControlContext: ScientificResearchControlContextV0;
   evidence: Readonly<{
     bundledDocumentChainVerified: true;
     workerRestoredExactV3Case: true;
@@ -117,6 +119,10 @@ export async function loadScientificWorkbenchOfficialCycleV1(
     || created.payload.kind !== "officialDocumentCaseSessionCreated"
     || created.sessionOrigin.kind
       !== "official-document-case-v3-exact-checkpoint-restore"
+    || created.payload.researchControlContext.stateIdentity.revision
+      !== created.payload.observableFrame.revision
+    || created.payload.researchControlContext.stateIdentity.acceptedTimeSec
+      !== created.payload.observableFrame.acceptedTimeSec
   ) {
     throw new ScientificWorkbenchOfficialCycleLoadErrorV1(
       "worker-restore",
@@ -255,6 +261,16 @@ export async function loadScientificWorkbenchOfficialCycleV1(
     workspaceDocument: bundle.workspaceDocument,
     terminalCycle,
     sessionOrigin: origin,
+    researchControlContext: Object.freeze({
+      ...created.payload.researchControlContext,
+      stateIdentity: Object.freeze({
+        revision: capturedFinalFrame.revision,
+        acceptedTimeSec: capturedFinalFrame.acceptedTimeSec,
+        totalBloodVolumeMl:
+          created.payload.researchControlContext.stateIdentity
+            .totalBloodVolumeMl,
+      }),
+    }),
     evidence: Object.freeze({
       bundledDocumentChainVerified: true as const,
       workerRestoredExactV3Case: true as const,
