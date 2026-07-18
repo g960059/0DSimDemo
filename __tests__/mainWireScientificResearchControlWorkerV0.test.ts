@@ -286,6 +286,169 @@ describe("main-wire scientific research-control Worker V0", () => {
     await expectTransportError(forgedTargetResponse, "protocol-mismatch");
     expect(client.status).toBe("failed");
   }, 30_000);
+
+  it("fails closed when a fork response changes the source session-input ancestry", async () => {
+    const kernel = new MainWireScientificInProcessKernelV1({
+      maximumSessionCount: 4,
+      officialDocumentCaseLoader:
+        loadBundledOfficialHealthyPeriodicDocumentChainV1,
+    });
+    const worker = new KernelWorkerBridge(kernel);
+    const client = new MainWireScientificWorkerClientV1({
+      workerFactory: () => worker.port(),
+    });
+    const created = await client.request(officialCreateCommand(
+      "request-ancestry-source-create",
+      "ancestry-source",
+    ));
+    if (
+      !created.ok
+      || created.payload.kind !== "officialDocumentCaseSessionCreated"
+    ) throw new Error("official ancestry source creation failed");
+    const context = created.payload.researchControlContext;
+    const lowerSvr = await controlState(0.75, 1);
+
+    worker.transformNextResponse((response) => {
+      const forged = structuredClone(response) as Record<string, any>;
+      forged.sessionOrigin.baseSessionInputSha256 = "f".repeat(64);
+      return forged;
+    });
+    const tamperedFork = client.request({
+      ...baseCommand(
+        "forkResearchControlSession",
+        "request-tampered-ancestry-fork",
+        "tampered-ancestry-target",
+      ),
+      sourceSessionId: "ancestry-source",
+      expectedSource: {
+        ...context.stateIdentity,
+        controlStateSha256: context.controlState.targetStateSha256,
+        parameterEpoch: context.parameterEpoch,
+      },
+      targetControlState: lowerSvr,
+    });
+
+    await expectTransportError(tamperedFork, "protocol-mismatch");
+    expect(client.status).toBe("failed");
+    expect(worker.terminateCount).toBe(1);
+  }, 30_000);
+
+  it("fails closed when a fork frame escapes the response release", async () => {
+    const kernel = new MainWireScientificInProcessKernelV1({
+      maximumSessionCount: 4,
+      officialDocumentCaseLoader:
+        loadBundledOfficialHealthyPeriodicDocumentChainV1,
+    });
+    const worker = new KernelWorkerBridge(kernel);
+    const client = new MainWireScientificWorkerClientV1({
+      workerFactory: () => worker.port(),
+    });
+    const created = await client.request(officialCreateCommand(
+      "request-frame-release-source-create",
+      "frame-release-source",
+    ));
+    if (
+      !created.ok
+      || created.payload.kind !== "officialDocumentCaseSessionCreated"
+    ) throw new Error("official frame-release source creation failed");
+    const context = created.payload.researchControlContext;
+    const lowerSvr = await controlState(0.75, 1);
+
+    worker.transformNextResponse((response) => {
+      const forged = structuredClone(response) as Record<string, any>;
+      forged.payload.observableFrame.releaseRef.sha256 = "e".repeat(64);
+      return forged;
+    });
+    const tamperedFork = client.request({
+      ...baseCommand(
+        "forkResearchControlSession",
+        "request-tampered-frame-release-fork",
+        "tampered-frame-release-target",
+      ),
+      sourceSessionId: "frame-release-source",
+      expectedSource: {
+        ...context.stateIdentity,
+        controlStateSha256: context.controlState.targetStateSha256,
+        parameterEpoch: context.parameterEpoch,
+      },
+      targetControlState: lowerSvr,
+    });
+
+    await expectTransportError(tamperedFork, "protocol-mismatch");
+    expect(client.status).toBe("failed");
+    expect(worker.terminateCount).toBe(1);
+  }, 30_000);
+
+  it("fails closed on every successful checkpoint response from a control target", async () => {
+    const kernel = new MainWireScientificInProcessKernelV1({
+      maximumSessionCount: 4,
+      officialDocumentCaseLoader:
+        loadBundledOfficialHealthyPeriodicDocumentChainV1,
+    });
+    const worker = new KernelWorkerBridge(kernel);
+    const client = new MainWireScientificWorkerClientV1({
+      workerFactory: () => worker.port(),
+    });
+    const created = await client.request(officialCreateCommand(
+      "request-checkpoint-source-create",
+      "checkpoint-source",
+    ));
+    if (
+      !created.ok
+      || created.payload.kind !== "officialDocumentCaseSessionCreated"
+    ) throw new Error("official checkpoint source creation failed");
+    const sourceCheckpoint = await client.request(baseCommand(
+      "getExactCheckpoint",
+      "request-source-valid-checkpoint",
+      "checkpoint-source",
+    ));
+    if (
+      !sourceCheckpoint.ok
+      || sourceCheckpoint.payload.kind !== "exactCheckpoint"
+    ) throw new Error("official source checkpoint failed");
+    const exactSourceCheckpoint = sourceCheckpoint.payload.checkpoint;
+    const context = created.payload.researchControlContext;
+    const lowerSvr = await controlState(0.75, 1);
+    const forked = await client.request({
+      ...baseCommand(
+        "forkResearchControlSession",
+        "request-checkpoint-target-fork",
+        "checkpoint-target",
+      ),
+      sourceSessionId: "checkpoint-source",
+      expectedSource: {
+        ...context.stateIdentity,
+        controlStateSha256: context.controlState.targetStateSha256,
+        parameterEpoch: context.parameterEpoch,
+      },
+      targetControlState: lowerSvr,
+    });
+    if (!forked.ok || forked.payload.kind !== "researchControlSessionForked") {
+      throw new Error("checkpoint target fork failed");
+    }
+    const targetForkFrame = forked.payload.observableFrame;
+
+    worker.transformNextResponse((response) => {
+      const forged = structuredClone(response) as Record<string, any>;
+      forged.ok = true;
+      forged.error = null;
+      forged.payload = {
+        kind: "exactCheckpoint",
+        checkpoint: exactSourceCheckpoint,
+        observableFrame: targetForkFrame,
+      };
+      return forged;
+    });
+    const forgedCheckpoint = client.request(baseCommand(
+      "getExactCheckpoint",
+      "request-forged-target-checkpoint",
+      "checkpoint-target",
+    ));
+
+    await expectTransportError(forgedCheckpoint, "protocol-mismatch");
+    expect(client.status).toBe("failed");
+    expect(worker.terminateCount).toBe(1);
+  }, 30_000);
 });
 
 function officialCreateCommand(

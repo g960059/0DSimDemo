@@ -104,6 +104,11 @@ describe("ScientificWorkspaceRendererV1", () => {
 
     expect(html).toContain("data-testid=\"scientific-workspace-renderer-v1\"");
     expect(html).toContain(`data-workspace-sha256=\"${document.ref.sha256}\"`);
+    expect(html).toContain("data-frame-count=\"4\"");
+    expect(html).toContain("data-first-revision=\"1\"");
+    expect(html).toContain("data-final-revision=\"4\"");
+    expect(html).toContain("data-first-accepted-time-sec=\"1\"");
+    expect(html).toContain("data-final-accepted-time-sec=\"1.006\"");
     expect(html).toContain("data-panel-kind=\"time-series\"");
     expect(html).toContain("data-panel-kind=\"pressure-volume\"");
     expect(html).toContain("data-panel-kind=\"numeric-table\"");

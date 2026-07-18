@@ -116,6 +116,35 @@ describe("main-wire scientific workbench research cycle V1", () => {
     expect(transientRequestCount).toBe(0);
   }, 30_000);
 
+  it("rejects settlement evidence shifted away from the created cold boundary", async () => {
+    const kernel = new MainWireScientificInProcessKernelV1();
+    let transientRequestCount = 0;
+    const client = Object.freeze({
+      async request(command: ScientificCommandV1) {
+        if (command.kind === "runTransient") transientRequestCount += 1;
+        const response = await kernel.handle(command);
+        if (
+          command.kind !== "settlePeriodic"
+          || !response.ok
+          || response.payload.kind !== "periodic-settlement-progress"
+          || response.payload.completedBeatCount !== 1
+        ) return response;
+        const forged = structuredClone(response) as Record<string, any>;
+        forged.payload.anchorAcceptedTimeSec += 0.25;
+        forged.payload.anchorPhase01 =
+          (forged.payload.anchorPhase01 + 0.25) % 1;
+        forged.payload.finalObservableFrame.acceptedTimeSec += 0.25;
+        return forged;
+      },
+    }) as Pick<MainWireScientificWorkerClientV1, "request">;
+
+    await expect(loadScientificWorkbenchResearchCycleV1(client, {
+      sessionId: "scientific-workbench-shifted-settlement-anchor",
+      presetId: "main-wire/healthy-cold",
+    })).rejects.toThrow(/invalid settlement evidence/);
+    expect(transientRequestCount).toBe(0);
+  }, 30_000);
+
   it("rejects an outer-only P1 status spoof before cycle capture", async () => {
     const kernel = new MainWireScientificInProcessKernelV1();
     let transientRequestCount = 0;

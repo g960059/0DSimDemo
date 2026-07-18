@@ -10,6 +10,11 @@ import {
 
 import { ScientificWorkspaceRendererV1 } from "./ScientificWorkspaceRendererV1";
 import {
+  SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0,
+  ScientificWorkbenchResearchControlV0,
+  type ScientificWorkbenchResearchControlSourceV0,
+} from "./ScientificWorkbenchResearchControlV0";
+import {
   SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1,
 } from "./scientificWorkbenchTerminalCycleV1";
 import {
@@ -52,6 +57,10 @@ type ScientificWorkbenchPageStateV1 =
   | Readonly<{
     phase: "ready";
     result: ScientificWorkbenchReadyResultV1;
+    runtime: Readonly<{
+      client: MainWireScientificWorkerClientV1;
+      sessionId: string;
+    }> | null;
   }>
   | Readonly<{
     phase: "failed";
@@ -61,9 +70,9 @@ type ScientificWorkbenchPageStateV1 =
 let sessionOrdinal = 0;
 
 /**
- * Document-bound scientific presentation route. It intentionally exposes no
- * legacy backend selector, free parameter controls, persistence, or mutation
- * surface while the new runtime remains behind explicit validation gates.
+ * Document-bound scientific presentation route. Its sole mutation surface is
+ * the release-bound research controller; legacy backends, arbitrary patches,
+ * and persistence remain outside this runtime.
  */
 export default function ScientificWorkbenchPageV1() {
   const [selection, setSelection] =
@@ -72,11 +81,16 @@ export default function ScientificWorkbenchPageV1() {
     phase: "loading",
     message: loadingMessageForSelection(OFFICIAL_SELECTION),
   });
+  const [transitionActive, setTransitionActive] = React.useState(false);
 
   React.useEffect(() => {
     const client = new MainWireScientificWorkerClientV1({
       maximumPendingRequestCount: 1,
-      maximumRequestCountPerClientLifetime: 160,
+      // Official load consumes 127 requests. Repeated warm forks, bounded
+      // settlement, following-cycle capture, and live accepted-step commands
+      // deliberately share one long-lived Worker/client.
+      maximumRequestCountPerClientLifetime:
+        SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0,
     });
     const sessionId = nextScientificWorkbenchSessionId();
     let active = true;
@@ -85,6 +99,7 @@ export default function ScientificWorkbenchPageV1() {
       phase: "loading",
       message: loadingMessageForSelection(selection),
     });
+    setTransitionActive(false);
 
     const load = selection === OFFICIAL_SELECTION
       ? loadScientificWorkbenchOfficialCycleV1(client, { sessionId }).then(
@@ -115,18 +130,26 @@ export default function ScientificWorkbenchPageV1() {
 
     void load
       .then((result) => {
-        if (active) setState({ phase: "ready", result });
+        if (active) {
+          const runtime = result.kind === "official"
+            ? Object.freeze({ client, sessionId })
+            : null;
+          if (runtime === null) client.terminate();
+          setState({
+            phase: "ready",
+            result,
+            runtime,
+          });
+        }
       })
       .catch((error: unknown) => {
         if (active) {
+          client.terminate();
           setState({
             phase: "failed",
             message: error instanceof Error ? error.message : String(error),
           });
         }
-      })
-      .finally(() => {
-        client.terminate();
       });
 
     return () => {
@@ -164,7 +187,7 @@ export default function ScientificWorkbenchPageV1() {
         </div>
         <p className="max-w-4xl text-sm leading-6 text-slate-400">
           {selection === OFFICIAL_SELECTION
-            ? "One immutable release, resolved input, exact V3 checkpoint, case, and presentation workspace."
+            ? "One immutable base release, resolved input, exact V3 checkpoint, case, and presentation workspace. Transitioned data remains linked to this ancestry while its displayed evidence and control identity are reported separately below."
             : "One immutable release and content-addressed Preset, Case, resolved input, and presentation Workspace. Research cases start independently from cold state and are plotted only after numerical P1 convergence."}
           {" "}Plots use accepted-state samples only; unavailable values remain
           unavailable and no smoothing or interpolation is applied.
@@ -177,6 +200,7 @@ export default function ScientificWorkbenchPageV1() {
             className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none ring-sky-500 focus:ring-2"
             data-testid="scientific-workbench-case-selector-v1"
             value={selection}
+            disabled={transitionActive}
             onChange={(event) => {
               const nextSelection =
                 event.currentTarget.value as ScientificWorkbenchSelectionV1;
@@ -217,7 +241,11 @@ export default function ScientificWorkbenchPageV1() {
           </StatusPanel>
         )}
         {state.phase === "ready" && (
-          <ScientificWorkbenchReadyV1 result={state.result} />
+          <ScientificWorkbenchReadyV1
+            result={state.result}
+            runtime={state.runtime ?? undefined}
+            onTransitionActivityChange={setTransitionActive}
+          />
         )}
       </div>
     </main>
@@ -226,7 +254,16 @@ export default function ScientificWorkbenchPageV1() {
 
 export function ScientificWorkbenchReadyV1({
   result,
-}: Readonly<{ result: ScientificWorkbenchReadyResultV1 }>) {
+  runtime,
+  onTransitionActivityChange,
+}: Readonly<{
+  result: ScientificWorkbenchReadyResultV1;
+  runtime?: Readonly<{
+    client: MainWireScientificWorkerClientV1;
+    sessionId: string;
+  }>;
+  onTransitionActivityChange?: (active: boolean) => void;
+}>) {
   const { terminalCycle, workspaceDocument, sessionOrigin } = result.result;
   const official = result.kind === "official";
   const periodicValue = result.kind === "official"
@@ -235,31 +272,42 @@ export function ScientificWorkbenchReadyV1({
   const provenanceDetail = result.kind === "official"
     ? `checkpoint ${shortDigest(result.result.sessionOrigin.checkpointSha256)}`
     : `${shortDigest(result.result.sessionOrigin.presetRef.sha256)} · input ${shortDigest(result.result.sessionOrigin.sessionInputSha256)}`;
+  const controlSource = React.useMemo<
+    ScientificWorkbenchResearchControlSourceV0 | null
+  >(() => result.kind === "official" && runtime !== undefined
+    ? Object.freeze({
+      sessionId: runtime.sessionId,
+      context: result.result.researchControlContext,
+      frames: result.result.terminalCycle.frames,
+    })
+    : null, [result, runtime]);
   return (
     <div className="space-y-5">
       <section
         className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
-        aria-label="Scientific workspace provenance"
+        aria-label="Scientific workspace base ancestry"
       >
         <EvidenceCard
-          label="Periodic evidence"
+          label="Initial source periodic evidence"
           value={periodicValue}
           detail={official
-            ? "Exact restore; confirmation advanced 0 steps"
+            ? "Initial exact restore; confirmation advanced 0 steps"
             : "Independent cold start; whole-beat numerical closure"}
         />
         <EvidenceCard
-          label="Captured cycle"
+          label="Initial source captured cycle"
           value={`${terminalCycle.frames.length} boundary-inclusive frames`}
           detail={`${SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec * 1_000} ms cadence · ${terminalCycle.durationSec.toFixed(3)} s`}
         />
         <EvidenceCard
-          label="Simulation release"
+          label="Base simulation release"
           value={`${terminalCycle.releaseRef.id} ${terminalCycle.releaseRef.version}`}
           detail={shortDigest(terminalCycle.releaseRef.sha256)}
         />
         <EvidenceCard
-          label={official ? "Case / workspace" : "Preset / case / workspace"}
+          label={official
+            ? "Base case / workspace"
+            : "Base preset / case / workspace"}
           value={`${shortDigest(sessionOrigin.caseRef.sha256)} / ${shortDigest(workspaceDocument.ref.sha256)}`}
           detail={provenanceDetail}
         />
@@ -270,10 +318,19 @@ export function ScientificWorkbenchReadyV1({
           clinical diagnosis, patient-specific fit, or clinical validation.
         </section>
       )}
-      <ScientificWorkspaceRendererV1
-        workspaceDocument={workspaceDocument}
-        frames={terminalCycle.frames}
-      />
+      {controlSource !== null && runtime !== undefined ? (
+        <ScientificWorkbenchResearchControlV0
+          client={runtime.client}
+          workspaceDocument={workspaceDocument}
+          initialSource={controlSource}
+          onTransitionActivityChange={onTransitionActivityChange}
+        />
+      ) : (
+        <ScientificWorkspaceRendererV1
+          workspaceDocument={workspaceDocument}
+          frames={terminalCycle.frames}
+        />
+      )}
     </div>
   );
 }

@@ -51,7 +51,7 @@ export type ScientificWorkspaceRendererV1Props = Readonly<{
  * Presentation-only renderer for a loaded WorkspaceDocument V1. It has no
  * simulation, persistence, controls, or scientific-state mutation surface.
  */
-export function ScientificWorkspaceRendererV1({
+export const ScientificWorkspaceRendererV1 = React.memo(function ScientificWorkspaceRendererV1({
   workspaceDocument,
   frames,
   className,
@@ -60,6 +60,8 @@ export function ScientificWorkspaceRendererV1({
   const allPanels = workspaceDocument.content.panels;
   const panels = allPanels.slice(0, MAX_RENDERED_PANELS);
   const omittedPanelCount = allPanels.length - panels.length;
+  const firstFrame = frames[0] ?? null;
+  const finalFrame = frames.at(-1) ?? null;
   const gridColumnCount = Math.min(
     MAX_GRID_COLUMNS,
     Math.max(1, ...panels.map(({ layout }) => layout.x + layout.width)),
@@ -70,7 +72,12 @@ export function ScientificWorkspaceRendererV1({
       className={className}
       data-testid="scientific-workspace-renderer-v1"
       data-workspace-sha256={workspaceDocument.ref.sha256}
-      data-case-sha256={workspaceDocument.content.caseDocumentRef.sha256}
+      data-base-case-sha256={workspaceDocument.content.caseDocumentRef.sha256}
+      data-frame-count={frames.length}
+      data-first-revision={firstFrame?.revision ?? ""}
+      data-final-revision={finalFrame?.revision ?? ""}
+      data-first-accepted-time-sec={firstFrame?.acceptedTimeSec ?? ""}
+      data-final-accepted-time-sec={finalFrame?.acceptedTimeSec ?? ""}
     >
       {(boundedHistory.omittedFrameCount > 0 || omittedPanelCount > 0) && (
         <p
@@ -127,7 +134,7 @@ export function ScientificWorkspaceRendererV1({
       </div>
     </section>
   );
-}
+});
 
 function ScientificWorkspacePanelViewV1({
   panel,

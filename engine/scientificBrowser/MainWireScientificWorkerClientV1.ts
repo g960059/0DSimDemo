@@ -195,6 +195,8 @@ export class MainWireScientificWorkerClientV1 {
     new Map<string, ResearchDocumentSessionBindingV1>();
   private readonly researchControlSessionBindings =
     new Map<string, ResearchControlSessionBindingV0>();
+  private readonly researchControlSourceInputSha256Bindings =
+    new Map<string, string>();
   private currentStatus: MainWireScientificWorkerClientStatusV1 = "open";
   private terminalError: MainWireScientificWorkerTransportErrorV1 | null = null;
 
@@ -366,9 +368,16 @@ export class MainWireScientificWorkerClientV1 {
       ));
       return;
     }
+    const forkSourceInputSha256 =
+      pending.submittedCommand.researchControlFork === null
+        ? null
+        : this.researchControlSourceInputSha256Bindings.get(
+          pending.submittedCommand.researchControlFork.sourceSessionId,
+        ) ?? null;
     if (!isResponseCompatibleWithSubmittedCommand(
       value,
       pending.submittedCommand,
+      forkSourceInputSha256,
     )) {
       this.failClosed(newTransportError(
         "protocol-mismatch",
@@ -420,6 +429,24 @@ export class MainWireScientificWorkerClientV1 {
       }
       this.researchDocumentSessionBindings.set(pending.sessionId, binding);
     }
+    if (
+      value.ok
+      && pending.commandKind === "createOfficialDocumentCaseSession"
+    ) {
+      const sessionInputSha256 =
+        captureOfficialDocumentSessionInputSha256(value);
+      if (sessionInputSha256 === null) {
+        this.failClosed(newTransportError(
+          "protocol-mismatch",
+          `scientific Worker did not establish an official control-source input binding for requestId ${value.requestId}`,
+        ));
+        return;
+      }
+      this.researchControlSourceInputSha256Bindings.set(
+        pending.sessionId,
+        sessionInputSha256,
+      );
+    }
     if (value.ok && pending.commandKind === "forkResearchControlSession") {
       const binding = captureResearchControlSessionBinding(value);
       if (binding === null) {
@@ -430,10 +457,15 @@ export class MainWireScientificWorkerClientV1 {
         return;
       }
       this.researchControlSessionBindings.set(pending.sessionId, binding);
+      this.researchControlSourceInputSha256Bindings.set(
+        pending.sessionId,
+        binding.origin.baseSessionInputSha256,
+      );
     }
     if (value.ok && pending.commandKind === "disposeSession") {
       this.researchDocumentSessionBindings.delete(pending.sessionId);
       this.researchControlSessionBindings.delete(pending.sessionId);
+      this.researchControlSourceInputSha256Bindings.delete(pending.sessionId);
     }
     this.pending.delete(value.requestId);
     this.completedRequestIds.add(value.requestId);
@@ -809,6 +841,7 @@ function capturePendingCommandIdentity(
 function isResponseCompatibleWithSubmittedCommand(
   response: ProtocolEnvelope,
   submitted: PendingCommandIdentityV1,
+  forkSourceInputSha256: string | null,
 ): boolean {
   if (
     (
@@ -1046,6 +1079,8 @@ function isResponseCompatibleWithSubmittedCommand(
     if (
       origin.kind !== "research-control-state-preserving-fork-v0"
       || !exactResearchReleaseRef(response.releaseRef)
+      || forkSourceInputSha256 === null
+      || origin.baseSessionInputSha256 !== forkSourceInputSha256
       || origin.sourceControlStateSha256
         !== expected.expectedControlStateSha256
       || origin.targetControlStateSha256
@@ -1096,6 +1131,10 @@ function isResponseCompatibleWithSubmittedCommand(
       || canonicalJsonStringify(payload.targetControlState)
         !== expected.targetControlStateCanonicalJson
       || !isRecord(payload.observableFrame)
+      || !sameReleaseRef(
+        payload.observableFrame.releaseRef,
+        response.releaseRef,
+      )
       || payload.observableFrame.revision !== expected.expectedRevision
       || payload.observableFrame.acceptedTimeSec
         !== expected.expectedAcceptedTimeSec
@@ -1145,6 +1184,23 @@ function captureResearchControlSessionBinding(
   });
 }
 
+function captureOfficialDocumentSessionInputSha256(
+  response: ProtocolEnvelope,
+): string | null {
+  if (
+    !response.ok
+    || response.commandKind !== "createOfficialDocumentCaseSession"
+    || response.sessionOrigin.kind
+      !== "official-document-case-v3-exact-checkpoint-restore"
+    || !isRecord(response.payload)
+    || response.payload.kind !== "officialDocumentCaseSessionCreated"
+    || !isSha256(response.payload.sessionInputSha256)
+    || response.payload.sessionInputSha256
+      !== response.sessionOrigin.sessionInputSha256
+  ) return null;
+  return response.payload.sessionInputSha256;
+}
+
 function isResponseBoundToResearchControlSession(
   response: ProtocolEnvelope,
   binding: ResearchControlSessionBindingV0,
@@ -1153,6 +1209,9 @@ function isResponseBoundToResearchControlSession(
     !sameReleaseRef(response.releaseRef, binding.releaseRef)
     || !sameResearchControlOriginV0(response.sessionOrigin, binding.origin)
   ) return false;
+  if (response.ok && response.commandKind === "getExactCheckpoint") {
+    return false;
+  }
   const frames: unknown[] = [];
   if (response.ok) {
     const payload = response.payload;

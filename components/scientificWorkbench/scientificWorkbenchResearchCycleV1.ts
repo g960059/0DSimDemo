@@ -188,7 +188,11 @@ export async function loadScientificWorkbenchResearchCycleV1(
       "periodic-settlement",
     );
     const progress = settled.payload;
-    assertResearchSettlementProgress(progress, callIndex + 1);
+    assertScientificWorkbenchResearchSettlementProgressV1(
+      progress,
+      callIndex + 1,
+      created.payload.observableFrame,
+    );
     completedBeatCount = progress.completedBeatCount;
 
     if (progress.status === "period1-converged") {
@@ -394,11 +398,21 @@ function assertCreatedResearchIdentity(
   }
 }
 
-function assertResearchSettlementProgress(
+/**
+ * Shared fail-closed P1/P2 tracker-evidence gate for both cold research Cases
+ * and state-preserving control forks. A fork may legitimately anchor at 1^-
+ * after many accepted 2 ms steps, so phase validity is tied to anchor time
+ * rather than requiring the decimal representation to be exactly zero.
+ */
+export function assertScientificWorkbenchResearchSettlementProgressV1(
   progress: ScientificPeriodicSettlementProgressV1<
     MainWireScientificObservableFrameV1
   >,
   expectedCompletedBeatCount: number,
+  settlementBoundary: Pick<
+    MainWireScientificObservableFrameV1,
+    "releaseRef" | "revision" | "acceptedTimeSec"
+  >,
 ): void {
   const terminalP1 = progress.status === "period1-converged";
   const terminalP2 = progress.status === "period2-suspect";
@@ -437,15 +451,30 @@ function assertResearchSettlementProgress(
     && closure.every(validBeatClosureSummary);
   const expectedFinalAcceptedTimeSec = progress.anchorAcceptedTimeSec
     + expectedCompletedBeatCount * progress.executionProtocol.cycleLengthSec;
+  const expectedFinalRevision = settlementBoundary.revision
+    + expectedCompletedBeatCount
+      * SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepCount;
+  const anchorPhaseValid = Number.isFinite(progress.anchorPhase01)
+    && progress.anchorPhase01 >= 0
+    && progress.anchorPhase01 < 1
+    && Number.isFinite(progress.anchorAcceptedTimeSec)
+    && cyclePhaseDistanceV1(
+      progress.anchorPhase01,
+      cyclePhase01V1(
+        progress.anchorAcceptedTimeSec,
+        progress.executionProtocol.cycleLengthSec,
+      ),
+    ) <= 1e-12;
   if (
     progress.completedBeatCount !== expectedCompletedBeatCount
+    || progress.anchorAcceptedTimeSec !== settlementBoundary.acceptedTimeSec
     || progress.trackerStartedThisCall
       !== (expectedCompletedBeatCount === 1)
     || !progress.beatCompletedThisCall
     || progress.completedStepCountThisCall
       !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepCount
     || !Number.isFinite(progress.anchorAcceptedTimeSec)
-    || progress.anchorPhase01 !== 0
+    || !anchorPhaseValid
     || progress.executionProtocol.cycleLengthSec
       !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.cycleLengthSec
     || progress.executionProtocol.dtSec
@@ -476,6 +505,11 @@ function assertResearchSettlementProgress(
       latestClosure.period2?.maximumNormalizedDelta ?? null,
     )
     || progress.finalObservableFrame.source !== "accepted-step"
+    || !sameSimulationReleaseRef(
+      progress.finalObservableFrame.releaseRef,
+      settlementBoundary.releaseRef,
+    )
+    || progress.finalObservableFrame.revision !== expectedFinalRevision
     || !Number.isFinite(progress.finalObservableFrame.acceptedTimeSec)
     || Math.abs(
       progress.finalObservableFrame.acceptedTimeSec
@@ -487,6 +521,17 @@ function assertResearchSettlementProgress(
       `invalid settlement evidence at beat ${expectedCompletedBeatCount}`,
     );
   }
+}
+
+function cyclePhase01V1(timeSec: number, cycleLengthSec: number): number {
+  const raw = timeSec / cycleLengthSec;
+  const phase = raw - Math.floor(raw);
+  return phase >= 1 - 1e-12 || phase < 1e-12 ? 0 : phase;
+}
+
+function cyclePhaseDistanceV1(left: number, right: number): number {
+  const direct = Math.abs(left - right);
+  return Math.min(direct, 1 - direct);
 }
 
 function contiguousBeatIndicesEndingAt(
