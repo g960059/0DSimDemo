@@ -11,6 +11,7 @@ import './index.css';
 import './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { detectPreferredLocale, isLocale, prefixPath, stripLocaleFromPathname } from './localeRouting';
+import { SCIENTIFIC_BROWSER_PERFORMANCE_APP_ENTRY_MARK_V0 } from './components/scientificPerformance/scientificBrowserPerformanceTraceV0';
 
 const ScientificRuntimeAlphaPage = React.lazy(
   () => import('./components/scientificAlpha/ScientificRuntimeAlphaPage'),
@@ -18,6 +19,18 @@ const ScientificRuntimeAlphaPage = React.lazy(
 const ScientificWorkbenchPage = React.lazy(
   () => import('./components/scientificWorkbench/ScientificWorkbenchPageV1'),
 );
+const ScientificBrowserPerformanceLab = React.lazy(
+  () => import('./components/scientificPerformance/ScientificBrowserPerformanceLabV0'),
+);
+
+if (
+  window.location.pathname.endsWith('/scientific-performance-lab')
+  && performance.getEntriesByName(
+    SCIENTIFIC_BROWSER_PERFORMANCE_APP_ENTRY_MARK_V0,
+  ).length === 0
+) {
+  performance.mark(SCIENTIFIC_BROWSER_PERFORMANCE_APP_ENTRY_MARK_V0);
+}
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -49,6 +62,14 @@ const appRoutes = () => (
         </React.Suspense>
       )}
     />
+    <Route
+      path="scientific-performance-lab"
+      element={(
+        <React.Suspense fallback={<ScientificPerformanceLabLoading />}>
+          <ScientificBrowserPerformanceLab />
+        </React.Suspense>
+      )}
+    />
     <Route path="*" element={<Navigate to="." replace />} />
   </>
 );
@@ -68,6 +89,15 @@ const ScientificWorkbenchLoading = () => (
     role="status"
   >
     Loading document-bound scientific workspace…
+  </div>
+);
+
+const ScientificPerformanceLabLoading = () => (
+  <div
+    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    role="status"
+  >
+    Loading raw scientific browser measurement lab…
   </div>
 );
 

@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import ScientificWorkbenchPageV1 from "@/components/scientificWorkbench/ScientificWorkbenchPageV1";
+import ScientificBrowserPerformanceLabV0 from "@/components/scientificPerformance/ScientificBrowserPerformanceLabV0";
 
 describe("document-bound scientific workbench page V1", () => {
   it("renders an explicit verification state before starting browser effects", () => {
@@ -49,6 +50,20 @@ describe("document-bound scientific workbench page V1", () => {
       'from "@/engine/SimInstance"',
       'from "@/casePersist"',
     ]) expect(source).not.toContain(forbidden);
+  });
+
+  it("keeps the raw performance lab hidden, unlinked, and measurement-only", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(ScientificBrowserPerformanceLabV0),
+    );
+    const index = read("index.tsx");
+    const links = [read("homeLinks.ts"), read("components/Home.tsx")].join("\n");
+
+    expect(markup).toContain("Scientific browser performance lab");
+    expect(markup).toContain("does not apply a latency threshold");
+    expect(index).toContain('path="scientific-performance-lab"');
+    expect(index).toContain("ScientificBrowserPerformanceLabV0");
+    expect(links).not.toContain("scientific-performance-lab");
   });
 });
 

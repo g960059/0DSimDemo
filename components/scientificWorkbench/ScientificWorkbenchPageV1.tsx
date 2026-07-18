@@ -34,7 +34,7 @@ function loadingMessageForSelection(
     : "Resolving the research Case and starting an independent cold periodic run…";
 }
 
-type ScientificWorkbenchReadyResultV1 =
+export type ScientificWorkbenchReadyResultV1 =
   | Readonly<{
     kind: "official";
     result: ScientificWorkbenchOfficialCycleV1;
@@ -224,7 +224,7 @@ export default function ScientificWorkbenchPageV1() {
   );
 }
 
-function ScientificWorkbenchReadyV1({
+export function ScientificWorkbenchReadyV1({
   result,
 }: Readonly<{ result: ScientificWorkbenchReadyResultV1 }>) {
   const { terminalCycle, workspaceDocument, sessionOrigin } = result.result;

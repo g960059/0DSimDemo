@@ -17,7 +17,7 @@ export const SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1 = Object.freeze({
   workerCommandCount: 125 as const,
   observationStride: 1 as const,
   expectedAcceptedStepFrameCount: 500 as const,
-  expectedRenderedFrameCount: 501 as const,
+  expectedObservableSampleCount: 501 as const,
 });
 
 export type ScientificWorkbenchTerminalCycleV1 = Readonly<{

@@ -21,6 +21,9 @@
     "test:rules": "vitest run __tests__/firestoreRules.emulator.test.ts",
     "test:watch": "vitest --config vitest.fast.config.ts",
     "test:watch:all": "vitest --config vitest.config.ts",
+    "test:e2e:browser": "playwright test --config playwright.e2e.config.ts",
+    "test:e2e:browser:headed": "playwright test --config playwright.e2e.config.ts --headed",
+    "install:e2e:chromium": "playwright install chromium",
     "benchmark:scientific:session": "vite-node --script tools/scientific/benchmarkMainWireScientificSessionV1.ts",
     "generate:scientific:main-wire-release": "vite-node --script tools/scientific/generateMainWireAdultFiveWallNonCoronaryReleaseV1.ts",
     "verify:scientific:main-wire-release": "vite-node --script tools/scientific/generateMainWireAdultFiveWallNonCoronaryReleaseV1.ts --check",
@@ -131,6 +134,7 @@
   "devDependencies": {
     "@firebase/eslint-plugin-security-rules": "^0.0.2",
     "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "1.61.1",
     "@tailwindcss/vite": "^4.3.0",
     "@types/node": "^22.14.0",
     "@types/react-katex": "^3.0.4",

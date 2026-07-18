@@ -17,6 +17,18 @@ const workbenchName = exactlyOne(
   assetNames.filter((name) => name.startsWith("ScientificWorkbenchPageV1-")),
   "scientific Workbench page chunk",
 );
+const performanceLabName = exactlyOne(
+  assetNames.filter((name) => name.startsWith("ScientificBrowserPerformanceLabV0-")),
+  "scientific browser performance lab chunk",
+);
+const officialCycleNames = assetNames.filter((name) =>
+  name.startsWith("scientificWorkbenchOfficialCycleV1-"));
+if (officialCycleNames.length > 1) {
+  throw new Error(
+    `scientific Workbench official-cycle code split into unexpected duplicate chunks: ${officialCycleNames.join(", ")}`,
+  );
+}
+const officialCycleName = officialCycleNames[0] ?? null;
 const clientName = exactlyOne(
   assetNames.filter((name) => name.startsWith("MainWireScientificWorkerClientV1-")),
   "scientific Worker client chunk",
@@ -28,17 +40,30 @@ const sources = new Map(await Promise.all(assetNames.map(async (name) => [
 const workerSource = sources.get(workerName);
 const alphaSource = sources.get(alphaName);
 const workbenchSource = sources.get(workbenchName);
+const performanceLabSource = sources.get(performanceLabName);
+const officialCycleSource = officialCycleName === null
+  ? ""
+  : sources.get(officialCycleName);
 const clientSource = sources.get(clientName);
 if (
   workerSource === undefined
   || alphaSource === undefined
   || workbenchSource === undefined
+  || performanceLabSource === undefined
+  || officialCycleSource === undefined
   || clientSource === undefined
 ) {
   throw new Error("scientific bundle chunks disappeared during verification");
 }
 const alphaSurfaceSource = `${alphaSource}\n${clientSource}`;
-const workbenchSurfaceSource = `${workbenchSource}\n${clientSource}`;
+const workbenchSurfaceSource = `${workbenchSource}\n${officialCycleSource}\n${clientSource}`;
+const performanceLabSurfaceSource = `${performanceLabSource}\n${workbenchSource}\n${officialCycleSource}\n${clientSource}`;
+const allowedOfficialMainThreadChunks = new Set([
+  workbenchName,
+  performanceLabName,
+  clientName,
+  ...(officialCycleName === null ? [] : [officialCycleName]),
+]);
 
 const releaseOnlyMarkers = [
   "resolvedNormalAdultPrior",
@@ -88,14 +113,28 @@ const officialLightweightMainThreadMarkers = [
 ];
 for (const marker of officialLightweightMainThreadMarkers) {
   const owners = ownersOf(marker);
-  if (!owners.includes(workbenchName)) {
+  const mainThreadOwners = owners.filter((name) => name !== workerName);
+  if (
+    mainThreadOwners.length === 0
+    || mainThreadOwners.some((name) => !allowedOfficialMainThreadChunks.has(name))
+  ) {
     throw new Error(
-      `lightweight official catalog/Workspace marker ${JSON.stringify(marker)} is missing from ${workbenchName}`,
+      `lightweight official catalog/Workspace marker ${JSON.stringify(marker)} escaped the allowed main-thread scientific chunks; found ${owners.join(", ") || "none"}`,
     );
   }
   if (!owners.includes(workerName)) {
     throw new Error(
       `official document-chain Worker marker ${JSON.stringify(marker)} is missing from ${workerName}`,
+    );
+  }
+  if (!workbenchSurfaceSource.includes(marker)) {
+    throw new Error(
+      `official Workbench surface is missing lightweight marker ${JSON.stringify(marker)}`,
+    );
+  }
+  if (!performanceLabSurfaceSource.includes(marker)) {
+    throw new Error(
+      `performance lab surface is missing lightweight marker ${JSON.stringify(marker)}`,
     );
   }
 }
@@ -109,6 +148,24 @@ if (!workbenchSurfaceSource.includes(officialDocumentCaseCommandMarker)) {
 if (!workerSource.includes(officialDocumentCaseCommandMarker)) {
   throw new Error(
     `Worker command marker ${JSON.stringify(officialDocumentCaseCommandMarker)} is missing`,
+  );
+}
+if (!performanceLabSurfaceSource.includes(officialDocumentCaseCommandMarker)) {
+  throw new Error(
+    `Performance lab command marker ${JSON.stringify(officialDocumentCaseCommandMarker)} is missing`,
+  );
+}
+
+const performanceSidebandMarker =
+  "circleheart-scientific-performance-sideband-v0";
+const performanceSidebandOwners = ownersOf(performanceSidebandMarker);
+if (
+  performanceSidebandOwners.length !== 2
+  || !performanceSidebandOwners.includes(workerName)
+  || !performanceSidebandOwners.includes(performanceLabName)
+) {
+  throw new Error(
+    `performance sideband marker must be owned only by the Worker and hidden lab chunks; found ${performanceSidebandOwners.join(", ") || "none"}`,
   );
 }
 
@@ -146,12 +203,17 @@ console.log(JSON.stringify({
   alphaBytes: Buffer.byteLength(alphaSource),
   workbenchChunk: workbenchName,
   workbenchBytes: Buffer.byteLength(workbenchSource),
+  performanceLabChunk: performanceLabName,
+  performanceLabBytes: Buffer.byteLength(performanceLabSource),
+  officialCycleSharedChunk: officialCycleName,
+  officialCycleSharedBytes: Buffer.byteLength(officialCycleSource),
   clientChunk: clientName,
   clientBytes: Buffer.byteLength(clientSource),
   fullReleaseMarkersOwnedOnlyByWorker: releaseOnlyMarkers,
   officialDocumentChainRawMarkersOwnedOnlyByWorker: officialDocumentChainWorkerOnlyRawMarkers,
   officialLightweightMainThreadMarkers,
   officialDocumentCaseCommandMarker,
+  performanceSidebandMarker,
   researchDocumentCaseCommandMarker,
   researchDocumentCaseWorkerOnlyMarkers,
 }, null, 2));

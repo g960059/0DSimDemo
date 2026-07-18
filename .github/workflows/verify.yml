@@ -21,6 +21,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       model_verification: ${{ steps.classify.outputs.model_verification }}
+      browser_e2e: ${{ steps.classify.outputs.browser_e2e }}
 
     steps:
       - name: Checkout
@@ -34,6 +35,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "model_verification=true" >> "$GITHUB_OUTPUT"
+            echo "browser_e2e=true" >> "$GITHUB_OUTPUT"
             echo "Non-PR event: run model verification." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -43,6 +45,7 @@ jobs:
             | tee changed-files.txt
 
           model_verification=false
+          browser_e2e=false
           while IFS= read -r file; do
             case "$file" in
               docs/*|.codex/skills/*)
@@ -56,20 +59,24 @@ jobs:
               __tests__/mechanics2*.test.ts)
                 ;;
               .github/workflows/verify.yml)
+                browser_e2e=true
                 ;;
               .DS_Store|*/.DS_Store|migrated_prompt_history/*)
                 ;;
               *)
                 model_verification=true
+                browser_e2e=true
                 ;;
             esac
           done < changed-files.txt
 
           echo "model_verification=$model_verification" >> "$GITHUB_OUTPUT"
+          echo "browser_e2e=$browser_e2e" >> "$GITHUB_OUTPUT"
           {
             echo "### Change classification"
             echo ""
             echo "- model_verification: \`$model_verification\`"
+            echo "- browser_e2e: \`$browser_e2e\`"
             echo ""
             echo "Changed files:"
             sed 's/^/- `/' changed-files.txt | sed 's/$/`/'
@@ -116,6 +123,43 @@ jobs:
 
       - name: Test
         run: npm run test:fast
+
+  browser_e2e:
+    name: Production browser E2E
+    needs:
+      - classify_changes
+    if: ${{ github.event_name != 'pull_request' || needs.classify_changes.outputs.browser_e2e == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run production browser E2E
+        run: npm run test:e2e:browser
+
+      - name: Upload browser E2E diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-e2e-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
 
   verify_baseline:
     name: Verify baseline
@@ -225,6 +269,7 @@ jobs:
       - classify_changes
       - build
       - test
+      - browser_e2e
       - verify_baseline
       - verify_cases
       - whitespace
@@ -237,9 +282,11 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           MODEL_VERIFICATION: ${{ needs.classify_changes.outputs.model_verification }}
+          BROWSER_E2E: ${{ needs.classify_changes.outputs.browser_e2e }}
           CLASSIFY_CHANGES_RESULT: ${{ needs.classify_changes.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           TEST_RESULT: ${{ needs.test.result }}
+          BROWSER_E2E_RESULT: ${{ needs.browser_e2e.result }}
           VERIFY_BASELINE_RESULT: ${{ needs.verify_baseline.result }}
           VERIFY_CASES_RESULT: ${{ needs.verify_cases.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
@@ -249,6 +296,7 @@ jobs:
             "Classify changes:$CLASSIFY_CHANGES_RESULT" \
             "Build:$BUILD_RESULT" \
             "Test:$TEST_RESULT" \
+            "Production browser E2E:$BROWSER_E2E_RESULT" \
             "Verify baseline:$VERIFY_BASELINE_RESULT" \
             "Verify official cases:$VERIFY_CASES_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
@@ -260,6 +308,11 @@ jobs:
               case "$name" in
                 "Verify baseline"|"Verify official cases")
                   if [ "$MODEL_VERIFICATION" != "true" ]; then
+                    continue
+                  fi
+                  ;;
+                "Production browser E2E")
+                  if [ "$BROWSER_E2E" != "true" ]; then
                     continue
                   fi
                   ;;

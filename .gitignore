@@ -23,6 +23,9 @@ dist-ssr
 *.sw?
 dist/
 artifacts/
+playwright-report/
+test-results/
+blob-report/
 
 # machine-local Claude Code permissions (do not track)
 .claude/settings.local.json
