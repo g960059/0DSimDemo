@@ -35,6 +35,7 @@ export type ScientificWorkbenchTerminalCycleV1 = Readonly<{
     revisionsContiguous: true;
     cadenceUniform: true;
     bothCycleBoundariesRetained: true;
+    periodicOrbitClassifiedP1: true;
     smoothingOrInterpolationApplied: false;
   }>;
 }>;
@@ -54,6 +55,7 @@ export type ScientificWorkbenchResearchTerminalCycleV1 = Readonly<{
     revisionsContiguous: true;
     cadenceUniform: true;
     bothCycleBoundariesRetained: true;
+    periodicOrbitClassifiedP1: true;
     smoothingOrInterpolationApplied: false;
   }>;
 }>;
@@ -90,6 +92,7 @@ export function assembleScientificWorkbenchTerminalCycleV1(
       revisionsContiguous: true as const,
       cadenceUniform: true as const,
       bothCycleBoundariesRetained: true as const,
+      periodicOrbitClassifiedP1: true as const,
       smoothingOrInterpolationApplied: false as const,
     }),
   });
@@ -121,6 +124,7 @@ export function assembleScientificWorkbenchResearchTerminalCycleV1(
       revisionsContiguous: true as const,
       cadenceUniform: true as const,
       bothCycleBoundariesRetained: true as const,
+      periodicOrbitClassifiedP1: true as const,
       smoothingOrInterpolationApplied: false as const,
     }),
   });

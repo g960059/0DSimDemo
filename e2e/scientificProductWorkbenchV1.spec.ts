@@ -16,6 +16,16 @@ const COMPARISON_SCENARIO_NAME =
 const LV_PV_TITLE = "LV pressure–volume loop";
 const LEFT_PRESSURE_TITLE = "AoP / LVP / LAP";
 const MITRAL_FLOW_TITLE = "Mitral valve flow (MVF)";
+const PLANNED_SCIENTIFIC_CONTROLS = [
+  "Heart rate",
+  "Total blood volume",
+  "LV contractility",
+  "RV contractility",
+  "Atrial contractility",
+  "Ventricular relaxation",
+  "Pericardial restraint",
+  "Valve effective orifice area",
+] as const;
 
 test.describe.serial("scientific runtime in the product Workbench shell", () => {
   test("keeps the original pane UX and renders full-pane animated scientific charts", async ({
@@ -123,6 +133,15 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       const comparisonRow = scenarioRow(rail, COMPARISON_SCENARIO_NAME);
       await expect(comparisonRow).toBeVisible();
 
+      const metricGroups = page.getByTestId("scientific-metrics-scenario-v1");
+      await expect(metricGroups).toHaveCount(2);
+      await expect(page.getByTestId("scientific-workbench-metrics-v1")
+        .getByRole("heading", { name: HEALTHY_SCENARIO_NAME, exact: true }))
+        .toHaveCount(1);
+      await expect(page.getByTestId("scientific-workbench-metrics-v1")
+        .getByRole("heading", { name: COMPARISON_SCENARIO_NAME, exact: true }))
+        .toHaveCount(1);
+
       const comparisonScenarioId = requiredAttribute(
         await evidence.getAttribute("data-scenario-id"),
         "comparison scenario id",
@@ -164,9 +183,15 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       await exactButton(page, `${COMPARISON_SCENARIO_NAME}をグラフで非表示`)
         .click();
       await expect(lvLegend).not.toContainText(COMPARISON_SCENARIO_NAME);
+      await expect(page.getByTestId("scientific-workbench-metrics-v1")
+        .getByRole("heading", { name: COMPARISON_SCENARIO_NAME, exact: true }))
+        .toHaveCount(0);
       await exactButton(page, `${COMPARISON_SCENARIO_NAME}をグラフに表示`)
         .click();
       await expect(lvLegend).toContainText(COMPARISON_SCENARIO_NAME);
+      await expect(page.getByTestId("scientific-workbench-metrics-v1")
+        .getByRole("heading", { name: COMPARISON_SCENARIO_NAME, exact: true }))
+        .toHaveCount(1);
 
       // Pane membership is local to the authored graph: excluding the
       // comparison from LV PV must not hide it from mitral flow.
@@ -280,7 +305,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
     }
   });
 
-  test("auto-applies a controller button with live transition as the default", async ({
+  test("commits exact-stop sliders on pointer release and keyboard release", async ({
     page,
   }, testInfo) => {
     test.setTimeout(120_000);
@@ -298,14 +323,36 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       await assertTransitionModeInRightDrawer(page, "ライブ遷移");
       await expect(controller.getByRole("button", { name: "Apply", exact: true }))
         .toHaveCount(0);
+      await expect(controller.getByRole("slider")).toHaveCount(2);
+      for (const label of PLANNED_SCIENTIFIC_CONTROLS) {
+        await expect(controller.getByText(label, { exact: true })).toHaveCount(0);
+      }
 
       const initialRevision = numericAttribute(
         await evidence.getAttribute("data-scientific-final-revision"),
+      );
+      const initialEpoch = numericAttribute(
+        await controller.getAttribute("data-displayed-parameter-epoch"),
       );
       await selectControllerScale(
         controller,
         "Systemic vascular resistance",
         "1.33×",
+        async (slider) => {
+          // Input events update the draft and the slider display immediately,
+          // but must not fork/apply the scientific runtime before release.
+          await expect(slider).toHaveAttribute("aria-valuetext", "1.33×");
+          await expect(controller).toHaveAttribute("data-phase", "idle");
+          await expect(controller).toHaveAttribute("data-target-control-sha", "");
+          await expect(controller).toHaveAttribute(
+            "data-displayed-parameter-epoch",
+            String(initialEpoch),
+          );
+          await expect(evidence).toHaveAttribute(
+            "data-scientific-final-revision",
+            String(initialRevision),
+          );
+        },
       );
       await expect(controller).toHaveAttribute("data-phase", "live-running", {
         timeout: 30_000,
@@ -343,6 +390,21 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       await expect(controller).toHaveAttribute("data-phase", "live-paused");
       await controller.getByRole("button", { name: "Reset", exact: true }).click();
       await expect(controller).toHaveAttribute("data-phase", "idle");
+
+      const systemicSlider = controller.getByRole("slider", {
+        name: "Systemic vascular resistance",
+        exact: true,
+      });
+      await systemicSlider.focus();
+      await systemicSlider.press("ArrowRight");
+      await expect(systemicSlider).toHaveAttribute("aria-valuetext", "1.33×");
+      await expect(controller).toHaveAttribute("data-phase", "live-running", {
+        timeout: 30_000,
+      });
+      await controller.getByRole("button", { name: "Pause", exact: true }).click();
+      await expect(controller).toHaveAttribute("data-phase", "live-paused");
+      await controller.getByRole("button", { name: "Reset", exact: true }).click();
+      await expect(controller).toHaveAttribute("data-phase", "idle");
       expect(browserErrors).toEqual([]);
     } finally {
       await attachBrowserErrors(testInfo, browserErrors);
@@ -375,6 +437,9 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         name: "コントローラービュー",
       });
       await expect(createDialog).toBeVisible();
+      for (const label of PLANNED_SCIENTIFIC_CONTROLS) {
+        await expect(createDialog.getByText(label, { exact: true })).toHaveCount(0);
+      }
       const selectedControlRemovers = createDialog.getByRole("button", {
         name: "コントロールを削除",
       });
@@ -835,22 +900,32 @@ async function assertDerivedMetrics(page: Page): Promise<void> {
     }).click();
   }
   await expect(metricsHost).toBeVisible();
+  await dockTab(page, "Hemodynamics").click();
 
   const metrics = page.getByTestId("scientific-workbench-metrics-v1");
   await expect(metrics).toBeVisible();
-  const cards = metrics.locator("article[data-metric-id]");
-  await expect.poll(() => cards.count()).toBeGreaterThan(0);
-  expect(await cards.evaluateAll((nodes) => nodes.map((node) => ({
+  const groups = metrics.getByTestId("scientific-metrics-scenario-v1");
+  await expect(groups).toHaveCount(1);
+  await expect(groups.getByRole("heading", {
+    name: HEALTHY_SCENARIO_NAME,
+    exact: true,
+  })).toHaveCount(1);
+  const items = groups.locator("[data-metric-id]");
+  await expect.poll(() => items.count()).toBeGreaterThan(0);
+  const renderedMetrics = await items.evaluateAll((nodes) => nodes.map((node) => ({
     metricId: node.getAttribute("data-metric-id"),
     availability: node.getAttribute("data-availability"),
+    periodicBoundaryCompletion: node.getAttribute(
+      "data-periodic-boundary-completion",
+    ),
     text: node.textContent ?? "",
-  })))).toEqual(expect.arrayContaining([
-    expect.objectContaining({ availability: "available" }),
-  ]));
-  expect(await cards.evaluateAll((nodes) => nodes.every(
-    (node) => node.getAttribute("data-availability") === "available"
-      && !(node.textContent ?? "").includes("—"),
+  })));
+  expect(renderedMetrics.every((metric) => (
+    metric.availability === "available"
+    && metric.periodicBoundaryCompletion === "true"
+    && !metric.text.includes("—")
   ))).toBe(true);
+  await expect(metrics.locator("article[data-metric-id]")).toHaveCount(0);
 }
 
 async function assertNoteAuthoredViewEmbeds(page: Page): Promise<void> {
@@ -870,7 +945,7 @@ async function assertNoteAuthoredViewEmbeds(page: Page): Promise<void> {
     {
       id: "scientific-metrics-pressure-v1",
       kind: "metrics",
-      title: "Pressures",
+      title: "Hemodynamics",
       bodyTestId: "scientific-workbench-metrics-v1",
     },
   ] as const;
@@ -924,13 +999,43 @@ async function insertAuthoredViewReferenceIntoNote(
 async function selectControllerScale(
   controller: Locator,
   controlName: string,
-  optionName: string,
+  stopLabel: "0.75×" | "1.00×" | "1.33×",
+  beforeRelease?: (slider: Locator) => Promise<void>,
 ): Promise<void> {
-  const group = controller.getByRole("group", { name: controlName });
-  await expect(group).toBeVisible();
-  const option = group.getByRole("button", { name: optionName, exact: true });
-  await option.click();
-  await expect(option).toHaveAttribute("aria-pressed", "true");
+  const stop = {
+    "0.75×": { index: 0, valueText: "0.75×" },
+    "1.00×": { index: 1, valueText: "1.00×" },
+    "1.33×": { index: 2, valueText: "1.33×" },
+  }[stopLabel];
+  const slider = controller.getByRole("slider", {
+    name: controlName,
+    exact: true,
+  });
+  await expect(slider).toBeVisible();
+  await expect(slider).toHaveAttribute("min", "0");
+  await expect(slider).toHaveAttribute("max", "2");
+  await expect(slider).toHaveAttribute("step", "1");
+  const sliderCard = slider.locator("..");
+  const stopLabels = sliderCard.locator('div[aria-hidden="true"]');
+  await expect(stopLabels.getByText("0.75×", { exact: true })).toBeVisible();
+  await expect(stopLabels.getByText("1.00×", { exact: true })).toBeVisible();
+  await expect(stopLabels.getByText("1.33×", { exact: true })).toBeVisible();
+
+  const box = await requiredBoundingBox(slider, `${controlName} slider`);
+  const y = box.y + box.height / 2;
+  const targetX = stop.index === 0
+    ? box.x + 2
+    : stop.index === 2 ? box.x + box.width - 2 : box.x + box.width / 2;
+  await slider.page().mouse.move(box.x + box.width / 2, y);
+  await slider.page().mouse.down();
+  try {
+    await slider.page().mouse.move(targetX, y, { steps: 5 });
+    await expect(slider).toHaveValue(String(stop.index));
+    await expect(slider).toHaveAttribute("aria-valuetext", stop.valueText);
+    await beforeRelease?.(slider);
+  } finally {
+    await slider.page().mouse.up();
+  }
 }
 
 function controllerViewSelector(rail: Locator, title: string): Locator {

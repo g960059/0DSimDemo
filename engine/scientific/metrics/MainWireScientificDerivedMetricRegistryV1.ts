@@ -1,4 +1,5 @@
 import {
+  MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1,
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_FRAME_V1_ID,
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID,
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION,
@@ -25,6 +26,11 @@ const TERMINAL_CYCLE_SAMPLE_COUNT_V1 = 501;
 const TERMINAL_CYCLE_DURATION_SEC_V1 = 1;
 const TERMINAL_CYCLE_DT_SEC_V1 = 0.002;
 const TIME_TOLERANCE_SEC_V1 = 1e-10;
+const ACCEPTED_STEP_READBACK_OBSERVABLE_IDS_V1 = new Set<
+  MainWireScientificObservableIdV1
+>(MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1
+  .filter(({ sourceKind }) => sourceKind === "accepted-step-readback")
+  .map(({ observableId }) => observableId));
 
 export type MainWireScientificDerivedMetricUnitV1 =
   | "mmHg"
@@ -34,21 +40,34 @@ export type MainWireScientificDerivedMetricUnitV1 =
 
 export type MainWireScientificDerivedMetricQuantityKindV1 =
   | "time-weighted-mean-pressure"
+  | "cycle-maximum-pressure"
+  | "cycle-minimum-pressure"
+  | "pressure-excursion"
+  | "end-diastolic-volume"
+  | "end-systolic-volume"
   | "volume-excursion"
   | "ejection-fraction"
   | "forward-cycle-volume"
+  | "reverse-cycle-volume"
   | "net-cycle-volume"
-  | "forward-cardiac-output"
-  | "net-cardiac-output";
+  | "same-valve-regurgitant-fraction"
+  | "net-cardiac-output"
+  | "forward-flow-peak-gradient"
+  | "forward-flow-time-mean-gradient";
 
 export type MainWireScientificMetricDerivationIdV1 =
   | "trapezoidal-time-weighted-mean-v1"
+  | "cycle-sample-maximum-v1"
+  | "cycle-sample-minimum-v1"
   | "cycle-extrema-excursion-v1"
   | "cycle-extrema-ejection-fraction-v1"
   | "piecewise-linear-positive-flow-integral-v1"
+  | "piecewise-linear-negative-flow-magnitude-integral-v1"
   | "trapezoidal-net-flow-integral-v1"
-  | "piecewise-linear-positive-flow-output-v1"
-  | "trapezoidal-net-flow-output-v1";
+  | "same-valve-reverse-over-forward-percent-v1"
+  | "trapezoidal-net-flow-output-v1"
+  | "positive-flow-gated-peak-pressure-gradient-v1"
+  | "positive-flow-time-weighted-pressure-gradient-v1";
 
 export type MainWireScientificDerivedMetricDefinitionV1<
   TId extends string = string,
@@ -97,6 +116,70 @@ export const MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1 = Object.freeze([
     "Time-weighted mean absolute pulmonary-artery pressure over one validated cycle.",
   ),
   definition(
+    "hemodynamics.pressure.mean.PVein",
+    "time-weighted-mean-pressure",
+    "mmHg",
+    "trapezoidal-time-weighted-mean-v1",
+    ["hemodynamics.pressure.absolute.PVein"],
+    "Time-weighted mean absolute pulmonary-venous pressure over one validated cycle; this is not labeled as pulmonary-capillary wedge pressure.",
+  ),
+  definition(
+    "hemodynamics.pressure.systolic.Ao",
+    "cycle-maximum-pressure",
+    "mmHg",
+    "cycle-sample-maximum-v1",
+    ["hemodynamics.pressure.absolute.Ao"],
+    "Maximum sampled absolute aortic pressure over one validated cycle.",
+  ),
+  definition(
+    "hemodynamics.pressure.diastolic.Ao",
+    "cycle-minimum-pressure",
+    "mmHg",
+    "cycle-sample-minimum-v1",
+    ["hemodynamics.pressure.absolute.Ao"],
+    "Minimum sampled absolute aortic pressure over one validated cycle.",
+  ),
+  definition(
+    "hemodynamics.pressure.pulse.Ao",
+    "pressure-excursion",
+    "mmHg",
+    "cycle-extrema-excursion-v1",
+    ["hemodynamics.pressure.absolute.Ao"],
+    "Maximum minus minimum sampled absolute aortic pressure over one validated cycle.",
+  ),
+  definition(
+    "hemodynamics.pressure.systolic.PA",
+    "cycle-maximum-pressure",
+    "mmHg",
+    "cycle-sample-maximum-v1",
+    ["hemodynamics.pressure.absolute.PA"],
+    "Maximum sampled absolute pulmonary-artery pressure over one validated cycle.",
+  ),
+  definition(
+    "hemodynamics.pressure.diastolic.PA",
+    "cycle-minimum-pressure",
+    "mmHg",
+    "cycle-sample-minimum-v1",
+    ["hemodynamics.pressure.absolute.PA"],
+    "Minimum sampled absolute pulmonary-artery pressure over one validated cycle.",
+  ),
+  definition(
+    "hemodynamics.volume.end_diastolic.LV",
+    "end-diastolic-volume",
+    "mL",
+    "cycle-sample-maximum-v1",
+    ["hemodynamics.volume.LV"],
+    "Maximum sampled left-ventricular volume over one validated cycle.",
+  ),
+  definition(
+    "hemodynamics.volume.end_systolic.LV",
+    "end-systolic-volume",
+    "mL",
+    "cycle-sample-minimum-v1",
+    ["hemodynamics.volume.LV"],
+    "Minimum sampled left-ventricular volume over one validated cycle.",
+  ),
+  definition(
     "hemodynamics.volume.excursion.LV",
     "volume-excursion",
     "mL",
@@ -111,6 +194,22 @@ export const MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1 = Object.freeze([
     "cycle-extrema-ejection-fraction-v1",
     ["hemodynamics.volume.LV"],
     "One hundred times left-ventricular volume excursion divided by maximum cycle volume.",
+  ),
+  definition(
+    "hemodynamics.volume.end_diastolic.RV",
+    "end-diastolic-volume",
+    "mL",
+    "cycle-sample-maximum-v1",
+    ["hemodynamics.volume.RV"],
+    "Maximum sampled right-ventricular volume over one validated cycle.",
+  ),
+  definition(
+    "hemodynamics.volume.end_systolic.RV",
+    "end-systolic-volume",
+    "mL",
+    "cycle-sample-minimum-v1",
+    ["hemodynamics.volume.RV"],
+    "Minimum sampled right-ventricular volume over one validated cycle.",
   ),
   definition(
     "hemodynamics.volume.excursion.RV",
@@ -137,20 +236,20 @@ export const MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1 = Object.freeze([
     "Integral of the positive part of aortic-valve flow over one validated cycle.",
   ),
   definition(
+    "valve.AoV.cycle_volume.reverse",
+    "reverse-cycle-volume",
+    "mL",
+    "piecewise-linear-negative-flow-magnitude-integral-v1",
+    ["valve.AoV.flow"],
+    "Magnitude of the negative part of aortic-valve flow integrated over one validated cycle.",
+  ),
+  definition(
     "valve.AoV.cycle_volume.net",
     "net-cycle-volume",
     "mL",
     "trapezoidal-net-flow-integral-v1",
     ["valve.AoV.flow"],
     "Signed integral of aortic-valve flow over one validated cycle.",
-  ),
-  definition(
-    "valve.AoV.cardiac_output.forward",
-    "forward-cardiac-output",
-    "L/min",
-    "piecewise-linear-positive-flow-output-v1",
-    ["valve.AoV.flow"],
-    "Aortic forward cycle volume divided by cycle duration and converted to litres per minute.",
   ),
   definition(
     "valve.AoV.cardiac_output.net",
@@ -161,12 +260,32 @@ export const MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1 = Object.freeze([
     "Aortic signed cycle volume divided by cycle duration and converted to litres per minute.",
   ),
   definition(
+    "valve.AoV.regurgitant_fraction",
+    "same-valve-regurgitant-fraction",
+    "%",
+    "same-valve-reverse-over-forward-percent-v1",
+    ["valve.AoV.flow"],
+    "One hundred times aortic reverse cycle volume divided by same-valve forward cycle volume.",
+  ),
+  valveGradientDefinition("AoV", "LV", "Ao", "peak"),
+  valveGradientDefinition("AoV", "LV", "Ao", "mean"),
+  ...valveVolumeDefinitions("MV", "LA", "LV"),
+  ...valveVolumeDefinitions("TV", "RA", "RV"),
+  definition(
     "valve.PV.cycle_volume.forward",
     "forward-cycle-volume",
     "mL",
     "piecewise-linear-positive-flow-integral-v1",
     ["valve.PV.flow"],
     "Integral of the positive part of pulmonary-valve flow over one validated cycle.",
+  ),
+  definition(
+    "valve.PV.cycle_volume.reverse",
+    "reverse-cycle-volume",
+    "mL",
+    "piecewise-linear-negative-flow-magnitude-integral-v1",
+    ["valve.PV.flow"],
+    "Magnitude of the negative part of pulmonary-valve flow integrated over one validated cycle.",
   ),
   definition(
     "valve.PV.cycle_volume.net",
@@ -177,14 +296,6 @@ export const MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1 = Object.freeze([
     "Signed integral of pulmonary-valve flow over one validated cycle.",
   ),
   definition(
-    "valve.PV.cardiac_output.forward",
-    "forward-cardiac-output",
-    "L/min",
-    "piecewise-linear-positive-flow-output-v1",
-    ["valve.PV.flow"],
-    "Pulmonary forward cycle volume divided by cycle duration and converted to litres per minute.",
-  ),
-  definition(
     "valve.PV.cardiac_output.net",
     "net-cardiac-output",
     "L/min",
@@ -192,6 +303,16 @@ export const MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1 = Object.freeze([
     ["valve.PV.flow"],
     "Pulmonary signed cycle volume divided by cycle duration and converted to litres per minute.",
   ),
+  definition(
+    "valve.PV.regurgitant_fraction",
+    "same-valve-regurgitant-fraction",
+    "%",
+    "same-valve-reverse-over-forward-percent-v1",
+    ["valve.PV.flow"],
+    "One hundred times pulmonary reverse cycle volume divided by same-valve forward cycle volume.",
+  ),
+  valveGradientDefinition("PV", "RV", "PA", "peak"),
+  valveGradientDefinition("PV", "RV", "PA", "mean"),
 ] as const);
 
 export type MainWireScientificDerivedMetricIdV1 =
@@ -215,6 +336,9 @@ export type MainWireScientificDerivedMetricValueV1 = Readonly<{
   quality: ScientificObservableQualityV1;
   unavailableReason: MainWireScientificDerivedMetricUnavailableReasonV1 | null;
   unavailableDependency: MainWireScientificObservableIdV1 | null;
+  /** True only when an unevaluated exact-restore boundary was closed with the
+   * measured same-phase final sample of the validated periodic cycle. */
+  periodicBoundaryCompletionApplied: boolean;
 }>;
 
 /**
@@ -231,6 +355,7 @@ export type MainWireScientificValidatedTerminalCycleV1 = Readonly<{
     revisionsContiguous: true;
     cadenceUniform: true;
     bothCycleBoundariesRetained: true;
+    periodicOrbitClassifiedP1: true;
     smoothingOrInterpolationApplied: false;
   }>;
 }>;
@@ -275,7 +400,20 @@ export const MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_REGISTRY_SNAPSHOT_V1 =
       netFlow: "signed-trapezoidal-over-accepted-frame-time" as const,
       forwardFlow:
         "positive-part-of-piecewise-linear-flow-with-exact-zero-crossing" as const,
+      reverseFlow:
+        "magnitude-of-negative-part-with-exact-zero-crossing" as const,
       cardiacOutput: "cycle-volume-over-duration-times-0.06-L-min-per-mL-s" as const,
+      regurgitantFraction:
+        "same-valve-reverse-volume-over-forward-volume-percent" as const,
+      invasiveValveGradient:
+        "upstream-minus-downstream-pressure-while-forward-flow-positive" as const,
+    }),
+    periodicBoundaryCompletionPolicy: Object.freeze({
+      appliesOnlyWhen:
+        "validated-P1-cycle-first-frame-is-exact-checkpoint-restore-and-only-that-accepted-step-readback-is-not-evaluated" as const,
+      replacement:
+        "measured-final-accepted-same-phase-sample-from-the-same-validated-cycle" as const,
+      interpolationOrSmoothingApplied: false as const,
     }),
     extremaPolicy: "raw-validated-cycle-samples-no-interpolation" as const,
   });
@@ -337,6 +475,100 @@ function definition<
   });
 }
 
+type MainWireScientificValveIdV1 = "MV" | "AoV" | "TV" | "PV";
+type MainWireScientificPressureNodeIdV1 =
+  | "LA" | "LV" | "RA" | "RV" | "Ao" | "PA";
+
+function valveVolumeDefinitions<
+  TValve extends MainWireScientificValveIdV1,
+  TUpstream extends MainWireScientificPressureNodeIdV1,
+  TDownstream extends MainWireScientificPressureNodeIdV1,
+>(
+  valveId: TValve,
+  upstreamNodeId: TUpstream,
+  downstreamNodeId: TDownstream,
+) {
+  const flowId = `valve.${valveId}.flow` as MainWireScientificObservableIdV1;
+  return [
+    definition(
+      `valve.${valveId}.cycle_volume.forward`,
+      "forward-cycle-volume",
+      "mL",
+      "piecewise-linear-positive-flow-integral-v1",
+      [flowId],
+      `Integral of the positive part of ${valveId} flow over one validated cycle.`,
+    ),
+    definition(
+      `valve.${valveId}.cycle_volume.reverse`,
+      "reverse-cycle-volume",
+      "mL",
+      "piecewise-linear-negative-flow-magnitude-integral-v1",
+      [flowId],
+      `Magnitude of the negative part of ${valveId} flow integrated over one validated cycle.`,
+    ),
+    definition(
+      `valve.${valveId}.cycle_volume.net`,
+      "net-cycle-volume",
+      "mL",
+      "trapezoidal-net-flow-integral-v1",
+      [flowId],
+      `Signed integral of ${valveId} flow over one validated cycle.`,
+    ),
+    definition(
+      `valve.${valveId}.regurgitant_fraction`,
+      "same-valve-regurgitant-fraction",
+      "%",
+      "same-valve-reverse-over-forward-percent-v1",
+      [flowId],
+      `One hundred times ${valveId} reverse cycle volume divided by same-valve forward cycle volume.`,
+    ),
+    valveGradientDefinition(
+      valveId,
+      upstreamNodeId,
+      downstreamNodeId,
+      "peak",
+    ),
+    valveGradientDefinition(
+      valveId,
+      upstreamNodeId,
+      downstreamNodeId,
+      "mean",
+    ),
+  ] as const;
+}
+
+function valveGradientDefinition<
+  TValve extends MainWireScientificValveIdV1,
+  TUpstream extends MainWireScientificPressureNodeIdV1,
+  TDownstream extends MainWireScientificPressureNodeIdV1,
+>(
+  valveId: TValve,
+  upstreamNodeId: TUpstream,
+  downstreamNodeId: TDownstream,
+  statistic: "peak" | "mean",
+) {
+  const quantityKind = statistic === "peak"
+    ? "forward-flow-peak-gradient" as const
+    : "forward-flow-time-mean-gradient" as const;
+  const derivationId = statistic === "peak"
+    ? "positive-flow-gated-peak-pressure-gradient-v1" as const
+    : "positive-flow-time-weighted-pressure-gradient-v1" as const;
+  return definition(
+    `valve.${valveId}.gradient.forward_${statistic}`,
+    quantityKind,
+    "mmHg",
+    derivationId,
+    [
+      `valve.${valveId}.flow`,
+      `hemodynamics.pressure.absolute.${upstreamNodeId}`,
+      `hemodynamics.pressure.absolute.${downstreamNodeId}`,
+    ] as readonly MainWireScientificObservableIdV1[],
+    statistic === "peak"
+      ? `Maximum instantaneous invasive upstream-minus-downstream ${valveId} pressure gradient while forward flow is positive; this is not a peak-to-peak gradient.`
+      : `Time-weighted mean invasive upstream-minus-downstream ${valveId} pressure gradient while forward flow is positive.`,
+  );
+}
+
 function validatedCycleIssue(
   cycle: MainWireScientificValidatedTerminalCycleV1 | null | undefined,
 ): string | null {
@@ -348,6 +580,7 @@ function validatedCycleIssue(
     || cycle.evidence.revisionsContiguous !== true
     || cycle.evidence.cadenceUniform !== true
     || cycle.evidence.bothCycleBoundariesRetained !== true
+    || cycle.evidence.periodicOrbitClassifiedP1 !== true
     || cycle.evidence.smoothingOrInterpolationApplied !== false
   ) {
     return "validated terminal-cycle evidence is incomplete";
@@ -430,22 +663,40 @@ function deriveMetric(
   frames: readonly MainWireScientificObservableFrameV1[],
   durationSec: number,
 ): MainWireScientificDerivedMetricValueV1 {
-  const dependency = definitionEntry.dependencies[0]!;
-  const series = dependencySeries(frames, dependency);
-  if (series.available === false) {
-    return unavailableMetric(
-      definitionEntry.metricId,
-      series.availability,
-      series.reason,
-      dependency,
-    );
+  const dependencySeriesList: AvailableDependencySeries[] = [];
+  for (const dependency of definitionEntry.dependencies) {
+    const series = dependencySeries(frames, dependency);
+    if (series.available === false) {
+      return unavailableMetric(
+        definitionEntry.metricId,
+        series.availability,
+        series.reason,
+        dependency,
+      );
+    }
+    dependencySeriesList.push(series);
   }
+  const dependency = definitionEntry.dependencies[0]!;
+  const series = dependencySeriesList[0]!;
+  const periodicBoundaryCompletionApplied = dependencySeriesList.some(
+    (dependencySeriesEntry) =>
+      dependencySeriesEntry.periodicBoundaryCompletionApplied,
+  );
 
   let value: number;
   switch (definitionEntry.quantityKind) {
     case "time-weighted-mean-pressure":
       value = integrateTrapezoidal(series.values, frames) / durationSec;
       break;
+    case "cycle-maximum-pressure":
+    case "end-diastolic-volume":
+      value = extrema(series.values).maximum;
+      break;
+    case "cycle-minimum-pressure":
+    case "end-systolic-volume":
+      value = extrema(series.values).minimum;
+      break;
+    case "pressure-excursion":
     case "volume-excursion":
       value = extrema(series.values).excursion;
       break;
@@ -465,17 +716,69 @@ function deriveMetric(
     case "forward-cycle-volume":
       value = integratePositivePiecewiseLinear(series.values, frames);
       break;
+    case "reverse-cycle-volume":
+      value = integrateNegativeMagnitudePiecewiseLinear(series.values, frames);
+      break;
     case "net-cycle-volume":
       value = integrateTrapezoidal(series.values, frames);
-      break;
-    case "forward-cardiac-output":
-      value = integratePositivePiecewiseLinear(series.values, frames)
-        / durationSec * 0.06;
       break;
     case "net-cardiac-output":
       value = integrateTrapezoidal(series.values, frames)
         / durationSec * 0.06;
       break;
+    case "same-valve-regurgitant-fraction": {
+      const forwardVolumeMl = integratePositivePiecewiseLinear(
+        series.values,
+        frames,
+      );
+      if (!(forwardVolumeMl > 1e-12)) {
+        return unavailableMetric(
+          definitionEntry.metricId,
+          "not-measurable",
+          "invalid-derived-denominator",
+          dependency,
+        );
+      }
+      value = 100 * integrateNegativeMagnitudePiecewiseLinear(
+        series.values,
+        frames,
+      ) / forwardVolumeMl;
+      break;
+    }
+    case "forward-flow-peak-gradient":
+    case "forward-flow-time-mean-gradient": {
+      const upstream = dependencySeriesList[1];
+      const downstream = dependencySeriesList[2];
+      if (upstream === undefined || downstream === undefined) {
+        return unavailableMetric(
+          definitionEntry.metricId,
+          "not-evaluated-at-accepted-state",
+          "dependency-contract-invalid",
+          dependency,
+        );
+      }
+      const gradient = upstream.values.map(
+        (upstreamPressure, index) =>
+          upstreamPressure - downstream.values[index]!,
+      );
+      const gated = summarizeValueWhileGatePositive(
+        series.values,
+        gradient,
+        frames,
+      );
+      if (!(gated.durationSec > 1e-12)) {
+        return unavailableMetric(
+          definitionEntry.metricId,
+          "not-measurable",
+          "invalid-derived-denominator",
+          dependency,
+        );
+      }
+      value = definitionEntry.quantityKind === "forward-flow-peak-gradient"
+        ? gated.peakValue
+        : gated.timeIntegral / gated.durationSec;
+      break;
+    }
   }
 
   if (!Number.isFinite(value)) {
@@ -486,12 +789,17 @@ function deriveMetric(
       dependency,
     );
   }
-  return availableMetric(definitionEntry.metricId, value);
+  return availableMetric(
+    definitionEntry.metricId,
+    value,
+    periodicBoundaryCompletionApplied,
+  );
 }
 
 type AvailableDependencySeries = Readonly<{
   available: true;
   values: readonly number[];
+  periodicBoundaryCompletionApplied: boolean;
 }>;
 type UnavailableDependencySeries = Readonly<{
   available: false;
@@ -506,7 +814,9 @@ function dependencySeries(
   observableId: MainWireScientificObservableIdV1,
 ): AvailableDependencySeries | UnavailableDependencySeries {
   const values: number[] = [];
-  for (const frame of frames) {
+  let periodicBoundaryCompletionApplied = false;
+  for (let index = 0; index < frames.length; index += 1) {
+    const frame = frames[index]!;
     const sample = frame.values[observableId];
     if (
       sample === undefined
@@ -525,6 +835,22 @@ function dependencySeries(
       });
     }
     if (sample.availability !== "available") {
+      const terminalSample = frames.at(-1)?.values[observableId];
+      if (
+        index === 0
+        && frame.source === "exact-checkpoint-restore"
+        && ACCEPTED_STEP_READBACK_OBSERVABLE_IDS_V1.has(observableId)
+        && sample.availability === "not-evaluated-at-accepted-state"
+        && terminalSample?.observableId === observableId
+        && terminalSample.availability === "available"
+        && terminalSample.value !== null
+        && Number.isFinite(terminalSample.value)
+        && terminalSample.quality !== "not-assessed"
+      ) {
+        values.push(terminalSample.value);
+        periodicBoundaryCompletionApplied = true;
+        continue;
+      }
       return Object.freeze({
         available: false as const,
         availability: sample.availability,
@@ -536,6 +862,7 @@ function dependencySeries(
   return Object.freeze({
     available: true as const,
     values: Object.freeze(values),
+    periodicBoundaryCompletionApplied,
   });
 }
 
@@ -578,6 +905,59 @@ function integratePositivePiecewiseLinear(
   return area;
 }
 
+function integrateNegativeMagnitudePiecewiseLinear(
+  values: readonly number[],
+  frames: readonly MainWireScientificObservableFrameV1[],
+): number {
+  return integratePositivePiecewiseLinear(
+    values.map((value) => -value),
+    frames,
+  );
+}
+
+function summarizeValueWhileGatePositive(
+  gateValues: readonly number[],
+  sampledValues: readonly number[],
+  frames: readonly MainWireScientificObservableFrameV1[],
+): Readonly<{
+  durationSec: number;
+  timeIntegral: number;
+  peakValue: number;
+}> {
+  let durationSec = 0;
+  let timeIntegral = 0;
+  let peakValue = -Infinity;
+  for (let index = 1; index < gateValues.length; index += 1) {
+    const leftGate = gateValues[index - 1]!;
+    const rightGate = gateValues[index]!;
+    if (leftGate <= 0 && rightGate <= 0) continue;
+
+    let activeStart = 0;
+    let activeEnd = 1;
+    if (leftGate <= 0) {
+      activeStart = -leftGate / (rightGate - leftGate);
+    } else if (rightGate <= 0) {
+      activeEnd = -leftGate / (rightGate - leftGate);
+    }
+    const intervalFraction = activeEnd - activeStart;
+    if (!(intervalFraction > 0)) continue;
+
+    const leftValue = sampledValues[index - 1]!;
+    const rightValue = sampledValues[index]!;
+    const valueAtStart = leftValue
+      + (rightValue - leftValue) * activeStart;
+    const valueAtEnd = leftValue
+      + (rightValue - leftValue) * activeEnd;
+    const intervalSec = frames[index]!.acceptedTimeSec
+      - frames[index - 1]!.acceptedTimeSec;
+    const activeDurationSec = intervalSec * intervalFraction;
+    durationSec += activeDurationSec;
+    timeIntegral += 0.5 * (valueAtStart + valueAtEnd) * activeDurationSec;
+    peakValue = Math.max(peakValue, valueAtStart, valueAtEnd);
+  }
+  return Object.freeze({ durationSec, timeIntegral, peakValue });
+}
+
 function extrema(values: readonly number[]): Readonly<{
   maximum: number;
   minimum: number;
@@ -595,6 +975,7 @@ function extrema(values: readonly number[]): Readonly<{
 function availableMetric(
   metricId: MainWireScientificDerivedMetricIdV1,
   value: number,
+  periodicBoundaryCompletionApplied: boolean,
 ): MainWireScientificDerivedMetricValueV1 {
   return Object.freeze({
     metricId,
@@ -603,6 +984,7 @@ function availableMetric(
     quality: "accepted-derived" as const,
     unavailableReason: null,
     unavailableDependency: null,
+    periodicBoundaryCompletionApplied,
   });
 }
 
@@ -619,6 +1001,7 @@ function unavailableMetric(
     quality: "not-assessed" as const,
     unavailableReason,
     unavailableDependency,
+    periodicBoundaryCompletionApplied: false,
   });
 }
 

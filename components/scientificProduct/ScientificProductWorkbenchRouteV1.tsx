@@ -3,7 +3,10 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { WorkbenchHeader } from "@/components/workbench/WorkbenchHeader";
-import { PanelGrid } from "@/components/workbench/PanelGrid";
+import {
+  PanelGrid,
+  type MetricAuthoringCatalog,
+} from "@/components/workbench/PanelGrid";
 import {
   normalizeControllerItemsForAuthoring,
   type ControllerAuthoringCatalog,
@@ -59,6 +62,13 @@ import {
   SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1,
   SCIENTIFIC_WORKBENCH_SIGNAL_OPTIONS_V1,
 } from "./ScientificWorkbenchRuntimeRendererV1";
+import {
+  SCIENTIFIC_WORKBENCH_METRIC_PRESENTATION_CATALOG_V1,
+  SCIENTIFIC_WORKBENCH_OVERVIEW_METRICS_V1,
+  SCIENTIFIC_WORKBENCH_PUMP_METRICS_V1,
+  SCIENTIFIC_WORKBENCH_VALVE_METRICS_V1,
+  type ScientificWorkbenchMetricCategoryV1,
+} from "./ScientificWorkbenchMetricPresentationV1";
 import {
   createScientificWorkbenchDisplayClockV1,
 } from "./ScientificWorkbenchDisplayClockV1";
@@ -274,6 +284,7 @@ function ScientificProductWorkbenchShellV1({
       notes: {},
       noteCaseKey: runtime.result.workspaceDocument.ref.sha256,
     },
+    normalizePanelControllerItems: normalizeScientificPanelControllerItemsV1,
   });
   const [graphBoardLayout, setGraphBoardLayout] = React.useState<
     GraphBoardLayout | undefined
@@ -557,10 +568,11 @@ function ScientificProductWorkbenchShellV1({
         onNoteChange={panels.onNoteChange}
         chambers={["LV", "LA", "RV", "RA"]}
         signals={SCIENTIFIC_WORKBENCH_SIGNAL_OPTIONS_V1 as unknown as SignalType[]}
-        metrics={SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1 as unknown as MetricType[]}
+        metrics={[...SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1]}
         controlGroups={["scientific-release-bound-controls-v1"]}
         runtimeRenderer={runtimeRenderer}
         controllerAuthoring={SCIENTIFIC_CONTROLLER_AUTHORING_V1}
+        metricAuthoring={SCIENTIFIC_METRIC_AUTHORING_V1}
         scenarioPresetCatalog={scenarioPresetCatalog}
       />
       <AddPanelDialog
@@ -791,6 +803,15 @@ function scientificControllerViewV1(
   };
 }
 
+function normalizeScientificPanelControllerItemsV1(
+  items: ControllerItem[],
+): ControllerItem[] {
+  return normalizeControllerItemsForAuthoring(
+    items,
+    SCIENTIFIC_CONTROLLER_AUTHORING_V1,
+  ).items;
+}
+
 function initialScientificAuthoredViews(
   panels: readonly PanelDef[],
   scenarioId: string,
@@ -807,44 +828,24 @@ function initialScientificAuthoredViews(
     ),
     createMetricsViewSpec(
       "scientific-metrics-pressure-v1",
-      "Pressures",
-      [
-        "hemodynamics.pressure.mean.Ao",
-        "hemodynamics.pressure.mean.RA",
-        "hemodynamics.pressure.mean.PA",
-        "hemodynamics.pressure.mean.LA",
-      ] as unknown as MetricType[],
+      "Hemodynamics",
+      [...SCIENTIFIC_WORKBENCH_OVERVIEW_METRICS_V1],
       [{ id: scenarioId } as SimInstance],
     ),
     createMetricsViewSpec(
       "scientific-metrics-output-v1",
-      "Output",
-      [
-        "valve.AoV.cycle_volume.forward",
-        "valve.AoV.cycle_volume.net",
-        "valve.AoV.cardiac_output.forward",
-        "valve.AoV.cardiac_output.net",
-      ] as unknown as MetricType[],
+      "Pump function",
+      [...SCIENTIFIC_WORKBENCH_PUMP_METRICS_V1],
       [{ id: scenarioId } as SimInstance],
     ),
     createMetricsViewSpec(
       "scientific-metrics-ventricular-v1",
-      "Ventricular function",
-      [
-        "hemodynamics.volume.excursion.LV",
-        "hemodynamics.ejection_fraction.LV",
-        "hemodynamics.volume.excursion.RV",
-        "hemodynamics.ejection_fraction.RV",
-      ] as unknown as MetricType[],
+      "Valve function",
+      [...SCIENTIFIC_WORKBENCH_VALVE_METRICS_V1],
       [{ id: scenarioId } as SimInstance],
     ),
   ];
 }
-
-const CONTROL_OPTIONS_V1 = [0.75, 1, 4 / 3].map((value) => ({
-  value,
-  label: `${value.toFixed(2)}×`,
-}));
 
 const SCIENTIFIC_CONTROLLER_AUTHORING_V1: ControllerAuthoringCatalog = {
   sections: [
@@ -852,51 +853,17 @@ const SCIENTIFIC_CONTROLLER_AUTHORING_V1: ControllerAuthoringCatalog = {
       id: "release-bound-circulation",
       title: "Release-bound controls",
       defaultOpen: true,
-      entries: [
-        {
-          key: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
-          label: "Systemic vascular resistance",
-          min: 0.75,
-          max: 4 / 3,
-          step: 1 / 12,
-          unit: "×",
-          defaultKind: "buttonGroup",
-          allowedKinds: ["buttonGroup"],
-          options: CONTROL_OPTIONS_V1,
-        },
-        {
-          key: SCIENTIFIC_CONTROL_PULMONARY_V1,
-          label: "Pulmonary vascular resistance",
-          min: 0.75,
-          max: 4 / 3,
-          step: 1 / 12,
-          unit: "×",
-          defaultKind: "buttonGroup",
-          allowedKinds: ["buttonGroup"],
-          options: CONTROL_OPTIONS_V1,
-        },
-      ],
-    },
-    {
-      id: "planned-release-controls",
-      title: "Planned scientific controls",
-      entries: [
-        "Heart rate",
-        "Total blood volume",
-        "LV contractility",
-        "RV contractility",
-        "Atrial contractility",
-        "Ventricular relaxation",
-        "Pericardial restraint",
-        "Valve effective orifice area",
-      ].map((label) => ({
-        key: `planned.${label.toLowerCase().replaceAll(" ", "-")}`,
-        label,
-        min: 0,
-        max: 1,
-        step: 0.01,
-        disabledReason:
-          "Not yet present in the release-bound scientific control catalog.",
+      entries: SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1.map((item) => ({
+        key: item.paramKey,
+        label: item.label ?? item.paramKey,
+        min: item.min ?? 0.75,
+        max: item.max ?? 4 / 3,
+        step: item.step ?? 1 / 12,
+        unit: "×",
+        defaultKind: "slider" as const,
+        allowedKinds: ["slider"] as const,
+        options: item.options ?? [],
+        lockedDomain: true,
       })),
     },
   ],
@@ -905,6 +872,28 @@ const SCIENTIFIC_CONTROLLER_AUTHORING_V1: ControllerAuthoringCatalog = {
     [SCIENTIFIC_CONTROL_PULMONARY_V1]: 1,
   },
   defaultItems: SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1,
+};
+
+const SCIENTIFIC_METRIC_CATEGORY_TITLES_V1 = {
+  pressure: "Pressures",
+  ventricular: "Ventricular pump",
+  valve: "Valve flow and lesions",
+} as const satisfies Record<ScientificWorkbenchMetricCategoryV1, string>;
+
+const SCIENTIFIC_METRIC_AUTHORING_V1: MetricAuthoringCatalog = {
+  sections: (Object.entries(SCIENTIFIC_METRIC_CATEGORY_TITLES_V1) as ReadonlyArray<
+    readonly [ScientificWorkbenchMetricCategoryV1, string]
+  >).map(([category, title]) => ({
+    id: `scientific-metrics-${category}-v1`,
+    title,
+    entries: SCIENTIFIC_WORKBENCH_METRIC_PRESENTATION_CATALOG_V1
+      .filter((entry) => entry.category === category)
+      .map((entry) => ({
+        key: entry.metricId,
+        label: entry.label,
+        unit: entry.unit,
+      })),
+  })),
 };
 
 const SCIENTIFIC_SCENARIO_PRESET_CATALOG_V1:

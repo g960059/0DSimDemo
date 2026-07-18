@@ -61,11 +61,13 @@ export function useWorkbenchPanels({
   headerMode,
   markUserEdited,
   initialPanelState,
+  normalizePanelControllerItems,
 }: {
   instances: SimInstance[];
   headerMode: WorkbenchHeaderMode;
   markUserEdited: () => void;
   initialPanelState?: WorkbenchPanelStateInitializer;
+  normalizePanelControllerItems?: (items: ControllerItem[]) => ControllerItem[];
 }) {
   const [panels, setPanels] = useState<PanelDef[]>(() => initialPanelState?.panels ?? cloneInitialPanels());
   const [workspace, setWorkspace] = useState<WorkbenchWorkspace>(() => initialPanelState ? workspaceForPanelStateReplacement(initialPanelState) : workspaceForPanels(INITIAL_PANELS));
@@ -410,8 +412,10 @@ export function useWorkbenchPanels({
 
   const updatePanelControllerItems = useCallback((panelId: string, items: ControllerItem[]) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === panelId ? mergePanelControllerItems(panel, items) : panel));
-  }, [markUserEdited]);
+    setPanels((prev) => prev.map((panel) => panel.id === panelId
+      ? mergePanelControllerItems(panel, items, normalizePanelControllerItems)
+      : panel));
+  }, [markUserEdited, normalizePanelControllerItems]);
 
   const updatePanelLegendPosition = useCallback((panelId: string, pos?: LegendPosition) => {
     markUserEdited();

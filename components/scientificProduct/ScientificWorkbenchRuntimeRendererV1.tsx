@@ -49,6 +49,13 @@ import {
   type ScientificProductScenarioPresentationV1,
   type ScientificProductScenarioRegistryV1,
 } from "./ScientificProductScenarioRegistryV1";
+import {
+  scientificWorkbenchMetricPresentationV1,
+} from "./ScientificWorkbenchMetricPresentationV1";
+import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0,
+} from "@/engine/scientific/controls";
 
 const OBSERVABLE_IDS = new Set<string>(MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1);
 
@@ -76,49 +83,39 @@ MainWireScientificObservableIdV1>> = Object.freeze({
 const CHAMBERS = Object.freeze(["LA", "RA", "LV", "RV"] as const);
 type ScientificChamberV1 = (typeof CHAMBERS)[number];
 
-const METRIC_LABELS: Readonly<Record<MainWireScientificDerivedMetricIdV1,
-string>> = Object.freeze({
-  "hemodynamics.pressure.mean.LA": "Mean LA pressure",
-  "hemodynamics.pressure.mean.RA": "Mean RA pressure",
-  "hemodynamics.pressure.mean.Ao": "Mean aortic pressure",
-  "hemodynamics.pressure.mean.PA": "Mean pulmonary artery pressure",
-  "hemodynamics.volume.excursion.LV": "LV volume excursion",
-  "hemodynamics.ejection_fraction.LV": "LV ejection fraction",
-  "hemodynamics.volume.excursion.RV": "RV volume excursion",
-  "hemodynamics.ejection_fraction.RV": "RV ejection fraction",
-  "valve.AoV.cycle_volume.forward": "Aortic forward cycle volume",
-  "valve.AoV.cycle_volume.net": "Aortic net cycle volume",
-  "valve.AoV.cardiac_output.forward": "Aortic forward cardiac output",
-  "valve.AoV.cardiac_output.net": "Aortic net cardiac output",
-  "valve.PV.cycle_volume.forward": "Pulmonary forward cycle volume",
-  "valve.PV.cycle_volume.net": "Pulmonary net cycle volume",
-  "valve.PV.cardiac_output.forward": "Pulmonary forward cardiac output",
-  "valve.PV.cardiac_output.net": "Pulmonary net cardiac output",
-});
-
 export const SCIENTIFIC_CONTROL_SYSTEMIC_V1 =
-  "circulation.systemic-vascular-resistance-scale" as const;
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[0];
 export const SCIENTIFIC_CONTROL_PULMONARY_V1 =
-  "circulation.pulmonary-vascular-resistance-scale" as const;
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[1];
 
-const SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1 = Object.freeze(
-  [0.75, 1, 4 / 3].map((value) => Object.freeze({
+export const SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1 = Object.freeze(
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0.map((value) => Object.freeze({
     value,
     label: `${value.toFixed(2)}×`,
   })),
 );
+const SCIENTIFIC_CONTROL_SCALE_MIN_V1 =
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0[0];
+const SCIENTIFIC_CONTROL_SCALE_MAX_V1 =
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0.at(-1)!;
 
 const SCIENTIFIC_CONTROLLER_ITEM_LIST_V1: ControllerItem[] = [
     {
       paramKey: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
-      kind: "buttonGroup" as const,
+      kind: "slider" as const,
       label: "Systemic vascular resistance",
+      min: SCIENTIFIC_CONTROL_SCALE_MIN_V1,
+      max: SCIENTIFIC_CONTROL_SCALE_MAX_V1,
+      step: 1 / 12,
       options: SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1.map((option) => ({ ...option })),
     },
     {
       paramKey: SCIENTIFIC_CONTROL_PULMONARY_V1,
-      kind: "buttonGroup" as const,
+      kind: "slider" as const,
       label: "Pulmonary vascular resistance",
+      min: SCIENTIFIC_CONTROL_SCALE_MIN_V1,
+      max: SCIENTIFIC_CONTROL_SCALE_MAX_V1,
+      step: 1 / 12,
       options: SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1.map((option) => ({ ...option })),
     },
   ];
@@ -128,8 +125,9 @@ readonly ControllerItem[] = Object.freeze(SCIENTIFIC_CONTROLLER_ITEM_LIST_V1);
 /**
  * The current release exposes three validated, enumerated resistance scales.
  * Authored presentation documents may be older or hand-edited, so the runtime
- * repeats the authoring constraint at the execution surface instead of
- * rendering a continuous slider whose intermediate values the release rejects.
+ * repeats the authoring constraint at the execution surface. The slider is a
+ * discrete three-stop control; it never emits an unvalidated intermediate
+ * resistance scale.
  */
 export function scientificControllerItemForReleaseV1(
   item: ControllerItem,
@@ -137,9 +135,9 @@ export function scientificControllerItemForReleaseV1(
   if (scientificControlKindV1(item.paramKey) === null) return item;
   return {
     ...item,
-    kind: "buttonGroup",
-    min: 0.75,
-    max: 4 / 3,
+    kind: "slider",
+    min: SCIENTIFIC_CONTROL_SCALE_MIN_V1,
+    max: SCIENTIFIC_CONTROL_SCALE_MAX_V1,
     step: 1 / 12,
     options: SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1.map((option) => ({ ...option })),
   };
@@ -372,46 +370,100 @@ function ScientificMetricsPanelV1({
   if (presentations.length === 0) return <NoScientificSelectionV1 />;
   return (
     <div
-      className="grid h-full content-start gap-2 overflow-auto p-3 sm:grid-cols-2 xl:grid-cols-4"
+      className="@container h-full content-start overflow-auto px-3 py-1 custom-scrollbar"
       data-testid="scientific-workbench-metrics-v1"
     >
-      {presentations.flatMap((presentation) => {
+      {presentations.map((presentation) => {
         const evaluation = deriveMainWireScientificMetricsV1(
           presentation.validatedCycle,
         );
         const ids = [...new Set((selections[presentation.descriptor.id] ?? [])
           .map(scientificMetricId)
           .filter((id): id is MainWireScientificDerivedMetricIdV1 => id !== null))];
-        return ids.map((metricId) => {
-          const definition = MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1
-            .find((entry) => entry.metricId === metricId)!;
-          const metric = evaluation.values[metricId];
-          return (
-            <article
-              key={`${presentation.descriptor.id}:${metricId}`}
-              className="rounded-md border border-wb-line bg-wb-input px-3 py-2"
-              data-scenario-id={presentation.descriptor.id}
-              data-metric-id={metricId}
-              data-availability={metric.availability}
-            >
-              <p className="truncate text-[10px] font-semibold" style={{ color: presentation.descriptor.color }}>
-                {presentation.descriptor.name}
-              </p>
-              <p className="text-[11px] font-medium text-wb-subtle">
-                {METRIC_LABELS[metricId]}
-              </p>
-              <p className="mt-1 text-lg font-semibold tabular-nums text-wb-text">
-                {metric.value === null ? "—" : formatMetric(metric.value)}
-                {metric.value === null ? "" : ` ${definition.unit}`}
-              </p>
-              {metric.value === null && (
-                <p className="mt-1 text-[10px] text-wb-subtle">
-                  {metric.unavailableReason ?? evaluation.cycleUnavailableReason}
-                </p>
-              )}
-            </article>
-          );
-        });
+        return (
+          <section
+            key={presentation.descriptor.id}
+            className="grid gap-2 border-b border-wb-line/70 py-2.5 last:border-b-0 @min-[700px]:grid-cols-[minmax(8rem,11rem)_minmax(0,1fr)] @min-[700px]:gap-4"
+            data-scenario-id={presentation.descriptor.id}
+            data-testid="scientific-metrics-scenario-v1"
+          >
+            <header className="flex min-w-0 items-start gap-2 @min-[700px]:pt-0.5">
+              <span
+                className="mt-1 h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: presentation.descriptor.color }}
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <h3 className="truncate text-[11px] font-semibold leading-4 text-wb-text">
+                  {presentation.descriptor.name}
+                </h3>
+                {evaluation.cycleAvailability !== "validated" && (
+                  <p className="truncate text-[10px] leading-4 text-wb-subtle">
+                    Awaiting a complete cycle
+                  </p>
+                )}
+              </div>
+            </header>
+            <dl className="grid min-w-0 grid-cols-1 gap-x-4 gap-y-2 @min-[280px]:grid-cols-2 @min-[520px]:grid-cols-3 @min-[840px]:grid-cols-4 @min-[1120px]:grid-cols-6">
+              {ids.map((metricId) => {
+                const metricPresentation =
+                  scientificWorkbenchMetricPresentationV1(metricId);
+                const metric = evaluation.values[metricId];
+                const unavailableReason = metric.unavailableReason
+                  ?? evaluation.cycleUnavailableReason
+                  ?? undefined;
+                return (
+                  <div
+                    key={`${presentation.descriptor.id}:${metricId}`}
+                    className="min-w-0 py-0.5"
+                    data-metric-id={metricId}
+                    data-availability={metric.availability}
+                    data-periodic-boundary-completion={String(
+                      metric.periodicBoundaryCompletionApplied,
+                    )}
+                    title={metric.value === null
+                      ? unavailableReason
+                      : metric.periodicBoundaryCompletionApplied
+                        ? `${metricPresentation.label} · periodic boundary completed from the measured terminal sample`
+                        : metricPresentation.label}
+                  >
+                    <dt
+                      className="truncate text-[10px] font-medium leading-4 text-wb-subtle"
+                      title={metricPresentation.label}
+                    >
+                      <span aria-hidden="true">
+                        {metricPresentation.shortLabel}
+                      </span>
+                      <span className="sr-only">
+                        {metricPresentation.label}
+                      </span>
+                    </dt>
+                    <dd className="flex min-w-0 items-baseline gap-1 tabular-nums text-wb-text">
+                      <span className="truncate text-base font-semibold leading-5">
+                        {metric.value === null
+                          ? "—"
+                          : formatMetric(
+                            metric.value,
+                            metricPresentation.decimals,
+                          )}
+                      </span>
+                      {metric.value !== null && (
+                        <span className="shrink-0 text-[9px] font-medium text-wb-subtle">
+                          {metricPresentation.unit}
+                        </span>
+                      )}
+                      {metric.value === null && unavailableReason !== undefined && (
+                        <span className="sr-only">
+                          {`Unavailable: ${unavailableReason}`}
+                        </span>
+                      )}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+          </section>
+        );
       })}
     </div>
   );
@@ -853,11 +905,9 @@ function scientificControlKindV1(
 ): "systemic" | "pulmonary" | null {
   if (
     paramKey === SCIENTIFIC_CONTROL_SYSTEMIC_V1
-    || paramKey === "systemicVascularResistanceScale"
   ) return "systemic";
   if (
     paramKey === SCIENTIFIC_CONTROL_PULMONARY_V1
-    || paramKey === "pulmonaryVascularResistanceScale"
   ) return "pulmonary";
   return null;
 }
@@ -865,16 +915,6 @@ function scientificControlKindV1(
 function scientificMetricId(
   candidate: string,
 ): MainWireScientificDerivedMetricIdV1 | null {
-  const aliases: Readonly<Record<string, MainWireScientificDerivedMetricIdV1>> = {
-    ABP: "hemodynamics.pressure.mean.Ao",
-    CVP: "hemodynamics.pressure.mean.RA",
-    PAP: "hemodynamics.pressure.mean.PA",
-    SV: "valve.AoV.cycle_volume.forward",
-    CO: "valve.AoV.cardiac_output.forward",
-    LVEF: "hemodynamics.ejection_fraction.LV",
-    RVEF: "hemodynamics.ejection_fraction.RV",
-  };
-  if (aliases[candidate] !== undefined) return aliases[candidate];
   return MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1.some(
     ({ metricId }) => metricId === candidate,
   ) ? candidate as MainWireScientificDerivedMetricIdV1 : null;
@@ -889,9 +929,8 @@ function compactPhaseLabelV1(phase: string): string {
   return phase;
 }
 
-function formatMetric(value: number): string {
-  const magnitude = Math.abs(value);
-  return value.toFixed(magnitude >= 100 ? 0 : magnitude >= 10 ? 1 : 2);
+function formatMetric(value: number, decimals: number): string {
+  return value.toFixed(decimals);
 }
 
 function ScientificUnavailablePanelV1({

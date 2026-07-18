@@ -15,11 +15,21 @@ import {
   LEGACY_SCENARIO_PRESET_CATALOG,
 } from "@/components/workbench/legacyScenarioPresetCatalog";
 import {
+  SCIENTIFIC_CONTROL_PULMONARY_V1,
   SCIENTIFIC_CONTROL_SYSTEMIC_V1,
+  SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1,
   graphViewToPanel,
   scientificControllerInteractionKeyV1,
   scientificControllerItemForReleaseV1,
 } from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
+import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
+
+const exactStops = MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0.map(
+  (value) => ({ label: `${value.toFixed(2)}×`, value }),
+);
 
 const authoring: ControllerAuthoringCatalog = {
   sections: [
@@ -28,45 +38,35 @@ const authoring: ControllerAuthoringCatalog = {
       title: "Release-bound controls",
       entries: [
         {
-          key: "circulation.systemic-resistance-scale",
+          key: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
           label: "Systemic vascular resistance",
           min: 0.75,
           max: 4 / 3,
           step: 1 / 12,
-          defaultKind: "buttonGroup",
-          allowedKinds: ["buttonGroup"],
-          options: [
-            { label: "Low", value: 0.75 },
-            { label: "Reference", value: 1 },
-            { label: "High", value: 4 / 3 },
-          ],
+          defaultKind: "slider",
+          allowedKinds: ["slider"],
+          options: exactStops,
+          lockedDomain: true,
         },
         {
-          key: "mechanics.atrial-contractility-scale",
-          label: "Atrial contractility",
-          min: 0.5,
-          max: 1.5,
-          step: 0.05,
-          disabledReason: "Not exposed by this scientific release",
+          key: SCIENTIFIC_CONTROL_PULMONARY_V1,
+          label: "Pulmonary vascular resistance",
+          min: 0.75,
+          max: 4 / 3,
+          step: 1 / 12,
+          defaultKind: "slider",
+          allowedKinds: ["slider"],
+          options: exactStops,
+          lockedDomain: true,
         },
       ],
     },
   ],
   baselineValues: {
-    "circulation.systemic-resistance-scale": 1,
+    [SCIENTIFIC_CONTROL_SYSTEMIC_V1]: 1,
+    [SCIENTIFIC_CONTROL_PULMONARY_V1]: 1,
   },
-  defaultItems: [
-    {
-      paramKey: "circulation.systemic-resistance-scale",
-      kind: "buttonGroup",
-      label: "Systemic vascular resistance",
-      options: [
-        { label: "Low", value: 0.75 },
-        { label: "Reference", value: 1 },
-        { label: "High", value: 4 / 3 },
-      ],
-    },
-  ],
+  defaultItems: SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1,
 };
 
 beforeAll(async () => {
@@ -77,35 +77,35 @@ describe("runtime-specific Workbench authoring seams", () => {
   it("normalizes runtime controller ids without admitting keys outside the injected catalog", () => {
     const result = normalizeControllerItemsForAuthoring([
       {
-        paramKey: "circulation.systemic-resistance-scale",
-        kind: "buttonGroup",
+        paramKey: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
+        kind: "slider",
         label: "SVR",
         min: 0,
         max: 9,
-        options: [
-          { label: "Low", value: 0.75 },
-          { label: "Reference", value: 1 },
-          { label: "High", value: 4 / 3 },
-        ],
+        options: exactStops,
       },
-      { paramKey: "legacy.contractility", kind: "slider", label: "Legacy" },
+      {
+        paramKey: "systemicVascularResistanceScale",
+        kind: "slider",
+        label: "Legacy alias",
+      },
     ], authoring);
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({
-      paramKey: "circulation.systemic-resistance-scale",
+      paramKey: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
       min: 0.75,
-      kind: "buttonGroup",
+      kind: "slider",
     });
     expect(result.items[0].max).toBeCloseTo(4 / 3, 10);
     expect(result.items[0].max).toBe(4 / 3);
-    expect(result.items[0].options?.map((option) => option.value)).toEqual([
+    expect(result.items[0].options?.map(({ value }) => value)).toEqual([
       0.75,
       1,
       4 / 3,
     ]);
     expect(result.warnings).toContain(
-      'Dropped controller item not exposed by this runtime: "legacy.contractility".',
+      'Dropped controller item not exposed by this runtime: "systemicVascularResistanceScale".',
     );
   });
 
@@ -117,51 +117,66 @@ describe("runtime-specific Workbench authoring seams", () => {
 
     expect(html).toContain("Release-bound controls");
     expect(html).toContain("Systemic vascular resistance");
-    expect(html).toContain("Not exposed by this scientific release");
+    expect(html).toContain("Pulmonary vascular resistance");
+    expect(html).not.toContain("Atrial contractility");
+    expect(html).not.toContain("Not exposed by this scientific release");
   });
 
-  it("coerces an authored continuous slider to the enumerated release domain", () => {
+  it("coerces an authored button group to the exact-stop release slider", () => {
     const result = normalizeControllerItemsForAuthoring([{
-      paramKey: "circulation.systemic-resistance-scale",
-      kind: "slider",
+      paramKey: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
+      kind: "buttonGroup",
       label: "SVR",
       min: 0.75,
       max: 4 / 3,
       step: 0.01,
+      options: [{ label: "Unsupported", value: 1.1 }],
     }], authoring);
 
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({
-      kind: "buttonGroup",
+      kind: "slider",
       min: 0.75,
       max: 4 / 3,
     });
+    expect(result.items[0].step).toBe(1 / 12);
     expect(result.items[0].options?.map(({ value }) => value)).toEqual([
       0.75,
       1,
       4 / 3,
     ]);
     expect(result.warnings.join(" ")).toContain(
-      "runtime domain does not admit slider",
+      "runtime domain does not admit buttonGroup",
     );
 
-    const malformed = normalizeControllerItemsForAuthoring([{
-      paramKey: "circulation.systemic-resistance-scale",
-      kind: "buttonGroup",
-      options: [{ label: "Only", value: 1 }],
-    }], authoring);
-    expect(malformed.items[0].kind).toBe("buttonGroup");
-    expect(malformed.items[0].options?.map(({ value }) => value)).toEqual([
+    const releaseItem = scientificControllerItemForReleaseV1(result.items[0]);
+    expect(releaseItem.kind).toBe("slider");
+    expect(releaseItem.step).toBe(1 / 12);
+    expect(releaseItem.options?.map(({ value }) => value)).toEqual([
       0.75,
       1,
       4 / 3,
     ]);
-    expect(malformed.warnings.join(" ")).toContain(
-      "Restored canonical button values",
-    );
   });
 
-  it("reasserts the enumerated domain at render time and remounts on target identity", () => {
+  it("keeps the Product controller IDs and stops identical to the engine catalog", () => {
+    expect([
+      SCIENTIFIC_CONTROL_SYSTEMIC_V1,
+      SCIENTIFIC_CONTROL_PULMONARY_V1,
+    ]).toEqual([...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0]);
+    expect(
+      SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1.map(({ paramKey }) => paramKey),
+    ).toEqual([...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0]);
+
+    for (const item of SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1) {
+      expect(item.kind).toBe("slider");
+      expect(item.options?.map(({ value }) => value)).toEqual(
+        [...MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0],
+      );
+    }
+  });
+
+  it("reasserts the exact-stop slider at render time and remounts on target identity", () => {
     const authoredSlider = {
       paramKey: SCIENTIFIC_CONTROL_SYSTEMIC_V1,
       kind: "slider" as const,
@@ -171,7 +186,10 @@ describe("runtime-specific Workbench authoring seams", () => {
     };
     const runtimeItem = scientificControllerItemForReleaseV1(authoredSlider);
 
-    expect(runtimeItem.kind).toBe("buttonGroup");
+    expect(runtimeItem.kind).toBe("slider");
+    expect(runtimeItem.min).toBe(0.75);
+    expect(runtimeItem.max).toBe(4 / 3);
+    expect(runtimeItem.step).toBe(1 / 12);
     expect(runtimeItem.options?.map(({ value }) => value)).toEqual([
       0.75,
       1,

@@ -30,7 +30,8 @@ import type {
 import type {
   MainWireScientificValidatedTerminalCycleV1,
 } from "@/engine/scientific/metrics";
-import type {
+import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0,
   MainWireScientificResearchControlScaleV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
 import {
@@ -582,6 +583,7 @@ function validatedCycleForDisplayV1(
       revisionsContiguous: true as const,
       cadenceUniform: true as const,
       bothCycleBoundariesRetained: true as const,
+      periodicOrbitClassifiedP1: true as const,
       smoothingOrInterpolationApplied: false as const,
     }),
   });
@@ -607,5 +609,6 @@ export function uniqueScenarioNameV1(
 export function isScientificControlScaleV1(
   value: number,
 ): value is MainWireScientificResearchControlScaleV0 {
-  return value === 0.75 || value === 1 || value === 4 / 3;
+  return (MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0 as
+    readonly number[]).includes(value);
 }

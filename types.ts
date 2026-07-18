@@ -9,6 +9,7 @@ import type {
 import type { ClinicalKnobs, KnobKey } from './engine/knobs';
 import type { GuytonSide } from './engine/guytonStarling';
 import type { VascularReturnSnapshot } from './engine/guytonVascular';
+import type { MainWireScientificDerivedMetricIdV1 } from './engine/scientific/metrics';
 
 export type SimulationParams = CoreRuntimeParams;
 
@@ -31,10 +32,11 @@ export type SignalType =
   | 'Pperi' | 'Ppc' | 'VHeart' | 'septumShiftMl' | 'VLVeff' | 'VRVeff'
   | 'PLVfw' | 'PRVfw' | 'PVI_LV' | 'PVI_RV' | 'septalForceMmHg'
   | 'Default';
-export type MetricType =
+export type LegacyMetricType =
   | 'ABP' | 'CVP' | 'PAP' | 'PCWP' | 'SV' | 'CO' | 'LVEF' | 'RVEF'
   | 'COR' | 'COR_PCT' | 'LAD_DF' | 'LCx_DF' | 'RCA_DF'
   | 'FFR_LAD' | 'FFR_LCx' | 'FFR_RCA' | 'COR_SDI_L' | 'COR_SDI_R';
+export type MetricType = LegacyMetricType | MainWireScientificDerivedMetricIdV1;
 
 export interface SimInstance {
     id: string;

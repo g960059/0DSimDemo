@@ -58,6 +58,25 @@ export const ControllerItemControl = ({ item, value, baseline, unit, onChange, o
     );
   }
 
+  if (item.kind === "slider" && options.length > 0) {
+    return (
+      <Slider
+        label={label}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={onChange}
+        onCommit={onCommit ?? onChange}
+        unit={unit}
+        baseline={baseline}
+        onReset={onReset}
+        disabled={disabled}
+        stops={options}
+      />
+    );
+  }
+
   if (options.length > 0) {
     return (
       <div className="space-y-1">

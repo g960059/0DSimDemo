@@ -273,10 +273,15 @@ export function updatePanelWithSourceViewMirrors(
   ));
 }
 
-export function mergePanelControllerItems(panel: PanelDef, items: ControllerItem[]): PanelDef {
+export function mergePanelControllerItems(
+  panel: PanelDef,
+  items: ControllerItem[],
+  normalizeItems: (items: ControllerItem[]) => ControllerItem[] = (candidateItems) =>
+    normalizeControllerItems(candidateItems).items,
+): PanelDef {
   if (panel.type !== 'CONTROLS') return panel;
 
-  const normalized = normalizeControllerItems(items).items;
+  const normalized = normalizeItems(items);
   const baseView: ControlPanelView = panel.view?.kind === 'control'
     ? panel.view
     : (toTypedPanelView({ ...panel, type: 'CONTROLS', view: undefined }) as ControlPanelView);

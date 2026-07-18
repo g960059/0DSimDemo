@@ -6,16 +6,16 @@ import { Slider } from "@/components/controls/Slider";
 import type { ControllerItem } from "@/types";
 
 const sliderItem: ControllerItem = {
-  paramKey: "contractility",
+  paramKey: "circulation.systemic-vascular-resistance-scale",
   kind: "slider",
-  label: "LV contractility",
-  min: 0.25,
-  max: 2.5,
-  step: 0.05,
+  label: "Systemic vascular resistance",
+  min: 0.75,
+  max: 4 / 3,
+  step: 1 / 12,
   options: [
-    { label: "Low", value: 0.7 },
-    { label: "Normal", value: 1 },
-    { label: "High", value: 1.4 },
+    { label: "0.75×", value: 0.75 },
+    { label: "1.00×", value: 1 },
+    { label: "1.33×", value: 4 / 3 },
   ],
 };
 
@@ -51,80 +51,72 @@ function collectSliders(node: React.ReactNode): React.ReactElement[] {
 }
 
 describe("ControllerItemControl", () => {
-  it("renders preset chips above a retained range slider", () => {
+  it("renders an enumerated slider as exactly three indexed stops", () => {
     const html = renderToStaticMarkup(renderControl(sliderItem, 1));
 
-    expect(html).toContain("Low");
-    expect(html).toContain("Normal");
-    expect(html).toContain("High");
+    expect(html).toContain("0.75×");
+    expect(html).toContain("1.00×");
+    expect(html).toContain("1.33×");
     expect(html).toContain('type="range"');
+    expect(html).toContain('min="0"');
+    expect(html).toContain('max="2"');
+    expect(html).toContain('step="1"');
+    expect(html).toContain('value="1"');
   });
 
-  it("renders preset chips as a labelled group", () => {
+  it("uses the control label on the slider without rendering preset buttons", () => {
     const html = renderToStaticMarkup(renderControl(sliderItem, 1));
 
-    expect(html).toContain('role="group"');
-    expect(html).toContain('aria-label="LV contractility"');
-  });
-
-  it("marks an active chip within step tolerance", () => {
-    const buttons = collectButtons(ControllerItemControl({
-      item: sliderItem,
-      value: 1.01,
-      onChange: vi.fn(),
-    }));
-
-    expect(buttons.map((button) => button.props["aria-pressed"]).filter((pressed) => pressed !== undefined)).toEqual([false, true, false]);
-    const activeClassName = (buttons[1].props as { className: string }).className;
-    expect(activeClassName).toContain("ring-1");
-    expect(activeClassName).toContain("ring-wb-accent");
-  });
-
-  it("leaves all chips inactive off preset while retaining the slider", () => {
-    const element = ControllerItemControl({
-      item: sliderItem,
-      value: 1.2,
-      onChange: vi.fn(),
-    });
-    const buttons = collectButtons(element);
-    const html = renderToStaticMarkup(element);
-
-    expect(buttons.map((button) => button.props["aria-pressed"]).filter((pressed) => pressed !== undefined)).toEqual([false, false, false]);
-    expect(html).toContain('type="range"');
-  });
-
-  it("clicking a chip fires onChange with the option value", () => {
-    const onChange = vi.fn();
-    const buttons = collectButtons(ControllerItemControl({
+    expect(html).toContain('aria-label="Systemic vascular resistance"');
+    expect(html).not.toContain('role="group"');
+    expect(collectButtons(ControllerItemControl({
       item: sliderItem,
       value: 1,
-      onChange,
-    }));
-
-    (buttons[2].props as { onClick: () => void }).onClick();
-
-    expect(onChange).toHaveBeenCalledWith(1.4);
+      onChange: vi.fn(),
+    }))).toHaveLength(0);
   });
 
-  it("range sliders commit through onCommit instead of live onChange", () => {
+  it("passes only the exact runtime values to the indexed slider", () => {
+    const sliders = collectSliders(ControllerItemControl({
+      item: sliderItem,
+      value: 1,
+      onChange: vi.fn(),
+    }));
+    const sliderProps = sliders[0].props as {
+      stops?: readonly { label: string; value: number }[];
+    };
+
+    expect(sliderProps.stops?.map(({ value }) => value)).toEqual([
+      0.75,
+      1,
+      4 / 3,
+    ]);
+  });
+
+  it("forwards drag changes and release commits through separate callbacks", () => {
     const onChange = vi.fn();
+    const onCommit = vi.fn();
     const sliders = collectSliders(ControllerItemControl({
       item: sliderItem,
       value: 1,
       onChange,
+      onCommit,
     }));
+    const sliderProps = sliders[0].props as {
+      onChange?: (v: number) => void;
+      onCommit?: (v: number) => void;
+    };
 
-    expect(sliders).toHaveLength(1);
-    const sliderProps = sliders[0].props as { onCommit?: (v: number) => void; onChange?: (v: number) => void };
-    expect(typeof sliderProps.onCommit).toBe("function");
-    expect(sliderProps.onChange).toBeUndefined();
+    sliderProps.onChange?.(4 / 3);
 
-    sliderProps.onCommit?.(1.2);
+    expect(onChange).toHaveBeenCalledWith(4 / 3);
+    expect(onCommit).not.toHaveBeenCalled();
 
-    expect(onChange).toHaveBeenCalledWith(1.2);
+    sliderProps.onCommit?.(4 / 3);
+    expect(onCommit).toHaveBeenCalledWith(4 / 3);
   });
 
-  it("keeps slider drafts local until its release commit", () => {
+  it("keeps continuous slider drafts local until their release commit", () => {
     const onChange = vi.fn();
     const onCommit = vi.fn();
     const sliders = collectSliders(ControllerItemControl({
@@ -142,33 +134,33 @@ describe("ControllerItemControl", () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(onCommit).not.toHaveBeenCalled();
 
-    sliderProps.onCommit?.(1.2);
-    expect(onCommit).toHaveBeenCalledWith(1.2);
+    sliderProps.onCommit?.(1.25);
+    expect(onCommit).toHaveBeenCalledWith(1.25);
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("routes a preset choice to the immediate option commit", () => {
+  it("falls back to onChange when an enumerated slider has no commit callback", () => {
     const onChange = vi.fn();
-    const onOptionCommit = vi.fn();
-    const buttons = collectButtons(ControllerItemControl({
+    const sliders = collectSliders(ControllerItemControl({
       item: sliderItem,
       value: 1,
       onChange,
-      onOptionCommit,
     }));
+    const sliderProps = sliders[0].props as {
+      onCommit?: (v: number) => void;
+    };
 
-    (buttons[2].props as { onClick: () => void }).onClick();
+    sliderProps.onCommit?.(0.75);
 
-    expect(onOptionCommit).toHaveBeenCalledWith(1.4);
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenCalledWith(0.75);
   });
 
   it("renders pure buttonGroup controls as chips only", () => {
     const html = renderToStaticMarkup(renderControl({ ...sliderItem, kind: "buttonGroup" }, 1));
 
-    expect(html).toContain("Low");
-    expect(html).toContain("Normal");
-    expect(html).toContain("High");
+    expect(html).toContain("0.75×");
+    expect(html).toContain("1.00×");
+    expect(html).toContain("1.33×");
     expect(html).not.toContain('type="range"');
   });
 });

@@ -41,6 +41,7 @@ describe("scientific workbench terminal cycle V1", () => {
       revisionsContiguous: true,
       cadenceUniform: true,
       bothCycleBoundariesRetained: true,
+      periodicOrbitClassifiedP1: true,
       smoothingOrInterpolationApplied: false,
     });
   });
@@ -62,6 +63,7 @@ describe("scientific workbench terminal cycle V1", () => {
       revisionsContiguous: true,
       cadenceUniform: true,
       bothCycleBoundariesRetained: true,
+      periodicOrbitClassifiedP1: true,
       smoothingOrInterpolationApplied: false,
     });
     expect(() => assembleScientificWorkbenchResearchTerminalCycleV1(

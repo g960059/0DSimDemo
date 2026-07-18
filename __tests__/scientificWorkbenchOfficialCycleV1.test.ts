@@ -13,6 +13,9 @@ import type {
 import {
   loadBundledOfficialHealthyPeriodicDocumentChainV1,
 } from "@/engine/scientificBrowser/bundledOfficialHealthyPeriodicDocumentChainV1";
+import {
+  deriveMainWireScientificMetricsV1,
+} from "@/engine/scientific/metrics";
 
 describe("scientific workbench official cycle V1", () => {
   it("restores the verified V3 case and captures one complete P1 cycle", async () => {
@@ -63,5 +66,18 @@ describe("scientific workbench official cycle V1", () => {
       followingCompleteCycleCaptured: true,
       clinicalValidationClaimed: false,
     });
+
+    const metrics = deriveMainWireScientificMetricsV1(result.terminalCycle);
+    const metricValues = Object.values(metrics.values);
+    expect(metricValues).toHaveLength(44);
+    expect(metricValues.every(({ availability, value }) => (
+      availability === "available" && value !== null
+    ))).toBe(true);
+    expect(metricValues.filter(({ periodicBoundaryCompletionApplied }) =>
+      periodicBoundaryCompletionApplied)).toHaveLength(36);
+    expect(metrics.values["valve.AoV.cardiac_output.net"].value)
+      .toBeCloseTo(5.31185, 4);
+    expect(metrics.values["hemodynamics.ejection_fraction.LV"].value)
+      .toBeCloseTo(57.96, 1);
   }, 30_000);
 });

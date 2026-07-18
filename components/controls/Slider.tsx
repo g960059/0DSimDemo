@@ -14,12 +14,15 @@ export interface SliderProps {
   baseline?: number;
   onReset?: () => void;
   disabled?: boolean;
+  /** Optional exact runtime values. The thumb moves by index and never emits
+   * an intermediate value outside this set. */
+  stops?: readonly Readonly<{ value: number; label: string }>[];
 }
 
 export const hasChanged = (value: number, baseline: number | undefined, step: number) =>
   baseline !== undefined && Math.abs(value - baseline) > Math.max(step/2, 1e-6);
 
-export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit, baseline, onReset, disabled = false }: SliderProps) => {
+export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit, baseline, onReset, disabled = false, stops }: SliderProps) => {
   const { t } = useTranslation();
   const [draftValue, setDraftValue] = useState(value);
   const draftValueRef = useRef(value);
@@ -30,6 +33,20 @@ export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit,
   const liveValue = onCommit ? draftValue : value;
   const isChanged = hasChanged(liveValue, baseline, step);
   const valueText = liveValue.toFixed(decimals);
+  const exactStops = (stops ?? [])
+    .filter((stop, index, values) =>
+      Number.isFinite(stop.value)
+      && values.findIndex((candidate) => candidate.value === stop.value) === index)
+    .sort((left, right) => left.value - right.value);
+  const usesExactStops = exactStops.length >= 2;
+  const nearestStopIndex = usesExactStops
+    ? exactStops.reduce((bestIndex, stop, index) =>
+      Math.abs(stop.value - liveValue)
+        < Math.abs(exactStops[bestIndex]!.value - liveValue)
+        ? index
+        : bestIndex, 0)
+    : 0;
+  const selectedStop = usesExactStops ? exactStops[nearestStopIndex] : undefined;
 
   useEffect(() => {
     // When a parent mirrors the in-progress draft, do not move the commit
@@ -100,20 +117,30 @@ export const Slider = ({ label, value, min, max, step, onChange, onCommit, unit,
     </div>
     <input
       type="range"
-      min={min}
-      max={max}
-      step={step}
-      value={liveValue}
-      onChange={(e) => updateDraft(parseFloat(e.target.value))}
+      min={usesExactStops ? 0 : min}
+      max={usesExactStops ? exactStops.length - 1 : max}
+      step={usesExactStops ? 1 : step}
+      value={usesExactStops ? nearestStopIndex : liveValue}
+      onChange={(e) => {
+        const raw = parseFloat(e.target.value);
+        updateDraft(usesExactStops ? exactStops[Math.round(raw)]!.value : raw);
+      }}
       onPointerUp={commitDraft}
       onTouchEnd={commitDraft}
       onKeyUp={handleKeyUp}
       onBlur={commitDraft}
       disabled={disabled}
       aria-label={label}
-      aria-valuetext={`${valueText}${unit ? ` ${unit}` : ''}`}
-      className="mt-1.5 h-1.5 w-full cursor-pointer appearance-none rounded bg-wb-hover accent-wb-accent hover:accent-wb-accent focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      aria-valuetext={selectedStop?.label ?? `${valueText}${unit ? ` ${unit}` : ''}`}
+      className="mt-1.5 h-1.5 w-full cursor-pointer appearance-none rounded bg-wb-hover accent-wb-accent hover:accent-wb-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-wb-accent focus-visible:ring-offset-2 focus-visible:ring-offset-wb-panel disabled:cursor-not-allowed disabled:opacity-50"
     />
+    {usesExactStops && (
+      <div className="mt-1 flex justify-between gap-1 px-0.5 text-[9px] font-medium tabular-nums text-wb-subtle" aria-hidden="true">
+        {exactStops.map((stop) => (
+          <span key={stop.value}>{stop.label}</span>
+        ))}
+      </div>
+    )}
   </div>
   );
 };

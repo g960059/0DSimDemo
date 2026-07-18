@@ -32,13 +32,14 @@ export type ControllerAuthoringCatalogEntry = Readonly<{
   defaultKind?: "slider" | "buttonGroup";
   /**
    * Presentation controls admitted by this runtime domain. Omit to retain the
-   * legacy authoring choice between slider and button group. Release-bound
-   * enumerated domains should expose only `buttonGroup`; rendering a
-   * continuous slider for a discrete engine contract creates values that the
-   * runtime must reject after the user releases the thumb.
+   * legacy authoring choice between slider and button group. A release-bound
+   * enumerated domain may expose an exact-stop slider when `options` contains
+   * the complete admitted value set.
    */
   allowedKinds?: readonly ("slider" | "buttonGroup")[];
   options?: readonly Readonly<{ label: string; value: number; labelKey?: string }>[];
+  /** Keep the engine range, step, and enumerated values read-only in authoring. */
+  lockedDomain?: boolean;
   disabledReason?: string;
 }>;
 
@@ -201,7 +202,9 @@ export function normalizeControllerItemsForAuthoring(
     }
     seen.add(item.paramKey);
 
-    const step = typeof item.step === "number" && Number.isFinite(item.step) && item.step > 0
+    const step = entry.lockedDomain
+      ? entry.step
+      : typeof item.step === "number" && Number.isFinite(item.step) && item.step > 0
       ? item.step
       : entry.step;
     // Catalog boundaries and discrete option values are runtime-domain values,
@@ -209,8 +212,12 @@ export function normalizeControllerItemsForAuthoring(
     // inherits the catalog. In particular, rational domains such as 4/3 must
     // not be truncated by decimal step formatting before they reach the
     // scientific runtime's strict enumerated-value validator.
-    const clampedMin = finiteInRange(item.min, entry.min, entry.min, entry.max);
-    const clampedMax = finiteInRange(item.max, entry.max, entry.min, entry.max);
+    const clampedMin = entry.lockedDomain
+      ? entry.min
+      : finiteInRange(item.min, entry.min, entry.min, entry.max);
+    const clampedMax = entry.lockedDomain
+      ? entry.max
+      : finiteInRange(item.max, entry.max, entry.min, entry.max);
     let min = clampedMin === entry.min || clampedMin === entry.max
       ? clampedMin
       : roundToStep(clampedMin, step);
@@ -247,6 +254,12 @@ export function normalizeControllerItemsForAuthoring(
       max,
       step,
     };
+
+    if (kind === "slider" && entry.options !== undefined) {
+      next.options = entry.options
+        .filter((option) => Number.isFinite(option.value))
+        .map((option) => ({ ...option }));
+    }
 
     if (kind === "buttonGroup") {
       const optionsByValue = new Map<number, { label: string; value: number; labelKey?: string }>();
@@ -536,7 +549,9 @@ export function ControllerItemsBuilder({
             <div className="divide-y divide-wb-line">
               {items.map((item, index) => {
                 const meta = catalogMetaFor(item.paramKey, injectedCatalogByKey);
-                const admittedKinds = injectedCatalogByKey?.get(item.paramKey)?.allowedKinds;
+                const injectedEntry = injectedCatalogByKey?.get(item.paramKey);
+                const admittedKinds = injectedEntry?.allowedKinds;
+                const domainLocked = injectedEntry?.lockedDomain === true;
                 const baseline = normalizedPreviewValue(item, baselines[item.paramKey], injectedCatalogByKey);
                 const isButton = item.kind === "buttonGroup";
                 const optionWarning = isButton && distinctOptionValues(item) < 2;
@@ -599,7 +614,11 @@ export function ControllerItemsBuilder({
                             <span className="text-[11px] font-medium text-wb-subtle">{t("workbench.controllerBuilder.advancedRange")}</span>
                             <span className="text-[10px] text-wb-subtle">{t("workbench.controllerBuilder.engineRange", { min: meta.min, max: meta.max })}</span>
                           </div>
-                          <div className="grid grid-cols-3 gap-2">
+                          {domainLocked ? (
+                            <div className="rounded bg-wb-input px-2 py-1.5 text-[10px] font-medium text-wb-subtle">
+                              Runtime-validated values are fixed; labels and order remain editable.
+                            </div>
+                          ) : <div className="grid grid-cols-3 gap-2">
                             {(["min", "max", "step"] as const).map((field) => {
                               const draftKey = `${item.paramKey}:range:${field}`;
                               return (
@@ -624,10 +643,10 @@ export function ControllerItemsBuilder({
                                 </label>
                               );
                             })}
-                          </div>
+                          </div>}
                         </div>
 
-                        {isButton && (
+                        {isButton && !domainLocked && (
                           <div className="space-y-1.5">
                             {(item.options ?? []).map((option, optionIndex) => {
                               const optionLabelDraftKey = `${item.paramKey}:option:${optionIndex}:label`;

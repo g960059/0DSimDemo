@@ -74,7 +74,6 @@ export const fastTests = [
   "__tests__/notePanel.test.ts",
   "__tests__/noteViewRefs.test.ts",
   "__tests__/notes.roundtrip.test.ts",
-  "__tests__/officialAfterloadCase.test.ts",
   "__tests__/panelGrid.test.ts",
   "__tests__/panelView.test.ts",
   "__tests__/parallelOneStateSlsV1.test.ts",
@@ -92,6 +91,7 @@ export const fastTests = [
   "__tests__/scientificWorkbenchOfficialCycleV1.test.ts",
   "__tests__/scientificProductScenarioRegistryV1.test.ts",
   "__tests__/scientificWorkbenchDisplayClockV1.test.ts",
+  "__tests__/scientificWorkbenchMetricPresentationV1.test.ts",
   "__tests__/scientificWorkbenchPageV1.test.ts",
   "__tests__/scientificWorkbenchTerminalCycleV1.test.ts",
   "__tests__/simulationReleaseV1.test.ts",
@@ -133,6 +133,7 @@ export const fastTests = [
 ] as const;
 
 export const regressionTests = [
+  "__tests__/officialAfterloadCase.test.ts",
   "engine/__tests__/atrialPhysiologyBridgeV2.test.ts",
   "engine/__tests__/baseline.test.ts",
   "engine/__tests__/caseContract.test.ts",

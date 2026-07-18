@@ -67,6 +67,23 @@ export type PanelGridMode = 'learner' | 'sandbox';
 export type RightRailView = 'scenarios' | 'inspector';
 export type MetricsSpanMode = 'main' | 'full';
 
+export type MetricAuthoringCatalogEntry = Readonly<{
+  key: MetricType;
+  label: string;
+  unit?: string;
+}>;
+
+export type MetricAuthoringCatalogSection = Readonly<{
+  id: string;
+  title: string;
+  entries: readonly MetricAuthoringCatalogEntry[];
+}>;
+
+/** Runtime-specific metric vocabulary used by the metrics-view editor. */
+export type MetricAuthoringCatalog = Readonly<{
+  sections: readonly MetricAuthoringCatalogSection[];
+}>;
+
 export interface WorkbenchLayoutState {
   controlsWidth: number;
   caseRailWidth: number;
@@ -153,6 +170,8 @@ export interface PanelGridProps {
   runtimeRenderer?: WorkbenchRuntimeRenderer;
   /** Runtime-specific controller catalog; omitted for the legacy model. */
   controllerAuthoring?: ControllerAuthoringCatalog;
+  /** Runtime-specific metric catalog; omitted for the legacy model. */
+  metricAuthoring?: MetricAuthoringCatalog;
   /** Runtime-specific scenario presets; omitted for legacy OFFICIAL_BASELINES. */
   scenarioPresetCatalog?: readonly ScenarioPresetCatalogEntry[];
 }
@@ -393,22 +412,6 @@ const SIGNAL_METADATA: Record<string, { label: string; category: Exclude<SignalC
   'valve.TV.opening_fraction': { label: 'Tricuspid opening', category: 'Valve' },
   'valve.PV.opening_fraction': { label: 'Pulmonic opening', category: 'Valve' },
   'pericardium.excess_pressure': { label: 'Pericardial excess pressure', category: 'Coupling', unit: 'mmHg' },
-  'hemodynamics.pressure.mean.LA': { label: 'Mean LA pressure', category: 'Pressure', unit: 'mmHg' },
-  'hemodynamics.pressure.mean.RA': { label: 'Mean RA pressure', category: 'Pressure', unit: 'mmHg' },
-  'hemodynamics.pressure.mean.Ao': { label: 'Mean aortic pressure', category: 'Pressure', unit: 'mmHg' },
-  'hemodynamics.pressure.mean.PA': { label: 'Mean pulmonary artery pressure', category: 'Pressure', unit: 'mmHg' },
-  'hemodynamics.volume.excursion.LV': { label: 'LV volume excursion', category: 'Volume', unit: 'mL' },
-  'hemodynamics.ejection_fraction.LV': { label: 'LV ejection fraction', category: 'Derived', unit: '%' },
-  'hemodynamics.volume.excursion.RV': { label: 'RV volume excursion', category: 'Volume', unit: 'mL' },
-  'hemodynamics.ejection_fraction.RV': { label: 'RV ejection fraction', category: 'Derived', unit: '%' },
-  'valve.AoV.cycle_volume.forward': { label: 'Aortic forward cycle volume', category: 'Volume', unit: 'mL' },
-  'valve.AoV.cycle_volume.net': { label: 'Aortic net cycle volume', category: 'Volume', unit: 'mL' },
-  'valve.AoV.cardiac_output.forward': { label: 'Aortic forward cardiac output', category: 'Flow', unit: 'L/min' },
-  'valve.AoV.cardiac_output.net': { label: 'Aortic net cardiac output', category: 'Flow', unit: 'L/min' },
-  'valve.PV.cycle_volume.forward': { label: 'Pulmonary forward cycle volume', category: 'Volume', unit: 'mL' },
-  'valve.PV.cycle_volume.net': { label: 'Pulmonary net cycle volume', category: 'Volume', unit: 'mL' },
-  'valve.PV.cardiac_output.forward': { label: 'Pulmonary forward cardiac output', category: 'Flow', unit: 'L/min' },
-  'valve.PV.cardiac_output.net': { label: 'Pulmonary net cardiac output', category: 'Flow', unit: 'L/min' },
   Default: { label: 'Guyton curve', category: 'Derived' },
 };
 
@@ -1819,6 +1822,7 @@ function ViewSpecEditorModal({
   activeInstanceId,
   metrics,
   controllerAuthoring,
+  metricAuthoring,
   onClose,
   onSave,
 }: {
@@ -1827,6 +1831,7 @@ function ViewSpecEditorModal({
   activeInstanceId: string;
   metrics: MetricType[];
   controllerAuthoring?: ControllerAuthoringCatalog;
+  metricAuthoring?: MetricAuthoringCatalog;
   onClose: () => void;
   onSave: (draft: ViewEditorSave) => void;
 }) {
@@ -1835,6 +1840,7 @@ function ViewSpecEditorModal({
   const kind = editor.mode === 'edit' ? editor.view.kind : editor.kind;
   const titleId = `view-editor-title-${existing?.id ?? kind}`;
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [title, setTitle] = useState(existing?.title ?? (kind === 'controller' ? t('workbench.viewEditor.newControllerTitle') : t('workbench.viewEditor.newMetricsTitle')));
   const [items, setItems] = useState<ControllerItem[]>(
     existing?.kind === 'controller'
@@ -1845,9 +1851,29 @@ function ViewSpecEditorModal({
   );
   const [selectedMetrics, setSelectedMetrics] = useState<MetricType[]>(existing?.kind === 'metrics' ? existing.metrics : []);
   const [metricSearch, setMetricSearch] = useState('');
+  const metricAuthoringByKey = useMemo(
+    () => new Map(
+      metricAuthoring?.sections.flatMap((section) =>
+        section.entries.map((entry) => [entry.key, entry] as const)) ?? [],
+    ),
+    [metricAuthoring],
+  );
+  const metricLabel = useCallback(
+    (metric: MetricType) => metricAuthoringByKey.get(metric)?.label
+      ?? signalMetadata(metric).label,
+    [metricAuthoringByKey],
+  );
 
   useEffect(() => {
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     dialogRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (previousFocusRef.current?.isConnected) {
+        previousFocusRef.current.focus({ preventScroll: true });
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -1860,10 +1886,56 @@ function ViewSpecEditorModal({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((node) => node.tabIndex !== -1 && !node.hasAttribute('disabled'));
+    if (focusable.length === 0) return;
+    const first = focusable[0]!;
+    const last = focusable.at(-1)!;
+    const active = document.activeElement;
+    if (!focusable.includes(active as HTMLElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   const metricSections = useMemo(() => {
     const query = metricSearch.trim().toLowerCase();
     const available = metrics.length > 0 ? metrics : DEFAULT_METRIC_OPTIONS;
-    const sections = new Map<string, MetricType[]>();
+    const availableSet = new Set<MetricType>(available);
+    if (metricAuthoring !== undefined) {
+      return metricAuthoring.sections
+        .map((section) => ({
+          id: section.id,
+          title: section.title,
+          metrics: section.entries
+            .filter(({ key, label }) => availableSet.has(key)
+              && (!query
+                || key.toLowerCase().includes(query)
+                || label.toLowerCase().includes(query)))
+            .map(({ key }) => key),
+        }))
+        .filter((section) => section.metrics.length > 0);
+    }
+    const sections = new Map<Exclude<SignalCategory, 'All'>, MetricType[]>();
     for (const metric of available) {
       const meta = signalMetadata(metric);
       const label = meta.label;
@@ -1871,8 +1943,12 @@ function ViewSpecEditorModal({
       const key = meta.category;
       sections.set(key, [...(sections.get(key) ?? []), metric]);
     }
-    return [...sections.entries()];
-  }, [metricSearch, metrics]);
+    return [...sections.entries()].map(([category, categoryMetrics]) => ({
+      id: category,
+      title: signalCategoryLabel(t, category),
+      metrics: categoryMetrics,
+    }));
+  }, [metricAuthoring, metricSearch, metrics, t]);
 
   const toggleMetric = (metric: MetricType) => {
     setSelectedMetrics((prev) => prev.includes(metric) ? prev.filter((item) => item !== metric) : [...prev, metric]);
@@ -1903,6 +1979,7 @@ function ViewSpecEditorModal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
+        onKeyDown={trapFocus}
         className="flex h-dvh w-full flex-col overflow-hidden bg-wb-panel shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-wb-line"
       >
         <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-wb-line px-4">
@@ -1949,27 +2026,29 @@ function ViewSpecEditorModal({
                     value={metricSearch}
                     onChange={(event) => setMetricSearch(event.target.value)}
                     placeholder={t('workbench.viewEditor.searchMetrics')}
+                    aria-label={t('workbench.viewEditor.searchMetrics')}
                     className="min-w-0 flex-1 rounded bg-transparent text-xs font-medium text-wb-text outline-none placeholder:text-wb-subtle focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                   />
                 </div>
                 <div className="space-y-1">
-                  {metricSections.map(([category, categoryMetrics]) => (
-                    <details key={category} open className="group">
+                  {metricSections.map((section) => (
+                    <details key={section.id} open className="group">
                       <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[11px] font-medium text-wb-subtle transition-colors hover:text-wb-muted [&::-webkit-details-marker]:hidden">
                         <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
-                        {signalCategoryLabel(t, category as SignalCategory)}
+                        {section.title}
                       </summary>
                       <div className="grid pb-1 sm:grid-cols-2">
-	                        {categoryMetrics.map((metric) => {
+	                        {section.metrics.map((metric) => {
 	                          const selected = selectedMetrics.includes(metric);
-                            const label = signalMetadata(metric).label;
+                            const label = metricLabel(metric);
 	                          return (
 	                            <button
 	                              key={metric}
 	                              type="button"
 	                              onClick={() => toggleMetric(metric)}
+                                aria-pressed={selected}
                                 title={`${label} — ${metric}`}
-	                              className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
+	                              className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
 	                                selected
 	                                  ? 'text-wb-text'
                                   : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
@@ -1992,24 +2071,24 @@ function ViewSpecEditorModal({
                 {selectedMetrics.length === 0 ? (
                   <div className="px-1 py-3 text-xs text-wb-subtle">{t('workbench.viewEditor.noMetrics')}</div>
                 ) : (
-                  <div className="divide-y divide-wb-line">
+                  <ol className="divide-y divide-wb-line">
                     {selectedMetrics.map((metric, index) => (
-                      <div key={metric} className="group/row flex min-h-9 items-center gap-1 px-1">
-                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-wb-text">{signalMetadata(metric).label}</span>
+                      <li key={metric} className="group/row flex min-h-9 items-center gap-1 px-1">
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-wb-text">{metricLabel(metric)}</span>
                         <div className="flex shrink-0 items-center opacity-60 transition-opacity group-hover/row:opacity-100">
-                          <button type="button" onClick={() => moveMetric(metric, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={t('workbench.viewEditor.moveUp')}>
+                          <button type="button" onClick={() => moveMetric(metric, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={`${t('workbench.viewEditor.moveUp')}: ${metricLabel(metric)}`}>
                             <ChevronDown className="h-3.5 w-3.5 rotate-180" />
                           </button>
-                          <button type="button" onClick={() => moveMetric(metric, 1)} disabled={index === selectedMetrics.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={t('workbench.viewEditor.moveDown')}>
+                          <button type="button" onClick={() => moveMetric(metric, 1)} disabled={index === selectedMetrics.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={`${t('workbench.viewEditor.moveDown')}: ${metricLabel(metric)}`}>
                             <ChevronDown className="h-3.5 w-3.5" />
                           </button>
-                          <button type="button" onClick={() => toggleMetric(metric)} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-danger" aria-label={t('workbench.viewEditor.removeMetric')}>
+                          <button type="button" onClick={() => toggleMetric(metric)} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-danger" aria-label={`${t('workbench.viewEditor.removeMetric')}: ${metricLabel(metric)}`}>
                             <X className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ol>
                 )}
               </div>
             </div>
@@ -2629,6 +2708,7 @@ export function PanelGrid({
   controlGroups,
   runtimeRenderer,
   controllerAuthoring,
+  metricAuthoring,
   scenarioPresetCatalog,
 }: PanelGridProps) {
   const { t } = useTranslation();
@@ -2775,6 +2855,7 @@ export function PanelGrid({
       activeInstanceId={activeInstanceId}
       metrics={metrics}
       controllerAuthoring={controllerAuthoring}
+      metricAuthoring={metricAuthoring}
       onClose={() => setViewEditor(null)}
       onSave={(draft) => {
         if (viewEditor.mode === 'edit') {
