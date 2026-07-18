@@ -5,11 +5,9 @@ import type { TFunction } from 'i18next';
 import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
 import { renderPaneBody } from './renderPaneBody';
-import { ControllerItemsBuilder } from './ControllerItemsBuilder';
-import { getScenarioPresetMenuPosition, ScenarioPane, ScenarioPresetMenu } from './ScenarioPane';
+import { ControllerItemsBuilder, type ControllerAuthoringCatalog } from './ControllerItemsBuilder';
+import { getScenarioPresetMenuPosition, ScenarioPane, ScenarioPresetMenu, type ScenarioPresetCatalogEntry } from './ScenarioPane';
 import { WorkbenchEmptyState } from './WorkbenchEmptyState';
-import { Controls } from '../Controls';
-import { MetricsPanel } from '../Charts';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
 import type { SteadyUpdateStatusMap } from '../../engine/previewController';
@@ -49,7 +47,15 @@ import { resolveControllerTargetId } from '../../features/workbench/controllerBi
 import { hasViewRefUsage, viewRefUsageForDeletion } from '../../features/workbench/noteViewRefs';
 import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../../features/workbench/viewSpec';
 import type { WorkbenchThemeId } from './WorkbenchSidePanel';
+import type { WorkbenchRuntimeRenderer } from '../../features/workbench/runtime/WorkbenchRuntimeRenderer';
 import { Activity, Brush, Bug, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, Pencil, Plus, RotateCcw, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
+
+const LegacyControls = React.lazy(
+  () => import('../Controls').then((module) => ({ default: module.Controls })),
+);
+const LegacyMetricsPanel = React.lazy(
+  () => import('../Charts').then((module) => ({ default: module.MetricsPanel })),
+);
 
 export type PanelGridMode = 'learner' | 'sandbox';
 export type RightRailView = 'scenarios' | 'inspector';
@@ -70,7 +76,7 @@ export interface WorkbenchLayoutState {
   metricsSpan: MetricsSpanMode;
 }
 
-interface PanelGridProps {
+export interface PanelGridProps {
   instances: SimInstance[];
   panels: PanelDef[];
   layoutState: WorkbenchLayoutState;
@@ -137,6 +143,11 @@ interface PanelGridProps {
   signals: SignalType[];
   metrics: MetricType[];
   controlGroups: string[];
+  runtimeRenderer?: WorkbenchRuntimeRenderer;
+  /** Runtime-specific controller catalog; omitted for the legacy model. */
+  controllerAuthoring?: ControllerAuthoringCatalog;
+  /** Runtime-specific scenario presets; omitted for legacy OFFICIAL_BASELINES. */
+  scenarioPresetCatalog?: readonly ScenarioPresetCatalogEntry[];
 }
 
 type PanelChromeMode = 'desktop' | 'mobile' | 'dockview';
@@ -245,6 +256,7 @@ interface PanelSettingsControlsProps {
   signals: SignalType[];
   metrics: MetricType[];
   controlGroups: string[];
+  controllerAuthoring?: ControllerAuthoringCatalog;
 }
 
 interface PanelSettingsButtonProps {
@@ -356,6 +368,39 @@ const SIGNAL_METADATA: Record<string, { label: string; category: Exclude<SignalC
   CO: { label: 'Cardiac output', category: 'Flow', unit: 'L/min' },
   LVEF: { label: 'LV ejection fraction', category: 'Derived', unit: '%' },
   RVEF: { label: 'RV ejection fraction', category: 'Derived', unit: '%' },
+  'hemodynamics.pressure.absolute.LA': { label: 'LA pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.RA': { label: 'RA pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.LV': { label: 'LV pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.RV': { label: 'RV pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.Ao': { label: 'Aortic pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.PA': { label: 'Pulmonary artery pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.PVein': { label: 'Pulmonary venous pressure', category: 'Pressure', unit: 'mmHg' },
+  'valve.MV.flow': { label: 'Mitral flow', category: 'Flow', unit: 'mL/s' },
+  'valve.AoV.flow': { label: 'Aortic flow', category: 'Flow', unit: 'mL/s' },
+  'valve.TV.flow': { label: 'Tricuspid flow', category: 'Flow', unit: 'mL/s' },
+  'valve.PV.flow': { label: 'Pulmonic flow', category: 'Flow', unit: 'mL/s' },
+  'hemodynamics.flow.pulmonary_venous': { label: 'Pulmonary venous flow', category: 'Flow', unit: 'mL/s' },
+  'valve.MV.opening_fraction': { label: 'Mitral opening', category: 'Valve' },
+  'valve.AoV.opening_fraction': { label: 'Aortic opening', category: 'Valve' },
+  'valve.TV.opening_fraction': { label: 'Tricuspid opening', category: 'Valve' },
+  'valve.PV.opening_fraction': { label: 'Pulmonic opening', category: 'Valve' },
+  'pericardium.excess_pressure': { label: 'Pericardial excess pressure', category: 'Coupling', unit: 'mmHg' },
+  'hemodynamics.pressure.mean.LA': { label: 'Mean LA pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.mean.RA': { label: 'Mean RA pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.mean.Ao': { label: 'Mean aortic pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.mean.PA': { label: 'Mean pulmonary artery pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.volume.excursion.LV': { label: 'LV volume excursion', category: 'Volume', unit: 'mL' },
+  'hemodynamics.ejection_fraction.LV': { label: 'LV ejection fraction', category: 'Derived', unit: '%' },
+  'hemodynamics.volume.excursion.RV': { label: 'RV volume excursion', category: 'Volume', unit: 'mL' },
+  'hemodynamics.ejection_fraction.RV': { label: 'RV ejection fraction', category: 'Derived', unit: '%' },
+  'valve.AoV.cycle_volume.forward': { label: 'Aortic forward cycle volume', category: 'Volume', unit: 'mL' },
+  'valve.AoV.cycle_volume.net': { label: 'Aortic net cycle volume', category: 'Volume', unit: 'mL' },
+  'valve.AoV.cardiac_output.forward': { label: 'Aortic forward cardiac output', category: 'Flow', unit: 'L/min' },
+  'valve.AoV.cardiac_output.net': { label: 'Aortic net cardiac output', category: 'Flow', unit: 'L/min' },
+  'valve.PV.cycle_volume.forward': { label: 'Pulmonary forward cycle volume', category: 'Volume', unit: 'mL' },
+  'valve.PV.cycle_volume.net': { label: 'Pulmonary net cycle volume', category: 'Volume', unit: 'mL' },
+  'valve.PV.cardiac_output.forward': { label: 'Pulmonary forward cardiac output', category: 'Flow', unit: 'L/min' },
+  'valve.PV.cardiac_output.net': { label: 'Pulmonary net cardiac output', category: 'Flow', unit: 'L/min' },
   Default: { label: 'Guyton curve', category: 'Derived' },
 };
 
@@ -1102,6 +1147,7 @@ function ControlPanelSettingsBoard({
   updateInstanceSignals,
   updatePanelControllerItems,
   controlGroups,
+  controllerAuthoring,
 }: PanelSettingsControlsProps) {
   const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState<ControlSettingsSectionId>('targets');
@@ -1264,6 +1310,7 @@ function ControlPanelSettingsBoard({
           instances={instances}
           activeInstanceId={activeInstanceId}
           updatePanelControllerItems={updatePanelControllerItems}
+          authoring={controllerAuthoring}
         />
       );
     }
@@ -1473,7 +1520,7 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
 type ViewEditorState =
   | { mode: 'create'; kind: 'controller' }
   | { mode: 'create'; kind: 'metrics' }
-  | { mode: 'edit'; view: AuthoredViewSpec };
+  | { mode: 'edit'; view: ControllerViewSpec | MetricsViewSpec };
 
 type ViewEditorSave =
   | { kind: 'controller'; title: string; items: ControllerItem[] }
@@ -1484,6 +1531,7 @@ function ViewSpecEditorModal({
   instances,
   activeInstanceId,
   metrics,
+  controllerAuthoring,
   onClose,
   onSave,
 }: {
@@ -1491,6 +1539,7 @@ function ViewSpecEditorModal({
   instances: SimInstance[];
   activeInstanceId: string;
   metrics: MetricType[];
+  controllerAuthoring?: ControllerAuthoringCatalog;
   onClose: () => void;
   onSave: (draft: ViewEditorSave) => void;
 }) {
@@ -1500,7 +1549,13 @@ function ViewSpecEditorModal({
   const titleId = `view-editor-title-${existing?.id ?? kind}`;
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const [title, setTitle] = useState(existing?.title ?? (kind === 'controller' ? t('workbench.viewEditor.newControllerTitle') : t('workbench.viewEditor.newMetricsTitle')));
-  const [items, setItems] = useState<ControllerItem[]>(existing?.kind === 'controller' ? existing.items : []);
+  const [items, setItems] = useState<ControllerItem[]>(
+    existing?.kind === 'controller'
+      ? existing.items
+      : controllerAuthoring?.defaultItems
+        ? controllerAuthoring.defaultItems.map((item) => ({ ...item, ...(item.options ? { options: item.options.map((option) => ({ ...option })) } : {}) }))
+        : [],
+  );
   const [selectedMetrics, setSelectedMetrics] = useState<MetricType[]>(existing?.kind === 'metrics' ? existing.metrics : []);
   const [metricSearch, setMetricSearch] = useState('');
 
@@ -1596,6 +1651,7 @@ function ViewSpecEditorModal({
               instances={instances}
               activeInstanceId={activeInstanceId}
               onItemsChange={setItems}
+              authoring={controllerAuthoring}
             />
           ) : (
             <div className="grid min-h-0 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
@@ -1854,6 +1910,7 @@ interface PanelCardProps {
   canConfigure?: boolean;
   readOnly?: boolean;
   workbenchTheme?: WorkbenchThemeId;
+  runtimeRenderer?: WorkbenchRuntimeRenderer;
 }
 
 function NoteModeToggleButton({
@@ -1938,6 +1995,7 @@ function PanelCard({
   canConfigure = isEditor,
   readOnly = false,
   workbenchTheme = 'dark',
+  runtimeRenderer,
 }: PanelCardProps) {
   const { t } = useTranslation();
   const bodyClassName = chromeMode === 'mobile' || chromeMode === 'dockview'
@@ -1992,6 +2050,7 @@ function PanelCard({
         onOpenSettings: openSettingsFromLegend,
         legendPosition: panel.view?.kind === 'graph' ? panel.view.legendPosition : undefined,
         onLegendPositionChange: changeLegendPosition,
+        runtimeRenderer,
       })}
     </div>
   );
@@ -2278,6 +2337,9 @@ export function PanelGrid({
   signals,
   metrics,
   controlGroups,
+  runtimeRenderer,
+  controllerAuthoring,
+  scenarioPresetCatalog,
 }: PanelGridProps) {
   const { t } = useTranslation();
   const isReadOnly = mode === 'learner';
@@ -2381,6 +2443,7 @@ export function PanelGrid({
       canConfigure={mode !== 'learner'}
       readOnly={isReadOnly}
       workbenchTheme={workbenchTheme}
+      runtimeRenderer={runtimeRenderer}
     />
   );
 
@@ -2410,6 +2473,7 @@ export function PanelGrid({
       signals={signals}
       metrics={metrics}
       controlGroups={controlGroups}
+      controllerAuthoring={controllerAuthoring}
     />
   ) : null;
   const viewEditorModal = !isReadOnly && viewEditor ? (
@@ -2418,12 +2482,15 @@ export function PanelGrid({
       instances={instances}
       activeInstanceId={activeInstanceId}
       metrics={metrics}
+      controllerAuthoring={controllerAuthoring}
       onClose={() => setViewEditor(null)}
       onSave={(draft) => {
         if (viewEditor.mode === 'edit') {
           const source = viewEditor.view;
           if (draft.kind === 'controller') {
-            updateAuthoredView(createControllerViewSpec(source.id, draft.title, draft.items));
+            updateAuthoredView(controllerAuthoring && source.kind === 'controller'
+              ? { ...source, title: draft.title, items: draft.items }
+              : createControllerViewSpec(source.id, draft.title, draft.items));
           } else {
             updateAuthoredView(createMetricsViewSpec(source.id, draft.title, draft.metrics, instances, source.kind === 'metrics' ? source.membership : undefined));
           }
@@ -2649,13 +2716,22 @@ export function PanelGrid({
         />
       );
     }
+    const runtimeBody = runtimeRenderer?.renderAuthoredView(view, {
+      instances,
+      activeInstanceId,
+      presentationMode: 'studio',
+    });
     return (
       <div className="relative h-full min-h-0 overflow-hidden">
-        <MetricsPanel
-          physicsRefs={physicsRefs}
-          instances={instances}
-          config={effectiveGlobalConfig(metricsViewConfig(view, instances), instances)}
-        />
+        {runtimeBody ?? (
+          <React.Suspense fallback={<div className="h-full bg-wb-aux" />}>
+            <LegacyMetricsPanel
+              physicsRefs={physicsRefs}
+              instances={instances}
+              config={effectiveGlobalConfig(metricsViewConfig(view, instances), instances)}
+            />
+          </React.Suspense>
+        )}
       </div>
     );
   };
@@ -2729,6 +2805,7 @@ export function PanelGrid({
                 toggleScenarioGlobalVisibility,
                 resetInstanceKnobs,
                 readOnly: isReadOnly,
+                runtimeRenderer,
               })}
             </section>
           )}
@@ -2823,6 +2900,7 @@ export function PanelGrid({
                   {scenarioAddMenuPosition && !isReadOnly && (
                     <ScenarioPresetMenu
                       position={scenarioAddMenuPosition}
+                      presets={scenarioPresetCatalog}
                       onClose={() => setScenarioAddMenuPosition(null)}
                       onSelect={(presetId) => {
                         addInstance(undefined, presetId);
@@ -3015,18 +3093,26 @@ export function PanelGrid({
                 </div>
                 <div className="relative min-h-0 flex-1">
                   {selectedControllerView ? (
-                    <Controls
-                      isPaneMode
-                      paneConfig={inspectorConfig}
-                      instances={inspectorInstances}
-                      instanceHealth={instanceHealth}
-                      activeInstanceId={selectedControllerTargetId}
-                      updateInstanceParams={updateInstanceParams}
-                      updateInstanceKnobs={updateInstanceKnobs}
-                      updateInstanceVolume={updateInstanceVolume}
-                      presentationMode="studio"
-                      controllerItems={selectedControllerView.items}
-                    />
+                    runtimeRenderer?.renderAuthoredView(selectedControllerView, {
+                      instances,
+                      activeInstanceId: selectedControllerTargetId,
+                      presentationMode: 'studio',
+                    }) ?? (
+                      <React.Suspense fallback={<div className="h-full bg-wb-aux" />}>
+                        <LegacyControls
+                          isPaneMode
+                          paneConfig={inspectorConfig}
+                          instances={inspectorInstances}
+                          instanceHealth={instanceHealth}
+                          activeInstanceId={selectedControllerTargetId}
+                          updateInstanceParams={updateInstanceParams}
+                          updateInstanceKnobs={updateInstanceKnobs}
+                          updateInstanceVolume={updateInstanceVolume}
+                          presentationMode="studio"
+                          controllerItems={selectedControllerView.items}
+                        />
+                      </React.Suspense>
+                    )
                   ) : (
                     <WorkbenchEmptyState
                       description={t('workbench.viewManagement.controllerEmptyHint')}

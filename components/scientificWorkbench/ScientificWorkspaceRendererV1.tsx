@@ -136,7 +136,7 @@ export const ScientificWorkspaceRendererV1 = React.memo(function ScientificWorks
   );
 });
 
-function ScientificWorkspacePanelViewV1({
+export function ScientificWorkspacePanelViewV1({
   panel,
   frames,
 }: Readonly<{

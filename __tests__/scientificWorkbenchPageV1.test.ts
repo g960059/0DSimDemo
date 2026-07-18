@@ -3,19 +3,35 @@ import path from "node:path";
 
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
+import ScientificProductWorkbenchPageV1 from "@/components/scientificProduct/ScientificProductWorkbenchPageV1";
+import {
+  resolveScientificProductCaseRouteV1,
+} from "@/components/scientificProduct/scientificProductCaseCatalogV1";
 import ScientificWorkbenchPageV1 from "@/components/scientificWorkbench/ScientificWorkbenchPageV1";
 import ScientificBrowserPerformanceLabV0 from "@/components/scientificPerformance/ScientificBrowserPerformanceLabV0";
 import {
   appendScientificWorkbenchLiveFramesV0,
   assertScientificWorkbenchResearchForkBoundaryFrameV0,
+  ScientificWorkbenchResearchControlMirrorV0,
   remainingScientificWorkbenchRegularRequestCountV0,
   reserveScientificWorkbenchRequestIdentityV0,
   scientificWorkbenchDisplayedFrameOwnerV0,
+  SCIENTIFIC_WORKBENCH_LIVE_HISTORY_FRAME_LIMIT_V0,
   SCIENTIFIC_WORKBENCH_OFFICIAL_BOOTSTRAP_REQUEST_COUNT_V0,
   SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0,
 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlV0";
+import {
+  createScientificWorkbenchResearchControlStoreV0,
+  type ScientificWorkbenchResearchControlOwnerActionsV0,
+  type ScientificWorkbenchResearchControlSnapshotInputV0,
+  type ScientificWorkbenchResearchControlSourceV0,
+} from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
+import {
+  createMainWireScientificResearchControlBaselineTargetStateV0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1,
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_FRAME_V1_ID,
@@ -39,13 +55,55 @@ describe("document-bound scientific workbench page V1", () => {
     expect(markup).not.toContain("backend selector");
   });
 
-  it("is routed separately without replacing the legacy workbench", () => {
+  it("keeps the research surface separate while the product route hosts the existing Workbench shell", () => {
     const source = read("index.tsx");
     expect(source).toContain('path="scientific-workbench"');
     expect(source).toContain('path="workbench"');
     expect(source).toContain(
       "./components/scientificWorkbench/ScientificWorkbenchPageV1",
     );
+    expect(source).toContain(
+      "./components/scientificProduct/ScientificProductWorkbenchPageV1",
+    );
+    expect(source).not.toMatch(
+      /(?:from\s+['"]\.\/WorkbenchPage['"]|import\(['"]\.\/WorkbenchPage['"]\))/,
+    );
+  });
+
+  it("starts the blank product path with fail-closed scientific verification", () => {
+    const markup = renderProductRoute("/ja/workbench");
+
+    expect(markup).toContain(
+      'data-testid="scientific-product-workbench-loading-v1"',
+    );
+    expect(markup).toContain("release-bound scientific state");
+    expect(markup).not.toContain("scientific-product-workbench-host-v1");
+    expect(markup).not.toContain('data-testid="scientific-workbench-page-v1"');
+    expect(markup).not.toContain("main-wire/healthy-cold");
+  });
+
+  it("resolves the retained normal-sinus alias to the exact official case", () => {
+    const resolution = resolveScientificProductCaseRouteV1("normal-sinus");
+    expect(resolution).toMatchObject({
+      canonicalCaseId: "circleheart/official-healthy-periodic",
+      aliasApplied: "normal-sinus",
+      caseEntry: { kind: "official-exact-periodic" },
+    });
+  });
+
+  it("fails closed for an unknown product case without mounting a runtime", () => {
+    const markup = renderProductRoute("/ja/workbench/unknown-case");
+
+    expect(markup).toContain(
+      'data-testid="product-workbench-unsupported-case-v1"',
+    );
+    expect(markup).toContain(
+      "This case is not available for the current model release.",
+    );
+    expect(markup).toContain("not translated silently");
+    expect(markup).not.toContain("scientific-product-workbench-host-v1");
+    expect(markup).not.toContain("product-workbench-page-v1");
+    expect(markup).not.toContain("Loading verified case");
   });
 
   it("keeps the page and its orchestration outside legacy runtime surfaces", () => {
@@ -140,7 +198,7 @@ describe("document-bound scientific workbench page V1", () => {
     );
   });
 
-  it("keeps every accepted live step in a strict rolling 501-frame history", () => {
+  it("keeps accepted live steps for the maximum waveform window without resampling", () => {
     const retained = Array.from(
       { length: 501 },
       (_, revision) => transitionFrame(revision, revision * 0.002),
@@ -151,8 +209,9 @@ describe("document-bound scientific workbench page V1", () => {
     );
     const next = appendScientificWorkbenchLiveFramesV0(retained, incoming);
 
-    expect(next).toHaveLength(501);
-    expect(next[0]?.revision).toBe(4);
+    expect(SCIENTIFIC_WORKBENCH_LIVE_HISTORY_FRAME_LIMIT_V0).toBe(10_001);
+    expect(next).toHaveLength(505);
+    expect(next[0]?.revision).toBe(0);
     expect(next.at(-1)?.revision).toBe(504);
     expect(next.slice(-4).map(({ revision }) => revision)).toEqual([
       501,
@@ -160,6 +219,13 @@ describe("document-bound scientific workbench page V1", () => {
       503,
       504,
     ]);
+    const oneSecondRolling = appendScientificWorkbenchLiveFramesV0(
+      retained,
+      incoming,
+      501,
+    );
+    expect(oneSecondRolling).toHaveLength(501);
+    expect(oneSecondRolling[0]?.revision).toBe(4);
     expect(() => appendScientificWorkbenchLiveFramesV0(
       retained,
       [transitionFrame(503, 1.002)],
@@ -280,6 +346,70 @@ describe("document-bound scientific workbench page V1", () => {
       sourceBoundary,
     )).toThrow(/state-owned/);
   });
+
+  it("shares one immutable research-control snapshot across controller mirrors", async () => {
+    const source = await researchControlStoreSource();
+    const store = createScientificWorkbenchResearchControlStoreV0(source, 21);
+    const initial = store.getSnapshot();
+    const calls: string[] = [];
+    const ownerActions: ScientificWorkbenchResearchControlOwnerActionsV0 = {
+      setSystemicScale: (value) => calls.push(`systemic:${value}`),
+      setPulmonaryScale: (value) => calls.push(`pulmonary:${value}`),
+      setMode: (mode) => calls.push(`mode:${mode}`),
+      applyTransition: () => calls.push("apply"),
+      cancelSteady: () => calls.push("cancel"),
+      pauseLive: () => calls.push("pause"),
+      resumeLive: () => calls.push("resume"),
+      resetLiveOrFailure: () => calls.push("reset"),
+    };
+    const token = Symbol("owner");
+    let notificationCount = 0;
+    const unsubscribe = store.subscribe(() => {
+      notificationCount += 1;
+    });
+    const disconnect = store.connectOwner(token, { current: ownerActions });
+
+    expect(store.getSnapshot().ownerConnected).toBe(true);
+    expect(store.getSnapshot().actions).toBe(initial.actions);
+    store.actions.setMode("live");
+    store.actions.setSystemicScale(1.3333333333333333);
+    store.actions.applyTransition();
+    expect(calls).toEqual(["mode:live", "systemic:1.3333333333333333", "apply"]);
+
+    const publishedInput = controlSnapshotInput(initial, {
+      phase: "live-running",
+      mode: "live",
+      message: "accepted live steps",
+    });
+    store.publishOwnerSnapshot(token, publishedInput);
+    store.publishOwnerSnapshot(token, publishedInput);
+    const published = store.getSnapshot();
+    expect(published.frames).toBe(source.frames);
+    expect(published.actions).toBe(initial.actions);
+    expect(Object.isFrozen(published)).toBe(true);
+    expect(Object.isFrozen(published.draft)).toBe(true);
+    // A subscribed parent may rerender the owner after publication. Reusing
+    // the memoized input must not create a parent/child notification loop.
+    expect(notificationCount).toBe(2);
+
+    const markup = renderToStaticMarkup(
+      React.createElement(ScientificWorkbenchResearchControlMirrorV0, {
+        store,
+        surface: "product",
+      }),
+    );
+    expect(markup).toContain('data-owner-connected="true"');
+    expect(markup).toContain('data-phase="live-running"');
+    expect(markup).toContain("accepted live steps");
+
+    expect(() => store.connectOwner(Symbol("second"), { current: ownerActions }))
+      .toThrow(/already has an owner/);
+    disconnect();
+    expect(store.getSnapshot().ownerConnected).toBe(false);
+    expect(store.getSnapshot().frames).toBe(source.frames);
+    expect(() => store.actions.pauseLive()).toThrow(/not connected/);
+    unsubscribe();
+  });
 });
 
 const TRANSITION_TEST_RELEASE = Object.freeze({
@@ -351,6 +481,58 @@ function researchControlForkBoundaryFrame(
   });
 }
 
+async function researchControlStoreSource(): Promise<
+  ScientificWorkbenchResearchControlSourceV0
+> {
+  const controlState =
+    await createMainWireScientificResearchControlBaselineTargetStateV0();
+  const frame = transitionFrame(100, 1);
+  return Object.freeze({
+    sessionId: "shared-source-session",
+    context: Object.freeze({
+      stateIdentity: Object.freeze({
+        revision: frame.revision,
+        acceptedTimeSec: frame.acceptedTimeSec,
+        totalBloodVolumeMl: 4_800,
+      }),
+      controlState,
+      parameterEpoch: 0,
+    }),
+    frames: Object.freeze([frame]),
+  });
+}
+
+function controlSnapshotInput(
+  snapshot: ReturnType<
+    ReturnType<typeof createScientificWorkbenchResearchControlStoreV0>["getSnapshot"]
+  >,
+  patch: Partial<ScientificWorkbenchResearchControlSnapshotInputV0>,
+): ScientificWorkbenchResearchControlSnapshotInputV0 {
+  const { actions: _actions, ownerConnected: _ownerConnected, ...input } = snapshot;
+  return Object.freeze({ ...input, ...patch });
+}
+
 function read(relativePath: string): string {
   return readFileSync(path.resolve(process.cwd(), relativePath), "utf8");
+}
+
+function renderProductRoute(initialEntry: string): string {
+  return renderToStaticMarkup(
+    React.createElement(
+      MemoryRouter,
+      { initialEntries: [initialEntry] },
+      React.createElement(
+        Routes,
+        null,
+        React.createElement(Route, {
+          path: "/:locale/workbench",
+          element: React.createElement(ScientificProductWorkbenchPageV1),
+        }),
+        React.createElement(Route, {
+          path: "/:locale/workbench/:caseId",
+          element: React.createElement(ScientificProductWorkbenchPageV1),
+        }),
+      ),
+    ),
+  );
 }

@@ -205,7 +205,7 @@ export function normalizeGraphBoardLayout(
 
 function graphViewSpecFromPanel(panel: PanelDef, graphType: GraphViewType): GraphViewSpec {
   return {
-    id: panel.id,
+    id: panel.sourceViewId ?? panel.id,
     title: panel.title,
     kind: "graph",
     graphType,

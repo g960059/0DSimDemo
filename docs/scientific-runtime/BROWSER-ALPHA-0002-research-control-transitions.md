@@ -62,10 +62,13 @@ disposes the former source session.
 
 The browser retains the original source session and plot for reset. The target
 runs one command at a time, always with four 2 ms steps and observation stride
-one. Every accepted frame is retained in a rolling 501-frame history; React
-plot-history commits are animation-frame batched and capped near 30 Hz, and the
-memoized renderer does not recompute for intervening command-status updates.
-No resampling, smoothing, or interpolation is applied.
+one. Every accepted frame is retained without resampling in a bounded
+20-second, 10,001-frame rolling history, matching the maximum product waveform
+window at the release's 2 ms cadence. The fork-boundary accepted time remains
+the immutable sweep origin even after old frames are trimmed. React
+plot-history commits are animation-frame batched and capped near 30 Hz, and
+the memoized renderer does not recompute for intervening command-status
+updates. No smoothing or interpolation is applied.
 
 Pause and reset take effect only between commands, so an accepted four-step
 transaction is never visually or scientifically split. Resume continues from

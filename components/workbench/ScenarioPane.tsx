@@ -2,12 +2,25 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import { Check, Eye, EyeOff, LoaderCircle, MoreVertical, TriangleAlert } from 'lucide-react';
-import { OFFICIAL_BASELINES } from '../../engine/caseBaselines';
 import type { SteadyUpdateStatus, SteadyUpdateStatusMap } from '../../engine/previewController';
 import type { SimInstance } from '../../types';
 
-interface ScenarioPaneProps {
-  instances: SimInstance[];
+export type ScenarioPaneInstance = Pick<SimInstance, 'id' | 'name' | 'color' | 'isVisible'> & Readonly<{
+  /** Explicit reset capability for runtimes that do not expose legacy knob state. */
+  canReset?: boolean;
+  /** Retained for the legacy default reset-capability inference. */
+  knobBaseline?: SimInstance['knobBaseline'];
+}>;
+
+export type ScenarioPresetCatalogEntry = Readonly<{
+  id: string;
+  label: string;
+  detail?: string;
+  disabledReason?: string;
+}>;
+
+export interface ScenarioPaneProps {
+  instances: ScenarioPaneInstance[];
   addInstance: (sourceId?: string, presetId?: string) => void;
   removeInstance: (id: string) => void;
   updateInstanceName: (id: string, name: string) => void;
@@ -20,12 +33,6 @@ interface ScenarioPaneProps {
   readOnly?: boolean;
 }
 
-const scenarioPresets = Object.entries(OFFICIAL_BASELINES).map(([id, preset]) => ({
-  id,
-  label: preset.label.replace(/\s*\([^)]*\)\s*$/, ''),
-  detail: preset.label,
-}));
-
 export const getScenarioPresetMenuPosition = (x: number, y: number, width = 208, height = 180) => ({
   x: Math.max(8, Math.min(x, window.innerWidth - width)),
   y: Math.max(8, Math.min(y, window.innerHeight - height)),
@@ -35,11 +42,24 @@ export function ScenarioPresetMenu({
   position,
   onClose,
   onSelect,
+  presets,
 }: {
   position: { x: number; y: number };
   onClose: () => void;
   onSelect: (presetId: string) => void;
+  presets?: readonly ScenarioPresetCatalogEntry[];
 }) {
+  const [legacyPresets, setLegacyPresets] = React.useState<
+  readonly ScenarioPresetCatalogEntry[]>([]);
+  React.useEffect(() => {
+    if (presets !== undefined) return undefined;
+    let active = true;
+    void import('./legacyScenarioPresetCatalog').then((module) => {
+      if (active) setLegacyPresets(module.LEGACY_SCENARIO_PRESET_CATALOG);
+    });
+    return () => { active = false; };
+  }, [presets]);
+  const resolvedPresets = presets ?? legacyPresets;
   return typeof document !== 'undefined' ? createPortal(
     <>
       <div className="fixed inset-0 z-[80]" onClick={onClose} />
@@ -48,15 +68,21 @@ export function ScenarioPresetMenu({
         style={{ left: position.x, top: position.y }}
         onClick={(event) => event.stopPropagation()}
       >
-        {scenarioPresets.map((preset) => (
+        {resolvedPresets.map((preset) => (
           <button
             key={preset.id}
             type="button"
+            disabled={Boolean(preset.disabledReason)}
             onClick={() => onSelect(preset.id)}
-            className="workbench-popover-menu-item block w-full px-3 py-2 text-left"
+            title={preset.disabledReason}
+            className="workbench-popover-menu-item block w-full px-3 py-2 text-left disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="block truncate text-xs font-semibold text-wb-text">{preset.label}</span>
-            <span className="block truncate text-[10px] text-wb-subtle">{preset.detail}</span>
+            {(preset.detail || preset.disabledReason) && (
+              <span className={`block truncate text-[10px] ${preset.disabledReason ? 'text-amber-300/80' : 'text-wb-subtle'}`}>
+                {preset.disabledReason ?? preset.detail}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -144,14 +170,14 @@ export function ScenarioPane({
     }
   }, [instances, menuState]);
 
-  const beginRename = (instance: SimInstance) => {
+  const beginRename = (instance: ScenarioPaneInstance) => {
     if (readOnly) return;
     setMenuState(null);
     setEditingId(instance.id);
     setDraftName(instance.name);
   };
 
-  const commitRename = (instance: SimInstance) => {
+  const commitRename = (instance: ScenarioPaneInstance) => {
     const nextName = draftName.trim();
     if (nextName && nextName !== instance.name) {
       updateInstanceName(instance.id, nextName);
@@ -165,13 +191,13 @@ export function ScenarioPane({
     setDraftName('');
   };
 
-  const openMenuAtCursor = (event: React.MouseEvent, instance: SimInstance) => {
+  const openMenuAtCursor = (event: React.MouseEvent, instance: ScenarioPaneInstance) => {
     event.preventDefault();
     event.stopPropagation();
     setMenuState({ instanceId: instance.id, ...getMenuPosition(event.clientX, event.clientY) });
   };
 
-  const openMenuForButton = (event: React.MouseEvent<HTMLButtonElement>, instance: SimInstance) => {
+  const openMenuForButton = (event: React.MouseEvent<HTMLButtonElement>, instance: ScenarioPaneInstance) => {
     event.stopPropagation();
     const rect = event.currentTarget.getBoundingClientRect();
     setMenuState({ instanceId: instance.id, ...getMenuPosition(rect.right - 144, rect.bottom + 4) });
@@ -315,7 +341,7 @@ export function ScenarioPane({
                         resetInstanceKnobs?.(instance.id);
                         setMenuState(null);
                       }}
-                      disabled={!resetInstanceKnobs || !instance.knobBaseline}
+                      disabled={!resetInstanceKnobs || !(instance.canReset ?? Boolean(instance.knobBaseline))}
                       className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent"
                     >
                       {t('workbench.scenarioPane.reset')}

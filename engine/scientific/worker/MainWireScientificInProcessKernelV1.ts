@@ -754,6 +754,8 @@ export class MainWireScientificInProcessKernelV1 {
       const caseRef = Object.freeze({ ...chain.caseDocument.ref });
       const workspaceRef = Object.freeze({ ...chain.workspaceDocument.ref });
       const observableFrame = project(session);
+      const baselineControlState =
+        await createMainWireScientificResearchControlBaselineTargetStateV0();
       const sessionOrigin = Object.freeze({
         kind: "research-document-case-cold-start" as const,
         presetId: command.presetId,
@@ -792,11 +794,20 @@ export class MainWireScientificInProcessKernelV1 {
           caseRef,
           workspaceRef,
           workspaceDocument: chain.workspaceDocument,
+          researchControlContext: Object.freeze({
+            stateIdentity: session.stateIdentity(),
+            controlState: baselineControlState,
+            parameterEpoch: 0,
+          }),
           observableFrame,
         }),
       );
       this.sessions.set(command.sessionId, session);
       this.sessionOrigins.set(command.sessionId, sessionOrigin);
+      this.researchControlBindings.set(command.sessionId, Object.freeze({
+        controlState: baselineControlState,
+        parameterEpoch: 0,
+      }));
       this.allocatedSessionIds.add(command.sessionId);
       return response;
     } catch (error) {

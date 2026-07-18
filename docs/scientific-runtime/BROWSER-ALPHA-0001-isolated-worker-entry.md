@@ -23,8 +23,24 @@ The route:
   session with explicit non-official, non-clinical, and non-steady claims; and
 - has no `ModelCore`, backend selector, or silent fallback import.
 
-This is an integration probe, not a default-runtime cutover or a complete UI.
-The legacy Workbench route and navigation remain unchanged.
+This section records the original alpha boundary. Route ownership was later
+superseded by
+`BROWSER-CUTOVER-0001-product-workbench.md`: the scientific alpha remains an
+isolated diagnostic probe, while the product `/workbench` route now injects the
+same scientific core beneath the preserved freeform Workbench shell. The
+localized `/scientific-workbench` route is the research/development surface;
+it is not the replacement UI for ordinary product use. The statements below
+about an unchanged legacy runtime apply only to the historical alpha step.
+
+The current product route extends this boundary without creating another
+scientific backend. It can host up to four independent scientific scenarios,
+with one Worker session and control store per scenario, and overlay selected
+scenarios in the preserved graph panes. Product time-series and pressure-volume
+plots are full-pane Canvas renderers: validated periodic cycles use a sweeping
+cursor/moving cap, while an open transient displays only accepted transient
+history and its latest accepted point. This product presentation behavior is
+specified and verified by `BROWSER-CUTOVER-0001-product-workbench.md`; it is not
+retroactively claimed as part of the historical alpha route.
 
 ## Smoke check
 
@@ -42,5 +58,9 @@ The legacy Workbench route and navigation remain unchanged.
    acquisition.
 6. Load a research bracket and confirm that it begins at accepted time zero,
    says that it is not official/clinical/steady, and does not auto-settle.
-7. Open `/ja/workbench` separately and confirm that its existing behavior is
-   unchanged; the alpha route is intentionally not in global navigation.
+7. For the historical alpha commit, open `/ja/workbench` separately and confirm
+   that its then-existing legacy runtime is unchanged. For the current product
+   cutover, follow `BROWSER-CUTOVER-0001-product-workbench.md` and verify the
+   original graph/layout/view-authoring/Note/Reading UX over native scientific
+   frames, independent multi-scenario Workers, graph membership/visibility,
+   and the Canvas sweep/PV-cap behavior instead.

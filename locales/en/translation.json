@@ -60,10 +60,14 @@
     "officialCases": "Official cases",
     "community": "Community",
     "openCase": "Open case",
+    "scientificCases": "Scientific model cases",
+    "scientificCasesDescription": "One pinned official reference and built-in research brackets. Research brackets are not diagnoses or clinically validated presets.",
     "officialBadge": "official",
     "draftBadge": "draft"
   },
   "workbench": {
+    "scientificPersistenceUnavailable": "Scientific case saving is not available in this release. This in-memory comparison is not written through the legacy case store.",
+    "scientificFilesUnavailable": "Scientific Case/Workspace import and export are not available in this release. Legacy case files are not translated silently.",
     "panels": {
       "waveforms": "Waveforms",
       "pvLoop": "PV Loop",
@@ -680,6 +684,7 @@
       "menuGroup": "Views",
       "controllerKind": "Controller view",
       "metricsKind": "Metrics view",
+      "graphKind": "Graph view",
       "missingTitle": "Referenced view unavailable",
       "unknownView": "Unknown view"
     },

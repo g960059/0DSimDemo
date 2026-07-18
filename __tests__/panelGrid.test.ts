@@ -11,7 +11,11 @@ import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition, isDockviewHorizontalOnlyDropAllowed, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
 import { standardAuthoredViews } from "@/features/workbench/authoredViews";
 import { createAuthorRuntimeSnapshot, resolveAuthorActiveInstanceId } from "@/features/workbench/hooks/useWorkbenchScene";
-import { addVisibleInstanceConfigsToPanels } from "@/WorkbenchPage";
+import {
+  addVisibleInstanceConfigsToPanels,
+  removeInstanceConfigsFromPanels,
+  updatePanelWithSourceViewMirrors,
+} from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
 import type { MetricsViewSpec } from "@/features/workbench/viewSpec";
@@ -632,6 +636,83 @@ describe("PanelGrid Dockview layout", () => {
     expect(panels[0].config.copy).toEqual({ visible: true, selectedSignals: ["LV"] });
     expect(panels[1].config.normal.visible).toBe(true);
     expect(panels[1].config.copy).toEqual({ visible: true, selectedSignals: ["clinical"] });
+  });
+
+  it("removes only deleted instance configs from every pane", () => {
+    const sourcePanels: PanelDef[] = [
+      {
+        ...pvLoopPanel,
+        config: {
+          normal: { visible: true, selectedSignals: ["LV"] },
+          copy: { visible: true, selectedSignals: ["LA"] },
+          legacy: { visible: false, selectedSignals: ["RV"] },
+        },
+      },
+      {
+        id: "unaffected",
+        type: "WAVEFORM",
+        title: "Unaffected",
+        w: 4,
+        h: 4,
+        config: { normal: { visible: true, selectedSignals: ["LVP"] } },
+        isSettingsOpen: false,
+      },
+    ];
+
+    const next = removeInstanceConfigsFromPanels(sourcePanels, ["copy"]);
+
+    expect(next[0].config).toEqual({
+      normal: { visible: true, selectedSignals: ["LV"] },
+      legacy: { visible: false, selectedSignals: ["RV"] },
+    });
+    expect(next[1]).toBe(sourcePanels[1]);
+    expect(sourcePanels[0].config.copy).toEqual({ visible: true, selectedSignals: ["LA"] });
+  });
+
+  it("updates all graph panes mirroring one source view while keeping non-graph panes local", () => {
+    const sourceGraph: PanelDef = {
+      ...pvLoopPanel,
+      id: "graph-view",
+      sourceViewId: undefined,
+      title: "Original",
+    };
+    const mirrorGraph: PanelDef = {
+      ...pvLoopPanel,
+      id: "dock-pane-copy",
+      sourceViewId: "graph-view",
+      title: "Original",
+    };
+    const unrelatedGraph: PanelDef = {
+      ...pvLoopPanel,
+      id: "other-graph",
+      sourceViewId: "other-view",
+      title: "Other",
+    };
+    const controls: PanelDef = {
+      id: "controls",
+      sourceViewId: "shared-controller",
+      type: "CONTROLS",
+      title: "Controls",
+      w: 4,
+      h: 4,
+      config: {},
+      isSettingsOpen: false,
+    };
+    const controlsMirror: PanelDef = { ...controls, id: "controls-copy" };
+
+    const graphs = updatePanelWithSourceViewMirrors(
+      [sourceGraph, mirrorGraph, unrelatedGraph],
+      mirrorGraph.id,
+      (panel) => ({ ...panel, title: "Renamed" }),
+    );
+    expect(graphs.map((panel) => panel.title)).toEqual(["Renamed", "Renamed", "Other"]);
+
+    const nonGraphs = updatePanelWithSourceViewMirrors(
+      [controls, controlsMirror],
+      controls.id,
+      (panel) => ({ ...panel, title: "Renamed controls" }),
+    );
+    expect(nonGraphs.map((panel) => panel.title)).toEqual(["Renamed controls", "Controls"]);
   });
 
   it("caps the scenario list height instead of assigning a fixed ratio height", () => {

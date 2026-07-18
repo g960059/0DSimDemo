@@ -17,6 +17,7 @@ import {
 import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type ScientificPeriodicSettlementProgressV1,
+  type ScientificResearchControlContextV0,
   type ScientificSessionOriginV1,
 } from "@/engine/scientific/worker";
 import type {
@@ -47,6 +48,7 @@ export type ScientificWorkbenchResearchCycleV1 = Readonly<{
   terminalCycle: ScientificWorkbenchResearchTerminalCycleV1;
   sessionOrigin: ResearchDocumentCaseOriginV1;
   completedBeatCount: number;
+  researchControlContext: ScientificResearchControlContextV0;
   evidence: Readonly<{
     browserCatalogReleasePinned: true;
     workerDocumentChainVerified: true;
@@ -121,6 +123,10 @@ export async function loadScientificWorkbenchResearchCycleV1(
     created.commandKind !== "createResearchDocumentCaseSession"
     || created.payload.kind !== "researchDocumentCaseSessionCreated"
     || created.sessionOrigin.kind !== "research-document-case-cold-start"
+    || created.payload.researchControlContext.stateIdentity.revision
+      !== created.payload.observableFrame.revision
+    || created.payload.researchControlContext.stateIdentity.acceptedTimeSec
+      !== created.payload.observableFrame.acceptedTimeSec
   ) {
     throw new ScientificWorkbenchResearchCycleLoadErrorV1(
       "worker-document-case",
@@ -316,6 +322,15 @@ export async function loadScientificWorkbenchResearchCycleV1(
     terminalCycle,
     sessionOrigin: origin,
     completedBeatCount,
+    researchControlContext: Object.freeze({
+      ...created.payload.researchControlContext,
+      stateIdentity: Object.freeze({
+        revision: capturedFinalFrame.revision,
+        acceptedTimeSec: capturedFinalFrame.acceptedTimeSec,
+        totalBloodVolumeMl:
+          created.payload.researchControlContext.stateIdentity.totalBloodVolumeMl,
+      }),
+    }),
     evidence: Object.freeze({
       browserCatalogReleasePinned: true as const,
       workerDocumentChainVerified: true as const,
@@ -345,6 +360,7 @@ function assertCreatedResearchIdentity(
     presetRef: unknown;
     caseRef: unknown;
     workspaceRef: unknown;
+    researchControlContext: ScientificResearchControlContextV0;
     observableFrame: MainWireScientificObservableFrameV1;
   }>,
   origin: ResearchDocumentCaseOriginV1,
@@ -380,6 +396,11 @@ function assertCreatedResearchIdentity(
       payload.observableFrame.releaseRef,
     )
     || payload.observableFrame.source !== "cold-initialization"
+    || payload.researchControlContext.stateIdentity.revision
+      !== payload.observableFrame.revision
+    || payload.researchControlContext.stateIdentity.acceptedTimeSec
+      !== payload.observableFrame.acceptedTimeSec
+    || payload.researchControlContext.parameterEpoch !== 0
     || canonicalJsonStringify(payload.presetRef)
       !== canonicalJsonStringify(origin.presetRef)
     || canonicalJsonStringify(payload.caseRef)

@@ -401,6 +401,7 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       caseRef: MainWireScientificCaseDocumentRefV1;
       workspaceRef: MainWireScientificWorkspaceDocumentRefV1;
       workspaceDocument: MainWireScientificWorkspaceDocumentV1;
+      researchControlContext: ScientificResearchControlContextV0;
       observableFrame: TObservableFrame;
     }>;
     forkResearchControlSession: Readonly<{

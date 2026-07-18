@@ -1,23 +1,34 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Controls } from "@/components/Controls";
-import { MetricsPanel } from "@/components/Charts";
-import { resolveControllerTargetId } from "@/features/workbench/controllerBinding";
-import { effectiveGlobalConfig } from "@/features/workbench/p1aStructuralHosts";
-import { metricsViewConfig, type AuthoredViewSpec } from "@/features/workbench/authoredViews";
+import type { AuthoredViewSpec } from "@/features/workbench/authoredViews";
+import type { WorkbenchRuntimeRenderer } from "@/features/workbench/runtime/WorkbenchRuntimeRenderer";
 import type { ClinicalKnobs } from "@/engine/knobs";
 import type { SimulationHealth } from "@/engine/protocol";
 import type { PhysicsRefState, SimInstance, SimulationParams } from "@/types";
 
+const LegacyAuthoredViewBody = React.lazy(
+  () => import("./LegacyAuthoredViewBody"),
+);
+
 export type AuthoredViewRuntime = {
-  instances: SimInstance[];
-  physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
-  instanceHealth?: Record<string, SimulationHealth>;
-  activeInstanceId?: string;
-  updateInstanceParams?: (id: string, params: Partial<SimulationParams>) => void;
-  updateInstanceKnobs?: (id: string, knobs: ClinicalKnobs) => void;
-  updateInstanceVolume?: (id: string, vol: number) => void;
+  /** Workbench-wide renderer used by panes, authored views and note embeds. */
+  runtimeRenderer?: WorkbenchRuntimeRenderer;
+  activeScenarioId?: string;
   presentationMode?: "studio" | "reading";
+  /** @deprecated Compatibility fields for adapters that have not moved to renderAuthoredView yet. */
+  instances?: SimInstance[];
+  /** @deprecated Compatibility fields for adapters that have not moved to renderAuthoredView yet. */
+  physicsRefs?: React.MutableRefObject<Map<string, PhysicsRefState>>;
+  /** @deprecated Compatibility fields for adapters that have not moved to renderAuthoredView yet. */
+  instanceHealth?: Record<string, SimulationHealth>;
+  /** @deprecated Use activeScenarioId. */
+  activeInstanceId?: string;
+  /** @deprecated Compatibility fields for adapters that have not moved to renderAuthoredView yet. */
+  updateInstanceParams?: (id: string, params: Partial<SimulationParams>) => void;
+  /** @deprecated Compatibility fields for adapters that have not moved to renderAuthoredView yet. */
+  updateInstanceKnobs?: (id: string, knobs: ClinicalKnobs) => void;
+  /** @deprecated Compatibility fields for adapters that have not moved to renderAuthoredView yet. */
+  updateInstanceVolume?: (id: string, vol: number) => void;
 };
 
 export function AuthoredViewPlaceholder({ viewId }: { viewId: string }) {
@@ -44,41 +55,41 @@ export function AuthoredViewEmbed({
   const view = authoredViews.find((candidate) => candidate.id === viewId);
   if (!view || !runtime) return <AuthoredViewPlaceholder viewId={viewId} />;
 
-  const activeInstanceId = runtime.activeInstanceId ?? runtime.instances[0]?.id ?? "";
-  const controllerTargetId = view.kind === "controller"
-    ? resolveControllerTargetId(view.binding, activeInstanceId, runtime.instances)
-    : activeInstanceId;
-  const body = view.kind === "controller" ? (
-    runtime.updateInstanceParams && runtime.updateInstanceKnobs && runtime.updateInstanceVolume ? (
-      <Controls
-        isPaneMode
-        paneConfig={controllerTargetId ? { [controllerTargetId]: { visible: true, selectedSignals: ["clinical"] } } : {}}
-        instances={runtime.instances.map((instance) => (instance.id === controllerTargetId ? { ...instance, isVisible: true } : instance))}
-        instanceHealth={runtime.instanceHealth}
-        activeInstanceId={controllerTargetId}
-        updateInstanceParams={runtime.updateInstanceParams}
-        updateInstanceKnobs={runtime.updateInstanceKnobs}
-        updateInstanceVolume={runtime.updateInstanceVolume}
-        presentationMode={runtime.presentationMode}
-        controllerItems={view.items}
-      />
-    ) : null
-  ) : (
-    <MetricsPanel
-      physicsRefs={runtime.physicsRefs}
-      instances={runtime.instances}
-      config={effectiveGlobalConfig(metricsViewConfig(view, runtime.instances), runtime.instances)}
-    />
-  );
+  const activeScenarioId = runtime.activeScenarioId
+    ?? runtime.activeInstanceId
+    ?? runtime.instances?.[0]?.id;
+  const presentationMode = runtime.presentationMode ?? "reading";
+  const body = runtime.runtimeRenderer
+    ? runtime.runtimeRenderer.renderAuthoredView(view, {
+        instances: runtime.instances ?? [],
+        activeInstanceId: activeScenarioId,
+        presentationMode,
+      })
+    : (
+        <React.Suspense fallback={<div className="min-h-[180px] bg-wb-aux" />}>
+          <LegacyAuthoredViewBody view={view} runtime={runtime} />
+        </React.Suspense>
+      );
 
-  if (!body) return <AuthoredViewPlaceholder viewId={viewId} />;
+  if (body === undefined || body === null) return <AuthoredViewPlaceholder viewId={viewId} />;
 
   return (
-    <figure className={`workbench-authored-view-embed my-4 block w-full max-w-full overflow-hidden rounded-md border border-wb-line bg-wb-input text-wb-text ${className}`} contentEditable={false}>
+    <figure
+      className={`workbench-authored-view-embed my-4 block w-full max-w-full overflow-hidden rounded-md border border-wb-line bg-wb-input text-wb-text ${className}`}
+      contentEditable={false}
+      data-authored-view-id={view.id}
+      data-authored-view-kind={view.kind}
+    >
       <figcaption className="border-b border-wb-line px-3 py-1.5 text-[11px] font-medium text-wb-subtle">
         {view.title}
       </figcaption>
-      <div className={view.kind === "controller" ? "relative h-[360px] max-h-[58vh] w-full max-w-full overflow-y-auto" : "relative min-h-[180px] w-full max-w-full"}>
+      <div className={
+        view.kind === "controller"
+          ? "relative h-[360px] max-h-[58vh] w-full max-w-full overflow-y-auto"
+          : view.kind === "graph"
+            ? "relative h-[320px] min-h-[180px] w-full max-w-full"
+            : "relative min-h-[180px] w-full max-w-full"
+      }>
         {body}
       </div>
     </figure>

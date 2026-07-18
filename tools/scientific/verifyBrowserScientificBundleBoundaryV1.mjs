@@ -17,6 +17,10 @@ const workbenchName = exactlyOne(
   assetNames.filter((name) => name.startsWith("ScientificWorkbenchPageV1-")),
   "scientific Workbench page chunk",
 );
+const productWorkbenchName = exactlyOne(
+  assetNames.filter((name) => name.startsWith("ScientificProductWorkbenchPageV1-")),
+  "scientific product Workbench page chunk",
+);
 const performanceLabName = exactlyOne(
   assetNames.filter((name) => name.startsWith("ScientificBrowserPerformanceLabV0-")),
   "scientific browser performance lab chunk",
@@ -40,6 +44,7 @@ const sources = new Map(await Promise.all(assetNames.map(async (name) => [
 const workerSource = sources.get(workerName);
 const alphaSource = sources.get(alphaName);
 const workbenchSource = sources.get(workbenchName);
+const productWorkbenchSource = sources.get(productWorkbenchName);
 const performanceLabSource = sources.get(performanceLabName);
 const officialCycleSource = officialCycleName === null
   ? ""
@@ -49,21 +54,74 @@ if (
   workerSource === undefined
   || alphaSource === undefined
   || workbenchSource === undefined
+  || productWorkbenchSource === undefined
   || performanceLabSource === undefined
   || officialCycleSource === undefined
   || clientSource === undefined
 ) {
   throw new Error("scientific bundle chunks disappeared during verification");
 }
-const alphaSurfaceSource = `${alphaSource}\n${clientSource}`;
-const workbenchSurfaceSource = `${workbenchSource}\n${officialCycleSource}\n${clientSource}`;
-const performanceLabSurfaceSource = `${performanceLabSource}\n${workbenchSource}\n${officialCycleSource}\n${clientSource}`;
+const alphaSurfaceNames = staticImportClosure([alphaName]);
+const workbenchSurfaceNames = staticImportClosure([workbenchName]);
+const productWorkbenchSurfaceNames = staticImportClosure([productWorkbenchName]);
+const performanceLabSurfaceNames = staticImportClosure([performanceLabName]);
+const alphaSurfaceSource = sourceFor(alphaSurfaceNames);
+const workbenchSurfaceSource = sourceFor(workbenchSurfaceNames);
+const productWorkbenchSurfaceSource = sourceFor(productWorkbenchSurfaceNames);
+const performanceLabSurfaceSource = sourceFor(performanceLabSurfaceNames);
 const allowedOfficialMainThreadChunks = new Set([
-  workbenchName,
-  performanceLabName,
-  clientName,
-  ...(officialCycleName === null ? [] : [officialCycleName]),
+  ...workbenchSurfaceNames,
+  ...productWorkbenchSurfaceNames,
+  ...performanceLabSurfaceNames,
 ]);
+
+for (const requiredChunk of [clientName]) {
+  if (!productWorkbenchSurfaceNames.has(requiredChunk)) {
+    throw new Error(
+      `product Workbench static import closure is missing ${requiredChunk}; found ${[...productWorkbenchSurfaceNames].join(", ")}`,
+    );
+  }
+}
+if (productWorkbenchSurfaceNames.has(workbenchName)) {
+  throw new Error(
+    "product Workbench must preserve the Workbench shell without importing the research-page UI",
+  );
+}
+if (!productWorkbenchSource.includes("scientific-product-workbench-host-v1")) {
+  throw new Error("product Workbench route marker is missing from its page chunk");
+}
+for (const marker of [
+  "main-wire-scientific-workbench-runtime-v1",
+  "scientific-workbench-pane-",
+  "Unavailable values are never replaced with zero.",
+]) {
+  if (!productWorkbenchSurfaceSource.includes(marker)) {
+    throw new Error(
+      `scientific Workbench shell marker ${JSON.stringify(marker)} is missing`,
+    );
+  }
+}
+for (const marker of [
+  "Experimental boundary/root inertance requires a mechanismId.",
+  "previewWorker-",
+  "transitionSteadyWorker-",
+  "promoteTransitionSteady",
+  "resetInstances",
+]) {
+  if (productWorkbenchSurfaceSource.includes(marker)) {
+    throw new Error(
+      `legacy runtime marker ${JSON.stringify(marker)} reached the product Workbench static import closure`,
+    );
+  }
+}
+for (const prefix of ["LegacyModelPaneBody-", "Controls-", "Charts-"]) {
+  const legacyChunk = assetNames.find((name) => name.startsWith(prefix));
+  if (legacyChunk !== undefined && productWorkbenchSurfaceNames.has(legacyChunk)) {
+    throw new Error(
+      `legacy presentation chunk ${legacyChunk} reached the product Workbench static import closure`,
+    );
+  }
+}
 
 const releaseOnlyMarkers = [
   "resolvedNormalAdultPrior",
@@ -145,6 +203,11 @@ if (!workbenchSurfaceSource.includes(officialDocumentCaseCommandMarker)) {
     `Workbench command marker ${JSON.stringify(officialDocumentCaseCommandMarker)} is missing`,
   );
 }
+if (!productWorkbenchSurfaceSource.includes(officialDocumentCaseCommandMarker)) {
+  throw new Error(
+    `Product Workbench command marker ${JSON.stringify(officialDocumentCaseCommandMarker)} is missing`,
+  );
+}
 if (!workerSource.includes(officialDocumentCaseCommandMarker)) {
   throw new Error(
     `Worker command marker ${JSON.stringify(officialDocumentCaseCommandMarker)} is missing`,
@@ -176,6 +239,11 @@ if (!workbenchSurfaceSource.includes(researchDocumentCaseCommandMarker)) {
     `Workbench research command marker ${JSON.stringify(researchDocumentCaseCommandMarker)} is missing`,
   );
 }
+if (!productWorkbenchSurfaceSource.includes(researchDocumentCaseCommandMarker)) {
+  throw new Error(
+    `Product Workbench research command marker ${JSON.stringify(researchDocumentCaseCommandMarker)} is missing`,
+  );
+}
 if (!workerSource.includes(researchDocumentCaseCommandMarker)) {
   throw new Error(
     `Worker research command marker ${JSON.stringify(researchDocumentCaseCommandMarker)} is missing`,
@@ -203,6 +271,9 @@ console.log(JSON.stringify({
   alphaBytes: Buffer.byteLength(alphaSource),
   workbenchChunk: workbenchName,
   workbenchBytes: Buffer.byteLength(workbenchSource),
+  productWorkbenchChunk: productWorkbenchName,
+  productWorkbenchBytes: Buffer.byteLength(productWorkbenchSource),
+  productWorkbenchStaticImportClosure: [...productWorkbenchSurfaceNames].sort(),
   performanceLabChunk: performanceLabName,
   performanceLabBytes: Buffer.byteLength(performanceLabSource),
   officialCycleSharedChunk: officialCycleName,
@@ -229,4 +300,43 @@ function exactlyOne(values, label) {
     throw new Error(`${label} must resolve to exactly one asset; found ${values.join(", ") || "none"}`);
   }
   return values[0];
+}
+
+function sourceFor(names) {
+  return [...names]
+    .map((name) => sources.get(name))
+    .filter((source) => source !== undefined)
+    .join("\n");
+}
+
+function staticImportClosure(entryNames) {
+  const visited = new Set();
+  const pending = [...entryNames];
+  while (pending.length > 0) {
+    const name = pending.pop();
+    if (name === undefined || visited.has(name)) continue;
+    const source = sources.get(name);
+    if (source === undefined) {
+      throw new Error(`static import references missing asset ${name}`);
+    }
+    visited.add(name);
+    for (const dependency of staticImportsOf(source)) {
+      if (!visited.has(dependency)) pending.push(dependency);
+    }
+  }
+  return visited;
+}
+
+function staticImportsOf(source) {
+  const dependencies = new Set();
+  const patterns = [
+    /\bimport(?!\s*\()[^;]*?\bfrom\s*["']\.\/([^"']+\.js)["']/g,
+    /\bimport\s*["']\.\/([^"']+\.js)["']/g,
+  ];
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      if (match[1] !== undefined) dependencies.add(match[1]);
+    }
+  }
+  return dependencies;
 }

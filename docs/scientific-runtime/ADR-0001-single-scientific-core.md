@@ -207,6 +207,50 @@ exclusive-set, commutative scale/add, bundle-owned, and replace-component.
 Implicit last-write-wins mutation is rejected. Validation and physical bounds
 are applied to the composed result, not independently to each patch.
 
+## Workbench presentation boundary
+
+The single-core decision does not replace the user-facing Workbench with the
+research page. The product routes retain the existing freeform presentation
+shell: users can add, delete, rearrange, and split graph panes; create and
+manage controller and metrics views; edit notes; and compose Reading content
+that references graph, controller, and metrics views.
+
+The shell owns pane placement, Dockview state, semantic authored-view identity,
+notes, and Reading composition. The scientific runtime is injected below that
+presentation boundary and owns frames, availability, derived values, controls,
+accepted-state transitions, and release identity. A graph pane is a placement;
+its `sourceViewId` is the stable semantic view that a note or Reading reference
+targets. Splitting or rearranging a pane must therefore not create a different
+scientific definition accidentally.
+
+The product runtime renderer consumes native
+`MainWireScientificObservableFrameV1` values. It must not reconstruct legacy
+`SimSample`, `PhysicsRefState`, or `PreviewCoreFacade` objects merely to reuse a
+chart. Legacy presentation components may remain during migration, but they
+must not become a reachable alternate scientific execution path.
+
+The current product Workbench can place up to four scientific scenarios in one
+presentation. This is a comparison layer, not a coupled multi-model solve:
+each scenario owns an independent Worker client, accepted-state session,
+control store, command owner, frame stream, and release-bound identity. Global
+scenario visibility and per-pane membership determine which independent frame
+streams are overlaid in graphs and metrics. Removing a scenario disposes its
+runtime and removes its presentation membership. Duplicating a stable scenario
+creates another independent release-bound session and carries the committed
+SVR/PVR control target into that session; it does not share mutable numerical
+state with the source.
+
+This in-memory scenario registry is intentionally not encoded as a new
+multi-case `WorkspaceDocumentV1`. The current release-bound workspace still
+describes one case's initial presentation, while the product shell owns the
+additional comparison membership for the lifetime of the page. Durable
+multi-scenario Case/Workspace revisions remain follow-up work.
+
+The localized `/scientific-workbench` route remains the research/development
+surface for provenance and numerical evidence. It and `/workbench` may own
+independent sessions, but both must resolve the same release-bound scientific
+contracts.
+
 ## Observables
 
 Hosts receive stable observable IDs, units, availability, and quality rather
@@ -241,8 +285,21 @@ Worker isolation prevents UI blocking but does not make the model faster, so
 performance is a cutover gate. No worker command can silently retry with
 `ModelCore` or another scientific backend.
 
-The browser alpha may begin before all physiology gates pass. Production
-cutover and legacy deletion require both:
+Within each controllable product scenario, exactly one headless controller
+owns that scenario's Worker command stream. Controller panes and controller
+references embedded in notes or Reading are mirrors over the selected
+scenario's shared immutable store; they do not create competing session
+owners. An authored controller may follow the active scenario or be bound to
+one specific scenario. Graphs subscribe to the corresponding accepted frame
+snapshots. An unavailable observable or derived metric remains unavailable
+(`null` plus its reason) and is never filled with a synthetic zero.
+
+The browser alpha may begin before all physiology gates pass. The explicit
+user0 product-route cutover is recorded in
+`BROWSER-CUTOVER-0001-product-workbench.md`; it is a fail-closed pre-release
+integration decision and is not a clinical or generally supported production
+claim. Public production qualification and final legacy-code deletion still
+require both:
 
 - a healthy/load envelope with periodicity, conservation, waveform, and
   morphology acceptance; and
@@ -259,7 +316,9 @@ end-to-end measurement. It does not by itself authorize production cutover.
 3. Add lockstep, rollback, checkpoint, conservation, and performance gates.
 4. Add the release-bound worker and observable protocol for browser alpha.
 5. Replace case, preset, control, and workspace documents.
-6. Cut browser production over and delete legacy scientific paths.
+6. Inject the scientific runtime beneath the preserved user-facing Workbench
+   shell without fallback, then delete unreachable legacy scientific execution
+   paths after the cutover suite remains green.
 7. Extend the same assembly system with coronary circulation, devices,
    MultiPatch/conduction, and fitting.
 
@@ -271,7 +330,10 @@ reports, golden data, tags, and Git history.
 
 - No detailed parameter fitting.
 - No promise of compatibility with old cases or presets.
-- No browser cutover before required physiology and measured browser
-  performance evidence exists.
+- No claim of publicly supported production cutover before required physiology
+  and measured browser performance evidence exists.
+- No coupled multi-scenario scientific solve, durable multi-scenario document,
+  or user-case/workspace persistence in the current product slice. The current
+  multi-scenario feature is an in-memory comparison of isolated sessions.
 - No coronary, assist-device, or full MultiPatch implementation yet.
 - No general-purpose runtime plugin framework.

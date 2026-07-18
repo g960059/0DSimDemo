@@ -3,6 +3,7 @@ export * from "@/engine/scientific/assembly";
 export * from "@/engine/scientific/controls";
 export * from "@/engine/scientific/documents";
 export * from "@/engine/scientific/inputs";
+export * from "@/engine/scientific/metrics";
 export * from "@/engine/scientific/observables";
 export * from "@/engine/scientific/presets";
 export * from "@/engine/scientific/release";

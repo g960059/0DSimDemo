@@ -38,40 +38,52 @@ import {
   SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1,
   assembleScientificWorkbenchResearchTerminalCycleV1,
 } from "./scientificWorkbenchTerminalCycleV1";
+import type {
+  ScientificWorkbenchSurfaceV1,
+} from "./ScientificWorkbenchPageV1";
+import {
+  createScientificWorkbenchResearchControlStoreV0,
+  useScientificWorkbenchResearchControlSnapshotV0,
+  type ScientificWorkbenchResearchControlCandidateV0,
+  type ScientificWorkbenchResearchControlDraftV0,
+  type ScientificWorkbenchResearchControlOwnerActionsV0,
+  type ScientificWorkbenchResearchControlSnapshotInputV0,
+  type ScientificWorkbenchResearchControlSnapshotV0,
+  type ScientificWorkbenchResearchControlSourceV0,
+  type ScientificWorkbenchResearchControlStoreV0,
+  type ScientificWorkbenchResearchTransitionModeV0,
+  type ScientificWorkbenchResearchTransitionPhaseV0,
+} from "./ScientificWorkbenchResearchControlStoreV0";
 
-export type ScientificWorkbenchResearchTransitionModeV0 = "steady" | "live";
-
-export type ScientificWorkbenchResearchTransitionPhaseV0 =
-  | "idle"
-  | "steady-forking"
-  | "steady-settling"
-  | "steady-capturing"
-  | "live-forking"
-  | "live-running"
-  | "live-pause-requested"
-  | "live-paused"
-  | "resetting"
-  | "failed"
-  | "reload-required";
-
-export type ScientificWorkbenchResearchControlSourceV0 = Readonly<{
-  sessionId: string;
-  context: ScientificResearchControlContextV0;
-  frames: readonly MainWireScientificObservableFrameV1[];
-}>;
+export type {
+  ScientificWorkbenchResearchControlActionsV0,
+  ScientificWorkbenchResearchControlCandidateV0,
+  ScientificWorkbenchResearchControlDraftV0,
+  ScientificWorkbenchResearchControlProvenanceV0,
+  ScientificWorkbenchResearchControlSnapshotV0,
+  ScientificWorkbenchResearchControlSourceV0,
+  ScientificWorkbenchResearchControlStoreV0,
+  ScientificWorkbenchResearchTransitionModeV0,
+  ScientificWorkbenchResearchTransitionPhaseV0,
+} from "./ScientificWorkbenchResearchControlStoreV0";
+export {
+  createScientificWorkbenchResearchControlStoreV0,
+  useScientificWorkbenchResearchControlFramesV0,
+  useScientificWorkbenchResearchControlSnapshotV0,
+} from "./ScientificWorkbenchResearchControlStoreV0";
 
 export type ScientificWorkbenchResearchControlV0Props = Readonly<{
   client: MainWireScientificWorkerClientV1;
   workspaceDocument: MainWireScientificWorkspaceDocumentV1;
   initialSource: ScientificWorkbenchResearchControlSourceV0;
+  store?: ScientificWorkbenchResearchControlStoreV0;
+  renderController?: boolean;
+  renderWorkspace?: boolean;
+  surface?: ScientificWorkbenchSurfaceV1;
   onTransitionActivityChange?: (active: boolean) => void;
 }>;
 
-type CandidateV0 = Readonly<{
-  sessionId: string;
-  context: ScientificResearchControlContextV0;
-  boundaryFrame: MainWireScientificObservableFrameV1;
-}>;
+type CandidateV0 = ScientificWorkbenchResearchControlCandidateV0;
 
 type TransitionViewV0 = Readonly<{
   phase: ScientificWorkbenchResearchTransitionPhaseV0;
@@ -90,10 +102,7 @@ type TransitionViewV0 = Readonly<{
   errorMessage: string | null;
 }>;
 
-type ControlDraftV0 = Readonly<{
-  systemic: MainWireScientificResearchControlScaleV0;
-  pulmonary: MainWireScientificResearchControlScaleV0;
-}>;
+type ControlDraftV0 = ScientificWorkbenchResearchControlDraftV0;
 
 type LiveIntentV0 = "running" | "paused" | "reset";
 
@@ -103,8 +112,13 @@ const LIVE_SIMULATED_CHUNK_MS =
   * SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepsPerWorkerCommand
   * 1_000;
 const MAXIMUM_STEADY_SETTLEMENT_BEAT_COUNT = 32;
-const LIVE_HISTORY_FRAME_LIMIT =
-  SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.expectedObservableSampleCount;
+/** Matches the maximum product Workbench waveform window. */
+export const SCIENTIFIC_WORKBENCH_LIVE_HISTORY_WINDOW_SEC_V0 = 20 as const;
+export const SCIENTIFIC_WORKBENCH_LIVE_HISTORY_FRAME_LIMIT_V0 =
+  Math.round(
+    SCIENTIFIC_WORKBENCH_LIVE_HISTORY_WINDOW_SEC_V0
+      / SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec,
+  ) + 1;
 export const SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0 = 8_192 as const;
 export const SCIENTIFIC_WORKBENCH_OFFICIAL_BOOTSTRAP_REQUEST_COUNT_V0 =
   2 + SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.workerCommandCount;
@@ -121,8 +135,19 @@ export function ScientificWorkbenchResearchControlV0({
   client,
   workspaceDocument,
   initialSource,
+  store,
+  renderController = true,
+  renderWorkspace = true,
+  surface = "research",
   onTransitionActivityChange,
 }: ScientificWorkbenchResearchControlV0Props) {
+  const [ownedStore] = React.useState(() =>
+    createScientificWorkbenchResearchControlStoreV0(
+      initialSource,
+      SCIENTIFIC_WORKBENCH_REQUEST_CAPACITY_V0
+        - SCIENTIFIC_WORKBENCH_OFFICIAL_BOOTSTRAP_REQUEST_COUNT_V0,
+    ));
+  const controlStore = store ?? ownedStore;
   const initialView = React.useMemo<TransitionViewV0>(() => ({
     phase: "idle",
     mode: "steady",
@@ -883,6 +908,85 @@ export function ScientificWorkbenchResearchControlV0({
     }
   }, [commitView, failTransition, finishLiveReset, patchView]);
 
+  const ownerTokenRef = React.useRef<symbol>(Symbol("scientific-control-owner-v0"));
+  const ownerActionsRef = React.useRef<ScientificWorkbenchResearchControlOwnerActionsV0 | null>(
+    null,
+  );
+  ownerActionsRef.current = {
+    setSystemicScale: (systemic) => setDraft((current) => ({
+      ...current,
+      systemic,
+    })),
+    setPulmonaryScale: (pulmonary) => setDraft((current) => ({
+      ...current,
+      pulmonary,
+    })),
+    setMode: (mode) => patchView({ mode }),
+    applyTransition: () => void applyTransition(),
+    cancelSteady,
+    pauseLive,
+    resumeLive,
+    resetLiveOrFailure,
+  };
+
+  const busy = view.phase !== "idle" || view.sourceRetirementPending;
+  const noChange = !draftDiffersFromSource(draft, view.source);
+  const steadyActive = view.phase.startsWith("steady-");
+  const liveActive = view.phase.startsWith("live-") || view.phase === "resetting";
+  const displayingCandidateFrames =
+    scientificWorkbenchDisplayedFrameOwnerV0(
+      view.candidate !== null,
+      view.frames,
+      view.source.frames,
+    ) === "candidate";
+  const displayedParameterEpoch = displayingCandidateFrames
+    ? view.candidate!.context.parameterEpoch
+    : view.source.context.parameterEpoch;
+  const displayedControlStateSha256 = displayingCandidateFrames
+    ? view.candidate!.context.controlState.targetStateSha256
+    : view.source.context.controlState.targetStateSha256;
+  const displayedEvidence = displayingCandidateFrames
+    ? "open-transient-no-periodic-claim" as const
+    : view.periodicStatus === "period1-converged-and-cycle-validated"
+      ? "target-period1-and-following-cycle-validated" as const
+      : "retained-period1-source-cycle" as const;
+  const requestCapacityExhausted = view.remainingRegularRequestCount === 0;
+  const snapshotInput = React.useMemo<
+    ScientificWorkbenchResearchControlSnapshotInputV0
+  >(() => Object.freeze({
+      ...view,
+      draft: Object.freeze({ ...draft }),
+      busy,
+      noChange,
+      steadyActive,
+      liveActive,
+      requestCapacityExhausted,
+      provenance: Object.freeze({
+        displayedFrameOwner: displayingCandidateFrames
+          ? "candidate" as const
+          : "source" as const,
+        displayedParameterEpoch,
+        displayedControlStateSha256,
+        displayedEvidence,
+      }),
+    }), [draft, view]);
+  const controllerSnapshot = React.useMemo<
+    ScientificWorkbenchResearchControlSnapshotV0
+  >(() => Object.freeze({
+      ...snapshotInput,
+      ownerConnected: true,
+      actions: controlStore.actions,
+    }), [controlStore.actions, snapshotInput]);
+
+  React.useEffect(() => controlStore.connectOwner(
+    ownerTokenRef.current,
+    ownerActionsRef,
+  ), [controlStore]);
+
+  React.useEffect(() => {
+    controlStore.publishOwnerSnapshot(ownerTokenRef.current, snapshotInput);
+  }, [controlStore, snapshotInput]);
+
   React.useEffect(() => {
     const active = view.sourceRetirementPending
       || view.candidate !== null
@@ -932,91 +1036,139 @@ export function ScientificWorkbenchResearchControlV0({
     };
   }, [client, disposeSession]);
 
-  const busy = view.phase !== "idle" || view.sourceRetirementPending;
-  const noChange = !draftDiffersFromSource(draft, view.source);
-  const steadyActive = view.phase.startsWith("steady-");
-  const liveActive = view.phase.startsWith("live-") || view.phase === "resetting";
-  const displayingCandidateFrames =
-    scientificWorkbenchDisplayedFrameOwnerV0(
-      view.candidate !== null,
-      view.frames,
-      view.source.frames,
-    ) === "candidate";
-  const displayedParameterEpoch = displayingCandidateFrames
-    ? view.candidate!.context.parameterEpoch
-    : view.source.context.parameterEpoch;
-  const displayedControlStateSha256 = displayingCandidateFrames
-    ? view.candidate!.context.controlState.targetStateSha256
-    : view.source.context.controlState.targetStateSha256;
-  const displayedEvidence = displayingCandidateFrames
-    ? "open-transient-no-periodic-claim"
-    : view.periodicStatus === "period1-converged-and-cycle-validated"
-      ? "target-period1-and-following-cycle-validated"
-      : "retained-period1-source-cycle";
-  const requestCapacityExhausted = view.remainingRegularRequestCount === 0;
+  return (
+    <>
+      {renderController && (
+        <ScientificWorkbenchResearchControlSurfaceV0
+          snapshot={controllerSnapshot}
+          surface={surface}
+        />
+      )}
+      {renderWorkspace && (
+        <ScientificWorkspaceRendererV1
+          workspaceDocument={workspaceDocument}
+          frames={view.frames}
+        />
+      )}
+    </>
+  );
+}
+
+export type ScientificWorkbenchResearchControlMirrorV0Props = Readonly<{
+  store: ScientificWorkbenchResearchControlStoreV0;
+  surface?: ScientificWorkbenchSurfaceV1;
+}>;
+
+/** Stateless controller mirror. It never owns a Worker or a simulation. */
+export function ScientificWorkbenchResearchControlMirrorV0({
+  store,
+  surface = "product",
+}: ScientificWorkbenchResearchControlMirrorV0Props) {
+  const snapshot = useScientificWorkbenchResearchControlSnapshotV0(store);
+  return (
+    <ScientificWorkbenchResearchControlSurfaceV0
+      snapshot={snapshot}
+      surface={surface}
+    />
+  );
+}
+
+export type ScientificWorkbenchResearchControlSurfaceV0Props = Readonly<{
+  snapshot: ScientificWorkbenchResearchControlSnapshotV0;
+  surface?: ScientificWorkbenchSurfaceV1;
+}>;
+
+/**
+ * Pure presentation of a research-control snapshot. Multiple panes and note
+ * embeds may render this surface without creating competing state machines.
+ */
+export function ScientificWorkbenchResearchControlSurfaceV0({
+  snapshot,
+  surface = "research",
+}: ScientificWorkbenchResearchControlSurfaceV0Props) {
+  const modeGroupName = React.useId();
+  const {
+    actions,
+    busy,
+    draft,
+    liveActive,
+    noChange,
+    ownerConnected,
+    provenance,
+    requestCapacityExhausted,
+    steadyActive,
+  } = snapshot;
+  const disabled = busy || !ownerConnected;
 
   return (
-    <div className="space-y-5">
       <section
         className="rounded-xl border border-cyan-900/80 bg-cyan-950/20 p-4"
         data-testid="scientific-transition-controller-v0"
-        data-phase={view.phase}
-        data-mode={view.mode}
-        data-source-session-id={view.source.sessionId}
-        data-candidate-session-id={view.candidate?.sessionId ?? ""}
+        data-phase={snapshot.phase}
+        data-mode={snapshot.mode}
+        data-owner-connected={String(ownerConnected)}
+        data-source-session-id={snapshot.source.sessionId}
+        data-candidate-session-id={snapshot.candidate?.sessionId ?? ""}
         data-source-control-sha256={
-          view.source.context.controlState.targetStateSha256
+          snapshot.source.context.controlState.targetStateSha256
         }
-        data-target-control-sha256={view.targetControlStateSha256 ?? ""}
-        data-source-parameter-epoch={view.source.context.parameterEpoch}
+        data-target-control-sha256={snapshot.targetControlStateSha256 ?? ""}
+        data-source-parameter-epoch={snapshot.source.context.parameterEpoch}
         data-candidate-parameter-epoch={
-          view.candidate?.context.parameterEpoch ?? ""
+          snapshot.candidate?.context.parameterEpoch ?? ""
         }
-        data-parameter-epoch={displayedParameterEpoch}
-        data-displayed-control-sha256={displayedControlStateSha256}
-        data-displayed-evidence={displayedEvidence}
+        data-parameter-epoch={provenance.displayedParameterEpoch}
+        data-displayed-control-sha256={
+          provenance.displayedControlStateSha256
+        }
+        data-displayed-evidence={provenance.displayedEvidence}
         data-remaining-regular-request-count={
-          view.remainingRegularRequestCount
+          snapshot.remainingRegularRequestCount
         }
-        data-in-flight={String(view.inFlight)}
-        data-periodic-status={view.periodicStatus}
-        data-completed-beat-count={view.completedBeatCount}
-        data-captured-step-count={view.capturedStepCount}
-        data-source-retirement-pending={String(view.sourceRetirementPending)}
+        data-in-flight={String(snapshot.inFlight)}
+        data-periodic-status={snapshot.periodicStatus}
+        data-completed-beat-count={snapshot.completedBeatCount}
+        data-captured-step-count={snapshot.capturedStepCount}
+        data-source-retirement-pending={String(snapshot.sourceRetirementPending)}
       >
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">
-              Experimental research transition V0
+              {surface === "product"
+                ? "Circulation controls"
+                : "Experimental research transition V0"}
             </p>
             <h2 className="mt-1 text-base font-semibold text-slate-100">
-              Release-bound vascular resistance controls
+              {surface === "product"
+                ? "Adjust vascular resistance"
+                : "Release-bound vascular resistance controls"}
             </h2>
           </div>
           <span className="rounded-full border border-amber-700/70 bg-amber-950/40 px-3 py-1 text-xs text-amber-200">
-            Research only · not clinical · not patient fitting
+            {surface === "product"
+              ? "Simulation only · not medical advice"
+              : "Research only · not clinical · not patient fitting"}
           </span>
         </div>
         <p className="mt-2 max-w-5xl text-xs leading-5 text-slate-400">
-          The target is a complete, content-addressed SVR/PVR state. Steady mode
-          hides the target until numerical P1 and a full following cycle are
-          validated. Live mode shows accepted steps as they commit and makes no
-          periodic steady-state claim.
+          {surface === "product"
+            ? "Choose systemic and pulmonary resistance, then either move directly to the next stable state or watch the accepted transition unfold in real time."
+            : "The target is a complete, content-addressed SVR/PVR state. Steady mode hides the target until numerical P1 and a full following cycle are validated. Live mode shows accepted steps as they commit and makes no periodic steady-state claim."}
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-2 text-xs">
           <span className="font-semibold uppercase tracking-wider text-slate-500">
-            Displayed evidence
+            {surface === "product" ? "Current display" : "Displayed evidence"}
           </span>
           <span className="text-slate-200">
-            {displayedEvidence === "open-transient-no-periodic-claim"
+            {provenance.displayedEvidence === "open-transient-no-periodic-claim"
               ? "Open transient · no P1 claim"
-              : displayedEvidence
+              : provenance.displayedEvidence
                     === "target-period1-and-following-cycle-validated"
                 ? "Target P1 + following cycle validated"
                 : "Retained P1 source cycle"}
           </span>
           <code className="text-cyan-300">
-            epoch {displayedParameterEpoch} · control {shortControlDigestV0(displayedControlStateSha256)}
+            epoch {provenance.displayedParameterEpoch} · control {shortControlDigestV0(provenance.displayedControlStateSha256)}
           </code>
         </div>
 
@@ -1025,39 +1177,41 @@ export function ScientificWorkbenchResearchControlV0({
             label="Systemic vascular resistance"
             testId="scientific-control-svr-v0"
             value={draft.systemic}
-            disabled={busy}
-            onChange={(systemic) => setDraft({ ...draft, systemic })}
+            disabled={disabled}
+            onChange={actions.setSystemicScale}
           />
           <ControlScaleSelectV0
             label="Pulmonary vascular resistance"
             testId="scientific-control-pvr-v0"
             value={draft.pulmonary}
-            disabled={busy}
-            onChange={(pulmonary) => setDraft({ ...draft, pulmonary })}
+            disabled={disabled}
+            onChange={actions.setPulmonaryScale}
           />
-          <fieldset className="rounded-lg border border-slate-800 px-3 py-2" disabled={busy}>
+          <fieldset className="rounded-lg border border-slate-800 px-3 py-2" disabled={disabled}>
             <legend className="px-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Transition presentation
+              {surface === "product"
+                ? "Update behavior"
+                : "Transition presentation"}
             </legend>
             <label className="mr-4 inline-flex items-center gap-2 text-sm text-slate-200">
               <input
                 type="radio"
-                name="scientific-transition-mode-v0"
+                name={`scientific-transition-mode-v0-${modeGroupName}`}
                 data-testid="scientific-transition-mode-steady-v0"
-                checked={view.mode === "steady"}
-                onChange={() => patchView({ mode: "steady" })}
+                checked={snapshot.mode === "steady"}
+                onChange={() => actions.setMode("steady")}
               />
-              Next steady state
+              {surface === "product" ? "Show next steady state" : "Next steady state"}
             </label>
             <label className="inline-flex items-center gap-2 text-sm text-slate-200">
               <input
                 type="radio"
-                name="scientific-transition-mode-v0"
+                name={`scientific-transition-mode-v0-${modeGroupName}`}
                 data-testid="scientific-transition-mode-live-v0"
-                checked={view.mode === "live"}
-                onChange={() => patchView({ mode: "live" })}
+                checked={snapshot.mode === "live"}
+                onChange={() => actions.setMode("live")}
               />
-              Live transition
+              {surface === "product" ? "Play transition" : "Live transition"}
             </label>
           </fieldset>
         </div>
@@ -1067,78 +1221,72 @@ export function ScientificWorkbenchResearchControlV0({
             type="button"
             className="rounded-lg bg-cyan-700 px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
             data-testid="scientific-transition-apply-v0"
-            disabled={busy || noChange || requestCapacityExhausted}
-            onClick={() => void applyTransition()}
+            disabled={disabled || noChange || requestCapacityExhausted}
+            onClick={actions.applyTransition}
           >
-            Apply complete target
+            {surface === "product" ? "Apply changes" : "Apply complete target"}
           </button>
           {steadyActive && (
             <button
               type="button"
               className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200"
               data-testid="scientific-transition-cancel-v0"
-              onClick={cancelSteady}
+              onClick={actions.cancelSteady}
             >
               Cancel at boundary
             </button>
           )}
-          {(view.phase === "live-running"
-            || view.phase === "live-pause-requested") && (
+          {(snapshot.phase === "live-running"
+            || snapshot.phase === "live-pause-requested") && (
             <button
               type="button"
               className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-200 disabled:opacity-40"
               data-testid="scientific-transition-pause-v0"
-              disabled={view.phase === "live-pause-requested"}
-              onClick={pauseLive}
+              disabled={!ownerConnected || snapshot.phase === "live-pause-requested"}
+              onClick={actions.pauseLive}
             >
               Pause at boundary
             </button>
           )}
-          {view.phase === "live-paused" && (
+          {ownerConnected && snapshot.phase === "live-paused" && (
             <button
               type="button"
               className="rounded-lg border border-emerald-700 px-3 py-2 text-sm text-emerald-200"
               data-testid="scientific-transition-resume-v0"
               disabled={requestCapacityExhausted}
-              onClick={resumeLive}
+              onClick={actions.resumeLive}
             >
               Resume live
             </button>
           )}
-          {(liveActive || view.phase === "failed") && (
+          {(liveActive || snapshot.phase === "failed") && (
             <button
               type="button"
               className="rounded-lg border border-rose-800 px-3 py-2 text-sm text-rose-200"
               data-testid="scientific-transition-reset-v0"
-              disabled={view.phase === "resetting"}
-              onClick={resetLiveOrFailure}
+              disabled={!ownerConnected || snapshot.phase === "resetting"}
+              onClick={actions.resetLiveOrFailure}
             >
-              {view.phase === "failed" ? "Dismiss failure" : "Reset to source"}
+              {snapshot.phase === "failed" ? "Dismiss failure" : "Reset to source"}
             </button>
           )}
           <p className="text-xs text-slate-400" role="status">
-            {view.message}
+            {snapshot.message}
           </p>
         </div>
-        {view.errorMessage !== null && (
+        {snapshot.errorMessage !== null && (
           <p className="mt-3 rounded-lg border border-rose-900 bg-rose-950/30 px-3 py-2 text-xs text-rose-200" role="alert">
-            {view.errorMessage}
+            {snapshot.errorMessage}
           </p>
         )}
       </section>
-
-      <ScientificWorkspaceRendererV1
-        workspaceDocument={workspaceDocument}
-        frames={view.frames}
-      />
-    </div>
   );
 }
 
 export function appendScientificWorkbenchLiveFramesV0(
   retained: readonly MainWireScientificObservableFrameV1[],
   incoming: readonly MainWireScientificObservableFrameV1[],
-  limit = LIVE_HISTORY_FRAME_LIMIT,
+  limit = SCIENTIFIC_WORKBENCH_LIVE_HISTORY_FRAME_LIMIT_V0,
 ): readonly MainWireScientificObservableFrameV1[] {
   if (!Number.isSafeInteger(limit) || limit < 1) {
     throw new Error("live transition history limit must be a positive safe integer");

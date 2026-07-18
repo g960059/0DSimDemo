@@ -60,10 +60,14 @@
     "officialCases": "公式ケース",
     "community": "コミュニティ",
     "openCase": "ケースを開く",
+    "scientificCases": "科学モデルのケース",
+    "scientificCasesDescription": "固定された公式リファレンス1件と、内蔵の研究用ブラケットです。研究用ブラケットは診断でも、臨床検証済みプリセットでもありません。",
     "officialBadge": "公式",
     "draftBadge": "下書き"
   },
   "workbench": {
+    "scientificPersistenceUnavailable": "このリリースでは科学モデルのケース保存は未実装です。メモリ上の比較状態を旧ケース保存先へ書き込みません。",
+    "scientificFilesUnavailable": "このリリースでは科学モデルのCase/Workspace入出力は未実装です。旧ケースファイルを暗黙に変換しません。",
     "panels": {
       "waveforms": "波形",
       "pvLoop": "PVループ",
@@ -680,6 +684,7 @@
       "menuGroup": "ビュー",
       "controllerKind": "コントローラービュー",
       "metricsKind": "指標ビュー",
+      "graphKind": "グラフビュー",
       "missingTitle": "参照先ビューを利用できません",
       "unknownView": "不明なビュー"
     },

@@ -4,9 +4,23 @@ import i18n from "@/i18n";
 import { defaultControllerItemFor } from "@/knobMetadata";
 import type { ControllerItem, MetricType, PanelDef, PanelInstanceConfig, SimInstance } from "@/types";
 import { BUILT_IN_METRIC_CATEGORIES } from "@/features/workbench/p1aStructuralHosts";
-import { migratePanelsToViewSpecs, normalizeMembership, type ControllerViewSpec, type MetricsViewSpec, type ViewMembership, type ViewSpec } from "@/features/workbench/viewSpec";
+import {
+  migratePanelsToViewSpecs,
+  normalizeMembership,
+  type ControllerViewSpec,
+  type GraphViewSpec,
+  type GraphViewType,
+  type MetricsViewSpec,
+  type ViewMembership,
+  type ViewSpec,
+} from "@/features/workbench/viewSpec";
 
-export type AuthoredViewSpec = ControllerViewSpec | MetricsViewSpec;
+/**
+ * Semantic views that may be referenced from notes/readings independently of
+ * any concrete pane instance. A view id is document identity; it is not a
+ * PanelDef id and must remain stable when panes are mirrored or rearranged.
+ */
+export type AuthoredViewSpec = GraphViewSpec | ControllerViewSpec | MetricsViewSpec;
 export type StandardViewIdFactory = (kind: "controller" | "metrics") => string;
 
 const BUILT_IN_METRICS_SIGNATURES = new Set([
@@ -91,8 +105,12 @@ export function appendMissingStandardViews(
 
 export function authoredViewsOnly(views: readonly ViewSpec[] | undefined): AuthoredViewSpec[] {
   return (views ?? [])
-    .filter((view): view is AuthoredViewSpec => view.kind === "controller" || view.kind === "metrics")
+    .filter((view): view is AuthoredViewSpec => view.kind === "graph" || view.kind === "controller" || view.kind === "metrics")
     .map((view) => clone(view));
+}
+
+export function graphViews(views: readonly AuthoredViewSpec[]): GraphViewSpec[] {
+  return views.filter((view): view is GraphViewSpec => view.kind === "graph");
 }
 
 export function controllerViews(views: readonly AuthoredViewSpec[]): ControllerViewSpec[] {
@@ -110,6 +128,24 @@ export function createControllerViewSpec(id: string, title: string, items: Contr
     kind: "controller",
     items: normalizeControllerItems(items).items,
     binding: { kind: "active" },
+  };
+}
+
+export function createGraphViewSpec(
+  viewId: string,
+  title: string,
+  graphType: GraphViewType,
+  membership: ViewMembership = {},
+  options: Pick<GraphViewSpec, "aspect" | "presentation"> = {},
+): GraphViewSpec {
+  return {
+    id: viewId,
+    title: titleOrFallback(title, "Graph view"),
+    kind: "graph",
+    graphType,
+    membership: normalizeMembership(membership),
+    ...(options.aspect ? { aspect: clone(options.aspect) } : {}),
+    ...(options.presentation ? { presentation: clone(options.presentation) } : {}),
   };
 }
 
@@ -131,17 +167,24 @@ export function createMetricsViewSpec(
 }
 
 export function duplicateAuthoredView(view: AuthoredViewSpec, id: string, title: string): AuthoredViewSpec {
+  const fallback = view.kind === "controller"
+    ? "Controller view copy"
+    : view.kind === "metrics"
+      ? "Metrics view copy"
+      : "Graph view copy";
   return {
     ...clone(view),
     id,
-    title: titleOrFallback(title, view.kind === "controller" ? "Controller view copy" : "Metrics view copy"),
+    title: titleOrFallback(title, fallback),
   };
 }
 
 export function upsertAuthoredView(views: readonly AuthoredViewSpec[], nextView: AuthoredViewSpec): AuthoredViewSpec[] {
-  const normalized = nextView.kind === "controller"
+  const normalized: AuthoredViewSpec = nextView.kind === "controller"
     ? { ...nextView, items: normalizeControllerItems(nextView.items).items }
-    : { ...nextView, metrics: [...new Set(nextView.metrics)] as MetricType[], membership: normalizeMembership(nextView.membership) };
+    : nextView.kind === "metrics"
+      ? { ...nextView, metrics: [...new Set(nextView.metrics)] as MetricType[], membership: normalizeMembership(nextView.membership) }
+      : { ...nextView, membership: normalizeMembership(nextView.membership) };
   const index = views.findIndex((view) => view.id === nextView.id);
   if (index < 0) return [...views, normalized];
   return views.map((view, viewIndex) => viewIndex === index ? normalized : view);
@@ -168,6 +211,36 @@ export function addVisibleScenariosToMetricsViews(
       changed = true;
     }
     return changed ? { ...view, membership: normalizeMembership(membership) } : view;
+  });
+}
+
+/**
+ * Remove deleted scenarios from all document-level view references.
+ *
+ * Graph and metrics membership is pruned without altering surviving signal
+ * selections. A controller pinned to a deleted scenario falls back to the
+ * active-scenario binding, so it can never retain a dangling inspector target.
+ * Views unaffected by the deletion preserve their object identity.
+ */
+export function removeScenariosFromAuthoredViews(
+  views: readonly AuthoredViewSpec[],
+  scenarioIds: readonly string[],
+): AuthoredViewSpec[] {
+  const removedIds = new Set(scenarioIds);
+  if (removedIds.size === 0) return [...views];
+
+  return views.map((view) => {
+    if (view.kind === "controller") {
+      return view.binding.kind === "scenario" && removedIds.has(view.binding.scenarioId)
+        ? { ...view, binding: { kind: "active" } }
+        : view;
+    }
+
+    const removedKeys = Object.keys(view.membership).filter((id) => removedIds.has(id));
+    if (removedKeys.length === 0) return view;
+    const membership: ViewMembership = { ...view.membership };
+    for (const id of removedKeys) delete membership[id];
+    return { ...view, membership: normalizeMembership(membership) };
   });
 }
 
@@ -211,7 +284,7 @@ export function migrateLegacyPanelsToAuthoredViews(
 ): AuthoredViewSpec[] {
   const existingKeys = new Set(existingViews.map((view) => `${view.kind}:${view.id}`));
   return migratePanelsToViewSpecs([...panels]).views
-    .filter((view): view is AuthoredViewSpec => view.kind === "controller" || view.kind === "metrics")
+    .filter((view): view is ControllerViewSpec | MetricsViewSpec => view.kind === "controller" || view.kind === "metrics")
     .filter((view) => {
       if (existingKeys.has(`${view.kind}:${view.id}`)) return false;
       if (view.kind === "controller") return view.items.length > 0;

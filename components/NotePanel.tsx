@@ -5,7 +5,7 @@ import { getDefaultReactSlashMenuItems, SuggestionMenuController, useCreateBlock
 import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import { filterSuggestionItems, insertOrUpdateBlockForSlashMenu } from "@blocknote/core/extensions";
 import { createReactBlockSpec } from "@blocknote/react";
-import { Activity, SlidersHorizontal } from "lucide-react";
+import { Activity, ChartLine, SlidersHorizontal } from "lucide-react";
 import { BlockMath as KatexBlockMath } from "react-katex";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
@@ -639,19 +639,31 @@ const NoteEditor: React.FC<{
   };
 
   const getSlashMenuItems = async (query: string) => {
-    const viewItems = authoredViews.map((view) => ({
-      title: view.title,
-      subtext: view.kind === "controller" ? t("notes.viewRef.controllerKind") : t("notes.viewRef.metricsKind"),
-      group: t("notes.viewRef.menuGroup"),
-      aliases: [view.title, view.kind, t("notes.viewRef.menuTitle")],
-      icon: view.kind === "controller" ? <SlidersHorizontal size={18} /> : <Activity size={18} />,
-      onItemClick: () => {
-        insertOrUpdateBlockForSlashMenu(editor as any, {
-          type: "view_ref",
-          props: { viewId: view.id },
-        } as any);
-      },
-    }));
+    const viewItems = authoredViews.map((view) => {
+      const kindLabel = view.kind === "controller"
+        ? t("notes.viewRef.controllerKind")
+        : view.kind === "metrics"
+          ? t("notes.viewRef.metricsKind")
+          : t("notes.viewRef.graphKind");
+      const icon = view.kind === "controller"
+        ? <SlidersHorizontal size={18} />
+        : view.kind === "metrics"
+          ? <Activity size={18} />
+          : <ChartLine size={18} />;
+      return {
+        title: view.title,
+        subtext: kindLabel,
+        group: t("notes.viewRef.menuGroup"),
+        aliases: [view.title, view.kind, kindLabel, t("notes.viewRef.menuTitle")],
+        icon,
+        onItemClick: () => {
+          insertOrUpdateBlockForSlashMenu(editor as any, {
+            type: "view_ref",
+            props: { viewId: view.id },
+          } as any);
+        },
+      };
+    });
     return filterSuggestionItems([
       ...getDefaultReactSlashMenuItems(editor as any),
       ...viewItems,

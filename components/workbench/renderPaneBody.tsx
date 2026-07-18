@@ -1,11 +1,9 @@
 import React from 'react';
-import { Controls } from '../Controls';
-import { PVLoopPanel, WaveformPanel, MetricsPanel, GuytonPanel, shouldEnableLegendInteractions } from '../Charts';
 import { NotePanel } from '../NotePanel';
 import { ErrorBoundary } from '../ErrorBoundary';
 import { ScenarioPane } from './ScenarioPane';
-import { effectiveGlobalConfig } from '../../features/workbench/p1aStructuralHosts';
 import type { AuthoredViewSpec } from '../../features/workbench/authoredViews';
+import type { WorkbenchRuntimeRenderer } from '../../features/workbench/runtime/WorkbenchRuntimeRenderer';
 import type { WorkbenchThemeId } from './WorkbenchSidePanel';
 import type { ClinicalKnobs } from '../../engine/knobs';
 import type { SimulationHealth } from '../../engine/protocol';
@@ -42,47 +40,21 @@ export interface PaneBodyContext {
   onOpenSettings?: (panelId: string) => void;
   legendPosition?: LegendPosition;
   onLegendPositionChange?: (panelId: string, pos?: LegendPosition) => void;
+  runtimeRenderer?: WorkbenchRuntimeRenderer;
 }
 
+const LegacyModelPaneBody = React.lazy(
+  () => import('./LegacyModelPaneBody'),
+);
+
 export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.ReactNode {
-  if (panel.type === 'PVLOOP') {
-    return (
-      <PVLoopPanel
-        physicsRefs={ctx.physicsRefs}
-        instances={ctx.instances}
-        config={effectiveGlobalConfig(panel.config, ctx.instances)}
-        showGuides={panel.showGuides}
-        showLegend={panel.showLegend}
-        pvDebugOverlay={panel.pvDebugOverlay}
-        pvDebugTraceMode={panel.pvDebugTraceMode}
-        activeInstanceId={ctx.activeInstanceId}
-        panelId={panel.id}
-        legendInteractive={shouldEnableLegendInteractions({ canConfigure: ctx.canConfigure, presentationMode: ctx.presentationMode })}
-        onOpenSettings={ctx.onOpenSettings}
-        legendPosition={ctx.legendPosition}
-        onLegendPositionChange={ctx.onLegendPositionChange}
-      />
-    );
-  }
-  if (panel.type === 'WAVEFORM') {
-    return (
-      <WaveformPanel
-        physicsRefs={ctx.physicsRefs}
-        instances={ctx.instances}
-        timeWindow={panel.timeWindow || 10000}
-        config={effectiveGlobalConfig(panel.config, ctx.instances)}
-        showLegend={panel.showLegend}
-        activeInstanceId={ctx.activeInstanceId}
-        panelId={panel.id}
-        legendInteractive={shouldEnableLegendInteractions({ canConfigure: ctx.canConfigure, presentationMode: ctx.presentationMode })}
-        onOpenSettings={ctx.onOpenSettings}
-        legendPosition={ctx.legendPosition}
-        onLegendPositionChange={ctx.onLegendPositionChange}
-      />
-    );
-  }
-  if (panel.type === 'METRICS') {
-    return <MetricsPanel physicsRefs={ctx.physicsRefs} instances={ctx.instances} config={effectiveGlobalConfig(panel.config, ctx.instances)} />;
+  if (panel.type !== 'NOTE') {
+    const runtimeBody = ctx.runtimeRenderer?.renderPanel(panel, {
+      instances: ctx.instances,
+      activeInstanceId: ctx.activeInstanceId,
+      presentationMode: ctx.presentationMode ?? 'studio',
+    });
+    if (runtimeBody !== undefined) return runtimeBody;
   }
   if (panel.type === 'SCENARIOS' && ctx.addInstance && ctx.removeInstance && ctx.updateInstanceName && ctx.updateInstanceColor) {
     return (
@@ -100,25 +72,6 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
         readOnly={ctx.readOnly}
       />
     );
-  }
-  if (panel.type === 'CONTROLS' && ctx.updateInstanceParams && ctx.updateInstanceKnobs && ctx.updateInstanceVolume) {
-    return (
-      <Controls
-        isPaneMode
-        paneConfig={panel.config}
-        instances={ctx.instances}
-        instanceHealth={ctx.instanceHealth}
-        activeInstanceId={ctx.activeInstanceId ?? ''}
-        updateInstanceParams={ctx.updateInstanceParams}
-        updateInstanceKnobs={ctx.updateInstanceKnobs}
-        updateInstanceVolume={ctx.updateInstanceVolume}
-        presentationMode={ctx.presentationMode}
-        controllerItems={panel.view?.kind === 'control' ? panel.view.controllerItems : undefined}
-      />
-    );
-  }
-  if (panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT') {
-    return <GuytonPanel physicsRefs={ctx.physicsRefs} instances={ctx.instances} config={effectiveGlobalConfig(panel.config, ctx.instances)} type={panel.type} />;
   }
   if (panel.type === 'NOTE') {
     return (
@@ -142,6 +95,7 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
                 updateInstanceKnobs: ctx.updateInstanceKnobs,
                 updateInstanceVolume: ctx.updateInstanceVolume,
                 presentationMode: ctx.presentationMode ?? 'studio',
+                runtimeRenderer: ctx.runtimeRenderer,
               }}
             />
           </div>
@@ -149,5 +103,9 @@ export function renderPaneBody(panel: PanelDef, ctx: PaneBodyContext): React.Rea
       </ErrorBoundary>
     );
   }
-  return null;
+  return (
+    <React.Suspense fallback={<div className="h-full min-h-16 bg-wb-aux" />}>
+      <LegacyModelPaneBody panel={panel} ctx={ctx} />
+    </React.Suspense>
+  );
 }

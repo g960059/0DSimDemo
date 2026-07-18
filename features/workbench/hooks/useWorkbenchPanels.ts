@@ -25,6 +25,8 @@ import {
   layoutStateFromWorkspace,
   mergePanelControllerItems,
   mergePanelLegendPosition,
+  removeInstanceConfigsFromPanels,
+  updatePanelWithSourceViewMirrors,
   type AddedInstanceConfig,
 } from "@/features/workbench/workbenchDefaults";
 import {
@@ -129,6 +131,10 @@ export function useWorkbenchPanels({
     setPanels((prev) => addVisibleInstanceConfigsToPanels(prev, additions));
   }, []);
 
+  const removeInstanceConfigs = useCallback((instanceIds: readonly string[]) => {
+    setPanels((prev) => removeInstanceConfigsFromPanels(prev, instanceIds));
+  }, []);
+
   const replacePanelState = useCallback((next: {
     panels: PanelDef[];
     workspace?: WorkbenchWorkspace;
@@ -208,56 +214,81 @@ export function useWorkbenchPanels({
 
   const updatePanelTitle = useCallback((id: string, newTitle: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === id ? { ...panel, title: newTitle } : panel));
+    setPanels((prev) => updatePanelWithSourceViewMirrors(
+      prev,
+      id,
+      (panel) => ({ ...panel, title: newTitle }),
+    ));
   }, [markUserEdited]);
 
   const toggleShowLegend = useCallback((id: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === id ? { ...panel, showLegend: panel.showLegend === false ? true : false } : panel));
+    setPanels((prev) => {
+      const target = prev.find((panel) => panel.id === id);
+      if (!target) return prev;
+      const showLegend = target.showLegend === false;
+      return updatePanelWithSourceViewMirrors(
+        prev,
+        id,
+        (panel) => ({ ...panel, showLegend }),
+      );
+    });
   }, [markUserEdited]);
 
   const updatePanelInstanceColor = useCallback((panelId: string, instId: string, newColor: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === panelId ? {
-      ...panel,
-      config: { ...panel.config, [instId]: { ...panel.config[instId], customBaseColor: newColor } },
-    } : panel));
+    setPanels((prev) => updatePanelWithSourceViewMirrors(prev, panelId, (panel) => {
+      const instanceConfig = panel.config[instId];
+      return instanceConfig ? {
+        ...panel,
+        config: { ...panel.config, [instId]: { ...instanceConfig, customBaseColor: newColor } },
+      } : panel;
+    }));
   }, [markUserEdited]);
 
   const updatePanelInstanceName = useCallback((panelId: string, instId: string, newName: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === panelId ? {
-      ...panel,
-      config: { ...panel.config, [instId]: { ...panel.config[instId], customName: newName } },
-    } : panel));
+    setPanels((prev) => updatePanelWithSourceViewMirrors(prev, panelId, (panel) => {
+      const instanceConfig = panel.config[instId];
+      return instanceConfig ? {
+        ...panel,
+        config: { ...panel.config, [instId]: { ...instanceConfig, customName: newName } },
+      } : panel;
+    }));
   }, [markUserEdited]);
 
   const updatePanelSignalColor = useCallback((panelId: string, instId: string, sig: string, newColor: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === panelId ? {
-      ...panel,
-      config: {
-        ...panel.config,
-        [instId]: {
-          ...panel.config[instId],
-          customSignalColors: { ...(panel.config[instId].customSignalColors || {}), [sig]: newColor },
+    setPanels((prev) => updatePanelWithSourceViewMirrors(prev, panelId, (panel) => {
+      const instanceConfig = panel.config[instId];
+      return instanceConfig ? {
+        ...panel,
+        config: {
+          ...panel.config,
+          [instId]: {
+            ...instanceConfig,
+            customSignalColors: { ...(instanceConfig.customSignalColors || {}), [sig]: newColor },
+          },
         },
-      },
-    } : panel));
+      } : panel;
+    }));
   }, [markUserEdited]);
 
   const updatePanelSignalName = useCallback((panelId: string, instId: string, sig: string, newName: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === panelId ? {
-      ...panel,
-      config: {
-        ...panel.config,
-        [instId]: {
-          ...panel.config[instId],
-          customSignalNames: { ...(panel.config[instId].customSignalNames || {}), [sig]: newName },
+    setPanels((prev) => updatePanelWithSourceViewMirrors(prev, panelId, (panel) => {
+      const instanceConfig = panel.config[instId];
+      return instanceConfig ? {
+        ...panel,
+        config: {
+          ...panel.config,
+          [instId]: {
+            ...instanceConfig,
+            customSignalNames: { ...(instanceConfig.customSignalNames || {}), [sig]: newName },
+          },
         },
-      },
-    } : panel));
+      } : panel;
+    }));
   }, [markUserEdited]);
 
   const toggleSettings = useCallback((panelId: string) => {
@@ -268,51 +299,86 @@ export function useWorkbenchPanels({
 
   const togglePaneMembership = useCallback((panelId: string, instId: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === panelId ? {
-      ...panel,
-      config: { ...panel.config, [instId]: { ...panel.config[instId], visible: !panel.config[instId].visible } },
-    } : panel));
+    setPanels((prev) => {
+      const targetConfig = prev.find((panel) => panel.id === panelId)?.config[instId];
+      if (!targetConfig) return prev;
+      const visible = !targetConfig.visible;
+      return updatePanelWithSourceViewMirrors(prev, panelId, (panel) => {
+        const instanceConfig = panel.config[instId];
+        return instanceConfig ? {
+          ...panel,
+          config: { ...panel.config, [instId]: { ...instanceConfig, visible } },
+        } : panel;
+      });
+    });
   }, [markUserEdited]);
 
   const updateInstanceSignals = useCallback((panelId: string, instId: string, signal: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => {
-      if (panel.id !== panelId) return panel;
-      const currentSignals = new Set(panel.config[instId].selectedSignals);
+    setPanels((prev) => {
+      const targetConfig = prev.find((panel) => panel.id === panelId)?.config[instId];
+      if (!targetConfig) return prev;
+      const currentSignals = new Set(targetConfig.selectedSignals);
       if (currentSignals.has(signal)) currentSignals.delete(signal);
       else currentSignals.add(signal);
-      return {
-        ...panel,
-        config: {
-          ...panel.config,
-          [instId]: { ...panel.config[instId], selectedSignals: Array.from(currentSignals) },
-        },
-      };
-    }));
+      const selectedSignals = Array.from(currentSignals);
+      return updatePanelWithSourceViewMirrors(prev, panelId, (panel) => {
+        const instanceConfig = panel.config[instId];
+        return instanceConfig ? {
+          ...panel,
+          config: {
+            ...panel.config,
+            [instId]: { ...instanceConfig, selectedSignals: [...selectedSignals] },
+          },
+        } : panel;
+      });
+    });
   }, [markUserEdited]);
 
   const toggleGuides = useCallback((panelId: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === panelId ? { ...panel, showGuides: !panel.showGuides } : panel));
+    setPanels((prev) => {
+      const target = prev.find((panel) => panel.id === panelId);
+      if (!target) return prev;
+      const showGuides = !target.showGuides;
+      return updatePanelWithSourceViewMirrors(
+        prev,
+        panelId,
+        (panel) => ({ ...panel, showGuides }),
+      );
+    });
   }, [markUserEdited]);
 
   const updateTimeWindow = useCallback((panelId: string, val: number) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === panelId ? { ...panel, timeWindow: val } : panel));
+    setPanels((prev) => updatePanelWithSourceViewMirrors(
+      prev,
+      panelId,
+      (panel) => ({ ...panel, timeWindow: val }),
+    ));
   }, [markUserEdited]);
 
   const togglePvDebugOverlay = useCallback((panelId: string) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => (
-      panel.id === panelId ? { ...panel, pvDebugOverlay: !panel.pvDebugOverlay } : panel
-    )));
+    setPanels((prev) => {
+      const target = prev.find((panel) => panel.id === panelId);
+      if (!target) return prev;
+      const pvDebugOverlay = !target.pvDebugOverlay;
+      return updatePanelWithSourceViewMirrors(
+        prev,
+        panelId,
+        (panel) => ({ ...panel, pvDebugOverlay }),
+      );
+    });
   }, [markUserEdited]);
 
   const updatePvDebugTraceMode = useCallback((panelId: string, mode: PvLoopDebugTraceMode) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => (
-      panel.id === panelId ? { ...panel, pvDebugTraceMode: mode } : panel
-    )));
+    setPanels((prev) => updatePanelWithSourceViewMirrors(
+      prev,
+      panelId,
+      (panel) => ({ ...panel, pvDebugTraceMode: mode }),
+    ));
   }, [markUserEdited]);
 
   const updatePanelControllerItems = useCallback((panelId: string, items: ControllerItem[]) => {
@@ -322,7 +388,11 @@ export function useWorkbenchPanels({
 
   const updatePanelLegendPosition = useCallback((panelId: string, pos?: LegendPosition) => {
     markUserEdited();
-    setPanels((prev) => prev.map((panel) => panel.id === panelId ? mergePanelLegendPosition(panel, pos) : panel));
+    setPanels((prev) => updatePanelWithSourceViewMirrors(
+      prev,
+      panelId,
+      (panel) => mergePanelLegendPosition(panel, pos),
+    ));
   }, [markUserEdited]);
 
   const onNoteChange = useCallback((panelId: string, blocks: NoteContent) => {
@@ -391,6 +461,7 @@ export function useWorkbenchPanels({
     addingPanelConfig,
     setAddingPanelConfig,
     addVisibleInstanceConfigs,
+    removeInstanceConfigs,
     replacePanelState,
     updateDockviewViewState,
     addPanel,

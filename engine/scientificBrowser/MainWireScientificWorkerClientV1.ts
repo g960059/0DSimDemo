@@ -1037,6 +1037,7 @@ function isResponseCompatibleWithSubmittedCommand(
         "caseRef",
         "workspaceRef",
         "workspaceDocument",
+        "researchControlContext",
         "observableFrame",
       ])
       && payload.kind === "researchDocumentCaseSessionCreated"
@@ -1069,7 +1070,11 @@ function isResponseCompatibleWithSubmittedCommand(
         origin.workspaceRef,
       )
       && isRecord(payload.observableFrame)
-      && exactResearchReleaseRef(payload.observableFrame.releaseRef);
+      && exactResearchReleaseRef(payload.observableFrame.releaseRef)
+      && isOfficialBaselineResearchControlContextV0(
+        payload.researchControlContext,
+        payload.observableFrame,
+      );
   }
   if (submitted.kind === "forkResearchControlSession") {
     const expected = submitted.researchControlFork;

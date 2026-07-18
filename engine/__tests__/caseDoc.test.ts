@@ -125,6 +125,7 @@ describe("CaseDocument bridge round-trip (#3-b)", () => {
     expect(rebuilt.reading).toEqual(reading);
     expect(rebuilt.exposedControllers).toEqual(exposedControllers);
     expect(rebuilt.views?.map((view) => [view.id, view.kind])).toEqual([
+      ["graph-view", "graph"],
       ["metrics-view", "metrics"],
       ["controller-view", "controller"],
     ]);

@@ -2,8 +2,8 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LESSONS } from '../lessonDoc';
-import { OFFICIAL_CASES } from '../officialCases';
-import { allCasesHref, caseHref, lessonHref, workbenchHref } from '../homeLinks';
+import { ScientificProductCasesGridV1 } from './scientificProduct';
+import { allCasesHref, lessonHref, workbenchHref } from '../homeLinks';
 import { localeFromPathname } from '../localeRouting';
 
 export const Home = () => {
@@ -85,33 +85,10 @@ export const Home = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {OFFICIAL_CASES.length > 0 ? (
-              OFFICIAL_CASES.map((c) => (
-                // Kept intentionally close to Cases.tsx for HI-1; shared card extraction is a follow-up.
-                <div key={c.meta.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 transition-all hover:border-slate-700 flex flex-col">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-bold text-slate-200 line-clamp-1">
-                      {t(`officialCases.${c.meta.id}.title`, { defaultValue: c.meta.title })}
-                    </h3>
-                  </div>
-                  <p className="text-sm text-slate-400 mb-6 flex-1 line-clamp-3">
-                    {t(`officialCases.${c.meta.id}.description`, { defaultValue: c.spec.description })}
-                  </p>
-                  <Link
-                    to={caseHref(c.meta.id, locale)}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm font-bold shadow transition-colors w-full text-center"
-                  >
-                    {t('home.openCase')}
-                  </Link>
-                </div>
-              ))
-            ) : (
-              <div className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-6 text-sm text-slate-400">
-                {t('home.noCases')}
-              </div>
-            )}
-          </div>
+          <ScientificProductCasesGridV1
+            locale={locale}
+            openLabel={t('home.openCase')}
+          />
         </section>
 
         <section className="pb-6">

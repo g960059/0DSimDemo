@@ -3,15 +3,17 @@ import {
   addVisibleScenariosToMetricsViews,
   authoredViewsForLoad,
   createControllerViewSpec,
+  createGraphViewSpec,
   createMetricsViewSpec,
   deleteAuthoredView,
   duplicateAuthoredView,
   metricsViewConfig,
+  removeScenariosFromAuthoredViews,
   serializableAuthoredViews,
   standardAuthoredViews,
   upsertAuthoredView,
 } from "@/features/workbench/authoredViews";
-import type { MetricsViewSpec, ViewSpec } from "@/features/workbench/viewSpec";
+import type { GraphViewSpec, MetricsViewSpec, ViewSpec } from "@/features/workbench/viewSpec";
 import type { PanelDef, SimInstance } from "@/types";
 
 const instances: SimInstance[] = [
@@ -64,7 +66,7 @@ const legacyPanels: PanelDef[] = [
 ];
 
 describe("P2a authored view helpers", () => {
-  it("filters graph specs out of serializable authored views", () => {
+  it("keeps graph specs as first-class serializable authored views", () => {
     const views: ViewSpec[] = [
       { id: "graph", kind: "graph", graphType: "pvloop", membership: { normal: ["LV"] } },
       createControllerViewSpec("controller", "Controller", [{ paramKey: "HR", kind: "slider", label: "HR" }]),
@@ -72,10 +74,46 @@ describe("P2a authored view helpers", () => {
     ];
 
     expect(serializableAuthoredViews(views).map((view) => [view.id, view.kind])).toEqual([
+      ["graph", "graph"],
       ["controller", "controller"],
       ["metrics", "metrics"],
     ]);
     expect(serializableAuthoredViews(undefined)).toEqual([]);
+  });
+
+  it("creates a semantic graph view independently of pane identity", () => {
+    const semanticViewId = "view-la-pv-loop";
+    const paneId = "dock-pane-17";
+    const graph = createGraphViewSpec(
+      semanticViewId,
+      "Left atrium PV loop",
+      "pvloop",
+      { normal: ["LA"] },
+      {
+        aspect: { ratio: 1, fit: "lock" },
+        presentation: { showGuides: false, showLegend: true },
+      },
+    );
+
+    expect(graph).toEqual({
+      id: semanticViewId,
+      title: "Left atrium PV loop",
+      kind: "graph",
+      graphType: "pvloop",
+      membership: { normal: ["LA"] },
+      aspect: { ratio: 1, fit: "lock" },
+      presentation: { showGuides: false, showLegend: true },
+    });
+    expect(graph.id).not.toBe(paneId);
+
+    const copy = duplicateAuthoredView(graph, "view-la-pv-loop-copy", "") as GraphViewSpec;
+    expect(copy).toMatchObject({ id: "view-la-pv-loop-copy", title: "Graph view copy", kind: "graph" });
+
+    const normalized = upsertAuthoredView([], {
+      ...graph,
+      membership: { normal: ["LA", "LA", ""] },
+    });
+    expect((normalized[0] as GraphViewSpec).membership).toEqual({ normal: ["LA"] });
   });
 
   it("creates, updates, duplicates, and deletes authored views with normalized payloads", () => {
@@ -134,6 +172,7 @@ describe("P2a authored view helpers", () => {
 
     expect(loaded.map((view) => [view.id, view.kind, view.title])).toEqual([
       ["metrics", "metrics", "Existing metrics"],
+      ["graph", "graph", undefined],
     ]);
     expect(authoredViewsForLoad([], legacyPanels, {
       idFactory: testIdFactory(),
@@ -189,5 +228,35 @@ describe("P2a authored view helpers", () => {
       },
     });
     expect(metricsViewConfig(next[1] as MetricsViewSpec, [...instances, { ...instances[0], id: "copy" }]).copy.visible).toBe(true);
+  });
+
+  it("removes deleted scenarios from every authored reference without disturbing survivors", () => {
+    const graph = createGraphViewSpec("graph", "Graph", "waveform", {
+      normal: ["LVP"],
+      copy: ["AoP"],
+    });
+    const metrics = createMetricsViewSpec("metrics", "Metrics", ["ABP"], [instances[0]]);
+    metrics.membership.copy = ["CO"];
+    const pinnedDeleted = {
+      ...createControllerViewSpec("controller-copy", "Copy controls", []),
+      binding: { kind: "scenario" as const, scenarioId: "copy" },
+    };
+    const pinnedSurvivor = {
+      ...createControllerViewSpec("controller-normal", "Normal controls", []),
+      binding: { kind: "scenario" as const, scenarioId: "normal" },
+    };
+    const active = createControllerViewSpec("controller-active", "Active controls", []);
+
+    const next = removeScenariosFromAuthoredViews(
+      [graph, metrics, pinnedDeleted, pinnedSurvivor, active],
+      ["copy"],
+    );
+
+    expect(next[0]).toMatchObject({ kind: "graph", membership: { normal: ["LVP"] } });
+    expect(next[1]).toMatchObject({ kind: "metrics", membership: { normal: ["ABP"] } });
+    expect(next[2]).toMatchObject({ kind: "controller", binding: { kind: "active" } });
+    expect(next[3]).toBe(pinnedSurvivor);
+    expect(next[4]).toBe(active);
+    expect(graph.membership).toEqual({ normal: ["LVP"], copy: ["AoP"] });
   });
 });
