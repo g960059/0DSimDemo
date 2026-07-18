@@ -11,6 +11,7 @@ export const FAST_SUITE_FILE_BUDGET = 120;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
 
 export const fastTests = [
+  "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/caseCloud.test.ts",
   "__tests__/casePublish.test.ts",
   "__tests__/caseValidation.test.ts",
@@ -22,6 +23,7 @@ export const fastTests = [
   "__tests__/controllerItemControl.test.ts",
   "__tests__/controllerItems.test.ts",
   "__tests__/controls.test.ts",
+  "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
   "__tests__/equilibriumOneFiberPassiveV1.test.ts",
   "__tests__/fiveWallNormalCalciumDriveV1.test.ts",
@@ -140,14 +142,18 @@ export const fastTests = [
  * case, lesson, Reading, and rollback-runtime unit file on a two-core runner.
  */
 export const prSmokeTests = [
+  "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/commonPericardiumV1.test.ts",
   "__tests__/controllerBinding.test.ts",
   "__tests__/controllerItemControl.test.ts",
   "__tests__/controllerItems.test.ts",
+  "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
   "__tests__/layoutOps.test.ts",
   "__tests__/legendPosition.test.ts",
   "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
+  "__tests__/mainWireCoronaryMechanicsCouplingV1.test.ts",
+  "__tests__/mainWireFiveWallCoronaryTransactionV1.test.ts",
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireHealthyCycleAcceptanceV1.test.ts",
   "__tests__/mainWireOfficialHealthyPeriodicCheckpointPresetV1.test.ts",
