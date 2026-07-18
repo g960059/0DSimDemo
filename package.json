@@ -32,6 +32,8 @@
     "verify:scientific:healthy-reference-acceptance": "vite-node --script tools/scientific/generateMainWireOfficialHealthyReferenceAcceptanceV1.ts --check",
     "generate:scientific:circulatory-load-envelope": "vite-node --script tools/scientific/generateMainWireCirculatoryLoadSensitivityEnvelopeV1.ts",
     "verify:scientific:circulatory-load-envelope": "vite-node --script tools/scientific/generateMainWireCirculatoryLoadSensitivityEnvelopeV1.ts --check",
+    "generate:scientific:macro-physiology-envelope": "vite-node --script tools/scientific/generateMainWireMacroPhysiologyEnvelopeV1.ts",
+    "verify:scientific:macro-physiology-envelope": "vite-node --script tools/scientific/generateMainWireMacroPhysiologyEnvelopeV1.ts --check",
     "verify:scientific:valve-preset-numerical-envelope": "vite-node --script tools/scientific/runMainWireValvePresetNumericalRobustnessEnvelopeV1.ts",
     "verify:scientific:browser-bundle-boundary": "node tools/scientific/verifyBrowserScientificBundleBoundaryV1.mjs",
     "verify:baseline": "vite-node tools/verifyBaseline.ts",
