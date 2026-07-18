@@ -295,7 +295,7 @@ export function ScientificGuytonStarlingPaneV1({
         <ScientificLegendMarkerV1 color={CHART.p2} label="P2 suspect · excluded" diamond />
         <ScientificLegendMarkerV1 color={CHART.rejected} label="Rejected" crossed />
       </div>
-      <div className="pointer-events-none absolute bottom-1.5 left-2 max-w-[min(36rem,calc(100%-1rem))] text-[9px] leading-3 text-wb-subtle">
+      <div className="pointer-events-none absolute bottom-1.5 left-2 max-w-[42%] text-[9px] leading-3 text-wb-subtle">
         {labels.xLong}. TBV sweep is shown as a one-dimensional operating locus, not a two-dimensional surface.
       </div>
       <ScientificProtocolQcCalloutV1 status={data.status} compact={compact} />
@@ -869,7 +869,7 @@ function scientificProtocolPlotRectV1(
   // QC callout. Keeping these overlays out of the plotting rectangle matters
   // in the short Workbench split panes where a 48 px footer made all three
   // compete for the same baseline.
-  const bottomPadding = compact ? 72 : 78;
+  const bottomPadding = compact ? 96 : 108;
   return Object.freeze({
     left: compact ? 44 : 54,
     right: Math.max(compact ? 72 : 96, size.width - (compact ? 12 : 18)),
