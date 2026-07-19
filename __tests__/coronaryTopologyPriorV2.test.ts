@@ -20,6 +20,7 @@ import {
   createColdCoronaryConstructionSeedV2,
   evaluateCrefAnchoredCollapsiblePvV2,
   initialCoronaryToneStateV2,
+  redistributeCoronaryLargeArterialPressureDropToR1V2,
   repartitionCoronaryMicrovascularResistanceV2,
   scaleCoronaryLargeArterialComplianceV2,
   scaleCoronaryIntramyocardialComplianceV2,
@@ -353,6 +354,75 @@ describe("coronary two-compliance topology/prior V2", () => {
     expect(() => validateCoronaryTopologyPriorV2(changed)).not.toThrow();
   });
 
+  it("moves prearterial pressure loss behind the Art compliance without changing static path loss", () => {
+    const base = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
+    const targetFraction = 0.05;
+    const changed = redistributeCoronaryLargeArterialPressureDropToR1V2(
+      base,
+      targetFraction,
+    );
+    const referenceDrop = base.construction.referencePerfusionPressureDropMmHg;
+    const referenceAorta = base.construction.referenceAbsolutePressureMmHg.aorta;
+    const referencePerivascular = base.construction
+      .referenceAbsolutePressureMmHg.perivascularExternal;
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      const beforeTerritory = base.territories[territoryId];
+      const afterTerritory = changed.territories[territoryId];
+      const territoryFlow = beforeTerritory.targetRestingFlowMlPerMin / 60;
+      expect(afterTerritory.largeArterialResistanceMmHgSecPerMl
+        * territoryFlow).toBeCloseTo(referenceDrop * targetFraction, 12);
+      expect(afterTerritory.largeArterialPressureVolume.loadedSeedVolumeMl)
+        .toBe(beforeTerritory.largeArterialPressureVolume.loadedSeedVolumeMl);
+      expect(afterTerritory.largeArterialPressureVolume
+        .referenceComplianceMlPerMmHg).toBe(
+        beforeTerritory.largeArterialPressureVolume
+          .referenceComplianceMlPerMmHg,
+      );
+      expect(afterTerritory.largeArterialPressureVolume
+        .loadedSeedTransmuralPressureMmHg).toBeCloseTo(
+        referenceAorta - referenceDrop * targetFraction
+          - referencePerivascular,
+        12,
+      );
+      for (const layerId of CORONARY_LAYER_IDS_V2) {
+        const beforeLayer = beforeTerritory.layers[layerId];
+        const afterLayer = afterTerritory.layers[layerId];
+        const layerFlow = territoryFlow
+          * beforeLayer.restingFlowFractionWithinTerritory01;
+        const totalReferencePathLoss = (
+          territory: typeof beforeTerritory,
+          layer: typeof beforeLayer,
+        ) => territory.largeArterialResistanceMmHgSecPerMl * territoryFlow
+          + (
+            layer.proximalArteriolarResistanceMmHgSecPerMl
+            + layer.intermediateCapillaryResistanceMmHgSecPerMl
+            + layer.distalVenularResistanceMmHgSecPerMl
+          ) * layerFlow;
+        expect(totalReferencePathLoss(afterTerritory, afterLayer))
+          .toBeCloseTo(
+            totalReferencePathLoss(beforeTerritory, beforeLayer),
+            12,
+          );
+        expect(afterLayer.proximalArteriolarResistanceMmHgSecPerMl)
+          .toBeGreaterThan(
+            beforeLayer.proximalArteriolarResistanceMmHgSecPerMl,
+          );
+        expect(afterLayer.intermediateCapillaryResistanceMmHgSecPerMl)
+          .toBe(beforeLayer.intermediateCapillaryResistanceMmHgSecPerMl);
+        expect(afterLayer.distalVenularResistanceMmHgSecPerMl)
+          .toBe(beforeLayer.distalVenularResistanceMmHgSecPerMl);
+      }
+    }
+    expect(coronaryColdSeedBloodVolumeMlV2(changed))
+      .toBeCloseTo(coronaryColdSeedBloodVolumeMlV2(base), 14);
+    expect(coronaryTopologyPriorFingerprintV2(changed))
+      .not.toBe(coronaryTopologyPriorFingerprintV2(base));
+    expect(() => redistributeCoronaryLargeArterialPressureDropToR1V2(
+      base,
+      0.30,
+    )).toThrow(/must be in/);
+  });
+
   it("rebases only structural R1 and records a mean-flow-only beating reference", () => {
     const base = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
     const scale = Object.freeze({
@@ -403,6 +473,10 @@ describe("coronary two-compliance topology/prior V2", () => {
       c1Proximal: 1,
       c2Distal: 0.8,
     })).toThrow(/must precede beating-reference/);
+    expect(() => redistributeCoronaryLargeArterialPressureDropToR1V2(
+      calibrated,
+      0.05,
+    )).toThrow(/must precede beating-reference/);
   });
 
   it("labels 70:15:15 as a low-Rm ablation while preserving total resistance", () => {

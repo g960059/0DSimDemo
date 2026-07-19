@@ -139,6 +139,24 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
       .toBeCloseTo(expectedFlowMlPerMin, 9);
     expect(diagnostics.hydraulics.commonCoronaryVenousOutletFlowMlPerSec)
       .toBeCloseTo(diagnostics.hydraulics.totalInletFlowMlPerSec, 10);
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      const hydraulics = diagnostics.hydraulics;
+      const expectedOutflow = CORONARY_LAYER_IDS_V2.reduce(
+        (total, layerId) => total
+          + hydraulics.layerR1FlowMlPerSecByTerritory[territoryId][layerId],
+        0,
+      );
+      expect(hydraulics.largeArterialOutflowMlPerSecByTerritory[territoryId])
+        .toBeCloseTo(expectedOutflow, 14);
+      expect(hydraulics.largeArterialStorageRateMlPerSecByTerritory[territoryId])
+        .toBeCloseTo(
+          hydraulics.inletFlowMlPerSecByTerritory[territoryId]
+            - expectedOutflow,
+          14,
+        );
+      expect(hydraulics.largeArterialStorageRateMlPerSecByTerritory[territoryId])
+        .toBeCloseTo(0, 10);
+    }
     expect(diagnostics.requiredCoronaryVolumeTransferMl).toBeCloseTo(
       diagnostics.pressureConsistentCoronaryBloodVolumeMl
       - diagnostics.structuralPriorCoronaryBloodVolumeMl,

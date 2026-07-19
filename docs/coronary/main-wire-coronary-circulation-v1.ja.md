@@ -1964,7 +1964,7 @@ defaultにしない。$P_{IM}^{(1)}$と$P_{IM}^{(2)}$のcoupling係数は別に�
 |---|---|
 | modeled ventricular-wall coronary flow | primary: 0.7--1.3 mL/min/g、target 1.0; secondary: COの約2--7% |
 | LAD / LCx inlet D/T forward integral | 0.70--0.85 |
-| LAD / LCx inlet peak D/S | full mechanical systole (MVC--AoVC) とejection (AoVO--AoVC)を併記する。文献のECG / valve-event protocolと測定siteが一致するまで1.8--2.8をhard gateにしない |
+| LAD / LCx peak D/S | peak velocity、volume flow、mean-phase flowを分離し、full mechanical systole (MVC--AoVC) とejection (AoVO--AoVC)を併記する。matched-site peak velocityのnominal 2.2、core soft envelope 1.8--2.8、method / site差を含むbroad envelope 1.5--3.5をcontextにするが、測定契約が一致するまでhard gateにしない |
 | LAD / LCx early-diastolic morphology | AoVC後peak時刻、最初200 msのforward volume share、flow-time centroidを併記する。70--140 msはproximal LADの参考域で、$Q_m$へ直接移植しない |
 | RCA inlet D/T forward integral | 0.50--0.75; D/Sを必ず1以下へ固定しない |
 | left intramyocardial arteriolar flow | early diastolic dominance; ENDOの短いearly-systolic reverseを許容。hidden $Q_m$へ実測peak gateを移植しない |
@@ -1976,6 +1976,16 @@ defaultにしない。$P_{IM}^{(1)}$と$P_{IM}^{(2)}$のcoupling係数は別に�
 | conservation | fixed global TBV、local incidence ledger、全passive edgeの$\Delta P Q\ge0$ |
 
 酸素運搬・消費stateを実装する前はischemiaと表示せず、perfusion reserveまたはsupply-demand proxyと呼ぶ。
+
+peak D/Sの正常域は、測定法を混ぜると見かけ上広がる。angiographically normal coronaryをintracoronary Dopplerで
+調べたOfiliらのLAD peak D/Sは2.2±0.5、正常proximal LADをTEE Dopplerで調べたKasprzakらのpeak systolic / diastolic
+velocityは31±9 / 67±19 cm/sで、群平均同士の比は約2.16だった
+([Ofili et al. 1995](https://pubmed.ncbi.nlm.nih.gov/7611121/),
+[Kasprzak et al. 2000](https://pubmed.ncbi.nlm.nih.gov/10978972/))。健康成人8名のphase-contrast MRIではLAD peak
+volume flowが0.94±0.28 / 2.42±0.56 mL/s、報告されたpeak S/Dは0.37±0.12で、群平均flowのD/Sは約2.57だった
+([Marcus et al. 1999](https://pubmed.ncbi.nlm.nih.gov/10433289/))。これらはvelocityとvolume flow、proximal / mid LAD、
+temporal averagingが異なるため同一分布ではない。従って2.2を単一のfit targetにせず、上記のsoft envelopeと
+measurement contractを併記する。
 
 ### 27.7 実装順序と現在地
 
@@ -2217,37 +2227,90 @@ C2半減は$Q_m$ fingerprintを少し動かすがQ2 backfillを悪化させる�
 線形化すると70:15:15は$R_m$を半減する一方、$R_2$を1.5倍にし、2-state slow poleは約0.96から1.37 sへ遅くなる。
 速くなるのは差動modeだけであり、`transport-fast`とは呼ばない。両変更ともcanonical normal priorには採択しない。
 
-### 28.6 fixed-boundary provisional candidate
+### 28.6 LAD measurement contractの修正
 
-現時点のprovisional candidateは、SIP、bounded-collapse area floor 0.67、60:30:10、$C_2$ scale 1、large arterial
-complianceの事前感度下限0.4倍である。最後の変更はlarge-vessel local-compliance priorの宣言済み0.001--0.005 /mmHg範囲内で、
-loaded structural volume / pressureを変えない。
+従来表示した`LAD inlet peak D/S = 1.225`は、拡張期peakをMVC--AoVCの最大forward flowで割っていた。監査すると分母の
+最大点はMVC境界そのもので、独立したejection peakではなかった。同じ波形をAoVO--AoVCで区切るとpeak D/ejectionは
+1.983、MVC--AoVCのmean-net D/Sは1.594、forward-volume D/(D+S)は0.790である。従って1.225を文献のpeak D/S
+2.1--2.6と直接比較して「収縮期flow過多」とした旧解釈は撤回する。
 
-| observable | result | status |
-|---|---:|---|
-| mean inlet | 1.000 mL/min/g | construction closure; validation量ではない |
-| LAD structural R1 EPI / ENDO | 0.812 / 0.642 | 旧0.672 / 0.118よりreserve意味論を改善 |
-| LAD inlet forward D/(D+S) | 0.790 | forward volumeの約21%を収縮期にも保持 |
-| LAD inlet peak D/S | 1.225 | 文献context約2.0--2.3より低く、proximal morphology未達 |
-| LAD inlet peak after AoVC | 210 ms | 参考95 msより遅い。proximal wave physicsの残課題 |
-| LAD ENDO $Q_1$ peak / early share | 128 ms / 0.325 | arteriolar-side referenceとして妥当域 |
-| LAD ENDO $Q_2$ reverse | 0.0166 mL / 232 ms | volume burdenは小さいがzero-crossing durationは長い |
-| LAD ENDO/EPI mean | 1.110 | construction target closure; validation量ではない |
-| max relative P1 drift | $3.14\times10^{-11}$ | pass |
-| minimum passive-edge power | $2.42\times10^{-9}$ mmHg mL/s | nonnegative; pass |
-| maximum incidence-ledger residual | $7.04\times10^{-10}$ mL | pass |
+以後、各flow surfaceで少なくとも次を同時に保存する。
 
-積分比は有限の収縮期flowを回復した一方、peak D/Sとpeak時刻はまだ過度に平滑化・遅延している。
-正常対照でdiastolic flow onsetからpeakまで74±13 msという報告もあり
-([Hildick-Smith and Shapiro 1993](https://pubmed.ncbi.nlm.nih.gov/8297696/))、この不一致は隠さずcontext metricとして保持する。
-測定site / event protocolを揃えるまではhard fit gateにしないが、healthy waveformをcanonicalと呼べない主要理由である。
+| metric | phase / site contract | role |
+|---|---|---|
+| peak D/full-S | diastole peak / MVC--AoVC peak | pre-ejectionを含むmodel diagnostic。分母がMVC境界かをflagする |
+| peak D/ejection | diastole peak / AoVO--AoVC peak | 文献peak比に近い補助量。分母がAoVO / AoVC境界かをflagする |
+| mean-net D/S | MVC--AoVCに対するdiastoleのphase mean | recent LPMのmean DSFRと比較する補助量 |
+| D/(D+S) forward volume | 正のflowの周期積分 | phasic volume balance。peak形状とは独立 |
+| AoVC→forward onset / onset→peak | valve eventと符号から導出 | 収縮期からforward flowが連続する場合、onset=0を臨床ACTと同一視しない |
+
+さらに、単一の「LAD inlet」を測定siteとして扱わない。territoryごとに
+
+$$
+Q_{in,k}=Q_{Ao\rightarrow Art,k},\qquad
+Q_{out,k}=\sum_l Q_{R1,kl},\qquad
+\dot V_{Art,k}=Q_{in,k}-Q_{out,k}
+$$
+
+を出力する。$Q_{in}$はsource-side Ao→lumped epicardial/prearterial reservoir、$Q_{out}$は同reservoirから二層R1へ出る
+derived flowであり、新しいstateやedgeではない。両者の差はArt volumeのexact storage rateである。proximal / mid / distal
+LAD DopplerやMRIへ対応したと主張せず、measurement-site mappingは近位conduitを明示した段階で別にversion管理する。
+
+### 28.7 C1 / proximal pressure-loss placementの事前規定factorial
+
+波形目的関数を使わず、二つの独立した機序だけを2 x 2で比較した。
+
+- $C_1$: 0.015から0.010 mL/mmHg/100 g相当、すなわちscale 1から2/3。Spaanらの宣言済み
+  0.01--0.03範囲内で、近位intramyocardial reservoirのfast storage sensitivityを調べる。
+- Ao→Art pressure-loss fraction: 25%から10%。静的reference path lossとtarget flowを厳密に保存し、取り除いたlossを各層R1へ
+  移す。大冠動脈そのもののlossが小さいという解剖学的方向性のablationであり、新しい自由parameterとして採択しない。
+
+| $C_1$ scale | Ao→Art $\Delta P$ | source D/(D+S) | peak D/full-S | peak D/ejection | mean-net D/S | source / Art-out peak | ENDO $Q_1$ peak |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1.00 | 25% | 0.790 | 1.225 | 1.983 | 1.594 | 210 / 230 ms | 128 ms |
+| 0.67 | 25% | 0.778 | 1.180 | 1.878 | 1.489 | 168 / 114 ms | 102 ms |
+| 1.00 | 10% | 0.789 | 1.243 | 1.982 | 1.588 | 196 / 230 ms | 154 ms |
+| 0.67 | 10% | 0.778 | 1.209 | 1.821 | 1.489 | 158 / 146 ms | 128 ms |
+
+$C_1$ 2/3はmean flow 1.000 mL/min/g、max relative closure $2.42\times10^{-11}$、minimum passive-edge power
+$3.40\times10^{-9}$ mmHg mL/sを維持しながら、source、Art-out、ENDO $Q_1$の全てをearly diastoleへ移した。これは
+static resistanceやmean targetを変えず、coupled C1--C2 systemのfast storage time scaleを短くする方向であり、波形fitではない。
+固定境界のprovisional candidateをこのcellへ更新する。
+
+一方、pressure-lossを10%へ移す変更はsource peakを14--10 ms早めても、Art-out / $Q_1$を一貫して改善しなかった。
+現Art nodeはepicardial conduitだけでなくprearterial storageも集約しているため、10%を「より正しいepicardial resistance」と
+みなしてcanonical化すると責任範囲を混同する。このablationは棄却し、25% construction ledgerを保持する。将来、解剖から
+拘束したepicardial tubeとprearterioleを分離する場合にだけ再導入する。
+
+### 28.8 文献波形との照合と残るclaim boundary
+
+正常LAD peak D/Sは測定法別に、intracoronary Doppler 2.2±0.5、proximal TEE Dopplerの群平均比約2.16、健康MRI
+volume-flowの群平均比約2.57である。従ってmatched-site peak velocityのnominal 2.2、core soft envelope 1.8--2.8、
+method / site差込み1.5--3.5を採用する。provisional candidateのsource peak D/ejection 1.878はcore envelope下端内だが、
+分母はAoVO境界であり、source-side flowなのでmatched clinical validationとは呼ばない。
+
+early-diastolic timingも定義依存である。正常対照のdiastolic-flow onset→peakは105±12 ms、mid-LAD Dopplerのcontrol ACTは
+163±29 msだった。一方、LBBBでは134--136 ms、HCMでは237±89 msへ遅延している
+([Skalidis et al. 1999](https://doi.org/10.1016/S0735-1097(98)00698-6),
+[Kawamura et al. 1999](https://www.jstage.jst.go.jp/article/jcj/63/5/63_5_350/_pdf))。candidateのArt-out 114 msと
+ENDO $Q_1$ 102 msはこの文献contextに入るが、source inlet 168 msは遅めである。モデルはAoVC前からforward flowを保持するため、
+算出上のforward onsetは0 msであり、臨床Dopplerで再出現するdiastolic episodeのonsetと同一ではない。
+
+2025年のtime-varying-resistance LPMは、IMPだけのmean DSFR 1.70に対し、収縮に伴うresistance変化を加えると2.65、比較した
+in-vivo値は1.95と報告した
+([Yong et al. 2025](https://doi.org/10.1016/j.jbiomech.2025.112679))。現V2はすでにmechanics-driven IMPと
+bounded caliber-dependent resistanceを持つため、この結果だけを根拠に追加のtime-varying gainを重ねると収縮圧迫を二重計上する。
+まず同じmeasurement contractでcollapse on/offを再評価する。
+
+単純なconstant inertanceも現段階では追加しない。C1感度だけで下流observableが102--114 msへ移り、多峰性やringingなしに
+受動性を保てたためである。atomic closed-loop後もsource / measurement-site flowだけが遅い場合は、geometry、wave speed、
+characteristic impedanceを相互拘束したterritoryごと1-cellのpassive proximal tubeを検討する。$L$を独立したshape knobにはしない。
 
 このcandidateは**固定terminal-boundary shadowでの機序選択**であり、healthy canonical releaseではない。atomic main-wire
-closed-loopへ接続してfixed TBV / P1 / dt refinement / pressure-step / hyperemia reserveを再確認するまで
-`simulationReady=false`を維持する。近位characteristic impedanceやinertanceは、atomic closed-loopでも入口peakが遅いことを
-確認するまで追加しない。
+closed-loopへ接続してfixed TBV / 全state P1 / 2--1 ms refinement / pressure-step / hyperemia reserve / disease-directionを
+再確認するまで`simulationReady=false`を維持する。
 
-### 28.7 protocol / artifact integrity
+### 28.9 protocol / artifact integrity
 
 solverへ渡したboundary objectからreport用pressure snapshotを同じstepで生成し、SIPを含む**実際のIMP**を保存する。
 pressure、LVFW / SEP / RVFW fiber strain、MVC/AoVO/AoVC definition、そこから解決したSIP boundaryをfingerprintへ含めるため、
@@ -2255,8 +2318,13 @@ pressure、LVFW / SEP / RVFW fiber strain、MVC/AoVO/AoVC definition、そこか
 tone closureだけでなく、volume periodicity、incidence ledger、Newton residual、passive-edge power、全6層のmean-Qm target誤差
 $\le10^{-3}$、全層がtone上下限ではなくinteriorにあることを通過した場合だけR1 rebaseへ使用できる。
 
-比較artifact
-`data/myocardium/reports/mainwire-coronary-v2-sip-bounded-transport-factorial-v1.json`は各cellのterminal 500 samples、source hash、
-reference構築拍数・tone law・update window、構造parameterを保持する。HTML rendererはこのcompact artifactだけで再生成でき、
-一時的なfull 20-beat / 260-beat reportを必要としない。新artifactではC1→C2 fluxを`qmInternal`、その周期平均比を
+旧比較artifact
+`data/myocardium/reports/mainwire-coronary-v2-sip-bounded-transport-factorial-v1.json`はC2 / resistance探索の履歴として残すが、
+無修飾D/S解釈は本節のmeasurement contractで置換する。現行artifact
+`data/myocardium/reports/mainwire-coronary-v2-lad-measurement-site-factorial-v1.json`は4 cellのterminal 500 samples、source hash、
+reference構築拍数・tone law・update window、C1、Ao→Art pressure-loss placement、derived Art-out / storageを保持する。
+対応HTMLは`data/myocardium/visuals/mainwire-coronary-v2-lad-measurement-site-factorial-v1.html`である。rendererはcompact
+artifactだけで再生成でき、一時的なfull 20-beat / 260-beat reportを必要としない。各rowにはMVC / AoVO / AoVC phaseを、
+reproduction metadataには明示的なcandidate rowを保存し、D/S再監査とcandidate選択もcompact artifact単体で再現する。
+C1→C2 fluxは`qmInternal`、その周期平均比は
 `endocardialToEpicardialMeanQmInternalRatio`と呼び、旧`tissue`名は既存reader用deprecated aliasに限定する。

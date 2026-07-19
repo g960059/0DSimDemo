@@ -22,6 +22,9 @@ const focusLayer = enumArgument(
   "subendocardial",
 );
 const retainWaveformSamples = process.argv.includes("--retain-waveform-samples");
+const provisionalCandidateRowOneBased = optionalPositiveIntegerArgument(
+  "--candidate-row",
+);
 
 if (inputPaths.length === 0) {
   throw new Error(
@@ -40,6 +43,14 @@ const rows = inputPaths.map((inputPath, inputIndex) =>
     focusLayer,
     retainWaveformSamples,
   ));
+if (
+  provisionalCandidateRowOneBased !== null
+  && provisionalCandidateRowOneBased > rows.length
+) {
+  throw new Error(
+    `--candidate-row ${provisionalCandidateRowOneBased} exceeds the ${rows.length}-row summary`,
+  );
+}
 const output = Object.freeze({
   schema: "circleheart.coronary-v2-factorial-comparison-summary.v1" as const,
   completed: true as const,
@@ -49,6 +60,20 @@ const output = Object.freeze({
     fullSourceArtifactsRequiredForRendering: false as const,
     parameterFit: false as const,
     rowOrder: "explicit-input-order" as const,
+    ladMeasurementContract: Object.freeze({
+      sourceInlet:
+        "aorta-to-lumped-epicardial-prearterial-reservoir" as const,
+      largeArterialOutflow:
+        "sum-of-r1-branches-at-distal-lumped-reservoir-boundary" as const,
+      clinicalSiteMatched: false as const,
+      peakDiastolicToFullSystole:
+        "diastolic-peak-divided-by-MVC-to-AoVC-peak" as const,
+      peakDiastolicToEjection:
+        "diastolic-peak-divided-by-AoVO-to-AoVC-peak" as const,
+      meanNetDiastolicToFullSystole:
+        "diastolic-phase-mean-net-flow-divided-by-MVC-to-AoVC-phase-mean-net-flow" as const,
+      velocityAndVolumeFlowInterchangeable: false as const,
+    }),
   }),
   reproduction: Object.freeze({
     boundaryReportGenerator:
@@ -68,6 +93,12 @@ const output = Object.freeze({
       toneMode: "fixed" as const,
       r1ReferenceMode: "rebased-accepted-tone" as const,
       retainedCycle: "terminal-cycle" as const,
+    }),
+    provisionalCandidateSelection: Object.freeze({
+      rowOneBased: provisionalCandidateRowOneBased,
+      rule: provisionalCandidateRowOneBased === null
+        ? "not-declared" as const
+        : "explicit-input-row" as const,
     }),
     intermediateFullReports: "transient-hash-recorded" as const,
   }),
@@ -135,6 +166,10 @@ function summarizeReport(
         stringAt(configuration, "backwardEulerBoundaryConvention"),
       dtSec: numberAt(configuration, "dtSec"),
       cycleLengthSec: numberAt(configuration, "cycleLengthSec"),
+      mitralClosurePhase01:
+        numberAt(configuration, "phaseDefinition", "mitralClosurePhase01"),
+      aorticOpeningPhase01:
+        numberAt(configuration, "phaseDefinition", "aorticOpeningPhase01"),
       aorticClosurePhase01:
         numberAt(configuration, "phaseDefinition", "aorticClosurePhase01"),
       topologyId: stringAt(configuration, "topologyId"),
@@ -144,6 +179,9 @@ function summarizeReport(
         stringAt(configuration, "resistancePartitionMode"),
       largeArterialComplianceScale:
         numberAt(configuration, "largeArterialComplianceScale"),
+      largeArterialPressureDropFraction01:
+        numberAt(configuration, "largeArterialPressureDropFraction01")
+          ?? 0.25,
       intramyocardialComplianceScale: Object.freeze({
         c1Proximal: firstNumber(
           numberAt(
@@ -215,6 +253,12 @@ function summarizeReport(
       territory: territoryId,
       layer: layerId,
       inlet: compactLedger(objectAt(territorySummary, "inlet")),
+      largeArterialOutflow: compactLedger(
+        objectAt(territorySummary, "largeArterialOutflow"),
+      ),
+      largeArterialStorageRate: compactLedger(
+        objectAt(territorySummary, "largeArterialStorageRate"),
+      ),
       q1: compactLedger(objectAt(layerSummary, "r1")),
       qmInternal: compactLedger(
         objectAt(layerSummary, "qmInternal")
@@ -300,6 +344,65 @@ function compactWaveformSamples(
       "inletByTerritory",
       territoryId,
     ),
+    territoryLargeArterialOutflow: requiredFirstNumber(
+      `sample ${index} ${territoryId} large-arterial outflow`,
+      numberAt(
+        sample,
+        "flowMlPerSec",
+        "largeArterialOutflowByTerritory",
+        territoryId,
+      ),
+      nullableSum(
+        numberAt(
+          sample,
+          "flowMlPerSec",
+          "r1ByTerritoryLayer",
+          territoryId,
+          "subepicardial",
+        ),
+        numberAt(
+          sample,
+          "flowMlPerSec",
+          "r1ByTerritoryLayer",
+          territoryId,
+          "subendocardial",
+        ),
+      ),
+    ),
+    territoryLargeArterialStorageRate: requiredFirstNumber(
+      `sample ${index} ${territoryId} large-arterial storage rate`,
+      numberAt(
+        sample,
+        "flowMlPerSec",
+        "largeArterialStorageRateByTerritory",
+        territoryId,
+      ),
+      (() => {
+        const inlet = numberAt(
+          sample,
+          "flowMlPerSec",
+          "inletByTerritory",
+          territoryId,
+        );
+        const epi = numberAt(
+          sample,
+          "flowMlPerSec",
+          "r1ByTerritoryLayer",
+          territoryId,
+          "subepicardial",
+        );
+        const endo = numberAt(
+          sample,
+          "flowMlPerSec",
+          "r1ByTerritoryLayer",
+          territoryId,
+          "subendocardial",
+        );
+        return inlet === null || epi === null || endo === null
+          ? null
+          : inlet - epi - endo;
+      })(),
+    ),
     q1: requiredNumberAt(
       sample,
       `sample ${index} Q1`,
@@ -356,6 +459,12 @@ function territoryHeadline(
     const value = objectAt(summary, "territory", territoryId);
     return [territoryId, Object.freeze({
       inlet: compactLedger(objectAt(value, "inlet")),
+      largeArterialOutflow: compactLedger(
+        objectAt(value, "largeArterialOutflow"),
+      ),
+      largeArterialStorageRate: compactLedger(
+        objectAt(value, "largeArterialStorageRate"),
+      ),
       endocardialToEpicardialMeanQmInternalRatio: firstNumber(
         numberAt(
           summary,
@@ -381,12 +490,43 @@ function compactLedger(
   const diastolicReverseVolumeMl = numberAt(diastole, "reverseVolumeMl");
   const systolicReverseDurationSec = numberAt(systole, "reverseDurationSec");
   const diastolicReverseDurationSec = numberAt(diastole, "reverseDurationSec");
+  const peakDiastolicToFullSystoleForwardFlowRatio = firstNumber(
+    numberAt(ledger, "peakDiastolicToFullSystoleForwardFlowRatio"),
+    numberAt(ledger, "peakDiastolicToSystolicForwardFlowRatio"),
+  );
+  const diastolicToFullSystoleMeanNetFlowRatio = firstNumber(
+    numberAt(ledger, "diastolicToFullSystoleMeanNetFlowRatio"),
+    numberAt(ledger, "diastolicToSystolicMeanNetFlowRatio"),
+  );
 
   return Object.freeze({
     diastolicForwardVolumeFraction01:
       numberAt(ledger, "diastolicForwardVolumeFraction01"),
+    peakDiastolicToFullSystoleForwardFlowRatio,
     peakDiastolicToSystolicForwardFlowRatio:
-      numberAt(ledger, "peakDiastolicToSystolicForwardFlowRatio"),
+      peakDiastolicToFullSystoleForwardFlowRatio,
+    peakDiastolicToEjectionForwardFlowRatio:
+      numberAt(ledger, "peakDiastolicToEjectionForwardFlowRatio"),
+    peakDiastolicToFullSystoleDenominatorAtMitralClosureBoundary:
+      booleanAt(
+        ledger,
+        "peakDiastolicToFullSystoleDenominatorAtMitralClosureBoundary",
+      ),
+    peakDiastolicToEjectionDenominatorAtIntervalBoundary:
+      booleanAt(
+        ledger,
+        "peakDiastolicToEjectionDenominatorAtIntervalBoundary",
+      ),
+    diastolicToFullSystoleMeanNetFlowRatio,
+    diastolicToSystolicMeanNetFlowRatio:
+      diastolicToFullSystoleMeanNetFlowRatio,
+    diastolicForwardFlowOnsetDelayAfterAorticClosureSec:
+      numberAt(
+        ledger,
+        "diastolicForwardFlowOnsetDelayAfterAorticClosureSec",
+      ),
+    diastolicPeakDelayAfterForwardFlowOnsetSec:
+      numberAt(ledger, "diastolicPeakDelayAfterForwardFlowOnsetSec"),
     diastolicPeakDelayAfterAorticClosureSec:
       numberAt(ledger, "diastolicPeakDelayAfterAorticClosureSec"),
     earlyDiastolicForwardVolumeFractionOfDiastole01:
@@ -558,6 +698,17 @@ function requiredPathArgument(flag: string): string {
     throw new Error(`${flag} is required`);
   }
   return path.resolve(raw);
+}
+
+function optionalPositiveIntegerArgument(flag: string): number | null {
+  const index = process.argv.indexOf(flag);
+  if (index < 0) return null;
+  const raw = process.argv[index + 1];
+  const value = Number(raw);
+  if (raw === undefined || !Number.isInteger(value) || value < 1) {
+    throw new Error(`${flag} must be a positive one-based row index`);
+  }
+  return value;
 }
 
 function enumArgument<const T extends readonly string[]>(

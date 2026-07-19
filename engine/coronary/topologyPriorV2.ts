@@ -970,6 +970,96 @@ export function repartitionCoronaryMicrovascularResistanceV2(
 }
 
 /**
+ * Move a specified part of the reference pressure loss from the shared
+ * Ao-to-Art edge to each layer's precapillary R1 edge without changing the
+ * static reference path resistance or target flow.
+ *
+ * The immutable 25% construction prior aggregates epicardial conduit and
+ * prearterial loss. This bounded placement ablation lets the explicit Art
+ * compliance sit downstream of only the low-loss epicardial conduit, while
+ * the removed prearterial loss remains upstream of C1 and is therefore owned
+ * by R1. No state, waveform source, or fitted phase parameter is introduced.
+ */
+export function redistributeCoronaryLargeArterialPressureDropToR1V2(
+  prior: CoronaryTopologyPriorV2,
+  targetLargeArterialPressureDropFraction01: number,
+): CoronaryTopologyPriorV2 {
+  requireUncalibratedConstructionPriorV2(
+    prior,
+    "large-arterial pressure-drop redistribution",
+  );
+  const baselineFraction = prior.construction.baselineResistancePartition
+    .macroPathPressureDropFraction01.largeArterial;
+  if (
+    !Number.isFinite(targetLargeArterialPressureDropFraction01)
+    || targetLargeArterialPressureDropFraction01 <= 0
+    || targetLargeArterialPressureDropFraction01 > baselineFraction
+  ) {
+    throw new RangeError(
+      `large-arterial pressure-drop fraction must be in (0, ${baselineFraction}]`,
+    );
+  }
+  const referenceDrop = prior.construction.referencePerfusionPressureDropMmHg;
+  const targetLargeArterialDropMmHg =
+    referenceDrop * targetLargeArterialPressureDropFraction01;
+  const referenceAorticPressure = prior.construction
+    .referenceAbsolutePressureMmHg.aorta;
+  const referencePerivascularPressure = prior.construction
+    .referenceAbsolutePressureMmHg.perivascularExternal;
+  const territories = Object.freeze(Object.fromEntries(
+    CORONARY_TERRITORY_IDS_V2.map((territoryId) => {
+      const territory = prior.territories[territoryId];
+      const territoryFlowMlPerSec = territory.targetRestingFlowMlPerMin / 60;
+      const existingLargeArterialDropMmHg =
+        territory.largeArterialResistanceMmHgSecPerMl
+        * territoryFlowMlPerSec;
+      const movedDropMmHg =
+        existingLargeArterialDropMmHg - targetLargeArterialDropMmHg;
+      if (movedDropMmHg < -1e-10) {
+        throw new RangeError(
+          `${territoryId} target large-arterial loss exceeds active prior`,
+        );
+      }
+      const layers = Object.freeze(Object.fromEntries(
+        CORONARY_LAYER_IDS_V2.map((layerId) => {
+          const layer = territory.layers[layerId];
+          const layerFlowMlPerSec = territoryFlowMlPerSec
+            * layer.restingFlowFractionWithinTerritory01;
+          return [layerId, Object.freeze({
+            ...layer,
+            proximalArteriolarResistanceMmHgSecPerMl:
+              layer.proximalArteriolarResistanceMmHgSecPerMl
+              + movedDropMmHg / layerFlowMlPerSec,
+          })];
+        }),
+      )) as CoronaryLayerRecordV2<CoronaryLayerPriorV2>;
+      const pressureVolume = territory.largeArterialPressureVolume;
+      return [territoryId, Object.freeze({
+        ...territory,
+        largeArterialResistanceMmHgSecPerMl:
+          targetLargeArterialDropMmHg / territoryFlowMlPerSec,
+        largeArterialPressureVolume:
+          compileCrefAnchoredCollapsiblePvFromLoadedSeedV2({
+            loadedSeedVolumeMl: pressureVolume.loadedSeedVolumeMl,
+            loadedSeedTransmuralPressureMmHg:
+              referenceAorticPressure
+              - targetLargeArterialDropMmHg
+              - referencePerivascularPressure,
+            referenceComplianceMlPerMmHg:
+              pressureVolume.referenceComplianceMlPerMmHg,
+            expansionExponent: pressureVolume.expansionExponent,
+            collapseExponent: pressureVolume.collapseExponent,
+          }),
+        layers,
+      })];
+    }),
+  )) as CoronaryTerritoryRecordV2<CoronaryTerritoryPriorV2>;
+  const redistributed = Object.freeze({ ...prior, territories });
+  validateCoronaryTopologyPriorV2(redistributed);
+  return redistributed;
+}
+
+/**
  * Scale only the local slope of the three epicardial Art storage laws while
  * preserving their loaded structural volumes and loaded pressures. This is a
  * compliance-owner ablation; it cannot silently move blood volume or change

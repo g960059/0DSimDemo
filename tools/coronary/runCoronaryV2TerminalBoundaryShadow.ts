@@ -7,6 +7,7 @@ import {
   CHILIAN_1991_DIRECTIONAL_TRANSMURAL_REPARTITION_ABLATION_V2,
   NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
   LOW_RM_70_15_15_REPARTITION_ABLATION_V2,
+  redistributeCoronaryLargeArterialPressureDropToR1V2,
   repartitionCoronaryMicrovascularResistanceV2,
   scaleCoronaryIntramyocardialComplianceV2,
   scaleCoronaryLargeArterialComplianceV2,
@@ -105,6 +106,7 @@ type R1ReferenceSourceReport = Readonly<{
     toneMode: string;
     resistancePartitionMode: string;
     largeArterialComplianceScale: number;
+    largeArterialPressureDropFraction01?: number;
     intramyocardialC1ComplianceScale?: number;
     intramyocardialC2ComplianceScale?: number;
     r1ReferenceMode?: string;
@@ -148,7 +150,12 @@ type ShadowSample = Readonly<{
   flowMlPerSec: Readonly<{
     totalInlet: number;
     commonVenousOutlet: number;
+    /** Ao-to-Art proximal inlet, before the territory Art compliance. */
     inletByTerritory: TerritoryNumbers;
+    /** Sum of the two R1 branches leaving the territory Art compliance. */
+    largeArterialOutflowByTerritory: TerritoryNumbers;
+    /** Exact Art storage rate: proximal inlet minus distal lumped outflow. */
+    largeArterialStorageRateByTerritory: TerritoryNumbers;
     r1ByTerritoryLayer: LayerNumbers;
     qmInternalByTerritoryLayer: LayerNumbers;
     /** @deprecated Use qmInternalByTerritoryLayer. */
@@ -199,6 +206,11 @@ const largeArterialComplianceScale = positiveNumberArgument(
   "--large-arterial-compliance-scale",
   1,
 );
+const largeArterialPressureDropFraction01 = fractionArgument(
+  "--large-arterial-pressure-drop-fraction",
+  NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2.construction
+    .baselineResistancePartition.macroPathPressureDropFraction01.largeArterial,
+);
 const intramyocardialC1ComplianceScale = positiveNumberArgument(
   "--intramyocardial-c1-compliance-scale",
   1,
@@ -246,6 +258,17 @@ const compliancePrior = largeArterialComplianceScale === 1
     intramyocardialCompliancePrior,
     largeArterialComplianceScale,
   );
+const baselineLargeArterialPressureDropFraction01 =
+  NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2.construction
+    .baselineResistancePartition.macroPathPressureDropFraction01.largeArterial;
+const pressureDropPlacementPrior =
+  largeArterialPressureDropFraction01
+    === baselineLargeArterialPressureDropFraction01
+    ? compliancePrior
+    : redistributeCoronaryLargeArterialPressureDropToR1V2(
+      compliancePrior,
+      largeArterialPressureDropFraction01,
+    );
 const r1ReferenceCalibration = r1ReferenceMode === "rebased-accepted-tone"
   ? calibrationFromAcceptedToneReport(
     r1ReferenceReportPath,
@@ -253,6 +276,7 @@ const r1ReferenceCalibration = r1ReferenceMode === "rebased-accepted-tone"
     boundaryFingerprint,
     resistancePartitionMode,
     largeArterialComplianceScale,
+    largeArterialPressureDropFraction01,
     intramyocardialC1ComplianceScale,
     intramyocardialC2ComplianceScale,
     impMechanism,
@@ -261,9 +285,9 @@ const r1ReferenceCalibration = r1ReferenceMode === "rebased-accepted-tone"
   )
   : null;
 const activePrior = r1ReferenceCalibration === null
-  ? compliancePrior
+  ? pressureDropPlacementPrior
   : applyBeatingReferenceR1CalibrationV2(
-    compliancePrior,
+    pressureDropPlacementPrior,
     r1ReferenceCalibration.descriptor,
   );
 const activeTopology = buildCoronaryTopologyV2(activePrior);
@@ -347,6 +371,12 @@ for (let beatIndex = 1; beatIndex <= beatCount; beatIndex += 1) {
           hydraulics.commonCoronaryVenousOutletFlowMlPerSec,
         inletByTerritory: copyTerritory(
           hydraulics.inletFlowMlPerSecByTerritory,
+        ),
+        largeArterialOutflowByTerritory: copyTerritory(
+          hydraulics.largeArterialOutflowMlPerSecByTerritory,
+        ),
+        largeArterialStorageRateByTerritory: copyTerritory(
+          hydraulics.largeArterialStorageRateMlPerSecByTerritory,
         ),
         r1ByTerritoryLayer: copyLayers(
           hydraulics.layerR1FlowMlPerSecByTerritory,
@@ -452,6 +482,7 @@ const report = Object.freeze({
     toneLaw,
     resistancePartitionMode,
     largeArterialComplianceScale,
+    largeArterialPressureDropFraction01,
     intramyocardialC1ComplianceScale,
     intramyocardialC2ComplianceScale,
     r1ReferenceMode,
@@ -469,6 +500,12 @@ const report = Object.freeze({
       toneUpdateWindowSec / source.configuration.cycleLengthSec,
     phaseDefinition,
     flowSemantics: Object.freeze({
+      territoryInlet:
+        "aorta-to-lumped-epicardial-prearterial-reservoir" as const,
+      territoryLargeArterialOutflow:
+        "sum-of-r1-branches-at-distal-lumped-reservoir-boundary" as const,
+      territoryLargeArterialStorageRate:
+        "territory-inlet-minus-large-arterial-outflow" as const,
       q1: "intramyocardial-arteriolar-inflow" as const,
       qm: "hidden-c1-to-c2-reservoir-transfer" as const,
       q2: "intramyocardial-venular-extrusion" as const,
@@ -512,6 +549,22 @@ function summarizeCycle(
       inlet: phaseLedger(
         samples,
         (sample) => sample.flowMlPerSec.inletByTerritory[territoryId],
+        phase,
+        dt,
+        cycleLengthSec,
+      ),
+      largeArterialOutflow: phaseLedger(
+        samples,
+        (sample) => sample.flowMlPerSec
+          .largeArterialOutflowByTerritory[territoryId],
+        phase,
+        dt,
+        cycleLengthSec,
+      ),
+      largeArterialStorageRate: phaseLedger(
+        samples,
+        (sample) => sample.flowMlPerSec
+          .largeArterialStorageRateByTerritory[territoryId],
         phase,
         dt,
         cycleLengthSec,
@@ -771,6 +824,53 @@ function phaseLedger(
   const ej = ledger(ejection);
   const early = ledger(earlyDiastolic);
   const totalForward = s.forwardVolumeMl + d.forwardVolumeMl;
+  const diastolicForwardOnsetDelaySec = Math.min(
+    ...diastolic
+      .filter((sample) => read(sample) > 0)
+      .map((sample) => cyclicElapsed(
+        sample.cyclePhase01,
+        phase.aorticClosurePhase01,
+      ) * cycleLengthSec),
+  );
+  const systolicPeakAtMitralClosureBoundary =
+    s.peakForwardPhase01 === null
+      ? null
+      : sameCyclicSamplePhase(
+        s.peakForwardPhase01,
+        phase.mitralClosurePhase01,
+        dt,
+        cycleLengthSec,
+      );
+  const ejectionPeakAtIntervalBoundary =
+    ej.peakForwardPhase01 === null
+      ? null
+      : sameCyclicSamplePhase(
+        ej.peakForwardPhase01,
+        phase.aorticOpeningPhase01,
+        dt,
+        cycleLengthSec,
+      ) || sameCyclicSamplePhase(
+        ej.peakForwardPhase01,
+        phase.aorticClosurePhase01,
+        dt,
+        cycleLengthSec,
+      );
+  const diastolicPeakDelaySec = d.peakForwardPhase01 === null
+    ? null
+    : cyclicElapsed(
+      d.peakForwardPhase01,
+      phase.aorticClosurePhase01,
+    ) * cycleLengthSec;
+  const peakDiastolicToFullSystoleForwardFlowRatio =
+    s.peakForwardFlowMlPerSec === 0
+      ? null
+      : d.peakForwardFlowMlPerSec / s.peakForwardFlowMlPerSec;
+  const diastolicToFullSystoleMeanNetFlowRatio =
+    s.durationSec === 0
+      || (s.forwardVolumeMl - s.reverseVolumeMl) === 0
+      ? null
+      : ((d.forwardVolumeMl - d.reverseVolumeMl) / d.durationSec)
+        / ((s.forwardVolumeMl - s.reverseVolumeMl) / s.durationSec);
   return Object.freeze({
     systole: s,
     diastole: d,
@@ -778,20 +878,22 @@ function phaseLedger(
     earlyDiastole: early,
     diastolicForwardVolumeFraction01:
       totalForward === 0 ? null : d.forwardVolumeMl / totalForward,
+    peakDiastolicToFullSystoleForwardFlowRatio,
+    /** @deprecated Use peakDiastolicToFullSystoleForwardFlowRatio. */
     peakDiastolicToSystolicForwardFlowRatio:
-      s.peakForwardFlowMlPerSec === 0
-        ? null
-        : d.peakForwardFlowMlPerSec / s.peakForwardFlowMlPerSec,
+      peakDiastolicToFullSystoleForwardFlowRatio,
     peakDiastolicToEjectionForwardFlowRatio:
       ej.peakForwardFlowMlPerSec === 0
         ? null
         : d.peakForwardFlowMlPerSec / ej.peakForwardFlowMlPerSec,
+    peakDiastolicToFullSystoleDenominatorAtMitralClosureBoundary:
+      systolicPeakAtMitralClosureBoundary,
+    peakDiastolicToEjectionDenominatorAtIntervalBoundary:
+      ejectionPeakAtIntervalBoundary,
+    diastolicToFullSystoleMeanNetFlowRatio,
+    /** @deprecated Use diastolicToFullSystoleMeanNetFlowRatio. */
     diastolicToSystolicMeanNetFlowRatio:
-      s.durationSec === 0
-        || (s.forwardVolumeMl - s.reverseVolumeMl) === 0
-        ? null
-        : ((d.forwardVolumeMl - d.reverseVolumeMl) / d.durationSec)
-          / ((s.forwardVolumeMl - s.reverseVolumeMl) / s.durationSec),
+      diastolicToFullSystoleMeanNetFlowRatio,
     earlyDiastolicForwardVolumeFractionOfDiastole01:
       d.forwardVolumeMl === 0
         ? null
@@ -803,14 +905,30 @@ function phaseLedger(
           cyclicElapsed(sample.cyclePhase01, phase.aorticClosurePhase01)
           * cycleLengthSec
           * Math.max(0, read(sample)) * dt)) / d.forwardVolumeMl,
-    diastolicPeakDelayAfterAorticClosureSec:
-      d.peakForwardPhase01 === null
+    diastolicForwardFlowOnsetDelayAfterAorticClosureSec:
+      Number.isFinite(diastolicForwardOnsetDelaySec)
+        ? diastolicForwardOnsetDelaySec
+        : null,
+    diastolicPeakDelayAfterForwardFlowOnsetSec:
+      diastolicPeakDelaySec === null
+        || !Number.isFinite(diastolicForwardOnsetDelaySec)
         ? null
-        : cyclicElapsed(
-          d.peakForwardPhase01,
-          phase.aorticClosurePhase01,
-        ) * cycleLengthSec,
+        : Math.max(0, diastolicPeakDelaySec - diastolicForwardOnsetDelaySec),
+    diastolicPeakDelayAfterAorticClosureSec: diastolicPeakDelaySec,
   });
+}
+
+function sameCyclicSamplePhase(
+  leftPhase01: number,
+  rightPhase01: number,
+  dtSec: number,
+  cycleLengthSec: number,
+): boolean {
+  const cyclicDistance01 = Math.min(
+    cyclicElapsed(leftPhase01, rightPhase01),
+    cyclicElapsed(rightPhase01, leftPhase01),
+  );
+  return cyclicDistance01 * cycleLengthSec <= 0.5 * dtSec + 1e-12;
 }
 
 function volumeClosure(
@@ -873,6 +991,7 @@ function calibrationFromAcceptedToneReport(
   boundaryFingerprint: string,
   resistancePartitionMode: ResistancePartitionMode,
   largeArterialComplianceScale: number,
+  largeArterialPressureDropFraction01: number,
   intramyocardialC1ComplianceScale: number,
   intramyocardialC2ComplianceScale: number,
   impMechanism: CoronaryV2ShadowImpMechanism,
@@ -894,6 +1013,8 @@ function calibrationFromAcceptedToneReport(
       !== resistancePartitionMode
     || report.configuration.largeArterialComplianceScale
       !== largeArterialComplianceScale
+    || (report.configuration.largeArterialPressureDropFraction01 ?? 0.25)
+      !== largeArterialPressureDropFraction01
     || (report.configuration.intramyocardialC1ComplianceScale ?? 1)
       !== intramyocardialC1ComplianceScale
     || (report.configuration.intramyocardialC2ComplianceScale ?? 1)

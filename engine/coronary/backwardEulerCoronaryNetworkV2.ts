@@ -109,7 +109,21 @@ export type CoronaryHydraulicEvaluationV2 = Readonly<{
   dissipatedPowerMmHgMlPerSecByEdge:
     Readonly<Record<CoronaryEdgeIdV2, number>>;
   effectiveToneResistanceScaleByTerritoryLayer: CoronaryToneStateV2;
+  /**
+   * Signed flow from the aortic root into each lumped epicardial/prearterial
+   * reservoir. This is the model's proximal coronary-inlet observable.
+   */
   inletFlowMlPerSecByTerritory: CoronaryTerritoryRecordV2<number>;
+  /**
+   * Signed flow leaving each lumped epicardial/prearterial reservoir, summed
+   * across its subepicardial and subendocardial R1 branches. This is a distal
+   * lumped-boundary observable, not an additional hydraulic edge.
+   */
+  largeArterialOutflowMlPerSecByTerritory:
+    CoronaryTerritoryRecordV2<number>;
+  /** Exact territory Art-node storage identity: inlet minus R1 outflow. */
+  largeArterialStorageRateMlPerSecByTerritory:
+    CoronaryTerritoryRecordV2<number>;
   layerR1FlowMlPerSecByTerritory:
     CoronaryTerritoryLayerRecordV2<number>;
   /** Signed hidden C1-to-C2 transfer through Rm; not a direct tissue observable. */
@@ -950,6 +964,10 @@ function freezeHydraulicEvaluationV2(
     flows[`Ao_${territoryId}.Art` as CoronaryEdgeIdV2]);
   const r1 = territoryLayerRecordV2((territoryId, layerId) =>
     flows[`${territoryId}.Art_${territoryId}.IM.Art.${layerId}` as CoronaryEdgeIdV2]);
+  const largeArterialOutflow = territoryRecordV2((territoryId) =>
+    sumV2(Object.values(r1[territoryId])));
+  const largeArterialStorageRate = territoryRecordV2((territoryId) =>
+    inlet[territoryId] - largeArterialOutflow[territoryId]);
   const rm = territoryLayerRecordV2((territoryId, layerId) =>
     flows[`${territoryId}.IM.Art.${layerId}_${territoryId}.IM.Ven.${layerId}` as CoronaryEdgeIdV2]);
   const r2 = territoryLayerRecordV2((territoryId, layerId) =>
@@ -969,6 +987,8 @@ function freezeHydraulicEvaluationV2(
     dissipatedPowerMmHgMlPerSecByEdge: power,
     effectiveToneResistanceScaleByTerritoryLayer: effectiveTone,
     inletFlowMlPerSecByTerritory: inlet,
+    largeArterialOutflowMlPerSecByTerritory: largeArterialOutflow,
+    largeArterialStorageRateMlPerSecByTerritory: largeArterialStorageRate,
     layerR1FlowMlPerSecByTerritory: r1,
     layerQmInternalFlowMlPerSecByTerritory: rm,
     layerTissueFlowMlPerSecByTerritory: rm,

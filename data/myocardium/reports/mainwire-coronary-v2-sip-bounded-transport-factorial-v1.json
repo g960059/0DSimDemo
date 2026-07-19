@@ -3,6 +3,8 @@
   "completed": true,
   "claim": {
     "role": "compact-cross-report-mechanism-comparison",
+    "metricInterpretationStatus": "superseded-by-explicit-lad-measurement-contract-v1",
+    "supersededBy": "data/myocardium/reports/mainwire-coronary-v2-lad-measurement-site-factorial-v1.json",
     "sourceWaveformSamplesRetained": true,
     "fullSourceArtifactsRequiredForRendering": false,
     "parameterFit": false,

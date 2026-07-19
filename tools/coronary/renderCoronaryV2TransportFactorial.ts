@@ -18,6 +18,7 @@ const PASSIVE_POWER_TOLERANCE = -1e-10;
 const summaryPath = requiredPathArgument("--summary");
 const inputPaths = inputArguments("--input");
 const outputPath = requiredPathArgument("--output");
+const commandCandidateRow = optionalPositiveIntegerArgument("--candidate-row");
 
 if ([summaryPath, ...inputPaths].includes(outputPath)) {
   throw new Error("--output must not overwrite an input JSON file");
@@ -26,6 +27,18 @@ if ([summaryPath, ...inputPaths].includes(outputPath)) {
 const summaryText = readFileSync(summaryPath, "utf8");
 const summary = JSON.parse(summaryText) as FactorialSummary;
 validateSummary(summary);
+const summaryCandidateRow =
+  summary.reproduction?.provisionalCandidateSelection?.rowOneBased ?? null;
+if (
+  commandCandidateRow !== null
+  && summaryCandidateRow !== null
+  && commandCandidateRow !== summaryCandidateRow
+) {
+  throw new Error(
+    `--candidate-row ${commandCandidateRow} conflicts with compact-summary row ${summaryCandidateRow}`,
+  );
+}
+const candidateRow = commandCandidateRow ?? summaryCandidateRow;
 if (inputPaths.length > 0 && inputPaths.length !== summary.rows.length) {
   throw new Error(
     `--input count ${inputPaths.length} does not match summary row count ${summary.rows.length}`,
@@ -52,6 +65,10 @@ inputPaths.forEach((inputPath, inputIndex) => {
     || report.configuration.dtSec !== expectedRow.provenance.dtSec
     || report.configuration.cycleLengthSec
       !== expectedRow.provenance.cycleLengthSec
+    || report.configuration.phaseDefinition.mitralClosurePhase01
+      !== expectedRow.provenance.mitralClosurePhase01
+    || report.configuration.phaseDefinition.aorticOpeningPhase01
+      !== expectedRow.provenance.aorticOpeningPhase01
     || report.configuration.phaseDefinition.aorticClosurePhase01
       !== expectedRow.provenance.aorticClosurePhase01
   ) {
@@ -73,14 +90,18 @@ if (dtValues.size !== 1 || cycleLengths.size !== 1) {
 
 const cells = summary.rows.map((row, index) => buildCell(row, index));
 const numericalPassCount = cells.filter((cell) => cell.gates.numerical).length;
-const provisionalCandidate = cells.find((cell) =>
-  cell.construction.partition === "60:30:10"
-  && nearlyEqual(cell.construction.largeArterialComplianceScale, 0.4)
-  && nearlyEqual(cell.construction.c1, 1)
-  && nearlyEqual(cell.construction.c2, 1));
+const provisionalCandidate = candidateRow === null
+  ? cells.find((cell) =>
+    cell.construction.partition === "60:30:10"
+    && nearlyEqual(cell.construction.largeArterialComplianceScale, 0.4)
+    && nearlyEqual(cell.construction.c1, 1)
+    && nearlyEqual(cell.construction.c2, 1))
+  : cells[candidateRow - 1];
 if (provisionalCandidate === undefined) {
   throw new Error(
-    "summary does not contain the provisional 60:30:10 / Art C 0.4 / C1 1 / C2 1 candidate",
+    candidateRow === null
+      ? "summary does not contain the default provisional 60:30:10 / Art C 0.4 / C1 1 / C2 1 candidate"
+      : `--candidate-row ${candidateRow} exceeds the ${cells.length}-row summary`,
   );
 }
 const fixedBoundaryStatus = summary.rows.every((row) =>
@@ -191,22 +212,26 @@ const html = `<!doctype html>
   <section class="scope">
     <article><div class="label">Terminal boundary</div><div class="value">shared × ${cells.length}</div><p>fingerprint ${escapeHtml([...boundaryFingerprints][0]!.slice(0, 12))}…</p></article>
     <article><div class="label">Numerical gate</div><div class="value">${numericalPassCount}/${cells.length} pass</div><p>periodicity, passive power, mean-flow construction target</p></article>
-    <article><div class="label">Candidate inlet morphology</div><div class="value">D/(D+S) ${format(provisionalCandidate.metrics.ladDiastolicFraction, 3)}</div><p>forward-volume fraction · peak ${format(provisionalCandidate.metrics.ladPeakDelay, 3)} s after AoVC</p></article>
-    <article><div class="label">Candidate Q1 fingerprint</div><div class="value">${format(provisionalCandidate.metrics.q1PeakDelay, 3)} s</div><p>first-200-ms share ${format(provisionalCandidate.metrics.q1EarlyShare, 3)}</p></article>
+    <article><div class="label">Candidate source-inlet morphology</div><div class="value">D/(D+S) ${format(provisionalCandidate.metrics.ladDiastolicFraction, 3)}</div><p>peak D/full-S ${format(provisionalCandidate.metrics.ladPeakDiastolicToFullSystole, 3)} · D/ejection ${format(provisionalCandidate.metrics.ladPeakDiastolicToEjection, 3)}</p></article>
+    <article><div class="label">Candidate site timing</div><div class="value">${format(provisionalCandidate.metrics.ladPeakDelay, 3)} / ${format(provisionalCandidate.metrics.ladLargeArterialOutflowPeakDelay, 3)} s</div><p>Ao→Art inlet / summed Art→R1 outflow after AoVC</p></article>
   </section>
 
   <section class="warning"><strong>The former Qm phase rule is retired.</strong> Qm is the signed transfer between the two intramyocardial compliant reservoirs (C1 → Rm → C2). It is a hidden internal coordinate, not a directly measured tissue-perfusion or epicardial Doppler waveform. Peak delay and early-volume share are retained below only as transfer-function fingerprints; they are not physiological pass/fail gates. Q1, Qm, Q2 and storage must be read together.</section>
 
+  <section class="warning"><strong>LAD D/S values require an explicit measurement contract.</strong> The displayed LAD inlet is the model's source-side Ao→LAD.Art flow, not a measurement-site-matched proximal, mid, or distal LAD Doppler/MRI signal. “Peak D/full-S” uses MVC→AoVC and therefore includes the pre-ejection interval; “peak D/ejection” uses AoVO→AoVC. Mean-net D/S uses MVC→AoVC phase means. Published normal peak D/S values around 2.1–2.6 remain contextual until waveform site and phase definition are matched; the unqualified full-systole ratio must not be compared with that range directly.</section>
+
   <section class="card"><header><h2>${cells.length}-cell comparison</h2><p>Candidate selection is owned by observable inlet morphology, observation-proximal Q1 morphology, numerical integrity, and retained resistance reserve. Mean flow and mean-Qm ENDO/EPI are construction targets, not waveform evidence. Q2 reverse burden remains an explicit concern because no measurement-site-normalized venous release gate has yet been declared.</p></header>
     <div class="table-wrap"><table><thead><tr>
-      <th>cell</th><th>resistance split</th><th>Art C</th><th>C1 / C2</th><th>mean<br>mL/min/g</th><th>LAD inlet forward<br>D/(D+S)</th><th>LAD peak<br>D/S</th><th>LAD peak<br>after AoVC</th>
+      <th>cell</th><th>resistance split</th><th>Art C</th><th>epicardial<br>ΔP fraction</th><th>C1 / C2</th><th>mean<br>mL/min/g</th><th>LAD source inlet<br>D/(D+S)</th><th>peak D/full-S<br>MVC→AoVC</th><th>peak D/ejection<br>AoVO→AoVC</th><th>mean-net D/S<br>MVC→AoVC</th><th>source / Art-out<br>peak after AoVC</th>
       <th>Q1 peak /<br>early share</th><th>Qm diagnostic only<br>peak / early share</th><th>Q2 reverse<br>mL / s</th><th>mean-Qm<br>ENDO/EPI</th><th>LAD R1 scale<br>EPI / ENDO</th><th>role</th>
     </tr></thead><tbody>${cells.map(comparisonRowHtml).join("")}</tbody></table></div>
   </section>
 
   <section class="grid">
     ${overlayPanel("total-inlet", "Total coronary inlet", "Signed total inlet over the retained terminal cycle.", "flow (mL/s)", cells)}
-    ${overlayPanel("lad-inlet", "LAD epicardial inlet", "Finite systolic flow remains visible; dashed vertical line is aortic valve closure (AoVC).", "flow (mL/s)", cells)}
+    ${overlayPanel("lad-inlet", "LAD source-side large-arterial inlet", "Ao→LAD.Art flow at the model boundary; it is not yet a measurement-site-matched clinical LAD signal. Finite systolic flow remains visible; dashed vertical line is aortic valve closure (AoVC).", "flow (mL/s)", cells)}
+    ${overlayPanel("lad-art-outflow", "LAD large-arterial reservoir outflow", "Sum of subepicardial and subendocardial Art→R1 flows. This is a distal lumped-reservoir boundary, not a claimed proximal, mid, or distal clinical Doppler site.", "flow (mL/s)", cells)}
+    ${overlayPanel("lad-art-storage", "LAD large-arterial storage rate", "Exact derived identity: Ao→Art inlet minus summed Art→R1 outflow. Positive fills and negative empties the Art reservoir.", "storage rate (mL/s)", cells)}
     <section class="card wide"><header><h2>LAD subendocardial internal transport</h2><p>Q1 is arteriolar inflow to C1; Qm transfers C1→C2 through Rm; Q2 leaves C2 toward the common venous compartment. Negative values are reverse flow.</p></header>
       <div class="small-grid">${cells.map((cell) => `<article class="small-plot"><h3><span class="dot" style="display:inline-block;background:${cell.color};margin-right:7px"></span>${escapeHtml(cell.shortLabel)}</h3><canvas id="edges-${cell.id}" aria-label="${escapeHtml(cell.label)} Q1 Qm Q2 waveform"></canvas></article>`).join("")}</div>
       <div class="legend"><span><i class="swatch" style="border-color:#43c6ff"></i>Q1 · C1 inflow</span><span><i class="swatch" style="border-color:#ffd665"></i>Qm · internal C1→C2 transfer</span><span><i class="swatch" style="border-color:#d78cff"></i>Q2 · C2 outflow</span><span><i class="swatch" style="border-color:#ff7887;border-top-style:dashed"></i>AoVC</span></div>
@@ -225,17 +250,18 @@ const html = `<!doctype html>
   <section class="interpretation">
     <article class="card note"><h2>Gate interpretation</h2><ul>
       <li>${numericalPassCount === cells.length ? `All ${cells.length} cells satisfy` : "Not all cells satisfy"} the declared numerical screen: normalized mean flow ${MEAN_FLOW_GATE[0].toFixed(2)}–${MEAN_FLOW_GATE[1].toFixed(2)} mL/min/g, relative periodic drift ≤ ${RELATIVE_CLOSURE_GATE.toExponential(0)}, and nonnegative passive-edge power within ${Math.abs(PASSIVE_POWER_TOLERANCE).toExponential(0)} tolerance.</li>
-      <li>${escapeHtml(provisionalCandidate.shortLabel)} is the provisional fixed-boundary candidate: LAD inlet forward-volume D/(D+S) ${format(provisionalCandidate.metrics.ladDiastolicFraction, 3)}, inlet peak ${format(provisionalCandidate.metrics.ladPeakDelay, 3)} s after AoVC, and LAD ENDO Q1 peak ${format(provisionalCandidate.metrics.q1PeakDelay, 3)} s with first-200-ms share ${format(provisionalCandidate.metrics.q1EarlyShare, 3)}. Its structural LAD R1 scales ${format(provisionalCandidate.metrics.r1Epi, 3)} / ${format(provisionalCandidate.metrics.r1Endo, 3)} remain compatible with retaining resistance reserve.</li>
-      <li>Candidate LAD peak D/S is ${format(provisionalCandidate.metrics.ladPeakDiastolicToSystolic, 3)}, below the measurement-context range around 2.0–2.3. Together with the delayed inlet peak, this keeps proximal morphology explicitly unresolved; it is a context metric, not a fitted hard gate.</li>
+      <li>${escapeHtml(provisionalCandidate.shortLabel)} is the provisional fixed-boundary candidate: LAD source-inlet forward-volume D/(D+S) ${format(provisionalCandidate.metrics.ladDiastolicFraction, 3)}, inlet peak ${format(provisionalCandidate.metrics.ladPeakDelay, 3)} s after AoVC, and LAD ENDO Q1 peak ${format(provisionalCandidate.metrics.q1PeakDelay, 3)} s with first-200-ms share ${format(provisionalCandidate.metrics.q1EarlyShare, 3)}. Its structural LAD R1 scales ${format(provisionalCandidate.metrics.r1Epi, 3)} / ${format(provisionalCandidate.metrics.r1Endo, 3)} remain compatible with retaining resistance reserve.</li>
+      <li>Candidate LAD source-inlet peak D/full-S (MVC→AoVC) is ${format(provisionalCandidate.metrics.ladPeakDiastolicToFullSystole, 3)}, whereas peak D/ejection (AoVO→AoVC) is ${format(provisionalCandidate.metrics.ladPeakDiastolicToEjection, 3)} and mean-net D/S (MVC→AoVC) is ${format(provisionalCandidate.metrics.ladMeanNetDiastolicToFullSystole, 3)}. The full-systole peak denominator includes the MVC boundary tail, so its unqualified value is not evidence of disagreement with published peak D/S values around 2.1–2.6. Measurement-site matching and the delayed source-inlet peak remain explicitly unresolved; none of these ratios is a fitted hard gate.</li>
       <li>Candidate Q2 reverse burden is ${format(provisionalCandidate.metrics.q2ReverseMl, 4)} mL over ${format(provisionalCandidate.metrics.q2ReverseDurationSec, 3)} s. This remains a venous-side diagnostic concern and must be judged against measurement-site-matched experimental morphology before release.</li>
       <li>Qm peak and early-share values (${format(Math.min(...cells.map((cell) => cell.metrics.qmEarlyShare)), 3)}–${format(Math.max(...cells.map((cell) => cell.metrics.qmEarlyShare)), 3)}) distinguish internal time constants only. No Qm value on this page is used as a physiological acceptance criterion.</li>
-      <li>All non-candidate rows are mechanism ablations. Cell B is still not canonical: coronary flow reserve requires a separate hyperemic perturbation, and the candidate must survive closed-loop coupling and observable inlet/Q1/Q2 waveform validation.</li>
+      <li>All non-candidate rows are mechanism ablations. ${escapeHtml(provisionalCandidate.shortLabel)} is still not canonical: coronary flow reserve requires a separate hyperemic perturbation, and the candidate must survive closed-loop coupling and observable inlet/Q1/Q2 waveform validation.</li>
     </ul></article>
     <article class="card note"><h2>Claim boundary</h2><ul>
       <li>No source feedback: Ao, RA and mechanics-derived IMP are replayed from terminal beat ${summary.rows[0]!.provenance.sourceTerminalBeatIndex} of the same main-wire report.</li>
+      <li>The LAD waveform on this page is source-side Ao→LAD.Art flow. It must not be relabeled as a proximal, mid, or distal LAD clinical observable until a measurement-site mapping is declared.</li>
       <li>R1 was structurally rebased from a mean-Qm-only accepted reference. No waveform objective was used; final tone is fixed at 1.</li>
       <li>No diode, valve gating, inertance or prescribed coronary-flow waveform is added in these cells.</li>
-      <li>These ${cells.length} cells isolate resistance partition, large-arterial compliance, and C2 compliance. They do not validate oxygen-demand feedback, stenosis, hyperemia, or closed-loop coronary–systemic interaction.</li>
+      <li>These ${cells.length} cells isolate resistance placement and declared C1/C2/large-arterial compliance sensitivities. They do not validate oxygen-demand feedback, stenosis, hyperemia, or closed-loop coronary–systemic interaction.</li>
     </ul></article>
   </section>
   <details><summary>Transient-source provenance</summary><p>The full reports are disposable intermediates. Their paths and hashes remain here as protocol records; rendering uses the compact artifact above.</p><ul>${cells.map((cell) => `<li>${escapeHtml(cell.shortLabel)}: <code>${escapeHtml(cell.sourcePath)}</code> · sha256 <code>${escapeHtml(cell.sourceSha256.slice(0, 16))}…</code></li>`).join("")}</ul></details>
@@ -258,7 +284,7 @@ function draw(id,series,yLabel,forceZero=true){const {ctx,w,h}=setup(id),m={l:58
 function phase(cell){return cell.samples.map(s=>s.phase01);}
 function values(cell,key){return cell.samples.map(s=>s[key]);}
 function overlay(id,key){draw(id,DATA.cells.map(cell=>({phases:phase(cell),values:values(cell,key),color:cell.color,width:2})), 'flow (mL/s)');}
-function render(){overlay('total-inlet','totalInlet');overlay('lad-inlet','ladInlet');DATA.cells.forEach(cell=>{draw('edges-'+cell.id,[{phases:phase(cell),values:values(cell,'q1'),color:EDGE_COLORS.q1},{phases:phase(cell),values:values(cell,'qm'),color:EDGE_COLORS.qm},{phases:phase(cell),values:values(cell,'q2'),color:EDGE_COLORS.q2}], 'flow (mL/s)');const pressure=[{phases:phase(cell),values:values(cell,'ao'),color:'#43c6ff'}];if(cell.samples.some(s=>Number.isFinite(s.imp)))pressure.push({phases:phase(cell),values:values(cell,'imp'),color:'#ffad57'});draw('pressure-'+cell.id,pressure,'pressure (mmHg)',true);});}
+function render(){overlay('total-inlet','totalInlet');overlay('lad-inlet','ladInlet');overlay('lad-art-outflow','ladLargeArterialOutflow');overlay('lad-art-storage','ladLargeArterialStorageRate');DATA.cells.forEach(cell=>{draw('edges-'+cell.id,[{phases:phase(cell),values:values(cell,'q1'),color:EDGE_COLORS.q1},{phases:phase(cell),values:values(cell,'qm'),color:EDGE_COLORS.qm},{phases:phase(cell),values:values(cell,'q2'),color:EDGE_COLORS.q2}], 'flow (mL/s)');const pressure=[{phases:phase(cell),values:values(cell,'ao'),color:'#43c6ff'}];if(cell.samples.some(s=>Number.isFinite(s.imp)))pressure.push({phases:phase(cell),values:values(cell,'imp'),color:'#ffad57'});draw('pressure-'+cell.id,pressure,'pressure (mmHg)',true);});}
 let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(render,90);});render();
 </script></body></html>`;
 
@@ -273,7 +299,11 @@ type ReverseSummary = Readonly<{
 
 type CompactLedger = Readonly<{
   diastolicForwardVolumeFraction01: number | null;
+  peakDiastolicToFullSystoleForwardFlowRatio: number | null;
   peakDiastolicToSystolicForwardFlowRatio: number | null;
+  peakDiastolicToEjectionForwardFlowRatio: number | null;
+  diastolicToFullSystoleMeanNetFlowRatio: number | null;
+  diastolicToSystolicMeanNetFlowRatio: number | null;
   diastolicPeakDelayAfterAorticClosureSec: number | null;
   earlyDiastolicForwardVolumeFractionOfDiastole01: number | null;
   reverse: ReverseSummary;
@@ -288,11 +318,14 @@ type SummaryRow = Readonly<{
     boundaryFingerprint: string;
     dtSec: number;
     cycleLengthSec: number;
+    mitralClosurePhase01: number;
+    aorticOpeningPhase01: number;
     aorticClosurePhase01: number;
   }>;
   construction: Readonly<{
     resistancePartitionMode: string;
     largeArterialComplianceScale: number | null;
+    largeArterialPressureDropFraction01: number | null;
     intramyocardialComplianceScale: Readonly<{
       c1Proximal: number | null;
       c2Distal: number | null;
@@ -311,6 +344,8 @@ type SummaryRow = Readonly<{
   meanFlow: Readonly<{ massNormalizedInletMlPerMinPerG: number | null }>;
   focusEdges: Readonly<{
     inlet: CompactLedger;
+    largeArterialOutflow: CompactLedger;
+    largeArterialStorageRate: CompactLedger;
     q1: CompactLedger;
     qmInternal: CompactLedger;
     q2: CompactLedger;
@@ -333,6 +368,12 @@ type FactorialSummary = Readonly<{
   completed: boolean;
   sourceCount: number;
   claim: Readonly<{ sourceWaveformSamplesRetained: boolean; parameterFit: boolean }>;
+  reproduction?: Readonly<{
+    provisionalCandidateSelection?: Readonly<{
+      rowOneBased: number | null;
+      rule: string;
+    }>;
+  }>;
   rows: ReadonlyArray<SummaryRow>;
 }>;
 
@@ -344,7 +385,11 @@ type ShadowReport = Readonly<{
     dtSec: number;
     toneMode: string;
     boundaryFingerprint: string;
-    phaseDefinition: Readonly<{ aorticClosurePhase01: number }>;
+    phaseDefinition: Readonly<{
+      mitralClosurePhase01: number;
+      aorticOpeningPhase01: number;
+      aorticClosurePhase01: number;
+    }>;
   }>;
   samples: ReadonlyArray<unknown>;
 }>;
@@ -353,6 +398,8 @@ type SummaryWaveformSample = Readonly<{
   phase01: number;
   totalInlet: number;
   territoryInlet: number;
+  territoryLargeArterialOutflow: number;
+  territoryLargeArterialStorageRate: number;
   q1: number;
   qmInternal: number;
   q2: number;
@@ -364,6 +411,8 @@ type WaveformSample = Readonly<{
   phase01: number;
   totalInlet: number;
   ladInlet: number;
+  ladLargeArterialOutflow: number;
+  ladLargeArterialStorageRate: number;
   q1: number;
   qm: number;
   q2: number;
@@ -383,14 +432,18 @@ type Cell = Readonly<{
   construction: Readonly<{
     partition: string;
     largeArterialComplianceScale: number;
+    largeArterialPressureDropFraction01: number;
     c1: number;
     c2: number;
   }>;
   metrics: Readonly<{
     meanFlow: number;
     ladDiastolicFraction: number;
-    ladPeakDiastolicToSystolic: number;
+    ladPeakDiastolicToFullSystole: number;
+    ladPeakDiastolicToEjection: number;
+    ladMeanNetDiastolicToFullSystole: number;
     ladPeakDelay: number;
+    ladLargeArterialOutflowPeakDelay: number;
     q1PeakDelay: number;
     q1EarlyShare: number;
     qmPeakDelay: number;
@@ -423,8 +476,24 @@ function validateSummary(value: FactorialSummary): void {
     || value.rows?.length !== value.sourceCount
     || value.claim?.sourceWaveformSamplesRetained !== true
     || value.claim?.parameterFit !== false
+    || (
+      value.reproduction?.provisionalCandidateSelection?.rowOneBased !== null
+      && value.reproduction?.provisionalCandidateSelection?.rowOneBased
+        !== undefined
+      && (
+        !Number.isInteger(
+          value.reproduction.provisionalCandidateSelection.rowOneBased,
+        )
+        || value.reproduction.provisionalCandidateSelection.rowOneBased < 1
+        || value.reproduction.provisionalCandidateSelection.rowOneBased
+          > value.sourceCount
+      )
+    )
     || value.rows.some((row) => !Array.isArray(row.waveformSamples)
       || row.waveformSamples.length < 4
+      || !Number.isFinite(row.provenance.mitralClosurePhase01)
+      || !Number.isFinite(row.provenance.aorticOpeningPhase01)
+      || !Number.isFinite(row.provenance.aorticClosurePhase01)
       || !Number.isFinite(
         row.r1Reference.sourceMaximumRelativeMeanQmTargetError01,
       )
@@ -440,6 +509,8 @@ function validateReport(value: ShadowReport, inputPath: string): void {
     || value.completed !== true
     || value.configuration?.toneMode !== "fixed"
     || !Number.isFinite(value.configuration?.cycleLengthSec)
+    || !Number.isFinite(value.configuration?.phaseDefinition?.mitralClosurePhase01)
+    || !Number.isFinite(value.configuration?.phaseDefinition?.aorticOpeningPhase01)
     || !Number.isFinite(value.configuration?.phaseDefinition?.aorticClosurePhase01)
     || !Array.isArray(value.samples)
     || value.samples.length < 4
@@ -455,11 +526,15 @@ function buildCell(row: SummaryRow, index: number): Cell {
     row.construction.largeArterialComplianceScale,
     1,
   );
+  const largeArterialPressureDropFraction01 = finiteOr(
+    row.construction.largeArterialPressureDropFraction01,
+    0.25,
+  );
   const partition = partitionRatio(row.construction.resistancePartitionMode);
   const arterialComplianceLabel = largeArterialComplianceScale === 1
     ? ""
     : ` · Art C ${format(largeArterialComplianceScale, 1)}×`;
-  const shortLabel = `${partition}${arterialComplianceLabel} · C2 ${format(c2, 1)}×`;
+  const shortLabel = `${partition}${arterialComplianceLabel} · Art ΔP ${format(100 * largeArterialPressureDropFraction01, 0)}% · C1 ${format(c1, 2)}× / C2 ${format(c2, 1)}×`;
   const meanFlow = requiredNumber(row.meanFlow.massNormalizedInletMlPerMinPerG, "mean flow");
   const qmPeakDelay = requiredNumber(
     row.focusEdges.qmInternal.diastolicPeakDelayAfterAorticClosureSec,
@@ -494,7 +569,7 @@ function buildCell(row: SummaryRow, index: number): Cell {
   cyclicSamples.push(Object.freeze({ ...first, phase01: 1 }));
   return Object.freeze({
     id: `cell-${index + 1}`,
-    label: `Cell ${String.fromCharCode(65 + index)} · ${partition} · Art C ${format(largeArterialComplianceScale, 1)}× · C1 ${format(c1, 1)}× / C2 ${format(c2, 1)}×`,
+    label: `Cell ${String.fromCharCode(65 + index)} · ${partition} · Art C ${format(largeArterialComplianceScale, 1)}× · Art ΔP ${format(100 * largeArterialPressureDropFraction01, 0)}% · C1 ${format(c1, 2)}× / C2 ${format(c2, 1)}×`,
     shortLabel: `Cell ${String.fromCharCode(65 + index)} · ${shortLabel}`,
     color: CELL_COLORS[index % CELL_COLORS.length]!,
     sourcePath: row.source.path,
@@ -504,17 +579,32 @@ function buildCell(row: SummaryRow, index: number): Cell {
     construction: Object.freeze({
       partition,
       largeArterialComplianceScale,
+      largeArterialPressureDropFraction01,
       c1,
       c2,
     }),
     metrics: Object.freeze({
       meanFlow,
       ladDiastolicFraction: requiredNumber(row.focusEdges.inlet.diastolicForwardVolumeFraction01, "LAD D fraction"),
-      ladPeakDiastolicToSystolic: requiredNumber(
-        row.focusEdges.inlet.peakDiastolicToSystolicForwardFlowRatio,
-        "LAD peak diastolic-to-systolic ratio",
+      ladPeakDiastolicToFullSystole: requiredNumber(
+        row.focusEdges.inlet.peakDiastolicToFullSystoleForwardFlowRatio
+          ?? row.focusEdges.inlet.peakDiastolicToSystolicForwardFlowRatio,
+        "LAD peak diastolic-to-full-systole ratio",
+      ),
+      ladPeakDiastolicToEjection: requiredNumber(
+        row.focusEdges.inlet.peakDiastolicToEjectionForwardFlowRatio,
+        "LAD peak diastolic-to-ejection ratio",
+      ),
+      ladMeanNetDiastolicToFullSystole: requiredNumber(
+        row.focusEdges.inlet.diastolicToFullSystoleMeanNetFlowRatio
+          ?? row.focusEdges.inlet.diastolicToSystolicMeanNetFlowRatio,
+        "LAD mean-net diastolic-to-full-systole ratio",
       ),
       ladPeakDelay: requiredNumber(row.focusEdges.inlet.diastolicPeakDelayAfterAorticClosureSec, "LAD peak delay"),
+      ladLargeArterialOutflowPeakDelay: requiredNumber(
+        row.focusEdges.largeArterialOutflow.diastolicPeakDelayAfterAorticClosureSec,
+        "LAD large-arterial outflow peak delay",
+      ),
       q1PeakDelay: requiredNumber(row.focusEdges.q1.diastolicPeakDelayAfterAorticClosureSec, "Q1 peak delay"),
       q1EarlyShare: requiredNumber(row.focusEdges.q1.earlyDiastolicForwardVolumeFractionOfDiastole01, "Q1 early share"),
       qmPeakDelay,
@@ -548,6 +638,8 @@ function toWaveformSample(sample: SummaryWaveformSample): WaveformSample {
     phase01,
     totalInlet: sample.totalInlet,
     ladInlet: sample.territoryInlet,
+    ladLargeArterialOutflow: sample.territoryLargeArterialOutflow,
+    ladLargeArterialStorageRate: sample.territoryLargeArterialStorageRate,
     q1: sample.q1,
     qm: sample.qmInternal,
     q2: sample.q2,
@@ -559,7 +651,7 @@ function toWaveformSample(sample: SummaryWaveformSample): WaveformSample {
 function comparisonRowHtml(cell: Cell): string {
   const metric = cell.metrics;
   const candidate = cell.id === provisionalCandidate.id;
-  return `<tr class="${candidate ? "candidate-row" : ""}"><td><span class="cell-name"><i class="dot" style="background:${cell.color}"></i>${escapeHtml(cell.label)}</span></td><td>${escapeHtml(cell.construction.partition)}</td><td>${format(cell.construction.largeArterialComplianceScale, 1)}×</td><td>${format(cell.construction.c1, 1)}× / ${format(cell.construction.c2, 1)}×</td><td>${format(metric.meanFlow, 3)}</td><td>${format(metric.ladDiastolicFraction, 3)}</td><td class="context">${format(metric.ladPeakDiastolicToSystolic, 3)}</td><td>${format(metric.ladPeakDelay, 3)} s</td><td>${format(metric.q1PeakDelay, 3)} s / ${format(metric.q1EarlyShare, 3)}</td><td class="context">${format(metric.qmPeakDelay, 3)} s / ${format(metric.qmEarlyShare, 3)}</td><td>${format(metric.q2ReverseMl, 4)} / ${format(metric.q2ReverseDurationSec, 3)}</td><td>${format(metric.endoEpi, 3)}</td><td>${format(metric.r1Epi, 3)} / ${format(metric.r1Endo, 3)}</td><td class="${candidate ? "pass" : "context"}">${candidate ? "provisional fixed-boundary candidate" : "mechanism ablation"}<br>${cell.gates.numerical ? "numerics ✓" : "numerics ×"}</td></tr>`;
+  return `<tr class="${candidate ? "candidate-row" : ""}"><td><span class="cell-name"><i class="dot" style="background:${cell.color}"></i>${escapeHtml(cell.label)}</span></td><td>${escapeHtml(cell.construction.partition)}</td><td>${format(cell.construction.largeArterialComplianceScale, 1)}×</td><td>${format(100 * cell.construction.largeArterialPressureDropFraction01, 0)}%</td><td>${format(cell.construction.c1, 2)}× / ${format(cell.construction.c2, 1)}×</td><td>${format(metric.meanFlow, 3)}</td><td>${format(metric.ladDiastolicFraction, 3)}</td><td class="context">${format(metric.ladPeakDiastolicToFullSystole, 3)}</td><td class="context">${format(metric.ladPeakDiastolicToEjection, 3)}</td><td class="context">${format(metric.ladMeanNetDiastolicToFullSystole, 3)}</td><td>${format(metric.ladPeakDelay, 3)} / ${format(metric.ladLargeArterialOutflowPeakDelay, 3)} s</td><td>${format(metric.q1PeakDelay, 3)} s / ${format(metric.q1EarlyShare, 3)}</td><td class="context">${format(metric.qmPeakDelay, 3)} s / ${format(metric.qmEarlyShare, 3)}</td><td>${format(metric.q2ReverseMl, 4)} / ${format(metric.q2ReverseDurationSec, 3)}</td><td>${format(metric.endoEpi, 3)}</td><td>${format(metric.r1Epi, 3)} / ${format(metric.r1Endo, 3)}</td><td class="${candidate ? "pass" : "context"}">${candidate ? "provisional fixed-boundary candidate" : "mechanism ablation"}<br>${cell.gates.numerical ? "numerics ✓" : "numerics ×"}</td></tr>`;
 }
 
 function auditRowHtml(cell: Cell): string {
@@ -649,4 +741,15 @@ function requiredPathArgument(flag: string): string {
     throw new Error(`${flag} is required`);
   }
   return path.resolve(raw);
+}
+
+function optionalPositiveIntegerArgument(flag: string): number | null {
+  const index = process.argv.indexOf(flag);
+  if (index < 0) return null;
+  const raw = process.argv[index + 1];
+  const value = Number(raw);
+  if (raw === undefined || !Number.isInteger(value) || value < 1) {
+    throw new Error(`${flag} must be a positive one-based row index`);
+  }
+  return value;
 }
