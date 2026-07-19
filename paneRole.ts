@@ -10,7 +10,6 @@ export function roleOf(type: PanelType): PanelRole {
     case "NOTE":
       return "note";
     case "PVLOOP":
-    case "PV_RELATIONS":
     case "WAVEFORM":
     case "GUYTON_RIGHT":
     case "GUYTON_LEFT":

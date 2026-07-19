@@ -45,7 +45,6 @@ import {
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
 import type {
   MainWireScientificGuytonStarlingProtocolResultV1,
-  MainWireScientificPvRelationsProtocolResultV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import type {
   MainWireScientificGuytonStarlingProtocolResultV2,
@@ -122,9 +121,7 @@ export type ScientificProductScenarioPresentationV1 = Readonly<{
   workspaceDocument: MainWireScientificWorkspaceDocumentV1;
 }>;
 
-export type ScientificProductHemodynamicProtocolKindV1 =
-  | "guyton-starling"
-  | "pv-relations";
+export type ScientificProductHemodynamicProtocolKindV1 = "guyton-starling";
 
 export type ScientificProductHemodynamicProtocolPresentationV1 = Readonly<{
   kind: ScientificProductHemodynamicProtocolKindV1;
@@ -137,7 +134,6 @@ export type ScientificProductHemodynamicProtocolPresentationV1 = Readonly<{
   result:
     | MainWireScientificGuytonStarlingProtocolResultV1
     | MainWireScientificGuytonStarlingProtocolResultV2
-    | MainWireScientificPvRelationsProtocolResultV1
     | null;
   jobSnapshot: MainWireScientificHemodynamicJobSnapshotV2 | null;
   errorMessage: string | null;
@@ -297,102 +293,14 @@ export class ScientificProductScenarioRegistryV1 {
       errorMessage: null,
     }));
     this.publishProtocols();
-    if (kind === "guyton-starling") {
-      this.startGuytonStarlingJob({
-        scenarioId,
-        entry,
-        runtime,
-        sourceIdentity,
-        sessionId: source.sessionId,
-        key,
-        generation,
-      });
-      return;
-    }
-    const requestId = `workbench-hemodynamic-${
-      ++hemodynamicProtocolRequestOrdinalV1
-    }`;
-    const command = Object.freeze({
-      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
-      kind: "runPvRelationsProtocol" as const,
-      requestId,
+    this.startGuytonStarlingJob({
+      scenarioId,
+      entry,
+      runtime,
+      sourceIdentity,
       sessionId: source.sessionId,
-    });
-    void runtime.client.request(command).then((response) => {
-      if (
-        this.disposed
-        || this.entries.get(scenarioId) !== entry
-        || entry.generation !== generation
-      ) return;
-      const latestSource = runtime.controlStore.getSnapshot().source.context
-        .stateIdentity;
-      if (!sameProtocolSourceIdentity(sourceIdentity, latestSource)) {
-        this.hemodynamicProtocols.delete(key);
-        this.publishProtocols();
-        return;
-      }
-      if (!response.ok) {
-        this.hemodynamicProtocols.set(key, Object.freeze({
-          kind,
-          status: "error" as const,
-          sourceIdentity,
-          result: null,
-          jobSnapshot: null,
-          errorMessage: response.error.message,
-        }));
-        this.publishProtocols();
-        return;
-      }
-      const payload = response.payload;
-      const result = response.commandKind === "runPvRelationsProtocol"
-        && payload.kind === "pvRelationsProtocolCompleted"
-        ? payload.result
-        : null;
-      const resultSourceIdentity = result === null
-        ? null
-        : Object.freeze({
-          revision: result.source.revision,
-          acceptedTimeSec: result.source.acceptedTimeSec,
-          totalBloodVolumeMl: result.source.fixedTotalBloodVolumeMl,
-        });
-      if (
-        result === null
-        || !sameProtocolSourceIdentity(resultSourceIdentity, sourceIdentity)
-      ) {
-        this.hemodynamicProtocols.set(key, Object.freeze({
-          kind,
-          status: "error" as const,
-          sourceIdentity,
-          result: null,
-          jobSnapshot: null,
-          errorMessage: "Hemodynamic protocol response identity mismatch.",
-        }));
-      } else {
-        this.hemodynamicProtocols.set(key, Object.freeze({
-          kind,
-          status: "complete" as const,
-          sourceIdentity,
-          result,
-          jobSnapshot: null,
-          errorMessage: null,
-        }));
-      }
-      this.publishProtocols();
-    }).catch((error: unknown) => {
-      if (
-        this.disposed
-        || this.entries.get(scenarioId) !== entry
-        || entry.generation !== generation
-      ) return;
-      this.hemodynamicProtocols.set(key, Object.freeze({
-        kind,
-        status: "error" as const,
-        sourceIdentity,
-        result: null,
-        jobSnapshot: null,
-        errorMessage: error instanceof Error ? error.message : String(error),
-      }));
-      this.publishProtocols();
+      key,
+      generation,
     });
   }
 
@@ -864,9 +772,7 @@ export class ScientificProductScenarioRegistryV1 {
     this.detachEntry(entry);
     this.entries.delete(id);
     this.transientMetricBeatCache.delete(id);
-    for (const kind of ["guyton-starling", "pv-relations"] as const) {
-      this.hemodynamicProtocols.delete(protocolCacheKey(id, kind));
-    }
+    this.hemodynamicProtocols.delete(protocolCacheKey(id, "guyton-starling"));
     this.publishDescriptors();
     this.publishFrames();
     return true;
@@ -1043,10 +949,6 @@ export class ScientificProductScenarioRegistryV1 {
       );
     }
     this.clearProtocolPollTimer(guytonKey);
-    this.clearProtocolPollTimer(protocolCacheKey(
-      entry.descriptor.id,
-      "pv-relations",
-    ));
     entry.duplicateTransitionModeState = "none";
     entry.unsubscribeStore?.();
     entry.unsubscribeStore = null;
@@ -1085,14 +987,6 @@ function protocolCacheKey(
 const EMPTY_HEMODYNAMIC_PROTOCOL_PRESENTATIONS_V1 = Object.freeze({
   "guyton-starling": Object.freeze({
     kind: "guyton-starling" as const,
-    status: "idle" as const,
-    sourceIdentity: null,
-    result: null,
-    jobSnapshot: null,
-    errorMessage: null,
-  }),
-  "pv-relations": Object.freeze({
-    kind: "pv-relations" as const,
     status: "idle" as const,
     sourceIdentity: null,
     result: null,

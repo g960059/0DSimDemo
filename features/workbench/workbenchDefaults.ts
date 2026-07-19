@@ -186,7 +186,6 @@ export function cloneInitialPanels(): PanelDef[] {
 
 export function defaultSignalsForPanelType(type: PanelType): string[] {
   if (type === 'PVLOOP') return ['LV'];
-  if (type === 'PV_RELATIONS') return ['Default'];
   if (type === 'WAVEFORM') return ['LVP', 'AoP'];
   if (type === 'METRICS') return ['ABP', 'CO'];
   if (type === 'SCENARIOS') return [];
@@ -200,7 +199,7 @@ export type AddedInstanceConfig = {
   sourceId?: string;
 };
 
-const GRAPH_PANEL_TYPES = new Set<PanelType>(['PVLOOP', 'PV_RELATIONS', 'WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT', 'GUYTON_3D']);
+const GRAPH_PANEL_TYPES = new Set<PanelType>(['PVLOOP', 'WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT', 'GUYTON_3D']);
 
 function selectedSignalsForAddedInstance(panel: PanelDef, sourceId?: string): string[] {
   if (sourceId && panel.config[sourceId]) return [...panel.config[sourceId].selectedSignals];

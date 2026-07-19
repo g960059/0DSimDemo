@@ -6,6 +6,7 @@ import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
+  estimateMainWireScientificFastTbvPreviewPointV1,
   settleMainWireScientificContinuationPreloadPointV2,
   type MainWireScientificHemodynamicProtocolDependenciesV1,
   type MainWireScientificProtocolAcceptedStateV1,
@@ -16,6 +17,7 @@ import {
   type MainWireScientificPreloadBranchWorkerLaneV2,
   type MainWireScientificPreloadBranchWorkerMessageV2,
 } from "@/engine/scientificBrowser/MainWireScientificPreloadBranchWorkerProtocolV2";
+import { SHA256_HEX_PATTERN } from "@/engine/scientific/release/sha256";
 
 type BranchWorkerScopeV2 = Readonly<{
   postMessage: (message: MainWireScientificPreloadBranchWorkerMessageV2) => void;
@@ -28,8 +30,13 @@ type ActiveBranchV2 = {
   lane: MainWireScientificPreloadBranchWorkerLaneV2;
   dependencies: MainWireScientificHemodynamicProtocolDependenciesV1;
   baselineState: MainWireScientificProtocolAcceptedStateV1;
+  fastPreviewState: MainWireScientificProtocolAcceptedStateV1;
+  fastPreviewPreviousState: MainWireScientificProtocolAcceptedStateV1 | null;
+  fastPreviewSourceEvidenceId: string;
+  previousContinuationState: MainWireScientificProtocolAcceptedStateV1 | null;
   continuationState: MainWireScientificProtocolAcceptedStateV1;
   continuationScale: number;
+  sourceFingerprint: string;
 };
 
 const scope = globalThis as unknown as BranchWorkerScopeV2;
@@ -43,6 +50,9 @@ scope.onmessage = (event): void => {
   ) return;
   try {
     if (command.kind === "initialize") {
+      if (!SHA256_HEX_PATTERN.test(command.sourceFingerprint)) {
+        throw new Error("preload branch source fingerprint is not SHA-256");
+      }
       const capsule = command.baselineCapsule;
       if (capsule.capsuleId
           !== "main-wire-scientific-hemodynamic-job-capsule-v2") {
@@ -71,8 +81,13 @@ scope.onmessage = (event): void => {
           calciumDriveParams: capsule.calciumDriveParams,
         }),
         baselineState,
+        fastPreviewState: baselineState,
+        fastPreviewPreviousState: null,
+        fastPreviewSourceEvidenceId: "source-period1-baseline",
+        previousContinuationState: null,
         continuationState: baselineState,
         continuationScale: 1,
+        sourceFingerprint: command.sourceFingerprint,
       };
       scope.postMessage(Object.freeze({
         protocolId:
@@ -88,11 +103,47 @@ scope.onmessage = (event): void => {
       return;
     }
     const branch = active;
+    if (command.kind === "solve-fast-preview-target") {
+      if (
+        branch === null
+        || branch.jobId !== command.jobId
+        || branch.lane !== command.lane
+        || command.target.lane !== branch.lane
+      ) {
+        throw new Error("fast preview target does not match active job/lane");
+      }
+      const sourceState = branch.fastPreviewState;
+      const evaluated = estimateMainWireScientificFastTbvPreviewPointV1(
+        branch.dependencies,
+        branch.fastPreviewState,
+        command.target,
+        branch.sourceFingerprint,
+        branch.fastPreviewSourceEvidenceId,
+        "adaptive-provisional-secant",
+        branch.fastPreviewPreviousState,
+      );
+      if (evaluated.terminalState !== null) {
+        branch.fastPreviewPreviousState = sourceState;
+        branch.fastPreviewState = evaluated.terminalState;
+        branch.fastPreviewSourceEvidenceId = evaluated.evidence.evidenceId;
+      }
+      scope.postMessage(
+        Object.freeze({
+          protocolId: MAIN_WIRE_SCIENTIFIC_PRELOAD_BRANCH_WORKER_PROTOCOL_V2_ID,
+          kind: "fast-preview-target-result" as const,
+          jobId: command.jobId,
+          lane: command.lane,
+          target: command.target,
+          evidence: evaluated.evidence,
+        }),
+      );
+      return;
+    }
     if (
-      branch === null
-      || branch.jobId !== command.jobId
-      || branch.lane !== command.lane
-      || command.target.lane !== laneForPlanner(branch.lane)
+      branch === null ||
+      branch.jobId !== command.jobId ||
+      branch.lane !== command.lane ||
+      command.target.lane !== laneForPlanner(branch.lane)
     ) throw new Error("preload branch target does not match active job/lane");
     const audit = command.mode === "independent-audit";
     if (
@@ -109,10 +160,16 @@ scope.onmessage = (event): void => {
       audit ? branch.baselineState : branch.continuationState,
       command.target.totalBloodVolumeMl,
       command.target.normalizedTbv,
+      {
+        previousPeriod1SeedState: audit
+          ? null
+          : branch.previousContinuationState,
+      },
     );
     const acceptedAsSeed = !audit
       && settled.continuationSeedState !== null;
     if (acceptedAsSeed) {
+      branch.previousContinuationState = branch.continuationState;
       branch.continuationState = settled.continuationSeedState!;
       branch.continuationScale = command.target.normalizedTbv;
     }
@@ -125,6 +182,7 @@ scope.onmessage = (event): void => {
       target: command.target,
       mode: command.mode,
       point: settled.point,
+      seedInitialization: settled.seedInitialization,
       continuationAcceptedAsSeed: acceptedAsSeed,
       terminalCheckpoint: settled.continuationSeedState === null
         ? null

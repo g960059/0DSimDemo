@@ -45,8 +45,23 @@ export type ScientificGuytonCurvePointV1 = Readonly<{
 
 export type ScientificGuytonSweepPointV1 = ScientificGuytonCurvePointV1 & Readonly<{
   id: string;
-  classification: "period1" | "audit-suspect" | "period2" | "rejected";
+  classification:
+    | "estimated"
+    | "unclassified"
+    | "period1"
+    | "audit-suspect"
+    | "period2"
+    | "rejected";
   totalBloodVolumeMl?: number;
+  lvPressureVolumeObservation?: Readonly<{
+    endDiastolicVolumeMl: number;
+    endDiastolicTransmuralPressureMmHg: number;
+    endSystolicVolumeMl: number;
+    endSystolicTransmuralPressureMmHg: number;
+    strokeWorkMmHgMl: number;
+    evidenceRole: "tbv-operating-point-observation-only";
+    crossPointFitEligible: false;
+  }>;
   reason?: string;
 }>;
 
@@ -63,6 +78,8 @@ export type ScientificGuytonStarlingPaneDataV1 = Readonly<{
   cardiacPreloadLocus: readonly ScientificGuytonCurvePointV1[];
   /** P1-only runs split at every P2, failed, or unresolved target. */
   cardiacPreloadSegments?: readonly (readonly ScientificGuytonCurvePointV1[])[];
+  /** Provisional two-natural-beat estimate; never interpreted as settled P1. */
+  estimatedCardiacSegments?: readonly (readonly ScientificGuytonCurvePointV1[])[];
   sweepPoints: readonly ScientificGuytonSweepPointV1[];
   operatingPoint?: ScientificGuytonOperatingPointV1;
   status: ScientificHemodynamicProtocolStatusV1;
@@ -70,89 +87,8 @@ export type ScientificGuytonStarlingPaneDataV1 = Readonly<{
   cardiacCurveLabel?: string;
 }>;
 
-export type ScientificPvPointV1 = Readonly<{
-  volumeMl: number;
-  transmuralPressureMmHg: number;
-}>;
-
-export type ScientificPvAnchorV1 = ScientificPvPointV1 & Readonly<{
-  event: "end-diastole" | "end-systole";
-}>;
-
-export type ScientificPvRelationBeatV1 = Readonly<{
-  id: string;
-  points: readonly ScientificPvPointV1[];
-  classification:
-    | "fit-eligible"
-    | "alternans-suspect-high"
-    | "alternans-suspect-low"
-    | "rejected";
-  endDiastolic?: ScientificPvAnchorV1;
-  endSystolic?: ScientificPvAnchorV1;
-  rejectionReason?: string;
-}>;
-
-export type ScientificPvFitCurveV1 = Readonly<{
-  points: readonly ScientificPvPointV1[];
-  rSquared?: number;
-  rmseMmHg?: number;
-}>;
-
-export type ScientificEspvrResultV1 = Readonly<{
-  status: "valid" | "invalid" | "not-run";
-  linear?: ScientificPvFitCurveV1 & Readonly<{
-    endSystolicElastanceMmHgPerMl: number;
-    volumeAxisInterceptMl: number;
-  }>;
-  quadraticSensitivity?: ScientificPvFitCurveV1 & Readonly<{
-    rmseImprovementPercent?: number;
-    localSlopeVariationPercent?: number;
-  }>;
-  invalidReason?: string;
-}>;
-
-export type ScientificEdpvrResultV1 = Readonly<{
-  status: "valid" | "invalid" | "not-run";
-  exponential?: ScientificPvFitCurveV1 & Readonly<{
-    pressureOffsetMmHg: number;
-    alphaMmHg: number;
-    betaPerMl: number;
-    referenceVolumeMl: number;
-    baselineTangentStiffnessMmHgPerMl?: number;
-  }>;
-  invalidReason?: string;
-}>;
-
-export type ScientificPrswResultV1 = Readonly<{
-  status: "valid" | "invalid" | "not-run";
-  slopeMmHg?: number;
-  volumeAxisInterceptMl?: number;
-  rSquared?: number;
-  invalidReason?: string;
-}>;
-
-export type ScientificPvRelationPaneDataV1 = Readonly<{
-  title?: string;
-  chamberLabel?: string;
-  beats: readonly ScientificPvRelationBeatV1[];
-  espvr: ScientificEspvrResultV1;
-  edpvr: ScientificEdpvrResultV1;
-  prsw: ScientificPrswResultV1;
-  status: ScientificHemodynamicProtocolStatusV1;
-  invalidReason?: string;
-}>;
-
-export type ScientificHemodynamicProtocolPaneDataV1 =
-  | Readonly<{ kind: "guyton-starling"; data: ScientificGuytonStarlingPaneDataV1 }>
-  | Readonly<{ kind: "pv-relations"; data: ScientificPvRelationPaneDataV1 }>;
-
 export type ScientificGuytonStarlingPaneV1Props = Readonly<{
   data: ScientificGuytonStarlingPaneDataV1;
-  className?: string;
-}>;
-
-export type ScientificPvRelationPaneV1Props = Readonly<{
-  data: ScientificPvRelationPaneDataV1;
   className?: string;
 }>;
 
@@ -168,11 +104,6 @@ const CHART = Object.freeze({
   p2: "#fbbf24",
   rejected: "#f87171",
   operating: "var(--wb-text)",
-  es: "#fb923c",
-  ed: "#c084fc",
-  espvr: "#38bdf8",
-  edpvr: "#e879f9",
-  loop: "#60a5fa",
 });
 
 export function ScientificGuytonStarlingPaneV1({
@@ -185,6 +116,7 @@ export function ScientificGuytonStarlingPaneV1({
   const allPoints = [
     ...data.vascularReturnCurve,
     ...data.cardiacPreloadLocus,
+    ...(data.estimatedCardiacSegments?.flat() ?? []),
     ...data.sweepPoints,
     ...(data.operatingPoint ? [data.operatingPoint] : []),
   ];
@@ -212,6 +144,15 @@ export function ScientificGuytonStarlingPaneV1({
       y: y(flowLPerMin),
     })),
   ));
+  const estimatedCardiacPaths = (data.estimatedCardiacSegments ?? []).map(
+    (segment) => scientificSvgPathV1(segment.map(({
+      pressureMmHg,
+      flowLPerMin,
+    }) => ({
+      x: x(pressureMmHg),
+      y: y(flowLPerMin),
+    }))),
+  );
   const title = data.title
     ?? (data.side === "right" ? "Right-heart Guyton / Starling" : "Left-heart Guyton / Starling");
 
@@ -258,6 +199,23 @@ export function ScientificGuytonStarlingPaneV1({
             data-series="vascular-return"
           />
         )}
+        {estimatedCardiacPaths.map((estimatedPath, segmentIndex) =>
+          estimatedPath && (
+            <path
+              key={`estimated-cardiac-segment-${segmentIndex}`}
+              d={estimatedPath}
+              fill="none"
+              stroke={CHART.cardiac}
+              strokeWidth={1.75}
+              strokeOpacity={0.52}
+              strokeDasharray="5 4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
+              data-series="rapid-finite-hold-preview"
+              data-segment-index={segmentIndex}
+            />
+          ))}
         {cardiacPaths.map((cardiacPath, segmentIndex) => cardiacPath && (
           <path
             key={`cardiac-preload-segment-${segmentIndex}`}
@@ -296,6 +254,7 @@ export function ScientificGuytonStarlingPaneV1({
         aria-hidden="true"
       >
         <ScientificLegendLineV1 color={CHART.vascular} label={data.vascularCurveLabel ?? "Vascular return · fixed-volume PV laws"} />
+        <ScientificLegendLineV1 color={CHART.cardiac} label="Rapid finite-hold estimate · not settled" dashed />
         <ScientificLegendLineV1 color={CHART.cardiac} label={data.cardiacCurveLabel ?? "Cardiac response · P1 preload locus"} />
         <ScientificLegendMarkerV1 color={CHART.p1} label="P1" />
         <ScientificLegendMarkerV1 color={CHART.audit} label="Audit warning" />
@@ -328,170 +287,6 @@ export function ScientificGuytonLeftPaneV1({
   className?: string;
 }>) {
   return <ScientificGuytonStarlingPaneV1 data={{ ...data, side: "left" }} className={className} />;
-}
-
-export function ScientificPvRelationPaneV1({
-  data,
-  className,
-}: ScientificPvRelationPaneV1Props) {
-  const [containerRef, size] = useScientificPaneSizeV1();
-  const compact = size.width < 520 || size.height < 350;
-  const allPoints = [
-    ...data.beats.flatMap(({ points }) => points),
-    ...(data.espvr.linear?.points ?? []),
-    ...(data.espvr.quadraticSensitivity?.points ?? []),
-    ...(data.edpvr.exponential?.points ?? []),
-  ];
-  const xDomain = scientificProtocolAxisDomainV1(
-    allPoints.map(({ volumeMl }) => volumeMl),
-    { includeZero: true, minimumSpan: 20, lowerBoundZeroWhenNonnegative: true },
-  );
-  const yDomain = scientificProtocolAxisDomainV1(
-    allPoints.map(({ transmuralPressureMmHg }) => transmuralPressureMmHg),
-    { includeZero: true, minimumSpan: 20, lowerBoundZeroWhenNonnegative: true },
-  );
-  const plot = scientificProtocolPlotRectV1(size, compact, true);
-  const x = linearScaleV1(xDomain, [plot.left, plot.right]);
-  const y = linearScaleV1(yDomain, [plot.bottom, plot.top]);
-  const title = data.title ?? `${data.chamberLabel ?? "LV"} pressure–volume relations`;
-  const displayInvalidReason = data.invalidReason
-    ?? firstDefinedV1(
-      data.espvr.status === "invalid" ? data.espvr.invalidReason : undefined,
-      data.edpvr.status === "invalid" ? data.edpvr.invalidReason : undefined,
-      data.prsw.status === "invalid" ? data.prsw.invalidReason : undefined,
-    );
-
-  return (
-    <div
-      ref={containerRef}
-      className={`relative h-full min-h-0 w-full overflow-hidden bg-wb-app ${className ?? ""}`}
-      data-testid="scientific-pv-relation-pane-v1"
-      data-protocol-status={data.status.status}
-      data-qc-level={data.status.qc.level}
-      data-fit-valid={displayInvalidReason ? "false" : "true"}
-    >
-      <ScientificProtocolTopChromeV1 title={title} status={data.status} compact={compact} />
-      <svg
-        className="block h-full w-full"
-        viewBox={`0 0 ${size.width} ${size.height}`}
-        role="img"
-        aria-labelledby="pv-relations-title pv-relations-desc"
-      >
-        <title id="pv-relations-title">{title}</title>
-        <desc id="pv-relations-desc">
-          Multi-beat pressure-volume loops using transmural pressure, with end-systolic and end-diastolic anchors and independently validated relation fits.
-        </desc>
-        <ScientificCartesianGridV1
-          plot={plot}
-          xDomain={xDomain}
-          yDomain={yDomain}
-          xLabel="Volume (mL)"
-          yLabel="Transmural pressure (mmHg)"
-          compact={compact}
-        />
-        {data.beats.map((beat, index) => {
-          const path = scientificSvgPathV1(beat.points.map((point) => ({
-            x: x(point.volumeMl),
-            y: y(point.transmuralPressureMmHg),
-          })), true);
-          const style = scientificPvBeatStyleV1(beat.classification, index, data.beats.length);
-          return path ? (
-            <path
-              key={beat.id}
-              d={path}
-              fill="none"
-              stroke={style.color}
-              strokeWidth={style.width}
-              strokeOpacity={style.opacity}
-              strokeDasharray={style.dash}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
-              data-beat-classification={beat.classification}
-            >
-              <title>{beat.rejectionReason ? `${beat.id}: ${beat.rejectionReason}` : beat.id}</title>
-            </path>
-          ) : null;
-        })}
-        <ScientificPvFitPathV1
-          points={data.espvr.linear?.points}
-          x={x}
-          y={y}
-          color={CHART.espvr}
-          width={data.espvr.status === "valid" ? 2.4 : 1.7}
-          dash={data.espvr.status === "valid" ? undefined : "4 3"}
-          opacity={data.espvr.status === "valid" ? 1 : 0.58}
-          dataSeries="espvr-linear"
-        />
-        <ScientificPvFitPathV1
-          points={data.espvr.quadraticSensitivity?.points}
-          x={x}
-          y={y}
-          color={CHART.espvr}
-          width={1.5}
-          dash={data.espvr.status === "valid" ? "5 4" : "2 4"}
-          opacity={data.espvr.status === "valid" ? 0.72 : 0.48}
-          dataSeries="espvr-quadratic-sensitivity"
-        />
-        <ScientificPvFitPathV1
-          points={data.edpvr.exponential?.points}
-          x={x}
-          y={y}
-          color={CHART.edpvr}
-          width={2.2}
-          dataSeries="edpvr-exponential"
-        />
-        {data.beats.flatMap((beat) => [
-          beat.endDiastolic ? (
-            <ScientificPvAnchorMarkerV1
-              key={`${beat.id}-ed`}
-              anchor={beat.endDiastolic}
-              cx={x(beat.endDiastolic.volumeMl)}
-              cy={y(beat.endDiastolic.transmuralPressureMmHg)}
-              excluded={beat.classification !== "fit-eligible"}
-            />
-          ) : null,
-          beat.endSystolic ? (
-            <ScientificPvAnchorMarkerV1
-              key={`${beat.id}-es`}
-              anchor={beat.endSystolic}
-              cx={x(beat.endSystolic.volumeMl)}
-              cy={y(beat.endSystolic.transmuralPressureMmHg)}
-              excluded={beat.classification !== "fit-eligible"}
-            />
-          ) : null,
-        ])}
-      </svg>
-      <div
-        className="pointer-events-none absolute left-2 top-10 flex max-w-[calc(100%-1rem)] flex-wrap gap-x-3 gap-y-1 text-[9px] font-medium text-wb-muted"
-        aria-hidden="true"
-      >
-        <ScientificLegendLineV1 color={CHART.loop} label="Raw transient PV loops" />
-        <ScientificLegendMarkerV1 color={CHART.p2} label="Alternans suspect · excluded" diamond />
-        <ScientificLegendMarkerV1 color={CHART.es} label="ES · aortic closure" />
-        <ScientificLegendMarkerV1 color={CHART.ed} label="ED · low-flow onset surrogate" />
-        <ScientificLegendLineV1
-          color={CHART.espvr}
-          label={data.espvr.status === "invalid" && data.espvr.linear
-            ? "ESPVR diagnostic · QC rejected"
-            : "ESPVR"}
-        />
-        <ScientificLegendLineV1 color={CHART.edpvr} label="EDPVR" />
-      </div>
-      <ScientificPvRelationSummaryV1 data={data} compact={compact} />
-      {displayInvalidReason ? (
-        <div
-          className="pointer-events-none absolute bottom-1.5 left-2 max-w-[min(40rem,calc(100%-1rem))] rounded border border-wb-danger/35 bg-wb-danger-soft px-2 py-1 text-[9px] leading-3 text-wb-danger"
-          role="status"
-          data-testid="scientific-pv-relation-invalid-reason-v1"
-        >
-          <span className="font-semibold">Fit withheld.</span> {displayInvalidReason}
-        </div>
-      ) : (
-        <ScientificProtocolQcCalloutV1 status={data.status} compact={compact} />
-      )}
-    </div>
-  );
 }
 
 export function scientificGuytonAxisLabelsV1(side: ScientificGuytonSideV1): Readonly<{
@@ -613,40 +408,6 @@ function ScientificProtocolQcCalloutV1({
   );
 }
 
-function ScientificPvRelationSummaryV1({
-  data,
-  compact,
-}: Readonly<{
-  data: ScientificPvRelationPaneDataV1;
-  compact: boolean;
-}>) {
-  const linear = data.espvr.linear;
-  const exponential = data.edpvr.exponential;
-  const quadratic = data.espvr.quadraticSensitivity;
-  const rows = [
-    linear
-      ? `${data.espvr.status === "valid" ? "Ees" : "Diagnostic Ees"} ${formatNumberV1(linear.endSystolicElastanceMmHgPerMl, 2)} mmHg/mL · V₀ ${formatNumberV1(linear.volumeAxisInterceptMl, 1)} mL${linear.rSquared === undefined ? "" : ` · R² ${formatNumberV1(linear.rSquared, 3)}`}`
-      : "ESPVR unavailable",
-    exponential
-      ? `EDPVR β ${formatNumberV1(exponential.betaPerMl, 3)} /mL${exponential.baselineTangentStiffnessMmHgPerMl === undefined ? "" : ` · kED ${formatNumberV1(exponential.baselineTangentStiffnessMmHgPerMl, 2)} mmHg/mL`}`
-      : "EDPVR unavailable",
-    data.prsw.status === "valid" && data.prsw.slopeMmHg !== undefined
-      ? `PRSW Mw ${formatNumberV1(data.prsw.slopeMmHg, 1)} mmHg${data.prsw.rSquared === undefined ? "" : ` · R² ${formatNumberV1(data.prsw.rSquared, 3)}`}`
-      : `PRSW ${data.prsw.status}`,
-    quadratic && !compact
-      ? `Quadratic sensitivity${quadratic.rmseImprovementPercent === undefined ? "" : ` · RMSE −${formatNumberV1(quadratic.rmseImprovementPercent, 1)}%`}${quadratic.localSlopeVariationPercent === undefined ? "" : ` · local slope Δ ${formatNumberV1(quadratic.localSlopeVariationPercent, 1)}%`}`
-      : null,
-  ].filter((row): row is string => row !== null);
-  return (
-    <div
-      className="pointer-events-none absolute right-2 top-10 max-w-[min(24rem,56%)] rounded border border-wb-line bg-wb-panel/88 px-2 py-1 text-[9px] leading-3 text-wb-muted backdrop-blur-sm"
-      data-testid="scientific-pv-relation-summary-v1"
-    >
-      {rows.slice(0, compact ? 2 : rows.length).map((row) => <div key={row}>{row}</div>)}
-    </div>
-  );
-}
-
 function ScientificCartesianGridV1({
   plot,
   xDomain,
@@ -707,7 +468,11 @@ function ScientificGuytonPointMarkerV1({
   cy: number;
 }>) {
   const title = [
-    point.classification === "period1"
+    point.classification === "estimated"
+      ? "Estimated near-steady · predictor-assisted · P1 not established"
+      : point.classification === "unclassified"
+        ? "Finite two-beat hold · near-P1 gate not met"
+    : point.classification === "period1"
       ? "P1 accepted"
       : point.classification === "audit-suspect"
         ? "P1 continuation · independent audit warning"
@@ -715,12 +480,31 @@ function ScientificGuytonPointMarkerV1({
           ? "P2 suspect · excluded"
           : "Rejected",
     point.totalBloodVolumeMl === undefined ? null : `${formatNumberV1(point.totalBloodVolumeMl, 0)} mL TBV`,
+    point.lvPressureVolumeObservation === undefined
+      ? null
+      : `LV ED ${formatNumberV1(point.lvPressureVolumeObservation.endDiastolicVolumeMl, 1)} mL / ${formatNumberV1(point.lvPressureVolumeObservation.endDiastolicTransmuralPressureMmHg, 1)} mmHg; ES ${formatNumberV1(point.lvPressureVolumeObservation.endSystolicVolumeMl, 1)} mL / ${formatNumberV1(point.lvPressureVolumeObservation.endSystolicTransmuralPressureMmHg, 1)} mmHg; SW ${formatNumberV1(point.lvPressureVolumeObservation.strokeWorkMmHgMl, 0)} mmHg·mL; observation only, no cross-point fit`,
     point.reason,
   ].filter(Boolean).join(" · ");
   if (point.classification === "period2") {
     return (
       <g transform={`translate(${cx} ${cy})`} data-point-classification="period2">
         <path d="M0,-5 L5,0 L0,5 L-5,0 Z" fill="var(--wb-app-bg)" stroke={CHART.p2} strokeWidth={1.8} vectorEffect="non-scaling-stroke" />
+        <title>{title}</title>
+      </g>
+    );
+  }
+  if (point.classification === "estimated") {
+    return (
+      <g data-point-classification="estimated">
+        <circle cx={cx} cy={cy} r={4.5} fill="var(--wb-app-bg)" stroke={CHART.cardiac} strokeWidth={1.75} strokeOpacity={0.75} vectorEffect="non-scaling-stroke" />
+        <title>{title}</title>
+      </g>
+    );
+  }
+  if (point.classification === "unclassified") {
+    return (
+      <g data-point-classification="unclassified">
+        <circle cx={cx} cy={cy} r={4.5} fill="var(--wb-app-bg)" stroke={CHART.p2} strokeWidth={1.5} strokeDasharray="2 2" vectorEffect="non-scaling-stroke" />
         <title>{title}</title>
       </g>
     );
@@ -751,80 +535,19 @@ function ScientificGuytonPointMarkerV1({
   );
 }
 
-function ScientificPvAnchorMarkerV1({
-  anchor,
-  cx,
-  cy,
-  excluded,
-}: Readonly<{
-  anchor: ScientificPvAnchorV1;
-  cx: number;
-  cy: number;
-  excluded: boolean;
-}>) {
-  const color = anchor.event === "end-systole" ? CHART.es : CHART.ed;
-  return (
-    <g data-anchor-event={anchor.event} data-anchor-excluded={excluded ? "true" : "false"}>
-      <circle
-        cx={cx}
-        cy={cy}
-        r={3.8}
-        fill={excluded ? "var(--wb-app-bg)" : color}
-        stroke={color}
-        strokeWidth={excluded ? 1.2 : 0.8}
-        strokeDasharray={excluded ? "2 1" : undefined}
-        opacity={excluded ? 0.55 : 1}
-        vectorEffect="non-scaling-stroke"
-      />
-      <title>{`${anchor.event === "end-systole" ? "End systole · aortic closure" : "End diastole · maximum-volume low-flow onset surrogate"}${excluded ? " · excluded from fit" : ""}`}</title>
-    </g>
-  );
-}
-
-function ScientificPvFitPathV1({
-  points,
-  x,
-  y,
+function ScientificLegendLineV1({
   color,
-  width,
-  dash,
-  opacity = 1,
-  dataSeries,
-}: Readonly<{
-  points?: readonly ScientificPvPointV1[];
-  x: (value: number) => number;
-  y: (value: number) => number;
-  color: string;
-  width: number;
-  dash?: string;
-  opacity?: number;
-  dataSeries: string;
-}>) {
-  if (!points) return null;
-  const path = scientificSvgPathV1(points.map((point) => ({
-    x: x(point.volumeMl),
-    y: y(point.transmuralPressureMmHg),
-  })));
-  return path ? (
-    <path
-      d={path}
-      fill="none"
-      stroke={color}
-      strokeWidth={width}
-      strokeDasharray={dash}
-      strokeOpacity={opacity}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      vectorEffect="non-scaling-stroke"
-      data-series={dataSeries}
-    />
-  ) : null;
-}
-
-function ScientificLegendLineV1({ color, label }: Readonly<{ color: string; label: string }>) {
+  label,
+  dashed = false,
+}: Readonly<{ color: string; label: string; dashed?: boolean }>) {
   return (
     <span className="inline-flex min-w-0 items-center gap-1">
-      <span className="h-px w-3 shrink-0" style={{ backgroundColor: color }} />
+      <span
+        className="h-px w-3 shrink-0"
+        style={dashed
+          ? { backgroundImage: `repeating-linear-gradient(to right, ${color} 0 4px, transparent 4px 7px)` }
+          : { backgroundColor: color }}
+      />
       <span className="truncate">{label}</span>
     </span>
   );
@@ -926,24 +649,6 @@ function scientificTicksV1(
   return ticks;
 }
 
-function scientificPvBeatStyleV1(
-  classification: ScientificPvRelationBeatV1["classification"],
-  index: number,
-  beatCount: number,
-): Readonly<{ color: string; opacity: number; width: number; dash?: string }> {
-  const recency = beatCount <= 1 ? 1 : (index + 1) / beatCount;
-  if (classification === "rejected") {
-    return Object.freeze({ color: CHART.rejected, opacity: 0.34, width: 1.2, dash: "3 3" });
-  }
-  if (classification === "alternans-suspect-high") {
-    return Object.freeze({ color: CHART.p2, opacity: 0.72, width: 1.6 });
-  }
-  if (classification === "alternans-suspect-low") {
-    return Object.freeze({ color: CHART.p2, opacity: 0.5, width: 1.4, dash: "4 3" });
-  }
-  return Object.freeze({ color: CHART.loop, opacity: 0.24 + 0.7 * recency, width: index === beatCount - 1 ? 2 : 1.35 });
-}
-
 function scientificProtocolStatusBadgeClassV1(status: ScientificProtocolExecutionStatusV1): string {
   const common = "inline-flex min-w-0 max-w-48 items-center gap-1 rounded border px-1.5 py-0.5 text-[9px] font-semibold";
   switch (status) {
@@ -963,10 +668,6 @@ function scientificQcCalloutClassV1(level: ScientificProtocolQualityLevelV1): st
     case "fail": return "border-wb-danger/30 bg-wb-danger-soft text-wb-danger";
     default: return "border-wb-line bg-wb-panel/88 text-wb-muted backdrop-blur-sm";
   }
-}
-
-function firstDefinedV1(...values: readonly (string | undefined)[]): string | undefined {
-  return values.find((value): value is string => Boolean(value));
 }
 
 function roundSvgV1(value: number): string {

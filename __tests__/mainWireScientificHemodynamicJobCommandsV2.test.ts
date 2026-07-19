@@ -8,6 +8,9 @@ import type {
   MainWireScientificVascularFunctionCurveV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import {
+  emptyMainWireScientificFastTbvPreviewV1,
+} from "@/engine/scientific/protocols/MainWireScientificFastTbvPreviewV1";
+import {
   MainWireScientificInProcessKernelV1,
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type MainWireScientificHemodynamicJobManagerV2,
@@ -238,11 +241,17 @@ function snapshot(
     rightVascularFunction: vascularCurve("right"),
     leftVascularFunction: vascularCurve("left"),
     preloadPointEvidence: Object.freeze([]),
+    fastPreloadPreview: emptyMainWireScientificFastTbvPreviewV1({
+      source,
+      sourceFingerprint: "test-source-fingerprint",
+    }),
     progress: Object.freeze({
       completedPointCount: 0,
       plannedPointCountLowerBound: 2,
       activeDirections: Object.freeze([]),
       completedBeatCount: 0,
+      fastPreviewCompletedPointCount: 0,
+      fastPreviewPlannedPointCount: 9,
     }),
     result: null,
     errorMessage: null,

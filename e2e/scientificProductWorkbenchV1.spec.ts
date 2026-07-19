@@ -108,7 +108,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
   });
 
   test(
-    "adds Guyton and PV-relation panes and renders progressive scientific protocols",
+    "retires Protocol C and renders rapid then settled Guyton loci progressively",
     { tag: "@full-e2e" },
     async ({ page }, testInfo) => {
       test.setTimeout(240_000);
@@ -123,18 +123,17 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
           "source scientific revision",
         );
 
-        // Left and right Guyton panes share one identity-keyed progressive
-        // job. The structural vascular curve must not wait for the wide TBV
-        // envelope or its sparse independent audits to finish.
-        await addMainGraphPane(page, "ESPVR / EDPVR");
-        const pvRelations = page.getByTestId("scientific-pv-relation-pane-v1");
-        await expect(pvRelations).toBeVisible();
-        await expect(pvRelations).toHaveAttribute(
-          "data-protocol-status",
-          /^(?:running|complete|invalid)$/,
-        );
-
-        await addMainGraphPane(page, "Guyton (R)");
+        // Protocol C was a wet-lab acquisition protocol and is deliberately
+        // absent from the browser product. Left and right Guyton panes share
+        // one identity-keyed progressive job instead.
+        await page.getByRole("button", { name: "メインペインを追加" }).first()
+          .click();
+        await expect(page.getByRole("button", {
+          name: "ESPVR / EDPVR",
+          exact: true,
+        })).toHaveCount(0);
+        await page.getByRole("button", { name: "Guyton (R)", exact: true })
+          .click();
         const rightGuyton = page.getByTestId(
           "scientific-right-guyton-starling-pane-v1",
         );
@@ -155,13 +154,31 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         );
         await expect(leftGuyton.locator('[data-series="vascular-return"]'))
           .toBeVisible();
-        // The baseline marker is part of the immediate vascular-ready
-        // snapshot; a connected locus appears when either continuation lane
-        // returns its first neighbouring P1 point.
+        // The baseline marker is part of the immediate vascular-ready snapshot.
         await expect(leftGuyton.locator('[data-point-classification]'))
           .not.toHaveCount(0);
+
+        // Predictor-assisted two-beat estimates stream first. They remain an
+        // explicitly dashed, non-periodic preview and never masquerade as P1.
+        const rapidLocus = leftGuyton.locator(
+          '[data-series="rapid-finite-hold-preview"]',
+        ).first();
+        await expect(rapidLocus).toBeVisible({ timeout: 60_000 });
+        await expect(rapidLocus).toHaveAttribute("stroke-dasharray", "5 4");
+        await expect(leftGuyton.locator(
+          '[data-point-classification="estimated"], '
+          + '[data-point-classification="unclassified"]',
+        )).not.toHaveCount(0);
+        await expect(leftGuyton.getByTestId("scientific-protocol-qc-callout-v1"))
+          .toContainText("None are periodic solutions");
+
+        // A separate solid locus appears only after a neighbouring canonical
+        // continuation point reaches settled P1 closure.
         await expect(leftGuyton.locator('[data-series="cardiac-preload-locus"]'))
-          .toBeVisible({ timeout: 90_000 });
+          .toBeVisible({ timeout: 120_000 });
+        await expect(leftGuyton.locator(
+          '[data-series="cardiac-preload-locus"]',
+        ).first()).not.toHaveAttribute("stroke-dasharray", /.+/);
         await expect(leftGuyton.locator('[data-marker="operating-point"]'))
           .toBeVisible();
         await expect(leftGuyton.getByTestId("scientific-protocol-qc-callout-v1"))
@@ -177,26 +194,9 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
           .toBeVisible();
         await expect(rightGuyton.locator('[data-series="cardiac-preload-locus"]'))
           .toBeVisible();
-
-        await dockTab(page, "ESPVR / EDPVR").click();
-        await expect(pvRelations).toBeVisible();
-        await expect(pvRelations).toHaveAttribute(
-          "data-protocol-status",
-          /^(?:complete|invalid)$/,
-        );
-        await expect(pvRelations).toHaveAttribute("data-fit-valid", "false");
-        const diagnosticEspvr = pvRelations.locator(
-          '[data-series="espvr-linear"]',
-        );
-        await expect(diagnosticEspvr).toBeVisible();
-        await expect(diagnosticEspvr).toHaveAttribute("stroke-dasharray", "4 3");
-        await expect(pvRelations.locator('[data-series="edpvr-exponential"]'))
-          .toBeVisible();
-        await expect(pvRelations.getByTestId(
-          "scientific-pv-relation-invalid-reason-v1",
-        )).toBeVisible();
-        await expect(pvRelations.locator('[data-beat-classification]'))
-          .not.toHaveCount(0);
+        await expect(dockTab(page, "ESPVR / EDPVR")).toHaveCount(0);
+        await expect(page.getByTestId("scientific-pv-relation-pane-v1"))
+          .toHaveCount(0);
 
         // Protocol exploration is forked from, rather than promoted into, the
         // selected product scenario.

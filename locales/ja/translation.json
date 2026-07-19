@@ -83,7 +83,6 @@
     "panelTypes": {
       "NOTE": "ノート",
       "PVLOOP": "PVループ",
-      "PV_RELATIONS": "ESPVR / EDPVR",
       "WAVEFORM": "波形",
       "GUYTON_LEFT": "Guyton (L)",
       "GUYTON_RIGHT": "Guyton (R)",

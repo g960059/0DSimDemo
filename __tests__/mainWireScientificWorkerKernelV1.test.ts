@@ -31,35 +31,6 @@ describe("main-wire scientific in-process kernel V1", () => {
       sessions: Map<string, MainWireScientificSessionV1>;
     }>).sessions.get(sessionId)!;
     const source = session.stateIdentity();
-    const pvRunner = vi.spyOn(session, "runPvRelationsProtocolV1")
-      .mockReturnValue(Object.freeze({
-        source: Object.freeze({
-          revision: source.revision,
-          acceptedTimeSec: source.acceptedTimeSec,
-          fixedTotalBloodVolumeMl: source.totalBloodVolumeMl,
-        }),
-      }) as ReturnType<MainWireScientificSessionV1["runPvRelationsProtocolV1"]>);
-
-    const stable = await kernel.handle(baseCommand(
-      "runPvRelationsProtocol",
-      "request-protocol-identity-stable",
-      sessionId,
-    ));
-    expect(stable).toMatchObject({
-      ok: true,
-      commandKind: "runPvRelationsProtocol",
-      payload: {
-        kind: "pvRelationsProtocolCompleted",
-        sourceSessionUnchanged: true,
-        observableFrame: {
-          revision: source.revision,
-          acceptedTimeSec: source.acceptedTimeSec,
-        },
-      },
-    });
-    expect(pvRunner).toHaveBeenCalledOnce();
-    pvRunner.mockRestore();
-
     const guytonRunner = vi.spyOn(session, "runGuytonStarlingProtocolV1")
       .mockReturnValue(Object.freeze({
         source: Object.freeze({
@@ -68,6 +39,25 @@ describe("main-wire scientific in-process kernel V1", () => {
           fixedTotalBloodVolumeMl: source.totalBloodVolumeMl,
         }),
       }) as ReturnType<MainWireScientificSessionV1["runGuytonStarlingProtocolV1"]>);
+
+    const stable = await kernel.handle(baseCommand(
+      "runGuytonStarlingProtocol",
+      "request-protocol-identity-stable",
+      sessionId,
+    ));
+    expect(stable).toMatchObject({
+      ok: true,
+      commandKind: "runGuytonStarlingProtocol",
+      payload: {
+        kind: "guytonStarlingProtocolCompleted",
+        sourceSessionUnchanged: true,
+        observableFrame: {
+          revision: source.revision,
+          acceptedTimeSec: source.acceptedTimeSec,
+        },
+      },
+    });
+    expect(guytonRunner).toHaveBeenCalledOnce();
     const identity = vi.spyOn(session, "stateIdentity")
       .mockReturnValueOnce(source)
       .mockReturnValue(Object.freeze({
@@ -89,7 +79,7 @@ describe("main-wire scientific in-process kernel V1", () => {
     });
     expect(mutated.ok === false ? mutated.error.message : "")
       .toMatch(/mutated its source session/i);
-    expect(guytonRunner).toHaveBeenCalledOnce();
+    expect(guytonRunner).toHaveBeenCalledTimes(2);
     expect(identity).toHaveBeenCalledTimes(2);
   });
 
@@ -412,6 +402,23 @@ describe("main-wire scientific in-process kernel V1", () => {
         sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
       }),
       error: { code: "invalid-command", silentFallbackApplied: false },
+    });
+    const retiredProtocolC = await kernel.handle({
+      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+      kind: "runPvRelationsProtocol",
+      requestId: "request-retired-protocol-c",
+      sessionId: "concurrent-session",
+    });
+    expect(retiredProtocolC).toMatchObject({
+      ok: false,
+      requestId: "request-retired-protocol-c",
+      sessionId: "concurrent-session",
+      commandKind: null,
+      error: {
+        code: "invalid-command",
+        message: "command kind is unsupported",
+        silentFallbackApplied: false,
+      },
     });
     const oversized = await kernel.handle({
       ...baseCommand("runTransient", "request-too-many", "concurrent-session"),

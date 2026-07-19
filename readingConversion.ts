@@ -8,7 +8,7 @@ import type { NumericKnobKey } from "./lessonDoc";
 import { defaultControllerItemFor } from "./knobMetadata";
 
 export const READING_ROLE_ORDER: Record<PanelRole, number> = { note: 0, graph: 1, output: 2, control: 3 };
-export const READING_RENDERABLE_PANEL_TYPES = new Set<PanelType>(['PVLOOP','PV_RELATIONS','WAVEFORM','GUYTON_LEFT','GUYTON_RIGHT','METRICS','CONTROLS','NOTE']);
+export const READING_RENDERABLE_PANEL_TYPES = new Set<PanelType>(['PVLOOP','WAVEFORM','GUYTON_LEFT','GUYTON_RIGHT','METRICS','CONTROLS','NOTE']);
 
 function isNotePanel(panel: PanelDef): boolean {
   return (panel.role ?? roleOf(panel.type)) === "note";
