@@ -150,6 +150,10 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       .mechanicsProbeContext).toBe(
         "one-audited-private-accepted-mechanics-snapshot-per-outer-step",
       );
+    expect(MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2.outerJacobian)
+      .toBe(
+        "analytic-noncoronary-plus-implicit-coronary-directional-sensitivity-with-development-fd-shadow",
+      );
   });
 
   it("latches an MVC strain reference only on an accepted mitral-flow true-to-false event", () => {
@@ -279,6 +283,14 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       .toBeCloseTo(0, 9);
     expect(stepped.coronaryTrial.diagnostics.exactBloodVolumeLedgerResidualMl)
       .toBeCloseTo(0, 9);
+    expect(stepped.circulationTrial.diagnostics.jacobianMode)
+      .toBe("analytic-semismooth");
+    expect(stepped.circulationTrial.diagnostics
+      .analyticJacobianAssemblyCount).toBeGreaterThan(0);
+    expect(stepped.circulationTrial.diagnostics
+      .finiteDifferenceJacobianFallbackCount).toBe(0);
+    expect(stepped.circulationTrial.diagnostics
+      .finiteDifferenceJacobianFallbackReason).toBeNull();
     expect(
       next.circulation.totalBloodVolumeMl
         - cold.acceptedState.circulation.totalBloodVolumeMl,
@@ -381,6 +393,51 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(Object.values(
       stepped.intramyocardialPressureMmHgByTerritoryLayer.LAD,
     ).every(Number.isFinite)).toBe(true);
+    expect(stepped.circulationTrial.diagnostics.jacobianMode)
+      .toBe("analytic-semismooth");
+    expect(stepped.circulationTrial.diagnostics
+      .finiteDifferenceJacobianFallbackCount).toBe(0);
+  }, 60_000);
+
+  it("matches the development full-FD shadow with the implicit coronary outer Jacobian", () => {
+    const provider = testLandReadbackProvider(false);
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const stepped = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: PERICARDIUM,
+        circulationNewtonOptions: Object.freeze({
+          analyticJacobianFiniteDifferenceShadow: true,
+        }),
+      },
+    );
+
+    expect(stepped.converged).toBe(true);
+    if (stepped.converged === false) throw new Error(stepped.message);
+    const diagnostics = stepped.circulationTrial.diagnostics;
+    expect(diagnostics.jacobianMode).toBe("analytic-semismooth");
+    expect(diagnostics.analyticJacobianAssemblyCount).toBeGreaterThan(0);
+    expect(diagnostics.finiteDifferenceJacobianFallbackCount).toBe(0);
+    expect(diagnostics.finiteDifferenceJacobianShadowCount).toBeGreaterThan(0);
+    expect(diagnostics.jacobianMaximumAbsoluteShadowDifference)
+      .not.toBeNull();
+    expect(diagnostics.jacobianMaximumRelativeFrobeniusShadowDifference)
+      .not.toBeNull();
+    expect(diagnostics.jacobianMaximumAbsoluteShadowDifference!)
+      .toBeLessThan(3e-6);
+    // The analytic path and shadow use independent nested central differences;
+    // keep a tight ppm-scale gate with headroom for platform roundoff.
+    expect(diagnostics.jacobianMaximumRelativeFrobeniusShadowDifference!)
+      .toBeLessThan(2e-6);
   }, 60_000);
 });
 

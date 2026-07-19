@@ -5,8 +5,10 @@ import {
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
   NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
   type NonCoronaryAbsoluteChamberPressureTangentV1,
+  type NonCoronaryCandidateMechanicsResultV1,
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationNewtonOptionsV1,
+  type NonCoronaryConservativeCompanionCandidateInputV1,
   type NonCoronaryProtocolResistanceScaleByEdgeV1,
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
@@ -22,14 +24,17 @@ import {
   CoronaryBackwardEulerTransactionV2,
   NORMAL_CORONARY_DISEASE_INPUT_V2,
   buildCoronaryCollapseHydraulicsPriorV2,
+  computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2,
   initializePressureLadderCoronaryStateV2,
   solveCoronaryBackwardEulerTrialV2,
   type CoronaryAcceptedHydraulicStateV2,
   type CoronaryBackwardEulerSolverOptionsV2,
+  type CoronaryBackwardEulerTrialInputV2,
   type CoronaryBackwardEulerTrialV2,
   type CoronaryCollapseHydraulicsPriorV2,
   type CoronaryDiseaseInputV2,
   type CoronaryHydraulicBoundaryInputV2,
+  type CoronaryImplicitBoundaryDirectionV2,
   type CoronaryPressureLadderInitializationV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
@@ -88,7 +93,9 @@ import {
   initializeWholeHeartMechanicsColdV1,
   prepareWholeHeartMechanicsStepV1,
   type WholeHeartMechanicsAcceptedStateV1,
+  type WholeHeartMechanicsChamberValuesV1,
   type WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
+  type WholeHeartMechanicsPreparedStepV1,
   type WholeHeartMechanicsProviderV1,
   type WholeHeartMechanicsTrialV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
@@ -102,6 +109,7 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID =
 
 const PA_PER_MMHG = 133.322;
 const MITRAL_FORWARD_FLOW_ACTIVE_THRESHOLD_ML_PER_SEC = 1;
+const DEFAULT_OUTER_SCALED_DIRECTION_STEP_V2 = 2e-6;
 const DEFAULT_IMP_MECHANISM_V2 = "cep-shortening-induced" as const;
 
 export const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2 =
@@ -131,7 +139,8 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2 =
       "accepted-mitral-forward-flow-true-to-false-at-one-ml-per-sec" as const,
     toneUpdateInsideHydraulicNewton: false as const,
     acceptedToneMode: "fixed-until-accepted-cycle-autoregulation-phase" as const,
-    outerJacobian: "full-finite-difference-fallback" as const,
+    outerJacobian:
+      "analytic-noncoronary-plus-implicit-coronary-directional-sensitivity-with-development-fd-shadow" as const,
     parameterFittingOwnedHere: false as const,
     simulationReady: false as const,
   });
@@ -503,67 +512,13 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
     runtime: input.runtime,
     options: input.circulationNewtonOptions,
     protocolResistanceScaleByEdge: input.protocolResistanceScaleByEdge,
-    evaluateCandidateMechanics: (volumesMl) => {
-      const mechanicsTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
+    evaluateCandidateMechanics: (volumesMl) =>
+      evaluatePreparedCandidateMechanicsV2(
         mechanicsStep,
         volumesMl,
-      );
-      if (
-        !mechanicsTrial.diagnostics.converged
-        || !mechanicsTrial.diagnostics.finite
-        || mechanicsTrial.diagnostics.errors.length > 0
-      ) {
-        throw new Error(
-          `five-wall mechanics trial failed: ${
-            mechanicsTrial.diagnostics.errors.join("; ")
-              || "provider reported not-ready diagnostics"
-          }`,
-        );
-      }
-      const pericardium = evaluateMainWireCommonPericardiumBindingV1(
         input.pericardium,
-        volumesMl,
-      );
-      const coronaryMechanicsCoupling =
-        evaluateMainWireCoronaryMechanicsCouplingV1(mechanicsTrial, {
-          commonIntrathoracicPressureMmHg: pthMmHg,
-          commonPericardialExcessPressureMmHg:
-            pericardium.excessPressureMmHg,
-        });
-      const sourceImpByTerritoryLayer = evaluateAllCoronaryImpV1(
-        coronaryMechanicsCoupling.input,
-      );
-      const evaluation = Object.freeze({
-        mechanicsTrial,
-        pericardium,
-        coronaryMechanicsCoupling,
-        sourceImpByTerritoryLayer,
-        sourceIntramyocardialPressureMmHgByTerritoryLayer:
-          intramyocardialPressureRecord(sourceImpByTerritoryLayer),
-      });
-      return Object.freeze({
-        absolutePressuresMmHg: Object.freeze({
-          LA: mechanicsTrial.transmuralPressuresMmHg.LA + pthMmHg
-            + pericardium.excessPressureMmHg,
-          LV: mechanicsTrial.transmuralPressuresMmHg.LV + pthMmHg
-            + pericardium.excessPressureMmHg,
-          RA: mechanicsTrial.transmuralPressuresMmHg.RA + pthMmHg
-            + pericardium.excessPressureMmHg,
-          RV: mechanicsTrial.transmuralPressuresMmHg.RV + pthMmHg
-            + pericardium.excessPressureMmHg,
-        }),
-        ...(mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl
-          === undefined
-          ? {}
-          : {
-            absolutePressureTangent: absoluteChamberPressureTangent(
-              mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl,
-              pericardium,
-            ),
-          }),
-        evaluation,
-      });
-    },
+        pthMmHg,
+      ),
     conservativeCompanion: Object.freeze({
       fixedGlobalTotalBloodVolumeMl:
         previous.fixedGlobalTotalBloodVolumeMl,
@@ -571,38 +526,52 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
         coronaryBloodVolumeMl(previous.coronary),
       evaluateSameCandidate: (candidate) => {
         const mechanics = candidate.candidateMechanicsEvaluation;
-        const boundary = resolveMainWireCoronaryBoundaryV2(
-          Object.freeze({
-            absoluteAorticPressureMmHg:
-              candidate.boundaryAbsolutePressuresMmHg.Ao,
-            absoluteRightAtrialPressureMmHg:
-              candidate.boundaryAbsolutePressuresMmHg.RA,
-            sourceIntramyocardialPressureMmHgByTerritoryLayer:
-              mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer,
-            mechanicsInput: mechanics.coronaryMechanicsCoupling.input,
-            effectiveFiberLogStrainByWall:
-              mechanics.coronaryMechanicsCoupling
-                .effectiveFiberLogStrainByWall,
-          }),
+        const boundary = resolveCandidateCoronaryBoundaryV2(
+          candidate.boundaryAbsolutePressuresMmHg.Ao,
+          candidate.boundaryAbsolutePressuresMmHg.RA,
+          mechanics,
           impMechanism,
           previous.mvcReferenceState.reference,
           shorteningImpPrior,
         );
+        const coronaryTrialInput = Object.freeze({
+          dtSec: input.dtSec,
+          boundary,
+          disease: input.coronaryDisease
+            ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+          collapseHydraulics,
+          solverOptions: input.coronarySolverOptions,
+        }) satisfies CoronaryBackwardEulerTrialInputV2;
         // Every outer Newton/FD/line-search probe starts from the same accepted
         // V2 state. No candidate is retained as a hidden warm start.
         const coronaryTrial = solveCoronaryBackwardEulerTrialV2(
           previous.coronary,
-          Object.freeze({
-            dtSec: input.dtSec,
-            boundary,
-            disease: input.coronaryDisease
-              ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
-            collapseHydraulics,
-            solverOptions: input.coronarySolverOptions,
-          }),
+          coronaryTrialInput,
           prior,
           topology,
         );
+        const boundaryDirections = buildCoronaryBoundaryDirectionsV2(
+          candidate,
+          mechanicsStep,
+          input.pericardium,
+          pthMmHg,
+          boundary,
+          impMechanism,
+          previous.mvcReferenceState.reference,
+          shorteningImpPrior,
+          input.circulationNewtonOptions?.finiteDifferenceScaledStep
+            ?? DEFAULT_OUTER_SCALED_DIRECTION_STEP_V2,
+        );
+        const sensitivities = boundaryDirections === null
+          ? undefined
+          : computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2({
+            previousAcceptedState: previous.coronary,
+            trialInput: coronaryTrialInput,
+            prior,
+            topology,
+            baseTrial: coronaryTrial,
+            boundaryDirections,
+          }).conservativeCompanionSensitivities;
         return Object.freeze({
           candidateCompanionBloodVolumeMl:
             coronaryTrial.diagnostics.candidateCoronaryBloodVolumeMl,
@@ -616,6 +585,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
             coronaryTrial,
             boundary,
           }),
+          ...(sensitivities === undefined ? {} : { sensitivities }),
         });
       },
     }),
@@ -734,6 +704,263 @@ export function advanceMainWireCoronaryMvcReferenceV2(
     acceptedMitralClosureEventCount:
       previous.acceptedMitralClosureEventCount + (closed ? 1 : 0),
   });
+}
+
+function evaluatePreparedCandidateMechanicsV2<TWallState>(
+  mechanicsStep: WholeHeartMechanicsPreparedStepV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  volumesMl: WholeHeartMechanicsChamberValuesV1,
+  pericardiumBinding: MainWireCommonPericardiumBindingV1,
+  commonIntrathoracicPressureMmHg: number,
+): NonCoronaryCandidateMechanicsResultV1<
+  MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>
+> {
+  const mechanicsTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
+    mechanicsStep,
+    volumesMl,
+  );
+  if (
+    !mechanicsTrial.diagnostics.converged
+    || !mechanicsTrial.diagnostics.finite
+    || mechanicsTrial.diagnostics.errors.length > 0
+  ) {
+    throw new Error(
+      `five-wall mechanics trial failed: ${
+        mechanicsTrial.diagnostics.errors.join("; ")
+          || "provider reported not-ready diagnostics"
+      }`,
+    );
+  }
+  const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+    pericardiumBinding,
+    volumesMl,
+  );
+  const coronaryMechanicsCoupling =
+    evaluateMainWireCoronaryMechanicsCouplingV1(mechanicsTrial, {
+      commonIntrathoracicPressureMmHg,
+      commonPericardialExcessPressureMmHg:
+        pericardium.excessPressureMmHg,
+    });
+  const sourceImpByTerritoryLayer = evaluateAllCoronaryImpV1(
+    coronaryMechanicsCoupling.input,
+  );
+  const evaluation = Object.freeze({
+    mechanicsTrial,
+    pericardium,
+    coronaryMechanicsCoupling,
+    sourceImpByTerritoryLayer,
+    sourceIntramyocardialPressureMmHgByTerritoryLayer:
+      intramyocardialPressureRecord(sourceImpByTerritoryLayer),
+  });
+  return Object.freeze({
+    absolutePressuresMmHg: Object.freeze({
+      LA: mechanicsTrial.transmuralPressuresMmHg.LA
+        + commonIntrathoracicPressureMmHg
+        + pericardium.excessPressureMmHg,
+      LV: mechanicsTrial.transmuralPressuresMmHg.LV
+        + commonIntrathoracicPressureMmHg
+        + pericardium.excessPressureMmHg,
+      RA: mechanicsTrial.transmuralPressuresMmHg.RA
+        + commonIntrathoracicPressureMmHg
+        + pericardium.excessPressureMmHg,
+      RV: mechanicsTrial.transmuralPressuresMmHg.RV
+        + commonIntrathoracicPressureMmHg
+        + pericardium.excessPressureMmHg,
+    }),
+    ...(mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl === undefined
+      ? {}
+      : {
+        absolutePressureTangent: absoluteChamberPressureTangent(
+          mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl,
+          pericardium,
+        ),
+      }),
+    evaluation,
+  });
+}
+
+function resolveCandidateCoronaryBoundaryV2<TWallState>(
+  absoluteAorticPressureMmHg: number,
+  absoluteRightAtrialPressureMmHg: number,
+  mechanics: MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
+    TWallState
+  >,
+  impMechanism: MainWireCoronaryImpMechanismV2,
+  shorteningReference: MainWireCoronaryShorteningReferenceV2,
+  shorteningImpPrior: MainWireCoronaryShorteningImpGainPriorV2,
+): CoronaryHydraulicBoundaryInputV2 {
+  return resolveMainWireCoronaryBoundaryV2(
+    Object.freeze({
+      absoluteAorticPressureMmHg,
+      absoluteRightAtrialPressureMmHg,
+      sourceIntramyocardialPressureMmHgByTerritoryLayer:
+        mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer,
+      mechanicsInput: mechanics.coronaryMechanicsCoupling.input,
+      effectiveFiberLogStrainByWall:
+        mechanics.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall,
+    }),
+    impMechanism,
+    shorteningReference,
+    shorteningImpPrior,
+  );
+}
+
+function buildCoronaryBoundaryDirectionsV2<TWallState>(
+  candidate: NonCoronaryConservativeCompanionCandidateInputV1<
+    MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>
+  >,
+  mechanicsStep: WholeHeartMechanicsPreparedStepV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  >,
+  pericardiumBinding: MainWireCommonPericardiumBindingV1,
+  commonIntrathoracicPressureMmHg: number,
+  baseBoundary: CoronaryHydraulicBoundaryInputV2,
+  impMechanism: MainWireCoronaryImpMechanismV2,
+  shorteningReference: MainWireCoronaryShorteningReferenceV2,
+  shorteningImpPrior: MainWireCoronaryShorteningImpGainPriorV2,
+  scaledStep: number,
+): readonly CoronaryImplicitBoundaryDirectionV2[] | null {
+  const tangent =
+    candidate.dBoundaryAbsolutePressureDScaledIndependentVolume;
+  if (tangent === null) return null;
+  requirePositiveFinite(scaledStep, "outer scaled sensitivity step");
+  const directionCount = candidate.independentNodeOrder.length;
+  if (
+    candidate.independentVolumeScalesMl.length !== directionCount
+    || tangent.Ao.length !== directionCount
+    || tangent.RA.length !== directionCount
+  ) {
+    throw new RangeError(
+      "coronary boundary sensitivity order and tangent dimensions differ",
+    );
+  }
+  const baseMechanics = candidate.candidateMechanicsEvaluation;
+  const baseVolumes = baseMechanics.mechanicsTrial.candidateVolumesMl;
+  const directionForBoundary = (
+    absoluteAorticPressureMmHg: number,
+    absoluteRightAtrialPressureMmHg: number,
+    mechanics: MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
+      TWallState
+    >,
+  ): CoronaryHydraulicBoundaryInputV2 => resolveCandidateCoronaryBoundaryV2(
+    absoluteAorticPressureMmHg,
+    absoluteRightAtrialPressureMmHg,
+    mechanics,
+    impMechanism,
+    shorteningReference,
+    shorteningImpPrior,
+  );
+  const perturbedPressure = (
+    basePressureMmHg: number,
+    derivativeMmHgPerScaledVariable: number,
+    sign: -1 | 1,
+  ): number => {
+    requireFinite(
+      derivativeMmHgPerScaledVariable,
+      "coronary outer boundary pressure derivative",
+    );
+    const perturbed = basePressureMmHg
+      + sign * scaledStep * derivativeMmHgPerScaledVariable;
+    requireFinite(
+      perturbed,
+      "perturbed coronary outer boundary pressure",
+    );
+    return perturbed;
+  };
+
+  return Object.freeze(candidate.independentNodeOrder.map((node, index) => {
+    if (node === "Ao") {
+      return Object.freeze({
+        scaledStep,
+        minusBoundary: directionForBoundary(
+          perturbedPressure(
+            candidate.boundaryAbsolutePressuresMmHg.Ao,
+            tangent.Ao[index]!,
+            -1,
+          ),
+          perturbedPressure(
+            candidate.boundaryAbsolutePressuresMmHg.RA,
+            tangent.RA[index]!,
+            -1,
+          ),
+          baseMechanics,
+        ),
+        plusBoundary: directionForBoundary(
+          perturbedPressure(
+            candidate.boundaryAbsolutePressuresMmHg.Ao,
+            tangent.Ao[index]!,
+            1,
+          ),
+          perturbedPressure(
+            candidate.boundaryAbsolutePressuresMmHg.RA,
+            tangent.RA[index]!,
+            1,
+          ),
+          baseMechanics,
+        ),
+      }) satisfies CoronaryImplicitBoundaryDirectionV2;
+    }
+    if (node === "LA" || node === "LV" || node === "RA" || node === "RV") {
+      const volumeScaleMl = candidate.independentVolumeScalesMl[index]!;
+      requirePositiveFinite(
+        volumeScaleMl,
+        `${node} independent volume scale`,
+      );
+      const volumeStepMl = scaledStep * volumeScaleMl;
+      const minusVolumes = Object.freeze({
+        ...baseVolumes,
+        [node]: baseVolumes[node] - volumeStepMl,
+      });
+      const plusVolumes = Object.freeze({
+        ...baseVolumes,
+        [node]: baseVolumes[node] + volumeStepMl,
+      });
+      requirePositiveFinite(minusVolumes[node], `${node} minus probe volume`);
+      const minusMechanics = evaluatePreparedCandidateMechanicsV2(
+        mechanicsStep,
+        minusVolumes,
+        pericardiumBinding,
+        commonIntrathoracicPressureMmHg,
+      );
+      const plusMechanics = evaluatePreparedCandidateMechanicsV2(
+        mechanicsStep,
+        plusVolumes,
+        pericardiumBinding,
+        commonIntrathoracicPressureMmHg,
+      );
+      return Object.freeze({
+        scaledStep,
+        minusBoundary: directionForBoundary(
+          perturbedPressure(
+            candidate.boundaryAbsolutePressuresMmHg.Ao,
+            tangent.Ao[index]!,
+            -1,
+          ),
+          minusMechanics.absolutePressuresMmHg.RA,
+          minusMechanics.evaluation,
+        ),
+        plusBoundary: directionForBoundary(
+          perturbedPressure(
+            candidate.boundaryAbsolutePressuresMmHg.Ao,
+            tangent.Ao[index]!,
+            1,
+          ),
+          plusMechanics.absolutePressuresMmHg.RA,
+          plusMechanics.evaluation,
+        ),
+      }) satisfies CoronaryImplicitBoundaryDirectionV2;
+    }
+    // All remaining vascular independent columns leave the three coronary
+    // boundary owners (Ao, RA, and mechanics-derived IMP) unchanged.
+    return Object.freeze({
+      scaledStep,
+      minusBoundary: baseBoundary,
+      plusBoundary: baseBoundary,
+    }) satisfies CoronaryImplicitBoundaryDirectionV2;
+  }));
 }
 
 function validateCoupledTrial<TWallState>(
