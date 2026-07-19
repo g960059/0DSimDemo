@@ -15,6 +15,7 @@ import {
   stepMainWireFiveWallNonCoronaryV1,
   type MainWireFiveWallNonCoronaryAcceptedStateV1,
   type MainWireFiveWallNonCoronaryCheckpointV1,
+  type MainWireFiveWallNonCoronaryStepFailureV1,
 } from "@/engine/myocardium/MainWireFiveWallNonCoronaryTransactionV1";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_V1_ID,
@@ -291,13 +292,15 @@ export type MainWireNormalAdultFiveWallPeriodicResultV1 = Readonly<{
     globalStepIndex: number;
     timeSec: number;
     message: string;
+    reason: MainWireFiveWallNonCoronaryStepFailureV1<unknown>["reason"];
     circulationFailureReason:
-      "invalid-input"
-      | "initial-evaluation-failed"
-      | "jacobian-failed"
-      | "singular-jacobian"
-      | "line-search-failed"
-      | "maximum-iterations";
+      MainWireFiveWallNonCoronaryStepFailureV1<unknown>[
+        "circulationFailureReason"
+      ];
+    finalizationFailureStage:
+      MainWireFiveWallNonCoronaryStepFailureV1<unknown>[
+        "finalizationFailureStage"
+      ];
     lastAcceptedCandidateNodeVolumesMl: Readonly<Record<string, number>>;
     circulationDiagnostics: NonCoronaryCirculationTrialDiagnosticsV1;
   }>;
@@ -576,7 +579,9 @@ function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
             (beatIndex - 1) * resolved.stepsPerBeat + stepWithinBeat,
           timeSec: state.acceptedTimeSec + resolved.dtSec,
           message: stepped.message,
+          reason: stepped.reason,
           circulationFailureReason: stepped.circulationFailureReason,
+          finalizationFailureStage: stepped.finalizationFailureStage,
           lastAcceptedCandidateNodeVolumesMl:
             stepped.lastAcceptedCandidateNodeVolumesMl,
           circulationDiagnostics: stepped.circulationDiagnostics,

@@ -1,9 +1,13 @@
 import {
   createMainWireScientificSessionV1,
 } from "@/engine/scientific/runtime";
+import {
+  sha256CanonicalJsonHex,
+} from "@/engine/scientific/release";
 
 const dtSec = numericArgument("--dt", 0.002);
 const beatCount = integerArgument("--beats", 1);
+const warmupBeatCount = nonnegativeIntegerArgument("--warmup-beats", 0);
 const stepsPerBeat = Math.round(1 / dtSec);
 if (Math.abs(stepsPerBeat * dtSec - 1) > 1e-12) {
   throw new Error("dt must divide the fixed one-second cycle exactly");
@@ -12,12 +16,25 @@ if (Math.abs(stepsPerBeat * dtSec - 1) > 1e-12) {
 const processStartMs = performance.now();
 const session = await createMainWireScientificSessionV1();
 const initializationCompletedMs = performance.now();
+const requestedWarmupStepCount = warmupBeatCount * stepsPerBeat;
+for (let stepIndex = 0; stepIndex < requestedWarmupStepCount; stepIndex += 1) {
+  const stepped = session.step(dtSec);
+  if (stepped.converged === false) {
+    throw new Error(
+      `scientific session warmup failed after ${stepIndex} steps: `
+        + stepped.message,
+    );
+  }
+}
+const warmupCompletedMs = performance.now();
 const requestedStepCount = beatCount * stepsPerBeat;
 const stepWallClockMs: number[] = [];
 const mechanicsIterations: number[] = [];
 const mechanicsCallbackCounts: number[] = [];
 const mechanicsCallbackCacheHits: number[] = [];
 const circulationResiduals: number[] = [];
+const observationTrajectory: unknown[] = [];
+const diagnosticsTrajectory: unknown[] = [];
 for (let stepIndex = 0; stepIndex < requestedStepCount; stepIndex += 1) {
   const stepStartedMs = performance.now();
   const stepped = session.step(dtSec);
@@ -29,6 +46,8 @@ for (let stepIndex = 0; stepIndex < requestedStepCount; stepIndex += 1) {
     );
   }
   const diagnostics = stepped.observation.diagnostics;
+  observationTrajectory.push(stepped.observation);
+  diagnosticsTrajectory.push(diagnostics);
   pushFinite(mechanicsIterations, diagnostics.mechanicsIterations);
   pushFinite(mechanicsCallbackCounts, diagnostics.mechanicsCallbackCount);
   pushFinite(
@@ -41,17 +60,28 @@ for (let stepIndex = 0; stepIndex < requestedStepCount; stepIndex += 1) {
   );
 }
 const runCompletedMs = performance.now();
+const [observationTrajectorySha256, diagnosticsTrajectorySha256, checkpoint] =
+  await Promise.all([
+    sha256CanonicalJsonHex(observationTrajectory),
+    sha256CanonicalJsonHex(diagnosticsTrajectory),
+    session.checkpointExactV3(),
+  ]);
 
 const initializationMs = initializationCompletedMs - processStartMs;
-const integrationMs = runCompletedMs - initializationCompletedMs;
+const warmupMs = warmupCompletedMs - initializationCompletedMs;
+const integrationMs = runCompletedMs - warmupCompletedMs;
 console.log(JSON.stringify({
   benchmarkId: "main-wire-scientific-session-v1-wall-clock-smoke",
+  benchmarkLabel: process.env.CIRCLEHEART_BENCHMARK_LABEL ?? null,
   role: "measurement-only-no-performance-acceptance-claim",
   dtSec,
   beatCount,
+  warmupBeatCount,
   stepsPerBeat,
+  requestedWarmupStepCount,
   requestedStepCount,
   initializationMs,
+  warmupMs,
   integrationMs,
   totalMs: runCompletedMs - processStartMs,
   integrationStepsPerSecond: requestedStepCount / (integrationMs / 1000),
@@ -60,6 +90,9 @@ console.log(JSON.stringify({
   mechanicsCallbackCounts: distribution(mechanicsCallbackCounts),
   mechanicsCallbackCacheHits: distribution(mechanicsCallbackCacheHits),
   circulationScaledResidualInfinityNorm: distribution(circulationResiduals),
+  observationTrajectorySha256,
+  diagnosticsTrajectorySha256,
+  finalExactCheckpointSha256: checkpoint.checkpointSha256,
   finalState: session.stateIdentity(),
 }, null, 2));
 
@@ -119,6 +152,15 @@ function integerArgument(name: string, fallback: number): number {
   const value = numericArgument(name, fallback);
   if (!Number.isSafeInteger(value)) {
     throw new Error(`${name} must be a positive safe integer`);
+  }
+  return value;
+}
+
+function nonnegativeIntegerArgument(name: string, fallback: number): number {
+  const index = process.argv.indexOf(name);
+  const value = index < 0 ? fallback : Number(process.argv[index + 1]);
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`${name} must be a nonnegative safe integer`);
   }
   return value;
 }
