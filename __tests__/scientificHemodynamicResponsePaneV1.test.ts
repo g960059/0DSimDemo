@@ -189,6 +189,8 @@ describe("cardiac output and filling pressure pane V1", () => {
     expect(html).not.toContain('data-generation-id="history-6"');
     expect(html).toContain("One low-volume point was excluded");
     expect(html).toContain('data-testid="scientific-hemodynamic-scenario-legend-v1"');
+    expect(html).toContain('data-testid="scientific-hemodynamic-floating-status-v1"');
+    expect(html).not.toContain('data-testid="scientific-protocol-top-chrome-v1"');
     expect(html).toContain('data-legend-placement="custom"');
     expect(html).toContain('role="button"');
     expect(html).toContain('aria-label="Open cardiac output pane settings"');
@@ -216,5 +218,36 @@ describe("cardiac output and filling pressure pane V1", () => {
 
     expect(html).not.toContain("scientific-hemodynamic-scenario-legend-v1");
     expect(html).toContain('data-scenario-id="healthy"');
+  });
+
+  it("keeps running progress inside the floating status instead of restoring pane chrome", () => {
+    const html = renderToStaticMarkup(React.createElement(
+      ScientificCardiacOutputFillingPressurePaneV1,
+      {
+        data: {
+          side: "left",
+          showLegend: false,
+          status: {
+            status: "running",
+            label: "Updating",
+            phase: "Estimating response",
+            progress: { completed: 2, total: 5 },
+            qc: { level: "pending", summary: "In progress" },
+          },
+          scenarios: [{
+            id: "healthy",
+            name: "Healthy baseline",
+            color: "#38bdf8",
+            current: generation("current"),
+          }],
+        },
+      },
+    ));
+
+    expect(html).toContain('data-testid="scientific-hemodynamic-floating-status-v1"');
+    expect(html).toContain('aria-label="Updating: Estimating response"');
+    expect(html).toContain('width:40%');
+    expect(html).toContain('<title id="response-title-left">');
+    expect(html).not.toContain('data-testid="scientific-protocol-top-chrome-v1"');
   });
 });
