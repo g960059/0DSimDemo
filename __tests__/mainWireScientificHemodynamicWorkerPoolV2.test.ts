@@ -17,6 +17,7 @@ import {
 } from "@/engine/scientific/protocols/MainWireScientificFastTbvRefinementPolicyV1";
 import {
   MainWireScientificHemodynamicWorkerPoolV2,
+  scientificStandardQuickResponseNaturalBeatCountV1,
   type MainWireScientificPreloadBranchWorkerLikeV2,
 } from "@/engine/scientificBrowser/MainWireScientificHemodynamicWorkerPoolV2";
 import type {
@@ -309,7 +310,7 @@ describe("main-wire scientific hemodynamic worker pool V2", () => {
     pool.dispose();
   }, 30_000);
 
-  it("completes standard detail after mandatory third beats without canonical work", async () => {
+  it("gives the two lowest-volume standard points five and four beats without canonical work", async () => {
     const capsule = await healthyCapsule();
     let nowMs = 0;
     const commandSequence: string[] = [];
@@ -348,19 +349,31 @@ describe("main-wire scientific hemodynamic worker pool V2", () => {
       },
     });
     expect(completed.fastPreloadPreview.evidence).toHaveLength(9);
-    expect(completed.fastPreloadPreview.evidence.every((evidence) =>
-      evidence.evidenceClass === "failure"
-      || (
-        evidence.acquisition.completedNaturalBeatCountAfterPrediction === 3
+    expect(completed.fastPreloadPreview.evidence.every((evidence) => {
+      if (evidence.evidenceClass === "failure") return true;
+      return evidence.acquisition.completedNaturalBeatCountAfterPrediction
+          === scientificStandardQuickResponseNaturalBeatCountV1(
+            evidence.acquisition.target,
+          )
         && evidence.periodicityClaim === "not-demonstrated"
         && evidence.eligibility.settledP1Locus === false
         && evidence.eligibility.continuationSeed === false
-        && evidence.eligibility.espvrEdpvrPrswFit === false
-      )
-    )).toBe(true);
+        && evidence.eligibility.espvrEdpvrPrswFit === false;
+    })).toBe(true);
+    const beatCountByScale = new Map(
+      completed.fastPreloadPreview.evidence.map((evidence) => [
+        evidence.acquisition.target.targetScale,
+        evidence.acquisition.completedNaturalBeatCountAfterPrediction,
+      ]),
+    );
+    expect(beatCountByScale.get(0.64)).toBe(5);
+    expect(beatCountByScale.get(0.7)).toBe(4);
+    expect([...beatCountByScale.entries()]
+      .filter(([targetScale]) => targetScale !== 0.64 && targetScale !== 0.7)
+      .every(([, beatCount]) => beatCount === 3)).toBe(true);
     expect(commandSequence.filter((kind) =>
       kind === "refine-fast-preview-target"
-    )).toHaveLength(9);
+    )).toHaveLength(12);
     expect(commandSequence).not.toContain("solve-target");
     pool.dispose();
   }, 30_000);

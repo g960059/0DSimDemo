@@ -149,6 +149,25 @@ const FAST_PREVIEW_PLANNED_POINT_COUNT =
   MAIN_WIRE_SCIENTIFIC_FAST_TBV_PREVIEW_POLICY_V1.higherTargetScales.length;
 
 /**
+ * Standard user-facing preview budget. The hypovolemic knee receives more
+ * natural beats because its chamber/vascular redistribution is slowest and
+ * its directional error is largest; all other targets keep the fast 3-beat
+ * observation. This remains finite-hold evidence, never a periodicity claim.
+ */
+export function scientificStandardQuickResponseNaturalBeatCountV1(
+  target: MainWireScientificFastTbvPreviewTargetV1,
+): 3 | 4 | 5 {
+  const lowerScales = [
+    ...MAIN_WIRE_SCIENTIFIC_FAST_TBV_PREVIEW_POLICY_V1.lowerTargetScales,
+  ].sort((left, right) => left - right);
+  if (target.lane === "lower-volume") {
+    if (target.targetScale === lowerScales[0]) return 5;
+    if (target.targetScale === lowerScales[1]) return 4;
+  }
+  return 3;
+}
+
+/**
  * Owns two long-lived branch workers. Only the small start/poll/cancel control
  * plane remains on the interactive scenario worker; Land/TriSeg settlement is
  * isolated in the lower- and higher-volume workers.
@@ -684,7 +703,7 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
       && job.lanes["higher-volume"].previewComplete;
     if (!allInitialPreviewsComplete) return;
     if (job.detailMode === "standard") {
-      this.dispatchMandatoryStandardThirdBeats(job);
+      this.dispatchStandardPreviewBeats(job);
       return;
     }
     const idleLanes = (
@@ -772,7 +791,7 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     this.dispatchPendingLaneTarget(job, job.lanes["higher-volume"]);
   }
 
-  private dispatchMandatoryStandardThirdBeats(job: ActiveJobV2): void {
+  private dispatchStandardPreviewBeats(job: ActiveJobV2): void {
     let dispatched = false;
     for (const lane of ["lower-volume", "higher-volume"] as const) {
       const runtime = job.lanes[lane];
@@ -784,33 +803,47 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
         .filter((candidate) =>
           candidate.evidenceClass !== "failure"
           && candidate.acquisition.target.lane === lane
-          && candidate.acquisition.completedNaturalBeatCountAfterPrediction < 3
+          && candidate.acquisition.completedNaturalBeatCountAfterPrediction
+            < scientificStandardQuickResponseNaturalBeatCountV1(
+              candidate.acquisition.target,
+            )
         )
-        .sort((left, right) =>
-          left.acquisition.target.targetOrdinal
-          - right.acquisition.target.targetOrdinal
-        )[0];
+        .sort((left, right) => {
+          const leftNeedsThirdBeat = left.acquisition
+            .completedNaturalBeatCountAfterPrediction < 3 ? 0 : 1;
+          const rightNeedsThirdBeat = right.acquisition
+            .completedNaturalBeatCountAfterPrediction < 3 ? 0 : 1;
+          return leftNeedsThirdBeat - rightNeedsThirdBeat
+            || left.acquisition.target.targetOrdinal
+              - right.acquisition.target.targetOrdinal;
+        })[0];
       if (evidence === undefined) continue;
       const stage = job.fastPreviewRefinementStageByTargetId.get(
         evidence.evidenceId,
       );
       if (
         stage === undefined
-        || stage.completedNaturalBeatCount !== 2
+        || stage.completedNaturalBeatCount
+          !== evidence.acquisition.completedNaturalBeatCountAfterPrediction
+        || stage.completedNaturalBeatCount < 2
+        || stage.completedNaturalBeatCount >= 5
       ) {
         this.failJob(
           job,
-          "standard rapid preview lacks valid two-beat refinement evidence",
+          "standard rapid preview lacks valid refinement evidence",
         );
         return;
       }
+      const requestedNaturalBeatCount = (
+        stage.completedNaturalBeatCount + 1
+      ) as 3 | 4 | 5;
       const issuedTarget = copyFastPreviewTargetV2(
         evidence.acquisition.target,
       );
       runtime.inFlightTargetId = evidence.evidenceId;
       runtime.inFlightFastPreviewRequest = Object.freeze({
         target: issuedTarget,
-        requestedNaturalBeatCount: 3 as const,
+        requestedNaturalBeatCount,
       });
       runtime.worker.postMessage(Object.freeze({
         protocolId: MAIN_WIRE_SCIENTIFIC_PRELOAD_BRANCH_WORKER_PROTOCOL_V2_ID,
@@ -818,7 +851,7 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
         jobId: job.jobId,
         lane,
         target: issuedTarget,
-        requestedNaturalBeatCount: 3 as const,
+        requestedNaturalBeatCount,
       }));
       dispatched = true;
     }
@@ -832,7 +865,10 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     ) return;
     if (job.fastPreviewEvidence.some((evidence) =>
       evidence.evidenceClass !== "failure"
-      && evidence.acquisition.completedNaturalBeatCountAfterPrediction < 3
+      && evidence.acquisition.completedNaturalBeatCountAfterPrediction
+        < scientificStandardQuickResponseNaturalBeatCountV1(
+          evidence.acquisition.target,
+        )
     )) {
       this.failJob(
         job,

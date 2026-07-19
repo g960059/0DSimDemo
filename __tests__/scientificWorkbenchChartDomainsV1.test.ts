@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   ScientificWorkbenchChartLegendV1,
+  scientificChartAxisLabelPositionsV1,
   scientificChartDomainV1,
+  scientificChartPlotRectV1,
   scientificChartPlotTopV1,
 } from "@/components/scientificProduct/ScientificWorkbenchAnimatedChartsV1";
 
@@ -37,6 +39,22 @@ describe("scientific Workbench chart domains", () => {
     expect(scientificChartPlotTopV1(36, true)).toBe(52);
     expect(scientificChartPlotTopV1(36, false)).toBe(24);
     expect(scientificChartPlotTopV1(Number.NaN, true)).toBe(24);
+  });
+
+  it("reserves a readable responsive gutter for y ticks and the vertical title", () => {
+    const wide = scientificChartPlotRectV1(1_120, 720, 72);
+    const compact = scientificChartPlotRectV1(280, 320);
+    const wideLabels = scientificChartAxisLabelPositionsV1(wide, 720);
+    const compactLabels = scientificChartAxisLabelPositionsV1(compact, 320);
+
+    expect(wide.left).toBe(64);
+    expect(compact.left).toBe(58);
+    expect(wideLabels.yTitle.x).toBe(22);
+    expect(compactLabels.yTitle.x).toBe(18);
+    expect(wideLabels.yTitle.y).toBe((wide.top + wide.bottom) / 2);
+    expect(wideLabels.xTitle.x).toBe((wide.left + wide.right) / 2);
+    expect(wideLabels.yTitle.x).toBeGreaterThan(13);
+    expect(wide.left - wideLabels.yTitle.x).toBeGreaterThanOrEqual(42);
   });
 
   it("renders a compact same-scenario legend without repeating the model name", () => {

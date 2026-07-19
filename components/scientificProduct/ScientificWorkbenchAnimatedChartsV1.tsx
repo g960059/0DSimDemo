@@ -64,7 +64,9 @@ export type ScientificWorkbenchPvSeriesV1 = Readonly<{
   color: string;
 }>;
 
-const PLOT_PADDING = Object.freeze({ left: 48, right: 16, top: 24, bottom: 32 });
+const PLOT_PADDING = Object.freeze({ left: 64, right: 16, top: 24, bottom: 32 });
+const COMPACT_PLOT_LEFT_PX = 58;
+const Y_AXIS_TITLE_GUTTER_PX = 42;
 const DEFAULT_LEGEND_TOP_PX = 8;
 const LEGEND_TO_PLOT_GAP_PX = 8;
 const SWEEP_GAP_FRACTION = 0.025;
@@ -117,7 +119,7 @@ export function ScientificWorkbenchWaveformCanvasV1({
     if (!visible) return undefined;
     return animateCanvas(containerRef, canvasRef, (ctx, width, height, nowMs) => {
       const currentSeries = seriesRef.current;
-      const plot = plotRect(
+      const plot = scientificChartPlotRectV1(
         width,
         height,
         scientificChartPlotTopV1(
@@ -295,7 +297,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     if (!visible) return undefined;
     return animateCanvas(containerRef, canvasRef, (ctx, width, height, nowMs) => {
       const currentSeries = seriesRef.current;
-      const plot = plotRect(
+      const plot = scientificChartPlotRectV1(
         width,
         height,
         scientificChartPlotTopV1(
@@ -932,22 +934,45 @@ function animateCanvas(
   };
 }
 
-function plotRect(
+export function scientificChartPlotRectV1(
   width: number,
   height: number,
   top: number = PLOT_PADDING.top,
 ) {
+  const responsiveLeft = Math.min(
+    PLOT_PADDING.left,
+    Math.max(COMPACT_PLOT_LEFT_PX, width * 0.18),
+  );
   const bottom = Math.max(PLOT_PADDING.top + 1, height - PLOT_PADDING.bottom);
   const safeTop = Math.min(
     Math.max(PLOT_PADDING.top, top),
     bottom - 1,
   );
   return {
-    left: PLOT_PADDING.left,
-    right: Math.max(PLOT_PADDING.left + 1, width - PLOT_PADDING.right),
+    left: responsiveLeft,
+    right: Math.max(responsiveLeft + 1, width - PLOT_PADDING.right),
     top: safeTop,
     bottom,
   };
+}
+
+export function scientificChartAxisLabelPositionsV1(
+  plot: ReturnType<typeof scientificChartPlotRectV1>,
+  height: number,
+): Readonly<{
+  xTitle: Readonly<{ x: number; y: number }>;
+  yTitle: Readonly<{ x: number; y: number }>;
+}> {
+  return Object.freeze({
+    xTitle: Object.freeze({
+      x: (plot.left + plot.right) / 2,
+      y: height - 3,
+    }),
+    yTitle: Object.freeze({
+      x: Math.max(18, plot.left - Y_AXIS_TITLE_GUTTER_PX),
+      y: (plot.top + plot.bottom) / 2,
+    }),
+  });
 }
 
 export function scientificChartPlotTopV1(
@@ -965,7 +990,7 @@ export function scientificChartPlotTopV1(
 
 function drawWaveformAxes(
   ctx: CanvasRenderingContext2D,
-  plot: ReturnType<typeof plotRect>,
+  plot: ReturnType<typeof scientificChartPlotRectV1>,
   width: number,
   height: number,
   values: readonly number[],
@@ -979,8 +1004,8 @@ function drawWaveformAxes(
 
 function drawCartesianAxes(
   ctx: CanvasRenderingContext2D,
-  plot: ReturnType<typeof plotRect>,
-  width: number,
+  plot: ReturnType<typeof scientificChartPlotRectV1>,
+  _width: number,
   height: number,
   x: d3.ScaleLinear<number, number>,
   y: d3.ScaleLinear<number, number>,
@@ -988,6 +1013,7 @@ function drawCartesianAxes(
   yLabel: string,
   theme: CanvasTheme,
 ): void {
+  const labelPositions = scientificChartAxisLabelPositionsV1(plot, height);
   ctx.save();
   ctx.strokeStyle = theme.grid;
   ctx.lineWidth = 1;
@@ -1013,10 +1039,12 @@ function drawCartesianAxes(
   ctx.font = "11px sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "bottom";
-  if (xLabel) ctx.fillText(xLabel, width / 2, height - 3);
+  if (xLabel) {
+    ctx.fillText(xLabel, labelPositions.xTitle.x, labelPositions.xTitle.y);
+  }
   if (yLabel) {
     ctx.save();
-    ctx.translate(13, height / 2);
+    ctx.translate(labelPositions.yTitle.x, labelPositions.yTitle.y);
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(yLabel, 0, 0);
     ctx.restore();

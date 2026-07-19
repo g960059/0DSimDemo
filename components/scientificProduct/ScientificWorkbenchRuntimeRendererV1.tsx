@@ -839,6 +839,47 @@ function scientificHemodynamicAggregateStatusV1(
   });
 }
 
+/**
+ * Builds a display-only quick-response locus without changing scientific
+ * eligibility. Every finite observation is connected in requested TBV order;
+ * a requested target with no finite observation remains an explicit gap.
+ */
+export function scientificQuickResponseDisplaySegmentsV1(
+  orderedTargetScales: readonly number[],
+  observations: readonly Readonly<{
+    targetScale: number;
+    point: ScientificGuytonCurvePointV1;
+  }>[],
+  baselinePoint?: ScientificGuytonCurvePointV1,
+): readonly (readonly ScientificGuytonCurvePointV1[])[] {
+  const pointByScale = new Map(
+    observations
+      .filter(({ targetScale, point }) => Number.isFinite(targetScale)
+        && Number.isFinite(point.pressureMmHg)
+        && Number.isFinite(point.flowLPerMin))
+      .map(({ targetScale, point }) => [targetScale, point] as const),
+  );
+  const segments = orderedTargetScales.reduce<ScientificGuytonCurvePointV1[][]>(
+    (currentSegments, targetScale) => {
+      const point = targetScale === 1 && baselinePoint !== undefined
+        ? baselinePoint
+        : pointByScale.get(targetScale) ?? null;
+      if (point === null) {
+        if (currentSegments.at(-1)?.length) currentSegments.push([]);
+        return currentSegments;
+      }
+      const current = currentSegments.at(-1);
+      if (current === undefined) currentSegments.push([point]);
+      else current.push(point);
+      return currentSegments;
+    },
+    [],
+  );
+  return Object.freeze(segments
+    .filter((segment) => segment.length > 0)
+    .map((segment) => Object.freeze(segment)));
+}
+
 function guytonPaneDataV1(
   side: "right" | "left",
   scenarioName: string,
@@ -1023,34 +1064,17 @@ function guytonPaneDataV1(
       ...(baseline === undefined ? [] : [1]),
     ]),
   ].sort((left, right) => left - right);
-  const estimatedRowsByScale = new Map(
-    estimatedRows.map((row) => [row.targetScale, row]),
+  const baselineDisplayPoint = baseline === undefined
+    ? undefined
+    : Object.freeze({
+        pressureMmHg: pressure(baseline)!,
+        flowLPerMin: baseline.netCardiacOutputLMin!,
+      });
+  const estimatedCardiacSegments = scientificQuickResponseDisplaySegmentsV1(
+    estimatedScales,
+    estimatedRows.map(({ targetScale, point }) => ({ targetScale, point })),
+    baselineDisplayPoint,
   );
-  const estimatedCardiacSegments = estimatedScales
-    .reduce<Array<Array<ScientificGuytonCurvePointV1>>>(
-      (segments, targetScale) => {
-        const point =
-          targetScale === 1 && baseline !== undefined
-            ? Object.freeze({
-                pressureMmHg: pressure(baseline)!,
-                flowLPerMin: baseline.netCardiacOutputLMin!,
-              })
-            : estimatedRowsByScale.get(targetScale)?.evidence.eligibility
-                  .rapidFiniteHoldLocus === true
-              ? estimatedRowsByScale.get(targetScale)!.point
-              : null;
-        if (point === null) {
-          if (segments.at(-1)?.length) segments.push([]);
-          return segments;
-        }
-        const current = segments.at(-1);
-        if (current === undefined) segments.push([point]);
-        else current.push(point);
-        return segments;
-      },
-      [],
-    )
-    .filter((segment) => segment.length > 0);
   const auditedReferences = operatingRows.filter(
     ({ auditStatus }) =>
       auditStatus !== "not-scheduled" && auditStatus !== "pending",

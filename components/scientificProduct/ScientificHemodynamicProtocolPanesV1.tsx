@@ -213,9 +213,15 @@ export function ScientificCardiacOutputFillingPressurePaneV1({
       clampLowerBoundZero: !data.allowNegativePressure,
     },
   );
-  const yDomain = scientificProtocolAxisDomainV1(
-    domainPoints.map(({ flowLPerMin }) => flowLPerMin),
-    { includeZero: true, minimumSpan: 2, lowerBoundZeroWhenNonnegative: true },
+  const currentCardiacPoints = scenarios.flatMap(({ current }) =>
+    current === null
+      ? []
+      : scientificHemodynamicGenerationCardiacPointsV1(current, displayMode));
+  const currentOperatingFlows = scenarios.flatMap(({ current }) =>
+    current?.operatingPoint === undefined ? [] : [current.operatingPoint.flowLPerMin]);
+  const yDomain = scientificHemodynamicFocusedFlowDomainV1(
+    currentCardiacPoints.map(({ flowLPerMin }) => flowLPerMin),
+    currentOperatingFlows,
   );
   const plot = scientificProtocolPlotRectV1(
     size,
@@ -241,6 +247,8 @@ export function ScientificCardiacOutputFillingPressurePaneV1({
       data-testid={`scientific-${data.side}-cardiac-output-filling-pressure-pane-v1`}
       data-protocol-status={data.status.status}
       data-qc-level={data.status.qc.level}
+      data-flow-domain-min={roundSvgV1(yDomain[0])}
+      data-flow-domain-max={roundSvgV1(yDomain[1])}
     >
       <ScientificProtocolTopChromeV1 title={title} status={data.status} compact={compact} />
       <svg
@@ -407,7 +415,7 @@ function ScientificHemodynamicResponseGenerationLayerV1({
         />
       )}
       {estimatedSegments.map((segment, segmentIndex) => {
-        const path = scientificCurvePathV1(segment, x, y);
+        const path = scientificShapePreservingCurvePathV1(segment, x, y);
         return path && (
           <path
             key={`estimated-${segmentIndex}`}
@@ -421,11 +429,12 @@ function ScientificHemodynamicResponseGenerationLayerV1({
             vectorEffect="non-scaling-stroke"
             data-series="rapid-finite-hold-preview"
             data-evidence="estimated"
+            data-interpolation="shape-preserving-cubic"
           />
         );
       })}
       {settledSegments.map((segment, segmentIndex) => {
-        const path = scientificCurvePathV1(segment, x, y);
+        const path = scientificShapePreservingCurvePathV1(segment, x, y);
         return path && (
           <path
             key={`settled-${segmentIndex}`}
@@ -438,6 +447,7 @@ function ScientificHemodynamicResponseGenerationLayerV1({
             vectorEffect="non-scaling-stroke"
             data-series="cardiac-preload-locus"
             data-evidence="settled"
+            data-interpolation="shape-preserving-cubic"
           />
         );
       })}
@@ -894,6 +904,53 @@ export function scientificProtocolAxisDomainV1(
   return Object.freeze([minimum, maximum]);
 }
 
+/**
+ * Keeps the user-facing view centred on the pump response and operating point.
+ *
+ * The high-flow end of the analytical vascular-return line is intentionally
+ * absent from this calculation: it remains available in the clipped plot, but
+ * must not flatten the measured/predicted cardiac response. With one scenario,
+ * the operating point sits at about 64% of the plot height. With several
+ * scenarios the median is preferred, while the highest operating point and
+ * every current cardiac-response sample retain explicit headroom.
+ */
+export function scientificHemodynamicFocusedFlowDomainV1(
+  currentCardiacFlowsLPerMin: readonly number[],
+  currentOperatingFlowsLPerMin: readonly number[],
+): readonly [number, number] {
+  const cardiac = currentCardiacFlowsLPerMin.filter(Number.isFinite);
+  const operating = currentOperatingFlowsLPerMin.filter(Number.isFinite);
+  const all = [...cardiac, ...operating];
+  if (all.some((value) => value < 0)) {
+    return scientificProtocolAxisDomainV1(all, {
+      includeZero: true,
+      minimumSpan: 2,
+      paddingFraction: 0.08,
+    });
+  }
+
+  const maximumCardiac = cardiac.length > 0 ? Math.max(...cardiac) : 0;
+  const sortedOperating = [...operating].sort((left, right) => left - right);
+  const maximumOperating = sortedOperating.at(-1) ?? 0;
+  const medianOperating = sortedOperating.length === 0
+    ? 0
+    : sortedOperating.length % 2 === 1
+      ? sortedOperating[(sortedOperating.length - 1) / 2]
+      : (sortedOperating[sortedOperating.length / 2 - 1]
+        + sortedOperating[sortedOperating.length / 2]) / 2;
+
+  // The three constraints respectively keep the full current response visible,
+  // centre the representative intersection, and preserve headroom for the
+  // highest intersection in a multi-scenario comparison.
+  const upper = Math.max(
+    2,
+    maximumCardiac / 0.9,
+    medianOperating / 0.64,
+    maximumOperating / 0.82,
+  );
+  return Object.freeze([0, upper]);
+}
+
 export function scientificSvgPathV1(
   points: readonly Readonly<{ x: number; y: number }>[],
   close = false,
@@ -917,6 +974,124 @@ function scientificCurvePathV1(
   })));
 }
 
+/**
+ * Fritsch-Carlson/PCHIP-style cubic Hermite interpolation rendered as SVG
+ * Beziers. Chord length is the independent parameter, so acquisition order is
+ * retained even when filling pressure locally reverses. Each screen-space
+ * coordinate is shape preserving between samples, preventing spline overshoot.
+ */
+export function scientificShapePreservingSvgPathV1(
+  points: readonly Readonly<{ x: number; y: number }>[],
+): string | null {
+  const unique: Array<{ x: number; y: number }> = [];
+  points
+    .filter(({ x, y }) => Number.isFinite(x) && Number.isFinite(y))
+    .forEach((point) => {
+      const previous = unique.at(-1);
+      if (previous !== undefined
+        && Math.hypot(point.x - previous.x, point.y - previous.y) <= 1e-9) return;
+      unique.push({ x: point.x, y: point.y });
+    });
+  if (unique.length < 2) return null;
+  if (unique.length === 2) {
+    return scientificSvgPathV1(unique);
+  }
+
+  const chord = [0];
+  for (let index = 1; index < unique.length; index += 1) {
+    chord.push(chord[index - 1] + Math.hypot(
+      unique[index].x - unique[index - 1].x,
+      unique[index].y - unique[index - 1].y,
+    ));
+  }
+  const xDerivatives = scientificPchipDerivativesV1(
+    chord,
+    unique.map(({ x }) => x),
+  );
+  const yDerivatives = scientificPchipDerivativesV1(
+    chord,
+    unique.map(({ y }) => y),
+  );
+
+  const commands = [`M${roundSvgV1(unique[0].x)},${roundSvgV1(unique[0].y)}`];
+  for (let index = 0; index < unique.length - 1; index += 1) {
+    const current = unique[index];
+    const next = unique[index + 1];
+    const width = chord[index + 1] - chord[index];
+    commands.push([
+      "C",
+      `${roundSvgV1(current.x + xDerivatives[index] * width / 3)},${roundSvgV1(current.y + yDerivatives[index] * width / 3)}`,
+      `${roundSvgV1(next.x - xDerivatives[index + 1] * width / 3)},${roundSvgV1(next.y - yDerivatives[index + 1] * width / 3)}`,
+      `${roundSvgV1(next.x)},${roundSvgV1(next.y)}`,
+    ].join(" "));
+  }
+  return commands.join(" ");
+}
+
+function scientificPchipDerivativesV1(
+  parameter: readonly number[],
+  values: readonly number[],
+): readonly number[] {
+  const intervalWidths = parameter.slice(0, -1).map((value, index) =>
+    parameter[index + 1] - value);
+  const secants = intervalWidths.map((width, index) =>
+    (values[index + 1] - values[index]) / width);
+  const derivatives = new Array<number>(values.length).fill(0);
+  const endpointDerivative = (
+    firstWidth: number,
+    secondWidth: number,
+    firstSecant: number,
+    secondSecant: number,
+  ) => {
+    let derivative = ((2 * firstWidth + secondWidth) * firstSecant
+      - firstWidth * secondSecant) / (firstWidth + secondWidth);
+    if (Math.sign(derivative) !== Math.sign(firstSecant)) derivative = 0;
+    else if (Math.sign(firstSecant) !== Math.sign(secondSecant)
+      && Math.abs(derivative) > Math.abs(3 * firstSecant)) {
+      derivative = 3 * firstSecant;
+    }
+    return derivative;
+  };
+
+  derivatives[0] = endpointDerivative(
+    intervalWidths[0],
+    intervalWidths[1],
+    secants[0],
+    secants[1],
+  );
+  for (let index = 1; index < values.length - 1; index += 1) {
+    const previousSecant = secants[index - 1];
+    const nextSecant = secants[index];
+    if (previousSecant === 0 || nextSecant === 0
+      || Math.sign(previousSecant) !== Math.sign(nextSecant)) continue;
+    const previousWidth = intervalWidths[index - 1];
+    const nextWidth = intervalWidths[index];
+    const previousWeight = 2 * nextWidth + previousWidth;
+    const nextWeight = nextWidth + 2 * previousWidth;
+    derivatives[index] = (previousWeight + nextWeight)
+      / (previousWeight / previousSecant + nextWeight / nextSecant);
+  }
+  derivatives[values.length - 1] = endpointDerivative(
+    intervalWidths.at(-1)!,
+    intervalWidths.at(-2)!,
+    secants.at(-1)!,
+    secants.at(-2)!,
+  );
+  return derivatives;
+}
+
+function scientificShapePreservingCurvePathV1(
+  points: readonly ScientificGuytonCurvePointV1[],
+  x: (value: number) => number,
+  y: (value: number) => number,
+): string | null {
+  return scientificShapePreservingSvgPathV1(points.map(({ pressureMmHg, flowLPerMin }) => ({
+    x: x(pressureMmHg),
+    y: y(flowLPerMin),
+  })));
+}
+
+
 function scientificHemodynamicGenerationPointsV1(
   generation: ScientificHemodynamicResponseGenerationV1,
   displayMode: ScientificHemodynamicResponseDisplayModeV1,
@@ -928,6 +1103,18 @@ function scientificHemodynamicGenerationPointsV1(
     ...(displayMode === "settled" ? [] : generation.estimatedPoints ?? []),
     ...(displayMode === "estimated" ? [] : generation.settledPoints ?? []),
     ...(generation.operatingPoint ? [generation.operatingPoint] : []),
+  ];
+}
+
+function scientificHemodynamicGenerationCardiacPointsV1(
+  generation: ScientificHemodynamicResponseGenerationV1,
+  displayMode: ScientificHemodynamicResponseDisplayModeV1,
+): readonly ScientificGuytonCurvePointV1[] {
+  return [
+    ...(displayMode === "settled" ? [] : generation.estimatedCardiacSegments?.flat() ?? []),
+    ...(displayMode === "estimated" ? [] : generation.settledCardiacSegments?.flat() ?? []),
+    ...(displayMode === "settled" ? [] : generation.estimatedPoints ?? []),
+    ...(displayMode === "estimated" ? [] : generation.settledPoints ?? []),
   ];
 }
 
@@ -1079,12 +1266,12 @@ function ScientificCartesianGridV1({
       <line x1={plot.left} x2={plot.left} y1={plot.top} y2={plot.bottom} stroke={CHART.axis} vectorEffect="non-scaling-stroke" />
       <text x={(plot.left + plot.right) / 2} y={plot.bottom + 32} textAnchor="middle" fill={CHART.text} fontSize={10}>{xLabel}</text>
       <text
-        x={12}
+        x={compact ? 18 : 20}
         y={(plot.top + plot.bottom) / 2}
         textAnchor="middle"
         fill={CHART.text}
         fontSize={10}
-        transform={`rotate(-90 12 ${(plot.top + plot.bottom) / 2})`}
+        transform={`rotate(-90 ${compact ? 18 : 20} ${(plot.top + plot.bottom) / 2})`}
       >
         {yLabel}
       </text>
@@ -1250,7 +1437,7 @@ function scientificProtocolPlotRectV1(
     : 42;
   const bottomPadding = compact ? 48 : 54;
   return Object.freeze({
-    left: compact ? 44 : 54,
+    left: compact ? 56 : 68,
     right: Math.max(compact ? 72 : 96, size.width - (compact ? 12 : 18)),
     top,
     bottom: Math.max(top + 48, size.height - bottomPadding),
