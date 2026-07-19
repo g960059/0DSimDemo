@@ -45,7 +45,7 @@ export type ScientificGuytonCurvePointV1 = Readonly<{
 
 export type ScientificGuytonSweepPointV1 = ScientificGuytonCurvePointV1 & Readonly<{
   id: string;
-  classification: "period1" | "period2" | "rejected";
+  classification: "period1" | "audit-suspect" | "period2" | "rejected";
   totalBloodVolumeMl?: number;
   reason?: string;
 }>;
@@ -61,6 +61,8 @@ export type ScientificGuytonStarlingPaneDataV1 = Readonly<{
   vascularReturnCurve: readonly ScientificGuytonCurvePointV1[];
   /** Raw P1 preload-family locus. P2 and rejected points stay outside this curve. */
   cardiacPreloadLocus: readonly ScientificGuytonCurvePointV1[];
+  /** P1-only runs split at every P2, failed, or unresolved target. */
+  cardiacPreloadSegments?: readonly (readonly ScientificGuytonCurvePointV1[])[];
   sweepPoints: readonly ScientificGuytonSweepPointV1[];
   operatingPoint?: ScientificGuytonOperatingPointV1;
   status: ScientificHemodynamicProtocolStatusV1;
@@ -162,6 +164,7 @@ const CHART = Object.freeze({
   vascular: "#22d3ee",
   cardiac: "#fb923c",
   p1: "#60a5fa",
+  audit: "#f59e0b",
   p2: "#fbbf24",
   rejected: "#f87171",
   operating: "var(--wb-text)",
@@ -202,12 +205,13 @@ export function ScientificGuytonStarlingPaneV1({
       y: y(flowLPerMin),
     })),
   );
-  const cardiacPath = scientificSvgPathV1(
-    data.cardiacPreloadLocus.map(({ pressureMmHg, flowLPerMin }) => ({
+  const cardiacPaths = (data.cardiacPreloadSegments
+    ?? [data.cardiacPreloadLocus]).map((segment) => scientificSvgPathV1(
+    segment.map(({ pressureMmHg, flowLPerMin }) => ({
       x: x(pressureMmHg),
       y: y(flowLPerMin),
     })),
-  );
+  ));
   const title = data.title
     ?? (data.side === "right" ? "Right-heart Guyton / Starling" : "Left-heart Guyton / Starling");
 
@@ -254,8 +258,9 @@ export function ScientificGuytonStarlingPaneV1({
             data-series="vascular-return"
           />
         )}
-        {cardiacPath && (
+        {cardiacPaths.map((cardiacPath, segmentIndex) => cardiacPath && (
           <path
+            key={`cardiac-preload-segment-${segmentIndex}`}
             d={cardiacPath}
             fill="none"
             stroke={CHART.cardiac}
@@ -264,8 +269,9 @@ export function ScientificGuytonStarlingPaneV1({
             strokeLinejoin="round"
             vectorEffect="non-scaling-stroke"
             data-series="cardiac-preload-locus"
+            data-segment-index={segmentIndex}
           />
-        )}
+        ))}
         {data.sweepPoints.map((point) => (
           <ScientificGuytonPointMarkerV1
             key={point.id}
@@ -292,6 +298,7 @@ export function ScientificGuytonStarlingPaneV1({
         <ScientificLegendLineV1 color={CHART.vascular} label={data.vascularCurveLabel ?? "Vascular return · fixed-volume PV laws"} />
         <ScientificLegendLineV1 color={CHART.cardiac} label={data.cardiacCurveLabel ?? "Cardiac response · P1 preload locus"} />
         <ScientificLegendMarkerV1 color={CHART.p1} label="P1" />
+        <ScientificLegendMarkerV1 color={CHART.audit} label="Audit warning" />
         <ScientificLegendMarkerV1 color={CHART.p2} label="P2 suspect · excluded" diamond />
         <ScientificLegendMarkerV1 color={CHART.rejected} label="Rejected" crossed />
       </div>
@@ -700,7 +707,13 @@ function ScientificGuytonPointMarkerV1({
   cy: number;
 }>) {
   const title = [
-    point.classification === "period1" ? "P1 accepted" : point.classification === "period2" ? "P2 suspect · excluded" : "Rejected",
+    point.classification === "period1"
+      ? "P1 accepted"
+      : point.classification === "audit-suspect"
+        ? "P1 continuation · independent audit warning"
+        : point.classification === "period2"
+          ? "P2 suspect · excluded"
+          : "Rejected",
     point.totalBloodVolumeMl === undefined ? null : `${formatNumberV1(point.totalBloodVolumeMl, 0)} mL TBV`,
     point.reason,
   ].filter(Boolean).join(" · ");
@@ -717,6 +730,15 @@ function ScientificGuytonPointMarkerV1({
       <g transform={`translate(${cx} ${cy})`} data-point-classification="rejected">
         <circle r={5.5} fill="var(--wb-app-bg)" stroke={CHART.rejected} strokeWidth={1} opacity={0.7} />
         <path d="M-3.5,-3.5 L3.5,3.5 M3.5,-3.5 L-3.5,3.5" stroke={CHART.rejected} strokeWidth={1.8} vectorEffect="non-scaling-stroke" />
+        <title>{title}</title>
+      </g>
+    );
+  }
+  if (point.classification === "audit-suspect") {
+    return (
+      <g data-point-classification="audit-suspect">
+        <circle cx={cx} cy={cy} r={5.5} fill="var(--wb-app-bg)" stroke={CHART.audit} strokeWidth={2} strokeDasharray="2 1.5" vectorEffect="non-scaling-stroke" />
+        <circle cx={cx} cy={cy} r={2} fill={CHART.audit} />
         <title>{title}</title>
       </g>
     );

@@ -77,6 +77,9 @@ import {
   type MainWireScientificGuytonStarlingProtocolResultV1,
   type MainWireScientificPvRelationsProtocolResultV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
+import type {
+  MainWireScientificHemodynamicJobCapsuleV2,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
 
 export const MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID =
   "main-wire-scientific-session-v1" as const;
@@ -550,6 +553,38 @@ export class MainWireScientificSessionV1 {
       this.dependencies,
       this.acceptedState,
     );
+  }
+
+  /**
+   * Creates a trusted worker-internal protocol capsule. It deliberately uses
+   * the transaction checkpoint rather than the public exact-session envelope,
+   * so a research-control session can be analysed without exposing raw state
+   * to the UI or pretending that checkpoint V3 is control-aware.
+   */
+  createHemodynamicJobCapsuleV2():
+  MainWireScientificHemodynamicJobCapsuleV2 {
+    const provider = this.dependencies.provider;
+    return Object.freeze({
+      capsuleId: "main-wire-scientific-hemodynamic-job-capsule-v2" as const,
+      source: Object.freeze({
+        revision: this.acceptedState.revision,
+        acceptedTimeSec: this.acceptedState.acceptedTimeSec,
+        fixedTotalBloodVolumeMl:
+          this.acceptedState.circulation.totalBloodVolumeMl,
+      }),
+      providerIdentity: Object.freeze({
+        providerId: provider.providerId,
+        parameterSetId: provider.parameterSetId,
+        parameterIdentityHash: provider.parameterIdentityHash,
+      }),
+      transactionCheckpoint: checkpointMainWireFiveWallNonCoronaryV1(
+        provider,
+        this.acceptedState,
+      ),
+      runtime: this.dependencies.runtime,
+      pericardium: this.dependencies.pericardium,
+      calciumDriveParams: this.dependencies.calciumDriveParams,
+    });
   }
 
   /** Read-only fixed-TBV IVC-like multi-beat PV relation protocol. */

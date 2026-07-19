@@ -240,7 +240,19 @@ function ScientificProductWorkbenchShellV1({
   });
   const [registry] = React.useState(() =>
     new ScientificProductScenarioRegistryV1(resolution, runtime));
-  React.useEffect(() => () => registry.dispose(), [registry]);
+  const registryMountedRef = React.useRef(false);
+  React.useEffect(() => {
+    registryMountedRef.current = true;
+    return () => {
+      registryMountedRef.current = false;
+      // React Strict Mode replays effect setup/cleanup during development.
+      // Defer irreversible worker disposal so the immediate replay can retain
+      // the same registry; a real unmount remains false at the microtask.
+      globalThis.queueMicrotask(() => {
+        if (!registryMountedRef.current) registry.dispose();
+      });
+    };
+  }, [registry]);
   const descriptors = React.useSyncExternalStore(
     registry.subscribeDescriptors,
     registry.getDescriptorSnapshot,

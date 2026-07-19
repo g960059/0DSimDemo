@@ -80,6 +80,8 @@ type MechanicsState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireFiveWallNonCoronaryAcceptedStateV1<MechanicsState>;
 type StepSuccess = MainWireFiveWallNonCoronaryStepSuccessV1<MechanicsState>;
 
+export type MainWireScientificProtocolAcceptedStateV1 = AcceptedState;
+
 export type MainWireScientificHemodynamicProtocolDependenciesV1 = Readonly<{
   provider: MainWireNormalAdultFiveWallProviderV1;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
@@ -163,6 +165,22 @@ export type MainWireScientificGuytonStarlingProtocolResultV1 = Readonly<{
   preloadOperatingLocus: MainWireScientificPreloadOperatingLocusV1;
 }>;
 
+export type MainWireScientificGuytonStarlingBaselineV2 = Readonly<{
+  source: MainWireScientificProtocolSourceIdentityV1;
+  baselinePeriodicity: MainWireFiveWallPeriodicClassificationStatusV1;
+  rightVascularFunction: MainWireScientificVascularFunctionCurveV1;
+  leftVascularFunction: MainWireScientificVascularFunctionCurveV1;
+  baselinePoint: MainWireScientificPreloadOperatingPointV1;
+  /** Trusted protocol-worker state at the same cycle phase, never presented. */
+  continuationSeedState: MainWireScientificProtocolAcceptedStateV1;
+}>;
+
+export type MainWireScientificSettledPreloadPointV2 = Readonly<{
+  point: MainWireScientificPreloadOperatingPointV1;
+  /** Present only for a classified P1 endpoint eligible to seed continuation. */
+  continuationSeedState: MainWireScientificProtocolAcceptedStateV1 | null;
+}>;
+
 export type MainWireScientificPvProtocolSampleV1 = Readonly<{
   phase01: number;
   lvVolumeMl: number;
@@ -243,6 +261,59 @@ export function runMainWireScientificGuytonStarlingProtocolV1(
   dependencies: MainWireScientificHemodynamicProtocolDependenciesV1,
   sourceState: AcceptedState,
 ): MainWireScientificGuytonStarlingProtocolResultV1 {
+  const prepared = prepareMainWireScientificGuytonStarlingBaselineV2(
+    dependencies,
+    sourceState,
+  );
+  const source = prepared.source;
+  const baselinePeriodicity = prepared.baselinePeriodicity;
+  const rightVascularFunction = prepared.rightVascularFunction;
+  const leftVascularFunction = prepared.leftVascularFunction;
+  const preloadOperatingPoints = PRELOAD_TARGET_SCALES.map((targetScale) =>
+    targetScale === 1
+      ? prepared.baselinePoint
+      : settleIndependentPreloadPoint(
+        dependencies,
+        sourceState,
+        source.fixedTotalBloodVolumeMl * targetScale,
+        targetScale,
+      ));
+  const preloadOperatingLocus = buildMainWireScientificPreloadOperatingLocusV1(
+    preloadOperatingPoints.map((point) =>
+      preloadOperatingPointForAnalysis(point)),
+  );
+  return Object.freeze({
+    protocolId: MAIN_WIRE_SCIENTIFIC_GUYTON_STARLING_PROTOCOL_V1_ID,
+    protocolVersion: "1.0.0" as const,
+    source,
+    claim: Object.freeze({
+      totalBloodVolumeSweepIsOneDimensionalPreloadOperatingLocus: true as const,
+      totalBloodVolumeSweepIsNotGuytonPumpExperiment: true as const,
+      totalBloodVolumeSweepIsNotEspvrOrEdpvr: true as const,
+      vascularCurveMethod:
+        "cycle-mean-fixed-volume-vascular-pv-law-volume-constrained" as const,
+      preloadInitialization:
+        "independent-source-state-fork-shared-SV-VC-transmural-offset" as const,
+      period2PointsAveragedIntoPeriod1Locus: false as const,
+    }),
+    baselinePeriodicity,
+    rightVascularFunction,
+    leftVascularFunction,
+    preloadOperatingPoints: Object.freeze(preloadOperatingPoints),
+    preloadOperatingLocus,
+  });
+}
+
+/**
+ * Computes the one-beat vascular snapshot and source operating point before
+ * any expensive preload exploration. Browser job hosts can therefore publish
+ * the Guyton structural curves immediately and dispatch continuation lanes
+ * afterwards.
+ */
+export function prepareMainWireScientificGuytonStarlingBaselineV2(
+  dependencies: MainWireScientificHemodynamicProtocolDependenciesV1,
+  sourceState: MainWireScientificProtocolAcceptedStateV1,
+): MainWireScientificGuytonStarlingBaselineV2 {
   const source = sourceIdentity(sourceState);
   const baseline = runProtocolBeat(dependencies, sourceState, () => 1);
   const baselineClosure = compareMainWireFiveWallAcceptedStatesV1(
@@ -272,57 +343,49 @@ export function runMainWireScientificGuytonStarlingProtocolV1(
   const meanLeftOffset = mean(baseline.steps.map(({ sample }) =>
     sample.nodeAbsolutePressureMmHg.LA
       - sample.chamberTransmuralPressureMmHg.LA));
-  const rightVascularFunction = vascularFunctionResult(
-    rightSnapshot,
-    meanOffset,
-  );
-  const leftVascularFunction = vascularFunctionResult(
-    leftSnapshot,
-    meanLeftOffset,
-  );
-  const preloadOperatingPoints = PRELOAD_TARGET_SCALES.map((targetScale) =>
-    targetScale === 1
-      ? preloadPointFromSettledBeat({
-        targetScale,
-        fixedTotalBloodVolumeMl: source.fixedTotalBloodVolumeMl,
-        status: baselinePeriodicity,
-        completedBeatCount: 1,
-        closureObservations: [],
-        steps: baseline.steps,
-        previousPeriod2BranchSteps: null,
-        failureReason: baselinePeriodicity === "period1-converged"
-          ? null
-          : "source session did not reproduce a period-1 beat",
-      })
-      : settleIndependentPreloadPoint(
-        dependencies,
-        sourceState,
-        source.fixedTotalBloodVolumeMl * targetScale,
-        targetScale,
-      ));
-  const preloadOperatingLocus = buildMainWireScientificPreloadOperatingLocusV1(
-    preloadOperatingPoints.map(preloadOperatingPointForAnalysis),
-  );
-  return Object.freeze({
-    protocolId: MAIN_WIRE_SCIENTIFIC_GUYTON_STARLING_PROTOCOL_V1_ID,
-    protocolVersion: "1.0.0" as const,
-    source,
-    claim: Object.freeze({
-      totalBloodVolumeSweepIsOneDimensionalPreloadOperatingLocus: true as const,
-      totalBloodVolumeSweepIsNotGuytonPumpExperiment: true as const,
-      totalBloodVolumeSweepIsNotEspvrOrEdpvr: true as const,
-      vascularCurveMethod:
-        "cycle-mean-fixed-volume-vascular-pv-law-volume-constrained" as const,
-      preloadInitialization:
-        "independent-source-state-fork-shared-SV-VC-transmural-offset" as const,
-      period2PointsAveragedIntoPeriod1Locus: false as const,
-    }),
-    baselinePeriodicity,
-    rightVascularFunction,
-    leftVascularFunction,
-    preloadOperatingPoints: Object.freeze(preloadOperatingPoints),
-    preloadOperatingLocus,
+  const baselinePoint = preloadPointFromSettledBeat({
+    targetScale: 1,
+    fixedTotalBloodVolumeMl: source.fixedTotalBloodVolumeMl,
+    status: baselinePeriodicity,
+    completedBeatCount: 1,
+    closureObservations: [],
+    steps: baseline.steps,
+    previousPeriod2BranchSteps: null,
+    failureReason: baselinePeriodicity === "period1-converged"
+      ? null
+      : "source session did not reproduce a period-1 beat",
   });
+  return Object.freeze({
+    source,
+    baselinePeriodicity,
+    rightVascularFunction: vascularFunctionResult(rightSnapshot, meanOffset),
+    leftVascularFunction: vascularFunctionResult(
+      leftSnapshot,
+      meanLeftOffset,
+    ),
+    baselinePoint,
+    continuationSeedState: baseline.state,
+  });
+}
+
+export function buildMainWireScientificPreloadOperatingLocusFromPointsV1(
+  points: readonly MainWireScientificPreloadOperatingPointV1[],
+): MainWireScientificPreloadOperatingLocusV1 {
+  return buildMainWireScientificPreloadOperatingLocusV1(
+    points.map((point) => preloadOperatingPointForAnalysis(point)),
+  );
+}
+
+export function buildMainWireScientificPreloadOperatingLocusFromIdentifiedPointsV1(
+  points: readonly Readonly<{
+    pointId: string;
+    point: MainWireScientificPreloadOperatingPointV1;
+  }>[],
+): MainWireScientificPreloadOperatingLocusV1 {
+  return buildMainWireScientificPreloadOperatingLocusV1(
+    points.map(({ pointId, point }) =>
+      preloadOperatingPointForAnalysis(point, pointId)),
+  );
 }
 
 export function runMainWireScientificPvRelationsProtocolV1(
@@ -472,42 +535,81 @@ function settleIndependentPreloadPoint(
   targetTbvMl: number,
   targetScale: number,
 ): MainWireScientificPreloadOperatingPointV1 {
+  return settleMainWireScientificContinuationPreloadPointV2(
+    dependencies,
+    sourceState,
+    targetTbvMl,
+    targetScale,
+  ).point;
+}
+
+/**
+ * Settles one fixed-TBV continuation target from a same-phase accepted seed.
+ * Only a classified P1 endpoint is returned as the next warm seed. P2,
+ * unresolved and failed targets remain visible evidence but cannot silently
+ * propagate an untrusted branch into the next volume point.
+ */
+export function settleMainWireScientificContinuationPreloadPointV2(
+  dependencies: MainWireScientificHemodynamicProtocolDependenciesV1,
+  seedState: MainWireScientificProtocolAcceptedStateV1,
+  targetTbvMl: number,
+  targetScale: number,
+): MainWireScientificSettledPreloadPointV2 {
   let state: AcceptedState;
   try {
     state = forkAcceptedStateAtFixedBloodVolume(
-      sourceState,
+      seedState,
       dependencies.runtime,
       targetTbvMl,
     );
   } catch (error) {
-    return emptyPreloadPoint(
-      targetScale,
-      targetTbvMl,
-      "step-failure",
-      errorMessage(error),
-    );
+    return Object.freeze({
+      point: emptyPreloadPoint(
+        targetScale,
+        targetTbvMl,
+        "step-failure",
+        errorMessage(error),
+      ),
+      continuationSeedState: null,
+    });
   }
   const closureObservations: MainWireFiveWallPeriodicBeatObservationV1[] = [];
   let previous = state;
   let previous2: AcceptedState | null = null;
   let terminalSteps: readonly ProtocolStep[] = [];
   let previousTerminalSteps: readonly ProtocolStep[] | null = null;
+  let previousBeatStartState: AcceptedState | null = null;
+  let immediatelyPreviousCapturedSteps: readonly ProtocolStep[] | null = null;
   for (let beatIndex = 1; beatIndex <= MAXIMUM_SETTLING_BEATS; beatIndex += 1) {
+    const beatStartState = state;
+    const captureDiagnostics = beatIndex === MAXIMUM_SETTLING_BEATS
+      || shouldCapturePreloadSettlingBeat(closureObservations);
     let beat;
     try {
-      beat = runProtocolBeat(dependencies, state, () => 1);
-    } catch (error) {
-      return emptyPreloadPoint(
-        targetScale,
-        targetTbvMl,
-        "step-failure",
-        errorMessage(error),
-        beatIndex - 1,
+      beat = runProtocolBeat(
+        dependencies,
+        state,
+        () => 1,
+        captureDiagnostics,
       );
+    } catch (error) {
+      return Object.freeze({
+        point: emptyPreloadPoint(
+          targetScale,
+          targetTbvMl,
+          "step-failure",
+          errorMessage(error),
+          beatIndex - 1,
+        ),
+        continuationSeedState: null,
+      });
     }
     state = beat.state;
-    previousTerminalSteps = terminalSteps.length > 0 ? terminalSteps : null;
     terminalSteps = beat.steps;
+    previousTerminalSteps = immediatelyPreviousCapturedSteps;
+    immediatelyPreviousCapturedSteps = terminalSteps.length > 0
+      ? terminalSteps
+      : null;
     const period1 = compareMainWireFiveWallAcceptedStatesV1(
       state,
       previous,
@@ -527,7 +629,27 @@ function settleIndependentPreloadPoint(
       classification.status === "period1-converged"
       || classification.status === "period2-suspect"
     ) {
-      return preloadPointFromSettledBeat({
+      if (terminalSteps.length === 0) {
+        terminalSteps = runProtocolBeat(
+          dependencies,
+          beatStartState,
+          () => 1,
+          true,
+        ).steps;
+      }
+      if (
+        classification.status === "period2-suspect"
+        && previousTerminalSteps === null
+        && previousBeatStartState !== null
+      ) {
+        previousTerminalSteps = runProtocolBeat(
+          dependencies,
+          previousBeatStartState,
+          () => 1,
+          true,
+        ).steps;
+      }
+      const point = preloadPointFromSettledBeat({
         targetScale,
         fixedTotalBloodVolumeMl: targetTbvMl,
         status: classification.status,
@@ -542,22 +664,82 @@ function settleIndependentPreloadPoint(
           ? "period-2-suspect orbit classified; point retained but excluded from P1 locus"
           : null,
       });
+      return Object.freeze({
+        point,
+        continuationSeedState:
+          classification.status === "period1-converged" ? state : null,
+      });
     }
+    previousBeatStartState = beatStartState;
   }
-  return preloadPointFromSettledBeat({
-    targetScale,
-    fixedTotalBloodVolumeMl: targetTbvMl,
-    status: "maximum-beats-reached",
-    completedBeatCount: MAXIMUM_SETTLING_BEATS,
-    closureObservations,
-    steps: terminalSteps,
-    previousPeriod2BranchSteps: null,
-    failureReason: "periodicity gate was not reached within the bounded protocol",
+  return Object.freeze({
+    point: preloadPointFromSettledBeat({
+      targetScale,
+      fixedTotalBloodVolumeMl: targetTbvMl,
+      status: "maximum-beats-reached",
+      completedBeatCount: MAXIMUM_SETTLING_BEATS,
+      closureObservations,
+      steps: terminalSteps,
+      previousPeriod2BranchSteps: null,
+      failureReason:
+        "periodicity gate was not reached within the bounded protocol",
+    }),
+    continuationSeedState: null,
   });
 }
 
 /**
- * Forks every preload target from the same accepted source phase. Only the two
+ * Full per-step diagnostics are only needed for a terminal P1 beat or for the
+ * two terminal P2 branches. The classifier requires consecutive beat-boundary
+ * evidence, so its preceding observations identify those beats before they
+ * are integrated. This keeps the scientific classification unchanged while
+ * avoiding diagnostic sample/state arrays during the long settling prefix.
+ */
+function shouldCapturePreloadSettlingBeat(
+  observations: readonly MainWireFiveWallPeriodicBeatObservationV1[],
+): boolean {
+  const policy = MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1;
+  const period1PredecessorCount = Math.max(0, policy.consecutiveBeats - 1);
+  if (observationSuffixMatches(
+    observations,
+    period1PredecessorCount,
+    (observation) => observation.period1 !== null
+      && observation.period1.overall.maximumNormalizedDelta
+        <= policy.period1NormalizedTolerance,
+  )) return true;
+
+  // Capture one beat earlier for P2 so the immediately preceding strong/weak
+  // branch remains available when the next beat completes the evidence suffix.
+  const period2PredecessorCount = Math.max(0, policy.consecutiveBeats - 2);
+  return observationSuffixMatches(
+    observations,
+    period2PredecessorCount,
+    (observation) => observation.period1 !== null
+      && observation.period2 !== null
+      && observation.period1.overall.maximumNormalizedDelta
+        >= policy.period2MinimumPeriod1NormalizedDelta
+      && observation.period2.overall.maximumNormalizedDelta
+        <= policy.period2NormalizedTolerance,
+  );
+}
+
+function observationSuffixMatches(
+  observations: readonly MainWireFiveWallPeriodicBeatObservationV1[],
+  requiredCount: number,
+  matches: (observation: MainWireFiveWallPeriodicBeatObservationV1) => boolean,
+): boolean {
+  if (requiredCount === 0) return true;
+  const suffix = observations.slice(-requiredCount);
+  return suffix.length === requiredCount
+    && suffix.every((observation, index) => matches(observation)
+      && (index === 0
+        || observation.beatIndex === suffix[index - 1]!.beatIndex + 1));
+}
+
+/**
+ * Forks a preload target from the supplied same-phase accepted seed. V1 calls
+ * this with the source state for independent points; V2 calls it with the
+ * preceding P1 terminal state for bidirectional continuation. Only the two
  * systemic venous reservoirs receive or lose volume, with one shared change
  * in transmural pressure under their authoritative nonlinear PV laws.
  * Chamber volumes, Land state, valve memory, root-flow memory, HR, vascular
@@ -660,6 +842,7 @@ function runProtocolBeat(
   dependencies: MainWireScientificHemodynamicProtocolDependenciesV1,
   initialState: AcceptedState,
   vcRaResistanceScaleAtPhase: (phase01: number) => number,
+  captureDiagnostics = true,
 ): Readonly<{ state: AcceptedState; steps: readonly ProtocolStep[] }> {
   let state = initialState;
   const steps: ProtocolStep[] = [];
@@ -683,11 +866,13 @@ function runProtocolBeat(
       );
     }
     state = stepped.acceptedState;
-    steps.push(Object.freeze({
-      state,
-      step: stepped,
-      sample: sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped),
-    }));
+    if (captureDiagnostics) {
+      steps.push(Object.freeze({
+        state,
+        step: stepped,
+        sample: sampleMainWireNormalAdultFiveWallDiagnosticStepV2(stepped),
+      }));
+    }
   }
   return Object.freeze({ state, steps: Object.freeze(steps) });
 }
@@ -791,9 +976,10 @@ function period2BranchMeasurements(
 
 function preloadOperatingPointForAnalysis(
   point: MainWireScientificPreloadOperatingPointV1,
+  identifiedPointId?: string,
 ): MainWireScientificHemodynamicOperatingPointV1 {
   const common = {
-    pointId: `tbv-${point.targetScale.toFixed(3)}`,
+    pointId: identifiedPointId ?? `tbv-${point.targetScale.toFixed(3)}`,
     protocolKind: "tbv-preload-operating-locus" as const,
     role: point.targetScale === 1
       ? "baseline" as const
@@ -1273,8 +1459,9 @@ function meanVascularSnapshot(
   steps: readonly ProtocolStep[],
   runtime: NonCoronaryCirculationRuntimeParamsV1,
 ): VascularReturnSnapshot {
+  const graph = buildNonCoronaryCirculationGraphV1();
   const snapshots = steps.map(({ state, sample }) =>
-    instantaneousVascularSnapshot(side, state, sample, runtime));
+    instantaneousVascularSnapshot(side, state, sample, runtime, graph));
   if (snapshots.length === 0) {
     throw new Error("vascular protocol collected no accepted samples");
   }
@@ -1332,8 +1519,8 @@ function instantaneousVascularSnapshot(
   state: AcceptedState,
   sample: MainWireNormalAdultFiveWallDiagnosticSampleV2,
   runtime: NonCoronaryCirculationRuntimeParamsV1,
+  graph: ReturnType<typeof buildNonCoronaryCirculationGraphV1>,
 ): VascularReturnSnapshot {
-  const graph = buildNonCoronaryCirculationGraphV1();
   const nodePath = side === "right"
     ? (["VC", "SV", "Cap", "Art", "SA", "Ao"] as const)
     : (["PVein", "PVen", "PCap"] as const);

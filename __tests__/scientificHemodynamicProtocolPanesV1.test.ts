@@ -42,10 +42,19 @@ describe("scientific hemodynamic protocol panes V1", () => {
       ],
       cardiacPreloadLocus: [
         { pressureMmHg: 5, flowLPerMin: 3.5 },
+        { pressureMmHg: 8, flowLPerMin: 4.8 },
         { pressureMmHg: 12, flowLPerMin: 6 },
       ],
+      cardiacPreloadSegments: [[
+        { pressureMmHg: 5, flowLPerMin: 3.5 },
+        { pressureMmHg: 8, flowLPerMin: 4.8 },
+      ], [
+        { pressureMmHg: 8, flowLPerMin: 4.8 },
+        { pressureMmHg: 12, flowLPerMin: 6 },
+      ]],
       sweepPoints: [
         { id: "low", pressureMmHg: 5, flowLPerMin: 3.5, classification: "period1" },
+        { id: "audit", pressureMmHg: 8, flowLPerMin: 4.8, classification: "audit-suspect", reason: "path dependence" },
         { id: "p2", pressureMmHg: 7, flowLPerMin: 4, classification: "period2", reason: "alternans" },
         { id: "bad", pressureMmHg: 3, flowLPerMin: 2, classification: "rejected", reason: "step failure" },
       ],
@@ -60,9 +69,11 @@ describe("scientific hemodynamic protocol panes V1", () => {
 
     expect(html).toContain("Mean transmural LAP / PCWP surrogate (mmHg)");
     expect(html).toContain('data-point-classification="period1"');
+    expect(html).toContain('data-point-classification="audit-suspect"');
     expect(html).toContain('data-point-classification="period2"');
     expect(html).toContain('data-point-classification="rejected"');
     expect(html).toContain("P2 suspect · excluded");
+    expect(html.match(/data-series="cardiac-preload-locus"/g)).toHaveLength(2);
     expect(html).toContain("one-dimensional operating locus");
   });
 

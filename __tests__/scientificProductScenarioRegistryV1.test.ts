@@ -503,6 +503,345 @@ describe("scientific product scenario registry V1", () => {
     registry.dispose();
   });
 
+  it("publishes the vascular curve first, then progressive preload points and the final job result", async () => {
+    vi.useFakeTimers();
+    const revision = 96_000;
+    const source = protocolResultSource(revision, 96);
+    const vascularReady = guytonJobSnapshotFixture({
+      source,
+      sequence: 0,
+      stage: "vascular-ready",
+      status: "running",
+      completedPointCount: 0,
+    });
+    const firstPoint = guytonJobSnapshotFixture({
+      source,
+      sequence: 1,
+      stage: "continuation",
+      status: "running",
+      completedPointCount: 1,
+    });
+    const completeResult = guytonJobResultFixture(source);
+    const complete = guytonJobSnapshotFixture({
+      source,
+      sequence: 2,
+      stage: "complete",
+      status: "complete",
+      completedPointCount: 3,
+      result: completeResult,
+    });
+    let pollOrdinal = 0;
+    const client = jobClientFixture((command) => {
+      if (command.kind === "startGuytonStarlingProtocolJob") {
+        return guytonJobStartResponse(command, vascularReady, 100);
+      }
+      if (command.kind === "pollGuytonStarlingProtocolJob") {
+        const snapshot = pollOrdinal++ === 0 ? firstPoint : complete;
+        return guytonJobProgressResponse(command, snapshot);
+      }
+      throw new Error(`Unexpected command ${command.kind}`);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("progressive-job-session", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+    const protocolEvents = vi.fn();
+    const unsubscribe = registry.subscribeHemodynamicProtocols(protocolEvents);
+
+    try {
+      registry.requestHemodynamicProtocol(scenarioId, "guyton-starling");
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({ status: "running", jobSnapshot: null, result: null });
+
+      await flushMicrotasks();
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({
+          status: "running",
+          result: null,
+          jobSnapshot: {
+            stage: "vascular-ready",
+            sequence: 0,
+            progress: { completedPointCount: 0 },
+            rightVascularFunction: { side: "right" },
+            leftVascularFunction: { side: "left" },
+          },
+        });
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual(["startGuytonStarlingProtocolJob"]);
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({
+          status: "running",
+          jobSnapshot: {
+            stage: "continuation",
+            sequence: 1,
+            progress: { completedPointCount: 1 },
+          },
+        });
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({
+          status: "complete",
+          sourceIdentity: {
+            revision,
+            acceptedTimeSec: 96,
+            totalBloodVolumeMl: 5_000,
+          },
+          result: completeResult,
+          jobSnapshot: {
+            stage: "complete",
+            sequence: 2,
+            progress: { completedPointCount: 3 },
+          },
+          errorMessage: null,
+        });
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual([
+          "startGuytonStarlingProtocolJob",
+          "pollGuytonStarlingProtocolJob",
+          "pollGuytonStarlingProtocolJob",
+        ]);
+      expect(protocolEvents).toHaveBeenCalledTimes(4);
+
+      registry.requestHemodynamicProtocol(scenarioId, "guyton-starling");
+      expect(client.request).toHaveBeenCalledTimes(3);
+    } finally {
+      unsubscribe();
+      registry.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels a job whose start response arrives after the source became stale", async () => {
+    const revision = 96_500;
+    const source = protocolResultSource(revision, 96.5);
+    const vascularReady = guytonJobSnapshotFixture({
+      source,
+      sequence: 0,
+      stage: "vascular-ready",
+      status: "running",
+      completedPointCount: 0,
+    });
+    let resolveStart!: (response: unknown) => void;
+    const client = jobClientFixture((command) => {
+      if (command.kind === "startGuytonStarlingProtocolJob") {
+        return new Promise((resolve) => {
+          resolveStart = resolve;
+        });
+      }
+      if (command.kind === "cancelGuytonStarlingProtocolJob") {
+        return guytonJobCancelResponse(command);
+      }
+      throw new Error(`Unexpected command ${command.kind}`);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("stale-start-job-session", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      registry.requestHemodynamicProtocol(scenarioId, "guyton-starling");
+      publishSourceIdentity(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 96.502,
+      });
+      const startCommand = client.request.mock.calls[0]![0];
+      resolveStart(guytonJobStartResponse(startCommand, vascularReady, 100));
+      await flushMicrotasks();
+
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual([
+          "startGuytonStarlingProtocolJob",
+          "cancelGuytonStarlingProtocolJob",
+        ]);
+      expect(client.request.mock.calls[1]?.[0]).toMatchObject({
+        sessionId: "stale-start-job-session",
+        jobId: "job-1",
+      });
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({ status: "idle", result: null, jobSnapshot: null });
+    } finally {
+      registry.dispose();
+    }
+  });
+
+  it("cancels a job whose poll response arrives after the source became stale", async () => {
+    vi.useFakeTimers();
+    const revision = 96_750;
+    const source = protocolResultSource(revision, 96.75);
+    const vascularReady = guytonJobSnapshotFixture({
+      source,
+      sequence: 0,
+      stage: "vascular-ready",
+      status: "running",
+      completedPointCount: 0,
+    });
+    const firstPoint = guytonJobSnapshotFixture({
+      source,
+      sequence: 1,
+      stage: "continuation",
+      status: "running",
+      completedPointCount: 1,
+    });
+    let resolvePoll!: (response: unknown) => void;
+    let pollCommand: GuytonJobCommandFixture | null = null;
+    const client = jobClientFixture((command) => {
+      if (command.kind === "startGuytonStarlingProtocolJob") {
+        return guytonJobStartResponse(command, vascularReady, 100);
+      }
+      if (command.kind === "pollGuytonStarlingProtocolJob") {
+        pollCommand = command;
+        return new Promise((resolve) => {
+          resolvePoll = resolve;
+        });
+      }
+      if (command.kind === "cancelGuytonStarlingProtocolJob") {
+        return guytonJobCancelResponse(command);
+      }
+      throw new Error(`Unexpected command ${command.kind}`);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("stale-poll-job-session", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      registry.requestHemodynamicProtocol(scenarioId, "guyton-starling");
+      await flushMicrotasks();
+      vi.advanceTimersByTime(100);
+      await flushMicrotasks();
+      expect(pollCommand).not.toBeNull();
+
+      publishSourceIdentity(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 96.752,
+      });
+      resolvePoll(guytonJobProgressResponse(pollCommand!, firstPoint));
+      await flushMicrotasks();
+
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual([
+          "startGuytonStarlingProtocolJob",
+          "pollGuytonStarlingProtocolJob",
+          "cancelGuytonStarlingProtocolJob",
+        ]);
+      expect(client.request.mock.calls[2]?.[0]).toMatchObject({
+        sessionId: "stale-poll-job-session",
+        jobId: "job-1",
+      });
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({ status: "idle", result: null, jobSnapshot: null });
+    } finally {
+      registry.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels a progressive job when its source becomes stale before the next poll", async () => {
+    vi.useFakeTimers();
+    const revision = 97_000;
+    const source = protocolResultSource(revision, 97);
+    const vascularReady = guytonJobSnapshotFixture({
+      source,
+      sequence: 0,
+      stage: "vascular-ready",
+      status: "running",
+      completedPointCount: 0,
+    });
+    const client = jobClientFixture((command) => {
+      if (command.kind === "startGuytonStarlingProtocolJob") {
+        return guytonJobStartResponse(command, vascularReady, 100);
+      }
+      if (command.kind === "cancelGuytonStarlingProtocolJob") {
+        return guytonJobCancelResponse(command);
+      }
+      throw new Error(`Unexpected command ${command.kind}`);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("stale-progressive-job-session", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      registry.requestHemodynamicProtocol(scenarioId, "guyton-starling");
+      await flushMicrotasks();
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({ status: "running", jobSnapshot: { jobId: "job-1" } });
+
+      publishSourceIdentity(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 97.002,
+      });
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual([
+          "startGuytonStarlingProtocolJob",
+          "cancelGuytonStarlingProtocolJob",
+        ]);
+      expect(client.request.mock.calls[1]?.[0]).toMatchObject({
+        sessionId: "stale-progressive-job-session",
+        jobId: "job-1",
+      });
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({ status: "idle", result: null, jobSnapshot: null });
+    } finally {
+      registry.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels a running progressive job and clears its poll timer on registry disposal", async () => {
+    vi.useFakeTimers();
+    const revision = 98_000;
+    const source = protocolResultSource(revision, 98);
+    const vascularReady = guytonJobSnapshotFixture({
+      source,
+      sequence: 0,
+      stage: "vascular-ready",
+      status: "running",
+      completedPointCount: 0,
+    });
+    const client = jobClientFixture((command) => {
+      if (command.kind === "startGuytonStarlingProtocolJob") {
+        return guytonJobStartResponse(command, vascularReady, 100);
+      }
+      if (command.kind === "cancelGuytonStarlingProtocolJob") {
+        return guytonJobCancelResponse(command);
+      }
+      throw new Error(`Unexpected command ${command.kind}`);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("disposed-progressive-job-session", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      registry.requestHemodynamicProtocol(scenarioId, "guyton-starling");
+      await flushMicrotasks();
+      registry.dispose();
+      await flushMicrotasks();
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual([
+          "startGuytonStarlingProtocolJob",
+          "cancelGuytonStarlingProtocolJob",
+        ]);
+      expect(client.terminate).toHaveBeenCalledOnce();
+    } finally {
+      registry.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("extracts metrics only at a complete accepted transient-beat boundary", () => {
     const frames = Object.freeze(Array.from({ length: 501 }, (_, index) =>
       Object.freeze({
@@ -648,4 +987,219 @@ function protocolSuccessResponse(
       }),
     error: null,
   });
+}
+
+type GuytonJobCommandFixture = Readonly<{
+  kind:
+    | "startGuytonStarlingProtocolJob"
+    | "pollGuytonStarlingProtocolJob"
+    | "cancelGuytonStarlingProtocolJob";
+  requestId: string;
+  sessionId: string;
+  jobId?: string;
+}>;
+
+function jobClientFixture(
+  handler: (command: GuytonJobCommandFixture) => unknown,
+) {
+  const request = vi.fn(async (command: GuytonJobCommandFixture) => (
+    handler(command)
+  ));
+  const client = {
+    terminate: vi.fn(),
+    request,
+  };
+  return client as typeof client & MainWireScientificWorkerClientV1;
+}
+
+function vascularFunctionFixture(side: "right" | "left") {
+  return Object.freeze({
+    side,
+    xSemantics: side === "right"
+      ? "mean-transmural-right-atrial-pressure-cvp-model-equivalent"
+      : "mean-transmural-left-atrial-pressure-pcwp-surrogate",
+    ySemantics: side === "right"
+      ? "systemic-venous-return-l-per-min"
+      : "pulmonary-venous-return-l-per-min",
+    pressureReferenceOffsetMmHg: 0,
+    fillingPressureAbsoluteMmHg: side === "right" ? 7 : 12,
+    fillingPressureTransmuralMmHg: side === "right" ? 7 : 12,
+    points: Object.freeze([
+      Object.freeze({ pressureTransmuralMmHg: 0, flowLMin: 7 }),
+      Object.freeze({ pressureTransmuralMmHg: 7, flowLMin: 0 }),
+    ]),
+  });
+}
+
+function preloadPointEvidenceFixture(pointOrdinal: number) {
+  const targetScale = 1 - pointOrdinal * 0.05;
+  const fixedTotalBloodVolumeMl = 5_000 * targetScale;
+  return Object.freeze({
+    point: Object.freeze({
+      targetScale,
+      fixedTotalBloodVolumeMl,
+      status: "period1-converged" as const,
+      acceptedForPeriod1Locus: true,
+      completedBeatCount: 4,
+      meanRapTransmuralMmHg: 4 - pointOrdinal,
+      meanLapTransmuralMmHg: 9 - pointOrdinal,
+      netCardiacOutputLMin: 5 - pointOrdinal * 0.1,
+      forwardCardiacOutputLMin: 5 - pointOrdinal * 0.1,
+      lvEndDiastolicVolumeMl: 120 - pointOrdinal * 5,
+      lvEndSystolicVolumeMl: 50,
+      lvStrokeWorkMmHgMl: 7_000,
+      latestPeriod1MaximumNormalizedDelta: 0.001,
+      latestPeriod2MaximumNormalizedDelta: null,
+      period2Branches: null,
+      failureReason: null,
+    }),
+    provenance: Object.freeze({
+      pointId: `point-${pointOrdinal}`,
+      direction: pointOrdinal === 0 ? "source-baseline" : "lower-volume",
+      targetScale,
+      seedScale: pointOrdinal === 0 ? 1 : targetScale + 0.05,
+      seedKind: pointOrdinal === 0
+        ? "source-baseline"
+        : "previous-period1",
+      adaptiveStepScale: pointOrdinal === 0 ? 0 : 0.05,
+      attemptOrdinal: 1,
+      continuationAcceptedAsSeed: true,
+      refinementReason: "initial",
+      auditStatus: "not-scheduled",
+      auditMaximumNormalizedStateDelta: null,
+    }),
+  });
+}
+
+function guytonJobSnapshotFixture(input: Readonly<{
+  source: ReturnType<typeof protocolResultSource>;
+  sequence: number;
+  stage:
+    | "vascular-ready"
+    | "continuation"
+    | "independent-audit"
+    | "complete";
+  status: "running" | "complete";
+  completedPointCount: number;
+  result?: ReturnType<typeof guytonJobResultFixture>;
+}>) {
+  return Object.freeze({
+    jobId: "job-1",
+    sequence: input.sequence,
+    status: input.status,
+    stage: input.stage,
+    source: Object.freeze({
+      revision: input.source.revision,
+      acceptedTimeSec: input.source.acceptedTimeSec,
+      fixedTotalBloodVolumeMl: input.source.fixedTotalBloodVolumeMl,
+    }),
+    baselinePeriodicity: "period1-converged" as const,
+    rightVascularFunction: vascularFunctionFixture("right"),
+    leftVascularFunction: vascularFunctionFixture("left"),
+    preloadPointEvidence: Object.freeze(Array.from(
+      { length: input.completedPointCount },
+      (_, pointOrdinal) => preloadPointEvidenceFixture(pointOrdinal),
+    )),
+    progress: Object.freeze({
+      completedPointCount: input.completedPointCount,
+      plannedPointCountLowerBound: 3,
+      activeDirections: input.status === "running"
+        ? Object.freeze(["lower-volume", "higher-volume"] as const)
+        : Object.freeze([]),
+      completedBeatCount: input.completedPointCount * 4,
+    }),
+    result: input.result ?? null,
+    errorMessage: null,
+  });
+}
+
+function guytonJobResultFixture(
+  source: ReturnType<typeof protocolResultSource>,
+) {
+  return Object.freeze({
+    protocolId: "main-wire-scientific-guyton-starling-protocol-v2",
+    protocolVersion: "2.0.0",
+    source: Object.freeze({
+      revision: source.revision,
+      acceptedTimeSec: source.acceptedTimeSec,
+      fixedTotalBloodVolumeMl: source.fixedTotalBloodVolumeMl,
+    }),
+  });
+}
+
+function guytonJobStartResponse(
+  command: GuytonJobCommandFixture,
+  snapshot: ReturnType<typeof guytonJobSnapshotFixture>,
+  suggestedPollIntervalMs: number,
+) {
+  return Object.freeze({
+    ok: true as const,
+    requestId: command.requestId,
+    sessionId: command.sessionId,
+    commandKind: "startGuytonStarlingProtocolJob" as const,
+    payload: Object.freeze({
+      kind: "guytonStarlingProtocolJobStarted" as const,
+      job: Object.freeze({
+        jobId: snapshot.jobId,
+        snapshot,
+        suggestedPollIntervalMs,
+      }),
+    }),
+  });
+}
+
+function guytonJobProgressResponse(
+  command: GuytonJobCommandFixture,
+  snapshot: ReturnType<typeof guytonJobSnapshotFixture>,
+) {
+  return Object.freeze({
+    ok: true as const,
+    requestId: command.requestId,
+    sessionId: command.sessionId,
+    commandKind: "pollGuytonStarlingProtocolJob" as const,
+    payload: Object.freeze({
+      kind: "guytonStarlingProtocolJobProgress" as const,
+      snapshot,
+    }),
+  });
+}
+
+function guytonJobCancelResponse(command: GuytonJobCommandFixture) {
+  return Object.freeze({
+    ok: true as const,
+    requestId: command.requestId,
+    sessionId: command.sessionId,
+    commandKind: "cancelGuytonStarlingProtocolJob" as const,
+    payload: Object.freeze({
+      kind: "guytonStarlingProtocolJobCancelled" as const,
+      jobId: command.jobId,
+    }),
+  });
+}
+
+function publishSourceIdentity(
+  registry: ScientificProductScenarioRegistryV1,
+  scenarioId: string,
+  identity: Readonly<{ revision: number; acceptedTimeSec: number }>,
+): void {
+  const store = registry.getRuntime(scenarioId)!.controlStore;
+  const ownerToken = Symbol("protocol-source-update");
+  const disconnect = store.connectOwner(ownerToken, { current: null });
+  const snapshot = store.getSnapshot();
+  const { actions: _actions, ownerConnected: _ownerConnected, ...input } =
+    snapshot;
+  store.publishOwnerSnapshot(ownerToken, {
+    ...input,
+    source: Object.freeze({
+      ...input.source,
+      context: Object.freeze({
+        ...input.source.context,
+        stateIdentity: Object.freeze({
+          ...input.source.context.stateIdentity,
+          ...identity,
+        }),
+      }),
+    }),
+  });
+  disconnect();
 }

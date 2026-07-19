@@ -31,6 +31,10 @@ import type {
   MainWireScientificGuytonStarlingProtocolResultV1,
   MainWireScientificPvRelationsProtocolResultV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
+import type {
+  MainWireScientificHemodynamicJobSnapshotV2,
+  MainWireScientificHemodynamicJobStartV2,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
 
 export const SCIENTIFIC_COMMAND_PROTOCOL_V1_ID =
   "circleheart-scientific-command-protocol-v1" as const;
@@ -50,6 +54,9 @@ export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "disposeSession",
   "settlePeriodic",
   "runGuytonStarlingProtocol",
+  "startGuytonStarlingProtocolJob",
+  "pollGuytonStarlingProtocolJob",
+  "cancelGuytonStarlingProtocolJob",
   "runPvRelationsProtocol",
 ] as const);
 
@@ -165,6 +172,19 @@ export type SettlePeriodicCommandV1 = CommandBaseV1<"settlePeriodic">;
 export type RunGuytonStarlingProtocolCommandV1 =
   CommandBaseV1<"runGuytonStarlingProtocol">;
 
+export type StartGuytonStarlingProtocolJobCommandV2 =
+  CommandBaseV1<"startGuytonStarlingProtocolJob">;
+
+export type PollGuytonStarlingProtocolJobCommandV2 =
+  CommandBaseV1<"pollGuytonStarlingProtocolJob"> & Readonly<{
+    jobId: string;
+  }>;
+
+export type CancelGuytonStarlingProtocolJobCommandV2 =
+  CommandBaseV1<"cancelGuytonStarlingProtocolJob"> & Readonly<{
+    jobId: string;
+  }>;
+
 export type RunPvRelationsProtocolCommandV1 =
   CommandBaseV1<"runPvRelationsProtocol">;
 
@@ -183,6 +203,9 @@ export type ScientificCommandV1 =
   | DisposeSessionCommandV1
   | SettlePeriodicCommandV1
   | RunGuytonStarlingProtocolCommandV1
+  | StartGuytonStarlingProtocolJobCommandV2
+  | PollGuytonStarlingProtocolJobCommandV2
+  | CancelGuytonStarlingProtocolJobCommandV2
   | RunPvRelationsProtocolCommandV1;
 
 export type ScientificCommandErrorCodeV1 =
@@ -463,6 +486,24 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
     runGuytonStarlingProtocol: Readonly<{
       kind: "guytonStarlingProtocolCompleted";
       result: MainWireScientificGuytonStarlingProtocolResultV1;
+      sourceSessionUnchanged: true;
+      observableFrame: TObservableFrame;
+    }>;
+    startGuytonStarlingProtocolJob: Readonly<{
+      kind: "guytonStarlingProtocolJobStarted";
+      job: MainWireScientificHemodynamicJobStartV2;
+      sourceSessionUnchanged: true;
+      observableFrame: TObservableFrame;
+    }>;
+    pollGuytonStarlingProtocolJob: Readonly<{
+      kind: "guytonStarlingProtocolJobProgress";
+      snapshot: MainWireScientificHemodynamicJobSnapshotV2;
+      sourceSessionUnchanged: true;
+      observableFrame: TObservableFrame;
+    }>;
+    cancelGuytonStarlingProtocolJob: Readonly<{
+      kind: "guytonStarlingProtocolJobCancelled";
+      snapshot: MainWireScientificHemodynamicJobSnapshotV2;
       sourceSessionUnchanged: true;
       observableFrame: TObservableFrame;
     }>;

@@ -47,6 +47,10 @@ import type {
   MainWireScientificGuytonStarlingProtocolResultV1,
   MainWireScientificPvRelationsProtocolResultV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
+import type {
+  MainWireScientificGuytonStarlingProtocolResultV2,
+  MainWireScientificHemodynamicJobSnapshotV2,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
 
 import {
   SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
@@ -132,8 +136,10 @@ export type ScientificProductHemodynamicProtocolPresentationV1 = Readonly<{
   }> | null;
   result:
     | MainWireScientificGuytonStarlingProtocolResultV1
+    | MainWireScientificGuytonStarlingProtocolResultV2
     | MainWireScientificPvRelationsProtocolResultV1
     | null;
+  jobSnapshot: MainWireScientificHemodynamicJobSnapshotV2 | null;
   errorMessage: string | null;
 }>;
 
@@ -186,6 +192,10 @@ export class ScientificProductScenarioRegistryV1 {
   private readonly hemodynamicProtocols = new Map<
     string,
     ScientificProductHemodynamicProtocolPresentationV1
+  >();
+  private readonly hemodynamicProtocolPollTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
   >();
   private descriptorSnapshot: readonly ScientificProductScenarioDescriptorV1[] = [];
   private frameVersion = 0;
@@ -273,31 +283,41 @@ export class ScientificProductScenarioRegistryV1 {
       current?.status === "complete"
       && sameProtocolSourceIdentity(current.sourceIdentity, sourceIdentity)
     ) return;
+    // A new start atomically replaces the active job inside the worker pool.
+    // Do not enqueue a separate cancel here: an in-flight poll plus cancel plus
+    // start would exceed the client's bounded pending-request capacity.
+    this.clearProtocolPollTimer(key);
     const generation = entry.generation;
     this.hemodynamicProtocols.set(key, Object.freeze({
       kind,
       status: "running" as const,
       sourceIdentity,
       result: null,
+      jobSnapshot: null,
       errorMessage: null,
     }));
     this.publishProtocols();
+    if (kind === "guyton-starling") {
+      this.startGuytonStarlingJob({
+        scenarioId,
+        entry,
+        runtime,
+        sourceIdentity,
+        sessionId: source.sessionId,
+        key,
+        generation,
+      });
+      return;
+    }
     const requestId = `workbench-hemodynamic-${
       ++hemodynamicProtocolRequestOrdinalV1
     }`;
-    const command = kind === "guyton-starling"
-      ? Object.freeze({
-        protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
-        kind: "runGuytonStarlingProtocol" as const,
-        requestId,
-        sessionId: source.sessionId,
-      })
-      : Object.freeze({
-        protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
-        kind: "runPvRelationsProtocol" as const,
-        requestId,
-        sessionId: source.sessionId,
-      });
+    const command = Object.freeze({
+      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+      kind: "runPvRelationsProtocol" as const,
+      requestId,
+      sessionId: source.sessionId,
+    });
     void runtime.client.request(command).then((response) => {
       if (
         this.disposed
@@ -317,21 +337,17 @@ export class ScientificProductScenarioRegistryV1 {
           status: "error" as const,
           sourceIdentity,
           result: null,
+          jobSnapshot: null,
           errorMessage: response.error.message,
         }));
         this.publishProtocols();
         return;
       }
       const payload = response.payload;
-      const result = kind === "guyton-starling"
-        && response.commandKind === "runGuytonStarlingProtocol"
-        && payload.kind === "guytonStarlingProtocolCompleted"
+      const result = response.commandKind === "runPvRelationsProtocol"
+        && payload.kind === "pvRelationsProtocolCompleted"
         ? payload.result
-        : kind === "pv-relations"
-          && response.commandKind === "runPvRelationsProtocol"
-          && payload.kind === "pvRelationsProtocolCompleted"
-          ? payload.result
-          : null;
+        : null;
       const resultSourceIdentity = result === null
         ? null
         : Object.freeze({
@@ -348,6 +364,7 @@ export class ScientificProductScenarioRegistryV1 {
           status: "error" as const,
           sourceIdentity,
           result: null,
+          jobSnapshot: null,
           errorMessage: "Hemodynamic protocol response identity mismatch.",
         }));
       } else {
@@ -356,6 +373,7 @@ export class ScientificProductScenarioRegistryV1 {
           status: "complete" as const,
           sourceIdentity,
           result,
+          jobSnapshot: null,
           errorMessage: null,
         }));
       }
@@ -371,10 +389,306 @@ export class ScientificProductScenarioRegistryV1 {
         status: "error" as const,
         sourceIdentity,
         result: null,
+        jobSnapshot: null,
         errorMessage: error instanceof Error ? error.message : String(error),
       }));
       this.publishProtocols();
     });
+  }
+
+  private startGuytonStarlingJob(input: Readonly<{
+    scenarioId: string;
+    entry: ScenarioEntryV1;
+    runtime: ScientificProductScenarioRuntimeV1;
+    sourceIdentity: Readonly<{
+      revision: number;
+      acceptedTimeSec: number;
+      totalBloodVolumeMl: number;
+    }>;
+    sessionId: string;
+    key: string;
+    generation: number;
+  }>): void {
+    const requestId = `workbench-hemodynamic-${
+      ++hemodynamicProtocolRequestOrdinalV1
+    }`;
+    void input.runtime.client.request(Object.freeze({
+      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+      kind: "startGuytonStarlingProtocolJob" as const,
+      requestId,
+      sessionId: input.sessionId,
+    })).then((response) => {
+      if (!this.protocolRequestStillCurrent(input)) {
+        if (
+          this.protocolRequestOwnerStillCurrent(input)
+          && response.ok
+          && response.commandKind === "startGuytonStarlingProtocolJob"
+          && response.payload.kind === "guytonStarlingProtocolJobStarted"
+        ) {
+          this.cancelAndDiscardStaleGuytonJob(
+            input,
+            response.payload.job.jobId,
+          );
+        }
+        return;
+      }
+      if (!response.ok) {
+        this.failProtocol(input.key, input.sourceIdentity, response.error.message);
+        return;
+      }
+      if (
+        response.commandKind !== "startGuytonStarlingProtocolJob"
+        || response.payload.kind !== "guytonStarlingProtocolJobStarted"
+      ) {
+        this.failProtocol(
+          input.key,
+          input.sourceIdentity,
+          "Guyton/Starling job start payload mismatch.",
+        );
+        return;
+      }
+      const started = response.payload.job;
+      if (!sameProtocolJobSourceIdentity(
+        started.snapshot.source,
+        input.sourceIdentity,
+      )) {
+        this.failProtocol(
+          input.key,
+          input.sourceIdentity,
+          "Guyton/Starling job source identity mismatch.",
+        );
+        return;
+      }
+      this.publishGuytonJobSnapshot(input, started.snapshot);
+      if (started.snapshot.status === "running") {
+        this.scheduleGuytonJobPoll(
+          input,
+          started.snapshot.jobId,
+          started.suggestedPollIntervalMs,
+        );
+      }
+    }).catch((error: unknown) => {
+      if (!this.protocolRequestStillCurrent(input)) return;
+      this.failProtocol(
+        input.key,
+        input.sourceIdentity,
+        error instanceof Error ? error.message : String(error),
+      );
+    });
+  }
+
+  private scheduleGuytonJobPoll(
+    input: Parameters<ScientificProductScenarioRegistryV1[
+      "startGuytonStarlingJob"
+    ]>[0],
+    jobId: string,
+    delayMs: number,
+  ): void {
+    this.clearProtocolPollTimer(input.key);
+    const timer = globalThis.setTimeout(() => {
+      this.hemodynamicProtocolPollTimers.delete(input.key);
+      this.pollGuytonStarlingJob(input, jobId, delayMs);
+    }, Math.max(100, Math.min(2_000, delayMs)));
+    this.hemodynamicProtocolPollTimers.set(input.key, timer);
+  }
+
+  private pollGuytonStarlingJob(
+    input: Parameters<ScientificProductScenarioRegistryV1[
+      "startGuytonStarlingJob"
+    ]>[0],
+    jobId: string,
+    delayMs: number,
+  ): void {
+    if (!this.protocolRequestStillCurrent(input)) {
+      if (this.protocolRequestOwnerStillCurrent(input)) {
+        this.cancelAndDiscardStaleGuytonJob(input, jobId);
+      }
+      return;
+    }
+    const requestId = `workbench-hemodynamic-${
+      ++hemodynamicProtocolRequestOrdinalV1
+    }`;
+    void input.runtime.client.request(Object.freeze({
+      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+      kind: "pollGuytonStarlingProtocolJob" as const,
+      requestId,
+      sessionId: input.sessionId,
+      jobId,
+    })).then((response) => {
+      if (!this.protocolRequestStillCurrent(input)) {
+        if (this.protocolRequestOwnerStillCurrent(input)) {
+          this.cancelAndDiscardStaleGuytonJob(input, jobId);
+        }
+        return;
+      }
+      if (!response.ok) {
+        this.failProtocol(input.key, input.sourceIdentity, response.error.message);
+        return;
+      }
+      if (
+        response.commandKind !== "pollGuytonStarlingProtocolJob"
+        || response.payload.kind !== "guytonStarlingProtocolJobProgress"
+      ) {
+        this.failProtocol(
+          input.key,
+          input.sourceIdentity,
+          "Guyton/Starling job progress payload mismatch.",
+        );
+        return;
+      }
+      const snapshot = response.payload.snapshot;
+      if (
+        snapshot.jobId !== jobId
+        || !sameProtocolJobSourceIdentity(snapshot.source, input.sourceIdentity)
+      ) {
+        this.failProtocol(
+          input.key,
+          input.sourceIdentity,
+          "Guyton/Starling job progress identity mismatch.",
+        );
+        return;
+      }
+      this.publishGuytonJobSnapshot(input, snapshot);
+      if (snapshot.status === "running") {
+        this.scheduleGuytonJobPoll(input, jobId, delayMs);
+      }
+    }).catch((error: unknown) => {
+      if (!this.protocolRequestStillCurrent(input)) {
+        if (this.protocolRequestOwnerStillCurrent(input)) {
+          this.cancelAndDiscardStaleGuytonJob(input, jobId);
+        }
+        return;
+      }
+      this.failProtocol(
+        input.key,
+        input.sourceIdentity,
+        error instanceof Error ? error.message : String(error),
+      );
+    });
+  }
+
+  private publishGuytonJobSnapshot(
+    input: Parameters<ScientificProductScenarioRegistryV1[
+      "startGuytonStarlingJob"
+    ]>[0],
+    snapshot: MainWireScientificHemodynamicJobSnapshotV2,
+  ): void {
+    const status = snapshot.status === "running"
+      ? "running" as const
+      : snapshot.status === "complete"
+        ? "complete" as const
+        : "error" as const;
+    this.hemodynamicProtocols.set(input.key, Object.freeze({
+      kind: "guyton-starling" as const,
+      status,
+      sourceIdentity: input.sourceIdentity,
+      result: snapshot.result,
+      jobSnapshot: snapshot,
+      errorMessage: snapshot.errorMessage,
+    }));
+    this.publishProtocols();
+  }
+
+  private protocolRequestOwnerStillCurrent(input: Readonly<{
+    scenarioId: string;
+    entry: ScenarioEntryV1;
+    generation: number;
+  }>): boolean {
+    return !this.disposed
+      && this.entries.get(input.scenarioId) === input.entry
+      && input.entry.generation === input.generation;
+  }
+
+  private protocolRequestStillCurrent(input: Readonly<{
+    scenarioId: string;
+    entry: ScenarioEntryV1;
+    runtime: ScientificProductScenarioRuntimeV1;
+    sourceIdentity: Readonly<{
+      revision: number;
+      acceptedTimeSec: number;
+      totalBloodVolumeMl: number;
+    }>;
+    generation: number;
+  }>): boolean {
+    if (!this.protocolRequestOwnerStillCurrent(input)) return false;
+    return sameProtocolSourceIdentity(
+      input.sourceIdentity,
+      input.runtime.controlStore.getSnapshot().source.context.stateIdentity,
+    );
+  }
+
+  private failProtocol(
+    key: string,
+    sourceIdentity: Readonly<{
+      revision: number;
+      acceptedTimeSec: number;
+      totalBloodVolumeMl: number;
+    }>,
+    errorMessage: string,
+  ): void {
+    this.clearProtocolPollTimer(key);
+    this.hemodynamicProtocols.set(key, Object.freeze({
+      kind: "guyton-starling" as const,
+      status: "error" as const,
+      sourceIdentity,
+      result: null,
+      jobSnapshot: null,
+      errorMessage,
+    }));
+    this.publishProtocols();
+  }
+
+  private cancelAndDiscardStaleGuytonJob(
+    input: Readonly<{
+      runtime: ScientificProductScenarioRuntimeV1;
+      sourceIdentity: Readonly<{
+        revision: number;
+        acceptedTimeSec: number;
+        totalBloodVolumeMl: number;
+      }>;
+      sessionId: string;
+      key: string;
+    }>,
+    jobId: string,
+  ): void {
+    this.cancelGuytonStarlingJobBestEffort(
+      input.runtime.client,
+      input.sessionId,
+      jobId,
+    );
+    const stale = this.hemodynamicProtocols.get(input.key);
+    if (
+      stale?.status === "running"
+      && sameProtocolSourceIdentity(stale.sourceIdentity, input.sourceIdentity)
+      && (stale.jobSnapshot === null || stale.jobSnapshot.jobId === jobId)
+    ) {
+      this.clearProtocolPollTimer(input.key);
+      this.hemodynamicProtocols.delete(input.key);
+      this.publishProtocols();
+    }
+  }
+
+  private cancelGuytonStarlingJobBestEffort(
+    client: MainWireScientificWorkerClientV1,
+    sessionId: string,
+    jobId: string,
+  ): void {
+    const requestId = `workbench-hemodynamic-${
+      ++hemodynamicProtocolRequestOrdinalV1
+    }`;
+    void client.request(Object.freeze({
+      protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+      kind: "cancelGuytonStarlingProtocolJob" as const,
+      requestId,
+      sessionId,
+      jobId,
+    })).catch(() => undefined);
+  }
+
+  private clearProtocolPollTimer(key: string): void {
+    const timer = this.hemodynamicProtocolPollTimers.get(key);
+    if (timer !== undefined) globalThis.clearTimeout(timer);
+    this.hemodynamicProtocolPollTimers.delete(key);
   }
 
   get maximumScenarioCount(): number {
@@ -581,6 +895,10 @@ export class ScientificProductScenarioRegistryV1 {
       this.detachEntry(entry);
     }
     this.entries.clear();
+    for (const timer of this.hemodynamicProtocolPollTimers.values()) {
+      globalThis.clearTimeout(timer);
+    }
+    this.hemodynamicProtocolPollTimers.clear();
     this.transientMetricBeatCache.clear();
     this.hemodynamicProtocols.clear();
     this.publishDescriptors();
@@ -711,6 +1029,24 @@ export class ScientificProductScenarioRegistryV1 {
   }
 
   private detachEntry(entry: ScenarioEntryV1): void {
+    const guytonKey = protocolCacheKey(entry.descriptor.id, "guyton-starling");
+    const activeGuyton = this.hemodynamicProtocols.get(guytonKey);
+    if (
+      entry.runtime !== null
+      && activeGuyton?.status === "running"
+      && activeGuyton.jobSnapshot !== null
+    ) {
+      this.cancelGuytonStarlingJobBestEffort(
+        entry.runtime.client,
+        entry.runtime.controlStore.getSnapshot().source.sessionId,
+        activeGuyton.jobSnapshot.jobId,
+      );
+    }
+    this.clearProtocolPollTimer(guytonKey);
+    this.clearProtocolPollTimer(protocolCacheKey(
+      entry.descriptor.id,
+      "pv-relations",
+    ));
     entry.duplicateTransitionModeState = "none";
     entry.unsubscribeStore?.();
     entry.unsubscribeStore = null;
@@ -752,6 +1088,7 @@ const EMPTY_HEMODYNAMIC_PROTOCOL_PRESENTATIONS_V1 = Object.freeze({
     status: "idle" as const,
     sourceIdentity: null,
     result: null,
+    jobSnapshot: null,
     errorMessage: null,
   }),
   "pv-relations": Object.freeze({
@@ -759,6 +1096,7 @@ const EMPTY_HEMODYNAMIC_PROTOCOL_PRESENTATIONS_V1 = Object.freeze({
     status: "idle" as const,
     sourceIdentity: null,
     result: null,
+    jobSnapshot: null,
     errorMessage: null,
   }),
 }) satisfies Readonly<Record<
@@ -782,6 +1120,23 @@ function sameProtocolSourceIdentity(
     && left.revision === right.revision
     && left.acceptedTimeSec === right.acceptedTimeSec
     && left.totalBloodVolumeMl === right.totalBloodVolumeMl;
+}
+
+function sameProtocolJobSourceIdentity(
+  left: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    fixedTotalBloodVolumeMl: number;
+  }>,
+  right: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    totalBloodVolumeMl: number;
+  }>,
+): boolean {
+  return left.revision === right.revision
+    && left.acceptedTimeSec === right.acceptedTimeSec
+    && left.fixedTotalBloodVolumeMl === right.totalBloodVolumeMl;
 }
 
 export async function loadScientificProductScenarioRuntimeV1(
