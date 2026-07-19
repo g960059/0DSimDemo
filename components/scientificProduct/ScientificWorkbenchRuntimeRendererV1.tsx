@@ -70,6 +70,9 @@ import type {
   MainWireScientificGuytonStarlingProtocolResultV1,
   MainWireScientificPvRelationsProtocolResultV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
+import type {
+  MainWireScientificGuytonStarlingProtocolResultV2,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
 import {
   scientificWorkbenchMetricPresentationV1,
 } from "./ScientificWorkbenchMetricPresentationV1";
@@ -552,7 +555,10 @@ function ScientificHemodynamicProtocolPanelV1({
   if (kind === "guyton-starling") {
     const result = protocol.result?.protocolId
       === "main-wire-scientific-guyton-starling-protocol-v1"
+      || protocol.result?.protocolId
+        === "main-wire-scientific-guyton-starling-protocol-v2"
       ? protocol.result as MainWireScientificGuytonStarlingProtocolResultV1
+        | MainWireScientificGuytonStarlingProtocolResultV2
       : null;
     const data = guytonPaneDataV1(
       panel.type === "GUYTON_LEFT" ? "left" : "right",
@@ -595,6 +601,7 @@ const EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1 = Object.freeze({
     status: "idle" as const,
     sourceIdentity: null,
     result: null,
+    jobSnapshot: null,
     errorMessage: null,
   }),
   "pv-relations": Object.freeze({
@@ -602,6 +609,7 @@ const EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1 = Object.freeze({
     status: "idle" as const,
     sourceIdentity: null,
     result: null,
+    jobSnapshot: null,
     errorMessage: null,
   }),
 }) satisfies Readonly<Record<
@@ -613,15 +621,19 @@ function guytonPaneDataV1(
   side: "right" | "left",
   scenarioName: string,
   protocol: ScientificProductHemodynamicProtocolPresentationV1,
-  result: MainWireScientificGuytonStarlingProtocolResultV1 | null,
+  result: MainWireScientificGuytonStarlingProtocolResultV1
+    | MainWireScientificGuytonStarlingProtocolResultV2
+    | null,
 ): ScientificGuytonStarlingPaneDataV1 {
-  const running = protocol.status === "running" || result === null;
-  if (running) {
+  const partial = protocol.jobSnapshot;
+  const vascularSource = result ?? partial;
+  if (vascularSource === null) {
     return Object.freeze({
       side,
       title: `${scenarioName} · ${side === "right" ? "Right" : "Left"} Guyton / Starling`,
       vascularReturnCurve: Object.freeze([]),
       cardiacPreloadLocus: Object.freeze([]),
+      cardiacPreloadSegments: Object.freeze([]),
       sweepPoints: Object.freeze([]),
       status: Object.freeze({
         status: "running" as const,
@@ -635,19 +647,73 @@ function guytonPaneDataV1(
     });
   }
   const vascular = side === "right"
-    ? result.rightVascularFunction
-    : result.leftVascularFunction;
+    ? vascularSource.rightVascularFunction
+    : vascularSource.leftVascularFunction;
+  const allV2Evidence = result !== null && "preloadPointEvidence" in result
+    ? result.preloadPointEvidence
+    : partial?.preloadPointEvidence ?? null;
+  const v2Evidence = allV2Evidence?.filter(({ provenance }) =>
+    provenance.direction !== "independent-audit") ?? null;
+  const operatingRows = v2Evidence !== null
+    ? v2Evidence.map(({ point, provenance }) => Object.freeze({
+      point,
+      pointId: provenance.pointId,
+      auditStatus: provenance.auditStatus,
+      auditMaximumNormalizedStateDelta:
+        provenance.auditMaximumNormalizedStateDelta,
+    }))
+    : (result?.preloadOperatingPoints ?? []).map((point) => Object.freeze({
+      point,
+      pointId: `tbv-${point.targetScale.toFixed(6)}`,
+      auditStatus: "not-scheduled" as const,
+      auditMaximumNormalizedStateDelta: null,
+    }));
+  const operatingPoints = operatingRows.map(({ point }) => point);
+  const baselinePeriodicity = result?.baselinePeriodicity
+    ?? partial?.baselinePeriodicity
+    ?? "not-converged";
   const pressure = (point: MainWireScientificGuytonStarlingProtocolResultV1[
     "preloadOperatingPoints"
   ][number]) => side === "right"
     ? point.meanRapTransmuralMmHg
     : point.meanLapTransmuralMmHg;
-  const p1 = result.preloadOperatingPoints.filter((point) =>
+  const p1Rows = operatingRows.filter(({ point }) =>
     point.acceptedForPeriod1Locus
     && pressure(point) !== null
     && point.netCardiacOutputLMin !== null);
-  const rejectedCount = result.preloadOperatingPoints.length - p1.length;
-  const baseline = p1.find((point) => point.targetScale === 1);
+  const p1ByTargetScale = new Map(p1Rows.map((row) => [
+    row.point.targetScale,
+    row,
+  ]));
+  const orderedTargetScales = [...new Set(operatingPoints.map((point) =>
+    point.targetScale))].sort((a, b) => a - b);
+  const cardiacPreloadSegments = orderedTargetScales.reduce<
+    Array<Array<(typeof p1Rows)[number]>>
+  >((segments, targetScale) => {
+    const row = p1ByTargetScale.get(targetScale);
+    if (row === undefined) {
+      if (segments.at(-1)?.length) segments.push([]);
+      return segments;
+    }
+    if (row.auditStatus === "path-dependence-suspect") {
+      if (segments.at(-1)?.length) segments.push([]);
+      segments.push([row], []);
+      return segments;
+    }
+    const current = segments.at(-1);
+    if (current === undefined) segments.push([row]);
+    else current.push(row);
+    return segments;
+  }, []).filter((segment) => segment.length > 0);
+  const orderedP1Rows = [...p1Rows].sort((left, right) =>
+    left.point.targetScale - right.point.targetScale);
+  const rejectedCount = operatingPoints.length - p1Rows.length;
+  const baseline = p1Rows.find(({ point }) => point.targetScale === 1)?.point;
+  const auditedReferences = operatingRows.filter(({ auditStatus }) =>
+    auditStatus !== "not-scheduled" && auditStatus !== "pending");
+  const auditMatchedCount = auditedReferences.filter(({ auditStatus }) =>
+    auditStatus === "matched").length;
+  const auditWarningCount = auditedReferences.length - auditMatchedCount;
   return Object.freeze({
     side,
     title: `${scenarioName} · ${side === "right" ? "Right" : "Left"} Guyton / Starling`,
@@ -656,14 +722,24 @@ function guytonPaneDataV1(
         pressureMmHg: point.pressureTransmuralMmHg,
         flowLPerMin: point.flowLMin,
       }))),
-    cardiacPreloadLocus: Object.freeze(p1.map((point) => Object.freeze({
+    cardiacPreloadLocus: Object.freeze(orderedP1Rows.map(({ point }) => Object.freeze({
       pressureMmHg: pressure(point)!,
       flowLPerMin: point.netCardiacOutputLMin!,
     }))),
-    sweepPoints: Object.freeze(result.preloadOperatingPoints.flatMap<ScientificGuytonSweepPointV1>((point) => {
+    cardiacPreloadSegments: Object.freeze(cardiacPreloadSegments.map((segment) =>
+      Object.freeze(segment.map(({ point }) => Object.freeze({
+        pressureMmHg: pressure(point)!,
+        flowLPerMin: point.netCardiacOutputLMin!,
+      }))))),
+    sweepPoints: Object.freeze(operatingRows.flatMap<ScientificGuytonSweepPointV1>(({
+      point,
+      pointId,
+      auditStatus,
+      auditMaximumNormalizedStateDelta,
+    }) => {
       if (point.status === "period2-suspect" && point.period2Branches !== null) {
         return point.period2Branches.map((branch) => Object.freeze({
-          id: `tbv-${point.targetScale}-${branch.branchId}`,
+          id: `${pointId}-${branch.branchId}`,
           pressureMmHg: side === "right"
             ? branch.meanRapTransmuralMmHg
             : branch.meanLapTransmuralMmHg,
@@ -677,16 +753,23 @@ function guytonPaneDataV1(
       const y = point.netCardiacOutputLMin;
       if (x === null || y === null) return [];
       return [Object.freeze({
-        id: `tbv-${point.targetScale}`,
+        id: pointId,
         pressureMmHg: x,
         flowLPerMin: y,
         totalBloodVolumeMl: point.fixedTotalBloodVolumeMl,
         classification: point.status === "period1-converged"
-          ? "period1" as const
+          ? auditStatus === "path-dependence-suspect"
+            || auditStatus === "audit-failed"
+            ? "audit-suspect" as const
+            : "period1" as const
           : point.status === "period2-suspect"
             ? "period2" as const
             : "rejected" as const,
-        reason: point.failureReason ?? undefined,
+        reason: auditStatus === "path-dependence-suspect"
+          ? `Independent source audit converged to a materially different accepted state${auditMaximumNormalizedStateDelta === null ? "" : ` (maximum normalized delta ${auditMaximumNormalizedStateDelta.toExponential(2)})`}.`
+          : auditStatus === "audit-failed"
+            ? "Independent source audit did not provide a matched P1 checkpoint."
+            : point.failureReason ?? undefined,
       })];
     })),
     operatingPoint: baseline === undefined ? undefined : Object.freeze({
@@ -695,20 +778,52 @@ function guytonPaneDataV1(
       label: "Source operating point",
     }),
     vascularCurveLabel: "Fixed-volume vascular function (PV-law derived)",
-    cardiacCurveLabel: "Independent-TBV net aortic-output locus (P1 only)",
+    cardiacCurveLabel: v2Evidence === null
+      ? "Independent-TBV net aortic-output locus (P1 only)"
+      : "Bidirectional-continuation net aortic-output locus (P1 only)",
     status: Object.freeze({
-      status: rejectedCount === 0 ? "complete" as const : "partial" as const,
-      label: "Protocol complete",
+      status: protocol.status === "running"
+        ? "running" as const
+        : protocol.status === "error"
+          ? "error" as const
+        : rejectedCount === 0 ? "complete" as const : "partial" as const,
+      label: protocol.status === "running"
+        ? "Exploring preload envelope…"
+        : protocol.status === "error"
+          ? "Protocol stopped"
+        : "Protocol complete",
+      phase: protocol.status === "running"
+        ? `${partial?.progress.completedPointCount ?? operatingPoints.length} settled/classified points · ${partial?.progress.completedBeatCount ?? 0} beats · ${partial?.progress.activeDirections.join(" + ") || "finalizing"}`
+        : result !== null && "exploration" in result
+          ? `Envelope ${result.exploration.normalizedTotalBloodVolumeEnvelope.join("–")}× TBV · lower ${result.exploration.lowerBoundaryStatus} · higher ${result.exploration.higherBoundaryStatus} · ${partial?.progress.completedBeatCount ?? 0} beats`
+          : undefined,
+      progress: protocol.status === "running" && partial !== null
+        ? Object.freeze({
+          completed: partial.progress.completedPointCount,
+          total: partial.progress.plannedPointCountLowerBound,
+        })
+        : undefined,
       qc: Object.freeze({
-        level: result.baselinePeriodicity === "period1-converged"
-          ? rejectedCount === 0 ? "pass" as const : "warning" as const
+        level: protocol.status === "running"
+          ? "pending" as const
+          : protocol.status === "error"
+            ? "fail" as const
+          : baselinePeriodicity === "period1-converged"
+          ? rejectedCount === 0 && auditWarningCount === 0
+            ? "pass" as const
+            : "warning" as const
           : "fail" as const,
-        summary: result.baselinePeriodicity === "period1-converged"
-          ? `${p1.length} P1 point${p1.length === 1 ? "" : "s"}; ${rejectedCount} P2-suspect/rejected point${rejectedCount === 1 ? "" : "s"}.`
+        summary: protocol.status === "running"
+          ? "The structural vascular curve is ready; steady preload points appear as each branch converges."
+          : protocol.status === "error"
+            ? protocol.errorMessage ?? "The preload protocol stopped before completion."
+          : baselinePeriodicity === "period1-converged"
+          ? `${p1Rows.length} P1 point${p1Rows.length === 1 ? "" : "s"}; ${rejectedCount} P2-suspect/blocked attempt${rejectedCount === 1 ? "" : "s"}; ${auditMatchedCount} matched audit${auditMatchedCount === 1 ? "" : "s"}; ${auditWarningCount} audit warning${auditWarningCount === 1 ? "" : "s"}.`
           : "The source beat did not reproduce period-1 closure.",
         details: Object.freeze([
           "TBV sweep is a one-dimensional closed-loop preload locus, not a Guyton pump experiment or a surface.",
           "Settled period-2-suspect branches are shown separately and never averaged into the P1 curve.",
+          "An audit-warning marker remains P1 continuation evidence, but it is isolated from the curve when the independent source audit indicates path dependence.",
         ]),
       }),
     }),

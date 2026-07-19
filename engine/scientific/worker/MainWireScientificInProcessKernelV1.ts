@@ -66,6 +66,9 @@ import {
   createMainWireScientificResearchControlBaselineTargetStateV0,
   type MainWireScientificResearchControlTargetStateV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
+import type {
+  MainWireScientificHemodynamicJobManagerV2,
+} from "@/engine/scientific/worker/MainWireScientificHemodynamicJobManagerV2";
 
 export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_ID =
   "main-wire-scientific-in-process-kernel-v1" as const;
@@ -134,6 +137,7 @@ export type MainWireScientificInProcessKernelOptionsV1 = Readonly<{
   maximumCommandJsonNodeCount?: number;
   officialPresetLoader?: MainWireScientificOfficialPresetLoaderV1;
   officialDocumentCaseLoader?: MainWireScientificOfficialDocumentCaseLoaderV1;
+  hemodynamicJobManager?: MainWireScientificHemodynamicJobManagerV2;
 }>;
 
 export type MainWireScientificOfficialPresetLoaderV1 = (
@@ -204,6 +208,8 @@ export class MainWireScientificInProcessKernelV1 {
     MainWireScientificOfficialPresetLoaderV1 | null;
   private readonly officialDocumentCaseLoader:
     MainWireScientificOfficialDocumentCaseLoaderV1 | null;
+  private readonly hemodynamicJobManager:
+    MainWireScientificHemodynamicJobManagerV2 | null;
 
   private readonly sessions = new Map<string, MainWireScientificSessionV1>();
   private readonly sessionOrigins = new Map<string, ScientificSessionOriginV1>();
@@ -218,6 +224,7 @@ export class MainWireScientificInProcessKernelV1 {
     this.officialPresetLoader = options.officialPresetLoader ?? null;
     this.officialDocumentCaseLoader =
       options.officialDocumentCaseLoader ?? null;
+    this.hemodynamicJobManager = options.hemodynamicJobManager ?? null;
     this.maximumSessionCount = boundedPositiveInteger(
       options.maximumSessionCount ?? DEFAULT_MAXIMUM_SESSION_COUNT,
       MAXIMUM_CONFIGURED_SESSION_COUNT,
@@ -375,6 +382,12 @@ export class MainWireScientificInProcessKernelV1 {
         return this.settlePeriodic(command);
       case "runGuytonStarlingProtocol":
         return this.runGuytonStarlingProtocol(command);
+      case "startGuytonStarlingProtocolJob":
+        return this.startGuytonStarlingProtocolJob(command);
+      case "pollGuytonStarlingProtocolJob":
+        return this.pollGuytonStarlingProtocolJob(command);
+      case "cancelGuytonStarlingProtocolJob":
+        return this.cancelGuytonStarlingProtocolJob(command);
       case "runPvRelationsProtocol":
         return this.runPvRelationsProtocol(command);
     }
@@ -1109,6 +1122,7 @@ export class MainWireScientificInProcessKernelV1 {
     this.sessions.delete(command.sessionId);
     this.sessionOrigins.delete(command.sessionId);
     this.researchControlBindings.delete(command.sessionId);
+    this.hemodynamicJobManager?.disposeOwner(command.sessionId);
     return response;
   }
 
@@ -1195,6 +1209,127 @@ export class MainWireScientificInProcessKernelV1 {
         errorMessage(error),
       );
     }
+  }
+
+  private async startGuytonStarlingProtocolJob(
+    command: Extract<ScientificCommandV1, {
+      kind: "startGuytonStarlingProtocolJob";
+    }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const session = this.sessions.get(command.sessionId);
+    if (session === undefined) return unknownSession(command);
+    if (this.hemodynamicJobManager === null) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        "background hemodynamic protocol jobs are unavailable in this host",
+      );
+    }
+    const sessionOrigin = this.requiredSessionOrigin(command.sessionId);
+    const before = session.stateIdentity();
+    try {
+      const capsule = session.createHemodynamicJobCapsuleV2();
+      const job = await this.hemodynamicJobManager.start({
+        ownerSessionId: command.sessionId,
+        capsule,
+      });
+      const after = session.stateIdentity();
+      assertSameStateIdentity(before, after, "Guyton/Starling job start");
+      return successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "guytonStarlingProtocolJobStarted" as const,
+          job,
+          sourceSessionUnchanged: true as const,
+          observableFrame: project(session),
+        }),
+      );
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private pollGuytonStarlingProtocolJob(
+    command: Extract<ScientificCommandV1, {
+      kind: "pollGuytonStarlingProtocolJob";
+    }>,
+  ): MainWireScientificCommandResponseV1 {
+    const session = this.sessions.get(command.sessionId);
+    if (session === undefined) return unknownSession(command);
+    if (this.hemodynamicJobManager === null) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        "background hemodynamic protocol jobs are unavailable in this host",
+      );
+    }
+    const before = session.stateIdentity();
+    try {
+      const snapshot = this.hemodynamicJobManager.poll({
+        ownerSessionId: command.sessionId,
+        jobId: command.jobId,
+      });
+      assertSameStateIdentity(
+        before,
+        session.stateIdentity(),
+        "Guyton/Starling job poll",
+      );
+      return successResponse(
+        command,
+        session.releaseRef,
+        this.requiredSessionOrigin(command.sessionId),
+        Object.freeze({
+          kind: "guytonStarlingProtocolJobProgress" as const,
+          snapshot,
+          sourceSessionUnchanged: true as const,
+          observableFrame: project(session),
+        }),
+      );
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private cancelGuytonStarlingProtocolJob(
+    command: Extract<ScientificCommandV1, {
+      kind: "cancelGuytonStarlingProtocolJob";
+    }>,
+  ): MainWireScientificCommandResponseV1 {
+    const session = this.sessions.get(command.sessionId);
+    if (session === undefined) return unknownSession(command);
+    if (this.hemodynamicJobManager === null) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        "background hemodynamic protocol jobs are unavailable in this host",
+      );
+    }
+    const snapshot = this.hemodynamicJobManager.cancel({
+      ownerSessionId: command.sessionId,
+      jobId: command.jobId,
+      reason: "host-request",
+    });
+    return successResponse(
+      command,
+      session.releaseRef,
+      this.requiredSessionOrigin(command.sessionId),
+      Object.freeze({
+        kind: "guytonStarlingProtocolJobCancelled" as const,
+        snapshot,
+        sourceSessionUnchanged: true as const,
+        observableFrame: project(session),
+      }),
+    );
   }
 
   private runPvRelationsProtocol(
@@ -1569,6 +1704,9 @@ function parseCommand(
       ]
     : value.kind === "restoreExactSession"
       ? [...common, "resolvedSessionInput", "checkpoint"]
+      : value.kind === "pollGuytonStarlingProtocolJob"
+        || value.kind === "cancelGuytonStarlingProtocolJob"
+        ? [...common, "jobId"]
       : value.kind === "createResolvedSession"
         ? [...common, "resolvedSessionInput"]
         : value.kind === "createOfficialPresetSession"
@@ -1607,6 +1745,14 @@ function parseCommand(
         identity,
         `observation policy would exceed ${maximumOutputFrameCount} output frames`,
       );
+    }
+  }
+  if (
+    value.kind === "pollGuytonStarlingProtocolJob"
+    || value.kind === "cancelGuytonStarlingProtocolJob"
+  ) {
+    if (!isIdentifier(value.jobId)) {
+      return invalid(identity, "jobId is invalid");
     }
   }
   if (value.kind === "forkResearchControlSession") {

@@ -108,7 +108,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
   });
 
   test(
-    "adds Guyton and PV-relation panes and renders completed scientific protocols",
+    "adds Guyton and PV-relation panes and renders progressive scientific protocols",
     { tag: "@full-e2e" },
     async ({ page }, testInfo) => {
       test.setTimeout(240_000);
@@ -123,9 +123,9 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
           "source scientific revision",
         );
 
-        // Start both independent protocols. Left and right Guyton panes share
-        // one identity-keyed result, while the PV-relation pane owns the
-        // separate fixed-TBV preload-reduction protocol.
+        // Left and right Guyton panes share one identity-keyed progressive
+        // job. The structural vascular curve must not wait for the wide TBV
+        // envelope or its sparse independent audits to finish.
         await addMainGraphPane(page, "ESPVR / EDPVR");
         const pvRelations = page.getByTestId("scientific-pv-relation-pane-v1");
         await expect(pvRelations).toBeVisible();
@@ -151,17 +151,19 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         await expect(leftGuyton).toBeVisible();
         await expect(leftGuyton).toHaveAttribute(
           "data-protocol-status",
-          /^(?:complete|partial)$/,
-          { timeout: 180_000 },
+          /^(?:running|complete|partial)$/,
         );
         await expect(leftGuyton.locator('[data-series="vascular-return"]'))
           .toBeVisible();
-        await expect(leftGuyton.locator('[data-series="cardiac-preload-locus"]'))
-          .toBeVisible();
-        await expect(leftGuyton.locator('[data-marker="operating-point"]'))
-          .toBeVisible();
+        // The baseline marker is part of the immediate vascular-ready
+        // snapshot; a connected locus appears when either continuation lane
+        // returns its first neighbouring P1 point.
         await expect(leftGuyton.locator('[data-point-classification]'))
           .not.toHaveCount(0);
+        await expect(leftGuyton.locator('[data-series="cardiac-preload-locus"]'))
+          .toBeVisible({ timeout: 90_000 });
+        await expect(leftGuyton.locator('[data-marker="operating-point"]'))
+          .toBeVisible();
         await expect(leftGuyton.getByTestId("scientific-protocol-qc-callout-v1"))
           .toBeVisible();
 
@@ -169,7 +171,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         await expect(rightGuyton).toBeVisible();
         await expect(rightGuyton).toHaveAttribute(
           "data-protocol-status",
-          /^(?:complete|partial)$/,
+          /^(?:running|complete|partial)$/,
         );
         await expect(rightGuyton.locator('[data-series="vascular-return"]'))
           .toBeVisible();
