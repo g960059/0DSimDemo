@@ -1740,3 +1740,393 @@ V1 が主張できるのは次までである。
 - Pijls NHJ, et al. *Fractional flow reserve. A useful index to evaluate the influence of an epicardial coronary stenosis on myocardial blood flow*. Circulation. 1995. [DOI](https://doi.org/10.1161/01.CIR.92.11.3183) · [PubMed](https://pubmed.ncbi.nlm.nih.gov/7586302/)
 - Pijls NHJ, et al. *Measurement of fractional flow reserve to assess the functional severity of coronary-artery stenoses*. N Engl J Med. 1996. [DOI](https://doi.org/10.1056/NEJM199606273342604) · [PubMed](https://pubmed.ncbi.nlm.nih.gov/8637515/)
 - De Bruyne B, et al. *Simultaneous coronary pressure and flow velocity measurements in humans*. Circulation. 1996. [DOI](https://doi.org/10.1161/01.CIR.94.8.1842) · [PubMed](https://pubmed.ncbi.nlm.nih.gov/8873658/)
+
+## 27. 2026-07-19 phasic-flow review と V2 superseding amendment
+
+本節はV1のparameter追試ではない。実装済みV1を反証対象として、入口、組織灌流、静脈還流を別の
+observableとして再評価し、次のtopology versionを規定する。旧V1 report / HTMLは比較artifactとして保持し、
+同じcheckpoint / report schemaをV2へ流用しない。
+
+### 27.1 現V1波形のevent-based再判定
+
+固定phase windowおよびAoV-open intervalを「収縮期」とみなす定義を廃止する。canonical systoleは、順行MV flowの
+閉鎖eventから順行AoV flowの閉鎖eventまでとする。AoV openingからAoV closureまでは別のejection intervalとして
+保持する。12拍目ではMVC / AoVO / AoVCがphase 0.950 / 0.054 / 0.248、収縮期長は0.298 sだった。
+
+このevent定義で得た12拍目の結果は次の通りである。これはまだP1ではなく、bounded cold-startのterminal beatである。
+
+| site | LAD | LCx | RCA |
+|---|---:|---:|---:|
+| inlet diastolic forward-volume fraction | 0.526 | 0.531 | 0.570 |
+| inlet peak diastolic / peak systolic flow | 0.563 | 0.567 | 0.597 |
+| EPI tissue-inflow diastolic fraction | 0.838 | 0.834 | 0.828 |
+| ENDO tissue-inflow diastolic fraction | 0.837 | 0.836 | 0.839 |
+| EPI peak delay after AoVC | 0.460 s | 0.434 s | 0.398 s |
+| ENDO peak delay after AoVC | 0.624 s | 0.624 s | 0.452 s |
+
+したがって現V1は、「収縮期の冠入口流がない」のではない。入口はAo圧上昇と同時に最大となり、左冠でも収縮期
+forward volumeが約47%を占める。一方、組織流入は拡張期優位だがpeakが著しく遅い。正常に期待する
+「有限の収縮期forward shoulder + early-diastolic dominant peak」ではなく、入口storage充填と組織bed再充填が
+異常に位相分離している。
+
+V1の数理的な主因は次である。
+
+1. $Q_{Ao,k}=\sum_l Q_{1,kl}+\dot V_{A,k}$ であり、MVC--AoVCで積分した収縮期入口forward量の約62--70%が
+   正味でterminal arterial
+   storageへ入る。全territoryで$R_{dist}C_A\simeq0.42$ sとなるため、共通Ao upstrokeがterritory差を覆う。
+2. 単一IM complianceの上流にmicrovascular resistanceの大半を置き、zero-Ptm近傍で
+   $R_{art}C_{IM}\simeq2.52$ sとなる。collapse-dependent resistanceも同じnode volumeから増えるため、
+   収縮後の再充填がlate diastoleまで遅れる。
+3. CS--RAは$R_{CS}C_{CS}\simeq0.0218$ sの対称signed edgeで、RA a-waveをほぼ直接伝える。12拍目は
+   reverse duration 0.488 s、forward / reverse volume 2.879 / 1.193 mL/beatであり、正常の短い逆流波とは
+   みなしにくい。
+4. accepted toneはcoupled transactionで進んでおらず、territory単位1 stateなので、現状のENDO/EPIを
+   autoregulationで説明してはならない。
+
+### 27.2 比較すべき実測波形
+
+測定siteを混ぜない。proximal epicardial inlet、distal arteriole、venule、coronary venous reservoir / sinusは別々の
+acceptance targetを持つ。
+
+- 健常者MR volume-flowではLADのsystolic peak / meanは0.94 / 0.30 mL/s、diastolic peak / meanは
+  2.42 / 1.38 mL/sであり、収縮期flowは有限だが拡張期優位である。同じ研究のRCAはsystolic / diastolic
+  peak 1.96 / 1.80 mL/s、mean 0.74 / 0.83 mL/sで、左冠より均一だった
+  ([Marcus et al. 1999](https://pubmed.ncbi.nlm.nih.gov/10433289/))。
+- より大きい臨床wire cohortではmean diastolic / systolic velocity ratioがLCA 1.85+/-0.70、RCA
+  1.53+/-0.34で、RCAも多くは拡張期優位だった。RCAを必ず1.0以下へ固定しない
+  ([Seligman et al. 2022](https://pubmed.ncbi.nlm.nih.gov/34338643/))。
+- 文献横断したCircAdapt冠循環modelの比較値はLAD / LCx peak D/Sをおよそ2.0--2.3 / 1.8、
+  diastolic-to-total velocity integralをおよそ0.8 / 0.7--0.8、RCAをpeak D/S 1.0--1.4、integral
+  0.6--0.7としている。ただしvelocityとvolume flowは同一ではなく、直径変化が大きいsiteでは直接置換しない
+  ([Munneke et al. 2022](https://doi.org/10.3389/fphys.2022.830925))。
+- intramyocardial arteriolar flowは拡張期優位、subendocardialではearly-systolic reverseを許す一方、
+  venular flowは収縮期優位となり得る。したがって単一IM flowを「tissue perfusion」と「venous extrusion」の
+  両方へ使わない。
+- coronary venous flowは収縮期・拡張期の二つのantegrade waveと短いretrograde componentを許す。
+  正常で長時間・大容量の逆流を作ることはacceptance targetではない
+  ([Ramos Filho et al. 2002](https://pubmed.ncbi.nlm.nih.gov/12219183/))。
+
+### 27.3 採択する最小V2 topology
+
+3 territory x 2 transmural layerは維持し、各layerをarteriolar側とdistal capillary/venular側の2つの
+compliant compartmentへ分ける。
+
+```text
+Ao -> Art_k -> IM1_k,l -> IM2_k,l -> CV -> RA
+              R1          Rm          R2
+```
+
+ここでCVは冠静脈全体を縮約したreservoirであり、解剖学的coronary sinus単独のvolumeとは呼ばない。
+各layerの式は
+
+$$
+P_{1,kl}=P_{IM,kl}^{(1)}+f_1(V_{1,kl}),\qquad
+P_{2,kl}=P_{IM,kl}^{(2)}+f_2(V_{2,kl}),
+$$
+
+$$
+Q_{1,kl}=\frac{P_{A,k}-P_{1,kl}}{R_{1,kl}(V_1,r,s_{CMD})},\qquad
+Q_{m,kl}=\frac{P_{1,kl}-P_{2,kl}}{R_{m,kl}(V_1,V_2,r,s_{CMD})},
+$$
+
+$$
+Q_{2,kl}=\frac{P_{2,kl}-P_{CV}}{R_{2,kl}(V_2)},
+$$
+
+$$
+\dot V_{1,kl}=Q_{1,kl}-Q_{m,kl},\qquad
+\dot V_{2,kl}=Q_{m,kl}-Q_{2,kl}.
+$$
+
+全flowはsignedのままとし、正常波形を作るためのhard diodeは入れない。$Q_m$をnet tissue-perfusion observable、
+$Q_1$をarteriolar inflow、$Q_2$をvenular extrusionと定義する。これにより収縮期の入口forward flowを残しつつ、
+左冠のearly-diastolic tissue flowと収縮期venous emptyingを別々に拘束できる。Munnekeらも各layerに
+$C_1-R_m-C_2$を置き、IMPを両complianceへ作用させている。
+
+$f_i$ は自由なshape functionにしない。全compliant nodeで、既存のcollapsible-tube family
+
+$$
+x=\frac{V}{V_0},\qquad
+P_{tm}=f(V)=P_0\left(x^m-x^{-n}\right),\qquad m>0,\ n>1
+$$
+
+を使い、reference complianceから
+
+$$
+C_{ref}=\left.\left(\frac{dP_{tm}}{dV}\right)^{-1}\right|_{V_0}
+=\frac{V_0}{P_0(m+n)},\qquad
+P_0=\frac{V_0}{C_{ref}(m+n)}
+$$
+
+と一意にscaleする。相対passive energyは
+
+$$
+\Psi(V)=P_0V_0\left[
+\frac{x^{m+1}-1}{m+1}+\frac{x^{1-n}-1}{n-1}
+\right]
+$$
+
+で、$dP_{tm}/dV>0$、$V\to0$と$V\to\infty$でcoerciveになる。初期値は任意のvolume resetではなく、
+目標$P_{tm}$をこの単調lawで反転して作る。Art、$C_1$、$C_2$、CVの全volume stateに
+$(V_0,C_{ref},m,n)$ ownerを要求し、complianceが未定義のstateをsolverへ渡さない。
+
+collapse-dependent resistanceも自由関数にせず、既存のC1 smoothstep hydraulic-area law
+
+$$
+a(x)=a_{min}+(1-a_{min})\,s(\min(1,\max(0,x))),\qquad
+s(x)=x^2(3-2x)
+$$
+
+から、$\phi_1=a(V_1)^{-2}$、$\phi_2=a(V_2)^{-2}$、中央$R_m$は対称な
+$\phi_m=[a(V_1)a(V_2)]^{-1}$とする。これらはstrictly positiveかつboundedで、distensionを第二の
+hyperemic gainにしない。dynamic myogenic / metabolic toneはprecapillary $R_1$をownerとし、structural CMDは
+$R_1$と$R_m$に別々の固定倍率を持つ。vasodilatory dysfunctionは$R_1$ toneの下限を上げる。
+
+volume stateは16、layer toneを採用した場合のtone stateは6、edgeは22である。1D conduit tree、inertance、
+wave reflectionはこのtopologyでD/S integral、early-diastolic peak、venous phaseを説明できない場合のみ次versionで
+検討する。0Dで説明できるgross morphologyへ先にinertanceを加え、ringingや多峰性をfitしない。
+
+### 27.4 volume / compliance priorの再構築
+
+V1の「whole coronary volume 12 mL/100 gからIM 4 mL/100 gとCS 3.71 mLを引き、残りを全てterminal
+arterial storageへ置く」constructionは廃止する。豚cast morphometryではtotal 12.2 mL/100 gのうちlarge arterial
+3.5、capillary 3.8、large venous 4.9 mL/100 gであり、microcirculationは約4.3 mL/100 g、その89.4%が
+capillaryだった ([Kassab et al. 1994](https://pubmed.ncbi.nlm.nih.gov/7810711/))。これはcross-species priorであり、
+human point estimateではないが、V1の残余全量をarterial complianceへ割り当てる根拠にはならない。
+
+reference volumeとcomplianceは別のownerにする。
+
+文献値を各territory / layerへ配る際は、100 g値を6 compartmentへそのまま複製しない。five-wallのwall mass
+$M_w$ と、解剖priorとして固定したwall→territory allocation $w_{kw}$、layer mass fraction $\eta_l$ から
+
+$$
+M_{kl}=\eta_l\sum_w w_{kw}M_w,\qquad
+\sum_k w_{kw}=1,\qquad \sum_l\eta_l=1
+$$
+
+を作り、これを唯一のmass ownerとして、
+
+$$
+V_{i,kl}^{ref}=V_i^{(100g)}\frac{M_{kl}}{100\,\mathrm g},\qquad
+C_{i,kl}=C_i^{(100g)}\frac{M_{kl}}{100\,\mathrm g},
+$$
+
+$$
+\sum_{k,l}M_{kl}=M_{myo},\qquad
+\sum_{k,l}(V_{1,kl}^{ref}+V_{2,kl}^{ref})
+=(V_1^{(100g)}+V_2^{(100g)})\frac{M_{myo}}{100\,\mathrm g}
+$$
+
+をconstruction ledgerで検証する。$w_{kw}$ はtarget flow fractionとは別のpriorにし、flow calibrationや病態変更が
+anatomical volumeを変えないようにする。EPI/ENDO shareは初期には同じterritory内の質量半分ずつを使い、flow splitや
+波形へ合わせてvolume/complianceを再配分しない。将来multipatchが導入された場合は、このallocation matrixを
+patch-resolved perfused mass ownerで置換する。
+
+なおKassab 1994の12.2 mL/100 gと各volume分類の分母はporcine **LV mass** であり、全心筋massではない。
+初期V2でLV以外へ同じvascular-volume densityを使う場合はcross-wall extrapolationであり、human point estimateとは
+扱わない。absolute volume scaleは感度解析対象とし、同論文の排他的size-class fraction（large artery 27.4%、
+microcirculation 35.5%、large vein 37.1%）をtopology partitionのprimary structural priorとする。
+
+- anatomical reference volume: $V_{1,ref}+V_{2,ref}\simeq4.3$ mL/100 gを弱いmicrovascular priorとし、
+  初期split 50:50はidentifiability regularizationとしてのみ使う。35:65--65:35をsensitivity範囲にする。
+- effective dynamic compliance: isolated canine septumのtwo-compartment identificationを弱いpriorとして、
+  $C_1=0.01$--$0.03$、$C_2=0.15$--$0.50$ mL/mmHg/100 g、$C_2/C_1=10$--30を探索範囲とする
+  ([Spaan et al. 2000](https://doi.org/10.1152/ajpheart.2000.278.2.H383))。
+- direct geometric capillary compliance: porcine capillary distensibilityから約0.0175 mL/mmHg/100 gと推定される。
+  これはnetwork-levelの$C_2\simeq0.3$と同じ意味ではない。一方をnonlinear PVのlocal slopeとして使う場合、
+  他方を独立linear complianceとして加えてstorageを二重計上しない
+  ([Kassab et al. 1999](https://doi.org/10.1152/ajpheart.1999.277.6.H2158))。
+
+resting resistanceのlarge arterial : microvascular : large venousは実測pressure partitionに近い
+25--28 : 65--68 : 7を初期ledgerとする。microvascular内部の$R_1:R_m:R_2=60:30:10$は直接同定値ではなく、
+計算priorとして明記しablationする。active tone、structural CMD、$R_2$を同じ倍率で機械的に連動させない。
+
+### 27.5 IMP mechanismの扱い
+
+現行CEP + Land fiber-stress mappingは、CEP + varying-elastanceを用いた文献構造と近いため、two-compartment化の
+初手では保持する。ただし同じdepth-independent active-stress offsetがEPIとRCAを過度に圧迫していないか、
+次のmechanismを同じboundary / periodic stateで比較する。
+
+1. CEP only
+2. CEP + Land fiber stress
+3. CEP + shortening-induced term
+
+Land stressとshortening-induced pressureを無条件に加算すると同じ収縮効果を二重計上し得るため、同時採用を
+defaultにしない。$P_{IM}^{(1)}$と$P_{IM}^{(2)}$のcoupling係数は別に持てるが、波形fit用の自由なphase functionは
+禁止する。contractility変更とcavity-pressure変更を独立に行うmechanism-direction testで識別する。
+
+### 27.6 acceptance envelope
+
+正常baselineは単一形状ではなく、測定法・site・個体差を含むenvelopeで判定する。
+
+| observable | provisional healthy gate |
+|---|---|
+| modeled ventricular-wall coronary flow | primary: 0.7--1.3 mL/min/g、target 1.0; secondary: COの約2--7% |
+| LAD / LCx inlet D/T forward integral | 0.70--0.85 |
+| LAD / LCx inlet peak D/S | full mechanical systole (MVC--AoVC) とejection (AoVO--AoVC)を併記する。文献のECG / valve-event protocolと測定siteが一致するまで1.8--2.8をhard gateにしない |
+| LAD / LCx early-diastolic morphology | AoVC後peak時刻、最初200 msのforward volume share、flow-time centroidを併記する。70--140 msはproximal LADの参考域で、$Q_m$へ直接移植しない |
+| RCA inlet D/T forward integral | 0.50--0.75; D/Sを必ず1以下へ固定しない |
+| left tissue flow | early diastolic dominance; ENDOの短いearly-systolic reverseを許容 |
+| venular flow | systolic extrusionを持ち、tissue-flow waveformと同一にしない |
+| coronary venous reservoir outflow | systolic + diastolic forward waves; reverseは短い |
+| resting ENDO/EPI perfusion | mass-normalized 0.9--1.3を広い初期gateとする |
+| periodicity | 全hydraulic volume、tone、mechanicsを含むP1 closureを3拍以上 |
+| dt convergence | 2 / 1 msでmean flow、D/T、ENDO/EPI、CFR / FFR-like差2--5%以内 |
+| conservation | fixed global TBV、local incidence ledger、全passive edgeの$\Delta P Q\ge0$ |
+
+酸素運搬・消費stateを実装する前はischemiaと表示せず、perfusion reserveまたはsupply-demand proxyと呼ぶ。
+
+### 27.7 実装順序と現在地
+
+1. MVC--AoVC event、AoV ejection、入口 / $Q_1$ / $Q_m$ / $Q_2$ / CVを別metricとして実装する。
+2. V1 solverの`3*i` / `5*i`固定offsetをgraph incidenceへ置換し、V1結果の不変性をtestする。
+3. topology / checkpoint / reportをV2へ上げ、16 volume / 22 edgeを導入する。V1 artifactは反証比較に残す。
+4. volume budgetだけを再配分するablationと、two-compartment化を分離する。
+5. mass-constrained initializerでAo / RA / IMPに整合するdiastolic pressure ladderを作る。各volumeを独立resetして
+   fixed-TBV ledgerを破らない。
+6. fixed-toneではhydraulic morphologyの反証だけを行い、healthy採択はしない。6 layer-toneをaccepted stateとして
+   導入し、focal stenosis、structural CMD、vasodilatory dysfunctionを別ownerにする。
+7. layer-toneを含むP1 closure後にperiodic / dt / total-flow / phasic morphologyを再gateする。
+8. CV / ostial reverseがなお長い場合のみsmooth asymmetric resistanceを検討する。hard diodeは使わない。
+
+現在、1のevent diagnosticsと入口storage decomposition、2のgraph-incidence continuity refactor、3の
+V2 topology / checkpoint / literature-prior、およびpressure-ladder initializerと16-state backward-Euler hydraulic
+solverまで実装した。V2 solverは16 volume、22 signed passive edge、6 layer-tone ownerを持ち、trial中にはtoneを更新せず、
+accepted cycle aggregateからのみ遅いstateを進める。全nodeのPV lawは単調かつcoerciveで、各passive edgeは
+$\Delta P Q\ge0$、incidence ledgerはmachine precisionで閉じる。
+
+anatomical cold construction seedとruntime hydraulic checkpointは別schemaに分けた。runtime checkpointはtopology IDだけで
+なく、全priorとcollapse-hydraulicsのcanonical fingerprintを持ち、compliance / resistance ablation間の誤restoreを拒否する。
+transaction内ではcollapse priorのtrial別差し替えを禁止する。ただしtone更新とmain-wire mechanics / non-coronary volumeを
+一つのglobal accepted transactionへ統合する作業は未完であり、browser / closed-loop統合前のblockerとして残る。
+
+ただし現reportはmain-wire terminal beatのAo / RA / IMPをreplayする一方向shadowであり、source側fixed-TBVへatomicに
+coupleしていない。この意味で`simulationReady=false`は維持する。以下の結果をclosed-loop canonical baselineやP1 releaseと
+呼ばない。
+
+12拍目のV1はnet CO 5.52 L/minに対して冠入口102.0 mL/min、すなわち1.85%で、参照心筋質量あたり
+0.697 mL/min/gだった。保存則smokeとしては有効だが、流量baseline、左冠入口D/S、early-diastolic tissue
+morphology、CV reverseの複数gateを同時に満たさないためcanonical physiologyとしては棄却する。V2のparameterを
+入口波形だけへfitしてreleaseしてはならない。
+
+### 27.8 accepted six-layer autoregulation
+
+V2の正常rest controllerは、各territory x layerのprecapillary $R_1$だけを所有する。accepted windowの平均$Q_m$を
+$\bar Q_{kl}$、mass / territory priorから決める需要targetを$Q^*_{kl}$、Art--CV平均圧を$\bar\Pi_k$、tone倍率を$r_{kl}$
+とすると、hyperemiaを与えない内因性branchは
+
+$$
+\frac{d\log r_{kl}}{dt}
+=\frac{g_Q}{\tau_r}
+\log\left(\frac{\bar Q_{kl}}{Q^*_{kl}}\right),
+$$
+
+$$
+r_{min}\le r_{kl}\le r_{max}
+$$
+
+とする。$\bar Q<Q^*$なら$r$が低下し、flow errorが残る限りreserveを追加動員する。これはorgan-levelの縮約controllerで
+あり、flow自体が生体のsensorだと主張しない。分子mediatorやoxygen debtを明示しない段階では、metabolic
+homeostasis surrogateと呼ぶ。
+
+初期priorは$r_{min}=4/45$、$r_{max}=2$、$g_Q=1$とした。$\bar\Pi_k$はaccepted diagnosticとして保持し、
+低灌流圧でtone floorへ到達してautoregulation plateauが終わることの判定に使うが、interior equilibriumへpressure biasを
+加えない。$g_P\log(\bar\Pi/\Pi_{ref})$を同じintegratorへ加えると、平衡点が
+$\bar Q/Q^*=(\bar\Pi/\Pi_{ref})^{-g_P/g_Q}$へずれ、需要homeostasisと矛盾するためである。独立したmyogenic
+feed-forwardを再導入する場合は、別state / ownerとtransient protocolを先に定義する。
+
+Chilianらの抵抗45から4への変化は最大拡張reserveのorder priorであり、正常波形へのfit値ではない
+([Chilian et al. 1989](https://pubmed.ncbi.nlm.nih.gov/2492768/))。Dankelmanらの急な灌流条件変更に対する
+metabolic adaptation half-time 14.4--22.2 sから、live stateの時定数を$\tau_r=25$ sとした
+([Dankelman et al. 1989](https://pubmed.ncbi.nlm.nih.gov/2778731/))。shadowのsteady fixed-point探索では1 cycleを
+5 s相当として進めたため、toneの最終固定点は評価できるが、260 iterationの軌跡を実時間1300 sの生理応答とは解釈しない。
+
+### 27.9 V2 terminal-boundary shadowの結果
+
+同じmain-wire terminal beatを500 sample / cycle、$dt=2$ msでreplayした。全edgeの最小散逸powerは
+$4.46\times10^{-14}$ mmHg mL/s以上、最大volume-ledger残差は$8.15\times10^{-10}$ mL、最終beatの最大相対volume driftは
+$3.61\times10^{-6}$、最大log-tone changeは$4.36\times10^{-5}$だった。事前に宣言したshadow gate
+($10^{-5}$ / $10^{-4}$)を満たすが、source feedbackを含むclosed-loop P1ではない。以下の不一致は質量漏れやactive
+resistanceで作ったartifactではない。
+
+対称$R_1:R_m:R_2=60:30:10$、accepted layer-toneの代表値は次である。mean flowとENDO/EPIはcontrollerの
+target closureであり、独立したvalidation evidenceではない。
+
+| observable | V2 shadow | 判定 |
+|---|---:|---|
+| total inlet flow | 0.9999 mL/min/g | controller targetへ収束。validation量ではない |
+| LAD inlet D/T forward integral | 0.850 | 上限境界、V1 0.526から大幅改善 |
+| LAD peak D/S | MVC--AoVC: 1.111; AoVO--AoVC: 4.628 | protocolだけで判定方向が反転。現時点はcontext metric |
+| LAD diastolic / systolic mean net flow | 2.738 | peakよりrobustな補助量として保持 |
+| LAD inlet peak after AoVC | 146 ms | proximal参考域の近傍。単独rejectしない |
+| LAD systolic forward / reverse volume | 0.156 / 0.0186 mL | forwardは有限。入口reverseは78 ms続く |
+| LAD ENDO/EPI $Q_m$ | 1.110 | controller target closure。validation量ではない |
+| LAD EPI / ENDO $R_1$ tone scale | 0.672 / 0.118 | ENDOが最大拡張floor 0.089に近く、健康rest reserveとして不合格 |
+| LAD ENDO $Q_1$ / $Q_m$ peak after AoVC | 56 / 574 ms | $Q_1$はearly、$Q_m$はlate。$Q_m$のearly-200 ms shareは0.072 |
+| CV--RA / LAD ENDO $Q_2$ reverse | 0 / 0.00685 mL | outlet逆流はないが、$Q_2$ backfillは0.260 s続く |
+
+この結果は、$C_1-R_m-C_2$分割によって「左冠入口は拡張期優位だが収縮期にも流れる」という積分量と、arteriolar
+inflow / tissue transfer / venular extrusion / common venous flowの位相分離を表現できることを示す。一方、正常ENDO flowを
+保つためにほぼ全拡張reserveを消費し、$Q_m$時刻と内部venous backfillを外す。peak D/Sはprotocol未整合なので
+単独の採否根拠から外す。従ってtopologyの表現力は採択するが、
+このoperating pointを健康canonical parameterとしては棄却する。
+
+### 27.10 resistance partition x proximal complianceの2 x 2反証
+
+波形を見ながら連続parameterを探索せず、二つの独立したmechanismをfactorialに変更した。
+
+- resistance partition: 両layer 60:30:10 versus ENDOだけ70:15:15。後者は
+  Chilianらのarteriolar / capillary / venular pressure-drop方向を用いた**方向性ablation**であり、同論文から直接同定した
+  正確な三分率ではない ([Chilian et al. 1991](https://pubmed.ncbi.nlm.nih.gov/1873859/))。
+- proximal Art compliance: literature-priorの1.0 versus local slopeだけ0.4倍。reference structural volumeと圧は変えない。
+
+| microvascular partition | Art $C$ | LAD D/T | peak D/S full / ejection | peak delay | systolic reverse | ENDO tone |
+|---|---:|---:|---:|---:|---:|---:|
+| symmetric 60:30:10 | 1.0 | 0.850 | 1.111 / 4.628 | 146 ms | 0.0186 mL | 0.118 |
+| directional ENDO 70:15:15 | 1.0 | 0.819 | 1.084 / 1.790 | 532 ms | 0 | 0.471 |
+| symmetric 60:30:10 | 0.4 | 0.863 | 1.217 / 4.650 | 128 ms | 0.0489 mL | 0.114 |
+| directional ENDO 70:15:15 | 0.4 | 0.857 | 1.119 / 2.974 | 176 ms | 0.00130 mL | 0.470 |
+
+抵抗配分はENDO reserveと近位逆流を改善するがpeakをlate diastoleへ遅らせる。Art compliance低下はpeak時刻を早めるが、
+逆流を増やしD/Tを上げる。併用は入口逆流とreserveの妥協点だが、LAD ENDO $Q_m$ peakは406 ms、最初200 msの
+diastolic forward shareは0.075に留まり、LAD ENDO $Q_2$は0.232 s backfillする。入口peak比はphase protocol依存で
+hard判定しないが、組織transferと内部静脈のphaseはなお不適切である。したがって、
+問題を単一complianceまたは抵抗比の局所探索へ帰属させる仮説を棄却する。
+
+### 27.11 文献modelとの差と次の数理変更
+
+Munnekeらの閉ループmodelも各layerに$C_1-R_m-C_2$、両complianceへのIMP、初期60:30:10を置く。一方、healthy
+referenceでは、静的85 mmHgだけから抵抗を作って終わらせず、**拍動する基準simulationで目標平均flowを得るよう$R_1$の
+reference pressure dropを調整**している。また大冠動脈は1D conduitとして持つ
+([Munneke et al. 2022](https://www.frontiersin.org/journals/physiology/articles/10.3389/fphys.2022.830925/full))。
+
+V2は静的pressure partitionでbase resistanceを作った後、IMP、collapse、$C_1/C_2$ storageを追加している。そのため、
+拍動負荷で生じる平均flow deficitを正常autoregulationが補い、ENDO $r\simeq0.1$となる。これはcontroller不足というより、
+normal operating-point constructionと拍動hydraulicsを別々に較正したことによる意味論上の不整合である。
+
+次versionでは以下の順に進める。
+
+1. 正常拍動boundary、$r=1$、構造volume固定のまま、各layerのbase $R_1$を平均$Q_m=Q^*$となるよう一度だけ解く。
+   これは正常reference stateの構築であり、peak形状fitではない。病態simulation中は固定する。
+2. そのoperating pointでCEP-only / CEP + Land fiber stressと、collapse multiplierなし / ありをfactorialに比較する。
+   IMPとvolume-dependent resistanceが同じ収縮圧迫を二重計上していないか確認する。
+3. mean flow、healthy reserve、ENDO/EPIが回復してもpeak D/Sだけが残る場合に限り、近位conduitの最小
+   characteristic impedance / wave-transmission stateを導入する。full 1D treeへ直ちに進まず、dt convergence、passivity、
+   多峰性 / ringing gateを必須にする。
+
+ただしbase $R_1$の再正規化だけでは、現在の有効抵抗を別parameterへ移すだけになり得る。reserve意味論が回復しても
+波形が不変なら、それを成功と判定しない。human LADで正常なearly-diastolic acceleration timeは約95 msであり、
+backward suction waveが主要な拡張期accelerating waveであることも報告されている
+([Seligman et al. 2022](https://pmc.ncbi.nlm.nih.gov/articles/PMC9724998/),
+[Davies et al. 2006](https://pubmed.ncbi.nlm.nih.gov/16585389/))。0D storage / IMPだけでこの時刻・peak比を説明できないことを
+反証した後なら、conduit wave impedanceは形状fittingではなく欠落物理として正当化できる。
+
+### 27.12 現時点の採択判断
+
+- **採択**: 3 territory x 2 layer、$C_1-R_m-C_2$、signed flow、coercive PV、graph incidence、6 accepted tone、
+  focal stenosis / structural CMD / dilation floorの責任分離。
+- **条件付き採択**: CEP + Land IMP、collapse-dependent resistance、60:30:10。いずれも独立ablationが必要。
+- **棄却**: V1 single-IM topology、静的抵抗構築をそのまま健康基準とすること、正常波形を作るhard diode、現V2 shadowを
+  healthy canonical releaseと呼ぶこと。
+- **保留**: proximal characteristic impedance / inertance / 1D conduit。gross integralを作るためには追加せず、
+  operating-point / IMP / collapse反証後にearly-diastolic wave physicsとして判断する。

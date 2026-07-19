@@ -1,0 +1,646 @@
+{
+  "schema": "circleheart.coronary-v2-mechanism-factorial-summary.v1",
+  "completed": true,
+  "claim": {
+    "role": "compact-mechanism-ablation-evidence",
+    "waveformSamplesRetained": false,
+    "allRowsShareTerminalBoundary": true,
+    "parameterFit": false
+  },
+  "sourceReports": {
+    "baseline": "/Users/hirakawa/ghq/github.com/g960059/0DSimDemo-mainwire-coronary-circulation-v1/data/myocardium/reports/mainwire-coronary-v2-autoregulated-terminal-boundary-shadow-v1.json",
+    "resistance": "/Users/hirakawa/ghq/github.com/g960059/0DSimDemo-mainwire-coronary-circulation-v1/data/myocardium/reports/mainwire-coronary-v2-transmural-resistance-ablation-v1.json",
+    "compliance": "/Users/hirakawa/ghq/github.com/g960059/0DSimDemo-mainwire-coronary-circulation-v1/data/myocardium/reports/mainwire-coronary-v2-low-proximal-compliance-ablation-v1.json",
+    "combined": "/Users/hirakawa/ghq/github.com/g960059/0DSimDemo-mainwire-coronary-circulation-v1/data/myocardium/reports/mainwire-coronary-v2-resistance-compliance-factorial-v1.json"
+  },
+  "reproduction": {
+    "runner": "npx tsx tools/coronary/runCoronaryV2TerminalBoundaryShadow.ts",
+    "note": "Generate the four full reports named in sourceReports, summarize, then full ablation samples may be discarded."
+  },
+  "rows": [
+    {
+      "partition": "Symmetric 60:30:10",
+      "compliance": "1.0×",
+      "meanFlow": 0.9999176940180787,
+      "diastolicFraction": 0.8502824951260501,
+      "peakRatio": 1.111382946685915,
+      "ejectionPeakRatio": 4.62849186329936,
+      "peakDelaySec": 0.14600000000004876,
+      "systolicReverseMl": 0.018634263706628105,
+      "endocardialTone": 0.11777430176066349,
+      "edgeAudit": {
+        "inletByTerritory": {
+          "LAD": {
+            "diastolicForwardVolumeFraction01": 0.8502824951260501,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.111382946685915,
+            "peakDiastolicToEjectionForwardFlowRatio": 4.62849186329936,
+            "diastolicToSystolicMeanNetFlowRatio": 2.737657040054335,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.2573010852754439,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.14600000000004876,
+            "systolicForwardVolumeMl": 0.15609790267230048,
+            "systolicReverseVolumeMl": 0.018634263706628105,
+            "systolicReverseDurationSec": 0.078,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          },
+          "LCx": {
+            "diastolicForwardVolumeFraction01": 0.8489121613065931,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.1171472719031659,
+            "peakDiastolicToEjectionForwardFlowRatio": 4.198815784432513,
+            "diastolicToSystolicMeanNetFlowRatio": 2.731449907205057,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.26054343793605206,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.1440000000000481,
+            "systolicForwardVolumeMl": 0.10515454845876089,
+            "systolicReverseVolumeMl": 0.013332448447816343,
+            "systolicReverseDurationSec": 0.076,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          },
+          "RCA": {
+            "diastolicForwardVolumeFraction01": 0.7462387198472978,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.0870945622162924,
+            "peakDiastolicToEjectionForwardFlowRatio": 1.332407413625858,
+            "diastolicToSystolicMeanNetFlowRatio": 1.24833622924141,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.2208373236676634,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.42600000000014226,
+            "systolicForwardVolumeMl": 0.18562643627528244,
+            "systolicReverseVolumeMl": 0,
+            "systolicReverseDurationSec": 0,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          }
+        },
+        "ladLayer": {
+          "subepicardial": {
+            "q1": {
+              "diastolicForwardVolumeFraction01": 0.7726482539052106,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.2727029513592958,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.4849819568116278,
+              "diastolicToSystolicMeanNetFlowRatio": 1.4426556648680928,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.23977782275428247,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.32200000000010753,
+              "systolicForwardVolumeMl": 0.1103446875050274,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "qm": {
+              "diastolicForwardVolumeFraction01": 0.755484880942114,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.3342521778571035,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.3996844084995086,
+              "diastolicToSystolicMeanNetFlowRatio": 1.3115933664343,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.19219979817879063,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.3740000000001249,
+              "systolicForwardVolumeMl": 0.1186748848395818,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "q2": {
+              "diastolicForwardVolumeFraction01": 0.17724220366951876,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 0.1338667671221662,
+              "peakDiastolicToEjectionForwardFlowRatio": 0.1338667671221662,
+              "diastolicToSystolicMeanNetFlowRatio": 0.05426951790970129,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.25069929470160446,
+              "diastolicPeakDelayAfterAorticClosureSec": 0,
+              "systolicForwardVolumeMl": 0.43033263111147474,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0.037689204051080255,
+              "diastolicReverseDurationSec": 0.29
+            }
+          },
+          "subendocardial": {
+            "q1": {
+              "diastolicForwardVolumeFraction01": 0.8670302446190317,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.8851508830762964,
+              "peakDiastolicToEjectionForwardFlowRatio": 3.236858517558269,
+              "diastolicToSystolicMeanNetFlowRatio": -2.9864216865645403,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.3780891763354989,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.0560000000000187,
+              "systolicForwardVolumeMl": 0.09629373675151487,
+              "systolicReverseVolumeMl": 0.18554357524470702,
+              "systolicReverseDurationSec": 0.14200000000000002,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "qm": {
+              "diastolicForwardVolumeFraction01": 0.8285678267779979,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.1331611892761715,
+              "peakDiastolicToEjectionForwardFlowRatio": 2.9299589603203295,
+              "diastolicToSystolicMeanNetFlowRatio": 2.408088410848333,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.07229623362660031,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.5740000000001917,
+              "systolicForwardVolumeMl": 0.09480277977909461,
+              "systolicReverseVolumeMl": 0.01408131786187403,
+              "systolicReverseDurationSec": 0.17400000000000002,
+              "diastolicReverseVolumeMl": 0.0002895324935341434,
+              "diastolicReverseDurationSec": 0.022
+            },
+            "q2": {
+              "diastolicForwardVolumeFraction01": 0.17170288666977032,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 0.11754131898410308,
+              "peakDiastolicToEjectionForwardFlowRatio": 0.11754131898410308,
+              "diastolicToSystolicMeanNetFlowRatio": 0.08156269280108829,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.12803059142383413,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.6940000000002318,
+              "systolicForwardVolumeMl": 0.4518213605991521,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0.006848994108010377,
+              "diastolicReverseDurationSec": 0.26
+            }
+          }
+        },
+        "commonVenousOutlet": {
+          "diastolicForwardVolumeFraction01": 0.4631605111242265,
+          "peakDiastolicToFullSystolicForwardFlowRatio": 0.7267694547423222,
+          "peakDiastolicToEjectionForwardFlowRatio": 0.7267694547423222,
+          "diastolicToSystolicMeanNetFlowRatio": 0.3662403769081503,
+          "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.5641935567867177,
+          "diastolicPeakDelayAfterAorticClosureSec": 0,
+          "systolicForwardVolumeMl": 1.308884660377671,
+          "systolicReverseVolumeMl": 0,
+          "systolicReverseDurationSec": 0,
+          "diastolicReverseVolumeMl": 0,
+          "diastolicReverseDurationSec": 0
+        },
+        "endocardialToEpicardialTissueFlowRatio": {
+          "LAD": 1.1097891078153044,
+          "LCx": 1.1097749997024937,
+          "RCA": 1.1100002248486343
+        }
+      }
+    },
+    {
+      "partition": "Directional ENDO 70:15:15",
+      "compliance": "1.0×",
+      "meanFlow": 0.9999999995819164,
+      "diastolicFraction": 0.8186843609150953,
+      "peakRatio": 1.0837750562433983,
+      "ejectionPeakRatio": 1.7896562604425683,
+      "peakDelaySec": 0.5320000000001777,
+      "systolicReverseMl": 0,
+      "endocardialTone": 0.47067809468303007,
+      "edgeAudit": {
+        "inletByTerritory": {
+          "LAD": {
+            "diastolicForwardVolumeFraction01": 0.8186843609150953,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.0837750562433983,
+            "peakDiastolicToEjectionForwardFlowRatio": 1.7896562604425683,
+            "diastolicToSystolicMeanNetFlowRatio": 1.9167275320512047,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.19686964599278808,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.5320000000001777,
+            "systolicForwardVolumeMl": 0.18568534586366506,
+            "systolicReverseVolumeMl": 0,
+            "systolicReverseDurationSec": 0,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          },
+          "LCx": {
+            "diastolicForwardVolumeFraction01": 0.8178246541249585,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.0856429695241805,
+            "peakDiastolicToEjectionForwardFlowRatio": 1.8043844197206682,
+            "diastolicToSystolicMeanNetFlowRatio": 1.905678998444501,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.19890649242826805,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.524000000000175,
+            "systolicForwardVolumeMl": 0.12437718108270447,
+            "systolicReverseVolumeMl": 0,
+            "systolicReverseDurationSec": 0,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          },
+          "RCA": {
+            "diastolicForwardVolumeFraction01": 0.7432217824564572,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.138975186663218,
+            "peakDiastolicToEjectionForwardFlowRatio": 1.273958548899147,
+            "diastolicToSystolicMeanNetFlowRatio": 1.228681733176038,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.21962687291319966,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.27600000000009217,
+            "systolicForwardVolumeMl": 0.1878332661271412,
+            "systolicReverseVolumeMl": 0,
+            "systolicReverseDurationSec": 0,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          }
+        },
+        "ladLayer": {
+          "subepicardial": {
+            "q1": {
+              "diastolicForwardVolumeFraction01": 0.7887622616706157,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.1249679114488924,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.1450267377193928,
+              "diastolicToSystolicMeanNetFlowRatio": 1.6849331807064396,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.2795662182999847,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.3480000000001162,
+              "systolicForwardVolumeMl": 0.10382499343491638,
+              "systolicReverseVolumeMl": 0.0061523377567236845,
+              "systolicReverseDurationSec": 0.042,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "qm": {
+              "diastolicForwardVolumeFraction01": 0.769870744976533,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.2805076288935087,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.3657515268290636,
+              "diastolicToSystolicMeanNetFlowRatio": 1.4201203053961353,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.20520977996231995,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.3440000000001149,
+              "systolicForwardVolumeMl": 0.11169448810418459,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "q2": {
+              "diastolicForwardVolumeFraction01": 0.17666723790667213,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 0.12360362536347964,
+              "peakDiastolicToEjectionForwardFlowRatio": 0.12360362536347964,
+              "diastolicToSystolicMeanNetFlowRatio": 0.053151195832199565,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.2370421559688574,
+              "diastolicPeakDelayAfterAorticClosureSec": 0,
+              "systolicForwardVolumeMl": 0.4313471151884605,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0.03854829243126703,
+              "diastolicReverseDurationSec": 0.28600000000000003
+            }
+          },
+          "subendocardial": {
+            "q1": {
+              "diastolicForwardVolumeFraction01": 0.8964155436412565,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.3528065564313307,
+              "peakDiastolicToEjectionForwardFlowRatio": 6.58993074044104,
+              "diastolicToSystolicMeanNetFlowRatio": -7.468605528324157,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.28307229740143125,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.10400000000003473,
+              "systolicForwardVolumeMl": 0.06600576335174752,
+              "systolicReverseVolumeMl": 0.09847232337192953,
+              "systolicReverseDurationSec": 0.17200000000000001,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "qm": {
+              "diastolicForwardVolumeFraction01": 0.8503645347594898,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.3730245594307098,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.9761503249273922,
+              "diastolicToSystolicMeanNetFlowRatio": 2.9283549900168024,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.08055113321448602,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.40200000000013425,
+              "systolicForwardVolumeMl": 0.08299735229905254,
+              "systolicReverseVolumeMl": 0.014787503625035135,
+              "systolicReverseDurationSec": 0.154,
+              "diastolicReverseVolumeMl": 0.0011315901600573348,
+              "diastolicReverseDurationSec": 0.036000000000000004
+            },
+            "q2": {
+              "diastolicForwardVolumeFraction01": 0.18227956737681741,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 0.11463452841409627,
+              "peakDiastolicToEjectionForwardFlowRatio": 0.11463452841409627,
+              "diastolicToSystolicMeanNetFlowRatio": 0.08863085631983009,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.14293257333249668,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.6940000000002318,
+              "systolicForwardVolumeMl": 0.44568980968973326,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0.006294796638903996,
+              "diastolicReverseDurationSec": 0.23
+            }
+          }
+        },
+        "commonVenousOutlet": {
+          "diastolicForwardVolumeFraction01": 0.47814820644293565,
+          "peakDiastolicToFullSystolicForwardFlowRatio": 0.7522918610180521,
+          "peakDiastolicToEjectionForwardFlowRatio": 0.7522918610180521,
+          "diastolicToSystolicMeanNetFlowRatio": 0.3889506508625847,
+          "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.5560384179677997,
+          "diastolicPeakDelayAfterAorticClosureSec": 0,
+          "systolicForwardVolumeMl": 1.2724486227510465,
+          "systolicReverseVolumeMl": 0,
+          "systolicReverseDurationSec": 0,
+          "diastolicReverseVolumeMl": 0,
+          "diastolicReverseDurationSec": 0
+        },
+        "endocardialToEpicardialTissueFlowRatio": {
+          "LAD": 1.1100000000382924,
+          "LCx": 1.1099999999583898,
+          "RCA": 1.1099999999957137
+        }
+      }
+    },
+    {
+      "partition": "Symmetric 60:30:10",
+      "compliance": "0.4×",
+      "meanFlow": 0.9999071192734326,
+      "diastolicFraction": 0.8631902294161141,
+      "peakRatio": 1.2167672815167057,
+      "ejectionPeakRatio": 4.650035094732263,
+      "peakDelaySec": 0.12800000000004275,
+      "systolicReverseMl": 0.04894381866602239,
+      "endocardialTone": 0.1137337838131531,
+      "edgeAudit": {
+        "inletByTerritory": {
+          "LAD": {
+            "diastolicForwardVolumeFraction01": 0.8631902294161141,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.2167672815167057,
+            "peakDiastolicToEjectionForwardFlowRatio": 4.650035094732263,
+            "diastolicToSystolicMeanNetFlowRatio": 4.018177361615901,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.2806436626689313,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.12800000000004275,
+            "systolicForwardVolumeMl": 0.1467846217072455,
+            "systolicReverseVolumeMl": 0.04894381866602239,
+            "systolicReverseDurationSec": 0.11,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          },
+          "LCx": {
+            "diastolicForwardVolumeFraction01": 0.8614098795508691,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.2257165672064119,
+            "peakDiastolicToEjectionForwardFlowRatio": 4.22061738881064,
+            "diastolicToSystolicMeanNetFlowRatio": 3.9800539986269423,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.28382290542801236,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.12400000000004141,
+            "systolicForwardVolumeMl": 0.0992432612896726,
+            "systolicReverseVolumeMl": 0.03345191230658811,
+            "systolicReverseDurationSec": 0.106,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          },
+          "RCA": {
+            "diastolicForwardVolumeFraction01": 0.776682056370708,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.1030108615981757,
+            "peakDiastolicToEjectionForwardFlowRatio": 1.7253666334608273,
+            "diastolicToSystolicMeanNetFlowRatio": 1.476382210743297,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.2411693620013212,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.3940000000001316,
+            "systolicForwardVolumeMl": 0.16335714927366699,
+            "systolicReverseVolumeMl": 0,
+            "systolicReverseDurationSec": 0,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          }
+        },
+        "ladLayer": {
+          "subepicardial": {
+            "q1": {
+              "diastolicForwardVolumeFraction01": 0.7512500120606469,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.287114126193976,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.5569643952757972,
+              "diastolicToSystolicMeanNetFlowRatio": 1.28203704819559,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.21864353385986798,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.29600000000009885,
+              "systolicForwardVolumeMl": 0.12073011687194435,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "qm": {
+              "diastolicForwardVolumeFraction01": 0.7425011701309925,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.3075790338051239,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.3075790338051239,
+              "diastolicToSystolicMeanNetFlowRatio": 1.2240552882314952,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.18956193682207811,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.37800000000012624,
+              "systolicForwardVolumeMl": 0.12497633306116339,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "q2": {
+              "diastolicForwardVolumeFraction01": 0.17481579228574645,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 0.13744890490033357,
+              "peakDiastolicToEjectionForwardFlowRatio": 0.13744890490033357,
+              "diastolicToSystolicMeanNetFlowRatio": 0.05250356212542284,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.2598646984654078,
+              "diastolicPeakDelayAfterAorticClosureSec": 0,
+              "systolicForwardVolumeMl": 0.4319252142800879,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0.03808186983448591,
+              "diastolicReverseDurationSec": 0.292
+            }
+          },
+          "subendocardial": {
+            "q1": {
+              "diastolicForwardVolumeFraction01": 0.8776733134120669,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.660939676639683,
+              "peakDiastolicToEjectionForwardFlowRatio": 4.278368185870929,
+              "diastolicToSystolicMeanNetFlowRatio": -3.380854460339966,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.36986365421627126,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.07000000000002338,
+              "systolicForwardVolumeMl": 0.08585002952469603,
+              "systolicReverseVolumeMl": 0.1631901432337883,
+              "systolicReverseDurationSec": 0.156,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "qm": {
+              "diastolicForwardVolumeFraction01": 0.819906225218326,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.1109365563372802,
+              "peakDiastolicToEjectionForwardFlowRatio": 2.3762578093463316,
+              "diastolicToSystolicMeanNetFlowRatio": 2.112239200722942,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.06622149911035764,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.5820000000001944,
+              "systolicForwardVolumeMl": 0.09857712836857924,
+              "systolicReverseVolumeMl": 0.008443962999463464,
+              "systolicReverseDurationSec": 0.158,
+              "diastolicReverseVolumeMl": 0.0003027546329158855,
+              "diastolicReverseDurationSec": 0.024
+            },
+            "q2": {
+              "diastolicForwardVolumeFraction01": 0.16650370494336314,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 0.1161539187204297,
+              "peakDiastolicToEjectionForwardFlowRatio": 0.1161539187204297,
+              "diastolicToSystolicMeanNetFlowRatio": 0.07847610225658798,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.13576458695026303,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.6960000000002324,
+              "systolicForwardVolumeMl": 0.4545814406404912,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0.006772744439739082,
+              "diastolicReverseDurationSec": 0.262
+            }
+          }
+        },
+        "commonVenousOutlet": {
+          "diastolicForwardVolumeFraction01": 0.4639156880744032,
+          "peakDiastolicToFullSystolicForwardFlowRatio": 0.7322677163530118,
+          "peakDiastolicToEjectionForwardFlowRatio": 0.7322677163530118,
+          "diastolicToSystolicMeanNetFlowRatio": 0.3673542874790841,
+          "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.5678078628926523,
+          "diastolicPeakDelayAfterAorticClosureSec": 0,
+          "systolicForwardVolumeMl": 1.3070294659011583,
+          "systolicReverseVolumeMl": 0,
+          "systolicReverseDurationSec": 0,
+          "diastolicReverseVolumeMl": 0,
+          "diastolicReverseDurationSec": 0
+        },
+        "endocardialToEpicardialTissueFlowRatio": {
+          "LAD": 1.1097598728371645,
+          "LCx": 1.109745072732542,
+          "RCA": 1.1100002788961523
+        }
+      }
+    },
+    {
+      "partition": "Directional ENDO 70:15:15",
+      "compliance": "0.4×",
+      "meanFlow": 0.9999999996380157,
+      "diastolicFraction": 0.8566803705130701,
+      "peakRatio": 1.118715314500756,
+      "ejectionPeakRatio": 2.973666146218373,
+      "peakDelaySec": 0.17600000000005878,
+      "systolicReverseMl": 0.0013019303396798571,
+      "endocardialTone": 0.4703240627519885,
+      "edgeAudit": {
+        "inletByTerritory": {
+          "LAD": {
+            "diastolicForwardVolumeFraction01": 0.8566803705130701,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.118715314500756,
+            "peakDiastolicToEjectionForwardFlowRatio": 2.973666146218373,
+            "diastolicToSystolicMeanNetFlowRatio": 2.560099697247969,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.22350708492719573,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.17600000000005878,
+            "systolicForwardVolumeMl": 0.14696022464688316,
+            "systolicReverseVolumeMl": 0.0013019303396798571,
+            "systolicReverseDurationSec": 0.036000000000000004,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          },
+          "LCx": {
+            "diastolicForwardVolumeFraction01": 0.8549671388258863,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.1222529833735722,
+            "peakDiastolicToEjectionForwardFlowRatio": 3.029735430875086,
+            "diastolicToSystolicMeanNetFlowRatio": 2.526554185599299,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.22525114141621025,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.17600000000005878,
+            "systolicForwardVolumeMl": 0.09915607383803447,
+            "systolicReverseVolumeMl": 0.0009467173466546853,
+            "systolicReverseDurationSec": 0.036000000000000004,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          },
+          "RCA": {
+            "diastolicForwardVolumeFraction01": 0.7737607620551264,
+            "peakDiastolicToFullSystolicForwardFlowRatio": 1.1604814252809195,
+            "peakDiastolicToEjectionForwardFlowRatio": 1.7176243101188482,
+            "diastolicToSystolicMeanNetFlowRatio": 1.4518372175375855,
+            "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.24234365516588605,
+            "diastolicPeakDelayAfterAorticClosureSec": 0.2560000000000855,
+            "systolicForwardVolumeMl": 0.16549400255250907,
+            "systolicReverseVolumeMl": 0,
+            "systolicReverseDurationSec": 0,
+            "diastolicReverseVolumeMl": 0,
+            "diastolicReverseDurationSec": 0
+          }
+        },
+        "ladLayer": {
+          "subepicardial": {
+            "q1": {
+              "diastolicForwardVolumeFraction01": 0.7753206864789726,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.1153469047504916,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.244321596137592,
+              "diastolicToSystolicMeanNetFlowRatio": 1.48177577644949,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.26025111528301664,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.32600000000010887,
+              "systolicForwardVolumeMl": 0.1093296768124248,
+              "systolicReverseVolumeMl": 0.001247767326132575,
+              "systolicReverseDurationSec": 0.022,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "qm": {
+              "diastolicForwardVolumeFraction01": 0.7570097538152485,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.2579718622626264,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.3184987560594135,
+              "diastolicToSystolicMeanNetFlowRatio": 1.3224881405803999,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.20343095744910675,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.3500000000001169,
+              "systolicForwardVolumeMl": 0.1179366402662309,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "q2": {
+              "diastolicForwardVolumeFraction01": 0.17421893280270226,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 0.1271369852039876,
+              "peakDiastolicToEjectionForwardFlowRatio": 0.1271369852039876,
+              "diastolicToSystolicMeanNetFlowRatio": 0.05129120629539358,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.24615318979325526,
+              "diastolicPeakDelayAfterAorticClosureSec": 0,
+              "systolicForwardVolumeMl": 0.43303335640084356,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0.039036999402392136,
+              "diastolicReverseDurationSec": 0.29
+            }
+          },
+          "subendocardial": {
+            "q1": {
+              "diastolicForwardVolumeFraction01": 0.895919491115338,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.2621356914583115,
+              "peakDiastolicToEjectionForwardFlowRatio": 11.17467080340414,
+              "diastolicToSystolicMeanNetFlowRatio": -13.000309359581427,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.26679637581828464,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.12800000000004275,
+              "systolicForwardVolumeMl": 0.06469952652633328,
+              "systolicReverseVolumeMl": 0.08288506417716668,
+              "systolicReverseDurationSec": 0.18,
+              "diastolicReverseVolumeMl": 0,
+              "diastolicReverseDurationSec": 0
+            },
+            "qm": {
+              "diastolicForwardVolumeFraction01": 0.8432145770322577,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 1.344829798570677,
+              "peakDiastolicToEjectionForwardFlowRatio": 1.8714515044029314,
+              "diastolicToSystolicMeanNetFlowRatio": 2.5406326728862565,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.07530217238574453,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.4060000000001356,
+              "systolicForwardVolumeMl": 0.08598811345996958,
+              "systolicReverseVolumeMl": 0.008859113162449006,
+              "systolicReverseDurationSec": 0.14,
+              "diastolicReverseVolumeMl": 0.0008409047071121694,
+              "diastolicReverseDurationSec": 0.036000000000000004
+            },
+            "q2": {
+              "diastolicForwardVolumeFraction01": 0.17835716094079926,
+              "peakDiastolicToFullSystolicForwardFlowRatio": 0.11382790139534397,
+              "peakDiastolicToEjectionForwardFlowRatio": 0.11382790139534397,
+              "diastolicToSystolicMeanNetFlowRatio": 0.08620507931701661,
+              "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.15285814817582777,
+              "diastolicPeakDelayAfterAorticClosureSec": 0.6940000000002318,
+              "systolicForwardVolumeMl": 0.44780676749697435,
+              "systolicReverseVolumeMl": 0,
+              "systolicReverseDurationSec": 0,
+              "diastolicReverseVolumeMl": 0.006269349951629347,
+              "diastolicReverseDurationSec": 0.232
+            }
+          }
+        },
+        "commonVenousOutlet": {
+          "diastolicForwardVolumeFraction01": 0.47894135092679235,
+          "peakDiastolicToFullSystolicForwardFlowRatio": 0.7587445039905623,
+          "peakDiastolicToEjectionForwardFlowRatio": 0.7587445039905623,
+          "diastolicToSystolicMeanNetFlowRatio": 0.3901888704518849,
+          "earlyDiastolicForwardVolumeFractionOfDiastole01": 0.5599740439265325,
+          "diastolicPeakDelayAfterAorticClosureSec": 0,
+          "systolicForwardVolumeMl": 1.2705146721911265,
+          "systolicReverseVolumeMl": 0,
+          "systolicReverseDurationSec": 0,
+          "diastolicReverseVolumeMl": 0,
+          "diastolicReverseDurationSec": 0
+        },
+        "endocardialToEpicardialTissueFlowRatio": {
+          "LAD": 1.1100000000302763,
+          "LCx": 1.109999999961554,
+          "RCA": 1.1099999999944448
+        }
+      }
+    }
+  ]
+}

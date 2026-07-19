@@ -10,6 +10,7 @@ import {
   type CoronaryConservedVolumeNodeIdV1,
   type CoronaryEdgeIdV1,
   type CoronaryHydraulicNodeIdV1,
+  type CoronaryTopologyV1,
   type CoronaryTopologyPriorV1,
 } from "@/engine/coronary/topologyPriorV1";
 import {
@@ -153,6 +154,7 @@ export const DEFAULT_CORONARY_BACKWARD_EULER_SOLVER_OPTIONS_V1 = Object.freeze({
 type MutableHydraulicEvaluation = {
   pressureByNode: number[];
   flowByEdge: number[];
+  edgeIndexById: Readonly<Record<CoronaryEdgeIdV1, number>>;
   effectiveToneScale: number[];
   distributedArterialResistanceScale: number[];
   postLesionAbsolutePressureMmHg: number[];
@@ -167,10 +169,6 @@ type ResidualEvaluation = {
 const NODE_INDEX = Object.freeze(Object.fromEntries(
   CORONARY_CONSERVED_VOLUME_NODE_IDS_V1.map((nodeId, index) => [nodeId, index]),
 )) as Readonly<Record<CoronaryConservedVolumeNodeIdV1, number>>;
-
-const EDGE_INDEX = Object.freeze(Object.fromEntries(
-  CORONARY_EDGE_IDS_V1.map((edgeId, index) => [edgeId, index]),
-)) as Readonly<Record<CoronaryEdgeIdV1, number>>;
 
 const HYDRAULIC_NODE_IDS = Object.freeze([
   "Ao",
@@ -192,6 +190,34 @@ export class CoronaryNetworkConvergenceErrorV1 extends Error {
     this.finalResidualInfinityNormMl = finalResidualInfinityNormMl;
     this.attemptedNewtonIterations = attemptedNewtonIterations;
   }
+}
+
+/**
+ * Own edge-array ordering at the topology boundary. Hydraulic evaluators and
+ * incidence assembly share this one map, so reordering topology.edges cannot
+ * silently reconnect a canonical edge flow to a different node pair.
+ */
+export function buildCoronaryEdgeIndexV1(
+  topology: CoronaryTopologyV1,
+): Readonly<Record<CoronaryEdgeIdV1, number>> {
+  const indexById = {} as Record<CoronaryEdgeIdV1, number>;
+  const seen = new Set<CoronaryEdgeIdV1>();
+  topology.edges.forEach((edge, index) => {
+    if (seen.has(edge.edgeId)) {
+      throw new RangeError(`duplicate coronary edge id ${edge.edgeId}`);
+    }
+    seen.add(edge.edgeId);
+    indexById[edge.edgeId] = index;
+  });
+  for (const edgeId of CORONARY_EDGE_IDS_V1) {
+    if (!seen.has(edgeId)) {
+      throw new RangeError(`coronary topology is missing edge ${edgeId}`);
+    }
+  }
+  if (seen.size !== CORONARY_EDGE_IDS_V1.length) {
+    throw new RangeError("coronary topology has an unexpected edge count");
+  }
+  return Object.freeze(indexById);
 }
 
 export function createInitialCoronaryAcceptedHydraulicStateV1(
@@ -220,6 +246,8 @@ export function evaluateCoronaryHydraulicsV1(
   validateBoundary(boundary);
   validateDisease(disease);
   validateTone(toneResistanceScaleByTerritory, prior);
+  const topology = buildCoronaryTopologyV1(prior);
+  const edgeIndexById = buildCoronaryEdgeIndexV1(topology);
   const volumes = volumeRecordToArray(volumeMlByNode);
   validateVolumes(volumes, prior, 0);
   return freezeHydraulicEvaluation(
@@ -229,6 +257,8 @@ export function evaluateCoronaryHydraulicsV1(
       boundary,
       disease,
       prior,
+      topology,
+      edgeIndexById,
     ),
   );
 }
@@ -249,6 +279,8 @@ export function solveCoronaryBackwardEulerTrialV1(
   const disease = input.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V1;
   validateDisease(disease);
   const options = resolveSolverOptions(input.solverOptions);
+  const topology = buildCoronaryTopologyV1(prior);
+  const edgeIndexById = buildCoronaryEdgeIndexV1(topology);
   const previous = volumeRecordToArray(previousAcceptedState.volumeMlByNode);
   const coldSeeds = coldSeedArray(prior);
   const minimumVolumes = coldSeeds.map(
@@ -263,11 +295,18 @@ export function solveCoronaryBackwardEulerTrialV1(
       input.boundary,
       disease,
       prior,
+      topology,
+      edgeIndexById,
     );
     const residual = candidate.map((volume, nodeIndex) =>
       volume - previous[nodeIndex],
     );
-    accumulateFlowContinuity(residual, hydraulics.flowByEdge, input.dtSec);
+    accumulateFlowContinuity(
+      residual,
+      hydraulics.flowByEdge,
+      input.dtSec,
+      topology,
+    );
     return { residual, hydraulics };
   };
 
@@ -339,8 +378,13 @@ export function solveCoronaryBackwardEulerTrialV1(
   const candidateVolumes = arrayToVolumeRecord(candidate);
   const previousTotal = sum(previous);
   const candidateTotal = sum(candidate);
-  const inletFlow = totalInletFlow(evaluated.hydraulics.flowByEdge);
-  const outletFlow = evaluated.hydraulics.flowByEdge[EDGE_INDEX.CS_RA];
+  const inletFlow = totalInletFlow(
+    evaluated.hydraulics.flowByEdge,
+    evaluated.hydraulics.edgeIndexById,
+  );
+  const outletFlow = evaluated.hydraulics.flowByEdge[
+    evaluated.hydraulics.edgeIndexById.CS_RA
+  ];
   const continuityResidual = arrayToVolumeRecord(evaluated.residual);
   const storageRate = arrayToVolumeRecord(candidate.map(
     (volume, index) => (volume - previous[index]) / input.dtSec,
@@ -468,9 +512,11 @@ function evaluateHydraulicsInternal(
   boundary: CoronaryHydraulicBoundaryInputV1,
   disease: CoronaryDiseaseInputV1,
   prior: CoronaryTopologyPriorV1,
+  topology: CoronaryTopologyV1,
+  edgeIndexById: Readonly<Record<CoronaryEdgeIdV1, number>>,
 ): MutableHydraulicEvaluation {
   const pressureByNode = Array<number>(HYDRAULIC_NODE_IDS.length).fill(0);
-  const flowByEdge = Array<number>(CORONARY_EDGE_IDS_V1.length).fill(0);
+  const flowByEdge = Array<number>(topology.edges.length).fill(0);
   const effectiveToneScale = Array<number>(CORONARY_TERRITORY_IDS_V1.length).fill(0);
   const distributedArterialResistanceScale =
     Array<number>(CORONARY_TERRITORY_IDS_V1.length).fill(0);
@@ -485,12 +531,12 @@ function evaluateHydraulicsInternal(
     const territoryId = CORONARY_TERRITORY_IDS_V1[territoryIndex];
     const territory = prior.territories[territoryId];
     const diseaseInput = disease[territoryId];
-    const baseNodeIndex = 3 * territoryIndex;
-    const arteryVolume = volumes[baseNodeIndex];
+    const arteryNodeId = distalArterialNodeId(territoryId);
+    const arteryVolume = volumes[NODE_INDEX[arteryNodeId]];
     const arteryPressure = boundary.perivascularExternalPressureMmHg
       + (arteryVolume - territory.distalArterialNode.unstressedVolumeMl)
         / territory.distalArterialNode.complianceMlPerMmHg;
-    pressureByNode[hydraulicPressureIndex(`${territoryId}.Art`)] = arteryPressure;
+    pressureByNode[hydraulicPressureIndex(arteryNodeId)] = arteryPressure;
 
     const effectiveTone = tone[territoryId];
     effectiveToneScale[territoryIndex] = effectiveTone;
@@ -512,7 +558,7 @@ function evaluateHydraulicsInternal(
         + stenosis.additionalLinearResistanceMmHgSecPerMl,
       stenosis.additionalQuadraticResistanceMmHgSec2PerMl2,
     );
-    flowByEdge[5 * territoryIndex] = inletFlow;
+    flowByEdge[edgeIndexById[territoryInletEdgeId(territoryId)]] = inletFlow;
     const stenosisLoss = evaluateSignedLinearQuadraticLossV1(
       inletFlow,
       stenosis.additionalLinearResistanceMmHgSecPerMl,
@@ -524,7 +570,8 @@ function evaluateHydraulicsInternal(
 
     for (let layerIndex = 0; layerIndex < CORONARY_LAYER_IDS_V1.length; layerIndex += 1) {
       const layerId = CORONARY_LAYER_IDS_V1[layerIndex];
-      const nodeIndex = baseNodeIndex + 1 + layerIndex;
+      const imNodeId = intramyocardialNodeId(territoryId, layerId);
+      const nodeIndex = NODE_INDEX[imNodeId];
       const layer = territory.layers[layerId];
       const transmural = evaluateCollapsibleIntramyocardialPvV1(
         volumes[nodeIndex],
@@ -533,7 +580,7 @@ function evaluateHydraulicsInternal(
       const imPressure =
         boundary.intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId]
         + transmural.transmuralPressureMmHg;
-      pressureByNode[hydraulicPressureIndex(`${territoryId}.IM.${layerId}`)] = imPressure;
+      pressureByNode[hydraulicPressureIndex(imNodeId)] = imPressure;
       const arteriolar = evaluateVolumeDependentCoronaryResistanceV1(
         volumes[nodeIndex],
         layer.arteriolarResistance,
@@ -542,15 +589,20 @@ function evaluateHydraulicsInternal(
         volumes[nodeIndex],
         layer.venularResistance,
       );
-      const flowOffset = 5 * territoryIndex + 1 + 2 * layerIndex;
-      flowByEdge[flowOffset] = (arteryPressure - imPressure) /
+      const arteriolarEdgeIndex = edgeIndexById[
+        layerArteriolarEdgeId(territoryId, layerId)
+      ];
+      const venularEdgeIndex = edgeIndexById[
+        layerVenularEdgeId(territoryId, layerId)
+      ];
+      flowByEdge[arteriolarEdgeIndex] = (arteryPressure - imPressure) /
         (
           arteriolar.resistanceMmHgSecPerMl
           * effectiveTone
           * diseaseInput.microvascularStructuralResistanceScale
         );
       // CS pressure is assigned below; defer the venular flow.
-      flowByEdge[flowOffset + 1] = venular.resistanceMmHgSecPerMl;
+      flowByEdge[venularEdgeIndex] = venular.resistanceMmHgSecPerMl;
     }
   }
 
@@ -563,20 +615,24 @@ function evaluateHydraulicsInternal(
     const territoryId = CORONARY_TERRITORY_IDS_V1[territoryIndex];
     for (let layerIndex = 0; layerIndex < CORONARY_LAYER_IDS_V1.length; layerIndex += 1) {
       const layerId = CORONARY_LAYER_IDS_V1[layerIndex];
-      const flowOffset = 5 * territoryIndex + 1 + 2 * layerIndex;
-      const venularResistance = flowByEdge[flowOffset + 1];
-      const imPressure = pressureByNode[
-        hydraulicPressureIndex(`${territoryId}.IM.${layerId}`)
+      const venularEdgeIndex = edgeIndexById[
+        layerVenularEdgeId(territoryId, layerId)
       ];
-      flowByEdge[flowOffset + 1] = (imPressure - csPressure) / venularResistance;
+      const venularResistance = flowByEdge[venularEdgeIndex];
+      const imPressure = pressureByNode[
+        hydraulicPressureIndex(intramyocardialNodeId(territoryId, layerId))
+      ];
+      flowByEdge[venularEdgeIndex] =
+        (imPressure - csPressure) / venularResistance;
     }
   }
-  flowByEdge[EDGE_INDEX.CS_RA] =
+  flowByEdge[edgeIndexById.CS_RA] =
     (csPressure - boundary.absoluteRightAtrialPressureMmHg)
     / prior.coronarySinus.outletResistanceMmHgSecPerMl;
   return {
     pressureByNode,
     flowByEdge,
+    edgeIndexById,
     effectiveToneScale,
     distributedArterialResistanceScale,
     postLesionAbsolutePressureMmHg,
@@ -588,21 +644,18 @@ function accumulateFlowContinuity(
   residual: number[],
   flowByEdge: readonly number[],
   dtSec: number,
+  topology: CoronaryTopologyV1,
 ): void {
-  for (let territoryIndex = 0; territoryIndex < CORONARY_TERRITORY_IDS_V1.length; territoryIndex += 1) {
-    const baseNode = 3 * territoryIndex;
-    const flowOffset = 5 * territoryIndex;
-    const inlet = flowByEdge[flowOffset];
-    const artToEpi = flowByEdge[flowOffset + 1];
-    const epiToCs = flowByEdge[flowOffset + 2];
-    const artToEndo = flowByEdge[flowOffset + 3];
-    const endoToCs = flowByEdge[flowOffset + 4];
-    residual[baseNode] -= dtSec * (inlet - artToEpi - artToEndo);
-    residual[baseNode + 1] -= dtSec * (artToEpi - epiToCs);
-    residual[baseNode + 2] -= dtSec * (artToEndo - endoToCs);
-    residual[NODE_INDEX.CS] -= dtSec * (epiToCs + endoToCs);
+  for (let edgeIndex = 0; edgeIndex < topology.edges.length; edgeIndex += 1) {
+    const edge = topology.edges[edgeIndex]!;
+    const flowMlPerSec = flowByEdge[edgeIndex]!;
+    if (isConservedVolumeNodeId(edge.upstreamNodeId)) {
+      residual[NODE_INDEX[edge.upstreamNodeId]] += dtSec * flowMlPerSec;
+    }
+    if (isConservedVolumeNodeId(edge.downstreamNodeId)) {
+      residual[NODE_INDEX[edge.downstreamNodeId]] -= dtSec * flowMlPerSec;
+    }
   }
-  residual[NODE_INDEX.CS] += dtSec * flowByEdge[EDGE_INDEX.CS_RA];
 }
 
 function numericalJacobian(
@@ -704,7 +757,7 @@ function freezeHydraulicEvaluation(
   }
   const flows = {} as Record<CoronaryEdgeIdV1, number>;
   for (const edgeId of CORONARY_EDGE_IDS_V1) {
-    flows[edgeId] = evaluated.flowByEdge[EDGE_INDEX[edgeId]];
+    flows[edgeId] = evaluated.flowByEdge[evaluated.edgeIndexById[edgeId]];
   }
   const inletByTerritory = {} as Record<(typeof CORONARY_TERRITORY_IDS_V1)[number], number>;
   const toneByTerritory = {} as Record<(typeof CORONARY_TERRITORY_IDS_V1)[number], number>;
@@ -723,7 +776,9 @@ function freezeHydraulicEvaluation(
   const arteriolar = {} as Record<string, Readonly<Record<string, number>>>;
   const venular = {} as Record<string, Readonly<Record<string, number>>>;
   CORONARY_TERRITORY_IDS_V1.forEach((territoryId, territoryIndex) => {
-    inletByTerritory[territoryId] = evaluated.flowByEdge[5 * territoryIndex];
+    inletByTerritory[territoryId] = evaluated.flowByEdge[
+      evaluated.edgeIndexById[territoryInletEdgeId(territoryId)]
+    ];
     toneByTerritory[territoryId] = evaluated.effectiveToneScale[territoryIndex];
     arterialScaleByTerritory[territoryId] =
       evaluated.distributedArterialResistanceScale[territoryIndex];
@@ -733,10 +788,13 @@ function freezeHydraulicEvaluation(
       evaluated.additionalStenosisPressureLossMmHg[territoryIndex];
     const artLayer: Record<string, number> = {};
     const venLayer: Record<string, number> = {};
-    CORONARY_LAYER_IDS_V1.forEach((layerId, layerIndex) => {
-      const offset = 5 * territoryIndex + 1 + 2 * layerIndex;
-      artLayer[layerId] = evaluated.flowByEdge[offset];
-      venLayer[layerId] = evaluated.flowByEdge[offset + 1];
+    CORONARY_LAYER_IDS_V1.forEach((layerId) => {
+      artLayer[layerId] = evaluated.flowByEdge[
+        evaluated.edgeIndexById[layerArteriolarEdgeId(territoryId, layerId)]
+      ];
+      venLayer[layerId] = evaluated.flowByEdge[
+        evaluated.edgeIndexById[layerVenularEdgeId(territoryId, layerId)]
+      ];
     });
     arteriolar[territoryId] = Object.freeze(artLayer);
     venular[territoryId] = Object.freeze(venLayer);
@@ -755,8 +813,12 @@ function freezeHydraulicEvaluation(
     additionalStenosisPressureLossMmHgByTerritory:
       Object.freeze(stenosisLossByTerritory) as
         CoronaryTerritoryRecordV1<number>,
-    totalInletFlowMlPerSec: totalInletFlow(evaluated.flowByEdge),
-    coronarySinusOutletFlowMlPerSec: evaluated.flowByEdge[EDGE_INDEX.CS_RA],
+    totalInletFlowMlPerSec: totalInletFlow(
+      evaluated.flowByEdge,
+      evaluated.edgeIndexById,
+    ),
+    coronarySinusOutletFlowMlPerSec:
+      evaluated.flowByEdge[evaluated.edgeIndexById.CS_RA],
     inletFlowMlPerSecByTerritory: Object.freeze(inletByTerritory) as
       CoronaryTerritoryRecordV1<number>,
     layerArteriolarFlowMlPerSecByTerritory: Object.freeze(arteriolar) as
@@ -772,8 +834,54 @@ function hydraulicPressureIndex(nodeId: CoronaryHydraulicNodeIdV1): number {
   return 1 + NODE_INDEX[nodeId];
 }
 
-function totalInletFlow(flowByEdge: readonly number[]): number {
-  return flowByEdge[0] + flowByEdge[5] + flowByEdge[10];
+function totalInletFlow(
+  flowByEdge: readonly number[],
+  edgeIndexById: Readonly<Record<CoronaryEdgeIdV1, number>>,
+): number {
+  return CORONARY_TERRITORY_IDS_V1.reduce(
+    (total, territoryId) => total
+      + flowByEdge[edgeIndexById[territoryInletEdgeId(territoryId)]],
+    0,
+  );
+}
+
+function distalArterialNodeId(
+  territoryId: (typeof CORONARY_TERRITORY_IDS_V1)[number],
+): CoronaryConservedVolumeNodeIdV1 {
+  return `${territoryId}.Art` as CoronaryConservedVolumeNodeIdV1;
+}
+
+function intramyocardialNodeId(
+  territoryId: (typeof CORONARY_TERRITORY_IDS_V1)[number],
+  layerId: (typeof CORONARY_LAYER_IDS_V1)[number],
+): CoronaryConservedVolumeNodeIdV1 {
+  return `${territoryId}.IM.${layerId}` as CoronaryConservedVolumeNodeIdV1;
+}
+
+function territoryInletEdgeId(
+  territoryId: (typeof CORONARY_TERRITORY_IDS_V1)[number],
+): CoronaryEdgeIdV1 {
+  return `Ao_${territoryId}.Art` as CoronaryEdgeIdV1;
+}
+
+function layerArteriolarEdgeId(
+  territoryId: (typeof CORONARY_TERRITORY_IDS_V1)[number],
+  layerId: (typeof CORONARY_LAYER_IDS_V1)[number],
+): CoronaryEdgeIdV1 {
+  return `${territoryId}.Art_IM.${layerId}` as CoronaryEdgeIdV1;
+}
+
+function layerVenularEdgeId(
+  territoryId: (typeof CORONARY_TERRITORY_IDS_V1)[number],
+  layerId: (typeof CORONARY_LAYER_IDS_V1)[number],
+): CoronaryEdgeIdV1 {
+  return `${territoryId}.IM.${layerId}_CS` as CoronaryEdgeIdV1;
+}
+
+function isConservedVolumeNodeId(
+  nodeId: CoronaryHydraulicNodeIdV1,
+): nodeId is CoronaryConservedVolumeNodeIdV1 {
+  return nodeId !== "Ao" && nodeId !== "RA";
 }
 
 function maximumPositiveStep(

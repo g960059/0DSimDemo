@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CoronaryBackwardEulerTransactionV1,
   NORMAL_CORONARY_DISEASE_INPUT_V1,
+  buildCoronaryEdgeIndexV1,
   createInitialCoronaryAcceptedHydraulicStateV1,
   solveCoronaryBackwardEulerTrialV1,
   type CoronaryBackwardEulerTrialV1,
@@ -10,7 +11,9 @@ import {
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV1";
 import {
   CORONARY_CONSERVED_VOLUME_NODE_IDS_V1,
+  CORONARY_EDGE_IDS_V1,
   NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V1,
+  buildCoronaryTopologyV1,
 } from "@/engine/coronary/topologyPriorV1";
 
 const DIASTOLIC_BOUNDARY = Object.freeze({
@@ -71,6 +74,18 @@ function maximumAbsolute(values: readonly number[]): number {
 }
 
 describe("ten-volume coronary backward-Euler hydraulic network", () => {
+  it("owns edge-array ordering through the topology incidence map", () => {
+    const canonical = buildCoronaryTopologyV1();
+    const reordered = Object.freeze({
+      ...canonical,
+      edges: Object.freeze([...canonical.edges].reverse()),
+    });
+    const edgeIndexById = buildCoronaryEdgeIndexV1(reordered);
+    for (const edgeId of CORONARY_EDGE_IDS_V1) {
+      expect(reordered.edges[edgeIndexById[edgeId]]?.edgeId).toBe(edgeId);
+    }
+  });
+
   it("converges from the cold seed to a physiological static-boundary flow with an exact ledger", () => {
     const { last } = runFor(40, 0.02);
     const diagnostics = last.diagnostics;

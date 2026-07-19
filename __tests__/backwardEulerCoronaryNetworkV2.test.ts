@@ -1,0 +1,447 @@
+import { describe, expect, it } from "vitest";
+import {
+  CORONARY_CONSERVED_VOLUME_NODE_IDS_V2,
+  CORONARY_EDGE_IDS_V2,
+  CORONARY_LAYER_IDS_V2,
+  CORONARY_TERRITORY_IDS_V2,
+  NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  buildCoronaryTopologyV2,
+  evaluateCrefAnchoredCollapsiblePvV2,
+  invertCrefAnchoredCollapsiblePvV2,
+  scaleCoronaryLargeArterialComplianceV2,
+  type CoronaryEdgeIdV2,
+  type CoronaryTopologyV2,
+} from "@/engine/coronary";
+import {
+  CoronaryBackwardEulerTransactionV2,
+  NORMAL_CORONARY_DISEASE_INPUT_V2,
+  buildCoronaryCollapseHydraulicsPriorV2,
+  buildCoronaryEdgeIndexV2,
+  evaluateCoronaryHydraulicsV2,
+  initializePressureLadderCoronaryStateV2,
+  mapFocalDiameterStenosisV2,
+  solveCoronaryBackwardEulerTrialV2,
+  type CoronaryAcceptedHydraulicStateV2,
+  type CoronaryDiseaseInputV2,
+  type CoronaryHydraulicBoundaryInputV2,
+  type CoronaryLayerDiseaseInputV2,
+} from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
+
+const DIASTOLIC_BOUNDARY_V2 = Object.freeze({
+  absoluteAorticPressureMmHg: 95,
+  absoluteRightAtrialPressureMmHg: 5,
+  perivascularExternalPressureMmHg: 2,
+  intramyocardialPressureMmHgByTerritoryLayer: Object.freeze({
+    LAD: Object.freeze({ subepicardial: 6, subendocardial: 10 }),
+    LCx: Object.freeze({ subepicardial: 6, subendocardial: 10 }),
+    RCA: Object.freeze({ subepicardial: 5, subendocardial: 8 }),
+  }),
+}) satisfies CoronaryHydraulicBoundaryInputV2;
+
+function withLayerDisease(
+  territoryId: "LAD" | "LCx" | "RCA",
+  layerId: "subepicardial" | "subendocardial",
+  values: Partial<CoronaryLayerDiseaseInputV2>,
+): CoronaryDiseaseInputV2 {
+  const territory = NORMAL_CORONARY_DISEASE_INPUT_V2[territoryId];
+  return Object.freeze({
+    ...NORMAL_CORONARY_DISEASE_INPUT_V2,
+    [territoryId]: Object.freeze({
+      ...territory,
+      layers: Object.freeze({
+        ...territory.layers,
+        [layerId]: Object.freeze({
+          ...territory.layers[layerId],
+          ...values,
+        }),
+      }),
+    }),
+  });
+}
+
+function withFocalStenosis(
+  territoryId: "LAD" | "LCx" | "RCA",
+  diameterStenosisFraction01: number,
+): CoronaryDiseaseInputV2 {
+  return Object.freeze({
+    ...NORMAL_CORONARY_DISEASE_INPUT_V2,
+    [territoryId]: Object.freeze({
+      ...NORMAL_CORONARY_DISEASE_INPUT_V2[territoryId],
+      ...mapFocalDiameterStenosisV2(
+        territoryId,
+        diameterStenosisFraction01,
+      ),
+    }),
+  });
+}
+
+function reversedEdgeTopology(): CoronaryTopologyV2 {
+  const canonical = buildCoronaryTopologyV2();
+  const edges = Object.freeze([...canonical.edges].reverse());
+  const edgeIndexById = Object.freeze(Object.fromEntries(
+    edges.map((edge, index) => [edge.edgeId, index]),
+  )) as CoronaryTopologyV2["edgeIndexById"];
+  return Object.freeze({ ...canonical, edges, edgeIndexById });
+}
+
+function maximumAbsolute(values: readonly number[]): number {
+  return Math.max(...values.map((value) => Math.abs(value)));
+}
+
+describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
+  it("inverts the coercive PV law and keeps loaded hydraulic area distinct from zero-Ptm Vref", () => {
+    const topology = buildCoronaryTopologyV2();
+    const collapse = buildCoronaryCollapseHydraulicsPriorV2(topology);
+    expect(collapse.referenceOwner)
+      .toBe("loaded-cold-volume-ablation-prior-not-zero-ptm-pv-volume");
+    let distinctReferenceCount = 0;
+    for (const node of topology.nodes) {
+      for (const pressure of [-40, -5, 0, 5, 40]) {
+        const volume = invertCrefAnchoredCollapsiblePvV2(
+          pressure,
+          node.pressureVolume,
+        );
+        expect(evaluateCrefAnchoredCollapsiblePvV2(
+          volume,
+          node.pressureVolume,
+        ).transmuralPressureMmHg).toBeCloseTo(pressure, 9);
+      }
+      expect(collapse.hydraulicAreaReferenceVolumeMlByNode[node.nodeId])
+        .toBeCloseTo(node.coldSeedVolumeMl, 14);
+      if (
+        Math.abs(
+          node.coldSeedVolumeMl - node.pressureVolume.referenceVolumeMl,
+        ) > 1e-12
+      ) {
+        distinctReferenceCount += 1;
+      }
+    }
+    expect(distinctReferenceCount).toBe(16);
+  });
+
+  it("constructs a constant-boundary steady pressure ladder and reports, rather than hides, TBV transfer", () => {
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const { diagnostics } = initialized;
+    expect(diagnostics.maximumAbsoluteNodeContinuityResidualMlPerSec)
+      .toBeLessThan(1e-10);
+    const expectedFlowMlPerMin =
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2.construction
+        .targetTotalRestingFlowMlPerMin
+      * (95 - 5)
+      / NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2.construction
+        .referencePerfusionPressureDropMmHg;
+    expect(diagnostics.hydraulics.totalInletFlowMlPerSec * 60)
+      .toBeCloseTo(expectedFlowMlPerMin, 9);
+    expect(diagnostics.hydraulics.commonCoronaryVenousOutletFlowMlPerSec)
+      .toBeCloseTo(diagnostics.hydraulics.totalInletFlowMlPerSec, 10);
+    expect(diagnostics.requiredCoronaryVolumeTransferMl).toBeCloseTo(
+      diagnostics.pressureConsistentCoronaryBloodVolumeMl
+      - diagnostics.structuralPriorCoronaryBloodVolumeMl,
+      14,
+    );
+    // The anatomical Kassab ledger is not an isolated steady-volume clamp.
+    expect(Math.abs(diagnostics.requiredCoronaryVolumeTransferMl))
+      .toBeGreaterThan(0.1);
+
+    const pressure = diagnostics.hydraulics.absolutePressureMmHgByNode;
+    expect(pressure.Ao).toBeGreaterThan(pressure["LAD.Art"]);
+    expect(pressure["LAD.Art"])
+      .toBeGreaterThan(pressure["LAD.IM.Art.subepicardial"]);
+    expect(pressure["LAD.IM.Art.subepicardial"])
+      .toBeGreaterThan(pressure["LAD.IM.Ven.subepicardial"]);
+    expect(pressure["LAD.IM.Ven.subepicardial"]).toBeGreaterThan(pressure.CV);
+    expect(pressure.CV).toBeGreaterThan(pressure.RA);
+
+    const stationary = solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      { dtSec: 0.01, boundary: DIASTOLIC_BOUNDARY_V2 },
+    );
+    expect(stationary.diagnostics.newtonIterations).toBe(0);
+    expect(maximumAbsolute(Object.values(
+      stationary.diagnostics.storageRateMlPerSecByNode,
+    ))).toBeLessThan(1e-12);
+    expect(NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2.claims.simulationReady)
+      .toBe(false);
+  });
+
+  it("uses bounded collapse-only phi1, phi2, and geometric phi-m without distension gain", () => {
+    const topology = buildCoronaryTopologyV2();
+    const collapse = buildCoronaryCollapseHydraulicsPriorV2(topology);
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const c1Id = "LAD.IM.Art.subepicardial" as const;
+    const c2Id = "LAD.IM.Ven.subepicardial" as const;
+    const compressedVolumes = Object.freeze({
+      ...initialized.acceptedState.volumeMlByNode,
+      [c1Id]: 0.5 * collapse.hydraulicAreaReferenceVolumeMlByNode[c1Id],
+      [c2Id]: 0.75 * collapse.hydraulicAreaReferenceVolumeMlByNode[c2Id],
+    });
+    const compressed = evaluateCoronaryHydraulicsV2(
+      compressedVolumes,
+      initialized.acceptedState.toneResistanceScaleByTerritoryLayer,
+      DIASTOLIC_BOUNDARY_V2,
+    );
+    const area = (x: number): number => {
+      const smooth = x * x * (3 - 2 * x);
+      return 0.10 + 0.90 * smooth;
+    };
+    const phi1 = area(0.5) ** -2;
+    const phi2 = area(0.75) ** -2;
+    const r1Id = "LAD.Art_LAD.IM.Art.subepicardial" as const;
+    const rmId = "LAD.IM.Art.subepicardial_LAD.IM.Ven.subepicardial" as const;
+    const r2Id = "LAD.IM.Ven.subepicardial_CV" as const;
+    expect(compressed.effectiveLinearResistanceMmHgSecPerMlByEdge[r1Id]
+      / topology.edges[topology.edgeIndexById[r1Id]].referenceResistanceMmHgSecPerMl)
+      .toBeCloseTo(phi1, 12);
+    expect(compressed.effectiveLinearResistanceMmHgSecPerMlByEdge[rmId]
+      / topology.edges[topology.edgeIndexById[rmId]].referenceResistanceMmHgSecPerMl)
+      .toBeCloseTo(Math.sqrt(phi1 * phi2), 12);
+    expect(compressed.effectiveLinearResistanceMmHgSecPerMlByEdge[r2Id]
+      / topology.edges[topology.edgeIndexById[r2Id]].referenceResistanceMmHgSecPerMl)
+      .toBeCloseTo(phi2, 12);
+
+    const distendedVolumes = Object.freeze({
+      ...initialized.acceptedState.volumeMlByNode,
+      [c1Id]: 1.2 * collapse.hydraulicAreaReferenceVolumeMlByNode[c1Id],
+      [c2Id]: 1.3 * collapse.hydraulicAreaReferenceVolumeMlByNode[c2Id],
+    });
+    const distended = evaluateCoronaryHydraulicsV2(
+      distendedVolumes,
+      initialized.acceptedState.toneResistanceScaleByTerritoryLayer,
+      DIASTOLIC_BOUNDARY_V2,
+    );
+    for (const edgeId of [r1Id, rmId, r2Id]) {
+      expect(distended.effectiveLinearResistanceMmHgSecPerMlByEdge[edgeId])
+        .toBeCloseTo(
+          topology.edges[topology.edgeIndexById[edgeId]]
+            .referenceResistanceMmHgSecPerMl,
+          12,
+        );
+    }
+  });
+
+  it("closes graph-incidence continuity exactly and keeps every signed edge passive", () => {
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const compressed: CoronaryHydraulicBoundaryInputV2 = Object.freeze({
+      ...DIASTOLIC_BOUNDARY_V2,
+      absoluteAorticPressureMmHg: 105,
+      intramyocardialPressureMmHgByTerritoryLayer: Object.freeze({
+        ...DIASTOLIC_BOUNDARY_V2.intramyocardialPressureMmHgByTerritoryLayer,
+        LAD: Object.freeze({ subepicardial: 90, subendocardial: 175 }),
+        LCx: Object.freeze({ subepicardial: 90, subendocardial: 175 }),
+      }),
+    });
+    const trial = solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      { dtSec: 0.001, boundary: compressed },
+    );
+    expect(trial.diagnostics.maximumAbsoluteNodeContinuityResidualMl)
+      .toBeLessThan(1e-9);
+    expect(Math.abs(trial.diagnostics.exactBloodVolumeLedgerResidualMl))
+      .toBeLessThan(1e-10);
+    expect(trial.diagnostics.hydraulics.layerR1FlowMlPerSecByTerritory
+      .LAD.subendocardial).toBeLessThan(0);
+    expect(trial.diagnostics.hydraulics.layerR2FlowMlPerSecByTerritory
+      .LAD.subendocardial).toBeGreaterThan(0);
+
+    const topology = buildCoronaryTopologyV2();
+    const pressure = trial.diagnostics.hydraulics.absolutePressureMmHgByNode;
+    const flow = trial.diagnostics.hydraulics.signedFlowMlPerSecByEdge;
+    const power = trial.diagnostics.hydraulics
+      .dissipatedPowerMmHgMlPerSecByEdge;
+    for (const edge of topology.edges) {
+      const pressureDrop = pressure[edge.upstreamNodeId]
+        - pressure[edge.downstreamNodeId];
+      expect(pressureDrop * flow[edge.edgeId]).toBeGreaterThanOrEqual(-1e-12);
+      expect(power[edge.edgeId]).toBeGreaterThanOrEqual(-1e-12);
+      expect(power[edge.edgeId]).toBeCloseTo(
+        pressureDrop * flow[edge.edgeId],
+        9,
+      );
+    }
+  });
+
+  it("is invariant to edge-array reordering because incidence owns edge identity", () => {
+    const canonical = buildCoronaryTopologyV2();
+    const reordered = reversedEdgeTopology();
+    const edgeIndex = buildCoronaryEdgeIndexV2(reordered);
+    for (const edgeId of CORONARY_EDGE_IDS_V2) {
+      expect(reordered.edges[edgeIndex[edgeId]].edgeId).toBe(edgeId);
+    }
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const canonicalHydraulics = evaluateCoronaryHydraulicsV2(
+      initialized.acceptedState.volumeMlByNode,
+      initialized.acceptedState.toneResistanceScaleByTerritoryLayer,
+      DIASTOLIC_BOUNDARY_V2,
+      NORMAL_CORONARY_DISEASE_INPUT_V2,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      canonical,
+    );
+    const reorderedHydraulics = evaluateCoronaryHydraulicsV2(
+      initialized.acceptedState.volumeMlByNode,
+      initialized.acceptedState.toneResistanceScaleByTerritoryLayer,
+      DIASTOLIC_BOUNDARY_V2,
+      NORMAL_CORONARY_DISEASE_INPUT_V2,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      reordered,
+    );
+    for (const edgeId of CORONARY_EDGE_IDS_V2) {
+      expect(reorderedHydraulics.signedFlowMlPerSecByEdge[edgeId])
+        .toBeCloseTo(canonicalHydraulics.signedFlowMlPerSecByEdge[edgeId], 12);
+    }
+    const perturbedBoundary = Object.freeze({
+      ...DIASTOLIC_BOUNDARY_V2,
+      absoluteAorticPressureMmHg: 96,
+    });
+    const canonicalTrial = solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      { dtSec: 0.002, boundary: perturbedBoundary },
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      canonical,
+    );
+    const reorderedTrial = solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      { dtSec: 0.002, boundary: perturbedBoundary },
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      reordered,
+    );
+    for (const nodeId of CORONARY_CONSERVED_VOLUME_NODE_IDS_V2) {
+      expect(reorderedTrial.candidateAcceptedState.volumeMlByNode[nodeId])
+        .toBeCloseTo(
+          canonicalTrial.candidateAcceptedState.volumeMlByNode[nodeId],
+          12,
+        );
+    }
+  });
+
+  it("keeps focal stenosis, R1/Rm structural CMD, and vasodilatory floor as separate owners", () => {
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const state: CoronaryAcceptedHydraulicStateV2 = Object.freeze({
+      ...initialized.acceptedState,
+      toneResistanceScaleByTerritoryLayer: Object.freeze({
+        LAD: Object.freeze({
+          subepicardial: 4 / 45,
+          subendocardial: 4 / 45,
+        }),
+        LCx: Object.freeze({ subepicardial: 1, subendocardial: 1 }),
+        RCA: Object.freeze({ subepicardial: 1, subendocardial: 1 }),
+      }),
+    });
+    const healthy = evaluateCoronaryHydraulicsV2(
+      state.volumeMlByNode,
+      state.toneResistanceScaleByTerritoryLayer,
+      DIASTOLIC_BOUNDARY_V2,
+    );
+    const floorDisease = withLayerDisease("LAD", "subendocardial", {
+      vasodilatoryToneMinimumResistanceScale: 0.6,
+    });
+    const floor = evaluateCoronaryHydraulicsV2(
+      state.volumeMlByNode,
+      state.toneResistanceScaleByTerritoryLayer,
+      DIASTOLIC_BOUNDARY_V2,
+      floorDisease,
+    );
+    const r1Id = "LAD.Art_LAD.IM.Art.subendocardial" as CoronaryEdgeIdV2;
+    const rmId = (
+      "LAD.IM.Art.subendocardial_LAD.IM.Ven.subendocardial"
+    ) as CoronaryEdgeIdV2;
+    expect(floor.effectiveToneResistanceScaleByTerritoryLayer.LAD.subendocardial)
+      .toBe(0.6);
+    expect(floor.effectiveLinearResistanceMmHgSecPerMlByEdge[r1Id])
+      .toBeGreaterThan(healthy.effectiveLinearResistanceMmHgSecPerMlByEdge[r1Id]);
+    expect(floor.effectiveLinearResistanceMmHgSecPerMlByEdge[rmId])
+      .toBeCloseTo(healthy.effectiveLinearResistanceMmHgSecPerMlByEdge[rmId], 12);
+
+    const structural = evaluateCoronaryHydraulicsV2(
+      state.volumeMlByNode,
+      state.toneResistanceScaleByTerritoryLayer,
+      DIASTOLIC_BOUNDARY_V2,
+      withLayerDisease("LAD", "subendocardial", {
+        structuralR1ResistanceScale: 2,
+        structuralRmResistanceScale: 3,
+      }),
+    );
+    expect(structural.effectiveLinearResistanceMmHgSecPerMlByEdge[r1Id]
+      / healthy.effectiveLinearResistanceMmHgSecPerMlByEdge[r1Id])
+      .toBeCloseTo(2, 12);
+    expect(structural.effectiveLinearResistanceMmHgSecPerMlByEdge[rmId]
+      / healthy.effectiveLinearResistanceMmHgSecPerMlByEdge[rmId])
+      .toBeCloseTo(3, 12);
+
+    const focal = evaluateCoronaryHydraulicsV2(
+      state.volumeMlByNode,
+      state.toneResistanceScaleByTerritoryLayer,
+      DIASTOLIC_BOUNDARY_V2,
+      withFocalStenosis("LAD", 0.65),
+    );
+    expect(focal.quadraticResistanceMmHgSec2PerMl2ByEdge["Ao_LAD.Art"])
+      .toBeGreaterThan(0);
+    expect(focal.focalStenosisPressureLossMmHgByTerritory.LAD)
+      .toBeGreaterThan(0);
+    expect(focal.effectiveLinearResistanceMmHgSecPerMlByEdge[r1Id])
+      .toBeCloseTo(healthy.effectiveLinearResistanceMmHgSecPerMlByEdge[r1Id], 12);
+  });
+
+  it("keeps trials pure and rejects stale transaction commits", () => {
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const transaction = new CoronaryBackwardEulerTransactionV2(
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      initialized.acceptedState,
+    );
+    const acceptedBefore = transaction.getAcceptedState();
+    const input = { dtSec: 0.01, boundary: DIASTOLIC_BOUNDARY_V2 } as const;
+    const first = transaction.beginTrial(input);
+    const second = transaction.beginTrial(input);
+    expect(second).toEqual(first);
+    expect(transaction.getAcceptedState()).toBe(acceptedBefore);
+    transaction.commit(first);
+    expect(() => transaction.commit(second)).toThrow(/stale or foreign/);
+    expect(transaction.getAcceptedState().revision).toBe(1);
+    expect(Object.keys(transaction.getAcceptedState().volumeMlByNode))
+      .toEqual([...CORONARY_CONSERVED_VOLUME_NODE_IDS_V2]);
+    expect(Object.keys(
+      transaction.getAcceptedState().toneResistanceScaleByTerritoryLayer,
+    )).toEqual([...CORONARY_TERRITORY_IDS_V2]);
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      expect(Object.keys(
+        transaction.getAcceptedState()
+          .toneResistanceScaleByTerritoryLayer[territoryId],
+      )).toEqual([...CORONARY_LAYER_IDS_V2]);
+    }
+    const ownedCollapse = buildCoronaryCollapseHydraulicsPriorV2(
+      buildCoronaryTopologyV2(),
+      0.2,
+    );
+    expect(() => transaction.beginTrial({
+      ...input,
+      collapseHydraulics: ownedCollapse,
+    })).toThrow(/transaction owns collapse hydraulics/);
+
+    const checkpoint = transaction.createCheckpoint();
+    const changedPrior = scaleCoronaryLargeArterialComplianceV2(
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      0.4,
+    );
+    const changedInitialization = initializePressureLadderCoronaryStateV2(
+      { boundary: DIASTOLIC_BOUNDARY_V2 },
+      changedPrior,
+    );
+    const incompatibleTransaction = new CoronaryBackwardEulerTransactionV2(
+      changedPrior,
+      changedInitialization.acceptedState,
+    );
+    expect(() => incompatibleTransaction.restoreCheckpoint(checkpoint))
+      .toThrow(/parameter mismatch/);
+  });
+});
