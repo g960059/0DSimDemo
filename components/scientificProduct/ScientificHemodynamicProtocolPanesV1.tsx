@@ -228,6 +228,7 @@ export function ScientificCardiacOutputFillingPressurePaneV1({
     compact,
     data.showLegend !== false && scenarios.length > 0,
     Math.min(4, scenarios.length),
+    "floating-status",
   );
   const x = linearScaleV1(xDomain, [plot.left, plot.right]);
   const y = linearScaleV1(yDomain, [plot.bottom, plot.top]);
@@ -250,7 +251,7 @@ export function ScientificCardiacOutputFillingPressurePaneV1({
       data-flow-domain-min={roundSvgV1(yDomain[0])}
       data-flow-domain-max={roundSvgV1(yDomain[1])}
     >
-      <ScientificProtocolTopChromeV1 title={title} status={data.status} compact={compact} />
+      <ScientificProtocolFloatingStatusV1 status={data.status} />
       <svg
         className="block h-full w-full"
         viewBox={`0 0 ${size.width} ${size.height}`}
@@ -297,7 +298,7 @@ export function ScientificCardiacOutputFillingPressurePaneV1({
         </g>
       </svg>
       {data.showLegend !== false && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 top-8 z-20 overflow-visible">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 top-0 z-20 overflow-visible">
           <InteractiveGraphLegend
             panelId={legendInteraction?.panelId}
             interactive={legendInteraction?.interactive}
@@ -306,7 +307,7 @@ export function ScientificCardiacOutputFillingPressurePaneV1({
             position={legendInteraction?.legendPosition}
             onPositionChange={legendInteraction?.onLegendPositionChange}
             ariaLabel={legendInteraction?.ariaLabel}
-            className="max-w-[min(30rem,calc(100%-1rem))] overflow-visible rounded-md border border-wb-line/70 bg-wb-panel/88 px-1.5 py-1 text-[9px] font-medium text-wb-muted shadow-sm backdrop-blur-sm"
+            className="max-w-[min(30rem,66%)] overflow-visible rounded-md border border-wb-line/70 bg-wb-panel/88 px-1.5 py-1 text-[9px] font-medium text-wb-muted shadow-sm backdrop-blur-sm"
             testId="scientific-hemodynamic-scenario-legend-v1"
           >
             {scenarios.map((scenario) => {
@@ -1182,7 +1183,10 @@ function ScientificProtocolTopChromeV1({
     ? Math.min(1, Math.max(0, progress.completed / progress.total))
     : null;
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-9 items-center justify-between gap-2 border-b border-wb-line/60 bg-wb-app/90 px-2 backdrop-blur-sm">
+    <div
+      className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-9 items-center justify-between gap-2 border-b border-wb-line/60 bg-wb-app/90 px-2 backdrop-blur-sm"
+      data-testid="scientific-protocol-top-chrome-v1"
+    >
       <span className="min-w-0 truncate text-[10px] font-semibold text-wb-text">{title}</span>
       <div className="flex min-w-0 items-center gap-1.5">
         {progress && !compact && (
@@ -1205,6 +1209,43 @@ function ScientificProtocolTopChromeV1({
           />
         </span>
       )}
+    </div>
+  );
+}
+
+function ScientificProtocolFloatingStatusV1({
+  status,
+}: Readonly<{
+  status: ScientificHemodynamicProtocolStatusV1;
+}>) {
+  const progress = status.progress;
+  const normalizedProgress = progress && progress.total > 0
+    ? Math.min(1, Math.max(0, progress.completed / progress.total))
+    : null;
+  return (
+    <div
+      className="pointer-events-none absolute left-2 top-2 z-30 max-w-[min(12rem,28%)]"
+      role="status"
+      aria-label={status.phase ? `${status.label}: ${status.phase}` : status.label}
+      title={status.phase}
+      data-testid="scientific-hemodynamic-floating-status-v1"
+    >
+      <span
+        className={`${scientificProtocolStatusBadgeClassV1(status.status)} relative max-w-full overflow-hidden bg-wb-panel/88 shadow-sm backdrop-blur-sm`}
+      >
+        {status.status === "running" && (
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+        )}
+        <span className="truncate">{status.label}</span>
+        {normalizedProgress !== null && status.status === "running" && (
+          <span className="absolute inset-x-0 bottom-0 h-px bg-wb-line/70">
+            <span
+              className="block h-full bg-current transition-[width] duration-200"
+              style={{ width: `${normalizedProgress * 100}%` }}
+            />
+          </span>
+        )}
+      </span>
     </div>
   );
 }
@@ -1430,11 +1471,16 @@ function scientificProtocolPlotRectV1(
   compact: boolean,
   hasLegend: boolean,
   legendRowCount = hasLegend ? 1 : 0,
+  chrome: "top-bar" | "floating-status" = "top-bar",
 ): ScientificPlotRectV1 {
   const visibleLegendRows = Math.max(0, Math.min(4, legendRowCount));
-  const top = hasLegend
-    ? 46 + visibleLegendRows * 18 + (compact ? 2 : 4)
-    : 42;
+  const top = chrome === "floating-status"
+    ? hasLegend
+      ? 24 + visibleLegendRows * 18
+      : 36
+    : hasLegend
+      ? 46 + visibleLegendRows * 18 + (compact ? 2 : 4)
+      : 42;
   const bottomPadding = compact ? 48 : 54;
   return Object.freeze({
     left: compact ? 56 : 68,

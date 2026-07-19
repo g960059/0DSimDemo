@@ -155,6 +155,12 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
           "data-protocol-status",
           /^(?:running|complete|partial)$/,
         );
+        await expect(leftResponse.getByTestId(
+          "scientific-hemodynamic-floating-status-v1",
+        )).toBeVisible();
+        await expect(leftResponse.getByTestId(
+          "scientific-protocol-top-chrome-v1",
+        )).toHaveCount(0);
         await expect(leftResponse.locator('[data-series="vascular-return"]'))
           .toBeVisible();
 
