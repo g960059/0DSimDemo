@@ -30,7 +30,6 @@ a trial from another same-time/same-provider handle with a different drive,
 evaluation after successful promotion, and duplicate promotion all fail
 closed. A failed promotion does not consume the handle, so validation failure
 cannot silently alter accepted ownership.
-
 Driving inputs remain zero-copy for the current deeply immutable calcium
 payload. The provider contract now also exposes an optional clone hook: future
 mutable autonomic, coronary, or device drive payloads can be snapshotted once
@@ -47,13 +46,15 @@ accepted coronary state, and its IMP/SIP boundary is recomputed from that
 probe's same-candidate chamber mechanics. No coronary candidate, boundary, or
 tone state is cached across probes.
 
-The foundational prepared-mechanics patch is patch-equivalent to PR #483
-commit `320aa28` (carried here as `4f3e4b5`). This branch adds exact-context,
-one-shot capability hardening on top. It does not import PR #483's V1
-vascular-only seed predictor, rapid thresholds, 68-state closure, or browser
-latency claim. Conversely, the 66.9% V2 step-time reduction below also includes
-the implicit coronary sensitivity and exact-zero direction elision and must
-not be attributed to the prepared context alone.
+PR #484 subsequently added the deferred candidate probe-to-seal path described
+in `PERFORMANCE-0004-mechanics-probe-seal.md`. The non-coronary transaction uses
+that path directly, while the provisional V2 coronary transaction intentionally
+continues through the materialized compatibility trial because same-candidate
+IMP evaluation requires active-stress and fiber-strain rich readback for every
+outer candidate. Both paths retain the exact-context, one-shot capability
+hardening described above. The 66.9% V2 step-time reduction below also includes
+the implicit coronary sensitivity and exact-zero direction elision and must not
+be attributed to the prepared context alone.
 
 The rapid two-to-five-beat TBV path remains presentation-only evidence. When
 the V2 coronary transaction enters the scientific runtime, rapid refinement

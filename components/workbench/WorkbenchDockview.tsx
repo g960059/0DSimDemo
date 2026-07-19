@@ -94,7 +94,6 @@ function getDockviewMetadataSignature(panels: readonly PanelDef[]): string {
 
 const ADD_OPTIONS: Array<{ type: PanelType; label: string }> = [
   { type: 'PVLOOP', label: 'PV Loop' },
-  { type: 'PV_RELATIONS', label: 'ESPVR / EDPVR' },
   { type: 'WAVEFORM', label: 'Waveforms' },
   { type: 'GUYTON_LEFT', label: 'Guyton (L)' },
   { type: 'GUYTON_RIGHT', label: 'Guyton (R)' },

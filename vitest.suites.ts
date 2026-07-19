@@ -11,7 +11,6 @@ export const FAST_SUITE_FILE_BUDGET = 120;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
 
 export const fastTests = [
-  "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/caseCloud.test.ts",
   "__tests__/casePublish.test.ts",
   "__tests__/caseValidation.test.ts",
@@ -23,7 +22,6 @@ export const fastTests = [
   "__tests__/controllerItemControl.test.ts",
   "__tests__/controllerItems.test.ts",
   "__tests__/controls.test.ts",
-  "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
   "__tests__/equilibriumOneFiberPassiveV1.test.ts",
   "__tests__/fiveWallNormalCalciumDriveV1.test.ts",
@@ -59,6 +57,8 @@ export const fastTests = [
   "__tests__/officialHealthyPeriodicDocumentChainV1.test.ts",
   "__tests__/mainWireScientificResolvedSessionInputV1.test.ts",
   "__tests__/mainWireScientificExactCheckpointV3.test.ts",
+  "__tests__/mainWireScientificTbvContinuationSeedPredictorV1.test.ts",
+  "__tests__/mainWireScientificTbvAccuracyCharacterizationV1.test.ts",
   "__tests__/mainWireScientificDocumentsV1.test.ts",
   "__tests__/mainWireScientificDocumentChainV1.test.ts",
   "__tests__/mainWireScientificWorkspaceDocumentV1.test.ts",
@@ -236,9 +236,11 @@ export const rulesTests = [
 /** Current main-wire scientific lane. Exact unit tests may opt into fastTests. */
 export const canonicalScientificTestGlobs = [
   "__tests__/mainWire*.test.ts",
+  "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
   "__tests__/coronaryAutoregulationV2.test.ts",
   "__tests__/coronaryCycleEventSegmentationV1.test.ts",
+  "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/coronaryTopologyPriorV2.test.ts",
   "__tests__/coronaryV2ShadowProtocol.test.ts",
 ] as const;
@@ -294,9 +296,11 @@ const archivedResearchExact = new Set<string>([
 ]);
 
 const canonicalScientificExact = new Set<string>([
+  "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
   "__tests__/coronaryAutoregulationV2.test.ts",
   "__tests__/coronaryCycleEventSegmentationV1.test.ts",
+  "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/coronaryTopologyPriorV2.test.ts",
   "__tests__/coronaryV2ShadowProtocol.test.ts",
 ]);

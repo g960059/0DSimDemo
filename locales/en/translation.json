@@ -83,7 +83,6 @@
     "panelTypes": {
       "NOTE": "Note",
       "PVLOOP": "PV Loop",
-      "PV_RELATIONS": "ESPVR / EDPVR",
       "WAVEFORM": "Waveforms",
       "GUYTON_LEFT": "Guyton (L)",
       "GUYTON_RIGHT": "Guyton (R)",

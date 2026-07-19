@@ -15,6 +15,9 @@ export const WHOLE_HEART_MECHANICS_CONTRACT_V1_ID =
 export const WHOLE_HEART_MECHANICS_PREPARED_STEP_V1_ID =
   "whole-heart-mechanics-prepared-step-v1" as const;
 
+export const WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID =
+  "whole-heart-mechanics-candidate-probe-v1" as const;
+
 export const WHOLE_HEART_MECHANICS_OWNERSHIP_V1 = Object.freeze({
   evaluationScope: "joint-LA-LV-RA-RV" as const,
   mainWireOwns: Object.freeze([
@@ -128,6 +131,25 @@ export type WholeHeartMechanicsProviderV1<TState, TDrive> = {
   readonly stateSchemaVersion: number;
   readonly stateCodec: WholeHeartMechanicsStateCodecV1<TState>;
   /**
+   * Optional trusted hot-path capability. The default supplies a defensive
+   * clone to every callback. A provider may opt into the private prepared-step
+   * snapshot only after proving that it never mutates the accepted aggregate;
+   * its inner constitutive candidates must still isolate mutable wall state.
+   */
+  readonly acceptedStateInputMode?:
+    "defensive-clone" | "trusted-read-only-prepared-snapshot";
+  /**
+   * Optional ownership capability for the probe -> seal hot path.
+   *
+   * The default preserves the original contract: each provider result is
+   * snapshotted immediately before another candidate may be evaluated. A
+   * provider may opt into `exclusive-result` only when every evaluateTrial
+   * call returns material state, diagnostics, and readback that it will never
+   * reuse or mutate after return.
+   */
+  readonly evaluationResultOwnershipMode?:
+    "defensive-snapshot-required" | "exclusive-result";
+  /**
    * Optional isolation hook for mutable/future drive payloads. Prepared steps
    * call it once when capturing the outer-step input and again for every
    * provider callback. Without it, both caller and provider must treat the
@@ -137,6 +159,7 @@ export type WholeHeartMechanicsProviderV1<TState, TDrive> = {
   initializeCold(
     input: WholeHeartMechanicsColdInputV1<TDrive>,
   ): WholeHeartMechanicsProviderEvaluationV1<TState>;
+  /** Pure candidate evaluation; result ownership follows the capability above. */
   evaluateTrial(
     input: WholeHeartMechanicsTrialInputV1<TState, TDrive>,
   ): WholeHeartMechanicsProviderEvaluationV1<TState>;
@@ -205,6 +228,33 @@ export type WholeHeartMechanicsPreparedStepV1<TState, TDrive> = Readonly<{
   typeWitness?: Readonly<{ state: TState; drive: TDrive }>;
 }>;
 
+/**
+ * Minimal, short-lived candidate view used inside a coupled nonlinear solve.
+ *
+ * Material state, rich readback, and its serialized fingerprint deliberately
+ * remain private until the circulation solver selects this exact candidate.
+ * The public trial/checkpoint boundary is unchanged: a selected probe must be
+ * sealed into WholeHeartMechanicsTrialV1 before it can be committed or exposed.
+ */
+export type WholeHeartMechanicsCandidateProbeV1<TState, TDrive> = Readonly<{
+  probeId: typeof WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID;
+  providerId: string;
+  parameterSetId: string;
+  parameterIdentityHash: string;
+  stateSchemaVersion: number;
+  baseRevision: number;
+  baseAcceptedTimeSec: number;
+  candidateTimeSec: number;
+  stepDtSec: number;
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1;
+  transmuralPressuresMmHg: WholeHeartMechanicsChamberValuesV1;
+  transmuralPressureVolumeTangentMmHgPerMl?:
+    WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
+  diagnostics: Readonly<Omit<WholeHeartMechanicsDiagnosticsV1, "readback">>;
+  /** Type-only witness; no state or drive is exposed at runtime. */
+  typeWitness?: Readonly<{ state: TState; drive: TDrive }>;
+}>;
+
 type PreparedWholeHeartMechanicsStepInternalV1<TState, TDrive> = Readonly<{
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>;
   previousAcceptedState: WholeHeartMechanicsAcceptedStateV1<TState>;
@@ -213,7 +263,17 @@ type PreparedWholeHeartMechanicsStepInternalV1<TState, TDrive> = Readonly<{
   drivingInputs: TDrive;
 }>;
 
+type WholeHeartMechanicsCandidateProbeInternalV1<TState, TDrive> = Readonly<{
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>;
+  /** Exclusively owned provider result; defensive snapshot is deferred. */
+  candidateMaterialState: TState;
+  readback: WholeHeartMechanicsSerializableValueV1 | null;
+}>;
+
 const PREPARED_WHOLE_HEART_MECHANICS_STEP_INTERNALS_V1 =
+  new WeakMap<object, object>();
+
+const WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_INTERNALS_V1 =
   new WeakMap<object, object>();
 
 /**
@@ -256,7 +316,7 @@ export function initializeWholeHeartMechanicsColdV1<TState, TDrive>(
             result.transmuralPressureVolumeTangentMmHgPerMl,
           ),
       }),
-    diagnostics: copyDiagnostics(result.diagnostics),
+    diagnostics: copyDiagnosticsWithReadbackSnapshot(result.diagnostics),
   });
 }
 
@@ -333,10 +393,107 @@ export function evaluatePreparedWholeHeartMechanicsTrialV1<TState, TDrive>(
   candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
 ): WholeHeartMechanicsTrialV1<TState> {
   const context = preparedStepInternal(preparedStep);
+  if (context.provider.evaluationResultOwnershipMode !== "exclusive-result") {
+    return evaluatePreparedWholeHeartMechanicsTrialEagerV1(
+      preparedStep,
+      context,
+      candidateVolumesMl,
+    );
+  }
+  const probe = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+    preparedStep,
+    candidateVolumesMl,
+  );
+  return sealPreparedWholeHeartMechanicsCandidateProbeV1(
+    preparedStep,
+    probe,
+  );
+}
+
+/**
+ * Evaluates one nonlinear-solver candidate without serializing material state
+ * or recursively validating rich provider readback. Exclusive provider-result
+ * ownership preserves isolation while the state stays private. Discarded
+ * probes are reclaimed with their WeakMap entry and cannot be committed.
+ */
+export function evaluatePreparedWholeHeartMechanicsCandidateProbeV1<
+  TState,
+  TDrive,
+>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+): WholeHeartMechanicsCandidateProbeV1<TState, TDrive> {
+  const context = preparedStepInternal(preparedStep);
+  if (context.provider.evaluationResultOwnershipMode !== "exclusive-result") {
+    throw new Error(
+      "whole-heart mechanics candidate probes require provider exclusive-result ownership",
+    );
+  }
   validateVolumes(candidateVolumesMl, "candidateVolumesMl");
   const candidateVolumes = copyChambers(candidateVolumesMl);
   const result = context.provider.evaluateTrial({
-    previousAcceptedState: cloneAcceptedStateWithoutAudit(
+    previousAcceptedState: acceptedStateForPreparedEvaluation(
+      context.provider,
+      context.previousAcceptedState,
+    ),
+    candidateTimeSec: context.candidateTimeSec,
+    stepDtSec: context.stepDtSec,
+    candidateVolumesMl: candidateVolumes,
+    drivingInputs: cloneDrivingInputsForPreparedStep(
+      context.provider,
+      context.drivingInputs,
+    ),
+  });
+  validateProbeDiagnostics(result.diagnostics);
+  const candidateMaterialState = result.materialState;
+  const probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive> =
+    Object.freeze({
+      probeId: WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID,
+      providerId: preparedStep.providerId,
+      parameterSetId: preparedStep.parameterSetId,
+      parameterIdentityHash: preparedStep.parameterIdentityHash,
+      stateSchemaVersion: preparedStep.stateSchemaVersion,
+      baseRevision: preparedStep.baseRevision,
+      baseAcceptedTimeSec: preparedStep.baseAcceptedTimeSec,
+      candidateTimeSec: preparedStep.candidateTimeSec,
+      stepDtSec: preparedStep.stepDtSec,
+      candidateVolumesMl: candidateVolumes,
+      transmuralPressuresMmHg: copyChambers(result.transmuralPressuresMmHg),
+      ...(result.transmuralPressureVolumeTangentMmHgPerMl === undefined
+        ? {}
+        : {
+          transmuralPressureVolumeTangentMmHgPerMl:
+            copyPressureVolumeTangent(
+              result.transmuralPressureVolumeTangentMmHgPerMl,
+            ),
+        }),
+      diagnostics: copyProbeDiagnostics(result.diagnostics),
+    });
+  WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_INTERNALS_V1.set(
+    probe,
+    Object.freeze({
+      preparedStep,
+      candidateMaterialState,
+      readback: result.diagnostics.readback,
+    } satisfies WholeHeartMechanicsCandidateProbeInternalV1<TState, TDrive>),
+  );
+  return probe;
+}
+
+/**
+ * Compatibility path for providers that have not proved exclusive ownership.
+ * The provider result is copied and serialized before this function returns,
+ * so a later callback may safely reuse mutable scratch storage.
+ */
+function evaluatePreparedWholeHeartMechanicsTrialEagerV1<TState, TDrive>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  context: PreparedWholeHeartMechanicsStepInternalV1<TState, TDrive>,
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+): WholeHeartMechanicsTrialV1<TState> {
+  validateVolumes(candidateVolumesMl, "candidateVolumesMl");
+  const candidateVolumes = copyChambers(candidateVolumesMl);
+  const result = context.provider.evaluateTrial({
+    previousAcceptedState: acceptedStateForPreparedEvaluation(
       context.provider,
       context.previousAcceptedState,
     ),
@@ -376,12 +533,95 @@ export function evaluatePreparedWholeHeartMechanicsTrialV1<TState, TDrive>(
             result.transmuralPressureVolumeTangentMmHgPerMl,
           ),
       }),
-    diagnostics: copyDiagnostics(result.diagnostics),
+    diagnostics: copyDiagnosticsWithReadbackSnapshot(result.diagnostics),
   });
   PREPARED_WHOLE_HEART_MECHANICS_TRIAL_CONTEXTS_V1.set(
     trial,
     preparedStep,
   );
+  return trial;
+}
+
+/**
+ * Materializes the one selected candidate into the unchanged public trial.
+ * A probe is live for exactly one successful seal and is bound to the exact
+ * prepared-step object that created it; foreign or already-sealed probes fail.
+ */
+export function sealPreparedWholeHeartMechanicsCandidateProbeV1<
+  TState,
+  TDrive,
+>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  probe: WholeHeartMechanicsCandidateProbeV1<TState, TDrive>,
+): WholeHeartMechanicsTrialV1<TState> {
+  const context = preparedStepInternal(preparedStep);
+  if (
+    probe.probeId !== WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID
+    || probe.providerId !== preparedStep.providerId
+    || probe.parameterSetId !== preparedStep.parameterSetId
+    || probe.parameterIdentityHash !== preparedStep.parameterIdentityHash
+    || probe.stateSchemaVersion !== preparedStep.stateSchemaVersion
+    || probe.baseRevision !== preparedStep.baseRevision
+    || !nearlyEqual(
+      probe.baseAcceptedTimeSec,
+      preparedStep.baseAcceptedTimeSec,
+    )
+    || !nearlyEqual(probe.candidateTimeSec, preparedStep.candidateTimeSec)
+    || !nearlyEqual(probe.stepDtSec, preparedStep.stepDtSec)
+  ) {
+    throw new Error("whole-heart mechanics candidate probe identity mismatch");
+  }
+  const internal = WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_INTERNALS_V1.get(
+    probe,
+  ) as WholeHeartMechanicsCandidateProbeInternalV1<TState, TDrive>
+    | undefined;
+  if (!internal) {
+    throw new Error(
+      "whole-heart mechanics candidate probe is not live or was already sealed",
+    );
+  }
+  if (internal.preparedStep !== preparedStep) {
+    throw new Error(
+      "whole-heart mechanics candidate probe does not belong to prepared step",
+    );
+  }
+  const diagnostics = Object.freeze({
+    ...probe.diagnostics,
+    readback: internal.readback,
+  });
+  validateDiagnostics(diagnostics);
+  const candidateSnapshot = snapshotMaterialState(
+    context.provider,
+    internal.candidateMaterialState,
+    "candidate material state",
+  );
+  const trial: WholeHeartMechanicsTrialV1<TState> = Object.freeze({
+    contractId: WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
+    providerId: probe.providerId,
+    parameterSetId: probe.parameterSetId,
+    parameterIdentityHash: probe.parameterIdentityHash,
+    stateSchemaVersion: probe.stateSchemaVersion,
+    baseRevision: probe.baseRevision,
+    baseAcceptedTimeSec: probe.baseAcceptedTimeSec,
+    candidateTimeSec: probe.candidateTimeSec,
+    stepDtSec: probe.stepDtSec,
+    candidateVolumesMl: probe.candidateVolumesMl,
+    candidateMaterialState: candidateSnapshot.materialState,
+    candidateMaterialStateFingerprint: candidateSnapshot.fingerprint,
+    transmuralPressuresMmHg: probe.transmuralPressuresMmHg,
+    ...(probe.transmuralPressureVolumeTangentMmHgPerMl === undefined
+      ? {}
+      : {
+        transmuralPressureVolumeTangentMmHgPerMl:
+          probe.transmuralPressureVolumeTangentMmHgPerMl,
+      }),
+    diagnostics: copyDiagnosticsWithReadbackSnapshot(diagnostics),
+  });
+  PREPARED_WHOLE_HEART_MECHANICS_TRIAL_CONTEXTS_V1.set(
+    trial,
+    preparedStep,
+  );
+  WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_INTERNALS_V1.delete(probe);
   return trial;
 }
 
@@ -619,6 +859,20 @@ function validateProvider<TState, TDrive>(
   ) {
     throw new Error("cloneDrivingInputs must be a function when provided");
   }
+  if (
+    provider.acceptedStateInputMode !== undefined
+    && provider.acceptedStateInputMode !== "defensive-clone"
+    && provider.acceptedStateInputMode !== "trusted-read-only-prepared-snapshot"
+  ) {
+    throw new Error("acceptedStateInputMode is unsupported");
+  }
+  if (
+    provider.evaluationResultOwnershipMode !== undefined
+    && provider.evaluationResultOwnershipMode !== "defensive-snapshot-required"
+    && provider.evaluationResultOwnershipMode !== "exclusive-result"
+  ) {
+    throw new Error("evaluationResultOwnershipMode is unsupported");
+  }
   validateInteger(provider.stateSchemaVersion, "stateSchemaVersion");
 }
 
@@ -679,6 +933,17 @@ function cloneAcceptedStateWithoutAudit<TState, TDrive>(
   });
 }
 
+function acceptedStateForPreparedEvaluation<TState, TDrive>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  state: WholeHeartMechanicsAcceptedStateV1<TState>,
+): WholeHeartMechanicsAcceptedStateV1<TState> {
+  const usesTrustedSnapshot = provider.acceptedStateInputMode ===
+    "trusted-read-only-prepared-snapshot";
+  return usesTrustedSnapshot
+    ? state
+    : cloneAcceptedStateWithoutAudit(provider, state);
+}
+
 function preparedStepInternal<TState, TDrive>(
   preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
 ): PreparedWholeHeartMechanicsStepInternalV1<TState, TDrive> {
@@ -721,6 +986,14 @@ function validateCandidateTime<TState>(
 }
 
 function validateDiagnostics(value: WholeHeartMechanicsDiagnosticsV1): void {
+  validateProbeDiagnostics(value);
+  validateSerializable(value.readback, "diagnostics.readback");
+}
+
+function validateProbeDiagnostics(
+  value: Omit<WholeHeartMechanicsDiagnosticsV1, "readback">
+    & Partial<Pick<WholeHeartMechanicsDiagnosticsV1, "readback">>,
+): void {
   validateInteger(value.iterationCount, "diagnostics.iterationCount");
   if (!Number.isFinite(value.residualNorm) || value.residualNorm < 0) {
     throw new Error("diagnostics.residualNorm must be finite and nonnegative");
@@ -731,7 +1004,6 @@ function validateDiagnostics(value: WholeHeartMechanicsDiagnosticsV1): void {
   if (!value.warnings.every((entry) => typeof entry === "string")) {
     throw new Error("diagnostics.warnings must contain strings");
   }
-  validateSerializable(value.readback, "diagnostics.readback");
 }
 
 function validateVolumes(
@@ -862,6 +1134,48 @@ function copyDiagnostics(
 ): WholeHeartMechanicsDiagnosticsV1 {
   return Object.freeze({
     ...value,
+    errors: Object.freeze([...value.errors]),
+    warnings: Object.freeze([...value.warnings]),
+  });
+}
+
+function copyDiagnosticsWithReadbackSnapshot(
+  value: WholeHeartMechanicsDiagnosticsV1,
+): WholeHeartMechanicsDiagnosticsV1 {
+  return Object.freeze({
+    ...copyDiagnostics(value),
+    readback: cloneSerializableValue(value.readback),
+  });
+}
+
+function cloneSerializableValue(
+  value: WholeHeartMechanicsSerializableValueV1,
+): WholeHeartMechanicsSerializableValueV1 {
+  if (
+    value === null
+    || typeof value === "boolean"
+    || typeof value === "number"
+    || typeof value === "string"
+  ) return value;
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map(cloneSerializableValue));
+  }
+  return Object.freeze(Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key,
+      cloneSerializableValue(child),
+    ]),
+  ));
+}
+
+function copyProbeDiagnostics(
+  value: WholeHeartMechanicsDiagnosticsV1,
+): Readonly<Omit<WholeHeartMechanicsDiagnosticsV1, "readback">> {
+  return Object.freeze({
+    converged: value.converged,
+    finite: value.finite,
+    iterationCount: value.iterationCount,
+    residualNorm: value.residualNorm,
     errors: Object.freeze([...value.errors]),
     warnings: Object.freeze([...value.warnings]),
   });

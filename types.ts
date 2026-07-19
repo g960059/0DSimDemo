@@ -63,7 +63,7 @@ export interface PanelInstanceConfig {
     customSignalNames?: Record<string, string>;
 }
 
-export type PanelType = 'PVLOOP' | 'PV_RELATIONS' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'SCENARIOS' | 'CONTROLS' | 'NOTE';
+export type PanelType = 'PVLOOP' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'SCENARIOS' | 'CONTROLS' | 'NOTE';
 export type PanelRole = 'graph' | 'output' | 'control' | 'note';
 export type WorkbenchZoneId = 'caseRail' | 'main' | 'sideRail' | 'bottomPanel';
 export type PvLoopDebugTraceMode = 'raw' | 'resampled' | 'both';
@@ -92,7 +92,7 @@ export type PvLoopHistoryMode = 'fade' | 'persistent';
 
 export interface GraphPanelView {
     kind: 'graph';
-    graphType: 'pvloop' | 'pv-relations' | 'waveform' | 'guyton-right' | 'guyton-left' | 'guyton-3d';
+    graphType: 'pvloop' | 'waveform' | 'guyton-right' | 'guyton-left' | 'guyton-3d';
     chambers?: ChamberId[];
     signals?: SignalType[];
     instances?: Record<string, PanelInstancePresentation>;

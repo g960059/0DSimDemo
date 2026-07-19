@@ -12,9 +12,7 @@ import {
   type MainWireScientificDerivedMetricIdV1,
   type MainWireScientificValidatedTerminalCycleV1,
 } from "@/engine/scientific/metrics";
-import type {
-  MainWireScientificWorkspacePressureVolumeTrajectoryV1,
-} from "@/engine/scientific/documents";
+import type { MainWireScientificWorkspacePressureVolumeTrajectoryV1 } from "@/engine/scientific/documents";
 import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1,
   type MainWireScientificObservableIdV1,
@@ -35,9 +33,7 @@ import type {
   PanelInstanceConfig,
   PanelType,
 } from "@/types";
-import type {
-  ScientificWorkbenchResearchControlDraftV0,
-} from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
+import type { ScientificWorkbenchResearchControlDraftV0 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
 
 import {
   ScientificWorkbenchPvLoopCanvasV1,
@@ -48,9 +44,7 @@ import {
   type ScientificWorkbenchPvSeriesV1,
   type ScientificWorkbenchWaveformSeriesV1,
 } from "./ScientificWorkbenchAnimatedChartsV1";
-import type {
-  ScientificWorkbenchDisplayClockV1,
-} from "./ScientificWorkbenchDisplayClockV1";
+import type { ScientificWorkbenchDisplayClockV1 } from "./ScientificWorkbenchDisplayClockV1";
 import {
   type ScientificProductScenarioPresentationV1,
   type ScientificProductHemodynamicProtocolKindV1,
@@ -60,22 +54,13 @@ import {
 import {
   ScientificGuytonLeftPaneV1,
   ScientificGuytonRightPaneV1,
-  ScientificPvRelationPaneV1,
+  type ScientificGuytonCurvePointV1,
   type ScientificGuytonStarlingPaneDataV1,
   type ScientificGuytonSweepPointV1,
-  type ScientificPvRelationPaneDataV1,
-  type ScientificPvPointV1,
 } from "./ScientificHemodynamicProtocolPanesV1";
-import type {
-  MainWireScientificGuytonStarlingProtocolResultV1,
-  MainWireScientificPvRelationsProtocolResultV1,
-} from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
-import type {
-  MainWireScientificGuytonStarlingProtocolResultV2,
-} from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
-import {
-  scientificWorkbenchMetricPresentationV1,
-} from "./ScientificWorkbenchMetricPresentationV1";
+import type { MainWireScientificGuytonStarlingProtocolResultV1 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
+import type { MainWireScientificGuytonStarlingProtocolResultV2 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
+import { scientificWorkbenchMetricPresentationV1 } from "./ScientificWorkbenchMetricPresentationV1";
 import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
@@ -89,8 +74,9 @@ const METRIC_EVALUATION_BY_CYCLE_V1 = new WeakMap<
   MainWireScientificDerivedMetricEvaluationV1
 >();
 
-const WAVEFORM_ALIASES: Readonly<Record<string,
-MainWireScientificObservableIdV1>> = Object.freeze({
+const WAVEFORM_ALIASES: Readonly<
+  Record<string, MainWireScientificObservableIdV1>
+> = Object.freeze({
   LAP: "hemodynamics.pressure.absolute.LA",
   RAP: "hemodynamics.pressure.absolute.RA",
   LVP: "hemodynamics.pressure.absolute.LV",
@@ -127,10 +113,12 @@ export const SCIENTIFIC_CONTROL_PERICARDIAL_FLUID_V1 =
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[5];
 
 export const SCIENTIFIC_CONTROL_SCALE_OPTIONS_V1 = Object.freeze(
-  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0.map((value) => Object.freeze({
-    value,
-    label: `${value.toFixed(2)}×`,
-  })),
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0.map((value) =>
+    Object.freeze({
+      value,
+      label: `${value.toFixed(2)}×`,
+    }),
+  ),
 );
 const SCIENTIFIC_CONTROL_PRESENTATION_V1 = Object.freeze({
   [SCIENTIFIC_CONTROL_SYSTEMIC_V1]: Object.freeze({
@@ -175,27 +163,28 @@ const SCIENTIFIC_CONTROL_PRESENTATION_V1 = Object.freeze({
     unit: "mL",
     optionLabel: (value: number) => `${value}`,
   }),
-} satisfies Readonly<Record<MainWireScientificResearchControlIdV0,
-Readonly<{
-  label: string;
-  description: string;
-  unit: string;
-  optionLabel: (value: number) => string;
-}>>>);
+} satisfies Readonly<
+  Record<
+    MainWireScientificResearchControlIdV0,
+    Readonly<{
+      label: string;
+      description: string;
+      unit: string;
+      optionLabel: (value: number) => string;
+    }>
+  >
+>);
 
 const SCIENTIFIC_CONTROLLER_ITEM_LIST_V1: ControllerItem[] =
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0.map((controlId) =>
-    controllerItemForControlIdV1(controlId));
-export const SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1:
-readonly ControllerItem[] = Object.freeze(SCIENTIFIC_CONTROLLER_ITEM_LIST_V1);
-export const SCIENTIFIC_WORKBENCH_CIRCULATION_CONTROLLER_ITEMS_V1:
-readonly ControllerItem[] = Object.freeze(
-  SCIENTIFIC_CONTROLLER_ITEM_LIST_V1.slice(0, 4),
-);
-export const SCIENTIFIC_WORKBENCH_VENTILATION_RESTRAINT_CONTROLLER_ITEMS_V1:
-readonly ControllerItem[] = Object.freeze(
-  SCIENTIFIC_CONTROLLER_ITEM_LIST_V1.slice(4),
-);
+    controllerItemForControlIdV1(controlId),
+  );
+export const SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1: readonly ControllerItem[] =
+  Object.freeze(SCIENTIFIC_CONTROLLER_ITEM_LIST_V1);
+export const SCIENTIFIC_WORKBENCH_CIRCULATION_CONTROLLER_ITEMS_V1: readonly ControllerItem[] =
+  Object.freeze(SCIENTIFIC_CONTROLLER_ITEM_LIST_V1.slice(0, 4));
+export const SCIENTIFIC_WORKBENCH_VENTILATION_RESTRAINT_CONTROLLER_ITEMS_V1: readonly ControllerItem[] =
+  Object.freeze(SCIENTIFIC_CONTROLLER_ITEM_LIST_V1.slice(4));
 
 /**
  * The current release exposes only catalog-enumerated, release-bound values.
@@ -214,9 +203,8 @@ export function scientificControllerItemForReleaseV1(
 function controllerItemForControlIdV1(
   controlId: MainWireScientificResearchControlIdV0,
 ): ControllerItem {
-  const domain = MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
-    controlId
-  ];
+  const domain =
+    MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[controlId];
   const presentation = SCIENTIFIC_CONTROL_PRESENTATION_V1[controlId];
   const values = domain.allowedValues as readonly number[];
   return {
@@ -274,9 +262,10 @@ export function createScientificWorkbenchRuntimeRendererV1({
   ): React.ReactNode | undefined => {
     if (panel.type === "SCENARIOS") return undefined;
     if (panel.type === "CONTROLS") {
-      const items = panel.view?.kind === "control"
-        ? panel.view.controllerItems ?? []
-        : [];
+      const items =
+        panel.view?.kind === "control"
+          ? (panel.view.controllerItems ?? [])
+          : [];
       return (
         <ScientificControllerPanelV1
           registry={registry}
@@ -303,11 +292,7 @@ export function createScientificWorkbenchRuntimeRendererV1({
         />
       );
     }
-    if (
-      panel.type === "GUYTON_LEFT"
-      || panel.type === "GUYTON_RIGHT"
-      || panel.type === "PV_RELATIONS"
-    ) {
+    if (panel.type === "GUYTON_LEFT" || panel.type === "GUYTON_RIGHT") {
       return (
         <ScientificHemodynamicProtocolPanelV1
           panel={panel}
@@ -316,9 +301,7 @@ export function createScientificWorkbenchRuntimeRendererV1({
         />
       );
     }
-    if (
-      panel.type === "GUYTON_3D"
-    ) {
+    if (panel.type === "GUYTON_3D") {
       return (
         <ScientificUnavailablePanelV1
           title="A TBV-only surface would be misleading"
@@ -353,7 +336,8 @@ export function createScientificWorkbenchRuntimeRendererV1({
           />
         );
       }
-      if (view.kind === "graph") return renderPanel(graphViewToPanel(view), context);
+      if (view.kind === "graph")
+        return renderPanel(graphViewToPanel(view), context);
       return undefined;
     },
   });
@@ -379,7 +363,9 @@ export const SCIENTIFIC_WORKBENCH_SIGNAL_OPTIONS_V1 = Object.freeze([
 ] as const);
 
 export const SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1 = Object.freeze(
-  MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1.map(({ metricId }) => metricId),
+  MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1.map(
+    ({ metricId }) => metricId,
+  ),
 );
 
 function ScientificGraphPanelV1({
@@ -394,9 +380,11 @@ function ScientificGraphPanelV1({
   renderContext: WorkbenchRuntimeRenderContext;
 }>) {
   const presentations = useScientificScenarioPresentationsV1(registry);
-  const effective = presentations.filter((presentation) =>
-    presentation.descriptor.isVisible
-    && panel.config[presentation.descriptor.id]?.visible === true);
+  const effective = presentations.filter(
+    (presentation) =>
+      presentation.descriptor.isVisible &&
+      panel.config[presentation.descriptor.id]?.visible === true,
+  );
   const legendInteraction = {
     panelId: panel.id,
     interactive: shouldEnableLegendInteractions({
@@ -404,8 +392,9 @@ function ScientificGraphPanelV1({
       presentationMode: renderContext.presentationMode,
     }),
     onOpenSettings: renderContext.onOpenSettings,
-    legendPosition: renderContext.legendPosition
-      ?? (panel.view?.kind === "graph" ? panel.view.legendPosition : undefined),
+    legendPosition:
+      renderContext.legendPosition ??
+      (panel.view?.kind === "graph" ? panel.view.legendPosition : undefined),
     onLegendPositionChange: renderContext.onLegendPositionChange,
     ariaLabel: `Open ${panel.title} pane settings`,
   };
@@ -415,7 +404,8 @@ function ScientificGraphPanelV1({
       waveformSeriesForScenarioV1(
         presentation,
         panel.config[presentation.descriptor.id]!,
-      ));
+      ),
+    );
     if (series.length === 0) return <NoScientificSelectionV1 />;
     return (
       <div
@@ -438,7 +428,8 @@ function ScientificGraphPanelV1({
     pvSeriesForScenarioV1(
       presentation,
       panel.config[presentation.descriptor.id]!,
-    ));
+    ),
+  );
   if (series.length === 0) return <NoScientificSelectionV1 />;
   return (
     <div
@@ -450,8 +441,20 @@ function ScientificGraphPanelV1({
         series={series}
         clock={clock}
         showLegend={panel.showLegend !== false}
-        historyBeats={panel.pvHistoryBeats ?? (panel.view?.kind === "graph" ? panel.view.pvHistoryBeats : undefined) ?? 8}
-        historyMode={panel.pvHistoryMode ?? (panel.view?.kind === "graph" ? panel.view.pvHistoryMode : undefined) ?? "fade"}
+        historyBeats={
+          panel.pvHistoryBeats ??
+          (panel.view?.kind === "graph"
+            ? panel.view.pvHistoryBeats
+            : undefined) ??
+          8
+        }
+        historyMode={
+          panel.pvHistoryMode ??
+          (panel.view?.kind === "graph"
+            ? panel.view.pvHistoryMode
+            : undefined) ??
+          "fade"
+        }
         legendInteraction={legendInteraction}
       />
     </div>
@@ -468,33 +471,38 @@ function ScientificHemodynamicProtocolPanelV1({
   activeScenarioId?: string;
 }>) {
   const presentations = useScientificScenarioPresentationsV1(registry);
-  const eligible = presentations.filter(({ descriptor }) =>
-    descriptor.isVisible && panel.config[descriptor.id]?.visible === true);
-  const selected = eligible.find(({ descriptor }) =>
-    descriptor.id === activeScenarioId) ?? eligible[0];
-  const kind: ScientificProductHemodynamicProtocolKindV1 =
-    panel.type === "PV_RELATIONS" ? "pv-relations" : "guyton-starling";
+  const eligible = presentations.filter(
+    ({ descriptor }) =>
+      descriptor.isVisible && panel.config[descriptor.id]?.visible === true,
+  );
+  const selected =
+    eligible.find(({ descriptor }) => descriptor.id === activeScenarioId) ??
+    eligible[0];
+  const kind: ScientificProductHemodynamicProtocolKindV1 = "guyton-starling";
   const protocol = useScientificHemodynamicProtocolV1(
     registry,
     selected?.descriptor.id ?? null,
     kind,
   );
-  const periodicSourceAvailable = selected !== undefined
-    && selected.displayedEvidence !== "open-transient-no-periodic-claim";
+  const periodicSourceAvailable =
+    selected !== undefined &&
+    selected.displayedEvidence !== "open-transient-no-periodic-claim";
   const latestDisplayedFrame = selected?.frames.at(-1);
-  const protocolMatchesDisplayedSource = protocol.sourceIdentity !== null
-    && latestDisplayedFrame !== undefined
-    && protocol.sourceIdentity.revision === latestDisplayedFrame.revision
-    && Math.abs(
-      protocol.sourceIdentity.acceptedTimeSec
-      - latestDisplayedFrame.acceptedTimeSec,
+  const protocolMatchesDisplayedSource =
+    protocol.sourceIdentity !== null &&
+    latestDisplayedFrame !== undefined &&
+    protocol.sourceIdentity.revision === latestDisplayedFrame.revision &&
+    Math.abs(
+      protocol.sourceIdentity.acceptedTimeSec -
+        latestDisplayedFrame.acceptedTimeSec,
     ) <= 1e-10;
   React.useEffect(() => {
     if (
-      selected === undefined
-      || !periodicSourceAvailable
-      || protocol.status === "error"
-    ) return;
+      selected === undefined ||
+      !periodicSourceAvailable ||
+      protocol.status === "error"
+    )
+      return;
     registry.requestHemodynamicProtocol(selected.descriptor.id, kind);
   }, [kind, periodicSourceAvailable, protocol.status, registry, selected]);
 
@@ -515,20 +523,15 @@ function ScientificHemodynamicProtocolPanelV1({
       </div>
     );
   }
-  if (
-    protocol.status === "complete"
-    && !protocolMatchesDisplayedSource
-  ) {
+  if (protocol.status === "complete" && !protocolMatchesDisplayedSource) {
     return (
       <div className="flex h-full min-h-0 w-full items-center justify-center p-5 text-center text-xs text-wb-subtle">
         Updating the protocol for the new periodic source…
       </div>
     );
   }
-  const rerun = () => registry.requestHemodynamicProtocol(
-    selected.descriptor.id,
-    kind,
-  );
+  const rerun = () =>
+    registry.requestHemodynamicProtocol(selected.descriptor.id, kind);
   if (protocol.status === "error") {
     return (
       <div className="flex h-full min-h-0 w-full items-center justify-center p-5">
@@ -552,32 +555,25 @@ function ScientificHemodynamicProtocolPanelV1({
   }
 
   const scenarioName = selected.descriptor.name;
-  if (kind === "guyton-starling") {
-    const result = protocol.result?.protocolId
-      === "main-wire-scientific-guyton-starling-protocol-v1"
-      || protocol.result?.protocolId
-        === "main-wire-scientific-guyton-starling-protocol-v2"
-      ? protocol.result as MainWireScientificGuytonStarlingProtocolResultV1
-        | MainWireScientificGuytonStarlingProtocolResultV2
+  const result =
+    protocol.result?.protocolId ===
+      "main-wire-scientific-guyton-starling-protocol-v1" ||
+    protocol.result?.protocolId ===
+      "main-wire-scientific-guyton-starling-protocol-v2"
+      ? (protocol.result as
+          | MainWireScientificGuytonStarlingProtocolResultV1
+          | MainWireScientificGuytonStarlingProtocolResultV2)
       : null;
-    const data = guytonPaneDataV1(
-      panel.type === "GUYTON_LEFT" ? "left" : "right",
-      scenarioName,
-      protocol,
-      result,
-    );
-    return panel.type === "GUYTON_LEFT"
-      ? <ScientificGuytonLeftPaneV1 data={data} />
-      : <ScientificGuytonRightPaneV1 data={data} />;
-  }
-  const result = protocol.result?.protocolId
-    === "main-wire-scientific-pv-relations-protocol-v1"
-    ? protocol.result as MainWireScientificPvRelationsProtocolResultV1
-    : null;
-  return (
-    <ScientificPvRelationPaneV1
-      data={pvRelationPaneDataV1(scenarioName, protocol, result)}
-    />
+  const data = guytonPaneDataV1(
+    panel.type === "GUYTON_LEFT" ? "left" : "right",
+    scenarioName,
+    protocol,
+    result,
+  );
+  return panel.type === "GUYTON_LEFT" ? (
+    <ScientificGuytonLeftPaneV1 data={data} />
+  ) : (
+    <ScientificGuytonRightPaneV1 data={data} />
   );
 }
 
@@ -588,9 +584,10 @@ function useScientificHemodynamicProtocolV1(
 ): ScientificProductHemodynamicProtocolPresentationV1 {
   return React.useSyncExternalStore(
     registry.subscribeHemodynamicProtocols,
-    () => scenarioId === null
-      ? EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1[kind]
-      : registry.getHemodynamicProtocol(scenarioId, kind),
+    () =>
+      scenarioId === null
+        ? EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1[kind]
+        : registry.getHemodynamicProtocol(scenarioId, kind),
     () => EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1[kind],
   );
 }
@@ -604,24 +601,19 @@ const EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1 = Object.freeze({
     jobSnapshot: null,
     errorMessage: null,
   }),
-  "pv-relations": Object.freeze({
-    kind: "pv-relations" as const,
-    status: "idle" as const,
-    sourceIdentity: null,
-    result: null,
-    jobSnapshot: null,
-    errorMessage: null,
-  }),
-}) satisfies Readonly<Record<
-  ScientificProductHemodynamicProtocolKindV1,
-  ScientificProductHemodynamicProtocolPresentationV1
->>;
+}) satisfies Readonly<
+  Record<
+    ScientificProductHemodynamicProtocolKindV1,
+    ScientificProductHemodynamicProtocolPresentationV1
+  >
+>;
 
 function guytonPaneDataV1(
   side: "right" | "left",
   scenarioName: string,
   protocol: ScientificProductHemodynamicProtocolPresentationV1,
-  result: MainWireScientificGuytonStarlingProtocolResultV1
+  result:
+    | MainWireScientificGuytonStarlingProtocolResultV1
     | MainWireScientificGuytonStarlingProtocolResultV2
     | null,
 ): ScientificGuytonStarlingPaneDataV1 {
@@ -634,363 +626,385 @@ function guytonPaneDataV1(
       vascularReturnCurve: Object.freeze([]),
       cardiacPreloadLocus: Object.freeze([]),
       cardiacPreloadSegments: Object.freeze([]),
+      estimatedCardiacSegments: Object.freeze([]),
       sweepPoints: Object.freeze([]),
       status: Object.freeze({
         status: "running" as const,
         label: "Running full-Land protocol…",
-        phase: "Cycle-mean vascular snapshot and independent fixed-TBV P1/P2 points",
+        phase:
+          "Cycle-mean vascular snapshot and independent fixed-TBV P1/P2 points",
         qc: Object.freeze({
           level: "pending" as const,
-          summary: "The source scenario remains unchanged while the Worker runs.",
+          summary:
+            "The source scenario remains unchanged while the Worker runs.",
         }),
       }),
     });
   }
-  const vascular = side === "right"
-    ? vascularSource.rightVascularFunction
-    : vascularSource.leftVascularFunction;
-  const allV2Evidence = result !== null && "preloadPointEvidence" in result
-    ? result.preloadPointEvidence
-    : partial?.preloadPointEvidence ?? null;
-  const v2Evidence = allV2Evidence?.filter(({ provenance }) =>
-    provenance.direction !== "independent-audit") ?? null;
-  const operatingRows = v2Evidence !== null
-    ? v2Evidence.map(({ point, provenance }) => Object.freeze({
-      point,
-      pointId: provenance.pointId,
-      auditStatus: provenance.auditStatus,
-      auditMaximumNormalizedStateDelta:
-        provenance.auditMaximumNormalizedStateDelta,
-    }))
-    : (result?.preloadOperatingPoints ?? []).map((point) => Object.freeze({
-      point,
-      pointId: `tbv-${point.targetScale.toFixed(6)}`,
-      auditStatus: "not-scheduled" as const,
-      auditMaximumNormalizedStateDelta: null,
-    }));
+  const vascular =
+    side === "right"
+      ? vascularSource.rightVascularFunction
+      : vascularSource.leftVascularFunction;
+  const allV2Evidence =
+    result !== null && "preloadPointEvidence" in result
+      ? result.preloadPointEvidence
+      : (partial?.preloadPointEvidence ?? null);
+  const v2Evidence =
+    allV2Evidence?.filter(
+      ({ provenance }) => provenance.direction !== "independent-audit",
+    ) ?? null;
+  const operatingRows =
+    v2Evidence !== null
+      ? v2Evidence.map(({ point, provenance }) =>
+          Object.freeze({
+            point,
+            pointId: provenance.pointId,
+            auditStatus: provenance.auditStatus,
+            auditMaximumNormalizedStateDelta:
+              provenance.auditMaximumNormalizedStateDelta,
+          }),
+        )
+      : (result?.preloadOperatingPoints ?? []).map((point) =>
+          Object.freeze({
+            point,
+            pointId: `tbv-${point.targetScale.toFixed(6)}`,
+            auditStatus: "not-scheduled" as const,
+            auditMaximumNormalizedStateDelta: null,
+          }),
+        );
   const operatingPoints = operatingRows.map(({ point }) => point);
-  const baselinePeriodicity = result?.baselinePeriodicity
-    ?? partial?.baselinePeriodicity
-    ?? "not-converged";
-  const pressure = (point: MainWireScientificGuytonStarlingProtocolResultV1[
-    "preloadOperatingPoints"
-  ][number]) => side === "right"
-    ? point.meanRapTransmuralMmHg
-    : point.meanLapTransmuralMmHg;
-  const p1Rows = operatingRows.filter(({ point }) =>
-    point.acceptedForPeriod1Locus
-    && pressure(point) !== null
-    && point.netCardiacOutputLMin !== null);
-  const p1ByTargetScale = new Map(p1Rows.map((row) => [
-    row.point.targetScale,
-    row,
-  ]));
-  const orderedTargetScales = [...new Set(operatingPoints.map((point) =>
-    point.targetScale))].sort((a, b) => a - b);
-  const cardiacPreloadSegments = orderedTargetScales.reduce<
-    Array<Array<(typeof p1Rows)[number]>>
-  >((segments, targetScale) => {
-    const row = p1ByTargetScale.get(targetScale);
-    if (row === undefined) {
-      if (segments.at(-1)?.length) segments.push([]);
+  const fastPreview =
+    result !== null && "fastPreloadPreview" in result
+      ? result.fastPreloadPreview
+      : (partial?.fastPreloadPreview ?? null);
+  const fastEvidence = fastPreview?.evidence ?? [];
+  const rapidEstimateCount = fastEvidence.filter(
+    (evidence) =>
+      evidence.evidenceClass === "near-period1-estimate" ||
+      evidence.evidenceClass === "finite-hold-unclassified",
+  ).length;
+  const nearPeriod1EstimateCount = fastEvidence.filter(
+    (evidence) => evidence.evidenceClass === "near-period1-estimate",
+  ).length;
+  const baselinePeriodicity =
+    result?.baselinePeriodicity ??
+    partial?.baselinePeriodicity ??
+    "not-converged";
+  const pressure = (
+    point: MainWireScientificGuytonStarlingProtocolResultV1["preloadOperatingPoints"][number],
+  ) =>
+    side === "right"
+      ? point.meanRapTransmuralMmHg
+      : point.meanLapTransmuralMmHg;
+  const p1Rows = operatingRows.filter(
+    ({ point }) =>
+      point.acceptedForPeriod1Locus &&
+      pressure(point) !== null &&
+      point.netCardiacOutputLMin !== null,
+  );
+  const p1ByTargetScale = new Map(
+    p1Rows.map((row) => [row.point.targetScale, row]),
+  );
+  const orderedTargetScales = [
+    ...new Set(operatingPoints.map((point) => point.targetScale)),
+  ].sort((a, b) => a - b);
+  const cardiacPreloadSegments = orderedTargetScales
+    .reduce<Array<Array<(typeof p1Rows)[number]>>>((segments, targetScale) => {
+      const row = p1ByTargetScale.get(targetScale);
+      if (row === undefined) {
+        if (segments.at(-1)?.length) segments.push([]);
+        return segments;
+      }
+      if (row.auditStatus === "path-dependence-suspect") {
+        if (segments.at(-1)?.length) segments.push([]);
+        segments.push([row], []);
+        return segments;
+      }
+      const current = segments.at(-1);
+      if (current === undefined) segments.push([row]);
+      else current.push(row);
       return segments;
-    }
-    if (row.auditStatus === "path-dependence-suspect") {
-      if (segments.at(-1)?.length) segments.push([]);
-      segments.push([row], []);
-      return segments;
-    }
-    const current = segments.at(-1);
-    if (current === undefined) segments.push([row]);
-    else current.push(row);
-    return segments;
-  }, []).filter((segment) => segment.length > 0);
-  const orderedP1Rows = [...p1Rows].sort((left, right) =>
-    left.point.targetScale - right.point.targetScale);
+    }, [])
+    .filter((segment) => segment.length > 0);
+  const orderedP1Rows = [...p1Rows].sort(
+    (left, right) => left.point.targetScale - right.point.targetScale,
+  );
   const rejectedCount = operatingPoints.length - p1Rows.length;
   const baseline = p1Rows.find(({ point }) => point.targetScale === 1)?.point;
-  const auditedReferences = operatingRows.filter(({ auditStatus }) =>
-    auditStatus !== "not-scheduled" && auditStatus !== "pending");
-  const auditMatchedCount = auditedReferences.filter(({ auditStatus }) =>
-    auditStatus === "matched").length;
+  const estimatedRows = fastEvidence.flatMap((evidence) => {
+    if (
+      evidence.evidenceClass !== "near-period1-estimate" &&
+      evidence.evidenceClass !== "finite-hold-unclassified"
+    )
+      return [];
+    return [
+      Object.freeze({
+        targetScale: evidence.acquisition.target.targetScale,
+        evidence,
+        point: Object.freeze({
+          pressureMmHg:
+            side === "right"
+              ? evidence.observation.meanRapTransmuralMmHg
+              : evidence.observation.meanLapTransmuralMmHg,
+          flowLPerMin: evidence.observation.netCardiacOutputLMin,
+          ...(evidence.observation.lvPressureVolume === null
+            ? {}
+            : {
+                lvPressureVolumeObservation: Object.freeze({
+                  endDiastolicVolumeMl:
+                    evidence.observation.lvPressureVolume.endDiastolicVolumeMl,
+                  endDiastolicTransmuralPressureMmHg:
+                    evidence.observation.lvPressureVolume
+                      .endDiastolicTransmuralPressureMmHg,
+                  endSystolicVolumeMl:
+                    evidence.observation.lvPressureVolume.endSystolicVolumeMl,
+                  endSystolicTransmuralPressureMmHg:
+                    evidence.observation.lvPressureVolume
+                      .endSystolicTransmuralPressureMmHg,
+                  strokeWorkMmHgMl:
+                    evidence.observation.lvPressureVolume.strokeWorkMmHgMl,
+                  evidenceRole: "tbv-operating-point-observation-only" as const,
+                  crossPointFitEligible: false as const,
+                }),
+              }),
+        }),
+      }),
+    ];
+  });
+  const estimatedScales = [
+    ...new Set([
+      ...fastEvidence.map(
+        (evidence) => evidence.acquisition.target.targetScale,
+      ),
+      ...(baseline === undefined ? [] : [1]),
+    ]),
+  ].sort((left, right) => left - right);
+  const estimatedRowsByScale = new Map(
+    estimatedRows.map((row) => [row.targetScale, row]),
+  );
+  const estimatedCardiacSegments = estimatedScales
+    .reduce<Array<Array<ScientificGuytonCurvePointV1>>>(
+      (segments, targetScale) => {
+        const point =
+          targetScale === 1 && baseline !== undefined
+            ? Object.freeze({
+                pressureMmHg: pressure(baseline)!,
+                flowLPerMin: baseline.netCardiacOutputLMin!,
+              })
+            : estimatedRowsByScale.get(targetScale)?.evidence.eligibility
+                  .rapidFiniteHoldLocus === true
+              ? estimatedRowsByScale.get(targetScale)!.point
+              : null;
+        if (point === null) {
+          if (segments.at(-1)?.length) segments.push([]);
+          return segments;
+        }
+        const current = segments.at(-1);
+        if (current === undefined) segments.push([point]);
+        else current.push(point);
+        return segments;
+      },
+      [],
+    )
+    .filter((segment) => segment.length > 0);
+  const auditedReferences = operatingRows.filter(
+    ({ auditStatus }) =>
+      auditStatus !== "not-scheduled" && auditStatus !== "pending",
+  );
+  const auditMatchedCount = auditedReferences.filter(
+    ({ auditStatus }) => auditStatus === "matched",
+  ).length;
   const auditWarningCount = auditedReferences.length - auditMatchedCount;
   return Object.freeze({
     side,
     title: `${scenarioName} · ${side === "right" ? "Right" : "Left"} Guyton / Starling`,
-    vascularReturnCurve: Object.freeze(vascular.points.map((point) =>
-      Object.freeze({
-        pressureMmHg: point.pressureTransmuralMmHg,
-        flowLPerMin: point.flowLMin,
-      }))),
-    cardiacPreloadLocus: Object.freeze(orderedP1Rows.map(({ point }) => Object.freeze({
-      pressureMmHg: pressure(point)!,
-      flowLPerMin: point.netCardiacOutputLMin!,
-    }))),
-    cardiacPreloadSegments: Object.freeze(cardiacPreloadSegments.map((segment) =>
-      Object.freeze(segment.map(({ point }) => Object.freeze({
-        pressureMmHg: pressure(point)!,
-        flowLPerMin: point.netCardiacOutputLMin!,
-      }))))),
-    sweepPoints: Object.freeze(operatingRows.flatMap<ScientificGuytonSweepPointV1>(({
-      point,
-      pointId,
-      auditStatus,
-      auditMaximumNormalizedStateDelta,
-    }) => {
-      if (point.status === "period2-suspect" && point.period2Branches !== null) {
-        return point.period2Branches.map((branch) => Object.freeze({
-          id: `${pointId}-${branch.branchId}`,
-          pressureMmHg: side === "right"
-            ? branch.meanRapTransmuralMmHg
-            : branch.meanLapTransmuralMmHg,
-          flowLPerMin: branch.netCardiacOutputLMin,
-          totalBloodVolumeMl: point.fixedTotalBloodVolumeMl,
-          classification: "period2" as const,
-          reason: `${branch.branchId} branch of a settled period-2-suspect orbit; excluded`,
-        }));
-      }
-      const x = pressure(point);
-      const y = point.netCardiacOutputLMin;
-      if (x === null || y === null) return [];
-      return [Object.freeze({
-        id: pointId,
-        pressureMmHg: x,
-        flowLPerMin: y,
-        totalBloodVolumeMl: point.fixedTotalBloodVolumeMl,
-        classification: point.status === "period1-converged"
-          ? auditStatus === "path-dependence-suspect"
-            || auditStatus === "audit-failed"
-            ? "audit-suspect" as const
-            : "period1" as const
-          : point.status === "period2-suspect"
-            ? "period2" as const
-            : "rejected" as const,
-        reason: auditStatus === "path-dependence-suspect"
-          ? `Independent source audit converged to a materially different accepted state${auditMaximumNormalizedStateDelta === null ? "" : ` (maximum normalized delta ${auditMaximumNormalizedStateDelta.toExponential(2)})`}.`
-          : auditStatus === "audit-failed"
-            ? "Independent source audit did not provide a matched P1 checkpoint."
-            : point.failureReason ?? undefined,
-      })];
-    })),
-    operatingPoint: baseline === undefined ? undefined : Object.freeze({
-      pressureMmHg: pressure(baseline)!,
-      flowLPerMin: baseline.netCardiacOutputLMin!,
-      label: "Source operating point",
-    }),
+    vascularReturnCurve: Object.freeze(
+      vascular.points.map((point) =>
+        Object.freeze({
+          pressureMmHg: point.pressureTransmuralMmHg,
+          flowLPerMin: point.flowLMin,
+        }),
+      ),
+    ),
+    cardiacPreloadLocus: Object.freeze(
+      orderedP1Rows.map(({ point }) =>
+        Object.freeze({
+          pressureMmHg: pressure(point)!,
+          flowLPerMin: point.netCardiacOutputLMin!,
+        }),
+      ),
+    ),
+    cardiacPreloadSegments: Object.freeze(
+      cardiacPreloadSegments.map((segment) =>
+        Object.freeze(
+          segment.map(({ point }) =>
+            Object.freeze({
+              pressureMmHg: pressure(point)!,
+              flowLPerMin: point.netCardiacOutputLMin!,
+            }),
+          ),
+        ),
+      ),
+    ),
+    estimatedCardiacSegments: Object.freeze(
+      estimatedCardiacSegments.map((segment) => Object.freeze(segment)),
+    ),
+    sweepPoints: Object.freeze([
+      ...estimatedRows.map(({ evidence, point }) =>
+        Object.freeze({
+          id: evidence.evidenceId,
+          ...point,
+          totalBloodVolumeMl: evidence.acquisition.target.totalBloodVolumeMl,
+          classification:
+            evidence.evidenceClass === "near-period1-estimate"
+              ? ("estimated" as const)
+              : ("unclassified" as const),
+          reason:
+            evidence.evidenceClass === "near-period1-estimate"
+              ? `Predictor-assisted ${evidence.acquisition.completedNaturalBeatCountAfterPrediction}-beat estimate; residual ${evidence.closure.latestPeriod1MaximumNormalizedDelta.toExponential(2)}; canonical P1 not established.`
+              : `${evidence.reason}; residual ${evidence.closure.latestPeriod1MaximumNormalizedDelta.toExponential(2)}; contraction ratio ${evidence.closure.residualRatio.toFixed(2)}; canonical P1 not established.`,
+        }),
+      ),
+      ...operatingRows.flatMap<ScientificGuytonSweepPointV1>(
+        ({ point, pointId, auditStatus, auditMaximumNormalizedStateDelta }) => {
+          if (
+            point.status === "period2-suspect" &&
+            point.period2Branches !== null
+          ) {
+            return point.period2Branches.map((branch) =>
+              Object.freeze({
+                id: `${pointId}-${branch.branchId}`,
+                pressureMmHg:
+                  side === "right"
+                    ? branch.meanRapTransmuralMmHg
+                    : branch.meanLapTransmuralMmHg,
+                flowLPerMin: branch.netCardiacOutputLMin,
+                totalBloodVolumeMl: point.fixedTotalBloodVolumeMl,
+                classification: "period2" as const,
+                reason: `${branch.branchId} branch of a settled period-2-suspect orbit; excluded`,
+              }),
+            );
+          }
+          const x = pressure(point);
+          const y = point.netCardiacOutputLMin;
+          if (x === null || y === null) return [];
+          return [
+            Object.freeze({
+              id: pointId,
+              pressureMmHg: x,
+              flowLPerMin: y,
+              totalBloodVolumeMl: point.fixedTotalBloodVolumeMl,
+              ...(point.lvPressureVolumeObservation === null
+                ? {}
+                : {
+                    lvPressureVolumeObservation: Object.freeze({
+                      endDiastolicVolumeMl:
+                        point.lvPressureVolumeObservation.endDiastolic.volumeMl,
+                      endDiastolicTransmuralPressureMmHg:
+                        point.lvPressureVolumeObservation.endDiastolic
+                          .transmuralPressureMmHg,
+                      endSystolicVolumeMl:
+                        point.lvPressureVolumeObservation.endSystolic.volumeMl,
+                      endSystolicTransmuralPressureMmHg:
+                        point.lvPressureVolumeObservation.endSystolic
+                          .transmuralPressureMmHg,
+                      strokeWorkMmHgMl:
+                        point.lvPressureVolumeObservation.strokeWorkMmHgMl,
+                      evidenceRole:
+                        "tbv-operating-point-observation-only" as const,
+                      crossPointFitEligible: false as const,
+                    }),
+                  }),
+              classification:
+                point.status === "period1-converged"
+                  ? auditStatus === "path-dependence-suspect" ||
+                    auditStatus === "audit-failed"
+                    ? ("audit-suspect" as const)
+                    : ("period1" as const)
+                  : point.status === "period2-suspect"
+                    ? ("period2" as const)
+                    : ("rejected" as const),
+              reason:
+                auditStatus === "path-dependence-suspect"
+                  ? `Independent source audit converged to a materially different accepted state${auditMaximumNormalizedStateDelta === null ? "" : ` (maximum normalized delta ${auditMaximumNormalizedStateDelta.toExponential(2)})`}.`
+                  : auditStatus === "audit-failed"
+                    ? "Independent source audit did not provide a matched P1 checkpoint."
+                    : (point.failureReason ?? undefined),
+            }),
+          ];
+        },
+      ),
+    ]),
+    operatingPoint:
+      baseline === undefined
+        ? undefined
+        : Object.freeze({
+            pressureMmHg: pressure(baseline)!,
+            flowLPerMin: baseline.netCardiacOutputLMin!,
+            label: "Source operating point",
+          }),
     vascularCurveLabel: "Fixed-volume vascular function (PV-law derived)",
-    cardiacCurveLabel: v2Evidence === null
-      ? "Independent-TBV net aortic-output locus (P1 only)"
-      : "Bidirectional-continuation net aortic-output locus (P1 only)",
+    cardiacCurveLabel:
+      v2Evidence === null
+        ? "Independent-TBV net aortic-output locus (P1 only)"
+        : "Bidirectional-continuation net aortic-output locus (P1 only)",
     status: Object.freeze({
-      status: protocol.status === "running"
-        ? "running" as const
-        : protocol.status === "error"
-          ? "error" as const
-        : rejectedCount === 0 ? "complete" as const : "partial" as const,
-      label: protocol.status === "running"
-        ? "Exploring preload envelope…"
-        : protocol.status === "error"
-          ? "Protocol stopped"
-        : "Protocol complete",
-      phase: protocol.status === "running"
-        ? `${partial?.progress.completedPointCount ?? operatingPoints.length} settled/classified points · ${partial?.progress.completedBeatCount ?? 0} beats · ${partial?.progress.activeDirections.join(" + ") || "finalizing"}`
-        : result !== null && "exploration" in result
-          ? `Envelope ${result.exploration.normalizedTotalBloodVolumeEnvelope.join("–")}× TBV · lower ${result.exploration.lowerBoundaryStatus} · higher ${result.exploration.higherBoundaryStatus} · ${partial?.progress.completedBeatCount ?? 0} beats`
+      status:
+        protocol.status === "running"
+          ? ("running" as const)
+          : protocol.status === "error"
+            ? ("error" as const)
+            : rejectedCount === 0
+              ? ("complete" as const)
+              : ("partial" as const),
+      label:
+        protocol.status === "running"
+          ? "Exploring preload envelope…"
+          : protocol.status === "error"
+            ? "Protocol stopped"
+            : "Protocol complete",
+      phase:
+        protocol.status === "running"
+          ? `${partial?.progress.fastPreviewCompletedPointCount ?? fastEvidence.length}/${partial?.progress.fastPreviewPlannedPointCount ?? 9} fast estimates · ${partial?.progress.completedPointCount ?? operatingPoints.length} settled/classified · ${partial?.progress.completedBeatCount ?? 0} beats · ${partial?.progress.activeDirections.join(" + ") || "finalizing"}`
+          : result !== null && "exploration" in result
+            ? `Envelope ${result.exploration.normalizedTotalBloodVolumeEnvelope.join("–")}× TBV · lower ${result.exploration.lowerBoundaryStatus} · higher ${result.exploration.higherBoundaryStatus} · ${partial?.progress.completedBeatCount ?? 0} beats`
+            : undefined,
+      progress:
+        protocol.status === "running" && partial !== null
+          ? Object.freeze({
+              completed: partial.progress.completedPointCount,
+              total: partial.progress.plannedPointCountLowerBound,
+            })
           : undefined,
-      progress: protocol.status === "running" && partial !== null
-        ? Object.freeze({
-          completed: partial.progress.completedPointCount,
-          total: partial.progress.plannedPointCountLowerBound,
-        })
-        : undefined,
       qc: Object.freeze({
-        level: protocol.status === "running"
-          ? "pending" as const
-          : protocol.status === "error"
-            ? "fail" as const
-          : baselinePeriodicity === "period1-converged"
-          ? rejectedCount === 0 && auditWarningCount === 0
-            ? "pass" as const
-            : "warning" as const
-          : "fail" as const,
-        summary: protocol.status === "running"
-          ? "The structural vascular curve is ready; steady preload points appear as each branch converges."
-          : protocol.status === "error"
-            ? protocol.errorMessage ?? "The preload protocol stopped before completion."
-          : baselinePeriodicity === "period1-converged"
-          ? `${p1Rows.length} P1 point${p1Rows.length === 1 ? "" : "s"}; ${rejectedCount} P2-suspect/blocked attempt${rejectedCount === 1 ? "" : "s"}; ${auditMatchedCount} matched audit${auditMatchedCount === 1 ? "" : "s"}; ${auditWarningCount} audit warning${auditWarningCount === 1 ? "" : "s"}.`
-          : "The source beat did not reproduce period-1 closure.",
+        level:
+          protocol.status === "running"
+            ? ("pending" as const)
+            : protocol.status === "error"
+              ? ("fail" as const)
+              : baselinePeriodicity === "period1-converged"
+                ? rejectedCount === 0 && auditWarningCount === 0
+                  ? ("pass" as const)
+                  : ("warning" as const)
+                : ("fail" as const),
+        summary:
+          protocol.status === "running"
+            ? `${rapidEstimateCount} rapid finite-hold estimate${rapidEstimateCount === 1 ? "" : "s"}; ${nearPeriod1EstimateCount} passed the provisional near-P1 residual screen. None are periodic solutions. Settled P1 points replace the scientific claim as they converge.`
+            : protocol.status === "error"
+              ? (protocol.errorMessage ??
+                "The preload protocol stopped before completion.")
+              : baselinePeriodicity === "period1-converged"
+                ? `${p1Rows.length} P1 point${p1Rows.length === 1 ? "" : "s"}; ${rejectedCount} P2-suspect/blocked attempt${rejectedCount === 1 ? "" : "s"}; ${auditMatchedCount} matched audit${auditMatchedCount === 1 ? "" : "s"}; ${auditWarningCount} audit warning${auditWarningCount === 1 ? "" : "s"}.`
+                : "The source beat did not reproduce period-1 closure.",
         details: Object.freeze([
           "TBV sweep is a one-dimensional closed-loop preload locus, not a Guyton pump experiment or a surface.",
           "Settled period-2-suspect branches are shown separately and never averaged into the P1 curve.",
+          "Dashed/open estimates use 2–5 budgeted natural beats after a hidden predictor jump and never enter the settled P1/P2 evidence or relation fits.",
           "An audit-warning marker remains P1 continuation evidence, but it is isolated from the curve when the independent source audit indicates path dependence.",
         ]),
       }),
     }),
   });
-}
-
-function pvRelationPaneDataV1(
-  scenarioName: string,
-  protocol: ScientificProductHemodynamicProtocolPresentationV1,
-  result: MainWireScientificPvRelationsProtocolResultV1 | null,
-): ScientificPvRelationPaneDataV1 {
-  if (protocol.status === "running" || result === null) {
-    return Object.freeze({
-      title: `${scenarioName} · LV ESPVR / EDPVR`,
-      chamberLabel: "LV",
-      beats: Object.freeze([]),
-      espvr: Object.freeze({ status: "not-run" as const }),
-      edpvr: Object.freeze({ status: "not-run" as const }),
-      prsw: Object.freeze({ status: "not-run" as const }),
-      status: Object.freeze({
-        status: "running" as const,
-        label: "Running fixed-TBV IVC-like protocol…",
-        phase: "8 loading beats, valve-event extraction, recovery and fit QC",
-        qc: Object.freeze({
-          level: "pending" as const,
-          summary: "Transmural LV pressure is used; the source session is read-only.",
-        }),
-      }),
-    });
-  }
-  const analysis = result.analysis;
-  const volumeValues = result.rampBeats.flatMap((beat) => [
-    beat.endDiastolic?.volumeMl,
-    beat.endSystolic?.volumeMl,
-  ].filter((value): value is number => value !== undefined));
-  const volumeMin = volumeValues.length > 0 ? Math.min(...volumeValues) : 0;
-  const volumeMax = volumeValues.length > 0 ? Math.max(...volumeValues) : 1;
-  const volumes = Array.from({ length: 64 }, (_, index) =>
-    volumeMin + (volumeMax - volumeMin) * index / 63);
-  const linear = analysis.espvr.fit;
-  const quadratic = analysis.quadraticEspvrSensitivity;
-  const edpvr = analysis.edpvr.fit;
-  const rejectSummary = (reasons: readonly Readonly<{ message: string }>[]) =>
-    reasons.map(({ message }) => message).join(" ");
-  return Object.freeze({
-    title: `${scenarioName} · LV ESPVR / EDPVR`,
-    chamberLabel: "LV",
-    beats: Object.freeze(result.rampBeats.map((beat) => Object.freeze({
-      id: `ivc-beat-${beat.beatIndex}`,
-      points: Object.freeze(beat.samples.map((sample) => Object.freeze({
-        volumeMl: sample.lvVolumeMl,
-        transmuralPressureMmHg: sample.lvTransmuralPressureMmHg,
-      }))),
-      classification: beat.classification,
-      endDiastolic: beat.endDiastolic === null ? undefined : Object.freeze({
-        event: "end-diastole" as const,
-        volumeMl: beat.endDiastolic.volumeMl,
-        transmuralPressureMmHg: beat.endDiastolic.pressureTransmuralMmHg,
-      }),
-      endSystolic: beat.endSystolic === null ? undefined : Object.freeze({
-        event: "end-systole" as const,
-        volumeMl: beat.endSystolic.volumeMl,
-        transmuralPressureMmHg: beat.endSystolic.pressureTransmuralMmHg,
-      }),
-      rejectionReason: beat.rejectionReason ?? undefined,
-    }))),
-    espvr: linear !== null
-      ? Object.freeze({
-        status: analysis.espvr.status === "accepted"
-          ? "valid" as const
-          : "invalid" as const,
-        linear: Object.freeze({
-          points: pvFitPoints(volumes, (volumeMl) =>
-            linear.endSystolicElastanceMmHgPerMl
-              * (volumeMl - linear.volumeAxisInterceptMl)),
-          rSquared: linear.diagnostics.r2,
-          rmseMmHg: linear.diagnostics.rmse,
-          endSystolicElastanceMmHgPerMl:
-            linear.endSystolicElastanceMmHgPerMl,
-          volumeAxisInterceptMl: linear.volumeAxisInterceptMl,
-        }),
-        quadraticSensitivity: quadratic === null ? undefined : Object.freeze({
-          points: pvFitPoints(volumes, (volumeMl) =>
-            quadratic.quadraticCoefficientMmHgPerMl2 * volumeMl ** 2
-            + quadratic.linearCoefficientMmHgPerMl * volumeMl
-            + quadratic.interceptMmHg),
-          rSquared: quadratic.diagnostics.r2,
-          rmseMmHg: quadratic.diagnostics.rmse,
-          rmseImprovementPercent:
-            100 * quadratic.rmseImprovementFractionOverLinear,
-          localSlopeVariationPercent:
-            100 * quadratic.localSlopeVariationFraction,
-        }),
-        invalidReason: analysis.espvr.status === "accepted"
-          ? undefined
-          : rejectSummary(analysis.espvr.rejectReasons),
-      })
-      : Object.freeze({
-        status: "invalid" as const,
-        invalidReason: rejectSummary(analysis.espvr.rejectReasons),
-      }),
-    edpvr: analysis.edpvr.status === "accepted" && edpvr !== null
-      ? Object.freeze({
-        status: "valid" as const,
-        exponential: Object.freeze({
-          points: pvFitPoints(volumes, (volumeMl) =>
-            edpvr.referencePressureMmHg + edpvr.alphaMmHg
-              * (Math.exp(edpvr.betaPerMl
-                * (volumeMl - edpvr.referenceVolumeMl)) - 1)),
-          rSquared: edpvr.diagnostics.r2,
-          rmseMmHg: edpvr.diagnostics.rmse,
-          pressureOffsetMmHg: edpvr.referencePressureMmHg,
-          alphaMmHg: edpvr.alphaMmHg,
-          betaPerMl: edpvr.betaPerMl,
-          referenceVolumeMl: edpvr.referenceVolumeMl,
-          baselineTangentStiffnessMmHgPerMl:
-            edpvr.tangentStiffnessAtBaselineMmHgPerMl,
-        }),
-      })
-      : Object.freeze({
-        status: "invalid" as const,
-        invalidReason: rejectSummary(analysis.edpvr.rejectReasons),
-      }),
-    prsw: analysis.prsw.status === "accepted" && analysis.prsw.fit !== null
-      ? Object.freeze({
-        status: "valid" as const,
-        slopeMmHg:
-          analysis.prsw.fit.preloadRecruitableStrokeWorkSlopeMmHg,
-        volumeAxisInterceptMl: analysis.prsw.fit.volumeAxisInterceptMl,
-        rSquared: analysis.prsw.fit.diagnostics.r2,
-      })
-      : Object.freeze({
-        status: "invalid" as const,
-        invalidReason: rejectSummary(analysis.prsw.rejectReasons),
-      }),
-    status: Object.freeze({
-      status: analysis.overallStatus === "accepted"
-        ? "complete" as const
-        : "invalid" as const,
-      label: analysis.overallStatus === "accepted"
-        ? "Protocol and fits accepted"
-        : "Raw loops retained; one or more fits withheld",
-      qc: Object.freeze({
-        level: analysis.overallStatus === "accepted"
-          ? "pass" as const
-          : "warning" as const,
-        summary: analysis.overallStatus === "accepted"
-          ? `${analysis.includedFitEligiblePointIds.length} fixed-TBV transient loading beats passed QC.`
-          : "QC withholds one or more relation claims; raw evidence remains visible.",
-        details: Object.freeze([
-          `Baseline: ${result.baselinePeriodicity}`,
-          `Recovery: ${result.recovery.status}; baseline-state delta ${result.recovery.maximumRelativeBaselineStateDelta.toExponential(2)}`,
-          `EDPVR V₀ prior: Klotz-informed ${result.edpvrReference.referenceVolumeMl.toFixed(1)} mL; the multi-beat curve is an operating envelope, not a passive material test.`,
-        ]),
-      }),
-    }),
-  });
-}
-
-function pvFitPoints(
-  volumes: readonly number[],
-  pressure: (volumeMl: number) => number,
-): readonly ScientificPvPointV1[] {
-  return Object.freeze(volumes.map((volumeMl) => Object.freeze({
-    volumeMl,
-    transmuralPressureMmHg: pressure(volumeMl),
-  })));
 }
 
 function ScientificMetricsPanelV1({
@@ -1000,8 +1014,9 @@ function ScientificMetricsPanelV1({
   registry: ScientificProductScenarioRegistryV1;
   selections: Readonly<Record<string, readonly string[]>>;
 }>) {
-  const presentations = useScientificScenarioPresentationsV1(registry)
-    .filter(({ descriptor }) => descriptor.isVisible && selections[descriptor.id]);
+  const presentations = useScientificScenarioPresentationsV1(registry).filter(
+    ({ descriptor }) => descriptor.isVisible && selections[descriptor.id],
+  );
   const requestedCount = Object.values(selections).flat().length;
   if (requestedCount === 0) {
     return (
@@ -1019,9 +1034,15 @@ function ScientificMetricsPanelV1({
     >
       {presentations.map((presentation) => {
         const evaluation = metricEvaluationForPresentationV1(presentation);
-        const ids = [...new Set((selections[presentation.descriptor.id] ?? [])
-          .map(scientificMetricId)
-          .filter((id): id is MainWireScientificDerivedMetricIdV1 => id !== null))];
+        const ids = [
+          ...new Set(
+            (selections[presentation.descriptor.id] ?? [])
+              .map(scientificMetricId)
+              .filter(
+                (id): id is MainWireScientificDerivedMetricIdV1 => id !== null,
+              ),
+          ),
+        ];
         return (
           <section
             key={presentation.descriptor.id}
@@ -1046,7 +1067,8 @@ function ScientificMetricsPanelV1({
                     Live · previous complete beat
                   </p>
                 )}
-                {presentation.metricEvidence === "provisional-complete-transient-beat" && (
+                {presentation.metricEvidence ===
+                  "provisional-complete-transient-beat" && (
                   <p className="truncate text-[10px] leading-4 text-wb-subtle">
                     Live · provisional complete beat
                   </p>
@@ -1063,9 +1085,10 @@ function ScientificMetricsPanelV1({
                 const metricPresentation =
                   scientificWorkbenchMetricPresentationV1(metricId);
                 const metric = evaluation.values[metricId];
-                const unavailableReason = metric.unavailableReason
-                  ?? evaluation.cycleUnavailableReason
-                  ?? undefined;
+                const unavailableReason =
+                  metric.unavailableReason ??
+                  evaluation.cycleUnavailableReason ??
+                  undefined;
                 return (
                   <div
                     key={`${presentation.descriptor.id}:${metricId}`}
@@ -1075,11 +1098,13 @@ function ScientificMetricsPanelV1({
                     data-periodic-boundary-completion={String(
                       metric.periodicBoundaryCompletionApplied,
                     )}
-                    title={metric.value === null
-                      ? unavailableReason
-                      : metric.periodicBoundaryCompletionApplied
-                        ? `${metricPresentation.label} · periodic boundary completed from the measured terminal sample`
-                        : metricPresentation.label}
+                    title={
+                      metric.value === null
+                        ? unavailableReason
+                        : metric.periodicBoundaryCompletionApplied
+                          ? `${metricPresentation.label} · periodic boundary completed from the measured terminal sample`
+                          : metricPresentation.label
+                    }
                   >
                     <dt
                       className="truncate text-[10px] font-medium leading-4 text-wb-subtle"
@@ -1097,20 +1122,21 @@ function ScientificMetricsPanelV1({
                         {metric.value === null
                           ? "—"
                           : formatMetric(
-                            metric.value,
-                            metricPresentation.decimals,
-                          )}
+                              metric.value,
+                              metricPresentation.decimals,
+                            )}
                       </span>
                       {metric.value !== null && (
                         <span className="shrink-0 text-[9px] font-medium text-wb-subtle">
                           {metricPresentation.unit}
                         </span>
                       )}
-                      {metric.value === null && unavailableReason !== undefined && (
-                        <span className="sr-only">
-                          {`Unavailable: ${unavailableReason}`}
-                        </span>
-                      )}
+                      {metric.value === null &&
+                        unavailableReason !== undefined && (
+                          <span className="sr-only">
+                            {`Unavailable: ${unavailableReason}`}
+                          </span>
+                        )}
                     </dd>
                   </div>
                 );
@@ -1130,13 +1156,14 @@ function metricEvaluationForPresentationV1(
   if (cycle === null) return deriveMainWireScientificMetricsV1(null);
   const cached = METRIC_EVALUATION_BY_CYCLE_V1.get(cycle as object);
   if (cached !== undefined) return cached;
-  const evaluation = "periodicOrbitClassifiedP1" in cycle.evidence
-    ? deriveMainWireScientificMetricsV1(
-      cycle as MainWireScientificValidatedTerminalCycleV1,
-    )
-    : deriveMainWireScientificTransientBeatMetricsV1(
-      cycle as MainWireScientificCompleteTransientBeatV1,
-    );
+  const evaluation =
+    "periodicOrbitClassifiedP1" in cycle.evidence
+      ? deriveMainWireScientificMetricsV1(
+          cycle as MainWireScientificValidatedTerminalCycleV1,
+        )
+      : deriveMainWireScientificTransientBeatMetricsV1(
+          cycle as MainWireScientificCompleteTransientBeatV1,
+        );
   METRIC_EVALUATION_BY_CYCLE_V1.set(cycle as object, evaluation);
   return evaluation;
 }
@@ -1155,10 +1182,12 @@ function ScientificControllerPanelV1({
     registry.getDescriptorSnapshot,
     registry.getDescriptorSnapshot,
   );
-  const descriptor = targetScenarioId === undefined
-    ? descriptors[0]
-    : descriptors.find(({ id }) => id === targetScenarioId);
-  const runtime = descriptor === undefined ? null : registry.getRuntime(descriptor.id);
+  const descriptor =
+    targetScenarioId === undefined
+      ? descriptors[0]
+      : descriptors.find(({ id }) => id === targetScenarioId);
+  const runtime =
+    descriptor === undefined ? null : registry.getRuntime(descriptor.id);
   const snapshot = React.useSyncExternalStore(
     runtime?.controlStore.subscribe ?? EMPTY_SUBSCRIBE,
     runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT,
@@ -1166,19 +1195,23 @@ function ScientificControllerPanelV1({
   );
 
   if (descriptor === undefined) {
-    return targetScenarioId === undefined
-      ? <NoScientificSelectionV1 />
-      : (
-          <ScientificUnavailablePanelV1
-            title="Controller target unavailable"
-            detail={`Scenario ${targetScenarioId} is not present. The controller was not rebound to another scenario.`}
-          />
-        );
+    return targetScenarioId === undefined ? (
+      <NoScientificSelectionV1 />
+    ) : (
+      <ScientificUnavailablePanelV1
+        title="Controller target unavailable"
+        detail={`Scenario ${targetScenarioId} is not present. The controller was not rebound to another scenario.`}
+      />
+    );
   }
   if (runtime === null || snapshot === null) {
     return (
       <ScientificUnavailablePanelV1
-        title={descriptor.lifecycle === "failed" ? "Scenario failed" : "Scenario is loading"}
+        title={
+          descriptor.lifecycle === "failed"
+            ? "Scenario failed"
+            : "Scenario is loading"
+        }
         detail={descriptor.statusMessage}
       />
     );
@@ -1192,9 +1225,10 @@ function ScientificControllerPanelV1({
     );
   }
   const actions = runtime.controlStore.actions;
-  const controlsEditable = snapshot.ownerConnected
-    && (snapshot.phase === "idle" || snapshot.phase.startsWith("live-"))
-    && !snapshot.requestCapacityExhausted;
+  const controlsEditable =
+    snapshot.ownerConnected &&
+    (snapshot.phase === "idle" || snapshot.phase.startsWith("live-")) &&
+    !snapshot.requestCapacityExhausted;
   return (
     <div
       className="absolute inset-0 flex min-h-0 flex-col overflow-hidden bg-transparent"
@@ -1205,12 +1239,21 @@ function ScientificControllerPanelV1({
       data-owner-connected={String(snapshot.ownerConnected)}
       data-displayed-evidence={snapshot.provenance.displayedEvidence}
       data-target-control-sha={snapshot.targetControlStateSha256 ?? ""}
-      data-displayed-parameter-epoch={snapshot.provenance.displayedParameterEpoch}
+      data-displayed-parameter-epoch={
+        snapshot.provenance.displayedParameterEpoch
+      }
     >
       <div className="flex shrink-0 items-center gap-2 border-b border-wb-line px-2 py-1.5 text-[11px]">
-        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: descriptor.color }} />
-        <span className="min-w-0 flex-1 truncate font-semibold text-wb-text">{descriptor.name}</span>
-        <span className="truncate text-wb-subtle">{compactPhaseLabelV1(snapshot.phase)}</span>
+        <span
+          className="h-2 w-2 rounded-full"
+          style={{ backgroundColor: descriptor.color }}
+        />
+        <span className="min-w-0 flex-1 truncate font-semibold text-wb-text">
+          {descriptor.name}
+        </span>
+        <span className="truncate text-wb-subtle">
+          {compactPhaseLabelV1(snapshot.phase)}
+        </span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2 custom-scrollbar">
         <div className="grid gap-2">
@@ -1218,16 +1261,17 @@ function ScientificControllerPanelV1({
             const controlId = scientificControlKindV1(item.paramKey);
             if (controlId === null) {
               return (
-                <div key={item.paramKey} className="rounded border border-dashed border-wb-line px-2 py-1.5 text-[10px] text-wb-subtle">
+                <div
+                  key={item.paramKey}
+                  className="rounded border border-dashed border-wb-line px-2 py-1.5 text-[10px] text-wb-subtle"
+                >
                   {item.label ?? item.paramKey}: unavailable in release 0.2.0
                 </div>
               );
             }
             const value = scientificDraftValueV1(snapshot.draft, controlId);
             const domain =
-              MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
-                controlId
-              ];
+              MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[controlId];
             const releaseItem = scientificControllerItemForReleaseV1(item);
             return (
               <ControllerItemControl
@@ -1295,7 +1339,8 @@ export function ScientificProductTransitionBehaviorSettingsV1({
     registry.getDescriptorSnapshot,
   );
   const descriptor = descriptors.find(({ id }) => id === activeScenarioId);
-  const runtime = descriptor === undefined ? null : registry.getRuntime(descriptor.id);
+  const runtime =
+    descriptor === undefined ? null : registry.getRuntime(descriptor.id);
   const snapshot = React.useSyncExternalStore(
     runtime?.controlStore.subscribe ?? EMPTY_SUBSCRIBE,
     runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT,
@@ -1314,14 +1359,21 @@ export function ScientificProductTransitionBehaviorSettingsV1({
           {t("workbench.sidePanel.settings.transitionBehavior.title")}
         </h3>
         <div className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold text-wb-text">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: descriptor.color }} />
+          <span
+            className="h-2.5 w-2.5 shrink-0 rounded-full"
+            style={{ backgroundColor: descriptor.color }}
+          />
           <span className="truncate">{descriptor.name}</span>
         </div>
         <p className="mt-1 text-xs leading-5 text-wb-muted">
           {t("workbench.sidePanel.settings.transitionBehavior.description")}
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-1" role="group" aria-label="Transition mode">
+      <div
+        className="grid grid-cols-2 gap-1"
+        role="group"
+        aria-label="Transition mode"
+      >
         {(["live", "steady"] as const).map((mode) => (
           <button
             key={mode}
@@ -1367,11 +1419,14 @@ function waveformSeriesForScenarioV1(
   presentation: ScientificProductScenarioPresentationV1,
   config: PanelInstanceConfig,
 ): ScientificWorkbenchWaveformSeriesV1[] {
-  const observableIds = selectedWaveformObservables(config.selectedSignals ?? []);
+  const observableIds = selectedWaveformObservables(
+    config.selectedSignals ?? [],
+  );
   return observableIds.map((observableId, index) => {
     const modelName = config.customName ?? presentation.descriptor.name;
-    const signalName = config.customSignalNames?.[observableId]
-      ?? scientificObservableShortLabelV1(observableId);
+    const signalName =
+      config.customSignalNames?.[observableId] ??
+      scientificObservableShortLabelV1(observableId);
     const color = scientificSeriesColorV1(
       config.customBaseColor ?? presentation.descriptor.color,
       `${observableId}:${index}`,
@@ -1392,11 +1447,14 @@ function pvSeriesForScenarioV1(
   config: PanelInstanceConfig,
 ): ScientificWorkbenchPvSeriesV1[] {
   const catalog = trajectoryCatalogV1(presentation.workspaceDocument);
-  const trajectories = selectedPvTrajectories(config.selectedSignals ?? [], catalog);
+  const trajectories = selectedPvTrajectories(
+    config.selectedSignals ?? [],
+    catalog,
+  );
   return trajectories.map((trajectory, index) => {
     const modelName = config.customName ?? presentation.descriptor.name;
-    const signalName = config.customSignalNames?.[trajectory.trajectoryId]
-      ?? trajectory.label;
+    const signalName =
+      config.customSignalNames?.[trajectory.trajectoryId] ?? trajectory.label;
     const color = scientificSeriesColorV1(
       config.customBaseColor ?? presentation.descriptor.color,
       `${trajectory.trajectoryId}:${index}`,
@@ -1425,8 +1483,7 @@ function chartScenarioV1(
     frames: presentation.frames,
     periodicCycleFrames: presentation.periodicCycleFrames,
     cycleDurationSec: presentation.cycleDurationSec,
-    transientOriginAcceptedTimeSec:
-      presentation.transientOriginAcceptedTimeSec,
+    transientOriginAcceptedTimeSec: presentation.transientOriginAcceptedTimeSec,
     displayedEvidence: presentation.displayedEvidence,
   });
 }
@@ -1434,48 +1491,66 @@ function chartScenarioV1(
 function metricSelectionsFromPanelV1(
   panel: PanelDef,
 ): Readonly<Record<string, readonly string[]>> {
-  return Object.fromEntries(Object.entries(panel.config)
-    .filter(([, config]) => config.visible)
-    .map(([scenarioId, config]) => [scenarioId, config.selectedSignals ?? []]));
+  return Object.fromEntries(
+    Object.entries(panel.config)
+      .filter(([, config]) => config.visible)
+      .map(([scenarioId, config]) => [
+        scenarioId,
+        config.selectedSignals ?? [],
+      ]),
+  );
 }
 
 function metricSelectionsFromViewV1(
   view: MetricsViewSpec,
 ): Readonly<Record<string, readonly string[]>> {
-  return Object.fromEntries(Object.entries(view.membership).map(
-    ([scenarioId, metrics]) => [scenarioId, metrics.length > 0 ? metrics : view.metrics],
-  ));
+  return Object.fromEntries(
+    Object.entries(view.membership).map(([scenarioId, metrics]) => [
+      scenarioId,
+      metrics.length > 0 ? metrics : view.metrics,
+    ]),
+  );
 }
 
 function selectedWaveformObservables(
   selected: readonly string[],
 ): MainWireScientificObservableIdV1[] {
-  return [...new Set(selected.flatMap((candidate) => {
-    const alias = WAVEFORM_ALIASES[candidate];
-    if (alias !== undefined) return [alias];
-    return OBSERVABLE_IDS.has(candidate)
-      ? [candidate as MainWireScientificObservableIdV1]
-      : [];
-  }))];
+  return [
+    ...new Set(
+      selected.flatMap((candidate) => {
+        const alias = WAVEFORM_ALIASES[candidate];
+        if (alias !== undefined) return [alias];
+        return OBSERVABLE_IDS.has(candidate)
+          ? [candidate as MainWireScientificObservableIdV1]
+          : [];
+      }),
+    ),
+  ];
 }
 
 function selectedPvTrajectories(
   selected: readonly string[],
   workspaceTrajectories: ReadonlyMap<
-  string,
-  MainWireScientificWorkspacePressureVolumeTrajectoryV1
+    string,
+    MainWireScientificWorkspacePressureVolumeTrajectoryV1
   >,
 ): MainWireScientificWorkspacePressureVolumeTrajectoryV1[] {
-  return [...new Map(selected.flatMap((candidate) => {
-    const fromWorkspace = workspaceTrajectories.get(candidate);
-    if (fromWorkspace !== undefined) {
-      return [[fromWorkspace.trajectoryId, fromWorkspace] as const];
-    }
-    const chamber = CHAMBERS.find((value) => value === candidate.toUpperCase());
-    if (chamber === undefined) return [];
-    const trajectory = chamberTrajectory(chamber);
-    return [[trajectory.trajectoryId, trajectory] as const];
-  })).values()];
+  return [
+    ...new Map(
+      selected.flatMap((candidate) => {
+        const fromWorkspace = workspaceTrajectories.get(candidate);
+        if (fromWorkspace !== undefined) {
+          return [[fromWorkspace.trajectoryId, fromWorkspace] as const];
+        }
+        const chamber = CHAMBERS.find(
+          (value) => value === candidate.toUpperCase(),
+        );
+        if (chamber === undefined) return [];
+        const trajectory = chamberTrajectory(chamber);
+        return [[trajectory.trajectoryId, trajectory] as const];
+      }),
+    ).values(),
+  ];
 }
 
 function chamberTrajectory(
@@ -1492,23 +1567,27 @@ function chamberTrajectory(
 function trajectoryCatalogV1(
   workspace: ScientificProductScenarioPresentationV1["workspaceDocument"],
 ): ReadonlyMap<string, MainWireScientificWorkspacePressureVolumeTrajectoryV1> {
-  return new Map(workspace.content.panels.flatMap(({ view }) =>
-    view.kind === "pressure-volume"
-      ? view.trajectories.map((trajectory) => [trajectory.trajectoryId, trajectory] as const)
-      : []));
+  return new Map(
+    workspace.content.panels.flatMap(({ view }) =>
+      view.kind === "pressure-volume"
+        ? view.trajectories.map(
+            (trajectory) => [trajectory.trajectoryId, trajectory] as const,
+          )
+        : [],
+    ),
+  );
 }
 
 export function graphViewToPanel(view: GraphViewSpec): PanelDef {
-  const panelType: PanelType = view.graphType === "pvloop"
-    ? "PVLOOP"
-    : view.graphType === "waveform"
-      ? "WAVEFORM"
-      : view.graphType === "guyton-left"
-        ? "GUYTON_LEFT"
-      : view.graphType === "guyton-right"
-          ? "GUYTON_RIGHT"
-          : view.graphType === "pv-relations"
-            ? "PV_RELATIONS"
+  const panelType: PanelType =
+    view.graphType === "pvloop"
+      ? "PVLOOP"
+      : view.graphType === "waveform"
+        ? "WAVEFORM"
+        : view.graphType === "guyton-left"
+          ? "GUYTON_LEFT"
+          : view.graphType === "guyton-right"
+            ? "GUYTON_RIGHT"
             : "GUYTON_3D";
   return {
     id: view.id,
@@ -1519,12 +1598,15 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
     zone: "main",
     w: 4,
     h: 4,
-    config: Object.fromEntries(Object.entries(view.membership).map(
-      ([scenarioId, selectedSignals]) => [scenarioId, {
-        visible: true,
-        selectedSignals,
-      }],
-    )),
+    config: Object.fromEntries(
+      Object.entries(view.membership).map(([scenarioId, selectedSignals]) => [
+        scenarioId,
+        {
+          visible: true,
+          selectedSignals,
+        },
+      ]),
+    ),
     view: {
       kind: "graph",
       graphType: view.graphType,
@@ -1550,15 +1632,16 @@ function controllerTargetScenarioV1(
 ): string | undefined {
   return view.binding.kind === "scenario"
     ? view.binding.scenarioId
-    : context.activeInstanceId ?? context.instances[0]?.id;
+    : (context.activeInstanceId ?? context.instances[0]?.id);
 }
 
 function scientificControlKindV1(
   paramKey: string,
 ): MainWireScientificResearchControlIdV0 | null {
-  return (MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0 as readonly string[])
-    .includes(paramKey)
-    ? paramKey as MainWireScientificResearchControlIdV0
+  return (
+    MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0 as readonly string[]
+  ).includes(paramKey)
+    ? (paramKey as MainWireScientificResearchControlIdV0)
     : null;
 }
 
@@ -1566,10 +1649,13 @@ function isScientificControlValueV1(
   controlId: MainWireScientificResearchControlIdV0,
   value: number,
 ): boolean {
-  return Number.isFinite(value)
-    && (MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
-      controlId
-    ].allowedValues as readonly number[]).includes(value);
+  return (
+    Number.isFinite(value) &&
+    (
+      MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[controlId]
+        .allowedValues as readonly number[]
+    ).includes(value)
+  );
 }
 
 function scientificDraftValueV1(
@@ -1597,7 +1683,9 @@ function scientificMetricId(
 ): MainWireScientificDerivedMetricIdV1 | null {
   return MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1.some(
     ({ metricId }) => metricId === candidate,
-  ) ? candidate as MainWireScientificDerivedMetricIdV1 : null;
+  )
+    ? (candidate as MainWireScientificDerivedMetricIdV1)
+    : null;
 }
 
 function compactPhaseLabelV1(phase: string): string {
@@ -1605,7 +1693,8 @@ function compactPhaseLabelV1(phase: string): string {
   if (phase.includes("paused")) return "Live paused";
   if (phase.startsWith("live")) return "Live transition";
   if (phase.startsWith("steady")) return "Finding steady state";
-  if (phase === "failed" || phase === "reload-required") return "Attention required";
+  if (phase === "failed" || phase === "reload-required")
+    return "Attention required";
   return phase;
 }
 
@@ -1636,5 +1725,8 @@ function NoScientificSelectionV1() {
   );
 }
 
-const EMPTY_SUBSCRIBE = (_listener: () => void): (() => void) => () => undefined;
+const EMPTY_SUBSCRIBE =
+  (_listener: () => void): (() => void) =>
+  () =>
+    undefined;
 const EMPTY_CONTROL_SNAPSHOT = () => null;

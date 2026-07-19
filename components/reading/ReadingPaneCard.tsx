@@ -2,7 +2,7 @@ import React from "react";
 import type { PanelDef } from "../../types";
 
 function bodyClassFor(panel: PanelDef): string {
-  if (panel.type === "PVLOOP" || panel.type === "PV_RELATIONS") return "relative h-[380px] sm:h-[460px]";
+  if (panel.type === "PVLOOP") return "relative h-[380px] sm:h-[460px]";
   if (panel.type === "METRICS") return "relative min-h-[180px]";
   if (panel.type === "WAVEFORM" || panel.type === "GUYTON_LEFT" || panel.type === "GUYTON_RIGHT" || panel.type === "GUYTON_3D") {
     return "relative h-[320px] sm:h-[360px]";

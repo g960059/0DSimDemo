@@ -6,11 +6,13 @@ import {
   cloneWholeHeartMechanicsAcceptedStateV1,
   commitPreparedWholeHeartMechanicsTrialV1,
   commitWholeHeartMechanicsTrialV1,
+  evaluatePreparedWholeHeartMechanicsCandidateProbeV1,
   evaluatePreparedWholeHeartMechanicsTrialV1,
   evaluateWholeHeartMechanicsTrialV1,
   initializeWholeHeartMechanicsColdV1,
   prepareWholeHeartMechanicsStepV1,
   restoreWholeHeartMechanicsStateV1,
+  sealPreparedWholeHeartMechanicsCandidateProbeV1,
   type WholeHeartMechanicsChamberValuesV1,
   type WholeHeartMechanicsDiagnosticsV1,
   type WholeHeartMechanicsProviderV1,
@@ -144,6 +146,7 @@ describe("whole-heart mechanics transaction contract v1", () => {
       "callCount",
       "contractId",
       "evaluateTrial",
+      "evaluationResultOwnershipMode",
       "initializeCold",
       "parameterIdentityHash",
       "parameterSetId",
@@ -219,6 +222,11 @@ describe("whole-heart mechanics transaction contract v1", () => {
         preparedTrial,
       );
       expect(prepared).toEqual(checked);
+      expect(checkpointWholeHeartMechanicsStateV1(preparedProvider, prepared))
+        .toEqual(checkpointWholeHeartMechanicsStateV1(
+          checkedProvider,
+          checked,
+        ));
     }
   });
 
@@ -299,6 +307,327 @@ describe("whole-heart mechanics transaction contract v1", () => {
     expect(encodeCount).toBe(4);
   });
 
+  it("defers candidate encoding until exactly one selected probe is sealed", () => {
+    const baseProvider = testProvider();
+    const baseCodec = baseProvider.stateCodec;
+    let encodeCount = 0;
+    const provider: TestProvider = {
+      ...baseProvider,
+      stateCodec: {
+        clone: baseCodec.clone,
+        encode: (state) => {
+          encodeCount += 1;
+          return baseCodec.encode(state);
+        },
+        decode: baseCodec.decode,
+      },
+    };
+    const accepted = coldStart(provider).acceptedState;
+    encodeCount = 0;
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const selected = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+    evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 70, LV: 127, RA: 65, RV: 108 },
+    );
+
+    expect(encodeCount).toBe(1);
+    const trial = sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      selected,
+    );
+    expect(encodeCount).toBe(2);
+    commitPreparedWholeHeartMechanicsTrialV1(preparedStep, trial);
+    expect(encodeCount).toBe(3);
+  });
+
+  it("uses a trusted read-only prepared snapshot only for an opted-in provider", () => {
+    const baseProvider = testProvider();
+    const baseCodec = baseProvider.stateCodec;
+    let cloneCount = 0;
+    const provider: TestProvider = {
+      ...baseProvider,
+      acceptedStateInputMode: "trusted-read-only-prepared-snapshot",
+      stateCodec: {
+        clone: (state) => {
+          cloneCount += 1;
+          return baseCodec.clone(state);
+        },
+        encode: baseCodec.encode,
+        decode: baseCodec.decode,
+      },
+    };
+    const accepted = coldStart(provider).acceptedState;
+    const baselineLand0 = accepted.materialState.landState[0];
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    cloneCount = 0;
+    const selected = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+    evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 70, LV: 127, RA: 65, RV: 108 },
+    );
+
+    expect(cloneCount).toBe(0);
+    expect(accepted.materialState.landState[0]).toBe(baselineLand0);
+    sealPreparedWholeHeartMechanicsCandidateProbeV1(preparedStep, selected);
+    expect(cloneCount).toBe(2);
+  });
+
+  it("binds probes to one prepared step and permits only one successful seal", () => {
+    const provider = testProvider();
+    const accepted = coldStart(provider).acceptedState;
+    const firstStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const secondStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const probe = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      firstStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+
+    expect(() => sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      secondStep,
+      probe,
+    )).toThrow(/does not belong/);
+    const sealed = sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      firstStep,
+      probe,
+    );
+    expect(sealed.candidateVolumesMl).toEqual(probe.candidateVolumesMl);
+    expect(() => sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      firstStep,
+      probe,
+    )).toThrow(/not live or was already sealed/);
+    expect(() => sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      firstStep,
+      { ...probe } as typeof probe,
+    )).toThrow(/not live/);
+  });
+
+  it("keeps material state and rich readback outside the public probe", () => {
+    const base = testProvider();
+    let retainedCandidate: MaterialState | null = null;
+    const provider: TestProvider = {
+      ...base,
+      evaluateTrial: (input) => {
+        const result = base.evaluateTrial(input);
+        retainedCandidate = result.materialState;
+        return result;
+      },
+    };
+    const accepted = coldStart(provider).acceptedState;
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const discarded = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+    if (retainedCandidate === null) throw new Error("candidate was not retained");
+    retainedCandidate.landState[0] = 999;
+    const selected = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 70, LV: 127, RA: 65, RV: 108 },
+    );
+    expect("candidateMaterialState" in discarded).toBe(false);
+    expect("readback" in discarded.diagnostics).toBe(false);
+    const sealed = sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      selected,
+    );
+    expect(sealed.candidateMaterialState.landState[0]).toBeCloseTo(0.0012, 15);
+    expect(sealed.diagnostics.readback).toEqual({ jointSolve: true });
+  });
+
+  it("snapshots selected rich readback when a probe becomes a public trial", () => {
+    const base = testProvider();
+    const providerReadback = { nested: { candidateLV: 0 } };
+    const provider: TestProvider = {
+      ...base,
+      evaluateTrial: (input) => {
+        const result = base.evaluateTrial(input);
+        providerReadback.nested.candidateLV = input.candidateVolumesMl.LV;
+        return {
+          ...result,
+          diagnostics: {
+            ...result.diagnostics,
+            readback: providerReadback,
+          },
+        };
+      },
+    };
+    const accepted = coldStart(provider).acceptedState;
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const probe = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+    const sealed = sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      probe,
+    );
+
+    providerReadback.nested.candidateLV = 999;
+    expect(sealed.diagnostics.readback).toEqual({
+      nested: { candidateLV: 124 },
+    });
+  });
+
+  it("fails closed at seal when selected rich readback breaks the contract", () => {
+    const base = testProvider();
+    const provider: TestProvider = {
+      ...base,
+      evaluateTrial: (input) => {
+        const result = base.evaluateTrial(input);
+        return {
+          ...result,
+          diagnostics: {
+            ...result.diagnostics,
+            readback: new Date() as unknown as
+              WholeHeartMechanicsSerializableValueV1,
+          },
+        };
+      },
+    };
+    const accepted = coldStart(provider).acceptedState;
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const probe = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+
+    expect("readback" in probe.diagnostics).toBe(false);
+    expect(() => sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      probe,
+    )).toThrow(/not JSON-serializable/);
+  });
+
+  it("snapshots scratch-reused results immediately for providers without the ownership opt-in", () => {
+    const base = testProvider();
+    const scratchState = cloneMaterial(coldStart(base).acceptedState.materialState);
+    const scratchReadback: { candidateLV: number } = { candidateLV: 0 };
+    const provider: TestProvider = {
+      ...base,
+      evaluationResultOwnershipMode: "defensive-snapshot-required",
+      evaluateTrial: (input) => {
+        const result = base.evaluateTrial(input);
+        scratchState.landState.set(result.materialState.landState);
+        scratchState.maxwellStressPa = {
+          ...result.materialState.maxwellStressPa,
+        };
+        scratchState.septalShiftMl = result.materialState.septalShiftMl;
+        scratchState.longAxisCoordinate =
+          result.materialState.longAxisCoordinate;
+        scratchReadback.candidateLV = input.candidateVolumesMl.LV;
+        return {
+          ...result,
+          materialState: scratchState,
+          diagnostics: {
+            ...result.diagnostics,
+            readback: scratchReadback,
+          },
+        };
+      },
+    };
+    const accepted = coldStart(provider).acceptedState;
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const first = evaluatePreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+    evaluatePreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      { LA: 70, LV: 150, RA: 65, RV: 108 },
+    );
+
+    expect(first.candidateMaterialState.septalShiftMl).toBeCloseTo(0.14, 15);
+    expect(first.diagnostics.readback).toEqual({ candidateLV: 124 });
+    expect(() => evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    )).toThrow(/require provider exclusive-result ownership/);
+  });
+
+  it("binds eager defensive trials to one exact prepared context", () => {
+    const base = testProvider();
+    const provider: TestProvider = {
+      ...base,
+      evaluationResultOwnershipMode: "defensive-snapshot-required",
+    };
+    const accepted = coldStart(provider).acceptedState;
+    const firstContext = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const secondContext = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const trial = evaluatePreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+
+    expect(() => commitPreparedWholeHeartMechanicsTrialV1(
+      secondContext,
+      trial,
+    )).toThrow(/not issued by this prepared step/);
+    expect(commitPreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      trial,
+    ).revision).toBe(1);
+    expect(() => commitPreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      trial,
+    )).toThrow(/already consumed/);
+  });
   it("isolates mutable future drive payloads through the provider clone hook", () => {
     const base = testProvider();
     const provider: TestProvider = {
@@ -382,6 +711,38 @@ describe("whole-heart mechanics transaction contract v1", () => {
     )).toThrow(/already consumed/);
   });
 
+  it("invalidates every remaining probe when one prepared candidate commits", () => {
+    const provider = testProvider();
+    const accepted = coldStart(provider).acceptedState;
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const selected = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 70, LV: 125, RA: 65, RV: 110 },
+    );
+    const discarded = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 109 },
+    );
+    const trial = sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      selected,
+    );
+
+    expect(commitPreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      trial,
+    ).revision).toBe(1);
+    expect(() => sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      discarded,
+    )).toThrow(/already consumed/);
+  });
+
   it("rejects cross-drive prepared commits even when public step fields match", () => {
     const provider = testProvider();
     const accepted = coldStart(provider).acceptedState;
@@ -446,6 +807,7 @@ function testProvider(): TestProvider {
     parameterSetId: "joint-test-prior-v1",
     parameterIdentityHash: "effective-parameters-v1-7f4a9c12",
     stateSchemaVersion: 1,
+    evaluationResultOwnershipMode: "exclusive-result",
     callCount,
     stateCodec: {
       clone: cloneMaterial,

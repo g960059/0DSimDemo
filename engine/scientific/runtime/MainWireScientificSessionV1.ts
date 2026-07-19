@@ -73,9 +73,7 @@ import {
 } from "@/engine/scientific/runtime/MainWireScientificExactCheckpointV3";
 import {
   runMainWireScientificGuytonStarlingProtocolV1,
-  runMainWireScientificPvRelationsProtocolV1,
   type MainWireScientificGuytonStarlingProtocolResultV1,
-  type MainWireScientificPvRelationsProtocolResultV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import type {
   MainWireScientificHemodynamicJobCapsuleV2,
@@ -585,14 +583,6 @@ export class MainWireScientificSessionV1 {
       pericardium: this.dependencies.pericardium,
       calciumDriveParams: this.dependencies.calciumDriveParams,
     });
-  }
-
-  /** Read-only fixed-TBV IVC-like multi-beat PV relation protocol. */
-  runPvRelationsProtocolV1(): MainWireScientificPvRelationsProtocolResultV1 {
-    return runMainWireScientificPvRelationsProtocolV1(
-      this.dependencies,
-      this.acceptedState,
-    );
   }
 
   /**

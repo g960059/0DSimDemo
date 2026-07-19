@@ -4,12 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   ScientificGuytonStarlingPaneV1,
-  ScientificPvRelationPaneV1,
   scientificGuytonAxisLabelsV1,
   scientificProtocolAxisDomainV1,
   scientificSvgPathV1,
   type ScientificGuytonStarlingPaneDataV1,
-  type ScientificPvRelationPaneDataV1,
 } from "@/components/scientificProduct/ScientificHemodynamicProtocolPanesV1";
 
 const completeStatus = Object.freeze({
@@ -52,7 +50,14 @@ describe("scientific hemodynamic protocol panes V1", () => {
         { pressureMmHg: 8, flowLPerMin: 4.8 },
         { pressureMmHg: 12, flowLPerMin: 6 },
       ]],
+      estimatedCardiacSegments: [[
+        { pressureMmHg: 3, flowLPerMin: 2.5 },
+        { pressureMmHg: 5, flowLPerMin: 3.4 },
+        { pressureMmHg: 9, flowLPerMin: 5.1 },
+      ]],
       sweepPoints: [
+        { id: "estimate", pressureMmHg: 5, flowLPerMin: 3.4, classification: "estimated" },
+        { id: "finite-hold", pressureMmHg: 3, flowLPerMin: 2.5, classification: "unclassified" },
         { id: "low", pressureMmHg: 5, flowLPerMin: 3.5, classification: "period1" },
         { id: "audit", pressureMmHg: 8, flowLPerMin: 4.8, classification: "audit-suspect", reason: "path dependence" },
         { id: "p2", pressureMmHg: 7, flowLPerMin: 4, classification: "period2", reason: "alternans" },
@@ -69,97 +74,22 @@ describe("scientific hemodynamic protocol panes V1", () => {
 
     expect(html).toContain("Mean transmural LAP / PCWP surrogate (mmHg)");
     expect(html).toContain('data-point-classification="period1"');
+    expect(html).toContain('data-point-classification="estimated"');
+    expect(html).toContain('data-point-classification="unclassified"');
     expect(html).toContain('data-point-classification="audit-suspect"');
     expect(html).toContain('data-point-classification="period2"');
     expect(html).toContain('data-point-classification="rejected"');
     expect(html).toContain("P2 suspect · excluded");
-    expect(html.match(/data-series="cardiac-preload-locus"/g)).toHaveLength(2);
+    const settledPaths = html.match(/<path[^>]*data-series="cardiac-preload-locus"[^>]*>/g) ?? [];
+    const rapidPaths = html.match(/<path[^>]*data-series="rapid-finite-hold-preview"[^>]*>/g) ?? [];
+    const settledPathMarkup = settledPaths.join("");
+    expect(settledPaths).toHaveLength(2);
+    expect(settledPathMarkup).not.toContain("stroke-dasharray");
+    expect(rapidPaths).toHaveLength(1);
+    expect(rapidPaths[0]).toContain('stroke-dasharray="5 4"');
+    expect(rapidPaths[0]).toContain('stroke-opacity="0.52"');
+    expect(html).toContain("Adaptive rapid estimate · not settled");
     expect(html).toContain("one-dimensional operating locus");
-  });
-
-  it("renders PV relation fits and an explicit reason when a fit is withheld", () => {
-    const data: ScientificPvRelationPaneDataV1 = {
-      beats: [{
-        id: "beat-1",
-        classification: "fit-eligible",
-        points: [
-          { volumeMl: 120, transmuralPressureMmHg: 8 },
-          { volumeMl: 55, transmuralPressureMmHg: 110 },
-          { volumeMl: 120, transmuralPressureMmHg: 8 },
-        ],
-        endDiastolic: {
-          event: "end-diastole",
-          volumeMl: 120,
-          transmuralPressureMmHg: 8,
-        },
-        endSystolic: {
-          event: "end-systole",
-          volumeMl: 55,
-          transmuralPressureMmHg: 110,
-        },
-      }, {
-        id: "beat-2-alternans-suspect",
-        classification: "alternans-suspect-high",
-        points: [
-          { volumeMl: 115, transmuralPressureMmHg: 7 },
-          { volumeMl: 53, transmuralPressureMmHg: 108 },
-          { volumeMl: 115, transmuralPressureMmHg: 7 },
-        ],
-        rejectionReason:
-          "alternans-suspect during changing-load ramp",
-      }],
-      espvr: {
-        status: "valid",
-        linear: {
-          points: [
-            { volumeMl: 40, transmuralPressureMmHg: 70 },
-            { volumeMl: 70, transmuralPressureMmHg: 130 },
-          ],
-          endSystolicElastanceMmHgPerMl: 2,
-          volumeAxisInterceptMl: 5,
-          rSquared: 0.99,
-        },
-        quadraticSensitivity: {
-          points: [
-            { volumeMl: 40, transmuralPressureMmHg: 68 },
-            { volumeMl: 70, transmuralPressureMmHg: 133 },
-          ],
-          rmseImprovementPercent: 12,
-        },
-      },
-      edpvr: {
-        status: "invalid",
-        invalidReason: "Insufficient end-diastolic pressure span",
-      },
-      prsw: {
-        status: "valid",
-        slopeMmHg: 72,
-        rSquared: 0.98,
-      },
-      status: {
-        status: "partial",
-        label: "Partial protocol",
-        qc: {
-          level: "warning",
-          summary: "ESPVR accepted; EDPVR withheld",
-        },
-      },
-    };
-
-    const html = renderToStaticMarkup(React.createElement(
-      ScientificPvRelationPaneV1,
-      { data },
-    ));
-
-    expect(html).toContain('data-series="espvr-linear"');
-    expect(html).toContain('data-series="espvr-quadratic-sensitivity"');
-    expect(html).toContain('data-anchor-event="end-diastole"');
-    expect(html).toContain('data-anchor-event="end-systole"');
-    expect(html).toContain('data-beat-classification="alternans-suspect-high"');
-    expect(html).toContain("Alternans suspect · excluded");
-    expect(html).toContain("PRSW Mw 72.0 mmHg");
-    expect(html).toContain("Fit withheld.");
-    expect(html).toContain("Insufficient end-diastolic pressure span");
   });
 
   it("builds stable zero-aware domains and refuses a one-point SVG path", () => {
@@ -173,39 +103,4 @@ describe("scientific hemodynamic protocol panes V1", () => {
     expect(scientificSvgPathV1([{ x: 1, y: 2 }, { x: 3, y: 4 }])).toBe("M1,2 L3,4");
   });
 
-  it("draws a rejected ESPVR only as a labelled diagnostic curve", () => {
-    const data: ScientificPvRelationPaneDataV1 = {
-      beats: [],
-      espvr: {
-        status: "invalid",
-        invalidReason: "Nonlinear over the acquired loading range",
-        linear: {
-          points: [
-            { volumeMl: 40, transmuralPressureMmHg: 80 },
-            { volumeMl: 70, transmuralPressureMmHg: 100 },
-          ],
-          endSystolicElastanceMmHgPerMl: 0.67,
-          volumeAxisInterceptMl: -79,
-        },
-      },
-      edpvr: { status: "not-run" },
-      prsw: { status: "not-run" },
-      status: {
-        status: "invalid",
-        label: "Raw evidence retained",
-        qc: { level: "warning", summary: "Linear ESPVR rejected" },
-      },
-    };
-
-    const html = renderToStaticMarkup(React.createElement(
-      ScientificPvRelationPaneV1,
-      { data },
-    ));
-
-    expect(html).toContain('data-series="espvr-linear"');
-    expect(html).toContain('stroke-dasharray="4 3"');
-    expect(html).toContain("ESPVR diagnostic · QC rejected");
-    expect(html).toContain("Diagnostic Ees");
-    expect(html).toContain("Nonlinear over the acquired loading range");
-  });
 });
