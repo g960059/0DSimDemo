@@ -37,11 +37,15 @@ import {
   cloneWholeHeartMechanicsAcceptedStateV1,
   checkpointWholeHeartMechanicsStateV1,
   commitPreparedWholeHeartMechanicsTrialV1,
+  evaluatePreparedWholeHeartMechanicsCandidateProbeV1,
   evaluatePreparedWholeHeartMechanicsTrialV1,
   initializeWholeHeartMechanicsColdV1,
   prepareWholeHeartMechanicsStepV1,
   restoreWholeHeartMechanicsStateV1,
+  sealPreparedWholeHeartMechanicsCandidateProbeV1,
+  WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID,
   type WholeHeartMechanicsAcceptedStateV1,
+  type WholeHeartMechanicsCandidateProbeV1,
   type WholeHeartMechanicsCheckpointV1,
   type WholeHeartMechanicsProviderV1,
   type WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
@@ -132,18 +136,37 @@ export type MainWireFiveWallNonCoronaryStepSuccessV1<TWallState> = Readonly<{
   pericardium: MainWireCommonPericardiumEvaluationV1;
 }>;
 
-export type MainWireFiveWallNonCoronaryStepFailureV1<TWallState> = Readonly<{
+type MainWireFiveWallNonCoronaryStepFailureCommonV1<TWallState> = Readonly<{
   converged: false;
-  reason: "circulation-or-mechanics-trial-failed";
   message: string;
   rollbackState: MainWireFiveWallNonCoronaryAcceptedStateV1<TWallState>;
-  circulationFailureReason: NonCoronaryCirculationTrialFailureReasonV1;
   lastAcceptedCandidateNodeVolumesMl:
     NonCoronaryCirculationTrialFailureV1["lastAcceptedCandidateNodeVolumesMl"];
   circulationDiagnostics: NonCoronaryCirculationTrialDiagnosticsV1;
   mechanicsCommitted: false;
   circulationCommitted: false;
 }>;
+
+export type MainWireFiveWallNonCoronaryFinalizationFailureStageV1 =
+  | "selected-mechanics-seal"
+  | "pericardial-evaluation"
+  | "coupled-trial-validation"
+  | "circulation-commit"
+  | "mechanics-commit"
+  | "accepted-pair-promotion";
+
+export type MainWireFiveWallNonCoronaryStepFailureV1<TWallState> =
+  | Readonly<MainWireFiveWallNonCoronaryStepFailureCommonV1<TWallState> & {
+    reason: "circulation-or-mechanics-trial-failed";
+    circulationFailureReason: NonCoronaryCirculationTrialFailureReasonV1;
+    finalizationFailureStage: null;
+  }>
+  | Readonly<MainWireFiveWallNonCoronaryStepFailureCommonV1<TWallState> & {
+    reason: "selected-candidate-finalization-failed";
+    circulationFailureReason: "selected-candidate-finalization-failed";
+    finalizationFailureStage:
+      MainWireFiveWallNonCoronaryFinalizationFailureStageV1;
+  }>;
 
 export type MainWireFiveWallNonCoronaryStepResultV1<TWallState> =
   | MainWireFiveWallNonCoronaryStepSuccessV1<TWallState>
@@ -307,16 +330,22 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     protocolResistanceScaleByEdge:
       input.protocolResistanceScaleByEdge,
     evaluateCandidateMechanics: (volumesMl) => {
-      const mechanicsTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
-        mechanicsStep,
-        volumesMl,
-      );
-      if (!mechanicsTrial.diagnostics.converged ||
-          !mechanicsTrial.diagnostics.finite ||
-          mechanicsTrial.diagnostics.errors.length > 0) {
+      const mechanicsEvaluation = provider.evaluationResultOwnershipMode ===
+          "exclusive-result"
+        ? evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+          mechanicsStep,
+          volumesMl,
+        )
+        : evaluatePreparedWholeHeartMechanicsTrialV1(
+          mechanicsStep,
+          volumesMl,
+        );
+      if (!mechanicsEvaluation.diagnostics.converged ||
+          !mechanicsEvaluation.diagnostics.finite ||
+          mechanicsEvaluation.diagnostics.errors.length > 0) {
         throw new Error(
           `five-wall mechanics trial failed: ${
-            mechanicsTrial.diagnostics.errors.join("; ") ||
+            mechanicsEvaluation.diagnostics.errors.join("; ") ||
             "provider reported not-ready diagnostics"
           }`,
         );
@@ -327,25 +356,25 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
       );
       return Object.freeze({
         absolutePressuresMmHg: Object.freeze({
-          LA: mechanicsTrial.transmuralPressuresMmHg.LA + pthMmHg
+          LA: mechanicsEvaluation.transmuralPressuresMmHg.LA + pthMmHg
             + pericardium.excessPressureMmHg,
-          LV: mechanicsTrial.transmuralPressuresMmHg.LV + pthMmHg
+          LV: mechanicsEvaluation.transmuralPressuresMmHg.LV + pthMmHg
             + pericardium.excessPressureMmHg,
-          RA: mechanicsTrial.transmuralPressuresMmHg.RA + pthMmHg
+          RA: mechanicsEvaluation.transmuralPressuresMmHg.RA + pthMmHg
             + pericardium.excessPressureMmHg,
-          RV: mechanicsTrial.transmuralPressuresMmHg.RV + pthMmHg
+          RV: mechanicsEvaluation.transmuralPressuresMmHg.RV + pthMmHg
             + pericardium.excessPressureMmHg,
         }),
-        ...(mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl
+        ...(mechanicsEvaluation.transmuralPressureVolumeTangentMmHgPerMl
           === undefined
           ? {}
           : {
             absolutePressureTangent: absoluteChamberPressureTangent(
-              mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl,
+              mechanicsEvaluation.transmuralPressureVolumeTangentMmHgPerMl,
               pericardium,
             ),
           }),
-        evaluation: mechanicsTrial,
+        evaluation: mechanicsEvaluation,
       });
     },
   });
@@ -359,38 +388,100 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
       lastAcceptedCandidateNodeVolumesMl:
         circulationTrial.lastAcceptedCandidateNodeVolumesMl,
       circulationDiagnostics: circulationTrial.diagnostics,
+      finalizationFailureStage: null,
       mechanicsCommitted: false as const,
       circulationCommitted: false as const,
     });
   }
-  const mechanicsTrial = circulationTrial.candidateMechanicsEvaluation;
-  const pericardium = evaluateMainWireCommonPericardiumBindingV1(
-    input.pericardium,
-    circulationTrial.candidateNodeVolumesMl,
-  );
-  validateCoupledTrial(previous, circulationTrial, mechanicsTrial);
-  const nextCirculation = commitNonCoronaryCirculationTrialV1(
-    previous.circulation,
-    circulationTrial,
-  );
-  const nextMechanics = commitPreparedWholeHeartMechanicsTrialV1(
-    mechanicsStep,
-    mechanicsTrial,
-  );
-  const acceptedState = acceptedPair(
-    previous.revision + 1,
-    nextCirculation,
-    nextMechanics,
-  );
-  return Object.freeze({
-    converged: true as const,
-    acceptedState,
-    circulationTrial,
-    mechanicsTrial,
-    calciumDrive,
-    commonIntrathoracicPressureMmHg: pthMmHg,
-    pericardium,
-  });
+  let finalizationFailureStage:
+    MainWireFiveWallNonCoronaryFinalizationFailureStageV1 =
+      "selected-mechanics-seal";
+  try {
+    const selectedMechanicsEvaluation =
+      circulationTrial.candidateMechanicsEvaluation;
+    const mechanicsTrial = isWholeHeartMechanicsCandidateProbeV1(
+      selectedMechanicsEvaluation,
+    )
+      ? sealPreparedWholeHeartMechanicsCandidateProbeV1(
+        mechanicsStep,
+        selectedMechanicsEvaluation,
+      )
+      : selectedMechanicsEvaluation;
+    const sealedCirculationTrial: NonCoronaryCirculationTrialSuccessV1<
+      WholeHeartMechanicsTrialV1<TWallState>
+    > = Object.freeze({
+      ...circulationTrial,
+      candidateMechanicsEvaluation: mechanicsTrial,
+    });
+    finalizationFailureStage = "pericardial-evaluation";
+    const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+      input.pericardium,
+      sealedCirculationTrial.candidateNodeVolumesMl,
+    );
+    finalizationFailureStage = "coupled-trial-validation";
+    validateCoupledTrial(previous, sealedCirculationTrial, mechanicsTrial);
+    finalizationFailureStage = "circulation-commit";
+    const nextCirculation = commitNonCoronaryCirculationTrialV1(
+      previous.circulation,
+      sealedCirculationTrial,
+    );
+    finalizationFailureStage = "mechanics-commit";
+    const nextMechanics = commitPreparedWholeHeartMechanicsTrialV1(
+      mechanicsStep,
+      mechanicsTrial,
+    );
+    finalizationFailureStage = "accepted-pair-promotion";
+    const acceptedState = acceptedPair(
+      previous.revision + 1,
+      nextCirculation,
+      nextMechanics,
+    );
+    return Object.freeze({
+      converged: true as const,
+      acceptedState,
+      circulationTrial: sealedCirculationTrial,
+      mechanicsTrial,
+      calciumDrive,
+      commonIntrathoracicPressureMmHg: pthMmHg,
+      pericardium,
+    });
+  } catch (error) {
+    return Object.freeze({
+      converged: false as const,
+      reason: "selected-candidate-finalization-failed" as const,
+      message:
+        `${finalizationFailureStage}: ${errorMessage(error)}`,
+      // Nothing is published before accepted-pair promotion. Returning the
+      // exact prior snapshot also keeps rollback available when the provider
+      // codec itself is the selected-candidate failure owner.
+      rollbackState: previous,
+      circulationFailureReason:
+        "selected-candidate-finalization-failed" as const,
+      lastAcceptedCandidateNodeVolumesMl:
+        circulationTrial.candidateNodeVolumesMl,
+      circulationDiagnostics: circulationTrial.diagnostics,
+      finalizationFailureStage,
+      mechanicsCommitted: false as const,
+      circulationCommitted: false as const,
+    });
+  }
+}
+
+function isWholeHeartMechanicsCandidateProbeV1<TWallState>(
+  evaluation: WholeHeartMechanicsCandidateProbeV1<
+    TWallState,
+    MainWireFiveWallFreeCalciumDriveV1
+  > | WholeHeartMechanicsTrialV1<TWallState>,
+): evaluation is WholeHeartMechanicsCandidateProbeV1<
+  TWallState,
+  MainWireFiveWallFreeCalciumDriveV1
+> {
+  return "probeId" in evaluation
+    && evaluation.probeId === WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_V1_ID;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function validateCoupledTrial<TWallState>(

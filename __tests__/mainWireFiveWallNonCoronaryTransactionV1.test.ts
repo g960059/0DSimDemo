@@ -26,9 +26,17 @@ import {
 import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
   type WholeHeartMechanicsProviderV1,
+  type WholeHeartMechanicsSerializableValueV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 
 type TestState = Readonly<{ timeSec: number; volumeSumMl: number }>;
+
+type TransactionTestProvider = WholeHeartMechanicsProviderV1<
+  TestState,
+  MainWireFiveWallFreeCalciumDriveV1
+> & Readonly<{
+  counters: { encodeCount: number; trialCount: number };
+}>;
 
 const base = defaultParams();
 const OFF_PERICARDIUM = createMainWireNormalAdultCommonPericardiumV1(
@@ -244,6 +252,142 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     })).toBe(before);
   });
 
+  it("does not seal valid discarded probes when circulation fails", () => {
+    const provider = testProvider(false, true, true);
+    const cold = initializeMainWireFiveWallNonCoronaryV1({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: OFF_PERICARDIUM,
+    });
+    const before = JSON.stringify({
+      circulation: cold.acceptedState.circulation,
+      mechanics: provider.stateCodec.encode(
+        cold.acceptedState.mechanics.materialState,
+      ),
+    });
+    const encodeCountBeforeStep = provider.counters.encodeCount;
+    const trialCountBeforeStep = provider.counters.trialCount;
+    const stepped = stepMainWireFiveWallNonCoronaryV1(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: OFF_PERICARDIUM,
+        circulationNewtonOptions: {
+          maxIterations: 1,
+          absoluteContinuityResidualToleranceMl: 1e-30,
+          scaledResidualInfinityTolerance: 1e-30,
+          scaledUpdateInfinityTolerance: 1e-30,
+        },
+      },
+    );
+
+    expect(stepped.converged).toBe(false);
+    if (stepped.converged === true) throw new Error("expected rollback");
+    expect(provider.counters.trialCount - trialCountBeforeStep)
+      .toBeGreaterThan(0);
+    // One prepared-baseline audit plus one rollback snapshot. A selected probe
+    // seal would add a third state encoding here.
+    expect(provider.counters.encodeCount - encodeCountBeforeStep).toBe(2);
+    expect(stepped.mechanicsCommitted).toBe(false);
+    expect(stepped.circulationCommitted).toBe(false);
+    expect(JSON.stringify({
+      circulation: stepped.rollbackState.circulation,
+      mechanics: provider.stateCodec.encode(
+        stepped.rollbackState.mechanics.materialState,
+      ),
+    })).toBe(before);
+  });
+
+  it("rolls back atomically when selected rich readback fails at seal", () => {
+    const baseProvider = testProvider(false, true, true);
+    const provider: TransactionTestProvider = Object.freeze({
+      ...baseProvider,
+      evaluateTrial: (input) => {
+        const result = baseProvider.evaluateTrial(input);
+        return Object.freeze({
+          ...result,
+          diagnostics: Object.freeze({
+            ...result.diagnostics,
+            readback: new Date() as unknown as
+              WholeHeartMechanicsSerializableValueV1,
+          }),
+        });
+      },
+    });
+    const cold = initializeMainWireFiveWallNonCoronaryV1({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: OFF_PERICARDIUM,
+    });
+    const stepped = stepMainWireFiveWallNonCoronaryV1(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: OFF_PERICARDIUM,
+      },
+    );
+
+    expect(stepped.converged).toBe(false);
+    if (stepped.converged === true) throw new Error("expected rollback");
+    expect(stepped.reason).toBe("selected-candidate-finalization-failed");
+    expect(stepped.finalizationFailureStage).toBe("selected-mechanics-seal");
+    expect(stepped.message).toMatch(/not JSON-serializable/);
+    expect(stepped.rollbackState).toBe(cold.acceptedState);
+    expect(stepped.mechanicsCommitted).toBe(false);
+    expect(stepped.circulationCommitted).toBe(false);
+  });
+
+  it("rolls back atomically when selected material-state encoding fails", () => {
+    const baseProvider = testProvider(false, true, true);
+    const baseCodec = baseProvider.stateCodec;
+    const provider: TransactionTestProvider = Object.freeze({
+      ...baseProvider,
+      stateCodec: Object.freeze({
+        clone: baseCodec.clone,
+        encode: (state: TestState) => {
+          if (state.timeSec > 0) {
+            throw new Error("intentional selected candidate codec failure");
+          }
+          return baseCodec.encode(state);
+        },
+        decode: baseCodec.decode,
+      }),
+    });
+    const cold = initializeMainWireFiveWallNonCoronaryV1({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: OFF_PERICARDIUM,
+    });
+    const stepped = stepMainWireFiveWallNonCoronaryV1(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: OFF_PERICARDIUM,
+      },
+    );
+
+    expect(stepped.converged).toBe(false);
+    if (stepped.converged === true) throw new Error("expected rollback");
+    expect(stepped.reason).toBe("selected-candidate-finalization-failed");
+    expect(stepped.finalizationFailureStage).toBe("selected-mechanics-seal");
+    expect(stepped.message).toMatch(/intentional selected candidate codec failure/);
+    expect(stepped.rollbackState).toBe(cold.acceptedState);
+    expect(stepped.mechanicsCommitted).toBe(false);
+    expect(stepped.circulationCommitted).toBe(false);
+  });
+
   it("adds the common-pericardium rank-one tangent exactly once", () => {
     const provider = testProvider(false, true);
     const cold = initializeMainWireFiveWallNonCoronaryV1({
@@ -329,10 +473,15 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
 function testProvider(
   rejectTrials: boolean,
   includeTangent = false,
-): WholeHeartMechanicsProviderV1<TestState, MainWireFiveWallFreeCalciumDriveV1> {
+  exclusiveResult = false,
+): TransactionTestProvider {
+  const counters = { encodeCount: 0, trialCount: 0 };
   const codec = Object.freeze({
     clone: (state: TestState) => Object.freeze({ ...state }),
-    encode: (state: TestState) => Object.freeze({ ...state }),
+    encode: (state: TestState) => {
+      counters.encodeCount += 1;
+      return Object.freeze({ ...state });
+    },
     decode: (encoded: unknown) => Object.freeze({ ...(encoded as TestState) }),
   });
   const evaluate = (
@@ -376,12 +525,19 @@ function testProvider(
     parameterSetId: `test-prior-${rejectTrials}`,
     parameterIdentityHash: rejectTrials ? "reject" : "accept",
     stateSchemaVersion: 1,
+    ...(exclusiveResult
+      ? { evaluationResultOwnershipMode: "exclusive-result" as const }
+      : {}),
+    counters,
     stateCodec: codec,
     initializeCold: (input) => evaluate(input.timeSec, input.volumesMl, false),
-    evaluateTrial: (input) => evaluate(
-      input.candidateTimeSec,
-      input.candidateVolumesMl,
-      rejectTrials,
-    ),
+    evaluateTrial: (input) => {
+      counters.trialCount += 1;
+      return evaluate(
+        input.candidateTimeSec,
+        input.candidateVolumesMl,
+        rejectTrials,
+      );
+    },
   });
 }

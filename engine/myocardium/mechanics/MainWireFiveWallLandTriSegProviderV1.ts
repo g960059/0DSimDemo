@@ -422,7 +422,12 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
       validateDrive(input.drivingInputs);
       validateVolumes(input.candidateVolumesMl);
       requirePositive(input.stepDtSec, "stepDtSec");
-      const previous = stateCodec.clone(input.previousAcceptedState.materialState);
+      // The whole-heart contract already supplies a fresh defensive accepted
+      // snapshot for every provider callback. This provider treats that input
+      // as read-only, while each inner wall candidate still receives its own
+      // codec clone below. Re-cloning the entire five-wall aggregate here adds
+      // no isolation and scales directly with every outer Newton candidate.
+      const previous = input.previousAcceptedState.materialState;
       const initialUnknowns = coordinatesToScaledUnknowns(
         previous.trisegCoordinates,
         params,
@@ -437,7 +442,9 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
       );
       if (solved.converged === false) {
         return failedProviderEvaluation(
-          previous,
+          // Failure results obey the same exclusive-result ownership contract
+          // even when the trusted prepared snapshot was used as solver input.
+          stateCodec.clone(previous),
           zeroChambers(),
           solved,
           "trial",
@@ -462,6 +469,9 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
     parameterIdentityHash,
     stateSchemaVersion: STATE_SCHEMA_VERSION,
     stateCodec,
+    acceptedStateInputMode:
+      "trusted-read-only-prepared-snapshot" as const,
+    evaluationResultOwnershipMode: "exclusive-result" as const,
     initializeCold,
     evaluateTrial,
   });
