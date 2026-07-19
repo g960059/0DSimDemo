@@ -999,7 +999,7 @@ function guytonPaneDataV1(
         details: Object.freeze([
           "TBV sweep is a one-dimensional closed-loop preload locus, not a Guyton pump experiment or a surface.",
           "Settled period-2-suspect branches are shown separately and never averaged into the P1 curve.",
-          "Dashed/open estimates use two natural verification beats after a hidden predictor jump and never enter the settled P1 locus.",
+          "Dashed/open estimates use 2–5 budgeted natural beats after a hidden predictor jump and never enter the settled P1/P2 evidence or relation fits.",
           "An audit-warning marker remains P1 continuation evidence, but it is isolated from the curve when the independent source audit indicates path dependence.",
         ]),
       }),

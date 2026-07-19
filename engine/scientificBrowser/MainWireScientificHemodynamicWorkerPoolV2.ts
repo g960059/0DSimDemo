@@ -40,6 +40,11 @@ import {
   type MainWireScientificFastTbvPointEvidenceV1,
   type MainWireScientificFastTbvPreviewTargetV1,
 } from "@/engine/scientific/protocols/MainWireScientificFastTbvPreviewV1";
+import {
+  MAIN_WIRE_SCIENTIFIC_FAST_TBV_REFINEMENT_POLICY_V1,
+  planMainWireScientificFastTbvRefinementDispatchesV1,
+  type MainWireScientificFastTbvRefinementStageV1,
+} from "@/engine/scientific/protocols/MainWireScientificFastTbvRefinementPolicyV1";
 import type { MainWireScientificHemodynamicJobManagerV2 } from "@/engine/scientific/worker/MainWireScientificHemodynamicJobManagerV2";
 import {
   MAIN_WIRE_SCIENTIFIC_PRELOAD_BRANCH_WORKER_PROTOCOL_V2_ID,
@@ -66,6 +71,7 @@ export type MainWireScientificHemodynamicWorkerPoolOptionsV2 = Readonly<{
     lane: MainWireScientificPreloadBranchWorkerLaneV2,
   ) => MainWireScientificPreloadBranchWorkerLikeV2;
   suggestedPollIntervalMs?: number;
+  nowMs?: () => number;
 }>;
 
 type LaneRuntimeV2 = {
@@ -73,6 +79,10 @@ type LaneRuntimeV2 = {
   worker: MainWireScientificPreloadBranchWorkerLikeV2;
   ready: boolean;
   inFlightTargetId: string | null;
+  inFlightFastPreviewRequest: Readonly<{
+    target: MainWireScientificFastTbvPreviewTargetV1;
+    requestedNaturalBeatCount: 2 | 3 | 4 | 5;
+  }> | null;
   previewComplete: boolean;
   complete: boolean;
 };
@@ -93,11 +103,21 @@ type ActiveJobV2 = {
   planner: MainWireScientificAdaptivePreloadEnvelopePlannerStateV2;
   evidence: MainWireScientificPreloadPointEvidenceV2[];
   fastPreviewEvidence: MainWireScientificFastTbvPointEvidenceV1[];
+  fastPreviewRefinementStageByTargetId: Map<
+    string,
+    MainWireScientificFastTbvRefinementStageV1
+  >;
   fastPreviewTargetQueue: Record<
     MainWireScientificPreloadBranchWorkerLaneV2,
     MainWireScientificFastTbvPreviewTargetV1[]
   >;
   sourceFingerprint: string;
+  fastPreviewStartedAtMs: number | null;
+  fastPreviewBeatWallTimesByLane: Record<
+    MainWireScientificPreloadBranchWorkerLaneV2,
+    number[]
+  >;
+  fastPreviewRefinementComplete: boolean;
   targetById: Map<string, MainWireScientificPreloadEnvelopeTargetV2>;
   terminalCheckpointByPointId: Map<
     string,
@@ -135,6 +155,7 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     lane: MainWireScientificPreloadBranchWorkerLaneV2,
   ) => MainWireScientificPreloadBranchWorkerLikeV2;
   private readonly suggestedPollIntervalMs: number;
+  private readonly nowMs: () => number;
   private readonly jobs = new Map<string, ActiveJobV2>();
   private readonly persistentWorkers = new Map<
     MainWireScientificPreloadBranchWorkerLaneV2,
@@ -149,6 +170,7 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     this.suggestedPollIntervalMs = boundedPollInterval(
       options.suggestedPollIntervalMs ?? POLL_INTERVAL_MS,
     );
+    this.nowMs = options.nowMs ?? monotonicNowMs;
   }
 
   async start(
@@ -220,11 +242,18 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
       planner: initialized.state,
       evidence: [baselineEvidence],
       fastPreviewEvidence: [],
+      fastPreviewRefinementStageByTargetId: new Map(),
       fastPreviewTargetQueue: {
         "lower-volume": [...fastTargets["lower-volume"]],
         "higher-volume": [...fastTargets["higher-volume"]],
       },
       sourceFingerprint,
+      fastPreviewStartedAtMs: null,
+      fastPreviewBeatWallTimesByLane: {
+        "lower-volume": [],
+        "higher-volume": [],
+      },
+      fastPreviewRefinementComplete: false,
       targetById: new Map(
         initialized.initialTargets.map((target) => [target.targetId, target]),
       ),
@@ -350,6 +379,7 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
       worker,
       ready: false,
       inFlightTargetId: null,
+      inFlightFastPreviewRequest: null,
       previewComplete: false,
       complete: false,
     };
@@ -394,6 +424,7 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     const runtime = job.lanes[lane];
     if (message.kind === "ready") {
       runtime.ready = true;
+      job.fastPreviewStartedAtMs ??= this.nowMs();
       if (job.stage === "vascular-ready") {
         job.stage = "near-steady-preview";
       }
@@ -402,14 +433,22 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
       return;
     }
     if (message.kind === "fast-preview-target-result") {
-      if (runtime.inFlightTargetId !== message.target.targetId) {
+      const issued = runtime.inFlightFastPreviewRequest;
+      if (
+        issued === null
+        || runtime.inFlightTargetId !== issued.target.targetId
+        || !sameFastPreviewTargetV2(issued.target, message.target)
+        || message.requestedNaturalBeatCount
+            !== issued.requestedNaturalBeatCount
+      ) {
         this.failJob(
           job,
-          "preload worker returned a stale fast-preview target",
+          "preload worker returned a stale or mismatched fast-preview request",
         );
         return;
       }
       runtime.inFlightTargetId = null;
+      runtime.inFlightFastPreviewRequest = null;
       this.acceptFastPreviewResult(job, runtime, message);
       return;
     }
@@ -430,24 +469,39 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     runtime: LaneRuntimeV2,
     message: MainWireScientificPreloadBranchWorkerFastPreviewResultV2,
   ): void {
+    if (
+      !("refinementStage" in message)
+      || message.refinementStage === undefined
+    ) {
+      this.failJob(job, "fast-preview result omitted refinement stage");
+      return;
+    }
     if (message.evidence.sourceFingerprint !== job.sourceFingerprint) {
       this.failJob(job, "fast-preview source fingerprint mismatch");
       return;
     }
     const evidenceTarget = message.evidence.acquisition.target;
+    const existingIndex = job.fastPreviewEvidence.findIndex(
+      ({ evidenceId }) => evidenceId === message.evidence.evidenceId,
+    );
+    const existingEvidence = existingIndex < 0
+      ? null
+      : job.fastPreviewEvidence[existingIndex]!;
+    const previousStage = job.fastPreviewRefinementStageByTargetId.get(
+      message.target.targetId,
+    ) ?? null;
     if (
+      message.evidence.acquisition.plannedNaturalBeatCountAfterPrediction
+        !== message.requestedNaturalBeatCount ||
+      (message.evidence.evidenceClass !== "failure"
+        && message.evidence.acquisition.completedNaturalBeatCountAfterPrediction
+          !== message.requestedNaturalBeatCount) ||
+      (message.evidence.evidenceClass === "failure"
+        ? message.refinementStage !== null
+        : message.refinementStage === null) ||
       message.evidence.evidenceId !== message.target.targetId ||
-      evidenceTarget.targetId !== message.target.targetId ||
-      evidenceTarget.lane !== runtime.lane ||
-      evidenceTarget.targetOrdinal !== message.target.targetOrdinal ||
-      Math.abs(evidenceTarget.targetScale - message.target.targetScale) >
-        1e-12 ||
-      Math.abs(
-        evidenceTarget.totalBloodVolumeMl - message.target.totalBloodVolumeMl,
-      ) > 1e-6 ||
-      job.fastPreviewEvidence.some(
-        ({ evidenceId }) => evidenceId === message.evidence.evidenceId,
-      )
+      !sameFastPreviewTargetV2(evidenceTarget, message.target) ||
+      evidenceTarget.lane !== runtime.lane
     ) {
       this.failJob(job, "fast-preview target evidence identity mismatch");
       return;
@@ -455,15 +509,96 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     if (
       message.evidence.eligibility.settledP1Locus ||
       message.evidence.eligibility.continuationSeed ||
-      message.evidence.eligibility.espvrEdpvrPrswFit
+      message.evidence.eligibility.espvrEdpvrPrswFit ||
+      (message.evidence.evidenceClass === "failure"
+        ? message.evidence.periodicityClaim !== "none"
+        : message.evidence.periodicityClaim !== "not-demonstrated")
     ) {
       this.failJob(job, "fast-preview evidence leaked a canonical claim");
       return;
     }
-    job.fastPreviewEvidence.push(message.evidence);
-    job.completedBeatCount +=
-      message.evidence.acquisition.completedNaturalBeatCountAfterPrediction;
-    this.dispatchNextFastPreviewTarget(job, runtime);
+    if (
+      message.refinementStage !== null
+      && (
+        message.refinementStage.targetId !== message.target.targetId
+        || message.refinementStage.claimBoundary.periodicityClaim !== "none"
+        || message.refinementStage.claimBoundary.stageMayEnterCanonicalEvidence
+        || message.refinementStage.assessment.claimBoundary.periodicityClaim
+            !== "none"
+        || message.refinementStage.assessment.claimBoundary
+            .mayEnterSettledP1OrP2Evidence
+        || message.refinementStage.assessment.claimBoundary
+            .maySeedCanonicalContinuation
+        || message.refinementStage.assessment.claimBoundary
+            .mayEnterEspvrEdpvrPrswFit
+        || message.refinementStage.completedNaturalBeatCount
+            !== message.evidence.acquisition
+              .completedNaturalBeatCountAfterPrediction
+        || message.refinementStage.presentation.replaceEvidenceForSameTarget
+            !== true
+        || (
+          previousStage === null
+            ? message.refinementStage.revision !== 1
+            : message.refinementStage.revision !== previousStage.revision + 1
+              || message.refinementStage.supersedesRevision
+                  !== previousStage.revision
+        )
+      )
+    ) {
+      this.failJob(job, "fast-preview refinement revision/claim mismatch");
+      return;
+    }
+    if (
+      (existingEvidence === null
+        && message.refinementStage !== null
+        && message.refinementStage.revision !== 1)
+      || (existingEvidence !== null
+        && message.evidence.acquisition.completedNaturalBeatCountAfterPrediction
+            < existingEvidence.acquisition.completedNaturalBeatCountAfterPrediction
+      )
+    ) {
+      this.failJob(job, "fast-preview replacement evidence order mismatch");
+      return;
+    }
+    const previousCompleted = existingEvidence?.acquisition
+      .completedNaturalBeatCountAfterPrediction ?? 0;
+    if (
+      existingEvidence !== null
+      && message.evidence.evidenceClass === "failure"
+    ) {
+      job.completedBeatCount += Math.max(
+        0,
+        message.evidence.acquisition.completedNaturalBeatCountAfterPrediction
+          - previousCompleted,
+      );
+      job.fastPreviewRefinementStageByTargetId.delete(message.target.targetId);
+      this.dispatchFastPreviewRefinements(job);
+      this.publishProgress(job);
+      return;
+    }
+    if (existingIndex < 0) job.fastPreviewEvidence.push(message.evidence);
+    else job.fastPreviewEvidence[existingIndex] = message.evidence;
+    if (message.refinementStage !== null) {
+      job.fastPreviewRefinementStageByTargetId.set(
+        message.target.targetId,
+        message.refinementStage,
+      );
+      const times = job.fastPreviewBeatWallTimesByLane[runtime.lane];
+      times.push(message.refinementStage.measuredLatestBeatWallTimeMs);
+      if (times.length > 16) times.shift();
+    } else {
+      job.fastPreviewRefinementStageByTargetId.delete(message.target.targetId);
+    }
+    job.completedBeatCount += Math.max(
+      0,
+      message.evidence.acquisition.completedNaturalBeatCountAfterPrediction
+        - previousCompleted,
+    );
+    if (existingEvidence === null) {
+      this.dispatchNextFastPreviewTarget(job, runtime);
+    } else {
+      this.dispatchFastPreviewRefinements(job);
+    }
     this.publishProgress(job);
   }
 
@@ -473,21 +608,30 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
   ): void {
     const target = job.fastPreviewTargetQueue[runtime.lane].shift() ?? null;
     if (target !== null) {
-      if (runtime.inFlightTargetId !== null) {
+      if (
+        runtime.inFlightTargetId !== null
+        || runtime.inFlightFastPreviewRequest !== null
+      ) {
         this.failJob(
           job,
           `${runtime.lane} worker already has an active target`,
         );
         return;
       }
-      runtime.inFlightTargetId = target.targetId;
+      const issuedTarget = copyFastPreviewTargetV2(target);
+      runtime.inFlightTargetId = issuedTarget.targetId;
+      runtime.inFlightFastPreviewRequest = Object.freeze({
+        target: issuedTarget,
+        requestedNaturalBeatCount: 2 as const,
+      });
       runtime.worker.postMessage(
         Object.freeze({
           protocolId: MAIN_WIRE_SCIENTIFIC_PRELOAD_BRANCH_WORKER_PROTOCOL_V2_ID,
           kind: "solve-fast-preview-target" as const,
           jobId: job.jobId,
           lane: runtime.lane,
-          target,
+          target: issuedTarget,
+          requestedNaturalBeatCount: 2 as const,
         }),
       );
       return;
@@ -497,12 +641,100 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
       job.lanes["lower-volume"].previewComplete &&
       job.lanes["higher-volume"].previewComplete;
     job.stage = allPreviewsComplete
-      ? "continuation"
-      : "preview-and-continuation";
-    // Each persistent lane begins canonical settlement immediately after its
-    // own rapid preview finishes. The slower lane can keep streaming preview
-    // points while the other already publishes verified P1/P2 evidence.
-    this.dispatchPendingLaneTarget(job, runtime);
+      ? "preview-ready"
+      : "near-steady-preview";
+    if (allPreviewsComplete) this.dispatchFastPreviewRefinements(job);
+  }
+
+  private dispatchFastPreviewRefinements(job: ActiveJobV2): void {
+    if (job.fastPreviewRefinementComplete) return;
+    const allInitialPreviewsComplete =
+      job.lanes["lower-volume"].previewComplete
+      && job.lanes["higher-volume"].previewComplete;
+    if (!allInitialPreviewsComplete) return;
+    const idleLanes = (
+      ["lower-volume", "higher-volume"] as const
+    ).filter((lane) => job.lanes[lane].inFlightTargetId === null);
+    const elapsedMs = job.fastPreviewStartedAtMs === null
+      ? 0
+      : this.nowMs() - job.fastPreviewStartedAtMs;
+    const remainingWallTimeMs = Math.max(
+      0,
+      MAIN_WIRE_SCIENTIFIC_FAST_TBV_REFINEMENT_POLICY_V1
+        .globalSoftWallTimeBudgetMs - elapsedMs,
+    );
+    const plan = planMainWireScientificFastTbvRefinementDispatchesV1({
+      remainingWallTimeMs,
+      idleLanes,
+      candidates: job.fastPreviewEvidence.flatMap((evidence) => {
+        const stage = job.fastPreviewRefinementStageByTargetId.get(
+          evidence.evidenceId,
+        );
+        if (stage === undefined || evidence.evidenceClass === "failure") {
+          return [];
+        }
+        return [Object.freeze({
+          targetId: evidence.evidenceId,
+          lane: evidence.acquisition.target.lane,
+          completedNaturalBeatCount:
+            stage.completedNaturalBeatCount,
+          assessment: stage.assessment,
+          estimatedNextBeatWallTimeMs: estimatedNextFastPreviewBeatWallTimeMs(
+            job.fastPreviewBeatWallTimesByLane[
+              evidence.acquisition.target.lane
+            ],
+          ),
+          initialTargetsRemainingInLane:
+            job.fastPreviewTargetQueue[evidence.acquisition.target.lane].length,
+          inFlight:
+            job.lanes[evidence.acquisition.target.lane].inFlightTargetId
+              === evidence.evidenceId,
+        })];
+      }),
+    });
+    for (const dispatch of plan.dispatches) {
+      const runtime = job.lanes[dispatch.lane];
+      const evidence = job.fastPreviewEvidence.find(
+        ({ evidenceId }) => evidenceId === dispatch.targetId,
+      );
+      if (
+        evidence === undefined
+        || runtime.inFlightTargetId !== null
+        || runtime.inFlightFastPreviewRequest !== null
+      ) {
+        this.failJob(job, "fast-preview refinement dispatch state mismatch");
+        return;
+      }
+      const issuedTarget = copyFastPreviewTargetV2(
+        evidence.acquisition.target,
+      );
+      runtime.inFlightTargetId = dispatch.targetId;
+      runtime.inFlightFastPreviewRequest = Object.freeze({
+        target: issuedTarget,
+        requestedNaturalBeatCount: dispatch.requestedNaturalBeatCount,
+      });
+      runtime.worker.postMessage(Object.freeze({
+        protocolId: MAIN_WIRE_SCIENTIFIC_PRELOAD_BRANCH_WORKER_PROTOCOL_V2_ID,
+        kind: "refine-fast-preview-target" as const,
+        jobId: job.jobId,
+        lane: dispatch.lane,
+        target: issuedTarget,
+        requestedNaturalBeatCount: dispatch.requestedNaturalBeatCount,
+      }));
+    }
+    if (plan.dispatches.length > 0) {
+      job.stage = "preview-ready";
+      return;
+    }
+    if (
+      job.lanes["lower-volume"].inFlightTargetId !== null
+      || job.lanes["higher-volume"].inFlightTargetId !== null
+    ) return;
+
+    job.fastPreviewRefinementComplete = true;
+    job.stage = "continuation";
+    this.dispatchPendingLaneTarget(job, job.lanes["lower-volume"]);
+    this.dispatchPendingLaneTarget(job, job.lanes["higher-volume"]);
   }
 
   private acceptContinuationResult(
@@ -764,7 +996,10 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     target: MainWireScientificPreloadEnvelopeTargetV2,
     mode: "continuation" | "independent-audit",
   ): void {
-    if (runtime.inFlightTargetId !== null) {
+    if (
+      runtime.inFlightTargetId !== null
+      || runtime.inFlightFastPreviewRequest !== null
+    ) {
       this.failJob(job, `${runtime.lane} worker already has an active target`);
       return;
     }
@@ -884,6 +1119,29 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     }
     return job;
   }
+}
+
+function sameFastPreviewTargetV2(
+  left: MainWireScientificFastTbvPreviewTargetV1,
+  right: MainWireScientificFastTbvPreviewTargetV1,
+): boolean {
+  return left.targetId === right.targetId
+    && left.lane === right.lane
+    && left.targetOrdinal === right.targetOrdinal
+    && left.targetScale === right.targetScale
+    && left.totalBloodVolumeMl === right.totalBloodVolumeMl;
+}
+
+function copyFastPreviewTargetV2(
+  target: MainWireScientificFastTbvPreviewTargetV1,
+): MainWireScientificFastTbvPreviewTargetV1 {
+  return Object.freeze({
+    targetId: target.targetId,
+    lane: target.lane,
+    targetOrdinal: target.targetOrdinal,
+    targetScale: target.targetScale,
+    totalBloodVolumeMl: target.totalBloodVolumeMl,
+  });
 }
 
 function createDefaultBranchWorkerV2(): MainWireScientificPreloadBranchWorkerLikeV2 {
@@ -1130,6 +1388,24 @@ function boundaryStatus(
 function boundedPollInterval(value: number): number {
   if (!Number.isFinite(value)) throw new Error("poll interval must be finite");
   return Math.max(100, Math.min(2_000, Math.round(value)));
+}
+
+function estimatedNextFastPreviewBeatWallTimeMs(
+  measuredBeatWallTimesMs: readonly number[],
+): number {
+  const finitePositive = measuredBeatWallTimesMs
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .sort((left, right) => left - right);
+  if (finitePositive.length === 0) return 500;
+  const percentileIndex = Math.min(
+    finitePositive.length - 1,
+    Math.ceil(finitePositive.length * 0.8) - 1,
+  );
+  return finitePositive[percentileIndex]!;
+}
+
+function monotonicNowMs(): number {
+  return typeof performance === "undefined" ? Date.now() : performance.now();
 }
 
 function auditWorkerLane(

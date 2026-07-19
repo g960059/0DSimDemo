@@ -12,6 +12,10 @@ import {
   restoreMainWireScientificSessionExactV2,
 } from "@/engine/scientific/runtime";
 import {
+  assessMainWireScientificFastTbvRefinementV1,
+  createMainWireScientificFastTbvRefinementStageV1,
+} from "@/engine/scientific/protocols/MainWireScientificFastTbvRefinementPolicyV1";
+import {
   MainWireScientificHemodynamicWorkerPoolV2,
   type MainWireScientificPreloadBranchWorkerLikeV2,
 } from "@/engine/scientificBrowser/MainWireScientificHemodynamicWorkerPoolV2";
@@ -24,9 +28,10 @@ describe("main-wire scientific hemodynamic worker pool V2", () => {
   it("publishes vascular data first, advances both warm lanes, and reuses two workers", async () => {
     const capsule = await healthyCapsule();
     const createdWorkers: FakeBranchWorker[] = [];
+    const commandSequence: string[] = [];
     const pool = new MainWireScientificHemodynamicWorkerPoolV2({
       createBranchWorker: (lane) => {
-        const worker = new FakeBranchWorker(lane);
+        const worker = new FakeBranchWorker(lane, false, commandSequence);
         createdWorkers.push(worker);
         return worker;
       },
@@ -53,6 +58,16 @@ describe("main-wire scientific hemodynamic worker pool V2", () => {
     );
     expect(completed.status).toBe("complete");
     expect(completed.fastPreloadPreview.evidence).toHaveLength(9);
+    expect(completed.fastPreloadPreview.evidence.every((evidence) =>
+      evidence.acquisition.completedNaturalBeatCountAfterPrediction === 5
+    )).toBe(true);
+    const firstRefinementIndex = commandSequence.findIndex((kind) =>
+      kind === "refine-fast-preview-target"
+    );
+    expect(firstRefinementIndex).toBeGreaterThanOrEqual(9);
+    expect(commandSequence.slice(0, firstRefinementIndex).filter((kind) =>
+      kind === "solve-fast-preview-target"
+    )).toHaveLength(9);
     expect(
       new Set(
         completed.fastPreloadPreview.evidence.map(
@@ -133,6 +148,166 @@ describe("main-wire scientific hemodynamic worker pool V2", () => {
     expect(failed.errorMessage).toContain("P1 seed contract");
     pool.dispose();
   }, 30_000);
+
+  it("fails closed when a fast-preview result reuses the ID with changed target fields", async () => {
+    const capsule = await healthyCapsule();
+    const pool = new MainWireScientificHemodynamicWorkerPoolV2({
+      createBranchWorker: (lane) => new FakeBranchWorker(
+        lane,
+        false,
+        [],
+        false,
+        () => undefined,
+        "target-payload",
+      ),
+    });
+    const started = await pool.start({
+      ownerSessionId: "pool-owner-corrupt-fast-target",
+      capsule,
+    });
+    const failed = await waitForCompletion(
+      pool,
+      "pool-owner-corrupt-fast-target",
+      started.jobId,
+    );
+    expect(failed.status).toBe("error");
+    expect(failed.errorMessage).toContain(
+      "stale or mismatched fast-preview request",
+    );
+    pool.dispose();
+  }, 30_000);
+
+  it("fails closed when a same-target fast-preview result echoes a stale beat revision", async () => {
+    const capsule = await healthyCapsule();
+    const pool = new MainWireScientificHemodynamicWorkerPoolV2({
+      createBranchWorker: (lane) => new FakeBranchWorker(
+        lane,
+        false,
+        [],
+        false,
+        () => undefined,
+        "beat-echo",
+      ),
+    });
+    const started = await pool.start({
+      ownerSessionId: "pool-owner-stale-fast-beat",
+      capsule,
+    });
+    const failed = await waitForCompletion(
+      pool,
+      "pool-owner-stale-fast-beat",
+      started.jobId,
+    );
+    expect(failed.status).toBe("error");
+    expect(failed.errorMessage).toContain(
+      "stale or mismatched fast-preview request",
+    );
+    pool.dispose();
+  }, 30_000);
+
+  it("fails closed cleanly when a fast-preview result omits refinement metadata", async () => {
+    const capsule = await healthyCapsule();
+    const pool = new MainWireScientificHemodynamicWorkerPoolV2({
+      createBranchWorker: (lane) => new FakeBranchWorker(
+        lane,
+        false,
+        [],
+        false,
+        () => undefined,
+        "missing-stage",
+      ),
+    });
+    const started = await pool.start({
+      ownerSessionId: "pool-owner-missing-fast-stage",
+      capsule,
+    });
+    const failed = await waitForCompletion(
+      pool,
+      "pool-owner-missing-fast-stage",
+      started.jobId,
+    );
+    expect(failed.status).toBe("error");
+    expect(failed.errorMessage).toContain(
+      "fast-preview result omitted refinement stage",
+    );
+    pool.dispose();
+  }, 30_000);
+
+  it("retains the last valid same-target estimate when an optional refinement fails", async () => {
+    const capsule = await healthyCapsule();
+    const workers: FakeBranchWorker[] = [];
+    const pool = new MainWireScientificHemodynamicWorkerPoolV2({
+      createBranchWorker: (lane) => {
+        const worker = new FakeBranchWorker(
+          lane,
+          false,
+          [],
+          lane === "lower-volume",
+        );
+        workers.push(worker);
+        return worker;
+      },
+    });
+    const started = await pool.start({
+      ownerSessionId: "pool-owner-refinement-failure",
+      capsule,
+    });
+    const completed = await waitForCompletion(
+      pool,
+      "pool-owner-refinement-failure",
+      started.jobId,
+    );
+    const failedTargetId = workers.find((worker) =>
+      worker.failedRefinementTargetId !== null
+    )?.failedRefinementTargetId;
+    expect(failedTargetId).toBeTruthy();
+    const retained = completed.fastPreloadPreview.evidence.find(
+      ({ evidenceId }) => evidenceId === failedTargetId,
+    );
+    expect(retained?.evidenceClass).toBe("near-period1-estimate");
+    expect(retained?.acquisition.completedNaturalBeatCountAfterPrediction)
+      .toBe(2);
+    expect(completed.fastPreloadPreview.evidence).toHaveLength(9);
+    expect(new Set(completed.fastPreloadPreview.evidence.map(
+      ({ evidenceId }) => evidenceId,
+    )).size).toBe(9);
+    pool.dispose();
+  }, 30_000);
+
+  it("does not dispatch refinements after the injected global soft deadline", async () => {
+    const capsule = await healthyCapsule();
+    let nowMs = 0;
+    const commandSequence: string[] = [];
+    const pool = new MainWireScientificHemodynamicWorkerPoolV2({
+      nowMs: () => nowMs,
+      createBranchWorker: (lane) => new FakeBranchWorker(
+        lane,
+        false,
+        commandSequence,
+        false,
+        () => {
+          nowMs += 1_500;
+        },
+      ),
+    });
+    const started = await pool.start({
+      ownerSessionId: "pool-owner-global-deadline",
+      capsule,
+    });
+    const completed = await waitForCompletion(
+      pool,
+      "pool-owner-global-deadline",
+      started.jobId,
+    );
+    expect(commandSequence.filter((kind) =>
+      kind === "solve-fast-preview-target"
+    )).toHaveLength(9);
+    expect(commandSequence).not.toContain("refine-fast-preview-target");
+    expect(completed.fastPreloadPreview.evidence.every((evidence) =>
+      evidence.acquisition.completedNaturalBeatCountAfterPrediction === 2
+    )).toBe(true);
+    pool.dispose();
+  }, 30_000);
 });
 
 class FakeBranchWorker implements MainWireScientificPreloadBranchWorkerLikeV2 {
@@ -146,13 +321,27 @@ class FakeBranchWorker implements MainWireScientificPreloadBranchWorkerLikeV2 {
         { kind: "initialize" }
       >["baselineCapsule"]["transactionCheckpoint"]
     | null = null;
+  private refinementFailureEmitted = false;
+  failedRefinementTargetId: string | null = null;
 
   constructor(
     private readonly lane: "lower-volume" | "higher-volume",
     private readonly corruptCanonicalResult = false,
+    private readonly commandSequence: string[] = [],
+    private readonly failFirstRefinement = false,
+    private readonly beforeFastPreviewResult: () => void = () => undefined,
+    private readonly fastPreviewCorruption:
+      | "none"
+      | "target-payload"
+      | "beat-echo"
+      | "missing-stage" = "none",
   ) {}
 
   postMessage(command: MainWireScientificPreloadBranchWorkerCommandV2): void {
+    if (
+      command.kind === "solve-fast-preview-target"
+      || command.kind === "refine-fast-preview-target"
+    ) this.commandSequence.push(command.kind);
     if (command.kind === "cancel") return;
     if (command.kind === "initialize") {
       this.sourceFingerprint = command.sourceFingerprint;
@@ -167,19 +356,79 @@ class FakeBranchWorker implements MainWireScientificPreloadBranchWorkerLikeV2 {
       return;
     }
     if (command.kind === "solve-fast-preview-target") {
-      queueMicrotask(() =>
+      queueMicrotask(() => {
+        this.beforeFastPreviewResult();
+        const reportedTarget = this.fastPreviewCorruption === "target-payload"
+          ? Object.freeze({
+              ...command.target,
+              targetScale: command.target.targetScale + 0.01,
+            })
+          : command.target;
+        this.emit({
+          protocolId: "main-wire-scientific-preload-branch-worker-protocol-v2",
+          kind: "fast-preview-target-result",
+          jobId: command.jobId,
+          lane: this.lane,
+          target: reportedTarget,
+          requestedNaturalBeatCount: command.requestedNaturalBeatCount,
+          evidence: syntheticFastPreviewEvidence(
+            reportedTarget,
+            this.sourceFingerprint,
+          ),
+          refinementStage: this.fastPreviewCorruption === "missing-stage"
+            ? undefined as never
+            : syntheticFastPreviewStage(
+                reportedTarget,
+                this.sourceFingerprint,
+                2,
+              ),
+        });
+      });
+      return;
+    }
+    if (command.kind === "refine-fast-preview-target") {
+      queueMicrotask(() => {
+        this.beforeFastPreviewResult();
+        if (this.failFirstRefinement && !this.refinementFailureEmitted) {
+          this.refinementFailureEmitted = true;
+          this.failedRefinementTargetId = command.target.targetId;
+          this.emit({
+            protocolId: "main-wire-scientific-preload-branch-worker-protocol-v2",
+            kind: "fast-preview-target-result",
+            jobId: command.jobId,
+            lane: this.lane,
+            target: command.target,
+            requestedNaturalBeatCount: command.requestedNaturalBeatCount,
+            evidence: syntheticFastPreviewRefinementFailure(
+              command.target,
+              this.sourceFingerprint,
+              command.requestedNaturalBeatCount,
+            ),
+            refinementStage: null,
+          });
+          return;
+        }
         this.emit({
           protocolId: "main-wire-scientific-preload-branch-worker-protocol-v2",
           kind: "fast-preview-target-result",
           jobId: command.jobId,
           lane: this.lane,
           target: command.target,
+          requestedNaturalBeatCount: this.fastPreviewCorruption === "beat-echo"
+            ? (command.requestedNaturalBeatCount - 1) as 2 | 3 | 4
+            : command.requestedNaturalBeatCount,
           evidence: syntheticFastPreviewEvidence(
             command.target,
             this.sourceFingerprint,
+            command.requestedNaturalBeatCount,
           ),
-        }),
-      );
+          refinementStage: syntheticFastPreviewStage(
+            command.target,
+            this.sourceFingerprint,
+            command.requestedNaturalBeatCount,
+          ),
+        });
+      });
       return;
     }
     const scale = command.target.normalizedTbv;
@@ -214,6 +463,7 @@ function syntheticFastPreviewEvidence(
     { kind: "solve-fast-preview-target" }
   >["target"],
   sourceFingerprint: string,
+  completedNaturalBeatCountAfterPrediction: 2 | 3 | 4 | 5 = 2,
 ) {
   const observation = Object.freeze({
     meanRapTransmuralMmHg: -2 + 5 * target.targetScale,
@@ -241,9 +491,10 @@ function syntheticFastPreviewEvidence(
       target,
       sourceEvidenceId: "source-period1-baseline" as const,
       initializer: null,
-      plannedNaturalBeatCountAfterPrediction: 2,
-      completedNaturalBeatCountAfterPrediction: 2,
-      holdDurationSec: 2,
+      plannedNaturalBeatCountAfterPrediction:
+        completedNaturalBeatCountAfterPrediction,
+      completedNaturalBeatCountAfterPrediction,
+      holdDurationSec: completedNaturalBeatCountAfterPrediction,
     }),
     observation,
     closure: Object.freeze({
@@ -268,6 +519,81 @@ function syntheticFastPreviewEvidence(
       espvrEdpvrPrswFit: false as const,
     }),
     estimateAssessment: "residual-near-period1-but-gate-incomplete" as const,
+  });
+}
+
+function syntheticFastPreviewStage(
+  target: Extract<
+    MainWireScientificPreloadBranchWorkerCommandV2,
+    { kind: "solve-fast-preview-target" }
+  >["target"],
+  sourceFingerprint: string,
+  completedNaturalBeatCount: 2 | 3 | 4 | 5,
+) {
+  const previousEvidence = syntheticFastPreviewEvidence(
+    target,
+    sourceFingerprint,
+    completedNaturalBeatCount === 2
+      ? 2
+      : (completedNaturalBeatCount - 1) as 2 | 3 | 4,
+  );
+  const latestEvidence = syntheticFastPreviewEvidence(
+    target,
+    sourceFingerprint,
+    completedNaturalBeatCount,
+  );
+  return createMainWireScientificFastTbvRefinementStageV1({
+    targetId: target.targetId,
+    measuredLatestBeatWallTimeMs: 1,
+    assessment: assessMainWireScientificFastTbvRefinementV1({
+      previousBeat: Object.freeze({
+        naturalBeatOrdinal: completedNaturalBeatCount - 1,
+        fullStateMaximumNormalizedDelta:
+          previousEvidence.closure.latestPeriod1MaximumNormalizedDelta,
+        observation: previousEvidence.observation,
+      }),
+      latestBeat: Object.freeze({
+        naturalBeatOrdinal: completedNaturalBeatCount,
+        fullStateMaximumNormalizedDelta:
+          latestEvidence.closure.latestPeriod1MaximumNormalizedDelta,
+        observation: latestEvidence.observation,
+      }),
+    }),
+  });
+}
+
+function syntheticFastPreviewRefinementFailure(
+  target: Extract<
+    MainWireScientificPreloadBranchWorkerCommandV2,
+    { kind: "solve-fast-preview-target" }
+  >["target"],
+  sourceFingerprint: string,
+  requestedNaturalBeatCount: 3 | 4 | 5,
+) {
+  const previousCompleted = (requestedNaturalBeatCount - 1) as 2 | 3 | 4;
+  return Object.freeze({
+    evidenceId: target.targetId,
+    sourceFingerprint,
+    evidenceClass: "failure" as const,
+    periodicityClaim: "none" as const,
+    acquisition: Object.freeze({
+      target,
+      sourceEvidenceId: "source-period1-baseline",
+      initializer: null,
+      plannedNaturalBeatCountAfterPrediction: requestedNaturalBeatCount,
+      completedNaturalBeatCountAfterPrediction: previousCompleted,
+      holdDurationSec: previousCompleted,
+    }),
+    eligibility: Object.freeze({
+      hemodynamicPreview: false as const,
+      rapidFiniteHoldLocus: false as const,
+      settledP1Locus: false as const,
+      lvPvEndpointDisplay: false as const,
+      continuationSeed: false as const,
+      espvrEdpvrPrswFit: false as const,
+    }),
+    failureKind: "solver" as const,
+    reason: "synthetic optional refinement failure",
   });
 }
 

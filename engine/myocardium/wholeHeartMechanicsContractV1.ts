@@ -12,6 +12,9 @@
 export const WHOLE_HEART_MECHANICS_CONTRACT_V1_ID =
   "whole-heart-mechanics-contract-v1" as const;
 
+export const WHOLE_HEART_MECHANICS_PREPARED_STEP_V1_ID =
+  "whole-heart-mechanics-prepared-step-v1" as const;
+
 export const WHOLE_HEART_MECHANICS_OWNERSHIP_V1 = Object.freeze({
   evaluationScope: "joint-LA-LV-RA-RV" as const,
   mainWireOwns: Object.freeze([
@@ -124,6 +127,13 @@ export type WholeHeartMechanicsProviderV1<TState, TDrive> = {
   readonly parameterIdentityHash: string;
   readonly stateSchemaVersion: number;
   readonly stateCodec: WholeHeartMechanicsStateCodecV1<TState>;
+  /**
+   * Optional isolation hook for mutable/future drive payloads. Prepared steps
+   * call it once when capturing the outer-step input and again for every
+   * provider callback. Without it, both caller and provider must treat the
+   * drive as deeply immutable; the current calcium drive satisfies that rule.
+   */
+  readonly cloneDrivingInputs?: (drivingInputs: TDrive) => TDrive;
   initializeCold(
     input: WholeHeartMechanicsColdInputV1<TDrive>,
   ): WholeHeartMechanicsProviderEvaluationV1<TState>;
@@ -172,6 +182,40 @@ export type WholeHeartMechanicsCheckpointV1 = {
   readonly materialStateFingerprint: string;
 };
 
+/**
+ * Short-lived, checked mechanics boundary for one outer circulation step.
+ *
+ * The accepted state and provider are fully audited when this context is
+ * prepared. Its private baseline snapshot is then reused across the Newton
+ * candidate evaluations belonging to that one step. The context intentionally
+ * exposes no material state and cannot be reconstructed from serialized data.
+ * Prepare a new context after every accepted step or parameter/provider change.
+ */
+export type WholeHeartMechanicsPreparedStepV1<TState, TDrive> = Readonly<{
+  contextId: typeof WHOLE_HEART_MECHANICS_PREPARED_STEP_V1_ID;
+  providerId: string;
+  parameterSetId: string;
+  parameterIdentityHash: string;
+  stateSchemaVersion: number;
+  baseRevision: number;
+  baseAcceptedTimeSec: number;
+  candidateTimeSec: number;
+  stepDtSec: number;
+  /** Type-only witness; the runtime context keeps both values private. */
+  typeWitness?: Readonly<{ state: TState; drive: TDrive }>;
+}>;
+
+type PreparedWholeHeartMechanicsStepInternalV1<TState, TDrive> = Readonly<{
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>;
+  previousAcceptedState: WholeHeartMechanicsAcceptedStateV1<TState>;
+  candidateTimeSec: number;
+  stepDtSec: number;
+  drivingInputs: TDrive;
+}>;
+
+const PREPARED_WHOLE_HEART_MECHANICS_STEP_INTERNALS_V1 =
+  new WeakMap<object, object>();
+
 export function initializeWholeHeartMechanicsColdV1<TState, TDrive>(
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
   input: WholeHeartMechanicsColdInputV1<TDrive>,
@@ -208,44 +252,109 @@ export function evaluateWholeHeartMechanicsTrialV1<TState, TDrive>(
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
   input: WholeHeartMechanicsTrialInputV1<TState, TDrive>,
 ): WholeHeartMechanicsTrialV1<TState> {
+  const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+    previousAcceptedState: input.previousAcceptedState,
+    candidateTimeSec: input.candidateTimeSec,
+    stepDtSec: input.stepDtSec,
+    drivingInputs: input.drivingInputs,
+  });
+  return evaluatePreparedWholeHeartMechanicsTrialV1(
+    preparedStep,
+    input.candidateVolumesMl,
+  );
+}
+
+/**
+ * Performs the checked public-boundary audit once for one outer solver step.
+ * Candidate evaluation and final promotion may then use the trusted helpers
+ * below without re-auditing the same accepted material state.
+ */
+export function prepareWholeHeartMechanicsStepV1<TState, TDrive>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  input: Readonly<{
+    previousAcceptedState: WholeHeartMechanicsAcceptedStateV1<TState>;
+    candidateTimeSec: number;
+    stepDtSec: number;
+    drivingInputs: TDrive;
+  }>,
+): WholeHeartMechanicsPreparedStepV1<TState, TDrive> {
   validateProvider(provider);
-  validateAccepted(provider, input.previousAcceptedState);
+  const auditedPrevious = auditAcceptedState(provider, input.previousAcceptedState);
   validatePositive(input.stepDtSec, "stepDtSec");
   validateTime(input.candidateTimeSec, "candidateTimeSec");
-  validateCandidateTime(input.previousAcceptedState, input.candidateTimeSec, input.stepDtSec);
-  validateVolumes(input.candidateVolumesMl, "candidateVolumesMl");
-
-  const result = provider.evaluateTrial({
-    ...input,
-    previousAcceptedState: cloneWholeHeartMechanicsAcceptedStateV1(
+  validateCandidateTime(
+    auditedPrevious.state,
+    input.candidateTimeSec,
+    input.stepDtSec,
+  );
+  const preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive> =
+    Object.freeze({
+      contextId: WHOLE_HEART_MECHANICS_PREPARED_STEP_V1_ID,
+      providerId: provider.providerId,
+      parameterSetId: provider.parameterSetId,
+      parameterIdentityHash: provider.parameterIdentityHash,
+      stateSchemaVersion: provider.stateSchemaVersion,
+      baseRevision: auditedPrevious.state.revision,
+      baseAcceptedTimeSec: auditedPrevious.state.acceptedTimeSec,
+      candidateTimeSec: input.candidateTimeSec,
+      stepDtSec: input.stepDtSec,
+    });
+  PREPARED_WHOLE_HEART_MECHANICS_STEP_INTERNALS_V1.set(
+    preparedStep,
+    Object.freeze({
       provider,
-      input.previousAcceptedState,
+      previousAcceptedState: auditedPrevious.state,
+      candidateTimeSec: input.candidateTimeSec,
+      stepDtSec: input.stepDtSec,
+      drivingInputs: cloneDrivingInputsForPreparedStep(
+        provider,
+        input.drivingInputs,
+      ),
+    } satisfies PreparedWholeHeartMechanicsStepInternalV1<TState, TDrive>),
+  );
+  return preparedStep;
+}
+
+/** Trusted candidate path: the provider and accepted baseline were audited by prepare. */
+export function evaluatePreparedWholeHeartMechanicsTrialV1<TState, TDrive>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  candidateVolumesMl: WholeHeartMechanicsChamberValuesV1,
+): WholeHeartMechanicsTrialV1<TState> {
+  const context = preparedStepInternal(preparedStep);
+  validateVolumes(candidateVolumesMl, "candidateVolumesMl");
+  const candidateVolumes = copyChambers(candidateVolumesMl);
+  const result = context.provider.evaluateTrial({
+    previousAcceptedState: cloneAcceptedStateWithoutAudit(
+      context.provider,
+      context.previousAcceptedState,
     ),
-    candidateVolumesMl: copyChambers(input.candidateVolumesMl),
+    candidateTimeSec: context.candidateTimeSec,
+    stepDtSec: context.stepDtSec,
+    candidateVolumesMl: candidateVolumes,
+    drivingInputs: cloneDrivingInputsForPreparedStep(
+      context.provider,
+      context.drivingInputs,
+    ),
   });
   validateDiagnostics(result.diagnostics);
-  validateSerializable(
-    provider.stateCodec.encode(provider.stateCodec.clone(result.materialState)),
+  const candidateSnapshot = snapshotMaterialState(
+    context.provider,
+    result.materialState,
     "candidate material state",
-  );
-  const candidateMaterialState = provider.stateCodec.clone(result.materialState);
-  const candidateMaterialStateFingerprint = fingerprintMaterialState(
-    provider,
-    candidateMaterialState,
   );
   return Object.freeze({
     contractId: WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
-    providerId: provider.providerId,
-    parameterSetId: provider.parameterSetId,
-    parameterIdentityHash: provider.parameterIdentityHash,
-    stateSchemaVersion: provider.stateSchemaVersion,
-    baseRevision: input.previousAcceptedState.revision,
-    baseAcceptedTimeSec: input.previousAcceptedState.acceptedTimeSec,
-    candidateTimeSec: input.candidateTimeSec,
-    stepDtSec: input.stepDtSec,
-    candidateVolumesMl: copyChambers(input.candidateVolumesMl),
-    candidateMaterialState,
-    candidateMaterialStateFingerprint,
+    providerId: preparedStep.providerId,
+    parameterSetId: preparedStep.parameterSetId,
+    parameterIdentityHash: preparedStep.parameterIdentityHash,
+    stateSchemaVersion: preparedStep.stateSchemaVersion,
+    baseRevision: preparedStep.baseRevision,
+    baseAcceptedTimeSec: preparedStep.baseAcceptedTimeSec,
+    candidateTimeSec: preparedStep.candidateTimeSec,
+    stepDtSec: preparedStep.stepDtSec,
+    candidateVolumesMl: candidateVolumes,
+    candidateMaterialState: candidateSnapshot.materialState,
+    candidateMaterialStateFingerprint: candidateSnapshot.fingerprint,
     transmuralPressuresMmHg: copyChambers(result.transmuralPressuresMmHg),
     ...(result.transmuralPressureVolumeTangentMmHgPerMl === undefined
       ? {}
@@ -266,7 +375,40 @@ export function commitWholeHeartMechanicsTrialV1<TState, TDrive>(
   trial: WholeHeartMechanicsTrialV1<TState>,
 ): WholeHeartMechanicsAcceptedStateV1<TState> {
   validateProvider(provider);
-  validateAccepted(provider, previous);
+  const auditedPrevious = auditAcceptedState(provider, previous);
+  return commitWholeHeartMechanicsTrialAgainstPreparedBaseline(
+    provider,
+    auditedPrevious.state,
+    trial,
+  );
+}
+
+/**
+ * Trusted final promotion for a prepared outer step. The accepted baseline is
+ * not re-audited, but the externally visible trial and its mutable material
+ * state are still checked in full before promotion.
+ */
+export function commitPreparedWholeHeartMechanicsTrialV1<TState, TDrive>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+  trial: WholeHeartMechanicsTrialV1<TState>,
+): WholeHeartMechanicsAcceptedStateV1<TState> {
+  const context = preparedStepInternal(preparedStep);
+  if (
+    !nearlyEqual(trial.candidateTimeSec, context.candidateTimeSec) ||
+    !nearlyEqual(trial.stepDtSec, context.stepDtSec)
+  ) throw new Error("whole-heart mechanics trial does not belong to prepared step");
+  return commitWholeHeartMechanicsTrialAgainstPreparedBaseline(
+    context.provider,
+    context.previousAcceptedState,
+    trial,
+  );
+}
+
+function commitWholeHeartMechanicsTrialAgainstPreparedBaseline<TState, TDrive>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  previous: WholeHeartMechanicsAcceptedStateV1<TState>,
+  trial: WholeHeartMechanicsTrialV1<TState>,
+): WholeHeartMechanicsAcceptedStateV1<TState> {
   if (
     trial.contractId !== WHOLE_HEART_MECHANICS_CONTRACT_V1_ID ||
     trial.providerId !== provider.providerId ||
@@ -279,22 +421,34 @@ export function commitWholeHeartMechanicsTrialV1<TState, TDrive>(
     !nearlyEqual(trial.baseAcceptedTimeSec, previous.acceptedTimeSec)
   ) throw new Error("stale whole-heart mechanics trial cannot be committed");
   validateCandidateTime(previous, trial.candidateTimeSec, trial.stepDtSec);
-  validateMaterialStateFingerprint(
+  validateVolumes(trial.candidateVolumesMl, "trial.candidateVolumesMl");
+  const candidateSnapshot = snapshotMaterialState(
     provider,
     trial.candidateMaterialState,
-    trial.candidateMaterialStateFingerprint,
     "candidate material state",
   );
+  if (candidateSnapshot.fingerprint !== trial.candidateMaterialStateFingerprint) {
+    throw new Error(
+      "candidate material state fingerprint mismatch; snapshot was mutated or decoded inconsistently",
+    );
+  }
   assertReady({
-    materialState: trial.candidateMaterialState,
+    materialState: candidateSnapshot.materialState,
     transmuralPressuresMmHg: trial.transmuralPressuresMmHg,
+    ...(trial.transmuralPressureVolumeTangentMmHgPerMl === undefined
+      ? {}
+      : {
+        transmuralPressureVolumeTangentMmHgPerMl:
+          trial.transmuralPressureVolumeTangentMmHgPerMl,
+      }),
     diagnostics: trial.diagnostics,
   }, "trial commit");
-  return acceptedState(provider, {
+  return acceptedStateFromOwnedSnapshot(provider, {
     revision: previous.revision + 1,
     timeSec: trial.candidateTimeSec,
     volumesMl: trial.candidateVolumesMl,
-    materialState: trial.candidateMaterialState,
+    materialState: candidateSnapshot.materialState,
+    materialStateFingerprint: candidateSnapshot.fingerprint,
   });
 }
 
@@ -303,13 +457,7 @@ export function cloneWholeHeartMechanicsAcceptedStateV1<TState, TDrive>(
   state: WholeHeartMechanicsAcceptedStateV1<TState>,
 ): WholeHeartMechanicsAcceptedStateV1<TState> {
   validateProvider(provider);
-  validateAccepted(provider, state);
-  return acceptedState(provider, {
-    revision: state.revision,
-    timeSec: state.acceptedTimeSec,
-    volumesMl: state.acceptedVolumesMl,
-    materialState: state.materialState,
-  });
+  return auditAcceptedState(provider, state).state;
 }
 
 /** JSON.stringify(checkpoint) is the stable contract snapshot payload. */
@@ -318,22 +466,19 @@ export function checkpointWholeHeartMechanicsStateV1<TState, TDrive>(
   state: WholeHeartMechanicsAcceptedStateV1<TState>,
 ): WholeHeartMechanicsCheckpointV1 {
   validateProvider(provider);
-  validateAccepted(provider, state);
-  const materialState = provider.stateCodec.encode(
-    provider.stateCodec.clone(state.materialState),
-  );
-  validateSerializable(materialState, "checkpoint material state");
+  const audited = auditAcceptedState(provider, state);
+  const materialState = audited.encodedMaterialState;
   return Object.freeze({
     contractId: WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
-    providerId: state.providerId,
-    parameterSetId: state.parameterSetId,
-    parameterIdentityHash: state.parameterIdentityHash,
-    stateSchemaVersion: state.stateSchemaVersion,
-    revision: state.revision,
-    acceptedTimeSec: state.acceptedTimeSec,
-    acceptedVolumesMl: copyChambers(state.acceptedVolumesMl),
+    providerId: audited.state.providerId,
+    parameterSetId: audited.state.parameterSetId,
+    parameterIdentityHash: audited.state.parameterIdentityHash,
+    stateSchemaVersion: audited.state.stateSchemaVersion,
+    revision: audited.state.revision,
+    acceptedTimeSec: audited.state.acceptedTimeSec,
+    acceptedVolumesMl: copyChambers(audited.state.acceptedVolumesMl),
     materialState,
-    materialStateFingerprint: fingerprintSerializable(materialState),
+    materialStateFingerprint: audited.state.materialStateFingerprint,
   });
 }
 
@@ -376,8 +521,27 @@ function acceptedState<TState, TDrive>(
   validateInteger(input.revision, "revision");
   validateTime(input.timeSec, "acceptedTimeSec");
   validateVolumes(input.volumesMl, "acceptedVolumesMl");
-  const materialState = provider.stateCodec.clone(input.materialState);
-  const materialStateFingerprint = fingerprintMaterialState(provider, materialState);
+  const snapshot = snapshotMaterialState(provider, input.materialState, "material state");
+  return acceptedStateFromOwnedSnapshot(provider, {
+    ...input,
+    materialState: snapshot.materialState,
+    materialStateFingerprint: snapshot.fingerprint,
+  });
+}
+
+function acceptedStateFromOwnedSnapshot<TState, TDrive>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  input: {
+    revision: number;
+    timeSec: number;
+    volumesMl: WholeHeartMechanicsChamberValuesV1;
+    materialState: TState;
+    materialStateFingerprint: string;
+  },
+): WholeHeartMechanicsAcceptedStateV1<TState> {
+  validateInteger(input.revision, "revision");
+  validateTime(input.timeSec, "acceptedTimeSec");
+  validateVolumes(input.volumesMl, "acceptedVolumesMl");
   return Object.freeze({
     contractId: WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
     providerId: provider.providerId,
@@ -387,8 +551,8 @@ function acceptedState<TState, TDrive>(
     revision: input.revision,
     acceptedTimeSec: input.timeSec,
     acceptedVolumesMl: copyChambers(input.volumesMl),
-    materialState,
-    materialStateFingerprint,
+    materialState: input.materialState,
+    materialStateFingerprint: input.materialStateFingerprint,
   });
 }
 
@@ -422,13 +586,22 @@ function validateProvider<TState, TDrive>(
   if (!provider.parameterIdentityHash.trim()) {
     throw new Error("parameterIdentityHash must be non-empty");
   }
+  if (
+    provider.cloneDrivingInputs !== undefined
+    && typeof provider.cloneDrivingInputs !== "function"
+  ) {
+    throw new Error("cloneDrivingInputs must be a function when provided");
+  }
   validateInteger(provider.stateSchemaVersion, "stateSchemaVersion");
 }
 
-function validateAccepted<TState, TDrive>(
+function auditAcceptedState<TState, TDrive>(
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
   state: WholeHeartMechanicsAcceptedStateV1<TState>,
-): void {
+): Readonly<{
+  state: WholeHeartMechanicsAcceptedStateV1<TState>;
+  encodedMaterialState: WholeHeartMechanicsSerializableValueV1;
+}> {
   if (
     state.contractId !== WHOLE_HEART_MECHANICS_CONTRACT_V1_ID ||
     state.providerId !== provider.providerId ||
@@ -439,12 +612,70 @@ function validateAccepted<TState, TDrive>(
   validateInteger(state.revision, "accepted revision");
   validateTime(state.acceptedTimeSec, "acceptedTimeSec");
   validateVolumes(state.acceptedVolumesMl, "acceptedVolumesMl");
-  validateMaterialStateFingerprint(
+  const snapshot = snapshotMaterialState(
     provider,
     state.materialState,
-    state.materialStateFingerprint,
     "accepted material state",
   );
+  if (snapshot.fingerprint !== state.materialStateFingerprint) {
+    throw new Error(
+      "accepted material state fingerprint mismatch; snapshot was mutated or decoded inconsistently",
+    );
+  }
+  return Object.freeze({
+    state: acceptedStateFromOwnedSnapshot(provider, {
+      revision: state.revision,
+      timeSec: state.acceptedTimeSec,
+      volumesMl: state.acceptedVolumesMl,
+      materialState: snapshot.materialState,
+      materialStateFingerprint: snapshot.fingerprint,
+    }),
+    encodedMaterialState: snapshot.encoded,
+  });
+}
+
+function cloneAcceptedStateWithoutAudit<TState, TDrive>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  state: WholeHeartMechanicsAcceptedStateV1<TState>,
+): WholeHeartMechanicsAcceptedStateV1<TState> {
+  return Object.freeze({
+    contractId: state.contractId,
+    providerId: state.providerId,
+    parameterSetId: state.parameterSetId,
+    parameterIdentityHash: state.parameterIdentityHash,
+    stateSchemaVersion: state.stateSchemaVersion,
+    revision: state.revision,
+    acceptedTimeSec: state.acceptedTimeSec,
+    acceptedVolumesMl: copyChambers(state.acceptedVolumesMl),
+    materialState: provider.stateCodec.clone(state.materialState),
+    materialStateFingerprint: state.materialStateFingerprint,
+  });
+}
+
+function preparedStepInternal<TState, TDrive>(
+  preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
+): PreparedWholeHeartMechanicsStepInternalV1<TState, TDrive> {
+  if (
+    preparedStep.contextId !== WHOLE_HEART_MECHANICS_PREPARED_STEP_V1_ID
+  ) throw new Error("whole-heart mechanics prepared step identity mismatch");
+  const context = PREPARED_WHOLE_HEART_MECHANICS_STEP_INTERNALS_V1.get(
+    preparedStep,
+  );
+  if (!context) {
+    throw new Error(
+      "whole-heart mechanics prepared step is not a live checked context",
+    );
+  }
+  return context as PreparedWholeHeartMechanicsStepInternalV1<TState, TDrive>;
+}
+
+function cloneDrivingInputsForPreparedStep<TState, TDrive>(
+  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
+  drivingInputs: TDrive,
+): TDrive {
+  return provider.cloneDrivingInputs === undefined
+    ? drivingInputs
+    : provider.cloneDrivingInputs(drivingInputs);
 }
 
 function validateCandidateTime<TState>(
@@ -503,24 +734,27 @@ function validateSerializable(value: unknown, label: string): void {
   throw new Error(`${label} is not JSON-serializable`);
 }
 
-function fingerprintMaterialState<TState, TDrive>(
+function snapshotMaterialState<TState, TDrive>(
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
   state: TState,
-): string {
-  const encoded = provider.stateCodec.encode(provider.stateCodec.clone(state));
-  validateSerializable(encoded, "material state");
-  return fingerprintSerializable(encoded);
-}
-
-function validateMaterialStateFingerprint<TState, TDrive>(
-  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
-  state: TState,
-  expected: string,
   label: string,
-): void {
-  if (fingerprintMaterialState(provider, state) !== expected) {
-    throw new Error(`${label} fingerprint mismatch; snapshot was mutated or decoded inconsistently`);
-  }
+): Readonly<{
+  materialState: TState;
+  encoded: WholeHeartMechanicsSerializableValueV1;
+  fingerprint: string;
+}> {
+  const materialState = provider.stateCodec.clone(state);
+  // Encode a separate clone: codecs remain unable to mutate the owned snapshot
+  // even if an implementation accidentally treats encode as a consuming pass.
+  const encoded = provider.stateCodec.encode(
+    provider.stateCodec.clone(materialState),
+  );
+  validateSerializable(encoded, label);
+  return Object.freeze({
+    materialState,
+    encoded,
+    fingerprint: fingerprintSerializable(encoded),
+  });
 }
 
 function fingerprintSerializable(value: WholeHeartMechanicsSerializableValueV1): string {

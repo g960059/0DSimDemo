@@ -59,6 +59,10 @@ import {
   type MainWireScientificFastTbvPreviewTargetV1,
   type MainWireScientificFastTbvTerminalObservationV1,
 } from "@/engine/scientific/protocols/MainWireScientificFastTbvPreviewV1";
+import {
+  assessMainWireScientificFastTbvRefinementV1,
+  type MainWireScientificFastTbvRefinementAssessmentV1,
+} from "@/engine/scientific/protocols/MainWireScientificFastTbvRefinementPolicyV1";
 
 export const MAIN_WIRE_SCIENTIFIC_GUYTON_STARLING_PROTOCOL_V1_ID =
   "main-wire-scientific-guyton-starling-protocol-v1" as const;
@@ -503,7 +507,7 @@ export function settleMainWireScientificContinuationPreloadPointV2(
 
 /**
  * Produces a rapid finite-hold TBV observation after an artificial,
- * compliance-projected state jump and exactly two natural beats. A point may
+ * compliance-projected state jump and an initial two natural beats. A point may
  * pass the provisional near-P1 residual screen, but that is not assumed. This
  * is an intentionally separate evidence path: it never returns a settled
  * operating point, never seeds the canonical continuation planner, and never
@@ -523,6 +527,7 @@ export function estimateMainWireScientificFastTbvPreviewPointV1(
 ): Readonly<{
   evidence: MainWireScientificFastTbvPointEvidenceV1;
   terminalState: MainWireScientificProtocolAcceptedStateV1 | null;
+  refinementAssessment: MainWireScientificFastTbvRefinementAssessmentV1 | null;
 }> {
   let initializer: MainWireScientificTbvSeedInitializationDiagnosticsV1 | null =
     null;
@@ -663,6 +668,18 @@ export function estimateMainWireScientificFastTbvPreviewPointV1(
   const residualRatio =
     naturalBeatToBeatResidual /
     Math.max(predictorToFirstNaturalBeatResidual, 1e-12);
+  const refinementAssessment = assessMainWireScientificFastTbvRefinementV1({
+    previousBeat: Object.freeze({
+      naturalBeatOrdinal: 1,
+      fullStateMaximumNormalizedDelta: predictorToFirstNaturalBeatResidual,
+      observation: firstObservation,
+    }),
+    latestBeat: Object.freeze({
+      naturalBeatOrdinal: 2,
+      fullStateMaximumNormalizedDelta: naturalBeatToBeatResidual,
+      observation,
+    }),
+  });
   const policy = MAIN_WIRE_SCIENTIFIC_FAST_TBV_PREVIEW_POLICY_V1;
   const canonicalTolerance =
     MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.period1NormalizedTolerance;
@@ -716,6 +733,7 @@ export function estimateMainWireScientificFastTbvPreviewPointV1(
           "residual-near-period1-but-gate-incomplete" as const,
       }),
       secondBeat.state,
+      refinementAssessment,
     );
   }
   return fastPreviewEvaluation(
@@ -739,14 +757,181 @@ export function estimateMainWireScientificFastTbvPreviewPointV1(
           : "full-state residual did not contract monotonically after prediction",
     }),
     secondBeat.state,
+    refinementAssessment,
+  );
+}
+
+/** Advances one already-emitted rapid point by exactly one natural beat. */
+export function refineMainWireScientificFastTbvPreviewPointV1(
+  dependencies: MainWireScientificHemodynamicProtocolDependenciesV1,
+  terminalState: MainWireScientificProtocolAcceptedStateV1,
+  previousEvidence: MainWireScientificFastTbvPointEvidenceV1,
+): Readonly<{
+  evidence: MainWireScientificFastTbvPointEvidenceV1;
+  terminalState: MainWireScientificProtocolAcceptedStateV1 | null;
+  refinementAssessment: MainWireScientificFastTbvRefinementAssessmentV1 | null;
+}> {
+  if (previousEvidence.evidenceClass === "failure") {
+    return fastPreviewEvaluation(previousEvidence, null);
+  }
+  const targetTbvErrorMl = Math.abs(
+    terminalState.circulation.totalBloodVolumeMl
+      - previousEvidence.acquisition.target.totalBloodVolumeMl,
+  );
+  if (
+    !Number.isFinite(targetTbvErrorMl)
+    || targetTbvErrorMl
+      > MAIN_WIRE_SCIENTIFIC_FAST_TBV_PREVIEW_POLICY_V1.maximumTbvAbsoluteErrorMl
+  ) {
+    throw new Error(
+      "rapid TBV refinement state does not match its evidence target",
+    );
+  }
+  const previousCompleted =
+    previousEvidence.acquisition.completedNaturalBeatCountAfterPrediction;
+  if (previousCompleted < 2 || previousCompleted >= 5) {
+    throw new Error("rapid TBV point can only refine after beats 2 through 4");
+  }
+  const completed = (previousCompleted + 1) as 3 | 4 | 5;
+  const acquisition: MainWireScientificFastTbvAcquisitionV1 = Object.freeze({
+    ...previousEvidence.acquisition,
+    plannedNaturalBeatCountAfterPrediction: completed,
+    completedNaturalBeatCountAfterPrediction: completed,
+    holdDurationSec: completed * STEPS_PER_BEAT * DT_SEC,
+  });
+  let nextBeat: ReturnType<typeof runProtocolBeat>;
+  try {
+    nextBeat = runProtocolBeat(dependencies, terminalState, () => 1, true);
+  } catch (error) {
+    return fastPreviewEvaluation(
+      fastPreviewFailure({
+        target: previousEvidence.acquisition.target,
+        sourceFingerprint: previousEvidence.sourceFingerprint,
+        acquisition: Object.freeze({
+          ...acquisition,
+          completedNaturalBeatCountAfterPrediction: previousCompleted,
+          holdDurationSec: previousCompleted * STEPS_PER_BEAT * DT_SEC,
+        }),
+        failureKind: "solver",
+        reason: errorMessage(error),
+      }),
+      null,
+    );
+  }
+
+  const latestResidual = compareMainWireFiveWallAcceptedStatesV1(
+    nextBeat.state,
+    terminalState,
+    MAIN_WIRE_FIVE_WALL_PERIODIC_REFERENCE_SCALES_V1,
+  ).overall.maximumNormalizedDelta;
+  const observation = fastTbvObservationFromSteps(nextBeat.steps);
+  if (!Number.isFinite(latestResidual) || !observation.quality.numerics.passed) {
+    const numerics = observation.quality.numerics;
+    return fastPreviewEvaluation(
+      fastPreviewFailure({
+        target: previousEvidence.acquisition.target,
+        sourceFingerprint: previousEvidence.sourceFingerprint,
+        acquisition,
+        failureKind: !Number.isFinite(latestResidual) || !numerics.finite
+          ? "non-finite"
+          : numerics.totalBloodVolumeAbsoluteErrorMl
+                > MAIN_WIRE_SCIENTIFIC_FAST_TBV_PREVIEW_POLICY_V1.maximumTbvAbsoluteErrorMl
+            ? "mass-conservation"
+            : "solver",
+        reason: `fast preview refinement beat QC failed (TBV ${numerics.totalBloodVolumeAbsoluteErrorMl} mL; continuity ${numerics.maximumContinuityAbsoluteResidualMl} mL; finite closure ${Number.isFinite(latestResidual)})`,
+      }),
+      null,
+    );
+  }
+
+  const previousResidual =
+    previousEvidence.closure.latestPeriod1MaximumNormalizedDelta;
+  const residualRatio = latestResidual / Math.max(previousResidual, 1e-12);
+  const refinementAssessment = assessMainWireScientificFastTbvRefinementV1({
+    previousBeat: Object.freeze({
+      naturalBeatOrdinal: previousCompleted,
+      fullStateMaximumNormalizedDelta: previousResidual,
+      observation: previousEvidence.observation,
+    }),
+    latestBeat: Object.freeze({
+      naturalBeatOrdinal: completed,
+      fullStateMaximumNormalizedDelta: latestResidual,
+      observation,
+    }),
+  });
+  const policy = MAIN_WIRE_SCIENTIFIC_FAST_TBV_PREVIEW_POLICY_V1;
+  const canonicalTolerance =
+    MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1.period1NormalizedTolerance;
+  const closure: MainWireScientificFastTbvClosureEvidenceV1 = Object.freeze({
+    ...previousEvidence.closure,
+    observedCanonicalConsecutivePeriod1Beats:
+      latestResidual <= canonicalTolerance ? 1 as const : 0 as const,
+    latestPeriod1MaximumNormalizedDelta: latestResidual,
+    residualRatio,
+    residualTrend: residualRatio <= policy.maximumContractingResidualRatio
+      ? "contracting" as const
+      : residualRatio <= 1.05
+        ? "flat" as const
+        : "growing" as const,
+  });
+  const common = Object.freeze({
+    evidenceId: previousEvidence.evidenceId,
+    sourceFingerprint: previousEvidence.sourceFingerprint,
+    acquisition,
+    observation,
+    closure,
+  });
+  const lvPvEndpointDisplay =
+    observation.quality.lvEvents.endpointDisplayEligible;
+  const nearPeriod1 = latestResidual <= policy.nearPeriod1ResidualTolerance
+    && residualRatio <= policy.maximumContractingResidualRatio;
+  const evidence: MainWireScientificFastTbvPointEvidenceV1 = nearPeriod1
+    ? Object.freeze({
+        ...common,
+        evidenceClass: "near-period1-estimate" as const,
+        periodicityClaim: "not-demonstrated" as const,
+        eligibility: Object.freeze({
+          hemodynamicPreview: true as const,
+          rapidFiniteHoldLocus: true as const,
+          settledP1Locus: false as const,
+          lvPvEndpointDisplay,
+          continuationSeed: false as const,
+          espvrEdpvrPrswFit: false as const,
+        }),
+        estimateAssessment:
+          "residual-near-period1-but-gate-incomplete" as const,
+      })
+    : Object.freeze({
+        ...common,
+        evidenceClass: "finite-hold-unclassified" as const,
+        periodicityClaim: "not-demonstrated" as const,
+        eligibility: Object.freeze({
+          hemodynamicPreview: true as const,
+          rapidFiniteHoldLocus:
+            latestResidual <= policy.maximumRapidFiniteHoldResidual
+            && residualRatio <= policy.maximumContractingResidualRatio,
+          settledP1Locus: false as const,
+          lvPvEndpointDisplay,
+          continuationSeed: false as const,
+          espvrEdpvrPrswFit: false as const,
+        }),
+        reason: latestResidual > policy.nearPeriod1ResidualTolerance
+          ? `${completed}-beat finite hold ended outside the provisional near-P1 residual gate`
+          : "full-state residual did not contract monotonically after prediction",
+      });
+  return fastPreviewEvaluation(
+    evidence,
+    nextBeat.state,
+    refinementAssessment,
   );
 }
 
 function fastPreviewEvaluation(
   evidence: MainWireScientificFastTbvPointEvidenceV1,
   terminalState: MainWireScientificProtocolAcceptedStateV1 | null,
+  refinementAssessment: MainWireScientificFastTbvRefinementAssessmentV1 | null = null,
 ) {
-  return Object.freeze({ evidence, terminalState });
+  return Object.freeze({ evidence, terminalState, refinementAssessment });
 }
 
 function fastTbvObservationFromSteps(

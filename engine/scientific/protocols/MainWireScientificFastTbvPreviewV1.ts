@@ -76,8 +76,8 @@ export type MainWireScientificFastTbvAcquisitionV1 = Readonly<{
   target: MainWireScientificFastTbvPreviewTargetV1;
   sourceEvidenceId: string;
   initializer: MainWireScientificTbvSeedInitializationDiagnosticsV1 | null;
-  plannedNaturalBeatCountAfterPrediction: 2;
-  completedNaturalBeatCountAfterPrediction: 0 | 1 | 2;
+  plannedNaturalBeatCountAfterPrediction: 2 | 3 | 4 | 5;
+  completedNaturalBeatCountAfterPrediction: 0 | 1 | 2 | 3 | 4 | 5;
   holdDurationSec: number;
 }>;
 

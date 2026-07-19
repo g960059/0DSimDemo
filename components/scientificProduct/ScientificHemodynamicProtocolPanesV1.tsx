@@ -254,7 +254,7 @@ export function ScientificGuytonStarlingPaneV1({
         aria-hidden="true"
       >
         <ScientificLegendLineV1 color={CHART.vascular} label={data.vascularCurveLabel ?? "Vascular return · fixed-volume PV laws"} />
-        <ScientificLegendLineV1 color={CHART.cardiac} label="Rapid finite-hold estimate · not settled" dashed />
+        <ScientificLegendLineV1 color={CHART.cardiac} label="Adaptive rapid estimate · not settled" dashed />
         <ScientificLegendLineV1 color={CHART.cardiac} label={data.cardiacCurveLabel ?? "Cardiac response · P1 preload locus"} />
         <ScientificLegendMarkerV1 color={CHART.p1} label="P1" />
         <ScientificLegendMarkerV1 color={CHART.audit} label="Audit warning" />

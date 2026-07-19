@@ -36,9 +36,10 @@ import {
 import {
   cloneWholeHeartMechanicsAcceptedStateV1,
   checkpointWholeHeartMechanicsStateV1,
-  commitWholeHeartMechanicsTrialV1,
-  evaluateWholeHeartMechanicsTrialV1,
+  commitPreparedWholeHeartMechanicsTrialV1,
+  evaluatePreparedWholeHeartMechanicsTrialV1,
   initializeWholeHeartMechanicsColdV1,
+  prepareWholeHeartMechanicsStepV1,
   restoreWholeHeartMechanicsStateV1,
   type WholeHeartMechanicsAcceptedStateV1,
   type WholeHeartMechanicsCheckpointV1,
@@ -292,6 +293,12 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     candidateTimeSec,
     input.runtime,
   );
+  const mechanicsStep = prepareWholeHeartMechanicsStepV1(provider, {
+    previousAcceptedState: previous.mechanics,
+    candidateTimeSec,
+    stepDtSec: input.dtSec,
+    drivingInputs: calciumDrive,
+  });
   const circulationTrial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
     previousAcceptedState: previous.circulation,
     dtSec: input.dtSec,
@@ -300,13 +307,10 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     protocolResistanceScaleByEdge:
       input.protocolResistanceScaleByEdge,
     evaluateCandidateMechanics: (volumesMl) => {
-      const mechanicsTrial = evaluateWholeHeartMechanicsTrialV1(provider, {
-        previousAcceptedState: previous.mechanics,
-        candidateTimeSec,
-        stepDtSec: input.dtSec,
-        candidateVolumesMl: volumesMl,
-        drivingInputs: calciumDrive,
-      });
+      const mechanicsTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
+        mechanicsStep,
+        volumesMl,
+      );
       if (!mechanicsTrial.diagnostics.converged ||
           !mechanicsTrial.diagnostics.finite ||
           mechanicsTrial.diagnostics.errors.length > 0) {
@@ -369,9 +373,8 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     previous.circulation,
     circulationTrial,
   );
-  const nextMechanics = commitWholeHeartMechanicsTrialV1(
-    provider,
-    previous.mechanics,
+  const nextMechanics = commitPreparedWholeHeartMechanicsTrialV1(
+    mechanicsStep,
     mechanicsTrial,
   );
   const acceptedState = acceptedPair(
