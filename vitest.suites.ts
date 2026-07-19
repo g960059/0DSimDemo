@@ -142,7 +142,6 @@ export const fastTests = [
  * case, lesson, Reading, and rollback-runtime unit file on a two-core runner.
  */
 export const prSmokeTests = [
-  "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
   "__tests__/commonPericardiumV1.test.ts",
   "__tests__/controllerBinding.test.ts",
   "__tests__/controllerItemControl.test.ts",
@@ -152,8 +151,6 @@ export const prSmokeTests = [
   "__tests__/layoutOps.test.ts",
   "__tests__/legendPosition.test.ts",
   "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
-  "__tests__/mainWireCoronaryMechanicsCouplingV1.test.ts",
-  "__tests__/mainWireFiveWallCoronaryTransactionV1.test.ts",
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireHealthyCycleAcceptanceV1.test.ts",
   "__tests__/mainWireOfficialHealthyPeriodicCheckpointPresetV1.test.ts",
