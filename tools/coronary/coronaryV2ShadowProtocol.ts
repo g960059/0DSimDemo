@@ -1,16 +1,17 @@
 import { createHash } from "node:crypto";
 
-import {
-  NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1,
-  evaluateAllCoronaryImpV1,
-} from "@/engine/coronary/intramyocardialPressureV1";
 import type {
   CoronaryHydraulicBoundaryInputV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
+  NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
+  resolveMainWireCoronaryBoundaryV2,
+  weightedMainWireCoronaryFractionalShorteningV2,
+  type MainWireCoronaryImpMechanismV2,
+} from "@/engine/coronary/mainWireCoronaryBoundaryV2";
+import {
   CORONARY_LAYER_IDS_V2,
   CORONARY_TERRITORY_IDS_V2,
-  type CoronaryTerritoryIdV2,
   type CoronaryTerritoryLayerRecordV2,
   type CoronaryTerritoryRecordV2,
 } from "@/engine/coronary/typesV2";
@@ -21,10 +22,7 @@ export type CoronaryV2ShadowWallNumbers = Readonly<{
   RVFW: number;
 }>;
 
-export type CoronaryV2ShadowImpMechanism =
-  | "source-cep-land-active"
-  | "cep-only-control"
-  | "cep-shortening-induced";
+export type CoronaryV2ShadowImpMechanism = MainWireCoronaryImpMechanismV2;
 
 export type CoronaryV2ShadowPhaseDefinition = Readonly<{
   mitralClosurePhase01: number;
@@ -115,44 +113,23 @@ export function resolveCoronaryV2ShadowBoundary(
   impMechanism: CoronaryV2ShadowImpMechanism,
   shorteningReference: CoronaryV2ShorteningImpReference | null,
 ): CoronaryHydraulicBoundaryInputV2 {
-  const cep = impMechanism !== "source-cep-land-active"
-    ? evaluateAllCoronaryImpV1({
+  return resolveMainWireCoronaryBoundaryV2(Object.freeze({
+    absoluteAorticPressureMmHg: sample.pressureMmHg.Ao,
+    absoluteRightAtrialPressureMmHg: sample.pressureMmHg.RA,
+    sourceIntramyocardialPressureMmHgByTerritoryLayer:
+      sample.pressureMmHg.intramyocardialByTerritoryLayer,
+    mechanicsInput: Object.freeze({
       externalPressureMmHg: sample.pressureMmHg.perivascularExternal,
       chamberTransmuralPressureMmHg: Object.freeze({
         LV: sample.mechanics.chamberTransmuralPressureMmHg.LV,
         RV: sample.mechanics.chamberTransmuralPressureMmHg.RV,
       }),
-      landActiveFiberStressPaByWall: Object.freeze({
-        LVFW: 0,
-        SEP: 0,
-        RVFW: 0,
-      }),
-    })
-    : null;
-  const intramyocardialPressure = cep === null
-    ? copyLayers(sample.pressureMmHg.intramyocardialByTerritoryLayer)
-    : copyLayers(Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map(
-      (territoryId) => [territoryId, Object.fromEntries(
-        CORONARY_LAYER_IDS_V2.map((layerId) => [
-          layerId,
-          cep[territoryId][layerId].cavityInducedExtracellularPressureMmHg
-          + (impMechanism === "cep-shortening-induced"
-            ? shorteningPressureMmHg(
-              sample,
-              territoryId,
-              shorteningReference,
-            )
-            : 0),
-        ]),
-      )],
-    )) as CoronaryTerritoryLayerRecordV2<number>);
-  return Object.freeze({
-    absoluteAorticPressureMmHg: sample.pressureMmHg.Ao,
-    absoluteRightAtrialPressureMmHg: sample.pressureMmHg.RA,
-    perivascularExternalPressureMmHg:
-      sample.pressureMmHg.perivascularExternal,
-    intramyocardialPressureMmHgByTerritoryLayer: intramyocardialPressure,
-  });
+      landActiveFiberStressPaByWall:
+        sample.mechanics.landActiveFiberStressPaByWall,
+    }),
+    effectiveFiberLogStrainByWall:
+      sample.mechanics.effectiveFiberLogStrainByWall,
+  }), impMechanism, shorteningReference);
 }
 
 /** Report exactly the boundary passed to the hydraulic solver. */
@@ -179,12 +156,14 @@ export function buildCoronaryV2ShorteningImpReference(
   const referenceFiberLogStrainByWall = Object.freeze({
     ...referenceSample.mechanics.effectiveFiberLogStrainByWall,
   });
-  const smoothingWidth = 0.005;
+  const smoothingWidth =
+    NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2
+      .positivePartSmoothingWidthFraction;
   const peakWeightedFractionalShorteningByTerritory = copyTerritory(
     Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
       territoryId,
       Math.max(...sourceReport.samples.map((sample) =>
-        weightedFractionalShortening(
+        weightedMainWireCoronaryFractionalShorteningV2(
           sample.mechanics.effectiveFiberLogStrainByWall,
           referenceFiberLogStrainByWall,
           territoryId,
@@ -192,15 +171,18 @@ export function buildCoronaryV2ShorteningImpReference(
         ))),
     ])) as CoronaryTerritoryRecordV2<number>,
   );
-  const targetPeakShorteningPressureMmHg = 15 as const;
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    const peak = peakWeightedFractionalShorteningByTerritory[territoryId];
+    if (!Number.isFinite(peak) || peak <= 0) {
+      throw new Error(`${territoryId} has no positive shortening after MVC`);
+    }
+  }
+  const targetPeakShorteningPressureMmHg =
+    NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2
+      .normalReferenceCalibration.targetPeakShorteningPressureMmHg;
   const pressureGainMmHgPerUnitShorteningByTerritory = copyTerritory(
-    Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => {
-      const peak = peakWeightedFractionalShorteningByTerritory[territoryId];
-      if (!Number.isFinite(peak) || peak <= 0) {
-        throw new Error(`${territoryId} has no positive shortening after MVC`);
-      }
-      return [territoryId, targetPeakShorteningPressureMmHg / peak];
-    })) as CoronaryTerritoryRecordV2<number>,
+    NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2
+      .pressureGainMmHgPerUnitShorteningByTerritory,
   );
   return Object.freeze({
     referenceEvent: "accepted-mitral-closure" as const,
@@ -331,47 +313,6 @@ export function validateCoronaryV2R1ReferenceNumerics(
     maximumRelativeMeanQmTargetError01,
     nonInteriorLayerCount,
   });
-}
-
-function shorteningPressureMmHg(
-  sample: CoronaryV2ShadowSourceSample,
-  territoryId: CoronaryTerritoryIdV2,
-  reference: CoronaryV2ShorteningImpReference | null,
-): number {
-  if (reference === null) {
-    throw new Error("shortening IMP requires an accepted MVC reference");
-  }
-  return reference.pressureGainMmHgPerUnitShorteningByTerritory[territoryId]
-    * weightedFractionalShortening(
-      sample.mechanics.effectiveFiberLogStrainByWall,
-      reference.referenceFiberLogStrainByWall,
-      territoryId,
-      reference.positivePartSmoothingWidthFraction,
-    );
-}
-
-function weightedFractionalShortening(
-  current: CoronaryV2ShadowWallNumbers,
-  reference: CoronaryV2ShadowWallNumbers,
-  territoryId: CoronaryTerritoryIdV2,
-  smoothingWidth: number,
-): number {
-  const weights = NORMAL_ADULT_CORONARY_IMP_COUPLING_PRIOR_V1
-    .perfusedWallWeightByTerritory[territoryId];
-  return (Object.keys(weights) as (keyof CoronaryV2ShadowWallNumbers)[])
-    .reduce(
-      (sum, wallId) => sum + weights[wallId] * smoothPositivePart(
-        1 - Math.exp(current[wallId] - reference[wallId]),
-        smoothingWidth,
-      ),
-      0,
-    );
-}
-
-function smoothPositivePart(value: number, width: number): number {
-  if (value <= 0) return 0;
-  if (value >= width) return value - width / 2;
-  return value * value / (2 * width);
 }
 
 function cyclicDistance(a: number, b: number): number {

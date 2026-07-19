@@ -1,5 +1,11 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
+import {
+  NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
+  evaluateMainWireCoronaryShorteningImpV2,
+} from "@/engine/coronary/mainWireCoronaryBoundaryV2";
 import {
   buildCoronaryV2ShorteningImpReference,
   fingerprintCoronaryV2ShadowBoundarySource,
@@ -17,6 +23,53 @@ const PHASE = Object.freeze({
 });
 
 describe("coronary V2 fixed-boundary shadow protocol", () => {
+  it("preserves every accepted normal LAD ENDO SIP waveform sample", () => {
+    const source = JSON.parse(readFileSync(new URL(
+      "../data/myocardium/reports/mainwire-five-wall-coronary-twelve-beat-dt2ms-validation-v1.json",
+      import.meta.url,
+    ), "utf8")) as Readonly<{
+      samples: readonly CoronaryV2ShadowSourceSample[];
+      beatSummaries: readonly Readonly<{
+        summary: Readonly<{
+          phasicCoronaryFlow: Readonly<{
+            phaseDefinition: typeof PHASE;
+          }>;
+        }>;
+      }>[];
+    }>;
+    const accepted = JSON.parse(readFileSync(new URL(
+      "../data/myocardium/reports/mainwire-coronary-v2-lad-measurement-site-factorial-v1.json",
+      import.meta.url,
+    ), "utf8")) as Readonly<{
+      rows: readonly Readonly<{
+        waveformSamples: readonly Readonly<{
+          phase01: number;
+          imp: number;
+        }>[];
+      }>[];
+    }>;
+    const phase = source.beatSummaries.at(-1)!.summary
+      .phasicCoronaryFlow.phaseDefinition;
+    const reference = buildCoronaryV2ShorteningImpReference(source, phase);
+    const sourceByPhase = new Map(
+      source.samples.map((sourceSample) => [
+        sourceSample.cyclePhase01,
+        sourceSample,
+      ]),
+    );
+
+    for (const acceptedSample of accepted.rows[0]!.waveformSamples) {
+      const sourceSample = sourceByPhase.get(acceptedSample.phase01);
+      expect(sourceSample).toBeDefined();
+      expect(resolveCoronaryV2ShadowBoundary(
+        sourceSample!,
+        "cep-shortening-induced",
+        reference,
+      ).intramyocardialPressureMmHgByTerritoryLayer.LAD.subendocardial)
+        .toBe(acceptedSample.imp);
+    }
+  });
+
   it("reports the exact CEP/SIP boundary used by the hydraulic solver", () => {
     const mvc = sample(0.9, 0);
     const shortened = sample(0.2, -0.1);
@@ -39,16 +92,26 @@ describe("coronary V2 fixed-boundary shadow protocol", () => {
       "cep-shortening-induced",
       reference,
     );
+    const shorteningPressure = evaluateMainWireCoronaryShorteningImpV2(
+      shortened.mechanics.effectiveFiberLogStrainByWall,
+      reference,
+    );
 
     expect(source.intramyocardialPressureMmHgByTerritoryLayer.LAD)
       .toEqual({ subepicardial: 91, subendocardial: 99 });
     for (const territoryId of ["LAD", "LCx", "RCA"] as const) {
+      expect(reference.pressureGainMmHgPerUnitShorteningByTerritory[territoryId])
+        .toBe(
+          NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2
+            .pressureGainMmHgPerUnitShorteningByTerritory[territoryId],
+        );
       for (const layerId of ["subepicardial", "subendocardial"] as const) {
         expect(
           sip.intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId]
           - cep.intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId],
-        ).toBeCloseTo(15, 12);
+        ).toBeCloseTo(shorteningPressure[territoryId], 13);
       }
+      expect(shorteningPressure[territoryId]).toBeLessThan(15);
     }
     const snapshot = snapshotCoronaryV2ShadowBoundary(sip);
     expect(snapshot).toEqual({

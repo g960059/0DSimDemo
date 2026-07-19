@@ -34,13 +34,16 @@ export type MainWireCoronaryMechanicsCouplingEvaluationV1 = Readonly<{
 }>;
 
 /**
- * Typed bridge from the accepted main-wire Land/TriSeg mechanics trial to the
- * coronary IMP law. It intentionally reads Land active stress only. Passive
+ * Typed bridge from a ready main-wire Land/TriSeg cold or trial evaluation to
+ * the coronary IMP law. It intentionally reads Land active stress only. Passive
  * equilibrium and SLS overstress already contribute to chamber mechanics and
  * must not be counted a second time as an empirical vascular squeeze term.
  */
 export function evaluateMainWireCoronaryMechanicsCouplingV1<TWallState>(
-  mechanicsTrial: WholeHeartMechanicsTrialV1<TWallState>,
+  mechanicsTrial: Pick<
+    WholeHeartMechanicsTrialV1<TWallState>,
+    "diagnostics" | "transmuralPressuresMmHg"
+  >,
   input: Readonly<{
     commonIntrathoracicPressureMmHg: number;
     commonPericardialExcessPressureMmHg: number;

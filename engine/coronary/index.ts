@@ -11,4 +11,6 @@ export * from "@/engine/coronary/backwardEulerCoronaryNetworkV1";
 export * from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 export * from "@/engine/coronary/coronaryCycleEventSegmentationV1";
 export * from "@/engine/coronary/mainWireMechanicsCouplingV1";
+export * from "@/engine/coronary/mainWireCoronaryBoundaryV2";
+export * from "@/engine/coronary/mainWireNormalAdultCoronaryV2";
 export * from "@/engine/coronary/coronaryDiseasePresetsV1";
