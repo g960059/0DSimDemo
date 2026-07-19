@@ -1,4 +1,4 @@
-# Main-wire 冠循環 V1 数理モデル仕様
+# Main-wire 冠循環 V1 / V2 数理モデル仕様
 
 ## 0. 文書の状態と結論
 
@@ -17,11 +17,14 @@ main-wire scientific runtime に、冠循環を**同じ保存系の一部とし�
   linear epicardial / CS compliance、intramyocardial collapsible PV、$R(V)$、Young–Tsai reduced loss、
   3 accepted tone state、pure Backward Euler trial / commit / rollback / checkpoint、post-lesion algebraic $P_d$、
   distributed-arterial tone ownership、$r_{min}=4/45$、collapse-only $R(V)$をtargeted testで確認した。
-- **Phase B atomic transaction implemented / periodic adoption pending**：same-candidate five-wall Land / TriSeg
+- **Phase B V2 atomic transaction implemented / periodic adoption pending**：same-candidate five-wall Land / TriSeg
   readbackからLV/RV transmural pressure、Land active stress、common external pressureを作るtyped bridgeと、
-  noncoronary outer solverのgeneric conservative-companion seam、Ao uptake / RA returnを接続するcoronary adapter、
-  circulation / coronary / mechanicsのatomic commit / rollbackはbranchのtargeted testで確認した。ただしこれは
-  one-step transaction acceptanceであり、full 25-node healthy periodic releaseやbrowser runtime adoptionを意味しない。
+  noncoronary outer solverのgeneric conservative-companion seam、Ao uptake / RA returnを接続するcoronary adapterを実装した。
+  accepted transactionは15 noncoronary volume、16 coronary volume、6 layer-tone、mechanics、MVC shortening referenceを
+  一括でcommit / rollbackし、31 blood-volume ledgerをfixed global TBVへ厳密に束縛する。whole-tuple SHA-256 checkpointと、
+  旧68 stateに冠16 volume、6 tone、MVC 3 strain、mitral phase memoryを加えた94-entry periodic closure contractも実装済みである。
+  ただしこれはatomic one-stepと判定器のacceptanceであり、healthy P1 orbit、2--1 ms convergence、browser runtime adoptionを
+  意味しない。
 - **Phase C--E not yet canonical**：healthy periodic calibration、CFR / FFR-like protocol、disease envelope、
   observable / controller registry、Workbench / browser runtime adoptionは将来workである。以下のUI節はproduct
   contractであり、現在のbrowser表示を記述したものではない。
@@ -2328,3 +2331,62 @@ artifactだけで再生成でき、一時的なfull 20-beat / 260-beat reportを
 reproduction metadataには明示的なcandidate rowを保存し、D/S再監査とcandidate選択もcompact artifact単体で再現する。
 C1→C2 fluxは`qmInternal`、その周期平均比は
 `endocardialToEpicardialMeanQmInternalRatio`と呼び、旧`tissue`名は既存reader用deprecated aliasに限定する。
+
+## 29. PR #483との選択的整合とclosed-loop V2 acceptance boundary
+
+PR #483の変更は、非冠循環V1で測定された高速TBV previewと、モデル次元に依存しないstep-context最適化を含む。
+V2冠循環へは後者だけを選択的に移植した。具体的には、accepted mechanics stateをouter step開始時に一度だけ監査し、
+Newton候補は同じprivate snapshotから評価する。constitutive equation、Land state、TriSeg solve、弁則、収束許容値は変更しない。
+prepared trialは発行したexact contextへprivateに束縛し、別drive contextからのcommit、偽造trial、二重commit、commit後の再評価を
+fail closedとした。
+
+一方、PR #483のrapid 2--5 beat結果、68-state drift、V1 numerical threshold、9-target browser budgetはV2へ流用しない。
+V2のaccepted ownershipは次である。
+
+- noncoronary conserved volume：15
+- coronary conserved volume：16
+- accepted coronary layer-tone：6
+- five-wall mechanics material state
+- MVC shortening reference strain：LVFW / SEP / RVFWの3値
+- mitral forward-flow phase memory：1 boolean
+
+global TBVは31 volumeの和として一つだけ所有する。checkpointはこのtuple全体、provider identity、冠topology / collapse / IMP
+bindingをcanonical JSON SHA-256で束縛し、旧schemaやnested payload改変をrestoreしない。toneが固定stateである現在のschemaには
+autoregulation accumulatorを暗黙に持たせない。将来toneを時間発展させる前に、6層Qm積分、3 territory perfusion-pressure積分、
+window phase / start / duration / sample countをaccepted stateと新checkpoint schemaへ追加する。
+
+### 29.1 outer Newtonの陰的coronary sensitivity
+
+outer scaled variableを$x$、16 coronary volumeを$V_c$、Backward Euler residualを$R_c(V_c,x)=0$とすると、
+
+\[
+J_c\frac{\mathrm dV_c}{\mathrm dx}
+=-\frac{\partial R_c}{\partial x},
+\qquad
+J_c=\frac{\partial R_c}{\partial V_c}.
+\]
+
+収束済みcandidateを再solveせずこの線形系を解き、total coronary storage、Ao uptake、CV→RA returnのtotal derivativeを
+noncoronary outer Jacobianへ渡す。Ao方向はcandidate aortic pressureを、LA / LV / RA / RV方向はprepared full-Land mechanics、
+common pericardium、mechanics coupling、source IMP、CEP / Land / SIP resolverをそれぞれ$V\pm h$で再評価する。
+collapseとstenosisも同じcoronary residualに残るため、IMPだけを落としたpartial tangentにはしない。残るvascular 9方向は
+minus / plus boundaryがbaseと数値的に**完全一致**する場合だけzero directionとしてprobeを省略する。
+
+development full-FD shadowとの差はmaximum absolute `2.09e-6`、relative Frobenius `1.03e-6`であった。同じlocal machine、
+20 step、$\Delta t=2$ msの比較では、full-FD `53.686 ms/step`からimplicit path `17.768 ms/step`へ66.9%短縮し、
+outer mechanics candidateは通常19--28個から3--5個へ減った。ただしこれはlocal profileであり、なお1 simulated secondあたり
+約8.884 sを要する。従ってPR #483のbrowser rapid budgetをV2で満たしたとは主張しない。
+
+### 29.2 periodicity contract
+
+V2 closureは旧68 numeric stateだけでなく、16 coronary volume、6 tone、3 MVC reference strain、1 mitral phase booleanを調べる。
+すなわち93 numeric + 1 boolean、計94 entryである。binding、fixed global TBV、mechanics provider identityはdeltaではなくexact
+compatibility gateとする。accepted time / revision / MVC event countは周期stateの数値差から除外するが、単調なprovenanceとして
+検査する。
+
+P1は、同じSHA-256 protocol capsuleに属するcomplete V2 reportが3拍連続して許容値内にある時だけ成立する。
+protocol capsuleはruntime、calcium、pericardium、valve、coronary disease / prior / collapse / IMP、provider identity、dt、solver policyを
+束縛しなければならない。単一比較、2拍だけの比較、rapid-presentation lane、旧68 stateだけの一致はP1 evidenceにならない。
+このclassifierとatomic stepが実装済みでも、healthy periodic orbit自体はまだ未提示である。長時間P1、2--1 ms refinement、
+pressure-step、hyperemia / CFR、狭窄 / CMD direction、site-matched LAD / coronary venous morphologyを通すまで
+`simulationReady=false`を維持する。

@@ -24,6 +24,13 @@ own clone. The selected candidate is re-fingerprinted at commit, so mutation
 between evaluation and promotion remains an error. Checkpoint, restore, and
 standalone public APIs retain their full audits.
 
+The prepared handle is also a one-shot transaction capability. Each emitted
+trial is privately bound to the exact handle that produced it; a forged trial,
+a trial from another same-time/same-provider handle with a different drive,
+evaluation after successful promotion, and duplicate promotion all fail
+closed. A failed promotion does not consume the handle, so validation failure
+cannot silently alter accepted ownership.
+
 Driving inputs remain zero-copy for the current deeply immutable calcium
 payload. The provider contract now also exposes an optional clone hook: future
 mutable autonomic, coronary, or device drive payloads can be snapshotted once
@@ -45,6 +52,35 @@ the V2 coronary transaction enters the scientific runtime, rapid refinement
 must include all 31 blood-volume owners, six tone states, and accepted MVC
 reference memory in its drift assessment; it cannot reuse the legacy 68-state
 P1 closure or promote a rapid point as canonical periodic evidence.
+
+The provisional V2 transaction now also supplies the outer circulation Newton
+with a full same-candidate coronary directional sensitivity. For each scaled
+outer variable, the converged 16-volume coronary residual satisfies
+
+\[
+\frac{\mathrm dV_{cor}}{\mathrm dx}
+=-\left(\frac{\partial R_{cor}}{\partial V_{cor}}\right)^{-1}
+\frac{\partial R_{cor}}{\partial x}.
+\]
+
+Ao pressure and all four chamber directions are differentiated through the
+same prepared Land/TriSeg evaluation, common pericardium, CEP/Land/SIP
+boundary resolver, collapse law, and stenosis law. The other nine vascular
+directions are recognized only when both boundary probes are exactly equal to
+the base boundary; their zero derivative then skips direction probes and the
+linear solve without using a numerical near-zero threshold. A development
+full-FD shadow gave maximum absolute Jacobian difference `2.09e-6` and relative
+Frobenius difference `1.03e-6`.
+
+On the same local machine and the same 20 canonical 2-ms steps, the pre-Schur
+full-FD commit required `53.686 ms/step` (`26.843 s` wall time per simulated
+second), whereas the implicit companion path required `17.768 ms/step`
+(`8.884 s` per simulated second), a 66.9% step-time reduction. Outer candidate
+mechanics evaluations fell from typically 19--28 to 3--5. This is a local
+development profile, not a supported-hardware claim, and it remains too slow
+to reuse PR #483's ten-second multi-target rapid-preview budget. V2 browser
+adoption therefore remains gated on further solver work and independent
+end-to-end measurement.
 
 ## Profile result
 
