@@ -168,6 +168,51 @@ export type CoronaryBackwardEulerTrialV2 = Readonly<{
   diagnostics: CoronaryBackwardEulerDiagnosticsV2;
 }>;
 
+export type CoronaryImplicitBoundaryDirectionV2 = Readonly<{
+  /** Positive central-difference half step in the caller's scaled variable. */
+  scaledStep: number;
+  minusBoundary: CoronaryHydraulicBoundaryInputV2;
+  plusBoundary: CoronaryHydraulicBoundaryInputV2;
+}>;
+
+/** Structurally assignable to NonCoronaryConservativeCompanionSensitivitiesV1. */
+export type CoronaryConservativeCompanionSensitivitiesV2 = Readonly<{
+  dCandidateCompanionBloodVolumeMlDScaledIndependentVolume:
+    readonly number[];
+  dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume: Readonly<{
+    Ao: readonly number[];
+    RA: readonly number[];
+  }>;
+}>;
+
+export type CoronaryBackwardEulerImplicitDirectionalSensitivitiesV2 =
+  Readonly<{
+    dCandidateVolumeMlByNodeDScaledVariable:
+      readonly CoronaryConservedVolumeStateV2[];
+    dCandidateCoronaryBloodVolumeMlDScaledVariable: readonly number[];
+    dTotalInletFlowMlPerSecDScaledVariable: readonly number[];
+    dCommonCoronaryVenousOutletFlowMlPerSecDScaledVariable:
+      readonly number[];
+    conservativeCompanionSensitivities:
+      CoronaryConservativeCompanionSensitivitiesV2;
+    diagnostics: Readonly<{
+      baseTrialReusedWithoutResolve: true;
+      candidateTrialResolveCount: 0;
+      directionCount: number;
+      maximumAbsoluteReconstructedBaseResidualMl: number;
+      maximumAbsoluteLinearizedResidualMlPerScaledVariable: number;
+    }>;
+  }>;
+
+export type CoronaryBackwardEulerImplicitSensitivityRequestV2 = Readonly<{
+  previousAcceptedState: CoronaryAcceptedHydraulicStateV2;
+  trialInput: CoronaryBackwardEulerTrialInputV2;
+  prior?: CoronaryTopologyPriorV2;
+  topology?: CoronaryTopologyV2;
+  baseTrial: CoronaryBackwardEulerTrialV2;
+  boundaryDirections: readonly CoronaryImplicitBoundaryDirectionV2[];
+}>;
+
 export type CoronaryPressureLadderInitializerOptionsV2 = Readonly<{
   maximumNewtonIterations: number;
   maximumLineSearchBacktracks: number;
@@ -683,6 +728,237 @@ export function solveCoronaryBackwardEulerTrialV2(
   });
 }
 
+/**
+ * Reconstruct the converged BE trial's implicit directional derivative without
+ * resolving any candidate trial. Boundary probes and volume probes always use
+ * the same previous state, accepted tone, disease, and collapse ownership.
+ */
+export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
+  request: CoronaryBackwardEulerImplicitSensitivityRequestV2,
+): CoronaryBackwardEulerImplicitDirectionalSensitivitiesV2 {
+  const prior = request.prior ?? NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
+  const topology = request.topology ?? buildCoronaryTopologyV2(prior);
+  validateCoronaryTopologyV2(topology);
+  validateAcceptedStateV2(request.previousAcceptedState, topology);
+  validateTrialInputV2(request.trialInput);
+  if (request.boundaryDirections.length === 0) {
+    throw new RangeError("coronary implicit sensitivity requires a direction");
+  }
+  const baseTrial = request.baseTrial;
+  if (
+    baseTrial.baseAcceptedRevision !== request.previousAcceptedState.revision
+    || baseTrial.baseAcceptedTimeSec
+      !== request.previousAcceptedState.acceptedTimeSec
+    || baseTrial.dtSec !== request.trialInput.dtSec
+    || baseTrial.candidateAcceptedState.revision
+      !== request.previousAcceptedState.revision + 1
+    || baseTrial.candidateAcceptedState.acceptedTimeSec
+      !== request.previousAcceptedState.acceptedTimeSec
+        + request.trialInput.dtSec
+  ) {
+    throw new RangeError(
+      "coronary implicit sensitivity base trial does not match previous/input",
+    );
+  }
+  const disease = request.trialInput.disease ?? NORMAL_CORONARY_DISEASE_INPUT_V2;
+  const collapseHydraulics = request.trialInput.collapseHydraulics
+    ?? buildCoronaryCollapseHydraulicsPriorV2(topology);
+  validateDiseaseV2(disease);
+  validateCollapseHydraulicsV2(collapseHydraulics, topology);
+  const options = resolveSolverOptionsV2(request.trialInput.solverOptions);
+  const edgeIndex = buildCoronaryEdgeIndexV2(topology);
+  const previous = volumeRecordToArrayV2(
+    request.previousAcceptedState.volumeMlByNode,
+  );
+  const candidate = volumeRecordToArrayV2(
+    baseTrial.candidateAcceptedState.volumeMlByNode,
+  );
+  const minimumVolumes = topology.nodes.map(
+    (node) => node.pressureVolume.referenceVolumeMl
+      * options.minimumVolumeFractionOfReference,
+  );
+  validateVolumesV2(
+    candidate,
+    topology,
+    options.minimumVolumeFractionOfReference,
+  );
+
+  const evaluate = (
+    candidateVolumes: number[],
+    boundary: CoronaryHydraulicBoundaryInputV2,
+  ): ResidualEvaluationV2 => {
+    validateBoundaryV2(boundary);
+    validateVolumesV2(
+      candidateVolumes,
+      topology,
+      options.minimumVolumeFractionOfReference,
+    );
+    const hydraulics = evaluateHydraulicsInternalV2(
+      candidateVolumes,
+      request.previousAcceptedState.toneResistanceScaleByTerritoryLayer,
+      boundary,
+      disease,
+      topology,
+      edgeIndex,
+      collapseHydraulics,
+    );
+    const residual = candidateVolumes.map(
+      (volume, index) => volume - previous[index],
+    );
+    accumulateFlowContinuityV2(
+      residual,
+      hydraulics.flowByEdge,
+      request.trialInput.dtSec,
+      topology,
+    );
+    return { residual, hydraulics };
+  };
+
+  const base = evaluate(candidate.slice(), request.trialInput.boundary);
+  const baseResidualNorm = infinityNormV2(base.residual);
+  const baseResidualLimit = Math.max(
+    1e-8,
+    100 * (
+      baseTrial.diagnostics.finalResidualInfinityNormMl
+      + options.absoluteResidualToleranceMl
+    ),
+  );
+  if (baseResidualNorm > baseResidualLimit) {
+    throw new RangeError(
+      "coronary implicit sensitivity base trial is not converged for supplied input",
+    );
+  }
+  const jacobian = numericalJacobianPositiveCentralV2(
+    candidate,
+    (volumes) => evaluate(volumes, request.trialInput.boundary).residual,
+    minimumVolumes,
+    options.finiteDifferenceRelativeStep,
+  );
+
+  const dVolumeByDirection: CoronaryConservedVolumeStateV2[] = [];
+  const dTotalVolume: number[] = [];
+  const dTotalInlet: number[] = [];
+  const dCommonVenousOutlet: number[] = [];
+  let maximumLinearizedResidual = 0;
+  for (const direction of request.boundaryDirections) {
+    if (!Number.isFinite(direction.scaledStep) || direction.scaledStep <= 0) {
+      throw new RangeError("scaledStep must be positive and finite");
+    }
+    validateBoundaryV2(direction.minusBoundary);
+    validateBoundaryV2(direction.plusBoundary);
+    const plusBoundaryResidual = evaluate(
+      candidate.slice(),
+      direction.plusBoundary,
+    ).residual;
+    const minusBoundaryResidual = evaluate(
+      candidate.slice(),
+      direction.minusBoundary,
+    ).residual;
+    const dResidualDScaledVariable = plusBoundaryResidual.map(
+      (value, index) =>
+        (value - minusBoundaryResidual[index]) / (2 * direction.scaledStep),
+    );
+    requireFiniteVectorV2(
+      dResidualDScaledVariable,
+      "coronary boundary residual directional derivative",
+    );
+    const dVolume = solveDenseLinearSystemV2(
+      jacobian,
+      dResidualDScaledVariable.map((value) => -value),
+    );
+    requireFiniteVectorV2(
+      dVolume,
+      "coronary implicit volume directional derivative",
+    );
+    const linearizedResidual = jacobian.map((row, rowIndex) =>
+      row.reduce(
+        (sum, value, columnIndex) => sum + value * dVolume[columnIndex],
+        dResidualDScaledVariable[rowIndex],
+      ));
+    maximumLinearizedResidual = Math.max(
+      maximumLinearizedResidual,
+      infinityNormV2(linearizedResidual),
+    );
+
+    const combinedPlusVolume = candidate.map(
+      (value, index) => value + direction.scaledStep * dVolume[index],
+    );
+    const combinedMinusVolume = candidate.map(
+      (value, index) => value - direction.scaledStep * dVolume[index],
+    );
+    validateVolumesV2(
+      combinedPlusVolume,
+      topology,
+      options.minimumVolumeFractionOfReference,
+    );
+    validateVolumesV2(
+      combinedMinusVolume,
+      topology,
+      options.minimumVolumeFractionOfReference,
+    );
+    const combinedPlus = evaluate(
+      combinedPlusVolume,
+      direction.plusBoundary,
+    ).hydraulics;
+    const combinedMinus = evaluate(
+      combinedMinusVolume,
+      direction.minusBoundary,
+    ).hydraulics;
+    const denominator = 2 * direction.scaledStep;
+    const totalVolumeDerivative =
+      (sumV2(combinedPlusVolume) - sumV2(combinedMinusVolume)) / denominator;
+    const totalInletDerivative =
+      (totalInletFlowV2(combinedPlus.flowByEdge, edgeIndex)
+        - totalInletFlowV2(combinedMinus.flowByEdge, edgeIndex))
+      / denominator;
+    const commonVenousOutletDerivative =
+      (combinedPlus.flowByEdge[edgeIndex.CV_RA]
+        - combinedMinus.flowByEdge[edgeIndex.CV_RA])
+      / denominator;
+    requireFiniteVectorV2(
+      [
+        totalVolumeDerivative,
+        totalInletDerivative,
+        commonVenousOutletDerivative,
+      ],
+      "coronary implicit observable directional derivative",
+    );
+    dVolumeByDirection.push(arrayToVolumeRecordV2(dVolume));
+    dTotalVolume.push(totalVolumeDerivative);
+    dTotalInlet.push(totalInletDerivative);
+    dCommonVenousOutlet.push(commonVenousOutletDerivative);
+  }
+
+  const frozenTotalVolume = Object.freeze(dTotalVolume);
+  const frozenTotalInlet = Object.freeze(dTotalInlet);
+  const frozenCommonVenousOutlet = Object.freeze(dCommonVenousOutlet);
+  return Object.freeze({
+    dCandidateVolumeMlByNodeDScaledVariable:
+      Object.freeze(dVolumeByDirection),
+    dCandidateCoronaryBloodVolumeMlDScaledVariable: frozenTotalVolume,
+    dTotalInletFlowMlPerSecDScaledVariable: frozenTotalInlet,
+    dCommonCoronaryVenousOutletFlowMlPerSecDScaledVariable:
+      frozenCommonVenousOutlet,
+    conservativeCompanionSensitivities: Object.freeze({
+      dCandidateCompanionBloodVolumeMlDScaledIndependentVolume:
+        frozenTotalVolume,
+      dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume:
+        Object.freeze({
+          Ao: Object.freeze(frozenTotalInlet.map((value) => -value)),
+          RA: frozenCommonVenousOutlet,
+        }),
+    }),
+    diagnostics: Object.freeze({
+      baseTrialReusedWithoutResolve: true as const,
+      candidateTrialResolveCount: 0 as const,
+      directionCount: request.boundaryDirections.length,
+      maximumAbsoluteReconstructedBaseResidualMl: baseResidualNorm,
+      maximumAbsoluteLinearizedResidualMlPerScaledVariable:
+        maximumLinearizedResidual,
+    }),
+  });
+}
+
 export class CoronaryBackwardEulerTransactionV2 {
   readonly prior: CoronaryTopologyPriorV2;
   readonly topology: CoronaryTopologyV2;
@@ -1149,6 +1425,42 @@ function numericalJacobianPositiveV2(
   return jacobian;
 }
 
+function numericalJacobianPositiveCentralV2(
+  candidate: readonly number[],
+  evaluateResidual: (candidate: number[]) => readonly number[],
+  minimumVolumes: readonly number[],
+  relativeStep: number,
+): number[][] {
+  const n = candidate.length;
+  const jacobian = Array.from({ length: n }, () => Array<number>(n).fill(0));
+  for (let column = 0; column < n; column += 1) {
+    const nominalStep = Math.max(
+      1e-9,
+      relativeStep * Math.max(1, Math.abs(candidate[column])),
+    );
+    const positiveHeadroom = candidate[column] - minimumVolumes[column];
+    const step = Math.min(nominalStep, 0.25 * positiveHeadroom);
+    if (!Number.isFinite(step) || step <= 0) {
+      throw new RangeError(
+        `${CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[column]} has no positive-domain central-difference headroom`,
+      );
+    }
+    const plus = candidate.slice();
+    const minus = candidate.slice();
+    plus[column] += step;
+    minus[column] -= step;
+    const plusResidual = evaluateResidual(plus);
+    const minusResidual = evaluateResidual(minus);
+    for (let row = 0; row < n; row += 1) {
+      jacobian[row][column] =
+        (plusResidual[row] - minusResidual[row]) / (2 * step);
+    }
+  }
+  jacobian.forEach((row, index) =>
+    requireFiniteVectorV2(row, `coronary residual Jacobian row ${index}`));
+  return jacobian;
+}
+
 function numericalJacobianUnboundedV2(
   candidate: readonly number[],
   _baseResidual: readonly number[],
@@ -1576,6 +1888,14 @@ function layerIndexV2(
   layerId: (typeof CORONARY_LAYER_IDS_V2)[number],
 ): number {
   return CORONARY_LAYER_IDS_V2.indexOf(layerId);
+}
+
+function requireFiniteVectorV2(values: readonly number[], label: string): void {
+  values.forEach((value, index) => {
+    if (!Number.isFinite(value)) {
+      throw new RangeError(`${label}[${index}] must be finite`);
+    }
+  });
 }
 
 function infinityNormV2(values: readonly number[]): number {
