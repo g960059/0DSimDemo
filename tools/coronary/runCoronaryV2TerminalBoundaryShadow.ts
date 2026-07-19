@@ -2,10 +2,13 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import {
+  applyBeatingReferenceR1CalibrationV2,
   buildCoronaryTopologyV2,
   CHILIAN_1991_DIRECTIONAL_TRANSMURAL_REPARTITION_ABLATION_V2,
   NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  LOW_RM_70_15_15_REPARTITION_ABLATION_V2,
   repartitionCoronaryMicrovascularResistanceV2,
+  scaleCoronaryIntramyocardialComplianceV2,
   scaleCoronaryLargeArterialComplianceV2,
   type CoronaryTopologyPriorV2,
 } from "@/engine/coronary/topologyPriorV2";
@@ -17,9 +20,10 @@ import {
   type CoronaryAutoregulationLawV2,
 } from "@/engine/coronary/autoregulationV2";
 import {
+  buildCoronaryCollapseHydraulicsPriorV2,
+  disableCoronaryCollapseHydraulicsV2,
   initializePressureLadderCoronaryStateV2,
   solveCoronaryBackwardEulerTrialV2,
-  type CoronaryHydraulicBoundaryInputV2,
   type CoronaryHydraulicEvaluationV2,
 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
 import {
@@ -32,6 +36,16 @@ import {
   type CoronaryTerritoryLayerRecordV2,
   type CoronaryTerritoryRecordV2,
 } from "@/engine/coronary/typesV2";
+import {
+  buildCoronaryV2ShorteningImpReference,
+  fingerprintCoronaryV2ShadowBoundarySource,
+  resolveCoronaryV2ShadowBoundary,
+  snapshotCoronaryV2ShadowBoundary,
+  validateCoronaryV2R1ReferenceNumerics,
+  type CoronaryV2ShadowImpMechanism,
+  type CoronaryV2ShadowPhaseDefinition,
+  type CoronaryV2ShadowSourceSample,
+} from "./coronaryV2ShadowProtocol";
 
 const REPORT_SCHEMA =
   "circleheart.coronary-v2-terminal-boundary-shadow.v1" as const;
@@ -43,19 +57,19 @@ const DEFAULT_OUTPUT_PATH = path.resolve(
   "data/myocardium/reports",
   "mainwire-coronary-v2-terminal-boundary-shadow-v1.json",
 );
+const DEFAULT_R1_REFERENCE_REPORT_PATH = path.resolve(
+  "data/myocardium/reports",
+  "mainwire-coronary-v2-autoregulated-terminal-boundary-shadow-v1.json",
+);
 
 type TerritoryNumbers = CoronaryTerritoryRecordV2<number>;
 type LayerNumbers = CoronaryTerritoryLayerRecordV2<number>;
+type ResistancePartitionMode =
+  | "symmetric-60-30-10"
+  | "chilian-directional-transmural"
+  | "low-rm-70-15-15-ablation";
 
-type SourceSample = Readonly<{
-  cyclePhase01: number;
-  pressureMmHg: Readonly<{
-    Ao: number;
-    RA: number;
-    perivascularExternal: number;
-    intramyocardialByTerritoryLayer: LayerNumbers;
-  }>;
-}>;
+type SourceSample = CoronaryV2ShadowSourceSample;
 
 type SourceReport = Readonly<{
   schema: string;
@@ -78,6 +92,47 @@ type SourceReport = Readonly<{
   samples: readonly SourceSample[];
 }>;
 
+type R1ReferenceSourceReport = Readonly<{
+  completed: boolean;
+  configuration: Readonly<{
+    sourceSchema: string;
+    dtSec: number;
+    cycleLengthSec: number;
+    requestedBeatCount?: number;
+    toneLaw?: string;
+    toneUpdateWindowSec?: number;
+    boundaryFingerprint?: string;
+    toneMode: string;
+    resistancePartitionMode: string;
+    largeArterialComplianceScale: number;
+    intramyocardialC1ComplianceScale?: number;
+    intramyocardialC2ComplianceScale?: number;
+    r1ReferenceMode?: string;
+    impMechanism?: string;
+    collapseMode?: string;
+    collapseResidualHydraulicAreaFraction?: number;
+  }>;
+  finalSummary: Readonly<{
+    closure: Readonly<{
+      maximumAbsoluteMl: number;
+      maximumRelative01: number;
+    }>;
+    toneResistanceScaleByTerritoryLayer: LayerNumbers;
+    toneClosure: Readonly<{
+      maximumAbsoluteLogResistanceScaleChange: number;
+    }>;
+    summary: Readonly<{
+      maximumSolverResidualInfinityNormMl: number;
+    }>;
+    toneStep: CoronaryAutoregulationAcceptedStepV2;
+  }>;
+  runHealth: Readonly<{
+    maximumAbsoluteLedgerResidualMl: number;
+    minimumEdgeDissipatedPowerMmHgMlPerSec: number;
+    allPassiveEdgesNonnegativePower: boolean;
+  }>;
+}>;
+
 type ShadowSample = Readonly<{
   cyclePhase01: number;
   boundaryPressureMmHg: Readonly<{
@@ -95,6 +150,8 @@ type ShadowSample = Readonly<{
     commonVenousOutlet: number;
     inletByTerritory: TerritoryNumbers;
     r1ByTerritoryLayer: LayerNumbers;
+    qmInternalByTerritoryLayer: LayerNumbers;
+    /** @deprecated Use qmInternalByTerritoryLayer. */
     tissueByTerritoryLayer: LayerNumbers;
     r2ByTerritoryLayer: LayerNumbers;
   }>;
@@ -107,16 +164,29 @@ type ShadowSample = Readonly<{
   }>;
 }>;
 
-type PhaseDefinition = Readonly<{
-  mitralClosurePhase01: number;
-  aorticOpeningPhase01: number;
-  aorticClosurePhase01: number;
-}>;
+type PhaseDefinition = CoronaryV2ShadowPhaseDefinition;
 
 const sourcePath = argument("--source", DEFAULT_SOURCE_PATH);
 const outputPath = argument("--output", DEFAULT_OUTPUT_PATH);
+const r1ReferenceReportPath = argument(
+  "--r1-reference-report",
+  DEFAULT_R1_REFERENCE_REPORT_PATH,
+);
 const beatCount = integerArgument("--beats", 20);
 const toneMode = toneModeArgument("--tone-mode", "fixed");
+const r1ReferenceMode = r1ReferenceModeArgument(
+  "--r1-reference-mode",
+  "static-pressure-construction",
+);
+const impMechanism = impMechanismArgument(
+  "--imp-mechanism",
+  "source-cep-land-active",
+);
+const collapseMode = collapseModeArgument("--collapse-mode", "enabled");
+const collapseResidualHydraulicAreaFraction = fractionArgument(
+  "--collapse-residual-area-fraction",
+  0.10,
+);
 const toneLaw = toneLawArgument(
   "--tone-law",
   "integral-flow-homeostasis-v2",
@@ -129,35 +199,107 @@ const largeArterialComplianceScale = positiveNumberArgument(
   "--large-arterial-compliance-scale",
   1,
 );
+const intramyocardialC1ComplianceScale = positiveNumberArgument(
+  "--intramyocardial-c1-compliance-scale",
+  1,
+);
+const intramyocardialC2ComplianceScale = positiveNumberArgument(
+  "--intramyocardial-c2-compliance-scale",
+  1,
+);
 const initializerPhase01 = numberArgument("--initializer-phase", 0.50);
 const source = JSON.parse(readFileSync(sourcePath, "utf8")) as SourceReport;
 validateSource(source);
 const dtSec = source.configuration.dtSec;
-const resistancePrior = resistancePartitionMode === "chilian-directional-transmural"
-  ? repartitionCoronaryMicrovascularResistanceV2(
+const phaseDefinition = acceptedPhaseDefinition(source);
+const shorteningImpReference = impMechanism === "cep-shortening-induced"
+  ? buildCoronaryV2ShorteningImpReference(source, phaseDefinition)
+  : null;
+const boundaryFingerprint = fingerprintCoronaryV2ShadowBoundarySource(
+  source,
+  Object.freeze({
+    phaseDefinition,
+    impMechanism,
+    shorteningReference: shorteningImpReference,
+  }),
+);
+const resistancePrior = resistancePartitionMode === "symmetric-60-30-10"
+  ? NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2
+  : repartitionCoronaryMicrovascularResistanceV2(
     NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
-    CHILIAN_1991_DIRECTIONAL_TRANSMURAL_REPARTITION_ABLATION_V2,
-  )
-  : NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
-const activePrior = largeArterialComplianceScale === 1
+    resistancePartitionMode === "chilian-directional-transmural"
+      ? CHILIAN_1991_DIRECTIONAL_TRANSMURAL_REPARTITION_ABLATION_V2
+      : LOW_RM_70_15_15_REPARTITION_ABLATION_V2,
+  );
+const intramyocardialCompliancePrior = (
+  intramyocardialC1ComplianceScale === 1
+  && intramyocardialC2ComplianceScale === 1
+)
   ? resistancePrior
+  : scaleCoronaryIntramyocardialComplianceV2(resistancePrior, {
+    c1Proximal: intramyocardialC1ComplianceScale,
+    c2Distal: intramyocardialC2ComplianceScale,
+  });
+const compliancePrior = largeArterialComplianceScale === 1
+  ? intramyocardialCompliancePrior
   : scaleCoronaryLargeArterialComplianceV2(
-    resistancePrior,
+    intramyocardialCompliancePrior,
     largeArterialComplianceScale,
   );
+const r1ReferenceCalibration = r1ReferenceMode === "rebased-accepted-tone"
+  ? calibrationFromAcceptedToneReport(
+    r1ReferenceReportPath,
+    source,
+    boundaryFingerprint,
+    resistancePartitionMode,
+    largeArterialComplianceScale,
+    intramyocardialC1ComplianceScale,
+    intramyocardialC2ComplianceScale,
+    impMechanism,
+    collapseMode,
+    collapseResidualHydraulicAreaFraction,
+  )
+  : null;
+const activePrior = r1ReferenceCalibration === null
+  ? compliancePrior
+  : applyBeatingReferenceR1CalibrationV2(
+    compliancePrior,
+    r1ReferenceCalibration.descriptor,
+  );
 const activeTopology = buildCoronaryTopologyV2(activePrior);
+const enabledCollapseHydraulics = buildCoronaryCollapseHydraulicsPriorV2(
+  activeTopology,
+  collapseResidualHydraulicAreaFraction,
+);
+const collapseHydraulics = collapseMode === "enabled"
+  ? enabledCollapseHydraulics
+  : disableCoronaryCollapseHydraulicsV2(
+    enabledCollapseHydraulics,
+    activeTopology,
+  );
 const toneUpdateWindowSec = positiveNumberArgument(
   "--tone-update-window-sec",
   source.configuration.cycleLengthSec,
 );
-const phaseDefinition = acceptedPhaseDefinition(source);
 const orderedBoundarySamples = rotateCycleAtPhase(
   source.samples,
   initializerPhase01,
 );
-const firstBoundary = toBoundary(orderedBoundarySamples[0]!);
+// The initializer owns the state at orderedBoundarySamples[0]. Each BE input
+// is the boundary at the end of the following step; replaying sample 0 first
+// would duplicate the initializer phase and omit the closing phase interval.
+const boundaryStepEndSamples = Object.freeze([
+  ...orderedBoundarySamples.slice(1),
+  orderedBoundarySamples[0]!,
+]);
+const firstBoundary = resolveCoronaryV2ShadowBoundary(
+  orderedBoundarySamples[0]!,
+  impMechanism,
+  shorteningImpReference,
+);
 const initialized = initializePressureLadderCoronaryStateV2({
   boundary: firstBoundary,
+  collapseHydraulics,
 }, activePrior, activeTopology);
 let state = initialized.acceptedState;
 const beatSummaries: unknown[] = [];
@@ -170,10 +312,16 @@ for (let beatIndex = 1; beatIndex <= beatCount; beatIndex += 1) {
   const startVolume = state.volumeMlByNode;
   const startTone = state.toneResistanceScaleByTerritoryLayer;
   const samples: ShadowSample[] = [];
-  for (const boundarySample of orderedBoundarySamples) {
+  for (const boundarySample of boundaryStepEndSamples) {
+    const boundary = resolveCoronaryV2ShadowBoundary(
+      boundarySample,
+      impMechanism,
+      shorteningImpReference,
+    );
     const trial = solveCoronaryBackwardEulerTrialV2(state, {
       dtSec,
-      boundary: toBoundary(boundarySample),
+      boundary,
+      collapseHydraulics,
     }, activePrior, activeTopology);
     state = trial.candidateAcceptedState;
     const hydraulics = trial.diagnostics.hydraulics;
@@ -187,15 +335,7 @@ for (let beatIndex = 1; beatIndex <= beatCount; beatIndex += 1) {
     );
     samples.push(Object.freeze({
       cyclePhase01: boundarySample.cyclePhase01,
-      boundaryPressureMmHg: Object.freeze({
-        Ao: boundarySample.pressureMmHg.Ao,
-        RA: boundarySample.pressureMmHg.RA,
-        perivascularExternal:
-          boundarySample.pressureMmHg.perivascularExternal,
-        intramyocardialByTerritoryLayer: copyLayers(
-          boundarySample.pressureMmHg.intramyocardialByTerritoryLayer,
-        ),
-      }),
+      boundaryPressureMmHg: snapshotCoronaryV2ShadowBoundary(boundary),
       absolutePressureMmHgByNode: hydraulics.absolutePressureMmHgByNode,
       volumeMlByNode: state.volumeMlByNode,
       toneResistanceScaleByTerritoryLayer: copyLayers(
@@ -211,8 +351,11 @@ for (let beatIndex = 1; beatIndex <= beatCount; beatIndex += 1) {
         r1ByTerritoryLayer: copyLayers(
           hydraulics.layerR1FlowMlPerSecByTerritory,
         ),
+        qmInternalByTerritoryLayer: copyLayers(
+          hydraulics.layerQmInternalFlowMlPerSecByTerritory,
+        ),
         tissueByTerritoryLayer: copyLayers(
-          hydraulics.layerTissueFlowMlPerSecByTerritory,
+          hydraulics.layerQmInternalFlowMlPerSecByTerritory,
         ),
         r2ByTerritoryLayer: copyLayers(
           hydraulics.layerR2FlowMlPerSecByTerritory,
@@ -234,6 +377,7 @@ for (let beatIndex = 1; beatIndex <= beatCount; beatIndex += 1) {
     samples,
     phaseDefinition,
     dtSec,
+    source.configuration.cycleLengthSec,
     activePrior,
   );
   const toneStep = toneMode === "accepted-layer-autoregulation"
@@ -286,6 +430,11 @@ const report = Object.freeze({
     simulationReady: false as const,
     inertanceIncluded: false as const,
     hardValveOrDiodeIncluded: false as const,
+    structuralR1ReferenceRebased:
+      r1ReferenceMode === "rebased-accepted-tone",
+    waveformObjectiveUsedForR1Reference: false as const,
+    instantaneousQmIsDirectTissuePerfusionObservable: false as const,
+    periodicMeanQmEqualsLayerPerfusionByStorageClosure: true as const,
   }),
   configuration: Object.freeze({
     sourcePath,
@@ -295,15 +444,35 @@ const report = Object.freeze({
     cycleLengthSec: source.configuration.cycleLengthSec,
     requestedBeatCount: beatCount,
     sourceSampleCountPerCycle: orderedBoundarySamples.length,
+    backwardEulerBoundaryConvention:
+      "initializer-at-sample-0-boundary-at-next-step-end" as const,
+    boundaryFingerprint,
     initializerPhase01,
     toneMode,
     toneLaw,
     resistancePartitionMode,
     largeArterialComplianceScale,
+    intramyocardialC1ComplianceScale,
+    intramyocardialC2ComplianceScale,
+    r1ReferenceMode,
+    r1ReferenceReportPath:
+      r1ReferenceMode === "rebased-accepted-tone"
+        ? r1ReferenceReportPath
+        : null,
+    r1ReferenceCalibration,
+    impMechanism,
+    shorteningImpReference,
+    collapseMode,
+    collapseResidualHydraulicAreaFraction,
     toneUpdateWindowSec,
     offlineToneFixedPointAccelerationFactor:
       toneUpdateWindowSec / source.configuration.cycleLengthSec,
     phaseDefinition,
+    flowSemantics: Object.freeze({
+      q1: "intramyocardial-arteriolar-inflow" as const,
+      qm: "hidden-c1-to-c2-reservoir-transfer" as const,
+      q2: "intramyocardial-venular-extrusion" as const,
+    }),
     topologyId: activePrior.topologyId,
     pressureVolumeStateCount:
       activePrior.claims.conservedVolumeNodeCount,
@@ -335,6 +504,7 @@ function summarizeCycle(
   samples: readonly ShadowSample[],
   phase: PhaseDefinition,
   dt: number,
+  cycleLengthSec: number,
   prior: CoronaryTopologyPriorV2,
 ): unknown {
   const territory = Object.freeze(Object.fromEntries(
@@ -344,6 +514,7 @@ function summarizeCycle(
         (sample) => sample.flowMlPerSec.inletByTerritory[territoryId],
         phase,
         dt,
+        cycleLengthSec,
       ),
       layers: Object.freeze(Object.fromEntries(
         CORONARY_LAYER_IDS_V2.map((layerId) => [layerId, Object.freeze({
@@ -353,13 +524,23 @@ function summarizeCycle(
               .r1ByTerritoryLayer[territoryId][layerId],
             phase,
             dt,
+            cycleLengthSec,
+          ),
+          qmInternal: phaseLedger(
+            samples,
+            (sample) => sample.flowMlPerSec
+              .qmInternalByTerritoryLayer[territoryId][layerId],
+            phase,
+            dt,
+            cycleLengthSec,
           ),
           tissue: phaseLedger(
             samples,
             (sample) => sample.flowMlPerSec
-              .tissueByTerritoryLayer[territoryId][layerId],
+              .qmInternalByTerritoryLayer[territoryId][layerId],
             phase,
             dt,
+            cycleLengthSec,
           ),
           r2: phaseLedger(
             samples,
@@ -367,6 +548,7 @@ function summarizeCycle(
               .r2ByTerritoryLayer[territoryId][layerId],
             phase,
             dt,
+            cycleLengthSec,
           ),
         })]),
       )),
@@ -377,27 +559,29 @@ function summarizeCycle(
     (sample) => sample.flowMlPerSec.totalInlet,
     phase,
     dt,
+    cycleLengthSec,
   );
   const commonVenousOutlet = phaseLedger(
     samples,
     (sample) => sample.flowMlPerSec.commonVenousOutlet,
     phase,
     dt,
+    cycleLengthSec,
   );
-  const meanTissueFlowByLayer = Object.freeze(Object.fromEntries(
+  const meanQmInternalFlowByLayer = Object.freeze(Object.fromEntries(
     CORONARY_TERRITORY_IDS_V2.map((territoryId) => [territoryId,
       Object.freeze(Object.fromEntries(CORONARY_LAYER_IDS_V2.map((layerId) => [
         layerId,
         mean(samples.map((sample) => sample.flowMlPerSec
-          .tissueByTerritoryLayer[territoryId][layerId])) * 60,
+          .qmInternalByTerritoryLayer[territoryId][layerId])) * 60,
       ]))),
     ]),
   )) as LayerNumbers;
-  const endocardialToEpicardialTissueFlowRatio = copyTerritory(
+  const endocardialToEpicardialMeanQmInternalRatio = copyTerritory(
     Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
       territoryId,
-      meanTissueFlowByLayer[territoryId].subendocardial
-        / meanTissueFlowByLayer[territoryId].subepicardial,
+      meanQmInternalFlowByLayer[territoryId].subendocardial
+        / meanQmInternalFlowByLayer[territoryId].subepicardial,
     ])) as TerritoryNumbers,
   );
   return Object.freeze({
@@ -411,8 +595,13 @@ function summarizeCycle(
     totalInlet,
     commonVenousOutlet,
     territory,
-    meanTissueFlowMlPerMinByTerritoryLayer: meanTissueFlowByLayer,
-    endocardialToEpicardialTissueFlowRatio,
+    meanQmInternalFlowMlPerMinByTerritoryLayer: meanQmInternalFlowByLayer,
+    /** @deprecated Mean Qm is not an instantaneous tissue-flow observable. */
+    meanTissueFlowMlPerMinByTerritoryLayer: meanQmInternalFlowByLayer,
+    endocardialToEpicardialMeanQmInternalRatio,
+    /** @deprecated Use endocardialToEpicardialMeanQmInternalRatio. */
+    endocardialToEpicardialTissueFlowRatio:
+      endocardialToEpicardialMeanQmInternalRatio,
     maximumSolverResidualInfinityNormMl: Math.max(...samples.map(
       (sample) => sample.solver.residualInfinityNormMl,
     )),
@@ -433,7 +622,7 @@ function acceptedLayerToneStep(
       territoryId,
       Object.freeze(Object.fromEntries(CORONARY_LAYER_IDS_V2.map((layerId) => {
         const acceptedMean = mean(samples.map((sample) => sample.flowMlPerSec
-          .tissueByTerritoryLayer[territoryId][layerId]));
+          .qmInternalByTerritoryLayer[territoryId][layerId]));
         if (acceptedMean < 0) {
           throw new Error(
             `${territoryId}.${layerId} accepted mean Qm is negative`,
@@ -468,27 +657,31 @@ function acceptedLayerToneStep(
 }
 
 function compactCycleSummary(samples: readonly ShadowSample[]): unknown {
-  const meanTissueFlowMlPerMinByTerritoryLayer = Object.freeze(
+  const meanQmInternalFlowMlPerMinByTerritoryLayer = Object.freeze(
     Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
       territoryId,
       Object.freeze(Object.fromEntries(CORONARY_LAYER_IDS_V2.map((layerId) => [
         layerId,
         mean(samples.map((sample) => sample.flowMlPerSec
-          .tissueByTerritoryLayer[territoryId][layerId])) * 60,
+          .qmInternalByTerritoryLayer[territoryId][layerId])) * 60,
       ]))),
     ])),
   ) as LayerNumbers;
+  const endocardialToEpicardialMeanQmInternalRatio = copyTerritory(
+    Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
+      territoryId,
+      meanQmInternalFlowMlPerMinByTerritoryLayer[territoryId].subendocardial
+        / meanQmInternalFlowMlPerMinByTerritoryLayer[territoryId].subepicardial,
+    ])) as TerritoryNumbers,
+  );
   return Object.freeze({
     meanTotalInletMlPerMin: mean(samples.map(
       (sample) => sample.flowMlPerSec.totalInlet,
     )) * 60,
-    endocardialToEpicardialTissueFlowRatio: copyTerritory(
-      Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map((territoryId) => [
-        territoryId,
-        meanTissueFlowMlPerMinByTerritoryLayer[territoryId].subendocardial
-          / meanTissueFlowMlPerMinByTerritoryLayer[territoryId].subepicardial,
-      ])) as TerritoryNumbers,
-    ),
+    endocardialToEpicardialMeanQmInternalRatio,
+    /** @deprecated Use endocardialToEpicardialMeanQmInternalRatio. */
+    endocardialToEpicardialTissueFlowRatio:
+      endocardialToEpicardialMeanQmInternalRatio,
   });
 }
 
@@ -526,6 +719,7 @@ function phaseLedger(
   read: (sample: ShadowSample) => number,
   phase: PhaseDefinition,
   dt: number,
+  cycleLengthSec: number,
 ): unknown {
   const systolic = samples.filter((sample) => isSystolic(
     sample.cyclePhase01,
@@ -540,7 +734,8 @@ function phaseLedger(
     phase,
   ));
   const earlyDiastolic = diastolic.filter((sample) =>
-    cyclicElapsed(sample.cyclePhase01, phase.aorticClosurePhase01) < 0.2);
+    cyclicElapsed(sample.cyclePhase01, phase.aorticClosurePhase01)
+      * cycleLengthSec < 0.2);
   const ledger = (subset: readonly ShadowSample[]) => {
     const values = subset.map(read);
     let peakForwardIndex: number | null = null;
@@ -606,6 +801,7 @@ function phaseLedger(
         ? null
         : sum(diastolic.map((sample) =>
           cyclicElapsed(sample.cyclePhase01, phase.aorticClosurePhase01)
+          * cycleLengthSec
           * Math.max(0, read(sample)) * dt)) / d.forwardVolumeMl,
     diastolicPeakDelayAfterAorticClosureSec:
       d.peakForwardPhase01 === null
@@ -613,7 +809,7 @@ function phaseLedger(
         : cyclicElapsed(
           d.peakForwardPhase01,
           phase.aorticClosurePhase01,
-        ),
+        ) * cycleLengthSec,
   });
 }
 
@@ -653,17 +849,6 @@ function rotateCycleAtPhase(
   return Object.freeze([...sorted.slice(startIndex), ...sorted.slice(0, startIndex)]);
 }
 
-function toBoundary(sample: SourceSample): CoronaryHydraulicBoundaryInputV2 {
-  return Object.freeze({
-    absoluteAorticPressureMmHg: sample.pressureMmHg.Ao,
-    absoluteRightAtrialPressureMmHg: sample.pressureMmHg.RA,
-    perivascularExternalPressureMmHg:
-      sample.pressureMmHg.perivascularExternal,
-    intramyocardialPressureMmHgByTerritoryLayer:
-      copyLayers(sample.pressureMmHg.intramyocardialByTerritoryLayer),
-  });
-}
-
 function acceptedPhaseDefinition(sourceReport: SourceReport): PhaseDefinition {
   const definition = sourceReport.beatSummaries.at(-1)!.summary
     .phasicCoronaryFlow.phaseDefinition;
@@ -682,6 +867,97 @@ function acceptedPhaseDefinition(sourceReport: SourceReport): PhaseDefinition {
   });
 }
 
+function calibrationFromAcceptedToneReport(
+  reportPath: string,
+  sourceReport: SourceReport,
+  boundaryFingerprint: string,
+  resistancePartitionMode: ResistancePartitionMode,
+  largeArterialComplianceScale: number,
+  intramyocardialC1ComplianceScale: number,
+  intramyocardialC2ComplianceScale: number,
+  impMechanism: CoronaryV2ShadowImpMechanism,
+  collapseMode: "enabled" | "disabled-mechanism-ablation",
+  collapseResidualHydraulicAreaFraction: number,
+) {
+  const report = JSON.parse(
+    readFileSync(reportPath, "utf8"),
+  ) as R1ReferenceSourceReport;
+  if (
+    !report.completed
+    || report.configuration.toneMode !== "accepted-layer-autoregulation"
+    || report.configuration.sourceSchema !== sourceReport.schema
+    || report.configuration.dtSec !== sourceReport.configuration.dtSec
+    || report.configuration.cycleLengthSec
+      !== sourceReport.configuration.cycleLengthSec
+    || report.configuration.boundaryFingerprint !== boundaryFingerprint
+    || report.configuration.resistancePartitionMode
+      !== resistancePartitionMode
+    || report.configuration.largeArterialComplianceScale
+      !== largeArterialComplianceScale
+    || (report.configuration.intramyocardialC1ComplianceScale ?? 1)
+      !== intramyocardialC1ComplianceScale
+    || (report.configuration.intramyocardialC2ComplianceScale ?? 1)
+      !== intramyocardialC2ComplianceScale
+    || (report.configuration.r1ReferenceMode ?? "static-pressure-construction")
+      !== "static-pressure-construction"
+    || (report.configuration.impMechanism ?? "source-cep-land-active")
+      !== impMechanism
+    || (report.configuration.collapseMode ?? "enabled") !== collapseMode
+    || (report.configuration.collapseResidualHydraulicAreaFraction ?? 0.10)
+      !== collapseResidualHydraulicAreaFraction
+  ) {
+    throw new Error("R1 reference report does not match the construction boundary");
+  }
+  const referenceNumericalAudit =
+    validateCoronaryV2R1ReferenceNumerics(report);
+  if (
+    report.finalSummary.toneClosure.maximumAbsoluteLogResistanceScaleChange
+      > 1e-3
+  ) {
+    throw new Error("R1 reference report has not converged its accepted tone");
+  }
+  const scale = copyLayers(
+    report.finalSummary.toneResistanceScaleByTerritoryLayer,
+  );
+  return Object.freeze({
+    source: Object.freeze({
+      reportPath,
+      sourceRequestedBeatCount:
+        report.configuration.requestedBeatCount ?? null,
+      sourceToneLaw: report.configuration.toneLaw ?? null,
+      sourceToneUpdateWindowSec:
+        report.configuration.toneUpdateWindowSec ?? null,
+      sourceToneClosureMaximumAbsoluteLogChange:
+        report.finalSummary.toneClosure
+          .maximumAbsoluteLogResistanceScaleChange,
+      sourceVolumeClosureMaximumRelative01:
+        report.finalSummary.closure.maximumRelative01,
+      sourceMaximumAbsoluteLedgerResidualMl:
+        report.runHealth.maximumAbsoluteLedgerResidualMl,
+      sourceMaximumSolverResidualInfinityNormMl:
+        report.finalSummary.summary.maximumSolverResidualInfinityNormMl,
+      sourceMinimumPassivePowerMmHgMlPerSec:
+        report.runHealth.minimumEdgeDissipatedPowerMmHgMlPerSec,
+      sourceMaximumRelativeMeanQmTargetError01:
+        referenceNumericalAudit.maximumRelativeMeanQmTargetError01,
+      sourceNonInteriorLayerCount:
+        referenceNumericalAudit.nonInteriorLayerCount,
+      algebraicIdentity:
+        "R1_base*accepted_tone == R1_rebased*unit_tone" as const,
+      provisionalFixedBoundaryOnly: true as const,
+    }),
+    descriptor: Object.freeze({
+      calibrationId: "beating-reference-r1-mean-qm-v1" as const,
+      proximalArteriolarScaleByTerritoryLayer: scale,
+      boundaryFingerprint,
+      calibrationToneResistanceScale: 1 as const,
+      targetOwner: "mass-territory-layer-resting-flow-prior" as const,
+      objective: "accepted-cycle-mean-qm-only" as const,
+      waveformObjectiveUsed: false as const,
+    }),
+  });
+}
+
 function validateSource(sourceReport: SourceReport): void {
   if (!sourceReport.completed || sourceReport.diagnosticsVersion < 2) {
     throw new Error("source report must be a completed diagnostics-v2 artifact");
@@ -697,8 +973,36 @@ function validateSource(sourceReport: SourceReport): void {
     throw new Error("source report has an unsupported time base");
   }
   for (const sample of sourceReport.samples) {
-    if (!Number.isFinite(sample.pressureMmHg.perivascularExternal)) {
-      throw new Error("source report lacks perivascular external pressure");
+    for (const [name, value] of [
+      ["LV", sample.pressureMmHg.LV],
+      ["RV", sample.pressureMmHg.RV],
+      ["perivascular external", sample.pressureMmHg.perivascularExternal],
+    ] as const) {
+      if (!Number.isFinite(value)) {
+        throw new Error(`source report lacks finite ${name} pressure`);
+      }
+    }
+    for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
+      if (
+        !Number.isFinite(
+          sample.mechanics?.effectiveFiberLogStrainByWall?.[wallId],
+        )
+      ) {
+        throw new Error(
+          `source report lacks finite ${wallId} effective fiber log strain`,
+        );
+      }
+    }
+    for (const chamberId of ["LV", "RV"] as const) {
+      if (
+        !Number.isFinite(
+          sample.mechanics?.chamberTransmuralPressureMmHg?.[chamberId],
+        )
+      ) {
+        throw new Error(
+          `source report lacks finite ${chamberId} chamber transmural pressure`,
+        );
+      }
     }
   }
 }
@@ -780,6 +1084,15 @@ function positiveNumberArgument(flag: string, fallback: number): number {
   return value;
 }
 
+function fractionArgument(flag: string, fallback: number): number {
+  const index = process.argv.indexOf(flag);
+  const value = index < 0 ? fallback : Number(process.argv[index + 1]);
+  if (!Number.isFinite(value) || value <= 0 || value >= 1) {
+    throw new RangeError(`${flag} must lie in (0, 1)`);
+  }
+  return value;
+}
+
 function toneModeArgument(
   flag: string,
   fallback: "fixed" | "accepted-layer-autoregulation",
@@ -789,6 +1102,55 @@ function toneModeArgument(
   if (value !== "fixed" && value !== "accepted-layer-autoregulation") {
     throw new RangeError(
       `${flag} must be fixed or accepted-layer-autoregulation`,
+    );
+  }
+  return value;
+}
+
+function r1ReferenceModeArgument(
+  flag: string,
+  fallback: "static-pressure-construction" | "rebased-accepted-tone",
+): "static-pressure-construction" | "rebased-accepted-tone" {
+  const index = process.argv.indexOf(flag);
+  const value = index < 0 ? fallback : process.argv[index + 1];
+  if (
+    value !== "static-pressure-construction"
+    && value !== "rebased-accepted-tone"
+  ) {
+    throw new RangeError(
+      `${flag} must be static-pressure-construction or rebased-accepted-tone`,
+    );
+  }
+  return value;
+}
+
+function impMechanismArgument(
+  flag: string,
+  fallback: CoronaryV2ShadowImpMechanism,
+): CoronaryV2ShadowImpMechanism {
+  const index = process.argv.indexOf(flag);
+  const value = index < 0 ? fallback : process.argv[index + 1];
+  if (
+    value !== "source-cep-land-active"
+    && value !== "cep-only-control"
+    && value !== "cep-shortening-induced"
+  ) {
+    throw new RangeError(
+      `${flag} must be source-cep-land-active, cep-only-control, or cep-shortening-induced`,
+    );
+  }
+  return value;
+}
+
+function collapseModeArgument(
+  flag: string,
+  fallback: "enabled" | "disabled-mechanism-ablation",
+): "enabled" | "disabled-mechanism-ablation" {
+  const index = process.argv.indexOf(flag);
+  const value = index < 0 ? fallback : process.argv[index + 1];
+  if (value !== "enabled" && value !== "disabled-mechanism-ablation") {
+    throw new RangeError(
+      `${flag} must be enabled or disabled-mechanism-ablation`,
     );
   }
   return value;
@@ -810,16 +1172,17 @@ function toneLawArgument(
 
 function resistancePartitionModeArgument(
   flag: string,
-  fallback: "symmetric-60-30-10" | "chilian-directional-transmural",
-): "symmetric-60-30-10" | "chilian-directional-transmural" {
+  fallback: ResistancePartitionMode,
+): ResistancePartitionMode {
   const index = process.argv.indexOf(flag);
   const value = index < 0 ? fallback : process.argv[index + 1];
   if (
     value !== "symmetric-60-30-10"
     && value !== "chilian-directional-transmural"
+    && value !== "low-rm-70-15-15-ablation"
   ) {
     throw new RangeError(
-      `${flag} must be symmetric-60-30-10 or chilian-directional-transmural`,
+      `${flag} must be symmetric-60-30-10, chilian-directional-transmural, or low-rm-70-15-15-ablation`,
     );
   }
   return value;

@@ -5,9 +5,11 @@ import {
   CORONARY_LAYER_IDS_V2,
   CORONARY_TERRITORY_IDS_V2,
   NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+  applyBeatingReferenceR1CalibrationV2,
   buildCoronaryTopologyV2,
   evaluateCrefAnchoredCollapsiblePvV2,
   invertCrefAnchoredCollapsiblePvV2,
+  initialCoronaryToneStateV2,
   scaleCoronaryLargeArterialComplianceV2,
   type CoronaryEdgeIdV2,
   type CoronaryTopologyV2,
@@ -18,6 +20,7 @@ import {
   buildCoronaryCollapseHydraulicsPriorV2,
   buildCoronaryEdgeIndexV2,
   evaluateCoronaryHydraulicsV2,
+  disableCoronaryCollapseHydraulicsV2,
   initializePressureLadderCoronaryStateV2,
   mapFocalDiameterStenosisV2,
   solveCoronaryBackwardEulerTrialV2,
@@ -263,6 +266,111 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
         pressureDrop * flow[edge.edgeId],
         9,
       );
+    }
+  });
+
+  it("disables only the collapse resistance multiplier for mechanism ablation", () => {
+    const topology = buildCoronaryTopologyV2();
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const c1Id = "LAD.IM.Art.subendocardial" as const;
+    const c2Id = "LAD.IM.Ven.subendocardial" as const;
+    const compressedVolumes = Object.freeze({
+      ...initialized.acceptedState.volumeMlByNode,
+      [c1Id]: 0.55 * topology.nodes[topology.nodeIndexById[c1Id]].coldSeedVolumeMl,
+      [c2Id]: 0.60 * topology.nodes[topology.nodeIndexById[c2Id]].coldSeedVolumeMl,
+    });
+    const enabledPrior = buildCoronaryCollapseHydraulicsPriorV2(topology);
+    const disabledPrior = disableCoronaryCollapseHydraulicsV2(
+      enabledPrior,
+      topology,
+    );
+    const enabled = evaluateCoronaryHydraulicsV2(
+      compressedVolumes,
+      initialCoronaryToneStateV2(),
+      DIASTOLIC_BOUNDARY_V2,
+      NORMAL_CORONARY_DISEASE_INPUT_V2,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+      enabledPrior,
+    );
+    const disabled = evaluateCoronaryHydraulicsV2(
+      compressedVolumes,
+      initialCoronaryToneStateV2(),
+      DIASTOLIC_BOUNDARY_V2,
+      NORMAL_CORONARY_DISEASE_INPUT_V2,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      topology,
+      disabledPrior,
+    );
+    for (const edgeId of [
+      "LAD.Art_LAD.IM.Art.subendocardial",
+      "LAD.IM.Art.subendocardial_LAD.IM.Ven.subendocardial",
+      "LAD.IM.Ven.subendocardial_CV",
+    ] as const) {
+      const reference = topology.edges[topology.edgeIndexById[edgeId]]
+        .referenceResistanceMmHgSecPerMl;
+      expect(disabled.effectiveLinearResistanceMmHgSecPerMlByEdge[edgeId])
+        .toBeCloseTo(reference, 12);
+      expect(enabled.effectiveLinearResistanceMmHgSecPerMlByEdge[edgeId])
+        .toBeGreaterThan(reference);
+    }
+  });
+
+  it("rebases accepted tone into structural R1 without changing hydraulics", () => {
+    const tone = Object.freeze({
+      LAD: Object.freeze({ subepicardial: 0.67, subendocardial: 0.12 }),
+      LCx: Object.freeze({ subepicardial: 0.72, subendocardial: 0.12 }),
+      RCA: Object.freeze({ subepicardial: 0.77, subendocardial: 0.68 }),
+    });
+    const calibratedPrior = applyBeatingReferenceR1CalibrationV2(
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      {
+        calibrationId: "beating-reference-r1-mean-qm-v1",
+        proximalArteriolarScaleByTerritoryLayer: tone,
+        boundaryFingerprint: "algebraic-rebase-unit-test",
+        calibrationToneResistanceScale: 1,
+        targetOwner: "mass-territory-layer-resting-flow-prior",
+        objective: "accepted-cycle-mean-qm-only",
+        waveformObjectiveUsed: false,
+      },
+    );
+    const baseTopology = buildCoronaryTopologyV2();
+    const calibratedTopology = buildCoronaryTopologyV2(calibratedPrior);
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const base = evaluateCoronaryHydraulicsV2(
+      initialized.acceptedState.volumeMlByNode,
+      tone,
+      DIASTOLIC_BOUNDARY_V2,
+      NORMAL_CORONARY_DISEASE_INPUT_V2,
+      NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
+      baseTopology,
+    );
+    const rebased = evaluateCoronaryHydraulicsV2(
+      initialized.acceptedState.volumeMlByNode,
+      initialCoronaryToneStateV2(),
+      DIASTOLIC_BOUNDARY_V2,
+      NORMAL_CORONARY_DISEASE_INPUT_V2,
+      calibratedPrior,
+      calibratedTopology,
+    );
+    for (const edgeId of CORONARY_EDGE_IDS_V2) {
+      expect(rebased.signedFlowMlPerSecByEdge[edgeId])
+        .toBeCloseTo(base.signedFlowMlPerSecByEdge[edgeId], 12);
+      expect(rebased.effectiveLinearResistanceMmHgSecPerMlByEdge[edgeId])
+        .toBeCloseTo(
+          base.effectiveLinearResistanceMmHgSecPerMlByEdge[edgeId],
+          12,
+        );
+      expect(rebased.dissipatedPowerMmHgMlPerSecByEdge[edgeId])
+        .toBeCloseTo(base.dissipatedPowerMmHgMlPerSecByEdge[edgeId], 12);
+    }
+    for (const nodeId of CORONARY_CONSERVED_VOLUME_NODE_IDS_V2) {
+      expect(rebased.absolutePressureMmHgByNode[nodeId])
+        .toBeCloseTo(base.absolutePressureMmHgByNode[nodeId], 12);
     }
   });
 

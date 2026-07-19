@@ -10,15 +10,19 @@ import {
   CHILIAN_1991_DIRECTIONAL_TRANSMURAL_REPARTITION_ABLATION_V2,
   KASSAB_CORONARY_BLOOD_VOLUME_PRIOR_V2,
   LARGE_VESSEL_LOCAL_COMPLIANCE_PRIOR_V2,
+  LOW_RM_70_15_15_REPARTITION_ABLATION_V2,
   NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2,
   SPAAN_TWO_COMPARTMENT_COMPLIANCE_PRIOR_V2,
+  applyBeatingReferenceR1CalibrationV2,
   buildCoronaryTopologyV2,
+  coronaryTopologyPriorFingerprintV2,
   coronaryColdSeedBloodVolumeMlV2,
   createColdCoronaryConstructionSeedV2,
   evaluateCrefAnchoredCollapsiblePvV2,
   initialCoronaryToneStateV2,
   repartitionCoronaryMicrovascularResistanceV2,
   scaleCoronaryLargeArterialComplianceV2,
+  scaleCoronaryIntramyocardialComplianceV2,
   validateCoronaryTopologyPriorV2,
   validateCoronaryTopologyV2,
 } from "@/engine/coronary";
@@ -349,6 +353,87 @@ describe("coronary two-compliance topology/prior V2", () => {
     expect(() => validateCoronaryTopologyPriorV2(changed)).not.toThrow();
   });
 
+  it("rebases only structural R1 and records a mean-flow-only beating reference", () => {
+    const base = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
+    const scale = Object.freeze({
+      LAD: Object.freeze({ subepicardial: 0.67, subendocardial: 0.12 }),
+      LCx: Object.freeze({ subepicardial: 0.72, subendocardial: 0.12 }),
+      RCA: Object.freeze({ subepicardial: 0.77, subendocardial: 0.68 }),
+    });
+    const calibrated = applyBeatingReferenceR1CalibrationV2(base, {
+      calibrationId: "beating-reference-r1-mean-qm-v1",
+      proximalArteriolarScaleByTerritoryLayer: scale,
+      boundaryFingerprint: "unit-periodic-boundary",
+      calibrationToneResistanceScale: 1,
+      targetOwner: "mass-territory-layer-resting-flow-prior",
+      objective: "accepted-cycle-mean-qm-only",
+      waveformObjectiveUsed: false,
+    });
+    expect(calibrated.construction.beatingReferenceR1Calibration)
+      .not.toBeNull();
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      for (const layerId of CORONARY_LAYER_IDS_V2) {
+        const before = base.territories[territoryId].layers[layerId];
+        const after = calibrated.territories[territoryId].layers[layerId];
+        expect(after.proximalArteriolarResistanceMmHgSecPerMl)
+          .toBeCloseTo(
+            before.proximalArteriolarResistanceMmHgSecPerMl
+            * scale[territoryId][layerId],
+            12,
+          );
+        expect(after.intermediateCapillaryResistanceMmHgSecPerMl)
+          .toBe(before.intermediateCapillaryResistanceMmHgSecPerMl);
+        expect(after.distalVenularResistanceMmHgSecPerMl)
+          .toBe(before.distalVenularResistanceMmHgSecPerMl);
+        expect(after.c1ProximalArterial).toBe(before.c1ProximalArterial);
+        expect(after.c2DistalVenous).toBe(before.c2DistalVenous);
+      }
+    }
+    expect(() => applyBeatingReferenceR1CalibrationV2(
+      calibrated,
+      calibrated.construction.beatingReferenceR1Calibration!,
+    )).toThrow(/already applied/);
+    expect(() => repartitionCoronaryMicrovascularResistanceV2(
+      calibrated,
+      CHILIAN_1991_DIRECTIONAL_TRANSMURAL_REPARTITION_ABLATION_V2,
+    )).toThrow(/must precede beating-reference/);
+    expect(() => scaleCoronaryLargeArterialComplianceV2(calibrated, 0.8))
+      .toThrow(/must precede beating-reference/);
+    expect(() => scaleCoronaryIntramyocardialComplianceV2(calibrated, {
+      c1Proximal: 1,
+      c2Distal: 0.8,
+    })).toThrow(/must precede beating-reference/);
+  });
+
+  it("labels 70:15:15 as a low-Rm ablation while preserving total resistance", () => {
+    const base = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
+    const changed = repartitionCoronaryMicrovascularResistanceV2(
+      base,
+      LOW_RM_70_15_15_REPARTITION_ABLATION_V2,
+    );
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      for (const layerId of CORONARY_LAYER_IDS_V2) {
+        const before = base.territories[territoryId].layers[layerId];
+        const after = changed.territories[territoryId].layers[layerId];
+        const total = (layer: typeof before) =>
+          layer.proximalArteriolarResistanceMmHgSecPerMl
+          + layer.intermediateCapillaryResistanceMmHgSecPerMl
+          + layer.distalVenularResistanceMmHgSecPerMl;
+        expect(total(after)).toBeCloseTo(total(before), 12);
+        expect(after.intermediateCapillaryResistanceMmHgSecPerMl)
+          .toBeCloseTo(
+            0.5 * before.intermediateCapillaryResistanceMmHgSecPerMl,
+            12,
+          );
+        expect(after.distalVenularResistanceMmHgSecPerMl)
+          .toBeCloseTo(
+            1.5 * before.distalVenularResistanceMmHgSecPerMl,
+            12,
+          );
+      }
+    }
+  });
+
   it("scales epicardial compliance without changing its loaded structural point", () => {
     const base = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
     const scaled = scaleCoronaryLargeArterialComplianceV2(base, 0.4);
@@ -367,6 +452,59 @@ describe("coronary two-compliance topology/prior V2", () => {
             .referenceComplianceMlPerMmHg,
           14,
         );
+    }
+    expect(coronaryColdSeedBloodVolumeMlV2(scaled))
+      .toBeCloseTo(coronaryColdSeedBloodVolumeMlV2(base), 14);
+  });
+
+  it("scales C1/C2 PV slopes without moving volume, pressure, resistance, or targets", () => {
+    const base = NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2;
+    const scaled = scaleCoronaryIntramyocardialComplianceV2(base, {
+      c1Proximal: 1,
+      c2Distal: 0.5,
+    });
+    expect(scaled.construction.intramyocardialComplianceScale).toEqual({
+      c1Proximal: 1,
+      c2Distal: 0.5,
+    });
+    expect(coronaryTopologyPriorFingerprintV2(scaled))
+      .not.toBe(coronaryTopologyPriorFingerprintV2(base));
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      for (const layerId of CORONARY_LAYER_IDS_V2) {
+        const before = base.territories[territoryId].layers[layerId];
+        const after = scaled.territories[territoryId].layers[layerId];
+        expect(after.c1ProximalArterial.effectiveComplianceMlPerMmHg)
+          .toBe(before.c1ProximalArterial.effectiveComplianceMlPerMmHg);
+        expect(after.c2DistalVenous.effectiveComplianceMlPerMmHg)
+          .toBeCloseTo(
+            0.5 * before.c2DistalVenous.effectiveComplianceMlPerMmHg,
+            14,
+          );
+        for (const compartment of [
+          "c1ProximalArterial",
+          "c2DistalVenous",
+        ] as const) {
+          expect(after[compartment].coldSeedVolumeMl)
+            .toBe(before[compartment].coldSeedVolumeMl);
+          expect(after[compartment].pressureVolume.loadedSeedVolumeMl)
+            .toBe(before[compartment].pressureVolume.loadedSeedVolumeMl);
+          expect(
+            after[compartment].pressureVolume
+              .loadedSeedTransmuralPressureMmHg,
+          ).toBe(
+            before[compartment].pressureVolume
+              .loadedSeedTransmuralPressureMmHg,
+          );
+        }
+        expect(after.proximalArteriolarResistanceMmHgSecPerMl)
+          .toBe(before.proximalArteriolarResistanceMmHgSecPerMl);
+        expect(after.intermediateCapillaryResistanceMmHgSecPerMl)
+          .toBe(before.intermediateCapillaryResistanceMmHgSecPerMl);
+        expect(after.distalVenularResistanceMmHgSecPerMl)
+          .toBe(before.distalVenularResistanceMmHgSecPerMl);
+      }
+      expect(scaled.territories[territoryId].targetRestingFlowMlPerMin)
+        .toBe(base.territories[territoryId].targetRestingFlowMlPerMin);
     }
     expect(coronaryColdSeedBloodVolumeMlV2(scaled))
       .toBeCloseTo(coronaryColdSeedBloodVolumeMlV2(base), 14);

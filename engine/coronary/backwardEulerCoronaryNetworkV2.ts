@@ -112,6 +112,10 @@ export type CoronaryHydraulicEvaluationV2 = Readonly<{
   inletFlowMlPerSecByTerritory: CoronaryTerritoryRecordV2<number>;
   layerR1FlowMlPerSecByTerritory:
     CoronaryTerritoryLayerRecordV2<number>;
+  /** Signed hidden C1-to-C2 transfer through Rm; not a direct tissue observable. */
+  layerQmInternalFlowMlPerSecByTerritory:
+    CoronaryTerritoryLayerRecordV2<number>;
+  /** @deprecated Use layerQmInternalFlowMlPerSecByTerritory. */
   layerTissueFlowMlPerSecByTerritory:
     CoronaryTerritoryLayerRecordV2<number>;
   layerR2FlowMlPerSecByTerritory:
@@ -185,6 +189,7 @@ export const NORMAL_VASODILATORY_TONE_MINIMUM_SCALE_V2 = 4 / 45;
 export const NORMAL_CORONARY_TONE_MAXIMUM_SCALE_V2 = 2;
 
 export type CoronaryCollapseHydraulicsPriorV2 = Readonly<{
+  mode: "smooth-area-collapse-v1" | "disabled-mechanism-ablation";
   residualHydraulicAreaFraction: number;
   hydraulicAreaReferenceVolumeMlByNode:
     CoronaryConservedVolumeRecordV2<number>;
@@ -204,6 +209,7 @@ export function buildCoronaryCollapseHydraulicsPriorV2(
   }
   validateCoronaryTopologyV2(topology);
   return Object.freeze({
+    mode: "smooth-area-collapse-v1" as const,
     residualHydraulicAreaFraction,
     hydraulicAreaReferenceVolumeMlByNode: Object.freeze(Object.fromEntries(
       topology.nodes.map((node) => [node.nodeId, node.coldSeedVolumeMl]),
@@ -215,6 +221,18 @@ export function buildCoronaryCollapseHydraulicsPriorV2(
 
 export const NORMAL_CORONARY_COLLAPSE_HYDRAULICS_PRIOR_V2 =
   buildCoronaryCollapseHydraulicsPriorV2();
+
+export function disableCoronaryCollapseHydraulicsV2(
+  prior: CoronaryCollapseHydraulicsPriorV2 =
+    NORMAL_CORONARY_COLLAPSE_HYDRAULICS_PRIOR_V2,
+  topology: CoronaryTopologyV2 = buildCoronaryTopologyV2(),
+): CoronaryCollapseHydraulicsPriorV2 {
+  validateCollapseHydraulicsV2(prior, topology);
+  return Object.freeze({
+    ...prior,
+    mode: "disabled-mechanism-ablation" as const,
+  });
+}
 
 function normalLayerDiseaseV2(): CoronaryLayerDiseaseInputV2 {
   return Object.freeze({
@@ -952,6 +970,7 @@ function freezeHydraulicEvaluationV2(
     effectiveToneResistanceScaleByTerritoryLayer: effectiveTone,
     inletFlowMlPerSecByTerritory: inlet,
     layerR1FlowMlPerSecByTerritory: r1,
+    layerQmInternalFlowMlPerSecByTerritory: rm,
     layerTissueFlowMlPerSecByTerritory: rm,
     layerR2FlowMlPerSecByTerritory: r2,
     postFocalLesionAbsolutePressureMmHgByTerritory: postLesion,
@@ -1033,6 +1052,7 @@ function collapseScaleForNodeV2(
   node: CoronaryConservedVolumeNodeSpecV2,
   prior: CoronaryCollapseHydraulicsPriorV2,
 ): number {
+  if (prior.mode === "disabled-mechanism-ablation") return 1;
   return evaluateVolumeDependentCoronaryResistanceV1(volumeMl, {
     referenceResistanceMmHgSecPerMl: 1,
     referenceVolumeMl: prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
@@ -1425,6 +1445,12 @@ function validateCollapseHydraulicsV2(
   prior: CoronaryCollapseHydraulicsPriorV2,
   topology: CoronaryTopologyV2,
 ): void {
+  if (
+    prior.mode !== "smooth-area-collapse-v1"
+    && prior.mode !== "disabled-mechanism-ablation"
+  ) {
+    throw new RangeError("coronary V2 collapse-hydraulics mode is invalid");
+  }
   if (
     !Number.isFinite(prior.residualHydraulicAreaFraction)
     || prior.residualHydraulicAreaFraction <= 0

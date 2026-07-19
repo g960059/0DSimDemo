@@ -1838,9 +1838,10 @@ $$
 \dot V_{2,kl}=Q_{m,kl}-Q_{2,kl}.
 $$
 
-全flowはsignedのままとし、正常波形を作るためのhard diodeは入れない。$Q_m$をnet tissue-perfusion observable、
-$Q_1$をarteriolar inflow、$Q_2$をvenular extrusionと定義する。これにより収縮期の入口forward flowを残しつつ、
-左冠のearly-diastolic tissue flowと収縮期venous emptyingを別々に拘束できる。Munnekeらも各layerに
+全flowはsignedのままとし、正常波形を作るためのhard diodeは入れない。$Q_1$をarteriolar inflow、$Q_2$を
+venular extrusionと定義する。$Q_m$は二つのlumped reservoir間のinternal transfer coordinateであり、周期積分は
+layer perfusionに等しいが、その瞬時波形を直接測定されるtissue-perfusion waveformとは呼ばない。これにより収縮期の
+入口forward flowを残しつつ、arteriolar inflowと収縮期venous emptyingを別々に拘束できる。Munnekeらも各layerに
 $C_1-R_m-C_2$を置き、IMPを両complianceへ作用させている。
 
 $f_i$ は自由なshape functionにしない。全compliant nodeで、既存のcollapsible-tube family
@@ -1966,7 +1967,7 @@ defaultにしない。$P_{IM}^{(1)}$と$P_{IM}^{(2)}$のcoupling係数は別に�
 | LAD / LCx inlet peak D/S | full mechanical systole (MVC--AoVC) とejection (AoVO--AoVC)を併記する。文献のECG / valve-event protocolと測定siteが一致するまで1.8--2.8をhard gateにしない |
 | LAD / LCx early-diastolic morphology | AoVC後peak時刻、最初200 msのforward volume share、flow-time centroidを併記する。70--140 msはproximal LADの参考域で、$Q_m$へ直接移植しない |
 | RCA inlet D/T forward integral | 0.50--0.75; D/Sを必ず1以下へ固定しない |
-| left tissue flow | early diastolic dominance; ENDOの短いearly-systolic reverseを許容 |
+| left intramyocardial arteriolar flow | early diastolic dominance; ENDOの短いearly-systolic reverseを許容。hidden $Q_m$へ実測peak gateを移植しない |
 | venular flow | systolic extrusionを持ち、tissue-flow waveformと同一にしない |
 | coronary venous reservoir outflow | systolic + diastolic forward waves; reverseは短い |
 | resting ENDO/EPI perfusion | mass-normalized 0.9--1.3を広い初期gateとする |
@@ -2066,7 +2067,7 @@ target closureであり、独立したvalidation evidenceではない。
 | CV--RA / LAD ENDO $Q_2$ reverse | 0 / 0.00685 mL | outlet逆流はないが、$Q_2$ backfillは0.260 s続く |
 
 この結果は、$C_1-R_m-C_2$分割によって「左冠入口は拡張期優位だが収縮期にも流れる」という積分量と、arteriolar
-inflow / tissue transfer / venular extrusion / common venous flowの位相分離を表現できることを示す。一方、正常ENDO flowを
+inflow / internal reservoir transfer / venular extrusion / common venous flowの位相分離を表現できることを示す。一方、正常ENDO flowを
 保つためにほぼ全拡張reserveを消費し、$Q_m$時刻と内部venous backfillを外す。peak D/Sはprotocol未整合なので
 単独の採否根拠から外す。従ってtopologyの表現力は採択するが、
 このoperating pointを健康canonical parameterとしては棄却する。
@@ -2090,7 +2091,8 @@ inflow / tissue transfer / venular extrusion / common venous flowの位相分離
 抵抗配分はENDO reserveと近位逆流を改善するがpeakをlate diastoleへ遅らせる。Art compliance低下はpeak時刻を早めるが、
 逆流を増やしD/Tを上げる。併用は入口逆流とreserveの妥協点だが、LAD ENDO $Q_m$ peakは406 ms、最初200 msの
 diastolic forward shareは0.075に留まり、LAD ENDO $Q_2$は0.232 s backfillする。入口peak比はphase protocol依存で
-hard判定しないが、組織transferと内部静脈のphaseはなお不適切である。したがって、
+hard判定しない。なお本節執筆時点では$Q_m$を実測tissue flowへ近いものとして過剰に拘束していた。28節の監査により、
+$Q_m$ timingはdiagnostic fingerprintへ降格する。それでも内部静脈のphaseとparameter reserveは独立に評価する。したがって、
 問題を単一complianceまたは抵抗比の局所探索へ帰属させる仮説を棄却する。
 
 ### 27.11 文献modelとの差と次の数理変更
@@ -2130,3 +2132,131 @@ backward suction waveが主要な拡張期accelerating waveであることも報
   healthy canonical releaseと呼ぶこと。
 - **保留**: proximal characteristic impedance / inertance / 1D conduit。gross integralを作るためには追加せず、
   operating-point / IMP / collapse反証後にearly-diastolic wave physicsとして判断する。
+
+## 28. 2026-07-19 beating-reference / IMP / collapse / transport 監査
+
+本節は27節を置換する実装判断である。normal beating boundaryを固定したshadow上で、波形を目的関数にせず、各layerの
+accepted-cycle mean $Q_m$だけをtargetとしてbase $R_1$を一度だけ構築した。その後はtoneを厳密に1へ固定し、IMP、collapse、
+resistance partition、complianceを比較した。従って、以下のD/Tやpeak時刻はconstruction targetではない。
+
+### 28.1 R1 rebaseのexact oracle
+
+現V2ではbase $R_1$とaccepted tone $r$は完全な積で入るため、
+
+$$
+R_{1,kl}^{new}=r_{kl}^{*}R_{1,kl}^{old},\qquad r_{kl}^{new}=1
+$$
+
+とすれば、同じboundary / volumeに対する全pressure、全22 edge flow、散逸powerは代数的に不変である。実装testでもこの
+identityを確認した。したがってR1 rebase単独で波形が変わればbugであり、改善とは判定しない。rebaseの意味は、健康referenceで
+`tone=1`を回復し、以後のdisease / hyperemia parameterとconstruction parameterを分離することだけである。
+
+強いcollapse priorで得た旧LAD EPI / ENDO scaleは0.672 / 0.118で、ENDOはdilation floorに近かった。これは健康reserve不足を
+示し、normal controllerの成功とはみなさない。
+
+### 28.2 IMPはLandとSIPを加算しない
+
+両complianceへ同じIMPを作用させると、
+
+$$
+Q_m=\frac{(P_{IM}+f_1(V_1))-(P_{IM}+f_2(V_2))}{R_m}
+=\frac{f_1(V_1)-f_2(V_2)}{R_m}
+$$
+
+である。IMPは$Q_1$と$Q_2$を直接変え、$Q_m$にはstorage経由で間接的にだけ作用する。従ってLand active termをSIPへ
+置き換えるだけで$Q_m$ peakを任意に早めることはできず、C1/C2へ異なる自由gainを追加して形状fitしてはならない。
+
+mechanism factorialでは `CEP + Land active`、`CEP only`、`CEP + shortening-induced pressure (SIP)`を置換関係で比較した。
+Land activeとSIPは同じ収縮をsolid stressとfluid pressureの両方として数える可能性があるため加算しない。この責任分離は
+[Algranati et al. 2010](https://pmc.ncbi.nlm.nih.gov/articles/PMC2838558/)に沿う。SIPはaccepted MVCのwall fiber log strainを
+referenceとし、正のfractional shorteningのsmooth partへterritory weightを掛け、normal peak 15 mmHgを弱いamplitude priorと
+した。これは波形peakへのfitではない。
+
+ここで述べたCEP / Land / SIP置換比較とcollapse on/off比較は、現transport compact artifactより前の探索full reportに基づく。
+現行の自己完結artifactは全cellをSIP + area floor 0.67に固定したtransport感度だけを保持し、旧mechanism factorial自体は
+再現対象に含めない。従ってSIPと0.67はcanonical constitutive lawではなく、atomic closed-loopで再反証すべきprovisional
+mechanism priorである。
+
+### 28.3 collapseをstorage volumeから直接caliberへ読み替えない
+
+旧$epsilon_A=0.10$では、LAD ENDO $C_2$の$V/V_h$がbeat中0.185まで低下し、total reservoir volumeの減少を局所断面積の
+90% collapseへほぼ直接変換していた。しかしbeating-heart直接観察ではENDO arteriolar / venular diameter低下は概ね
+10--18%で、EPI arterioleはほぼ不変だった
+([Hiramatsu et al. 1998](https://pmc.ncbi.nlm.nih.gov/articles/PMC2230961/))。lumped reservoir volumeは局所caliberそのものではない。
+
+そこでdiameter floor 0.82に対応するhydraulic-area floor $0.82^2\simeq0.67$をbounded mechanism priorとし、
+$R$ multiplier上限を約$1/0.67^2=2.23$へ制限した。これはcollapseを消すのではなく、独立したgeometry evidenceで上限を
+拘束する変更である。この条件でLAD EPI / ENDO R1 scaleは約0.81 / 0.64へ戻り、健康referenceのreserve意味論が大きく改善した。
+
+### 28.4 $Q_m$ timing hard gateの撤回
+
+$Q_m$はC1とC2の間のhidden fluxで、個々の毛細血管flowを直接表さない。生体内観察では毛細血管ごとに収縮期優位・拡張期
+優位が混在し、arterial-sideからvenous-sideへphasic-flowのwatershedが存在する
+([Kiyooka et al. 2005](https://pubmed.ncbi.nlm.nih.gov/15345479/))。従って旧暫定gateの
+`Qm peak < 0.30 s`、`first 200 ms share >= 0.25`を生理学的hard gateから外し、diagnostic fingerprintへ降格する。
+
+$Q_m$のhard gateは、周期積分が$Q_1$ / $Q_2$と一致すること、net forward、C1/C2 volume closure、受動散逸、dt収束に限定する。
+実測文献と比較する波形はLAD/LCx/RCA inlet、$Q_1$ arteriolar side、$Q_2$ / CV venous side、ENDO/EPI、caliber proxyである。
+別protocolとして一定IMP下のperfusion-pressure stepを行い、vascular-volume / refill relaxationが概ね1.5--4 sを覆うか検証する
+([Spaan et al. 2000](https://pubmed.ncbi.nlm.nih.gov/10666068/))。
+
+### 28.5 C2 / resistance 2 x 2の数理結果
+
+$C_2=0.30$から0.15 mL/mmHg/100 gへの半減は実験範囲内である
+([Kajiya et al. 1986](https://pubmed.ncbi.nlm.nih.gov/3698215/),
+[Nagumo et al. 1993](https://pubmed.ncbi.nlm.nih.gov/8252707/))。一方70:15:15は正常値ではなく、$R_m$を半減するablationである。
+
+| partition | $C_2$ scale | LAD inlet forward D/(D+S) | inlet peak after AoVC | ENDO $Q_1$ peak | $Q_m$ early share | $Q_2$ reverse / duration |
+|---|---:|---:|---:|---:|---:|---:|
+| 60:30:10 | 1.0 | 0.758 | 236 ms | 110 ms | 0.185 | 0.0151 mL / 230 ms |
+| 60:30:10 | 0.5 | 0.757 | 244 ms | 116 ms | 0.197 | 0.0410 mL / 288 ms |
+| low-$R_m$ 70:15:15 ablation | 1.0 | 0.744 | 260 ms | 124 ms | 0.187 | 0.0122 mL / 226 ms |
+| low-$R_m$ 70:15:15 ablation | 0.5 | 0.744 | 266 ms | 130 ms | 0.205 | 0.0315 mL / 290 ms |
+
+C2半減は$Q_m$ fingerprintを少し動かすがQ2 backfillを悪化させる。70:15:15もQ2 reverse量を少し減らすだけで入口を遅らせる。
+線形化すると70:15:15は$R_m$を半減する一方、$R_2$を1.5倍にし、2-state slow poleは約0.96から1.37 sへ遅くなる。
+速くなるのは差動modeだけであり、`transport-fast`とは呼ばない。両変更ともcanonical normal priorには採択しない。
+
+### 28.6 fixed-boundary provisional candidate
+
+現時点のprovisional candidateは、SIP、bounded-collapse area floor 0.67、60:30:10、$C_2$ scale 1、large arterial
+complianceの事前感度下限0.4倍である。最後の変更はlarge-vessel local-compliance priorの宣言済み0.001--0.005 /mmHg範囲内で、
+loaded structural volume / pressureを変えない。
+
+| observable | result | status |
+|---|---:|---|
+| mean inlet | 1.000 mL/min/g | construction closure; validation量ではない |
+| LAD structural R1 EPI / ENDO | 0.812 / 0.642 | 旧0.672 / 0.118よりreserve意味論を改善 |
+| LAD inlet forward D/(D+S) | 0.790 | forward volumeの約21%を収縮期にも保持 |
+| LAD inlet peak D/S | 1.225 | 文献context約2.0--2.3より低く、proximal morphology未達 |
+| LAD inlet peak after AoVC | 210 ms | 参考95 msより遅い。proximal wave physicsの残課題 |
+| LAD ENDO $Q_1$ peak / early share | 128 ms / 0.325 | arteriolar-side referenceとして妥当域 |
+| LAD ENDO $Q_2$ reverse | 0.0166 mL / 232 ms | volume burdenは小さいがzero-crossing durationは長い |
+| LAD ENDO/EPI mean | 1.110 | construction target closure; validation量ではない |
+| max relative P1 drift | $3.14\times10^{-11}$ | pass |
+| minimum passive-edge power | $2.42\times10^{-9}$ mmHg mL/s | nonnegative; pass |
+| maximum incidence-ledger residual | $7.04\times10^{-10}$ mL | pass |
+
+積分比は有限の収縮期flowを回復した一方、peak D/Sとpeak時刻はまだ過度に平滑化・遅延している。
+正常対照でdiastolic flow onsetからpeakまで74±13 msという報告もあり
+([Hildick-Smith and Shapiro 1993](https://pubmed.ncbi.nlm.nih.gov/8297696/))、この不一致は隠さずcontext metricとして保持する。
+測定site / event protocolを揃えるまではhard fit gateにしないが、healthy waveformをcanonicalと呼べない主要理由である。
+
+このcandidateは**固定terminal-boundary shadowでの機序選択**であり、healthy canonical releaseではない。atomic main-wire
+closed-loopへ接続してfixed TBV / P1 / dt refinement / pressure-step / hyperemia reserveを再確認するまで
+`simulationReady=false`を維持する。近位characteristic impedanceやinertanceは、atomic closed-loopでも入口peakが遅いことを
+確認するまで追加しない。
+
+### 28.7 protocol / artifact integrity
+
+solverへ渡したboundary objectからreport用pressure snapshotを同じstepで生成し、SIPを含む**実際のIMP**を保存する。
+pressure、LVFW / SEP / RVFW fiber strain、MVC/AoVO/AoVC definition、そこから解決したSIP boundaryをfingerprintへ含めるため、
+圧波形が同一でもshortening sourceやevent definitionが異なるreportを同一protocolとは判定しない。beating-reference reportは
+tone closureだけでなく、volume periodicity、incidence ledger、Newton residual、passive-edge power、全6層のmean-Qm target誤差
+$\le10^{-3}$、全層がtone上下限ではなくinteriorにあることを通過した場合だけR1 rebaseへ使用できる。
+
+比較artifact
+`data/myocardium/reports/mainwire-coronary-v2-sip-bounded-transport-factorial-v1.json`は各cellのterminal 500 samples、source hash、
+reference構築拍数・tone law・update window、構造parameterを保持する。HTML rendererはこのcompact artifactだけで再生成でき、
+一時的なfull 20-beat / 260-beat reportを必要としない。新artifactではC1→C2 fluxを`qmInternal`、その周期平均比を
+`endocardialToEpicardialMeanQmInternalRatio`と呼び、旧`tissue`名は既存reader用deprecated aliasに限定する。

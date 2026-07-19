@@ -293,6 +293,13 @@ function testLandReadbackProvider(
         warnings: Object.freeze([]),
         readback: Object.freeze({
           providerModelId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
+          effectiveFiberLogStrainByWall: Object.freeze({
+            LA: -0.02,
+            LVFW: -0.12,
+            SEP: -0.09,
+            RVFW: -0.07,
+            RA: -0.01,
+          }),
           wallMaterialReadbackByWall: Object.freeze({
             LA: null,
             LVFW: wall(120_000),

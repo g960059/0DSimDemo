@@ -326,6 +326,21 @@ export const CHILIAN_1991_DIRECTIONAL_TRANSMURAL_REPARTITION_ABLATION_V2 =
     }),
   }) satisfies CoronaryLayerRecordV2<CoronaryMicroInternalResistanceFractionV2>;
 
+export const LOW_RM_70_15_15_REPARTITION_ABLATION_V2 = Object.freeze({
+  // A mechanism probe, not a measured three-edge decomposition. It halves Rm
+  // but raises R2 by 50%, so it must not be called a globally faster network.
+  subepicardial: Object.freeze({
+    proximalArteriolar: 0.70,
+    intermediateCapillary: 0.15,
+    distalVenular: 0.15,
+  }),
+  subendocardial: Object.freeze({
+    proximalArteriolar: 0.70,
+    intermediateCapillary: 0.15,
+    distalVenular: 0.15,
+  }),
+}) satisfies CoronaryLayerRecordV2<CoronaryMicroInternalResistanceFractionV2>;
+
 export type CoronaryIntramyocardialCompliancePriorV2 = Readonly<{
   coldSeedVolumeMl: number;
   effectiveComplianceMlPerMmHg: number;
@@ -353,6 +368,19 @@ export type CoronaryTerritoryPriorV2 = Readonly<{
   largeArterialPressureVolume: CrefAnchoredCollapsiblePvPriorV2;
   largeArterialResistanceMmHgSecPerMl: number;
   layers: CoronaryLayerRecordV2<CoronaryLayerPriorV2>;
+}>;
+
+export type CoronaryBeatingReferenceR1CalibrationV2 = Readonly<{
+  calibrationId: "beating-reference-r1-mean-qm-v1";
+  /** Multipliers applied once to the static-pressure R1 construction prior. */
+  proximalArteriolarScaleByTerritoryLayer:
+    CoronaryTerritoryLayerRecordV2<number>;
+  /** Stable identity of the accepted periodic boundary used for construction. */
+  boundaryFingerprint: string;
+  calibrationToneResistanceScale: 1;
+  targetOwner: "mass-territory-layer-resting-flow-prior";
+  objective: "accepted-cycle-mean-qm-only";
+  waveformObjectiveUsed: false;
 }>;
 
 export type CoronaryTopologyPriorV2 = Readonly<{
@@ -384,6 +412,14 @@ export type CoronaryTopologyPriorV2 = Readonly<{
       typeof SPAAN_TWO_COMPARTMENT_COMPLIANCE_PRIOR_V2;
     /** Immutable literature/computational construction baseline, not active metadata after ablation. */
     baselineResistancePartition: typeof CORONARY_RESISTANCE_PARTITION_PRIOR_V2;
+    /** Null for the static 85-mmHg construction; populated only by an explicit beating-reference solve. */
+    beatingReferenceR1Calibration:
+      CoronaryBeatingReferenceR1CalibrationV2 | null;
+    /** Active local-slope scale relative to the immutable Spaan baseline. */
+    intramyocardialComplianceScale: Readonly<{
+      c1Proximal: number;
+      c2Distal: number;
+    }>;
     largeVesselLocalCompliance: typeof LARGE_VESSEL_LOCAL_COMPLIANCE_PRIOR_V2;
     referenceAbsolutePressureMmHg: Readonly<{
       rightAtrium: number;
@@ -733,6 +769,11 @@ export const NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2 = Object.freeze({
     effectiveComplianceMlPerMmHgPer100G:
       SPAAN_TWO_COMPARTMENT_COMPLIANCE_PRIOR_V2,
     baselineResistancePartition: CORONARY_RESISTANCE_PARTITION_PRIOR_V2,
+    beatingReferenceR1Calibration: null,
+    intramyocardialComplianceScale: Object.freeze({
+      c1Proximal: 1,
+      c2Distal: 1,
+    }),
     largeVesselLocalCompliance: LARGE_VESSEL_LOCAL_COMPLIANCE_PRIOR_V2,
     referenceAbsolutePressureMmHg: Object.freeze({
       rightAtrium: REFERENCE_RIGHT_ATRIAL_ABSOLUTE_PRESSURE_MMHG,
@@ -797,6 +838,83 @@ export const NORMAL_ADULT_CORONARY_TOPOLOGY_PRIOR_V2 = Object.freeze({
 }) satisfies CoronaryTopologyPriorV2;
 
 /**
+ * Apply a one-time normal-reference calibration to base R1 only.
+ *
+ * This is deliberately distinct from disease, accepted tone, hyperemia, and
+ * waveform fitting. The descriptor records that the only construction target
+ * was accepted-cycle mean Qm at fixed tone=1. A calibrated prior cannot be
+ * calibrated a second time without returning to its uncalibrated source.
+ */
+export function applyBeatingReferenceR1CalibrationV2(
+  prior: CoronaryTopologyPriorV2,
+  calibration: CoronaryBeatingReferenceR1CalibrationV2,
+): CoronaryTopologyPriorV2 {
+  if (prior.construction.beatingReferenceR1Calibration !== null) {
+    throw new Error("coronary V2 beating-reference R1 calibration is already applied");
+  }
+  validateBeatingReferenceR1CalibrationV2(calibration);
+  const territories = Object.freeze(Object.fromEntries(
+    CORONARY_TERRITORY_IDS_V2.map((territoryId) => {
+      const territory = prior.territories[territoryId];
+      const layers = Object.freeze(Object.fromEntries(
+        CORONARY_LAYER_IDS_V2.map((layerId) => {
+          const layer = territory.layers[layerId];
+          return [layerId, Object.freeze({
+            ...layer,
+            proximalArteriolarResistanceMmHgSecPerMl:
+              layer.proximalArteriolarResistanceMmHgSecPerMl
+              * calibration.proximalArteriolarScaleByTerritoryLayer[
+                territoryId
+              ][layerId],
+          })];
+        }),
+      )) as CoronaryLayerRecordV2<CoronaryLayerPriorV2>;
+      return [territoryId, Object.freeze({ ...territory, layers })];
+    }),
+  )) as CoronaryTerritoryRecordV2<CoronaryTerritoryPriorV2>;
+  const calibrated = Object.freeze({
+    ...prior,
+    construction: Object.freeze({
+      ...prior.construction,
+      beatingReferenceR1Calibration: calibration,
+    }),
+    territories,
+  });
+  validateCoronaryTopologyPriorV2(calibrated);
+  return calibrated;
+}
+
+export function validateBeatingReferenceR1CalibrationV2(
+  calibration: CoronaryBeatingReferenceR1CalibrationV2,
+): void {
+  if (calibration.calibrationId !== "beating-reference-r1-mean-qm-v1") {
+    throw new RangeError("coronary V2 beating-reference calibration id is invalid");
+  }
+  if (
+    calibration.calibrationToneResistanceScale !== 1
+    || calibration.targetOwner !== "mass-territory-layer-resting-flow-prior"
+    || calibration.objective !== "accepted-cycle-mean-qm-only"
+    || calibration.waveformObjectiveUsed !== false
+  ) {
+    throw new RangeError("coronary V2 beating-reference calibration ownership is invalid");
+  }
+  if (calibration.boundaryFingerprint.trim().length === 0) {
+    throw new RangeError("coronary V2 beating-reference boundary fingerprint is required");
+  }
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      const scale = calibration
+        .proximalArteriolarScaleByTerritoryLayer[territoryId][layerId];
+      if (!Number.isFinite(scale) || scale <= 0) {
+        throw new RangeError(
+          `${territoryId}.${layerId} beating-reference R1 scale must be positive`,
+        );
+      }
+    }
+  }
+}
+
+/**
  * Preserve each layer's total reference resistance while moving pressure loss
  * between R1/Rm/R2. This supports a bounded mechanism ablation without
  * changing flow targets, vascular volumes, compliances, or disease/tone owners.
@@ -807,6 +925,7 @@ export function repartitionCoronaryMicrovascularResistanceV2(
     CoronaryMicroInternalResistanceFractionV2
   >,
 ): CoronaryTopologyPriorV2 {
+  requireUncalibratedConstructionPriorV2(prior, "resistance repartition");
   for (const layerId of CORONARY_LAYER_IDS_V2) {
     const fraction = fractionByLayer[layerId];
     const sum = fraction.proximalArteriolar
@@ -860,6 +979,10 @@ export function scaleCoronaryLargeArterialComplianceV2(
   prior: CoronaryTopologyPriorV2,
   complianceScale: number,
 ): CoronaryTopologyPriorV2 {
+  requireUncalibratedConstructionPriorV2(
+    prior,
+    "large arterial compliance scaling",
+  );
   if (!Number.isFinite(complianceScale) || complianceScale <= 0) {
     throw new RangeError("large arterial compliance scale must be positive");
   }
@@ -885,6 +1008,97 @@ export function scaleCoronaryLargeArterialComplianceV2(
   const scaled = Object.freeze({ ...prior, territories });
   validateCoronaryTopologyPriorV2(scaled);
   return scaled;
+}
+
+/**
+ * Scale C1/C2 local PV slopes without moving their structural loaded volume or
+ * loaded pressure. This is a bounded time-constant mechanism ablation; it does
+ * not change R1/Rm/R2, mass allocation, or flow targets.
+ */
+export function scaleCoronaryIntramyocardialComplianceV2(
+  prior: CoronaryTopologyPriorV2,
+  scale: Readonly<{ c1Proximal: number; c2Distal: number }>,
+): CoronaryTopologyPriorV2 {
+  requireUncalibratedConstructionPriorV2(
+    prior,
+    "intramyocardial compliance scaling",
+  );
+  for (const [name, value] of Object.entries(scale)) {
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new RangeError(`${name} compliance scale must be positive`);
+    }
+  }
+  const territories = Object.freeze(Object.fromEntries(
+    CORONARY_TERRITORY_IDS_V2.map((territoryId) => {
+      const territory = prior.territories[territoryId];
+      const layers = Object.freeze(Object.fromEntries(
+        CORONARY_LAYER_IDS_V2.map((layerId) => {
+          const layer = territory.layers[layerId];
+          const scaleCompartment = (
+            compartment: CoronaryIntramyocardialCompliancePriorV2,
+            localScale: number,
+          ): CoronaryIntramyocardialCompliancePriorV2 => Object.freeze({
+            ...compartment,
+            effectiveComplianceMlPerMmHg:
+              compartment.effectiveComplianceMlPerMmHg * localScale,
+            pressureVolume: compileCrefAnchoredCollapsiblePvFromLoadedSeedV2({
+              loadedSeedVolumeMl:
+                compartment.pressureVolume.loadedSeedVolumeMl,
+              loadedSeedTransmuralPressureMmHg:
+                compartment.pressureVolume.loadedSeedTransmuralPressureMmHg,
+              referenceComplianceMlPerMmHg:
+                compartment.pressureVolume.referenceComplianceMlPerMmHg
+                * localScale,
+              expansionExponent:
+                compartment.pressureVolume.expansionExponent,
+              collapseExponent:
+                compartment.pressureVolume.collapseExponent,
+            }),
+          });
+          return [layerId, Object.freeze({
+            ...layer,
+            c1ProximalArterial: scaleCompartment(
+              layer.c1ProximalArterial,
+              scale.c1Proximal,
+            ),
+            c2DistalVenous: scaleCompartment(
+              layer.c2DistalVenous,
+              scale.c2Distal,
+            ),
+          })];
+        }),
+      )) as CoronaryLayerRecordV2<CoronaryLayerPriorV2>;
+      return [territoryId, Object.freeze({ ...territory, layers })];
+    }),
+  )) as CoronaryTerritoryRecordV2<CoronaryTerritoryPriorV2>;
+  const scaled = Object.freeze({
+    ...prior,
+    construction: Object.freeze({
+      ...prior.construction,
+      intramyocardialComplianceScale: Object.freeze({
+        c1Proximal:
+          prior.construction.intramyocardialComplianceScale.c1Proximal
+          * scale.c1Proximal,
+        c2Distal:
+          prior.construction.intramyocardialComplianceScale.c2Distal
+          * scale.c2Distal,
+      }),
+    }),
+    territories,
+  });
+  validateCoronaryTopologyPriorV2(scaled);
+  return scaled;
+}
+
+function requireUncalibratedConstructionPriorV2(
+  prior: CoronaryTopologyPriorV2,
+  operation: string,
+): void {
+  if (prior.construction.beatingReferenceR1Calibration !== null) {
+    throw new Error(
+      `coronary V2 ${operation} must precede beating-reference R1 calibration`,
+    );
+  }
 }
 
 function territoryArterialNodeIdV2(
@@ -1195,6 +1409,11 @@ export function validateCoronaryTopologyPriorV2(
     throw new RangeError("coronary V2 construction-seed schema identity is invalid");
   }
   const construction = prior.construction;
+  if (construction.beatingReferenceR1Calibration !== null) {
+    validateBeatingReferenceR1CalibrationV2(
+      construction.beatingReferenceR1Calibration,
+    );
+  }
   const budget = construction.bloodVolumeMlPer100G;
   const budgetFractions = budget.exclusiveNormalizedFraction01;
   if (
@@ -1403,10 +1622,19 @@ export function validateCoronaryTopologyPriorV2(
   }
   const expectedC1Compliance =
     construction.referenceVentricularMyocardialMassG / 100
-    * compliance.c1Proximal.center;
+    * compliance.c1Proximal.center
+    * construction.intramyocardialComplianceScale.c1Proximal;
   const expectedC2Compliance =
     construction.referenceVentricularMyocardialMassG / 100
-    * compliance.c2Distal.center;
+    * compliance.c2Distal.center
+    * construction.intramyocardialComplianceScale.c2Distal;
+  for (const [name, value] of Object.entries(
+    construction.intramyocardialComplianceScale,
+  )) {
+    if (!Number.isFinite(value) || value <= 0) {
+      throw new RangeError(`${name} construction compliance scale must be positive`);
+    }
+  }
   if (
     Math.abs(c1ComplianceSum - expectedC1Compliance) > 1e-12
     || Math.abs(c2ComplianceSum - expectedC2Compliance) > 1e-12

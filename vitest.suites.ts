@@ -240,6 +240,7 @@ export const canonicalScientificTestGlobs = [
   "__tests__/coronaryAutoregulationV2.test.ts",
   "__tests__/coronaryCycleEventSegmentationV1.test.ts",
   "__tests__/coronaryTopologyPriorV2.test.ts",
+  "__tests__/coronaryV2ShadowProtocol.test.ts",
 ] as const;
 
 /**
@@ -297,6 +298,7 @@ const canonicalScientificExact = new Set<string>([
   "__tests__/coronaryAutoregulationV2.test.ts",
   "__tests__/coronaryCycleEventSegmentationV1.test.ts",
   "__tests__/coronaryTopologyPriorV2.test.ts",
+  "__tests__/coronaryV2ShadowProtocol.test.ts",
 ]);
 
 export function isCanonicalScientificTest(file: string): boolean {

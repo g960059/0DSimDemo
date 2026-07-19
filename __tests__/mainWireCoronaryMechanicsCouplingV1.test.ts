@@ -20,6 +20,13 @@ function trial(
     diagnostics: {
       readback: {
         providerModelId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
+        effectiveFiberLogStrainByWall: {
+          LA: -0.02,
+          LVFW: -0.12,
+          SEP: -0.09,
+          RVFW: -0.07,
+          RA: -0.01,
+        },
         wallMaterialReadbackByWall: {
           LA: null,
           LVFW: wall(stresses.LVFW),
@@ -56,6 +63,11 @@ describe("main-wire coronary mechanics coupling", () => {
       passiveAndSlsStressIncludedInActiveStressTerm: false,
       epicardialExternalPressure:
         "common-intrathoracic-plus-common-pericardial-excess",
+    });
+    expect(result.effectiveFiberLogStrainByWall).toEqual({
+      LVFW: -0.12,
+      SEP: -0.09,
+      RVFW: -0.07,
     });
   });
 

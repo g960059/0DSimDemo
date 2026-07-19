@@ -43,6 +43,7 @@ const CYCLE_LENGTH_SEC = 1;
 
 type TerritoryNumbers = CoronaryTerritoryRecordV1<number>;
 type LayerNumbers = CoronaryTerritoryLayerRecordV1<number>;
+type WallNumbers = Readonly<{ LVFW: number; SEP: number; RVFW: number }>;
 
 type Sample = Readonly<{
   stepIndex: number;
@@ -57,6 +58,11 @@ type Sample = Readonly<{
     perivascularExternal: number;
     postLesionPdByTerritory: TerritoryNumbers;
     intramyocardialByTerritoryLayer: LayerNumbers;
+  }>;
+  mechanics: Readonly<{
+    chamberTransmuralPressureMmHg: Readonly<{ LV: number; RV: number }>;
+    landActiveFiberStressPaByWall: WallNumbers;
+    effectiveFiberLogStrainByWall: WallNumbers;
   }>;
   flowMlPerSec: Readonly<{
     aorticValve: number;
@@ -185,6 +191,19 @@ for (let stepIndex = 1; stepIndex <= requestedStepCount; stepIndex += 1) {
       intramyocardialByTerritoryLayer: copyLayers(
         stepped.intramyocardialPressureMmHgByTerritoryLayer,
       ),
+    }),
+    mechanics: Object.freeze({
+      chamberTransmuralPressureMmHg: Object.freeze({
+        ...stepped.coronaryMechanicsCoupling.input
+          .chamberTransmuralPressureMmHg,
+      }),
+      landActiveFiberStressPaByWall: Object.freeze({
+        ...stepped.coronaryMechanicsCoupling.input
+          .landActiveFiberStressPaByWall,
+      }),
+      effectiveFiberLogStrainByWall: Object.freeze({
+        ...stepped.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall,
+      }),
     }),
     flowMlPerSec: Object.freeze({
       aorticValve: stepped.circulationTrial.edgeFlowsMlPerSec.AoV,

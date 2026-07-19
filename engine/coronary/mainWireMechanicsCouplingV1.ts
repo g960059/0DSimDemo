@@ -16,6 +16,12 @@ export const MAIN_WIRE_CORONARY_MECHANICS_COUPLING_V1_ID =
 export type MainWireCoronaryMechanicsCouplingEvaluationV1 = Readonly<{
   couplingId: typeof MAIN_WIRE_CORONARY_MECHANICS_COUPLING_V1_ID;
   input: CoronaryMechanicsInputV1;
+  /** Same-candidate wall kinematics for shortening-mechanism ablation only. */
+  effectiveFiberLogStrainByWall: Readonly<{
+    LVFW: number;
+    SEP: number;
+    RVFW: number;
+  }>;
   commonIntrathoracicPressureMmHg: number;
   commonPericardialExcessPressureMmHg: number;
   source: Readonly<{
@@ -73,6 +79,8 @@ export function evaluateMainWireCoronaryMechanicsCouplingV1<TWallState>(
   return Object.freeze({
     couplingId: MAIN_WIRE_CORONARY_MECHANICS_COUPLING_V1_ID,
     input: coronaryInput,
+    effectiveFiberLogStrainByWall:
+      readback.effectiveFiberLogStrainByWall,
     commonIntrathoracicPressureMmHg:
       input.commonIntrathoracicPressureMmHg,
     commonPericardialExcessPressureMmHg:
@@ -91,6 +99,11 @@ export function evaluateMainWireCoronaryMechanicsCouplingV1<TWallState>(
 
 type MainWireMechanicsReadbackShapeV1 = Readonly<{
   providerModelId: string;
+  effectiveFiberLogStrainByWall: Readonly<{
+    LVFW: number;
+    SEP: number;
+    RVFW: number;
+  }>;
   wallMaterialReadbackByWall: Readonly<{
     LVFW: WholeHeartMechanicsSerializableValueV1 | null;
     SEP: WholeHeartMechanicsSerializableValueV1 | null;
@@ -111,6 +124,29 @@ function mechanicsReadback(
   );
   return Object.freeze({
     providerModelId: record.providerModelId,
+    effectiveFiberLogStrainByWall: Object.freeze({
+      LVFW: finiteValue(
+        "LVFW effective fiber log strain",
+        objectValue(
+          record.effectiveFiberLogStrainByWall,
+          "five-wall effective fiber log strain",
+        ).LVFW,
+      ),
+      SEP: finiteValue(
+        "SEP effective fiber log strain",
+        objectValue(
+          record.effectiveFiberLogStrainByWall,
+          "five-wall effective fiber log strain",
+        ).SEP,
+      ),
+      RVFW: finiteValue(
+        "RVFW effective fiber log strain",
+        objectValue(
+          record.effectiveFiberLogStrainByWall,
+          "five-wall effective fiber log strain",
+        ).RVFW,
+      ),
+    }),
     wallMaterialReadbackByWall: Object.freeze({
       LVFW: serializableOrNull(wallMaterialReadbackByWall.LVFW),
       SEP: serializableOrNull(wallMaterialReadbackByWall.SEP),
