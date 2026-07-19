@@ -199,6 +199,13 @@ export type CoronaryBackwardEulerImplicitDirectionalSensitivitiesV2 =
       baseTrialReusedWithoutResolve: true;
       candidateTrialResolveCount: 0;
       directionCount: number;
+      exactZeroBoundaryDirectionCount: number;
+      baseResidualProbeEvaluationCount: number;
+      volumeJacobianProbeEvaluationCount: number;
+      boundaryResidualProbeEvaluationCount: number;
+      observableProbeEvaluationCount: number;
+      implicitLinearSolveCount: number;
+      hydraulicResidualEvaluationCount: number;
       maximumAbsoluteReconstructedBaseResidualMl: number;
       maximumAbsoluteLinearizedResidualMlPerScaledVariable: number;
     }>;
@@ -783,10 +790,40 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
     options.minimumVolumeFractionOfReference,
   );
 
+  // Exact scalar equality is intentional: a tolerance could erase a real,
+  // small outer-Newton direction and silently corrupt its Jacobian column.
+  const exactZeroBoundaryDirection = request.boundaryDirections.map(
+    (direction) => {
+      if (!Number.isFinite(direction.scaledStep) || direction.scaledStep <= 0) {
+        throw new RangeError("scaledStep must be positive and finite");
+      }
+      validateBoundaryV2(direction.minusBoundary);
+      validateBoundaryV2(direction.plusBoundary);
+      return hydraulicBoundaryExactlyEqualV2(
+        direction.minusBoundary,
+        request.trialInput.boundary,
+      ) && hydraulicBoundaryExactlyEqualV2(
+        direction.plusBoundary,
+        request.trialInput.boundary,
+      );
+    },
+  );
+  const exactZeroBoundaryDirectionCount = exactZeroBoundaryDirection.reduce(
+    (count, isZero) => count + (isZero ? 1 : 0),
+    0,
+  );
+  let hydraulicResidualEvaluationCount = 0;
+  let baseResidualProbeEvaluationCount = 0;
+  let volumeJacobianProbeEvaluationCount = 0;
+  let boundaryResidualProbeEvaluationCount = 0;
+  let observableProbeEvaluationCount = 0;
+  let implicitLinearSolveCount = 0;
+
   const evaluate = (
     candidateVolumes: number[],
     boundary: CoronaryHydraulicBoundaryInputV2,
   ): ResidualEvaluationV2 => {
+    hydraulicResidualEvaluationCount += 1;
     validateBoundaryV2(boundary);
     validateVolumesV2(
       candidateVolumes,
@@ -814,6 +851,14 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
     return { residual, hydraulics };
   };
 
+  const dVolumeByDirection: CoronaryConservedVolumeStateV2[] = [];
+  const dTotalVolume: number[] = [];
+  const dTotalInlet: number[] = [];
+  const dCommonVenousOutlet: number[] = [];
+  const zeroVolumeDerivative = arrayToVolumeRecordV2(
+    Array(candidate.length).fill(0),
+  );
+  baseResidualProbeEvaluationCount += 1;
   const base = evaluate(candidate.slice(), request.trialInput.boundary);
   const baseResidualNorm = infinityNormV2(base.residual);
   const baseResidualLimit = Math.max(
@@ -828,24 +873,37 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       "coronary implicit sensitivity base trial is not converged for supplied input",
     );
   }
-  const jacobian = numericalJacobianPositiveCentralV2(
-    candidate,
-    (volumes) => evaluate(volumes, request.trialInput.boundary).residual,
-    minimumVolumes,
-    options.finiteDifferenceRelativeStep,
-  );
-
-  const dVolumeByDirection: CoronaryConservedVolumeStateV2[] = [];
-  const dTotalVolume: number[] = [];
-  const dTotalInlet: number[] = [];
-  const dCommonVenousOutlet: number[] = [];
   let maximumLinearizedResidual = 0;
-  for (const direction of request.boundaryDirections) {
-    if (!Number.isFinite(direction.scaledStep) || direction.scaledStep <= 0) {
-      throw new RangeError("scaledStep must be positive and finite");
+  let jacobian: number[][] | null = null;
+  if (exactZeroBoundaryDirectionCount < request.boundaryDirections.length) {
+    jacobian = numericalJacobianPositiveCentralV2(
+      candidate,
+      (volumes) => {
+        volumeJacobianProbeEvaluationCount += 1;
+        return evaluate(volumes, request.trialInput.boundary).residual;
+      },
+      minimumVolumes,
+      options.finiteDifferenceRelativeStep,
+    );
+  }
+
+  for (
+    let directionIndex = 0;
+    directionIndex < request.boundaryDirections.length;
+    directionIndex += 1
+  ) {
+    const direction = request.boundaryDirections[directionIndex];
+    if (exactZeroBoundaryDirection[directionIndex]) {
+      dVolumeByDirection.push(zeroVolumeDerivative);
+      dTotalVolume.push(0);
+      dTotalInlet.push(0);
+      dCommonVenousOutlet.push(0);
+      continue;
     }
-    validateBoundaryV2(direction.minusBoundary);
-    validateBoundaryV2(direction.plusBoundary);
+    if (jacobian === null) {
+      throw new Error("nonzero coronary direction is missing its Jacobian");
+    }
+    boundaryResidualProbeEvaluationCount += 2;
     const plusBoundaryResidual = evaluate(
       candidate.slice(),
       direction.plusBoundary,
@@ -866,6 +924,7 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       jacobian,
       dResidualDScaledVariable.map((value) => -value),
     );
+    implicitLinearSolveCount += 1;
     requireFiniteVectorV2(
       dVolume,
       "coronary implicit volume directional derivative",
@@ -896,6 +955,7 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       topology,
       options.minimumVolumeFractionOfReference,
     );
+    observableProbeEvaluationCount += 2;
     const combinedPlus = evaluate(
       combinedPlusVolume,
       direction.plusBoundary,
@@ -944,7 +1004,9 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
         frozenTotalVolume,
       dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume:
         Object.freeze({
-          Ao: Object.freeze(frozenTotalInlet.map((value) => -value)),
+          Ao: Object.freeze(frozenTotalInlet.map(
+            (value) => value === 0 ? 0 : -value,
+          )),
           RA: frozenCommonVenousOutlet,
         }),
     }),
@@ -952,6 +1014,13 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       baseTrialReusedWithoutResolve: true as const,
       candidateTrialResolveCount: 0 as const,
       directionCount: request.boundaryDirections.length,
+      exactZeroBoundaryDirectionCount,
+      baseResidualProbeEvaluationCount,
+      volumeJacobianProbeEvaluationCount,
+      boundaryResidualProbeEvaluationCount,
+      observableProbeEvaluationCount,
+      implicitLinearSolveCount,
+      hydraulicResidualEvaluationCount,
       maximumAbsoluteReconstructedBaseResidualMl: baseResidualNorm,
       maximumAbsoluteLinearizedResidualMlPerScaledVariable:
         maximumLinearizedResidual,
@@ -1718,6 +1787,25 @@ function validateBoundaryV2(boundary: CoronaryHydraulicBoundaryInputV2): void {
       }
     }
   }
+}
+
+function hydraulicBoundaryExactlyEqualV2(
+  left: CoronaryHydraulicBoundaryInputV2,
+  right: CoronaryHydraulicBoundaryInputV2,
+): boolean {
+  return left.absoluteAorticPressureMmHg
+      === right.absoluteAorticPressureMmHg
+    && left.absoluteRightAtrialPressureMmHg
+      === right.absoluteRightAtrialPressureMmHg
+    && left.perivascularExternalPressureMmHg
+      === right.perivascularExternalPressureMmHg
+    && CORONARY_TERRITORY_IDS_V2.every((territoryId) =>
+      CORONARY_LAYER_IDS_V2.every((layerId) =>
+        left.intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId]
+          === right.intramyocardialPressureMmHgByTerritoryLayer[territoryId][
+            layerId
+          ]
+      ));
 }
 
 function validateDiseaseV2(disease: CoronaryDiseaseInputV2): void {

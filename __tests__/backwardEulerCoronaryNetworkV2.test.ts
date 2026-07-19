@@ -334,6 +334,13 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
       baseTrialReusedWithoutResolve: true,
       candidateTrialResolveCount: 0,
       directionCount: 2,
+      exactZeroBoundaryDirectionCount: 0,
+      baseResidualProbeEvaluationCount: 1,
+      volumeJacobianProbeEvaluationCount: 32,
+      boundaryResidualProbeEvaluationCount: 4,
+      observableProbeEvaluationCount: 4,
+      implicitLinearSolveCount: 2,
+      hydraulicResidualEvaluationCount: 41,
     });
     expect(implicit.diagnostics.maximumAbsoluteReconstructedBaseResidualMl)
       .toBeLessThan(1e-9);
@@ -401,6 +408,76 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
         },
       }],
     })).toThrow(/positive domain/);
+  });
+
+  it("returns exact zero sensitivities without direction probes for exact base-boundary directions", () => {
+    const initialized = initializePressureLadderCoronaryStateV2({
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    });
+    const baseInput = Object.freeze({
+      dtSec: 0.005,
+      boundary: DIASTOLIC_BOUNDARY_V2,
+    }) satisfies CoronaryBackwardEulerTrialInputV2;
+    const baseTrial = solveCoronaryBackwardEulerTrialV2(
+      initialized.acceptedState,
+      baseInput,
+    );
+    const numericallyIdenticalBoundary = Object.freeze({
+      ...DIASTOLIC_BOUNDARY_V2,
+      intramyocardialPressureMmHgByTerritoryLayer: Object.freeze({
+        LAD: Object.freeze({ subepicardial: 6, subendocardial: 10 }),
+        LCx: Object.freeze({ subepicardial: 6, subendocardial: 10 }),
+        RCA: Object.freeze({ subepicardial: 5, subendocardial: 8 }),
+      }),
+    }) satisfies CoronaryHydraulicBoundaryInputV2;
+    const implicit =
+      computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2({
+        previousAcceptedState: initialized.acceptedState,
+        trialInput: baseInput,
+        baseTrial,
+        boundaryDirections: Object.freeze([
+          Object.freeze({
+            scaledStep: 2e-6,
+            minusBoundary: DIASTOLIC_BOUNDARY_V2,
+            plusBoundary: DIASTOLIC_BOUNDARY_V2,
+          }),
+          Object.freeze({
+            scaledStep: 7e-4,
+            minusBoundary: numericallyIdenticalBoundary,
+            plusBoundary: numericallyIdenticalBoundary,
+          }),
+        ]),
+      });
+
+    expect(implicit.dCandidateVolumeMlByNodeDScaledVariable).toHaveLength(2);
+    implicit.dCandidateVolumeMlByNodeDScaledVariable.forEach((direction) => {
+      expect(Object.values(direction).every((value) => value === 0)).toBe(true);
+    });
+    expect(implicit.dCandidateCoronaryBloodVolumeMlDScaledVariable)
+      .toEqual([0, 0]);
+    expect(implicit.dTotalInletFlowMlPerSecDScaledVariable).toEqual([0, 0]);
+    expect(implicit.dCommonCoronaryVenousOutletFlowMlPerSecDScaledVariable)
+      .toEqual([0, 0]);
+    expect(implicit.conservativeCompanionSensitivities
+      .dCandidateCompanionBloodVolumeMlDScaledIndependentVolume)
+      .toEqual([0, 0]);
+    expect(implicit.conservativeCompanionSensitivities
+      .dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume)
+      .toEqual({ Ao: [0, 0], RA: [0, 0] });
+    expect(implicit.diagnostics).toMatchObject({
+      candidateTrialResolveCount: 0,
+      directionCount: 2,
+      exactZeroBoundaryDirectionCount: 2,
+      baseResidualProbeEvaluationCount: 1,
+      volumeJacobianProbeEvaluationCount: 0,
+      boundaryResidualProbeEvaluationCount: 0,
+      observableProbeEvaluationCount: 0,
+      implicitLinearSolveCount: 0,
+      hydraulicResidualEvaluationCount: 1,
+      maximumAbsoluteLinearizedResidualMlPerScaledVariable: 0,
+    });
+    expect(implicit.diagnostics.maximumAbsoluteReconstructedBaseResidualMl)
+      .toBeLessThan(1e-9);
   });
 
   it("keeps the implicit shadow accurate with collapse and focal stenosis active", () => {
