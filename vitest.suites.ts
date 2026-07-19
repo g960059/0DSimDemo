@@ -58,6 +58,7 @@ export const fastTests = [
   "__tests__/mainWireScientificResolvedSessionInputV1.test.ts",
   "__tests__/mainWireScientificExactCheckpointV3.test.ts",
   "__tests__/mainWireScientificTbvContinuationSeedPredictorV1.test.ts",
+  "__tests__/mainWireScientificTbvAccuracyCharacterizationV1.test.ts",
   "__tests__/mainWireScientificDocumentsV1.test.ts",
   "__tests__/mainWireScientificDocumentChainV1.test.ts",
   "__tests__/mainWireScientificWorkspaceDocumentV1.test.ts",
