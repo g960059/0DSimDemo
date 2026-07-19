@@ -9,6 +9,7 @@ import { createMainWireScientificFastTbvPreviewTargetsV1 } from "@/engine/scient
 import {
   estimateMainWireScientificFastTbvPreviewPointV1,
   prepareMainWireScientificGuytonStarlingBaselineV2,
+  refineMainWireScientificFastTbvPreviewPointV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import { verifyOfficialHealthyPeriodicPresetBundleAssetsV1 } from "@/engine/scientific/presets";
 import { restoreMainWireScientificSessionExactV2 } from "@/engine/scientific/runtime";
@@ -99,6 +100,46 @@ describe("main-wire scientific rapid TBV finite-hold preview V1", () => {
       target.totalBloodVolumeMl,
       6,
     );
+    if (evaluated.terminalState === null) {
+      throw new Error("initial rapid point did not retain a refinement state");
+    }
+    expect(() => refineMainWireScientificFastTbvPreviewPointV1(
+      dependencies,
+      baseline.continuationSeedState,
+      evaluated.evidence,
+    )).toThrow(/state does not match its evidence target/);
+    expect(evaluated.refinementAssessment).toMatchObject({
+      completedNaturalBeatCount: 2,
+      tier: "baseline-third-beat",
+      claimBoundary: {
+        periodicityClaim: "none",
+        mayEnterSettledP1OrP2Evidence: false,
+        maySeedCanonicalContinuation: false,
+        mayEnterEspvrEdpvrPrswFit: false,
+      },
+    });
+    const refined = refineMainWireScientificFastTbvPreviewPointV1(
+      dependencies,
+      evaluated.terminalState,
+      evaluated.evidence,
+    );
+    if (refined.evidence.evidenceClass === "failure") {
+      throw new Error(refined.evidence.reason);
+    }
+    expect(refined.evidence.evidenceId).toBe(evaluated.evidence.evidenceId);
+    expect(refined.evidence.acquisition).toMatchObject({
+      plannedNaturalBeatCountAfterPrediction: 3,
+      completedNaturalBeatCountAfterPrediction: 3,
+    });
+    expect(refined.evidence.periodicityClaim).toBe("not-demonstrated");
+    expect(refined.evidence.eligibility).toMatchObject({
+      settledP1Locus: false,
+      continuationSeed: false,
+      espvrEdpvrPrswFit: false,
+    });
+    expect(refined.refinementAssessment?.completedNaturalBeatCount).toBe(3);
+    expect(refined.refinementAssessment?.claimBoundary.periodicityClaim)
+      .toBe("none");
   }, 30_000);
 });
 

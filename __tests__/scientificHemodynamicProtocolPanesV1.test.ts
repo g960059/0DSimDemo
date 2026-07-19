@@ -88,7 +88,7 @@ describe("scientific hemodynamic protocol panes V1", () => {
     expect(rapidPaths).toHaveLength(1);
     expect(rapidPaths[0]).toContain('stroke-dasharray="5 4"');
     expect(rapidPaths[0]).toContain('stroke-opacity="0.52"');
-    expect(html).toContain("Rapid finite-hold estimate · not settled");
+    expect(html).toContain("Adaptive rapid estimate · not settled");
     expect(html).toContain("one-dimensional operating locus");
   });
 
