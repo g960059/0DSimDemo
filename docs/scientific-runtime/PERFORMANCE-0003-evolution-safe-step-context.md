@@ -30,6 +30,22 @@ mutable autonomic, coronary, or device drive payloads can be snapshotted once
 at preparation and cloned per callback without teaching this transaction about
 their state layout.
 
+### Coronary transaction alignment
+
+The same prepared mechanics context is used by the V1 and provisional V2
+coronary transactions. This reuse is deliberately limited to the accepted
+mechanics baseline and immutable calcium drive. Every outer Newton/finite-
+difference probe still solves coronary hydraulics from the same previous
+accepted coronary state, and its IMP/SIP boundary is recomputed from that
+probe's same-candidate chamber mechanics. No coronary candidate, boundary, or
+tone state is cached across probes.
+
+The rapid two-to-five-beat TBV path remains presentation-only evidence. When
+the V2 coronary transaction enters the scientific runtime, rapid refinement
+must include all 31 blood-volume owners, six tone states, and accepted MVC
+reference memory in its drift assessment; it cannot reuse the legacy 68-state
+P1 closure or promote a rapid point as canonical periodic evidence.
+
 ## Profile result
 
 A 5,000-step CPU profile and a 500-step call-count profile found that repeated

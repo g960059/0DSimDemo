@@ -145,6 +145,10 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       .toEqual({ LVFW: -0.12, SEP: -0.09, RVFW: -0.07 });
     expect(MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2
       .toneUpdateInsideHydraulicNewton).toBe(false);
+    expect(MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2
+      .mechanicsProbeContext).toBe(
+        "one-audited-private-accepted-mechanics-snapshot-per-outer-step",
+      );
   });
 
   it("latches an MVC strain reference only on an accepted mitral-flow true-to-false event", () => {

@@ -146,6 +146,10 @@ describe("main-wire five-wall + coronary atomic transaction V1", () => {
       .toBe(
         "every-probe-restarts-from-the-same-previous-accepted-coronary-state",
       );
+    expect(MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V1
+      .mechanicsProbeContext).toBe(
+        "one-audited-private-accepted-mechanics-snapshot-per-outer-step",
+      );
   });
 
   it("rolls circulation, coronary, and mechanics back together", () => {

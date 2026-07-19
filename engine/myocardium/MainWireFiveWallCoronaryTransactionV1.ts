@@ -59,9 +59,10 @@ import {
 } from "@/engine/myocardium/mechanics/mainWireCommonPericardiumBindingV1";
 import {
   cloneWholeHeartMechanicsAcceptedStateV1,
-  commitWholeHeartMechanicsTrialV1,
-  evaluateWholeHeartMechanicsTrialV1,
+  commitPreparedWholeHeartMechanicsTrialV1,
+  evaluatePreparedWholeHeartMechanicsTrialV1,
   initializeWholeHeartMechanicsColdV1,
+  prepareWholeHeartMechanicsStepV1,
   type WholeHeartMechanicsAcceptedStateV1,
   type WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
   type WholeHeartMechanicsProviderV1,
@@ -91,6 +92,8 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V1 =
       "one-fixed-global-ledger-including-ten-coronary-volumes" as const,
     companionNewtonSemantics:
       "every-probe-restarts-from-the-same-previous-accepted-coronary-state" as const,
+    mechanicsProbeContext:
+      "one-audited-private-accepted-mechanics-snapshot-per-outer-step" as const,
     circulationMechanicsAndCoronaryCommit:
       "atomic-after-all-three-trials-succeed" as const,
     failureSemantics: "rollback-all-three-accepted-states" as const,
@@ -347,6 +350,12 @@ export function stepMainWireFiveWallCoronaryV1<TWallState>(
     candidateTimeSec,
     input.runtime,
   );
+  const mechanicsStep = prepareWholeHeartMechanicsStepV1(provider, {
+    previousAcceptedState: previous.mechanics,
+    candidateTimeSec,
+    stepDtSec: input.dtSec,
+    drivingInputs: calciumDrive,
+  });
   const circulationTrial = evaluateNonCoronaryCirculationBackwardEulerTrialV1<
     MainWireFiveWallCoronaryCandidateMechanicsEvaluationV1<TWallState>,
     CoronaryBackwardEulerTrialV1
@@ -357,13 +366,10 @@ export function stepMainWireFiveWallCoronaryV1<TWallState>(
     options: input.circulationNewtonOptions,
     protocolResistanceScaleByEdge: input.protocolResistanceScaleByEdge,
     evaluateCandidateMechanics: (volumesMl) => {
-      const mechanicsTrial = evaluateWholeHeartMechanicsTrialV1(provider, {
-        previousAcceptedState: previous.mechanics,
-        candidateTimeSec,
-        stepDtSec: input.dtSec,
-        candidateVolumesMl: volumesMl,
-        drivingInputs: calciumDrive,
-      });
+      const mechanicsTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
+        mechanicsStep,
+        volumesMl,
+      );
       if (
         !mechanicsTrial.diagnostics.converged
         || !mechanicsTrial.diagnostics.finite
@@ -498,9 +504,8 @@ export function stepMainWireFiveWallCoronaryV1<TWallState>(
       ?.candidateCompanionTrial) {
     throw new Error("coronary companion promotion changed trial identity");
   }
-  const nextMechanics = commitWholeHeartMechanicsTrialV1(
-    provider,
-    previous.mechanics,
+  const nextMechanics = commitPreparedWholeHeartMechanicsTrialV1(
+    mechanicsStep,
     mechanicsTrial,
   );
   const acceptedState = acceptedTriplet(
