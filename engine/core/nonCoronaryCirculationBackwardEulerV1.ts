@@ -249,7 +249,92 @@ export type NonCoronaryProtocolResistanceScaleByEdgeV1 = Readonly<
   Partial<Record<NonCoronaryEdgeNameV1, number>>
 >;
 
-export type NonCoronaryCirculationTrialInputV1<TEvaluation> = Readonly<{
+export type NonCoronaryIndependentNodeNameV1 = Exclude<
+  NonCoronaryNodeNameV1,
+  "SV"
+>;
+
+export const NON_CORONARY_CONSERVATIVE_COMPANION_BOUNDARY_NODES_V1 =
+  Object.freeze(["Ao", "RA"] as const);
+export type NonCoronaryConservativeCompanionBoundaryNodeV1 =
+  (typeof NON_CORONARY_CONSERVATIVE_COMPANION_BOUNDARY_NODES_V1)[number];
+
+export type NonCoronaryIndependentNodeRecordV1<T> = Readonly<
+  Record<NonCoronaryIndependentNodeNameV1, T>
+>;
+export type NonCoronaryCompanionBoundaryRecordV1<T> = Readonly<
+  Record<NonCoronaryConservativeCompanionBoundaryNodeV1, T>
+>;
+
+/**
+ * Same-candidate input for an optional conservative implicit companion.
+ *
+ * The companion is deliberately generic: the circulation core never imports
+ * a device, coronary, renal, or other subsystem type. Implementations must be
+ * pure with respect to accepted state. In particular, every Newton/line-search
+ * probe must start from the same previous accepted companion state rather than
+ * from the preceding candidate evaluation.
+ */
+export type NonCoronaryConservativeCompanionCandidateInputV1<TEvaluation> =
+  Readonly<{
+    candidateTimeSec: number;
+    dtSec: number;
+    fixedGlobalTotalBloodVolumeMl: number;
+    independentNodeOrder: readonly NonCoronaryIndependentNodeNameV1[];
+    scaledIndependentVolumes: readonly number[];
+    independentVolumeScalesMl: readonly number[];
+    candidateIndependentNodeVolumesMl:
+      NonCoronaryIndependentNodeRecordV1<number>;
+    boundaryAbsolutePressuresMmHg:
+      NonCoronaryCompanionBoundaryRecordV1<number>;
+    /** Null when the mechanics callback did not provide its algorithmic tangent. */
+    dBoundaryAbsolutePressureDScaledIndependentVolume:
+      NonCoronaryCompanionBoundaryRecordV1<readonly number[]> | null;
+    /** Opaque to this core; the companion implementation owns interpretation. */
+    candidateMechanicsEvaluation: TEvaluation;
+  }>;
+
+export type NonCoronaryConservativeCompanionSensitivitiesV1 = Readonly<{
+  dCandidateCompanionBloodVolumeMlDScaledIndependentVolume:
+    readonly number[];
+  dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume:
+    NonCoronaryCompanionBoundaryRecordV1<readonly number[]>;
+}>;
+
+export type NonCoronaryConservativeCompanionCandidateEvaluationV1<
+  TCompanionTrial,
+> = Readonly<{
+  /** All conserved volume states owned by the companion at this candidate. */
+  candidateCompanionBloodVolumeMl: number;
+  /**
+   * Net rate INTO each outer boundary node. For a coronary companion this is
+   * normally negative at Ao (uptake) and positive at RA (venous return).
+   */
+  outerBoundaryNetVolumeRateMlPerSec:
+    NonCoronaryCompanionBoundaryRecordV1<number>;
+  /** Opaque pure trial; only the companion-aware transaction may promote it. */
+  candidateCompanionTrial: TCompanionTrial;
+  /** Omission is valid and explicitly selects the full finite-difference Jacobian. */
+  sensitivities?: NonCoronaryConservativeCompanionSensitivitiesV1;
+}>;
+
+export type NonCoronaryConservativeCompanionAdapterV1<
+  TEvaluation,
+  TCompanionTrial,
+> = Readonly<{
+  /** Sole global conserved-volume owner for the coupled transaction. */
+  fixedGlobalTotalBloodVolumeMl: number;
+  /** Ledger value from the same previous accepted companion state. */
+  previousAcceptedCompanionBloodVolumeMl: number;
+  evaluateSameCandidate: (
+    input: NonCoronaryConservativeCompanionCandidateInputV1<TEvaluation>,
+  ) => NonCoronaryConservativeCompanionCandidateEvaluationV1<TCompanionTrial>;
+}>;
+
+export type NonCoronaryCirculationTrialInputV1<
+  TEvaluation,
+  TCompanionTrial = never,
+> = Readonly<{
   previousAcceptedState: NonCoronaryCirculationAcceptedStateV1;
   dtSec: number;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
@@ -258,6 +343,10 @@ export type NonCoronaryCirculationTrialInputV1<TEvaluation> = Readonly<{
   options?: NonCoronaryCirculationNewtonOptionsV1;
   protocolResistanceScaleByEdge?:
     NonCoronaryProtocolResistanceScaleByEdgeV1;
+  conservativeCompanion?: NonCoronaryConservativeCompanionAdapterV1<
+    TEvaluation,
+    TCompanionTrial
+  >;
 }>;
 
 export type NonCoronaryCirculationTrialDiagnosticsV1 = Readonly<{
@@ -280,6 +369,7 @@ export type NonCoronaryCirculationTrialDiagnosticsV1 = Readonly<{
   finiteDifferenceScaledStep: number | null;
   finiteDifferenceJacobianFallbackReason:
     | "absolute-chamber-pressure-tangent-not-provided"
+    | "conservative-companion-sensitivities-not-provided"
     | null;
   analyticJacobianAssemblyCount: number;
   finiteDifferenceJacobianFallbackCount: number;
@@ -342,7 +432,21 @@ export type NonCoronaryLineSearchFailureDiagnosticsV1 = Readonly<{
   }>;
 }>;
 
-export type NonCoronaryCirculationTrialSuccessV1<TEvaluation> = Readonly<{
+export type NonCoronaryConservativeCompanionTrialReadbackV1<
+  TCompanionTrial,
+> = Readonly<{
+  fixedGlobalTotalBloodVolumeMl: number;
+  previousAcceptedCompanionBloodVolumeMl: number;
+  candidateCompanionBloodVolumeMl: number;
+  outerBoundaryNetVolumeRateMlPerSec:
+    NonCoronaryCompanionBoundaryRecordV1<number>;
+  candidateCompanionTrial: TCompanionTrial;
+}>;
+
+export type NonCoronaryCirculationTrialSuccessV1<
+  TEvaluation,
+  TCompanionTrial = never,
+> = Readonly<{
   converged: true;
   transactionId: typeof NON_CORONARY_CIRCULATION_BE_V1_ID;
   baseRevision: number;
@@ -356,6 +460,9 @@ export type NonCoronaryCirculationTrialSuccessV1<TEvaluation> = Readonly<{
   edgeFlowsMlPerSec: EdgeRecord<number>;
   valveEvaluations: ValveRecord<MainWireQuasiSteadyOrificeValveEvaluationV2>;
   candidateMechanicsEvaluation: TEvaluation;
+  /** Absent at runtime on the immutable non-companion path. */
+  conservativeCompanion?:
+    NonCoronaryConservativeCompanionTrialReadbackV1<TCompanionTrial>;
   diagnostics: NonCoronaryCirculationTrialDiagnosticsV1;
   mechanicsCommitted: false;
   reverseFlowCapOrClampOnNonvalveEdges: false;
@@ -382,8 +489,11 @@ export type NonCoronaryCirculationTrialFailureV1 = Readonly<{
   units: typeof NON_CORONARY_CIRCULATION_UNITS_V1;
 }>;
 
-export type NonCoronaryCirculationTrialResultV1<TEvaluation> =
-  | NonCoronaryCirculationTrialSuccessV1<TEvaluation>
+export type NonCoronaryCirculationTrialResultV1<
+  TEvaluation,
+  TCompanionTrial = never,
+> =
+  | NonCoronaryCirculationTrialSuccessV1<TEvaluation, TCompanionTrial>
   | NonCoronaryCirculationTrialFailureV1;
 
 export function classifyNonCoronaryLineSearchRejectionOwnerV1(
@@ -409,7 +519,14 @@ export function classifyNonCoronaryLineSearchRejectionOwnerV1(
   return "mixed-equal";
 }
 
-type CandidateEvaluation<TEvaluation> = Readonly<{
+type ConservativeCompanionCandidateEvaluationInternalV1<TCompanionTrial> =
+  NonCoronaryConservativeCompanionCandidateEvaluationV1<TCompanionTrial>
+  & Readonly<{
+    fixedGlobalTotalBloodVolumeMl: number;
+    previousAcceptedCompanionBloodVolumeMl: number;
+  }>;
+
+type CandidateEvaluation<TEvaluation, TCompanionTrial = never> = Readonly<{
   nodeVolumesMl: NodeRecord<number>;
   nodeAbsolutePressuresMmHg: NodeRecord<number>;
   edgeFlowsMlPerSec: EdgeRecord<number>;
@@ -419,6 +536,9 @@ type CandidateEvaluation<TEvaluation> = Readonly<{
   candidateMechanicsEvaluation: TEvaluation;
   absoluteChamberPressureTangent:
     NonCoronaryAbsoluteChamberPressureTangentV1 | null;
+  conservativeCompanion:
+    ConservativeCompanionCandidateEvaluationInternalV1<TCompanionTrial>
+    | null;
   continuityResidualMlByNode: NodeRecord<number>;
   scaledIndependentResidual: readonly number[];
 }>;
@@ -479,9 +599,13 @@ type CandidateMechanicsRaCache<TEvaluation> = Map<
 >;
 
 const DEPENDENT_NODE: NonCoronaryNodeNameV1 = "SV";
-const INDEPENDENT_NODE_NAMES = Object.freeze(
-  NON_CORONARY_NODE_NAMES_V1.filter((name) => name !== DEPENDENT_NODE),
+export const NON_CORONARY_INDEPENDENT_NODE_NAMES_V1 = Object.freeze(
+  NON_CORONARY_NODE_NAMES_V1.filter(
+    (name): name is NonCoronaryIndependentNodeNameV1 =>
+      name !== DEPENDENT_NODE,
+  ),
 );
+const INDEPENDENT_NODE_NAMES = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1;
 const DEFAULT_NEWTON_OPTIONS = Object.freeze({
   maxIterations: 30,
   absoluteContinuityResidualToleranceMl: 1e-8,
@@ -578,9 +702,12 @@ export function createInitialNonCoronaryCirculationStateV1(
   });
 }
 
-export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
-  input: NonCoronaryCirculationTrialInputV1<TEvaluation>,
-): NonCoronaryCirculationTrialResultV1<TEvaluation> {
+export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
+  TEvaluation,
+  TCompanionTrial = never,
+>(
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+): NonCoronaryCirculationTrialResultV1<TEvaluation, TCompanionTrial> {
   // A malformed accepted state is a programmer/checkpoint error and cannot
   // provide a trustworthy rollback target.
   validateAcceptedState(input.previousAcceptedState);
@@ -592,6 +719,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
     validateProtocolResistanceScaleByEdge(
       input.protocolResistanceScaleByEdge,
     );
+    validateConservativeCompanionAdapter(input);
     if (typeof input.evaluateCandidateMechanics !== "function") {
       throw new Error("evaluateCandidateMechanics must be a function");
     }
@@ -626,7 +754,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
     previous.nodeVolumesMl,
     volumeScales,
   );
-  let current: CandidateEvaluation<TEvaluation>;
+  let current: CandidateEvaluation<TEvaluation, TCompanionTrial>;
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
   const failureTrace: MutableNewtonFailureTraceEntryV1[] = [];
@@ -709,7 +837,10 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
     }
     let jacobian: number[][];
     try {
-      if (current.absoluteChamberPressureTangent !== null) {
+      if (
+        current.absoluteChamberPressureTangent !== null
+        && conservativeCompanionSensitivitiesAvailable(current)
+      ) {
         jacobian = analyticCirculationJacobian(
           graph,
           input,
@@ -820,7 +951,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
     }
     let accepted: Readonly<{
       scaledUnknowns: readonly number[];
-      evaluation: CandidateEvaluation<TEvaluation>;
+      evaluation: CandidateEvaluation<TEvaluation, TCompanionTrial>;
     }> | null = null;
     let stepLength = 1;
     let lastCandidateEvaluationException:
@@ -928,11 +1059,19 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<TEvaluation>(
 }
 
 /** Pure promotion of circulation state. Mechanics promotion remains external. */
-export function commitNonCoronaryCirculationTrialV1<TEvaluation>(
+export function commitNonCoronaryCirculationTrialV1<
+  TEvaluation,
+  TCompanionTrial = never,
+>(
   previous: NonCoronaryCirculationAcceptedStateV1,
-  trial: NonCoronaryCirculationTrialSuccessV1<TEvaluation>,
+  trial: NonCoronaryCirculationTrialSuccessV1<TEvaluation, TCompanionTrial>,
 ): NonCoronaryCirculationAcceptedStateV1 {
   validateAcceptedState(previous);
+  if (trial.conservativeCompanion !== undefined) {
+    throw new Error(
+      "companion trial requires the companion-aware circulation commit",
+    );
+  }
   if (
     trial.transactionId !== NON_CORONARY_CIRCULATION_BE_V1_ID
     || trial.baseRevision !== previous.revision
@@ -950,6 +1089,85 @@ export function commitNonCoronaryCirculationTrialV1<TEvaluation>(
     nodeVolumesMl: trial.candidateNodeVolumesMl,
     dynamicEdgeFlowsMlPerSec: trial.candidateDynamicEdgeFlowsMlPerSec,
     valveStates: trial.candidateValveStates,
+  });
+}
+
+export type NonCoronaryCirculationCompanionCommitV1<TCompanionTrial> =
+  Readonly<{
+    /**
+     * A valid V1 state used as the next non-coronary partition. Its TBV field
+     * owns only this partition; the coupled transaction owns the global TBV.
+     */
+    acceptedNonCoronaryPartitionState:
+      NonCoronaryCirculationAcceptedStateV1;
+    candidateCompanionTrial: TCompanionTrial;
+    fixedGlobalTotalBloodVolumeMl: number;
+  }>;
+
+/**
+ * Companion-aware promotion of the non-coronary partition only.
+ *
+ * This deliberately does not call or weaken `commitNonCoronaryCirculationTrialV1`:
+ * the historical path requires a fixed non-coronary TBV, whereas a conservative
+ * companion exchanges blood volume with this partition. The outer transaction
+ * remains responsible for atomically promoting the returned companion trial and
+ * mechanics trial together with this partition state.
+ */
+export function commitNonCoronaryCirculationTrialWithConservativeCompanionV1<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  previousNonCoronaryPartition: NonCoronaryCirculationAcceptedStateV1,
+  trial: NonCoronaryCirculationTrialSuccessV1<
+    TEvaluation,
+    TCompanionTrial
+  >,
+): NonCoronaryCirculationCompanionCommitV1<TCompanionTrial> {
+  validateAcceptedState(previousNonCoronaryPartition);
+  const companion = trial.conservativeCompanion;
+  if (companion === undefined) {
+    throw new Error("companion-aware commit requires a companion trial");
+  }
+  if (
+    trial.transactionId !== NON_CORONARY_CIRCULATION_BE_V1_ID
+    || trial.baseRevision !== previousNonCoronaryPartition.revision
+    || !nearlyEqual(
+      trial.baseAcceptedTimeSec,
+      previousNonCoronaryPartition.acceptedTimeSec,
+    )
+    || !nearlyEqual(
+      trial.candidateTimeSec,
+      previousNonCoronaryPartition.acceptedTimeSec + trial.dtSec,
+    )
+  ) throw new Error("stale or foreign companion circulation trial");
+  if (!nearlyEqual(
+    previousNonCoronaryPartition.totalBloodVolumeMl
+      + companion.previousAcceptedCompanionBloodVolumeMl,
+    companion.fixedGlobalTotalBloodVolumeMl,
+  )) {
+    throw new Error("previous companion/global TBV ledger is stale");
+  }
+  const candidateNonCoronaryBloodVolumeMl =
+    sumNodeRecord(trial.candidateNodeVolumesMl);
+  if (!nearlyEqual(
+    candidateNonCoronaryBloodVolumeMl
+      + companion.candidateCompanionBloodVolumeMl,
+    companion.fixedGlobalTotalBloodVolumeMl,
+  )) {
+    throw new Error("candidate companion/global TBV ledger is stale");
+  }
+  const acceptedNonCoronaryPartitionState = acceptedState({
+    revision: previousNonCoronaryPartition.revision + 1,
+    acceptedTimeSec: trial.candidateTimeSec,
+    totalBloodVolumeMl: candidateNonCoronaryBloodVolumeMl,
+    nodeVolumesMl: trial.candidateNodeVolumesMl,
+    dynamicEdgeFlowsMlPerSec: trial.candidateDynamicEdgeFlowsMlPerSec,
+    valveStates: trial.candidateValveStates,
+  });
+  return Object.freeze({
+    acceptedNonCoronaryPartitionState,
+    candidateCompanionTrial: companion.candidateCompanionTrial,
+    fixedGlobalTotalBloodVolumeMl: companion.fixedGlobalTotalBloodVolumeMl,
   });
 }
 
@@ -994,31 +1212,62 @@ export function restoreNonCoronaryCirculationStateV1(
   });
 }
 
-function evaluateCandidate<TEvaluation>(
+function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
   graph: NonCoronaryCirculationGraphV1,
-  input: NonCoronaryCirculationTrialInputV1<TEvaluation>,
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
   scaledIndependentVolumes: readonly number[],
   volumeScales: readonly number[],
   candidateTimeSec: number,
   mechanicsCache: CandidateMechanicsCache<TEvaluation>,
-): CandidateEvaluation<TEvaluation> {
+): CandidateEvaluation<TEvaluation, TCompanionTrial> {
   const previous = input.previousAcceptedState;
-  const nodeVolumesMl = scaledToNodeVolumes(
-    scaledIndependentVolumes,
-    volumeScales,
-    previous.totalBloodVolumeMl,
-  );
+  // Preserve the immutable no-companion candidate reconstruction and failure
+  // ordering exactly; the independent-only prepass exists solely for the
+  // companion branch, where SV depends on the companion candidate volume.
+  const legacyNodeVolumesMl = input.conservativeCompanion === undefined
+    ? scaledToNodeVolumes(
+      scaledIndependentVolumes,
+      volumeScales,
+      previous.totalBloodVolumeMl,
+    )
+    : null;
+  const candidateIndependentNodeVolumesMl = legacyNodeVolumesMl === null
+    ? scaledToIndependentNodeVolumes(
+      scaledIndependentVolumes,
+      volumeScales,
+    )
+    : independentNodeVolumesFromNodeRecord(legacyNodeVolumesMl);
   const chamberVolumesMl = Object.freeze({
-    LV: nodeVolumesMl.LV,
-    LA: nodeVolumesMl.LA,
-    RV: nodeVolumesMl.RV,
-    RA: nodeVolumesMl.RA,
+    LV: candidateIndependentNodeVolumesMl.LV,
+    LA: candidateIndependentNodeVolumesMl.LA,
+    RV: candidateIndependentNodeVolumesMl.RV,
+    RA: candidateIndependentNodeVolumesMl.RA,
   });
   const mechanics = evaluateCandidateMechanicsCached(
     mechanicsCache,
     input.evaluateCandidateMechanics,
     chamberVolumesMl,
     candidateTimeSec,
+  );
+  const conservativeCompanion = input.conservativeCompanion === undefined
+    ? null
+    : evaluateConservativeCompanionSameCandidate(
+      graph,
+      input,
+      scaledIndependentVolumes,
+      volumeScales,
+      candidateIndependentNodeVolumesMl,
+      mechanics,
+      candidateTimeSec,
+    );
+  const nonCoronaryCandidateBloodVolumeMl = conservativeCompanion === null
+    ? previous.totalBloodVolumeMl
+    : conservativeCompanion.fixedGlobalTotalBloodVolumeMl
+      - conservativeCompanion.candidateCompanionBloodVolumeMl;
+  const nodeVolumesMl = legacyNodeVolumesMl ?? scaledToNodeVolumes(
+    scaledIndependentVolumes,
+    volumeScales,
+    nonCoronaryCandidateBloodVolumeMl,
   );
   const nodeAbsolutePressuresMmHg = nodeRecord((name) => {
     if (isChamberName(name)) return mechanics.absolutePressuresMmHg[name];
@@ -1127,8 +1376,13 @@ function evaluateCandidate<TEvaluation>(
   const localRates = incidenceVolumeRatesFromEdgeFlowsV1(graph, localFlows);
   const continuityResidualMlByNode = nodeRecord((name) => {
     const localIndex = graph.nodeIndex.get(name)!;
+    const companionRate = conservativeCompanion === null
+      ? 0
+      : isConservativeCompanionBoundaryNode(name)
+        ? conservativeCompanion.outerBoundaryNetVolumeRateMlPerSec[name]
+        : 0;
     return nodeVolumesMl[name] - previous.nodeVolumesMl[name]
-      - input.dtSec * localRates[localIndex]!;
+      - input.dtSec * (localRates[localIndex]! + companionRate);
   });
   const scaledIndependentResidual = Object.freeze(
     INDEPENDENT_NODE_NAMES.map((name, index) =>
@@ -1150,9 +1404,191 @@ function evaluateCandidate<TEvaluation>(
     candidateMechanicsEvaluation: mechanics.evaluation,
     absoluteChamberPressureTangent:
       mechanics.absolutePressureTangent ?? null,
+    conservativeCompanion,
     continuityResidualMlByNode,
     scaledIndependentResidual,
   });
+}
+
+function evaluateConservativeCompanionSameCandidate<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  graph: NonCoronaryCirculationGraphV1,
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  scaledIndependentVolumes: readonly number[],
+  volumeScales: readonly number[],
+  candidateIndependentNodeVolumesMl:
+    NonCoronaryIndependentNodeRecordV1<number>,
+  mechanics: NonCoronaryCandidateMechanicsResultV1<TEvaluation>,
+  candidateTimeSec: number,
+): ConservativeCompanionCandidateEvaluationInternalV1<TCompanionTrial> {
+  const adapter = input.conservativeCompanion;
+  if (adapter === undefined) {
+    throw new Error("conservative companion adapter is unavailable");
+  }
+  const aoNode = graph.nodes[graph.nodeIndex.get("Ao")!];
+  const aoPaired =
+    vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
+      aoNode,
+      candidateIndependentNodeVolumesMl.Ao,
+      input.runtime.vascular,
+      "adaptive-volume-tolerance",
+    );
+  const aoExternalPressureMmHg = respiratoryExternalPressureForKindV1(
+    respiratoryKind(aoNode.ext),
+    candidateTimeSec,
+    input.runtime.respiratory,
+  );
+  const boundaryAbsolutePressuresMmHg = Object.freeze({
+    Ao: requireFinite(
+      aoPaired.transmuralPressureMmHg + aoExternalPressureMmHg,
+      "Ao companion boundary pressure",
+    ),
+    RA: requireFinite(
+      mechanics.absolutePressuresMmHg.RA,
+      "RA companion boundary pressure",
+    ),
+  });
+  const boundaryPressureTangent = mechanics.absolutePressureTangent === undefined
+    ? null
+    : companionBoundaryPressureTangentByScaledIndependentVolume(
+      aoPaired.dTransmuralPressureDPhysicalVolumeMmHgPerMl,
+      mechanics.absolutePressureTangent,
+      volumeScales,
+    );
+  const evaluation = adapter.evaluateSameCandidate(Object.freeze({
+    candidateTimeSec,
+    dtSec: input.dtSec,
+    fixedGlobalTotalBloodVolumeMl: adapter.fixedGlobalTotalBloodVolumeMl,
+    independentNodeOrder: INDEPENDENT_NODE_NAMES,
+    scaledIndependentVolumes: Object.freeze([...scaledIndependentVolumes]),
+    independentVolumeScalesMl: Object.freeze([...volumeScales]),
+    candidateIndependentNodeVolumesMl,
+    boundaryAbsolutePressuresMmHg,
+    dBoundaryAbsolutePressureDScaledIndependentVolume:
+      boundaryPressureTangent,
+    candidateMechanicsEvaluation: mechanics.evaluation,
+  }));
+  const validated = validateAndFreezeConservativeCompanionEvaluation(
+    evaluation,
+  );
+  return Object.freeze({
+    ...validated,
+    fixedGlobalTotalBloodVolumeMl: adapter.fixedGlobalTotalBloodVolumeMl,
+    previousAcceptedCompanionBloodVolumeMl:
+      adapter.previousAcceptedCompanionBloodVolumeMl,
+  });
+}
+
+function companionBoundaryPressureTangentByScaledIndependentVolume(
+  dAoPressureDAoVolumeMmHgPerMl: number,
+  chamberTangent: NonCoronaryAbsoluteChamberPressureTangentV1,
+  volumeScales: readonly number[],
+): NonCoronaryCompanionBoundaryRecordV1<readonly number[]> {
+  requireFinite(
+    dAoPressureDAoVolumeMmHgPerMl,
+    "Ao companion boundary pressure tangent",
+  );
+  const ao = Array(INDEPENDENT_NODE_NAMES.length).fill(0) as number[];
+  const aoColumn = INDEPENDENT_NODE_NAMES.indexOf("Ao");
+  ao[aoColumn] = dAoPressureDAoVolumeMmHgPerMl * volumeScales[aoColumn]!;
+  const ra = Array(INDEPENDENT_NODE_NAMES.length).fill(0) as number[];
+  const raRow = NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.indexOf("RA");
+  for (
+    let chamberColumn = 0;
+    chamberColumn < NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length;
+    chamberColumn += 1
+  ) {
+    const chamberName =
+      NON_CORONARY_CHAMBER_TANGENT_ORDER_V1[chamberColumn]!;
+    const independentColumn = INDEPENDENT_NODE_NAMES.indexOf(chamberName);
+    ra[independentColumn] = requireFinite(
+      chamberTangent.dPressureDVolumeMmHgPerMl[raRow]![chamberColumn]!
+        * volumeScales[independentColumn]!,
+      `RA companion boundary tangent by ${chamberName}`,
+    );
+  }
+  return Object.freeze({
+    Ao: Object.freeze(ao),
+    RA: Object.freeze(ra),
+  });
+}
+
+function validateAndFreezeConservativeCompanionEvaluation<TCompanionTrial>(
+  evaluation:
+    NonCoronaryConservativeCompanionCandidateEvaluationV1<TCompanionTrial>,
+): NonCoronaryConservativeCompanionCandidateEvaluationV1<TCompanionTrial> {
+  const candidateCompanionBloodVolumeMl = requireNonnegative(
+    evaluation.candidateCompanionBloodVolumeMl,
+    "candidate companion blood volume",
+  );
+  const outerBoundaryNetVolumeRateMlPerSec = Object.freeze({
+    Ao: requireFinite(
+      evaluation.outerBoundaryNetVolumeRateMlPerSec.Ao,
+      "Ao companion net volume rate",
+    ),
+    RA: requireFinite(
+      evaluation.outerBoundaryNetVolumeRateMlPerSec.RA,
+      "RA companion net volume rate",
+    ),
+  });
+  const sensitivities = evaluation.sensitivities === undefined
+    ? undefined
+    : Object.freeze({
+      dCandidateCompanionBloodVolumeMlDScaledIndependentVolume:
+        copyCompanionSensitivityVector(
+          evaluation.sensitivities
+            .dCandidateCompanionBloodVolumeMlDScaledIndependentVolume,
+          "companion blood-volume sensitivity",
+        ),
+      dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume:
+        Object.freeze({
+          Ao: copyCompanionSensitivityVector(
+            evaluation.sensitivities
+              .dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume.Ao,
+            "Ao companion source-rate sensitivity",
+          ),
+          RA: copyCompanionSensitivityVector(
+            evaluation.sensitivities
+              .dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume.RA,
+            "RA companion source-rate sensitivity",
+          ),
+        }),
+    });
+  return Object.freeze({
+    candidateCompanionBloodVolumeMl,
+    outerBoundaryNetVolumeRateMlPerSec,
+    candidateCompanionTrial: evaluation.candidateCompanionTrial,
+    ...(sensitivities === undefined ? {} : { sensitivities }),
+  });
+}
+
+function copyCompanionSensitivityVector(
+  values: readonly number[],
+  label: string,
+): readonly number[] {
+  if (values.length !== INDEPENDENT_NODE_NAMES.length) {
+    throw new Error(`${label} has incompatible dimension`);
+  }
+  return Object.freeze(values.map((value, index) =>
+    requireFinite(value, `${label}[${INDEPENDENT_NODE_NAMES[index]}]`)));
+}
+
+function isConservativeCompanionBoundaryNode(
+  name: NonCoronaryNodeNameV1,
+): name is NonCoronaryConservativeCompanionBoundaryNodeV1 {
+  return name === "Ao" || name === "RA";
+}
+
+function conservativeCompanionSensitivitiesAvailable<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  evaluation: CandidateEvaluation<TEvaluation, TCompanionTrial>,
+): boolean {
+  return evaluation.conservativeCompanion === null
+    || evaluation.conservativeCompanion.sensitivities !== undefined;
 }
 
 /**
@@ -1160,17 +1596,17 @@ function evaluateCandidate<TEvaluation>(
  * chamber algorithmic tangent and active vascular/edge/valve branches.
  *
  * For scaled independent volumes x_j = V_j / s_j and dependent
- * V_SV = TBV - sum_j V_j, this assembles
+ * V_SV = TBV_global - V_companion - sum_j V_j, this assembles
  *
  *   J = I - dt S^-1 E A (dq/dP) (dP/dV) (dV/dx).
  *
- * The -s_j derivative of the fixed-TBV SV volume is included explicitly in
- * the node-pressure chain below.
+ * The no-companion derivative remains exactly -s_j. With a companion, the
+ * additional -dV_companion/dx_j term is included explicitly below.
  */
-function analyticCirculationJacobian<TEvaluation>(
+function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
   graph: NonCoronaryCirculationGraphV1,
-  input: NonCoronaryCirculationTrialInputV1<TEvaluation>,
-  current: CandidateEvaluation<TEvaluation>,
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+  current: CandidateEvaluation<TEvaluation, TCompanionTrial>,
   volumeScales: readonly number[],
 ): number[][] {
   const chamberTangent = current.absoluteChamberPressureTangent;
@@ -1230,10 +1666,16 @@ function analyticCirculationJacobian<TEvaluation>(
     requireFinite(pressureTangentMmHgPerMl, `${name} vascular pressure tangent`);
     const nodeRow = graph.nodeIndex.get(name)!;
     if (name === DEPENDENT_NODE) {
-      // Fixed TBV: dV_SV/dx_j = -s_j for every independent column.
+      // Fixed global TBV: dV_SV/dx_j = -s_j - dV_companion/dx_j.
+      const companionVolumeSensitivity = current.conservativeCompanion
+        ?.sensitivities
+        ?.dCandidateCompanionBloodVolumeMlDScaledIndependentVolume;
       for (let column = 0; column < volumeScales.length; column += 1) {
         nodePressureDerivativeByScaledVolume[nodeRow]![column] =
-          -pressureTangentMmHgPerMl * volumeScales[column]!;
+          -pressureTangentMmHgPerMl * (
+            volumeScales[column]!
+            + (companionVolumeSensitivity?.[column] ?? 0)
+          );
       }
     } else {
       const column = independentIndex.get(name);
@@ -1380,6 +1822,29 @@ function analyticCirculationJacobian<TEvaluation>(
       }
     }
   }
+  const companionSensitivities = current.conservativeCompanion?.sensitivities;
+  if (current.conservativeCompanion !== null) {
+    if (companionSensitivities === undefined) {
+      throw new Error(
+        "analytic circulation Jacobian requires companion sensitivities",
+      );
+    }
+    for (const boundaryName of
+      NON_CORONARY_CONSERVATIVE_COMPANION_BOUNDARY_NODES_V1) {
+      const residualRow = independentIndex.get(boundaryName);
+      if (residualRow === undefined) {
+        throw new Error(`${boundaryName} companion boundary must be independent`);
+      }
+      const dRate = companionSensitivities
+        .dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume[
+          boundaryName
+        ];
+      for (let column = 0; column < size; column += 1) {
+        jacobian[residualRow]![column] -= input.dtSec
+          * dRate[column]! / volumeScales[residualRow]!;
+      }
+    }
+  }
   if (jacobian.some((row) => row.some((value) => !Number.isFinite(value)))) {
     throw new Error("analytic circulation Jacobian produced non-finite values");
   }
@@ -1426,13 +1891,14 @@ function initialNodeVolumes(
   });
 }
 
-function success<TEvaluation>(
+function success<TEvaluation, TCompanionTrial>(
   previous: NonCoronaryCirculationAcceptedStateV1,
   dtSec: number,
   candidateTimeSec: number,
-  evaluation: CandidateEvaluation<TEvaluation>,
+  evaluation: CandidateEvaluation<TEvaluation, TCompanionTrial>,
   diagnostics: NonCoronaryCirculationTrialDiagnosticsV1,
-): NonCoronaryCirculationTrialSuccessV1<TEvaluation> {
+): NonCoronaryCirculationTrialSuccessV1<TEvaluation, TCompanionTrial> {
+  const companion = evaluation.conservativeCompanion;
   return Object.freeze({
     converged: true as const,
     transactionId: NON_CORONARY_CIRCULATION_BE_V1_ID,
@@ -1447,6 +1913,21 @@ function success<TEvaluation>(
     edgeFlowsMlPerSec: evaluation.edgeFlowsMlPerSec,
     valveEvaluations: evaluation.valveEvaluations,
     candidateMechanicsEvaluation: evaluation.candidateMechanicsEvaluation,
+    ...(companion === null
+      ? {}
+      : {
+        conservativeCompanion: Object.freeze({
+          fixedGlobalTotalBloodVolumeMl:
+            companion.fixedGlobalTotalBloodVolumeMl,
+          previousAcceptedCompanionBloodVolumeMl:
+            companion.previousAcceptedCompanionBloodVolumeMl,
+          candidateCompanionBloodVolumeMl:
+            companion.candidateCompanionBloodVolumeMl,
+          outerBoundaryNetVolumeRateMlPerSec:
+            companion.outerBoundaryNetVolumeRateMlPerSec,
+          candidateCompanionTrial: companion.candidateCompanionTrial,
+        }),
+      }),
     diagnostics,
     mechanicsCommitted: false as const,
     reverseFlowCapOrClampOnNonvalveEdges: false as const,
@@ -1576,6 +2057,33 @@ function scaledToNodeVolumes(
   );
 }
 
+function scaledToIndependentNodeVolumes(
+  scaledIndependentVolumes: readonly number[],
+  scales: readonly number[],
+): NonCoronaryIndependentNodeRecordV1<number> {
+  if (
+    scaledIndependentVolumes.length !== INDEPENDENT_NODE_NAMES.length
+    || scales.length !== INDEPENDENT_NODE_NAMES.length
+  ) throw new Error("circulation independent-volume vector has wrong length");
+  const values = {} as Record<NonCoronaryIndependentNodeNameV1, number>;
+  for (let index = 0; index < INDEPENDENT_NODE_NAMES.length; index += 1) {
+    const value = requirePositive(
+      scaledIndependentVolumes[index]! * scales[index]!,
+      `${INDEPENDENT_NODE_NAMES[index]} candidate volume`,
+    );
+    values[INDEPENDENT_NODE_NAMES[index]!] = value;
+  }
+  return Object.freeze(values);
+}
+
+function independentNodeVolumesFromNodeRecord(
+  volumes: NodeRecord<number>,
+): NonCoronaryIndependentNodeRecordV1<number> {
+  return Object.freeze(Object.fromEntries(
+    INDEPENDENT_NODE_NAMES.map((name) => [name, volumes[name]]),
+  )) as NonCoronaryIndependentNodeRecordV1<number>;
+}
+
 function independentVolumesToScaled(
   volumes: NodeRecord<number>,
   scales: readonly number[],
@@ -1589,8 +2097,8 @@ function independentVolumesToScaled(
  * noise floor. Keep the existing scale-relative term and add a tiny absolute
  * volume term, node by node, as in a standard mixed atol + rtol criterion.
  */
-function mixedContinuityResidualAudit<TEvaluation>(
-  evaluation: CandidateEvaluation<TEvaluation>,
+function mixedContinuityResidualAudit<TEvaluation, TCompanionTrial>(
+  evaluation: CandidateEvaluation<TEvaluation, TCompanionTrial>,
   referenceVolumesMl: NodeRecord<number>,
   absoluteToleranceMl: number,
   scaledTolerance: number,
@@ -1756,12 +2264,12 @@ function solveDenseLinearSystem(
   return solution.every(Number.isFinite) ? Object.freeze(solution) : null;
 }
 
-function trialDiagnostics<TEvaluation>(
+function trialDiagnostics<TEvaluation, TCompanionTrial>(
   iterations: number,
   acceptedLineSearchSteps: number,
   lineSearchBacktracks: number,
   residualNorm: number,
-  evaluation: CandidateEvaluation<TEvaluation>,
+  evaluation: CandidateEvaluation<TEvaluation, TCompanionTrial>,
   previous: NonCoronaryCirculationAcceptedStateV1,
   options: Required<NonCoronaryCirculationNewtonOptionsV1>,
   mechanicsCache: CandidateMechanicsCache<TEvaluation>,
@@ -1794,7 +2302,12 @@ function trialDiagnostics<TEvaluation>(
     dependentNodeContinuityResidualMl:
       evaluation.continuityResidualMlByNode[DEPENDENT_NODE],
     totalBloodVolumeErrorMl:
-      sumNodeRecord(evaluation.nodeVolumesMl) - previous.totalBloodVolumeMl,
+      evaluation.conservativeCompanion === null
+        ? sumNodeRecord(evaluation.nodeVolumesMl)
+          - previous.totalBloodVolumeMl
+        : sumNodeRecord(evaluation.nodeVolumesMl)
+          + evaluation.conservativeCompanion.candidateCompanionBloodVolumeMl
+          - evaluation.conservativeCompanion.fixedGlobalTotalBloodVolumeMl,
     jacobianMode: jacobianModeFromUsage(mechanicsCache.jacobianUsage),
     pressureTangentAvailableAtFinalCandidate:
       evaluation.absoluteChamberPressureTangent !== null,
@@ -1805,7 +2318,10 @@ function trialDiagnostics<TEvaluation>(
         : null,
     finiteDifferenceJacobianFallbackReason:
       mechanicsCache.jacobianUsage.finiteDifferenceFallbackCount > 0
-        ? "absolute-chamber-pressure-tangent-not-provided"
+        ? evaluation.conservativeCompanion !== null
+            && evaluation.conservativeCompanion.sensitivities === undefined
+          ? "conservative-companion-sensitivities-not-provided"
+          : "absolute-chamber-pressure-tangent-not-provided"
         : null,
     analyticJacobianAssemblyCount:
       mechanicsCache.jacobianUsage.analyticAssemblyCount,
@@ -1891,8 +2407,11 @@ function jacobianModeFromUsage(
     : "full-fd-fallback";
 }
 
-function worstIndependentContinuityResidualFromEvaluation<TEvaluation>(
-  evaluation: CandidateEvaluation<TEvaluation>,
+function worstIndependentContinuityResidualFromEvaluation<
+  TEvaluation,
+  TCompanionTrial,
+>(
+  evaluation: CandidateEvaluation<TEvaluation, TCompanionTrial>,
 ): NonNullable<
   NonCoronaryCirculationTrialDiagnosticsV1[
     "worstIndependentContinuityResidual"
@@ -2244,8 +2763,35 @@ function validateProtocolResistanceScaleByEdge(
   }
 }
 
-function protocolResistanceScaleForEdge<TEvaluation>(
-  input: NonCoronaryCirculationTrialInputV1<TEvaluation>,
+function validateConservativeCompanionAdapter<TEvaluation, TCompanionTrial>(
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
+): void {
+  const adapter = input.conservativeCompanion;
+  if (adapter === undefined) return;
+  requirePositive(
+    adapter.fixedGlobalTotalBloodVolumeMl,
+    "companion fixed global total blood volume",
+  );
+  requireNonnegative(
+    adapter.previousAcceptedCompanionBloodVolumeMl,
+    "previous accepted companion blood volume",
+  );
+  if (typeof adapter.evaluateSameCandidate !== "function") {
+    throw new Error("companion evaluateSameCandidate must be a function");
+  }
+  if (!nearlyEqual(
+    input.previousAcceptedState.totalBloodVolumeMl
+      + adapter.previousAcceptedCompanionBloodVolumeMl,
+    adapter.fixedGlobalTotalBloodVolumeMl,
+  )) {
+    throw new Error(
+      "previous non-coronary partition and companion do not match global TBV",
+    );
+  }
+}
+
+function protocolResistanceScaleForEdge<TEvaluation, TCompanionTrial>(
+  input: NonCoronaryCirculationTrialInputV1<TEvaluation, TCompanionTrial>,
   edgeName: NonCoronaryEdgeNameV1,
 ): number {
   return input.protocolResistanceScaleByEdge?.[edgeName] ?? 1;

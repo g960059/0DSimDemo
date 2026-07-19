@@ -466,6 +466,45 @@ describe("whole-heart mechanics transaction contract v1", () => {
     expect(sealed.diagnostics.readback).toEqual({ jointSolve: true });
   });
 
+  it("snapshots selected rich readback when a probe becomes a public trial", () => {
+    const base = testProvider();
+    const providerReadback = { nested: { candidateLV: 0 } };
+    const provider: TestProvider = {
+      ...base,
+      evaluateTrial: (input) => {
+        const result = base.evaluateTrial(input);
+        providerReadback.nested.candidateLV = input.candidateVolumesMl.LV;
+        return {
+          ...result,
+          diagnostics: {
+            ...result.diagnostics,
+            readback: providerReadback,
+          },
+        };
+      },
+    };
+    const accepted = coldStart(provider).acceptedState;
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const probe = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+    const sealed = sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      probe,
+    );
+
+    providerReadback.nested.candidateLV = 999;
+    expect(sealed.diagnostics.readback).toEqual({
+      nested: { candidateLV: 124 },
+    });
+  });
+
   it("fails closed at seal when selected rich readback breaks the contract", () => {
     const base = testProvider();
     const provider: TestProvider = {
@@ -552,6 +591,43 @@ describe("whole-heart mechanics transaction contract v1", () => {
     )).toThrow(/require provider exclusive-result ownership/);
   });
 
+  it("binds eager defensive trials to one exact prepared context", () => {
+    const base = testProvider();
+    const provider: TestProvider = {
+      ...base,
+      evaluationResultOwnershipMode: "defensive-snapshot-required",
+    };
+    const accepted = coldStart(provider).acceptedState;
+    const firstContext = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const secondContext = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const trial = evaluatePreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+
+    expect(() => commitPreparedWholeHeartMechanicsTrialV1(
+      secondContext,
+      trial,
+    )).toThrow(/not issued by this prepared step/);
+    expect(commitPreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      trial,
+    ).revision).toBe(1);
+    expect(() => commitPreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      trial,
+    )).toThrow(/already consumed/);
+  });
   it("isolates mutable future drive payloads through the provider clone hook", () => {
     const base = testProvider();
     const provider: TestProvider = {
@@ -588,6 +664,134 @@ describe("whole-heart mechanics transaction contract v1", () => {
 
     expect(repeated).toEqual(first);
     expect(first.candidateMaterialState.landState[0]).toBeCloseTo(0.0012, 15);
+  });
+
+  it("binds a prepared trial to its exact context and consumes a successful commit", () => {
+    const provider = testProvider();
+    const accepted = coldStart(provider).acceptedState;
+    const firstContext = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const secondContext = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const issued = evaluatePreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      { LA: 70, LV: 125, RA: 65, RV: 110 },
+    );
+    const forged = Object.freeze({ ...issued });
+
+    expect(() => commitPreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      forged,
+    )).toThrow(/not issued by this prepared step/);
+    expect(() => commitPreparedWholeHeartMechanicsTrialV1(
+      secondContext,
+      issued,
+    )).toThrow(/not issued by this prepared step/);
+
+    const committed = commitPreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      issued,
+    );
+    expect(committed.revision).toBe(1);
+    expect(() => commitPreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      issued,
+    )).toThrow(/already consumed/);
+    expect(() => evaluatePreparedWholeHeartMechanicsTrialV1(
+      firstContext,
+      { LA: 69, LV: 124, RA: 64, RV: 109 },
+    )).toThrow(/already consumed/);
+  });
+
+  it("invalidates every remaining probe when one prepared candidate commits", () => {
+    const provider = testProvider();
+    const accepted = coldStart(provider).acceptedState;
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const selected = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 70, LV: 125, RA: 65, RV: 110 },
+    );
+    const discarded = evaluatePreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 109 },
+    );
+    const trial = sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      selected,
+    );
+
+    expect(commitPreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      trial,
+    ).revision).toBe(1);
+    expect(() => sealPreparedWholeHeartMechanicsCandidateProbeV1(
+      preparedStep,
+      discarded,
+    )).toThrow(/already consumed/);
+  });
+
+  it("rejects cross-drive prepared commits even when public step fields match", () => {
+    const provider = testProvider();
+    const accepted = coldStart(provider).acceptedState;
+    const lowDriveContext = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const highDriveContext = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: {
+        calciumUM: { LA: 0.4, LV: 0.3, RA: 0.4, RV: 0.3 },
+      },
+    });
+    expect(lowDriveContext).toEqual(highDriveContext);
+
+    const highDriveTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
+      highDriveContext,
+      { LA: 70, LV: 125, RA: 65, RV: 110 },
+    );
+    expect(() => commitPreparedWholeHeartMechanicsTrialV1(
+      lowDriveContext,
+      highDriveTrial,
+    )).toThrow(/not issued by this prepared step/);
+
+    expect(commitPreparedWholeHeartMechanicsTrialV1(
+      highDriveContext,
+      highDriveTrial,
+    ).materialState.landState[0]).toBeCloseTo(0.0028, 15);
+  });
+
+  it("preserves legacy trial commit behavior without a prepared binding", () => {
+    const provider = testProvider();
+    const accepted = coldStart(provider).acceptedState;
+    const evaluated = trial(
+      provider,
+      accepted,
+      { LA: 70, LV: 125, RA: 65, RV: 110 },
+    );
+    const reconstructed = Object.freeze({ ...evaluated });
+
+    expect(commitWholeHeartMechanicsTrialV1(
+      provider,
+      accepted,
+      reconstructed,
+    ).revision).toBe(1);
   });
 });
 

@@ -27,6 +27,8 @@
     "test:e2e:browser:headed": "playwright test --config playwright.e2e.config.ts --headed",
     "install:e2e:chromium": "playwright install chromium",
     "benchmark:scientific:session": "vite-node --script tools/scientific/benchmarkMainWireScientificSessionV1.ts",
+    "benchmark:coronary:v2-atomic-step": "vite-node --script tools/coronary/benchmarkMainWireFiveWallCoronaryTransactionV2.ts",
+    "run:coronary:v2-periodic": "vite-node --script tools/coronary/runMainWireFiveWallCoronaryPeriodicSteadyV2.ts",
     "characterize:scientific:fast-tbv-accuracy": "vite-node --script tools/scientific/characterizeMainWireScientificFastTbvAccuracyV1.ts",
     "generate:scientific:main-wire-release": "vite-node --script tools/scientific/generateMainWireAdultFiveWallNonCoronaryReleaseV1.ts",
     "verify:scientific:main-wire-release": "vite-node --script tools/scientific/generateMainWireAdultFiveWallNonCoronaryReleaseV1.ts --check",

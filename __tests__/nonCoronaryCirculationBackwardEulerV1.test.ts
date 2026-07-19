@@ -13,12 +13,14 @@ import {
   NON_CORONARY_CIRCULATION_UNITS_V1,
   NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
   NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
+  NON_CORONARY_INDEPENDENT_NODE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
   NON_CORONARY_VALVE_NAMES_V1,
   buildNonCoronaryCirculationGraphV1,
   classifyNonCoronaryLineSearchRejectionOwnerV1,
   checkpointNonCoronaryCirculationStateV1,
   commitNonCoronaryCirculationTrialV1,
+  commitNonCoronaryCirculationTrialWithConservativeCompanionV1,
   createInitialNonCoronaryCirculationStateV1,
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
   resolveNonCoronaryCirculationColdSeedV1,
@@ -190,6 +192,7 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
       ...sentinel,
       timeSec: 0.005,
     });
+    expect("conservativeCompanion" in trial).toBe(false);
     expect(trial.mechanicsCommitted).toBe(false);
 
     const accepted = commitNonCoronaryCirculationTrialV1(fixture.state, trial);
@@ -811,6 +814,188 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     if (trial.converged === true) throw new Error("expected invalid input");
     expect(trial.reason).toBe("invalid-input");
     expect(trial.message).toMatch(/absoluteContinuityResidualToleranceMl/);
+  });
+
+  it("couples a pure same-candidate companion through the global TBV ledger and companion-aware commit", () => {
+    const fixture = steadyStateFixture();
+    const previousCompanionBloodVolumeMl = 10;
+    const uptakeMlPerSec = 2;
+    const dtSec = 0.001;
+    const callback = vi.fn((input: Readonly<{
+      candidateTimeSec: number;
+      independentNodeOrder: readonly string[];
+      candidateIndependentNodeVolumesMl: Readonly<Record<string, number>>;
+      boundaryAbsolutePressuresMmHg: Readonly<{ Ao: number; RA: number }>;
+      candidateMechanicsEvaluation: Readonly<{ token: string }>;
+    }>) => Object.freeze({
+      candidateCompanionBloodVolumeMl:
+        previousCompanionBloodVolumeMl + dtSec * uptakeMlPerSec,
+      outerBoundaryNetVolumeRateMlPerSec: Object.freeze({
+        Ao: -uptakeMlPerSec,
+        RA: 0,
+      }),
+      candidateCompanionTrial: Object.freeze({
+        owner: "test-companion",
+        candidateTimeSec: input.candidateTimeSec,
+      }),
+    }));
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: fixture.state,
+      dtSec,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics: (volumes, candidateTimeSec) =>
+        Object.freeze({
+          ...coupledElasticMechanicsCallback(fixture.state, true)(
+            volumes,
+            candidateTimeSec,
+          ),
+          evaluation: Object.freeze({ token: "opaque-mechanics" }),
+        }),
+      conservativeCompanion: Object.freeze({
+        fixedGlobalTotalBloodVolumeMl:
+          fixture.state.totalBloodVolumeMl
+            + previousCompanionBloodVolumeMl,
+        previousAcceptedCompanionBloodVolumeMl:
+          previousCompanionBloodVolumeMl,
+        evaluateSameCandidate: callback,
+      }),
+    });
+
+    expect(trial.converged).toBe(true);
+    if (trial.converged === false) throw new Error(trial.message);
+    expect(callback).toHaveBeenCalled();
+    const firstInput = callback.mock.calls[0]![0];
+    expect(firstInput.independentNodeOrder)
+      .toEqual(NON_CORONARY_INDEPENDENT_NODE_NAMES_V1);
+    expect(firstInput.candidateIndependentNodeVolumesMl.SV).toBeUndefined();
+    expect(Number.isFinite(firstInput.boundaryAbsolutePressuresMmHg.Ao))
+      .toBe(true);
+    expect(Number.isFinite(firstInput.boundaryAbsolutePressuresMmHg.RA))
+      .toBe(true);
+    expect(firstInput.candidateMechanicsEvaluation)
+      .toEqual({ token: "opaque-mechanics" });
+    expect(trial.diagnostics.jacobianMode).toBe("full-fd-fallback");
+    expect(trial.diagnostics.finiteDifferenceJacobianFallbackReason)
+      .toBe("conservative-companion-sensitivities-not-provided");
+    expect(Math.abs(trial.diagnostics.totalBloodVolumeErrorMl))
+      .toBeLessThan(1e-9);
+    expect(Math.abs(trial.diagnostics.dependentNodeContinuityResidualMl))
+      .toBeLessThan(1e-8);
+    expect(trial.conservativeCompanion?.candidateCompanionBloodVolumeMl)
+      .toBeCloseTo(previousCompanionBloodVolumeMl + dtSec * uptakeMlPerSec, 12);
+    expect(sumNodeVolumes(trial.candidateNodeVolumesMl))
+      .toBeCloseTo(fixture.state.totalBloodVolumeMl - dtSec * uptakeMlPerSec, 9);
+    expect(() => commitNonCoronaryCirculationTrialV1(fixture.state, trial))
+      .toThrow(/companion-aware/);
+
+    const committed =
+      commitNonCoronaryCirculationTrialWithConservativeCompanionV1(
+        fixture.state,
+        trial,
+      );
+    expect(committed.acceptedNonCoronaryPartitionState.totalBloodVolumeMl)
+      .toBeCloseTo(fixture.state.totalBloodVolumeMl - dtSec * uptakeMlPerSec, 9);
+    expect(committed.acceptedNonCoronaryPartitionState.revision).toBe(1);
+    expect(committed.candidateCompanionTrial).toEqual({
+      owner: "test-companion",
+      candidateTimeSec: dtSec,
+    });
+  });
+
+  it("uses supplied companion sensitivities in the analytic Schur-complement Jacobian", () => {
+    const fixture = steadyStateFixture();
+    const previousCompanionBloodVolumeMl = 10;
+    const conductanceMlPerSecPerMmHg = 0.1;
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: fixture.state,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics:
+        coupledElasticMechanicsCallback(fixture.state, true),
+      conservativeCompanion: Object.freeze({
+        fixedGlobalTotalBloodVolumeMl:
+          fixture.state.totalBloodVolumeMl
+            + previousCompanionBloodVolumeMl,
+        previousAcceptedCompanionBloodVolumeMl:
+          previousCompanionBloodVolumeMl,
+        evaluateSameCandidate: (input) => {
+          const pressureTangent =
+            input.dBoundaryAbsolutePressureDScaledIndependentVolume;
+          if (pressureTangent === null) {
+            throw new Error("test companion requires boundary pressure tangent");
+          }
+          const flowMlPerSec = conductanceMlPerSecPerMmHg * (
+            input.boundaryAbsolutePressuresMmHg.Ao
+              - input.boundaryAbsolutePressuresMmHg.RA
+          );
+          const dFlow = pressureTangent.Ao.map((value, index) =>
+            conductanceMlPerSecPerMmHg
+              * (value - pressureTangent.RA[index]!));
+          return Object.freeze({
+            candidateCompanionBloodVolumeMl:
+              previousCompanionBloodVolumeMl,
+            outerBoundaryNetVolumeRateMlPerSec: Object.freeze({
+              Ao: -flowMlPerSec,
+              RA: flowMlPerSec,
+            }),
+            candidateCompanionTrial: Object.freeze({ flowMlPerSec }),
+            sensitivities: Object.freeze({
+              dCandidateCompanionBloodVolumeMlDScaledIndependentVolume:
+                Object.freeze(dFlow.map(() => 0)),
+              dOuterBoundaryNetVolumeRateMlPerSecDScaledIndependentVolume:
+                Object.freeze({
+                  Ao: Object.freeze(dFlow.map((value) => -value)),
+                  RA: Object.freeze(dFlow),
+                }),
+            }),
+          });
+        },
+      }),
+      options: Object.freeze({
+        analyticJacobianFiniteDifferenceShadow: true,
+      }),
+    });
+
+    expect(trial.converged).toBe(true);
+    if (trial.converged === false) throw new Error(trial.message);
+    expect(trial.diagnostics.jacobianMode).toBe("analytic-semismooth");
+    expect(trial.diagnostics.analyticJacobianAssemblyCount).toBeGreaterThan(0);
+    expect(trial.diagnostics.finiteDifferenceJacobianFallbackCount).toBe(0);
+    expect(trial.diagnostics.finiteDifferenceJacobianShadowCount)
+      .toBeGreaterThan(0);
+    expect(trial.diagnostics.jacobianMaximumRelativeFrobeniusShadowDifference!)
+      .toBeLessThan(2e-5);
+    expect(Math.abs(trial.diagnostics.totalBloodVolumeErrorMl))
+      .toBeLessThan(1e-9);
+  });
+
+  it("rejects a stale previous companion ledger before evaluating mechanics", () => {
+    const fixture = steadyStateFixture();
+    const mechanics = vi.fn(coupledElasticMechanicsCallback(fixture.state, true));
+    const companion = vi.fn(() => Object.freeze({
+      candidateCompanionBloodVolumeMl: 10,
+      outerBoundaryNetVolumeRateMlPerSec: Object.freeze({ Ao: 0, RA: 0 }),
+      candidateCompanionTrial: null,
+    }));
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: fixture.state,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics: mechanics,
+      conservativeCompanion: Object.freeze({
+        fixedGlobalTotalBloodVolumeMl:
+          fixture.state.totalBloodVolumeMl + 11,
+        previousAcceptedCompanionBloodVolumeMl: 10,
+        evaluateSameCandidate: companion,
+      }),
+    });
+
+    expect(trial.converged).toBe(false);
+    if (trial.converged === true) throw new Error("expected invalid input");
+    expect(trial.reason).toBe("invalid-input");
+    expect(trial.message).toMatch(/global TBV/);
+    expect(mechanics).not.toHaveBeenCalled();
+    expect(companion).not.toHaveBeenCalled();
   });
 });
 

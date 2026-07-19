@@ -24,11 +24,80 @@ own clone. The selected candidate is re-fingerprinted at commit, so mutation
 between evaluation and promotion remains an error. Checkpoint, restore, and
 standalone public APIs retain their full audits.
 
+The prepared handle is also a one-shot transaction capability. Each emitted
+trial is privately bound to the exact handle that produced it; a forged trial,
+a trial from another same-time/same-provider handle with a different drive,
+evaluation after successful promotion, and duplicate promotion all fail
+closed. A failed promotion does not consume the handle, so validation failure
+cannot silently alter accepted ownership.
 Driving inputs remain zero-copy for the current deeply immutable calcium
 payload. The provider contract now also exposes an optional clone hook: future
 mutable autonomic, coronary, or device drive payloads can be snapshotted once
 at preparation and cloned per callback without teaching this transaction about
 their state layout.
+
+### Coronary transaction alignment
+
+The same prepared mechanics context is used by the V1 and provisional V2
+coronary transactions. This reuse is deliberately limited to the accepted
+mechanics baseline and immutable calcium drive. Every outer Newton/finite-
+difference probe still solves coronary hydraulics from the same previous
+accepted coronary state, and its IMP/SIP boundary is recomputed from that
+probe's same-candidate chamber mechanics. No coronary candidate, boundary, or
+tone state is cached across probes.
+
+PR #484 subsequently added the deferred candidate probe-to-seal path described
+in `PERFORMANCE-0004-mechanics-probe-seal.md`. The non-coronary transaction uses
+that path directly, while the provisional V2 coronary transaction intentionally
+continues through the materialized compatibility trial because same-candidate
+IMP evaluation requires active-stress and fiber-strain rich readback for every
+outer candidate. Both paths retain the exact-context, one-shot capability
+hardening described above. The 66.9% V2 step-time reduction below also includes
+the implicit coronary sensitivity and exact-zero direction elision and must not
+be attributed to the prepared context alone.
+
+The rapid two-to-five-beat TBV path remains presentation-only evidence. When
+the V2 coronary transaction enters the scientific runtime, rapid refinement
+must include all 31 blood-volume owners, six tone states, and accepted MVC
+reference memory in its drift assessment; it cannot reuse the legacy 68-state
+P1 closure or promote a rapid point as canonical periodic evidence.
+
+The provisional V2 transaction now also supplies the outer circulation Newton
+with a full same-candidate coronary directional sensitivity. For each scaled
+outer variable, the converged 16-volume coronary residual satisfies
+
+\[
+\frac{\mathrm dV_{cor}}{\mathrm dx}
+=-\left(\frac{\partial R_{cor}}{\partial V_{cor}}\right)^{-1}
+\frac{\partial R_{cor}}{\partial x}.
+\]
+
+Ao pressure and all four chamber directions are differentiated through the
+same prepared Land/TriSeg evaluation, common pericardium, CEP/Land/SIP
+boundary resolver, collapse law, and stenosis law. The other nine vascular
+directions are recognized only when both boundary probes are exactly equal to
+the base boundary; their zero derivative then skips direction probes and the
+linear solve without using a numerical near-zero threshold. A development
+full-FD shadow gave maximum absolute Jacobian difference `2.09e-6` and relative
+Frobenius difference `1.03e-6`.
+
+On the same local machine and the same 20 canonical 2-ms steps, the pre-Schur
+full-FD commit required `53.686 ms/step` (`26.843 s` wall time per simulated
+second), whereas the implicit companion path required `17.768 ms/step`
+(`8.884 s` per simulated second), a 66.9% step-time reduction. Outer candidate
+mechanics evaluations fell from typically 19--28 to 3--5. This is a local
+development profile, not a supported-hardware claim, and it remains too slow
+to reuse PR #483's ten-second multi-target rapid-preview budget. V2 browser
+adoption therefore remains gated on further solver work and independent
+end-to-end measurement.
+
+The canonical V2 cold-start runner subsequently reached complete 94-entry P1
+at beat 27 for both 2-ms and 1-ms integration, requiring 13,500/13,500 and
+27,000/27,000 atomic commits respectively. The last three accepted boundaries
+(beats 25--27) all passed; neither run was classified as P2. Wall times were
+159.6 s and 295.8 s on the same local machine. These are canonical scientific
+execution measurements, not browser latency targets. Separate within-dt P1
+does not by itself establish cross-dt state or waveform agreement.
 
 ## Profile result
 

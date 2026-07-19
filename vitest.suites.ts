@@ -146,6 +146,7 @@ export const prSmokeTests = [
   "__tests__/controllerBinding.test.ts",
   "__tests__/controllerItemControl.test.ts",
   "__tests__/controllerItems.test.ts",
+  "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
   "__tests__/energyConjugateTriSegV1.test.ts",
   "__tests__/layoutOps.test.ts",
   "__tests__/legendPosition.test.ts",
@@ -160,7 +161,6 @@ export const prSmokeTests = [
   "__tests__/mainWireScientificExactCheckpointV3.test.ts",
   "__tests__/mainWireScientificHemodynamicJobCommandsV2.test.ts",
   "__tests__/mainWireScientificHemodynamicWorkerPoolV2.test.ts",
-  "__tests__/mainWireScientificTbvContinuationSeedPredictorV1.test.ts",
   "__tests__/mainWireScientificResearchControlCatalogV0.test.ts",
   "__tests__/mainWireScientificResearchControlForkV0.test.ts",
   "__tests__/mainWireScientificResearchControlWorkerV0.test.ts",
@@ -236,6 +236,13 @@ export const rulesTests = [
 /** Current main-wire scientific lane. Exact unit tests may opt into fastTests. */
 export const canonicalScientificTestGlobs = [
   "__tests__/mainWire*.test.ts",
+  "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
+  "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
+  "__tests__/coronaryAutoregulationV2.test.ts",
+  "__tests__/coronaryCycleEventSegmentationV1.test.ts",
+  "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
+  "__tests__/coronaryTopologyPriorV2.test.ts",
+  "__tests__/coronaryV2ShadowProtocol.test.ts",
 ] as const;
 
 /**
@@ -288,10 +295,23 @@ const archivedResearchExact = new Set<string>([
   "__tests__/pvLoopZcReflectionComparatorReadiness.test.ts",
 ]);
 
+const canonicalScientificExact = new Set<string>([
+  "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
+  "__tests__/backwardEulerCoronaryNetworkV2.test.ts",
+  "__tests__/coronaryAutoregulationV2.test.ts",
+  "__tests__/coronaryCycleEventSegmentationV1.test.ts",
+  "__tests__/coronaryMechanicsHydraulicsV1.test.ts",
+  "__tests__/coronaryTopologyPriorV2.test.ts",
+  "__tests__/coronaryV2ShadowProtocol.test.ts",
+]);
+
 export function isCanonicalScientificTest(file: string): boolean {
   return !fastSet.has(file)
-    && file.startsWith("__tests__/mainWire")
-    && file.endsWith(".test.ts");
+    && file.endsWith(".test.ts")
+    && (
+      file.startsWith("__tests__/mainWire")
+      || canonicalScientificExact.has(file)
+    );
 }
 
 export function isArchivedResearchTest(file: string): boolean {

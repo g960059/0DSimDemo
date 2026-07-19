@@ -276,6 +276,18 @@ const PREPARED_WHOLE_HEART_MECHANICS_STEP_INTERNALS_V1 =
 const WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_INTERNALS_V1 =
   new WeakMap<object, object>();
 
+/**
+ * Prepared trials are capabilities issued by exactly one live context. Public
+ * trial fields intentionally remain serializable/readable, but matching those
+ * fields is not authority to commit through the prepared fast path.
+ */
+const PREPARED_WHOLE_HEART_MECHANICS_TRIAL_CONTEXTS_V1 =
+  new WeakMap<object, object>();
+
+/** A successful prepared commit consumes its one-step capability. */
+const CONSUMED_PREPARED_WHOLE_HEART_MECHANICS_STEPS_V1 =
+  new WeakSet<object>();
+
 export function initializeWholeHeartMechanicsColdV1<TState, TDrive>(
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
   input: WholeHeartMechanicsColdInputV1<TDrive>,
@@ -499,7 +511,7 @@ function evaluatePreparedWholeHeartMechanicsTrialEagerV1<TState, TDrive>(
     result.materialState,
     "candidate material state",
   );
-  return Object.freeze({
+  const trial = Object.freeze({
     contractId: WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
     providerId: preparedStep.providerId,
     parameterSetId: preparedStep.parameterSetId,
@@ -523,6 +535,11 @@ function evaluatePreparedWholeHeartMechanicsTrialEagerV1<TState, TDrive>(
       }),
     diagnostics: copyDiagnosticsWithReadbackSnapshot(result.diagnostics),
   });
+  PREPARED_WHOLE_HEART_MECHANICS_TRIAL_CONTEXTS_V1.set(
+    trial,
+    preparedStep,
+  );
+  return trial;
 }
 
 /**
@@ -598,8 +615,12 @@ export function sealPreparedWholeHeartMechanicsCandidateProbeV1<
         transmuralPressureVolumeTangentMmHgPerMl:
           probe.transmuralPressureVolumeTangentMmHgPerMl,
       }),
-    diagnostics: copyDiagnostics(diagnostics),
+    diagnostics: copyDiagnosticsWithReadbackSnapshot(diagnostics),
   });
+  PREPARED_WHOLE_HEART_MECHANICS_TRIAL_CONTEXTS_V1.set(
+    trial,
+    preparedStep,
+  );
   WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_INTERNALS_V1.delete(probe);
   return trial;
 }
@@ -630,14 +651,24 @@ export function commitPreparedWholeHeartMechanicsTrialV1<TState, TDrive>(
 ): WholeHeartMechanicsAcceptedStateV1<TState> {
   const context = preparedStepInternal(preparedStep);
   if (
+    PREPARED_WHOLE_HEART_MECHANICS_TRIAL_CONTEXTS_V1.get(trial)
+      !== preparedStep
+  ) {
+    throw new Error(
+      "whole-heart mechanics trial was not issued by this prepared step",
+    );
+  }
+  if (
     !nearlyEqual(trial.candidateTimeSec, context.candidateTimeSec) ||
     !nearlyEqual(trial.stepDtSec, context.stepDtSec)
   ) throw new Error("whole-heart mechanics trial does not belong to prepared step");
-  return commitWholeHeartMechanicsTrialAgainstPreparedBaseline(
+  const committed = commitWholeHeartMechanicsTrialAgainstPreparedBaseline(
     context.provider,
     context.previousAcceptedState,
     trial,
   );
+  CONSUMED_PREPARED_WHOLE_HEART_MECHANICS_STEPS_V1.add(preparedStep);
+  return committed;
 }
 
 function commitWholeHeartMechanicsTrialAgainstPreparedBaseline<TState, TDrive>(
@@ -919,6 +950,9 @@ function preparedStepInternal<TState, TDrive>(
   if (
     preparedStep.contextId !== WHOLE_HEART_MECHANICS_PREPARED_STEP_V1_ID
   ) throw new Error("whole-heart mechanics prepared step identity mismatch");
+  if (CONSUMED_PREPARED_WHOLE_HEART_MECHANICS_STEPS_V1.has(preparedStep)) {
+    throw new Error("whole-heart mechanics prepared step was already consumed");
+  }
   const context = PREPARED_WHOLE_HEART_MECHANICS_STEP_INTERNALS_V1.get(
     preparedStep,
   );
