@@ -389,8 +389,40 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV2", () => {
           currentRevision: 301,
           currentTimeSec: 3.01,
         }),
+        "canonical-periodic-protocol",
+        PROTOCOL_IDENTITY_HASH,
+        true,
       ),
     ], CLASSIFIER_OPTIONS)).toThrow(/current provenance differs/);
+  });
+
+  it("rejects discontinuous P1 and incorrect two-back P2 provenance chains", () => {
+    expect(() => classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(1, closureReport(5e-4), null),
+      observation(
+        2,
+        closureReport(4e-4),
+        null,
+        "canonical-periodic-protocol",
+        PROTOCOL_IDENTITY_HASH,
+        true,
+      ),
+    ], CLASSIFIER_OPTIONS)).toThrow(/P1 provenance chain is discontinuous/);
+
+    const beat10 = observation(10, closureReport(5e-4), null);
+    const beat11P1 = reportAtBeatBoundary(closureReport(4e-4), 11, 1);
+    const wrongBeat11P2 = reportAtBeatBoundary(closureReport(3e-4), 11, 1);
+    expect(() => classifyMainWireFiveWallCoronaryPeriodicityV2([
+      beat10,
+      observation(
+        11,
+        beat11P1,
+        wrongBeat11P2,
+        "canonical-periodic-protocol",
+        PROTOCOL_IDENTITY_HASH,
+        true,
+      ),
+    ], CLASSIFIER_OPTIONS)).toThrow(/two-back boundary/);
   });
 });
 
@@ -612,12 +644,52 @@ function observation(
   evidenceRole: MainWireFiveWallCoronaryPeriodicEvidenceRoleV2 =
     "canonical-periodic-protocol",
   protocolIdentityHash = PROTOCOL_IDENTITY_HASH,
+  preserveReportProvenance = false,
 ): MainWireFiveWallCoronaryPeriodicBeatObservationV2 {
   return Object.freeze({
     beatIndex,
     evidenceRole,
     protocolIdentityHash,
-    period1,
-    period2,
+    period1: preserveReportProvenance || period1 === null
+      ? period1
+      : reportAtBeatBoundary(period1, beatIndex, 1),
+    period2: preserveReportProvenance || period2 === null
+      ? period2
+      : reportAtBeatBoundary(period2, beatIndex, 2),
+  });
+}
+
+function reportAtBeatBoundary(
+  report: MainWireFiveWallCoronaryPeriodicClosureReportV2,
+  beatIndex: number,
+  period: 1 | 2,
+): MainWireFiveWallCoronaryPeriodicClosureReportV2 {
+  const currentRevision = beatIndex * 100;
+  const referenceRevision = (beatIndex - period) * 100;
+  const currentAcceptedTimeSec = beatIndex;
+  const referenceAcceptedTimeSec = beatIndex - period;
+  const currentMitralClosureEventCount = beatIndex;
+  const referenceMitralClosureEventCount = beatIndex - period;
+  return Object.freeze({
+    ...report,
+    provenance: Object.freeze({
+      currentRevision,
+      referenceRevision,
+      revisionAdvance: currentRevision - referenceRevision,
+      currentAcceptedTimeSec,
+      referenceAcceptedTimeSec,
+      elapsedTimeSec: currentAcceptedTimeSec - referenceAcceptedTimeSec,
+      currentMvcReferenceRevision: currentRevision,
+      referenceMvcReferenceRevision: referenceRevision,
+      mvcReferenceRevisionAdvance: currentRevision - referenceRevision,
+      currentMvcReferenceAcceptedTimeSec: currentAcceptedTimeSec,
+      referenceMvcReferenceAcceptedTimeSec: referenceAcceptedTimeSec,
+      mvcReferenceAcceptedTimeAdvanceSec:
+        currentAcceptedTimeSec - referenceAcceptedTimeSec,
+      currentMitralClosureEventCount,
+      referenceMitralClosureEventCount,
+      mitralClosureEventCountAdvance:
+        currentMitralClosureEventCount - referenceMitralClosureEventCount,
+    }),
   });
 }

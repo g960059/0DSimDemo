@@ -623,16 +623,25 @@ function assertExactAcceptedBoundaryV2(
   expectedTimeSec: number,
   expectedRevision: number,
 ): void {
-  const timeTolerance = 64 * Number.EPSILON * Math.max(1, expectedTimeSec);
   const acceptedTimes = Object.freeze([
     state.acceptedTimeSec,
     state.circulation.acceptedTimeSec,
     state.coronary.acceptedTimeSec,
     state.mechanics.acceptedTimeSec,
   ]);
-  if (acceptedTimes.some((timeSec) =>
-    !Number.isFinite(timeSec)
-    || Math.abs(timeSec - expectedTimeSec) > timeTolerance)) {
+  if (acceptedTimes.some((timeSec) => !Number.isFinite(timeSec))) {
+    throw new Error("atomic V2 accepted boundary time was not finite");
+  }
+  if (acceptedTimes.some((timeSec) => !Object.is(timeSec, state.acceptedTimeSec))) {
+    throw new Error(
+      "atomic V2 accepted owners did not share one exact boundary clock",
+    );
+  }
+  const timeTolerance = acceptedBoundaryTimeToleranceSecV2(
+    expectedTimeSec,
+    expectedRevision,
+  );
+  if (Math.abs(state.acceptedTimeSec - expectedTimeSec) > timeTolerance) {
     throw new Error(
       "atomic V2 accepted state did not land on the exact counted cycle boundary",
     );
@@ -649,6 +658,31 @@ function assertExactAcceptedBoundaryV2(
   }
 }
 
+/**
+ * Error budget for a clock obtained by sequentially adding a positive fixed
+ * time step. The Higham gamma bound scales with the actual committed step
+ * count; a fixed multiple of EPSILON is not valid for a many-beat run.
+ *
+ * This only admits floating-point accumulation error. Exact owner-clock
+ * identity and exact integer revision identity are checked separately.
+ */
+export function acceptedBoundaryTimeToleranceSecV2(
+  expectedTimeSec: number,
+  committedStepCount: number,
+): number {
+  requireNonnegativeFiniteV2(expectedTimeSec, "expectedTimeSec");
+  requirePositiveIntegerV2(committedStepCount, "committedStepCount");
+  const unitRoundoff = Number.EPSILON / 2;
+  const accumulatedRoundoff = committedStepCount * unitRoundoff;
+  if (accumulatedRoundoff >= 1) {
+    throw new RangeError("committedStepCount is too large for a finite gamma bound");
+  }
+  const gamma = accumulatedRoundoff / (1 - accumulatedRoundoff);
+  const expectedTimeRounding = 4 * Number.EPSILON
+    * Math.max(1, Math.abs(expectedTimeSec));
+  return gamma * Math.abs(expectedTimeSec) + expectedTimeRounding;
+}
+
 function acceptedTupleJsonV2(
   state: MainWireFiveWallCoronaryPeriodicAcceptedStateV2,
 ): string {
@@ -658,6 +692,12 @@ function acceptedTupleJsonV2(
 function requirePositiveIntegerV2(value: number, name: string): void {
   if (!Number.isInteger(value) || value <= 0) {
     throw new RangeError(`${name} must be a positive integer`);
+  }
+}
+
+function requireNonnegativeFiniteV2(value: number, name: string): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new RangeError(`${name} must be nonnegative and finite`);
   }
 }
 

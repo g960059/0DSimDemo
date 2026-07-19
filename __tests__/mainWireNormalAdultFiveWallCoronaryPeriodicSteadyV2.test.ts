@@ -82,6 +82,7 @@ import {
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_CLAIM_V2,
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_PERIODIC_POLICY_V2,
+  acceptedBoundaryTimeToleranceSecV2,
   runMainWireNormalAdultFiveWallCoronaryPeriodicSteadyV2,
   type MainWireNormalAdultFiveWallCoronaryPeriodicResultV2,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCoronaryPeriodicSteadyV2";
@@ -141,6 +142,18 @@ describe("canonical coronary V2 periodic runner", () => {
       .toBeCloseTo(0.003, 15);
     expect(threeBeatResult.observations[1]?.period2?.provenance.elapsedTimeSec)
       .toBeCloseTo(0.006, 15);
+  });
+
+  it("bounds canonical clock accumulation by committed step count", () => {
+    let accumulatedTimeSec = 0;
+    for (let step = 0; step < 1_500; step += 1) {
+      accumulatedTimeSec += 0.002;
+    }
+    const errorSec = Math.abs(accumulatedTimeSec - 3);
+    const toleranceSec = acceptedBoundaryTimeToleranceSecV2(3, 1_500);
+    expect(errorSec).toBeGreaterThan(64 * Number.EPSILON * 3);
+    expect(errorSec).toBeLessThanOrEqual(toleranceSec);
+    expect(toleranceSec).toBeLessThan(1e-11);
   });
 
   it("SHA-256 binds the complete resolved runtime, mechanics, coronary, solver, and periodic policy capsule", async () => {

@@ -65,9 +65,11 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2 =
     classifierAcceptedEvidenceRole:
       "canonical-periodic-protocol" as const,
     classifierProtocolIdentityGate:
-      "exact-lowercase-sha256-source-or-job-capsule" as const,
+      "lowercase-sha256-consistency-preimage-bound-by-canonical-runner" as const,
     period1Period2CurrentProvenanceGate:
       "exact-within-each-observation" as const,
+    consecutiveObservationProvenanceGate:
+      "exact-p1-current-to-next-reference-and-p2-two-back-chain" as const,
     minimumConsecutiveClassificationBeats: 3 as const,
     p1EvidenceBoundary:
       "separate-consecutive-beat-classification-over-complete-v2-closure-reports" as const,
@@ -856,6 +858,8 @@ function validateObservations(
   observations: readonly MainWireFiveWallCoronaryPeriodicBeatObservationV2[],
 ): void {
   let previousBeatIndex = -1;
+  let previousObservation:
+    MainWireFiveWallCoronaryPeriodicBeatObservationV2 | null = null;
   let referenceScaleSetId: string | null = null;
   let compatibilityCanonicalJson: string | null = null;
   let protocolIdentityHash: string | null = null;
@@ -911,6 +915,41 @@ function validateObservations(
         "coronary V2 period1 and period2 current provenance differs",
       );
     }
+    if (observation.period1 === null && observation.period2 !== null) {
+      throw new Error(
+        "coronary V2 period2 report requires the same-boundary period1 report",
+      );
+    }
+    if (
+      previousObservation !== null
+      && observation.beatIndex === previousObservation.beatIndex + 1
+    ) {
+      validateConsecutiveObservationProvenanceV2(
+        previousObservation,
+        observation,
+      );
+    }
+    previousObservation = observation;
+  }
+}
+
+function validateConsecutiveObservationProvenanceV2(
+  previous: MainWireFiveWallCoronaryPeriodicBeatObservationV2,
+  current: MainWireFiveWallCoronaryPeriodicBeatObservationV2,
+): void {
+  if (previous.period1 !== null && current.period1 !== null
+      && currentProvenanceCanonicalJson(previous.period1)
+        !== referenceProvenanceCanonicalJson(current.period1)) {
+    throw new Error(
+      "coronary V2 consecutive P1 provenance chain is discontinuous",
+    );
+  }
+  if (previous.period1 !== null && current.period2 !== null
+      && referenceProvenanceCanonicalJson(previous.period1)
+        !== referenceProvenanceCanonicalJson(current.period2)) {
+    throw new Error(
+      "coronary V2 P2 provenance does not reference the two-back boundary",
+    );
   }
 }
 
@@ -926,6 +965,21 @@ function currentProvenanceCanonicalJson(
       report.provenance.currentMvcReferenceAcceptedTimeSec,
     currentMitralClosureEventCount:
       report.provenance.currentMitralClosureEventCount,
+  }));
+}
+
+function referenceProvenanceCanonicalJson(
+  report: MainWireFiveWallCoronaryPeriodicClosureReportV2,
+): string {
+  return canonicalJsonStringify(Object.freeze({
+    currentRevision: report.provenance.referenceRevision,
+    currentAcceptedTimeSec: report.provenance.referenceAcceptedTimeSec,
+    currentMvcReferenceRevision:
+      report.provenance.referenceMvcReferenceRevision,
+    currentMvcReferenceAcceptedTimeSec:
+      report.provenance.referenceMvcReferenceAcceptedTimeSec,
+    currentMitralClosureEventCount:
+      report.provenance.referenceMitralClosureEventCount,
   }));
 }
 
