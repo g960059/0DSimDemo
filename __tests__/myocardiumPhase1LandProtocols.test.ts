@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import protocolDescriptor from "@/data/myocardium/protocols/land2017-phase1c-source-protocols.json";
 import {
   LAND2017_ACTIVE_STIFFNESS_PROVENANCE,
+  LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
   computeLand2017ActiveStiffnessPa,
   computeLand2017AlgorithmicTangentPa,
+  computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep,
   computeLand2017FrozenStateTangentByFiniteDifferencePa,
   computeLand2017FrozenStateTangentPa,
   evaluateLand2017SolvedStepWithTangents,
@@ -87,6 +89,102 @@ describe("myocardium Phase 1C Land protocol closure", () => {
     expect(Math.abs(frozen - stabilization)).toBeGreaterThan(1e-6);
   });
 
+  it("matches the implicit BE consistent tangent to resolved finite-difference shadows", () => {
+    const previous = representativeState();
+    const inputs: readonly LandStepInput[] = [
+      representativeStepInput(),
+      {
+        freeCalciumUM: 0.25,
+        previousFiberEngineeringStrain: -0.01,
+        stageFiberEngineeringStrain: 0.005,
+        dtSec: 0.0005,
+        stage: { scheme: "BE", stageIndex: 0 },
+      },
+      {
+        freeCalciumUM: 1.2,
+        previousFiberEngineeringStrain: 0.04,
+        stageFiberEngineeringStrain: 0.025,
+        stageZetaDriveFiberEngineeringStrainRatePerSec: -0.3,
+        dtSec: 0.001,
+        stage: { scheme: "BE", stageIndex: 0 },
+      },
+    ];
+
+    for (const input of inputs) {
+      const solved = solveLand2017BackwardEulerStep(previous, input);
+      expect(solved.ok).toBe(true);
+      const consistent =
+        computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+          solved.nextState,
+          input,
+        );
+      const shadow = computeLand2017AlgorithmicTangentPa(previous, input, {
+        epsilonStrain: 1e-6,
+      });
+      expect(relativeError(consistent, shadow)).toBeLessThan(2e-6);
+    }
+  });
+
+  it("uses the declared centered semismooth tangent at both zetaS recruitment kinks", () => {
+    const parameterSet = LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET;
+    const dtSec = 0.0002;
+    const cases = [
+      {
+        expectedSolvedZetaS: 0,
+        previousZetaS: 0,
+      },
+      {
+        expectedSolvedZetaS: -1,
+        previousZetaS: -(1 + dtSec * parameterSet.derived.cs),
+      },
+    ] as const;
+    for (const testCase of cases) {
+      const previous = Float64Array.from([
+        0.55,
+        0.12,
+        0.08,
+        0.04,
+        0,
+        testCase.previousZetaS,
+      ]);
+      const input: LandStepInput = {
+        freeCalciumUM: 0.92,
+        previousFiberEngineeringStrain: 0.02,
+        stageFiberEngineeringStrain: 0.02,
+        dtSec,
+        stage: { scheme: "BE", stageIndex: 0 },
+      };
+      const solved = solveLand2017BackwardEulerStep(
+        previous,
+        input,
+        { residualTolerance: 1e-12, maxIterations: 20 },
+        parameterSet,
+      );
+      expect(solved.ok).toBe(true);
+      expect(solved.nextState[5]).toBeCloseTo(
+        testCase.expectedSolvedZetaS,
+        13,
+      );
+      const consistent =
+        computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+          solved.nextState,
+          input,
+          parameterSet,
+        );
+      const centeredShadow = computeLand2017AlgorithmicTangentPa(
+        previous,
+        input,
+        {
+          epsilonStrain: 1e-7,
+          residualTolerance: 1e-12,
+          maxIterations: 20,
+        },
+        parameterSet,
+      );
+      expect(relativeError(consistent, centeredShadow)).toBeLessThan(2e-6);
+    }
+  });
+
   it("reports every Phase 1C source-closure protocol without experimental pass claims", () => {
     const report = runLand2017Phase1CProtocolReport();
     const ids = report.sections.map((section) => section.id);
@@ -133,6 +231,10 @@ describe("myocardium Phase 1C Land protocol closure", () => {
 
 function representativeState(): Float64Array {
   return Float64Array.from([0.55, 0.12, 0.08, 0.04, 0.06, 0.12]);
+}
+
+function relativeError(left: number, right: number): number {
+  return Math.abs(left - right) / Math.max(1, Math.abs(left), Math.abs(right));
 }
 
 function representativeStepInput(): LandStepInput {

@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      model_verification: ${{ steps.classify.outputs.model_verification }}
+      browser_e2e: ${{ steps.classify.outputs.browser_e2e }}
 
     steps:
       - name: Checkout
@@ -33,8 +33,8 @@ jobs:
         shell: bash
         run: |
           if [ "${{ github.event_name }}" != "pull_request" ]; then
-            echo "model_verification=true" >> "$GITHUB_OUTPUT"
-            echo "Non-PR event: run model verification." >> "$GITHUB_STEP_SUMMARY"
+            echo "browser_e2e=true" >> "$GITHUB_OUTPUT"
+            echo "Non-PR event: run full browser verification." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
 
@@ -42,7 +42,7 @@ jobs:
             "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
             | tee changed-files.txt
 
-          model_verification=false
+          browser_e2e=false
           while IFS= read -r file; do
             case "$file" in
               docs/*|.codex/skills/*)
@@ -56,20 +56,21 @@ jobs:
               __tests__/mechanics2*.test.ts)
                 ;;
               .github/workflows/verify.yml)
+                browser_e2e=true
                 ;;
               .DS_Store|*/.DS_Store|migrated_prompt_history/*)
                 ;;
               *)
-                model_verification=true
+                browser_e2e=true
                 ;;
             esac
           done < changed-files.txt
 
-          echo "model_verification=$model_verification" >> "$GITHUB_OUTPUT"
+          echo "browser_e2e=$browser_e2e" >> "$GITHUB_OUTPUT"
           {
             echo "### Change classification"
             echo ""
-            echo "- model_verification: \`$model_verification\`"
+            echo "- browser_e2e: \`$browser_e2e\`"
             echo ""
             echo "Changed files:"
             sed 's/^/- `/' changed-files.txt | sed 's/$/`/'
@@ -114,85 +115,61 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Test
-        run: npm run test:fast
-
-  verify_baseline:
-    name: Verify baseline
-    needs:
-      - classify_changes
-    if: ${{ github.event_name != 'pull_request' || needs.classify_changes.outputs.model_verification == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify baseline
-        run: npm run verify:baseline -- --out=artifacts/verification/latest
-
-      - name: Upload baseline verification artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: baseline-verification-artifacts
-          path: artifacts/verification/latest
-          if-no-files-found: warn
-
-  verify_cases:
-    name: Verify official cases
-    needs:
-      - classify_changes
-    if: ${{ github.event_name != 'pull_request' || needs.classify_changes.outputs.model_verification == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify representative official cases
-        if: ${{ github.event_name == 'pull_request' }}
-        run: npm run verify:cases:smoke -- --out=artifacts/case-validation/latest
-
-      - name: Verify all official cases
-        if: ${{ github.event_name != 'pull_request' }}
-        run: npm run verify:cases -- --out=artifacts/case-validation/latest
-
-      - name: Publish case validation summary
-        if: always()
+      - name: Run pull-request smoke or full main suite
         shell: bash
         run: |
-          if [ -f artifacts/case-validation/latest/report.md ]; then
-            cat artifacts/case-validation/latest/report.md >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm run test:pr
+          else
+            npm run test:fast
+          fi
+        env:
+          # Shared GitHub runners are markedly slower than local development.
+          # Keep the script's 60 s local gate while allowing CI variance.
+          CIRCLEHEART_FAST_TEST_BUDGET_MS: 90000
+
+  browser_e2e:
+    name: Production browser E2E
+    needs:
+      - classify_changes
+    if: ${{ github.event_name != 'pull_request' || needs.classify_changes.outputs.browser_e2e == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run production browser E2E
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm run test:e2e:browser:pr
+          else
+            npm run test:e2e:browser
           fi
 
-      - name: Upload case validation artifacts
+      - name: Upload browser E2E diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: case-validation-artifacts
-          path: artifacts/case-validation/latest
-          if-no-files-found: warn
+          name: browser-e2e-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
 
   whitespace:
     name: Check diff whitespace
@@ -225,8 +202,7 @@ jobs:
       - classify_changes
       - build
       - test
-      - verify_baseline
-      - verify_cases
+      - browser_e2e
       - whitespace
     if: always()
     timeout-minutes: 5
@@ -236,12 +212,11 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          MODEL_VERIFICATION: ${{ needs.classify_changes.outputs.model_verification }}
+          BROWSER_E2E: ${{ needs.classify_changes.outputs.browser_e2e }}
           CLASSIFY_CHANGES_RESULT: ${{ needs.classify_changes.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           TEST_RESULT: ${{ needs.test.result }}
-          VERIFY_BASELINE_RESULT: ${{ needs.verify_baseline.result }}
-          VERIFY_CASES_RESULT: ${{ needs.verify_cases.result }}
+          BROWSER_E2E_RESULT: ${{ needs.browser_e2e.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
         run: |
           failed=0
@@ -249,8 +224,7 @@ jobs:
             "Classify changes:$CLASSIFY_CHANGES_RESULT" \
             "Build:$BUILD_RESULT" \
             "Test:$TEST_RESULT" \
-            "Verify baseline:$VERIFY_BASELINE_RESULT" \
-            "Verify official cases:$VERIFY_CASES_RESULT" \
+            "Production browser E2E:$BROWSER_E2E_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
           do
             name="${item%%:*}"
@@ -258,8 +232,8 @@ jobs:
             echo "$name: $result"
             if [ "$EVENT_NAME" = "pull_request" ] && [ "$result" = "skipped" ]; then
               case "$name" in
-                "Verify baseline"|"Verify official cases")
-                  if [ "$MODEL_VERIFICATION" != "true" ]; then
+                "Production browser E2E")
+                  if [ "$BROWSER_E2E" != "true" ]; then
                     continue
                   fi
                   ;;

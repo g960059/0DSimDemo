@@ -5,11 +5,14 @@ import type { TFunction } from 'i18next';
 import WorkbenchDockview from './WorkbenchDockview';
 import WorkbenchMobile from './WorkbenchMobile';
 import { renderPaneBody } from './renderPaneBody';
-import { ControllerItemsBuilder } from './ControllerItemsBuilder';
-import { getScenarioPresetMenuPosition, ScenarioPane, ScenarioPresetMenu } from './ScenarioPane';
+import { ControllerItemsBuilder, type ControllerAuthoringCatalog } from './ControllerItemsBuilder';
+import { getScenarioPresetMenuPosition, ScenarioPane, ScenarioPresetMenu, type ScenarioPresetCatalogEntry } from './ScenarioPane';
 import { WorkbenchEmptyState } from './WorkbenchEmptyState';
-import { Controls } from '../Controls';
-import { MetricsPanel } from '../Charts';
+import {
+  clampFloatingDialogPosition,
+  moveFloatingDialogPosition,
+  type FloatingDialogPoint,
+} from './floatingDialogPosition';
 import { type ClinicalKnobs } from '../../engine/knobs';
 import { SimulationHealth } from '../../engine/protocol';
 import type { SteadyUpdateStatusMap } from '../../engine/previewController';
@@ -23,6 +26,7 @@ import {
   PanelType,
   PhysicsRefState,
   PvLoopDebugTraceMode,
+  type PvLoopHistoryMode,
   type LegendPosition,
   SignalType,
   SimInstance,
@@ -49,11 +53,36 @@ import { resolveControllerTargetId } from '../../features/workbench/controllerBi
 import { hasViewRefUsage, viewRefUsageForDeletion } from '../../features/workbench/noteViewRefs';
 import type { ControllerViewSpec, GraphBoardLayout, MetricsViewSpec } from '../../features/workbench/viewSpec';
 import type { WorkbenchThemeId } from './WorkbenchSidePanel';
+import type { WorkbenchRuntimeRenderer } from '../../features/workbench/runtime/WorkbenchRuntimeRenderer';
 import { Activity, Brush, Bug, Check, ChevronDown, ChevronRight, Copy, Eye, EyeOff, FileText, Layers, Pencil, Plus, RotateCcw, Search, Settings, SlidersHorizontal, Tags, Trash2, Type as TypeIcon, X } from 'lucide-react';
+
+const LegacyControls = React.lazy(
+  () => import('../Controls').then((module) => ({ default: module.Controls })),
+);
+const LegacyMetricsPanel = React.lazy(
+  () => import('../Charts').then((module) => ({ default: module.MetricsPanel })),
+);
 
 export type PanelGridMode = 'learner' | 'sandbox';
 export type RightRailView = 'scenarios' | 'inspector';
 export type MetricsSpanMode = 'main' | 'full';
+
+export type MetricAuthoringCatalogEntry = Readonly<{
+  key: MetricType;
+  label: string;
+  unit?: string;
+}>;
+
+export type MetricAuthoringCatalogSection = Readonly<{
+  id: string;
+  title: string;
+  entries: readonly MetricAuthoringCatalogEntry[];
+}>;
+
+/** Runtime-specific metric vocabulary used by the metrics-view editor. */
+export type MetricAuthoringCatalog = Readonly<{
+  sections: readonly MetricAuthoringCatalogSection[];
+}>;
 
 export interface WorkbenchLayoutState {
   controlsWidth: number;
@@ -70,7 +99,7 @@ export interface WorkbenchLayoutState {
   metricsSpan: MetricsSpanMode;
 }
 
-interface PanelGridProps {
+export interface PanelGridProps {
   instances: SimInstance[];
   panels: PanelDef[];
   layoutState: WorkbenchLayoutState;
@@ -128,6 +157,7 @@ interface PanelGridProps {
   updateTimeWindow: (panelId: string, val: number) => void;
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
+  updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
@@ -137,6 +167,13 @@ interface PanelGridProps {
   signals: SignalType[];
   metrics: MetricType[];
   controlGroups: string[];
+  runtimeRenderer?: WorkbenchRuntimeRenderer;
+  /** Runtime-specific controller catalog; omitted for the legacy model. */
+  controllerAuthoring?: ControllerAuthoringCatalog;
+  /** Runtime-specific metric catalog; omitted for the legacy model. */
+  metricAuthoring?: MetricAuthoringCatalog;
+  /** Runtime-specific scenario presets; omitted for legacy OFFICIAL_BASELINES. */
+  scenarioPresetCatalog?: readonly ScenarioPresetCatalogEntry[];
 }
 
 type PanelChromeMode = 'desktop' | 'mobile' | 'dockview';
@@ -240,11 +277,13 @@ interface PanelSettingsControlsProps {
   updateTimeWindow: (panelId: string, val: number) => void;
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
+  updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   chambers: ChamberId[];
   signals: SignalType[];
   metrics: MetricType[];
   controlGroups: string[];
+  controllerAuthoring?: ControllerAuthoringCatalog;
 }
 
 interface PanelSettingsButtonProps {
@@ -262,7 +301,7 @@ type ControlSettingsSectionId = 'targets' | 'items' | 'display' | 'custom';
 type SettingsSectionBounds = { top: number; bottom: number };
 type PanelGridT = TFunction<'translation', undefined>;
 
-const GRAPH_SETTINGS_PANEL_TYPES = new Set<PanelType>(['WAVEFORM', 'PVLOOP', 'METRICS', 'GUYTON_LEFT', 'GUYTON_RIGHT', 'GUYTON_3D']);
+const GRAPH_SETTINGS_PANEL_TYPES = new Set<PanelType>(['WAVEFORM', 'PVLOOP', 'PV_RELATIONS', 'METRICS', 'GUYTON_LEFT', 'GUYTON_RIGHT', 'GUYTON_3D']);
 const SIGNAL_CATEGORY_ORDER: SignalCategory[] = ['All', 'Pressure', 'Flow', 'Volume', 'Valve', 'Coupling', 'Derived'];
 const GRAPH_SETTINGS_SECTIONS: Array<{
   id: GraphSettingsSectionId;
@@ -356,6 +395,23 @@ const SIGNAL_METADATA: Record<string, { label: string; category: Exclude<SignalC
   CO: { label: 'Cardiac output', category: 'Flow', unit: 'L/min' },
   LVEF: { label: 'LV ejection fraction', category: 'Derived', unit: '%' },
   RVEF: { label: 'RV ejection fraction', category: 'Derived', unit: '%' },
+  'hemodynamics.pressure.absolute.LA': { label: 'LA pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.RA': { label: 'RA pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.LV': { label: 'LV pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.RV': { label: 'RV pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.Ao': { label: 'Aortic pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.PA': { label: 'Pulmonary artery pressure', category: 'Pressure', unit: 'mmHg' },
+  'hemodynamics.pressure.absolute.PVein': { label: 'Pulmonary venous pressure', category: 'Pressure', unit: 'mmHg' },
+  'valve.MV.flow': { label: 'Mitral flow', category: 'Flow', unit: 'mL/s' },
+  'valve.AoV.flow': { label: 'Aortic flow', category: 'Flow', unit: 'mL/s' },
+  'valve.TV.flow': { label: 'Tricuspid flow', category: 'Flow', unit: 'mL/s' },
+  'valve.PV.flow': { label: 'Pulmonic flow', category: 'Flow', unit: 'mL/s' },
+  'hemodynamics.flow.pulmonary_venous': { label: 'Pulmonary venous flow', category: 'Flow', unit: 'mL/s' },
+  'valve.MV.opening_fraction': { label: 'Mitral opening', category: 'Valve' },
+  'valve.AoV.opening_fraction': { label: 'Aortic opening', category: 'Valve' },
+  'valve.TV.opening_fraction': { label: 'Tricuspid opening', category: 'Valve' },
+  'valve.PV.opening_fraction': { label: 'Pulmonic opening', category: 'Valve' },
+  'pericardium.excess_pressure': { label: 'Pericardial excess pressure', category: 'Coupling', unit: 'mmHg' },
   Default: { label: 'Guyton curve', category: 'Derived' },
 };
 
@@ -377,6 +433,7 @@ function getPanelItemOptions(
   const selected = Object.values(panel.config).flatMap((cfg) => cfg.selectedSignals);
   let base: string[];
   if (panel.type === 'PVLOOP') base = chambers.length > 0 ? chambers : DEFAULT_CHAMBER_OPTIONS;
+  else if (panel.type === 'PV_RELATIONS') base = ['Default'];
   else if (panel.type === 'WAVEFORM') base = signals.length > 0 ? signals : DEFAULT_WAVEFORM_OPTIONS;
   else if (panel.type === 'METRICS') base = metrics.length > 0 ? metrics : DEFAULT_METRIC_OPTIONS;
   else if (panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_3D') base = ['Default'];
@@ -557,7 +614,7 @@ function LegacyPanelSettingsControls({
                 <input type="color" className="block h-[14px] w-[14px] flex-none cursor-pointer appearance-none rounded border-0 bg-transparent p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:rounded [&::-webkit-color-swatch]:border-none" value={cfg?.customBaseColor ?? inst.color} onChange={(e) => updatePanelInstanceColor(panel.id, inst.id, e.target.value)} />
                 <input type="text" className="w-full min-w-0 border-b border-transparent bg-transparent text-xs font-bold text-wb-muted outline-none focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent" value={cfg?.customName ?? inst.name} onChange={(e) => updatePanelInstanceName(panel.id, inst.id, e.target.value)} placeholder={inst.name} />
               </div>
-              {cfg?.visible && (panel.type !== 'GUYTON_RIGHT' && panel.type !== 'GUYTON_LEFT') && (
+              {cfg?.visible && !['GUYTON_RIGHT', 'GUYTON_LEFT', 'GUYTON_3D', 'PV_RELATIONS'].includes(panel.type) && (
                 <div className="grid grid-cols-1 gap-1 pl-5">
                   {itemOptions.map(sig => {
                     const isSelected = cfg.selectedSignals.includes(sig);
@@ -600,6 +657,7 @@ function GraphPanelSettingsBoard({
   updateTimeWindow,
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
+  updatePanelPvHistory,
   chambers,
   signals,
   metrics,
@@ -696,7 +754,7 @@ function GraphPanelSettingsBoard({
   );
 
   const renderSignalBoard = (layout: 'wide' | 'document' = 'wide') => {
-    if (panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D') {
+    if (panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D' || panel.type === 'PV_RELATIONS') {
       return (
         <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip p-4 text-center">
           <div>
@@ -851,6 +909,8 @@ function GraphPanelSettingsBoard({
     const hasPvDebug = panel.type === 'PVLOOP';
     const hasWindow = panel.type === 'WAVEFORM';
     const debugTraceMode = panel.pvDebugTraceMode ?? 'raw';
+    const pvHistoryBeats = panel.pvHistoryBeats ?? 8;
+    const pvHistoryMode = panel.pvHistoryMode ?? 'fade';
     return (
       <div className="space-y-2">
         <label className="grid gap-2 rounded bg-wb-strip p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
@@ -924,6 +984,44 @@ function GraphPanelSettingsBoard({
               </div>
             </div>
           )}
+          {panel.type === 'PVLOOP' && (
+            <div className="space-y-3 px-2 py-3" data-testid="pv-history-settings">
+              <div>
+                <div className="text-sm font-bold text-wb-text">{t('workbench.panelGrid.pvHistory')}</div>
+                <div className="mt-0.5 text-xs font-medium text-wb-subtle">{t('workbench.panelGrid.pvHistoryDescription')}</div>
+              </div>
+              <div className="grid grid-cols-5 gap-1" role="group" aria-label={t('workbench.panelGrid.pvHistoryBeats')}>
+                {[0, 4, 8, 12, 16].map((beats) => (
+                  <button
+                    key={beats}
+                    type="button"
+                    onClick={() => updatePanelPvHistory(panel.id, { beats })}
+                    className={`h-8 rounded border px-1 text-xs font-bold transition-colors ${pvHistoryBeats === beats ? 'border-wb-line-strong bg-wb-active text-wb-text' : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'}`}
+                    aria-pressed={pvHistoryBeats === beats}
+                  >
+                    {beats === 0 ? t('common.off') : beats}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-1" role="group" aria-label={t('workbench.panelGrid.pvHistoryStyle')}>
+                {(['fade', 'persistent'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => updatePanelPvHistory(panel.id, { mode })}
+                    disabled={pvHistoryBeats === 0}
+                    className={`h-8 rounded border px-2 text-xs font-bold transition-colors disabled:opacity-40 ${pvHistoryMode === mode ? 'border-wb-line-strong bg-wb-active text-wb-text' : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'}`}
+                    aria-pressed={pvHistoryMode === mode}
+                  >
+                    {t(`workbench.panelGrid.pvHistoryModes.${mode}`)}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] leading-4 text-wb-subtle">
+                {t(`workbench.panelGrid.${pvHistoryMode === 'fade' ? 'pvHistoryFadeHint' : 'pvHistoryPersistentHint'}`, { count: pvHistoryBeats })}
+              </p>
+            </div>
+          )}
           {hasWindow && (
             <label className="block px-2 py-2">
               <span className="flex items-center justify-between gap-3">
@@ -959,7 +1057,7 @@ function GraphPanelSettingsBoard({
         </div>
       );
     }
-    if (selectedItems.length === 0 || panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D') {
+    if (selectedItems.length === 0 || panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D' || panel.type === 'PV_RELATIONS') {
       return (
         <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip p-4 text-center">
           <div>
@@ -1102,6 +1200,7 @@ function ControlPanelSettingsBoard({
   updateInstanceSignals,
   updatePanelControllerItems,
   controlGroups,
+  controllerAuthoring,
 }: PanelSettingsControlsProps) {
   const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState<ControlSettingsSectionId>('targets');
@@ -1264,6 +1363,7 @@ function ControlPanelSettingsBoard({
           instances={instances}
           activeInstanceId={activeInstanceId}
           updatePanelControllerItems={updatePanelControllerItems}
+          authoring={controllerAuthoring}
         />
       );
     }
@@ -1339,6 +1439,7 @@ function PanelSettingsButton({ panel, toggleSettings }: PanelSettingsButtonProps
 
 function settingsPaneTypeLabel(panel: PanelDef): string {
   if (panel.type === 'PVLOOP') return 'PV loop pane';
+  if (panel.type === 'PV_RELATIONS') return 'ESPVR / EDPVR pane';
   if (panel.type === 'WAVEFORM') return 'Waveform pane';
   if (panel.type === 'METRICS') return 'Metrics pane';
   if (panel.type === 'CONTROLS') return 'Controller pane';
@@ -1355,16 +1456,90 @@ function paneSettingsFocusRestoreTarget(panel: PanelDef, preferred: HTMLElement 
     .find((node) => labels.has(node.getAttribute('aria-label') ?? '')) ?? null;
 }
 
+type PaneSettingsDialogDrag = {
+  pointerId: number;
+  startClient: FloatingDialogPoint;
+  startPosition: FloatingDialogPoint;
+  latestPosition: FloatingDialogPoint;
+  moved: boolean;
+};
+
+const PANE_SETTINGS_DESKTOP_MIN_WIDTH_PX = 640;
+const PANE_SETTINGS_DRAG_THRESHOLD_PX = 5;
+const PANE_SETTINGS_KEYBOARD_STEP_PX = 10;
+const PANE_SETTINGS_KEYBOARD_LARGE_STEP_PX = 50;
+
+function isPaneSettingsDesktopViewport(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth >= PANE_SETTINGS_DESKTOP_MIN_WIDTH_PX;
+}
+
+function paneSettingsViewportSize() {
+  return {
+    width: typeof window === 'undefined' ? 0 : window.innerWidth,
+    height: typeof window === 'undefined' ? 0 : window.innerHeight,
+  };
+}
+
+function paneSettingsDialogSize(dialog: HTMLElement) {
+  const rect = dialog.getBoundingClientRect();
+  return { width: rect.width, height: rect.height };
+}
+
 function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsModalProps) {
   const { t } = useTranslation();
   const { panel } = settingsProps;
   const usesBoardSettings = isBoardSettingsPanel(panel.type);
   const titleId = `pane-settings-title-${panel.id}`;
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<PaneSettingsDialogDrag | null>(null);
+  const dragAnimationFrameRef = useRef<number | null>(null);
+  const positionRef = useRef<FloatingDialogPoint | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const latestPanelRef = useRef(panel);
+  const [dialogPosition, setDialogPosition] = useState<FloatingDialogPoint | null>(null);
+  const [dialogMoveEnabled, setDialogMoveEnabled] = useState(false);
   const close = useCallback(() => toggleSettings(panel.id), [panel.id, toggleSettings]);
   latestPanelRef.current = panel;
+  positionRef.current = dialogPosition;
+
+  const applyDialogPosition = useCallback((position: FloatingDialogPoint | null) => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (position === null) {
+      dialog.style.removeProperty('position');
+      dialog.style.removeProperty('left');
+      dialog.style.removeProperty('top');
+      return;
+    }
+    dialog.style.position = 'fixed';
+    dialog.style.left = `${position.x}px`;
+    dialog.style.top = `${position.y}px`;
+  }, []);
+
+  const scheduleDialogPosition = useCallback((position: FloatingDialogPoint) => {
+    if (dragAnimationFrameRef.current !== null) cancelAnimationFrame(dragAnimationFrameRef.current);
+    dragAnimationFrameRef.current = requestAnimationFrame(() => {
+      dragAnimationFrameRef.current = null;
+      applyDialogPosition(position);
+    });
+  }, [applyDialogPosition]);
+
+  const resolveCurrentDialogPosition = useCallback((): FloatingDialogPoint | null => {
+    const dialog = dialogRef.current;
+    if (!dialog || !isPaneSettingsDesktopViewport()) return null;
+    const rect = dialog.getBoundingClientRect();
+    return clampFloatingDialogPosition(
+      { x: rect.left, y: rect.top },
+      paneSettingsViewportSize(),
+      { width: rect.width, height: rect.height },
+    );
+  }, []);
+
+  const commitDialogPosition = useCallback((position: FloatingDialogPoint) => {
+    positionRef.current = position;
+    applyDialogPosition(position);
+    setDialogPosition(position);
+  }, [applyDialogPosition]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return undefined;
@@ -1394,6 +1569,145 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
       document.body.style.overflow = previousOverflow;
     };
   }, []);
+
+  useEffect(() => {
+    const onResize = () => {
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const desktop = isPaneSettingsDesktopViewport();
+      setDialogMoveEnabled(desktop);
+      if (dragAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(dragAnimationFrameRef.current);
+        dragAnimationFrameRef.current = null;
+      }
+      if (!desktop) {
+        dragRef.current = null;
+        positionRef.current = null;
+        applyDialogPosition(null);
+        setDialogPosition(null);
+        return;
+      }
+      const position = dragRef.current?.latestPosition ?? positionRef.current;
+      dragRef.current = null;
+      if (position === null) return;
+      const next = clampFloatingDialogPosition(
+        position,
+        paneSettingsViewportSize(),
+        paneSettingsDialogSize(dialog),
+      );
+      commitDialogPosition(next);
+    };
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [applyDialogPosition, commitDialogPosition]);
+
+  useEffect(() => () => {
+    if (dragAnimationFrameRef.current !== null) cancelAnimationFrame(dragAnimationFrameRef.current);
+  }, []);
+
+  const beginDialogDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPaneSettingsDesktopViewport() || event.button !== 0) return;
+    const startPosition = resolveCurrentDialogPosition();
+    if (!startPosition) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.focus({ preventScroll: true });
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startClient: { x: event.clientX, y: event.clientY },
+      startPosition,
+      latestPosition: startPosition,
+      moved: false,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveDialogDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const dialog = dialogRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || !dialog) return;
+    event.stopPropagation();
+    const delta = {
+      x: event.clientX - drag.startClient.x,
+      y: event.clientY - drag.startClient.y,
+    };
+    if (!drag.moved && Math.hypot(delta.x, delta.y) <= PANE_SETTINGS_DRAG_THRESHOLD_PX) return;
+    drag.moved = true;
+    event.preventDefault();
+    const next = moveFloatingDialogPosition(
+      drag.startPosition,
+      delta,
+      paneSettingsViewportSize(),
+      paneSettingsDialogSize(dialog),
+    );
+    drag.latestPosition = next;
+    scheduleDialogPosition(next);
+  };
+
+  const finishDialogDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const dialog = dialogRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || !dialog) return;
+    event.stopPropagation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (dragAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(dragAnimationFrameRef.current);
+      dragAnimationFrameRef.current = null;
+    }
+    if (drag.moved) {
+      commitDialogPosition(moveFloatingDialogPosition(
+        drag.startPosition,
+        {
+          x: event.clientX - drag.startClient.x,
+          y: event.clientY - drag.startClient.y,
+        },
+        paneSettingsViewportSize(),
+        paneSettingsDialogSize(dialog),
+      ));
+    }
+    dragRef.current = null;
+  };
+
+  const cancelDialogDrag = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.stopPropagation();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (dragAnimationFrameRef.current !== null) {
+      cancelAnimationFrame(dragAnimationFrameRef.current);
+      dragAnimationFrameRef.current = null;
+    }
+    applyDialogPosition(positionRef.current);
+    dragRef.current = null;
+  };
+
+  const moveDialogWithKeyboard = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!isPaneSettingsDesktopViewport()) return;
+    const axis = event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+      ? 'x'
+      : event.key === 'ArrowUp' || event.key === 'ArrowDown'
+        ? 'y'
+        : null;
+    if (axis === null) return;
+    const dialog = dialogRef.current;
+    const current = resolveCurrentDialogPosition();
+    if (!dialog || !current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const sign = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1;
+    const step = event.shiftKey ? PANE_SETTINGS_KEYBOARD_LARGE_STEP_PX : PANE_SETTINGS_KEYBOARD_STEP_PX;
+    commitDialogPosition(moveFloatingDialogPosition(
+      current,
+      axis === 'x' ? { x: sign * step, y: 0 } : { x: 0, y: sign * step },
+      paneSettingsViewportSize(),
+      paneSettingsDialogSize(dialog),
+    ));
+  };
 
   const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'Tab') return;
@@ -1427,14 +1741,39 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
         aria-labelledby={titleId}
         tabIndex={-1}
         onKeyDown={trapFocus}
+        style={dialogPosition === null ? undefined : {
+          position: 'fixed',
+          left: `${dialogPosition.x}px`,
+          top: `${dialogPosition.y}px`,
+        }}
         className="flex h-dvh w-full flex-col overflow-hidden bg-wb-panel shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-wb-line"
       >
         <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-wb-line px-4">
-          <div className="min-w-0">
+          <div
+            role={dialogMoveEnabled ? 'button' : undefined}
+            tabIndex={dialogMoveEnabled ? 0 : undefined}
+            onPointerDown={beginDialogDrag}
+            onPointerMove={moveDialogDrag}
+            onPointerUp={finishDialogDrag}
+            onPointerCancel={cancelDialogDrag}
+            onKeyDown={moveDialogWithKeyboard}
+            className="min-w-0 flex-1 bg-transparent text-left sm:cursor-move sm:touch-none sm:select-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent"
+            aria-label={dialogMoveEnabled ? t('workbench.panelGrid.movePaneSettings') : undefined}
+            aria-describedby={dialogMoveEnabled ? `${titleId}-move-instructions` : undefined}
+            aria-keyshortcuts={dialogMoveEnabled
+              ? 'ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight'
+              : undefined}
+            title={dialogMoveEnabled ? t('workbench.panelGrid.movePaneSettings') : undefined}
+          >
             <h2 id={titleId} className="truncate text-sm font-bold text-wb-text">{t('workbench.panelGrid.paneSettings')}</h2>
             <div className="truncate text-[11px] font-semibold text-wb-subtle">
               {panel.title} · {settingsPaneTypeLabel(panel)}
             </div>
+            {dialogMoveEnabled && (
+              <span id={`${titleId}-move-instructions`} className="sr-only">
+                {t('workbench.panelGrid.movePaneSettingsInstructions')}
+              </span>
+            )}
           </div>
           <div className="flex flex-none items-center gap-2">
             <button
@@ -1473,7 +1812,7 @@ function PaneSettingsModal({ toggleSettings, ...settingsProps }: PaneSettingsMod
 type ViewEditorState =
   | { mode: 'create'; kind: 'controller' }
   | { mode: 'create'; kind: 'metrics' }
-  | { mode: 'edit'; view: AuthoredViewSpec };
+  | { mode: 'edit'; view: ControllerViewSpec | MetricsViewSpec };
 
 type ViewEditorSave =
   | { kind: 'controller'; title: string; items: ControllerItem[] }
@@ -1484,6 +1823,8 @@ function ViewSpecEditorModal({
   instances,
   activeInstanceId,
   metrics,
+  controllerAuthoring,
+  metricAuthoring,
   onClose,
   onSave,
 }: {
@@ -1491,6 +1832,8 @@ function ViewSpecEditorModal({
   instances: SimInstance[];
   activeInstanceId: string;
   metrics: MetricType[];
+  controllerAuthoring?: ControllerAuthoringCatalog;
+  metricAuthoring?: MetricAuthoringCatalog;
   onClose: () => void;
   onSave: (draft: ViewEditorSave) => void;
 }) {
@@ -1499,13 +1842,40 @@ function ViewSpecEditorModal({
   const kind = editor.mode === 'edit' ? editor.view.kind : editor.kind;
   const titleId = `view-editor-title-${existing?.id ?? kind}`;
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [title, setTitle] = useState(existing?.title ?? (kind === 'controller' ? t('workbench.viewEditor.newControllerTitle') : t('workbench.viewEditor.newMetricsTitle')));
-  const [items, setItems] = useState<ControllerItem[]>(existing?.kind === 'controller' ? existing.items : []);
+  const [items, setItems] = useState<ControllerItem[]>(
+    existing?.kind === 'controller'
+      ? existing.items
+      : controllerAuthoring?.defaultItems
+        ? controllerAuthoring.defaultItems.map((item) => ({ ...item, ...(item.options ? { options: item.options.map((option) => ({ ...option })) } : {}) }))
+        : [],
+  );
   const [selectedMetrics, setSelectedMetrics] = useState<MetricType[]>(existing?.kind === 'metrics' ? existing.metrics : []);
   const [metricSearch, setMetricSearch] = useState('');
+  const metricAuthoringByKey = useMemo(
+    () => new Map(
+      metricAuthoring?.sections.flatMap((section) =>
+        section.entries.map((entry) => [entry.key, entry] as const)) ?? [],
+    ),
+    [metricAuthoring],
+  );
+  const metricLabel = useCallback(
+    (metric: MetricType) => metricAuthoringByKey.get(metric)?.label
+      ?? signalMetadata(metric).label,
+    [metricAuthoringByKey],
+  );
 
   useEffect(() => {
+    previousFocusRef.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
     dialogRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (previousFocusRef.current?.isConnected) {
+        previousFocusRef.current.focus({ preventScroll: true });
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -1518,10 +1888,56 @@ function ViewSpecEditorModal({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
+  const trapFocus = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Tab') return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    )).filter((node) => node.tabIndex !== -1 && !node.hasAttribute('disabled'));
+    if (focusable.length === 0) return;
+    const first = focusable[0]!;
+    const last = focusable.at(-1)!;
+    const active = document.activeElement;
+    if (!focusable.includes(active as HTMLElement)) {
+      event.preventDefault();
+      (event.shiftKey ? last : first).focus();
+    } else if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
   const metricSections = useMemo(() => {
     const query = metricSearch.trim().toLowerCase();
     const available = metrics.length > 0 ? metrics : DEFAULT_METRIC_OPTIONS;
-    const sections = new Map<string, MetricType[]>();
+    const availableSet = new Set<MetricType>(available);
+    if (metricAuthoring !== undefined) {
+      return metricAuthoring.sections
+        .map((section) => ({
+          id: section.id,
+          title: section.title,
+          metrics: section.entries
+            .filter(({ key, label }) => availableSet.has(key)
+              && (!query
+                || key.toLowerCase().includes(query)
+                || label.toLowerCase().includes(query)))
+            .map(({ key }) => key),
+        }))
+        .filter((section) => section.metrics.length > 0);
+    }
+    const sections = new Map<Exclude<SignalCategory, 'All'>, MetricType[]>();
     for (const metric of available) {
       const meta = signalMetadata(metric);
       const label = meta.label;
@@ -1529,8 +1945,12 @@ function ViewSpecEditorModal({
       const key = meta.category;
       sections.set(key, [...(sections.get(key) ?? []), metric]);
     }
-    return [...sections.entries()];
-  }, [metricSearch, metrics]);
+    return [...sections.entries()].map(([category, categoryMetrics]) => ({
+      id: category,
+      title: signalCategoryLabel(t, category),
+      metrics: categoryMetrics,
+    }));
+  }, [metricAuthoring, metricSearch, metrics, t]);
 
   const toggleMetric = (metric: MetricType) => {
     setSelectedMetrics((prev) => prev.includes(metric) ? prev.filter((item) => item !== metric) : [...prev, metric]);
@@ -1561,6 +1981,7 @@ function ViewSpecEditorModal({
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
+        onKeyDown={trapFocus}
         className="flex h-dvh w-full flex-col overflow-hidden bg-wb-panel shadow-2xl sm:h-[min(46rem,calc(100vh-2rem))] sm:max-h-[calc(100vh-2rem)] sm:w-[min(72rem,calc(100vw-2rem))] sm:rounded-lg sm:border sm:border-wb-line"
       >
         <div className="flex h-14 flex-none items-center justify-between gap-3 border-b border-wb-line px-4">
@@ -1596,6 +2017,7 @@ function ViewSpecEditorModal({
               instances={instances}
               activeInstanceId={activeInstanceId}
               onItemsChange={setItems}
+              authoring={controllerAuthoring}
             />
           ) : (
             <div className="grid min-h-0 grid-cols-1 gap-0 overflow-hidden lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
@@ -1606,27 +2028,29 @@ function ViewSpecEditorModal({
                     value={metricSearch}
                     onChange={(event) => setMetricSearch(event.target.value)}
                     placeholder={t('workbench.viewEditor.searchMetrics')}
+                    aria-label={t('workbench.viewEditor.searchMetrics')}
                     className="min-w-0 flex-1 rounded bg-transparent text-xs font-medium text-wb-text outline-none placeholder:text-wb-subtle focus:bg-wb-soft focus-visible:ring-1 focus-visible:ring-wb-accent"
                   />
                 </div>
                 <div className="space-y-1">
-                  {metricSections.map(([category, categoryMetrics]) => (
-                    <details key={category} open className="group">
+                  {metricSections.map((section) => (
+                    <details key={section.id} open className="group">
                       <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[11px] font-medium text-wb-subtle transition-colors hover:text-wb-muted [&::-webkit-details-marker]:hidden">
                         <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
-                        {signalCategoryLabel(t, category as SignalCategory)}
+                        {section.title}
                       </summary>
                       <div className="grid pb-1 sm:grid-cols-2">
-	                        {categoryMetrics.map((metric) => {
+	                        {section.metrics.map((metric) => {
 	                          const selected = selectedMetrics.includes(metric);
-                            const label = signalMetadata(metric).label;
+                            const label = metricLabel(metric);
 	                          return (
 	                            <button
 	                              key={metric}
 	                              type="button"
 	                              onClick={() => toggleMetric(metric)}
+                                aria-pressed={selected}
                                 title={`${label} — ${metric}`}
-	                              className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
+	                              className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent ${
 	                                selected
 	                                  ? 'text-wb-text'
                                   : 'text-wb-muted hover:bg-wb-hover hover:text-wb-text'
@@ -1649,24 +2073,24 @@ function ViewSpecEditorModal({
                 {selectedMetrics.length === 0 ? (
                   <div className="px-1 py-3 text-xs text-wb-subtle">{t('workbench.viewEditor.noMetrics')}</div>
                 ) : (
-                  <div className="divide-y divide-wb-line">
+                  <ol className="divide-y divide-wb-line">
                     {selectedMetrics.map((metric, index) => (
-                      <div key={metric} className="group/row flex min-h-9 items-center gap-1 px-1">
-                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-wb-text">{signalMetadata(metric).label}</span>
+                      <li key={metric} className="group/row flex min-h-9 items-center gap-1 px-1">
+                        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-wb-text">{metricLabel(metric)}</span>
                         <div className="flex shrink-0 items-center opacity-60 transition-opacity group-hover/row:opacity-100">
-                          <button type="button" onClick={() => moveMetric(metric, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={t('workbench.viewEditor.moveUp')}>
+                          <button type="button" onClick={() => moveMetric(metric, -1)} disabled={index === 0} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={`${t('workbench.viewEditor.moveUp')}: ${metricLabel(metric)}`}>
                             <ChevronDown className="h-3.5 w-3.5 rotate-180" />
                           </button>
-                          <button type="button" onClick={() => moveMetric(metric, 1)} disabled={index === selectedMetrics.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={t('workbench.viewEditor.moveDown')}>
+                          <button type="button" onClick={() => moveMetric(metric, 1)} disabled={index === selectedMetrics.length - 1} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text disabled:opacity-25" aria-label={`${t('workbench.viewEditor.moveDown')}: ${metricLabel(metric)}`}>
                             <ChevronDown className="h-3.5 w-3.5" />
                           </button>
-                          <button type="button" onClick={() => toggleMetric(metric)} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-danger" aria-label={t('workbench.viewEditor.removeMetric')}>
+                          <button type="button" onClick={() => toggleMetric(metric)} className="inline-flex h-7 w-6 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-danger" aria-label={`${t('workbench.viewEditor.removeMetric')}: ${metricLabel(metric)}`}>
                             <X className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                      </div>
+                      </li>
                     ))}
-                  </div>
+                  </ol>
                 )}
               </div>
             </div>
@@ -1841,6 +2265,7 @@ interface PanelCardProps {
   updateTimeWindow: (panelId: string, val: number) => void;
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
+  updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
@@ -1854,6 +2279,7 @@ interface PanelCardProps {
   canConfigure?: boolean;
   readOnly?: boolean;
   workbenchTheme?: WorkbenchThemeId;
+  runtimeRenderer?: WorkbenchRuntimeRenderer;
 }
 
 function NoteModeToggleButton({
@@ -1925,6 +2351,7 @@ function PanelCard({
   updateTimeWindow,
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
+  updatePanelPvHistory,
   updatePanelControllerItems,
   updatePanelLegendPosition,
   noteCaseKey,
@@ -1938,6 +2365,7 @@ function PanelCard({
   canConfigure = isEditor,
   readOnly = false,
   workbenchTheme = 'dark',
+  runtimeRenderer,
 }: PanelCardProps) {
   const { t } = useTranslation();
   const bodyClassName = chromeMode === 'mobile' || chromeMode === 'dockview'
@@ -1992,6 +2420,7 @@ function PanelCard({
         onOpenSettings: openSettingsFromLegend,
         legendPosition: panel.view?.kind === 'graph' ? panel.view.legendPosition : undefined,
         onLegendPositionChange: changeLegendPosition,
+        runtimeRenderer,
       })}
     </div>
   );
@@ -2269,6 +2698,7 @@ export function PanelGrid({
   updateTimeWindow,
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
+  updatePanelPvHistory,
   updatePanelControllerItems,
   updatePanelLegendPosition,
   noteCaseKey,
@@ -2278,6 +2708,10 @@ export function PanelGrid({
   signals,
   metrics,
   controlGroups,
+  runtimeRenderer,
+  controllerAuthoring,
+  metricAuthoring,
+  scenarioPresetCatalog,
 }: PanelGridProps) {
   const { t } = useTranslation();
   const isReadOnly = mode === 'learner';
@@ -2368,6 +2802,7 @@ export function PanelGrid({
       updateTimeWindow={updateTimeWindow}
       togglePvDebugOverlay={togglePvDebugOverlay}
       updatePvDebugTraceMode={updatePvDebugTraceMode}
+      updatePanelPvHistory={updatePanelPvHistory}
       updatePanelControllerItems={updatePanelControllerItems}
       updatePanelLegendPosition={updatePanelLegendPosition}
       noteCaseKey={noteCaseKey}
@@ -2381,6 +2816,7 @@ export function PanelGrid({
       canConfigure={mode !== 'learner'}
       readOnly={isReadOnly}
       workbenchTheme={workbenchTheme}
+      runtimeRenderer={runtimeRenderer}
     />
   );
 
@@ -2405,11 +2841,13 @@ export function PanelGrid({
       updateTimeWindow={updateTimeWindow}
       togglePvDebugOverlay={togglePvDebugOverlay}
       updatePvDebugTraceMode={updatePvDebugTraceMode}
+      updatePanelPvHistory={updatePanelPvHistory}
       updatePanelControllerItems={updatePanelControllerItems}
       chambers={chambers}
       signals={signals}
       metrics={metrics}
       controlGroups={controlGroups}
+      controllerAuthoring={controllerAuthoring}
     />
   ) : null;
   const viewEditorModal = !isReadOnly && viewEditor ? (
@@ -2418,12 +2856,16 @@ export function PanelGrid({
       instances={instances}
       activeInstanceId={activeInstanceId}
       metrics={metrics}
+      controllerAuthoring={controllerAuthoring}
+      metricAuthoring={metricAuthoring}
       onClose={() => setViewEditor(null)}
       onSave={(draft) => {
         if (viewEditor.mode === 'edit') {
           const source = viewEditor.view;
           if (draft.kind === 'controller') {
-            updateAuthoredView(createControllerViewSpec(source.id, draft.title, draft.items));
+            updateAuthoredView(controllerAuthoring && source.kind === 'controller'
+              ? { ...source, title: draft.title, items: draft.items }
+              : createControllerViewSpec(source.id, draft.title, draft.items));
           } else {
             updateAuthoredView(createMetricsViewSpec(source.id, draft.title, draft.metrics, instances, source.kind === 'metrics' ? source.membership : undefined));
           }
@@ -2649,13 +3091,22 @@ export function PanelGrid({
         />
       );
     }
+    const runtimeBody = runtimeRenderer?.renderAuthoredView(view, {
+      instances,
+      activeInstanceId,
+      presentationMode: 'studio',
+    });
     return (
       <div className="relative h-full min-h-0 overflow-hidden">
-        <MetricsPanel
-          physicsRefs={physicsRefs}
-          instances={instances}
-          config={effectiveGlobalConfig(metricsViewConfig(view, instances), instances)}
-        />
+        {runtimeBody ?? (
+          <React.Suspense fallback={<div className="h-full bg-wb-aux" />}>
+            <LegacyMetricsPanel
+              physicsRefs={physicsRefs}
+              instances={instances}
+              config={effectiveGlobalConfig(metricsViewConfig(view, instances), instances)}
+            />
+          </React.Suspense>
+        )}
       </div>
     );
   };
@@ -2729,6 +3180,7 @@ export function PanelGrid({
                 toggleScenarioGlobalVisibility,
                 resetInstanceKnobs,
                 readOnly: isReadOnly,
+                runtimeRenderer,
               })}
             </section>
           )}
@@ -2790,13 +3242,13 @@ export function PanelGrid({
           {hasRightRail && (
             <section
               ref={rightRailRef}
-              className="workbench-zone-aux flex min-h-0 flex-col overflow-hidden bg-wb-aux"
+              className="workbench-zone-aux flex min-h-0 min-w-0 max-w-full flex-col overflow-hidden bg-wb-aux"
               style={{ gridColumn: rightRailColumn, gridRow: auxiliaryGridRow }}
               aria-label={t('workbench.panelGrid.railAria')}
             >
               <div
                 ref={scenarioListTierRef}
-                className="flex min-h-0 shrink-0 flex-col overflow-hidden"
+                className="flex min-h-0 min-w-0 max-w-full shrink-0 flex-col overflow-hidden"
                 style={scenarioListTierStyle}
               >
                 <div className="group flex h-9 shrink-0 items-center bg-wb-strip px-2 text-xs font-bold text-wb-muted transition-colors hover:bg-wb-input hover:text-wb-text">
@@ -2823,6 +3275,7 @@ export function PanelGrid({
                   {scenarioAddMenuPosition && !isReadOnly && (
                     <ScenarioPresetMenu
                       position={scenarioAddMenuPosition}
+                      presets={scenarioPresetCatalog}
                       onClose={() => setScenarioAddMenuPosition(null)}
                       onSelect={(presetId) => {
                         addInstance(undefined, presetId);
@@ -2832,7 +3285,7 @@ export function PanelGrid({
                   )}
                 </div>
                 {!layoutState.scenarioListCollapsed && (
-                  <div className="flex min-h-0 flex-1 overflow-hidden">
+                  <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
                     <ScenarioPane
                       instances={instances}
                       addInstance={addInstance}
@@ -2882,12 +3335,12 @@ export function PanelGrid({
                   className="h-2"
                 />
               )}
-              <div className="flex min-h-0 flex-1 flex-col">
-                <div className="relative flex h-9 shrink-0 items-center gap-2 bg-wb-strip px-2">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <div className="relative flex h-9 min-w-0 shrink-0 items-center gap-2 overflow-hidden bg-wb-strip px-2">
                   <button
                     type="button"
                     onClick={() => setOpenControllerMenu((open) => !open)}
-                    className={`inline-flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
+                    className={`inline-flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                     aria-expanded={openControllerMenu}
                   >
                     <span className="min-w-0 truncate">
@@ -2899,12 +3352,12 @@ export function PanelGrid({
                     <button
                       type="button"
                       onClick={() => setViewEditor({ mode: 'edit', view: selectedControllerView })}
-                      className={`ml-auto inline-flex min-w-0 cursor-pointer items-center gap-1.5 rounded border border-wb-line bg-wb-panel px-2 py-0.5 text-[10px] font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
+                      className={`ml-auto inline-flex min-w-0 max-w-[55%] shrink cursor-pointer items-center gap-1.5 overflow-hidden rounded border border-wb-line bg-wb-panel px-2 py-0.5 text-[10px] font-semibold text-wb-muted transition-colors hover:border-wb-line-strong hover:bg-wb-hover hover:text-wb-text ${WB_FOCUS_RING}`}
                       title={t('common.edit')}
                     >
-                      {t('workbench.panelGrid.editingScenario')}
+                      <span className="shrink-0">{t('workbench.panelGrid.editingScenario')}</span>
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: activeInstance.color }} />
-                      <span className="min-w-0 max-w-28 truncate text-wb-text">{activeInstance.name}</span>
+                      <span className="min-w-0 flex-1 truncate text-wb-text" title={activeInstance.name}>{activeInstance.name}</span>
                     </button>
                   )}
                   {openControllerMenu && (
@@ -3015,18 +3468,26 @@ export function PanelGrid({
                 </div>
                 <div className="relative min-h-0 flex-1">
                   {selectedControllerView ? (
-                    <Controls
-                      isPaneMode
-                      paneConfig={inspectorConfig}
-                      instances={inspectorInstances}
-                      instanceHealth={instanceHealth}
-                      activeInstanceId={selectedControllerTargetId}
-                      updateInstanceParams={updateInstanceParams}
-                      updateInstanceKnobs={updateInstanceKnobs}
-                      updateInstanceVolume={updateInstanceVolume}
-                      presentationMode="studio"
-                      controllerItems={selectedControllerView.items}
-                    />
+                    runtimeRenderer?.renderAuthoredView(selectedControllerView, {
+                      instances,
+                      activeInstanceId: selectedControllerTargetId,
+                      presentationMode: 'studio',
+                    }) ?? (
+                      <React.Suspense fallback={<div className="h-full bg-wb-aux" />}>
+                        <LegacyControls
+                          isPaneMode
+                          paneConfig={inspectorConfig}
+                          instances={inspectorInstances}
+                          instanceHealth={instanceHealth}
+                          activeInstanceId={selectedControllerTargetId}
+                          updateInstanceParams={updateInstanceParams}
+                          updateInstanceKnobs={updateInstanceKnobs}
+                          updateInstanceVolume={updateInstanceVolume}
+                          presentationMode="studio"
+                          controllerItems={selectedControllerView.items}
+                        />
+                      </React.Suspense>
+                    )
                   ) : (
                     <WorkbenchEmptyState
                       description={t('workbench.viewManagement.controllerEmptyHint')}

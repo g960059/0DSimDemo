@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, Check, ChevronDown, Plus, Search, X } from "lucide-react";
 import { CONTROLLER_CATALOG, CONTROLLER_CATALOG_SECTIONS, type ControllerCatalogEntry } from "../../controllerCatalog";
@@ -11,16 +11,70 @@ import type { ControllerItem, PanelDef, SimInstance } from "../../types";
 import { ControllerItemControl } from "../controls/ControllerItemControl";
 import { controllerOptionsWithLabelKeys, translatedControllerCategory, translatedControllerItemLabel, translatedControllerOptions, translatedKnobLabel } from "../../i18nText";
 
-type ControllerItemsBuilderProps = {
+export type ControllerItemsBuilderProps = {
   panel?: PanelDef;
   items?: ControllerItem[];
-  instances: SimInstance[];
+  instances?: SimInstance[];
   activeInstanceId?: string;
   updatePanelControllerItems?: (panelId: string, items: ControllerItem[]) => void;
   onItemsChange?: (items: ControllerItem[]) => void;
+  authoring?: ControllerAuthoringCatalog;
 };
 
-type CatalogEntry = ControllerCatalogEntry | RawParamEntry;
+export type ControllerAuthoringCatalogEntry = Readonly<{
+  key: string;
+  label: string;
+  labelKey?: string;
+  min: number;
+  max: number;
+  step: number;
+  unit?: string;
+  defaultKind?: "slider" | "buttonGroup";
+  /**
+   * Presentation controls admitted by this runtime domain. Omit to retain the
+   * legacy authoring choice between slider and button group. A release-bound
+   * enumerated domain may expose an exact-stop slider when `options` contains
+   * the complete admitted value set.
+   */
+  allowedKinds?: readonly ("slider" | "buttonGroup")[];
+  options?: readonly Readonly<{ label: string; value: number; labelKey?: string }>[];
+  /** Keep the engine range, step, and enumerated values read-only in authoring. */
+  lockedDomain?: boolean;
+  disabledReason?: string;
+}>;
+
+export type ControllerAuthoringCatalogSection = Readonly<{
+  id: string;
+  title: string;
+  titleKey?: string;
+  entries: readonly ControllerAuthoringCatalogEntry[];
+  defaultOpen?: boolean;
+}>;
+
+/**
+ * Presentation-only controller authoring contract.
+ *
+ * Supplying this contract makes the builder independent of legacy
+ * `SimInstance.params` / clinical-knob state. Scientific runtimes can expose
+ * only release-bound controls, mark future controls explicitly unavailable,
+ * and provide the active scenario's accepted baseline values without
+ * fabricating a legacy model instance.
+ */
+export type ControllerAuthoringCatalog = Readonly<{
+  sections: readonly ControllerAuthoringCatalogSection[];
+  baselineValues?: Readonly<Record<string, number>>;
+  defaultItems?: readonly ControllerItem[];
+}>;
+
+type CatalogEntry = ControllerCatalogEntry | RawParamEntry | ControllerAuthoringCatalogEntry;
+type CatalogMeta = {
+  label: string;
+  min: number;
+  max: number;
+  step: number;
+  unit?: string;
+  disabledReason?: string;
+};
 
 const clinicalCatalogByKey = new Map<string, ControllerCatalogEntry>(CONTROLLER_CATALOG.map((entry) => [entry.key, entry]));
 
@@ -50,7 +104,21 @@ function baselineFor(panel: PanelDef | undefined, instances: SimInstance[], acti
   return { ...raw, ...clinical };
 }
 
-function catalogMetaFor(paramKey: string): { label: string; min: number; max: number; step: number; unit?: string } {
+function catalogMetaFor(
+  paramKey: string,
+  injectedCatalogByKey?: ReadonlyMap<string, ControllerAuthoringCatalogEntry>,
+): CatalogMeta {
+  const injected = injectedCatalogByKey?.get(paramKey);
+  if (injected) {
+    return {
+      label: injected.label,
+      min: injected.min,
+      max: injected.max,
+      step: injected.step,
+      ...(injected.unit ? { unit: injected.unit } : {}),
+      ...(injected.disabledReason ? { disabledReason: injected.disabledReason } : {}),
+    };
+  }
   const clinical = clinicalCatalogByKey.get(paramKey);
   if (clinical) {
     const range = KNOB_RANGES[paramKey as KnobKey] ?? [0, 1];
@@ -61,16 +129,178 @@ function catalogMetaFor(paramKey: string): { label: string; min: number; max: nu
   return { label: paramKey, min: 0, max: 1, step: 0.01 };
 }
 
-function seedButtonOptions(item: ControllerItem, baseline: number): { label: string; value: number }[] {
+function seedButtonOptions(
+  item: ControllerItem,
+  baseline: number,
+  injectedCatalogByKey?: ReadonlyMap<string, ControllerAuthoringCatalogEntry>,
+): { label: string; value: number; labelKey?: string }[] {
+  const injectedOptions = injectedCatalogByKey?.get(item.paramKey)?.options;
+  if (injectedOptions && injectedOptions.length > 0) {
+    return injectedOptions.map((option) => ({ ...option }));
+  }
+  const injected = injectedCatalogByKey?.get(item.paramKey);
+  if (injected) {
+    const midpoint = roundToStep((injected.min + injected.max) / 2, injected.step);
+    return [
+      { label: "Low", value: roundToStep(injected.min, injected.step) },
+      { label: "Normal", value: midpoint },
+      { label: "High", value: roundToStep(injected.max, injected.step) },
+    ];
+  }
   return readingButtonOptionsFor(item.paramKey, baseline) ?? buttonOptionsFromRange(item);
 }
 
-function normalizedPreviewValue(item: ControllerItem, baseline: number | undefined): number {
-  const meta = catalogMetaFor(item.paramKey);
+function normalizedPreviewValue(
+  item: ControllerItem,
+  baseline: number | undefined,
+  injectedCatalogByKey?: ReadonlyMap<string, ControllerAuthoringCatalogEntry>,
+): number {
+  const meta = catalogMetaFor(item.paramKey, injectedCatalogByKey);
   const min = item.min ?? meta.min;
   const max = item.max ?? meta.max;
   const step = item.step ?? meta.step;
   return roundToStep(clamp(Number.isFinite(baseline) ? baseline as number : (min + max) / 2, min, max), step);
+}
+
+function finiteInRange(value: number | undefined, fallback: number, min: number, max: number): number {
+  return clamp(typeof value === "number" && Number.isFinite(value) ? value : fallback, min, max);
+}
+
+function canonicalCatalogOptionValue(
+  value: number,
+  options: ControllerAuthoringCatalogEntry["options"],
+): number | undefined {
+  return options?.find((option) =>
+    Math.abs(option.value - value)
+      <= Number.EPSILON * Math.max(1, Math.abs(option.value), Math.abs(value)) * 8
+  )?.value;
+}
+
+/** Normalize authored items against an injected runtime catalog or legacy defaults. */
+export function normalizeControllerItemsForAuthoring(
+  items: readonly ControllerItem[],
+  authoring?: ControllerAuthoringCatalog,
+): { items: ControllerItem[]; warnings: string[] } {
+  if (!authoring) return normalizeControllerItems([...items]);
+
+  const catalogByKey = new Map(
+    authoring.sections.flatMap((section) => section.entries).map((entry) => [entry.key, entry] as const),
+  );
+  const seen = new Set<string>();
+  const normalized: ControllerItem[] = [];
+  const warnings: string[] = [];
+
+  for (const item of items) {
+    const entry = catalogByKey.get(item.paramKey);
+    if (!entry) {
+      warnings.push(`Dropped controller item not exposed by this runtime: "${item.paramKey}".`);
+      continue;
+    }
+    if (seen.has(item.paramKey)) {
+      warnings.push(`Dropped duplicate controller item "${item.paramKey}".`);
+      continue;
+    }
+    seen.add(item.paramKey);
+
+    const step = entry.lockedDomain
+      ? entry.step
+      : typeof item.step === "number" && Number.isFinite(item.step) && item.step > 0
+      ? item.step
+      : entry.step;
+    // Catalog boundaries and discrete option values are runtime-domain values,
+    // not presentation decimals. Preserve them exactly when the authored item
+    // inherits the catalog. In particular, rational domains such as 4/3 must
+    // not be truncated by decimal step formatting before they reach the
+    // scientific runtime's strict enumerated-value validator.
+    const clampedMin = entry.lockedDomain
+      ? entry.min
+      : finiteInRange(item.min, entry.min, entry.min, entry.max);
+    const clampedMax = entry.lockedDomain
+      ? entry.max
+      : finiteInRange(item.max, entry.max, entry.min, entry.max);
+    let min = clampedMin === entry.min || clampedMin === entry.max
+      ? clampedMin
+      : roundToStep(clampedMin, step);
+    let max = clampedMax === entry.min || clampedMax === entry.max
+      ? clampedMax
+      : roundToStep(clampedMax, step);
+    if (min > max) {
+      warnings.push(`Reset inverted range for "${item.paramKey}".`);
+      min = entry.min;
+      max = entry.max;
+    }
+    const allowedKinds = entry.allowedKinds ?? (["slider", "buttonGroup"] as const);
+    const requestedKind = item.kind === "buttonGroup" || item.kind === "slider"
+      ? item.kind
+      : entry.defaultKind ?? "slider";
+    const fallbackKind = entry.defaultKind !== undefined
+      && allowedKinds.includes(entry.defaultKind)
+      ? entry.defaultKind
+      : allowedKinds[0] ?? "slider";
+    const kind = allowedKinds.includes(requestedKind)
+      ? requestedKind
+      : fallbackKind;
+    if (kind !== requestedKind) {
+      warnings.push(
+        `Coerced "${item.paramKey}" from ${requestedKind} to ${kind} because the runtime domain does not admit ${requestedKind}.`,
+      );
+    }
+    const next: ControllerItem = {
+      paramKey: item.paramKey,
+      kind,
+      label: item.label?.trim() || entry.label,
+      ...(item.labelKey?.trim() ? { labelKey: item.labelKey.trim() } : {}),
+      min,
+      max,
+      step,
+    };
+
+    if (kind === "slider" && entry.options !== undefined) {
+      next.options = entry.options
+        .filter((option) => Number.isFinite(option.value))
+        .map((option) => ({ ...option }));
+    }
+
+    if (kind === "buttonGroup") {
+      const optionsByValue = new Map<number, { label: string; value: number; labelKey?: string }>();
+      for (const option of item.options ?? entry.options ?? []) {
+        if (!Number.isFinite(option.value)) continue;
+        const clamped = clamp(option.value, entry.min, entry.max);
+        const value = canonicalCatalogOptionValue(clamped, entry.options)
+          ?? roundToStep(clamped, step);
+        if (optionsByValue.has(value)) continue;
+        optionsByValue.set(value, {
+          label: option.label?.trim() || String(value),
+          value,
+          ...(option.labelKey?.trim() ? { labelKey: option.labelKey.trim() } : {}),
+        });
+      }
+      let options = [...optionsByValue.values()].slice(0, 3);
+      if (options.length < 2 && entry.options !== undefined) {
+        options = entry.options
+          .filter((option) => Number.isFinite(option.value))
+          .map((option) => ({ ...option }))
+          .slice(0, 3);
+        if (options.length >= 2) {
+          warnings.push(
+            `Restored canonical button values for "${item.paramKey}" because the authored options were incomplete.`,
+          );
+        }
+      }
+      if (options.length >= 2) next.options = options;
+      else if (allowedKinds.includes("slider")) {
+        next.kind = "slider";
+        warnings.push(`Coerced "${item.paramKey}" to slider because it has fewer than 2 distinct button values.`);
+      } else {
+        warnings.push(
+          `Kept "${item.paramKey}" as buttonGroup because the runtime domain does not admit sliders, but it has fewer than 2 distinct button values.`,
+        );
+      }
+    }
+    normalized.push(next);
+  }
+
+  return { items: normalized, warnings };
 }
 
 function entrySearchText(entry: CatalogEntry, translatedLabel: string): string {
@@ -80,15 +310,25 @@ function entrySearchText(entry: CatalogEntry, translatedLabel: string): string {
 export function ControllerItemsBuilder({
   panel,
   items: authoredItems,
-  instances,
+  instances = [],
   activeInstanceId,
   updatePanelControllerItems,
   onItemsChange,
+  authoring,
 }: ControllerItemsBuilderProps) {
   const { t } = useTranslation();
+  const injectedCatalogByKey = useMemo(
+    () => authoring
+      ? new Map(authoring.sections.flatMap((section) => section.entries).map((entry) => [entry.key, entry] as const))
+      : undefined,
+    [authoring],
+  );
   const normalized = useMemo(
-    () => normalizeControllerItems(authoredItems ?? (panel?.view?.kind === "control" ? panel.view.controllerItems ?? [] : [])),
-    [authoredItems, panel?.view],
+    () => normalizeControllerItemsForAuthoring(
+      authoredItems ?? (panel?.view?.kind === "control" ? panel.view.controllerItems ?? [] : []),
+      authoring,
+    ),
+    [authoring, authoredItems, panel?.view],
   );
   const items = normalized.items;
   const [editWarnings, setEditWarnings] = useState<string[]>([]);
@@ -96,29 +336,54 @@ export function ControllerItemsBuilder({
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const warnings = editWarnings.length > 0 ? editWarnings : normalized.warnings;
-  const baselines = useMemo(() => baselineFor(panel, instances, activeInstanceId), [activeInstanceId, instances, panel]);
+  const baselines = useMemo(
+    () => authoring ? { ...(authoring.baselineValues ?? {}) } : baselineFor(panel, instances, activeInstanceId),
+    [activeInstanceId, authoring, instances, panel],
+  );
   const usedKeys = new Set(items.map((item) => item.paramKey));
   const query = search.trim().toLowerCase();
 
-  const clinicalEntries = useMemo(() => {
-    return CONTROLLER_CATALOG_SECTIONS.flatMap((section) => section.controls).filter((entry) => {
-      const label = translatedKnobLabel(t, entry.key, entry.label);
-      return !query || entrySearchText(entry, label).includes(query);
-    });
-  }, [query, t]);
+  const entryLabel = useCallback((entry: CatalogEntry): string => {
+    const injected = injectedCatalogByKey?.get(entry.key);
+    if (injected) {
+      return injected.labelKey
+        ? t(injected.labelKey, { defaultValue: injected.label })
+        : injected.label;
+    }
+    return translatedKnobLabel(t, entry.key, entry.label);
+  }, [injectedCatalogByKey, t]);
 
-  const rawSections = useMemo(() => {
-    return RAW_PARAM_CATALOG_SECTIONS.map((section) => ({
-      ...section,
-      controls: section.controls.filter((entry) => {
-        const label = translatedKnobLabel(t, entry.key, entry.label);
-        return !query || entrySearchText(entry, label).includes(query);
-      }),
-    })).filter((section) => section.controls.length > 0);
-  }, [query, t]);
+  const catalogSections = useMemo(() => {
+    if (authoring) {
+      return authoring.sections.map((section) => ({
+        id: section.id,
+        title: section.titleKey ? t(section.titleKey, { defaultValue: section.title }) : section.title,
+        defaultOpen: section.defaultOpen ?? true,
+        entries: section.entries.filter((entry) => !query || entrySearchText(entry, entryLabel(entry)).includes(query)),
+      })).filter((section) => section.entries.length > 0);
+    }
+    return [
+      {
+        id: "clinical-knobs",
+        title: t("workbench.controllerBuilder.clinicalKnobs"),
+        defaultOpen: true,
+        entries: CONTROLLER_CATALOG_SECTIONS.flatMap((section) => section.controls).filter((entry) => (
+          !query || entrySearchText(entry, entryLabel(entry)).includes(query)
+        )),
+      },
+      ...RAW_PARAM_CATALOG_SECTIONS.map((section) => ({
+        id: `raw-${section.title}`,
+        title: translatedControllerCategory(t, section.title),
+        defaultOpen: query.length > 0,
+        entries: section.controls.filter((entry) => (
+          !query || entrySearchText(entry, entryLabel(entry)).includes(query)
+        )),
+      })),
+    ].filter((section) => section.entries.length > 0);
+  }, [authoring, entryLabel, query, t]);
 
   const commit = (nextItems: ControllerItem[]) => {
-    const next = normalizeControllerItems(nextItems);
+    const next = normalizeControllerItemsForAuthoring(nextItems, authoring);
     setEditWarnings(next.warnings);
     if (panel && updatePanelControllerItems) {
       updatePanelControllerItems(panel.id, next.items);
@@ -165,7 +430,7 @@ export function ControllerItemsBuilder({
     clearDraft(key);
     const item = items[itemIndex];
     if (!item) return;
-    const meta = catalogMetaFor(item.paramKey);
+    const meta = catalogMetaFor(item.paramKey, injectedCatalogByKey);
     const displayedLabel = translatedControllerItemLabel(t, item, meta.label);
     if (value.trim() === displayedLabel.trim()) return;
     updateItem(itemIndex, { label: value, labelKey: undefined });
@@ -174,7 +439,7 @@ export function ControllerItemsBuilder({
   const commitRangeDraft = (itemIndex: number, key: string, field: "min" | "max" | "step", value: string) => {
     clearDraft(key);
     const item = items[itemIndex];
-    const meta = catalogMetaFor(item.paramKey);
+    const meta = catalogMetaFor(item.paramKey, injectedCatalogByKey);
     const fallback = item[field] ?? meta[field];
     const parsed = Number(value);
     const nextValue = value.trim() !== "" && Number.isFinite(parsed) && (field !== "step" || parsed > 0) ? parsed : fallback;
@@ -199,34 +464,49 @@ export function ControllerItemsBuilder({
   };
 
   const addEntry = (entry: CatalogEntry) => {
-    const nextItem = defaultControllerItemFor(entry.key);
-    commit([...items, { ...nextItem, labelKey: entry.key }]);
+    const injected = injectedCatalogByKey?.get(entry.key);
+    const nextItem = injected
+      ? {
+          paramKey: injected.key,
+          kind: injected.defaultKind ?? (injected.options && injected.options.length >= 2 ? "buttonGroup" : "slider"),
+          label: injected.label,
+          ...(injected.labelKey ? { labelKey: injected.labelKey } : {}),
+          min: injected.min,
+          max: injected.max,
+          step: injected.step,
+          ...(injected.options ? { options: injected.options.map((option) => ({ ...option })) } : {}),
+        } satisfies ControllerItem
+      : { ...defaultControllerItemFor(entry.key), labelKey: entry.key };
+    commit([...items, nextItem]);
     setExpanded((current) => ({ ...current, [entry.key]: false }));
   };
 
   const renderCatalogButton = (entry: CatalogEntry) => {
     const added = usedKeys.has(entry.key);
-    const label = translatedKnobLabel(t, entry.key, entry.label);
+    const label = entryLabel(entry);
+    const disabledReason = injectedCatalogByKey?.get(entry.key)?.disabledReason;
+    const disabled = added || Boolean(disabledReason);
     return (
       <button
         key={entry.key}
         type="button"
-        disabled={added}
+        disabled={disabled}
         onClick={() => addEntry(entry)}
-        title={`${label} — ${entry.key}`}
+        title={`${label} — ${entry.key}${disabledReason ? ` — ${disabledReason}` : ""}`}
         className={`group/entry flex min-h-7 w-full items-center gap-2 rounded px-2 text-left text-xs transition-colors ${
-          added
+          disabled
             ? "cursor-default text-wb-subtle"
             : "text-wb-muted hover:bg-wb-hover hover:text-wb-text"
         }`}
       >
-        <span className="min-w-0 flex-1 truncate font-medium">
-          {label}
+        <span className="min-w-0 flex-1 font-medium">
+          <span className="block truncate">{label}</span>
           {entry.unit && <span className="ml-1 text-[11px] text-wb-subtle">{entry.unit}</span>}
+          {disabledReason && <span className="block truncate text-[10px] font-normal text-amber-300/80">{disabledReason}</span>}
         </span>
         {added
           ? <Check className="h-3 w-3 shrink-0 text-wb-subtle" />
-          : <Plus className="h-3.5 w-3.5 shrink-0 text-wb-subtle opacity-0 transition-opacity group-hover/entry:opacity-100" />}
+          : !disabledReason && <Plus className="h-3.5 w-3.5 shrink-0 text-wb-subtle opacity-0 transition-opacity group-hover/entry:opacity-100" />}
       </button>
     );
   };
@@ -245,23 +525,14 @@ export function ControllerItemsBuilder({
             />
           </div>
           <div className="space-y-1">
-            <details open className="group">
-              <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[11px] font-medium text-wb-subtle transition-colors hover:text-wb-muted [&::-webkit-details-marker]:hidden">
-                <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
-                {t("workbench.controllerBuilder.clinicalKnobs")}
-              </summary>
-              <div className="grid pb-1 sm:grid-cols-2">
-                {clinicalEntries.map(renderCatalogButton)}
-              </div>
-            </details>
-            {rawSections.map((section) => (
-              <details key={section.title} open={query.length > 0 ? true : undefined} className="group">
+            {catalogSections.map((section) => (
+              <details key={section.id} open={query.length > 0 ? true : section.defaultOpen ? true : undefined} className="group">
                 <summary className="flex cursor-pointer select-none items-center gap-1.5 py-1.5 text-[11px] font-medium text-wb-subtle transition-colors hover:text-wb-muted [&::-webkit-details-marker]:hidden">
                   <ChevronDown className="h-3 w-3 shrink-0 transition-transform group-open:rotate-0 -rotate-90" />
-                  {translatedControllerCategory(t, section.title)}
+                  {section.title}
                 </summary>
                 <div className="grid pb-1 sm:grid-cols-2">
-                  {section.controls.map(renderCatalogButton)}
+                  {section.entries.map(renderCatalogButton)}
                 </div>
               </details>
             ))}
@@ -277,8 +548,11 @@ export function ControllerItemsBuilder({
           ) : (
             <div className="divide-y divide-wb-line">
               {items.map((item, index) => {
-                const meta = catalogMetaFor(item.paramKey);
-                const baseline = normalizedPreviewValue(item, baselines[item.paramKey]);
+                const meta = catalogMetaFor(item.paramKey, injectedCatalogByKey);
+                const injectedEntry = injectedCatalogByKey?.get(item.paramKey);
+                const admittedKinds = injectedEntry?.allowedKinds;
+                const domainLocked = injectedEntry?.lockedDomain === true;
+                const baseline = normalizedPreviewValue(item, baselines[item.paramKey], injectedCatalogByKey);
                 const isButton = item.kind === "buttonGroup";
                 const optionWarning = isButton && distinctOptionValues(item) < 2;
                 const isExpanded = expanded[item.paramKey] ?? false;
@@ -306,11 +580,12 @@ export function ControllerItemsBuilder({
                           <button
                             key={kind}
                             type="button"
+                            disabled={admittedKinds !== undefined && !admittedKinds.includes(kind)}
                             onClick={() => updateItem(index, {
                               kind,
-                              ...(kind === "buttonGroup" ? { options: controllerOptionsWithLabelKeys(item, seedButtonOptions(item, baseline), baseline) } : { options: undefined }),
+                              ...(kind === "buttonGroup" ? { options: controllerOptionsWithLabelKeys(item, seedButtonOptions(item, baseline, injectedCatalogByKey), baseline) } : { options: undefined }),
                             })}
-                            className={`h-6 rounded px-2 text-[10px] font-bold transition-colors ${item.kind === kind ? "bg-wb-active text-wb-text" : "text-wb-subtle hover:text-wb-muted"}`}
+                            className={`h-6 rounded px-2 text-[10px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-35 ${item.kind === kind ? "bg-wb-active text-wb-text" : "text-wb-subtle hover:text-wb-muted"}`}
                           >
                             {kind === "slider" ? t("workbench.controllerBuilder.slider") : t("workbench.controllerBuilder.button")}
                           </button>
@@ -339,7 +614,11 @@ export function ControllerItemsBuilder({
                             <span className="text-[11px] font-medium text-wb-subtle">{t("workbench.controllerBuilder.advancedRange")}</span>
                             <span className="text-[10px] text-wb-subtle">{t("workbench.controllerBuilder.engineRange", { min: meta.min, max: meta.max })}</span>
                           </div>
-                          <div className="grid grid-cols-3 gap-2">
+                          {domainLocked ? (
+                            <div className="rounded bg-wb-input px-2 py-1.5 text-[10px] font-medium text-wb-subtle">
+                              Runtime-validated values are fixed; labels and order remain editable.
+                            </div>
+                          ) : <div className="grid grid-cols-3 gap-2">
                             {(["min", "max", "step"] as const).map((field) => {
                               const draftKey = `${item.paramKey}:range:${field}`;
                               return (
@@ -364,10 +643,10 @@ export function ControllerItemsBuilder({
                                 </label>
                               );
                             })}
-                          </div>
+                          </div>}
                         </div>
 
-                        {isButton && (
+                        {isButton && !domainLocked && (
                           <div className="space-y-1.5">
                             {(item.options ?? []).map((option, optionIndex) => {
                               const optionLabelDraftKey = `${item.paramKey}:option:${optionIndex}:label`;

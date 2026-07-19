@@ -9,6 +9,7 @@ import type {
 import type { ClinicalKnobs, KnobKey } from './engine/knobs';
 import type { GuytonSide } from './engine/guytonStarling';
 import type { VascularReturnSnapshot } from './engine/guytonVascular';
+import type { MainWireScientificDerivedMetricIdV1 } from './engine/scientific/metrics';
 
 export type SimulationParams = CoreRuntimeParams;
 
@@ -31,10 +32,11 @@ export type SignalType =
   | 'Pperi' | 'Ppc' | 'VHeart' | 'septumShiftMl' | 'VLVeff' | 'VRVeff'
   | 'PLVfw' | 'PRVfw' | 'PVI_LV' | 'PVI_RV' | 'septalForceMmHg'
   | 'Default';
-export type MetricType =
+export type LegacyMetricType =
   | 'ABP' | 'CVP' | 'PAP' | 'PCWP' | 'SV' | 'CO' | 'LVEF' | 'RVEF'
   | 'COR' | 'COR_PCT' | 'LAD_DF' | 'LCx_DF' | 'RCA_DF'
   | 'FFR_LAD' | 'FFR_LCx' | 'FFR_RCA' | 'COR_SDI_L' | 'COR_SDI_R';
+export type MetricType = LegacyMetricType | MainWireScientificDerivedMetricIdV1;
 
 export interface SimInstance {
     id: string;
@@ -61,7 +63,7 @@ export interface PanelInstanceConfig {
     customSignalNames?: Record<string, string>;
 }
 
-export type PanelType = 'PVLOOP' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'SCENARIOS' | 'CONTROLS' | 'NOTE';
+export type PanelType = 'PVLOOP' | 'PV_RELATIONS' | 'WAVEFORM' | 'METRICS' | 'GUYTON_RIGHT' | 'GUYTON_LEFT' | 'GUYTON_3D' | 'SCENARIOS' | 'CONTROLS' | 'NOTE';
 export type PanelRole = 'graph' | 'output' | 'control' | 'note';
 export type WorkbenchZoneId = 'caseRail' | 'main' | 'sideRail' | 'bottomPanel';
 export type PvLoopDebugTraceMode = 'raw' | 'resampled' | 'both';
@@ -86,9 +88,11 @@ export interface LegendPosition {
     yPct: number;
 }
 
+export type PvLoopHistoryMode = 'fade' | 'persistent';
+
 export interface GraphPanelView {
     kind: 'graph';
-    graphType: 'pvloop' | 'waveform' | 'guyton-right' | 'guyton-left' | 'guyton-3d';
+    graphType: 'pvloop' | 'pv-relations' | 'waveform' | 'guyton-right' | 'guyton-left' | 'guyton-3d';
     chambers?: ChamberId[];
     signals?: SignalType[];
     instances?: Record<string, PanelInstancePresentation>;
@@ -100,6 +104,8 @@ export interface GraphPanelView {
     legendPosition?: LegendPosition;
     pvDebugOverlay?: boolean;
     pvDebugTraceMode?: PvLoopDebugTraceMode;
+    pvHistoryBeats?: number;
+    pvHistoryMode?: PvLoopHistoryMode;
 }
 
 export interface OutputPanelView {
@@ -206,6 +212,8 @@ export interface PanelDef {
     showLegend?: boolean;
     pvDebugOverlay?: boolean;
     pvDebugTraceMode?: PvLoopDebugTraceMode;
+    pvHistoryBeats?: number;
+    pvHistoryMode?: PvLoopHistoryMode;
 }
 
 export interface PreviewCoreFacade {

@@ -224,6 +224,36 @@ describe("mergePanelControllerItems", () => {
     });
   });
 
+  it("uses a runtime-specific normalizer instead of dropping scientific controller IDs", () => {
+    const scientificItem: ControllerItem = {
+      paramKey: "circulation.systemic-vascular-resistance-scale",
+      kind: "slider",
+      min: 0.25,
+      max: 4,
+      step: 0.25,
+      options: [
+        { label: "0.25×", value: 0.25 },
+        { label: "0.50×", value: 0.5 },
+        { label: "0.75×", value: 0.75 },
+        { label: "1.0×", value: 1 },
+        { label: "1.5×", value: 1.5 },
+        { label: "2.0×", value: 2 },
+        { label: "3.0×", value: 3 },
+        { label: "4.0×", value: 4 },
+      ],
+    };
+    const merged = mergePanelControllerItems(
+      controlPanel({ view: undefined }),
+      [scientificItem],
+      (items) => items,
+    );
+
+    expect(merged.view).toMatchObject({
+      kind: "control",
+      controllerItems: [scientificItem],
+    });
+  });
+
   it("does not spread a non-control view into the control view", () => {
     const merged = mergePanelControllerItems(controlPanel({
       view: { kind: "graph", graphType: "waveform", signals: ["LVP"], showLegend: false },

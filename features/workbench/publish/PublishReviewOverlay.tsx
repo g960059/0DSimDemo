@@ -121,6 +121,7 @@ export function PublishReviewOverlay({
     updateTimeWindow: () => {},
     togglePvDebugOverlay: () => {},
     updatePvDebugTraceMode: () => {},
+    updatePanelPvHistory: () => {},
     updatePanelControllerItems: () => {},
     updatePanelLegendPosition: () => {},
     onNoteChange: () => {},
@@ -244,6 +245,7 @@ export function PublishReviewOverlay({
           updateTimeWindow={docOpNoops.updateTimeWindow}
           togglePvDebugOverlay={docOpNoops.togglePvDebugOverlay}
           updatePvDebugTraceMode={docOpNoops.updatePvDebugTraceMode}
+          updatePanelPvHistory={docOpNoops.updatePanelPvHistory}
           updatePanelControllerItems={docOpNoops.updatePanelControllerItems}
           updatePanelLegendPosition={docOpNoops.updatePanelLegendPosition}
           noteCaseKey={previewPanels.noteCaseKey}

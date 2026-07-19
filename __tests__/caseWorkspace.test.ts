@@ -63,7 +63,7 @@ describe("semantic workspace", () => {
     expect("mode" in next).toBe(false);
   });
 
-  it("clamps note and metrics hosts to defaults when backing panels disappear", () => {
+  it("clamps the note host but preserves the first-class metrics host when legacy panels disappear", () => {
     const previous: WorkbenchWorkspace = {
       schemaVersion: 2,
       hosts: {
@@ -77,7 +77,7 @@ describe("semantic workspace", () => {
     const next = workspaceForPanels(panels.filter((panel) => panel.id !== "note" && panel.id !== "metrics"), previous);
 
     expect(next.hosts.note.open).toBe(false);
-    expect(next.hosts.metrics).toEqual({ open: false, span: "full" });
+    expect(next.hosts.metrics).toEqual({ open: true, span: "full" });
     expect(next.hosts.rightRail).toEqual({ open: false, scenarioListCollapsed: true });
   });
 

@@ -32,10 +32,22 @@ import {
   type MainWireNormalAdultFiveWallMechanicsStateV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
+  resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1,
+  type MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallCirculatoryLoadPointsV1";
+import {
   resolveMainWireNormalAdultBloodVolumeOperatingPointV1,
+  resolveMainWireNormalAdultBloodVolumeResearchPointV1,
   type MainWireNormalAdultBloodVolumeOperatingPointAuditV1,
   type MainWireNormalAdultBloodVolumeOperatingPointIdentityV1,
+  type MainWireNormalAdultBloodVolumeOperatingPointResolvedV1,
+  type MainWireNormalAdultStressedVenousVolumeResearchPointV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
+import {
+  resolveMainWireNormalAdultFiveWallMacroPhysiologyPointV1,
+  type MainWireNormalAdultFiveWallMacroPhysiologyPointIdV1,
+  type MainWireNormalAdultFiveWallMacroPhysiologyPointV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallMacroPhysiologyPointsV1";
 import {
   sanitizeForStableHash,
   stableHash,
@@ -46,7 +58,11 @@ import {
 } from "@/engine/myocardium/diagnostics/MainWireNormalAdultFiveWallDiagnosticSampleV2";
 import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
+  createFixedResearchMainWireNormalAdultFiveWallProviderV1,
+  resolveMainWireNormalAdultVentricularMaterialResearchPointV1,
   type MainWireNormalAdultLaSlsModeV1,
+  type MainWireNormalAdultFiveWallProviderV1,
+  type MainWireNormalAdultVentricularMaterialResearchPointV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
   createMainWireNormalAdultCommonPericardiumV1,
@@ -184,6 +200,44 @@ export type MainWireNormalAdultFiveWallPeriodicOptionsV1 = Readonly<{
   warmStart?: MainWireNormalAdultFiveWallCycleWarmStartV1;
 }>;
 
+export type MainWireNormalAdultFiveWallCirculatoryLoadResearchOptionsV1 =
+  Readonly<{
+    dtSec: number;
+    maximumBeatCount?: number;
+  }>;
+
+export type MainWireNormalAdultFiveWallMacroPhysiologyResearchOptionsV1 =
+  Readonly<{
+    dtSec: number;
+    maximumBeatCount?: number;
+  }>;
+
+export type MainWireNormalAdultFiveWallMacroPhysiologyResearchRunV1 = Readonly<{
+  configurationRole: "fixed-research-point";
+  point: MainWireNormalAdultFiveWallMacroPhysiologyPointV1;
+  materialPoint: MainWireNormalAdultVentricularMaterialResearchPointV1;
+  stressedVenousVolumePoint:
+    MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+  resolvedProviderIdentity: Readonly<{
+    providerId: string;
+    parameterSetId: string;
+    parameterIdentityHash: string;
+    stateSchemaVersion: number;
+  }>;
+  resolvedBloodVolumeIdentity:
+    MainWireNormalAdultBloodVolumeOperatingPointIdentityV1;
+  periodicResult: MainWireNormalAdultFiveWallPeriodicResultV1;
+  claim: Readonly<{
+    sourceResearchRunnerOnly: true;
+    releaseResolved: false;
+    cutoverEligible: false;
+    independentCanonicalColdStart: true;
+    warmStartApplied: false;
+    genericParameterPatchAccepted: false;
+    wholeLoopDirectionIsDescriptiveNotAcceptance: true;
+  }>;
+}>;
+
 export type MainWireNormalAdultFiveWallRetainedBeatV1 = Readonly<{
   beatIndex: number;
   startTimeSec: number;
@@ -297,24 +351,147 @@ type AcceptedState = MainWireFiveWallNonCoronaryAcceptedStateV1<
   MainWireNormalAdultFiveWallMechanicsStateV1
 >;
 
+type ResolvedPeriodicAssemblyV1 = Readonly<{
+  provider: MainWireNormalAdultFiveWallProviderV1;
+  bloodVolumeOperatingPoint:
+    MainWireNormalAdultBloodVolumeOperatingPointResolvedV1;
+}>;
+
 const CYCLE_LENGTH_SEC = 1;
 
 export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
   options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
 ): MainWireNormalAdultFiveWallPeriodicResultV1 {
-  const resolved = validateAndResolveOptions(options);
   const runtime = normalAdultMainWireRuntimeV1(
-    resolved.valveDiseaseBracketIds,
+    options.valveDiseaseBracketIds,
   );
-  const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1(
-    resolved.laSlsMode,
+  return runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+    options,
+    runtime,
   );
+}
+
+/**
+ * Runs one of the fixed circulatory-load sensitivity points from an independent
+ * canonical cold start. The intentionally narrow option surface prevents this
+ * research seam from becoming a generic parameter-patch or warm-start API.
+ */
+export function runMainWireNormalAdultFiveWallCirculatoryLoadResearchPointV1(
+  options: MainWireNormalAdultFiveWallCirculatoryLoadResearchOptionsV1,
+  pointId: MainWireNormalAdultFiveWallCirculatoryLoadPointIdV1,
+): MainWireNormalAdultFiveWallPeriodicResultV1 {
+  assertExactCirculatoryLoadResearchOptions(options);
+  const runtime =
+    resolveMainWireNormalAdultFiveWallCirculatoryLoadRuntimeV1(pointId);
+  return runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+    Object.freeze({
+      dtSec: options.dtSec,
+      ...(options.maximumBeatCount === undefined
+        ? {}
+        : { maximumBeatCount: options.maximumBeatCount }),
+      laSlsMode: "on" as const,
+      pericardiumMode: "on" as const,
+      pericardiumCase: "healthy-slack" as const,
+      initialization: "canonical" as const,
+      valveDiseaseBracketIds: Object.freeze([]),
+    }),
+    runtime,
+  );
+}
+
+/**
+ * Fixed-ID-only source research runner. Every call constructs a new provider,
+ * a new fixed-TBV cold state, and iterates ordinary beats without warm start.
+ */
+export function runMainWireNormalAdultFiveWallMacroPhysiologyResearchPointV1(
+  options: MainWireNormalAdultFiveWallMacroPhysiologyResearchOptionsV1,
+  pointId: MainWireNormalAdultFiveWallMacroPhysiologyPointIdV1,
+): MainWireNormalAdultFiveWallMacroPhysiologyResearchRunV1 {
+  assertExactMacroPhysiologyResearchOptions(options);
+  const point = resolveMainWireNormalAdultFiveWallMacroPhysiologyPointV1(pointId);
+  const runtime = normalAdultMainWireRuntimeV1();
+  const provider = createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+    point.materialPointId,
+  );
+  const materialPoint =
+    resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+      point.materialPointId,
+    );
+  const bloodVolume = resolveMainWireNormalAdultBloodVolumeResearchPointV1(
+    runtime,
+    point.stressedVenousVolumePointId,
+  );
+  const periodicResult =
+    runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+      Object.freeze({
+        dtSec: options.dtSec,
+        ...(options.maximumBeatCount === undefined
+          ? {}
+          : { maximumBeatCount: options.maximumBeatCount }),
+        laSlsMode: "on" as const,
+        pericardiumMode: "on" as const,
+        pericardiumCase: "healthy-slack" as const,
+        initialization: "canonical" as const,
+        valveDiseaseBracketIds: Object.freeze([]),
+      }),
+      runtime,
+      Object.freeze({
+        provider,
+        bloodVolumeOperatingPoint: bloodVolume.operatingPoint,
+      }),
+    );
+  const resolvedProviderIdentity = Object.freeze({
+    providerId: provider.providerId,
+    parameterSetId: provider.parameterSetId,
+    parameterIdentityHash: provider.parameterIdentityHash,
+    stateSchemaVersion: provider.stateSchemaVersion,
+  });
+  if (
+    periodicResult.protocolIdentity.mechanicsProvider.providerId
+      !== resolvedProviderIdentity.providerId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterSetId
+      !== resolvedProviderIdentity.parameterSetId
+    || periodicResult.protocolIdentity.mechanicsProvider.parameterIdentityHash
+      !== resolvedProviderIdentity.parameterIdentityHash
+    || periodicResult.protocolIdentity.bloodVolumeOperatingPoint
+      .fixedTotalBloodVolumeMl
+      !== bloodVolume.operatingPoint.fixedTotalBloodVolumeMl
+  ) throw new Error("macro physiology resolved assembly drifted from protocol identity");
+  return Object.freeze({
+    configurationRole: "fixed-research-point" as const,
+    point,
+    materialPoint,
+    stressedVenousVolumePoint: bloodVolume.point,
+    resolvedProviderIdentity,
+    resolvedBloodVolumeIdentity: bloodVolume.operatingPoint.identity,
+    periodicResult,
+    claim: Object.freeze({
+      sourceResearchRunnerOnly: true as const,
+      releaseResolved: false as const,
+      cutoverEligible: false as const,
+      independentCanonicalColdStart: true as const,
+      warmStartApplied: false as const,
+      genericParameterPatchAccepted: false as const,
+      wholeLoopDirectionIsDescriptiveNotAcceptance: true as const,
+    }),
+  });
+}
+
+function runMainWireNormalAdultFiveWallPeriodicSteadyResolvedRuntimeV1(
+  options: MainWireNormalAdultFiveWallPeriodicOptionsV1,
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  resolvedAssembly?: ResolvedPeriodicAssemblyV1,
+): MainWireNormalAdultFiveWallPeriodicResultV1 {
+  const resolved = validateAndResolveOptions(options);
+  const provider = resolvedAssembly?.provider
+    ?? createCanonicalMainWireNormalAdultFiveWallProviderV1(resolved.laSlsMode);
   const pericardium = createMainWireNormalAdultCommonPericardiumV1(
     resolved.pericardiumMode,
     resolved.pericardiumCase,
   );
   const bloodVolumeOperatingPoint =
-    resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
+    resolvedAssembly?.bloodVolumeOperatingPoint
+    ?? resolveMainWireNormalAdultBloodVolumeOperatingPointV1(runtime);
   const protocol = buildPeriodicProtocolIdentity(
     provider,
     runtime,
@@ -503,6 +680,38 @@ export function runMainWireNormalAdultFiveWallPeriodicSteadyV1(
       valveDiseaseBracketIsClinicalDiagnosis: false as const,
     }),
   });
+}
+
+function assertExactCirculatoryLoadResearchOptions(
+  options: MainWireNormalAdultFiveWallCirculatoryLoadResearchOptionsV1,
+): void {
+  if (options === null || typeof options !== "object" || Array.isArray(options)) {
+    throw new Error("circulatory load research options must be an object");
+  }
+  const allowed = new Set(["dtSec", "maximumBeatCount"]);
+  for (const key of Object.keys(options)) {
+    if (!allowed.has(key)) {
+      throw new Error(
+        `circulatory load research options reject unsupported field: ${key}`,
+      );
+    }
+  }
+}
+
+function assertExactMacroPhysiologyResearchOptions(
+  options: MainWireNormalAdultFiveWallMacroPhysiologyResearchOptionsV1,
+): void {
+  if (options === null || typeof options !== "object" || Array.isArray(options)) {
+    throw new Error("macro physiology research options must be an object");
+  }
+  const allowed = new Set(["dtSec", "maximumBeatCount"]);
+  for (const key of Object.keys(options)) {
+    if (!allowed.has(key)) {
+      throw new Error(
+        `macro physiology research options reject unsupported field: ${key}`,
+      );
+    }
+  }
 }
 
 function buildPeriodicProtocolIdentity(

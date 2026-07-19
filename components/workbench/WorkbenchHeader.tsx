@@ -44,6 +44,10 @@ interface WorkbenchHeaderProps {
   onImportFile: (file: File) => void;
   onExport: () => void;
   isSavingCase?: boolean;
+  primaryActionDisabled?: boolean;
+  primaryActionUnavailableReason?: string;
+  fileActionsDisabled?: boolean;
+  fileActionsUnavailableReason?: string;
   isPlaying: boolean;
   togglePlay: () => void;
   timeScale: number;
@@ -65,6 +69,7 @@ interface WorkbenchHeaderProps {
   publishStatus?: CaseStatus;
   publishVisibility?: CaseVisibility;
   onOpenPublishDialog?: () => void;
+  settingsContent?: React.ReactNode;
 }
 
 const SPEEDS = [0.5, 1, 2, 5];
@@ -89,6 +94,10 @@ export function WorkbenchHeader({
   onImportFile,
   onExport,
   isSavingCase = false,
+  primaryActionDisabled = false,
+  primaryActionUnavailableReason,
+  fileActionsDisabled = false,
+  fileActionsUnavailableReason,
   isPlaying,
   togglePlay,
   timeScale,
@@ -110,6 +119,7 @@ export function WorkbenchHeader({
   publishStatus,
   publishVisibility,
   onOpenPublishDialog,
+  settingsContent,
 }: WorkbenchHeaderProps) {
   const { t } = useTranslation();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -302,7 +312,8 @@ export function WorkbenchHeader({
 
           <button
             onClick={onPrimaryAction}
-            disabled={isSavingCase}
+            disabled={isSavingCase || primaryActionDisabled}
+            title={primaryActionDisabled ? primaryActionUnavailableReason : undefined}
             className={`inline-flex h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover disabled:cursor-not-allowed disabled:opacity-60 ${isLearner ? 'ml-2' : ''}`}
           >
             {isLearner ? <Copy className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
@@ -355,8 +366,11 @@ export function WorkbenchHeader({
         fileInputRef={fileInputRef}
         onImportFile={onImportFile}
         onExport={onExport}
+        fileActionsDisabled={fileActionsDisabled}
+        fileActionsUnavailableReason={fileActionsUnavailableReason}
         theme={theme}
         onThemeChange={onThemeChange}
+        settingsContent={settingsContent}
       />
     </>
   );

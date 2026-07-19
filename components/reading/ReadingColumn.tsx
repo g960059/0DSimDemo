@@ -53,6 +53,7 @@ export const ReadingColumn: React.FC<{
                   updateInstanceKnobs: paneCtx.updateInstanceKnobs,
                   updateInstanceVolume: paneCtx.updateInstanceVolume,
                   presentationMode: "reading",
+                  runtimeRenderer: paneCtx.runtimeRenderer,
                 }}
               />
             </div>
@@ -74,6 +75,7 @@ export const ReadingColumn: React.FC<{
                   updateInstanceKnobs: paneCtx.updateInstanceKnobs,
                   updateInstanceVolume: paneCtx.updateInstanceVolume,
                   presentationMode: "reading",
+                  runtimeRenderer: paneCtx.runtimeRenderer,
                 }}
                 className="sm:-mx-8"
               />

@@ -6,8 +6,11 @@ import {
   type NodeSpec,
 } from "@/engine/core/topology";
 import {
+  complianceFromPtm,
+  ptmAndVolumeTangentFromStressedVolume,
   ptmFromStressedVolume,
   stressedVolumeFromPtm,
+  type PtmFromStressedVolumeTangentBranch,
   type VascularPvLaw,
 } from "@/engine/vascularPv";
 
@@ -162,6 +165,108 @@ export function vascularTransmuralPressureFromPhysicalVolumeV1(
   return 0.5 * (lowerPressureMmHg + upperPressureMmHg);
 }
 
+export type VascularPressureVolumeTangentBranchV1 =
+  | PtmFromStressedVolumeTangentBranch
+  | "model-core-arterial-lower-saturation"
+  | "model-core-arterial-interior"
+  | "model-core-arterial-upper-saturation"
+  | "model-core-linear"
+  | "model-core-venous-lower-saturation"
+  | "model-core-venous-interior"
+  | "model-core-venous-upper-saturation";
+
+export type VascularTransmuralPressureAndVolumeTangentV1 = Readonly<{
+  /** Exactly the corresponding scalar API's primal pressure. */
+  transmuralPressureMmHg: number;
+  dTransmuralPressureDPhysicalVolumeMmHgPerMl: number;
+  branch: VascularPressureVolumeTangentBranchV1;
+}>;
+
+/** Paired node PV inverse and active-branch tangent for a volume Newton solve. */
+export function vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
+  node: NodeSpec,
+  physicalVolumeMl: number,
+  params: VascularPvRuntimeParameterViewV1,
+  policy: VascularPressureInversePolicyV1,
+): VascularTransmuralPressureAndVolumeTangentV1 {
+  const law = vascularPvLawFromNodeV1(node, params);
+  const stressedVolumeMl = physicalVolumeMl - law.Vu;
+  if (policy === "adaptive-volume-tolerance") {
+    const paired = ptmAndVolumeTangentFromStressedVolume(
+      law,
+      stressedVolumeMl,
+    );
+    return Object.freeze({
+      transmuralPressureMmHg: paired.transmuralPressure,
+      dTransmuralPressureDPhysicalVolumeMmHgPerMl:
+        paired.dPtmDStressedVolume,
+      branch: paired.branch,
+    });
+  }
+
+  const transmuralPressureMmHg =
+    vascularTransmuralPressureFromPhysicalVolumeV1(
+      node,
+      physicalVolumeMl,
+      params,
+      policy,
+    );
+  if (law.kind === "arterial") {
+    const volumeScaleMl = Math.max(law.VsEff, 1);
+    const logStrain = stressedVolumeMl / volumeScaleMl;
+    if (logStrain <= -30) {
+      return Object.freeze({
+        transmuralPressureMmHg,
+        dTransmuralPressureDPhysicalVolumeMmHgPerMl: 0,
+        branch: "model-core-arterial-lower-saturation" as const,
+      });
+    }
+    if (logStrain >= 5) {
+      return Object.freeze({
+        transmuralPressureMmHg,
+        dTransmuralPressureDPhysicalVolumeMmHgPerMl: 0,
+        branch: "model-core-arterial-upper-saturation" as const,
+      });
+    }
+    return Object.freeze({
+      transmuralPressureMmHg,
+      dTransmuralPressureDPhysicalVolumeMmHgPerMl:
+        (law.P0 + transmuralPressureMmHg) / volumeScaleMl,
+      branch: "model-core-arterial-interior" as const,
+    });
+  }
+  if (law.kind === "linear") {
+    return Object.freeze({
+      transmuralPressureMmHg,
+      dTransmuralPressureDPhysicalVolumeMmHgPerMl:
+        1 / Math.max(law.C, 1e-6),
+      branch: "model-core-linear" as const,
+    });
+  }
+  const lowerVolumeMl = stressedVolumeFromPtm(law, -20);
+  if (stressedVolumeMl <= lowerVolumeMl) {
+    return Object.freeze({
+      transmuralPressureMmHg,
+      dTransmuralPressureDPhysicalVolumeMmHgPerMl: 0,
+      branch: "model-core-venous-lower-saturation" as const,
+    });
+  }
+  const upperVolumeMl = stressedVolumeFromPtm(law, 45);
+  if (stressedVolumeMl >= upperVolumeMl) {
+    return Object.freeze({
+      transmuralPressureMmHg,
+      dTransmuralPressureDPhysicalVolumeMmHgPerMl: 0,
+      branch: "model-core-venous-upper-saturation" as const,
+    });
+  }
+  return Object.freeze({
+    transmuralPressureMmHg,
+    dTransmuralPressureDPhysicalVolumeMmHgPerMl:
+      1 / complianceFromPtm(law, transmuralPressureMmHg),
+    branch: "model-core-venous-interior" as const,
+  });
+}
+
 export type RespiratoryPressureParameterViewV1 = {
   readonly PEEP: number;
   readonly Pth0: number;
@@ -211,6 +316,41 @@ export function downstreamEffectivePressureV1(input: DownstreamWaterfallInputV1)
     collapsePressureMmHg,
     input.smoothingMmHg ?? 0.25,
   );
+}
+
+export type DownstreamEffectivePressureAndDerivativeV1 = Readonly<{
+  /** Exactly the scalar API's primal effective pressure. */
+  effectivePressureMmHg: number;
+  dEffectivePressureDDownstreamPressure: number;
+  branch: "direct-downstream" | "smooth-waterfall";
+}>;
+
+export function downstreamEffectivePressureAndDerivativeV1(
+  input: DownstreamWaterfallInputV1,
+): DownstreamEffectivePressureAndDerivativeV1 {
+  const effectivePressureMmHg = downstreamEffectivePressureV1(input);
+  if (!input.edge.waterfall) {
+    return Object.freeze({
+      effectivePressureMmHg,
+      dEffectivePressureDDownstreamPressure: 1,
+      branch: "direct-downstream" as const,
+    });
+  }
+  const collapsePressureMmHg =
+    input.edgeExternalPressureMmHg + (input.edge.Pcrit ?? 0);
+  const differenceMmHg = input.downstreamPressureMmHg - collapsePressureMmHg;
+  const smoothingMmHg = input.smoothingMmHg ?? 0.25;
+  const denominatorMmHg = Math.sqrt(
+    differenceMmHg * differenceMmHg + smoothingMmHg * smoothingMmHg,
+  );
+  return Object.freeze({
+    effectivePressureMmHg,
+    // The zero-width exact tie has Clarke interval [0, 1]; use its midpoint.
+    dEffectivePressureDDownstreamPressure: denominatorMmHg === 0
+      ? 0.5
+      : 0.5 * (1 + differenceMmHg / denominatorMmHg),
+    branch: "smooth-waterfall" as const,
+  });
 }
 
 export type BaseEdgeLossRuntimeParameterViewV1 = {
@@ -311,6 +451,65 @@ export function nonValveEdgeLossV1(
   };
 }
 
+export type NonValveEdgeLossAndPressureDerivativesV1 =
+  NonValveEdgeLossV1 & Readonly<{
+    dAreaRatioDUpstreamPressurePerMmHg: number;
+    dAreaRatioDDownstreamPressurePerMmHg: number;
+    dResistanceDUpstreamPressureSecPerMl: number;
+    dResistanceDDownstreamPressureSecPerMl: number;
+    dQuadraticLossDUpstreamPressureSec2PerMl2: number;
+    dQuadraticLossDDownstreamPressureSec2PerMl2: number;
+    areaRatioBranch: CollapsibleTubeAreaRatioDerivativeBranchV1 | "not-applied";
+  }>;
+
+export function nonValveEdgeLossAndPressureDerivativesV1(
+  input: NonValveEdgeLossInputV1,
+): NonValveEdgeLossAndPressureDerivativesV1 {
+  const loss = nonValveEdgeLossV1(input);
+  if (!loss.collapsibleTubeApplied) {
+    return Object.freeze({
+      ...loss,
+      dAreaRatioDUpstreamPressurePerMmHg: 0,
+      dAreaRatioDDownstreamPressurePerMmHg: 0,
+      dResistanceDUpstreamPressureSecPerMl: 0,
+      dResistanceDDownstreamPressureSecPerMl: 0,
+      dQuadraticLossDUpstreamPressureSec2PerMl2: 0,
+      dQuadraticLossDDownstreamPressureSec2PerMl2: 0,
+      areaRatioBranch: "not-applied" as const,
+    });
+  }
+  const area = collapsibleTubeAreaRatioAndPressureDerivativesV1({
+    edge: input.edge,
+    upstreamPressureMmHg: input.upstreamPressureMmHg,
+    downstreamPressureMmHg: input.downstreamPressureMmHg,
+    edgeExternalPressureMmHg: input.edgeExternalPressureMmHg,
+  });
+  const resistanceExponent = input.edge.chiRExp ?? 2;
+  const quadraticExponent = input.edge.chiBExp ?? 2;
+  const resistanceFactor = input.edge.useChiResistance
+    ? -resistanceExponent * loss.resistanceMmHgSecPerMl / loss.areaRatio
+    : 0;
+  const quadraticFactor = input.edge.useChiQuadratic
+    ? -quadraticExponent * loss.quadraticLossMmHgSec2PerMl2 / loss.areaRatio
+    : 0;
+  return Object.freeze({
+    ...loss,
+    dAreaRatioDUpstreamPressurePerMmHg:
+      area.dAreaRatioDUpstreamPressurePerMmHg,
+    dAreaRatioDDownstreamPressurePerMmHg:
+      area.dAreaRatioDDownstreamPressurePerMmHg,
+    dResistanceDUpstreamPressureSecPerMl:
+      resistanceFactor * area.dAreaRatioDUpstreamPressurePerMmHg,
+    dResistanceDDownstreamPressureSecPerMl:
+      resistanceFactor * area.dAreaRatioDDownstreamPressurePerMmHg,
+    dQuadraticLossDUpstreamPressureSec2PerMl2:
+      quadraticFactor * area.dAreaRatioDUpstreamPressurePerMmHg,
+    dQuadraticLossDDownstreamPressureSec2PerMl2:
+      quadraticFactor * area.dAreaRatioDDownstreamPressurePerMmHg,
+    areaRatioBranch: area.branch,
+  });
+}
+
 export type CollapsibleTubeAreaRatioInputV1 = {
   readonly edge: Pick<
     EdgeSpec,
@@ -335,6 +534,70 @@ export function collapsibleTubeAreaRatioV1(
   const minimumAreaRatio = input.edge.chiMin ?? 0.08;
   return minimumAreaRatio
     + (1 - minimumAreaRatio) * sigmoid(normalizedPressure);
+}
+
+export type CollapsibleTubeAreaRatioDerivativeBranchV1 =
+  | "lower-sigmoid-clamp"
+  | "smooth-interior"
+  | "upper-sigmoid-clamp";
+
+export type CollapsibleTubeAreaRatioAndPressureDerivativesV1 = Readonly<{
+  /** Exactly the scalar API's primal area ratio. */
+  areaRatio: number;
+  dAreaRatioDUpstreamPressurePerMmHg: number;
+  dAreaRatioDDownstreamPressurePerMmHg: number;
+  branch: CollapsibleTubeAreaRatioDerivativeBranchV1;
+}>;
+
+export function collapsibleTubeAreaRatioAndPressureDerivativesV1(
+  input: CollapsibleTubeAreaRatioInputV1,
+): CollapsibleTubeAreaRatioAndPressureDerivativesV1 {
+  const areaRatio = collapsibleTubeAreaRatioV1(input);
+  const upstreamTransmuralMmHg =
+    input.upstreamPressureMmHg - input.edgeExternalPressureMmHg;
+  const downstreamTransmuralMmHg =
+    input.downstreamPressureMmHg - input.edgeExternalPressureMmHg;
+  const differenceMmHg = upstreamTransmuralMmHg - downstreamTransmuralMmHg;
+  const smoothMinDenominatorMmHg = Math.sqrt(
+    differenceMmHg * differenceMmHg + 0.25 * 0.25,
+  );
+  const dMinimumDUpstream = 0.5 * (
+    1 - differenceMmHg / smoothMinDenominatorMmHg
+  );
+  const dMinimumDDownstream = 0.5 * (
+    1 + differenceMmHg / smoothMinDenominatorMmHg
+  );
+  const transmuralTubePressureMmHg = smoothMin(
+    upstreamTransmuralMmHg,
+    downstreamTransmuralMmHg,
+    0.25,
+  );
+  const widthMmHg = Math.max(input.edge.chiWidth ?? 1, 1e-6);
+  const normalizedPressure = (
+    transmuralTubePressureMmHg - (input.edge.Pcrit ?? 0)
+  ) / widthMmHg;
+  if (normalizedPressure <= -40 || normalizedPressure >= 40) {
+    return Object.freeze({
+      areaRatio,
+      dAreaRatioDUpstreamPressurePerMmHg: 0,
+      dAreaRatioDDownstreamPressurePerMmHg: 0,
+      branch: normalizedPressure <= -40
+        ? "lower-sigmoid-clamp" as const
+        : "upper-sigmoid-clamp" as const,
+    });
+  }
+  const sigmoidValue = sigmoid(normalizedPressure);
+  const minimumAreaRatio = input.edge.chiMin ?? 0.08;
+  const dAreaRatioDMinimum = (1 - minimumAreaRatio)
+    * sigmoidValue * (1 - sigmoidValue) / widthMmHg;
+  return Object.freeze({
+    areaRatio,
+    dAreaRatioDUpstreamPressurePerMmHg:
+      dAreaRatioDMinimum * dMinimumDUpstream,
+    dAreaRatioDDownstreamPressurePerMmHg:
+      dAreaRatioDMinimum * dMinimumDDownstream,
+    branch: "smooth-interior" as const,
+  });
 }
 
 /**

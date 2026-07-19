@@ -7,11 +7,16 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import { ChartLegend, shouldEnableLegendInteractions } from "@/components/Charts";
 import { PanelGrid, getActiveSettingsSectionId, getDockviewPaneTitle, metricsBindingsToDockviewPanels, metricsViewsToDockviewPanels, openPanelSettingsIfClosed, syncMetricsDockviewPanelBindings, type PanelGridMode, type WorkbenchLayoutState } from "@/components/workbench/PanelGrid";
+import { clampFloatingDialogPosition, moveFloatingDialogPosition } from "@/components/workbench/floatingDialogPosition";
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition, isDockviewHorizontalOnlyDropAllowed, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
 import { standardAuthoredViews } from "@/features/workbench/authoredViews";
 import { createAuthorRuntimeSnapshot, resolveAuthorActiveInstanceId } from "@/features/workbench/hooks/useWorkbenchScene";
-import { addVisibleInstanceConfigsToPanels } from "@/WorkbenchPage";
+import {
+  addVisibleInstanceConfigsToPanels,
+  removeInstanceConfigsFromPanels,
+  updatePanelWithSourceViewMirrors,
+} from "@/WorkbenchPage";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
 import type { MetricsViewSpec } from "@/features/workbench/viewSpec";
@@ -144,6 +149,7 @@ function createPanelGrid(
     updateTimeWindow: noop,
     togglePvDebugOverlay: noop,
     updatePvDebugTraceMode: noop,
+    updatePanelPvHistory: noop,
     updatePanelControllerItems: noop,
     updatePanelLegendPosition: noop,
     noteCaseKey: "test",
@@ -351,9 +357,10 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("cursor-grab");
     expect(html).toContain("hover:ring-1");
     expect(html).toContain("hover:ring-wb-accent");
-    expect(html).toContain("title=\"Drag to move · double-click to edit\"");
+    expect(html).toContain("title=\"Drag to move · click to edit\"");
+    expect(html).toContain("role=\"button\"");
+    expect(html).toContain("aria-label=\"Open pane settings\"");
     expect(html).not.toContain("<button");
-    expect(html).not.toContain("aria-label=\"Open pane settings\"");
     expect(html).not.toContain("aria-label=\"Drag legend\"");
   });
 
@@ -528,6 +535,10 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).toContain("Pane settings");
     expect(html).toContain("PV Loop · PV loop pane");
     expect(html).toContain("Done");
+    expect(html).not.toContain("aria-label=\"Move pane settings\"");
+    expect(html).not.toContain("Drag this header to move the dialog");
+    expect(html).toContain("sm:cursor-move");
+    expect(html).toContain("sm:touch-none");
     expect(html).toContain("Pane title");
     expect(html).toContain("Signals");
     expect(html).toContain("Scenarios");
@@ -566,6 +577,11 @@ describe("PanelGrid Dockview layout", () => {
     expect(panelGridSource).toContain("paneSettingsFocusRestoreTarget");
     expect(panelGridSource).toContain("dialogRef.current?.focus({ preventScroll: true })");
     expect(panelGridSource).toContain("document.body.style.overflow = 'hidden'");
+    expect(panelGridSource).toContain("setPointerCapture(event.pointerId)");
+    expect(panelGridSource).toContain("releasePointerCapture(event.pointerId)");
+    expect(panelGridSource).toContain("window.addEventListener('resize', onResize)");
+    expect(panelGridSource).toContain("setDialogMoveEnabled(desktop)");
+    expect(panelGridSource).toContain("role={dialogMoveEnabled ? 'button' : undefined}");
   });
 
   it("does not render pane-local settings for learner mode even if state is open", () => {
@@ -632,6 +648,83 @@ describe("PanelGrid Dockview layout", () => {
     expect(panels[0].config.copy).toEqual({ visible: true, selectedSignals: ["LV"] });
     expect(panels[1].config.normal.visible).toBe(true);
     expect(panels[1].config.copy).toEqual({ visible: true, selectedSignals: ["clinical"] });
+  });
+
+  it("removes only deleted instance configs from every pane", () => {
+    const sourcePanels: PanelDef[] = [
+      {
+        ...pvLoopPanel,
+        config: {
+          normal: { visible: true, selectedSignals: ["LV"] },
+          copy: { visible: true, selectedSignals: ["LA"] },
+          legacy: { visible: false, selectedSignals: ["RV"] },
+        },
+      },
+      {
+        id: "unaffected",
+        type: "WAVEFORM",
+        title: "Unaffected",
+        w: 4,
+        h: 4,
+        config: { normal: { visible: true, selectedSignals: ["LVP"] } },
+        isSettingsOpen: false,
+      },
+    ];
+
+    const next = removeInstanceConfigsFromPanels(sourcePanels, ["copy"]);
+
+    expect(next[0].config).toEqual({
+      normal: { visible: true, selectedSignals: ["LV"] },
+      legacy: { visible: false, selectedSignals: ["RV"] },
+    });
+    expect(next[1]).toBe(sourcePanels[1]);
+    expect(sourcePanels[0].config.copy).toEqual({ visible: true, selectedSignals: ["LA"] });
+  });
+
+  it("updates all graph panes mirroring one source view while keeping non-graph panes local", () => {
+    const sourceGraph: PanelDef = {
+      ...pvLoopPanel,
+      id: "graph-view",
+      sourceViewId: undefined,
+      title: "Original",
+    };
+    const mirrorGraph: PanelDef = {
+      ...pvLoopPanel,
+      id: "dock-pane-copy",
+      sourceViewId: "graph-view",
+      title: "Original",
+    };
+    const unrelatedGraph: PanelDef = {
+      ...pvLoopPanel,
+      id: "other-graph",
+      sourceViewId: "other-view",
+      title: "Other",
+    };
+    const controls: PanelDef = {
+      id: "controls",
+      sourceViewId: "shared-controller",
+      type: "CONTROLS",
+      title: "Controls",
+      w: 4,
+      h: 4,
+      config: {},
+      isSettingsOpen: false,
+    };
+    const controlsMirror: PanelDef = { ...controls, id: "controls-copy" };
+
+    const graphs = updatePanelWithSourceViewMirrors(
+      [sourceGraph, mirrorGraph, unrelatedGraph],
+      mirrorGraph.id,
+      (panel) => ({ ...panel, title: "Renamed" }),
+    );
+    expect(graphs.map((panel) => panel.title)).toEqual(["Renamed", "Renamed", "Other"]);
+
+    const nonGraphs = updatePanelWithSourceViewMirrors(
+      [controls, controlsMirror],
+      controls.id,
+      (panel) => ({ ...panel, title: "Renamed controls" }),
+    );
+    expect(nonGraphs.map((panel) => panel.title)).toEqual(["Renamed controls", "Controls"]);
   });
 
   it("caps the scenario list height instead of assigning a fixed ratio height", () => {
@@ -773,6 +866,25 @@ describe("PanelGrid Dockview layout", () => {
     expect(inspectorHtml).not.toContain("0.5x");
   });
 
+  it("keeps long scenario labels and the editing selector within the right rail", () => {
+    const longName = "Aortic stenosis — severe research bracket with an intentionally long scenario suffix";
+    const longScenario = {
+      ...normalInstance,
+      name: longName,
+      params: { ...DEFAULT_PARAMS },
+    };
+    const html = renderPanelGrid("sandbox", [], [longScenario], [], {}, false, {
+      rightRailView: "inspector",
+    });
+
+    expect(html).toContain('class="flex h-full w-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-wb-aux"');
+    expect(html).toContain('class="min-h-0 min-w-0 flex-1 space-y-0.5 overflow-x-hidden overflow-y-auto');
+    expect(html).toContain('class="min-w-0 flex-1 truncate font-medium" title="Aortic stenosis');
+    expect(html).toContain('class="min-w-0 flex-1 truncate text-wb-text" title="Aortic stenosis');
+    expect(html).toContain("max-w-[55%]");
+    expect(html).toContain("shrink-0");
+  });
+
   it("renders the scenario-list resize sash whenever the list is expanded", () => {
     const expandedHtml = renderPanelGrid("sandbox", [], [normalInstance, copiedInstance]);
     const collapsedHtml = renderPanelGrid("sandbox", [], [normalInstance, copiedInstance], [], {}, false, {
@@ -905,6 +1017,49 @@ describe("PanelGrid settings scroll spy", () => {
       },
       48,
     )).toBe("signals");
+  });
+});
+
+describe("floating pane settings dialog position", () => {
+  it("clamps a desktop dialog inside the viewport margin", () => {
+    expect(clampFloatingDialogPosition(
+      { x: -40, y: 900 },
+      { width: 1200, height: 800 },
+      { width: 600, height: 500 },
+    )).toEqual({ x: 8, y: 292 });
+  });
+
+  it("pins an oversized dialog to the viewport origin", () => {
+    expect(clampFloatingDialogPosition(
+      { x: 90, y: 40 },
+      { width: 500, height: 400 },
+      { width: 620, height: 410 },
+    )).toEqual({ x: 0, y: 0 });
+  });
+
+  it("uses the available narrow gutter when two margins do not fit", () => {
+    expect(clampFloatingDialogPosition(
+      { x: 99, y: 99 },
+      { width: 500, height: 400 },
+      { width: 490, height: 390 },
+    )).toEqual({ x: 10, y: 10 });
+  });
+
+  it("moves and clamps keyboard or pointer deltas in one operation", () => {
+    expect(moveFloatingDialogPosition(
+      { x: 100, y: 100 },
+      { x: -150, y: 250 },
+      { width: 1000, height: 700 },
+      { width: 500, height: 400 },
+    )).toEqual({ x: 8, y: 292 });
+  });
+
+  it("fails closed for non-finite dimensions and coordinates", () => {
+    expect(clampFloatingDialogPosition(
+      { x: Number.NaN, y: Number.POSITIVE_INFINITY },
+      { width: 1000, height: Number.NaN },
+      { width: 500, height: 400 },
+    )).toEqual({ x: 8, y: 0 });
   });
 });
 

@@ -5,9 +5,13 @@ import {
   evaluateNonCoronaryCirculationBackwardEulerTrialV1,
   resolveNonCoronaryCirculationColdSeedV1,
   restoreNonCoronaryCirculationStateV1,
+  NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+  type NonCoronaryAbsoluteChamberPressureTangentV1,
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationCheckpointV1,
   type NonCoronaryCirculationInitialStateInputV1,
+  type NonCoronaryCirculationNewtonOptionsV1,
+  type NonCoronaryProtocolResistanceScaleByEdgeV1,
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
   type NonCoronaryCirculationTrialFailureReasonV1,
@@ -39,11 +43,14 @@ import {
   type WholeHeartMechanicsAcceptedStateV1,
   type WholeHeartMechanicsCheckpointV1,
   type WholeHeartMechanicsProviderV1,
+  type WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
   type WholeHeartMechanicsTrialV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 
 export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID =
   "main-wire-five-wall-noncoronary-transaction-v1" as const;
+
+const PA_PER_MMHG = 133.322;
 
 export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1 =
   Object.freeze({
@@ -52,6 +59,8 @@ export const MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_CLAIM_V1 =
     modelCoreRuntimeAdopted: false as const,
     mechanicsOwner: "one-joint-five-wall-provider" as const,
     chamberPressureInterface: "transmural-provider-to-absolute-node" as const,
+    chamberPressureTangentInterface:
+      "transmural-provider-plus-one-common-pericardium-rank-one-to-absolute-node" as const,
     commonIntrathoracicPressureAppliedOnce: true as const,
     circulationAndMechanicsCommit: "atomic-after-both-trials-succeed" as const,
     failureSemantics: "rollback-both-accepted-states" as const,
@@ -260,6 +269,11 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     runtime: NonCoronaryCirculationRuntimeParamsV1;
     calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
     pericardium: MainWireCommonPericardiumBindingV1;
+    /** Optional numerical/audit controls; not a physiological case parameter. */
+    circulationNewtonOptions?: NonCoronaryCirculationNewtonOptionsV1;
+    /** Protocol-only transient occlusion; never persisted as a case parameter. */
+    protocolResistanceScaleByEdge?:
+      NonCoronaryProtocolResistanceScaleByEdgeV1;
   }>,
 ): MainWireFiveWallNonCoronaryStepResultV1<TWallState> {
   validateAcceptedPair(previous);
@@ -282,6 +296,9 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     previousAcceptedState: previous.circulation,
     dtSec: input.dtSec,
     runtime: input.runtime,
+    options: input.circulationNewtonOptions,
+    protocolResistanceScaleByEdge:
+      input.protocolResistanceScaleByEdge,
     evaluateCandidateMechanics: (volumesMl) => {
       const mechanicsTrial = evaluateWholeHeartMechanicsTrialV1(provider, {
         previousAcceptedState: previous.mechanics,
@@ -315,6 +332,15 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
           RV: mechanicsTrial.transmuralPressuresMmHg.RV + pthMmHg
             + pericardium.excessPressureMmHg,
         }),
+        ...(mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl
+          === undefined
+          ? {}
+          : {
+            absolutePressureTangent: absoluteChamberPressureTangent(
+              mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl,
+              pericardium,
+            ),
+          }),
         evaluation: mechanicsTrial,
       });
     },
@@ -451,6 +477,42 @@ function commonIntrathoracicPressureMmHg(
     timeSec,
     runtime.respiratory,
   );
+}
+
+function absoluteChamberPressureTangent(
+  transmural:
+    WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
+  pericardium: MainWireCommonPericardiumEvaluationV1,
+): NonCoronaryAbsoluteChamberPressureTangentV1 {
+  const commonPericardiumTangentMmHgPerMl =
+    pericardium.pressureDerivativePaPerM3 * 1e-6 / PA_PER_MMHG;
+  if (!Number.isFinite(commonPericardiumTangentMmHgPerMl)) {
+    throw new Error("common pericardium pressure tangent must be finite");
+  }
+  const matrix = NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.map(
+    (pressureChamber) => Object.freeze(
+      NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.map((volumeChamber) => {
+        const intrinsic = transmural[pressureChamber][volumeChamber];
+        if (!Number.isFinite(intrinsic)) {
+          throw new Error(
+            `${pressureChamber}/${volumeChamber} transmural pressure tangent must be finite`,
+          );
+        }
+        return intrinsic + commonPericardiumTangentMmHgPerMl;
+      }),
+    ),
+  ) as unknown as NonCoronaryAbsoluteChamberPressureTangentV1[
+    "dPressureDVolumeMmHgPerMl"
+  ];
+  return Object.freeze({
+    rowPressureOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+    columnVolumeOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+    units: "mmHg/mL" as const,
+    pressureKind: "absolute" as const,
+    derivativeSemantics:
+      "candidate-algorithmic-at-fixed-accepted-state-time-dt-and-drive" as const,
+    dPressureDVolumeMmHgPerMl: matrix,
+  });
 }
 
 function fingerprintJsonValueV1(value: unknown): string {

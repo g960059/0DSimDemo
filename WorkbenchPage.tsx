@@ -3,6 +3,8 @@ export {
   defaultSignalsForPanelType,
   mergePanelControllerItems,
   mergePanelLegendPosition,
+  removeInstanceConfigsFromPanels,
+  updatePanelWithSourceViewMirrors,
 } from "./features/workbench/workbenchDefaults";
 
 export { WorkbenchRoute } from "./features/workbench/WorkbenchRoute";

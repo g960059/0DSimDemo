@@ -45,6 +45,17 @@ const EFFUSION_PERICARDIUM = Object.freeze({
     prescribedPressureOffsetPa: 4 * 133.322,
   }),
 });
+const ENGAGED_ELASTIC_PERICARDIUM = Object.freeze({
+  ...OFF_PERICARDIUM,
+  parameterSetId: "test-engaged-elastic-common-pericardium",
+  mode: "on" as const,
+  parameters: Object.freeze({
+    referenceHeartVolumeM3: 4e-4,
+    exponentialPressureScalePa: 100,
+    exponentialStiffness: 1,
+    prescribedPressureOffsetPa: 0,
+  }),
+});
 const RUNTIME = Object.freeze({
   vascular: Object.freeze({
     venousTone: base.venousTone,
@@ -233,6 +244,41 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     })).toBe(before);
   });
 
+  it("adds the common-pericardium rank-one tangent exactly once", () => {
+    const provider = testProvider(false, true);
+    const cold = initializeMainWireFiveWallNonCoronaryV1({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: ENGAGED_ELASTIC_PERICARDIUM,
+    });
+    const stepped = stepMainWireFiveWallNonCoronaryV1(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: ENGAGED_ELASTIC_PERICARDIUM,
+        circulationNewtonOptions: {
+          analyticJacobianFiniteDifferenceShadow: true,
+        },
+      },
+    );
+    expect(stepped.converged).toBe(true);
+    if (stepped.converged === false) throw new Error(stepped.message);
+    expect(stepped.pericardium.pressureDerivativePaPerM3).toBeGreaterThan(0);
+    expect(stepped.circulationTrial.diagnostics.jacobianMode)
+      .toBe("analytic-semismooth");
+    expect(stepped.circulationTrial.diagnostics
+      .finiteDifferenceJacobianFallbackCount).toBe(0);
+    expect(stepped.circulationTrial.diagnostics
+      .finiteDifferenceJacobianShadowCount).toBeGreaterThan(0);
+    expect(stepped.circulationTrial.diagnostics
+      .jacobianMaximumRelativeFrobeniusShadowDifference!)
+      .toBeLessThan(2e-5);
+  });
+
   it("advances one actual Moyer/Klotz + Land/SLS + TriSeg step", () => {
     const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
     const runtime = Object.freeze({
@@ -263,6 +309,14 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
     if (stepped.converged === false) throw new Error(stepped.message);
     expect(stepped.mechanicsTrial.diagnostics.converged).toBe(true);
     expect(stepped.mechanicsTrial.diagnostics.finite).toBe(true);
+    expect(stepped.mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl)
+      .toBeDefined();
+    expect(stepped.circulationTrial.diagnostics.jacobianMode)
+      .toBe("analytic-semismooth");
+    expect(stepped.circulationTrial.diagnostics
+      .finiteDifferenceJacobianFallbackCount).toBe(0);
+    expect(stepped.circulationTrial.diagnostics
+      .pressureTangentAvailableAtFinalCandidate).toBe(true);
     expect(stepped.circulationTrial.diagnostics.totalBloodVolumeErrorMl)
       .toBeCloseTo(0, 9);
     expect(Object.keys(stepped.acceptedState.mechanics.materialState).sort())
@@ -274,6 +328,7 @@ describe("main-wire five-wall noncoronary atomic transaction V1", () => {
 
 function testProvider(
   rejectTrials: boolean,
+  includeTangent = false,
 ): WholeHeartMechanicsProviderV1<TestState, MainWireFiveWallFreeCalciumDriveV1> {
   const codec = Object.freeze({
     clone: (state: TestState) => Object.freeze({ ...state }),
@@ -285,26 +340,36 @@ function testProvider(
     volumes: Readonly<{ LA: number; LV: number; RA: number; RV: number }>,
     fail: boolean,
   ) => Object.freeze({
-    materialState: Object.freeze({
-      timeSec,
-      volumeSumMl: volumes.LA + volumes.LV + volumes.RA + volumes.RV,
-    }),
-    transmuralPressuresMmHg: Object.freeze({
-      LA: 12 + 0.08 * (volumes.LA - 45),
-      LV: 16 + 0.12 * (volumes.LV - 130),
-      RA: 7 + 0.06 * (volumes.RA - 55),
-      RV: 11 + 0.09 * (volumes.RV - 140),
-    }),
-    diagnostics: Object.freeze({
-      converged: !fail,
-      finite: true,
-      iterationCount: 1,
-      residualNorm: 0,
-      errors: Object.freeze(fail ? ["intentional trial rejection"] : []),
-      warnings: Object.freeze([]),
-      readback: null,
-    }),
-  });
+      materialState: Object.freeze({
+        timeSec,
+        volumeSumMl: volumes.LA + volumes.LV + volumes.RA + volumes.RV,
+      }),
+      transmuralPressuresMmHg: Object.freeze({
+        LA: 12 + 0.08 * (volumes.LA - 45),
+        LV: 16 + 0.12 * (volumes.LV - 130),
+        RA: 7 + 0.06 * (volumes.RA - 55),
+        RV: 11 + 0.09 * (volumes.RV - 140),
+      }),
+      ...(includeTangent
+        ? {
+          transmuralPressureVolumeTangentMmHgPerMl: Object.freeze({
+            LA: Object.freeze({ LA: 0.08, LV: 0, RA: 0, RV: 0 }),
+            LV: Object.freeze({ LA: 0, LV: 0.12, RA: 0, RV: 0 }),
+            RA: Object.freeze({ LA: 0, LV: 0, RA: 0.06, RV: 0 }),
+            RV: Object.freeze({ LA: 0, LV: 0, RA: 0, RV: 0.09 }),
+          }),
+        }
+        : {}),
+      diagnostics: Object.freeze({
+        converged: !fail,
+        finite: true,
+        iterationCount: 1,
+        residualNorm: 0,
+        errors: Object.freeze(fail ? ["intentional trial rejection"] : []),
+        warnings: Object.freeze([]),
+        readback: null,
+      }),
+    });
   return Object.freeze({
     contractId: WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
     providerId: `test-provider-${rejectTrials}`,

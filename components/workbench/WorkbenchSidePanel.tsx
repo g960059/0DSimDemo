@@ -24,8 +24,11 @@ interface WorkbenchSidePanelProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImportFile: (file: File) => void;
   onExport: () => void;
+  fileActionsDisabled?: boolean;
+  fileActionsUnavailableReason?: string;
   theme: WorkbenchThemeId;
   onThemeChange: (theme: WorkbenchThemeId) => void;
+  settingsContent?: React.ReactNode;
 }
 
 type TabId = 'share' | 'files' | 'details' | 'settings';
@@ -38,8 +41,11 @@ export function WorkbenchSidePanel({
   fileInputRef,
   onImportFile,
   onExport,
+  fileActionsDisabled = false,
+  fileActionsUnavailableReason,
   theme,
   onThemeChange,
+  settingsContent,
 }: WorkbenchSidePanelProps) {
   const { t } = useTranslation();
   const tabs = useMemo(() => {
@@ -116,16 +122,22 @@ export function WorkbenchSidePanel({
               <input
                 ref={fileInputRef}
                 type="file"
+                disabled={fileActionsDisabled}
                 accept=".json,.circleheart.json,application/json"
                 className="hidden"
                 onChange={(e) => { const file = e.target.files?.[0]; if (file) onImportFile(file); e.target.value = ''; }}
               />
+              {fileActionsDisabled && fileActionsUnavailableReason && (
+                <div className="rounded-md border border-wb-line bg-wb-strip p-3 text-xs leading-5 text-wb-muted" role="status">
+                  {fileActionsUnavailableReason}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={onExport} className="inline-flex items-center justify-center gap-2 rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-sm font-bold text-wb-text hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
+                <button disabled={fileActionsDisabled} title={fileActionsUnavailableReason} onClick={onExport} className="inline-flex items-center justify-center gap-2 rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-sm font-bold text-wb-text hover:bg-wb-hover disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
                   <Download className="h-4 w-4" />
                   {t('workbench.sidePanel.files.export')}
                 </button>
-                <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-sm font-bold text-wb-text hover:bg-wb-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
+                <button disabled={fileActionsDisabled} title={fileActionsUnavailableReason} onClick={() => fileInputRef.current?.click()} className="inline-flex items-center justify-center gap-2 rounded-md border border-wb-line bg-wb-panel px-3 py-2 text-sm font-bold text-wb-text hover:bg-wb-hover disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-wb-accent">
                   <FileUp className="h-4 w-4" />
                   {t('workbench.sidePanel.files.load')}
                 </button>
@@ -186,6 +198,7 @@ export function WorkbenchSidePanel({
                   </div>
                 </div>
               </section>
+              {settingsContent}
             </div>
           )}
         </div>

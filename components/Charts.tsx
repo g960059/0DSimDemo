@@ -4,7 +4,7 @@ import { LoaderCircle, TriangleAlert } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { SimInstance, PhysicsRefState, PanelInstanceConfig, type LegendPosition, type PvLoopDebugTraceMode } from '../types';
 import type { SimSample } from '../engine/protocol';
-import { clampLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, pxToFraction } from './legendPosition';
+import { InteractiveGraphLegend } from './InteractiveGraphLegend';
 import { useDocumentVisible, useOnscreen } from '../hooks/useOnscreen';
 import {
     buildWaveformDrawPlan,
@@ -60,6 +60,8 @@ import {
 import { guytonPaneChromeState, guytonStarlingCalibrationDetail } from './guytonPaneChrome';
 import type { GuytonCalibrationDetail } from './guytonPaneChrome';
 import { requestGuytonStarlingWorkerMessages } from './guytonStarlingWorkerClient';
+
+export { shouldEnableLegendInteractions } from './InteractiveGraphLegend';
 
 interface ChartPanelProps {
   physicsRefs: React.MutableRefObject<Map<string, PhysicsRefState>>;
@@ -597,16 +599,6 @@ const drawPvDebugOverlay = (ctx: CanvasRenderingContext2D, lines: string[]): voi
     ctx.restore();
 };
 
-export function shouldEnableLegendInteractions({
-    canConfigure,
-    presentationMode,
-}: {
-    canConfigure?: boolean;
-    presentationMode?: 'studio' | 'reading';
-}): boolean {
-    return Boolean(canConfigure) && presentationMode !== 'reading';
-}
-
 type ChartLegendProps = {
     instances: SimInstance[];
     config: Record<string, PanelInstanceConfig>;
@@ -619,31 +611,6 @@ type ChartLegendProps = {
     legendPosition?: LegendPosition;
     onLegendPositionChange?: (panelId: string, pos?: LegendPosition) => void;
 };
-
-type LegendLayout = {
-    container: { width: number; height: number };
-    legend: { width: number; height: number };
-};
-
-type LegendDragState = {
-    pointerId: number;
-    startClient: { x: number; y: number };
-    startPx: { left: number; top: number };
-    latestFraction: LegendPosition;
-};
-
-const EMPTY_LEGEND_LAYOUT: LegendLayout = {
-    container: { width: 0, height: 0 },
-    legend: { width: 0, height: 0 },
-};
-const LEGEND_DRAG_THRESHOLD_PX = 5;
-
-function sameLegendLayout(a: LegendLayout, b: LegendLayout): boolean {
-    return a.container.width === b.container.width
-        && a.container.height === b.container.height
-        && a.legend.width === b.legend.width
-        && a.legend.height === b.legend.height;
-}
 
 export const ChartLegend = ({
     instances,
@@ -658,57 +625,6 @@ export const ChartLegend = ({
     onLegendPositionChange,
 }: ChartLegendProps) => {
     const { t } = useTranslation();
-    const legendRef = useRef<HTMLDivElement>(null);
-    const dragRef = useRef<LegendDragState | null>(null);
-    const movedRef = useRef(false);
-    const suppressClickRef = useRef(false);
-    const lastDragEndAtRef = useRef(0);
-    const [layout, setLayout] = useState<LegendLayout>(EMPTY_LEGEND_LAYOUT);
-    const [livePosition, setLivePosition] = useState<LegendPosition | null>(null);
-    const [isDragging, setIsDragging] = useState(false);
-    const canOpenSettings = legendInteractive && Boolean(panelId) && Boolean(onOpenSettings);
-    const canDragLegend = canOpenSettings && Boolean(panelId) && Boolean(onLegendPositionChange);
-    const measureLayout = (): LegendLayout => {
-        const legendEl = legendRef.current;
-        const containerEl = (legendEl?.offsetParent as HTMLElement | null) ?? legendEl?.parentElement ?? null;
-        if (!legendEl || !containerEl) return EMPTY_LEGEND_LAYOUT;
-        const legendRect = legendEl.getBoundingClientRect();
-        const next = {
-            container: {
-                width: containerEl.clientWidth,
-                height: containerEl.clientHeight,
-            },
-            legend: {
-                width: legendEl.offsetWidth || legendRect.width,
-                height: legendEl.offsetHeight || legendRect.height,
-            },
-        };
-        setLayout(prev => sameLegendLayout(prev, next) ? prev : next);
-        return next;
-    };
-
-    useEffect(() => {
-        if (showLegend === false) return undefined;
-        const legendEl = legendRef.current;
-        const containerEl = (legendEl?.offsetParent as HTMLElement | null) ?? legendEl?.parentElement ?? null;
-        measureLayout();
-        if (!containerEl || typeof ResizeObserver === 'undefined') return undefined;
-        const observer = new ResizeObserver(() => {
-            measureLayout();
-        });
-        observer.observe(containerEl);
-        return () => observer.disconnect();
-    }, [showLegend, legendPosition, instances.length, config]);
-
-    const openSettings = (event: React.MouseEvent<HTMLElement>) => {
-        event.stopPropagation();
-        if (Date.now() - lastDragEndAtRef.current < 500) {
-            event.preventDefault();
-            return;
-        }
-        if (!canOpenSettings || !panelId) return;
-        onOpenSettings?.(panelId);
-    };
     const legendItems = instances.flatMap(inst => {
         const cfg = config[inst.id];
         const isHiddenActive = inst.id === activeInstanceId && cfg && !cfg.visible;
@@ -733,138 +649,20 @@ export const ChartLegend = ({
             );
         });
     });
-    const effectivePosition = livePosition ?? legendPosition;
-    const clampedPosition = effectivePosition
-        ? clampLegendFraction(effectivePosition, layout.container, layout.legend)
-        : undefined;
-    const legendPx = clampedPosition ? fractionToPx(clampedPosition, layout.container) : undefined;
-    const legendStyle: React.CSSProperties | undefined = legendPx
-        ? { left: `${legendPx.left}px`, top: `${legendPx.top}px` }
-        : undefined;
-    const legendRootStyle: React.CSSProperties | undefined = legendStyle
-        ? { ...legendStyle, touchAction: canDragLegend ? 'none' : undefined }
-        : (canDragLegend ? { touchAction: 'none' } : undefined);
-    const placementClassName = effectivePosition ? '' : 'top-2 right-2';
-    const settleTransitionClassName = isDragging ? '' : 'transition-[left,top] duration-150';
-    const legendClassName = canOpenSettings
-        ? `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-auto p-1.5 bg-wb-panel rounded border border-wb-line backdrop-blur-sm hover:bg-wb-panel/90 hover:ring-1 hover:ring-wb-accent ${isDragging ? 'cursor-grabbing bg-wb-panel/90 ring-1 ring-wb-accent' : 'cursor-grab'} ${extraClasses}`
-        : `absolute ${placementClassName} ${settleTransitionClassName} flex flex-col gap-1 z-30 pointer-events-none p-1.5 bg-wb-panel rounded border border-wb-line backdrop-blur-sm ${extraClasses}`;
-
-    const stopSuppressedClick = (event: React.MouseEvent<HTMLDivElement>) => {
-        if (suppressClickRef.current) {
-            event.stopPropagation();
-            event.preventDefault();
-            suppressClickRef.current = false;
-        }
-    };
-    const onLegendPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
-        if (!canDragLegend || !panelId) return;
-        event.stopPropagation();
-        const legendEl = legendRef.current;
-        const containerEl = (legendEl?.offsetParent as HTMLElement | null) ?? legendEl?.parentElement ?? null;
-        if (!legendEl || !containerEl) return;
-
-        const measured = measureLayout();
-        const legendRect = legendEl.getBoundingClientRect();
-        const containerRect = containerEl.getBoundingClientRect();
-        const currentPx = effectivePosition
-            ? fractionToPx(clampLegendFraction(effectivePosition, measured.container, measured.legend), measured.container)
-            : {
-                left: legendRect.left - containerRect.left,
-                top: legendRect.top - containerRect.top,
-            };
-        const currentFraction = clampLegendFraction(pxToFraction(currentPx, measured.container), measured.container, measured.legend);
-        dragRef.current = {
-            pointerId: event.pointerId,
-            startClient: { x: event.clientX, y: event.clientY },
-            startPx: currentPx,
-            latestFraction: currentFraction,
-        };
-        movedRef.current = false;
-        event.currentTarget.setPointerCapture(event.pointerId);
-    };
-    const onLegendPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        event.stopPropagation();
-        const dx = event.clientX - drag.startClient.x;
-        const dy = event.clientY - drag.startClient.y;
-        if (!movedRef.current && !exceededDragThreshold(drag.startClient, { x: event.clientX, y: event.clientY }, LEGEND_DRAG_THRESHOLD_PX)) return;
-        movedRef.current = true;
-        event.preventDefault();
-        const measured = measureLayout();
-        const nextPx = {
-            left: drag.startPx.left + dx,
-            top: drag.startPx.top + dy,
-        };
-        const nextFraction = clampLegendFraction(pxToFraction(nextPx, measured.container), measured.container, measured.legend);
-        drag.latestFraction = nextFraction;
-        setLivePosition(nextFraction);
-        setIsDragging(true);
-    };
-    const clearLegendDragState = () => {
-        dragRef.current = null;
-        movedRef.current = false;
-        setLivePosition(null);
-        setIsDragging(false);
-    };
-    const finishLegendDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        event.stopPropagation();
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-        const didDrag = exceededDragThreshold(
-            drag.startClient,
-            { x: event.clientX, y: event.clientY },
-            LEGEND_DRAG_THRESHOLD_PX,
-        );
-        if (didDrag && panelId) {
-            event.preventDefault();
-            suppressClickRef.current = true;
-            lastDragEndAtRef.current = Date.now();
-            const measured = measureLayout();
-            const finalPx = {
-                left: drag.startPx.left + event.clientX - drag.startClient.x,
-                top: drag.startPx.top + event.clientY - drag.startClient.y,
-            };
-            const finalPosition = clampLegendFraction(pxToFraction(finalPx, measured.container), measured.container, measured.legend);
-            const shouldSnapToDefault = isNearDefaultLegendCorner(finalPosition, measured.container, measured.legend);
-            onLegendPositionChange?.(panelId, shouldSnapToDefault ? undefined : finalPosition);
-        } else {
-            suppressClickRef.current = false;
-        }
-        clearLegendDragState();
-    };
-    const abortLegendDrag = (event: React.PointerEvent<HTMLDivElement>) => {
-        const drag = dragRef.current;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        event.stopPropagation();
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-        suppressClickRef.current = false;
-        clearLegendDragState();
-    };
 
     if (showLegend === false) return null;
 
     return (
-        <div
-            ref={legendRef}
-            className={legendClassName}
-            style={legendRootStyle}
-            onDoubleClick={canOpenSettings ? openSettings : undefined}
-            onPointerDown={canDragLegend ? onLegendPointerDown : undefined}
-            onPointerMove={canDragLegend ? onLegendPointerMove : undefined}
-            onPointerUp={canDragLegend ? finishLegendDrag : undefined}
-            onPointerCancel={canDragLegend ? abortLegendDrag : undefined}
-            onClick={canDragLegend ? stopSuppressedClick : undefined}
-            title={canOpenSettings ? 'Drag to move · double-click to edit' : undefined}
+        <InteractiveGraphLegend
+            panelId={panelId}
+            interactive={legendInteractive}
+            onOpenSettings={onOpenSettings}
+            position={legendPosition}
+            onPositionChange={onLegendPositionChange}
+            className={`flex flex-col gap-1 rounded border border-wb-line bg-wb-panel p-1.5 backdrop-blur-sm ${extraClasses}`}
         >
             {legendItems}
-        </div>
+        </InteractiveGraphLegend>
     );
 };
 

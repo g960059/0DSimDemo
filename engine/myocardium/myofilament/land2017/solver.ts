@@ -109,7 +109,14 @@ export function solveLand2017BackwardEulerStep(
     }
     const { residual, norm } = residualEvaluation;
     if (norm <= opts.residualTolerance) {
-      return succeeded(next, input, iteration, norm, lineSearchSteps, parameterSet);
+      return succeeded(
+        next,
+        input,
+        iteration,
+        norm,
+        lineSearchSteps,
+        parameterSet,
+      );
     }
     if (iteration === opts.maxIterations) {
       return failed(next, iteration, norm, lineSearchSteps, "max-iterations", "Newton iteration limit reached");
@@ -124,7 +131,10 @@ export function solveLand2017BackwardEulerStep(
 
     let delta: Float64Array;
     try {
-      delta = solveDenseLinearSystem6(jacobian, residual.map((value) => -value));
+      delta = solveLand2017LocalLinearSystem(
+        jacobian,
+        residual.map((value) => -value),
+      );
     } catch (error) {
       return failed(next, iteration, norm, lineSearchSteps, "singular-jacobian", (error as Error).message);
     }
@@ -379,7 +389,10 @@ function solveLand2017Sdirk2Stage(
 
     let delta: Float64Array;
     try {
-      delta = solveDenseLinearSystem6(jacobian, residual.map((value) => -value));
+      delta = solveLand2017LocalLinearSystem(
+        jacobian,
+        residual.map((value) => -value),
+      );
     } catch (error) {
       return failed(next, iteration, norm, lineSearchSteps, "singular-jacobian", (error as Error).message);
     }
@@ -504,7 +517,10 @@ function sdirk2StageSummary(
   };
 }
 
-function solveDenseLinearSystem6(matrix: Float64Array, rhs: Float64Array): Float64Array {
+export function solveLand2017LocalLinearSystem(
+  matrix: Float64Array,
+  rhs: Float64Array,
+): Float64Array {
   if (matrix.length !== LAND2017_LOCAL_JACOBIAN_SIZE || rhs.length !== LAND2017_STATE_SIZE) {
     throw new Error("Land 2017 dense solve expects a 6x6 matrix and 6-vector");
   }

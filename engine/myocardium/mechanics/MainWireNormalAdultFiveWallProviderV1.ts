@@ -3,6 +3,7 @@ import {
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
 import {
+  compileEquilibriumOneFiberPassiveV1,
   evaluateEquilibriumOneFiberPassiveV1,
   type CompiledEquilibriumOneFiberPassiveV1,
 } from "@/engine/myocardium/mechanics/equilibriumOneFiberPassiveV1";
@@ -32,6 +33,11 @@ import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
   assertNormalAdultFiveWallPriorV1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
+import {
+  deriveLand2017DerivedParameters,
+  stableHash as stableLandParameterHash,
+  type Land2017SourceParameterSet,
+} from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import type {
   WholeHeartMechanicsSerializableValueV1,
   WholeHeartMechanicsStateCodecV1,
@@ -108,6 +114,35 @@ export type MainWireNormalAdultFiveWallProviderV1 =
 
 export type MainWireNormalAdultLaSlsModeV1 = "on" | "exact-off";
 
+export const MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1 =
+  Object.freeze([
+    "baseline",
+    "ventricular-passive-low",
+    "ventricular-passive-high",
+    "ventricular-tref-low",
+    "ventricular-tref-high",
+  ] as const);
+
+export type MainWireNormalAdultVentricularMaterialResearchPointIdV1 =
+  (typeof MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1)[number];
+
+export type MainWireNormalAdultVentricularMaterialResearchPointV1 = Readonly<{
+  pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1;
+  ventricularEquilibriumPassiveScaleFromBaseline: number;
+  ventricularSlsModulusScaleFromBaseline: number;
+  ventricularLandTrefScaleFromBaseline: number;
+  resolvedVentricularLandTrefPa: number;
+  wallScope: readonly ["LVFW", "SEP", "RVFW"];
+  claim: Readonly<{
+    sourceResearchOnly: true;
+    fixedPointNotGenericPatch: true;
+    geometryExponentAndSlsTauHeldFixed: true;
+    equilibriumEnergyStressAndTangentScaledTogether: true;
+    septumSharedByBothVentricles: true;
+    independentLvAndRvEdpvrClaimed: false;
+  }>;
+}>;
+
 type PassiveEvaluationV1 = Readonly<{
   modelId: MainWireNormalAdultWallMaterialReadbackV1["passiveModelId"];
   parameterIdentityHash: string;
@@ -128,7 +163,9 @@ export function createCanonicalMainWireNormalAdultFiveWallProviderV1(
   laSlsMode: MainWireNormalAdultLaSlsModeV1 = "on",
 ):
 MainWireNormalAdultFiveWallProviderV1 {
-  return createNormalAdultProvider(laSlsMode);
+  return createNormalAdultProvider(laSlsMode, resolveVentricularMaterialProfile(
+    "baseline",
+  ));
 }
 
 export function createMainWireNormalAdultFiveWallMaterialKernelsV1(
@@ -137,14 +174,58 @@ export function createMainWireNormalAdultFiveWallMaterialKernelsV1(
 MainWireFiveWallRecordV1<
   MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
 > {
+  return createMaterialKernels(
+    laSlsMode,
+    resolveVentricularMaterialProfile("baseline"),
+  );
+}
+
+/**
+ * Sealed source-research seam. It accepts only the fixed material point IDs
+ * above and deliberately does not expose arbitrary material patches.
+ */
+export function createFixedResearchMainWireNormalAdultFiveWallProviderV1(
+  pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
+): MainWireNormalAdultFiveWallProviderV1 {
+  return createNormalAdultProvider("on", resolveVentricularMaterialProfile(pointId));
+}
+
+export function createFixedResearchMainWireNormalAdultFiveWallMaterialKernelsV1(
+  pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
+): MainWireFiveWallRecordV1<
+  MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
+> {
+  return createMaterialKernels("on", resolveVentricularMaterialProfile(pointId));
+}
+
+export function resolveMainWireNormalAdultVentricularMaterialResearchPointV1(
+  pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
+): MainWireNormalAdultVentricularMaterialResearchPointV1 {
+  return resolveVentricularMaterialProfile(pointId).point;
+}
+
+type ResolvedVentricularMaterialProfileV1 = Readonly<{
+  point: MainWireNormalAdultVentricularMaterialResearchPointV1;
+  equilibriumPassive: CompiledEquilibriumOneFiberPassiveV1;
+  wallMaterial: LandSlsWallMaterialParamsV1;
+}>;
+
+function createMaterialKernels(
+  laSlsMode: MainWireNormalAdultLaSlsModeV1,
+  ventricularProfile: ResolvedVentricularMaterialProfileV1,
+): MainWireFiveWallRecordV1<
+  MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
+> {
   const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
   assertNormalAdultFiveWallPriorV1(prior);
   return fiveWallRecord((wallId) => {
     const isAtrium = wallId === "LA" || wallId === "RA";
     const passive = isAtrium
       ? createMoyerPassiveEvaluator(prior.passive.atrial.compiled)
-      : createKlotzPassiveEvaluator(prior.passive.ventricular.compiled);
-    const baseParams = prior.active.wallMaterialByWall[wallId];
+      : createKlotzPassiveEvaluator(ventricularProfile.equilibriumPassive);
+    const baseParams = isAtrium
+      ? prior.active.wallMaterialByWall[wallId]
+      : ventricularProfile.wallMaterial;
     const materialParams = wallId === "LA" && laSlsMode === "exact-off"
       ? exactLaSlsOffParams(baseParams)
       : baseParams;
@@ -159,13 +240,17 @@ MainWireFiveWallRecordV1<
 
 function createNormalAdultProvider(
   laSlsMode: MainWireNormalAdultLaSlsModeV1,
+  ventricularProfile: ResolvedVentricularMaterialProfileV1,
 ): MainWireNormalAdultFiveWallProviderV1 {
   const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
   assertNormalAdultFiveWallPriorV1(prior);
-  return createMainWireFiveWallLandTriSegProviderV1({
+  const researchSuffix = ventricularProfile.point.pointId === "baseline"
+    ? ""
+    : `-source-research-${ventricularProfile.point.pointId}`;
+  return createMainWireFiveWallLandTriSegProviderV1(Object.freeze({
     parameterSetId:
-      `${prior.priorId}-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}`,
-    materialByWall: createMainWireNormalAdultFiveWallMaterialKernelsV1(laSlsMode),
+      `${prior.priorId}-${laSlsMode === "on" ? "canonical" : "la-sls-exact-off"}${researchSuffix}`,
+    materialByWall: createMaterialKernels(laSlsMode, ventricularProfile),
     atria: Object.freeze({
       LA: atrialGeometry("LA"),
       RA: atrialGeometry("RA"),
@@ -181,6 +266,116 @@ function createNormalAdultProvider(
       finiteDifferenceScaledStep:
         MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
     }),
+  }));
+}
+
+function resolveVentricularMaterialProfile(
+  pointId: MainWireNormalAdultVentricularMaterialResearchPointIdV1,
+): ResolvedVentricularMaterialProfileV1 {
+  if (!MAIN_WIRE_NORMAL_ADULT_VENTRICULAR_MATERIAL_RESEARCH_POINT_IDS_V1
+    .includes(pointId)) {
+    throw new Error(`unsupported fixed ventricular material research point: ${String(pointId)}`);
+  }
+  const passiveScale = pointId === "ventricular-passive-low"
+    ? 0.75
+    : pointId === "ventricular-passive-high" ? 4 / 3 : 1;
+  const trefScale = pointId === "ventricular-tref-low"
+    ? 0.75
+    : pointId === "ventricular-tref-high" ? 4 / 3 : 1;
+  const baselinePassive = NORMAL_ADULT_FIVE_WALL_PRIOR_V1.passive.ventricular;
+  const baselineMaterial =
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularWallMaterial;
+  const equilibriumPassive = passiveScale === 1
+    ? baselinePassive.compiled
+    : compileEquilibriumOneFiberPassiveV1(Object.freeze({
+      ...baselinePassive.compiled.params,
+      parameterSetId:
+        `${baselinePassive.compiled.params.parameterSetId}-${pointId}`,
+      centralTangentPa:
+        baselinePassive.compiled.params.centralTangentPa
+        * passiveScale,
+      tensionScalePa:
+        baselinePassive.compiled.params.tensionScalePa
+        * passiveScale,
+      compressionAdditionalTangentPa:
+        baselinePassive.compiled.params
+          .compressionAdditionalTangentPa * passiveScale,
+    }));
+  const landEquationParameters =
+    pointId === "ventricular-tref-low"
+      || pointId === "ventricular-tref-high"
+      ? scaledVentricularLandTref(pointId, trefScale)
+      : baselineMaterial.landEquationParameters;
+  const sls = passiveScale === 1
+    ? baselineMaterial.sls
+    : Object.freeze({
+      ...baselineMaterial.sls,
+      parameterSetId: `${baselineMaterial.sls.parameterSetId}-${pointId}`,
+      branchModulusPa: baselineMaterial.sls.branchModulusPa * passiveScale,
+    });
+  const wallMaterial = passiveScale === 1 && trefScale === 1
+    ? baselineMaterial
+    : Object.freeze({
+      ...baselineMaterial,
+      parameterSetId: `${baselineMaterial.parameterSetId}-${pointId}`,
+      landEquationParameters,
+      sls,
+    });
+  const point = Object.freeze({
+    pointId,
+    ventricularEquilibriumPassiveScaleFromBaseline: passiveScale,
+    ventricularSlsModulusScaleFromBaseline: passiveScale,
+    ventricularLandTrefScaleFromBaseline: trefScale,
+    resolvedVentricularLandTrefPa: landEquationParameters.values.Tref,
+    wallScope: Object.freeze(["LVFW", "SEP", "RVFW"] as const),
+    claim: Object.freeze({
+      sourceResearchOnly: true as const,
+      fixedPointNotGenericPatch: true as const,
+      geometryExponentAndSlsTauHeldFixed: true as const,
+      equilibriumEnergyStressAndTangentScaledTogether: true as const,
+      septumSharedByBothVentricles: true as const,
+      independentLvAndRvEdpvrClaimed: false as const,
+    }),
+  });
+  return Object.freeze({ point, equilibriumPassive, wallMaterial });
+}
+
+function scaledVentricularLandTref(
+  pointId: "ventricular-tref-low" | "ventricular-tref-high",
+  scale: number,
+): Land2017SourceParameterSet {
+  const baseline =
+    NORMAL_ADULT_FIVE_WALL_PRIOR_V1.active.ventricularLand;
+  const values = Object.freeze({
+    ...baseline.values,
+    Tref: baseline.values.Tref * scale,
+  });
+  const hashInput: Omit<Land2017SourceParameterSet, "parameterSetStableHash"> = {
+    parameterSetId: `${baseline.parameterSetId}-${pointId}`,
+    sourceId: baseline.sourceId,
+    doi: baseline.doi,
+    values,
+    derived: Object.freeze(deriveLand2017DerivedParameters(values)),
+    sourceParameters: Object.freeze(baseline.sourceParameters.map((entry) =>
+      entry.parameter === "Tref"
+        ? Object.freeze({
+          ...entry,
+          location:
+            `${entry.location}; fixed source-research envelope scale ${scale}`,
+          original: Object.freeze({ ...entry.original }),
+          runtime: Object.freeze({ ...entry.runtime, value: values.Tref }),
+        })
+        : Object.freeze({
+          ...entry,
+          original: Object.freeze({ ...entry.original }),
+          runtime: Object.freeze({ ...entry.runtime }),
+        }))),
+    derivedParameters: Object.freeze(baseline.derivedParameters.map((entry) =>
+      Object.freeze({ ...entry }))),
+  };
+  return Object.freeze({
+    ...hashInput,
+    parameterSetStableHash: stableLandParameterHash(hashInput),
   });
 }
 
@@ -294,6 +489,7 @@ function createWallKernel(
         state: trial.state,
         fiberLogStrain: candidateFiberLogStrain,
         stressPa: trial.totalKirchhoffStressPa,
+        algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
         iterationCount: trial.landSolverIterations,
         residualNorm,
         finite: trial.finite,
@@ -376,6 +572,7 @@ function materialEvaluation(input: Readonly<{
   state: LandSlsWallMaterialStateV1;
   fiberLogStrain: number;
   stressPa: number;
+  algorithmicFiberTangentPa?: number;
   iterationCount: number;
   residualNorm: number;
   finite: boolean;
@@ -387,11 +584,17 @@ function materialEvaluation(input: Readonly<{
     input.fiberLogStrain,
     input.stressPa,
     input.residualNorm,
+    ...(input.algorithmicFiberTangentPa === undefined
+      ? []
+      : [input.algorithmicFiberTangentPa]),
   ].every(Number.isFinite);
   return Object.freeze({
     state: cloneLandSlsWallMaterialStateV1(input.state),
     fiberLogStrain: input.fiberLogStrain,
     fiberKirchhoffStressPa: input.stressPa,
+    ...(input.algorithmicFiberTangentPa === undefined
+      ? {}
+      : { algorithmicFiberTangentPa: input.algorithmicFiberTangentPa }),
     iterationCount: input.iterationCount,
     residualNorm: input.residualNorm,
     finite,

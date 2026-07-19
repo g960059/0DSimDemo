@@ -1,5 +1,9 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { clampLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, pxToFraction } from "@/components/legendPosition";
+import { InteractiveGraphLegend, shouldEnableLegendInteractions } from "@/components/InteractiveGraphLegend";
+import { clampLegendFraction, defaultLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, magnetizeLegendPosition, pxToFraction } from "@/components/legendPosition";
+import { ScientificWorkbenchChartLegendV1 } from "@/components/scientificProduct/ScientificWorkbenchAnimatedChartsV1";
 import { mergePanelLegendPosition } from "@/WorkbenchPage";
 import type { PanelDef } from "@/types";
 
@@ -16,6 +20,92 @@ function graphPanel(extras: Partial<PanelDef> = {}): PanelDef {
     ...extras,
   };
 }
+
+const noop = () => undefined;
+
+describe("InteractiveGraphLegend", () => {
+  it("exposes single-click and keyboard settings semantics without extra chrome", () => {
+    const html = renderToStaticMarkup(React.createElement(
+      InteractiveGraphLegend,
+      {
+        panelId: "lv-pv",
+        interactive: true,
+        onOpenSettings: noop,
+        onPositionChange: noop,
+        ariaLabel: "Open LV PV pane settings",
+        className: "p-1.5",
+      },
+      React.createElement("span", null, "LV"),
+    ));
+
+    expect(html).toContain('role="button"');
+    expect(html).toContain('tabindex="0"');
+    expect(html).toContain('aria-label="Open LV PV pane settings"');
+    expect(html).toContain('title="Drag to move · click to edit"');
+    expect(html).toContain('data-legend-placement="default"');
+    expect(html).toContain('data-legend-magnet="free"');
+    expect(html).toContain("pointer-events-auto");
+    expect(html).toContain("cursor-grab");
+    expect(html).not.toContain("double-click");
+    expect(html).not.toContain("<button");
+  });
+
+  it("keeps reading and non-configurable legends inert", () => {
+    expect(shouldEnableLegendInteractions({
+      canConfigure: true,
+      presentationMode: "studio",
+    })).toBe(true);
+    expect(shouldEnableLegendInteractions({
+      canConfigure: true,
+      presentationMode: "reading",
+    })).toBe(false);
+    expect(shouldEnableLegendInteractions({
+      canConfigure: false,
+      presentationMode: "studio",
+    })).toBe(false);
+
+    const html = renderToStaticMarkup(React.createElement(
+      InteractiveGraphLegend,
+      {
+        panelId: "lv-pv",
+        interactive: false,
+        onOpenSettings: noop,
+        onPositionChange: noop,
+      },
+      "LV",
+    ));
+    expect(html).toContain("pointer-events-none");
+    expect(html).not.toContain('role="button"');
+    expect(html).not.toContain("cursor-grab");
+  });
+
+  it("uses the shared interaction surface for scientific chart entries", () => {
+    const html = renderToStaticMarkup(React.createElement(
+      ScientificWorkbenchChartLegendV1,
+      {
+        entries: [{
+          key: "healthy-lv",
+          color: "#38bdf8",
+          modelName: "Healthy",
+          signalName: "Left ventricle",
+        }],
+        interaction: {
+          panelId: "lv-pv",
+          interactive: true,
+          onOpenSettings: noop,
+          onLegendPositionChange: noop,
+          legendPosition: { xPct: 0.25, yPct: 0.4 },
+        },
+      },
+    ));
+
+    expect(html).toContain('data-testid="scientific-workbench-chart-legend-v1"');
+    expect(html).toContain('data-legend-placement="custom"');
+    expect(html).toContain('role="button"');
+    expect(html).toContain('aria-label="Healthy, Left ventricle"');
+    expect(html).toContain(">Left ventricle</span>");
+  });
+});
 
 describe("legend position helpers", () => {
   it("round-trips between normalized fractions and pixels", () => {
@@ -95,6 +185,40 @@ describe("legend position helpers", () => {
     expect(isNearDefaultLegendCorner(pos, { width: 400, height: Number.POSITIVE_INFINITY }, legend)).toBe(false);
     expect(isNearDefaultLegendCorner(pos, container, { width: Number.POSITIVE_INFINITY, height: 50 })).toBe(false);
     expect(isNearDefaultLegendCorner(pos, container, { width: 100, height: Number.NaN })).toBe(false);
+  });
+
+  it("magnetizes live movement to the default corner with release hysteresis", () => {
+    const container = { width: 400, height: 250 };
+    const legend = { width: 100, height: 50 };
+    const defaultPosition = defaultLegendFraction(container, legend);
+    const near = pxToFraction({ left: 274, top: 8 }, container);
+    const betweenEnterAndExit = pxToFraction({ left: 267, top: 8 }, container);
+    const outsideExit = pxToFraction({ left: 259, top: 8 }, container);
+
+    expect(magnetizeLegendPosition(
+      near,
+      container,
+      legend,
+      false,
+    )).toEqual({ position: defaultPosition, snapped: true });
+    expect(magnetizeLegendPosition(
+      betweenEnterAndExit,
+      container,
+      legend,
+      true,
+    )).toEqual({ position: defaultPosition, snapped: true });
+    expect(magnetizeLegendPosition(
+      betweenEnterAndExit,
+      container,
+      legend,
+      false,
+    )).toEqual({ position: betweenEnterAndExit, snapped: false });
+    expect(magnetizeLegendPosition(
+      outsideExit,
+      container,
+      legend,
+      true,
+    )).toEqual({ position: outsideExit, snapped: false });
   });
 });
 

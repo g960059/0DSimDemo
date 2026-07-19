@@ -16,6 +16,7 @@ import {
   type WholeHeartMechanicsChamberValuesV1,
   type WholeHeartMechanicsDiagnosticsV1,
   type WholeHeartMechanicsProviderEvaluationV1,
+  type WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1,
   type WholeHeartMechanicsProviderV1,
   type WholeHeartMechanicsSerializableValueV1,
   type WholeHeartMechanicsStateCodecV1,
@@ -36,6 +37,19 @@ export const MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM = Object.freeze({
   internalUnknowns: Object.freeze(["V_m_S", "y_m"] as const),
   residual:
     "algorithmic-virtual-work-gradient-times-coordinate-scale-divided-by-one-joule" as const,
+  trialMaterialLinearization:
+    "smooth-branch-exact-one-step-BE-tangent-with-declared-Clarke-midpoints" as const,
+  trialGeometryLinearization:
+    "central-finite-difference-with-center-material-tangent" as const,
+  coldOrMissingTangentFallback:
+    "full-constitutive-central-finite-difference" as const,
+  trialTransmuralPressureVolumeTangent:
+    "center-material-consistent-four-chamber-Schur-complement" as const,
+  trialTransmuralPressureVolumeTangentUnits: "mmHg-per-mL" as const,
+  trialTransmuralPressureVolumeTangentIncludesPericardium: false as const,
+  pressureVolumeTangentUnavailableWhen:
+    "cold-or-any-wall-material-tangent-missing" as const,
+  /** Retained as true because both the fast and fallback paths finite-difference geometry. */
   finiteDifferenceJacobian: true as const,
   localStableEquilibriumRequired: true as const,
   algorithmicJacobianSymmetryRequired: true as const,
@@ -73,6 +87,8 @@ export type MainWireFiveWallMaterialEvaluationV1<TWallState> = Readonly<{
   state: TWallState;
   fiberLogStrain: number;
   fiberKirchhoffStressPa: number;
+  /** Consistent d(tau_fiber)/d(log fiber strain) for this trial state. */
+  algorithmicFiberTangentPa?: number;
   /**
    * Optional local antiderivative of the algorithmic trial-stress map. This is
    * diagnostic only and is never called stored or thermodynamic energy.
@@ -199,6 +215,7 @@ export type MainWireFiveWallLandTriSegProviderV1<TWallState> =
 type ResolvedSolverOptionsV1 = Required<MainWireFiveWallInternalSolverOptionsV1>;
 
 type CandidateEvaluationV1<TWallState> = Readonly<{
+  volumesMl: WholeHeartMechanicsChamberValuesV1;
   state: MainWireFiveWallLandTriSegStateV1<TWallState>;
   geometry: TriSegGeometryV1;
   triseg: EnergyConjugateTriSegEvaluationV1;
@@ -291,11 +308,15 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
   const solver = resolveSolverOptions(params.solver);
   validateParams(params, solver);
   const parameterIdentityHash = providerParameterIdentityHash(params, solver);
+  const parameterIdentityInputsAreImmutable =
+    providerParameterIdentityInputsAreImmutableV1(params, solver);
   const stateCodec = createStateCodec(params.materialByWall);
 
   const initializeCold: MainWireFiveWallLandTriSegProviderV1<TWallState>["initializeCold"] =
     (input) => {
-      assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      if (!parameterIdentityInputsAreImmutable) {
+        assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      }
       validateDrive(input.drivingInputs);
       validateVolumes(input.volumesMl);
       const initialUnknowns = coordinatesToScaledUnknowns(
@@ -353,6 +374,8 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
             "cold",
             coldConsistencyIterations,
             lastCoordinateUpdate,
+            params,
+            solver,
           );
         }
       }
@@ -393,7 +416,9 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
 
   const evaluateTrial: MainWireFiveWallLandTriSegProviderV1<TWallState>["evaluateTrial"] =
     (input) => {
-      assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      if (!parameterIdentityInputsAreImmutable) {
+        assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+      }
       validateDrive(input.drivingInputs);
       validateVolumes(input.candidateVolumesMl);
       requirePositive(input.stepDtSec, "stepDtSec");
@@ -420,7 +445,14 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
           null,
         );
       }
-      return successfulProviderEvaluation(solved, "trial", null, null);
+      return successfulProviderEvaluation(
+        solved,
+        "trial",
+        null,
+        null,
+        params,
+        solver,
+      );
     };
 
   return Object.freeze({
@@ -477,15 +509,20 @@ function solveInternalCoordinates<TWallState>(
     if (residualNorm <= solver.scaledResidualInfinityTolerance) {
       let audited: ReturnType<typeof finiteDifferenceJacobianWithSymmetryAudit>;
       try {
-        audited = finiteDifferenceJacobianWithSymmetryAudit(
-          (candidate) => evaluateCandidate(
-            volumesMl,
-            drive,
-            candidate,
-            mode,
+        const consistentTangentEvaluate =
+          consistentTriSegTangentForceEvaluator(
+            currentCandidate,
             params,
-            solver,
-          ).scaledAlgorithmicGeneralizedForceByOneJ,
+          );
+        audited = finiteDifferenceJacobianWithSymmetryAudit(
+          consistentTangentEvaluate ?? ((candidate) => evaluateCandidate(
+              volumesMl,
+              drive,
+              candidate,
+              mode,
+              params,
+              solver,
+            ).scaledAlgorithmicGeneralizedForceByOneJ),
           current,
           solver,
         );
@@ -561,15 +598,20 @@ function solveInternalCoordinates<TWallState>(
 
     let jacobian: MainWireFiveWallScaledAlgorithmicJacobianByOneJV1;
     try {
-      jacobian = finiteDifferenceJacobian(
-        (candidate) => evaluateCandidate(
-          volumesMl,
-          drive,
-          candidate,
-          mode,
+      const consistentTangentEvaluate =
+        consistentTriSegTangentForceEvaluator(
+          currentCandidate,
           params,
-          solver,
-        ).scaledAlgorithmicGeneralizedForceByOneJ,
+        );
+      jacobian = finiteDifferenceJacobian(
+        consistentTangentEvaluate ?? ((candidate) => evaluateCandidate(
+            volumesMl,
+            drive,
+            candidate,
+            mode,
+            params,
+            solver,
+          ).scaledAlgorithmicGeneralizedForceByOneJ),
         current,
         solver.finiteDifferenceScaledStep,
       );
@@ -795,6 +837,7 @@ function evaluateCandidate<TWallState>(
     trisegCoordinates: Object.freeze({ ...coordinates }),
   });
   return Object.freeze({
+    volumesMl: Object.freeze({ ...volumesMl }),
     state,
     geometry,
     triseg,
@@ -811,14 +854,284 @@ function evaluateCandidate<TWallState>(
   });
 }
 
+/**
+ * Builds the exact local constitutive linearization used inside the existing
+ * central-difference geometry Jacobian. Only geometry is re-evaluated at the
+ * two shape perturbations; Land/SLS history remains the center trial's pure
+ * response from the same accepted state.
+ */
+function consistentTriSegTangentForceEvaluator<TWallState>(
+  center: CandidateEvaluationV1<TWallState>,
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+): ((scaledUnknowns: readonly number[]) => readonly number[]) | null {
+  const tangentByWall = ventricularMaterialTangents(center);
+  if (tangentByWall === null) return null;
+  return (scaledUnknowns) => centerLinearizedTriSegEvaluation(
+    center,
+    params,
+    tangentByWall,
+    center.volumesMl.LV,
+    center.volumesMl.RV,
+    scaledUnknowns,
+  ).scaledGeneralizedForceByOneJ;
+}
+
+type VentricularMaterialTangentsV1 = Readonly<{
+  LVFW: number;
+  SEP: number;
+  RVFW: number;
+}>;
+
+function ventricularMaterialTangents<TWallState>(
+  center: CandidateEvaluationV1<TWallState>,
+): VentricularMaterialTangentsV1 | null {
+  const wallIds = ["LVFW", "SEP", "RVFW"] as const;
+  const tangentByWall = {} as Record<(typeof wallIds)[number], number>;
+  for (const wallId of wallIds) {
+    const tangent = center.materialByWall[wallId].algorithmicFiberTangentPa;
+    if (tangent === undefined || !Number.isFinite(tangent)) return null;
+    tangentByWall[wallId] = tangent;
+  }
+  return Object.freeze(tangentByWall);
+}
+
+function centerLinearizedTriSegEvaluation<TWallState>(
+  center: CandidateEvaluationV1<TWallState>,
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  tangentByWall: VentricularMaterialTangentsV1,
+  leftVentricularVolumeMl: number,
+  rightVentricularVolumeMl: number,
+  scaledUnknowns: readonly number[],
+): Readonly<{
+  scaledGeneralizedForceByOneJ: readonly number[];
+  pressuresMmHg: readonly [number, number];
+}> {
+  const coordinates = scaledUnknownsToCoordinates(scaledUnknowns, params);
+  const geometry = evaluateTriSegGeometryV1({
+    leftVentricularCavityVolumeM3: leftVentricularVolumeMl * 1e-6,
+    rightVentricularCavityVolumeM3: rightVentricularVolumeMl * 1e-6,
+    coordinates,
+    walls: params.trisegWalls,
+  });
+  const fiberKirchhoffStressPaByWall = Object.freeze({
+    LVFW: center.fiberKirchhoffStressPaByWall.LVFW
+      + tangentByWall.LVFW * (
+        geometry.walls.LVFW.fiberLogStrain
+        - center.effectiveFiberLogStrainByWall.LVFW
+      ),
+    SEP: center.fiberKirchhoffStressPaByWall.SEP
+      + tangentByWall.SEP * (
+        geometry.walls.SEP.fiberLogStrain
+        - center.effectiveFiberLogStrainByWall.SEP
+      ),
+    RVFW: center.fiberKirchhoffStressPaByWall.RVFW
+      + tangentByWall.RVFW * (
+        geometry.walls.RVFW.fiberLogStrain
+        - center.effectiveFiberLogStrainByWall.RVFW
+      ),
+  });
+  const triseg = evaluateEnergyConjugateTriSegV1({
+    geometry,
+    fiberKirchhoffStressPaByWall,
+  });
+  return Object.freeze({
+    scaledGeneralizedForceByOneJ: Object.freeze([
+      triseg.membraneGeneralizedForce.septalMidwallCapVolumePa
+        * params.internalCoordinateScales.septalMidwallCapVolumeM3 / ONE_JOULE,
+      triseg.membraneGeneralizedForce.junctionRadiusN
+        * params.internalCoordinateScales.junctionRadiusM / ONE_JOULE,
+    ]),
+    pressuresMmHg: Object.freeze([
+      triseg.cavityTransmuralPressuresPa.LV / PA_PER_MMHG,
+      triseg.cavityTransmuralPressuresPa.RV / PA_PER_MMHG,
+    ] as const),
+  });
+}
+
+/**
+ * Linearizes the two ventricular cavity pressures and two internal equilibrium
+ * equations together, then eliminates the internal TriSeg coordinates by the
+ * Schur complement. The returned four-chamber map is transmural only.
+ */
+function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
+  solved: InternalSolveSuccessV1<TWallState>,
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  solver: ResolvedSolverOptionsV1,
+): WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1 | undefined {
+  const center = solved.candidate;
+  const ventricularTangents = ventricularMaterialTangents(center);
+  const leftAtrialTangent =
+    center.materialByWall.LA.algorithmicFiberTangentPa;
+  const rightAtrialTangent =
+    center.materialByWall.RA.algorithmicFiberTangentPa;
+  if (
+    ventricularTangents === null
+    || leftAtrialTangent === undefined
+    || rightAtrialTangent === undefined
+    || !Number.isFinite(leftAtrialTangent)
+    || !Number.isFinite(rightAtrialTangent)
+  ) return undefined;
+
+  const centerVolumes = [center.volumesMl.LV, center.volumesMl.RV] as const;
+  const centerCoordinates = solved.scaledUnknowns;
+  const evaluate = (
+    ventricularVolumesMl: readonly [number, number],
+    scaledCoordinates: readonly number[],
+  ) => centerLinearizedTriSegEvaluation(
+    center,
+    params,
+    ventricularTangents,
+    ventricularVolumesMl[0],
+    ventricularVolumesMl[1],
+    scaledCoordinates,
+  );
+
+  const volumeColumns = centerVolumes.map((_, column) => {
+    const stepMl = Math.max(
+      1e-5,
+      Math.abs(centerVolumes[column]!) * solver.finiteDifferenceScaledStep,
+    );
+    const lower = [...centerVolumes] as [number, number];
+    const upper = [...centerVolumes] as [number, number];
+    lower[column] -= stepMl;
+    upper[column] += stepMl;
+    const lowerEvaluation = evaluate(lower, centerCoordinates);
+    const upperEvaluation = evaluate(upper, centerCoordinates);
+    return Object.freeze({
+      force: centralDifferenceVector(
+        lowerEvaluation.scaledGeneralizedForceByOneJ,
+        upperEvaluation.scaledGeneralizedForceByOneJ,
+        stepMl,
+      ),
+      pressure: centralDifferenceVector(
+        lowerEvaluation.pressuresMmHg,
+        upperEvaluation.pressuresMmHg,
+        stepMl,
+      ),
+    });
+  });
+  const coordinatePressureColumns = centerCoordinates.map((_, column) => {
+    const step = solved.jacobianFiniteDifferenceScaledStepUsed;
+    const lower = [...centerCoordinates];
+    const upper = [...centerCoordinates];
+    lower[column] -= step;
+    upper[column] += step;
+    return centralDifferenceVector(
+      evaluate(centerVolumes, lower).pressuresMmHg,
+      evaluate(centerVolumes, upper).pressuresMmHg,
+      step,
+    );
+  });
+
+  const ventricularPressureTangent = Array.from(
+    { length: 2 },
+    () => [0, 0],
+  );
+  for (let volumeColumn = 0; volumeColumn < 2; volumeColumn += 1) {
+    const coordinateResponse = solveLinearSystem(
+      solved.scaledAlgorithmicJacobianByOneJ,
+      volumeColumns[volumeColumn]!.force,
+    );
+    if (coordinateResponse === null) return undefined;
+    for (let pressureRow = 0; pressureRow < 2; pressureRow += 1) {
+      const pressureCoordinateDerivative = [0, 1].reduce(
+        (sum, coordinateColumn) => sum
+          + coordinatePressureColumns[coordinateColumn]![pressureRow]!
+          * coordinateResponse[coordinateColumn]!,
+        0,
+      );
+      ventricularPressureTangent[pressureRow]![volumeColumn] =
+        volumeColumns[volumeColumn]!.pressure[pressureRow]!
+        - pressureCoordinateDerivative;
+    }
+  }
+
+  const leftAtrialPressureTangent = atrialPressureVolumeTangentMmHgPerMl(
+    center.volumesMl.LA,
+    params.atria.LA,
+    center.fiberKirchhoffStressPaByWall.LA,
+    leftAtrialTangent,
+  );
+  const rightAtrialPressureTangent = atrialPressureVolumeTangentMmHgPerMl(
+    center.volumesMl.RA,
+    params.atria.RA,
+    center.fiberKirchhoffStressPaByWall.RA,
+    rightAtrialTangent,
+  );
+  const tangent = Object.freeze({
+    LA: Object.freeze({ LA: leftAtrialPressureTangent, LV: 0, RA: 0, RV: 0 }),
+    LV: Object.freeze({
+      LA: 0,
+      LV: ventricularPressureTangent[0]![0]!,
+      RA: 0,
+      RV: ventricularPressureTangent[0]![1]!,
+    }),
+    RA: Object.freeze({ LA: 0, LV: 0, RA: rightAtrialPressureTangent, RV: 0 }),
+    RV: Object.freeze({
+      LA: 0,
+      LV: ventricularPressureTangent[1]![0]!,
+      RA: 0,
+      RV: ventricularPressureTangent[1]![1]!,
+    }),
+  });
+  return Object.values(tangent).flatMap((row) => Object.values(row))
+    .every(Number.isFinite)
+    ? tangent
+    : undefined;
+}
+
+function centralDifferenceVector(
+  lower: readonly number[],
+  upper: readonly number[],
+  step: number,
+): readonly number[] {
+  if (lower.length !== upper.length) {
+    throw new Error("central-difference vector dimension changed");
+  }
+  return Object.freeze(upper.map((value, index) =>
+    (value - lower[index]!) / (2 * step)));
+}
+
+function atrialPressureVolumeTangentMmHgPerMl(
+  cavityVolumeMl: number,
+  params: MainWireAtrialOneFiberGeometryParamsV1,
+  fiberKirchhoffStressPa: number,
+  algorithmicFiberTangentPa: number,
+): number {
+  const midwallVolumeM3 = cavityVolumeMl * 1e-6
+    + 0.5 * params.wallMaterialVolumeM3;
+  const pressureTangentPaPerM3 = params.wallMaterialVolumeM3
+    / (3 * midwallVolumeM3 * midwallVolumeM3)
+    * (algorithmicFiberTangentPa / 3 - fiberKirchhoffStressPa);
+  return pressureTangentPaPerM3 * 1e-6 / PA_PER_MMHG;
+}
+
 function successfulProviderEvaluation<TWallState>(
   solved: InternalSolveSuccessV1<TWallState>,
   solveMode: "cold" | "trial",
   coldConsistencyIterations: number | null,
   coldConsistencyScaledCoordinateUpdate: number | null,
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  solver: ResolvedSolverOptionsV1,
 ): WholeHeartMechanicsProviderEvaluationV1<
   MainWireFiveWallLandTriSegStateV1<TWallState>
 > {
+  let pressureVolumeTangent:
+    WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1 | undefined;
+  if (solveMode === "trial") {
+    try {
+      pressureVolumeTangent =
+        consistentTransmuralPressureVolumeTangentMmHgPerMl(
+          solved,
+          params,
+          solver,
+        );
+    } catch {
+      // The tangent is an optional acceleration contract. A valid center trial
+      // remains valid if a geometry perturbation cannot be linearized.
+      pressureVolumeTangent = undefined;
+    }
+  }
   const readback = buildReadback(
     solved,
     solveMode,
@@ -837,6 +1150,11 @@ function successfulProviderEvaluation<TWallState>(
   return Object.freeze({
     materialState: solved.candidate.state,
     transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
+    ...(pressureVolumeTangent === undefined
+      ? {}
+      : {
+        transmuralPressureVolumeTangentMmHgPerMl: pressureVolumeTangent,
+      }),
     diagnostics,
   });
 }
@@ -1240,6 +1558,37 @@ function assertEffectiveParameterIdentity<TWallState>(
   }
 }
 
+/**
+ * The identity hash only reads the fields checked here. When every owning
+ * object is frozen, re-hashing the same immutable parameter tree for every
+ * nonlinear trial cannot detect a mutation and is pure hot-path overhead.
+ * Mutable/custom providers deliberately retain the per-call fail-closed
+ * identity audit above.
+ */
+function providerParameterIdentityInputsAreImmutableV1<TWallState>(
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  solver: ResolvedSolverOptionsV1,
+): boolean {
+  if (
+    !Object.isFrozen(params)
+    || !Object.isFrozen(params.materialByWall)
+    || !Object.isFrozen(params.atria)
+    || !Object.isFrozen(params.atria.LA)
+    || !Object.isFrozen(params.atria.RA)
+    || !Object.isFrozen(params.trisegWalls)
+    || !Object.isFrozen(params.initialTriSegCoordinates)
+    || !Object.isFrozen(params.internalCoordinateScales)
+    || !Object.isFrozen(solver)
+  ) return false;
+  for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
+    if (!Object.isFrozen(params.materialByWall[wallId])) return false;
+  }
+  for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
+    if (!Object.isFrozen(params.trisegWalls[wallId])) return false;
+  }
+  return true;
+}
+
 function validateParams<TWallState>(
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   solver: ResolvedSolverOptionsV1,
@@ -1322,6 +1671,12 @@ function validateMaterialEvaluation<TWallState>(
     requireFinite(
       evaluation.algorithmicStressPrimitiveDensityJPerM3,
       `${wallId}.algorithmicStressPrimitiveDensityJPerM3`,
+    );
+  }
+  if (evaluation.algorithmicFiberTangentPa !== undefined) {
+    requireFinite(
+      evaluation.algorithmicFiberTangentPa,
+      `${wallId}.algorithmicFiberTangentPa`,
     );
   }
 }

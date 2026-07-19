@@ -29,6 +29,8 @@ const panels: PanelDef[] = [
     showGuides: true,
     pvDebugOverlay: true,
     pvDebugTraceMode: "resampled",
+    pvHistoryBeats: 8,
+    pvHistoryMode: "fade",
   },
   {
     id: "wave",
@@ -110,7 +112,13 @@ describe("Workbench ViewSpec model", () => {
       graphType: "pvloop",
       membership: { normal: ["LV", "RV"] },
       aspect: { ratio: 1, fit: "lock" },
-      presentation: { showGuides: true, pvDebugOverlay: true, pvDebugTraceMode: "resampled" },
+      presentation: {
+        showGuides: true,
+        pvDebugOverlay: true,
+        pvDebugTraceMode: "resampled",
+        pvHistoryBeats: 8,
+        pvHistoryMode: "fade",
+      },
     });
 
     const wave = migrated.views.find((view) => view.id === "wave");
@@ -147,6 +155,24 @@ describe("Workbench ViewSpec model", () => {
         { type: "leaf", graphViewId: "wave" },
       ],
       sizes: [0.5, 0.5],
+    });
+  });
+
+  it("retains pane-local legend position in graph presentation migration", () => {
+    const migrated = migratePanelsToViewSpecs([{
+      ...panels[0],
+      view: {
+        kind: "graph",
+        graphType: "pvloop",
+        legendPosition: { xPct: 0.2, yPct: 0.3 },
+      },
+    }]);
+
+    expect(migrated.views[0]).toMatchObject({
+      kind: "graph",
+      presentation: {
+        legendPosition: { xPct: 0.2, yPct: 0.3 },
+      },
     });
   });
 

@@ -3,6 +3,7 @@ import { renderToStaticMarkup, renderToString } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "@/i18n";
 import type { NoteContent } from "@/noteTypes";
+import { createGraphViewSpec } from "@/features/workbench/authoredViews";
 
 vi.mock("@blocknote/mantine", async () => {
   const React = await import("react");
@@ -170,6 +171,46 @@ describe("NotePanel static read helpers", () => {
 
     expect(html).toContain("Referenced view unavailable");
     expect(html).toContain("missing-view");
+  });
+
+  it("embeds authored graph refs through the injected scientific renderer", () => {
+    const graph = createGraphViewSpec(
+      "view-la-pv-loop",
+      "Left atrium PV loop",
+      "pvloop",
+      { baseline: ["LA"] },
+    );
+    const seenViewIds: string[] = [];
+    const html = renderToStaticMarkup(React.createElement(NotePanel, {
+      mode: "read",
+      content: [{ type: "view_ref", props: { viewId: graph.id } }],
+      authoredViews: [graph],
+      viewRuntime: {
+        activeInstanceId: "baseline",
+        presentationMode: "reading",
+        runtimeRenderer: {
+          runtimeId: "scientific-test-v1",
+          renderPanel: () => undefined,
+          renderAuthoredView: (view, { activeInstanceId, presentationMode }) => {
+            seenViewIds.push(view.id);
+            if (view.kind !== "graph") return undefined;
+            return React.createElement("div", {
+              "data-scientific-graph": view.graphType,
+              "data-active-scenario": activeInstanceId,
+              "data-presentation": presentationMode,
+            });
+          },
+        },
+      },
+    }));
+
+    expect(seenViewIds).toEqual([graph.id]);
+    expect(html).toContain('data-authored-view-id="view-la-pv-loop"');
+    expect(html).toContain('data-authored-view-kind="graph"');
+    expect(html).toContain('data-scientific-graph="pvloop"');
+    expect(html).toContain('data-active-scenario="baseline"');
+    expect(html).toContain('data-presentation="reading"');
+    expect(html).toContain("Left atrium PV loop");
   });
 
   it("keeps author mode on the editor path", () => {

@@ -12,6 +12,7 @@ import {
   MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1,
   MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1,
   resolveMainWireNormalAdultBloodVolumeOperatingPointV1,
+  resolveMainWireNormalAdultBloodVolumeProtocolTargetV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
 import {
   normalAdultMainWireRuntimeV1,
@@ -115,5 +116,65 @@ describe("main-wire normal-adult blood-volume operating point V1", () => {
     expect(resolved.audit.excludedCoronaryColdSeedResidualMl).toBe(0);
     expect(resolved.audit.fullGraphReferenceReconstructionResidualMl).toBe(0);
     expect(resolved.fixedTotalBloodVolumeMl + 77.89).toBe(5600);
+  });
+
+  it("resolves arbitrary protocol-only TBV targets with the same shared SV/VC pressure-offset construction", () => {
+    const runtime = normalAdultMainWireRuntimeV1();
+    const runtimeBefore = JSON.stringify(runtime);
+    const coldSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
+    const targetsMl = [
+      coldSeed.fixedTotalBloodVolumeMl,
+      0.9 * MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1
+        .fixedTotalBloodVolumeMl,
+      1.1 * MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1
+        .fixedTotalBloodVolumeMl,
+    ];
+
+    for (const targetMl of targetsMl) {
+      const resolved = resolveMainWireNormalAdultBloodVolumeProtocolTargetV1(
+        runtime,
+        targetMl,
+      );
+      const sumMl = NON_CORONARY_NODE_NAMES_V1.reduce(
+        (sum, nodeName) => sum + resolved.nodeVolumesMl[nodeName],
+        0,
+      );
+
+      expect(resolved.fixedTotalBloodVolumeMl).toBe(targetMl);
+      expect(resolved.identity.fixedTotalBloodVolumeMl).toBe(targetMl);
+      expect(resolved.identity.parameterSetId).toContain("protocol-fixed-tbv");
+      expect(Math.abs(sumMl - targetMl)).toBeLessThan(1e-6);
+      expect(Math.abs(
+        resolved.audit.resolvedTotalBloodVolumeMl - targetMl,
+      )).toBeLessThan(1e-6);
+      expect(Math.abs(resolved.audit.targetResidualMl)).toBeLessThan(1e-6);
+      expect(resolved.audit.changedNodes).toEqual(["SV", "VC"]);
+      expect(resolved.audit.unchangedNodeMaximumAbsoluteDeltaMl).toBe(0);
+      expect(resolved.audit.maximumSharedTransmuralPressureOffsetResidualMmHg)
+        .toBeLessThan(1e-8);
+      for (const nodeName of NON_CORONARY_NODE_NAMES_V1) {
+        if (nodeName === "SV" || nodeName === "VC") continue;
+        expect(resolved.nodeVolumesMl[nodeName])
+          .toBe(coldSeed.nodeVolumesMl[nodeName]);
+      }
+    }
+    expect(JSON.stringify(runtime)).toBe(runtimeBefore);
+  });
+
+  it("rejects non-finite, non-positive, and below-cold-seed protocol TBV targets", () => {
+    const runtime = normalAdultMainWireRuntimeV1();
+    const coldSeed = resolveNonCoronaryCirculationColdSeedV1(runtime);
+    for (const targetMl of [
+      0,
+      -1,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      coldSeed.fixedTotalBloodVolumeMl - 1,
+    ]) {
+      expect(() => resolveMainWireNormalAdultBloodVolumeProtocolTargetV1(
+        runtime,
+        targetMl,
+      )).toThrow();
+    }
   });
 });

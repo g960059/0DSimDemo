@@ -1,8 +1,8 @@
-import type { ControllerItem, MetricType, PanelDef, PanelInstanceConfig, PvLoopDebugTraceMode, WorkbenchWorkspace } from "@/types";
+import type { ControllerItem, LegendPosition, MetricType, PanelDef, PanelInstanceConfig, PvLoopDebugTraceMode, PvLoopHistoryMode, WorkbenchWorkspace } from "@/types";
 
 export type ScenarioBinding = { kind: "active" } | { kind: "scenario"; scenarioId: string };
 
-export type GraphViewType = "pvloop" | "waveform" | "guyton-right" | "guyton-left" | "guyton-3d";
+export type GraphViewType = "pvloop" | "pv-relations" | "waveform" | "guyton-right" | "guyton-left" | "guyton-3d";
 
 export type ViewMembership = Record<string, string[]>;
 
@@ -20,8 +20,11 @@ export interface GraphViewSpec extends ViewSpecBase {
     showGuides?: boolean;
     timeWindow?: number;
     showLegend?: boolean;
+    legendPosition?: LegendPosition;
     pvDebugOverlay?: boolean;
     pvDebugTraceMode?: PvLoopDebugTraceMode;
+    pvHistoryBeats?: number;
+    pvHistoryMode?: PvLoopHistoryMode;
   };
 }
 
@@ -76,6 +79,8 @@ function graphTypeForPanel(panel: PanelDef): GraphViewType | undefined {
   switch (panel.type) {
     case "PVLOOP":
       return "pvloop";
+    case "PV_RELATIONS":
+      return "pv-relations";
     case "WAVEFORM":
       return "waveform";
     case "GUYTON_RIGHT":
@@ -205,7 +210,7 @@ export function normalizeGraphBoardLayout(
 
 function graphViewSpecFromPanel(panel: PanelDef, graphType: GraphViewType): GraphViewSpec {
   return {
-    id: panel.id,
+    id: panel.sourceViewId ?? panel.id,
     title: panel.title,
     kind: "graph",
     graphType,
@@ -215,8 +220,13 @@ function graphViewSpecFromPanel(panel: PanelDef, graphType: GraphViewType): Grap
       ...(panel.showGuides !== undefined ? { showGuides: panel.showGuides } : {}),
       ...(panel.timeWindow !== undefined ? { timeWindow: panel.timeWindow } : {}),
       ...(panel.showLegend !== undefined ? { showLegend: panel.showLegend } : {}),
+      ...(panel.view?.kind === "graph" && panel.view.legendPosition !== undefined
+        ? { legendPosition: panel.view.legendPosition }
+        : {}),
       ...(panel.pvDebugOverlay !== undefined ? { pvDebugOverlay: panel.pvDebugOverlay } : {}),
       ...(panel.pvDebugTraceMode !== undefined ? { pvDebugTraceMode: panel.pvDebugTraceMode } : {}),
+      ...(panel.pvHistoryBeats !== undefined ? { pvHistoryBeats: panel.pvHistoryBeats } : {}),
+      ...(panel.pvHistoryMode !== undefined ? { pvHistoryMode: panel.pvHistoryMode } : {}),
     },
   };
 }

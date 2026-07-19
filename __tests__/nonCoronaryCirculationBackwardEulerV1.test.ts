@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   baseNonValveEdgeLossV1,
@@ -11,6 +11,7 @@ import {
 import {
   NON_CORONARY_CIRCULATION_SCOPE_V1,
   NON_CORONARY_CIRCULATION_UNITS_V1,
+  NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
   NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
   NON_CORONARY_NODE_NAMES_V1,
   NON_CORONARY_VALVE_NAMES_V1,
@@ -24,6 +25,7 @@ import {
   restoreNonCoronaryCirculationStateV1,
   solveSignedLinearQuadraticFlowV1,
   type NonCoronaryCandidateMechanicsCallbackV1,
+  type NonCoronaryAbsoluteChamberPressureTangentV1,
   type NonCoronaryChamberPressuresMmHgV1,
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationRuntimeParamsV1,
@@ -294,6 +296,48 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     expect(JSON.stringify(initial)).toBe(snapshot);
   });
 
+  it("fails closed on an invalid provided pressure tangent instead of hiding it behind FD", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const invalidTangent = Object.freeze({
+      rowPressureOrder: Object.freeze(["LA", "LV", "RV", "RA"]),
+      columnVolumeOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+      units: "mmHg/mL",
+      pressureKind: "absolute",
+      derivativeSemantics:
+        "candidate-algorithmic-at-fixed-accepted-state-time-dt-and-drive",
+      dPressureDVolumeMmHgPerMl: Object.freeze([
+        Object.freeze([0.1, 0, 0, 0]),
+        Object.freeze([0, 0.1, 0, 0]),
+        Object.freeze([0, 0, 0.1, 0]),
+        Object.freeze([0, 0, 0, 0.1]),
+      ]),
+    }) as unknown as NonCoronaryAbsoluteChamberPressureTangentV1;
+    const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics: () => Object.freeze({
+        absolutePressuresMmHg: Object.freeze({
+          LV: 16,
+          LA: 12,
+          RV: 11,
+          RA: 7,
+        }),
+        absolutePressureTangent: invalidTangent,
+        evaluation: null,
+      }),
+    });
+    expect(trial.converged).toBe(false);
+    if (trial.converged === true) throw new Error("expected invalid tangent failure");
+    expect(trial.reason).toBe("initial-evaluation-failed");
+    expect(trial.message).toMatch(/rowPressureOrder/);
+    expect(trial.diagnostics.finiteDifferenceJacobianFallbackCount).toBe(0);
+  });
+
   it("classifies line-search rejection ownership without changing solver policy", () => {
     expect(classifyNonCoronaryLineSearchRejectionOwnerV1(3, 0))
       .toBe("candidate-evaluation-exception");
@@ -392,6 +436,13 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     expect(trial.diagnostics.mechanicsCallbackCacheHitCount).toBeGreaterThan(0);
     expect(trial.diagnostics.mechanicsCallbackUniqueCandidateCount)
       .toBe(trial.diagnostics.mechanicsCallbackCallCount);
+    expect(trial.diagnostics.jacobianMode).toBe("full-fd-fallback");
+    expect(trial.diagnostics.finiteDifferenceJacobianFallbackCount)
+      .toBeGreaterThan(0);
+    expect(trial.diagnostics.finiteDifferenceJacobianFallbackReason)
+      .toBe("absolute-chamber-pressure-tangent-not-provided");
+    expect(trial.diagnostics.pressureTangentAvailableAtFinalCandidate)
+      .toBe(false);
     const graph = buildNonCoronaryCirculationGraphV1();
     for (const name of NON_CORONARY_DYNAMIC_EDGE_NAMES_V1) {
       const edge = graph.edges[graph.edgeIndex.get(name)!];
@@ -415,6 +466,69 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
     expect(reverse).toBeLessThan(-1_500);
     const nonlinear = solveSignedLinearQuadraticFlowV1(-250, 0.04, 0.002);
     expect(Math.abs(0.04 * nonlinear + 0.002 * nonlinear * Math.abs(nonlinear) + 250))
+      .toBeLessThan(1e-9);
+  });
+
+  it("matches the full 14-volume finite-difference shadow with fixed-TBV SV chain rule", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const analyticCallback = coupledElasticMechanicsCallback(initial, true);
+    const finiteDifferenceCallback = coupledElasticMechanicsCallback(initial, false);
+    const analytic = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      options: { analyticJacobianFiniteDifferenceShadow: true },
+      evaluateCandidateMechanics: analyticCallback,
+    });
+    const finiteDifference = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics: finiteDifferenceCallback,
+    });
+    expect(analytic.converged).toBe(true);
+    expect(finiteDifference.converged).toBe(true);
+    if (analytic.converged === false) throw new Error(analytic.message);
+    if (finiteDifference.converged === false) {
+      throw new Error(finiteDifference.message);
+    }
+    expect(analytic.diagnostics.jacobianMode).toBe("analytic-semismooth");
+    expect(analytic.diagnostics.analyticJacobianAssemblyCount)
+      .toBeGreaterThan(0);
+    expect(analytic.diagnostics.finiteDifferenceJacobianFallbackCount).toBe(0);
+    expect(analytic.diagnostics.finiteDifferenceJacobianShadowCount)
+      .toBe(analytic.diagnostics.analyticJacobianAssemblyCount);
+    expect(analytic.diagnostics.pressureTangentAvailableAtFinalCandidate)
+      .toBe(true);
+    expect(
+      analytic.diagnostics
+        .jacobianMaximumRelativeFrobeniusShadowDifference,
+    ).not.toBeNull();
+    expect(
+      analytic.diagnostics
+        .jacobianMaximumRelativeFrobeniusShadowDifference!,
+    ).toBeLessThan(2e-5);
+    for (const name of NON_CORONARY_NODE_NAMES_V1) {
+      expect(analytic.candidateNodeVolumesMl[name]).toBeCloseTo(
+        finiteDifference.candidateNodeVolumesMl[name],
+        8,
+      );
+      expect(analytic.nodeAbsolutePressuresMmHg[name]).toBeCloseTo(
+        finiteDifference.nodeAbsolutePressuresMmHg[name],
+        8,
+      );
+    }
+    for (const edgeName of NON_CORONARY_CIRCULATION_SCOPE_V1.includedEdges) {
+      expect(analytic.edgeFlowsMlPerSec[edgeName]).toBeCloseTo(
+        finiteDifference.edgeFlowsMlPerSec[edgeName],
+        7,
+      );
+    }
+    expect(Math.abs(analytic.diagnostics.totalBloodVolumeErrorMl))
       .toBeLessThan(1e-9);
   });
 
@@ -534,6 +648,107 @@ describe("main-wire-derived non-coronary experimental backward Euler V1", () => 
         ),
         10,
       );
+    }
+  });
+
+  it("keeps the protocol resistance seam neutral at unity and applies it only to the selected non-valve edge", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const callback = elasticMechanicsCallback(initial);
+    const baseline = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      evaluateCandidateMechanics: callback,
+    });
+    const unity = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      protocolResistanceScaleByEdge: Object.freeze({ VC_RA: 1 }),
+      evaluateCandidateMechanics: callback,
+    });
+    expect(unity).toEqual(baseline);
+
+    const vcRaResistanceScale = 8;
+    const occluded = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+      previousAcceptedState: initial,
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      protocolResistanceScaleByEdge: Object.freeze({
+        VC_RA: vcRaResistanceScale,
+      }),
+      evaluateCandidateMechanics: callback,
+    });
+    expect(occluded.converged).toBe(true);
+    if (occluded.converged === false) throw new Error(occluded.message);
+
+    const graph = buildNonCoronaryCirculationGraphV1();
+    const edge = graph.edges[graph.edgeIndex.get("VC_RA")]!;
+    const upstreamPressure = occluded.nodeAbsolutePressuresMmHg.VC;
+    const downstreamPressure = occluded.nodeAbsolutePressuresMmHg.RA;
+    const edgeExternalPressure = respiratoryExternalPressureForKindV1(
+      edge.ext === "pth" || edge.ext === "palv" ? edge.ext : "none",
+      occluded.candidateTimeSec,
+      RUNTIME.respiratory,
+    );
+    const effectiveDownstream = downstreamEffectivePressureV1({
+      edge,
+      downstreamPressureMmHg: downstreamPressure,
+      edgeExternalPressureMmHg: edgeExternalPressure,
+    });
+    const unscaledLosses = nonValveEdgeLossV1({
+      edge,
+      params: RUNTIME.losses,
+      upstreamPressureMmHg: upstreamPressure,
+      downstreamPressureMmHg: downstreamPressure,
+      edgeExternalPressureMmHg: edgeExternalPressure,
+    });
+    expect(occluded.edgeFlowsMlPerSec.VC_RA).toBeCloseTo(
+      solveSignedLinearQuadraticFlowV1(
+        upstreamPressure - effectiveDownstream,
+        unscaledLosses.resistanceMmHgSecPerMl * vcRaResistanceScale,
+        unscaledLosses.quadraticLossMmHgSec2PerMl2,
+      ),
+      10,
+    );
+    expect(Math.abs(occluded.diagnostics.totalBloodVolumeErrorMl))
+      .toBeLessThan(1e-9);
+    expect(occluded.reverseFlowCapOrClampOnNonvalveEdges).toBe(false);
+  });
+
+  it("rejects malformed protocol resistance scales before evaluating mechanics", () => {
+    const initial = createInitialNonCoronaryCirculationStateV1({
+      timeSec: 0,
+      runtime: RUNTIME,
+      ...coldSeedOwner(RUNTIME),
+    });
+    const malformed = [
+      { label: "zero", scale: { VC_RA: 0 } },
+      { label: "non-finite", scale: { VC_RA: Number.NaN } },
+      { label: "valve", scale: { MV: 2 } },
+      { label: "unknown", scale: { caller_owned_edge: 2 } },
+    ] as const;
+
+    for (const fixture of malformed) {
+      const callback = vi.fn(elasticMechanicsCallback(initial));
+      const trial = evaluateNonCoronaryCirculationBackwardEulerTrialV1({
+        previousAcceptedState: initial,
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        protocolResistanceScaleByEdge:
+          fixture.scale as unknown as Record<"VC_RA", number>,
+        evaluateCandidateMechanics: callback,
+      });
+      expect(trial.converged, fixture.label).toBe(false);
+      if (trial.converged === true) throw new Error("expected invalid input");
+      expect(trial.reason, fixture.label).toBe("invalid-input");
+      expect(trial.rollbackState, fixture.label).toEqual(initial);
+      expect(trial.diagnostics.mechanicsCallbackCallCount, fixture.label).toBe(0);
+      expect(callback, fixture.label).not.toHaveBeenCalled();
     }
   });
 
@@ -689,6 +904,56 @@ function elasticMechanicsCallback(
       volumeSumMl: volumes.LA + volumes.LV + volumes.RA + volumes.RV,
     }),
   });
+}
+
+function coupledElasticMechanicsCallback(
+  reference: NonCoronaryCirculationAcceptedStateV1,
+  includeTangent: boolean,
+): NonCoronaryCandidateMechanicsCallbackV1<null> {
+  const base = [16, 12, 11, 7] as const;
+  const tangentMatrix:
+    NonCoronaryAbsoluteChamberPressureTangentV1[
+      "dPressureDVolumeMmHgPerMl"
+    ] = [
+      [0.12, 0.004, 0.006, 0],
+      [0.004, 0.08, 0, 0.003],
+      [0.006, 0, 0.09, 0.002],
+      [0, 0.003, 0.002, 0.06],
+    ];
+  const tangent: NonCoronaryAbsoluteChamberPressureTangentV1 = Object.freeze({
+    rowPressureOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+    columnVolumeOrder: NON_CORONARY_CHAMBER_TANGENT_ORDER_V1,
+    units: "mmHg/mL" as const,
+    pressureKind: "absolute" as const,
+    derivativeSemantics:
+      "candidate-algorithmic-at-fixed-accepted-state-time-dt-and-drive" as const,
+    dPressureDVolumeMmHgPerMl: tangentMatrix,
+  });
+  const referenceVolumes = NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.map(
+    (name) => reference.nodeVolumesMl[name],
+  );
+  return (volumes) => {
+    const delta = NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.map(
+      (name, index) => volumes[name] - referenceVolumes[index]!,
+    );
+    const pressures = tangentMatrix.map((row, pressureIndex) =>
+      base[pressureIndex]!
+      + row.reduce(
+        (sum, coefficient, volumeIndex) =>
+          sum + coefficient * delta[volumeIndex]!,
+        0,
+      ));
+    return Object.freeze({
+      absolutePressuresMmHg: Object.freeze({
+        LV: pressures[0]!,
+        LA: pressures[1]!,
+        RV: pressures[2]!,
+        RA: pressures[3]!,
+      }),
+      ...(includeTangent ? { absolutePressureTangent: tangent } : {}),
+      evaluation: null,
+    });
+  };
 }
 
 function advance<TEvaluation>(

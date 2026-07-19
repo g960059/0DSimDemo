@@ -186,6 +186,7 @@ export function cloneInitialPanels(): PanelDef[] {
 
 export function defaultSignalsForPanelType(type: PanelType): string[] {
   if (type === 'PVLOOP') return ['LV'];
+  if (type === 'PV_RELATIONS') return ['Default'];
   if (type === 'WAVEFORM') return ['LVP', 'AoP'];
   if (type === 'METRICS') return ['ABP', 'CO'];
   if (type === 'SCENARIOS') return [];
@@ -198,6 +199,8 @@ export type AddedInstanceConfig = {
   id: string;
   sourceId?: string;
 };
+
+const GRAPH_PANEL_TYPES = new Set<PanelType>(['PVLOOP', 'PV_RELATIONS', 'WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT', 'GUYTON_3D']);
 
 function selectedSignalsForAddedInstance(panel: PanelDef, sourceId?: string): string[] {
   if (sourceId && panel.config[sourceId]) return [...panel.config[sourceId].selectedSignals];
@@ -222,10 +225,64 @@ export function addVisibleInstanceConfigsToPanels(panels: PanelDef[], additions:
   });
 }
 
-export function mergePanelControllerItems(panel: PanelDef, items: ControllerItem[]): PanelDef {
+/**
+ * Remove deleted runtime instances from every pane-local membership map.
+ *
+ * The operation is intentionally id-scoped: unrelated and legacy instance
+ * entries are retained verbatim, while panels with no matching ids preserve
+ * their object identity. An empty config is valid while the caller is between
+ * deleting a scenario and creating/loading its replacement.
+ */
+export function removeInstanceConfigsFromPanels(
+  panels: readonly PanelDef[],
+  instanceIds: readonly string[],
+): PanelDef[] {
+  const removedIds = new Set(instanceIds);
+  if (removedIds.size === 0) return [...panels];
+
+  return panels.map((panel) => {
+    const removedKeys = Object.keys(panel.config).filter((id) => removedIds.has(id));
+    if (removedKeys.length === 0) return panel;
+    const config = { ...panel.config };
+    for (const id of removedKeys) delete config[id];
+    return { ...panel, config };
+  });
+}
+
+/**
+ * Apply a semantic edit to a pane and all graph panes mirroring the same
+ * authored view. Non-graph panes remain pane-local for legacy compatibility.
+ */
+export function updatePanelWithSourceViewMirrors(
+  panels: readonly PanelDef[],
+  panelId: string,
+  update: (panel: PanelDef) => PanelDef,
+): PanelDef[] {
+  const target = panels.find((panel) => panel.id === panelId);
+  if (!target) return [...panels];
+
+  if (!GRAPH_PANEL_TYPES.has(target.type)) {
+    return panels.map((panel) => panel.id === panelId ? update(panel) : panel);
+  }
+
+  const sourceViewId = target.sourceViewId ?? target.id;
+  return panels.map((panel) => (
+    GRAPH_PANEL_TYPES.has(panel.type)
+      && (panel.sourceViewId ?? panel.id) === sourceViewId
+      ? update(panel)
+      : panel
+  ));
+}
+
+export function mergePanelControllerItems(
+  panel: PanelDef,
+  items: ControllerItem[],
+  normalizeItems: (items: ControllerItem[]) => ControllerItem[] = (candidateItems) =>
+    normalizeControllerItems(candidateItems).items,
+): PanelDef {
   if (panel.type !== 'CONTROLS') return panel;
 
-  const normalized = normalizeControllerItems(items).items;
+  const normalized = normalizeItems(items);
   const baseView: ControlPanelView = panel.view?.kind === 'control'
     ? panel.view
     : (toTypedPanelView({ ...panel, type: 'CONTROLS', view: undefined }) as ControlPanelView);
@@ -238,8 +295,6 @@ export function mergePanelControllerItems(panel: PanelDef, items: ControllerItem
     },
   };
 }
-
-const GRAPH_PANEL_TYPES = new Set<PanelType>(['PVLOOP', 'WAVEFORM', 'GUYTON_RIGHT', 'GUYTON_LEFT', 'GUYTON_3D']);
 
 export function mergePanelLegendPosition(panel: PanelDef, pos?: LegendPosition): PanelDef {
   if (!GRAPH_PANEL_TYPES.has(panel.type)) return panel;

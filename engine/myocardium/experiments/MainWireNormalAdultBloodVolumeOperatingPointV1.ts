@@ -22,6 +22,30 @@ export const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID =
 export const MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_TOPOLOGY_SCOPE_V1_ID =
   "main-wire-noncoronary-15-node-no-coronary-v1" as const;
 
+export const MAIN_WIRE_NORMAL_ADULT_STRESSED_VENOUS_VOLUME_RESEARCH_POINT_IDS_V1 =
+  Object.freeze([
+    "baseline",
+    "stressed-venous-volume-low",
+    "stressed-venous-volume-high",
+  ] as const);
+
+export type MainWireNormalAdultStressedVenousVolumeResearchPointIdV1 =
+  (typeof MAIN_WIRE_NORMAL_ADULT_STRESSED_VENOUS_VOLUME_RESEARCH_POINT_IDS_V1)[number];
+
+export type MainWireNormalAdultStressedVenousVolumeResearchPointV1 = Readonly<{
+  pointId: MainWireNormalAdultStressedVenousVolumeResearchPointIdV1;
+  canonicalAdditionalSvVcVolumeScale: number;
+  fixedTotalBloodVolumeMl: number;
+  claim: Readonly<{
+    sourceResearchOnly: true;
+    fixedPointNotGenericPatch: true;
+    onlyCanonicalAdditionalSvVcVolumeScaled: true;
+    initialDistributionPolicyHeldFixed: true;
+    withinRunTotalBloodVolumeFixed: true;
+    canonicalFullGraphReferenceClaimed: boolean;
+  }>;
+}>;
+
 export type MainWireNormalAdultBloodVolumeOperatingPointIdentityV1 = Readonly<{
   ownerId: typeof MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID;
   parameterSetId: string;
@@ -83,14 +107,23 @@ export type MainWireNormalAdultBloodVolumeOperatingPointAuditV1 = Readonly<{
 }>;
 
 export type MainWireNormalAdultBloodVolumeOperatingPointResolvedV1 = Readonly<{
-  identity: typeof MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1;
+  identity: MainWireNormalAdultBloodVolumeOperatingPointIdentityV1;
   fixedTotalBloodVolumeMl: number;
   nodeVolumesMl: NodeVolumeRecordV1;
   audit: MainWireNormalAdultBloodVolumeOperatingPointAuditV1;
 }>;
 
+export type MainWireNormalAdultBloodVolumeResearchPointResolvedV1 = Readonly<{
+  point: MainWireNormalAdultStressedVenousVolumeResearchPointV1;
+  operatingPoint: MainWireNormalAdultBloodVolumeOperatingPointResolvedV1;
+}>;
+
 const ADJUSTED_NODES = Object.freeze(["SV", "VC"] as const);
-const TARGET_TOLERANCE_ML = 1e-8;
+// Arbitrary protocol targets exercise the nonlinear forward/inverse venous PV
+// maps away from the canonical point. One nanolitre is still far below every
+// physiological or solver scale while avoiding false rejection from a
+// sub-nanolitre floating-point residual.
+const TARGET_TOLERANCE_ML = 1e-6;
 const PRESSURE_AUDIT_TOLERANCE_MMHG = 1e-8;
 
 /**
@@ -102,7 +135,83 @@ const PRESSURE_AUDIT_TOLERANCE_MMHG = 1e-8;
 export function resolveMainWireNormalAdultBloodVolumeOperatingPointV1(
   runtime: NonCoronaryCirculationRuntimeParamsV1,
 ): MainWireNormalAdultBloodVolumeOperatingPointResolvedV1 {
-  const identity = MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1;
+  return resolveBloodVolumeOperatingPoint(
+    runtime,
+    MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1,
+    true,
+  );
+}
+
+/**
+ * Protocol-only fixed-TBV cold-start seam used by preload-family experiments.
+ * It preserves the same SV/VC shared-transmural-pressure initialization rule
+ * as the canonical operating point. The target is an experimental coordinate,
+ * not a persistent case parameter and not a fitted patient blood volume.
+ */
+export function resolveMainWireNormalAdultBloodVolumeProtocolTargetV1(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  fixedTotalBloodVolumeMl: number,
+): MainWireNormalAdultBloodVolumeOperatingPointResolvedV1 {
+  if (!Number.isFinite(fixedTotalBloodVolumeMl) || fixedTotalBloodVolumeMl <= 0) {
+    throw new Error("protocol fixed total blood volume must be positive and finite");
+  }
+  const identity = Object.freeze({
+    ownerId: MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID,
+    parameterSetId:
+      `main-wire-normal-adult-protocol-fixed-tbv-${
+        fixedTotalBloodVolumeMl.toFixed(6).replace(".", "p")
+      }ml-v1`,
+    topologyScopeId:
+      MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_TOPOLOGY_SCOPE_V1_ID,
+    fixedTotalBloodVolumeMl,
+    initialDistributionPolicyId:
+      "shared-SV-VC-transmural-offset" as const,
+  });
+  return resolveBloodVolumeOperatingPoint(runtime, identity, false);
+}
+
+/** Fixed-ID-only preload seam for the source research runner. */
+export function resolveMainWireNormalAdultBloodVolumeResearchPointV1(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  pointId: MainWireNormalAdultStressedVenousVolumeResearchPointIdV1,
+): MainWireNormalAdultBloodVolumeResearchPointResolvedV1 {
+  const point = stressedVenousVolumeResearchPoint(pointId);
+  const identity = pointId === "baseline"
+    ? MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1
+    : Object.freeze({
+      ownerId: MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1_ID,
+      parameterSetId:
+        `main-wire-normal-adult-fixed-tbv-source-research-${pointId}-v1`,
+      topologyScopeId:
+        MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_TOPOLOGY_SCOPE_V1_ID,
+      fixedTotalBloodVolumeMl: point.fixedTotalBloodVolumeMl,
+      initialDistributionPolicyId:
+        "shared-SV-VC-transmural-offset" as const,
+    });
+  const operatingPoint = resolveBloodVolumeOperatingPoint(
+    runtime,
+    identity,
+    pointId === "baseline",
+  );
+  const expectedTarget = operatingPoint.audit.coldSeedTotalBloodVolumeMl
+    + point.canonicalAdditionalSvVcVolumeScale * (
+      MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1
+        .fixedTotalBloodVolumeMl
+      - operatingPoint.audit.coldSeedTotalBloodVolumeMl
+    );
+  if (Math.abs(expectedTarget - point.fixedTotalBloodVolumeMl) > 1e-9) {
+    throw new Error(
+      "fixed stressed-venous-volume point drifted from the canonical additional SV/VC ledger",
+    );
+  }
+  return Object.freeze({ point, operatingPoint });
+}
+
+function resolveBloodVolumeOperatingPoint(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+  identity: MainWireNormalAdultBloodVolumeOperatingPointIdentityV1,
+  requireCanonicalFullGraphReference: boolean,
+): MainWireNormalAdultBloodVolumeOperatingPointResolvedV1 {
   const provenance = MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1;
   const excludedCoronaryColdSeedVolumeMl =
     authoritativeExcludedCoronaryColdSeedVolumeMl(runtime);
@@ -117,7 +226,10 @@ export function resolveMainWireNormalAdultBloodVolumeOperatingPointV1(
   const provenanceResidual = identity.fixedTotalBloodVolumeMl
     + excludedCoronaryColdSeedVolumeMl
     - provenance.fullGraphReferenceTotalBloodVolumeMl;
-  if (Math.abs(provenanceResidual) > 1e-12) {
+  if (
+    requireCanonicalFullGraphReference
+    && Math.abs(provenanceResidual) > 1e-12
+  ) {
     throw new Error("noncoronary TBV provenance no longer reconstructs the full-graph reference");
   }
 
@@ -254,6 +366,35 @@ export function resolveMainWireNormalAdultBloodVolumeOperatingPointV1(
     fixedTotalBloodVolumeMl: identity.fixedTotalBloodVolumeMl,
     nodeVolumesMl,
     audit,
+  });
+}
+
+function stressedVenousVolumeResearchPoint(
+  pointId: MainWireNormalAdultStressedVenousVolumeResearchPointIdV1,
+): MainWireNormalAdultStressedVenousVolumeResearchPointV1 {
+  if (!MAIN_WIRE_NORMAL_ADULT_STRESSED_VENOUS_VOLUME_RESEARCH_POINT_IDS_V1
+    .includes(pointId)) {
+    throw new Error(`unsupported fixed stressed venous volume research point: ${String(pointId)}`);
+  }
+  const canonicalColdSeedMl = 4589.457569593876;
+  const canonicalAdditionalMl =
+    MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_OPERATING_POINT_V1.fixedTotalBloodVolumeMl
+    - canonicalColdSeedMl;
+  const scale = pointId === "stressed-venous-volume-low"
+    ? 0.75
+    : pointId === "stressed-venous-volume-high" ? 4 / 3 : 1;
+  return Object.freeze({
+    pointId,
+    canonicalAdditionalSvVcVolumeScale: scale,
+    fixedTotalBloodVolumeMl: canonicalColdSeedMl + scale * canonicalAdditionalMl,
+    claim: Object.freeze({
+      sourceResearchOnly: true as const,
+      fixedPointNotGenericPatch: true as const,
+      onlyCanonicalAdditionalSvVcVolumeScaled: true as const,
+      initialDistributionPolicyHeldFixed: true as const,
+      withinRunTotalBloodVolumeFixed: true as const,
+      canonicalFullGraphReferenceClaimed: pointId === "baseline",
+    }),
   });
 }
 

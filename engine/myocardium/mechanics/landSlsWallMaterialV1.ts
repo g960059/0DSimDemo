@@ -1,6 +1,7 @@
 import {
+  computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep,
   evaluateLand2017ContinuousOutput,
-  solveLand2017BackwardEulerSubsteps,
+  solveLand2017BackwardEulerStep,
   type Land2017EquationParameters,
   type LandSourceOutput,
 } from "@/engine/myocardium/myofilament/land2017";
@@ -25,6 +26,8 @@ export const LAND_SLS_WALL_MATERIAL_CLAIM_V1 = Object.freeze({
   exactZeroViabilityAllowed: true as const,
   equilibriumPassiveLawOwnedHere: false as const,
   phasePressureOrFlowShapeInput: false as const,
+  algorithmicTangent:
+    "smooth-branch-exact-one-step-BE-with-Clarke-midpoint-at-zetaS-0-and-minus-1" as const,
 });
 
 const DEFAULT_LAND_STATE = Object.freeze([0.18, 0.22, 0.04, 0.02, 0, 0] as const);
@@ -67,6 +70,8 @@ export type LandSlsWallMaterialEvaluationV1 = {
   readonly equilibriumPassive: LandSlsWallEquilibriumPassiveInputV1;
   readonly sls: ParallelOneStateSlsEvaluationV1;
   readonly totalKirchhoffStressPa: number;
+  readonly activeAlgorithmicTangentPa: number;
+  readonly totalAlgorithmicTangentPa: number;
   readonly passiveAndSlsTangentPa: number;
   readonly landSolverIterations: number;
   readonly landSolverResidualNorm: number;
@@ -110,7 +115,7 @@ export function initializeLandSlsWallAtFixedInputV1(
   let maximumStateUpdate = Number.POSITIVE_INFINITY;
   let iterations = 0;
   for (; iterations < maximumIterations; iterations += 1) {
-    const solved = solveLand2017BackwardEulerSubsteps(
+    const solved = solveLand2017BackwardEulerStep(
       landState,
       {
         freeCalciumUM,
@@ -123,7 +128,6 @@ export function initializeLandSlsWallAtFixedInputV1(
         maxIterations: 20,
         residualTolerance: 1e-10,
         lineSearchMinStep: 1 / 4096,
-        previousFreeCalciumUM: freeCalciumUM,
       },
       params.landEquationParameters,
     );
@@ -184,20 +188,23 @@ export function trialLandSlsWallMaterialV1(
     input.nextFiberLogStrain,
     params,
   );
-  const solved = solveLand2017BackwardEulerSubsteps(
+  const landStepInput = {
+    freeCalciumUM: input.nextFreeCalciumUM,
+    previousFiberEngineeringStrain: previousEngineeringStrain,
+    stageFiberEngineeringStrain: nextEngineeringStrain,
+    dtSec: input.dtSec,
+    stage: { scheme: "BE", stageIndex: 0 } as const,
+  };
+  // This wall kernel intentionally owns one backward-Euler Land step per
+  // accepted mechanics step. A substepped Land map has a different algorithmic
+  // tangent and must not silently enter this one-step constitutive contract.
+  const solved = solveLand2017BackwardEulerStep(
     previous.landState,
-    {
-      freeCalciumUM: input.nextFreeCalciumUM,
-      previousFiberEngineeringStrain: previousEngineeringStrain,
-      stageFiberEngineeringStrain: nextEngineeringStrain,
-      dtSec: input.dtSec,
-      stage: { scheme: "BE", stageIndex: 0 },
-    },
+    landStepInput,
     {
       maxIterations: 20,
       residualTolerance: 1e-9,
       lineSearchMinStep: 1 / 4096,
-      previousFreeCalciumUM: previous.previousFreeCalciumUM,
     },
     params.landEquationParameters,
   );
@@ -221,6 +228,19 @@ export function trialLandSlsWallMaterialV1(
     params.orientationFraction01 *
     params.viableActiveFraction01 *
     activeNominalStressPa;
+  const activeNominalAlgorithmicTangentPa =
+    computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
+      solved.nextState,
+      landStepInput,
+      params.landEquationParameters,
+    );
+  const activeAlgorithmicTangentPa =
+    params.orientationFraction01
+    * params.viableActiveFraction01
+    * (
+      landStretch * activeNominalStressPa
+      + landStretch * landStretch * activeNominalAlgorithmicTangentPa
+    );
   const totalKirchhoffStressPa =
     input.equilibriumPassive.stressPa +
     activeKirchhoffStressPa +
@@ -228,6 +248,8 @@ export function trialLandSlsWallMaterialV1(
   const passiveAndSlsTangentPa =
     input.equilibriumPassive.tangentPa +
     sls.dNextOverstressDNextFiberLogStrainPa;
+  const totalAlgorithmicTangentPa =
+    passiveAndSlsTangentPa + activeAlgorithmicTangentPa;
   const state = Object.freeze({
     landState: Float64Array.from(solved.nextState),
     slsState: sls.state,
@@ -240,6 +262,8 @@ export function trialLandSlsWallMaterialV1(
     activeNominalStressPa,
     activeKirchhoffStressPa,
     totalKirchhoffStressPa,
+    activeAlgorithmicTangentPa,
+    totalAlgorithmicTangentPa,
     passiveAndSlsTangentPa,
     solved.residualNorm,
   ].every(Number.isFinite) && solved.output.health.finite && sls.finite;
@@ -258,6 +282,8 @@ export function trialLandSlsWallMaterialV1(
     equilibriumPassive: Object.freeze({ ...input.equilibriumPassive }),
     sls,
     totalKirchhoffStressPa,
+    activeAlgorithmicTangentPa,
+    totalAlgorithmicTangentPa,
     passiveAndSlsTangentPa,
     landSolverIterations: solved.iterations,
     landSolverResidualNorm: solved.residualNorm,
@@ -272,7 +298,14 @@ export function evaluateAcceptedLandSlsWallStateV1(
   state: LandSlsWallMaterialStateV1,
   equilibriumPassive: LandSlsWallEquilibriumPassiveInputV1,
   params: LandSlsWallMaterialParamsV1,
-): Omit<LandSlsWallMaterialEvaluationV1, "sls" | "landSolverIterations" | "landSolverResidualNorm"> & {
+): Omit<
+  LandSlsWallMaterialEvaluationV1,
+  | "sls"
+  | "landSolverIterations"
+  | "landSolverResidualNorm"
+  | "activeAlgorithmicTangentPa"
+  | "totalAlgorithmicTangentPa"
+> & {
   readonly slsOverstressPa: number;
 } {
   validateParams(params);
@@ -420,6 +453,8 @@ function invalidEvaluation(
     equilibriumPassive: input.equilibriumPassive ?? nanPassive,
     sls: nanSls,
     totalKirchhoffStressPa: Number.NaN,
+    activeAlgorithmicTangentPa: Number.NaN,
+    totalAlgorithmicTangentPa: Number.NaN,
     passiveAndSlsTangentPa: Number.NaN,
     landSolverIterations: 0,
     landSolverResidualNorm: Number.POSITIVE_INFINITY,

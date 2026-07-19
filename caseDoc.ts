@@ -225,7 +225,6 @@ export function workspaceForPanels(
   if (!isWorkbenchWorkspaceV2(previous)) return defaults;
 
   const hasNotePanels = panelsForRole(panels, "note").length > 0;
-  const hasMetricPanels = panelsForRole(panels, "output").length > 0;
   const metricsSpan = previous.hosts.metrics.span === "full" ? "full" : undefined;
   const scenarioListCollapsed = previous.hosts.rightRail.scenarioListCollapsed === true ? true : undefined;
 
@@ -238,7 +237,10 @@ export function workspaceForPanels(
         ...(scenarioListCollapsed ? { scenarioListCollapsed } : {}),
       },
       metrics: {
-        open: hasMetricPanels ? previous.hosts.metrics.open : defaults.hosts.metrics.open,
+        // The metrics host is a first-class workspace region. Authored metric
+        // views no longer require a legacy METRICS PanelDef, so its explicit
+        // visibility must survive panel normalization and persistence.
+        open: previous.hosts.metrics.open,
         ...(metricsSpan ? { span: metricsSpan } : {}),
       },
       main: {

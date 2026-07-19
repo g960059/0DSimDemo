@@ -60,10 +60,14 @@
     "officialCases": "公式ケース",
     "community": "コミュニティ",
     "openCase": "ケースを開く",
+    "scientificCases": "科学モデルのケース",
+    "scientificCasesDescription": "固定された公式リファレンス1件と、内蔵の研究用ブラケットです。研究用ブラケットは診断でも、臨床検証済みプリセットでもありません。",
     "officialBadge": "公式",
     "draftBadge": "下書き"
   },
   "workbench": {
+    "scientificPersistenceUnavailable": "このリリースでは科学モデルのケース保存は未実装です。メモリ上の比較状態を旧ケース保存先へ書き込みません。",
+    "scientificFilesUnavailable": "このリリースでは科学モデルのCase/Workspace入出力は未実装です。旧ケースファイルを暗黙に変換しません。",
     "panels": {
       "waveforms": "波形",
       "pvLoop": "PVループ",
@@ -79,6 +83,7 @@
     "panelTypes": {
       "NOTE": "ノート",
       "PVLOOP": "PVループ",
+      "PV_RELATIONS": "ESPVR / EDPVR",
       "WAVEFORM": "波形",
       "GUYTON_LEFT": "Guyton (L)",
       "GUYTON_RIGHT": "Guyton (R)",
@@ -397,7 +402,14 @@
         "title": "設定",
         "description": "低頻度で使うワークベンチ設定です。",
         "appearance": "外観",
-        "theme": "テーマ"
+        "theme": "テーマ",
+        "transitionBehavior": {
+          "title": "遷移方法",
+          "description": "通常はライブ遷移を使います。次の定常状態への移動は、必要なときだけ明示的に選択します。",
+          "live": "ライブ遷移",
+          "steady": "次の定常状態",
+          "locked": "実行中の遷移方法は維持されます。ライブ遷移中もパラメータ操作は継続できます。"
+        }
       },
       "themes": {
         "dark": "ダーク",
@@ -449,6 +461,16 @@
         "both": "Both"
       },
       "waveformTimeWindow": "波形時間ウィンドウ",
+      "pvHistory": "PV軌跡の履歴",
+      "pvHistoryDescription": "モデル遷移中の過去の心拍軌跡を保持します。",
+      "pvHistoryBeats": "PV履歴の心拍数",
+      "pvHistoryStyle": "PV履歴の表示方法",
+      "pvHistoryModes": {
+        "fade": "徐々に薄く",
+        "persistent": "濃さを保持"
+      },
+      "pvHistoryFadeHint": "{{count}}拍前で完全に透過し、表示から消えます。",
+      "pvHistoryPersistentHint": "直近{{count}}拍を一定の低い不透明度で保持する、上限付きrolling windowです。",
       "adjacentSectionsConfigurable": "シナリオ表示とラベルは隣のセクションでも設定できます。",
       "selectInstanceForStyle": "ラベルと色を編集するシナリオを選択してください。",
       "instanceStylingOnly": "シナリオの見た目のみ",
@@ -471,6 +493,8 @@
       "selectedCount_other": "{{count}}選択",
       "paneSettings": "ペイン設定",
       "paneSettingsAria": "{{title}}のペイン設定",
+      "movePaneSettings": "ペイン設定を移動",
+      "movePaneSettingsInstructions": "このヘッダーをドラッグしてダイアログを移動できます。矢印キーで移動し、Shiftキーと矢印キーで大きく移動します。",
       "closePaneSettings": "ペイン設定を閉じる",
       "closeSettings": "設定を閉じる",
       "customizations": "カスタマイズ",
@@ -680,6 +704,7 @@
       "menuGroup": "ビュー",
       "controllerKind": "コントローラービュー",
       "metricsKind": "指標ビュー",
+      "graphKind": "グラフビュー",
       "missingTitle": "参照先ビューを利用できません",
       "unknownView": "不明なビュー"
     },

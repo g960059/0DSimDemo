@@ -23,6 +23,18 @@ const VENTRICULAR_PARAMS: LandSlsWallMaterialParamsV1 = Object.freeze({
   }),
 });
 
+const ATRIAL_PARAMS: LandSlsWallMaterialParamsV1 = Object.freeze({
+  ...VENTRICULAR_PARAMS,
+  parameterSetId: "fixed-normal-atrial-wall-material-v1",
+  landEquationParameters: LAND2017_HUMAN_ATRIAL_EFFECTIVE_PARAMETER_SET_V1,
+  orientationFraction01: 0.58,
+  sls: Object.freeze({
+    parameterSetId: "fixed-normal-atrial-sls-v1",
+    branchModulusPa: 1800,
+    relaxationTimeSec: 0.05,
+  }),
+});
+
 describe("Land active + external equilibrium passive + parallel SLS wall V1", () => {
   it("cold-equilibrates Land at fixed calcium and initializes SLS without prestress", () => {
     const cold = initializeLandSlsWallAtFixedInputV1(0, 0.1, VENTRICULAR_PARAMS);
@@ -70,18 +82,7 @@ describe("Land active + external equilibrium passive + parallel SLS wall V1", ()
   });
 
   it("accepts the separate literature atrial parameter family without changing topology", () => {
-    const atrial = Object.freeze({
-      ...VENTRICULAR_PARAMS,
-      parameterSetId: "fixed-normal-atrial-wall-material-v1",
-      landEquationParameters: LAND2017_HUMAN_ATRIAL_EFFECTIVE_PARAMETER_SET_V1,
-      orientationFraction01: 0.58,
-      sls: Object.freeze({
-        parameterSetId: "fixed-normal-atrial-sls-v1",
-        branchModulusPa: 1800,
-        relaxationTimeSec: 0.05,
-      }),
-    });
-    const cold = initializeLandSlsWallAtFixedInputV1(0, 0.1, atrial);
+    const cold = initializeLandSlsWallAtFixedInputV1(0, 0.1, ATRIAL_PARAMS);
     const trial = trialLandSlsWallMaterialV1(
       cold.state,
       {
@@ -94,7 +95,7 @@ describe("Land active + external equilibrium passive + parallel SLS wall V1", ()
           storedEnergyDensityJPerM3: 5,
         },
       },
-      atrial,
+      ATRIAL_PARAMS,
     );
     expect(trial.valid).toBe(true);
     expect(trial.parameterSetId).toBe("fixed-normal-atrial-wall-material-v1");
@@ -127,4 +128,67 @@ describe("Land active + external equilibrium passive + parallel SLS wall V1", ()
     expect(trial.activeKirchhoffStressPa).toBe(0);
     expect(trial.claim.exactZeroViabilityAllowed).toBe(true);
   });
+
+  it("matches assembled Land/passive/SLS log-strain tangents to resolved shadows", () => {
+    const passiveModulusPa = 12_000;
+    const cases = [
+      {
+        params: VENTRICULAR_PARAMS,
+        fiberLogStrain: 0.03,
+        nextFreeCalciumUM: 0.55,
+        dtSec: 0.005,
+      },
+      {
+        params: VENTRICULAR_PARAMS,
+        fiberLogStrain: -0.015,
+        nextFreeCalciumUM: 0.9,
+        dtSec: 0.002,
+      },
+      {
+        params: ATRIAL_PARAMS,
+        fiberLogStrain: 0.02,
+        nextFreeCalciumUM: 0.45,
+        dtSec: 0.005,
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const previous = initializeLandSlsWallAtFixedInputV1(
+        0,
+        0.1,
+        testCase.params,
+      ).state;
+      const evaluate = (fiberLogStrain: number) =>
+        trialLandSlsWallMaterialV1(
+          previous,
+          {
+            nextFiberLogStrain: fiberLogStrain,
+            nextFreeCalciumUM: testCase.nextFreeCalciumUM,
+            dtSec: testCase.dtSec,
+            equilibriumPassive: {
+              stressPa: passiveModulusPa * fiberLogStrain,
+              tangentPa: passiveModulusPa,
+              storedEnergyDensityJPerM3:
+                0.5 * passiveModulusPa * fiberLogStrain ** 2,
+            },
+          },
+          testCase.params,
+        );
+      const epsilon = 1e-6;
+      const center = evaluate(testCase.fiberLogStrain);
+      const lower = evaluate(testCase.fiberLogStrain - epsilon);
+      const upper = evaluate(testCase.fiberLogStrain + epsilon);
+      const shadowPa = (
+        upper.totalKirchhoffStressPa - lower.totalKirchhoffStressPa
+      ) / (2 * epsilon);
+
+      expect(center.valid && lower.valid && upper.valid).toBe(true);
+      expect(relativeError(center.totalAlgorithmicTangentPa, shadowPa))
+        .toBeLessThan(3e-6);
+    }
+  });
 });
+
+function relativeError(left: number, right: number): number {
+  return Math.abs(left - right) / Math.max(1, Math.abs(left), Math.abs(right));
+}

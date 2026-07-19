@@ -60,10 +60,14 @@
     "officialCases": "Official cases",
     "community": "Community",
     "openCase": "Open case",
+    "scientificCases": "Scientific model cases",
+    "scientificCasesDescription": "One pinned official reference and built-in research brackets. Research brackets are not diagnoses or clinically validated presets.",
     "officialBadge": "official",
     "draftBadge": "draft"
   },
   "workbench": {
+    "scientificPersistenceUnavailable": "Scientific case saving is not available in this release. This in-memory comparison is not written through the legacy case store.",
+    "scientificFilesUnavailable": "Scientific Case/Workspace import and export are not available in this release. Legacy case files are not translated silently.",
     "panels": {
       "waveforms": "Waveforms",
       "pvLoop": "PV Loop",
@@ -79,6 +83,7 @@
     "panelTypes": {
       "NOTE": "Note",
       "PVLOOP": "PV Loop",
+      "PV_RELATIONS": "ESPVR / EDPVR",
       "WAVEFORM": "Waveforms",
       "GUYTON_LEFT": "Guyton (L)",
       "GUYTON_RIGHT": "Guyton (R)",
@@ -397,7 +402,14 @@
         "title": "Settings",
         "description": "Low-frequency workbench settings.",
         "appearance": "Appearance",
-        "theme": "Theme"
+        "theme": "Theme",
+        "transitionBehavior": {
+          "title": "Transition behavior",
+          "description": "Live is the default. Next steady state remains an explicit, lower-frequency choice.",
+          "live": "Live transition",
+          "steady": "Next steady state",
+          "locked": "The current transition keeps its selected behavior; parameter controls remain available during live transition."
+        }
       },
       "themes": {
         "dark": "Dark",
@@ -449,6 +461,16 @@
         "both": "Both"
       },
       "waveformTimeWindow": "Waveform time window",
+      "pvHistory": "PV trajectory history",
+      "pvHistoryDescription": "Retain prior cardiac-cycle trajectories while the model transitions.",
+      "pvHistoryBeats": "PV history beats",
+      "pvHistoryStyle": "PV history style",
+      "pvHistoryModes": {
+        "fade": "Fade",
+        "persistent": "Keep visible"
+      },
+      "pvHistoryFadeHint": "The oldest trajectory reaches zero opacity at beat {{count}}.",
+      "pvHistoryPersistentHint": "The latest {{count}} prior trajectories keep a constant low opacity in a bounded rolling window.",
       "adjacentSectionsConfigurable": "Scenario visibility and labels are still configurable in the adjacent sections.",
       "selectInstanceForStyle": "Select a scenario to edit labels and colors.",
       "instanceStylingOnly": "Scenario styling only",
@@ -471,6 +493,8 @@
       "selectedCount_other": "{{count}} selected",
       "paneSettings": "Pane settings",
       "paneSettingsAria": "{{title}} pane settings",
+      "movePaneSettings": "Move pane settings",
+      "movePaneSettingsInstructions": "Drag this header to move the dialog. Use the arrow keys to move it, or Shift plus an arrow key to move it farther.",
       "closePaneSettings": "Close pane settings",
       "closeSettings": "Close settings",
       "customizations": "Customizations",
@@ -680,6 +704,7 @@
       "menuGroup": "Views",
       "controllerKind": "Controller view",
       "metricsKind": "Metrics view",
+      "graphKind": "Graph view",
       "missingTitle": "Referenced view unavailable",
       "unknownView": "Unknown view"
     },
