@@ -22,8 +22,8 @@ export function titleForPanelType(type: PanelType): string {
   if (type === "SCENARIOS") return "Scenarios";
   if (type === "CONTROLS") return "Controls";
   if (type === "NOTE") return "Notes";
-  if (type === "GUYTON_LEFT") return "Guyton Left";
-  if (type === "GUYTON_RIGHT") return "Guyton Right";
+  if (type === "GUYTON_LEFT") return "Cardiac output–filling pressure (left)";
+  if (type === "GUYTON_RIGHT") return "Cardiac output–filling pressure (right)";
   return "Guyton";
 }
 

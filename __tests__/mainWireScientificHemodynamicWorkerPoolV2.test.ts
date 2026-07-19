@@ -308,6 +308,129 @@ describe("main-wire scientific hemodynamic worker pool V2", () => {
     )).toBe(true);
     pool.dispose();
   }, 30_000);
+
+  it("completes standard detail after mandatory third beats without canonical work", async () => {
+    const capsule = await healthyCapsule();
+    let nowMs = 0;
+    const commandSequence: string[] = [];
+    const pool = new MainWireScientificHemodynamicWorkerPoolV2({
+      nowMs: () => nowMs,
+      createBranchWorker: (lane) => new FakeBranchWorker(
+        lane,
+        false,
+        commandSequence,
+        false,
+        () => {
+          nowMs += 2_000;
+        },
+      ),
+    });
+    const started = await pool.start({
+      ownerSessionId: "pool-owner-standard-detail",
+      capsule,
+      detailMode: "standard",
+    });
+    const completed = await waitForCompletion(
+      pool,
+      "pool-owner-standard-detail",
+      started.jobId,
+    );
+    expect(completed).toMatchObject({
+      detailMode: "standard",
+      status: "complete",
+      stage: "preview-complete",
+      result: null,
+      progress: {
+        completedPointCount: 1,
+        plannedPointCountLowerBound: 1,
+        fastPreviewCompletedPointCount: 9,
+        fastPreviewPlannedPointCount: 9,
+      },
+    });
+    expect(completed.fastPreloadPreview.evidence).toHaveLength(9);
+    expect(completed.fastPreloadPreview.evidence.every((evidence) =>
+      evidence.evidenceClass === "failure"
+      || (
+        evidence.acquisition.completedNaturalBeatCountAfterPrediction === 3
+        && evidence.periodicityClaim === "not-demonstrated"
+        && evidence.eligibility.settledP1Locus === false
+        && evidence.eligibility.continuationSeed === false
+        && evidence.eligibility.espvrEdpvrPrswFit === false
+      )
+    )).toBe(true);
+    expect(commandSequence.filter((kind) =>
+      kind === "refine-fast-preview-target"
+    )).toHaveLength(9);
+    expect(commandSequence).not.toContain("solve-target");
+    pool.dispose();
+  }, 30_000);
+
+  it("keeps the canonical path for settled-reference detail", async () => {
+    const capsule = await healthyCapsule();
+    const commandSequence: string[] = [];
+    const pool = new MainWireScientificHemodynamicWorkerPoolV2({
+      createBranchWorker: (lane) => new FakeBranchWorker(
+        lane,
+        false,
+        commandSequence,
+      ),
+    });
+    const started = await pool.start({
+      ownerSessionId: "pool-owner-settled-reference",
+      capsule,
+      detailMode: "settled-reference",
+    });
+    const completed = await waitForCompletion(
+      pool,
+      "pool-owner-settled-reference",
+      started.jobId,
+    );
+    expect(completed).toMatchObject({
+      detailMode: "settled-reference",
+      status: "complete",
+      stage: "complete",
+    });
+    expect(completed.result).not.toBeNull();
+    expect(commandSequence).toContain("solve-target");
+    pool.dispose();
+  }, 30_000);
+
+  it("keeps valid quick-overview points when one mandatory third beat fails", async () => {
+    const capsule = await healthyCapsule();
+    const pool = new MainWireScientificHemodynamicWorkerPoolV2({
+      createBranchWorker: (lane) => new FakeBranchWorker(
+        lane,
+        false,
+        [],
+        lane === "lower-volume",
+      ),
+    });
+    const started = await pool.start({
+      ownerSessionId: "pool-owner-standard-refinement-failure",
+      capsule,
+      detailMode: "standard",
+    });
+    const completed = await waitForCompletion(
+      pool,
+      "pool-owner-standard-refinement-failure",
+      started.jobId,
+    );
+    expect(completed).toMatchObject({
+      detailMode: "standard",
+      status: "complete",
+      stage: "preview-complete",
+      result: null,
+    });
+    expect(completed.fastPreloadPreview.evidence.filter(
+      ({ evidenceClass }) => evidenceClass === "failure",
+    )).toHaveLength(1);
+    expect(completed.fastPreloadPreview.evidence.filter(
+      ({ evidenceClass }) => evidenceClass !== "failure",
+    ).every(({ acquisition }) =>
+      acquisition.completedNaturalBeatCountAfterPrediction >= 3,
+    )).toBe(true);
+    pool.dispose();
+  }, 30_000);
 });
 
 class FakeBranchWorker implements MainWireScientificPreloadBranchWorkerLikeV2 {
@@ -341,6 +464,7 @@ class FakeBranchWorker implements MainWireScientificPreloadBranchWorkerLikeV2 {
     if (
       command.kind === "solve-fast-preview-target"
       || command.kind === "refine-fast-preview-target"
+      || command.kind === "solve-target"
     ) this.commandSequence.push(command.kind);
     if (command.kind === "cancel") return;
     if (command.kind === "initialize") {

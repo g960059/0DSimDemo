@@ -150,6 +150,7 @@ function createPanelGrid(
     togglePvDebugOverlay: noop,
     updatePvDebugTraceMode: noop,
     updatePanelPvHistory: noop,
+    updatePanelHemodynamicSettings: noop,
     updatePanelControllerItems: noop,
     updatePanelLegendPosition: noop,
     noteCaseKey: "test",
@@ -239,6 +240,17 @@ const pvLoopPanel: PanelDef = {
   config: { normal: { visible: true, selectedSignals: ["LV"] } },
   isSettingsOpen: false,
   showGuides: true,
+};
+
+const guytonLeftPanel: PanelDef = {
+  id: "guyton-left",
+  type: "GUYTON_LEFT",
+  title: "Cardiac output–filling pressure (left)",
+  zone: "main",
+  w: 6,
+  h: 8,
+  config: { normal: { visible: true, selectedSignals: [] } },
+  isSettingsOpen: false,
 };
 
 const controlsPanel: PanelDef = {
@@ -550,6 +562,25 @@ describe("PanelGrid Dockview layout", () => {
     expect(html).not.toContain("w-[min(42rem,calc(100vw-2rem))]");
     expect(html).not.toContain("Advanced");
     expect(html).not.toContain("Instance keys");
+  });
+
+  it("renders compatible cardiac output–filling pressure settings with safe defaults", () => {
+    const html = renderPanelGrid(
+      "sandbox",
+      [{ ...guytonLeftPanel, isSettingsOpen: true }],
+      [normalInstance],
+    );
+
+    expect(html).toContain("Cardiac output–filling pressure curve");
+    expect(html).toContain("Quick overview (recommended)");
+    expect(html).toContain("Steady-state reference");
+    expect(html).toContain("Show both");
+    expect(html).toContain("Parameter history");
+    expect(html).toContain("Allow negative filling pressure");
+    expect(html).toContain('data-testid="hemodynamic-response-settings"');
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Quick overview \(recommended\)<\/button>/);
+    expect(html).toMatch(/aria-pressed="true"[^>]*>5<\/button>/);
+    expect(html).toMatch(/aria-pressed="false"[^>]*>[\s\S]*Allow negative filling pressure/);
   });
 
   it("hides document operation affordances in learner mode while keeping runtime controls visible", () => {

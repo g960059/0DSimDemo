@@ -95,8 +95,8 @@ function getDockviewMetadataSignature(panels: readonly PanelDef[]): string {
 const ADD_OPTIONS: Array<{ type: PanelType; label: string }> = [
   { type: 'PVLOOP', label: 'PV Loop' },
   { type: 'WAVEFORM', label: 'Waveforms' },
-  { type: 'GUYTON_LEFT', label: 'Guyton (L)' },
-  { type: 'GUYTON_RIGHT', label: 'Guyton (R)' },
+  { type: 'GUYTON_LEFT', label: 'Cardiac output–filling pressure (left)' },
+  { type: 'GUYTON_RIGHT', label: 'Cardiac output–filling pressure (right)' },
 ];
 
 const defaultPanelTitle = (panel: PanelDef) => panel.title;

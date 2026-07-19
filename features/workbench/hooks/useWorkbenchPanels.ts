@@ -2,9 +2,15 @@ import { useCallback, useState, type Dispatch, type SetStateAction } from "react
 import { workspaceForPanels } from "@/caseDoc";
 import { addPane, removePane } from "@/layoutOps";
 import type { NoteContent } from "@/noteTypes";
+import {
+  DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
+  DEFAULT_HEMODYNAMIC_DETAIL_MODE,
+  DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+} from "@/types";
 import type {
   ControllerItem,
   DockviewViewState,
+  HemodynamicResponsePanelSettings,
   LegendPosition,
   PanelDef,
   PanelInstanceConfig,
@@ -410,6 +416,48 @@ export function useWorkbenchPanels({
     ));
   }, [markUserEdited]);
 
+  const updatePanelHemodynamicSettings = useCallback((
+    panelId: string,
+    settings: Readonly<Partial<HemodynamicResponsePanelSettings>>,
+  ) => {
+    markUserEdited();
+    setPanels((prev) => updatePanelWithSourceViewMirrors(
+      prev,
+      panelId,
+      (panel) => {
+        if (panel.type !== 'GUYTON_LEFT' && panel.type !== 'GUYTON_RIGHT') {
+          return panel;
+        }
+        const detailMode = settings.detailMode
+          ?? panel.hemodynamicDetailMode
+          ?? DEFAULT_HEMODYNAMIC_DETAIL_MODE;
+        const parameterHistoryCount = settings.parameterHistoryCount
+          ?? panel.hemodynamicParameterHistoryCount
+          ?? DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT;
+        const allowNegativeFillingPressure =
+          settings.allowNegativeFillingPressure
+          ?? panel.hemodynamicAllowNegativeFillingPressure
+          ?? DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE;
+        return {
+          ...panel,
+          hemodynamicDetailMode: detailMode,
+          hemodynamicParameterHistoryCount: parameterHistoryCount,
+          hemodynamicAllowNegativeFillingPressure:
+            allowNegativeFillingPressure,
+          view: panel.view?.kind === 'graph'
+            ? {
+              ...panel.view,
+              hemodynamicDetailMode: detailMode,
+              hemodynamicParameterHistoryCount: parameterHistoryCount,
+              hemodynamicAllowNegativeFillingPressure:
+                allowNegativeFillingPressure,
+            }
+            : panel.view,
+        };
+      },
+    ));
+  }, [markUserEdited]);
+
   const updatePanelControllerItems = useCallback((panelId: string, items: ControllerItem[]) => {
     markUserEdited();
     setPanels((prev) => prev.map((panel) => panel.id === panelId
@@ -514,6 +562,7 @@ export function useWorkbenchPanels({
     togglePvDebugOverlay,
     updatePvDebugTraceMode,
     updatePanelPvHistory,
+    updatePanelHemodynamicSettings,
     updatePanelControllerItems,
     updatePanelLegendPosition,
     onNoteChange,

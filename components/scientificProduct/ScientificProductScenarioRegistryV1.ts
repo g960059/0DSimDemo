@@ -36,6 +36,9 @@ import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0,
   MainWireScientificResearchControlScaleV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
+import type {
+  MainWireScientificResearchControlTargetStateV0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 import {
   MainWireScientificWorkerClientV1,
 } from "@/engine/scientificBrowser";
@@ -47,9 +50,27 @@ import type {
   MainWireScientificGuytonStarlingProtocolResultV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import type {
+  MainWireScientificHemodynamicCalculationDetailV2,
   MainWireScientificGuytonStarlingProtocolResultV2,
   MainWireScientificHemodynamicJobSnapshotV2,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
+
+import {
+  applyScientificHemodynamicCurveSnapshotV1,
+  createScientificHemodynamicCurveHistoryStateV1,
+  getScientificHemodynamicCurveScenarioStateV1,
+  startScientificHemodynamicCurveGenerationV1,
+  type ScientificHemodynamicCurveGenerationSourceV1,
+  type ScientificHemodynamicCurveGenerationV1,
+  type ScientificHemodynamicCurveHistoryStateV1,
+  type ScientificHemodynamicCurveScenarioStateV1,
+} from "./ScientificHemodynamicCurveHistoryStateV1";
+import {
+  SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1,
+  ScientificProductHemodynamicAnalysisCoordinatorV1,
+  type ScientificProductHemodynamicAnalysisErrorEventV1,
+  type ScientificProductHemodynamicAnalysisSnapshotEventV1,
+} from "./ScientificProductHemodynamicAnalysisCoordinatorV1";
 
 import {
   SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
@@ -123,20 +144,70 @@ export type ScientificProductScenarioPresentationV1 = Readonly<{
 
 export type ScientificProductHemodynamicProtocolKindV1 = "guyton-starling";
 
+export type ScientificProductHemodynamicProtocolDetailModeV1 =
+  MainWireScientificHemodynamicCalculationDetailV2;
+
+export type ScientificProductHemodynamicProtocolCalculationSourceV1 =
+  | "visible-period1-source"
+  | typeof SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1;
+
+export type ScientificProductHemodynamicProtocolSourceIdentityV1 = Readonly<{
+  revision: number;
+  acceptedTimeSec: number;
+  totalBloodVolumeMl: number;
+  parameterEpoch: number;
+  controlStateSha256: string;
+  calculationSource: ScientificProductHemodynamicProtocolCalculationSourceV1;
+}>;
+
 export type ScientificProductHemodynamicProtocolPresentationV1 = Readonly<{
   kind: ScientificProductHemodynamicProtocolKindV1;
+  detailMode: ScientificProductHemodynamicProtocolDetailModeV1;
   status: "idle" | "running" | "complete" | "error";
-  sourceIdentity: Readonly<{
-    revision: number;
-    acceptedTimeSec: number;
-    totalBloodVolumeMl: number;
-  }> | null;
+  calculationSource:
+    | ScientificProductHemodynamicProtocolCalculationSourceV1
+    | null;
+  sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1 | null;
   result:
     | MainWireScientificGuytonStarlingProtocolResultV1
     | MainWireScientificGuytonStarlingProtocolResultV2
     | null;
   jobSnapshot: MainWireScientificHemodynamicJobSnapshotV2 | null;
   errorMessage: string | null;
+}>;
+
+export type ScientificProductHemodynamicProtocolGenerationV1 =
+  ScientificHemodynamicCurveGenerationV1<
+    ScientificProductHemodynamicProtocolSourceIdentityV1,
+    ScientificProductHemodynamicProtocolPresentationV1
+  >;
+
+export type ScientificProductHemodynamicProtocolSeriesV1 =
+  ScientificHemodynamicCurveScenarioStateV1<
+    ScientificProductHemodynamicProtocolSourceIdentityV1,
+    ScientificProductHemodynamicProtocolPresentationV1
+  >;
+
+export type ScientificProductHemodynamicProtocolSeriesSnapshotV1 =
+  ScientificHemodynamicCurveHistoryStateV1<
+    ScientificProductHemodynamicProtocolSourceIdentityV1,
+    ScientificProductHemodynamicProtocolPresentationV1
+  >;
+
+export type ScientificProductHemodynamicProtocolDemandV1 = Readonly<{
+  scenarioId: string;
+  kind: ScientificProductHemodynamicProtocolKindV1;
+  detailMode: ScientificProductHemodynamicProtocolDetailModeV1;
+}>;
+
+type ActiveHemodynamicProtocolRequestV1 = Readonly<{
+  generationId: string;
+  detailMode: ScientificProductHemodynamicProtocolDetailModeV1;
+  calculationSource: ScientificProductHemodynamicProtocolCalculationSourceV1;
+  sessionId: string | null;
+  source: ScientificHemodynamicCurveGenerationSourceV1<
+    ScientificProductHemodynamicProtocolSourceIdentityV1
+  >;
 }>;
 
 type ScenarioEntryV1 = {
@@ -151,6 +222,9 @@ type ScenarioEntryV1 = {
     | "none"
     | "awaiting-start"
     | "awaiting-settlement";
+  hemodynamicAnalysisCoordinator:
+    | ScientificProductHemodynamicAnalysisCoordinatorV1
+    | null;
 };
 
 export type AddScientificScenarioOptionsV1 = Readonly<{
@@ -171,6 +245,7 @@ const SCENARIO_COLORS_V1 = Object.freeze([
 let scenarioOrdinalV1 = 0;
 let sessionOrdinalV1 = 0;
 let hemodynamicProtocolRequestOrdinalV1 = 0;
+let hemodynamicProtocolGenerationOrdinalV1 = 0;
 const VALIDATED_CYCLE_BY_FRAME_ARRAY_V1 = new WeakMap<
   object,
   MainWireScientificValidatedTerminalCycleV1
@@ -189,7 +264,22 @@ export class ScientificProductScenarioRegistryV1 {
     string,
     ScientificProductHemodynamicProtocolPresentationV1
   >();
+  private readonly activeHemodynamicProtocolRequests = new Map<
+    string,
+    ActiveHemodynamicProtocolRequestV1
+  >();
+  private readonly hemodynamicProtocolDemands = new Map<
+    string,
+    ScientificProductHemodynamicProtocolDemandV1
+  >();
+  private hemodynamicProtocolSeriesSnapshot:
+    ScientificProductHemodynamicProtocolSeriesSnapshotV1 =
+      createScientificHemodynamicCurveHistoryStateV1();
   private readonly hemodynamicProtocolPollTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
+  private readonly hemodynamicProtocolStopTimers = new Map<
     string,
     ReturnType<typeof setTimeout>
   >();
@@ -221,6 +311,7 @@ export class ScientificProductScenarioRegistryV1 {
       unsubscribeFrames: null,
       pendingDuplicateDraft: null,
       duplicateTransitionModeState: "none",
+      hemodynamicAnalysisCoordinator: null,
     };
     this.entries.set(id, entry);
     this.attachRuntime(entry, runtime);
@@ -248,6 +339,53 @@ export class ScientificProductScenarioRegistryV1 {
     return () => this.protocolListeners.delete(listener);
   };
 
+  /**
+   * One immutable snapshot for all scenarios. React consumers can subscribe
+   * once with `subscribeHemodynamicProtocols` and derive every visible series
+   * without a variable number of hooks.
+   */
+  readonly getHemodynamicProtocolSeriesSnapshot = () =>
+    this.hemodynamicProtocolSeriesSnapshot;
+
+  getHemodynamicProtocolSeries(
+    scenarioId: string,
+    kind: ScientificProductHemodynamicProtocolKindV1,
+  ): ScientificProductHemodynamicProtocolSeriesV1 {
+    return getScientificHemodynamicCurveScenarioStateV1(
+      this.hemodynamicProtocolSeriesSnapshot,
+      protocolCacheKey(scenarioId, kind),
+    ) ?? EMPTY_HEMODYNAMIC_PROTOCOL_SERIES_V1;
+  }
+
+  /**
+   * Registers one pane's calculation demand. All panes for a scenario share a
+   * single job: compare wins, and standard + settled-reference also resolves
+   * to compare. Passing null removes the demand and cancels work when no pane
+   * needs the protocol anymore.
+   */
+  setHemodynamicProtocolDemand(
+    demandId: string,
+    demand: ScientificProductHemodynamicProtocolDemandV1 | null,
+  ): void {
+    if (this.disposed || demandId.trim().length === 0) return;
+    const previous = this.hemodynamicProtocolDemands.get(demandId) ?? null;
+    if (sameHemodynamicProtocolDemand(previous, demand)) return;
+    if (demand === null) {
+      this.hemodynamicProtocolDemands.delete(demandId);
+    } else {
+      this.hemodynamicProtocolDemands.set(demandId, Object.freeze({ ...demand }));
+    }
+    if (previous !== null) this.reconcileHemodynamicProtocolDemands(previous);
+    if (
+      demand !== null
+      && (previous === null
+        || protocolCacheKey(previous.scenarioId, previous.kind)
+          !== protocolCacheKey(demand.scenarioId, demand.kind))
+    ) {
+      this.reconcileHemodynamicProtocolDemands(demand);
+    }
+  }
+
   getHemodynamicProtocol(
     scenarioId: string,
     kind: ScientificProductHemodynamicProtocolKindV1,
@@ -259,63 +397,449 @@ export class ScientificProductScenarioRegistryV1 {
   requestHemodynamicProtocol(
     scenarioId: string,
     kind: ScientificProductHemodynamicProtocolKindV1,
+    detailMode: ScientificProductHemodynamicProtocolDetailModeV1 = "compare",
   ): void {
     const entry = this.entries.get(scenarioId);
     const runtime = entry?.runtime;
     if (entry === undefined || runtime === null || this.disposed) return;
-    const source = runtime.controlStore.getSnapshot().source;
-    const sourceIdentity = Object.freeze({
-      revision: source.context.stateIdentity.revision,
-      acceptedTimeSec: source.context.stateIdentity.acceptedTimeSec,
-      totalBloodVolumeMl: source.context.stateIdentity.totalBloodVolumeMl,
+    this.clearHemodynamicProtocolStopTimer(
+      protocolCacheKey(scenarioId, kind),
+    );
+    const snapshot = runtime.controlStore.getSnapshot();
+    if (snapshot.provenance.displayedEvidence
+      === "open-transient-no-periodic-claim") {
+      const candidate = snapshot.candidate;
+      if (
+        candidate === null
+        || snapshot.targetControlStateSha256 === null
+        || candidate.context.controlState.targetStateSha256
+          !== snapshot.targetControlStateSha256
+      ) {
+        // During a retarget the visible boundary and cumulative target are
+        // briefly owned by different candidates. Waiting for the correlated
+        // candidate avoids calculating a curve for an identity the UI never
+        // displayed.
+        return;
+      }
+      this.requestHiddenHemodynamicProtocol({
+        scenarioId,
+        kind,
+        detailMode,
+        entry,
+        runtime,
+        sourceIdentity: protocolSourceIdentityFromLiveCandidate(candidate),
+        targetControlState: candidate.context.controlState,
+      });
+      return;
+    }
+    this.requestVisibleHemodynamicProtocol({
+      scenarioId,
+      kind,
+      detailMode,
+      entry,
+      runtime,
+      source: snapshot.source,
     });
-    const key = protocolCacheKey(scenarioId, kind);
+  }
+
+  private requestVisibleHemodynamicProtocol(input: Readonly<{
+    scenarioId: string;
+    kind: ScientificProductHemodynamicProtocolKindV1;
+    detailMode: ScientificProductHemodynamicProtocolDetailModeV1;
+    entry: ScenarioEntryV1;
+    runtime: ScientificProductScenarioRuntimeV1;
+    source: ScientificWorkbenchResearchControlSourceV0;
+  }>): void {
+    const sourceIdentity = protocolSourceIdentityFromSource(input.source);
+    const key = protocolCacheKey(input.scenarioId, input.kind);
     const current = this.hemodynamicProtocols.get(key);
     if (
-      current?.status === "running"
+      current?.calculationSource === "visible-period1-source"
+      && current.status === "running"
+      && hemodynamicDetailModeSatisfies(
+        current.detailMode,
+        input.detailMode,
+      )
       && sameProtocolSourceIdentity(current.sourceIdentity, sourceIdentity)
     ) return;
     if (
-      current?.status === "complete"
+      current?.calculationSource === "visible-period1-source"
+      && current.status === "complete"
+      && hemodynamicDetailModeSatisfies(
+        current.detailMode,
+        input.detailMode,
+      )
       && sameProtocolSourceIdentity(current.sourceIdentity, sourceIdentity)
     ) return;
-    // A new start atomically replaces the active job inside the worker pool.
-    // Do not enqueue a separate cancel here: an in-flight poll plus cancel plus
-    // start would exceed the client's bounded pending-request capacity.
+    this.retireProtocolRequestForRouteChange(
+      input.scenarioId,
+      input.entry,
+      key,
+      "visible-period1-source",
+    );
+    this.disposeHemodynamicAnalysisCoordinator(input.entry);
+    // A new start atomically replaces the active job inside the visible
+    // worker pool. Do not enqueue a separate same-route cancel: an in-flight
+    // poll plus cancel plus start would exceed its bounded request capacity.
     this.clearProtocolPollTimer(key);
-    const generation = entry.generation;
-    this.hemodynamicProtocols.set(key, Object.freeze({
-      kind,
-      status: "running" as const,
+    const generation = input.entry.generation;
+    const activeRequest = this.beginHemodynamicProtocolGeneration({
+      key,
+      kind: input.kind,
+      detailMode: input.detailMode,
       sourceIdentity,
+      calculationSource: "visible-period1-source",
+      sessionId: input.source.sessionId,
+    });
+    this.startGuytonStarlingJob({
+      scenarioId: input.scenarioId,
+      entry: input.entry,
+      runtime: input.runtime,
+      sourceIdentity,
+      sessionId: input.source.sessionId,
+      key,
+      generation,
+      activeRequest,
+    });
+  }
+
+  private requestHiddenHemodynamicProtocol(input: Readonly<{
+    scenarioId: string;
+    kind: ScientificProductHemodynamicProtocolKindV1;
+    detailMode: ScientificProductHemodynamicProtocolDetailModeV1;
+    entry: ScenarioEntryV1;
+    runtime: ScientificProductScenarioRuntimeV1;
+    sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1;
+    targetControlState: MainWireScientificResearchControlTargetStateV0;
+  }>): void {
+    const key = protocolCacheKey(input.scenarioId, input.kind);
+    const current = this.hemodynamicProtocols.get(key);
+    if (
+      current?.calculationSource
+        === SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1
+      && current.status === "running"
+      && hemodynamicDetailModeSatisfies(
+        current.detailMode,
+        input.detailMode,
+      )
+      && sameProtocolSourceIdentity(current.sourceIdentity, input.sourceIdentity)
+    ) return;
+    if (
+      current?.calculationSource
+        === SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1
+      && current.status === "complete"
+      && hemodynamicDetailModeSatisfies(
+        current.detailMode,
+        input.detailMode,
+      )
+      && sameProtocolSourceIdentity(current.sourceIdentity, input.sourceIdentity)
+    ) return;
+    this.retireProtocolRequestForRouteChange(
+      input.scenarioId,
+      input.entry,
+      key,
+      SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1,
+    );
+    const activeRequest = this.beginHemodynamicProtocolGeneration({
+      key,
+      kind: input.kind,
+      detailMode: input.detailMode,
+      sourceIdentity: input.sourceIdentity,
+      calculationSource:
+        SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1,
+      sessionId: null,
+    });
+    const coordinator = this.getOrCreateHemodynamicAnalysisCoordinator(
+      input.scenarioId,
+      input.entry,
+    );
+    coordinator.requestLatest(Object.freeze({
+      requestToken: activeRequest.generationId,
+      targetControlState: input.targetControlState,
+      visibleParameterEpoch: input.sourceIdentity.parameterEpoch,
+      visibleControlStateSha256: input.sourceIdentity.controlStateSha256,
+      detailMode: input.detailMode,
+    }));
+  }
+
+  private beginHemodynamicProtocolGeneration(input: Readonly<{
+    key: string;
+    kind: ScientificProductHemodynamicProtocolKindV1;
+    detailMode: ScientificProductHemodynamicProtocolDetailModeV1;
+    sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1;
+    calculationSource: ScientificProductHemodynamicProtocolCalculationSourceV1;
+    sessionId: string | null;
+  }>): ActiveHemodynamicProtocolRequestV1 {
+    const generationId = `hemodynamic-generation-${
+      ++hemodynamicProtocolGenerationOrdinalV1
+    }`;
+    const generationSource = Object.freeze({
+      sourceIdentityKey: protocolParameterSourceIdentityKey(
+        input.sourceIdentity,
+      ),
+      sourceIdentity: input.sourceIdentity,
+      jobId: generationId,
+    });
+    const activeRequest = Object.freeze({
+      generationId,
+      detailMode: input.detailMode,
+      calculationSource: input.calculationSource,
+      sessionId: input.sessionId,
+      source: generationSource,
+    });
+    this.activeHemodynamicProtocolRequests.set(input.key, activeRequest);
+    this.hemodynamicProtocolSeriesSnapshot =
+      startScientificHemodynamicCurveGenerationV1(
+        this.hemodynamicProtocolSeriesSnapshot,
+        Object.freeze({
+          scenarioId: input.key,
+          generationId,
+          source: generationSource,
+        }),
+      );
+    this.hemodynamicProtocols.set(input.key, Object.freeze({
+      kind: input.kind,
+      detailMode: input.detailMode,
+      status: "running" as const,
+      calculationSource: input.calculationSource,
+      sourceIdentity: input.sourceIdentity,
       result: null,
       jobSnapshot: null,
       errorMessage: null,
     }));
     this.publishProtocols();
-    this.startGuytonStarlingJob({
-      scenarioId,
-      entry,
-      runtime,
-      sourceIdentity,
-      sessionId: source.sessionId,
-      key,
-      generation,
+    return activeRequest;
+  }
+
+  private retireProtocolRequestForRouteChange(
+    scenarioId: string,
+    entry: ScenarioEntryV1,
+    key: string,
+    nextCalculationSource:
+      ScientificProductHemodynamicProtocolCalculationSourceV1,
+  ): void {
+    const active = this.activeHemodynamicProtocolRequests.get(key);
+    if (
+      active === undefined
+      || active.calculationSource === nextCalculationSource
+    ) return;
+    const presentation = this.hemodynamicProtocols.get(key);
+    this.clearProtocolPollTimer(key);
+    if (
+      active.calculationSource === "visible-period1-source"
+      && active.sessionId !== null
+      && entry.runtime !== null
+      && presentation?.status === "running"
+      && presentation.jobSnapshot !== null
+    ) {
+      this.cancelGuytonStarlingJobBestEffort(
+        entry.runtime.client,
+        active.sessionId,
+        presentation.jobSnapshot.jobId,
+      );
+    }
+    this.discardPendingProtocolGeneration(key, active.generationId);
+    this.activeHemodynamicProtocolRequests.delete(key);
+    if (
+      nextCalculationSource === "visible-period1-source"
+      && this.entries.get(scenarioId) === entry
+    ) {
+      this.disposeHemodynamicAnalysisCoordinator(entry);
+    }
+  }
+
+  private getOrCreateHemodynamicAnalysisCoordinator(
+    scenarioId: string,
+    entry: ScenarioEntryV1,
+  ): ScientificProductHemodynamicAnalysisCoordinatorV1 {
+    const existing = entry.hemodynamicAnalysisCoordinator;
+    if (existing !== null) return existing;
+    const caseEntry = scientificProductCaseByIdV1(
+      entry.descriptor.source.caseId,
+    );
+    if (caseEntry === null) {
+      throw new Error(
+        `Unknown scientific product Case ${entry.descriptor.source.caseId}.`,
+      );
+    }
+    const coordinator = new ScientificProductHemodynamicAnalysisCoordinatorV1({
+      caseEntry,
+      createClient: () => createScientificProductWorkerClientV1(),
+      loadBootstrapSource: async (bootstrapCase, client) => {
+        const loaded = await loadScientificProductScenarioRuntimeV1(
+          bootstrapCase,
+          undefined,
+          client as MainWireScientificWorkerClientV1,
+        );
+        return Object.freeze({
+          sessionId: loaded.sessionId,
+          context: loaded.result.researchControlContext,
+        });
+      },
+      onJobSnapshot: (event) => {
+        this.publishHiddenHemodynamicJobSnapshot(
+          scenarioId,
+          entry,
+          event,
+        );
+      },
+      onError: (event) => {
+        this.publishHiddenHemodynamicError(scenarioId, entry, event);
+      },
     });
+    entry.hemodynamicAnalysisCoordinator = coordinator;
+    return coordinator;
+  }
+
+  private publishHiddenHemodynamicJobSnapshot(
+    scenarioId: string,
+    entry: ScenarioEntryV1,
+    event: ScientificProductHemodynamicAnalysisSnapshotEventV1,
+  ): void {
+    const key = protocolCacheKey(scenarioId, "guyton-starling");
+    const active = this.activeHemodynamicProtocolRequests.get(key);
+    if (
+      this.disposed
+      || this.entries.get(scenarioId) !== entry
+      || active?.calculationSource
+        !== SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1
+      || active.generationId !== event.requestToken
+      || event.provenance
+        !== SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1
+      || active.source.sourceIdentity.parameterEpoch
+        !== event.visibleParameterEpoch
+      || active.source.sourceIdentity.controlStateSha256
+        !== event.visibleControlStateSha256
+    ) return;
+    const snapshot = event.snapshot;
+    const status = snapshot.status === "running"
+      ? "running" as const
+      : snapshot.status === "complete"
+        ? "complete" as const
+        : "error" as const;
+    const presentation = Object.freeze({
+      kind: "guyton-starling" as const,
+      detailMode: event.detailMode,
+      status,
+      calculationSource: event.provenance,
+      // This identity intentionally describes the visible target boundary.
+      // The snapshot's accepted numerical source belongs to the independent
+      // analysis Worker and may legitimately differ in revision/time.
+      sourceIdentity: active.source.sourceIdentity,
+      result: snapshot.result,
+      jobSnapshot: snapshot,
+      errorMessage: snapshot.errorMessage,
+    });
+    this.hemodynamicProtocols.set(key, presentation);
+    if (status === "error") {
+      this.applyHiddenHemodynamicFailure(
+        key,
+        active,
+        snapshot.errorMessage ?? `Hemodynamic job ${snapshot.status}.`,
+        snapshot.sequence,
+      );
+    } else {
+      this.hemodynamicProtocolSeriesSnapshot =
+        applyScientificHemodynamicCurveSnapshotV1(
+          this.hemodynamicProtocolSeriesSnapshot,
+          Object.freeze({
+            scenarioId: key,
+            generationId: active.generationId,
+            source: active.source,
+            update: Object.freeze({
+              kind: "snapshot" as const,
+              sequence: snapshot.sequence,
+              status,
+              snapshot: presentation,
+              renderable: isRenderableHemodynamicJobSnapshot(snapshot),
+            }),
+          }),
+        );
+    }
+    this.publishProtocols();
+  }
+
+  private publishHiddenHemodynamicError(
+    scenarioId: string,
+    entry: ScenarioEntryV1,
+    event: ScientificProductHemodynamicAnalysisErrorEventV1,
+  ): void {
+    const key = protocolCacheKey(scenarioId, "guyton-starling");
+    const active = this.activeHemodynamicProtocolRequests.get(key);
+    if (
+      this.disposed
+      || this.entries.get(scenarioId) !== entry
+      || active?.calculationSource
+        !== SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1
+      || active.generationId !== event.requestToken
+      || event.provenance
+        !== SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1
+      || active.source.sourceIdentity.parameterEpoch
+        !== event.visibleParameterEpoch
+      || active.source.sourceIdentity.controlStateSha256
+        !== event.visibleControlStateSha256
+    ) return;
+    this.hemodynamicProtocols.set(key, Object.freeze({
+      kind: "guyton-starling" as const,
+      detailMode: event.detailMode,
+      status: "error" as const,
+      calculationSource: event.provenance,
+      sourceIdentity: active.source.sourceIdentity,
+      result: null,
+      jobSnapshot: null,
+      errorMessage: event.message,
+    }));
+    this.applyHiddenHemodynamicFailure(key, active, event.message);
+    this.publishProtocols();
+  }
+
+  private applyHiddenHemodynamicFailure(
+    key: string,
+    active: ActiveHemodynamicProtocolRequestV1,
+    errorMessage: string,
+    sequence = nextProtocolGenerationSequence(
+      this.getHemodynamicProtocolSeriesByKey(key),
+      active.generationId,
+    ),
+  ): void {
+    this.hemodynamicProtocolSeriesSnapshot =
+      applyScientificHemodynamicCurveSnapshotV1(
+        this.hemodynamicProtocolSeriesSnapshot,
+        Object.freeze({
+          scenarioId: key,
+          generationId: active.generationId,
+          source: active.source,
+          update: Object.freeze({
+            kind: "error" as const,
+            sequence,
+            errorMessage,
+          }),
+        }),
+      );
+    if (
+      this.activeHemodynamicProtocolRequests.get(key)?.generationId
+        === active.generationId
+    ) {
+      this.activeHemodynamicProtocolRequests.delete(key);
+    }
+  }
+
+  private disposeHemodynamicAnalysisCoordinator(entry: ScenarioEntryV1): void {
+    const coordinator = entry.hemodynamicAnalysisCoordinator;
+    if (coordinator === null) return;
+    entry.hemodynamicAnalysisCoordinator = null;
+    void coordinator.dispose().catch(() => undefined);
   }
 
   private startGuytonStarlingJob(input: Readonly<{
     scenarioId: string;
     entry: ScenarioEntryV1;
     runtime: ScientificProductScenarioRuntimeV1;
-    sourceIdentity: Readonly<{
-      revision: number;
-      acceptedTimeSec: number;
-      totalBloodVolumeMl: number;
-    }>;
+    sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1;
     sessionId: string;
     key: string;
     generation: number;
+    activeRequest: ActiveHemodynamicProtocolRequestV1;
   }>): void {
     const requestId = `workbench-hemodynamic-${
       ++hemodynamicProtocolRequestOrdinalV1
@@ -325,6 +849,7 @@ export class ScientificProductScenarioRegistryV1 {
       kind: "startGuytonStarlingProtocolJob" as const,
       requestId,
       sessionId: input.sessionId,
+      detailMode: input.activeRequest.detailMode,
     })).then((response) => {
       if (!this.protocolRequestStillCurrent(input)) {
         if (
@@ -341,7 +866,7 @@ export class ScientificProductScenarioRegistryV1 {
         return;
       }
       if (!response.ok) {
-        this.failProtocol(input.key, input.sourceIdentity, response.error.message);
+        this.failProtocol(input, response.error.message);
         return;
       }
       if (
@@ -349,8 +874,7 @@ export class ScientificProductScenarioRegistryV1 {
         || response.payload.kind !== "guytonStarlingProtocolJobStarted"
       ) {
         this.failProtocol(
-          input.key,
-          input.sourceIdentity,
+          input,
           "Guyton/Starling job start payload mismatch.",
         );
         return;
@@ -361,8 +885,7 @@ export class ScientificProductScenarioRegistryV1 {
         input.sourceIdentity,
       )) {
         this.failProtocol(
-          input.key,
-          input.sourceIdentity,
+          input,
           "Guyton/Starling job source identity mismatch.",
         );
         return;
@@ -378,8 +901,7 @@ export class ScientificProductScenarioRegistryV1 {
     }).catch((error: unknown) => {
       if (!this.protocolRequestStillCurrent(input)) return;
       this.failProtocol(
-        input.key,
-        input.sourceIdentity,
+        input,
         error instanceof Error ? error.message : String(error),
       );
     });
@@ -430,7 +952,7 @@ export class ScientificProductScenarioRegistryV1 {
         return;
       }
       if (!response.ok) {
-        this.failProtocol(input.key, input.sourceIdentity, response.error.message);
+        this.failProtocol(input, response.error.message);
         return;
       }
       if (
@@ -438,8 +960,7 @@ export class ScientificProductScenarioRegistryV1 {
         || response.payload.kind !== "guytonStarlingProtocolJobProgress"
       ) {
         this.failProtocol(
-          input.key,
-          input.sourceIdentity,
+          input,
           "Guyton/Starling job progress payload mismatch.",
         );
         return;
@@ -450,8 +971,7 @@ export class ScientificProductScenarioRegistryV1 {
         || !sameProtocolJobSourceIdentity(snapshot.source, input.sourceIdentity)
       ) {
         this.failProtocol(
-          input.key,
-          input.sourceIdentity,
+          input,
           "Guyton/Starling job progress identity mismatch.",
         );
         return;
@@ -468,8 +988,7 @@ export class ScientificProductScenarioRegistryV1 {
         return;
       }
       this.failProtocol(
-        input.key,
-        input.sourceIdentity,
+        input,
         error instanceof Error ? error.message : String(error),
       );
     });
@@ -486,14 +1005,41 @@ export class ScientificProductScenarioRegistryV1 {
       : snapshot.status === "complete"
         ? "complete" as const
         : "error" as const;
-    this.hemodynamicProtocols.set(input.key, Object.freeze({
+    const presentation = Object.freeze({
       kind: "guyton-starling" as const,
+      detailMode: input.activeRequest.detailMode,
       status,
+      calculationSource: "visible-period1-source" as const,
       sourceIdentity: input.sourceIdentity,
       result: snapshot.result,
       jobSnapshot: snapshot,
       errorMessage: snapshot.errorMessage,
-    }));
+    });
+    this.hemodynamicProtocols.set(input.key, presentation);
+    if (status === "error") {
+      this.applyProtocolFailure(
+        input,
+        snapshot.errorMessage ?? `Hemodynamic job ${snapshot.status}.`,
+        snapshot.sequence,
+      );
+    } else {
+      this.hemodynamicProtocolSeriesSnapshot =
+        applyScientificHemodynamicCurveSnapshotV1(
+          this.hemodynamicProtocolSeriesSnapshot,
+          Object.freeze({
+            scenarioId: input.key,
+            generationId: input.activeRequest.generationId,
+            source: input.activeRequest.source,
+            update: Object.freeze({
+              kind: "snapshot" as const,
+              sequence: snapshot.sequence,
+              status,
+              snapshot: presentation,
+              renderable: isRenderableHemodynamicJobSnapshot(snapshot),
+            }),
+          }),
+        );
+    }
     this.publishProtocols();
   }
 
@@ -511,51 +1057,93 @@ export class ScientificProductScenarioRegistryV1 {
     scenarioId: string;
     entry: ScenarioEntryV1;
     runtime: ScientificProductScenarioRuntimeV1;
-    sourceIdentity: Readonly<{
-      revision: number;
-      acceptedTimeSec: number;
-      totalBloodVolumeMl: number;
-    }>;
+    sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1;
     generation: number;
+    key: string;
+    activeRequest: ActiveHemodynamicProtocolRequestV1;
   }>): boolean {
     if (!this.protocolRequestOwnerStillCurrent(input)) return false;
-    return sameProtocolSourceIdentity(
-      input.sourceIdentity,
-      input.runtime.controlStore.getSnapshot().source.context.stateIdentity,
-    );
+    const active = this.activeHemodynamicProtocolRequests.get(input.key);
+    return active?.generationId === input.activeRequest.generationId
+      && active.calculationSource === "visible-period1-source"
+      && active.sessionId === input.activeRequest.sessionId
+      && sameProtocolSourceIdentity(
+        input.sourceIdentity,
+        protocolSourceIdentityFromSource(
+          input.runtime.controlStore.getSnapshot().source,
+        ),
+      );
   }
 
   private failProtocol(
-    key: string,
-    sourceIdentity: Readonly<{
-      revision: number;
-      acceptedTimeSec: number;
-      totalBloodVolumeMl: number;
-    }>,
+    input: Parameters<ScientificProductScenarioRegistryV1[
+      "startGuytonStarlingJob"
+    ]>[0],
     errorMessage: string,
   ): void {
-    this.clearProtocolPollTimer(key);
-    this.hemodynamicProtocols.set(key, Object.freeze({
+    this.clearProtocolPollTimer(input.key);
+    this.hemodynamicProtocols.set(input.key, Object.freeze({
       kind: "guyton-starling" as const,
+      detailMode: input.activeRequest.detailMode,
       status: "error" as const,
-      sourceIdentity,
+      calculationSource: "visible-period1-source" as const,
+      sourceIdentity: input.sourceIdentity,
       result: null,
       jobSnapshot: null,
       errorMessage,
     }));
+    this.applyProtocolFailure(input, errorMessage);
     this.publishProtocols();
+  }
+
+  private applyProtocolFailure(
+    input: Parameters<ScientificProductScenarioRegistryV1[
+      "startGuytonStarlingJob"
+    ]>[0],
+    errorMessage: string,
+    sequence = nextProtocolGenerationSequence(
+      this.getHemodynamicProtocolSeriesByKey(input.key),
+      input.activeRequest.generationId,
+    ),
+  ): void {
+    this.hemodynamicProtocolSeriesSnapshot =
+      applyScientificHemodynamicCurveSnapshotV1(
+        this.hemodynamicProtocolSeriesSnapshot,
+        Object.freeze({
+          scenarioId: input.key,
+          generationId: input.activeRequest.generationId,
+          source: input.activeRequest.source,
+          update: Object.freeze({
+            kind: "error" as const,
+            sequence,
+            errorMessage,
+          }),
+        }),
+      );
+    if (
+      this.activeHemodynamicProtocolRequests.get(input.key)?.generationId
+        === input.activeRequest.generationId
+    ) {
+      this.activeHemodynamicProtocolRequests.delete(input.key);
+    }
+  }
+
+  private getHemodynamicProtocolSeriesByKey(
+    key: string,
+  ): ScientificProductHemodynamicProtocolSeriesV1 | null {
+    return getScientificHemodynamicCurveScenarioStateV1(
+      this.hemodynamicProtocolSeriesSnapshot,
+      key,
+    );
   }
 
   private cancelAndDiscardStaleGuytonJob(
     input: Readonly<{
       runtime: ScientificProductScenarioRuntimeV1;
-      sourceIdentity: Readonly<{
-        revision: number;
-        acceptedTimeSec: number;
-        totalBloodVolumeMl: number;
-      }>;
+      sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1;
       sessionId: string;
       key: string;
+      activeRequest: ActiveHemodynamicProtocolRequestV1;
     }>,
     jobId: string,
   ): void {
@@ -565,15 +1153,44 @@ export class ScientificProductScenarioRegistryV1 {
       jobId,
     );
     const stale = this.hemodynamicProtocols.get(input.key);
+    const requestStillOwnsLegacyPresentation =
+      this.activeHemodynamicProtocolRequests.get(input.key)?.generationId
+        === input.activeRequest.generationId;
     if (
-      stale?.status === "running"
+      requestStillOwnsLegacyPresentation
+      && stale?.status === "running"
       && sameProtocolSourceIdentity(stale.sourceIdentity, input.sourceIdentity)
       && (stale.jobSnapshot === null || stale.jobSnapshot.jobId === jobId)
     ) {
       this.clearProtocolPollTimer(input.key);
       this.hemodynamicProtocols.delete(input.key);
-      this.publishProtocols();
     }
+    if (
+      this.activeHemodynamicProtocolRequests.get(input.key)?.generationId
+        === input.activeRequest.generationId
+    ) {
+      this.activeHemodynamicProtocolRequests.delete(input.key);
+    }
+    this.discardPendingProtocolGeneration(
+      input.key,
+      input.activeRequest.generationId,
+    );
+    this.publishProtocols();
+  }
+
+  private discardPendingProtocolGeneration(
+    key: string,
+    generationId: string,
+  ): void {
+    const series = this.getHemodynamicProtocolSeriesByKey(key);
+    if (series?.pending?.generationId !== generationId) return;
+    this.hemodynamicProtocolSeriesSnapshot = Object.freeze({
+      historyLimit: this.hemodynamicProtocolSeriesSnapshot.historyLimit,
+      scenarios: Object.freeze({
+        ...this.hemodynamicProtocolSeriesSnapshot.scenarios,
+        [key]: Object.freeze({ ...series, pending: null }),
+      }),
+    });
   }
 
   private cancelGuytonStarlingJobBestEffort(
@@ -597,6 +1214,102 @@ export class ScientificProductScenarioRegistryV1 {
     const timer = this.hemodynamicProtocolPollTimers.get(key);
     if (timer !== undefined) globalThis.clearTimeout(timer);
     this.hemodynamicProtocolPollTimers.delete(key);
+  }
+
+  private reconcileHemodynamicProtocolDemands(
+    target: Pick<ScientificProductHemodynamicProtocolDemandV1,
+      "scenarioId" | "kind">,
+  ): void {
+    const key = protocolCacheKey(target.scenarioId, target.kind);
+    const modes = [...this.hemodynamicProtocolDemands.values()]
+      .filter((demand) =>
+        protocolCacheKey(demand.scenarioId, demand.kind) === key)
+      .map(({ detailMode }) => detailMode);
+    if (modes.length === 0) {
+      this.scheduleHemodynamicProtocolDemandStop(
+        target.scenarioId,
+        target.kind,
+      );
+      return;
+    }
+    this.clearHemodynamicProtocolStopTimer(key);
+    const detailMode = effectiveHemodynamicProtocolDetailMode(modes);
+    this.requestHemodynamicProtocol(target.scenarioId, target.kind, detailMode);
+  }
+
+  private scheduleHemodynamicProtocolDemandStop(
+    scenarioId: string,
+    kind: ScientificProductHemodynamicProtocolKindV1,
+  ): void {
+    const key = protocolCacheKey(scenarioId, kind);
+    if (this.hemodynamicProtocolStopTimers.has(key)) return;
+    const timer = globalThis.setTimeout(() => {
+      this.hemodynamicProtocolStopTimers.delete(key);
+      if (this.disposed) return;
+      const stillDemanded = [...this.hemodynamicProtocolDemands.values()]
+        .some((demand) =>
+          protocolCacheKey(demand.scenarioId, demand.kind) === key);
+      if (!stillDemanded) {
+        this.stopHemodynamicProtocolDemand(scenarioId, kind);
+      }
+    }, 0);
+    this.hemodynamicProtocolStopTimers.set(key, timer);
+  }
+
+  private clearHemodynamicProtocolStopTimer(key: string): void {
+    const timer = this.hemodynamicProtocolStopTimers.get(key);
+    if (timer !== undefined) globalThis.clearTimeout(timer);
+    this.hemodynamicProtocolStopTimers.delete(key);
+  }
+
+  private stopHemodynamicProtocolDemand(
+    scenarioId: string,
+    kind: ScientificProductHemodynamicProtocolKindV1,
+  ): void {
+    const key = protocolCacheKey(scenarioId, kind);
+    const active = this.activeHemodynamicProtocolRequests.get(key);
+    const presentation = this.hemodynamicProtocols.get(key);
+    const entry = this.entries.get(scenarioId);
+    const runtime = entry?.runtime;
+    if (
+      active !== undefined
+      && active.calculationSource === "visible-period1-source"
+      && active.sessionId !== null
+      && runtime !== null
+      && runtime !== undefined
+      && presentation?.status === "running"
+      && presentation.jobSnapshot !== null
+    ) {
+      this.cancelGuytonStarlingJobBestEffort(
+        runtime.client,
+        active.sessionId,
+        presentation.jobSnapshot.jobId,
+      );
+    }
+    this.clearProtocolPollTimer(key);
+    if (active !== undefined) {
+      this.discardPendingProtocolGeneration(key, active.generationId);
+      this.activeHemodynamicProtocolRequests.delete(key);
+    }
+    if (presentation?.status === "running") {
+      this.hemodynamicProtocols.delete(key);
+    }
+    if (entry !== undefined) {
+      this.disposeHemodynamicAnalysisCoordinator(entry);
+    }
+    this.publishProtocols();
+  }
+
+  private reconcileHemodynamicProtocolDemandsForScenario(
+    scenarioId: string,
+  ): void {
+    const kinds = new Set<ScientificProductHemodynamicProtocolKindV1>();
+    for (const demand of this.hemodynamicProtocolDemands.values()) {
+      if (demand.scenarioId === scenarioId) kinds.add(demand.kind);
+    }
+    for (const kind of kinds) {
+      this.reconcileHemodynamicProtocolDemands({ scenarioId, kind });
+    }
   }
 
   get maximumScenarioCount(): number {
@@ -684,6 +1397,7 @@ export class ScientificProductScenarioRegistryV1 {
       unsubscribeFrames: null,
       pendingDuplicateDraft: options.duplicateDraft ?? null,
       duplicateTransitionModeState: "none",
+      hemodynamicAnalysisCoordinator: null,
     };
     this.entries.set(id, entry);
     this.publishDescriptors();
@@ -772,9 +1486,19 @@ export class ScientificProductScenarioRegistryV1 {
     this.detachEntry(entry);
     this.entries.delete(id);
     this.transientMetricBeatCache.delete(id);
-    this.hemodynamicProtocols.delete(protocolCacheKey(id, "guyton-starling"));
+    const protocolKey = protocolCacheKey(id, "guyton-starling");
+    this.clearHemodynamicProtocolStopTimer(protocolKey);
+    for (const [demandId, demand] of this.hemodynamicProtocolDemands) {
+      if (demand.scenarioId === id) {
+        this.hemodynamicProtocolDemands.delete(demandId);
+      }
+    }
+    this.hemodynamicProtocols.delete(protocolKey);
+    this.activeHemodynamicProtocolRequests.delete(protocolKey);
+    this.removeProtocolSeriesKey(protocolKey);
     this.publishDescriptors();
     this.publishFrames();
+    this.publishProtocols();
     return true;
   }
 
@@ -805,10 +1529,19 @@ export class ScientificProductScenarioRegistryV1 {
       globalThis.clearTimeout(timer);
     }
     this.hemodynamicProtocolPollTimers.clear();
+    for (const timer of this.hemodynamicProtocolStopTimers.values()) {
+      globalThis.clearTimeout(timer);
+    }
+    this.hemodynamicProtocolStopTimers.clear();
     this.transientMetricBeatCache.clear();
     this.hemodynamicProtocols.clear();
+    this.activeHemodynamicProtocolRequests.clear();
+    this.hemodynamicProtocolDemands.clear();
+    this.hemodynamicProtocolSeriesSnapshot =
+      createScientificHemodynamicCurveHistoryStateV1();
     this.publishDescriptors();
     this.publishFrames();
+    this.publishProtocols();
   }
 
   private attachRuntime(
@@ -836,6 +1569,9 @@ export class ScientificProductScenarioRegistryV1 {
     });
     entry.unsubscribeStore = controlStore.subscribe(() => {
       this.tryApplyDuplicateDraft(entry);
+      this.reconcileHemodynamicProtocolDemandsForScenario(
+        entry.descriptor.id,
+      );
     });
     entry.unsubscribeFrames = controlStore.subscribeFrames(() => {
       this.publishFrames();
@@ -937,18 +1673,24 @@ export class ScientificProductScenarioRegistryV1 {
   private detachEntry(entry: ScenarioEntryV1): void {
     const guytonKey = protocolCacheKey(entry.descriptor.id, "guyton-starling");
     const activeGuyton = this.hemodynamicProtocols.get(guytonKey);
+    const activeRequest = this.activeHemodynamicProtocolRequests.get(guytonKey);
     if (
       entry.runtime !== null
+      && activeRequest?.calculationSource === "visible-period1-source"
+      && activeRequest.sessionId !== null
       && activeGuyton?.status === "running"
       && activeGuyton.jobSnapshot !== null
     ) {
       this.cancelGuytonStarlingJobBestEffort(
         entry.runtime.client,
-        entry.runtime.controlStore.getSnapshot().source.sessionId,
+        activeRequest.sessionId,
         activeGuyton.jobSnapshot.jobId,
       );
     }
     this.clearProtocolPollTimer(guytonKey);
+    this.clearHemodynamicProtocolStopTimer(guytonKey);
+    this.activeHemodynamicProtocolRequests.delete(guytonKey);
+    this.disposeHemodynamicAnalysisCoordinator(entry);
     entry.duplicateTransitionModeState = "none";
     entry.unsubscribeStore?.();
     entry.unsubscribeStore = null;
@@ -975,6 +1717,16 @@ export class ScientificProductScenarioRegistryV1 {
   private publishProtocols(): void {
     for (const listener of [...this.protocolListeners]) listener();
   }
+
+  private removeProtocolSeriesKey(key: string): void {
+    if (!(key in this.hemodynamicProtocolSeriesSnapshot.scenarios)) return;
+    const { [key]: _removed, ...scenarios } =
+      this.hemodynamicProtocolSeriesSnapshot.scenarios;
+    this.hemodynamicProtocolSeriesSnapshot = Object.freeze({
+      historyLimit: this.hemodynamicProtocolSeriesSnapshot.historyLimit,
+      scenarios: Object.freeze(scenarios),
+    });
+  }
 }
 
 function protocolCacheKey(
@@ -984,10 +1736,44 @@ function protocolCacheKey(
   return `${scenarioId}:${kind}`;
 }
 
+function sameHemodynamicProtocolDemand(
+  left: ScientificProductHemodynamicProtocolDemandV1 | null,
+  right: ScientificProductHemodynamicProtocolDemandV1 | null,
+): boolean {
+  return left === right || (
+    left !== null
+    && right !== null
+    && left.scenarioId === right.scenarioId
+    && left.kind === right.kind
+    && left.detailMode === right.detailMode
+  );
+}
+
+function effectiveHemodynamicProtocolDetailMode(
+  modes: readonly ScientificProductHemodynamicProtocolDetailModeV1[],
+): ScientificProductHemodynamicProtocolDetailModeV1 {
+  const hasStandard = modes.includes("standard");
+  const hasSettledReference = modes.includes("settled-reference");
+  if (
+    modes.includes("compare")
+    || (hasStandard && hasSettledReference)
+  ) return "compare";
+  return hasSettledReference ? "settled-reference" : "standard";
+}
+
+function hemodynamicDetailModeSatisfies(
+  available: ScientificProductHemodynamicProtocolDetailModeV1,
+  requested: ScientificProductHemodynamicProtocolDetailModeV1,
+): boolean {
+  return available === requested || available === "compare";
+}
+
 const EMPTY_HEMODYNAMIC_PROTOCOL_PRESENTATIONS_V1 = Object.freeze({
   "guyton-starling": Object.freeze({
     kind: "guyton-starling" as const,
+    detailMode: "compare" as const,
     status: "idle" as const,
+    calculationSource: null,
     sourceIdentity: null,
     result: null,
     jobSnapshot: null,
@@ -998,22 +1784,65 @@ const EMPTY_HEMODYNAMIC_PROTOCOL_PRESENTATIONS_V1 = Object.freeze({
   ScientificProductHemodynamicProtocolPresentationV1
 >>;
 
+const EMPTY_HEMODYNAMIC_PROTOCOL_SERIES_V1: ScientificProductHemodynamicProtocolSeriesV1 =
+  Object.freeze({
+    current: null,
+    pending: null,
+    history: Object.freeze([]),
+    lastFailure: null,
+  });
+
+function protocolSourceIdentityFromSource(
+  source: ScientificWorkbenchResearchControlSourceV0,
+): ScientificProductHemodynamicProtocolSourceIdentityV1 {
+  return Object.freeze({
+    revision: source.context.stateIdentity.revision,
+    acceptedTimeSec: source.context.stateIdentity.acceptedTimeSec,
+    totalBloodVolumeMl: source.context.stateIdentity.totalBloodVolumeMl,
+    parameterEpoch: source.context.parameterEpoch,
+    controlStateSha256: source.context.controlState.targetStateSha256,
+    calculationSource: "visible-period1-source",
+  });
+}
+
+function protocolSourceIdentityFromLiveCandidate(
+  candidate: NonNullable<
+    ReturnType<ScientificWorkbenchResearchControlStoreV0["getSnapshot"]>["candidate"]
+  >,
+): ScientificProductHemodynamicProtocolSourceIdentityV1 {
+  return Object.freeze({
+    revision: candidate.boundaryFrame.revision,
+    acceptedTimeSec: candidate.boundaryFrame.acceptedTimeSec,
+    totalBloodVolumeMl: candidate.context.stateIdentity.totalBloodVolumeMl,
+    parameterEpoch: candidate.context.parameterEpoch,
+    controlStateSha256: candidate.context.controlState.targetStateSha256,
+    calculationSource:
+      SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1,
+  });
+}
+
+function protocolParameterSourceIdentityKey(
+  source: ScientificProductHemodynamicProtocolSourceIdentityV1,
+): string {
+  return [
+    source.parameterEpoch,
+    source.controlStateSha256,
+    source.totalBloodVolumeMl,
+    source.calculationSource,
+  ].join(":");
+}
+
 function sameProtocolSourceIdentity(
-  left: Readonly<{
-    revision: number;
-    acceptedTimeSec: number;
-    totalBloodVolumeMl: number;
-  }> | null,
-  right: Readonly<{
-    revision: number;
-    acceptedTimeSec: number;
-    totalBloodVolumeMl: number;
-  }> | null,
+  left: ScientificProductHemodynamicProtocolSourceIdentityV1 | null,
+  right: ScientificProductHemodynamicProtocolSourceIdentityV1 | null,
 ): boolean {
   return left !== null && right !== null
     && left.revision === right.revision
     && left.acceptedTimeSec === right.acceptedTimeSec
-    && left.totalBloodVolumeMl === right.totalBloodVolumeMl;
+    && left.totalBloodVolumeMl === right.totalBloodVolumeMl
+    && left.parameterEpoch === right.parameterEpoch
+    && left.controlStateSha256 === right.controlStateSha256
+    && left.calculationSource === right.calculationSource;
 }
 
 function sameProtocolJobSourceIdentity(
@@ -1022,15 +1851,37 @@ function sameProtocolJobSourceIdentity(
     acceptedTimeSec: number;
     fixedTotalBloodVolumeMl: number;
   }>,
-  right: Readonly<{
-    revision: number;
-    acceptedTimeSec: number;
-    totalBloodVolumeMl: number;
-  }>,
+  right: ScientificProductHemodynamicProtocolSourceIdentityV1,
 ): boolean {
   return left.revision === right.revision
     && left.acceptedTimeSec === right.acceptedTimeSec
     && left.fixedTotalBloodVolumeMl === right.totalBloodVolumeMl;
+}
+
+function isRenderableHemodynamicJobSnapshot(
+  snapshot: MainWireScientificHemodynamicJobSnapshotV2,
+): boolean {
+  const vascularPointCount = Math.max(
+    snapshot.rightVascularFunction?.points?.length ?? 0,
+    snapshot.leftVascularFunction?.points?.length ?? 0,
+  );
+  const previewPointCount = snapshot.fastPreloadPreview?.evidence.filter(
+    (evidence) => evidence.evidenceClass !== "failure"
+      && evidence.eligibility.hemodynamicPreview,
+  ).length ?? snapshot.progress.fastPreviewCompletedPointCount ?? 0;
+  return vascularPointCount >= 2 || previewPointCount >= 2;
+}
+
+function nextProtocolGenerationSequence(
+  series: ScientificProductHemodynamicProtocolSeriesV1 | null,
+  generationId: string,
+): number {
+  const generation = series?.pending?.generationId === generationId
+    ? series.pending
+    : series?.current?.generationId === generationId
+      ? series.current
+      : null;
+  return (generation?.sequence ?? -1) + 1;
 }
 
 export async function loadScientificProductScenarioRuntimeV1(

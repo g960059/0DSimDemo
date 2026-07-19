@@ -19,7 +19,13 @@ import type { SteadyUpdateStatusMap } from '../../engine/previewController';
 import {
   ChamberId,
   ControllerItem,
+  DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
+  DEFAULT_HEMODYNAMIC_DETAIL_MODE,
+  DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
   type DockviewViewState,
+  type HemodynamicDetailMode,
+  type HemodynamicParameterHistoryCount,
+  type HemodynamicResponsePanelSettings,
   MetricType,
   PanelDef,
   PanelInstanceConfig,
@@ -158,6 +164,10 @@ export interface PanelGridProps {
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
   updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
+  updatePanelHemodynamicSettings: (
+    panelId: string,
+    settings: Readonly<Partial<HemodynamicResponsePanelSettings>>,
+  ) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
@@ -278,6 +288,10 @@ interface PanelSettingsControlsProps {
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
   updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
+  updatePanelHemodynamicSettings: (
+    panelId: string,
+    settings: Readonly<Partial<HemodynamicResponsePanelSettings>>,
+  ) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   chambers: ChamberId[];
   signals: SignalType[];
@@ -324,6 +338,13 @@ const CONTROL_SETTINGS_SECTIONS: Array<{
 const GRAPH_SETTINGS_SECTION_IDS = GRAPH_SETTINGS_SECTIONS.map((section) => section.id);
 const CONTROL_SETTINGS_SECTION_IDS = CONTROL_SETTINGS_SECTIONS.map((section) => section.id);
 const PV_DEBUG_TRACE_MODES: PvLoopDebugTraceMode[] = ['raw', 'resampled', 'both'];
+const HEMODYNAMIC_DETAIL_MODES: HemodynamicDetailMode[] = [
+  'standard',
+  'settled-reference',
+  'compare',
+];
+const HEMODYNAMIC_PARAMETER_HISTORY_COUNTS:
+  HemodynamicParameterHistoryCount[] = [0, 1, 3, 5];
 const DEFAULT_CHAMBER_OPTIONS: ChamberId[] = ['LV', 'LA', 'RV', 'RA'];
 const DEFAULT_WAVEFORM_OPTIONS: SignalType[] = [
   'LVP', 'AoP', 'LAP', 'RVP', 'PAP', 'RAP',
@@ -417,6 +438,10 @@ const SIGNAL_METADATA: Record<string, { label: string; category: Exclude<SignalC
 
 function isGraphSettingsPanel(type: PanelType): boolean {
   return GRAPH_SETTINGS_PANEL_TYPES.has(type);
+}
+
+function isHemodynamicResponsePanel(type: PanelType): boolean {
+  return type === 'GUYTON_LEFT' || type === 'GUYTON_RIGHT';
 }
 
 function isBoardSettingsPanel(type: PanelType): boolean {
@@ -657,6 +682,7 @@ function GraphPanelSettingsBoard({
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
   updatePanelPvHistory,
+  updatePanelHemodynamicSettings,
   chambers,
   signals,
   metrics,
@@ -753,7 +779,21 @@ function GraphPanelSettingsBoard({
   );
 
   const renderSignalBoard = (layout: 'wide' | 'document' = 'wide') => {
-    if (panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D') {
+    if (isHemodynamicResponsePanel(panel.type)) {
+      return (
+        <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip p-4 text-center">
+          <div>
+            <div className="text-sm font-bold text-wb-text">
+              {t('workbench.panelGrid.hemodynamicCurveTitle')}
+            </div>
+            <div className="mt-1 max-w-md text-xs font-medium leading-5 text-wb-subtle">
+              {t('workbench.panelGrid.hemodynamicCurveDescription')}
+            </div>
+          </div>
+        </div>
+      );
+    }
+    if (panel.type === 'GUYTON_3D') {
       return (
         <div className="flex min-h-[5rem] items-center justify-center rounded bg-wb-strip p-4 text-center">
           <div>
@@ -903,13 +943,24 @@ function GraphPanelSettingsBoard({
   );
 
   const renderDisplay = () => {
-    const hasLegend = panel.type === 'PVLOOP' || panel.type === 'WAVEFORM';
+    const hasHemodynamicResponse = isHemodynamicResponsePanel(panel.type);
+    const hasLegend = panel.type === 'PVLOOP'
+      || panel.type === 'WAVEFORM'
+      || hasHemodynamicResponse;
     const hasGuides = panel.type === 'PVLOOP';
     const hasPvDebug = panel.type === 'PVLOOP';
     const hasWindow = panel.type === 'WAVEFORM';
     const debugTraceMode = panel.pvDebugTraceMode ?? 'raw';
     const pvHistoryBeats = panel.pvHistoryBeats ?? 8;
     const pvHistoryMode = panel.pvHistoryMode ?? 'fade';
+    const hemodynamicDetailMode = panel.hemodynamicDetailMode
+      ?? DEFAULT_HEMODYNAMIC_DETAIL_MODE;
+    const hemodynamicParameterHistoryCount =
+      panel.hemodynamicParameterHistoryCount
+      ?? DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT;
+    const hemodynamicAllowNegativeFillingPressure =
+      panel.hemodynamicAllowNegativeFillingPressure
+      ?? DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE;
     return (
       <div className="space-y-2">
         <label className="grid gap-2 rounded bg-wb-strip p-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-center">
@@ -936,6 +987,105 @@ function GraphPanelSettingsBoard({
                 <span className="block text-xs font-medium text-wb-subtle">{t('workbench.panelGrid.showGraphLabels')}</span>
               </span>
             </button>
+          )}
+          {hasHemodynamicResponse && (
+            <div
+              className="space-y-4 px-2 py-3"
+              data-testid="hemodynamic-response-settings"
+            >
+              <div>
+                <div className="text-sm font-bold text-wb-text">
+                  {t('workbench.panelGrid.hemodynamicDetailMode')}
+                </div>
+                <div className="mt-0.5 text-xs font-medium text-wb-subtle">
+                  {t('workbench.panelGrid.hemodynamicDetailModeDescription')}
+                </div>
+                <div
+                  className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-3"
+                  role="group"
+                  aria-label={t('workbench.panelGrid.hemodynamicDetailMode')}
+                >
+                  {HEMODYNAMIC_DETAIL_MODES.map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => updatePanelHemodynamicSettings(panel.id, {
+                        detailMode: mode,
+                      })}
+                      className={`min-h-8 rounded border px-2 py-1 text-xs font-bold transition-colors ${
+                        hemodynamicDetailMode === mode
+                          ? 'border-wb-line-strong bg-wb-active text-wb-text'
+                          : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'
+                      }`}
+                      aria-pressed={hemodynamicDetailMode === mode}
+                    >
+                      {t(`workbench.panelGrid.hemodynamicDetailModes.${mode}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-bold text-wb-text">
+                  {t('workbench.panelGrid.hemodynamicParameterHistory')}
+                </div>
+                <div className="mt-0.5 text-xs font-medium text-wb-subtle">
+                  {t('workbench.panelGrid.hemodynamicParameterHistoryDescription')}
+                </div>
+                <div
+                  className="mt-2 grid grid-cols-4 gap-1"
+                  role="group"
+                  aria-label={t('workbench.panelGrid.hemodynamicParameterHistory')}
+                >
+                  {HEMODYNAMIC_PARAMETER_HISTORY_COUNTS.map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => updatePanelHemodynamicSettings(panel.id, {
+                        parameterHistoryCount: count,
+                      })}
+                      className={`h-8 rounded border px-2 text-xs font-bold transition-colors ${
+                        hemodynamicParameterHistoryCount === count
+                          ? 'border-wb-line-strong bg-wb-active text-wb-text'
+                          : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'
+                      }`}
+                      aria-pressed={hemodynamicParameterHistoryCount === count}
+                    >
+                      {count === 0 ? t('common.off') : count}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => updatePanelHemodynamicSettings(panel.id, {
+                  allowNegativeFillingPressure:
+                    !hemodynamicAllowNegativeFillingPressure,
+                })}
+                className={`flex w-full items-start gap-3 rounded px-1 py-1 text-left transition-colors ${
+                  hemodynamicAllowNegativeFillingPressure
+                    ? 'text-wb-text'
+                    : 'text-wb-muted hover:text-wb-text'
+                }`}
+                aria-pressed={hemodynamicAllowNegativeFillingPressure}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`mt-0.5 h-3.5 w-3.5 flex-none rounded border ${
+                    hemodynamicAllowNegativeFillingPressure
+                      ? 'border-wb-accent bg-wb-accent'
+                      : 'border-wb-line-strong bg-wb-panel'
+                  }`}
+                />
+                <span>
+                  <span className="block text-sm font-bold">
+                    {t('workbench.panelGrid.allowNegativeFillingPressure')}
+                  </span>
+                  <span className="block text-xs font-medium text-wb-subtle">
+                    {t('workbench.panelGrid.allowNegativeFillingPressureDescription')}
+                  </span>
+                </span>
+              </button>
+            </div>
           )}
           {hasGuides && (
             <button
@@ -1039,7 +1189,8 @@ function GraphPanelSettingsBoard({
             </label>
           )}
         </div>
-        {!hasLegend && !hasGuides && !hasPvDebug && !hasWindow && (
+        {!hasLegend && !hasGuides && !hasPvDebug && !hasWindow
+          && !hasHemodynamicResponse && (
           <div className="px-1 text-xs font-semibold text-wb-subtle">
             {t('workbench.panelGrid.adjacentSectionsConfigurable')}
           </div>
@@ -1442,7 +1593,8 @@ function settingsPaneTypeLabel(panel: PanelDef): string {
   if (panel.type === 'METRICS') return 'Metrics pane';
   if (panel.type === 'CONTROLS') return 'Controller pane';
   if (panel.type === 'NOTE') return 'Note pane';
-  if (panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT' || panel.type === 'GUYTON_3D') return 'Guyton pane';
+  if (panel.type === 'GUYTON_LEFT' || panel.type === 'GUYTON_RIGHT') return 'Cardiac output–filling pressure pane';
+  if (panel.type === 'GUYTON_3D') return 'Guyton surface pane';
   return 'Pane';
 }
 
@@ -2697,6 +2849,7 @@ export function PanelGrid({
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
   updatePanelPvHistory,
+  updatePanelHemodynamicSettings,
   updatePanelControllerItems,
   updatePanelLegendPosition,
   noteCaseKey,
@@ -2840,6 +2993,7 @@ export function PanelGrid({
       togglePvDebugOverlay={togglePvDebugOverlay}
       updatePvDebugTraceMode={updatePvDebugTraceMode}
       updatePanelPvHistory={updatePanelPvHistory}
+      updatePanelHemodynamicSettings={updatePanelHemodynamicSettings}
       updatePanelControllerItems={updatePanelControllerItems}
       chambers={chambers}
       signals={signals}

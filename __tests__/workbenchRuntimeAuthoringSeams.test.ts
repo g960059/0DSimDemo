@@ -28,6 +28,7 @@ import {
   graphViewToPanel,
   scientificControllerInteractionKeyV1,
   scientificControllerItemForReleaseV1,
+  scientificHemodynamicDisplayModeV1,
 } from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
 import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
@@ -265,6 +266,43 @@ describe("runtime-specific Workbench authoring seams", () => {
       graphType: "pvloop",
       showLegend: true,
       legendPosition: { xPct: 0.2, yPct: 0.3 },
+    });
+  });
+
+  it("restores authored cardiac-output response presentation settings", () => {
+    expect(scientificHemodynamicDisplayModeV1("standard")).toBe("estimated");
+    expect(scientificHemodynamicDisplayModeV1("settled-reference")).toBe("settled");
+    expect(scientificHemodynamicDisplayModeV1("compare")).toBe("both");
+
+    const panel = graphViewToPanel({
+      id: "left-response",
+      title: "Left heart: cardiac output & PCWP",
+      kind: "graph",
+      graphType: "guyton-left",
+      membership: { healthy: [] },
+      presentation: {
+        showLegend: false,
+        legendPosition: { xPct: 0.18, yPct: 0.22 },
+        hemodynamicDetailMode: "compare",
+        hemodynamicParameterHistoryCount: 3,
+        hemodynamicAllowNegativeFillingPressure: true,
+      },
+    });
+
+    expect(panel).toMatchObject({
+      showLegend: false,
+      view: {
+        kind: "graph",
+        graphType: "guyton-left",
+        showLegend: false,
+        legendPosition: { xPct: 0.18, yPct: 0.22 },
+        hemodynamicDetailMode: "compare",
+        hemodynamicParameterHistoryCount: 3,
+        hemodynamicAllowNegativeFillingPressure: true,
+      },
+      hemodynamicDetailMode: "compare",
+      hemodynamicParameterHistoryCount: 3,
+      hemodynamicAllowNegativeFillingPressure: true,
     });
   });
 

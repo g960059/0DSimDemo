@@ -1,4 +1,5 @@
 import type {
+  MainWireScientificHemodynamicCalculationDetailV2,
   MainWireScientificHemodynamicJobCapsuleV2,
   MainWireScientificHemodynamicJobSnapshotV2,
   MainWireScientificHemodynamicJobStartV2,
@@ -8,6 +9,7 @@ export interface MainWireScientificHemodynamicJobManagerV2 {
   start(input: Readonly<{
     ownerSessionId: string;
     capsule: MainWireScientificHemodynamicJobCapsuleV2;
+    detailMode?: MainWireScientificHemodynamicCalculationDetailV2;
   }>): Promise<MainWireScientificHemodynamicJobStartV2>;
 
   poll(input: Readonly<{

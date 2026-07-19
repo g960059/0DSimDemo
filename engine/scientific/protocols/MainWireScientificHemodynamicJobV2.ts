@@ -35,6 +35,12 @@ export const MAIN_WIRE_SCIENTIFIC_GUYTON_STARLING_PROTOCOL_V2_ID =
 export const MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_JOB_V2_ID =
   "main-wire-scientific-hemodynamic-job-v2" as const;
 
+export const MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_CALCULATION_DETAILS_V2 =
+  Object.freeze(["standard", "settled-reference", "compare"] as const);
+
+export type MainWireScientificHemodynamicCalculationDetailV2 =
+  (typeof MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_CALCULATION_DETAILS_V2)[number];
+
 export type MainWireScientificPreloadSweepDirectionV2 =
   | "source-baseline"
   | "lower-volume"
@@ -120,6 +126,7 @@ export type MainWireScientificHemodynamicJobStageV2 =
   | "near-steady-preview"
   | "preview-and-continuation"
   | "preview-ready"
+  | "preview-complete"
   | "continuation"
   | "independent-audit"
   | "complete"
@@ -132,6 +139,8 @@ export type MainWireScientificHemodynamicJobStageV2 =
  */
 export type MainWireScientificHemodynamicJobSnapshotV2 = Readonly<{
   jobId: string;
+  /** Resolved job detail. Optional only for legacy snapshot consumers. */
+  detailMode?: MainWireScientificHemodynamicCalculationDetailV2;
   sequence: number;
   status: MainWireScientificHemodynamicJobStatusV2;
   stage: MainWireScientificHemodynamicJobStageV2;

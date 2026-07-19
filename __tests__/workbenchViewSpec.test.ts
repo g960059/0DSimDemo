@@ -176,6 +176,35 @@ describe("Workbench ViewSpec model", () => {
     });
   });
 
+  it("retains cardiac output–filling pressure settings in graph presentation migration", () => {
+    const migrated = migratePanelsToViewSpecs([{
+      id: "guyton-right",
+      type: "GUYTON_RIGHT",
+      title: "Cardiac output–filling pressure (right)",
+      w: 6,
+      h: 4,
+      config: {
+        normal: { visible: true, selectedSignals: [] },
+      },
+      isSettingsOpen: false,
+      showLegend: false,
+      hemodynamicDetailMode: "settled-reference",
+      hemodynamicParameterHistoryCount: 1,
+      hemodynamicAllowNegativeFillingPressure: true,
+    }]);
+
+    expect(migrated.views[0]).toMatchObject({
+      kind: "graph",
+      graphType: "guyton-right",
+      presentation: {
+        showLegend: false,
+        hemodynamicDetailMode: "settled-reference",
+        hemodynamicParameterHistoryCount: 1,
+        hemodynamicAllowNegativeFillingPressure: true,
+      },
+    });
+  });
+
   it("validates graph board invariants and normalizes single-child splits", () => {
     const invalid: GraphBoardLayout = {
       type: "split",

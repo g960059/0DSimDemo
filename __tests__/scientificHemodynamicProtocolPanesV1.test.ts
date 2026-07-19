@@ -72,24 +72,23 @@ describe("scientific hemodynamic protocol panes V1", () => {
       { data },
     ));
 
-    expect(html).toContain("Mean transmural LAP / PCWP surrogate (mmHg)");
+    expect(html).toContain("PCWP (mmHg)");
     expect(html).toContain('data-point-classification="period1"');
     expect(html).toContain('data-point-classification="estimated"');
     expect(html).toContain('data-point-classification="unclassified"');
     expect(html).toContain('data-point-classification="audit-suspect"');
     expect(html).toContain('data-point-classification="period2"');
     expect(html).toContain('data-point-classification="rejected"');
-    expect(html).toContain("P2 suspect · excluded");
+    expect(html).toContain("Alternating response · excluded");
     const settledPaths = html.match(/<path[^>]*data-series="cardiac-preload-locus"[^>]*>/g) ?? [];
     const rapidPaths = html.match(/<path[^>]*data-series="rapid-finite-hold-preview"[^>]*>/g) ?? [];
     const settledPathMarkup = settledPaths.join("");
     expect(settledPaths).toHaveLength(2);
     expect(settledPathMarkup).not.toContain("stroke-dasharray");
     expect(rapidPaths).toHaveLength(1);
-    expect(rapidPaths[0]).toContain('stroke-dasharray="5 4"');
-    expect(rapidPaths[0]).toContain('stroke-opacity="0.52"');
-    expect(html).toContain("Adaptive rapid estimate · not settled");
-    expect(html).toContain("one-dimensional operating locus");
+    expect(rapidPaths[0]).not.toContain("stroke-dasharray");
+    expect(rapidPaths[0]).toContain('data-evidence="estimated"');
+    expect(html).toContain("Estimated response");
   });
 
   it("builds stable zero-aware domains and refuses a one-point SVG path", () => {

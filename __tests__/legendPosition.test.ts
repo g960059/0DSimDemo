@@ -79,6 +79,19 @@ describe("InteractiveGraphLegend", () => {
     expect(html).not.toContain("cursor-grab");
   });
 
+  it("can keep nested informational controls operable without enabling pane editing", () => {
+    const html = renderToStaticMarkup(React.createElement(
+      InteractiveGraphLegend,
+      { interactive: false, contentInteractive: true },
+      React.createElement("button", { type: "button" }, "Warnings"),
+    ));
+
+    expect(html).toContain("pointer-events-auto");
+    expect(html).toContain("<button");
+    expect(html).not.toContain('role="button"');
+    expect(html).not.toContain("cursor-grab");
+  });
+
   it("uses the shared interaction surface for scientific chart entries", () => {
     const html = renderToStaticMarkup(React.createElement(
       ScientificWorkbenchChartLegendV1,

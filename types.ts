@@ -89,6 +89,19 @@ export interface LegendPosition {
 }
 
 export type PvLoopHistoryMode = 'fade' | 'persistent';
+export type HemodynamicDetailMode = 'standard' | 'settled-reference' | 'compare';
+export type HemodynamicParameterHistoryCount = 0 | 1 | 3 | 5;
+
+export const DEFAULT_HEMODYNAMIC_DETAIL_MODE: HemodynamicDetailMode = 'standard';
+export const DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT:
+  HemodynamicParameterHistoryCount = 5;
+export const DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE = false;
+
+export interface HemodynamicResponsePanelSettings {
+    detailMode: HemodynamicDetailMode;
+    parameterHistoryCount: HemodynamicParameterHistoryCount;
+    allowNegativeFillingPressure: boolean;
+}
 
 export interface GraphPanelView {
     kind: 'graph';
@@ -106,6 +119,9 @@ export interface GraphPanelView {
     pvDebugTraceMode?: PvLoopDebugTraceMode;
     pvHistoryBeats?: number;
     pvHistoryMode?: PvLoopHistoryMode;
+    hemodynamicDetailMode?: HemodynamicDetailMode;
+    hemodynamicParameterHistoryCount?: HemodynamicParameterHistoryCount;
+    hemodynamicAllowNegativeFillingPressure?: boolean;
 }
 
 export interface OutputPanelView {
@@ -214,6 +230,10 @@ export interface PanelDef {
     pvDebugTraceMode?: PvLoopDebugTraceMode;
     pvHistoryBeats?: number;
     pvHistoryMode?: PvLoopHistoryMode;
+    /** GUYTON_LEFT / GUYTON_RIGHT response-locus presentation settings. */
+    hemodynamicDetailMode?: HemodynamicDetailMode;
+    hemodynamicParameterHistoryCount?: HemodynamicParameterHistoryCount;
+    hemodynamicAllowNegativeFillingPressure?: boolean;
 }
 
 export interface PreviewCoreFacade {
