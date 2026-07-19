@@ -61,30 +61,6 @@ describe("panel view compatibility adapter", () => {
     expect(view.pvDebugTraceMode).toBe("both");
   });
 
-  it("preserves the scientific PV-relations graph type", () => {
-    const panel: PanelDef = {
-      id: "pv-relations",
-      type: "PV_RELATIONS",
-      title: "ESPVR / EDPVR",
-      w: 6,
-      h: 8,
-      isSettingsOpen: false,
-      config: {
-        normal: {
-          visible: true,
-          selectedSignals: ["Default"],
-        },
-      },
-    };
-
-    const view = toTypedPanelView(panel);
-
-    expect(view.kind).toBe("graph");
-    if (view.kind !== "graph") throw new Error("expected graph view");
-    expect(view.graphType).toBe("pv-relations");
-    expect(view.instances?.normal?.visible).toBe(true);
-  });
-
   it("can emit legacy config from a typed output view", () => {
     const config = toLegacyPanelConfig(["normal", "ami"], {
       kind: "output",

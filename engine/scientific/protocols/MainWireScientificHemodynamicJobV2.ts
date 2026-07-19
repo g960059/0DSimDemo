@@ -21,6 +21,13 @@ import type {
   MainWireScientificProtocolSourceIdentityV1,
   MainWireScientificVascularFunctionCurveV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
+import type {
+  MainWireScientificTbvSeedInitializationDiagnosticsV1,
+} from "@/engine/scientific/protocols/MainWireScientificTbvContinuationSeedPredictorV1";
+import type {
+  MainWireScientificFastTbvPreviewV1,
+} from "@/engine/scientific/protocols/MainWireScientificFastTbvPreviewV1";
+import { sha256CanonicalJsonHex } from "@/engine/scientific/release/sha256";
 
 export const MAIN_WIRE_SCIENTIFIC_GUYTON_STARLING_PROTOCOL_V2_ID =
   "main-wire-scientific-guyton-starling-protocol-v2" as const;
@@ -59,6 +66,7 @@ export type MainWireScientificPreloadPointProvenanceV2 = Readonly<{
     | "path-dependence-suspect"
     | "audit-failed";
   auditMaximumNormalizedStateDelta: number | null;
+  seedInitialization: MainWireScientificTbvSeedInitializationDiagnosticsV1 | null;
 }>;
 
 export type MainWireScientificPreloadPointEvidenceV2 = Readonly<{
@@ -68,7 +76,7 @@ export type MainWireScientificPreloadPointEvidenceV2 = Readonly<{
 
 export type MainWireScientificGuytonStarlingProtocolResultV2 = Readonly<{
   protocolId: typeof MAIN_WIRE_SCIENTIFIC_GUYTON_STARLING_PROTOCOL_V2_ID;
-  protocolVersion: "2.0.0";
+  protocolVersion: "2.1.0";
   source: MainWireScientificProtocolSourceIdentityV1;
   claim: Readonly<{
     totalBloodVolumeSweepIsOneDimensionalPreloadOperatingLocus: true;
@@ -77,7 +85,7 @@ export type MainWireScientificGuytonStarlingProtocolResultV2 = Readonly<{
     vascularCurveMethod:
       "cycle-mean-fixed-volume-vascular-pv-law-volume-constrained";
     preloadInitialization:
-      "bidirectional-adaptive-continuation-with-sparse-independent-audit";
+      "bidirectional-adaptive-p1-secant-predictor-assisted-continuation-with-sparse-independent-audit";
     frozenAutonomicRenalAndVascularControls: true;
     period2PointsAveragedIntoPeriod1Locus: false;
     interpolationAcrossPeriod2FailureOrUnresolvedBoundary: false;
@@ -86,6 +94,7 @@ export type MainWireScientificGuytonStarlingProtocolResultV2 = Readonly<{
   rightVascularFunction: MainWireScientificVascularFunctionCurveV1;
   leftVascularFunction: MainWireScientificVascularFunctionCurveV1;
   preloadPointEvidence: readonly MainWireScientificPreloadPointEvidenceV2[];
+  fastPreloadPreview: MainWireScientificFastTbvPreviewV1;
   preloadOperatingPoints: readonly MainWireScientificPreloadOperatingPointV1[];
   preloadOperatingLocus: MainWireScientificPreloadOperatingLocusV1;
   exploration: Readonly<{
@@ -108,6 +117,9 @@ export type MainWireScientificHemodynamicJobStatusV2 =
 
 export type MainWireScientificHemodynamicJobStageV2 =
   | "vascular-ready"
+  | "near-steady-preview"
+  | "preview-and-continuation"
+  | "preview-ready"
   | "continuation"
   | "independent-audit"
   | "complete"
@@ -128,11 +140,14 @@ export type MainWireScientificHemodynamicJobSnapshotV2 = Readonly<{
   rightVascularFunction: MainWireScientificVascularFunctionCurveV1;
   leftVascularFunction: MainWireScientificVascularFunctionCurveV1;
   preloadPointEvidence: readonly MainWireScientificPreloadPointEvidenceV2[];
+  fastPreloadPreview: MainWireScientificFastTbvPreviewV1;
   progress: Readonly<{
     completedPointCount: number;
     plannedPointCountLowerBound: number;
     activeDirections: readonly MainWireScientificPreloadSweepDirectionV2[];
     completedBeatCount: number;
+    fastPreviewCompletedPointCount: number;
+    fastPreviewPlannedPointCount: number;
   }>;
   result: MainWireScientificGuytonStarlingProtocolResultV2 | null;
   errorMessage: string | null;
@@ -162,3 +177,17 @@ export type MainWireScientificHemodynamicJobCapsuleV2 = Readonly<{
   pericardium: MainWireCommonPericardiumBindingV1;
   calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
 }>;
+
+export async function mainWireScientificHemodynamicJobSourceFingerprintV2(
+  capsule: MainWireScientificHemodynamicJobCapsuleV2,
+): Promise<string> {
+  return sha256CanonicalJsonHex({
+    schemaId: "main-wire-scientific-hemodynamic-job-source-fingerprint-v2",
+    source: capsule.source,
+    providerIdentity: capsule.providerIdentity,
+    transactionCheckpoint: capsule.transactionCheckpoint,
+    runtime: capsule.runtime,
+    pericardium: capsule.pericardium,
+    calciumDriveParams: capsule.calciumDriveParams,
+  });
+}

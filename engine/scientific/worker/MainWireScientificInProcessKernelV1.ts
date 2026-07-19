@@ -388,8 +388,6 @@ export class MainWireScientificInProcessKernelV1 {
         return this.pollGuytonStarlingProtocolJob(command);
       case "cancelGuytonStarlingProtocolJob":
         return this.cancelGuytonStarlingProtocolJob(command);
-      case "runPvRelationsProtocol":
-        return this.runPvRelationsProtocol(command);
     }
   }
 
@@ -1330,39 +1328,6 @@ export class MainWireScientificInProcessKernelV1 {
         observableFrame: project(session),
       }),
     );
-  }
-
-  private runPvRelationsProtocol(
-    command: Extract<ScientificCommandV1, {
-      kind: "runPvRelationsProtocol";
-    }>,
-  ): MainWireScientificCommandResponseV1 {
-    const session = this.sessions.get(command.sessionId);
-    if (session === undefined) return unknownSession(command);
-    const sessionOrigin = this.requiredSessionOrigin(command.sessionId);
-    const before = session.stateIdentity();
-    try {
-      const result = session.runPvRelationsProtocolV1();
-      const after = session.stateIdentity();
-      assertSameStateIdentity(before, after, "PV relations protocol");
-      return successResponse(
-        command,
-        session.releaseRef,
-        sessionOrigin,
-        Object.freeze({
-          kind: "pvRelationsProtocolCompleted" as const,
-          result,
-          sourceSessionUnchanged: true as const,
-          observableFrame: project(session),
-        }),
-      );
-    } catch (error) {
-      return errorResponseForCommand(
-        command,
-        "command-failed",
-        errorMessage(error),
-      );
-    }
   }
 
   private sessionAllocationError(

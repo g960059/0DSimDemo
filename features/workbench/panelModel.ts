@@ -17,7 +17,6 @@ export function createDefaultPanelConfig(
 
 export function titleForPanelType(type: PanelType): string {
   if (type === "PVLOOP") return "PV Loop";
-  if (type === "PV_RELATIONS") return "ESPVR / EDPVR";
   if (type === "WAVEFORM") return "Waveforms";
   if (type === "METRICS") return "Metrics";
   if (type === "SCENARIOS") return "Scenarios";

@@ -29,7 +29,6 @@ import type {
 } from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 import type {
   MainWireScientificGuytonStarlingProtocolResultV1,
-  MainWireScientificPvRelationsProtocolResultV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import type {
   MainWireScientificHemodynamicJobSnapshotV2,
@@ -57,7 +56,6 @@ export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "startGuytonStarlingProtocolJob",
   "pollGuytonStarlingProtocolJob",
   "cancelGuytonStarlingProtocolJob",
-  "runPvRelationsProtocol",
 ] as const);
 
 export type ScientificCommandKindV1 =
@@ -185,9 +183,6 @@ export type CancelGuytonStarlingProtocolJobCommandV2 =
     jobId: string;
   }>;
 
-export type RunPvRelationsProtocolCommandV1 =
-  CommandBaseV1<"runPvRelationsProtocol">;
-
 export type ScientificCommandV1 =
   | CreateCanonicalSessionCommandV1
   | CreateResolvedSessionCommandV1
@@ -205,8 +200,7 @@ export type ScientificCommandV1 =
   | RunGuytonStarlingProtocolCommandV1
   | StartGuytonStarlingProtocolJobCommandV2
   | PollGuytonStarlingProtocolJobCommandV2
-  | CancelGuytonStarlingProtocolJobCommandV2
-  | RunPvRelationsProtocolCommandV1;
+  | CancelGuytonStarlingProtocolJobCommandV2;
 
 export type ScientificCommandErrorCodeV1 =
   | "invalid-command"
@@ -504,12 +498,6 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
     cancelGuytonStarlingProtocolJob: Readonly<{
       kind: "guytonStarlingProtocolJobCancelled";
       snapshot: MainWireScientificHemodynamicJobSnapshotV2;
-      sourceSessionUnchanged: true;
-      observableFrame: TObservableFrame;
-    }>;
-    runPvRelationsProtocol: Readonly<{
-      kind: "pvRelationsProtocolCompleted";
-      result: MainWireScientificPvRelationsProtocolResultV1;
       sourceSessionUnchanged: true;
       observableFrame: TObservableFrame;
     }>;
