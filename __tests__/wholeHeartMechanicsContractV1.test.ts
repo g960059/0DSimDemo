@@ -4,9 +4,12 @@ import {
   WHOLE_HEART_MECHANICS_OWNERSHIP_V1,
   checkpointWholeHeartMechanicsStateV1,
   cloneWholeHeartMechanicsAcceptedStateV1,
+  commitPreparedWholeHeartMechanicsTrialV1,
   commitWholeHeartMechanicsTrialV1,
+  evaluatePreparedWholeHeartMechanicsTrialV1,
   evaluateWholeHeartMechanicsTrialV1,
   initializeWholeHeartMechanicsColdV1,
+  prepareWholeHeartMechanicsStepV1,
   restoreWholeHeartMechanicsStateV1,
   type WholeHeartMechanicsChamberValuesV1,
   type WholeHeartMechanicsDiagnosticsV1,
@@ -171,6 +174,167 @@ describe("whole-heart mechanics transaction contract v1", () => {
       accepted,
       { LA: 70, LV: 125, RA: 65, RV: 110 },
     )).toThrow(/LV\.RV must be finite/);
+  });
+
+  it("keeps the prepared path exactly equal to the checked path over a trajectory", () => {
+    const checkedProvider = testProvider();
+    const preparedProvider = testProvider();
+    let checked = coldStart(checkedProvider).acceptedState;
+    let prepared = coldStart(preparedProvider).acceptedState;
+    const volumes = [
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+      { LA: 70, LV: 127, RA: 65, RV: 108 },
+      { LA: 68, LV: 122, RA: 63, RV: 112 },
+      { LA: 71, LV: 129, RA: 66, RV: 109 },
+    ] as const;
+
+    for (const candidateVolumesMl of volumes) {
+      const candidateTimeSec = checked.acceptedTimeSec + 0.002;
+      const checkedTrial = evaluateWholeHeartMechanicsTrialV1(checkedProvider, {
+        previousAcceptedState: checked,
+        candidateTimeSec,
+        stepDtSec: 0.002,
+        candidateVolumesMl,
+        drivingInputs: drive(),
+      });
+      const preparedStep = prepareWholeHeartMechanicsStepV1(preparedProvider, {
+        previousAcceptedState: prepared,
+        candidateTimeSec,
+        stepDtSec: 0.002,
+        drivingInputs: drive(),
+      });
+      const preparedTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
+        preparedStep,
+        candidateVolumesMl,
+      );
+
+      expect(preparedTrial).toEqual(checkedTrial);
+      checked = commitWholeHeartMechanicsTrialV1(
+        checkedProvider,
+        checked,
+        checkedTrial,
+      );
+      prepared = commitPreparedWholeHeartMechanicsTrialV1(
+        preparedStep,
+        preparedTrial,
+      );
+      expect(prepared).toEqual(checked);
+    }
+  });
+
+  it("isolates a prepared baseline and still rejects candidate mutation", () => {
+    const provider = testProvider();
+    const accepted = coldStart(provider).acceptedState;
+    const originalLand0 = accepted.materialState.landState[0];
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+
+    // The checked context owns a private snapshot, so later caller mutation
+    // cannot change Newton candidates belonging to this already-open step.
+    accepted.materialState.landState[0] = 999;
+    const first = evaluatePreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      { LA: 70, LV: 125, RA: 65, RV: 110 },
+    );
+    const repeated = evaluatePreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      { LA: 70, LV: 125, RA: 65, RV: 110 },
+    );
+    expect(first).toEqual(repeated);
+    expect(first.candidateMaterialState.landState[0]).toBeCloseTo(
+      originalLand0 + 0.002 * 0.6,
+      15,
+    );
+
+    first.candidateMaterialState.landState[0] = 1234;
+    expect(() => commitPreparedWholeHeartMechanicsTrialV1(preparedStep, first))
+      .toThrow(/fingerprint mismatch/);
+    expect(() => prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    })).toThrow(/fingerprint mismatch/);
+  });
+
+  it("audits the accepted snapshot once instead of once per Newton candidate", () => {
+    const baseProvider = testProvider();
+    const baseCodec = baseProvider.stateCodec;
+    let encodeCount = 0;
+    const provider: TestProvider = {
+      ...baseProvider,
+      stateCodec: {
+        clone: baseCodec.clone,
+        encode: (state) => {
+          encodeCount += 1;
+          return baseCodec.encode(state);
+        },
+        decode: baseCodec.decode,
+      },
+    };
+    const accepted = coldStart(provider).acceptedState;
+    encodeCount = 0;
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: drive(),
+    });
+    const first = evaluatePreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      { LA: 69, LV: 124, RA: 64, RV: 110 },
+    );
+    evaluatePreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      { LA: 70, LV: 127, RA: 65, RV: 108 },
+    );
+    commitPreparedWholeHeartMechanicsTrialV1(preparedStep, first);
+
+    // One accepted audit, one encoding per candidate result, and one final
+    // candidate mutation audit. No accepted-state re-encoding per candidate.
+    expect(encodeCount).toBe(4);
+  });
+
+  it("isolates mutable future drive payloads through the provider clone hook", () => {
+    const base = testProvider();
+    const provider: TestProvider = {
+      ...base,
+      cloneDrivingInputs: (input) => ({
+        calciumUM: { ...input.calciumUM },
+        ...(input.fail === undefined ? {} : { fail: input.fail }),
+      }),
+      evaluateTrial: (input) => {
+        const result = base.evaluateTrial(input);
+        (input.drivingInputs.calciumUM as { LA: number }).LA = 999;
+        return result;
+      },
+    };
+    const accepted = coldStart(provider).acceptedState;
+    const mutableDrive = drive();
+    const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+      previousAcceptedState: accepted,
+      candidateTimeSec: 0.002,
+      stepDtSec: 0.002,
+      drivingInputs: mutableDrive,
+    });
+    (mutableDrive.calciumUM as { LA: number }).LA = 123;
+
+    const volumes = { LA: 69, LV: 124, RA: 64, RV: 110 };
+    const first = evaluatePreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      volumes,
+    );
+    const repeated = evaluatePreparedWholeHeartMechanicsTrialV1(
+      preparedStep,
+      volumes,
+    );
+
+    expect(repeated).toEqual(first);
+    expect(first.candidateMaterialState.landState[0]).toBeCloseTo(0.0012, 15);
   });
 });
 
