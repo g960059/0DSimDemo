@@ -22,8 +22,12 @@ import {
   MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2,
   MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V2,
   assessMainWireFiveWallCoronarySinglePeriodClosureV2,
+  classifyMainWireFiveWallCoronaryPeriodicityV2,
   compareMainWireFiveWallCoronaryAcceptedStatesV2,
   type MainWireFiveWallCoronaryPeriodicAcceptedStateV2,
+  type MainWireFiveWallCoronaryPeriodicBeatObservationV2,
+  type MainWireFiveWallCoronaryPeriodicClosureReportV2,
+  type MainWireFiveWallCoronaryPeriodicEvidenceRoleV2,
 } from "@/engine/myocardium/experiments/MainWireFiveWallCoronaryPeriodicClosureV2";
 import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
@@ -259,6 +263,144 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV2", () => {
       },
     )).toThrow(/must be positive/);
   });
+
+  it("classifies P1 only after three consecutive complete V2 closures", () => {
+    const classification = classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(6, closureReport(8e-4), null),
+      observation(7, closureReport(7e-4), null),
+      observation(8, closureReport(6e-4), null),
+    ], CLASSIFIER_OPTIONS);
+
+    expect(classification.status).toBe("period1-converged");
+    expect(classification.evidenceBeatIndices).toEqual([6, 7, 8]);
+    expect(classification.minimumConsecutiveBeats).toBe(3);
+    expect(classification.acceptedEvidenceRole)
+      .toBe("canonical-periodic-protocol");
+    expect(classification.latestPeriod1MaximumNormalizedDelta)
+      .toBeCloseTo(6e-4, 12);
+  });
+
+  it("does not promote two beats, nonconsecutive beats, or the rapid presentation lane", () => {
+    const twoBeat = classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(2, closureReport(5e-4), null),
+      observation(3, closureReport(4e-4), null),
+    ], CLASSIFIER_OPTIONS);
+    expect(twoBeat.status).toBe("not-converged");
+    expect(twoBeat.evidenceBeatIndices).toEqual([]);
+
+    const nonconsecutive = classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(2, closureReport(5e-4), null),
+      observation(4, closureReport(4e-4), null),
+      observation(5, closureReport(3e-4), null),
+    ], CLASSIFIER_OPTIONS);
+    expect(nonconsecutive.status).toBe("not-converged");
+
+    const rapid = classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(1, closureReport(5e-4), null, "rapid-presentation-only"),
+      observation(2, closureReport(4e-4), null, "rapid-presentation-only"),
+      observation(3, closureReport(3e-4), null, "rapid-presentation-only"),
+      observation(4, closureReport(2e-4), null, "rapid-presentation-only"),
+      observation(5, closureReport(1e-4), null, "rapid-presentation-only"),
+    ], { ...CLASSIFIER_OPTIONS, consecutiveBeats: 5 });
+    expect(rapid.status).toBe("not-converged");
+    expect(rapid.evidenceBeatIndices).toEqual([]);
+    expect(MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2
+      .minimumConsecutiveClassificationBeats).toBe(3);
+  });
+
+  it("rejects P1 when a hidden coronary owner drifts despite identical legacy state", () => {
+    const hiddenPhaseDrift = closureReport(0, { mitralPhaseMismatch: true });
+    expect(hiddenPhaseDrift.legacyClosure.overall.maximumNormalizedDelta)
+      .toBe(0);
+    expect(hiddenPhaseDrift.overall.maximumNormalizedDelta).toBe(1);
+    const classification = classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(10, closureReport(4e-4), null),
+      observation(11, hiddenPhaseDrift, null),
+      observation(12, closureReport(3e-4), null),
+    ], CLASSIFIER_OPTIONS);
+
+    expect(classification.status).toBe("not-converged");
+    expect(classification.evidenceBeatIndices).toEqual([]);
+  });
+
+  it("classifies P2 with persistent P1 separation and rejects invalid classifier policy", () => {
+    const p2 = classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(20, closureReport(0.020), closureReport(8e-4)),
+      observation(21, closureReport(0.018), closureReport(7e-4)),
+      observation(22, closureReport(0.016), closureReport(6e-4)),
+    ], CLASSIFIER_OPTIONS);
+    expect(p2.status).toBe("period2-suspect");
+    expect(p2.evidenceBeatIndices).toEqual([20, 21, 22]);
+
+    const insufficientP1Separation =
+      classifyMainWireFiveWallCoronaryPeriodicityV2([
+        observation(20, closureReport(0.006), closureReport(8e-4)),
+        observation(21, closureReport(0.005), closureReport(7e-4)),
+        observation(22, closureReport(0.004), closureReport(6e-4)),
+      ], CLASSIFIER_OPTIONS);
+    expect(insufficientP1Separation.status).toBe("not-converged");
+
+    expect(() => classifyMainWireFiveWallCoronaryPeriodicityV2([], {
+      ...CLASSIFIER_OPTIONS,
+      consecutiveBeats: 2,
+    })).toThrow(/at least 3 consecutive beats/);
+    expect(() => classifyMainWireFiveWallCoronaryPeriodicityV2([], {
+      ...CLASSIFIER_OPTIONS,
+      period2MinimumPeriod1NormalizedDelta: 1e-3,
+    })).toThrow(/must exceed period1NormalizedTolerance/);
+
+    expect(() => classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(1, closureReport(5e-4), null),
+      observation(2, closureReport(4e-4, {
+        parameterIdentityHash: "other-model",
+      }), null),
+      observation(3, closureReport(3e-4), null),
+    ], CLASSIFIER_OPTIONS)).toThrow(/incompatible model identities/);
+  });
+
+  it("rejects mixed protocol capsules and mismatched P1/P2 current provenance", () => {
+    expect(() => classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(1, closureReport(5e-4), null),
+      observation(
+        2,
+        closureReport(4e-4),
+        null,
+        "canonical-periodic-protocol",
+        OTHER_PROTOCOL_IDENTITY_HASH,
+      ),
+      observation(3, closureReport(3e-4), null),
+    ], CLASSIFIER_OPTIONS)).toThrow(/different protocol identity hashes/);
+
+    expect(() => classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(
+        1,
+        closureReport(5e-4),
+        null,
+        "canonical-periodic-protocol",
+        "",
+      ),
+    ], CLASSIFIER_OPTIONS)).toThrow(/must be lowercase SHA-256/);
+
+    expect(() => classifyMainWireFiveWallCoronaryPeriodicityV2([
+      observation(
+        1,
+        closureReport(0.02),
+        closureReport(5e-4, {
+          currentRevision: 301,
+          currentTimeSec: 3.01,
+        }),
+      ),
+    ], CLASSIFIER_OPTIONS)).toThrow(/current provenance differs/);
+  });
+});
+
+const PROTOCOL_IDENTITY_HASH = "a".repeat(64);
+const OTHER_PROTOCOL_IDENTITY_HASH = "b".repeat(64);
+const CLASSIFIER_OPTIONS = Object.freeze({
+  period1NormalizedTolerance: 1e-3,
+  period2NormalizedTolerance: 1e-3,
+  period2MinimumPeriod1NormalizedDelta: 1e-2,
+  consecutiveBeats: 3,
 });
 
 type StateOptions = Readonly<{
@@ -433,5 +575,49 @@ function wallState() {
     slsState: Object.freeze({ viscousLogStrain: 0.01 }),
     previousFiberLogStrain: 0.01,
     previousFreeCalciumUM: 0.1,
+  });
+}
+
+function closureReport(
+  maximumNormalizedDelta: number,
+  options: Readonly<{
+    mitralPhaseMismatch?: boolean;
+    parameterIdentityHash?: string;
+    currentRevision?: number;
+    currentTimeSec?: number;
+  }> = {},
+): MainWireFiveWallCoronaryPeriodicClosureReportV2 {
+  const identity = options.parameterIdentityHash ?? "same-provider-parameters";
+  return compareMainWireFiveWallCoronaryAcceptedStatesV2(
+    acceptedState({
+      revision: options.currentRevision ?? 300,
+      timeSec: options.currentTimeSec ?? 3,
+      parameterIdentityHash: identity,
+      ladSubepicardialTone: 1 + maximumNormalizedDelta,
+      mitralForwardFlowActive: options.mitralPhaseMismatch ?? false,
+    }),
+    acceptedState({
+      revision: 200,
+      timeSec: 2,
+      parameterIdentityHash: identity,
+    }),
+    MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V2,
+  );
+}
+
+function observation(
+  beatIndex: number,
+  period1: MainWireFiveWallCoronaryPeriodicClosureReportV2 | null,
+  period2: MainWireFiveWallCoronaryPeriodicClosureReportV2 | null,
+  evidenceRole: MainWireFiveWallCoronaryPeriodicEvidenceRoleV2 =
+    "canonical-periodic-protocol",
+  protocolIdentityHash = PROTOCOL_IDENTITY_HASH,
+): MainWireFiveWallCoronaryPeriodicBeatObservationV2 {
+  return Object.freeze({
+    beatIndex,
+    evidenceRole,
+    protocolIdentityHash,
+    period1,
+    period2,
   });
 }

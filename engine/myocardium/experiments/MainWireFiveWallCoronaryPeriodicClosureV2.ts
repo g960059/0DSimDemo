@@ -62,6 +62,13 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2 =
     rapidSettlingBeatRange: Object.freeze([2, 5] as const),
     rapidSettlingEvidenceRole: "presentation-only" as const,
     rapidSettlingCanEstablishP1: false as const,
+    classifierAcceptedEvidenceRole:
+      "canonical-periodic-protocol" as const,
+    classifierProtocolIdentityGate:
+      "exact-lowercase-sha256-source-or-job-capsule" as const,
+    period1Period2CurrentProvenanceGate:
+      "exact-within-each-observation" as const,
+    minimumConsecutiveClassificationBeats: 3 as const,
     p1EvidenceBoundary:
       "separate-consecutive-beat-classification-over-complete-v2-closure-reports" as const,
     singlePeriodComparisonCanEstablishP1: false as const,
@@ -212,6 +219,44 @@ export type MainWireFiveWallCoronarySinglePeriodAssessmentV2 = Readonly<{
   reason:
     | "full-accepted-state-drift-exceeds-tolerance"
     | "single-period-comparison-requires-separate-consecutive-beat-evidence";
+}>;
+
+export type MainWireFiveWallCoronaryPeriodicEvidenceRoleV2 =
+  | "canonical-periodic-protocol"
+  | "rapid-presentation-only";
+
+export type MainWireFiveWallCoronaryPeriodicBeatObservationV2 = Readonly<{
+  beatIndex: number;
+  evidenceRole: MainWireFiveWallCoronaryPeriodicEvidenceRoleV2;
+  /** Stable digest of runtime, disease, pericardium, calcium, and valve inputs. */
+  protocolIdentityHash: string;
+  period1: MainWireFiveWallCoronaryPeriodicClosureReportV2 | null;
+  period2: MainWireFiveWallCoronaryPeriodicClosureReportV2 | null;
+}>;
+
+export type MainWireFiveWallCoronaryPeriodicClassificationStatusV2 =
+  | "period1-converged"
+  | "period2-suspect"
+  | "not-converged";
+
+export type MainWireFiveWallCoronaryPeriodicClassifierOptionsV2 = Readonly<{
+  period1NormalizedTolerance: number;
+  period2NormalizedTolerance: number;
+  /** Alternating endpoints must remain at least this far apart over P1. */
+  period2MinimumPeriod1NormalizedDelta: number;
+  /** Must be at least three; rapid-presentation observations never qualify. */
+  consecutiveBeats: number;
+}>;
+
+export type MainWireFiveWallCoronaryPeriodicClassificationV2 = Readonly<{
+  status: MainWireFiveWallCoronaryPeriodicClassificationStatusV2;
+  latestBeatIndex: number | null;
+  consecutiveBeatsRequired: number;
+  minimumConsecutiveBeats: 3;
+  acceptedEvidenceRole: "canonical-periodic-protocol";
+  evidenceBeatIndices: readonly number[];
+  latestPeriod1MaximumNormalizedDelta: number | null;
+  latestPeriod2MaximumNormalizedDelta: number | null;
 }>;
 
 const LEGACY_GROUP_ORDER = Object.freeze([
@@ -412,6 +457,56 @@ export function assessMainWireFiveWallCoronarySinglePeriodClosureV2(
     reason: within
       ? "single-period-comparison-requires-separate-consecutive-beat-evidence" as const
       : "full-accepted-state-drift-exceeds-tolerance" as const,
+  });
+}
+
+/**
+ * Classify complete V2 beat-boundary closures. Unlike the standalone drift
+ * assessment, this can establish P1, but only from at least three consecutive
+ * canonical-periodic observations. Rapid presentation beats are deliberately
+ * ineligible even when their numerical deltas happen to be small.
+ */
+export function classifyMainWireFiveWallCoronaryPeriodicityV2(
+  observations: readonly MainWireFiveWallCoronaryPeriodicBeatObservationV2[],
+  options: MainWireFiveWallCoronaryPeriodicClassifierOptionsV2,
+): MainWireFiveWallCoronaryPeriodicClassificationV2 {
+  validateClassifierOptions(options);
+  validateObservations(observations);
+  const latest = observations.at(-1);
+  const suffix = observations.slice(-options.consecutiveBeats);
+  const enough = suffix.length === options.consecutiveBeats
+    && suffix.every((observation, index) => index === 0
+      || observation.beatIndex === suffix[index - 1]!.beatIndex + 1)
+    && suffix.every((observation) => observation.evidenceRole
+      === "canonical-periodic-protocol");
+  const period1 = enough && suffix.every((observation) =>
+    observation.period1 !== null
+    && observation.period1.overall.maximumNormalizedDelta
+      <= options.period1NormalizedTolerance);
+  const period2 = !period1 && enough && suffix.every((observation) =>
+    observation.period1 !== null
+    && observation.period2 !== null
+    && observation.period1.overall.maximumNormalizedDelta
+      >= options.period2MinimumPeriod1NormalizedDelta
+    && observation.period2.overall.maximumNormalizedDelta
+      <= options.period2NormalizedTolerance);
+  const status: MainWireFiveWallCoronaryPeriodicClassificationStatusV2 =
+    period1
+      ? "period1-converged"
+      : period2 ? "period2-suspect" : "not-converged";
+  return Object.freeze({
+    status,
+    latestBeatIndex: latest?.beatIndex ?? null,
+    consecutiveBeatsRequired: options.consecutiveBeats,
+    minimumConsecutiveBeats: 3 as const,
+    acceptedEvidenceRole: "canonical-periodic-protocol" as const,
+    evidenceBeatIndices: status === "not-converged"
+      ? Object.freeze([])
+      : Object.freeze(suffix.map((observation) => observation.beatIndex)),
+    latestPeriod1MaximumNormalizedDelta:
+      latest?.period1?.overall.maximumNormalizedDelta ?? null,
+    latestPeriod2MaximumNormalizedDelta:
+      latest?.period2?.overall.maximumNormalizedDelta ?? null,
   });
 }
 
@@ -724,6 +819,134 @@ function validateScales(
       requirePositiveFinite(value as number, `periodic reference scale ${name}`);
     }
   }
+}
+
+function validateClassifierOptions(
+  options: MainWireFiveWallCoronaryPeriodicClassifierOptionsV2,
+): void {
+  for (const [name, value] of Object.entries({
+    period1NormalizedTolerance: options.period1NormalizedTolerance,
+    period2NormalizedTolerance: options.period2NormalizedTolerance,
+    period2MinimumPeriod1NormalizedDelta:
+      options.period2MinimumPeriod1NormalizedDelta,
+  })) {
+    if (!Number.isFinite(value) || value < 0) {
+      throw new Error(`${name} must be nonnegative and finite`);
+    }
+  }
+  if (
+    !Number.isInteger(options.consecutiveBeats)
+    || options.consecutiveBeats
+      < MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2
+        .minimumConsecutiveClassificationBeats
+  ) {
+    throw new Error("coronary V2 classifier requires at least 3 consecutive beats");
+  }
+  if (
+    options.period2MinimumPeriod1NormalizedDelta
+    <= options.period1NormalizedTolerance
+  ) {
+    throw new Error(
+      "period2MinimumPeriod1NormalizedDelta must exceed period1NormalizedTolerance",
+    );
+  }
+}
+
+function validateObservations(
+  observations: readonly MainWireFiveWallCoronaryPeriodicBeatObservationV2[],
+): void {
+  let previousBeatIndex = -1;
+  let referenceScaleSetId: string | null = null;
+  let compatibilityCanonicalJson: string | null = null;
+  let protocolIdentityHash: string | null = null;
+  for (const observation of observations) {
+    if (!Number.isInteger(observation.beatIndex) || observation.beatIndex < 0) {
+      throw new Error("coronary V2 beatIndex must be a nonnegative integer");
+    }
+    if (observation.beatIndex <= previousBeatIndex) {
+      throw new Error(
+        "coronary V2 observations must have strictly increasing beatIndex",
+      );
+    }
+    previousBeatIndex = observation.beatIndex;
+    if (
+      observation.evidenceRole !== "canonical-periodic-protocol"
+      && observation.evidenceRole !== "rapid-presentation-only"
+    ) throw new Error("unsupported coronary V2 periodic evidence role");
+    if (!/^[0-9a-f]{64}$/.test(observation.protocolIdentityHash)) {
+      throw new Error(
+        "coronary V2 protocolIdentityHash must be lowercase SHA-256",
+      );
+    }
+    protocolIdentityHash ??= observation.protocolIdentityHash;
+    if (observation.protocolIdentityHash !== protocolIdentityHash) {
+      throw new Error(
+        "coronary V2 observations use different protocol identity hashes",
+      );
+    }
+    for (const report of [observation.period1, observation.period2]) {
+      if (report === null) continue;
+      validateClosureReport(report);
+      referenceScaleSetId ??= report.referenceScaleSetId;
+      if (report.referenceScaleSetId !== referenceScaleSetId) {
+        throw new Error(
+          "coronary V2 observations use different reference scale sets",
+        );
+      }
+      const reportCompatibility = canonicalJsonStringify(report.compatibility);
+      compatibilityCanonicalJson ??= reportCompatibility;
+      if (reportCompatibility !== compatibilityCanonicalJson) {
+        throw new Error(
+          "coronary V2 observations use incompatible model identities",
+        );
+      }
+    }
+    if (
+      observation.period1 !== null
+      && observation.period2 !== null
+      && currentProvenanceCanonicalJson(observation.period1)
+        !== currentProvenanceCanonicalJson(observation.period2)
+    ) {
+      throw new Error(
+        "coronary V2 period1 and period2 current provenance differs",
+      );
+    }
+  }
+}
+
+function currentProvenanceCanonicalJson(
+  report: MainWireFiveWallCoronaryPeriodicClosureReportV2,
+): string {
+  return canonicalJsonStringify(Object.freeze({
+    currentRevision: report.provenance.currentRevision,
+    currentAcceptedTimeSec: report.provenance.currentAcceptedTimeSec,
+    currentMvcReferenceRevision:
+      report.provenance.currentMvcReferenceRevision,
+    currentMvcReferenceAcceptedTimeSec:
+      report.provenance.currentMvcReferenceAcceptedTimeSec,
+    currentMitralClosureEventCount:
+      report.provenance.currentMitralClosureEventCount,
+  }));
+}
+
+function validateClosureReport(
+  report: MainWireFiveWallCoronaryPeriodicClosureReportV2,
+): void {
+  if (report.closureId
+      !== MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_V2_ID) {
+    throw new Error("unsupported coronary V2 periodic closure report");
+  }
+  if (
+    report.overall.legacyNumericEntryCount !== 68
+    || report.overall.coronaryNumericEntryCount !== 25
+    || report.overall.numericEntryCount !== 93
+    || report.overall.booleanEntryCount !== 1
+    || report.overall.entryCount !== 94
+  ) throw new Error("coronary V2 closure report state dimension is invalid");
+  if (
+    !Number.isFinite(report.overall.maximumNormalizedDelta)
+    || report.overall.maximumNormalizedDelta < 0
+  ) throw new Error("coronary V2 closure delta must be nonnegative and finite");
 }
 
 function assertExactKeys(
