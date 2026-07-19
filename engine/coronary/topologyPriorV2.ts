@@ -526,7 +526,7 @@ export type CoronaryColdConstructionSeedV2 = Readonly<{
   priorFingerprint: string;
   volumeMlByNode: CoronaryConservedVolumeRecordV2<number>;
   initialToneResistanceScaleByTerritoryLayer: CoronaryToneStateV2;
-}>; 
+}>;
 
 const REFERENCE_VENTRICULAR_MYOCARDIAL_MASS_G =
   Object.values(
