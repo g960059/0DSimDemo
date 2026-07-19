@@ -40,6 +40,7 @@ import {
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
+  createCanonicalMainWireNormalAdultFiveWallProviderV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
   createMainWireNormalAdultCommonPericardiumV1,
@@ -343,6 +344,43 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(stepped.mvcReferenceCommitted).toBe(false);
     expect(JSON.stringify(stepped.rollbackState)).toBe(before);
     expect(JSON.stringify(cold.acceptedState)).toBe(before);
+  }, 60_000);
+
+  it("advances the canonical Moyer/Klotz + full Land/SLS + membrane TriSeg provider", () => {
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    const runtime = Object.freeze({
+      ...RUNTIME,
+      respiratory: Object.freeze({ ...RUNTIME.respiratory, Pth0: 0 }),
+    });
+    const pericardium = createMainWireNormalAdultCommonPericardiumV1();
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+    });
+    const stepped = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.002,
+        runtime,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium,
+      },
+    );
+
+    expect(stepped.converged).toBe(true);
+    if (stepped.converged === false) throw new Error(stepped.message);
+    expect(stepped.mechanicsTrial.diagnostics.converged).toBe(true);
+    expect(stepped.coronaryTrial.diagnostics.converged).toBe(true);
+    expect(stepped.circulationTrial.diagnostics.totalBloodVolumeErrorMl)
+      .toBeCloseTo(0, 9);
+    expect(stepped.coronaryTrial.diagnostics.exactBloodVolumeLedgerResidualMl)
+      .toBeCloseTo(0, 9);
+    expect(Object.values(
+      stepped.intramyocardialPressureMmHgByTerritoryLayer.LAD,
+    ).every(Number.isFinite)).toBe(true);
   }, 60_000);
 });
 
