@@ -47,6 +47,14 @@ accepted coronary state, and its IMP/SIP boundary is recomputed from that
 probe's same-candidate chamber mechanics. No coronary candidate, boundary, or
 tone state is cached across probes.
 
+The foundational prepared-mechanics patch is patch-equivalent to PR #483
+commit `320aa28` (carried here as `4f3e4b5`). This branch adds exact-context,
+one-shot capability hardening on top. It does not import PR #483's V1
+vascular-only seed predictor, rapid thresholds, 68-state closure, or browser
+latency claim. Conversely, the 66.9% V2 step-time reduction below also includes
+the implicit coronary sensitivity and exact-zero direction elision and must
+not be attributed to the prepared context alone.
+
 The rapid two-to-five-beat TBV path remains presentation-only evidence. When
 the V2 coronary transaction enters the scientific runtime, rapid refinement
 must include all 31 blood-volume owners, six tone states, and accepted MVC
@@ -81,6 +89,14 @@ development profile, not a supported-hardware claim, and it remains too slow
 to reuse PR #483's ten-second multi-target rapid-preview budget. V2 browser
 adoption therefore remains gated on further solver work and independent
 end-to-end measurement.
+
+The canonical V2 cold-start runner subsequently reached complete 94-entry P1
+at beat 27 for both 2-ms and 1-ms integration, requiring 13,500/13,500 and
+27,000/27,000 atomic commits respectively. The last three accepted boundaries
+(beats 25--27) all passed; neither run was classified as P2. Wall times were
+159.6 s and 295.8 s on the same local machine. These are canonical scientific
+execution measurements, not browser latency targets. Separate within-dt P1
+does not by itself establish cross-dt state or waveform agreement.
 
 ## Profile result
 

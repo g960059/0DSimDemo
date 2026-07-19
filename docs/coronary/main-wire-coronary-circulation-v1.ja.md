@@ -2387,6 +2387,28 @@ compatibility gateとする。accepted time / revision / MVC event countは周�
 P1は、同じSHA-256 protocol capsuleに属するcomplete V2 reportが3拍連続して許容値内にある時だけ成立する。
 protocol capsuleはruntime、calcium、pericardium、valve、coronary disease / prior / collapse / IMP、provider identity、dt、solver policyを
 束縛しなければならない。単一比較、2拍だけの比較、rapid-presentation lane、旧68 stateだけの一致はP1 evidenceにならない。
-このclassifierとatomic stepが実装済みでも、healthy periodic orbit自体はまだ未提示である。長時間P1、2--1 ms refinement、
-pressure-step、hyperemia / CFR、狭窄 / CMD direction、site-matched LAD / coronary venous morphologyを通すまで
+classifier単体はSHA-256文字列の形式と同一性を検査し、capsule preimageとの対応はcanonical runnerがsource protocolからhashを
+生成することで保証する。さらに連続observation間で、前拍P1 currentと次拍P1 reference、前拍P1 referenceと次拍P2 referenceが
+exactに連鎖することを要求する。外部で組み立てたclosure reportを、runner由来のcanonical evidenceと同一視しない。
+
+### 29.3 canonical cold-start P1実行
+
+ordinary atomic stepだけを用い、最大32拍、P1 tolerance $10^{-3}$、3拍連続を条件としてstrict runnerを実行した。
+時刻はinteger step countを正準とし、全ownerのaccepted clockはexact equalityを要求する。期待cycle timeとの差だけは、固定EPS幅ではなく
+sequential floating-point additionのHigham $\gamma_n$ boundで検査する。固定幅では2 ms実行の3拍目に約
+$1.09\times10^{-13}$ sの正常な丸め誤差を誤拒否したためである。
+
+| dt | steps/beat | P1成立拍 | commit | terminal P1 max | worst group / path | coronary-volume max | circulation-volume max | P2 max | wall time |
+|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| 2 ms | 500 | 27（evidence 25--27） | 13,500 / 13,500 | $5.6078\times10^{-4}$ | SLS / LA viscous strain | $8.5022\times10^{-5}$ | $3.3515\times10^{-4}$ | $1.2498\times10^{-3}$ | 159.6 s |
+| 1 ms | 1,000 | 27（evidence 25--27） | 27,000 / 27,000 | $5.6168\times10^{-4}$ | SLS / LA viscous strain | $8.3619\times10^{-5}$ | $3.2693\times10^{-4}$ | $1.2515\times10^{-3}$ | 295.8 s |
+
+両runともfixed global TBVは5600 mL、atomic failureなし、P2 suspectなしであった。2 ms cold startではP1 maxが1拍目
+1.315、3拍目0.210、10拍目0.0634へ低下し、2--5拍をsteadyとみなせないslow vascular / viscoelastic settlingを実際に示した。
+従ってPR #483のrapid laneとV2 canonical laneを分離した判断は維持する。
+compact evidenceは
+`data/myocardium/reports/mainwire-five-wall-coronary-periodic-v2-p1-dt-refinement-summary-v1.json`へ保存した。
+
+これは各dt内のperiodicityを示すが、1 msと2 msのterminal state同士のcross-dt equality、周期波形、LAD measurement-site contract、
+pressure-step、hyperemia / CFR、狭窄 / CMD direction、site-matched coronary venous morphologyのacceptanceではない。これらを通すまで
 `simulationReady=false`を維持する。
