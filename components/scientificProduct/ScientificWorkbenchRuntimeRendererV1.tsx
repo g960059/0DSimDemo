@@ -33,6 +33,12 @@ import type {
   PanelInstanceConfig,
   PanelType,
 } from "@/types";
+import {
+  DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
+  DEFAULT_HEMODYNAMIC_DETAIL_MODE,
+  DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  type HemodynamicDetailMode,
+} from "@/types";
 import type { ScientificWorkbenchResearchControlDraftV0 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
 
 import {
@@ -41,22 +47,28 @@ import {
   scientificObservableShortLabelV1,
   scientificSeriesColorV1,
   type ScientificWorkbenchChartScenarioV1,
+  type ScientificWorkbenchLegendInteractionV1,
   type ScientificWorkbenchPvSeriesV1,
   type ScientificWorkbenchWaveformSeriesV1,
 } from "./ScientificWorkbenchAnimatedChartsV1";
 import type { ScientificWorkbenchDisplayClockV1 } from "./ScientificWorkbenchDisplayClockV1";
 import {
   type ScientificProductScenarioPresentationV1,
+  type ScientificProductHemodynamicProtocolGenerationV1,
   type ScientificProductHemodynamicProtocolKindV1,
   type ScientificProductHemodynamicProtocolPresentationV1,
+  type ScientificProductHemodynamicProtocolSeriesV1,
   type ScientificProductScenarioRegistryV1,
 } from "./ScientificProductScenarioRegistryV1";
 import {
-  ScientificGuytonLeftPaneV1,
-  ScientificGuytonRightPaneV1,
+  ScientificCardiacOutputFillingPressurePaneV1,
   type ScientificGuytonCurvePointV1,
   type ScientificGuytonStarlingPaneDataV1,
   type ScientificGuytonSweepPointV1,
+  type ScientificHemodynamicProtocolStatusV1,
+  type ScientificHemodynamicResponseDisplayModeV1,
+  type ScientificHemodynamicResponseGenerationV1,
+  type ScientificHemodynamicResponseScenarioV1,
 } from "./ScientificHemodynamicProtocolPanesV1";
 import type { MainWireScientificGuytonStarlingProtocolResultV1 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import type { MainWireScientificGuytonStarlingProtocolResultV2 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
@@ -297,7 +309,7 @@ export function createScientificWorkbenchRuntimeRendererV1({
         <ScientificHemodynamicProtocolPanelV1
           panel={panel}
           registry={registry}
-          activeScenarioId={context.activeInstanceId}
+          renderContext={context}
         />
       );
     }
@@ -464,149 +476,409 @@ function ScientificGraphPanelV1({
 function ScientificHemodynamicProtocolPanelV1({
   panel,
   registry,
-  activeScenarioId,
+  renderContext,
 }: Readonly<{
   panel: PanelDef;
   registry: ScientificProductScenarioRegistryV1;
-  activeScenarioId?: string;
+  renderContext: WorkbenchRuntimeRenderContext;
 }>) {
   const presentations = useScientificScenarioPresentationsV1(registry);
   const eligible = presentations.filter(
     ({ descriptor }) =>
       descriptor.isVisible && panel.config[descriptor.id]?.visible === true,
   );
-  const selected =
-    eligible.find(({ descriptor }) => descriptor.id === activeScenarioId) ??
-    eligible[0];
   const kind: ScientificProductHemodynamicProtocolKindV1 = "guyton-starling";
-  const protocol = useScientificHemodynamicProtocolV1(
-    registry,
-    selected?.descriptor.id ?? null,
-    kind,
+  const demandScopeId = React.useId();
+  React.useSyncExternalStore(
+    registry.subscribeHemodynamicProtocols,
+    registry.getHemodynamicProtocolSeriesSnapshot,
+    registry.getHemodynamicProtocolSeriesSnapshot,
   );
-  const periodicSourceAvailable =
-    selected !== undefined &&
-    selected.displayedEvidence !== "open-transient-no-periodic-claim";
-  const latestDisplayedFrame = selected?.frames.at(-1);
-  const protocolMatchesDisplayedSource =
-    protocol.sourceIdentity !== null &&
-    latestDisplayedFrame !== undefined &&
-    protocol.sourceIdentity.revision === latestDisplayedFrame.revision &&
-    Math.abs(
-      protocol.sourceIdentity.acceptedTimeSec -
-        latestDisplayedFrame.acceptedTimeSec,
-    ) <= 1e-10;
+  const detailMode = scientificHemodynamicDetailModeV1(panel);
+  const displayMode = scientificHemodynamicDisplayModeV1(detailMode);
+  const historyCount = scientificHemodynamicHistoryCountV1(panel);
+  const allowNegativePressure =
+    panel.hemodynamicAllowNegativeFillingPressure ??
+    (panel.view?.kind === "graph"
+      ? panel.view.hemodynamicAllowNegativeFillingPressure
+      : undefined) ??
+    DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE;
+  const showLegend =
+    panel.showLegend ??
+    (panel.view?.kind === "graph" ? panel.view.showLegend : undefined) ??
+    true;
+  const legendInteraction: ScientificWorkbenchLegendInteractionV1 = {
+    panelId: panel.id,
+    interactive: shouldEnableLegendInteractions({
+      canConfigure: renderContext.canConfigure,
+      presentationMode: renderContext.presentationMode,
+    }),
+    onOpenSettings: renderContext.onOpenSettings,
+    legendPosition:
+      renderContext.legendPosition ??
+      (panel.view?.kind === "graph" ? panel.view.legendPosition : undefined),
+    onLegendPositionChange: renderContext.onLegendPositionChange,
+    ariaLabel: `Open ${panel.title} pane settings`,
+  };
+  if (eligible.length === 0) return <NoScientificSelectionV1 />;
+  const side = panel.type === "GUYTON_LEFT" ? "left" : "right";
+  const entries = eligible.map((presentation) => Object.freeze({
+    presentation,
+    series: registry.getHemodynamicProtocolSeries(
+      presentation.descriptor.id,
+      kind,
+    ),
+  }));
+  const scenarios = entries.map(({ presentation, series }) =>
+    scientificHemodynamicResponseScenarioV1(
+      side,
+      presentation,
+      series,
+      historyCount,
+    ));
+  const status = scientificHemodynamicAggregateStatusV1(side, entries);
+  return (
+    <>
+      {eligible.map(({ descriptor }) => (
+        <ScientificHemodynamicProtocolDemandV1
+          key={descriptor.id}
+          registry={registry}
+          demandId={`${demandScopeId}:${descriptor.id}`}
+          scenarioId={descriptor.id}
+          kind={kind}
+          detailMode={detailMode}
+          sourceIdentityKey={scientificHemodynamicDemandIdentityV1(
+            registry,
+            descriptor.id,
+          )}
+        />
+      ))}
+      <ScientificCardiacOutputFillingPressurePaneV1
+        data={Object.freeze({
+          side,
+          title: panel.title,
+          scenarios: Object.freeze(scenarios),
+          displayMode,
+          showLegend,
+          allowNegativePressure,
+          historicalGenerationCount: historyCount,
+          status,
+        })}
+        legendInteraction={legendInteraction}
+      />
+    </>
+  );
+}
+
+export type ScientificQuickResponseQualityV1 = Readonly<{
+  status: "complete" | "partial";
+  qcLevel: "pass" | "warning";
+  summary: string;
+}>;
+
+/**
+ * A finished short-horizon calculation is not automatically near steady.
+ * Keep completion, convergence evidence, and unavailable targets separate so
+ * the clinical default cannot acquire an implicit periodic-state claim.
+ */
+export function scientificQuickResponseQualityV1(input: Readonly<{
+  nearSteadyPointCount: number;
+  provisionalPointCount: number;
+  failureCount: number;
+}>): ScientificQuickResponseQualityV1 {
+  const nearSteadyPointCount = Math.max(0, Math.floor(input.nearSteadyPointCount));
+  const provisionalPointCount = Math.max(0, Math.floor(input.provisionalPointCount));
+  const failureCount = Math.max(0, Math.floor(input.failureCount));
+  const pointCount = nearSteadyPointCount + provisionalPointCount;
+  const hasQualityNotice = provisionalPointCount > 0 || failureCount > 0;
+  return Object.freeze({
+    status: hasQualityNotice ? "partial" : "complete",
+    qcLevel: hasQualityNotice ? "warning" : "pass",
+    summary: `${pointCount} quick-response point${pointCount === 1 ? "" : "s"}: ${nearSteadyPointCount} passed the provisional near-steady screen, ${provisionalPointCount} remain provisional, and ${failureCount} target${failureCount === 1 ? " is" : "s are"} unavailable. This is a directional response curve, not a periodic steady-state claim.`,
+  });
+}
+
+function ScientificHemodynamicProtocolDemandV1({
+  registry,
+  demandId,
+  scenarioId,
+  kind,
+  detailMode,
+  sourceIdentityKey,
+}: Readonly<{
+  registry: ScientificProductScenarioRegistryV1;
+  demandId: string;
+  scenarioId: string;
+  kind: ScientificProductHemodynamicProtocolKindV1;
+  detailMode: HemodynamicDetailMode;
+  sourceIdentityKey: string;
+}>) {
   React.useEffect(() => {
-    if (
-      selected === undefined ||
-      !periodicSourceAvailable ||
-      protocol.status === "error"
-    )
-      return;
-    registry.requestHemodynamicProtocol(selected.descriptor.id, kind);
-  }, [kind, periodicSourceAvailable, protocol.status, registry, selected]);
+    registry.setHemodynamicProtocolDemand(demandId, Object.freeze({
+      scenarioId,
+      kind,
+      detailMode,
+    }));
+    return () => registry.setHemodynamicProtocolDemand(demandId, null);
+  }, [demandId, detailMode, kind, registry, scenarioId, sourceIdentityKey]);
+  return null;
+}
 
-  if (selected === undefined) return <NoScientificSelectionV1 />;
-  if (!periodicSourceAvailable) {
-    return (
-      <div className="flex h-full min-h-0 w-full items-center justify-center p-5">
-        <div className="max-w-lg text-center">
-          <p className="text-sm font-semibold text-wb-text">
-            Protocol waits for a periodic source
-          </p>
-          <p className="mt-2 text-xs leading-5 text-wb-subtle">
-            The live transition remains visible in ordinary waveforms. This
-            multi-beat protocol starts after the next accepted periodic state,
-            so transient frames are not relabelled as steady evidence.
-          </p>
-        </div>
-      </div>
-    );
-  }
-  if (protocol.status === "complete" && !protocolMatchesDisplayedSource) {
-    return (
-      <div className="flex h-full min-h-0 w-full items-center justify-center p-5 text-center text-xs text-wb-subtle">
-        Updating the protocol for the new periodic source…
-      </div>
-    );
-  }
-  const rerun = () =>
-    registry.requestHemodynamicProtocol(selected.descriptor.id, kind);
-  if (protocol.status === "error") {
-    return (
-      <div className="flex h-full min-h-0 w-full items-center justify-center p-5">
-        <div className="max-w-lg text-center">
-          <p className="text-sm font-semibold text-rose-300">
-            Hemodynamic protocol did not complete
-          </p>
-          <p className="mt-2 text-xs leading-5 text-wb-subtle">
-            {protocol.errorMessage ?? "Unknown protocol error."}
-          </p>
-          <button
-            type="button"
-            onClick={rerun}
-            className="mt-4 rounded border border-wb-accent/50 bg-wb-accent/10 px-3 py-1.5 text-xs font-semibold text-wb-accent hover:bg-wb-accent/15"
-          >
-            Run again
-          </button>
-        </div>
-      </div>
-    );
-  }
+function scientificHemodynamicDemandIdentityV1(
+  registry: ScientificProductScenarioRegistryV1,
+  scenarioId: string,
+): string {
+  const snapshot = registry.getRuntime(scenarioId)?.controlStore.getSnapshot();
+  if (snapshot === undefined) return "unavailable";
+  return [
+    snapshot.provenance.displayedFrameOwner,
+    snapshot.provenance.displayedParameterEpoch,
+    snapshot.provenance.displayedControlStateSha256,
+    snapshot.targetControlStateSha256 ?? "no-target",
+    snapshot.candidate?.sessionId ?? "source",
+  ].join(":");
+}
 
-  const scenarioName = selected.descriptor.name;
-  const result =
-    protocol.result?.protocolId ===
+type ScientificHemodynamicSeriesEntryV1 = Readonly<{
+  presentation: ScientificProductScenarioPresentationV1;
+  series: ScientificProductHemodynamicProtocolSeriesV1;
+}>;
+
+function scientificHemodynamicDetailModeV1(
+  panel: PanelDef,
+): HemodynamicDetailMode {
+  return panel.hemodynamicDetailMode ??
+    (panel.view?.kind === "graph"
+      ? panel.view.hemodynamicDetailMode
+      : undefined) ??
+    DEFAULT_HEMODYNAMIC_DETAIL_MODE;
+}
+
+export function scientificHemodynamicDisplayModeV1(
+  detailMode: HemodynamicDetailMode,
+): ScientificHemodynamicResponseDisplayModeV1 {
+  if (detailMode === "settled-reference") return "settled";
+  if (detailMode === "compare") return "both";
+  return "estimated";
+}
+
+function scientificHemodynamicHistoryCountV1(panel: PanelDef): number {
+  return panel.hemodynamicParameterHistoryCount ??
+    (panel.view?.kind === "graph"
+      ? panel.view.hemodynamicParameterHistoryCount
+      : undefined) ??
+    DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT;
+}
+
+function scientificHemodynamicResponseScenarioV1(
+  side: "right" | "left",
+  presentation: ScientificProductScenarioPresentationV1,
+  series: ScientificProductHemodynamicProtocolSeriesV1,
+  historyCount: number,
+): ScientificHemodynamicResponseScenarioV1 {
+  const current = scientificHemodynamicResponseGenerationV1(
+    side,
+    presentation.descriptor.name,
+    series.current,
+  );
+  const history = series.history.slice(0, historyCount).flatMap((generation) => {
+    const converted = scientificHemodynamicResponseGenerationV1(
+      side,
+      presentation.descriptor.name,
+      generation,
+    );
+    return converted === null ? [] : [converted];
+  });
+  const warnings = [
+    ...(series.lastFailure === null
+      ? []
+      : [`The latest response-curve update was not completed: ${series.lastFailure.errorMessage}`]),
+  ];
+  return Object.freeze({
+    id: presentation.descriptor.id,
+    name: presentation.descriptor.name,
+    color: presentation.descriptor.color,
+    current,
+    history: Object.freeze(history),
+    visible: true,
+    warnings: Object.freeze(warnings),
+  });
+}
+
+export function scientificHemodynamicResponseGenerationV1(
+  side: "right" | "left",
+  scenarioName: string,
+  generation: ScientificProductHemodynamicProtocolGenerationV1 | null,
+): ScientificHemodynamicResponseGenerationV1 | null {
+  const protocol = generation?.snapshot;
+  if (generation === null || protocol === null || protocol === undefined) {
+    return null;
+  }
+  const data = guytonPaneDataV1(
+    side,
+    scenarioName,
+    protocol,
+    scientificHemodynamicResultV1(protocol),
+  );
+  const estimatedPoints = data.sweepPoints.filter(({ classification }) =>
+    classification === "estimated" || classification === "unclassified");
+  const settledPoints = data.sweepPoints.filter(({ classification }) =>
+    classification !== "estimated" && classification !== "unclassified");
+  const warnings =
+    data.status.qc.level === "warning" || data.status.qc.level === "fail"
+      ? [data.status.qc.summary, ...(data.status.qc.details ?? [])]
+      : [];
+  return Object.freeze({
+    id: generation.generationId,
+    label: generation.status === "complete"
+      ? "Completed parameter state"
+      : "Current parameter state",
+    vascularReturnCurve: data.vascularReturnCurve,
+    estimatedCardiacSegments: data.estimatedCardiacSegments ?? [],
+    settledCardiacSegments: data.cardiacPreloadSegments ?? [],
+    estimatedPoints: Object.freeze(estimatedPoints),
+    settledPoints: Object.freeze(settledPoints),
+    operatingPoint: data.operatingPoint,
+    warnings: Object.freeze(warnings),
+  });
+}
+
+function scientificHemodynamicResultV1(
+  protocol: ScientificProductHemodynamicProtocolPresentationV1,
+):
+  | MainWireScientificGuytonStarlingProtocolResultV1
+  | MainWireScientificGuytonStarlingProtocolResultV2
+  | null {
+  return protocol.result?.protocolId ===
       "main-wire-scientific-guyton-starling-protocol-v1" ||
     protocol.result?.protocolId ===
       "main-wire-scientific-guyton-starling-protocol-v2"
-      ? (protocol.result as
-          | MainWireScientificGuytonStarlingProtocolResultV1
-          | MainWireScientificGuytonStarlingProtocolResultV2)
-      : null;
-  const data = guytonPaneDataV1(
-    panel.type === "GUYTON_LEFT" ? "left" : "right",
-    scenarioName,
-    protocol,
-    result,
-  );
-  return panel.type === "GUYTON_LEFT" ? (
-    <ScientificGuytonLeftPaneV1 data={data} />
-  ) : (
-    <ScientificGuytonRightPaneV1 data={data} />
-  );
+    ? protocol.result
+    : null;
 }
 
-function useScientificHemodynamicProtocolV1(
-  registry: ScientificProductScenarioRegistryV1,
-  scenarioId: string | null,
-  kind: ScientificProductHemodynamicProtocolKindV1,
-): ScientificProductHemodynamicProtocolPresentationV1 {
-  return React.useSyncExternalStore(
-    registry.subscribeHemodynamicProtocols,
-    () =>
-      scenarioId === null
-        ? EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1[kind]
-        : registry.getHemodynamicProtocol(scenarioId, kind),
-    () => EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1[kind],
-  );
+function scientificHemodynamicAggregateStatusV1(
+  side: "right" | "left",
+  entries: readonly ScientificHemodynamicSeriesEntryV1[],
+): ScientificHemodynamicProtocolStatusV1 {
+  const pending = entries.filter(({ series }) => series.pending !== null);
+  if (pending.length > 0) {
+    const progress = pending.flatMap(({ series }) => {
+      const value = series.pending?.snapshot?.jobSnapshot?.progress;
+      return value === undefined || value === null ? [] : [value];
+    });
+    const completed = progress.reduce(
+      (total, value) => total + value.fastPreviewCompletedPointCount,
+      0,
+    );
+    const total = progress.reduce(
+      (sum, value) => sum + value.fastPreviewPlannedPointCount,
+      0,
+    );
+    return Object.freeze({
+      status: "running" as const,
+      label: pending.length === 1
+        ? "Updating curve…"
+        : `Updating ${pending.length} scenarios…`,
+      phase: total > 0 ? `${completed}/${total} standard points` : undefined,
+      progress: total > 0 ? Object.freeze({ completed, total }) : undefined,
+      qc: Object.freeze({
+        level: "pending" as const,
+        summary:
+          "Previous parameter curves remain visible until the updated curve is ready.",
+      }),
+    });
+  }
+
+  const currentStatuses = entries.flatMap(({ presentation, series }) => {
+    const protocol = series.current?.snapshot;
+    if (protocol === null || protocol === undefined) return [];
+    return [guytonPaneDataV1(
+      side,
+      presentation.descriptor.name,
+      protocol,
+      scientificHemodynamicResultV1(protocol),
+    ).status];
+  });
+  if (currentStatuses.length === 1) return currentStatuses[0]!;
+  if (currentStatuses.length > 1) {
+    return Object.freeze({
+      status: currentStatuses.some(({ status }) => status === "running")
+        ? ("running" as const)
+        : currentStatuses.some(({ status }) => status === "partial")
+          ? ("partial" as const)
+          : ("complete" as const),
+      label: `${currentStatuses.length} scenarios`,
+      qc: Object.freeze({
+        level: "pass" as const,
+        summary:
+          "Quality notices are shown beside the corresponding scenario.",
+      }),
+    });
+  }
+
+  const failures = entries.flatMap(({ series }) =>
+    series.lastFailure === null ? [] : [series.lastFailure.errorMessage]);
+  if (failures.length > 0) {
+    return Object.freeze({
+      status: "error" as const,
+      label: "Curve unavailable",
+      qc: Object.freeze({
+        level: "fail" as const,
+        summary: failures.join(" "),
+      }),
+    });
+  }
+  return Object.freeze({
+    status: "running" as const,
+    label: "Preparing curves…",
+    qc: Object.freeze({
+      level: "pending" as const,
+      summary: "The first parameter curve is being prepared.",
+    }),
+  });
 }
 
-const EMPTY_PROTOCOL_PRESENTATION_BY_KIND_V1 = Object.freeze({
-  "guyton-starling": Object.freeze({
-    kind: "guyton-starling" as const,
-    status: "idle" as const,
-    sourceIdentity: null,
-    result: null,
-    jobSnapshot: null,
-    errorMessage: null,
-  }),
-}) satisfies Readonly<
-  Record<
-    ScientificProductHemodynamicProtocolKindV1,
-    ScientificProductHemodynamicProtocolPresentationV1
-  >
->;
+/**
+ * Builds a display-only quick-response locus without changing scientific
+ * eligibility. Every finite observation is connected in requested TBV order;
+ * a requested target with no finite observation remains an explicit gap.
+ */
+export function scientificQuickResponseDisplaySegmentsV1(
+  orderedTargetScales: readonly number[],
+  observations: readonly Readonly<{
+    targetScale: number;
+    point: ScientificGuytonCurvePointV1;
+  }>[],
+  baselinePoint?: ScientificGuytonCurvePointV1,
+): readonly (readonly ScientificGuytonCurvePointV1[])[] {
+  const pointByScale = new Map(
+    observations
+      .filter(({ targetScale, point }) => Number.isFinite(targetScale)
+        && Number.isFinite(point.pressureMmHg)
+        && Number.isFinite(point.flowLPerMin))
+      .map(({ targetScale, point }) => [targetScale, point] as const),
+  );
+  const segments = orderedTargetScales.reduce<ScientificGuytonCurvePointV1[][]>(
+    (currentSegments, targetScale) => {
+      const point = targetScale === 1 && baselinePoint !== undefined
+        ? baselinePoint
+        : pointByScale.get(targetScale) ?? null;
+      if (point === null) {
+        if (currentSegments.at(-1)?.length) currentSegments.push([]);
+        return currentSegments;
+      }
+      const current = currentSegments.at(-1);
+      if (current === undefined) currentSegments.push([point]);
+      else current.push(point);
+      return currentSegments;
+    },
+    [],
+  );
+  return Object.freeze(segments
+    .filter((segment) => segment.length > 0)
+    .map((segment) => Object.freeze(segment)));
+}
 
 function guytonPaneDataV1(
   side: "right" | "left",
@@ -630,9 +902,9 @@ function guytonPaneDataV1(
       sweepPoints: Object.freeze([]),
       status: Object.freeze({
         status: "running" as const,
-        label: "Running full-Land protocol…",
+        label: "Preparing curve…",
         phase:
-          "Cycle-mean vascular snapshot and independent fixed-TBV P1/P2 points",
+          "Vascular response and cardiac-output points",
         qc: Object.freeze({
           level: "pending" as const,
           summary:
@@ -686,6 +958,19 @@ function guytonPaneDataV1(
   const nearPeriod1EstimateCount = fastEvidence.filter(
     (evidence) => evidence.evidenceClass === "near-period1-estimate",
   ).length;
+  const finiteHoldUnclassifiedCount = fastEvidence.filter(
+    (evidence) => evidence.evidenceClass === "finite-hold-unclassified",
+  ).length;
+  const fastFailureCount = fastEvidence.filter(
+    (evidence) => evidence.evidenceClass === "failure",
+  ).length;
+  const isQuickOverview = protocol.detailMode === "standard"
+    && result === null;
+  const quickResponseQuality = scientificQuickResponseQualityV1({
+    nearSteadyPointCount: nearPeriod1EstimateCount,
+    provisionalPointCount: finiteHoldUnclassifiedCount,
+    failureCount: fastFailureCount,
+  });
   const baselinePeriodicity =
     result?.baselinePeriodicity ??
     partial?.baselinePeriodicity ??
@@ -779,34 +1064,17 @@ function guytonPaneDataV1(
       ...(baseline === undefined ? [] : [1]),
     ]),
   ].sort((left, right) => left - right);
-  const estimatedRowsByScale = new Map(
-    estimatedRows.map((row) => [row.targetScale, row]),
+  const baselineDisplayPoint = baseline === undefined
+    ? undefined
+    : Object.freeze({
+        pressureMmHg: pressure(baseline)!,
+        flowLPerMin: baseline.netCardiacOutputLMin!,
+      });
+  const estimatedCardiacSegments = scientificQuickResponseDisplaySegmentsV1(
+    estimatedScales,
+    estimatedRows.map(({ targetScale, point }) => ({ targetScale, point })),
+    baselineDisplayPoint,
   );
-  const estimatedCardiacSegments = estimatedScales
-    .reduce<Array<Array<ScientificGuytonCurvePointV1>>>(
-      (segments, targetScale) => {
-        const point =
-          targetScale === 1 && baseline !== undefined
-            ? Object.freeze({
-                pressureMmHg: pressure(baseline)!,
-                flowLPerMin: baseline.netCardiacOutputLMin!,
-              })
-            : estimatedRowsByScale.get(targetScale)?.evidence.eligibility
-                  .rapidFiniteHoldLocus === true
-              ? estimatedRowsByScale.get(targetScale)!.point
-              : null;
-        if (point === null) {
-          if (segments.at(-1)?.length) segments.push([]);
-          return segments;
-        }
-        const current = segments.at(-1);
-        if (current === undefined) segments.push([point]);
-        else current.push(point);
-        return segments;
-      },
-      [],
-    )
-    .filter((segment) => segment.length > 0);
   const auditedReferences = operatingRows.filter(
     ({ auditStatus }) =>
       auditStatus !== "not-scheduled" && auditStatus !== "pending",
@@ -954,18 +1222,24 @@ function guytonPaneDataV1(
           ? ("running" as const)
           : protocol.status === "error"
             ? ("error" as const)
-            : rejectedCount === 0
-              ? ("complete" as const)
-              : ("partial" as const),
+            : isQuickOverview
+              ? quickResponseQuality.status
+              : rejectedCount === 0 && fastFailureCount === 0
+                ? ("complete" as const)
+                : ("partial" as const),
       label:
         protocol.status === "running"
-          ? "Exploring preload envelope…"
+          ? isQuickOverview
+            ? "Updating quick response…"
+            : "Calculating steady-state reference…"
           : protocol.status === "error"
-            ? "Protocol stopped"
-            : "Protocol complete",
+            ? "Curve unavailable"
+            : isQuickOverview
+              ? "Quick response ready"
+              : "Steady-state reference ready",
       phase:
         protocol.status === "running"
-          ? `${partial?.progress.fastPreviewCompletedPointCount ?? fastEvidence.length}/${partial?.progress.fastPreviewPlannedPointCount ?? 9} fast estimates · ${partial?.progress.completedPointCount ?? operatingPoints.length} settled/classified · ${partial?.progress.completedBeatCount ?? 0} beats · ${partial?.progress.activeDirections.join(" + ") || "finalizing"}`
+          ? `${partial?.progress.fastPreviewCompletedPointCount ?? fastEvidence.length}/${partial?.progress.fastPreviewPlannedPointCount ?? 9} standard points · ${partial?.progress.completedPointCount ?? operatingPoints.length} detailed references · ${partial?.progress.completedBeatCount ?? 0} beats`
           : result !== null && "exploration" in result
             ? `Envelope ${result.exploration.normalizedTotalBloodVolumeEnvelope.join("–")}× TBV · lower ${result.exploration.lowerBoundaryStatus} · higher ${result.exploration.higherBoundaryStatus} · ${partial?.progress.completedBeatCount ?? 0} beats`
             : undefined,
@@ -983,23 +1257,29 @@ function guytonPaneDataV1(
             : protocol.status === "error"
               ? ("fail" as const)
               : baselinePeriodicity === "period1-converged"
-                ? rejectedCount === 0 && auditWarningCount === 0
-                  ? ("pass" as const)
-                  : ("warning" as const)
+                ? isQuickOverview
+                  ? quickResponseQuality.qcLevel
+                  : rejectedCount === 0
+                      && auditWarningCount === 0
+                      && fastFailureCount === 0
+                    ? ("pass" as const)
+                    : ("warning" as const)
                 : ("fail" as const),
         summary:
           protocol.status === "running"
-            ? `${rapidEstimateCount} rapid finite-hold estimate${rapidEstimateCount === 1 ? "" : "s"}; ${nearPeriod1EstimateCount} passed the provisional near-P1 residual screen. None are periodic solutions. Settled P1 points replace the scientific claim as they converge.`
+            ? `${rapidEstimateCount} standard estimate${rapidEstimateCount === 1 ? "" : "s"}; ${nearPeriod1EstimateCount} passed the provisional near-steady residual screen. Detailed reference points replace them as they converge.`
             : protocol.status === "error"
               ? (protocol.errorMessage ??
                 "The preload protocol stopped before completion.")
               : baselinePeriodicity === "period1-converged"
-                ? `${p1Rows.length} P1 point${p1Rows.length === 1 ? "" : "s"}; ${rejectedCount} P2-suspect/blocked attempt${rejectedCount === 1 ? "" : "s"}; ${auditMatchedCount} matched audit${auditMatchedCount === 1 ? "" : "s"}; ${auditWarningCount} audit warning${auditWarningCount === 1 ? "" : "s"}.`
+                ? isQuickOverview
+                  ? quickResponseQuality.summary
+                  : `${p1Rows.length} P1 point${p1Rows.length === 1 ? "" : "s"}; ${rejectedCount} P2-suspect/blocked attempt${rejectedCount === 1 ? "" : "s"}; ${auditMatchedCount} matched audit${auditMatchedCount === 1 ? "" : "s"}; ${auditWarningCount} audit warning${auditWarningCount === 1 ? "" : "s"}.`
                 : "The source beat did not reproduce period-1 closure.",
         details: Object.freeze([
           "TBV sweep is a one-dimensional closed-loop preload locus, not a Guyton pump experiment or a surface.",
           "Settled period-2-suspect branches are shown separately and never averaged into the P1 curve.",
-          "Dashed/open estimates use 2–5 budgeted natural beats after a hidden predictor jump and never enter the settled P1/P2 evidence or relation fits.",
+          "Quick-response points use three natural beats after predictor initialization and never enter settled P1/P2 evidence or relation fits.",
           "An audit-warning marker remains P1 continuation evidence, but it is isolated from the curve when the independent source audit indicates path dependence.",
         ]),
       }),
@@ -1616,6 +1896,11 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
       legendPosition: view.presentation?.legendPosition,
       pvHistoryBeats: view.presentation?.pvHistoryBeats,
       pvHistoryMode: view.presentation?.pvHistoryMode,
+      hemodynamicDetailMode: view.presentation?.hemodynamicDetailMode,
+      hemodynamicParameterHistoryCount:
+        view.presentation?.hemodynamicParameterHistoryCount,
+      hemodynamicAllowNegativeFillingPressure:
+        view.presentation?.hemodynamicAllowNegativeFillingPressure,
     },
     isSettingsOpen: false,
     showGuides: view.presentation?.showGuides,
@@ -1623,6 +1908,11 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
     showLegend: view.presentation?.showLegend,
     pvHistoryBeats: view.presentation?.pvHistoryBeats,
     pvHistoryMode: view.presentation?.pvHistoryMode,
+    hemodynamicDetailMode: view.presentation?.hemodynamicDetailMode,
+    hemodynamicParameterHistoryCount:
+      view.presentation?.hemodynamicParameterHistoryCount,
+    hemodynamicAllowNegativeFillingPressure:
+      view.presentation?.hemodynamicAllowNegativeFillingPressure,
   };
 }
 

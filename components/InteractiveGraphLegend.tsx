@@ -27,6 +27,8 @@ export type InteractiveGraphLegendProps = Readonly<{
   children?: React.ReactNode;
   panelId?: string;
   interactive?: boolean;
+  /** Keep controls inside the legend operable even when pane editing is disabled. */
+  contentInteractive?: boolean;
   onOpenSettings?: (panelId: string) => void;
   position?: LegendPosition;
   onPositionChange?: (panelId: string, position?: LegendPosition) => void;
@@ -72,6 +74,7 @@ export function InteractiveGraphLegend({
   children,
   panelId,
   interactive = false,
+  contentInteractive = false,
   onOpenSettings,
   position,
   onPositionChange,
@@ -147,7 +150,7 @@ export function InteractiveGraphLegend({
   const settleClass = isDragging ? "" : "transition-[left,top] duration-150";
   const interactionClass = canInteract
     ? `pointer-events-auto hover:bg-wb-panel/90 hover:ring-1 hover:ring-wb-accent ${isDragging ? "cursor-grabbing ring-1 ring-wb-accent" : canDrag ? "cursor-grab" : "cursor-pointer"}`
-    : "pointer-events-none";
+    : contentInteractive ? "pointer-events-auto" : "pointer-events-none";
   const isLiveSnapped = isDragging && dragRef.current?.snappedToDefault === true;
 
   const currentRawPosition = (

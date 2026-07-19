@@ -57,6 +57,7 @@ describe("main-wire scientific hemodynamic job commands V2", () => {
     expect(manager.start).toHaveBeenCalledOnce();
     expect(vi.mocked(manager.start).mock.calls[0]?.[0]).toMatchObject({
       ownerSessionId: sessionId,
+      detailMode: "compare",
       capsule: {
         capsuleId: "main-wire-scientific-hemodynamic-job-capsule-v2",
         source: { revision: 0, acceptedTimeSec: 0 },
@@ -133,6 +134,50 @@ describe("main-wire scientific hemodynamic job commands V2", () => {
     expect(manager.disposeOwner).toHaveBeenCalledOnce();
     expect(manager.disposeOwner).toHaveBeenCalledWith(sessionId);
   }, 120_000);
+
+  it("accepts explicit calculation detail and rejects unsupported detail", async () => {
+    const manager = mockJobManager();
+    const kernel = new MainWireScientificInProcessKernelV1({
+      hemodynamicJobManager: manager,
+    });
+    const sessionId = "hemodynamic-detail-session";
+    expect((await kernel.handle(baseCommand(
+      "createCanonicalSession",
+      "request-detail-create",
+      sessionId,
+    ))).ok).toBe(true);
+
+    const started = await kernel.handle({
+      ...baseCommand(
+        "startGuytonStarlingProtocolJob",
+        "request-detail-standard",
+        sessionId,
+      ),
+      detailMode: "standard" as const,
+    });
+    expect(started.ok).toBe(true);
+    expect(manager.start).toHaveBeenCalledWith(expect.objectContaining({
+      ownerSessionId: sessionId,
+      detailMode: "standard",
+    }));
+
+    const rejected = await kernel.handle({
+      ...baseCommand(
+        "startGuytonStarlingProtocolJob",
+        "request-detail-invalid",
+        sessionId,
+      ),
+      detailMode: "adaptive-preview",
+    });
+    expect(rejected).toMatchObject({
+      ok: false,
+      error: {
+        code: "invalid-command",
+        message: "detailMode is unsupported",
+      },
+    });
+    expect(manager.start).toHaveBeenCalledTimes(1);
+  });
 
   it("rejects malformed job IDs and non-exact command fields before dispatch", async () => {
     const manager = mockJobManager();

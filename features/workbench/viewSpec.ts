@@ -1,4 +1,4 @@
-import type { ControllerItem, LegendPosition, MetricType, PanelDef, PanelInstanceConfig, PvLoopDebugTraceMode, PvLoopHistoryMode, WorkbenchWorkspace } from "@/types";
+import type { ControllerItem, HemodynamicDetailMode, HemodynamicParameterHistoryCount, LegendPosition, MetricType, PanelDef, PanelInstanceConfig, PvLoopDebugTraceMode, PvLoopHistoryMode, WorkbenchWorkspace } from "@/types";
 
 export type ScenarioBinding = { kind: "active" } | { kind: "scenario"; scenarioId: string };
 
@@ -25,6 +25,9 @@ export interface GraphViewSpec extends ViewSpecBase {
     pvDebugTraceMode?: PvLoopDebugTraceMode;
     pvHistoryBeats?: number;
     pvHistoryMode?: PvLoopHistoryMode;
+    hemodynamicDetailMode?: HemodynamicDetailMode;
+    hemodynamicParameterHistoryCount?: HemodynamicParameterHistoryCount;
+    hemodynamicAllowNegativeFillingPressure?: boolean;
   };
 }
 
@@ -225,6 +228,21 @@ function graphViewSpecFromPanel(panel: PanelDef, graphType: GraphViewType): Grap
       ...(panel.pvDebugTraceMode !== undefined ? { pvDebugTraceMode: panel.pvDebugTraceMode } : {}),
       ...(panel.pvHistoryBeats !== undefined ? { pvHistoryBeats: panel.pvHistoryBeats } : {}),
       ...(panel.pvHistoryMode !== undefined ? { pvHistoryMode: panel.pvHistoryMode } : {}),
+      ...(panel.hemodynamicDetailMode !== undefined
+        ? { hemodynamicDetailMode: panel.hemodynamicDetailMode }
+        : {}),
+      ...(panel.hemodynamicParameterHistoryCount !== undefined
+        ? {
+          hemodynamicParameterHistoryCount:
+            panel.hemodynamicParameterHistoryCount,
+        }
+        : {}),
+      ...(panel.hemodynamicAllowNegativeFillingPressure !== undefined
+        ? {
+          hemodynamicAllowNegativeFillingPressure:
+            panel.hemodynamicAllowNegativeFillingPressure,
+        }
+        : {}),
     },
   };
 }

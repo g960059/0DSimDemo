@@ -26,6 +26,12 @@ const registryMocks = vi.hoisted(() => ({
   }>,
   clientConstructorError: null as Error | null,
   loadOfficialCycle: vi.fn(),
+  analysisCoordinators: [] as Array<{
+    requestLatest: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+    onJobSnapshot: (event: unknown) => void;
+    onError: (event: unknown) => void;
+  }>,
 }));
 
 vi.mock("@/engine/scientificBrowser", () => ({
@@ -56,6 +62,29 @@ vi.mock(
   }),
 );
 
+vi.mock(
+  "@/components/scientificProduct/ScientificProductHemodynamicAnalysisCoordinatorV1",
+  () => ({
+    SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1:
+      "independent-case-source-warm-continuation",
+    ScientificProductHemodynamicAnalysisCoordinatorV1: class {
+      readonly requestLatest = vi.fn();
+      readonly dispose = vi.fn(async () => undefined);
+      readonly onJobSnapshot: (event: unknown) => void;
+      readonly onError: (event: unknown) => void;
+
+      constructor(options: Readonly<{
+        onJobSnapshot: (event: unknown) => void;
+        onError: (event: unknown) => void;
+      }>) {
+        this.onJobSnapshot = options.onJobSnapshot;
+        this.onError = options.onError;
+        registryMocks.analysisCoordinators.push(this);
+      }
+    },
+  }),
+);
+
 import {
   completeTransientMetricBeatV1,
   ScientificProductScenarioRegistryV1,
@@ -71,6 +100,7 @@ describe("scientific product scenario registry V1", () => {
   beforeEach(() => {
     registryMocks.createdClients.length = 0;
     registryMocks.clientConstructorError = null;
+    registryMocks.analysisCoordinators.length = 0;
     registryMocks.loadOfficialCycle.mockReset();
     registryMocks.loadOfficialCycle.mockImplementation(
       async (_client: unknown, options: Readonly<{ sessionId: string }>) =>
@@ -515,6 +545,287 @@ describe("scientific product scenario registry V1", () => {
     }
   });
 
+  it("retains the rendered generation until the next parameter generation is renderable", async () => {
+    const firstRevision = 96_100;
+    const secondRevision = 96_200;
+    const firstSource = protocolResultSource(firstRevision, 96.1);
+    const secondSource = protocolResultSource(secondRevision, 96.2);
+    const snapshots = [firstSource, secondSource].map((source) =>
+      guytonJobSnapshotFixture({
+        source,
+        sequence: 0,
+        stage: "complete",
+        status: "complete",
+        completedPointCount: 3,
+        result: guytonJobResultFixture(source),
+      }));
+    let startOrdinal = 0;
+    let resolveSecondStart!: (response: unknown) => void;
+    const client = jobClientFixture((command) => {
+      if (command.kind !== "startGuytonStarlingProtocolJob") {
+        throw new Error(`Unexpected command ${command.kind}`);
+      }
+      const snapshot = snapshots[startOrdinal++]!;
+      if (startOrdinal === 2) {
+        return new Promise((resolve) => {
+          resolveSecondStart = resolve;
+        });
+      }
+      return guytonJobStartResponse(command, snapshot, 100);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("generation-history-session", client, firstRevision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      registry.requestHemodynamicProtocol(
+        scenarioId,
+        "guyton-starling",
+        "standard",
+      );
+      await flushMicrotasks();
+      const firstGlobalSnapshot =
+        registry.getHemodynamicProtocolSeriesSnapshot();
+      const firstGeneration = registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      ).current;
+      expect(firstGeneration?.source.sourceIdentity).toMatchObject({
+        revision: firstRevision,
+        parameterEpoch: 0,
+        controlStateSha256: sessionDigest("generation-history-session"),
+      });
+
+      publishSourceIdentity(registry, scenarioId, {
+        revision: secondRevision,
+        acceptedTimeSec: 96.2,
+        parameterEpoch: 1,
+        controlStateSha256: "a".repeat(64),
+      });
+      registry.requestHemodynamicProtocol(
+        scenarioId,
+        "guyton-starling",
+        "standard",
+      );
+
+      const whilePending = registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      );
+      expect(registry.getHemodynamicProtocolSeriesSnapshot())
+        .not.toBe(firstGlobalSnapshot);
+      expect(whilePending.current).toBe(firstGeneration);
+      expect(whilePending.pending).toMatchObject({
+        status: "running",
+        renderable: false,
+        source: {
+          sourceIdentity: {
+            revision: secondRevision,
+            parameterEpoch: 1,
+            controlStateSha256: "a".repeat(64),
+          },
+        },
+      });
+
+      const secondCommand = client.request.mock.calls[1]![0];
+      resolveSecondStart(guytonJobStartResponse(
+        secondCommand,
+        snapshots[1]!,
+        100,
+      ));
+      await flushMicrotasks();
+
+      const promoted = registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      );
+      expect(promoted.pending).toBeNull();
+      expect(promoted.current).toMatchObject({
+        renderable: true,
+        source: { sourceIdentity: { revision: secondRevision } },
+      });
+      expect(promoted.history).toHaveLength(1);
+      expect(promoted.history[0]).toBe(firstGeneration);
+    } finally {
+      registry.dispose();
+    }
+  });
+
+  it("keeps the current curve and exposes the replacement failure", async () => {
+    const firstRevision = 96_300;
+    const secondRevision = 96_400;
+    const firstSource = protocolResultSource(firstRevision, 96.3);
+    let startOrdinal = 0;
+    const client = jobClientFixture((command) => {
+      if (command.kind !== "startGuytonStarlingProtocolJob") {
+        throw new Error(`Unexpected command ${command.kind}`);
+      }
+      startOrdinal += 1;
+      if (startOrdinal === 2) {
+        return Object.freeze({
+          ok: false as const,
+          requestId: command.requestId,
+          sessionId: command.sessionId,
+          commandKind: command.kind,
+          error: Object.freeze({ message: "replacement solver stopped" }),
+        });
+      }
+      const snapshot = guytonJobSnapshotFixture({
+        source: firstSource,
+        sequence: 0,
+        stage: "complete",
+        status: "complete",
+        completedPointCount: 3,
+        result: guytonJobResultFixture(firstSource),
+      });
+      return guytonJobStartResponse(command, snapshot, 100);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("generation-failure-session", client, firstRevision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      registry.requestHemodynamicProtocol(scenarioId, "guyton-starling");
+      await flushMicrotasks();
+      const current = registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      ).current;
+      publishSourceIdentity(registry, scenarioId, {
+        revision: secondRevision,
+        acceptedTimeSec: 96.4,
+        parameterEpoch: 1,
+        controlStateSha256: "b".repeat(64),
+      });
+      registry.requestHemodynamicProtocol(scenarioId, "guyton-starling");
+      await flushMicrotasks();
+
+      const failed = registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      );
+      expect(failed.current).toBe(current);
+      expect(failed.pending).toBeNull();
+      expect(failed.lastFailure).toMatchObject({
+        errorMessage: "replacement solver stopped",
+        source: { sourceIdentity: { revision: secondRevision } },
+      });
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({
+          status: "error",
+          errorMessage: "replacement solver stopped",
+        });
+    } finally {
+      registry.dispose();
+    }
+  });
+
+  it("recalculates detail for the same parameter source without adding history", async () => {
+    const revision = 96_600;
+    const source = protocolResultSource(revision, 96.6);
+    const client = jobClientFixture((command) => {
+      if (command.kind !== "startGuytonStarlingProtocolJob") {
+        throw new Error(`Unexpected command ${command.kind}`);
+      }
+      const snapshot = guytonJobSnapshotFixture({
+        source,
+        sequence: 0,
+        stage: "complete",
+        status: "complete",
+        completedPointCount: 3,
+        result: guytonJobResultFixture(source),
+      });
+      return guytonJobStartResponse(command, snapshot, 100);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("detail-recalculation-session", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      registry.requestHemodynamicProtocol(
+        scenarioId,
+        "guyton-starling",
+        "standard",
+      );
+      await flushMicrotasks();
+      registry.requestHemodynamicProtocol(
+        scenarioId,
+        "guyton-starling",
+        "settled-reference",
+      );
+      await flushMicrotasks();
+
+      expect(client.request.mock.calls.map(([command]) =>
+        command.detailMode)).toEqual(["standard", "settled-reference"]);
+      expect(registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      )).toMatchObject({
+        current: { snapshot: { detailMode: "settled-reference" } },
+        pending: null,
+        history: [],
+      });
+    } finally {
+      registry.dispose();
+    }
+  });
+
+  it("arbitrates multiple pane demands into one strongest calculation", async () => {
+    vi.useFakeTimers();
+    const revision = 96_800;
+    const client = jobClientFixture((command) => {
+      if (command.kind === "startGuytonStarlingProtocolJob") {
+        return new Promise(() => undefined);
+      }
+      throw new Error(`Unexpected command ${command.kind}`);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("demand-arbitration-session", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+    const demand = (detailMode: "standard" | "settled-reference") =>
+      Object.freeze({
+        scenarioId,
+        kind: "guyton-starling" as const,
+        detailMode,
+      });
+
+    try {
+      registry.setHemodynamicProtocolDemand("pane-a", demand("standard"));
+      registry.setHemodynamicProtocolDemand(
+        "pane-b",
+        demand("settled-reference"),
+      );
+      registry.setHemodynamicProtocolDemand("pane-c", demand("standard"));
+      expect(client.request.mock.calls.map(([command]) =>
+        command.detailMode)).toEqual(["standard", "compare"]);
+
+      registry.setHemodynamicProtocolDemand("pane-b", null);
+      expect(client.request.mock.calls.map(([command]) =>
+        command.detailMode)).toEqual(["standard", "compare"]);
+      registry.setHemodynamicProtocolDemand("pane-a", null);
+      expect(client.request).toHaveBeenCalledTimes(2);
+      registry.setHemodynamicProtocolDemand("pane-c", null);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({ status: "idle" });
+      expect(registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      ).pending).toBeNull();
+    } finally {
+      registry.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("cancels a job whose start response arrives after the source became stale", async () => {
     const revision = 96_500;
     const source = protocolResultSource(revision, 96.5);
@@ -742,6 +1053,272 @@ describe("scientific product scenario registry V1", () => {
     }
   });
 
+  it("routes a correlated live target through independent analysis and returns to the visible P1 route", async () => {
+    const revision = 98_200;
+    const targetSha256 = "c".repeat(64);
+    const visibleSource = protocolResultSource(revision + 20, 98.22);
+    const visibleSnapshot = guytonJobSnapshotFixture({
+      source: visibleSource,
+      sequence: 0,
+      stage: "complete",
+      status: "complete",
+      completedPointCount: 3,
+      result: guytonJobResultFixture(visibleSource),
+    });
+    const client = jobClientFixture((command) => {
+      if (command.kind === "startGuytonStarlingProtocolJob") {
+        return guytonJobStartResponse(command, visibleSnapshot, 100);
+      }
+      throw new Error(`Unexpected command ${command.kind}`);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("live-analysis-routing", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      publishLiveTarget(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 98.201,
+        parameterEpoch: 4,
+        controlStateSha256: targetSha256,
+      });
+      registry.setHemodynamicProtocolDemand("live-pane", Object.freeze({
+        scenarioId,
+        kind: "guyton-starling" as const,
+        detailMode: "standard" as const,
+      }));
+
+      expect(client.request).not.toHaveBeenCalled();
+      expect(registryMocks.analysisCoordinators).toHaveLength(1);
+      const coordinator = registryMocks.analysisCoordinators[0]!;
+      expect(coordinator.requestLatest).toHaveBeenCalledOnce();
+      const request = coordinator.requestLatest.mock.calls[0]![0];
+      expect(request).toMatchObject({
+        visibleParameterEpoch: 4,
+        visibleControlStateSha256: targetSha256,
+        targetControlState: { targetStateSha256: targetSha256 },
+      });
+
+      const hiddenSource = protocolResultSource(revision + 9, 101.5);
+      coordinator.onJobSnapshot(hiddenAnalysisSnapshotEvent(
+        request,
+        guytonJobSnapshotFixture({
+          source: hiddenSource,
+          sequence: 0,
+          stage: "complete",
+          status: "complete",
+          completedPointCount: 3,
+          result: guytonJobResultFixture(hiddenSource),
+        }),
+      ));
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({
+          status: "complete",
+          calculationSource: "independent-case-source-warm-continuation",
+          sourceIdentity: {
+            revision: revision + 1,
+            acceptedTimeSec: 98.201,
+            parameterEpoch: 4,
+            controlStateSha256: targetSha256,
+          },
+          jobSnapshot: { source: { revision: revision + 9 } },
+        });
+
+      publishPeriodicSource(registry, scenarioId, {
+        revision: revision + 20,
+        acceptedTimeSec: 98.22,
+        parameterEpoch: 5,
+        controlStateSha256: "d".repeat(64),
+      });
+      await flushMicrotasks();
+      expect(coordinator.dispose).toHaveBeenCalledOnce();
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual(["startGuytonStarlingProtocolJob"]);
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({
+          status: "complete",
+          calculationSource: "visible-period1-source",
+        });
+    } finally {
+      registry.dispose();
+    }
+  });
+
+  it("ignores hidden-analysis callbacks superseded by a newer visible target", () => {
+    const revision = 98_400;
+    const client = jobClientFixture(() => {
+      throw new Error("visible worker must not own a live-target calculation");
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("live-analysis-stale", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      publishLiveTarget(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 98.401,
+        parameterEpoch: 1,
+        controlStateSha256: "e".repeat(64),
+      });
+      registry.setHemodynamicProtocolDemand("live-pane", Object.freeze({
+        scenarioId,
+        kind: "guyton-starling" as const,
+        detailMode: "standard" as const,
+      }));
+      const coordinator = registryMocks.analysisCoordinators[0]!;
+      const firstRequest = coordinator.requestLatest.mock.calls[0]![0];
+
+      publishLiveTarget(registry, scenarioId, {
+        revision: revision + 2,
+        acceptedTimeSec: 98.402,
+        parameterEpoch: 2,
+        controlStateSha256: "f".repeat(64),
+      });
+      expect(coordinator.requestLatest).toHaveBeenCalledTimes(2);
+      const secondRequest = coordinator.requestLatest.mock.calls[1]![0];
+      const firstSnapshot = guytonJobSnapshotFixture({
+        source: protocolResultSource(revision + 10, 110),
+        sequence: 0,
+        stage: "complete",
+        status: "complete",
+        completedPointCount: 3,
+      });
+      coordinator.onJobSnapshot(hiddenAnalysisSnapshotEvent(
+        firstRequest,
+        firstSnapshot,
+      ));
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({ status: "running", jobSnapshot: null });
+
+      coordinator.onJobSnapshot(hiddenAnalysisSnapshotEvent(
+        secondRequest,
+        firstSnapshot,
+      ));
+      expect(registry.getHemodynamicProtocol(scenarioId, "guyton-starling"))
+        .toMatchObject({
+          status: "complete",
+          sourceIdentity: {
+            revision: revision + 2,
+            parameterEpoch: 2,
+          },
+        });
+    } finally {
+      registry.dispose();
+    }
+  });
+
+  it("retains the current curve when independent live-target analysis fails", async () => {
+    const revision = 98_600;
+    const firstSource = protocolResultSource(revision, 98.6);
+    const client = jobClientFixture((command) => {
+      if (command.kind !== "startGuytonStarlingProtocolJob") {
+        throw new Error(`Unexpected command ${command.kind}`);
+      }
+      const snapshot = guytonJobSnapshotFixture({
+        source: firstSource,
+        sequence: 0,
+        stage: "complete",
+        status: "complete",
+        completedPointCount: 3,
+        result: guytonJobResultFixture(firstSource),
+      });
+      return guytonJobStartResponse(command, snapshot, 100);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("live-analysis-failure", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      registry.requestHemodynamicProtocol(scenarioId, "guyton-starling");
+      await flushMicrotasks();
+      const previous = registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      ).current;
+      const targetSha256 = "1".repeat(64);
+      publishLiveTarget(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 98.601,
+        parameterEpoch: 1,
+        controlStateSha256: targetSha256,
+      });
+      registry.setHemodynamicProtocolDemand("live-pane", Object.freeze({
+        scenarioId,
+        kind: "guyton-starling" as const,
+        detailMode: "standard" as const,
+      }));
+      const coordinator = registryMocks.analysisCoordinators[0]!;
+      const request = coordinator.requestLatest.mock.calls[0]![0];
+      coordinator.onError(hiddenAnalysisErrorEvent(
+        request,
+        "independent settlement failed",
+      ));
+
+      const series = registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      );
+      expect(series.current).toBe(previous);
+      expect(series.pending).toBeNull();
+      expect(series.lastFailure).toMatchObject({
+        errorMessage: "independent settlement failed",
+        source: { sourceIdentity: { controlStateSha256: targetSha256 } },
+      });
+    } finally {
+      registry.dispose();
+    }
+  });
+
+  it("defers final-demand disposal so an immediate demand re-add keeps the analysis worker", async () => {
+    vi.useFakeTimers();
+    const revision = 98_800;
+    const client = jobClientFixture(() => {
+      throw new Error("visible worker must not own a live-target calculation");
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("live-analysis-demand", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+    const demand = Object.freeze({
+      scenarioId,
+      kind: "guyton-starling" as const,
+      detailMode: "standard" as const,
+    });
+
+    try {
+      publishLiveTarget(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 98.801,
+        parameterEpoch: 1,
+        controlStateSha256: "2".repeat(64),
+      });
+      registry.setHemodynamicProtocolDemand("strict-pane", demand);
+      const coordinator = registryMocks.analysisCoordinators[0]!;
+      registry.setHemodynamicProtocolDemand("strict-pane", null);
+      registry.setHemodynamicProtocolDemand("strict-pane", demand);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(coordinator.dispose).not.toHaveBeenCalled();
+
+      registry.setHemodynamicProtocolDemand("strict-pane", null);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(coordinator.dispose).toHaveBeenCalledOnce();
+      expect(registry.getHemodynamicProtocolSeries(
+        scenarioId,
+        "guyton-starling",
+      ).pending).toBeNull();
+    } finally {
+      registry.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("extracts metrics only at a complete accepted transient-beat boundary", () => {
     const frames = Object.freeze(Array.from({ length: 501 }, (_, index) =>
       Object.freeze({
@@ -865,6 +1442,7 @@ type GuytonJobCommandFixture = Readonly<{
   requestId: string;
   sessionId: string;
   jobId?: string;
+  detailMode?: "standard" | "settled-reference" | "compare";
 }>;
 
 function jobClientFixture(
@@ -1048,7 +1626,12 @@ function guytonJobCancelResponse(command: GuytonJobCommandFixture) {
 function publishSourceIdentity(
   registry: ScientificProductScenarioRegistryV1,
   scenarioId: string,
-  identity: Readonly<{ revision: number; acceptedTimeSec: number }>,
+  identity: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    parameterEpoch?: number;
+    controlStateSha256?: string;
+  }>,
 ): void {
   const store = registry.getRuntime(scenarioId)!.controlStore;
   const ownerToken = Symbol("protocol-source-update");
@@ -1062,12 +1645,177 @@ function publishSourceIdentity(
       ...input.source,
       context: Object.freeze({
         ...input.source.context,
+        parameterEpoch:
+          identity.parameterEpoch ?? input.source.context.parameterEpoch,
+        controlState: identity.controlStateSha256 === undefined
+          ? input.source.context.controlState
+          : Object.freeze({
+            ...input.source.context.controlState,
+            targetStateSha256: identity.controlStateSha256,
+          }),
         stateIdentity: Object.freeze({
           ...input.source.context.stateIdentity,
-          ...identity,
+          revision: identity.revision,
+          acceptedTimeSec: identity.acceptedTimeSec,
         }),
       }),
     }),
   });
   disconnect();
+}
+
+function publishLiveTarget(
+  registry: ScientificProductScenarioRegistryV1,
+  scenarioId: string,
+  identity: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    parameterEpoch: number;
+    controlStateSha256: string;
+  }>,
+): void {
+  const store = registry.getRuntime(scenarioId)!.controlStore;
+  const ownerToken = Symbol("protocol-live-target");
+  const disconnect = store.connectOwner(ownerToken, { current: null });
+  const snapshot = store.getSnapshot();
+  const { actions: _actions, ownerConnected: _ownerConnected, ...input } =
+    snapshot;
+  const controlState = Object.freeze({
+    ...input.source.context.controlState,
+    targetStateSha256: identity.controlStateSha256,
+  });
+  const context = Object.freeze({
+    ...input.source.context,
+    parameterEpoch: identity.parameterEpoch,
+    controlState,
+    stateIdentity: Object.freeze({
+      ...input.source.context.stateIdentity,
+      revision: identity.revision,
+      acceptedTimeSec: identity.acceptedTimeSec,
+    }),
+  });
+  const boundaryFrame = Object.freeze({
+    ...input.source.frames.at(-1),
+    revision: identity.revision,
+    acceptedTimeSec: identity.acceptedTimeSec,
+  }) as MainWireScientificObservableFrameV1;
+  store.publishOwnerSnapshot(ownerToken, {
+    ...input,
+    phase: "live-running",
+    candidate: Object.freeze({
+      sessionId: `candidate-${identity.parameterEpoch}`,
+      context,
+      boundaryFrame,
+    }),
+    frames: Object.freeze([boundaryFrame]),
+    targetControlStateSha256: identity.controlStateSha256,
+    liveTransitionOriginAcceptedTimeSec: identity.acceptedTimeSec,
+    liveActive: true,
+    busy: true,
+    noChange: false,
+    provenance: Object.freeze({
+      displayedFrameOwner: "candidate" as const,
+      displayedParameterEpoch: identity.parameterEpoch,
+      displayedControlStateSha256: identity.controlStateSha256,
+      displayedEvidence: "open-transient-no-periodic-claim" as const,
+    }),
+  });
+  disconnect();
+}
+
+function publishPeriodicSource(
+  registry: ScientificProductScenarioRegistryV1,
+  scenarioId: string,
+  identity: Readonly<{
+    revision: number;
+    acceptedTimeSec: number;
+    parameterEpoch: number;
+    controlStateSha256: string;
+  }>,
+): void {
+  const store = registry.getRuntime(scenarioId)!.controlStore;
+  const ownerToken = Symbol("protocol-periodic-source");
+  const disconnect = store.connectOwner(ownerToken, { current: null });
+  const snapshot = store.getSnapshot();
+  const { actions: _actions, ownerConnected: _ownerConnected, ...input } =
+    snapshot;
+  const sourceFrame = Object.freeze({
+    ...input.source.frames.at(-1),
+    revision: identity.revision,
+    acceptedTimeSec: identity.acceptedTimeSec,
+  }) as MainWireScientificObservableFrameV1;
+  const source = Object.freeze({
+    ...input.source,
+    frames: Object.freeze([sourceFrame]),
+    context: Object.freeze({
+      ...input.source.context,
+      parameterEpoch: identity.parameterEpoch,
+      controlState: Object.freeze({
+        ...input.source.context.controlState,
+        targetStateSha256: identity.controlStateSha256,
+      }),
+      stateIdentity: Object.freeze({
+        ...input.source.context.stateIdentity,
+        revision: identity.revision,
+        acceptedTimeSec: identity.acceptedTimeSec,
+      }),
+    }),
+  });
+  store.publishOwnerSnapshot(ownerToken, {
+    ...input,
+    phase: "idle",
+    source,
+    candidate: null,
+    frames: source.frames,
+    targetControlStateSha256: null,
+    liveTransitionOriginAcceptedTimeSec: null,
+    liveActive: false,
+    busy: false,
+    noChange: true,
+    provenance: Object.freeze({
+      displayedFrameOwner: "source" as const,
+      displayedParameterEpoch: identity.parameterEpoch,
+      displayedControlStateSha256: identity.controlStateSha256,
+      displayedEvidence:
+        "target-period1-and-following-cycle-validated" as const,
+    }),
+  });
+  disconnect();
+}
+
+type HiddenAnalysisRequestFixture = Readonly<{
+  requestToken: string;
+  visibleParameterEpoch: number;
+  visibleControlStateSha256: string;
+  detailMode: "standard" | "settled-reference" | "compare";
+}>;
+
+function hiddenAnalysisSnapshotEvent(
+  request: HiddenAnalysisRequestFixture,
+  snapshot: ReturnType<typeof guytonJobSnapshotFixture>,
+) {
+  return Object.freeze({
+    requestToken: request.requestToken,
+    visibleParameterEpoch: request.visibleParameterEpoch,
+    visibleControlStateSha256: request.visibleControlStateSha256,
+    detailMode: request.detailMode,
+    provenance: "independent-case-source-warm-continuation" as const,
+    snapshot,
+  });
+}
+
+function hiddenAnalysisErrorEvent(
+  request: HiddenAnalysisRequestFixture,
+  message: string,
+) {
+  return Object.freeze({
+    requestToken: request.requestToken,
+    visibleParameterEpoch: request.visibleParameterEpoch,
+    visibleControlStateSha256: request.visibleControlStateSha256,
+    detailMode: request.detailMode,
+    provenance: "independent-case-source-warm-continuation" as const,
+    phase: "settlement" as const,
+    message,
+    previousSnapshotRetained: true as const,
+  });
 }

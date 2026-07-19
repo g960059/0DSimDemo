@@ -80,6 +80,21 @@ export function toTypedPanelView(panel: PanelDef): PanelViewConfig {
       ...(panel.showLegend !== undefined ? { showLegend: panel.showLegend } : {}),
       ...(panel.pvDebugOverlay !== undefined ? { pvDebugOverlay: panel.pvDebugOverlay } : {}),
       ...(panel.pvDebugTraceMode !== undefined ? { pvDebugTraceMode: panel.pvDebugTraceMode } : {}),
+      ...(panel.hemodynamicDetailMode !== undefined
+        ? { hemodynamicDetailMode: panel.hemodynamicDetailMode }
+        : {}),
+      ...(panel.hemodynamicParameterHistoryCount !== undefined
+        ? {
+          hemodynamicParameterHistoryCount:
+            panel.hemodynamicParameterHistoryCount,
+        }
+        : {}),
+      ...(panel.hemodynamicAllowNegativeFillingPressure !== undefined
+        ? {
+          hemodynamicAllowNegativeFillingPressure:
+            panel.hemodynamicAllowNegativeFillingPressure,
+        }
+        : {}),
     };
     return view;
   }

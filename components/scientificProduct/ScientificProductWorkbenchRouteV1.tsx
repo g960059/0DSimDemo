@@ -579,6 +579,7 @@ function ScientificProductWorkbenchShellV1({
         togglePvDebugOverlay={panels.togglePvDebugOverlay}
         updatePvDebugTraceMode={panels.updatePvDebugTraceMode}
         updatePanelPvHistory={panels.updatePanelPvHistory}
+        updatePanelHemodynamicSettings={panels.updatePanelHemodynamicSettings}
         updatePanelControllerItems={panels.updatePanelControllerItems}
         updatePanelLegendPosition={panels.updatePanelLegendPosition}
         noteCaseKey={panels.noteCaseKey}

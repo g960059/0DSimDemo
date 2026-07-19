@@ -16,9 +16,11 @@ import {
   type MainWireScientificPreloadEnvelopeTargetV2,
 } from "@/engine/scientific/protocols/MainWireScientificAdaptivePreloadEnvelopePlannerV2";
 import {
+  MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_CALCULATION_DETAILS_V2,
   MAIN_WIRE_SCIENTIFIC_GUYTON_STARLING_PROTOCOL_V2_ID,
   mainWireScientificHemodynamicJobSourceFingerprintV2,
   type MainWireScientificGuytonStarlingProtocolResultV2,
+  type MainWireScientificHemodynamicCalculationDetailV2,
   type MainWireScientificHemodynamicJobCapsuleV2,
   type MainWireScientificHemodynamicJobSnapshotV2,
   type MainWireScientificHemodynamicJobStartV2,
@@ -96,6 +98,7 @@ type AuditTaskV2 = Readonly<{
 type ActiveJobV2 = {
   ownerSessionId: string;
   jobId: string;
+  detailMode: MainWireScientificHemodynamicCalculationDetailV2;
   capsule: MainWireScientificHemodynamicJobCapsuleV2;
   dependencies: MainWireScientificHemodynamicProtocolDependenciesV1;
   baseline: MainWireScientificGuytonStarlingBaselineV2;
@@ -146,6 +149,25 @@ const FAST_PREVIEW_PLANNED_POINT_COUNT =
   MAIN_WIRE_SCIENTIFIC_FAST_TBV_PREVIEW_POLICY_V1.higherTargetScales.length;
 
 /**
+ * Standard user-facing preview budget. The hypovolemic knee receives more
+ * natural beats because its chamber/vascular redistribution is slowest and
+ * its directional error is largest; all other targets keep the fast 3-beat
+ * observation. This remains finite-hold evidence, never a periodicity claim.
+ */
+export function scientificStandardQuickResponseNaturalBeatCountV1(
+  target: MainWireScientificFastTbvPreviewTargetV1,
+): 3 | 4 | 5 {
+  const lowerScales = [
+    ...MAIN_WIRE_SCIENTIFIC_FAST_TBV_PREVIEW_POLICY_V1.lowerTargetScales,
+  ].sort((left, right) => left - right);
+  if (target.lane === "lower-volume") {
+    if (target.targetScale === lowerScales[0]) return 5;
+    if (target.targetScale === lowerScales[1]) return 4;
+  }
+  return 3;
+}
+
+/**
  * Owns two long-lived branch workers. Only the small start/poll/cancel control
  * plane remains on the interactive scenario worker; Land/TriSeg settlement is
  * isolated in the lower- and higher-volume workers.
@@ -177,8 +199,15 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     input: Readonly<{
       ownerSessionId: string;
       capsule: MainWireScientificHemodynamicJobCapsuleV2;
+      detailMode?: MainWireScientificHemodynamicCalculationDetailV2;
     }>,
   ): Promise<MainWireScientificHemodynamicJobStartV2> {
+    const detailMode = input.detailMode ?? "compare";
+    if (
+      !MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_CALCULATION_DETAILS_V2.includes(
+        detailMode,
+      )
+    ) throw new Error("hemodynamic calculation detail is unsupported");
     if (this.activeJob?.status === "running") {
       this.cancel({
         ownerSessionId: this.activeJob.ownerSessionId,
@@ -235,6 +264,7 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     Object.assign(job, {
       ownerSessionId: input.ownerSessionId,
       jobId,
+      detailMode,
       capsule: input.capsule,
       dependencies,
       baseline,
@@ -566,6 +596,26 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
       existingEvidence !== null
       && message.evidence.evidenceClass === "failure"
     ) {
+      if (
+        job.detailMode === "standard"
+        && previousCompleted < 3
+      ) {
+        // The quick overview requires three accepted natural beats for every
+        // point it displays. A target-specific third-beat failure therefore
+        // replaces the earlier two-beat estimate with explicit failure
+        // evidence, but it must not erase the other valid points or the prior
+        // parameter generation from the product chart.
+        job.fastPreviewEvidence[existingIndex] = message.evidence;
+        job.completedBeatCount += Math.max(
+          0,
+          message.evidence.acquisition.completedNaturalBeatCountAfterPrediction
+            - previousCompleted,
+        );
+        job.fastPreviewRefinementStageByTargetId.delete(message.target.targetId);
+        this.dispatchFastPreviewRefinements(job);
+        this.publishProgress(job);
+        return;
+      }
       job.completedBeatCount += Math.max(
         0,
         message.evidence.acquisition.completedNaturalBeatCountAfterPrediction
@@ -652,6 +702,10 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
       job.lanes["lower-volume"].previewComplete
       && job.lanes["higher-volume"].previewComplete;
     if (!allInitialPreviewsComplete) return;
+    if (job.detailMode === "standard") {
+      this.dispatchStandardPreviewBeats(job);
+      return;
+    }
     const idleLanes = (
       ["lower-volume", "higher-volume"] as const
     ).filter((lane) => job.lanes[lane].inFlightTargetId === null);
@@ -735,6 +789,103 @@ export class MainWireScientificHemodynamicWorkerPoolV2 implements MainWireScient
     job.stage = "continuation";
     this.dispatchPendingLaneTarget(job, job.lanes["lower-volume"]);
     this.dispatchPendingLaneTarget(job, job.lanes["higher-volume"]);
+  }
+
+  private dispatchStandardPreviewBeats(job: ActiveJobV2): void {
+    let dispatched = false;
+    for (const lane of ["lower-volume", "higher-volume"] as const) {
+      const runtime = job.lanes[lane];
+      if (
+        runtime.inFlightTargetId !== null
+        || runtime.inFlightFastPreviewRequest !== null
+      ) continue;
+      const evidence = job.fastPreviewEvidence
+        .filter((candidate) =>
+          candidate.evidenceClass !== "failure"
+          && candidate.acquisition.target.lane === lane
+          && candidate.acquisition.completedNaturalBeatCountAfterPrediction
+            < scientificStandardQuickResponseNaturalBeatCountV1(
+              candidate.acquisition.target,
+            )
+        )
+        .sort((left, right) => {
+          const leftNeedsThirdBeat = left.acquisition
+            .completedNaturalBeatCountAfterPrediction < 3 ? 0 : 1;
+          const rightNeedsThirdBeat = right.acquisition
+            .completedNaturalBeatCountAfterPrediction < 3 ? 0 : 1;
+          return leftNeedsThirdBeat - rightNeedsThirdBeat
+            || left.acquisition.target.targetOrdinal
+              - right.acquisition.target.targetOrdinal;
+        })[0];
+      if (evidence === undefined) continue;
+      const stage = job.fastPreviewRefinementStageByTargetId.get(
+        evidence.evidenceId,
+      );
+      if (
+        stage === undefined
+        || stage.completedNaturalBeatCount
+          !== evidence.acquisition.completedNaturalBeatCountAfterPrediction
+        || stage.completedNaturalBeatCount < 2
+        || stage.completedNaturalBeatCount >= 5
+      ) {
+        this.failJob(
+          job,
+          "standard rapid preview lacks valid refinement evidence",
+        );
+        return;
+      }
+      const requestedNaturalBeatCount = (
+        stage.completedNaturalBeatCount + 1
+      ) as 3 | 4 | 5;
+      const issuedTarget = copyFastPreviewTargetV2(
+        evidence.acquisition.target,
+      );
+      runtime.inFlightTargetId = evidence.evidenceId;
+      runtime.inFlightFastPreviewRequest = Object.freeze({
+        target: issuedTarget,
+        requestedNaturalBeatCount,
+      });
+      runtime.worker.postMessage(Object.freeze({
+        protocolId: MAIN_WIRE_SCIENTIFIC_PRELOAD_BRANCH_WORKER_PROTOCOL_V2_ID,
+        kind: "refine-fast-preview-target" as const,
+        jobId: job.jobId,
+        lane,
+        target: issuedTarget,
+        requestedNaturalBeatCount,
+      }));
+      dispatched = true;
+    }
+    if (dispatched) {
+      job.stage = "preview-ready";
+      return;
+    }
+    if (
+      job.lanes["lower-volume"].inFlightTargetId !== null
+      || job.lanes["higher-volume"].inFlightTargetId !== null
+    ) return;
+    if (job.fastPreviewEvidence.some((evidence) =>
+      evidence.evidenceClass !== "failure"
+      && evidence.acquisition.completedNaturalBeatCountAfterPrediction
+        < scientificStandardQuickResponseNaturalBeatCountV1(
+          evidence.acquisition.target,
+        )
+    )) {
+      this.failJob(
+        job,
+        "standard rapid preview completed with an under-refined point",
+      );
+      return;
+    }
+    this.finalizeStandardPreviewJob(job);
+  }
+
+  private finalizeStandardPreviewJob(job: ActiveJobV2): void {
+    job.fastPreviewRefinementComplete = true;
+    job.status = "complete";
+    job.stage = "preview-complete";
+    job.sequence += 1;
+    job.snapshot = snapshotForJob(job);
+    if (this.activeJob === job) this.activeJob = null;
   }
 
   private acceptContinuationResult(
@@ -1336,6 +1487,7 @@ function snapshotForJob(
   const completedPointCount = job.evidence.length;
   return Object.freeze({
     jobId: job.jobId,
+    detailMode: job.detailMode,
     sequence: job.sequence,
     status: job.status,
     stage: job.stage,
@@ -1348,7 +1500,9 @@ function snapshotForJob(
     progress: Object.freeze({
       completedPointCount,
       plannedPointCountLowerBound: Math.max(
-        MINIMUM_PLANNED_POINT_COUNT,
+        job.detailMode === "standard"
+          ? completedPointCount
+          : MINIMUM_PLANNED_POINT_COUNT,
         completedPointCount + activeDirections.length,
       ),
       activeDirections: Object.freeze(activeDirections),

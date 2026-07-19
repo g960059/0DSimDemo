@@ -108,7 +108,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
   });
 
   test(
-    "retires Protocol C and renders rapid then settled Guyton loci progressively",
+    "renders quick cardiac-output filling-pressure curves with clinical defaults",
     { tag: "@full-e2e" },
     async ({ page }, testInfo) => {
       test.setTimeout(240_000);
@@ -124,76 +124,100 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         );
 
         // Protocol C was a wet-lab acquisition protocol and is deliberately
-        // absent from the browser product. Left and right Guyton panes share
-        // one identity-keyed progressive job instead.
+        // absent from the browser product. The left- and right-heart response
+        // panes share one identity-keyed calculation instead.
         await page.getByRole("button", { name: "メインペインを追加" }).first()
           .click();
         await expect(page.getByRole("button", {
           name: "ESPVR / EDPVR",
           exact: true,
         })).toHaveCount(0);
-        await page.getByRole("button", { name: "Guyton (R)", exact: true })
+        await page.getByRole("button", {
+          name: "心拍出量–充満圧曲線（右心系）",
+          exact: true,
+        })
           .click();
-        const rightGuyton = page.getByTestId(
-          "scientific-right-guyton-starling-pane-v1",
+        const rightResponse = page.getByTestId(
+          "scientific-right-cardiac-output-filling-pressure-pane-v1",
         );
-        await expect(rightGuyton).toBeVisible();
-        await expect(rightGuyton).toHaveAttribute(
+        await expect(rightResponse).toBeVisible();
+        await expect(rightResponse).toHaveAttribute(
           "data-protocol-status",
           /^(?:running|complete|partial)$/,
         );
 
-        await addMainGraphPane(page, "Guyton (L)");
-        const leftGuyton = page.getByTestId(
-          "scientific-left-guyton-starling-pane-v1",
+        await addMainGraphPane(page, "心拍出量–充満圧曲線（左心系）");
+        const leftResponse = page.getByTestId(
+          "scientific-left-cardiac-output-filling-pressure-pane-v1",
         );
-        await expect(leftGuyton).toBeVisible();
-        await expect(leftGuyton).toHaveAttribute(
+        await expect(leftResponse).toBeVisible();
+        await expect(leftResponse).toHaveAttribute(
           "data-protocol-status",
           /^(?:running|complete|partial)$/,
         );
-        await expect(leftGuyton.locator('[data-series="vascular-return"]'))
+        await expect(leftResponse.locator('[data-series="vascular-return"]'))
           .toBeVisible();
-        // The baseline marker is part of the immediate vascular-ready snapshot.
-        await expect(leftGuyton.locator('[data-point-classification]'))
-          .not.toHaveCount(0);
 
-        // Predictor-assisted two-beat estimates stream first. They remain an
-        // explicitly dashed, non-periodic preview and never masquerade as P1.
-        const rapidLocus = leftGuyton.locator(
+        // The default mode streams the inexpensive clinical overview without
+        // waiting for the research-only, fully settled reference calculation.
+        // Its line is deliberately solid: acquisition mechanics are not part
+        // of the user-facing visual vocabulary.
+        const quickCurve = leftResponse.locator(
           '[data-series="rapid-finite-hold-preview"]',
         ).first();
-        await expect(rapidLocus).toBeVisible({ timeout: 60_000 });
-        await expect(rapidLocus).toHaveAttribute("stroke-dasharray", "5 4");
-        await expect(leftGuyton.locator(
+        await expect(quickCurve).toBeVisible({ timeout: 60_000 });
+        await expect(quickCurve).not.toHaveAttribute("stroke-dasharray", /.+/);
+        await expect(leftResponse.locator(
           '[data-point-classification="estimated"], '
           + '[data-point-classification="unclassified"]',
         )).not.toHaveCount(0);
-        await expect(leftGuyton.getByTestId("scientific-protocol-qc-callout-v1"))
-          .toContainText("None are periodic solutions");
 
-        // A separate solid locus appears only after a neighbouring canonical
-        // continuation point reaches settled P1 closure.
-        await expect(leftGuyton.locator('[data-series="cardiac-preload-locus"]'))
-          .toBeVisible({ timeout: 120_000 });
-        await expect(leftGuyton.locator(
+        // The clinically useful default viewport begins at 0 mmHg. Negative
+        // filling-pressure ticks remain hidden until the research setting is
+        // explicitly enabled.
+        const chartText = await leftResponse.locator("svg text").allTextContents();
+        expect(chartText).toContain("0");
+        expect(chartText).toContain("PCWP (mmHg)");
+        expect(chartText.some((value) => /^[-−]/.test(value.trim()))).toBe(false);
+
+        await page.getByRole("button", {
+          name: "Cardiac output–filling pressure (left)のペインメニュー",
+        }).click();
+        await page.getByRole("menuitem", { name: "ペイン設定" }).click();
+        const responseSettings = page.getByTestId(
+          "hemodynamic-response-settings",
+        );
+        await expect(responseSettings).toBeVisible();
+        await expect(responseSettings.getByRole("button", {
+          name: "すばやく表示（推奨）",
+          exact: true,
+        })).toHaveAttribute("aria-pressed", "true");
+        await expect(responseSettings.getByRole("button", {
+          name: "定常点まで精密計算",
+          exact: true,
+        })).toHaveAttribute("aria-pressed", "false");
+        await expect(responseSettings.getByRole("button", {
+          name: /^負の充満圧を表示/,
+        })).toHaveAttribute("aria-pressed", "false");
+        await page.getByRole("button", { name: "ペイン設定を閉じる" }).click();
+
+        // The default quick mode must not start or wait for an exact reference
+        // locus. Users can opt into that computation from pane settings.
+        await expect(leftResponse.locator(
           '[data-series="cardiac-preload-locus"]',
-        ).first()).not.toHaveAttribute("stroke-dasharray", /.+/);
-        await expect(leftGuyton.locator('[data-marker="operating-point"]'))
-          .toBeVisible();
-        await expect(leftGuyton.getByTestId("scientific-protocol-qc-callout-v1"))
-          .toBeVisible();
+        )).toHaveCount(0);
 
-        await dockTab(page, "Guyton Right").click();
-        await expect(rightGuyton).toBeVisible();
-        await expect(rightGuyton).toHaveAttribute(
+        await dockTab(page, "Cardiac output–filling pressure (right)").click();
+        await expect(rightResponse).toBeVisible();
+        await expect(rightResponse).toHaveAttribute(
           "data-protocol-status",
           /^(?:running|complete|partial)$/,
         );
-        await expect(rightGuyton.locator('[data-series="vascular-return"]'))
+        await expect(rightResponse.locator('[data-series="vascular-return"]'))
           .toBeVisible();
-        await expect(rightGuyton.locator('[data-series="cardiac-preload-locus"]'))
-          .toBeVisible();
+        await expect(rightResponse.locator(
+          '[data-series="rapid-finite-hold-preview"]',
+        ).first()).toBeVisible();
         await expect(dockTab(page, "ESPVR / EDPVR")).toHaveCount(0);
         await expect(page.getByTestId("scientific-pv-relation-pane-v1"))
           .toHaveCount(0);

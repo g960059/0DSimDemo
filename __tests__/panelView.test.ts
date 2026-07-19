@@ -61,6 +61,58 @@ describe("panel view compatibility adapter", () => {
     expect(view.pvDebugTraceMode).toBe("both");
   });
 
+  it("preserves optional cardiac output–filling pressure presentation settings", () => {
+    const panel: PanelDef = {
+      id: "guyton-left",
+      type: "GUYTON_LEFT",
+      title: "Cardiac output–filling pressure (left)",
+      w: 6,
+      h: 8,
+      isSettingsOpen: false,
+      showLegend: false,
+      hemodynamicDetailMode: "compare",
+      hemodynamicParameterHistoryCount: 3,
+      hemodynamicAllowNegativeFillingPressure: true,
+      config: {
+        normal: {
+          visible: true,
+          selectedSignals: [],
+        },
+      },
+    };
+
+    const view = toTypedPanelView(panel);
+
+    expect(view).toMatchObject({
+      kind: "graph",
+      graphType: "guyton-left",
+      showLegend: false,
+      hemodynamicDetailMode: "compare",
+      hemodynamicParameterHistoryCount: 3,
+      hemodynamicAllowNegativeFillingPressure: true,
+    });
+  });
+
+  it("leaves legacy cardiac output–filling pressure settings absent for fallback defaults", () => {
+    const panel: PanelDef = {
+      id: "legacy-guyton-right",
+      type: "GUYTON_RIGHT",
+      title: "Legacy",
+      w: 6,
+      h: 8,
+      isSettingsOpen: false,
+      config: {},
+    };
+
+    const view = toTypedPanelView(panel);
+
+    expect(view.kind).toBe("graph");
+    if (view.kind !== "graph") throw new Error("expected graph view");
+    expect(view.hemodynamicDetailMode).toBeUndefined();
+    expect(view.hemodynamicParameterHistoryCount).toBeUndefined();
+    expect(view.hemodynamicAllowNegativeFillingPressure).toBeUndefined();
+  });
+
   it("can emit legacy config from a typed output view", () => {
     const config = toLegacyPanelConfig(["normal", "ami"], {
       kind: "output",

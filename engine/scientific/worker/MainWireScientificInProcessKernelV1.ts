@@ -69,6 +69,9 @@ import {
 import type {
   MainWireScientificHemodynamicJobManagerV2,
 } from "@/engine/scientific/worker/MainWireScientificHemodynamicJobManagerV2";
+import {
+  MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_CALCULATION_DETAILS_V2,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
 
 export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_ID =
   "main-wire-scientific-in-process-kernel-v1" as const;
@@ -1230,6 +1233,7 @@ export class MainWireScientificInProcessKernelV1 {
       const job = await this.hemodynamicJobManager.start({
         ownerSessionId: command.sessionId,
         capsule,
+        detailMode: command.detailMode ?? "compare",
       });
       const after = session.stateIdentity();
       assertSameStateIdentity(before, after, "Guyton/Starling job start");
@@ -1672,6 +1676,9 @@ function parseCommand(
       : value.kind === "pollGuytonStarlingProtocolJob"
         || value.kind === "cancelGuytonStarlingProtocolJob"
         ? [...common, "jobId"]
+      : value.kind === "startGuytonStarlingProtocolJob"
+          && value.detailMode !== undefined
+        ? [...common, "detailMode"]
       : value.kind === "createResolvedSession"
         ? [...common, "resolvedSessionInput"]
         : value.kind === "createOfficialPresetSession"
@@ -1711,6 +1718,19 @@ function parseCommand(
         `observation policy would exceed ${maximumOutputFrameCount} output frames`,
       );
     }
+  }
+  if (
+    value.kind === "startGuytonStarlingProtocolJob"
+    && value.detailMode !== undefined
+    && (
+      typeof value.detailMode !== "string"
+      || !MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_CALCULATION_DETAILS_V2.includes(
+        value.detailMode as
+          (typeof MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_CALCULATION_DETAILS_V2)[number],
+      )
+    )
+  ) {
+    return invalid(identity, "detailMode is unsupported");
   }
   if (
     value.kind === "pollGuytonStarlingProtocolJob"

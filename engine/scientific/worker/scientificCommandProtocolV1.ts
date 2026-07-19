@@ -31,6 +31,7 @@ import type {
   MainWireScientificGuytonStarlingProtocolResultV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import type {
+  MainWireScientificHemodynamicCalculationDetailV2,
   MainWireScientificHemodynamicJobSnapshotV2,
   MainWireScientificHemodynamicJobStartV2,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
@@ -171,7 +172,10 @@ export type RunGuytonStarlingProtocolCommandV1 =
   CommandBaseV1<"runGuytonStarlingProtocol">;
 
 export type StartGuytonStarlingProtocolJobCommandV2 =
-  CommandBaseV1<"startGuytonStarlingProtocolJob">;
+  CommandBaseV1<"startGuytonStarlingProtocolJob"> & Readonly<{
+    /** Omitted legacy commands retain the historical compare behavior. */
+    detailMode?: MainWireScientificHemodynamicCalculationDetailV2;
+  }>;
 
 export type PollGuytonStarlingProtocolJobCommandV2 =
   CommandBaseV1<"pollGuytonStarlingProtocolJob"> & Readonly<{
