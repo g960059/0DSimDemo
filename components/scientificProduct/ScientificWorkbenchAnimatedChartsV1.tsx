@@ -838,7 +838,7 @@ export function drawScientificPvBoundaryGuideV1(
     x,
     y,
     color,
-    0.72 * opacity,
+    0.62 * opacity,
   );
   drawScientificPvBoundaryGuidePathV1(
     ctx,
@@ -846,7 +846,7 @@ export function drawScientificPvBoundaryGuideV1(
     x,
     y,
     color,
-    0.64 * opacity,
+    0.56 * opacity,
   );
   if (guide.espvr.length >= 2) {
     drawScientificPvBoundaryGuideContactV1(
@@ -916,10 +916,10 @@ function drawScientificPvBoundaryGuideContactV1(
   ctx.beginPath();
   ctx.arc(x(point.volumeMl), y(point.pressureMmHg), 3.25, 0, Math.PI * 2);
   ctx.fillStyle = color;
-  ctx.globalAlpha = 0.86 * opacityMultiplier;
+  ctx.globalAlpha = 0.72 * opacityMultiplier;
   ctx.fill();
   ctx.strokeStyle = theme?.backgroundIsDark === false ? "#ffffff" : "#07111f";
-  ctx.globalAlpha = 0.92 * opacityMultiplier;
+  ctx.globalAlpha = 0.8 * opacityMultiplier;
   ctx.lineWidth = 1.25;
   ctx.stroke();
   ctx.restore();
