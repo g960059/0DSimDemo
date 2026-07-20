@@ -108,6 +108,8 @@ function numericalProfileV2(): ScientificEvidenceProfileV2 {
   return Object.freeze({
     profileId: MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1.packId,
     profileVersion: "1",
+    domain: "numerical-verification",
+    evidenceRole: "numerical-verification",
     title: "Run-level numerical integrity",
     contextOfUse:
       "Checks accepted-step numerical tolerances for a release-bound complete periodic cycle. Passing does not establish physiological validity.",
@@ -128,6 +130,8 @@ function healthyReferenceProfileV2(): ScientificEvidenceProfileV2 {
   return Object.freeze({
     profileId: MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.packId,
     profileVersion: "1",
+    domain: "reference-context",
+    evidenceRole: "exploratory-context",
     title: "Fixed resting-adult reference context",
     contextOfUse:
       "Exploratory comparison with broad literature ranges for the fixed 1.9 m² reference adult. The profile is not a patient-specific or disease-specific validation target.",
@@ -214,7 +218,7 @@ function recordV2(
       rationale: role === "numerical-verification"
         ? "The rule checks a declared engineering tolerance over accepted-step evidence."
         : "The comparison is contextual only; calibration use or independent holdout status is not asserted.",
-      datasetRefs: Object.freeze([...gate.sourceIds]),
+      datasetRefs: Object.freeze([]),
     }),
     sourceIds: Object.freeze([...gate.sourceIds]),
     controlStateSha256: input.controlStateSha256,

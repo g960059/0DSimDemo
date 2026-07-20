@@ -129,6 +129,94 @@ describe("Main-wire Scientific Evidence Contract V2", () => {
     expect(() => assertScientificEvidenceBundleV2(assessedNa))
       .toThrow(/must be explicitly not assessed/);
   });
+
+  it("rejects unknown runtime discriminants and evidence classifications", () => {
+    const bundle = bundleV2(validationContextV1(true));
+    const profile = bundle.profiles[0];
+    const rule = bundle.rules[0];
+    const record = bundle.records[0];
+    if (profile === undefined || rule === undefined || record === undefined) {
+      throw new Error("test bundle is incomplete");
+    }
+
+    expect(() => assertScientificEvidenceBundleV2(withFirstProfileV2(bundle, {
+      ...profile,
+      evidenceRole: "unknown" as never,
+    }))).toThrow(/evidence role is invalid/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRuleV2(bundle, {
+      ...rule,
+      domain: "unknown" as never,
+    }))).toThrow(/domain is invalid/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRuleV2(bundle, {
+      ...rule,
+      modality: "unknown" as never,
+    }))).toThrow(/modality is invalid/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRuleV2(bundle, {
+      ...rule,
+      scope: "unknown" as never,
+    }))).toThrow(/scope is invalid/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRuleV2(bundle, {
+      ...rule,
+      applicability: { kind: "unknown" } as never,
+    }))).toThrow(/unknown applicability kind/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRecordV2(bundle, {
+      ...record,
+      evidenceUse: { ...record.evidenceUse, role: "unknown" as never },
+    }))).toThrow(/evidence role is invalid/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRecordV2(bundle, {
+      ...record,
+      applicability: { state: "unknown" } as never,
+    }))).toThrow(/unknown applicability state/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRecordV2(bundle, {
+      ...record,
+      assessment: { state: "unknown" } as never,
+    }))).toThrow(/unknown assessment state/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRecordV2(bundle, {
+      ...record,
+      assessment: {
+        state: "assessed",
+        outcome: "unknown" as never,
+        severity: "none",
+      },
+    }))).toThrow(/assessment outcome is invalid/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRecordV2(bundle, {
+      ...record,
+      assessment: {
+        state: "not-assessed",
+        reason: "unknown" as never,
+        rationale: "Invalid persisted input.",
+      },
+    }))).toThrow(/not-assessed reason is invalid/);
+  });
+
+  it("binds record units and source provenance across all evidence layers", () => {
+    const bundle = bundleV2(validationContextV1(true));
+    const profile = bundle.profiles[0];
+    const rule = bundle.rules[0];
+    const record = bundle.records[0];
+    const reference = profile?.references[0];
+    if (profile === undefined || rule === undefined || record === undefined
+      || reference === undefined) {
+      throw new Error("test bundle has no evidence provenance fixture");
+    }
+
+    expect(() => assertScientificEvidenceBundleV2(withFirstRecordV2(bundle, {
+      ...record,
+      unit: "wrong-unit",
+    }))).toThrow(/metric definition unit/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRecordV2(bundle, {
+      ...record,
+      sourceIds: ["undeclared-record-source"],
+    }))).toThrow(/source not declared by its rule/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstRuleV2(bundle, {
+      ...rule,
+      sourceIds: ["undeclared-rule-source"],
+    }))).toThrow(/source not declared by its profile/);
+    expect(() => assertScientificEvidenceBundleV2(withFirstProfileV2(bundle, {
+      ...profile,
+      references: [...profile.references, reference],
+    }))).toThrow(/sourceIds contains duplicate/);
+  });
 });
 
 function bundleV2(
@@ -213,5 +301,25 @@ function withFirstRecordV2(
   return {
     ...bundle,
     records: [firstRecord, ...bundle.records.slice(1)],
+  };
+}
+
+function withFirstProfileV2(
+  bundle: ScientificEvidenceBundleV2,
+  profile: ScientificEvidenceBundleV2["profiles"][number],
+): ScientificEvidenceBundleV2 {
+  return {
+    ...bundle,
+    profiles: [profile, ...bundle.profiles.slice(1)],
+  };
+}
+
+function withFirstRuleV2(
+  bundle: ScientificEvidenceBundleV2,
+  rule: ScientificEvidenceBundleV2["rules"][number],
+): ScientificEvidenceBundleV2 {
+  return {
+    ...bundle,
+    rules: [rule, ...bundle.rules.slice(1)],
   };
 }
