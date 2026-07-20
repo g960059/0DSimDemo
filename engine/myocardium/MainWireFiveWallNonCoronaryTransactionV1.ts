@@ -11,6 +11,7 @@ import {
   type NonCoronaryCirculationCheckpointV1,
   type NonCoronaryCirculationInitialStateInputV1,
   type NonCoronaryCirculationNewtonOptionsV1,
+  type NonCoronaryMechanicalSupportInputV1,
   type NonCoronaryProtocolResistanceScaleByEdgeV1,
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
@@ -295,6 +296,8 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     pericardium: MainWireCommonPericardiumBindingV1;
     /** Optional numerical/audit controls; not a physiological case parameter. */
     circulationNewtonOptions?: NonCoronaryCirculationNewtonOptionsV1;
+    /** Optional algebraic MCS/IABP extension evaluated inside each BE candidate. */
+    mechanicalSupport?: NonCoronaryMechanicalSupportInputV1;
     /** Protocol-only transient occlusion; never persisted as a case parameter. */
     protocolResistanceScaleByEdge?:
       NonCoronaryProtocolResistanceScaleByEdgeV1;
@@ -326,6 +329,7 @@ export function stepMainWireFiveWallNonCoronaryV1<TWallState>(
     previousAcceptedState: previous.circulation,
     dtSec: input.dtSec,
     runtime: input.runtime,
+    mechanicalSupport: input.mechanicalSupport,
     options: input.circulationNewtonOptions,
     protocolResistanceScaleByEdge:
       input.protocolResistanceScaleByEdge,

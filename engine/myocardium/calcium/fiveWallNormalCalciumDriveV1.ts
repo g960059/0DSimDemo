@@ -23,6 +23,11 @@ export type FiveWallNormalCalciumDriveParamsV1 = Readonly<{
   atrioventricularDelaySec: number;
   atrial: PeriodicBiexponentialCalciumClassV1;
   ventricular: PeriodicBiexponentialCalciumClassV1;
+  /** Optional mechanistic activation perturbation for research case construction. */
+  peakAmplitudeScaleByWall?: Readonly<Partial<Record<
+    keyof FiveWallCalciumValuesV1,
+    number
+  >>>;
 }>;
 
 export const FIVE_WALL_NORMAL_CALCIUM_DRIVE_CLAIM_V1 = Object.freeze({
@@ -131,16 +136,22 @@ export function evaluateFiveWallNormalCalciumDriveV1(
     params.atrial.riseTimeConstantSec,
     params.atrial.decayTimeConstantSec,
   );
-  const atrialCalcium = params.atrial.diastolicCalciumUM +
-    params.atrial.peakAmplitudeUM * atrialPulse;
-  const ventricularCalcium = params.ventricular.diastolicCalciumUM +
-    params.ventricular.peakAmplitudeUM * ventricularPulse;
   const freeCalciumUMByWall = Object.freeze({
-    LA: atrialCalcium,
-    RA: atrialCalcium,
-    LVFW: ventricularCalcium,
-    SEP: ventricularCalcium,
-    RVFW: ventricularCalcium,
+    LA: params.atrial.diastolicCalciumUM
+      + params.atrial.peakAmplitudeUM * atrialPulse
+        * amplitudeScale(params, "LA"),
+    RA: params.atrial.diastolicCalciumUM
+      + params.atrial.peakAmplitudeUM * atrialPulse
+        * amplitudeScale(params, "RA"),
+    LVFW: params.ventricular.diastolicCalciumUM
+      + params.ventricular.peakAmplitudeUM * ventricularPulse
+        * amplitudeScale(params, "LVFW"),
+    SEP: params.ventricular.diastolicCalciumUM
+      + params.ventricular.peakAmplitudeUM * ventricularPulse
+        * amplitudeScale(params, "SEP"),
+    RVFW: params.ventricular.diastolicCalciumUM
+      + params.ventricular.peakAmplitudeUM * ventricularPulse
+        * amplitudeScale(params, "RVFW"),
   });
   if (!Object.values(freeCalciumUMByWall).every(Number.isFinite)) {
     throw new Error("five-wall calcium drive produced a non-finite value");
@@ -206,6 +217,19 @@ function validateParams(params: FiveWallNormalCalciumDriveParamsV1): void {
   }
   validateClass(params.atrial, "atrial", params.cycleLengthSec);
   validateClass(params.ventricular, "ventricular", params.cycleLengthSec);
+  if (params.peakAmplitudeScaleByWall !== undefined) {
+    for (const wall of ["LA", "RA", "LVFW", "SEP", "RVFW"] as const) {
+      const scale = params.peakAmplitudeScaleByWall[wall];
+      if (scale !== undefined) requireNonnegative(scale, `${wall} amplitude scale`);
+    }
+  }
+}
+
+function amplitudeScale(
+  params: FiveWallNormalCalciumDriveParamsV1,
+  wall: keyof FiveWallCalciumValuesV1,
+): number {
+  return params.peakAmplitudeScaleByWall?.[wall] ?? 1;
 }
 
 function validateClass(
