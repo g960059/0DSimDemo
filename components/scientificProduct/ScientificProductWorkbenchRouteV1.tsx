@@ -1,8 +1,20 @@
 import React from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { WorkbenchHeader } from "@/components/workbench/WorkbenchHeader";
+import {
+  EvidenceChecksStatusControl,
+  type EvidenceChecksScenarioSummary,
+  type EvidenceChecksStatus,
+} from "@/components/workbench/EvidenceChecksStatusControl";
+import {
+  ScientificProductEvidencePageV1,
+  type ScientificProductEvidenceSubjectV1,
+} from "@/components/scientificVerification/ScientificProductEvidencePageV1";
+import type {
+  ScientificProductEvidenceMetricFilterV1,
+} from "@/components/scientificVerification/ScientificProductEvidenceMetricExplorerV1";
 import {
   PanelGrid,
   type MetricAuthoringCatalog,
@@ -54,8 +66,18 @@ import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
 } from "@/engine/scientific/controls";
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_TARGET_STATE_SHA256_V0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
+import type {
+  ScientificResearchControlContextV0,
+} from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import {
   ScientificWorkbenchResearchControlV0,
 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlV0";
+import type {
+  ScientificWorkbenchResearchControlDraftV0,
+  ScientificWorkbenchResearchControlSnapshotV0,
+} from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
 
 import {
   createScientificWorkbenchRuntimeRendererV1,
@@ -83,10 +105,25 @@ import {
   type ScientificProductLoadedRuntimeV1,
 } from "./ScientificProductScenarioRegistryV1";
 import {
+  ScientificProductQuickCheckRegistryV1,
+  type ScientificProductQuickCheckRecordV1,
+} from "./ScientificProductQuickCheckRegistryV1";
+import {
+  createScientificProductEvidenceReportV1,
+} from "./ScientificProductEvidenceReportV1";
+import {
+  readScientificProductSavedScenarioCatalogV1,
+  removeScientificProductSavedScenarioV1,
+  saveScientificProductScenarioV1,
+  writeScientificProductSavedScenarioCatalogV1,
+  type ScientificProductSavedScenarioV1,
+} from "./ScientificProductSavedScenarioCatalogV1";
+import {
   SCIENTIFIC_PRODUCT_CASE_CATALOG_V1,
   SCIENTIFIC_PRODUCT_OFFICIAL_HEALTHY_CASE_ID_V1,
   SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
   resolveScientificProductCaseRouteV1,
+  scientificProductCaseByIdV1,
   type ScientificProductCaseRouteResolutionV1,
 } from "./scientificProductCaseCatalogV1";
 
@@ -224,6 +261,7 @@ function ScientificProductWorkbenchShellV1({
   runtime: ScientificProductLoadedRuntimeV1;
 }>) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const locale = localeFromPathname(location.pathname);
   const isMobile = useIsMobile();
@@ -240,6 +278,8 @@ function ScientificProductWorkbenchShellV1({
   });
   const [registry] = React.useState(() =>
     new ScientificProductScenarioRegistryV1(resolution, runtime));
+  const [quickCheckRegistry] = React.useState(() =>
+    new ScientificProductQuickCheckRegistryV1(registry));
   const registryMountedRef = React.useRef(false);
   React.useEffect(() => {
     registryMountedRef.current = true;
@@ -249,14 +289,25 @@ function ScientificProductWorkbenchShellV1({
       // Defer irreversible worker disposal so the immediate replay can retain
       // the same registry; a real unmount remains false at the microtask.
       globalThis.queueMicrotask(() => {
-        if (!registryMountedRef.current) registry.dispose();
+        if (!registryMountedRef.current) {
+          quickCheckRegistry.dispose();
+          registry.dispose();
+        }
       });
     };
-  }, [registry]);
+  }, [quickCheckRegistry, registry]);
   const descriptors = React.useSyncExternalStore(
     registry.subscribeDescriptors,
     registry.getDescriptorSnapshot,
     registry.getDescriptorSnapshot,
+  );
+  const quickCheckSnapshot = React.useSyncExternalStore(
+    quickCheckRegistry.subscribe,
+    quickCheckRegistry.getSnapshot,
+    quickCheckRegistry.getSnapshot,
+  );
+  const [savedScenarioCatalog, setSavedScenarioCatalog] = React.useState(
+    readScientificProductSavedScenarioCatalogV1,
   );
   const instances = React.useMemo(
     () => descriptors as unknown as SimInstance[],
@@ -405,6 +456,70 @@ function ScientificProductWorkbenchShellV1({
     setActiveInstanceId(id);
   }, [panels.addVisibleInstanceConfigs, registry]);
 
+  const openSavedScenario = React.useCallback((savedScenarioId: string) => {
+    const normalizedSavedScenarioId = savedScenarioIdFromSubjectKeyV1(
+      savedScenarioId,
+    );
+    const saved = savedScenarioCatalog.scenarios.find(
+      ({ id }) => id === normalizedSavedScenarioId,
+    );
+    if (
+      saved === undefined
+      || saved.releaseRef.id !== SCIENTIFIC_PRODUCT_RELEASE_REF_V1.id
+      || saved.releaseRef.version !== SCIENTIFIC_PRODUCT_RELEASE_REF_V1.version
+      || saved.releaseRef.sha256 !== SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256
+    ) return;
+    const id = registry.addPreset(saved.sourceCaseId, {
+      name: saved.name,
+      color: saved.color,
+      duplicateDraft: saved.controls,
+    });
+    if (id === null) return;
+    panels.addVisibleInstanceConfigs([{ id }]);
+    setAuthoredViews((previous) =>
+      addVisibleScenariosToMetricsViews(previous, [id]));
+    setActiveInstanceId(id);
+    navigate({ pathname: location.pathname, search: "" });
+  }, [
+    location.pathname,
+    navigate,
+    panels.addVisibleInstanceConfigs,
+    registry,
+    savedScenarioCatalog.scenarios,
+  ]);
+
+  const saveCurrentScenario = React.useCallback((scenarioId: string): string | null => {
+    const currentRuntime = registry.getRuntime(scenarioId);
+    const presentation = registry.getPresentation(scenarioId);
+    if (currentRuntime === null || presentation === null) return null;
+    const committed = committedContextForPersistenceV1(
+      currentRuntime.controlStore.getSnapshot(),
+    );
+    if (committed === null) return null;
+    const savedId = nextSavedScenarioIdV1();
+    const next = saveScientificProductScenarioV1(savedScenarioCatalog, {
+      id: savedId,
+      name: presentation.descriptor.name,
+      color: presentation.descriptor.color,
+      presentation,
+      controlStateSha256: committed.controlState.targetStateSha256,
+      controls: controlDraftFromContextV1(committed),
+      savedAt: new Date(),
+    });
+    if (!writeScientificProductSavedScenarioCatalogV1(next)) return null;
+    setSavedScenarioCatalog(next);
+    return savedId;
+  }, [registry, savedScenarioCatalog]);
+
+  const removeSavedScenario = React.useCallback((savedScenarioId: string) => {
+    const next = removeScientificProductSavedScenarioV1(
+      savedScenarioCatalog,
+      savedScenarioId,
+    );
+    if (!writeScientificProductSavedScenarioCatalogV1(next)) return;
+    setSavedScenarioCatalog(next);
+  }, [savedScenarioCatalog]);
+
   const removeInstance = React.useCallback((id: string) => {
     const before = registry.getDescriptorSnapshot();
     const nextActive = before.find(({ id: candidate }) => candidate !== id)?.id;
@@ -418,6 +533,232 @@ function ScientificProductWorkbenchShellV1({
   }, [activeInstanceId, panels.removeInstanceConfigs, registry]);
 
   const noPhysicsMutation = React.useCallback(() => undefined, []);
+  const evidenceViewOpen = React.useMemo(
+    () => new URLSearchParams(location.search).get("view") === "evidence",
+    [location.search],
+  );
+  React.useEffect(() => {
+    if (!evidenceViewOpen || location.hash === "") return;
+    navigate(
+      { pathname: location.pathname, search: location.search, hash: "" },
+      { replace: true },
+    );
+  }, [evidenceViewOpen, location.hash, location.pathname, location.search, navigate]);
+  const evidenceScenarioSummaries = React.useMemo<
+    readonly EvidenceChecksScenarioSummary[]
+  >(() => descriptors.map((descriptor) => {
+    const record = quickCheckSnapshot.records.find(
+      ({ scenarioId }) => scenarioId === descriptor.id,
+    );
+    return Object.freeze({
+      id: descriptor.id,
+      name: descriptor.name,
+      color: descriptor.color,
+      status: evidenceControlStatusV1(record, descriptor.lifecycle),
+      message: evidenceControlMessageV1(record, descriptor.lifecycle),
+    });
+  }), [descriptors, quickCheckSnapshot]);
+  const evidenceStatus = React.useMemo<EvidenceChecksStatus>(() => {
+    if (evidenceScenarioSummaries.some(({ status }) => status === "checking")) {
+      return "checking";
+    }
+    const active = evidenceScenarioSummaries.find(
+      ({ id }) => id === activeInstanceId,
+    );
+    return active?.status ?? "idle";
+  }, [activeInstanceId, evidenceScenarioSummaries]);
+  const openEvidenceView = React.useCallback(() => {
+    const search = new URLSearchParams(location.search);
+    search.set("view", "evidence");
+    if (activeInstanceId) search.set("subject", sessionSubjectKeyV1(activeInstanceId));
+    if (evidenceStatus === "findings" || evidenceStatus === "verification-error") {
+      search.set("status", "review");
+    } else {
+      search.delete("status");
+    }
+    search.delete("scenario");
+    navigate({ pathname: location.pathname, search: `?${search.toString()}` });
+  }, [
+    activeInstanceId,
+    evidenceStatus,
+    location.pathname,
+    location.search,
+    navigate,
+  ]);
+  const currentEvidenceSubjects = React.useMemo<
+    readonly ScientificProductEvidenceSubjectV1[]
+  >(() => descriptors.map((descriptor) => {
+    const record = quickCheckSnapshot.records.find(
+      ({ scenarioId }) => scenarioId === descriptor.id,
+    );
+    return Object.freeze({
+      key: sessionSubjectKeyV1(descriptor.id),
+      name: descriptor.name,
+      description: descriptor.lifecycle === "ready"
+        ? "Volatile Workbench session. Save explicitly to keep it in My scenarios."
+        : descriptor.statusMessage,
+      statusLabel: evidenceSubjectStatusLabelV1(record, descriptor.lifecycle),
+      disabled: descriptor.lifecycle === "failed",
+    });
+  }), [descriptors, quickCheckSnapshot.records]);
+  const presetEvidenceSubjects = React.useMemo<
+    readonly ScientificProductEvidenceSubjectV1[]
+  >(() => SCIENTIFIC_PRODUCT_CASE_CATALOG_V1.map((caseEntry) => {
+    const report = quickCheckSnapshot.records.find((record) =>
+      record.sourceCaseId === caseEntry.caseId
+      && record.committedControlStateSha256
+        === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_TARGET_STATE_SHA256_V0);
+    return Object.freeze({
+      key: presetSubjectKeyV1(caseEntry.caseId),
+      name: caseEntry.displayName,
+      description: caseEntry.description,
+      statusLabel: report === undefined
+        ? "Not checked in this session"
+        : evidenceSubjectStatusLabelV1(report, "ready"),
+    });
+  }), [quickCheckSnapshot.records]);
+  const savedEvidenceSubjects = React.useMemo<
+    readonly ScientificProductEvidenceSubjectV1[]
+  >(() => savedScenarioCatalog.scenarios.map((saved) => {
+    const releaseMatches = saved.releaseRef.id
+        === SCIENTIFIC_PRODUCT_RELEASE_REF_V1.id
+      && saved.releaseRef.version === SCIENTIFIC_PRODUCT_RELEASE_REF_V1.version
+      && saved.releaseRef.sha256 === SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256;
+    const report = quickCheckSnapshot.records.find((record) =>
+      record.sourceCaseId === saved.sourceCaseId
+      && record.committedControlStateSha256 === saved.controlStateSha256);
+    return Object.freeze({
+      key: savedSubjectKeyV1(saved.id),
+      name: saved.name,
+      description: releaseMatches
+        ? `Saved ${new Date(saved.savedAtIso).toLocaleString()}. Reopen to run an automatic release-bound Quick Check.`
+        : "Saved under a different model release; opening is disabled.",
+      statusLabel: !releaseMatches
+        ? "Release mismatch"
+        : report === undefined
+          ? "Saved · not checked in this session"
+          : evidenceSubjectStatusLabelV1(report, "ready"),
+    });
+  }), [quickCheckSnapshot.records, savedScenarioCatalog.scenarios]);
+  const requestedEvidenceSubject = React.useMemo(
+    () => new URLSearchParams(location.search).get("subject"),
+    [location.search],
+  );
+  const initialEvidenceFilter = React.useMemo(
+    () => evidenceMetricFilterFromSearchV1(location.search),
+    [location.search],
+  );
+  const selectedEvidenceSubjectKey = React.useMemo(() => {
+    const keys = new Set([
+      ...currentEvidenceSubjects,
+      ...presetEvidenceSubjects,
+      ...savedEvidenceSubjects,
+    ].map(({ key }) => key));
+    if (
+      requestedEvidenceSubject !== null
+      && keys.has(requestedEvidenceSubject)
+    ) return requestedEvidenceSubject;
+    const activeKey = sessionSubjectKeyV1(activeInstanceId);
+    return keys.has(activeKey)
+      ? activeKey
+      : currentEvidenceSubjects[0]?.key
+        ?? presetEvidenceSubjects[0]?.key
+        ?? "unavailable";
+  }, [
+    activeInstanceId,
+    currentEvidenceSubjects,
+    presetEvidenceSubjects,
+    requestedEvidenceSubject,
+    savedEvidenceSubjects,
+  ]);
+  const selectedEvidence = React.useMemo(() => selectEvidenceSubjectV1({
+    subjectKey: selectedEvidenceSubjectKey,
+    registry,
+    records: quickCheckSnapshot.records,
+    savedScenarios: savedScenarioCatalog.scenarios,
+  }), [
+    quickCheckSnapshot.records,
+    registry,
+    savedScenarioCatalog.scenarios,
+    selectedEvidenceSubjectKey,
+  ]);
+  const selectedEvidenceReport = React.useMemo(
+    () => createScientificProductEvidenceReportV1({
+      subjectKey: selectedEvidenceSubjectKey,
+      subjectName: selectedEvidence.name,
+      subjectKind: selectedEvidence.kind,
+      record: selectedEvidence.record,
+      builtInDiseasePreset: selectedEvidence.builtInDiseasePreset,
+      releaseId: selectedEvidence.releaseId,
+      releaseVersion: selectedEvidence.releaseVersion,
+      releaseSha256: selectedEvidence.releaseSha256,
+      workspaceSha256: selectedEvidence.workspaceSha256,
+      unavailableVerificationError:
+        selectedEvidence.unavailableVerificationError,
+      unavailableMessage: selectedEvidence.unavailableMessage,
+    }),
+    [selectedEvidence, selectedEvidenceSubjectKey],
+  );
+  const selectEvidenceSubject = React.useCallback((subjectKey: string) => {
+    const selectedSessionId = sessionIdFromSubjectKeyV1(subjectKey);
+    if (
+      selectedSessionId !== null
+      && descriptors.some(({ id }) => id === selectedSessionId)
+    ) setActiveInstanceId(selectedSessionId);
+    const search = new URLSearchParams(location.search);
+    search.set("view", "evidence");
+    search.set("subject", subjectKey);
+    navigate({ pathname: location.pathname, search: `?${search.toString()}` });
+  }, [descriptors, location.pathname, location.search, navigate]);
+  const closeEvidenceView = React.useCallback(() => {
+    const search = new URLSearchParams(location.search);
+    search.delete("view");
+    search.delete("subject");
+    search.delete("status");
+    search.delete("scenario");
+    const query = search.toString();
+    navigate({ pathname: location.pathname, search: query ? `?${query}` : "" });
+  }, [location.pathname, location.search, navigate]);
+  const saveCurrentFromEvidence = React.useCallback(() => {
+    const scenarioId = sessionIdFromSubjectKeyV1(selectedEvidenceSubjectKey);
+    if (scenarioId === null) return;
+    const savedId = saveCurrentScenario(scenarioId);
+    if (savedId !== null) selectEvidenceSubject(savedSubjectKeyV1(savedId));
+  }, [saveCurrentScenario, selectEvidenceSubject, selectedEvidenceSubjectKey]);
+  const openCurrentFromEvidence = React.useCallback((subjectKey: string) => {
+    const scenarioId = sessionIdFromSubjectKeyV1(subjectKey);
+    if (
+      scenarioId !== null
+      && descriptors.some(({ id }) => id === scenarioId)
+    ) setActiveInstanceId(scenarioId);
+    closeEvidenceView();
+  }, [closeEvidenceView, descriptors]);
+  const openPresetFromEvidence = React.useCallback((subjectKey: string) => {
+    const caseId = presetCaseIdFromSubjectKeyV1(subjectKey);
+    if (caseId === null) return;
+    addInstance(undefined, caseId);
+    navigate({ pathname: location.pathname, search: "" });
+  }, [addInstance, location.pathname, navigate]);
+  const deleteSavedFromEvidence = React.useCallback((subjectKey: string) => {
+    const savedId = savedScenarioIdFromSubjectKeyV1(subjectKey);
+    removeSavedScenario(savedId);
+    selectEvidenceSubject(sessionSubjectKeyV1(activeInstanceId));
+  }, [activeInstanceId, removeSavedScenario, selectEvidenceSubject]);
+  const selectedCurrentId = sessionIdFromSubjectKeyV1(
+    selectedEvidenceSubjectKey,
+  );
+  const saveDisabled = selectedCurrentId === null
+    || descriptors.find(({ id }) => id === selectedCurrentId)?.lifecycle
+      !== "ready"
+    || quickCheckSnapshot.records.find(
+      ({ scenarioId }) => scenarioId === selectedCurrentId,
+    )?.status === "checking";
+  const openingWouldAddScenario = selectedEvidence.kind !== "current-session";
+  const openInWorkbenchDisabled = openingWouldAddScenario
+    && (
+      descriptors.length >= registry.maximumScenarioCount
+      || !selectedEvidence.releaseMatchesCurrent
+    );
 
   return (
     <div
@@ -451,7 +792,30 @@ function ScientificProductWorkbenchShellV1({
         registry={registry}
         activeScenarioId={activeInstanceId}
       />
-      <WorkbenchHeader
+      {evidenceViewOpen && (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <ScientificProductEvidencePageV1
+            currentSessions={currentEvidenceSubjects}
+            presets={presetEvidenceSubjects}
+            savedScenarios={savedEvidenceSubjects}
+            selectedSubjectKey={selectedEvidenceSubjectKey}
+            selectedReport={selectedEvidenceReport}
+            locale={locale}
+            initialFilter={initialEvidenceFilter}
+            onSelect={selectEvidenceSubject}
+            onBack={closeEvidenceView}
+            onSaveCurrent={saveCurrentFromEvidence}
+            onOpenCurrent={openCurrentFromEvidence}
+            onOpenPreset={openPresetFromEvidence}
+            onOpenSaved={openSavedScenario}
+            onDeleteSaved={deleteSavedFromEvidence}
+            saveDisabled={saveDisabled}
+            saveDisabledReason="Wait for the committed-target Quick Check to finish before saving."
+            openInWorkbenchDisabled={openInWorkbenchDisabled}
+          />
+        </div>
+      )}
+      {!evidenceViewOpen && <WorkbenchHeader
         mode="sandbox"
         backHref={allCasesHref(locale)}
         backLabel="Cases"
@@ -464,8 +828,7 @@ function ScientificProductWorkbenchShellV1({
         fileInputRef={fileInputRef}
         onImportFile={noPhysicsMutation}
         onExport={noPhysicsMutation}
-        primaryActionDisabled
-        primaryActionUnavailableReason={t("workbench.scientificPersistenceUnavailable")}
+        showPrimaryAction={false}
         fileActionsDisabled
         fileActionsUnavailableReason={t("workbench.scientificFilesUnavailable")}
         isPlaying={isPlaying}
@@ -490,13 +853,26 @@ function ScientificProductWorkbenchShellV1({
           panels.setWorkbenchLayout((previous) => ({ ...previous, metricsSpan }))}
         theme={workbenchTheme}
         onThemeChange={setWorkbenchTheme}
+        evidenceChecksControl={(
+          <EvidenceChecksStatusControl
+            status={evidenceStatus}
+            scenarios={evidenceScenarioSummaries}
+            onOpenFullReport={openEvidenceView}
+          />
+        )}
         settingsContent={(
           <ScientificProductTransitionBehaviorSettingsV1
             registry={registry}
             activeScenarioId={activeInstanceId}
           />
         )}
-      />
+      />}
+      <div
+        className={evidenceViewOpen ? "hidden" : "contents"}
+        aria-hidden={evidenceViewOpen}
+        inert={evidenceViewOpen}
+        data-workbench-surface-preserved="true"
+      >
       <PanelGrid
         instances={instances}
         panels={panels.panels}
@@ -603,6 +979,7 @@ function ScientificProductWorkbenchShellV1({
         onCancel={panels.cancelAddPanel}
         onConfirm={panels.confirmAddPanel}
       />
+      </div>
     </div>
   );
 }
@@ -962,3 +1339,270 @@ readonly ScenarioPresetCatalogEntry[] = SCIENTIFIC_PRODUCT_CASE_CATALOG_V1.map(
     detail: entry.badge,
   }),
 );
+
+function evidenceControlStatusV1(
+  record: ScientificProductQuickCheckRecordV1 | undefined,
+  lifecycle: "loading" | "ready" | "failed",
+): EvidenceChecksStatus {
+  if (lifecycle === "loading" || record?.status === "checking") {
+    return "checking";
+  }
+  if (lifecycle === "failed" || record?.status === "verification-error") {
+    return "verification-error";
+  }
+  if (record?.status === "passed") {
+    return record.validationFindingCount > 0 ? "findings" : "passed";
+  }
+  return "idle";
+}
+
+function evidenceControlMessageV1(
+  record: ScientificProductQuickCheckRecordV1 | undefined,
+  lifecycle: "loading" | "ready" | "failed",
+): string {
+  if (lifecycle === "loading") return "Preparing scenario…";
+  if (lifecycle === "failed") return "Scenario calculation failed.";
+  if (record === undefined) return "Waiting for Quick Check.";
+  if (record.status === "passed") {
+    const review = evidenceReferenceReviewLabelV1(record);
+    return review === null ? "Quick check passed." : `${review}.`;
+  }
+  return record.message;
+}
+
+function committedContextForPersistenceV1(
+  snapshot: ScientificWorkbenchResearchControlSnapshotV0,
+): ScientificResearchControlContextV0 | null {
+  const requestedSha256 = snapshot.targetControlStateSha256
+    ?? snapshot.source.context.controlState.targetStateSha256;
+  if (
+    snapshot.candidate?.context.controlState.targetStateSha256
+      === requestedSha256
+  ) return snapshot.candidate.context;
+  if (
+    snapshot.source.context.controlState.targetStateSha256
+      === requestedSha256
+  ) return snapshot.source.context;
+  return null;
+}
+
+function controlDraftFromContextV1(
+  context: ScientificResearchControlContextV0,
+): ScientificWorkbenchResearchControlDraftV0 {
+  const controls = context.controlState.controls;
+  return Object.freeze({
+    systemic:
+      controls["circulation.systemic-vascular-resistance-scale"],
+    pulmonary:
+      controls["circulation.pulmonary-vascular-resistance-scale"],
+    venousTone: controls["circulation.venous-tone"],
+    arterialStiffness: controls["circulation.arterial-stiffness"],
+    peepCmH2O: controls["ventilation.peep-cm-h2o"],
+    pericardialFluidVolumeMl:
+      controls["pericardium.prescribed-fluid-volume-ml"],
+  });
+}
+
+let savedScenarioOrdinalV1 = 0;
+
+function nextSavedScenarioIdV1(): string {
+  const uuid = globalThis.crypto?.randomUUID?.();
+  if (uuid !== undefined) return `my-scenario-${uuid}`;
+  savedScenarioOrdinalV1 += 1;
+  return `my-scenario-${Date.now()}-${savedScenarioOrdinalV1}`;
+}
+
+const SESSION_SUBJECT_PREFIX_V1 = "session:";
+const PRESET_SUBJECT_PREFIX_V1 = "preset:";
+const SAVED_SUBJECT_PREFIX_V1 = "saved:";
+
+function sessionSubjectKeyV1(scenarioId: string): string {
+  return `${SESSION_SUBJECT_PREFIX_V1}${scenarioId}`;
+}
+
+function presetSubjectKeyV1(caseId: string): string {
+  return `${PRESET_SUBJECT_PREFIX_V1}${caseId}`;
+}
+
+function savedSubjectKeyV1(savedScenarioId: string): string {
+  return `${SAVED_SUBJECT_PREFIX_V1}${savedScenarioId}`;
+}
+
+function sessionIdFromSubjectKeyV1(subjectKey: string): string | null {
+  return subjectKey.startsWith(SESSION_SUBJECT_PREFIX_V1)
+    ? subjectKey.slice(SESSION_SUBJECT_PREFIX_V1.length)
+    : null;
+}
+
+function presetCaseIdFromSubjectKeyV1(subjectKey: string): string | null {
+  return subjectKey.startsWith(PRESET_SUBJECT_PREFIX_V1)
+    ? subjectKey.slice(PRESET_SUBJECT_PREFIX_V1.length)
+    : null;
+}
+
+function savedScenarioIdFromSubjectKeyV1(subjectKey: string): string {
+  return subjectKey.startsWith(SAVED_SUBJECT_PREFIX_V1)
+    ? subjectKey.slice(SAVED_SUBJECT_PREFIX_V1.length)
+    : subjectKey;
+}
+
+function evidenceMetricFilterFromSearchV1(
+  search: string,
+): ScientificProductEvidenceMetricFilterV1 {
+  const requested = new URLSearchParams(search).get("status");
+  if (
+    requested === "review"
+    || requested === "meets"
+    || requested === "unassessed"
+  ) return requested;
+  return "all";
+}
+
+function evidenceSubjectStatusLabelV1(
+  record: ScientificProductQuickCheckRecordV1 | undefined,
+  lifecycle: "loading" | "ready" | "failed",
+): string {
+  if (lifecycle === "loading") return "Checking";
+  if (lifecycle === "failed") return "Verification error";
+  if (record === undefined) return "Waiting for Quick Check";
+  if (record.status === "checking") return "Checking";
+  if (record.status === "verification-error") return "Verification error";
+  return evidenceReferenceReviewLabelV1(record) ?? "Quick check passed";
+}
+
+function evidenceReferenceReviewLabelV1(
+  record: ScientificProductQuickCheckRecordV1,
+): string | null {
+  const labels: string[] = [];
+  if (record.validationFindingCount > 0) {
+    labels.push(
+      `${record.validationFindingCount} reference finding${record.validationFindingCount === 1 ? "" : "s"}`,
+    );
+  }
+  if (record.validationUnavailableCount > 0) {
+    labels.push(
+      `${record.validationUnavailableCount} reference comparison${record.validationUnavailableCount === 1 ? "" : "s"} not assessed`,
+    );
+  }
+  return labels.length === 0 ? null : labels.join(" · ");
+}
+
+type SelectedScientificProductEvidenceV1 = Readonly<{
+  kind: "current-session" | "preset" | "saved-scenario";
+  name: string;
+  record: ScientificProductQuickCheckRecordV1 | null;
+  builtInDiseasePreset: boolean;
+  releaseId: string;
+  releaseVersion: string;
+  releaseSha256: string;
+  workspaceSha256: string | null;
+  releaseMatchesCurrent: boolean;
+  unavailableVerificationError: string | null;
+  unavailableMessage: string | null;
+}>;
+
+function selectEvidenceSubjectV1(input: Readonly<{
+  subjectKey: string;
+  registry: ScientificProductScenarioRegistryV1;
+  records: readonly ScientificProductQuickCheckRecordV1[];
+  savedScenarios: readonly ScientificProductSavedScenarioV1[];
+}>): SelectedScientificProductEvidenceV1 {
+  const sessionId = sessionIdFromSubjectKeyV1(input.subjectKey);
+  if (sessionId !== null) {
+    const presentation = input.registry.getPresentation(sessionId);
+    const descriptor = input.registry.getDescriptorSnapshot().find(
+      ({ id }) => id === sessionId,
+    );
+    const record = input.records.find(
+      ({ scenarioId }) => scenarioId === sessionId,
+    ) ?? null;
+    return Object.freeze({
+      kind: "current-session" as const,
+      name: descriptor?.name ?? "Current scenario",
+      record,
+      builtInDiseasePreset: false,
+      releaseId: descriptor?.source.releaseId
+        ?? SCIENTIFIC_PRODUCT_RELEASE_REF_V1.id,
+      releaseVersion: descriptor?.source.releaseVersion
+        ?? SCIENTIFIC_PRODUCT_RELEASE_REF_V1.version,
+      releaseSha256: descriptor?.source.releaseSha256
+        ?? SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256,
+      workspaceSha256: presentation?.workspaceDocument.ref.sha256 ?? null,
+      releaseMatchesCurrent: true,
+      unavailableVerificationError: descriptor?.lifecycle === "failed"
+        ? descriptor.statusMessage
+        : null,
+      unavailableMessage: null,
+    });
+  }
+
+  const presetCaseId = presetCaseIdFromSubjectKeyV1(input.subjectKey);
+  if (presetCaseId !== null) {
+    const caseEntry = scientificProductCaseByIdV1(presetCaseId);
+    const record = input.records.find((candidate) =>
+      candidate.sourceCaseId === presetCaseId
+      && candidate.committedControlStateSha256
+        === MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_TARGET_STATE_SHA256_V0)
+      ?? null;
+    const presentation = record === null
+      ? null
+      : input.registry.getPresentation(record.scenarioId);
+    return Object.freeze({
+      kind: "preset" as const,
+      name: caseEntry?.displayName ?? presetCaseId,
+      record,
+      builtInDiseasePreset: caseEntry?.kind === "research-bracket",
+      releaseId: SCIENTIFIC_PRODUCT_RELEASE_REF_V1.id,
+      releaseVersion: SCIENTIFIC_PRODUCT_RELEASE_REF_V1.version,
+      releaseSha256: SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256,
+      workspaceSha256: presentation?.workspaceDocument.ref.sha256 ?? null,
+      releaseMatchesCurrent: true,
+      unavailableVerificationError: null,
+      unavailableMessage: null,
+    });
+  }
+
+  const savedId = savedScenarioIdFromSubjectKeyV1(input.subjectKey);
+  const saved = input.savedScenarios.find(({ id }) => id === savedId);
+  if (saved !== undefined) {
+    const releaseMatchesCurrent =
+      saved.releaseRef.id === SCIENTIFIC_PRODUCT_RELEASE_REF_V1.id
+      && saved.releaseRef.version === SCIENTIFIC_PRODUCT_RELEASE_REF_V1.version
+      && saved.releaseRef.sha256 === SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256;
+    const record = releaseMatchesCurrent
+      ? input.records.find((candidate) =>
+        candidate.sourceCaseId === saved.sourceCaseId
+        && candidate.committedControlStateSha256 === saved.controlStateSha256)
+        ?? null
+      : null;
+    return Object.freeze({
+      kind: "saved-scenario" as const,
+      name: saved.name,
+      record,
+      builtInDiseasePreset: false,
+      releaseId: saved.releaseRef.id,
+      releaseVersion: saved.releaseRef.version,
+      releaseSha256: saved.releaseRef.sha256,
+      workspaceSha256: saved.workspaceSha256,
+      releaseMatchesCurrent,
+      unavailableVerificationError: null,
+      unavailableMessage: releaseMatchesCurrent
+        ? null
+        : "This saved scenario belongs to a different model release. Its evidence is not reused or translated silently.",
+    });
+  }
+
+  return Object.freeze({
+    kind: "preset" as const,
+    name: "Unavailable scenario",
+    record: null,
+    builtInDiseasePreset: false,
+    releaseId: SCIENTIFIC_PRODUCT_RELEASE_REF_V1.id,
+    releaseVersion: SCIENTIFIC_PRODUCT_RELEASE_REF_V1.version,
+    releaseSha256: SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256,
+    workspaceSha256: null,
+    releaseMatchesCurrent: true,
+    unavailableVerificationError: null,
+    unavailableMessage: null,
+  });
+}

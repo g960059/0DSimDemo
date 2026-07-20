@@ -372,6 +372,21 @@
       "openPanel": "ワークベンチパネルを開く",
       "sceneDetails": "ケース詳細"
     },
+    "evidenceChecks": {
+      "checks": "チェック",
+      "checking": "確認中",
+      "findings": "所見あり",
+      "error": "エラー",
+      "notChecked": "未確認",
+      "passed": "合格",
+      "verificationError": "検証エラー",
+      "title": "根拠とチェック",
+      "scopeHint": "計算の健全性とシナリオ別の所見",
+      "triggerAria": "根拠とチェック: {{status}}",
+      "close": "根拠とチェックを閉じる",
+      "noScenarioDetails": "シナリオのチェック詳細はまだありません。",
+      "viewFullReport": "根拠とチェックを表示"
+    },
     "sidePanel": {
       "aria": "ワークベンチ詳細",
       "closePanel": "パネルを閉じる",

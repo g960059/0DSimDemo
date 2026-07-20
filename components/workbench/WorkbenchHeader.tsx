@@ -16,9 +16,8 @@ import {
   Save,
   SlidersHorizontal,
 } from 'lucide-react';
-import { SimInstance } from '../../types';
-import { SimulationHealth } from '../../engine/protocol';
-import { HealthBadge, MorphologyBadge } from '../HealthIndicators';
+import type { SimInstance } from '../../types';
+import type { SimulationHealth } from '../../engine/protocol';
 import { ModelLimitations } from '../ModelLimitations';
 import type { MorphologyCheckSummary } from '../../engine/verification/morphologyCheck';
 import { WorkbenchHeaderMode, WorkbenchSceneMeta, WorkbenchSidePanel, type WorkbenchThemeId } from './WorkbenchSidePanel';
@@ -36,14 +35,19 @@ interface WorkbenchHeaderProps {
   onSceneMetaChange: (meta: WorkbenchSceneMeta) => void;
   onPrimaryAction: () => void | Promise<void>;
   onResetToAuthorState?: () => void;
-  instances: SimInstance[];
-  instanceHealth: Record<string, SimulationHealth>;
+  /** @deprecated Header diagnostics now render through evidenceChecksControl. */
+  instances?: SimInstance[];
+  /** @deprecated Header diagnostics now render through evidenceChecksControl. */
+  instanceHealth?: Record<string, SimulationHealth>;
+  /** @deprecated Header diagnostics now render through evidenceChecksControl. */
   instanceMorphology?: Record<string, MorphologyCheckSummary>;
-  getLiveHealth: (id: string) => SimulationHealth | undefined;
+  /** @deprecated Header diagnostics now render through evidenceChecksControl. */
+  getLiveHealth?: (id: string) => SimulationHealth | undefined;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onImportFile: (file: File) => void;
   onExport: () => void;
   isSavingCase?: boolean;
+  showPrimaryAction?: boolean;
   primaryActionDisabled?: boolean;
   primaryActionUnavailableReason?: string;
   fileActionsDisabled?: boolean;
@@ -69,6 +73,8 @@ interface WorkbenchHeaderProps {
   publishStatus?: CaseStatus;
   publishVisibility?: CaseVisibility;
   onOpenPublishDialog?: () => void;
+  /** Header-owned placement for the active scenario's evidence/checks control. */
+  evidenceChecksControl?: React.ReactNode;
   settingsContent?: React.ReactNode;
 }
 
@@ -86,14 +92,11 @@ export function WorkbenchHeader({
   onSceneMetaChange,
   onPrimaryAction,
   onResetToAuthorState,
-  instances,
-  instanceHealth,
-  instanceMorphology = {},
-  getLiveHealth,
   fileInputRef,
   onImportFile,
   onExport,
   isSavingCase = false,
+  showPrimaryAction = true,
   primaryActionDisabled = false,
   primaryActionUnavailableReason,
   fileActionsDisabled = false,
@@ -119,6 +122,7 @@ export function WorkbenchHeader({
   publishStatus,
   publishVisibility,
   onOpenPublishDialog,
+  evidenceChecksControl,
   settingsContent,
 }: WorkbenchHeaderProps) {
   const { t } = useTranslation();
@@ -183,8 +187,11 @@ export function WorkbenchHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
-          <MorphologyBadge items={instances.filter(i => instanceMorphology[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, morphology: instanceMorphology[i.id] }))} />
-          <HealthBadge items={instances.filter(i => instanceHealth[i.id]).map(i => ({ id: i.id, name: i.name, color: i.color, health: instanceHealth[i.id] }))} getLiveHealth={getLiveHealth} />
+          {evidenceChecksControl && (
+            <div className="shrink-0" data-workbench-header-evidence-checks-slot>
+              {evidenceChecksControl}
+            </div>
+          )}
           {showNoteToggle && (
             <button
               type="button"
@@ -310,15 +317,17 @@ export function WorkbenchHeader({
             </button>
           )}
 
-          <button
-            onClick={onPrimaryAction}
-            disabled={isSavingCase || primaryActionDisabled}
-            title={primaryActionDisabled ? primaryActionUnavailableReason : undefined}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover disabled:cursor-not-allowed disabled:opacity-60 ${isLearner ? 'ml-2' : ''}`}
-          >
-            {isLearner ? <Copy className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{isSavingCase ? t('workbench.header.saving') : primaryLabel}</span>
-          </button>
+          {showPrimaryAction && (
+            <button
+              onClick={onPrimaryAction}
+              disabled={isSavingCase || primaryActionDisabled}
+              title={primaryActionDisabled ? primaryActionUnavailableReason : undefined}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover disabled:cursor-not-allowed disabled:opacity-60 ${isLearner ? 'ml-2' : ''}`}
+            >
+              {isLearner ? <Copy className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{isSavingCase ? t('workbench.header.saving') : primaryLabel}</span>
+            </button>
+          )}
 
           <button onClick={() => setIsPanelOpen(true)} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-wb-muted hover:bg-wb-hover hover:text-wb-text" aria-label={t('workbench.header.openPanel')}>
             <MoreHorizontal className="h-5 w-5" />

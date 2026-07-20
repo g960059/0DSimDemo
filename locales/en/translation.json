@@ -372,6 +372,21 @@
       "openPanel": "Open workbench panel",
       "sceneDetails": "Case details"
     },
+    "evidenceChecks": {
+      "checks": "Checks",
+      "checking": "Checking",
+      "findings": "Findings",
+      "error": "Error",
+      "notChecked": "Not checked",
+      "passed": "Passed",
+      "verificationError": "Verification error",
+      "title": "Evidence and checks",
+      "scopeHint": "Run integrity and scenario-level findings",
+      "triggerAria": "Evidence and checks: {{status}}",
+      "close": "Close evidence and checks",
+      "noScenarioDetails": "No scenario check details yet.",
+      "viewFullReport": "View evidence and checks"
+    },
     "sidePanel": {
       "aria": "Workbench details",
       "closePanel": "Close panel",
