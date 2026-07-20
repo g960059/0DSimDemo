@@ -77,8 +77,10 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         .toHaveCount(0);
       await expect(page.getByTestId("product-workbench-page-v1"))
         .toHaveCount(0);
+      // Scenario persistence now lives in the evidence/My scenarios flow, so
+      // the unavailable legacy case-save action is intentionally omitted.
       await expect(page.getByRole("button", { name: "ケースを保存" }))
-        .toBeDisabled();
+        .toHaveCount(0);
       await page.getByRole("button", {
         name: "ワークベンチパネルを開く",
       }).click();
