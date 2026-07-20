@@ -579,6 +579,7 @@ function ScientificProductWorkbenchShellV1({
         togglePvDebugOverlay={panels.togglePvDebugOverlay}
         updatePvDebugTraceMode={panels.updatePvDebugTraceMode}
         updatePanelPvHistory={panels.updatePanelPvHistory}
+        updatePanelPvRelations={panels.updatePanelPvRelations}
         updatePanelHemodynamicSettings={panels.updatePanelHemodynamicSettings}
         updatePanelControllerItems={panels.updatePanelControllerItems}
         updatePanelLegendPosition={panels.updatePanelLegendPosition}
@@ -733,12 +734,14 @@ export function createScientificProductWorkbenchPresentationV1(
         showLegend: true,
         pvHistoryBeats: 8,
         pvHistoryMode: "fade",
+        pvRelationDisplayMode: "off",
       },
       isSettingsOpen: false,
       showLegend: true,
-      showGuides: false,
+      showGuides: true,
       pvHistoryBeats: 8,
       pvHistoryMode: "fade",
+      pvRelationDisplayMode: "off",
     },
     {
       id: "product-left-pressure-v1",

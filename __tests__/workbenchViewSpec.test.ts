@@ -31,6 +31,9 @@ const panels: PanelDef[] = [
     pvDebugTraceMode: "resampled",
     pvHistoryBeats: 8,
     pvHistoryMode: "fade",
+    pvRelationDisplayMode: "standard",
+    pvRelationPressureBasis: "intracavitary",
+    pvRelationShowSamplePoints: false,
   },
   {
     id: "wave",
@@ -118,6 +121,9 @@ describe("Workbench ViewSpec model", () => {
         pvDebugTraceMode: "resampled",
         pvHistoryBeats: 8,
         pvHistoryMode: "fade",
+        pvRelationDisplayMode: "standard",
+        pvRelationPressureBasis: "intracavitary",
+        pvRelationShowSamplePoints: false,
       },
     });
 

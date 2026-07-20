@@ -150,6 +150,7 @@ function createPanelGrid(
     togglePvDebugOverlay: noop,
     updatePvDebugTraceMode: noop,
     updatePanelPvHistory: noop,
+    updatePanelPvRelations: noop,
     updatePanelHemodynamicSettings: noop,
     updatePanelControllerItems: noop,
     updatePanelLegendPosition: noop,

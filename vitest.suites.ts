@@ -56,9 +56,11 @@ export const fastTests = [
   "__tests__/mainWireOfficialHealthyPeriodicCheckpointPresetV1.test.ts",
   "__tests__/officialHealthyPeriodicDocumentChainV1.test.ts",
   "__tests__/mainWireScientificResolvedSessionInputV1.test.ts",
+  "__tests__/mainWireScientificPvRelationsProtocolV2.test.ts",
+  "__tests__/mainWireScientificPvRelationJobCommandsV1.test.ts",
+  "__tests__/mainWireScientificPvRelationWorkerManagerV1.test.ts",
   "__tests__/mainWireScientificExactCheckpointV3.test.ts",
   "__tests__/mainWireScientificTbvContinuationSeedPredictorV1.test.ts",
-  "__tests__/mainWireScientificTbvAccuracyCharacterizationV1.test.ts",
   "__tests__/mainWireScientificDocumentsV1.test.ts",
   "__tests__/mainWireScientificDocumentChainV1.test.ts",
   "__tests__/mainWireScientificWorkspaceDocumentV1.test.ts",
@@ -121,7 +123,6 @@ export const fastTests = [
   "engine/__tests__/chambers.test.ts",
   "engine/__tests__/circulationGraphKernelV1.test.ts",
   "engine/__tests__/flowIntegrals.test.ts",
-  "engine/__tests__/guytonStarlingWorkerQueue.test.ts",
   "engine/__tests__/headroomReview.test.ts",
   "engine/__tests__/instanceKnobs.test.ts",
   "engine/__tests__/leftFillingReview.test.ts",
@@ -129,7 +130,6 @@ export const fastTests = [
   "engine/__tests__/modelCoreExperimentalActiveProviderState.test.ts",
   "engine/__tests__/officialCaseBridge.test.ts",
   "engine/__tests__/starlingFit.test.ts",
-  "engine/__tests__/transitionSteadyProtocol.test.ts",
   "engine/__tests__/valveTiming.test.ts",
 ] as const;
 
@@ -190,9 +190,14 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  "engine/__tests__/guytonStarlingWorkerQueue.test.ts",
+  "engine/__tests__/transitionSteadyProtocol.test.ts",
   "__tests__/scientificHemodynamicCurveHistoryStateV1.test.ts",
   "__tests__/scientificHemodynamicResponsePaneV1.test.ts",
+  "__tests__/scientificPvProgressiveBoundaryGuidesV1.test.ts",
+  "__tests__/scientificPvProgressivePresentationStateV1.test.ts",
   "__tests__/scientificProductHemodynamicAnalysisCoordinatorV1.test.ts",
+  "__tests__/scientificProductPvRelationAnalysisCoordinatorV1.test.ts",
   "__tests__/officialAfterloadCase.test.ts",
   "components/__tests__/guytonPaneChrome.test.ts",
   "components/__tests__/guytonStarlingWorkerClient.test.ts",

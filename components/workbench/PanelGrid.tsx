@@ -22,6 +22,8 @@ import {
   DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
   DEFAULT_HEMODYNAMIC_DETAIL_MODE,
   DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  DEFAULT_PV_RELATION_DISPLAY_MODE,
+  DEFAULT_PV_RELATION_PRESSURE_BASIS,
   type DockviewViewState,
   type HemodynamicDetailMode,
   type HemodynamicParameterHistoryCount,
@@ -33,6 +35,7 @@ import {
   PhysicsRefState,
   PvLoopDebugTraceMode,
   type PvLoopHistoryMode,
+  type PvRelationPanelSettings,
   type LegendPosition,
   SignalType,
   SimInstance,
@@ -164,6 +167,10 @@ export interface PanelGridProps {
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
   updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
+  updatePanelPvRelations: (
+    panelId: string,
+    settings: Readonly<Partial<PvRelationPanelSettings>>,
+  ) => void;
   updatePanelHemodynamicSettings: (
     panelId: string,
     settings: Readonly<Partial<HemodynamicResponsePanelSettings>>,
@@ -288,6 +295,10 @@ interface PanelSettingsControlsProps {
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
   updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
+  updatePanelPvRelations: (
+    panelId: string,
+    settings: Readonly<Partial<PvRelationPanelSettings>>,
+  ) => void;
   updatePanelHemodynamicSettings: (
     panelId: string,
     settings: Readonly<Partial<HemodynamicResponsePanelSettings>>,
@@ -682,6 +693,7 @@ function GraphPanelSettingsBoard({
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
   updatePanelPvHistory,
+  updatePanelPvRelations,
   updatePanelHemodynamicSettings,
   chambers,
   signals,
@@ -947,12 +959,26 @@ function GraphPanelSettingsBoard({
     const hasLegend = panel.type === 'PVLOOP'
       || panel.type === 'WAVEFORM'
       || hasHemodynamicResponse;
-    const hasGuides = panel.type === 'PVLOOP';
+    const pvPanelHasLv = panel.type === 'PVLOOP'
+      && Object.values(panel.config).some((config) =>
+        config.visible
+        && config.selectedSignals.some((signal) => {
+          const normalized = signal.trim().toLowerCase().replace(/[\s_-]+/g, '');
+          return normalized === 'lv'
+            || normalized === 'leftventricle'
+            || normalized === 'hemodynamics.volume.lv';
+        }));
+    const hasGuides = pvPanelHasLv;
     const hasPvDebug = panel.type === 'PVLOOP';
     const hasWindow = panel.type === 'WAVEFORM';
     const debugTraceMode = panel.pvDebugTraceMode ?? 'raw';
     const pvHistoryBeats = panel.pvHistoryBeats ?? 8;
     const pvHistoryMode = panel.pvHistoryMode ?? 'fade';
+    const pvRelationDisplayMode = panel.pvRelationDisplayMode
+      ?? DEFAULT_PV_RELATION_DISPLAY_MODE;
+    const pvRelationPressureBasis = panel.pvRelationPressureBasis
+      ?? DEFAULT_PV_RELATION_PRESSURE_BASIS;
+    const pvRelationShowSamplePoints = panel.pvRelationShowSamplePoints ?? false;
     const hemodynamicDetailMode = panel.hemodynamicDetailMode
       ?? DEFAULT_HEMODYNAMIC_DETAIL_MODE;
     const hemodynamicParameterHistoryCount =
@@ -1091,13 +1117,13 @@ function GraphPanelSettingsBoard({
             <button
               type="button"
               onClick={() => toggleGuides(panel.id)}
-              className={`flex w-full items-center gap-3 px-2 py-2 text-left transition-colors ${panel.showGuides ? 'text-emerald-100' : 'text-wb-muted hover:text-wb-text'}`}
-              aria-pressed={Boolean(panel.showGuides)}
+              className={`flex w-full items-center gap-3 px-2 py-2 text-left transition-colors ${panel.showGuides !== false ? 'text-wb-text' : 'text-wb-muted hover:text-wb-text'}`}
+              aria-pressed={panel.showGuides !== false}
             >
               <Tags className="h-4 w-4 flex-none" />
               <span>
-                <span className="block text-sm font-bold">{t('workbench.panelGrid.pvLoopGuides')}</span>
-                <span className="block text-xs font-medium text-wb-subtle">{t('workbench.panelGrid.referenceOverlays')}</span>
+                <span className="block text-sm font-bold">{t('workbench.panelGrid.textbookPvGuides')}</span>
+                <span className="block text-xs font-medium text-wb-subtle">{t('workbench.panelGrid.textbookPvGuidesDescription')}</span>
               </span>
             </button>
           )}
@@ -1132,6 +1158,164 @@ function GraphPanelSettingsBoard({
                 ))}
               </div>
             </div>
+          )}
+          {panel.type === 'PVLOOP' && (
+            <details
+              className="group px-2 py-2"
+              data-testid="pv-relation-settings"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded px-1 py-1 text-left text-sm font-bold text-wb-text outline-none hover:bg-wb-hover focus-visible:ring-1 focus-visible:ring-wb-accent [&::-webkit-details-marker]:hidden">
+                <span>{t('workbench.panelGrid.pvAdvancedAnalysis')}</span>
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold text-wb-muted">
+                  <span>{t(pvRelationDisplayMode === 'off' ? 'common.off' : 'common.on')}</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 transition-transform duration-150 group-open:rotate-180"
+                  />
+                </span>
+              </summary>
+              <div className="mt-2 space-y-3 border-t border-wb-line px-1 pt-3">
+                {!pvPanelHasLv ? (
+                  <p className="rounded border border-wb-line bg-wb-input px-2 py-2 text-xs font-medium leading-5 text-wb-muted">
+                    {t('workbench.panelGrid.pvRelationLvOnly')}
+                  </p>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => updatePanelPvRelations(panel.id, {
+                        displayMode: pvRelationDisplayMode === 'off' ? 'standard' : 'off',
+                      })}
+                      className={`flex w-full items-start gap-3 rounded px-1 py-1 text-left transition-colors ${
+                        pvRelationDisplayMode !== 'off'
+                          ? 'text-wb-text'
+                          : 'text-wb-muted hover:text-wb-text'
+                      }`}
+                      aria-pressed={pvRelationDisplayMode !== 'off'}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`mt-0.5 h-3.5 w-3.5 flex-none rounded border ${
+                          pvRelationDisplayMode !== 'off'
+                            ? 'border-wb-accent bg-wb-accent'
+                            : 'border-wb-line-strong bg-wb-panel'
+                        }`}
+                      />
+                      <span>
+                        <span className="block text-sm font-bold">
+                          {t('workbench.panelGrid.pvLoadSeries')}
+                        </span>
+                        <span className="block text-xs font-medium text-wb-subtle">
+                          {t('workbench.panelGrid.pvLoadSeriesDescription')}
+                        </span>
+                      </span>
+                    </button>
+                    {pvRelationDisplayMode !== 'off' && (
+                      <>
+                        <div>
+                          <div className="text-[11px] font-medium text-wb-subtle">
+                            {t('workbench.panelGrid.pvLoadSeriesView')}
+                          </div>
+                          <div
+                            className="mt-2 grid grid-cols-2 gap-1"
+                            role="group"
+                            aria-label={t('workbench.panelGrid.pvLoadSeriesView')}
+                          >
+                            {(['standard', 'research'] as const).map((mode) => (
+                              <button
+                                key={mode}
+                                type="button"
+                                onClick={() => updatePanelPvRelations(panel.id, {
+                                  displayMode: mode,
+                                })}
+                                className={`min-h-8 rounded border px-2 py-1 text-xs font-bold transition-colors ${
+                                  pvRelationDisplayMode === mode
+                                    ? 'border-wb-line-strong bg-wb-active text-wb-text'
+                                    : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'
+                                }`}
+                                aria-pressed={pvRelationDisplayMode === mode}
+                              >
+                                {t(`workbench.panelGrid.pvLoadSeriesViews.${mode}`)}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="mt-1 text-[10px] font-medium leading-4 text-wb-muted">
+                            {t('workbench.panelGrid.pvLoadSeriesViewDescription')}
+                          </p>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-medium text-wb-subtle">
+                            {t('workbench.panelGrid.pvRelationPressureBasis')}
+                          </div>
+                          <div
+                            className="mt-2 grid grid-cols-2 gap-1"
+                            role="group"
+                            aria-label={t('workbench.panelGrid.pvRelationPressureBasis')}
+                          >
+                            {(['intracavitary', 'transmural'] as const).map((basis) => (
+                              <button
+                                key={basis}
+                                type="button"
+                                onClick={() => updatePanelPvRelations(panel.id, {
+                                  pressureBasis: basis,
+                                })}
+                                className={`min-h-8 rounded border px-2 py-1 text-xs font-bold transition-colors ${
+                                  pvRelationPressureBasis === basis
+                                    ? 'border-wb-line-strong bg-wb-active text-wb-text'
+                                    : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'
+                                }`}
+                                aria-pressed={pvRelationPressureBasis === basis}
+                              >
+                                {t(`workbench.panelGrid.pvRelationPressureBases.${basis}`)}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="mt-1 text-[10px] font-medium leading-4 text-wb-muted">
+                            {t('workbench.panelGrid.pvRelationPressureBasisDescription')}
+                          </p>
+                        </div>
+                        {pvRelationDisplayMode === 'research' && (
+                          <p className="rounded border border-wb-warning/35 bg-wb-warning-soft px-2 py-1.5 text-[10px] font-medium leading-4 text-wb-warning">
+                            {t('workbench.panelGrid.pvRelationResearchCaution')}
+                          </p>
+                        )}
+                        {pvRelationDisplayMode === 'research' && (
+                          <button
+                            type="button"
+                            onClick={() => updatePanelPvRelations(panel.id, {
+                              showSamplePoints: !pvRelationShowSamplePoints,
+                            })}
+                            className={`flex w-full items-start gap-3 rounded px-1 py-1 text-left transition-colors ${
+                              pvRelationShowSamplePoints
+                                ? 'text-wb-text'
+                                : 'text-wb-muted hover:text-wb-text'
+                            }`}
+                            aria-pressed={pvRelationShowSamplePoints}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`mt-0.5 h-3.5 w-3.5 flex-none rounded border ${
+                                pvRelationShowSamplePoints
+                                  ? 'border-wb-accent bg-wb-accent'
+                                  : 'border-wb-line-strong bg-wb-panel'
+                              }`}
+                            />
+                            <span>
+                              <span className="block text-sm font-bold">
+                                {t('workbench.panelGrid.pvRelationSamplePoints')}
+                              </span>
+                              <span className="block text-xs font-medium text-wb-subtle">
+                                {t('workbench.panelGrid.pvRelationSamplePointsDescription')}
+                              </span>
+                            </span>
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </details>
           )}
           {panel.type === 'PVLOOP' && (
             <div className="space-y-3 px-2 py-3" data-testid="pv-history-settings">
@@ -2416,6 +2600,14 @@ interface PanelCardProps {
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
   updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
+  updatePanelPvRelations: (
+    panelId: string,
+    settings: Readonly<Partial<PvRelationPanelSettings>>,
+  ) => void;
+  updatePanelHemodynamicSettings: (
+    panelId: string,
+    settings: Readonly<Partial<HemodynamicResponsePanelSettings>>,
+  ) => void;
   updatePanelControllerItems: (panelId: string, items: ControllerItem[]) => void;
   updatePanelLegendPosition: (panelId: string, pos?: LegendPosition) => void;
   noteCaseKey: string;
@@ -2502,6 +2694,8 @@ function PanelCard({
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
   updatePanelPvHistory,
+  updatePanelPvRelations,
+  updatePanelHemodynamicSettings,
   updatePanelControllerItems,
   updatePanelLegendPosition,
   noteCaseKey,
@@ -2849,6 +3043,7 @@ export function PanelGrid({
   togglePvDebugOverlay,
   updatePvDebugTraceMode,
   updatePanelPvHistory,
+  updatePanelPvRelations,
   updatePanelHemodynamicSettings,
   updatePanelControllerItems,
   updatePanelLegendPosition,
@@ -2954,6 +3149,8 @@ export function PanelGrid({
       togglePvDebugOverlay={togglePvDebugOverlay}
       updatePvDebugTraceMode={updatePvDebugTraceMode}
       updatePanelPvHistory={updatePanelPvHistory}
+      updatePanelPvRelations={updatePanelPvRelations}
+      updatePanelHemodynamicSettings={updatePanelHemodynamicSettings}
       updatePanelControllerItems={updatePanelControllerItems}
       updatePanelLegendPosition={updatePanelLegendPosition}
       noteCaseKey={noteCaseKey}
@@ -2993,6 +3190,7 @@ export function PanelGrid({
       togglePvDebugOverlay={togglePvDebugOverlay}
       updatePvDebugTraceMode={updatePvDebugTraceMode}
       updatePanelPvHistory={updatePanelPvHistory}
+      updatePanelPvRelations={updatePanelPvRelations}
       updatePanelHemodynamicSettings={updatePanelHemodynamicSettings}
       updatePanelControllerItems={updatePanelControllerItems}
       chambers={chambers}

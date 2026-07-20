@@ -37,7 +37,11 @@ import {
   DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
   DEFAULT_HEMODYNAMIC_DETAIL_MODE,
   DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  DEFAULT_PV_RELATION_DISPLAY_MODE,
+  DEFAULT_PV_RELATION_PRESSURE_BASIS,
   type HemodynamicDetailMode,
+  type PvRelationDisplayMode,
+  type PvRelationPressureBasis,
 } from "@/types";
 import type { ScientificWorkbenchResearchControlDraftV0 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
 
@@ -48,9 +52,15 @@ import {
   scientificSeriesColorV1,
   type ScientificWorkbenchChartScenarioV1,
   type ScientificWorkbenchLegendInteractionV1,
+  type ScientificWorkbenchPvRelationOverlayV1,
   type ScientificWorkbenchPvSeriesV1,
   type ScientificWorkbenchWaveformSeriesV1,
 } from "./ScientificWorkbenchAnimatedChartsV1";
+import {
+  buildScientificPvBoundaryGuidesV1,
+  type ScientificPvBoundaryGuideV1,
+} from "./ScientificPvBoundaryGuidesV1";
+import { buildScientificPvProgressiveBoundaryGuideV1 } from "./ScientificPvProgressiveBoundaryGuidesV1";
 import type { ScientificWorkbenchDisplayClockV1 } from "./ScientificWorkbenchDisplayClockV1";
 import {
   type ScientificProductScenarioPresentationV1,
@@ -58,6 +68,7 @@ import {
   type ScientificProductHemodynamicProtocolKindV1,
   type ScientificProductHemodynamicProtocolPresentationV1,
   type ScientificProductHemodynamicProtocolSeriesV1,
+  type ScientificProductPvRelationProtocolSeriesV1,
   type ScientificProductScenarioRegistryV1,
 } from "./ScientificProductScenarioRegistryV1";
 import {
@@ -72,6 +83,13 @@ import {
 } from "./ScientificHemodynamicProtocolPanesV1";
 import type { MainWireScientificGuytonStarlingProtocolResultV1 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
 import type { MainWireScientificGuytonStarlingProtocolResultV2 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
+import {
+  buildMainWireScientificPvRelationOverlayCurvesV2,
+  type MainWireScientificPvRelationBeatV2,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
+import type {
+  MainWireScientificPvRelationBeatV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 import { scientificWorkbenchMetricPresentationV1 } from "./ScientificWorkbenchMetricPresentationV1";
 import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
@@ -436,41 +454,234 @@ function ScientificGraphPanelV1({
     );
   }
 
-  const series = effective.flatMap((presentation) =>
+  return (
+    <ScientificPvGraphPanelV1
+      panel={panel}
+      registry={registry}
+      clock={clock}
+      presentations={effective}
+      legendInteraction={legendInteraction}
+    />
+  );
+}
+
+function ScientificPvGraphPanelV1({
+  panel,
+  registry,
+  clock,
+  presentations,
+  legendInteraction,
+}: Readonly<{
+  panel: PanelDef;
+  registry: ScientificProductScenarioRegistryV1;
+  clock: ScientificWorkbenchDisplayClockV1;
+  presentations: readonly ScientificProductScenarioPresentationV1[];
+  legendInteraction: ScientificWorkbenchLegendInteractionV1;
+}>) {
+  const demandScopeId = React.useId();
+  const pvRelationProtocolSnapshot = React.useSyncExternalStore(
+    registry.subscribeHemodynamicProtocols,
+    registry.getPvRelationProtocolSeriesSnapshot,
+    registry.getPvRelationProtocolSeriesSnapshot,
+  );
+  const displayMode = scientificPvRelationDisplayModeV1(panel);
+  const configuredPressureBasis = scientificPvRelationPressureBasisV1(panel);
+  // Pressure-basis selection belongs to the opt-in research analysis. When it
+  // is off, keep the beginner-facing loop and its textbook guides on ordinary
+  // chamber pressure even if a prior advanced session used transmural pressure.
+  const pressureBasis = displayMode === "off"
+    ? DEFAULT_PV_RELATION_PRESSURE_BASIS
+    : configuredPressureBasis;
+  const showSamplePoints = panel.pvRelationShowSamplePoints ??
+    (panel.view?.kind === "graph"
+      ? panel.view.pvRelationShowSamplePoints
+      : undefined) ??
+    false;
+  const historyBeats = panel.pvHistoryBeats ??
+    (panel.view?.kind === "graph" ? panel.view.pvHistoryBeats : undefined) ??
+    8;
+  const historyMode = panel.pvHistoryMode ??
+    (panel.view?.kind === "graph" ? panel.view.pvHistoryMode : undefined) ??
+    "fade";
+  const series = presentations.flatMap((presentation) =>
     pvSeriesForScenarioV1(
       presentation,
       panel.config[presentation.descriptor.id]!,
+      pressureBasis,
     ),
   );
+  const fallbackBoundaryGuides = React.useMemo(
+    () => panel.showGuides === false
+      ? Object.freeze([])
+      : buildScientificPvBoundaryGuidesV1(series),
+    [panel.showGuides, series],
+  );
+  const boundaryGuides = React.useMemo(
+    () => fallbackBoundaryGuides.flatMap((fallbackGuide) =>
+      scientificPvProgressiveBoundaryGuidesForScenarioV1({
+        fallbackGuide,
+        series: registry.getPvRelationProtocolSeries(
+          fallbackGuide.scenarioId,
+        ),
+      })),
+    [fallbackBoundaryGuides, pvRelationProtocolSnapshot, registry],
+  );
+  const analysisPresentations = presentations.filter((presentation) =>
+    scientificPvAnalysisDemandEnabledV1({
+      displayMode,
+      showGuides: panel.showGuides,
+      selectsLv: scientificPvPanelSelectsLvV1(
+        presentation,
+        panel.config[presentation.descriptor.id]!,
+      ),
+    }));
+  const relationPresentations = analysisPresentations.filter(() =>
+    displayMode !== "off");
+  const relations = relationPresentations.flatMap((presentation) => {
+    const scenarioSeries = registry.getPvRelationProtocolSeries(
+      presentation.descriptor.id,
+    );
+    const lvSeries = series.find((candidate) =>
+      candidate.scenario.id === presentation.descriptor.id
+      && candidate.volumeObservableId === "hemodynamics.volume.LV");
+    return scientificPvRelationOverlaysForScenarioV1({
+      scenarioId: presentation.descriptor.id,
+      scenarioName: presentation.descriptor.name,
+      color: lvSeries?.color ?? presentation.descriptor.color,
+      series: scenarioSeries,
+      displayMode,
+      pressureBasis,
+      showSamplePoints: displayMode === "research" && showSamplePoints,
+      displayedEvidence: presentation.displayedEvidence,
+      // Beat-trajectory history and parameter-generation history are distinct.
+      // Keep the latter bounded to the registry's five-generation product
+      // contract instead of coupling it to the PV beat-history control.
+      historyCount: 5,
+    });
+  });
+
   if (series.length === 0) return <NoScientificSelectionV1 />;
   return (
-    <div
-      className="relative h-full min-h-0 w-full overflow-hidden"
-      data-testid={`scientific-workbench-pane-${panel.id}`}
-      data-panel-kind="pressure-volume"
-    >
-      <ScientificWorkbenchPvLoopCanvasV1
-        series={series}
-        clock={clock}
-        showLegend={panel.showLegend !== false}
-        historyBeats={
-          panel.pvHistoryBeats ??
-          (panel.view?.kind === "graph"
-            ? panel.view.pvHistoryBeats
-            : undefined) ??
-          8
-        }
-        historyMode={
-          panel.pvHistoryMode ??
-          (panel.view?.kind === "graph"
-            ? panel.view.pvHistoryMode
-            : undefined) ??
-          "fade"
-        }
-        legendInteraction={legendInteraction}
-      />
-    </div>
+    <>
+      {analysisPresentations.map(({ descriptor }) => (
+        <ScientificPvRelationProtocolDemandV1
+          key={descriptor.id}
+          registry={registry}
+          demandId={`${demandScopeId}:${descriptor.id}`}
+          scenarioId={descriptor.id}
+          sourceIdentityKey={scientificHemodynamicDemandIdentityV1(
+            registry,
+            descriptor.id,
+          )}
+        />
+      ))}
+      <div
+        className="relative h-full min-h-0 w-full overflow-hidden"
+        data-testid={`scientific-workbench-pane-${panel.id}`}
+        data-panel-kind="pressure-volume"
+        data-pv-relation-mode={displayMode}
+        data-pv-pressure-basis={pressureBasis}
+      >
+        <ScientificWorkbenchPvLoopCanvasV1
+          series={series}
+          boundaryGuides={boundaryGuides}
+          relations={relations}
+          clock={clock}
+          showLegend={panel.showLegend !== false}
+          historyBeats={historyBeats}
+          historyMode={historyMode}
+          legendInteraction={legendInteraction}
+        />
+      </div>
+    </>
   );
+}
+
+/**
+ * The beginner-facing textbook guides progressively refine from the same PV
+ * analysis as the opt-in research overlay. A selected LV therefore owns
+ * analysis demand whenever either visual is enabled; hiding both must release
+ * the worker demand completely.
+ */
+export function scientificPvAnalysisDemandEnabledV1(input: Readonly<{
+  displayMode: PvRelationDisplayMode;
+  showGuides?: boolean;
+  selectsLv: boolean;
+}>): boolean {
+  return input.selectsLv
+    && (input.showGuides !== false || input.displayMode !== "off");
+}
+
+export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
+  input: Readonly<{
+    fallbackGuide: ScientificPvBoundaryGuideV1;
+    series: ScientificProductPvRelationProtocolSeriesV1;
+    historyCount?: number;
+  }>,
+): readonly ScientificPvBoundaryGuideV1[] {
+  const current = input.series.current;
+  if (current === null || current.snapshot === null) {
+    const pending = input.series.pending;
+    const pendingSnapshot = pending?.snapshot ?? null;
+    const job = pendingSnapshot?.jobSnapshot ?? null;
+    return Object.freeze([buildScientificPvProgressiveBoundaryGuideV1({
+      fallbackGuide: input.fallbackGuide,
+      generationId: pending?.generationId
+        ?? `${input.fallbackGuide.key}:acquiring`,
+      generationSequence: pending?.sequence ?? 0,
+      generationAge: 0,
+      generationStatus: pending?.status ?? "running",
+      sourceRole: pending === null
+        || pending.source.sourceIdentity.calculationSource
+          === "visible-period1-source"
+        ? "visible-current"
+        : "target-preview",
+      replacementPending: false,
+      progress: job?.researchProgressV3 ?? null,
+      result: pendingSnapshot?.researchResultV3
+        ?? job?.researchResultV3
+        ?? null,
+    })]);
+  }
+  const historyCount = Math.max(0, Math.min(5, Math.round(
+    input.historyCount ?? 5,
+  )));
+  const generations = [
+    Object.freeze({
+      generation: current,
+      generationAge: 0,
+      sourceRole: current.source.sourceIdentity.calculationSource
+        === "visible-period1-source"
+        ? "visible-current" as const
+        : "target-preview" as const,
+      replacementPending: input.series.pending !== null,
+    }),
+    ...input.series.history.slice(0, historyCount).map(
+      (generation, index) => Object.freeze({
+        generation,
+        generationAge: index + 1,
+        sourceRole: "history" as const,
+        replacementPending: false,
+      }),
+    ),
+  ];
+  return Object.freeze(generations.map((entry) => {
+    const snapshot = entry.generation.snapshot!;
+    const job = snapshot.jobSnapshot;
+    return buildScientificPvProgressiveBoundaryGuideV1({
+      fallbackGuide: input.fallbackGuide,
+      generationId: entry.generation.generationId,
+      generationSequence: entry.generation.sequence,
+      generationAge: entry.generationAge,
+      generationStatus: entry.generation.status,
+      sourceRole: entry.sourceRole,
+      replacementPending: entry.replacementPending,
+      progress: job?.researchProgressV3 ?? null,
+      result: snapshot.researchResultV3
+        ?? job?.researchResultV3
+        ?? null,
+    });
+  }));
 }
 
 function ScientificHemodynamicProtocolPanelV1({
@@ -624,6 +835,26 @@ function ScientificHemodynamicProtocolDemandV1({
   return null;
 }
 
+function ScientificPvRelationProtocolDemandV1({
+  registry,
+  demandId,
+  scenarioId,
+  sourceIdentityKey,
+}: Readonly<{
+  registry: ScientificProductScenarioRegistryV1;
+  demandId: string;
+  scenarioId: string;
+  sourceIdentityKey: string;
+}>) {
+  React.useEffect(() => {
+    registry.setPvRelationProtocolDemand(demandId, Object.freeze({
+      scenarioId,
+    }));
+    return () => registry.setPvRelationProtocolDemand(demandId, null);
+  }, [demandId, registry, scenarioId, sourceIdentityKey]);
+  return null;
+}
+
 function scientificHemodynamicDemandIdentityV1(
   registry: ScientificProductScenarioRegistryV1,
   scenarioId: string,
@@ -637,6 +868,404 @@ function scientificHemodynamicDemandIdentityV1(
     snapshot.targetControlStateSha256 ?? "no-target",
     snapshot.candidate?.sessionId ?? "source",
   ].join(":");
+}
+
+function scientificPvRelationDisplayModeV1(
+  panel: PanelDef,
+): PvRelationDisplayMode {
+  return panel.pvRelationDisplayMode ??
+    (panel.view?.kind === "graph"
+      ? panel.view.pvRelationDisplayMode
+      : undefined) ??
+    DEFAULT_PV_RELATION_DISPLAY_MODE;
+}
+
+function scientificPvRelationPressureBasisV1(
+  panel: PanelDef,
+): PvRelationPressureBasis {
+  return panel.pvRelationPressureBasis ??
+    (panel.view?.kind === "graph"
+      ? panel.view.pvRelationPressureBasis
+      : undefined) ??
+    DEFAULT_PV_RELATION_PRESSURE_BASIS;
+}
+
+type ScientificPvRelationGenerationV1 = NonNullable<
+  ScientificProductPvRelationProtocolSeriesV1["current"]
+>;
+
+export type ScientificProductPvRelationOverlayPresentationV1 =
+  ScientificWorkbenchPvRelationOverlayV1 & Readonly<{
+    generationSequence: number;
+    generationRole: "pending" | "current" | "history";
+    targetPreview: boolean;
+  }>;
+
+export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
+  scenarioId: string;
+  scenarioName?: string;
+  color: string;
+  series: ScientificProductPvRelationProtocolSeriesV1;
+  displayMode: PvRelationDisplayMode;
+  pressureBasis: PvRelationPressureBasis;
+  showSamplePoints: boolean;
+  historyCount: number;
+  displayedEvidence?: ScientificProductScenarioPresentationV1["displayedEvidence"];
+}>): readonly ScientificProductPvRelationOverlayPresentationV1[] {
+  if (input.displayMode === "off") return Object.freeze([]);
+  const displayMode: Exclude<PvRelationDisplayMode, "off"> =
+    input.displayMode;
+  const hasPending = input.series.pending !== null;
+  const generations = [
+    ...(input.series.current === null
+      ? []
+      : [Object.freeze({
+          generation: input.series.current,
+          age: hasPending ? 1 : 0,
+          role: "current" as const,
+        })]),
+    ...input.series.history.slice(0, Math.max(0, input.historyCount)).map(
+      (generation, index) => Object.freeze({
+        generation,
+        age: index + (hasPending ? 2 : 1),
+        role: "history" as const,
+      }),
+    ),
+  ];
+  const overlays = generations.flatMap(({ generation, age, role }) => {
+    const overlay = scientificPvRelationGenerationOverlayV1({
+      generation,
+      scenarioId: input.scenarioId,
+      scenarioName: input.scenarioName,
+      color: input.color,
+      displayMode,
+      pressureBasis: input.pressureBasis,
+      showSamplePoints: input.showSamplePoints,
+      generationAge: age,
+      generationRole: role,
+    });
+    return overlay === null ? [] : [overlay];
+  });
+  if (input.series.pending !== null) {
+    const pending = scientificPvRelationGenerationOverlayV1({
+      generation: input.series.pending,
+      scenarioId: input.scenarioId,
+      scenarioName: input.scenarioName,
+      color: input.color,
+      displayMode,
+      pressureBasis: input.pressureBasis,
+      showSamplePoints: input.showSamplePoints,
+      generationAge: 0,
+      generationRole: "pending",
+    });
+    overlays.unshift(pending ?? Object.freeze({
+      key: `${input.scenarioId}:${input.series.pending.generationId}:pending`,
+      scenarioId: input.scenarioId,
+      scenarioName: input.scenarioName,
+      color: input.color,
+      status: "running" as const,
+      pressureBasis: input.pressureBasis,
+      completedBeatCount: 0,
+      maximumBeatCount: 8,
+      generationAge: 0,
+      generationSequence: input.series.pending.sequence,
+      generationRole: "pending" as const,
+      targetPreview: pvRelationGenerationTargetsPreviewV1(
+        input.series.pending,
+      ),
+      espvr: Object.freeze([]),
+      edpvr: Object.freeze([]),
+    }));
+  }
+  const latestFailure = input.series.lastFailure;
+  if (latestFailure !== null) {
+    const currentIndex = overlays.findIndex(({ generationAge }) =>
+      (generationAge ?? 0) === 0);
+    if (currentIndex >= 0) {
+      overlays[currentIndex] = Object.freeze({
+        ...overlays[currentIndex]!,
+        status: "error" as const,
+        errorMessage: latestFailure.errorMessage,
+      });
+    } else {
+      overlays.unshift(Object.freeze({
+        key: `${input.scenarioId}:${latestFailure.generationId}:error`,
+        scenarioId: input.scenarioId,
+        scenarioName: input.scenarioName,
+        color: input.color,
+        status: "error" as const,
+        errorMessage: latestFailure.errorMessage,
+        pressureBasis: input.pressureBasis,
+        completedBeatCount: 0,
+        maximumBeatCount: 8,
+        generationAge: 0,
+        generationSequence: latestFailure.sequence,
+        generationRole: "pending" as const,
+        targetPreview:
+          latestFailure.source.sourceIdentity.calculationSource !==
+            "visible-period1-source",
+        espvr: Object.freeze([]),
+        edpvr: Object.freeze([]),
+      }));
+    }
+  } else if (
+    input.displayedEvidence === "open-transient-no-periodic-claim"
+    && input.series.pending === null
+  ) {
+    const currentIndex = overlays.findIndex(({ generationAge }) =>
+      (generationAge ?? 0) === 0);
+    if (currentIndex >= 0) {
+      overlays[currentIndex] = Object.freeze({
+        ...overlays[currentIndex]!,
+        status: "stale" as const,
+      });
+    } else {
+      overlays.unshift(Object.freeze({
+        key: `${input.scenarioId}:awaiting-settlement`,
+        scenarioId: input.scenarioId,
+        scenarioName: input.scenarioName,
+        color: input.color,
+        status: "stale" as const,
+        pressureBasis: input.pressureBasis,
+        completedBeatCount: 0,
+        maximumBeatCount: 8,
+        generationAge: 0,
+        generationSequence: 0,
+        generationRole: "pending" as const,
+        targetPreview: true,
+        espvr: Object.freeze([]),
+        edpvr: Object.freeze([]),
+      }));
+    }
+  }
+  return Object.freeze(overlays);
+}
+
+function scientificPvRelationGenerationOverlayV1(input: Readonly<{
+  generation: ScientificPvRelationGenerationV1;
+  scenarioId: string;
+  scenarioName?: string;
+  color: string;
+  displayMode: Exclude<PvRelationDisplayMode, "off">;
+  pressureBasis: PvRelationPressureBasis;
+  showSamplePoints: boolean;
+  generationAge: number;
+  generationRole: "pending" | "current" | "history";
+}>): ScientificProductPvRelationOverlayPresentationV1 | null {
+  const presentation = input.generation.snapshot;
+  if (presentation === null) return null;
+  const job = presentation.jobSnapshot;
+  const protocol = presentation.result;
+  const researchProtocol = presentation.researchResultV3
+    ?? job?.researchResultV3
+    ?? null;
+  const progress = job?.progress ?? null;
+  const beats = protocol?.beats ?? job?.beats ?? progress?.beats ?? [];
+  const fitPointSelection = protocol?.fitPointSelection
+    ?? progress?.fitPointSelection
+    ?? null;
+  const analysis = protocol?.analysis ?? progress?.provisionalAnalysis ?? null;
+  const completedBeatCount = job?.researchProgressV3?.completedUniqueBeatCount
+    ?? researchProtocol?.beats.length
+    ?? progress?.completedBeatCount
+    ?? beats.length;
+  const maximumBeatCount = researchProtocol === null
+    ? protocol?.policy.maximumTotalBeatCount
+    ?? progress?.maximumTotalBeatCount
+    ?? 8
+    : researchProtocol.policy.lowerLoading.maximumTotalBeatCount
+      + researchProtocol.policy.higherLoading.maximumTotalBeatCount - 1;
+  if (fitPointSelection === null || analysis === null) {
+    if (presentation.status !== "running") return null;
+    return Object.freeze({
+      key: `${input.scenarioId}:${input.generation.generationId}`,
+      scenarioId: input.scenarioId,
+      scenarioName: input.scenarioName,
+      color: input.color,
+      status: "running" as const,
+      pressureBasis: input.pressureBasis,
+      completedBeatCount,
+      maximumBeatCount,
+      generationAge: input.generationAge,
+      generationSequence: input.generation.sequence,
+      generationRole: input.generationRole,
+      targetPreview: pvRelationGenerationTargetsPreviewV1(input.generation),
+      espvr: Object.freeze([]),
+      edpvr: Object.freeze([]),
+    });
+  }
+  const curves = buildMainWireScientificPvRelationOverlayCurvesV2({
+    beats,
+    fitPointSelection,
+    analysis,
+  });
+  const basisCurves = input.pressureBasis === "transmural"
+    ? curves.transmural
+    : curves.intracavitaryAbsolute;
+  const selectedBeatIds = new Set(fitPointSelection.includedBeatIds);
+  const selectedBeats = beats.filter((beat) =>
+    selectedBeatIds.has(`ivc-beat-${beat.beatIndex}`));
+  const esSamples = scientificPvRelationEndpointSamplesV1(
+    selectedBeats,
+    "endSystolic",
+    input.pressureBasis,
+  );
+  const edSamples = scientificPvRelationEndpointSamplesV1(
+    selectedBeats,
+    "endDiastolic",
+    input.pressureBasis,
+  );
+  const higherLoading = researchProtocol?.lanes.higherLoading ?? null;
+  const selectedHigherBeatIds = new Set(
+    higherLoading?.fitPointSelection.includedBeatIds ?? [],
+  );
+  const selectedHigherBeats = higherLoading?.achievedDeclaredEdvDirection
+    ? higherLoading.beats.filter((beat) =>
+        beat.valid && selectedHigherBeatIds.has(beat.beatId))
+    : [];
+  const candidateHigherEs = scientificPvRelationEndpointSamplesV1(
+    selectedHigherBeats,
+    "endSystolic",
+    input.pressureBasis,
+  );
+  const candidateHigherEd = scientificPvRelationEndpointSamplesV1(
+    selectedHigherBeats,
+    "endDiastolic",
+    input.pressureBasis,
+  );
+  const hasRenderableHigherLane = candidateHigherEs.length >= 2
+    && candidateHigherEd.length >= 2;
+  const higherEsObserved = hasRenderableHigherLane
+    ? candidateHigherEs
+    : Object.freeze([]);
+  const higherEdObserved = hasRenderableHigherLane
+    ? candidateHigherEd
+    : Object.freeze([]);
+  const espvr = scientificPvRelationDisplayCurveV1({
+    fitted: basisCurves.espvr,
+    observed: esSamples,
+    displayMode: input.displayMode,
+  });
+  const edpvr = scientificPvRelationDisplayCurveV1({
+    fitted: basisCurves.edpvr,
+    observed: edSamples,
+    displayMode: input.displayMode,
+  });
+  const hasLimitedFit = analysis.espvr.status === "rejected"
+    || analysis.edpvr.status === "rejected"
+    || protocol?.failureReason !== null && protocol?.failureReason !== undefined
+    || higherLoading !== null
+      && higherLoading.acquisitionStatus !== "accepted";
+  const unsupportedLeftRegurgitation =
+    protocol?.terminationReason ===
+      "unsupported-mitral-or-aortic-regurgitation";
+  const status = unsupportedLeftRegurgitation
+    ? "error" as const
+    : presentation.status === "running"
+    ? "running" as const
+    : presentation.status === "error"
+      ? "error" as const
+      : hasLimitedFit || espvr.length < 2 || edpvr.length < 2
+        ? "limited" as const
+        : "complete" as const;
+  return Object.freeze({
+    key: `${input.scenarioId}:${input.generation.generationId}`,
+    scenarioId: input.scenarioId,
+    scenarioName: input.scenarioName,
+    color: input.color,
+    status,
+    pressureBasis: input.pressureBasis,
+    completedBeatCount,
+    maximumBeatCount,
+    generationAge: input.generationAge,
+    generationSequence: input.generation.sequence,
+    generationRole: input.generationRole,
+    targetPreview: pvRelationGenerationTargetsPreviewV1(input.generation),
+    espvr,
+    edpvr,
+    espvrQuality: analysis.espvr.status === "accepted"
+      ? "accepted" as const
+      : espvr.length >= 2 ? "limited" as const : "unavailable" as const,
+    edpvrQuality: analysis.edpvr.status === "accepted"
+      ? "accepted" as const
+      : edpvr.length >= 2 ? "limited" as const : "unavailable" as const,
+    ...(higherLoading === null
+      ? {}
+      : {
+          higherLoadingEndSystolicObserved: higherEsObserved,
+          higherLoadingEndDiastolicObserved: higherEdObserved,
+          higherLoadingQuality: higherLoading.acquisitionStatus === "accepted"
+            ? "accepted" as const
+            : hasRenderableHigherLane
+              ? "limited" as const
+              : "unavailable" as const,
+        }),
+    ...(unsupportedLeftRegurgitation && protocol?.failureReason
+      ? { errorMessage: protocol.failureReason }
+      : {}),
+    domainAnchorPoints: Object.freeze([
+      ...esSamples,
+      ...edSamples,
+      ...higherEsObserved,
+      ...higherEdObserved,
+    ]),
+    ...(input.showSamplePoints
+      ? {
+          endSystolicSamples: esSamples,
+          endDiastolicSamples: edSamples,
+        }
+      : {}),
+  });
+}
+
+function pvRelationGenerationTargetsPreviewV1(
+  generation: ScientificPvRelationGenerationV1,
+): boolean {
+  const calculationSource = generation.snapshot?.calculationSource
+    ?? generation.source.sourceIdentity.calculationSource;
+  return calculationSource !== "visible-period1-source";
+}
+
+function scientificPvRelationDisplayCurveV1(input: Readonly<{
+  fitted: ReturnType<
+    typeof buildMainWireScientificPvRelationOverlayCurvesV2
+  >["transmural"]["espvr"];
+  observed: readonly Readonly<{ volumeMl: number; pressureMmHg: number }>[];
+  displayMode: Exclude<PvRelationDisplayMode, "off">;
+}>): readonly Readonly<{ volumeMl: number; pressureMmHg: number }>[] {
+  if (
+    input.displayMode === "standard"
+    && (
+      input.fitted === null
+      || input.fitted.formalFitStatus === "rejected"
+    )
+  ) {
+    return Object.freeze([...input.observed].sort(
+      (left, right) => left.volumeMl - right.volumeMl,
+    ));
+  }
+  if (input.fitted === null) return Object.freeze([]);
+  return input.fitted.points;
+}
+
+function scientificPvRelationEndpointSamplesV1(
+  beats: readonly (
+    MainWireScientificPvRelationBeatV2 | MainWireScientificPvRelationBeatV3
+  )[],
+  endpoint: "endSystolic" | "endDiastolic",
+  pressureBasis: PvRelationPressureBasis,
+): readonly Readonly<{ volumeMl: number; pressureMmHg: number }>[] {
+  return Object.freeze(beats.flatMap((beat) => {
+    const point = beat[endpoint];
+    return point === null
+      ? []
+      : [Object.freeze({
+          volumeMl: point.volumeMl,
+          pressureMmHg: pressureBasis === "transmural"
+            ? point.transmuralPressureMmHg
+            : point.absolutePressureMmHg,
+        })];
+  }));
 }
 
 type ScientificHemodynamicSeriesEntryV1 = Readonly<{
@@ -1725,6 +2354,7 @@ function waveformSeriesForScenarioV1(
 function pvSeriesForScenarioV1(
   presentation: ScientificProductScenarioPresentationV1,
   config: PanelInstanceConfig,
+  pressureBasis: PvRelationPressureBasis = "intracavitary",
 ): ScientificWorkbenchPvSeriesV1[] {
   const catalog = trajectoryCatalogV1(presentation.workspaceDocument);
   const trajectories = selectedPvTrajectories(
@@ -1744,11 +2374,26 @@ function pvSeriesForScenarioV1(
       key: `${presentation.descriptor.id}:${trajectory.trajectoryId}`,
       scenario: chartScenarioV1(presentation, modelName),
       volumeObservableId: trajectory.volumeObservableId,
-      pressureObservableId: trajectory.pressureObservableId,
+      pressureObservableId:
+        pressureBasis === "transmural"
+        && trajectory.volumeObservableId === "hemodynamics.volume.LV"
+          ? "hemodynamics.pressure.transmural.LV"
+          : trajectory.pressureObservableId,
       signalName,
       color,
     };
   });
+}
+
+function scientificPvPanelSelectsLvV1(
+  presentation: ScientificProductScenarioPresentationV1,
+  config: PanelInstanceConfig,
+): boolean {
+  return selectedPvTrajectories(
+    config.selectedSignals ?? [],
+    trajectoryCatalogV1(presentation.workspaceDocument),
+  ).some(({ volumeObservableId }) =>
+    volumeObservableId === "hemodynamics.volume.LV");
 }
 
 function chartScenarioV1(
@@ -1761,6 +2406,7 @@ function chartScenarioV1(
     color: presentation.descriptor.color,
     isVisible: presentation.descriptor.isVisible,
     frames: presentation.frames,
+    guideCycleFrames: presentation.metricCycle?.frames ?? null,
     periodicCycleFrames: presentation.periodicCycleFrames,
     cycleDurationSec: presentation.cycleDurationSec,
     transientOriginAcceptedTimeSec: presentation.transientOriginAcceptedTimeSec,
@@ -1896,6 +2542,10 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
       legendPosition: view.presentation?.legendPosition,
       pvHistoryBeats: view.presentation?.pvHistoryBeats,
       pvHistoryMode: view.presentation?.pvHistoryMode,
+      pvRelationDisplayMode: view.presentation?.pvRelationDisplayMode,
+      pvRelationPressureBasis: view.presentation?.pvRelationPressureBasis,
+      pvRelationShowSamplePoints:
+        view.presentation?.pvRelationShowSamplePoints,
       hemodynamicDetailMode: view.presentation?.hemodynamicDetailMode,
       hemodynamicParameterHistoryCount:
         view.presentation?.hemodynamicParameterHistoryCount,
@@ -1908,6 +2558,10 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
     showLegend: view.presentation?.showLegend,
     pvHistoryBeats: view.presentation?.pvHistoryBeats,
     pvHistoryMode: view.presentation?.pvHistoryMode,
+    pvRelationDisplayMode: view.presentation?.pvRelationDisplayMode,
+    pvRelationPressureBasis: view.presentation?.pvRelationPressureBasis,
+    pvRelationShowSamplePoints:
+      view.presentation?.pvRelationShowSamplePoints,
     hemodynamicDetailMode: view.presentation?.hemodynamicDetailMode,
     hemodynamicParameterHistoryCount:
       view.presentation?.hemodynamicParameterHistoryCount,

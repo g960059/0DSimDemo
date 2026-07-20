@@ -43,6 +43,11 @@ describe("panel view compatibility adapter", () => {
       showGuides: true,
       pvDebugOverlay: true,
       pvDebugTraceMode: "both",
+      pvHistoryBeats: 8,
+      pvHistoryMode: "fade",
+      pvRelationDisplayMode: "research",
+      pvRelationPressureBasis: "transmural",
+      pvRelationShowSamplePoints: true,
       isSettingsOpen: false,
       config: {
         normal: {
@@ -59,6 +64,11 @@ describe("panel view compatibility adapter", () => {
     expect(view.graphType).toBe("pvloop");
     expect(view.pvDebugOverlay).toBe(true);
     expect(view.pvDebugTraceMode).toBe("both");
+    expect(view.pvHistoryBeats).toBe(8);
+    expect(view.pvHistoryMode).toBe("fade");
+    expect(view.pvRelationDisplayMode).toBe("research");
+    expect(view.pvRelationPressureBasis).toBe("transmural");
+    expect(view.pvRelationShowSamplePoints).toBe(true);
   });
 
   it("preserves optional cardiac output–filling pressure presentation settings", () => {
