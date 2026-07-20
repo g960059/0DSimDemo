@@ -3,19 +3,33 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ScientificWorkbenchOfficialCycleV1,
 } from "@/components/scientificWorkbench/scientificWorkbenchOfficialCycleV1";
+import {
+  SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1,
+  assembleScientificWorkbenchTerminalCycleV1,
+} from "@/components/scientificWorkbench/scientificWorkbenchTerminalCycleV1";
 import type {
   MainWireScientificResearchControlTargetStateV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
 import type {
   MainWireScientificWorkspaceDocumentV1,
 } from "@/engine/scientific/documents";
-import type {
-  MainWireScientificObservableFrameV1,
+import {
+  MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1,
+  MAIN_WIRE_SCIENTIFIC_OBSERVABLE_FRAME_V1_ID,
+  MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID,
+  MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION,
+  type MainWireScientificObservableFrameV1,
+  type MainWireScientificObservableIdV1,
+  type MainWireScientificObservableValueV1,
 } from "@/engine/scientific/observables";
+import type {
+  MainWireScientificValidatedTerminalCycleV1,
+} from "@/engine/scientific/metrics";
 import type {
   MainWireScientificWorkerClientV1,
 } from "@/engine/scientificBrowser";
 import type {
+  ScientificWorkbenchResearchControlDraftV0,
   ScientificWorkbenchResearchControlOwnerActionsV0,
   ScientificWorkbenchResearchControlSnapshotInputV0,
 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
@@ -119,7 +133,19 @@ import {
   ScientificProductScenarioRegistryV1,
   uniqueScenarioNameV1,
   type ScientificProductLoadedRuntimeV1,
+  type ScientificProductScenarioPresentationV1,
 } from "@/components/scientificProduct/ScientificProductScenarioRegistryV1";
+import {
+  readScientificProductSavedScenarioCatalogV1,
+  removeScientificProductSavedScenarioV1,
+  saveScientificProductScenarioV1,
+  SCIENTIFIC_PRODUCT_SAVED_SCENARIO_STORAGE_KEY_V1,
+  writeScientificProductSavedScenarioCatalogV1,
+  type ScientificProductSavedScenarioStorageV1,
+} from "@/components/scientificProduct/ScientificProductSavedScenarioCatalogV1";
+import {
+  createScientificProductValidationContextV1,
+} from "@/components/scientificProduct/ScientificProductValidationContextV1";
 import {
   SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
   resolveScientificProductCaseRouteV1,
@@ -1674,6 +1700,409 @@ describe("scientific product scenario registry V1", () => {
     expect(completeTransientMetricBeatV1(frames, 40.002)).toBeNull();
   });
 });
+
+describe("scientific product saved-scenario catalog V1", () => {
+  it("round-trips an immutable release-bound snapshot and replaces the same id", () => {
+    const storage = savedScenarioMemoryStorage();
+    const presentation = savedScenarioPresentation();
+    const first = saveScientificProductScenarioV1(
+      readScientificProductSavedScenarioCatalogV1(null),
+      {
+        id: "my-baseline",
+        name: "  My baseline  ",
+        color: "#2563eb",
+        presentation,
+        controlStateSha256: "9".repeat(64),
+        controls: savedScenarioControls(),
+        savedAt: new Date("2026-07-20T03:04:05.000Z"),
+      },
+    );
+
+    expect(first.scenarios).toHaveLength(1);
+    expect(first.scenarios[0]).toMatchObject({
+      id: "my-baseline",
+      name: "My baseline",
+      sourceCaseId: healthyResolution().caseEntry.caseId,
+      releaseRef: SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
+      workspaceSha256: "8".repeat(64),
+      controlStateSha256: "9".repeat(64),
+      controls: savedScenarioControls(),
+      savedAtIso: "2026-07-20T03:04:05.000Z",
+    });
+    expect(Object.isFrozen(first)).toBe(true);
+    expect(Object.isFrozen(first.scenarios)).toBe(true);
+    expect(Object.isFrozen(first.scenarios[0]?.controls)).toBe(true);
+    expect(writeScientificProductSavedScenarioCatalogV1(first, storage)).toBe(true);
+
+    const restored = readScientificProductSavedScenarioCatalogV1(storage);
+    expect(restored).toEqual(first);
+    expect(Object.isFrozen(restored.scenarios[0]?.releaseRef)).toBe(true);
+
+    const replaced = saveScientificProductScenarioV1(restored, {
+      id: "my-baseline",
+      name: "Updated baseline",
+      color: "#0f766e",
+      presentation,
+      controlStateSha256: "a".repeat(64),
+      controls: Object.freeze({
+        ...savedScenarioControls(),
+        systemic: 1.5,
+      }),
+      savedAt: new Date("2026-07-20T04:05:06.000Z"),
+    });
+    expect(replaced.scenarios).toHaveLength(1);
+    expect(replaced.scenarios[0]).toMatchObject({
+      name: "Updated baseline",
+      controlStateSha256: "a".repeat(64),
+      controls: { systemic: 1.5 },
+    });
+    expect(removeScientificProductSavedScenarioV1(replaced, "my-baseline").scenarios)
+      .toEqual([]);
+  });
+
+  it("fails closed for unknown presets, out-of-domain controls, and duplicate ids", () => {
+    const storage = savedScenarioMemoryStorage();
+    const valid = saveScientificProductScenarioV1(
+      readScientificProductSavedScenarioCatalogV1(null),
+      {
+        id: "saved-1",
+        name: "Saved one",
+        color: "#2563eb",
+        presentation: savedScenarioPresentation(),
+        controlStateSha256: "9".repeat(64),
+        controls: savedScenarioControls(),
+        savedAt: new Date("2026-07-20T03:04:05.000Z"),
+      },
+    );
+    expect(writeScientificProductSavedScenarioCatalogV1(valid, storage)).toBe(true);
+    const validSerialized = storage.serialized();
+    const parsed = JSON.parse(validSerialized) as {
+      scenarios: Array<Record<string, unknown>>;
+    };
+
+    parsed.scenarios[0]!.sourceCaseId = "main-wire/not-a-product-case";
+    storage.replace(JSON.stringify(parsed));
+    expect(readScientificProductSavedScenarioCatalogV1(storage).scenarios)
+      .toEqual([]);
+
+    const outOfDomain = JSON.parse(validSerialized) as {
+      scenarios: Array<{ controls: Record<string, unknown> }>;
+    };
+    outOfDomain.scenarios[0]!.controls.systemic = 1.25;
+    storage.replace(JSON.stringify(outOfDomain));
+    expect(readScientificProductSavedScenarioCatalogV1(storage).scenarios)
+      .toEqual([]);
+
+    const duplicated = JSON.parse(validSerialized) as {
+      scenarios: Array<Record<string, unknown>>;
+    };
+    duplicated.scenarios.push({ ...duplicated.scenarios[0]! });
+    storage.replace(JSON.stringify(duplicated));
+    expect(readScientificProductSavedScenarioCatalogV1(storage).scenarios)
+      .toEqual([]);
+
+    expect(() => saveScientificProductScenarioV1(valid, {
+      id: "bad-control",
+      name: "Bad control",
+      color: "#2563eb",
+      presentation: savedScenarioPresentation(),
+      controlStateSha256: "9".repeat(64),
+      controls: {
+        ...savedScenarioControls(),
+        peepCmH2O: 7,
+      },
+      savedAt: new Date("2026-07-20T03:04:05.000Z"),
+    })).toThrow("outside the release-bound control domain");
+  });
+});
+
+describe("scientific product validation context V1", () => {
+  it("separates healthy reference findings from passing numerical-integrity gates", () => {
+    const cycle = scientificProductValidationCycle();
+    const frames = [...cycle.frames];
+    for (const observableId of [
+      "solver.mechanics.residual_norm",
+      "solver.circulation.scaled_residual_infinity_norm",
+      "solver.continuity.maximum_residual",
+      "conservation.total_blood_volume.error",
+    ] as const satisfies readonly MainWireScientificObservableIdV1[]) {
+      frames[0] = replaceValidationObservable(
+        frames[0]!,
+        observableId,
+        Object.freeze({
+          observableId,
+          value: null,
+          availability: "not-evaluated-at-accepted-state" as const,
+          quality: "not-assessed" as const,
+        }),
+      );
+    }
+
+    const context = createScientificProductValidationContextV1(Object.freeze({
+      ...cycle,
+      frames: Object.freeze(frames),
+    }));
+
+    expect(context).toMatchObject({
+      cycleAvailable: true,
+      cycleEvidence: "validated-periodic-P1",
+      referenceSubject: {
+        bodySurfaceAreaM2: 1.9,
+        state: "resting-adult-research-reference",
+      },
+    });
+    expect(context.referenceResults).toHaveLength(6);
+    expect(context.referenceResults.find(({ gateId }) => gateId === "healthy.lv.edvi"))
+      .toMatchObject({
+        value: expect.closeTo(120 / 1.9, 10),
+        unit: "mL/m²",
+        status: "within-reference",
+      });
+    expect(context.referenceResults.find(({ gateId }) => gateId === "healthy.lv.esvi"))
+      .toMatchObject({
+        value: expect.closeTo(80 / 1.9, 10),
+        status: "outside-reference",
+      });
+    expect(context.referenceResults.find(({ gateId }) => gateId === "healthy.lv.ef"))
+      .toMatchObject({
+        value: expect.closeTo(1 / 3, 10),
+        unit: "fraction",
+        status: "outside-reference",
+      });
+    expect(context.numericalResults).toHaveLength(4);
+    expect(context.numericalResults).toEqual(context.numericalResults.map(
+      () => expect.objectContaining({ value: 0, status: "pass" }),
+    ));
+    expect(context.valveFlow.find(({ valveId }) => valveId === "AoV"))
+      .toMatchObject({
+        forwardVolumeMl: expect.closeTo(100 / Math.PI, 3),
+        reverseVolumeMl: expect.closeTo(100 / Math.PI, 3),
+        regurgitantFractionPercent: expect.closeTo(100, 3),
+        peakGradientMmHg: expect.closeTo(15, 3),
+      });
+    expect(context.waveformAvailability).toHaveLength(7);
+    expect(context.waveformAvailability.every(({ complete }) => complete))
+      .toBe(true);
+  });
+
+  it("fails a forged cycle closed and localizes missing accepted-step evidence", () => {
+    const cycle = scientificProductValidationCycle();
+    const forged = Object.freeze({
+      ...cycle,
+      evidence: Object.freeze({
+        ...cycle.evidence,
+        periodicOrbitClassifiedP1: false,
+      }),
+    }) as unknown as MainWireScientificValidatedTerminalCycleV1;
+    expect(createScientificProductValidationContextV1(forged)).toMatchObject({
+      cycleAvailable: false,
+      cycleEvidence: "unavailable",
+      referenceResults: [],
+      numericalResults: [],
+    });
+
+    const frames = [...cycle.frames];
+    frames[10] = replaceValidationObservable(
+      frames[10]!,
+      "solver.mechanics.residual_norm",
+      Object.freeze({
+        observableId: "solver.mechanics.residual_norm",
+        value: -1,
+        availability: "available",
+        quality: "accepted-derived",
+      }),
+    );
+    frames[10] = replaceValidationObservable(
+      frames[10]!,
+      "solver.circulation.scaled_residual_infinity_norm",
+      Object.freeze({
+        observableId: "solver.circulation.scaled_residual_infinity_norm",
+        value: null,
+        availability: "not-evaluated-at-accepted-state",
+        quality: "not-assessed",
+      }),
+    );
+    frames[10] = replaceValidationObservable(
+      frames[10]!,
+      "valve.AoV.flow",
+      Object.freeze({
+        observableId: "valve.AoV.flow",
+        value: null,
+        availability: "not-evaluated-at-accepted-state",
+        quality: "not-assessed",
+      }),
+    );
+    const context = createScientificProductValidationContextV1(Object.freeze({
+      ...cycle,
+      frames: Object.freeze(frames),
+    }));
+
+    expect(context.cycleAvailable).toBe(true);
+    expect(context.numericalResults.find(
+      ({ gateId }) => gateId === "numerics.mechanics.residual",
+    )).toMatchObject({ value: 1, status: "error" });
+    expect(context.numericalResults.find(
+      ({ gateId }) => gateId === "numerics.circulation.residual",
+    )).toMatchObject({ value: null, status: "unavailable" });
+    expect(context.numericalResults.filter(({ status }) => status === "pass"))
+      .toHaveLength(2);
+    expect(context.valveFlow.find(({ valveId }) => valveId === "AoV"))
+      .toMatchObject({
+        forwardVolumeMl: null,
+        reverseVolumeMl: null,
+        regurgitantFractionPercent: null,
+      });
+    expect(context.waveformAvailability.find(
+      ({ observableId }) => observableId === "valve.AoV.flow",
+    )).toMatchObject({
+      availableFrameCount: 500,
+      totalFrameCount: 501,
+      complete: false,
+    });
+  });
+});
+
+function savedScenarioMemoryStorage(): ScientificProductSavedScenarioStorageV1 &
+Readonly<{
+  serialized: () => string;
+  replace: (value: string) => void;
+}> {
+  let value: string | null = null;
+  return Object.freeze({
+    getItem: (key: string) => key === SCIENTIFIC_PRODUCT_SAVED_SCENARIO_STORAGE_KEY_V1
+      ? value
+      : null,
+    setItem: (key: string, next: string) => {
+      if (key !== SCIENTIFIC_PRODUCT_SAVED_SCENARIO_STORAGE_KEY_V1) {
+        throw new Error(`unexpected storage key ${key}`);
+      }
+      value = next;
+    },
+    serialized: () => {
+      if (value === null) throw new Error("saved scenario fixture was not written");
+      return value;
+    },
+    replace: (next: string) => {
+      value = next;
+    },
+  });
+}
+
+function savedScenarioPresentation(): ScientificProductScenarioPresentationV1 {
+  return Object.freeze({
+    descriptor: Object.freeze({
+      id: "fixture-scenario",
+      name: "Fixture scenario",
+      color: "#2563eb",
+      isVisible: true,
+      lifecycle: "ready" as const,
+      statusMessage: "Ready",
+      source: Object.freeze({
+        caseId: healthyResolution().caseEntry.caseId,
+        releaseId: SCIENTIFIC_PRODUCT_RELEASE_REF_V1.id,
+        releaseVersion: SCIENTIFIC_PRODUCT_RELEASE_REF_V1.version,
+        releaseSha256: SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256,
+      }),
+    }),
+    workspaceDocument: Object.freeze({
+      ref: Object.freeze({ sha256: "8".repeat(64) }),
+    }),
+  }) as unknown as ScientificProductScenarioPresentationV1;
+}
+
+function savedScenarioControls(): ScientificWorkbenchResearchControlDraftV0 {
+  return Object.freeze({
+    systemic: 1,
+    pulmonary: 1,
+    venousTone: 0.15,
+    arterialStiffness: 0.75,
+    peepCmH2O: 0,
+    pericardialFluidVolumeMl: 0,
+  });
+}
+
+function scientificProductValidationCycle():
+ReturnType<typeof assembleScientificWorkbenchTerminalCycleV1> {
+  const frames = Array.from(
+    {
+      length:
+        SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.expectedObservableSampleCount,
+    },
+    (_, index) => scientificProductValidationFrame(
+      20_000 + index,
+      20 + index * SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec,
+      index === 0 ? "exact-checkpoint-restore" : "accepted-step",
+    ),
+  );
+  return assembleScientificWorkbenchTerminalCycleV1(frames[0]!, frames.slice(1));
+}
+
+function scientificProductValidationFrame(
+  revision: number,
+  acceptedTimeSec: number,
+  source: MainWireScientificObservableFrameV1["source"],
+): MainWireScientificObservableFrameV1 {
+  const phaseSec = acceptedTimeSec - 20;
+  const omega = 2 * Math.PI * phaseSec;
+  const sourceValues: Partial<Record<MainWireScientificObservableIdV1, number>> = {
+    "hemodynamics.pressure.absolute.LA": 10 + 2 * Math.sin(omega),
+    "hemodynamics.pressure.absolute.RA": 5 + Math.sin(omega),
+    "hemodynamics.pressure.absolute.LV": 100 + 15 * Math.sin(omega),
+    "hemodynamics.pressure.absolute.RV": 25 + 5 * Math.sin(omega),
+    "hemodynamics.pressure.absolute.Ao": 90 + 10 * Math.sin(omega),
+    "hemodynamics.pressure.absolute.PA": 15 + 5 * Math.sin(omega),
+    "hemodynamics.pressure.absolute.PVein": 12 + 2 * Math.sin(omega),
+    "hemodynamics.volume.LV": 100 + 20 * Math.cos(omega),
+    "hemodynamics.volume.RV": 115 + 15 * Math.cos(omega),
+    "valve.MV.flow": 50 + 100 * Math.sin(omega),
+    "valve.AoV.flow": 100 * Math.sin(omega),
+    "valve.TV.flow": 40 + 80 * Math.sin(omega),
+    "valve.PV.flow": 80 + 20 * Math.sin(omega),
+  };
+  const values = Object.fromEntries(
+    MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1.map((entry) => [
+      entry.observableId,
+      entry.modelingStatus === "not-modeled"
+        ? Object.freeze({
+          observableId: entry.observableId,
+          value: null,
+          availability: "not-modeled" as const,
+          quality: "not-assessed" as const,
+        })
+        : Object.freeze({
+          observableId: entry.observableId,
+          value: sourceValues[entry.observableId] ?? 0,
+          availability: "available" as const,
+          quality: "accepted-derived" as const,
+        }),
+    ]),
+  ) as MainWireScientificObservableFrameV1["values"];
+  return Object.freeze({
+    frameId: MAIN_WIRE_SCIENTIFIC_OBSERVABLE_FRAME_V1_ID,
+    registryId: MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID,
+    schemaVersion: MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION,
+    releaseRef: SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
+    sourceObservationId: "main-wire-scientific-session-observation-v1",
+    source,
+    revision,
+    acceptedTimeSec,
+    values: Object.freeze(values),
+  });
+}
+
+function replaceValidationObservable(
+  frame: MainWireScientificObservableFrameV1,
+  observableId: MainWireScientificObservableIdV1,
+  replacement: MainWireScientificObservableValueV1,
+): MainWireScientificObservableFrameV1 {
+  return Object.freeze({
+    ...frame,
+    values: Object.freeze({
+      ...frame.values,
+      [observableId]: replacement,
+    }),
+  });
+}
 
 function healthyResolution() {
   const resolution = resolveScientificProductCaseRouteV1("normal-sinus");

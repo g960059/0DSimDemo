@@ -11,10 +11,25 @@ import {
   createScientificProductWorkbenchPresentationV1,
 } from "@/components/scientificProduct/ScientificProductWorkbenchRouteV1";
 import {
+  createScientificProductEvidenceReportV1,
+} from "@/components/scientificProduct/ScientificProductEvidenceReportV1";
+import type {
+  ScientificProductQuickCheckRecordV1,
+} from "@/components/scientificProduct/ScientificProductQuickCheckRegistryV1";
+import {
   resolveScientificProductCaseRouteV1,
 } from "@/components/scientificProduct/scientificProductCaseCatalogV1";
 import ScientificWorkbenchPageV1 from "@/components/scientificWorkbench/ScientificWorkbenchPageV1";
 import ScientificBrowserPerformanceLabV0 from "@/components/scientificPerformance/ScientificBrowserPerformanceLabV0";
+import {
+  ScientificProductEvidencePageV1,
+  type ScientificProductEvidenceSelectedReportV1,
+} from "@/components/scientificVerification/ScientificProductEvidencePageV1";
+import {
+  createScientificProductEvidenceExplorerMetricsV1,
+  filterScientificProductEvidenceExplorerMetricsV1,
+  scientificProductEvidenceMetricCountsV1,
+} from "@/components/scientificVerification/ScientificProductEvidenceMetricExplorerV1";
 import {
   appendScientificWorkbenchLiveFramesV0,
   assertScientificWorkbenchResearchForkBoundaryFrameV0,
@@ -51,6 +66,469 @@ import { workspaceForPanelStateReplacement } from "@/features/workbench/hooks/us
 import { layoutStateFromWorkspace } from "@/features/workbench/workbenchDefaults";
 
 describe("document-bound scientific workbench page V1", () => {
+  it("keeps the metric explorer presentational, searchable, and progressively disclosed", () => {
+    const markup = renderToStaticMarkup(React.createElement(
+      ScientificProductEvidencePageV1,
+      {
+        currentSessions: [{ key: "current", name: "Current run" }],
+        presets: [{ key: "healthy", name: "Healthy adult" }],
+        savedScenarios: [{ key: "saved", name: "Saved HFrEF" }],
+        selectedSubjectKey: "current",
+        selectedReport: {
+          subjectKey: "current",
+          status: "verification-error",
+          message: "Quick checks are shown without claiming a completed full suite.",
+          validation: {
+            status: "findings",
+            message: "One contextual comparison needs review.",
+            items: [{
+              id: "ci",
+              label: "Cardiac index",
+              section: "overall",
+              status: "finding",
+              observedValue: "1.8 L/min/m²",
+              referenceRange: "2.5–4.0 L/min/m²",
+              referenceIds: ["reference-1"],
+            }, {
+              id: "mitral-flow",
+              label: "Mitral flow description",
+              section: "valve-flow",
+              status: "not-assessed",
+              observedValue: "Forward-flow dominant",
+            }, {
+              id: "waveform-availability",
+              label: "Pressure waveform availability",
+              section: "waveform",
+              status: "within-reference",
+              observedValue: "Available",
+            }],
+            healthyReference: {
+              title: "Resting healthy adult",
+              description: "A contextual comparator, not a universal normal.",
+              attributes: [{ id: "posture", label: "Posture", value: "Supine" }],
+            },
+            references: [{
+              id: "reference-1",
+              label: "Reference 1",
+              citation: "Healthy adult hemodynamic reference",
+              href: "/references/healthy",
+            }],
+          },
+          evidenceSource: "Current committed evidence",
+          controlStateSha256: "release-sha256",
+          parameterEpoch: 2,
+          fullSuiteStatus: {
+            status: "not-run",
+            detail: "Time-step refinement and multi-start checks have not been run.",
+          },
+          verificationItems: [{
+            id: "solver",
+            label: "Solver closure",
+            status: "error",
+            detail: "The numerical result is not interpretable.",
+          }],
+          summaryFacts: [{ id: "scope", label: "Scope", value: "Quick checks" }],
+          claimBoundaries: ["Not clinical validation"],
+        },
+        onSelect: () => {},
+        onBack: () => {},
+        onSaveCurrent: () => {},
+        onOpenCurrent: () => {},
+        onOpenPreset: () => {},
+        onOpenSaved: () => {},
+        onDeleteSaved: () => {},
+      },
+    ));
+    const source = read(
+      "components/scientificVerification/ScientificProductEvidencePageV1.tsx",
+    );
+
+    for (const marker of [
+      "Current session",
+      "Presets",
+      "My scenarios",
+      'role="search"',
+      'id="scientific-evidence-metric-search-v1"',
+      'name="scientific-evidence-status-filter-v1"',
+      'value="all"',
+      'value="review"',
+      'value="meets"',
+      'value="unassessed"',
+      'aria-label="Type"',
+      'aria-label="Area"',
+      'data-testid="scientific-product-metric-tile-v1"',
+      'data-evidence-domain="verification"',
+      'data-evidence-domain="validation"',
+      'data-evidence-kind="verification-error"',
+      'data-evidence-kind="validation-finding"',
+      'data-validation-section="overall"',
+      'data-validation-section="valve-flow"',
+      'data-validation-section="waveform"',
+      'data-effective-status="not-assessed"',
+      'data-filter-bucket="review"',
+      'data-filter-bucket="unassessed"',
+      "Model checks",
+      "Search by name or abbreviation…",
+      "Technical details",
+      "Calculation checks",
+      "Reference comparisons",
+      "Overall circulation",
+      "Valves &amp; flow",
+      "Waveforms",
+      "Calculation error",
+      "Outside range",
+      "No target",
+      "1.8 L/min/m²",
+      "Save",
+    ]) expect(markup).toContain(marker);
+    for (const implementationDetail of [
+      'id="summary"',
+      "Quick checks are shown without claiming a completed full suite.",
+      "Current committed evidence",
+      "release-sha256",
+      "Parameter epoch",
+      "Quick checks",
+      "Time-step refinement and multi-start checks have not been run.",
+      "Resting healthy adult",
+      "2.5–4.0 L/min/m²",
+      "Healthy adult hemodynamic reference",
+    ]) expect(markup).not.toContain(implementationDetail);
+    expect(source).not.toContain("react-router");
+    expect(source).not.toContain("ScenarioRegistry");
+    expect(source).not.toMatch(/ControlStore|ValidationContext|useContext/);
+  });
+
+  it("distinguishes an assessed pass from a scenario that has not been checked", () => {
+    const markup = renderToStaticMarkup(React.createElement(
+      ScientificProductEvidencePageV1,
+      {
+        currentSessions: [{ key: "current", name: "Passing run" }],
+        presets: [],
+        savedScenarios: [],
+        selectedSubjectKey: "current",
+        selectedReport: {
+          subjectKey: "current",
+          status: "passed",
+          message: "Quick verification and assessed comparisons passed.",
+          validation: {
+            status: "within-reference",
+            message: "All assessed values are within reference.",
+            items: [],
+            healthyReference: {
+              title: "Reference",
+              description: "Context only.",
+              attributes: [],
+            },
+          },
+          evidenceSource: "Committed P1 cycle",
+          controlStateSha256: "a".repeat(64),
+          parameterEpoch: 1,
+          fullSuiteStatus: { status: "not-run", detail: "Not run." },
+          verificationItems: [],
+        },
+        onSelect: () => {},
+        onBack: () => {},
+        onSaveCurrent: () => {},
+        onOpenCurrent: () => {},
+        onOpenPreset: () => {},
+        onOpenSaved: () => {},
+        onDeleteSaved: () => {},
+      },
+    ));
+
+    expect(markup).toContain('data-evidence-page-status="passed"');
+    expect(markup).toContain("No items need review");
+    expect(markup).not.toContain("Not checked");
+    expect(markup).not.toContain("Calculation error");
+  });
+
+  it("projects exact scientific statuses into simple explorer filter buckets", () => {
+    const metrics = createScientificProductEvidenceExplorerMetricsV1(
+      evidenceMetricExplorerReport(),
+      "en",
+    );
+
+    expect(scientificProductEvidenceMetricCountsV1(metrics)).toEqual({
+      all: 9,
+      review: 3,
+      meets: 3,
+      unassessed: 3,
+    });
+    expect(metrics.find(({ itemId }) => itemId === "waveform-aortic-pressure"))
+      .toMatchObject({
+        filter: "unassessed",
+        source: {
+          kind: "validation",
+          effectiveStatus: "not-assessed",
+        },
+      });
+    expect(metrics.find(({ itemId }) => itemId === "expected-disease-change"))
+      .toMatchObject({ filter: "meets" });
+    expect(metrics.find(({ itemId }) => itemId === "solver-warning"))
+      .toMatchObject({ filter: "review" });
+  });
+
+  it("combines NFKC search with status, domain, and section facets", () => {
+    const metrics = createScientificProductEvidenceExplorerMetricsV1(
+      evidenceMetricExplorerReport(),
+      "ja-JP",
+    );
+    const filter = (
+      query: string,
+      status: "all" | "review" | "meets" | "unassessed" = "all",
+      domain: "all" | "verification" | "validation" = "all",
+      section: "all" | "verification" | "overall" | "valve-flow" | "waveform" = "all",
+    ) => filterScientificProductEvidenceExplorerMetricsV1(metrics, {
+      query,
+      filter: status,
+      domain,
+      section,
+    }).map(({ itemId }) => itemId);
+
+    expect(filter("ＬＶＥＤＶｉ")).toEqual(["healthy.lv.edvi"]);
+    expect(filter("左室拡張末期容積係数")).toEqual(["healthy.lv.edvi"]);
+    expect(filter("LVESVi", "review", "validation", "overall"))
+      .toEqual(["healthy.lv.esvi"]);
+    expect(filter("", "all", "verification"))
+      .toEqual([
+        "steady-state-check",
+        "solver-warning",
+        "solver-error",
+        "future-check",
+      ]);
+    expect(filter("", "unassessed", "validation", "waveform"))
+      .toEqual(["waveform-aortic-pressure"]);
+    expect(filter("LVEDVi", "review", "validation", "overall")).toEqual([]);
+  });
+
+  it("classifies a scenario calculation failure as a verification error", () => {
+    const report = createScientificProductEvidenceReportV1({
+      subjectKey: "session:failed",
+      subjectName: "Failed run",
+      subjectKind: "current-session",
+      record: null,
+      builtInDiseasePreset: false,
+      releaseId: "test-release",
+      releaseVersion: "0.0.0",
+      releaseSha256: "a".repeat(64),
+      workspaceSha256: null,
+      unavailableVerificationError: "Worker settlement failed.",
+    });
+
+    expect(report).toMatchObject({
+      status: "verification-error",
+      message: "Worker settlement failed.",
+      evidenceSource: "Scenario calculation failed",
+      verificationItems: [{
+        id: "scenario-calculation-error",
+        status: "error",
+        value: "Verification error",
+      }],
+    });
+  });
+
+  it("never classifies an empty failed-cycle validation context as within range", () => {
+    const record = {
+      status: "verification-error",
+      message: "The committed target did not settle.",
+      committedControlStateSha256: "d".repeat(64),
+      parameterEpoch: 6,
+      evidenceSource: "hidden-committed-target",
+      cacheHit: false,
+      validation: {
+        cycleAvailable: false,
+        referenceResults: [],
+        numericalResults: [],
+        valveFlow: [],
+        waveformAvailability: [],
+      },
+    } as unknown as ScientificProductQuickCheckRecordV1;
+    const report = createScientificProductEvidenceReportV1({
+      subjectKey: "session:failed-cycle",
+      subjectName: "Failed cycle",
+      subjectKind: "current-session",
+      record,
+      builtInDiseasePreset: false,
+      releaseId: "test-release",
+      releaseVersion: "0.0.0",
+      releaseSha256: "a".repeat(64),
+      workspaceSha256: null,
+    });
+
+    expect(report.status).toBe("verification-error");
+    expect(report.validation.status).toBe("not-assessed");
+    expect(report.validation.message).toBe("No complete-cycle comparison is available.");
+    expect(report.validation.items).toEqual([]);
+    expect(report.validation.message).not.toContain("within");
+  });
+
+  it("keeps an unavailable reference comparison distinct from an out-of-range finding", () => {
+    const record = {
+      status: "passed",
+      message: "Quick check passed.",
+      committedControlStateSha256: "b".repeat(64),
+      parameterEpoch: 3,
+      evidenceSource: "hidden-committed-target",
+      cacheHit: false,
+      validation: {
+        cycleAvailable: true,
+        referenceResults: [{
+          gateId: "unavailable-reference",
+          label: "Unavailable comparison",
+          value: null,
+          unit: "mmHg",
+          lowerInclusive: 1,
+          upperInclusive: 2,
+          status: "unavailable",
+          interpretation: "The source metric was unavailable.",
+          sourceIds: [],
+        }],
+        numericalResults: [],
+        valveFlow: [],
+        waveformAvailability: [],
+      },
+    } as unknown as ScientificProductQuickCheckRecordV1;
+    const report = createScientificProductEvidenceReportV1({
+      subjectKey: "session:unavailable",
+      subjectName: "Unavailable run",
+      subjectKind: "current-session",
+      record,
+      builtInDiseasePreset: false,
+      releaseId: "test-release",
+      releaseVersion: "0.0.0",
+      releaseSha256: "a".repeat(64),
+      workspaceSha256: null,
+    });
+
+    expect(report.status).toBe("not-assessed");
+    expect(report.message).toContain("could not be assessed");
+    expect(report.message).not.toContain("outside the stated range");
+    expect(report.validation.items[0]?.status).toBe("not-assessed");
+    expect(report.validation.message).toContain("was not assessed");
+
+    const markup = renderToStaticMarkup(React.createElement(
+      ScientificProductEvidencePageV1,
+      {
+        currentSessions: [{ key: report.subjectKey, name: "Unavailable run" }],
+        presets: [],
+        savedScenarios: [],
+        selectedSubjectKey: report.subjectKey,
+        selectedReport: report,
+        onSelect: () => {},
+        onBack: () => {},
+        onSaveCurrent: () => {},
+        onOpenCurrent: () => {},
+        onOpenPreset: () => {},
+        onOpenSaved: () => {},
+        onDeleteSaved: () => {},
+      },
+    ));
+    expect(markup).toContain("Some comparisons could not be assessed");
+    expect(markup).not.toContain("No items need review");
+  });
+
+  it("keeps disease-preset misses visible and formats EF and valve values as separate metrics", () => {
+    const record = {
+      status: "passed",
+      message: "Quick check passed.",
+      committedControlStateSha256: "c".repeat(64),
+      parameterEpoch: 5,
+      evidenceSource: "hidden-committed-target",
+      cacheHit: false,
+      validation: {
+        cycleAvailable: true,
+        referenceResults: [{
+          gateId: "healthy.lv.ef",
+          label: "LV ejection fraction",
+          value: 0.4,
+          unit: "fraction",
+          lowerInclusive: 0.52,
+          upperInclusive: 0.74,
+          status: "outside-reference",
+          interpretation: "Outside the broad healthy-adult range.",
+          sourceIds: [],
+        }],
+        numericalResults: [],
+        valveFlow: [{
+          valveId: "AoV",
+          forwardVolumeMl: 71,
+          reverseVolumeMl: 2,
+          regurgitantFractionPercent: 2.8,
+          peakGradientMmHg: 12,
+          meanGradientMmHg: 6,
+        }],
+        waveformAvailability: [],
+      },
+    } as unknown as ScientificProductQuickCheckRecordV1;
+    const report = createScientificProductEvidenceReportV1({
+      subjectKey: "preset:hfref",
+      subjectName: "HFrEF",
+      subjectKind: "preset",
+      record,
+      builtInDiseasePreset: true,
+      releaseId: "test-release",
+      releaseVersion: "0.0.0",
+      releaseSha256: "a".repeat(64),
+      workspaceSha256: null,
+    });
+
+    expect(report.validation.items.find(({ id }) => id === "healthy.lv.ef"))
+      .toMatchObject({
+        status: "finding",
+        numericValue: 40,
+        unit: "%",
+        referenceLowerInclusive: 52,
+        referenceUpperInclusive: 74,
+      });
+    expect(report.validation.items.filter(({ id }) => id.startsWith("valve-flow-AoV-")))
+      .toHaveLength(5);
+  });
+
+  it("runs Quick Check from committed targets without exposing stale-result workflow labels", () => {
+    const route = read(
+      "components/scientificProduct/ScientificProductWorkbenchRouteV1.tsx",
+    );
+    const registry = read(
+      "components/scientificProduct/ScientificProductQuickCheckRegistryV1.ts",
+    );
+    const report = read(
+      "components/scientificProduct/ScientificProductEvidenceReportV1.ts",
+    );
+
+    expect(route).toContain("new ScientificProductQuickCheckRegistryV1(registry)");
+    expect(route).toContain("saveCurrentScenario(scenarioId)");
+    expect(route).toContain("onOpenCurrent={openCurrentFromEvidence}");
+    expect(route).toContain("setActiveInstanceId(selectedSessionId)");
+    expect(route).toContain("if (!writeScientificProductSavedScenarioCatalogV1(next)) return null");
+    expect(route).toContain(
+      'evidenceScenarioSummaries.some(({ status }) => status === "checking")',
+    );
+    expect(route).toContain("onOpenFullReport={openEvidenceView}");
+    expect(route).toContain('data-workbench-surface-preserved="true"');
+    expect(route).not.toContain("{!evidenceViewOpen && <PanelGrid");
+    expect(registry).toContain("runtime.controlStore.subscribe");
+    expect(registry).toContain("targetControlStateSha256");
+    expect(registry).toContain("entry.coordinator.requestLatest");
+    expect(registry).toContain("parameterEpoch: event.visibleParameterEpoch");
+    expect(registry).toContain(
+      "submittedControlStateSha256:\n        source.context.controlState.targetStateSha256",
+    );
+    expect(registry).toContain("Draft-only edits never enter request selection");
+    expect(registry).toContain('snapshot.phase === "failed" || snapshot.phase === "reload-required"');
+    expect(registry).toContain('errorPhase: "scenario-calculation" as const');
+    expect(registry).toContain(
+      "visibleCalculationFailedV1(\n        entry.runtime.controlStore.getSnapshot(),",
+    );
+
+    for (const forbidden of [
+      "Pending changes",
+      "Recompute needed",
+      "recompute needed",
+      "Preview only",
+      "Cannot interpret",
+    ]) expect(`${route}\n${registry}\n${report}`).not.toContain(forbidden);
+  });
+
   it("renders an explicit verification state before starting browser effects", () => {
     const markup = renderToStaticMarkup(
       React.createElement(ScientificWorkbenchPageV1),
@@ -562,6 +1040,92 @@ const TRANSITION_TEST_RELEASE = Object.freeze({
   version: "0.0.0",
   sha256: "a".repeat(64),
 });
+
+function evidenceMetricExplorerReport(): ScientificProductEvidenceSelectedReportV1 {
+  return {
+    subjectKey: "current",
+    status: "findings",
+    message: "Three metrics need review.",
+    evidenceSource: "hidden-committed-target",
+    controlStateSha256: "a".repeat(64),
+    parameterEpoch: 4,
+    fullSuiteStatus: { status: "not-run", detail: "Not run." },
+    verificationItems: [{
+      id: "steady-state-check",
+      label: "Committed-target P1 steady state",
+      status: "passed",
+      value: "Pass",
+    }, {
+      id: "solver-warning",
+      label: "Solver tolerance warning",
+      status: "warning",
+      value: "Review",
+    }, {
+      id: "solver-error",
+      label: "Solver closure error",
+      status: "error",
+      value: "Error",
+    }, {
+      id: "future-check",
+      label: "Future numerical check",
+      status: "not-run",
+      value: "Not run",
+    }],
+    validation: {
+      status: "findings",
+      message: "One comparison is outside its stated range.",
+      healthyReference: {
+        title: "Resting adult research reference",
+        description: "Context only.",
+        attributes: [],
+      },
+      items: [{
+        id: "healthy.lv.edvi",
+        label: "LV end-diastolic volume index",
+        searchTerms: ["LVEDVi"],
+        section: "overall",
+        status: "within-reference",
+        observedValue: "70 mL/m²",
+        numericValue: 70,
+        unit: "mL/m²",
+        referenceLowerInclusive: 34,
+        referenceUpperInclusive: 76,
+        referenceRange: "34–76 mL/m²",
+      }, {
+        id: "waveform-aortic-pressure",
+        label: "Aortic pressure",
+        section: "waveform",
+        status: "within-reference",
+        observedValue: "501 / 501 frames",
+      }, {
+        id: "expected-disease-change",
+        label: "Expected disease change",
+        section: "overall",
+        status: "expected-deviation",
+        observedValue: "Expected",
+        referenceRange: "Disease-specific target",
+      }, {
+        id: "healthy.lv.esvi",
+        label: "LV end-systolic volume index",
+        searchTerms: ["LVESVi"],
+        section: "overall",
+        status: "finding",
+        observedValue: "34 mL/m²",
+        numericValue: 34,
+        unit: "mL/m²",
+        referenceLowerInclusive: 10,
+        referenceUpperInclusive: 29,
+        referenceRange: "10–29 mL/m²",
+      }, {
+        id: "mitral-flow-description",
+        label: "Mitral flow description",
+        section: "valve-flow",
+        status: "not-assessed",
+        observedValue: "Forward-flow dominant",
+      }],
+    },
+  };
+}
 
 function transitionFrame(
   revision: number,
