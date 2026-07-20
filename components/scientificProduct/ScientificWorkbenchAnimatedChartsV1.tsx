@@ -838,7 +838,7 @@ export function drawScientificPvBoundaryGuideV1(
     x,
     y,
     color,
-    0.62 * opacity,
+    0.4 * opacity,
   );
   drawScientificPvBoundaryGuidePathV1(
     ctx,
@@ -846,30 +846,8 @@ export function drawScientificPvBoundaryGuideV1(
     x,
     y,
     color,
-    0.56 * opacity,
+    0.4 * opacity,
   );
-  if (guide.espvr.length >= 2) {
-    drawScientificPvBoundaryGuideContactV1(
-      ctx,
-      guide.endSystolicContact,
-      x,
-      y,
-      color,
-      theme,
-      opacity,
-    );
-  }
-  if (guide.edpvr.length >= 2) {
-    drawScientificPvBoundaryGuideContactV1(
-      ctx,
-      guide.endDiastolicContact,
-      x,
-      y,
-      color,
-      theme,
-      opacity,
-    );
-  }
 }
 
 function drawScientificPvBoundaryGuidePathV1(
@@ -896,31 +874,6 @@ function drawScientificPvBoundaryGuidePathV1(
     if (index === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
   });
-  ctx.stroke();
-  ctx.restore();
-}
-
-function drawScientificPvBoundaryGuideContactV1(
-  ctx: CanvasRenderingContext2D,
-  point: ScientificPvBoundaryGuidePointV1,
-  x: d3.ScaleLinear<number, number>,
-  y: d3.ScaleLinear<number, number>,
-  color: string,
-  theme?: CanvasTheme,
-  opacityMultiplier = 1,
-): void {
-  if (!Number.isFinite(point.volumeMl) || !Number.isFinite(point.pressureMmHg)) {
-    return;
-  }
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(x(point.volumeMl), y(point.pressureMmHg), 3.25, 0, Math.PI * 2);
-  ctx.fillStyle = color;
-  ctx.globalAlpha = 0.72 * opacityMultiplier;
-  ctx.fill();
-  ctx.strokeStyle = theme?.backgroundIsDark === false ? "#ffffff" : "#07111f";
-  ctx.globalAlpha = 0.8 * opacityMultiplier;
-  ctx.lineWidth = 1.25;
   ctx.stroke();
   ctx.restore();
 }
