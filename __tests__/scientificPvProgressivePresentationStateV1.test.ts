@@ -15,7 +15,7 @@ type Payload = Readonly<{ geometry: string }>;
 type State = ScientificPvProgressivePresentationStateV1<Payload>;
 
 describe("scientific PV progressive presentation state", () => {
-  it("keeps the old current visible until the replacement becomes renderable", () => {
+  it("keeps the old current visible through one endpoint and replaces it at two", () => {
     let state = step(
       createScientificPvProgressivePresentationStateV1<Payload>(),
       0,
@@ -25,7 +25,7 @@ describe("scientific PV progressive presentation state", () => {
     state = step(state, 10, [scenario(
       "a",
       generation("old", 0, "complete", "old"),
-      generation("next", 0, "running", null),
+      generation("next", 1, "running", null),
     )]);
     expect(present(state, 170).layers).toEqual([
       expect.objectContaining({
@@ -38,7 +38,7 @@ describe("scientific PV progressive presentation state", () => {
     state = step(state, 200, [scenario(
       "a",
       generation("old", 0, "complete", "old"),
-      generation("next", 1, "running", "next-1"),
+      generation("next", 2, "running", "next-two-endpoints"),
     )]);
     expect(present(state, 200).layers).toEqual([
       expect.objectContaining({ generationId: "old", opacity: 0.55 }),
@@ -47,9 +47,12 @@ describe("scientific PV progressive presentation state", () => {
       expect.objectContaining({ generationId: "next", opacity: 1 }),
       expect.objectContaining({ generationId: "old", opacity: 0.3 }),
     ]);
+    expect(layer(present(state, 360), "next").payload).toEqual({
+      geometry: "next-two-endpoints",
+    });
   });
 
-  it("updates same-generation geometry atomically without restarting opacity", () => {
+  it("adds the three-point EDPVR atomically without restarting ESPVR opacity", () => {
     let state = step(
       createScientificPvProgressivePresentationStateV1<Payload>(),
       0,
@@ -58,7 +61,7 @@ describe("scientific PV progressive presentation state", () => {
     state = step(state, 100, [scenario(
       "a",
       generation("old", 0, "complete", "old"),
-      generation("next", 1, "running", "next-1"),
+      generation("next", 2, "running", "espvr-two-endpoints"),
     )]);
     const transitionStartedAt = state.scenarios.a!.layers.find(({ generation }) =>
       generation.generationId === "next")!.opacityTransition.startedAtMs;
@@ -68,7 +71,7 @@ describe("scientific PV progressive presentation state", () => {
     state = step(state, 180, [scenario(
       "a",
       generation("old", 0, "complete", "old"),
-      generation("next", 2, "running", "next-2"),
+      generation("next", 3, "running", "espvr-plus-edpvr-three-endpoints"),
     )]);
     const nextLayers = state.scenarios.a!.layers.filter(({ generation }) =>
       generation.generationId === "next");
@@ -77,8 +80,10 @@ describe("scientific PV progressive presentation state", () => {
     const afterUpdate = present(state, 180).layers.find(({ generationId }) =>
       generationId === "next")!;
     expect(afterUpdate.opacity).toBeCloseTo(beforeUpdate.opacity, 12);
-    expect(afterUpdate.sequence).toBe(2);
-    expect(afterUpdate.payload).toEqual({ geometry: "next-2" });
+    expect(afterUpdate.sequence).toBe(3);
+    expect(afterUpdate.payload).toEqual({
+      geometry: "espvr-plus-edpvr-three-endpoints",
+    });
     expect(present(state, 260).layers.find(({ generationId }) =>
       generationId === "next")!.opacity).toBe(1);
   });

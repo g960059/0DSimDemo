@@ -621,7 +621,27 @@ export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
 ): readonly ScientificPvBoundaryGuideV1[] {
   const current = input.series.current;
   if (current === null || current.snapshot === null) {
-    return Object.freeze([input.fallbackGuide]);
+    const pending = input.series.pending;
+    const pendingSnapshot = pending?.snapshot ?? null;
+    const job = pendingSnapshot?.jobSnapshot ?? null;
+    return Object.freeze([buildScientificPvProgressiveBoundaryGuideV1({
+      fallbackGuide: input.fallbackGuide,
+      generationId: pending?.generationId
+        ?? `${input.fallbackGuide.key}:acquiring`,
+      generationSequence: pending?.sequence ?? 0,
+      generationAge: 0,
+      generationStatus: pending?.status ?? "running",
+      sourceRole: pending === null
+        || pending.source.sourceIdentity.calculationSource
+          === "visible-period1-source"
+        ? "visible-current"
+        : "target-preview",
+      replacementPending: false,
+      progress: job?.researchProgressV3 ?? null,
+      result: pendingSnapshot?.researchResultV3
+        ?? job?.researchResultV3
+        ?? null,
+    })]);
   }
   const historyCount = Math.max(0, Math.min(5, Math.round(
     input.historyCount ?? 5,

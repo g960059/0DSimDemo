@@ -545,7 +545,8 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     `${[
       ...new Set(series.map((item) => item.signalName)),
     ].join(", ")} · ${accessiblePressureBasis}.`,
-    boundaryGuides.length > 0
+    boundaryGuides.some((guide) =>
+      guide.espvr.length >= 2 || guide.edpvr.length >= 2)
       ? t('workbench.panelGrid.textbookPvGuidesDescription')
       : null,
     relations.length > 0
@@ -847,15 +848,17 @@ export function drawScientificPvBoundaryGuideV1(
     color,
     0.64 * opacity,
   );
-  drawScientificPvBoundaryGuideContactV1(
-    ctx,
-    guide.endSystolicContact,
-    x,
-    y,
-    color,
-    theme,
-    opacity,
-  );
+  if (guide.espvr.length >= 2) {
+    drawScientificPvBoundaryGuideContactV1(
+      ctx,
+      guide.endSystolicContact,
+      x,
+      y,
+      color,
+      theme,
+      opacity,
+    );
+  }
   if (guide.edpvr.length >= 2) {
     drawScientificPvBoundaryGuideContactV1(
       ctx,

@@ -60,9 +60,11 @@ const MAXIMUM_EDPVR_EXPONENT = 6;
  * and advertises that limitation in its returned semantics and evidence.
  *
  * The point budget is deterministic: baseline plus up to three EDV-spanning
- * points from each lane. ESPVR can refine after two usable endpoints. EDPVR
- * requires baseline plus evidence on both sides of baseline EDV. Either curve
- * independently falls back to the immediate single-beat textbook guide.
+ * points from each lane. ESPVR appears after two usable endpoints. EDPVR
+ * requires baseline plus evidence on both sides of baseline EDV. No curve is
+ * exposed before its own evidence threshold: in particular, the internal
+ * single-beat V0=0 orientation fallback must never flash on screen while the
+ * progressive acquisition is still underdetermined.
  */
 export function buildScientificPvProgressiveBoundaryGuideV1(
   input: ScientificPvProgressiveBoundaryGuideInputV1,
@@ -74,8 +76,8 @@ export function buildScientificPvProgressiveBoundaryGuideV1(
     return withProgressiveMetadataV1({
       input,
       generationAge,
-      espvr: input.fallbackGuide.espvr,
-      edpvr: input.fallbackGuide.edpvr,
+      espvr: Object.freeze([]),
+      edpvr: Object.freeze([]),
       endSystolicContact: input.fallbackGuide.endSystolicContact,
       endDiastolicContact: input.fallbackGuide.endDiastolicContact,
       selectedBeatIds: Object.freeze([]),
@@ -122,8 +124,8 @@ export function buildScientificPvProgressiveBoundaryGuideV1(
   return withProgressiveMetadataV1({
     input,
     generationAge,
-    espvr: refinedEspvr ?? input.fallbackGuide.espvr,
-    edpvr: refinedEdpvr ?? input.fallbackGuide.edpvr,
+    espvr: refinedEspvr ?? Object.freeze([]),
+    edpvr: refinedEdpvr ?? Object.freeze([]),
     endSystolicContact: input.fallbackGuide.endSystolicContact,
     endDiastolicContact: input.fallbackGuide.endDiastolicContact,
     selectedBeatIds: Object.freeze(selected.all.map(({ beatId }) => beatId)),
@@ -308,9 +310,12 @@ function buildProgressiveEspvrV1(input: Readonly<{
   // activate in an extreme loading state.
   const pressureAtVolume = (volumeMl: number) =>
     contact.pressureMmHg + slope * (volumeMl - contact.volumeMl);
-  return joinCurveSegmentsV1(
-    sampleCurveV1(displayV0Ml, contact.volumeMl, pressureAtVolume, 44),
-    sampleCurveV1(contact.volumeMl, endVolumeMl, pressureAtVolume, 20),
+  return withExactCurveContactV1(
+    joinCurveSegmentsV1(
+      sampleCurveV1(displayV0Ml, contact.volumeMl, pressureAtVolume, 44),
+      sampleCurveV1(contact.volumeMl, endVolumeMl, pressureAtVolume, 20),
+    ),
+    contact,
   );
 }
 
@@ -408,20 +413,23 @@ function buildProgressiveEdpvrV1(input: Readonly<{
     );
   const displayedPressureAtVolume = (volumeMl: number) =>
     displayExternalPressureMmHg + transmuralPressureAtVolume(volumeMl);
-  return joinCurveSegmentsV1(
-    sampleCurveV1(0, v0Ml, () => displayExternalPressureMmHg, 12),
-    sampleCurveV1(
-      v0Ml,
-      input.displayContact.volumeMl,
-      displayedPressureAtVolume,
-      36,
+  return withExactCurveContactV1(
+    joinCurveSegmentsV1(
+      sampleCurveV1(0, v0Ml, () => displayExternalPressureMmHg, 12),
+      sampleCurveV1(
+        v0Ml,
+        input.displayContact.volumeMl,
+        displayedPressureAtVolume,
+        36,
+      ),
+      sampleCurveV1(
+        input.displayContact.volumeMl,
+        endVolumeMl,
+        displayedPressureAtVolume,
+        20,
+      ),
     ),
-    sampleCurveV1(
-      input.displayContact.volumeMl,
-      endVolumeMl,
-      displayedPressureAtVolume,
-      20,
-    ),
+    input.displayContact,
   );
 }
 
@@ -518,6 +526,23 @@ function joinCurveSegmentsV1(
     joined.push(...segment.slice(joined.length === 0 ? 0 : 1));
   }
   return Object.freeze(joined);
+}
+
+function withExactCurveContactV1(
+  points: readonly ScientificPvBoundaryGuidePointV1[],
+  contact: ScientificPvBoundaryGuidePointV1,
+): readonly ScientificPvBoundaryGuidePointV1[] {
+  if (points.length === 0) return points;
+  let selectedIndex = 0;
+  let selectedDistance = Number.POSITIVE_INFINITY;
+  points.forEach(({ volumeMl }, index) => {
+    const distance = Math.abs(volumeMl - contact.volumeMl);
+    if (distance >= selectedDistance) return;
+    selectedIndex = index;
+    selectedDistance = distance;
+  });
+  return Object.freeze(points.map((point, index) =>
+    index === selectedIndex ? contact : point));
 }
 
 function medianV1(values: readonly number[]): number | null {

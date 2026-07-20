@@ -13,7 +13,7 @@ import type {
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 
 describe("progressive educational LV PV boundary guides", () => {
-  it("keeps the immediate textbook guide until endpoint evidence is usable", () => {
+  it("keeps both default curves hidden until endpoint evidence is usable", () => {
     const fallback = fallbackGuideFixture();
     const guide = buildScientificPvProgressiveBoundaryGuideV1({
       fallbackGuide: fallback,
@@ -24,17 +24,40 @@ describe("progressive educational LV PV boundary guides", () => {
       result: null,
     });
 
-    expect(guide.espvr).toBe(fallback.espvr);
-    expect(guide.edpvr).toBe(fallback.edpvr);
-    expect(guide.semantics)
-      .toBe("single-beat-orientation-guide-not-load-series-fit");
+    expect(guide.espvr).toEqual([]);
+    expect(guide.edpvr).toEqual([]);
     expect(guide.completedPointCount).toBe(0);
     expect(guide.maximumPointCount).toBe(7);
     expect(guide.sourceRole).toBe("target-preview");
     expect(guide.opacityMultiplier).toBe(0.82);
   });
 
-  it("refines ESPVR at two points while independently retaining textbook EDPVR", () => {
+  it("does not expose either default curve from only one usable endpoint", () => {
+    const fallback = fallbackGuideFixture();
+    const baseline = beatFixture({
+      beatId: "baseline",
+      role: "baseline",
+      lane: "lower-loading",
+      edvMl: 150,
+      edpMmHg: 10,
+      esvMl: 90,
+      espMmHg: 100,
+    });
+
+    const guide = progressiveGuideFixture(fallback, [baseline]);
+
+    expect(guide.espvr).toEqual([]);
+    expect(guide.edpvr).toEqual([]);
+    expect(guide.progressiveEvidence).toMatchObject({
+      selectedBeatIds: ["baseline"],
+      espvrPointCount: 1,
+      edpvrPointCount: 0,
+      espvrRefined: false,
+      edpvrRefined: false,
+    });
+  });
+
+  it("shows ESPVR at two points while independently withholding EDPVR", () => {
     const fallback = fallbackGuideFixture();
     const baseline = beatFixture({
       beatId: "baseline",
@@ -59,7 +82,7 @@ describe("progressive educational LV PV boundary guides", () => {
     expect(guide.semantics)
       .toBe("progressive-model-derived-orientation-guide-not-formal-fit");
     expect(guide.espvr).not.toEqual(fallback.espvr);
-    expect(guide.edpvr).toBe(fallback.edpvr);
+    expect(guide.edpvr).toEqual([]);
     expect(guide.espvr).toContainEqual({ volumeMl: 90, pressureMmHg: 105 });
     expect(guide.endSystolicContact).toEqual({
       volumeMl: 90,
@@ -182,7 +205,7 @@ describe("progressive educational LV PV boundary guides", () => {
       fallback,
       [baseline, lower, secondLower],
     );
-    expect(withoutHigher.edpvr).toBe(fallback.edpvr);
+    expect(withoutHigher.edpvr).toEqual([]);
 
     const higher = beatFixture({
       beatId: "higher",
@@ -195,7 +218,7 @@ describe("progressive educational LV PV boundary guides", () => {
     });
     const bidirectional = progressiveGuideFixture(
       fallback,
-      [baseline, lower, secondLower, higher],
+      [baseline, lower, higher],
     );
 
     expect(bidirectional.edpvr).not.toEqual(fallback.edpvr);
@@ -208,9 +231,9 @@ describe("progressive educational LV PV boundary guides", () => {
       pressureMmHg: 15,
     });
     expect(bidirectional.progressiveEvidence).toMatchObject({
-      lowerPointCount: 2,
+      lowerPointCount: 1,
       higherPointCount: 1,
-      edpvrPointCount: 4,
+      edpvrPointCount: 3,
       edpvrRefined: true,
     });
 
@@ -227,7 +250,7 @@ describe("progressive educational LV PV boundary guides", () => {
       fallback,
       [baseline, lower, secondLower, nonMonotoneHigher],
     );
-    expect(guarded.edpvr).toBe(fallback.edpvr);
+    expect(guarded.edpvr).toEqual([]);
     expect(guarded.progressiveEvidence?.edpvrRefined).toBe(false);
   });
 

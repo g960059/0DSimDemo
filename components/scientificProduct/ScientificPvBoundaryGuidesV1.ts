@@ -131,6 +131,14 @@ export function buildScientificPvBoundaryGuideV1(
     || endSystolic.transmuralPressureMmHg <= 0
     || endSystolic.volumeMl <= 0
   ) return null;
+  const endSystolicContact = Object.freeze({
+    volumeMl: endSystolic.volumeMl,
+    pressureMmHg: endSystolic.displayedPressureMmHg,
+  });
+  const endDiastolicContact = Object.freeze({
+    volumeMl: endDiastolic.volumeMl,
+    pressureMmHg: endDiastolic.displayedPressureMmHg,
+  });
 
   // V0=0 is an explicit textbook-display convention, not a fitted V0. With
   // this convention, max(Ptm/V) selects the max-elastance support line and
@@ -158,19 +166,22 @@ export function buildScientificPvBoundaryGuideV1(
   const systolicPressureAtVolume = (volumeMl: number) =>
     systolicExternalPressure
       + endSystolicElastance * (volumeMl - systolicV0Ml);
-  const espvr = joinCurveSegments(
-    sampleCurve(
-      systolicV0Ml,
-      endSystolic.volumeMl,
-      systolicPressureAtVolume,
-      36,
+  const espvr = withExactCurveContact(
+    joinCurveSegments(
+      sampleCurve(
+        systolicV0Ml,
+        endSystolic.volumeMl,
+        systolicPressureAtVolume,
+        36,
+      ),
+      sampleCurve(
+        endSystolic.volumeMl,
+        systolicEndVolume,
+        systolicPressureAtVolume,
+        20,
+      ),
     ),
-    sampleCurve(
-      endSystolic.volumeMl,
-      systolicEndVolume,
-      systolicPressureAtVolume,
-      20,
-    ),
+    endSystolicContact,
   );
 
   const edpvr = buildKlotzInformedFillingGuide(
@@ -187,14 +198,8 @@ export function buildScientificPvBoundaryGuideV1(
       : "intracavitary",
     espvr,
     edpvr,
-    endSystolicContact: Object.freeze({
-      volumeMl: endSystolic.volumeMl,
-      pressureMmHg: endSystolic.displayedPressureMmHg,
-    }),
-    endDiastolicContact: Object.freeze({
-      volumeMl: endDiastolic.volumeMl,
-      pressureMmHg: endDiastolic.displayedPressureMmHg,
-    }),
+    endSystolicContact,
+    endDiastolicContact,
     semantics: "single-beat-orientation-guide-not-load-series-fit",
   });
 }
@@ -255,20 +260,26 @@ function buildKlotzInformedFillingGuide(
         Math.max(0, (volumeMl - diastolicV0Ml) / diastolicV30SpanMl),
         KLOTZ_NORMALIZED_EXPONENT,
       );
-  return joinCurveSegments(
-    preCurve,
-    sampleCurve(
-      diastolicV0Ml,
-      endDiastolic.volumeMl,
-      diastolicPressureAtVolume,
-      36,
+  return withExactCurveContact(
+    joinCurveSegments(
+      preCurve,
+      sampleCurve(
+        diastolicV0Ml,
+        endDiastolic.volumeMl,
+        diastolicPressureAtVolume,
+        36,
+      ),
+      sampleCurve(
+        endDiastolic.volumeMl,
+        diastolicEndVolume,
+        diastolicPressureAtVolume,
+        20,
+      ),
     ),
-    sampleCurve(
-      endDiastolic.volumeMl,
-      diastolicEndVolume,
-      diastolicPressureAtVolume,
-      20,
-    ),
+    Object.freeze({
+      volumeMl: endDiastolic.volumeMl,
+      pressureMmHg: endDiastolic.displayedPressureMmHg,
+    }),
   );
 }
 
@@ -434,6 +445,23 @@ function joinCurveSegments(
     joined.push(...segment.slice(startIndex));
   }
   return Object.freeze(joined);
+}
+
+function withExactCurveContact(
+  points: readonly ScientificPvBoundaryGuidePointV1[],
+  contact: ScientificPvBoundaryGuidePointV1,
+): readonly ScientificPvBoundaryGuidePointV1[] {
+  if (points.length === 0) return points;
+  let selectedIndex = 0;
+  let selectedDistance = Number.POSITIVE_INFINITY;
+  points.forEach(({ volumeMl }, index) => {
+    const distance = Math.abs(volumeMl - contact.volumeMl);
+    if (distance >= selectedDistance) return;
+    selectedIndex = index;
+    selectedDistance = distance;
+  });
+  return Object.freeze(points.map((point, index) =>
+    index === selectedIndex ? contact : point));
 }
 
 function maximumBy<T>(

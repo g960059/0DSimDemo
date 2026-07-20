@@ -8,6 +8,7 @@ import {
   scientificChartDomainV1,
   scientificChartPlotRectV1,
   scientificChartPlotTopV1,
+  scientificPvBoundaryGuidePresentationInputsV1,
   scientificPvRelationDomainPointsV1,
   scientificPvRelationQualityNoticesV1,
 } from "@/components/scientificProduct/ScientificWorkbenchAnimatedChartsV1";
@@ -105,6 +106,76 @@ describe("scientific Workbench chart domains", () => {
       opacityMultiplier: 0.3,
       sourceRole: "history",
     });
+  });
+
+  it("withholds default PV boundary curves until two usable endpoints exist", () => {
+    const fallback = buildScientificPvBoundaryGuideV1(
+      textbookPvSeriesFixture("absolute"),
+    )!;
+    const resultV2 = pvRelationResultFixture({ fitStatus: "accepted" });
+
+    const noEndpointGuides = scientificPvProgressiveBoundaryGuidesForScenarioV1({
+      fallbackGuide: fallback,
+      series: pvRelationSeriesFixture({ current: null }),
+    });
+    expect(noEndpointGuides).toHaveLength(1);
+    expect(noEndpointGuides[0]).toMatchObject({
+      espvr: [],
+      edpvr: [],
+    });
+    expect(
+      scientificPvBoundaryGuidePresentationInputsV1(noEndpointGuides)[0]!
+        .current!.renderable,
+    ).toBe(false);
+
+    const completeResearch = pvRelationResearchResultFixture(resultV2);
+    const oneEndpoint = Object.freeze({
+      ...completeResearch,
+      beats: Object.freeze(completeResearch.beats.slice(0, 1)),
+    }) as MainWireScientificPvRelationsProtocolResultV3;
+    const onePointGuides = scientificPvProgressiveBoundaryGuidesForScenarioV1({
+      fallbackGuide: fallback,
+      series: pvRelationSeriesFixture({
+        current: pvRelationGenerationFixture(
+          "parameter-epoch-1",
+          resultV2,
+          "running",
+          oneEndpoint,
+        ),
+      }),
+    });
+    expect(onePointGuides).toHaveLength(1);
+    expect(onePointGuides[0]).toMatchObject({
+      espvr: [],
+      edpvr: [],
+    });
+    expect(
+      scientificPvBoundaryGuidePresentationInputsV1(onePointGuides)[0]!
+        .current!.renderable,
+    ).toBe(false);
+
+    const twoEndpoints = Object.freeze({
+      ...completeResearch,
+      beats: Object.freeze(completeResearch.beats.slice(0, 2)),
+    }) as MainWireScientificPvRelationsProtocolResultV3;
+    const twoPointGuides = scientificPvProgressiveBoundaryGuidesForScenarioV1({
+      fallbackGuide: fallback,
+      series: pvRelationSeriesFixture({
+        current: pvRelationGenerationFixture(
+          "parameter-epoch-1",
+          resultV2,
+          "running",
+          twoEndpoints,
+        ),
+      }),
+    });
+    expect(twoPointGuides).toHaveLength(1);
+    expect(twoPointGuides[0]!.espvr.length).toBeGreaterThanOrEqual(2);
+    expect(twoPointGuides[0]!.edpvr).toEqual([]);
+    expect(
+      scientificPvBoundaryGuidePresentationInputsV1(twoPointGuides)[0]!
+        .current!.renderable,
+    ).toBe(true);
   });
 
   it("builds immediate textbook boundaries through the current LV contacts", () => {
