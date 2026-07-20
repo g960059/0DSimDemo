@@ -35,6 +35,10 @@ import type {
   MainWireScientificHemodynamicJobSnapshotV2,
   MainWireScientificHemodynamicJobStartV2,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
+import type {
+  MainWireScientificPvRelationJobSnapshotV1,
+  MainWireScientificPvRelationJobStartV1,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationJobV1";
 
 export const SCIENTIFIC_COMMAND_PROTOCOL_V1_ID =
   "circleheart-scientific-command-protocol-v1" as const;
@@ -57,6 +61,9 @@ export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "startGuytonStarlingProtocolJob",
   "pollGuytonStarlingProtocolJob",
   "cancelGuytonStarlingProtocolJob",
+  "startPvRelationsProtocolJob",
+  "pollPvRelationsProtocolJob",
+  "cancelPvRelationsProtocolJob",
 ] as const);
 
 export type ScientificCommandKindV1 =
@@ -187,6 +194,19 @@ export type CancelGuytonStarlingProtocolJobCommandV2 =
     jobId: string;
   }>;
 
+export type StartPvRelationsProtocolJobCommandV1 =
+  CommandBaseV1<"startPvRelationsProtocolJob">;
+
+export type PollPvRelationsProtocolJobCommandV1 =
+  CommandBaseV1<"pollPvRelationsProtocolJob"> & Readonly<{
+    jobId: string;
+  }>;
+
+export type CancelPvRelationsProtocolJobCommandV1 =
+  CommandBaseV1<"cancelPvRelationsProtocolJob"> & Readonly<{
+    jobId: string;
+  }>;
+
 export type ScientificCommandV1 =
   | CreateCanonicalSessionCommandV1
   | CreateResolvedSessionCommandV1
@@ -204,7 +224,10 @@ export type ScientificCommandV1 =
   | RunGuytonStarlingProtocolCommandV1
   | StartGuytonStarlingProtocolJobCommandV2
   | PollGuytonStarlingProtocolJobCommandV2
-  | CancelGuytonStarlingProtocolJobCommandV2;
+  | CancelGuytonStarlingProtocolJobCommandV2
+  | StartPvRelationsProtocolJobCommandV1
+  | PollPvRelationsProtocolJobCommandV1
+  | CancelPvRelationsProtocolJobCommandV1;
 
 export type ScientificCommandErrorCodeV1 =
   | "invalid-command"
@@ -502,6 +525,24 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
     cancelGuytonStarlingProtocolJob: Readonly<{
       kind: "guytonStarlingProtocolJobCancelled";
       snapshot: MainWireScientificHemodynamicJobSnapshotV2;
+      sourceSessionUnchanged: true;
+      observableFrame: TObservableFrame;
+    }>;
+    startPvRelationsProtocolJob: Readonly<{
+      kind: "pvRelationsProtocolJobStarted";
+      job: MainWireScientificPvRelationJobStartV1;
+      sourceSessionUnchanged: true;
+      observableFrame: TObservableFrame;
+    }>;
+    pollPvRelationsProtocolJob: Readonly<{
+      kind: "pvRelationsProtocolJobProgress";
+      snapshot: MainWireScientificPvRelationJobSnapshotV1;
+      sourceSessionUnchanged: true;
+      observableFrame: TObservableFrame;
+    }>;
+    cancelPvRelationsProtocolJob: Readonly<{
+      kind: "pvRelationsProtocolJobCancelled";
+      snapshot: MainWireScientificPvRelationJobSnapshotV1;
       sourceSessionUnchanged: true;
       observableFrame: TObservableFrame;
     }>;

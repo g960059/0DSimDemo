@@ -89,6 +89,8 @@ export interface LegendPosition {
 }
 
 export type PvLoopHistoryMode = 'fade' | 'persistent';
+export type PvRelationDisplayMode = 'off' | 'standard' | 'research';
+export type PvRelationPressureBasis = 'intracavitary' | 'transmural';
 export type HemodynamicDetailMode = 'standard' | 'settled-reference' | 'compare';
 export type HemodynamicParameterHistoryCount = 0 | 1 | 3 | 5;
 
@@ -96,11 +98,20 @@ export const DEFAULT_HEMODYNAMIC_DETAIL_MODE: HemodynamicDetailMode = 'standard'
 export const DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT:
   HemodynamicParameterHistoryCount = 5;
 export const DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE = false;
+export const DEFAULT_PV_RELATION_DISPLAY_MODE: PvRelationDisplayMode = 'standard';
+export const DEFAULT_PV_RELATION_PRESSURE_BASIS: PvRelationPressureBasis =
+  'intracavitary';
 
 export interface HemodynamicResponsePanelSettings {
     detailMode: HemodynamicDetailMode;
     parameterHistoryCount: HemodynamicParameterHistoryCount;
     allowNegativeFillingPressure: boolean;
+}
+
+export interface PvRelationPanelSettings {
+    displayMode: PvRelationDisplayMode;
+    pressureBasis: PvRelationPressureBasis;
+    showSamplePoints: boolean;
 }
 
 export interface GraphPanelView {
@@ -119,6 +130,9 @@ export interface GraphPanelView {
     pvDebugTraceMode?: PvLoopDebugTraceMode;
     pvHistoryBeats?: number;
     pvHistoryMode?: PvLoopHistoryMode;
+    pvRelationDisplayMode?: PvRelationDisplayMode;
+    pvRelationPressureBasis?: PvRelationPressureBasis;
+    pvRelationShowSamplePoints?: boolean;
     hemodynamicDetailMode?: HemodynamicDetailMode;
     hemodynamicParameterHistoryCount?: HemodynamicParameterHistoryCount;
     hemodynamicAllowNegativeFillingPressure?: boolean;
@@ -230,6 +244,10 @@ export interface PanelDef {
     pvDebugTraceMode?: PvLoopDebugTraceMode;
     pvHistoryBeats?: number;
     pvHistoryMode?: PvLoopHistoryMode;
+    /** LV protocol-derived pressure-volume relation presentation settings. */
+    pvRelationDisplayMode?: PvRelationDisplayMode;
+    pvRelationPressureBasis?: PvRelationPressureBasis;
+    pvRelationShowSamplePoints?: boolean;
     /** GUYTON_LEFT / GUYTON_RIGHT response-locus presentation settings. */
     hemodynamicDetailMode?: HemodynamicDetailMode;
     hemodynamicParameterHistoryCount?: HemodynamicParameterHistoryCount;

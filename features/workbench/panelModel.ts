@@ -2,7 +2,16 @@ import { workspaceForPanels } from "@/caseDoc";
 import { addPane } from "@/layoutOps";
 import type { NoteContent } from "@/noteTypes";
 import { defaultZoneOf } from "@/paneZone";
-import type { PanelDef, PanelInstanceConfig, PanelType, SimInstance, WorkbenchWorkspace, WorkbenchZoneId } from "@/types";
+import {
+  DEFAULT_PV_RELATION_DISPLAY_MODE,
+  DEFAULT_PV_RELATION_PRESSURE_BASIS,
+  type PanelDef,
+  type PanelInstanceConfig,
+  type PanelType,
+  type SimInstance,
+  type WorkbenchWorkspace,
+  type WorkbenchZoneId,
+} from "@/types";
 import { EMPTY_NOTE_SPINE, defaultSignalsForPanelType } from "./workbenchDefaults";
 
 export function createDefaultPanelConfig(
@@ -43,6 +52,11 @@ export function createPanelDef(
     config,
     isSettingsOpen: false,
     showGuides: type === "PVLOOP",
+    pvRelationDisplayMode:
+      type === "PVLOOP" ? DEFAULT_PV_RELATION_DISPLAY_MODE : undefined,
+    pvRelationPressureBasis:
+      type === "PVLOOP" ? DEFAULT_PV_RELATION_PRESSURE_BASIS : undefined,
+    pvRelationShowSamplePoints: type === "PVLOOP" ? false : undefined,
     timeWindow: type === "WAVEFORM" ? 5000 : undefined,
   };
 }

@@ -1,5 +1,6 @@
 import React from "react";
 import * as d3 from "d3";
+import { useTranslation } from "react-i18next";
 
 import { useDocumentVisible } from "@/hooks/useOnscreen";
 import {
@@ -63,6 +64,119 @@ export type ScientificWorkbenchPvSeriesV1 = Readonly<{
   signalName: string;
   color: string;
 }>;
+
+export type ScientificWorkbenchPvRelationPointV1 = Readonly<{
+  volumeMl: number;
+  pressureMmHg: number;
+}>;
+
+export type ScientificWorkbenchPvRelationOverlayV1 = Readonly<{
+  key: string;
+  scenarioId: string;
+  scenarioName?: string;
+  color: string;
+  status: "running" | "complete" | "limited" | "stale" | "error";
+  espvrQuality?: "accepted" | "limited" | "unavailable";
+  edpvrQuality?: "accepted" | "limited" | "unavailable";
+  errorMessage?: string;
+  pressureBasis: "intracavitary" | "transmural";
+  completedBeatCount: number;
+  maximumBeatCount: number;
+  generationAge?: number;
+  espvr: readonly ScientificWorkbenchPvRelationPointV1[];
+  edpvr: readonly ScientificWorkbenchPvRelationPointV1[];
+  endSystolicSamples?: readonly ScientificWorkbenchPvRelationPointV1[];
+  endDiastolicSamples?: readonly ScientificWorkbenchPvRelationPointV1[];
+  domainAnchorPoints?: readonly ScientificWorkbenchPvRelationPointV1[];
+}>;
+
+export type ScientificWorkbenchPvRelationQualityNoticeV1 = Readonly<{
+  key: string;
+  scenarioName: string;
+  relation: "ESPVR" | "EDPVR";
+  quality: "limited" | "unavailable";
+}>;
+
+export function scientificPvRelationQualityNoticesV1(
+  relations: readonly ScientificWorkbenchPvRelationOverlayV1[],
+): readonly ScientificWorkbenchPvRelationQualityNoticeV1[] {
+  return Object.freeze(relations.flatMap((overlay) => {
+    if ((overlay.generationAge ?? 0) !== 0) return [];
+    const scenarioName = overlay.scenarioName ?? overlay.scenarioId;
+    return (["espvr", "edpvr"] as const).flatMap((relation) => {
+      const quality = relation === "espvr"
+        ? overlay.espvrQuality
+        : overlay.edpvrQuality;
+      if (quality === undefined || quality === "accepted") return [];
+      return [Object.freeze({
+        key: `${overlay.key}:${relation}:${quality}`,
+        scenarioName,
+        relation: relation.toUpperCase() as "ESPVR" | "EDPVR",
+        quality,
+      })];
+    });
+  }));
+}
+
+/**
+ * Selects an atomic scale anchor per scenario. While a replacement is still
+ * running, the newest usable previous generation continues to own the scale;
+ * this prevents the native loop from jumping when the pending curve is empty
+ * or only partially acquired.
+ */
+export function scientificPvRelationDomainPointsV1(
+  relations: readonly ScientificWorkbenchPvRelationOverlayV1[],
+): readonly ScientificWorkbenchPvRelationPointV1[] {
+  const grouped = new Map<string, ScientificWorkbenchPvRelationOverlayV1[]>();
+  for (const relation of relations) {
+    const group = grouped.get(relation.scenarioId) ?? [];
+    group.push(relation);
+    grouped.set(relation.scenarioId, group);
+  }
+  const result: ScientificWorkbenchPvRelationPointV1[] = [];
+  for (const group of grouped.values()) {
+    const ordered = [...group].sort(
+      (left, right) => (left.generationAge ?? 0) - (right.generationAge ?? 0),
+    );
+    const current = ordered.find((relation) =>
+      (relation.generationAge ?? 0) === 0);
+    const previous = ordered.find((relation) =>
+      (relation.generationAge ?? 0) > 0 && pvRelationHasDomainEvidence(relation));
+    const selected = current !== undefined
+      && current.status !== "running"
+      && pvRelationHasDomainEvidence(current)
+        ? current
+        : previous ?? (current !== undefined && pvRelationHasDomainEvidence(current)
+          ? current
+          : undefined);
+    if (selected === undefined) continue;
+    const anchors = pvRelationDomainAnchors(selected);
+    result.push(...(
+      selected.status === "complete" || selected.status === "running"
+        ? [...selected.espvr, ...selected.edpvr, ...anchors]
+        : anchors
+    ));
+  }
+  return Object.freeze(result.filter(({ volumeMl, pressureMmHg }) =>
+    Number.isFinite(volumeMl) && Number.isFinite(pressureMmHg)));
+}
+
+function pvRelationDomainAnchors(
+  relation: ScientificWorkbenchPvRelationOverlayV1,
+): readonly ScientificWorkbenchPvRelationPointV1[] {
+  return relation.domainAnchorPoints ?? [
+    ...(relation.endSystolicSamples ?? []),
+    ...(relation.endDiastolicSamples ?? []),
+  ];
+}
+
+function pvRelationHasDomainEvidence(
+  relation: ScientificWorkbenchPvRelationOverlayV1,
+): boolean {
+  return relation.espvr.length >= 2
+    || relation.edpvr.length >= 2
+    || pvRelationDomainAnchors(relation).length >= 2;
+}
 
 const PLOT_PADDING = Object.freeze({ left: 64, right: 16, top: 24, bottom: 32 });
 const COMPACT_PLOT_LEFT_PX = 58;
@@ -224,6 +338,7 @@ export function ScientificWorkbenchWaveformCanvasV1({
 
 export function ScientificWorkbenchPvLoopCanvasV1({
   series,
+  relations = [],
   clock,
   showLegend = true,
   historyBeats = 8,
@@ -231,12 +346,14 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   legendInteraction,
 }: Readonly<{
   series: readonly ScientificWorkbenchPvSeriesV1[];
+  relations?: readonly ScientificWorkbenchPvRelationOverlayV1[];
   clock: ScientificWorkbenchDisplayClockV1;
   showLegend?: boolean;
   historyBeats?: number;
   historyMode?: PvLoopHistoryMode;
   legendInteraction?: ScientificWorkbenchLegendInteractionV1;
 }>) {
+  const { t } = useTranslation();
   const containerRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const legendHeightRef = React.useRef(0);
@@ -245,6 +362,8 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   }, []);
   const seriesRef = React.useRef(series);
   seriesRef.current = series;
+  const relationsRef = React.useRef(relations);
+  relationsRef.current = relations;
   const lastPeriodicTrajectoryBySeriesRef = React.useRef(
     new Map<string, readonly PvValue[]>(),
   );
@@ -265,6 +384,24 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     modelName: item.scenario.name,
     signalName: item.signalName,
   })), [series]);
+  const qualityNotices = React.useMemo(
+    () => scientificPvRelationQualityNoticesV1(relations),
+    [relations],
+  );
+  const pressureBasisKinds = new Set(series.map((item) =>
+    item.pressureObservableId.includes(".transmural.")
+      ? "transmural"
+      : "intracavitary"));
+  const accessiblePressureBasis = pressureBasisKinds.size > 1
+    ? t('workbench.panelGrid.pvRelationMixedPressureAxis')
+    : pressureBasisKinds.has("transmural")
+      ? t('workbench.panelGrid.pvRelationTransmuralPressureAxis')
+      : t('workbench.panelGrid.pvRelationIntracavitaryPressureAxis');
+  const canvasAriaLabel = `${[
+    ...new Set(series.map((item) => item.signalName)),
+  ].join(", ")} · ${accessiblePressureBasis}. ${t(
+    'workbench.panelGrid.pvRelationsDescription',
+  )}`;
   const normalizedHistoryBeats = normalizeScientificPvHistoryBeatsV1(historyBeats);
   const retainedTrajectoryCount = Math.max(
     0,
@@ -297,6 +434,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     if (!visible) return undefined;
     return animateCanvas(containerRef, canvasRef, (ctx, width, height, nowMs) => {
       const currentSeries = seriesRef.current;
+      const currentRelations = relationsRef.current;
       const plot = scientificChartPlotRectV1(
         width,
         height,
@@ -323,11 +461,47 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       const allPoints = currentSeries.flatMap((item) =>
         (visibleTrajectoriesBySeries.get(item.key) ?? [])
           .flatMap((trajectory) => trajectory.points));
-      const xDomain = scientificChartDomainV1(allPoints.map(({ volume }) => volume));
-      const yDomain = scientificChartDomainV1(allPoints.map(({ pressure }) => pressure));
+      const relationPoints = scientificPvRelationDomainPointsV1(
+        currentRelations,
+      );
+      const xDomain = scientificChartDomainV1([
+        ...allPoints.map(({ volume }) => volume),
+        ...relationPoints.map(({ volumeMl }) => volumeMl),
+      ]);
+      const yDomain = scientificChartDomainV1([
+        ...allPoints.map(({ pressure }) => pressure),
+        ...relationPoints.map(({ pressureMmHg }) => pressureMmHg),
+      ]);
       const x = d3.scaleLinear().domain(xDomain).range([plot.left, plot.right]);
       const y = d3.scaleLinear().domain(yDomain).range([plot.bottom, plot.top]);
-      drawCartesianAxes(ctx, plot, width, height, x, y, "Volume (mL)", "Pressure (mmHg)", theme);
+      const pressureBasisCount = currentSeries.reduce((counts, item) => {
+        const basis = item.pressureObservableId.includes(".transmural.")
+          ? "transmural"
+          : "intracavitary";
+        counts[basis] += 1;
+        return counts;
+      }, { transmural: 0, intracavitary: 0 });
+      const pressureLabel = pressureBasisCount.transmural > 0
+        && pressureBasisCount.intracavitary > 0
+        ? t('workbench.panelGrid.pvRelationMixedPressureAxis')
+        : pressureBasisCount.transmural > 0
+          ? t('workbench.panelGrid.pvRelationTransmuralPressureAxis')
+          : t('workbench.panelGrid.pvRelationIntracavitaryPressureAxis');
+      drawCartesianAxes(
+        ctx,
+        plot,
+        width,
+        height,
+        x,
+        y,
+        t('workbench.panelGrid.pvRelationVolumeAxis'),
+        pressureLabel,
+        theme,
+      );
+
+      for (const relation of currentRelations) {
+        drawScientificPvRelationOverlayV1(ctx, relation, x, y, theme);
+      }
 
       const sharedElapsedSeconds = scientificSharedOpenTransientElapsedSecondsV1(currentSeries)
         ?? clock.read(nowMs).elapsedSeconds;
@@ -386,6 +560,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     reserveLegendSpace,
     normalizedHistoryBeats,
     showLegend,
+    t,
     visible,
   ]);
 
@@ -398,6 +573,11 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       data-pv-history-mode={historyMode}
       data-pv-history-trajectory-count={retainedTrajectoryCount}
       data-pv-history-source-trajectory-count={retainedSourceTrajectoryCount}
+      data-pv-relation-count={relations.length}
+      data-pv-espvr-curve-count={relations.filter((relation) =>
+        relation.espvr.length >= 2).length}
+      data-pv-edpvr-curve-count={relations.filter((relation) =>
+        relation.edpvr.length >= 2).length}
     >
       {showLegend && (
         <ScientificWorkbenchChartLegendV1
@@ -406,7 +586,107 @@ export function ScientificWorkbenchPvLoopCanvasV1({
           onMeasuredHeightChange={onLegendHeightChange}
         />
       )}
-      <canvas ref={canvasRef} className="block pointer-events-auto" data-chart-kind="pvloop" />
+      <canvas
+        ref={canvasRef}
+        className="block pointer-events-auto"
+        data-chart-kind="pvloop"
+        role="img"
+        aria-label={canvasAriaLabel}
+      />
+      <ScientificPvRelationQualityNoticeV1 notices={qualityNotices} />
+      {relations.some((relation) => relation.status === "running") && (() => {
+        const running = relations.filter((relation) =>
+          relation.status === "running");
+        const completed = running.reduce(
+          (sum, relation) => sum + relation.completedBeatCount,
+          0,
+        );
+        const total = running.reduce(
+          (sum, relation) => sum + relation.maximumBeatCount,
+          0,
+        );
+        return (
+        <div
+          className="pointer-events-none absolute bottom-2 left-2 rounded border border-wb-line bg-wb-panel/88 px-2 py-1 text-[9px] font-semibold text-wb-muted backdrop-blur-sm"
+          role="status"
+          data-testid="scientific-pv-relation-progress-v1"
+        >
+          {t('workbench.panelGrid.pvRelationCalculating', {
+            completed,
+            total,
+          })}
+        </div>
+        );
+      })()}
+      {!relations.some((relation) => relation.status === "running") && (() => {
+        const notice = relations.find((relation) =>
+          (relation.generationAge ?? 0) === 0
+          && (relation.status === "stale" || relation.status === "error"));
+        if (notice === undefined) return null;
+        return (
+          <div
+            className={`pointer-events-none absolute bottom-2 left-2 max-w-[min(24rem,calc(100%-1rem))] rounded border bg-wb-panel/92 px-2 py-1 text-[9px] font-semibold backdrop-blur-sm ${
+              notice.status === "error"
+                ? "border-wb-danger/40 bg-wb-danger-soft text-wb-danger"
+                : "border-wb-line text-wb-muted"
+            }`}
+            role="status"
+            aria-live="polite"
+            title={notice.errorMessage}
+            data-testid="scientific-pv-relation-state-v1"
+          >
+            {notice.scenarioName ?? notice.scenarioId} · {t(
+              notice.status === "error"
+                ? 'workbench.panelGrid.pvRelationUpdateFailed'
+                : 'workbench.panelGrid.pvRelationAwaitingSettlement',
+            )}
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+function ScientificPvRelationQualityNoticeV1({
+  notices,
+}: Readonly<{
+  notices: readonly ScientificWorkbenchPvRelationQualityNoticeV1[];
+}>) {
+  const { t } = useTranslation();
+  const [open, setOpen] = React.useState(false);
+  const popoverId = React.useId();
+  if (notices.length === 0) return null;
+  return (
+    <div
+      className="pointer-events-auto absolute left-2 top-2 z-20"
+      data-testid="scientific-pv-relation-quality-v1"
+    >
+      <button
+        type="button"
+        className="inline-flex h-5 w-5 items-center justify-center rounded border border-wb-warning/35 bg-wb-warning-soft text-[10px] font-bold leading-none text-wb-warning outline-none transition-colors hover:bg-wb-hover focus-visible:ring-1 focus-visible:ring-wb-warning"
+        aria-label={t('workbench.panelGrid.pvRelationLimitedWarning')}
+        aria-expanded={open}
+        aria-controls={popoverId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        ⚠
+      </button>
+      {open && (
+        <div
+          id={popoverId}
+          className="absolute left-0 top-6 w-64 max-w-[calc(100vw-1rem)] rounded-md border border-wb-warning/35 bg-wb-panel px-2 py-1.5 text-[10px] font-medium leading-4 text-wb-text shadow-lg"
+          role="note"
+        >
+          {notices.map((notice) => (
+            <p key={notice.key}>
+              {t('workbench.panelGrid.pvRelationQualityWarning', {
+                relation: notice.relation,
+                scenarios: notice.scenarioName,
+              })}
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -421,7 +701,9 @@ export function ScientificWorkbenchChartLegendV1({
   onMeasuredHeightChange?: (height: number) => void;
 }>) {
   if (entries.length === 0) return null;
-  const showsMultipleModels = new Set(entries.map(({ modelName }) => modelName)).size > 1;
+  const showsMultipleModels = new Set(
+    entries.map(({ modelName }) => modelName).filter(Boolean),
+  ).size > 1;
   return (
     <InteractiveGraphLegend
       panelId={interaction?.panelId}
@@ -445,7 +727,7 @@ export function ScientificWorkbenchChartLegendV1({
             style={{ backgroundColor: entry.color, boxShadow: `0 0 3px ${entry.color}` }}
           />
           <span className="truncate">
-            {showsMultipleModels
+            {showsMultipleModels && entry.modelName
               ? `${entry.modelName} · ${entry.signalName}`
               : entry.signalName}
           </span>
@@ -453,6 +735,141 @@ export function ScientificWorkbenchChartLegendV1({
       ))}
     </InteractiveGraphLegend>
   );
+}
+
+export function drawScientificPvRelationOverlayV1(
+  ctx: CanvasRenderingContext2D,
+  relation: ScientificWorkbenchPvRelationOverlayV1,
+  x: d3.ScaleLinear<number, number>,
+  y: d3.ScaleLinear<number, number>,
+  theme?: CanvasTheme,
+): void {
+  const generationAge = Math.max(0, relation.generationAge ?? 0);
+  const generationAlpha = generationAge === 0
+    ? relation.status === "running"
+      ? 0.72
+      : relation.status === "stale" || relation.status === "error"
+        ? 0.42
+        : 0.96
+    : Math.max(0.08, 0.22 / (generationAge + 1));
+  const relationColor = scientificRelationColorV1(relation.color, theme);
+  const relationOutline = theme?.backgroundIsDark === false
+    ? "#0f172a"
+    : "#f8fafc";
+  drawScientificPvRelationPathV1(
+    ctx,
+    relation.espvr,
+    x,
+    y,
+    relationColor,
+    relationOutline,
+    [7, 4],
+    generationAlpha,
+  );
+  drawScientificPvRelationPathV1(
+    ctx,
+    relation.edpvr,
+    x,
+    y,
+    relationColor,
+    relationOutline,
+    [1.5, 3.5],
+    generationAlpha * 0.92,
+  );
+  if (relation.endSystolicSamples) {
+    drawScientificPvRelationSamplesV1(
+      ctx,
+      relation.endSystolicSamples,
+      x,
+      y,
+      relationColor,
+      "diamond",
+      generationAlpha,
+    );
+  }
+  if (relation.endDiastolicSamples) {
+    drawScientificPvRelationSamplesV1(
+      ctx,
+      relation.endDiastolicSamples,
+      x,
+      y,
+      relationColor,
+      "circle",
+      generationAlpha,
+    );
+  }
+}
+
+function drawScientificPvRelationPathV1(
+  ctx: CanvasRenderingContext2D,
+  points: readonly ScientificWorkbenchPvRelationPointV1[],
+  x: d3.ScaleLinear<number, number>,
+  y: d3.ScaleLinear<number, number>,
+  color: string,
+  outlineColor: string,
+  dash: readonly number[],
+  alpha: number,
+): void {
+  const finite = points.filter(({ volumeMl, pressureMmHg }) =>
+    Number.isFinite(volumeMl) && Number.isFinite(pressureMmHg));
+  if (finite.length < 2) return;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.setLineDash([...dash]);
+  ctx.beginPath();
+  finite.forEach((point, index) => {
+    const px = x(point.volumeMl);
+    const py = y(point.pressureMmHg);
+    if (index === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.strokeStyle = outlineColor;
+  ctx.globalAlpha = Math.min(0.62, alpha * 0.64);
+  ctx.lineWidth = 5.25;
+  ctx.shadowBlur = 0;
+  ctx.stroke();
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawScientificPvRelationSamplesV1(
+  ctx: CanvasRenderingContext2D,
+  points: readonly ScientificWorkbenchPvRelationPointV1[],
+  x: d3.ScaleLinear<number, number>,
+  y: d3.ScaleLinear<number, number>,
+  color: string,
+  shape: "circle" | "diamond",
+  alpha: number,
+): void {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.globalAlpha = Math.min(0.88, alpha + 0.12);
+  ctx.lineWidth = 1.2;
+  for (const point of points) {
+    if (!Number.isFinite(point.volumeMl) || !Number.isFinite(point.pressureMmHg)) {
+      continue;
+    }
+    const px = x(point.volumeMl);
+    const py = y(point.pressureMmHg);
+    ctx.beginPath();
+    if (shape === "diamond") {
+      ctx.moveTo(px, py - 3);
+      ctx.lineTo(px + 3, py);
+      ctx.lineTo(px, py + 3);
+      ctx.lineTo(px - 3, py);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.arc(px, py, 2.7, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
 }
 
 export function scientificObservableShortLabelV1(
@@ -1118,19 +1535,52 @@ function publishCanvasEvidence(
   canvas.dataset.cssHeight = String(height);
 }
 
-type CanvasTheme = Readonly<{ grid: string; tick: string; label: string }>;
+type CanvasTheme = Readonly<{
+  grid: string;
+  tick: string;
+  label: string;
+  backgroundIsDark: boolean;
+}>;
 
 function canvasTheme(container: HTMLElement | null): CanvasTheme {
   if (!container || typeof getComputedStyle === "undefined") {
-    return { grid: "#334155", tick: "#64748b", label: "#94a3b8" };
+    return {
+      grid: "#334155",
+      tick: "#64748b",
+      label: "#94a3b8",
+      backgroundIsDark: true,
+    };
   }
   const style = getComputedStyle(container);
   const css = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+  const background = d3.rgb(css("--wb-app-bg", "#020617"));
+  const relativeLuminance = [background.r, background.g, background.b]
+    .every(Number.isFinite)
+      ? (
+          0.2126 * background.r
+          + 0.7152 * background.g
+          + 0.0722 * background.b
+        ) / 255
+      : 0;
   return {
     grid: css("--wb-border", "#334155"),
     tick: css("--wb-text-subtle", "#64748b"),
     label: css("--wb-text-muted", "#94a3b8"),
+    backgroundIsDark: relativeLuminance < 0.5,
   };
+}
+
+function scientificRelationColorV1(
+  color: string,
+  theme: CanvasTheme | undefined,
+): string {
+  const hsl = d3.hsl(color);
+  if (!Number.isFinite(hsl.h)) return color;
+  hsl.s = Math.max(0.62, Number.isFinite(hsl.s) ? hsl.s : 0.62);
+  hsl.l = theme?.backgroundIsDark === false
+    ? Math.min(0.38, Number.isFinite(hsl.l) ? hsl.l : 0.38)
+    : Math.max(0.62, Number.isFinite(hsl.l) ? hsl.l : 0.62);
+  return hsl.formatHex();
 }
 
 function formatTick(value: number): string {

@@ -19,6 +19,9 @@ import {
 import {
   MainWireScientificHemodynamicWorkerPoolV2,
 } from "@/engine/scientificBrowser/MainWireScientificHemodynamicWorkerPoolV2";
+import {
+  MainWireScientificPvRelationWorkerManagerV1,
+} from "@/engine/scientificBrowser/MainWireScientificPvRelationWorkerManagerV1";
 
 type ScientificWorkerScopeV1 = Readonly<{
   postMessage: (message: unknown) => void;
@@ -29,6 +32,8 @@ type ScientificWorkerScopeV1 = Readonly<{
 const scope = globalThis as unknown as ScientificWorkerScopeV1;
 const hemodynamicJobManager =
   new MainWireScientificHemodynamicWorkerPoolV2();
+const pvRelationJobManager =
+  new MainWireScientificPvRelationWorkerManagerV1();
 const kernel = new MainWireScientificInProcessKernelV1({
   officialPresetLoader: loadBundledOfficialHealthyPeriodicPresetV1,
   officialDocumentCaseLoader:
@@ -46,6 +51,7 @@ const kernel = new MainWireScientificInProcessKernelV1({
     MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
       .maximumOutputFrameCountPerCommand,
   hemodynamicJobManager,
+  pvRelationJobManager,
 });
 let performanceSidebandPort: MessagePort | null = null;
 

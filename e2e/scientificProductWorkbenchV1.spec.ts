@@ -321,6 +321,8 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
         page,
         "scientific-workbench-pane-lv-pv",
       );
+      const lvPvCanvas = page.getByTestId("scientific-workbench-pane-lv-pv")
+        .getByTestId("scientific-workbench-pv-canvas-v1");
       await expect(lvLegend).toContainText(
         `${COMPARISON_SCENARIO_NAME} · Left ventricle`,
         { timeout: 120_000 },
@@ -328,17 +330,22 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       await expect(lvLegend).toContainText(
         `${HEALTHY_SCENARIO_NAME} · Left ventricle`,
       );
+      await expect(lvPvCanvas).toHaveAttribute("data-pv-relation-count", /^[2-9]/, {
+        timeout: 60_000,
+      });
 
       // Global visibility gates the scenario across graphs.
       await exactButton(page, `${COMPARISON_SCENARIO_NAME}をグラフで非表示`)
         .click();
       await expect(lvLegend).not.toContainText(COMPARISON_SCENARIO_NAME);
+      await expect(lvPvCanvas).toHaveAttribute("data-pv-relation-count", "1");
       await expect(page.getByTestId("scientific-workbench-metrics-v1")
         .getByRole("heading", { name: COMPARISON_SCENARIO_NAME, exact: true }))
         .toHaveCount(0);
       await exactButton(page, `${COMPARISON_SCENARIO_NAME}をグラフに表示`)
         .click();
       await expect(lvLegend).toContainText(COMPARISON_SCENARIO_NAME);
+      await expect(lvPvCanvas).toHaveAttribute("data-pv-relation-count", /^[2-9]/);
       await expect(page.getByTestId("scientific-workbench-metrics-v1")
         .getByRole("heading", { name: COMPARISON_SCENARIO_NAME, exact: true }))
         .toHaveCount(1);
@@ -356,6 +363,7 @@ test.describe.serial("scientific runtime in the product Workbench shell", () => 
       await membership.uncheck();
       await page.getByRole("button", { name: "ペイン設定を閉じる" }).click();
       await expect(lvLegend).not.toContainText(COMPARISON_SCENARIO_NAME);
+      await expect(lvPvCanvas).toHaveAttribute("data-pv-relation-count", "1");
 
       await dockTab(page, MITRAL_FLOW_TITLE).click();
       await expect(chartLegend(
@@ -885,6 +893,31 @@ async function assertLegendAndPaneSettingsInteractions(page: Page): Promise<void
   await expect(wrapper).toHaveAttribute("data-pv-history-mode", "persistent");
   await historySettings.getByRole("button", { name: "8", exact: true }).click();
   await historySettings.getByRole("button", { name: "徐々に薄く", exact: true }).click();
+  const relationSettings = dialog.getByTestId("pv-relation-settings");
+  await expect(relationSettings.getByRole("button", {
+    name: "標準（推奨）",
+    exact: true,
+  })).toHaveAttribute("aria-pressed", "true");
+  await expect(relationSettings.getByRole("button", {
+    name: "心腔内圧",
+    exact: true,
+  })).toHaveAttribute("aria-pressed", "true");
+  await relationSettings.getByRole("button", { name: "研究", exact: true })
+    .click();
+  await relationSettings.getByRole("button", { name: "壁内外圧差", exact: true })
+    .click();
+  await relationSettings.getByRole("button", { name: /^抽出点を表示/ })
+    .click();
+  await expect(pane).toHaveAttribute("data-pv-relation-mode", "research");
+  await expect(pane).toHaveAttribute("data-pv-pressure-basis", "transmural");
+  await relationSettings.getByRole("button", {
+    name: "標準（推奨）",
+    exact: true,
+  }).click();
+  await relationSettings.getByRole("button", { name: "心腔内圧", exact: true })
+    .click();
+  await expect(relationSettings.getByRole("button", { name: /^抽出点を表示/ }))
+    .toHaveCount(0);
   const dialogBefore = await requiredBoundingBox(dialog, "pane settings dialog");
   const handleBox = await requiredBoundingBox(moveHandle, "pane settings move handle");
   await page.mouse.move(
@@ -957,6 +990,19 @@ async function assertLegendAndPaneSettingsInteractions(page: Page): Promise<void
   await expect(legend).toHaveAttribute("data-legend-magnet", "snapped");
   await page.mouse.up();
   await expect(legend).toHaveAttribute("data-legend-placement", "default");
+  await expect(wrapper).toHaveAttribute("data-pv-relation-count", /^[1-9]/, {
+    timeout: 60_000,
+  });
+  await expect(wrapper).toHaveAttribute("data-pv-espvr-curve-count", /^[1-9]/, {
+    timeout: 60_000,
+  });
+  await expect(wrapper).toHaveAttribute("data-pv-edpvr-curve-count", /^[1-9]/);
+  await expect(legend).toContainText("Left ventricle");
+  await expect(legend).not.toContainText(/ESPVR|EDPVR/);
+  const quality = wrapper.getByTestId("scientific-pv-relation-quality-v1");
+  await expect(quality).toBeVisible();
+  await quality.getByRole("button").click();
+  await expect(quality.getByRole("note")).toContainText(/ESPVR|EDPVR/);
 }
 
 async function assertWaveformSweepAndFullPaneSizing(page: Page): Promise<void> {

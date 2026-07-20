@@ -21,6 +21,9 @@ test("repeated live retargets keep advancing and visibility auto-pause resumes",
   const host = page.getByTestId("scientific-product-workbench-host-v1");
   const evidence = page.getByTestId("scientific-product-frame-evidence-v1");
   const controller = page.getByTestId("scientific-transition-controller-v1");
+  const pvCanvas = page.getByTestId("scientific-workbench-pane-lv-pv")
+    .getByTestId("scientific-workbench-pv-canvas-v1");
+  const pvLegend = pvCanvas.getByTestId("scientific-workbench-chart-legend-v1");
   const systemic = controller.getByRole("slider", {
     name: "Systemic resistance scale",
     exact: true,
@@ -29,6 +32,12 @@ test("repeated live retargets keep advancing and visibility auto-pause resumes",
   await expect(evidence).toHaveAttribute("data-scientific-frame-count", "501");
   await expect(controller).toHaveAttribute("data-owner-connected", "true");
   await expect(systemic).toHaveAttribute("aria-valuetext", "1.0×");
+  await expect(pvCanvas).toHaveAttribute("data-pv-espvr-curve-count", /^[1-9]/, {
+    timeout: 60_000,
+  });
+  await expect(pvCanvas).toHaveAttribute("data-pv-edpvr-curve-count", /^[1-9]/);
+  await expect(pvLegend).not.toContainText(/ESPVR|EDPVR/);
+  await expect(pvCanvas).toHaveAttribute("data-pv-relation-count", /^[1-9]/);
 
   const initialRevision = finiteAttribute(
     await evidence.getAttribute("data-scientific-final-revision"),
@@ -49,7 +58,12 @@ test("repeated live retargets keep advancing and visibility auto-pause resumes",
       await controller.getAttribute("data-displayed-parameter-epoch"),
     );
     await expect(controller).toHaveAttribute("data-phase", "live-running");
+    // The last accepted relation remains a scale anchor throughout an open
+    // live transition; transient beats are never relabeled as ESPVR/EDPVR.
+    await expect(pvCanvas).toHaveAttribute("data-pv-relation-count", /^[1-9]/);
   }
+  await expect(pvCanvas).toHaveAttribute("data-pv-espvr-curve-count", /^[1-9]/);
+  await expect(pvCanvas).toHaveAttribute("data-pv-edpvr-curve-count", /^[1-9]/);
 
   await expect.poll(async () => finiteAttribute(
     await evidence.getAttribute("data-scientific-final-revision"),

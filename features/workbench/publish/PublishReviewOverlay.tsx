@@ -122,6 +122,7 @@ export function PublishReviewOverlay({
     togglePvDebugOverlay: () => {},
     updatePvDebugTraceMode: () => {},
     updatePanelPvHistory: () => {},
+    updatePanelPvRelations: () => {},
     updatePanelHemodynamicSettings: () => {},
     updatePanelControllerItems: () => {},
     updatePanelLegendPosition: () => {},
@@ -247,6 +248,7 @@ export function PublishReviewOverlay({
           togglePvDebugOverlay={docOpNoops.togglePvDebugOverlay}
           updatePvDebugTraceMode={docOpNoops.updatePvDebugTraceMode}
           updatePanelPvHistory={docOpNoops.updatePanelPvHistory}
+          updatePanelPvRelations={docOpNoops.updatePanelPvRelations}
           updatePanelHemodynamicSettings={docOpNoops.updatePanelHemodynamicSettings}
           updatePanelControllerItems={docOpNoops.updatePanelControllerItems}
           updatePanelLegendPosition={docOpNoops.updatePanelLegendPosition}

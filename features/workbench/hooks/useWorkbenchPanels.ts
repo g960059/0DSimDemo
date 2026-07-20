@@ -6,6 +6,8 @@ import {
   DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
   DEFAULT_HEMODYNAMIC_DETAIL_MODE,
   DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  DEFAULT_PV_RELATION_DISPLAY_MODE,
+  DEFAULT_PV_RELATION_PRESSURE_BASIS,
 } from "@/types";
 import type {
   ControllerItem,
@@ -17,6 +19,7 @@ import type {
   PanelType,
   PvLoopDebugTraceMode,
   PvLoopHistoryMode,
+  PvRelationPanelSettings,
   SimInstance,
   WorkbenchWorkspace,
   WorkbenchZoneId,
@@ -416,6 +419,43 @@ export function useWorkbenchPanels({
     ));
   }, [markUserEdited]);
 
+  const updatePanelPvRelations = useCallback((
+    panelId: string,
+    settings: Readonly<Partial<PvRelationPanelSettings>>,
+  ) => {
+    markUserEdited();
+    setPanels((prev) => updatePanelWithSourceViewMirrors(
+      prev,
+      panelId,
+      (panel) => {
+        if (panel.type !== 'PVLOOP') return panel;
+        const displayMode = settings.displayMode
+          ?? panel.pvRelationDisplayMode
+          ?? DEFAULT_PV_RELATION_DISPLAY_MODE;
+        const pressureBasis = settings.pressureBasis
+          ?? panel.pvRelationPressureBasis
+          ?? DEFAULT_PV_RELATION_PRESSURE_BASIS;
+        const showSamplePoints = settings.showSamplePoints
+          ?? panel.pvRelationShowSamplePoints
+          ?? false;
+        return {
+          ...panel,
+          pvRelationDisplayMode: displayMode,
+          pvRelationPressureBasis: pressureBasis,
+          pvRelationShowSamplePoints: showSamplePoints,
+          view: panel.view?.kind === 'graph'
+            ? {
+              ...panel.view,
+              pvRelationDisplayMode: displayMode,
+              pvRelationPressureBasis: pressureBasis,
+              pvRelationShowSamplePoints: showSamplePoints,
+            }
+            : panel.view,
+        };
+      },
+    ));
+  }, [markUserEdited]);
+
   const updatePanelHemodynamicSettings = useCallback((
     panelId: string,
     settings: Readonly<Partial<HemodynamicResponsePanelSettings>>,
@@ -562,6 +602,7 @@ export function useWorkbenchPanels({
     togglePvDebugOverlay,
     updatePvDebugTraceMode,
     updatePanelPvHistory,
+    updatePanelPvRelations,
     updatePanelHemodynamicSettings,
     updatePanelControllerItems,
     updatePanelLegendPosition,

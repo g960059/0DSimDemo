@@ -188,7 +188,22 @@ EDはcompetent-valveでのisovolumic onset surrogateである。逆流などに�
 - SW–EDV点を直線へfitしてPRSWを主張する
 - preview点とsettled P1点、またはP1とP2 branchを同じfitへ混ぜる
 
-ESPVR / EDPVR / PRSWが将来必要になった場合は、preloadを独立に制御でき、負荷変化中のevent、反射・心拍数・収縮性、心膜・右心 coupling、弁逆流を明示的にgateする別の研究protocolとして設計する。通常のTBV locus paneへ暗黙に追加しない。
+TBV operating locus の点群は今後もESPVR / EDPVR / PRSW fitへ流用しない。これらを扱う場合は、preloadを独立に制御でき、負荷変化中のevent、反射・心拍数・収縮性、心膜・右心 coupling、弁逆流を明示的にgateする別の研究protocolとし、通常のTBV locus paneへ暗黙に追加しない。
+
+### 2026-07-20 decision addendum: fixed-TBV PV-relations V2
+
+`MainWireScientificPvRelationsProtocolV2` は上記の「別の研究protocol」として承認する。これはTBV locusのfitではなく、source P1 checkpointをread-onlyに保ったbranch上で、総血液量を固定し、`VC_RA`抵抗だけを段階的に増加させる短い前負荷低下protocolである。legacy Protocol C/V1を復活させたものではなく、以下を必須contractとする。
+
+- source cloneをforward aortic ejection終了へevent-lockし、実時間順のaortic opening→forward-ejection endを同一拍として採用する。過渡sample配列を循環wrapしない。
+- 介入rampはED前に完了し、ED/ESで同じ抵抗scaleでなければその拍をrejectする。
+- 停止は事前指定したpoint数とEDV spanだけで決め、fit acceptanceを自身の取得範囲決定へ使わない。
+- formal ESPVR/EDPVR analysisとQCはtransmural pressureで行う。intracavitary curveは同じ採用拍のexternal pressureを加えた表示投影であり、独立fitではない。
+- standard表示はQCで棄却された形式曲線をacceptedとして見せず、観測範囲内のendpoint envelopeへfallbackする。research表示だけが棄却理由、形式曲線、採用点を確認できる。
+- MR/ARまたはunbracketed left-valve reverse EROAは、病変別event/fit validationが揃うまでfail-closedとする。
+- EDPVRはbaselineから得る経験的`V0`のみをKlotz et al.から借用した **Klotz-informed hybrid multibeat fit** であり、original single-beat Klotz curveそのものではない。
+- 現在のwork値はevent-locked transient pathに沿う$-\int P_{LV,tm}dV$であり、人工的な終点―始点chordを足さない。closed-loop areaを用いるconventional PRSWと同一視せず、V2 APIでは`prsw`を公開せず、transient path-work–EDV sensitivityとしてのみ保持する。
+
+healthy checkpoint以外への一般化、1 msで独立settleしたsourceを用いるdt sensitivity、弁flow threshold sensitivity、MR/AR applicabilityは未検証である。このため、本V2は教育・研究用のloading-response estimateであり、intrinsic material law、患者固有Ees/V0、臨床診断値を主張しない。
 
 ## alternans / P2 policy
 
@@ -205,7 +220,8 @@ settled TBV locus では canonical full-state classifier により P1 と `perio
 - `GUYTON_RIGHT`: systemic vascular curve + RAP/CVP-side preload locus
 - `GUYTON_LEFT`: pulmonary vascular curve + LAP/PCWP-surrogate-side preload locus
 - TBV point detail: 選択点のPV loop + ED / ES / SW observations。cross-point fitなし
-- `PV_RELATIONS`: **retired**。Protocol CおよびESPVR / EDPVR / PRSW fitを現行productから起動しない
+- LV `PVLOOP` relation overlay: on-demandでfixed-TBV PV-relations V2を起動する。標準表示は観測範囲内の教育用loading-response estimate、研究表示はformal fit/QC evidence
+- legacy `PV_RELATIONS` / Protocol C V1: **retired**。TBV locusまたは旧64倍whole-beat rampの値を現行evidenceへ昇格しない
 - `GUYTON_3D`: V1 / V2 では unavailable。TBV-only surface は表示しない
 
 protocol は scientific Worker の source session を read-only で参照する。結果 cache は scenario ID だけでなく source `revision / acceptedTime / TBV` identity で管理し、parameter transition 後の古い response は破棄する。同じ source への重複要求は deduplicate する。
@@ -216,7 +232,7 @@ V2 の UI-facing command は `start / poll / cancel` job semantics とする。s
 
 polling 中に source identity が変わった場合は古い job を cancel し、その partial curve を新しい scenario の evidence として継承しない。cancel / failure 後の worker は fail-closed で破棄し、次の job で作り直す。
 
-`open-transient-no-periodic-claim` の間は expensive multi-beat protocol を自動再起動せず、旧 source の curve も現行 steady evidence として表示しない。通常 waveform には transient を表示したまま、次の accepted periodic source が得られた時点で新しい identity に対して protocol を再実行する。
+`open-transient-no-periodic-claim` の間は expensive multi-beat protocol を自動再起動しない。通常 waveform/PV loopにはtransientを表示し、旧sourceのrelationは「定常待ち」のstale historyとして薄く保持できるが、現行steady evidenceとは表示しない。次のaccepted periodic sourceが得られた時点で新しいidentityに対してprotocolを再実行し、新しいgenerationが到着してから旧curveを履歴へ送る。
 
 ## official healthy periodic checkpoint での V1 settled-locus実測
 
@@ -244,13 +260,13 @@ polling 中に source identity が変わった場合は古い job を cancel し
 
 この結果で重要なのは、広い envelope の全 target を強制的に曲線へ埋めなかったことと、continuation の高速化と独立再現性を同じ claim にしなかったことである。`path-dependence-suspect` / `audit-failed` は現時点の healthy checkpoint にも initializer sensitivity または settling ambiguity が残ることを示すため、pane に advisory evidence として保持する。
 
-## 退役済み履歴: 旧 Protocol C / PV relation fit
+## 退役済み履歴: legacy Protocol C / PV relation fit V1
 
 旧案はsource sessionを変更せず、protocol fork内だけで`VC_RA`抵抗を8拍にわたり1倍から64倍へ増やすfixed-TBV graded IVC-like preload reductionだった。これはwet-labで短いloading limbを得るIVC balloon occlusionの発想をWeb modelへ移したprotocol surrogateであり、解剖学的balloon modelではない。現行Web appの目的は、過渡そのものを模擬することではなく、最良のsteady-TBV operating locus近傍を短時間で得ることなので、この経路は退役した。
 
 historical V1 measurementでは、この旧経路が約14.2秒、fixed-TBV errorが約$10^{-12}$ mL order、EDV 152.75→106.14 mL、ESV 64.22→48.75 mLだった。Klotz-informed $V_0$は80.79 mL、旧EDPVR fitは$R^2\approx0.999$、旧PRSW fitは$R^2\approx0.9999$だった一方、linear ESPVRはfree-$V_0$が約$-125$ mLとなりstability gateを通らずrejectされた。recoveryも12拍以内にfull-state P1へ戻らなかった。
 
-これらは過去実装を理解するための履歴であり、現在のpane、runtime command、preset、validation claimへ持ち込まない。値の良いfitが得られたことも、旧surrogateの生理学的妥当性や現行モデルのintrinsic ESPVR / EDPVR / PRSWを証明しない。
+これらは過去実装を理解するための履歴であり、V2のpane、runtime command、preset、validation claimへ持ち込まない。値の良いfitが得られたことも、旧surrogateの生理学的妥当性や現行モデルのintrinsic ESPVR / EDPVR / PRSWを証明しない。
 
 ## 限界と次段階
 
@@ -271,7 +287,7 @@ historical V1 measurementでは、この旧経路が約14.2秒、fixed-TBV error
 - Sarnoff SJ, Berglund E. *Ventricular function. I. Starling's law of the heart studied by means of simultaneous right and left ventricular function curves in the dog*. Circulation. 1954. <https://doi.org/10.1161/01.CIR.9.5.706>
 - Levine BD, Lane LD, Buckey JC, Friedman DB, Blomqvist CG. *Left ventricular pressure-volume and Frank-Starling relations in endurance athletes*. Circulation. 1991. <https://doi.org/10.1161/01.CIR.84.3.1016>
 
-以下のSagawa、Kass、Klotz、Burkhoffらの文献は、**退役済みProtocol C / relation-fit設計の歴史的背景**としてのみ残す。現行Web appがESPVR / EDPVR / PRSWを計算・表示する根拠ではない。
+以下のSagawa、Kass、Klotz、BurkhoffらはV2の生理学的概念境界とQC設計の背景である。ただし、これらは本0D implementation、event surrogate、fit threshold、症例一般化を直接検証するものではない。
 
 - Sagawa K, Suga H, Shoukas AA, Bakalar KM. *End-systolic pressure/volume ratio: a new index of ventricular contractility*. Am J Cardiol. 1977. <https://pubmed.ncbi.nlm.nih.gov/920611/>
 - Sagawa K. *The end-systolic pressure-volume relation of the ventricle: definition, modifications and clinical use*. Circulation. 1981. <https://pubmed.ncbi.nlm.nih.gov/7014027/>

@@ -1319,6 +1319,148 @@ describe("scientific product scenario registry V1", () => {
     }
   });
 
+  it("runs PV relations only on demand and promotes progressive endpoints", async () => {
+    vi.useFakeTimers();
+    const revision = 99_000;
+    const source = protocolResultSource(revision, 99);
+    const startedSnapshot = pvRelationJobSnapshotFixture({
+      source,
+      sequence: 1,
+      status: "running",
+      beatCount: 0,
+    });
+    const progressiveSnapshot = pvRelationJobSnapshotFixture({
+      source,
+      sequence: 2,
+      status: "running",
+      beatCount: 2,
+    });
+    const result = pvRelationJobResultFixture(source, 6);
+    const completeSnapshot = pvRelationJobSnapshotFixture({
+      source,
+      sequence: 3,
+      status: "complete",
+      beatCount: 6,
+      result,
+    });
+    let pollOrdinal = 0;
+    const client = pvRelationJobClientFixture((command) => {
+      if (command.kind === "startPvRelationsProtocolJob") {
+        return pvRelationJobStartResponse(command, startedSnapshot, 100);
+      }
+      if (command.kind === "pollPvRelationsProtocolJob") {
+        return pvRelationJobProgressResponse(
+          command,
+          pollOrdinal++ === 0 ? progressiveSnapshot : completeSnapshot,
+        );
+      }
+      throw new Error(`Unexpected command ${command.kind}`);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("pv-relation-demand-session", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      expect(client.request).not.toHaveBeenCalled();
+      registry.setPvRelationProtocolDemand("pv-pane", { scenarioId });
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual(["startPvRelationsProtocolJob"]);
+      await flushMicrotasks();
+      expect(registry.getPvRelationProtocolSeries(scenarioId)).toMatchObject({
+        current: null,
+        pending: { renderable: false, snapshot: { status: "running" } },
+      });
+
+      await vi.advanceTimersByTimeAsync(100);
+      expect(registry.getPvRelationProtocolSeries(scenarioId)).toMatchObject({
+        current: {
+          renderable: true,
+          snapshot: {
+            status: "running",
+            jobSnapshot: { beats: [{ beatIndex: 0 }, { beatIndex: 1 }] },
+          },
+        },
+        pending: null,
+      });
+
+      await vi.advanceTimersByTimeAsync(100);
+      const completed = registry.getPvRelationProtocol(scenarioId);
+      expect(completed).toMatchObject({
+        status: "complete",
+        result,
+      });
+      expect(completed.jobSnapshot?.beats).toHaveLength(6);
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual([
+          "startPvRelationsProtocolJob",
+          "pollPvRelationsProtocolJob",
+          "pollPvRelationsProtocolJob",
+        ]);
+
+      registry.setPvRelationProtocolDemand("pv-pane", null);
+      await vi.advanceTimersByTimeAsync(0);
+      registry.setPvRelationProtocolDemand("pv-pane", { scenarioId });
+      expect(client.request).toHaveBeenCalledTimes(3);
+    } finally {
+      registry.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("rejects a stale PV relation start and cancels the orphaned job", async () => {
+    const revision = 99_100;
+    const source = protocolResultSource(revision, 99.1);
+    let resolveStart!: (response: unknown) => void;
+    const client = pvRelationJobClientFixture((command) => {
+      if (command.kind === "startPvRelationsProtocolJob") {
+        return new Promise((resolve) => {
+          resolveStart = resolve;
+        });
+      }
+      if (command.kind === "cancelPvRelationsProtocolJob") {
+        return pvRelationJobCancelResponse(command);
+      }
+      throw new Error(`Unexpected command ${command.kind}`);
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("pv-relation-stale-session", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      registry.requestPvRelationProtocol(scenarioId);
+      publishSourceIdentity(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 99.102,
+      });
+      const startCommand = client.request.mock.calls[0]![0];
+      resolveStart(pvRelationJobStartResponse(
+        startCommand,
+        pvRelationJobSnapshotFixture({
+          source,
+          sequence: 1,
+          status: "running",
+          beatCount: 0,
+        }),
+        100,
+      ));
+      await flushMicrotasks();
+
+      expect(client.request.mock.calls.map(([command]) => command.kind))
+        .toEqual([
+          "startPvRelationsProtocolJob",
+          "cancelPvRelationsProtocolJob",
+        ]);
+      expect(registry.getPvRelationProtocol(scenarioId))
+        .toMatchObject({ status: "idle", result: null, jobSnapshot: null });
+    } finally {
+      registry.dispose();
+    }
+  });
+
   it("extracts metrics only at a complete accepted transient-beat boundary", () => {
     const frames = Object.freeze(Array.from({ length: 501 }, (_, index) =>
       Object.freeze({
@@ -1445,10 +1587,33 @@ type GuytonJobCommandFixture = Readonly<{
   detailMode?: "standard" | "settled-reference" | "compare";
 }>;
 
+type PvRelationJobCommandFixture = Readonly<{
+  kind:
+    | "startPvRelationsProtocolJob"
+    | "pollPvRelationsProtocolJob"
+    | "cancelPvRelationsProtocolJob";
+  requestId: string;
+  sessionId: string;
+  jobId?: string;
+}>;
+
 function jobClientFixture(
   handler: (command: GuytonJobCommandFixture) => unknown,
 ) {
   const request = vi.fn(async (command: GuytonJobCommandFixture) => (
+    handler(command)
+  ));
+  const client = {
+    terminate: vi.fn(),
+    request,
+  };
+  return client as typeof client & MainWireScientificWorkerClientV1;
+}
+
+function pvRelationJobClientFixture(
+  handler: (command: PvRelationJobCommandFixture) => unknown,
+) {
+  const request = vi.fn(async (command: PvRelationJobCommandFixture) => (
     handler(command)
   ));
   const client = {
@@ -1618,6 +1783,159 @@ function guytonJobCancelResponse(command: GuytonJobCommandFixture) {
     commandKind: "cancelGuytonStarlingProtocolJob" as const,
     payload: Object.freeze({
       kind: "guytonStarlingProtocolJobCancelled" as const,
+      jobId: command.jobId,
+    }),
+  });
+}
+
+function pvRelationPressurePointFixture(
+  beatIndex: number,
+  phase: "end-diastole" | "end-systole",
+) {
+  const endDiastole = phase === "end-diastole";
+  return Object.freeze({
+    sampleIndex: endDiastole ? 480 : 220,
+    phase01: endDiastole ? 0.96 : 0.44,
+    volumeMl: endDiastole ? 125 - beatIndex * 5 : 52 - beatIndex * 0.5,
+    absolutePressureMmHg: endDiastole ? 10 : 115 - beatIndex * 3,
+    transmuralPressureMmHg: endDiastole ? 8 : 112 - beatIndex * 3,
+    externalPressureMmHg: endDiastole ? 2 : 3,
+  });
+}
+
+function pvRelationBeatFixture(beatIndex: number) {
+  return Object.freeze({
+    beatIndex,
+    role: beatIndex === 0 ? "baseline" as const : "preload-reduction" as const,
+    vcRaResistanceScaleStart: Math.max(1, 2 ** (beatIndex - 1)),
+    vcRaResistanceScaleEnd: 2 ** beatIndex,
+    resistanceScaleAtEndDiastole: 2 ** beatIndex,
+    resistanceScaleAtEndSystole: 2 ** beatIndex,
+    interventionRampCompletedBeforeEndDiastole: true,
+    fixedTotalBloodVolumeMl: 5_000,
+    samples: Object.freeze([]),
+    endDiastolic: pvRelationPressurePointFixture(beatIndex, "end-diastole"),
+    endSystolic: pvRelationPressurePointFixture(beatIndex, "end-systole"),
+    strokeWorkTransmuralMmHgMl: 7_000 - beatIndex * 350,
+    meanRapTransmuralMmHg: 5 - beatIndex * 0.5,
+    meanLapTransmuralMmHg: 10 - beatIndex * 0.6,
+    netCardiacOutputLMin: 5 - beatIndex * 0.15,
+    totalBloodVolumeAbsoluteErrorMl: 0,
+    maximumContinuityAbsoluteResidualMl: 0,
+    classification: "fit-eligible" as const,
+    valid: true,
+    rejectionReason: null,
+  });
+}
+
+function pvRelationJobResultFixture(
+  source: ReturnType<typeof protocolResultSource>,
+  beatCount: number,
+) {
+  return Object.freeze({
+    protocolId: "main-wire-scientific-pv-relations-protocol-v2" as const,
+    protocolVersion: "2.0.0" as const,
+    source: Object.freeze({
+      revision: source.revision,
+      acceptedTimeSec: source.acceptedTimeSec,
+      fixedTotalBloodVolumeMl: source.fixedTotalBloodVolumeMl,
+    }),
+    beats: Object.freeze(Array.from(
+      { length: beatCount },
+      (_, beatIndex) => pvRelationBeatFixture(beatIndex),
+    )),
+  });
+}
+
+function pvRelationJobSnapshotFixture(input: Readonly<{
+  source: ReturnType<typeof protocolResultSource>;
+  sequence: number;
+  status: "running" | "complete";
+  beatCount: number;
+  result?: ReturnType<typeof pvRelationJobResultFixture>;
+}>) {
+  const beats = Object.freeze(Array.from(
+    { length: input.beatCount },
+    (_, beatIndex) => pvRelationBeatFixture(beatIndex),
+  ));
+  return Object.freeze({
+    jobId: "pv-relation-job-1",
+    sequence: input.sequence,
+    status: input.status,
+    stage: input.status === "complete"
+      ? "complete" as const
+      : "preload-reduction" as const,
+    source: Object.freeze({
+      revision: input.source.revision,
+      acceptedTimeSec: input.source.acceptedTimeSec,
+      fixedTotalBloodVolumeMl: input.source.fixedTotalBloodVolumeMl,
+    }),
+    sourceFingerprint: "d".repeat(64),
+    cacheStatus: "miss" as const,
+    beats,
+    progress: input.status === "running" && beats.length > 0
+      ? Object.freeze({
+        protocolId: "main-wire-scientific-pv-relations-protocol-v2" as const,
+        completedBeatCount: beats.length,
+        minimumTotalBeatCount: 6,
+        maximumTotalBeatCount: 8,
+        latestBeat: beats.at(-1),
+        beats,
+        fitPointSelection: Object.freeze({}),
+        provisionalAnalysis: Object.freeze({}),
+        canStopEarly: false,
+      })
+      : null,
+    result: input.result ?? null,
+    errorMessage: null,
+  });
+}
+
+function pvRelationJobStartResponse(
+  command: PvRelationJobCommandFixture,
+  snapshot: ReturnType<typeof pvRelationJobSnapshotFixture>,
+  suggestedPollIntervalMs: number,
+) {
+  return Object.freeze({
+    ok: true as const,
+    requestId: command.requestId,
+    sessionId: command.sessionId,
+    commandKind: "startPvRelationsProtocolJob" as const,
+    payload: Object.freeze({
+      kind: "pvRelationsProtocolJobStarted" as const,
+      job: Object.freeze({
+        jobId: snapshot.jobId,
+        snapshot,
+        suggestedPollIntervalMs,
+      }),
+    }),
+  });
+}
+
+function pvRelationJobProgressResponse(
+  command: PvRelationJobCommandFixture,
+  snapshot: ReturnType<typeof pvRelationJobSnapshotFixture>,
+) {
+  return Object.freeze({
+    ok: true as const,
+    requestId: command.requestId,
+    sessionId: command.sessionId,
+    commandKind: "pollPvRelationsProtocolJob" as const,
+    payload: Object.freeze({
+      kind: "pvRelationsProtocolJobProgress" as const,
+      snapshot,
+    }),
+  });
+}
+
+function pvRelationJobCancelResponse(command: PvRelationJobCommandFixture) {
+  return Object.freeze({
+    ok: true as const,
+    requestId: command.requestId,
+    sessionId: command.sessionId,
+    commandKind: "cancelPvRelationsProtocolJob" as const,
+    payload: Object.freeze({
+      kind: "pvRelationsProtocolJobCancelled" as const,
       jobId: command.jobId,
     }),
   });

@@ -69,6 +69,9 @@ import {
 import type {
   MainWireScientificHemodynamicJobManagerV2,
 } from "@/engine/scientific/worker/MainWireScientificHemodynamicJobManagerV2";
+import type {
+  MainWireScientificPvRelationJobManagerV1,
+} from "@/engine/scientific/worker/MainWireScientificPvRelationJobManagerV1";
 import {
   MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_CALCULATION_DETAILS_V2,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
@@ -141,6 +144,7 @@ export type MainWireScientificInProcessKernelOptionsV1 = Readonly<{
   officialPresetLoader?: MainWireScientificOfficialPresetLoaderV1;
   officialDocumentCaseLoader?: MainWireScientificOfficialDocumentCaseLoaderV1;
   hemodynamicJobManager?: MainWireScientificHemodynamicJobManagerV2;
+  pvRelationJobManager?: MainWireScientificPvRelationJobManagerV1;
 }>;
 
 export type MainWireScientificOfficialPresetLoaderV1 = (
@@ -213,6 +217,8 @@ export class MainWireScientificInProcessKernelV1 {
     MainWireScientificOfficialDocumentCaseLoaderV1 | null;
   private readonly hemodynamicJobManager:
     MainWireScientificHemodynamicJobManagerV2 | null;
+  private readonly pvRelationJobManager:
+    MainWireScientificPvRelationJobManagerV1 | null;
 
   private readonly sessions = new Map<string, MainWireScientificSessionV1>();
   private readonly sessionOrigins = new Map<string, ScientificSessionOriginV1>();
@@ -228,6 +234,7 @@ export class MainWireScientificInProcessKernelV1 {
     this.officialDocumentCaseLoader =
       options.officialDocumentCaseLoader ?? null;
     this.hemodynamicJobManager = options.hemodynamicJobManager ?? null;
+    this.pvRelationJobManager = options.pvRelationJobManager ?? null;
     this.maximumSessionCount = boundedPositiveInteger(
       options.maximumSessionCount ?? DEFAULT_MAXIMUM_SESSION_COUNT,
       MAXIMUM_CONFIGURED_SESSION_COUNT,
@@ -391,6 +398,12 @@ export class MainWireScientificInProcessKernelV1 {
         return this.pollGuytonStarlingProtocolJob(command);
       case "cancelGuytonStarlingProtocolJob":
         return this.cancelGuytonStarlingProtocolJob(command);
+      case "startPvRelationsProtocolJob":
+        return this.startPvRelationsProtocolJob(command);
+      case "pollPvRelationsProtocolJob":
+        return this.pollPvRelationsProtocolJob(command);
+      case "cancelPvRelationsProtocolJob":
+        return this.cancelPvRelationsProtocolJob(command);
     }
   }
 
@@ -1124,6 +1137,7 @@ export class MainWireScientificInProcessKernelV1 {
     this.sessionOrigins.delete(command.sessionId);
     this.researchControlBindings.delete(command.sessionId);
     this.hemodynamicJobManager?.disposeOwner(command.sessionId);
+    this.pvRelationJobManager?.disposeOwner(command.sessionId);
     return response;
   }
 
@@ -1332,6 +1346,132 @@ export class MainWireScientificInProcessKernelV1 {
         observableFrame: project(session),
       }),
     );
+  }
+
+  private async startPvRelationsProtocolJob(
+    command: Extract<ScientificCommandV1, {
+      kind: "startPvRelationsProtocolJob";
+    }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const session = this.sessions.get(command.sessionId);
+    if (session === undefined) return unknownSession(command);
+    if (this.pvRelationJobManager === null) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        "background PV relation protocol jobs are unavailable in this host",
+      );
+    }
+    const sessionOrigin = this.requiredSessionOrigin(command.sessionId);
+    const before = session.stateIdentity();
+    try {
+      const capsule = session.createHemodynamicJobCapsuleV2();
+      const job = await this.pvRelationJobManager.start({
+        ownerSessionId: command.sessionId,
+        capsule,
+      });
+      assertSameStateIdentity(before, session.stateIdentity(), "PV relation job start");
+      return successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "pvRelationsProtocolJobStarted" as const,
+          job,
+          sourceSessionUnchanged: true as const,
+          observableFrame: project(session),
+        }),
+      );
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private pollPvRelationsProtocolJob(
+    command: Extract<ScientificCommandV1, {
+      kind: "pollPvRelationsProtocolJob";
+    }>,
+  ): MainWireScientificCommandResponseV1 {
+    const session = this.sessions.get(command.sessionId);
+    if (session === undefined) return unknownSession(command);
+    if (this.pvRelationJobManager === null) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        "background PV relation protocol jobs are unavailable in this host",
+      );
+    }
+    const before = session.stateIdentity();
+    try {
+      const snapshot = this.pvRelationJobManager.poll({
+        ownerSessionId: command.sessionId,
+        jobId: command.jobId,
+      });
+      assertSameStateIdentity(before, session.stateIdentity(), "PV relation job poll");
+      return successResponse(
+        command,
+        session.releaseRef,
+        this.requiredSessionOrigin(command.sessionId),
+        Object.freeze({
+          kind: "pvRelationsProtocolJobProgress" as const,
+          snapshot,
+          sourceSessionUnchanged: true as const,
+          observableFrame: project(session),
+        }),
+      );
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private cancelPvRelationsProtocolJob(
+    command: Extract<ScientificCommandV1, {
+      kind: "cancelPvRelationsProtocolJob";
+    }>,
+  ): MainWireScientificCommandResponseV1 {
+    const session = this.sessions.get(command.sessionId);
+    if (session === undefined) return unknownSession(command);
+    if (this.pvRelationJobManager === null) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        "background PV relation protocol jobs are unavailable in this host",
+      );
+    }
+    try {
+      const before = session.stateIdentity();
+      const snapshot = this.pvRelationJobManager.cancel({
+        ownerSessionId: command.sessionId,
+        jobId: command.jobId,
+        reason: "host-request",
+      });
+      assertSameStateIdentity(before, session.stateIdentity(), "PV relation job cancel");
+      return successResponse(
+        command,
+        session.releaseRef,
+        this.requiredSessionOrigin(command.sessionId),
+        Object.freeze({
+          kind: "pvRelationsProtocolJobCancelled" as const,
+          snapshot,
+          sourceSessionUnchanged: true as const,
+          observableFrame: project(session),
+        }),
+      );
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "command-failed",
+        errorMessage(error),
+      );
+    }
   }
 
   private sessionAllocationError(
@@ -1675,6 +1815,8 @@ function parseCommand(
       ? [...common, "resolvedSessionInput", "checkpoint"]
       : value.kind === "pollGuytonStarlingProtocolJob"
         || value.kind === "cancelGuytonStarlingProtocolJob"
+        || value.kind === "pollPvRelationsProtocolJob"
+        || value.kind === "cancelPvRelationsProtocolJob"
         ? [...common, "jobId"]
       : value.kind === "startGuytonStarlingProtocolJob"
           && value.detailMode !== undefined
@@ -1735,6 +1877,8 @@ function parseCommand(
   if (
     value.kind === "pollGuytonStarlingProtocolJob"
     || value.kind === "cancelGuytonStarlingProtocolJob"
+    || value.kind === "pollPvRelationsProtocolJob"
+    || value.kind === "cancelPvRelationsProtocolJob"
   ) {
     if (!isIdentifier(value.jobId)) {
       return invalid(identity, "jobId is invalid");

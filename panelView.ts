@@ -80,6 +80,21 @@ export function toTypedPanelView(panel: PanelDef): PanelViewConfig {
       ...(panel.showLegend !== undefined ? { showLegend: panel.showLegend } : {}),
       ...(panel.pvDebugOverlay !== undefined ? { pvDebugOverlay: panel.pvDebugOverlay } : {}),
       ...(panel.pvDebugTraceMode !== undefined ? { pvDebugTraceMode: panel.pvDebugTraceMode } : {}),
+      ...(panel.pvHistoryBeats !== undefined
+        ? { pvHistoryBeats: panel.pvHistoryBeats }
+        : {}),
+      ...(panel.pvHistoryMode !== undefined
+        ? { pvHistoryMode: panel.pvHistoryMode }
+        : {}),
+      ...(panel.pvRelationDisplayMode !== undefined
+        ? { pvRelationDisplayMode: panel.pvRelationDisplayMode }
+        : {}),
+      ...(panel.pvRelationPressureBasis !== undefined
+        ? { pvRelationPressureBasis: panel.pvRelationPressureBasis }
+        : {}),
+      ...(panel.pvRelationShowSamplePoints !== undefined
+        ? { pvRelationShowSamplePoints: panel.pvRelationShowSamplePoints }
+        : {}),
       ...(panel.hemodynamicDetailMode !== undefined
         ? { hemodynamicDetailMode: panel.hemodynamicDetailMode }
         : {}),
