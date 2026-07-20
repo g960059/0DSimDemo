@@ -8,6 +8,9 @@ import type {
   ScientificResearchControlContextV0,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
 import type {
+  ScientificEvidenceBundleV2,
+} from "@/engine/scientific/evidence/ScientificEvidenceContractV2";
+import type {
   MainWireScientificWorkerClientV1,
 } from "@/engine/scientificBrowser";
 
@@ -17,6 +20,9 @@ import {
   type ScientificProductQuickCheckErrorEventV1,
   type ScientificProductQuickCheckEvidenceV1,
 } from "./ScientificProductQuickCheckCoordinatorV1";
+import {
+  createScientificProductEvidenceBundleV2,
+} from "./ScientificProductEvidenceContractAdapterV2";
 import {
   createScientificProductValidationContextV1,
   type ScientificProductValidationContextV1,
@@ -52,6 +58,8 @@ export type ScientificProductQuickCheckRecordV1 = Readonly<{
   evidenceSource: "loaded-release-cycle" | "hidden-committed-target" | null;
   evidence: ScientificProductQuickCheckEvidenceV1 | null;
   validation: ScientificProductValidationContextV1 | null;
+  /** Canonical four-layer evidence contract; the V1 UI remains an adapter consumer. */
+  evidenceV2: ScientificEvidenceBundleV2 | null;
   validationFindingCount: number;
   validationUnavailableCount: number;
   verificationIssueCount: number;
@@ -168,6 +176,12 @@ export class ScientificProductQuickCheckRegistryV1 {
       runtime.result.terminalCycle as MainWireScientificValidatedTerminalCycleV1,
     );
     const initialAssessment = assessVerificationV1(initialValidation);
+    const initialEvidenceV2 = evidenceBundleV2(
+      descriptor,
+      initialValidation,
+      source.context.controlState.targetStateSha256,
+      source.context.parameterEpoch,
+    );
     const entry = {} as QuickCheckEntryV1;
     const coordinator = new ScientificProductQuickCheckCoordinatorV1({
       caseEntry: requiredCaseEntryV1(descriptor.source.caseId),
@@ -215,6 +229,7 @@ export class ScientificProductQuickCheckRegistryV1 {
         evidenceSource: "loaded-release-cycle" as const,
         evidence: null,
         validation: initialValidation,
+        evidenceV2: initialEvidenceV2,
         validationFindingCount: referenceFindingCountV1(initialValidation),
         validationUnavailableCount:
           referenceUnavailableCountV1(initialValidation),
@@ -259,6 +274,7 @@ export class ScientificProductQuickCheckRegistryV1 {
         evidenceSource: null,
         evidence: null,
         validation: null,
+        evidenceV2: null,
         validationFindingCount: 0,
         validationUnavailableCount: 0,
         verificationIssueCount: 1,
@@ -290,6 +306,7 @@ export class ScientificProductQuickCheckRegistryV1 {
         evidenceSource: null,
         evidence: null,
         validation: null,
+        evidenceV2: null,
         validationFindingCount: 0,
         validationUnavailableCount: 0,
         verificationIssueCount: 0,
@@ -331,6 +348,12 @@ export class ScientificProductQuickCheckRegistryV1 {
       event.evidence.terminalCycle as MainWireScientificValidatedTerminalCycleV1,
     );
     const assessment = assessVerificationV1(validation);
+    const evidenceV2 = evidenceBundleV2(
+      entry.descriptor,
+      validation,
+      event.evidence.targetControlStateSha256,
+      event.visibleParameterEpoch,
+    );
     entry.record = Object.freeze({
       ...entry.record,
       status: assessment.issueCount === 0
@@ -347,6 +370,7 @@ export class ScientificProductQuickCheckRegistryV1 {
       evidenceSource: "hidden-committed-target" as const,
       evidence: event.evidence,
       validation,
+      evidenceV2,
       validationFindingCount: referenceFindingCountV1(validation),
       validationUnavailableCount: referenceUnavailableCountV1(validation),
       verificationIssueCount: assessment.issueCount,
@@ -377,6 +401,7 @@ export class ScientificProductQuickCheckRegistryV1 {
       evidenceSource: null,
       evidence: null,
       validation: null,
+      evidenceV2: null,
       validationFindingCount: 0,
       validationUnavailableCount: 0,
       verificationIssueCount: 1,
@@ -438,6 +463,29 @@ function requiredCaseEntryV1(caseId: string) {
   const entry = scientificProductCaseByIdV1(caseId);
   if (entry === null) throw new Error(`Unknown scientific Case ${caseId}.`);
   return entry;
+}
+
+function evidenceBundleV2(
+  descriptor: ScientificProductScenarioDescriptorV1,
+  validation: ScientificProductValidationContextV1,
+  controlStateSha256: string | null,
+  parameterEpoch: number | null,
+): ScientificEvidenceBundleV2 {
+  return createScientificProductEvidenceBundleV2({
+    subjectRef: Object.freeze({
+      kind: "scenario" as const,
+      subjectId: descriptor.id,
+      label: descriptor.name,
+    }),
+    releaseRef: Object.freeze({
+      id: descriptor.source.releaseId,
+      version: descriptor.source.releaseVersion,
+      sha256: descriptor.source.releaseSha256,
+    }),
+    controlStateSha256,
+    parameterEpoch,
+    validation,
+  });
 }
 
 function assessVerificationV1(

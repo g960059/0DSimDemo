@@ -1,80 +1,38 @@
 import {
   sameSimulationReleaseRef,
-  type SimulationReleaseRef,
 } from "@/engine/scientific/release";
 import type {
   MainWireScientificSessionObservationV1,
 } from "@/engine/scientific/runtime";
+import {
+  MAIN_WIRE_HEALTHY_CYCLE_METRIC_IDS_V1,
+  MAIN_WIRE_HEALTHY_CYCLE_METRICS_V1_ID,
+  type MainWireHealthyCycleMetricIdV1,
+  type MainWireHealthyCycleMetricsV1,
+  type MainWireHealthyCycleMetricV1,
+} from "./MainWireCycleMetricContractV1";
+import {
+  MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1,
+  MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1,
+  MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1_ID,
+  type MainWireCycleEvidenceGateV1,
+} from "./MainWireEvidencePacksV1";
 
-export const MAIN_WIRE_HEALTHY_CYCLE_METRICS_V1_ID =
-  "main-wire-healthy-cycle-metrics-v1" as const;
-export const MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1_ID =
-  "main-wire-healthy-reference-target-pack-v1" as const;
+export {
+  MAIN_WIRE_HEALTHY_CYCLE_METRIC_IDS_V1,
+  MAIN_WIRE_HEALTHY_CYCLE_METRICS_V1_ID,
+  MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1,
+  MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1_ID,
+};
+export type {
+  MainWireHealthyCycleMetricAvailabilityV1,
+  MainWireHealthyCycleMetricIdV1,
+  MainWireHealthyCycleMetricsV1,
+  MainWireHealthyCycleMetricV1,
+} from "./MainWireCycleMetricContractV1";
 
-export const MAIN_WIRE_HEALTHY_CYCLE_METRIC_IDS_V1 = Object.freeze([
-  "cycle.duration_sec",
-  "cycle.sample_count",
-  "cycle.dt_sec",
-  "hemodynamics.lv.edv_index_ml_per_m2",
-  "hemodynamics.lv.esv_index_ml_per_m2",
-  "hemodynamics.lv.ejection_fraction_01",
-  "hemodynamics.rv.ejection_fraction_01",
-  "hemodynamics.aortic.net_stroke_volume_index_ml_per_m2",
-  "hemodynamics.aortic.cardiac_index_l_per_min_per_m2",
-  "hemodynamics.pressure.aortic.systolic_mmhg",
-  "hemodynamics.pressure.aortic.diastolic_mmhg",
-  "hemodynamics.pressure.aortic.mean_mmhg",
-  "hemodynamics.pressure.pulmonary_artery.systolic_mmhg",
-  "hemodynamics.pressure.left_atrium.mean_mmhg",
-  "hemodynamics.pressure.right_atrium.mean_mmhg",
-  "hemodynamics.pressure.pulmonary_vein.mean_mmhg",
-  "numerics.mechanics.maximum_residual_norm",
-  "numerics.circulation.maximum_scaled_residual_infinity_norm",
-  "numerics.continuity.maximum_absolute_residual_ml",
-  "numerics.total_blood_volume.maximum_absolute_error_ml",
-] as const);
-
-export type MainWireHealthyCycleMetricIdV1 =
-  (typeof MAIN_WIRE_HEALTHY_CYCLE_METRIC_IDS_V1)[number];
-
-export type MainWireHealthyCycleMetricAvailabilityV1 =
-  | "available"
-  | "source-signal-unavailable";
-
-export type MainWireHealthyCycleMetricV1 = Readonly<{
-  metricId: MainWireHealthyCycleMetricIdV1;
-  value: number | null;
-  unit: "s" | "count" | "mL/m2" | "1" | "L/min/m2" | "mmHg" | "mL";
-  availability: MainWireHealthyCycleMetricAvailabilityV1;
-}>;
-
-export type MainWireHealthyCycleMetricsV1 = Readonly<{
-  metricsId: typeof MAIN_WIRE_HEALTHY_CYCLE_METRICS_V1_ID;
-  schemaVersion: 1;
-  releaseRef: SimulationReleaseRef;
-  referenceBodySurfaceAreaM2: number;
-  acceptedTimeRangeSec: readonly [number, number];
-  metrics: Readonly<Record<
-    MainWireHealthyCycleMetricIdV1,
-    MainWireHealthyCycleMetricV1
-  >>;
-  evidence: Readonly<{
-    source: "accepted-scientific-session-observations";
-    completeUniformCycleRequired: true;
-    smoothingApplied: false;
-    parameterFittingPerformed: false;
-  }>;
-}>;
-
-export type MainWireHealthyReferenceGateV1 = Readonly<{
-  gateId: string;
-  metricId: MainWireHealthyCycleMetricIdV1;
-  domain: "physiology-reference" | "numerical-integrity";
-  lowerInclusive: number | null;
-  upperInclusive: number | null;
-  sourceIds: readonly string[];
-  interpretation: string;
-}>;
+/** @deprecated Use MainWireCycleEvidenceGateV1 from MainWireEvidencePacksV1. */
+export type MainWireHealthyReferenceGateV1 = MainWireCycleEvidenceGateV1;
 
 export type MainWireHealthyReferenceGateResultV1 = Readonly<{
   gateId: string;
@@ -88,175 +46,6 @@ export type MainWireHealthyReferenceGateResultV1 = Readonly<{
   sourceIds: readonly string[];
   interpretation: string;
 }>;
-
-export const MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1 = Object.freeze({
-  targetPackId: MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1_ID,
-  schemaVersion: 1 as const,
-  referenceSubject: Object.freeze({
-    bodySurfaceAreaM2: 1.9 as const,
-    state: "resting-adult-research-reference" as const,
-  }),
-  sources: Object.freeze([
-    Object.freeze({
-      sourceId: "lang-ase-eacvi-2015",
-      citation:
-        "Lang RM et al. Recommendations for Cardiac Chamber Quantification by Echocardiography in Adults. J Am Soc Echocardiogr. 2015;28:1-39.e14.",
-      doi: "10.1016/j.echo.2014.10.003",
-      url: "https://doi.org/10.1016/j.echo.2014.10.003",
-      role:
-        "sex-aware LV volume-index and ejection-fraction reference context",
-    }),
-    Object.freeze({
-      sourceId: "kou-norre-2014",
-      citation:
-        "Kou S et al. Echocardiographic reference ranges for normal cardiac chamber size: results from the NORRE study. Eur Heart J Cardiovasc Imaging. 2014;15:680-690.",
-      doi: "10.1093/ehjci/jet284",
-      url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC4402333/",
-      role:
-        "healthy-cohort LV EDVi, ESVi, and ejection-fraction reference intervals",
-    }),
-    Object.freeze({
-      sourceId: "mukherjee-ase-right-heart-2025",
-      citation:
-        "Mukherjee M et al. Guidelines for the Echocardiographic Assessment of the Right Heart in Adults and Special Considerations in Pulmonary Hypertension. J Am Soc Echocardiogr. 2025;38:141-186.",
-      doi: "10.1016/j.echo.2025.01.006",
-      url: "https://doi.org/10.1016/j.echo.2025.01.006",
-      role:
-        "current resting RVSP screening context, used only as a direct-model PA systolic review screen",
-    }),
-    Object.freeze({
-      sourceId: "kovacs-pawp-healthy-meta-2024",
-      citation:
-        "Zeder K et al. Pulmonary arterial wedge pressure in healthy subjects: a meta-analysis. Eur Respir J. 2024;64:2400967.",
-      doi: "10.1183/13993003.00967-2024",
-      url: "https://doi.org/10.1183/13993003.00967-2024",
-      role:
-        "upper reference context for resting supine pulmonary arterial wedge pressure",
-    }),
-    Object.freeze({
-      sourceId: "cardiac-index-clinical-reference",
-      citation:
-        "King J, Lowery DR. Physiology, Cardiac Index. StatPearls. Updated 2024.",
-      url: "https://www.ncbi.nlm.nih.gov/books/NBK539905/",
-      role: "broad resting cardiac-index screening range",
-    }),
-    Object.freeze({
-      sourceId: "circleheart-numerical-contract-v1",
-      citation:
-        "CircleHeart scientific runtime numerical-integrity contract V1.",
-      url: null,
-      role: "engineering tolerances; not a biological reference",
-    }),
-  ]),
-  gates: Object.freeze([
-    gate(
-      "healthy.lv.edvi",
-      "hemodynamics.lv.edv_index_ml_per_m2",
-      "physiology-reference",
-      34,
-      76,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"],
-      "Broad sex-neutral 2D-echocardiographic healthy reference screen.",
-    ),
-    gate(
-      "healthy.lv.esvi",
-      "hemodynamics.lv.esv_index_ml_per_m2",
-      "physiology-reference",
-      10,
-      29,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"],
-      "Broad sex-neutral 2D-echocardiographic healthy reference screen.",
-    ),
-    gate(
-      "healthy.lv.ef",
-      "hemodynamics.lv.ejection_fraction_01",
-      "physiology-reference",
-      0.52,
-      0.74,
-      ["lang-ase-eacvi-2015", "kou-norre-2014"],
-      "Inclusive healthy-adult LVEF screen; not a diagnostic partition.",
-    ),
-    gate(
-      "healthy.cardiac_index",
-      "hemodynamics.aortic.cardiac_index_l_per_min_per_m2",
-      "physiology-reference",
-      2.5,
-      4,
-      ["cardiac-index-clinical-reference"],
-      "Broad resting output screen normalized to the fixed reference BSA.",
-    ),
-    gate(
-      "healthy.pulmonary_artery.systolic",
-      "hemodynamics.pressure.pulmonary_artery.systolic_mmhg",
-      "physiology-reference",
-      10,
-      35,
-      ["mukherjee-ase-right-heart-2025"],
-      "The 2025 ASE RVSP threshold is used only as a direct-model PA systolic review screen; a miss is not labeled as disease.",
-    ),
-    gate(
-      "healthy.left_atrium.mean",
-      "hemodynamics.pressure.left_atrium.mean_mmhg",
-      "physiology-reference",
-      2,
-      13,
-      ["kovacs-pawp-healthy-meta-2024"],
-      "LA mean pressure is compared only as a model-side surrogate screen; it is not asserted to equal measured PAWP.",
-    ),
-    gate(
-      "numerics.mechanics.residual",
-      "numerics.mechanics.maximum_residual_norm",
-      "numerical-integrity",
-      0,
-      1e-7,
-      ["circleheart-numerical-contract-v1"],
-      "Maximum accepted-step mechanics residual over the evaluated cycle.",
-    ),
-    gate(
-      "numerics.circulation.residual",
-      "numerics.circulation.maximum_scaled_residual_infinity_norm",
-      "numerical-integrity",
-      0,
-      1e-7,
-      ["circleheart-numerical-contract-v1"],
-      "Maximum accepted-step scaled circulation residual over the evaluated cycle.",
-    ),
-    gate(
-      "numerics.continuity.residual",
-      "numerics.continuity.maximum_absolute_residual_ml",
-      "numerical-integrity",
-      0,
-      5e-7,
-      ["circleheart-numerical-contract-v1"],
-      "Maximum absolute discrete node-continuity residual over the evaluated cycle.",
-    ),
-    gate(
-      "numerics.total_blood_volume.error",
-      "numerics.total_blood_volume.maximum_absolute_error_ml",
-      "numerical-integrity",
-      0,
-      1e-8,
-      ["circleheart-numerical-contract-v1"],
-      "Maximum absolute fixed-TBV conservation error over the evaluated cycle.",
-    ),
-  ]),
-  deferredAcceptance: Object.freeze([
-    "atrial-PV-loop-reservoir-conduit-pump-topology",
-    "AV-valve-E-and-A-wave-morphology",
-    "HR-preload-afterload-PVR-inotropy-lusitropy-envelope",
-    "multi-start-periodic-basin",
-    "dt-refinement",
-    "intervention-transient",
-  ]),
-  claim: Object.freeze({
-    broadReferenceScreenNotPatientFit: true as const,
-    literatureRangesAreNotInterchangeableAcrossModalities: true as const,
-    passingDoesNotClaimClinicalValidation: true as const,
-    failingIdentifiesReviewWorkNotDiagnosis: true as const,
-    waveformShapeFittingPerformed: false as const,
-    numericalAndPhysiologyDomainsReportedSeparately: true as const,
-  }),
-});
 
 export type MainWireHealthyReferenceAcceptanceV1 = Readonly<{
   acceptanceId: "main-wire-healthy-reference-acceptance-v1";
@@ -274,7 +63,7 @@ export type MainWireHealthyReferenceAcceptanceV1 = Readonly<{
 export function measureMainWireHealthyCycleMetricsV1(
   observations: readonly MainWireScientificSessionObservationV1[],
   referenceBodySurfaceAreaM2 =
-    MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.referenceSubject
+    MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.referenceSubject
       .bodySurfaceAreaM2,
 ): MainWireHealthyCycleMetricsV1 {
   const cadence = validateCompleteUniformCycle(
@@ -497,26 +286,6 @@ export function evaluateMainWireHealthyReferenceAcceptanceV1(
     deferredAcceptance:
       MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.deferredAcceptance,
     claim: MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.claim,
-  });
-}
-
-function gate(
-  gateId: string,
-  metricId: MainWireHealthyCycleMetricIdV1,
-  domain: MainWireHealthyReferenceGateV1["domain"],
-  lowerInclusive: number | null,
-  upperInclusive: number | null,
-  sourceIds: readonly string[],
-  interpretation: string,
-): MainWireHealthyReferenceGateV1 {
-  return Object.freeze({
-    gateId,
-    metricId,
-    domain,
-    lowerInclusive,
-    upperInclusive,
-    sourceIds: Object.freeze([...sourceIds]),
-    interpretation,
   });
 }
 

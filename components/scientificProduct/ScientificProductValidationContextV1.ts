@@ -9,9 +9,11 @@ import type {
   MainWireScientificObservableIdV1,
 } from "@/engine/scientific/observables";
 import {
+  MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1,
   MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1,
-  type MainWireHealthyReferenceGateV1,
-} from "@/engine/scientific/validation/MainWireHealthyCycleAcceptanceV1";
+  MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1,
+  type MainWireCycleEvidenceGateV1,
+} from "@/engine/scientific/validation/MainWireEvidencePacksV1";
 
 export type ScientificProductReferenceContextStatusV1 =
   | "within-reference"
@@ -61,7 +63,12 @@ export type ScientificProductWaveformAvailabilityV1 = Readonly<{
 export type ScientificProductValidationContextV1 = Readonly<{
   cycleAvailable: boolean;
   cycleEvidence: "validated-periodic-P1" | "unavailable";
-  referenceSubject: typeof MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.referenceSubject;
+  numericalIntegrityPackId:
+    typeof MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1.packId;
+  referenceContextPackId:
+    typeof MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.packId;
+  referenceSubject:
+    typeof MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.referenceSubject;
   referenceResults: readonly ScientificProductReferenceContextResultV1[];
   numericalResults: readonly ScientificProductNumericalCycleResultV1[];
   valveFlow: readonly ScientificProductValveFlowSummaryV1[];
@@ -74,7 +81,11 @@ const EMPTY_VALIDATION_CONTEXT_V1: ScientificProductValidationContextV1 =
   Object.freeze({
     cycleAvailable: false,
     cycleEvidence: "unavailable" as const,
-    referenceSubject: MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.referenceSubject,
+    numericalIntegrityPackId: MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1.packId,
+    referenceContextPackId:
+      MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.packId,
+    referenceSubject:
+      MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.referenceSubject,
     referenceResults: Object.freeze([]),
     numericalResults: Object.freeze([]),
     valveFlow: Object.freeze([]),
@@ -92,16 +103,18 @@ export function createScientificProductValidationContextV1(
   if (derived.cycleAvailability !== "validated") {
     return EMPTY_VALIDATION_CONTEXT_V1;
   }
-  const referenceResults = MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.gates
-    .filter(({ domain }) => domain === "physiology-reference")
+  const referenceResults = MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.gates
     .map((gate) => referenceResultV1(gate, derived));
-  const numericalResults = MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.gates
-    .filter(({ domain }) => domain === "numerical-integrity")
+  const numericalResults = MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1.gates
     .map((gate) => numericalResultV1(gate, cycle.frames));
   return Object.freeze({
     cycleAvailable: true,
     cycleEvidence: "validated-periodic-P1" as const,
-    referenceSubject: MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.referenceSubject,
+    numericalIntegrityPackId: MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1.packId,
+    referenceContextPackId:
+      MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.packId,
+    referenceSubject:
+      MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.referenceSubject,
     referenceResults: Object.freeze(referenceResults),
     numericalResults: Object.freeze(numericalResults),
     valveFlow: Object.freeze(
@@ -136,7 +149,7 @@ export function createScientificProductValidationContextV1(
 }
 
 function referenceResultV1(
-  gate: MainWireHealthyReferenceGateV1,
+  gate: MainWireCycleEvidenceGateV1,
   derived: MainWireScientificDerivedMetricEvaluationV1,
 ): ScientificProductReferenceContextResultV1 {
   const projected = projectedReferenceMetricV1(gate.metricId, derived);
@@ -161,7 +174,7 @@ function referenceResultV1(
 }
 
 function numericalResultV1(
-  gate: MainWireHealthyReferenceGateV1,
+  gate: MainWireCycleEvidenceGateV1,
   frames: readonly MainWireScientificObservableFrameV1[],
 ): ScientificProductNumericalCycleResultV1 {
   const observableId = numericalObservableIdV1(gate.metricId);
@@ -207,7 +220,7 @@ function numericalResultV1(
 }
 
 function numericalNormMetricV1(
-  metricId: MainWireHealthyReferenceGateV1["metricId"],
+  metricId: MainWireCycleEvidenceGateV1["metricId"],
 ): boolean {
   return metricId === "numerics.mechanics.maximum_residual_norm"
     || metricId
@@ -215,10 +228,10 @@ function numericalNormMetricV1(
 }
 
 function projectedReferenceMetricV1(
-  metricId: MainWireHealthyReferenceGateV1["metricId"],
+  metricId: MainWireCycleEvidenceGateV1["metricId"],
   derived: MainWireScientificDerivedMetricEvaluationV1,
 ): Readonly<{ value: number | null; unit: string }> {
-  const bsa = MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.referenceSubject
+  const bsa = MAIN_WIRE_HEALTHY_REFERENCE_CONTEXT_PACK_V1.referenceSubject
     .bodySurfaceAreaM2;
   switch (metricId) {
     case "hemodynamics.lv.edv_index_ml_per_m2":
@@ -346,7 +359,7 @@ function waveformAvailabilityV1(
 }
 
 function numericalObservableIdV1(
-  metricId: MainWireHealthyReferenceGateV1["metricId"],
+  metricId: MainWireCycleEvidenceGateV1["metricId"],
 ): MainWireScientificObservableIdV1 | null {
   switch (metricId) {
     case "numerics.mechanics.maximum_residual_norm":

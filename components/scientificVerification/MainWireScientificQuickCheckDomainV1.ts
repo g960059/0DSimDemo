@@ -12,10 +12,12 @@ import {
   type SimulationReleaseRef,
 } from "@/engine/scientific/release";
 import {
-  MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1,
   MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1_ID,
   type MainWireHealthyCycleMetricIdV1,
 } from "@/engine/scientific/validation/MainWireHealthyCycleAcceptanceV1";
+import {
+  MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1,
+} from "@/engine/scientific/validation/MainWireEvidencePacksV1";
 import {
   assembleScientificWorkbenchResearchTerminalCycleV1,
   assembleScientificWorkbenchTerminalCycleV1,
@@ -126,6 +128,9 @@ export type MainWireScientificQuickCheckResultV1 = Readonly<{
     acceptedStepFrameCount: number;
   }>;
   numericalIntegrity: Readonly<{
+    numericalIntegrityPackId:
+      typeof MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1.packId;
+    /** @deprecated Read numericalIntegrityPackId in new consumers. */
     thresholdSourceTargetPackId:
       typeof MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1_ID;
     assessmentScope:
@@ -270,6 +275,8 @@ export function evaluateMainWireScientificQuickCheckV1(
       acceptedStepFrameCount: acceptedStepFrames.length,
     },
     numericalIntegrity: {
+      numericalIntegrityPackId:
+        MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1.packId,
       thresholdSourceTargetPackId:
         MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1_ID,
       assessmentScope: periodicSteadyStateEvidencePresent
@@ -306,9 +313,8 @@ function evaluateNumericalMetricV1(
   acceptedStepFrames: readonly MainWireScientificObservableFrameV1[],
   findings: MainWireScientificQuickCheckFindingV1[],
 ): MainWireScientificQuickCheckNumericalMetricV1 {
-  const target = MAIN_WIRE_HEALTHY_REFERENCE_TARGET_PACK_V1.gates.find(
-    (gate) => gate.metricId === definition.metricId
-      && gate.domain === "numerical-integrity",
+  const target = MAIN_WIRE_NUMERICAL_INTEGRITY_PACK_V1.gates.find(
+    (gate) => gate.metricId === definition.metricId,
   );
   if (target?.upperInclusive === null || target?.upperInclusive === undefined) {
     throw new MainWireScientificQuickCheckVerificationErrorV1(
