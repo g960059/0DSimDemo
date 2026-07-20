@@ -114,9 +114,15 @@ describe("document-bound scientific workbench page V1", () => {
     expect(presentation.panels[0]?.config["scenario-1"]?.selectedSignals)
       .toEqual(["lv"]);
     expect(presentation.panels[0]).toMatchObject({
+      showGuides: true,
+      pvRelationDisplayMode: "off",
       pvHistoryBeats: 8,
       pvHistoryMode: "fade",
-      view: { pvHistoryBeats: 8, pvHistoryMode: "fade" },
+      view: {
+        pvHistoryBeats: 8,
+        pvHistoryMode: "fade",
+        pvRelationDisplayMode: "off",
+      },
     });
     expect(presentation.panels[1]?.config["scenario-1"]?.selectedSignals)
       .toEqual([

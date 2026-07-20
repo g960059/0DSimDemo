@@ -9,6 +9,13 @@ import {
   type MainWireScientificPvRelationsProtocolResultV2,
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
 import {
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_ID,
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_VERSION,
+  type MainWireScientificPvRelationsProgressV3,
+  type MainWireScientificPvRelationsProtocolResultV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
+import {
   MainWireScientificPvRelationWorkerManagerV1,
   type MainWireScientificPvRelationWorkerLikeV1,
 } from "@/engine/scientificBrowser/MainWireScientificPvRelationWorkerManagerV1";
@@ -38,15 +45,19 @@ describe("main-wire scientific PV relation Worker manager V1", () => {
       suggestedPollIntervalMs: 75,
       snapshot: {
         status: "running",
-        stage: "preload-reduction",
+        stage: "lower-loading",
         cacheStatus: "miss",
         sequence: 1,
+        researchProtocolCacheIdentity:
+          MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
       },
     });
     const command = workers[0]!.commands[0];
     expect(command).toMatchObject({
       kind: "start",
       jobId: started.jobId,
+      protocolCacheIdentity:
+        MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
       capsule,
     });
     if (command?.kind !== "start") throw new Error("missing start command");
@@ -56,6 +67,20 @@ describe("main-wire scientific PV relation Worker manager V1", () => {
       kind: "progress",
       jobId: command.jobId,
       sourceFingerprint: command.sourceFingerprint,
+      protocolCacheIdentity: "stale-protocol@2|endpoint=legacy",
+      progress: fakeProgress(1),
+    });
+    expect(manager.poll({
+      ownerSessionId: "scenario-session",
+      jobId: started.jobId,
+    }).sequence).toBe(1);
+
+    workers[0]!.emit({
+      protocolId: MAIN_WIRE_SCIENTIFIC_PV_RELATION_WORKER_PROTOCOL_V1_ID,
+      kind: "progress",
+      jobId: command.jobId,
+      sourceFingerprint: command.sourceFingerprint,
+      protocolCacheIdentity: command.protocolCacheIdentity,
       progress: fakeProgress(2),
     });
     expect(manager.poll({
@@ -72,6 +97,7 @@ describe("main-wire scientific PV relation Worker manager V1", () => {
       kind: "complete",
       jobId: command.jobId,
       sourceFingerprint: "f".repeat(64),
+      protocolCacheIdentity: command.protocolCacheIdentity,
       result: fakeResult(capsule),
     });
     expect(manager.poll({
@@ -84,6 +110,7 @@ describe("main-wire scientific PV relation Worker manager V1", () => {
       kind: "complete",
       jobId: command.jobId,
       sourceFingerprint: command.sourceFingerprint,
+      protocolCacheIdentity: command.protocolCacheIdentity,
       result: fakeResult(capsule),
     });
     expect(manager.poll({
@@ -104,6 +131,11 @@ describe("main-wire scientific PV relation Worker manager V1", () => {
       status: "complete",
       cacheStatus: "hit",
       result: { protocolId: MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V2_ID },
+      researchProtocolCacheIdentity:
+        MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
+      researchResultV3: {
+        protocolId: MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_ID,
+      },
     });
     expect(workers).toHaveLength(1);
   });
@@ -144,6 +176,7 @@ describe("main-wire scientific PV relation Worker manager V1", () => {
       kind: "complete",
       jobId: first.jobId,
       sourceFingerprint: firstCommand.sourceFingerprint,
+      protocolCacheIdentity: firstCommand.protocolCacheIdentity,
       result: fakeResult(firstCapsule),
     } satisfies MainWireScientificPvRelationWorkerMessageV1 }));
     expect(manager.poll({
@@ -194,6 +227,7 @@ describe("main-wire scientific PV relation Worker manager V1", () => {
       kind: "complete",
       jobId: first.jobId,
       sourceFingerprint: firstCommand.sourceFingerprint,
+      protocolCacheIdentity: firstCommand.protocolCacheIdentity,
       result: fakeResult(firstCapsule),
     });
     expect(manager.poll({
@@ -210,6 +244,7 @@ describe("main-wire scientific PV relation Worker manager V1", () => {
       kind: "complete",
       jobId: second.jobId,
       sourceFingerprint: secondCommand.sourceFingerprint,
+      protocolCacheIdentity: secondCommand.protocolCacheIdentity,
       result: fakeResult(secondCapsule),
     });
     expect(manager.poll({
@@ -298,7 +333,9 @@ function fakeCapsule(revision = 1): MainWireScientificHemodynamicJobCapsuleV2 {
   }) as unknown as MainWireScientificHemodynamicJobCapsuleV2;
 }
 
-function fakeProgress(completedBeatCount: number): MainWireScientificPvRelationsProgressV2 {
+function fakeCompatibilityProgress(
+  completedBeatCount: number,
+): MainWireScientificPvRelationsProgressV2 {
   return Object.freeze({
     completedBeatCount,
     latestBeat: Object.freeze({ beatIndex: completedBeatCount - 1 }),
@@ -309,7 +346,29 @@ function fakeProgress(completedBeatCount: number): MainWireScientificPvRelations
   }) as unknown as MainWireScientificPvRelationsProgressV2;
 }
 
-function fakeResult(
+function fakeProgress(
+  completedBeatCount: number,
+): MainWireScientificPvRelationsProgressV3 {
+  const compatibilityProgressV2 = fakeCompatibilityProgress(completedBeatCount);
+  return Object.freeze({
+    protocolId: MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_ID,
+    protocolVersion: MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_VERSION,
+    protocolCacheIdentity:
+      MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
+    stage: "lower-loading",
+    completedUniqueBeatCount: completedBeatCount,
+    latestBeat: Object.freeze({ beatIndex: completedBeatCount - 1 }),
+    beats: Object.freeze(Array.from(
+      { length: completedBeatCount },
+      (_, beatIndex) => Object.freeze({ beatIndex }),
+    )),
+    lowerCompletedBeatCount: completedBeatCount,
+    higherCompletedBeatCount: 0,
+    compatibilityProgressV2,
+  }) as unknown as MainWireScientificPvRelationsProgressV3;
+}
+
+function fakeCompatibilityResult(
   capsule: MainWireScientificHemodynamicJobCapsuleV2,
 ): MainWireScientificPvRelationsProtocolResultV2 {
   return Object.freeze({
@@ -317,4 +376,18 @@ function fakeResult(
     source: capsule.source,
     beats: Object.freeze([]),
   }) as unknown as MainWireScientificPvRelationsProtocolResultV2;
+}
+
+function fakeResult(
+  capsule: MainWireScientificHemodynamicJobCapsuleV2,
+): MainWireScientificPvRelationsProtocolResultV3 {
+  return Object.freeze({
+    protocolId: MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_ID,
+    protocolVersion: MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_VERSION,
+    protocolCacheIdentity:
+      MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
+    source: capsule.source,
+    beats: Object.freeze([]),
+    compatibilityResultV2: fakeCompatibilityResult(capsule),
+  }) as unknown as MainWireScientificPvRelationsProtocolResultV3;
 }

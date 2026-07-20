@@ -7,9 +7,10 @@ import type {
   MainWireScientificPvRelationJobStartV1,
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationJobV1";
 import {
-  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V2_ID,
-  type MainWireScientificPvRelationsProtocolResultV2,
-} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_ID,
+  type MainWireScientificPvRelationsProtocolResultV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 import type {
   MainWireScientificPvRelationJobManagerV1,
 } from "@/engine/scientific/worker/MainWireScientificPvRelationJobManagerV1";
@@ -42,6 +43,8 @@ type ActiveJobV1 = {
   capsule: MainWireScientificHemodynamicJobCapsuleV2;
   jobId: string;
   sourceFingerprint: string;
+  protocolCacheIdentity: string;
+  cacheKey: string;
   worker: MainWireScientificPvRelationWorkerLikeV1 | null;
   snapshot: MainWireScientificPvRelationJobSnapshotV1;
 };
@@ -51,9 +54,11 @@ const DEFAULT_MAXIMUM_CACHED_RESULT_COUNT = 4;
 const MAXIMUM_RETAINED_JOB_COUNT = 16;
 
 /**
- * One on-demand branch Worker per active fixed-TBV preload-reduction job.
- * Completed results are cached by the full release/checkpoint fingerprint,
- * never by a display label or mutable scenario id.
+ * One on-demand branch Worker per active fixed-TBV bidirectional V3 job. The
+ * Worker runs the independently source-cloned lower and higher lanes serially;
+ * lane concurrency is deliberately outside this transport revision.
+ * Completed results are cached by the full release/checkpoint fingerprint and
+ * the exact scientific protocol/version/endpoint-policy identity.
  */
 export class MainWireScientificPvRelationWorkerManagerV1
 implements MainWireScientificPvRelationJobManagerV1 {
@@ -66,7 +71,7 @@ implements MainWireScientificPvRelationJobManagerV1 {
   private readonly jobs = new Map<string, ActiveJobV1>();
   private readonly cachedResults = new Map<
     string,
-    MainWireScientificPvRelationsProtocolResultV2
+    MainWireScientificPvRelationsProtocolResultV3
   >();
   private readonly activeJobsByOwner = new Map<string, ActiveJobV1>();
   private readonly startEpochByOwner = new Map<string, number>();
@@ -114,20 +119,25 @@ implements MainWireScientificPvRelationJobManagerV1 {
       throw new Error("PV relation job start was superseded by a newer source");
     }
     const jobId = `main-wire-pv-relation-v1-${++this.jobOrdinal}`;
-    const cached = this.cachedResults.get(sourceFingerprint) ?? null;
+    const protocolCacheIdentity =
+      MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY;
+    const cacheKey = resultCacheKey(sourceFingerprint, protocolCacheIdentity);
+    const cached = this.cachedResults.get(cacheKey) ?? null;
     if (cached !== null) {
       if (!sameSource(cached, input.capsule)) {
-        this.cachedResults.delete(sourceFingerprint);
+        this.cachedResults.delete(cacheKey);
         throw new Error("cached PV relation source identity mismatch");
       }
       // Refresh insertion order so the bounded cache is true LRU.
-      this.cachedResults.delete(sourceFingerprint);
-      this.cachedResults.set(sourceFingerprint, cached);
+      this.cachedResults.delete(cacheKey);
+      this.cachedResults.set(cacheKey, cached);
       const job = this.createJob({
         ownerSessionId: input.ownerSessionId,
         capsule: input.capsule,
         jobId,
         sourceFingerprint,
+        protocolCacheIdentity,
+        cacheKey,
         worker: null,
         snapshot: Object.freeze({
           jobId,
@@ -137,9 +147,12 @@ implements MainWireScientificPvRelationJobManagerV1 {
           source: input.capsule.source,
           sourceFingerprint,
           cacheStatus: "hit" as const,
-          beats: cached.beats,
+          beats: cached.compatibilityResultV2.beats,
           progress: null,
-          result: cached,
+          result: cached.compatibilityResultV2,
+          researchProtocolCacheIdentity: protocolCacheIdentity,
+          researchProgressV3: null,
+          researchResultV3: cached,
           errorMessage: null,
         }),
       });
@@ -153,18 +166,23 @@ implements MainWireScientificPvRelationJobManagerV1 {
       capsule: input.capsule,
       jobId,
       sourceFingerprint,
+      protocolCacheIdentity,
+      cacheKey,
       worker,
       snapshot: Object.freeze({
         jobId,
         sequence: 1,
         status: "running" as const,
-        stage: "preload-reduction" as const,
+        stage: "lower-loading" as const,
         source: input.capsule.source,
         sourceFingerprint,
         cacheStatus: "miss" as const,
         beats: Object.freeze([]),
         progress: null,
         result: null,
+        researchProtocolCacheIdentity: protocolCacheIdentity,
+        researchProgressV3: null,
+        researchResultV3: null,
         errorMessage: null,
       }),
     });
@@ -181,6 +199,7 @@ implements MainWireScientificPvRelationJobManagerV1 {
         kind: "start" as const,
         jobId,
         sourceFingerprint,
+        protocolCacheIdentity,
         capsule: input.capsule,
       }));
     } catch (error) {
@@ -259,13 +278,23 @@ implements MainWireScientificPvRelationJobManagerV1 {
         !== MAIN_WIRE_SCIENTIFIC_PV_RELATION_WORKER_PROTOCOL_V1_ID
       || message.jobId !== job.jobId
       || message.sourceFingerprint !== job.sourceFingerprint
+      || message.protocolCacheIdentity !== job.protocolCacheIdentity
     ) return;
     if (message.kind === "progress") {
+      if (
+        message.progress.protocolId
+          !== MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_ID
+        || message.progress.protocolCacheIdentity
+          !== job.protocolCacheIdentity
+      ) return;
+      const compatibilityProgress = message.progress.compatibilityProgressV2;
       job.snapshot = Object.freeze({
         ...job.snapshot,
         sequence: job.snapshot.sequence + 1,
-        beats: message.progress.beats,
-        progress: message.progress,
+        stage: message.progress.stage,
+        beats: compatibilityProgress?.beats ?? job.snapshot.beats,
+        progress: compatibilityProgress ?? job.snapshot.progress,
+        researchProgressV3: message.progress,
       });
       return;
     }
@@ -275,7 +304,8 @@ implements MainWireScientificPvRelationJobManagerV1 {
     }
     if (
       message.result.protocolId
-        !== MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V2_ID
+        !== MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_ID
+      || message.result.protocolCacheIdentity !== job.protocolCacheIdentity
       || !sameSource(message.result, job.capsule)
     ) {
       this.failJob(job, "PV relation result source identity mismatch");
@@ -286,11 +316,12 @@ implements MainWireScientificPvRelationJobManagerV1 {
       sequence: job.snapshot.sequence + 1,
       status: "complete" as const,
       stage: "complete" as const,
-      beats: message.result.beats,
-      result: message.result,
+      beats: message.result.compatibilityResultV2.beats,
+      result: message.result.compatibilityResultV2,
+      researchResultV3: message.result,
       errorMessage: null,
     });
-    this.cacheResult(job.sourceFingerprint, message.result);
+    this.cacheResult(job.cacheKey, message.result);
     this.terminateWorker(job);
     if (this.activeJobsByOwner.get(job.ownerSessionId) === job) {
       this.activeJobsByOwner.delete(job.ownerSessionId);
@@ -326,12 +357,12 @@ implements MainWireScientificPvRelationJobManagerV1 {
   }
 
   private cacheResult(
-    sourceFingerprint: string,
-    result: MainWireScientificPvRelationsProtocolResultV2,
+    cacheKey: string,
+    result: MainWireScientificPvRelationsProtocolResultV3,
   ): void {
     if (this.maximumCachedResultCount === 0) return;
-    this.cachedResults.delete(sourceFingerprint);
-    this.cachedResults.set(sourceFingerprint, result);
+    this.cachedResults.delete(cacheKey);
+    this.cachedResults.set(cacheKey, result);
     while (this.cachedResults.size > this.maximumCachedResultCount) {
       const oldest = this.cachedResults.keys().next().value as string | undefined;
       if (oldest === undefined) break;
@@ -379,13 +410,20 @@ function createDefaultWorkerV1(): MainWireScientificPvRelationWorkerLikeV1 {
 }
 
 function sameSource(
-  result: MainWireScientificPvRelationsProtocolResultV2,
+  result: MainWireScientificPvRelationsProtocolResultV3,
   capsule: MainWireScientificHemodynamicJobCapsuleV2,
 ): boolean {
   return result.source.revision === capsule.source.revision
     && result.source.acceptedTimeSec === capsule.source.acceptedTimeSec
     && result.source.fixedTotalBloodVolumeMl
       === capsule.source.fixedTotalBloodVolumeMl;
+}
+
+function resultCacheKey(
+  sourceFingerprint: string,
+  protocolCacheIdentity: string,
+): string {
+  return `${protocolCacheIdentity}|source=${sourceFingerprint}`;
 }
 
 function boundedInteger(

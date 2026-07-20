@@ -60,6 +60,9 @@ import type {
 import type {
   MainWireScientificPvRelationsProtocolResultV2,
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
+import type {
+  MainWireScientificPvRelationsProtocolResultV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 
 import {
   applyScientificHemodynamicCurveSnapshotV1,
@@ -214,6 +217,7 @@ export type ScientificProductPvRelationProtocolPresentationV1 = Readonly<{
     | null;
   sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1 | null;
   result: MainWireScientificPvRelationsProtocolResultV2 | null;
+  researchResultV3?: MainWireScientificPvRelationsProtocolResultV3 | null;
   jobSnapshot: MainWireScientificPvRelationJobSnapshotV1 | null;
   errorMessage: string | null;
 }>;
@@ -563,6 +567,7 @@ export class ScientificProductScenarioRegistryV1 {
       calculationSource: "visible-period1-source" as const,
       sourceIdentity,
       result: null,
+      researchResultV3: null,
       jobSnapshot: null,
       errorMessage: null,
     }));
@@ -752,6 +757,7 @@ export class ScientificProductScenarioRegistryV1 {
       calculationSource: "visible-period1-source" as const,
       sourceIdentity: input.sourceIdentity,
       result: snapshot.result,
+      researchResultV3: snapshot.researchResultV3 ?? null,
       jobSnapshot: snapshot,
       errorMessage: snapshot.errorMessage,
     });

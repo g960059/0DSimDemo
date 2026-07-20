@@ -32,12 +32,11 @@ test("repeated live retargets keep advancing and visibility auto-pause resumes",
   await expect(evidence).toHaveAttribute("data-scientific-frame-count", "501");
   await expect(controller).toHaveAttribute("data-owner-connected", "true");
   await expect(systemic).toHaveAttribute("aria-valuetext", "1.0×");
-  await expect(pvCanvas).toHaveAttribute("data-pv-espvr-curve-count", /^[1-9]/, {
-    timeout: 60_000,
-  });
-  await expect(pvCanvas).toHaveAttribute("data-pv-edpvr-curve-count", /^[1-9]/);
+  await expect(pvCanvas).toHaveAttribute("data-pv-boundary-guide-count", /^[1-9]/);
+  await expect(pvCanvas).toHaveAttribute("data-pv-guide-espvr-curve-count", /^[1-9]/);
+  await expect(pvCanvas).toHaveAttribute("data-pv-guide-edpvr-curve-count", /^[1-9]/);
   await expect(pvLegend).not.toContainText(/ESPVR|EDPVR/);
-  await expect(pvCanvas).toHaveAttribute("data-pv-relation-count", /^[1-9]/);
+  await expect(pvCanvas).toHaveAttribute("data-pv-relation-count", "0");
 
   const initialRevision = finiteAttribute(
     await evidence.getAttribute("data-scientific-final-revision"),
@@ -58,12 +57,13 @@ test("repeated live retargets keep advancing and visibility auto-pause resumes",
       await controller.getAttribute("data-displayed-parameter-epoch"),
     );
     await expect(controller).toHaveAttribute("data-phase", "live-running");
-    // The last accepted relation remains a scale anchor throughout an open
-    // live transition; transient beats are never relabeled as ESPVR/EDPVR.
-    await expect(pvCanvas).toHaveAttribute("data-pv-relation-count", /^[1-9]/);
+    // The single-beat orientation guide remains available during the live
+    // transition without silently starting the research load-series worker.
+    await expect(pvCanvas).toHaveAttribute("data-pv-boundary-guide-count", /^[1-9]/);
+    await expect(pvCanvas).toHaveAttribute("data-pv-relation-count", "0");
   }
-  await expect(pvCanvas).toHaveAttribute("data-pv-espvr-curve-count", /^[1-9]/);
-  await expect(pvCanvas).toHaveAttribute("data-pv-edpvr-curve-count", /^[1-9]/);
+  await expect(pvCanvas).toHaveAttribute("data-pv-guide-espvr-curve-count", /^[1-9]/);
+  await expect(pvCanvas).toHaveAttribute("data-pv-guide-edpvr-curve-count", /^[1-9]/);
 
   await expect.poll(async () => finiteAttribute(
     await evidence.getAttribute("data-scientific-final-revision"),

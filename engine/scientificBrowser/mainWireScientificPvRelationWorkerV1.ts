@@ -5,10 +5,11 @@ import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
-  runMainWireScientificPvRelationsProtocolV2,
-  type MainWireScientificPvRelationsProtocolDependenciesV2,
-  type MainWireScientificPvRelationsProtocolOptionsV2,
-} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
+  runMainWireScientificPvRelationsProtocolV3,
+  type MainWireScientificPvRelationsProtocolDependenciesV3,
+  type MainWireScientificPvRelationsProtocolOptionsV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 import { SHA256_HEX_PATTERN } from "@/engine/scientific/release/sha256";
 import {
   MAIN_WIRE_SCIENTIFIC_PV_RELATION_WORKER_PROTOCOL_V1_ID,
@@ -28,6 +29,9 @@ const scope = globalThis as unknown as WorkerScopeV1;
 let activeJobId: string | null = null;
 let cancelledJobId: string | null = null;
 
+// V3 keeps the existing one-Worker transport ABI. The protocol runs its two
+// independent source clones serially (lower lane, then higher lane); this is
+// scientific lane independence, not concurrent lane execution.
 scope.onmessage = (event): void => {
   const command = event.data;
   if (
@@ -35,7 +39,11 @@ scope.onmessage = (event): void => {
       !== MAIN_WIRE_SCIENTIFIC_PV_RELATION_WORKER_PROTOCOL_V1_ID
   ) return;
   if (command.kind === "cancel") {
-    if (activeJobId === command.jobId) cancelledJobId = command.jobId;
+    if (
+      activeJobId === command.jobId
+      && command.protocolCacheIdentity
+        === MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY
+    ) cancelledJobId = command.jobId;
     return;
   }
   if (activeJobId !== null) {
@@ -48,6 +56,10 @@ scope.onmessage = (event): void => {
     if (!SHA256_HEX_PATTERN.test(command.sourceFingerprint)) {
       throw new Error("PV relation source fingerprint is not SHA-256");
     }
+    if (
+      command.protocolCacheIdentity
+        !== MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY
+    ) throw new Error("PV relation V3 protocol/cache identity mismatch");
     const capsule = command.capsule;
     if (
       capsule.capsuleId
@@ -60,7 +72,7 @@ scope.onmessage = (event): void => {
       || provider.parameterIdentityHash
         !== capsule.providerIdentity.parameterIdentityHash
     ) throw new Error("PV relation provider identity mismatch");
-    const dependencies: MainWireScientificPvRelationsProtocolDependenciesV2 =
+    const dependencies: MainWireScientificPvRelationsProtocolDependenciesV3 =
       Object.freeze({
         provider,
         runtime: capsule.runtime,
@@ -71,7 +83,7 @@ scope.onmessage = (event): void => {
       provider,
       capsule.transactionCheckpoint,
     );
-    const options: MainWireScientificPvRelationsProtocolOptionsV2 =
+    const options: MainWireScientificPvRelationsProtocolOptionsV3 =
       Object.freeze({
         onProgress: (progress) => {
           if (cancelledJobId === command.jobId) return;
@@ -81,12 +93,13 @@ scope.onmessage = (event): void => {
             kind: "progress" as const,
             jobId: command.jobId,
             sourceFingerprint: command.sourceFingerprint,
+            protocolCacheIdentity: command.protocolCacheIdentity,
             progress,
           }));
         },
         shouldCancel: () => cancelledJobId === command.jobId,
       });
-    const result = runMainWireScientificPvRelationsProtocolV2(
+    const result = runMainWireScientificPvRelationsProtocolV3(
       dependencies,
       sourceState,
       options,
@@ -97,6 +110,7 @@ scope.onmessage = (event): void => {
         kind: "complete" as const,
         jobId: command.jobId,
         sourceFingerprint: command.sourceFingerprint,
+        protocolCacheIdentity: command.protocolCacheIdentity,
         result,
       }));
     }
@@ -124,6 +138,7 @@ function postFailure(
     kind: "worker-failure" as const,
     jobId: command.jobId,
     sourceFingerprint: command.sourceFingerprint,
+    protocolCacheIdentity: command.protocolCacheIdentity,
     message,
   }));
 }

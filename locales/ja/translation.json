@@ -464,6 +464,17 @@
       "showGraphLabels": "グラフラベルを表示します。",
       "pvLoopGuides": "PVループガイド",
       "referenceOverlays": "参照オーバーレイです。",
+      "textbookPvGuides": "教科書的PVガイド",
+      "textbookPvGuidesDescription": "収縮末期・拡張末期の参照ガイドを表示します。見方を助ける表示で、負荷系列から測定した関係ではありません。",
+      "pvAdvancedAnalysis": "研究解析",
+      "pvLoadSeries": "負荷系列解析",
+      "pvLoadSeriesDescription": "総血液量を固定した仮想的な前負荷変化から、収縮末期・拡張末期の関係を推定します。追加の計算を行います。",
+      "pvLoadSeriesView": "結果表示",
+      "pvLoadSeriesViews": {
+        "standard": "品質判定付き",
+        "research": "形式fit・エビデンス"
+      },
+      "pvLoadSeriesViewDescription": "品質判定付きでは採用fitを表示し、QC不合格時は採取点の応答へ切り替えます。形式fitではfitと根拠データを確認できます。",
       "pvRelations": "収縮・充満の関係",
       "pvRelationsDescription": "総血液量を固定した短い仮想前負荷テストから、収縮末期と拡張末期の関係を推定します。",
       "pvRelationModes": {
@@ -476,8 +487,8 @@
         "intracavitary": "心腔内圧",
         "transmural": "壁内外圧差"
       },
-      "pvRelationPressureBasisDescription": "形式推定とQCは壁内外圧差で行います。心腔内圧は、同じ採用拍の外圧を加えた表示用の投影です。",
-      "pvRelationResearchCaution": "研究表示ではQCで棄却された形式曲線も確認できます。曲線は観測した前負荷範囲内だけに限定され、診断値ではありません。",
+      "pvRelationPressureBasisDescription": "解析は壁内外圧差で行います。心腔内圧は同じ採用拍から換算した表示です。",
+      "pvRelationResearchCaution": "形式fitではQCを通過しなかった曲線も表示します。観測した負荷範囲内だけで解釈し、診断値として使用しないでください。",
       "pvRelationLvOnly": "この推定は左室PVループを含むペインで利用できます。",
       "pvRelationSamplePoints": "抽出点を表示",
       "pvRelationSamplePointsDescription": "fitに採用した収縮末期点と拡張末期点を表示します。",

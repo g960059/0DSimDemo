@@ -2,9 +2,9 @@ import type {
   MainWireScientificHemodynamicJobCapsuleV2,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
 import type {
-  MainWireScientificPvRelationsProgressV2,
-  MainWireScientificPvRelationsProtocolResultV2,
-} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
+  MainWireScientificPvRelationsProgressV3,
+  MainWireScientificPvRelationsProtocolResultV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 
 export const MAIN_WIRE_SCIENTIFIC_PV_RELATION_WORKER_PROTOCOL_V1_ID =
   "main-wire-scientific-pv-relation-worker-protocol-v1" as const;
@@ -14,6 +14,7 @@ export type MainWireScientificPvRelationWorkerStartV1 = Readonly<{
   kind: "start";
   jobId: string;
   sourceFingerprint: string;
+  protocolCacheIdentity: string;
   capsule: MainWireScientificHemodynamicJobCapsuleV2;
 }>;
 
@@ -22,6 +23,7 @@ export type MainWireScientificPvRelationWorkerCancelV1 = Readonly<{
   kind: "cancel";
   jobId: string;
   sourceFingerprint: string;
+  protocolCacheIdentity: string;
 }>;
 
 export type MainWireScientificPvRelationWorkerCommandV1 =
@@ -33,7 +35,8 @@ export type MainWireScientificPvRelationWorkerProgressV1 = Readonly<{
   kind: "progress";
   jobId: string;
   sourceFingerprint: string;
-  progress: MainWireScientificPvRelationsProgressV2;
+  protocolCacheIdentity: string;
+  progress: MainWireScientificPvRelationsProgressV3;
 }>;
 
 export type MainWireScientificPvRelationWorkerCompleteV1 = Readonly<{
@@ -41,7 +44,8 @@ export type MainWireScientificPvRelationWorkerCompleteV1 = Readonly<{
   kind: "complete";
   jobId: string;
   sourceFingerprint: string;
-  result: MainWireScientificPvRelationsProtocolResultV2;
+  protocolCacheIdentity: string;
+  result: MainWireScientificPvRelationsProtocolResultV3;
 }>;
 
 export type MainWireScientificPvRelationWorkerFailureV1 = Readonly<{
@@ -49,6 +53,7 @@ export type MainWireScientificPvRelationWorkerFailureV1 = Readonly<{
   kind: "worker-failure";
   jobId: string;
   sourceFingerprint: string;
+  protocolCacheIdentity: string;
   message: string;
 }>;
 

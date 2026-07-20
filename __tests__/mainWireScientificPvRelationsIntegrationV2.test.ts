@@ -15,12 +15,19 @@ import { loadMainWireAdultFiveWallNonCoronaryReleaseV1 } from
   "@/engine/scientific/assembly";
 import { runMainWireScientificPvRelationsProtocolV2 } from
   "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
+import {
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_ENDPOINT_POLICY_V3_ID,
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_ID,
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_POLICY_V3,
+  runMainWireScientificPvRelationsProtocolV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 import { verifyOfficialHealthyPeriodicPresetBundleAssetsV1 } from
   "@/engine/scientific/presets";
 import { restoreMainWireScientificSessionExactV2 } from
   "@/engine/scientific/runtime";
 
-describe("main-wire fixed-TBV PV relations V2 integration", () => {
+describe("main-wire fixed-TBV PV relations V2/V3 integration", () => {
   it("is source-phase invariant and bounded under 1 ms sensitivity", async () => {
     const capsule = await healthyCapsule();
     const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1("on");
@@ -85,6 +92,121 @@ describe("main-wire fixed-TBV PV relations V2 integration", () => {
     expect(halvedStep.terminationReason).toBe("source-periodicity-gate-failed");
     expect(halvedStep.baselinePeriodicity).toBe("not-converged");
     expect(halvedStep.fitPointSelection.includedBeatIds).toEqual([]);
+  }, 45_000);
+
+  it("acquires independent V3 resistance lanes with fixed-TBV provenance", async () => {
+    const capsule = await healthyCapsule();
+    const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1("on");
+    const sourceState = restoreMainWireFiveWallNonCoronaryV1(
+      provider,
+      capsule.transactionCheckpoint,
+    );
+    const dependencies = Object.freeze({
+      provider,
+      runtime: capsule.runtime,
+      pericardium: capsule.pericardium,
+      calciumDriveParams: capsule.calciumDriveParams,
+    });
+    const sourceJson = JSON.stringify(sourceState);
+    const progressStages: string[] = [];
+    const result = runMainWireScientificPvRelationsProtocolV3(
+      dependencies,
+      sourceState,
+      { onProgress: (progress) => progressStages.push(progress.stage) },
+    );
+
+    expect(JSON.stringify(sourceState)).toBe(sourceJson);
+    expect(result).toMatchObject({
+      protocolId: MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_ID,
+      protocolCacheIdentity:
+        MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
+      claim: {
+        sourceSessionMutated: false,
+        totalBloodVolumeVaried: false,
+        lanesPooledIntoSingleRelation: false,
+        conventionalPrswClaimed: false,
+      },
+      endpointPolicy: {
+        endpointPolicyId:
+          MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_ENDPOINT_POLICY_V3_ID,
+        formalEndSystolicEndpoint: "end-of-forward-aortic-ejection",
+        iterativeMaximumElastance: { status: "not-supported" },
+      },
+      pooling: { status: "not-performed" },
+      lanes: {
+        lowerLoading: {
+          sourceCloneIndependent: true,
+          intervention: "VC_RA-resistance-increase",
+        },
+        higherLoading: {
+          sourceCloneIndependent: true,
+          intervention: "VC_RA-resistance-decrease",
+        },
+      },
+    });
+    expect(result.policy.higherLoading.minimumVcRaResistanceScale)
+      .toBe(MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_POLICY_V3
+        .higherLoading.minimumVcRaResistanceScale);
+    expect(result.compatibilityResultV2.protocolId)
+      .toBe("main-wire-scientific-pv-relations-protocol-v2");
+    expect(progressStages).toContain("lower-loading");
+    expect(progressStages).toContain("higher-loading");
+    expect(result.beats.filter((beat) => beat.role === "baseline"))
+      .toHaveLength(1);
+    expect(new Set(result.beats.map((beat) => beat.beatId)).size)
+      .toBe(result.beats.length);
+    expect(result.beats.every((beat) =>
+      beat.fixedTotalBloodVolumeMl === capsule.source.fixedTotalBloodVolumeMl
+      && beat.endpointMethod === "end-of-forward-aortic-ejection"))
+      .toBe(true);
+    const higherScales = result.lanes.higherLoading.beats.map(
+      (beat) => beat.vcRaResistanceScaleEnd,
+    );
+    expect(higherScales[0]).toBe(1);
+    expect(higherScales.every((scale, index) =>
+      scale <= 1
+      && scale >= result.policy.higherLoading.minimumVcRaResistanceScale
+      && (index === 0 || scale <= higherScales[index - 1]!)))
+      .toBe(true);
+    expect(result.lanes.higherLoading).toMatchObject({
+      terminationReason: "maximum-beats-reached",
+      failureReason: null,
+      acquisitionStatus: "rejected",
+      achievedDeclaredEdvDirection: true,
+    });
+    expect(result.lanes.higherLoading.achievedEndDiastolicVolumeSpanFraction)
+      .toBeLessThan(result.policy.higherLoading
+        .targetEndDiastolicVolumeSpanFraction);
+
+    const failClosed = runMainWireScientificPvRelationsProtocolV3(
+      dependencies,
+      sourceState,
+      {
+        policy: {
+          lowerLoading: {
+            minimumTotalBeatCount: 3,
+            maximumTotalBeatCount: 3,
+            minimumFitPointCount: 3,
+          },
+          higherLoading: {
+            minimumVcRaResistanceScale: 0.999_999,
+            minimumTotalBeatCount: 3,
+            maximumTotalBeatCount: 3,
+            minimumFitPointCount: 3,
+          },
+        },
+      },
+    );
+    expect(failClosed.lanes.higherLoading).toMatchObject({
+      terminationReason: "higher-edv-not-increased",
+      acquisitionStatus: "rejected",
+      achievedDeclaredEdvDirection: false,
+    });
+    expect(failClosed.lanes.higherLoading.failureReason)
+      .toMatch(/did not produce a separated increase/);
+    expect(failClosed.lanes.higherLoading.fitPointSelection.includedBeatIds)
+      .toEqual(["higher-beat-0"]);
+    expect(JSON.stringify(sourceState)).toBe(sourceJson);
   }, 45_000);
 });
 

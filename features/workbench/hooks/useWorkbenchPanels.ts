@@ -352,7 +352,9 @@ export function useWorkbenchPanels({
     setPanels((prev) => {
       const target = prev.find((panel) => panel.id === panelId);
       if (!target) return prev;
-      const showGuides = !target.showGuides;
+      // Undefined is the compatibility representation of the default-on
+      // state, so the first click must turn guides off rather than write true.
+      const showGuides = target.showGuides === false;
       return updatePanelWithSourceViewMirrors(
         prev,
         panelId,

@@ -14,6 +14,10 @@ import {
 import {
   scientificPvRelationOverlaysForScenarioV1,
 } from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
+import {
+  buildScientificPvBoundaryGuideV1,
+  buildScientificPvBoundaryGuidesV1,
+} from "@/components/scientificProduct/ScientificPvBoundaryGuidesV1";
 import type {
   ScientificProductPvRelationProtocolPresentationV1,
   ScientificProductPvRelationProtocolSeriesV1,
@@ -21,13 +25,135 @@ import type {
 import type {
   MainWireScientificLvPressureVolumeAnalysisV1,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicAnalysisV1";
+import type {
+  MainWireScientificObservableFrameV1,
+  MainWireScientificObservableIdV1,
+} from "@/engine/scientific/observables";
 import {
   MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_POLICY_V2,
   type MainWireScientificPvRelationBeatV2,
   type MainWireScientificPvRelationsProtocolResultV2,
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
+import type {
+  MainWireScientificPvRelationBeatV3,
+  MainWireScientificPvRelationsProtocolResultV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 
 describe("scientific Workbench chart domains", () => {
+  it("builds immediate textbook boundaries through the current LV contacts", () => {
+    const guide = buildScientificPvBoundaryGuideV1(
+      textbookPvSeriesFixture("absolute"),
+    )!;
+
+    expect(guide.semantics)
+      .toBe("single-beat-orientation-guide-not-load-series-fit");
+    expect(guide.endSystolicContact).toEqual({
+      volumeMl: 65,
+      pressureMmHg: 104,
+    });
+    expect(guide.espvr[0]).toEqual({ volumeMl: 0, pressureMmHg: 4 });
+    expect(guide.espvr).toContainEqual(guide.endSystolicContact);
+    expect(guide.endDiastolicContact).toEqual({
+      volumeMl: 150,
+      pressureMmHg: 12,
+    });
+    expect(guide.edpvr).toContainEqual(guide.endDiastolicContact);
+    expect(nonDecreasing(guide.edpvr.map(({ pressureMmHg }) =>
+      pressureMmHg))).toBe(true);
+    const v0 = 150 * (0.6 - 0.006 * 8);
+    const v30 = v0 + (150 - v0) / Math.pow(8 / 28.2, 1 / 2.79);
+    for (const point of guide.edpvr.filter(({ volumeMl }) => volumeMl >= v0)) {
+      const expected = 4 + 28.2 * Math.pow(
+        (point.volumeMl - v0) / (v30 - v0),
+        2.79,
+      );
+      expect(point.pressureMmHg).toBeCloseTo(expected, 9);
+    }
+  });
+
+  it("keeps transmural offsets and multi-scenario textbook guides isolated", () => {
+    const transmural = buildScientificPvBoundaryGuideV1(
+      textbookPvSeriesFixture("transmural", "transmural"),
+    )!;
+    const guides = buildScientificPvBoundaryGuidesV1([
+      textbookPvSeriesFixture("absolute", "scenario-a"),
+      {
+        ...textbookPvSeriesFixture("absolute", "scenario-rv"),
+        volumeObservableId: "hemodynamics.volume.RV" as const,
+      },
+      textbookPvSeriesFixture("absolute", "scenario-b"),
+    ]);
+
+    expect(transmural.endSystolicContact.pressureMmHg).toBe(100);
+    expect(transmural.endDiastolicContact.pressureMmHg).toBe(8);
+    expect(transmural.espvr[0]!.pressureMmHg).toBe(0);
+    expect(guides.map(({ scenarioId }) => scenarioId))
+      .toEqual(["scenario-a", "scenario-b"]);
+  });
+
+  it("fails closed for a Klotz guide outside its supported filling-pressure range", () => {
+    const fixture = textbookPvSeriesFixture("transmural", "high-edp");
+    const highEdpFrames = fixture.scenario.periodicCycleFrames!.map((frame) =>
+      frame.acceptedTimeSec === 0 || frame.acceptedTimeSec === 1
+        ? textbookPvFrameFixture(frame.acceptedTimeSec, 150, 35, 31)
+        : frame);
+    const guide = buildScientificPvBoundaryGuideV1({
+      ...fixture,
+      scenario: {
+        ...fixture.scenario,
+        frames: highEdpFrames,
+        periodicCycleFrames: highEdpFrames,
+      },
+    })!;
+
+    expect(guide.espvr.length).toBeGreaterThan(1);
+    expect(guide.edpvr).toEqual([]);
+  });
+
+  it("rejects non-LV pressure pairings and incomplete cycle fallbacks", () => {
+    const fixture = textbookPvSeriesFixture("absolute", "guarded");
+    expect(buildScientificPvBoundaryGuideV1({
+      ...fixture,
+      pressureObservableId:
+        "hemodynamics.pressure.absolute.Ao" as MainWireScientificObservableIdV1,
+    })).toBeNull();
+
+    expect(buildScientificPvBoundaryGuideV1({
+      ...fixture,
+      scenario: {
+        ...fixture.scenario,
+        frames: fixture.scenario.frames.slice(0, 3),
+        guideCycleFrames: null,
+        periodicCycleFrames: null,
+      },
+    })).toBeNull();
+  });
+
+  it("prefers the mitral-closure event over a later non-monotone volume maximum", () => {
+    const fixture = textbookPvSeriesFixture("absolute", "event-ed");
+    const eventFrames = [
+      textbookPvFrameFixture(0, 140, 10, 6, { MV: 18, AoV: 0 }),
+      textbookPvFrameFixture(0.2, 148, 12, 8, { MV: 0, AoV: 0 }),
+      textbookPvFrameFixture(0.4, 151, 15, 11, { MV: 0, AoV: 20 }),
+      textbookPvFrameFixture(0.6, 65, 104, 100, { MV: 0, AoV: 0 }),
+      textbookPvFrameFixture(0.8, 100, 8, 4, { MV: 22, AoV: 0 }),
+      textbookPvFrameFixture(1, 140, 10, 6, { MV: 18, AoV: 0 }),
+    ];
+    const guide = buildScientificPvBoundaryGuideV1({
+      ...fixture,
+      scenario: {
+        ...fixture.scenario,
+        frames: eventFrames,
+        periodicCycleFrames: eventFrames,
+      },
+    })!;
+
+    expect(guide.endDiastolicContact).toEqual({
+      volumeMl: 148,
+      pressureMmHg: 12,
+    });
+  });
+
   it("starts nonnegative waveform and PV axes at zero without below-zero padding", () => {
     const pressureDomain = scientificChartDomainV1([5, 80, 120]);
     const volumeDomain = scientificChartDomainV1([40, 90, 160]);
@@ -251,6 +377,42 @@ describe("scientific Workbench chart domains", () => {
     );
   });
 
+  it("keeps V3 higher-loading observations separate from the V2 formal fit", () => {
+    const compatibility = pvRelationResultFixture({ fitStatus: "accepted" });
+    const research = pvRelationResearchResultFixture(compatibility);
+    const [overlay] = scientificPvRelationOverlaysForScenarioV1({
+      scenarioId: "healthy",
+      color: "#38bdf8",
+      series: pvRelationSeriesFixture({
+        current: pvRelationGenerationFixture(
+          "generation-bidirectional",
+          compatibility,
+          "complete",
+          research,
+        ),
+      }),
+      displayMode: "standard",
+      pressureBasis: "transmural",
+      showSamplePoints: false,
+      historyCount: 0,
+    });
+
+    expect(overlay).toMatchObject({
+      status: "limited",
+      higherLoadingQuality: "limited",
+    });
+    expect(overlay!.higherLoadingEndSystolicObserved).toHaveLength(4);
+    expect(overlay!.higherLoadingEndDiastolicObserved).toHaveLength(4);
+    expect(overlay!.higherLoadingEndDiastolicObserved!.map(({ volumeMl }) =>
+      volumeMl)).toEqual([150, 154, 158, 162]);
+    expect(overlay!.domainAnchorPoints).toEqual(expect.arrayContaining(
+      [...overlay!.higherLoadingEndSystolicObserved!],
+    ));
+    // The compatibility formal curve remains V2-only; V3 observations are
+    // carried in distinct fields and therefore cannot be pooled into the fit.
+    expect(overlay!.espvr).toHaveLength(48);
+  });
+
   it("retains current and historical parameter generations while a replacement is pending", () => {
     const current = pvRelationGenerationFixture(
       "parameter-epoch-2",
@@ -392,6 +554,7 @@ function pvRelationGenerationFixture(
   generationId: string,
   result: MainWireScientificPvRelationsProtocolResultV2 | null,
   status: "running" | "complete" = "complete",
+  researchResultV3: MainWireScientificPvRelationsProtocolResultV3 | null = null,
 ): PvRelationGenerationFixture {
   const presentation: ScientificProductPvRelationProtocolPresentationV1 =
     Object.freeze({
@@ -400,6 +563,7 @@ function pvRelationGenerationFixture(
       calculationSource: "visible-period1-source",
       sourceIdentity: null,
       result,
+      researchResultV3,
       jobSnapshot: null,
       errorMessage: null,
     });
@@ -422,6 +586,55 @@ function pvRelationGenerationFixture(
     snapshot: result === null ? null : presentation,
     renderable: result !== null,
   });
+}
+
+function pvRelationResearchResultFixture(
+  compatibilityResultV2: MainWireScientificPvRelationsProtocolResultV2,
+): MainWireScientificPvRelationsProtocolResultV3 {
+  const externalPressureMmHg = 5;
+  const higherBeats = Object.freeze(Array.from({ length: 4 }, (_, beatIndex) => {
+    const base = pvRelationBeatFixture(0, externalPressureMmHg);
+    return Object.freeze({
+      ...base,
+      beatId: `higher-beat-${beatIndex}`,
+      beatIndex,
+      lane: "higher-loading" as const,
+      role: beatIndex === 0 ? "baseline" as const : "higher-loading" as const,
+      endpointMethod: "end-of-forward-aortic-ejection" as const,
+      endDiastolic: pvRelationEndpointFixture(
+        150 + beatIndex * 4,
+        12 + beatIndex,
+        externalPressureMmHg,
+      ),
+      endSystolic: pvRelationEndpointFixture(
+        95 + beatIndex * 3,
+        115 + beatIndex * 2,
+        externalPressureMmHg,
+      ),
+    }) as MainWireScientificPvRelationBeatV3;
+  }));
+  return Object.freeze({
+    protocolId: "main-wire-scientific-pv-relations-protocol-v3",
+    policy: Object.freeze({
+      lowerLoading: compatibilityResultV2.policy,
+      higherLoading: Object.freeze({
+        ...compatibilityResultV2.policy,
+        minimumVcRaResistanceScale: 0.5,
+      }),
+    }),
+    beats: higherBeats,
+    lanes: Object.freeze({
+      higherLoading: Object.freeze({
+        acquisitionStatus: "rejected",
+        achievedDeclaredEdvDirection: true,
+        beats: higherBeats,
+        fitPointSelection: Object.freeze({
+          includedBeatIds: Object.freeze(higherBeats.map(({ beatId }) => beatId)),
+        }),
+      }),
+    }),
+    compatibilityResultV2,
+  }) as unknown as MainWireScientificPvRelationsProtocolResultV3;
 }
 
 function pvRelationResultFixture(input: Readonly<{
@@ -527,4 +740,76 @@ function pvRelationEndpointFixture(
     transmuralPressureMmHg,
     externalPressureMmHg,
   });
+}
+
+function textbookPvSeriesFixture(
+  basis: "absolute" | "transmural",
+  scenarioId = "scenario-a",
+) {
+  const frames = [
+    textbookPvFrameFixture(0, 150, 12, 8),
+    textbookPvFrameFixture(0.15, 140, 84, 80),
+    textbookPvFrameFixture(0.3, 100, 124, 120),
+    textbookPvFrameFixture(0.45, 65, 104, 100),
+    textbookPvFrameFixture(0.6, 65, 44, 40),
+    textbookPvFrameFixture(0.8, 105, 9, 5),
+    textbookPvFrameFixture(1, 150, 12, 8),
+  ];
+  return Object.freeze({
+    key: `${scenarioId}:lv`,
+    color: "#2dd4bf",
+    volumeObservableId: "hemodynamics.volume.LV" as const,
+    pressureObservableId: basis === "transmural"
+      ? "hemodynamics.pressure.transmural.LV" as const
+      : "hemodynamics.pressure.absolute.LV" as const,
+    scenario: Object.freeze({
+      id: scenarioId,
+      frames,
+      periodicCycleFrames: frames,
+      cycleDurationSec: 1,
+    }),
+  });
+}
+
+function textbookPvFrameFixture(
+  acceptedTimeSec: number,
+  volumeMl: number,
+  absolutePressureMmHg: number,
+  transmuralPressureMmHg: number,
+  valveFlows?: Readonly<{ MV: number; AoV: number }>,
+): MainWireScientificObservableFrameV1 {
+  const value = (
+    observableId: MainWireScientificObservableIdV1,
+    candidate: number,
+  ) => Object.freeze({
+    observableId,
+    value: candidate,
+    availability: "available" as const,
+    quality: "authoritative-state" as const,
+  });
+  return {
+    acceptedTimeSec,
+    values: {
+      "hemodynamics.volume.LV": value(
+        "hemodynamics.volume.LV",
+        volumeMl,
+      ),
+      "hemodynamics.pressure.absolute.LV": value(
+        "hemodynamics.pressure.absolute.LV",
+        absolutePressureMmHg,
+      ),
+      "hemodynamics.pressure.transmural.LV": value(
+        "hemodynamics.pressure.transmural.LV",
+        transmuralPressureMmHg,
+      ),
+      ...(valveFlows === undefined ? {} : {
+        "valve.MV.flow": value("valve.MV.flow", valveFlows.MV),
+        "valve.AoV.flow": value("valve.AoV.flow", valveFlows.AoV),
+      }),
+    },
+  } as unknown as MainWireScientificObservableFrameV1;
+}
+
+function nonDecreasing(values: readonly number[]): boolean {
+  return values.slice(1).every((value, index) => value >= values[index]! - 1e-9);
 }

@@ -56,6 +56,7 @@ describe("workbench panel model", () => {
       h: 8,
       isSettingsOpen: false,
       showGuides: true,
+      pvRelationDisplayMode: "off",
     });
     expect(createPanelDef("WAVEFORM", {}, undefined, "wave")).toMatchObject({
       id: "wave",

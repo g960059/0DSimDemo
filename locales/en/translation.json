@@ -464,6 +464,17 @@
       "showGraphLabels": "Show graph labels.",
       "pvLoopGuides": "PV loop guides",
       "referenceOverlays": "Reference overlays.",
+      "textbookPvGuides": "Textbook PV guides",
+      "textbookPvGuidesDescription": "Show familiar end-systolic and end-diastolic guides for orientation. These are visual references, not measured load-series relations.",
+      "pvAdvancedAnalysis": "Research analysis",
+      "pvLoadSeries": "Load-series analysis",
+      "pvLoadSeriesDescription": "Run a fixed-blood-volume virtual preload change to estimate end-systolic and end-diastolic relations. Uses additional computation.",
+      "pvLoadSeriesView": "Result view",
+      "pvLoadSeriesViews": {
+        "standard": "Quality-filtered",
+        "research": "Formal fit & evidence"
+      },
+      "pvLoadSeriesViewDescription": "Quality-filtered shows accepted fits and falls back to sampled response when a fit fails QC. Formal fit reveals the fit and its evidence.",
       "pvRelations": "Contraction and filling relations",
       "pvRelationsDescription": "Estimate end-systolic and end-diastolic relations with a short fixed-blood-volume virtual preload test.",
       "pvRelationModes": {
@@ -476,8 +487,8 @@
         "intracavitary": "Chamber pressure",
         "transmural": "Transmural pressure"
       },
-      "pvRelationPressureBasisDescription": "Formal estimation and QC use transmural pressure. Chamber pressure is a display projection that adds external pressure from the same accepted beats.",
-      "pvRelationResearchCaution": "Research view may reveal formal curves rejected by QC. Curves stay within the observed loading range and are not diagnostic values.",
+      "pvRelationPressureBasisDescription": "Analysis uses transmural pressure. Chamber pressure is a display projection from the same accepted beats.",
+      "pvRelationResearchCaution": "Formal fit may show curves that did not pass QC. Interpret only within the observed loading range; this is not a diagnostic value.",
       "pvRelationLvOnly": "These estimates are available when the pane includes a left-ventricular PV loop.",
       "pvRelationSamplePoints": "Show sampled beats",
       "pvRelationSamplePointsDescription": "Reveal the accepted end-systolic and end-diastolic points used by the fit.",

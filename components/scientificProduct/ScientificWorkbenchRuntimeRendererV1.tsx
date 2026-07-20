@@ -56,6 +56,7 @@ import {
   type ScientificWorkbenchPvSeriesV1,
   type ScientificWorkbenchWaveformSeriesV1,
 } from "./ScientificWorkbenchAnimatedChartsV1";
+import { buildScientificPvBoundaryGuidesV1 } from "./ScientificPvBoundaryGuidesV1";
 import type { ScientificWorkbenchDisplayClockV1 } from "./ScientificWorkbenchDisplayClockV1";
 import {
   type ScientificProductScenarioPresentationV1,
@@ -82,6 +83,9 @@ import {
   buildMainWireScientificPvRelationOverlayCurvesV2,
   type MainWireScientificPvRelationBeatV2,
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
+import type {
+  MainWireScientificPvRelationBeatV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 import { scientificWorkbenchMetricPresentationV1 } from "./ScientificWorkbenchMetricPresentationV1";
 import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
@@ -477,7 +481,13 @@ function ScientificPvGraphPanelV1({
     registry.getPvRelationProtocolSeriesSnapshot,
   );
   const displayMode = scientificPvRelationDisplayModeV1(panel);
-  const pressureBasis = scientificPvRelationPressureBasisV1(panel);
+  const configuredPressureBasis = scientificPvRelationPressureBasisV1(panel);
+  // Pressure-basis selection belongs to the opt-in research analysis. When it
+  // is off, keep the beginner-facing loop and its textbook guides on ordinary
+  // chamber pressure even if a prior advanced session used transmural pressure.
+  const pressureBasis = displayMode === "off"
+    ? DEFAULT_PV_RELATION_PRESSURE_BASIS
+    : configuredPressureBasis;
   const showSamplePoints = panel.pvRelationShowSamplePoints ??
     (panel.view?.kind === "graph"
       ? panel.view.pvRelationShowSamplePoints
@@ -495,6 +505,12 @@ function ScientificPvGraphPanelV1({
       panel.config[presentation.descriptor.id]!,
       pressureBasis,
     ),
+  );
+  const boundaryGuides = React.useMemo(
+    () => panel.showGuides === false
+      ? Object.freeze([])
+      : buildScientificPvBoundaryGuidesV1(series),
+    [panel.showGuides, series],
   );
   const relationPresentations = presentations.filter((presentation) =>
     displayMode !== "off"
@@ -549,6 +565,7 @@ function ScientificPvGraphPanelV1({
       >
         <ScientificWorkbenchPvLoopCanvasV1
           series={series}
+          boundaryGuides={boundaryGuides}
           relations={relations}
           clock={clock}
           showLegend={panel.showLegend !== false}
@@ -908,16 +925,25 @@ function scientificPvRelationGenerationOverlayV1(input: Readonly<{
   if (presentation === null) return null;
   const job = presentation.jobSnapshot;
   const protocol = presentation.result;
+  const researchProtocol = presentation.researchResultV3
+    ?? job?.researchResultV3
+    ?? null;
   const progress = job?.progress ?? null;
   const beats = protocol?.beats ?? job?.beats ?? progress?.beats ?? [];
   const fitPointSelection = protocol?.fitPointSelection
     ?? progress?.fitPointSelection
     ?? null;
   const analysis = protocol?.analysis ?? progress?.provisionalAnalysis ?? null;
-  const completedBeatCount = progress?.completedBeatCount ?? beats.length;
-  const maximumBeatCount = protocol?.policy.maximumTotalBeatCount
+  const completedBeatCount = job?.researchProgressV3?.completedUniqueBeatCount
+    ?? researchProtocol?.beats.length
+    ?? progress?.completedBeatCount
+    ?? beats.length;
+  const maximumBeatCount = researchProtocol === null
+    ? protocol?.policy.maximumTotalBeatCount
     ?? progress?.maximumTotalBeatCount
-    ?? 8;
+    ?? 8
+    : researchProtocol.policy.lowerLoading.maximumTotalBeatCount
+      + researchProtocol.policy.higherLoading.maximumTotalBeatCount - 1;
   if (fitPointSelection === null || analysis === null) {
     if (presentation.status !== "running") return null;
     return Object.freeze({
@@ -955,6 +981,32 @@ function scientificPvRelationGenerationOverlayV1(input: Readonly<{
     "endDiastolic",
     input.pressureBasis,
   );
+  const higherLoading = researchProtocol?.lanes.higherLoading ?? null;
+  const selectedHigherBeatIds = new Set(
+    higherLoading?.fitPointSelection.includedBeatIds ?? [],
+  );
+  const selectedHigherBeats = higherLoading?.achievedDeclaredEdvDirection
+    ? higherLoading.beats.filter((beat) =>
+        beat.valid && selectedHigherBeatIds.has(beat.beatId))
+    : [];
+  const candidateHigherEs = scientificPvRelationEndpointSamplesV1(
+    selectedHigherBeats,
+    "endSystolic",
+    input.pressureBasis,
+  );
+  const candidateHigherEd = scientificPvRelationEndpointSamplesV1(
+    selectedHigherBeats,
+    "endDiastolic",
+    input.pressureBasis,
+  );
+  const hasRenderableHigherLane = candidateHigherEs.length >= 2
+    && candidateHigherEd.length >= 2;
+  const higherEsObserved = hasRenderableHigherLane
+    ? candidateHigherEs
+    : Object.freeze([]);
+  const higherEdObserved = hasRenderableHigherLane
+    ? candidateHigherEd
+    : Object.freeze([]);
   const espvr = scientificPvRelationDisplayCurveV1({
     fitted: basisCurves.espvr,
     observed: esSamples,
@@ -967,7 +1019,9 @@ function scientificPvRelationGenerationOverlayV1(input: Readonly<{
   });
   const hasLimitedFit = analysis.espvr.status === "rejected"
     || analysis.edpvr.status === "rejected"
-    || protocol?.failureReason !== null && protocol?.failureReason !== undefined;
+    || protocol?.failureReason !== null && protocol?.failureReason !== undefined
+    || higherLoading !== null
+      && higherLoading.acquisitionStatus !== "accepted";
   const unsupportedLeftRegurgitation =
     protocol?.terminationReason ===
       "unsupported-mitral-or-aortic-regurgitation";
@@ -998,10 +1052,26 @@ function scientificPvRelationGenerationOverlayV1(input: Readonly<{
     edpvrQuality: analysis.edpvr.status === "accepted"
       ? "accepted" as const
       : edpvr.length >= 2 ? "limited" as const : "unavailable" as const,
+    ...(higherLoading === null
+      ? {}
+      : {
+          higherLoadingEndSystolicObserved: higherEsObserved,
+          higherLoadingEndDiastolicObserved: higherEdObserved,
+          higherLoadingQuality: higherLoading.acquisitionStatus === "accepted"
+            ? "accepted" as const
+            : hasRenderableHigherLane
+              ? "limited" as const
+              : "unavailable" as const,
+        }),
     ...(unsupportedLeftRegurgitation && protocol?.failureReason
       ? { errorMessage: protocol.failureReason }
       : {}),
-    domainAnchorPoints: Object.freeze([...esSamples, ...edSamples]),
+    domainAnchorPoints: Object.freeze([
+      ...esSamples,
+      ...edSamples,
+      ...higherEsObserved,
+      ...higherEdObserved,
+    ]),
     ...(input.showSamplePoints
       ? {
           endSystolicSamples: esSamples,
@@ -1034,7 +1104,9 @@ function scientificPvRelationDisplayCurveV1(input: Readonly<{
 }
 
 function scientificPvRelationEndpointSamplesV1(
-  beats: readonly MainWireScientificPvRelationBeatV2[],
+  beats: readonly (
+    MainWireScientificPvRelationBeatV2 | MainWireScientificPvRelationBeatV3
+  )[],
   endpoint: "endSystolic" | "endDiastolic",
   pressureBasis: PvRelationPressureBasis,
 ): readonly Readonly<{ volumeMl: number; pressureMmHg: number }>[] {
@@ -2189,6 +2261,7 @@ function chartScenarioV1(
     color: presentation.descriptor.color,
     isVisible: presentation.descriptor.isVisible,
     frames: presentation.frames,
+    guideCycleFrames: presentation.metricCycle?.frames ?? null,
     periodicCycleFrames: presentation.periodicCycleFrames,
     cycleDurationSec: presentation.cycleDurationSec,
     transientOriginAcceptedTimeSec: presentation.transientOriginAcceptedTimeSec,

@@ -33,14 +33,18 @@ if (officialCycleNames.length > 1) {
   );
 }
 const officialCycleName = officialCycleNames[0] ?? null;
-const clientName = exactlyOne(
-  assetNames.filter((name) => name.startsWith("MainWireScientificWorkerClientV1-")),
-  "scientific Worker client chunk",
-);
 const sources = new Map(await Promise.all(assetNames.map(async (name) => [
   name,
   await readFile(path.join(assetsDirectory, name), "utf8"),
 ])));
+// Rollup names a shared chunk after whichever scientific module becomes its
+// dominant owner. V3 makes the Worker client share the protocol chunk, so the
+// semantic runtime marker is a more stable boundary than a filename prefix.
+const clientName = exactlyOne(
+  assetNames.filter((name) =>
+    sources.get(name)?.includes("main-wire-scientific-worker-client-v1")),
+  "scientific Worker client chunk",
+);
 const workerSource = sources.get(workerName);
 const alphaSource = sources.get(alphaName);
 const workbenchSource = sources.get(workbenchName);

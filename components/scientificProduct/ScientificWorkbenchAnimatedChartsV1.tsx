@@ -13,6 +13,10 @@ import { InteractiveGraphLegend } from "@/components/InteractiveGraphLegend";
 import type { LegendPosition, PvLoopHistoryMode } from "@/types";
 
 import type { ScientificWorkbenchDisplayClockV1 } from "./ScientificWorkbenchDisplayClockV1";
+import type {
+  ScientificPvBoundaryGuidePointV1,
+  ScientificPvBoundaryGuideV1,
+} from "./ScientificPvBoundaryGuidesV1";
 
 export type ScientificWorkbenchChartScenarioV1 = Readonly<{
   id: string;
@@ -20,6 +24,8 @@ export type ScientificWorkbenchChartScenarioV1 = Readonly<{
   color: string;
   isVisible: boolean;
   frames: readonly MainWireScientificObservableFrameV1[];
+  /** Latest complete beat selected for live metrics and orientation guides. */
+  guideCycleFrames?: readonly MainWireScientificObservableFrameV1[] | null;
   /** A complete, validated cycle may be repeated for presentation only. */
   periodicCycleFrames: readonly MainWireScientificObservableFrameV1[] | null;
   cycleDurationSec: number | null;
@@ -87,6 +93,13 @@ export type ScientificWorkbenchPvRelationOverlayV1 = Readonly<{
   edpvr: readonly ScientificWorkbenchPvRelationPointV1[];
   endSystolicSamples?: readonly ScientificWorkbenchPvRelationPointV1[];
   endDiastolicSamples?: readonly ScientificWorkbenchPvRelationPointV1[];
+  /** V3 higher-loading observations; never a pooled or formal relation fit. */
+  higherLoadingEndSystolicObserved?:
+    readonly ScientificWorkbenchPvRelationPointV1[];
+  /** V3 higher-loading observations; never a pooled or formal relation fit. */
+  higherLoadingEndDiastolicObserved?:
+    readonly ScientificWorkbenchPvRelationPointV1[];
+  higherLoadingQuality?: "accepted" | "limited" | "unavailable";
   domainAnchorPoints?: readonly ScientificWorkbenchPvRelationPointV1[];
 }>;
 
@@ -167,6 +180,8 @@ function pvRelationDomainAnchors(
   return relation.domainAnchorPoints ?? [
     ...(relation.endSystolicSamples ?? []),
     ...(relation.endDiastolicSamples ?? []),
+    ...(relation.higherLoadingEndSystolicObserved ?? []),
+    ...(relation.higherLoadingEndDiastolicObserved ?? []),
   ];
 }
 
@@ -338,6 +353,7 @@ export function ScientificWorkbenchWaveformCanvasV1({
 
 export function ScientificWorkbenchPvLoopCanvasV1({
   series,
+  boundaryGuides = [],
   relations = [],
   clock,
   showLegend = true,
@@ -346,6 +362,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   legendInteraction,
 }: Readonly<{
   series: readonly ScientificWorkbenchPvSeriesV1[];
+  boundaryGuides?: readonly ScientificPvBoundaryGuideV1[];
   relations?: readonly ScientificWorkbenchPvRelationOverlayV1[];
   clock: ScientificWorkbenchDisplayClockV1;
   showLegend?: boolean;
@@ -362,6 +379,8 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   }, []);
   const seriesRef = React.useRef(series);
   seriesRef.current = series;
+  const boundaryGuidesRef = React.useRef(boundaryGuides);
+  boundaryGuidesRef.current = boundaryGuides;
   const relationsRef = React.useRef(relations);
   relationsRef.current = relations;
   const lastPeriodicTrajectoryBySeriesRef = React.useRef(
@@ -397,11 +416,17 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     : pressureBasisKinds.has("transmural")
       ? t('workbench.panelGrid.pvRelationTransmuralPressureAxis')
       : t('workbench.panelGrid.pvRelationIntracavitaryPressureAxis');
-  const canvasAriaLabel = `${[
-    ...new Set(series.map((item) => item.signalName)),
-  ].join(", ")} · ${accessiblePressureBasis}. ${t(
-    'workbench.panelGrid.pvRelationsDescription',
-  )}`;
+  const canvasAriaLabel = [
+    `${[
+      ...new Set(series.map((item) => item.signalName)),
+    ].join(", ")} · ${accessiblePressureBasis}.`,
+    boundaryGuides.length > 0
+      ? t('workbench.panelGrid.textbookPvGuidesDescription')
+      : null,
+    relations.length > 0
+      ? t('workbench.panelGrid.pvRelationsDescription')
+      : null,
+  ].filter(Boolean).join(" ");
   const normalizedHistoryBeats = normalizeScientificPvHistoryBeatsV1(historyBeats);
   const retainedTrajectoryCount = Math.max(
     0,
@@ -434,6 +459,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     if (!visible) return undefined;
     return animateCanvas(containerRef, canvasRef, (ctx, width, height, nowMs) => {
       const currentSeries = seriesRef.current;
+      const currentBoundaryGuides = boundaryGuidesRef.current;
       const currentRelations = relationsRef.current;
       const plot = scientificChartPlotRectV1(
         width,
@@ -464,12 +490,18 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       const relationPoints = scientificPvRelationDomainPointsV1(
         currentRelations,
       );
+      const boundaryGuidePoints = currentBoundaryGuides.flatMap((guide) => [
+        ...guide.espvr,
+        ...guide.edpvr,
+      ]);
       const xDomain = scientificChartDomainV1([
         ...allPoints.map(({ volume }) => volume),
+        ...boundaryGuidePoints.map(({ volumeMl }) => volumeMl),
         ...relationPoints.map(({ volumeMl }) => volumeMl),
       ]);
       const yDomain = scientificChartDomainV1([
         ...allPoints.map(({ pressure }) => pressure),
+        ...boundaryGuidePoints.map(({ pressureMmHg }) => pressureMmHg),
         ...relationPoints.map(({ pressureMmHg }) => pressureMmHg),
       ]);
       const x = d3.scaleLinear().domain(xDomain).range([plot.left, plot.right]);
@@ -498,6 +530,10 @@ export function ScientificWorkbenchPvLoopCanvasV1({
         pressureLabel,
         theme,
       );
+
+      for (const guide of currentBoundaryGuides) {
+        drawScientificPvBoundaryGuideV1(ctx, guide, x, y, theme);
+      }
 
       for (const relation of currentRelations) {
         drawScientificPvRelationOverlayV1(ctx, relation, x, y, theme);
@@ -573,11 +609,20 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       data-pv-history-mode={historyMode}
       data-pv-history-trajectory-count={retainedTrajectoryCount}
       data-pv-history-source-trajectory-count={retainedSourceTrajectoryCount}
+      data-pv-boundary-guide-count={boundaryGuides.length}
+      data-pv-guide-espvr-curve-count={boundaryGuides.filter((guide) =>
+        guide.espvr.length >= 2).length}
+      data-pv-guide-edpvr-curve-count={boundaryGuides.filter((guide) =>
+        guide.edpvr.length >= 2).length}
       data-pv-relation-count={relations.length}
       data-pv-espvr-curve-count={relations.filter((relation) =>
         relation.espvr.length >= 2).length}
       data-pv-edpvr-curve-count={relations.filter((relation) =>
         relation.edpvr.length >= 2).length}
+      data-pv-higher-loading-segment-count={relations.filter((relation) =>
+        (relation.higherLoadingEndSystolicObserved?.length ?? 0) >= 2
+        || (relation.higherLoadingEndDiastolicObserved?.length ?? 0) >= 2
+      ).length}
     >
       {showLegend && (
         <ScientificWorkbenchChartLegendV1
@@ -645,6 +690,88 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       })()}
     </div>
   );
+}
+
+export function drawScientificPvBoundaryGuideV1(
+  ctx: CanvasRenderingContext2D,
+  guide: ScientificPvBoundaryGuideV1,
+  x: d3.ScaleLinear<number, number>,
+  y: d3.ScaleLinear<number, number>,
+  theme?: CanvasTheme,
+): void {
+  const color = scientificRelationColorV1(guide.color, theme);
+  drawScientificPvBoundaryGuidePathV1(ctx, guide.espvr, x, y, color, 0.72);
+  drawScientificPvBoundaryGuidePathV1(ctx, guide.edpvr, x, y, color, 0.64);
+  drawScientificPvBoundaryGuideContactV1(
+    ctx,
+    guide.endSystolicContact,
+    x,
+    y,
+    color,
+    theme,
+  );
+  if (guide.edpvr.length >= 2) {
+    drawScientificPvBoundaryGuideContactV1(
+      ctx,
+      guide.endDiastolicContact,
+      x,
+      y,
+      color,
+      theme,
+    );
+  }
+}
+
+function drawScientificPvBoundaryGuidePathV1(
+  ctx: CanvasRenderingContext2D,
+  points: readonly ScientificPvBoundaryGuidePointV1[],
+  x: d3.ScaleLinear<number, number>,
+  y: d3.ScaleLinear<number, number>,
+  color: string,
+  alpha: number,
+): void {
+  const finite = points.filter(({ volumeMl, pressureMmHg }) =>
+    Number.isFinite(volumeMl) && Number.isFinite(pressureMmHg));
+  if (finite.length < 2) return;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = alpha;
+  ctx.lineWidth = 1.75;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  finite.forEach((point, index) => {
+    const px = x(point.volumeMl);
+    const py = y(point.pressureMmHg);
+    if (index === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawScientificPvBoundaryGuideContactV1(
+  ctx: CanvasRenderingContext2D,
+  point: ScientificPvBoundaryGuidePointV1,
+  x: d3.ScaleLinear<number, number>,
+  y: d3.ScaleLinear<number, number>,
+  color: string,
+  theme?: CanvasTheme,
+): void {
+  if (!Number.isFinite(point.volumeMl) || !Number.isFinite(point.pressureMmHg)) {
+    return;
+  }
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x(point.volumeMl), y(point.pressureMmHg), 3.25, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.86;
+  ctx.fill();
+  ctx.strokeStyle = theme?.backgroundIsDark === false ? "#ffffff" : "#07111f";
+  ctx.globalAlpha = 0.92;
+  ctx.lineWidth = 1.25;
+  ctx.stroke();
+  ctx.restore();
 }
 
 function ScientificPvRelationQualityNoticeV1({
@@ -775,6 +902,28 @@ export function drawScientificPvRelationOverlayV1(
     relationOutline,
     [1.5, 3.5],
     generationAlpha * 0.92,
+  );
+  // V3 higher-loading evidence is deliberately drawn as two observed-only
+  // segments. It is not joined to, or fitted with, the validated V2 lane.
+  drawScientificPvRelationPathV1(
+    ctx,
+    relation.higherLoadingEndSystolicObserved ?? [],
+    x,
+    y,
+    relationColor,
+    relationOutline,
+    [3, 5],
+    generationAlpha * 0.72,
+  );
+  drawScientificPvRelationPathV1(
+    ctx,
+    relation.higherLoadingEndDiastolicObserved ?? [],
+    x,
+    y,
+    relationColor,
+    relationOutline,
+    [1, 5],
+    generationAlpha * 0.64,
   );
   if (relation.endSystolicSamples) {
     drawScientificPvRelationSamplesV1(

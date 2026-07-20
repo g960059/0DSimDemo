@@ -6,6 +6,10 @@ import type {
   MainWireScientificPvRelationsProgressV2,
   MainWireScientificPvRelationsProtocolResultV2,
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV2";
+import type {
+  MainWireScientificPvRelationsProgressV3,
+  MainWireScientificPvRelationsProtocolResultV3,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 
 export const MAIN_WIRE_SCIENTIFIC_PV_RELATION_JOB_V1_ID =
   "main-wire-scientific-pv-relation-job-v1" as const;
@@ -18,6 +22,8 @@ export type MainWireScientificPvRelationJobStatusV1 =
 
 export type MainWireScientificPvRelationJobStageV1 =
   | "preload-reduction"
+  | "lower-loading"
+  | "higher-loading"
   | "complete"
   | "cancelled"
   | "error";
@@ -37,6 +43,10 @@ export type MainWireScientificPvRelationJobSnapshotV1 = Readonly<{
   beats: readonly MainWireScientificPvRelationBeatV2[];
   progress: MainWireScientificPvRelationsProgressV2 | null;
   result: MainWireScientificPvRelationsProtocolResultV2 | null;
+  /** Optional V3 research payload preserves the existing V2 UI snapshot ABI. */
+  researchProtocolCacheIdentity?: string;
+  researchProgressV3?: MainWireScientificPvRelationsProgressV3 | null;
+  researchResultV3?: MainWireScientificPvRelationsProtocolResultV3 | null;
   errorMessage: string | null;
 }>;
 
