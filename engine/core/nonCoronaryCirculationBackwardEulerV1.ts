@@ -27,6 +27,15 @@ import {
   type MainWireQuasiSteadyOrificeValveStateV2,
 } from "@/engine/mechanics2/valve/MainWireQuasiSteadyOrificeValveV2";
 import { stressedVolumeFromPtm } from "@/engine/vascularPv";
+import { evaluateIabpV1 } from "@/engine/devices/iabpV1";
+import {
+  evaluateMechanicalSupportHydraulicsV1,
+  validateMechanicalSupportConfigV1,
+} from "@/engine/devices/networkV1";
+import type {
+  MechanicalSupportConfigV1,
+  MechanicalSupportHydraulicEvaluationV1,
+} from "@/engine/devices/typesV1";
 
 export const NON_CORONARY_CIRCULATION_BE_V1_ID =
   "main-wire-derived-noncoronary-experimental-backward-euler-v1" as const;
@@ -181,6 +190,16 @@ export type NonCoronaryCirculationRuntimeParamsV1 = Readonly<{
   respiratory: RespiratoryPressureParameterViewV1;
   /** Explicit even for normal, so numeric identity and provenance cannot diverge. */
   valvePreset: MainWireFourValveDiseasePresetV1;
+}>;
+
+/**
+ * Optional same-candidate device extension. It is deliberately a trial input,
+ * rather than part of the immutable adult-0.2.0 runtime release contract.
+ */
+export type NonCoronaryMechanicalSupportInputV1 = Readonly<{
+  config: MechanicalSupportConfigV1;
+  /** Used only to map accepted time to IABP beat phase. */
+  heartRateBpm: number;
 }>;
 
 export type NonCoronaryCirculationGraphV1 = Readonly<{
@@ -338,6 +357,7 @@ export type NonCoronaryCirculationTrialInputV1<
   previousAcceptedState: NonCoronaryCirculationAcceptedStateV1;
   dtSec: number;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
+  mechanicalSupport?: NonCoronaryMechanicalSupportInputV1;
   evaluateCandidateMechanics:
     NonCoronaryCandidateMechanicsCallbackV1<TEvaluation>;
   options?: NonCoronaryCirculationNewtonOptionsV1;
@@ -460,6 +480,8 @@ export type NonCoronaryCirculationTrialSuccessV1<
   edgeFlowsMlPerSec: EdgeRecord<number>;
   valveEvaluations: ValveRecord<MainWireQuasiSteadyOrificeValveEvaluationV2>;
   candidateMechanicsEvaluation: TEvaluation;
+  /** Present when a device configuration was supplied, including all-off. */
+  mechanicalSupport?: MechanicalSupportHydraulicEvaluationV1;
   /** Absent at runtime on the immutable non-companion path. */
   conservativeCompanion?:
     NonCoronaryConservativeCompanionTrialReadbackV1<TCompanionTrial>;
@@ -534,6 +556,7 @@ type CandidateEvaluation<TEvaluation, TCompanionTrial = never> = Readonly<{
   valveStates: ValveRecord<MainWireQuasiSteadyOrificeValveStateV2>;
   valveEvaluations: ValveRecord<MainWireQuasiSteadyOrificeValveEvaluationV2>;
   candidateMechanicsEvaluation: TEvaluation;
+  mechanicalSupport: MechanicalSupportHydraulicEvaluationV1 | null;
   absoluteChamberPressureTangent:
     NonCoronaryAbsoluteChamberPressureTangentV1 | null;
   conservativeCompanion:
@@ -720,6 +743,7 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
       input.protocolResistanceScaleByEdge,
     );
     validateConservativeCompanionAdapter(input);
+    validateMechanicalSupportInput(input.mechanicalSupport);
     if (typeof input.evaluateCandidateMechanics !== "function") {
       throw new Error("evaluateCandidateMechanics must be a function");
     }
@@ -1269,12 +1293,21 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     volumeScales,
     nonCoronaryCandidateBloodVolumeMl,
   );
+  const supportTiming = input.mechanicalSupport === undefined
+    ? null
+    : mechanicalSupportTiming(
+      candidateTimeSec,
+      input.mechanicalSupport.heartRateBpm,
+    );
+  const iabp = input.mechanicalSupport === undefined || supportTiming === null
+    ? null
+    : evaluateIabpV1(input.mechanicalSupport.config.iabp, supportTiming);
   const nodeAbsolutePressuresMmHg = nodeRecord((name) => {
     if (isChamberName(name)) return mechanics.absolutePressuresMmHg[name];
     const node = graph.nodes[graph.nodeIndex.get(name)!];
     const ptmMmHg = vascularTransmuralPressureFromPhysicalVolumeV1(
       node,
-      nodeVolumesMl[name],
+      nodeVolumesMl[name] + (name === "SA" ? iabp?.balloonVolumeMl ?? 0 : 0),
       input.runtime.vascular,
       "adaptive-volume-tolerance",
     );
@@ -1285,6 +1318,29 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     );
     return requireFinite(ptmMmHg + ext, `${name} absolute pressure`);
   });
+  const mechanicalSupport = input.mechanicalSupport === undefined
+      || supportTiming === null
+    ? null
+    : evaluateMechanicalSupportHydraulicsV1(
+      input.mechanicalSupport.config,
+      {
+        ...supportTiming,
+        nodeAbsolutePressureMmHg: Object.freeze({
+          LV: nodeAbsolutePressuresMmHg.LV,
+          Ao: nodeAbsolutePressuresMmHg.Ao,
+          SA: nodeAbsolutePressuresMmHg.SA,
+          RA: nodeAbsolutePressuresMmHg.RA,
+          VC: nodeAbsolutePressuresMmHg.VC,
+        }),
+        nodeVolumeMl: Object.freeze({
+          LV: nodeVolumesMl.LV,
+          Ao: nodeVolumesMl.Ao,
+          SA: nodeVolumesMl.SA,
+          RA: nodeVolumesMl.RA,
+          VC: nodeVolumesMl.VC,
+        }),
+      },
+    );
   const valveEvaluations = {} as Record<
     NonCoronaryValveNameV1,
     MainWireQuasiSteadyOrificeValveEvaluationV2
@@ -1381,8 +1437,12 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       : isConservativeCompanionBoundaryNode(name)
         ? conservativeCompanion.outerBoundaryNetVolumeRateMlPerSec[name]
         : 0;
+    const supportRate = mechanicalSupportNodeRateMlPerSec(
+      mechanicalSupport,
+      name,
+    );
     return nodeVolumesMl[name] - previous.nodeVolumesMl[name]
-      - input.dtSec * (localRates[localIndex]! + companionRate);
+      - input.dtSec * (localRates[localIndex]! + companionRate + supportRate);
   });
   const scaledIndependentResidual = Object.freeze(
     INDEPENDENT_NODE_NAMES.map((name, index) =>
@@ -1402,6 +1462,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       MainWireQuasiSteadyOrificeValveEvaluationV2
     >,
     candidateMechanicsEvaluation: mechanics.evaluation,
+    mechanicalSupport,
     absoluteChamberPressureTangent:
       mechanics.absolutePressureTangent ?? null,
     conservativeCompanion,
@@ -1657,7 +1718,10 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
     const paired =
       vascularTransmuralPressureAndVolumeTangentFromPhysicalVolumeV1(
         node,
-        current.nodeVolumesMl[name],
+        current.nodeVolumesMl[name]
+          + (name === "SA"
+            ? current.mechanicalSupport?.iabp.balloonVolumeMl ?? 0
+            : 0),
         input.runtime.vascular,
         "adaptive-volume-tolerance",
       );
@@ -1822,6 +1886,43 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
       }
     }
   }
+  if (current.mechanicalSupport !== null) {
+    for (const pump of Object.values(current.mechanicalSupport.pump)) {
+      const inletName = pump.inletNode as NonCoronaryNodeNameV1;
+      const outletName = pump.outletNode as NonCoronaryNodeNameV1;
+      if (inletName === outletName) continue;
+      const inletPressureRow = graph.nodeIndex.get(inletName);
+      const outletPressureRow = graph.nodeIndex.get(outletName);
+      if (inletPressureRow === undefined || outletPressureRow === undefined) {
+        throw new Error(`${pump.deviceId} mechanical-support node is absent`);
+      }
+      const inletResidualRow = independentIndex.get(inletName);
+      const outletResidualRow = independentIndex.get(outletName);
+      const inletVolumeColumn = independentIndex.get(inletName);
+      for (let column = 0; column < size; column += 1) {
+        const dInletVolumeDScaledVolume = inletVolumeColumn === column
+          ? volumeScales[column]!
+          : 0;
+        const dFlowDScaledVolume =
+          pump.dFlowMlPerSecDInletPressureMlPerSecPerMmHg
+            * nodePressureDerivativeByScaledVolume[inletPressureRow]![column]!
+          + pump.dFlowMlPerSecDOutletPressureMlPerSecPerMmHg
+            * nodePressureDerivativeByScaledVolume[outletPressureRow]![column]!
+          + pump.dFlowMlPerSecDInletVolumePerSec
+            * dInletVolumeDScaledVolume;
+        // Device incidence follows the same conservative inlet/outlet signs
+        // as a native edge, but remains outside the immutable graph manifest.
+        if (inletResidualRow !== undefined) {
+          jacobian[inletResidualRow]![column] += input.dtSec
+            * dFlowDScaledVolume / volumeScales[inletResidualRow]!;
+        }
+        if (outletResidualRow !== undefined) {
+          jacobian[outletResidualRow]![column] -= input.dtSec
+            * dFlowDScaledVolume / volumeScales[outletResidualRow]!;
+        }
+      }
+    }
+  }
   const companionSensitivities = current.conservativeCompanion?.sensitivities;
   if (current.conservativeCompanion !== null) {
     if (companionSensitivities === undefined) {
@@ -1913,6 +2014,9 @@ function success<TEvaluation, TCompanionTrial>(
     edgeFlowsMlPerSec: evaluation.edgeFlowsMlPerSec,
     valveEvaluations: evaluation.valveEvaluations,
     candidateMechanicsEvaluation: evaluation.candidateMechanicsEvaluation,
+    ...(evaluation.mechanicalSupport === null
+      ? {}
+      : { mechanicalSupport: evaluation.mechanicalSupport }),
     ...(companion === null
       ? {}
       : {
@@ -2509,6 +2613,53 @@ function validateRuntime(runtime: NonCoronaryCirculationRuntimeParamsV1): void {
   );
   if (valveIssues.length > 0) {
     throw new Error(`invalid valvePreset: ${valveIssues.join("; ")}`);
+  }
+}
+
+function validateMechanicalSupportInput(
+  input: NonCoronaryMechanicalSupportInputV1 | undefined,
+): void {
+  if (input === undefined) return;
+  requirePositive(input.heartRateBpm, "mechanicalSupport.heartRateBpm");
+  validateMechanicalSupportConfigV1(input.config);
+}
+
+function mechanicalSupportTiming(
+  timeSec: number,
+  heartRateBpm: number,
+): Readonly<{
+  timeSec: number;
+  cyclePhase01: number;
+  beatIndex: number;
+  heartRateBpm: number;
+}> {
+  const beatPosition = requireFinite(
+    timeSec * requirePositive(heartRateBpm, "mechanical-support heart rate") / 60,
+    "mechanical-support beat position",
+  );
+  const beatIndex = Math.floor(beatPosition);
+  return Object.freeze({
+    timeSec,
+    cyclePhase01: beatPosition - beatIndex,
+    beatIndex,
+    heartRateBpm,
+  });
+}
+
+function mechanicalSupportNodeRateMlPerSec(
+  evaluation: MechanicalSupportHydraulicEvaluationV1 | null,
+  node: NonCoronaryNodeNameV1,
+): number {
+  if (evaluation === null) return 0;
+  switch (node) {
+    case "LV":
+    case "Ao":
+    case "SA":
+    case "RA":
+    case "VC":
+      return evaluation.nodeNetVolumeRateMlPerSec[node];
+    default:
+      return 0;
   }
 }
 
