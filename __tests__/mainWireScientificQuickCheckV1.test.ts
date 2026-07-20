@@ -75,6 +75,12 @@ describe("main-wire scientific Quick Check V1", () => {
     expect(result.numericalIntegrity.assessmentScope).toBe(
       "verified-existing-period1-following-cycle",
     );
+    expect(result.numericalIntegrity.numericalIntegrityPackId).toBe(
+      "main-wire-numerical-integrity-pack-v1",
+    );
+    expect(result.numericalIntegrity.thresholdSourceTargetPackId).toBe(
+      "main-wire-healthy-reference-target-pack-v1",
+    );
     expect(result.numericalIntegrity.metrics.find(({ observableId }) =>
       observableId === "solver.mechanics.residual_norm"
     )).toMatchObject({
