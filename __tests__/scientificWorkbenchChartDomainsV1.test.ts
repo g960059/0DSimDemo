@@ -12,6 +12,8 @@ import {
   scientificPvRelationQualityNoticesV1,
 } from "@/components/scientificProduct/ScientificWorkbenchAnimatedChartsV1";
 import {
+  scientificPvAnalysisDemandEnabledV1,
+  scientificPvProgressiveBoundaryGuidesForScenarioV1,
   scientificPvRelationOverlaysForScenarioV1,
 } from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
 import {
@@ -40,6 +42,71 @@ import type {
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 
 describe("scientific Workbench chart domains", () => {
+  it("requests PV analysis for either educational guides or advanced overlays", () => {
+    expect(scientificPvAnalysisDemandEnabledV1({
+      displayMode: "off",
+      selectsLv: true,
+    })).toBe(true);
+    expect(scientificPvAnalysisDemandEnabledV1({
+      displayMode: "research",
+      showGuides: false,
+      selectsLv: true,
+    })).toBe(true);
+    expect(scientificPvAnalysisDemandEnabledV1({
+      displayMode: "off",
+      showGuides: false,
+      selectsLv: true,
+    })).toBe(false);
+    expect(scientificPvAnalysisDemandEnabledV1({
+      displayMode: "research",
+      showGuides: true,
+      selectsLv: false,
+    })).toBe(false);
+  });
+
+  it("keeps the current educational guide dimmed until a pending replacement is renderable", () => {
+    const fallback = buildScientificPvBoundaryGuideV1(
+      textbookPvSeriesFixture("absolute"),
+    )!;
+    const resultV2 = pvRelationResultFixture({ fitStatus: "accepted" });
+    const current = pvRelationGenerationFixture(
+      "parameter-epoch-1",
+      resultV2,
+      "complete",
+      pvRelationResearchResultFixture(resultV2),
+    );
+    const history = pvRelationGenerationFixture(
+      "parameter-epoch-0",
+      resultV2,
+      "complete",
+      pvRelationResearchResultFixture(resultV2),
+    );
+    const pending = pvRelationGenerationFixture(
+      "parameter-epoch-2",
+      null,
+      "running",
+    );
+
+    const guides = scientificPvProgressiveBoundaryGuidesForScenarioV1({
+      fallbackGuide: fallback,
+      series: pvRelationSeriesFixture({ current, pending, history: [history] }),
+    });
+
+    expect(guides).toHaveLength(2);
+    expect(guides[0]).toMatchObject({
+      generationId: "parameter-epoch-1",
+      generationAge: 0,
+      opacityMultiplier: 0.55,
+      maximumPointCount: 7,
+    });
+    expect(guides[1]).toMatchObject({
+      generationId: "parameter-epoch-0",
+      generationAge: 1,
+      opacityMultiplier: 0.3,
+      sourceRole: "history",
+    });
+  });
+
   it("builds immediate textbook boundaries through the current LV contacts", () => {
     const guide = buildScientificPvBoundaryGuideV1(
       textbookPvSeriesFixture("absolute"),
@@ -443,15 +510,57 @@ describe("scientific Workbench chart domains", () => {
       "healthy:parameter-epoch-1",
     ]);
     expect(overlays[0]).toMatchObject({ status: "running", espvr: [] });
+    expect(overlays[0]).toMatchObject({
+      generationSequence: 1,
+      generationRole: "pending",
+      targetPreview: false,
+    });
     expect(overlays[1]!.espvr.length).toBeGreaterThan(1);
     expect(overlays[1]!.generationAge).toBe(1);
+    expect(overlays[1]!.generationRole).toBe("current");
     expect(overlays[2]!.espvr.length).toBeGreaterThan(1);
     expect(overlays[2]!.generationAge).toBe(2);
+    expect(overlays[2]!.generationRole).toBe("history");
     expect(scientificPvRelationDomainPointsV1(overlays)).toEqual([
       ...overlays[1]!.espvr,
       ...overlays[1]!.edpvr,
       ...overlays[1]!.domainAnchorPoints!,
     ]);
+  });
+
+  it("marks an independently calculated pending generation as a target preview", () => {
+    const pending = pvRelationGenerationFixture(
+      "parameter-epoch-4",
+      null,
+      "running",
+    );
+    const targetPreview = Object.freeze({
+      ...pending,
+      sequence: 7,
+      source: Object.freeze({
+        ...pending.source,
+        sourceIdentity: Object.freeze({
+          ...pending.source.sourceIdentity,
+          calculationSource:
+            "independent-case-source-warm-continuation" as const,
+        }),
+      }),
+    });
+    const [overlay] = scientificPvRelationOverlaysForScenarioV1({
+      scenarioId: "healthy",
+      color: "#38bdf8",
+      series: pvRelationSeriesFixture({ pending: targetPreview }),
+      displayMode: "standard",
+      pressureBasis: "intracavitary",
+      showSamplePoints: false,
+      historyCount: 5,
+    });
+
+    expect(overlay).toMatchObject({
+      generationSequence: 7,
+      generationRole: "pending",
+      targetPreview: true,
+    });
   });
 
   it("reports limited relations independently from the visual legend", () => {

@@ -17,6 +17,14 @@ import type {
   ScientificPvBoundaryGuidePointV1,
   ScientificPvBoundaryGuideV1,
 } from "./ScientificPvBoundaryGuidesV1";
+import {
+  advanceScientificPvProgressivePresentationStateV1,
+  createScientificPvProgressivePresentationStateV1,
+  presentScientificPvProgressivePresentationStateV1,
+  type ScientificPvPresentationDomainV1,
+  type ScientificPvPresentationGenerationInputV1,
+  type ScientificPvPresentationScenarioInputV1,
+} from "./ScientificPvProgressivePresentationStateV1";
 
 export type ScientificWorkbenchChartScenarioV1 = Readonly<{
   id: string;
@@ -43,6 +51,11 @@ export type ScientificWorkbenchLegendEntryV1 = Readonly<{
   modelName: string;
   signalName: string;
   hidden?: boolean;
+  progress?: Readonly<{
+    status: "running" | "complete" | "stale";
+    completed: number;
+    total: number;
+  }>;
 }>;
 
 export type ScientificWorkbenchLegendInteractionV1 = Readonly<{
@@ -191,6 +204,86 @@ function pvRelationHasDomainEvidence(
   return relation.espvr.length >= 2
     || relation.edpvr.length >= 2
     || pvRelationDomainAnchors(relation).length >= 2;
+}
+
+export function scientificPvBoundaryGuidePresentationInputsV1(
+  guides: readonly ScientificPvBoundaryGuideV1[],
+): readonly ScientificPvPresentationScenarioInputV1<
+  ScientificPvBoundaryGuideV1
+>[] {
+  const grouped = new Map<string, ScientificPvBoundaryGuideV1[]>();
+  for (const guide of guides) {
+    const group = grouped.get(guide.scenarioId) ?? [];
+    group.push(guide);
+    grouped.set(guide.scenarioId, group);
+  }
+  return Object.freeze([...grouped.entries()].flatMap(
+    ([scenarioId, scenarioGuides]) => {
+      const ordered = [...scenarioGuides].sort((left, right) =>
+        (left.generationAge ?? 0) - (right.generationAge ?? 0));
+      const currentGuide = ordered.find((guide) =>
+        (guide.generationAge ?? 0) === 0) ?? ordered[0];
+      if (currentGuide === undefined) return [];
+      const current = scientificPvBoundaryGuideGenerationInputV1(
+        currentGuide,
+      );
+      const history = ordered
+        .filter((guide) => guide !== currentGuide)
+        .map(scientificPvBoundaryGuideGenerationInputV1);
+      const pending = currentGuide.replacementPending === true
+        ? Object.freeze({
+            generationId: `${current.generationId}:incoming`,
+            sequence: current.sequence,
+            status: "running" as const,
+            renderable: false,
+            payload: null,
+            domain: null,
+          })
+        : null;
+      return [Object.freeze({
+        scenarioId,
+        current,
+        pending,
+        history: Object.freeze(history),
+      })];
+    },
+  ));
+}
+
+export function scientificPvPresentationDomainFromPointsV1(
+  points: readonly ScientificWorkbenchPvRelationPointV1[],
+): ScientificPvPresentationDomainV1 | null {
+  const finite = points.filter(({ volumeMl, pressureMmHg }) =>
+    Number.isFinite(volumeMl) && Number.isFinite(pressureMmHg));
+  if (finite.length === 0) return null;
+  return Object.freeze({
+    volumeMl: Object.freeze([
+      Math.min(...finite.map(({ volumeMl }) => volumeMl)),
+      Math.max(...finite.map(({ volumeMl }) => volumeMl)),
+    ]) as readonly [number, number],
+    pressureMmHg: Object.freeze([
+      Math.min(...finite.map(({ pressureMmHg }) => pressureMmHg)),
+      Math.max(...finite.map(({ pressureMmHg }) => pressureMmHg)),
+    ]) as readonly [number, number],
+  });
+}
+
+function scientificPvBoundaryGuideGenerationInputV1(
+  guide: ScientificPvBoundaryGuideV1,
+): ScientificPvPresentationGenerationInputV1<ScientificPvBoundaryGuideV1> {
+  const points = [...guide.espvr, ...guide.edpvr];
+  return Object.freeze({
+    generationId: guide.generationId ?? `textbook:${guide.key}`,
+    sequence: guide.generationSequence ?? 0,
+    status: guide.status === "running"
+      ? "running" as const
+      : guide.status === "stale"
+        ? "stale" as const
+        : "complete" as const,
+    renderable: points.length >= 2,
+    payload: guide,
+    domain: scientificPvPresentationDomainFromPointsV1(points),
+  });
 }
 
 const PLOT_PADDING = Object.freeze({ left: 64, right: 16, top: 24, bottom: 32 });
@@ -383,6 +476,11 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   boundaryGuidesRef.current = boundaryGuides;
   const relationsRef = React.useRef(relations);
   relationsRef.current = relations;
+  const guidePresentationStateRef = React.useRef(
+    createScientificPvProgressivePresentationStateV1<
+      ScientificPvBoundaryGuideV1
+    >({ historyLimit: 5 }),
+  );
   const lastPeriodicTrajectoryBySeriesRef = React.useRef(
     new Map<string, readonly PvValue[]>(),
   );
@@ -395,14 +493,41 @@ export function ScientificWorkbenchPvLoopCanvasV1({
     retainedSourceTrajectoryBySeriesRef.current,
   );
   const visible = useDocumentVisible();
+  const reducedMotion = usePrefersReducedMotionV1();
   const reserveLegendSpace =
     showLegend && legendInteraction?.legendPosition === undefined;
-  const legend = React.useMemo(() => series.map((item) => ({
-    key: item.key,
-    color: item.color,
-    modelName: item.scenario.name,
-    signalName: item.signalName,
-  })), [series]);
+  const legend = React.useMemo(() => series.map((item) => {
+    const guide = boundaryGuides.find((candidate) =>
+      candidate.scenarioId === item.scenario.id
+      && (candidate.generationAge ?? 0) === 0);
+    const relation = relations.find((candidate) =>
+      candidate.scenarioId === item.scenario.id
+      && (candidate.generationAge ?? 0) === 0);
+    const completed = guide?.completedPointCount
+      ?? relation?.completedBeatCount
+      ?? 0;
+    const total = guide?.maximumPointCount
+      ?? relation?.maximumBeatCount
+      ?? 0;
+    const status = guide?.status === "running" || relation?.status === "running"
+      ? "running" as const
+      : guide?.status === "stale"
+        || relation?.status === "stale"
+        || relation?.status === "error"
+        ? "stale" as const
+        : guide?.status === "complete" || relation?.status === "complete"
+          ? "complete" as const
+          : null;
+    return {
+      key: item.key,
+      color: item.color,
+      modelName: item.scenario.name,
+      signalName: item.signalName,
+      progress: status === null || total <= 0
+        ? undefined
+        : Object.freeze({ status, completed, total }),
+    };
+  }), [boundaryGuides, relations, series]);
   const qualityNotices = React.useMemo(
     () => scientificPvRelationQualityNoticesV1(relations),
     [relations],
@@ -490,20 +615,40 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       const relationPoints = scientificPvRelationDomainPointsV1(
         currentRelations,
       );
-      const boundaryGuidePoints = currentBoundaryGuides.flatMap((guide) => [
-        ...guide.espvr,
-        ...guide.edpvr,
+      const baseDomain = scientificPvPresentationDomainFromPointsV1([
+        ...allPoints.map(({ volume, pressure }) => Object.freeze({
+          volumeMl: volume,
+          pressureMmHg: pressure,
+        })),
+        ...relationPoints,
       ]);
-      const xDomain = scientificChartDomainV1([
-        ...allPoints.map(({ volume }) => volume),
-        ...boundaryGuidePoints.map(({ volumeMl }) => volumeMl),
-        ...relationPoints.map(({ volumeMl }) => volumeMl),
-      ]);
-      const yDomain = scientificChartDomainV1([
-        ...allPoints.map(({ pressure }) => pressure),
-        ...boundaryGuidePoints.map(({ pressureMmHg }) => pressureMmHg),
-        ...relationPoints.map(({ pressureMmHg }) => pressureMmHg),
-      ]);
+      guidePresentationStateRef.current =
+        advanceScientificPvProgressivePresentationStateV1(
+          guidePresentationStateRef.current,
+          Object.freeze({
+            nowMs,
+            reducedMotion,
+            baseDomain,
+            scenarios: scientificPvBoundaryGuidePresentationInputsV1(
+              currentBoundaryGuides,
+            ),
+          }),
+        );
+      const guidePresentation =
+        presentScientificPvProgressivePresentationStateV1(
+          guidePresentationStateRef.current,
+          nowMs,
+        );
+      const xDomain = scientificChartDomainV1(
+        guidePresentation.domain === null
+          ? allPoints.map(({ volume }) => volume)
+          : [...guidePresentation.domain.volumeMl],
+      );
+      const yDomain = scientificChartDomainV1(
+        guidePresentation.domain === null
+          ? allPoints.map(({ pressure }) => pressure)
+          : [...guidePresentation.domain.pressureMmHg],
+      );
       const x = d3.scaleLinear().domain(xDomain).range([plot.left, plot.right]);
       const y = d3.scaleLinear().domain(yDomain).range([plot.bottom, plot.top]);
       const pressureBasisCount = currentSeries.reduce((counts, item) => {
@@ -531,8 +676,15 @@ export function ScientificWorkbenchPvLoopCanvasV1({
         theme,
       );
 
-      for (const guide of currentBoundaryGuides) {
-        drawScientificPvBoundaryGuideV1(ctx, guide, x, y, theme);
+      for (const layer of guidePresentation.layers) {
+        drawScientificPvBoundaryGuideV1(
+          ctx,
+          layer.payload,
+          x,
+          y,
+          theme,
+          layer.opacity,
+        );
       }
 
       for (const relation of currentRelations) {
@@ -593,6 +745,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   }, [
     clock,
     historyMode,
+    reducedMotion,
     reserveLegendSpace,
     normalizedHistoryBeats,
     showLegend,
@@ -639,30 +792,6 @@ export function ScientificWorkbenchPvLoopCanvasV1({
         aria-label={canvasAriaLabel}
       />
       <ScientificPvRelationQualityNoticeV1 notices={qualityNotices} />
-      {relations.some((relation) => relation.status === "running") && (() => {
-        const running = relations.filter((relation) =>
-          relation.status === "running");
-        const completed = running.reduce(
-          (sum, relation) => sum + relation.completedBeatCount,
-          0,
-        );
-        const total = running.reduce(
-          (sum, relation) => sum + relation.maximumBeatCount,
-          0,
-        );
-        return (
-        <div
-          className="pointer-events-none absolute bottom-2 left-2 rounded border border-wb-line bg-wb-panel/88 px-2 py-1 text-[9px] font-semibold text-wb-muted backdrop-blur-sm"
-          role="status"
-          data-testid="scientific-pv-relation-progress-v1"
-        >
-          {t('workbench.panelGrid.pvRelationCalculating', {
-            completed,
-            total,
-          })}
-        </div>
-        );
-      })()}
       {!relations.some((relation) => relation.status === "running") && (() => {
         const notice = relations.find((relation) =>
           (relation.generationAge ?? 0) === 0
@@ -698,10 +827,26 @@ export function drawScientificPvBoundaryGuideV1(
   x: d3.ScaleLinear<number, number>,
   y: d3.ScaleLinear<number, number>,
   theme?: CanvasTheme,
+  opacityMultiplier = guide.opacityMultiplier ?? 1,
 ): void {
   const color = scientificRelationColorV1(guide.color, theme);
-  drawScientificPvBoundaryGuidePathV1(ctx, guide.espvr, x, y, color, 0.72);
-  drawScientificPvBoundaryGuidePathV1(ctx, guide.edpvr, x, y, color, 0.64);
+  const opacity = Math.max(0, Math.min(1, opacityMultiplier));
+  drawScientificPvBoundaryGuidePathV1(
+    ctx,
+    guide.espvr,
+    x,
+    y,
+    color,
+    0.72 * opacity,
+  );
+  drawScientificPvBoundaryGuidePathV1(
+    ctx,
+    guide.edpvr,
+    x,
+    y,
+    color,
+    0.64 * opacity,
+  );
   drawScientificPvBoundaryGuideContactV1(
     ctx,
     guide.endSystolicContact,
@@ -709,6 +854,7 @@ export function drawScientificPvBoundaryGuideV1(
     y,
     color,
     theme,
+    opacity,
   );
   if (guide.edpvr.length >= 2) {
     drawScientificPvBoundaryGuideContactV1(
@@ -718,6 +864,7 @@ export function drawScientificPvBoundaryGuideV1(
       y,
       color,
       theme,
+      opacity,
     );
   }
 }
@@ -757,6 +904,7 @@ function drawScientificPvBoundaryGuideContactV1(
   y: d3.ScaleLinear<number, number>,
   color: string,
   theme?: CanvasTheme,
+  opacityMultiplier = 1,
 ): void {
   if (!Number.isFinite(point.volumeMl) || !Number.isFinite(point.pressureMmHg)) {
     return;
@@ -765,10 +913,10 @@ function drawScientificPvBoundaryGuideContactV1(
   ctx.beginPath();
   ctx.arc(x(point.volumeMl), y(point.pressureMmHg), 3.25, 0, Math.PI * 2);
   ctx.fillStyle = color;
-  ctx.globalAlpha = 0.86;
+  ctx.globalAlpha = 0.86 * opacityMultiplier;
   ctx.fill();
   ctx.strokeStyle = theme?.backgroundIsDark === false ? "#ffffff" : "#07111f";
-  ctx.globalAlpha = 0.92;
+  ctx.globalAlpha = 0.92 * opacityMultiplier;
   ctx.lineWidth = 1.25;
   ctx.stroke();
   ctx.restore();
@@ -858,6 +1006,14 @@ export function ScientificWorkbenchChartLegendV1({
               ? `${entry.modelName} · ${entry.signalName}`
               : entry.signalName}
           </span>
+          {entry.progress?.status === "running" && (
+            <span
+              className="h-2.5 w-2.5 shrink-0 rounded-full border border-current border-r-transparent text-wb-accent motion-safe:animate-spin"
+              role="status"
+              aria-label={`${entry.progress.completed}/${entry.progress.total}`}
+              title={`${entry.progress.completed}/${entry.progress.total}`}
+            />
+          )}
         </span>
       ))}
     </InteractiveGraphLegend>
@@ -1667,6 +1823,24 @@ function positiveModulo(value: number, period: number): number {
   if (!(period > 0)) return 0;
   const result = value % period;
   return result < 0 ? result + period : result;
+}
+
+function usePrefersReducedMotionV1(): boolean {
+  const [reduced, setReduced] = React.useState(() =>
+    typeof window !== "undefined"
+      && typeof window.matchMedia === "function"
+      && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(query.matches);
+    onChange();
+    query.addEventListener?.("change", onChange);
+    return () => query.removeEventListener?.("change", onChange);
+  }, []);
+  return reduced;
 }
 
 function publishCanvasEvidence(

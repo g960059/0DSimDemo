@@ -32,6 +32,12 @@ const registryMocks = vi.hoisted(() => ({
     onJobSnapshot: (event: unknown) => void;
     onError: (event: unknown) => void;
   }>,
+  pvAnalysisCoordinators: [] as Array<{
+    requestLatest: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+    onJobSnapshot: (event: unknown) => void;
+    onError: (event: unknown) => void;
+  }>,
 }));
 
 vi.mock("@/engine/scientificBrowser", () => ({
@@ -85,6 +91,29 @@ vi.mock(
   }),
 );
 
+vi.mock(
+  "@/components/scientificProduct/ScientificProductPvRelationAnalysisCoordinatorV1",
+  () => ({
+    SCIENTIFIC_PRODUCT_PV_RELATION_ANALYSIS_PROVENANCE_V1:
+      "independent-case-source-warm-continuation",
+    ScientificProductPvRelationAnalysisCoordinatorV1: class {
+      readonly requestLatest = vi.fn();
+      readonly dispose = vi.fn(async () => undefined);
+      readonly onJobSnapshot: (event: unknown) => void;
+      readonly onError: (event: unknown) => void;
+
+      constructor(options: Readonly<{
+        onJobSnapshot: (event: unknown) => void;
+        onError: (event: unknown) => void;
+      }>) {
+        this.onJobSnapshot = options.onJobSnapshot;
+        this.onError = options.onError;
+        registryMocks.pvAnalysisCoordinators.push(this);
+      }
+    },
+  }),
+);
+
 import {
   completeTransientMetricBeatV1,
   ScientificProductScenarioRegistryV1,
@@ -101,6 +130,7 @@ describe("scientific product scenario registry V1", () => {
     registryMocks.createdClients.length = 0;
     registryMocks.clientConstructorError = null;
     registryMocks.analysisCoordinators.length = 0;
+    registryMocks.pvAnalysisCoordinators.length = 0;
     registryMocks.loadOfficialCycle.mockReset();
     registryMocks.loadOfficialCycle.mockImplementation(
       async (_client: unknown, options: Readonly<{ sessionId: string }>) =>
@@ -1461,6 +1491,167 @@ describe("scientific product scenario registry V1", () => {
     }
   });
 
+  it("routes live PV relations through the hidden target and retains the last renderable generation", () => {
+    const revision = 99_200;
+    const client = pvRelationJobClientFixture(() => {
+      throw new Error("the visible worker must not analyse a live target");
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("pv-live-target-routing", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      publishLiveTarget(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 99.201,
+        parameterEpoch: 1,
+        controlStateSha256: "1".repeat(64),
+      });
+      registry.setPvRelationProtocolDemand("pv-live-pane", { scenarioId });
+
+      expect(client.request).not.toHaveBeenCalled();
+      expect(registryMocks.pvAnalysisCoordinators).toHaveLength(1);
+      const coordinator = registryMocks.pvAnalysisCoordinators[0]!;
+      const firstRequest = coordinator.requestLatest.mock.calls[0]![0];
+      expect(firstRequest).toMatchObject({
+        visibleParameterEpoch: 1,
+        visibleControlStateSha256: "1".repeat(64),
+      });
+      const firstSource = protocolResultSource(revision + 50, 120);
+      coordinator.onJobSnapshot(hiddenPvAnalysisSnapshotEvent(
+        firstRequest,
+        pvRelationJobSnapshotFixture({
+          source: firstSource,
+          sequence: 1,
+          status: "running",
+          beatCount: 2,
+        }),
+      ));
+      expect(registry.getPvRelationProtocolSeries(scenarioId)).toMatchObject({
+        current: {
+          renderable: true,
+          snapshot: {
+            calculationSource: "independent-case-source-warm-continuation",
+            sourceIdentity: { controlStateSha256: "1".repeat(64) },
+          },
+        },
+      });
+
+      publishLiveTarget(registry, scenarioId, {
+        revision: revision + 2,
+        acceptedTimeSec: 99.202,
+        parameterEpoch: 2,
+        controlStateSha256: "2".repeat(64),
+      });
+      expect(coordinator.requestLatest).toHaveBeenCalledTimes(2);
+      const secondRequest = coordinator.requestLatest.mock.calls[1]![0];
+      coordinator.onJobSnapshot(hiddenPvAnalysisSnapshotEvent(
+        firstRequest,
+        pvRelationJobSnapshotFixture({
+          source: firstSource,
+          sequence: 2,
+          status: "complete",
+          beatCount: 6,
+          result: pvRelationJobResultFixture(firstSource, 6),
+        }),
+      ));
+      expect(registry.getPvRelationProtocol(scenarioId)).toMatchObject({
+        status: "running",
+        sourceIdentity: { controlStateSha256: "2".repeat(64) },
+        jobSnapshot: null,
+      });
+
+      const secondSource = protocolResultSource(revision + 60, 130);
+      coordinator.onJobSnapshot(hiddenPvAnalysisSnapshotEvent(
+        secondRequest,
+        pvRelationJobSnapshotFixture({
+          source: secondSource,
+          sequence: 1,
+          status: "running",
+          beatCount: 2,
+        }),
+      ));
+      const series = registry.getPvRelationProtocolSeries(scenarioId);
+      expect(series.current?.snapshot?.sourceIdentity.controlStateSha256)
+        .toBe("2".repeat(64));
+      expect(series.history[0]?.snapshot?.sourceIdentity.controlStateSha256)
+        .toBe("1".repeat(64));
+
+      publishLiveTarget(registry, scenarioId, {
+        revision: revision + 3,
+        acceptedTimeSec: 99.203,
+        parameterEpoch: 3,
+        controlStateSha256: "3".repeat(64),
+      });
+      const thirdRequest = coordinator.requestLatest.mock.calls[2]![0];
+      coordinator.onError(hiddenPvAnalysisErrorEvent(
+        thirdRequest,
+        "hidden target reached P2",
+      ));
+      expect(registry.getPvRelationProtocolSeries(scenarioId).current?.snapshot
+        ?.sourceIdentity.controlStateSha256).toBe("2".repeat(64));
+      expect(registry.getPvRelationProtocolSeries(scenarioId).lastFailure)
+        .toMatchObject({ errorMessage: "hidden target reached P2" });
+    } finally {
+      registry.dispose();
+    }
+  });
+
+  it("does not recompute a completed hidden PV relation when the same target becomes visible P1", async () => {
+    const revision = 99_300;
+    const targetDigest = "3".repeat(64);
+    const client = pvRelationJobClientFixture(() => {
+      throw new Error("same-target visible P1 must reuse hidden PV evidence");
+    });
+    const registry = new ScientificProductScenarioRegistryV1(
+      healthyResolution(),
+      loadedRuntime("pv-hidden-visible-reuse", client, revision),
+    );
+    const scenarioId = registry.getDescriptorSnapshot()[0]!.id;
+
+    try {
+      publishLiveTarget(registry, scenarioId, {
+        revision: revision + 1,
+        acceptedTimeSec: 99.301,
+        parameterEpoch: 4,
+        controlStateSha256: targetDigest,
+      });
+      registry.setPvRelationProtocolDemand("pv-live-pane", { scenarioId });
+      const coordinator = registryMocks.pvAnalysisCoordinators[0]!;
+      const request = coordinator.requestLatest.mock.calls[0]![0];
+      const hiddenSource = protocolResultSource(revision + 40, 130);
+      coordinator.onJobSnapshot(hiddenPvAnalysisSnapshotEvent(
+        request,
+        pvRelationJobSnapshotFixture({
+          source: hiddenSource,
+          sequence: 2,
+          status: "complete",
+          beatCount: 6,
+          result: pvRelationJobResultFixture(hiddenSource, 6),
+        }),
+      ));
+
+      publishPeriodicSource(registry, scenarioId, {
+        revision: revision + 80,
+        acceptedTimeSec: 140,
+        parameterEpoch: 4,
+        controlStateSha256: targetDigest,
+      });
+      await flushMicrotasks();
+
+      expect(client.request).not.toHaveBeenCalled();
+      expect(registry.getPvRelationProtocol(scenarioId)).toMatchObject({
+        status: "complete",
+        calculationSource: "independent-case-source-warm-continuation",
+        sourceIdentity: { controlStateSha256: targetDigest },
+      });
+    } finally {
+      registry.dispose();
+    }
+  });
+
   it("extracts metrics only at a complete accepted transient-beat boundary", () => {
     const frames = Object.freeze(Array.from({ length: 501 }, (_, index) =>
       Object.freeze({
@@ -2131,6 +2322,40 @@ function hiddenAnalysisErrorEvent(
     visibleParameterEpoch: request.visibleParameterEpoch,
     visibleControlStateSha256: request.visibleControlStateSha256,
     detailMode: request.detailMode,
+    provenance: "independent-case-source-warm-continuation" as const,
+    phase: "settlement" as const,
+    message,
+    previousSnapshotRetained: true as const,
+  });
+}
+
+type HiddenPvAnalysisRequestFixture = Readonly<{
+  requestToken: string;
+  visibleParameterEpoch: number;
+  visibleControlStateSha256: string;
+}>;
+
+function hiddenPvAnalysisSnapshotEvent(
+  request: HiddenPvAnalysisRequestFixture,
+  snapshot: ReturnType<typeof pvRelationJobSnapshotFixture>,
+) {
+  return Object.freeze({
+    requestToken: request.requestToken,
+    visibleParameterEpoch: request.visibleParameterEpoch,
+    visibleControlStateSha256: request.visibleControlStateSha256,
+    provenance: "independent-case-source-warm-continuation" as const,
+    snapshot,
+  });
+}
+
+function hiddenPvAnalysisErrorEvent(
+  request: HiddenPvAnalysisRequestFixture,
+  message: string,
+) {
+  return Object.freeze({
+    requestToken: request.requestToken,
+    visibleParameterEpoch: request.visibleParameterEpoch,
+    visibleControlStateSha256: request.visibleControlStateSha256,
     provenance: "independent-case-source-warm-continuation" as const,
     phase: "settlement" as const,
     message,

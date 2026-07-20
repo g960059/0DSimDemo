@@ -23,7 +23,34 @@ export type ScientificPvBoundaryGuideV1 = Readonly<{
   edpvr: readonly ScientificPvBoundaryGuidePointV1[];
   endSystolicContact: ScientificPvBoundaryGuidePointV1;
   endDiastolicContact: ScientificPvBoundaryGuidePointV1;
-  semantics: "single-beat-orientation-guide-not-load-series-fit";
+  semantics:
+    | "single-beat-orientation-guide-not-load-series-fit"
+    | "progressive-model-derived-orientation-guide-not-formal-fit";
+  /**
+   * Optional presentation metadata for progressively refined guides. The
+   * fixed-TBV V3 lanes remain scientifically separate; these fields never
+   * upgrade a guide into a formal pooled ESPVR/EDPVR fit.
+   */
+  generationId?: string;
+  generationSequence?: number;
+  generationAge?: number;
+  status?: "fallback" | "running" | "complete" | "stale";
+  sourceRole?: "visible-current" | "target-preview" | "history";
+  opacityMultiplier?: number;
+  replacementPending?: boolean;
+  completedPointCount?: number;
+  maximumPointCount?: 7;
+  progressiveEvidence?: Readonly<{
+    selectedBeatIds: readonly string[];
+    lowerPointCount: number;
+    higherPointCount: number;
+    espvrPointCount: number;
+    edpvrPointCount: number;
+    espvrRefined: boolean;
+    edpvrRefined: boolean;
+    pooledFormalRelationClaimed: false;
+    extrapolationPolicy: "bounded-educational-orientation-only";
+  }>;
 }>;
 
 export type ScientificPvBoundaryGuideSeriesInputV1 = Readonly<{

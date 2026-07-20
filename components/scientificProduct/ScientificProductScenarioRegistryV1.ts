@@ -63,6 +63,9 @@ import type {
 import type {
   MainWireScientificPvRelationsProtocolResultV3,
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
+import {
+  MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
+} from "@/engine/scientific/protocols/MainWireScientificPvRelationsProtocolV3";
 
 import {
   applyScientificHemodynamicCurveSnapshotV1,
@@ -80,6 +83,12 @@ import {
   type ScientificProductHemodynamicAnalysisErrorEventV1,
   type ScientificProductHemodynamicAnalysisSnapshotEventV1,
 } from "./ScientificProductHemodynamicAnalysisCoordinatorV1";
+import {
+  SCIENTIFIC_PRODUCT_PV_RELATION_ANALYSIS_PROVENANCE_V1,
+  ScientificProductPvRelationAnalysisCoordinatorV1,
+  type ScientificProductPvRelationAnalysisErrorEventV1,
+  type ScientificProductPvRelationAnalysisSnapshotEventV1,
+} from "./ScientificProductPvRelationAnalysisCoordinatorV1";
 
 import {
   SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
@@ -240,7 +249,8 @@ export type ScientificProductPvRelationProtocolDemandV1 = Readonly<{
 
 type ActivePvRelationProtocolRequestV1 = Readonly<{
   generationId: string;
-  sessionId: string;
+  calculationSource: ScientificProductHemodynamicProtocolCalculationSourceV1;
+  sessionId: string | null;
   source: ScientificHemodynamicCurveGenerationSourceV1<
     ScientificProductHemodynamicProtocolSourceIdentityV1
   >;
@@ -270,6 +280,9 @@ type ScenarioEntryV1 = {
     | "awaiting-settlement";
   hemodynamicAnalysisCoordinator:
     | ScientificProductHemodynamicAnalysisCoordinatorV1
+    | null;
+  pvRelationAnalysisCoordinator:
+    | ScientificProductPvRelationAnalysisCoordinatorV1
     | null;
 };
 
@@ -383,6 +396,7 @@ export class ScientificProductScenarioRegistryV1 {
       pendingDuplicateDraft: null,
       duplicateTransitionModeState: "none",
       hemodynamicAnalysisCoordinator: null,
+      pvRelationAnalysisCoordinator: null,
     };
     this.entries.set(id, entry);
     this.attachRuntime(entry, runtime);
@@ -514,78 +528,389 @@ export class ScientificProductScenarioRegistryV1 {
     const runtime = entry?.runtime;
     if (entry === undefined || runtime === null || this.disposed) return;
     this.clearPvRelationProtocolStopTimer(scenarioId);
-    const controlSnapshot = runtime.controlStore.getSnapshot();
+    const snapshot = runtime.controlStore.getSnapshot();
     if (
-      controlSnapshot.provenance.displayedEvidence
+      snapshot.provenance.displayedEvidence
         === "open-transient-no-periodic-claim"
     ) {
-      // Retain the last accepted relation while the visible scenario is in an
-      // unclassified transient. A hidden settled source can be added later
-      // through the same source-identity boundary without fitting transient
-      // beats or mutating the displayed scenario.
+      const candidate = snapshot.candidate;
+      if (
+        candidate === null
+        || snapshot.targetControlStateSha256 === null
+        || candidate.context.controlState.targetStateSha256
+          !== snapshot.targetControlStateSha256
+      ) return;
+      this.requestHiddenPvRelationProtocol({
+        scenarioId,
+        entry,
+        sourceIdentity: protocolSourceIdentityFromLiveCandidate(candidate),
+        targetControlState: candidate.context.controlState,
+      });
       return;
     }
-    const sourceIdentity = protocolSourceIdentityFromSource(
-      controlSnapshot.source,
-    );
-    const current = this.pvRelationProtocols.get(scenarioId);
-    if (
-      current?.status === "running"
-      && sameProtocolSourceIdentity(current.sourceIdentity, sourceIdentity)
-    ) return;
-    if (
-      current?.status === "complete"
-      && sameProtocolSourceIdentity(current.sourceIdentity, sourceIdentity)
-    ) return;
-    this.clearPvRelationProtocolPollTimer(scenarioId);
-    const generation = entry.generation;
-    const generationId = `pv-relation-generation-${
-      ++pvRelationProtocolGenerationOrdinalV1
-    }`;
-    const source = Object.freeze({
-      sourceIdentityKey: pvRelationSourceIdentityKey(
-        entry.descriptor,
-        sourceIdentity,
-      ),
-      sourceIdentity,
-      jobId: generationId,
-    });
-    const activeRequest = Object.freeze({
-      generationId,
-      sessionId: controlSnapshot.source.sessionId,
-      source,
-    });
-    this.activePvRelationProtocolRequests.set(scenarioId, activeRequest);
-    this.pvRelationProtocolSeriesSnapshot =
-      startScientificHemodynamicCurveGenerationV1(
-        this.pvRelationProtocolSeriesSnapshot,
-        Object.freeze({ scenarioId, generationId, source }),
-      );
-    this.pvRelationProtocols.set(scenarioId, Object.freeze({
-      kind: "pv-relations" as const,
-      status: "running" as const,
-      calculationSource: "visible-period1-source" as const,
-      sourceIdentity,
-      result: null,
-      researchResultV3: null,
-      jobSnapshot: null,
-      errorMessage: null,
-    }));
-    this.publishProtocols();
-    this.startPvRelationJob({
+    this.requestVisiblePvRelationProtocol({
       scenarioId,
       entry,
       runtime,
+      source: snapshot.source,
+    });
+  }
+
+  private requestVisiblePvRelationProtocol(input: Readonly<{
+    scenarioId: string;
+    entry: ScenarioEntryV1;
+    runtime: ScientificProductScenarioRuntimeV1;
+    source: ScientificWorkbenchResearchControlSourceV0;
+  }>): void {
+    const sourceIdentity = protocolSourceIdentityFromSource(input.source);
+    const current = this.pvRelationProtocols.get(input.scenarioId);
+    if (
+      (current?.status === "running" || current?.status === "complete")
+      && samePvRelationParameterSourceV1(
+        input.entry.descriptor,
+        current.sourceIdentity,
+        sourceIdentity,
+      )
+    ) return;
+    this.retirePvRelationRequestForRouteChange(
+      input.scenarioId,
+      input.entry,
+      "visible-period1-source",
+    );
+    this.disposePvRelationAnalysisCoordinator(input.entry);
+    this.clearPvRelationProtocolPollTimer(input.scenarioId);
+    const generation = input.entry.generation;
+    const activeRequest = this.beginPvRelationProtocolGeneration({
+      scenarioId: input.scenarioId,
+      descriptor: input.entry.descriptor,
+      sourceIdentity,
+      calculationSource: "visible-period1-source",
+      sessionId: input.source.sessionId,
+    });
+    this.startPvRelationJob({
+      scenarioId: input.scenarioId,
+      entry: input.entry,
+      runtime: input.runtime,
+      sessionId: input.source.sessionId,
       generation,
       sourceIdentity,
       activeRequest,
     });
   }
 
+  private requestHiddenPvRelationProtocol(input: Readonly<{
+    scenarioId: string;
+    entry: ScenarioEntryV1;
+    sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1;
+    targetControlState: MainWireScientificResearchControlTargetStateV0;
+  }>): void {
+    const current = this.pvRelationProtocols.get(input.scenarioId);
+    if (
+      current?.calculationSource
+        === SCIENTIFIC_PRODUCT_PV_RELATION_ANALYSIS_PROVENANCE_V1
+      && (current.status === "running" || current.status === "complete")
+      && samePvRelationParameterSourceV1(
+        input.entry.descriptor,
+        current.sourceIdentity,
+        input.sourceIdentity,
+      )
+    ) return;
+    this.retirePvRelationRequestForRouteChange(
+      input.scenarioId,
+      input.entry,
+      SCIENTIFIC_PRODUCT_PV_RELATION_ANALYSIS_PROVENANCE_V1,
+    );
+    const activeRequest = this.beginPvRelationProtocolGeneration({
+      scenarioId: input.scenarioId,
+      descriptor: input.entry.descriptor,
+      sourceIdentity: input.sourceIdentity,
+      calculationSource:
+        SCIENTIFIC_PRODUCT_PV_RELATION_ANALYSIS_PROVENANCE_V1,
+      sessionId: null,
+    });
+    this.getOrCreatePvRelationAnalysisCoordinator(
+      input.scenarioId,
+      input.entry,
+    ).requestLatest(Object.freeze({
+      requestToken: activeRequest.generationId,
+      targetControlState: input.targetControlState,
+      visibleParameterEpoch: input.sourceIdentity.parameterEpoch,
+      visibleControlStateSha256: input.sourceIdentity.controlStateSha256,
+    }));
+  }
+
+  private beginPvRelationProtocolGeneration(input: Readonly<{
+    scenarioId: string;
+    descriptor: ScientificProductScenarioDescriptorV1;
+    sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1;
+    calculationSource: ScientificProductHemodynamicProtocolCalculationSourceV1;
+    sessionId: string | null;
+  }>): ActivePvRelationProtocolRequestV1 {
+    const generationId = `pv-relation-generation-${
+      ++pvRelationProtocolGenerationOrdinalV1
+    }`;
+    const source = Object.freeze({
+      sourceIdentityKey: pvRelationSourceIdentityKey(
+        input.descriptor,
+        input.sourceIdentity,
+      ),
+      sourceIdentity: input.sourceIdentity,
+      jobId: generationId,
+    });
+    const activeRequest = Object.freeze({
+      generationId,
+      calculationSource: input.calculationSource,
+      sessionId: input.sessionId,
+      source,
+    });
+    this.activePvRelationProtocolRequests.set(input.scenarioId, activeRequest);
+    this.pvRelationProtocolSeriesSnapshot =
+      startScientificHemodynamicCurveGenerationV1(
+        this.pvRelationProtocolSeriesSnapshot,
+        Object.freeze({
+          scenarioId: input.scenarioId,
+          generationId,
+          source,
+        }),
+      );
+    this.pvRelationProtocols.set(input.scenarioId, Object.freeze({
+      kind: "pv-relations" as const,
+      status: "running" as const,
+      calculationSource: input.calculationSource,
+      sourceIdentity: input.sourceIdentity,
+      result: null,
+      researchResultV3: null,
+      jobSnapshot: null,
+      errorMessage: null,
+    }));
+    this.publishProtocols();
+    return activeRequest;
+  }
+
+  private retirePvRelationRequestForRouteChange(
+    scenarioId: string,
+    entry: ScenarioEntryV1,
+    nextCalculationSource:
+      ScientificProductHemodynamicProtocolCalculationSourceV1,
+  ): void {
+    const active = this.activePvRelationProtocolRequests.get(scenarioId);
+    if (
+      active === undefined
+      || active.calculationSource === nextCalculationSource
+    ) return;
+    const presentation = this.pvRelationProtocols.get(scenarioId);
+    this.clearPvRelationProtocolPollTimer(scenarioId);
+    if (
+      active.calculationSource === "visible-period1-source"
+      && active.sessionId !== null
+      && entry.runtime !== null
+      && presentation?.status === "running"
+      && presentation.jobSnapshot !== null
+    ) {
+      this.cancelPvRelationJobBestEffort(
+        entry.runtime.client,
+        active.sessionId,
+        presentation.jobSnapshot.jobId,
+      );
+    }
+    this.discardPendingPvRelationGeneration(
+      scenarioId,
+      active.generationId,
+    );
+    this.activePvRelationProtocolRequests.delete(scenarioId);
+    if (nextCalculationSource === "visible-period1-source") {
+      this.disposePvRelationAnalysisCoordinator(entry);
+    }
+  }
+
+  private getOrCreatePvRelationAnalysisCoordinator(
+    scenarioId: string,
+    entry: ScenarioEntryV1,
+  ): ScientificProductPvRelationAnalysisCoordinatorV1 {
+    const existing = entry.pvRelationAnalysisCoordinator;
+    if (existing !== null) return existing;
+    const caseEntry = scientificProductCaseByIdV1(
+      entry.descriptor.source.caseId,
+    );
+    if (caseEntry === null) {
+      throw new Error(
+        `Unknown scientific product Case ${entry.descriptor.source.caseId}.`,
+      );
+    }
+    const coordinator = new ScientificProductPvRelationAnalysisCoordinatorV1({
+      caseEntry,
+      createClient: () => createScientificProductWorkerClientV1(),
+      loadBootstrapSource: async (bootstrapCase, client) => {
+        const loaded = await loadScientificProductScenarioRuntimeV1(
+          bootstrapCase,
+          undefined,
+          client as MainWireScientificWorkerClientV1,
+        );
+        return Object.freeze({
+          sessionId: loaded.sessionId,
+          context: loaded.result.researchControlContext,
+        });
+      },
+      onJobSnapshot: (event) => {
+        this.publishHiddenPvRelationJobSnapshot(scenarioId, entry, event);
+      },
+      onError: (event) => {
+        this.publishHiddenPvRelationError(scenarioId, entry, event);
+      },
+    });
+    entry.pvRelationAnalysisCoordinator = coordinator;
+    return coordinator;
+  }
+
+  private publishHiddenPvRelationJobSnapshot(
+    scenarioId: string,
+    entry: ScenarioEntryV1,
+    event: ScientificProductPvRelationAnalysisSnapshotEventV1,
+  ): void {
+    const active = this.activePvRelationProtocolRequests.get(scenarioId);
+    if (
+      this.disposed
+      || this.entries.get(scenarioId) !== entry
+      || active?.calculationSource
+        !== SCIENTIFIC_PRODUCT_PV_RELATION_ANALYSIS_PROVENANCE_V1
+      || active.generationId !== event.requestToken
+      || event.provenance
+        !== SCIENTIFIC_PRODUCT_PV_RELATION_ANALYSIS_PROVENANCE_V1
+      || active.source.sourceIdentity.parameterEpoch
+        !== event.visibleParameterEpoch
+      || active.source.sourceIdentity.controlStateSha256
+        !== event.visibleControlStateSha256
+    ) return;
+    const snapshot = event.snapshot;
+    const status = snapshot.status === "running"
+      ? "running" as const
+      : snapshot.status === "complete"
+        ? "complete" as const
+        : "error" as const;
+    const presentation = Object.freeze({
+      kind: "pv-relations" as const,
+      status,
+      calculationSource: event.provenance,
+      // The presentation is correlated to the visible target. The numerical
+      // source revision/time intentionally belongs to the independent worker.
+      sourceIdentity: active.source.sourceIdentity,
+      result: snapshot.result,
+      researchResultV3: snapshot.researchResultV3 ?? null,
+      jobSnapshot: snapshot,
+      errorMessage: snapshot.errorMessage,
+    });
+    this.pvRelationProtocols.set(scenarioId, presentation);
+    if (status === "error") {
+      this.applyHiddenPvRelationFailure(
+        scenarioId,
+        active,
+        snapshot.errorMessage ?? `PV relation job ${snapshot.status}.`,
+        snapshot.sequence,
+      );
+    } else {
+      this.pvRelationProtocolSeriesSnapshot =
+        applyScientificHemodynamicCurveSnapshotV1(
+          this.pvRelationProtocolSeriesSnapshot,
+          Object.freeze({
+            scenarioId,
+            generationId: active.generationId,
+            source: active.source,
+            update: Object.freeze({
+              kind: "snapshot" as const,
+              sequence: snapshot.sequence,
+              status,
+              snapshot: presentation,
+              renderable: isRenderablePvRelationJobSnapshot(snapshot),
+            }),
+          }),
+        );
+      if (
+        status === "complete"
+        && this.activePvRelationProtocolRequests.get(scenarioId)?.generationId
+          === active.generationId
+      ) this.activePvRelationProtocolRequests.delete(scenarioId);
+    }
+    this.publishProtocols();
+  }
+
+  private publishHiddenPvRelationError(
+    scenarioId: string,
+    entry: ScenarioEntryV1,
+    event: ScientificProductPvRelationAnalysisErrorEventV1,
+  ): void {
+    const active = this.activePvRelationProtocolRequests.get(scenarioId);
+    if (
+      this.disposed
+      || this.entries.get(scenarioId) !== entry
+      || active?.calculationSource
+        !== SCIENTIFIC_PRODUCT_PV_RELATION_ANALYSIS_PROVENANCE_V1
+      || active.generationId !== event.requestToken
+      || event.provenance
+        !== SCIENTIFIC_PRODUCT_PV_RELATION_ANALYSIS_PROVENANCE_V1
+      || active.source.sourceIdentity.parameterEpoch
+        !== event.visibleParameterEpoch
+      || active.source.sourceIdentity.controlStateSha256
+        !== event.visibleControlStateSha256
+    ) return;
+    this.pvRelationProtocols.set(scenarioId, Object.freeze({
+      kind: "pv-relations" as const,
+      status: "error" as const,
+      calculationSource: event.provenance,
+      sourceIdentity: active.source.sourceIdentity,
+      result: null,
+      researchResultV3: null,
+      jobSnapshot: null,
+      errorMessage: event.message,
+    }));
+    this.applyHiddenPvRelationFailure(
+      scenarioId,
+      active,
+      event.message,
+    );
+    this.publishProtocols();
+  }
+
+  private applyHiddenPvRelationFailure(
+    scenarioId: string,
+    active: ActivePvRelationProtocolRequestV1,
+    errorMessage: string,
+    sequence = nextPvRelationGenerationSequence(
+      this.getPvRelationProtocolSeries(scenarioId),
+      active.generationId,
+    ),
+  ): void {
+    this.pvRelationProtocolSeriesSnapshot =
+      applyScientificHemodynamicCurveSnapshotV1(
+        this.pvRelationProtocolSeriesSnapshot,
+        Object.freeze({
+          scenarioId,
+          generationId: active.generationId,
+          source: active.source,
+          update: Object.freeze({
+            kind: "error" as const,
+            sequence,
+            errorMessage,
+          }),
+        }),
+      );
+    if (
+      this.activePvRelationProtocolRequests.get(scenarioId)?.generationId
+        === active.generationId
+    ) this.activePvRelationProtocolRequests.delete(scenarioId);
+  }
+
+  private disposePvRelationAnalysisCoordinator(entry: ScenarioEntryV1): void {
+    const coordinator = entry.pvRelationAnalysisCoordinator;
+    if (coordinator === null) return;
+    entry.pvRelationAnalysisCoordinator = null;
+    void coordinator.dispose().catch(() => undefined);
+  }
+
   private startPvRelationJob(input: Readonly<{
     scenarioId: string;
     entry: ScenarioEntryV1;
     runtime: ScientificProductScenarioRuntimeV1;
+    sessionId: string;
     generation: number;
     sourceIdentity: ScientificProductHemodynamicProtocolSourceIdentityV1;
     activeRequest: ActivePvRelationProtocolRequestV1;
@@ -597,7 +922,7 @@ export class ScientificProductScenarioRegistryV1 {
       protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
       kind: "startPvRelationsProtocolJob" as const,
       requestId,
-      sessionId: input.activeRequest.sessionId,
+      sessionId: input.sessionId,
     })).then((response) => {
       if (!this.pvRelationRequestStillCurrent(input)) {
         if (
@@ -690,7 +1015,7 @@ export class ScientificProductScenarioRegistryV1 {
       protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
       kind: "pollPvRelationsProtocolJob" as const,
       requestId,
-      sessionId: input.activeRequest.sessionId,
+      sessionId: input.sessionId,
       jobId,
     })).then((response) => {
       if (!this.pvRelationRequestStillCurrent(input)) {
@@ -1834,6 +2159,8 @@ export class ScientificProductScenarioRegistryV1 {
     const runtime = this.entries.get(scenarioId)?.runtime;
     if (
       active !== undefined
+      && active.calculationSource === "visible-period1-source"
+      && active.sessionId !== null
       && runtime !== null
       && runtime !== undefined
       && presentation?.status === "running"
@@ -1856,6 +2183,8 @@ export class ScientificProductScenarioRegistryV1 {
     if (presentation?.status === "running") {
       this.pvRelationProtocols.delete(scenarioId);
     }
+    const entry = this.entries.get(scenarioId);
+    if (entry !== undefined) this.disposePvRelationAnalysisCoordinator(entry);
     this.publishProtocols();
   }
 
@@ -1899,7 +2228,7 @@ export class ScientificProductScenarioRegistryV1 {
   ): void {
     this.cancelPvRelationJobBestEffort(
       input.runtime.client,
-      input.activeRequest.sessionId,
+      input.sessionId,
       jobId,
     );
     const active = this.activePvRelationProtocolRequests.get(
@@ -2028,6 +2357,7 @@ export class ScientificProductScenarioRegistryV1 {
       pendingDuplicateDraft: options.duplicateDraft ?? null,
       duplicateTransitionModeState: "none",
       hemodynamicAnalysisCoordinator: null,
+      pvRelationAnalysisCoordinator: null,
     };
     this.entries.set(id, entry);
     this.publishDescriptors();
@@ -2353,6 +2683,8 @@ export class ScientificProductScenarioRegistryV1 {
     if (
       entry.runtime !== null
       && pvRelationActive !== undefined
+      && pvRelationActive.calculationSource === "visible-period1-source"
+      && pvRelationActive.sessionId !== null
       && pvRelationPresentation?.status === "running"
       && pvRelationPresentation.jobSnapshot !== null
     ) {
@@ -2366,6 +2698,7 @@ export class ScientificProductScenarioRegistryV1 {
     this.clearPvRelationProtocolStopTimer(entry.descriptor.id);
     this.activePvRelationProtocolRequests.delete(entry.descriptor.id);
     this.disposeHemodynamicAnalysisCoordinator(entry);
+    this.disposePvRelationAnalysisCoordinator(entry);
     entry.duplicateTransitionModeState = "none";
     entry.unsubscribeStore?.();
     entry.unsubscribeStore = null;
@@ -2545,8 +2878,19 @@ function pvRelationSourceIdentityKey(
     descriptor.source.caseId,
     source.controlStateSha256,
     source.totalBloodVolumeMl,
-    "fixed-tbv-vc-ra-v2",
+    MAIN_WIRE_SCIENTIFIC_PV_RELATIONS_PROTOCOL_V3_CACHE_IDENTITY,
   ].join(":");
+}
+
+function samePvRelationParameterSourceV1(
+  descriptor: ScientificProductScenarioDescriptorV1,
+  left: ScientificProductHemodynamicProtocolSourceIdentityV1 | null,
+  right: ScientificProductHemodynamicProtocolSourceIdentityV1 | null,
+): boolean {
+  return left !== null
+    && right !== null
+    && pvRelationSourceIdentityKey(descriptor, left)
+      === pvRelationSourceIdentityKey(descriptor, right);
 }
 
 function sameProtocolSourceIdentity(

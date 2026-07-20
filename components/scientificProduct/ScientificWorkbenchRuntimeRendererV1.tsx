@@ -56,7 +56,11 @@ import {
   type ScientificWorkbenchPvSeriesV1,
   type ScientificWorkbenchWaveformSeriesV1,
 } from "./ScientificWorkbenchAnimatedChartsV1";
-import { buildScientificPvBoundaryGuidesV1 } from "./ScientificPvBoundaryGuidesV1";
+import {
+  buildScientificPvBoundaryGuidesV1,
+  type ScientificPvBoundaryGuideV1,
+} from "./ScientificPvBoundaryGuidesV1";
+import { buildScientificPvProgressiveBoundaryGuideV1 } from "./ScientificPvProgressiveBoundaryGuidesV1";
 import type { ScientificWorkbenchDisplayClockV1 } from "./ScientificWorkbenchDisplayClockV1";
 import {
   type ScientificProductScenarioPresentationV1,
@@ -475,7 +479,7 @@ function ScientificPvGraphPanelV1({
   legendInteraction: ScientificWorkbenchLegendInteractionV1;
 }>) {
   const demandScopeId = React.useId();
-  React.useSyncExternalStore(
+  const pvRelationProtocolSnapshot = React.useSyncExternalStore(
     registry.subscribeHemodynamicProtocols,
     registry.getPvRelationProtocolSeriesSnapshot,
     registry.getPvRelationProtocolSeriesSnapshot,
@@ -506,18 +510,33 @@ function ScientificPvGraphPanelV1({
       pressureBasis,
     ),
   );
-  const boundaryGuides = React.useMemo(
+  const fallbackBoundaryGuides = React.useMemo(
     () => panel.showGuides === false
       ? Object.freeze([])
       : buildScientificPvBoundaryGuidesV1(series),
     [panel.showGuides, series],
   );
-  const relationPresentations = presentations.filter((presentation) =>
-    displayMode !== "off"
-    && scientificPvPanelSelectsLvV1(
-      presentation,
-      panel.config[presentation.descriptor.id]!,
-    ));
+  const boundaryGuides = React.useMemo(
+    () => fallbackBoundaryGuides.flatMap((fallbackGuide) =>
+      scientificPvProgressiveBoundaryGuidesForScenarioV1({
+        fallbackGuide,
+        series: registry.getPvRelationProtocolSeries(
+          fallbackGuide.scenarioId,
+        ),
+      })),
+    [fallbackBoundaryGuides, pvRelationProtocolSnapshot, registry],
+  );
+  const analysisPresentations = presentations.filter((presentation) =>
+    scientificPvAnalysisDemandEnabledV1({
+      displayMode,
+      showGuides: panel.showGuides,
+      selectsLv: scientificPvPanelSelectsLvV1(
+        presentation,
+        panel.config[presentation.descriptor.id]!,
+      ),
+    }));
+  const relationPresentations = analysisPresentations.filter(() =>
+    displayMode !== "off");
   const relations = relationPresentations.flatMap((presentation) => {
     const scenarioSeries = registry.getPvRelationProtocolSeries(
       presentation.descriptor.id,
@@ -544,7 +563,7 @@ function ScientificPvGraphPanelV1({
   if (series.length === 0) return <NoScientificSelectionV1 />;
   return (
     <>
-      {relationPresentations.map(({ descriptor }) => (
+      {analysisPresentations.map(({ descriptor }) => (
         <ScientificPvRelationProtocolDemandV1
           key={descriptor.id}
           registry={registry}
@@ -576,6 +595,73 @@ function ScientificPvGraphPanelV1({
       </div>
     </>
   );
+}
+
+/**
+ * The beginner-facing textbook guides progressively refine from the same PV
+ * analysis as the opt-in research overlay. A selected LV therefore owns
+ * analysis demand whenever either visual is enabled; hiding both must release
+ * the worker demand completely.
+ */
+export function scientificPvAnalysisDemandEnabledV1(input: Readonly<{
+  displayMode: PvRelationDisplayMode;
+  showGuides?: boolean;
+  selectsLv: boolean;
+}>): boolean {
+  return input.selectsLv
+    && (input.showGuides !== false || input.displayMode !== "off");
+}
+
+export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
+  input: Readonly<{
+    fallbackGuide: ScientificPvBoundaryGuideV1;
+    series: ScientificProductPvRelationProtocolSeriesV1;
+    historyCount?: number;
+  }>,
+): readonly ScientificPvBoundaryGuideV1[] {
+  const current = input.series.current;
+  if (current === null || current.snapshot === null) {
+    return Object.freeze([input.fallbackGuide]);
+  }
+  const historyCount = Math.max(0, Math.min(5, Math.round(
+    input.historyCount ?? 5,
+  )));
+  const generations = [
+    Object.freeze({
+      generation: current,
+      generationAge: 0,
+      sourceRole: current.source.sourceIdentity.calculationSource
+        === "visible-period1-source"
+        ? "visible-current" as const
+        : "target-preview" as const,
+      replacementPending: input.series.pending !== null,
+    }),
+    ...input.series.history.slice(0, historyCount).map(
+      (generation, index) => Object.freeze({
+        generation,
+        generationAge: index + 1,
+        sourceRole: "history" as const,
+        replacementPending: false,
+      }),
+    ),
+  ];
+  return Object.freeze(generations.map((entry) => {
+    const snapshot = entry.generation.snapshot!;
+    const job = snapshot.jobSnapshot;
+    return buildScientificPvProgressiveBoundaryGuideV1({
+      fallbackGuide: input.fallbackGuide,
+      generationId: entry.generation.generationId,
+      generationSequence: entry.generation.sequence,
+      generationAge: entry.generationAge,
+      generationStatus: entry.generation.status,
+      sourceRole: entry.sourceRole,
+      replacementPending: entry.replacementPending,
+      progress: job?.researchProgressV3 ?? null,
+      result: snapshot.researchResultV3
+        ?? job?.researchResultV3
+        ?? null,
+    });
+  }));
 }
 
 function ScientificHemodynamicProtocolPanelV1({
@@ -788,6 +874,13 @@ type ScientificPvRelationGenerationV1 = NonNullable<
   ScientificProductPvRelationProtocolSeriesV1["current"]
 >;
 
+export type ScientificProductPvRelationOverlayPresentationV1 =
+  ScientificWorkbenchPvRelationOverlayV1 & Readonly<{
+    generationSequence: number;
+    generationRole: "pending" | "current" | "history";
+    targetPreview: boolean;
+  }>;
+
 export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
   scenarioId: string;
   scenarioName?: string;
@@ -798,7 +891,7 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
   showSamplePoints: boolean;
   historyCount: number;
   displayedEvidence?: ScientificProductScenarioPresentationV1["displayedEvidence"];
-}>): readonly ScientificWorkbenchPvRelationOverlayV1[] {
+}>): readonly ScientificProductPvRelationOverlayPresentationV1[] {
   if (input.displayMode === "off") return Object.freeze([]);
   const displayMode: Exclude<PvRelationDisplayMode, "off"> =
     input.displayMode;
@@ -809,15 +902,17 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
       : [Object.freeze({
           generation: input.series.current,
           age: hasPending ? 1 : 0,
+          role: "current" as const,
         })]),
     ...input.series.history.slice(0, Math.max(0, input.historyCount)).map(
       (generation, index) => Object.freeze({
         generation,
         age: index + (hasPending ? 2 : 1),
+        role: "history" as const,
       }),
     ),
   ];
-  const overlays = generations.flatMap(({ generation, age }) => {
+  const overlays = generations.flatMap(({ generation, age, role }) => {
     const overlay = scientificPvRelationGenerationOverlayV1({
       generation,
       scenarioId: input.scenarioId,
@@ -827,6 +922,7 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
       pressureBasis: input.pressureBasis,
       showSamplePoints: input.showSamplePoints,
       generationAge: age,
+      generationRole: role,
     });
     return overlay === null ? [] : [overlay];
   });
@@ -840,6 +936,7 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
       pressureBasis: input.pressureBasis,
       showSamplePoints: input.showSamplePoints,
       generationAge: 0,
+      generationRole: "pending",
     });
     overlays.unshift(pending ?? Object.freeze({
       key: `${input.scenarioId}:${input.series.pending.generationId}:pending`,
@@ -851,6 +948,11 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
       completedBeatCount: 0,
       maximumBeatCount: 8,
       generationAge: 0,
+      generationSequence: input.series.pending.sequence,
+      generationRole: "pending" as const,
+      targetPreview: pvRelationGenerationTargetsPreviewV1(
+        input.series.pending,
+      ),
       espvr: Object.freeze([]),
       edpvr: Object.freeze([]),
     }));
@@ -877,6 +979,11 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
         completedBeatCount: 0,
         maximumBeatCount: 8,
         generationAge: 0,
+        generationSequence: latestFailure.sequence,
+        generationRole: "pending" as const,
+        targetPreview:
+          latestFailure.source.sourceIdentity.calculationSource !==
+            "visible-period1-source",
         espvr: Object.freeze([]),
         edpvr: Object.freeze([]),
       }));
@@ -903,6 +1010,9 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
         completedBeatCount: 0,
         maximumBeatCount: 8,
         generationAge: 0,
+        generationSequence: 0,
+        generationRole: "pending" as const,
+        targetPreview: true,
         espvr: Object.freeze([]),
         edpvr: Object.freeze([]),
       }));
@@ -920,7 +1030,8 @@ function scientificPvRelationGenerationOverlayV1(input: Readonly<{
   pressureBasis: PvRelationPressureBasis;
   showSamplePoints: boolean;
   generationAge: number;
-}>): ScientificWorkbenchPvRelationOverlayV1 | null {
+  generationRole: "pending" | "current" | "history";
+}>): ScientificProductPvRelationOverlayPresentationV1 | null {
   const presentation = input.generation.snapshot;
   if (presentation === null) return null;
   const job = presentation.jobSnapshot;
@@ -956,6 +1067,9 @@ function scientificPvRelationGenerationOverlayV1(input: Readonly<{
       completedBeatCount,
       maximumBeatCount,
       generationAge: input.generationAge,
+      generationSequence: input.generation.sequence,
+      generationRole: input.generationRole,
+      targetPreview: pvRelationGenerationTargetsPreviewV1(input.generation),
       espvr: Object.freeze([]),
       edpvr: Object.freeze([]),
     });
@@ -1044,6 +1158,9 @@ function scientificPvRelationGenerationOverlayV1(input: Readonly<{
     completedBeatCount,
     maximumBeatCount,
     generationAge: input.generationAge,
+    generationSequence: input.generation.sequence,
+    generationRole: input.generationRole,
+    targetPreview: pvRelationGenerationTargetsPreviewV1(input.generation),
     espvr,
     edpvr,
     espvrQuality: analysis.espvr.status === "accepted"
@@ -1079,6 +1196,14 @@ function scientificPvRelationGenerationOverlayV1(input: Readonly<{
         }
       : {}),
   });
+}
+
+function pvRelationGenerationTargetsPreviewV1(
+  generation: ScientificPvRelationGenerationV1,
+): boolean {
+  const calculationSource = generation.snapshot?.calculationSource
+    ?? generation.source.sourceIdentity.calculationSource;
+  return calculationSource !== "visible-period1-source";
 }
 
 function scientificPvRelationDisplayCurveV1(input: Readonly<{
