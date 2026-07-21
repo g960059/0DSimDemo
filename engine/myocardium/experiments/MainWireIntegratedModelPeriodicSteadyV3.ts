@@ -306,6 +306,38 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
   claim: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3;
 }>;
 
+/**
+ * Protocol-neutral numerical result used by preregistered mechanism
+ * attribution experiments.  It deliberately carries no canonical experiment
+ * id, healthy-reference assessment, or physiological claim.
+ */
+export type MainWireIntegratedModelPeriodicKernelResultV3 = Readonly<{
+  protocolIdentityHash: string;
+  nominalDtSec: number;
+  cycleLengthSec: number;
+  requestedMaximumCycleCount: number;
+  completedCycleCount: number;
+  terminationReason:
+    "period1-converged" | "period2-suspect" | "maximum-cycles-reached";
+  classification: MainWireIntegratedModelPeriodicClassificationV3;
+  requestedHorizonCompleted: boolean;
+  allCyclesFiniteConservedAndEventExact: boolean;
+  cycles: readonly MainWireIntegratedModelPeriodicSteadyCycleV3[];
+  observations: readonly MainWireIntegratedModelPeriodicCycleObservationV3[];
+  terminalCycleTrace: MainWireIntegratedModelPeriodicTerminalCycleTraceV3;
+  terminalAcceptedState: MainWireIntegratedModelAcceptedStateV3<MainWireNormalAdultFiveWallMechanicsStateV1>;
+  terminalCheckpoint: MainWireIntegratedModelCheckpointV3;
+  terminalCheckpointExactRoundTripVerified: true;
+}>;
+
+export type MainWireIntegratedModelPeriodicKernelOptionsV3 = Readonly<{
+  protocolIdentityHash: string;
+  nominalDtSec: number;
+  maximumCycleCount: number;
+  stopAfterClassification: boolean;
+  evidenceRole: MainWireIntegratedModelPeriodicCycleObservationV3["evidenceRole"];
+}>;
+
 type Provider = ReturnType<
   typeof createCanonicalMainWireNormalAdultFiveWallProviderV1
 >;
@@ -313,11 +345,17 @@ type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<WallState>;
 type SuccessfulStep = MainWireIntegratedModelStepSuccessV3<WallState>;
 
-export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
-  typeof createMainWireIntegratedModelRegularSinusAllOffFixtureV3
->;
-
-export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3() {
+export function createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3(
+  fixedGlobalTotalBloodVolumeMl: number,
+) {
+  if (
+    !Number.isFinite(fixedGlobalTotalBloodVolumeMl) ||
+    fixedGlobalTotalBloodVolumeMl <= 0
+  ) {
+    throw new RangeError(
+      "V3 fixture global total blood volume must be positive and finite",
+    );
+  }
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
   const runtime = normalAdultMainWireRuntimeV1();
   const pericardium = createMainWireNormalAdultCommonPericardiumV1();
@@ -354,8 +392,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3() {
         MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
       impMechanism: "cep-shortening-induced" as const,
       shorteningImpPrior: NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
-      fixedGlobalTotalBloodVolumeMl:
-        MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1.fullGraphReferenceTotalBloodVolumeMl,
+      fixedGlobalTotalBloodVolumeMl,
       autoregulationWindow: Object.freeze({
         durationSec: 1,
         interpretation: "periodic-sinus-cycle-aligned" as const,
@@ -382,6 +419,28 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3() {
   });
 }
 
+export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3() {
+  return createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3(
+    MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1.fullGraphReferenceTotalBloodVolumeMl,
+  );
+}
+
+export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
+  typeof createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3
+>;
+
+export function mainWireIntegratedModelPeriodicFixtureIdentityV3(
+  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+) {
+  return deepFreeze({
+    provider: providerIdentity(fixture.provider),
+    composedRhythmConfiguration: fixture.rhythm.configuration,
+    dynamicMechanicalSupportProfile: fixture.profile,
+    dynamicMechanicalSupportConfig: fixture.config,
+    coronaryStepInput: fixture.coronaryStepInput,
+  });
+}
+
 export async function runMainWireIntegratedModelPeriodicSteadyV3(
   options: MainWireIntegratedModelPeriodicSteadyOptionsV3,
 ): Promise<MainWireIntegratedModelPeriodicSteadyResultV3> {
@@ -403,6 +462,65 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
       coronaryStepInput: fixture.coronaryStepInput,
     }),
   );
+  const earlyClassificationStopEligible =
+    resolved.executionPurpose !== "fixed-horizon-characterization";
+  const kernel = await runMainWireIntegratedModelPeriodicKernelV3(fixture, {
+    protocolIdentityHash,
+    nominalDtSec: resolved.nominalDtSec,
+    maximumCycleCount: resolved.maximumCycleCount,
+    stopAfterClassification: earlyClassificationStopEligible,
+    evidenceRole:
+      resolved.executionPurpose === "canonical-evidence"
+        ? "canonical-periodic-protocol"
+        : "bounded-exploration-only",
+  });
+  const canonicalPeriod1 =
+    resolved.executionPurpose === "canonical-evidence" &&
+    kernel.classification.status === "period1-converged";
+  const terminalHealthyReferenceProjection = healthyReferenceProjection(
+    kernel.terminalCycleTrace,
+    resolved.executionPurpose,
+    canonicalPeriod1,
+  );
+  return deepFreeze({
+    experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
+    executionPurpose: resolved.executionPurpose,
+    protocolIdentityHash: kernel.protocolIdentityHash,
+    nominalDtSec: kernel.nominalDtSec,
+    cycleLengthSec: kernel.cycleLengthSec,
+    requestedMaximumCycleCount: kernel.requestedMaximumCycleCount,
+    completedCycleCount: kernel.completedCycleCount,
+    terminationReason: kernel.terminationReason,
+    classification: kernel.classification,
+    numericalPeriod1Established: canonicalPeriod1,
+    period2OrbitSuspected:
+      resolved.executionPurpose === "canonical-evidence" &&
+      kernel.classification.status === "period2-suspect",
+    requestedHorizonCompleted: kernel.requestedHorizonCompleted,
+    earlyClassificationStopEligible,
+    allCyclesFiniteConservedAndEventExact:
+      kernel.allCyclesFiniteConservedAndEventExact,
+    physiologicalAcceptanceEstablished: false as const,
+    independentValidationEstablished: false as const,
+    releaseAcceptanceEstablished: false as const,
+    cycles: kernel.cycles,
+    observations: kernel.observations,
+    terminalCycleTrace: kernel.terminalCycleTrace,
+    terminalHealthyReferenceProjection,
+    terminalAcceptedState: kernel.terminalAcceptedState,
+    terminalCheckpoint: kernel.terminalCheckpoint,
+    terminalCheckpointExactRoundTripVerified:
+      kernel.terminalCheckpointExactRoundTripVerified,
+    policy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+    claim: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3,
+  });
+}
+
+export async function runMainWireIntegratedModelPeriodicKernelV3(
+  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  options: MainWireIntegratedModelPeriodicKernelOptionsV3,
+): Promise<MainWireIntegratedModelPeriodicKernelResultV3> {
+  validateKernelOptions(options);
   const classifierOptions = Object.freeze({
     period1NormalizedTolerance:
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period1NormalizedTolerance,
@@ -429,7 +547,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
 
   for (
     let zeroBasedCycleIndex = 0;
-    zeroBasedCycleIndex < resolved.maximumCycleCount;
+    zeroBasedCycleIndex < options.maximumCycleCount;
     zeroBasedCycleIndex += 1
   ) {
     const start = accepted;
@@ -437,7 +555,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
       fixture,
       start,
       zeroBasedCycleIndex,
-      resolved.nominalDtSec,
+      options.nominalDtSec,
     );
     accepted = run.terminalAcceptedState;
     rejectDuplicateIds(
@@ -476,11 +594,8 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     observations.push(
       Object.freeze({
         cycleIndex,
-        evidenceRole:
-          resolved.executionPurpose === "canonical-evidence"
-            ? ("canonical-periodic-protocol" as const)
-            : ("bounded-exploration-only" as const),
-        protocolIdentityHash,
+        evidenceRole: options.evidenceRole,
+        protocolIdentityHash: options.protocolIdentityHash,
         period1,
         period2,
       }),
@@ -494,7 +609,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     boundaries.push(accepted);
     if (boundaries.length > 3) boundaries.shift();
     if (
-      resolved.executionPurpose !== "fixed-horizon-characterization" &&
+      options.stopAfterClassification &&
       classification.status !== "not-converged"
     ) {
       break;
@@ -520,14 +635,6 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     interpretation:
       "raw-accepted-endpoint-samples-no-resampling-no-shape-acceptance" as const,
   });
-  const canonicalPeriod1 =
-    resolved.executionPurpose === "canonical-evidence" &&
-    classification.status === "period1-converged";
-  const terminalHealthyReferenceProjection = healthyReferenceProjection(
-    terminalCycleTrace,
-    resolved.executionPurpose,
-    canonicalPeriod1,
-  );
   const checkpointContext = createCheckpointContext(fixture, accepted);
   const terminalCheckpoint = await checkpointMainWireIntegratedModelV3(
     checkpointContext,
@@ -554,39 +661,25 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
         ? ("period2-suspect" as const)
         : ("maximum-cycles-reached" as const);
   return deepFreeze({
-    experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
-    executionPurpose: resolved.executionPurpose,
-    protocolIdentityHash,
-    nominalDtSec: resolved.nominalDtSec,
+    protocolIdentityHash: options.protocolIdentityHash,
+    nominalDtSec: options.nominalDtSec,
     cycleLengthSec: fixture.cycleLengthSec,
-    requestedMaximumCycleCount: resolved.maximumCycleCount,
+    requestedMaximumCycleCount: options.maximumCycleCount,
     completedCycleCount: cycles.length,
     terminationReason,
     classification,
-    numericalPeriod1Established: canonicalPeriod1,
-    period2OrbitSuspected:
-      resolved.executionPurpose === "canonical-evidence" &&
-      classification.status === "period2-suspect",
-    requestedHorizonCompleted: cycles.length === resolved.maximumCycleCount,
-    earlyClassificationStopEligible:
-      resolved.executionPurpose !== "fixed-horizon-characterization",
+    requestedHorizonCompleted: cycles.length === options.maximumCycleCount,
     allCyclesFiniteConservedAndEventExact: cycles.every(
       (cycle) =>
         cycle.conservation.withinInheritedConstructionTolerances &&
         cycle.finiteAndEventIdentityChecks.passed,
     ),
-    physiologicalAcceptanceEstablished: false as const,
-    independentValidationEstablished: false as const,
-    releaseAcceptanceEstablished: false as const,
     cycles,
     observations,
     terminalCycleTrace,
-    terminalHealthyReferenceProjection,
     terminalAcceptedState: accepted,
     terminalCheckpoint,
     terminalCheckpointExactRoundTripVerified: true as const,
-    policy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
-    claim: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3,
   });
 }
 
@@ -1338,6 +1431,64 @@ function createCheckpointContext(
     dynamicMechanicalSupportProfile: fixture.profile,
     dynamicMechanicalSupportConfig: fixture.config,
   });
+}
+
+function validateKernelOptions(
+  options: MainWireIntegratedModelPeriodicKernelOptionsV3,
+): void {
+  if (
+    options === null ||
+    typeof options !== "object" ||
+    Array.isArray(options)
+  ) {
+    throw new Error("V3 periodic kernel options must be an object");
+  }
+  const keys = Object.keys(options);
+  if (
+    keys.some(
+      (key) =>
+        ![
+          "protocolIdentityHash",
+          "nominalDtSec",
+          "maximumCycleCount",
+          "stopAfterClassification",
+          "evidenceRole",
+        ].includes(key),
+    )
+  ) {
+    throw new Error("V3 periodic kernel options contain unexpected fields");
+  }
+  if (!/^[0-9a-f]{64}$/.test(options.protocolIdentityHash)) {
+    throw new Error("V3 periodic kernel requires a SHA-256 protocol identity");
+  }
+  const policy = MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3;
+  if (
+    !Number.isFinite(options.nominalDtSec) ||
+    options.nominalDtSec < policy.minimumNominalDtSec ||
+    options.nominalDtSec > policy.maximumNominalDtSec
+  ) {
+    throw new RangeError(
+      `kernel nominalDtSec must be from ${policy.minimumNominalDtSec} through ${policy.maximumNominalDtSec}`,
+    );
+  }
+  if (
+    !Number.isSafeInteger(options.maximumCycleCount) ||
+    options.maximumCycleCount < 1 ||
+    options.maximumCycleCount > policy.maximumCycleCount
+  ) {
+    throw new RangeError(
+      `kernel maximumCycleCount must be from 1 through ${policy.maximumCycleCount}`,
+    );
+  }
+  if (typeof options.stopAfterClassification !== "boolean") {
+    throw new TypeError("kernel stopAfterClassification must be boolean");
+  }
+  if (
+    options.evidenceRole !== "canonical-periodic-protocol" &&
+    options.evidenceRole !== "bounded-exploration-only"
+  ) {
+    throw new Error("unsupported V3 periodic kernel evidence role");
+  }
 }
 
 function resolveOptions(

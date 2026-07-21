@@ -400,15 +400,67 @@ rather than being normalized into a pass.
 The first diagnostic after that result is not a parameter fit. Base owns
 `5522.11 mL` in its noncoronary ledger, whereas the V3 terminal tuple contains
 `5587.307 mL` noncoronary plus `12.693 mL` coronary blood under the fixed
-`5600 mL` global ledger. A predeclared two-arm cold V3 comparison will therefore
-hold topology, autoregulation, rhythm, MCS, material and resistance fixed and
-change only the global ledger: `5600 mL` versus `5539.666 mL` (base
-noncoronary plus the explicit `17.556 mL` cold coronary volume), using the same
-SV/VC shared-pressure distribution. It will report paired EDV/ESV, atrial and
+`5600 mL` global ledger. A two-arm cold V3 comparison therefore holds topology,
+autoregulation, rhythm, MCS, material and resistance fixed and changes only the
+global ledger, using the same SV/VC shared-pressure distribution.
+
+The initial ledger declaration used `5539.666 mL`, by adding the coronary
+_structural prior seed_ of `17.556 mL` to the base noncoronary ledger. A bounded
+executable-fixture audit, performed before inspection of the primary paired
+outcome, showed that V3 replaces that seed with its pressure-consistent accepted
+cold state of `13.789898304684712 mL`. The original arm would therefore have
+started `3.766101695315289 mL` above the intended base noncoronary ledger. The
+active protocol is amended on input provenance alone to `5600 mL` versus
+`5535.899898304685 mL` (`5522.11 + 13.789898304684712`, subject only to binary
+floating-point representation). No waveform, health gate or fit objective was
+used in this correction; the superseded values remain recorded in the
+executable protocol. The comparison reports paired EDV/ESV, atrial and
 pulmonary pressures, pulmonary pulse/compliance/PVR surrogates, output,
 coronary volume/flow/tone, P1 and numerics without a health threshold or fit
 objective. Only after that attribution experiment may a separately declared
 pulmonary-compliance bracket be considered.
+
+The corrected primary 2 ms comparison has now completed from independent cold
+starts. The current `5600 mL` arm reproduced canonical P1 at cycle 70
+(`P1max=0.000958567`); the base-ledger `5535.899898304685 mL` arm reached P1 at
+cycle 51 (`P1max=0.000956959`). Both were finite, conservative and event-exact,
+both terminal checkpoints round-tripped exactly, and MCS transfer remained
+zero. An earlier run with the classifier-ineligible
+`bounded-exploration-only` evidence role was interrupted before artifact
+creation when that wiring error was identified. The completed arm-specific
+hashes use `canonical-periodic-protocol` only in its numerical-classifier sense;
+neither arm receives the canonical healthy-physiology claim.
+
+Reducing the global ledger by `64.1001 mL` (`-1.145%`) moved LV EDV by
+`-2.760 mL`, LV ESV by `-1.519 mL`, aortic output by `-0.0744 L/min`, mean LA
+pressure by `-0.400 mmHg`, PASP by `-0.419 mmHg`, and mean PA pressure by
+`-0.526 mmHg`. EDVi (`80.40 mL/m2`), ESVi (`33.36 mL/m2`) and PASP
+(`37.38 mmHg`) therefore remain outside the unchanged construction screen.
+PVR was essentially unchanged (`1.69190` versus `1.69191 WU`), while the
+SV/pulmonary-pulse-pressure compliance proxy fell slightly (`2.897` to
+`2.845 mL/mmHg`). This supports a small preload/operating-point contribution,
+not a global-TBV explanation of the three residual screen misses. A healthy
+supine human study likewise found only a minor MAP response and no significant
+SV or CO change after a larger `200 mL` fluid increment, which is useful
+directional context rather than a matched validation protocol
+([Bundgaard-Nielsen et al., 2010](https://doi.org/10.1111/j.1475-097X.2010.00944.x)).
+
+Mean coronary inlet flow was practically preserved (`149.60` versus
+`149.54 mL/min`) while the mean six-layer resistance-tone scale fell by `3.65%`.
+That pressure-down/vasodilation/flow-preservation direction is consistent with
+coronary autoregulation, but the model result is not independent evidence for
+it ([Canty, 1988](https://doi.org/10.1161/01.RES.63.4.821)). The raw terminal
+traces remain smooth: both LV PV loops are counter-clockwise, every native
+valve flow is nonnegative, and mean coronary inflow outside aortic ejection is
+`1.49--1.51` times its ejection-phase mean. There is no high-frequency numerical
+ringing, but both arms retain a broad secondary PA-pressure maximum while the
+pulmonary valve is closed (current arm: `26.92 mmHg` at phase `0.482`, after PV
+closure at phase `0.176`). That repeatable low-frequency feature is a graph-shape
+review flag, not a pass. The elevated PASP with unchanged PVR is therefore best
+separated into a predeclared pulmonary pulsatile-load/PV-law audit; current
+guidance also cautions that elevated PASP does not necessarily imply elevated
+PVR and that definitive PH classification is invasive
+([ASE right-heart guideline, 2025](https://doi.org/10.1016/j.echo.2025.01.006)).
 
 A cold canonical 1 ms orbit, matched active-MCS V3 protocols, and independent
 pulsatile MCS/coronary waveform checks remain required. The completed
