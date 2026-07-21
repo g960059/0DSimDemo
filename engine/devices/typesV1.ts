@@ -34,12 +34,52 @@ export type HydraulicSegmentV1 = Readonly<{
   quadraticResistanceMmHgSec2PerMl2: number;
 }>;
 
+/**
+ * @deprecated Pre-discriminant field bundle retained only for migration/test
+ * helpers. Runtime config must use RotaryPumpInletSuctionMechanismV1.
+ */
 export type InletCollapseV1 = Readonly<{
   collapsePressureMmHg: number;
   recoveredPressureMmHg: number;
   minimumVolumeMl: number | null;
   recoveredVolumeMl: number | null;
 }>;
+
+/**
+ * Inlet suction is an explicit, fail-closed equation choice. The legacy
+ * branch preserves the pre-existing smooth pressure/whole-source-volume
+ * availability law. The pressure-dependent branch is a physical series
+ * resistance and must not be represented as a constraint reaction.
+ */
+export type RotaryPumpInletSuctionMechanismV1 =
+  | Readonly<{
+    kind: "legacy-smooth-availability";
+    collapsePressureMmHg: number;
+    recoveredPressureMmHg: number;
+    minimumVolumeMl: number | null;
+    recoveredVolumeMl: number | null;
+  }>
+  | Readonly<{
+    kind: "pressure-dependent-series-resistance";
+    thresholdPressureMmHg: number;
+    resistanceSlopeMmHgSecPerMlPerMmHg: number;
+  }>
+  | Readonly<{
+    kind: "none";
+  }>;
+
+/** Evidence metadata is diagnostic only; it never clips instantaneous flow. */
+export type RotaryPumpForwardFlowEvidenceDomainV1 = Readonly<{
+  publishedExperimentalTraversalUpperLMin: number | null;
+  advertisedCapacityLMin: number | null;
+}>;
+
+export type RotaryPumpForwardFlowEvidenceStatusV1 =
+  | "not-declared"
+  | "non-forward-flow-not-applicable"
+  | "within-published-experimental-domain"
+  | "above-published-experimental-domain-within-advertised-capacity"
+  | "above-advertised-capacity";
 
 export type RotaryPumpDeviceConfigV1 = Readonly<{
   enabled: boolean;
@@ -52,9 +92,11 @@ export type RotaryPumpDeviceConfigV1 = Readonly<{
   drainage: HydraulicSegmentV1;
   oxygenator: HydraulicSegmentV1;
   returnPath: HydraulicSegmentV1;
-  inletCollapse: InletCollapseV1;
-  maximumForwardFlowLMin: number;
+  inletSuction: RotaryPumpInletSuctionMechanismV1;
+  /** Null means that the H-Q equation is not given an artificial forward cap. */
+  maximumForwardFlowLMin: number | null;
   maximumReverseFlowLMin: number;
+  forwardFlowEvidenceDomain: RotaryPumpForwardFlowEvidenceDomainV1;
 }>;
 
 export type ImpellaPerformanceLevelV1 =
@@ -145,13 +187,19 @@ export type RotaryPumpEvaluationV1 = Readonly<{
   dFlowMlPerSecDInletVolumePerSec: number;
   inletAvailability01: number;
   inletCollapseActive: boolean;
+  inletSuctionMechanismKind: RotaryPumpInletSuctionMechanismV1["kind"];
+  inletSuctionResistanceMmHgSecPerMl: number;
+  inletSuctionPressureDropMmHg: number;
+  forwardFlowEvidenceStatus: RotaryPumpForwardFlowEvidenceStatusV1;
+  forwardFlowPublishedExperimentalTraversalUpperLMin: number | null;
+  forwardFlowAdvertisedCapacityLMin: number | null;
   drainagePressureDropMmHg: number;
   oxygenatorPressureDropMmHg: number;
   returnPathPressureDropMmHg: number;
   prePumpPressureMmHg: number;
   postPumpPressureMmHg: number;
   postOxygenatorPressureMmHg: number;
-  /** Signed reaction supplied by a suction, capacity, or clamp flow limit. */
+  /** Signed reaction from a legacy availability, capacity, or clamp limit. */
   flowLimitPressureReactionMmHg: number;
   hydraulicResidualMmHg: number;
 }>;

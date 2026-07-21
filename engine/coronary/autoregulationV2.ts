@@ -20,9 +20,11 @@ export const NORMAL_ADULT_CORONARY_AUTOREGULATION_PRIOR_V2 = Object.freeze({
   // This is a dilation-reserve floor, not a fitted resting waveform knob.
   minimumResistanceScale: 4 / 45,
   maximumResistanceScale: 2,
-  // Dankelman et al. reported metabolic half-times around 14--22 s. A 25 s
-  // time constant lies inside the corresponding 21--32 s range. Offline
-  // steady search may accelerate iteration, but live physiology must not.
+  // Construction coefficient for this deliberately reduced integral
+  // controller. It is not a conversion of a reported output t50 into a
+  // first-order time constant, and the implementation does not reproduce the
+  // Dankelman measurement station or protocol. Offline steady search may
+  // accelerate iteration, but live accepted-time execution must not.
   responseTimeConstantSec: 25,
   // Retained for the legacy leaky-target ablation. The accepted integral law
   // deliberately has no steady pressure bias: away from a tone bound its only
@@ -43,7 +45,7 @@ export type CoronaryAutoregulationAcceptedAggregateV2 = Readonly<{
   /** Accepted-cycle mean Qm, never an instantaneous or Newton-trial flow. */
   meanTissueFlowMlPerSecByTerritoryLayer:
     CoronaryTerritoryLayerRecordV2<number>;
-  /** Mean post-lesion Art-to-CV gradient available to each territory. */
+  /** Mean post-focal-lesion pressure minus common CV pressure. */
   meanPerfusionPressureMmHgByTerritory: CoronaryTerritoryRecordV2<number>;
   /** Demand multiplier; 1 is the mass/flow-prior normal resting target. */
   demandScaleByTerritoryLayer: CoronaryTerritoryLayerRecordV2<number>;
@@ -87,6 +89,9 @@ export function stepCoronaryAutoregulationByTerritoryLayerV2(
     topologyPrior?: CoronaryTopologyPriorV2;
     regulationPrior?: CoronaryAutoregulationPriorV1;
     law?: CoronaryAutoregulationLawV2;
+    /** Layer-specific structural/CMD floor used to prevent hidden wind-up. */
+    effectiveMinimumResistanceScaleByTerritoryLayer?:
+      CoronaryTerritoryLayerRecordV2<number>;
   }> = {},
 ): CoronaryAutoregulationAcceptedStepV2 {
   const topologyPrior = options.topologyPrior
@@ -123,6 +128,30 @@ export function stepCoronaryAutoregulationByTerritoryLayerV2(
         const previousResistanceScale = previousTone[territoryId][layerId];
         const meanPerfusionPressureMmHg =
           aggregate.meanPerfusionPressureMmHgByTerritory[territoryId];
+        const suppliedMinimum = options
+          .effectiveMinimumResistanceScaleByTerritoryLayer?.[territoryId][layerId]
+          ?? regulationPrior.minimumResistanceScale;
+        if (!Number.isFinite(suppliedMinimum) || suppliedMinimum <= 0) {
+          throw new RangeError(
+            `${territoryId}.${layerId} effective minimum tone must be positive`,
+          );
+        }
+        const effectiveMinimum = Math.max(
+          regulationPrior.minimumResistanceScale,
+          suppliedMinimum,
+        );
+        if (effectiveMinimum >= regulationPrior.maximumResistanceScale) {
+          throw new RangeError(
+            `${territoryId}.${layerId} effective minimum tone must be below the maximum`,
+          );
+        }
+        const layerRegulationPrior = effectiveMinimum
+          === regulationPrior.minimumResistanceScale
+          ? regulationPrior
+          : Object.freeze({
+            ...regulationPrior,
+            minimumResistanceScale: effectiveMinimum,
+          });
         const stepped = law === "leaky-target-v1"
           ? leakyTargetStepV2({
             previousResistanceScale,
@@ -131,7 +160,7 @@ export function stepCoronaryAutoregulationByTerritoryLayerV2(
             meanPerfusionPressureMmHg,
             hyperemia01,
             stepDtSec: aggregate.acceptedWindowDurationSec,
-          }, regulationPrior)
+          }, layerRegulationPrior)
           : integralHomeostaticStepV2({
             previousResistanceScale,
             achievedFlow,
@@ -139,7 +168,7 @@ export function stepCoronaryAutoregulationByTerritoryLayerV2(
             meanPerfusionPressureMmHg,
             hyperemia01,
             stepDtSec: aggregate.acceptedWindowDurationSec,
-          }, regulationPrior);
+          }, layerRegulationPrior);
         maximumAbsoluteLogToneChange = Math.max(
           maximumAbsoluteLogToneChange,
           Math.abs(

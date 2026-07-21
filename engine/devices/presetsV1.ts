@@ -1,5 +1,7 @@
 import {
   HEARTMATE_II_CANNULA_SEGMENT_V1,
+  HEARTMATE_II_CHOI_INLET_SUCTION_V1,
+  HEARTMATE_II_FORWARD_FLOW_EVIDENCE_DOMAIN_V1,
   HEARTMATE_II_LITERATURE_CURVE_V1,
   createMechanicalSupportConfigV1,
 } from "@/engine/devices/defaultsV1";
@@ -41,6 +43,10 @@ export function mechanicalSupportPresetV1(
           curve: HEARTMATE_II_LITERATURE_CURVE_V1,
           drainage: HEARTMATE_II_CANNULA_SEGMENT_V1,
           returnPath: HEARTMATE_II_CANNULA_SEGMENT_V1,
+          inletSuction: HEARTMATE_II_CHOI_INLET_SUCTION_V1,
+          maximumForwardFlowLMin: null,
+          forwardFlowEvidenceDomain:
+            HEARTMATE_II_FORWARD_FLOW_EVIDENCE_DOMAIN_V1,
         },
       });
     case "impella-cp-p6":
@@ -106,7 +112,13 @@ function mergeExistingPump<T extends RotaryPumpDeviceConfigV1>(
     drainage: { ...base.drainage, ...override?.drainage },
     oxygenator: { ...base.oxygenator, ...override?.oxygenator },
     returnPath: { ...base.returnPath, ...override?.returnPath },
-    inletCollapse: { ...base.inletCollapse, ...override?.inletCollapse },
+    inletSuction: override?.inletSuction === undefined
+      ? { ...base.inletSuction }
+      : { ...override.inletSuction },
+    forwardFlowEvidenceDomain: {
+      ...base.forwardFlowEvidenceDomain,
+      ...override?.forwardFlowEvidenceDomain,
+    },
   } as T;
 }
 
