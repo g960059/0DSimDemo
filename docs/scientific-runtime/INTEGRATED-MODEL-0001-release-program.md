@@ -462,6 +462,78 @@ guidance also cautions that elevated PASP does not necessarily imply elevated
 PVR and that definitive PH classification is invasive
 ([ASE right-heart guideline, 2025](https://doi.org/10.1016/j.echo.2025.01.006)).
 
+That mechanism audit is now frozen before inspecting the expanded pulmonary
+internal readback. It is explicitly post-observation: the broad second
+PA-pressure maximum was already known, so this is not a prospective waveform
+detection test. No coefficient changes. Every accepted endpoint will retain
+PA/PArt/PCap/PVen/PVein pressure and volume plus PV and the five serial
+pulmonary flows, without interpolation, resampling or smoothing. The audit asks
+in order whether RV inflow is zero during the rebound, whether PA volume rises,
+whether `PA_PArt` flow reverses from distal to proximal, whether the accepted
+Backward Euler continuity equations reconstruct that rise, whether the
+proximal R-L pressure balance closes, and whether the timing is compatible with
+the local linearized two-node RLC timescale. The last quantity is not a
+full-network eigenanalysis, and a reverse flow in this lumped model is not
+automatically a clinical reflected wave.
+
+This separation follows primary human work showing that pulsatile RV afterload
+requires resistance, compliance and characteristic impedance rather than PVR
+alone ([Lankhaar et al., 2006](https://doi.org/10.1152/ajpheart.00336.2006)),
+and that pulmonary wave direction/reflection is inferred from simultaneous
+pressure and flow rather than pressure shape alone
+([Su et al., 2017](https://doi.org/10.1161/JAHA.117.006679)). It also preserves
+an important reduced-model limitation: a published three-element 0D RV-PA
+model reproduced summary catheterization variables with substantial residual
+bias while its time-varying waveforms were not independently validated and
+specific reflection traits were missing
+([Kheyfets et al., 2016](https://pubmed.ncbi.nlm.nih.gov/27684888/)).
+The model's SV/pulse-pressure compliance and PVR-compliance product will
+therefore be reported only as unmatched descriptive context. The human
+PVR-compliance relation and its wedge-pressure dependence
+([Tedford et al., 2012](https://doi.org/10.1161/CIRCULATIONAHA.111.051540))
+are not used as a fitting target or acceptance interval.
+
+The primary 2 ms audit (protocol SHA-256
+`95c9e3f9a88a4dd18c4e18b42d83caf6aa0136c377e9453f20fd12036dfba073`) has
+now completed at the same cycle-70 P1 orbit (`P1max=0.000958567`). The expanded
+readback leaves no numerical ambiguity about the lumped-network mechanism. The
+ejection PA maximum is `37.802 mmHg` at phase `0.034`; the first closed-PV
+endpoint is phase `0.178`, PA pressure then reaches `6.518 mmHg` at phase
+`0.256`, `PA_PArt` flow reverses at the next accepted endpoint, and PA pressure
+rebounds to `26.919 mmHg` at phase `0.482`.
+During that `0.226 s` rebound, PV flow is exactly zero while `45.6481 mL`
+moves from PArt back into PA (peak reverse flow `-314.70 mL/s`). PA volume
+increases by the same `45.6481 mL`; the accepted continuity reconstruction
+differs by only `7.1e-14 mL`. The maximum five-node continuity residual over
+the retained non-wrap steps is `2.07e-8 mL`, and the `PA_PArt` Backward Euler
+R-L pressure-balance residual is `3.54e-13 mmHg`.
+
+At the secondary maximum the PA-minus-PArt gradient is `15.413 mmHg`. Its
+decomposition is `-0.0437 mmHg` resistive plus `15.4563 mmHg` inertive, so the
+rebound is owned by the current proximal dynamic edge, not RV inflow or an
+external-pressure oscillation. At that operating point the incremental PA and
+PArt compliances are `1.705` and `3.809 mL/mmHg`; with
+`L=0.004 mmHg*s2/mL` and effective `R=0.00625 mmHg*s/mL`, the isolated
+two-node linearization has an undamped period of `0.431 s` and a local-edge
+damping ratio of only `0.0536`. The observed
+closure-to-secondary-maximum delay is `0.304 s` (`0.705` of that local
+period). This is strong model-internal attribution to an underdamped proximal
+PA-PArt RLC mode, but it still is not a claim that the compartment flow equals
+a measured backward traveling wave.
+
+The whole-bed descriptive values remain the previously observed stroke volume
+`90.620 mL`, pulse pressure `31.284 mmHg`, SV/pulse-pressure compliance proxy
+`2.897 mL/mmHg`, PVR proxy `1.692 WU`, and proxy RC time `0.294 s`. Because the
+mean/DC context did not reveal the `45.6 mL` reverse exchange, changing global
+TBV or total pulmonary resistance to make PASP look better would target the
+wrong coordinate. The next intervention, if undertaken, should be a separately
+declared pulmonary topology bracket that preserves the DC resistance ledger
+and compares the current R-L split against a proximal-characteristic-
+resistance/three-element alternative and a sourced geometry-scale inertance
+alternative. It must report reverse volume, post-closure monotonicity, pressure
+and flow together, mean hemodynamics, RV work, and cross-dt behavior; no
+candidate should be selected from PASP alone.
+
 A cold canonical 1 ms orbit, matched active-MCS V3 protocols, and independent
 pulsatile MCS/coronary waveform checks remain required. The completed
 checkpoint-started local refinement is numerical evidence only and does not

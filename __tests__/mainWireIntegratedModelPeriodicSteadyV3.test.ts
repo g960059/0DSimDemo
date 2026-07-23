@@ -137,6 +137,19 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       expect(Object.values(sample.dynamicMcsAcceptedFlowMlPerSec)).toEqual([
         0, 0, 0, 0,
       ]);
+      expect(
+        Object.keys(sample.pulmonaryCirculation.nodeVolumeMl),
+      ).toEqual(["PA", "PArt", "PCap", "PVen", "PVein"]);
+      expect(
+        Object.keys(sample.pulmonaryCirculation.edgeFlowMlPerSec),
+      ).toEqual([
+        "PV",
+        "PA_PArt",
+        "PArt_PCap",
+        "PCap_PVen",
+        "PVen_PVein",
+        "PVein_LA",
+      ]);
     }
 
     const projection = result.terminalHealthyReferenceProjection;

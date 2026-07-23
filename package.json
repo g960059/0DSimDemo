@@ -48,6 +48,7 @@
     "verify:scientific:integrated-periodic-v2": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV2.ts",
     "verify:scientific:integrated-periodic-v3": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV3.ts",
     "verify:scientific:integrated-tbv-attribution-v1": "vite-node --script tools/scientific/runMainWireIntegratedModelTbvAttributionV1.ts --output artifacts/integrated-model-v3/tbv-attribution-v1.json",
+    "verify:scientific:integrated-pulmonary-waveform-audit-v1": "vite-node --script tools/scientific/runMainWireIntegratedModelPulmonaryWaveformAuditV1.ts --output artifacts/integrated-model-v3/pulmonary-waveform-audit-v1.json",
     "render:scientific:integrated-periodic-v3-svg": "vite-node --script tools/scientific/renderMainWireIntegratedModelPeriodicSteadyArtifactSvgV3.ts",
     "verify:scientific:integrated-checkpoint-local-dt-v1": "vite-node --script tools/scientific/runMainWireIntegratedModelCheckpointLocalDtRefinementV1.ts",
     "characterize:device:hmii-stanfield-mean-context:v1": "vite-node --script tools/scientific/runHeartMateIiStanfieldMeanOperatingPointContextV1.ts",

@@ -158,6 +158,30 @@ export type MainWireIntegratedModelPeriodicTerminalTraceSampleV3 = Readonly<{
     TV: number;
     PV: number;
   }>;
+  pulmonaryCirculation: Readonly<{
+    nodeVolumeMl: Readonly<{
+      PA: number;
+      PArt: number;
+      PCap: number;
+      PVen: number;
+      PVein: number;
+    }>;
+    absolutePressureMmHg: Readonly<{
+      PA: number;
+      PArt: number;
+      PCap: number;
+      PVen: number;
+      PVein: number;
+    }>;
+    edgeFlowMlPerSec: Readonly<{
+      PV: number;
+      PA_PArt: number;
+      PArt_PCap: number;
+      PCap_PVen: number;
+      PVen_PVein: number;
+      PVein_LA: number;
+    }>;
+  }>;
   coronary: Readonly<{
     totalInletFlowMlPerSec: number;
     ladSubendocardialQmFlowMlPerSec: number;
@@ -1015,6 +1039,30 @@ function traceSample(
       AoV: valves.AoV.flowMlPerSec,
       TV: valves.TV.flowMlPerSec,
       PV: valves.PV.flowMlPerSec,
+    },
+    pulmonaryCirculation: {
+      nodeVolumeMl: {
+        PA: volumes.PA,
+        PArt: volumes.PArt,
+        PCap: volumes.PCap,
+        PVen: volumes.PVen,
+        PVein: volumes.PVein,
+      },
+      absolutePressureMmHg: {
+        PA: pressures.PA,
+        PArt: pressures.PArt,
+        PCap: pressures.PCap,
+        PVen: pressures.PVen,
+        PVein: pressures.PVein,
+      },
+      edgeFlowMlPerSec: {
+        PV: valves.PV.flowMlPerSec,
+        PA_PArt: circulation.edgeFlowsMlPerSec.PA_PArt,
+        PArt_PCap: circulation.edgeFlowsMlPerSec.PArt_PCap,
+        PCap_PVen: circulation.edgeFlowsMlPerSec.PCap_PVen,
+        PVen_PVein: circulation.edgeFlowsMlPerSec.PVen_PVein,
+        PVein_LA: circulation.edgeFlowsMlPerSec.PVein_LA,
+      },
     },
     coronary: {
       totalInletFlowMlPerSec: hydraulics.totalInletFlowMlPerSec,
