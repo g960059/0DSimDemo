@@ -27,6 +27,12 @@ import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_PRESET_CATALOG_V1,
 } from "@/engine/scientific/presets";
 import {
+  MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_ID,
+  MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_SHA256,
+  MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_VERSION,
+  MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1,
+} from "@/engine/scientific/assembly";
+import {
   loadSimulationReleaseRefV1,
   sameSimulationReleaseRef,
   type SimulationReleaseRef,
@@ -82,6 +88,7 @@ export type ScientificProductReleaseBundleV1<
 > = Readonly<{
   schemaId: typeof SCIENTIFIC_PRODUCT_RELEASE_BUNDLE_V1_SCHEMA_ID;
   releaseRef: SimulationReleaseRef;
+  availability: ScientificProductReleaseAvailabilityV1;
   catalogRefs: ScientificProductReleaseCatalogRefsV1;
   catalogs: ScientificProductReleaseCatalogsV1<
     TCaseCatalog,
@@ -89,6 +96,15 @@ export type ScientificProductReleaseBundleV1<
     TObservableCatalog,
     TUiCatalog
   >;
+}>;
+
+export type ScientificProductReleaseAvailabilityV1 = Readonly<{
+  channel: "stable-product" | "experimental-preview";
+  displayName: string;
+  defaultForNewRuns: boolean;
+  frontendSelectable: boolean;
+  clinicalValidationClaimed: false;
+  notice: string;
 }>;
 
 export type CurrentScientificProductCaseCatalogV1 = Readonly<{
@@ -135,7 +151,102 @@ export type CurrentScientificProductReleaseBundleV1 =
     CurrentScientificProductControlCatalogV1,
     CurrentScientificProductObservableCatalogV1,
     CurrentScientificProductUiCatalogV1
-  >;
+  > & Readonly<{
+    availability: ScientificProductReleaseAvailabilityV1 & Readonly<{
+      channel: "stable-product";
+      defaultForNewRuns: true;
+    }>;
+  }>;
+
+export type IntegratedPreviewScientificProductCaseCatalogV1 = Readonly<{
+  releaseRef: SimulationReleaseRef;
+  entries: readonly Readonly<{
+    caseId: "integrated/normal-sinus-p1";
+    displayName: "Integrated normal-sinus P1 seed";
+    initialization: "exact-integrated-v3-checkpoint";
+    numericalPeriod1Established: true;
+    physiologicalAcceptanceEstablished: false;
+  }>[];
+}>;
+
+export type IntegratedPreviewScientificProductControlCatalogV1 = Readonly<{
+  releaseRef: SimulationReleaseRef;
+  controls: readonly Readonly<{
+    controlId: "mechanical-support.preview-preset";
+    kind: "discrete-restart-required";
+    options:
+      typeof MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1.supportedMechanicalSupportInputs;
+  }>[];
+  fixedRhythm: Readonly<{
+    presetId: "composed-regular-sinus-60-v1";
+    heartRateBpm: 60;
+  }>;
+}>;
+
+export type IntegratedPreviewScientificProductObservableCatalogV1 = Readonly<{
+  releaseRef: SimulationReleaseRef;
+  observableIds: readonly [
+    "hemodynamics.pressure.absolute.Ao",
+    "hemodynamics.pressure.absolute.LV",
+    "hemodynamics.pressure.absolute.PA",
+    "hemodynamics.volume.LV",
+    "valve.MV.flow",
+    "valve.AoV.flow",
+    "valve.TV.flow",
+    "valve.PV.flow",
+    "coronary.flow.total",
+    "coronary.flow.LAD.subendocardial",
+    "device.LVAD.flow",
+    "rhythm.capture.atrial",
+    "rhythm.capture.ventricular",
+    "calcium.free.LA",
+    "calcium.free.LVFW",
+    "calcium.free.RVFW",
+    "conservation.total_blood_volume.error"
+  ];
+}>;
+
+export type IntegratedPreviewScientificProductUiCatalogV1 = Readonly<{
+  releaseRef: SimulationReleaseRef;
+  graphRecipes: readonly [
+    "pressure-waveforms",
+    "lv-pressure-volume-loop",
+    "valve-flow-waveforms",
+    "coronary-flow-waveforms",
+    "dynamic-mcs-flow-waveforms",
+    "event-owned-calcium-waveforms"
+  ];
+  surface: "thin-current-frontend-adapter-reusable-by-cell-document-studio";
+}>;
+
+export type IntegratedPreviewScientificProductReleaseBundleV1 =
+  ScientificProductReleaseBundleV1<
+    IntegratedPreviewScientificProductCaseCatalogV1,
+    IntegratedPreviewScientificProductControlCatalogV1,
+    IntegratedPreviewScientificProductObservableCatalogV1,
+    IntegratedPreviewScientificProductUiCatalogV1
+  > & Readonly<{
+    availability: ScientificProductReleaseAvailabilityV1 & Readonly<{
+      channel: "experimental-preview";
+      defaultForNewRuns: false;
+    }>;
+  }>;
+
+export type AllowlistedScientificProductReleaseBundleV1 =
+  | CurrentScientificProductReleaseBundleV1
+  | IntegratedPreviewScientificProductReleaseBundleV1;
+
+export function isCurrentScientificProductReleaseBundleV1(
+  bundle: AllowlistedScientificProductReleaseBundleV1,
+): bundle is CurrentScientificProductReleaseBundleV1 {
+  return bundle.availability.channel === "stable-product";
+}
+
+export function isIntegratedPreviewScientificProductReleaseBundleV1(
+  bundle: AllowlistedScientificProductReleaseBundleV1,
+): bundle is IntegratedPreviewScientificProductReleaseBundleV1 {
+  return bundle.availability.channel === "experimental-preview";
+}
 
 export class ScientificProductReleaseBundleResolutionErrorV1 extends Error {
   constructor(message: string) {
@@ -208,6 +319,14 @@ const CURRENT_RELEASE_BUNDLE_V1: CurrentScientificProductReleaseBundleV1 =
   Object.freeze({
     schemaId: SCIENTIFIC_PRODUCT_RELEASE_BUNDLE_V1_SCHEMA_ID,
     releaseRef: SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
+    availability: Object.freeze({
+      channel: "stable-product" as const,
+      displayName: "Adult five-wall base",
+      defaultForNewRuns: true,
+      frontendSelectable: true,
+      clinicalValidationClaimed: false as const,
+      notice: "Current release-bound product model.",
+    }),
     catalogRefs: Object.freeze({
       cases: CASE_CATALOG_REF_V1,
       controls: CONTROL_CATALOG_REF_V1,
@@ -221,6 +340,128 @@ const CURRENT_RELEASE_BUNDLE_V1: CurrentScientificProductReleaseBundleV1 =
       ui: CURRENT_UI_CATALOG_V1,
     }),
   });
+
+export const SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1 =
+  Object.freeze({
+    id: MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_ID,
+    version:
+      MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_VERSION,
+    sha256: MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_SHA256,
+  });
+
+const INTEGRATED_PREVIEW_CASE_CATALOG_V1 = Object.freeze({
+  releaseRef: SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1,
+  entries: Object.freeze([
+    Object.freeze({
+      caseId: "integrated/normal-sinus-p1" as const,
+      displayName: "Integrated normal-sinus P1 seed" as const,
+      initialization: "exact-integrated-v3-checkpoint" as const,
+      numericalPeriod1Established: true as const,
+      physiologicalAcceptanceEstablished: false as const,
+    }),
+  ]),
+}) satisfies IntegratedPreviewScientificProductCaseCatalogV1;
+
+const INTEGRATED_PREVIEW_CONTROL_CATALOG_V1 = Object.freeze({
+  releaseRef: SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1,
+  controls: Object.freeze([
+    Object.freeze({
+      controlId: "mechanical-support.preview-preset" as const,
+      kind: "discrete-restart-required" as const,
+      options:
+        MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1
+          .supportedMechanicalSupportInputs,
+    }),
+  ]),
+  fixedRhythm: Object.freeze({
+    presetId: "composed-regular-sinus-60-v1" as const,
+    heartRateBpm: 60 as const,
+  }),
+}) satisfies IntegratedPreviewScientificProductControlCatalogV1;
+
+const INTEGRATED_PREVIEW_OBSERVABLE_CATALOG_V1 = Object.freeze({
+  releaseRef: SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1,
+  observableIds: Object.freeze([
+    "hemodynamics.pressure.absolute.Ao",
+    "hemodynamics.pressure.absolute.LV",
+    "hemodynamics.pressure.absolute.PA",
+    "hemodynamics.volume.LV",
+    "valve.MV.flow",
+    "valve.AoV.flow",
+    "valve.TV.flow",
+    "valve.PV.flow",
+    "coronary.flow.total",
+    "coronary.flow.LAD.subendocardial",
+    "device.LVAD.flow",
+    "rhythm.capture.atrial",
+    "rhythm.capture.ventricular",
+    "calcium.free.LA",
+    "calcium.free.LVFW",
+    "calcium.free.RVFW",
+    "conservation.total_blood_volume.error",
+  ] as const),
+}) satisfies IntegratedPreviewScientificProductObservableCatalogV1;
+
+const INTEGRATED_PREVIEW_UI_CATALOG_V1 = Object.freeze({
+  releaseRef: SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1,
+  graphRecipes: Object.freeze([
+    "pressure-waveforms",
+    "lv-pressure-volume-loop",
+    "valve-flow-waveforms",
+    "coronary-flow-waveforms",
+    "dynamic-mcs-flow-waveforms",
+    "event-owned-calcium-waveforms",
+  ] as const),
+  surface:
+    "thin-current-frontend-adapter-reusable-by-cell-document-studio" as const,
+}) satisfies IntegratedPreviewScientificProductUiCatalogV1;
+
+export const SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_BUNDLE_V1:
+IntegratedPreviewScientificProductReleaseBundleV1 = Object.freeze({
+  schemaId: SCIENTIFIC_PRODUCT_RELEASE_BUNDLE_V1_SCHEMA_ID,
+  releaseRef: SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1,
+  availability: Object.freeze({
+    channel: "experimental-preview" as const,
+    displayName: "Adult five-wall integrated preview",
+    defaultForNewRuns: false,
+    frontendSelectable: true,
+    clinicalValidationClaimed: false as const,
+    notice:
+      "Development preview with explicit pulmonary, AF, IABP and physiological-validation blockers.",
+  }),
+  catalogRefs: Object.freeze({
+    cases: Object.freeze({
+      id: "scientific-product-integrated-preview-case-catalog-v1",
+      version: "1.0.0",
+      digestSemantics: "sha256-canonical-json-catalog-slot" as const,
+      sha256: "c45444053e39fe30b3d35a0af3033e26346e5f170fb6a60ecd5b6a0c1f5b9c28",
+    }),
+    controls: Object.freeze({
+      id: "scientific-product-integrated-preview-control-catalog-v1",
+      version: "1.0.0",
+      digestSemantics: "sha256-canonical-json-catalog-slot" as const,
+      sha256: "1adcebcd1bc69f6b17c1a159d3f7d83577e5b3a871771c3fe09027ed141d312e",
+    }),
+    observables: Object.freeze({
+      id: "scientific-product-integrated-preview-observable-catalog-v1",
+      version: "1.0.0",
+      digestSemantics: "sha256-canonical-json-catalog-slot" as const,
+      sha256: "af525a5acff4e0c42097b2b1cd531df587829f29d47d6a1ae8d3305a3ee1578b",
+    }),
+    ui: Object.freeze({
+      id: "scientific-product-integrated-preview-ui-catalog-v1",
+      version: "1.0.0",
+      digestSemantics: "sha256-canonical-json-catalog-slot" as const,
+      sha256: "8cdde2ba037a01abd373ad1028babacd634da4fc8f990d11be706e80dde49103",
+    }),
+  }),
+  catalogs: Object.freeze({
+    cases: INTEGRATED_PREVIEW_CASE_CATALOG_V1,
+    controls: INTEGRATED_PREVIEW_CONTROL_CATALOG_V1,
+    observables: INTEGRATED_PREVIEW_OBSERVABLE_CATALOG_V1,
+    ui: INTEGRATED_PREVIEW_UI_CATALOG_V1,
+  }),
+});
 
 const CURRENT_EXPLICIT_CATALOG_RELEASE_REFS_V1 = Object.freeze([
   CURRENT_RELEASE_BUNDLE_V1.catalogs.cases.releaseRef,
@@ -238,9 +479,32 @@ if (!CURRENT_EXPLICIT_CATALOG_RELEASE_REFS_V1.every((catalogReleaseRef) =>
   throw new Error("current product catalog escaped its exact release binding");
 }
 
+const INTEGRATED_PREVIEW_EXPLICIT_CATALOG_RELEASE_REFS_V1 = Object.freeze([
+  SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_BUNDLE_V1
+    .catalogs.cases.releaseRef,
+  SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_BUNDLE_V1
+    .catalogs.controls.releaseRef,
+  SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_BUNDLE_V1
+    .catalogs.observables.releaseRef,
+  SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_BUNDLE_V1
+    .catalogs.ui.releaseRef,
+]);
+
+if (!INTEGRATED_PREVIEW_EXPLICIT_CATALOG_RELEASE_REFS_V1.every(
+  (catalogReleaseRef) => sameSimulationReleaseRef(
+    SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_BUNDLE_V1.releaseRef,
+    catalogReleaseRef,
+  ),
+)) {
+  throw new Error(
+    "integrated preview product catalog escaped its exact release binding",
+  );
+}
+
 /** Only shipped, statically imported product bundles belong in this allowlist. */
 const ALLOWLISTED_RELEASE_BUNDLES_V1 = Object.freeze([
   CURRENT_RELEASE_BUNDLE_V1,
+  SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_BUNDLE_V1,
 ] as const);
 
 export const SCIENTIFIC_PRODUCT_ALLOWLISTED_RELEASE_REFS_V1 = Object.freeze(
@@ -254,7 +518,7 @@ export const SCIENTIFIC_PRODUCT_ALLOWLISTED_RELEASE_REFS_V1 = Object.freeze(
  */
 export function resolveScientificProductReleaseBundleV1(
   value: unknown,
-): CurrentScientificProductReleaseBundleV1 {
+): AllowlistedScientificProductReleaseBundleV1 {
   let requestedRef: SimulationReleaseRef;
   try {
     requestedRef = loadSimulationReleaseRefV1(value);
@@ -271,5 +535,5 @@ export function resolveScientificProductReleaseBundleV1(
       "the exact SimulationReleaseRef is not allowlisted",
     );
   }
-  return bundle;
+  return bundle as AllowlistedScientificProductReleaseBundleV1;
 }

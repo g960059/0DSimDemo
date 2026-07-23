@@ -67,7 +67,7 @@ export const Layout = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <ModelLimitations />
+          {normalizedPath !== '/integrated-preview' && <ModelLimitations />}
           <div className="hidden sm:flex items-center rounded-md border border-slate-800 bg-slate-950 p-0.5">
             {languageItems.map((item) => {
               const isActive = item.locale === locale;

@@ -8,4 +8,7 @@ export const workbenchHref = (locale?: Locale) => prefixPath("/workbench", local
 
 export const allCasesHref = (locale?: Locale) => prefixPath("/cases", locale);
 
+export const integratedPreviewHref = (locale?: Locale) =>
+  prefixPath("/integrated-preview", locale);
+
 export const homeHref = (locale?: Locale) => prefixPath("/", locale);

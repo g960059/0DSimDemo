@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   SCIENTIFIC_PRODUCT_ALLOWLISTED_RELEASE_REFS_V1,
   SCIENTIFIC_PRODUCT_CASE_CATALOG_V1,
+  SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1,
   SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
+  isCurrentScientificProductReleaseBundleV1,
+  isIntegratedPreviewScientificProductReleaseBundleV1,
   resolveScientificProductReleaseBundleV1,
 } from "@/components/scientificProduct";
 import {
@@ -18,15 +21,25 @@ import {
 import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
 
 describe("scientific product release bundle registry V1", () => {
-  it("resolves only the exact current noncoronary release to its current catalogs", () => {
+  it("resolves the exact stable release to its release-bound catalogs", () => {
     const bundle = resolveScientificProductReleaseBundleV1({
       ...SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
     });
 
     expect(SCIENTIFIC_PRODUCT_ALLOWLISTED_RELEASE_REFS_V1).toEqual([
       SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
+      SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1,
     ]);
     expect(bundle.releaseRef).toBe(SCIENTIFIC_PRODUCT_RELEASE_REF_V1);
+    expect(bundle.availability).toMatchObject({
+      channel: "stable-product",
+      defaultForNewRuns: true,
+      frontendSelectable: true,
+      clinicalValidationClaimed: false,
+    });
+    if (!isCurrentScientificProductReleaseBundleV1(bundle)) {
+      throw new Error("stable release resolved to a preview bundle");
+    }
     expect(bundle.catalogs.cases.entries)
       .toBe(SCIENTIFIC_PRODUCT_CASE_CATALOG_V1);
     expect(bundle.catalogs.controls.valueDomains)
@@ -35,6 +48,39 @@ describe("scientific product release bundle registry V1", () => {
       .toBe(MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_SNAPSHOT_V1);
     expect(bundle.catalogs.ui.metricPresentations)
       .toBe(SCIENTIFIC_WORKBENCH_METRIC_PRESENTATION_CATALOG_V1);
+  });
+
+  it("resolves the integrated release only as an experimental preview", () => {
+    const bundle = resolveScientificProductReleaseBundleV1({
+      ...SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1,
+    });
+
+    expect(bundle.releaseRef)
+      .toBe(SCIENTIFIC_PRODUCT_INTEGRATED_PREVIEW_RELEASE_REF_V1);
+    expect(bundle.availability).toMatchObject({
+      channel: "experimental-preview",
+      defaultForNewRuns: false,
+      frontendSelectable: true,
+      clinicalValidationClaimed: false,
+    });
+    if (!isIntegratedPreviewScientificProductReleaseBundleV1(bundle)) {
+      throw new Error("integrated preview resolved to a stable bundle");
+    }
+    expect(bundle.catalogs.cases.entries).toEqual([
+      expect.objectContaining({
+        caseId: "integrated/normal-sinus-p1",
+        numericalPeriod1Established: true,
+        physiologicalAcceptanceEstablished: false,
+      }),
+    ]);
+    expect(bundle.catalogs.controls.controls[0]).toMatchObject({
+      controlId: "mechanical-support.preview-preset",
+      kind: "discrete-restart-required",
+    });
+    expect(bundle.catalogs.observables.observableIds)
+      .toContain("coronary.flow.total");
+    expect(bundle.catalogs.ui.graphRecipes)
+      .toContain("dynamic-mcs-flow-waveforms");
   });
 
   it("rejects the same release ID and version with a different SHA-256", () => {
@@ -52,16 +98,16 @@ describe("scientific product release bundle registry V1", () => {
     })).toThrow(/exact SimulationReleaseRef is not allowlisted/);
   });
 
-  it("content-addresses every exact bundled catalog slot", async () => {
-    const bundle = resolveScientificProductReleaseBundleV1(
-      SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
-    );
-    for (const slot of ["cases", "controls", "observables", "ui"] as const) {
-      expect(bundle.catalogRefs[slot].digestSemantics)
-        .toBe("sha256-canonical-json-catalog-slot");
-      expect(bundle.catalogRefs[slot].sha256).toBe(
-        await sha256CanonicalJsonHex(bundle.catalogs[slot]),
-      );
+  it("content-addresses every catalog slot of every allowlisted release", async () => {
+    for (const releaseRef of SCIENTIFIC_PRODUCT_ALLOWLISTED_RELEASE_REFS_V1) {
+      const bundle = resolveScientificProductReleaseBundleV1(releaseRef);
+      for (const slot of ["cases", "controls", "observables", "ui"] as const) {
+        expect(bundle.catalogRefs[slot].digestSemantics)
+          .toBe("sha256-canonical-json-catalog-slot");
+        expect(bundle.catalogRefs[slot].sha256).toBe(
+          await sha256CanonicalJsonHex(bundle.catalogs[slot]),
+        );
+      }
     }
   });
 
@@ -69,6 +115,9 @@ describe("scientific product release bundle registry V1", () => {
     const bundle = resolveScientificProductReleaseBundleV1(
       SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
     );
+    if (!isCurrentScientificProductReleaseBundleV1(bundle)) {
+      throw new Error("stable release resolved to a preview bundle");
+    }
 
     expect(Object.isFrozen(bundle)).toBe(true);
     expect(Object.isFrozen(bundle.releaseRef)).toBe(true);

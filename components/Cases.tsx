@@ -1,8 +1,9 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ScientificProductCasesGridV1 } from './scientificProduct';
 import { localeFromPathname } from '../localeRouting';
+import { integratedPreviewHref } from '../homeLinks';
 
 export const OfficialCases = () => {
   const { t } = useTranslation();
@@ -25,6 +26,29 @@ export const OfficialCases = () => {
             locale={locale}
             openLabel={t('cases.openCase')}
           />
+        </section>
+        <section className="rounded-xl border border-amber-700/60 bg-amber-950/20 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-amber-300">
+                Experimental model channel
+              </div>
+              <h2 className="mt-1 text-xl font-bold text-slate-100">
+                Integrated base + coronary + MCS + rhythm
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                Exact release-bound preview with raw waveforms, coronary flow,
+                composed rhythm events, and an optional one-beat HeartMate II
+                transient. Not the current stable release.
+              </p>
+            </div>
+            <Link
+              to={integratedPreviewHref(locale)}
+              className="shrink-0 rounded bg-amber-700 px-4 py-2 text-center text-sm font-bold text-white hover:bg-amber-600"
+            >
+              Open preview
+            </Link>
+          </div>
         </section>
       </div>
     </div>

@@ -32,6 +32,9 @@ const ScientificProductWorkbenchPage = React.lazy(
 const ScientificBrowserPerformanceLab = React.lazy(
   () => import('./components/scientificPerformance/ScientificBrowserPerformanceLabV0'),
 );
+const IntegratedModelPreviewPage = React.lazy(
+  () => import('./components/scientificProduct/IntegratedModelPreviewPageV1'),
+);
 
 if (
   window.location.pathname.endsWith('/scientific-performance-lab')
@@ -112,6 +115,14 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ScientificPerformanceLabLoading />}>
           <ScientificBrowserPerformanceLab />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="integrated-preview"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading integrated model…" />}>
+          <IntegratedModelPreviewPage />
         </React.Suspense>
       )}
     />
