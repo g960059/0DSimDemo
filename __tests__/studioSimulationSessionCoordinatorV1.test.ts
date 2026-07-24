@@ -9,6 +9,9 @@ import {
   type RuntimeLiveIntentResultV1,
   type RuntimePresentationFrameV1,
   type RuntimeSessionOpenedV1,
+  type RuntimeSignalBatchV1,
+  type RuntimeSignalChannelRefV1,
+  type RuntimeSignalEventV1,
   type RuntimeStrictIntentResultV1,
   type RuntimeTargetIntentCommandV1,
   type RuntimeTargetIntentExecutionV1,
@@ -42,6 +45,7 @@ describe("Studio SimulationSession coordinator V1", () => {
         },
       });
       expect(branch.display.firstPoint).toBe(branch.display.latestPoint);
+      expect(branch.livePlayback).toBe("running");
     }
 
     const receipt = coordinator.applyControlIntent({
@@ -98,8 +102,8 @@ describe("Studio SimulationSession coordinator V1", () => {
         kind: "live-transition",
         targetGeneration: 1,
       });
-      expect(branch.display.pointCount).toBe(2);
-      expect(branch.display.windowMetrics.status).toBe("complete");
+      expect(branch.display.pointCount).toBe(1);
+      expect(branch.display.windowMetrics.status).toBe("collecting");
     }
   });
 
@@ -141,7 +145,7 @@ describe("Studio SimulationSession coordinator V1", () => {
       targetGeneration: 1,
       latestSteadyCandidate: { targetGeneration: 1 },
       display: {
-        pointCount: 2,
+        pointCount: 1,
         origin: { kind: "live-transition", targetGeneration: 1 },
       },
     });
@@ -196,7 +200,11 @@ describe("Studio SimulationSession coordinator V1", () => {
         completedCycleCount: 0,
       },
     });
-    expect(coordinator.branch("hfrEF").display.pointCount).toBe(2);
+    expect(coordinator.branch("baseline").latestSteadyCandidate).toBeNull();
+    await expect(coordinator.promoteSteadyCandidate("baseline"))
+      .rejects.toThrow(/no steady candidate exists/);
+    expect(runtime.promotions).toHaveLength(1);
+    expect(coordinator.branch("hfrEF").display.pointCount).toBe(1);
     expect(
       Object.prototype.hasOwnProperty.call(
         coordinator.branch("baseline"),
@@ -235,6 +243,44 @@ describe("Studio SimulationSession coordinator V1", () => {
     expect(coordinator.branch("hfrEF")).toMatchObject({
       latestSteadyCandidate: {
         scenarioId: "hfrEF",
+        targetGeneration: 1,
+        steadyStatus: "converged",
+      },
+      lastRuntimeFailure: null,
+    });
+  });
+
+  it("treats branch supersession as an expected terminal result", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    coordinator.applyControlIntent({
+      intentId: "intent/both-before-supersede",
+      targets: [
+        targetV1("baseline", "3", 1.25),
+        targetV1("hfrEF", "4", 1.25),
+      ],
+    });
+    coordinator.applyControlIntent({
+      intentId: "intent/baseline-superseding",
+      targets: [targetV1("baseline", "5", 1.5)],
+    });
+
+    runtime.resolveStrict(
+      "intent/both-before-supersede",
+      undefined,
+      "baseline",
+    );
+    await flushV1();
+
+    expect(coordinator.branch("baseline")).toMatchObject({
+      targetGeneration: 2,
+      latestSteadyCandidate: null,
+      lastRuntimeFailure: null,
+    });
+    expect(coordinator.branch("hfrEF")).toMatchObject({
+      targetGeneration: 1,
+      latestSteadyCandidate: {
         targetGeneration: 1,
         steadyStatus: "converged",
       },
@@ -338,6 +384,9 @@ describe("Studio SimulationSession coordinator V1", () => {
     expect(coordinator.branch("baseline")).toMatchObject({
       presentationRevision: 1,
       display: { origin: { kind: "opened-run" } },
+      latestSteadyCandidate: {
+        candidateId: "candidate/baseline/1",
+      },
     });
 
     runtime.resolveLive("intent/failed-promotion");
@@ -420,6 +469,502 @@ describe("Studio SimulationSession coordinator V1", () => {
     expect(coordinator.branch("baseline").display.origin.kind)
       .toBe("opened-run");
   });
+
+  it("rejects a concurrent open before the first runtime open resolves", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    const gate = runtime.delayNextOpen();
+    const opening = coordinator.open(openCommandV1());
+
+    await expect(coordinator.open({
+      ...openCommandV1(),
+      sessionId: "session/concurrent-open",
+    })).rejects.toThrow(/already open or opening/);
+
+    gate.resolve(undefined);
+    await expect(opening).resolves.toMatchObject({
+      status: "live",
+      sessionId: "session/studio-v1",
+    });
+    expect(runtime.openedSessionIds).toEqual(["session/studio-v1"]);
+  });
+
+  it("closes a runtime allocation when close races an in-flight open", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    const gate = runtime.delayNextOpen();
+    const opening = coordinator.open(openCommandV1());
+    const openingResult = expect(opening).rejects.toThrow(/aborted by close/);
+    const closing = coordinator.close();
+
+    gate.resolve(undefined);
+    await Promise.all([openingResult, closing]);
+    expect(runtime.closedSessionIds).toEqual(["session/studio-v1"]);
+    expect(() => coordinator.current).toThrow(/has not been opened/);
+  });
+
+  it("closes runtime allocation when its open receipt escapes source binding", async () => {
+    const runtime = new FakeRuntimePortV1();
+    runtime.openedBindingMismatch = true;
+    const coordinator = coordinatorV1(runtime);
+
+    await expect(coordinator.open(openCommandV1()))
+      .rejects.toThrow(/source binding mismatch/);
+    expect(runtime.closedSessionIds).toEqual(["session/studio-v1"]);
+    expect(() => coordinator.current).toThrow(/has not been opened/);
+  });
+
+  it("blocks new intents while close is in flight and deduplicates close", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    const gate = runtime.delayNextClose();
+
+    const firstClose = coordinator.close();
+    const secondClose = coordinator.close();
+    expect(coordinator.current.status).toBe("closing");
+    expect(() => coordinator.applyControlIntent({
+      intentId: "intent/during-close",
+      targets: [targetV1("baseline", "3", 1.25)],
+    })).toThrow(/not live/);
+    expect(runtime.closedSessionIds).toEqual(["session/studio-v1"]);
+
+    gate.resolve(undefined);
+    await Promise.all([firstClose, secondClose]);
+    expect(coordinator.current.status).toBe("closed");
+    expect(runtime.closedSessionIds).toEqual(["session/studio-v1"]);
+  });
+
+  it("returns to live when runtime close fails", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    runtime.rejectNextClose(new Error("transport close failed"));
+
+    await expect(coordinator.close()).rejects.toThrow(/transport close failed/);
+    expect(coordinator.current.status).toBe("live");
+    expect(coordinator.applyControlIntent({
+      intentId: "intent/after-close-retry",
+      targets: [targetV1("baseline", "3", 1.25)],
+    })).toMatchObject({ intentId: "intent/after-close-retry" });
+  });
+
+  it("accepts immediate samples only after each signal epoch is installed", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    runtime.queueImmediateSignalOnResume("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+    });
+
+    await coordinator.open(openCommandV1());
+    expect(coordinator.branch("baseline").display).toMatchObject({
+      pointCount: 2,
+      latestPoint: { sequence: 2 },
+    });
+
+    coordinator.applyControlIntent({
+      intentId: "intent/immediate-activation",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    runtime.queueImmediateSignalOnResume("baseline", {
+      kind: "samples",
+      targetGeneration: 1,
+      presentationRevision: 1,
+      streamEpoch: 1,
+      points: [frameV1(102).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+    });
+    runtime.resolveLive("intent/immediate-activation");
+    runtime.resolveStrict("intent/immediate-activation");
+    await flushV1();
+    expect(coordinator.branch("baseline").display).toMatchObject({
+      origin: { kind: "live-transition" },
+      pointCount: 2,
+      latestPoint: { sequence: 102 },
+    });
+
+    runtime.queueImmediateSignalOnResume("baseline", {
+      kind: "samples",
+      targetGeneration: 1,
+      presentationRevision: 2,
+      streamEpoch: 2,
+      points: [frameV1(1_002).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+    });
+    await coordinator.promoteSteadyCandidate("baseline");
+    expect(coordinator.branch("baseline").display).toMatchObject({
+      origin: { kind: "promoted-steady-candidate" },
+      pointCount: 2,
+      latestPoint: { sequence: 1_002 },
+    });
+    expect(runtime.resumedSignalEpochs.filter(({ scenarioId }) =>
+      scenarioId === "baseline"
+    ).map(({ streamEpoch }) => streamEpoch)).toEqual([0, 1, 2]);
+  });
+
+  it("ignores stale signal failures and fails closed on a current failure", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+
+    runtime.emitSignalFailure("baseline", {
+      targetGeneration: 99,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      message: "stale loop failed",
+    });
+    expect(coordinator.branch("baseline").livePlayback).toBe("running");
+
+    runtime.emitSignalFailure("baseline", {
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      message: "continuous live loop failed",
+    });
+    expect(coordinator.branch("baseline")).toMatchObject({
+      livePlayback: "suspended",
+      lastRuntimeFailure: {
+        lane: "live",
+        targetGeneration: 0,
+        message: "continuous live loop failed",
+      },
+    });
+  });
+
+  it("fails closed on malformed current samples and regressing metrics", async () => {
+    const malformedRuntime = new FakeRuntimePortV1();
+    const malformedCoordinator = coordinatorV1(malformedRuntime);
+    await malformedCoordinator.open(openCommandV1());
+    malformedRuntime.emitRawSignal("baseline", {
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+    });
+    expect(malformedCoordinator.branch("baseline")).toMatchObject({
+      livePlayback: "suspended",
+      lastRuntimeFailure: {
+        message: "runtime signal channel emitted an invalid batch",
+      },
+    });
+
+    const metricRuntime = new FakeRuntimePortV1();
+    const metricCoordinator = coordinatorV1(metricRuntime);
+    await metricCoordinator.open(openCommandV1());
+    metricRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "complete",
+        collectedPointCount: 2,
+        completedCycleCount: 2,
+        values: { "metric.stroke-volume": 70 },
+      },
+    });
+    metricRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(3).point],
+      windowMetrics: {
+        status: "complete",
+        collectedPointCount: 3,
+        completedCycleCount: 1,
+        values: { "metric.stroke-volume": 70 },
+      },
+    });
+    expect(metricCoordinator.branch("baseline").livePlayback)
+      .toBe("suspended");
+
+    metricRuntime.emitSignal("hfrEF", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(1).point],
+      windowMetrics: {
+        status: "complete",
+        collectedPointCount: 2,
+        completedCycleCount: 1,
+        values: { "metric.stroke-volume": 70 },
+      },
+    });
+    metricRuntime.emitSignal("hfrEF", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+    });
+    expect(metricCoordinator.branch("hfrEF").livePlayback)
+      .toBe("suspended");
+  });
+
+  it("rolls back a rejected resume and suspends a live lane failure", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    await coordinator.suspendBranch("baseline");
+    runtime.rejectNextResume("baseline", new Error("resume transport failed"));
+
+    await expect(coordinator.resumeBranch("baseline"))
+      .rejects.toThrow(/resume transport failed/);
+    expect(coordinator.branch("baseline")).toMatchObject({
+      livePlayback: "suspended",
+      lastRuntimeFailure: {
+        lane: "live",
+        message: "runtime signal channel resume failed: resume transport failed",
+      },
+    });
+
+    coordinator.applyControlIntent({
+      intentId: "intent/live-failure",
+      targets: [targetV1("hfrEF", "3", 1.25)],
+    });
+    runtime.resolveLive("intent/live-failure", "hfrEF");
+    await flushV1();
+    expect(coordinator.branch("hfrEF")).toMatchObject({
+      livePlayback: "suspended",
+      lastRuntimeFailure: {
+        lane: "live",
+        intentId: "intent/live-failure",
+        message: "live solver failed for hfrEF",
+      },
+    });
+  });
+
+  it("records live-transition and promotion epoch activation failures", async () => {
+    const liveRuntime = new FakeRuntimePortV1();
+    const liveCoordinator = coordinatorV1(liveRuntime);
+    await liveCoordinator.open(openCommandV1());
+    liveCoordinator.applyControlIntent({
+      intentId: "intent/rejected-live-activation",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    liveRuntime.rejectNextResume(
+      "baseline",
+      new Error("new live epoch rejected"),
+    );
+    liveRuntime.resolveLive("intent/rejected-live-activation");
+    await flushV1();
+    expect(liveCoordinator.branch("baseline")).toMatchObject({
+      streamEpoch: 1,
+      livePlayback: "suspended",
+      display: { origin: { kind: "live-transition" } },
+      lastRuntimeFailure: {
+        message:
+          "live transition signal epoch activation failed: new live epoch rejected",
+      },
+    });
+
+    const promotionRuntime = new FakeRuntimePortV1();
+    const promotionCoordinator = coordinatorV1(promotionRuntime);
+    await promotionCoordinator.open(openCommandV1());
+    promotionCoordinator.applyControlIntent({
+      intentId: "intent/rejected-promotion-activation",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    promotionRuntime.resolveStrict("intent/rejected-promotion-activation");
+    await flushV1();
+    promotionRuntime.rejectNextResume(
+      "baseline",
+      new Error("promoted epoch rejected"),
+    );
+    await promotionCoordinator.promoteSteadyCandidate("baseline");
+    await flushV1();
+    expect(promotionCoordinator.branch("baseline")).toMatchObject({
+      streamEpoch: 2,
+      livePlayback: "suspended",
+      display: { origin: { kind: "promoted-steady-candidate" } },
+      lastRuntimeFailure: {
+        message:
+          "promoted signal epoch activation failed: promoted epoch rejected",
+      },
+    });
+  });
+
+  it("fences a delayed automatic resume before manual suspension completes", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    coordinator.applyControlIntent({
+      intentId: "intent/delayed-resume-before-suspend",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    const resumeGate = runtime.delayNextResume("baseline");
+    runtime.resolveLive("intent/delayed-resume-before-suspend");
+    await flushV1();
+
+    const suspending = coordinator.suspendBranch("baseline");
+    expect(coordinator.branch("baseline").livePlayback).toBe("suspended");
+    resumeGate.resolve(undefined);
+    await suspending;
+
+    expect(runtime.isSignalChannelSuspended("baseline")).toBe(true);
+    const activated = runtime.signalLifecycle.lastIndexOf(
+      "resume:active:baseline:1",
+    );
+    const suspended = runtime.signalLifecycle.lastIndexOf("suspend:baseline");
+    expect(activated).toBeGreaterThan(-1);
+    expect(suspended).toBeGreaterThan(activated);
+  });
+
+  it("serializes a newer target epoch behind delayed stale activation cleanup", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    coordinator.applyControlIntent({
+      intentId: "intent/delayed-generation-one",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    const resumeGate = runtime.delayNextResume("baseline");
+    runtime.resolveLive("intent/delayed-generation-one");
+    await flushV1();
+
+    coordinator.applyControlIntent({
+      intentId: "intent/generation-two-during-resume",
+      targets: [targetV1("baseline", "4", 1.5)],
+    });
+    runtime.resolveLive("intent/generation-two-during-resume");
+    await flushV1();
+    expect(runtime.resumedSignalEpochs.filter(({ scenarioId }) =>
+      scenarioId === "baseline"
+    ).map(({ streamEpoch }) => streamEpoch)).toEqual([0, 1]);
+
+    resumeGate.resolve(undefined);
+    for (let index = 0; index < 4; index += 1) await flushV1();
+
+    expect(runtime.resumedSignalEpochs.filter(({ scenarioId }) =>
+      scenarioId === "baseline"
+    ).map(({ streamEpoch }) => streamEpoch)).toEqual([0, 1, 2]);
+    expect(runtime.isSignalChannelSuspended("baseline")).toBe(false);
+    const staleActive = runtime.signalLifecycle.lastIndexOf(
+      "resume:active:baseline:1",
+    );
+    const fence = runtime.signalLifecycle.findIndex(
+      (event, index) => index > staleActive && event === "suspend:baseline",
+    );
+    const currentStart = runtime.signalLifecycle.lastIndexOf(
+      "resume:start:baseline:2",
+    );
+    expect(staleActive).toBeGreaterThan(-1);
+    expect(fence).toBeGreaterThan(staleActive);
+    expect(currentStart).toBeGreaterThan(fence);
+  });
+
+  it("waits for delayed automatic activation cleanup before runtime close", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    coordinator.applyControlIntent({
+      intentId: "intent/delayed-resume-before-close",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    const resumeGate = runtime.delayNextResume("baseline");
+    runtime.resolveLive("intent/delayed-resume-before-close");
+    await flushV1();
+
+    const closing = coordinator.close();
+    expect(coordinator.current.status).toBe("closing");
+    expect(runtime.closedSessionIds).toEqual([]);
+    resumeGate.resolve(undefined);
+    await closing;
+
+    expect(coordinator.current.status).toBe("closed");
+    const activated = runtime.signalLifecycle.lastIndexOf(
+      "resume:active:baseline:1",
+    );
+    const fenced = runtime.signalLifecycle.findIndex(
+      (event, index) => index > activated && event === "suspend:baseline",
+    );
+    const closed = runtime.signalLifecycle.lastIndexOf(
+      "close:session/studio-v1",
+    );
+    expect(activated).toBeGreaterThan(-1);
+    expect(fenced).toBeGreaterThan(activated);
+    expect(closed).toBeGreaterThan(fenced);
+  });
+
+  it("appends monotonic signal batches and suspends without advancing", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    const before = coordinator.branch("baseline");
+    const nextSequence = before.display.latestPoint.sequence + 1;
+
+    runtime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [
+        frameV1(nextSequence).point,
+        frameV1(nextSequence + 1).point,
+      ],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+    });
+    expect(coordinator.branch("baseline").display).toMatchObject({
+      pointCount: 3,
+      latestPoint: { sequence: nextSequence + 1 },
+    });
+
+    await coordinator.suspendBranch("baseline");
+    expect(coordinator.branch("baseline").livePlayback).toBe("suspended");
+    runtime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(nextSequence + 2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 4,
+        completedCycleCount: 0,
+      },
+    });
+    expect(coordinator.branch("baseline").display.latestPoint.sequence)
+      .toBe(nextSequence + 1);
+
+    await coordinator.resumeBranch("baseline");
+    expect(coordinator.branch("baseline").livePlayback).toBe("running");
+    expect(coordinator.branch("baseline").signalChannelRef)
+      .toEqual(before.signalChannelRef);
+  });
 });
 
 function coordinatorV1(
@@ -438,12 +983,14 @@ function openCommandV1(): OpenSimulationSessionCommandV1 {
       {
         scenarioId: "baseline",
         sourceRunRef: refV1("run-artifact", "a"),
+        sourceInputRef: refV1("simulation-input", "e"),
         sourceSnapshotRef: refV1("snapshot-envelope", "b"),
         initialTargetInputSha256: "1".repeat(64),
       },
       {
         scenarioId: "hfrEF",
         sourceRunRef: refV1("run-artifact", "c"),
+        sourceInputRef: refV1("simulation-input", "f"),
         sourceSnapshotRef: refV1("snapshot-envelope", "d"),
         initialTargetInputSha256: "2".repeat(64),
       },
@@ -456,14 +1003,21 @@ async function storedOpenCommandV1(
 ): Promise<OpenSimulationSessionCommandV1> {
   const [
     baselineRun,
+    baselineInput,
     baselineSnapshot,
     hfrEfRun,
+    hfrEfInput,
     hfrEfSnapshot,
   ] = await Promise.all([
     artifacts.putJson({
       kind: "run-artifact",
       mediaType: "application/json",
       content: { fixture: "baseline-source-run" },
+    }),
+    artifacts.putJson({
+      kind: "simulation-input",
+      mediaType: "application/json",
+      content: { fixture: "baseline-source-input" },
     }),
     artifacts.putJson({
       kind: "snapshot-envelope",
@@ -474,6 +1028,11 @@ async function storedOpenCommandV1(
       kind: "run-artifact",
       mediaType: "application/json",
       content: { fixture: "hfref-source-run" },
+    }),
+    artifacts.putJson({
+      kind: "simulation-input",
+      mediaType: "application/json",
+      content: { fixture: "hfref-source-input" },
     }),
     artifacts.putJson({
       kind: "snapshot-envelope",
@@ -487,12 +1046,14 @@ async function storedOpenCommandV1(
       {
         scenarioId: "baseline",
         sourceRunRef: baselineRun,
+        sourceInputRef: baselineInput,
         sourceSnapshotRef: baselineSnapshot,
         initialTargetInputSha256: "1".repeat(64),
       },
       {
         scenarioId: "hfrEF",
         sourceRunRef: hfrEfRun,
+        sourceInputRef: hfrEfInput,
         sourceSnapshotRef: hfrEfSnapshot,
         initialTargetInputSha256: "2".repeat(64),
       },
@@ -509,7 +1070,9 @@ function targetV1(
     scenarioId,
     patch: {
       targetInputSha256: hashDigit.repeat(64),
-      values: { "circulation.svr-scale": value },
+      values: {
+        "circulation.systemic-vascular-resistance-scale": value,
+      },
     },
   };
 }
@@ -550,14 +1113,38 @@ const EXECUTION_V1: RuntimeExecutionIdentityV1 = Object.freeze({
 });
 
 class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
+  readonly openedSessionIds: string[] = [];
   readonly submissions: RuntimeTargetIntentCommandV1[] = [];
   readonly promotions: PromoteSteadyCandidateCommandV1[] = [];
   readonly closedSessionIds: string[] = [];
+  readonly resumedSignalEpochs: {
+    scenarioId: string;
+    streamEpoch: number;
+  }[] = [];
+  readonly signalLifecycle: string[] = [];
   openedCollectingPointCount = 1;
   promotedCollectingPointCount = 1;
+  openedBindingMismatch = false;
   private opened: OpenSimulationSessionCommandV1 | null = null;
+  private nextOpenGate: DeferredV1<void> | null = null;
+  private nextCloseGate: DeferredV1<void> | null = null;
+  private nextCloseError: Error | null = null;
   private nextPromotionGate: DeferredV1<void> | null = null;
   private nextPromotionError: Error | null = null;
+  private readonly signalObservers = new Map<
+    string,
+    (event: RuntimeSignalEventV1) => void
+  >();
+  private readonly signalChannelsByScenario =
+    new Map<string, RuntimeSignalChannelRefV1>();
+  private readonly suspendedSignalChannelIds = new Set<string>();
+  private readonly immediateResumeEvents =
+    new Map<string, Array<Omit<
+      RuntimeSignalBatchV1,
+      "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
+    >>>();
+  private readonly nextResumeErrors = new Map<string, Error>();
+  private readonly nextResumeGates = new Map<string, DeferredV1<void>>();
   private readonly strictSnapshotRefs =
     new Map<string, StudioArtifactRefV1<"snapshot-envelope">>();
   private readonly executions = new Map<string, Readonly<{
@@ -569,13 +1156,28 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
   async openSession(
     command: OpenSimulationSessionCommandV1,
   ): Promise<RuntimeSessionOpenedV1> {
+    this.openedSessionIds.push(command.sessionId);
     this.opened = command;
+    const gate = this.nextOpenGate;
+    this.nextOpenGate = null;
+    if (gate !== null) await gate.promise;
     // Deliberately reverse adapter order; the coordinator owns stable order.
     return {
       sessionId: command.sessionId,
       branches: [...command.branches].reverse().map((branch, index) => ({
         scenarioId: branch.scenarioId,
         liveBranchId: `branch/${branch.scenarioId}`,
+        sourceRunRef: this.openedBindingMismatch
+          ? refV1("run-artifact", "0")
+          : branch.sourceRunRef,
+        sourceInputRef: branch.sourceInputRef,
+        sourceSnapshotRef: branch.sourceSnapshotRef,
+        initialTargetInputSha256: branch.initialTargetInputSha256,
+        signalChannelRef: this.signalChannelV1(
+          command.sessionId,
+          branch.scenarioId,
+        ),
+        streamEpoch: 0,
         execution: EXECUTION_V1,
         initialFrame: frameV1(
           index,
@@ -615,6 +1217,7 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
       targetGeneration: command.targetGeneration,
       presentationRevision: command.presentationRevision,
       candidateId: command.candidate.candidateId,
+      streamEpoch: command.presentationRevision,
       initialFrame: frameV1(
         1_000 + command.targetGeneration,
         "collecting",
@@ -633,6 +1236,22 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
     this.nextPromotionError = error;
   }
 
+  delayNextOpen(): DeferredV1<void> {
+    const gate = deferredV1<void>();
+    this.nextOpenGate = gate;
+    return gate;
+  }
+
+  delayNextClose(): DeferredV1<void> {
+    const gate = deferredV1<void>();
+    this.nextCloseGate = gate;
+    return gate;
+  }
+
+  rejectNextClose(error: Error): void {
+    this.nextCloseError = error;
+  }
+
   setStrictSnapshotRef(
     intentId: string,
     scenarioId: string,
@@ -646,31 +1265,195 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
 
   async closeSession(sessionId: string): Promise<void> {
     this.closedSessionIds.push(sessionId);
+    this.signalLifecycle.push(`close:${sessionId}`);
+    const gate = this.nextCloseGate;
+    this.nextCloseGate = null;
+    if (gate !== null) await gate.promise;
+    const error = this.nextCloseError;
+    this.nextCloseError = null;
+    if (error !== null) throw error;
   }
 
-  resolveLive(intentId: string): void {
+  subscribeSignalChannel(
+    channel: RuntimeSignalChannelRefV1,
+    observer: (event: RuntimeSignalEventV1) => void,
+  ) {
+    this.signalObservers.set(channel.channelId, observer);
+    return Object.freeze({
+      unsubscribe: () => {
+        if (this.signalObservers.get(channel.channelId) === observer) {
+          this.signalObservers.delete(channel.channelId);
+        }
+      },
+    });
+  }
+
+  async suspendSignalChannel(
+    channel: RuntimeSignalChannelRefV1,
+  ): Promise<void> {
+    this.suspendedSignalChannelIds.add(channel.channelId);
+    this.signalLifecycle.push(`suspend:${channel.scenarioId}`);
+  }
+
+  async resumeSignalChannel(
+    channel: RuntimeSignalChannelRefV1,
+    expectedStreamEpoch: number,
+  ): Promise<void> {
+    this.resumedSignalEpochs.push({
+      scenarioId: channel.scenarioId,
+      streamEpoch: expectedStreamEpoch,
+    });
+    this.signalLifecycle.push(
+      `resume:start:${channel.scenarioId}:${expectedStreamEpoch}`,
+    );
+    const gate = this.nextResumeGates.get(channel.scenarioId);
+    if (gate !== undefined) {
+      this.nextResumeGates.delete(channel.scenarioId);
+      await gate.promise;
+    }
+    this.suspendedSignalChannelIds.delete(channel.channelId);
+    this.signalLifecycle.push(
+      `resume:active:${channel.scenarioId}:${expectedStreamEpoch}`,
+    );
+    const queue = this.immediateResumeEvents.get(channel.scenarioId);
+    const event = queue?.shift();
+    if (queue?.length === 0) {
+      this.immediateResumeEvents.delete(channel.scenarioId);
+    }
+    if (event !== undefined) {
+      this.signalObservers.get(channel.channelId)?.({
+        ...event,
+        channelId: channel.channelId,
+        sessionId: channel.sessionId,
+        scenarioId: channel.scenarioId,
+        liveBranchId: channel.liveBranchId,
+      });
+    }
+    const error = this.nextResumeErrors.get(channel.scenarioId);
+    if (error !== undefined) {
+      this.nextResumeErrors.delete(channel.scenarioId);
+      throw error;
+    }
+  }
+
+  emitSignal(
+    scenarioId: string,
+    input: Omit<
+      RuntimeSignalBatchV1,
+      "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
+    >,
+  ): void {
+    const channel = this.signalChannelsByScenario.get(scenarioId);
+    if (
+      channel === undefined
+      || this.suspendedSignalChannelIds.has(channel.channelId)
+    ) return;
+    this.signalObservers.get(channel.channelId)?.({
+      ...input,
+      channelId: channel.channelId,
+      sessionId: channel.sessionId,
+      scenarioId: channel.scenarioId,
+      liveBranchId: channel.liveBranchId,
+    });
+  }
+
+  queueImmediateSignalOnResume(
+    scenarioId: string,
+    input: Omit<
+      RuntimeSignalBatchV1,
+      "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
+    >,
+  ): void {
+    const queue = this.immediateResumeEvents.get(scenarioId) ?? [];
+    queue.push(input);
+    this.immediateResumeEvents.set(scenarioId, queue);
+  }
+
+  rejectNextResume(scenarioId: string, error: Error): void {
+    this.nextResumeErrors.set(scenarioId, error);
+  }
+
+  delayNextResume(scenarioId: string): DeferredV1<void> {
+    const gate = deferredV1<void>();
+    this.nextResumeGates.set(scenarioId, gate);
+    return gate;
+  }
+
+  isSignalChannelSuspended(scenarioId: string): boolean {
+    const channel = this.signalChannelsByScenario.get(scenarioId);
+    if (channel === undefined) throw new Error(`unknown scenario ${scenarioId}`);
+    return this.suspendedSignalChannelIds.has(channel.channelId);
+  }
+
+  emitSignalFailure(
+    scenarioId: string,
+    input: Omit<
+      Extract<RuntimeSignalEventV1, { kind: "failure" }>,
+      "kind" | "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
+    >,
+  ): void {
+    const channel = this.signalChannelsByScenario.get(scenarioId);
+    if (channel === undefined) throw new Error(`unknown scenario ${scenarioId}`);
+    this.signalObservers.get(channel.channelId)?.({
+      kind: "failure",
+      ...input,
+      channelId: channel.channelId,
+      sessionId: channel.sessionId,
+      scenarioId: channel.scenarioId,
+      liveBranchId: channel.liveBranchId,
+    });
+  }
+
+  emitRawSignal(
+    scenarioId: string,
+    input: Readonly<Record<string, unknown>>,
+  ): void {
+    const channel = this.signalChannelsByScenario.get(scenarioId);
+    if (channel === undefined) throw new Error(`unknown scenario ${scenarioId}`);
+    this.signalObservers.get(channel.channelId)?.({
+      channelId: channel.channelId,
+      sessionId: channel.sessionId,
+      scenarioId: channel.scenarioId,
+      liveBranchId: channel.liveBranchId,
+      ...input,
+    } as RuntimeSignalEventV1);
+  }
+
+  resolveLive(intentId: string, failedScenarioId?: string): void {
     const execution = this.requiredExecutionV1(intentId);
     execution.live.resolve({
       sessionId: execution.command.sessionId,
       intentId,
-      branches: execution.command.targets.map((target) => ({
-        status: "success" as const,
-        scenarioId: target.scenarioId,
-        targetGeneration: target.targetGeneration,
-        result: {
-          scenarioId: target.scenarioId,
-          targetGeneration: target.targetGeneration,
-          presentationRevision: target.presentationRevision,
-          targetInputSha256: target.patch.targetInputSha256,
-          frame: frameV1(100 + target.targetGeneration, "complete"),
-        },
-      })),
+      branches: execution.command.targets.map((target) =>
+        target.scenarioId === failedScenarioId
+          ? {
+            status: "failure" as const,
+            scenarioId: target.scenarioId,
+            targetGeneration: target.targetGeneration,
+            targetInputSha256: target.patch.targetInputSha256,
+            message: `live solver failed for ${target.scenarioId}`,
+          }
+          : {
+            status: "success" as const,
+            scenarioId: target.scenarioId,
+            targetGeneration: target.targetGeneration,
+            result: {
+              scenarioId: target.scenarioId,
+              targetGeneration: target.targetGeneration,
+              presentationRevision: target.presentationRevision,
+              targetInputSha256: target.patch.targetInputSha256,
+              streamEpoch: target.presentationRevision,
+              frame: frameV1(100 + target.targetGeneration),
+            },
+          }
+      ),
     });
   }
 
   resolveStrict(
     intentId: string,
     failedScenarioId?: string,
+    supersededScenarioId?: string,
   ): void {
     const execution = this.requiredExecutionV1(intentId);
     const opened = this.opened;
@@ -679,7 +1462,15 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
       sessionId: execution.command.sessionId,
       intentId,
       branches: execution.command.targets.map((target, index) =>
-        target.scenarioId === failedScenarioId
+        target.scenarioId === supersededScenarioId
+          ? {
+            status: "superseded" as const,
+            scenarioId: target.scenarioId,
+            targetGeneration: target.targetGeneration,
+            targetInputSha256: target.patch.targetInputSha256,
+            reason: `strict generation superseded for ${target.scenarioId}`,
+          }
+          : target.scenarioId === failedScenarioId
           ? {
             status: "failure" as const,
             scenarioId: target.scenarioId,
@@ -700,6 +1491,9 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
               sourceRunRef: opened.branches.find(({ scenarioId }) =>
                 scenarioId === target.scenarioId
               )!.sourceRunRef,
+              simulationInputRef: opened.branches.find(({ scenarioId }) =>
+                scenarioId === target.scenarioId
+              )!.sourceInputRef,
               targetInputSha256: target.patch.targetInputSha256,
               snapshotRef: this.strictSnapshotRefs.get(
                 strictSnapshotKeyV1(intentId, target.scenarioId),
@@ -722,6 +1516,21 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
     const execution = this.executions.get(intentId);
     if (execution === undefined) throw new Error(`unknown intent ${intentId}`);
     return execution;
+  }
+
+  private signalChannelV1(
+    sessionId: string,
+    scenarioId: string,
+  ): RuntimeSignalChannelRefV1 {
+    const channel = Object.freeze({
+      protocolId: "circleheart-studio-runtime-signal-channel-v1" as const,
+      channelId: `channel/${scenarioId}`,
+      sessionId,
+      scenarioId,
+      liveBranchId: `branch/${scenarioId}`,
+    });
+    this.signalChannelsByScenario.set(scenarioId, channel);
+    return channel;
   }
 }
 

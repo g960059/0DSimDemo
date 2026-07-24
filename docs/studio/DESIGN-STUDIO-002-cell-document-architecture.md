@@ -4,7 +4,7 @@
 対象: 循環動態 0D シミュレーション webapp の IA / UI / UX / データモデル / runtime / command / 疎結合 interface の再設計
 位置づけ: **CircleHeart Studio v1 の Proposed target architecture**。現行 v0.1 UI の段階的延長ではなく、数理基盤を再利用して新しい Studio application を構築するための方向性文書
 移行方針: user 0・公開前のため、現行 `CaseDocument` との backward compatibility / dual-write / user-data migration は v1 の非目標。既存 official content は数理モデル確定後に再 authoring し、旧データは回帰試験・比較 fixture として保持
-実装条件: §19 の規範別紙と §17 の runtime spike を閉じた後に implementation-ready とする
+実装状況: headless runtime foundation（contract / coordinator / exact V4 envelope / Worker host / MainWire adapter）は実装済み。§17 の browser性能検証と、§19 の残る規範別紙・product UIは未完であり、本書のtarget記述をUI実装済みとは読まない
 
 想定ユーザー: 初期研修医・ME 等の beginner 5割 / 循環器・麻酔科の後期研修医・専門医 4割 / 循環動態研究者 1割（9割が非エンジニア）
 
@@ -16,7 +16,7 @@
 - **presentation context は3つ**: Reader / Study Lab / Document Editor。別々の所有モデルを持つ surface ではなく、同じ object model と application API の投影。Experiment 作成は独立 Editor ではなく Study Lab 上の一時 **Presentation Compose Layer**。
 - **構成は引き算でなく足し算**: `Catalog → Working Set → Brief` の3段。どの extent も「全部見せ」ではなく、上位から pin して作る選択。
 - **runtime は二重経路**: 前景 live transition（1× 生理時間）+ 背景 strict steady job（最大速）。parameter 変更ごとに両方を自動開始し、古い job は generation 不一致で破棄する。steady candidate へ自動ジャンプしない。
-- **描画は settled / certified snapshot の1 pointから開始**し、波形・PV loop・beat metricを前向きに形成する。last-beat sample は canonical artifact に保存しない。
+- **描画は settled / certified snapshot の1 pointから開始**し、波形・PV loop・beat metricを前向きに形成する。MainWire envelope は exact checkpoint V4 + resolved simulation-input ref + 同revision/timeの完全なseed observable 1 pointだけを持ち、last-beat sample は canonical artifact に保存しない。
 - **certification用の重いV&Vはsnapshot単位**で行い、Assessmentを`subjectHash × assessorVersion × profileVersion`で再利用する。Composeやprivate revisionのmaterialize自体はV&Vの実行契機にせず、certify / official Publishが有効なrequired Assessmentの存在をgateする。Readerは完全V&Vを走らせない。
 - **疎結合**: Presentation → Application(Command/Query/Event) → Port → Model/Runtime/V&V実装。engine内部型はpresentationに漏らさない。control planeはserializable contract / ref、binaryと高頻度streamは分離したdata planeで運ぶ。
 - **versioning は二層**: command log（diff / undo / AI / provenance）+ materialized snapshot（再現性 / pin）。engine には event-sourcing を持ち込まない。
@@ -73,6 +73,7 @@ CircleHeart Studio
 - Studio は `ModelCore`、provider、solver 内部型を import しない。
 - まず monorepo 内の独立 package と依存方向で境界を実証し、チーム・release cadence・deployment が独立した時点で repository 分割を判断する。
 - これは全面スクラッチではなく、**brownfield の数理基盤の上に greenfield の Studio を構築する**方針。
+- 現在成立しているのはsoftware project / dependency境界であり、物理repositoryやdeploymentが既に分離済みという意味ではない。
 
 ---
 
@@ -91,11 +92,14 @@ Extent       : inflow | peek | fullscreen                （空間の占有量�
 Capability   : read | interact | compose                  （何ができるか）
 Placement    : standalone | document                      （Document 内か単独か）
 Persistence  : scratch | project-draft | revision          （保存形態）
-Session      : suspended | live | failed                  （前景実行状態）
+Session      : live | closing | closed                    （aggregate lifecycle）
+Branch       : running | suspended                        （前景playback）
 Publication  : PublicationManifestRef[]                    （revisionへの別association）
 ```
 
-background strict steady job は排他的な Runtime enum に入れない。parameter 変更ごとに `targetGeneration` を進めて自動実行し、`latestSteadyCandidate.generation === targetGeneration` の時だけ現在値に対応する candidate とみなす。古い結果は保存状態を `stale` に変えるのではなく、generation 不一致で破棄する。`certified` は runtime 状態ではなく `CertifiedSeed` という永続 artifact。
+background strict steady job は排他的な Runtime enum に入れない。parameter 変更ごとに `targetGeneration` を進めて自動実行し、未消費の `latestSteadyCandidate.generation === targetGeneration` の時だけ現在値に対応する candidate とみなす。古い結果は保存状態を `stale` に変えるのではなく、generation 不一致で破棄する。`certified` は runtime 状態ではなく `CertifiedSeed` という永続 artifact。
+
+branch laneのterminal outcomeは`success | failure | superseded | aborted`。新generationによるsupersedeとsession closeによるabortは正常なlifecycle完了であり、aggregate Promiseをrejectせず、数値failureとして表示しない。failureはsession lifecycleやplayback状態と別に保持する。
 
 `published`はPersistenceの値ではない。immutable revisionを`PublicationManifest`が参照して公開するassociationであり、同じrevisionを複数channel / editionから参照できる。
 
@@ -181,10 +185,11 @@ Reader / Study Lab / Document Editor は別 ownership model を持つ silo で�
 ### 6.3 1-point start の表示契約
 
 - `CertifiedSeed` は可能なら end-diastole 等の model-defined canonical phase で作る。phase 自体も `SnapshotEnvelope` に含める。
+- MainWire v1の`SnapshotEnvelope`は、control-aware exact checkpoint V4、そのcheckpointのbase input digestに対応するresolved simulation-input artifact ref、checkpointと同じrelease / accepted revision / accepted timeの完全なseed observable frame **1点だけ**をcanonicalに持つ。open / promoteの初期描画で数値stepを追加しない。
 - waveform は1 pointから伸び、PV loopは最初の1周期で閉じる。過去1 beatを捏造・補間して即時完成形にはしない。
 - beat metric は最初の完全なbeatが終わるまで「集計中」。低HRを含め、この待ち時間はsimulationの観察時間として扱う。
-- Reset は同じ certified 1 pointへ戻り、同じ形成過程を再開する。
-- last-beat sampleはcanonical保存しない。thumbnail等のderived display cacheは再生成可能で、正しさの根拠にしない。
+- Reset は同じ certified 1 pointへ戻り、同じ形成過程を再開するtarget contract。ただし現headless foundationにはReset commandをまだ実装していない。
+- last-beat sample、beat history、window metric、presentation stateはcanonical保存しない。thumbnail等のderived display cacheは再生成可能で、正しさの根拠にしない。
 
 ### 6.4 展開/収束の craft（このプロダクトの成否の中心）
 
@@ -262,10 +267,14 @@ content（全 graph にアクセス）と layout（2×2 の空間的意味）を
 - **二重経路は parameter 変更ごとに自動開始**: 前景 live transition（現在stateから連続積分）+ 背景 strict steady job（同じtarget inputを最大速で厳密収束）。
 - parameter変更のたびにscenarioごとの `targetGeneration` を進める。古いjobはcancel可能ならcancelし、完了してもgeneration不一致なら破棄する。`stale / available` をユーザー状態として保存しない。
 - schedulerは連続drag中の未開始jobをlatest-winsでcoalesceしてよいが、generationは各target変更で進め、操作停止後の最新targetに対するjobを必ず開始する。「自動再計算」のsemanticと「全pointer eventを完走させる」を同一視しない。
-- **最新targetに一致するsteady candidateへ自動ジャンプしない。** 明示ボタン + beat境界phase合わせでpromoteする。candidateの有無は `latestSteadyCandidate?.generation === targetGeneration` から導出する。
+- UIからの部分変更は最新のdesired targetへmergeしてからruntimeへ渡す。runtime commandの`values`はmodel catalog全件のcomplete exact mapであり、古いgenerationがaccepted branchへ到達したかどうかに次のtarget解決を依存させない。
+- **最新targetに一致するsteady candidateへ自動ジャンプしない。** 明示ボタン + beat境界phase合わせでpromoteする。candidateの有無は未消費の `latestSteadyCandidate?.generation === targetGeneration` から導出し、promotion成功時にそのephemeral candidateを消費してclearする。
+- MainWire adapterはscenario branchごとに専用live Workerを所有し、各targetのstrict jobには別の排他的Worker leaseを割り当てる。1 Worker内のcommand queueでstrict settlementが前景liveを直列blockしない。N branch intentでは全branchのlive / strict cloneを同じaccepted boundaryから準備し、全branch barrierを越えるまでどちらのlaneも進めない。
+- strict candidateを認めるのは`period1-converged ∧ periodicSteadyStateClaimed ∧ !period2OrbitSuspected`の時だけ。retained closure evidence、completed beat count、anchor、P1 classificationをexact checkpointのperiodic tracker、boundary transaction、terminal transactionへ相互拘束し、0-beat claimやidentityだけ整ったcheckpointは拒否する。このP1 admissionは数値steady / healthの判定であり、morphology・conservation・case-specific validationを含む完全Assessment / Certificationではない。
 - metric は「最後に完了したbeat」から。session開始直後は§6.3の通り「集計中」。
 - **multi-scenario live transition**（中核ユースケース = Ees の baseline vs HFrEF）: N 本の scenario をそれぞれの certified snapshot から同時温間再開し、同一 graph に 1× で重ねて描画。共有 knob（binding = all）を動かすと N 本すべてに atomic なpatch intentを発行し、背景 strict steady job もN本自動開始。
-- **density = 性能予算のダイヤル**: viewport内でlive予算に選ばれたIn-flowは、未操作でも自動live化して1 pointからtraceを伸ばす。画面外または予算外のCellPlacementはcompact（engine停止・1 point / thumbnail）にし、viewport進入または操作でlive slotを取得する。1セクション1本の優先規則とslot evictionは規範別紙で固定する。IntersectionObserverでbranchの積分ごと停止/再開する。
+- liveの高頻度pointはbranch-bound signal channelで1×配信し、control plane / domain logには積まない。suspendはaccepted command boundaryまで待ち、resumeは同じaccepted stateとstream epochから継続する。target変更・promotionはcoordinatorが新しい1-point stateをinstallした後に新stream epochを明示activateする。current-epochのWorker failure、malformed batch、sequence gap、metric regressionはbranchをfail-closed suspendし、明示的に古いidentityだけを破棄する。strict Worker leaseはpresentation suspendから独立して進む。
+- **density = 性能予算のダイヤル**: viewport内でlive予算に選ばれたIn-flowは、未操作でも自動live化して1 pointからtraceを伸ばす。画面外または予算外のCellPlacementはcompact（engine停止・1 point / thumbnail）にし、viewport進入または操作でlive slotを取得する。1セクション1本の優先規則とslot evictionは規範別紙で固定する。branch-level suspend / resume contractは実装済みだが、IntersectionObserverとのUI接続とslot policyは未実装。
 - **control transition の二分**:
   - `RuntimeUpdatePolicy`（数値安定・UI 表示のための反映規則: applyAt immediate/nextBeat/endSystole/endDiastole/restart、visualTransition ramp、overridePolicy allowed/locked）
   - `PhysiologicInterventionProtocol`（検証済みモデルがある時だけの科学的時間発展: 輸液速度・薬物動態・出血・補助循環起動）
@@ -313,6 +322,7 @@ CertifiedSeed    = { runId, snapshotRef, snapshotHash, canonicalPhase,
 - Run（実行結果・immutable）と Assessment（検証結果）と CertifiedSeed（使ってよい IC）を分ける。immutable Run に後から vv ref を貼らない。
 - identityはAssessmentReport（どのimmutable subjectを、どのassessor/profile versionで評価したか）。Certificationに使えるのは対象RunArtifactのsnapshotHashをsubjectとするreportだけ。UI URLやjob実行画面はidentityではない。
 - `SnapshotEnvelope` はmodel/runtime/stateCodec version、phase、ODE state、warm restartに必要な補助runtime stateを含むopaque payload。display bufferは含めない。
+- RunArtifactからsessionをopenする時はrefの存在確認だけで済ませず、canonical contentのinput / snapshot / target digest / execution identity / claims / parent Run lineageがopen sourceと一致することをWorker割当て前にfail-closed検証する。
 - **波形sampleと詳細metricはcanonicalに保存しない**。Readerはcertified 1 pointから前向きに再生成する。scalar summary / thumbnailは任意のderived cacheで、run一覧・launch表示にだけ使う。
 - settled snapshotは捨てない。V&V対象かつReaderの温間再開点。
 - 公開済みExperimentが依存するmodel/runtime/state codec versionは、公開物の保持期間中、実行可能なversioned packageとして保管する。derived cacheだけを再現性のfallbackにはしない。
@@ -515,6 +525,7 @@ interface FittingPort {
 - control planeを越える型はplain serializableにする。binary payloadをcommand、domain event、MCP JSONへ入れない。
 - engine内部状態は`SnapshotEnvelope`（versioned opaque payload）として不透明化し、ArtifactBlobPortのdata planeで運ぶ。presentationは解釈しない。
 - high-frequency signalは専用channelで流し、domain event logやrevision logには積まない。
+- live signal channelはbranch / generation / presentation revision / stream epochにbindする。suspend / resumeは同じepochを継続し、target変更またはpromote後のtraceは新epochに分離する。
 - MCP / external APIには原則としてartifact refと明示的なderived/export operationだけを公開する。SnapshotEnvelopeのbyte列や内部signal channelを直接公開しない。
 - catalog を値（manifest）で渡す → presentation は `if (coronary)` を書かず、catalog にあるかをデータとして描画。
 - deterministic input hashにはcontract version、model/runtime/solver/stateCodec version、parameter、initial snapshot、protocolを含める。時刻・actor・UI stateは数値再現性hashから除外する。
@@ -638,19 +649,21 @@ AI command bar / authoring wizard / community publishing / free canvas / sweep�
 
 **「任意のpinned RunからN本を同時に温間再開し、settled snapshotの1 pointから1×で重ね描画しつつ、parameter変更ごとにstrict steady jobを自動実行できるか」**を全presentation contextへ広げる前に確認する。これは唯一の設計リスクではないが、失敗すれば中心UXが成立しないblocking riskである。
 
+headless側では、exact V4 restore、同revision/timeの1-point projection、N-branch intent、live/strict Worker分離、generation discard、signal channel suspend/resume、P1 candidate admission、明示promotionのcontractとadapterが入った。未完なのは実browser上の性能budget検証、viewport scheduler、Reset、presentation UIへの接続であり、blocking spike全体を完了扱いにはしない。
+
 受け入れ条件:
 
 1. SnapshotEnvelopeのcanonical phaseと補助runtime stateから、最初の1 pointを即時に出し、波形・PV loop・window metricを契約どおり成長させられる。
 2. slider変更でcoreをresetせず連続積分し、HR / phaseに不自然なjumpを生じさせない。
 3. 各変更でgenerationを進め、前景liveとstrict steady jobを自動開始し、古いjob結果を確実に破棄する。
-4. strict steady完了で表示中sessionを自動差替えせず、明示的なcandidate採用とResetが正しく働く。
+4. strict steady完了で表示中sessionを自動差替えず、明示的なcandidate採用が正しく働く。Resetは別途実装・検証する。
 5. N本同時表示とoffscreen suspend / resumeで、数値結果とphase continuityが変わらない。
 6. target desktop / mobile機種、N、表示graph、sampling、warm-upを固定したbenchmarkで、p95 frame time、dropped-frame率、input-to-first-point、strict-job完了時間、peak memoryが事前に定めた数値budgetを満たす。
 7. 同一input / version / snapshot / protocolから、許容誤差内で同一のsteady resultとinput hash associationを得る。
 
 benchmarkの対象機種と数値budgetはspike実施前に規範別紙へ記載する。「frame落ちなし」のような観測不能な条件にはしない。
 
-注意: runtimeは「変更ゼロ」ではない。数理engineは資産だが、(a) 現行のsteady完了時auto-promoteを外す、(b) arbitrary pinned Runからのwarm-restart wrapper、(c) generation管理付き自動strict job、(d) N本同時 + offscreen停止、が必要である。
+注意: runtimeは「変更ゼロ」ではない。数理engineは資産だが、(a) steady完了時auto-promoteをStudio境界で採用しない、(b) arbitrary pinned Runからのwarm-restart wrapper、(c) generation管理付き自動strict job、(d) N本同時 + branch suspend/resumeが必要である。(a)–(d)のheadless境界は実装済みだが、offscreen UI schedulerと性能qualificationは未完。
 
 ---
 
@@ -680,9 +693,9 @@ benchmarkの対象機種と数値budgetはspike実施前に規範別紙へ記載
 
 ---
 
-## 19. 実装前に閉じる規範別紙 / 残るopen questions
+## 19. 実装と並行して閉じる規範別紙 / 残るopen questions
 
-本文はtarget architectureと責務境界を決める。次の規範別紙を確定し、contract testへ落とすまでは「実装仕様が完全」とは扱わない。
+本文はtarget architectureと責務境界を決める。runtime companionの最初のvertical sliceは実装済みだが、次の規範別紙を確定し、contract testへ落とすまではStudio全体の「実装仕様が完全」とは扱わない。
 
 ### required companion specifications
 

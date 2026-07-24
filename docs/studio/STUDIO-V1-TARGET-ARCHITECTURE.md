@@ -1,6 +1,6 @@
 # CircleHeart Studio v1 target architecture
 
-Status: implementation digest
+Status: implementation-aligned target digest; headless runtime foundation present
 Date: 2026-07-24
 Cutover: greenfield Studio on the existing mathematical foundation
 
@@ -29,7 +29,9 @@ CircleHeart Studio
 - Control-plane messages are serializable. Large snapshots and high-frequency
   signals travel through refs or data channels.
 - The logical boundary is enforced in this repository before deciding whether
-  to split repositories.
+  to split repositories. This is a software-project and dependency boundary
+  now; it is not yet a claim that two physical repositories or deployments
+  exist.
 
 This is a brownfield mathematical foundation with a greenfield product layer,
 not a second simulation engine and not a migration of the old product schema.
@@ -68,12 +70,14 @@ Extent       inflow | peek | fullscreen
 Capability   read | interact | compose
 Placement    standalone | document
 Persistence  scratch | project-draft | revision
-Session      suspended | live | failed
+Session      live | closing | closed
+Branch       running | suspended
 Publication  association from a PublicationManifest to revisions
 ```
 
 Fullscreen does not imply compose permission. Published is not a persistence
-state; publication is an immutable association.
+state; publication is an immutable association. A lane failure and its terminal
+outcome are reported separately from session lifecycle.
 
 ## 4. Catalog, Working Set, and Brief
 
@@ -109,16 +113,41 @@ must always receive both paths. There is no user-facing `stale` or `available`
 steady-job state. Candidate availability is derived by generation equality.
 
 The foreground integrates at 1× physiological time. A shared control binding
-issues one atomic intent to every targeted scenario branch.
+issues one atomic intent to every targeted scenario branch. Partial UI edits
+are resolved against the latest desired target before dispatch; each runtime
+branch receives a complete exact control map plus its target digest.
+
+The implemented MainWire host topology is:
+
+```text
+one dedicated live Worker per scenario branch
+  + one separate exclusive strict Worker lease per branch target
+```
+
+The lanes are cloned from the same accepted source boundary before either
+advances. A branch lane ends as `success`, `failure`, `superseded`, or
+`aborted`. Supersession by a newer generation and abort on close are expected
+lifecycle outcomes: they do not reject the aggregate lane promise and are not
+shown as numerical runtime failures.
+
+The high-frequency live trace is a data-plane signal channel, not a domain
+event log. Suspending waits for an accepted command boundary; resuming
+continues the same numerical state and stream epoch. Strict settlement is an
+independent Worker lease and is not suspended with presentation playback.
 
 ## 6. One-point start
 
-- Open and reset begin from one settled or certified SnapshotEnvelope point,
-  preferably at a model-defined canonical phase.
+- A MainWire v1 SnapshotEnvelope contains one exact V4 checkpoint, the ref of
+  its resolved simulation input, and exactly one full seed observable frame at
+  the same accepted revision and time.
+- Open begins from that one settled or certified point, preferably at a
+  model-defined canonical phase. Reset is the same target behavior but is not
+  part of the current headless foundation.
 - Waveforms grow forward from that point.
 - A PV loop becomes closed only after its first complete cycle.
 - Beat/window metrics remain `collecting` until a complete beat exists.
-- Canonical artifacts do not store a fabricated or captured “last beat.”
+- The envelope never stores a fabricated or captured “last beat,” beat sample
+  history, window metrics, or presentation state.
 - Thumbnails and display traces are disposable derived caches, never evidence.
 
 ## 7. Artifact promotion
@@ -137,6 +166,18 @@ PublicationManifest
 
 Promoting a candidate in the current session is independent from pinning it as
 a RunArtifact.
+
+The current strict adapter admits a candidate only from a period-1 converged
+receipt that claims periodic steady state and does not suspect a period-2
+orbit. The retained closure evidence, beat count, anchor, classification,
+checkpoint periodic tracker, boundary transactions, and terminal transaction
+must agree; a zero-beat claim is rejected. This is numerical P1 admission, not
+a full scientific Assessment or Certification. The candidate remains
+off-display until explicit promotion.
+The adapter promotes only a candidate it issued for the current target. While
+the branch is running, it first advances the old trace to the candidate’s
+canonical phase, then performs the one-point pointer swap. Successful
+promotion consumes that ephemeral candidate; it cannot be promoted again.
 
 An Assessment identifies an immutable subject plus assessor and profile
 versions. Its reuse key is:
@@ -217,6 +258,12 @@ Useful model, runtime, renderer, artifact, and verification code is reused.
 Current content may remain as read-only regression input, then be re-authored
 after the mathematical model and certification policy are final.
 
+The Studio MainWire path is V4-only and fail-closed. It has no V3 fallback,
+control-ID aliases, compatibility reader, or migration adapter.
+A branch opens only after canonical RunArtifact content has been checked
+against its input, snapshot, target, execution identity, claims, and parent
+run—not merely because an artifact ref exists.
+
 Published future revisions are immutable and continue to pin executable model,
 runtime, solver, and state-codec versions. Upgrading creates a new draft,
 resettles, reassesses, and republishes.
@@ -239,6 +286,13 @@ The first blocking runtime spike proves:
 - deterministic input/snapshot association and explicit performance budgets.
 
 Legacy coexistence is not a delivery slice.
+
+The headless contracts, coordinator, V4 envelope/target codecs, Worker host,
+runtime adapter, generation discard, signal suspend/resume, P1 candidate
+admission, and explicit promotion boundary are present. Browser performance
+budgets, viewport-driven scheduling, Reset, and product UI integration remain
+to be qualified or implemented; their presence in the target design is not a
+claim that the UI exists.
 
 ## 13. v1 non-goals
 

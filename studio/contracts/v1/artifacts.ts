@@ -35,6 +35,8 @@ export type StudioArtifactRefV1<
 export type SnapshotEnvelopeRefV1 =
   StudioArtifactRefV1<"snapshot-envelope">;
 export type RunArtifactRefV1 = StudioArtifactRefV1<"run-artifact">;
+export type SimulationInputRefV1 =
+  StudioArtifactRefV1<"simulation-input">;
 
 /**
  * Exact model/runtime identities which determine numerical reproducibility.
@@ -59,6 +61,7 @@ export type RuntimeExecutionIdentityV1 = Readonly<{
 export type StudioRunArtifactContentV1 = Readonly<{
   schemaId: typeof STUDIO_RUN_ARTIFACT_CONTENT_V1_SCHEMA_ID;
   sourceRunRef: RunArtifactRefV1;
+  simulationInputRef: SimulationInputRefV1;
   targetInputSha256: Sha256HexV1;
   snapshotRef: SnapshotEnvelopeRefV1;
   execution: RuntimeExecutionIdentityV1;

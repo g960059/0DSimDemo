@@ -20,6 +20,9 @@ import {
   type RuntimePresentationFrameV1,
   type RuntimeScenarioBranchOpenedV1,
   type RuntimeSessionOpenedV1,
+  type RuntimeSignalChannelRefV1,
+  type RuntimeSignalEventV1,
+  type RuntimeSignalSubscriptionV1,
   type RuntimeSteadyCandidateV1,
   type RuntimeStrictIntentResultV1,
   type RuntimeTargetIntentBranchV1,
@@ -75,7 +78,19 @@ export class SimulationSessionCoordinatorV1 {
   private readonly artifacts: ArtifactStorePortV1;
   private readonly submittedIntentIds = new Set<string>();
   private readonly promotingScenarioIds = new Set<string>();
+  private readonly playbackTransitionScenarioIds = new Set<string>();
+  private readonly signalSubscriptions =
+    new Map<string, RuntimeSignalSubscriptionV1>();
+  private readonly signalActivationTokens = new Map<string, number>();
+  private readonly signalActivationOperations = new Map<
+    string,
+    Promise<void>
+  >();
   private state: SimulationSessionStateV1 | null = null;
+  private openingSessionId: string | null = null;
+  private openingCompletion: Promise<void> | null = null;
+  private closeRequestedWhileOpening = false;
+  private closePromise: Promise<void> | null = null;
 
   constructor(options: SimulationSessionCoordinatorOptionsV1) {
     this.runtime = options.runtime;
@@ -98,29 +113,86 @@ export class SimulationSessionCoordinatorV1 {
   async open(
     command: OpenSimulationSessionCommandV1,
   ): Promise<SimulationSessionStateV1> {
-    if (this.state !== null) {
+    if (this.state !== null || this.openingSessionId !== null) {
       throw new SimulationSessionCoordinatorErrorV1(
-        "simulation session is already open",
+        "simulation session is already open or opening",
       );
     }
     const safeCommand = copyOpenCommandV1(command);
-    const opened = copyOpenedSessionV1(
-      await this.runtime.openSession(safeCommand),
-      safeCommand,
-    );
-    const openedByScenario = new Map(
-      opened.branches.map((branch) => [branch.scenarioId, branch]),
-    );
-    const branches = safeCommand.branches.map((source) =>
-      initialBranchStateV1(source, openedByScenario.get(source.scenarioId)!));
-
-    this.state = Object.freeze({
-      status: "live",
-      sessionId: opened.sessionId,
-      branches: Object.freeze(branches),
-      lastAppliedIntentId: null,
+    this.openingSessionId = safeCommand.sessionId;
+    this.closeRequestedWhileOpening = false;
+    let resolveOpeningCompletion!: () => void;
+    const openingCompletion = new Promise<void>((resolve) => {
+      resolveOpeningCompletion = resolve;
     });
-    return this.state;
+    this.openingCompletion = openingCompletion;
+    let runtimeAllocationReturned = false;
+    try {
+      const runtimeOpened = await this.runtime.openSession(safeCommand);
+      runtimeAllocationReturned = true;
+      if (this.closeRequestedWhileOpening) {
+        throw new SimulationSessionCoordinatorErrorV1(
+          "simulation session opening was aborted by close",
+        );
+      }
+      const opened = copyOpenedSessionV1(
+        runtimeOpened,
+        safeCommand,
+      );
+      const openedByScenario = new Map(
+        opened.branches.map((branch) => [branch.scenarioId, branch]),
+      );
+      const branches = safeCommand.branches.map((source) => Object.freeze({
+        ...initialBranchStateV1(
+          source,
+          openedByScenario.get(source.scenarioId)!,
+        ),
+        livePlayback: "running" as const,
+      }));
+
+      this.state = Object.freeze({
+        status: "live",
+        sessionId: opened.sessionId,
+        branches: Object.freeze(branches),
+        lastAppliedIntentId: null,
+      });
+      this.bindOpenedSignalChannelsV1();
+      await Promise.all(this.state.branches.map((branch) =>
+        this.runtime.resumeSignalChannel(
+          branch.signalChannelRef,
+          branch.streamEpoch,
+        )));
+      if (
+        this.state === null
+        || this.state.sessionId !== opened.sessionId
+        || this.state.status !== "live"
+        || this.closeRequestedWhileOpening
+      ) {
+        throw new SimulationSessionCoordinatorErrorV1(
+          "simulation session changed while signal channels were starting",
+        );
+      }
+      return this.state;
+    } catch (error) {
+      this.unsubscribeAllSignalsV1();
+      if (this.state?.sessionId === safeCommand.sessionId) this.state = null;
+      if (runtimeAllocationReturned) {
+        try {
+          await this.runtime.closeSession(safeCommand.sessionId);
+        } catch {
+          // Preserve the validation/open failure. Runtime adapters must make
+          // close idempotent and own their final termination fallback.
+        }
+      }
+      throw error;
+    } finally {
+      this.openingSessionId = null;
+      this.closeRequestedWhileOpening = false;
+      resolveOpeningCompletion();
+      if (this.openingCompletion === openingCompletion) {
+        this.openingCompletion = null;
+      }
+    }
   }
 
   applyControlIntent(
@@ -134,6 +206,14 @@ export class SimulationSessionCoordinatorV1 {
     if (promotingTarget !== undefined) {
       throw new SimulationSessionCommandConflictV1(
         `scenario ${promotingTarget.scenarioId} is being promoted`,
+      );
+    }
+    const playbackTarget = safeIntent.targets.find(({ scenarioId }) =>
+      this.playbackTransitionScenarioIds.has(scenarioId)
+    );
+    if (playbackTarget !== undefined) {
+      throw new SimulationSessionCommandConflictV1(
+        `scenario ${playbackTarget.scenarioId} playback is transitioning`,
       );
     }
     if (this.submittedIntentIds.has(safeIntent.intentId)) {
@@ -164,10 +244,6 @@ export class SimulationSessionCoordinatorV1 {
         targetGeneration,
         presentationRevision,
         targetInputSha256: target.patch.targetInputSha256,
-        display: Object.freeze({
-          ...branch.display,
-          windowMetrics: collectingMetricsV1(1),
-        }),
         latestSteadyCandidate: null,
         lastRuntimeFailure: null,
       });
@@ -178,6 +254,11 @@ export class SimulationSessionCoordinatorV1 {
       targets: Object.freeze(commandTargets),
     }) satisfies RuntimeTargetIntentCommandV1;
     this.submittedIntentIds.add(command.intentId);
+    for (const target of command.targets) {
+      this.invalidateSignalActivationV1(
+        requiredBranchV1(current, target.scenarioId).signalChannelRef,
+      );
+    }
 
     // This is the atomic application-state boundary for a shared intent.
     this.state = Object.freeze({
@@ -246,6 +327,11 @@ export class SimulationSessionCoordinatorV1 {
         `scenario ${before.scenarioId} is already being promoted`,
       );
     }
+    if (this.playbackTransitionScenarioIds.has(before.scenarioId)) {
+      throw new SimulationSessionCommandConflictV1(
+        `scenario ${before.scenarioId} playback is transitioning`,
+      );
+    }
     const candidate = currentCandidateV1(before);
     const presentationRevision = nextPresentationRevisionV1(
       before.presentationRevision,
@@ -273,6 +359,11 @@ export class SimulationSessionCoordinatorV1 {
         "steady candidate changed while promotion was in flight",
       );
       const safePromoted = copyPromotionV1(promoted, command);
+      if (safePromoted.streamEpoch <= current.streamEpoch) {
+        throw new SimulationSessionCoordinatorErrorV1(
+          "promoted snapshot did not advance the stream epoch",
+        );
+      }
       assertOnePointCollectingFrameV1(
         safePromoted.initialFrame,
         "promoted snapshot",
@@ -281,6 +372,7 @@ export class SimulationSessionCoordinatorV1 {
       const replacement = Object.freeze({
         ...current,
         presentationRevision,
+        streamEpoch: safePromoted.streamEpoch,
         targetInputSha256: candidate.targetInputSha256,
         display: Object.freeze({
           origin: Object.freeze({
@@ -293,9 +385,17 @@ export class SimulationSessionCoordinatorV1 {
           pointCount: 1,
           windowMetrics: safePromoted.initialFrame.windowMetrics,
         }),
+        latestSteadyCandidate: null,
         lastRuntimeFailure: null,
       });
+      const shouldActivate = current.livePlayback === "running";
       this.replaceBranchV1(current.scenarioId, replacement);
+      if (shouldActivate) {
+        this.activateSignalEpochV1(
+          replacement,
+          "promoted signal epoch activation failed",
+        );
+      }
       return replacement;
     } finally {
       this.promotingScenarioIds.delete(before.scenarioId);
@@ -308,9 +408,11 @@ export class SimulationSessionCoordinatorV1 {
     const beforeSession = this.requireLiveStateV1();
     const before = requiredBranchV1(beforeSession, scenarioId);
     const candidate = currentCandidateV1(before);
-    const [snapshotExists, sourceRunExists] = await Promise.all([
+    const [snapshotExists, sourceRunExists, simulationInputExists] =
+      await Promise.all([
       this.artifacts.has(candidate.snapshotRef),
       this.artifacts.has(candidate.sourceRunRef),
+      this.artifacts.has(candidate.simulationInputRef),
     ]);
     if (!snapshotExists) {
       throw new SimulationSessionCoordinatorErrorV1(
@@ -320,6 +422,11 @@ export class SimulationSessionCoordinatorV1 {
     if (!sourceRunExists) {
       throw new SimulationSessionCoordinatorErrorV1(
         `candidate source run artifact ${candidate.sourceRunRef.sha256} does not exist`,
+      );
+    }
+    if (!simulationInputExists) {
+      throw new SimulationSessionCoordinatorErrorV1(
+        `candidate simulation input artifact ${candidate.simulationInputRef.sha256} does not exist`,
       );
     }
     const validatedSession = this.requireLiveStateV1();
@@ -336,6 +443,7 @@ export class SimulationSessionCoordinatorV1 {
     const content: StudioRunArtifactContentV1 = Object.freeze({
       schemaId: STUDIO_RUN_ARTIFACT_CONTENT_V1_SCHEMA_ID,
       sourceRunRef: candidate.sourceRunRef,
+      simulationInputRef: candidate.simulationInputRef,
       targetInputSha256: candidate.targetInputSha256,
       snapshotRef: candidate.snapshotRef,
       execution: candidate.execution,
@@ -373,29 +481,448 @@ export class SimulationSessionCoordinatorV1 {
     return ref;
   }
 
+  async suspendBranch(scenarioId: string): Promise<void> {
+    const before = requiredBranchV1(this.requireLiveStateV1(), scenarioId);
+    if (before.livePlayback === "suspended") return;
+    this.beginPlaybackTransitionV1(scenarioId);
+    this.invalidateSignalActivationV1(before.signalChannelRef);
+    const pendingActivation = this.signalActivationOperations.get(
+      before.signalChannelRef.channelId,
+    );
+    try {
+      this.replaceBranchV1(scenarioId, Object.freeze({
+        ...before,
+        livePlayback: "suspended",
+      }));
+      await pendingActivation;
+      await this.runtime.suspendSignalChannel(before.signalChannelRef);
+      const current = requiredBranchV1(this.requireLiveStateV1(), scenarioId);
+      assertSameSignalChannelV1(
+        current.signalChannelRef,
+        before.signalChannelRef,
+      );
+    } finally {
+      this.playbackTransitionScenarioIds.delete(scenarioId);
+    }
+  }
+
+  async resumeBranch(scenarioId: string): Promise<void> {
+    const before = requiredBranchV1(this.requireLiveStateV1(), scenarioId);
+    if (before.livePlayback === "running") return;
+    this.beginPlaybackTransitionV1(scenarioId);
+    this.invalidateSignalActivationV1(before.signalChannelRef);
+    const pendingActivation = this.signalActivationOperations.get(
+      before.signalChannelRef.channelId,
+    );
+    try {
+      this.replaceBranchV1(scenarioId, Object.freeze({
+        ...before,
+        livePlayback: "running",
+      }));
+      await pendingActivation;
+      await this.runtime.resumeSignalChannel(
+        before.signalChannelRef,
+        before.streamEpoch,
+      );
+      const current = requiredBranchV1(this.requireLiveStateV1(), scenarioId);
+      assertSameSignalChannelV1(
+        current.signalChannelRef,
+        before.signalChannelRef,
+      );
+      if (current.streamEpoch !== before.streamEpoch) {
+        throw new SimulationSessionCommandConflictV1(
+          "signal epoch changed during playback transition",
+        );
+      }
+    } catch (error) {
+      this.failSignalIdentityV1(
+        before,
+        `runtime signal channel resume failed: ${errorMessageV1(error)}`,
+      );
+      throw error;
+    } finally {
+      this.playbackTransitionScenarioIds.delete(scenarioId);
+    }
+  }
+
   async close(): Promise<void> {
+    const openingCompletion = this.openingCompletion;
+    if (openingCompletion !== null) {
+      this.closeRequestedWhileOpening = true;
+      await openingCompletion;
+      return;
+    }
     const current = this.state;
     if (current === null || current.status === "closed") return;
+    if (current.status === "closing") {
+      await this.closePromise;
+      return;
+    }
     if (this.promotingScenarioIds.size > 0) {
       throw new SimulationSessionCommandConflictV1(
         "simulation session has an in-flight branch promotion",
       );
     }
-    await this.runtime.closeSession(current.sessionId);
-    if (
-      this.state !== null
-      && this.state.sessionId === current.sessionId
-    ) {
-      this.state = Object.freeze({
-        ...this.state,
-        status: "closed",
-        branches: Object.freeze(this.state.branches.map((branch) =>
-          Object.freeze({
-            ...branch,
-            latestSteadyCandidate: null,
-          }))),
-      });
+    if (this.playbackTransitionScenarioIds.size > 0) {
+      throw new SimulationSessionCommandConflictV1(
+        "simulation session has an in-flight playback transition",
+      );
     }
+    const pendingActivations: Promise<void>[] = [];
+    for (const branch of current.branches) {
+      this.invalidateSignalActivationV1(branch.signalChannelRef);
+      const pending = this.signalActivationOperations.get(
+        branch.signalChannelRef.channelId,
+      );
+      if (pending !== undefined) pendingActivations.push(pending);
+    }
+    const closingState = Object.freeze({
+      ...current,
+      status: "closing" as const,
+    });
+    this.state = closingState;
+    const runtimeClose = pendingActivations.length === 0
+      ? this.runtime.closeSession(current.sessionId)
+      : Promise.allSettled(pendingActivations)
+        .then(() => this.runtime.closeSession(current.sessionId));
+    const operation = runtimeClose.then(
+      () => {
+        if (this.state === closingState) {
+          this.unsubscribeAllSignalsV1();
+          this.signalActivationTokens.clear();
+          this.signalActivationOperations.clear();
+          this.state = Object.freeze({
+            ...closingState,
+            status: "closed",
+            branches: Object.freeze(closingState.branches.map((branch) =>
+              Object.freeze({
+                ...branch,
+                latestSteadyCandidate: null,
+              }))),
+          });
+        }
+      },
+      (error) => {
+        if (this.state === closingState) {
+          const restored = Object.freeze({
+            ...closingState,
+            status: "live",
+          });
+          this.state = restored;
+          for (const branch of restored.branches) {
+            if (branch.livePlayback === "running") {
+              this.activateSignalEpochV1(
+                branch,
+                "signal epoch reactivation after close failure failed",
+              );
+            }
+          }
+        }
+        throw error;
+      },
+    ).finally(() => {
+      if (this.closePromise === operation) this.closePromise = null;
+    });
+    this.closePromise = operation;
+    await operation;
+  }
+
+  private beginPlaybackTransitionV1(scenarioId: string): void {
+    if (this.promotingScenarioIds.has(scenarioId)) {
+      throw new SimulationSessionCommandConflictV1(
+        `scenario ${scenarioId} is being promoted`,
+      );
+    }
+    if (this.playbackTransitionScenarioIds.has(scenarioId)) {
+      throw new SimulationSessionCommandConflictV1(
+        `scenario ${scenarioId} playback is already transitioning`,
+      );
+    }
+    this.playbackTransitionScenarioIds.add(scenarioId);
+  }
+
+  private bindOpenedSignalChannelsV1(): void {
+    const current = this.requireLiveStateV1();
+    for (const branch of current.branches) {
+      const channel = branch.signalChannelRef;
+      if (this.signalSubscriptions.has(channel.channelId)) {
+        throw new SimulationSessionCoordinatorErrorV1(
+          `duplicate signal channel ${channel.channelId}`,
+        );
+      }
+      const subscription = this.runtime.subscribeSignalChannel(
+        channel,
+        (event) => this.acceptSignalEventV1(channel, event),
+      );
+      if (
+        subscription === null
+        || typeof subscription !== "object"
+        || typeof subscription.unsubscribe !== "function"
+      ) {
+        throw new SimulationSessionCoordinatorErrorV1(
+          `runtime returned invalid signal subscription for ${channel.channelId}`,
+        );
+      }
+      this.signalSubscriptions.set(channel.channelId, subscription);
+    }
+  }
+
+  private unsubscribeAllSignalsV1(): void {
+    for (const subscription of this.signalSubscriptions.values()) {
+      try {
+        subscription.unsubscribe();
+      } catch {
+        // A local listener detach failure cannot make closed state live again.
+      }
+    }
+    this.signalSubscriptions.clear();
+  }
+
+  private acceptSignalEventV1(
+    channel: RuntimeSignalChannelRefV1,
+    event: RuntimeSignalEventV1,
+  ): void {
+    const current = this.state;
+    if (current === null || current.status !== "live") return;
+    const branch = current.branches.find(({ scenarioId }) =>
+      scenarioId === channel.scenarioId
+    );
+    if (branch === undefined || branch.livePlayback !== "running") return;
+
+    const untrustedEvent: unknown = event;
+    if (!hasRuntimeSignalIdentityV1(untrustedEvent)) {
+      this.failSignalIdentityV1(
+        branch,
+        "runtime signal channel emitted a malformed current event",
+      );
+      return;
+    }
+    const signal = untrustedEvent;
+    if (
+      signal.channelId !== channel.channelId
+      || signal.sessionId !== current.sessionId
+      || signal.scenarioId !== branch.scenarioId
+      || signal.liveBranchId !== branch.liveBranchId
+      || signal.targetGeneration !== branch.targetGeneration
+      || signal.presentationRevision !== branch.presentationRevision
+      || signal.streamEpoch !== branch.streamEpoch
+    ) {
+      // An already-issued callback may cross a target/presentation boundary.
+      // Explicitly stale identities are expected and never affect the current
+      // branch.
+      return;
+    }
+    if (signal.kind === "failure") {
+      const message = typeof signal.message === "string"
+        && signal.message.length > 0
+        ? signal.message
+        : "runtime signal channel emitted a malformed failure";
+      this.failSignalIdentityV1(branch, message);
+      return;
+    }
+
+    try {
+      if (
+        signal.kind !== "samples"
+        || !Array.isArray(signal.points)
+        || signal.points.length === 0
+        || signal.points.length > 1_024
+      ) {
+        throw new SimulationSessionCoordinatorErrorV1(
+          "runtime signal channel emitted a malformed sample batch",
+        );
+      }
+      const points = signal.points.map((point) =>
+        copyPointV1(point as RuntimeObservablePointV1));
+      let prior = branch.display.latestPoint;
+      for (const point of points) {
+        if (
+          point.sequence !== prior.sequence + 1
+          || point.simulationTimeSec <= prior.simulationTimeSec
+        ) {
+          throw new SimulationSessionCoordinatorErrorV1(
+            "runtime signal batch is not strictly monotonic",
+          );
+        }
+        prior = point;
+      }
+      const metrics = copyMetricsV1(
+        signal.windowMetrics as RuntimeWindowMetricStateV1,
+      );
+      const nextPointCount = branch.display.pointCount + points.length;
+      if (metrics.collectedPointCount !== nextPointCount) {
+        throw new SimulationSessionCoordinatorErrorV1(
+          "runtime signal metrics do not match the trace point count",
+        );
+      }
+      const previousMetrics = branch.display.windowMetrics;
+      if (
+        (
+          previousMetrics.status === "complete"
+          && metrics.status === "collecting"
+        )
+        || metrics.completedCycleCount
+          < previousMetrics.completedCycleCount
+      ) {
+        throw new SimulationSessionCoordinatorErrorV1(
+          "runtime signal metrics regressed",
+        );
+      }
+      const replacement = Object.freeze({
+        ...branch,
+        display: Object.freeze({
+          ...branch.display,
+          latestPoint: points.at(-1)!,
+          pointCount: nextPointCount,
+          windowMetrics: metrics,
+        }),
+      });
+      this.replaceBranchV1(branch.scenarioId, replacement);
+    } catch {
+      this.failSignalIdentityV1(
+        branch,
+        "runtime signal channel emitted an invalid batch",
+      );
+    }
+  }
+
+  private activateSignalEpochV1(
+    branch: ScenarioRuntimeBranchStateV1,
+    failurePrefix: string,
+  ): void {
+    const channelId = branch.signalChannelRef.channelId;
+    const token = this.invalidateSignalActivationV1(
+      branch.signalChannelRef,
+    );
+    const predecessor = this.signalActivationOperations.get(channelId);
+    const operation = (async () => {
+      await predecessor?.catch(() => undefined);
+      if (!this.isSignalActivationCurrentV1(branch, token)) return;
+      try {
+        await this.runtime.resumeSignalChannel(
+          branch.signalChannelRef,
+          branch.streamEpoch,
+        );
+      } catch (error) {
+        if (this.isSignalActivationCurrentV1(branch, token)) {
+          this.failSignalIdentityV1(
+            branch,
+            `${failurePrefix}: ${errorMessageV1(error)}`,
+          );
+        }
+        await this.bestEffortSuspendSignalChannelV1(
+          branch.signalChannelRef,
+        );
+        return;
+      }
+      if (!this.isSignalActivationCurrentV1(branch, token)) {
+        // A delayed resume can cross a suspend, target, promotion, or close
+        // boundary. Fence that stale activation before the next queued epoch
+        // may start.
+        await this.bestEffortSuspendSignalChannelV1(
+          branch.signalChannelRef,
+        );
+      }
+    })();
+    this.signalActivationOperations.set(channelId, operation);
+    void operation.finally(() => {
+      if (this.signalActivationOperations.get(channelId) === operation) {
+        this.signalActivationOperations.delete(channelId);
+      }
+    });
+  }
+
+  private invalidateSignalActivationV1(
+    channel: RuntimeSignalChannelRefV1,
+  ): number {
+    const current = this.signalActivationTokens.get(channel.channelId) ?? 0;
+    const next = current === Number.MAX_SAFE_INTEGER ? 1 : current + 1;
+    this.signalActivationTokens.set(channel.channelId, next);
+    return next;
+  }
+
+  private isSignalActivationCurrentV1(
+    expected: ScenarioRuntimeBranchStateV1,
+    token: number,
+  ): boolean {
+    if (
+      this.signalActivationTokens.get(
+        expected.signalChannelRef.channelId,
+      ) !== token
+    ) return false;
+    const current = this.state;
+    if (current === null || current.status !== "live") return false;
+    const branch = current.branches.find(({ scenarioId }) =>
+      scenarioId === expected.scenarioId
+    );
+    if (
+      branch === undefined
+      || branch.livePlayback !== "running"
+      || branch.liveBranchId !== expected.liveBranchId
+      || branch.targetGeneration !== expected.targetGeneration
+      || branch.presentationRevision !== expected.presentationRevision
+      || branch.streamEpoch !== expected.streamEpoch
+    ) return false;
+    try {
+      assertSameSignalChannelV1(
+        branch.signalChannelRef,
+        expected.signalChannelRef,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async bestEffortSuspendSignalChannelV1(
+    channel: RuntimeSignalChannelRefV1,
+  ): Promise<void> {
+    try {
+      await this.runtime.suspendSignalChannel(channel);
+    } catch {
+      // The current control-plane state remains authoritative and fail-closed.
+    }
+  }
+
+  private failSignalIdentityV1(
+    expected: ScenarioRuntimeBranchStateV1,
+    message: string,
+  ): void {
+    const current = this.state;
+    if (current === null || current.status !== "live") return;
+    const branch = current.branches.find(({ scenarioId }) =>
+      scenarioId === expected.scenarioId
+    );
+    if (
+      branch === undefined
+      || branch.liveBranchId !== expected.liveBranchId
+      || branch.targetGeneration !== expected.targetGeneration
+      || branch.presentationRevision !== expected.presentationRevision
+      || branch.streamEpoch !== expected.streamEpoch
+    ) return;
+    try {
+      assertSameSignalChannelV1(
+        branch.signalChannelRef,
+        expected.signalChannelRef,
+      );
+    } catch {
+      return;
+    }
+    // Data-plane corruption and activation failure are fail-closed for
+    // presentation. Runtime suspension is best effort because this path is
+    // also used from observer callbacks.
+    void this.runtime.suspendSignalChannel(branch.signalChannelRef)
+      .catch(() => undefined);
+    this.replaceBranchV1(branch.scenarioId, Object.freeze({
+      ...branch,
+      livePlayback: "suspended",
+      lastRuntimeFailure: Object.freeze({
+        lane: "live" as const,
+        intentId: current.lastAppliedIntentId ?? "runtime/signal-channel",
+        targetGeneration: branch.targetGeneration,
+        message,
+      }),
+    }));
   }
 
   private acceptLiveIntentV1(
@@ -416,6 +943,8 @@ export class SimulationSessionCoordinatorV1 {
         || current.sessionId !== command.sessionId
       ) return;
       let changed = false;
+      const activations: ScenarioRuntimeBranchStateV1[] = [];
+      const suspensions: ScenarioRuntimeBranchStateV1[] = [];
       const branches = current.branches.map((branch) => {
         const target = targetForScenarioV1(command, branch.scenarioId);
         if (
@@ -426,10 +955,11 @@ export class SimulationSessionCoordinatorV1 {
         ) return branch;
         const branchResult = byScenario.get(branch.scenarioId)!;
         assertBranchResultIdentityV1(branchResult, target, "live");
-        changed = true;
         if (branchResult.status === "failure") {
-          return Object.freeze({
+          changed = true;
+          const replacement = Object.freeze({
             ...branch,
+            livePlayback: "suspended" as const,
             lastRuntimeFailure: laneFailureV1(
               command,
               target,
@@ -437,18 +967,28 @@ export class SimulationSessionCoordinatorV1 {
               branchResult.message,
             ),
           });
+          suspensions.push(replacement);
+          return replacement;
         }
+        if (branchResult.status !== "success") return branch;
+        changed = true;
         const live = copyLiveResultV1(branchResult.result, target);
-        return Object.freeze({
+        if (live.streamEpoch <= branch.streamEpoch) {
+          throw new SimulationSessionCoordinatorErrorV1(
+            "live transition did not advance the stream epoch",
+          );
+        }
+        const replacement = Object.freeze({
           ...branch,
+          streamEpoch: live.streamEpoch,
           display: Object.freeze({
             origin: Object.freeze({
               kind: "live-transition" as const,
               targetGeneration: target.targetGeneration,
             }),
-            firstPoint: branch.display.firstPoint,
+            firstPoint: live.frame.point,
             latestPoint: live.frame.point,
-            pointCount: branch.display.pointCount + 1,
+            pointCount: 1,
             windowMetrics: live.frame.windowMetrics,
           }),
           lastRuntimeFailure: clearLaneFailureV1(
@@ -456,12 +996,26 @@ export class SimulationSessionCoordinatorV1 {
             "live",
           ),
         });
+        if (branch.livePlayback === "running") {
+          activations.push(replacement);
+        }
+        return replacement;
       });
       if (changed) {
         this.state = Object.freeze({
           ...current,
           branches: Object.freeze(branches),
         });
+        for (const branch of suspensions) {
+          void this.runtime.suspendSignalChannel(branch.signalChannelRef)
+            .catch(() => undefined);
+        }
+        for (const branch of activations) {
+          this.activateSignalEpochV1(
+            branch,
+            "live transition signal epoch activation failed",
+          );
+        }
       }
     } catch (error) {
       this.acceptIntentFailureV1(command, "live", error);
@@ -496,8 +1050,8 @@ export class SimulationSessionCoordinatorV1 {
         ) return branch;
         const branchResult = byScenario.get(branch.scenarioId)!;
         assertBranchResultIdentityV1(branchResult, target, "strict");
-        changed = true;
         if (branchResult.status === "failure") {
+          changed = true;
           return Object.freeze({
             ...branch,
             lastRuntimeFailure: laneFailureV1(
@@ -508,10 +1062,13 @@ export class SimulationSessionCoordinatorV1 {
             ),
           });
         }
+        if (branchResult.status !== "success") return branch;
+        changed = true;
         const candidate = copyCandidateV1(
           branchResult.candidate,
           current.sessionId,
           target,
+          branch,
         );
         return Object.freeze({
           ...branch,
@@ -545,6 +1102,7 @@ export class SimulationSessionCoordinatorV1 {
       || current.sessionId !== command.sessionId
     ) return;
     let changed = false;
+    const suspensions: ScenarioRuntimeBranchStateV1[] = [];
     const branches = current.branches.map((branch) => {
       const target = targetForScenarioV1(command, branch.scenarioId);
       if (
@@ -553,8 +1111,11 @@ export class SimulationSessionCoordinatorV1 {
         || branch.presentationRevision !== target.presentationRevision
       ) return branch;
       changed = true;
-      return Object.freeze({
+      const replacement = Object.freeze({
         ...branch,
+        ...(lane === "live"
+          ? { livePlayback: "suspended" as const }
+          : {}),
         lastRuntimeFailure: laneFailureV1(
           command,
           target,
@@ -562,12 +1123,18 @@ export class SimulationSessionCoordinatorV1 {
           errorMessageV1(error),
         ),
       });
+      if (lane === "live") suspensions.push(replacement);
+      return replacement;
     });
     if (changed) {
       this.state = Object.freeze({
         ...current,
         branches: Object.freeze(branches),
       });
+      for (const branch of suspensions) {
+        void this.runtime.suspendSignalChannel(branch.signalChannelRef)
+          .catch(() => undefined);
+      }
     }
   }
 
@@ -606,6 +1173,11 @@ function initialBranchStateV1(
     scenarioId: source.scenarioId,
     liveBranchId: opened.liveBranchId,
     sourceRunRef: source.sourceRunRef,
+    sourceInputRef: source.sourceInputRef,
+    sourceSnapshotRef: source.sourceSnapshotRef,
+    signalChannelRef: opened.signalChannelRef,
+    streamEpoch: opened.streamEpoch,
+    livePlayback: "suspended",
     execution: opened.execution,
     targetGeneration: INITIAL_TARGET_GENERATION_V1,
     presentationRevision: INITIAL_PRESENTATION_REVISION_V1,
@@ -660,8 +1232,21 @@ function assertCandidateStillCurrentV1(
     || currentCandidate.candidateId !== candidate.candidateId
     || currentCandidate.targetGeneration !== candidate.targetGeneration
     || currentCandidate.targetInputSha256 !== candidate.targetInputSha256
-    || currentCandidate.snapshotRef.sha256 !== candidate.snapshotRef.sha256
-    || currentCandidate.sourceRunRef.sha256 !== candidate.sourceRunRef.sha256
+    || !sameArtifactRefV1(
+      currentCandidate.snapshotRef,
+      candidate.snapshotRef,
+    )
+    || !sameArtifactRefV1(
+      currentCandidate.sourceRunRef,
+      candidate.sourceRunRef,
+    )
+    || !sameArtifactRefV1(
+      currentCandidate.simulationInputRef,
+      candidate.simulationInputRef,
+    )
+    || !sameExecutionV1(currentCandidate.execution, candidate.execution)
+    || currentCandidate.steadyStatus !== candidate.steadyStatus
+    || currentCandidate.numericalHealth !== candidate.numericalHealth
   ) {
     throw new SimulationSessionCommandConflictV1(message);
   }
@@ -756,6 +1341,11 @@ function copyOpenCommandV1(
         "run-artifact",
         `branches[${index}].sourceRunRef`,
       ),
+      sourceInputRef: copyArtifactRefV1(
+        branch.sourceInputRef,
+        "simulation-input",
+        `branches[${index}].sourceInputRef`,
+      ),
       sourceSnapshotRef: copyArtifactRefV1(
         branch.sourceSnapshotRef,
         "snapshot-envelope",
@@ -784,6 +1374,9 @@ function copyOpenedSessionV1(
     );
   }
   const expected = new Set(command.branches.map(({ scenarioId }) => scenarioId));
+  const sourceByScenario = new Map(
+    command.branches.map((source) => [source.scenarioId, source]),
+  );
   const seen = new Set<string>();
   const branches = opened.branches.map((branch, index) => {
     if (
@@ -795,10 +1388,53 @@ function copyOpenedSessionV1(
       );
     }
     seen.add(branch.scenarioId);
+    const source = sourceByScenario.get(branch.scenarioId)!;
     assertPortableIdV1(branch.liveBranchId, "liveBranchId");
+    const sourceRunRef = copyArtifactRefV1(
+      branch.sourceRunRef,
+      "run-artifact",
+      `opened.branches[${index}].sourceRunRef`,
+    );
+    const sourceInputRef = copyArtifactRefV1(
+      branch.sourceInputRef,
+      "simulation-input",
+      `opened.branches[${index}].sourceInputRef`,
+    );
+    const sourceSnapshotRef = copyArtifactRefV1(
+      branch.sourceSnapshotRef,
+      "snapshot-envelope",
+      `opened.branches[${index}].sourceSnapshotRef`,
+    );
+    const signalChannelRef = copySignalChannelRefV1(
+      branch.signalChannelRef,
+      command.sessionId,
+      branch.scenarioId,
+      branch.liveBranchId,
+    );
+    assertStreamEpochV1(
+      branch.streamEpoch,
+      `opened.branches[${index}].streamEpoch`,
+    );
+    if (
+      !sameArtifactRefV1(sourceRunRef, source.sourceRunRef)
+      || !sameArtifactRefV1(sourceInputRef, source.sourceInputRef)
+      || !sameArtifactRefV1(sourceSnapshotRef, source.sourceSnapshotRef)
+      || branch.initialTargetInputSha256
+        !== source.initialTargetInputSha256
+    ) {
+      throw new SimulationSessionCoordinatorErrorV1(
+        `opened branch ${branch.scenarioId} source binding mismatch`,
+      );
+    }
     return Object.freeze({
       scenarioId: branch.scenarioId,
       liveBranchId: branch.liveBranchId,
+      sourceRunRef,
+      sourceInputRef,
+      sourceSnapshotRef,
+      initialTargetInputSha256: branch.initialTargetInputSha256,
+      signalChannelRef,
+      streamEpoch: branch.streamEpoch,
       execution: copyExecutionV1(branch.execution),
       initialFrame: copyFrameV1(branch.initialFrame),
     });
@@ -991,12 +1627,16 @@ function copyLiveResultV1(
       "live transition result identity mismatch",
     );
   }
+  assertStreamEpochV1(result.streamEpoch, "live.streamEpoch");
+  const frame = copyFrameV1(result.frame);
+  assertOnePointCollectingFrameV1(frame, "live transition");
   return Object.freeze({
     scenarioId: result.scenarioId,
     targetGeneration: result.targetGeneration,
     presentationRevision: result.presentationRevision,
     targetInputSha256: result.targetInputSha256,
-    frame: copyFrameV1(result.frame),
+    streamEpoch: result.streamEpoch,
+    frame,
   });
 }
 
@@ -1004,6 +1644,7 @@ function copyCandidateV1(
   candidate: RuntimeSteadyCandidateV1,
   sessionId: string,
   target: RuntimeTargetIntentBranchV1,
+  branch: ScenarioRuntimeBranchStateV1,
 ): RuntimeSteadyCandidateV1 {
   if (
     candidate?.sessionId !== sessionId
@@ -1018,23 +1659,40 @@ function copyCandidateV1(
     );
   }
   assertPortableIdV1(candidate.candidateId, "candidateId");
+  const sourceRunRef = copyArtifactRefV1(
+    candidate.sourceRunRef,
+    "run-artifact",
+    "candidate.sourceRunRef",
+  );
+  const simulationInputRef = copyArtifactRefV1(
+    candidate.simulationInputRef,
+    "simulation-input",
+    "candidate.simulationInputRef",
+  );
+  const execution = copyExecutionV1(candidate.execution);
+  if (
+    !sameArtifactRefV1(sourceRunRef, branch.sourceRunRef)
+    || !sameArtifactRefV1(simulationInputRef, branch.sourceInputRef)
+    || !sameExecutionV1(execution, branch.execution)
+  ) {
+    throw new SimulationSessionCoordinatorErrorV1(
+      "strict steady candidate lineage mismatch",
+    );
+  }
   return Object.freeze({
     candidateId: candidate.candidateId,
     sessionId: candidate.sessionId,
     scenarioId: candidate.scenarioId,
     targetGeneration: candidate.targetGeneration,
-    sourceRunRef: copyArtifactRefV1(
-      candidate.sourceRunRef,
-      "run-artifact",
-      "candidate.sourceRunRef",
-    ),
+    sourceRunRef,
+    simulationInputRef,
     targetInputSha256: candidate.targetInputSha256,
     snapshotRef: copyArtifactRefV1(
       candidate.snapshotRef,
       "snapshot-envelope",
       "candidate.snapshotRef",
     ),
-    execution: copyExecutionV1(candidate.execution),
+    execution,
     steadyStatus: "converged",
     numericalHealth: "passed",
   });
@@ -1055,12 +1713,14 @@ function copyPromotionV1(
       "promoted candidate result identity mismatch",
     );
   }
+  assertStreamEpochV1(promoted.streamEpoch, "promoted.streamEpoch");
   return Object.freeze({
     sessionId: promoted.sessionId,
     scenarioId: promoted.scenarioId,
     targetGeneration: promoted.targetGeneration,
     presentationRevision: promoted.presentationRevision,
     candidateId: promoted.candidateId,
+    streamEpoch: promoted.streamEpoch,
     initialFrame: copyFrameV1(promoted.initialFrame),
   });
 }
@@ -1072,6 +1732,42 @@ function copyFrameV1(
     point: copyPointV1(frame?.point),
     windowMetrics: copyMetricsV1(frame?.windowMetrics),
   });
+}
+
+type RuntimeSignalIdentityRecordV1 = Readonly<{
+  channelId: string;
+  sessionId: string;
+  scenarioId: string;
+  liveBranchId: string;
+  targetGeneration: number;
+  presentationRevision: number;
+  streamEpoch: number;
+  [key: string]: unknown;
+}>;
+
+function hasRuntimeSignalIdentityV1(
+  event: unknown,
+): event is RuntimeSignalIdentityRecordV1 {
+  if (
+    event === null
+    || typeof event !== "object"
+    || Array.isArray(event)
+  ) return false;
+  const identity = event as Readonly<Record<string, unknown>>;
+  return typeof identity.channelId === "string"
+    && identity.channelId.length > 0
+    && typeof identity.sessionId === "string"
+    && identity.sessionId.length > 0
+    && typeof identity.scenarioId === "string"
+    && identity.scenarioId.length > 0
+    && typeof identity.liveBranchId === "string"
+    && identity.liveBranchId.length > 0
+    && Number.isSafeInteger(identity.targetGeneration)
+    && (identity.targetGeneration as number) >= 0
+    && Number.isSafeInteger(identity.presentationRevision)
+    && (identity.presentationRevision as number) >= 0
+    && Number.isSafeInteger(identity.streamEpoch)
+    && (identity.streamEpoch as number) >= 0;
 }
 
 function copyPointV1(
@@ -1193,6 +1889,57 @@ function copyExecutionV1(
   return Object.freeze(copy) as RuntimeExecutionIdentityV1;
 }
 
+function copySignalChannelRefV1(
+  channel: RuntimeSignalChannelRefV1,
+  sessionId: string,
+  scenarioId: string,
+  liveBranchId: string,
+): RuntimeSignalChannelRefV1 {
+  if (
+    channel?.protocolId !== "circleheart-studio-runtime-signal-channel-v1"
+    || channel.sessionId !== sessionId
+    || channel.scenarioId !== scenarioId
+    || channel.liveBranchId !== liveBranchId
+  ) {
+    throw new SimulationSessionCoordinatorErrorV1(
+      `signal channel binding mismatch for ${scenarioId}`,
+    );
+  }
+  assertPortableIdV1(channel.channelId, "signal channelId");
+  return Object.freeze({
+    protocolId: "circleheart-studio-runtime-signal-channel-v1",
+    channelId: channel.channelId,
+    sessionId: channel.sessionId,
+    scenarioId: channel.scenarioId,
+    liveBranchId: channel.liveBranchId,
+  });
+}
+
+function assertSameSignalChannelV1(
+  left: RuntimeSignalChannelRefV1,
+  right: RuntimeSignalChannelRefV1,
+): void {
+  if (
+    left.protocolId !== right.protocolId
+    || left.channelId !== right.channelId
+    || left.sessionId !== right.sessionId
+    || left.scenarioId !== right.scenarioId
+    || left.liveBranchId !== right.liveBranchId
+  ) {
+    throw new SimulationSessionCommandConflictV1(
+      "signal channel changed during playback transition",
+    );
+  }
+}
+
+function assertStreamEpochV1(value: unknown, path: string): asserts value is number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new SimulationSessionCoordinatorErrorV1(
+      `${path} must be a nonnegative safe integer`,
+    );
+  }
+}
+
 function copyArtifactRefV1<TKind extends StudioArtifactKindV1>(
   ref: StudioArtifactRefV1<TKind>,
   expectedKind: TKind,
@@ -1218,6 +1965,28 @@ function copyArtifactRefV1<TKind extends StudioArtifactKindV1>(
     mediaType: ref.mediaType,
     byteLength: ref.byteLength,
   });
+}
+
+function sameArtifactRefV1(
+  left: StudioArtifactRefV1,
+  right: StudioArtifactRefV1,
+): boolean {
+  return left.schemaId === right.schemaId
+    && left.kind === right.kind
+    && left.sha256 === right.sha256
+    && left.mediaType === right.mediaType
+    && left.byteLength === right.byteLength;
+}
+
+function sameExecutionV1(
+  left: RuntimeExecutionIdentityV1,
+  right: RuntimeExecutionIdentityV1,
+): boolean {
+  return left.modelRef === right.modelRef
+    && left.runtimeRef === right.runtimeRef
+    && left.solverRef === right.solverRef
+    && left.stateCodecRef === right.stateCodecRef
+    && left.protocolRef === right.protocolRef;
 }
 
 function assertSha256V1(

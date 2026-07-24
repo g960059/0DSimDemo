@@ -27,6 +27,12 @@ const forbiddenPrefixes = [
   "tools/sweeps/",
 ];
 const requiredTrackedPaths = [
+  "studio/adapters/mainWire/MainWireBrowserWorkerSessionHostV1.ts",
+  "studio/adapters/mainWire/MainWireSimulationRuntimeAdapterV1.ts",
+  "studio/adapters/mainWire/MainWireStudioSessionHostV1.ts",
+  "studio/adapters/mainWire/MainWireStudioSnapshotEnvelopeV1.ts",
+  "studio/adapters/mainWire/MainWireStudioTargetResolverV1.ts",
+  "studio/adapters/mainWire/index.ts",
   "studio/application/runtime/SimulationSessionCoordinatorV1.ts",
   "studio/infrastructure/artifacts/InMemoryContentAddressedArtifactStoreV1.ts",
   "studio/infrastructure/artifacts/studioCanonicalJsonV1.ts",

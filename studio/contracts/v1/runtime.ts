@@ -1,6 +1,7 @@
 import type {
   RunArtifactRefV1,
   RuntimeExecutionIdentityV1,
+  SimulationInputRefV1,
   SnapshotEnvelopeRefV1,
 } from "./artifacts";
 import type {
@@ -18,8 +19,10 @@ export type RuntimeControlValueV1 = boolean | number | string;
 
 export type RuntimeControlPatchV1 = Readonly<{
   /**
-   * Digest of the complete resolved target input, not merely this patch.
-   * The runtime adapter is responsible for resolving and verifying it.
+   * Digest of the complete resolved target input. `values` is likewise the
+   * complete resolved control map; partial UI edits must be merged before the
+   * runtime command is issued so rapid supersession never depends on whether
+   * an older target reached the accepted numerical branch.
    */
   targetInputSha256: Sha256HexV1;
   values: Readonly<Record<string, RuntimeControlValueV1>>;
@@ -50,9 +53,47 @@ export type RuntimePresentationFrameV1 = Readonly<{
   windowMetrics: RuntimeWindowMetricStateV1;
 }>;
 
+export type RuntimeSignalChannelRefV1 = Readonly<{
+  protocolId: "circleheart-studio-runtime-signal-channel-v1";
+  channelId: string;
+  sessionId: StudioSessionIdV1;
+  scenarioId: ScenarioIdV1;
+  liveBranchId: RuntimeBranchIdV1;
+}>;
+
+export type RuntimeSignalBatchV1 = Readonly<{
+  kind: "samples";
+  channelId: string;
+  sessionId: StudioSessionIdV1;
+  scenarioId: ScenarioIdV1;
+  liveBranchId: RuntimeBranchIdV1;
+  targetGeneration: TargetGenerationV1;
+  presentationRevision: PresentationRevisionV1;
+  streamEpoch: number;
+  points: readonly RuntimeObservablePointV1[];
+  windowMetrics: RuntimeWindowMetricStateV1;
+}>;
+
+export type RuntimeSignalFailureV1 = Readonly<{
+  kind: "failure";
+  channelId: string;
+  sessionId: StudioSessionIdV1;
+  scenarioId: ScenarioIdV1;
+  liveBranchId: RuntimeBranchIdV1;
+  targetGeneration: TargetGenerationV1;
+  presentationRevision: PresentationRevisionV1;
+  streamEpoch: number;
+  message: string;
+}>;
+
+export type RuntimeSignalEventV1 =
+  | RuntimeSignalBatchV1
+  | RuntimeSignalFailureV1;
+
 export type OpenScenarioRuntimeBranchV1 = Readonly<{
   scenarioId: ScenarioIdV1;
   sourceRunRef: RunArtifactRefV1;
+  sourceInputRef: SimulationInputRefV1;
   sourceSnapshotRef: SnapshotEnvelopeRefV1;
   initialTargetInputSha256: Sha256HexV1;
 }>;
@@ -65,6 +106,12 @@ export type OpenSimulationSessionCommandV1 = Readonly<{
 export type RuntimeScenarioBranchOpenedV1 = Readonly<{
   scenarioId: ScenarioIdV1;
   liveBranchId: RuntimeBranchIdV1;
+  sourceRunRef: RunArtifactRefV1;
+  sourceInputRef: SimulationInputRefV1;
+  sourceSnapshotRef: SnapshotEnvelopeRefV1;
+  initialTargetInputSha256: Sha256HexV1;
+  signalChannelRef: RuntimeSignalChannelRefV1;
+  streamEpoch: number;
   execution: RuntimeExecutionIdentityV1;
   initialFrame: RuntimePresentationFrameV1;
 }>;
@@ -113,6 +160,7 @@ export type RuntimeLiveTransitionResultV1 = Readonly<{
   targetGeneration: TargetGenerationV1;
   presentationRevision: PresentationRevisionV1;
   targetInputSha256: Sha256HexV1;
+  streamEpoch: number;
   frame: RuntimePresentationFrameV1;
 }>;
 
@@ -124,6 +172,18 @@ export type RuntimeIntentBranchFailureV1 = Readonly<{
   message: string;
 }>;
 
+/**
+ * Expected lifecycle completion. Supersession and abort never reject the
+ * aggregate lane Promise and are not user-visible runtime failures.
+ */
+export type RuntimeIntentBranchInterruptionV1 = Readonly<{
+  status: "superseded" | "aborted";
+  scenarioId: ScenarioIdV1;
+  targetGeneration: TargetGenerationV1;
+  targetInputSha256: Sha256HexV1;
+  reason: string;
+}>;
+
 export type RuntimeLiveIntentBranchResultV1 =
   | Readonly<{
     status: "success";
@@ -131,7 +191,8 @@ export type RuntimeLiveIntentBranchResultV1 =
     targetGeneration: TargetGenerationV1;
     result: RuntimeLiveTransitionResultV1;
   }>
-  | RuntimeIntentBranchFailureV1;
+  | RuntimeIntentBranchFailureV1
+  | RuntimeIntentBranchInterruptionV1;
 
 export type RuntimeLiveIntentResultV1 = Readonly<{
   sessionId: StudioSessionIdV1;
@@ -145,6 +206,7 @@ export type RuntimeSteadyCandidateV1 = Readonly<{
   scenarioId: ScenarioIdV1;
   targetGeneration: TargetGenerationV1;
   sourceRunRef: RunArtifactRefV1;
+  simulationInputRef: SimulationInputRefV1;
   targetInputSha256: Sha256HexV1;
   snapshotRef: SnapshotEnvelopeRefV1;
   execution: RuntimeExecutionIdentityV1;
@@ -165,7 +227,8 @@ export type RuntimeStrictIntentBranchResultV1 =
     targetGeneration: TargetGenerationV1;
     candidate: RuntimeSteadyCandidateV1;
   }>
-  | RuntimeIntentBranchFailureV1;
+  | RuntimeIntentBranchFailureV1
+  | RuntimeIntentBranchInterruptionV1;
 
 export type PromoteSteadyCandidateCommandV1 = Readonly<{
   sessionId: StudioSessionIdV1;
@@ -186,6 +249,7 @@ export type RuntimeCandidatePromotedV1 = Readonly<{
   targetGeneration: TargetGenerationV1;
   presentationRevision: PresentationRevisionV1;
   candidateId: RuntimeCandidateIdV1;
+  streamEpoch: number;
   /**
    * Projection of the candidate snapshot itself. It starts a new trace with
    * one point; no synthetic previous beat is returned.
@@ -231,6 +295,11 @@ export type ScenarioRuntimeBranchStateV1 = Readonly<{
   scenarioId: ScenarioIdV1;
   liveBranchId: RuntimeBranchIdV1;
   sourceRunRef: RunArtifactRefV1;
+  sourceInputRef: SimulationInputRefV1;
+  sourceSnapshotRef: SnapshotEnvelopeRefV1;
+  signalChannelRef: RuntimeSignalChannelRefV1;
+  streamEpoch: number;
+  livePlayback: "running" | "suspended";
   execution: RuntimeExecutionIdentityV1;
   targetGeneration: TargetGenerationV1;
   /**
@@ -254,7 +323,7 @@ export type ScenarioRuntimeBranchStateV1 = Readonly<{
  * The array order is stable from open; scenarioId is the aggregate key.
  */
 export type SimulationSessionStateV1 = Readonly<{
-  status: "live" | "closed";
+  status: "live" | "closing" | "closed";
   sessionId: StudioSessionIdV1;
   branches: readonly ScenarioRuntimeBranchStateV1[];
   lastAppliedIntentId: RuntimeIntentIdV1 | null;

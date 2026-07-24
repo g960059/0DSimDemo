@@ -38,14 +38,18 @@ describe("Studio V1 contract and dependency boundary", () => {
           scenarioId: "baseline",
           patch: {
             targetInputSha256: "b".repeat(64),
-            values: { "circulation.svr-scale": 1.25 },
+            values: {
+              "circulation.systemic-vascular-resistance-scale": 1.5,
+            },
           },
         },
         {
           scenarioId: "hfrEF",
           patch: {
             targetInputSha256: "c".repeat(64),
-            values: { "circulation.svr-scale": 1.25 },
+            values: {
+              "circulation.systemic-vascular-resistance-scale": 1.5,
+            },
           },
         },
       ],
