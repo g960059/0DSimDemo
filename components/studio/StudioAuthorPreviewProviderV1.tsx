@@ -5,6 +5,8 @@ import {
 } from "@/components/scientificProduct/ScientificProductSampleAfterloadArticleV1";
 import {
   StudioAuthorPreviewApplicationV1,
+  type ReplaceStudioAuthorDocumentContentCommandV1,
+  type ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
 } from "@/studio/application/content";
 import type {
   ReaderPreviewManifestV1,
@@ -15,8 +17,12 @@ import type {
   ScientificProductReaderExperimentControllerV1,
 } from "@/components/scientificProduct/ScientificProductReaderExperimentControllerV1";
 import type {
+  ScientificProductStudioScenarioRegistryV1,
   ScientificProductStudioScenarioRuntimeV1,
 } from "@/components/scientificProduct/ScientificProductStudioScenarioRegistryV1";
+import type {
+  ScientificProductRuntimeRegistryPortV1,
+} from "@/components/scientificProduct/ScientificProductRuntimeRegistryPortV1";
 import {
   resolveStudioReaderPreviewRuntimeBindingV1,
 } from "./StudioReaderPreviewRuntimeBindingV1";
@@ -39,6 +45,7 @@ export type StudioReaderPreviewSessionStateV1 =
     previewId: string;
     manifest: ReaderPreviewManifestV1;
     readerController: ScientificProductReaderExperimentControllerV1;
+    registry: ScientificProductRuntimeRegistryPortV1;
   }>
   | Readonly<{
     phase: "failed";
@@ -53,6 +60,7 @@ type ActiveReaderPreviewEntryV1 = {
   manifest: ReaderPreviewManifestV1;
   abortController: AbortController;
   runtime: ScientificProductStudioScenarioRuntimeV1 | null;
+  registry: ScientificProductStudioScenarioRegistryV1 | null;
   readerController: ScientificProductReaderExperimentControllerV1 | null;
 };
 
@@ -62,6 +70,12 @@ export type StudioAuthorPreviewContextValueV1 = Readonly<{
   readerSession: StudioReaderPreviewSessionStateV1;
   updateTitle(title: string): StudioAuthorDraftV1;
   updateTextBlock(blockId: string, text: string): StudioAuthorDraftV1;
+  replaceDocumentContent(
+    command: ReplaceStudioAuthorDocumentContentCommandV1,
+  ): StudioAuthorDraftV1;
+  replaceReaderBriefGraphPanes(
+    command: ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
+  ): StudioAuthorDraftV1;
   materializePreview(): ReaderPreviewManifestV1;
   resolvePreview(previewId: string): ReaderPreviewManifestV1 | null;
   acquireReaderPreview(previewId: string): () => void;
@@ -130,6 +144,22 @@ export function StudioAuthorPreviewProviderV1({
     return next;
   }, [application]);
 
+  const replaceDocumentContent = React.useCallback((
+    command: ReplaceStudioAuthorDocumentContentCommandV1,
+  ) => {
+    const next = application.replaceDocumentContent(command);
+    setDraft(next);
+    return next;
+  }, [application]);
+
+  const replaceReaderBriefGraphPanes = React.useCallback((
+    command: ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
+  ) => {
+    const next = application.replaceReaderBriefGraphPanes(command);
+    setDraft(next);
+    return next;
+  }, [application]);
+
   const materializePreview = React.useCallback(() => {
     const manifest = application.materializePreview({
       expectedRevision: application.getDraftSnapshot().revision,
@@ -173,6 +203,7 @@ export function StudioAuthorPreviewProviderV1({
         { InMemoryContentAddressedArtifactStoreV1 },
         {
           loadScientificProductStudioScenarioRuntimeV1,
+          ScientificProductStudioScenarioRegistryV1,
         },
         {
           ScientificProductReaderExperimentControllerV1,
@@ -194,6 +225,9 @@ export function StudioAuthorPreviewProviderV1({
         caseEntry,
         artifacts,
         signal: entry.abortController.signal,
+        // Reader must paint the canonical settled source as one point before
+        // the shared graph registry can observe any live-transition frames.
+        deferInitialLivePresentation: true,
         onProgress: (progress) => {
           if (activeEntryRef.current !== entry || entry.retainCount === 0) {
             return;
@@ -211,6 +245,17 @@ export function StudioAuthorPreviewProviderV1({
         return;
       }
       entry.runtime = runtime;
+      const registry = new ScientificProductStudioScenarioRegistryV1(
+        Object.freeze({
+          requestedCaseId: caseEntry.caseId,
+          canonicalCaseId: caseEntry.caseId,
+          aliasApplied: null,
+          caseEntry,
+        }),
+        runtime,
+      );
+      registry.connect();
+      entry.registry = registry;
       const readerController =
         ScientificProductReaderExperimentControllerV1.create({
           brief: placement.readerBrief,
@@ -222,6 +267,7 @@ export function StudioAuthorPreviewProviderV1({
         previewId: entry.previewId,
         manifest: entry.manifest,
         readerController,
+        registry,
       }));
     } catch (error) {
       await disposeReaderPreviewEntryV1(entry);
@@ -265,6 +311,7 @@ export function StudioAuthorPreviewProviderV1({
       manifest,
       abortController: new AbortController(),
       runtime: null,
+      registry: null,
       readerController: null,
     };
     activeEntryRef.current = entry;
@@ -305,6 +352,8 @@ export function StudioAuthorPreviewProviderV1({
       readerSession,
       updateTitle,
       updateTextBlock,
+      replaceDocumentContent,
+      replaceReaderBriefGraphPanes,
       materializePreview,
       resolvePreview,
       acquireReaderPreview,
@@ -314,6 +363,8 @@ export function StudioAuthorPreviewProviderV1({
     lastPreviewId,
     materializePreview,
     readerSession,
+    replaceDocumentContent,
+    replaceReaderBriefGraphPanes,
     resolvePreview,
     updateTextBlock,
     updateTitle,
@@ -367,9 +418,15 @@ async function disposeReaderPreviewEntryV1(
   entry.abortController.abort();
   entry.readerController?.dispose();
   entry.readerController = null;
+  const registry = entry.registry;
+  entry.registry = null;
   const runtime = entry.runtime;
   entry.runtime = null;
-  if (runtime !== null) await runtime.controller.dispose();
+  if (registry !== null) {
+    await registry.dispose();
+  } else if (runtime !== null) {
+    await runtime.controller.dispose();
+  }
 }
 
 function failReaderPreviewEntryV1(

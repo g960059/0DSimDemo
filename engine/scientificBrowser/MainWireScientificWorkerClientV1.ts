@@ -425,9 +425,15 @@ export class MainWireScientificWorkerClientV1 {
       return;
     }
     if (!isProtocolEnvelope(value)) {
-      this.failClosed(newTransportError(
+      const fatalDetail = isRecord(value)
+        && value.kind === "main-wire-scientific-worker-fatal-v1"
+        && typeof value.message === "string"
+        ? `: ${value.message}`
+        : ` (${protocolEnvelopeMismatchReasonV1(value)})`;
+      this.failClosed(new MainWireScientificWorkerTransportErrorV1(
         "protocol-mismatch",
-        "scientific Worker response does not match protocol V1",
+        `scientific Worker response does not match protocol V1${fatalDetail}`,
+        value,
       ));
       return;
     }
@@ -666,6 +672,70 @@ function isProtocolEnvelope(value: unknown): value is ProtocolEnvelope {
       value.error.partialProgress === null
       || isRecord(value.error.partialProgress)
     );
+}
+
+function protocolEnvelopeMismatchReasonV1(value: unknown): string {
+  if (!isRecord(value)) return "response is not an object";
+  if (value.protocolId !== SCIENTIFIC_COMMAND_PROTOCOL_V1_ID) {
+    return `protocolId=${String(value.protocolId)}`;
+  }
+  if (typeof value.requestId !== "string") {
+    const workerError = isRecord(value.error)
+      ? `, workerError=${String(value.error.code)}:`
+        + `${String(value.error.message)}`
+      : "";
+    return `requestId=${String(value.requestId)} (${typeof value.requestId}): `
+      + recordShapeV1(value)
+      + workerError;
+  }
+  if (typeof value.sessionId !== "string") return "sessionId is not a string";
+  if (typeof value.commandKind !== "string") {
+    return "commandKind is not a string";
+  }
+  if (typeof value.ok !== "boolean") return "ok is not boolean";
+  if (value.ok === true) {
+    if (value.error !== null) return "successful response has a non-null error";
+    if (!isReleaseRef(value.releaseRef)) return "releaseRef is invalid";
+    if (!isSessionOrigin(value.sessionOrigin)) {
+      return `sessionOrigin is invalid: ${recordShapeV1(value.sessionOrigin)}`;
+    }
+    return isRecord(value.payload)
+      ? "unknown successful-response mismatch"
+      : "payload is not an object";
+  }
+  if (value.payload !== null) return "failed response has a non-null payload";
+  if (
+    !(
+      value.releaseRef === null
+      && value.sessionOrigin === null
+    )
+    && !(
+      isReleaseRef(value.releaseRef)
+      && isSessionOrigin(value.sessionOrigin)
+    )
+  ) return "failed-response provenance is invalid";
+  if (!isRecord(value.error)) return "error is not an object";
+  if (typeof value.error.code !== "string") return "error.code is not a string";
+  if (typeof value.error.message !== "string") {
+    return "error.message is not a string";
+  }
+  if (value.error.retryable !== false) return "error.retryable is not false";
+  if (value.error.silentFallbackApplied !== false) {
+    return "error.silentFallbackApplied is not false";
+  }
+  if (!Array.isArray(value.error.observableFrames)) {
+    return "error.observableFrames is not an array";
+  }
+  if (
+    value.error.partialProgress !== null
+    && !isRecord(value.error.partialProgress)
+  ) return "error.partialProgress is invalid";
+  return "unknown failed-response mismatch";
+}
+
+function recordShapeV1(value: unknown): string {
+  if (!isRecord(value)) return String(value);
+  return `kind=${String(value.kind)}, keys=${Object.keys(value).sort().join(",")}`;
 }
 
 function isReleaseRef(value: unknown): value is SimulationReleaseRef {

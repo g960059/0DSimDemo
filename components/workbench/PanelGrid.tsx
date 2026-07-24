@@ -22,6 +22,7 @@ import {
   DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
   DEFAULT_HEMODYNAMIC_DETAIL_MODE,
   DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
   DEFAULT_PV_RELATION_DISPLAY_MODE,
   DEFAULT_PV_RELATION_PRESSURE_BASIS,
   type DockviewViewState,
@@ -35,6 +36,7 @@ import {
   PhysicsRefState,
   PvLoopDebugTraceMode,
   type PvLoopHistoryMode,
+  type PvLoopParameterHistoryCount,
   type PvRelationPanelSettings,
   type LegendPosition,
   SignalType,
@@ -75,6 +77,12 @@ const LegacyMetricsPanel = React.lazy(
 export type PanelGridMode = 'learner' | 'sandbox';
 export type RightRailView = 'scenarios' | 'inspector';
 export type MetricsSpanMode = 'main' | 'full';
+
+type PvLoopHistoryUpdate = Readonly<{
+  beats?: number;
+  mode?: PvLoopHistoryMode;
+  parameterGenerations?: PvLoopParameterHistoryCount;
+}>;
 
 export type MetricAuthoringCatalogEntry = Readonly<{
   key: MetricType;
@@ -166,7 +174,7 @@ export interface PanelGridProps {
   updateTimeWindow: (panelId: string, val: number) => void;
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
-  updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
+  updatePanelPvHistory: (panelId: string, history: PvLoopHistoryUpdate) => void;
   updatePanelPvRelations: (
     panelId: string,
     settings: Readonly<Partial<PvRelationPanelSettings>>,
@@ -294,7 +302,7 @@ interface PanelSettingsControlsProps {
   updateTimeWindow: (panelId: string, val: number) => void;
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
-  updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
+  updatePanelPvHistory: (panelId: string, history: PvLoopHistoryUpdate) => void;
   updatePanelPvRelations: (
     panelId: string,
     settings: Readonly<Partial<PvRelationPanelSettings>>,
@@ -974,6 +982,8 @@ function GraphPanelSettingsBoard({
     const debugTraceMode = panel.pvDebugTraceMode ?? 'raw';
     const pvHistoryBeats = panel.pvHistoryBeats ?? 8;
     const pvHistoryMode = panel.pvHistoryMode ?? 'fade';
+    const pvParameterHistoryCount = panel.pvParameterHistoryCount
+      ?? DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT;
     const pvRelationDisplayMode = panel.pvRelationDisplayMode
       ?? DEFAULT_PV_RELATION_DISPLAY_MODE;
     const pvRelationPressureBasis = panel.pvRelationPressureBasis
@@ -1316,6 +1326,40 @@ function GraphPanelSettingsBoard({
                 )}
               </div>
             </details>
+          )}
+          {panel.type === 'PVLOOP' && (
+            <div
+              className="space-y-3 border-b border-wb-line px-2 py-3"
+              data-testid="pv-parameter-history-settings"
+            >
+              <div>
+                <div className="text-sm font-bold text-wb-text">
+                  {t('workbench.panelGrid.hemodynamicParameterHistory')}
+                </div>
+                <div className="mt-0.5 text-xs font-medium text-wb-subtle">
+                  {t('workbench.panelGrid.hemodynamicParameterHistoryDescription')}
+                </div>
+              </div>
+              <div
+                className="grid grid-cols-5 gap-1"
+                role="group"
+                aria-label={t('workbench.panelGrid.hemodynamicParameterHistory')}
+              >
+                {([0, 1, 3, 5, 6] as const).map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    onClick={() => updatePanelPvHistory(panel.id, {
+                      parameterGenerations: count,
+                    })}
+                    className={`h-8 rounded border px-1 text-xs font-bold transition-colors ${pvParameterHistoryCount === count ? 'border-wb-line-strong bg-wb-active text-wb-text' : 'border-wb-line bg-wb-input text-wb-subtle hover:text-wb-text'}`}
+                    aria-pressed={pvParameterHistoryCount === count}
+                  >
+                    {count === 0 ? t('common.off') : count}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           {panel.type === 'PVLOOP' && (
             <div className="space-y-3 px-2 py-3" data-testid="pv-history-settings">
@@ -2599,7 +2643,7 @@ interface PanelCardProps {
   updateTimeWindow: (panelId: string, val: number) => void;
   togglePvDebugOverlay: (panelId: string) => void;
   updatePvDebugTraceMode: (panelId: string, mode: PvLoopDebugTraceMode) => void;
-  updatePanelPvHistory: (panelId: string, history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>) => void;
+  updatePanelPvHistory: (panelId: string, history: PvLoopHistoryUpdate) => void;
   updatePanelPvRelations: (
     panelId: string,
     settings: Readonly<Partial<PvRelationPanelSettings>>,

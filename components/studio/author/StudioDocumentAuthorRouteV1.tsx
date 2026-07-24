@@ -4,20 +4,28 @@ import {
   Eye,
   FlaskConical,
   LockKeyhole,
+  PanelsTopLeft,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
-  authorPreviewHref,
   homeHref,
   readerPreviewHref,
+  workbenchHref,
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
+import type {
+  StudioAuthorDraftV1,
+} from "@/studio/contracts/v1";
 
 import {
   useStudioAuthorPreviewV1,
 } from "../StudioAuthorPreviewProviderV1";
+import {
+  StudioDocumentBlockEditorV1,
+  type StudioDocumentEditorValueV1,
+} from "./StudioDocumentBlockEditorV1";
 
 export default function StudioDocumentAuthorRouteV1() {
   const { t } = useTranslation();
@@ -27,90 +35,124 @@ export default function StudioDocumentAuthorRouteV1() {
   const {
     draft,
     lastPreviewId,
-    updateTitle,
-    updateTextBlock,
+    replaceDocumentContent,
     materializePreview,
   } = useStudioAuthorPreviewV1();
-  const firstParagraph = draft.document.blocks.find(
-    (block) => block.kind === "paragraph",
-  );
   const experiment = draft.experiments[0];
   const brief = experiment?.readerBriefs[0];
-  const [title, setTitle] = React.useState(draft.document.title);
-  const [introduction, setIntroduction] = React.useState(
-    firstParagraph?.kind === "paragraph" ? firstParagraph.text : "",
+  const [editorValue, setEditorValue] =
+    React.useState<StudioDocumentEditorValueV1>(
+      () => editorValueFromDraftV1(draft),
+    );
+  const [editorBaseRevision, setEditorBaseRevision] = React.useState(
+    draft.revision,
   );
+  const [editorDirty, setEditorDirty] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    setTitle(draft.document.title);
-    const paragraph = draft.document.blocks.find(
-      (block) => block.kind === "paragraph",
-    );
-    setIntroduction(paragraph?.kind === "paragraph" ? paragraph.text : "");
+    setEditorValue(editorValueFromDraftV1(draft));
+    setEditorBaseRevision(draft.revision);
+    setEditorDirty(false);
   }, [draft.draftId]);
 
-  const commitFields = React.useCallback(() => {
-    const normalizedTitle = title.trim();
-    const normalizedIntroduction = introduction.trim();
-    if (normalizedTitle.length === 0 || normalizedIntroduction.length === 0) {
-      throw new Error(t("studioAuthorPreview.author.requiredFields"));
-    }
-    let next = draft;
-    if (normalizedTitle !== next.document.title) {
-      next = updateTitle(normalizedTitle);
-    }
-    const paragraph = next.document.blocks.find(
-      (block) => block.blockId === firstParagraph?.blockId,
-    );
+  const commitDocument = React.useCallback((
+    value: StudioDocumentEditorValueV1 = editorValue,
+  ) => {
+    const normalized = normalizeEditorValueV1(value);
     if (
-      firstParagraph !== undefined
-      && paragraph?.kind === "paragraph"
-      && normalizedIntroduction !== paragraph.text
+      normalized.title.length === 0
+      || normalized.blocks.length === 0
+      || normalized.blocks.some((block) =>
+        block.kind !== "experiment-placement" && block.text.length === 0)
     ) {
-      next = updateTextBlock(
-        firstParagraph.blockId,
-        normalizedIntroduction,
-      );
+      throw new Error(documentRequiredFieldsMessageV1(locale));
     }
+    const next = replaceDocumentContent({
+      expectedRevision: editorBaseRevision,
+      title: normalized.title,
+      blocks: normalized.blocks,
+    });
+    setEditorValue(editorValueFromDraftV1(next));
+    setEditorBaseRevision(next.revision);
+    setEditorDirty(false);
     setErrorMessage(null);
     return next;
   }, [
-    draft,
-    firstParagraph,
-    introduction,
-    t,
-    title,
-    updateTextBlock,
-    updateTitle,
+    editorBaseRevision,
+    editorValue,
+    locale,
+    replaceDocumentContent,
   ]);
+
+  const requestCommit = React.useCallback((
+    value: StudioDocumentEditorValueV1,
+  ) => {
+    try {
+      commitDocument(value);
+    } catch (error) {
+      setErrorMessage(errorMessageV1(error));
+    }
+  }, [commitDocument]);
 
   const openReaderPreview = React.useCallback(() => {
     try {
-      commitFields();
+      commitDocument();
       const manifest = materializePreview();
       navigate(readerPreviewHref(manifest.previewId, locale));
     } catch (error) {
       setErrorMessage(errorMessageV1(error));
     }
-  }, [commitFields, locale, materializePreview, navigate]);
+  }, [commitDocument, locale, materializePreview, navigate]);
+
+  const openWorkbench = React.useCallback(() => {
+    try {
+      commitDocument();
+      navigate(workbenchHref(locale));
+    } catch (error) {
+      setErrorMessage(errorMessageV1(error));
+    }
+  }, [commitDocument, locale, navigate]);
+
+  const returnHome = React.useCallback(() => {
+    try {
+      commitDocument();
+      navigate(homeHref(locale));
+    } catch (error) {
+      setErrorMessage(errorMessageV1(error));
+    }
+  }, [commitDocument, locale, navigate]);
+
+  const reopenLastPreview = React.useCallback(() => {
+    if (lastPreviewId === null) return;
+    try {
+      // Preserve current author edits while intentionally reopening the older,
+      // immutable preview materialization.
+      commitDocument();
+      navigate(readerPreviewHref(lastPreviewId, locale));
+    } catch (error) {
+      setErrorMessage(errorMessageV1(error));
+    }
+  }, [commitDocument, lastPreviewId, locale, navigate]);
 
   return (
     <div
       className="h-full w-full overflow-y-auto bg-slate-950 text-slate-100"
       data-testid="studio-document-author-v1"
       data-draft-revision={draft.revision}
+      data-editor-dirty={String(editorDirty)}
     >
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8 sm:py-12">
         <header className="mb-8 flex flex-col gap-5 border-b border-slate-800 pb-7 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <Link
-              to={homeHref(locale)}
+            <button
+              type="button"
+              onClick={returnHome}
               className="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-400 transition-colors hover:text-slate-100"
             >
               <ArrowLeft className="h-4 w-4" />
               {t("studioAuthorPreview.author.backHome")}
-            </Link>
+            </button>
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full border border-sky-400/25 bg-sky-400/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-sky-300">
                 {t("studioAuthorPreview.author.badge")}
@@ -130,6 +172,15 @@ export default function StudioDocumentAuthorRouteV1() {
           <div className="flex flex-col gap-2 sm:items-end">
             <button
               type="button"
+              onClick={openWorkbench}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 text-sm font-bold text-slate-200 transition-colors hover:border-slate-600 hover:bg-slate-800 active:scale-[0.98]"
+              data-testid="studio-author-open-workbench-v1"
+            >
+              <PanelsTopLeft className="h-4 w-4" />
+              {t("studioAuthorPreview.author.openWorkbench")}
+            </button>
+            <button
+              type="button"
               onClick={openReaderPreview}
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-sky-500 px-4 text-sm font-bold text-slate-950 shadow-lg shadow-sky-950/30 transition-transform duration-150 active:scale-[0.97] motion-reduce:transform-none"
             >
@@ -137,12 +188,13 @@ export default function StudioDocumentAuthorRouteV1() {
               {t("studioAuthorPreview.author.openPreview")}
             </button>
             {lastPreviewId !== null && (
-              <Link
-                to={readerPreviewHref(lastPreviewId, locale)}
+              <button
+                type="button"
+                onClick={reopenLastPreview}
                 className="text-xs font-semibold text-sky-300 transition-colors hover:text-sky-200"
               >
                 {t("studioAuthorPreview.author.reopenLastPreview")}
-              </Link>
+              </button>
             )}
           </div>
         </header>
@@ -178,52 +230,16 @@ export default function StudioDocumentAuthorRouteV1() {
               </span>
             </div>
 
-            <div className="space-y-6">
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-300">
-                  {t("studioAuthorPreview.author.titleField")}
-                </span>
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  onBlur={() => {
-                    try {
-                      commitFields();
-                    } catch (error) {
-                      setErrorMessage(errorMessageV1(error));
-                    }
-                  }}
-                  className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-3 text-base font-semibold text-slate-100 outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20"
-                />
-              </label>
-
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold text-slate-300">
-                  {t("studioAuthorPreview.author.introductionField")}
-                </span>
-                <textarea
-                  value={introduction}
-                  rows={6}
-                  onChange={(event) => setIntroduction(event.target.value)}
-                  onBlur={() => {
-                    try {
-                      commitFields();
-                    } catch (error) {
-                      setErrorMessage(errorMessageV1(error));
-                    }
-                  }}
-                  className="w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3.5 py-3 text-sm leading-7 text-slate-200 outline-none transition-colors focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20"
-                />
-              </label>
-
-              <div className="rounded-lg border border-dashed border-slate-700 bg-slate-950/60 px-4 py-3">
-                <p className="text-xs leading-5 text-slate-400">
-                  {t("studioAuthorPreview.author.fixedBlocks", {
-                    count: Math.max(0, draft.document.blocks.length - 2),
-                  })}
-                </p>
-              </div>
-            </div>
+            <StudioDocumentBlockEditorV1
+              locale={locale}
+              value={editorValue}
+              onChange={(value) => {
+                setEditorValue(value);
+                setEditorDirty(true);
+                setErrorMessage(null);
+              }}
+              onCommitRequest={requestCommit}
+            />
           </section>
 
           <aside className="space-y-4">
@@ -252,7 +268,10 @@ export default function StudioDocumentAuthorRouteV1() {
                 />
                 <AuthorFactV1
                   label={t("studioAuthorPreview.author.graph")}
-                  value={brief?.graph.signals.map(({ label }) => label)
+                  value={brief?.graphPanes
+                    .flatMap((pane) => pane.scenarios)
+                    .flatMap((scenario) => scenario.items)
+                    .map(({ label }) => label)
                     .join(" / ") ?? "—"}
                 />
                 <AuthorFactV1
@@ -294,4 +313,31 @@ function AuthorFactV1({
 
 function errorMessageV1(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function editorValueFromDraftV1(
+  draft: StudioAuthorDraftV1,
+): StudioDocumentEditorValueV1 {
+  return {
+    title: draft.document.title,
+    blocks: draft.document.blocks,
+  };
+}
+
+function normalizeEditorValueV1(
+  value: StudioDocumentEditorValueV1,
+): StudioDocumentEditorValueV1 {
+  return {
+    title: value.title.trim(),
+    blocks: value.blocks.map((block) =>
+      block.kind === "experiment-placement"
+        ? block
+        : { ...block, text: block.text.trim() }),
+  };
+}
+
+function documentRequiredFieldsMessageV1(locale: string): string {
+  return locale.toLowerCase().startsWith("ja")
+    ? "記事タイトルを入力し、空のテキストブロックを修正してください。"
+    : "Enter an article title and complete every text block.";
 }

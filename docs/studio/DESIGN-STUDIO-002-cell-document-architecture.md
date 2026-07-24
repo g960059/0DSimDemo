@@ -1,10 +1,11 @@
 # CircleHeart Studio — 全体設計まとめ
 
 作成日: 2026-07-24
+更新日: 2026-07-25
 対象: 循環動態 0D シミュレーション webapp の IA / UI / UX / データモデル / runtime / command / 疎結合 interface の再設計
 位置づけ: **CircleHeart Studio v1 の Proposed target architecture**。現行 v0.1 UI の段階的延長ではなく、数理基盤を再利用して新しい Studio application を構築するための方向性文書
 移行方針: user 0・公開前のため、現行 `CaseDocument` との backward compatibility / dual-write / user-data migration は v1 の非目標。既存 official content は数理モデル確定後に再 authoring し、旧データは回帰試験・比較 fixture として保持
-実装状況: runtime foundation（contract / coordinator / exact V4 envelope / Worker host / MainWire adapter）、既存product Workbenchへの初期bridge、session-onlyの初期Author → Reader Preview縦断スライスは実装済み。Reader Previewは`draft-preview-uncertified`、1 placement / 1 scenario、preview-bootstrap限定であり、certification / publication / 最終Readerではない。Workbench bridgeは実browserで1-point open / parameter commitごとの自動live+strict / 1×描画 / 明示promotion・pinを接続するが、最終Study Lab / Document Editorではない。§17 の性能検証とaggregate N-branch session、§19 の残る規範別紙・product contextは未完であり、本書のtarget全体をUI実装済みとは読まない
+実装状況: runtime foundation（contract / coordinator / exact V4 envelope / Worker host / MainWire adapter）、既存product Workbenchへの初期bridge、session-onlyのcanonical Document Editor / Workbench Briefing compose・capture / Author → Reader Preview縦断スライスは実装済み。Reader Previewは`draft-preview-uncertified`、1 placement / 1 scenario、preview-bootstrap限定であり、certification / publication / 最終Readerではない。Workbench bridgeは実browserで1-point open / parameter commitごとの自動live+strict / 1×描画 / 明示promotion・pinを接続し、波形・PV loopのparameter-generation履歴とsettled source由来のpersistent Worker Guyton/Starlingを表示する。WorkbenchとReaderのgraph paneは同じrendererを使い、Briefing captureはwindow・色・凡例位置等をportable snapshotとして固定する。ただしDocument / Experimentはsession-onlyで、最終Study Lab、durable project、multi-placement Reader、certification / publicationではない。§17 の性能検証とaggregate N-branch session、§19 の残る規範別紙・product contextは未完であり、本書のtarget全体をUI実装済みとは読まない
 
 想定ユーザー: 初期研修医・ME 等の beginner 5割 / 循環器・麻酔科の後期研修医・専門医 4割 / 循環動態研究者 1割（9割が非エンジニア）
 
@@ -173,6 +174,8 @@ Reader / Study Lab / Document Editor は別 ownership model を持つ silo で�
 2. **Study Lab**（旧 Workbench の後継）: 探索と Experiment 構築。graph board（spatial）/ controller inspector / metrics inspector / scenario manager。
 3. **Document Editor**: text block と Experiment 参照（CellPlacement）を順に並べる block editor。
 
+現行session-only sliceの`StudioDocumentBlockEditorV1`は、旧note paneやBlockNote JSONを中間canonicalにせず、Studio Document ASTのtitle / H2・H3 heading / paragraphを直接編集し、Experiment placementをatomicなstructured refとして順序付ける。commitはtitleとordered blocksを1つのapplication transactionで置換し、draftとDocument revisionを1回だけ進める。staleな`expectedRevision`または不正なdocument graphは部分反映せず拒否する。これはDocument Editor seamの本実装だが、durable save、multi-placement authoring、asset/citation、共同編集、publishまで実装済みという意味ではない。
+
 ---
 
 ## 6. UI / UX
@@ -197,6 +200,8 @@ Reader / Study Lab / Document Editor は別 ownership model を持つ silo で�
 - MainWire v1の`SnapshotEnvelope`は、control-aware exact checkpoint V4、そのcheckpointのbase input digestに対応するresolved simulation-input artifact ref、checkpointと同じrelease / accepted revision / accepted timeの完全なseed observable frame **1点だけ**をcanonicalに持つ。open / promoteの初期描画で数値stepを追加しない。
 - waveform は1 pointから伸び、PV loopは最初の1周期で閉じる。過去1 beatを捏造・補間して即時完成形にはしない。
 - beat metric は最初の完全なbeatが終わるまで「集計中」。低HRを含め、この待ち時間はsimulationの観察時間として扱う。
+- parameter変更時は、incoming generationのwaveformが設定windowを満たすまで直前generationを低いalphaで残す。新旧両方を一時的なdomain計算へ含め、空のgraphへの切替とautoscaleの不要な揺れを避け、windowが満ちた時点で旧waveformを原子的に外す。
+- PV loopの**parameter-generation履歴**は同一generation内のbeat履歴と別の表示契約とする。現行paneは`0 / 1 / 3 / 5 / 6`（既定`6`）から選択し、古いgenerationをageに応じて薄くし、選択上限を超えたものを除去する。履歴loopも保持中はdomain計算へ含める。
 - Reset は同じ certified 1 pointへ戻り、同じ形成過程を再開するtarget contract。ただし現headless foundationにはReset commandをまだ実装していない。
 - last-beat sample、beat history、window metric、presentation stateはcanonical保存しない。thumbnail等のderived display cacheは再生成可能で、正しさの根拠にしない。
 
@@ -234,6 +239,15 @@ Brief = peek / inflow
 - **brief ↔ graph は参照でなくコピー**: pin 時に view spec を snapshot コピー。author が後で board の graph を編集しても brief は追随しない（immutability 一貫）。「brief 更新」は明示アクション。
 - **brief は純 cutoff ではなく per-extent presentation**: inflow と peek それぞれに配置を持つ。既定は peek が inflow を継承、必要時のみ上書き。→「peek で 2×2 自由配置」と「ranked」が両立。
 - **優先順位は拾った少数（3–4個）にだけ持たせる。** 全体（20 param）を sort しない。
+
+現行の最初の実装sliceでは、Workbench headerから明示的に**Briefing**を開き、waveform / PV loop / Guyton-left / Guyton-right paneをcapture・update・remove・capture-allできる。閉じるとcompose layer自体がunmountし、通常の臨床家Workbenchにpane-levelのauthoring affordanceを残さない。captureはlive paneへの参照ではなく、`StudioGraphPaneSpecV1`へ次を解決したdetached copyである。
+
+- scenario / itemの明示identity、表示名、実効color
+- waveform window、legend表示とfractional position
+- PVのguide、beat履歴、parameter-generation履歴、pressure basis、relation設定
+- Guyton/Starlingのdetail、parameter履歴、negative filling pressure設定
+
+Readerはこのportable snapshotからread-only `PanelDef`を再構成し、Workbenchと同じ`ScientificProductGraphPaneV1`を使う。したがってReader専用の別waveform SVGや別PV/Guyton実装は持たない。runtime frame、candidate、Worker job、settings-open状態、Dockview geometryはcapture対象外であり、Workbench側の後続編集は明示的なupdate captureまでReader briefへ伝播しない。このsliceは1つのReader inflow用graph pane列までで、targetのper-extent layout、metric/controller compose、multi-scenario binding全体を完了したものではない。
 
 ### custom graph / metric / controller
 
@@ -658,15 +672,20 @@ AI command bar / authoring wizard / community publishing / free canvas / sweep�
 
 **「任意のpinned RunからN本を同時に温間再開し、settled snapshotの1 pointから1×で重ね描画しつつ、parameter変更ごとにstrict steady jobを自動実行できるか」**を全presentation contextへ広げる前に確認する。これは唯一の設計リスクではないが、失敗すれば中心UXが成立しないblocking riskである。
 
-headless側では、exact V4 restore、同revision/timeの1-point projection、N-branch intent、live/strict Worker分離、generation discard、signal channel suspend/resume、P1 candidate admission、明示promotionのcontractとadapterが入った。さらに既存product Workbenchへのbridgeで、settled snapshotの1 pointからの表示、parameter commitごとの自動live+strict、固定1× live、pause/resume、candidateの明示promotionとpinを実browser surfaceへ接続した。V&V report、Guyton/load-series、advanced PV relation/load-seriesは旧経路へfallbackせず、UIで明示的にunavailableとする。
+headless側では、exact V4 restore、同revision/timeの1-point projection、N-branch intent、live/strict Worker分離、generation discard、signal channel suspend/resume、P1 candidate admission、明示promotionのcontractとadapterが入った。さらに既存product Workbenchへのbridgeで、settled snapshotの1 pointからの表示、parameter commitごとの自動live+strict、固定1× live、pause/resume、candidateの明示promotionとpinを実browser surfaceへ接続した。parameter変更時の波形はincoming windowが満ちるまで直前generationを保持し、PV loopは設定可能な最大6世代のparameter-generation履歴をbeat履歴とは別にfade表示する。いずれも旧generationを保持中のdomain計算へ含める。
+
+Guyton/Starlingはunavailable placeholderではなく、scenarioごとのpersistent MainWire analysis Workerへ接続した。表示paneのdemandをlatest exact settled sourceへbindし、短命なexact V4 restore session上でbidirectional continuation sweepを走らせる。source/detail変更はlatest-onlyにserializeし、superseded job/sessionをcancel・disposeして旧結果のpublishを拒否する一方、parent Workerはscenario lifecycle中維持する。left/right demandは必要detailへcoalesceし、新結果待ちまたはerror時は最後のusable presentationを保持する。V&V reportとadvanced PV relation/load-seriesは引き続き旧経路へfallbackせず、UIで明示的にunavailableとする。
 
 ただし現在のbridgeはscenarioごとに独立したsessionを作るため、targetの
 1 aggregate session = N branchesとatomic multi-scenario intentを実browserで
-証明していない。また、最終Reader / Study Lab / Document Editorではなく、
-Workbench shellと旧presentation型を一部再利用したtransition sliceである。
-未完なのはaggregate sessionへの統合、実browser上の性能budget検証、
-viewport scheduler、target Reset、最終product contextへの接続であり、
-blocking spike全体を完了扱いにはしない。
+証明していない。canonical Document Editor、Workbench Briefing compose・
+capture、同一graph rendererを使うReader Previewまではsession-onlyで
+接続したが、最終のpublished Reader / aggregate Study Lab / durable
+Document applicationではなく、Workbench shellと旧presentation型を一部
+再利用したtransition sliceである。未完なのはaggregate sessionへの統合、
+実browser上の性能budget検証、viewport scheduler、target Reset、
+multi-placement / per-extent presentation、durable project、certification /
+publicationへの接続であり、blocking spike全体を完了扱いにはしない。
 
 受け入れ条件:
 
@@ -716,7 +735,7 @@ benchmarkの対象機種と数値budgetはspike実施前に規範別紙へ記載
 [STUDIO-RUNTIME-001](specs/STUDIO-RUNTIME-001-foundation-vertical-slice.md)、
 product Workbench bridgeは
 [STUDIO-RUNTIME-002](specs/STUDIO-RUNTIME-002-product-workbench-bridge.md)
-、初期Author → Reader Previewは
+、session-onlyのDocument Editor / Briefing capture / Author → Reader Previewは
 [STUDIO-CONTENT-001](specs/STUDIO-CONTENT-001-reader-preview-vertical-slice.md)
 として実装境界を固定した。ただし次の規範別紙を確定し、contract testへ
 落とすまではStudio全体の「実装仕様が完全」とは扱わない。

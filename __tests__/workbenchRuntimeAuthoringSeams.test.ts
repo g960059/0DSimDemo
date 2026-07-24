@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import i18n from "@/i18n";
-import type { ControllerItem } from "@/types";
+import type { ControllerItem, PanelDef } from "@/types";
 import {
   ControllerItemsBuilder,
   normalizeControllerItemsForAuthoring,
@@ -35,6 +35,13 @@ import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
+import {
+  captureStudioGraphPaneSpecV1,
+  panelFromStudioGraphPaneSpecV1,
+} from "@/components/studio/StudioGraphPaneProjectionV1";
+import type {
+  ScientificProductRuntimeRegistryPortV1,
+} from "@/components/scientificProduct/ScientificProductRuntimeRegistryPortV1";
 
 function authoringEntry(item: ControllerItem) {
   return {
@@ -303,6 +310,323 @@ describe("runtime-specific Workbench authoring seams", () => {
       hemodynamicDetailMode: "compare",
       hemodynamicParameterHistoryCount: 3,
       hemodynamicAllowNegativeFillingPressure: true,
+    });
+  });
+
+  it("captures a detached Reader pane with resolved window, colors, names, and legend position", () => {
+    const panel: PanelDef = {
+      id: "pressure-pane",
+      sourceViewId: "pressure-pane",
+      type: "WAVEFORM",
+      title: "Pressure comparison",
+      role: "graph",
+      zone: "main",
+      w: 8,
+      h: 4,
+      config: {
+        "workbench-scenario": {
+          visible: true,
+          selectedSignals: [
+            "hemodynamics.pressure.absolute.Ao",
+            "hemodynamics.pressure.absolute.LV",
+          ],
+          customBaseColor: "#123456",
+          customName: "Captured scenario",
+          customSignalColors: {
+            "hemodynamics.pressure.absolute.Ao": "#abcdef",
+          },
+          customSignalNames: {
+            "hemodynamics.pressure.absolute.Ao": "Custom Ao",
+          },
+        },
+      },
+      view: {
+        kind: "graph",
+        graphType: "waveform",
+        showLegend: true,
+        legendPosition: { xPct: 0.23, yPct: 0.37 },
+        timeWindow: 7_000,
+      },
+      isSettingsOpen: true,
+      showLegend: true,
+      showGuides: false,
+      timeWindow: 7_000,
+    };
+    const registry = {
+      getPresentation: (scenarioId: string) =>
+        scenarioId === "workbench-scenario"
+          ? {
+              descriptor: {
+                id: scenarioId,
+                name: "Runtime name",
+                color: "#999999",
+                isVisible: true,
+              },
+            }
+          : null,
+    } as unknown as ScientificProductRuntimeRegistryPortV1;
+
+    const captured = captureStudioGraphPaneSpecV1({
+      panel,
+      registry,
+      scenarioIdMap: new Map([
+        ["workbench-scenario", "article-scenario"],
+      ]),
+    });
+
+    expect(captured).toMatchObject({
+      paneId: "pressure-pane",
+      kind: "waveform",
+      scenarios: [{
+        scenarioId: "article-scenario",
+        label: "Captured scenario",
+        color: "#123456",
+        items: [
+          {
+            itemId: "hemodynamics.pressure.absolute.Ao",
+            label: "Custom Ao",
+            unit: "mmHg",
+            color: "#abcdef",
+          },
+          {
+            itemId: "hemodynamics.pressure.absolute.LV",
+            unit: "mmHg",
+          },
+        ],
+      }],
+      presentation: {
+        showLegend: true,
+        legendPosition: { xPct: 0.23, yPct: 0.37 },
+        timeWindowMs: 7_000,
+      },
+    });
+    expect(Object.isFrozen(captured)).toBe(true);
+    expect(Object.isFrozen(captured.scenarios[0]?.items)).toBe(true);
+
+    const readerPanel = panelFromStudioGraphPaneSpecV1(captured);
+    expect(readerPanel).toMatchObject({
+      type: "WAVEFORM",
+      timeWindow: 7_000,
+      showLegend: true,
+      isSettingsOpen: false,
+      config: {
+        "article-scenario": {
+          visible: true,
+          customBaseColor: "#123456",
+          customName: "Captured scenario",
+          customSignalColors: {
+            "hemodynamics.pressure.absolute.Ao": "#abcdef",
+          },
+          customSignalNames: {
+            "hemodynamics.pressure.absolute.Ao": "Custom Ao",
+          },
+        },
+      },
+      view: {
+        legendPosition: { xPct: 0.23, yPct: 0.37 },
+      },
+    });
+  });
+
+  it("fails closed when a visible Workbench scenario has no article mapping", () => {
+    const panel: PanelDef = {
+      id: "multi-scenario-pane",
+      type: "WAVEFORM",
+      title: "Comparison",
+      w: 8,
+      h: 4,
+      config: {
+        mapped: {
+          visible: true,
+          selectedSignals: ["hemodynamics.pressure.absolute.Ao"],
+        },
+        unmapped: {
+          visible: true,
+          selectedSignals: ["hemodynamics.pressure.absolute.LV"],
+        },
+      },
+      isSettingsOpen: false,
+    };
+    const registry = {
+      getPresentation: (scenarioId: string) => ({
+        descriptor: {
+          id: scenarioId,
+          name: scenarioId,
+          color: "#123456",
+          isVisible: true,
+        },
+      }),
+    } as unknown as ScientificProductRuntimeRegistryPortV1;
+
+    expect(() => captureStudioGraphPaneSpecV1({
+      panel,
+      registry,
+      scenarioIdMap: new Map([["mapped", "article-mapped"]]),
+    })).toThrow(
+      "Panel multi-scenario-pane has visible scenarios without article mappings: unmapped",
+    );
+  });
+
+  it("round-trips PV generation history and Guyton compare settings through Reader panes", () => {
+    const workspaceDocument = {
+      content: {
+        panels: [{
+          view: {
+            kind: "pressure-volume",
+            trajectories: [{
+              trajectoryId: "lv-primary",
+              label: "Primary LV trajectory",
+              volumeObservableId: "hemodynamics.volume.LV",
+              pressureObservableId: "hemodynamics.pressure.absolute.LV",
+            }],
+          },
+        }],
+      },
+    };
+    const scenarioConfig = {
+      "workbench-scenario": {
+        visible: true,
+        selectedSignals: ["lv-primary"],
+        customBaseColor: "#334455",
+        customName: "Exact source",
+      },
+    };
+    const registry = {
+      getPresentation: () => ({
+        descriptor: {
+          id: "workbench-scenario",
+          name: "Runtime name",
+          color: "#999999",
+          isVisible: true,
+        },
+        workspaceDocument,
+      }),
+    } as unknown as ScientificProductRuntimeRegistryPortV1;
+    const scenarioIdMap = new Map([
+      ["workbench-scenario", "article-scenario"],
+    ]);
+    const pv = captureStudioGraphPaneSpecV1({
+      registry,
+      scenarioIdMap,
+      panel: {
+        id: "pv-pane",
+        type: "PVLOOP",
+        title: "LV PV",
+        w: 6,
+        h: 6,
+        config: scenarioConfig,
+        view: {
+          kind: "graph",
+          graphType: "pvloop",
+          legendPosition: { xPct: 0.6, yPct: 0.1 },
+        },
+        isSettingsOpen: false,
+        showLegend: false,
+        showGuides: true,
+        pvHistoryBeats: 12,
+        pvHistoryMode: "persistent",
+        pvParameterHistoryCount: 6,
+        pvRelationDisplayMode: "research",
+        pvRelationPressureBasis: "transmural",
+        pvRelationShowSamplePoints: true,
+      },
+    });
+    expect(pv.scenarios[0]!.items[0]).toMatchObject({
+      itemId: "lv-primary",
+      label: "Primary LV trajectory",
+      unit: null,
+    });
+    expect(panelFromStudioGraphPaneSpecV1(pv)).toMatchObject({
+      type: "PVLOOP",
+      showLegend: false,
+      showGuides: true,
+      pvHistoryBeats: 12,
+      pvHistoryMode: "persistent",
+      pvParameterHistoryCount: 6,
+      pvRelationDisplayMode: "research",
+      pvRelationPressureBasis: "transmural",
+      pvRelationShowSamplePoints: true,
+      config: {
+        "article-scenario": {
+          selectedSignals: ["lv-primary"],
+        },
+      },
+    });
+
+    const pvWithRendererDefaults = captureStudioGraphPaneSpecV1({
+      registry,
+      scenarioIdMap,
+      panel: {
+        id: "pv-default-pane",
+        type: "PVLOOP",
+        title: "Default guides",
+        w: 6,
+        h: 6,
+        config: scenarioConfig,
+        isSettingsOpen: false,
+      },
+    });
+    expect(pvWithRendererDefaults.presentation.showGuides).toBe(true);
+    expect(panelFromStudioGraphPaneSpecV1(pvWithRendererDefaults).showGuides)
+      .toBe(true);
+
+    expect(() => captureStudioGraphPaneSpecV1({
+      registry,
+      scenarioIdMap,
+      panel: {
+        id: "forged-pv-pane",
+        type: "PVLOOP",
+        title: "Forged PV",
+        w: 6,
+        h: 6,
+        config: {
+          "workbench-scenario": {
+            ...scenarioConfig["workbench-scenario"],
+            selectedSignals: ["forged-pressure-volume-trajectory"],
+          },
+        },
+        isSettingsOpen: false,
+      },
+    })).toThrow(
+      /PV-loop item forged-pressure-volume-trajectory is not supported by scenario workbench-scenario's workspace/,
+    );
+
+    const guyton = captureStudioGraphPaneSpecV1({
+      registry,
+      scenarioIdMap,
+      panel: {
+        id: "guyton-pane",
+        type: "GUYTON_LEFT",
+        title: "Left response",
+        w: 6,
+        h: 6,
+        config: {
+          "workbench-scenario": {
+            ...scenarioConfig["workbench-scenario"],
+            selectedSignals: [],
+          },
+        },
+        view: {
+          kind: "graph",
+          graphType: "guyton-left",
+          legendPosition: { xPct: 0.7, yPct: 0.08 },
+        },
+        isSettingsOpen: false,
+        showLegend: true,
+        showGuides: false,
+        hemodynamicDetailMode: "compare",
+        hemodynamicParameterHistoryCount: 3,
+        hemodynamicAllowNegativeFillingPressure: true,
+      },
+    });
+    expect(panelFromStudioGraphPaneSpecV1(guyton)).toMatchObject({
+      type: "GUYTON_LEFT",
+      hemodynamicDetailMode: "compare",
+      hemodynamicParameterHistoryCount: 3,
+      hemodynamicAllowNegativeFillingPressure: true,
+      view: {
+        legendPosition: { xPct: 0.7, yPct: 0.08 },
+      },
     });
   });
 

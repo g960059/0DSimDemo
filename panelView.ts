@@ -86,6 +86,9 @@ export function toTypedPanelView(panel: PanelDef): PanelViewConfig {
       ...(panel.pvHistoryMode !== undefined
         ? { pvHistoryMode: panel.pvHistoryMode }
         : {}),
+      ...(panel.pvParameterHistoryCount !== undefined
+        ? { pvParameterHistoryCount: panel.pvParameterHistoryCount }
+        : {}),
       ...(panel.pvRelationDisplayMode !== undefined
         ? { pvRelationDisplayMode: panel.pvRelationDisplayMode }
         : {}),

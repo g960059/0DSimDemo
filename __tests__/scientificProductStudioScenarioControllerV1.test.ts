@@ -43,6 +43,7 @@ describe("Scientific Product Studio scenario controller V1", () => {
     expect(initial).toMatchObject({
       phase: "live-paused",
       frames: [expect.any(Object)],
+      parameterGenerationHistory: [],
       liveTransitionOriginAcceptedTimeSec: null,
       provenance: {
         displayedEvidence: "settled-snapshot-one-point",
@@ -148,6 +149,11 @@ describe("Scientific Product Studio scenario controller V1", () => {
     await expect(controller.promoteSteadyCandidate()).resolves.toBeUndefined();
     await expect(controller.pinSteadyCandidate()).resolves.toBeNull();
     expect(runtime.promotions).toHaveLength(0);
+    expect(controller.settledAnalysisSource).toMatchObject({
+      scenarioId: "scenario/controller",
+      targetGeneration: 0,
+      targetInputSha256: "c".repeat(64),
+    });
 
     const actions = controller.controlStore.actions;
     actions.commitSystemicScale(1.5);
@@ -155,6 +161,7 @@ describe("Scientific Product Studio scenario controller V1", () => {
     actions.commitControlValue("circulation.venous-tone", 0.3);
 
     await waitForV1(() => runtime.submissions.length === 3);
+    expect(controller.settledAnalysisSource).toBeNull();
     expect(runtime.submissions.map((command) =>
       command.targets[0]?.patch.values
     )).toMatchObject([
@@ -196,6 +203,12 @@ describe("Scientific Product Studio scenario controller V1", () => {
 
     runtime.resolveStrict(2);
     await waitForV1(() => controller.status.strictCandidateAvailable);
+    expect(controller.settledAnalysisSource).toMatchObject({
+      scenarioId: "scenario/controller",
+      targetGeneration: 3,
+      targetInputSha256:
+        coordinator.branch("scenario/controller").targetInputSha256,
+    });
     expect(controller.status).toMatchObject({
       strictPhase: "candidate-ready",
       strictCandidateAvailable: true,
@@ -214,6 +227,7 @@ describe("Scientific Product Studio scenario controller V1", () => {
 
     actions.commitControlValue("ventilation.peep-cm-h2o", 5);
     await waitForV1(() => runtime.submissions.length === 4);
+    expect(controller.settledAnalysisSource).toBeNull();
     expect(controller.status).toMatchObject({
       targetGeneration: 4,
       strictPhase: "running",
@@ -224,7 +238,17 @@ describe("Scientific Product Studio scenario controller V1", () => {
 
     runtime.resolveStrict(3);
     await waitForV1(() => controller.status.strictCandidateAvailable);
+    const fourthGenerationAnalysisSource =
+      controller.settledAnalysisSource;
+    expect(fourthGenerationAnalysisSource).toMatchObject({
+      scenarioId: "scenario/controller",
+      targetGeneration: 4,
+    });
     await controller.promoteSteadyCandidate();
+    expect(controller.settledAnalysisSource).toEqual({
+      ...fourthGenerationAnalysisSource,
+      sourceRole: "promoted-settled-source",
+    });
     const promoted = controller.controlStore.getSnapshot();
     expect(promoted.source.context.parameterEpoch).toBe(11);
     expect(promoted.provenance.displayedParameterEpoch).toBe(11);
@@ -235,6 +259,68 @@ describe("Scientific Product Studio scenario controller V1", () => {
       strictCandidatePinned: false,
       pinnedRunCount: 1,
     });
+
+    await controller.dispose();
+  });
+
+  it("retains at most six useful previous parameter-generation traces", async () => {
+    const { controller, runtime } = await controllerFixtureV1(20);
+    const actions = controller.controlStore.actions;
+
+    runtime.emitSignal(101, 2);
+    await waitForV1(() =>
+      controller.controlStore.getSnapshot().frames.length === 2
+    );
+
+    for (let generation = 1; generation <= 7; generation += 1) {
+      actions.commitControlValue(
+        "circulation.venous-tone",
+        generation % 2 === 1 ? 0.3 : 0.5,
+      );
+      await waitForV1(() =>
+        runtime.submissions.length === generation
+        || controller.controlStore.getSnapshot().errorMessage !== null
+      );
+      expect(controller.controlStore.getSnapshot().errorMessage).toBeNull();
+      runtime.resolveLive(generation - 1);
+      await waitForV1(() =>
+        controller.controlStore.getSnapshot()
+          .provenance.displayedParameterEpoch === 20 + generation
+      );
+      const target = runtime.submissions[generation - 1]!.targets[0]!;
+      runtime.emitSignal(
+        201 + generation,
+        2,
+        target.targetGeneration,
+        target.presentationRevision,
+      );
+      await waitForV1(() =>
+        controller.controlStore.getSnapshot().frames.length === 2
+      );
+    }
+
+    const history =
+      controller.controlStore.getSnapshot().parameterGenerationHistory;
+    expect(history).toHaveLength(6);
+    expect(history?.map(({ targetGeneration }) => targetGeneration)).toEqual([
+      6,
+      5,
+      4,
+      3,
+      2,
+      1,
+    ]);
+    expect(history?.map(({ parameterEpoch }) => parameterEpoch)).toEqual([
+      26,
+      25,
+      24,
+      23,
+      22,
+      21,
+    ]);
+    expect(history?.every(({ frames }) => frames.length === 2)).toBe(true);
+    expect(Object.isFrozen(history)).toBe(true);
+    expect(Object.isFrozen(history?.[0]?.frames)).toBe(true);
 
     await controller.dispose();
   });
@@ -646,10 +732,17 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
     this.nextResumeError = error;
   }
 
-  emitSignal(sequence: number, collectedPointCount: number): void {
+  emitSignal(
+    sequence: number,
+    collectedPointCount: number,
+    targetGeneration = 0,
+    presentationRevision = 0,
+  ): void {
     this.emitSignalPointV1(
       runtimeFrameV1(sequence).point,
       collectedPointCount,
+      targetGeneration,
+      presentationRevision,
     );
   }
 
@@ -663,12 +756,14 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
       values: Object.freeze({
         "unknown.presentation.value": 1,
       }),
-    }), collectedPointCount);
+    }), collectedPointCount, 0, 0);
   }
 
   private emitSignalPointV1(
     point: RuntimePresentationFrameV1["point"],
     collectedPointCount: number,
+    targetGeneration: number,
+    presentationRevision: number,
   ): void {
     const channel = this.signalChannel;
     const observer = this.signalObserver;
@@ -681,9 +776,9 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
       sessionId: channel.sessionId,
       scenarioId: channel.scenarioId,
       liveBranchId: channel.liveBranchId,
-      targetGeneration: 0,
-      presentationRevision: 0,
-      streamEpoch: 0,
+      targetGeneration,
+      presentationRevision,
+      streamEpoch: presentationRevision,
       points: Object.freeze([point]),
       windowMetrics: Object.freeze({
         status: "collecting" as const,

@@ -4,6 +4,7 @@ import {
   applyScientificHemodynamicCurveSnapshotV1,
   createScientificHemodynamicCurveHistoryStateV1,
   getScientificHemodynamicCurveScenarioStateV1,
+  recordScientificHemodynamicCurveAcquisitionFailureV1,
   SCIENTIFIC_HEMODYNAMIC_CURVE_DEFAULT_HISTORY_LIMIT_V1,
   setScientificHemodynamicCurveHistoryLimitV1,
   startScientificHemodynamicCurveGenerationV1,
@@ -225,6 +226,29 @@ describe("scientific hemodynamic curve history state V1", () => {
     expect(scenario(state, "scenario-a").lastFailure).toMatchObject({
       generationId: "generation-2",
       errorMessage: "solver stopped",
+    });
+  });
+
+  it("surfaces a pre-snapshot acquisition failure without dropping the displayed generation", () => {
+    let state = createState();
+    state = start(state, "scenario-a", 1);
+    state = snapshot(state, "scenario-a", 1, 0, true, 3);
+    const oldCurrent = scenario(state, "scenario-a").current;
+
+    state = recordScientificHemodynamicCurveAcquisitionFailureV1(state, {
+      scenarioId: "scenario-a",
+      generationId: "generation-2",
+      sequence: 0,
+      errorMessage: "artifact restore failed",
+    });
+
+    expect(scenario(state, "scenario-a").current).toBe(oldCurrent);
+    expect(scenario(state, "scenario-a").history).toEqual([]);
+    expect(scenario(state, "scenario-a").lastFailure).toEqual({
+      generationId: "generation-2",
+      source: null,
+      sequence: 0,
+      errorMessage: "artifact restore failed",
     });
   });
 

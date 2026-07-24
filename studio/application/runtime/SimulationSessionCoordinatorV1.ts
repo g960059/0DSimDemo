@@ -612,7 +612,10 @@ export class SimulationSessionCoordinatorV1 {
     }
   }
 
-  async close(): Promise<void> {
+  async close(
+    options: Readonly<{ force?: boolean }> = {},
+  ): Promise<void> {
+    const force = options.force === true;
     const openingCompletion = this.openingCompletion;
     const openingSessionId = this.openingSessionId;
     if (openingCompletion !== null && openingSessionId !== null) {
@@ -636,12 +639,12 @@ export class SimulationSessionCoordinatorV1 {
       await this.closePromise;
       return;
     }
-    if (this.promotingScenarioIds.size > 0) {
+    if (!force && this.promotingScenarioIds.size > 0) {
       throw new SimulationSessionCommandConflictV1(
         "simulation session has an in-flight branch promotion",
       );
     }
-    if (this.playbackTransitionScenarioIds.size > 0) {
+    if (!force && this.playbackTransitionScenarioIds.size > 0) {
       throw new SimulationSessionCommandConflictV1(
         "simulation session has an in-flight playback transition",
       );
@@ -659,7 +662,7 @@ export class SimulationSessionCoordinatorV1 {
       status: "closing" as const,
     });
     this.publishStateV1(closingState);
-    const runtimeClose = pendingActivations.length === 0
+    const runtimeClose = force || pendingActivations.length === 0
       ? this.runtime.closeSession(current.sessionId)
       : Promise.allSettled(pendingActivations)
         .then(() => this.runtime.closeSession(current.sessionId));

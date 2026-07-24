@@ -1946,7 +1946,10 @@ function assertOpenCommandV1(
   }
 }
 
-function loadStudioRunArtifactContentV1(
+/**
+ * Strict loader shared by runtime and side-analysis artifact boundaries.
+ */
+export function loadStudioRunArtifactContentV1(
   value: unknown,
 ): StudioRunArtifactContentV1 {
   const content = runtimeRecordV1(value, "source run artifact");

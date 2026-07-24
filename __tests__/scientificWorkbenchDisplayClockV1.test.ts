@@ -8,10 +8,17 @@ import {
   scientificOpenTransientElapsedSecondsV1,
   scientificSharedOpenTransientElapsedSecondsV1,
   scientificPvHistoryAlphaV1,
+  scientificPvParameterGenerationAlphaV1,
+  scientificPvTrajectoryDomainPointsV1,
   scientificPvTrajectoriesV1,
   normalizeScientificPvHistoryBeatsV1,
+  normalizeScientificPvParameterHistoryCountV1,
+  scientificWaveformRetainsParameterGenerationV1,
   type ScientificWorkbenchPvSeriesV1,
 } from "@/components/scientificProduct/ScientificWorkbenchAnimatedChartsV1";
+import type {
+  MainWireScientificObservableFrameV1,
+} from "@/engine/scientific/observables";
 
 describe("scientific Workbench display clock V1", () => {
   it("fades the eighth prior PV trajectory completely and bounds persistent history", () => {
@@ -24,6 +31,21 @@ describe("scientific Workbench display clock V1", () => {
     expect(scientificPvHistoryAlphaV1(9, 8, "persistent")).toBe(0);
     expect(normalizeScientificPvHistoryBeatsV1(99)).toBe(16);
     expect(normalizeScientificPvHistoryBeatsV1(-2)).toBe(0);
+  });
+
+  it("uses the bounded 0/1/3/5/6 parameter-generation history scale", () => {
+    expect(normalizeScientificPvParameterHistoryCountV1(Number.NaN)).toBe(6);
+    expect(normalizeScientificPvParameterHistoryCountV1(0)).toBe(0);
+    expect(normalizeScientificPvParameterHistoryCountV1(1)).toBe(1);
+    expect(normalizeScientificPvParameterHistoryCountV1(3)).toBe(3);
+    expect(normalizeScientificPvParameterHistoryCountV1(5)).toBe(5);
+    expect(normalizeScientificPvParameterHistoryCountV1(6)).toBe(6);
+    expect(normalizeScientificPvParameterHistoryCountV1(99)).toBe(6);
+    expect(scientificPvParameterGenerationAlphaV1(1, 6)).toBeGreaterThan(
+      scientificPvParameterGenerationAlphaV1(6, 6),
+    );
+    expect(scientificPvParameterGenerationAlphaV1(6, 6)).toBeGreaterThan(0);
+    expect(scientificPvParameterGenerationAlphaV1(7, 6)).toBe(0);
   });
 
   it("retains the source periodic PV loop at transition age zero and ages it by accepted beats", () => {
@@ -69,6 +91,83 @@ describe("scientific Workbench display clock V1", () => {
       }));
   });
 
+  it("fades previous parameter-generation PV loops and keeps them in the domain", () => {
+    const oldCycle = Object.freeze([
+      pvFrame(8, 35, -5),
+      pvFrame(8.5, 90, 160),
+      pvFrame(9, 35, -5),
+    ]);
+    const item = pvSeries([
+      pvFrame(10, 55, 10),
+      pvFrame(10.2, 54, 12),
+    ]);
+    const withHistory = {
+      ...item,
+      scenario: {
+        ...item.scenario,
+        parameterGenerationHistory: [{
+          targetGeneration: 4,
+          parameterEpoch: 4,
+          controlStateSha256: "a".repeat(64),
+          frames: oldCycle,
+          periodicCycleFrames: oldCycle,
+          cycleDurationSec: 1,
+          transientOriginAcceptedTimeSec: 8,
+          displayedEvidence: "open-transient-no-periodic-claim" as const,
+        }],
+      },
+    } as ScientificWorkbenchPvSeriesV1;
+
+    const trajectories = scientificPvTrajectoriesV1(
+      withHistory,
+      8,
+      undefined,
+      6,
+    );
+    expect(trajectories).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        age: 1,
+        kind: "parameter-generation",
+      }),
+    ]));
+    const domainPoints = scientificPvTrajectoryDomainPointsV1(trajectories);
+    expect(Math.min(...domainPoints.map(({ volume }) => volume))).toBe(35);
+    expect(Math.max(...domainPoints.map(({ pressure }) => pressure))).toBe(160);
+    expect(scientificPvTrajectoriesV1(
+      withHistory,
+      8,
+      undefined,
+      0,
+    ).some(({ kind }) => kind === "parameter-generation")).toBe(false);
+
+    const withPartialHistory = {
+      ...withHistory,
+      scenario: {
+        ...withHistory.scenario,
+        parameterGenerationHistory: [{
+          ...withHistory.scenario.parameterGenerationHistory[0]!,
+          periodicCycleFrames: null,
+          cycleDurationSec: null,
+        }],
+      },
+    } as ScientificWorkbenchPvSeriesV1;
+    expect(scientificPvTrajectoriesV1(
+      withPartialHistory,
+      8,
+      undefined,
+      6,
+    )).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        age: 1,
+        kind: "parameter-generation",
+        points: expect.arrayContaining([
+          expect.objectContaining({ volume: 35, pressure: -5 }),
+          expect.objectContaining({ volume: 90, pressure: 160 }),
+        ]),
+      }),
+    ]));
+  });
+
   it("breaks a live waveform path when the sweep phase wraps", () => {
     const projected = projectScientificTransientPhasesV1(
       [1.96, 1.98, 2, 2.02],
@@ -87,6 +186,27 @@ describe("scientific Workbench display clock V1", () => {
       0,
       expect.closeTo(0.02, 12),
     ]);
+  });
+
+  it("retains waveform parameter history only until the new window is full", () => {
+    const scenario = {
+      id: "live-a",
+      frames: [pvFrame(10, 0, 0), pvFrame(14.99, 0, 0)],
+      parameterGenerationHistory: [{
+        frames: [pvFrame(5, 0, 0), pvFrame(10, 0, 0)],
+      }],
+      transientOriginAcceptedTimeSec: 10,
+      displayedEvidence: "open-transient-no-periodic-claim",
+    } as unknown as Parameters<
+      typeof scientificWaveformRetainsParameterGenerationV1
+    >[0];
+
+    expect(scientificWaveformRetainsParameterGenerationV1(scenario, 5))
+      .toBe(true);
+    expect(scientificWaveformRetainsParameterGenerationV1({
+      ...scenario,
+      frames: [pvFrame(10, 0, 0), pvFrame(15, 0, 0)],
+    }, 5)).toBe(false);
   });
 
   it("anchors an open transient to its retained accepted-time origin", () => {
@@ -181,6 +301,7 @@ function pvSeries(
       color: "#4da3ff",
       isVisible: true,
       frames,
+      parameterGenerationHistory: [],
       periodicCycleFrames: null,
       cycleDurationSec: 1,
       transientOriginAcceptedTimeSec: 10,
@@ -193,7 +314,7 @@ function pvFrame(
   acceptedTimeSec: number,
   volume: number,
   pressure: number,
-) {
+): MainWireScientificObservableFrameV1 {
   return {
     acceptedTimeSec,
     values: {
@@ -206,5 +327,5 @@ function pvFrame(
         value: pressure,
       },
     },
-  } as const;
+  } as unknown as MainWireScientificObservableFrameV1;
 }

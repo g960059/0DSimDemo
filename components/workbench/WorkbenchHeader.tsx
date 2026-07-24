@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link, useInRouterContext } from 'react-router-dom';
 import {
   Check,
   ChevronDown,
@@ -78,6 +79,8 @@ interface WorkbenchHeaderProps {
   onOpenPublishDialog?: () => void;
   /** Header-owned placement for the active scenario's evidence/checks control. */
   evidenceChecksControl?: React.ReactNode;
+  /** Explicit entry point for a temporary Presentation Compose layer. */
+  presentationComposeControl?: React.ReactNode;
   settingsContent?: React.ReactNode;
 }
 
@@ -129,9 +132,11 @@ export function WorkbenchHeader({
   publishVisibility,
   onOpenPublishDialog,
   evidenceChecksControl,
+  presentationComposeControl,
   settingsContent,
 }: WorkbenchHeaderProps) {
   const { t } = useTranslation();
+  const inRouterContext = useInRouterContext();
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isSpeedOpen, setIsSpeedOpen] = useState(false);
   const [isLayoutOpen, setIsLayoutOpen] = useState(false);
@@ -166,10 +171,23 @@ export function WorkbenchHeader({
   return (
     <>
       <header className="workbench-header h-14 z-50 flex items-center gap-2 px-3 sm:px-4 shrink-0">
-        <a href={backHref} className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-medium text-wb-muted hover:bg-wb-hover hover:text-wb-text">
-          <ChevronLeft className="h-4 w-4" />
-          <span className="hidden sm:inline">{backLabel}</span>
-        </a>
+        {inRouterContext ? (
+          <Link
+            to={backHref}
+            className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-medium text-wb-muted hover:bg-wb-hover hover:text-wb-text active:scale-[0.98]"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">{backLabel}</span>
+          </Link>
+        ) : (
+          <a
+            href={backHref}
+            className="inline-flex h-9 items-center gap-1 rounded-md px-2 text-xs font-medium text-wb-muted hover:bg-wb-hover hover:text-wb-text active:scale-[0.98]"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            <span className="hidden sm:inline">{backLabel}</span>
+          </a>
+        )}
 
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {isLearner ? (
@@ -193,6 +211,14 @@ export function WorkbenchHeader({
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          {presentationComposeControl && (
+            <div
+              className="shrink-0"
+              data-workbench-header-presentation-compose-slot
+            >
+              {presentationComposeControl}
+            </div>
+          )}
           {evidenceChecksControl && (
             <div className="shrink-0" data-workbench-header-evidence-checks-slot>
               {evidenceChecksControl}

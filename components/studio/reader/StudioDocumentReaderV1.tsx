@@ -5,8 +5,19 @@ import { useTranslation } from "react-i18next";
 import type {
   ScientificProductReaderExperimentControllerV1,
   ScientificProductReaderExperimentSnapshotV1,
-  ScientificProductReaderSignalPointV1,
 } from "@/components/scientificProduct/ScientificProductReaderExperimentControllerV1";
+import type {
+  ScientificProductRuntimeRegistryPortV1,
+} from "@/components/scientificProduct/ScientificProductRuntimeRegistryPortV1";
+import {
+  ScientificProductGraphPaneV1,
+} from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
+import {
+  createScientificWorkbenchDisplayClockV1,
+} from "@/components/scientificProduct/ScientificWorkbenchDisplayClockV1";
+import {
+  panelFromStudioGraphPaneSpecV1,
+} from "@/components/studio/StudioGraphPaneProjectionV1";
 import type {
   ResolvedReaderDocumentV1,
   ResolvedReaderExperimentPlacementV1,
@@ -17,6 +28,9 @@ export type StudioDocumentReaderV1Props = Readonly<{
   controllerForPlacement(
     placementBlockId: string,
   ): ScientificProductReaderExperimentControllerV1 | null;
+  registryForPlacement(
+    placementBlockId: string,
+  ): ScientificProductRuntimeRegistryPortV1 | null;
 }>;
 
 /**
@@ -29,6 +43,7 @@ export type StudioDocumentReaderV1Props = Readonly<{
 export function StudioDocumentReaderV1({
   document,
   controllerForPlacement,
+  registryForPlacement,
 }: StudioDocumentReaderV1Props) {
   const placements = React.useMemo(
     () => new Map(document.placements.map((placement) => [
@@ -83,7 +98,12 @@ export function StudioDocumentReaderV1({
           }
           const placement = placements.get(block.blockId);
           const controller = controllerForPlacement(block.blockId);
-          if (placement === undefined || controller === null) {
+          const registry = registryForPlacement(block.blockId);
+          if (
+            placement === undefined
+            || controller === null
+            || registry === null
+          ) {
             return (
               <section
                 key={block.blockId}
@@ -99,6 +119,7 @@ export function StudioDocumentReaderV1({
               key={block.blockId}
               placement={placement}
               controller={controller}
+              registry={registry}
             />
           );
         })}
@@ -110,9 +131,11 @@ export function StudioDocumentReaderV1({
 function StudioExperimentCellV1({
   placement,
   controller,
+  registry,
 }: Readonly<{
   placement: ResolvedReaderExperimentPlacementV1;
   controller: ScientificProductReaderExperimentControllerV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
 }>) {
   const { t } = useTranslation();
   const snapshot = React.useSyncExternalStore(
@@ -121,6 +144,10 @@ function StudioExperimentCellV1({
     controller.getSnapshot,
   );
   const [controlError, setControlError] = React.useState<string | null>(null);
+  const displayClock = React.useMemo(
+    () => createScientificWorkbenchDisplayClockV1(true, 1),
+    [],
+  );
 
   React.useEffect(() => {
     // The nested frame boundary guarantees that the canonical one-point
@@ -202,7 +229,56 @@ function StudioExperimentCellV1({
       </header>
 
       <div className="grid gap-6 p-5 sm:p-6">
-        <ReaderSignalChartV1 snapshot={snapshot} />
+        <div
+          className="grid gap-5"
+          data-testid="studio-reader-shared-graph-panes-v1"
+        >
+          {placement.readerBrief.graphPanes.map((pane) => {
+            const panel = panelFromStudioGraphPaneSpecV1(pane);
+            return (
+              <section
+                key={pane.paneId}
+                className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50"
+                data-studio-reader-pane-kind={pane.kind}
+                data-studio-reader-time-window-ms={
+                  pane.presentation.timeWindowMs ?? "none"
+                }
+                data-studio-reader-legend-position={
+                  pane.presentation.legendPosition === null
+                    ? "default"
+                    : `${pane.presentation.legendPosition.xPct},`
+                      + `${pane.presentation.legendPosition.yPct}`
+                }
+              >
+                <header className="border-b border-slate-800 px-4 py-3">
+                  <h3 className="text-sm font-bold text-slate-200">
+                    {pane.title}
+                  </h3>
+                </header>
+                <div
+                  className={
+                    pane.kind === "waveform"
+                      ? "relative h-[280px] min-h-0"
+                      : "relative h-[420px] min-h-0"
+                  }
+                >
+                  <ScientificProductGraphPaneV1
+                    panel={panel}
+                    registry={registry}
+                    clock={displayClock}
+                    renderContext={{
+                      instances: [],
+                      activeInstanceId:
+                        placement.experiment.scenarios[0]?.scenarioId,
+                      presentationMode: "reading",
+                      canConfigure: false,
+                    }}
+                  />
+                </div>
+              </section>
+            );
+          })}
+        </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
           {snapshot.instantaneousReadbacks.map((readback) => (
@@ -308,163 +384,6 @@ function StudioExperimentCellV1({
         )}
       </div>
     </section>
-  );
-}
-
-function ReaderSignalChartV1({
-  snapshot,
-}: Readonly<{ snapshot: ScientificProductReaderExperimentSnapshotV1 }>) {
-  const { t } = useTranslation();
-  const series = snapshot.selectedSignalSeries;
-  const points = chartPointsV1(series.points, 900);
-  const availableValues = points.flatMap((point) =>
-    series.signals.flatMap((signal) => {
-      const value = point.values[signal.signalId];
-      return value === null || value === undefined ? [] : [value];
-    }));
-  const firstTime = points[0]?.acceptedTimeSec ?? 0;
-  const lastTime = points.at(-1)?.acceptedTimeSec ?? firstTime;
-  const timeSpan = Math.max(0.001, lastTime - firstTime);
-  const minimumValue = availableValues.length === 0
-    ? 0
-    : Math.min(...availableValues);
-  const maximumValue = availableValues.length === 0
-    ? 1
-    : Math.max(...availableValues);
-  const valueSpan = Math.max(1, maximumValue - minimumValue);
-  const yMinimum = minimumValue - valueSpan * 0.12;
-  const yMaximum = maximumValue + valueSpan * 0.12;
-  const width = 760;
-  const height = 260;
-  const plot = Object.freeze({
-    left: 48,
-    right: width - 18,
-    top: 18,
-    bottom: height - 34,
-  });
-  const colors = ["#38bdf8", "#c084fc", "#fb7185"];
-
-  return (
-    <figure className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50">
-      <figcaption className="flex flex-col gap-3 border-b border-slate-800 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-sm font-bold text-slate-200">
-          {t("studioAuthorPreview.reader.pressureGraph")}
-        </span>
-        <span className="flex flex-wrap gap-3">
-          {series.signals.map((signal, index) => (
-            <span
-              key={signal.signalId}
-              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-400"
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: colors[index % colors.length] }}
-              />
-              {signal.label}
-            </span>
-          ))}
-        </span>
-      </figcaption>
-      <div className="p-3 sm:p-4">
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          className="block h-auto w-full"
-          role="img"
-          aria-label={t("studioAuthorPreview.reader.pressureGraphAria")}
-        >
-          <line
-            x1={plot.left}
-            x2={plot.right}
-            y1={plot.bottom}
-            y2={plot.bottom}
-            stroke="#334155"
-          />
-          <line
-            x1={plot.left}
-            x2={plot.left}
-            y1={plot.top}
-            y2={plot.bottom}
-            stroke="#334155"
-          />
-          {[0, 0.5, 1].map((fraction) => {
-            const y = plot.bottom - (plot.bottom - plot.top) * fraction;
-            const value = yMinimum + (yMaximum - yMinimum) * fraction;
-            return (
-              <g key={fraction}>
-                <line
-                  x1={plot.left}
-                  x2={plot.right}
-                  y1={y}
-                  y2={y}
-                  stroke="#1e293b"
-                  strokeDasharray="3 5"
-                />
-                <text
-                  x={plot.left - 8}
-                  y={y + 4}
-                  textAnchor="end"
-                  fill="#64748b"
-                  fontSize="10"
-                >
-                  {formatNumberV1(value)}
-                </text>
-              </g>
-            );
-          })}
-          {series.signals.map((signal, index) => {
-            const path = signalPathV1(
-              points,
-              signal.signalId,
-              firstTime,
-              timeSpan,
-              yMinimum,
-              yMaximum,
-              plot,
-            );
-            const lastAvailable = [...points].reverse().find((point) =>
-              point.values[signal.signalId] !== null
-              && point.values[signal.signalId] !== undefined);
-            return (
-              <g key={signal.signalId}>
-                {path.length > 0 && (
-                  <path
-                    d={path}
-                    fill="none"
-                    stroke={colors[index % colors.length]}
-                    strokeWidth="2.25"
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                    vectorEffect="non-scaling-stroke"
-                  />
-                )}
-                {points.length === 1 && lastAvailable !== undefined && (
-                  <circle
-                    cx={plot.left}
-                    cy={chartYV1(
-                      lastAvailable.values[signal.signalId]!,
-                      yMinimum,
-                      yMaximum,
-                      plot,
-                    )}
-                    r="3.5"
-                    fill={colors[index % colors.length]}
-                  />
-                )}
-              </g>
-            );
-          })}
-          <text
-            x={(plot.left + plot.right) / 2}
-            y={height - 8}
-            textAnchor="middle"
-            fill="#64748b"
-            fontSize="10"
-          >
-            {t("studioAuthorPreview.reader.timeAxis")}
-          </text>
-        </svg>
-      </div>
-    </figure>
   );
 }
 
@@ -578,62 +497,6 @@ function readerPresentationStatusV1(
           "border-emerald-400/15 bg-emerald-400/5 text-emerald-100",
       });
   }
-}
-
-function chartPointsV1(
-  points: readonly ScientificProductReaderSignalPointV1[],
-  maximum: number,
-): readonly ScientificProductReaderSignalPointV1[] {
-  if (points.length <= maximum) return points;
-  const stride = Math.ceil(points.length / maximum);
-  const sampled = points.filter((_, index) =>
-    index % stride === 0 || index === points.length - 1);
-  return Object.freeze(sampled);
-}
-
-type PlotBoundsV1 = Readonly<{
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-}>;
-
-function signalPathV1(
-  points: readonly ScientificProductReaderSignalPointV1[],
-  signalId: string,
-  firstTime: number,
-  timeSpan: number,
-  yMinimum: number,
-  yMaximum: number,
-  plot: PlotBoundsV1,
-): string {
-  let path = "";
-  let hasOpenSegment = false;
-  for (const point of points) {
-    const value = point.values[signalId];
-    if (value === null || value === undefined) {
-      hasOpenSegment = false;
-      continue;
-    }
-    const x = plot.left
-      + ((point.acceptedTimeSec - firstTime) / timeSpan)
-        * (plot.right - plot.left);
-    const y = chartYV1(value, yMinimum, yMaximum, plot);
-    path += `${hasOpenSegment ? "L" : "M"}${x.toFixed(2)},${y.toFixed(2)} `;
-    hasOpenSegment = true;
-  }
-  return path.trim();
-}
-
-function chartYV1(
-  value: number,
-  yMinimum: number,
-  yMaximum: number,
-  plot: PlotBoundsV1,
-): number {
-  return plot.bottom
-    - ((value - yMinimum) / Math.max(1e-9, yMaximum - yMinimum))
-      * (plot.bottom - plot.top);
 }
 
 function formatNumberV1(value: number): string {

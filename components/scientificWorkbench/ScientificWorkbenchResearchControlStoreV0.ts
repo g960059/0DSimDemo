@@ -54,6 +54,20 @@ export type ScientificWorkbenchDisplayedEvidenceV0 =
   | "target-period1-and-following-cycle-validated"
   | "retained-period1-source-cycle";
 
+/**
+ * A bounded, immutable trace from a previously displayed parameter
+ * generation. It is presentation history only: the current generation remains
+ * the sole owner of controls, metrics and provenance.
+ */
+export type ScientificWorkbenchParameterGenerationFramesV0 = Readonly<{
+  targetGeneration: number;
+  parameterEpoch: number;
+  controlStateSha256: string;
+  frames: readonly MainWireScientificObservableFrameV1[];
+  liveTransitionOriginAcceptedTimeSec: number | null;
+  displayedEvidence: ScientificWorkbenchDisplayedEvidenceV0;
+}>;
+
 export type ScientificWorkbenchResearchControlProvenanceV0 = Readonly<{
   displayedFrameOwner: "source" | "candidate";
   displayedParameterEpoch: number;
@@ -97,6 +111,8 @@ export type ScientificWorkbenchResearchControlSnapshotV0 = Readonly<{
   source: ScientificWorkbenchResearchControlSourceV0;
   candidate: ScientificWorkbenchResearchControlCandidateV0 | null;
   frames: readonly MainWireScientificObservableFrameV1[];
+  parameterGenerationHistory?:
+    readonly ScientificWorkbenchParameterGenerationFramesV0[];
   targetControlStateSha256: string | null;
   liveTransitionOriginAcceptedTimeSec: number | null;
   inFlight: boolean;
@@ -212,6 +228,7 @@ export function createScientificWorkbenchResearchControlStoreV0(
     source: initialSource,
     candidate: null,
     frames: initialSource.frames,
+    parameterGenerationHistory: Object.freeze([]),
     targetControlStateSha256: null,
     liveTransitionOriginAcceptedTimeSec: null,
     inFlight: false,
@@ -327,6 +344,13 @@ function freezeSnapshotV0(
 ): ScientificWorkbenchResearchControlSnapshotV0 {
   return Object.freeze({
     ...snapshot,
+    parameterGenerationHistory: Object.freeze(
+      (snapshot.parameterGenerationHistory ?? []).map((generation) =>
+        Object.freeze({
+          ...generation,
+          frames: Object.freeze([...generation.frames]),
+        })),
+    ),
     draft: Object.freeze({ ...snapshot.draft }),
     provenance: Object.freeze({ ...snapshot.provenance }),
   });

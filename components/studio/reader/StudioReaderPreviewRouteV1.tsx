@@ -118,6 +118,12 @@ export default function StudioReaderPreviewRouteV1() {
                 placement.placementBlockId === placementBlockId)
               ? controller
               : null}
+          registryForPlacement={(placementBlockId) =>
+            readerSession.manifest.resolvedReaderDocument.placements
+              .some((placement) =>
+                placement.placementBlockId === placementBlockId)
+              ? readerSession.registry
+              : null}
         />
       </div>
     </div>

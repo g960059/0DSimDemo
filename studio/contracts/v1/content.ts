@@ -11,6 +11,8 @@ export const STUDIO_EXPERIMENT_REVISION_V1_SCHEMA_ID =
   "circleheart-studio-experiment-revision-v1" as const;
 export const STUDIO_READER_BRIEF_V1_SCHEMA_ID =
   "circleheart-studio-reader-brief-v1" as const;
+export const STUDIO_GRAPH_PANE_V1_SCHEMA_ID =
+  "circleheart-studio-graph-pane-v1" as const;
 export const STUDIO_DOCUMENT_REVISION_V1_SCHEMA_ID =
   "circleheart-studio-document-revision-v1" as const;
 export const STUDIO_AUTHOR_DRAFT_V1_SCHEMA_ID =
@@ -84,14 +86,71 @@ export type ReaderControlSpecV1 = Readonly<{
   binding: ReaderControlBindingV1;
 }>;
 
+export type StudioGraphPaneKindV1 =
+  | "waveform"
+  | "pv-loop"
+  | "guyton-left"
+  | "guyton-right";
+
+export type StudioGraphPaneItemSpecV1 = Readonly<{
+  /**
+   * A waveform observable id or a portable pressure-volume trajectory id.
+   * PV ids are resolved against each scenario's loaded workspace at capture
+   * and Reader allocation boundaries; the content contract does not pretend
+   * that the workspace catalog is globally fixed.
+   */
+  itemId: string;
+  label: string;
+  unit: string | null;
+  color: string;
+}>;
+
+export type StudioGraphPaneScenarioSpecV1 = Readonly<{
+  scenarioId: string;
+  label: string;
+  color: string;
+  items: readonly StudioGraphPaneItemSpecV1[];
+}>;
+
+/**
+ * A detached, renderer-neutral copy of the visible graph presentation.
+ *
+ * Every field is explicit so Reader output cannot silently inherit a later
+ * Workbench default. Runtime frames, Worker jobs, settings-open state and
+ * Dockview geometry never enter this value.
+ */
+export type StudioGraphPaneSpecV1 = Readonly<{
+  schemaId: typeof STUDIO_GRAPH_PANE_V1_SCHEMA_ID;
+  paneId: string;
+  title: string;
+  kind: StudioGraphPaneKindV1;
+  scenarios: readonly StudioGraphPaneScenarioSpecV1[];
+  presentation: Readonly<{
+    showLegend: boolean;
+    legendPosition: Readonly<{ xPct: number; yPct: number }> | null;
+    showGuides: boolean;
+    timeWindowMs: number | null;
+    pvBeatHistoryCount: number | null;
+    pvBeatHistoryMode: "fade" | "persistent" | null;
+    pvParameterHistoryCount: 0 | 1 | 3 | 5 | 6 | null;
+    pvRelationDisplayMode: "off" | "standard" | "research" | null;
+    pvRelationPressureBasis: "intracavitary" | "transmural" | null;
+    pvRelationShowSamplePoints: boolean | null;
+    hemodynamicDetailMode:
+      | "standard"
+      | "settled-reference"
+      | "compare"
+      | null;
+    hemodynamicParameterHistoryCount: 0 | 1 | 3 | 5 | null;
+    hemodynamicAllowNegativeFillingPressure: boolean | null;
+  }>;
+}>;
+
 export type ReaderBriefV1 = Readonly<{
   schemaId: typeof STUDIO_READER_BRIEF_V1_SCHEMA_ID;
   briefId: StudioReaderBriefIdV1;
   extent: "inflow";
-  graph: Readonly<{
-    kind: "time-series";
-    signals: readonly ReaderSignalSpecV1[];
-  }>;
+  graphPanes: readonly StudioGraphPaneSpecV1[];
   instantaneousReadbacks: readonly ReaderInstantaneousReadbackSpecV1[];
   controls: readonly ReaderControlSpecV1[];
 }>;

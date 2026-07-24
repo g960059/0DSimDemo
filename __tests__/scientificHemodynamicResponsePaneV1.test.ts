@@ -12,9 +12,16 @@ import {
   type ScientificHemodynamicResponseGenerationV1,
 } from "@/components/scientificProduct/ScientificHemodynamicProtocolPanesV1";
 import {
+  scientificHemodynamicAggregateStatusV1,
+  scientificHemodynamicResponseGenerationV1,
   scientificQuickResponseDisplaySegmentsV1,
   scientificQuickResponseQualityV1,
 } from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
+import type {
+  ScientificProductHemodynamicProtocolGenerationV1,
+  ScientificProductHemodynamicProtocolSeriesV1,
+  ScientificProductScenarioPresentationV1,
+} from "@/components/scientificProduct/ScientificProductScenarioRegistryV1";
 
 const status = Object.freeze({
   status: "complete" as const,
@@ -25,6 +32,10 @@ const status = Object.freeze({
 function generation(id: string, shift = 0): ScientificHemodynamicResponseGenerationV1 {
   return Object.freeze({
     id,
+    calculationSource: "visible-period1-source",
+    parameterStateRole: id.startsWith("history-")
+      ? "history"
+      : "visible-current",
     vascularReturnCurve: Object.freeze([
       { pressureMmHg: -2, flowLPerMin: 7 + shift },
       { pressureMmHg: 12, flowLPerMin: 2 + shift },
@@ -187,6 +198,13 @@ describe("cardiac output and filling pressure pane V1", () => {
     expect(html).toContain('fill="var(--wb-app-bg)"');
     expect(html).toContain('data-generation-id="history-5"');
     expect(html).not.toContain('data-generation-id="history-6"');
+    expect(html).toContain(
+      'data-calculation-source="visible-period1-source"',
+    );
+    expect(html).toContain(
+      'data-parameter-state-role="visible-current"',
+    );
+    expect(html).toContain('data-parameter-state-role="history"');
     expect(html).toContain("One low-volume point was excluded");
     expect(html).toContain('data-testid="scientific-hemodynamic-scenario-legend-v1"');
     expect(html).toContain('data-testid="scientific-hemodynamic-floating-status-v1"');
@@ -250,4 +268,87 @@ describe("cardiac output and filling pressure pane V1", () => {
     expect(html).toContain('<title id="response-title-left">');
     expect(html).not.toContain('data-testid="scientific-protocol-top-chrome-v1"');
   });
+
+  it("keeps a strict candidate that finishes before the live transition in the target-preview lane", () => {
+    const candidate = strictCandidateGenerationV1();
+    const displayedSourceIdentity = Object.freeze({
+      parameterEpoch: candidate.source.sourceIdentity.parameterEpoch - 1,
+      controlStateSha256: "a".repeat(64),
+    });
+
+    const projected = scientificHemodynamicResponseGenerationV1(
+      "left",
+      "Target scenario",
+      candidate,
+      Object.freeze({
+        displayedSourceIdentity,
+        history: false,
+      }),
+    );
+    expect(projected).toMatchObject({
+      label: "Automatic strict candidate",
+      calculationSource: "automatic-strict-candidate",
+      parameterStateRole: "target-preview",
+    });
+
+    const series: ScientificProductHemodynamicProtocolSeriesV1 =
+      Object.freeze({
+        current: candidate,
+        pending: null,
+        history: Object.freeze([]),
+        lastFailure: null,
+      });
+    const aggregate = scientificHemodynamicAggregateStatusV1("left", [
+      Object.freeze({
+        presentation: Object.freeze({
+          descriptor: Object.freeze({ name: "Target scenario" }),
+        }) as ScientificProductScenarioPresentationV1,
+        series,
+        displayedSourceIdentity,
+      }),
+    ]);
+    expect(aggregate).toMatchObject({
+      status: "running",
+      label: "Strict target preview ready",
+      qc: {
+        level: "pending",
+        summary:
+          "A settled strict candidate for the target is ready while the live transition catches up.",
+      },
+    });
+    expect(aggregate.qc.summary).not.toContain("Previous");
+  });
 });
+
+function strictCandidateGenerationV1():
+  ScientificProductHemodynamicProtocolGenerationV1 {
+  const sourceIdentity = Object.freeze({
+    revision: 42,
+    acceptedTimeSec: 12,
+    totalBloodVolumeMl: 5_000,
+    parameterEpoch: 2,
+    controlStateSha256: "b".repeat(64),
+    calculationSource: "automatic-strict-candidate" as const,
+  });
+  return Object.freeze({
+    generationId: "strict-before-live",
+    source: Object.freeze({
+      sourceIdentityKey: "strict-before-live-source",
+      sourceIdentity,
+      jobId: "strict-before-live-job",
+    }),
+    sequence: 1,
+    status: "complete" as const,
+    snapshot: Object.freeze({
+      kind: "guyton-starling" as const,
+      detailMode: "standard" as const,
+      status: "complete" as const,
+      calculationSource: "automatic-strict-candidate" as const,
+      sourceIdentity,
+      result: null,
+      jobSnapshot: null,
+      errorMessage: null,
+    }),
+    renderable: true,
+  });
+}

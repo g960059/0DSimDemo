@@ -68,6 +68,7 @@
       "sessionOnly": "このタブ内のみ",
       "title": "記事と実験を編集",
       "description": "教育用の記事draftを編集し、同じタブ内でReader表示と埋め込み実験を確認します。",
+      "openWorkbench": "Workbenchで実験を構成",
       "openPreview": "Readerで確認",
       "reopenLastPreview": "直前のReader Previewを開く",
       "documentLabel": "DRAFT DOCUMENT",

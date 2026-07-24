@@ -3,6 +3,7 @@ import {
   type ScientificWorkbenchResearchControlDraftV0,
   type ScientificWorkbenchResearchControlOwnerActionRefV0,
   type ScientificWorkbenchResearchControlOwnerActionsV0,
+  type ScientificWorkbenchParameterGenerationFramesV0,
   type ScientificWorkbenchResearchControlSnapshotInputV0,
   type ScientificWorkbenchResearchControlSourceV0,
   type ScientificWorkbenchResearchControlStoreV0,
@@ -21,8 +22,10 @@ import {
 } from "@/studio/application/runtime/SimulationSessionCoordinatorV1";
 import type {
   RuntimePresentationEventV1,
+  RuntimeSteadyCandidateV1,
   ScenarioRuntimeBranchStateV1,
   StudioArtifactRefV1,
+  StudioSettledAnalysisSourceV1,
 } from "@/studio/contracts/v1";
 
 import {
@@ -34,6 +37,7 @@ import type {
 
 const PRESENTATION_HISTORY_WINDOW_SEC_V1 = 20;
 const PRESENTATION_HISTORY_HARD_LIMIT_V1 = 12_000;
+const PARAMETER_GENERATION_HISTORY_LIMIT_V1 = 6;
 
 let intentOrdinalV1 = 0;
 
@@ -80,6 +84,10 @@ export class ScientificProductStudioScenarioControllerV1 {
   private displayedTargetState:
     MainWireScientificResearchControlTargetStateV0;
   private displayedParameterEpoch: number;
+  private displayedTargetGeneration = 0;
+  private parameterGenerationHistory:
+    readonly ScientificWorkbenchParameterGenerationFramesV0[] =
+      Object.freeze([]);
   private readonly targetStatesByGeneration = new Map<
     number,
     MainWireScientificResearchControlTargetStateV0
@@ -98,6 +106,9 @@ export class ScientificProductStudioScenarioControllerV1 {
   private framePublishScheduled = false;
   private lastCoordinatorSignature = "";
   private desiredLivePlayback: "running" | "suspended" = "running";
+  private lastPromotedSettledAnalysisSource:
+    StudioSettledAnalysisSourceV1 | null = null;
+  private disposePromise: Promise<void> | null = null;
   private disposed = false;
 
   private constructor(
@@ -259,6 +270,46 @@ export class ScientificProductStudioScenarioControllerV1 {
     });
   }
 
+  /**
+   * Exact settled source for side analyses. It is unavailable immediately
+   * after a new control intent and becomes available only when that same
+   * generation's strict candidate arrives (or when it has been promoted).
+   */
+  get settledAnalysisSource(): StudioSettledAnalysisSourceV1 | null {
+    if (this.disposed || this.pendingControlIntentCount > 0) return null;
+    const branch = this.branchV1();
+    if (branch === null) return null;
+    const candidate = branch.latestSteadyCandidate;
+    if (
+      candidate !== null
+      && candidate.targetGeneration === branch.targetGeneration
+      && candidate.targetInputSha256 === branch.targetInputSha256
+    ) {
+      return settledAnalysisSourceFromCandidateV1(
+        candidate,
+        "automatic-strict-candidate",
+      );
+    }
+    const promoted = this.lastPromotedSettledAnalysisSource;
+    if (
+      promoted !== null
+      && promoted.targetGeneration === branch.targetGeneration
+      && promoted.targetInputSha256 === branch.targetInputSha256
+      && branch.display.origin.kind === "promoted-steady-candidate"
+    ) return promoted;
+    if (branch.targetGeneration !== 0) return null;
+    return Object.freeze({
+      scenarioId: branch.scenarioId,
+      targetGeneration: branch.targetGeneration,
+      sourceRole: "initial-settled-source" as const,
+      targetInputSha256: branch.targetInputSha256,
+      sourceRunRef: branch.sourceRunRef,
+      simulationInputRef: branch.sourceInputRef,
+      snapshotRef: branch.sourceSnapshotRef,
+      execution: branch.execution,
+    });
+  }
+
   async promoteSteadyCandidate(): Promise<void> {
     if (
       this.disposed
@@ -274,7 +325,13 @@ export class ScientificProductStudioScenarioControllerV1 {
           this.disposed
           || this.branchV1()?.latestSteadyCandidate == null
         ) return;
+        const candidate = this.branchV1()!.latestSteadyCandidate!;
         await this.coordinator.promoteSteadyCandidate(this.scenarioId);
+        this.lastPromotedSettledAnalysisSource =
+          settledAnalysisSourceFromCandidateV1(
+            candidate,
+            "promoted-settled-source",
+          );
         const first = this.frames[0];
         if (first === undefined) {
           throw new Error(
@@ -349,14 +406,19 @@ export class ScientificProductStudioScenarioControllerV1 {
     }
   }
 
-  async dispose(): Promise<void> {
-    if (this.disposed) return;
+  dispose(): Promise<void> {
+    if (this.disposePromise !== null) return this.disposePromise;
     this.disposed = true;
     this.unsubscribePresentation();
     this.unsubscribeCoordinator();
     this.disconnectOwner();
-    await this.operationTail;
-    await this.coordinator.close().catch(() => undefined);
+    // Disposal is a lifecycle barrier, not another queued user action. Close
+    // the runtime immediately so an in-flight signal activation cannot retain
+    // its Worker (or keep route unmount waiting indefinitely).
+    this.disposePromise = this.coordinator
+      .close({ force: true })
+      .catch(() => undefined);
+    return this.disposePromise;
   }
 
   private readonly onCoordinatorStateV1 = (): void => {
@@ -383,6 +445,9 @@ export class ScientificProductStudioScenarioControllerV1 {
         this.recordPresentationFailureV1(error);
         return;
       }
+      if (event.targetGeneration !== this.displayedTargetGeneration) {
+        this.retainDisplayedParameterGenerationV1();
+      }
       this.frames = Object.freeze([frame]);
       this.displayKind = event.origin.kind === "live-transition"
         ? "transient"
@@ -394,6 +459,7 @@ export class ScientificProductStudioScenarioControllerV1 {
         ?? this.displayedTargetState;
       this.displayedParameterEpoch =
         this.initialParameterEpoch + event.targetGeneration;
+      this.displayedTargetGeneration = event.targetGeneration;
       this.presentationFailure = null;
       this.publishV1();
       return;
@@ -425,6 +491,30 @@ export class ScientificProductStudioScenarioControllerV1 {
     this.presentationFailure =
       `Studio presentation projection failed: ${errorMessageV1(error)}`;
     this.publishV1();
+  }
+
+  private retainDisplayedParameterGenerationV1(): void {
+    // A single reset point cannot preserve a waveform segment or PV
+    // trajectory, so it is not useful presentation history.
+    if (this.frames.length < 2) return;
+    const retained: ScientificWorkbenchParameterGenerationFramesV0 =
+      Object.freeze({
+        targetGeneration: this.displayedTargetGeneration,
+        parameterEpoch: this.displayedParameterEpoch,
+        controlStateSha256:
+          this.displayedTargetState.targetStateSha256,
+        frames: Object.freeze([...this.frames]),
+        liveTransitionOriginAcceptedTimeSec:
+          this.liveTransitionOriginAcceptedTimeSec,
+        displayedEvidence: this.displayKind === "settled"
+          ? "settled-snapshot-one-point" as const
+          : "open-transient-no-periodic-claim" as const,
+      });
+    this.parameterGenerationHistory = Object.freeze([
+      retained,
+      ...this.parameterGenerationHistory.filter(({ targetGeneration }) =>
+        targetGeneration !== retained.targetGeneration),
+    ].slice(0, PARAMETER_GENERATION_HISTORY_LIMIT_V1));
   }
 
   private commitDraftPatchV1(
@@ -656,6 +746,7 @@ export class ScientificProductStudioScenarioControllerV1 {
         source: this.source,
         candidate: null,
         frames: this.frames,
+        parameterGenerationHistory: this.parameterGenerationHistory,
         targetControlStateSha256:
           this.desiredTargetState.targetStateSha256,
         liveTransitionOriginAcceptedTimeSec:
@@ -713,6 +804,22 @@ export class ScientificProductStudioScenarioControllerV1 {
       });
     this.controlStore.publishOwnerSnapshot(this.ownerToken, input);
   }
+}
+
+function settledAnalysisSourceFromCandidateV1(
+  candidate: RuntimeSteadyCandidateV1,
+  sourceRole: StudioSettledAnalysisSourceV1["sourceRole"],
+): StudioSettledAnalysisSourceV1 {
+  return Object.freeze({
+    scenarioId: candidate.scenarioId,
+    targetGeneration: candidate.targetGeneration,
+    sourceRole,
+    targetInputSha256: candidate.targetInputSha256,
+    sourceRunRef: candidate.sourceRunRef,
+    simulationInputRef: candidate.simulationInputRef,
+    snapshotRef: candidate.snapshotRef,
+    execution: candidate.execution,
+  });
 }
 
 function draftPatchV1(

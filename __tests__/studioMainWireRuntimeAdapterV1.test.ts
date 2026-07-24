@@ -12,11 +12,28 @@ import {
   type MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import {
+  emptyMainWireScientificFastTbvPreviewV1,
+} from "@/engine/scientific/protocols/MainWireScientificFastTbvPreviewV1";
+import type {
+  MainWireScientificHemodynamicJobSnapshotV2,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
+import type {
+  MainWireScientificProtocolSourceIdentityV1,
+  MainWireScientificVascularFunctionCurveV1,
+} from "@/engine/scientific/protocols/MainWireScientificHemodynamicProtocolV1";
+import {
   createMainWireScientificSessionExactCheckpointV4,
   createMainWireScientificSessionV1,
   MainWireScientificSessionV1,
   type MainWireScientificSessionExactCheckpointV4,
 } from "@/engine/scientific/runtime";
+import {
+  SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+  type ScientificCommandV1,
+} from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import type {
+  MainWireScientificWorkerResponseV1,
+} from "@/engine/scientificBrowser/MainWireScientificWorkerClientV1";
 import {
   MainWireBrowserWorkerSessionHostV1,
   MainWireSimulationRuntimeAdapterV1,
@@ -33,12 +50,16 @@ import {
   type MainWireStudioSessionHostV1,
   type MainWireStudioTransientChunkV1,
 } from "@/studio/adapters/mainWire";
+import {
+  MainWireStudioHemodynamicAnalysisHostV1,
+} from "@/studio/adapters/mainWire/MainWireStudioHemodynamicAnalysisHostV1";
 import type {
   OpenScenarioRuntimeBranchV1,
   RuntimeControlPatchV1,
   RuntimeSignalBatchV1,
   RuntimeSignalEventV1,
   RuntimeSteadyCandidateV1,
+  StudioSettledAnalysisSourceV1,
   StudioJsonValueV1,
 } from "@/studio/contracts/v1";
 import {
@@ -1151,6 +1172,353 @@ describe("MainWire Studio runtime adapter", () => {
   });
 });
 
+describe("MainWire Studio hemodynamic analysis artifact boundary", () => {
+  it.each([
+    {
+      label: "target digest",
+      mutate: (
+        source: StudioSettledAnalysisSourceV1,
+      ): StudioSettledAnalysisSourceV1 => Object.freeze({
+        ...source,
+        targetInputSha256: alternateSha256V1(source.targetInputSha256),
+      }),
+      expected: /settled target input identity mismatch/,
+    },
+    {
+      label: "execution/checkpoint binding",
+      mutate: (
+        source: StudioSettledAnalysisSourceV1,
+      ): StudioSettledAnalysisSourceV1 => Object.freeze({
+        ...source,
+        execution: Object.freeze({
+          ...source.execution,
+          protocolRef: `${source.execution.protocolRef}:foreign`,
+        }),
+      }),
+      expected: /settled execution identity mismatch/,
+    },
+  ])(
+    "rejects a mismatched $label before creating a Worker and keeps the rejection handled",
+    async ({ mutate, expected }) => {
+      const stored = await storeSourceV1(baseFixture);
+      const createClient = vi.fn(() => Object.freeze({
+        status: "open" as const,
+        request: async () => {
+          throw new Error("artifact validation must precede Worker requests");
+        },
+        terminate: vi.fn(),
+      }));
+      const host = new MainWireStudioHemodynamicAnalysisHostV1({
+        artifacts: stored.artifacts,
+        createClient,
+        hostId: "artifact-boundary-test",
+      });
+      const source: StudioSettledAnalysisSourceV1 = Object.freeze({
+        scenarioId: "artifact-boundary-scenario",
+        targetGeneration: 0,
+        sourceRole: "initial-settled-source",
+        targetInputSha256: stored.targetInputSha256,
+        sourceRunRef: stored.runRef,
+        simulationInputRef: stored.inputRef,
+        snapshotRef: stored.snapshotRef,
+        execution: mainWireStudioExecutionIdentityV1(baseFixture.checkpoint),
+      });
+
+      try {
+        const error = await caughtWithoutUnhandledRejectionV1(
+          () => host.restoreSettledSource(mutate(source)),
+        );
+        expect(error).toBeInstanceOf(Error);
+        expect((error as Error).message).toMatch(expected);
+        expect(createClient).not.toHaveBeenCalled();
+      } finally {
+        host.terminate();
+      }
+    },
+  );
+
+  it("rejects an unrelated existing run artifact before creating a Worker", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const foreignRun = mutableCloneV1(
+      await stored.artifacts.readJson(stored.runRef),
+    );
+    foreignRun.simulationInputRef.sha256 = alternateSha256V1(
+      foreignRun.simulationInputRef.sha256,
+    );
+    const foreignRunRef = await stored.artifacts.putJson({
+      kind: "run-artifact",
+      mediaType:
+        "application/vnd.circleheart.studio-run-artifact.v1+json",
+      content: foreignRun as unknown as StudioJsonValueV1,
+    });
+    const createClient = vi.fn(() => {
+      throw new Error("run lineage validation must precede Worker allocation");
+    });
+    const host = new MainWireStudioHemodynamicAnalysisHostV1({
+      artifacts: stored.artifacts,
+      createClient,
+      hostId: "run-lineage-boundary-test",
+    });
+
+    await expect(host.restoreSettledSource(Object.freeze({
+      scenarioId: "artifact-boundary-scenario",
+      targetGeneration: 0,
+      sourceRole: "initial-settled-source",
+      targetInputSha256: stored.targetInputSha256,
+      sourceRunRef: foreignRunRef,
+      simulationInputRef: stored.inputRef,
+      snapshotRef: stored.snapshotRef,
+      execution: mainWireStudioExecutionIdentityV1(baseFixture.checkpoint),
+    }))).rejects.toThrow(/settled source run lineage mismatch/);
+    expect(createClient).not.toHaveBeenCalled();
+    host.terminate();
+  });
+
+  it("restores, starts, polls, cancels, disposes, and terminates one real Host job lifecycle", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const sourceIdentity = hemodynamicSourceIdentityV1(baseFixture);
+    const runningStart = hemodynamicJobSnapshotV1(
+      sourceIdentity,
+      0,
+      "running",
+      "vascular-ready",
+    );
+    const runningPoll = hemodynamicJobSnapshotV1(
+      sourceIdentity,
+      1,
+      "running",
+      "continuation",
+    );
+    const cancelled = hemodynamicJobSnapshotV1(
+      sourceIdentity,
+      2,
+      "cancelled",
+      "cancelled",
+    );
+    const request = vi.fn(async (
+      command: ScientificCommandV1,
+    ): Promise<MainWireScientificWorkerResponseV1> => {
+      const common = analysisSuccessResponseBaseV1(command, baseFixture);
+      switch (command.kind) {
+        case "restoreExactSessionV4":
+          return {
+            ...common,
+            commandKind: command.kind,
+            payload: {
+              kind: "sessionRestoredV4",
+              researchControlContext: {
+                stateIdentity: {
+                  revision: sourceIdentity.revision,
+                  acceptedTimeSec: sourceIdentity.acceptedTimeSec,
+                  totalBloodVolumeMl: sourceIdentity.fixedTotalBloodVolumeMl,
+                },
+                controlState: baseFixture.checkpoint.controlTargetState,
+                parameterEpoch: baseFixture.checkpoint.parameterEpoch,
+              },
+              observableFrame: exactRestoreFrameV1(baseFixture),
+            },
+          } as MainWireScientificWorkerResponseV1;
+        case "startGuytonStarlingProtocolJob":
+          return {
+            ...common,
+            commandKind: command.kind,
+            payload: {
+              kind: "guytonStarlingProtocolJobStarted",
+              job: {
+                jobId: runningStart.jobId,
+                snapshot: runningStart,
+                suggestedPollIntervalMs: 25,
+              },
+              sourceSessionUnchanged: true,
+              observableFrame: exactRestoreFrameV1(baseFixture),
+            },
+          } as MainWireScientificWorkerResponseV1;
+        case "pollGuytonStarlingProtocolJob":
+          return {
+            ...common,
+            commandKind: command.kind,
+            payload: {
+              kind: "guytonStarlingProtocolJobProgress",
+              snapshot: runningPoll,
+              sourceSessionUnchanged: true,
+              observableFrame: exactRestoreFrameV1(baseFixture),
+            },
+          } as MainWireScientificWorkerResponseV1;
+        case "cancelGuytonStarlingProtocolJob":
+          return {
+            ...common,
+            commandKind: command.kind,
+            payload: {
+              kind: "guytonStarlingProtocolJobCancelled",
+              snapshot: cancelled,
+              sourceSessionUnchanged: true,
+              observableFrame: exactRestoreFrameV1(baseFixture),
+            },
+          } as MainWireScientificWorkerResponseV1;
+        case "disposeSession":
+          return {
+            ...common,
+            commandKind: command.kind,
+            payload: {
+              kind: "sessionDisposed",
+              disposedSessionId: command.sessionId,
+            },
+          } as MainWireScientificWorkerResponseV1;
+        default:
+          throw new Error(`unexpected analysis command ${command.kind}`);
+      }
+    });
+    const terminate = vi.fn();
+    const createClient = vi.fn(() => ({
+      status: "open" as const,
+      request,
+      terminate,
+    }));
+    const host = new MainWireStudioHemodynamicAnalysisHostV1({
+      artifacts: stored.artifacts,
+      createClient,
+      hostId: "job-lifecycle/reader-scenario",
+    });
+    expect(host.hostId).toBe("job-lifecycle-reader-scenario");
+
+    const session = await host.restoreSettledSource(Object.freeze({
+      scenarioId: "job-lifecycle-scenario",
+      targetGeneration: 0,
+      sourceRole: "initial-settled-source",
+      targetInputSha256: stored.targetInputSha256,
+      sourceRunRef: stored.runRef,
+      simulationInputRef: stored.inputRef,
+      snapshotRef: stored.snapshotRef,
+      execution: mainWireStudioExecutionIdentityV1(baseFixture.checkpoint),
+    }));
+    const job = await host.startGuytonStarlingJob(session, "compare");
+    expect(job).toMatchObject({
+      jobId: "host-job-1",
+      detailMode: "compare",
+      suggestedPollIntervalMs: 25,
+      snapshot: {
+        status: "running",
+        stage: "vascular-ready",
+        sequence: 0,
+      },
+    });
+    await expect(host.pollGuytonStarlingJob(job)).resolves.toMatchObject({
+      status: "running",
+      stage: "continuation",
+      sequence: 1,
+    });
+    await expect(host.cancelGuytonStarlingJob(job)).resolves.toBeUndefined();
+    await expect(host.disposeSession(session)).resolves.toBeUndefined();
+
+    expect(createClient).toHaveBeenCalledTimes(1);
+    expect(request.mock.calls.map(([command]) => command.kind)).toEqual([
+      "restoreExactSessionV4",
+      "startGuytonStarlingProtocolJob",
+      "pollGuytonStarlingProtocolJob",
+      "cancelGuytonStarlingProtocolJob",
+      "disposeSession",
+    ]);
+    expect(request.mock.calls.every(
+      ([command]) => command.sessionId === session.sessionId,
+    )).toBe(true);
+    expect(request.mock.calls.every(
+      ([command]) =>
+        /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(command.requestId)
+        && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(command.sessionId),
+    )).toBe(true);
+
+    host.terminate();
+    host.terminate();
+    expect(terminate).toHaveBeenCalledTimes(1);
+    await expect(host.startGuytonStarlingJob(session, "compare"))
+      .rejects.toThrow(/analysis host is terminated/);
+    expect(request).toHaveBeenCalledTimes(5);
+  });
+
+  it("quarantines a client after a mismatched disposal receipt and restores with a fresh client", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const source = Object.freeze({
+      scenarioId: "dispose-quarantine-scenario",
+      targetGeneration: 0,
+      sourceRole: "initial-settled-source" as const,
+      targetInputSha256: stored.targetInputSha256,
+      sourceRunRef: stored.runRef,
+      simulationInputRef: stored.inputRef,
+      snapshotRef: stored.snapshotRef,
+      execution: mainWireStudioExecutionIdentityV1(baseFixture.checkpoint),
+    });
+    const firstTerminate = vi.fn();
+    const firstRequest = vi.fn(async (
+      command: ScientificCommandV1,
+    ): Promise<MainWireScientificWorkerResponseV1> => {
+      if (command.kind === "restoreExactSessionV4") {
+        return analysisRestoreResponseV1(command, baseFixture);
+      }
+      if (command.kind === "disposeSession") {
+        return analysisDisposeResponseV1(
+          command,
+          baseFixture,
+          "foreign-session",
+        );
+      }
+      throw new Error(`unexpected first client command ${command.kind}`);
+    });
+    const secondTerminate = vi.fn();
+    const secondRequest = vi.fn(async (
+      command: ScientificCommandV1,
+    ): Promise<MainWireScientificWorkerResponseV1> => {
+      if (command.kind === "restoreExactSessionV4") {
+        return analysisRestoreResponseV1(command, baseFixture);
+      }
+      if (command.kind === "disposeSession") {
+        return analysisDisposeResponseV1(command, baseFixture);
+      }
+      throw new Error(`unexpected second client command ${command.kind}`);
+    });
+    const clients = [
+      Object.freeze({
+        status: "open" as const,
+        request: firstRequest,
+        terminate: firstTerminate,
+      }),
+      Object.freeze({
+        status: "open" as const,
+        request: secondRequest,
+        terminate: secondTerminate,
+      }),
+    ] as const;
+    let clientIndex = 0;
+    const createClient = vi.fn(() => clients[clientIndex++]!);
+    const host = new MainWireStudioHemodynamicAnalysisHostV1({
+      artifacts: stored.artifacts,
+      createClient,
+      hostId: "dispose-quarantine-host",
+    });
+
+    const firstSession = await host.restoreSettledSource(source);
+    await expect(host.disposeSession(firstSession))
+      .rejects.toThrow(/analysis source disposal receipt mismatch/);
+    expect(firstTerminate).toHaveBeenCalledTimes(1);
+
+    const secondSession = await host.restoreSettledSource(source);
+    expect(secondSession.sessionId).not.toBe(firstSession.sessionId);
+    expect(createClient).toHaveBeenCalledTimes(2);
+    await expect(host.disposeSession(secondSession)).resolves.toBeUndefined();
+
+    host.terminate();
+    expect(firstTerminate).toHaveBeenCalledTimes(1);
+    expect(secondTerminate).toHaveBeenCalledTimes(1);
+    expect(firstRequest.mock.calls.map(([command]) => command.kind)).toEqual([
+      "restoreExactSessionV4",
+      "disposeSession",
+    ]);
+    expect(secondRequest.mock.calls.map(([command]) => command.kind)).toEqual([
+      "restoreExactSessionV4",
+      "disposeSession",
+    ]);
+  });
+});
+
 async function createBaseFixtureV1() {
   const session = await createMainWireScientificSessionV1();
   const step = session.step(0.002);
@@ -1777,6 +2145,176 @@ function frameAtV1(
 
 function mutableCloneV1(value: unknown): any {
   return JSON.parse(JSON.stringify(value));
+}
+
+function alternateSha256V1(value: string): string {
+  return value.startsWith("0") ? `1${value.slice(1)}` : `0${value.slice(1)}`;
+}
+
+function hemodynamicSourceIdentityV1(
+  base: BaseFixtureV1,
+): MainWireScientificProtocolSourceIdentityV1 {
+  return Object.freeze({
+    revision: base.checkpoint.transaction.revision,
+    acceptedTimeSec: base.checkpoint.transaction.acceptedTimeSec,
+    fixedTotalBloodVolumeMl:
+      base.sessionInput.initialization.fixedTotalBloodVolumeMl,
+  });
+}
+
+function hemodynamicJobSnapshotV1(
+  source: MainWireScientificProtocolSourceIdentityV1,
+  sequence: number,
+  status: MainWireScientificHemodynamicJobSnapshotV2["status"],
+  stage: MainWireScientificHemodynamicJobSnapshotV2["stage"],
+): MainWireScientificHemodynamicJobSnapshotV2 {
+  return Object.freeze({
+    jobId: "host-job-1",
+    detailMode: "compare",
+    sequence,
+    status,
+    stage,
+    source,
+    baselinePeriodicity: "period1-converged",
+    rightVascularFunction: hemodynamicVascularCurveV1("right"),
+    leftVascularFunction: hemodynamicVascularCurveV1("left"),
+    preloadPointEvidence: Object.freeze([]),
+    fastPreloadPreview: emptyMainWireScientificFastTbvPreviewV1({
+      source,
+      sourceFingerprint: "host-lifecycle-source",
+    }),
+    progress: Object.freeze({
+      completedPointCount: sequence,
+      plannedPointCountLowerBound: 2,
+      activeDirections: status === "running"
+        ? Object.freeze(["lower-volume" as const])
+        : Object.freeze([]),
+      completedBeatCount: sequence,
+      fastPreviewCompletedPointCount: sequence,
+      fastPreviewPlannedPointCount: 9,
+    }),
+    result: null,
+    errorMessage: null,
+  });
+}
+
+function hemodynamicVascularCurveV1(
+  side: MainWireScientificVascularFunctionCurveV1["side"],
+): MainWireScientificVascularFunctionCurveV1 {
+  return Object.freeze({
+    side,
+    xSemantics: side === "right"
+      ? "mean-transmural-right-atrial-pressure-cvp-model-equivalent"
+      : "mean-transmural-left-atrial-pressure-pcwp-surrogate",
+    ySemantics: side === "right"
+      ? "systemic-venous-return-l-per-min"
+      : "pulmonary-venous-return-l-per-min",
+    pressureReferenceOffsetMmHg: 0,
+    fillingPressureAbsoluteMmHg: 7,
+    fillingPressureTransmuralMmHg: 7,
+    points: Object.freeze([]),
+  });
+}
+
+function exactRestoreFrameV1(
+  base: BaseFixtureV1,
+): MainWireScientificObservableFrameV1 {
+  return Object.freeze({
+    ...base.frame,
+    source: "exact-checkpoint-restore",
+    revision: base.checkpoint.transaction.revision,
+    acceptedTimeSec: base.checkpoint.transaction.acceptedTimeSec,
+  });
+}
+
+function analysisSuccessResponseBaseV1(
+  command: ScientificCommandV1,
+  base: BaseFixtureV1,
+) {
+  return {
+    protocolId: SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+    ok: true as const,
+    requestId: command.requestId,
+    sessionId: command.sessionId,
+    releaseRef: base.checkpoint.releaseRef,
+    sessionOrigin: {
+      kind: "control-aware-exact-checkpoint-v4-restore" as const,
+      checkpointSchemaVersion: 4 as const,
+      checkpointSha256: base.checkpoint.checkpointSha256,
+      baseSessionInputSha256: base.sessionInputSha256,
+      controlTargetStateSha256:
+        base.checkpoint.controlTargetStateSha256,
+      parameterEpoch: base.checkpoint.parameterEpoch,
+    },
+    error: null,
+  };
+}
+
+function analysisRestoreResponseV1(
+  command: Extract<ScientificCommandV1, { kind: "restoreExactSessionV4" }>,
+  base: BaseFixtureV1,
+): MainWireScientificWorkerResponseV1 {
+  const sourceIdentity = hemodynamicSourceIdentityV1(base);
+  return {
+    ...analysisSuccessResponseBaseV1(command, base),
+    commandKind: command.kind,
+    payload: {
+      kind: "sessionRestoredV4",
+      researchControlContext: {
+        stateIdentity: {
+          revision: sourceIdentity.revision,
+          acceptedTimeSec: sourceIdentity.acceptedTimeSec,
+          totalBloodVolumeMl: sourceIdentity.fixedTotalBloodVolumeMl,
+        },
+        controlState: base.checkpoint.controlTargetState,
+        parameterEpoch: base.checkpoint.parameterEpoch,
+      },
+      observableFrame: exactRestoreFrameV1(base),
+    },
+  } as MainWireScientificWorkerResponseV1;
+}
+
+function analysisDisposeResponseV1(
+  command: Extract<ScientificCommandV1, { kind: "disposeSession" }>,
+  base: BaseFixtureV1,
+  disposedSessionId = command.sessionId,
+): MainWireScientificWorkerResponseV1 {
+  return {
+    ...analysisSuccessResponseBaseV1(command, base),
+    commandKind: command.kind,
+    payload: {
+      kind: "sessionDisposed",
+      disposedSessionId,
+    },
+  } as MainWireScientificWorkerResponseV1;
+}
+
+async function caughtWithoutUnhandledRejectionV1(
+  operation: () => Promise<unknown>,
+): Promise<unknown> {
+  const unhandled: unknown[] = [];
+  const recordUnhandled = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", recordUnhandled);
+  try {
+    const outcome = await operation().then(
+      () => Object.freeze({
+        status: "fulfilled" as const,
+        error: null,
+      }),
+      (error: unknown) => Object.freeze({
+        status: "rejected" as const,
+        error,
+      }),
+    );
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(outcome.status).toBe("rejected");
+    expect(unhandled).toEqual([]);
+    return outcome.error;
+  } finally {
+    process.off("unhandledRejection", recordUnhandled);
+  }
 }
 
 function cyclePhase01V1(timeSec: number): number {

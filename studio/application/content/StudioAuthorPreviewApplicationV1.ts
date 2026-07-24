@@ -2,6 +2,7 @@ import {
   STUDIO_AUTHOR_DRAFT_V1_SCHEMA_ID,
   STUDIO_DOCUMENT_REVISION_V1_SCHEMA_ID,
   STUDIO_EXPERIMENT_REVISION_V1_SCHEMA_ID,
+  STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
   STUDIO_READER_BRIEF_V1_SCHEMA_ID,
   STUDIO_READER_PREVIEW_MANIFEST_V1_SCHEMA_ID,
   STUDIO_RESOLVED_READER_EXPERIMENT_V1_SCHEMA_ID,
@@ -14,6 +15,7 @@ import {
   type ResolvedReaderExperimentPlacementV1,
   type StudioAuthorDraftV1,
   type StudioDocumentBlockV1,
+  type StudioGraphPaneSpecV1,
   type StudioReaderPreviewIdV1,
 } from "@/studio/contracts/v1";
 
@@ -50,6 +52,19 @@ export type UpdateStudioAuthorTextBlockCommandV1 = Readonly<{
   expectedRevision: number;
   blockId: string;
   text: string;
+}>;
+
+export type ReplaceStudioAuthorDocumentContentCommandV1 = Readonly<{
+  expectedRevision: number;
+  title: string;
+  blocks: readonly StudioDocumentBlockV1[];
+}>;
+
+export type ReplaceStudioAuthorReaderBriefGraphPanesCommandV1 = Readonly<{
+  expectedRevision: number;
+  experimentId: string;
+  briefId: string;
+  graphPanes: readonly StudioGraphPaneSpecV1[];
 }>;
 
 export type MaterializeStudioReaderPreviewCommandV1 = Readonly<{
@@ -141,6 +156,139 @@ export class StudioAuthorPreviewApplicationV1 {
         blocks,
       },
     }, "$.draft");
+    return this.draft;
+  }
+
+  /**
+   * Commits one canonical Document Editor transaction.
+   *
+   * The complete candidate graph is validated before the owned draft changes,
+   * so a title edit, block edit, and reorder either advance together by one
+   * revision or leave the previous draft untouched.
+   */
+  replaceDocumentContent(
+    command: ReplaceStudioAuthorDocumentContentCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    const candidateAtCurrentRevision = validateStudioAuthorDraftV1({
+      ...this.draft,
+      document: {
+        ...this.draft.document,
+        title: command.title,
+        blocks: command.blocks,
+      },
+    });
+    if (
+      candidateAtCurrentRevision.document.title === this.draft.document.title
+      && sameDocumentBlocksV1(
+        candidateAtCurrentRevision.document.blocks,
+        this.draft.document.blocks,
+      )
+    ) {
+      return this.draft;
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...candidateAtCurrentRevision,
+      revision: nextRevisionV1(
+        this.draft.revision,
+        "$.draft.revision",
+      ),
+      document: {
+        ...candidateAtCurrentRevision.document,
+        revision: nextRevisionV1(
+          this.draft.document.revision,
+          "$.draft.document.revision",
+        ),
+      },
+    });
+    return this.draft;
+  }
+
+  /**
+   * Replaces the detached graph presentation captured for one Reader brief.
+   *
+   * A Brief belongs to its Experiment aggregate, so this advances the draft
+   * and Experiment revisions together while leaving the Document revision
+   * unchanged. Validation and cloning occur before the owned draft changes.
+   */
+  replaceReaderBriefGraphPanes(
+    command: ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    requiredPortableIdV1(
+      command.experimentId,
+      "$.command.experimentId",
+    );
+    requiredPortableIdV1(command.briefId, "$.command.briefId");
+    const experimentIndex = this.draft.experiments.findIndex(
+      ({ experimentId }) => experimentId === command.experimentId,
+    );
+    if (experimentIndex < 0) {
+      throw validationErrorV1(
+        "$.command.experimentId",
+        `unknown experiment ${command.experimentId}`,
+      );
+    }
+    const currentExperiment = this.draft.experiments[experimentIndex]!;
+    const briefIndex = currentExperiment.readerBriefs.findIndex(
+      ({ briefId }) => briefId === command.briefId,
+    );
+    if (briefIndex < 0) {
+      throw validationErrorV1(
+        "$.command.briefId",
+        `unknown Reader brief ${command.briefId}`,
+      );
+    }
+
+    const candidateAtCurrentRevision = validateStudioAuthorDraftV1({
+      ...this.draft,
+      experiments: this.draft.experiments.map((experiment, index) =>
+        index !== experimentIndex
+          ? experiment
+          : {
+              ...experiment,
+              readerBriefs: experiment.readerBriefs.map((brief, index) =>
+                index !== briefIndex
+                  ? brief
+                  : {
+                      ...brief,
+                      graphPanes: command.graphPanes,
+                    }),
+            }),
+    });
+    const candidateExperiment =
+      candidateAtCurrentRevision.experiments[experimentIndex]!;
+    const candidateBrief = candidateExperiment.readerBriefs[briefIndex]!;
+    const currentBrief = currentExperiment.readerBriefs[briefIndex]!;
+    if (
+      sameSerializableValueV1(
+        candidateBrief.graphPanes,
+        currentBrief.graphPanes,
+      )
+    ) {
+      return this.draft;
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...candidateAtCurrentRevision,
+      revision: nextRevisionV1(
+        this.draft.revision,
+        "$.draft.revision",
+      ),
+      experiments: candidateAtCurrentRevision.experiments.map(
+        (experiment, index) =>
+          index !== experimentIndex
+            ? experiment
+            : {
+                ...experiment,
+                revision: nextRevisionV1(
+                  currentExperiment.revision,
+                  `$.draft.experiments[${experimentIndex}].revision`,
+                ),
+              },
+      ),
+    });
     return this.draft;
   }
 
@@ -283,6 +431,63 @@ function sameRuntimeSourceV1(
   return left.kind === right.kind
     && left.sourceId === right.sourceId
     && left.qualification === right.qualification;
+}
+
+function sameDocumentBlocksV1(
+  left: readonly StudioDocumentBlockV1[],
+  right: readonly StudioDocumentBlockV1[],
+): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((block, index) => {
+    const other = right[index];
+    if (
+      other === undefined
+      || block.blockId !== other.blockId
+      || block.kind !== other.kind
+    ) {
+      return false;
+    }
+    if (block.kind === "experiment-placement") {
+      return other.kind === "experiment-placement"
+        && block.experimentId === other.experimentId
+        && block.readerBriefId === other.readerBriefId;
+    }
+    if (other.kind === "experiment-placement" || block.text !== other.text) {
+      return false;
+    }
+    return block.kind === "paragraph"
+      || (
+        other.kind === "heading"
+        && block.level === other.level
+      );
+  });
+}
+
+function sameSerializableValueV1(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (
+    left === null
+    || right === null
+    || typeof left !== "object"
+    || typeof right !== "object"
+  ) {
+    return false;
+  }
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left)
+      && Array.isArray(right)
+      && left.length === right.length
+      && left.every((value, index) =>
+        sameSerializableValueV1(value, right[index]));
+  }
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord);
+  const rightKeys = Object.keys(rightRecord);
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key) =>
+      Object.prototype.hasOwnProperty.call(rightRecord, key)
+      && sameSerializableValueV1(leftRecord[key], rightRecord[key]));
 }
 
 /**
@@ -496,7 +701,7 @@ function validateReaderBriefV1(
     "schemaId",
     "briefId",
     "extent",
-    "graph",
+    "graphPanes",
     "instantaneousReadbacks",
     "controls",
   ], path);
@@ -507,31 +712,17 @@ function validateReaderBriefV1(
   if (brief.extent !== "inflow") {
     throw validationErrorV1(`${path}.extent`, "must be inflow");
   }
-  assertExactKeysV1(brief.graph, ["kind", "signals"], `${path}.graph`);
-  if (brief.graph.kind !== "time-series") {
+  if (!Array.isArray(brief.graphPanes) || brief.graphPanes.length === 0) {
     throw validationErrorV1(
-      `${path}.graph.kind`,
-      "must be time-series",
+      `${path}.graphPanes`,
+      "must contain at least one explicit graph pane",
     );
   }
-  if (!Array.isArray(brief.graph.signals) || brief.graph.signals.length === 0) {
-    throw validationErrorV1(
-      `${path}.graph.signals`,
-      "must contain explicit signal specifications",
-    );
-  }
-  const signalIds = new Set<string>();
-  brief.graph.signals.forEach((signal, index) => {
-    const signalPath = `${path}.graph.signals[${index}]`;
-    assertExactKeysV1(signal, ["signalId", "label", "unit"], signalPath);
-    const signalId = requiredPortableIdV1(
-      signal.signalId,
-      `${signalPath}.signalId`,
-    );
-    assertUniqueIdV1(signalIds, signalId, `${signalPath}.signalId`);
-    requiredTrimmedStringV1(signal.label, `${signalPath}.label`);
-    requiredTrimmedStringV1(signal.unit, `${signalPath}.unit`);
-  });
+  const signalIds = validateGraphPanesV1(
+    brief.graphPanes,
+    `${path}.graphPanes`,
+    scenarioIds,
+  );
   if (!Array.isArray(brief.instantaneousReadbacks)) {
     throw validationErrorV1(
       `${path}.instantaneousReadbacks`,
@@ -694,6 +885,386 @@ function validateReaderBriefV1(
       }
     });
   });
+}
+
+function validateGraphPanesV1(
+  panes: readonly StudioGraphPaneSpecV1[],
+  path: string,
+  experimentScenarioIds: ReadonlySet<string>,
+): Set<string> {
+  const paneIds = new Set<string>();
+  const waveformSignalIds = new Set<string>();
+  panes.forEach((pane, paneIndex) => {
+    const panePath = `${path}[${paneIndex}]`;
+    assertExactKeysV1(pane, [
+      "schemaId",
+      "paneId",
+      "title",
+      "kind",
+      "scenarios",
+      "presentation",
+    ], panePath);
+    if (pane.schemaId !== STUDIO_GRAPH_PANE_V1_SCHEMA_ID) {
+      throw validationErrorV1(
+        `${panePath}.schemaId`,
+        "schema identity mismatch",
+      );
+    }
+    const paneId = requiredPortableIdV1(
+      pane.paneId,
+      `${panePath}.paneId`,
+    );
+    assertUniqueIdV1(paneIds, paneId, `${panePath}.paneId`);
+    requiredTrimmedStringV1(pane.title, `${panePath}.title`);
+    if (
+      pane.kind !== "waveform"
+      && pane.kind !== "pv-loop"
+      && pane.kind !== "guyton-left"
+      && pane.kind !== "guyton-right"
+    ) {
+      throw validationErrorV1(
+        `${panePath}.kind`,
+        "must be waveform, pv-loop, guyton-left, or guyton-right",
+      );
+    }
+    if (!Array.isArray(pane.scenarios) || pane.scenarios.length === 0) {
+      throw validationErrorV1(
+        `${panePath}.scenarios`,
+        "must explicitly contain at least one scenario",
+      );
+    }
+    const paneScenarioIds = new Set<string>();
+    pane.scenarios.forEach((scenario, scenarioIndex) => {
+      const scenarioPath = `${panePath}.scenarios[${scenarioIndex}]`;
+      assertExactKeysV1(scenario, [
+        "scenarioId",
+        "label",
+        "color",
+        "items",
+      ], scenarioPath);
+      const scenarioId = requiredPortableIdV1(
+        scenario.scenarioId,
+        `${scenarioPath}.scenarioId`,
+      );
+      assertUniqueIdV1(
+        paneScenarioIds,
+        scenarioId,
+        `${scenarioPath}.scenarioId`,
+      );
+      if (!experimentScenarioIds.has(scenarioId)) {
+        throw validationErrorV1(
+          `${scenarioPath}.scenarioId`,
+          `dangling graph scenario ${scenarioId}`,
+        );
+      }
+      requiredTrimmedStringV1(
+        scenario.label,
+        `${scenarioPath}.label`,
+      );
+      requiredTrimmedStringV1(
+        scenario.color,
+        `${scenarioPath}.color`,
+      );
+      if (!Array.isArray(scenario.items)) {
+        throw validationErrorV1(
+          `${scenarioPath}.items`,
+          "must be an array",
+        );
+      }
+      const isGuyton =
+        pane.kind === "guyton-left" || pane.kind === "guyton-right";
+      if (isGuyton && scenario.items.length !== 0) {
+        throw validationErrorV1(
+          `${scenarioPath}.items`,
+          "Guyton/Starling panes derive curves and must not carry signal items",
+        );
+      }
+      if (!isGuyton && scenario.items.length === 0) {
+        throw validationErrorV1(
+          `${scenarioPath}.items`,
+          "waveform and PV-loop panes must contain explicit items",
+        );
+      }
+      const itemIds = new Set<string>();
+      scenario.items.forEach((item, itemIndex) => {
+        const itemPath = `${scenarioPath}.items[${itemIndex}]`;
+        assertExactKeysV1(
+          item,
+          ["itemId", "label", "unit", "color"],
+          itemPath,
+        );
+        const itemId = requiredPortableIdV1(
+          item.itemId,
+          `${itemPath}.itemId`,
+        );
+        assertUniqueIdV1(itemIds, itemId, `${itemPath}.itemId`);
+        requiredTrimmedStringV1(item.label, `${itemPath}.label`);
+        requiredTrimmedStringV1(item.color, `${itemPath}.color`);
+        if (item.unit !== null) {
+          requiredTrimmedStringV1(item.unit, `${itemPath}.unit`);
+        } else if (pane.kind === "waveform") {
+          throw validationErrorV1(
+            `${itemPath}.unit`,
+            "waveform items must carry an explicit unit",
+          );
+        }
+        if (pane.kind === "waveform") waveformSignalIds.add(itemId);
+      });
+    });
+    validateGraphPanePresentationV1(
+      pane,
+      `${panePath}.presentation`,
+    );
+  });
+  return waveformSignalIds;
+}
+
+function validateGraphPanePresentationV1(
+  pane: StudioGraphPaneSpecV1,
+  path: string,
+): void {
+  const presentation = pane.presentation;
+  assertExactKeysV1(presentation, [
+    "showLegend",
+    "legendPosition",
+    "showGuides",
+    "timeWindowMs",
+    "pvBeatHistoryCount",
+    "pvBeatHistoryMode",
+    "pvParameterHistoryCount",
+    "pvRelationDisplayMode",
+    "pvRelationPressureBasis",
+    "pvRelationShowSamplePoints",
+    "hemodynamicDetailMode",
+    "hemodynamicParameterHistoryCount",
+    "hemodynamicAllowNegativeFillingPressure",
+  ], path);
+  requiredBooleanV1(presentation.showLegend, `${path}.showLegend`);
+  requiredBooleanV1(presentation.showGuides, `${path}.showGuides`);
+  if (presentation.legendPosition !== null) {
+    assertExactKeysV1(
+      presentation.legendPosition,
+      ["xPct", "yPct"],
+      `${path}.legendPosition`,
+    );
+    unitIntervalNumberV1(
+      presentation.legendPosition.xPct,
+      `${path}.legendPosition.xPct`,
+    );
+    unitIntervalNumberV1(
+      presentation.legendPosition.yPct,
+      `${path}.legendPosition.yPct`,
+    );
+  }
+  nullableNonnegativeSafeIntegerV1(
+    presentation.pvBeatHistoryCount,
+    `${path}.pvBeatHistoryCount`,
+  );
+  if (
+    presentation.pvParameterHistoryCount !== null
+    && presentation.pvParameterHistoryCount !== 0
+    && presentation.pvParameterHistoryCount !== 1
+    && presentation.pvParameterHistoryCount !== 3
+    && presentation.pvParameterHistoryCount !== 5
+    && presentation.pvParameterHistoryCount !== 6
+  ) {
+    throw validationErrorV1(
+      `${path}.pvParameterHistoryCount`,
+      "must be null, 0, 1, 3, 5, or 6",
+    );
+  }
+  if (
+    presentation.pvBeatHistoryMode !== null
+    && presentation.pvBeatHistoryMode !== "fade"
+    && presentation.pvBeatHistoryMode !== "persistent"
+  ) {
+    throw validationErrorV1(
+      `${path}.pvBeatHistoryMode`,
+      "must be null, fade, or persistent",
+    );
+  }
+  if (
+    presentation.pvRelationDisplayMode !== null
+    && presentation.pvRelationDisplayMode !== "off"
+    && presentation.pvRelationDisplayMode !== "standard"
+    && presentation.pvRelationDisplayMode !== "research"
+  ) {
+    throw validationErrorV1(
+      `${path}.pvRelationDisplayMode`,
+      "must be null, off, standard, or research",
+    );
+  }
+  if (
+    presentation.pvRelationPressureBasis !== null
+    && presentation.pvRelationPressureBasis !== "intracavitary"
+    && presentation.pvRelationPressureBasis !== "transmural"
+  ) {
+    throw validationErrorV1(
+      `${path}.pvRelationPressureBasis`,
+      "must be null, intracavitary, or transmural",
+    );
+  }
+  nullableBooleanV1(
+    presentation.pvRelationShowSamplePoints,
+    `${path}.pvRelationShowSamplePoints`,
+  );
+  if (
+    presentation.hemodynamicDetailMode !== null
+    && presentation.hemodynamicDetailMode !== "standard"
+    && presentation.hemodynamicDetailMode !== "settled-reference"
+    && presentation.hemodynamicDetailMode !== "compare"
+  ) {
+    throw validationErrorV1(
+      `${path}.hemodynamicDetailMode`,
+      "must be null, standard, settled-reference, or compare",
+    );
+  }
+  if (
+    presentation.hemodynamicParameterHistoryCount !== null
+    && presentation.hemodynamicParameterHistoryCount !== 0
+    && presentation.hemodynamicParameterHistoryCount !== 1
+    && presentation.hemodynamicParameterHistoryCount !== 3
+    && presentation.hemodynamicParameterHistoryCount !== 5
+  ) {
+    throw validationErrorV1(
+      `${path}.hemodynamicParameterHistoryCount`,
+      "must be null, 0, 1, 3, or 5",
+    );
+  }
+  nullableBooleanV1(
+    presentation.hemodynamicAllowNegativeFillingPressure,
+    `${path}.hemodynamicAllowNegativeFillingPressure`,
+  );
+
+  if (pane.kind === "waveform") {
+    positiveFiniteNumberV1(
+      presentation.timeWindowMs,
+      `${path}.timeWindowMs`,
+    );
+    assertNullPresentationFieldsV1(presentation, path, [
+      "pvBeatHistoryCount",
+      "pvBeatHistoryMode",
+      "pvParameterHistoryCount",
+      "pvRelationDisplayMode",
+      "pvRelationPressureBasis",
+      "pvRelationShowSamplePoints",
+      "hemodynamicDetailMode",
+      "hemodynamicParameterHistoryCount",
+      "hemodynamicAllowNegativeFillingPressure",
+    ]);
+    return;
+  }
+  if (presentation.timeWindowMs !== null) {
+    throw validationErrorV1(
+      `${path}.timeWindowMs`,
+      "must be null outside waveform panes",
+    );
+  }
+  if (pane.kind === "pv-loop") {
+    if (
+      presentation.pvBeatHistoryCount === null
+      || presentation.pvBeatHistoryMode === null
+      || presentation.pvParameterHistoryCount === null
+      || presentation.pvRelationDisplayMode === null
+      || presentation.pvRelationPressureBasis === null
+      || presentation.pvRelationShowSamplePoints === null
+    ) {
+      throw validationErrorV1(
+        path,
+        "PV-loop presentation fields must be explicit",
+      );
+    }
+    assertNullPresentationFieldsV1(presentation, path, [
+      "hemodynamicDetailMode",
+      "hemodynamicParameterHistoryCount",
+      "hemodynamicAllowNegativeFillingPressure",
+    ]);
+    return;
+  }
+  assertNullPresentationFieldsV1(presentation, path, [
+    "pvBeatHistoryCount",
+    "pvBeatHistoryMode",
+    "pvParameterHistoryCount",
+    "pvRelationDisplayMode",
+    "pvRelationPressureBasis",
+    "pvRelationShowSamplePoints",
+  ]);
+  if (
+    presentation.hemodynamicDetailMode === null
+    || presentation.hemodynamicParameterHistoryCount === null
+    || presentation.hemodynamicAllowNegativeFillingPressure === null
+  ) {
+    throw validationErrorV1(
+      path,
+      "Guyton/Starling presentation fields must be explicit",
+    );
+  }
+}
+
+type StudioGraphPanePresentationV1 =
+  StudioGraphPaneSpecV1["presentation"];
+
+function assertNullPresentationFieldsV1(
+  presentation: StudioGraphPanePresentationV1,
+  path: string,
+  keys: readonly (keyof StudioGraphPanePresentationV1)[],
+): void {
+  for (const key of keys) {
+    if (presentation[key] !== null) {
+      throw validationErrorV1(
+        `${path}.${key}`,
+        "must be null for this graph pane kind",
+      );
+    }
+  }
+}
+
+function requiredBooleanV1(value: unknown, path: string): void {
+  if (typeof value !== "boolean") {
+    throw validationErrorV1(path, "must be a boolean");
+  }
+}
+
+function nullableBooleanV1(value: unknown, path: string): void {
+  if (value !== null && typeof value !== "boolean") {
+    throw validationErrorV1(path, "must be null or a boolean");
+  }
+}
+
+function unitIntervalNumberV1(value: unknown, path: string): void {
+  if (
+    typeof value !== "number"
+    || !Number.isFinite(value)
+    || value < 0
+    || value > 1
+  ) {
+    throw validationErrorV1(path, "must be finite and between 0 and 1");
+  }
+}
+
+function positiveFiniteNumberV1(value: unknown, path: string): void {
+  if (
+    typeof value !== "number"
+    || !Number.isFinite(value)
+    || value <= 0
+  ) {
+    throw validationErrorV1(path, "must be a positive finite number");
+  }
+}
+
+function nullableNonnegativeSafeIntegerV1(
+  value: unknown,
+  path: string,
+): void {
+  if (
+    value !== null
+    && (!Number.isSafeInteger(value) || (value as number) < 0)
+  ) {
+    throw validationErrorV1(
+      path,
+      "must be null or a nonnegative safe integer",
+    );
+  }
 }
 
 function validatePlacementsV1(

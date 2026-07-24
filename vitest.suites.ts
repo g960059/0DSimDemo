@@ -7,8 +7,8 @@
  * that every *.test.ts file belongs to exactly one suite.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 131;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 55;
+export const FAST_SUITE_FILE_BUDGET = 133;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 57;
 
 export const fastTests = [
   "__tests__/caseCloud.test.ts",
@@ -99,6 +99,8 @@ export const fastTests = [
   "__tests__/scientificProductReaderExperimentControllerV1.test.ts",
   "__tests__/scientificProductStudioBootstrapV1.test.ts",
   "__tests__/scientificProductStudioObservableFrameProjectionV1.test.ts",
+  "__tests__/scientificProductStudioHemodynamicAnalysisCoordinatorV1.test.ts",
+  "__tests__/scientificProductStudioScenarioRegistryV1.test.ts",
   "__tests__/scientificProductStudioScenarioControllerV1.test.ts",
   "__tests__/scientificHemodynamicProtocolPanesV1.test.ts",
   "__tests__/scientificWorkbenchChartDomainsV1.test.ts",
@@ -188,6 +190,8 @@ export const prSmokeTests = [
   "__tests__/scientificProductReaderExperimentControllerV1.test.ts",
   "__tests__/scientificProductStudioBootstrapV1.test.ts",
   "__tests__/scientificProductStudioObservableFrameProjectionV1.test.ts",
+  "__tests__/scientificProductStudioHemodynamicAnalysisCoordinatorV1.test.ts",
+  "__tests__/scientificProductStudioScenarioRegistryV1.test.ts",
   "__tests__/scientificProductStudioScenarioControllerV1.test.ts",
   "__tests__/scientificWorkbenchChartDomainsV1.test.ts",
   "__tests__/scientificWorkbenchDisplayClockV1.test.ts",

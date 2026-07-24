@@ -29,9 +29,11 @@ import type {
   MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import {
+  STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
   STUDIO_READER_BRIEF_V1_SCHEMA_ID,
   type ReaderPreviewManifestV1,
   type ReaderBriefV1,
+  type StudioGraphPaneSpecV1,
 } from "@/studio/contracts/v1/content";
 import {
   StudioAuthorPreviewApplicationV1,
@@ -92,6 +94,7 @@ describe("Scientific Product Reader experiment controller V1", () => {
     const unsubscribe = controller.subscribe(listener);
     controller.startPresentation();
     const started = controller.getSnapshot();
+    expect(fixture.resumeLive).toHaveBeenCalledTimes(1);
     expect(listener).toHaveBeenCalledTimes(1);
     expect(started).toMatchObject({
       phase: "running",
@@ -217,6 +220,30 @@ describe("Scientific Product Reader experiment controller V1", () => {
     expect(readOnly.getSnapshot().allowedControls).toEqual([]);
     readOnly.dispose();
   });
+
+  it("accepts workspace PV ids and chamber aliases while rejecting forged items", async () => {
+    const fixture = await readerRuntimeFixtureV1();
+    for (const itemId of ["lv-primary", "la", "RA", "Lv", "rV"]) {
+      const controller =
+        ScientificProductReaderExperimentControllerV1.create({
+          brief: withPvLoopItemV1(readerBriefV1(), itemId),
+          runtime: fixture.runtime,
+        });
+      controller.dispose();
+    }
+
+    expect(() =>
+      ScientificProductReaderExperimentControllerV1.create({
+        brief: withPvLoopItemV1(
+          readerBriefV1(),
+          "forged-pressure-volume-trajectory",
+        ),
+        runtime: fixture.runtime,
+      })
+    ).toThrow(
+      /PV-loop item forged-pressure-volume-trajectory is not supported/,
+    );
+  });
 });
 
 describe("Studio Reader Preview runtime binding V1", () => {
@@ -310,6 +337,7 @@ function mutableManifestV1(
 async function readerRuntimeFixtureV1(): Promise<Readonly<{
   runtime: ScientificProductReaderRuntimePortV1;
   commitControlValue: ReturnType<typeof vi.fn>;
+  resumeLive: ReturnType<typeof vi.fn>;
   seedFrame: MainWireScientificObservableFrameV1;
   currentFrame: MainWireScientificObservableFrameV1;
   publish: (
@@ -348,6 +376,7 @@ async function readerRuntimeFixtureV1(): Promise<Readonly<{
   );
   const ownerToken = Symbol("reader-facade-test-owner");
   const commitControlValue = vi.fn();
+  const resumeLive = vi.fn();
   const noOp = () => undefined;
   const actionRef: ScientificWorkbenchResearchControlOwnerActionRefV0 = {
     current: Object.freeze({
@@ -361,7 +390,7 @@ async function readerRuntimeFixtureV1(): Promise<Readonly<{
       applyTransition: noOp,
       cancelSteady: noOp,
       pauseLive: noOp,
-      resumeLive: noOp,
+      resumeLive,
       resetLiveOrFailure: noOp,
     }),
   };
@@ -380,10 +409,31 @@ async function readerRuntimeFixtureV1(): Promise<Readonly<{
     options,
   );
   publish([seedFrame, currentFrame]);
+  const workspaceDocument = Object.freeze({
+    content: Object.freeze({
+      panels: Object.freeze([
+        Object.freeze({
+          view: Object.freeze({
+            kind: "pressure-volume" as const,
+            trajectories: Object.freeze([
+              Object.freeze({
+                trajectoryId: "lv-primary",
+                label: "Primary LV trajectory",
+                volumeObservableId: "hemodynamics.volume.LV" as const,
+                pressureObservableId:
+                  "hemodynamics.pressure.absolute.LV" as const,
+              }),
+            ]),
+          }),
+        }),
+      ]),
+    }),
+  }) as unknown as ScientificProductReaderRuntimePortV1["workspaceDocument"];
 
   return Object.freeze({
     runtime: Object.freeze({
       scenarioId: SCENARIO_ID_V1,
+      workspaceDocument,
       controlStore: store,
       controller: Object.freeze({
         status: Object.freeze({
@@ -402,6 +452,7 @@ async function readerRuntimeFixtureV1(): Promise<Readonly<{
       }),
     }),
     commitControlValue,
+    resumeLive,
     seedFrame,
     currentFrame,
     publish,
@@ -472,16 +523,44 @@ function readerBriefV1(): ReaderBriefV1 {
     schemaId: STUDIO_READER_BRIEF_V1_SCHEMA_ID,
     briefId: "reader-brief/systemic-afterload",
     extent: "inflow",
-    graph: Object.freeze({
-      kind: "time-series",
-      signals: Object.freeze([
-        Object.freeze({
-          signalId: AO_PRESSURE_SIGNAL_ID_V1,
-          label: "Aortic pressure",
-          unit: "mmHg",
+    graphPanes: Object.freeze([
+      Object.freeze({
+        schemaId: STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
+        paneId: "reader-brief/systemic-afterload/waveform",
+        title: "Aortic pressure",
+        kind: "waveform",
+        scenarios: Object.freeze([
+          Object.freeze({
+            scenarioId: SCENARIO_ID_V1,
+            label: "Reader scenario",
+            color: "#38bdf8",
+            items: Object.freeze([
+              Object.freeze({
+                itemId: AO_PRESSURE_SIGNAL_ID_V1,
+                label: "Aortic pressure",
+                unit: "mmHg",
+                color: "#38bdf8",
+              }),
+            ]),
+          }),
+        ]),
+        presentation: Object.freeze({
+          showLegend: true,
+          legendPosition: Object.freeze({ xPct: 0.65, yPct: 0.05 }),
+          showGuides: false,
+          timeWindowMs: 5_000,
+          pvBeatHistoryCount: null,
+          pvBeatHistoryMode: null,
+          pvParameterHistoryCount: null,
+          pvRelationDisplayMode: null,
+          pvRelationPressureBasis: null,
+          pvRelationShowSamplePoints: null,
+          hemodynamicDetailMode: null,
+          hemodynamicParameterHistoryCount: null,
+          hemodynamicAllowNegativeFillingPressure: null,
         }),
-      ]),
-    }),
+      }),
+    ]),
     instantaneousReadbacks: Object.freeze([
       Object.freeze({
         readbackId: "readback/lv-volume",
@@ -549,5 +628,51 @@ function withParameterKeyV1(
         }),
       }),
     ]),
+  });
+}
+
+function withPvLoopItemV1(
+  brief: ReaderBriefV1,
+  itemId: string,
+): ReaderBriefV1 {
+  const pane: StudioGraphPaneSpecV1 = Object.freeze({
+    schemaId: STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
+    paneId: "reader-brief/systemic-afterload/pv-loop",
+    title: "Pressure–volume loop",
+    kind: "pv-loop",
+    scenarios: Object.freeze([
+      Object.freeze({
+        scenarioId: SCENARIO_ID_V1,
+        label: "Reader scenario",
+        color: "#38bdf8",
+        items: Object.freeze([
+          Object.freeze({
+            itemId,
+            label: `${itemId} pressure–volume loop`,
+            unit: null,
+            color: "#38bdf8",
+          }),
+        ]),
+      }),
+    ]),
+    presentation: Object.freeze({
+      showLegend: true,
+      legendPosition: null,
+      showGuides: true,
+      timeWindowMs: null,
+      pvBeatHistoryCount: 8,
+      pvBeatHistoryMode: "fade",
+      pvParameterHistoryCount: 6,
+      pvRelationDisplayMode: "off",
+      pvRelationPressureBasis: "intracavitary",
+      pvRelationShowSamplePoints: false,
+      hemodynamicDetailMode: null,
+      hemodynamicParameterHistoryCount: null,
+      hemodynamicAllowNegativeFillingPressure: null,
+    }),
+  });
+  return Object.freeze({
+    ...brief,
+    graphPanes: Object.freeze([...brief.graphPanes, pane]),
   });
 }

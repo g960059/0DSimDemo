@@ -15,6 +15,8 @@ import {
 import {
   STUDIO_RESOLVED_READER_EXPERIMENT_V1_SCHEMA_ID,
   type StudioAuthorDraftV1,
+  type StudioDocumentBlockV1,
+  type StudioGraphPaneSpecV1,
 } from "@/studio/contracts/v1";
 
 describe("StudioAuthorPreviewApplicationV1", () => {
@@ -50,6 +52,228 @@ describe("StudioAuthorPreviewApplicationV1", () => {
       kind: "paragraph",
       text: "全身血管抵抗と後負荷の関係を、二つの圧波形で観察します。",
     });
+  });
+
+  it("atomically replaces canonical document content in one revision", () => {
+    let previewOrdinal = 0;
+    const application = new StudioAuthorPreviewApplicationV1({
+      initialDraft: SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
+      idFactory: () => `document-editor-preview-${++previewOrdinal}`,
+    });
+    const originalPreview = application.materializePreview({
+      expectedRevision: 0,
+    });
+    const sourceBlocks = structuredClone(
+      application.getDraftSnapshot().document.blocks,
+    ) as StudioDocumentBlockV1[];
+    const placement = sourceBlocks.find(
+      (block) => block.kind === "experiment-placement",
+    )!;
+    const remaining = sourceBlocks
+      .filter((block) => block.blockId !== placement.blockId)
+      .map((block) =>
+        block.blockId === "afterload-introduction"
+          ? {
+              ...block,
+              text: "Atomic Document Editorで更新した導入文です。",
+            }
+          : block);
+    const commandBlocks: StudioDocumentBlockV1[] = [
+      {
+        blockId: "document-editor-added-heading",
+        kind: "heading",
+        level: 2,
+        text: "追加した観察項目",
+      },
+      placement,
+      ...remaining,
+    ];
+
+    const next = application.replaceDocumentContent({
+      expectedRevision: 0,
+      title: "Atomic Document Editorの題名",
+      blocks: commandBlocks,
+    });
+
+    expect(next).toMatchObject({
+      revision: 1,
+      document: {
+        revision: 1,
+        title: "Atomic Document Editorの題名",
+      },
+    });
+    expect(next.document.blocks.map(({ blockId }) => blockId).slice(0, 3))
+      .toEqual([
+        "document-editor-added-heading",
+        "afterload-experiment-placement",
+        "afterload-introduction",
+      ]);
+    expect(Object.isFrozen(next)).toBe(true);
+    expect(Object.isFrozen(next.document.blocks)).toBe(true);
+
+    commandBlocks[0] = {
+      blockId: "caller-mutated-after-commit",
+      kind: "paragraph",
+      text: "The stored draft must not alias this value.",
+    };
+    expect(application.getDraftSnapshot().document.blocks[0]).toMatchObject({
+      blockId: "document-editor-added-heading",
+      text: "追加した観察項目",
+    });
+
+    const unchanged = application.replaceDocumentContent({
+      expectedRevision: 1,
+      title: next.document.title,
+      blocks: next.document.blocks,
+    });
+    expect(unchanged).toBe(next);
+    expect(unchanged.revision).toBe(1);
+
+    const revisedPreview = application.materializePreview({
+      expectedRevision: 1,
+    });
+    expect(revisedPreview.source.revision).toBe(1);
+    expect(revisedPreview.resolvedReaderDocument.document.blocks[0])
+      .toMatchObject({
+        blockId: "document-editor-added-heading",
+      });
+    expect(originalPreview.source.revision).toBe(0);
+    expect(originalPreview.resolvedReaderDocument.document.title)
+      .toBe(
+        "全身血管抵抗を変えると左室と大動脈の圧はどう動くか",
+      );
+  });
+
+  it("rejects an invalid or stale atomic document transaction without partial mutation", () => {
+    const application = createApplicationV1();
+    const original = application.getDraftSnapshot();
+    const duplicateBlocks = [
+      ...original.document.blocks,
+      original.document.blocks[0]!,
+    ];
+
+    expect(() => application.replaceDocumentContent({
+      expectedRevision: 0,
+      title: "重複blockを含む更新",
+      blocks: duplicateBlocks,
+    })).toThrow(StudioAuthorPreviewValidationErrorV1);
+    expect(() => application.replaceDocumentContent({
+      expectedRevision: 0,
+      title: "重複blockを含む更新",
+      blocks: duplicateBlocks,
+    })).toThrow(/duplicate id/);
+    expect(application.getDraftSnapshot()).toBe(original);
+
+    const next = application.replaceDocumentContent({
+      expectedRevision: 0,
+      title: "有効なatomic更新",
+      blocks: original.document.blocks,
+    });
+    expect(next.revision).toBe(1);
+    expect(() => application.replaceDocumentContent({
+      expectedRevision: 0,
+      title: "古いEditorからの上書き",
+      blocks: next.document.blocks,
+    })).toThrow(StudioAuthorPreviewRevisionConflictErrorV1);
+    expect(application.getDraftSnapshot()).toBe(next);
+  });
+
+  it("atomically replaces detached Reader brief graph panes without revising the document", () => {
+    let previewOrdinal = 0;
+    const application = new StudioAuthorPreviewApplicationV1({
+      initialDraft: SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
+      idFactory: () => `brief-graph-preview-${++previewOrdinal}`,
+    });
+    const before = application.getDraftSnapshot();
+    const originalPreview = application.materializePreview({
+      expectedRevision: 0,
+    });
+    const sourcePanes =
+      before.experiments[0]!.readerBriefs[0]!.graphPanes;
+    const replacementPanes: StudioGraphPaneSpecV1[] = sourcePanes.map(
+      (pane, index) =>
+        index !== 0
+          ? structuredClone(pane)
+          : {
+              ...structuredClone(pane),
+              title: "Authorが固定した5秒の圧波形",
+              presentation: {
+                ...structuredClone(pane.presentation),
+                showLegend: false,
+                legendPosition: null,
+                timeWindowMs: 5_500,
+              },
+            },
+    );
+
+    const next = application.replaceReaderBriefGraphPanes({
+      expectedRevision: 0,
+      experimentId:
+        SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
+      briefId:
+        SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
+      graphPanes: replacementPanes,
+    });
+
+    expect(next.revision).toBe(1);
+    expect(next.document.revision).toBe(0);
+    expect(next.experiments[0]!.revision).toBe(1);
+    expect(
+      next.experiments[0]!.readerBriefs[0]!.graphPanes[0],
+    ).toMatchObject({
+      title: "Authorが固定した5秒の圧波形",
+      presentation: {
+        showLegend: false,
+        legendPosition: null,
+        timeWindowMs: 5_500,
+      },
+    });
+    replacementPanes[0] = structuredClone(replacementPanes[1]!);
+    expect(
+      application.getDraftSnapshot()
+        .experiments[0]!.readerBriefs[0]!.graphPanes[0]!.title,
+    ).toBe("Authorが固定した5秒の圧波形");
+
+    const unchanged = application.replaceReaderBriefGraphPanes({
+      expectedRevision: 1,
+      experimentId:
+        SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
+      briefId:
+        SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
+      graphPanes:
+        next.experiments[0]!.readerBriefs[0]!.graphPanes,
+    });
+    expect(unchanged).toBe(next);
+
+    const revisedPreview = application.materializePreview({
+      expectedRevision: 1,
+    });
+    expect(
+      revisedPreview.resolvedReaderDocument.placements[0]!
+        .readerBrief.graphPanes[0]!.title,
+    ).toBe("Authorが固定した5秒の圧波形");
+    expect(
+      originalPreview.resolvedReaderDocument.placements[0]!
+        .readerBrief.graphPanes[0]!.title,
+    ).toBe("左室圧と大動脈圧");
+
+    const invalidPanes = structuredClone(
+      next.experiments[0]!.readerBriefs[0]!.graphPanes,
+    ) as unknown as Array<Record<string, unknown>>;
+    const invalidPresentation = (
+      invalidPanes[0]!.presentation as Record<string, unknown>
+    );
+    invalidPresentation.unexpectedDefault = true;
+    expect(() => application.replaceReaderBriefGraphPanes({
+      expectedRevision: 1,
+      experimentId:
+        SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
+      briefId:
+        SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
+      graphPanes:
+        invalidPanes as unknown as readonly StudioGraphPaneSpecV1[],
+    })).toThrow(/keys must be exactly/);
+    expect(application.getDraftSnapshot()).toBe(next);
   });
 
   it("materializes a detached deeply frozen Reader input and preserves old previews", () => {
@@ -222,6 +446,26 @@ describe("StudioAuthorPreviewApplicationV1", () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
+  it("keeps workspace-specific portable PV trajectory ids in the document contract", () => {
+    const draft = mutableDraftV1();
+    pvLoopItemV1(draft).itemId = "lv-primary";
+    const application = new StudioAuthorPreviewApplicationV1({
+      initialDraft: draft as unknown as StudioAuthorDraftV1,
+      idFactory: () => "workspace-pv-preview",
+    });
+
+    const preview = application.materializePreview({
+      expectedRevision: 0,
+    });
+
+    expect(
+      preview.resolvedReaderDocument.placements[0]!
+        .readerBrief.graphPanes
+        .find(({ kind }) => kind === "pv-loop")!
+        .scenarios[0]!.items[0]!.itemId,
+    ).toBe("lv-primary");
+  });
+
   it.each([
     {
       name: "a dangling experiment placement",
@@ -272,6 +516,13 @@ describe("StudioAuthorPreviewApplicationV1", () => {
         binding.active = true;
       },
       message: /keys must be exactly/,
+    },
+    {
+      name: "a non-portable PV-loop item id",
+      mutate(draft: MutableDraftV1) {
+        pvLoopItemV1(draft).itemId = "not a portable trajectory id";
+      },
+      message: /must be a portable identifier/,
     },
   ])("fails closed while materializing $name", ({ mutate, message }) => {
     const draft = mutableDraftV1();
@@ -330,6 +581,14 @@ type MutableDraftV1 = {
       scenarioId: string;
     }>;
     readerBriefs: Array<{
+      graphPanes: Array<{
+        kind: string;
+        scenarios: Array<{
+          items: Array<{
+            itemId: string;
+          }>;
+        }>;
+      }>;
       controls: Array<{
         allowedValues: number[];
         initialValue: number;
@@ -354,4 +613,10 @@ function mutableDraftV1(): MutableDraftV1 {
 
 function controlV1(draft: MutableDraftV1) {
   return draft.experiments[0]!.readerBriefs[0]!.controls[0]!;
+}
+
+function pvLoopItemV1(draft: MutableDraftV1) {
+  return draft.experiments[0]!.readerBriefs[0]!.graphPanes
+    .find(({ kind }) => kind === "pv-loop")!
+    .scenarios[0]!.items[0]!;
 }

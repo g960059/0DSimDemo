@@ -15,6 +15,9 @@ import type {
   ReaderInstantaneousReadbackSpecV1,
   ReaderSignalSpecV1,
 } from "@/studio/contracts/v1/content";
+import {
+  resolveScientificProductPvTrajectoryV1,
+} from "./ScientificProductPvTrajectoryCatalogV1";
 
 import type {
   ScientificProductStudioScenarioRuntimeV1,
@@ -29,6 +32,8 @@ const SUPPORTED_SIGNAL_IDS_V1 = new Set<string>(
 
 export type ScientificProductReaderRuntimePortV1 = Readonly<{
   scenarioId: ScientificProductStudioScenarioRuntimeV1["scenarioId"];
+  workspaceDocument:
+    ScientificProductStudioScenarioRuntimeV1["workspaceDocument"];
   controlStore: ScientificProductStudioScenarioRuntimeV1["controlStore"];
   controller: Readonly<
     Pick<ScientificProductStudioScenarioRuntimeV1["controller"], "status">
@@ -187,6 +192,10 @@ export class ScientificProductReaderExperimentControllerV1 {
     this.unsubscribeRuntime = this.runtime.controlStore.subscribe(
       this.onRuntimeStoreChangeV1,
     );
+    // The Reader surface invokes this only after its committed two-frame paint
+    // boundary. Resuming here keeps both the facade and shared graph registry
+    // on the same canonical one-point source until that boundary has passed.
+    this.runtime.controlStore.actions.resumeLive();
     this.publishCurrentRuntimeV1();
   }
 
@@ -334,7 +343,23 @@ function validateAndNormalizeBriefV1(
   brief: ReaderBriefV1,
   runtime: ScientificProductReaderRuntimePortV1,
 ): NormalizedReaderBriefV1 {
-  const graphSignals = normalizeSignalsV1(brief.graph.signals);
+  assertSupportedPvLoopItemsV1(brief, runtime.workspaceDocument);
+  const graphSignals = normalizeSignalsV1([
+    ...new Map(
+      brief.graphPanes.flatMap((pane) =>
+        pane.kind === "waveform"
+          ? pane.scenarios.flatMap(({ items }) => items.map((item) => [
+            item.itemId,
+            {
+              signalId: item.itemId,
+              label: item.label,
+              unit: item.unit ?? "1",
+            },
+          ] as const))
+          : []
+      ),
+    ).values(),
+  ]);
   const readbackSpecs = normalizeReadbacksV1(
     brief.instantaneousReadbacks,
   );
@@ -350,6 +375,30 @@ function validateAndNormalizeBriefV1(
       ]),
     ),
   });
+}
+
+function assertSupportedPvLoopItemsV1(
+  brief: ReaderBriefV1,
+  workspace:
+    ScientificProductReaderRuntimePortV1["workspaceDocument"],
+): void {
+  for (const pane of brief.graphPanes) {
+    if (pane.kind !== "pv-loop") continue;
+    for (const scenario of pane.scenarios) {
+      for (const item of scenario.items) {
+        if (
+          resolveScientificProductPvTrajectoryV1(
+            workspace,
+            item.itemId,
+          ) !== null
+        ) continue;
+        throw new Error(
+          `Reader Preview PV-loop item ${item.itemId} is not supported `
+          + "by the loaded workspace",
+        );
+      }
+    }
+  }
 }
 
 function normalizeSignalsV1(

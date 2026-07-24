@@ -7,6 +7,7 @@ import {
   STUDIO_AUTHOR_DRAFT_V1_SCHEMA_ID,
   STUDIO_DOCUMENT_REVISION_V1_SCHEMA_ID,
   STUDIO_EXPERIMENT_REVISION_V1_SCHEMA_ID,
+  STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
   STUDIO_READER_BRIEF_V1_SCHEMA_ID,
   type StudioAuthorDraftV1,
 } from "@/studio/contracts/v1";
@@ -130,21 +131,118 @@ StudioAuthorDraftV1 = deepFreezeSampleV1({
           briefId:
             SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
           extent: "inflow",
-          graph: {
-            kind: "time-series",
-            signals: [
-              {
-                signalId: "hemodynamics.pressure.absolute.LV",
-                label: "左室圧",
-                unit: "mmHg",
+          graphPanes: [
+            {
+              schemaId: STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
+              paneId: "afterload-pressure-waveform",
+              title: "左室圧と大動脈圧",
+              kind: "waveform",
+              scenarios: [
+                {
+                  scenarioId:
+                    SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+                  label: "健康成人のexact periodic基準",
+                  color: "#38bdf8",
+                  items: [
+                    {
+                      itemId: "hemodynamics.pressure.absolute.LV",
+                      label: "左室圧",
+                      unit: "mmHg",
+                      color: "#38bdf8",
+                    },
+                    {
+                      itemId: "hemodynamics.pressure.absolute.Ao",
+                      label: "大動脈圧",
+                      unit: "mmHg",
+                      color: "#f97316",
+                    },
+                  ],
+                },
+              ],
+              presentation: {
+                showLegend: true,
+                legendPosition: { xPct: 0.68, yPct: 0.06 },
+                showGuides: false,
+                timeWindowMs: 5_000,
+                pvBeatHistoryCount: null,
+                pvBeatHistoryMode: null,
+                pvParameterHistoryCount: null,
+                pvRelationDisplayMode: null,
+                pvRelationPressureBasis: null,
+                pvRelationShowSamplePoints: null,
+                hemodynamicDetailMode: null,
+                hemodynamicParameterHistoryCount: null,
+                hemodynamicAllowNegativeFillingPressure: null,
               },
-              {
-                signalId: "hemodynamics.pressure.absolute.Ao",
-                label: "大動脈圧",
-                unit: "mmHg",
+            },
+            {
+              schemaId: STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
+              paneId: "afterload-lv-pv-loop",
+              title: "左室 pressure–volume loop",
+              kind: "pv-loop",
+              scenarios: [
+                {
+                  scenarioId:
+                    SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+                  label: "健康成人のexact periodic基準",
+                  color: "#38bdf8",
+                  items: [
+                    {
+                      itemId: "lv",
+                      label: "LV pressure–volume loop",
+                      unit: null,
+                      color: "#a78bfa",
+                    },
+                  ],
+                },
+              ],
+              presentation: {
+                showLegend: true,
+                legendPosition: { xPct: 0.63, yPct: 0.06 },
+                showGuides: true,
+                timeWindowMs: null,
+                pvBeatHistoryCount: 8,
+                pvBeatHistoryMode: "fade",
+                pvParameterHistoryCount: 6,
+                pvRelationDisplayMode: "off",
+                pvRelationPressureBasis: "intracavitary",
+                pvRelationShowSamplePoints: false,
+                hemodynamicDetailMode: null,
+                hemodynamicParameterHistoryCount: null,
+                hemodynamicAllowNegativeFillingPressure: null,
               },
-            ],
-          },
+            },
+            {
+              schemaId: STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
+              paneId: "afterload-guyton-left",
+              title: "左心 Guyton / Starling",
+              kind: "guyton-left",
+              scenarios: [
+                {
+                  scenarioId:
+                    SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+                  label: "健康成人のexact periodic基準",
+                  color: "#38bdf8",
+                  items: [],
+                },
+              ],
+              presentation: {
+                showLegend: true,
+                legendPosition: { xPct: 0.65, yPct: 0.06 },
+                showGuides: false,
+                timeWindowMs: null,
+                pvBeatHistoryCount: null,
+                pvBeatHistoryMode: null,
+                pvParameterHistoryCount: null,
+                pvRelationDisplayMode: null,
+                pvRelationPressureBasis: null,
+                pvRelationShowSamplePoints: null,
+                hemodynamicDetailMode: "compare",
+                hemodynamicParameterHistoryCount: 5,
+                hemodynamicAllowNegativeFillingPressure: false,
+              },
+            },
+          ],
           instantaneousReadbacks: [
             {
               readbackId: "instantaneous-left-ventricular-pressure",

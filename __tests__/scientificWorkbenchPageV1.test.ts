@@ -633,6 +633,16 @@ describe("document-bound scientific workbench page V1", () => {
       { id: "lv-pv", type: "PVLOOP", timeWindow: undefined },
       { id: "product-left-pressure-v1", type: "WAVEFORM", timeWindow: 5_000 },
       { id: "product-mitral-flow-v1", type: "WAVEFORM", timeWindow: 2_000 },
+      {
+        id: "product-guyton-left-v1",
+        type: "GUYTON_LEFT",
+        timeWindow: undefined,
+      },
+      {
+        id: "product-guyton-right-v1",
+        type: "GUYTON_RIGHT",
+        timeWindow: undefined,
+      },
     ]);
     expect(presentation.panels[0]?.config["scenario-1"]?.selectedSignals)
       .toEqual(["lv"]);
@@ -655,22 +665,57 @@ describe("document-bound scientific workbench page V1", () => {
       ]);
     expect(presentation.panels[2]?.config["scenario-1"]?.selectedSignals)
       .toEqual(["valve.MV.flow"]);
+    for (const panel of presentation.panels.slice(3)) {
+      expect(panel.config["scenario-1"]?.selectedSignals).toEqual(["Default"]);
+      expect(panel).toMatchObject({
+        hemodynamicDetailMode: "compare",
+        hemodynamicParameterHistoryCount: 5,
+        hemodynamicAllowNegativeFillingPressure: false,
+        view: {
+          hemodynamicDetailMode: "compare",
+          hemodynamicParameterHistoryCount: 5,
+          hemodynamicAllowNegativeFillingPressure: false,
+        },
+      });
+    }
     expect(presentation.graphBoardLayout).toEqual({
       type: "split",
-      direction: "row",
+      direction: "column",
       children: [
-        { type: "leaf", graphViewId: "lv-pv" },
         {
           type: "split",
-          direction: "column",
+          direction: "row",
           children: [
-            { type: "leaf", graphViewId: "product-left-pressure-v1" },
-            { type: "leaf", graphViewId: "product-mitral-flow-v1" },
+            { type: "leaf", graphViewId: "lv-pv" },
+            {
+              type: "split",
+              direction: "column",
+              children: [
+                {
+                  type: "leaf",
+                  graphViewId: "product-left-pressure-v1",
+                },
+                {
+                  type: "leaf",
+                  graphViewId: "product-mitral-flow-v1",
+                },
+              ],
+              sizes: [0.5, 0.5],
+            },
+          ],
+          sizes: [0.5, 0.5],
+        },
+        {
+          type: "split",
+          direction: "row",
+          children: [
+            { type: "leaf", graphViewId: "product-guyton-left-v1" },
+            { type: "leaf", graphViewId: "product-guyton-right-v1" },
           ],
           sizes: [0.5, 0.5],
         },
       ],
-      sizes: [0.5, 0.5],
+      sizes: [8 / 14, 6 / 14],
     });
     expect(presentation.workbenchWorkspace.hosts.metrics).toEqual({ open: true });
     expect(presentation.workbenchWorkspace.hosts.main).toEqual({});

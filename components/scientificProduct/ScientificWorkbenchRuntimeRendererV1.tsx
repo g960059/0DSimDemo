@@ -37,6 +37,7 @@ import {
   DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
   DEFAULT_HEMODYNAMIC_DETAIL_MODE,
   DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
   DEFAULT_PV_RELATION_DISPLAY_MODE,
   DEFAULT_PV_RELATION_PRESSURE_BASIS,
   type HemodynamicDetailMode,
@@ -70,6 +71,9 @@ import {
   type ScientificProductHemodynamicProtocolSeriesV1,
   type ScientificProductPvRelationProtocolSeriesV1,
 } from "./ScientificProductScenarioRegistryV1";
+import {
+  resolveScientificProductPvTrajectoryV1,
+} from "./ScientificProductPvTrajectoryCatalogV1";
 import type {
   ScientificProductRuntimeRegistryPortV1,
 } from "./ScientificProductRuntimeRegistryPortV1";
@@ -127,9 +131,6 @@ const WAVEFORM_ALIASES: Readonly<
   xiPV: "valve.PV.opening_fraction",
   Pperi: "pericardium.excess_pressure",
 });
-
-const CHAMBERS = Object.freeze(["LA", "RA", "LV", "RV"] as const);
-type ScientificChamberV1 = (typeof CHAMBERS)[number];
 
 export const SCIENTIFIC_CONTROL_SYSTEMIC_V1 =
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[0];
@@ -314,29 +315,17 @@ export function createScientificWorkbenchRuntimeRendererV1({
         />
       );
     }
-    if (panel.type === "WAVEFORM" || panel.type === "PVLOOP") {
+    if (
+      panel.type === "WAVEFORM"
+      || panel.type === "PVLOOP"
+      || panel.type === "GUYTON_LEFT"
+      || panel.type === "GUYTON_RIGHT"
+    ) {
       return (
-        <ScientificGraphPanelV1
+        <ScientificProductGraphPaneV1
           panel={panel}
           registry={registry}
           clock={clock}
-          renderContext={context}
-        />
-      );
-    }
-    if (panel.type === "GUYTON_LEFT" || panel.type === "GUYTON_RIGHT") {
-      if (registry.capabilities?.guytonLoadSeries === false) {
-        return (
-          <ScientificUnavailablePanelV1
-            title="Studio load-series analysis is not connected yet"
-            detail="The live trace and automatic strict settlement use the Studio runtime. This advanced protocol will return after it has its own Studio analysis port."
-          />
-        );
-      }
-      return (
-        <ScientificHemodynamicProtocolPanelV1
-          panel={panel}
-          registry={registry}
           renderContext={context}
         />
       );
@@ -408,6 +397,55 @@ export const SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1 = Object.freeze(
   ),
 );
 
+/**
+ * Shared scientific graph-pane renderer used by Workbench and Reader.
+ *
+ * Reader passes a reconstructed portable pane and a reading render context;
+ * Workbench passes its live pane and studio context. Scientific projection,
+ * fixed windows, legend placement, PV history and protocol demand therefore
+ * have one owner.
+ */
+export function ScientificProductGraphPaneV1({
+  panel,
+  registry,
+  clock,
+  renderContext,
+}: Readonly<{
+  panel: PanelDef;
+  registry: ScientificProductRuntimeRegistryPortV1;
+  clock: ScientificWorkbenchDisplayClockV1;
+  renderContext: WorkbenchRuntimeRenderContext;
+}>) {
+  if (panel.type === "WAVEFORM" || panel.type === "PVLOOP") {
+    return (
+      <ScientificGraphPanelV1
+        panel={panel}
+        registry={registry}
+        clock={clock}
+        renderContext={renderContext}
+      />
+    );
+  }
+  if (panel.type === "GUYTON_LEFT" || panel.type === "GUYTON_RIGHT") {
+    if (registry.capabilities?.guytonLoadSeries === false) {
+      return (
+        <ScientificUnavailablePanelV1
+          title="Studio load-series analysis is not connected yet"
+          detail="The live trace and automatic strict settlement use the Studio runtime. This advanced protocol will return after it has its own Studio analysis port."
+        />
+      );
+    }
+    return (
+      <ScientificHemodynamicProtocolPanelV1
+        panel={panel}
+        registry={registry}
+        renderContext={renderContext}
+      />
+    );
+  }
+  return <NoScientificSelectionV1 />;
+}
+
 function ScientificGraphPanelV1({
   panel,
   registry,
@@ -452,6 +490,10 @@ function ScientificGraphPanelV1({
         className="relative h-full min-h-0 w-full overflow-hidden"
         data-testid={`scientific-workbench-pane-${panel.id}`}
         data-panel-kind="time-series"
+        data-scientific-frame-count={Math.max(
+          0,
+          ...effective.map((presentation) => presentation.frames.length),
+        )}
       >
         <ScientificWorkbenchWaveformCanvasV1
           series={series}
@@ -514,6 +556,11 @@ function ScientificPvGraphPanelV1({
   const historyMode = panel.pvHistoryMode ??
     (panel.view?.kind === "graph" ? panel.view.pvHistoryMode : undefined) ??
     "fade";
+  const parameterHistoryCount = panel.pvParameterHistoryCount ??
+    (panel.view?.kind === "graph"
+      ? panel.view.pvParameterHistoryCount
+      : undefined) ??
+    DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT;
   const series = presentations.flatMap((presentation) =>
     pvSeriesForScenarioV1(
       presentation,
@@ -599,6 +646,10 @@ function ScientificPvGraphPanelV1({
         className="relative h-full min-h-0 w-full overflow-hidden"
         data-testid={`scientific-workbench-pane-${panel.id}`}
         data-panel-kind="pressure-volume"
+        data-scientific-frame-count={Math.max(
+          0,
+          ...presentations.map((presentation) => presentation.frames.length),
+        )}
         data-pv-relation-mode={displayMode}
         data-pv-pressure-basis={pressureBasis}
         data-pv-analysis-available={String(pvAnalysisAvailable)}
@@ -611,6 +662,7 @@ function ScientificPvGraphPanelV1({
           showLegend={panel.showLegend !== false}
           historyBeats={historyBeats}
           historyMode={historyMode}
+          parameterHistoryCount={parameterHistoryCount}
           legendInteraction={legendInteraction}
         />
         {!pvAnalysisAvailable && displayMode !== "off" && (
@@ -763,19 +815,40 @@ function ScientificHemodynamicProtocolPanelV1({
   };
   if (eligible.length === 0) return <NoScientificSelectionV1 />;
   const side = panel.type === "GUYTON_LEFT" ? "left" : "right";
-  const entries = eligible.map((presentation) => Object.freeze({
+  const entries = eligible.map((presentation) => {
+    const config = panel.config[presentation.descriptor.id]!;
+    const effectivePresentation: ScientificProductScenarioPresentationV1 =
+      Object.freeze({
+        ...presentation,
+        descriptor: Object.freeze({
+          ...presentation.descriptor,
+          name: config.customName ?? presentation.descriptor.name,
+          color: config.customBaseColor ?? presentation.descriptor.color,
+        }),
+      });
+    return Object.freeze({
+      presentation: effectivePresentation,
+      series: registry.getHemodynamicProtocolSeries(
+        presentation.descriptor.id,
+        kind,
+      ),
+      displayedSourceIdentity: displayedHemodynamicSourceIdentityV1(
+        registry,
+        presentation.descriptor.id,
+      ),
+    });
+  });
+  const scenarios = entries.map(({
     presentation,
-    series: registry.getHemodynamicProtocolSeries(
-      presentation.descriptor.id,
-      kind,
-    ),
-  }));
-  const scenarios = entries.map(({ presentation, series }) =>
+    series,
+    displayedSourceIdentity,
+  }) =>
     scientificHemodynamicResponseScenarioV1(
       side,
       presentation,
       series,
       historyCount,
+      displayedSourceIdentity,
     ));
   const status = scientificHemodynamicAggregateStatusV1(side, entries);
   return (
@@ -1032,7 +1105,8 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
         generationSequence: latestFailure.sequence,
         generationRole: "pending" as const,
         targetPreview:
-          latestFailure.source.sourceIdentity.calculationSource !==
+          latestFailure.source === null
+          || latestFailure.source.sourceIdentity.calculationSource !==
             "visible-period1-source",
         espvr: Object.freeze([]),
         edpvr: Object.freeze([]),
@@ -1301,6 +1375,13 @@ function scientificPvRelationEndpointSamplesV1(
 type ScientificHemodynamicSeriesEntryV1 = Readonly<{
   presentation: ScientificProductScenarioPresentationV1;
   series: ScientificProductHemodynamicProtocolSeriesV1;
+  displayedSourceIdentity:
+    ScientificHemodynamicDisplayedSourceIdentityV1 | null;
+}>;
+
+type ScientificHemodynamicDisplayedSourceIdentityV1 = Readonly<{
+  parameterEpoch: number;
+  controlStateSha256: string;
 }>;
 
 function scientificHemodynamicDetailModeV1(
@@ -1334,17 +1415,27 @@ function scientificHemodynamicResponseScenarioV1(
   presentation: ScientificProductScenarioPresentationV1,
   series: ScientificProductHemodynamicProtocolSeriesV1,
   historyCount: number,
+  displayedSourceIdentity:
+    ScientificHemodynamicDisplayedSourceIdentityV1 | null,
 ): ScientificHemodynamicResponseScenarioV1 {
   const current = scientificHemodynamicResponseGenerationV1(
     side,
     presentation.descriptor.name,
     series.current,
+    Object.freeze({
+      displayedSourceIdentity,
+      history: false,
+    }),
   );
   const history = series.history.slice(0, historyCount).flatMap((generation) => {
     const converted = scientificHemodynamicResponseGenerationV1(
       side,
       presentation.descriptor.name,
       generation,
+      Object.freeze({
+        displayedSourceIdentity,
+        history: true,
+      }),
     );
     return converted === null ? [] : [converted];
   });
@@ -1368,6 +1459,14 @@ export function scientificHemodynamicResponseGenerationV1(
   side: "right" | "left",
   scenarioName: string,
   generation: ScientificProductHemodynamicProtocolGenerationV1 | null,
+  context: Readonly<{
+    displayedSourceIdentity:
+      ScientificHemodynamicDisplayedSourceIdentityV1 | null;
+    history: boolean;
+  }> = Object.freeze({
+    displayedSourceIdentity: null,
+    history: false,
+  }),
 ): ScientificHemodynamicResponseGenerationV1 | null {
   const protocol = generation?.snapshot;
   if (generation === null || protocol === null || protocol === undefined) {
@@ -1387,11 +1486,38 @@ export function scientificHemodynamicResponseGenerationV1(
     data.status.qc.level === "warning" || data.status.qc.level === "fail"
       ? [data.status.qc.summary, ...(data.status.qc.details ?? [])]
       : [];
+  const calculationSource =
+    generation.source.sourceIdentity.calculationSource;
+  const parameterStateRole = context.history
+    ? "history" as const
+    : calculationSource === "automatic-strict-candidate"
+      ? "target-preview" as const
+      : context.displayedSourceIdentity !== null
+        && !sameHemodynamicDisplayedSourceIdentityV1(
+          generation,
+          context.displayedSourceIdentity,
+        )
+        ? "previous" as const
+        : calculationSource === "visible-period1-source"
+          ? "visible-current" as const
+          : "target-preview" as const;
   return Object.freeze({
     id: generation.generationId,
-    label: generation.status === "complete"
-      ? "Completed parameter state"
-      : "Current parameter state",
+    label: parameterStateRole === "history"
+      || parameterStateRole === "previous"
+      ? "Previous parameter state"
+      : calculationSource === "automatic-strict-candidate"
+        ? generation.status === "complete"
+          ? "Automatic strict candidate"
+          : "Computing strict candidate"
+        : calculationSource ===
+            "independent-case-source-warm-continuation"
+          ? "Calculated target preview"
+          : generation.status === "complete"
+            ? "Completed parameter state"
+            : "Current parameter state",
+    calculationSource,
+    parameterStateRole,
     vascularReturnCurve: data.vascularReturnCurve,
     estimatedCardiacSegments: data.estimatedCardiacSegments ?? [],
     settledCardiacSegments: data.cardiacPreloadSegments ?? [],
@@ -1416,7 +1542,7 @@ function scientificHemodynamicResultV1(
     : null;
 }
 
-function scientificHemodynamicAggregateStatusV1(
+export function scientificHemodynamicAggregateStatusV1(
   side: "right" | "left",
   entries: readonly ScientificHemodynamicSeriesEntryV1[],
 ): ScientificHemodynamicProtocolStatusV1 {
@@ -1449,6 +1575,68 @@ function scientificHemodynamicAggregateStatusV1(
     });
   }
 
+  const failures = entries.flatMap(({ series }) =>
+    series.lastFailure === null ? [] : [series.lastFailure.errorMessage]);
+  if (failures.length > 0) {
+    const retainsPrevious = entries.some(({ series }) =>
+      series.current !== null);
+    return Object.freeze({
+      status: "error" as const,
+      label: retainsPrevious ? "Curve update failed" : "Curve unavailable",
+      qc: Object.freeze({
+        level: "fail" as const,
+        summary: failures.join(" "),
+      }),
+    });
+  }
+
+  const identityMismatches = entries.filter(
+    ({ series, displayedSourceIdentity }) =>
+    series.current !== null
+    && displayedSourceIdentity !== null
+    && !sameHemodynamicDisplayedSourceIdentityV1(
+      series.current,
+      displayedSourceIdentity,
+    ),
+  );
+  const retainedPrevious = identityMismatches.filter(({ series }) =>
+    series.current?.source.sourceIdentity.calculationSource
+      !== "automatic-strict-candidate"
+  );
+  if (retainedPrevious.length > 0) {
+    return Object.freeze({
+      status: "running" as const,
+      label: "Waiting for settled curve…",
+      qc: Object.freeze({
+        level: "pending" as const,
+        summary:
+          "Previous parameter curves remain visible while automatic strict settlement prepares the new source.",
+      }),
+    });
+  }
+
+  const strictTargetPreviews = identityMismatches.filter(({ series }) =>
+    series.current?.source.sourceIdentity.calculationSource
+      === "automatic-strict-candidate"
+  );
+  if (strictTargetPreviews.length > 0) {
+    const allComplete = strictTargetPreviews.every(({ series }) =>
+      series.current?.status === "complete"
+    );
+    return Object.freeze({
+      status: "running" as const,
+      label: allComplete
+        ? "Strict target preview ready"
+        : "Computing strict target preview…",
+      qc: Object.freeze({
+        level: "pending" as const,
+        summary: allComplete
+          ? "A settled strict candidate for the target is ready while the live transition catches up."
+          : "The strict target preview is updating while the live transition catches up.",
+      }),
+    });
+  }
+
   const currentStatuses = entries.flatMap(({ presentation, series }) => {
     const protocol = series.current?.snapshot;
     if (protocol === null || protocol === undefined) return [];
@@ -1476,18 +1664,6 @@ function scientificHemodynamicAggregateStatusV1(
     });
   }
 
-  const failures = entries.flatMap(({ series }) =>
-    series.lastFailure === null ? [] : [series.lastFailure.errorMessage]);
-  if (failures.length > 0) {
-    return Object.freeze({
-      status: "error" as const,
-      label: "Curve unavailable",
-      qc: Object.freeze({
-        level: "fail" as const,
-        summary: failures.join(" "),
-      }),
-    });
-  }
   return Object.freeze({
     status: "running" as const,
     label: "Preparing curves…",
@@ -1496,6 +1672,29 @@ function scientificHemodynamicAggregateStatusV1(
       summary: "The first parameter curve is being prepared.",
     }),
   });
+}
+
+function displayedHemodynamicSourceIdentityV1(
+  registry: ScientificProductRuntimeRegistryPortV1,
+  scenarioId: string,
+): ScientificHemodynamicDisplayedSourceIdentityV1 | null {
+  const snapshot = registry.getRuntime(scenarioId)?.controlStore.getSnapshot();
+  if (snapshot === undefined) return null;
+  return Object.freeze({
+    parameterEpoch: snapshot.provenance.displayedParameterEpoch,
+    controlStateSha256:
+      snapshot.provenance.displayedControlStateSha256,
+  });
+}
+
+function sameHemodynamicDisplayedSourceIdentityV1(
+  generation: ScientificProductHemodynamicProtocolGenerationV1,
+  displayed: ScientificHemodynamicDisplayedSourceIdentityV1,
+): boolean {
+  return generation.source.sourceIdentity.parameterEpoch
+      === displayed.parameterEpoch
+    && generation.source.sourceIdentity.controlStateSha256
+      === displayed.controlStateSha256;
 }
 
 /**
@@ -2483,10 +2682,9 @@ function pvSeriesForScenarioV1(
   config: PanelInstanceConfig,
   pressureBasis: PvRelationPressureBasis = "intracavitary",
 ): ScientificWorkbenchPvSeriesV1[] {
-  const catalog = trajectoryCatalogV1(presentation.workspaceDocument);
   const trajectories = selectedPvTrajectories(
     config.selectedSignals ?? [],
-    catalog,
+    presentation.workspaceDocument,
   );
   return trajectories.map((trajectory, index) => {
     const modelName = config.customName ?? presentation.descriptor.name;
@@ -2518,7 +2716,7 @@ function scientificPvPanelSelectsLvV1(
 ): boolean {
   return selectedPvTrajectories(
     config.selectedSignals ?? [],
-    trajectoryCatalogV1(presentation.workspaceDocument),
+    presentation.workspaceDocument,
   ).some(({ volumeObservableId }) =>
     volumeObservableId === "hemodynamics.volume.LV");
 }
@@ -2533,6 +2731,7 @@ function chartScenarioV1(
     color: presentation.descriptor.color,
     isVisible: presentation.descriptor.isVisible,
     frames: presentation.frames,
+    parameterGenerationHistory: presentation.parameterGenerationHistory,
     guideCycleFrames: presentation.metricCycle?.frames ?? null,
     periodicCycleFrames: presentation.periodicCycleFrames,
     cycleDurationSec: presentation.cycleDurationSec,
@@ -2583,52 +2782,21 @@ function selectedWaveformObservables(
 
 function selectedPvTrajectories(
   selected: readonly string[],
-  workspaceTrajectories: ReadonlyMap<
-    string,
-    MainWireScientificWorkspacePressureVolumeTrajectoryV1
-  >,
+  workspace:
+    ScientificProductScenarioPresentationV1["workspaceDocument"],
 ): MainWireScientificWorkspacePressureVolumeTrajectoryV1[] {
   return [
     ...new Map(
       selected.flatMap((candidate) => {
-        const fromWorkspace = workspaceTrajectories.get(candidate);
-        if (fromWorkspace !== undefined) {
-          return [[fromWorkspace.trajectoryId, fromWorkspace] as const];
-        }
-        const chamber = CHAMBERS.find(
-          (value) => value === candidate.toUpperCase(),
+        const trajectory = resolveScientificProductPvTrajectoryV1(
+          workspace,
+          candidate,
         );
-        if (chamber === undefined) return [];
-        const trajectory = chamberTrajectory(chamber);
+        if (trajectory === null) return [];
         return [[trajectory.trajectoryId, trajectory] as const];
       }),
     ).values(),
   ];
-}
-
-function chamberTrajectory(
-  chamber: ScientificChamberV1,
-): MainWireScientificWorkspacePressureVolumeTrajectoryV1 {
-  return Object.freeze({
-    trajectoryId: `${chamber.toLowerCase()}-pressure-volume`,
-    label: `${chamber} pressure–volume loop`,
-    volumeObservableId: `hemodynamics.volume.${chamber}`,
-    pressureObservableId: `hemodynamics.pressure.absolute.${chamber}`,
-  });
-}
-
-function trajectoryCatalogV1(
-  workspace: ScientificProductScenarioPresentationV1["workspaceDocument"],
-): ReadonlyMap<string, MainWireScientificWorkspacePressureVolumeTrajectoryV1> {
-  return new Map(
-    workspace.content.panels.flatMap(({ view }) =>
-      view.kind === "pressure-volume"
-        ? view.trajectories.map(
-            (trajectory) => [trajectory.trajectoryId, trajectory] as const,
-          )
-        : [],
-    ),
-  );
 }
 
 export function graphViewToPanel(view: GraphViewSpec): PanelDef {
@@ -2669,6 +2837,7 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
       legendPosition: view.presentation?.legendPosition,
       pvHistoryBeats: view.presentation?.pvHistoryBeats,
       pvHistoryMode: view.presentation?.pvHistoryMode,
+      pvParameterHistoryCount: view.presentation?.pvParameterHistoryCount,
       pvRelationDisplayMode: view.presentation?.pvRelationDisplayMode,
       pvRelationPressureBasis: view.presentation?.pvRelationPressureBasis,
       pvRelationShowSamplePoints:
@@ -2685,6 +2854,7 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
     showLegend: view.presentation?.showLegend,
     pvHistoryBeats: view.presentation?.pvHistoryBeats,
     pvHistoryMode: view.presentation?.pvHistoryMode,
+    pvParameterHistoryCount: view.presentation?.pvParameterHistoryCount,
     pvRelationDisplayMode: view.presentation?.pvRelationDisplayMode,
     pvRelationPressureBasis: view.presentation?.pvRelationPressureBasis,
     pvRelationShowSamplePoints:

@@ -113,6 +113,14 @@ import {
   createScientificProductEvidenceReportV1,
 } from "./ScientificProductEvidenceReportV1";
 import {
+  ScientificWorkbenchBriefingControlV1,
+} from "./ScientificWorkbenchBriefingControlV1";
+import {
+  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
+  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
+  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+} from "./ScientificProductSampleAfterloadArticleV1";
+import {
   readScientificProductSavedScenarioCatalogV1,
   removeScientificProductSavedScenarioV1,
   saveScientificProductScenarioV1,
@@ -311,7 +319,7 @@ function ScientificProductWorkbenchShellV1({
       // the same registry; a real unmount remains false at the microtask.
       globalThis.queueMicrotask(() => {
         if (!registryMountedRef.current) {
-          registry.dispose();
+          void registry.dispose();
         }
       });
     };
@@ -903,6 +911,21 @@ function ScientificProductWorkbenchShellV1({
             onOpenFullReport={openEvidenceView}
           />
         )}
+        presentationComposeControl={(
+          <ScientificWorkbenchBriefingControlV1
+            panels={panels.panels}
+            registry={registry}
+            activeScenarioId={activeInstanceId}
+            target={Object.freeze({
+              experimentId:
+                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
+              briefId:
+                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
+              scenarioId:
+                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+            })}
+          />
+        )}
         settingsContent={(
           <ScientificProductTransitionBehaviorSettingsV1
             registry={registry}
@@ -1230,6 +1253,62 @@ export function createScientificProductWorkbenchPresentationV1(
       showLegend: true,
       showGuides: false,
       timeWindow: 2_000,
+    },
+    {
+      id: "product-guyton-left-v1",
+      sourceViewId: "product-guyton-left-v1",
+      type: "GUYTON_LEFT",
+      title: "Left filling pressure–cardiac output",
+      role: "graph",
+      zone: "main",
+      x: 0,
+      y: 8,
+      w: 6,
+      h: 6,
+      config: visibleConfig(["Default"]),
+      view: {
+        kind: "graph",
+        graphType: "guyton-left",
+        showLegend: true,
+        showGuides: true,
+        hemodynamicDetailMode: "compare",
+        hemodynamicParameterHistoryCount: 5,
+        hemodynamicAllowNegativeFillingPressure: false,
+      },
+      isSettingsOpen: false,
+      showLegend: true,
+      showGuides: true,
+      hemodynamicDetailMode: "compare",
+      hemodynamicParameterHistoryCount: 5,
+      hemodynamicAllowNegativeFillingPressure: false,
+    },
+    {
+      id: "product-guyton-right-v1",
+      sourceViewId: "product-guyton-right-v1",
+      type: "GUYTON_RIGHT",
+      title: "Right filling pressure–cardiac output",
+      role: "graph",
+      zone: "main",
+      x: 6,
+      y: 8,
+      w: 6,
+      h: 6,
+      config: visibleConfig(["Default"]),
+      view: {
+        kind: "graph",
+        graphType: "guyton-right",
+        showLegend: true,
+        showGuides: true,
+        hemodynamicDetailMode: "compare",
+        hemodynamicParameterHistoryCount: 5,
+        hemodynamicAllowNegativeFillingPressure: false,
+      },
+      isSettingsOpen: false,
+      showLegend: true,
+      showGuides: true,
+      hemodynamicDetailMode: "compare",
+      hemodynamicParameterHistoryCount: 5,
+      hemodynamicAllowNegativeFillingPressure: false,
     },
   ];
   const defaultWorkspace = workspaceForPanels(panels);

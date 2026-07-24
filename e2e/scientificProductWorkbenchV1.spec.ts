@@ -111,7 +111,7 @@ test.describe.serial("Studio runtime in the product Workbench", () => {
     }
   });
 
-  test("states unavailable Studio analysis and V&V capabilities explicitly", async ({
+  test("shows persistent Guyton/Starling sweeps while keeping unavailable V&V and PV analysis explicit", async ({
     page,
   }, testInfo) => {
     test.setTimeout(180_000);
@@ -175,24 +175,36 @@ test.describe.serial("Studio runtime in the product Workbench", () => {
         "The live PV loop remains available.",
       );
 
-      await page.getByRole("button", {
-        name: "メインペインを追加",
-      }).first().click();
-      await page.getByRole("button", {
-        name: "心拍出量–充満圧曲線（左心系）",
-        exact: true,
-      }).click();
-      await expect(page.getByText(
-        "Studio load-series analysis is not connected yet",
-        { exact: true },
-      )).toBeVisible();
-      await expect(page.getByText(
-        "The live trace and automatic strict settlement use the Studio runtime. This advanced protocol will return after it has its own Studio analysis port.",
-        { exact: true },
-      )).toBeVisible();
-      await expect(page.getByTestId(
+      const leftGuyton = page.getByTestId(
         "scientific-left-cardiac-output-filling-pressure-pane-v1",
-      )).toHaveCount(0);
+      );
+      const rightGuyton = page.getByTestId(
+        "scientific-right-cardiac-output-filling-pressure-pane-v1",
+      );
+      await expect(leftGuyton).toBeVisible();
+      await expect(rightGuyton).toBeVisible();
+      await expect(leftGuyton).toHaveAttribute(
+        "data-protocol-status",
+        /running|partial|complete/,
+      );
+      await expect(rightGuyton).toHaveAttribute(
+        "data-protocol-status",
+        /running|partial|complete/,
+      );
+      await expect(leftGuyton).toHaveAttribute(
+        "data-qc-level",
+        /pending|pass|warning/,
+      );
+      await expect(rightGuyton).toHaveAttribute(
+        "data-qc-level",
+        /pending|pass|warning/,
+      );
+      await expect(leftGuyton.getByRole("img")).toHaveAccessibleName(
+        /^Left filling pressure–cardiac output\b/,
+      );
+      await expect(rightGuyton.getByRole("img")).toHaveAccessibleName(
+        /^Right filling pressure–cardiac output\b/,
+      );
 
       expect(browserErrors).toEqual([]);
     } finally {

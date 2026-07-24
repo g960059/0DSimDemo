@@ -68,6 +68,7 @@
       "sessionOnly": "This tab only",
       "title": "Edit an article and experiment",
       "description": "Edit an educational article draft, then inspect its Reader presentation and embedded experiment within this tab.",
+      "openWorkbench": "Compose experiment in Workbench",
       "openPreview": "Review in Reader",
       "reopenLastPreview": "Open the latest Reader Preview",
       "documentLabel": "DRAFT DOCUMENT",

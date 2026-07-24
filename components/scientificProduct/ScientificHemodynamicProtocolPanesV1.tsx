@@ -109,9 +109,22 @@ export type ScientificHemodynamicResponseDisplayModeV1 =
   | "settled"
   | "both";
 
+export type ScientificHemodynamicCalculationSourceV1 =
+  | "visible-period1-source"
+  | "automatic-strict-candidate"
+  | "independent-case-source-warm-continuation";
+
+export type ScientificHemodynamicParameterStateRoleV1 =
+  | "visible-current"
+  | "target-preview"
+  | "previous"
+  | "history";
+
 export type ScientificHemodynamicResponseGenerationV1 = Readonly<{
   id: string;
   label?: string;
+  calculationSource: ScientificHemodynamicCalculationSourceV1;
+  parameterStateRole: ScientificHemodynamicParameterStateRoleV1;
   vascularReturnCurve: readonly ScientificGuytonCurvePointV1[];
   estimatedCardiacSegments?: readonly (readonly ScientificGuytonCurvePointV1[])[];
   settledCardiacSegments?: readonly (readonly ScientificGuytonCurvePointV1[])[];
@@ -248,6 +261,7 @@ export function ScientificCardiacOutputFillingPressurePaneV1({
       data-testid={`scientific-${data.side}-cardiac-output-filling-pressure-pane-v1`}
       data-protocol-status={data.status.status}
       data-qc-level={data.status.qc.level}
+      data-protocol-qc-summary={data.status.qc.summary}
       data-flow-domain-min={roundSvgV1(yDomain[0])}
       data-flow-domain-max={roundSvgV1(yDomain[1])}
     >
@@ -401,6 +415,8 @@ function ScientificHemodynamicResponseGenerationLayerV1({
       data-generation-id={generation.id}
       data-generation-index={generationIndex}
       data-generation-role={generationIndex === 0 ? "current" : "history"}
+      data-calculation-source={generation.calculationSource}
+      data-parameter-state-role={generation.parameterStateRole}
     >
       {vascularPath && (
         <path
@@ -790,10 +806,12 @@ export function ScientificGuytonStarlingPaneV1({
         scenarios: [{
           id: "legacy-current-scenario",
           name: scenarioName,
-          color: FALLBACK_SCENARIO_COLOR_V1,
-          current: {
-            id: "legacy-current-generation",
-            vascularReturnCurve: data.vascularReturnCurve,
+	          color: FALLBACK_SCENARIO_COLOR_V1,
+	          current: {
+	            id: "legacy-current-generation",
+	            calculationSource: "visible-period1-source",
+	            parameterStateRole: "visible-current",
+	            vascularReturnCurve: data.vascularReturnCurve,
             estimatedCardiacSegments: data.estimatedCardiacSegments,
             settledCardiacSegments: data.cardiacPreloadSegments ?? [data.cardiacPreloadLocus],
             estimatedPoints,

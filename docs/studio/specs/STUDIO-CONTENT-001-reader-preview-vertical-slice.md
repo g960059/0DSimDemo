@@ -75,8 +75,9 @@ publication resolver          │      └─> StudioDocumentReaderV1
 ```
 
 `StudioDocumentReaderV1` receives only `ResolvedReaderDocumentV1` plus
-Reader-safe experiment controllers. It does not know whether a resolver read a
-session preview or a publication manifest.
+Reader-safe experiment controllers and a read-only scientific presentation
+port. It does not know whether a resolver read a session preview or a
+publication manifest.
 
 `ResolvedReaderDocumentV1` contains publication-neutral resolved Experiment
 content: scenario identity and labels, but no preview bootstrap source.
@@ -102,8 +103,8 @@ The first portable content graph contains:
   experiment-placement blocks;
 - one or more referenced `ExperimentRevisionV1` values;
 - scenario declarations with explicit preview runtime sources;
-- `ReaderBriefV1` values containing the Reader graph, instantaneous
-  readbacks, and exposed controls; and
+- `ReaderBriefV1` values containing ordered portable graph-pane snapshots,
+  instantaneous readbacks, and exposed controls; and
 - a join-complete `ResolvedReaderDocumentV1`.
 
 Preview materialization validates the complete graph, resolves every placement
@@ -111,10 +112,38 @@ to an Experiment and Reader brief, clones the result, and deep-freezes it.
 Neither caller-owned objects nor later author edits may alias an existing
 preview.
 
-Author commands use optimistic revision matching. Title and text edits advance
-the author draft and document revision. Materializing a preview does not
-advance either revision; it captures the exact expected revision supplied by
-the author.
+Author commands use optimistic revision matching. The structured Document
+Editor commits title, ordered heading/paragraph blocks, and the structured
+Experiment placement atomically; one successful transaction advances the
+author draft and document revision exactly once. A Workbench Briefing capture
+replaces graph panes in one Reader brief and advances the draft and Experiment
+revision, but not the Document revision. Materializing a preview does not
+advance a revision; it captures the exact expected revision supplied by the
+author.
+
+### Portable graph-pane snapshot
+
+`StudioGraphPaneSpecV1` is a detached presentation copy, not a pointer to a
+Workbench pane. It resolves and stores:
+
+- graph kind (`waveform`, `pv-loop`, `guyton-left`, or `guyton-right`);
+- explicit scenario and item identities;
+- effective scenario/item labels and colors;
+- waveform time window;
+- legend visibility and fractional position;
+- PV guide, beat-history, parameter-generation-history, pressure-basis, and
+  relation settings; and
+- Guyton/Starling detail, history, and negative-filling-pressure settings.
+
+Runtime frames, candidates, Worker jobs, settings-open state, and Dockview
+geometry are excluded. Editing a Workbench pane after capture cannot mutate the
+Reader brief. The author must explicitly update the captured pane.
+
+Workbench and Reader reconstruct the same `PanelDef` presentation and invoke
+the same `ScientificProductGraphPaneV1`. Reader therefore uses the Workbench
+fixed-window waveform, PV-loop, and Guyton/Starling renderers rather than a
+private SVG chart. In reading mode legend position is honored but dragging,
+settings, graph addition, and layout mutation remain disabled.
 
 ### Signal and parameter identity
 
@@ -159,21 +188,28 @@ aggregate N-branch Reader interaction, and target Reset remain follow-up work.
 ## Author to Reader lifecycle
 
 1. The Author route opens a session-local `StudioAuthorDraftV1`.
-2. Title or text edits are applied with the current expected revision and
-   advance only the mutable author aggregate.
-3. **Preview as Reader** validates the entire graph and materializes a detached
+2. Document edits are committed atomically with the current expected revision
+   and advance only the mutable author aggregate. Text input commits on blur or
+   an explicit route action; add, remove, and reorder commit their exact next
+   document value immediately, so browser Back or direct navigation cannot
+   discard an already accepted structural edit.
+3. In Workbench, the author may explicitly open **Briefing**, capture graph
+   panes into the Reader brief, update a capture, or remove it. Closing the
+   compose layer removes its temporary authoring surface.
+4. **Preview as Reader** validates the entire graph and materializes a detached
    `ReaderPreviewManifestV1` at the current revision.
-4. The route navigates with the preview id while the same author-preview
+5. The route navigates with the preview id while the same author-preview
    provider remains alive.
-5. The Reader route resolves that id from the session-local application. A
+6. The Reader route resolves that id from the session-local application. A
    missing id becomes an explicit expired/unavailable state.
-6. Every Reader open allocates a fresh runtime session and Reader controller.
+7. Every Reader open allocates a fresh runtime session, presentation registry,
+   and Reader controller.
    No numerical session is reused from a previous Reader visit.
-7. Closing the Reader stops presentation, disposes the Reader controller, and
+8. Closing the Reader stops presentation, disposes the Reader controller, and
    aborts bootstrap or an in-flight Studio session open before disposing the
-   Reader controller and scenario runtime. Opening hosts are terminated and
+   presentation registry and scenario runtime. Opening hosts are terminated and
    late asynchronous completions cannot reattach the closed session.
-8. Reopening the same materialized preview starts again from a fresh one-point
+9. Reopening the same materialized preview starts again from a fresh one-point
    source. Returning to Author does not apply Reader controls to the draft.
 
 The preview manifest remains a frozen view of the author revision captured in

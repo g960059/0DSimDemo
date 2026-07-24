@@ -1301,6 +1301,32 @@ describe("Studio SimulationSession coordinator V1", () => {
     expect(closed).toBeGreaterThan(fenced);
   });
 
+  it("force-closes the runtime without waiting for a delayed signal activation", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    coordinator.applyControlIntent({
+      intentId: "intent/force-close-during-resume",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    const resumeGate = runtime.delayNextResume("baseline");
+    runtime.resolveLive("intent/force-close-during-resume");
+    await flushV1();
+
+    await coordinator.close({ force: true });
+
+    expect(runtime.closedSessionIds).toEqual(["session/studio-v1"]);
+    expect(coordinator.current.status).toBe("closed");
+    expect(runtime.signalLifecycle).toContain("resume:start:baseline:1");
+    expect(runtime.signalLifecycle).not.toContain("resume:active:baseline:1");
+
+    // Let the fenced adapter operation settle so this test does not leave a
+    // deliberately blocked promise behind.
+    resumeGate.resolve(undefined);
+    await flushV1();
+    expect(coordinator.current.status).toBe("closed");
+  });
+
   it("appends monotonic signal batches and suspends without advancing", async () => {
     const runtime = new FakeRuntimePortV1();
     const coordinator = coordinatorV1(runtime);
