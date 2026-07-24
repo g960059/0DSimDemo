@@ -50,6 +50,7 @@ export type ScientificWorkbenchResearchControlDraftV0 = Readonly<{
 
 export type ScientificWorkbenchDisplayedEvidenceV0 =
   | "open-transient-no-periodic-claim"
+  | "settled-snapshot-one-point"
   | "target-period1-and-following-cycle-validated"
   | "retained-period1-source-cycle";
 

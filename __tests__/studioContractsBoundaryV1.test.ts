@@ -74,13 +74,37 @@ describe("Studio V1 contract and dependency boundary", () => {
     expect(command.targets).toHaveLength(2);
     expect(runRef.schemaId).toBe(STUDIO_ARTIFACT_REF_V1_SCHEMA_ID);
   });
+
+  it("keeps the greenfield Reader Preview independent from legacy reading and preview stacks", () => {
+    const readerRoot = path.resolve(process.cwd(), "components", "studio");
+    const forbidden = [
+      "CaseDocument",
+      "LessonReading",
+      "PreviewController",
+      "ReadingPresenter",
+      "PublishReviewOverlay",
+      "usePreviewRuntime",
+    ];
+    const problems = typescriptFilesV1(readerRoot)
+      .flatMap((file) => {
+        const source = readFileSync(file, "utf8");
+        return forbidden
+          .filter((name) => source.includes(name))
+          .map((name) => `${relativeV1(file)} references ${name}`);
+      });
+
+    expect(problems).toEqual([]);
+  });
 });
 
 function typescriptFilesV1(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const absolute = path.join(directory, entry.name);
     if (entry.isDirectory()) return typescriptFilesV1(absolute);
-    return entry.isFile() && entry.name.endsWith(".ts") ? [absolute] : [];
+    return entry.isFile()
+      && (entry.name.endsWith(".ts") || entry.name.endsWith(".tsx"))
+      ? [absolute]
+      : [];
   });
 }
 

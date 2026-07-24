@@ -701,6 +701,7 @@ function checkpointResponseV1(
     commandKind: "getExactCheckpointV4",
     payload: {
       kind: "exactCheckpointV4",
+      resolvedSessionInput: base.sessionInput,
       checkpoint,
       observableFrame: frame,
     },

@@ -17,6 +17,7 @@ import {
   type RuntimeLiveIntentResultV1,
   type RuntimeLiveTransitionResultV1,
   type RuntimeObservablePointV1,
+  type RuntimePresentationEventV1,
   type RuntimePresentationFrameV1,
   type RuntimeScenarioBranchOpenedV1,
   type RuntimeSessionOpenedV1,
@@ -86,16 +87,50 @@ export class SimulationSessionCoordinatorV1 {
     string,
     Promise<void>
   >();
+  private readonly stateListeners = new Set<() => void>();
+  private readonly presentationListeners =
+    new Set<(event: RuntimePresentationEventV1) => void>();
   private state: SimulationSessionStateV1 | null = null;
   private openingSessionId: string | null = null;
   private openingCompletion: Promise<void> | null = null;
   private closeRequestedWhileOpening = false;
+  private openingRuntimeClose: Promise<void> | null = null;
   private closePromise: Promise<void> | null = null;
 
   constructor(options: SimulationSessionCoordinatorOptionsV1) {
     this.runtime = options.runtime;
     this.artifacts = options.artifacts;
   }
+
+  /**
+   * Stable external-store reader. `null` means no session has completed
+   * allocation yet (or an attempted open was rolled back).
+   */
+  readonly getSnapshot = (): SimulationSessionStateV1 | null => this.state;
+
+  /**
+   * Subscribes to immutable aggregate-state replacements. No initial callback
+   * is fired; consumers read `getSnapshot()` before/after subscribing.
+   */
+  readonly subscribe = (listener: () => void): (() => void) => {
+    this.stateListeners.add(listener);
+    return () => {
+      this.stateListeners.delete(listener);
+    };
+  };
+
+  /**
+   * Ordered, non-replayed presentation trace events owned by the coordinator.
+   * Subscribe before `open()` to receive the initial one-point reset.
+   */
+  readonly subscribePresentation = (
+    listener: (event: RuntimePresentationEventV1) => void,
+  ): (() => void) => {
+    this.presentationListeners.add(listener);
+    return () => {
+      this.presentationListeners.delete(listener);
+    };
+  };
 
   get current(): SimulationSessionStateV1 {
     if (this.state === null) {
@@ -112,20 +147,35 @@ export class SimulationSessionCoordinatorV1 {
 
   async open(
     command: OpenSimulationSessionCommandV1,
+    options: Readonly<{
+      initialLivePlayback?: "running" | "suspended";
+      signal?: AbortSignal;
+    }> = {},
   ): Promise<SimulationSessionStateV1> {
     if (this.state !== null || this.openingSessionId !== null) {
       throw new SimulationSessionCoordinatorErrorV1(
         "simulation session is already open or opening",
       );
     }
+    if (options.signal?.aborted) {
+      throw new SimulationSessionCoordinatorErrorV1(
+        "simulation session opening was aborted",
+      );
+    }
     const safeCommand = copyOpenCommandV1(command);
+    const initialLivePlayback = options.initialLivePlayback ?? "running";
     this.openingSessionId = safeCommand.sessionId;
     this.closeRequestedWhileOpening = false;
+    this.openingRuntimeClose = null;
     let resolveOpeningCompletion!: () => void;
     const openingCompletion = new Promise<void>((resolve) => {
       resolveOpeningCompletion = resolve;
     });
     this.openingCompletion = openingCompletion;
+    const abortOpening = () => {
+      void this.close().catch(() => undefined);
+    };
+    options.signal?.addEventListener("abort", abortOpening, { once: true });
     let runtimeAllocationReturned = false;
     try {
       const runtimeOpened = await this.runtime.openSession(safeCommand);
@@ -147,21 +197,27 @@ export class SimulationSessionCoordinatorV1 {
           source,
           openedByScenario.get(source.scenarioId)!,
         ),
-        livePlayback: "running" as const,
+        livePlayback: initialLivePlayback,
       }));
 
-      this.state = Object.freeze({
+      const openedState = Object.freeze({
         status: "live",
         sessionId: opened.sessionId,
         branches: Object.freeze(branches),
         lastAppliedIntentId: null,
       });
+      this.publishStateV1(openedState);
+      for (const branch of openedState.branches) {
+        this.publishPresentationResetV1(openedState.sessionId, branch);
+      }
       this.bindOpenedSignalChannelsV1();
-      await Promise.all(this.state.branches.map((branch) =>
-        this.runtime.resumeSignalChannel(
-          branch.signalChannelRef,
-          branch.streamEpoch,
-        )));
+      if (initialLivePlayback === "running") {
+        await Promise.all(openedState.branches.map((branch) =>
+          this.runtime.resumeSignalChannel(
+            branch.signalChannelRef,
+            branch.streamEpoch,
+          )));
+      }
       if (
         this.state === null
         || this.state.sessionId !== opened.sessionId
@@ -175,10 +231,15 @@ export class SimulationSessionCoordinatorV1 {
       return this.state;
     } catch (error) {
       this.unsubscribeAllSignalsV1();
-      if (this.state?.sessionId === safeCommand.sessionId) this.state = null;
+      if (this.state?.sessionId === safeCommand.sessionId) {
+        this.publishStateV1(null);
+      }
       if (runtimeAllocationReturned) {
+        const runtimeClose = this.openingRuntimeClose
+          ?? this.runtime.closeSession(safeCommand.sessionId);
+        this.openingRuntimeClose = runtimeClose;
         try {
-          await this.runtime.closeSession(safeCommand.sessionId);
+          await runtimeClose;
         } catch {
           // Preserve the validation/open failure. Runtime adapters must make
           // close idempotent and own their final termination fallback.
@@ -186,12 +247,14 @@ export class SimulationSessionCoordinatorV1 {
       }
       throw error;
     } finally {
+      options.signal?.removeEventListener("abort", abortOpening);
       this.openingSessionId = null;
       this.closeRequestedWhileOpening = false;
       resolveOpeningCompletion();
       if (this.openingCompletion === openingCompletion) {
         this.openingCompletion = null;
       }
+      this.openingRuntimeClose = null;
     }
   }
 
@@ -261,11 +324,11 @@ export class SimulationSessionCoordinatorV1 {
     }
 
     // This is the atomic application-state boundary for a shared intent.
-    this.state = Object.freeze({
+    this.publishStateV1(Object.freeze({
       ...current,
       branches: Object.freeze(nextBranches),
       lastAppliedIntentId: safeIntent.intentId,
-    });
+    }));
 
     let livePromise: Promise<RuntimeLiveIntentResultV1>;
     let strictPromise: Promise<RuntimeStrictIntentResultV1>;
@@ -390,6 +453,10 @@ export class SimulationSessionCoordinatorV1 {
       });
       const shouldActivate = current.livePlayback === "running";
       this.replaceBranchV1(current.scenarioId, replacement);
+      this.publishPresentationResetV1(
+        currentSession.sessionId,
+        replacement,
+      );
       if (shouldActivate) {
         this.activateSignalEpochV1(
           replacement,
@@ -547,9 +614,20 @@ export class SimulationSessionCoordinatorV1 {
 
   async close(): Promise<void> {
     const openingCompletion = this.openingCompletion;
-    if (openingCompletion !== null) {
+    const openingSessionId = this.openingSessionId;
+    if (openingCompletion !== null && openingSessionId !== null) {
       this.closeRequestedWhileOpening = true;
+      const runtimeClose = this.openingRuntimeClose
+        ?? this.runtime.closeSession(openingSessionId);
+      this.openingRuntimeClose = runtimeClose;
+      let closeFailure: unknown = null;
+      try {
+        await runtimeClose;
+      } catch (error) {
+        closeFailure = error;
+      }
       await openingCompletion;
+      if (closeFailure !== null) throw closeFailure;
       return;
     }
     const current = this.state;
@@ -580,7 +658,7 @@ export class SimulationSessionCoordinatorV1 {
       ...current,
       status: "closing" as const,
     });
-    this.state = closingState;
+    this.publishStateV1(closingState);
     const runtimeClose = pendingActivations.length === 0
       ? this.runtime.closeSession(current.sessionId)
       : Promise.allSettled(pendingActivations)
@@ -591,7 +669,7 @@ export class SimulationSessionCoordinatorV1 {
           this.unsubscribeAllSignalsV1();
           this.signalActivationTokens.clear();
           this.signalActivationOperations.clear();
-          this.state = Object.freeze({
+          this.publishStateV1(Object.freeze({
             ...closingState,
             status: "closed",
             branches: Object.freeze(closingState.branches.map((branch) =>
@@ -599,7 +677,7 @@ export class SimulationSessionCoordinatorV1 {
                 ...branch,
                 latestSteadyCandidate: null,
               }))),
-          });
+          }));
         }
       },
       (error) => {
@@ -608,7 +686,7 @@ export class SimulationSessionCoordinatorV1 {
             ...closingState,
             status: "live",
           });
-          this.state = restored;
+          this.publishStateV1(restored);
           for (const branch of restored.branches) {
             if (branch.livePlayback === "running") {
               this.activateSignalEpochV1(
@@ -687,7 +765,18 @@ export class SimulationSessionCoordinatorV1 {
     const branch = current.branches.find(({ scenarioId }) =>
       scenarioId === channel.scenarioId
     );
-    if (branch === undefined || branch.livePlayback !== "running") return;
+    if (branch === undefined) return;
+    // The runtime completes and publishes the command already in flight at a
+    // manual suspend boundary. Accept that final contiguous batch while the
+    // suspend command is still active; dropping it would make the next resumed
+    // sequence and collectedPointCount appear to jump.
+    const acceptingSuspensionBoundary =
+      branch.livePlayback === "suspended"
+      && this.playbackTransitionScenarioIds.has(branch.scenarioId);
+    if (
+      branch.livePlayback !== "running"
+      && !acceptingSuspensionBoundary
+    ) return;
 
     const untrustedEvent: unknown = event;
     if (!hasRuntimeSignalIdentityV1(untrustedEvent)) {
@@ -732,8 +821,8 @@ export class SimulationSessionCoordinatorV1 {
           "runtime signal channel emitted a malformed sample batch",
         );
       }
-      const points = signal.points.map((point) =>
-        copyPointV1(point as RuntimeObservablePointV1));
+      const points = Object.freeze(signal.points.map((point) =>
+        copyPointV1(point as RuntimeObservablePointV1)));
       let prior = branch.display.latestPoint;
       for (const point of points) {
         if (
@@ -778,6 +867,12 @@ export class SimulationSessionCoordinatorV1 {
         }),
       });
       this.replaceBranchV1(branch.scenarioId, replacement);
+      this.publishPresentationAppendV1(
+        current.sessionId,
+        replacement,
+        points,
+        metrics,
+      );
     } catch {
       this.failSignalIdentityV1(
         branch,
@@ -945,6 +1040,7 @@ export class SimulationSessionCoordinatorV1 {
       let changed = false;
       const activations: ScenarioRuntimeBranchStateV1[] = [];
       const suspensions: ScenarioRuntimeBranchStateV1[] = [];
+      const presentationResets: ScenarioRuntimeBranchStateV1[] = [];
       const branches = current.branches.map((branch) => {
         const target = targetForScenarioV1(command, branch.scenarioId);
         if (
@@ -999,13 +1095,17 @@ export class SimulationSessionCoordinatorV1 {
         if (branch.livePlayback === "running") {
           activations.push(replacement);
         }
+        presentationResets.push(replacement);
         return replacement;
       });
       if (changed) {
-        this.state = Object.freeze({
+        this.publishStateV1(Object.freeze({
           ...current,
           branches: Object.freeze(branches),
-        });
+        }));
+        for (const branch of presentationResets) {
+          this.publishPresentationResetV1(current.sessionId, branch);
+        }
         for (const branch of suspensions) {
           void this.runtime.suspendSignalChannel(branch.signalChannelRef)
             .catch(() => undefined);
@@ -1080,10 +1180,10 @@ export class SimulationSessionCoordinatorV1 {
         });
       });
       if (changed) {
-        this.state = Object.freeze({
+        this.publishStateV1(Object.freeze({
           ...current,
           branches: Object.freeze(branches),
-        });
+        }));
       }
     } catch (error) {
       this.acceptIntentFailureV1(command, "strict", error);
@@ -1127,13 +1227,94 @@ export class SimulationSessionCoordinatorV1 {
       return replacement;
     });
     if (changed) {
-      this.state = Object.freeze({
+      this.publishStateV1(Object.freeze({
         ...current,
         branches: Object.freeze(branches),
-      });
+      }));
       for (const branch of suspensions) {
         void this.runtime.suspendSignalChannel(branch.signalChannelRef)
           .catch(() => undefined);
+      }
+    }
+  }
+
+  private publishStateV1(
+    next: SimulationSessionStateV1 | null,
+  ): boolean {
+    if (this.state === next) return false;
+    this.state = next;
+    for (const listener of [...this.stateListeners]) {
+      try {
+        listener();
+      } catch {
+        // External-store subscribers cannot invalidate an accepted numerical
+        // state transition or prevent other external-store listeners.
+      }
+    }
+    return true;
+  }
+
+  private publishPresentationResetV1(
+    sessionId: string,
+    branch: ScenarioRuntimeBranchStateV1,
+  ): void {
+    const frame = Object.freeze({
+      point: branch.display.firstPoint,
+      windowMetrics: branch.display.windowMetrics,
+    }) satisfies RuntimePresentationFrameV1;
+    assertOnePointCollectingFrameV1(
+      frame,
+      `presentation reset for ${branch.scenarioId}`,
+    );
+    if (
+      branch.display.pointCount !== 1
+      || branch.display.firstPoint !== branch.display.latestPoint
+    ) {
+      throw new SimulationSessionCoordinatorErrorV1(
+        `presentation reset for ${branch.scenarioId} must contain one point`,
+      );
+    }
+    this.publishPresentationEventV1(Object.freeze({
+      kind: "reset" as const,
+      sessionId,
+      scenarioId: branch.scenarioId,
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: branch.targetGeneration,
+      presentationRevision: branch.presentationRevision,
+      streamEpoch: branch.streamEpoch,
+      origin: branch.display.origin,
+      frame,
+    }));
+  }
+
+  private publishPresentationAppendV1(
+    sessionId: string,
+    branch: ScenarioRuntimeBranchStateV1,
+    points: readonly RuntimeObservablePointV1[],
+    windowMetrics: RuntimeWindowMetricStateV1,
+  ): void {
+    this.publishPresentationEventV1(Object.freeze({
+      kind: "append" as const,
+      sessionId,
+      scenarioId: branch.scenarioId,
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: branch.targetGeneration,
+      presentationRevision: branch.presentationRevision,
+      streamEpoch: branch.streamEpoch,
+      points: Object.freeze([...points]),
+      windowMetrics,
+    }));
+  }
+
+  private publishPresentationEventV1(
+    event: RuntimePresentationEventV1,
+  ): void {
+    for (const listener of [...this.presentationListeners]) {
+      try {
+        listener(event);
+      } catch {
+        // A consumer rendering a validated trace cannot corrupt or suspend the
+        // coordinator-owned numerical branch.
       }
     }
   }
@@ -1143,11 +1324,11 @@ export class SimulationSessionCoordinatorV1 {
     replacement: ScenarioRuntimeBranchStateV1,
   ): void {
     const current = this.requireLiveStateV1();
-    this.state = Object.freeze({
+    this.publishStateV1(Object.freeze({
       ...current,
       branches: Object.freeze(current.branches.map((branch) =>
         branch.scenarioId === scenarioId ? replacement : branch)),
-    });
+    }));
   }
 
   private requireLiveStateV1(): SimulationSessionStateV1 {

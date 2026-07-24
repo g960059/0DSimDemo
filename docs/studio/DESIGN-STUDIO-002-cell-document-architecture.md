@@ -4,7 +4,7 @@
 対象: 循環動態 0D シミュレーション webapp の IA / UI / UX / データモデル / runtime / command / 疎結合 interface の再設計
 位置づけ: **CircleHeart Studio v1 の Proposed target architecture**。現行 v0.1 UI の段階的延長ではなく、数理基盤を再利用して新しい Studio application を構築するための方向性文書
 移行方針: user 0・公開前のため、現行 `CaseDocument` との backward compatibility / dual-write / user-data migration は v1 の非目標。既存 official content は数理モデル確定後に再 authoring し、旧データは回帰試験・比較 fixture として保持
-実装状況: headless runtime foundation（contract / coordinator / exact V4 envelope / Worker host / MainWire adapter）は実装済み。§17 の browser性能検証と、§19 の残る規範別紙・product UIは未完であり、本書のtarget記述をUI実装済みとは読まない
+実装状況: runtime foundation（contract / coordinator / exact V4 envelope / Worker host / MainWire adapter）、既存product Workbenchへの初期bridge、session-onlyの初期Author → Reader Preview縦断スライスは実装済み。Reader Previewは`draft-preview-uncertified`、1 placement / 1 scenario、preview-bootstrap限定であり、certification / publication / 最終Readerではない。Workbench bridgeは実browserで1-point open / parameter commitごとの自動live+strict / 1×描画 / 明示promotion・pinを接続するが、最終Study Lab / Document Editorではない。§17 の性能検証とaggregate N-branch session、§19 の残る規範別紙・product contextは未完であり、本書のtarget全体をUI実装済みとは読まない
 
 想定ユーザー: 初期研修医・ME 等の beginner 5割 / 循環器・麻酔科の後期研修医・専門医 4割 / 循環動態研究者 1割（9割が非エンジニア）
 
@@ -122,6 +122,15 @@ SimulationSession (ephemeral)                     ← 読者/探索者が今操�
 - 同じ Experiment を A 記事 = inflow / B 記事 = peek で使い分けできる（CellPlacement が inlineMode を持つ）。
 - `cell` は、Document 内では `CellPlacement`、standalone では Experiment の renderer を指す UI shorthand。永続型名には使わない。
 - **1 SimulationSession = 1 Experiment interaction + N ScenarioRuntimeBranch**。各branchが数値state、buffer、`targetGeneration`、steady candidateを持ち、session-level commandが対象branch集合へatomic intentを発行する。N個の独立SimulationSessionをUIで束ねる設計にはしない。
+
+現在のproduct Workbench bridgeは、このtarget aggregateへ到達する前の
+暫定縦切りである。表示scenarioごとに独立したcoordinatorと
+`SimulationSession`を作り、presentation registryで束ねているため、
+multi-scenario intentはsession-level atomicではない。これはtarget変更ではなく、
+明示的な未完事項である。Workbench shell、chart / panel、既存presentation DTO、
+`ScientificWorkbenchResearchControlStoreV0`もUI adapterとして一部再利用するが、
+旧Workerや旧controllerを数値ownerへ戻すfallbackは持たない。これらのlegacy型は
+Studio domain contractではなく、最終Study Labへ向けて縮退・置換するbridge debtである。
 
 ### scratch の生成・保存境界
 
@@ -289,7 +298,7 @@ content（全 graph にアクセス）と layout（2×2 の空間的意味）を
 3つの "検証" を分離する。
 - **(A) 完全 Assessment**（morphology / conservation / case-specific scientific validation）= 重い。immutable snapshotに対して実行し、Readerでは走らせない。
 - **(B) 背景 strict steady job**（数値収束の探索・判定）= parameter変更ごとに自動実行。(A)のscientific Assessmentとは別物。
-- **(C) Reader の baseline** = pin 済み certified snapshot をそのまま初期条件に。Reader は V&V を一切計算しない。
+- **(C) published/final Reader の baseline** = pin 済み certified snapshot をそのまま初期条件に。published/final Reader は V&V を一切計算しない。session-only の draft Reader Preview は明示的な uncertified 例外であり、publication-ineligible のまま扱う。
 
 Assessmentはimmutableなsubjectに対するjobである。certification gateのsubjectは単一snapshot、sweep / cross-scenario comparison等の研究用途ではartifact setをsubjectにできる。cache keyは`subjectHash × assessorRef × profileRef`。Composeとprivate revisionのmaterializeはpresentation / versioning操作であり、V&Vの実行タイミングではない。certify / official Publishは、対象snapshotに必要なAssessmentが揃っているかを確認し、不足分だけjobを要求する。
 
@@ -649,7 +658,15 @@ AI command bar / authoring wizard / community publishing / free canvas / sweep�
 
 **「任意のpinned RunからN本を同時に温間再開し、settled snapshotの1 pointから1×で重ね描画しつつ、parameter変更ごとにstrict steady jobを自動実行できるか」**を全presentation contextへ広げる前に確認する。これは唯一の設計リスクではないが、失敗すれば中心UXが成立しないblocking riskである。
 
-headless側では、exact V4 restore、同revision/timeの1-point projection、N-branch intent、live/strict Worker分離、generation discard、signal channel suspend/resume、P1 candidate admission、明示promotionのcontractとadapterが入った。未完なのは実browser上の性能budget検証、viewport scheduler、Reset、presentation UIへの接続であり、blocking spike全体を完了扱いにはしない。
+headless側では、exact V4 restore、同revision/timeの1-point projection、N-branch intent、live/strict Worker分離、generation discard、signal channel suspend/resume、P1 candidate admission、明示promotionのcontractとadapterが入った。さらに既存product Workbenchへのbridgeで、settled snapshotの1 pointからの表示、parameter commitごとの自動live+strict、固定1× live、pause/resume、candidateの明示promotionとpinを実browser surfaceへ接続した。V&V report、Guyton/load-series、advanced PV relation/load-seriesは旧経路へfallbackせず、UIで明示的にunavailableとする。
+
+ただし現在のbridgeはscenarioごとに独立したsessionを作るため、targetの
+1 aggregate session = N branchesとatomic multi-scenario intentを実browserで
+証明していない。また、最終Reader / Study Lab / Document Editorではなく、
+Workbench shellと旧presentation型を一部再利用したtransition sliceである。
+未完なのはaggregate sessionへの統合、実browser上の性能budget検証、
+viewport scheduler、target Reset、最終product contextへの接続であり、
+blocking spike全体を完了扱いにはしない。
 
 受け入れ条件:
 
@@ -695,7 +712,14 @@ benchmarkの対象機種と数値budgetはspike実施前に規範別紙へ記載
 
 ## 19. 実装と並行して閉じる規範別紙 / 残るopen questions
 
-本文はtarget architectureと責務境界を決める。runtime companionの最初のvertical sliceは実装済みだが、次の規範別紙を確定し、contract testへ落とすまではStudio全体の「実装仕様が完全」とは扱わない。
+本文はtarget architectureと責務境界を決める。runtime foundationは
+[STUDIO-RUNTIME-001](specs/STUDIO-RUNTIME-001-foundation-vertical-slice.md)、
+product Workbench bridgeは
+[STUDIO-RUNTIME-002](specs/STUDIO-RUNTIME-002-product-workbench-bridge.md)
+、初期Author → Reader Previewは
+[STUDIO-CONTENT-001](specs/STUDIO-CONTENT-001-reader-preview-vertical-slice.md)
+として実装境界を固定した。ただし次の規範別紙を確定し、contract testへ
+落とすまではStudio全体の「実装仕様が完全」とは扱わない。
 
 ### required companion specifications
 

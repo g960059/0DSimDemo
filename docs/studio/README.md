@@ -15,18 +15,40 @@ solver internals.
 | [DESIGN-STUDIO-002-cell-document-architecture.md](DESIGN-STUDIO-002-cell-document-architecture.md) | Authoritative target and decisions; remaining companion specifications are tracked in §19 |
 | [STUDIO-V1-TARGET-ARCHITECTURE.md](STUDIO-V1-TARGET-ARCHITECTURE.md) | Implementation digest; the complete design above is authoritative |
 | [specs/STUDIO-RUNTIME-001-foundation-vertical-slice.md](specs/STUDIO-RUNTIME-001-foundation-vertical-slice.md) | Implemented headless runtime contract for the first vertical slice |
+| [specs/STUDIO-RUNTIME-002-product-workbench-bridge.md](specs/STUDIO-RUNTIME-002-product-workbench-bridge.md) | Implemented bridge from the Studio runtime into the existing product Workbench |
+| [specs/STUDIO-CONTENT-001-reader-preview-vertical-slice.md](specs/STUDIO-CONTENT-001-reader-preview-vertical-slice.md) | Implemented session-only Author → Reader Preview slice and its explicit non-publication boundary |
 
 ## Current implementation boundary
 
-The repository contains the headless Studio v1 contracts, coordinator,
+The repository contains the Studio v1 contracts, coordinator,
 content-addressed JSON artifact store, exact MainWire V4 snapshot envelope,
-target resolver, Worker host, and MainWire runtime adapter. The runtime opens
-with one seed point, streams live data at 1×, starts live and strict work on
-every parameter intent, and requires explicit steady-candidate promotion.
+target resolver, Worker host, MainWire runtime adapter, and an initial product
+Workbench bridge. That bridge opens from one settled seed point, streams live
+data at 1×, starts live and strict work automatically for every committed
+parameter intent, discards superseded generations internally, and exposes
+explicit steady-candidate promotion and pinning.
 
-Reader, Study Lab, Document Editor, viewport scheduling, certification,
-publication, and the end-to-end product UI are target work, not completed UI
-claimed by these documents.
+The first greenfield Author → Reader Preview slice is also present. It
+materializes a detached `draft-preview-uncertified`, session-only preview
+manifest containing a publication-neutral resolved document plus external
+preview runtime bindings. It renders that document through the shared Reader
+seam, starts its experiment from one point at fixed 1×, and keeps Reader
+controls revision-neutral. It supports one placement and one scenario only.
+Its preview-bootstrap refs are not certification or publication lineage.
+
+These are real browser product slices, but they are not the final Reader,
+Study Lab, or Document Editor. The Workbench bridge deliberately reuses its
+existing shell and some legacy presentation DTOs and controller-store shapes.
+It also creates one Studio session per presented scenario; it does not yet
+implement the target single aggregate `SimulationSession` with N branches and
+atomic multi-scenario intent. V&V reports, Guyton/load-series analysis, and
+advanced PV relation/load-series analysis are explicitly unavailable rather
+than falling back to the old numerical path.
+
+Viewport scheduling, target Reset semantics, browser performance
+qualification, durable authoring, certification, publication, and the complete
+product contexts remain target work. The exact implemented and unsupported
+boundaries are recorded in STUDIO-RUNTIME-002 and STUDIO-CONTENT-001.
 
 ## Superseded planning
 

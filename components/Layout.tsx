@@ -23,7 +23,8 @@ export const Layout = () => {
   const suppressGlobalChrome =
     normalizedPath === '/workbench' ||
     normalizedPath.startsWith('/workbench/') ||
-    normalizedPath.startsWith('/lesson/');
+    normalizedPath.startsWith('/lesson/') ||
+    normalizedPath.startsWith('/studio/preview/');
 
   const navItems = [
     { name: t('nav.home'), path: homeHref(locale), matchPath: '/', icon: <BookOpen className="w-4 h-4" /> },

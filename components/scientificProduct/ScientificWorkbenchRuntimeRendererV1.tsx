@@ -69,8 +69,10 @@ import {
   type ScientificProductHemodynamicProtocolPresentationV1,
   type ScientificProductHemodynamicProtocolSeriesV1,
   type ScientificProductPvRelationProtocolSeriesV1,
-  type ScientificProductScenarioRegistryV1,
 } from "./ScientificProductScenarioRegistryV1";
+import type {
+  ScientificProductRuntimeRegistryPortV1,
+} from "./ScientificProductRuntimeRegistryPortV1";
 import {
   ScientificCardiacOutputFillingPressurePaneV1,
   type ScientificGuytonCurvePointV1,
@@ -278,7 +280,7 @@ export function scientificControllerInteractionKeyV1(
 }
 
 export type ScientificWorkbenchRuntimeRendererV1Options = Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   clock: ScientificWorkbenchDisplayClockV1;
 }>;
 
@@ -323,6 +325,14 @@ export function createScientificWorkbenchRuntimeRendererV1({
       );
     }
     if (panel.type === "GUYTON_LEFT" || panel.type === "GUYTON_RIGHT") {
+      if (registry.capabilities?.guytonLoadSeries === false) {
+        return (
+          <ScientificUnavailablePanelV1
+            title="Studio load-series analysis is not connected yet"
+            detail="The live trace and automatic strict settlement use the Studio runtime. This advanced protocol will return after it has its own Studio analysis port."
+          />
+        );
+      }
       return (
         <ScientificHemodynamicProtocolPanelV1
           panel={panel}
@@ -405,7 +415,7 @@ function ScientificGraphPanelV1({
   renderContext,
 }: Readonly<{
   panel: PanelDef;
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   clock: ScientificWorkbenchDisplayClockV1;
   renderContext: WorkbenchRuntimeRenderContext;
 }>) {
@@ -473,7 +483,7 @@ function ScientificPvGraphPanelV1({
   legendInteraction,
 }: Readonly<{
   panel: PanelDef;
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   clock: ScientificWorkbenchDisplayClockV1;
   presentations: readonly ScientificProductScenarioPresentationV1[];
   legendInteraction: ScientificWorkbenchLegendInteractionV1;
@@ -485,6 +495,7 @@ function ScientificPvGraphPanelV1({
     registry.getPvRelationProtocolSeriesSnapshot,
   );
   const displayMode = scientificPvRelationDisplayModeV1(panel);
+  const pvAnalysisAvailable = registry.capabilities?.pvRelations !== false;
   const configuredPressureBasis = scientificPvRelationPressureBasisV1(panel);
   // Pressure-basis selection belongs to the opt-in research analysis. When it
   // is off, keep the beginner-facing loop and its textbook guides on ordinary
@@ -517,24 +528,33 @@ function ScientificPvGraphPanelV1({
     [panel.showGuides, series],
   );
   const boundaryGuides = React.useMemo(
-    () => fallbackBoundaryGuides.flatMap((fallbackGuide) =>
-      scientificPvProgressiveBoundaryGuidesForScenarioV1({
-        fallbackGuide,
-        series: registry.getPvRelationProtocolSeries(
-          fallbackGuide.scenarioId,
-        ),
-      })),
-    [fallbackBoundaryGuides, pvRelationProtocolSnapshot, registry],
+    () => !pvAnalysisAvailable
+      ? fallbackBoundaryGuides
+      : fallbackBoundaryGuides.flatMap((fallbackGuide) =>
+        scientificPvProgressiveBoundaryGuidesForScenarioV1({
+          fallbackGuide,
+          series: registry.getPvRelationProtocolSeries(
+            fallbackGuide.scenarioId,
+          ),
+        })),
+    [
+      fallbackBoundaryGuides,
+      pvRelationProtocolSnapshot,
+      registry,
+      pvAnalysisAvailable,
+    ],
   );
-  const analysisPresentations = presentations.filter((presentation) =>
-    scientificPvAnalysisDemandEnabledV1({
-      displayMode,
-      showGuides: panel.showGuides,
-      selectsLv: scientificPvPanelSelectsLvV1(
-        presentation,
-        panel.config[presentation.descriptor.id]!,
-      ),
-    }));
+  const analysisPresentations = !pvAnalysisAvailable
+    ? Object.freeze([])
+    : presentations.filter((presentation) =>
+      scientificPvAnalysisDemandEnabledV1({
+        displayMode,
+        showGuides: panel.showGuides,
+        selectsLv: scientificPvPanelSelectsLvV1(
+          presentation,
+          panel.config[presentation.descriptor.id]!,
+        ),
+      }));
   const relationPresentations = analysisPresentations.filter(() =>
     displayMode !== "off");
   const relations = relationPresentations.flatMap((presentation) => {
@@ -581,6 +601,7 @@ function ScientificPvGraphPanelV1({
         data-panel-kind="pressure-volume"
         data-pv-relation-mode={displayMode}
         data-pv-pressure-basis={pressureBasis}
+        data-pv-analysis-available={String(pvAnalysisAvailable)}
       >
         <ScientificWorkbenchPvLoopCanvasV1
           series={series}
@@ -592,6 +613,15 @@ function ScientificPvGraphPanelV1({
           historyMode={historyMode}
           legendInteraction={legendInteraction}
         />
+        {!pvAnalysisAvailable && displayMode !== "off" && (
+          <p
+            className="pointer-events-none absolute bottom-2 left-2 right-2 rounded border border-wb-line bg-wb-panel/95 px-2 py-1.5 text-[10px] leading-4 text-wb-muted shadow-sm"
+            data-testid="scientific-studio-pv-analysis-unavailable-v1"
+          >
+            Studio load-series analysis is not connected yet. The live PV loop
+            remains available.
+          </p>
+        )}
       </div>
     </>
   );
@@ -690,7 +720,7 @@ function ScientificHemodynamicProtocolPanelV1({
   renderContext,
 }: Readonly<{
   panel: PanelDef;
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   renderContext: WorkbenchRuntimeRenderContext;
 }>) {
   const presentations = useScientificScenarioPresentationsV1(registry);
@@ -817,7 +847,7 @@ function ScientificHemodynamicProtocolDemandV1({
   detailMode,
   sourceIdentityKey,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   demandId: string;
   scenarioId: string;
   kind: ScientificProductHemodynamicProtocolKindV1;
@@ -841,7 +871,7 @@ function ScientificPvRelationProtocolDemandV1({
   scenarioId,
   sourceIdentityKey,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   demandId: string;
   scenarioId: string;
   sourceIdentityKey: string;
@@ -856,7 +886,7 @@ function ScientificPvRelationProtocolDemandV1({
 }
 
 function scientificHemodynamicDemandIdentityV1(
-  registry: ScientificProductScenarioRegistryV1,
+  registry: ScientificProductRuntimeRegistryPortV1,
   scenarioId: string,
 ): string {
   const snapshot = registry.getRuntime(scenarioId)?.controlStore.getSnapshot();
@@ -1920,7 +1950,7 @@ function ScientificMetricsPanelV1({
   registry,
   selections,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   selections: Readonly<Record<string, readonly string[]>>;
 }>) {
   const presentations = useScientificScenarioPresentationsV1(registry).filter(
@@ -2082,7 +2112,7 @@ function ScientificControllerPanelV1({
   items,
   targetScenarioId,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   items: readonly ControllerItem[];
   targetScenarioId?: string;
 }>) {
@@ -2238,7 +2268,7 @@ export function ScientificProductTransitionBehaviorSettingsV1({
   registry,
   activeScenarioId,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   activeScenarioId: string;
 }>) {
   const { t } = useTranslation();
@@ -2256,16 +2286,31 @@ export function ScientificProductTransitionBehaviorSettingsV1({
     runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT,
   );
   if (descriptor === undefined || snapshot === null) return null;
-  const modeEditable = snapshot.ownerConnected && snapshot.phase === "idle";
+  const studio = registry.getStudioStatus?.(descriptor.id) ?? null;
+  const candidateReady = studio?.strictCandidateAvailable === true;
+  const promotionInFlight = studio?.promotionInFlight === true;
+  const pinInFlight = studio?.pinInFlight === true;
+  const candidatePinned = studio?.strictCandidatePinned === true;
+  const strictStatus = studio?.strictPhase === "source-settled"
+    ? t("workbench.sidePanel.settings.studioRuntime.sourceSettled")
+    : studio?.strictPhase === "candidate-ready"
+      ? t("workbench.sidePanel.settings.studioRuntime.candidateReady")
+      : studio?.strictPhase === "settled-in-use"
+        ? t("workbench.sidePanel.settings.studioRuntime.settledInUse")
+        : studio?.strictPhase === "failed"
+          ? t("workbench.sidePanel.settings.studioRuntime.failed")
+          : t("workbench.sidePanel.settings.studioRuntime.runningAutomatically");
   return (
     <section
       className="space-y-3 border-t border-wb-line pt-4"
       data-testid="scientific-product-transition-mode-v1"
       data-scenario-id={descriptor.id}
+      data-studio-runtime="true"
+      data-strict-candidate-available={String(candidateReady)}
     >
       <div>
         <h3 className="text-[11px] font-medium text-wb-subtle">
-          {t("workbench.sidePanel.settings.transitionBehavior.title")}
+          {t("workbench.sidePanel.settings.studioRuntime.title")}
         </h3>
         <div className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold text-wb-text">
           <span
@@ -2275,30 +2320,112 @@ export function ScientificProductTransitionBehaviorSettingsV1({
           <span className="truncate">{descriptor.name}</span>
         </div>
         <p className="mt-1 text-xs leading-5 text-wb-muted">
-          {t("workbench.sidePanel.settings.transitionBehavior.description")}
+          {t("workbench.sidePanel.settings.studioRuntime.description")}
         </p>
       </div>
-      <div
-        className="grid grid-cols-2 gap-1"
-        role="group"
-        aria-label="Transition mode"
-      >
-        {(["live", "steady"] as const).map((mode) => (
-          <button
-            key={mode}
-            type="button"
-            onClick={() => runtime!.controlStore.actions.setMode(mode)}
-            disabled={!modeEditable}
-            aria-pressed={snapshot.mode === mode}
-            className={`min-h-9 rounded border px-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-45 ${snapshot.mode === mode ? "border-wb-accent bg-wb-active text-wb-text" : "border-wb-line bg-wb-input text-wb-muted hover:text-wb-text"}`}
-          >
-            {t(`workbench.sidePanel.settings.transitionBehavior.${mode}`)}
-          </button>
-        ))}
+      <dl className="space-y-1.5 rounded-md border border-wb-line bg-wb-input px-2.5 py-2 text-[11px]">
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-wb-subtle">
+            {t("workbench.sidePanel.settings.studioRuntime.liveTrace")}
+          </dt>
+          <dd className="font-medium text-wb-text">
+            {studio?.livePlayback === "suspended"
+              ? t("workbench.sidePanel.settings.studioRuntime.paused")
+              : snapshot.inFlight
+                ? t("workbench.sidePanel.settings.studioRuntime.applyingTarget")
+                : t("workbench.sidePanel.settings.studioRuntime.running")}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-wb-subtle">
+            {t("workbench.sidePanel.settings.studioRuntime.strictSettlement")}
+          </dt>
+          <dd className="font-medium text-wb-text">
+            {strictStatus}
+          </dd>
+        </div>
+        {studio !== null && (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-wb-subtle">
+              {t("workbench.sidePanel.settings.studioRuntime.targetGeneration")}
+            </dt>
+            <dd className="font-mono text-wb-muted">
+              {studio.targetGeneration}
+            </dd>
+          </div>
+        )}
+      </dl>
+      <div className="grid grid-cols-2 gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            void registry.promoteStudioSteadyCandidate?.(descriptor.id)
+              .catch(() => undefined);
+          }}
+          disabled={!candidateReady || promotionInFlight || pinInFlight}
+          className="min-h-9 rounded border border-wb-accent bg-wb-active px-2 text-xs font-bold text-wb-text disabled:cursor-not-allowed disabled:border-wb-line disabled:bg-wb-input disabled:text-wb-subtle"
+        >
+          {promotionInFlight
+            ? t("workbench.sidePanel.settings.studioRuntime.using")
+            : t("workbench.sidePanel.settings.studioRuntime.useSettledState")}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            void registry.pinStudioSteadyCandidate?.(descriptor.id)
+              .catch(() => undefined);
+          }}
+          disabled={
+            !candidateReady
+            || promotionInFlight
+            || pinInFlight
+            || candidatePinned
+          }
+          className="min-h-9 rounded border border-wb-line bg-wb-input px-2 text-xs font-bold text-wb-muted disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {pinInFlight
+            ? t("workbench.sidePanel.settings.studioRuntime.pinning")
+            : candidatePinned
+              ? t("workbench.sidePanel.settings.studioRuntime.pinned")
+              : t("workbench.sidePanel.settings.studioRuntime.pinRun")}
+        </button>
       </div>
-      {!modeEditable && (
+      {!candidateReady && (
         <p className="text-[10px] leading-4 text-wb-subtle">
-          {t("workbench.sidePanel.settings.transitionBehavior.locked")}
+          {t("workbench.sidePanel.settings.studioRuntime.candidateHint")}
+        </p>
+      )}
+      {candidateReady && !candidatePinned && (
+        <p className="text-[10px] leading-4 text-wb-subtle">
+          {t("workbench.sidePanel.settings.studioRuntime.pinBeforeUse")}
+        </p>
+      )}
+      {studio !== null && studio.pinnedRunCount > 0 && (
+        <p className="text-[10px] leading-4 text-wb-subtle">
+          {t("workbench.sidePanel.settings.studioRuntime.pinnedRuns", {
+            count: studio.pinnedRunCount,
+          })}
+        </p>
+      )}
+      {(studio?.strictPhase === "failed"
+        || studio?.lastFailure?.lane === "live"
+        || studio?.lastFailure?.lane === "presentation") && (
+        <button
+          type="button"
+          onClick={snapshot.actions.resetLiveOrFailure}
+          disabled={snapshot.inFlight || promotionInFlight || pinInFlight}
+          className="min-h-8 w-full rounded border border-wb-line bg-wb-input px-2 text-xs font-bold text-wb-muted disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {t("workbench.sidePanel.settings.studioRuntime.retryTarget")}
+        </button>
+      )}
+      {(studio?.lastActionError
+        ?? studio?.lastFailure?.message
+        ?? snapshot.errorMessage) !== null && (
+        <p className="text-[10px] leading-4 text-wb-danger" role="alert">
+          {studio?.lastActionError
+            ?? studio?.lastFailure?.message
+            ?? snapshot.errorMessage}
         </p>
       )}
     </section>
@@ -2306,7 +2433,7 @@ export function ScientificProductTransitionBehaviorSettingsV1({
 }
 
 function useScientificScenarioPresentationsV1(
-  registry: ScientificProductScenarioRegistryV1,
+  registry: ScientificProductRuntimeRegistryPortV1,
 ): readonly ScientificProductScenarioPresentationV1[] {
   const descriptors = React.useSyncExternalStore(
     registry.subscribeDescriptors,

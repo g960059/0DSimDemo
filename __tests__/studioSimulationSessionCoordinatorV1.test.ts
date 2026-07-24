@@ -7,6 +7,7 @@ import {
   type RuntimeCandidatePromotedV1,
   type RuntimeExecutionIdentityV1,
   type RuntimeLiveIntentResultV1,
+  type RuntimePresentationEventV1,
   type RuntimePresentationFrameV1,
   type RuntimeSessionOpenedV1,
   type RuntimeSignalBatchV1,
@@ -105,6 +106,358 @@ describe("Studio SimulationSession coordinator V1", () => {
       expect(branch.display.pointCount).toBe(1);
       expect(branch.display.windowMetrics.status).toBe("collecting");
     }
+  });
+
+  it("publishes stable nullable snapshots for accepted state replacements only", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    const getSnapshot = coordinator.getSnapshot;
+    const subscribe = coordinator.subscribe;
+    const notifications: string[] = [];
+
+    expect(getSnapshot()).toBeNull();
+    expect(coordinator.getSnapshot).toBe(getSnapshot);
+    expect(coordinator.subscribe).toBe(subscribe);
+    const unsubscribe = subscribe(() => {
+      const snapshot = getSnapshot();
+      if (snapshot === null) return;
+      const branch = snapshot.branches.find(({ scenarioId }) =>
+        scenarioId === "baseline"
+      )!;
+      notifications.push([
+        snapshot.status,
+        `g${branch.targetGeneration}`,
+        `r${branch.presentationRevision}`,
+        `e${branch.streamEpoch}`,
+        branch.display.origin.kind,
+        `points:${branch.display.pointCount}`,
+        branch.livePlayback,
+        `candidate:${branch.latestSteadyCandidate !== null}`,
+        `intent:${snapshot.lastAppliedIntentId ?? "none"}`,
+      ].join("|"));
+    });
+
+    await coordinator.open(openCommandV1());
+    expect(notifications).toHaveLength(1);
+    expect(getSnapshot()).toBe(getSnapshot());
+
+    coordinator.applyControlIntent({
+      intentId: "intent/observable-state",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    expect(notifications).toHaveLength(2);
+
+    runtime.resolveStrict("intent/observable-state");
+    await flushV1();
+    expect(notifications).toHaveLength(3);
+
+    runtime.resolveLive("intent/observable-state");
+    await flushV1();
+    expect(notifications).toHaveLength(4);
+
+    const nextSequence =
+      coordinator.branch("baseline").display.latestPoint.sequence + 1;
+    runtime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 1,
+      streamEpoch: 1,
+      points: [frameV1(nextSequence).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+    });
+    expect(notifications).toHaveLength(4);
+
+    runtime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 1,
+      presentationRevision: 1,
+      streamEpoch: 1,
+      points: [frameV1(nextSequence).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+    });
+    expect(notifications).toHaveLength(5);
+
+    await coordinator.suspendBranch("baseline");
+    expect(notifications).toHaveLength(6);
+    await coordinator.suspendBranch("baseline");
+    expect(notifications).toHaveLength(6);
+
+    await coordinator.resumeBranch("baseline");
+    expect(notifications).toHaveLength(7);
+    await coordinator.resumeBranch("baseline");
+    expect(notifications).toHaveLength(7);
+
+    await coordinator.promoteSteadyCandidate("baseline");
+    expect(notifications).toHaveLength(8);
+
+    const closing = coordinator.close();
+    expect(notifications).toHaveLength(9);
+    expect(notifications.at(-1)).toMatch(/^closing\|/);
+    await closing;
+    expect(notifications).toHaveLength(10);
+    await coordinator.close();
+    expect(notifications).toHaveLength(10);
+    unsubscribe();
+
+    expect(notifications).toEqual([
+      "live|g0|r0|e0|opened-run|points:1|running|candidate:false|intent:none",
+      "live|g1|r1|e0|opened-run|points:1|running|candidate:false|intent:intent/observable-state",
+      "live|g1|r1|e0|opened-run|points:1|running|candidate:true|intent:intent/observable-state",
+      "live|g1|r1|e1|live-transition|points:1|running|candidate:true|intent:intent/observable-state",
+      "live|g1|r1|e1|live-transition|points:2|running|candidate:true|intent:intent/observable-state",
+      "live|g1|r1|e1|live-transition|points:2|suspended|candidate:true|intent:intent/observable-state",
+      "live|g1|r1|e1|live-transition|points:2|running|candidate:true|intent:intent/observable-state",
+      "live|g1|r2|e2|promoted-steady-candidate|points:1|running|candidate:false|intent:intent/observable-state",
+      "closing|g1|r2|e2|promoted-steady-candidate|points:1|running|candidate:false|intent:intent/observable-state",
+      "closed|g1|r2|e2|promoted-steady-candidate|points:1|running|candidate:false|intent:intent/observable-state",
+    ]);
+  });
+
+  it("publishes only coordinator-validated presentation resets and appends", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    const events: RuntimePresentationEventV1[] = [];
+    const coherentAtDelivery: boolean[] = [];
+    const unsubscribe = coordinator.subscribePresentation((event) => {
+      events.push(event);
+      const snapshot = coordinator.getSnapshot();
+      const branch = snapshot?.branches.find(({ scenarioId }) =>
+        scenarioId === event.scenarioId
+      );
+      const latestSequence = event.kind === "reset"
+        ? event.frame.point.sequence
+        : event.points.at(-1)?.sequence;
+      coherentAtDelivery.push(
+        snapshot?.sessionId === event.sessionId
+        && branch?.liveBranchId === event.liveBranchId
+        && branch.targetGeneration === event.targetGeneration
+        && branch.presentationRevision === event.presentationRevision
+        && branch.streamEpoch === event.streamEpoch
+        && branch.display.latestPoint.sequence === latestSequence,
+      );
+    });
+
+    await coordinator.open(openCommandV1());
+    expect(events).toHaveLength(2);
+
+    coordinator.applyControlIntent({
+      intentId: "intent/presentation-events",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    expect(events).toHaveLength(2);
+
+    runtime.resolveStrict("intent/presentation-events");
+    await flushV1();
+    expect(events).toHaveLength(2);
+
+    runtime.resolveLive("intent/presentation-events");
+    await flushV1();
+    expect(events).toHaveLength(3);
+
+    const firstSequence =
+      coordinator.branch("baseline").display.latestPoint.sequence + 1;
+    runtime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 1,
+      streamEpoch: 1,
+      points: [frameV1(firstSequence).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+    });
+    expect(events).toHaveLength(3);
+
+    runtime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 1,
+      presentationRevision: 1,
+      streamEpoch: 1,
+      points: [
+        frameV1(firstSequence).point,
+        frameV1(firstSequence + 1).point,
+      ],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+    });
+    expect(events).toHaveLength(4);
+
+    runtime.emitRawSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 1,
+      presentationRevision: 1,
+      streamEpoch: 1,
+      points: [],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+    });
+    expect(events).toHaveLength(4);
+    expect(coordinator.branch("baseline").livePlayback).toBe("suspended");
+
+    await coordinator.promoteSteadyCandidate("baseline");
+    expect(events).toHaveLength(5);
+    unsubscribe();
+
+    expect(events.map((event) => {
+      const eventPointCount = event.kind === "reset"
+        ? event.frame.windowMetrics.collectedPointCount
+        : event.points.length;
+      const totalPointCount = event.kind === "reset"
+        ? event.frame.windowMetrics.collectedPointCount
+        : event.windowMetrics.collectedPointCount;
+      return [
+        event.kind,
+        event.scenarioId,
+        `g${event.targetGeneration}`,
+        `r${event.presentationRevision}`,
+        `e${event.streamEpoch}`,
+        event.kind === "reset" ? event.origin.kind : "same-trace",
+        `event:${eventPointCount}`,
+        `total:${totalPointCount}`,
+      ].join("|");
+    })).toEqual([
+      "reset|baseline|g0|r0|e0|opened-run|event:1|total:1",
+      "reset|hfrEF|g0|r0|e0|opened-run|event:1|total:1",
+      "reset|baseline|g1|r1|e1|live-transition|event:1|total:1",
+      "append|baseline|g1|r1|e1|same-trace|event:2|total:3",
+      "reset|baseline|g1|r2|e2|promoted-steady-candidate|event:1|total:1",
+    ]);
+    expect(coherentAtDelivery).toEqual([true, true, true, true, true]);
+    for (const event of events) {
+      expect(Object.isFrozen(event)).toBe(true);
+      if (event.kind === "reset") {
+        expect(Object.isFrozen(event.frame)).toBe(true);
+      } else {
+        expect(Object.isFrozen(event.points)).toBe(true);
+      }
+    }
+  });
+
+  it("isolates throwing state and presentation listeners from later delivery and numerical progression", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    let throwingStateCallCount = 0;
+    let throwingPresentationCallCount = 0;
+    const stateDeliveries: string[] = [];
+    const presentationDeliveries: string[] = [];
+    const unsubscribeThrowingState = coordinator.subscribe(() => {
+      throwingStateCallCount += 1;
+      throw new Error("synthetic state listener failure");
+    });
+    const unsubscribeState = coordinator.subscribe(() => {
+      const snapshot = coordinator.getSnapshot();
+      const branch = snapshot?.branches.find(({ scenarioId }) =>
+        scenarioId === "baseline"
+      );
+      if (snapshot === null || branch === undefined) return;
+      stateDeliveries.push([
+        snapshot.status,
+        `g${branch.targetGeneration}`,
+        `points:${branch.display.pointCount}`,
+        `candidate:${branch.latestSteadyCandidate !== null}`,
+      ].join("|"));
+    });
+    const unsubscribeThrowingPresentation =
+      coordinator.subscribePresentation(() => {
+        throwingPresentationCallCount += 1;
+        throw new Error("synthetic presentation listener failure");
+      });
+    const unsubscribePresentation = coordinator.subscribePresentation(
+      (event) => {
+        presentationDeliveries.push([
+          event.kind,
+          event.scenarioId,
+          `g${event.targetGeneration}`,
+        ].join("|"));
+      },
+    );
+
+    await expect(coordinator.open(openCommandV1())).resolves.toMatchObject({
+      status: "live",
+    });
+    expect(stateDeliveries).toEqual([
+      "live|g0|points:1|candidate:false",
+    ]);
+    expect(presentationDeliveries).toEqual([
+      "reset|baseline|g0",
+      "reset|hfrEF|g0",
+    ]);
+
+    coordinator.applyControlIntent({
+      intentId: "intent/listener-isolation",
+      targets: [targetV1("baseline", "3", 1.25)],
+    });
+    expect(runtime.submissions).toHaveLength(1);
+    runtime.resolveLive("intent/listener-isolation");
+    await flushV1();
+
+    const firstSequence =
+      coordinator.branch("baseline").display.latestPoint.sequence + 1;
+    expect(() =>
+      runtime.emitSignal("baseline", {
+        kind: "samples",
+        targetGeneration: 1,
+        presentationRevision: 1,
+        streamEpoch: 1,
+        points: [frameV1(firstSequence).point],
+        windowMetrics: {
+          status: "collecting",
+          collectedPointCount: 2,
+          completedCycleCount: 0,
+        },
+      })
+    ).not.toThrow();
+    runtime.resolveStrict("intent/listener-isolation");
+    await flushV1();
+
+    expect(coordinator.branch("baseline")).toMatchObject({
+      targetGeneration: 1,
+      display: {
+        pointCount: 2,
+        latestPoint: { sequence: firstSequence },
+      },
+      latestSteadyCandidate: {
+        targetGeneration: 1,
+      },
+    });
+    expect(stateDeliveries).toEqual([
+      "live|g0|points:1|candidate:false",
+      "live|g1|points:1|candidate:false",
+      "live|g1|points:1|candidate:false",
+      "live|g1|points:2|candidate:false",
+      "live|g1|points:2|candidate:true",
+    ]);
+    expect(presentationDeliveries).toEqual([
+      "reset|baseline|g0",
+      "reset|hfrEF|g0",
+      "reset|baseline|g1",
+      "append|baseline|g1",
+    ]);
+    expect(throwingStateCallCount).toBe(stateDeliveries.length);
+    expect(throwingPresentationCallCount).toBe(
+      presentationDeliveries.length,
+    );
+
+    unsubscribeThrowingState();
+    unsubscribeState();
+    unsubscribeThrowingPresentation();
+    unsubscribePresentation();
   });
 
   it("discards stale branch results while retaining valid subset work", async () => {
@@ -445,6 +798,38 @@ describe("Studio SimulationSession coordinator V1", () => {
     expect(sourceArtifacts.entryCount).toBe(1);
     expect(sourceCoordinator.branch("baseline").pinnedRunRefs).toEqual([]);
   });
+
+  it.each(["modelRef", "runtimeRef"] as const)(
+    "rejects a strict candidate whose %s escapes the opened execution lineage",
+    async (executionField) => {
+      const runtime = new FakeRuntimePortV1();
+      runtime.strictExecutionOverride = Object.freeze({
+        ...EXECUTION_V1,
+        [executionField]: `forged/${executionField}@1.0.0`,
+      });
+      const coordinator = coordinatorV1(runtime);
+      await coordinator.open(openCommandV1());
+      const intentId = `intent/mismatched-${executionField}`;
+      coordinator.applyControlIntent({
+        intentId,
+        targets: [targetV1("baseline", "3", 1.25)],
+      });
+
+      runtime.resolveStrict(intentId);
+      await flushV1();
+
+      expect(coordinator.branch("baseline")).toMatchObject({
+        latestSteadyCandidate: null,
+        lastRuntimeFailure: {
+          lane: "strict",
+          message: expect.stringMatching(/candidate lineage mismatch/),
+        },
+      });
+      await expect(coordinator.promoteSteadyCandidate("baseline"))
+        .rejects.toThrow(/no steady candidate exists/);
+      expect(runtime.promotions).toEqual([]);
+    },
+  );
 
   it("requires exactly one collecting point when opening and promoting", async () => {
     const invalidOpenRuntime = new FakeRuntimePortV1();
@@ -965,6 +1350,62 @@ describe("Studio SimulationSession coordinator V1", () => {
     expect(coordinator.branch("baseline").signalChannelRef)
       .toEqual(before.signalChannelRef);
   });
+
+  it("accepts the final in-flight batch at a suspend boundary and resumes contiguously", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    const before = coordinator.branch("baseline");
+    const boundarySequence = before.display.latestPoint.sequence + 1;
+    const suspendGate = runtime.delayNextSuspend("baseline");
+
+    const suspending = coordinator.suspendBranch("baseline");
+    expect(coordinator.branch("baseline").livePlayback).toBe("suspended");
+    runtime.emitRawSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(boundarySequence).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+    });
+    expect(coordinator.branch("baseline")).toMatchObject({
+      livePlayback: "suspended",
+      display: {
+        pointCount: 2,
+        latestPoint: { sequence: boundarySequence },
+      },
+      lastRuntimeFailure: null,
+    });
+
+    suspendGate.resolve(undefined);
+    await suspending;
+    await coordinator.resumeBranch("baseline");
+    runtime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(boundarySequence + 1).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+    });
+    expect(coordinator.branch("baseline")).toMatchObject({
+      livePlayback: "running",
+      display: {
+        pointCount: 3,
+        latestPoint: { sequence: boundarySequence + 1 },
+      },
+      lastRuntimeFailure: null,
+    });
+  });
 });
 
 function coordinatorV1(
@@ -1125,6 +1566,7 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
   openedCollectingPointCount = 1;
   promotedCollectingPointCount = 1;
   openedBindingMismatch = false;
+  strictExecutionOverride: RuntimeExecutionIdentityV1 | null = null;
   private opened: OpenSimulationSessionCommandV1 | null = null;
   private nextOpenGate: DeferredV1<void> | null = null;
   private nextCloseGate: DeferredV1<void> | null = null;
@@ -1145,6 +1587,7 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
     >>>();
   private readonly nextResumeErrors = new Map<string, Error>();
   private readonly nextResumeGates = new Map<string, DeferredV1<void>>();
+  private readonly nextSuspendGates = new Map<string, DeferredV1<void>>();
   private readonly strictSnapshotRefs =
     new Map<string, StudioArtifactRefV1<"snapshot-envelope">>();
   private readonly executions = new Map<string, Readonly<{
@@ -1293,6 +1736,11 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
   ): Promise<void> {
     this.suspendedSignalChannelIds.add(channel.channelId);
     this.signalLifecycle.push(`suspend:${channel.scenarioId}`);
+    const gate = this.nextSuspendGates.get(channel.scenarioId);
+    if (gate !== undefined) {
+      this.nextSuspendGates.delete(channel.scenarioId);
+      await gate.promise;
+    }
   }
 
   async resumeSignalChannel(
@@ -1376,6 +1824,12 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
   delayNextResume(scenarioId: string): DeferredV1<void> {
     const gate = deferredV1<void>();
     this.nextResumeGates.set(scenarioId, gate);
+    return gate;
+  }
+
+  delayNextSuspend(scenarioId: string): DeferredV1<void> {
+    const gate = deferredV1<void>();
+    this.nextSuspendGates.set(scenarioId, gate);
     return gate;
   }
 
@@ -1503,7 +1957,7 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
                   index + target.targetGeneration - 1
                 ] ?? "e",
               ),
-              execution: EXECUTION_V1,
+              execution: this.strictExecutionOverride ?? EXECUTION_V1,
               steadyStatus: "converged" as const,
               numericalHealth: "passed" as const,
             },

@@ -356,7 +356,8 @@ const DEFAULT_COPY: ScientificProductEvidencePageCopyV1 = {
   noMatches: "No matching metrics",
   noMatchesHint: "Try another term or clear the filters.",
   noChecksYet: "No checks are available yet",
-  noChecksYetHint: "Open this scenario in Workbench. Checks will start automatically.",
+  noChecksYetHint:
+    "This surface has no connected Studio V&V report. Live simulation and strict settlement are separate.",
   clearFilters: "Clear filters",
   noReviewItems: "Nothing needs review in the checks performed.",
   checkedAt: "Checked",
@@ -451,7 +452,8 @@ const JAPANESE_COPY: ScientificProductEvidencePageCopyV1 = {
   noMatches: "一致する指標はありません",
   noMatchesHint: "別の語で検索するか、絞り込みを解除してください。",
   noChecksYet: "確認結果はまだありません",
-  noChecksYetHint: "このシナリオをワークベンチで開くと、自動で確認が始まります。",
+  noChecksYetHint:
+    "この画面には Studio V&V レポートがまだ接続されていません。ライブ計算と厳密収束は別に動作します。",
   clearFilters: "絞り込みを解除",
   noReviewItems: "実行したチェックに要確認の項目はありません。",
   checkedAt: "確認日時",

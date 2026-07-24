@@ -66,47 +66,61 @@ implements ArtifactStorePortV1 {
   async putJson<TKind extends StudioArtifactKindV1>(
     write: StudioJsonWriteV1<TKind>,
   ): Promise<StudioArtifactRefV1<TKind>> {
-    assertWriteV1(write);
-    let envelope: StudioJsonObjectV1;
-    try {
-      envelope = cloneAndFreezeStudioJsonV1<StudioJsonObjectV1>({
-        schemaId: STUDIO_JSON_BLOB_V1_SCHEMA_ID,
-        kind: write.kind,
-        mediaType: write.mediaType,
-        content: write.content,
-      });
-    } catch (error) {
-      throw new StudioArtifactStoreValidationErrorV1(errorMessageV1(error));
-    }
+    const stored = await prepareStoredArtifactV1(write);
+    this.assertCompatibleV1(stored);
+    this.entries.set(stored.ref.sha256, stored);
+    return stored.ref as StudioArtifactRefV1<TKind>;
+  }
 
-    const canonicalEnvelope = studioCanonicalJsonStringifyV1(envelope);
-    const sha256 = await sha256StudioJsonHexV1(envelope);
-    const ref = Object.freeze({
-      schemaId: STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
-      kind: write.kind,
-      sha256,
-      mediaType: write.mediaType,
-      byteLength: new TextEncoder().encode(canonicalEnvelope).byteLength,
-    }) satisfies StudioArtifactRefV1<TKind>;
-    const existing = this.entries.get(sha256);
-    if (existing !== undefined) {
-      if (existing.canonicalEnvelope !== canonicalEnvelope) {
+  async putJsonBatch(
+    writes: readonly StudioJsonWriteV1[],
+    options: Readonly<{ signal?: AbortSignal }> = {},
+  ): Promise<readonly StudioArtifactRefV1[]> {
+    if (!Array.isArray(writes)) {
+      throw new StudioArtifactStoreValidationErrorV1(
+        "batch writes must be an array",
+      );
+    }
+    assertBatchNotAbortedV1(options.signal);
+    const prepared = await Promise.all(
+      writes.map((write) => prepareStoredArtifactV1(write)),
+    );
+    assertBatchNotAbortedV1(options.signal);
+
+    const bySha256 = new Map<string, StoredJsonArtifactV1>();
+    for (const stored of prepared) {
+      const prior = bySha256.get(stored.ref.sha256);
+      if (
+        prior !== undefined
+        && prior.canonicalEnvelope !== stored.canonicalEnvelope
+      ) {
         throw new StudioArtifactStoreValidationErrorV1(
-          "SHA-256 collision across unequal canonical envelopes",
+          "SHA-256 collision across unequal canonical batch envelopes",
         );
       }
-      return existing.ref as StudioArtifactRefV1<TKind>;
+      bySha256.set(stored.ref.sha256, stored);
+      this.assertCompatibleV1(stored);
     }
 
-    const content = envelope.content;
-    const stored = Object.freeze({
-      ref,
-      envelope,
-      content,
-      canonicalEnvelope,
-    });
-    this.entries.set(sha256, stored);
-    return ref;
+    // No await is permitted between the final cancellation check and this
+    // commit. Readers therefore observe either the complete batch or none.
+    assertBatchNotAbortedV1(options.signal);
+    for (const stored of bySha256.values()) {
+      this.entries.set(stored.ref.sha256, stored);
+    }
+    return Object.freeze(prepared.map(({ ref }) => ref));
+  }
+
+  private assertCompatibleV1(stored: StoredJsonArtifactV1): void {
+    const existing = this.entries.get(stored.ref.sha256);
+    if (
+      existing !== undefined
+      && existing.canonicalEnvelope !== stored.canonicalEnvelope
+    ) {
+      throw new StudioArtifactStoreValidationErrorV1(
+        "SHA-256 collision across unequal canonical envelopes",
+      );
+    }
   }
 
   async readJson(
@@ -124,6 +138,47 @@ implements ArtifactStorePortV1 {
     assertRefV1(ref);
     const stored = this.entries.get(ref.sha256);
     return stored !== undefined && sameRefV1(stored.ref, ref);
+  }
+}
+
+async function prepareStoredArtifactV1<TKind extends StudioArtifactKindV1>(
+  write: StudioJsonWriteV1<TKind>,
+): Promise<StoredJsonArtifactV1> {
+  assertWriteV1(write);
+  let envelope: StudioJsonObjectV1;
+  try {
+    envelope = cloneAndFreezeStudioJsonV1<StudioJsonObjectV1>({
+      schemaId: STUDIO_JSON_BLOB_V1_SCHEMA_ID,
+      kind: write.kind,
+      mediaType: write.mediaType,
+      content: write.content,
+    });
+  } catch (error) {
+    throw new StudioArtifactStoreValidationErrorV1(errorMessageV1(error));
+  }
+
+  const canonicalEnvelope = studioCanonicalJsonStringifyV1(envelope);
+  const sha256 = await sha256StudioJsonHexV1(envelope);
+  const ref = Object.freeze({
+    schemaId: STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
+    kind: write.kind,
+    sha256,
+    mediaType: write.mediaType,
+    byteLength: new TextEncoder().encode(canonicalEnvelope).byteLength,
+  }) satisfies StudioArtifactRefV1<TKind>;
+  return Object.freeze({
+    ref,
+    envelope,
+    content: envelope.content,
+    canonicalEnvelope,
+  });
+}
+
+function assertBatchNotAbortedV1(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) {
+    throw new StudioArtifactStoreValidationErrorV1(
+      "atomic JSON batch was aborted",
+    );
   }
 }
 

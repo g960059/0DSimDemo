@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { LESSONS } from '../lessonDoc';
 import { ScientificProductCasesGridV1 } from './scientificProduct';
-import { allCasesHref, lessonHref, workbenchHref } from '../homeLinks';
+import { allCasesHref, authorPreviewHref, lessonHref, workbenchHref } from '../homeLinks';
 import { localeFromPathname } from '../localeRouting';
 
 export const Home = () => {
@@ -33,6 +33,34 @@ export const Home = () => {
               className="inline-flex px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded text-sm font-bold text-slate-200 shadow transition-colors"
             >
               {t('home.openFreeSimulation')}
+            </Link>
+          </div>
+        </section>
+
+        <section
+          className="rounded-2xl border border-sky-400/20 bg-slate-900 p-6 sm:p-8"
+          data-testid="studio-author-preview-entry-v1"
+        >
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-sky-300">
+                {t('studioAuthorPreview.home.badge')}
+              </p>
+              <h2 className="mt-2 text-2xl font-bold text-slate-100">
+                {t('studioAuthorPreview.home.title')}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                {t('studioAuthorPreview.home.description')}
+              </p>
+              <p className="mt-3 text-xs leading-5 text-amber-200/80">
+                {t('studioAuthorPreview.home.boundaryNotice')}
+              </p>
+            </div>
+            <Link
+              to={authorPreviewHref(locale)}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-sky-500 px-4 text-sm font-bold text-slate-950 shadow-lg shadow-sky-950/30 transition-transform duration-150 active:scale-[0.97] motion-reduce:transform-none"
+            >
+              {t('studioAuthorPreview.home.openAuthor')}
             </Link>
           </div>
         </section>

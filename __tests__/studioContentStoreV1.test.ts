@@ -65,4 +65,51 @@ describe("Studio in-memory content-addressed store V1", () => {
       sha256: "f".repeat(64),
     })).rejects.toBeInstanceOf(StudioArtifactNotFoundErrorV1);
   });
+
+  it("commits JSON batches atomically and observes cancellation before visibility", async () => {
+    const store = new InMemoryContentAddressedArtifactStoreV1();
+    await expect(store.putJsonBatch([
+      {
+        kind: "studio-json",
+        mediaType: "application/json",
+        content: { valid: true },
+      },
+      {
+        kind: "studio-json",
+        mediaType: "application/json",
+        content: { invalid: Number.NaN },
+      },
+    ])).rejects.toThrow(/number must be finite/);
+    expect(store.entryCount).toBe(0);
+
+    const abortController = new AbortController();
+    abortController.abort();
+    await expect(store.putJsonBatch([
+      {
+        kind: "studio-json",
+        mediaType: "application/json",
+        content: { cancelled: true },
+      },
+    ], {
+      signal: abortController.signal,
+    })).rejects.toThrow(/batch was aborted/);
+    expect(store.entryCount).toBe(0);
+
+    const refs = await store.putJsonBatch([
+      {
+        kind: "simulation-input",
+        mediaType: "application/json",
+        content: { input: 1 },
+      },
+      {
+        kind: "snapshot-envelope",
+        mediaType: "application/json",
+        content: { pointCount: 1 },
+      },
+    ]);
+    expect(refs).toHaveLength(2);
+    expect(store.entryCount).toBe(2);
+    await expect(Promise.all(refs.map((ref) => store.has(ref))))
+      .resolves.toEqual([true, true]);
+  });
 });

@@ -36,7 +36,6 @@ import {
   ScientificWorkbenchResearchControlMirrorV0,
   remainingScientificWorkbenchRegularRequestCountV0,
   reserveScientificWorkbenchRequestIdentityV0,
-  scientificWorkbenchLiveChunkDelayMsV0,
   scientificWorkbenchDisplayedFrameOwnerV0,
   SCIENTIFIC_WORKBENCH_LIVE_HISTORY_FRAME_LIMIT_V0,
   SCIENTIFIC_WORKBENCH_LIVE_STEPS_PER_COMMAND_V0,
@@ -327,6 +326,38 @@ describe("document-bound scientific workbench page V1", () => {
     });
   });
 
+  it("keeps an explicitly unavailable Studio V&V report idle and not assessed", () => {
+    const unavailableMessage =
+      "Studio V&V reports are not connected to this product surface yet.";
+    const report = createScientificProductEvidenceReportV1({
+      subjectKey: "session:studio-v1",
+      subjectName: "Studio live run",
+      subjectKind: "current-session",
+      record: null,
+      builtInDiseasePreset: false,
+      releaseId: "test-release",
+      releaseVersion: "0.0.0",
+      releaseSha256: "a".repeat(64),
+      workspaceSha256: null,
+      unavailableMessage,
+    });
+
+    expect(report).toMatchObject({
+      status: "idle",
+      message: unavailableMessage,
+      evidenceSource: "No report in this session",
+      controlStateSha256: null,
+      parameterEpoch: null,
+      verificationItems: [],
+      validation: {
+        status: "not-assessed",
+        message: "No committed P1 cycle is available for comparison.",
+        items: [],
+      },
+      fullSuiteStatus: { status: "not-run" },
+    });
+  });
+
   it("never classifies an empty failed-cycle validation context as within range", () => {
     const record = {
       status: "verification-error",
@@ -484,40 +515,54 @@ describe("document-bound scientific workbench page V1", () => {
       .toHaveLength(5);
   });
 
-  it("runs Quick Check from committed targets without exposing stale-result workflow labels", () => {
+  it("keeps Studio V&V explicitly unavailable without mounting the legacy Quick Check owner", () => {
     const route = read(
       "components/scientificProduct/ScientificProductWorkbenchRouteV1.tsx",
-    );
-    const registry = read(
-      "components/scientificProduct/ScientificProductQuickCheckRegistryV1.ts",
     );
     const report = read(
       "components/scientificProduct/ScientificProductEvidenceReportV1.ts",
     );
 
-    expect(route).toContain("new ScientificProductQuickCheckRegistryV1(registry)");
+    expect(route).toContain(
+      "new ScientificProductStudioScenarioRegistryV1(",
+    );
+    expect(route).toContain("registry.connect()");
+    expect(route).toContain(
+      "loadScientificProductStudioScenarioRuntimeV1({",
+    );
+    expect(route).toContain(
+      "const abortController = new AbortController()",
+    );
+    expect(route).toContain("signal: abortController.signal");
+    expect(route).toContain("abortController.abort()");
+    expect(route).toContain(
+      "const quickCheckSnapshot = EMPTY_STUDIO_QUICK_CHECK_SNAPSHOT_V1",
+    );
+    expect(route).toContain(
+      "Studio V&V reports are not connected to this product surface yet.",
+    );
+    expect(route).toContain(
+      "Live simulation and strict numerical settlement remain active.",
+    );
+    expect(route).toContain(
+      "unavailableMessage: record === null",
+    );
+    expect(route).not.toContain(
+      "new ScientificProductQuickCheckRegistryV1(",
+    );
+    expect(route).not.toContain("quickCheckRegistry.");
     expect(route).toContain("saveCurrentScenario(scenarioId)");
     expect(route).toContain("onOpenCurrent={openCurrentFromEvidence}");
     expect(route).toContain("setActiveInstanceId(selectedSessionId)");
     expect(route).toContain("if (!writeScientificProductSavedScenarioCatalogV1(next)) return null");
-    expect(route).toContain(
-      'evidenceScenarioSummaries.some(({ status }) => status === "checking")',
-    );
     expect(route).toContain("onOpenFullReport={openEvidenceView}");
     expect(route).toContain('data-workbench-surface-preserved="true"');
     expect(route).not.toContain("{!evidenceViewOpen && <PanelGrid");
-    expect(registry).toContain("runtime.controlStore.subscribe");
-    expect(registry).toContain("targetControlStateSha256");
-    expect(registry).toContain("entry.coordinator.requestLatest");
-    expect(registry).toContain("parameterEpoch: event.visibleParameterEpoch");
-    expect(registry).toContain(
-      "submittedControlStateSha256:\n        source.context.controlState.targetStateSha256",
+    expect(report).toContain(
+      "explicitUnavailableMessage === null",
     );
-    expect(registry).toContain("Draft-only edits never enter request selection");
-    expect(registry).toContain('snapshot.phase === "failed" || snapshot.phase === "reload-required"');
-    expect(registry).toContain('errorPhase: "scenario-calculation" as const');
-    expect(registry).toContain(
-      "visibleCalculationFailedV1(\n        entry.runtime.controlStore.getSnapshot(),",
+    expect(report).toContain(
+      '? "checking" as const\n        : "idle" as const',
     );
 
     for (const forbidden of [
@@ -526,7 +571,7 @@ describe("document-bound scientific workbench page V1", () => {
       "recompute needed",
       "Preview only",
       "Cannot interpret",
-    ]) expect(`${route}\n${registry}\n${report}`).not.toContain(forbidden);
+    ]) expect(`${route}\n${report}`).not.toContain(forbidden);
   });
 
   it("renders an explicit verification state before starting browser effects", () => {
@@ -880,28 +925,48 @@ describe("document-bound scientific workbench page V1", () => {
     expect(controller).toContain("Live transition cancelled before presentation");
   });
 
-  it("paces live accepted-step commands from the Workbench speed without changing dt", () => {
-    // 16 accepted 2 ms steps represent 32 ms of simulated time. The header
-    // multiplier changes only the wall-time pacing budget around that exact
-    // scientific command.
-    expect(scientificWorkbenchLiveChunkDelayMsV0(0, 0.5)).toBe(64);
-    expect(scientificWorkbenchLiveChunkDelayMsV0(0, 1)).toBe(32);
-    expect(scientificWorkbenchLiveChunkDelayMsV0(0, 2)).toBe(16);
-    expect(scientificWorkbenchLiveChunkDelayMsV0(0, 5)).toBeCloseTo(6.4);
-    expect(scientificWorkbenchLiveChunkDelayMsV0(40, 0.5)).toBe(24);
-    expect(scientificWorkbenchLiveChunkDelayMsV0(40, 5)).toBe(0);
-    expect(() => scientificWorkbenchLiveChunkDelayMsV0(-1, 1)).toThrow(
-      /elapsed time must be non-negative/,
-    );
-    expect(() => scientificWorkbenchLiveChunkDelayMsV0(0, 0)).toThrow(
-      /time scale must be positive/,
-    );
-
+  it("runs Studio presentation at fixed 1× and synchronizes pause/resume across ready branches", () => {
     const route = read(
       "components/scientificProduct/ScientificProductWorkbenchRouteV1.tsx",
     );
-    expect(route).toContain("playbackRunning={isPlaying}");
-    expect(route).toContain("playbackTimeScale={timeScale}");
+    expect(route).toContain("displayClock.configure(isPlaying, 1)");
+    expect(route).toContain(
+      "const shouldRun = isPlaying && !document.hidden",
+    );
+    expect(route).toContain(
+      "for (const descriptor of registry.getDescriptorSnapshot())",
+    );
+    expect(route).toContain(
+      "if (shouldRun) scenarioRuntime.controlStore.actions.resumeLive()",
+    );
+    expect(route).toContain(
+      "else scenarioRuntime.controlStore.actions.pauseLive()",
+    );
+    expect(route).toContain(
+      "const cancelDeferredStart = scheduleAfterCommittedPaintV1(() =>",
+    );
+    expect(route).toContain(
+      "presentationBoundaryPassed = true",
+    );
+    expect(route).toContain(
+      "if (document.hidden || presentationBoundaryPassed)",
+    );
+    expect(route).toContain(
+      '"visibilitychange",\n      synchronizeVisiblePlayback',
+    );
+    expect(route).toContain("deferInitialLivePresentation: true");
+    expect(route).toContain("togglePlay={toggleStudioPlayback}");
+    expect(route).toContain("timeScale={1}");
+    expect(route).toContain("setTimeScale={noPhysicsMutation}");
+    expect(route).toContain("showTimeScaleControl={false}");
+    expect(route).toContain(
+      'playLabel={t("workbench.header.resumeLiveTrace")}',
+    );
+    expect(route).toContain(
+      'pauseLabel={t("workbench.header.pauseLiveTrace")}',
+    );
+    expect(route).not.toContain("playbackRunning={isPlaying}");
+    expect(route).not.toContain("playbackTimeScale={timeScale}");
     const productRenderer = read(
       "components/scientificProduct/ScientificWorkbenchRuntimeRendererV1.tsx",
     );

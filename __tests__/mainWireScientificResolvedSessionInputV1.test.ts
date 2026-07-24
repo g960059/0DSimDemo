@@ -4,6 +4,7 @@ import {
   loadMainWireAdultFiveWallNonCoronaryReleaseV1,
 } from "@/engine/scientific/assembly";
 import {
+  loadMainWireScientificResolvedSessionInputEnvelopeV1,
   loadMainWireScientificResolvedSessionInputV1,
   loadMainWireScientificSessionIntentV1,
   mainWireScientificSessionIntentV1,
@@ -166,5 +167,48 @@ describe("main-wire resolved session input V1", () => {
 
     expect(canonicalJsonStringify(resolved.sourceIntent.releaseRef))
       .toBe(canonicalJsonStringify(release.ref));
+  });
+
+  it("validates a portable resolved-input envelope by exact release and canonical digest", async () => {
+    const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
+    const resolved = await resolveMainWireScientificSessionInputV1(
+      release,
+      mainWireScientificSessionIntentV1(release.ref),
+    );
+
+    const loaded =
+      await loadMainWireScientificResolvedSessionInputEnvelopeV1(
+        JSON.parse(JSON.stringify(resolved)),
+        release.ref,
+      );
+    expect(loaded).toEqual(resolved);
+    expect(Object.isFrozen(loaded)).toBe(true);
+
+    await expect(loadMainWireScientificResolvedSessionInputEnvelopeV1(
+      resolved,
+      {
+        ...release.ref,
+        sha256: "f".repeat(64),
+      },
+    )).rejects.toThrow(/releaseRef does not match the expected release/);
+
+    const digestTampered = JSON.parse(JSON.stringify(resolved));
+    digestTampered.resolvedParameters.circulationRuntime
+      .losses.systemicResistance = 2;
+    await expect(loadMainWireScientificResolvedSessionInputEnvelopeV1(
+      digestTampered,
+      release.ref,
+    )).rejects.toThrow(
+      /sessionInputSha256 does not match the canonical payload/,
+    );
+
+    const unknownTopLevelField = {
+      ...JSON.parse(JSON.stringify(resolved)),
+      silentFallbackApplied: false,
+    };
+    await expect(loadMainWireScientificResolvedSessionInputEnvelopeV1(
+      unknownTopLevelField,
+      release.ref,
+    )).rejects.toThrow(/must contain exactly keys/);
   });
 });

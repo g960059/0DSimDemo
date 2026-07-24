@@ -272,6 +272,51 @@ export type RuntimeDisplayOriginV1 =
     candidateId: RuntimeCandidateIdV1;
   }>;
 
+/**
+ * Portable identity shared by coordinator-owned presentation events.
+ *
+ * Unlike the adapter signal channel, this stream contains only data that has
+ * passed the coordinator's current generation, presentation revision, stream
+ * epoch, continuity, and metric validation.
+ */
+export type RuntimePresentationEventIdentityV1 = Readonly<{
+  sessionId: StudioSessionIdV1;
+  scenarioId: ScenarioIdV1;
+  liveBranchId: RuntimeBranchIdV1;
+  targetGeneration: TargetGenerationV1;
+  presentationRevision: PresentationRevisionV1;
+  streamEpoch: number;
+}>;
+
+/**
+ * Starts a new disposable trace with exactly one accepted point.
+ *
+ * A reset is emitted for an opened run, an accepted live target transition,
+ * and a successful steady-candidate promotion.
+ */
+export type RuntimePresentationResetEventV1 =
+  RuntimePresentationEventIdentityV1 & Readonly<{
+    kind: "reset";
+    origin: RuntimeDisplayOriginV1;
+    frame: RuntimePresentationFrameV1;
+  }>;
+
+/**
+ * Appends a coordinator-validated contiguous signal batch to the current
+ * trace. `windowMetrics.collectedPointCount` is the total point count after
+ * this append, not merely the size of this event.
+ */
+export type RuntimePresentationAppendEventV1 =
+  RuntimePresentationEventIdentityV1 & Readonly<{
+    kind: "append";
+    points: readonly RuntimeObservablePointV1[];
+    windowMetrics: RuntimeWindowMetricStateV1;
+  }>;
+
+export type RuntimePresentationEventV1 =
+  | RuntimePresentationResetEventV1
+  | RuntimePresentationAppendEventV1;
+
 export type RuntimeDisplayWindowV1 = Readonly<{
   origin: RuntimeDisplayOriginV1;
   /**

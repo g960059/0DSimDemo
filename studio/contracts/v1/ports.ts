@@ -101,6 +101,15 @@ export interface ArtifactStorePortV1 {
     write: StudioJsonWriteV1<TKind>,
   ): Promise<StudioArtifactRefV1<TKind>>;
 
+  /**
+   * Validates and hashes every write before making any of them visible.
+   * Cancellation is observed immediately before the synchronous commit.
+   */
+  putJsonBatch(
+    writes: readonly StudioJsonWriteV1[],
+    options?: Readonly<{ signal?: AbortSignal }>,
+  ): Promise<readonly StudioArtifactRefV1[]>;
+
   readJson(ref: StudioArtifactRefV1): Promise<StudioJsonValueV1>;
 
   has(ref: StudioArtifactRefV1): Promise<boolean>;

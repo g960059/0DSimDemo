@@ -21,6 +21,9 @@ import {
   type MainWireScientificSessionStateCodecIdentityV4,
 } from "@/engine/scientific/runtime";
 import {
+  loadMainWireScientificResolvedSessionInputEnvelopeV1,
+} from "@/engine/scientific/inputs/MainWireScientificResolvedSessionInputEnvelopeV1";
+import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_ID,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_SCHEMA_ID,
@@ -1677,10 +1680,28 @@ async function isExactCheckpointV4IntegrityValidV1(
   let expectedBaseSessionInputSha256: string | null;
   if (submitted.kind === "getExactCheckpointV4") {
     const payload = response.payload;
-    if (!isRecord(payload) || !("checkpoint" in payload)) return false;
+    if (
+      !isRecord(payload)
+      || !("checkpoint" in payload)
+      || !("resolvedSessionInput" in payload)
+    ) return false;
     checkpointCandidate = payload.checkpoint;
     expectedBaseSessionInputSha256 =
       exactCheckpointV4BaseSessionInputForOriginV1(response.sessionOrigin);
+    if (expectedBaseSessionInputSha256 === null) return false;
+    try {
+      const resolvedInput =
+        await loadMainWireScientificResolvedSessionInputEnvelopeV1(
+          payload.resolvedSessionInput,
+          response.releaseRef,
+        );
+      if (
+        resolvedInput.sessionInputSha256
+          !== expectedBaseSessionInputSha256
+      ) return false;
+    } catch {
+      return false;
+    }
   } else if (submitted.kind === "restoreExactSessionV4") {
     checkpointCandidate =
       submitted.exactCheckpointV4?.checkpointCandidate ?? null;
@@ -1772,7 +1793,12 @@ function isExactCheckpointV4ResponseCompatible(
 ): boolean {
   const payload = response.payload;
   if (!isRecord(payload)
-    || !hasExactKeys(payload, ["kind", "checkpoint", "observableFrame"])
+    || !hasExactKeys(payload, [
+      "kind",
+      "resolvedSessionInput",
+      "checkpoint",
+      "observableFrame",
+    ])
     || payload.kind !== "exactCheckpointV4"
     || !isRecord(payload.observableFrame)) return false;
   const checkpoint = captureExactCheckpointV4Identity(payload.checkpoint);

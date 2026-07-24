@@ -1,7 +1,8 @@
 # STUDIO-RUNTIME-001 — foundation vertical slice
 
 Status: headless runtime foundation and MainWire Worker adapter implemented;
-product UI and browser performance qualification pending
+consumed by the product Workbench bridge and draft Reader Preview vertical
+slices; browser performance qualification pending
 Date: 2026-07-24
 
 ## Purpose
@@ -9,7 +10,7 @@ Date: 2026-07-24
 Prove the Studio-owned orchestration boundary without changing the existing
 React product or creating a second scientific runtime.
 
-The slice is headless:
+This specification remains the headless foundation:
 
 ```text
 Studio contract
@@ -24,8 +25,13 @@ Studio contract
 The coordinator is testable through a deterministic fake port. The production
 MainWire path uses the control-aware exact checkpoint V4, exact control IDs,
 resolved simulation-input artifacts, and a browser Worker host. It never
-falls back to in-process execution. No Reader, Study Lab, Document Editor, or
-other product UI is wired by this slice.
+falls back to in-process execution. This slice itself contains no UI. Its
+current browser consumer is documented in
+[STUDIO-RUNTIME-002](STUDIO-RUNTIME-002-product-workbench-bridge.md); that
+consumer is an initial existing-Workbench bridge, not the final Reader, Study
+Lab, or Document Editor. The narrow Reader consumer and its trust boundary are
+documented in
+[STUDIO-CONTENT-001](STUDIO-CONTENT-001-reader-preview-vertical-slice.md).
 
 ## Scope
 
@@ -177,6 +183,12 @@ hashes canonical bytes and deduplicates equal content. Run, assessment, and
 certification remain different artifact kinds; this slice must not model them
 as mutable states on one record.
 
+The JSON store also supports an atomic batch boundary: every entry is detached,
+validated, and hashed before a final synchronous commit, and cancellation is
+checked immediately before that commit. Bootstrap stages its dependent input,
+snapshot, lineage, and run graph privately, then exposes the complete graph as
+one batch so cancellation cannot leave a partially materialized source.
+
 Opening requires a canonical `StudioRunArtifactContentV1`, not merely the
 existence of a run ref. Its input, snapshot, target digest, execution identity,
 claims, and parent-run ref are validated against the requested source before a
@@ -204,8 +216,11 @@ channels without leaking MainWire types into Studio contracts.
 
 This is a user-zero greenfield cutover. Reusable mathematical runtime code is
 retained, but old Studio schemas and content do not define a production
-compatibility contract. Physical repository separation and product UI wiring
-remain independent follow-up decisions.
+compatibility contract. Physical repository separation remains an independent
+follow-up decision. The initial product Workbench wiring is implemented
+separately in
+[STUDIO-RUNTIME-002](STUDIO-RUNTIME-002-product-workbench-bridge.md); final
+product contexts remain follow-up work.
 
 ## Acceptance criteria
 

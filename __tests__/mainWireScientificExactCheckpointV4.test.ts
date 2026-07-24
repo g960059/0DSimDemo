@@ -221,6 +221,10 @@ describe("main-wire scientific exact checkpoint V4", () => {
       controlTargetStateSha256: firstTarget.targetStateSha256,
       parameterEpoch: 1,
     });
+    expect(emitted.payload.resolvedSessionInput)
+      .toEqual(loaded.caseDocument.content.resolvedSessionInput);
+    expect(emitted.payload.resolvedSessionInput.sessionInputSha256)
+      .toBe(emitted.payload.checkpoint.baseSessionInputSha256);
 
     const restored = await client.request({
       ...baseCommand(
@@ -283,6 +287,8 @@ describe("main-wire scientific exact checkpoint V4", () => {
         acceptedTimeSec: stepped.payload.finalObservableFrame.acceptedTimeSec,
       },
     });
+    expect(reemitted.payload.resolvedSessionInput)
+      .toEqual(emitted.payload.resolvedSessionInput);
 
     const secondTarget = await controlState(0.75, 1.5);
     const reforked = await client.request({

@@ -1,11 +1,8 @@
-import {
-  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
-} from "@/engine/scientific/assembly";
 import type {
   MainWireScientificResearchControlTargetStateV0,
 } from "@/engine/scientific/controls";
 import {
-  loadMainWireScientificResolvedSessionInputV1,
+  loadMainWireScientificResolvedSessionInputEnvelopeV1,
   type MainWireScientificResolvedSessionInputV1,
 } from "@/engine/scientific/inputs";
 import {
@@ -194,6 +191,9 @@ implements SimulationRuntimePortV1 {
   private readonly delayMs: (durationMs: number) => Promise<void>;
   private readonly sessions = new Map<string, AdapterSessionV1>();
   private readonly openingSessionIds = new Set<string>();
+  private readonly openingHostsBySessionId =
+    new Map<string, Set<MainWireStudioSessionHostV1>>();
+  private readonly cancelledOpeningSessionIds = new Set<string>();
   private readonly promotionReceipts =
     new Map<string, RuntimeCandidatePromotedV1>();
   private readonly promotionOperations =
@@ -234,20 +234,30 @@ implements SimulationRuntimePortV1 {
       || this.openingSessionIds.has(command.sessionId)
     ) throw runtimeErrorV1(`session ${command.sessionId} already exists`);
     this.openingSessionIds.add(command.sessionId);
-    const hosts: MainWireStudioSessionHostV1[] = [];
+    const hosts = new Set<MainWireStudioSessionHostV1>();
+    this.openingHostsBySessionId.set(command.sessionId, hosts);
+    const assertOpeningActive = () => {
+      if (this.cancelledOpeningSessionIds.has(command.sessionId)) {
+        throw new Error(`session ${command.sessionId} opening was aborted`);
+      }
+    };
     try {
       const loaded = await Promise.all(command.branches.map((source) =>
         this.loadSourceV1(source)));
+      assertOpeningActive();
       const opened = await Promise.all(loaded.map(async (entry) => {
+        assertOpeningActive();
         const host = this.hostFactory();
-        hosts.push(host);
+        hosts.add(host);
         const hosted = await host.restoreV4({
           sessionId: this.nextInternalIdV1("live-open"),
           resolvedSessionInput: entry.resolvedSessionInput,
           checkpointV4: entry.envelope.checkpointV4,
         });
+        assertOpeningActive();
         return this.openBranchV1(command.sessionId, entry, host, hosted);
       }));
+      assertOpeningActive();
       const session: AdapterSessionV1 = {
         sessionId: command.sessionId,
         branches: new Map(opened.map((branch) => [
@@ -269,6 +279,8 @@ implements SimulationRuntimePortV1 {
       throw runtimeErrorV1(errorMessageV1(error));
     } finally {
       this.openingSessionIds.delete(command.sessionId);
+      this.openingHostsBySessionId.delete(command.sessionId);
+      this.cancelledOpeningSessionIds.delete(command.sessionId);
     }
   }
 
@@ -354,6 +366,11 @@ implements SimulationRuntimePortV1 {
   }
 
   async closeSession(sessionId: string): Promise<void> {
+    const openingHosts = this.openingHostsBySessionId.get(sessionId);
+    if (openingHosts !== undefined) {
+      this.cancelledOpeningSessionIds.add(sessionId);
+      for (const host of openingHosts) host.terminate();
+    }
     const session = this.sessions.get(sessionId);
     if (session === undefined) return;
     session.closed = true;
@@ -401,11 +418,10 @@ implements SimulationRuntimePortV1 {
         `source snapshot ${source.sourceSnapshotRef.sha256} does not exist`,
       );
     }
-    const [runValue, inputValue, snapshotValue, release] = await Promise.all([
+    const [runValue, inputValue, snapshotValue] = await Promise.all([
       this.artifacts.readJson(source.sourceRunRef),
       this.artifacts.readJson(source.sourceInputRef),
       this.artifacts.readJson(source.sourceSnapshotRef),
-      loadMainWireAdultFiveWallNonCoronaryReleaseV1(),
     ]);
     const runContent = loadStudioRunArtifactContentV1(runValue);
     const envelope = await loadMainWireStudioSnapshotEnvelopeV1(snapshotValue);
@@ -414,7 +430,10 @@ implements SimulationRuntimePortV1 {
       source.sourceInputRef,
     )) throw runtimeErrorV1("snapshot/input artifact binding mismatch");
     const resolvedSessionInput =
-      await loadMainWireScientificResolvedSessionInputV1(release, inputValue);
+      await loadMainWireScientificResolvedSessionInputEnvelopeV1(
+        inputValue,
+        envelope.checkpointV4.releaseRef,
+      );
     if (
       resolvedSessionInput.sessionInputSha256
         !== envelope.checkpointV4.baseSessionInputSha256
@@ -1049,10 +1068,9 @@ implements SimulationRuntimePortV1 {
     let enteredCommitWindow = false;
     let committed = false;
     try {
-      const [snapshotValue, inputValue, release] = await Promise.all([
+      const [snapshotValue, inputValue] = await Promise.all([
         this.artifacts.readJson(command.candidate.snapshotRef),
         this.artifacts.readJson(command.candidate.simulationInputRef),
-        loadMainWireAdultFiveWallNonCoronaryReleaseV1(),
       ]);
       const envelope =
         await loadMainWireStudioSnapshotEnvelopeV1(snapshotValue);
@@ -1065,9 +1083,9 @@ implements SimulationRuntimePortV1 {
           !== branch.hostedSession.controlState.targetStateSha256
       ) throw runtimeErrorV1("candidate snapshot binding mismatch");
       const resolvedInput =
-        await loadMainWireScientificResolvedSessionInputV1(
-          release,
+        await loadMainWireScientificResolvedSessionInputEnvelopeV1(
           inputValue,
+          envelope.checkpointV4.releaseRef,
         );
       if (
         resolvedInput.sessionInputSha256

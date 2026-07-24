@@ -1,6 +1,7 @@
 # CircleHeart Studio v1 target architecture
 
-Status: implementation-aligned target digest; headless runtime foundation present
+Status: implementation-aligned target digest; runtime foundation, initial
+product Workbench bridge, and session-only Reader Preview slice present
 Date: 2026-07-24
 Cutover: greenfield Studio on the existing mathematical foundation
 
@@ -60,6 +61,14 @@ DocumentDraft → DocumentRevision
 
 Reader, Study Lab, and Document Editor are presentation contexts over this
 shared object model, not separate owners or products.
+
+The implemented product Workbench bridge is a deliberately narrower
+transition slice. It currently creates one coordinator and one
+`SimulationSession` per presented scenario. The product scenario registry
+coordinates those sessions for display, but it does not provide the target
+single aggregate session, N-branch ownership, or atomic multi-scenario intent.
+This is an explicit implementation gap, not a revision of the target object
+model.
 
 ## 3. Orthogonal presentation state
 
@@ -187,8 +196,10 @@ subjectHash × assessorRef × profileRef
 ```
 
 Certification policy can add gates to a model’s non-bypassable minimum profile
-but cannot remove them. Reader never runs heavyweight certification
-assessments; it opens a pre-certified seed.
+but cannot remove them. The published/final Reader never runs heavyweight
+certification assessments; it opens a pre-certified seed. The session-only
+draft Reader Preview is the explicit uncertified exception and remains
+publication-ineligible.
 
 ## 8. Versioning and commands
 
@@ -287,12 +298,29 @@ The first blocking runtime spike proves:
 
 Legacy coexistence is not a delivery slice.
 
-The headless contracts, coordinator, V4 envelope/target codecs, Worker host,
-runtime adapter, generation discard, signal suspend/resume, P1 candidate
-admission, and explicit promotion boundary are present. Browser performance
-budgets, viewport-driven scheduling, Reset, and product UI integration remain
-to be qualified or implemented; their presence in the target design is not a
-claim that the UI exists.
+The contracts, coordinator, V4 envelope/target codecs, Worker host, runtime
+adapter, generation discard, signal suspend/resume, P1 candidate admission,
+and explicit promotion boundary are present. An initial product Workbench
+bridge also connects a real browser surface to one-point open, automatic
+live+strict parameter intent, fixed 1× live presentation, explicit promotion,
+and pinning.
+
+That bridge is not the final Study Lab, Reader, or Document Editor. It uses one
+Studio session per scenario rather than the target aggregate N-branch session
+and temporarily reuses the existing Workbench shell, presentation DTOs, and
+control-store façade. The Studio coordinator remains the numerical owner; no
+legacy Worker path is retained as a compatibility fallback. V&V reports,
+Guyton/load-series analysis, and advanced PV relation/load-series analysis are
+shown as unavailable. Browser performance budgets, viewport-driven
+scheduling, target Reset, the final product contexts, certification, and
+publication remain to be implemented or qualified.
+
+A separate first Author → Reader Preview slice uses Studio-native content
+contracts and the shared `ResolvedReaderDocumentV1 → StudioDocumentReaderV1`
+seam. It is explicitly `draft-preview-uncertified`, session-only,
+one-placement/one-scenario, and backed by preview-bootstrap lineage that is not
+valid for certification or publication. Reader controls change runtime
+generation but never the captured authoring revision.
 
 ## 13. v1 non-goals
 
@@ -312,5 +340,13 @@ Implementation detail belongs in versioned companion specifications:
 5. document content model;
 6. verification and performance plan.
 
-The first active companion is
-[STUDIO-RUNTIME-001](specs/STUDIO-RUNTIME-001-foundation-vertical-slice.md).
+The implemented runtime companions are:
+
+- [STUDIO-RUNTIME-001](specs/STUDIO-RUNTIME-001-foundation-vertical-slice.md):
+  headless foundation and MainWire adapter;
+- [STUDIO-RUNTIME-002](specs/STUDIO-RUNTIME-002-product-workbench-bridge.md):
+  initial bridge into the existing product Workbench and its explicit
+  limitations;
+- [STUDIO-CONTENT-001](specs/STUDIO-CONTENT-001-reader-preview-vertical-slice.md):
+  first greenfield Author → Reader Preview slice and its explicit
+  non-publication boundary.

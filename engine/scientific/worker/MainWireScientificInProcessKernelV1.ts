@@ -1137,6 +1137,7 @@ export class MainWireScientificInProcessKernelV1 {
         this.requiredSessionOrigin(command.sessionId),
         Object.freeze({
           kind: "exactCheckpointV4" as const,
+          resolvedSessionInput: session.sessionInput,
           checkpoint,
           observableFrame: project(session),
         }),

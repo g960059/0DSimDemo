@@ -245,6 +245,37 @@ describe("MainWire browser Worker host seam", () => {
 });
 
 describe("MainWire Studio runtime adapter", () => {
+  it("terminates every opening host when close wins a blocked restore", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    const restoreGate = deferredV1<void>();
+    harness.restoreGatesByHostOrdinal.set(0, restoreGate);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const command = {
+      sessionId: "cancelled-open-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    };
+
+    const opening = adapter.openSession(command);
+    const openingResult = expect(opening).rejects.toThrow(
+      /opening was aborted|is terminated/,
+    );
+    await waitForV1(() => harness.hosts.length === 1);
+
+    await adapter.closeSession(command.sessionId);
+    expect(harness.hosts[0]!.terminated).toBe(true);
+
+    restoreGate.resolve();
+    await openingResult;
+    expect(harness.hosts[0]!.sessions.size).toBe(0);
+
+    await expect(adapter.openSession(command)).resolves.toMatchObject({
+      sessionId: command.sessionId,
+    });
+    await adapter.closeSession(command.sessionId);
+    expect(harness.hosts[1]!.terminated).toBe(true);
+  });
+
   it("streams 1x live points and suspends/resumes at host command boundaries", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);
@@ -729,6 +760,35 @@ describe("MainWire Studio runtime adapter", () => {
     })).rejects.toThrow(/source run artifact binding mismatch/);
     expect(harness.hosts).toHaveLength(0);
   });
+
+  it.each(["modelRef", "runtimeRef"] as const)(
+    "rejects a run artifact whose %s does not bind the open source before allocating a Worker",
+    async (executionField) => {
+      const stored = await storeSourceV1(baseFixture);
+      const runContent = mutableCloneV1(
+        await stored.artifacts.readJson(stored.runRef),
+      );
+      runContent.execution[executionField] =
+        `forged/${executionField}@1.0.0`;
+      const mismatchedRunRef = await stored.artifacts.putJson({
+        kind: "run-artifact",
+        mediaType:
+          "application/vnd.circleheart.studio-run-artifact.v1+json",
+        content: runContent,
+      });
+      const harness = new FakeHostHarnessV1(baseFixture);
+      const adapter = runtimeAdapterV1(stored, harness);
+
+      await expect(adapter.openSession({
+        sessionId: `mismatched-${executionField}-session`,
+        branches: [{
+          ...sourceBranchV1(stored, "scenario"),
+          sourceRunRef: mismatchedRunRef,
+        }],
+      })).rejects.toThrow(/source run artifact binding mismatch/);
+      expect(harness.hosts).toHaveLength(0);
+    },
+  );
 
   it("keeps complete desired controls across rapid supersession", async () => {
     const stored = await storeSourceV1(baseFixture);

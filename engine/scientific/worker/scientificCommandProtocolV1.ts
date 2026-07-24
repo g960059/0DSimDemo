@@ -11,6 +11,9 @@ import type {
   SimulationReleaseRef,
 } from "@/engine/scientific/release";
 import type {
+  MainWireScientificResolvedSessionInputV1,
+} from "@/engine/scientific/inputs/MainWireScientificResolvedSessionInputV1";
+import type {
   MainWireScientificCaseDocumentRefV1,
 } from "@/engine/scientific/documents/MainWireScientificCaseDocumentV1";
 import type {
@@ -523,6 +526,7 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
     }>;
     getExactCheckpointV4: Readonly<{
       kind: "exactCheckpointV4";
+      resolvedSessionInput: MainWireScientificResolvedSessionInputV1;
       checkpoint: MainWireScientificSessionExactCheckpointV4;
       observableFrame: TObservableFrame;
     }>;

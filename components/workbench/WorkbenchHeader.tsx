@@ -54,8 +54,11 @@ interface WorkbenchHeaderProps {
   fileActionsUnavailableReason?: string;
   isPlaying: boolean;
   togglePlay: () => void;
+  playLabel?: string;
+  pauseLabel?: string;
   timeScale: number;
   setTimeScale: React.Dispatch<React.SetStateAction<number>>;
+  showTimeScaleControl?: boolean;
   noteOpen: boolean;
   metricsOpen: boolean;
   rightRailVisible: boolean;
@@ -103,8 +106,11 @@ export function WorkbenchHeader({
   fileActionsUnavailableReason,
   isPlaying,
   togglePlay,
+  playLabel,
+  pauseLabel,
   timeScale,
   setTimeScale,
+  showTimeScaleControl = true,
   noteOpen,
   metricsOpen,
   rightRailVisible,
@@ -268,34 +274,40 @@ export function WorkbenchHeader({
             <button
               onClick={togglePlay}
               className="inline-flex h-9 w-9 items-center justify-center text-wb-text hover:bg-wb-hover"
-              title={isPlaying ? t('workbench.header.pause') : t('workbench.header.play')}
-              aria-label={isPlaying ? t('workbench.header.pause') : t('workbench.header.play')}
+              title={isPlaying
+                ? pauseLabel ?? t('workbench.header.pause')
+                : playLabel ?? t('workbench.header.play')}
+              aria-label={isPlaying
+                ? pauseLabel ?? t('workbench.header.pause')
+                : playLabel ?? t('workbench.header.play')}
             >
               {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </button>
-            <div className="relative border-l border-wb-line">
-              <button onClick={() => setIsSpeedOpen((open) => !open)} className="inline-flex h-9 items-center gap-1 px-2 text-xs font-medium text-wb-muted hover:bg-wb-hover">
-                {speedLabel(timeScale)}
-                <ChevronDown className="h-3 w-3" />
-              </button>
-              {isSpeedOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsSpeedOpen(false)} />
-                  <div className="absolute right-0 top-full z-50 mt-1 w-24 rounded-md border border-wb-line bg-wb-panel p-1 shadow-xl">
-                    {SPEEDS.map((speed) => (
-                      <button
-                        key={speed}
-                        onClick={() => { setTimeScale(speed); setIsSpeedOpen(false); }}
-                        className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs font-medium text-wb-muted hover:bg-wb-hover"
-                      >
-                        {speedLabel(speed)}
-                        {timeScale === speed && <Check className="h-3 w-3" />}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
+            {showTimeScaleControl && (
+              <div className="relative border-l border-wb-line">
+                <button onClick={() => setIsSpeedOpen((open) => !open)} className="inline-flex h-9 items-center gap-1 px-2 text-xs font-medium text-wb-muted hover:bg-wb-hover">
+                  {speedLabel(timeScale)}
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+                {isSpeedOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsSpeedOpen(false)} />
+                    <div className="absolute right-0 top-full z-50 mt-1 w-24 rounded-md border border-wb-line bg-wb-panel p-1 shadow-xl">
+                      {SPEEDS.map((speed) => (
+                        <button
+                          key={speed}
+                          onClick={() => { setTimeScale(speed); setIsSpeedOpen(false); }}
+                          className="flex w-full items-center justify-between rounded px-2 py-1.5 text-xs font-medium text-wb-muted hover:bg-wb-hover"
+                        >
+                          {speedLabel(speed)}
+                          {timeScale === speed && <Check className="h-3 w-3" />}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {!isLearner && onOpenPublishDialog && (
