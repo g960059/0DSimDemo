@@ -26,8 +26,22 @@ const forbiddenPrefixes = [
   "migrated_prompt_history/",
   "tools/sweeps/",
 ];
+const requiredTrackedPaths = [
+  "studio/application/runtime/SimulationSessionCoordinatorV1.ts",
+  "studio/infrastructure/artifacts/InMemoryContentAddressedArtifactStoreV1.ts",
+  "studio/infrastructure/artifacts/studioCanonicalJsonV1.ts",
+];
 
 const failures = [];
+const trackedPathSet = new Set(trackedPaths);
+for (const requiredPath of requiredTrackedPaths) {
+  if (!trackedPathSet.has(requiredPath)) {
+    failures.push(
+      `${requiredPath}: required Studio foundation source is not tracked`,
+    );
+  }
+}
+
 for (const trackedPath of trackedPaths) {
   if (!existsSync(path.join(repositoryRoot, trackedPath))) continue;
   if (

@@ -1774,7 +1774,7 @@ function assertForkResponseV0(
     || !payload.acceptedStatePreservedAtFork
     || !payload.periodicTrackerResetAtFork
     || !payload.sourceSessionRetainedAtFork
-    || payload.exactCheckpointAvailable
+    || payload.exactCheckpointAvailable !== true
     || payload.periodicSteadyStateClaimed
     || payload.observableFrame.source !== "research-control-state-fork"
     || payload.observableFrame.revision !== payload.targetStateIdentity.revision
