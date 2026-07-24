@@ -325,6 +325,41 @@ describe("Scientific Product Studio scenario controller V1", () => {
     await controller.dispose();
   });
 
+  it("publishes paused only after the final in-flight batch reaches the runtime boundary", async () => {
+    const { controller, coordinator, runtime } =
+      await controllerFixtureV1(0);
+    const suspendGate = runtime.delayNextSuspend();
+
+    controller.controlStore.actions.pauseLive();
+    await waitForV1(() =>
+      runtime.signalLifecycle.includes("suspend:start:scenario/controller")
+    );
+    expect(coordinator.branch("scenario/controller").livePlayback).toBe(
+      "suspended",
+    );
+    expect(controller.status.livePlayback).toBe("running");
+    expect(controller.controlStore.getSnapshot().phase).toBe("live-running");
+
+    runtime.emitSignal(101, 2);
+    await waitForV1(() =>
+      controller.controlStore.getSnapshot().frames.at(-1)?.revision === 101
+    );
+    expect(controller.controlStore.getSnapshot().phase).toBe("live-running");
+
+    suspendGate.resolve(undefined);
+    await waitForV1(() =>
+      controller.status.livePlayback === "suspended"
+      && controller.controlStore.getSnapshot().phase === "live-paused"
+    );
+    const pausedFrames = controller.controlStore.getSnapshot().frames;
+
+    runtime.emitSignal(102, 3);
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 30));
+    expect(controller.controlStore.getSnapshot().frames).toBe(pausedFrames);
+
+    await controller.dispose();
+  });
+
   it("orders pause/resume and recovers a failed suspended branch with one reset intent", async () => {
     const { controller, coordinator, runtime } =
       await controllerFixtureV1(0);

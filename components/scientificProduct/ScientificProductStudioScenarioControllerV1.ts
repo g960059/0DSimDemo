@@ -106,6 +106,8 @@ export class ScientificProductStudioScenarioControllerV1 {
   private framePublishScheduled = false;
   private lastCoordinatorSignature = "";
   private desiredLivePlayback: "running" | "suspended" = "running";
+  private acknowledgedLivePlayback: "running" | "suspended" = "suspended";
+  private pendingPlaybackActionCount = 0;
   private lastPromotedSettledAnalysisSource:
     StudioSettledAnalysisSourceV1 | null = null;
   private disposePromise: Promise<void> | null = null;
@@ -208,6 +210,9 @@ export class ScientificProductStudioScenarioControllerV1 {
       input.bootstrap,
       input.coordinator,
     );
+    controller.desiredLivePlayback = deferInitialLivePresentation
+      ? "suspended"
+      : "running";
     try {
       await input.coordinator.open(Object.freeze({
         sessionId: input.sessionId,
@@ -218,6 +223,7 @@ export class ScientificProductStudioScenarioControllerV1 {
           : "running",
         signal: input.signal,
       });
+      controller.synchronizeAcknowledgedLivePlaybackV1(true);
       controller.lastCoordinatorSignature =
         controller.coordinatorSignatureV1();
       controller.publishV1();
@@ -244,7 +250,7 @@ export class ScientificProductStudioScenarioControllerV1 {
     return Object.freeze({
       targetGeneration: branch?.targetGeneration ?? 0,
       presentationRevision: branch?.presentationRevision ?? 0,
-      livePlayback: branch?.livePlayback ?? "suspended",
+      livePlayback: this.acknowledgedLivePlayback,
       strictPhase,
       strictCandidateAvailable: candidate !== null,
       strictCandidatePinned:
@@ -426,6 +432,9 @@ export class ScientificProductStudioScenarioControllerV1 {
     const signature = this.coordinatorSignatureV1();
     if (signature === this.lastCoordinatorSignature) return;
     this.lastCoordinatorSignature = signature;
+    if (this.pendingPlaybackActionCount === 0) {
+      this.synchronizeAcknowledgedLivePlaybackV1(true);
+    }
     this.publishV1();
   };
 
@@ -604,6 +613,7 @@ export class ScientificProductStudioScenarioControllerV1 {
 
   private async pauseV1(): Promise<void> {
     if (this.disposed) return;
+    this.pendingPlaybackActionCount += 1;
     const actionOrdinal = this.beginActionV1();
     try {
       await this.enqueueOperationV1(async () => {
@@ -617,12 +627,15 @@ export class ScientificProductStudioScenarioControllerV1 {
     } catch (error) {
       this.finishActionFailureV1(actionOrdinal, error);
     } finally {
+      this.pendingPlaybackActionCount -= 1;
+      this.synchronizeAcknowledgedLivePlaybackV1();
       this.publishV1();
     }
   }
 
   private async resumeV1(): Promise<void> {
     if (this.disposed) return;
+    this.pendingPlaybackActionCount += 1;
     const actionOrdinal = this.beginActionV1();
     try {
       await this.enqueueOperationV1(async () => {
@@ -636,6 +649,8 @@ export class ScientificProductStudioScenarioControllerV1 {
     } catch (error) {
       this.finishActionFailureV1(actionOrdinal, error);
     } finally {
+      this.pendingPlaybackActionCount -= 1;
+      this.synchronizeAcknowledgedLivePlaybackV1();
       this.publishV1();
     }
   }
@@ -671,6 +686,22 @@ export class ScientificProductStudioScenarioControllerV1 {
     if (state === null || state.status === "closed") return null;
     return state.branches.find(({ scenarioId }) =>
       scenarioId === this.scenarioId) ?? null;
+  }
+
+  /**
+   * The coordinator switches its control-plane state before awaiting the
+   * runtime boundary so it can accept the final contiguous in-flight batch.
+   * Product UI state must not claim that pause/resume has completed until that
+   * boundary acknowledges the desired state.
+   */
+  private synchronizeAcknowledgedLivePlaybackV1(force = false): void {
+    const branch = this.branchV1();
+    if (
+      branch !== null
+      && (force || branch.livePlayback === this.desiredLivePlayback)
+    ) {
+      this.acknowledgedLivePlayback = branch.livePlayback;
+    }
   }
 
   private coordinatorSignatureV1(): string {
@@ -725,7 +756,7 @@ export class ScientificProductStudioScenarioControllerV1 {
         branch.display.origin.kind === "promoted-steady-candidate"
         && branch.display.origin.targetGeneration === branch.targetGeneration
       );
-    const paused = branch?.livePlayback === "suspended";
+    const paused = this.acknowledgedLivePlayback === "suspended";
     const retargeting =
       this.pendingControlIntentCount > 0 || !displayAligned;
     const strictPhase = this.status.strictPhase;
