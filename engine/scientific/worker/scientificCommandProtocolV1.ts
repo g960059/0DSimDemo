@@ -2,6 +2,7 @@ import type {
   MainWireScientificPeriodicBeatSummaryV1,
   MainWireScientificPeriodicSettlementStatusV1,
   MainWireScientificSessionExactCheckpointV3,
+  MainWireScientificSessionExactCheckpointV4,
 } from "@/engine/scientific/runtime";
 import type {
   MainWireFiveWallPeriodicClassificationV1,
@@ -55,6 +56,8 @@ export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "observe",
   "getExactCheckpoint",
   "restoreExactSession",
+  "getExactCheckpointV4",
+  "restoreExactSessionV4",
   "disposeSession",
   "settlePeriodic",
   "runGuytonStarlingProtocol",
@@ -171,6 +174,15 @@ export type RestoreExactSessionCommandV1 =
     checkpoint: unknown;
   }>;
 
+export type GetExactCheckpointV4CommandV1 =
+  CommandBaseV1<"getExactCheckpointV4">;
+
+export type RestoreExactSessionV4CommandV1 =
+  CommandBaseV1<"restoreExactSessionV4"> & Readonly<{
+    resolvedSessionInput: unknown;
+    checkpoint: unknown;
+  }>;
+
 export type DisposeSessionCommandV1 = CommandBaseV1<"disposeSession">;
 
 export type SettlePeriodicCommandV1 = CommandBaseV1<"settlePeriodic">;
@@ -219,6 +231,8 @@ export type ScientificCommandV1 =
   | ObserveCommandV1
   | GetExactCheckpointCommandV1
   | RestoreExactSessionCommandV1
+  | GetExactCheckpointV4CommandV1
+  | RestoreExactSessionV4CommandV1
   | DisposeSessionCommandV1
   | SettlePeriodicCommandV1
   | RunGuytonStarlingProtocolCommandV1
@@ -272,6 +286,14 @@ export type ScientificSessionOriginV1 =
     checkpointSchemaVersion: 3;
     checkpointSha256: string;
     sessionInputSha256: string;
+  }>
+  | Readonly<{
+    kind: "control-aware-exact-checkpoint-v4-restore";
+    checkpointSchemaVersion: 4;
+    checkpointSha256: string;
+    baseSessionInputSha256: string;
+    controlTargetStateSha256: string;
+    parameterEpoch: number;
   }>
   | Readonly<{
     kind: "official-preset-exact-checkpoint-restore";
@@ -351,7 +373,7 @@ export type ScientificSessionOriginV1 =
     periodicTrackerResetAtFork: true;
     sourceSessionRetainedAtFork: true;
     exactCheckpointCapability:
-      "unavailable-until-control-aware-checkpoint-v4";
+      "control-aware-exact-checkpoint-v4";
     periodicSteadyStateClaimed: false;
     officialTrustClaimed: false;
     clinicalDiagnosisClaimed: false;
@@ -474,7 +496,7 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       acceptedStatePreservedAtFork: true;
       periodicTrackerResetAtFork: true;
       sourceSessionRetainedAtFork: true;
-      exactCheckpointAvailable: false;
+      exactCheckpointAvailable: true;
       periodicSteadyStateClaimed: false;
       observableFrame: TObservableFrame;
     }>;
@@ -497,6 +519,16 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
     }>;
     restoreExactSession: Readonly<{
       kind: "sessionRestored";
+      observableFrame: TObservableFrame;
+    }>;
+    getExactCheckpointV4: Readonly<{
+      kind: "exactCheckpointV4";
+      checkpoint: MainWireScientificSessionExactCheckpointV4;
+      observableFrame: TObservableFrame;
+    }>;
+    restoreExactSessionV4: Readonly<{
+      kind: "sessionRestoredV4";
+      researchControlContext: ScientificResearchControlContextV0;
       observableFrame: TObservableFrame;
     }>;
     disposeSession: Readonly<{

@@ -7,8 +7,8 @@
  * that every *.test.ts file belongs to exactly one suite.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 120;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 45;
+export const FAST_SUITE_FILE_BUDGET = 124;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 48;
 
 export const fastTests = [
   "__tests__/caseCloud.test.ts",
@@ -60,6 +60,7 @@ export const fastTests = [
   "__tests__/mainWireScientificPvRelationJobCommandsV1.test.ts",
   "__tests__/mainWireScientificPvRelationWorkerManagerV1.test.ts",
   "__tests__/mainWireScientificExactCheckpointV3.test.ts",
+  "__tests__/mainWireScientificExactCheckpointV4.test.ts",
   "__tests__/mainWireScientificTbvContinuationSeedPredictorV1.test.ts",
   "__tests__/mainWireScientificDocumentsV1.test.ts",
   "__tests__/mainWireScientificDocumentChainV1.test.ts",
@@ -102,6 +103,9 @@ export const fastTests = [
   "__tests__/scientificWorkbenchPageV1.test.ts",
   "__tests__/scientificWorkbenchTerminalCycleV1.test.ts",
   "__tests__/simulationReleaseV1.test.ts",
+  "__tests__/studioContentStoreV1.test.ts",
+  "__tests__/studioContractsBoundaryV1.test.ts",
+  "__tests__/studioSimulationSessionCoordinatorV1.test.ts",
   "__tests__/testSuiteManifest.test.ts",
   "__tests__/usePreviewRuntime.test.ts",
   "__tests__/waveformPhaseWipe.test.ts",
@@ -159,6 +163,7 @@ export const prSmokeTests = [
   "__tests__/mainWireScientificBrowserWorkerTransportV1.test.ts",
   "__tests__/mainWireScientificDerivedMetricRegistryV1.test.ts",
   "__tests__/mainWireScientificExactCheckpointV3.test.ts",
+  "__tests__/mainWireScientificExactCheckpointV4.test.ts",
   "__tests__/mainWireScientificHemodynamicJobCommandsV2.test.ts",
   "__tests__/mainWireScientificHemodynamicWorkerPoolV2.test.ts",
   "__tests__/mainWireScientificResearchControlCatalogV0.test.ts",
@@ -180,6 +185,8 @@ export const prSmokeTests = [
   "__tests__/scientificWorkbenchPageV1.test.ts",
   "__tests__/scientificWorkbenchTerminalCycleV1.test.ts",
   "__tests__/simulationReleaseV1.test.ts",
+  "__tests__/studioContractsBoundaryV1.test.ts",
+  "__tests__/studioSimulationSessionCoordinatorV1.test.ts",
   "__tests__/testSuiteManifest.test.ts",
   "__tests__/waveformPhaseWipe.test.ts",
   "__tests__/workbenchDefaults.test.ts",

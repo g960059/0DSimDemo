@@ -1,26 +1,27 @@
 # Project documentation
 
-This directory is intentionally small.
-
-Older ADRs, implementation plans, and research notes were removed from the
-working tree during the myocardium Revision 3 reorganization because several of
-them described superseded architecture or calibration assumptions. They remain
-available through git history, for example at baseline commit
-`228bef96e5f522de2cfe352de5d6d4d2f017c550`.
+The working tree contains current specifications, implementation-facing
+evidence, and a small number of explicitly classified historical documents.
+Git history is the archive for superseded experiments, generated debug output,
+assistant transcripts, and plans that no longer constrain the implementation.
 
 ## Current canonical entry points
 
 | Area | Entry point | Status |
 |---|---|---|
+| Studio v1 | [studio/README.md](studio/README.md) | Active greenfield application lane |
+| Scientific runtime | [scientific-runtime/README.md](scientific-runtime/README.md) | Active Model Platform boundary |
 | Myocardial contraction rebuild | [myocardium/README.md](myocardium/README.md) | Proposed Phase 0 |
 | MechanicsCore2 sidecar | [mechanics2/README.md](mechanics2/README.md) | Active user-0 architecture lane |
+| Cross-lane routing | [status/current-lanes.md](status/current-lanes.md) | Compact pointer index |
+| Repository archaeology | [history/README.md](history/README.md) | Recovery index |
 
 ## Recovery policy for removed docs
 
 Use git history when an older document is needed for archaeology:
 
 ```bash
-git show 228bef96e5f522de2cfe352de5d6d4d2f017c550:docs/<path>
+git show <commit>:<path>
 ```
 
 Do not restore old docs into the working tree as archives unless they are

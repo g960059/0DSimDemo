@@ -34,7 +34,9 @@ describe("main-wire scientific research-control Worker V0", () => {
       researchControlPeriodicTrackerResetInTargetOnly: true,
       researchControlArbitraryParameterPatchAccepted: false,
       researchControlCheckpointCapability:
-        "unavailable-until-control-state-aware-v4",
+        "control-aware-exact-resume-v4",
+      controlAwareExactCheckpointCapability:
+        "v4-release-base-input-control-epoch-state-codec-phase-bound",
     });
     const worker = new KernelWorkerBridge(kernel);
     const client = new MainWireScientificWorkerClientV1({
@@ -90,9 +92,10 @@ describe("main-wire scientific research-control Worker V0", () => {
       periodicTrackerResetAtFork: true,
       sourceSessionRetainedAtFork: true,
       exactCheckpointCapability:
-        "unavailable-until-control-aware-checkpoint-v4",
+        "control-aware-exact-checkpoint-v4",
       periodicSteadyStateClaimed: false,
     });
+    expect(forked.payload.exactCheckpointAvailable).toBe(true);
     expect(forked.payload.sourceStateIdentity)
       .toEqual(baselineContext.stateIdentity);
     expect(forked.payload.targetStateIdentity)
@@ -448,6 +451,107 @@ describe("main-wire scientific research-control Worker V0", () => {
     expect(client.status).toBe("failed");
     expect(worker.terminateCount).toBe(1);
   }, 30_000);
+
+  it("fails closed before resolving a V4 checkpoint with nested allowed-value tampering", async () => {
+    const kernel = new MainWireScientificInProcessKernelV1({
+      maximumSessionCount: 4,
+      officialDocumentCaseLoader:
+        loadBundledOfficialHealthyPeriodicDocumentChainV1,
+    });
+    const worker = new KernelWorkerBridge(kernel);
+    const client = new MainWireScientificWorkerClientV1({
+      workerFactory: () => worker.port(),
+    });
+    await createForkedControlTargetV0(
+      client,
+      "nested-digest",
+      "nested-digest-source",
+      "nested-digest-target",
+    );
+
+    worker.transformNextResponse((response) => {
+      const forged = structuredClone(response) as Record<string, any>;
+      forged.payload.checkpoint.controlTargetState.controls[
+        "circulation.systemic-vascular-resistance-scale"
+      ] = 1;
+      return forged;
+    });
+    const checkpoint = client.request(baseCommand(
+      "getExactCheckpointV4",
+      "request-nested-digest-checkpoint",
+      "nested-digest-target",
+    ));
+
+    await expectTransportError(checkpoint, "protocol-mismatch");
+    expect(client.status).toBe("failed");
+    expect(worker.terminateCount).toBe(1);
+  }, 30_000);
+
+  it("fails closed on a valid V4 checkpoint carried by an unbound origin", async () => {
+    const kernel = new MainWireScientificInProcessKernelV1({
+      maximumSessionCount: 4,
+      officialDocumentCaseLoader:
+        loadBundledOfficialHealthyPeriodicDocumentChainV1,
+    });
+    const worker = new KernelWorkerBridge(kernel);
+    const client = new MainWireScientificWorkerClientV1({
+      workerFactory: () => worker.port(),
+    });
+    await createForkedControlTargetV0(
+      client,
+      "unbound-origin",
+      "unbound-origin-source",
+      "unbound-origin-target",
+    );
+
+    worker.transformNextResponse((response) => {
+      const forged = structuredClone(response) as Record<string, any>;
+      forged.sessionOrigin = {
+        kind: "canonical-cold-start",
+        initializationProtocolId: "forged-unbound-origin",
+        initializationProtocolVersion: "1.0.0",
+      };
+      return forged;
+    });
+    const checkpoint = client.request(baseCommand(
+      "getExactCheckpointV4",
+      "request-unbound-origin-checkpoint",
+      "unbound-origin-target",
+    ));
+
+    await expectTransportError(checkpoint, "protocol-mismatch");
+    expect(client.status).toBe("failed");
+    expect(worker.terminateCount).toBe(1);
+  }, 30_000);
+
+  it("fails closed on a duplicate response received during V4 validation", async () => {
+    const kernel = new MainWireScientificInProcessKernelV1({
+      maximumSessionCount: 4,
+      officialDocumentCaseLoader:
+        loadBundledOfficialHealthyPeriodicDocumentChainV1,
+    });
+    const worker = new KernelWorkerBridge(kernel);
+    const client = new MainWireScientificWorkerClientV1({
+      workerFactory: () => worker.port(),
+    });
+    await createForkedControlTargetV0(
+      client,
+      "validation-duplicate",
+      "validation-duplicate-source",
+      "validation-duplicate-target",
+    );
+
+    worker.duplicateNextResponseDuringValidation();
+    const checkpoint = client.request(baseCommand(
+      "getExactCheckpointV4",
+      "request-validation-duplicate-checkpoint",
+      "validation-duplicate-target",
+    ));
+
+    await expectTransportError(checkpoint, "duplicate-response");
+    expect(client.status).toBe("failed");
+    expect(worker.terminateCount).toBe(1);
+  }, 30_000);
 });
 
 function officialCreateCommand(
@@ -490,6 +594,41 @@ async function controlState(
   });
 }
 
+async function createForkedControlTargetV0(
+  client: MainWireScientificWorkerClientV1,
+  requestPrefix: string,
+  sourceSessionId: string,
+  targetSessionId: string,
+): Promise<void> {
+  const created = await client.request(officialCreateCommand(
+    `request-${requestPrefix}-create`,
+    sourceSessionId,
+  ));
+  if (
+    !created.ok
+    || created.payload.kind !== "officialDocumentCaseSessionCreated"
+  ) throw new Error("official control source creation failed");
+  const context = created.payload.researchControlContext;
+  const targetState = await controlState(0.75, 1);
+  const forked = await client.request({
+    ...baseCommand(
+      "forkResearchControlSession",
+      `request-${requestPrefix}-fork`,
+      targetSessionId,
+    ),
+    sourceSessionId,
+    expectedSource: {
+      ...context.stateIdentity,
+      controlStateSha256: context.controlState.targetStateSha256,
+      parameterEpoch: context.parameterEpoch,
+    },
+    targetControlState: targetState,
+  });
+  if (!forked.ok || forked.payload.kind !== "researchControlSessionForked") {
+    throw new Error("research control fork failed");
+  }
+}
+
 function successFrame(
   response: Awaited<ReturnType<MainWireScientificWorkerClientV1["request"]>>,
 ) {
@@ -515,6 +654,7 @@ class KernelWorkerBridge {
   private readonly listeners =
     new Map<string, Set<(event: unknown) => void>>();
   private nextResponseTransform: ((response: unknown) => unknown) | null = null;
+  private duplicateNextResponse = false;
 
   constructor(
     private readonly kernel: MainWireScientificInProcessKernelV1,
@@ -528,9 +668,14 @@ class KernelWorkerBridge {
     void this.kernel.handle(message).then((response) => {
       const transform = this.nextResponseTransform;
       this.nextResponseTransform = null;
-      this.emit("message", {
-        data: transform === null ? response : transform(response),
-      });
+      const outgoing = transform === null ? response : transform(response);
+      this.emit("message", { data: outgoing });
+      if (this.duplicateNextResponse) {
+        this.duplicateNextResponse = false;
+        queueMicrotask(() => {
+          this.emit("message", { data: structuredClone(outgoing) });
+        });
+      }
     });
   }
 
@@ -550,6 +695,10 @@ class KernelWorkerBridge {
 
   transformNextResponse(transform: (response: unknown) => unknown): void {
     this.nextResponseTransform = transform;
+  }
+
+  duplicateNextResponseDuringValidation(): void {
+    this.duplicateNextResponse = true;
   }
 
   private emit(type: string, event: unknown): void {

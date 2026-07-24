@@ -264,9 +264,11 @@ but it must not remove or rewrite those identities.
 
 No legacy `x[]` state, `CoreRuntimeParams` patch, saved legacy case, or
 `ModelCore` checkpoint is converted at cutover. Exact resume remains valid only
-under the identical scientific release and checkpoint schema. Persistence of a
-controlled fork requires a future control-aware checkpoint contract; the
-current V0 transition does not imply one.
+under the identical scientific release and checkpoint schema. A controlled
+fork exposes control-aware exact checkpoint V4. V4 binds the base resolved
+input, complete control target and digest, parameter epoch, state-codec
+identity, canonical phase, and accepted transaction; it is the persistence
+contract for that fork. V2/V3 remain unavailable for a control-edited target.
 
 The current product route derives its compact initial presentation from the
 first scenario's release-bound Workspace document and fails closed if any

@@ -17,6 +17,10 @@ import {
   canonicalJsonStringify,
 } from "@/engine/scientific/release";
 import {
+  loadMainWireScientificSessionExactCheckpointV4,
+  type MainWireScientificSessionStateCodecIdentityV4,
+} from "@/engine/scientific/runtime";
+import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_ID,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_CATALOG_V0_SCHEMA_ID,
@@ -142,6 +146,14 @@ type PendingCommandIdentityV1 = Readonly<{
     sessionInputSha256: string;
     releaseRef: SimulationReleaseRef;
   }> | null;
+  exactCheckpointV4: Readonly<{
+    checkpointSha256: string;
+    baseSessionInputSha256: string;
+    controlTargetStateSha256: string;
+    parameterEpoch: number;
+    releaseRef: SimulationReleaseRef;
+    checkpointCandidate: unknown;
+  }> | null;
   officialPreset: Readonly<{
     presetId: "circleheart/official-healthy-periodic";
     presetVersion: "1.0.0";
@@ -185,9 +197,14 @@ type ResearchControlForkOriginV0 = Extract<
   Readonly<{ kind: "research-control-state-preserving-fork-v0" }>
 >;
 
+type ResearchControlRestoreOriginV4 = Extract<
+  ScientificSessionOriginV1,
+  Readonly<{ kind: "control-aware-exact-checkpoint-v4-restore" }>
+>;
+
 type ResearchControlSessionBindingV0 = Readonly<{
   releaseRef: SimulationReleaseRef;
-  origin: ResearchControlForkOriginV0;
+  origin: ResearchControlForkOriginV0 | ResearchControlRestoreOriginV4;
 }>;
 
 /**
@@ -209,11 +226,40 @@ export class MainWireScientificWorkerClientV1 {
     new Map<string, ResearchControlSessionBindingV0>();
   private readonly researchControlSourceInputSha256Bindings =
     new Map<string, string>();
+  private readonly validatingResponseIds = new Set<string>();
+  private responseProcessingTail: Promise<void> = Promise.resolve();
   private currentStatus: MainWireScientificWorkerClientStatusV1 = "open";
   private terminalError: MainWireScientificWorkerTransportErrorV1 | null = null;
 
   private readonly onMessage = (event: MessageEvent<unknown>): void => {
-    this.handleMessage(event.data);
+    const value = event.data;
+    const requestId = responseRequestId(value);
+    if (
+      requestId !== null
+      && (
+        this.completedRequestIds.has(requestId)
+        || this.validatingResponseIds.has(requestId)
+      )
+    ) {
+      this.failClosed(newTransportError(
+        "duplicate-response",
+        `scientific Worker repeated response requestId ${requestId}`,
+      ));
+      return;
+    }
+    this.responseProcessingTail = this.responseProcessingTail.then(
+      async () => {
+        try {
+          await this.handleMessage(value);
+        } catch (error) {
+          this.failClosed(new MainWireScientificWorkerTransportErrorV1(
+            "protocol-mismatch",
+            "scientific Worker response validation failed unexpectedly",
+            error,
+          ));
+        }
+      },
+    );
   };
 
   private readonly onMessageError = (event: MessageEvent<unknown>): void => {
@@ -298,6 +344,7 @@ export class MainWireScientificWorkerClientV1 {
     ) {
       const used = this.completedRequestIds.size + this.pending.size;
       const recoveryCommand = command.kind === "getExactCheckpoint"
+        || command.kind === "getExactCheckpointV4"
         || command.kind === "disposeSession";
       if (
         !recoveryCommand
@@ -364,7 +411,7 @@ export class MainWireScientificWorkerClientV1 {
     );
   }
 
-  private handleMessage(value: unknown): void {
+  private async handleMessage(value: unknown): Promise<void> {
     if (this.currentStatus !== "open") return;
     const requestId = responseRequestId(value);
     if (requestId !== null && this.completedRequestIds.has(requestId)) {
@@ -398,6 +445,30 @@ export class MainWireScientificWorkerClientV1 {
         `scientific Worker response identity does not match requestId ${value.requestId}`,
       ));
       return;
+    }
+    if (requiresExactCheckpointV4IntegrityValidationV1(value, pending)) {
+      this.validatingResponseIds.add(value.requestId);
+      let integrityValid = false;
+      try {
+        integrityValid =
+          await isExactCheckpointV4IntegrityValidV1(
+            value,
+            pending.submittedCommand,
+          );
+      } finally {
+        this.validatingResponseIds.delete(value.requestId);
+      }
+      if (
+        this.currentStatus !== "open"
+        || this.pending.get(value.requestId) !== pending
+      ) return;
+      if (!integrityValid) {
+        this.failClosed(newTransportError(
+          "protocol-mismatch",
+          `scientific Worker V4 checkpoint integrity does not match requestId ${value.requestId}`,
+        ));
+        return;
+      }
     }
     const forkSourceInputSha256 =
       pending.submittedCommand.researchControlFork === null
@@ -493,6 +564,25 @@ export class MainWireScientificWorkerClientV1 {
         binding.origin.baseSessionInputSha256,
       );
     }
+    if (value.ok && pending.commandKind === "restoreExactSessionV4") {
+      const binding = captureResearchControlSessionBinding(value);
+      if (
+        binding === null
+        || binding.origin.kind
+          !== "control-aware-exact-checkpoint-v4-restore"
+      ) {
+        this.failClosed(newTransportError(
+          "protocol-mismatch",
+          `scientific Worker did not establish a V4 control checkpoint binding for requestId ${value.requestId}`,
+        ));
+        return;
+      }
+      this.researchControlSessionBindings.set(pending.sessionId, binding);
+      this.researchControlSourceInputSha256Bindings.set(
+        pending.sessionId,
+        binding.origin.baseSessionInputSha256,
+      );
+    }
     if (value.ok && pending.commandKind === "disposeSession") {
       this.researchDocumentSessionBindings.delete(pending.sessionId);
       this.researchControlSessionBindings.delete(pending.sessionId);
@@ -524,6 +614,7 @@ export class MainWireScientificWorkerClientV1 {
     }
     const pending = [...this.pending.values()];
     this.pending.clear();
+    this.validatingResponseIds.clear();
     for (const request of pending) {
       clearTimeout(request.timeoutHandle);
       request.reject(error);
@@ -629,6 +720,22 @@ function isSessionOrigin(value: unknown): boolean {
       && /^[0-9a-f]{64}$/.test(value.checkpointSha256)
       && typeof value.sessionInputSha256 === "string"
       && /^[0-9a-f]{64}$/.test(value.sessionInputSha256);
+  }
+  if (value.kind === "control-aware-exact-checkpoint-v4-restore") {
+    return hasExactKeys(value, [
+      "kind",
+      "checkpointSchemaVersion",
+      "checkpointSha256",
+      "baseSessionInputSha256",
+      "controlTargetStateSha256",
+      "parameterEpoch",
+    ])
+      && value.checkpointSchemaVersion === 4
+      && isSha256(value.checkpointSha256)
+      && isSha256(value.baseSessionInputSha256)
+      && isSha256(value.controlTargetStateSha256)
+      && Number.isSafeInteger(value.parameterEpoch)
+      && (value.parameterEpoch as number) >= 0;
   }
   if (value.kind === "official-preset-exact-checkpoint-restore") {
     return hasExactKeys(value, [
@@ -805,7 +912,7 @@ function isSessionOrigin(value: unknown): boolean {
       && value.periodicTrackerResetAtFork === true
       && value.sourceSessionRetainedAtFork === true
       && value.exactCheckpointCapability
-        === "unavailable-until-control-aware-checkpoint-v4"
+        === "control-aware-exact-checkpoint-v4"
       && value.periodicSteadyStateClaimed === false
       && value.officialTrustClaimed === false
       && value.clinicalDiagnosisClaimed === false
@@ -823,10 +930,14 @@ function capturePendingCommandIdentity(
     sessionId: command.sessionId,
     resolvedSessionInput: command.kind === "createResolvedSession"
       || command.kind === "restoreExactSession"
+      || command.kind === "restoreExactSessionV4"
       ? captureResolvedSessionInputIdentity(command.resolvedSessionInput)
       : null,
     exactCheckpoint: command.kind === "restoreExactSession"
       ? captureExactCheckpointIdentity(command.checkpoint)
+      : null,
+    exactCheckpointV4: command.kind === "restoreExactSessionV4"
+      ? captureExactCheckpointV4Identity(command.checkpoint)
       : null,
     officialPreset: command.kind === "createOfficialPresetSession"
       ? Object.freeze({
@@ -911,6 +1022,9 @@ function isResponseCompatibleWithSubmittedCommand(
   if (submitted.kind === "getExactCheckpoint") {
     return isExactCheckpointResponseCompatible(response);
   }
+  if (submitted.kind === "getExactCheckpointV4") {
+    return isExactCheckpointV4ResponseCompatible(response);
+  }
   if (submitted.kind === "restoreExactSession") {
     const expectedInput = submitted.resolvedSessionInput;
     const expectedCheckpoint = submitted.exactCheckpoint;
@@ -938,6 +1052,49 @@ function isResponseCompatibleWithSubmittedCommand(
       && sameReleaseRef(
         payload.observableFrame.releaseRef,
         expectedInput.releaseRef,
+      );
+  }
+  if (submitted.kind === "restoreExactSessionV4") {
+    const expectedInput = submitted.resolvedSessionInput;
+    const expectedCheckpoint = submitted.exactCheckpointV4;
+    if (
+      expectedInput === null
+      || expectedCheckpoint === null
+      || expectedInput.sessionInputSha256
+        !== expectedCheckpoint.baseSessionInputSha256
+      || !sameReleaseRef(
+        expectedInput.releaseRef,
+        expectedCheckpoint.releaseRef,
+      )
+    ) return false;
+    const origin = response.sessionOrigin;
+    const payload = response.payload;
+    return origin.kind === "control-aware-exact-checkpoint-v4-restore"
+      && origin.checkpointSchemaVersion === 4
+      && origin.checkpointSha256 === expectedCheckpoint.checkpointSha256
+      && origin.baseSessionInputSha256
+        === expectedInput.sessionInputSha256
+      && origin.controlTargetStateSha256
+        === expectedCheckpoint.controlTargetStateSha256
+      && origin.parameterEpoch === expectedCheckpoint.parameterEpoch
+      && sameReleaseRef(response.releaseRef, expectedInput.releaseRef)
+      && isRecord(payload)
+      && hasExactKeys(payload, [
+        "kind",
+        "researchControlContext",
+        "observableFrame",
+      ])
+      && payload.kind === "sessionRestoredV4"
+      && isRecord(payload.observableFrame)
+      && sameReleaseRef(
+        payload.observableFrame.releaseRef,
+        expectedInput.releaseRef,
+      )
+      && isResearchControlContextV4(
+        payload.researchControlContext,
+        payload.observableFrame,
+        expectedCheckpoint.controlTargetStateSha256,
+        expectedCheckpoint.parameterEpoch,
       );
   }
   if (submitted.kind === "createOfficialPresetSession") {
@@ -1151,7 +1308,7 @@ function isResponseCompatibleWithSubmittedCommand(
       || payload.acceptedStatePreservedAtFork !== true
       || payload.periodicTrackerResetAtFork !== true
       || payload.sourceSessionRetainedAtFork !== true
-      || payload.exactCheckpointAvailable !== false
+      || payload.exactCheckpointAvailable !== true
       || payload.periodicSteadyStateClaimed !== false
       || !isAcceptedStateIdentityV0(payload.sourceStateIdentity)
       || !isAcceptedStateIdentityV0(payload.targetStateIdentity)
@@ -1209,18 +1366,26 @@ function captureResearchDocumentSessionBinding(
 function captureResearchControlSessionBinding(
   response: ProtocolEnvelope,
 ): ResearchControlSessionBindingV0 | null {
+  if (!response.ok) return null;
+  const origin = response.sessionOrigin;
   if (
-    !response.ok
-    || response.commandKind !== "forkResearchControlSession"
-    || response.sessionOrigin.kind
-      !== "research-control-state-preserving-fork-v0"
+    !(
+      response.commandKind === "forkResearchControlSession"
+      && origin.kind === "research-control-state-preserving-fork-v0"
+    )
+    && !(
+      response.commandKind === "restoreExactSessionV4"
+      && origin.kind === "control-aware-exact-checkpoint-v4-restore"
+    )
   ) return null;
   return Object.freeze({
     releaseRef: Object.freeze({ ...response.releaseRef }),
-    origin: Object.freeze({
-      ...response.sessionOrigin,
-      releaseRef: Object.freeze({ ...response.sessionOrigin.releaseRef }),
-    }),
+    origin: origin.kind === "research-control-state-preserving-fork-v0"
+      ? Object.freeze({
+        ...origin,
+        releaseRef: Object.freeze({ ...origin.releaseRef }),
+      })
+      : Object.freeze({ ...origin }),
   });
 }
 
@@ -1266,7 +1431,19 @@ function isResponseBoundToResearchControlSession(
       if (Array.isArray(payloadRecord.observableFrames)) {
         frames.push(...payloadRecord.observableFrames);
       }
-      if ("checkpoint" in payloadRecord) return false;
+      if ("checkpoint" in payloadRecord) {
+        const checkpoint = captureExactCheckpointV4Identity(
+          payloadRecord.checkpoint,
+        );
+        if (
+          response.commandKind !== "getExactCheckpointV4"
+          || checkpoint === null
+          || !checkpointMatchesResearchControlBinding(
+            checkpoint,
+            binding,
+          )
+        ) return false;
+      }
     }
   } else {
     frames.push(...response.error.observableFrames);
@@ -1281,10 +1458,18 @@ function isResponseBoundToResearchControlSession(
 
 function sameResearchControlOriginV0(
   value: unknown,
-  expected: ResearchControlForkOriginV0,
+  expected: ResearchControlForkOriginV0 | ResearchControlRestoreOriginV4,
 ): boolean {
-  return isRecord(value)
-    && value.kind === expected.kind
+  if (!isRecord(value) || value.kind !== expected.kind) return false;
+  if (expected.kind === "control-aware-exact-checkpoint-v4-restore") {
+    return value.checkpointSchemaVersion === 4
+      && value.checkpointSha256 === expected.checkpointSha256
+      && value.baseSessionInputSha256 === expected.baseSessionInputSha256
+      && value.controlTargetStateSha256
+        === expected.controlTargetStateSha256
+      && value.parameterEpoch === expected.parameterEpoch;
+  }
+  return value.kind === "research-control-state-preserving-fork-v0"
     && value.classification === expected.classification
     && sameReleaseRef(value.releaseRef, expected.releaseRef)
     && value.sourceSessionId === expected.sourceSessionId
@@ -1300,11 +1485,31 @@ function sameResearchControlOriginV0(
     && value.periodicTrackerResetAtFork === true
     && value.sourceSessionRetainedAtFork === true
     && value.exactCheckpointCapability
-      === "unavailable-until-control-aware-checkpoint-v4"
+      === "control-aware-exact-checkpoint-v4"
     && value.periodicSteadyStateClaimed === false
     && value.officialTrustClaimed === false
     && value.clinicalDiagnosisClaimed === false
     && value.clinicalValidationClaimed === false;
+}
+
+function checkpointMatchesResearchControlBinding(
+  checkpoint: NonNullable<PendingCommandIdentityV1["exactCheckpointV4"]>,
+  binding: ResearchControlSessionBindingV0,
+): boolean {
+  if (!sameReleaseRef(checkpoint.releaseRef, binding.releaseRef)) return false;
+  const origin = binding.origin;
+  if (origin.kind === "research-control-state-preserving-fork-v0") {
+    return checkpoint.baseSessionInputSha256
+      === origin.baseSessionInputSha256
+      && checkpoint.controlTargetStateSha256
+        === origin.targetControlStateSha256
+      && checkpoint.parameterEpoch === origin.parameterEpoch;
+  }
+  return checkpoint.baseSessionInputSha256
+    === origin.baseSessionInputSha256
+    && checkpoint.controlTargetStateSha256
+      === origin.controlTargetStateSha256
+    && checkpoint.parameterEpoch === origin.parameterEpoch;
 }
 
 /** Every response for a created research Case remains bound to that exact
@@ -1339,8 +1544,14 @@ function isResponseBoundToResearchDocumentSession(
         )) {
           return false;
         }
-        if (payloadRecord.checkpoint.sessionInputSha256
-          !== binding.origin.sessionInputSha256) return false;
+        const checkpointInputSha256 =
+          payloadRecord.checkpoint.schemaVersion === 4
+            ? payloadRecord.checkpoint.baseSessionInputSha256
+            : payloadRecord.checkpoint.sessionInputSha256;
+        if (
+          checkpointInputSha256
+            !== binding.origin.sessionInputSha256
+        ) return false;
       }
     }
   } else {
@@ -1414,6 +1625,109 @@ function captureExactCheckpointIdentity(
   });
 }
 
+function captureExactCheckpointV4Identity(
+  value: unknown,
+): PendingCommandIdentityV1["exactCheckpointV4"] {
+  if (!isRecord(value)
+    || value.checkpointId
+      !== "main-wire-scientific-session-exact-checkpoint-v4"
+    || value.schemaVersion !== 4
+    || !isSha256(value.checkpointSha256)
+    || !isSha256(value.baseSessionInputSha256)
+    || !isSha256(value.controlTargetStateSha256)
+    || !Number.isSafeInteger(value.parameterEpoch)
+    || (value.parameterEpoch as number) < 0
+    || !isReleaseRef(value.releaseRef)
+    || !isRecord(value.controlTargetState)
+    || value.controlTargetState.targetStateSha256
+      !== value.controlTargetStateSha256) return null;
+  let checkpointCandidate: unknown;
+  try {
+    checkpointCandidate = JSON.parse(canonicalJsonStringify(value)) as unknown;
+  } catch {
+    return null;
+  }
+  return Object.freeze({
+    checkpointSha256: value.checkpointSha256,
+    baseSessionInputSha256: value.baseSessionInputSha256,
+    controlTargetStateSha256: value.controlTargetStateSha256,
+    parameterEpoch: value.parameterEpoch as number,
+    releaseRef: Object.freeze({ ...value.releaseRef }),
+    checkpointCandidate,
+  });
+}
+
+function requiresExactCheckpointV4IntegrityValidationV1(
+  response: ProtocolEnvelope,
+  pending: PendingRequest,
+): boolean {
+  return response.ok
+    && (
+      pending.commandKind === "getExactCheckpointV4"
+      || pending.commandKind === "restoreExactSessionV4"
+    );
+}
+
+async function isExactCheckpointV4IntegrityValidV1(
+  response: ProtocolEnvelope,
+  submitted: PendingCommandIdentityV1,
+): Promise<boolean> {
+  if (!response.ok) return true;
+  let checkpointCandidate: unknown;
+  let expectedBaseSessionInputSha256: string | null;
+  if (submitted.kind === "getExactCheckpointV4") {
+    const payload = response.payload;
+    if (!isRecord(payload) || !("checkpoint" in payload)) return false;
+    checkpointCandidate = payload.checkpoint;
+    expectedBaseSessionInputSha256 =
+      exactCheckpointV4BaseSessionInputForOriginV1(response.sessionOrigin);
+  } else if (submitted.kind === "restoreExactSessionV4") {
+    checkpointCandidate =
+      submitted.exactCheckpointV4?.checkpointCandidate ?? null;
+    expectedBaseSessionInputSha256 =
+      submitted.resolvedSessionInput?.sessionInputSha256 ?? null;
+  } else {
+    return true;
+  }
+  if (
+    expectedBaseSessionInputSha256 === null
+    || !isRecord(checkpointCandidate)
+    || !isRecord(checkpointCandidate.stateCodec)
+  ) return false;
+
+  try {
+    await loadMainWireScientificSessionExactCheckpointV4(
+      {
+        releaseRef: response.releaseRef,
+        baseSessionInputSha256: expectedBaseSessionInputSha256,
+        stateCodec: checkpointCandidate.stateCodec as MainWireScientificSessionStateCodecIdentityV4,
+      },
+      checkpointCandidate,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function exactCheckpointV4BaseSessionInputForOriginV1(
+  origin: ScientificSessionOriginV1,
+): string | null {
+  if (
+    origin.kind === "resolved-session-input-cold-start"
+    || origin.kind === "exact-checkpoint-restore"
+    || origin.kind === "research-preset-cold-start"
+    || origin.kind === "research-document-case-cold-start"
+    || origin.kind
+      === "official-document-case-v3-exact-checkpoint-restore"
+  ) return origin.sessionInputSha256;
+  if (
+    origin.kind === "research-control-state-preserving-fork-v0"
+    || origin.kind === "control-aware-exact-checkpoint-v4-restore"
+  ) return origin.baseSessionInputSha256;
+  return null;
+}
+
 function isExactCheckpointResponseCompatible(
   response: ProtocolEnvelope,
 ): boolean {
@@ -1451,6 +1765,62 @@ function isExactCheckpointResponseCompatible(
       && exactOfficialDocumentChainReleaseRef(checkpoint.releaseRef);
   }
   return true;
+}
+
+function isExactCheckpointV4ResponseCompatible(
+  response: ProtocolEnvelope,
+): boolean {
+  const payload = response.payload;
+  if (!isRecord(payload)
+    || !hasExactKeys(payload, ["kind", "checkpoint", "observableFrame"])
+    || payload.kind !== "exactCheckpointV4"
+    || !isRecord(payload.observableFrame)) return false;
+  const checkpoint = captureExactCheckpointV4Identity(payload.checkpoint);
+  if (checkpoint === null
+    || !sameReleaseRef(response.releaseRef, checkpoint.releaseRef)
+    || !sameReleaseRef(
+      payload.observableFrame.releaseRef,
+      checkpoint.releaseRef,
+    )) return false;
+  const origin = response.sessionOrigin;
+  if (origin.kind === "research-control-state-preserving-fork-v0") {
+    return checkpoint.baseSessionInputSha256
+      === origin.baseSessionInputSha256
+      && checkpoint.controlTargetStateSha256
+        === origin.targetControlStateSha256
+      && checkpoint.parameterEpoch === origin.parameterEpoch;
+  }
+  if (origin.kind === "control-aware-exact-checkpoint-v4-restore") {
+    return checkpoint.baseSessionInputSha256
+      === origin.baseSessionInputSha256
+      && checkpoint.controlTargetStateSha256
+        === origin.controlTargetStateSha256
+      && checkpoint.parameterEpoch === origin.parameterEpoch;
+  }
+  if (origin.kind === "resolved-session-input-cold-start") {
+    return origin.sessionInputSha256
+      === checkpoint.baseSessionInputSha256;
+  }
+  if (origin.kind === "exact-checkpoint-restore") {
+    return origin.sessionInputSha256
+      === checkpoint.baseSessionInputSha256;
+  }
+  if (origin.kind === "research-preset-cold-start") {
+    return origin.sessionInputSha256
+      === checkpoint.baseSessionInputSha256
+      && sameReleaseRef(origin.releaseRef, checkpoint.releaseRef);
+  }
+  if (origin.kind === "research-document-case-cold-start") {
+    return origin.sessionInputSha256
+      === checkpoint.baseSessionInputSha256
+      && sameReleaseRef(origin.releaseRef, checkpoint.releaseRef);
+  }
+  if (origin.kind
+    === "official-document-case-v3-exact-checkpoint-restore") {
+    return origin.sessionInputSha256
+      === checkpoint.baseSessionInputSha256;
+  }
+  return false;
 }
 
 function sameReleaseRef(left: unknown, right: unknown): boolean {
@@ -1648,6 +2018,29 @@ function isOfficialBaselineResearchControlContextV0(
     && claims.clinicalDiagnosisClaimed === false
     && claims.clinicalValidationClaimed === false
     && claims.patientSpecificFitClaimed === false;
+}
+
+function isResearchControlContextV4(
+  value: unknown,
+  observableFrame: Readonly<Record<string, unknown>>,
+  expectedControlTargetStateSha256: string,
+  expectedParameterEpoch: number,
+): boolean {
+  return isRecord(value)
+    && hasExactKeys(value, [
+      "stateIdentity",
+      "controlState",
+      "parameterEpoch",
+    ])
+    && isAcceptedStateIdentityV0(value.stateIdentity)
+    && value.stateIdentity.revision === observableFrame.revision
+    && value.stateIdentity.acceptedTimeSec
+      === observableFrame.acceptedTimeSec
+    && value.parameterEpoch === expectedParameterEpoch
+    && isResearchControlTargetStateIdentityV0(
+      value.controlState,
+      expectedControlTargetStateSha256,
+    );
 }
 
 function isPresetDocumentRef(value: unknown): boolean {
