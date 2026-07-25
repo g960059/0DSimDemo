@@ -12,7 +12,7 @@ import {
   type MainWireIntegratedModelCheckpointV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
 import {
-  maximumMainWireIntegratedModelStepDurationV3,
+  limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
   wrapMainWireIntegratedModelAcceptedStateV3,
   type MainWireIntegratedModelAcceptedStateV3,
@@ -425,9 +425,9 @@ export class MainWireIntegratedPreviewSessionV1 {
         nominalGridIndex += 1;
         continue;
       }
-      const maximum = maximumMainWireIntegratedModelStepDurationV3(
+      const candidateTimeLimit = limitMainWireIntegratedModelCandidateTimeV3(
         this.acceptedState,
-        requestedStepSec,
+        nominalTarget,
         {
           configuration: this.fixture.rhythm.configuration,
           externalAfNextBoundaryTimeSec: null,
@@ -435,11 +435,13 @@ export class MainWireIntegratedPreviewSessionV1 {
         this.dynamicProfile,
         this.dynamicConfig,
       );
+      const acceptedDtSec = candidateTimeLimit.candidateTimeSec
+        - this.acceptedState.acceptedTimeSec;
       const stepped = stepMainWireIntegratedModelV3(
         this.fixture.provider,
         this.acceptedState,
         {
-          dtSec: maximum.maximumStepSec,
+          candidateTimeSec: candidateTimeLimit.candidateTimeSec,
           coronary: this.fixture.coronaryStepInput,
           rhythm: {
             configuration: this.fixture.rhythm.configuration,
@@ -448,7 +450,6 @@ export class MainWireIntegratedPreviewSessionV1 {
           },
           dynamicMechanicalSupport: {
             config: this.dynamicConfig,
-            heartRateBpm: 60,
             profile: this.dynamicProfile,
           },
         },
@@ -462,7 +463,7 @@ export class MainWireIntegratedPreviewSessionV1 {
         Math.floor(startAcceptedTimeSec) + 1,
         acceptedStepCount,
         startAcceptedTimeSec,
-        maximum.maximumStepSec,
+        acceptedDtSec,
         stepped,
       ));
       if (
