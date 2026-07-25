@@ -1,4 +1,7 @@
 import {
+  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
+} from "@/engine/scientific/assembly";
+import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1,
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_FRAME_V1_ID,
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_ID,
@@ -52,6 +55,11 @@ export type MainWireStudioSnapshotEnvelopeContentV1 = Readonly<{
   }>;
 }>;
 
+export type MainWireStudioSnapshotEnvelopeExpectedIdentityV1 = Readonly<{
+  simulationInputRef: SimulationInputRefV1;
+  baseSessionInputSha256: string;
+}>;
+
 export class MainWireStudioSnapshotEnvelopeValidationErrorV1 extends Error {
   constructor(message: string) {
     super(`MainWire Studio snapshot rejected: ${message}`);
@@ -66,30 +74,44 @@ export async function putMainWireStudioSnapshotEnvelopeV1(
     checkpointV4: MainWireScientificSessionExactCheckpointV4;
     seedObservableFrame: MainWireScientificObservableFrameV1;
   }>,
+  options: Readonly<{ signal?: AbortSignal }> = {},
 ): Promise<SnapshotEnvelopeRefV1> {
-  const content = await loadMainWireStudioSnapshotEnvelopeV1({
-    schemaId: MAIN_WIRE_STUDIO_SNAPSHOT_ENVELOPE_V1_SCHEMA_ID,
-    schemaVersion: 1,
-    simulationInputRef: input.simulationInputRef,
-    checkpointV4: input.checkpointV4,
-    seedObservableFrame: input.seedObservableFrame,
-    claims: {
-      exactCheckpointStored: true,
-      seedObservablePointCount: 1,
-      beatSampleHistoryStored: false,
-      windowMetricsStored: false,
-      presentationStateStored: false,
+  const content = await loadMainWireStudioSnapshotEnvelopeV1(
+    {
+      schemaId: MAIN_WIRE_STUDIO_SNAPSHOT_ENVELOPE_V1_SCHEMA_ID,
+      schemaVersion: 1,
+      simulationInputRef: input.simulationInputRef,
+      checkpointV4: input.checkpointV4,
+      seedObservableFrame: input.seedObservableFrame,
+      claims: {
+        exactCheckpointStored: true,
+        seedObservablePointCount: 1,
+        beatSampleHistoryStored: false,
+        windowMetricsStored: false,
+        presentationStateStored: false,
+      },
     },
-  });
-  return artifacts.putJson({
+    {
+      simulationInputRef: input.simulationInputRef,
+      baseSessionInputSha256: input.checkpointV4.baseSessionInputSha256,
+    },
+  );
+  const refs = await artifacts.putJsonBatch([{
     kind: "snapshot-envelope",
     mediaType: MAIN_WIRE_STUDIO_SNAPSHOT_ENVELOPE_V1_MEDIA_TYPE,
     content: content as unknown as StudioJsonValueV1,
-  });
+  }], options);
+  const ref = refs[0];
+  if (
+    refs.length !== 1
+    || ref?.kind !== "snapshot-envelope"
+  ) throw snapshotErrorV1("artifact store returned an invalid snapshot ref");
+  return ref as SnapshotEnvelopeRefV1;
 }
 
 export async function loadMainWireStudioSnapshotEnvelopeV1(
   value: unknown,
+  expectedIdentity: MainWireStudioSnapshotEnvelopeExpectedIdentityV1,
 ): Promise<MainWireStudioSnapshotEnvelopeContentV1> {
   const envelope = recordV1(value, "snapshot envelope");
   assertExactKeysV1(envelope, [
@@ -108,21 +130,35 @@ export async function loadMainWireStudioSnapshotEnvelopeV1(
   const simulationInputRef = loadSimulationInputRefV1(
     envelope.simulationInputRef,
   );
+  const expectedSimulationInputRef = loadSimulationInputRefV1(
+    expectedIdentity?.simulationInputRef,
+  );
+  if (!sameArtifactRefV1(simulationInputRef, expectedSimulationInputRef)) {
+    throw snapshotErrorV1("simulation input reference mismatch");
+  }
+  const expectedBaseSessionInputSha256 = lowercaseSha256V1(
+    expectedIdentity?.baseSessionInputSha256,
+    "expected baseSessionInputSha256",
+  );
   const checkpointCandidate = recordV1(
     envelope.checkpointV4,
     "checkpointV4",
   );
-  const releaseRef = loadReleaseRefV1(checkpointCandidate.releaseRef);
-  const baseSessionInputSha256 = lowercaseSha256V1(
-    checkpointCandidate.baseSessionInputSha256,
-    "checkpointV4.baseSessionInputSha256",
-  );
+  const canonicalRelease =
+    await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
   const checkpointV4 =
     await loadMainWireScientificSessionExactCheckpointV4(
       {
-        releaseRef,
-        baseSessionInputSha256,
-        stateCodec: checkpointCandidate.stateCodec as never,
+        releaseRef: canonicalRelease.ref,
+        baseSessionInputSha256: expectedBaseSessionInputSha256,
+        stateCodec: Object.freeze({
+          stateSchemaId: canonicalRelease.manifest.stateSchema.schemaId,
+          stateSchemaVersion:
+            canonicalRelease.manifest.stateSchema.schemaVersion,
+          transactionCheckpointId:
+            "main-wire-five-wall-noncoronary-checkpoint-v1",
+          transactionCheckpointSchemaVersion: 1,
+        }),
       },
       checkpointCandidate,
     );
@@ -397,6 +433,17 @@ function loadSimulationInputRefV1(value: unknown): SimulationInputRefV1 {
     mediaType: ref.mediaType,
     byteLength: ref.byteLength as number,
   });
+}
+
+function sameArtifactRefV1(
+  left: SimulationInputRefV1,
+  right: SimulationInputRefV1,
+): boolean {
+  return left.schemaId === right.schemaId
+    && left.kind === right.kind
+    && left.sha256 === right.sha256
+    && left.mediaType === right.mediaType
+    && left.byteLength === right.byteLength;
 }
 
 function loadReleaseRefV1(value: unknown): SimulationReleaseRef {

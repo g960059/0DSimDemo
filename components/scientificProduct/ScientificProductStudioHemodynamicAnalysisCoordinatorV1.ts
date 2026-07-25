@@ -307,7 +307,6 @@ export class ScientificProductStudioHemodynamicAnalysisCoordinatorV1 {
       !this.requestIsCurrentV1(request)
       || active.lastPublishedRequestToken === request.requestToken
     ) return;
-    active.lastPublishedRequestToken = request.requestToken;
     try {
       this.onSnapshot(Object.freeze({
         requestToken: request.requestToken,
@@ -316,9 +315,24 @@ export class ScientificProductStudioHemodynamicAnalysisCoordinatorV1 {
         detailMode: active.detailMode,
         snapshot: active.snapshot,
       }));
-    } catch {
-      // Registry/UI listeners are outside scientific job ownership. A render
-      // callback bug must not cancel an otherwise valid persistent sweep.
+      active.lastPublishedRequestToken = request.requestToken;
+    } catch (error) {
+      // Keep numerical ownership isolated, but never leave the presentation
+      // indefinitely claiming "running" after its projection callback failed.
+      // The separate error channel retains the last accepted snapshot.
+      active.lastPublishedRequestToken = request.requestToken;
+      try {
+        this.onError(Object.freeze({
+          requestToken: request.requestToken,
+          source: request.source,
+          detailMode: request.detailMode,
+          message:
+            `analysis snapshot publication failed: ${errorMessageV1(error)}`,
+          previousSnapshotRetained: true as const,
+        }));
+      } catch {
+        // Both callbacks are external; neither can invalidate the Worker job.
+      }
     }
   }
 

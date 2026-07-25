@@ -685,17 +685,36 @@ export class SimulationSessionCoordinatorV1 {
       },
       (error) => {
         if (this.state === closingState) {
-          const restored = Object.freeze({
-            ...closingState,
-            status: "live",
-          });
-          this.publishStateV1(restored);
-          for (const branch of restored.branches) {
-            if (branch.livePlayback === "running") {
-              this.activateSignalEpochV1(
-                branch,
-                "signal epoch reactivation after close failure failed",
-              );
+          if (force) {
+            // A lifecycle owner has already gone away. A failed transport
+            // acknowledgement must not resurrect a locally owned live session
+            // with no remaining controller. Keep force-close terminal while
+            // still surfacing the transport failure to explicit callers.
+            this.unsubscribeAllSignalsV1();
+            this.signalActivationTokens.clear();
+            this.signalActivationOperations.clear();
+            this.publishStateV1(Object.freeze({
+              ...closingState,
+              status: "closed",
+              branches: Object.freeze(closingState.branches.map((branch) =>
+                Object.freeze({
+                  ...branch,
+                  latestSteadyCandidate: null,
+                }))),
+            }));
+          } else {
+            const restored = Object.freeze({
+              ...closingState,
+              status: "live",
+            });
+            this.publishStateV1(restored);
+            for (const branch of restored.branches) {
+              if (branch.livePlayback === "running") {
+                this.activateSignalEpochV1(
+                  branch,
+                  "signal epoch reactivation after close failure failed",
+                );
+              }
             }
           }
         }

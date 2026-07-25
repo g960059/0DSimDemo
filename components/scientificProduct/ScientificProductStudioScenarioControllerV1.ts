@@ -103,6 +103,7 @@ export class ScientificProductStudioScenarioControllerV1 {
   private actionError: string | null = null;
   private presentationFailure: string | null = null;
   private latestActionOrdinal = 0;
+  private lastCompletedActionOrdinal = 0;
   private framePublishScheduled = false;
   private lastCoordinatorSignature = "";
   private desiredLivePlayback: "running" | "suspended" = "running";
@@ -576,15 +577,15 @@ export class ScientificProductStudioScenarioControllerV1 {
         acceptedGeneration =
           applied.targetGenerations.find(({ scenarioId }) =>
             scenarioId === this.scenarioId)?.targetGeneration;
+        if (acceptedGeneration !== targetGeneration) {
+          throw new Error(
+            "Studio coordinator accepted an unexpected target generation",
+          );
+        }
       } catch (error) {
         this.desiredTargetState = previousTargetState;
         this.targetStatesByGeneration.delete(targetGeneration);
         throw error;
-      }
-      if (acceptedGeneration !== targetGeneration) {
-        throw new Error(
-          "Studio coordinator accepted an unexpected target generation",
-        );
       }
       for (const generation of this.targetStatesByGeneration.keys()) {
         if (generation !== targetGeneration) {
@@ -666,19 +667,20 @@ export class ScientificProductStudioScenarioControllerV1 {
 
   private beginActionV1(): number {
     const ordinal = ++this.latestActionOrdinal;
-    this.actionError = null;
     this.publishV1();
     return ordinal;
   }
 
   private finishActionSuccessV1(ordinal: number): void {
-    if (ordinal === this.latestActionOrdinal) this.actionError = null;
+    if (ordinal < this.lastCompletedActionOrdinal) return;
+    this.lastCompletedActionOrdinal = ordinal;
+    this.actionError = null;
   }
 
   private finishActionFailureV1(ordinal: number, error: unknown): void {
-    if (ordinal === this.latestActionOrdinal) {
-      this.actionError = errorMessageV1(error);
-    }
+    if (ordinal < this.lastCompletedActionOrdinal) return;
+    this.lastCompletedActionOrdinal = ordinal;
+    this.actionError = errorMessageV1(error);
   }
 
   private branchV1(): ScenarioRuntimeBranchStateV1 | null {

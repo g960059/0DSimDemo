@@ -119,16 +119,23 @@ export class MainWireStudioHemodynamicAnalysisHostV1 {
     }
     const runValue = await this.artifacts.readJson(source.sourceRunRef);
     const runContent = loadStudioRunArtifactContentV1(runValue);
-    const envelope = await loadMainWireStudioSnapshotEnvelopeV1(snapshotValue);
-    if (!sameArtifactRefV1(
-      envelope.simulationInputRef,
-      source.simulationInputRef,
-    )) throw hostErrorV1("snapshot/input artifact binding mismatch");
     const resolvedSessionInput =
       await loadMainWireScientificResolvedSessionInputEnvelopeV1(
         inputValue,
-        envelope.checkpointV4.releaseRef,
       );
+    const envelope = await loadMainWireStudioSnapshotEnvelopeV1(
+      snapshotValue,
+      {
+        simulationInputRef: source.simulationInputRef,
+        baseSessionInputSha256: resolvedSessionInput.sessionInputSha256,
+      },
+    );
+    if (
+      !sameSimulationReleaseRef(
+        resolvedSessionInput.releaseRef,
+        envelope.checkpointV4.releaseRef,
+      )
+    ) throw hostErrorV1("snapshot/input release identity mismatch");
     await assertSourceArtifactBindingsV1(
       source,
       resolvedSessionInput,
@@ -478,10 +485,7 @@ function assertJobSnapshotV1(
     || snapshot.source.revision !== source.revision
     || snapshot.source.acceptedTimeSec !== source.acceptedTimeSec
     || snapshot.source.fixedTotalBloodVolumeMl !== source.totalBloodVolumeMl
-    || (
-      snapshot.detailMode !== undefined
-      && snapshot.detailMode !== detailMode
-    )
+    || snapshot.detailMode !== detailMode
   ) throw hostErrorV1("Guyton/Starling job source identity mismatch");
 }
 

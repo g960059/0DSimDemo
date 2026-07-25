@@ -159,6 +159,10 @@ The Reader runtime facade accepts only bindings it can map uniquely to the
 single opened scenario. Unknown signals, unknown parameter mappings,
 multi-scenario targets in this slice, values outside `allowedValues`, and
 implicit “active scenario” targeting fail closed.
+Supported parameter keys are resolved from the release-bound MainWire control
+catalog rather than a Reader-local switch. A brief may expose any of the six
+catalog controls, but every authored value must also belong to that control's
+runtime value domain.
 
 Before allocating a Worker, the preview runtime-binding resolver also requires
 the resolved Experiment `modelRef` to equal the release-bound model identity
@@ -183,19 +187,24 @@ one-scenario rule is an implementation limit accepted only for this vertical
 slice. It must not become a publication schema invariant.
 
 Peek, fullscreen, multi-placement scheduling, cross-placement runtime budgets,
-aggregate N-branch Reader interaction, and target Reset remain follow-up work.
+aggregate N-branch Reader interaction, and a reusable headless Reset command
+remain follow-up work.
 
 ## Author to Reader lifecycle
 
 1. The Author route opens a session-local `StudioAuthorDraftV1`.
 2. Document edits are committed atomically with the current expected revision
    and advance only the mutable author aggregate. Text input commits on blur or
-   an explicit route action; add, remove, and reorder commit their exact next
-   document value immediately, so browser Back or direct navigation cannot
-   discard an already accepted structural edit.
+   an explicit route action; add, positional insert, remove, and reorder commit
+   their exact next document value immediately, so browser Back or direct
+   navigation cannot discard an already accepted structural edit. Empty text
+   blocks are dropped at commit, and a temporarily invalid title never prevents
+   leaving for Home, Workbench, or an older immutable Preview.
 3. In Workbench, the author may explicitly open **Briefing**, capture graph
    panes into the Reader brief, update a capture, or remove it. Closing the
-   compose layer removes its temporary authoring surface.
+   compose layer removes its temporary authoring surface. The drawer is
+   non-modal so pane settings remain adjustable while it is open. It warns as
+   soon as an inflow brief exceeds the one-graph soft limit.
 4. **Preview as Reader** validates the entire graph and materializes a detached
    `ReaderPreviewManifestV1` at the current revision.
 5. The route navigates with the preview id while the same author-preview
@@ -211,6 +220,9 @@ aggregate N-branch Reader interaction, and target Reset remain follow-up work.
    late asynchronous completions cannot reattach the closed session.
 9. Reopening the same materialized preview starts again from a fresh one-point
    source. Returning to Author does not apply Reader controls to the draft.
+10. Reader Reset uses that same fresh-session path: it disposes the current
+    numerical session and reloads the immutable manifest source. It never
+    approximates Reset with a reverse parameter patch from the current state.
 
 The preview manifest remains a frozen view of the author revision captured in
 step 3. Subsequent Author edits require another materialization to appear in a
@@ -223,6 +235,7 @@ The Reader experiment facade exposes only:
 - brief-selected signal series;
 - brief-selected instantaneous readbacks;
 - brief-allowlisted controls;
+- an exact return-to-source Reset capability;
 - Reader-safe phase, error, target-generation, and strict-activity status;
 - evidence state; and
 - the fixed time scale `1`.
@@ -453,7 +466,8 @@ a malformed runtime event.
 - `PublicationManifest`, Assessment, certification, and official publishing;
 - publication-grade artifact lineage and package-retention enforcement;
 - more than one placement or scenario;
-- Reader peek/fullscreen, viewport live-slot scheduling, and target Reset;
+- Reader peek/fullscreen, viewport live-slot scheduling, and a reusable
+  headless in-session Reset command;
 - arbitrary Reader controls, layout editing, graph authoring, pinning, and
   candidate promotion; and
 - replacement of the transition Workbench bridge with the final Study Lab.

@@ -2,12 +2,16 @@ import * as React from "react";
 import {
   ArrowDown,
   ArrowUp,
+  BetweenHorizontalEnd,
+  BetweenHorizontalStart,
   FlaskConical,
   Heading2,
   Heading3,
   Pilcrow,
   Trash2,
 } from "lucide-react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 
 import type {
   StudioDocumentBlockV1,
@@ -19,7 +23,6 @@ export type StudioDocumentEditorValueV1 = Readonly<{
 }>;
 
 export type StudioDocumentBlockEditorV1Props = Readonly<{
-  locale: string;
   value: StudioDocumentEditorValueV1;
   onChange(value: StudioDocumentEditorValueV1): void;
   onCommitRequest(value: StudioDocumentEditorValueV1): void;
@@ -34,12 +37,12 @@ export type StudioDocumentBlockEditorV1Props = Readonly<{
  * Reader brief is composed in the Workbench and only ordered here.
  */
 export function StudioDocumentBlockEditorV1({
-  locale,
   value,
   onChange,
   onCommitRequest,
 }: StudioDocumentBlockEditorV1Props) {
-  const labels = labelsForLocaleV1(locale);
+  const { t } = useTranslation();
+  const labels = labelsFromTranslationsV1(t);
 
   const publishStructuralChange = React.useCallback((
     next: StudioDocumentEditorValueV1,
@@ -84,7 +87,8 @@ export function StudioDocumentBlockEditorV1({
     });
   }, [publishStructuralChange, value]);
 
-  const appendTextBlock = React.useCallback((
+  const insertTextBlock = React.useCallback((
+    at: number,
     kind: "paragraph" | "heading",
     level?: 2 | 3,
   ) => {
@@ -101,10 +105,9 @@ export function StudioDocumentBlockEditorV1({
           level: level ?? 2,
           text: labels.newHeading,
         };
-    publishStructuralChange({
-      ...value,
-      blocks: [...value.blocks, block],
-    });
+    const blocks = [...value.blocks];
+    blocks.splice(Math.max(0, Math.min(at, blocks.length)), 0, block);
+    publishStructuralChange({ ...value, blocks });
   }, [
     labels.newHeading,
     labels.newParagraph,
@@ -157,6 +160,20 @@ export function StudioDocumentBlockEditorV1({
                 <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-[0.1em] text-slate-500">
                   {blockKindLabelV1(block, labels)}
                 </span>
+                <BlockActionV1
+                  label={labels.insertParagraphBefore}
+                  disabled={false}
+                  onClick={() => insertTextBlock(index, "paragraph")}
+                >
+                  <BetweenHorizontalStart className="h-3.5 w-3.5" />
+                </BlockActionV1>
+                <BlockActionV1
+                  label={labels.insertParagraphAfter}
+                  disabled={false}
+                  onClick={() => insertTextBlock(index + 1, "paragraph")}
+                >
+                  <BetweenHorizontalEnd className="h-3.5 w-3.5" />
+                </BlockActionV1>
                 <BlockActionV1
                   label={labels.moveUp}
                   disabled={index === 0}
@@ -274,19 +291,19 @@ export function StudioDocumentBlockEditorV1({
       >
         <AddBlockButtonV1
           label={labels.addParagraph}
-          onClick={() => appendTextBlock("paragraph")}
+          onClick={() => insertTextBlock(value.blocks.length, "paragraph")}
         >
           <Pilcrow className="h-4 w-4" />
         </AddBlockButtonV1>
         <AddBlockButtonV1
           label={labels.addHeading2}
-          onClick={() => appendTextBlock("heading", 2)}
+          onClick={() => insertTextBlock(value.blocks.length, "heading", 2)}
         >
           <Heading2 className="h-4 w-4" />
         </AddBlockButtonV1>
         <AddBlockButtonV1
           label={labels.addHeading3}
-          onClick={() => appendTextBlock("heading", 3)}
+          onClick={() => insertTextBlock(value.blocks.length, "heading", 3)}
         >
           <Heading3 className="h-4 w-4" />
         </AddBlockButtonV1>
@@ -364,60 +381,57 @@ type StudioDocumentEditorLabelsV1 = Readonly<{
   headingLevel: string;
   moveUp: string;
   moveDown: string;
+  insertParagraphBefore: string;
+  insertParagraphAfter: string;
   remove: string;
   blockCount(count: number): string;
   paragraphAt(position: number): string;
   headingAt(position: number): string;
 }>;
 
-function labelsForLocaleV1(locale: string): StudioDocumentEditorLabelsV1 {
-  if (locale.toLowerCase().startsWith("ja")) {
-    return {
-      title: "記事タイトル",
-      blocks: "記事ブロック",
-      addBlock: "ブロックを追加",
-      addParagraph: "段落を追加",
-      addHeading2: "H2見出しを追加",
-      addHeading3: "H3見出しを追加",
-      newParagraph: "新しい段落",
-      newHeading: "新しい見出し",
-      paragraph: "段落",
-      heading2: "H2見出し",
-      heading3: "H3見出し",
-      experimentPlacement: "実験の配置",
-      experimentPlacementDescription:
-        "Workbenchで作成したBriefへの参照です。ここでは記事内の順序だけを編集します。",
-      headingLevel: "見出しレベル",
-      moveUp: "上へ移動",
-      moveDown: "下へ移動",
-      remove: "ブロックを削除",
-      blockCount: (count) => `${count}ブロック`,
-      paragraphAt: (position) => `段落 ${position}`,
-      headingAt: (position) => `見出し ${position}`,
-    };
-  }
+function labelsFromTranslationsV1(
+  t: TFunction,
+): StudioDocumentEditorLabelsV1 {
   return {
-    title: "Article title",
-    blocks: "Article blocks",
-    addBlock: "Add a block",
-    addParagraph: "Add paragraph",
-    addHeading2: "Add H2 heading",
-    addHeading3: "Add H3 heading",
-    newParagraph: "New paragraph",
-    newHeading: "New heading",
-    paragraph: "Paragraph",
-    heading2: "H2 heading",
-    heading3: "H3 heading",
-    experimentPlacement: "Experiment placement",
-    experimentPlacementDescription:
-      "This references a Brief composed in the Workbench. Only its position in the article is edited here.",
-    headingLevel: "Heading level",
-    moveUp: "Move up",
-    moveDown: "Move down",
-    remove: "Delete block",
-    blockCount: (count) => `${count} blocks`,
-    paragraphAt: (position) => `Paragraph ${position}`,
-    headingAt: (position) => `Heading ${position}`,
+    title: t("studioAuthorPreview.documentEditor.title"),
+    blocks: t("studioAuthorPreview.documentEditor.blocks"),
+    addBlock: t("studioAuthorPreview.documentEditor.addBlock"),
+    addParagraph: t("studioAuthorPreview.documentEditor.addParagraph"),
+    addHeading2: t("studioAuthorPreview.documentEditor.addHeading2"),
+    addHeading3: t("studioAuthorPreview.documentEditor.addHeading3"),
+    newParagraph: t("studioAuthorPreview.documentEditor.newParagraph"),
+    newHeading: t("studioAuthorPreview.documentEditor.newHeading"),
+    paragraph: t("studioAuthorPreview.documentEditor.paragraph"),
+    heading2: t("studioAuthorPreview.documentEditor.heading2"),
+    heading3: t("studioAuthorPreview.documentEditor.heading3"),
+    experimentPlacement: t(
+      "studioAuthorPreview.documentEditor.experimentPlacement",
+    ),
+    experimentPlacementDescription: t(
+      "studioAuthorPreview.documentEditor.experimentPlacementDescription",
+    ),
+    headingLevel: t("studioAuthorPreview.documentEditor.headingLevel"),
+    moveUp: t("studioAuthorPreview.documentEditor.moveUp"),
+    moveDown: t("studioAuthorPreview.documentEditor.moveDown"),
+    insertParagraphBefore: t(
+      "studioAuthorPreview.documentEditor.insertParagraphBefore",
+    ),
+    insertParagraphAfter: t(
+      "studioAuthorPreview.documentEditor.insertParagraphAfter",
+    ),
+    remove: t("studioAuthorPreview.documentEditor.remove"),
+    blockCount: (count) => t(
+      "studioAuthorPreview.documentEditor.blockCount",
+      { count },
+    ),
+    paragraphAt: (position) => t(
+      "studioAuthorPreview.documentEditor.paragraphAt",
+      { position },
+    ),
+    headingAt: (position) => t(
+      "studioAuthorPreview.documentEditor.headingAt",
+      { position },
+    ),
   };
 }
 

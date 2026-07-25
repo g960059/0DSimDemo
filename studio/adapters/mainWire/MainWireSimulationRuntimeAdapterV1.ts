@@ -12,6 +12,10 @@ import type {
   MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import {
+  canonicalJsonStringify,
+  sameSimulationReleaseRef,
+} from "@/engine/scientific/release";
+import {
   MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1,
 } from "@/engine/scientific/runtime";
 import {
@@ -80,6 +84,18 @@ import {
 const MAIN_WIRE_LIVE_DT_SEC_V1 = 0.002;
 const MAIN_WIRE_CYCLE_LENGTH_SEC_V1 = 1;
 const DEFAULT_STRICT_MAXIMUM_BEAT_COUNT_V1 = 32;
+/**
+ * A fixed-1x presentation may recover short compute stalls against its
+ * cumulative deadline, but it must not silently drift by a complete canonical
+ * cycle. Crossing this budget suspends the live lane through its existing
+ * failure channel; a new target/reset is required to establish a fresh epoch.
+ */
+export const MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1 =
+  MAIN_WIRE_CYCLE_LENGTH_SEC_V1 * 1_000;
+// Keep a large recovery margin below the audited 100,000-request Worker cap.
+// Rotation is exact-checkpoint based and invisible to the signal-channel
+// identity, so a continuous authoring session is not lifetime-bounded.
+const LIVE_HOST_ROTATION_REQUEST_COUNT_V1 = 90_000;
 const SIGNAL_CHANNEL_PROTOCOL_V1 =
   "circleheart-studio-runtime-signal-channel-v1" as const;
 
@@ -146,6 +162,7 @@ type IntentBranchTokenV1 = {
   cancellation: "superseded" | "aborted" | null;
   cancellationReason: string | null;
   strictHost: MainWireStudioSessionHostV1 | null;
+  artifactCommitController: AbortController | null;
   liveSettled: boolean;
   strictSettled: boolean;
 };
@@ -424,20 +441,23 @@ implements SimulationRuntimePortV1 {
       this.artifacts.readJson(source.sourceSnapshotRef),
     ]);
     const runContent = loadStudioRunArtifactContentV1(runValue);
-    const envelope = await loadMainWireStudioSnapshotEnvelopeV1(snapshotValue);
-    if (!sameArtifactRefV1(
-      envelope.simulationInputRef,
-      source.sourceInputRef,
-    )) throw runtimeErrorV1("snapshot/input artifact binding mismatch");
     const resolvedSessionInput =
       await loadMainWireScientificResolvedSessionInputEnvelopeV1(
         inputValue,
-        envelope.checkpointV4.releaseRef,
       );
+    const envelope = await loadMainWireStudioSnapshotEnvelopeV1(
+      snapshotValue,
+      {
+        simulationInputRef: source.sourceInputRef,
+        baseSessionInputSha256: resolvedSessionInput.sessionInputSha256,
+      },
+    );
     if (
-      resolvedSessionInput.sessionInputSha256
-        !== envelope.checkpointV4.baseSessionInputSha256
-    ) throw runtimeErrorV1("checkpoint/base input digest mismatch");
+      !sameSimulationReleaseRef(
+        resolvedSessionInput.releaseRef,
+        envelope.checkpointV4.releaseRef,
+      )
+    ) throw runtimeErrorV1("checkpoint/input release identity mismatch");
     const expectedTargetInputSha256 =
       await mainWireStudioTargetInputSha256V1(
         envelope.checkpointV4.controlTargetState,
@@ -610,6 +630,7 @@ implements SimulationRuntimePortV1 {
         cancellation: null,
         cancellationReason: null,
         strictHost: null,
+        artifactCommitController: null,
         liveSettled: false,
         strictSettled: false,
       };
@@ -690,7 +711,10 @@ implements SimulationRuntimePortV1 {
       ...discardedEntries.map((entry) =>
         this.cleanupPreparedBranchV1(entry)),
       ...committedEntries.map((entry) =>
-        entry.branch.host.dispose(entry.oldLiveSessionId)),
+        this.disposeLiveSessionOrQuarantineV1(
+          entry.branch,
+          entry.oldLiveSessionId,
+        )),
     ]);
     return Object.freeze({
       preparedByScenario: committed,
@@ -711,6 +735,7 @@ implements SimulationRuntimePortV1 {
       branch.resolvedSessionInput.sessionInputSha256,
       token.target.patch,
     );
+    await this.rotateLiveHostIfRequiredV1(branch);
     const sourceCheckpoint =
       await branch.host.checkpointV4(branch.hostedSession);
     if (branch.hostedSession.sessionId === sourceCheckpoint.session.sessionId) {
@@ -743,9 +768,10 @@ implements SimulationRuntimePortV1 {
         || strictFork.status === "rejected"
       ) {
         if (liveTarget !== null) {
-          await branch.host.dispose(liveTarget.sessionId).catch(
-            () => undefined,
-          );
+          await this.disposeLiveSessionOrQuarantineV1(
+            branch,
+            liveTarget.sessionId,
+          ).catch(() => undefined);
         }
         strictHost.terminate();
         throw runtimeErrorV1([
@@ -769,7 +795,10 @@ implements SimulationRuntimePortV1 {
       });
     } catch (error) {
       if (liveTarget !== null) {
-        await branch.host.dispose(liveTarget.sessionId).catch(() => undefined);
+        await this.disposeLiveSessionOrQuarantineV1(
+          branch,
+          liveTarget.sessionId,
+        ).catch(() => undefined);
       }
       strictHost.terminate();
       throw error;
@@ -908,15 +937,29 @@ implements SimulationRuntimePortV1 {
                 settlement,
                 checkpoint,
               );
-              const snapshotRef = await putMainWireStudioSnapshotEnvelopeV1(
-                this.artifacts,
-                {
-                  simulationInputRef: prepared.branch.sourceInputRef,
-                  checkpointV4: checkpoint.checkpointV4,
-                  seedObservableFrame:
-                    checkpoint.session.observableFrame,
-                },
-              );
+              const beforeArtifactCommit = interruptionForTokenV1(token);
+              if (beforeArtifactCommit !== null) {
+                return beforeArtifactCommit;
+              }
+              const artifactCommitController = new AbortController();
+              token.artifactCommitController = artifactCommitController;
+              let snapshotRef: SnapshotEnvelopeRefV1;
+              try {
+                snapshotRef = await putMainWireStudioSnapshotEnvelopeV1(
+                  this.artifacts,
+                  {
+                    simulationInputRef: prepared.branch.sourceInputRef,
+                    checkpointV4: checkpoint.checkpointV4,
+                    seedObservableFrame:
+                      checkpoint.session.observableFrame,
+                  },
+                  { signal: artifactCommitController.signal },
+                );
+              } finally {
+                if (token.artifactCommitController === artifactCommitController) {
+                  token.artifactCommitController = null;
+                }
+              }
               const finalInterruption = interruptionForTokenV1(token);
               if (finalInterruption !== null) return finalInterruption;
               const candidate = Object.freeze({
@@ -982,6 +1025,7 @@ implements SimulationRuntimePortV1 {
     ) throw runtimeErrorV1(
       `live target ${branch.scenarioId} is no longer current`,
     );
+    if (branch.liveFailure !== null) throw branch.liveFailure;
     const prior = branch.activeLiveCommand;
     if (prior !== null) await prior;
     if (
@@ -1072,25 +1116,25 @@ implements SimulationRuntimePortV1 {
         this.artifacts.readJson(command.candidate.snapshotRef),
         this.artifacts.readJson(command.candidate.simulationInputRef),
       ]);
-      const envelope =
-        await loadMainWireStudioSnapshotEnvelopeV1(snapshotValue);
+      const resolvedInput =
+        await loadMainWireScientificResolvedSessionInputEnvelopeV1(
+          inputValue,
+        );
+      const envelope = await loadMainWireStudioSnapshotEnvelopeV1(
+        snapshotValue,
+        {
+          simulationInputRef: command.candidate.simulationInputRef,
+          baseSessionInputSha256: resolvedInput.sessionInputSha256,
+        },
+      );
       if (
-        !sameArtifactRefV1(
-          envelope.simulationInputRef,
-          command.candidate.simulationInputRef,
+        !sameSimulationReleaseRef(
+          resolvedInput.releaseRef,
+          envelope.checkpointV4.releaseRef,
         )
         || envelope.checkpointV4.controlTargetStateSha256
           !== branch.hostedSession.controlState.targetStateSha256
       ) throw runtimeErrorV1("candidate snapshot binding mismatch");
-      const resolvedInput =
-        await loadMainWireScientificResolvedSessionInputEnvelopeV1(
-          inputValue,
-          envelope.checkpointV4.releaseRef,
-        );
-      if (
-        resolvedInput.sessionInputSha256
-          !== envelope.checkpointV4.baseSessionInputSha256
-      ) throw runtimeErrorV1("candidate checkpoint/input digest mismatch");
       const expectedTargetInputSha256 =
         await mainWireStudioTargetInputSha256V1(
           envelope.checkpointV4.controlTargetState,
@@ -1456,12 +1500,15 @@ implements SimulationRuntimePortV1 {
     branch: AdapterBranchV1,
     loopIdentity: number,
   ): Promise<void> {
+    const pacingWallStartMs = this.nowMs();
+    const pacingSimulationStartSec =
+      branch.hostedSession.stateIdentity.acceptedTimeSec;
     while (
       branch.desiredRunning
       && branch.loopIdentity === loopIdentity
       && branch.liveFailure === null
     ) {
-      const commandStartedAtMs = this.nowMs();
+      await this.rotateLiveHostIfRequiredV1(branch);
       const sourceSessionId = branch.hostedSession.sessionId;
       const sourceHost = branch.host;
       const targetGeneration = branch.targetGeneration;
@@ -1484,8 +1531,37 @@ implements SimulationRuntimePortV1 {
         || branch.presentationRevision !== presentationRevision
         || branch.streamEpoch !== streamEpoch
       ) continue;
-      // A manual suspension still accepts and publishes the command that was
-      // already in flight. This preserves a contiguous sequence on resume.
+      if (
+        !branch.desiredRunning
+        || branch.loopIdentity !== loopIdentity
+      ) {
+        // A manual suspension still accepts and publishes the command that was
+        // already in flight. This preserves a contiguous sequence on resume.
+        this.publishTransientChunkV1(
+          branch,
+          chunk,
+          targetGeneration,
+          presentationRevision,
+          streamEpoch,
+        );
+        continue;
+      }
+      const pacing = mainWireStudioLivePacingDecisionV1({
+        wallStartMs: pacingWallStartMs,
+        wallNowMs: this.nowMs(),
+        simulationStartSec: pacingSimulationStartSec,
+        simulationNowSec: chunk.session.stateIdentity.acceptedTimeSec,
+      });
+      if (
+        pacing.lagMs
+          > MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1
+      ) {
+        throw new Error(
+          `live 1x pacing lag ${pacing.lagMs.toFixed(3)} ms exceeded `
+          + "the declared "
+          + `${MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1} ms maximum`,
+        );
+      }
       this.publishTransientChunkV1(
         branch,
         chunk,
@@ -1493,17 +1569,84 @@ implements SimulationRuntimePortV1 {
         presentationRevision,
         streamEpoch,
       );
+      if (pacing.delayMs > 0) await this.delayMs(pacing.delayMs);
+    }
+  }
+
+  private async rotateLiveHostIfRequiredV1(
+    branch: AdapterBranchV1,
+  ): Promise<void> {
+    if (branch.host.requestCount < LIVE_HOST_ROTATION_REQUEST_COUNT_V1) return;
+    const session = this.sessions.get(branch.signalChannelRef.sessionId);
+    if (
+      session === undefined
+      || session.closed
+      || session.branches.get(branch.scenarioId) !== branch
+    ) throw runtimeErrorV1("live host rotation lost session ownership");
+
+    const oldHost = branch.host;
+    const oldSession = branch.hostedSession;
+    const checkpoint = await oldHost.checkpointV4(oldSession);
+    if (
+      branch.host !== oldHost
+      || branch.hostedSession.sessionId !== oldSession.sessionId
+    ) throw runtimeErrorV1("live host changed during rotation checkpoint");
+    branch.hostedSession = checkpoint.session;
+    if (
+      session.closed
+      || this.sessions.get(session.sessionId) !== session
+      || session.branches.get(branch.scenarioId) !== branch
+      || branch.host !== oldHost
+      || branch.hostedSession.sessionId !== checkpoint.session.sessionId
+    ) throw runtimeErrorV1("live host rotation lost session ownership");
+
+    const newHost = this.hostFactory();
+    session.transientHosts.add(newHost);
+    try {
+      const restored = await newHost.restoreV4({
+        sessionId: this.nextInternalIdV1("live-rotated"),
+        resolvedSessionInput: branch.resolvedSessionInput,
+        checkpointV4: checkpoint.checkpointV4,
+      });
       if (
-        !branch.desiredRunning
-        || branch.loopIdentity !== loopIdentity
-      ) continue;
-      const simulatedDurationMs =
-        MAIN_WIRE_LIVE_DT_SEC_V1 * this.liveStepCountPerChunk * 1_000;
-      const remainingMs = Math.max(
-        0,
-        simulatedDurationMs - (this.nowMs() - commandStartedAtMs),
-      );
-      if (remainingMs > 0) await this.delayMs(remainingMs);
+        session.closed
+        || this.sessions.get(session.sessionId) !== session
+        || session.branches.get(branch.scenarioId) !== branch
+        || branch.host !== oldHost
+        || branch.hostedSession.sessionId !== checkpoint.session.sessionId
+        || restored.baseSessionInputSha256
+          !== checkpoint.session.baseSessionInputSha256
+        || restored.controlState.targetStateSha256
+          !== checkpoint.session.controlState.targetStateSha256
+        || restored.parameterEpoch !== checkpoint.session.parameterEpoch
+        || restored.stateIdentity.revision
+          !== checkpoint.session.stateIdentity.revision
+        || restored.stateIdentity.acceptedTimeSec
+          !== checkpoint.session.stateIdentity.acceptedTimeSec
+        || restored.stateIdentity.totalBloodVolumeMl
+          !== checkpoint.session.stateIdentity.totalBloodVolumeMl
+      ) throw runtimeErrorV1("live host rotation receipt mismatch");
+
+      branch.host = newHost;
+      branch.hostedSession = Object.freeze({
+        ...restored,
+        observableFrame: checkpoint.session.observableFrame,
+      });
+      session.transientHosts.delete(newHost);
+      try {
+        oldHost.terminate();
+      } catch {
+        // The accepted pointer already owns newHost; the retired host cannot
+        // participate in further numerical commands.
+      }
+    } catch (error) {
+      session.transientHosts.delete(newHost);
+      try {
+        newHost.terminate();
+      } catch {
+        // Preserve the exact-checkpoint rotation failure.
+      }
+      throw error;
     }
   }
 
@@ -1511,13 +1654,42 @@ implements SimulationRuntimePortV1 {
     branch: AdapterBranchV1,
     event: RuntimeSignalEventV1,
   ): void {
+    let observerFailed = false;
+    let firstObserverFailure: unknown;
     for (const observer of [...branch.signalObservers]) {
       try {
         observer(event);
-      } catch {
-        branch.signalObservers.delete(observer);
+      } catch (error) {
+        if (!observerFailed) {
+          observerFailed = true;
+          firstObserverFailure = error;
+        }
       }
     }
+    if (!observerFailed || event.kind === "failure") return;
+
+    const failure = runtimeErrorV1(
+      "live signal observer callback failed: "
+      + errorMessageV1(firstObserverFailure),
+    );
+    branch.playbackRequested = false;
+    branch.desiredRunning = false;
+    branch.liveFailure = failure;
+    // Do not detach a callback behind its owner's back. The branch is now
+    // fail-closed, and every subscriber gets one attempt to observe the cause.
+    // A callback that also rejects the failure event cannot prevent healthy
+    // subscribers from receiving it or invalidate numerical ownership.
+    this.emitSignalEventV1(branch, Object.freeze({
+      kind: "failure",
+      channelId: branch.signalChannelRef.channelId,
+      sessionId: branch.signalChannelRef.sessionId,
+      scenarioId: branch.scenarioId,
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: branch.targetGeneration,
+      presentationRevision: branch.presentationRevision,
+      streamEpoch: branch.streamEpoch,
+      message: failure.message,
+    }) satisfies RuntimeSignalFailureV1);
   }
 
   private publishTransientChunkV1(
@@ -1588,11 +1760,34 @@ implements SimulationRuntimePortV1 {
   private async cleanupPreparedBranchV1(
     prepared: PreparedBranchV1,
   ): Promise<void> {
-    await prepared.branch.host.dispose(
+    await this.disposeLiveSessionOrQuarantineV1(
+      prepared.branch,
       prepared.liveTarget.sessionId,
     ).catch(() => undefined);
     prepared.strictHost.terminate();
     prepared.token.strictHost = null;
+  }
+
+  private async disposeLiveSessionOrQuarantineV1(
+    branch: AdapterBranchV1,
+    sessionId: string,
+  ): Promise<void> {
+    try {
+      await branch.host.dispose(sessionId);
+    } catch (error) {
+      const failure = runtimeErrorV1(
+        `live host disposal failed and was quarantined: ${errorMessageV1(error)}`,
+      );
+      branch.playbackRequested = false;
+      branch.desiredRunning = false;
+      branch.liveFailure = failure;
+      try {
+        branch.host.terminate();
+      } catch {
+        // Preserve the receipt/transport failure that caused quarantine.
+      }
+      throw failure;
+    }
   }
 
   private deleteIssuedCandidatesForScenarioV1(
@@ -1662,6 +1857,52 @@ implements SimulationRuntimePortV1 {
     this.internalIdentityOrdinal += 1;
     return `studio-${nextAdapterRuntimeIdentityV1}-${kind}-${this.internalIdentityOrdinal}`;
   }
+}
+
+export function mainWireStudioLivePacingDelayMsV1(
+  input: Readonly<{
+    wallStartMs: number;
+    wallNowMs: number;
+    simulationStartSec: number;
+    simulationNowSec: number;
+  }>,
+): number {
+  return mainWireStudioLivePacingDecisionV1(input).delayMs;
+}
+
+export type MainWireStudioLivePacingDecisionV1 = Readonly<{
+  delayMs: number;
+  lagMs: number;
+}>;
+
+export function mainWireStudioLivePacingDecisionV1(
+  input: Readonly<{
+    wallStartMs: number;
+    wallNowMs: number;
+    simulationStartSec: number;
+    simulationNowSec: number;
+  }>,
+): MainWireStudioLivePacingDecisionV1 {
+  if (
+    !Number.isFinite(input.wallStartMs)
+    || !Number.isFinite(input.wallNowMs)
+    || !Number.isFinite(input.simulationStartSec)
+    || !Number.isFinite(input.simulationNowSec)
+    || input.wallNowMs < input.wallStartMs
+    || input.simulationNowSec < input.simulationStartSec
+  ) throw runtimeErrorV1("live pacing identity is invalid");
+  const simulatedElapsedMs =
+    (input.simulationNowSec - input.simulationStartSec) * 1_000;
+  const deadlineOffsetMs =
+    input.wallStartMs + simulatedElapsedMs - input.wallNowMs;
+  if (
+    !Number.isFinite(simulatedElapsedMs)
+    || !Number.isFinite(deadlineOffsetMs)
+  ) throw runtimeErrorV1("live pacing identity is invalid");
+  return Object.freeze({
+    delayMs: Math.max(0, deadlineOffsetMs),
+    lagMs: Math.max(0, -deadlineOffsetMs),
+  });
 }
 
 async function assertStrictCandidateCheckpointV1(
@@ -1876,8 +2117,8 @@ function assertStrictPeriod1EvidenceV1(
       terminal.acceptedTimeSec,
       checkpoint.transaction.acceptedTimeSec,
     )
-    || terminal.checkpointFingerprint
-      !== checkpoint.transaction.checkpointFingerprint
+    || canonicalJsonStringify(terminal)
+      !== canonicalJsonStringify(checkpoint.transaction)
     || !sameStrictAcceptedTimeV1(
       checkpoint.transaction.acceptedTimeSec,
       settlement.anchorAcceptedTimeSec
@@ -2112,6 +2353,8 @@ function cancelTokenV1(
   if (token.cancellation !== null) return;
   token.cancellation = status;
   token.cancellationReason = reason;
+  token.artifactCommitController?.abort();
+  token.artifactCommitController = null;
   token.strictHost?.terminate();
 }
 

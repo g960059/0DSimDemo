@@ -1380,8 +1380,8 @@ function restorePeriodicTracker(
     acceptedState,
   );
   if (
-    latestTransaction.checkpointFingerprint
-      !== acceptedTransaction.checkpointFingerprint
+    canonicalJsonStringify(latestTransaction)
+      !== canonicalJsonStringify(acceptedTransaction)
   ) throw new Error("periodic settlement tracker terminal state mismatch");
   boundaryStates[boundaryStates.length - 1] = acceptedState;
   const expectedTerminalTimeSec = checkpoint.anchorAcceptedTimeSec

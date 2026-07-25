@@ -278,6 +278,7 @@ function snapshot(
 ): MainWireScientificHemodynamicJobSnapshotV2 {
   return Object.freeze({
     jobId: "guyton-starling-job-1",
+    detailMode: "compare",
     sequence,
     status,
     stage,

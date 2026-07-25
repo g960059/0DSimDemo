@@ -162,16 +162,18 @@ describe("Scientific Product Studio hemodynamic analysis coordinator V1", () => 
   it("keeps polling when a presentation callback throws", async () => {
     const host = new DeferredAnalysisHostV1();
     host.suggestedPollIntervalMs = 50;
+    const errors: string[] = [];
+    let snapshotPublicationCount = 0;
     const coordinator =
       new ScientificProductStudioHemodynamicAnalysisCoordinatorV1({
         host,
         onSnapshot: () => {
+          snapshotPublicationCount += 1;
           throw new Error("presentation listener failed");
         },
-        onError: () => undefined,
+        onError: ({ message }) => errors.push(message),
         pollIntervalMs: 50,
       });
-
     coordinator.requestLatest({
       requestToken: "throwing-listener-token",
       source: settledSourceV1(1, "6"),
@@ -179,9 +181,17 @@ describe("Scientific Product Studio hemodynamic analysis coordinator V1", () => 
     });
     await waitForV1(() => host.restoreCalls.length === 1);
     host.resolveRestore(0);
-    await waitForV1(() => host.pollCalls.length > 0);
+    await waitForV1(() =>
+      host.pollCalls.length > 0 && snapshotPublicationCount >= 2);
 
     expect(host.startCalls).toHaveLength(1);
+    expect(errors.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(errors)).toEqual(new Set([
+      "analysis snapshot publication failed: presentation listener failed",
+    ]));
+    expect(host.cancelledJobIds).toEqual([]);
+    expect(host.disposedSessionIds).toEqual([]);
+    expect(host.terminateCount).toBe(0);
     await coordinator.dispose();
   });
 });

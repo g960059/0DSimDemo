@@ -53,6 +53,23 @@ test.describe.serial("Product workflows by role", () => {
         "data-document-block-kind",
         "heading",
       );
+      const experimentPlacement = documentEditor.locator(
+        '[data-document-block-kind="experiment-placement"]',
+      );
+      await experimentPlacement.getByRole("button", {
+        name: "このブロックの上に段落を挿入",
+        exact: true,
+      }).click();
+      const orderedBlockKinds = await documentEditor.getByTestId(
+        "studio-document-editor-block-v1",
+      ).evaluateAll((blocks) =>
+        blocks.map((block) =>
+          block.getAttribute("data-document-block-kind")));
+      const placementIndex = orderedBlockKinds.indexOf(
+        "experiment-placement",
+      );
+      expect(placementIndex).toBeGreaterThan(0);
+      expect(orderedBlockKinds[placementIndex - 1]).toBe("paragraph");
       const structuralRevision = await numericAttributeV1(
         author,
         "data-draft-revision",
@@ -223,6 +240,36 @@ test.describe.serial("Product workflows by role", () => {
         "data-pv-parameter-history-count",
       )).toBeGreaterThan(0);
 
+      // Reset is an exact source restoration, not a reverse parameter patch:
+      // the current runtime is disposed and the same manifest opens as a new
+      // one-point session before its trace begins growing again.
+      const beforeResetObservationCount =
+        (await readerFirstPaintsV1(page)).length;
+      await experiment.getByTestId("studio-reader-reset-v1").click();
+      const resetExperiment = page.getByTestId(
+        "studio-reader-experiment-cell-v1",
+      );
+      await expect(resetExperiment).toBeVisible({ timeout: 120_000 });
+      const resetSystemic = resetExperiment.getByRole("slider", {
+        name: "全身血管抵抗倍率",
+        exact: true,
+      });
+      await expect(resetSystemic.locator("..").locator("output"))
+        .toHaveText("1");
+      await expect(resetExperiment).toHaveAttribute(
+        "data-reader-target-generation",
+        "0",
+      );
+      await expect.poll(async () =>
+        (await readerFirstPaintsV1(page))
+          .slice(beforeResetObservationCount)
+          .some((observation) =>
+            observation.phase === "seed"
+            && observation.frameCount === "1"
+            && observation.waveformFrameCount === "1"
+            && observation.pvFrameCount === "1")
+      ).toBe(true);
+
       // Returning to the same manifest must construct a fresh numerical
       // session. The previous Reader-only parameter choice is not authored
       // content and therefore returns to the brief's initial value.
@@ -234,6 +281,10 @@ test.describe.serial("Product workflows by role", () => {
         "data-draft-revision",
         String(authoredRevision),
       );
+      // A temporarily empty title may block a new materialization, but it
+      // must not trap the author in the editor or block the older immutable
+      // Preview.
+      await author.getByTestId("studio-document-title-input-v1").fill("");
       await author.getByRole("button", {
         name: "直前のReader Previewを開く",
         exact: true,
@@ -641,6 +692,13 @@ test.describe.serial("Product workflows by role", () => {
         "scientific-workbench-briefing-compose-v1",
       );
       await expect(composer).toBeVisible();
+      await expect(composer.getByRole("dialog")).toHaveAttribute(
+        "aria-modal",
+        "false",
+      );
+      await expect(composer.getByTestId(
+        "scientific-briefing-inflow-graph-limit-v1",
+      )).toContainText("In-flowの推奨上限はgraph 1枚");
       const pressureCapture = composer.locator(
         '[data-briefing-source-panel-id="product-left-pressure-v1"]',
       );
@@ -652,6 +710,9 @@ test.describe.serial("Product workflows by role", () => {
       await expect(
         composer.locator('[data-briefing-captured="true"]'),
       ).toHaveCount(5);
+      await expect(composer.getByTestId(
+        "scientific-briefing-inflow-graph-limit-v1",
+      )).toHaveAttribute("role", "alert");
       await expect(composer).toContainText(
         "5 paneをReader Briefに保存中",
       );

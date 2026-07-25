@@ -155,6 +155,13 @@ activating that epoch, so even an immediate first batch cannot race the state
 replacement. A current-epoch Worker failure, malformed batch, sequence gap, or
 metric regression fails closed by suspending that branch; an explicitly stale
 identity is discarded. Strict work remains independent of playback suspension.
+Pacing uses one cumulative wall/model-time deadline, so a short stall can be
+caught up instead of becoming permanent drift. The maximum unreported lag is
+predeclared as one canonical cycle (1,000 ms in this release). Exceeding it
+emits a current-epoch signal failure and suspends the live lane rather than
+continuing to label a slower trace as 1×. Likewise, a signal observer exception
+is reported once through that failure channel to all subscribers and never
+causes a silent detach or loss of the accepted numerical state.
 
 Every Worker observable frame is validated against the exact frame/registry
 schema, release, source, complete observable catalog, finite-value,
@@ -236,10 +243,13 @@ product contexts remain follow-up work.
    changing display;
 8. promotion is explicit and rejects an obsolete candidate;
 9. same-generation late live completion cannot overwrite a promoted display;
-10. the signal channel advances at 1× and suspend/resume preserves numerical
-    state and stream epoch;
+10. the signal channel advances against a cumulative 1× deadline, catches up
+    bounded transient lag, and fails closed beyond the declared one-cycle lag
+    budget; suspend/resume preserves numerical state and stream epoch;
 11. pinned canonical artifacts contain no last-beat sample history;
 12. equal artifact bytes resolve to the same content ref;
 13. source run content is lineage-validated before open;
-14. current-epoch signal corruption or Worker failure suspends the branch;
+14. current-epoch signal corruption, Worker failure, or observer publication
+    failure is reported through the signal failure channel and suspends the
+    branch without silently detaching the observer;
 15. running promotion reaches the candidate phase before its one-point swap.

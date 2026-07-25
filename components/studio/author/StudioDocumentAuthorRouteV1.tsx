@@ -66,7 +66,7 @@ export default function StudioDocumentAuthorRouteV1() {
       || normalized.blocks.some((block) =>
         block.kind !== "experiment-placement" && block.text.length === 0)
     ) {
-      throw new Error(documentRequiredFieldsMessageV1(locale));
+      throw new Error(t("studioAuthorPreview.author.requiredFields"));
     }
     const next = replaceDocumentContent({
       expectedRevision: editorBaseRevision,
@@ -81,8 +81,8 @@ export default function StudioDocumentAuthorRouteV1() {
   }, [
     editorBaseRevision,
     editorValue,
-    locale,
     replaceDocumentContent,
+    t,
   ]);
 
   const requestCommit = React.useCallback((
@@ -108,19 +108,21 @@ export default function StudioDocumentAuthorRouteV1() {
   const openWorkbench = React.useCallback(() => {
     try {
       commitDocument();
-      navigate(workbenchHref(locale));
-    } catch (error) {
-      setErrorMessage(errorMessageV1(error));
+    } catch {
+      // Workbench navigation is never a validation gate. An invalid local
+      // title remains uncommitted; the last valid session draft is retained.
     }
+    navigate(workbenchHref(locale));
   }, [commitDocument, locale, navigate]);
 
   const returnHome = React.useCallback(() => {
     try {
       commitDocument();
-      navigate(homeHref(locale));
-    } catch (error) {
-      setErrorMessage(errorMessageV1(error));
+    } catch {
+      // Leaving the editor must remain possible while a field is being
+      // rewritten. The last valid session draft stays available on return.
     }
+    navigate(homeHref(locale));
   }, [commitDocument, locale, navigate]);
 
   const reopenLastPreview = React.useCallback(() => {
@@ -129,10 +131,11 @@ export default function StudioDocumentAuthorRouteV1() {
       // Preserve current author edits while intentionally reopening the older,
       // immutable preview materialization.
       commitDocument();
-      navigate(readerPreviewHref(lastPreviewId, locale));
-    } catch (error) {
-      setErrorMessage(errorMessageV1(error));
+    } catch {
+      // The immutable older Preview remains openable even while the current
+      // editor buffer is temporarily invalid.
     }
+    navigate(readerPreviewHref(lastPreviewId, locale));
   }, [commitDocument, lastPreviewId, locale, navigate]);
 
   return (
@@ -231,7 +234,6 @@ export default function StudioDocumentAuthorRouteV1() {
             </div>
 
             <StudioDocumentBlockEditorV1
-              locale={locale}
               value={editorValue}
               onChange={(value) => {
                 setEditorValue(value);
@@ -327,17 +329,16 @@ function editorValueFromDraftV1(
 function normalizeEditorValueV1(
   value: StudioDocumentEditorValueV1,
 ): StudioDocumentEditorValueV1 {
+  const blocks = value.blocks.map((block) =>
+    block.kind === "experiment-placement"
+      ? block
+      : { ...block, text: block.text.trim() });
   return {
     title: value.title.trim(),
-    blocks: value.blocks.map((block) =>
-      block.kind === "experiment-placement"
-        ? block
-        : { ...block, text: block.text.trim() }),
+    // Empty text blocks are a transient authoring state, not document
+    // content. Dropping them on commit lets authors clear and rewrite without
+    // turning navigation into a validation trap.
+    blocks: blocks.filter((block) =>
+      block.kind === "experiment-placement" || block.text.length > 0),
   };
-}
-
-function documentRequiredFieldsMessageV1(locale: string): string {
-  return locale.toLowerCase().startsWith("ja")
-    ? "記事タイトルを入力し、空のテキストブロックを修正してください。"
-    : "Enter an article title and complete every text block.";
 }

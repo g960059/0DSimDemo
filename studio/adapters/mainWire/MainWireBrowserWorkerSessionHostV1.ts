@@ -109,6 +109,10 @@ implements MainWireStudioSessionHostV1 {
       ?? (options.clientFactory ?? createProductionClientV1)();
   }
 
+  get requestCount(): number {
+    return this.requestOrdinal;
+  }
+
   async restoreV4(
     input: Parameters<MainWireStudioSessionHostV1["restoreV4"]>[0],
   ): Promise<MainWireStudioHostedSessionV1> {

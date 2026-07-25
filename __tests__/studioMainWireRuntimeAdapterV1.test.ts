@@ -28,6 +28,9 @@ import {
   type MainWireScientificSessionExactCheckpointV4,
 } from "@/engine/scientific/runtime";
 import {
+  sha256CanonicalJsonHex,
+} from "@/engine/scientific/release";
+import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type ScientificCommandV1,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
@@ -38,8 +41,11 @@ import {
   MainWireBrowserWorkerSessionHostV1,
   MainWireSimulationRuntimeAdapterV1,
   MainWireStudioTransientPartialProgressErrorV1,
+  MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1,
   loadMainWireStudioSnapshotEnvelopeV1,
   mainWireStudioExecutionIdentityV1,
+  mainWireStudioLivePacingDecisionV1,
+  mainWireStudioLivePacingDelayMsV1,
   mainWireStudioTargetInputSha256V1,
   putMainWireStudioSnapshotEnvelopeV1,
   resolveMainWireStudioTargetInputV1,
@@ -59,7 +65,9 @@ import type {
   RuntimeSignalBatchV1,
   RuntimeSignalEventV1,
   RuntimeSteadyCandidateV1,
+  StudioArtifactRefV1,
   StudioSettledAnalysisSourceV1,
+  StudioJsonWriteV1,
   StudioJsonValueV1,
 } from "@/studio/contracts/v1";
 import {
@@ -85,7 +93,14 @@ describe("MainWire Studio snapshot and target input boundaries", () => {
   it("accepts one exact seed point and rejects history claims or tampering", async () => {
     const stored = await storeSourceV1(baseFixture);
     const value = await stored.artifacts.readJson(stored.snapshotRef);
-    const loaded = await loadMainWireStudioSnapshotEnvelopeV1(value);
+    const expectedIdentity = {
+      simulationInputRef: stored.inputRef,
+      baseSessionInputSha256: baseFixture.sessionInputSha256,
+    };
+    const loaded = await loadMainWireStudioSnapshotEnvelopeV1(
+      value,
+      expectedIdentity,
+    );
 
     expect(loaded.claims).toEqual({
       exactCheckpointStored: true,
@@ -100,22 +115,37 @@ describe("MainWire Studio snapshot and target input boundaries", () => {
     });
     expect(loaded).not.toHaveProperty("beatSamples");
 
+    const selfConsistentForeignCodec = mutableCloneV1(value);
+    selfConsistentForeignCodec.checkpointV4.stateCodec.stateSchemaVersion += 1;
+    const {
+      checkpointSha256: _priorCheckpointSha256,
+      ...foreignCodecPayload
+    } = selfConsistentForeignCodec.checkpointV4;
+    selfConsistentForeignCodec.checkpointV4.checkpointSha256 =
+      await sha256CanonicalJsonHex(foreignCodecPayload);
+    await expect(
+      loadMainWireStudioSnapshotEnvelopeV1(
+        selfConsistentForeignCodec,
+        expectedIdentity,
+      ),
+    ).rejects.toThrow(/state-codec identity mismatch/);
+
     const historyClaim = mutableCloneV1(value);
     historyClaim.claims.seedObservablePointCount = 2;
     await expect(
-      loadMainWireStudioSnapshotEnvelopeV1(historyClaim),
+      loadMainWireStudioSnapshotEnvelopeV1(historyClaim, expectedIdentity),
     ).rejects.toThrow(/snapshot claims mismatch/);
 
     const shiftedSeed = mutableCloneV1(value);
     shiftedSeed.seedObservableFrame.acceptedTimeSec += 0.002;
     await expect(
-      loadMainWireStudioSnapshotEnvelopeV1(shiftedSeed),
+      loadMainWireStudioSnapshotEnvelopeV1(shiftedSeed, expectedIdentity),
     ).rejects.toThrow(/revision\/time does not match checkpoint/);
 
     const wrongSeedSource = mutableCloneV1(value);
     wrongSeedSource.seedObservableFrame.source = "exact-checkpoint-restore";
     await expect(
-      loadMainWireStudioSnapshotEnvelopeV1(wrongSeedSource),
+      loadMainWireStudioSnapshotEnvelopeV1(wrongSeedSource, expectedIdentity),
     ).rejects.toThrow(/seed observable frame identity is invalid/);
 
     const wrongSeedQuality = mutableCloneV1(value);
@@ -123,19 +153,22 @@ describe("MainWire Studio snapshot and target input boundaries", () => {
       "hemodynamics.volume.LV"
     ].quality = "accepted-derived";
     await expect(
-      loadMainWireStudioSnapshotEnvelopeV1(wrongSeedQuality),
+      loadMainWireStudioSnapshotEnvelopeV1(wrongSeedQuality, expectedIdentity),
     ).rejects.toThrow(/observable hemodynamics\.volume\.LV is invalid/);
 
     const extraHistory = mutableCloneV1(value);
     extraHistory.beatSamples = [];
     await expect(
-      loadMainWireStudioSnapshotEnvelopeV1(extraHistory),
+      loadMainWireStudioSnapshotEnvelopeV1(extraHistory, expectedIdentity),
     ).rejects.toThrow(/field set mismatch/);
 
     const alteredCheckpoint = mutableCloneV1(value);
     alteredCheckpoint.checkpointV4.parameterEpoch += 1;
     await expect(
-      loadMainWireStudioSnapshotEnvelopeV1(alteredCheckpoint),
+      loadMainWireStudioSnapshotEnvelopeV1(
+        alteredCheckpoint,
+        expectedIdentity,
+      ),
     ).rejects.toThrow(/outer SHA-256 mismatch/);
   });
 
@@ -266,6 +299,133 @@ describe("MainWire browser Worker host seam", () => {
 });
 
 describe("MainWire Studio runtime adapter", () => {
+  it("measures normal pacing and catches up transient lag against one fake clock", () => {
+    const clock = new FakeMonotonicClockV1();
+    clock.advance(20);
+    const normal = mainWireStudioLivePacingDecisionV1({
+      wallStartMs: 0,
+      wallNowMs: clock.nowMs(),
+      simulationStartSec: 0,
+      simulationNowSec: 0.032,
+    });
+    expect(normal).toEqual({ delayMs: 12, lagMs: 0 });
+    clock.advance(normal.delayMs);
+
+    clock.advance(40);
+    const lagging = mainWireStudioLivePacingDecisionV1({
+      wallStartMs: 0,
+      wallNowMs: clock.nowMs(),
+      simulationStartSec: 0,
+      simulationNowSec: 0.064,
+    });
+    expect(lagging).toEqual({ delayMs: 0, lagMs: 8 });
+
+    // The next fast chunk catches up the prior 8 ms deficit and waits only
+    // until the cumulative 96 ms deadline.
+    clock.advance(10);
+    const recovered = mainWireStudioLivePacingDecisionV1({
+      wallStartMs: 0,
+      wallNowMs: clock.nowMs(),
+      simulationStartSec: 0,
+      simulationNowSec: 0.096,
+    });
+    expect(recovered).toEqual({ delayMs: 14, lagMs: 0 });
+    expect(mainWireStudioLivePacingDelayMsV1({
+      wallStartMs: 0,
+      wallNowMs: clock.nowMs(),
+      simulationStartSec: 0,
+      simulationNowSec: 0.096,
+    })).toBe(14);
+  });
+
+  it("fails the live lane when sustained fake-clock overload exceeds the declared 1x lag budget", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.yieldRunToTimer = true;
+    const clock = new FakeMonotonicClockV1();
+    const adapter = runtimeAdapterV1(stored, harness, {
+      liveStepCountPerChunk: 16,
+      nowMs: clock.nowMs,
+      delayMs: clock.delayMs,
+    });
+    const opened = await adapter.openSession({
+      sessionId: "live-pacing-overload-session",
+      branches: [sourceBranchV1(stored, "live-pacing-overload-scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const events: RuntimeSignalEventV1[] = [];
+    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+      events.push(event);
+    });
+    // Each command advances only 32 ms of model time but consumes 100 ms of
+    // fake wall time. The cumulative deficit therefore grows by 68 ms/chunk.
+    harness.onRunTransient = () => clock.advance(100);
+
+    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await waitForV1(() => events.some(({ kind }) => kind === "failure"));
+
+    const failure = events.find(({ kind }) => kind === "failure");
+    expect(failure).toMatchObject({
+      kind: "failure",
+      message: expect.stringMatching(
+        new RegExp(
+          "live 1x pacing lag .* exceeded the declared "
+          + `${MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1} ms maximum`,
+        ),
+      ),
+    });
+    expect(harness.hosts[0]!.runTransientCallCount).toBeGreaterThan(1);
+    const stoppedCallCount = harness.hosts[0]!.runTransientCallCount;
+    await delayV1(5);
+    expect(harness.hosts[0]!.runTransientCallCount).toBe(stoppedCallCount);
+    await expect(
+      adapter.resumeSignalChannel(branch.signalChannelRef, 0),
+    ).rejects.toThrow(/live 1x pacing lag/);
+    await adapter.closeSession("live-pacing-overload-session");
+  });
+
+  it("reports a throwing live observer through the signal failure channel without detaching it", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.yieldRunToTimer = true;
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "throwing-live-observer-session",
+      branches: [sourceBranchV1(stored, "throwing-live-observer-scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const throwingObserverKinds: RuntimeSignalEventV1["kind"][] = [];
+    const healthyObserverEvents: RuntimeSignalEventV1[] = [];
+    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+      throwingObserverKinds.push(event.kind);
+      throw new Error("synthetic live observer failure");
+    });
+    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+      healthyObserverEvents.push(event);
+    });
+
+    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await waitForV1(() =>
+      healthyObserverEvents.some(({ kind }) => kind === "failure"));
+
+    expect(throwingObserverKinds).toEqual(["samples", "failure"]);
+    expect(healthyObserverEvents.map(({ kind }) => kind))
+      .toEqual(["samples", "failure"]);
+    expect(healthyObserverEvents.at(-1)).toMatchObject({
+      kind: "failure",
+      message: expect.stringMatching(
+        /live signal observer callback failed: synthetic live observer failure/,
+      ),
+    });
+    const stoppedCallCount = harness.hosts[0]!.runTransientCallCount;
+    await delayV1(5);
+    expect(harness.hosts[0]!.runTransientCallCount).toBe(stoppedCallCount);
+    await expect(
+      adapter.resumeSignalChannel(branch.signalChannelRef, 0),
+    ).rejects.toThrow(/live signal observer callback failed/);
+    await adapter.closeSession("throwing-live-observer-session");
+  });
+
   it("terminates every opening host when close wins a blocked restore", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);
@@ -342,6 +502,113 @@ describe("MainWire Studio runtime adapter", () => {
     subscription.unsubscribe();
     await adapter.closeSession("signal-session");
     expect(harness.hosts[0]!.terminated).toBe(true);
+  });
+
+  it("rotates a live Worker before its bounded request lifetime is exhausted", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "live-host-rotation-session",
+      branches: [sourceBranchV1(stored, "live-host-rotation-scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const batches: RuntimeSignalBatchV1[] = [];
+    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+      if (event.kind === "samples") batches.push(event);
+    });
+    harness.hosts[0]!.requestCount = 90_000;
+
+    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await waitForV1(() => batches.length > 0);
+    await adapter.suspendSignalChannel(branch.signalChannelRef);
+
+    expect(harness.hosts).toHaveLength(2);
+    expect(harness.hosts[0]).toMatchObject({
+      terminated: true,
+      checkpointV4CallCount: 1,
+    });
+    expect(harness.hosts[1]).toMatchObject({
+      terminated: false,
+      runTransientCallCount: 1,
+    });
+    expect(batches[0]!.points[0]!.sequence)
+      .toBe(baseFixture.frame.revision + 1);
+    await adapter.closeSession("live-host-rotation-session");
+    expect(harness.hosts[1]!.terminated).toBe(true);
+  });
+
+  it("does not allocate a replacement Worker after close wins a rotation checkpoint", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "closed-live-host-rotation-session",
+      branches: [
+        sourceBranchV1(stored, "closed-live-host-rotation-scenario"),
+      ],
+    });
+    const branch = opened.branches[0]!;
+    const checkpointGate = deferredV1<void>();
+    harness.hosts[0]!.requestCount = 90_000;
+    harness.checkpointGatesByHostOrdinal.set(0, checkpointGate);
+
+    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await waitForV1(() =>
+      harness.hosts[0]!.checkpointV4CallCount === 1
+      && !harness.checkpointGatesByHostOrdinal.has(0));
+    await adapter.closeSession("closed-live-host-rotation-session");
+    expect(harness.hosts[0]!.terminated).toBe(true);
+
+    checkpointGate.resolve();
+    await waitForV1(() =>
+      harness.hosts[0]!.checkpointV4CompletedCount === 1);
+    await delayV1(0);
+    expect(harness.hosts).toHaveLength(1);
+  });
+
+  it("quarantines a live host when source-session disposal is not acknowledged", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.failDisposeAtHostOrdinals.add(0);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "live-disposal-quarantine-session",
+      branches: [
+        sourceBranchV1(stored, "live-disposal-quarantine-scenario"),
+      ],
+    });
+    const branch = opened.branches[0]!;
+    const patch = await targetPatchV1(
+      baseFixture,
+      "circulation.systemic-vascular-resistance-scale",
+      1.5,
+    );
+
+    const execution = adapter.startTargetIntent({
+      sessionId: "live-disposal-quarantine-session",
+      intentId: "live-disposal-quarantine-intent",
+      targets: [{
+        scenarioId: branch.scenarioId,
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: 1,
+        presentationRevision: 1,
+        patch,
+      }],
+    });
+    const [live] = await Promise.all([execution.live, execution.strict]);
+
+    expect(live.branches[0]).toMatchObject({
+      status: "failure",
+      message: expect.stringMatching(
+        /live host disposal failed and was quarantined/,
+      ),
+    });
+    expect(harness.hosts[0]!.terminated).toBe(true);
+    await expect(
+      adapter.resumeSignalChannel(branch.signalChannelRef, 1),
+    ).rejects.toThrow(/live host disposal failed and was quarantined/);
+    await adapter.closeSession("live-disposal-quarantine-session");
   });
 
   it("does not advance any target branch before the aggregate clone barrier", async () => {
@@ -484,6 +751,137 @@ describe("MainWire Studio runtime adapter", () => {
     await adapter.closeSession("supersession-session");
   });
 
+  it("aborts strict snapshot staging before CAS commit when superseded", async () => {
+    const artifacts = new GatedSnapshotArtifactStoreV1();
+    const stored = await storeSourceV1(baseFixture, artifacts);
+    const baselineEntryCount = artifacts.entryCount;
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.strictConvergesWithoutAdvance = true;
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "strict-artifact-supersession-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const unchangedPatch = await targetPatchV1(
+      baseFixture,
+      "circulation.systemic-vascular-resistance-scale",
+      baseFixture.checkpoint.controlTargetState.controls[
+        "circulation.systemic-vascular-resistance-scale"
+      ],
+    );
+    artifacts.delayNextSnapshotBatch();
+    const first = adapter.startTargetIntent({
+      sessionId: "strict-artifact-supersession-session",
+      intentId: "strict-artifact-first",
+      targets: [{
+        scenarioId: "scenario",
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: 1,
+        presentationRevision: 1,
+        patch: unchangedPatch,
+      }],
+    });
+    await artifacts.waitForDelayedSnapshotBatch();
+
+    const replacementPatch = await targetPatchV1(
+      baseFixture,
+      "circulation.systemic-vascular-resistance-scale",
+      1.5,
+    );
+    const replacement = adapter.startTargetIntent({
+      sessionId: "strict-artifact-supersession-session",
+      intentId: "strict-artifact-replacement",
+      targets: [{
+        scenarioId: "scenario",
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: 2,
+        presentationRevision: 2,
+        patch: replacementPatch,
+      }],
+    });
+    artifacts.releaseDelayedSnapshotBatch();
+
+    const [firstStrict, replacementStrict] = await Promise.all([
+      first.strict,
+      replacement.strict,
+    ]);
+    await Promise.all([first.live, replacement.live]);
+    expect(firstStrict.branches[0]!.status).toBe("superseded");
+    expect(replacementStrict.branches[0]!.status).toBe("failure");
+    expect(artifacts.entryCount).toBe(baselineEntryCount);
+    await adapter.closeSession("strict-artifact-supersession-session");
+  });
+
+  it("rechecks supersession after strict checkpoint validation and before CAS staging", async () => {
+    const artifacts = new GatedSnapshotArtifactStoreV1();
+    const stored = await storeSourceV1(baseFixture, artifacts);
+    const baselineEntryCount = artifacts.entryCount;
+    const baselineSnapshotBatchCount =
+      artifacts.successfulSnapshotBatchCount;
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.strictConvergesWithoutAdvance = true;
+    const checkpointGate = deferredV1<void>();
+    harness.checkpointGatesByHostOrdinal.set(1, checkpointGate);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "strict-precommit-supersession-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const unchangedPatch = await targetPatchV1(
+      baseFixture,
+      "circulation.systemic-vascular-resistance-scale",
+      baseFixture.checkpoint.controlTargetState.controls[
+        "circulation.systemic-vascular-resistance-scale"
+      ],
+    );
+    const first = adapter.startTargetIntent({
+      sessionId: "strict-precommit-supersession-session",
+      intentId: "strict-precommit-first",
+      targets: [{
+        scenarioId: "scenario",
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: 1,
+        presentationRevision: 1,
+        patch: unchangedPatch,
+      }],
+    });
+    await waitForV1(() =>
+      harness.hosts[1]?.checkpointV4CallCount === 1
+      && !harness.checkpointGatesByHostOrdinal.has(1));
+
+    const replacementPatch = await targetPatchV1(
+      baseFixture,
+      "circulation.systemic-vascular-resistance-scale",
+      1.5,
+    );
+    const replacement = adapter.startTargetIntent({
+      sessionId: "strict-precommit-supersession-session",
+      intentId: "strict-precommit-replacement",
+      targets: [{
+        scenarioId: "scenario",
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: 2,
+        presentationRevision: 2,
+        patch: replacementPatch,
+      }],
+    });
+    checkpointGate.resolve();
+
+    const [firstStrict, replacementStrict] = await Promise.all([
+      first.strict,
+      replacement.strict,
+    ]);
+    await Promise.all([first.live, replacement.live]);
+    expect(firstStrict.branches[0]!.status).toBe("superseded");
+    expect(replacementStrict.branches[0]!.status).toBe("failure");
+    expect(artifacts.entryCount).toBe(baselineEntryCount);
+    expect(artifacts.successfulSnapshotBatchCount)
+      .toBe(baselineSnapshotBatchCount);
+    await adapter.closeSession("strict-precommit-supersession-session");
+  });
+
   it("publishes a strict candidate only after one admitted P1 checkpoint", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);
@@ -526,6 +924,11 @@ describe("MainWire Studio runtime adapter", () => {
       await stored.artifacts.readJson(
         strict.branches[0]!.candidate.snapshotRef,
       ),
+      {
+        simulationInputRef:
+          strict.branches[0]!.candidate.simulationInputRef,
+        baseSessionInputSha256: baseFixture.sessionInputSha256,
+      },
     );
     expect(candidateEnvelope.claims).toMatchObject({
       seedObservablePointCount: 1,
@@ -1289,12 +1692,17 @@ describe("MainWire Studio hemodynamic analysis artifact boundary", () => {
       "running",
       "continuation",
     );
+    const {
+      detailMode: _omittedPollDetailMode,
+      ...runningPollWithoutDetailMode
+    } = runningPoll;
     const cancelled = hemodynamicJobSnapshotV1(
       sourceIdentity,
       2,
       "cancelled",
       "cancelled",
     );
+    let omitDetailModeOnPoll = false;
     const request = vi.fn(async (
       command: ScientificCommandV1,
     ): Promise<MainWireScientificWorkerResponseV1> => {
@@ -1339,7 +1747,10 @@ describe("MainWire Studio hemodynamic analysis artifact boundary", () => {
             commandKind: command.kind,
             payload: {
               kind: "guytonStarlingProtocolJobProgress",
-              snapshot: runningPoll,
+              snapshot: omitDetailModeOnPoll
+                ? runningPollWithoutDetailMode as unknown as
+                    MainWireScientificHemodynamicJobSnapshotV2
+                : runningPoll,
               sourceSessionUnchanged: true,
               observableFrame: exactRestoreFrameV1(baseFixture),
             },
@@ -1407,6 +1818,9 @@ describe("MainWire Studio hemodynamic analysis artifact boundary", () => {
       stage: "continuation",
       sequence: 1,
     });
+    omitDetailModeOnPoll = true;
+    await expect(host.pollGuytonStarlingJob(job))
+      .rejects.toThrow(/job source identity mismatch/);
     await expect(host.cancelGuytonStarlingJob(job)).resolves.toBeUndefined();
     await expect(host.disposeSession(session)).resolves.toBeUndefined();
 
@@ -1414,6 +1828,7 @@ describe("MainWire Studio hemodynamic analysis artifact boundary", () => {
     expect(request.mock.calls.map(([command]) => command.kind)).toEqual([
       "restoreExactSessionV4",
       "startGuytonStarlingProtocolJob",
+      "pollGuytonStarlingProtocolJob",
       "pollGuytonStarlingProtocolJob",
       "cancelGuytonStarlingProtocolJob",
       "disposeSession",
@@ -1432,7 +1847,7 @@ describe("MainWire Studio hemodynamic analysis artifact boundary", () => {
     expect(terminate).toHaveBeenCalledTimes(1);
     await expect(host.startGuytonStarlingJob(session, "compare"))
       .rejects.toThrow(/analysis host is terminated/);
-    expect(request).toHaveBeenCalledTimes(5);
+    expect(request).toHaveBeenCalledTimes(6);
   });
 
   it("quarantines a client after a mismatched disposal receipt and restores with a fresh client", async () => {
@@ -1569,8 +1984,10 @@ async function createBaseFixtureV1() {
   });
 }
 
-async function storeSourceV1(base: BaseFixtureV1) {
-  const artifacts = new InMemoryContentAddressedArtifactStoreV1();
+async function storeSourceV1(
+  base: BaseFixtureV1,
+  artifacts = new InMemoryContentAddressedArtifactStoreV1(),
+) {
   const inputRef = await artifacts.putJson({
     kind: "simulation-input",
     mediaType: "application/json",
@@ -1617,6 +2034,45 @@ async function storeSourceV1(base: BaseFixtureV1) {
     runRef,
     targetInputSha256,
   });
+}
+
+class GatedSnapshotArtifactStoreV1
+  extends InMemoryContentAddressedArtifactStoreV1 {
+  private delayNextSnapshot = false;
+  private readonly snapshotBatchStarted = deferredV1<void>();
+  private readonly snapshotBatchRelease = deferredV1<void>();
+  successfulSnapshotBatchCount = 0;
+
+  delayNextSnapshotBatch(): void {
+    this.delayNextSnapshot = true;
+  }
+
+  async waitForDelayedSnapshotBatch(): Promise<void> {
+    await this.snapshotBatchStarted.promise;
+  }
+
+  releaseDelayedSnapshotBatch(): void {
+    this.snapshotBatchRelease.resolve();
+  }
+
+  override async putJsonBatch(
+    writes: readonly StudioJsonWriteV1[],
+    options: Readonly<{ signal?: AbortSignal }> = {},
+  ): Promise<readonly StudioArtifactRefV1[]> {
+    if (
+      this.delayNextSnapshot
+      && writes.some(({ kind }) => kind === "snapshot-envelope")
+    ) {
+      this.delayNextSnapshot = false;
+      this.snapshotBatchStarted.resolve();
+      await this.snapshotBatchRelease.promise;
+    }
+    const refs = await super.putJsonBatch(writes, options);
+    if (writes.some(({ kind }) => kind === "snapshot-envelope")) {
+      this.successfulSnapshotBatchCount += 1;
+    }
+    return refs;
+  }
 }
 
 function sourceBranchV1(
@@ -1721,6 +2177,7 @@ function runtimeAdapterV1(
   overrides: Readonly<{
     liveStepCountPerChunk?: number;
     nowMs?: () => number;
+    delayMs?: (durationMs: number) => Promise<void>;
   }> = {},
 ): MainWireSimulationRuntimeAdapterV1 {
   return new MainWireSimulationRuntimeAdapterV1({
@@ -1729,7 +2186,7 @@ function runtimeAdapterV1(
     liveStepCountPerChunk: overrides.liveStepCountPerChunk ?? 2,
     strictMaximumBeatCount: 1,
     nowMs: overrides.nowMs,
-    delayMs: delayV1,
+    delayMs: overrides.delayMs ?? delayV1,
   });
 }
 
@@ -1750,9 +2207,12 @@ class FakeHostHarnessV1 {
   readonly events: FakeHostEventV1[] = [];
   readonly failRestoreAtHostOrdinals = new Set<number>();
   readonly failNextRunAtHostOrdinals = new Set<number>();
+  readonly failDisposeAtHostOrdinals = new Set<number>();
   readonly partialProgressFailureNextRunAtHostOrdinals =
     new Map<number, number>();
   readonly restoreGatesByHostOrdinal =
+    new Map<number, DeferredV1<void>>();
+  readonly checkpointGatesByHostOrdinal =
     new Map<number, DeferredV1<void>>();
   readonly runGatesByHostOrdinal =
     new Map<number, DeferredV1<void>>();
@@ -1762,6 +2222,7 @@ class FakeHostHarnessV1 {
   forgeStrictZeroBeatClaim = false;
   forgeStrictTrackerTerminal = false;
   yieldRunToTimer = false;
+  onRunTransient: (() => void) | null = null;
 
   constructor(readonly fixture: BaseFixtureV1) {}
 
@@ -1781,9 +2242,11 @@ class FakeHostHarnessV1 {
 class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
   readonly sessions = new Map<string, MainWireStudioHostedSessionV1>();
   readonly checkpointV4Inputs: MainWireStudioHostedSessionV1[] = [];
+  requestCount = 0;
   runTransientCallCount = 0;
   settlePeriodicCallCount = 0;
   checkpointV4CallCount = 0;
+  checkpointV4CompletedCount = 0;
   terminated = false;
 
   constructor(
@@ -1798,6 +2261,7 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
     resolvedSessionInput: unknown;
     checkpointV4: MainWireScientificSessionExactCheckpointV4;
   }>): Promise<MainWireStudioHostedSessionV1> {
+    this.requestCount += 1;
     this.assertOpenV1();
     if (this.failRestore) throw new Error("synthetic restore failure");
     const restoreGate =
@@ -1829,6 +2293,7 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
     targetSessionId: string;
     targetControlState: MainWireScientificResearchControlTargetStateV0;
   }>): Promise<MainWireStudioHostedSessionV1> {
+    this.requestCount += 1;
     this.assertOwnedV1(input.source);
     const digest = await mainWireStudioTargetInputSha256V1(
       input.targetControlState,
@@ -1874,8 +2339,10 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
     stepCount: number;
     observationStride: number;
   }>): Promise<MainWireStudioTransientChunkV1> {
+    this.requestCount += 1;
     this.assertOwnedV1(input.session);
     this.runTransientCallCount += 1;
+    this.harness.onRunTransient?.();
     this.harness.events.push({
       kind: "run",
       hostId: this.hostId,
@@ -1964,6 +2431,7 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
   async settlePeriodic(
     session: MainWireStudioHostedSessionV1,
   ): Promise<MainWireStudioPeriodicSettlementChunkV1> {
+    this.requestCount += 1;
     this.assertOwnedV1(session);
     this.settlePeriodicCallCount += 1;
     if (this.harness.strictConvergesWithoutAdvance) {
@@ -2044,9 +2512,17 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
   async checkpointV4(
     session: MainWireStudioHostedSessionV1,
   ): Promise<MainWireStudioCheckpointReceiptV1> {
+    this.requestCount += 1;
     this.assertOwnedV1(session);
     this.checkpointV4CallCount += 1;
     this.checkpointV4Inputs.push(session);
+    const checkpointGate =
+      this.harness.checkpointGatesByHostOrdinal.get(this.hostOrdinal);
+    if (checkpointGate !== undefined) {
+      this.harness.checkpointGatesByHostOrdinal.delete(this.hostOrdinal);
+      await checkpointGate.promise;
+    }
+    this.checkpointV4CompletedCount += 1;
     if (this.harness.strictConvergesWithoutAdvance) {
       const checkpoint = mutableCloneV1(
         this.harness.fixture.strictCheckpoint,
@@ -2057,7 +2533,11 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
         if (terminal === undefined) {
           throw new Error("strict checkpoint fixture lacks a tracker");
         }
-        terminal.checkpointFingerprint = "deadbeef";
+        terminal.circulation.state.nodeVolumesMl.LV += 1;
+        // Reusing the accepted transaction's 32-bit compatibility fingerprint
+        // used to make this unequal terminal pass Studio admission.
+        terminal.checkpointFingerprint =
+          checkpoint.transaction.checkpointFingerprint;
       }
       return Object.freeze({
         session,
@@ -2072,7 +2552,11 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
   }
 
   async dispose(sessionId: string): Promise<void> {
+    this.requestCount += 1;
     this.assertOpenV1();
+    if (this.harness.failDisposeAtHostOrdinals.delete(this.hostOrdinal)) {
+      throw new Error("synthetic disposal receipt mismatch");
+    }
     this.sessions.delete(sessionId);
   }
 
@@ -2321,6 +2805,24 @@ function cyclePhase01V1(timeSec: number): number {
   const raw = timeSec;
   const phase = raw - Math.floor(raw);
   return phase >= 1 - 1e-12 || phase < 1e-12 ? 0 : phase;
+}
+
+class FakeMonotonicClockV1 {
+  private currentMs = 0;
+
+  readonly nowMs = (): number => this.currentMs;
+
+  readonly delayMs = async (durationMs: number): Promise<void> => {
+    this.advance(durationMs);
+    await delayV1(0);
+  };
+
+  advance(durationMs: number): void {
+    if (!Number.isFinite(durationMs) || durationMs < 0) {
+      throw new Error("fake clock duration must be finite and nonnegative");
+    }
+    this.currentMs += durationMs;
+  }
 }
 
 type DeferredV1<T> = Readonly<{

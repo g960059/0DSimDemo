@@ -134,6 +134,10 @@ describe("Scientific Product Studio bootstrap V1", () => {
     );
     const snapshot = await loadMainWireStudioSnapshotEnvelopeV1(
       await artifacts.readJson(result.branch.sourceSnapshotRef),
+      {
+        simulationInputRef: result.branch.sourceInputRef,
+        baseSessionInputSha256: result.baseSessionInputSha256,
+      },
     );
     const run = await artifacts.readJson(
       result.branch.sourceRunRef,
@@ -244,6 +248,10 @@ describe("Scientific Product Studio bootstrap V1", () => {
     );
     const snapshot = await loadMainWireStudioSnapshotEnvelopeV1(
       await artifacts.readJson(result.branch.sourceSnapshotRef),
+      {
+        simulationInputRef: result.branch.sourceInputRef,
+        baseSessionInputSha256: result.baseSessionInputSha256,
+      },
     );
     expect(snapshot.claims).toEqual({
       exactCheckpointStored: true,

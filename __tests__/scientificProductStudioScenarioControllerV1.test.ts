@@ -35,6 +35,29 @@ import type {
 } from "@/studio/contracts/v1";
 
 describe("Scientific Product Studio scenario controller V1", () => {
+  it("records an earlier queued action failure until a later action completes", async () => {
+    const { controller } = await controllerFixtureV1(4);
+    const actionLifecycle = controller as unknown as {
+      beginActionV1(): number;
+      finishActionSuccessV1(ordinal: number): void;
+      finishActionFailureV1(ordinal: number, error: unknown): void;
+    };
+
+    const earlier = actionLifecycle.beginActionV1();
+    const later = actionLifecycle.beginActionV1();
+    actionLifecycle.finishActionFailureV1(
+      earlier,
+      new Error("earlier queued action failed"),
+    );
+    expect(controller.status.lastActionError).toBe(
+      "earlier queued action failed",
+    );
+
+    actionLifecycle.finishActionSuccessV1(later);
+    expect(controller.status.lastActionError).toBeNull();
+    await controller.dispose();
+  });
+
   it("holds a deferred Workbench presentation at one settled point until resume", async () => {
     const { controller, coordinator, runtime } =
       await controllerFixtureV1(4, true);

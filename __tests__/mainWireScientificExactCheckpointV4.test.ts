@@ -163,6 +163,31 @@ describe("main-wire scientific exact checkpoint V4", () => {
     )).rejects.toThrow(/base resolved session-input identity mismatch/);
   });
 
+  it("continues bit-exactly from a restored V4 checkpoint", async () => {
+    const fixture = await checkpointFixture();
+    const source = await MainWireScientificSessionV1.restoreExactV4(
+      fixture.release,
+      fixture.input,
+      fixture.checkpoint,
+    );
+    for (let index = 0; index < 19; index += 1) {
+      expect(source.step(0.002).converged).toBe(true);
+    }
+    const continuationCheckpoint = await source.checkpointExactV4();
+    const restored = await MainWireScientificSessionV1.restoreExactV4(
+      fixture.release,
+      fixture.input,
+      continuationCheckpoint,
+    );
+
+    for (let index = 0; index < 64; index += 1) {
+      expect(restored.step(0.002)).toEqual(source.step(0.002));
+    }
+    await expect(restored.checkpointExactV4()).resolves.toEqual(
+      await source.checkpointExactV4(),
+    );
+  }, 30_000);
+
   it("round-trips through browser transport, then steps, checkpoints, and reforks", async () => {
     const loaded = await loadBundledOfficialHealthyPeriodicDocumentChainV1({
       presetId: "circleheart/official-healthy-periodic",
@@ -402,7 +427,7 @@ async function checkpointFixture() {
           MainWireScientificSessionPeriodicTrackerCheckpointV1,
     },
   );
-  return { identity, checkpoint };
+  return { release, input, identity, checkpoint };
 }
 
 async function controlState(

@@ -934,6 +934,21 @@ describe("Studio SimulationSession coordinator V1", () => {
     })).toMatchObject({ intentId: "intent/after-close-retry" });
   });
 
+  it("keeps a force-close terminal when runtime close fails", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    await coordinator.open(openCommandV1());
+    runtime.rejectNextClose(new Error("transport close failed"));
+
+    await expect(coordinator.close({ force: true }))
+      .rejects.toThrow(/transport close failed/);
+    expect(coordinator.current.status).toBe("closed");
+    expect(() => coordinator.applyControlIntent({
+      intentId: "intent/after-failed-force-close",
+      targets: [targetV1("baseline", "3", 1.25)],
+    })).toThrow(/not live/);
+  });
+
   it("accepts immediate samples only after each signal epoch is installed", async () => {
     const runtime = new FakeRuntimePortV1();
     const coordinator = coordinatorV1(runtime);

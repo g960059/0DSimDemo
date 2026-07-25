@@ -57,6 +57,7 @@ export type StudioReaderPreviewSessionStateV1 =
 type ActiveReaderPreviewEntryV1 = {
   previewId: string;
   retainCount: number;
+  resetInFlight: boolean;
   manifest: ReaderPreviewManifestV1;
   abortController: AbortController;
   runtime: ScientificProductStudioScenarioRuntimeV1 | null;
@@ -260,6 +261,14 @@ export function StudioAuthorPreviewProviderV1({
         ScientificProductReaderExperimentControllerV1.create({
           brief: placement.readerBrief,
           runtime,
+          resetToSource: () => {
+            restartReaderPreviewEntryV1(
+              entry,
+              activeEntryRef,
+              setReaderSession,
+              () => openEntry(entry, null),
+            );
+          },
         });
       entry.readerController = readerController;
       setReaderSession(Object.freeze({
@@ -308,6 +317,7 @@ export function StudioAuthorPreviewProviderV1({
     const entry: ActiveReaderPreviewEntryV1 = {
       previewId,
       retainCount: 1,
+      resetInFlight: false,
       manifest,
       abortController: new AbortController(),
       runtime: null,
@@ -427,6 +437,53 @@ async function disposeReaderPreviewEntryV1(
   } else if (runtime !== null) {
     await runtime.controller.dispose();
   }
+}
+
+/**
+ * Reader Reset is a source restoration, not a parameter patch. Reusing the
+ * preview-open path guarantees a fresh Worker session, the same immutable
+ * manifest binding, and the same canonical one-point first paint.
+ */
+function restartReaderPreviewEntryV1(
+  entry: ActiveReaderPreviewEntryV1,
+  activeEntryRef: React.MutableRefObject<ActiveReaderPreviewEntryV1 | null>,
+  setReaderSession: React.Dispatch<
+    React.SetStateAction<StudioReaderPreviewSessionStateV1>
+  >,
+  reopen: () => Promise<void>,
+): void {
+  if (
+    activeEntryRef.current !== entry
+    || entry.retainCount === 0
+    || entry.resetInFlight
+  ) return;
+  entry.resetInFlight = true;
+  setReaderSession(Object.freeze({
+    phase: "loading",
+    previewId: entry.previewId,
+    manifest: entry.manifest,
+    message: "Returning the experiment to its reference point…",
+  }));
+  void (async () => {
+    try {
+      await disposeReaderPreviewEntryV1(entry);
+      if (
+        activeEntryRef.current !== entry
+        || entry.retainCount === 0
+      ) return;
+      entry.abortController = new AbortController();
+      entry.resetInFlight = false;
+      await reopen();
+    } catch (error) {
+      entry.resetInFlight = false;
+      failReaderPreviewEntryV1(
+        entry,
+        activeEntryRef,
+        setReaderSession,
+        errorMessageV1(error),
+      );
+    }
+  })();
 }
 
 function failReaderPreviewEntryV1(

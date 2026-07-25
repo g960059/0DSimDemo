@@ -139,8 +139,8 @@ export type MainWireScientificHemodynamicJobStageV2 =
  */
 export type MainWireScientificHemodynamicJobSnapshotV2 = Readonly<{
   jobId: string;
-  /** Resolved job detail. Optional only for legacy snapshot consumers. */
-  detailMode?: MainWireScientificHemodynamicCalculationDetailV2;
+  /** Exact resolved calculation detail for this job. */
+  detailMode: MainWireScientificHemodynamicCalculationDetailV2;
   sequence: number;
   status: MainWireScientificHemodynamicJobStatusV2;
   stage: MainWireScientificHemodynamicJobStageV2;

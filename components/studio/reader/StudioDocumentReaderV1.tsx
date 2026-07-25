@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Activity, FlaskConical } from "lucide-react";
+import { Activity, FlaskConical, RotateCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type {
@@ -180,7 +180,8 @@ function StudioExperimentCellV1({
   );
   return (
     <section
-      className="my-10 overflow-hidden rounded-3xl border border-slate-800 bg-slate-950 text-slate-100 shadow-2xl shadow-slate-400/20"
+      className="workbench-root my-10 overflow-hidden rounded-3xl border border-wb-line bg-wb-panel text-wb-text shadow-xl shadow-slate-300/35"
+      data-workbench-theme="light"
       data-testid="studio-reader-experiment-cell-v1"
       data-studio-runtime="true"
       data-reader-time-scale={snapshot.timeScale}
@@ -197,25 +198,42 @@ function StudioExperimentCellV1({
       data-reader-phase={snapshot.phase}
       data-reader-presentation-status={presentationStatus.kind}
     >
-      <header className="flex flex-col gap-4 border-b border-slate-800 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+      <header className="flex flex-col gap-4 border-b border-wb-line px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div className="flex items-start gap-3">
-          <span className="rounded-xl bg-violet-400/10 p-2.5 text-violet-300">
+          <span className="rounded-xl bg-violet-100 p-2.5 text-violet-700">
             <FlaskConical className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-300">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700">
               {t("studioAuthorPreview.reader.interactiveExperiment")}
             </p>
-            <h2 className="mt-1 text-lg font-bold text-white">
+            <h2 className="mt-1 text-lg font-bold text-wb-text">
               {t("studioAuthorPreview.reader.experimentTitle")}
             </h2>
-            <p className="mt-1 text-xs text-slate-400">
+            <p className="mt-1 text-xs text-wb-muted">
               {scenario?.label ?? placement.experiment.experimentId}
             </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-full border border-slate-700 bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-slate-300">
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                controller.resetPresentation();
+                setControlError(null);
+              } catch (error) {
+                setControlError(errorMessageV1(error));
+              }
+            }}
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-wb-line bg-wb-panel px-2.5 text-[11px] font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text active:scale-[0.97]"
+            data-testid="studio-reader-reset-v1"
+            title={t("studioAuthorPreview.reader.resetDescription")}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            {t("studioAuthorPreview.reader.reset")}
+          </button>
+          <span className="rounded-full border border-wb-line bg-wb-soft px-2.5 py-1 text-[11px] font-bold text-wb-muted">
             1×
           </span>
           <span
@@ -238,7 +256,7 @@ function StudioExperimentCellV1({
             return (
               <section
                 key={pane.paneId}
-                className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/50"
+                className="overflow-hidden rounded-2xl border border-wb-line bg-wb-soft"
                 data-studio-reader-pane-kind={pane.kind}
                 data-studio-reader-time-window-ms={
                   pane.presentation.timeWindowMs ?? "none"
@@ -250,8 +268,8 @@ function StudioExperimentCellV1({
                       + `${pane.presentation.legendPosition.yPct}`
                 }
               >
-                <header className="border-b border-slate-800 px-4 py-3">
-                  <h3 className="text-sm font-bold text-slate-200">
+                <header className="border-b border-wb-line px-4 py-3">
+                  <h3 className="text-sm font-bold text-wb-text">
                     {pane.title}
                   </h3>
                 </header>
@@ -284,21 +302,21 @@ function StudioExperimentCellV1({
           {snapshot.instantaneousReadbacks.map((readback) => (
             <div
               key={readback.readbackId}
-              className="rounded-xl border border-slate-800 bg-slate-900/70 p-4"
+              className="rounded-xl border border-wb-line bg-wb-soft p-4"
             >
-              <p className="text-xs font-semibold text-slate-400">
+              <p className="text-xs font-semibold text-wb-muted">
                 {readback.label}
               </p>
-              <p className="mt-2 font-mono text-2xl font-semibold text-white">
+              <p className="mt-2 font-mono text-2xl font-semibold text-wb-text">
                 {readback.value === null
                   ? "—"
                   : formatNumberV1(readback.value)}
-                <span className="ml-1.5 text-xs font-medium text-slate-500">
+                <span className="ml-1.5 text-xs font-medium text-wb-subtle">
                   {readback.unit}
                 </span>
               </p>
               {readback.value === null && (
-                <p className="mt-1 text-[11px] text-slate-500">
+                <p className="mt-1 text-[11px] text-wb-subtle">
                   {t("studioAuthorPreview.reader.notEvaluated")}
                 </p>
               )}
@@ -315,16 +333,16 @@ function StudioExperimentCellV1({
           return (
             <div
               key={control.controlId}
-              className="rounded-2xl border border-slate-800 bg-slate-900/70 p-4 sm:p-5"
+              className="rounded-2xl border border-wb-line bg-wb-soft p-4 sm:p-5"
             >
               <div className="mb-4 flex items-baseline justify-between gap-3">
                 <label
                   htmlFor={`reader-control-${control.controlId}`}
-                  className="text-sm font-bold text-slate-200"
+                  className="text-sm font-bold text-wb-text"
                 >
                   {control.label}
                 </label>
-                <output className="font-mono text-sm font-bold text-sky-300">
+                <output className="font-mono text-sm font-bold text-sky-700">
                   {formatNumberV1(control.value)}
                 </output>
               </div>
@@ -350,14 +368,14 @@ function StudioExperimentCellV1({
                 className="h-2 w-full cursor-pointer accent-sky-400"
               />
               <div
-                className="mt-2 flex justify-between font-mono text-[10px] text-slate-500"
+                className="mt-2 flex justify-between font-mono text-[10px] text-wb-subtle"
                 aria-hidden="true"
               >
                 {control.allowedValues.map((value) => (
                   <span key={value}>{formatNumberV1(value)}</span>
                 ))}
               </div>
-              <p className="mt-3 text-[11px] leading-5 text-slate-500">
+              <p className="mt-3 text-[11px] leading-5 text-wb-subtle">
                 {t("studioAuthorPreview.reader.controlUnit", {
                   unit: control.unit,
                 })}
@@ -377,7 +395,7 @@ function StudioExperimentCellV1({
         {(snapshot.errorMessage ?? controlError) !== null && (
           <p
             role="alert"
-            className="rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm leading-6 text-red-200"
+            className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800"
           >
             {snapshot.errorMessage ?? controlError}
           </p>
@@ -432,9 +450,9 @@ function readerPresentationStatusV1(
         label: t("studioAuthorPreview.reader.seed"),
         message: t("studioAuthorPreview.reader.seedStatus"),
         badgeClassName:
-          "border-violet-400/25 bg-violet-400/10 text-violet-200",
+          "border-violet-300 bg-violet-50 text-violet-700",
         panelClassName:
-          "border-violet-400/20 bg-violet-400/5 text-violet-100",
+          "border-violet-200 bg-violet-50 text-violet-900",
       });
     case "updating":
       return Object.freeze({
@@ -442,9 +460,9 @@ function readerPresentationStatusV1(
         label: t("studioAuthorPreview.reader.updating"),
         message: t("studioAuthorPreview.reader.updatingStatus"),
         badgeClassName:
-          "border-sky-400/25 bg-sky-400/10 text-sky-200",
+          "border-sky-300 bg-sky-50 text-sky-700",
         panelClassName:
-          "border-sky-400/20 bg-sky-400/5 text-sky-100",
+          "border-sky-200 bg-sky-50 text-sky-900",
       });
     case "paused":
       return Object.freeze({
@@ -452,9 +470,9 @@ function readerPresentationStatusV1(
         label: t("studioAuthorPreview.reader.paused"),
         message: t("studioAuthorPreview.reader.pausedStatus"),
         badgeClassName:
-          "border-amber-400/25 bg-amber-400/10 text-amber-200",
+          "border-amber-300 bg-amber-50 text-amber-800",
         panelClassName:
-          "border-amber-400/20 bg-amber-400/5 text-amber-100",
+          "border-amber-200 bg-amber-50 text-amber-900",
       });
     case "strict-failed":
       return Object.freeze({
@@ -462,9 +480,9 @@ function readerPresentationStatusV1(
         label: t("studioAuthorPreview.reader.strictFailed"),
         message: t("studioAuthorPreview.reader.strictFailedStatus"),
         badgeClassName:
-          "border-amber-400/30 bg-amber-400/10 text-amber-100",
+          "border-amber-300 bg-amber-50 text-amber-800",
         panelClassName:
-          "border-amber-400/25 bg-amber-400/5 text-amber-100",
+          "border-amber-200 bg-amber-50 text-amber-900",
       });
     case "control-failed":
       return Object.freeze({
@@ -472,9 +490,9 @@ function readerPresentationStatusV1(
         label: t("studioAuthorPreview.reader.controlRejected"),
         message: t("studioAuthorPreview.reader.controlRejectedStatus"),
         badgeClassName:
-          "border-amber-400/30 bg-amber-400/10 text-amber-100",
+          "border-amber-300 bg-amber-50 text-amber-800",
         panelClassName:
-          "border-amber-400/25 bg-amber-400/5 text-amber-100",
+          "border-amber-200 bg-amber-50 text-amber-900",
       });
     case "failed":
       return Object.freeze({
@@ -482,9 +500,9 @@ function readerPresentationStatusV1(
         label: t("studioAuthorPreview.reader.runtimeFailed"),
         message: t("studioAuthorPreview.reader.runtimeFailedStatus"),
         badgeClassName:
-          "border-red-400/30 bg-red-400/10 text-red-200",
+          "border-red-300 bg-red-50 text-red-700",
         panelClassName:
-          "border-red-400/25 bg-red-400/5 text-red-100",
+          "border-red-200 bg-red-50 text-red-900",
       });
     case "running":
       return Object.freeze({
@@ -492,9 +510,9 @@ function readerPresentationStatusV1(
         label: t("studioAuthorPreview.reader.running"),
         message: t("studioAuthorPreview.reader.runningStatus"),
         badgeClassName:
-          "border-emerald-400/20 bg-emerald-400/10 text-emerald-200",
+          "border-emerald-300 bg-emerald-50 text-emerald-700",
         panelClassName:
-          "border-emerald-400/15 bg-emerald-400/5 text-emerald-100",
+          "border-emerald-200 bg-emerald-50 text-emerald-900",
       });
   }
 }

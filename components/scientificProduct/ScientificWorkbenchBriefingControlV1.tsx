@@ -48,11 +48,10 @@ export function ScientificWorkbenchBriefingControlV1({
   activeScenarioId,
   target: targetRef,
 }: ScientificWorkbenchBriefingControlV1Props) {
-  const { i18n } = useTranslation();
+  const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const locale = localeFromPathname(location.pathname);
-  const ja = i18n.language.toLowerCase().startsWith("ja");
   const {
     draft,
     replaceReaderBriefGraphPanes,
@@ -67,11 +66,11 @@ export function ScientificWorkbenchBriefingControlV1({
     mode: "append" | "update" | "replace-all",
   ) => {
     if (target === null) {
-      setError("The session draft has no Reader Brief target.");
+      setError(t("studioAuthorPreview.briefing.errors.missingTarget"));
       return;
     }
     if (activeScenarioId.length === 0) {
-      setError("The active Workbench scenario cannot be mapped to the article.");
+      setError(t("studioAuthorPreview.briefing.errors.missingScenario"));
       return;
     }
     try {
@@ -81,7 +80,10 @@ export function ScientificWorkbenchBriefingControlV1({
       const captures = panelIds.map((panelId) => {
         const panel = panels.find(({ id }) => id === panelId);
         if (panel === undefined) {
-          throw new Error(`Unknown Workbench pane ${panelId}`);
+          throw new Error(t(
+            "studioAuthorPreview.briefing.errors.unknownPane",
+            { panelId },
+          ));
         }
         return captureStudioGraphPaneSpecV1({
           panel,
@@ -112,6 +114,7 @@ export function ScientificWorkbenchBriefingControlV1({
     replaceReaderBriefGraphPanes,
     target,
     targetRef.scenarioId,
+    t,
   ]);
 
   const removePane = React.useCallback((paneId: string) => {
@@ -143,7 +146,7 @@ export function ScientificWorkbenchBriefingControlV1({
       >
         <ClipboardList className="h-3.5 w-3.5" />
         <span className="hidden md:inline">
-          {ja ? "Briefing" : "Briefing"}
+          {t("studioAuthorPreview.briefing.button")}
         </span>
         {capturedPanes.length > 0 && (
           <span className="rounded-full bg-wb-active px-1.5 py-0.5 text-[10px] text-wb-text">

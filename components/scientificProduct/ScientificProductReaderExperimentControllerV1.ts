@@ -4,6 +4,11 @@ import type {
   ScientificWorkbenchResearchControlStoreV0,
 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
 import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
+  type MainWireScientificResearchControlIdV0,
+} from "@/engine/scientific/controls";
+import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1,
   type MainWireScientificObservableFrameV1,
   type MainWireScientificObservableIdV1,
@@ -23,12 +28,36 @@ import type {
   ScientificProductStudioScenarioRuntimeV1,
 } from "./ScientificProductStudioScenarioRegistryV1";
 
-const SYSTEMIC_PARAMETER_KEY_V1 =
-  "circulation.systemic-vascular-resistance-scale" as const;
-
 const SUPPORTED_SIGNAL_IDS_V1 = new Set<string>(
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1,
 );
+const SUPPORTED_CONTROL_IDS_V1 = new Set<string>(
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0,
+);
+
+const CURRENT_CONTROL_VALUE_V1 = Object.freeze({
+  "circulation.systemic-vascular-resistance-scale":
+    (snapshot: ScientificWorkbenchResearchControlSnapshotV0) =>
+      snapshot.draft.systemic,
+  "circulation.pulmonary-vascular-resistance-scale":
+    (snapshot: ScientificWorkbenchResearchControlSnapshotV0) =>
+      snapshot.draft.pulmonary,
+  "circulation.venous-tone":
+    (snapshot: ScientificWorkbenchResearchControlSnapshotV0) =>
+      snapshot.draft.venousTone,
+  "circulation.arterial-stiffness":
+    (snapshot: ScientificWorkbenchResearchControlSnapshotV0) =>
+      snapshot.draft.arterialStiffness,
+  "ventilation.peep-cm-h2o":
+    (snapshot: ScientificWorkbenchResearchControlSnapshotV0) =>
+      snapshot.draft.peepCmH2O,
+  "pericardium.prescribed-fluid-volume-ml":
+    (snapshot: ScientificWorkbenchResearchControlSnapshotV0) =>
+      snapshot.draft.pericardialFluidVolumeMl,
+} satisfies Readonly<Record<
+  MainWireScientificResearchControlIdV0,
+  (snapshot: ScientificWorkbenchResearchControlSnapshotV0) => number
+>>);
 
 export type ScientificProductReaderRuntimePortV1 = Readonly<{
   scenarioId: ScientificProductStudioScenarioRuntimeV1["scenarioId"];
@@ -39,6 +68,8 @@ export type ScientificProductReaderRuntimePortV1 = Readonly<{
     Pick<ScientificProductStudioScenarioRuntimeV1["controller"], "status">
   >;
 }>;
+
+export type ScientificProductReaderResetToSourceV1 = () => void;
 
 export type ScientificProductReaderExperimentPhaseV1 =
   | "seed"
@@ -121,6 +152,7 @@ export class ScientificProductReaderExperimentControllerV1 {
   private readonly controls: readonly ReaderControlSpecV1[];
   private readonly controlsByParameterKey:
     ReadonlyMap<string, ReaderControlSpecV1>;
+  private readonly resetToSource: ScientificProductReaderResetToSourceV1;
   private readonly listeners = new Set<() => void>();
   private snapshot: ScientificProductReaderExperimentSnapshotV1;
   private unsubscribeRuntime: (() => void) | null = null;
@@ -129,8 +161,10 @@ export class ScientificProductReaderExperimentControllerV1 {
   private constructor(
     brief: ReaderBriefV1,
     runtime: ScientificProductReaderRuntimePortV1,
+    resetToSource: ScientificProductReaderResetToSourceV1,
   ) {
     this.runtime = runtime;
+    this.resetToSource = resetToSource;
     const normalized = validateAndNormalizeBriefV1(brief, runtime);
     this.graphSignals = normalized.graphSignals;
     this.readbackSpecs = normalized.readbackSpecs;
@@ -161,10 +195,12 @@ export class ScientificProductReaderExperimentControllerV1 {
   static create(input: Readonly<{
     brief: ReaderBriefV1;
     runtime: ScientificProductReaderRuntimePortV1;
+    resetToSource: ScientificProductReaderResetToSourceV1;
   }>): ScientificProductReaderExperimentControllerV1 {
     return new ScientificProductReaderExperimentControllerV1(
       input.brief,
       input.runtime,
+      input.resetToSource,
     );
   }
 
@@ -206,6 +242,18 @@ export class ScientificProductReaderExperimentControllerV1 {
   }
 
   /**
+   * Returns to the exact source boundary by asking the Reader session owner to
+   * dispose this numerical session and allocate a fresh one from the same
+   * manifest. A control patch cannot implement Reset: it would warm-transition
+   * from the current accepted state instead of restoring the canonical point.
+   */
+  resetPresentation(): void {
+    this.assertActiveV1("reset presentation");
+    this.stopPresentation();
+    this.resetToSource();
+  }
+
+  /**
    * Commits only an article-allowlisted absolute parameter value. The brief is
    * immutable content; the mutation is delegated solely to this runtime
    * session's control owner.
@@ -226,18 +274,16 @@ export class ScientificProductReaderExperimentControllerV1 {
         `Reader Preview value ${String(value)} is not allowed for ${parameterKey}`,
       );
     }
-    switch (parameterKey) {
-      case SYSTEMIC_PARAMETER_KEY_V1:
-        this.runtime.controlStore.actions.commitControlValue(
-          SYSTEMIC_PARAMETER_KEY_V1,
-          value,
-        );
-        return;
-      default:
-        throw new Error(
-          `Reader Preview has no runtime mapping for ${parameterKey}`,
-        );
+    const runtimeControlId = runtimeControlIdV1(parameterKey);
+    if (runtimeControlId === null) {
+      throw new Error(
+        `Reader Preview has no runtime mapping for ${parameterKey}`,
+      );
     }
+    this.runtime.controlStore.actions.commitControlValue(
+      runtimeControlId,
+      value,
+    );
   }
 
   dispose(): void {
@@ -447,10 +493,8 @@ function normalizeControlsV1(
     }
     controlIds.add(control.controlId);
     const parameterKey = control.binding.parameterKey;
-    if (
-      parameterKey !== SYSTEMIC_PARAMETER_KEY_V1
-      || parameterKeys.has(parameterKey)
-    ) {
+    const runtimeControlId = runtimeControlIdV1(parameterKey);
+    if (runtimeControlId === null || parameterKeys.has(parameterKey)) {
       throw new Error(
         `Reader Preview has no unique runtime mapping for ${parameterKey}`,
       );
@@ -470,6 +514,11 @@ function normalizeControlsV1(
       || new Set(control.allowedValues).size !== control.allowedValues.length
       || !control.allowedValues.some((value) =>
         value === control.initialValue
+      )
+      || control.allowedValues.some((value) =>
+        !MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
+          runtimeControlId
+        ].allowedValues.some((runtimeValue) => runtimeValue === value)
       )
     ) {
       throw new Error(
@@ -566,30 +615,34 @@ function sourceControlValueV1(
   snapshot: ScientificWorkbenchResearchControlSnapshotV0,
   parameterKey: string,
 ): number {
-  switch (parameterKey) {
-    case SYSTEMIC_PARAMETER_KEY_V1:
-      return snapshot.source.context.controlState.controls[
-        SYSTEMIC_PARAMETER_KEY_V1
-      ];
-    default:
-      throw new Error(
-        `Reader Preview has no source mapping for ${parameterKey}`,
-      );
+  const runtimeControlId = runtimeControlIdV1(parameterKey);
+  if (runtimeControlId === null) {
+    throw new Error(
+      `Reader Preview has no source mapping for ${parameterKey}`,
+    );
   }
+  return snapshot.source.context.controlState.controls[runtimeControlId];
 }
 
 function currentControlValueV1(
   snapshot: ScientificWorkbenchResearchControlSnapshotV0,
   parameterKey: string,
 ): number {
-  switch (parameterKey) {
-    case SYSTEMIC_PARAMETER_KEY_V1:
-      return snapshot.draft.systemic;
-    default:
-      throw new Error(
-        `Reader Preview has no current-value mapping for ${parameterKey}`,
-      );
+  const runtimeControlId = runtimeControlIdV1(parameterKey);
+  if (runtimeControlId === null) {
+    throw new Error(
+      `Reader Preview has no current-value mapping for ${parameterKey}`,
+    );
   }
+  return CURRENT_CONTROL_VALUE_V1[runtimeControlId](snapshot);
+}
+
+function runtimeControlIdV1(
+  parameterKey: string,
+): MainWireScientificResearchControlIdV0 | null {
+  return SUPPORTED_CONTROL_IDS_V1.has(parameterKey)
+    ? parameterKey as MainWireScientificResearchControlIdV0
+    : null;
 }
 
 function readerPhaseV1(

@@ -202,7 +202,7 @@ Reader / Study Lab / Document Editor は別 ownership model を持つ silo で�
 - beat metric は最初の完全なbeatが終わるまで「集計中」。低HRを含め、この待ち時間はsimulationの観察時間として扱う。
 - parameter変更時は、incoming generationのwaveformが設定windowを満たすまで直前generationを低いalphaで残す。新旧両方を一時的なdomain計算へ含め、空のgraphへの切替とautoscaleの不要な揺れを避け、windowが満ちた時点で旧waveformを原子的に外す。
 - PV loopの**parameter-generation履歴**は同一generation内のbeat履歴と別の表示契約とする。現行paneは`0 / 1 / 3 / 5 / 6`（既定`6`）から選択し、古いgenerationをageに応じて薄くし、選択上限を超えたものを除去する。履歴loopも保持中はdomain計算へ含める。
-- Reset は同じ certified 1 pointへ戻り、同じ形成過程を再開するtarget contract。ただし現headless foundationにはReset commandをまだ実装していない。
+- Reset は同じ certified 1 pointへ戻り、同じ形成過程を再開するtarget contract。現Reader Previewは同じimmutable manifestから数値sessionを完全に再生成してこの契約を満たす（逆parameter patchでは代用しない）。再利用可能なheadless in-session Reset commandは引き続き未実装。
 - last-beat sample、beat history、window metric、presentation stateはcanonical保存しない。thumbnail等のderived display cacheは再生成可能で、正しさの根拠にしない。
 
 ### 6.4 展開/収束の craft（このプロダクトの成否の中心）
@@ -296,7 +296,7 @@ content（全 graph にアクセス）と layout（2×2 の空間的意味）を
 - strict candidateを認めるのは`period1-converged ∧ periodicSteadyStateClaimed ∧ !period2OrbitSuspected`の時だけ。retained closure evidence、completed beat count、anchor、P1 classificationをexact checkpointのperiodic tracker、boundary transaction、terminal transactionへ相互拘束し、0-beat claimやidentityだけ整ったcheckpointは拒否する。このP1 admissionは数値steady / healthの判定であり、morphology・conservation・case-specific validationを含む完全Assessment / Certificationではない。
 - metric は「最後に完了したbeat」から。session開始直後は§6.3の通り「集計中」。
 - **multi-scenario live transition**（中核ユースケース = Ees の baseline vs HFrEF）: N 本の scenario をそれぞれの certified snapshot から同時温間再開し、同一 graph に 1× で重ねて描画。共有 knob（binding = all）を動かすと N 本すべてに atomic なpatch intentを発行し、背景 strict steady job もN本自動開始。
-- liveの高頻度pointはbranch-bound signal channelで1×配信し、control plane / domain logには積まない。suspendはaccepted command boundaryまで待ち、resumeは同じaccepted stateとstream epochから継続する。target変更・promotionはcoordinatorが新しい1-point stateをinstallした後に新stream epochを明示activateする。current-epochのWorker failure、malformed batch、sequence gap、metric regressionはbranchをfail-closed suspendし、明示的に古いidentityだけを破棄する。strict Worker leaseはpresentation suspendから独立して進む。
+- liveの高頻度pointはbranch-bound signal channelで1×配信し、control plane / domain logには積まない。pacingは累積wall/model-time deadlineで短い遅延をcatch-upし、黙って許すlag上限をcanonical 1 cycle（現releaseは1,000 ms）として事前宣言する。上限超過時は遅いtraceを1×と表示し続けず、current-epoch failureとしてbranchをfail-closed suspendする。suspendはaccepted command boundaryまで待ち、resumeは同じaccepted stateとstream epochから継続する。target変更・promotionはcoordinatorが新しい1-point stateをinstallした後に新stream epochを明示activateする。current-epochのWorker failure、malformed batch、sequence gap、metric regression、observer callback failureは既存signal failure channelで原因を通知してbranchをfail-closed suspendし、observerを無言detachせず、明示的に古いidentityだけを破棄する。strict Worker leaseはpresentation suspendから独立して進む。
 - **density = 性能予算のダイヤル**: viewport内でlive予算に選ばれたIn-flowは、未操作でも自動live化して1 pointからtraceを伸ばす。画面外または予算外のCellPlacementはcompact（engine停止・1 point / thumbnail）にし、viewport進入または操作でlive slotを取得する。1セクション1本の優先規則とslot evictionは規範別紙で固定する。branch-level suspend / resume contractは実装済みだが、IntersectionObserverとのUI接続とslot policyは未実装。
 - **control transition の二分**:
   - `RuntimeUpdatePolicy`（数値安定・UI 表示のための反映規則: applyAt immediate/nextBeat/endSystole/endDiastole/restart、visualTransition ramp、overridePolicy allowed/locked）

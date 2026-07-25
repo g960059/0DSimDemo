@@ -55,6 +55,7 @@ describe("Scientific Product Reader experiment controller V1", () => {
       ScientificProductReaderExperimentControllerV1.create({
         brief,
         runtime: fixture.runtime,
+        resetToSource: fixture.resetToSource,
       });
     const initial = controller.getSnapshot();
 
@@ -175,8 +176,12 @@ describe("Scientific Product Reader experiment controller V1", () => {
     ]);
     expect(controller.getSnapshot()).toBe(frozen);
 
+    controller.resetPresentation();
+    expect(fixture.resetToSource).toHaveBeenCalledTimes(1);
+
     controller.dispose();
     expect(() => controller.startPresentation()).toThrow(/after disposal/);
+    expect(() => controller.resetPresentation()).toThrow(/after disposal/);
   });
 
   it("rejects mismatched targets, scenario counts, and unknown mappings", async () => {
@@ -187,6 +192,7 @@ describe("Scientific Product Reader experiment controller V1", () => {
       ScientificProductReaderExperimentControllerV1.create({
         brief: withControlTargetV1(brief, ["another-scenario"]),
         runtime: fixture.runtime,
+        resetToSource: fixture.resetToSource,
       })
     ).toThrow(/must target only scenario reader-preview-scenario/);
 
@@ -197,6 +203,7 @@ describe("Scientific Product Reader experiment controller V1", () => {
           [SCENARIO_ID_V1, "another-scenario"],
         ),
         runtime: fixture.runtime,
+        resetToSource: fixture.resetToSource,
       })
     ).toThrow(/must target only scenario reader-preview-scenario/);
 
@@ -204,9 +211,10 @@ describe("Scientific Product Reader experiment controller V1", () => {
       ScientificProductReaderExperimentControllerV1.create({
         brief: withParameterKeyV1(
           brief,
-          "circulation.venous-tone",
+          "circulation.not-supported",
         ),
         runtime: fixture.runtime,
+        resetToSource: fixture.resetToSource,
       })
     ).toThrow(/no unique runtime mapping/);
 
@@ -216,6 +224,7 @@ describe("Scientific Product Reader experiment controller V1", () => {
         controls: Object.freeze([]),
       }),
       runtime: fixture.runtime,
+      resetToSource: fixture.resetToSource,
     });
     expect(readOnly.getSnapshot().allowedControls).toEqual([]);
     readOnly.dispose();
@@ -228,6 +237,7 @@ describe("Scientific Product Reader experiment controller V1", () => {
         ScientificProductReaderExperimentControllerV1.create({
           brief: withPvLoopItemV1(readerBriefV1(), itemId),
           runtime: fixture.runtime,
+          resetToSource: fixture.resetToSource,
         });
       controller.dispose();
     }
@@ -239,10 +249,82 @@ describe("Scientific Product Reader experiment controller V1", () => {
           "forged-pressure-volume-trajectory",
         ),
         runtime: fixture.runtime,
+        resetToSource: fixture.resetToSource,
       })
     ).toThrow(
       /PV-loop item forged-pressure-volume-trajectory is not supported/,
     );
+  });
+
+  it("drives every Reader control from the release-bound runtime catalog", async () => {
+    const fixture = await readerRuntimeFixtureV1();
+    const cases = [
+      {
+        parameterKey: "circulation.systemic-vascular-resistance-scale",
+        initialValue: 1,
+        nextValue: 1.5,
+      },
+      {
+        parameterKey: "circulation.pulmonary-vascular-resistance-scale",
+        initialValue: 1,
+        nextValue: 2,
+      },
+      {
+        parameterKey: "circulation.venous-tone",
+        initialValue: 0.15,
+        nextValue: 0.3,
+      },
+      {
+        parameterKey: "circulation.arterial-stiffness",
+        initialValue: 0.75,
+        nextValue: 1,
+      },
+      {
+        parameterKey: "ventilation.peep-cm-h2o",
+        initialValue: 0,
+        nextValue: 5,
+      },
+      {
+        parameterKey: "pericardium.prescribed-fluid-volume-ml",
+        initialValue: 0,
+        nextValue: 25,
+      },
+    ] as const;
+
+    for (const item of cases) {
+      const controller =
+        ScientificProductReaderExperimentControllerV1.create({
+          brief: withControlV1(readerBriefV1(), {
+            parameterKey: item.parameterKey,
+            initialValue: item.initialValue,
+            allowedValues: [item.initialValue, item.nextValue],
+          }),
+          runtime: fixture.runtime,
+          resetToSource: fixture.resetToSource,
+        });
+      expect(controller.getSnapshot().allowedControls[0]).toMatchObject({
+        parameterKey: item.parameterKey,
+        value: item.initialValue,
+      });
+      controller.commitControl(item.parameterKey, item.nextValue);
+      expect(fixture.commitControlValue).toHaveBeenLastCalledWith(
+        item.parameterKey,
+        item.nextValue,
+      );
+      controller.dispose();
+    }
+
+    expect(() =>
+      ScientificProductReaderExperimentControllerV1.create({
+        brief: withControlV1(readerBriefV1(), {
+          parameterKey: "circulation.venous-tone",
+          initialValue: 0.15,
+          allowedValues: [0.15, 0.2],
+        }),
+        runtime: fixture.runtime,
+        resetToSource: fixture.resetToSource,
+      })
+    ).toThrow(/invalid value allowlist/);
   });
 });
 
@@ -338,6 +420,7 @@ async function readerRuntimeFixtureV1(): Promise<Readonly<{
   runtime: ScientificProductReaderRuntimePortV1;
   commitControlValue: ReturnType<typeof vi.fn>;
   resumeLive: ReturnType<typeof vi.fn>;
+  resetToSource: ReturnType<typeof vi.fn>;
   seedFrame: MainWireScientificObservableFrameV1;
   currentFrame: MainWireScientificObservableFrameV1;
   publish: (
@@ -377,6 +460,7 @@ async function readerRuntimeFixtureV1(): Promise<Readonly<{
   const ownerToken = Symbol("reader-facade-test-owner");
   const commitControlValue = vi.fn();
   const resumeLive = vi.fn();
+  const resetToSource = vi.fn();
   const noOp = () => undefined;
   const actionRef: ScientificWorkbenchResearchControlOwnerActionRefV0 = {
     current: Object.freeze({
@@ -453,6 +537,7 @@ async function readerRuntimeFixtureV1(): Promise<Readonly<{
     }),
     commitControlValue,
     resumeLive,
+    resetToSource,
     seedFrame,
     currentFrame,
     publish,
@@ -625,6 +710,31 @@ function withParameterKeyV1(
         binding: Object.freeze({
           ...control.binding,
           parameterKey,
+        }),
+      }),
+    ]),
+  });
+}
+
+function withControlV1(
+  brief: ReaderBriefV1,
+  input: Readonly<{
+    parameterKey: string;
+    initialValue: number;
+    allowedValues: readonly number[];
+  }>,
+): ReaderBriefV1 {
+  const control = brief.controls[0]!;
+  return Object.freeze({
+    ...brief,
+    controls: Object.freeze([
+      Object.freeze({
+        ...control,
+        initialValue: input.initialValue,
+        allowedValues: Object.freeze([...input.allowedValues]),
+        binding: Object.freeze({
+          ...control.binding,
+          parameterKey: input.parameterKey,
         }),
       }),
     ]),

@@ -92,6 +92,8 @@ export type StudioGraphPaneKindV1 =
   | "guyton-left"
   | "guyton-right";
 
+export type ReaderBriefExtentV1 = "inflow" | "peek" | "fullscreen";
+
 export type StudioGraphPaneItemSpecV1 = Readonly<{
   /**
    * A waveform observable id or a portable pressure-volume trajectory id.
@@ -149,7 +151,12 @@ export type StudioGraphPaneSpecV1 = Readonly<{
 export type ReaderBriefV1 = Readonly<{
   schemaId: typeof STUDIO_READER_BRIEF_V1_SCHEMA_ID;
   briefId: StudioReaderBriefIdV1;
-  extent: "inflow";
+  /**
+   * Presentation extent is persisted as an explicit union from v1 onward.
+   * The current Preview resolver intentionally accepts only `inflow` until
+   * the peek and fullscreen interaction contracts are implemented.
+   */
+  extent: ReaderBriefExtentV1;
   graphPanes: readonly StudioGraphPaneSpecV1[];
   instantaneousReadbacks: readonly ReaderInstantaneousReadbackSpecV1[];
   controls: readonly ReaderControlSpecV1[];

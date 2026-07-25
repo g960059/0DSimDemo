@@ -61,6 +61,8 @@ export type MainWireStudioCheckpointReceiptV1 = Readonly<{
  */
 export interface MainWireStudioSessionHostV1 {
   readonly hostId: string;
+  /** Number of Worker requests issued by this exclusive host identity. */
+  readonly requestCount: number;
 
   restoreV4(input: Readonly<{
     sessionId: string;
