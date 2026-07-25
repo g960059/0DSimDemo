@@ -649,10 +649,10 @@ describe("document-bound scientific workbench page V1", () => {
     expect(presentation.panels[0]).toMatchObject({
       showGuides: true,
       pvRelationDisplayMode: "off",
-      pvHistoryBeats: 8,
+      pvHistoryBeats: 4,
       pvHistoryMode: "fade",
       view: {
-        pvHistoryBeats: 8,
+        pvHistoryBeats: 4,
         pvHistoryMode: "fade",
         pvRelationDisplayMode: "off",
       },

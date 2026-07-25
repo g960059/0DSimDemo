@@ -34,6 +34,8 @@ export type ScientificPvBoundaryGuideV1 = Readonly<{
   generationId?: string;
   generationSequence?: number;
   generationAge?: number;
+  /** Accepted-time age shared with the native PV trajectory history. */
+  historyAgeBeats?: number;
   status?: "fallback" | "running" | "complete" | "stale";
   sourceRole?: "visible-current" | "target-preview" | "history";
   opacityMultiplier?: number;

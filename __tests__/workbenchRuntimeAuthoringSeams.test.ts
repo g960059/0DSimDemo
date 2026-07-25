@@ -567,6 +567,8 @@ describe("runtime-specific Workbench authoring seams", () => {
       },
     });
     expect(pvWithRendererDefaults.presentation.showGuides).toBe(true);
+    expect(pvWithRendererDefaults.presentation.pvBeatHistoryCount).toBe(4);
+    expect(pvWithRendererDefaults.presentation.pvParameterHistoryCount).toBe(0);
     expect(panelFromStudioGraphPaneSpecV1(pvWithRendererDefaults).showGuides)
       .toBe(true);
 

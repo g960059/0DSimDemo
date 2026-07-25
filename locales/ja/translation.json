@@ -669,7 +669,7 @@
       },
       "waveformTimeWindow": "波形時間ウィンドウ",
       "pvHistory": "PV軌跡の履歴",
-      "pvHistoryDescription": "モデル遷移中の過去の心拍軌跡を保持します。",
+      "pvHistoryDescription": "変更前のPV loopとESPVR/EDPVRを含め、過去の心拍軌跡を同じrolling windowで保持します。",
       "pvHistoryBeats": "PV履歴の心拍数",
       "pvHistoryStyle": "PV履歴の表示方法",
       "pvHistoryModes": {
@@ -677,7 +677,7 @@
         "persistent": "濃さを保持"
       },
       "pvHistoryFadeHint": "{{count}}拍前で完全に透過し、表示から消えます。",
-      "pvHistoryPersistentHint": "直近{{count}}拍を一定の低い不透明度で保持する、上限付きrolling windowです。",
+      "pvHistoryPersistentHint": "最新軌跡から連続的に薄くなり、その後は直近{{count}}拍を一定の低い不透明度で保持します。",
       "adjacentSectionsConfigurable": "シナリオ表示とラベルは隣のセクションでも設定できます。",
       "selectInstanceForStyle": "ラベルと色を編集するシナリオを選択してください。",
       "instanceStylingOnly": "シナリオの見た目のみ",

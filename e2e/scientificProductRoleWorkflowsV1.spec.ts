@@ -237,7 +237,7 @@ test.describe.serial("Product workflows by role", () => {
       )).toBeGreaterThan(0);
       await expect.poll(async () => numericAttributeV1(
         readerPv,
-        "data-pv-parameter-history-count",
+        "data-pv-history-parameter-boundary-count",
       )).toBeGreaterThan(0);
 
       // Reset is an exact source restoration, not a reverse parameter patch:
@@ -639,7 +639,7 @@ test.describe.serial("Product workflows by role", () => {
       )).toBeGreaterThan(0);
       await expect.poll(async () => numericAttributeV1(
         pvCanvas,
-        "data-pv-parameter-history-count",
+        "data-pv-history-parameter-boundary-count",
       )).toBeGreaterThan(0);
 
       await page.getByRole("button", {

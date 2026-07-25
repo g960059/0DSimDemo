@@ -669,7 +669,7 @@
       },
       "waveformTimeWindow": "Waveform time window",
       "pvHistory": "PV trajectory history",
-      "pvHistoryDescription": "Retain prior cardiac-cycle trajectories while the model transitions.",
+      "pvHistoryDescription": "Keep the pre-change PV loop and ESPVR/EDPVR in the same rolling beat-history window.",
       "pvHistoryBeats": "PV history beats",
       "pvHistoryStyle": "PV history style",
       "pvHistoryModes": {
@@ -677,7 +677,7 @@
         "persistent": "Keep visible"
       },
       "pvHistoryFadeHint": "The oldest trajectory reaches zero opacity at beat {{count}}.",
-      "pvHistoryPersistentHint": "The latest {{count}} prior trajectories keep a constant low opacity in a bounded rolling window.",
+      "pvHistoryPersistentHint": "Opacity eases continuously from the live trace, then the latest {{count}} beats remain at a bounded low opacity.",
       "adjacentSectionsConfigurable": "Scenario visibility and labels are still configurable in the adjacent sections.",
       "selectInstanceForStyle": "Select a scenario to edit labels and colors.",
       "instanceStylingOnly": "Scenario styling only",

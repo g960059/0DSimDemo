@@ -197,6 +197,40 @@ describe("scientific PV progressive presentation state", () => {
       .toEqual([0.55, 0.3, 0.14]);
   });
 
+  it("uses continuous beat age and releases an expired shared-PV guide", () => {
+    const current = generation("current", 2, "complete", "current");
+    const history = Object.freeze({
+      ...generation("history", 1, "complete", "history"),
+      historyAge: 0.5,
+    });
+    let state = advanceScientificPvProgressivePresentationStateV1(
+      createScientificPvProgressivePresentationStateV1<Payload>(),
+      {
+        nowMs: 0,
+        reducedMotion: false,
+        baseDomain: null,
+        historyBeats: 4,
+        historyMode: "fade",
+        scenarios: [scenario("a", current, null, [history])],
+      },
+    );
+
+    expect(layer(present(state, 0), "history").opacity).toBe(0.875);
+
+    state = advanceScientificPvProgressivePresentationStateV1(state, {
+      nowMs: 10,
+      reducedMotion: false,
+      baseDomain: null,
+      historyBeats: 4,
+      historyMode: "fade",
+      scenarios: [scenario("a", current)],
+    });
+    expect(present(
+      state,
+      10 + SCIENTIFIC_PV_PRESENTATION_CROSSFADE_MS_V1,
+    ).layers.map(({ generationId }) => generationId)).toEqual(["current"]);
+  });
+
   it("makes reduced-motion replacement opacity immediate", () => {
     let state = step(
       createScientificPvProgressivePresentationStateV1<Payload>(),
