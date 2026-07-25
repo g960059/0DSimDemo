@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, Plus } from "lucide-react";
+import { Check } from "lucide-react";
 
 /**
  * Picking a presentation element directly on the Workbench.
@@ -42,34 +42,45 @@ export function useStudioBriefingPickV1(): StudioBriefingPickApiV1 | null {
   return React.useContext(StudioBriefingPickContextV1);
 }
 
-export type StudioBriefingPickOverlayV1Props = Readonly<{
+export type StudioBriefingPickBoxV1Props = Readonly<{
   label: string;
   picked: boolean;
   kind: "graph" | "control" | "signal" | "metric";
   pickKey: string;
-  /** Inline elements carry the badge alone; there is no room for a wash. */
-  compact?: boolean;
+  /**
+   * `corner` floats the box in a pane's top-left; everything else places it in
+   * the element's own flow. Either way the box is the only pointer target the
+   * layer adds, so sliders, legends and pane menus keep working while compose
+   * is open.
+   */
+  placement?: "inline" | "corner";
+  size?: "sm" | "md";
   onToggle(): void;
 }>;
 
 /**
- * A full-area toggle laid over the element it selects.
+ * A real checkbox beside the element it selects.
  *
- * Picked elements keep a faint white wash so the chosen set is legible at a
- * glance without moving anything, and the element underneath stays readable.
+ * Nothing is laid over live content: an overlay would swallow the drags and
+ * menus the Workbench exists for. Picked state is carried by a filled accent
+ * box, never by a wash over a canvas, because tinting a trace changes how the
+ * data reads.
  */
-export function StudioBriefingPickOverlayV1({
+export function StudioBriefingPickBoxV1({
   label,
   picked,
   kind,
   pickKey,
-  compact = false,
+  placement = "inline",
+  size = "md",
   onToggle,
-}: StudioBriefingPickOverlayV1Props) {
+}: StudioBriefingPickBoxV1Props) {
+  const box = size === "sm" ? "h-3 w-3" : "h-4 w-4";
   return (
     <button
       type="button"
-      aria-pressed={picked}
+      role="checkbox"
+      aria-checked={picked}
       aria-label={label}
       title={label}
       onClick={(event) => {
@@ -77,33 +88,38 @@ export function StudioBriefingPickOverlayV1({
         event.stopPropagation();
         onToggle();
       }}
-      data-testid="scientific-briefing-pick-overlay-v1"
+      onPointerDown={(event) => event.stopPropagation()}
+      data-testid="scientific-briefing-pick-box-v1"
       data-briefing-pick-kind={kind}
       data-briefing-pick-key={pickKey}
       data-briefing-picked={String(picked)}
-      className={compact
-        ? `absolute inset-0 z-20 rounded transition-colors ${
-          picked
-            ? "bg-white/[0.14] hover:bg-white/[0.18]"
-            : "bg-transparent hover:bg-white/[0.07]"
-        }`
-        : `absolute inset-0 z-20 flex items-start justify-end p-1.5 transition-colors ${
-          picked
-            ? "bg-white/[0.09] hover:bg-white/[0.13]"
-            : "bg-transparent hover:bg-white/[0.05]"
-        }`}
+      className={`${
+        placement === "corner"
+          ? "absolute left-1.5 top-1.5 z-20"
+          : "relative shrink-0"
+      } inline-flex items-center justify-center rounded-[4px] p-[3px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--wb-pick)]`}
     >
-      {/* The element already names itself; the badge only carries state. */}
-      {!compact && <span
+      <span
         aria-hidden="true"
-        className={`inline-flex h-5 w-5 items-center justify-center rounded-full transition-opacity ${
+        className={`${box} inline-flex items-center justify-center rounded-[3px] border transition-colors ${
           picked
-            ? "bg-white/20 text-wb-text"
-            : "bg-white/10 text-wb-text opacity-0 group-hover/pick:opacity-100"
+            ? "border-[var(--wb-pick)] bg-[var(--wb-pick)] text-white"
+            : "border-dashed border-[var(--wb-pick-idle)] bg-transparent hover:border-[var(--wb-pick)] hover:bg-[var(--wb-pick-soft)]"
         }`}
       >
-        {picked ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-      </span>}
+        {picked && <Check className={size === "sm" ? "h-2 w-2" : "h-3 w-3"} />}
+      </span>
     </button>
   );
+}
+
+/** The leading accent bar that marks a picked element at any size. */
+export function studioBriefingPickedEdgeClassV1(
+  picked: boolean,
+  edge: "left" | "top" = "left",
+): string {
+  if (!picked) return "";
+  return edge === "left"
+    ? "shadow-[inset_3px_0_0_0_var(--wb-pick)]"
+    : "shadow-[inset_0_3px_0_0_var(--wb-pick)]";
 }

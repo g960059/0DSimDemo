@@ -89,6 +89,10 @@ export type StudioAuthorPreviewContextValueV1 = Readonly<{
     blocks: readonly StudioDocumentBlockV1[],
     expectedDocumentRevision: number,
   ): StudioAuthorDraftV1;
+  canUndoDocumentContent: boolean;
+  canRedoDocumentContent: boolean;
+  undoDocumentContent(): void;
+  redoDocumentContent(): void;
   replaceReaderBriefGraphPanes(
     command: ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
   ): StudioAuthorDraftV1;
@@ -202,6 +206,14 @@ export function StudioAuthorPreviewProviderV1({
     const next = application.replaceReaderBriefGraphPanes(command);
     setDraft(next);
     return next;
+  }, [application]);
+
+  const undoDocumentContent = React.useCallback(() => {
+    setDraft(application.undoDocumentContent());
+  }, [application]);
+
+  const redoDocumentContent = React.useCallback(() => {
+    setDraft(application.redoDocumentContent());
   }, [application]);
 
   const replaceReaderBriefSelection = React.useCallback((
@@ -421,6 +433,10 @@ export function StudioAuthorPreviewProviderV1({
       updateTextBlock,
       replaceDocumentContent,
       replaceDocumentContentLatest,
+      canUndoDocumentContent: application.canUndoDocumentContent(),
+      canRedoDocumentContent: application.canRedoDocumentContent(),
+      undoDocumentContent,
+      redoDocumentContent,
       replaceReaderBriefGraphPanes,
       replaceReaderBriefSelection,
       materializePreview,
@@ -433,11 +449,13 @@ export function StudioAuthorPreviewProviderV1({
     materializePreview,
     readerSession,
     replaceDocumentContent,
+    redoDocumentContent,
     replaceDocumentContentLatest,
     replaceReaderBriefGraphPanes,
     replaceReaderBriefSelection,
     resolvePreview,
     resolvedDocument,
+    undoDocumentContent,
     updateTextBlock,
     updateTitle,
   ]);

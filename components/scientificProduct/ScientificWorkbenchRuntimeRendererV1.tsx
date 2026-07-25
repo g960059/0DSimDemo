@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 
 import { ControllerItemControl } from "@/components/controls/ControllerItemControl";
 import {
-  StudioBriefingPickOverlayV1,
+  StudioBriefingPickBoxV1,
+  studioBriefingPickedEdgeClassV1,
   useStudioBriefingPickV1,
 } from "./ScientificWorkbenchBriefingPickV1";
 import { shouldEnableLegendInteractions } from "@/components/InteractiveGraphLegend";
@@ -422,12 +423,18 @@ export function ScientificProductGraphPaneV1(props: Readonly<{
   const picking = pick !== null
     && props.renderContext.presentationMode !== "reading";
   const paneId = props.panel.sourceViewId ?? props.panel.id;
+  const picked = picking && pick !== null && pick.isGraphPinned(paneId);
   return (
-    <div className="group/pick relative h-full min-h-0 w-full">
+    <div
+      className={`relative h-full min-h-0 w-full ${
+        studioBriefingPickedEdgeClassV1(picked)
+      }`}
+    >
       <ScientificProductGraphPaneBodyV1 {...props} />
       {picking && pick !== null && (
-        <StudioBriefingPickOverlayV1
+        <StudioBriefingPickBoxV1
           kind="graph"
+          placement="corner"
           pickKey={paneId}
           picked={pick.isGraphPinned(paneId)}
           label={props.panel.title}
@@ -2264,7 +2271,11 @@ function ScientificMetricsPanelV1({
                 return (
                   <div
                     key={`${presentation.descriptor.id}:${metricId}`}
-                    className="group/pick relative min-w-0 py-0.5"
+                    className={`min-w-0 rounded py-0.5 ${
+                      pick !== null && pick.isBeatMetricPinned(metricId)
+                        ? `pl-1.5 ${studioBriefingPickedEdgeClassV1(true)}`
+                        : ""
+                    }`}
                     data-metric-id={metricId}
                     data-availability={metric.availability}
                     data-periodic-boundary-completion={String(
@@ -2279,9 +2290,23 @@ function ScientificMetricsPanelV1({
                     }
                   >
                     <dt
-                      className="truncate text-[10px] font-medium leading-4 text-wb-subtle"
+                      className="flex items-center gap-1.5 truncate text-[10px] font-medium leading-4 text-wb-subtle"
                       title={metricPresentation.label}
                     >
+                      {pick !== null && (
+                        <StudioBriefingPickBoxV1
+                          kind="metric"
+                          size="sm"
+                          pickKey={metricId}
+                          picked={pick.isBeatMetricPinned(metricId)}
+                          label={metricPresentation.label}
+                          onToggle={() => pick.toggleBeatMetric(
+                            metricId,
+                            metricPresentation.label,
+                            metricPresentation.unit,
+                          )}
+                        />
+                      )}
                       <span aria-hidden="true">
                         {metricPresentation.shortLabel}
                       </span>
@@ -2310,20 +2335,6 @@ function ScientificMetricsPanelV1({
                           </span>
                         )}
                     </dd>
-                    {pick !== null && (
-                      <StudioBriefingPickOverlayV1
-                        kind="metric"
-                        compact
-                        pickKey={metricId}
-                        picked={pick.isBeatMetricPinned(metricId)}
-                        label={metricPresentation.label}
-                        onToggle={() => pick.toggleBeatMetric(
-                          metricId,
-                          metricPresentation.label,
-                          metricPresentation.unit,
-                        )}
-                      />
-                    )}
                   </div>
                 );
               })}
@@ -2475,8 +2486,22 @@ function ScientificControllerPanelV1({
                 )}`}
                 className={controlPick === null
                   ? undefined
-                  : "group/pick relative"}
+                  : `flex items-start gap-2 rounded ${
+                    studioBriefingPickedEdgeClassV1(controlPick.picked)
+                  } ${controlPick.picked ? "pl-2" : "pl-0"}`}
               >
+              {controlPick !== null && (
+                <span className="pt-2">
+                  <StudioBriefingPickBoxV1
+                    kind="control"
+                    pickKey={controlId}
+                    picked={controlPick.picked}
+                    label={releaseItem.label ?? controlId}
+                    onToggle={controlPick.toggle}
+                  />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
               <ControllerItemControl
                 key={scientificControllerInteractionKeyV1(
                   descriptor.id,
@@ -2507,15 +2532,7 @@ function ScientificControllerPanelV1({
                 }}
                 disabled={!controlsEditable}
               />
-                {controlPick !== null && (
-                  <StudioBriefingPickOverlayV1
-                    kind="control"
-                    pickKey={controlId}
-                    picked={controlPick.picked}
-                    label={releaseItem.label ?? controlId}
-                    onToggle={controlPick.toggle}
-                  />
-                )}
+              </div>
               </div>
             );
           })}

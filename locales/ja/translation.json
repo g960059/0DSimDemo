@@ -154,7 +154,13 @@
       },
       "metricsLabel": "追加できる指標",
       "controlsLabel": "追加できる操作",
-      "metricsEmpty": "指標はwaveformのgraphから選べます。先に波形graphを追加してください。"
+      "metricsEmpty": "指標はwaveformのgraphから選べます。先に波形graphを追加してください。",
+      "emptyHint": {
+        "graph": "graphのpaneに出るチェックで、記事に出すgraphを選びます。",
+        "signal": "graphの凡例のチェックで、その波形の瞬時値を指標にできます。",
+        "metric": "下の指標ペインのチェックで、1拍ごとの指標を選べます。",
+        "control": "右の操作のチェックで、読者が動かせるparameterを選べます。"
+      }
     },
     "reader": {
       "opening": "Reader Previewを準備中",
@@ -218,7 +224,17 @@
         "live": "本文で再生",
         "compact": "触ると再生",
         "launch": "開いて再生"
-      }
+      },
+      "composeBadge": "編集中",
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "emptyTitle": "記事を書きはじめる",
+      "emptyDescription": "見出しと本文を打ち込み、Workbenchで構成した実験を差し込みます。書き出しに迷うときは、下のひな形から始められます。",
+      "templateExplainer": "解説記事のひな形から始める",
+      "templateTitle": "この実験で何を観察するか",
+      "templateLead": "ここに、読者が何を見ようとしているのかを1〜2文で書きます。",
+      "templateHeading": "読み方",
+      "templateReading": "どの順で何を見ればよいかを書きます。"
     }
   },
   "cases": {

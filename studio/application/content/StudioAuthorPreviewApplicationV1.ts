@@ -95,6 +95,11 @@ export class StudioAuthorPreviewApplicationV1 {
   private readonly previews =
     new Map<StudioReaderPreviewIdV1, ReaderPreviewManifestV1>();
   private readonly idFactory: StudioAuthorPreviewIdFactoryV1;
+  private documentHistory: readonly Readonly<{
+    title: string;
+    blocks: readonly StudioDocumentBlockV1[];
+  }>[];
+  private documentHistoryIndex: number;
 
   constructor(input: Readonly<{
     initialDraft: StudioAuthorDraftV1;
@@ -106,6 +111,11 @@ export class StudioAuthorPreviewApplicationV1 {
     );
     this.idFactory = input.idFactory ?? (() =>
       `reader-preview-${globalThis.crypto.randomUUID()}`);
+    this.documentHistory = [{
+      title: this.draft.document.title,
+      blocks: this.draft.document.blocks,
+    }];
+    this.documentHistoryIndex = 0;
   }
 
   getDraftSnapshot(): StudioAuthorDraftV1 {
@@ -178,8 +188,46 @@ export class StudioAuthorPreviewApplicationV1 {
    * so a title edit, block edit, and reorder either advance together by one
    * revision or leave the previous draft untouched.
    */
+  /**
+   * Undo is a forward command, never a rewind.
+   *
+   * The audit trail is append-only, so undoing re-issues the previous content
+   * as a new content replacement. The revision therefore always advances, and
+   * an undone edit is as recoverable as any other.
+   */
+  canUndoDocumentContent(): boolean {
+    return this.documentHistoryIndex > 0;
+  }
+
+  canRedoDocumentContent(): boolean {
+    return this.documentHistoryIndex < this.documentHistory.length - 1;
+  }
+
+  undoDocumentContent(): StudioAuthorDraftV1 {
+    if (!this.canUndoDocumentContent()) return this.draft;
+    this.documentHistoryIndex -= 1;
+    return this.applyDocumentHistoryV1();
+  }
+
+  redoDocumentContent(): StudioAuthorDraftV1 {
+    if (!this.canRedoDocumentContent()) return this.draft;
+    this.documentHistoryIndex += 1;
+    return this.applyDocumentHistoryV1();
+  }
+
+  private applyDocumentHistoryV1(): StudioAuthorDraftV1 {
+    const entry = this.documentHistory[this.documentHistoryIndex]!;
+    this.replaceDocumentContent({
+      expectedRevision: this.draft.revision,
+      title: entry.title,
+      blocks: entry.blocks,
+    }, { recordHistory: false });
+    return this.draft;
+  }
+
   replaceDocumentContent(
     command: ReplaceStudioAuthorDocumentContentCommandV1,
+    options: Readonly<{ recordHistory?: boolean }> = {},
   ): StudioAuthorDraftV1 {
     this.assertExpectedRevision(command.expectedRevision);
     const candidateAtCurrentRevision = validateStudioAuthorDraftV1({
@@ -214,6 +262,16 @@ export class StudioAuthorPreviewApplicationV1 {
         ),
       },
     });
+    if (options.recordHistory !== false) {
+      this.documentHistory = [
+        ...this.documentHistory.slice(0, this.documentHistoryIndex + 1),
+        {
+          title: this.draft.document.title,
+          blocks: this.draft.document.blocks,
+        },
+      ];
+      this.documentHistoryIndex = this.documentHistory.length - 1;
+    }
     return this.draft;
   }
 

@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 
 import { useDocumentVisible } from "@/hooks/useOnscreen";
 import {
-  StudioBriefingPickOverlayV1,
+  StudioBriefingPickBoxV1,
+  studioBriefingPickedEdgeClassV1,
   useStudioBriefingPickV1,
 } from "./ScientificWorkbenchBriefingPickV1";
 import {
@@ -1045,13 +1046,23 @@ export function ScientificWorkbenchChartLegendV1({
       {entries.map((entry) => (
         <span
           key={entry.key}
-          className="group/pick relative inline-flex min-w-0 items-center gap-1"
+          className={`inline-flex min-w-0 items-center gap-1 rounded ${
+            picking && entry.signalId !== undefined
+              ? studioBriefingPickedEdgeClassV1(
+                pick?.isSignalPinned(entry.signalId) ?? false,
+              )
+              : ""
+          } ${
+            picking && (pick?.isSignalPinned(entry.signalId ?? "") ?? false)
+              ? "pl-1"
+              : ""
+          }`}
           aria-label={`${entry.modelName}, ${entry.signalName}`}
         >
           {picking && entry.signalId !== undefined && (
-            <StudioBriefingPickOverlayV1
+            <StudioBriefingPickBoxV1
               kind="signal"
-              compact
+              size="sm"
               pickKey={entry.signalId}
               picked={pick?.isSignalPinned(entry.signalId) ?? false}
               label={entry.signalName}

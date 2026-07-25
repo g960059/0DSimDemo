@@ -154,7 +154,13 @@
       },
       "metricsLabel": "Metrics you can add",
       "controlsLabel": "Controls you can add",
-      "metricsEmpty": "Metrics come from a waveform graph. Add one first."
+      "metricsEmpty": "Metrics come from a waveform graph. Add one first.",
+      "emptyHint": {
+        "graph": "Tick a graph pane to put that graph in the article.",
+        "signal": "Tick a legend entry to show that waveform's instantaneous value.",
+        "metric": "Tick a metric below to show it per beat.",
+        "control": "Tick a control on the right to let readers change it."
+      }
     },
     "reader": {
       "opening": "Preparing Reader Preview",
@@ -218,7 +224,17 @@
         "live": "Plays inline",
         "compact": "Plays on touch",
         "launch": "Opens to play"
-      }
+      },
+      "composeBadge": "Composing",
+      "undo": "Undo",
+      "redo": "Redo",
+      "emptyTitle": "Start the article",
+      "emptyDescription": "Write a heading and prose, and place the experiment you composed in the Workbench. If you are unsure where to begin, start from the outline below.",
+      "templateExplainer": "Start from an explainer outline",
+      "templateTitle": "What this experiment shows",
+      "templateLead": "One or two sentences on what the reader is about to look at.",
+      "templateHeading": "How to read it",
+      "templateReading": "What to look at, and in what order."
     }
   },
   "cases": {

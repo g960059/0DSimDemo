@@ -525,10 +525,6 @@ export function ScientificWorkbenchBriefingControlV1({
             previewScenarioIdMap={previewScenarioIdMap}
             readbacks={target?.brief.instantaneousReadbacks ?? []}
             controls={target?.brief.controls ?? []}
-            availableReadbacks={availableReadbacks}
-            availableControls={availableControls}
-            onToggleReadback={toggleReadback}
-            onToggleControl={toggleControl}
             extent={target?.brief.extent ?? "inflow"}
             onClose={() => setOpenV1(false)}
             onPin={pinPane}

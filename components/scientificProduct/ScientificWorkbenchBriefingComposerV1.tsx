@@ -2,9 +2,7 @@ import * as React from "react";
 import {
   ArrowDown,
   ArrowUp,
-  Check,
   ClipboardList,
-  Plus,
   RefreshCw,
   Smartphone,
   Trash2,
@@ -21,7 +19,6 @@ import type {
   StudioGraphPaneSpecV1,
 } from "@/studio/contracts/v1";
 import {
-  isCapturableStudioGraphPanelV1,
   panelFromStudioGraphPaneSpecV1,
   type StudioGraphPaneCaptureDriftV1,
 } from "@/components/studio/StudioGraphPaneProjectionV1";
@@ -55,11 +52,6 @@ export type ScientificWorkbenchBriefingComposerV1Props = Readonly<{
   previewScenarioIdMap: ReadonlyMap<string, string>;
   readbacks: readonly ReaderInstantaneousReadbackSpecV1[];
   controls: readonly ReaderControlSpecV1[];
-  /** Readbacks that the currently pinned waveforms can back. */
-  availableReadbacks: readonly ReaderInstantaneousReadbackSpecV1[];
-  availableControls: readonly ReaderControlSpecV1[];
-  onToggleReadback(signalId: string): void;
-  onToggleControl(parameterKey: string): void;
   extent: ReaderBriefExtentV1;
   onClose(): void;
   onPin(panelId: string): void;
@@ -87,10 +79,6 @@ export function ScientificWorkbenchBriefingComposerV1({
   previewScenarioIdMap,
   readbacks,
   controls,
-  availableReadbacks,
-  availableControls,
-  onToggleReadback,
-  onToggleControl,
   extent,
   onClose,
   onPin,
@@ -104,23 +92,6 @@ export function ScientificWorkbenchBriefingComposerV1({
     React.useState<ReaderBriefExtentV1>(extent);
   const [narrowPreview, setNarrowPreview] = React.useState(false);
 
-  const graphPanels = React.useMemo(
-    () => {
-      const seen = new Set<string>();
-      return panels.filter((panel) => {
-        if (!isCapturableStudioGraphPanelV1(panel)) return false;
-        const paneId = panel.sourceViewId ?? panel.id;
-        if (seen.has(paneId)) return false;
-        seen.add(paneId);
-        return true;
-      });
-    },
-    [panels],
-  );
-  const pinnedPaneIds = React.useMemo(
-    () => new Set(pinnedPanes.map(({ paneId }) => paneId)),
-    [pinnedPanes],
-  );
 
   /**
    * A pin appends, so the newest graph can land outside the extent's cut. The
@@ -246,10 +217,7 @@ export function ScientificWorkbenchBriefingComposerV1({
             >
               {pinnedPanes.length === 0
                 ? (
-                  <BriefingEmptyStateV1
-                    graphPanels={graphPanels}
-                    onPin={onPin}
-                  />
+                  <BriefingEmptyStateV1 />
                 )
                 : (
                   <div className="grid gap-4">
@@ -377,103 +345,6 @@ export function ScientificWorkbenchBriefingComposerV1({
                 )}
             </div>
           </section>
-
-          <section
-            className="p-4"
-            aria-label={t("studioAuthorPreview.briefing.paletteLabel")}
-          >
-            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-wb-subtle">
-              {t("studioAuthorPreview.briefing.paletteLabel")}
-            </p>
-            <div className="grid gap-2">
-              {graphPanels.map((panel) => {
-                const paneId = panel.sourceViewId ?? panel.id;
-                const pinned = pinnedPaneIds.has(paneId);
-                return (
-                  <div
-                    key={panel.id}
-                    data-briefing-source-panel-id={panel.id}
-                    data-briefing-pinned={String(pinned)}
-                    className="flex items-center gap-3 rounded-lg border border-wb-line bg-wb-panel px-3 py-2.5"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-bold text-wb-text">
-                        {panel.title}
-                      </p>
-                      <p className="mt-0.5 text-[11px] text-wb-subtle">
-                        {paneKindLabelV1(panel.type)}
-                        {panel.type === "WAVEFORM" && (
-                          <> · {(panel.timeWindow ?? 2_000) / 1_000}s</>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      aria-pressed={pinned}
-                      onClick={() =>
-                        pinned ? onUnpin(paneId) : onPin(panel.id)}
-                      className={`inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-bold transition-colors active:scale-[0.98] ${
-                        pinned
-                          ? "border border-wb-line bg-wb-active text-wb-text"
-                          : "bg-wb-primary text-white hover:bg-wb-primary-hover"
-                      }`}
-                    >
-                      {pinned
-                        ? <Check className="h-3.5 w-3.5" />
-                        : <Plus className="h-3.5 w-3.5" />}
-                      {pinned
-                        ? t("studioAuthorPreview.briefing.pinned")
-                        : t("studioAuthorPreview.briefing.pin")}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            <p className="mb-2.5 mt-6 text-[11px] font-bold uppercase tracking-wider text-wb-subtle">
-              {t("studioAuthorPreview.briefing.metricsLabel")}
-            </p>
-            {availableReadbacks.length === 0
-              ? (
-                <p className="text-[11px] leading-5 text-wb-subtle">
-                  {t("studioAuthorPreview.briefing.metricsEmpty")}
-                </p>
-              )
-              : (
-                <div className="grid gap-1">
-                  {availableReadbacks.map((option) => (
-                    <SelectionRowV1
-                      key={option.signalId}
-                      testId="scientific-briefing-metric-option-v1"
-                      dataKey={option.signalId}
-                      label={option.label}
-                      hint={option.unit}
-                      selected={readbacks.some((readback) =>
-                        readback.signalId === option.signalId)}
-                      onToggle={() => onToggleReadback(option.signalId)}
-                    />
-                  ))}
-                </div>
-              )}
-
-            <p className="mb-2.5 mt-6 text-[11px] font-bold uppercase tracking-wider text-wb-subtle">
-              {t("studioAuthorPreview.briefing.controlsLabel")}
-            </p>
-            <div className="grid gap-1">
-              {availableControls.map((option) => (
-                <SelectionRowV1
-                  key={option.controlId}
-                  testId="scientific-briefing-control-option-v1"
-                  dataKey={option.binding.parameterKey}
-                  label={option.label}
-                  hint={`${option.allowedValues.length} steps`}
-                  selected={controls.some((control) =>
-                    control.binding.parameterKey === option.binding.parameterKey)}
-                  onToggle={() => onToggleControl(option.binding.parameterKey)}
-                />
-              ))}
-            </div>
-          </section>
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-wb-line px-5 py-3">
@@ -493,40 +364,6 @@ export function ScientificWorkbenchBriefingComposerV1({
         </footer>
       </aside>
     </div>
-  );
-}
-
-function SelectionRowV1({
-  testId,
-  dataKey,
-  label,
-  hint,
-  selected,
-  onToggle,
-}: Readonly<{
-  testId: string;
-  dataKey: string;
-  label: string;
-  hint: string;
-  selected: boolean;
-  onToggle(): void;
-}>) {
-  return (
-    <label
-      data-testid={testId}
-      data-briefing-option-key={dataKey}
-      data-briefing-selected={String(selected)}
-      className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-xs transition-colors hover:bg-wb-hover"
-    >
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={onToggle}
-        className="h-3.5 w-3.5 accent-wb-accent"
-      />
-      <span className="min-w-0 flex-1 truncate text-wb-text">{label}</span>
-      <span className="shrink-0 text-[10px] text-wb-subtle">{hint}</span>
-    </label>
   );
 }
 
@@ -659,41 +496,34 @@ function BriefingPreviewPaneV1({
   );
 }
 
-function BriefingEmptyStateV1({
-  graphPanels,
-  onPin,
-}: Readonly<{
-  graphPanels: readonly PanelDef[];
-  onPin(panelId: string): void;
-}>) {
+/**
+ * Compose starts empty because nothing has been chosen yet, so the empty
+ * state teaches the gesture rather than reporting the absence.
+ */
+function BriefingEmptyStateV1() {
   const { t } = useTranslation();
-  const suggestion = graphPanels.find(({ type }) => type === "PVLOOP")
-    ?? graphPanels.find(({ type }) => type === "WAVEFORM")
-    ?? graphPanels[0];
   return (
     <div
-      className="rounded-lg border border-dashed border-wb-line bg-wb-panel p-5 text-center"
+      className="rounded-lg border border-dashed border-wb-line bg-wb-panel p-5"
       data-testid="scientific-briefing-empty-v1"
     >
       <p className="text-sm font-bold text-wb-text">
         {t("studioAuthorPreview.briefing.emptyTitle")}
       </p>
-      <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-wb-muted">
+      <p className="mt-2 text-xs leading-5 text-wb-muted">
         {t("studioAuthorPreview.briefing.emptyDescription")}
       </p>
-      {suggestion !== undefined && (
-        <button
-          type="button"
-          onClick={() => onPin(suggestion.id)}
-          data-testid="scientific-briefing-empty-action-v1"
-          className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover active:scale-[0.98]"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {t("studioAuthorPreview.briefing.emptyAction", {
-            title: suggestion.title,
-          })}
-        </button>
-      )}
+      <ul className="mt-4 grid gap-2 text-xs leading-5 text-wb-muted">
+        {(["graph", "signal", "metric", "control"] as const).map((kind) => (
+          <li key={kind} className="flex items-start gap-2.5">
+            <span
+              aria-hidden="true"
+              className="mt-0.5 inline-flex h-3.5 w-3.5 shrink-0 rounded-[3px] border border-dashed border-[var(--wb-pick-idle)]"
+            />
+            {t(`studioAuthorPreview.briefing.emptyHint.${kind}`)}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

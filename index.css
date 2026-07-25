@@ -22,6 +22,11 @@ body[data-workbench-theme] {
   --wb-panel-bg-soft: #0f172a;
   --wb-zone-main-bg: #08111f;
   --wb-zone-aux-bg: #0b1120;
+  /* Compose picking owns one accent that no physiologic trace uses, so a
+     picked element never competes with the data it is showing. */
+  --wb-pick: #8b5cf6;
+  --wb-pick-idle: rgba(255, 255, 255, 0.34);
+  --wb-pick-soft: rgba(139, 92, 246, 0.18);
   --wb-tab-strip-bg: rgba(2, 6, 23, 0.3);
   --wb-tab-active-bg: var(--wb-zone-aux-bg);
   --wb-tab-inactive-bg: rgba(15, 23, 42, 0.44);
@@ -77,6 +82,9 @@ body[data-workbench-theme="light"] {
   --wb-header-bg: #ffffff;
   --wb-panel-bg: #ffffff;
   --wb-panel-bg-soft: #eef1f5;
+  --wb-pick: #6d28d9;
+  --wb-pick-idle: rgba(15, 23, 42, 0.34);
+  --wb-pick-soft: rgba(109, 40, 217, 0.14);
   --wb-zone-main-bg: #f5f7fa;
   --wb-zone-aux-bg: #fbfcfe;
   --wb-tab-strip-bg: transparent;

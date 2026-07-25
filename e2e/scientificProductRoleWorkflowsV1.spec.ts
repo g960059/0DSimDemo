@@ -630,67 +630,27 @@ test.describe.serial("Product workflows by role", () => {
         "false",
       );
       // Compose is non-modal and reserves width instead of covering the
-      // Workbench, so a source pane stays reachable while composing.
+      // Workbench, so a source pane stays reachable while composing. Nothing
+      // is laid over live content: the pick affordance is a real checkbox.
       await expect(page.getByTestId(
         "scientific-product-workbench-host-v1",
       )).toHaveAttribute("data-briefing-compose-open", "true");
-      const pressureCapture = composer.locator(
-        '[data-briefing-source-panel-id="product-left-pressure-v1"]',
-      );
-      await expect(pressureCapture).toContainText("7s");
-      // A brief stays referentially closed: the seeded waveform backs the
-      // reader readbacks, so removing it is refused before the command runs.
-      const seededWaveformRemove = composer
-        .locator('[data-briefing-pane-id="afterload-pressure-waveform"]')
-        .first()
-        .getByRole("button", { name: /参照元です/ });
-      await expect(seededWaveformRemove).toBeDisabled();
-      // Compose turns the Workbench itself into the palette: a graph and a
-      // control are picked where they are, not from a parallel list.
-      const pressurePick = page.locator(
-        '[data-briefing-pick-kind="graph"]'
-        + '[data-briefing-pick-key="product-left-pressure-v1"]',
-      );
-      await expect(pressurePick).toHaveAttribute(
-        "data-briefing-picked",
-        "false",
-      );
-      await pressurePick.click();
-      await expect(pressurePick).toHaveAttribute(
-        "data-briefing-picked",
-        "true",
-      );
-      const venousPick = page.locator(
-        '[data-briefing-pick-kind="control"]'
-        + '[data-briefing-pick-key="circulation.venous-tone"]',
-      );
-      await venousPick.click();
-      await expect(venousPick).toHaveAttribute(
-        "data-briefing-picked",
-        "true",
-      );
-      await venousPick.click();
-      await expect(venousPick).toHaveAttribute(
-        "data-briefing-picked",
-        "false",
-      );
-      await pressurePick.click();
-      await expect(pressurePick).toHaveAttribute(
-        "data-briefing-picked",
-        "false",
-      );
-
-      const paletteRows = composer.locator("[data-briefing-source-panel-id]");
-      await expect(paletteRows).toHaveCount(5);
-      for (let index = 0; index < 5; index += 1) {
-        await paletteRows.nth(index).getByRole("button", {
-          name: "追加",
-          exact: true,
-        }).click();
+      // Compose is the artifact; the Workbench is the palette. Pick every
+      // graph where it lives rather than from a list inside the drawer.
+      const graphPicks = page.locator('[data-briefing-pick-kind="graph"]');
+      await expect(graphPicks).toHaveCount(5);
+      const pickCount = await graphPicks.count();
+      for (let index = 0; index < pickCount; index += 1) {
+        const pickBox = graphPicks.nth(index);
+        if (await pickBox.getAttribute("data-briefing-picked") === "false") {
+          await pickBox.click();
+        }
       }
       await expect(
-        composer.locator('[data-briefing-pinned="true"]'),
+        page.locator('[data-briefing-pick-kind="graph"]'
+          + '[data-briefing-picked="true"]'),
       ).toHaveCount(5);
+
       // In-flow renders only the primary graph; everything else is reported as
       // overflow with an in-place resolution rather than a bare warning.
       const preview = composer.getByTestId("scientific-briefing-preview-v1");

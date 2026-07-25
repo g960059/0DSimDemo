@@ -1,5 +1,12 @@
 import * as React from "react";
-import { ArrowLeft, Eye, PanelsTopLeft, Pencil } from "lucide-react";
+import {
+  ArrowLeft,
+  Eye,
+  PanelsTopLeft,
+  Pencil,
+  Redo2,
+  Undo2,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -33,6 +40,10 @@ export default function StudioDocumentRouteV1() {
     resolvedDocument,
     readerSession,
     replaceDocumentContentLatest,
+    canUndoDocumentContent,
+    canRedoDocumentContent,
+    undoDocumentContent,
+    redoDocumentContent,
     materializePreview,
     acquireReaderPreview,
   } = useStudioAuthorPreviewV1();
@@ -97,6 +108,20 @@ export default function StudioDocumentRouteV1() {
     }
   }, [replaceDocumentContentLatest]);
 
+  React.useEffect(() => {
+    if (capability !== "compose") return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") {
+        return;
+      }
+      event.preventDefault();
+      if (event.shiftKey) redoDocumentContent();
+      else undoDocumentContent();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [capability, redoDocumentContent, undoDocumentContent]);
+
   const insertableExperiment = React.useMemo(() => {
     const experiment = draft.experiments[0];
     const brief = experiment?.readerBriefs[0];
@@ -122,7 +147,11 @@ export default function StudioDocumentRouteV1() {
 
   return (
     <div
-      className="workbench-root flex h-full w-full flex-col overflow-hidden bg-wb-app font-sans text-wb-text"
+      className={`workbench-root flex h-full w-full flex-col overflow-hidden bg-wb-app font-sans text-wb-text ${
+        capability === "compose"
+          ? "shadow-[inset_0_0_0_2px_var(--wb-pick-soft)]"
+          : ""
+      }`}
       data-workbench-theme={workbenchTheme}
       data-testid="studio-document-route-v1"
       data-studio-capability={capability}
@@ -139,7 +168,42 @@ export default function StudioDocumentRouteV1() {
             {t("studioAuthorPreview.author.backHome")}
           </span>
         </button>
+        {capability === "compose" && (
+          <span
+            className="ml-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--wb-pick-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--wb-pick)]"
+            data-testid="studio-compose-mode-badge-v1"
+          >
+            <Pencil className="h-3 w-3" />
+            {t("studioAuthorPreview.surface.composeBadge")}
+          </span>
+        )}
         <span className="ml-auto flex items-center gap-1.5">
+          {capability === "compose" && (
+            <span className="mr-1 inline-flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={undoDocumentContent}
+                disabled={!canUndoDocumentContent}
+                data-testid="studio-document-undo-v1"
+                aria-label={t("studioAuthorPreview.surface.undo")}
+                title={`${t("studioAuthorPreview.surface.undo")} (⌘Z)`}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={redoDocumentContent}
+                disabled={!canRedoDocumentContent}
+                data-testid="studio-document-redo-v1"
+                aria-label={t("studioAuthorPreview.surface.redo")}
+                title={`${t("studioAuthorPreview.surface.redo")} (⇧⌘Z)`}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <Redo2 className="h-4 w-4" />
+              </button>
+            </span>
+          )}
           <button
             type="button"
             onClick={() => navigate(workbenchHref(locale))}

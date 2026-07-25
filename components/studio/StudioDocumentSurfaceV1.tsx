@@ -349,6 +349,71 @@ export function StudioDocumentSurfaceV1({
         })}
       </div>
 
+      {composing && buffer.blocks.length === 1
+        && buffer.blocks[0]?.kind !== "experiment-placement"
+        && (buffer.blocks[0]?.text ?? "").length === 0 && (
+        <div
+          className="mt-8 rounded-lg border border-dashed border-wb-line p-5"
+          data-testid="studio-document-empty-v1"
+        >
+          <p className="text-sm font-bold text-wb-text">
+            {t("studioAuthorPreview.surface.emptyTitle")}
+          </p>
+          <p className="mt-2 text-xs leading-6 text-wb-muted">
+            {t("studioAuthorPreview.surface.emptyDescription")}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="studio-document-template-explainer-v1"
+              onClick={() => {
+                const heading = newBlockIdV1();
+                const lead = newBlockIdV1();
+                const reading = newBlockIdV1();
+                updateBuffer({
+                  title: buffer.title.length === 0
+                    ? t("studioAuthorPreview.surface.templateTitle")
+                    : buffer.title,
+                  blocks: [
+                    {
+                      blockId: lead,
+                      kind: "paragraph",
+                      text: t("studioAuthorPreview.surface.templateLead"),
+                    },
+                    ...(edit?.insertableExperiment === null
+                      || edit?.insertableExperiment === undefined
+                      ? []
+                      : [{
+                        blockId: newBlockIdV1(),
+                        kind: "experiment-placement" as const,
+                        experimentId: edit.insertableExperiment.experimentId,
+                        readerBriefId:
+                          edit.insertableExperiment.readerBriefId,
+                        inlineMode: "live" as const,
+                        localCaption: null,
+                      }]),
+                    {
+                      blockId: heading,
+                      kind: "heading",
+                      level: 2,
+                      text: t("studioAuthorPreview.surface.templateHeading"),
+                    },
+                    {
+                      blockId: reading,
+                      kind: "paragraph",
+                      text: t("studioAuthorPreview.surface.templateReading"),
+                    },
+                  ],
+                }, true);
+              }}
+              className="inline-flex min-h-9 items-center rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover active:scale-[0.98]"
+            >
+              {t("studioAuthorPreview.surface.templateExplainer")}
+            </button>
+          </div>
+        </div>
+      )}
+
       {composing && (
         <button
           type="button"
