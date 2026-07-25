@@ -115,9 +115,9 @@ function report(
   const coronaryClosure = Object.freeze({
     provenance: coronaryProvenance,
     overall: Object.freeze({
-      numericEntryCount: 104,
-      booleanEntryCount: 2,
-      entryCount: 106,
+      numericEntryCount: 122,
+      booleanEntryCount: 3,
+      entryCount: 125,
       maximumNormalizedDelta,
     }),
   });
@@ -147,8 +147,8 @@ function report(
       coronaryV3CompatibilityAndEmptyWindowsSatisfied: true,
     }),
     overall: Object.freeze({
-      numericEntryCount: 105,
-      entryCount: 108,
+      numericEntryCount: 123,
+      entryCount: 127,
       maximumNormalizedDelta,
     }),
   } as unknown as MainWireIntegratedModelPeriodicClosureReportV3);

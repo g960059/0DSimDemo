@@ -11,7 +11,7 @@ import {
   createNoExternalAtrialSourceBatchV2,
   evaluateAcceptedComposedRhythmTransactionCandidateV2,
   initializeAcceptedComposedRhythmTransactionStateV2,
-  maximumAcceptedComposedRhythmTransactionStepV2,
+  limitAcceptedComposedRhythmTransactionCandidateTimeV2,
   rollbackAcceptedComposedRhythmTransactionCandidateV2,
   type AcceptedComposedRhythmTransactionConfigurationV2,
   type AcceptedComposedRhythmTransactionStateV2,
@@ -60,6 +60,7 @@ type FixtureOptions = Readonly<{
   pacingReplayEvents?:
     readonly AuthoredVentricularPacingReplayEventInputV1[];
   acceptedTimeSec?: number;
+  priorVentricularTimeSec?: number;
   firstRegularTimeSec?: number;
   atrialPriorTimeSec?: number | null;
   atrialRefractorySec?: number;
@@ -178,7 +179,10 @@ function fixture(options: FixtureOptions = {}): {
       rvFreeWallBaseStrength: 0.9,
     },
   });
-  const priorV = priorVentricularCapture(captureConfiguration, acceptedTimeSec);
+  const priorV = priorVentricularCapture(
+    captureConfiguration,
+    options.priorVentricularTimeSec ?? acceptedTimeSec,
+  );
   const state = initializeAcceptedComposedRhythmTransactionStateV2(configuration, {
     acceptedTimeSec,
     regularFirstFutureActivationTimeSec: sourceMode === "regular"
@@ -251,6 +255,30 @@ function advanceAt(
 }
 
 describe("AcceptedComposedRhythmTransactionV2", () => {
+  it("returns the exact owned endpoint without exposing a re-addable duration", () => {
+    const { state } = fixture({
+      acceptedTimeSec: 1.8571428571428572,
+      priorVentricularTimeSec: 1.333333333333333,
+      firstRegularTimeSec: 10,
+      escapeCycleSec: 5,
+      vviIntervalSec: 20,
+    });
+    const limited = limitAcceptedComposedRhythmTransactionCandidateTimeV2(
+      state,
+      7,
+      null,
+    );
+    const derivedDuration =
+      limited.candidateTimeSec - state.acceptedTimeSec;
+
+    expect(limited.candidateTimeSec).toBe(6.333333333333333);
+    expect(state.acceptedTimeSec + derivedDuration)
+      .toBe(6.333333333333334);
+    expect(limited).not.toHaveProperty("maximumStepSec");
+    expect(limited.boundaryOwners).toEqual(["ventricular-backup"]);
+    expect(() => evaluateAt(state, limited.candidateTimeSec)).not.toThrow();
+  });
+
   it("arbitrates a simultaneous PAC before sinus and applies reset only after PAC capture", () => {
     const { state } = fixture({
       events: [{
@@ -316,10 +344,20 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
       ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CLAIM_V2,
     )).not.toContain("legacyAvGate");
     expect(atOne.pendingProximalAvOutputs[0]?.proximalArrivalTimeSec).toBe(1.1);
-    const calciumBoundary = maximumAcceptedComposedRhythmTransactionStepV2(atOne, 1, null);
+    const calciumBoundary =
+      limitAcceptedComposedRhythmTransactionCandidateTimeV2(
+        atOne,
+        2,
+        null,
+      );
     expect(calciumBoundary.candidateTimeSec).toBe(1.02);
     const atCalcium = advanceAt(atOne, 1.02);
-    const proximalBoundary = maximumAcceptedComposedRhythmTransactionStepV2(atCalcium, 1, null);
+    const proximalBoundary =
+      limitAcceptedComposedRhythmTransactionCandidateTimeV2(
+        atCalcium,
+        2,
+        null,
+      );
     expect(proximalBoundary.candidateTimeSec).toBe(1.1);
     const proximalCandidate = evaluateAt(atCalcium, 1.1);
     expect(proximalCandidate.distalGateDecisions[0]?.passed).toBe(true);
@@ -346,9 +384,9 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
     const escapeFixture = fixture({ firstRegularTimeSec: 0.1, escapeCycleSec: 0.4, vviIntervalSec: 0.5, distalMode: { mode: "disconnect" } });
     let escapeState = advanceAt(escapeFixture.state, 0.1);
     for (let index = 0; index < 2; index += 1) {
-      const boundary = maximumAcceptedComposedRhythmTransactionStepV2(
+      const boundary = limitAcceptedComposedRhythmTransactionCandidateTimeV2(
         escapeState,
-        1,
+        escapeState.acceptedTimeSec + 1,
         null,
       );
       escapeState = advanceAt(escapeState, boundary.candidateTimeSec);
@@ -361,9 +399,9 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
     const vviFixture = fixture({ firstRegularTimeSec: 0.1, escapeCycleSec: 0.8, vviIntervalSec: 0.5, distalMode: { mode: "disconnect" } });
     let vviState = advanceAt(vviFixture.state, 0.1);
     for (let index = 0; index < 2; index += 1) {
-      const boundary = maximumAcceptedComposedRhythmTransactionStepV2(
+      const boundary = limitAcceptedComposedRhythmTransactionCandidateTimeV2(
         vviState,
-        1,
+        vviState.acceptedTimeSec + 1,
         null,
       );
       vviState = advanceAt(vviState, boundary.candidateTimeSec);
@@ -433,7 +471,7 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
       pacingReplayEvents,
     });
 
-    const maximum = maximumAcceptedComposedRhythmTransactionStepV2(
+    const maximum = limitAcceptedComposedRhythmTransactionCandidateTimeV2(
       state,
       1,
       null,
@@ -565,9 +603,9 @@ describe("AcceptedComposedRhythmTransactionV2", () => {
     const resumedAfterDeposit = advanceAt(restored, depositTimeSec);
     expect(canonicalJsonStringify(resumedAfterDeposit))
       .toBe(canonicalJsonStringify(uninterruptedAfterDeposit));
-    expect(maximumAcceptedComposedRhythmTransactionStepV2(
+    expect(limitAcceptedComposedRhythmTransactionCandidateTimeV2(
       resumedAfterDeposit,
-      1,
+      resumedAfterDeposit.acceptedTimeSec + 1,
       null,
     ).boundaryOwners).toEqual(["authored-ventricular-pacing-replay"]);
     const uninterrupted = advanceAt(uninterruptedAfterDeposit, 1);

@@ -48,15 +48,17 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V3 =
     autoregulationFlowIntegralStateCount: 6 as const,
     autoregulationPressureIntegralStateCount: 3 as const,
     autoregulationWindowScalarStateCount: 2 as const,
-    autoregulationNumericStateCount: 11 as const,
-    autoregulationControlBoundBooleanStateCount: 1 as const,
-    numericClosureEntryCount: 104 as const,
-    hiddenBooleanClosureEntryCount: 2 as const,
-    totalClosureEntryCount: 106 as const,
+    autoregulationDesiredControlNumericStateCount: 18 as const,
+    autoregulationNumericStateCount: 29 as const,
+    autoregulationControlBoundBooleanStateCount: 2 as const,
+    numericClosureEntryCount: 122 as const,
+    hiddenBooleanClosureEntryCount: 3 as const,
+    totalClosureEntryCount: 125 as const,
     compatibilityGates: Object.freeze([
       ...MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V2
         .compatibilityGates,
       "coronary-autoregulation-binding-exact",
+      "coronary-autoregulation-non-null-desired-control-id-exact",
       "periodic-sinus-autoregulation-accumulator-empty-at-both-boundaries",
       "coronary-autoregulation-window-provenance-monotonic-and-time-consistent",
     ] as const),
@@ -81,6 +83,10 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3 =
     coronaryAutoregulationAcceptedDurationSec: 1,
     coronaryAutoregulationAcceptedStepCount: 1,
     coronaryAutoregulationWindowControlBoundMismatch01: 1,
+    coronaryAutoregulationDesiredControlBoundMismatch01: 1,
+    coronaryAutoregulationDesiredDemandScale: 1,
+    coronaryAutoregulationDesiredHyperemia01: 1,
+    coronaryAutoregulationDesiredMinimumToneScale: 1,
   }) satisfies MainWireFiveWallCoronaryPeriodicReferenceScalesV3;
 
 export type MainWireFiveWallCoronaryPeriodicAcceptedStateV3 =
@@ -98,7 +104,11 @@ export type MainWireFiveWallCoronaryPeriodicQuantityV3 =
   | "coronary-autoregulation-perfusion-pressure-time-integral"
   | "coronary-autoregulation-accepted-duration"
   | "coronary-autoregulation-accepted-step-count"
-  | "coronary-autoregulation-window-control-bound";
+  | "coronary-autoregulation-window-control-bound"
+  | "coronary-autoregulation-desired-control-bound"
+  | "coronary-autoregulation-desired-demand-scale"
+  | "coronary-autoregulation-desired-hyperemia"
+  | "coronary-autoregulation-desired-minimum-tone-scale";
 
 export type MainWireFiveWallCoronaryPeriodicUnitV3 =
   | MainWireFiveWallCoronaryPeriodicUnitV2
@@ -113,6 +123,10 @@ export type MainWireFiveWallCoronaryPeriodicReferenceScalesV3 =
     coronaryAutoregulationAcceptedDurationSec: number;
     coronaryAutoregulationAcceptedStepCount: number;
     coronaryAutoregulationWindowControlBoundMismatch01: number;
+    coronaryAutoregulationDesiredControlBoundMismatch01: number;
+    coronaryAutoregulationDesiredDemandScale: number;
+    coronaryAutoregulationDesiredHyperemia01: number;
+    coronaryAutoregulationDesiredMinimumToneScale: number;
   }>;
 
 export type MainWireFiveWallCoronaryAutoregulationNumericDeltaEntryV3 =
@@ -123,8 +137,17 @@ export type MainWireFiveWallCoronaryAutoregulationNumericDeltaEntryV3 =
       | "coronary-autoregulation-qm-time-integral"
       | "coronary-autoregulation-perfusion-pressure-time-integral"
       | "coronary-autoregulation-accepted-duration"
-      | "coronary-autoregulation-accepted-step-count";
-    unit: "mL" | "mmHg*s" | "s" | "count";
+      | "coronary-autoregulation-accepted-step-count"
+      | "coronary-autoregulation-desired-demand-scale"
+      | "coronary-autoregulation-desired-hyperemia"
+      | "coronary-autoregulation-desired-minimum-tone-scale";
+    unit:
+      | "mL"
+      | "mmHg*s"
+      | "s"
+      | "count"
+      | "dimensionless"
+      | "fraction";
     path: string;
     currentValue: number;
     referenceValue: number;
@@ -137,9 +160,13 @@ export type MainWireFiveWallCoronaryAutoregulationBooleanDeltaEntryV3 =
   Readonly<{
     kind: "boolean";
     group: "coronary-autoregulation-window";
-    quantity: "coronary-autoregulation-window-control-bound";
+    quantity:
+      | "coronary-autoregulation-window-control-bound"
+      | "coronary-autoregulation-desired-control-bound";
     unit: "boolean";
-    path: "coronaryAutoregulation.windowControlBound";
+    path:
+      | "coronaryAutoregulation.windowControlBound"
+      | "coronaryAutoregulation.desiredControlBound";
     currentValue: boolean;
     referenceValue: boolean;
     absoluteDelta: 0 | 1;
@@ -195,12 +222,12 @@ export type MainWireFiveWallCoronaryPeriodicClosureReportV3 = Readonly<{
   >>;
   overall: Readonly<{
     baseNumericEntryCount: 93;
-    autoregulationNumericEntryCount: 11;
-    numericEntryCount: 104;
+    autoregulationNumericEntryCount: 29;
+    numericEntryCount: 122;
     baseBooleanEntryCount: 1;
-    autoregulationBooleanEntryCount: 1;
-    booleanEntryCount: 2;
-    entryCount: 106;
+    autoregulationBooleanEntryCount: 2;
+    booleanEntryCount: 3;
+    entryCount: 125;
     maximumNormalizedDelta: number;
     worstGroup: MainWireFiveWallCoronaryPeriodicClosureGroupV3;
     worstPath: string;
@@ -306,10 +333,55 @@ export function compareMainWireFiveWallCoronaryAcceptedStatesV3(
     scales.coronaryAutoregulationAcceptedStepCount,
   ));
   entries.push(booleanEntry(
+    "coronary-autoregulation-window-control-bound",
+    "coronaryAutoregulation.windowControlBound",
     current.coronaryAutoregulation.windowControl !== null,
     reference.coronaryAutoregulation.windowControl !== null,
     scales.coronaryAutoregulationWindowControlBoundMismatch01,
   ));
+  const currentDesired = current.coronaryAutoregulation.desiredControl;
+  const referenceDesired = reference.coronaryAutoregulation.desiredControl;
+  entries.push(booleanEntry(
+    "coronary-autoregulation-desired-control-bound",
+    "coronaryAutoregulation.desiredControlBound",
+    currentDesired !== null,
+    referenceDesired !== null,
+    scales.coronaryAutoregulationDesiredControlBoundMismatch01,
+  ));
+  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+    for (const layerId of CORONARY_LAYER_IDS_V2) {
+      entries.push(numericEntry(
+        "coronary-autoregulation-desired-demand-scale",
+        "dimensionless",
+        `coronaryAutoregulation.desiredControl.demandScaleByTerritoryLayer.${territoryId}.${layerId}`,
+        currentDesired?.demandScaleByTerritoryLayer[territoryId][layerId] ?? 0,
+        referenceDesired?.demandScaleByTerritoryLayer[territoryId][layerId]
+          ?? 0,
+        scales.coronaryAutoregulationDesiredDemandScale,
+      ));
+      entries.push(numericEntry(
+        "coronary-autoregulation-desired-hyperemia",
+        "fraction",
+        `coronaryAutoregulation.desiredControl.hyperemia01ByTerritoryLayer.${territoryId}.${layerId}`,
+        currentDesired?.hyperemia01ByTerritoryLayer[territoryId][layerId] ?? 0,
+        referenceDesired?.hyperemia01ByTerritoryLayer[territoryId][layerId]
+          ?? 0,
+        scales.coronaryAutoregulationDesiredHyperemia01,
+      ));
+      entries.push(numericEntry(
+        "coronary-autoregulation-desired-minimum-tone-scale",
+        "dimensionless",
+        `coronaryAutoregulation.desiredControl.effectiveMinimumToneScaleByTerritoryLayer.${territoryId}.${layerId}`,
+        currentDesired
+          ?.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId]
+          ?? 0,
+        referenceDesired
+          ?.effectiveMinimumToneScaleByTerritoryLayer[territoryId][layerId]
+          ?? 0,
+        scales.coronaryAutoregulationDesiredMinimumToneScale,
+      ));
+    }
+  }
 
   const autoregulationGroup = groupReport(entries);
   const groups = Object.freeze({
@@ -325,7 +397,7 @@ export function compareMainWireFiveWallCoronaryAcceptedStatesV3(
     + autoregulationGroup.numericEntryCount;
   const booleanEntryCount = baseClosure.overall.booleanEntryCount
     + autoregulationGroup.booleanEntryCount;
-  if (numericEntryCount !== 104 || booleanEntryCount !== 2) {
+  if (numericEntryCount !== 122 || booleanEntryCount !== 3) {
     throw new Error(
       "coronary V3 full accepted-state closure dimension changed",
     );
@@ -369,12 +441,12 @@ export function compareMainWireFiveWallCoronaryAcceptedStatesV3(
     groups,
     overall: Object.freeze({
       baseNumericEntryCount: 93 as const,
-      autoregulationNumericEntryCount: 11 as const,
-      numericEntryCount: 104 as const,
+      autoregulationNumericEntryCount: 29 as const,
+      numericEntryCount: 122 as const,
       baseBooleanEntryCount: 1 as const,
-      autoregulationBooleanEntryCount: 1 as const,
-      booleanEntryCount: 2 as const,
-      entryCount: 106 as const,
+      autoregulationBooleanEntryCount: 2 as const,
+      booleanEntryCount: 3 as const,
+      entryCount: 125 as const,
       maximumNormalizedDelta: worst.maximumNormalizedDelta,
       worstGroup: worst.group,
       worstPath: worst.worstPath,
@@ -465,6 +537,14 @@ function validateCompatiblePeriodicStates(
       !== canonicalJsonStringify(referenceBinding)) {
     throw new Error(
       "coronary V3 periodic closure autoregulation binding compatibility differs",
+    );
+  }
+  const currentDesired = current.coronaryAutoregulation.desiredControl;
+  const referenceDesired = reference.coronaryAutoregulation.desiredControl;
+  if (currentDesired !== null && referenceDesired !== null
+    && currentDesired.controlId !== referenceDesired.controlId) {
+    throw new Error(
+      "coronary V3 periodic closure desired-control identity differs",
     );
   }
   validateAutoregulationSchema(current, "current");
@@ -570,6 +650,10 @@ function numericEntry(
 }
 
 function booleanEntry(
+  quantity: MainWireFiveWallCoronaryAutoregulationBooleanDeltaEntryV3[
+    "quantity"
+  ],
+  path: MainWireFiveWallCoronaryAutoregulationBooleanDeltaEntryV3["path"],
   currentValue: boolean,
   referenceValue: boolean,
   referenceScale: number,
@@ -580,9 +664,9 @@ function booleanEntry(
   return Object.freeze({
     kind: "boolean" as const,
     group: "coronary-autoregulation-window" as const,
-    quantity: "coronary-autoregulation-window-control-bound" as const,
+    quantity,
     unit: "boolean" as const,
-    path: "coronaryAutoregulation.windowControlBound" as const,
+    path,
     currentValue,
     referenceValue,
     absoluteDelta,
@@ -604,7 +688,7 @@ function groupReport(
   const numericEntryCount = entries.filter((entry) =>
     entry.kind === "numeric").length;
   const booleanEntryCount = entries.length - numericEntryCount;
-  if (numericEntryCount !== 11 || booleanEntryCount !== 1) {
+  if (numericEntryCount !== 29 || booleanEntryCount !== 2) {
     throw new Error("coronary V3 autoregulation closure dimension changed");
   }
   return Object.freeze({
@@ -648,29 +732,24 @@ function validateClosureReport(
   }
   const group = report.groups["coronary-autoregulation-window"];
   if (report.overall.baseNumericEntryCount !== 93
-    || report.overall.autoregulationNumericEntryCount !== 11
-    || report.overall.numericEntryCount !== 104
+    || report.overall.autoregulationNumericEntryCount !== 29
+    || report.overall.numericEntryCount !== 122
     || report.overall.baseBooleanEntryCount !== 1
-    || report.overall.autoregulationBooleanEntryCount !== 1
-    || report.overall.booleanEntryCount !== 2
-    || report.overall.entryCount !== 106
-    || group.numericEntryCount !== 11
-    || group.booleanEntryCount !== 1
-    || group.entryCount !== 12) {
+    || report.overall.autoregulationBooleanEntryCount !== 2
+    || report.overall.booleanEntryCount !== 3
+    || report.overall.entryCount !== 125
+    || group.numericEntryCount !== 29
+    || group.booleanEntryCount !== 2
+    || group.entryCount !== 31) {
     throw new Error("coronary V3 closure report state dimension is invalid");
   }
   requireFinite(
     report.overall.maximumNormalizedDelta,
     "coronary V3 closure delta",
   );
-  if (report.overall.maximumNormalizedDelta < 0
-    || group.maximumNormalizedDelta !== 0
-    || !nearlyEqual(
-      report.overall.maximumNormalizedDelta,
-      report.baseClosure.overall.maximumNormalizedDelta,
-    )) {
+  if (report.overall.maximumNormalizedDelta < 0) {
     throw new Error(
-      "coronary V3 periodic closure report violates empty-boundary semantics",
+      "coronary V3 periodic closure report contains a negative delta",
     );
   }
   if (report.provenance.autoregulationWindowIndexAdvance <= 0

@@ -56,6 +56,10 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V3 =
     hydraulicToneDuringStep: "previous-accepted-tone-fixed" as const,
     acceptedToneAfterWindow:
       "updated-once-after-complete-window-for-next-hydraulic-step" as const,
+    acceptedControlDuringWindow:
+      "latched-window-control-remains-exact-through-completion" as const,
+    desiredControlTransition:
+      "latest-desired-control-applies-atomically-at-next-window-boundary" as const,
     flowObservable:
       "layer-qm-internal-not-inlet-r1-or-post-hoc-cycle-sample" as const,
     perfusionPressureObservable:
@@ -83,6 +87,8 @@ export type MainWireFiveWallCoronaryAutoregulationDriveV3 = Readonly<{
 
 export type MainWireFiveWallCoronaryInitializeInputV3<TWallState> =
   MainWireFiveWallCoronaryInitializeInputV2<TWallState> & Readonly<{
+    coronaryAutoregulationDrive?:
+      MainWireFiveWallCoronaryAutoregulationDriveV3;
     autoregulationWindow?: Readonly<{
       durationSec?: number;
       interpretation?:
@@ -159,6 +165,10 @@ export function initializeMainWireFiveWallCoronaryV3<TWallState>(
     {
       acceptedTimeSec: base.acceptedState.acceptedTimeSec,
       revision: base.acceptedState.revision,
+      desiredControl: resolveAutoregulationControl(
+        input.coronaryAutoregulationDrive,
+        input.coronaryDisease ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
+      ),
     },
   );
   return Object.freeze({

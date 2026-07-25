@@ -37,7 +37,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3,
   evaluateMainWireIntegratedModelCalciumDriveV3,
   initializeMainWireIntegratedModelV3,
-  maximumMainWireIntegratedModelStepDurationV3,
+  limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
   type MainWireIntegratedModelAcceptedStateV3,
   type MainWireIntegratedModelStepInputV3,
@@ -156,13 +156,14 @@ describe("integrated model V3 canonical-provider composed-rhythm smoke", () => {
       },
       dynamicMechanicalSupport: {
         config,
-        heartRateBpm: 60,
         profile,
       },
     });
-    const stepInput = (dtSec: number): MainWireIntegratedModelStepInputV3 =>
+    const stepInput = (
+      candidateTimeSec: number,
+    ): MainWireIntegratedModelStepInputV3 =>
       Object.freeze({
-        dtSec,
+        candidateTimeSec,
         coronary: coronaryStep,
         rhythm: Object.freeze({
           configuration: rhythm.configuration,
@@ -171,7 +172,6 @@ describe("integrated model V3 canonical-provider composed-rhythm smoke", () => {
         }),
         dynamicMechanicalSupport: Object.freeze({
           config,
-          heartRateBpm: 60,
           profile,
         }),
       });
@@ -244,9 +244,9 @@ describe("integrated model V3 canonical-provider composed-rhythm smoke", () => {
         BASE_DT_SEC,
         milestone - uninterrupted.acceptedTimeSec,
       );
-      const maximum = maximumMainWireIntegratedModelStepDurationV3(
+      const maximum = limitMainWireIntegratedModelCandidateTimeV3(
         uninterrupted,
-        requestedStepSec,
+        uninterrupted.acceptedTimeSec + requestedStepSec,
         {
           configuration: rhythm.configuration,
           externalAfNextBoundaryTimeSec: null,
@@ -254,12 +254,11 @@ describe("integrated model V3 canonical-provider composed-rhythm smoke", () => {
         profile,
         config,
       );
-      expect(maximum.maximumStepSec).toBeGreaterThan(0);
-      expect(maximum.maximumStepSec).toBeLessThanOrEqual(
-        requestedStepSec + 1e-15,
+      expect(maximum.candidateTimeSec).toBeGreaterThan(
+        uninterrupted.acceptedTimeSec,
       );
       const previous = uninterrupted;
-      const input = stepInput(maximum.maximumStepSec);
+      const input = stepInput(maximum.candidateTimeSec);
       const stepped = stepMainWireIntegratedModelV3(
         provider,
         previous,
@@ -378,9 +377,9 @@ describe("integrated model V3 canonical-provider composed-rhythm smoke", () => {
         BASE_DT_SEC,
         CYCLE_SEC - resumed.acceptedTimeSec,
       );
-      const maximum = maximumMainWireIntegratedModelStepDurationV3(
+      const maximum = limitMainWireIntegratedModelCandidateTimeV3(
         resumed,
-        requestedStepSec,
+        resumed.acceptedTimeSec + requestedStepSec,
         {
           configuration: rhythm.configuration,
           externalAfNextBoundaryTimeSec: null,
@@ -391,7 +390,7 @@ describe("integrated model V3 canonical-provider composed-rhythm smoke", () => {
       const stepped = stepMainWireIntegratedModelV3(
         provider,
         resumed,
-        stepInput(maximum.maximumStepSec),
+        stepInput(maximum.candidateTimeSec),
       );
       if (stepped.converged === false) throw new Error(stepped.message);
       resumed = stepped.acceptedState;

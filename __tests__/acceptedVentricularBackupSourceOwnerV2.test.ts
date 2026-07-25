@@ -8,7 +8,7 @@ import {
   evaluateAcceptedVentricularBackupSourceCandidateV2,
   evaluateVentricularBackupSourceProposalV2,
   initializeAcceptedVentricularBackupSourceStateV2,
-  maximumAcceptedVentricularBackupSourceStepV2,
+  limitAcceptedVentricularBackupSourceCandidateTimeV2,
   rollbackAcceptedVentricularBackupSourceCandidateV2,
   validateAcceptedVentricularBackupSourceStateV2,
   type AcceptedVentricularBackupSourceConfigurationV2,
@@ -43,10 +43,13 @@ describe("accepted ventricular backup source owner V2", () => {
 
   it("clips at the earliest due owner clock and exposes simultaneous due flags", () => {
     const state = initialize(config({ escapeCycleSec: 1, lowerRatePerMin: 60 }));
-    const clipped = maximumAcceptedVentricularBackupSourceStepV2(state, 2);
+    const clipped = limitAcceptedVentricularBackupSourceCandidateTimeV2(
+      state,
+      2,
+    );
 
     expect(clipped).toMatchObject({
-      maximumStepSec: 0.8,
+      requestedCandidateTimeSec: 2,
       candidateTimeSec: 0.8,
       clippedByDueTime: true,
       boundaryDueTimeSec: 0.8,
@@ -55,6 +58,47 @@ describe("accepted ventricular backup source owner V2", () => {
     });
     expect(() => evaluateVentricularBackupSourceProposalV2(state, 0.81))
       .toThrow(/may not cross earliest due time/);
+  });
+
+  it("uses the exact due endpoint when duration subtraction cannot be safely re-added", () => {
+    const configuration = config({
+      escapeCycleSec: 5,
+      lowerRatePerMin: 3,
+    });
+    const state = initializeAcceptedVentricularBackupSourceStateV2(
+      configuration,
+      {
+        acceptedTimeSec: 1.8571428571428572,
+        priorAcceptedVentricularCapture: {
+          capturedActivationId: "nonrepresentable-prior-capture",
+          parentSourceImpulseId: "nonrepresentable-prior-source",
+          sourceKind: "av-output",
+          sourceId: "nonrepresentable-av-source",
+          sourceSequence: 0,
+          activationTimeSec: 1.333333333333333,
+        },
+      },
+    );
+    const limited = limitAcceptedVentricularBackupSourceCandidateTimeV2(
+      state,
+      7,
+    );
+    const derivedDuration =
+      limited.candidateTimeSec - state.acceptedTimeSec;
+    const reconstructedEndpoint = state.acceptedTimeSec + derivedDuration;
+
+    expect(limited.candidateTimeSec).toBe(6.333333333333333);
+    expect(reconstructedEndpoint).toBe(6.333333333333334);
+    expect(reconstructedEndpoint).not.toBe(limited.candidateTimeSec);
+    expect(limited).not.toHaveProperty("maximumStepSec");
+    expect(() => evaluateVentricularBackupSourceProposalV2(
+      state,
+      limited.candidateTimeSec,
+    )).not.toThrow();
+    expect(() => evaluateVentricularBackupSourceProposalV2(
+      state,
+      reconstructedEndpoint,
+    )).toThrow(/may not cross earliest due time/);
   });
 
   it("emits intrinsic escape at due time and advances it after failed capture", () => {
@@ -218,6 +262,80 @@ describe("accepted ventricular backup source owner V2", () => {
       nonVviAcceptedVentricularActivation: spoof,
       conditionalVviPacingAcceptedVentricularActivation: null,
     })).toThrow(/cannot masquerade as non-VVI feedback/);
+  });
+
+  it("rejects non-due, stale, and replayed owner escape lineage", () => {
+    const state = initialize(config({ escapeCycleSec: 1, lowerRatePerMin: 30 }));
+    const issuedEscape = evaluateVentricularBackupSourceProposalV2(
+      state,
+      0.8,
+    ).sourceImpulsesForNonVviBatch[0]!;
+    const nonDueProposal = evaluateVentricularBackupSourceProposalV2(
+      state,
+      0.5,
+    );
+    const nonDueSpoof = capturedFrom(createSourceImpulseV2({
+      sourceImpulseId: issuedEscape.sourceImpulseId,
+      parentCapturedActivationId: issuedEscape.parentCapturedActivationId,
+      chamber: issuedEscape.chamber,
+      sourceKind: issuedEscape.sourceKind,
+      sourceId: issuedEscape.sourceId,
+      sourceSequence: 99,
+      activationTimeSec: 0.5,
+    }));
+
+    expect(() => createVentricularBackupSourceResolutionV2(
+      nonDueProposal,
+      {
+        nonVviAcceptedVentricularActivation: nonDueSpoof,
+        conditionalVviPacingAcceptedVentricularActivation: null,
+      },
+    )).toThrow(/owner escape activation requires the exact due escape impulse/);
+
+    const afterIssuedEscape = commitAcceptedVentricularBackupSourceCandidateV2(
+      state,
+      failedCandidate(state, 0.8),
+    );
+    const afterIssuedProposal = evaluateVentricularBackupSourceProposalV2(
+      afterIssuedEscape,
+      1,
+    );
+    const replayWithAlteredMetadata = capturedFrom(createSourceImpulseV2({
+      sourceImpulseId: issuedEscape.sourceImpulseId,
+      parentCapturedActivationId: "forged-accepted-atrial-parent",
+      chamber: "ventricular",
+      sourceKind: "av-output",
+      sourceId: "forged-external-source",
+      sourceSequence: 44,
+      activationTimeSec: 1,
+    }));
+
+    expect(() => createVentricularBackupSourceResolutionV2(
+      afterIssuedProposal,
+      {
+        nonVviAcceptedVentricularActivation: replayWithAlteredMetadata,
+        conditionalVviPacingAcceptedVentricularActivation: null,
+      },
+    )).toThrow(/owner escape activation requires the exact due escape impulse/);
+  });
+
+  it("rejects a foreign escape identity at an owner escape boundary", () => {
+    const state = initialize(config({ escapeCycleSec: 1, lowerRatePerMin: 30 }));
+    const proposal = evaluateVentricularBackupSourceProposalV2(state, 0.8);
+    const foreignEscape = capturedFrom(createSourceImpulseV2({
+      sourceImpulseId: "foreign-escape-impulse",
+      parentCapturedActivationId: null,
+      chamber: "ventricular",
+      sourceKind: "escape",
+      sourceId: "foreign-escape-source",
+      sourceSequence: 0,
+      activationTimeSec: 0.8,
+    }));
+
+    expect(() => createVentricularBackupSourceResolutionV2(proposal, {
+      nonVviAcceptedVentricularActivation: foreignEscape,
+      conditionalVviPacingAcceptedVentricularActivation: null,
+    })).toThrow(/does not match source-impulse lineage/);
   });
 
   it("rejects non-VVI plus conditional-VVI double feedback at one boundary", () => {
@@ -455,7 +573,10 @@ describe("accepted ventricular backup source owner V2", () => {
     expect(() => commitAcceptedVentricularBackupSourceCandidateV2(accepted, first))
       .toThrow();
     expect(() => evaluateVentricularBackupSourceProposalV2(state, 0)).toThrow(/must exceed/);
-    expect(() => maximumAcceptedVentricularBackupSourceStepV2(state, Infinity))
+    expect(() => limitAcceptedVentricularBackupSourceCandidateTimeV2(
+      state,
+      Infinity,
+    ))
       .toThrow(/must be finite/);
   });
 
