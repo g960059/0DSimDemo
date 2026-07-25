@@ -211,6 +211,7 @@
       "appendParagraph": "本文を追加",
       "insertBelow": "下に段落を挿入",
       "blockMenu": "ブロックメニュー",
+      "dragBlock": "ドラッグで並び替え、クリックでメニュー",
       "closeMenu": "メニューを閉じる",
       "turnIntoParagraph": "段落にする",
       "turnIntoHeading2": "見出し2にする",

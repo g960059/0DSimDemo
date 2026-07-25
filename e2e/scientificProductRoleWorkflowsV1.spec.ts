@@ -128,6 +128,57 @@ test.describe.serial("Product workflows by role", () => {
       expect(placementIndex).toBeGreaterThan(0);
       expect(orderedBlockKinds[placementIndex + 1]).toBe("paragraph");
 
+      // A block is carried by its handle: a press that travels reorders the
+      // article, and one that does not opens the block's menu.
+      const blockIdsV1 = () =>
+        article.getByTestId("studio-document-block-v1").evaluateAll((blocks) =>
+          blocks.map((block) =>
+            block.getAttribute("data-document-block-id")));
+      const orderBeforeDrag = await blockIdsV1();
+      const lastBlock = article.getByTestId("studio-document-block-v1").last();
+      await lastBlock.hover();
+      const dragHandle = lastBlock.getByTestId(
+        "studio-document-block-handle-v1",
+      );
+      const handleBox = await dragHandle.boundingBox();
+      const firstBlockBox = await article
+        .getByTestId("studio-document-block-v1").first().boundingBox();
+      if (handleBox === null || firstBlockBox === null) {
+        throw new Error("expected the drag handle and first block to lay out");
+      }
+      const handleX = handleBox.x + handleBox.width / 2;
+      await page.mouse.move(handleX, handleBox.y + handleBox.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(handleX, firstBlockBox.y + 40, { steps: 12 });
+      // Nothing reflows while the block is carried; only the landing line
+      // moves, so the article an author is judging stays still.
+      await expect(
+        article.getByTestId("studio-document-drop-line-v1"),
+      ).toHaveCount(1);
+      await expect(
+        article.locator('[data-document-block-carried="true"]'),
+      ).toHaveCount(1);
+      await page.mouse.move(handleX, firstBlockBox.y + 4, { steps: 6 });
+      await page.mouse.up();
+      const orderAfterDrag = await blockIdsV1();
+      expect(orderAfterDrag[0]).toBe(orderBeforeDrag.at(-1));
+      expect(orderAfterDrag).not.toEqual(orderBeforeDrag);
+      await expect(
+        article.getByTestId("studio-document-drop-line-v1"),
+      ).toHaveCount(0);
+
+      // The same handle still opens the menu when the pointer stays put.
+      await lastBlock.hover();
+      await article.getByTestId("studio-document-block-v1").last()
+        .getByTestId("studio-document-block-handle-v1").click();
+      await expect(
+        page.getByTestId("studio-document-block-menu-v1"),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByTestId("studio-document-block-menu-v1"),
+      ).toHaveCount(0);
+
       // The placement carries its own per-article presentation decision.
       const placementOptions = page.getByTestId(
         "studio-placement-options-v1",

@@ -13,6 +13,7 @@ import type {
 import type {
   ScientificProductRuntimeRegistryPortV1,
 } from "@/components/scientificProduct/ScientificProductRuntimeRegistryPortV1";
+import { useStudioBlockDragV1 } from "./StudioBlockDragV1";
 import { StudioExperimentCellV1 } from "./StudioExperimentCellV1";
 
 export type StudioDocumentCapabilityV1 = "read" | "compose";
@@ -190,12 +191,13 @@ export function StudioDocumentSurfaceV1({
     });
   }, []);
 
-  const moveBlock = React.useCallback((blockId: string, direction: -1 | 1) => {
+  const moveBlockTo = React.useCallback((blockId: string, to: number) => {
     setBuffer((current) => {
       const from = current.blocks.findIndex((block) =>
         block.blockId === blockId);
-      const to = from + direction;
-      if (from < 0 || to < 0 || to >= current.blocks.length) return current;
+      if (from < 0 || to < 0 || to >= current.blocks.length || to === from) {
+        return current;
+      }
       const blocks = [...current.blocks];
       const [moved] = blocks.splice(from, 1);
       if (moved === undefined) return current;
@@ -205,6 +207,24 @@ export function StudioDocumentSurfaceV1({
       return next;
     });
   }, []);
+
+  const moveBlock = React.useCallback((blockId: string, direction: -1 | 1) => {
+    const from = bufferRef.current.blocks.findIndex((block) =>
+      block.blockId === blockId);
+    if (from < 0) return;
+    moveBlockTo(blockId, from + direction);
+  }, [moveBlockTo]);
+
+  const blockIds = React.useMemo(
+    () => buffer.blocks.map((block) => block.blockId),
+    [buffer.blocks],
+  );
+  const drag = useStudioBlockDragV1({
+    blockIds,
+    onDrop: moveBlockTo,
+    onClick: (blockId) => setMenuBlockId((current) =>
+      current === blockId ? null : blockId),
+  });
 
   const changeBlockKind = React.useCallback((
     blockId: string,
@@ -269,18 +289,29 @@ export function StudioDocumentSurfaceV1({
           const runtime = block.kind === "experiment-placement"
             ? runtimeForPlacement(block.blockId)
             : null;
+          const carried = drag.state.active
+            && drag.state.blockId === block.blockId;
           return (
             <div
               key={block.blockId}
               // The observed node is the block, not the cell: a placement
               // swaps its rendering when a session opens, and the playback
               // policy must not read that as leaving and coming back.
-              ref={runtime?.observe}
-              className="group relative"
+              ref={(element) => {
+                runtime?.observe(element);
+                drag.registerBlock(block.blockId)(element);
+              }}
+              className={`group relative ${
+                carried ? "opacity-40" : ""
+              }`}
               data-testid="studio-document-block-v1"
               data-document-block-id={block.blockId}
               data-document-block-kind={block.kind}
+              data-document-block-carried={String(carried)}
             >
+              {drag.state.dropIndex === index && (
+                <StudioBlockDropLineV1 />
+              )}
               {composing && (
                 <StudioBlockGutterV1
                   blockId={block.blockId}
@@ -290,8 +321,11 @@ export function StudioDocumentSurfaceV1({
                   isExperiment={block.kind === "experiment-placement"}
                   insertableExperiment={edit?.insertableExperiment ?? null}
                   removable={buffer.blocks.length > 1}
-                  onToggleMenu={() => setMenuBlockId((current) =>
-                    current === block.blockId ? null : block.blockId)}
+                  dragging={drag.state.active}
+                  onHandlePointerDown={(event) =>
+                    drag.startDrag(block.blockId, index, event)}
+                  onHandleMove={(direction) =>
+                    drag.moveByKeyboard(block.blockId, index, direction)}
                   onCloseMenu={() => setMenuBlockId(null)}
                   onInsertParagraph={() => insertBlock(index + 1, {
                     blockId: newBlockIdV1(),
@@ -372,6 +406,9 @@ export function StudioDocumentSurfaceV1({
             </div>
           );
         })}
+        {drag.state.dropIndex === buffer.blocks.length && (
+          <StudioBlockDropLineV1 />
+        )}
       </div>
 
       {composing && buffer.blocks.length === 1
@@ -577,6 +614,23 @@ function StudioEditableLineV1({
   );
 }
 
+/**
+ * Where a carried block would land.
+ *
+ * A two-pixel accent rule rather than a gap that opens: the article's rhythm
+ * is what an author is judging while they move a block, and reflowing the
+ * column under the pointer changes the thing being judged.
+ */
+function StudioBlockDropLineV1() {
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="studio-document-drop-line-v1"
+      className="pointer-events-none absolute inset-x-0 -top-px z-10 h-0.5 rounded-full bg-[var(--wb-pick)]"
+    />
+  );
+}
+
 function StudioBlockGutterV1({
   blockId,
   index,
@@ -585,7 +639,9 @@ function StudioBlockGutterV1({
   isExperiment,
   insertableExperiment,
   removable,
-  onToggleMenu,
+  dragging,
+  onHandlePointerDown,
+  onHandleMove,
   onCloseMenu,
   onInsertParagraph,
   onChangeKind,
@@ -603,7 +659,9 @@ function StudioBlockGutterV1({
     readerBriefId: string;
   }> | null;
   removable: boolean;
-  onToggleMenu(): void;
+  dragging: boolean;
+  onHandlePointerDown(event: React.PointerEvent<HTMLElement>): void;
+  onHandleMove(direction: -1 | 1): void;
   onCloseMenu(): void;
   onInsertParagraph(): void;
   onChangeKind(
@@ -627,13 +685,27 @@ function StudioBlockGutterV1({
       >
         <Plus className="h-4 w-4" />
       </GutterButtonV1>
-      <GutterButtonV1
-        label={t("studioAuthorPreview.surface.blockMenu")}
-        expanded={menuOpen}
-        onClick={onToggleMenu}
+      <button
+        type="button"
+        aria-label={t("studioAuthorPreview.surface.dragBlock")}
+        title={t("studioAuthorPreview.surface.dragBlock")}
+        aria-expanded={menuOpen}
+        data-testid="studio-document-block-handle-v1"
+        // A press that never travels opens the menu; one that does carries
+        // the block. The two live on one control because they answer the
+        // same question — what happens to this block.
+        onPointerDown={onHandlePointerDown}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+          event.preventDefault();
+          onHandleMove(event.key === "ArrowUp" ? -1 : 1);
+        }}
+        className={`inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text ${
+          dragging ? "cursor-grabbing" : "cursor-grab"
+        }`}
       >
         <GripVertical className="h-4 w-4" />
-      </GutterButtonV1>
+      </button>
 
       {menuOpen && (
         <>

@@ -274,7 +274,11 @@ export default function StudioDocumentRouteV1() {
         </p>
       )}
 
-      <div ref={scrollRootRef} className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        ref={scrollRootRef}
+        data-studio-scrollport="true"
+        className="min-h-0 flex-1 overflow-y-auto"
+      >
         <StudioDocumentSurfaceV1
           document={resolvedDocument}
           capability={capability}

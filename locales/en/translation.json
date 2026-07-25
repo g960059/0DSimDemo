@@ -211,6 +211,7 @@
       "appendParagraph": "Add a paragraph",
       "insertBelow": "Insert paragraph below",
       "blockMenu": "Block menu",
+      "dragBlock": "Drag to reorder, click for the menu",
       "closeMenu": "Close menu",
       "turnIntoParagraph": "Turn into paragraph",
       "turnIntoHeading2": "Turn into heading 2",
