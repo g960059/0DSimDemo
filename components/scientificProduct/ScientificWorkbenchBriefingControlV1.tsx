@@ -157,17 +157,21 @@ export function ScientificWorkbenchBriefingControlV1({
 
   /**
    * A Reader brief is referentially closed: every instantaneous readback and
-   * every control readback signal must be backed by a pinned waveform item,
-   * and at least one graph must remain. Unpinning is therefore not always
-   * legal, and the author is told why before acting rather than after the
-   * command is rejected.
+   * every control readback signal must be backed by a pinned waveform item.
+   * Unpinning is therefore not always legal, and the author is told why
+   * before acting rather than after the command is rejected. Clearing the
+   * last graph is legal — an empty brief is where every brief starts.
    */
   const unpinBlockedByPaneId = React.useMemo(() => {
     const blocked = new Map<string, string>();
     if (target === null) return blocked;
     const { brief } = target;
+    // A per-beat metric is computed from a cycle, not read off a trace, so it
+    // is not backed by a pinned waveform and must not hold a graph hostage.
     const requiredSignalIds = new Set<string>(
-      brief.instantaneousReadbacks.map(({ signalId }) => signalId),
+      brief.instantaneousReadbacks
+        .filter(({ sampling }) => sampling !== "beat")
+        .map(({ signalId }) => signalId),
     );
     for (const control of brief.controls) {
       if (control.binding.readbackSignalId !== null) {
@@ -175,13 +179,6 @@ export function ScientificWorkbenchBriefingControlV1({
       }
     }
     for (const pane of brief.graphPanes) {
-      if (brief.graphPanes.length <= 1) {
-        blocked.set(
-          pane.paneId,
-          t("studioAuthorPreview.briefing.errors.lastGraph"),
-        );
-        continue;
-      }
       const remaining = new Set<string>();
       for (const other of brief.graphPanes) {
         if (other.paneId === pane.paneId || other.kind !== "waveform") continue;
@@ -276,26 +273,19 @@ export function ScientificWorkbenchBriefingControlV1({
     }
   }, [draft.revision, replaceReaderBriefSelection, target, t]);
 
-  const toggleReadback = React.useCallback((signalId: string) => {
-    if (target === null) return;
-    const current = target.brief.instantaneousReadbacks;
-    const next = current.some((readback) => readback.signalId === signalId)
-      ? current.filter((readback) => readback.signalId !== signalId)
-      : [
-        ...current,
-        ...availableReadbacks.filter((option) => option.signalId === signalId),
-      ];
-    commitSelectionV1(next, target.brief.controls);
-  }, [availableReadbacks, commitSelectionV1, target]);
-
   const toggleReadbackSpecV1 = React.useCallback((
     spec: ReaderInstantaneousReadbackSpecV1,
   ) => {
     if (target === null) return;
     const current = target.brief.instantaneousReadbacks;
+    // A readback is identified by what it reads, not by the id this surface
+    // would mint for it. A brief authored elsewhere carries its own ids, and
+    // matching on those would both misreport the pick and append a duplicate
+    // reading of the same signal.
     const next = current.some((readback) =>
-        readback.readbackId === spec.readbackId)
-      ? current.filter((readback) => readback.readbackId !== spec.readbackId)
+        readbackIdentityV1(readback) === readbackIdentityV1(spec))
+      ? current.filter((readback) =>
+        readbackIdentityV1(readback) !== readbackIdentityV1(spec))
       : [...current, spec];
     commitSelectionV1(next, target.brief.controls);
   }, [commitSelectionV1, target]);
@@ -422,11 +412,16 @@ export function ScientificWorkbenchBriefingControlV1({
     () => new Set(availableReadbacks.map(({ signalId }) => signalId)),
     [availableReadbacks],
   );
-  const pinnedReadbackIds = React.useMemo(
+  const pinnedReadbackIdentities = React.useMemo(
     () => new Set((target?.brief.instantaneousReadbacks ?? []).map(
-      (readback) => readback.readbackId,
+      readbackIdentityV1,
     )),
     [target],
+  );
+  const readbackOptionBySignalId = React.useMemo(
+    () => new Map(availableReadbacks.map((option) =>
+      [option.signalId, option])),
+    [availableReadbacks],
   );
   const pickApi = React.useMemo<StudioBriefingPickApiV1>(() => Object.freeze({
     isGraphPinned: (paneId: string) => pinnedPaneIdSet.has(paneId),
@@ -438,29 +433,32 @@ export function ScientificWorkbenchBriefingControlV1({
       pinnedControlKeys.has(parameterKey),
     toggleControl,
     isSignalPinned: (signalId: string) =>
-      pinnedReadbackIds.has(`readback-${signalId}`),
+      pinnedReadbackIdentities.has(`instantaneous|${signalId}`),
     toggleSignal: (signalId: string, label: string, unit: string) => {
+      const pinned = pinnedReadbackIdentities.has(
+        `instantaneous|${signalId}`,
+      );
       // An instantaneous readback is only legal where a pinned waveform
       // carries the signal. Say so before the command is rejected.
-      if (
-        !pinnedReadbackIds.has(`readback-${signalId}`)
-        && !pinnedWaveformSignalIds.has(signalId)
-      ) {
+      if (!pinned && !pinnedWaveformSignalIds.has(signalId)) {
         setError(t("studioAuthorPreview.briefing.errors.signalNeedsGraph", {
           label,
         }));
         return;
       }
+      // A legend names a trace; it does not carry the unit. The pinned
+      // waveform item does, and a readback without one is rejected.
+      const option = readbackOptionBySignalId.get(signalId);
       toggleReadbackSpecV1(Object.freeze({
         readbackId: `readback-${signalId}`,
         signalId,
-        label,
-        unit,
+        label: label.length > 0 ? label : option?.label ?? signalId,
+        unit: unit.length > 0 ? unit : option?.unit ?? "",
         sampling: "instantaneous",
       }));
     },
     isBeatMetricPinned: (metricId: string) =>
-      pinnedReadbackIds.has(`beat-${metricId}`),
+      pinnedReadbackIdentities.has(`beat|${metricId}`),
     toggleBeatMetric: (metricId: string, label: string, unit: string) =>
       toggleReadbackSpecV1(Object.freeze({
         readbackId: `beat-${metricId}`,
@@ -473,7 +471,8 @@ export function ScientificWorkbenchBriefingControlV1({
     pinPane,
     pinnedControlKeys,
     pinnedPaneIdSet,
-    pinnedReadbackIds,
+    readbackOptionBySignalId,
+    pinnedReadbackIdentities,
     pinnedWaveformSignalIds,
     t,
     toggleControl,
@@ -575,4 +574,15 @@ function readerBriefTargetV1(
 
 function errorMessageV1(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * What a readback reads, which is what makes two of them the same reading.
+ * The same signal sampled per-beat and instantaneously are different readings
+ * and may both be pinned.
+ */
+function readbackIdentityV1(
+  readback: ReaderInstantaneousReadbackSpecV1,
+): string {
+  return `${readback.sampling}|${readback.signalId}`;
 }

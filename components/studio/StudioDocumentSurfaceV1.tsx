@@ -20,15 +20,17 @@ export type StudioDocumentCapabilityV1 = "read" | "compose";
 export type StudioDocumentEditV1 = Readonly<{
   /**
    * Commits title and blocks as one structural content change against the
-   * revision the editor buffer was synchronized from. Returns whether the
-   * commit was accepted, so a rejected edit stays pending instead of being
-   * silently discarded.
+   * revision the editor buffer was synchronized from. Returns the document
+   * revision the commit produced, or null when it was rejected, so a rejected
+   * edit stays pending instead of being silently discarded and an accepted
+   * one can be chained without waiting for a render to carry the new
+   * revision back.
    */
   onCommit(
     title: string,
     blocks: readonly StudioDocumentBlockV1[],
     expectedRevision: number,
-  ): boolean;
+  ): number | null;
   /** Experiment reference offered by `/` insertion, or null when none exists. */
   insertableExperiment: Readonly<{
     experimentId: string;
@@ -89,6 +91,15 @@ export function StudioDocumentSurfaceV1({
     });
   }, [document]);
 
+  /**
+   * The preview runtime binds exactly one placement, so a second one is not
+   * offered. Withdrawing the affordance is what keeps the invariant an
+   * editing decision rather than a failure the author discovers afterwards.
+   */
+  const insertableExperiment = placementCountV1(buffer.blocks) > 0
+    ? null
+    : edit?.insertableExperiment ?? null;
+
   const [menuBlockId, setMenuBlockId] = React.useState<string | null>(null);
   const focusBlockIdRef = React.useRef<string | null>(null);
   const bufferRef = React.useRef(buffer);
@@ -103,12 +114,18 @@ export function StudioDocumentSurfaceV1({
     // Clearing dirty before the commit is accepted would let the resync
     // effect overwrite an edit the application rejected.
     if (edit === undefined) return;
-    const accepted = edit.onCommit(
+    const committedRevision = edit.onCommit(
       next.title,
       next.blocks,
       baseRevisionRef.current,
     );
-    if (accepted) dirtyRef.current = false;
+    if (committedRevision === null) return;
+    // Two commits can land in one event — Enter commits the text it splits,
+    // then inserts a block. Adopting the produced revision now is what keeps
+    // the second one from conflicting with the first; waiting for the resync
+    // effect would drop it.
+    baseRevisionRef.current = committedRevision;
+    dirtyRef.current = false;
   }, [edit]);
 
   const commitRef = React.useRef(commit);
@@ -155,6 +172,14 @@ export function StudioDocumentSurfaceV1({
       if (current.blocks.length <= 1) return current;
       const index = current.blocks.findIndex((block) =>
         block.blockId === blockId);
+      // The preview runtime binds exactly one placement. Removing the only
+      // one would leave every cell unresolved rather than emptying a block.
+      if (
+        current.blocks[index]?.kind === "experiment-placement"
+        && placementCountV1(current.blocks) <= 1
+      ) {
+        return current;
+      }
       const blocks = current.blocks.filter((block) =>
         block.blockId !== blockId);
       const previous = blocks[Math.max(0, index - 1)];
@@ -261,7 +286,10 @@ export function StudioDocumentSurfaceV1({
                   total={buffer.blocks.length}
                   menuOpen={menuBlockId === block.blockId}
                   isExperiment={block.kind === "experiment-placement"}
-                  insertableExperiment={edit?.insertableExperiment ?? null}
+                  insertableExperiment={insertableExperiment}
+                  removable={buffer.blocks.length > 1
+                    && !(block.kind === "experiment-placement"
+                      && placementCountV1(buffer.blocks) <= 1)}
                   onToggleMenu={() => setMenuBlockId((current) =>
                     current === block.blockId ? null : block.blockId)}
                   onCloseMenu={() => setMenuBlockId(null)}
@@ -559,6 +587,7 @@ function StudioBlockGutterV1({
   menuOpen,
   isExperiment,
   insertableExperiment,
+  removable,
   onToggleMenu,
   onCloseMenu,
   onInsertParagraph,
@@ -576,6 +605,7 @@ function StudioBlockGutterV1({
     experimentId: string;
     readerBriefId: string;
   }> | null;
+  removable: boolean;
   onToggleMenu(): void;
   onCloseMenu(): void;
   onInsertParagraph(): void;
@@ -708,7 +738,7 @@ function StudioBlockGutterV1({
             </MenuItemV1>
             <MenuItemV1
               label={t("studioAuthorPreview.surface.removeBlock")}
-              disabled={total <= 1}
+              disabled={!removable}
               danger
               onClick={() => {
                 onRemove();
@@ -833,6 +863,13 @@ function StudioPlacementOptionsV1({
       />
     </div>
   );
+}
+
+function placementCountV1(
+  blocks: readonly StudioDocumentBlockV1[],
+): number {
+  return blocks.filter((block) =>
+    block.kind === "experiment-placement").length;
 }
 
 function blockClassNameV1(block: StudioDocumentBlockV1): string {

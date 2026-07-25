@@ -72,11 +72,20 @@ export function StudioExperimentCellV1({
     [],
   );
 
+  /** Whether this cell was started by the author rather than by autoplay. */
+  const startedByHandRef = React.useRef(false);
   React.useEffect(() => {
     // Leaving compose hands the cell to a reader, so a `live` placement starts
-    // without remounting. Returning to compose keeps whatever was started by
-    // hand: stopping it would discard the reader state an author just set up.
-    if (autoPlay && placement.inlineMode === "live") setActivated(true);
+    // without remounting.
+    if (autoPlay && placement.inlineMode === "live") {
+      setActivated(true);
+      return;
+    }
+    // Returning to compose keeps whatever the author started by hand —
+    // stopping it would discard reader state they just set up — but hands
+    // back a lane only autoplay started, which is the point of not
+    // integrating while writing.
+    if (!autoPlay && !startedByHandRef.current) setActivated(false);
   }, [autoPlay, placement.inlineMode]);
 
   React.useEffect(() => {
@@ -99,7 +108,10 @@ export function StudioExperimentCellV1({
     };
   }, [activated, controller]);
 
-  const activate = React.useCallback(() => setActivated(true), []);
+  const activate = React.useCallback(() => {
+    startedByHandRef.current = true;
+    setActivated(true);
+  }, []);
   const panes = placement.readerBrief.graphPanes;
   const inflowPanes = panes.slice(0, INFLOW_GRAPH_LIMIT_V1);
   const canFocus = panes.length > inflowPanes.length;
@@ -196,6 +208,16 @@ export function StudioExperimentCellV1({
               scenarioId={scenarioId}
             />
           ))}
+          {!autoPlay && panes.length === 0 && (
+            // Composing an empty brief: the cell says where its content comes
+            // from rather than leaving a silent gap in the article.
+            <p
+              data-testid="studio-reader-empty-brief-v1"
+              className="rounded-lg border border-dashed border-wb-line px-4 py-6 text-center text-xs leading-6 text-wb-subtle"
+            >
+              {t("studioAuthorPreview.reader.emptyBrief")}
+            </p>
+          )}
         </div>
 
         <StudioExperimentReadbacksV1

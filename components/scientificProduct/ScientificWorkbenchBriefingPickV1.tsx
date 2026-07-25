@@ -48,8 +48,10 @@ export type StudioBriefingPickBoxV1Props = Readonly<{
   kind: "graph" | "control" | "signal" | "metric";
   pickKey: string;
   /**
-   * `corner` floats the box in a pane's top-left; everything else places it in
-   * the element's own flow. Either way the box is the only pointer target the
+   * `corner` floats the box in a pane's top-right, which is the one corner no
+   * pane chrome claims — the PV-relation quality notice sits top-left and the
+   * evidence caption bottom-left. Everything else places the box in the
+   * element's own flow. Either way the box is the only pointer target the
    * layer adds, so sliders, legends and pane menus keep working while compose
    * is open.
    */
@@ -95,7 +97,7 @@ export function StudioBriefingPickBoxV1({
       data-briefing-picked={String(picked)}
       className={`${
         placement === "corner"
-          ? "absolute left-1.5 top-1.5 z-20"
+          ? "absolute right-1.5 top-1.5 z-30"
           : "relative shrink-0"
       } inline-flex items-center justify-center rounded-[4px] p-[3px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--wb-pick)]`}
     >

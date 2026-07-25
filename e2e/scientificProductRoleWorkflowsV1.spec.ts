@@ -33,6 +33,60 @@ test.describe.serial("Product workflows by role", () => {
       await expect(surface).toBeVisible();
       await expect(surface).toHaveAttribute("data-studio-capability", "compose");
       const article = page.getByTestId("studio-document-reader-v1");
+
+      // An experiment ships empty. It holds what its author picked on the
+      // Workbench and nothing else, so the cell says where content comes from
+      // instead of presenting a composition nobody made.
+      await expect(
+        page.getByTestId("studio-reader-empty-brief-v1"),
+      ).toBeVisible({ timeout: 120_000 });
+      await expect(
+        page.getByTestId("studio-reader-open-focus-v1"),
+      ).toHaveCount(0);
+
+      // Compose is the artifact and the Workbench is the palette: graphs and
+      // controls are picked on the thing itself, then the author comes back
+      // to write around them.
+      await page.getByTestId("studio-author-open-workbench-v1").click();
+      await expect(page).toHaveURL(/\/ja\/workbench$/);
+      await readyStudioWorkbenchV1(page);
+      await page.getByTestId("scientific-workbench-open-briefing-v1").click();
+      const authorComposer = page.getByTestId(
+        "scientific-workbench-briefing-compose-v1",
+      );
+      await expect(authorComposer).toBeVisible();
+      const authorGraphPicks = page.locator(
+        '[data-briefing-pick-kind="graph"]',
+      );
+      await expect(authorGraphPicks).toHaveCount(5);
+      // The first pick becomes the article's primary graph, so the pressure
+      // waveform is chosen before the rest.
+      await page.locator(
+        '[data-briefing-pick-kind="graph"]'
+        + '[data-briefing-pick-key="product-left-pressure-v1"]',
+      ).click();
+      const authorPickCount = await authorGraphPicks.count();
+      for (let index = 0; index < authorPickCount; index += 1) {
+        const pickBox = authorGraphPicks.nth(index);
+        if (await pickBox.getAttribute("data-briefing-picked") === "false") {
+          await pickBox.click();
+        }
+      }
+      const authorControlPick = page.locator(
+        '[data-briefing-pick-kind="control"]'
+        + '[data-briefing-pick-key="circulation.systemic-vascular-resistance-scale"]',
+      );
+      await authorControlPick.click();
+      await expect(authorControlPick).toHaveAttribute(
+        "data-briefing-picked",
+        "true",
+      );
+      await authorComposer.getByRole("button", {
+        name: "記事を編集",
+        exact: true,
+      }).click();
+      await expect(page).toHaveURL(/\/ja\/studio\/author$/);
+      await expect(surface).toBeVisible();
       const authoredTitle =
         "E2E: 全身血管抵抗を上げたときの圧波形";
       const authoredIntroduction =
@@ -126,7 +180,7 @@ test.describe.serial("Product workflows by role", () => {
       );
       await expect(readerWaveformPane).toHaveAttribute(
         "data-studio-reader-legend-position",
-        "0.68,0.06",
+        "default",
       );
       const readerWaveform = readerWaveformPane.getByTestId(
         "scientific-workbench-waveform-canvas-v1",
@@ -138,7 +192,7 @@ test.describe.serial("Product workflows by role", () => {
       await expect(focusView).toBeVisible();
       await expect(
         focusView.locator("[data-studio-reader-pane-kind]"),
-      ).toHaveCount(3);
+      ).toHaveCount(5);
       const readerPv = focusView.getByTestId(
         "scientific-workbench-pv-canvas-v1",
       );
@@ -184,7 +238,7 @@ test.describe.serial("Product workflows by role", () => {
       ).toBeGreaterThan(1);
 
       const systemicResistance = experiment.getByRole("slider", {
-        name: "全身血管抵抗倍率",
+        name: "Systemic resistance scale",
         exact: true,
       });
       const systemicControl = systemicResistance.locator("..");
@@ -229,7 +283,7 @@ test.describe.serial("Product workflows by role", () => {
       );
       await expect(resetExperiment).toBeVisible({ timeout: 120_000 });
       const resetSystemic = resetExperiment.getByRole("slider", {
-        name: "全身血管抵抗倍率",
+        name: "Systemic resistance scale",
         exact: true,
       });
       await expect(resetSystemic.locator("..").locator("output"))
@@ -666,23 +720,20 @@ test.describe.serial("Product workflows by role", () => {
         "data-briefing-preview-graph-count",
         "4",
       );
-      // A pane pinned from this session matches its live source; the seeded
-      // sample pane has no live source at all and says so instead of failing.
+      // A pane pinned from this session matches its live source.
       await expect(composer.locator(
         'section[data-briefing-pane-drift="current"]',
       ).first()).toBeVisible();
-      await expect(composer.locator(
-        'section[data-briefing-pane-id="afterload-pressure-waveform"]',
-      )).toHaveAttribute("data-briefing-pane-drift", "uncapturable");
       await composer.getByTestId("scientific-briefing-extent-inflow-v1")
         .click();
       await expect(preview).toHaveAttribute(
         "data-briefing-preview-graph-count",
         "1",
       );
-      // Pinning appends to the seeded brief rather than replacing it.
+      // The brief holds exactly what was picked and nothing else: it ships
+      // empty, so every pane in it is an author's decision.
       await expect(composer).toContainText(
-        "graph 8枚をReader Briefに保存中",
+        "graph 5枚をReader Briefに保存中",
       );
       // Promote the pane configured in this test so the article's primary
       // graph is deterministic, then hand off to the document.
@@ -750,10 +801,10 @@ test.describe.serial("Product workflows by role", () => {
       await expect(focusView).toBeVisible();
       await expect(
         focusView.locator("[data-studio-reader-pane-kind]"),
-      ).toHaveCount(8);
+      ).toHaveCount(5);
       await expect(
         focusView.locator('[data-studio-reader-pane-kind="pv-loop"]'),
-      ).toHaveCount(2);
+      ).toHaveCount(1);
       await focusView.getByRole("button", { name: "閉じる" }).first().click();
       await expect(focusView).toHaveCount(0);
 

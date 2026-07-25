@@ -13,6 +13,7 @@ import {
   StudioAuthorPreviewValidationErrorV1,
 } from "@/studio/application/content";
 import {
+  STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
   STUDIO_RESOLVED_READER_EXPERIMENT_V1_SCHEMA_ID,
   type StudioAuthorDraftV1,
   type StudioDocumentBlockV1,
@@ -57,7 +58,7 @@ describe("StudioAuthorPreviewApplicationV1", () => {
   it("atomically replaces canonical document content in one revision", () => {
     let previewOrdinal = 0;
     const application = new StudioAuthorPreviewApplicationV1({
-      initialDraft: SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
+      initialDraft: populatedDraftV1(),
       idFactory: () => `document-editor-preview-${++previewOrdinal}`,
     });
     const originalPreview = application.materializePreview({
@@ -181,7 +182,7 @@ describe("StudioAuthorPreviewApplicationV1", () => {
   it("atomically replaces detached Reader brief graph panes without revising the document", () => {
     let previewOrdinal = 0;
     const application = new StudioAuthorPreviewApplicationV1({
-      initialDraft: SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
+      initialDraft: populatedDraftV1(),
       idFactory: () => `brief-graph-preview-${++previewOrdinal}`,
     });
     const before = application.getDraftSnapshot();
@@ -383,10 +384,10 @@ describe("StudioAuthorPreviewApplicationV1", () => {
 
   it("uses an unguessable UUID capability for default preview ids", () => {
     const firstSession = new StudioAuthorPreviewApplicationV1({
-      initialDraft: SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
+      initialDraft: populatedDraftV1(),
     });
     const secondSession = new StudioAuthorPreviewApplicationV1({
-      initialDraft: SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
+      initialDraft: populatedDraftV1(),
     });
 
     const first = firstSession.materializePreview({ expectedRevision: 0 });
@@ -561,9 +562,181 @@ describe("StudioAuthorPreviewApplicationV1", () => {
   });
 });
 
+/**
+ * A populated Reader brief.
+ *
+ * The shipped sample brief is deliberately empty — an author builds one by
+ * picking on the Workbench — so the cases below carry their own selection
+ * rather than asserting against whatever the product happens to seed.
+ */
+const POPULATED_READER_BRIEF_SELECTION_V1 = {
+    graphPanes: [
+      {
+        schemaId: STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
+        paneId: "afterload-pressure-waveform",
+        title: "左室圧と大動脈圧",
+        kind: "waveform",
+        scenarios: [
+          {
+            scenarioId:
+              SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+            label: "健康成人のexact periodic基準",
+            color: "#38bdf8",
+            items: [
+              {
+                itemId: "hemodynamics.pressure.absolute.LV",
+                label: "左室圧",
+                unit: "mmHg",
+                color: "#38bdf8",
+              },
+              {
+                itemId: "hemodynamics.pressure.absolute.Ao",
+                label: "大動脈圧",
+                unit: "mmHg",
+                color: "#f97316",
+              },
+            ],
+          },
+        ],
+        presentation: {
+          showLegend: true,
+          legendPosition: { xPct: 0.68, yPct: 0.06 },
+          showGuides: false,
+          timeWindowMs: 5_000,
+          pvBeatHistoryCount: null,
+          pvBeatHistoryMode: null,
+          pvParameterHistoryCount: null,
+          pvRelationDisplayMode: null,
+          pvRelationPressureBasis: null,
+          pvRelationShowSamplePoints: null,
+          hemodynamicDetailMode: null,
+          hemodynamicParameterHistoryCount: null,
+          hemodynamicAllowNegativeFillingPressure: null,
+        },
+      },
+      {
+        schemaId: STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
+        paneId: "afterload-lv-pv-loop",
+        title: "左室 pressure–volume loop",
+        kind: "pv-loop",
+        scenarios: [
+          {
+            scenarioId:
+              SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+            label: "健康成人のexact periodic基準",
+            color: "#38bdf8",
+            items: [
+              {
+                itemId: "lv",
+                label: "LV pressure–volume loop",
+                unit: null,
+                color: "#a78bfa",
+              },
+            ],
+          },
+        ],
+        presentation: {
+          showLegend: true,
+          legendPosition: { xPct: 0.63, yPct: 0.06 },
+          showGuides: true,
+          timeWindowMs: null,
+          pvBeatHistoryCount: 8,
+          pvBeatHistoryMode: "fade",
+          pvParameterHistoryCount: 6,
+          pvRelationDisplayMode: "off",
+          pvRelationPressureBasis: "intracavitary",
+          pvRelationShowSamplePoints: false,
+          hemodynamicDetailMode: null,
+          hemodynamicParameterHistoryCount: null,
+          hemodynamicAllowNegativeFillingPressure: null,
+        },
+      },
+      {
+        schemaId: STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
+        paneId: "afterload-guyton-left",
+        title: "左心 Guyton / Starling",
+        kind: "guyton-left",
+        scenarios: [
+          {
+            scenarioId:
+              SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+            label: "健康成人のexact periodic基準",
+            color: "#38bdf8",
+            items: [],
+          },
+        ],
+        presentation: {
+          showLegend: true,
+          legendPosition: { xPct: 0.65, yPct: 0.06 },
+          showGuides: false,
+          timeWindowMs: null,
+          pvBeatHistoryCount: null,
+          pvBeatHistoryMode: null,
+          pvParameterHistoryCount: null,
+          pvRelationDisplayMode: null,
+          pvRelationPressureBasis: null,
+          pvRelationShowSamplePoints: null,
+          hemodynamicDetailMode: "compare",
+          hemodynamicParameterHistoryCount: 5,
+          hemodynamicAllowNegativeFillingPressure: false,
+        },
+      },
+    ],
+    instantaneousReadbacks: [
+      {
+        readbackId: "instantaneous-left-ventricular-pressure",
+        signalId: "hemodynamics.pressure.absolute.LV",
+        label: "左室圧（瞬時値）",
+        unit: "mmHg",
+        sampling: "instantaneous",
+      },
+      {
+        readbackId: "instantaneous-aortic-pressure",
+        signalId: "hemodynamics.pressure.absolute.Ao",
+        label: "大動脈圧（瞬時値）",
+        unit: "mmHg",
+        sampling: "instantaneous",
+      },
+    ],
+    controls: [
+      {
+        controlId: "systemic-resistance-scale",
+        label: "全身血管抵抗倍率",
+        unit: "× release baseline",
+        allowedValues: [0.75, 1, 1.5, 2],
+        initialValue: 1,
+        binding: {
+          parameterKey:
+            "circulation.systemic-vascular-resistance-scale",
+          readbackSignalId: null,
+          target: {
+            scenarioIds: [
+              SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+            ],
+            application: "absolute",
+          },
+        },
+      },
+    ],
+} as const;
+
+function populatedDraftV1(): StudioAuthorDraftV1 {
+  const draft = structuredClone(
+    SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
+  ) as unknown as {
+    experiments: Array<{ readerBriefs: Array<Record<string, unknown>> }>;
+  };
+  const brief = draft.experiments[0]!.readerBriefs[0]!;
+  Object.assign(
+    brief,
+    structuredClone(POPULATED_READER_BRIEF_SELECTION_V1),
+  );
+  return draft as unknown as StudioAuthorDraftV1;
+}
+
 function createApplicationV1(): StudioAuthorPreviewApplicationV1 {
   return new StudioAuthorPreviewApplicationV1({
-    initialDraft: SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
+    initialDraft: populatedDraftV1(),
     idFactory: () => "session-preview",
   });
 }
@@ -606,9 +779,7 @@ type MutableDraftV1 = {
 };
 
 function mutableDraftV1(): MutableDraftV1 {
-  return structuredClone(
-    SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
-  ) as unknown as MutableDraftV1;
+  return populatedDraftV1() as unknown as MutableDraftV1;
 }
 
 function controlV1(draft: MutableDraftV1) {

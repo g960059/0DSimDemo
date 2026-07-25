@@ -95,16 +95,16 @@ export default function StudioDocumentRouteV1() {
     title: string,
     blocks: readonly StudioDocumentBlockV1[],
     expectedRevision: number,
-  ): boolean => {
+  ): number | null => {
     try {
-      replaceDocumentContentLatest(title, blocks, expectedRevision);
+      const next = replaceDocumentContentLatest(title, blocks, expectedRevision);
       setErrorMessage(null);
-      return true;
+      return next.document.revision;
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : String(error),
       );
-      return false;
+      return null;
     }
   }, [replaceDocumentContentLatest]);
 
@@ -112,6 +112,19 @@ export default function StudioDocumentRouteV1() {
     if (capability !== "compose") return undefined;
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") {
+        return;
+      }
+      // Inside a text field ⌘Z means "undo what I just typed", which only the
+      // browser can do: the editor buffer has not been committed yet, so
+      // stepping document history here would restore an older revision behind
+      // a dirty buffer and conflict on every later commit.
+      const target = event.target;
+      if (
+        target instanceof HTMLElement
+        && (target.isContentEditable
+          || target instanceof HTMLInputElement
+          || target instanceof HTMLTextAreaElement)
+      ) {
         return;
       }
       event.preventDefault();

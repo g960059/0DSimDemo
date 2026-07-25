@@ -148,7 +148,6 @@
         "missingScenario": "The active Workbench scenario cannot be mapped to the article.",
         "unknownPane": "Unknown Workbench pane {{panelId}}",
         "missingSource": "The source Workbench pane is no longer available.",
-        "lastGraph": "A brief needs at least one graph. Add another before removing this one.",
         "backsReadbacks": "This waveform backs {{count}} reader readback(s) or control(s). Add a replacement waveform first.",
         "signalNeedsGraph": "Add this waveform graph first to show “{{label}}” as a metric."
       },
@@ -198,7 +197,8 @@
       "launchHint": "Opens to interact. It does not play inside the article.",
       "openFocus": "Open in detail",
       "closeFocus": "Close",
-      "activate": "Play"
+      "activate": "Play",
+      "emptyBrief": "Pick a graph, a value or a control on the Workbench and it appears here, as a reader sees it."
     },
     "surface": {
       "capability": "Mode",

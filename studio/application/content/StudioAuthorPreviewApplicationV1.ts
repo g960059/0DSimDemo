@@ -945,12 +945,17 @@ function validateReaderBriefV1(
       "must be inflow, peek, or fullscreen",
     );
   }
-  if (!Array.isArray(brief.graphPanes) || brief.graphPanes.length === 0) {
+  if (!Array.isArray(brief.graphPanes)) {
     throw validationErrorV1(
       `${path}.graphPanes`,
-      "must contain at least one explicit graph pane",
+      "must be an array",
     );
   }
+  // A draft brief starts empty and is built by picking on the Workbench, so
+  // no graphs is a legal drafting state — the same drafting-versus-publication
+  // split that lets a block hold the text an author is still typing. Carrying
+  // at least one graph is a gate on publishing a brief, not a rule that may
+  // stop an author from clearing what they picked.
   const signalIds = validateGraphPanesV1(
     brief.graphPanes,
     `${path}.graphPanes`,
@@ -1664,12 +1669,14 @@ function draftTextV1(
   value: unknown,
   path: string,
 ): string {
-  // A draft must be able to hold the block an author is about to type into.
-  // Requiring prose here would make "press Enter, then write" impossible and
-  // would silently reject every later commit. Non-empty text is a publication
+  // A draft must be able to hold the block an author is about to type into,
+  // exactly as typed. Requiring prose would make "press Enter, then write"
+  // impossible, and requiring a trimmed string would reject the trailing
+  // space that exists between any two words: the commit made on blur would be
+  // discarded and the edit lost. Non-empty trimmed text is a publication
   // gate, not a drafting one.
-  if (typeof value !== "string" || value.trim() !== value) {
-    throw validationErrorV1(path, "must be a trimmed string");
+  if (typeof value !== "string") {
+    throw validationErrorV1(path, "must be a string");
   }
   return value;
 }

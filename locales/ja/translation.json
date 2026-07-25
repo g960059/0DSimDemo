@@ -148,7 +148,6 @@
         "missingScenario": "選択中のWorkbench scenarioを記事へ対応付けできません。",
         "unknownPane": "Workbench pane {{panelId}} が見つかりません。",
         "missingSource": "元のWorkbench paneが見つかりません。",
-        "lastGraph": "graphは1枚以上必要です。別のgraphを追加してから外してください。",
         "backsReadbacks": "この波形は、読者に見せる瞬時値または操作{{count}}件の参照元です。先に代わりの波形を追加してください。",
         "signalNeedsGraph": "「{{label}}」を指標にするには、この波形graphを先に追加してください。"
       },
@@ -198,7 +197,8 @@
       "launchHint": "開いて操作します。記事内では再生しません。",
       "openFocus": "詳しく開く",
       "closeFocus": "閉じる",
-      "activate": "再生する"
+      "activate": "再生する",
+      "emptyBrief": "Workbenchでgraph・数値・操作を選ぶと、ここに読者が見る形で並びます。"
     },
     "surface": {
       "capability": "表示モード",
