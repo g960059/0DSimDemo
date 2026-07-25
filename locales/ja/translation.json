@@ -150,7 +150,10 @@
         "missingSource": "元のWorkbench paneが見つかりません。",
         "lastGraph": "graphは1枚以上必要です。別のgraphを追加してから外してください。",
         "backsReadbacks": "この波形は、読者に見せる瞬時値または操作{{count}}件の参照元です。先に代わりの波形を追加してください。"
-      }
+      },
+      "metricsLabel": "追加できる指標",
+      "controlsLabel": "追加できる操作",
+      "metricsEmpty": "指標はwaveformのgraphから選べます。先に波形graphを追加してください。"
     },
     "reader": {
       "opening": "Reader Previewを準備中",

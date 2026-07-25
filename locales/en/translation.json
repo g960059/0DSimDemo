@@ -150,7 +150,10 @@
         "missingSource": "The source Workbench pane is no longer available.",
         "lastGraph": "A brief needs at least one graph. Add another before removing this one.",
         "backsReadbacks": "This waveform backs {{count}} reader readback(s) or control(s). Add a replacement waveform first."
-      }
+      },
+      "metricsLabel": "Metrics you can add",
+      "controlsLabel": "Controls you can add",
+      "metricsEmpty": "Metrics come from a waveform graph. Add one first."
     },
     "reader": {
       "opening": "Preparing Reader Preview",

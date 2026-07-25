@@ -12,6 +12,8 @@ import {
   type ReaderBriefV1,
   type ReaderPreviewManifestV1,
   type ResolvedReaderExperimentV1,
+  type ReaderControlSpecV1,
+  type ReaderInstantaneousReadbackSpecV1,
   type ResolvedReaderDocumentV1,
   type StudioExperimentPlacementBlockV1,
   type ResolvedReaderExperimentPlacementV1,
@@ -67,6 +69,14 @@ export type ReplaceStudioAuthorReaderBriefGraphPanesCommandV1 = Readonly<{
   experimentId: string;
   briefId: string;
   graphPanes: readonly StudioGraphPaneSpecV1[];
+}>;
+
+export type ReplaceStudioAuthorReaderBriefSelectionCommandV1 = Readonly<{
+  expectedRevision: number;
+  experimentId: string;
+  briefId: string;
+  instantaneousReadbacks: readonly ReaderInstantaneousReadbackSpecV1[];
+  controls: readonly ReaderControlSpecV1[];
 }>;
 
 export type MaterializeStudioReaderPreviewCommandV1 = Readonly<{
@@ -294,6 +304,93 @@ export class StudioAuthorPreviewApplicationV1 {
     return this.draft;
   }
 
+  /**
+   * Replaces the readbacks and controls a Reader brief exposes.
+   *
+   * These are selections over the same brief aggregate as its graph panes, so
+   * this advances the draft and Experiment revisions together and leaves the
+   * Document revision alone. Referential closure (every readback signal backed
+   * by a pinned waveform item) is enforced by draft validation.
+   */
+  replaceReaderBriefSelection(
+    command: ReplaceStudioAuthorReaderBriefSelectionCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    requiredPortableIdV1(command.experimentId, "$.command.experimentId");
+    requiredPortableIdV1(command.briefId, "$.command.briefId");
+    const experimentIndex = this.draft.experiments.findIndex(
+      ({ experimentId }) => experimentId === command.experimentId,
+    );
+    if (experimentIndex < 0) {
+      throw validationErrorV1(
+        "$.command.experimentId",
+        `unknown experiment ${command.experimentId}`,
+      );
+    }
+    const currentExperiment = this.draft.experiments[experimentIndex]!;
+    const briefIndex = currentExperiment.readerBriefs.findIndex(
+      ({ briefId }) => briefId === command.briefId,
+    );
+    if (briefIndex < 0) {
+      throw validationErrorV1(
+        "$.command.briefId",
+        `unknown Reader brief ${command.briefId}`,
+      );
+    }
+
+    const candidateAtCurrentRevision = validateStudioAuthorDraftV1({
+      ...this.draft,
+      experiments: this.draft.experiments.map((experiment, index) =>
+        index !== experimentIndex
+          ? experiment
+          : {
+              ...experiment,
+              readerBriefs: experiment.readerBriefs.map((brief, index) =>
+                index !== briefIndex
+                  ? brief
+                  : {
+                      ...brief,
+                      instantaneousReadbacks: command.instantaneousReadbacks,
+                      controls: command.controls,
+                    }),
+            }),
+    });
+    const candidateBrief =
+      candidateAtCurrentRevision.experiments[experimentIndex]!
+        .readerBriefs[briefIndex]!;
+    const currentBrief = currentExperiment.readerBriefs[briefIndex]!;
+    if (
+      sameSerializableSelectionV1(
+        candidateBrief.instantaneousReadbacks,
+        currentBrief.instantaneousReadbacks,
+      )
+      && sameSerializableSelectionV1(
+        candidateBrief.controls,
+        currentBrief.controls,
+      )
+    ) {
+      return this.draft;
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...candidateAtCurrentRevision,
+      revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
+      experiments: candidateAtCurrentRevision.experiments.map(
+        (experiment, index) =>
+          index !== experimentIndex
+            ? experiment
+            : {
+                ...experiment,
+                revision: nextRevisionV1(
+                  currentExperiment.revision,
+                  `$.draft.experiments[${experimentIndex}].revision`,
+                ),
+              },
+      ),
+    });
+    return this.draft;
+  }
+
   materializePreview(
     command: MaterializeStudioReaderPreviewCommandV1,
   ): ReaderPreviewManifestV1 {
@@ -462,6 +559,13 @@ function sameRuntimeSourceV1(
   return left.kind === right.kind
     && left.sourceId === right.sourceId
     && left.qualification === right.qualification;
+}
+
+function sameSerializableSelectionV1(
+  left: unknown,
+  right: unknown,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 function sameDocumentBlocksV1(

@@ -16,6 +16,8 @@ import { useTranslation } from "react-i18next";
 import type { PanelDef } from "@/types";
 import type {
   ReaderBriefExtentV1,
+  ReaderControlSpecV1,
+  ReaderInstantaneousReadbackSpecV1,
   StudioGraphPaneSpecV1,
 } from "@/studio/contracts/v1";
 import {
@@ -51,6 +53,13 @@ export type ScientificWorkbenchBriefingComposerV1Props = Readonly<{
   registry: ScientificProductRuntimeRegistryPortV1;
   /** Article scenario id → live Workbench scenario id, for the preview. */
   previewScenarioIdMap: ReadonlyMap<string, string>;
+  readbacks: readonly ReaderInstantaneousReadbackSpecV1[];
+  controls: readonly ReaderControlSpecV1[];
+  /** Readbacks that the currently pinned waveforms can back. */
+  availableReadbacks: readonly ReaderInstantaneousReadbackSpecV1[];
+  availableControls: readonly ReaderControlSpecV1[];
+  onToggleReadback(signalId: string): void;
+  onToggleControl(parameterKey: string): void;
   extent: ReaderBriefExtentV1;
   onClose(): void;
   onPin(panelId: string): void;
@@ -76,6 +85,12 @@ export function ScientificWorkbenchBriefingComposerV1({
   unpinBlockedByPaneId,
   registry,
   previewScenarioIdMap,
+  readbacks,
+  controls,
+  availableReadbacks,
+  availableControls,
+  onToggleReadback,
+  onToggleControl,
   extent,
   onClose,
   onPin,
@@ -256,6 +271,51 @@ export function ScientificWorkbenchBriefingComposerV1({
                       />
                     ))}
 
+                    {readbacks.length > 0 && (
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
+                        {readbacks.map((readback) => (
+                          <div key={readback.readbackId}>
+                            <p className="text-[11px] font-semibold text-wb-accent">
+                              {readback.label}
+                            </p>
+                            <p className="mt-1 font-mono text-lg text-wb-text">
+                              —
+                            </p>
+                            <p className="text-[10px] text-wb-subtle">
+                              {readback.unit}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {controls.map((control) => (
+                      <div key={control.controlId}>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="text-[11px] font-semibold text-wb-muted">
+                            {control.label}
+                          </span>
+                          <span className="font-mono text-xs text-wb-text">
+                            {control.initialValue}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={Math.max(1, control.allowedValues.length - 1)}
+                          step={1}
+                          value={Math.max(
+                            0,
+                            control.allowedValues.indexOf(control.initialValue),
+                          )}
+                          readOnly
+                          disabled
+                          aria-label={control.label}
+                          className="mt-1.5 h-1.5 w-full accent-wb-accent"
+                        />
+                      </div>
+                    ))}
+
                     {overflowPanes.length > 0 && (
                       <div
                         role="alert"
@@ -369,6 +429,50 @@ export function ScientificWorkbenchBriefingComposerV1({
                 );
               })}
             </div>
+
+            <p className="mb-2.5 mt-6 text-[11px] font-bold uppercase tracking-wider text-wb-subtle">
+              {t("studioAuthorPreview.briefing.metricsLabel")}
+            </p>
+            {availableReadbacks.length === 0
+              ? (
+                <p className="text-[11px] leading-5 text-wb-subtle">
+                  {t("studioAuthorPreview.briefing.metricsEmpty")}
+                </p>
+              )
+              : (
+                <div className="grid gap-1">
+                  {availableReadbacks.map((option) => (
+                    <SelectionRowV1
+                      key={option.signalId}
+                      testId="scientific-briefing-metric-option-v1"
+                      dataKey={option.signalId}
+                      label={option.label}
+                      hint={option.unit}
+                      selected={readbacks.some((readback) =>
+                        readback.signalId === option.signalId)}
+                      onToggle={() => onToggleReadback(option.signalId)}
+                    />
+                  ))}
+                </div>
+              )}
+
+            <p className="mb-2.5 mt-6 text-[11px] font-bold uppercase tracking-wider text-wb-subtle">
+              {t("studioAuthorPreview.briefing.controlsLabel")}
+            </p>
+            <div className="grid gap-1">
+              {availableControls.map((option) => (
+                <SelectionRowV1
+                  key={option.controlId}
+                  testId="scientific-briefing-control-option-v1"
+                  dataKey={option.binding.parameterKey}
+                  label={option.label}
+                  hint={`${option.allowedValues.length} steps`}
+                  selected={controls.some((control) =>
+                    control.binding.parameterKey === option.binding.parameterKey)}
+                  onToggle={() => onToggleControl(option.binding.parameterKey)}
+                />
+              ))}
+            </div>
           </section>
         </div>
 
@@ -389,6 +493,40 @@ export function ScientificWorkbenchBriefingComposerV1({
         </footer>
       </aside>
     </div>
+  );
+}
+
+function SelectionRowV1({
+  testId,
+  dataKey,
+  label,
+  hint,
+  selected,
+  onToggle,
+}: Readonly<{
+  testId: string;
+  dataKey: string;
+  label: string;
+  hint: string;
+  selected: boolean;
+  onToggle(): void;
+}>) {
+  return (
+    <label
+      data-testid={testId}
+      data-briefing-option-key={dataKey}
+      data-briefing-selected={String(selected)}
+      className="flex cursor-pointer items-center gap-2.5 rounded px-2 py-1.5 text-xs transition-colors hover:bg-wb-hover"
+    >
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={onToggle}
+        className="h-3.5 w-3.5 accent-wb-accent"
+      />
+      <span className="min-w-0 flex-1 truncate text-wb-text">{label}</span>
+      <span className="shrink-0 text-[10px] text-wb-subtle">{hint}</span>
+    </label>
   );
 }
 

@@ -8,6 +8,7 @@ import {
   StudioAuthorPreviewRevisionConflictErrorV1,
   type ReplaceStudioAuthorDocumentContentCommandV1,
   type ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
+  type ReplaceStudioAuthorReaderBriefSelectionCommandV1,
 } from "@/studio/application/content";
 import type {
   ReaderPreviewManifestV1,
@@ -90,6 +91,9 @@ export type StudioAuthorPreviewContextValueV1 = Readonly<{
   ): StudioAuthorDraftV1;
   replaceReaderBriefGraphPanes(
     command: ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
+  ): StudioAuthorDraftV1;
+  replaceReaderBriefSelection(
+    command: ReplaceStudioAuthorReaderBriefSelectionCommandV1,
   ): StudioAuthorDraftV1;
   materializePreview(): ReaderPreviewManifestV1;
   resolvePreview(previewId: string): ReaderPreviewManifestV1 | null;
@@ -196,6 +200,14 @@ export function StudioAuthorPreviewProviderV1({
     command: ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
   ) => {
     const next = application.replaceReaderBriefGraphPanes(command);
+    setDraft(next);
+    return next;
+  }, [application]);
+
+  const replaceReaderBriefSelection = React.useCallback((
+    command: ReplaceStudioAuthorReaderBriefSelectionCommandV1,
+  ) => {
+    const next = application.replaceReaderBriefSelection(command);
     setDraft(next);
     return next;
   }, [application]);
@@ -410,6 +422,7 @@ export function StudioAuthorPreviewProviderV1({
       replaceDocumentContent,
       replaceDocumentContentLatest,
       replaceReaderBriefGraphPanes,
+      replaceReaderBriefSelection,
       materializePreview,
       resolvePreview,
       acquireReaderPreview,
@@ -422,6 +435,7 @@ export function StudioAuthorPreviewProviderV1({
     replaceDocumentContent,
     replaceDocumentContentLatest,
     replaceReaderBriefGraphPanes,
+    replaceReaderBriefSelection,
     resolvePreview,
     resolvedDocument,
     updateTextBlock,

@@ -10,8 +10,16 @@ import type { PanelDef } from "@/types";
 import type {
   ExperimentRevisionV1,
   ReaderBriefV1,
+  ReaderControlSpecV1,
+  ReaderInstantaneousReadbackSpecV1,
   StudioGraphPaneSpecV1,
 } from "@/studio/contracts/v1";
+import {
+  MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
+} from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
+import {
+  SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1,
+} from "./ScientificWorkbenchRuntimeRendererV1";
 import {
   useStudioAuthorPreviewV1,
 } from "@/components/studio/StudioAuthorPreviewProviderV1";
@@ -67,6 +75,7 @@ export function ScientificWorkbenchBriefingControlV1({
   const {
     draft,
     replaceReaderBriefGraphPanes,
+    replaceReaderBriefSelection,
   } = useStudioAuthorPreviewV1();
   const [open, setOpen] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -185,6 +194,105 @@ export function ScientificWorkbenchBriefingControlV1({
     }
     return blocked;
   }, [target, t]);
+
+  /**
+   * A readback can only exist where a pinned waveform carries its signal, so
+   * the choices are derived from the pins rather than from a separate catalog.
+   */
+  const availableReadbacks = React.useMemo(() => {
+    const options = new Map<string, ReaderInstantaneousReadbackSpecV1>();
+    for (const pane of pinnedPanes) {
+      if (pane.kind !== "waveform") continue;
+      for (const scenario of pane.scenarios) {
+        for (const item of scenario.items) {
+          if (options.has(item.itemId)) continue;
+          options.set(item.itemId, Object.freeze({
+            readbackId: `readback-${item.itemId}`,
+            signalId: item.itemId,
+            label: item.label,
+            unit: item.unit ?? "",
+            sampling: "instantaneous",
+          }));
+        }
+      }
+    }
+    return [...options.values()];
+  }, [pinnedPanes]);
+
+  const availableControls = React.useMemo(
+    () => SCIENTIFIC_WORKBENCH_CONTROLLER_ITEMS_V1.flatMap((item) => {
+      const domain = MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[
+        item.paramKey as keyof
+          typeof MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0
+      ];
+      if (domain === undefined) return [];
+      return [Object.freeze({
+        controlId: `control-${item.paramKey}`,
+        label: item.label,
+        unit: domain.unit,
+        allowedValues: [...domain.allowedValues],
+        initialValue: domain.baseline,
+        binding: Object.freeze({
+          parameterKey: item.paramKey,
+          readbackSignalId: null,
+          target: Object.freeze({
+            scenarioIds: [targetRef.scenarioId],
+            application: "absolute" as const,
+          }),
+        }),
+      }) as ReaderControlSpecV1];
+    }),
+    [targetRef.scenarioId],
+  );
+
+  const commitSelectionV1 = React.useCallback((
+    readbacks: readonly ReaderInstantaneousReadbackSpecV1[],
+    controls: readonly ReaderControlSpecV1[],
+  ) => {
+    if (target === null) {
+      setError(t("studioAuthorPreview.briefing.errors.missingTarget"));
+      return;
+    }
+    try {
+      replaceReaderBriefSelection({
+        expectedRevision: draft.revision,
+        experimentId: target.experiment.experimentId,
+        briefId: target.brief.briefId,
+        instantaneousReadbacks: readbacks,
+        controls,
+      });
+      setError(null);
+    } catch (commitError) {
+      setError(errorMessageV1(commitError));
+    }
+  }, [draft.revision, replaceReaderBriefSelection, target, t]);
+
+  const toggleReadback = React.useCallback((signalId: string) => {
+    if (target === null) return;
+    const current = target.brief.instantaneousReadbacks;
+    const next = current.some((readback) => readback.signalId === signalId)
+      ? current.filter((readback) => readback.signalId !== signalId)
+      : [
+        ...current,
+        ...availableReadbacks.filter((option) => option.signalId === signalId),
+      ];
+    commitSelectionV1(next, target.brief.controls);
+  }, [availableReadbacks, commitSelectionV1, target]);
+
+  const toggleControl = React.useCallback((parameterKey: string) => {
+    if (target === null) return;
+    const current = target.brief.controls;
+    const next = current.some((control) =>
+        control.binding.parameterKey === parameterKey)
+      ? current.filter((control) =>
+        control.binding.parameterKey !== parameterKey)
+      : [
+        ...current,
+        ...availableControls.filter((option) =>
+          option.binding.parameterKey === parameterKey),
+      ];
+    commitSelectionV1(target.brief.instantaneousReadbacks, next);
+  }, [availableControls, commitSelectionV1, target]);
 
   const commitPanesV1 = React.useCallback((
     next: readonly StudioGraphPaneSpecV1[],
@@ -313,6 +421,12 @@ export function ScientificWorkbenchBriefingControlV1({
             unpinBlockedByPaneId={unpinBlockedByPaneId}
             registry={registry}
             previewScenarioIdMap={previewScenarioIdMap}
+            readbacks={target?.brief.instantaneousReadbacks ?? []}
+            controls={target?.brief.controls ?? []}
+            availableReadbacks={availableReadbacks}
+            availableControls={availableControls}
+            onToggleReadback={toggleReadback}
+            onToggleControl={toggleControl}
             extent={target?.brief.extent ?? "inflow"}
             onClose={() => setOpenV1(false)}
             onPin={pinPane}
