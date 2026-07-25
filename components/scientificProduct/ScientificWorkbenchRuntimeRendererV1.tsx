@@ -2185,6 +2185,7 @@ function ScientificMetricsPanelV1({
   registry: ScientificProductRuntimeRegistryPortV1;
   selections: Readonly<Record<string, readonly string[]>>;
 }>) {
+  const pick = useStudioBriefingPickV1();
   const presentations = useScientificScenarioPresentationsV1(registry).filter(
     ({ descriptor }) => descriptor.isVisible && selections[descriptor.id],
   );
@@ -2263,7 +2264,7 @@ function ScientificMetricsPanelV1({
                 return (
                   <div
                     key={`${presentation.descriptor.id}:${metricId}`}
-                    className="min-w-0 py-0.5"
+                    className="group/pick relative min-w-0 py-0.5"
                     data-metric-id={metricId}
                     data-availability={metric.availability}
                     data-periodic-boundary-completion={String(
@@ -2309,6 +2310,20 @@ function ScientificMetricsPanelV1({
                           </span>
                         )}
                     </dd>
+                    {pick !== null && (
+                      <StudioBriefingPickOverlayV1
+                        kind="metric"
+                        compact
+                        pickKey={metricId}
+                        picked={pick.isBeatMetricPinned(metricId)}
+                        label={metricPresentation.label}
+                        onToggle={() => pick.toggleBeatMetric(
+                          metricId,
+                          metricPresentation.label,
+                          metricPresentation.unit,
+                        )}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -2320,7 +2335,7 @@ function ScientificMetricsPanelV1({
   );
 }
 
-function metricEvaluationForPresentationV1(
+export function metricEvaluationForPresentationV1(
   presentation: ScientificProductScenarioPresentationV1,
 ): MainWireScientificDerivedMetricEvaluationV1 {
   const cycle = presentation.metricCycle;

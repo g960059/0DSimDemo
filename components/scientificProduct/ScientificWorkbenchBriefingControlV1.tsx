@@ -288,6 +288,18 @@ export function ScientificWorkbenchBriefingControlV1({
     commitSelectionV1(next, target.brief.controls);
   }, [availableReadbacks, commitSelectionV1, target]);
 
+  const toggleReadbackSpecV1 = React.useCallback((
+    spec: ReaderInstantaneousReadbackSpecV1,
+  ) => {
+    if (target === null) return;
+    const current = target.brief.instantaneousReadbacks;
+    const next = current.some((readback) =>
+        readback.readbackId === spec.readbackId)
+      ? current.filter((readback) => readback.readbackId !== spec.readbackId)
+      : [...current, spec];
+    commitSelectionV1(next, target.brief.controls);
+  }, [commitSelectionV1, target]);
+
   const toggleControl = React.useCallback((parameterKey: string) => {
     if (target === null) return;
     const current = target.brief.controls;
@@ -406,6 +418,16 @@ export function ScientificWorkbenchBriefingControlV1({
   );
   const onPickApiChangeRef = React.useRef(onPickApiChange);
   onPickApiChangeRef.current = onPickApiChange;
+  const pinnedWaveformSignalIds = React.useMemo(
+    () => new Set(availableReadbacks.map(({ signalId }) => signalId)),
+    [availableReadbacks],
+  );
+  const pinnedReadbackIds = React.useMemo(
+    () => new Set((target?.brief.instantaneousReadbacks ?? []).map(
+      (readback) => readback.readbackId,
+    )),
+    [target],
+  );
   const pickApi = React.useMemo<StudioBriefingPickApiV1>(() => Object.freeze({
     isGraphPinned: (paneId: string) => pinnedPaneIdSet.has(paneId),
     toggleGraph: (panelId: string, paneId: string) => {
@@ -415,11 +437,47 @@ export function ScientificWorkbenchBriefingControlV1({
     isControlPinned: (parameterKey: string) =>
       pinnedControlKeys.has(parameterKey),
     toggleControl,
+    isSignalPinned: (signalId: string) =>
+      pinnedReadbackIds.has(`readback-${signalId}`),
+    toggleSignal: (signalId: string, label: string, unit: string) => {
+      // An instantaneous readback is only legal where a pinned waveform
+      // carries the signal. Say so before the command is rejected.
+      if (
+        !pinnedReadbackIds.has(`readback-${signalId}`)
+        && !pinnedWaveformSignalIds.has(signalId)
+      ) {
+        setError(t("studioAuthorPreview.briefing.errors.signalNeedsGraph", {
+          label,
+        }));
+        return;
+      }
+      toggleReadbackSpecV1(Object.freeze({
+        readbackId: `readback-${signalId}`,
+        signalId,
+        label,
+        unit,
+        sampling: "instantaneous",
+      }));
+    },
+    isBeatMetricPinned: (metricId: string) =>
+      pinnedReadbackIds.has(`beat-${metricId}`),
+    toggleBeatMetric: (metricId: string, label: string, unit: string) =>
+      toggleReadbackSpecV1(Object.freeze({
+        readbackId: `beat-${metricId}`,
+        signalId: metricId,
+        label,
+        unit,
+        sampling: "beat",
+      })),
   }), [
     pinPane,
     pinnedControlKeys,
     pinnedPaneIdSet,
+    pinnedReadbackIds,
+    pinnedWaveformSignalIds,
+    t,
     toggleControl,
+    toggleReadbackSpecV1,
     unpinPane,
   ]);
   React.useEffect(() => {

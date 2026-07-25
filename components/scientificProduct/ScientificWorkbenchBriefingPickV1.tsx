@@ -13,6 +13,12 @@ export type StudioBriefingPickApiV1 = Readonly<{
   toggleGraph(panelId: string, paneId: string): void;
   isControlPinned(parameterKey: string): boolean;
   toggleControl(parameterKey: string): void;
+  /** An instantaneous readback, named by the waveform signal it reads. */
+  isSignalPinned(signalId: string): boolean;
+  toggleSignal(signalId: string, label: string, unit: string): void;
+  /** A per-beat metric, named by its metric id. */
+  isBeatMetricPinned(metricId: string): boolean;
+  toggleBeatMetric(metricId: string, label: string, unit: string): void;
 }>;
 
 const StudioBriefingPickContextV1 =
@@ -39,8 +45,10 @@ export function useStudioBriefingPickV1(): StudioBriefingPickApiV1 | null {
 export type StudioBriefingPickOverlayV1Props = Readonly<{
   label: string;
   picked: boolean;
-  kind: "graph" | "control";
+  kind: "graph" | "control" | "signal" | "metric";
   pickKey: string;
+  /** Inline elements carry the badge alone; there is no room for a wash. */
+  compact?: boolean;
   onToggle(): void;
 }>;
 
@@ -55,6 +63,7 @@ export function StudioBriefingPickOverlayV1({
   picked,
   kind,
   pickKey,
+  compact = false,
   onToggle,
 }: StudioBriefingPickOverlayV1Props) {
   return (
@@ -72,14 +81,20 @@ export function StudioBriefingPickOverlayV1({
       data-briefing-pick-kind={kind}
       data-briefing-pick-key={pickKey}
       data-briefing-picked={String(picked)}
-      className={`absolute inset-0 z-20 flex items-start justify-end p-1.5 transition-colors ${
-        picked
-          ? "bg-white/[0.09] hover:bg-white/[0.13]"
-          : "bg-transparent hover:bg-white/[0.05]"
-      }`}
+      className={compact
+        ? `absolute inset-0 z-20 rounded transition-colors ${
+          picked
+            ? "bg-white/[0.14] hover:bg-white/[0.18]"
+            : "bg-transparent hover:bg-white/[0.07]"
+        }`
+        : `absolute inset-0 z-20 flex items-start justify-end p-1.5 transition-colors ${
+          picked
+            ? "bg-white/[0.09] hover:bg-white/[0.13]"
+            : "bg-transparent hover:bg-white/[0.05]"
+        }`}
     >
       {/* The element already names itself; the badge only carries state. */}
-      <span
+      {!compact && <span
         aria-hidden="true"
         className={`inline-flex h-5 w-5 items-center justify-center rounded-full transition-opacity ${
           picked
@@ -88,7 +103,7 @@ export function StudioBriefingPickOverlayV1({
         }`}
       >
         {picked ? <Check className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
-      </span>
+      </span>}
     </button>
   );
 }

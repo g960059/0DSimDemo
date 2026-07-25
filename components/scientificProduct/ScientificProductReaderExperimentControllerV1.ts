@@ -131,6 +131,8 @@ export type ScientificProductReaderExperimentSnapshotV1 = Readonly<{
   strictActivity: ScientificProductReaderStrictActivityV1;
   evidence: ScientificWorkbenchDisplayedEvidenceV0;
   selectedSignalSeries: ScientificProductReaderSelectedSignalSeriesV1;
+  /** Per-beat metrics the brief asks for; the cell resolves their values. */
+  beatReadbacks: readonly ReaderInstantaneousReadbackSpecV1[];
   instantaneousReadbacks:
     readonly ScientificProductReaderInstantaneousReadbackV1[];
   allowedControls: readonly ScientificProductReaderAllowedControlV1[];
@@ -336,9 +338,12 @@ export class ScientificProductReaderExperimentControllerV1 {
     });
     const lastFrame = frames.at(-1);
     const instantaneousReadbacks = Object.freeze(
-      this.readbackSpecs.map((spec) =>
-        projectReadbackV1(lastFrame, spec)
-      ),
+      this.readbackSpecs
+        .filter((spec) => spec.sampling !== "beat")
+        .map((spec) => projectReadbackV1(lastFrame, spec)),
+    );
+    const beatReadbacks = Object.freeze(
+      this.readbackSpecs.filter((spec) => spec.sampling === "beat"),
     );
     const allowedControls = Object.freeze(
       this.controls.map((control) => Object.freeze({
@@ -357,6 +362,7 @@ export class ScientificProductReaderExperimentControllerV1 {
     );
     return Object.freeze({
       phase,
+      beatReadbacks,
       message,
       errorMessage,
       timeScale: 1 as const,
@@ -468,7 +474,11 @@ function normalizeReadbacksV1(
 ): readonly ReaderInstantaneousReadbackSpecV1[] {
   const ids = new Set<string>();
   return Object.freeze(readbacks.map((readback) => {
-    assertSupportedSignalV1(readback.signalId);
+    // A per-beat metric names the metric catalog, not the observable stream;
+    // the cell resolves it against the scenario's metric evaluation.
+    if (readback.sampling !== "beat") {
+      assertSupportedSignalV1(readback.signalId);
+    }
     if (ids.has(readback.readbackId)) {
       throw new Error(
         `Reader Preview repeats readback ${readback.readbackId}`,

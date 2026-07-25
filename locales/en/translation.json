@@ -149,7 +149,8 @@
         "unknownPane": "Unknown Workbench pane {{panelId}}",
         "missingSource": "The source Workbench pane is no longer available.",
         "lastGraph": "A brief needs at least one graph. Add another before removing this one.",
-        "backsReadbacks": "This waveform backs {{count}} reader readback(s) or control(s). Add a replacement waveform first."
+        "backsReadbacks": "This waveform backs {{count}} reader readback(s) or control(s). Add a replacement waveform first.",
+        "signalNeedsGraph": "Add this waveform graph first to show “{{label}}” as a metric."
       },
       "metricsLabel": "Metrics you can add",
       "controlsLabel": "Controls you can add",

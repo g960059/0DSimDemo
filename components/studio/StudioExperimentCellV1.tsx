@@ -16,6 +16,9 @@ import {
   createScientificWorkbenchDisplayClockV1,
 } from "@/components/scientificProduct/ScientificWorkbenchDisplayClockV1";
 import {
+  metricEvaluationForPresentationV1,
+} from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
+import {
   panelFromStudioGraphPaneSpecV1,
 } from "@/components/studio/StudioGraphPaneProjectionV1";
 import type {
@@ -195,7 +198,11 @@ export function StudioExperimentCellV1({
           ))}
         </div>
 
-        <StudioExperimentReadbacksV1 snapshot={snapshot} />
+        <StudioExperimentReadbacksV1
+          snapshot={snapshot}
+          registry={registry}
+          scenarioId={scenarioId}
+        />
 
         <figcaption className="mt-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
           <span className="min-w-0 text-xs leading-6 text-wb-muted">
@@ -376,11 +383,48 @@ function StudioExperimentControlsV1({
 
 function StudioExperimentReadbacksV1({
   snapshot,
-}: Readonly<{ snapshot: ScientificProductReaderExperimentSnapshotV1 }>) {
-  if (snapshot.instantaneousReadbacks.length === 0) return null;
+  registry,
+  scenarioId,
+}: Readonly<{
+  snapshot: ScientificProductReaderExperimentSnapshotV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
+  scenarioId: string | undefined;
+}>) {
+  // Per-beat metrics are evaluated from the scenario's metric cycle rather
+  // than the observable stream, so they resolve here rather than in the
+  // controller's frame projection.
+  React.useSyncExternalStore(
+    registry.subscribeFrames,
+    registry.getFrameVersionSnapshot,
+    registry.getFrameVersionSnapshot,
+  );
+  const presentation = scenarioId === undefined
+    ? null
+    : registry.getPresentation(scenarioId);
+  const evaluation = presentation === null
+    ? null
+    : metricEvaluationForPresentationV1(presentation);
+  const beatValues = snapshot.beatReadbacks.map((readback) => ({
+    readbackId: readback.readbackId,
+    label: readback.label,
+    unit: readback.unit,
+    value: evaluation?.values[
+      readback.signalId as keyof typeof evaluation.values
+    ]?.value ?? null,
+  }));
+  const entries = [
+    ...snapshot.instantaneousReadbacks.map((readback) => ({
+      readbackId: readback.readbackId,
+      label: readback.label,
+      unit: readback.unit,
+      value: readback.value,
+    })),
+    ...beatValues,
+  ];
+  if (entries.length === 0) return null;
   return (
     <div className="mt-6 grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
-      {snapshot.instantaneousReadbacks.map((readback) => (
+      {entries.map((readback) => (
         <div key={readback.readbackId}>
           <p className="text-xs font-semibold text-wb-accent">
             {readback.label}
@@ -476,7 +520,11 @@ function StudioExperimentFocusV1({
               />
             ))}
           </div>
-          <StudioExperimentReadbacksV1 snapshot={snapshot} />
+          <StudioExperimentReadbacksV1
+            snapshot={snapshot}
+            registry={registry}
+            scenarioId={scenarioId}
+          />
         </div>
       </aside>
     </div>

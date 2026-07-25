@@ -927,7 +927,10 @@ function validateReaderBriefV1(
       readback.signalId,
       `${readbackPath}.signalId`,
     );
-    if (!signalIds.has(signalId)) {
+    if (
+      readback.sampling !== "beat"
+      && !signalIds.has(signalId)
+    ) {
       throw validationErrorV1(
         `${readbackPath}.signalId`,
         `dangling explicit signal ${signalId}`,
@@ -935,10 +938,13 @@ function validateReaderBriefV1(
     }
     requiredTrimmedStringV1(readback.label, `${readbackPath}.label`);
     requiredTrimmedStringV1(readback.unit, `${readbackPath}.unit`);
-    if (readback.sampling !== "instantaneous") {
+    if (
+      readback.sampling !== "instantaneous"
+      && readback.sampling !== "beat"
+    ) {
       throw validationErrorV1(
         `${readbackPath}.sampling`,
-        "must be instantaneous",
+        "must be instantaneous or beat",
       );
     }
   });

@@ -4,6 +4,10 @@ import { useTranslation } from "react-i18next";
 
 import { useDocumentVisible } from "@/hooks/useOnscreen";
 import {
+  StudioBriefingPickOverlayV1,
+  useStudioBriefingPickV1,
+} from "./ScientificWorkbenchBriefingPickV1";
+import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1,
   type MainWireScientificObservableFrameV1,
   type MainWireScientificObservableIdV1,
@@ -71,6 +75,8 @@ export type ScientificWorkbenchLegendEntryV1 = Readonly<{
   color: string;
   modelName: string;
   signalName: string;
+  /** The observable this entry reads, when the entry names a single signal. */
+  signalId?: string;
   hidden?: boolean;
   progress?: Readonly<{
     status: "running" | "complete" | "stale";
@@ -356,6 +362,7 @@ export function ScientificWorkbenchWaveformCanvasV1({
     color: item.color,
     modelName: item.scenario.name,
     signalName: item.signalName,
+    signalId: item.observableId,
   })), [series]);
   const retainedParameterHistorySeriesCount = series.filter((item) =>
     waveformParameterGenerationValuesV1(item, timeWindowSec).length > 0)
@@ -1015,6 +1022,10 @@ export function ScientificWorkbenchChartLegendV1({
   interaction?: ScientificWorkbenchLegendInteractionV1;
   onMeasuredHeightChange?: (height: number) => void;
 }>) {
+  const pick = useStudioBriefingPickV1();
+  // Only an interactive Workbench legend is a palette. A Reader or compose
+  // preview renders the artifact, so it must not offer to pick from itself.
+  const picking = pick !== null && interaction?.interactive === true;
   if (entries.length === 0) return null;
   const showsMultipleModels = new Set(
     entries.map(({ modelName }) => modelName).filter(Boolean),
@@ -1034,9 +1045,23 @@ export function ScientificWorkbenchChartLegendV1({
       {entries.map((entry) => (
         <span
           key={entry.key}
-          className="inline-flex min-w-0 items-center gap-1"
+          className="group/pick relative inline-flex min-w-0 items-center gap-1"
           aria-label={`${entry.modelName}, ${entry.signalName}`}
         >
+          {picking && entry.signalId !== undefined && (
+            <StudioBriefingPickOverlayV1
+              kind="signal"
+              compact
+              pickKey={entry.signalId}
+              picked={pick?.isSignalPinned(entry.signalId) ?? false}
+              label={entry.signalName}
+              onToggle={() => pick?.toggleSignal(
+                entry.signalId!,
+                entry.signalName,
+                "",
+              )}
+            />
+          )}
           <span
             className="h-1.5 w-1.5 shrink-0 rounded-full"
             style={{ backgroundColor: entry.color, boxShadow: `0 0 3px ${entry.color}` }}
