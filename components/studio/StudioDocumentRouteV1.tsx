@@ -68,7 +68,7 @@ export default function StudioDocumentRouteV1() {
           .map((block) => {
             const experiment = draft.experiments.find(({ experimentId }) =>
               experimentId === block.experimentId);
-            return [
+            return JSON.stringify([
               block.experimentId,
               block.readerBriefId,
               (experiment?.scenarios ?? []).map((scenario) => [
@@ -77,8 +77,12 @@ export default function StudioDocumentRouteV1() {
                 scenario.runtimeSource.sourceId,
                 scenario.runtimeSource.qualification,
               ]),
-            ];
-          }),
+            ]);
+          })
+          // Which sources the article runs is a set, not a sequence: moving a
+          // placement changes where an experiment sits, not what it binds, and
+          // ordering the signature would tear down every session on a drag.
+          .sort(),
       ),
     [draft],
   );

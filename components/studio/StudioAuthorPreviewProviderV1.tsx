@@ -364,10 +364,36 @@ export function StudioAuthorPreviewProviderV1({
     }));
   }, [application]);
 
+  /**
+   * The last manifest and the runtime binding it was minted for.
+   *
+   * A surface asks for a preview whenever it mounts, and minting a fresh one
+   * each time would orphan every warm session the previous manifest owned —
+   * a Workbench round trip would cost a full bootstrap per placement even
+   * though nothing about what they run had changed.
+   */
+  const lastManifestRef = React.useRef<Readonly<{
+    signature: string;
+    manifest: ReaderPreviewManifestV1;
+  }> | null>(null);
+
   const materializePreview = React.useCallback(() => {
+    const signature = runtimeBindingSignatureV1(
+      application.getDraftSnapshot(),
+    );
+    const cached = lastManifestRef.current;
+    if (
+      cached !== null
+      && cached.signature === signature
+      && application.resolvePreview(cached.manifest.previewId) !== null
+    ) {
+      setLastPreviewId(cached.manifest.previewId);
+      return cached.manifest;
+    }
     const manifest = application.materializePreview({
       expectedRevision: application.getDraftSnapshot().revision,
     });
+    lastManifestRef.current = Object.freeze({ signature, manifest });
     setLastPreviewId(manifest.previewId);
     return manifest;
   }, [application]);
@@ -787,6 +813,36 @@ function failReaderPreviewEntryV1(
     manifest: entry.manifest,
     message,
   }));
+}
+
+/**
+ * What a preview manifest is bound to: the placements it carries and, for
+ * each, the brief and runtime source behind it. Two drafts with the same
+ * signature produce interchangeable manifests, so the previous one can be
+ * reused rather than orphaning the sessions opened against it.
+ */
+function runtimeBindingSignatureV1(draft: StudioAuthorDraftV1): string {
+  return JSON.stringify(
+    draft.document.blocks
+      .filter((block) => block.kind === "experiment-placement")
+      .map((block) => {
+        const experiment = draft.experiments.find(({ experimentId }) =>
+          experimentId === block.experimentId);
+        const brief = experiment?.readerBriefs.find(({ briefId }) =>
+          briefId === block.readerBriefId);
+        return JSON.stringify([
+          block.blockId,
+          block.experimentId,
+          block.readerBriefId,
+          block.inlineMode,
+          block.localCaption,
+          experiment?.modelRef ?? null,
+          experiment?.scenarios ?? null,
+          brief ?? null,
+        ]);
+      })
+      .sort(),
+  );
 }
 
 function errorMessageV1(error: unknown): string {

@@ -74,6 +74,7 @@ export function useStudioBlockDragV1(
 
   /** Abandons a drag in progress, so unmounting cannot leave one running. */
   const activeFinishRef = React.useRef<(() => void) | null>(null);
+  const carriedBlockIdRef = React.useRef<string | null>(null);
 
   const registerCallbacksRef = React.useRef(
     new Map<string, (element: HTMLElement | null) => void>(),
@@ -82,8 +83,15 @@ export function useStudioBlockDragV1(
     const cached = registerCallbacksRef.current.get(blockId);
     if (cached !== undefined) return cached;
     const callback = (element: HTMLElement | null) => {
-      if (element === null) elementsRef.current.delete(blockId);
-      else elementsRef.current.set(blockId, element);
+      if (element === null) {
+        elementsRef.current.delete(blockId);
+        // The carried block can leave under the pointer — undo removes it, or
+        // a commit rebuilds it. There is nothing left to carry, so the drag
+        // is abandoned rather than left running against an absent block.
+        if (carriedBlockIdRef.current === blockId) activeFinishRef.current?.();
+        return;
+      }
+      elementsRef.current.set(blockId, element);
     };
     registerCallbacksRef.current.set(blockId, callback);
     return callback;
@@ -207,6 +215,7 @@ export function useStudioBlockDragV1(
       }
       setState({ blockId: null, dropBoundary: null, active: false });
       activeFinishRef.current = null;
+      carriedBlockIdRef.current = null;
       if (!active) {
         // The pointer never travelled, so the handle was pressed, not dragged.
         onClickRef.current(blockId);
@@ -239,6 +248,7 @@ export function useStudioBlockDragV1(
     // while a pointer is still down. Without this the window listeners and the
     // autoscroll frame loop would keep running with nothing to move.
     activeFinishRef.current = () => finish(false, pointerY);
+    carriedBlockIdRef.current = blockId;
     void index;
   }, [dropTargetAtV1]);
 

@@ -12,7 +12,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { workbenchHref } from "@/homeLinks";
+import { composeExperimentHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 
 import type {
@@ -252,6 +252,35 @@ export function StudioDocumentSurfaceV1({
       current === blockId ? null : blockId),
   });
 
+  /**
+   * One stable ref per block, shared by the drag registry and the playback
+   * policy.
+   *
+   * A ref callback with a new identity on every render would be called with null and
+   * then the element again on every render, which both watchers read as the
+   * block leaving and coming back: the observer would restart, the focus
+   * measurements would be discarded, and a drag in progress would be
+   * abandoned. The latest observer is kept in a ref instead.
+   */
+  const dragRef = React.useRef(drag);
+  dragRef.current = drag;
+  const observeByBlockIdRef = React.useRef(
+    new Map<string, (element: HTMLElement | null) => void>(),
+  );
+  const blockRefCacheRef = React.useRef(
+    new Map<string, (element: HTMLElement | null) => void>(),
+  );
+  const blockRefFor = React.useCallback((blockId: string) => {
+    const cached = blockRefCacheRef.current.get(blockId);
+    if (cached !== undefined) return cached;
+    const callback = (element: HTMLElement | null) => {
+      observeByBlockIdRef.current.get(blockId)?.(element);
+      dragRef.current.registerBlock(blockId)(element);
+    };
+    blockRefCacheRef.current.set(blockId, callback);
+    return callback;
+  }, []);
+
   const changeBlockKind = React.useCallback((
     blockId: string,
     kind: "paragraph" | "heading",
@@ -317,16 +346,18 @@ export function StudioDocumentSurfaceV1({
             : null;
           const carried = drag.state.active
             && drag.state.blockId === block.blockId;
+          if (runtime !== null) {
+            observeByBlockIdRef.current.set(block.blockId, runtime.observe);
+          } else {
+            observeByBlockIdRef.current.delete(block.blockId);
+          }
           return (
             <div
               key={block.blockId}
               // The observed node is the block, not the cell: a placement
               // swaps its rendering when a session opens, and the playback
               // policy must not read that as leaving and coming back.
-              ref={(element) => {
-                runtime?.observe(element);
-                drag.registerBlock(block.blockId)(element);
-              }}
+              ref={blockRefFor(block.blockId)}
               className={`group relative ${
                 carried ? "opacity-40" : ""
               }`}
@@ -975,10 +1006,10 @@ function StudioPlacementOptionsV1({
         ))}
       </div>
       {sourceId !== null && sources.length > 0 && (
-        // Which physiology the experiment reads. It sits beside the
+        // Which physiology this experiment reads. It sits beside the
         // presentation choices because it is the same kind of decision about
-        // this one placement, and it can be corrected after the fact rather
-        // than only at the moment of insertion.
+        // what the reader meets here, and it can be corrected after the fact
+        // rather than only at the moment of insertion.
         <select
           value={sourceId}
           aria-label={t("studioAuthorPreview.surface.experimentSource")}
@@ -998,10 +1029,11 @@ function StudioPlacementOptionsV1({
         data-testid="studio-placement-compose-v1"
         // Each placement owns its own experiment, so composing one names it.
         // A single Workbench entry point would silently compose the first.
+        // The Workbench must run the case this experiment reads, or the
+        // author would compose panes captured from a physiology the reader
+        // will never see.
         onClick={() => navigate(
-          `${workbenchHref(locale)}?experiment=${
-            encodeURIComponent(experimentId)
-          }`,
+          composeExperimentHref(experimentId, sourceId ?? "", locale),
         )}
         className="inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[11px] font-bold text-wb-accent transition-colors hover:bg-wb-hover"
       >

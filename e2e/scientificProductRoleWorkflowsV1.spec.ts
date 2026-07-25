@@ -193,7 +193,11 @@ test.describe.serial("Product workflows by role", () => {
       // The new placement was inserted below the first block, so it leads the
       // article; its compose button must open its own experiment.
       await composeButtons.first().click();
-      await expect(page).toHaveURL(/\/ja\/workbench\?experiment=/);
+      // The Workbench runs the case the experiment reads, and composes the
+      // experiment the placement named.
+      await expect(page).toHaveURL(
+        /\/ja\/workbench\/[^?]+\?experiment=/,
+      );
       const composedExperimentId = new URL(page.url()).searchParams
         .get("experiment");
       expect(composedExperimentId).not.toBeNull();
@@ -214,6 +218,11 @@ test.describe.serial("Product workflows by role", () => {
         exact: true,
       }).click();
       await expect(page).toHaveURL(/\/ja\/studio\/author$/);
+      await expect(placements()).toHaveCount(2);
+
+      // A placement whose experiment was deleted is not composable: opening
+      // the Workbench with no target composes a placed experiment, never one
+      // the article no longer carries.
       await expect(placements()).toHaveCount(2);
 
       // Leave the article with one experiment for the rest of the workflow.

@@ -307,8 +307,23 @@ function ScientificProductWorkbenchShellV1({
    */
   const composeTarget = React.useMemo(() => {
     const requested = new URLSearchParams(location.search).get("experiment");
-    const experiment = authorDraft.experiments.find(({ experimentId }) =>
-      experimentId === requested) ?? authorDraft.experiments[0];
+    // Only an experiment the article places can be composed from here. An
+    // experiment left behind by a deleted placement is not part of the
+    // article any more, and composing it would edit a brief no reader meets.
+    const placed = new Set(
+      authorDraft.document.blocks
+        .filter((block) => block.kind === "experiment-placement")
+        .map((block) => block.experimentId),
+    );
+    const placedExperiments = authorDraft.experiments.filter(
+      ({ experimentId }) => placed.has(experimentId),
+    );
+    // A named experiment that cannot be found is a mistake, not an invitation
+    // to compose whichever one happens to be first.
+    const experiment = requested === null
+      ? placedExperiments[0]
+      : placedExperiments.find(({ experimentId }) =>
+        experimentId === requested);
     const brief = experiment?.readerBriefs[0];
     const scenario = experiment?.scenarios[0];
     return experiment === undefined
@@ -320,7 +335,7 @@ function ScientificProductWorkbenchShellV1({
         briefId: brief.briefId,
         scenarioId: scenario.scenarioId,
       });
-  }, [authorDraft.experiments, location.search]);
+  }, [authorDraft.document.blocks, authorDraft.experiments, location.search]);
   const { workbenchTheme, setWorkbenchTheme } = useWorkbenchTheme();
   const [isPlaying, setPlaying] = React.useState(true);
   const [briefingOpen, setBriefingOpen] = React.useState(false);
