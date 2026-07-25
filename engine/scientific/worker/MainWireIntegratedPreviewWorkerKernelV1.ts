@@ -1,7 +1,7 @@
 import {
   MAIN_WIRE_INTEGRATED_PREVIEW_MCS_PRESET_IDS_V1,
   MainWireIntegratedPreviewSessionV1,
-  projectMainWireIntegratedPreviewRunV1,
+  projectMainWireIntegratedPreviewRunV2,
 } from "@/engine/scientific/integratedPreview";
 import type {
   SimulationReleaseRef,
@@ -84,15 +84,15 @@ export class MainWireIntegratedPreviewWorkerKernelV1 {
           const session = await MainWireIntegratedPreviewSessionV1.create(
             command.mcsPresetId,
           );
-          const artifact = command.mcsPresetId === "all-off"
-            ? await session.seedRunArtifact()
-            : await session.runNextBeatArtifact();
+          const runRecord = command.mcsPresetId === "all-off"
+            ? await session.seedRunRecord()
+            : await session.runNextBeatRecord();
           this.sessions.set(command.sessionId, session);
           return successResponse(
             command,
             session.releaseRef,
-            artifact,
-            projectMainWireIntegratedPreviewRunV1(artifact),
+            runRecord,
+            projectMainWireIntegratedPreviewRunV2(runRecord),
             false,
           );
         }
@@ -107,12 +107,12 @@ export class MainWireIntegratedPreviewWorkerKernelV1 {
               "integrated preview session id is not active",
             );
           }
-          const artifact = await existing.runNextBeatArtifact();
+          const runRecord = await existing.runNextBeatRecord();
           return successResponse(
             command,
             existing.releaseRef,
-            artifact,
-            projectMainWireIntegratedPreviewRunV1(artifact),
+            runRecord,
+            projectMainWireIntegratedPreviewRunV2(runRecord),
             false,
           );
         }
@@ -239,12 +239,12 @@ function invalid(
 function successResponse(
   command: IntegratedPreviewCommandV1,
   releaseRef: SimulationReleaseRef,
-  artifact:
+  runRecord:
     import("@/engine/scientific/integratedPreview")
-      .MainWireIntegratedPreviewRunArtifactV1 | null,
+      .MainWireIntegratedPreviewRunRecordV2 | null,
   presentation:
     import("@/engine/scientific/integratedPreview")
-      .MainWireIntegratedPreviewRunPresentationV1 | null,
+      .MainWireIntegratedPreviewRunPresentationV2 | null,
   disposed: boolean,
 ): IntegratedPreviewCommandResponseV1 {
   return Object.freeze({
@@ -254,7 +254,7 @@ function successResponse(
     sessionId: command.sessionId,
     commandKind: command.kind,
     releaseRef,
-    artifact,
+    runRecord,
     presentation,
     disposed,
   });

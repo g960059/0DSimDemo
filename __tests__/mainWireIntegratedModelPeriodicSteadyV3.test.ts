@@ -181,6 +181,13 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
     expect(result.terminalCheckpoint.checkpointSha256).toMatch(
       /^[0-9a-f]{64}$/,
     );
+    expect(result.terminalCycleStartCheckpoint).toMatchObject({
+      acceptedTimeSec: 0,
+      schemaVersion: 3,
+    });
+    expect(result.terminalCycleStartCheckpoint.checkpointSha256).toMatch(
+      /^[0-9a-f]{64}$/,
+    );
   }, 60_000);
 
   it("fails closed outside the bounded/canonical cycle caps or with unknown options", async () => {

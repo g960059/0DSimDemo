@@ -4,6 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { BookOpen, Activity, PlaySquare, LogIn, LogOut } from 'lucide-react';
 import { ModelLimitations } from './ModelLimitations';
+import {
+  MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_ACK_KEY_V1,
+  MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_V1,
+} from '../engine/scientific/assembly/mainWireAdultFiveWallIntegratedPreviewReleaseV1';
 import { allCasesHref, homeHref, workbenchHref } from '../homeLinks';
 import { type Locale, localeFromPathname, setPreferredLocale, stripLocaleFromPathname, switchLocalePath } from '../localeRouting';
 
@@ -34,6 +38,13 @@ export const Layout = () => {
     { locale: 'ja', label: t('common.language.ja') },
     { locale: 'en', label: t('common.language.en') },
   ];
+  const defaultModelLimitations = t('modelLimitations.items', {
+    returnObjects: true,
+  }) as string[];
+  const integratedPreviewLimitations = [
+    defaultModelLimitations[0],
+    ...MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_V1,
+  ].filter((item): item is string => typeof item === 'string');
 
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-200 overflow-hidden font-sans">
@@ -67,7 +78,15 @@ export const Layout = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {normalizedPath !== '/integrated-preview' && <ModelLimitations />}
+          {normalizedPath === '/integrated-preview' ? (
+            <ModelLimitations
+              key={MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_ACK_KEY_V1}
+              acknowledgementKey={MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_ACK_KEY_V1}
+              limitations={integratedPreviewLimitations}
+            />
+          ) : (
+            <ModelLimitations key="default-model-limitations" />
+          )}
           <div className="hidden sm:flex items-center rounded-md border border-slate-800 bg-slate-950 p-0.5">
             {languageItems.map((item) => {
               const isActive = item.locale === locale;

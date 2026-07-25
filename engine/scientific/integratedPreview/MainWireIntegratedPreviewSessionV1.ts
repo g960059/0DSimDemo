@@ -2,9 +2,6 @@ import {
   createDynamicMechanicalSupportAcceptedStateV1,
   type DynamicMechanicalSupportInertanceProfileV1,
 } from "@/engine/devices/dynamicNetworkV1";
-import {
-  mechanicalSupportPresetV1,
-} from "@/engine/devices/presetsV1";
 import type {
   MechanicalSupportConfigV1,
 } from "@/engine/devices/typesV1";
@@ -22,10 +19,8 @@ import {
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
-  createMainWireIntegratedHeartMateIiLvadOnlyVerificationProfileV2,
-} from "@/engine/myocardium/experiments/MainWireIntegratedModelNumericalVerificationV2";
-import {
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  mainWireIntegratedModelPeriodicFixtureIdentityV3,
   type MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
   type MainWireIntegratedModelRegularSinusAllOffFixtureV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
@@ -34,6 +29,7 @@ import type {
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
   loadMainWireAdultFiveWallIntegratedPreviewReleaseV1,
+  MAIN_WIRE_INTEGRATED_PREVIEW_MECHANICAL_SUPPORT_INPUTS_V1,
   MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1,
 } from "@/engine/scientific/assembly";
 import {
@@ -42,6 +38,11 @@ import {
   type CanonicalJsonObject,
   type SimulationReleaseRef,
 } from "@/engine/scientific/release";
+import {
+  createRunArtifactV1,
+  type BuildArtifactRefV1,
+  type RunArtifactV1,
+} from "@/engine/scientific/records";
 import {
   loadMainWireIntegratedPreviewSeedRunV1,
   type MainWireIntegratedPreviewSeedRunV1,
@@ -75,20 +76,27 @@ export type MainWireIntegratedPreviewSimulationInputSpecV1 = Readonly<{
     interpretation:
       | "numerically-periodic-all-off-seed"
       | "one-unsteady-post-activation-beat";
+    canonicalProfileSha256: string;
+    canonicalConfigSha256: string;
   }>;
   nominalDtSec: 0.002;
   seedRunPayloadSha256: string;
+  sourceProtocolIdentityHash: string;
+  periodicFixtureIdentitySha256: string;
 }>;
 
-export type MainWireIntegratedPreviewRunArtifactV1 = Readonly<{
-  artifactId: "circleheart-main-wire-integrated-preview-run-artifact-v1";
-  schemaVersion: 1;
+export type MainWireIntegratedPreviewRunRecordV2 = Readonly<{
+  artifactId: "circleheart-main-wire-integrated-preview-run-record-v2";
+  schemaVersion: 2;
   releaseRef: SimulationReleaseRef;
   simulationInputSpec: MainWireIntegratedPreviewSimulationInputSpecV1;
   simulationInputSpecSha256: string;
   sourceSeed: Readonly<{
     payloadSha256: string;
-    checkpointSha256: string;
+    startCheckpointSha256: string;
+    terminalCheckpointSha256: string;
+    protocolIdentityHash: string;
+    periodicFixtureIdentitySha256: string;
     numericalPeriod1Established: true;
   }>;
   run: Readonly<{
@@ -117,21 +125,38 @@ export type MainWireIntegratedPreviewRunArtifactV1 = Readonly<{
     physiologicalAcceptanceEstablished: false;
     clinicalValidationClaimed: false;
   }>;
-  modelState: MainWireIntegratedModelCheckpointV3;
-  artifactSha256: string;
+  startModelState: MainWireIntegratedModelCheckpointV3;
+  terminalModelState: MainWireIntegratedModelCheckpointV3;
+  replayCompleteness: Readonly<{
+    stateTransitionInputIdentitiesIncluded: true;
+    exactStartCheckpointIncluded: true;
+    exactTerminalCheckpointIncluded: true;
+    executableBuildProvenanceAttached: false;
+    standaloneReplayCompleteArtifactClaimed: false;
+    upgradePath:
+      "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1";
+  }>;
+  recordSha256: string;
 }>;
 
-export type MainWireIntegratedPreviewRunPresentationV1 = Readonly<{
-  artifactId: MainWireIntegratedPreviewRunArtifactV1["artifactId"];
-  schemaVersion: 1;
-  artifactSha256: string;
+export type MainWireIntegratedPreviewRunPresentationV2 = Readonly<{
+  artifactId: MainWireIntegratedPreviewRunRecordV2["artifactId"];
+  schemaVersion: 2;
+  recordSha256: string;
   releaseRef: SimulationReleaseRef;
   simulationInputSpec: MainWireIntegratedPreviewSimulationInputSpecV1;
   simulationInputSpecSha256: string;
-  sourceSeed: MainWireIntegratedPreviewRunArtifactV1["sourceSeed"];
-  run: Omit<MainWireIntegratedPreviewRunArtifactV1["run"], "trace">;
+  sourceSeed: MainWireIntegratedPreviewRunRecordV2["sourceSeed"];
+  run: Omit<MainWireIntegratedPreviewRunRecordV2["run"], "trace">;
   trace: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
-  modelStateRef: Readonly<{
+  startModelStateRef: Readonly<{
+    checkpointId: MainWireIntegratedModelCheckpointV3["checkpointId"];
+    schemaVersion: 3;
+    checkpointSha256: string;
+    acceptedTimeSec: number;
+    revision: number;
+  }>;
+  terminalModelStateRef: Readonly<{
     checkpointId: MainWireIntegratedModelCheckpointV3["checkpointId"];
     schemaVersion: 3;
     checkpointSha256: string;
@@ -193,17 +218,25 @@ export class MainWireIntegratedPreviewSessionV1 {
     ]);
     const fixture =
       createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const periodicFixtureIdentitySha256 = await sha256CanonicalJsonHex(
+      mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
+    );
     const seedState = await restoreMainWireIntegratedModelV3(
       checkpointContext(fixture, fixture.profile, fixture.config),
-      seed.payload.modelState,
+      seed.payload.terminalModelState,
     );
     const active = mcsPresetId === "lvad-hmii-9000-one-beat-transient";
-    const dynamicProfile = active
-      ? createMainWireIntegratedHeartMateIiLvadOnlyVerificationProfileV2()
-      : fixture.profile;
-    const dynamicConfig = active
-      ? mechanicalSupportPresetV1("lvad-hmii-9000")
-      : fixture.config;
+    const supportDefinition =
+      MAIN_WIRE_INTEGRATED_PREVIEW_MECHANICAL_SUPPORT_INPUTS_V1[mcsPresetId];
+    if (supportDefinition.previewPresetId !== mcsPresetId) {
+      throw new Error("integrated preview MCS definition identity differs");
+    }
+    const dynamicProfile = supportDefinition.profile;
+    const dynamicConfig = supportDefinition.config;
+    const [canonicalProfileSha256, canonicalConfigSha256] = await Promise.all([
+      sha256CanonicalJsonHex(dynamicProfile),
+      sha256CanonicalJsonHex(dynamicConfig),
+    ]);
     const acceptedState = active
       ? wrapMainWireIntegratedModelAcceptedStateV3(
         seedState.coronary,
@@ -223,7 +256,7 @@ export class MainWireIntegratedPreviewSessionV1 {
       releaseRef: release.ref,
       modelAssembly:
         "base+coronary-v3+dynamic-mcs+composed-rhythm-v2",
-      fixedGlobalTotalBloodVolumeMl: 5_600,
+      fixedGlobalTotalBloodVolumeMl: fixture.fixedGlobalTotalBloodVolumeMl,
       rhythm: {
         presetId: "composed-regular-sinus-60-v1",
         heartRateBpm: 60,
@@ -232,14 +265,17 @@ export class MainWireIntegratedPreviewSessionV1 {
       },
       mechanicalSupport: {
         presetId: mcsPresetId,
-        activeDeviceIds: active ? ["LVAD"] : [],
-        interpretation: active
-          ? "one-unsteady-post-activation-beat"
-          : "numerically-periodic-all-off-seed",
+        activeDeviceIds: supportDefinition.activeDeviceIds,
+        interpretation: supportDefinition.interpretation,
+        canonicalProfileSha256,
+        canonicalConfigSha256,
       },
       nominalDtSec:
         MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1.nominalDtSec,
       seedRunPayloadSha256: seed.payloadSha256,
+      sourceProtocolIdentityHash:
+        seed.payload.sourceEvidence.protocolIdentityHash,
+      periodicFixtureIdentitySha256,
     }) as unknown as MainWireIntegratedPreviewSimulationInputSpecV1;
     return new MainWireIntegratedPreviewSessionV1(
       release.ref,
@@ -253,7 +289,74 @@ export class MainWireIntegratedPreviewSessionV1 {
     );
   }
 
-  async seedRunArtifact(): Promise<MainWireIntegratedPreviewRunArtifactV1> {
+  static async replayOneBeatRecord(
+    expected: MainWireIntegratedPreviewRunRecordV2,
+  ): Promise<MainWireIntegratedPreviewRunRecordV2> {
+    if (
+      expected.run.kind !== "one-beat-continuation"
+      || expected.run.execution.operation
+        !== "advance-one-fixed-sinus-cycle"
+      || !Number.isInteger(
+        expected.run.execution.continuationBeatOrdinalFromSeed,
+      )
+      || expected.run.execution.continuationBeatOrdinalFromSeed < 1
+    ) {
+      throw new Error(
+        "integrated preview replay requires a one-beat continuation record",
+      );
+    }
+    const { recordSha256, ...recordPayload } = expected;
+    const [expectedRecordSha256, expectedInputSpecSha256] = await Promise.all([
+      sha256CanonicalJsonHex(recordPayload),
+      sha256CanonicalJsonHex(expected.simulationInputSpec),
+    ]);
+    if (
+      recordSha256 !== expectedRecordSha256
+      || expected.simulationInputSpecSha256 !== expectedInputSpecSha256
+      || expected.startModelState.acceptedTimeSec
+        !== expected.run.startAcceptedTimeSec
+      || expected.terminalModelState.acceptedTimeSec
+        !== expected.run.endAcceptedTimeSec
+    ) {
+      throw new Error("integrated preview replay record identity is invalid");
+    }
+    const session = await MainWireIntegratedPreviewSessionV1.create(
+      expected.simulationInputSpec.mechanicalSupport.presetId,
+    );
+    if (
+      session.inputSpecSha256 !== expected.simulationInputSpecSha256
+      || session.releaseRef.id !== expected.releaseRef.id
+      || session.releaseRef.version !== expected.releaseRef.version
+      || session.releaseRef.sha256 !== expected.releaseRef.sha256
+    ) {
+      throw new Error(
+        "integrated preview replay identity differs from the current runtime",
+      );
+    }
+    session.acceptedState = await restoreMainWireIntegratedModelV3(
+      checkpointContext(
+        session.fixture,
+        session.dynamicProfile,
+        session.dynamicConfig,
+      ),
+      expected.startModelState,
+    );
+    session.continuationBeatCountFromSeed =
+      expected.run.execution.continuationBeatOrdinalFromSeed - 1;
+    const replayed = await session.runNextBeatRecord();
+    if (
+      replayed.recordSha256 !== expected.recordSha256
+      || replayed.terminalModelState.checkpointSha256
+        !== expected.terminalModelState.checkpointSha256
+    ) {
+      throw new Error(
+        "integrated preview replay differs from the expected run record",
+      );
+    }
+    return replayed;
+  }
+
+  async seedRunRecord(): Promise<MainWireIntegratedPreviewRunRecordV2> {
     if (this.inputSpec.mechanicalSupport.presetId !== "all-off") {
       throw new Error("active MCS session has no periodic seed presentation");
     }
@@ -269,18 +372,19 @@ export class MainWireIntegratedPreviewSessionV1 {
         this.seed.payload.displaySeed.terminalCycleTrace.endTimeSec,
       trace: this.seed.payload.displaySeed.terminalCycleTrace.samples,
       numericalPeriod1Established: true,
-      modelState: this.seed.payload.modelState,
+      startModelState: this.seed.payload.startModelState,
+      terminalModelState: this.seed.payload.terminalModelState,
     });
   }
 
-  async runNextBeatArtifact():
-  Promise<MainWireIntegratedPreviewRunArtifactV1> {
+  async runNextBeatRecord():
+  Promise<MainWireIntegratedPreviewRunRecordV2> {
     const retainedAcceptedState = this.acceptedState;
     const retainedContinuationBeatCount = this.continuationBeatCountFromSeed;
     try {
-      const artifact = await this.advanceOneBeatArtifact();
+      const runRecord = await this.advanceOneBeatRecord();
       this.continuationBeatCountFromSeed += 1;
-      return artifact;
+      return runRecord;
     } catch (error) {
       this.acceptedState = retainedAcceptedState;
       this.continuationBeatCountFromSeed = retainedContinuationBeatCount;
@@ -288,10 +392,18 @@ export class MainWireIntegratedPreviewSessionV1 {
     }
   }
 
-  private async advanceOneBeatArtifact():
-  Promise<MainWireIntegratedPreviewRunArtifactV1> {
+  private async advanceOneBeatRecord():
+  Promise<MainWireIntegratedPreviewRunRecordV2> {
     const startAcceptedTimeSec = this.acceptedState.acceptedTimeSec;
     const endAcceptedTimeSec = startAcceptedTimeSec + 1;
+    const startModelState = await checkpointMainWireIntegratedModelV3(
+      checkpointContext(
+        this.fixture,
+        this.dynamicProfile,
+        this.dynamicConfig,
+      ),
+      this.acceptedState,
+    );
     const trace: MainWireIntegratedModelPeriodicTerminalTraceSampleV3[] = [];
     let acceptedStepCount = 0;
     let nominalGridIndex = 1;
@@ -357,7 +469,7 @@ export class MainWireIntegratedPreviewSessionV1 {
         Math.abs(this.acceptedState.acceptedTimeSec - nominalTarget) <= 1e-14
       ) nominalGridIndex += 1;
     }
-    const modelState = await checkpointMainWireIntegratedModelV3(
+    const terminalModelState = await checkpointMainWireIntegratedModelV3(
       checkpointContext(
         this.fixture,
         this.dynamicProfile,
@@ -378,20 +490,22 @@ export class MainWireIntegratedPreviewSessionV1 {
       trace,
       numericalPeriod1Established:
         "not-assessed-for-this-continuation",
-      modelState,
+      startModelState,
+      terminalModelState,
     });
   }
 
   private async buildArtifact(input: Readonly<{
-    kind: MainWireIntegratedPreviewRunArtifactV1["run"]["kind"];
-    execution: MainWireIntegratedPreviewRunArtifactV1["run"]["execution"];
+    kind: MainWireIntegratedPreviewRunRecordV2["run"]["kind"];
+    execution: MainWireIntegratedPreviewRunRecordV2["run"]["execution"];
     startAcceptedTimeSec: number;
     endAcceptedTimeSec: number;
     trace: readonly MainWireIntegratedModelPeriodicTerminalTraceSampleV3[];
     numericalPeriod1Established:
-      MainWireIntegratedPreviewRunArtifactV1["run"]["numericalPeriod1Established"];
-    modelState: MainWireIntegratedModelCheckpointV3;
-  }>): Promise<MainWireIntegratedPreviewRunArtifactV1> {
+      MainWireIntegratedPreviewRunRecordV2["run"]["numericalPeriod1Established"];
+    startModelState: MainWireIntegratedModelCheckpointV3;
+    terminalModelState: MainWireIntegratedModelCheckpointV3;
+  }>): Promise<MainWireIntegratedPreviewRunRecordV2> {
     if (input.trace.length === 0 || !allNumericLeavesFinite(input.trace)) {
       throw new Error("integrated preview run trace is empty or nonfinite");
     }
@@ -420,49 +534,151 @@ export class MainWireIntegratedPreviewSessionV1 {
       physiologicalAcceptanceEstablished: false as const,
       clinicalValidationClaimed: false as const,
     });
+    if (
+      input.startModelState.acceptedTimeSec !== input.startAcceptedTimeSec
+      || input.terminalModelState.acceptedTimeSec !== input.endAcceptedTimeSec
+    ) {
+      throw new Error(
+        "integrated preview checkpoint boundaries differ from the run ledger",
+      );
+    }
     const payload = cloneAndFreezeCanonicalJson<CanonicalJsonObject>({
       artifactId:
-        "circleheart-main-wire-integrated-preview-run-artifact-v1",
-      schemaVersion: 1,
+        "circleheart-main-wire-integrated-preview-run-record-v2",
+      schemaVersion: 2,
       releaseRef: this.releaseRef,
       simulationInputSpec: this.inputSpec,
       simulationInputSpecSha256: this.inputSpecSha256,
       sourceSeed: {
         payloadSha256: this.seed.payloadSha256,
-        checkpointSha256:
-          this.seed.payload.modelState.checkpointSha256,
+        startCheckpointSha256:
+          this.seed.payload.startModelState.checkpointSha256,
+        terminalCheckpointSha256:
+          this.seed.payload.terminalModelState.checkpointSha256,
+        protocolIdentityHash:
+          this.seed.payload.sourceEvidence.protocolIdentityHash,
+        periodicFixtureIdentitySha256:
+          this.inputSpec.periodicFixtureIdentitySha256,
         numericalPeriod1Established: true,
       },
       run,
-      modelState: input.modelState,
+      startModelState: input.startModelState,
+      terminalModelState: input.terminalModelState,
+      replayCompleteness: {
+        stateTransitionInputIdentitiesIncluded: true,
+        exactStartCheckpointIncluded: true,
+        exactTerminalCheckpointIncluded: true,
+        executableBuildProvenanceAttached: false,
+        standaloneReplayCompleteArtifactClaimed: false,
+        upgradePath:
+          "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1",
+      },
     });
     return cloneAndFreezeCanonicalJson({
       ...payload,
-      artifactSha256: await sha256CanonicalJsonHex(payload),
-    }) as unknown as MainWireIntegratedPreviewRunArtifactV1;
+      recordSha256: await sha256CanonicalJsonHex(payload),
+    }) as unknown as MainWireIntegratedPreviewRunRecordV2;
   }
 }
 
-export function projectMainWireIntegratedPreviewRunV1(
-  artifact: MainWireIntegratedPreviewRunArtifactV1,
-): MainWireIntegratedPreviewRunPresentationV1 {
-  const { trace, ...run } = artifact.run;
+export function projectMainWireIntegratedPreviewRunV2(
+  record: MainWireIntegratedPreviewRunRecordV2,
+): MainWireIntegratedPreviewRunPresentationV2 {
+  const { trace, ...run } = record.run;
   return Object.freeze({
-    artifactId: artifact.artifactId,
-    schemaVersion: artifact.schemaVersion,
-    artifactSha256: artifact.artifactSha256,
-    releaseRef: artifact.releaseRef,
-    simulationInputSpec: artifact.simulationInputSpec,
-    simulationInputSpecSha256: artifact.simulationInputSpecSha256,
-    sourceSeed: artifact.sourceSeed,
+    artifactId: record.artifactId,
+    schemaVersion: record.schemaVersion,
+    recordSha256: record.recordSha256,
+    releaseRef: record.releaseRef,
+    simulationInputSpec: record.simulationInputSpec,
+    simulationInputSpecSha256: record.simulationInputSpecSha256,
+    sourceSeed: record.sourceSeed,
     run,
     trace,
-    modelStateRef: Object.freeze({
-      checkpointId: artifact.modelState.checkpointId,
-      schemaVersion: artifact.modelState.schemaVersion,
-      checkpointSha256: artifact.modelState.checkpointSha256,
-      acceptedTimeSec: artifact.modelState.acceptedTimeSec,
-      revision: artifact.modelState.revision,
+    startModelStateRef: Object.freeze({
+      checkpointId: record.startModelState.checkpointId,
+      schemaVersion: record.startModelState.schemaVersion,
+      checkpointSha256: record.startModelState.checkpointSha256,
+      acceptedTimeSec: record.startModelState.acceptedTimeSec,
+      revision: record.startModelState.revision,
+    }),
+    terminalModelStateRef: Object.freeze({
+      checkpointId: record.terminalModelState.checkpointId,
+      schemaVersion: record.terminalModelState.schemaVersion,
+      checkpointSha256: record.terminalModelState.checkpointSha256,
+      acceptedTimeSec: record.terminalModelState.acceptedTimeSec,
+      revision: record.terminalModelState.revision,
+    }),
+  });
+}
+
+/**
+ * Promotes a browser-produced run record to a replay-complete RunArtifactV1.
+ * The executable BuildArtifactRefV1 must come from CI/build provenance; the
+ * browser session deliberately does not invent it.
+ */
+export async function createMainWireIntegratedPreviewRunArtifactV1(
+  record: MainWireIntegratedPreviewRunRecordV2,
+  buildArtifactRef: BuildArtifactRefV1,
+): Promise<RunArtifactV1> {
+  const { recordSha256, ...recordPayload } = record;
+  const [expectedRecordSha256, expectedInputSpecSha256] = await Promise.all([
+    sha256CanonicalJsonHex(recordPayload),
+    sha256CanonicalJsonHex(record.simulationInputSpec),
+  ]);
+  if (
+    recordSha256 !== expectedRecordSha256
+    || record.simulationInputSpecSha256 !== expectedInputSpecSha256
+    || record.startModelState.acceptedTimeSec
+      !== record.run.startAcceptedTimeSec
+    || record.terminalModelState.acceptedTimeSec
+      !== record.run.endAcceptedTimeSec
+    || record.run.acceptedStepCount !== record.run.trace.length
+    || buildArtifactRef.simulationReleaseRef.id !== record.releaseRef.id
+    || buildArtifactRef.simulationReleaseRef.version
+      !== record.releaseRef.version
+    || buildArtifactRef.simulationReleaseRef.sha256
+      !== record.releaseRef.sha256
+  ) {
+    throw new Error(
+      "integrated preview run record cannot be promoted with mismatched "
+        + "record, input, state-boundary, or build identity",
+    );
+  }
+  return createRunArtifactV1({
+    buildArtifactRef,
+    protocolDescriptor: cloneAndFreezeCanonicalJson<CanonicalJsonObject>({
+      protocolId:
+        MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1.protocolId,
+      protocolVersion:
+        MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1.protocolVersion,
+      releaseRef: record.releaseRef,
+      simulationInputSpec: record.simulationInputSpec,
+      simulationInputSpecSha256: record.simulationInputSpecSha256,
+    }),
+    initializationIdentity: Object.freeze({
+      kind: "exact-checkpoint" as const,
+      checkpointSha256: record.startModelState.checkpointSha256,
+    }),
+    executionLedger: cloneAndFreezeCanonicalJson([
+      {
+        execution: record.run.execution,
+        startAcceptedTimeSec: record.run.startAcceptedTimeSec,
+        endAcceptedTimeSec: record.run.endAcceptedTimeSec,
+        acceptedStepCount: record.run.acceptedStepCount,
+        terminalCheckpointSha256:
+          record.terminalModelState.checkpointSha256,
+      },
+    ]),
+    outputs: cloneAndFreezeCanonicalJson({
+      integratedPreviewRunRecord: record,
+    }),
+    audits: cloneAndFreezeCanonicalJson({
+      exactStartCheckpointIncluded: true,
+      exactTerminalCheckpointIncluded: true,
+      buildArtifactRefAttached: true,
+      sourceSeedProtocolIdentityHash:
+        record.sourceSeed.protocolIdentityHash,
     }),
   });
 }

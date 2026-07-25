@@ -1,7 +1,7 @@
 import type {
   MainWireIntegratedPreviewMcsPresetIdV1,
-  MainWireIntegratedPreviewRunArtifactV1,
-  MainWireIntegratedPreviewRunPresentationV1,
+  MainWireIntegratedPreviewRunPresentationV2,
+  MainWireIntegratedPreviewRunRecordV2,
 } from "@/engine/scientific/integratedPreview";
 import type {
   SimulationReleaseRef,
@@ -38,8 +38,8 @@ export type IntegratedPreviewSuccessResponseV1 = Readonly<{
   sessionId: string;
   commandKind: IntegratedPreviewCommandV1["kind"];
   releaseRef: SimulationReleaseRef;
-  artifact: MainWireIntegratedPreviewRunArtifactV1 | null;
-  presentation: MainWireIntegratedPreviewRunPresentationV1 | null;
+  runRecord: MainWireIntegratedPreviewRunRecordV2 | null;
+  presentation: MainWireIntegratedPreviewRunPresentationV2 | null;
   disposed: boolean;
 }>;
 

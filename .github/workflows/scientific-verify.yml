@@ -100,6 +100,30 @@ jobs:
       - name: Run canonical scientific shard
         run: npm run test:scientific:canonical -- --shard=${{ matrix.shard }}
 
+  release_artifacts:
+    name: Scientific release artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify generated release artifacts and catalogs
+        run: |
+          npm run verify:scientific:integrated-preview-seed
+          npm run verify:scientific:integrated-preview-release
+          npm run verify:scientific:product-release-catalogs
+
   heavy:
     name: Opt-in heavy engine tests
     runs-on: ubuntu-latest

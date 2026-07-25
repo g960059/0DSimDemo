@@ -3,17 +3,23 @@ import seedRunRawJson from
 import type {
   MainWireIntegratedModelCheckpointV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
-import type {
-  MainWireIntegratedModelHealthyReferenceProjectionV3,
-  MainWireIntegratedModelPeriodicTerminalCycleTraceV3,
+import {
+  createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  mainWireIntegratedModelPeriodicProtocolIdentityHashV3,
+  type MainWireIntegratedModelHealthyReferenceProjectionV3,
+  type MainWireIntegratedModelPeriodicTerminalCycleTraceV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import type {
   MainWireIntegratedModelPeriodicClassificationV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClassifierV3";
 import {
-  MAIN_WIRE_INTEGRATED_PREVIEW_SEED_CHECKPOINT_SHA256,
+  MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH,
+  MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_CANONICAL_SHA256,
+  MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_RAW_SHA256,
   MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_PAYLOAD_SHA256,
   MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_RAW_SHA256,
+  MAIN_WIRE_INTEGRATED_PREVIEW_SEED_START_CHECKPOINT_SHA256,
+  MAIN_WIRE_INTEGRATED_PREVIEW_SEED_TERMINAL_CHECKPOINT_SHA256,
 } from "@/engine/scientific/assembly";
 import {
   cloneAndFreezeCanonicalJson,
@@ -45,7 +51,7 @@ export type MainWireIntegratedPreviewSeedInputSpecV1 = Readonly<{
 
 export type MainWireIntegratedPreviewSeedRunPayloadV1 = Readonly<{
   artifactId: typeof MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_ID;
-  schemaVersion: 1;
+  schemaVersion: 2;
   role: "release-bound-live-session-seed";
   simulationInputSpec: MainWireIntegratedPreviewSeedInputSpecV1;
   sourceEvidence: Readonly<{
@@ -54,6 +60,13 @@ export type MainWireIntegratedPreviewSeedRunPayloadV1 = Readonly<{
     protocolIdentityHash: string;
     completedCycleCount: 70;
     classification: MainWireIntegratedModelPeriodicClassificationV3;
+    sourceArtifact: Readonly<{
+      path:
+        typeof MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH;
+      artifactSchemaVersion: 4;
+      rawFileSha256: string;
+      canonicalJsonSha256: string;
+    }>;
     numericalPeriod1Established: true;
     physiologicalAcceptanceEstablished: false;
     independentValidationEstablished: false;
@@ -66,9 +79,14 @@ export type MainWireIntegratedPreviewSeedRunPayloadV1 = Readonly<{
     terminalHealthyReferenceProjection:
       MainWireIntegratedModelHealthyReferenceProjectionV3;
   }>;
-  modelState: MainWireIntegratedModelCheckpointV3;
+  startModelState: MainWireIntegratedModelCheckpointV3;
+  terminalModelState: MainWireIntegratedModelCheckpointV3;
   claims: Readonly<{
-    exactCheckpointSeed: true;
+    exactTerminalCycleStartCheckpointIncluded: true;
+    exactTerminalCycleEndCheckpointIncluded: true;
+    stateTransitionInputIdentitiesIncluded: true;
+    executableBuildProvenanceAttached: false;
+    standaloneReplayCompleteArtifactClaimed: false;
     rawAcceptedEndpointSamples: true;
     smoothingOrInterpolationApplied: false;
     numericalPeriod1Established: true;
@@ -108,7 +126,7 @@ Promise<MainWireIntegratedPreviewSeedRunV1> {
     MainWireIntegratedPreviewSeedRunPayloadV1;
   if (
     payload.artifactId !== MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_ID
-    || payload.schemaVersion !== 1
+    || payload.schemaVersion !== 2
     || payload.role !== "release-bound-live-session-seed"
     || payload.simulationInputSpec.schemaId
       !== "circleheart-integrated-simulation-input-spec-v1"
@@ -118,10 +136,59 @@ Promise<MainWireIntegratedPreviewSeedRunV1> {
     || payload.sourceEvidence.classification.status !== "period1-converged"
     || payload.sourceEvidence.completedCycleCount !== 70
     || payload.displaySeed.terminalCycleTrace.samples.length !== 504
-    || payload.modelState.checkpointSha256
-      !== MAIN_WIRE_INTEGRATED_PREVIEW_SEED_CHECKPOINT_SHA256
-    || payload.modelState.schemaVersion !== 3
+    || payload.startModelState.checkpointSha256
+      !== MAIN_WIRE_INTEGRATED_PREVIEW_SEED_START_CHECKPOINT_SHA256
+    || payload.terminalModelState.checkpointSha256
+      !== MAIN_WIRE_INTEGRATED_PREVIEW_SEED_TERMINAL_CHECKPOINT_SHA256
+    || payload.startModelState.schemaVersion !== 3
+    || payload.terminalModelState.schemaVersion !== 3
+    || payload.startModelState.acceptedTimeSec
+      !== payload.displaySeed.terminalCycleTrace.startTimeSec
+    || payload.terminalModelState.acceptedTimeSec
+      !== payload.displaySeed.terminalCycleTrace.endTimeSec
+    || payload.sourceEvidence.sourceArtifact.path
+      !== MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH
+    || payload.sourceEvidence.sourceArtifact.artifactSchemaVersion !== 4
+    || payload.sourceEvidence.sourceArtifact.rawFileSha256
+      !== MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_RAW_SHA256
+    || payload.sourceEvidence.sourceArtifact.canonicalJsonSha256
+      !== MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_CANONICAL_SHA256
   ) throw new Error("integrated preview seed identity is unsupported");
+  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+  const expectedFixedGlobalTotalBloodVolumeMl =
+    fixture.fixedGlobalTotalBloodVolumeMl;
+  if (
+    payload.simulationInputSpec.fixedGlobalTotalBloodVolumeMl
+      !== expectedFixedGlobalTotalBloodVolumeMl
+    || payload.startModelState.coronary.baseCheckpointV2
+      .fixedGlobalTotalBloodVolumeMl
+      !== expectedFixedGlobalTotalBloodVolumeMl
+    || payload.terminalModelState.coronary.baseCheckpointV2
+      .fixedGlobalTotalBloodVolumeMl
+      !== expectedFixedGlobalTotalBloodVolumeMl
+  ) {
+    throw new Error(
+      "integrated preview seed fixed global blood volume differs from "
+        + "the live model fixture",
+    );
+  }
+  const currentProtocolIdentityHash =
+    await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+      fixture,
+      {
+        nominalDtSec: payload.simulationInputSpec.nominalDtSec,
+        executionPurpose: payload.sourceEvidence.executionPurpose,
+      },
+    );
+  if (
+    currentProtocolIdentityHash
+      !== payload.sourceEvidence.protocolIdentityHash
+  ) {
+    throw new Error(
+      "integrated preview seed protocol identity differs from the live "
+        + "model fixture",
+    );
+  }
   cachedSeed = parsed as unknown as MainWireIntegratedPreviewSeedRunV1;
   return cachedSeed;
 }

@@ -24,12 +24,13 @@ const result = await runMainWireIntegratedModelPeriodicSteadyV3({
 });
 const terminalCycle = result.cycles.at(-1)!;
 const summary = Object.freeze({
-  artifactSchemaVersion: 3 as const,
+  artifactSchemaVersion: 4 as const,
   experimentId: result.experimentId,
   executionPurpose: result.executionPurpose,
   protocolIdentityHash: result.protocolIdentityHash,
   nominalDtSec: result.nominalDtSec,
   cycleLengthSec: result.cycleLengthSec,
+  fixedGlobalTotalBloodVolumeMl: result.fixedGlobalTotalBloodVolumeMl,
   requestedMaximumCycleCount: result.requestedMaximumCycleCount,
   completedCycleCount: result.completedCycleCount,
   terminationReason: result.terminationReason,
@@ -68,6 +69,7 @@ const summary = Object.freeze({
   terminalPeriod2Closure: terminalCycle.period2,
   terminalCycleTrace: result.terminalCycleTrace,
   terminalHealthyReferenceProjection: result.terminalHealthyReferenceProjection,
+  terminalCycleStartCheckpoint: result.terminalCycleStartCheckpoint,
   terminalCheckpoint: result.terminalCheckpoint,
   terminalAcceptedTimeSec: result.terminalAcceptedState.acceptedTimeSec,
   terminalAcceptedRevision: result.terminalAcceptedState.revision,
@@ -96,6 +98,8 @@ if (outputPath === null) {
       healthyReferenceAssessmentEligible:
         summary.terminalHealthyReferenceProjection.assessmentEligibility
           .eligible,
+      terminalCycleStartCheckpointSha256:
+        summary.terminalCycleStartCheckpoint.checkpointSha256,
       terminalCheckpointSha256: summary.terminalCheckpoint.checkpointSha256,
     })}\n`,
   );

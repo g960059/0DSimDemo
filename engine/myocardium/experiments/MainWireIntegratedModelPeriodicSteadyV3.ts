@@ -306,6 +306,7 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
   protocolIdentityHash: string;
   nominalDtSec: number;
   cycleLengthSec: number;
+  fixedGlobalTotalBloodVolumeMl: number;
   requestedMaximumCycleCount: number;
   completedCycleCount: number;
   terminationReason:
@@ -324,6 +325,7 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
   terminalCycleTrace: MainWireIntegratedModelPeriodicTerminalCycleTraceV3;
   terminalHealthyReferenceProjection: MainWireIntegratedModelHealthyReferenceProjectionV3;
   terminalAcceptedState: MainWireIntegratedModelAcceptedStateV3<MainWireNormalAdultFiveWallMechanicsStateV1>;
+  terminalCycleStartCheckpoint: MainWireIntegratedModelCheckpointV3;
   terminalCheckpoint: MainWireIntegratedModelCheckpointV3;
   terminalCheckpointExactRoundTripVerified: true;
   policy: typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3;
@@ -350,6 +352,7 @@ export type MainWireIntegratedModelPeriodicKernelResultV3 = Readonly<{
   observations: readonly MainWireIntegratedModelPeriodicCycleObservationV3[];
   terminalCycleTrace: MainWireIntegratedModelPeriodicTerminalCycleTraceV3;
   terminalAcceptedState: MainWireIntegratedModelAcceptedStateV3<MainWireNormalAdultFiveWallMechanicsStateV1>;
+  terminalCycleStartCheckpoint: MainWireIntegratedModelCheckpointV3;
   terminalCheckpoint: MainWireIntegratedModelCheckpointV3;
   terminalCheckpointExactRoundTripVerified: true;
 }>;
@@ -384,7 +387,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalB
   const runtime = normalAdultMainWireRuntimeV1();
   const pericardium = createMainWireNormalAdultCommonPericardiumV1();
   const rhythm = createRegularSinusComposedRhythmV3();
-  const profile = createAllOffZeroInertanceProfileV3();
+  const profile = createMainWireIntegratedModelAllOffZeroInertanceProfileV3();
   const config = createMechanicalSupportConfigV1();
   assertAllOffConfig(config);
   const dynamicMechanicalSupport = Object.freeze({
@@ -438,6 +441,7 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalB
     config,
     dynamicMechanicalSupport,
     coronaryStepInput,
+    fixedGlobalTotalBloodVolumeMl,
     cycleLengthSec: 1 as const,
     cold,
   });
@@ -457,6 +461,7 @@ export function mainWireIntegratedModelPeriodicFixtureIdentityV3(
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
 ) {
   return deepFreeze({
+    fixedGlobalTotalBloodVolumeMl: fixture.fixedGlobalTotalBloodVolumeMl,
     provider: providerIdentity(fixture.provider),
     composedRhythmConfiguration: fixture.rhythm.configuration,
     dynamicMechanicalSupportProfile: fixture.profile,
@@ -465,12 +470,12 @@ export function mainWireIntegratedModelPeriodicFixtureIdentityV3(
   });
 }
 
-export async function runMainWireIntegratedModelPeriodicSteadyV3(
+export async function mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
   options: MainWireIntegratedModelPeriodicSteadyOptionsV3,
-): Promise<MainWireIntegratedModelPeriodicSteadyResultV3> {
+): Promise<string> {
   const resolved = resolveOptions(options);
-  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
-  const protocolIdentityHash = await sha256CanonicalJsonHex(
+  return sha256CanonicalJsonHex(
     Object.freeze({
       experimentId: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
       executionPurpose: resolved.executionPurpose,
@@ -479,12 +484,20 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
       inheritedPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
       inheritedReferenceScales:
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
-      provider: providerIdentity(fixture.provider),
-      composedRhythmConfiguration: fixture.rhythm.configuration,
-      dynamicMechanicalSupportProfile: fixture.profile,
-      dynamicMechanicalSupportConfig: fixture.config,
-      coronaryStepInput: fixture.coronaryStepInput,
+      ...mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
     }),
+  );
+}
+
+export async function runMainWireIntegratedModelPeriodicSteadyV3(
+  options: MainWireIntegratedModelPeriodicSteadyOptionsV3,
+): Promise<MainWireIntegratedModelPeriodicSteadyResultV3> {
+  const resolved = resolveOptions(options);
+  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+  const protocolIdentityHash =
+    await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+      fixture,
+      resolved,
   );
   const earlyClassificationStopEligible =
     resolved.executionPurpose !== "fixed-horizon-characterization";
@@ -512,6 +525,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     protocolIdentityHash: kernel.protocolIdentityHash,
     nominalDtSec: kernel.nominalDtSec,
     cycleLengthSec: kernel.cycleLengthSec,
+    fixedGlobalTotalBloodVolumeMl: fixture.fixedGlobalTotalBloodVolumeMl,
     requestedMaximumCycleCount: kernel.requestedMaximumCycleCount,
     completedCycleCount: kernel.completedCycleCount,
     terminationReason: kernel.terminationReason,
@@ -532,6 +546,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     terminalCycleTrace: kernel.terminalCycleTrace,
     terminalHealthyReferenceProjection,
     terminalAcceptedState: kernel.terminalAcceptedState,
+    terminalCycleStartCheckpoint: kernel.terminalCycleStartCheckpoint,
     terminalCheckpoint: kernel.terminalCheckpoint,
     terminalCheckpointExactRoundTripVerified:
       kernel.terminalCheckpointExactRoundTripVerified,
@@ -565,6 +580,7 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
   );
   let terminalTraceSamples: MainWireIntegratedModelPeriodicTerminalTraceSampleV3[] =
     [];
+  let terminalCycleStartAcceptedState: AcceptedState | null = null;
   const allAtrialCaptureIds = new Set<string>();
   const allVentricularCaptureIds = new Set<string>();
   const allDepositIds = new Set<string>();
@@ -630,6 +646,7 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
     );
     cycles.push(buildCycleSummary(cycleIndex, run, period1, period2));
     terminalTraceSamples = [...run.traceSamples];
+    terminalCycleStartAcceptedState = start;
     boundaries.push(accepted);
     if (boundaries.length > 3) boundaries.shift();
     if (
@@ -643,7 +660,8 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
   const terminalCycle = cycles.at(-1);
   if (
     terminalCycle === undefined ||
-    terminalTraceSamples.length !== terminalCycle.acceptedStepCount
+    terminalTraceSamples.length !== terminalCycle.acceptedStepCount ||
+    terminalCycleStartAcceptedState === null
   ) {
     throw new Error("V3 periodic experiment lacks a complete terminal trace");
   }
@@ -659,6 +677,10 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
     interpretation:
       "raw-accepted-endpoint-samples-no-resampling-no-shape-acceptance" as const,
   });
+  const terminalCycleStartCheckpoint = await checkpointMainWireIntegratedModelV3(
+    createCheckpointContext(fixture, terminalCycleStartAcceptedState),
+    terminalCycleStartAcceptedState,
+  );
   const checkpointContext = createCheckpointContext(fixture, accepted);
   const terminalCheckpoint = await checkpointMainWireIntegratedModelV3(
     checkpointContext,
@@ -702,6 +724,7 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
     observations,
     terminalCycleTrace,
     terminalAcceptedState: accepted,
+    terminalCycleStartCheckpoint,
     terminalCheckpoint,
     terminalCheckpointExactRoundTripVerified: true as const,
   });
@@ -1414,7 +1437,8 @@ function priorVentricularCapture(
   }).capturedActivations[0]!;
 }
 
-function createAllOffZeroInertanceProfileV3(): DynamicMechanicalSupportInertanceProfileV1 {
+export function createMainWireIntegratedModelAllOffZeroInertanceProfileV3():
+DynamicMechanicalSupportInertanceProfileV1 {
   const zero = Object.freeze({
     unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
     pumpInternalMmHgSec2PerMl: 0,

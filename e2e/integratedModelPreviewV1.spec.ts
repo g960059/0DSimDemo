@@ -5,7 +5,7 @@ import { expect, test } from "@playwright/test";
 const RELEASE_SHA256 =
   "d66b948dc85265cc5d40c23038b1e67682784f068bc54c8daf10bb249e6a8e47";
 
-test("runs the exact integrated release and exports a replay-complete artifact", async ({
+test("runs the exact integrated release and exports an exact run record", async ({
   page,
 }, testInfo) => {
   test.setTimeout(120_000);
@@ -26,10 +26,14 @@ test("runs the exact integrated release and exports a replay-complete artifact",
     const limitationAcknowledge = page.getByRole("button", {
       name: "理解しました",
     });
-    if (await limitationAcknowledge.isVisible()) {
-      await limitationAcknowledge.click();
-    }
     const pageHost = page.getByTestId("integrated-model-preview-page-v1");
+    await expect(limitationAcknowledge).toBeVisible();
+    await expect(page.getByText(
+      "the pulmonary PA-PArt waveform mechanism remains an open structural blocker",
+      { exact: true },
+    )).toBeVisible();
+    await expect(pageHost).toHaveAttribute("data-runtime-phase", "loading");
+    await limitationAcknowledge.click();
     await expect(pageHost).toHaveAttribute("data-runtime-phase", "ready", {
       timeout: 30_000,
     });
@@ -44,18 +48,19 @@ test("runs the exact integrated release and exports a replay-complete artifact",
 
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", {
-      name: "Download exact RunArtifact",
+      name: "Download exact run record",
     }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename())
-      .toMatch(/^circleheart-integrated-run-[0-9a-f]{12}\.json$/);
+      .toMatch(/^circleheart-integrated-run-record-[0-9a-f]{12}\.json$/);
     const downloadPath = await download.path();
     expect(downloadPath).not.toBeNull();
     const exported = JSON.parse(
       await readFile(downloadPath!, "utf8"),
     ) as Record<string, any>;
     expect(exported).toMatchObject({
-      artifactId: "circleheart-main-wire-integrated-preview-run-artifact-v1",
+      artifactId: "circleheart-main-wire-integrated-preview-run-record-v2",
+      schemaVersion: 2,
       releaseRef: { sha256: RELEASE_SHA256 },
       simulationInputSpec: {
         mechanicalSupport: { presetId: "all-off" },
@@ -65,10 +70,25 @@ test("runs the exact integrated release and exports a replay-complete artifact",
         kind: "bundled-p1-seed",
         numericalPeriod1Established: true,
       },
-      modelState: { schemaVersion: 3 },
+      startModelState: {
+        schemaVersion: 3,
+        acceptedTimeSec: 69,
+      },
+      terminalModelState: {
+        schemaVersion: 3,
+        acceptedTimeSec: 70,
+      },
+      replayCompleteness: {
+        stateTransitionInputIdentitiesIncluded: true,
+        exactStartCheckpointIncluded: true,
+        exactTerminalCheckpointIncluded: true,
+        executableBuildProvenanceAttached: false,
+        standaloneReplayCompleteArtifactClaimed: false,
+      },
     });
     expect(exported.run.trace).toHaveLength(504);
-    expect(exported.artifactSha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(exported.recordSha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(exported).not.toHaveProperty("buildArtifactRef");
 
     await page.getByRole("button", {
       name: "HeartMate II · 9,000 rpm",
@@ -100,7 +120,7 @@ test("runs the exact integrated release and exports a replay-complete artifact",
 });
 
 async function checkpointSha(page: import("@playwright/test").Page) {
-  const checkpointLabel = page.getByText("Checkpoint SHA-256", {
+  const checkpointLabel = page.getByText("Terminal checkpoint SHA-256", {
     exact: true,
   });
   const value = await checkpointLabel.locator("..").locator("dd").textContent();

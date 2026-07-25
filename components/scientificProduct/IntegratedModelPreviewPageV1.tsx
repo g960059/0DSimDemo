@@ -8,20 +8,27 @@ import type {
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import type {
   MainWireIntegratedPreviewMcsPresetIdV1,
-  MainWireIntegratedPreviewRunArtifactV1,
-  MainWireIntegratedPreviewRunPresentationV1,
+  MainWireIntegratedPreviewRunPresentationV2,
+  MainWireIntegratedPreviewRunRecordV2,
 } from "@/engine/scientific/integratedPreview";
+import {
+  MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_ACK_KEY_V1,
+} from "@/engine/scientific/assembly";
 import {
   MainWireIntegratedPreviewWorkerClientV1,
 } from "@/engine/scientificBrowser/MainWireIntegratedPreviewWorkerClientV1";
+import {
+  MODEL_LIMITATIONS_ACKNOWLEDGED_EVENT,
+  hasModelLimitationsAcknowledgement,
+} from "@/components/ModelLimitations";
 
 type LoadState =
   | Readonly<{ phase: "loading"; message: string }>
   | Readonly<{ phase: "failed"; message: string }>
   | Readonly<{
     phase: "ready";
-    artifact: MainWireIntegratedPreviewRunArtifactV1;
-    presentation: MainWireIntegratedPreviewRunPresentationV1;
+    runRecord: MainWireIntegratedPreviewRunRecordV2;
+    presentation: MainWireIntegratedPreviewRunPresentationV2;
   }>;
 
 const MCS_OPTIONS = Object.freeze([
@@ -42,6 +49,11 @@ export default function IntegratedModelPreviewPageV1() {
   const locale = localeFromPathname(location.pathname);
   const [mcsPresetId, setMcsPresetId] =
     React.useState<MainWireIntegratedPreviewMcsPresetIdV1>("all-off");
+  const [sessionRevision, setSessionRevision] = React.useState(0);
+  const [limitationsAcknowledged, setLimitationsAcknowledged] =
+    React.useState(() => hasModelLimitationsAcknowledgement(
+      MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_ACK_KEY_V1,
+    ));
   const [state, setState] = React.useState<LoadState>({
     phase: "loading",
     message: "Verifying the integrated release and restoring its P1 seed…",
@@ -49,8 +61,38 @@ export default function IntegratedModelPreviewPageV1() {
   const clientRef =
     React.useRef<MainWireIntegratedPreviewWorkerClientV1 | null>(null);
   const sessionIdRef = React.useRef("");
+  const operationEpochRef = React.useRef(0);
 
   React.useEffect(() => {
+    const onAcknowledged = (event: Event) => {
+      const acknowledgementKey = (
+        event as CustomEvent<Readonly<{ acknowledgementKey?: unknown }>>
+      ).detail?.acknowledgementKey;
+      if (
+        acknowledgementKey
+          === MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_ACK_KEY_V1
+      ) setLimitationsAcknowledged(true);
+    };
+    window.addEventListener(
+      MODEL_LIMITATIONS_ACKNOWLEDGED_EVENT,
+      onAcknowledged,
+    );
+    return () => window.removeEventListener(
+      MODEL_LIMITATIONS_ACKNOWLEDGED_EVENT,
+      onAcknowledged,
+    );
+  }, []);
+
+  React.useEffect(() => {
+    if (!limitationsAcknowledged) {
+      setState({
+        phase: "loading",
+        message: "Review and acknowledge this release's model limitations to continue.",
+      });
+      return;
+    }
+    const operationEpoch = operationEpochRef.current + 1;
+    operationEpochRef.current = operationEpoch;
     const client = new MainWireIntegratedPreviewWorkerClientV1();
     const sessionId = `integrated-preview-${mcsPresetId === "all-off"
       ? "baseline"
@@ -61,22 +103,22 @@ export default function IntegratedModelPreviewPageV1() {
     setState({
       phase: "loading",
       message: mcsPresetId === "all-off"
-        ? "Verifying the release-bound P1 RunArtifact…"
+        ? "Verifying the release-bound P1 run record…"
         : "Running one raw accepted-state beat after HMII activation (about 10 seconds)…",
     });
     void client.createSession(sessionId, mcsPresetId).then((response) => {
-      if (!active) return;
+      if (!active || operationEpochRef.current !== operationEpoch) return;
       if (response.ok === false) throw new Error(response.error.message);
-      if (response.artifact === null || response.presentation === null) {
-        throw new Error("integrated preview Worker omitted its run artifact");
+      if (response.runRecord === null || response.presentation === null) {
+        throw new Error("integrated preview Worker omitted its run record");
       }
       setState({
         phase: "ready",
-        artifact: response.artifact,
+        runRecord: response.runRecord,
         presentation: response.presentation,
       });
     }).catch((error: unknown) => {
-      if (!active) return;
+      if (!active || operationEpochRef.current !== operationEpoch) return;
       setState({
         phase: "failed",
         message: error instanceof Error ? error.message : String(error),
@@ -84,35 +126,48 @@ export default function IntegratedModelPreviewPageV1() {
     });
     return () => {
       active = false;
+      if (operationEpochRef.current === operationEpoch) {
+        operationEpochRef.current += 1;
+      }
       client.terminate();
       if (clientRef.current === client) clientRef.current = null;
     };
-  }, [mcsPresetId]);
+  }, [limitationsAcknowledged, mcsPresetId, sessionRevision]);
 
   const runNextBeat = React.useCallback(() => {
     const client = clientRef.current;
     if (client === null || state.phase !== "ready") return;
-    const retained = state;
+    const operationEpoch = operationEpochRef.current;
+    const sessionId = sessionIdRef.current;
     setState({
       phase: "loading",
       message: "Advancing every integrated owner through one accepted beat…",
     });
-    void client.runNextBeat(sessionIdRef.current).then((response) => {
+    void client.runNextBeat(sessionId).then((response) => {
+      if (
+        operationEpochRef.current !== operationEpoch
+        || clientRef.current !== client
+        || sessionIdRef.current !== sessionId
+      ) return;
       if (response.ok === false) throw new Error(response.error.message);
-      if (response.artifact === null || response.presentation === null) {
+      if (response.runRecord === null || response.presentation === null) {
         throw new Error("integrated preview Worker omitted its continuation");
       }
       setState({
         phase: "ready",
-        artifact: response.artifact,
+        runRecord: response.runRecord,
         presentation: response.presentation,
       });
     }).catch((error: unknown) => {
+      if (
+        operationEpochRef.current !== operationEpoch
+        || clientRef.current !== client
+        || sessionIdRef.current !== sessionId
+      ) return;
       setState({
         phase: "failed",
         message: error instanceof Error ? error.message : String(error),
       });
-      globalThis.setTimeout(() => setState(retained), 3_000);
     });
   }, [state]);
 
@@ -173,7 +228,16 @@ export default function IntegratedModelPreviewPageV1() {
               <RuntimeStatus message={state.message} />
             )}
             {state.phase === "failed" && (
-              <RuntimeStatus message={state.message} failed />
+              <div className="space-y-3">
+                <RuntimeStatus message={state.message} failed />
+                <button
+                  type="button"
+                  onClick={() => setSessionRevision((value) => value + 1)}
+                  className="rounded-lg border border-sky-700 bg-sky-950/40 px-3 py-2 text-sm font-bold text-sky-200 hover:border-sky-500"
+                >
+                  Restore the exact release seed
+                </button>
+              </div>
             )}
             {state.phase === "ready" && (
               <IntegratedRunView presentation={state.presentation} />
@@ -219,10 +283,10 @@ export default function IntegratedModelPreviewPageV1() {
               {state.phase === "ready" && (
                 <button
                   type="button"
-                  onClick={() => downloadRunArtifact(state.artifact)}
+                  onClick={() => downloadRunRecord(state.runRecord)}
                   className="mt-2 w-full rounded-lg border border-slate-700 px-3 py-2 text-sm font-semibold text-slate-200 hover:border-slate-500"
                 >
-                  Download exact RunArtifact
+                  Download exact run record
                 </button>
               )}
             </section>
@@ -253,7 +317,7 @@ export default function IntegratedModelPreviewPageV1() {
 
 function IntegratedRunView({
   presentation,
-}: Readonly<{ presentation: MainWireIntegratedPreviewRunPresentationV1 }>) {
+}: Readonly<{ presentation: MainWireIntegratedPreviewRunPresentationV2 }>) {
   const trace = presentation.trace;
   const metrics = summarize(trace);
   return (
@@ -582,7 +646,7 @@ function RuntimeStatus({
 
 function ReleaseIdentity({
   presentation,
-}: Readonly<{ presentation: MainWireIntegratedPreviewRunPresentationV1 }>) {
+}: Readonly<{ presentation: MainWireIntegratedPreviewRunPresentationV2 }>) {
   return (
     <section className="rounded-xl border border-slate-800 bg-slate-900 p-4 text-xs">
       <h2 className="font-bold text-slate-200">Exact model identity</h2>
@@ -606,9 +670,21 @@ function ReleaseIdentity({
           </dd>
         </div>
         <div>
-          <dt className="text-slate-500">Checkpoint SHA-256</dt>
+          <dt className="text-slate-500">Start checkpoint SHA-256</dt>
           <dd className="mt-1 break-all font-mono">
-            {presentation.modelStateRef.checkpointSha256}
+            {presentation.startModelStateRef.checkpointSha256}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Terminal checkpoint SHA-256</dt>
+          <dd className="mt-1 break-all font-mono">
+            {presentation.terminalModelStateRef.checkpointSha256}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Run record SHA-256</dt>
+          <dd className="mt-1 break-all font-mono">
+            {presentation.recordSha256}
           </dd>
         </div>
       </dl>
@@ -653,17 +729,17 @@ function paddedDomain(values: readonly number[]): readonly [number, number] {
   return [minimum - padding, maximum + padding];
 }
 
-function downloadRunArtifact(
-  artifact: MainWireIntegratedPreviewRunArtifactV1,
+function downloadRunRecord(
+  runRecord: MainWireIntegratedPreviewRunRecordV2,
 ): void {
-  const blob = new Blob([`${JSON.stringify(artifact)}\n`], {
+  const blob = new Blob([`${JSON.stringify(runRecord)}\n`], {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download =
-    `circleheart-integrated-run-${artifact.artifactSha256.slice(0, 12)}.json`;
+    `circleheart-integrated-run-record-${runRecord.recordSha256.slice(0, 12)}.json`;
   document.body.append(anchor);
   anchor.click();
   anchor.remove();

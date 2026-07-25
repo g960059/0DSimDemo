@@ -128,6 +128,30 @@ jobs:
           # Keep the script's 60 s local gate while allowing CI variance.
           CIRCLEHEART_FAST_TEST_BUDGET_MS: 90000
 
+  scientific_artifacts:
+    name: Scientific release artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify generated release artifacts and catalogs
+        run: |
+          npm run verify:scientific:integrated-preview-seed
+          npm run verify:scientific:integrated-preview-release
+          npm run verify:scientific:product-release-catalogs
+
   browser_e2e:
     name: Production browser E2E
     needs:
@@ -202,6 +226,7 @@ jobs:
       - classify_changes
       - build
       - test
+      - scientific_artifacts
       - browser_e2e
       - whitespace
     if: always()
@@ -216,6 +241,7 @@ jobs:
           CLASSIFY_CHANGES_RESULT: ${{ needs.classify_changes.result }}
           BUILD_RESULT: ${{ needs.build.result }}
           TEST_RESULT: ${{ needs.test.result }}
+          SCIENTIFIC_ARTIFACTS_RESULT: ${{ needs.scientific_artifacts.result }}
           BROWSER_E2E_RESULT: ${{ needs.browser_e2e.result }}
           WHITESPACE_RESULT: ${{ needs.whitespace.result }}
         run: |
@@ -224,6 +250,7 @@ jobs:
             "Classify changes:$CLASSIFY_CHANGES_RESULT" \
             "Build:$BUILD_RESULT" \
             "Test:$TEST_RESULT" \
+            "Scientific release artifacts:$SCIENTIFIC_ARTIFACTS_RESULT" \
             "Production browser E2E:$BROWSER_E2E_RESULT" \
             "Check diff whitespace:$WHITESPACE_RESULT"
           do

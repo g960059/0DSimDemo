@@ -2,7 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Info, X } from 'lucide-react';
 
-const ACK_KEY = 'circleheart.modelLimitations.ack.v1';
+export const DEFAULT_MODEL_LIMITATIONS_ACK_KEY =
+  'circleheart.modelLimitations.ack.v1';
+export const MODEL_LIMITATIONS_ACKNOWLEDGED_EVENT =
+  'circleheart:model-limitations-acknowledged';
 
 const LIMITATIONS: string[] = [
   'Research & education only — not a medical device, and not for diagnosis, treatment, or any patient-specific decision.',
@@ -12,23 +15,25 @@ const LIMITATIONS: string[] = [
   'Use it to build intuition and explore hypotheses — not to predict a specific patient.',
 ];
 
-function hasAck(): boolean {
+export function hasModelLimitationsAcknowledgement(
+  acknowledgementKey: string,
+): boolean {
   try {
-    return localStorage.getItem(ACK_KEY) === '1';
+    return localStorage.getItem(acknowledgementKey) === '1';
   } catch {
     return true; // if storage is unavailable, don't nag
   }
 }
 
-function setAck() {
+function setAck(acknowledgementKey: string) {
   try {
-    localStorage.setItem(ACK_KEY, '1');
+    localStorage.setItem(acknowledgementKey, '1');
   } catch {
     /* ignore */
   }
 }
 
-const Body: React.FC<{ limitations?: string[] }> = ({ limitations = LIMITATIONS }) => (
+const Body: React.FC<{ limitations?: readonly string[] }> = ({ limitations = LIMITATIONS }) => (
   <ul className="space-y-2 text-sm text-slate-300">
     {limitations.map((l, i) => (
       <li key={i} className="flex gap-2">
@@ -44,17 +49,33 @@ const Body: React.FC<{ limitations?: string[] }> = ({ limitations = LIMITATIONS 
  * acknowledgement in localStorage, plus a tiny always-reachable info button.
  * Deliberately NOT a large always-on banner.
  */
-export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: string[] }> = ({ compact = false, limitations }) => {
+export const ModelLimitations: React.FC<{
+  compact?: boolean;
+  limitations?: readonly string[];
+  acknowledgementKey?: string;
+}> = ({
+  compact = false,
+  limitations,
+  acknowledgementKey = DEFAULT_MODEL_LIMITATIONS_ACK_KEY,
+}) => {
   const { t } = useTranslation();
   const defaultLimitations = t('modelLimitations.items', { returnObjects: true }) as string[];
   const shownLimitations = limitations ?? defaultLimitations;
   // First-run modal: open if not acknowledged. Manual reopen via the header icon.
-  const [firstRun, setFirstRun] = useState<boolean>(() => !hasAck());
+  const [firstRun, setFirstRun] = useState<boolean>(
+    () => !hasModelLimitationsAcknowledgement(acknowledgementKey),
+  );
   const [reopened, setReopened] = useState(false);
   const open = firstRun || reopened;
 
   const close = () => {
-    if (firstRun) setAck();
+    if (firstRun) {
+      setAck(acknowledgementKey);
+      window.dispatchEvent(new CustomEvent(
+        MODEL_LIMITATIONS_ACKNOWLEDGED_EVENT,
+        { detail: { acknowledgementKey } },
+      ));
+    }
     setFirstRun(false);
     setReopened(false);
   };

@@ -4,8 +4,10 @@ import {
   MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_ID,
   MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_SHA256,
   MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_VERSION,
+  assembleMainWireAdultFiveWallIntegratedPreviewReleaseV1,
 } from "@/engine/scientific/assembly/mainWireAdultFiveWallIntegratedPreviewReleaseV1";
 import {
+  canonicalJsonStringify,
   loadSimulationReleaseV1,
   SimulationReleaseValidationError,
   type SimulationReleaseV1,
@@ -13,7 +15,10 @@ import {
 
 export async function loadMainWireAdultFiveWallIntegratedPreviewReleaseV1():
 Promise<SimulationReleaseV1> {
-  const release = await loadSimulationReleaseV1(artifact);
+  const [release, liveRelease] = await Promise.all([
+    loadSimulationReleaseV1(artifact),
+    assembleMainWireAdultFiveWallIntegratedPreviewReleaseV1(),
+  ]);
   if (
     release.ref.id
       !== MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_ID
@@ -24,6 +29,15 @@ Promise<SimulationReleaseV1> {
   ) {
     throw new SimulationReleaseValidationError([
       "checked-in integrated preview release does not match its pinned identity",
+    ]);
+  }
+  if (
+    canonicalJsonStringify(release)
+      !== canonicalJsonStringify(liveRelease)
+  ) {
+    throw new SimulationReleaseValidationError([
+      "checked-in integrated preview release differs from the live release "
+        + "assembly",
     ]);
   }
   return release;

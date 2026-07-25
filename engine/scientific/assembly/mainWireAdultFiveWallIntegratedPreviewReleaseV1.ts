@@ -1,4 +1,14 @@
 import {
+  mechanicalSupportPresetV1,
+  type MechanicalSupportPresetIdV1,
+} from "@/engine/devices/presetsV1";
+import type {
+  MechanicalSupportConfigV1,
+} from "@/engine/devices/typesV1";
+import type {
+  DynamicMechanicalSupportInertanceProfileV1,
+} from "@/engine/devices/dynamicNetworkV1";
+import {
   MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3,
   MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
@@ -10,7 +20,11 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
+  createMainWireIntegratedModelAllOffZeroInertanceProfileV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  createMainWireIntegratedHeartMateIiLvadOnlyVerificationProfileV2,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelNumericalVerificationV2";
 import {
   cloneAndFreezeCanonicalJson,
   createSimulationReleaseV1,
@@ -27,15 +41,73 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_SHA256 =
   "d66b948dc85265cc5d40c23038b1e67682784f068bc54c8daf10bb249e6a8e47" as const;
 export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_ARTIFACT_PATH =
   "engine/scientific/assembly/releases/main-wire-adult-five-wall-integrated-preview-0.1.0.json" as const;
+export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_ACK_KEY_V1 =
+  "circleheart.modelLimitations.circleheart-adult-five-wall-integrated-preview.0.1.0" as const;
+export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_V1 =
+  Object.freeze([
+    "development preview, not the current stable product release",
+    "physiological or clinical validation is not established",
+    "the pulmonary PA-PArt waveform mechanism remains an open structural blocker",
+    "active HeartMate II is one unsteady post-activation beat and not a periodic result",
+    "the HeartMate II inertance profile is a literature transcription and is not release-approved",
+    "external AF joint checkpointing and rhythm-synchronized IABP remain blocked",
+    "multipatch myocardium and patient-specific fitting are not included",
+  ] as const);
 
 export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_ARTIFACT_PATH =
   "data/scientific/releases/integrated-preview-0.1.0/normal-sinus-periodic-seed-run-v1.json" as const;
+export const MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH =
+  "data/scientific/evidence/integrated-preview-0.1.0/canonical-periodic-v3-source.json" as const;
+export const MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_RAW_SHA256 =
+  "0000000000000000000000000000000000000000000000000000000000000000" as const;
+export const MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_CANONICAL_SHA256 =
+  "0000000000000000000000000000000000000000000000000000000000000000" as const;
 export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_RAW_SHA256 =
   "6cfcca91f6642b08d5ebfc60bc6c2e45c56b084da74791182bb33b8388926546" as const;
 export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_PAYLOAD_SHA256 =
   "a4ae4457bb9d2b670edfbd4bd76a60ce1b79c17c7d8405e28719d5eb207b7424" as const;
-export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_CHECKPOINT_SHA256 =
+export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_START_CHECKPOINT_SHA256 =
+  "0000000000000000000000000000000000000000000000000000000000000000" as const;
+export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_TERMINAL_CHECKPOINT_SHA256 =
   "544e5d8e84eb53fdb3ab44d88bce96f3c315186b3636f3e43585be5666f5b967" as const;
+
+export type MainWireIntegratedPreviewMechanicalSupportInputDefinitionV1 =
+Readonly<{
+  previewPresetId:
+    | "all-off"
+    | "lvad-hmii-9000-one-beat-transient";
+  configPresetId: MechanicalSupportPresetIdV1;
+  activeDeviceIds: readonly [] | readonly ["LVAD"];
+  interpretation:
+    | "numerically-periodic-all-off-seed"
+    | "one-unsteady-post-activation-beat";
+  profile: DynamicMechanicalSupportInertanceProfileV1;
+  config: MechanicalSupportConfigV1;
+}>;
+
+export const MAIN_WIRE_INTEGRATED_PREVIEW_MECHANICAL_SUPPORT_INPUTS_V1 =
+  cloneAndFreezeCanonicalJson<CanonicalJsonObject>({
+    "all-off": {
+      previewPresetId: "all-off",
+      configPresetId: "all-off",
+      activeDeviceIds: [],
+      interpretation: "numerically-periodic-all-off-seed",
+      profile: createMainWireIntegratedModelAllOffZeroInertanceProfileV3(),
+      config: mechanicalSupportPresetV1("all-off"),
+    },
+    "lvad-hmii-9000-one-beat-transient": {
+      previewPresetId: "lvad-hmii-9000-one-beat-transient",
+      configPresetId: "lvad-hmii-9000",
+      activeDeviceIds: ["LVAD"],
+      interpretation: "one-unsteady-post-activation-beat",
+      profile:
+        createMainWireIntegratedHeartMateIiLvadOnlyVerificationProfileV2(),
+      config: mechanicalSupportPresetV1("lvad-hmii-9000"),
+    },
+  }) as unknown as Readonly<Record<
+    "all-off" | "lvad-hmii-9000-one-beat-transient",
+    MainWireIntegratedPreviewMechanicalSupportInputDefinitionV1
+  >>;
 
 export const MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1 = Object.freeze({
   protocolId: "main-wire-integrated-preview-one-beat-continuation-v1" as const,
@@ -49,6 +121,8 @@ export const MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1 = Object.freeze({
     "all-off",
     "lvad-hmii-9000-one-beat-transient",
   ] as const),
+  canonicalMechanicalSupportInputs:
+    MAIN_WIRE_INTEGRATED_PREVIEW_MECHANICAL_SUPPORT_INPUTS_V1,
   activeLvadInterpretation:
     "state-preserving-structural-fork-from-p1-all-off-seed-followed-by-one-unsteady-beat" as const,
   activeLvadPeriodicSteadyStateClaimed: false as const,
@@ -73,12 +147,23 @@ SimulationReleaseManifestInputV1 {
             MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_RAW_SHA256,
           payloadSha256:
             MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_PAYLOAD_SHA256,
-          checkpointSha256:
-            MAIN_WIRE_INTEGRATED_PREVIEW_SEED_CHECKPOINT_SHA256,
+          startCheckpointSha256:
+            MAIN_WIRE_INTEGRATED_PREVIEW_SEED_START_CHECKPOINT_SHA256,
+          terminalCheckpointSha256:
+            MAIN_WIRE_INTEGRATED_PREVIEW_SEED_TERMINAL_CHECKPOINT_SHA256,
           completedCycleCount: 70,
           classification: "period1-converged",
           physiologicalAcceptanceEstablished: false,
           releaseAcceptanceEstablished: false,
+        },
+        periodicSourceArtifact: {
+          path:
+            MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH,
+          artifactSchemaVersion: 4,
+          rawFileSha256:
+            MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_RAW_SHA256,
+          canonicalJsonSha256:
+            MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_CANONICAL_SHA256,
         },
         activeHeartMateIiEvidenceRole:
           "bounded-literature-transcription-and-transaction-smoke-only",
@@ -112,6 +197,8 @@ SimulationReleaseManifestInputV1 {
           mechanicalSupport:
             MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1
               .supportedMechanicalSupportInputs,
+          mechanicalSupportDefinitions:
+            MAIN_WIRE_INTEGRATED_PREVIEW_MECHANICAL_SUPPORT_INPUTS_V1,
         },
       },
     },
@@ -134,8 +221,10 @@ SimulationReleaseManifestInputV1 {
       schemaVersion: 3,
       snapshot: {
         exactResumeClaim: MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3,
-        seedCheckpointSha256:
-          MAIN_WIRE_INTEGRATED_PREVIEW_SEED_CHECKPOINT_SHA256,
+        seedStartCheckpointSha256:
+          MAIN_WIRE_INTEGRATED_PREVIEW_SEED_START_CHECKPOINT_SHA256,
+        seedTerminalCheckpointSha256:
+          MAIN_WIRE_INTEGRATED_PREVIEW_SEED_TERMINAL_CHECKPOINT_SHA256,
       },
     },
     observableSchema: {
@@ -179,15 +268,8 @@ SimulationReleaseManifestInputV1 {
       "the bundled all-off seed is numerically P1 and exact-checkpoint-restorable",
       "frontend-visible samples are raw accepted endpoints",
     ],
-    limitations: [
-      "development preview, not the current stable product release",
-      "physiological or clinical validation is not established",
-      "the pulmonary PA-PArt waveform mechanism remains an open structural blocker",
-      "active HeartMate II is one unsteady post-activation beat and not a periodic result",
-      "the HeartMate II inertance profile is a literature transcription and is not release-approved",
-      "external AF joint checkpointing and rhythm-synchronized IABP remain blocked",
-      "multipatch myocardium and patient-specific fitting are not included",
-    ],
+    limitations:
+      MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_V1,
   }) as unknown as SimulationReleaseManifestInputV1;
 }
 

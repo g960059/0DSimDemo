@@ -3,7 +3,7 @@ import type {
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import {
   MainWireIntegratedPreviewSessionV1,
-  type MainWireIntegratedPreviewRunArtifactV1,
+  type MainWireIntegratedPreviewRunRecordV2,
 } from "@/engine/scientific/integratedPreview";
 import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
 
@@ -12,18 +12,18 @@ type Trace =
 
 const allOffSession =
   await MainWireIntegratedPreviewSessionV1.create("all-off");
-const allOff = await allOffSession.seedRunArtifact();
+const allOff = await allOffSession.seedRunRecord();
 const heartMateIiSession = await MainWireIntegratedPreviewSessionV1.create(
   "lvad-hmii-9000-one-beat-transient",
 );
-const heartMateIi = await heartMateIiSession.runNextBeatArtifact();
+const heartMateIi = await heartMateIiSession.runNextBeatRecord();
 
-await verifyArtifact(allOff, {
+await verifyRunRecord(allOff, {
   expectedKind: "bundled-p1-seed",
   expectedFinalAcceptedTimeSec: 70,
   requireLvadFlow: false,
 });
-await verifyArtifact(heartMateIi, {
+await verifyRunRecord(heartMateIi, {
   expectedKind: "one-beat-continuation",
   expectedFinalAcceptedTimeSec: 71,
   requireLvadFlow: true,
@@ -43,28 +43,34 @@ process.stdout.write(`${JSON.stringify({
   heartMateIiPostActivationBeat: summarize(heartMateIi),
 }, null, 2)}\n`);
 
-async function verifyArtifact(
-  artifact: MainWireIntegratedPreviewRunArtifactV1,
+async function verifyRunRecord(
+  runRecord: MainWireIntegratedPreviewRunRecordV2,
   expectation: Readonly<{
-    expectedKind: MainWireIntegratedPreviewRunArtifactV1["run"]["kind"];
+    expectedKind: MainWireIntegratedPreviewRunRecordV2["run"]["kind"];
     expectedFinalAcceptedTimeSec: number;
     requireLvadFlow: boolean;
   }>,
 ): Promise<void> {
-  const { artifactSha256, ...payload } = artifact;
-  if (await sha256CanonicalJsonHex(payload) !== artifactSha256) {
-    throw new Error("frontend RunArtifact SHA-256 is invalid");
+  const { recordSha256, ...payload } = runRecord;
+  if (await sha256CanonicalJsonHex(payload) !== recordSha256) {
+    throw new Error("frontend run record SHA-256 is invalid");
   }
-  const trace = artifact.run.trace;
+  const trace = runRecord.run.trace;
   if (
-    artifact.run.kind !== expectation.expectedKind
-    || artifact.modelState.acceptedTimeSec
+    runRecord.run.kind !== expectation.expectedKind
+    || runRecord.terminalModelState.acceptedTimeSec
       !== expectation.expectedFinalAcceptedTimeSec
+    || runRecord.startModelState.acceptedTimeSec
+      !== runRecord.run.startAcceptedTimeSec
+    || runRecord.terminalModelState.acceptedTimeSec
+      !== runRecord.run.endAcceptedTimeSec
     || Math.abs(durationSec(trace) - 1) > 1e-12
-    || artifact.run.maximumTotalBloodVolumeErrorMl >= 1e-8
-    || artifact.run.maximumCoronaryBloodVolumeLedgerResidualMl >= 1e-8
-    || artifact.run.maximumDynamicMcsConservationResidualMlPerSec >= 1e-12
-  ) throw new Error("frontend RunArtifact invariant failed");
+    || runRecord.run.maximumTotalBloodVolumeErrorMl >= 1e-8
+    || runRecord.run.maximumCoronaryBloodVolumeLedgerResidualMl >= 1e-8
+    || runRecord.run.maximumDynamicMcsConservationResidualMlPerSec >= 1e-12
+    || runRecord.replayCompleteness.standaloneReplayCompleteArtifactClaimed
+      !== false
+  ) throw new Error("frontend run record invariant failed");
   for (let index = 0; index < trace.length; index += 1) {
     const sample = trace[index]!;
     if (
@@ -93,8 +99,8 @@ async function verifyArtifact(
   ) throw new Error("frontend LVAD activation projection is invalid");
 }
 
-function summarize(artifact: MainWireIntegratedPreviewRunArtifactV1) {
-  const trace = artifact.run.trace;
+function summarize(runRecord: MainWireIntegratedPreviewRunRecordV2) {
+  const trace = runRecord.run.trace;
   const lvVolumes = trace.map((sample) => sample.chamberVolumeMl.LV);
   const edv = Math.max(...lvVolumes);
   const esv = Math.min(...lvVolumes);
@@ -115,10 +121,12 @@ function summarize(artifact: MainWireIntegratedPreviewRunArtifactV1) {
   ) => trace.filter((sample) => read(sample) !== null)
     .map((sample) => sample.cyclePhase01);
   return {
-    artifactSha256: artifact.artifactSha256,
-    inputSpecSha256: artifact.simulationInputSpecSha256,
-    checkpointSha256: artifact.modelState.checkpointSha256,
-    runKind: artifact.run.kind,
+    runRecordSha256: runRecord.recordSha256,
+    inputSpecSha256: runRecord.simulationInputSpecSha256,
+    startCheckpointSha256: runRecord.startModelState.checkpointSha256,
+    terminalCheckpointSha256:
+      runRecord.terminalModelState.checkpointSha256,
+    runKind: runRecord.run.kind,
     acceptedEndpointCount: trace.length,
     durationSec: durationSec(trace),
     lv: {
@@ -188,11 +196,11 @@ function summarize(artifact: MainWireIntegratedPreviewRunArtifactV1) {
     },
     conservation: {
       maximumTotalBloodVolumeErrorMl:
-        artifact.run.maximumTotalBloodVolumeErrorMl,
+        runRecord.run.maximumTotalBloodVolumeErrorMl,
       maximumCoronaryBloodVolumeLedgerResidualMl:
-        artifact.run.maximumCoronaryBloodVolumeLedgerResidualMl,
+        runRecord.run.maximumCoronaryBloodVolumeLedgerResidualMl,
       maximumDynamicMcsConservationResidualMlPerSec:
-        artifact.run.maximumDynamicMcsConservationResidualMlPerSec,
+        runRecord.run.maximumDynamicMcsConservationResidualMlPerSec,
     },
   };
 }
