@@ -16,38 +16,34 @@ import { localeFromPathname } from "@/localeRouting";
 import {
   useStudioAuthorPreviewV1,
 } from "../StudioAuthorPreviewProviderV1";
+import {
+  useStudioReaderPlacementRuntimesV1,
+} from "../StudioReaderPlacementRuntimesV1";
 import { StudioDocumentReaderV1 } from "./StudioDocumentReaderV1";
+
+const NO_PLACEMENTS_V1 = Object.freeze([]);
 
 export default function StudioReaderPreviewRouteV1() {
   const { t } = useTranslation();
   const { previewId = "" } = useParams<{ previewId: string }>();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const {
-    readerSession,
-    acquireReaderPreview,
-  } = useStudioAuthorPreviewV1();
+  const { resolvePreview } = useStudioAuthorPreviewV1();
 
-  React.useEffect(
-    () => acquireReaderPreview(previewId),
-    [acquireReaderPreview, previewId],
+  // The page is the manifest; a numerical session belongs to each placement
+  // and opens as the reader reaches it, so nothing here waits on a Worker.
+  const manifest = React.useMemo(
+    () => resolvePreview(previewId),
+    [previewId, resolvePreview],
   );
+  const runtimeForPlacement = useStudioReaderPlacementRuntimesV1({
+    previewId: manifest === null ? null : previewId,
+    placements: manifest?.resolvedReaderDocument.placements
+      ?? NO_PLACEMENTS_V1,
+    autoLive: true,
+  });
 
-  if (
-    readerSession.phase === "idle"
-    || (
-      readerSession.phase !== "expired"
-      && readerSession.previewId !== previewId
-    )
-  ) {
-    return (
-      <StudioReaderPreviewStatusV1
-        title={t("studioAuthorPreview.reader.opening")}
-        message={t("studioAuthorPreview.reader.openingDescription")}
-      />
-    );
-  }
-  if (readerSession.phase === "expired") {
+  if (manifest === null) {
     return (
       <StudioReaderPreviewStatusV1
         title={t("studioAuthorPreview.reader.expired")}
@@ -56,32 +52,14 @@ export default function StudioReaderPreviewRouteV1() {
       />
     );
   }
-  if (readerSession.phase === "loading") {
-    return (
-      <StudioReaderPreviewStatusV1
-        title={t("studioAuthorPreview.reader.opening")}
-        message={readerSession.message}
-      />
-    );
-  }
-  if (readerSession.phase === "failed") {
-    return (
-      <StudioReaderPreviewStatusV1
-        title={t("studioAuthorPreview.reader.failed")}
-        message={readerSession.message}
-        failed
-      />
-    );
-  }
 
-  const controller = readerSession.readerController;
   return (
     <div
       className="flex h-full w-full flex-col overflow-hidden bg-slate-100 text-slate-900"
       data-testid="studio-reader-preview-v1"
-      data-preview-id={readerSession.previewId}
-      data-preview-trust={readerSession.manifest.trust}
-      data-preview-share-policy={readerSession.manifest.sharePolicy}
+      data-preview-id={previewId}
+      data-preview-trust={manifest.trust}
+      data-preview-share-policy={manifest.sharePolicy}
       data-publication-manifest-ref="null"
     >
       <header className="z-20 flex min-h-14 shrink-0 items-center gap-3 border-b border-amber-300/30 bg-slate-950 px-3 text-slate-100 shadow-lg shadow-slate-950/10 sm:px-5">
@@ -111,19 +89,8 @@ export default function StudioReaderPreviewRouteV1() {
           {t("studioAuthorPreview.reader.sessionNotice")}
         </div>
         <StudioDocumentReaderV1
-          document={readerSession.manifest.resolvedReaderDocument}
-          controllerForPlacement={(placementBlockId) =>
-            readerSession.manifest.resolvedReaderDocument.placements
-              .some((placement) =>
-                placement.placementBlockId === placementBlockId)
-              ? controller
-              : null}
-          registryForPlacement={(placementBlockId) =>
-            readerSession.manifest.resolvedReaderDocument.placements
-              .some((placement) =>
-                placement.placementBlockId === placementBlockId)
-              ? readerSession.registry
-              : null}
+          document={manifest.resolvedReaderDocument}
+          runtimeForPlacement={runtimeForPlacement}
         />
       </div>
     </div>

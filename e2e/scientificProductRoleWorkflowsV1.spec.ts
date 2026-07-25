@@ -163,6 +163,15 @@ test.describe.serial("Product workflows by role", () => {
       })).toBeVisible();
       await expect(reader).toContainText(authoredIntroduction);
 
+      // An experiment integrates only while a reader is looking at it, so the
+      // workflow scrolls to it the way a reader arrives at one.
+      await article.locator(
+        '[data-document-block-kind="experiment-placement"]',
+      ).scrollIntoViewIfNeeded();
+      await expect(
+        page.getByTestId("studio-reader-experiment-cell-v1"),
+      ).toHaveAttribute("data-reader-live", "true", { timeout: 60_000 });
+
       const sharedGraphPanes = reader.getByTestId(
         "studio-reader-shared-graph-panes-v1",
       );
@@ -766,6 +775,9 @@ test.describe.serial("Product workflows by role", () => {
 
       const reader = page.getByTestId("studio-document-reader-v1");
       await expect(reader).toBeVisible({ timeout: 120_000 });
+      await reader.locator(
+        '[data-document-block-kind="experiment-placement"]',
+      ).scrollIntoViewIfNeeded();
       const capturedPanes = reader.getByTestId(
         "studio-reader-shared-graph-panes-v1",
       );

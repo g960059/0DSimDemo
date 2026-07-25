@@ -198,7 +198,8 @@
       "openFocus": "詳しく開く",
       "closeFocus": "閉じる",
       "activate": "再生する",
-      "emptyBrief": "Workbenchでgraph・数値・操作を選ぶと、ここに読者が見る形で並びます。"
+      "emptyBrief": "Workbenchでgraph・数値・操作を選ぶと、ここに読者が見る形で並びます。",
+      "preparingExperiment": "この実験を読み込んでいます。"
     },
     "surface": {
       "capability": "表示モード",

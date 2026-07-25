@@ -38,16 +38,29 @@ export type StudioDocumentEditV1 = Readonly<{
   }> | null;
 }>;
 
+/**
+ * One placement's numerical session, as the surface needs to see it.
+ *
+ * A placement is bound when the reader is close enough to it to be worth a
+ * Worker, and live only while it is the one being read. `observe` receives the
+ * block element so the policy that decides both can watch it.
+ */
+export type StudioDocumentPlacementRuntimeV1 = Readonly<{
+  phase: "unbound" | "loading" | "ready" | "failed" | "expired";
+  message: string | null;
+  controller: ScientificProductReaderExperimentControllerV1 | null;
+  registry: ScientificProductRuntimeRegistryPortV1 | null;
+  live: boolean;
+  observe(element: HTMLElement | null): void;
+}>;
+
 export type StudioDocumentSurfaceV1Props = Readonly<{
   document: ResolvedReaderDocumentV1;
   capability: StudioDocumentCapabilityV1;
   edit?: StudioDocumentEditV1;
-  controllerForPlacement(
+  runtimeForPlacement(
     placementBlockId: string,
-  ): ScientificProductReaderExperimentControllerV1 | null;
-  registryForPlacement(
-    placementBlockId: string,
-  ): ScientificProductRuntimeRegistryPortV1 | null;
+  ): StudioDocumentPlacementRuntimeV1;
 }>;
 
 /**
@@ -62,8 +75,7 @@ export function StudioDocumentSurfaceV1({
   document,
   capability,
   edit,
-  controllerForPlacement,
-  registryForPlacement,
+  runtimeForPlacement,
 }: StudioDocumentSurfaceV1Props) {
   const { t } = useTranslation();
   const composing = capability === "compose" && edit !== undefined;
@@ -90,15 +102,6 @@ export function StudioDocumentSurfaceV1({
       blocks: document.document.blocks,
     });
   }, [document]);
-
-  /**
-   * The preview runtime binds exactly one placement, so a second one is not
-   * offered. Withdrawing the affordance is what keeps the invariant an
-   * editing decision rather than a failure the author discovers afterwards.
-   */
-  const insertableExperiment = placementCountV1(buffer.blocks) > 0
-    ? null
-    : edit?.insertableExperiment ?? null;
 
   const [menuBlockId, setMenuBlockId] = React.useState<string | null>(null);
   const focusBlockIdRef = React.useRef<string | null>(null);
@@ -172,14 +175,6 @@ export function StudioDocumentSurfaceV1({
       if (current.blocks.length <= 1) return current;
       const index = current.blocks.findIndex((block) =>
         block.blockId === blockId);
-      // The preview runtime binds exactly one placement. Removing the only
-      // one would leave every cell unresolved rather than emptying a block.
-      if (
-        current.blocks[index]?.kind === "experiment-placement"
-        && placementCountV1(current.blocks) <= 1
-      ) {
-        return current;
-      }
       const blocks = current.blocks.filter((block) =>
         block.blockId !== blockId);
       const previous = blocks[Math.max(0, index - 1)];
@@ -269,11 +264,16 @@ export function StudioDocumentSurfaceV1({
       <div className="mt-8">
         {buffer.blocks.map((block, index) => {
           const placement = placements.get(block.blockId);
-          const controller = controllerForPlacement(block.blockId);
-          const registry = registryForPlacement(block.blockId);
+          const runtime = block.kind === "experiment-placement"
+            ? runtimeForPlacement(block.blockId)
+            : null;
           return (
             <div
               key={block.blockId}
+              // The observed node is the block, not the cell: a placement
+              // swaps its rendering when a session opens, and the playback
+              // policy must not read that as leaving and coming back.
+              ref={runtime?.observe}
               className="group relative"
               data-testid="studio-document-block-v1"
               data-document-block-id={block.blockId}
@@ -286,10 +286,8 @@ export function StudioDocumentSurfaceV1({
                   total={buffer.blocks.length}
                   menuOpen={menuBlockId === block.blockId}
                   isExperiment={block.kind === "experiment-placement"}
-                  insertableExperiment={insertableExperiment}
-                  removable={buffer.blocks.length > 1
-                    && !(block.kind === "experiment-placement"
-                      && placementCountV1(buffer.blocks) <= 1)}
+                  insertableExperiment={edit?.insertableExperiment ?? null}
+                  removable={buffer.blocks.length > 1}
                   onToggleMenu={() => setMenuBlockId((current) =>
                     current === block.blockId ? null : block.blockId)}
                   onCloseMenu={() => setMenuBlockId(null)}
@@ -314,8 +312,7 @@ export function StudioDocumentSurfaceV1({
 
               {block.kind === "experiment-placement"
                 ? (
-                  placement === undefined || controller === null
-                    || registry === null
+                  placement === undefined || runtime === null
                     ? (
                       <p role="alert" className="my-8 text-sm text-wb-danger">
                         {t("studioAuthorPreview.surface.unresolvedExperiment")}
@@ -325,9 +322,7 @@ export function StudioDocumentSurfaceV1({
                       <>
                         <StudioExperimentCellV1
                           placement={placement}
-                          controller={controller}
-                          registry={registry}
-                          autoPlay={!composing}
+                          runtime={runtime}
                         />
                         {composing && (
                           <StudioPlacementOptionsV1
@@ -863,13 +858,6 @@ function StudioPlacementOptionsV1({
       />
     </div>
   );
-}
-
-function placementCountV1(
-  blocks: readonly StudioDocumentBlockV1[],
-): number {
-  return blocks.filter((block) =>
-    block.kind === "experiment-placement").length;
 }
 
 function blockClassNameV1(block: StudioDocumentBlockV1): string {

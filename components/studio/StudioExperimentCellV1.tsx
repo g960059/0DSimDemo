@@ -24,6 +24,9 @@ import {
 import type {
   ResolvedReaderExperimentPlacementV1,
 } from "@/studio/contracts/v1";
+import type {
+  StudioDocumentPlacementRuntimeV1,
+} from "./StudioDocumentSurfaceV1";
 
 /**
  * In-flow shows the primary graph only; focus is where the rest of the brief
@@ -33,29 +36,94 @@ const INFLOW_GRAPH_LIMIT_V1 = 1;
 
 export type StudioExperimentCellV1Props = Readonly<{
   placement: ResolvedReaderExperimentPlacementV1;
-  controller: ScientificProductReaderExperimentControllerV1;
-  registry: ScientificProductRuntimeRegistryPortV1;
-  /**
-   * Composing is writing, not exploring. An author sees the canonical point
-   * and the real presentation; integration starts only on request, so a long
-   * editing session never pays for a live lane it is not watching.
-   */
-  autoPlay: boolean;
+  runtime: StudioDocumentPlacementRuntimeV1;
 }>;
 
 /**
  * One experiment as it reads inside an article.
  *
  * The cell carries no frame: it is part of the prose column, not a widget
- * dropped onto it. Only the placement's `inlineMode` decides whether the
- * runtime starts on its own, and `launch` never mounts a graph until asked.
+ * dropped onto it. It has three states rather than two — unbound, bound and
+ * idle, live — because a reader who has scrolled past should stop paying for
+ * integration without losing the session, and a suspended cell still shows its
+ * validated cycle rather than a frozen picture.
  */
 export function StudioExperimentCellV1({
   placement,
+  runtime,
+}: StudioExperimentCellV1Props) {
+  const { t } = useTranslation();
+  const { controller, registry } = runtime;
+  if (controller === null || registry === null) {
+    return (
+      <StudioExperimentPendingCellV1
+        placement={placement}
+        runtime={runtime}
+      />
+    );
+  }
+  return (
+    <StudioExperimentBoundCellV1
+      key={placement.placementBlockId}
+      placement={placement}
+      runtime={runtime}
+      controller={controller}
+      registry={registry}
+    />
+  );
+}
+
+/**
+ * A placement that has no session yet, is opening one, or failed to.
+ *
+ * It still occupies the article's flow and still reports itself to the
+ * playback policy, which is what lets the policy decide to bind it.
+ */
+function StudioExperimentPendingCellV1({
+  placement,
+  runtime,
+}: Readonly<{
+  placement: ResolvedReaderExperimentPlacementV1;
+  runtime: StudioDocumentPlacementRuntimeV1;
+}>) {
+  const { t } = useTranslation();
+  return (
+    <figure
+      className="my-9"
+      data-testid="studio-reader-experiment-cell-v1"
+      data-reader-inline-mode={placement.inlineMode}
+      data-reader-binding={runtime.phase}
+      data-reader-live="false"
+    >
+      <p
+        role={runtime.phase === "failed" || runtime.phase === "expired"
+          ? "alert"
+          : undefined}
+        data-testid="studio-reader-pending-v1"
+        className={`rounded-lg border border-dashed px-4 py-8 text-center text-xs leading-6 ${
+          runtime.phase === "failed" || runtime.phase === "expired"
+            ? "border-wb-danger/40 text-wb-danger"
+            : "border-wb-line text-wb-subtle"
+        }`}
+      >
+        {runtime.message
+          ?? t("studioAuthorPreview.reader.preparingExperiment")}
+      </p>
+    </figure>
+  );
+}
+
+function StudioExperimentBoundCellV1({
+  placement,
+  runtime,
   controller,
   registry,
-  autoPlay,
-}: StudioExperimentCellV1Props) {
+}: Readonly<{
+  placement: ResolvedReaderExperimentPlacementV1;
+  runtime: StudioDocumentPlacementRuntimeV1;
+  controller: ScientificProductReaderExperimentControllerV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
+}>) {
   const { t } = useTranslation();
   const snapshot = React.useSyncExternalStore(
     controller.subscribe,
@@ -64,32 +132,25 @@ export function StudioExperimentCellV1({
   );
   const [controlError, setControlError] = React.useState<string | null>(null);
   const [focusOpen, setFocusOpen] = React.useState(false);
-  const [activated, setActivated] = React.useState(
-    autoPlay && placement.inlineMode === "live",
-  );
+  /**
+   * The reader asked for this one by hand — opening a `launch` placement or
+   * moving a control. A hand-started cell keeps the lane while it is on
+   * screen even if the policy would have given it to a neighbour.
+   */
+  const [startedByHand, setStartedByHand] = React.useState(false);
+  const live = runtime.live || startedByHand;
   const clock = React.useMemo(
     () => createScientificWorkbenchDisplayClockV1(true, 1),
     [],
   );
 
-  /** Whether this cell was started by the author rather than by autoplay. */
-  const startedByHandRef = React.useRef(false);
   React.useEffect(() => {
-    // Leaving compose hands the cell to a reader, so a `live` placement starts
-    // without remounting.
-    if (autoPlay && placement.inlineMode === "live") {
-      setActivated(true);
-      return;
+    if (!live) {
+      // Suspending keeps the session and every accepted point; the display
+      // clock keeps running, so the validated cycle goes on beating.
+      controller.suspendPresentation();
+      return undefined;
     }
-    // Returning to compose keeps whatever the author started by hand —
-    // stopping it would discard reader state they just set up — but hands
-    // back a lane only autoplay started, which is the point of not
-    // integrating while writing.
-    if (!autoPlay && !startedByHandRef.current) setActivated(false);
-  }, [autoPlay, placement.inlineMode]);
-
-  React.useEffect(() => {
-    if (!activated) return;
     // The nested frame boundary guarantees the canonical one-point snapshot
     // reaches an actual paint before live publication can replace it.
     let firstFrameId: number | null = null;
@@ -106,12 +167,9 @@ export function StudioExperimentCellV1({
       if (secondFrameId !== null) window.cancelAnimationFrame(secondFrameId);
       controller.stopPresentation();
     };
-  }, [activated, controller]);
+  }, [controller, live]);
 
-  const activate = React.useCallback(() => {
-    startedByHandRef.current = true;
-    setActivated(true);
-  }, []);
+  const activate = React.useCallback(() => setStartedByHand(true), []);
   const panes = placement.readerBrief.graphPanes;
   const inflowPanes = panes.slice(0, INFLOW_GRAPH_LIMIT_V1);
   const canFocus = panes.length > inflowPanes.length;
@@ -137,6 +195,8 @@ export function StudioExperimentCellV1({
         data-testid="studio-reader-experiment-cell-v1"
         data-studio-runtime="true"
         data-reader-inline-mode={placement.inlineMode}
+        data-reader-binding={runtime.phase}
+        data-reader-live={String(live)}
         data-reader-time-scale={snapshot.timeScale}
       >
         <button
@@ -175,7 +235,9 @@ export function StudioExperimentCellV1({
         data-testid="studio-reader-experiment-cell-v1"
         data-studio-runtime="true"
         data-reader-inline-mode={placement.inlineMode}
-        data-reader-activated={String(activated)}
+        data-reader-binding={runtime.phase}
+        data-reader-live={String(live)}
+        data-reader-activated={String(live)}
         data-reader-time-scale={snapshot.timeScale}
         data-reader-started-from-one-point={String(
           snapshot.startedFromOnePoint,
@@ -208,7 +270,7 @@ export function StudioExperimentCellV1({
               scenarioId={scenarioId}
             />
           ))}
-          {!autoPlay && panes.length === 0 && (
+          {panes.length === 0 && (
             // Composing an empty brief: the cell says where its content comes
             // from rather than leaving a silent gap in the article.
             <p
@@ -231,7 +293,7 @@ export function StudioExperimentCellV1({
             {placement.localCaption}
           </span>
           <span className="flex shrink-0 items-center gap-4">
-            {!activated && (
+            {!live && (
               <button
                 type="button"
                 onClick={activate}

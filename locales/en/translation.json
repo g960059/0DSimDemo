@@ -198,7 +198,8 @@
       "openFocus": "Open in detail",
       "closeFocus": "Close",
       "activate": "Play",
-      "emptyBrief": "Pick a graph, a value or a control on the Workbench and it appears here, as a reader sees it."
+      "emptyBrief": "Pick a graph, a value or a control on the Workbench and it appears here, as a reader sees it.",
+      "preparingExperiment": "Preparing this experiment."
     },
     "surface": {
       "capability": "Mode",

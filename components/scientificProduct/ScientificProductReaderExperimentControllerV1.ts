@@ -244,6 +244,21 @@ export class ScientificProductReaderExperimentControllerV1 {
   }
 
   /**
+   * Stops integrating while keeping the session and every accepted point.
+   *
+   * Unsubscribing alone would only stop watching a lane that keeps running:
+   * a reader who has scrolled past an experiment should not be paying for its
+   * integration. Acceptance is a simulation-time process, so pausing costs
+   * nothing but wall-clock advance, and resuming continues from the last
+   * accepted point rather than restarting.
+   */
+  suspendPresentation(): void {
+    if (this.disposed) return;
+    this.stopPresentation();
+    this.runtime.controlStore.actions.pauseLive();
+  }
+
+  /**
    * Returns to the exact source boundary by asking the Reader session owner to
    * dispose this numerical session and allocate a fresh one from the same
    * manifest. A control patch cannot implement Reset: it would warm-transition

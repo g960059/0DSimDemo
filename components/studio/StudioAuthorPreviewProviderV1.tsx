@@ -60,8 +60,11 @@ export type StudioReaderPreviewSessionStateV1 =
 
 type ActiveReaderPreviewEntryV1 = {
   previewId: string;
+  placementBlockId: string;
   retainCount: number;
   resetInFlight: boolean;
+  /** Monotonic use order; the least recently used bound session is evicted. */
+  lastUsedOrdinal: number;
   manifest: ReaderPreviewManifestV1;
   abortController: AbortController;
   runtime: ScientificProductStudioScenarioRuntimeV1 | null;
@@ -69,12 +72,23 @@ type ActiveReaderPreviewEntryV1 = {
   readerController: ScientificProductReaderExperimentControllerV1 | null;
 };
 
+/**
+ * How many placements may hold a numerical session at once.
+ *
+ * A long article can carry more experiments than a browser should run Workers
+ * for, and visibility alone bounds nothing: a reader can leave several on
+ * screen. This is the only hard bound, so it is stated as one. Re-binding an
+ * evicted placement costs a fresh bootstrap, which is why the limit is not 1.
+ */
+export const STUDIO_READER_BOUND_PLACEMENT_LIMIT_V1 = 3;
+
 export type StudioAuthorPreviewContextValueV1 = Readonly<{
   draft: StudioAuthorDraftV1;
   /** The current draft resolved as Reader input, for the unified surface. */
   resolvedDocument: ResolvedReaderDocumentV1;
   lastPreviewId: string | null;
-  readerSession: StudioReaderPreviewSessionStateV1;
+  /** Numerical session state per placement; absent means never bound. */
+  readerSessions: ReadonlyMap<string, StudioReaderPreviewSessionStateV1>;
   updateTitle(title: string): StudioAuthorDraftV1;
   updateTextBlock(blockId: string, text: string): StudioAuthorDraftV1;
   replaceDocumentContent(
@@ -101,7 +115,17 @@ export type StudioAuthorPreviewContextValueV1 = Readonly<{
   ): StudioAuthorDraftV1;
   materializePreview(): ReaderPreviewManifestV1;
   resolvePreview(previewId: string): ReaderPreviewManifestV1 | null;
-  acquireReaderPreview(previewId: string): () => void;
+  /**
+   * Binds one placement's numerical session, or retains an existing one.
+   * Returns the release. Binding is what a surface asks for when a placement
+   * comes within reach of the reader, not when the document loads.
+   */
+  acquireReaderPlacement(
+    previewId: string,
+    placementBlockId: string,
+  ): () => void;
+  /** Marks a placement as most recently used, so eviction takes another. */
+  noteReaderPlacementUse(placementBlockId: string): void;
 }>;
 
 const StudioAuthorPreviewContextV1 =
@@ -130,11 +154,24 @@ export function StudioAuthorPreviewProviderV1({
     application.getDraftSnapshot(),
   );
   const [lastPreviewId, setLastPreviewId] = React.useState<string | null>(null);
-  const [readerSession, setReaderSession] =
-    React.useState<StudioReaderPreviewSessionStateV1>(
-      Object.freeze({ phase: "idle" }),
-    );
-  const activeEntryRef = React.useRef<ActiveReaderPreviewEntryV1 | null>(null);
+  const [readerSessions, setReaderSessions] = React.useState<
+    ReadonlyMap<string, StudioReaderPreviewSessionStateV1>
+  >(() => new Map());
+  const entriesRef = React.useRef(
+    new Map<string, ActiveReaderPreviewEntryV1>(),
+  );
+  const useOrdinalRef = React.useRef(0);
+  const setPlacementSession = React.useCallback((
+    placementBlockId: string,
+    state: StudioReaderPreviewSessionStateV1 | null,
+  ) => {
+    setReaderSessions((current) => {
+      const next = new Map(current);
+      if (state === null) next.delete(placementBlockId);
+      else next.set(placementBlockId, state);
+      return next;
+    });
+  }, []);
 
   const updateTitle = React.useCallback((title: string) => {
     const current = application.getDraftSnapshot();
@@ -239,25 +276,22 @@ export function StudioAuthorPreviewProviderV1({
 
   const openEntry = React.useCallback(async (
     entry: ActiveReaderPreviewEntryV1,
-    previous: ActiveReaderPreviewEntryV1 | null,
   ): Promise<void> => {
-    if (previous !== null && previous !== entry) {
-      await disposeReaderPreviewEntryV1(previous);
-    }
-    if (activeEntryRef.current !== entry || entry.retainCount === 0) return;
+    const entries = entriesRef.current;
+    const owns = () =>
+      entries.get(entry.placementBlockId) === entry && entry.retainCount > 0;
+    if (!owns()) return;
 
     let binding: ReturnType<
       typeof resolveStudioReaderPreviewRuntimeBindingV1
     >;
     try {
-      binding = resolveStudioReaderPreviewRuntimeBindingV1(entry.manifest);
-    } catch (error) {
-      failReaderPreviewEntryV1(
-        entry,
-        activeEntryRef,
-        setReaderSession,
-        errorMessageV1(error),
+      binding = resolveStudioReaderPreviewRuntimeBindingV1(
+        entry.manifest,
+        entry.placementBlockId,
       );
+    } catch (error) {
+      failReaderPreviewEntryV1(entry, owns, setPlacementSession, errorMessageV1(error));
       return;
     }
     const { placement, scenario, caseEntry } = binding;
@@ -293,10 +327,8 @@ export function StudioAuthorPreviewProviderV1({
         // the shared graph registry can observe any live-transition frames.
         deferInitialLivePresentation: true,
         onProgress: (progress) => {
-          if (activeEntryRef.current !== entry || entry.retainCount === 0) {
-            return;
-          }
-          setReaderSession(Object.freeze({
+          if (!owns()) return;
+          setPlacementSession(entry.placementBlockId, Object.freeze({
             phase: "loading",
             previewId: entry.previewId,
             manifest: entry.manifest,
@@ -304,7 +336,7 @@ export function StudioAuthorPreviewProviderV1({
           }));
         },
       });
-      if (activeEntryRef.current !== entry || entry.retainCount === 0) {
+      if (!owns()) {
         await runtime.controller.dispose();
         return;
       }
@@ -327,14 +359,14 @@ export function StudioAuthorPreviewProviderV1({
           resetToSource: () => {
             restartReaderPreviewEntryV1(
               entry,
-              activeEntryRef,
-              setReaderSession,
-              () => openEntry(entry, null),
+              owns,
+              setPlacementSession,
+              () => openEntry(entry),
             );
           },
         });
       entry.readerController = readerController;
-      setReaderSession(Object.freeze({
+      setPlacementSession(entry.placementBlockId, Object.freeze({
         phase: "ready",
         previewId: entry.previewId,
         manifest: entry.manifest,
@@ -343,22 +375,59 @@ export function StudioAuthorPreviewProviderV1({
       }));
     } catch (error) {
       await disposeReaderPreviewEntryV1(entry);
-      failReaderPreviewEntryV1(
-        entry,
-        activeEntryRef,
-        setReaderSession,
-        errorMessageV1(error),
-      );
+      failReaderPreviewEntryV1(entry, owns, setPlacementSession, errorMessageV1(error));
     }
+  }, [setPlacementSession]);
+
+  /**
+   * Evicts the least recently used warm placement once the limit is passed.
+   *
+   * Only a session nobody is showing may be taken: a placement on screen is
+   * never disposed under the reader. If every session is in use the cache
+   * simply runs over the limit, which is the honest outcome — there is no
+   * session here that could be dropped without breaking what is displayed.
+   */
+  const evictOverflowPlacementsV1 = React.useCallback(() => {
+    const entries = entriesRef.current;
+    while (entries.size > STUDIO_READER_BOUND_PLACEMENT_LIMIT_V1) {
+      let victim: ActiveReaderPreviewEntryV1 | null = null;
+      for (const candidate of entries.values()) {
+        if (candidate.retainCount > 0) continue;
+        if (
+          victim === null
+          || candidate.lastUsedOrdinal < victim.lastUsedOrdinal
+        ) {
+          victim = candidate;
+        }
+      }
+      if (victim === null) return;
+      entries.delete(victim.placementBlockId);
+      setPlacementSession(victim.placementBlockId, null);
+      void disposeReaderPreviewEntryV1(victim);
+    }
+  }, [setPlacementSession]);
+
+  const noteReaderPlacementUse = React.useCallback((
+    placementBlockId: string,
+  ) => {
+    const entry = entriesRef.current.get(placementBlockId);
+    if (entry === undefined) return;
+    entry.lastUsedOrdinal = ++useOrdinalRef.current;
   }, []);
 
-  const acquireReaderPreview = React.useCallback((previewId: string) => {
+  const acquireReaderPlacement = React.useCallback((
+    previewId: string,
+    placementBlockId: string,
+  ) => {
+    const entries = entriesRef.current;
     const manifest = application.resolvePreview(previewId);
     if (manifest === null) {
-      const previous = activeEntryRef.current;
-      activeEntryRef.current = null;
-      if (previous !== null) void disposeReaderPreviewEntryV1(previous);
-      setReaderSession(Object.freeze({
+      const previous = entries.get(placementBlockId);
+      if (previous !== undefined) {
+        entries.delete(placementBlockId);
+        void disposeReaderPreviewEntryV1(previous);
+      }
+      setPlacementSession(placementBlockId, Object.freeze({
         phase: "expired",
         previewId,
         message:
@@ -367,40 +436,49 @@ export function StudioAuthorPreviewProviderV1({
       return () => undefined;
     }
 
-    const current = activeEntryRef.current;
-    if (current !== null && current.previewId === previewId) {
+    const current = entries.get(placementBlockId);
+    if (current !== undefined && current.previewId === previewId) {
+      // A warm session: the reader came back to an experiment they left.
       current.retainCount += 1;
+      current.lastUsedOrdinal = ++useOrdinalRef.current;
       return releaseReaderPreviewEntryV1(
         current,
-        activeEntryRef,
-        setReaderSession,
+        entriesRef,
+        evictOverflowPlacementsV1,
       );
+    }
+    if (current !== undefined) {
+      entries.delete(placementBlockId);
+      void disposeReaderPreviewEntryV1(current);
     }
 
     const entry: ActiveReaderPreviewEntryV1 = {
       previewId,
+      placementBlockId,
       retainCount: 1,
       resetInFlight: false,
+      lastUsedOrdinal: ++useOrdinalRef.current,
       manifest,
       abortController: new AbortController(),
       runtime: null,
       registry: null,
       readerController: null,
     };
-    activeEntryRef.current = entry;
-    setReaderSession(Object.freeze({
+    entries.set(placementBlockId, entry);
+    evictOverflowPlacementsV1();
+    setPlacementSession(placementBlockId, Object.freeze({
       phase: "loading",
       previewId,
       manifest,
       message: "Opening the authored one-point source…",
     }));
-    void openEntry(entry, current);
+    void openEntry(entry);
     return releaseReaderPreviewEntryV1(
       entry,
-      activeEntryRef,
-      setReaderSession,
+      entriesRef,
+      evictOverflowPlacementsV1,
     );
-  }, [application, openEntry]);
+  }, [application, evictOverflowPlacementsV1, openEntry, setPlacementSession]);
 
   const providerEffectGenerationRef = React.useRef(0);
   React.useEffect(() => {
@@ -411,9 +489,10 @@ export function StudioAuthorPreviewProviderV1({
       // supersede this cleanup. A real provider unmount has no later setup.
       globalThis.queueMicrotask(() => {
         if (providerEffectGenerationRef.current !== effectGeneration) return;
-        const active = activeEntryRef.current;
-        activeEntryRef.current = null;
-        if (active !== null) void disposeReaderPreviewEntryV1(active);
+        const entries = entriesRef.current;
+        const active = [...entries.values()];
+        entries.clear();
+        for (const entry of active) void disposeReaderPreviewEntryV1(entry);
       });
     };
   }, []);
@@ -428,7 +507,7 @@ export function StudioAuthorPreviewProviderV1({
       draft,
       resolvedDocument,
       lastPreviewId,
-      readerSession,
+      readerSessions,
       updateTitle,
       updateTextBlock,
       replaceDocumentContent,
@@ -441,13 +520,15 @@ export function StudioAuthorPreviewProviderV1({
       replaceReaderBriefSelection,
       materializePreview,
       resolvePreview,
-      acquireReaderPreview,
+      acquireReaderPlacement,
+      noteReaderPlacementUse,
     }), [
-    acquireReaderPreview,
+    acquireReaderPlacement,
     draft,
     lastPreviewId,
     materializePreview,
-    readerSession,
+    noteReaderPlacementUse,
+    readerSessions,
     replaceDocumentContent,
     redoDocumentContent,
     replaceDocumentContentLatest,
@@ -478,12 +559,21 @@ StudioAuthorPreviewContextValueV1 {
   return value;
 }
 
+/**
+ * Releasing a placement stops it integrating; it does not throw the session
+ * away.
+ *
+ * A reader who scrolls past an experiment and comes back expects to find it
+ * where they left it, and re-binding costs a full bootstrap. So a released
+ * session stays warm and merely becomes evictable — the session limit, not
+ * the scroll position, is what finally disposes one.
+ */
 function releaseReaderPreviewEntryV1(
   entry: ActiveReaderPreviewEntryV1,
-  activeEntryRef: React.MutableRefObject<ActiveReaderPreviewEntryV1 | null>,
-  setReaderSession: React.Dispatch<
-    React.SetStateAction<StudioReaderPreviewSessionStateV1>
+  entriesRef: React.MutableRefObject<
+    Map<string, ActiveReaderPreviewEntryV1>
   >,
+  onReleased: (entry: ActiveReaderPreviewEntryV1) => void,
 ): () => void {
   let released = false;
   return () => {
@@ -491,13 +581,14 @@ function releaseReaderPreviewEntryV1(
     released = true;
     entry.retainCount = Math.max(0, entry.retainCount - 1);
     globalThis.queueMicrotask(() => {
+      const entries = entriesRef.current;
       if (
-        activeEntryRef.current !== entry
+        entries.get(entry.placementBlockId) !== entry
         || entry.retainCount !== 0
       ) return;
-      activeEntryRef.current = null;
-      setReaderSession(Object.freeze({ phase: "idle" }));
-      void disposeReaderPreviewEntryV1(entry);
+      // Nobody is showing it, so nobody should be paying for its integration.
+      entry.readerController?.suspendPresentation();
+      onReleased(entry);
     });
   };
 }
@@ -526,19 +617,16 @@ async function disposeReaderPreviewEntryV1(
  */
 function restartReaderPreviewEntryV1(
   entry: ActiveReaderPreviewEntryV1,
-  activeEntryRef: React.MutableRefObject<ActiveReaderPreviewEntryV1 | null>,
-  setReaderSession: React.Dispatch<
-    React.SetStateAction<StudioReaderPreviewSessionStateV1>
-  >,
+  owns: () => boolean,
+  setPlacementSession: (
+    placementBlockId: string,
+    state: StudioReaderPreviewSessionStateV1 | null,
+  ) => void,
   reopen: () => Promise<void>,
 ): void {
-  if (
-    activeEntryRef.current !== entry
-    || entry.retainCount === 0
-    || entry.resetInFlight
-  ) return;
+  if (!owns() || entry.resetInFlight) return;
   entry.resetInFlight = true;
-  setReaderSession(Object.freeze({
+  setPlacementSession(entry.placementBlockId, Object.freeze({
     phase: "loading",
     previewId: entry.previewId,
     manifest: entry.manifest,
@@ -547,10 +635,7 @@ function restartReaderPreviewEntryV1(
   void (async () => {
     try {
       await disposeReaderPreviewEntryV1(entry);
-      if (
-        activeEntryRef.current !== entry
-        || entry.retainCount === 0
-      ) return;
+      if (!owns()) return;
       entry.abortController = new AbortController();
       entry.resetInFlight = false;
       await reopen();
@@ -558,8 +643,8 @@ function restartReaderPreviewEntryV1(
       entry.resetInFlight = false;
       failReaderPreviewEntryV1(
         entry,
-        activeEntryRef,
-        setReaderSession,
+        owns,
+        setPlacementSession,
         errorMessageV1(error),
       );
     }
@@ -568,14 +653,15 @@ function restartReaderPreviewEntryV1(
 
 function failReaderPreviewEntryV1(
   entry: ActiveReaderPreviewEntryV1,
-  activeEntryRef: React.MutableRefObject<ActiveReaderPreviewEntryV1 | null>,
-  setReaderSession: React.Dispatch<
-    React.SetStateAction<StudioReaderPreviewSessionStateV1>
-  >,
+  owns: () => boolean,
+  setPlacementSession: (
+    placementBlockId: string,
+    state: StudioReaderPreviewSessionStateV1 | null,
+  ) => void,
   message: string,
 ): void {
-  if (activeEntryRef.current !== entry || entry.retainCount === 0) return;
-  setReaderSession(Object.freeze({
+  if (!owns()) return;
+  setPlacementSession(entry.placementBlockId, Object.freeze({
     phase: "failed",
     previewId: entry.previewId,
     manifest: entry.manifest,

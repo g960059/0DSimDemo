@@ -17,6 +17,9 @@ import type { StudioDocumentBlockV1 } from "@/studio/contracts/v1";
 
 import { useStudioAuthorPreviewV1 } from "./StudioAuthorPreviewProviderV1";
 import {
+  useStudioReaderPlacementRuntimesV1,
+} from "./StudioReaderPlacementRuntimesV1";
+import {
   StudioDocumentSurfaceV1,
   type StudioDocumentCapabilityV1,
 } from "./StudioDocumentSurfaceV1";
@@ -38,14 +41,12 @@ export default function StudioDocumentRouteV1() {
   const {
     draft,
     resolvedDocument,
-    readerSession,
     replaceDocumentContentLatest,
     canUndoDocumentContent,
     canRedoDocumentContent,
     undoDocumentContent,
     redoDocumentContent,
     materializePreview,
-    acquireReaderPreview,
   } = useStudioAuthorPreviewV1();
   const [capability, setCapability] =
     React.useState<StudioDocumentCapabilityV1>("compose");
@@ -78,18 +79,21 @@ export default function StudioDocumentRouteV1() {
     [draft],
   );
 
+  const [previewId, setPreviewId] = React.useState<string | null>(null);
   React.useEffect(() => {
+    // Only the preview identity is settled here. Numerical sessions belong to
+    // the placements that need them, and are opened as a reader approaches.
     try {
       const manifest = materializePreview();
       setErrorMessage(null);
-      return acquireReaderPreview(manifest.previewId);
+      setPreviewId(manifest.previewId);
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : String(error),
       );
-      return undefined;
+      setPreviewId(null);
     }
-  }, [acquireReaderPreview, materializePreview, runtimeSignature]);
+  }, [materializePreview, runtimeSignature]);
 
   const commitContent = React.useCallback((
     title: string,
@@ -146,17 +150,11 @@ export default function StudioDocumentRouteV1() {
       });
   }, [draft.experiments]);
 
-  const controller = readerSession.phase === "ready"
-    ? readerSession.readerController
-    : null;
-  const registry = readerSession.phase === "ready"
-    ? readerSession.registry
-    : null;
-  const placementIds = React.useMemo(
-    () => new Set(resolvedDocument.placements.map((placement) =>
-      placement.placementBlockId)),
-    [resolvedDocument],
-  );
+  const runtimeForPlacement = useStudioReaderPlacementRuntimesV1({
+    previewId,
+    placements: resolvedDocument.placements,
+    autoLive: capability === "read",
+  });
 
   return (
     <div
@@ -275,19 +273,11 @@ export default function StudioDocumentRouteV1() {
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {readerSession.phase === "loading" && controller === null && (
-          <p className="mx-auto w-full max-w-[46rem] px-5 pt-10 text-sm text-wb-subtle sm:px-8">
-            {readerSession.message}
-          </p>
-        )}
         <StudioDocumentSurfaceV1
           document={resolvedDocument}
           capability={capability}
           edit={{ onCommit: commitContent, insertableExperiment }}
-          controllerForPlacement={(placementBlockId) =>
-            placementIds.has(placementBlockId) ? controller : null}
-          registryForPlacement={(placementBlockId) =>
-            placementIds.has(placementBlockId) ? registry : null}
+          runtimeForPlacement={runtimeForPlacement}
         />
       </div>
     </div>

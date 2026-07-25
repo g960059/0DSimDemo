@@ -1,23 +1,17 @@
 import * as React from "react";
 
-import type {
-  ScientificProductReaderExperimentControllerV1,
-} from "@/components/scientificProduct/ScientificProductReaderExperimentControllerV1";
-import type {
-  ScientificProductRuntimeRegistryPortV1,
-} from "@/components/scientificProduct/ScientificProductRuntimeRegistryPortV1";
 import type { ResolvedReaderDocumentV1 } from "@/studio/contracts/v1";
 
-import { StudioDocumentSurfaceV1 } from "../StudioDocumentSurfaceV1";
+import {
+  StudioDocumentSurfaceV1,
+  type StudioDocumentPlacementRuntimeV1,
+} from "../StudioDocumentSurfaceV1";
 
 export type StudioDocumentReaderV1Props = Readonly<{
   document: ResolvedReaderDocumentV1;
-  controllerForPlacement(
+  runtimeForPlacement(
     placementBlockId: string,
-  ): ScientificProductReaderExperimentControllerV1 | null;
-  registryForPlacement(
-    placementBlockId: string,
-  ): ScientificProductRuntimeRegistryPortV1 | null;
+  ): StudioDocumentPlacementRuntimeV1;
 }>;
 
 /**
