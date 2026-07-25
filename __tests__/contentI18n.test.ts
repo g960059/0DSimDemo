@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resolveLocalizedCaseDocument, resolveLocalizedLesson, upsertCaseLocaleContent, upsertLessonLocaleContent } from "@/contentI18n";
+import { resolveLocalizedCaseDocument, upsertCaseLocaleContent } from "@/contentI18n";
 import { parseCaseDocument, serializeCaseDocument } from "@/casePersist";
 import { caseDocumentToSimInstances, simInstancesToCaseDocument, workspaceForPanels } from "@/caseDoc";
 import { applyKnobs, KNOB_MAPPING_VERSION, neutralKnobs } from "@/engine/knobs";
 import { defaultParams } from "@/engine/ModelCore";
 import { remapCaseI18nContentIds, remapWorkbenchLoadIds } from "@/workbenchLoad";
-import type { Lesson } from "@/lessonDoc";
 import type { NoteContent } from "@/noteTypes";
 import type { PanelDef } from "@/types";
 import type { SimInstance } from "@/types";
@@ -37,43 +36,6 @@ function baseCase() {
 }
 
 describe("content i18n helpers", () => {
-  it("migrates legacy lesson text into the default locale and falls back gracefully", () => {
-    const lesson: Lesson = {
-      meta: { id: "lesson-1", title: "English lesson", objective: "English objective" },
-      caseId: "normal-sinus",
-      noteSpine: enNote,
-      steps: [{
-        id: "step-1",
-        title: "English step",
-        note: enNote,
-        stage: { visibleInstances: ["1"], challenge: { kind: "predict", prompt: "Predict", revealLabel: "Reveal" } },
-      }],
-    };
-
-    const resolved = resolveLocalizedLesson(lesson, "ja");
-
-    expect(resolved.isFallback).toBe(true);
-    expect(resolved.resolvedLocale).toBe("en");
-    expect(resolved.doc.schemaVersion).toBe(2);
-    expect(resolved.doc.availableLocales).toEqual(["en"]);
-    expect(resolved.doc.i18n?.en?.steps?.["step-1"].label).toBe("English step");
-  });
-
-  it("writes authored lesson text into the active locale", () => {
-    const lesson: Lesson = {
-      meta: { id: "lesson-1", title: "日本語レッスン" },
-      caseId: "normal-sinus",
-      noteSpine: jaNote,
-    };
-
-    const saved = upsertLessonLocaleContent(lesson, "ja");
-
-    expect(saved.defaultLocale).toBe("ja");
-    expect(saved.availableLocales).toEqual(["ja"]);
-    expect(saved.i18n?.ja?.title).toBe("日本語レッスン");
-    expect(resolveLocalizedLesson(saved, "ja").doc.noteSpine).toEqual(jaNote);
-  });
-
   it("resolves localized case display fields without changing structural fields", () => {
     const source = baseCase();
     const saved = upsertCaseLocaleContent({

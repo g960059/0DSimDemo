@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KNOB_RANGES } from "@/engine/knobs";
 import { defaultControllerItemFor, KNOB_STEPS, readingButtonOptionsFor, roundToStep } from "@/knobMetadata";
-import type { NumericKnobKey } from "@/lessonDoc";
+import type { NumericKnobKey } from "@/engine/knobs";
 
 describe("knobMetadata controller defaults", () => {
   it("returns ranged slider defaults for raw catalog parameters", () => {

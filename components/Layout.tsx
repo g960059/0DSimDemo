@@ -23,7 +23,6 @@ export const Layout = () => {
   const suppressGlobalChrome =
     normalizedPath === '/workbench' ||
     normalizedPath.startsWith('/workbench/') ||
-    normalizedPath.startsWith('/lesson/') ||
     normalizedPath.startsWith('/studio/preview/');
 
   const navItems = [

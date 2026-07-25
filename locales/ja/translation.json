@@ -38,19 +38,11 @@
     "fallbackNotice": "このコンテンツは現在{{locale}}のみ利用できます。"
   },
   "home": {
-    "lead": "ガイド付きレッスン、疾患ケース、自由シミュレーションを通して循環動態を学ぶワークベンチです。",
-    "openWorkbench": "ワークベンチを開く",
-    "openFreeSimulation": "自由シミュレーションを開く",
-    "learnTitle": "学ぶ",
-    "learnDescription": "公式レッスンから始めます。",
-    "openLessonFallback": "対話的レッスンを開きます。",
-    "startLesson": "レッスンを始める",
-    "noLessons": "利用できるレッスンはまだありません。",
+    "lead": "循環動態の記事を読み、埋め込まれた実験をその場で動かせます。実験の中身はWorkbenchで組み立てます。",
     "exploreTitle": "探索する",
     "exploreDescription": "疾患ケースをワークベンチで開きます。",
     "seeAllCases": "すべてのケースを見る",
     "openCase": "ケースを開く",
-    "noCases": "公式ケースはまだありません。",
     "openBlankWorkbench": "空のワークベンチを開く"
   },
   "studioAuthorPreview": {
@@ -998,54 +990,6 @@
       "question": "質問",
       "newOption": "新しいオプション",
       "addOption": "オプションを追加"
-    }
-  },
-  "lessonPlayer": {
-    "notFound": {
-      "title": "レッスンが見つかりません",
-      "description": "このレッスンは現在の学習パスでは利用できません。"
-    },
-    "backToHome": "ホームに戻る",
-    "loading": "レッスンを読み込み中...",
-    "reveal": "表示",
-    "next": "次へ",
-    "lesson": "レッスン",
-    "step": "ステップ {{number}}",
-    "back": "戻る",
-    "complete": "完了"
-  },
-  "reading": {
-    "minRead_one": "{{count}}分で読めます",
-    "minRead_other": "{{count}}分で読めます",
-    "interactive": "インタラクティブ",
-    "tableOfContents": "目次",
-    "hideControls": "コントロールを隠す",
-    "adjustModel": "モデルを調整"
-  },
-  "lessons": {
-    "normal-reference": {
-      "title": "正常循環リファレンス",
-      "objective": "正常安静時の波形、PVループ、指標、コントロールを読むための基準点を作ります。"
-    },
-    "acute-anterior-mi": {
-      "title": "急性前壁心筋梗塞: ポンプが止まるとき",
-      "objective": "前壁収縮性の急な低下が、LV PVループ、SV、CO、左房圧をどう変えるかを読みます。"
-    },
-    "systolic-heart-failure": {
-      "title": "収縮不全 HFrEF",
-      "objective": "弱い左室が拍出量と心拍出量を下げ、充満圧とPVループをどう変えるかを理解します。"
-    },
-    "diastolic-heart-failure": {
-      "title": "拡張不全 HFpEF",
-      "objective": "硬く弛緩しにくい左室で、EFが保たれていても充満圧が上がる構造を読みます。"
-    },
-    "aortic-stenosis": {
-      "title": "大動脈弁狭窄: 出口の硬い扉",
-      "objective": "狭い大動脈弁が左室に高圧を要求し、圧較差とPVループにどう現れるかを学びます。"
-    },
-    "hypovolemic-shock": {
-      "title": "低容量性ショック",
-      "objective": "循環血液量低下がpreload、SV、血圧を下げる様子を理解します。"
     }
   },
   "officialCases": {

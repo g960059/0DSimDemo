@@ -16,7 +16,7 @@ import {
   addVisibleInstanceConfigsToPanels,
   removeInstanceConfigsFromPanels,
   updatePanelWithSourceViewMirrors,
-} from "@/WorkbenchPage";
+} from "@/features/workbench/workbenchDefaults";
 import { DEFAULT_PARAMS } from "@/constants";
 import type { SteadyUpdateStatusMap } from "@/engine/previewController";
 import type { MetricsViewSpec } from "@/features/workbench/viewSpec";

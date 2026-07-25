@@ -129,27 +129,31 @@ test.describe.serial("Product workflows by role", () => {
       expect(orderedBlockKinds[placementIndex + 1]).toBe("paragraph");
 
       // A block is carried by its handle: a press that travels reorders the
-      // article, and one that does not opens the block's menu.
+      // article, and one that does not opens the block's menu. The carry is
+      // kept short and away from the scrollport edges so the article does not
+      // autoscroll under the pointer while the landing line is being read.
       const blockIdsV1 = () =>
         article.getByTestId("studio-document-block-v1").evaluateAll((blocks) =>
           blocks.map((block) =>
             block.getAttribute("data-document-block-id")));
       const orderBeforeDrag = await blockIdsV1();
-      const lastBlock = article.getByTestId("studio-document-block-v1").last();
-      await lastBlock.hover();
-      const dragHandle = lastBlock.getByTestId(
+      const blockAt = (index: number) =>
+        article.getByTestId("studio-document-block-v1").nth(index);
+      await blockAt(0).hover();
+      const dragHandle = blockAt(0).getByTestId(
         "studio-document-block-handle-v1",
       );
       const handleBox = await dragHandle.boundingBox();
-      const firstBlockBox = await article
-        .getByTestId("studio-document-block-v1").first().boundingBox();
-      if (handleBox === null || firstBlockBox === null) {
-        throw new Error("expected the drag handle and first block to lay out");
+      const secondBox = await blockAt(1).boundingBox();
+      if (handleBox === null || secondBox === null) {
+        throw new Error("expected the drag handle and second block to lay out");
       }
       const handleX = handleBox.x + handleBox.width / 2;
+      // Just past the second block's midpoint: the first block lands after it.
+      const belowSecondMidpoint = secondBox.y + secondBox.height * 0.75;
       await page.mouse.move(handleX, handleBox.y + handleBox.height / 2);
       await page.mouse.down();
-      await page.mouse.move(handleX, firstBlockBox.y + 40, { steps: 12 });
+      await page.mouse.move(handleX, belowSecondMidpoint, { steps: 10 });
       // Nothing reflows while the block is carried; only the landing line
       // moves, so the article an author is judging stays still.
       await expect(
@@ -158,20 +162,30 @@ test.describe.serial("Product workflows by role", () => {
       await expect(
         article.locator('[data-document-block-carried="true"]'),
       ).toHaveCount(1);
-      // The line marks the gap the block lands in, so it must sit on the block
-      // the carried one will end up above.
+      // The line marks the gap the block lands in, which is above the block
+      // that will follow it — not the index the move commits.
       const lineBlockId = await article
         .locator('[data-document-block-id]:has([data-testid=' +
           '"studio-document-drop-line-v1"])')
         .getAttribute("data-document-block-id");
-      expect(lineBlockId).toBe(orderBeforeDrag[0]);
-      await page.mouse.move(handleX, firstBlockBox.y + 4, { steps: 6 });
+      expect(lineBlockId).toBe(orderBeforeDrag[2]);
       await page.mouse.up();
       const orderAfterDrag = await blockIdsV1();
-      expect(orderAfterDrag[0]).toBe(orderBeforeDrag.at(-1));
-      expect(orderAfterDrag).not.toEqual(orderBeforeDrag);
+      expect(orderAfterDrag.slice(0, 2))
+        .toEqual([orderBeforeDrag[1], orderBeforeDrag[0]]);
       await expect(
         article.getByTestId("studio-document-drop-line-v1"),
+      ).toHaveCount(0);
+
+      // The same handle still opens the menu when the pointer stays put.
+      await blockAt(0).hover();
+      await blockAt(0).getByTestId("studio-document-block-handle-v1").click();
+      await expect(
+        page.getByTestId("studio-document-block-menu-v1"),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByTestId("studio-document-block-menu-v1"),
       ).toHaveCount(0);
 
       // A second experiment is created by placing it, and it is its own
@@ -235,18 +249,6 @@ test.describe.serial("Product workflows by role", () => {
         exact: true,
       }).click();
       await expect(placements()).toHaveCount(1);
-
-      // The same handle still opens the menu when the pointer stays put.
-      await lastBlock.hover();
-      await article.getByTestId("studio-document-block-v1").last()
-        .getByTestId("studio-document-block-handle-v1").click();
-      await expect(
-        page.getByTestId("studio-document-block-menu-v1"),
-      ).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(
-        page.getByTestId("studio-document-block-menu-v1"),
-      ).toHaveCount(0);
 
       // The placement carries its own per-article presentation decision.
       const placementOptions = page.getByTestId(
@@ -446,89 +448,6 @@ test.describe.serial("Product workflows by role", () => {
       await page.reload({ waitUntil: "domcontentloaded" });
       await expect(surface).toBeVisible({ timeout: 120_000 });
       await expect(article.locator("h1")).not.toHaveText(authoredTitle);
-
-      expect(browserErrors).toEqual([]);
-    } finally {
-      await attachBrowserErrorsV1(testInfo, browserErrors);
-    }
-  });
-
-  test("Resident role transition boundary — reads and adjusts in the legacy Reader, then enters the Studio Workbench", async ({
-    page,
-  }, testInfo) => {
-    test.setTimeout(180_000);
-    page.setDefaultTimeout(30_000);
-    const browserErrors = captureBrowserErrorsV1(page);
-
-    try {
-      await acknowledgeModelLimitationsV1(page);
-      await page.goto("/ja/", { waitUntil: "domcontentloaded" });
-
-      await expect(page.getByRole("heading", {
-        name: "正常循環リファレンス",
-        exact: true,
-      })).toBeVisible();
-      await page.getByRole("link", {
-        name: "レッスンを始める",
-        exact: true,
-      }).first().click();
-      await expect(page).toHaveURL(/\/ja\/lesson\/normal-reference$/);
-
-      const article = page.getByRole("article");
-      await expect(article.getByRole("heading", {
-        name: "Normal Physiology Reference",
-        exact: true,
-      })).toBeVisible();
-      await expect(article).toContainText(
-        "このコンテンツは現在英語 (EN)のみ利用できます。",
-      );
-      await expect(article).toContainText("インタラクティブ");
-
-      const inlineModelToggle = article.getByRole("button", {
-        name: "コントロールを隠す",
-        exact: true,
-      });
-      await inlineModelToggle.click();
-      const adjustModel = article.getByRole("button", {
-        name: "モデルを調整",
-        exact: true,
-      });
-      await expect(adjustModel).toHaveAttribute("aria-expanded", "false");
-      await adjustModel.click();
-      await expect(article.getByRole("button", {
-        name: "コントロールを隠す",
-        exact: true,
-      })).toHaveAttribute("aria-expanded", "true");
-
-      // Lesson interaction still uses its own reading preview runtime. The
-      // Studio-owned runtime begins only after entering the product Workbench.
-      await expect(page.getByTestId(
-        "scientific-product-workbench-host-v1",
-      )).toHaveCount(0);
-      await expect(page.locator('[data-studio-runtime="true"]'))
-        .toHaveCount(0);
-
-      await page.getByRole("link", {
-        name: "ホームに戻る",
-        exact: true,
-      }).click();
-      await expect(page).toHaveURL(/\/ja\/?$/);
-      await page.getByRole("link", {
-        name: "自由シミュレーションを開く",
-        exact: true,
-      }).click();
-
-      const { evidence } = await readyStudioWorkbenchV1(page);
-      await expect(page).toHaveURL(/\/ja\/workbench$/);
-      await expect(evidence).toHaveAttribute("data-studio-runtime", "true");
-      await expect(evidence).toHaveAttribute(
-        "data-displayed-evidence",
-        "open-transient-no-periodic-claim",
-      );
-      await expect(evidence).toHaveAttribute(
-        "data-studio-strict-phase",
-        "source-settled",
-      );
 
       expect(browserErrors).toEqual([]);
     } finally {

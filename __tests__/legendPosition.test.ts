@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { InteractiveGraphLegend, shouldEnableLegendInteractions } from "@/components/InteractiveGraphLegend";
 import { clampLegendFraction, defaultLegendFraction, exceededDragThreshold, fractionToPx, isNearDefaultLegendCorner, magnetizeLegendPosition, pxToFraction } from "@/components/legendPosition";
 import { ScientificWorkbenchChartLegendV1 } from "@/components/scientificProduct/ScientificWorkbenchAnimatedChartsV1";
-import { mergePanelLegendPosition } from "@/WorkbenchPage";
+import { mergePanelLegendPosition } from "@/features/workbench/workbenchDefaults";
 import type { PanelDef } from "@/types";
 
 function graphPanel(extras: Partial<PanelDef> = {}): PanelDef {

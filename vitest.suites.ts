@@ -7,7 +7,7 @@
  * that every *.test.ts file belongs to exactly one suite.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 133;
+export const FAST_SUITE_FILE_BUDGET = 124;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 57;
 
 export const fastTests = [
@@ -35,10 +35,6 @@ export const fastTests = [
   "__tests__/landSlsWallMaterialV1.test.ts",
   "__tests__/layoutOps.test.ts",
   "__tests__/legendPosition.test.ts",
-  "__tests__/lessonCloud.test.ts",
-  "__tests__/lessonDoc.steps.test.ts",
-  "__tests__/lessonKnobs.test.ts",
-  "__tests__/lessonPersist.test.ts",
   "__tests__/localCirculationTangentsV1.test.ts",
   "__tests__/locales.test.ts",
   "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
@@ -84,7 +80,6 @@ export const fastTests = [
   "__tests__/panelView.test.ts",
   "__tests__/parallelOneStateSlsV1.test.ts",
   "__tests__/publishDialogState.test.ts",
-  "__tests__/publishReviewOverlay.test.ts",
   "__tests__/publishStatusBadge.test.ts",
   "__tests__/pvLoopDebugOverlay.test.ts",
   "__tests__/pvLoopPoints.test.ts",
@@ -92,8 +87,6 @@ export const fastTests = [
   "__tests__/rawParameterCatalog.test.ts",
   "__tests__/readExplore.test.ts",
   "__tests__/readingConversion.test.ts",
-  "__tests__/readingPresenter.realNotePanel.test.ts",
-  "__tests__/readingPresenter.test.ts",
   "__tests__/scientificWorkbenchOfficialCycleV1.test.ts",
   "__tests__/scientificProductScenarioRegistryV1.test.ts",
   "__tests__/scientificProductReaderExperimentControllerV1.test.ts",
@@ -125,7 +118,6 @@ export const fastTests = [
   "__tests__/workbenchLoadDebugOverlay.test.ts",
   "__tests__/workbenchP1aStructuralHosts.test.ts",
   "__tests__/workbenchPanelModel.test.ts",
-  "__tests__/workbenchPersistence.test.ts",
   "__tests__/workbenchRuntimeAuthoringSeams.test.ts",
   "__tests__/workbenchViewSpec.test.ts",
   "components/__tests__/pvLoopPoints.test.ts",
@@ -139,7 +131,6 @@ export const fastTests = [
   "engine/__tests__/headroomReview.test.ts",
   "engine/__tests__/instanceKnobs.test.ts",
   "engine/__tests__/leftFillingReview.test.ts",
-  "engine/__tests__/lessonDoc.test.ts",
   "engine/__tests__/modelCoreExperimentalActiveProviderState.test.ts",
   "engine/__tests__/officialCaseBridge.test.ts",
   "engine/__tests__/starlingFit.test.ts",

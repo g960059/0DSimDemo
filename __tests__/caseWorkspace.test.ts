@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { defaultWorkspaceForPanels, workspaceForPanels } from "@/caseDoc";
-import { LESSONS, lessonToCaseDocument } from "@/lessonDoc";
 import type { DockviewViewState, PanelDef, WorkbenchWorkspace } from "@/types";
 
 const panels: PanelDef[] = [
@@ -25,16 +24,6 @@ describe("semantic workspace", () => {
       metrics: { open: true },
       main: {},
     });
-  });
-
-  it("embeds a lesson layer into a canonical case document", () => {
-    const doc = lessonToCaseDocument(LESSONS[0]);
-
-    expect(doc?.kind).toBe("lesson");
-    expect(doc?.meta.id).toBe(LESSONS[0].meta.id);
-    expect(doc?.lesson?.noteSpine).toEqual(LESSONS[0].noteSpine);
-    expect(doc?.panels.length).toBeGreaterThan(0);
-    expect(doc?.instances.length).toBeGreaterThan(0);
   });
 
   it("preserves main Dockview state while stripping default host fields", () => {

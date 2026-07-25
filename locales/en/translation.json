@@ -38,19 +38,11 @@
     "fallbackNotice": "Content is currently available in {{locale}} only."
   },
   "home": {
-    "lead": "Learn cardiovascular physiology through guided lessons, disease cases, and free simulation.",
-    "openWorkbench": "Open Workbench",
-    "openFreeSimulation": "Open Workbench (free simulation)",
-    "learnTitle": "Learn",
-    "learnDescription": "Start with the official learning path.",
-    "openLessonFallback": "Open the interactive lesson.",
-    "startLesson": "Start lesson",
-    "noLessons": "No lessons are available yet.",
+    "lead": "Read cardiovascular articles whose experiments run live, and build the physiology behind them in the Workbench.",
     "exploreTitle": "Explore",
     "exploreDescription": "Open disease-first cases in the Workbench.",
     "seeAllCases": "See all cases",
     "openCase": "Open case",
-    "noCases": "No official cases are available yet.",
     "openBlankWorkbench": "Open a blank Workbench (free play)"
   },
   "studioAuthorPreview": {
@@ -998,54 +990,6 @@
       "question": "Question",
       "newOption": "New Option",
       "addOption": "Add Option"
-    }
-  },
-  "lessonPlayer": {
-    "notFound": {
-      "title": "Lesson not found",
-      "description": "This lesson is not available in the current learning path."
-    },
-    "backToHome": "Back to Home",
-    "loading": "Loading lesson...",
-    "reveal": "Reveal",
-    "next": "Next",
-    "lesson": "Lesson",
-    "step": "Step {{number}}",
-    "back": "Back",
-    "complete": "Complete"
-  },
-  "reading": {
-    "minRead_one": "{{count}} min read",
-    "minRead_other": "{{count}} min read",
-    "interactive": "Interactive",
-    "tableOfContents": "Table of contents",
-    "hideControls": "Hide controls",
-    "adjustModel": "Adjust the model"
-  },
-  "lessons": {
-    "normal-reference": {
-      "title": "Normal Physiology Reference",
-      "objective": "Learn to read the four core panels - waveforms, PV loop, metrics, and controls - at a normal resting operating point, so you have an anchor to compare every disease case against."
-    },
-    "acute-anterior-mi": {
-      "title": "Acute Anterior MI: when the pump stalls",
-      "objective": "Recognize how an isolated loss of anterior-wall contractility narrows the LV PV loop, drops SV and CO, and raises left atrial pressure."
-    },
-    "systolic-heart-failure": {
-      "title": "Systolic Heart Failure (HFrEF)",
-      "objective": "Understand how a weak left ventricle lowers stroke volume and cardiac output, raises filling pressure, and reshapes the PV loop."
-    },
-    "diastolic-heart-failure": {
-      "title": "Diastolic Heart Failure (HFpEF)",
-      "objective": "Understand how a stiff, poorly relaxing LV raises filling pressures while EF stays normal, and recognize the HFpEF signature on the PV loop, waveforms, and metrics."
-    },
-    "aortic-stenosis": {
-      "title": "Aortic Stenosis: a stiff door on the way out",
-      "objective": "Understand how a narrowed aortic valve forces the left ventricle to generate high pressure, and read that compensation off the PV loop, the LVP-AoP pressure gradient, and the stroke-volume metrics versus a normal heart."
-    },
-    "hypovolemic-shock": {
-      "title": "Hypovolemic Shock",
-      "objective": "Understand how losing circulating blood volume drops preload, stroke volume, and blood pressure."
     }
   },
   "officialCases": {

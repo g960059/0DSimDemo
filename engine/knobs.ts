@@ -48,6 +48,8 @@ export interface ClinicalKnobs {
 }
 
 export type KnobKey = keyof ClinicalKnobs;
+/** Every knob a controller can drive as a number, which excludes the toggle. */
+export type NumericKnobKey = Exclude<KnobKey, "baroreflexEnabled">;
 
 /** Hard clamp for concrete knob values (applied before resolution). */
 export const KNOB_RANGES: Partial<Record<KnobKey, [number, number]>> = {

@@ -16,11 +16,6 @@ const Home = React.lazy(
 const OfficialCases = React.lazy(
   () => import('./components/Cases').then((module) => ({ default: module.OfficialCases })),
 );
-const LessonReadingRoute = React.lazy(
-  () => import('./components/reading/LessonReadingRoute').then((module) => ({
-    default: module.LessonReadingRoute,
-  })),
-);
 const ScientificRuntimeAlphaPage = React.lazy(
   () => import('./components/scientificAlpha/ScientificRuntimeAlphaPage'),
 );
@@ -71,14 +66,6 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading cases…" />}>
           <OfficialCases />
-        </React.Suspense>
-      )}
-    />
-    <Route
-      path="lesson/:id"
-      element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading lesson…" />}>
-          <LessonReadingRoute />
         </React.Suspense>
       )}
     />
@@ -138,7 +125,7 @@ const appRoutes = () => (
         </React.Suspense>
       )}
     />
-    <Route path="*" element={<Navigate to="." replace />} />
+    <Route path="*" element={<LocalizedHomeRedirect />} />
   </>
 );
 
@@ -186,6 +173,22 @@ const ScientificPerformanceLabLoading = () => (
     Loading raw scientific browser measurement lab…
   </div>
 );
+
+/**
+ * Anything unrecognised inside a locale lands on that locale's home.
+ *
+ * A relative redirect resolves to the splat itself, so a retired route — a
+ * lesson link someone kept — would render the chrome around nothing.
+ */
+const LocalizedHomeRedirect = () => {
+  const { locale } = useParams();
+  return (
+    <Navigate
+      to={prefixPath("/", isLocale(locale) ? locale : detectPreferredLocale())}
+      replace
+    />
+  );
+};
 
 const LocalizedLayout = () => {
   const { locale } = useParams();

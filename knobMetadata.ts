@@ -1,5 +1,5 @@
 import { KNOB_RANGES, KNOB_TEACHING_SAFE, type KnobKey } from "./engine/knobs";
-import type { NumericKnobKey } from "./lessonDoc";
+import type { NumericKnobKey } from "./engine/knobs";
 import { rawParamCatalogEntry } from "./rawParameterCatalog";
 import type { ControllerItem } from "./types";
 
