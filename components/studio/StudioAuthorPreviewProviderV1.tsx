@@ -5,6 +5,7 @@ import {
 } from "@/components/scientificProduct/ScientificProductSampleAfterloadArticleV1";
 import {
   StudioAuthorPreviewApplicationV1,
+  StudioAuthorPreviewRevisionConflictErrorV1,
   type ReplaceStudioAuthorDocumentContentCommandV1,
   type ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
 } from "@/studio/application/content";
@@ -85,6 +86,7 @@ export type StudioAuthorPreviewContextValueV1 = Readonly<{
   replaceDocumentContentLatest(
     title: string,
     blocks: readonly StudioDocumentBlockV1[],
+    expectedDocumentRevision: number,
   ): StudioAuthorDraftV1;
   replaceReaderBriefGraphPanes(
     command: ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
@@ -168,9 +170,21 @@ export function StudioAuthorPreviewProviderV1({
   const replaceDocumentContentLatest = React.useCallback((
     title: string,
     blocks: readonly StudioDocumentBlockV1[],
+    expectedDocumentRevision: number,
   ) => {
+    const current = application.getDraftSnapshot();
+    // The editor buffer carries a whole-document replacement, so committing it
+    // against a document another writer has advanced would silently restore
+    // the older content. The draft revision may have moved for an unrelated
+    // aggregate (a Reader brief), which is not a conflict.
+    if (current.document.revision !== expectedDocumentRevision) {
+      throw new StudioAuthorPreviewRevisionConflictErrorV1(
+        expectedDocumentRevision,
+        current.document.revision,
+      );
+    }
     const next = application.replaceDocumentContent({
-      expectedRevision: application.getDraftSnapshot().revision,
+      expectedRevision: current.revision,
       title,
       blocks,
     });

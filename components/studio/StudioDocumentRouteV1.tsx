@@ -54,9 +54,12 @@ export default function StudioDocumentRouteV1() {
               experimentId === block.experimentId);
             return [
               block.experimentId,
+              block.readerBriefId,
               (experiment?.scenarios ?? []).map((scenario) => [
                 scenario.scenarioId,
+                scenario.runtimeSource.kind,
                 scenario.runtimeSource.sourceId,
+                scenario.runtimeSource.qualification,
               ]),
             ];
           }),
@@ -80,14 +83,17 @@ export default function StudioDocumentRouteV1() {
   const commitContent = React.useCallback((
     title: string,
     blocks: readonly StudioDocumentBlockV1[],
-  ) => {
+    expectedRevision: number,
+  ): boolean => {
     try {
-      replaceDocumentContentLatest(title, blocks);
+      replaceDocumentContentLatest(title, blocks, expectedRevision);
       setErrorMessage(null);
+      return true;
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : String(error),
       );
+      return false;
     }
   }, [replaceDocumentContentLatest]);
 

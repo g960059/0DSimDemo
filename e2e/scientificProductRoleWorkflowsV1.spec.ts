@@ -749,16 +749,16 @@ test.describe.serial("Product workflows by role", () => {
       ).toHaveAttribute("style", capturedSeriesStyle!);
 
       // The rest of the brief opens in focus rather than lengthening the
-      // article, and the focus cut is bounded.
+      // article, and focus never drops a pane the author pinned.
       const focusView = page.getByTestId("studio-reader-focus-v1");
       await page.getByTestId("studio-reader-open-focus-v1").click();
       await expect(focusView).toBeVisible();
       await expect(
         focusView.locator("[data-studio-reader-pane-kind]"),
-      ).toHaveCount(4);
+      ).toHaveCount(8);
       await expect(
         focusView.locator('[data-studio-reader-pane-kind="pv-loop"]'),
-      ).toHaveCount(1);
+      ).toHaveCount(2);
       await focusView.getByRole("button", { name: "閉じる" }).first().click();
       await expect(focusView).toHaveCount(0);
 

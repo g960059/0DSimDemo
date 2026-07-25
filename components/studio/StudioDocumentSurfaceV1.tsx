@@ -18,8 +18,17 @@ import { StudioExperimentCellV1 } from "./StudioExperimentCellV1";
 export type StudioDocumentCapabilityV1 = "read" | "compose";
 
 export type StudioDocumentEditV1 = Readonly<{
-  /** Commits title and blocks as one structural content change. */
-  onCommit(title: string, blocks: readonly StudioDocumentBlockV1[]): void;
+  /**
+   * Commits title and blocks as one structural content change against the
+   * revision the editor buffer was synchronized from. Returns whether the
+   * commit was accepted, so a rejected edit stays pending instead of being
+   * silently discarded.
+   */
+  onCommit(
+    title: string,
+    blocks: readonly StudioDocumentBlockV1[],
+    expectedRevision: number,
+  ): boolean;
   /** Experiment reference offered by `/` insertion, or null when none exists. */
   insertableExperiment: Readonly<{
     experimentId: string;
@@ -69,8 +78,11 @@ export function StudioDocumentSurfaceV1({
     blocks: document.document.blocks,
   }));
   const dirtyRef = React.useRef(false);
+  /** The document revision this buffer was last synchronized from. */
+  const baseRevisionRef = React.useRef(document.document.revision);
   React.useEffect(() => {
     if (dirtyRef.current) return;
+    baseRevisionRef.current = document.document.revision;
     setBuffer({
       title: document.document.title,
       blocks: document.document.blocks,
@@ -79,11 +91,28 @@ export function StudioDocumentSurfaceV1({
 
   const [menuBlockId, setMenuBlockId] = React.useState<string | null>(null);
   const focusBlockIdRef = React.useRef<string | null>(null);
+  const bufferRef = React.useRef(buffer);
+  bufferRef.current = buffer;
+  React.useEffect(() => () => {
+    // Blur is not guaranteed: history navigation and route changes can unmount
+    // a focused block. A pending edit is committed rather than dropped.
+    if (dirtyRef.current) commitRef.current(bufferRef.current);
+  }, []);
 
   const commit = React.useCallback((next: typeof buffer) => {
-    dirtyRef.current = false;
-    edit?.onCommit(next.title, next.blocks);
+    // Clearing dirty before the commit is accepted would let the resync
+    // effect overwrite an edit the application rejected.
+    if (edit === undefined) return;
+    const accepted = edit.onCommit(
+      next.title,
+      next.blocks,
+      baseRevisionRef.current,
+    );
+    if (accepted) dirtyRef.current = false;
   }, [edit]);
+
+  const commitRef = React.useRef(commit);
+  commitRef.current = commit;
 
   const updateBuffer = React.useCallback((
     next: typeof buffer,
@@ -116,8 +145,7 @@ export function StudioDocumentSurfaceV1({
       focusBlockIdRef.current = block.kind === "experiment-placement"
         ? null
         : block.blockId;
-      dirtyRef.current = false;
-      edit?.onCommit(next.title, next.blocks);
+      commitRef.current(next);
       return next;
     });
   }, [edit]);
@@ -135,11 +163,10 @@ export function StudioDocumentSurfaceV1({
           ? previous.blockId
           : null;
       const next = { ...current, blocks };
-      dirtyRef.current = false;
-      edit?.onCommit(next.title, next.blocks);
+      commitRef.current(next);
       return next;
     });
-  }, [edit]);
+  }, []);
 
   const moveBlock = React.useCallback((blockId: string, direction: -1 | 1) => {
     setBuffer((current) => {
@@ -152,11 +179,10 @@ export function StudioDocumentSurfaceV1({
       if (moved === undefined) return current;
       blocks.splice(to, 0, moved);
       const next = { ...current, blocks };
-      dirtyRef.current = false;
-      edit?.onCommit(next.title, next.blocks);
+      commitRef.current(next);
       return next;
     });
-  }, [edit]);
+  }, []);
 
   const changeBlockKind = React.useCallback((
     blockId: string,
@@ -172,11 +198,10 @@ export function StudioDocumentSurfaceV1({
           : { blockId: block.blockId, kind, level: level ?? 2, text: block.text };
       });
       const next = { ...current, blocks };
-      dirtyRef.current = false;
-      edit?.onCommit(next.title, next.blocks);
+      commitRef.current(next);
       return next;
     });
-  }, [edit]);
+  }, []);
 
   React.useEffect(() => {
     const blockId = focusBlockIdRef.current;
@@ -370,9 +395,12 @@ function StudioEditableLineV1({
   onMove?(direction: -1 | 1): void;
 }>) {
   const ref = React.useRef<HTMLElement | null>(null);
+  const composingRef = React.useRef(false);
   React.useEffect(() => {
     const element = ref.current;
     if (element === null) return;
+    // Rewriting the DOM mid-composition destroys the IME candidate window.
+    if (composingRef.current) return;
     if (element.textContent !== text) element.textContent = text;
   }, [text]);
 
@@ -392,12 +420,35 @@ function StudioEditableLineV1({
           ? "rounded-sm empty:before:text-wb-subtle empty:before:content-[attr(data-placeholder)] focus:bg-wb-hover/40"
           : ""
       }`}
+      onCompositionStart={() => {
+        composingRef.current = true;
+      }}
+      onCompositionEnd={(event: React.CompositionEvent<HTMLElement>) => {
+        composingRef.current = false;
+        onChange(event.currentTarget.textContent ?? "");
+      }}
+      onPaste={(event: React.ClipboardEvent<HTMLElement>) => {
+        // The model stores plain text; accepting markup here would show
+        // formatting that silently disappears on the next render.
+        event.preventDefault();
+        const plain = event.clipboardData.getData("text/plain")
+          .replace(/\s+/g, " ");
+        event.currentTarget.ownerDocument.execCommand(
+          "insertText",
+          false,
+          plain,
+        );
+      }}
       onInput={(event: React.FormEvent<HTMLElement>) => {
+        if (composingRef.current) return;
         onChange(event.currentTarget.textContent ?? "");
       }}
       onBlur={onCommit}
       onKeyDown={(event: React.KeyboardEvent<HTMLElement>) => {
         if (!editable) return;
+        // A composition confirm arrives as Enter; splitting the block there
+        // would discard or halve the text being composed.
+        if (composingRef.current || event.nativeEvent.isComposing) return;
         if (event.key === "Enter" && !event.shiftKey && onEnter !== undefined) {
           event.preventDefault();
           onCommit();
@@ -503,6 +554,28 @@ function StudioBlockGutterV1({
           <div
             role="menu"
             data-testid="studio-document-block-menu-v1"
+            ref={(element) => {
+              element?.querySelector<HTMLElement>(
+                "[role='menuitem']:not([disabled])",
+              )?.focus();
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.stopPropagation();
+                onCloseMenu();
+                return;
+              }
+              if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+              event.preventDefault();
+              const items = [...event.currentTarget.querySelectorAll<
+                HTMLButtonElement
+              >("[role='menuitem']:not([disabled])")];
+              const index = items.indexOf(
+                event.target as HTMLButtonElement,
+              );
+              const next = event.key === "ArrowDown" ? index + 1 : index - 1;
+              items[(next + items.length) % items.length]?.focus();
+            }}
             className="absolute left-0 top-9 z-[61] w-52 rounded-lg bg-wb-panel p-1 shadow-xl"
           >
             {!isExperiment && (

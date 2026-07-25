@@ -73,14 +73,19 @@ export function ScientificWorkbenchBriefingControlV1({
   const target = readerBriefTargetV1(draft.experiments, targetRef);
   const pinnedPanes = target?.brief.graphPanes ?? [];
 
+  const onOpenChangeRef = React.useRef(onOpenChange);
+  onOpenChangeRef.current = onOpenChange;
   const setOpenV1 = React.useCallback((next: boolean) => {
     setOpen(next);
-    onOpenChange?.(next);
-  }, [onOpenChange]);
+    onOpenChangeRef.current?.(next);
+  }, []);
 
   React.useEffect(
-    () => () => onOpenChange?.(false),
-    [onOpenChange],
+    // Reporting closed must follow the layer's lifetime, not the identity of
+    // an inline callback: a host rerender would otherwise collapse its reflow
+    // while the composer is still open.
+    () => () => onOpenChangeRef.current?.(false),
+    [],
   );
 
   const captureScenarioIdMap = React.useMemo(

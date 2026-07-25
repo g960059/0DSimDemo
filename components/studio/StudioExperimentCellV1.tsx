@@ -22,9 +22,11 @@ import type {
   ResolvedReaderExperimentPlacementV1,
 } from "@/studio/contracts/v1";
 
-/** In-flow shows the primary graph; focus opens the rest of the brief. */
+/**
+ * In-flow shows the primary graph only; focus is where the rest of the brief
+ * is meant to be readable, so it never truncates what the author pinned.
+ */
 const INFLOW_GRAPH_LIMIT_V1 = 1;
-const FOCUS_GRAPH_LIMIT_V1 = 4;
 
 export type StudioExperimentCellV1Props = Readonly<{
   placement: ResolvedReaderExperimentPlacementV1;
@@ -97,7 +99,6 @@ export function StudioExperimentCellV1({
   const activate = React.useCallback(() => setActivated(true), []);
   const panes = placement.readerBrief.graphPanes;
   const inflowPanes = panes.slice(0, INFLOW_GRAPH_LIMIT_V1);
-  const focusPanes = panes.slice(0, FOCUS_GRAPH_LIMIT_V1);
   const canFocus = panes.length > inflowPanes.length;
   const scenarioId = placement.experiment.scenarios[0]?.scenarioId;
 
@@ -125,7 +126,11 @@ export function StudioExperimentCellV1({
       >
         <button
           type="button"
-          onClick={() => setFocusOpen(true)}
+          onClick={() => {
+            // Launch defers integration until asked; opening it is the ask.
+            activate();
+            setFocusOpen(true);
+          }}
           data-testid="studio-reader-launch-v1"
           className="flex w-full items-center gap-3 rounded-lg bg-wb-soft px-4 py-3.5 text-left transition-colors hover:bg-wb-hover"
         >
@@ -171,6 +176,7 @@ export function StudioExperimentCellV1({
       >
         <StudioExperimentControlsV1
           snapshot={snapshot}
+          scope={`inflow-${placement.placementBlockId}`}
           onCommit={commitControl}
         />
 
@@ -229,7 +235,10 @@ export function StudioExperimentCellV1({
             {canFocus && (
               <button
                 type="button"
-                onClick={() => setFocusOpen(true)}
+                onClick={() => {
+                  activate();
+                  setFocusOpen(true);
+                }}
                 data-testid="studio-reader-open-focus-v1"
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-wb-accent hover:underline"
               >
@@ -253,7 +262,7 @@ export function StudioExperimentCellV1({
       {focusOpen && (
         <StudioExperimentFocusV1
           placement={placement}
-          panes={focusPanes}
+          panes={panes}
           registry={registry}
           clock={clock}
           scenarioId={scenarioId}
@@ -315,9 +324,12 @@ function StudioExperimentPaneV1({
 
 function StudioExperimentControlsV1({
   snapshot,
+  scope,
   onCommit,
 }: Readonly<{
   snapshot: ScientificProductReaderExperimentSnapshotV1;
+  /** Distinguishes the in-flow controls from the focus copy of the same brief. */
+  scope: string;
   onCommit(parameterKey: string, value: number): void;
 }>) {
   if (snapshot.allowedControls.length === 0) return null;
@@ -332,7 +344,7 @@ function StudioExperimentControlsV1({
           <div key={control.controlId}>
             <div className="flex items-baseline justify-between gap-3">
               <label
-                htmlFor={`reader-control-${control.controlId}`}
+                htmlFor={`reader-control-${scope}-${control.controlId}`}
                 className="text-xs font-semibold text-wb-muted"
               >
                 {control.label}
@@ -342,7 +354,7 @@ function StudioExperimentControlsV1({
               </output>
             </div>
             <input
-              id={`reader-control-${control.controlId}`}
+              id={`reader-control-${scope}-${control.controlId}`}
               type="range"
               min={0}
               max={Math.max(1, control.allowedValues.length - 1)}
@@ -449,6 +461,7 @@ function StudioExperimentFocusV1({
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6">
           <StudioExperimentControlsV1
             snapshot={snapshot}
+            scope={`focus-${placement.placementBlockId}`}
             onCommit={onCommit}
           />
           <div className="mt-5 grid gap-6">
