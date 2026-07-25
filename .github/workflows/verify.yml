@@ -148,7 +148,10 @@ jobs:
 
       - name: Verify generated release artifacts, catalogs, and frontend projection
         run: |
-          npx vitest run \
+          # These exact-replay suites are CPU-bound. Running several solver
+          # instances in parallel can exhaust an individual test's time budget
+          # on two-core GitHub runners even when every assertion is healthy.
+          npx vitest run --no-file-parallelism --maxWorkers=1 --minWorkers=1 \
             __tests__/mainWireIntegratedPreviewWorkerIntegrityV1.test.ts \
             __tests__/mainWireIntegratedPreviewSessionV1.test.ts \
             __tests__/mainWireIntegratedModelPeriodicSteadyV3.test.ts \
