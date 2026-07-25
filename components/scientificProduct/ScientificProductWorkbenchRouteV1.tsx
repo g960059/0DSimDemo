@@ -295,6 +295,7 @@ function ScientificProductWorkbenchShellV1({
   const isMobile = useIsMobile();
   const { workbenchTheme, setWorkbenchTheme } = useWorkbenchTheme();
   const [isPlaying, setPlaying] = React.useState(true);
+  const [briefingOpen, setBriefingOpen] = React.useState(false);
   const [sceneMeta, setSceneMeta] = React.useState({
     title: resolution.caseEntry.displayName,
     description: resolution.caseEntry.description,
@@ -828,6 +829,16 @@ function ScientificProductWorkbenchShellV1({
   return (
     <div
       className="workbench-root relative flex h-full w-full flex-col overflow-hidden bg-wb-app font-sans text-wb-text"
+      style={briefingOpen
+        ? {
+          // Compose is non-modal: the Workbench must stay reachable so a pane
+          // can be adjusted and re-synced without closing the layer. Reserving
+          // the width (rather than being overlaid) is what makes that true.
+          paddingRight: "min(100vw, max(560px, min(45vw, 820px)))",
+          transition: "padding-right 200ms cubic-bezier(0.32,0.72,0,1)",
+        }
+        : { transition: "padding-right 200ms cubic-bezier(0.32,0.72,0,1)" }}
+      data-briefing-compose-open={String(briefingOpen)}
       data-workbench-theme={workbenchTheme}
       data-testid="scientific-product-workbench-host-v1"
       data-product-case-id={resolution.canonicalCaseId}
@@ -924,6 +935,7 @@ function ScientificProductWorkbenchShellV1({
               scenarioId:
                 SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
             })}
+            onOpenChange={setBriefingOpen}
           />
         )}
         settingsContent={(

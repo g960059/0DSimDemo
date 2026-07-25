@@ -17,6 +17,8 @@ import {
 } from "@/components/studio/StudioAuthorPreviewProviderV1";
 import {
   captureStudioGraphPaneSpecV1,
+  studioGraphPaneCaptureDriftV1,
+  type StudioGraphPaneCaptureDriftV1,
 } from "@/components/studio/StudioGraphPaneProjectionV1";
 import type {
   ScientificProductRuntimeRegistryPortV1,
@@ -34,19 +36,29 @@ export type ScientificWorkbenchBriefingControlV1Props = Readonly<{
     briefId: string;
     scenarioId: string;
   }>;
+  /**
+   * Compose is an authoring capability. A read/interact-only surface must not
+   * render the entry point at all, so the clinical Workbench stays clean.
+   */
+  canCompose?: boolean;
+  /** Reports open state so the host can reflow instead of being overlaid. */
+  onOpenChange?: (open: boolean) => void;
 }>;
 
 /**
  * Workbench → Studio author-draft bridge for the session-only vertical slice.
  *
  * The control is the only authoring affordance that remains while compose is
- * closed. Captures are immutable presentation copies owned by ReaderBriefV1.
+ * closed. Pins are immutable presentation copies owned by ReaderBriefV1, so a
+ * later Workbench edit is reported as drift rather than silently applied.
  */
 export function ScientificWorkbenchBriefingControlV1({
   panels,
   registry,
   activeScenarioId,
   target: targetRef,
+  canCompose = true,
+  onOpenChange,
 }: ScientificWorkbenchBriefingControlV1Props) {
   const { t } = useTranslation();
   const location = useLocation();
@@ -59,43 +71,124 @@ export function ScientificWorkbenchBriefingControlV1({
   const [open, setOpen] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const target = readerBriefTargetV1(draft.experiments, targetRef);
-  const capturedPanes = target?.brief.graphPanes ?? [];
+  const pinnedPanes = target?.brief.graphPanes ?? [];
 
-  const capturePanels = React.useCallback((
-    panelIds: readonly string[],
-    mode: "append" | "update" | "replace-all",
+  const setOpenV1 = React.useCallback((next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+  }, [onOpenChange]);
+
+  React.useEffect(
+    () => () => onOpenChange?.(false),
+    [onOpenChange],
+  );
+
+  const captureScenarioIdMap = React.useMemo(
+    () => new Map([[activeScenarioId, targetRef.scenarioId]]),
+    [activeScenarioId, targetRef.scenarioId],
+  );
+  const previewScenarioIdMap = React.useMemo(
+    () => new Map([[targetRef.scenarioId, activeScenarioId]]),
+    [activeScenarioId, targetRef.scenarioId],
+  );
+  const panelByPaneId = React.useMemo(
+    () => {
+      const entries = new Map<string, PanelDef>();
+      for (const panel of panels) {
+        const paneId = panel.sourceViewId ?? panel.id;
+        if (!entries.has(paneId)) entries.set(paneId, panel);
+      }
+      return entries;
+    },
+    [panels],
+  );
+
+  /**
+   * Drift is derived, never author-maintained: re-capturing is pure, so the
+   * pinned copy and its live source can always be compared by value.
+   */
+  const driftByPaneId = React.useMemo(
+    () => {
+      const drift = new Map<string, StudioGraphPaneCaptureDriftV1>();
+      if (!open) return drift;
+      for (const pane of pinnedPanes) {
+        const panel = panelByPaneId.get(pane.paneId);
+        drift.set(
+          pane.paneId,
+          panel === undefined
+            ? Object.freeze({
+              kind: "uncapturable",
+              reason: t("studioAuthorPreview.briefing.errors.missingSource"),
+            })
+            : studioGraphPaneCaptureDriftV1(pane, {
+              panel,
+              registry,
+              scenarioIdMap: captureScenarioIdMap,
+            }),
+        );
+      }
+      return drift;
+    },
+    [captureScenarioIdMap, open, panelByPaneId, pinnedPanes, registry, t],
+  );
+
+  /**
+   * A Reader brief is referentially closed: every instantaneous readback and
+   * every control readback signal must be backed by a pinned waveform item,
+   * and at least one graph must remain. Unpinning is therefore not always
+   * legal, and the author is told why before acting rather than after the
+   * command is rejected.
+   */
+  const unpinBlockedByPaneId = React.useMemo(() => {
+    const blocked = new Map<string, string>();
+    if (target === null) return blocked;
+    const { brief } = target;
+    const requiredSignalIds = new Set<string>(
+      brief.instantaneousReadbacks.map(({ signalId }) => signalId),
+    );
+    for (const control of brief.controls) {
+      if (control.binding.readbackSignalId !== null) {
+        requiredSignalIds.add(control.binding.readbackSignalId);
+      }
+    }
+    for (const pane of brief.graphPanes) {
+      if (brief.graphPanes.length <= 1) {
+        blocked.set(
+          pane.paneId,
+          t("studioAuthorPreview.briefing.errors.lastGraph"),
+        );
+        continue;
+      }
+      const remaining = new Set<string>();
+      for (const other of brief.graphPanes) {
+        if (other.paneId === pane.paneId || other.kind !== "waveform") continue;
+        for (const scenario of other.scenarios) {
+          for (const item of scenario.items) remaining.add(item.itemId);
+        }
+      }
+      const missing = [...requiredSignalIds].filter(
+        (signalId) => !remaining.has(signalId),
+      );
+      if (missing.length > 0) {
+        blocked.set(
+          pane.paneId,
+          t("studioAuthorPreview.briefing.errors.backsReadbacks", {
+            count: missing.length,
+          }),
+        );
+      }
+    }
+    return blocked;
+  }, [target, t]);
+
+  const commitPanesV1 = React.useCallback((
+    next: readonly StudioGraphPaneSpecV1[],
   ) => {
     if (target === null) {
       setError(t("studioAuthorPreview.briefing.errors.missingTarget"));
       return;
     }
-    if (activeScenarioId.length === 0) {
-      setError(t("studioAuthorPreview.briefing.errors.missingScenario"));
-      return;
-    }
     try {
-      const scenarioIdMap = new Map([
-        [activeScenarioId, targetRef.scenarioId],
-      ]);
-      const captures = panelIds.map((panelId) => {
-        const panel = panels.find(({ id }) => id === panelId);
-        if (panel === undefined) {
-          throw new Error(t(
-            "studioAuthorPreview.briefing.errors.unknownPane",
-            { panelId },
-          ));
-        }
-        return captureStudioGraphPaneSpecV1({
-          panel,
-          registry,
-          scenarioIdMap,
-        });
-      });
-      const next = mergeCapturedPanesV1(
-        target.brief.graphPanes,
-        captures,
-        mode,
-      );
       replaceReaderBriefGraphPanes({
         expectedRevision: draft.revision,
         experimentId: target.experiment.experimentId,
@@ -103,42 +196,90 @@ export function ScientificWorkbenchBriefingControlV1({
         graphPanes: next,
       });
       setError(null);
+    } catch (commitError) {
+      setError(errorMessageV1(commitError));
+    }
+  }, [draft.revision, replaceReaderBriefGraphPanes, target, t]);
+
+  const capturePaneV1 = React.useCallback((
+    panelId: string,
+  ): StudioGraphPaneSpecV1 | null => {
+    if (activeScenarioId.length === 0) {
+      setError(t("studioAuthorPreview.briefing.errors.missingScenario"));
+      return null;
+    }
+    const panel = panels.find(({ id }) => id === panelId);
+    if (panel === undefined) {
+      setError(t("studioAuthorPreview.briefing.errors.unknownPane", {
+        panelId,
+      }));
+      return null;
+    }
+    try {
+      return captureStudioGraphPaneSpecV1({
+        panel,
+        registry,
+        scenarioIdMap: captureScenarioIdMap,
+      });
     } catch (captureError) {
       setError(errorMessageV1(captureError));
+      return null;
     }
-  }, [
-    activeScenarioId,
-    draft.revision,
-    panels,
-    registry,
-    replaceReaderBriefGraphPanes,
-    target,
-    targetRef.scenarioId,
-    t,
-  ]);
+  }, [activeScenarioId, captureScenarioIdMap, panels, registry, t]);
 
-  const removePane = React.useCallback((paneId: string) => {
-    if (target === null) return;
-    try {
-      replaceReaderBriefGraphPanes({
-        expectedRevision: draft.revision,
-        experimentId: target.experiment.experimentId,
-        briefId: target.brief.briefId,
-        graphPanes: target.brief.graphPanes.filter(
-          (pane) => pane.paneId !== paneId,
-        ),
-      });
-      setError(null);
-    } catch (removeError) {
-      setError(errorMessageV1(removeError));
+  const pinPane = React.useCallback((panelId: string) => {
+    const captured = capturePaneV1(panelId);
+    if (captured === null) return;
+    const withoutPane = pinnedPanes.filter(
+      ({ paneId }) => paneId !== captured.paneId,
+    );
+    commitPanesV1(Object.freeze([...withoutPane, captured]));
+  }, [capturePaneV1, commitPanesV1, pinnedPanes]);
+
+  const unpinPane = React.useCallback((paneId: string) => {
+    const blockedReason = unpinBlockedByPaneId.get(paneId);
+    if (blockedReason !== undefined) {
+      setError(blockedReason);
+      return;
     }
-  }, [draft.revision, replaceReaderBriefGraphPanes, target]);
+    commitPanesV1(Object.freeze(
+      pinnedPanes.filter((pane) => pane.paneId !== paneId),
+    ));
+  }, [commitPanesV1, pinnedPanes, unpinBlockedByPaneId]);
+
+  const syncPane = React.useCallback((paneId: string) => {
+    const panel = panelByPaneId.get(paneId);
+    if (panel === undefined) {
+      setError(t("studioAuthorPreview.briefing.errors.missingSource"));
+      return;
+    }
+    const captured = capturePaneV1(panel.id);
+    if (captured === null) return;
+    commitPanesV1(Object.freeze(pinnedPanes.map((pane) =>
+      pane.paneId === paneId ? captured : pane)));
+  }, [capturePaneV1, commitPanesV1, panelByPaneId, pinnedPanes, t]);
+
+  const movePane = React.useCallback((
+    paneId: string,
+    direction: -1 | 1,
+  ) => {
+    const from = pinnedPanes.findIndex((pane) => pane.paneId === paneId);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= pinnedPanes.length) return;
+    const next = [...pinnedPanes];
+    const [moved] = next.splice(from, 1);
+    if (moved === undefined) return;
+    next.splice(to, 0, moved);
+    commitPanesV1(Object.freeze(next));
+  }, [commitPanesV1, pinnedPanes]);
+
+  if (!canCompose) return null;
 
   return (
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => setOpenV1(true)}
         className="inline-flex min-h-9 items-center gap-1.5 rounded-md border border-wb-line bg-wb-panel px-2.5 text-xs font-bold text-wb-muted hover:bg-wb-hover hover:text-wb-text active:scale-[0.98]"
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -148,9 +289,9 @@ export function ScientificWorkbenchBriefingControlV1({
         <span className="hidden md:inline">
           {t("studioAuthorPreview.briefing.button")}
         </span>
-        {capturedPanes.length > 0 && (
+        {pinnedPanes.length > 0 && (
           <span className="rounded-full bg-wb-active px-1.5 py-0.5 text-[10px] text-wb-text">
-            {capturedPanes.length}
+            {pinnedPanes.length}
           </span>
         )}
       </button>
@@ -162,15 +303,21 @@ export function ScientificWorkbenchBriefingControlV1({
           <ScientificWorkbenchBriefingComposerV1
             open
             panels={panels}
-            capturedPanes={capturedPanes}
-            onClose={() => setOpen(false)}
-            onCapture={(panelId) => capturePanels([panelId], "append")}
-            onUpdate={(panelId) => capturePanels([panelId], "update")}
-            onRemove={removePane}
-            onCaptureAll={(panelIds) =>
-              capturePanels(panelIds, "replace-all")}
+            pinnedPanes={pinnedPanes}
+            driftByPaneId={driftByPaneId}
+            unpinBlockedByPaneId={unpinBlockedByPaneId}
+            registry={registry}
+            previewScenarioIdMap={previewScenarioIdMap}
+            readbacks={target?.brief.instantaneousReadbacks ?? []}
+            controls={target?.brief.controls ?? []}
+            extent={target?.brief.extent ?? "inflow"}
+            onClose={() => setOpenV1(false)}
+            onPin={pinPane}
+            onUnpin={unpinPane}
+            onSync={syncPane}
+            onMove={movePane}
             onOpenDocumentEditor={() => {
-              setOpen(false);
+              setOpenV1(false);
               navigate(authorPreviewHref(locale));
             }}
           />
@@ -209,20 +356,6 @@ function readerBriefTargetV1(
     ({ briefId }) => briefId === target.briefId,
   );
   return brief === undefined ? null : { experiment, brief };
-}
-
-function mergeCapturedPanesV1(
-  current: readonly StudioGraphPaneSpecV1[],
-  captures: readonly StudioGraphPaneSpecV1[],
-  mode: "append" | "update" | "replace-all",
-): readonly StudioGraphPaneSpecV1[] {
-  if (mode === "replace-all") return Object.freeze([...captures]);
-  const byId = new Map(captures.map((pane) => [pane.paneId, pane]));
-  const retained = current.map((pane) => byId.get(pane.paneId) ?? pane);
-  const existingIds = new Set(current.map(({ paneId }) => paneId));
-  const additions = captures.filter(({ paneId }) => !existingIds.has(paneId));
-  if (mode === "append") return Object.freeze([...retained, ...additions]);
-  return Object.freeze([...retained, ...additions]);
 }
 
 function errorMessageV1(error: unknown): string {

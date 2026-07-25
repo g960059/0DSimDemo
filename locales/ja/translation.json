@@ -107,19 +107,35 @@
       "headingAt": "見出し {{position}}"
     },
     "briefing": {
-      "button": "Briefing",
-      "title": "Briefingを構成",
-      "description": "現在のwindow・色・凡例位置を記事へコピーします。後のpane変更は、更新するまでReaderへ反映されません。",
+      "button": "読者向け構成",
+      "title": "読者に見せる構成",
+      "description": "記事に埋め込む実験の見え方をここで決めます。現在のwindow・色・凡例位置がコピーされ、後のpane変更は同期するまでReaderへ反映されません。",
       "close": "閉じる",
-      "graphPanes": "Graph panes",
-      "captureAll": "すべてcapture",
-      "inflowLimitExceeded": "In-flowの推奨上限はgraph 1枚です。現在{{count}}枚のため、記事が長くなります。本文に必要な1枚を残してください。",
-      "inflowLimitNotice": "In-flowの推奨上限はgraph 1枚です。「すべてcapture」は{{count}}枚を本文内に配置します。",
-      "captured": "capture済み",
-      "capture": "Capture",
-      "updateCapture": "現在設定で更新",
-      "removeCapture": "captureを削除",
-      "paneCount": "{{count}} paneをReader Briefに保存中（session draft）",
+      "extentTablist": "表示範囲",
+      "extentName": {
+        "inflow": "本文内",
+        "peek": "パネル",
+        "fullscreen": "全画面"
+      },
+      "narrowPreview": "スマホ幅",
+      "previewLabel": "読者に見える実物",
+      "previewNotice": "読者が見る実物です。数値と操作は実際のReaderで動きます。",
+      "paletteLabel": "追加できるgraph",
+      "pin": "追加",
+      "pinned": "追加済み",
+      "unpin": "構成から外す",
+      "primary": "主図",
+      "moveUp": "前へ",
+      "moveDown": "後へ",
+      "sync": "同期",
+      "driftNotice": "Workbench側の設定が変わりました。読者にはまだ古い見え方が出ます。",
+      "uncapturableNotice": "この元paneを今はcaptureできません（Workbenchで非表示・削除された可能性があります）。",
+      "overflowTitle": "{{extent}}には入りきらないgraphが{{count}}枚あります",
+      "overflowHelp": "前へ移動して主図にするか、構成から外してください。パネル表示ではより多く並べられます。",
+      "emptyTitle": "まだ何も追加されていません",
+      "emptyDescription": "Workbenchのgraphを追加すると、読者に見える実物がここに表示されます。まずは主図を1枚選びます。",
+      "emptyAction": "「{{title}}」を主図にする",
+      "sessionDraft": "graph {{count}}枚をReader Briefに保存中（session draft）",
       "editArticle": "記事を編集",
       "paneKinds": {
         "waveform": "Waveform",
@@ -130,7 +146,10 @@
       "errors": {
         "missingTarget": "session draftにReader Briefの対象がありません。",
         "missingScenario": "選択中のWorkbench scenarioを記事へ対応付けできません。",
-        "unknownPane": "Workbench pane {{panelId}} が見つかりません。"
+        "unknownPane": "Workbench pane {{panelId}} が見つかりません。",
+        "missingSource": "元のWorkbench paneが見つかりません。",
+        "lastGraph": "graphは1枚以上必要です。別のgraphを追加してから外してください。",
+        "backsReadbacks": "この波形は、読者に見せる瞬時値または操作{{count}}件の参照元です。先に代わりの波形を追加してください。"
       }
     },
     "reader": {

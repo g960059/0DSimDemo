@@ -696,25 +696,65 @@ test.describe.serial("Product workflows by role", () => {
         "aria-modal",
         "false",
       );
-      await expect(composer.getByTestId(
-        "scientific-briefing-inflow-graph-limit-v1",
-      )).toContainText("In-flowの推奨上限はgraph 1枚");
+      // Compose is non-modal and reserves width instead of covering the
+      // Workbench, so a source pane stays reachable while composing.
+      await expect(page.getByTestId(
+        "scientific-product-workbench-host-v1",
+      )).toHaveAttribute("data-briefing-compose-open", "true");
       const pressureCapture = composer.locator(
         '[data-briefing-source-panel-id="product-left-pressure-v1"]',
       );
       await expect(pressureCapture).toContainText("7s");
-      await composer.getByRole("button", {
-        name: "すべてcapture",
-        exact: true,
-      }).click();
+      // A brief stays referentially closed: the seeded waveform backs the
+      // reader readbacks, so removing it is refused before the command runs.
+      const seededWaveformRemove = composer
+        .locator('[data-briefing-pane-id="afterload-pressure-waveform"]')
+        .first()
+        .getByRole("button", { name: /参照元です/ });
+      await expect(seededWaveformRemove).toBeDisabled();
+      const paletteRows = composer.locator("[data-briefing-source-panel-id]");
+      await expect(paletteRows).toHaveCount(5);
+      for (let index = 0; index < 5; index += 1) {
+        await paletteRows.nth(index).getByRole("button", {
+          name: "追加",
+          exact: true,
+        }).click();
+      }
       await expect(
-        composer.locator('[data-briefing-captured="true"]'),
+        composer.locator('[data-briefing-pinned="true"]'),
       ).toHaveCount(5);
-      await expect(composer.getByTestId(
-        "scientific-briefing-inflow-graph-limit-v1",
-      )).toHaveAttribute("role", "alert");
+      // In-flow renders only the primary graph; everything else is reported as
+      // overflow with an in-place resolution rather than a bare warning.
+      const preview = composer.getByTestId("scientific-briefing-preview-v1");
+      await expect(preview).toHaveAttribute(
+        "data-briefing-preview-graph-count",
+        "1",
+      );
+      const overflow = composer.getByTestId("scientific-briefing-overflow-v1");
+      await expect(overflow).toHaveAttribute("role", "alert");
+      // The peek extent holds more of the same brief without re-authoring it.
+      await composer.getByTestId("scientific-briefing-extent-peek-v1").click();
+      await expect(preview).toHaveAttribute(
+        "data-briefing-preview-graph-count",
+        "4",
+      );
+      // A pane pinned from this session matches its live source; the seeded
+      // sample pane has no live source at all and says so instead of failing.
+      await expect(composer.locator(
+        'section[data-briefing-pane-drift="current"]',
+      ).first()).toBeVisible();
+      await expect(composer.locator(
+        'section[data-briefing-pane-id="afterload-pressure-waveform"]',
+      )).toHaveAttribute("data-briefing-pane-drift", "uncapturable");
+      await composer.getByTestId("scientific-briefing-extent-inflow-v1")
+        .click();
+      await expect(preview).toHaveAttribute(
+        "data-briefing-preview-graph-count",
+        "1",
+      );
+      // Pinning appends to the seeded brief rather than replacing it.
       await expect(composer).toContainText(
-        "5 paneをReader Briefに保存中",
+        "graph 8枚をReader Briefに保存中",
       );
       await composer.getByRole("button", {
         name: "記事を編集",
@@ -741,7 +781,7 @@ test.describe.serial("Product workflows by role", () => {
         capturedPanes.locator(
           "section[data-studio-reader-pane-kind]",
         ),
-      ).toHaveCount(5);
+      ).toHaveCount(8);
       const capturedPressurePane = capturedPanes.locator(
         'section[data-studio-reader-pane-kind="waveform"]',
       ).filter({ hasText: "AoP / LVP / LAP" });
@@ -765,16 +805,16 @@ test.describe.serial("Product workflows by role", () => {
       ).toHaveAttribute("style", capturedSeriesStyle!);
       await expect(capturedPanes.locator(
         'section[data-studio-reader-pane-kind="pv-loop"]',
-      )).toHaveCount(1);
+      )).toHaveCount(2);
       await expect(capturedPanes.locator(
         'section[data-studio-reader-pane-kind="guyton-left"]',
-      )).toHaveCount(1);
+      )).toHaveCount(2);
       await expect(capturedPanes.locator(
         'section[data-studio-reader-pane-kind="guyton-right"]',
       )).toHaveCount(1);
       await expect(capturedPanes.locator(
         'section[data-studio-reader-pane-kind="waveform"]',
-      )).toHaveCount(2);
+      )).toHaveCount(3);
       const capturedLeftGuyton = capturedPanes.locator(
         'section[data-studio-reader-pane-kind="guyton-left"]',
       ).filter({ hasText: "Left filling pressure–cardiac output" });

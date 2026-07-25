@@ -1,91 +1,168 @@
 import * as React from "react";
 import {
-  Camera,
+  ArrowDown,
+  ArrowUp,
   Check,
   ClipboardList,
+  Plus,
   RefreshCw,
+  Smartphone,
   Trash2,
+  TriangleAlert,
   X,
 } from "lucide-react";
-import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import type { PanelDef } from "@/types";
-import type { StudioGraphPaneSpecV1 } from "@/studio/contracts/v1";
+import type {
+  ReaderBriefExtentV1,
+  ReaderControlSpecV1,
+  ReaderInstantaneousReadbackSpecV1,
+  StudioGraphPaneSpecV1,
+} from "@/studio/contracts/v1";
 import {
   isCapturableStudioGraphPanelV1,
+  panelFromStudioGraphPaneSpecV1,
+  type StudioGraphPaneCaptureDriftV1,
 } from "@/components/studio/StudioGraphPaneProjectionV1";
+import {
+  createScientificWorkbenchDisplayClockV1,
+} from "./ScientificWorkbenchDisplayClockV1";
+import {
+  ScientificProductGraphPaneV1,
+} from "./ScientificWorkbenchRuntimeRendererV1";
+import type {
+  ScientificProductRuntimeRegistryPortV1,
+} from "./ScientificProductRuntimeRegistryPortV1";
+
+/** In-flow keeps the article readable; peek is the wider companion surface. */
+const INFLOW_GRAPH_SOFT_LIMIT_V1 = 1;
+const PEEK_GRAPH_SOFT_LIMIT_V1 = 4;
 
 export type ScientificWorkbenchBriefingComposerV1Props = Readonly<{
   open: boolean;
   panels: readonly PanelDef[];
-  capturedPanes: readonly StudioGraphPaneSpecV1[];
+  pinnedPanes: readonly StudioGraphPaneSpecV1[];
+  /** Drift of each pinned pane against its live Workbench source. */
+  driftByPaneId: ReadonlyMap<string, StudioGraphPaneCaptureDriftV1>;
+  /**
+   * Why a pinned pane cannot be removed, keyed by pane id. A brief stays
+   * referentially closed, so the reason is shown before the author acts.
+   */
+  unpinBlockedByPaneId: ReadonlyMap<string, string>;
+  registry: ScientificProductRuntimeRegistryPortV1;
+  /** Article scenario id → live Workbench scenario id, for the preview. */
+  previewScenarioIdMap: ReadonlyMap<string, string>;
+  readbacks: readonly ReaderInstantaneousReadbackSpecV1[];
+  controls: readonly ReaderControlSpecV1[];
+  extent: ReaderBriefExtentV1;
   onClose(): void;
-  onCapture(panelId: string): void;
-  onUpdate(panelId: string): void;
-  onRemove(paneId: string): void;
-  onCaptureAll(panelIds: readonly string[]): void;
+  onPin(panelId: string): void;
+  onUnpin(paneId: string): void;
+  onSync(paneId: string): void;
+  onMove(paneId: string, direction: -1 | 1): void;
   onOpenDocumentEditor(): void;
 }>;
 
 /**
- * Explicit Presentation Compose layer for the clinical Workbench.
+ * Presentation Compose layer for the clinical Workbench.
  *
- * It deliberately adds no controls to graph panes themselves. Closing this
- * layer returns the Workbench to its ordinary clinical surface.
+ * The surface shows the artifact being authored — the Reader cell — and
+ * treats the Workbench as the palette it is pinned from. It deliberately adds
+ * no controls to the graph panes themselves, and closing it returns the
+ * Workbench to its ordinary clinical surface with no authoring trace.
  */
 export function ScientificWorkbenchBriefingComposerV1({
   open,
   panels,
-  capturedPanes,
+  pinnedPanes,
+  driftByPaneId,
+  unpinBlockedByPaneId,
+  registry,
+  previewScenarioIdMap,
+  readbacks,
+  controls,
+  extent,
   onClose,
-  onCapture,
-  onUpdate,
-  onRemove,
-  onCaptureAll,
+  onPin,
+  onUnpin,
+  onSync,
+  onMove,
   onOpenDocumentEditor,
 }: ScientificWorkbenchBriefingComposerV1Props) {
   const { t } = useTranslation();
+  const [previewExtent, setPreviewExtent] =
+    React.useState<ReaderBriefExtentV1>(extent);
+  const [narrowPreview, setNarrowPreview] = React.useState(false);
+
   const graphPanels = React.useMemo(
     () => {
-      const representedPaneIds = new Set<string>();
+      const seen = new Set<string>();
       return panels.filter((panel) => {
         if (!isCapturableStudioGraphPanelV1(panel)) return false;
         const paneId = panel.sourceViewId ?? panel.id;
-        if (representedPaneIds.has(paneId)) return false;
-        representedPaneIds.add(paneId);
+        if (seen.has(paneId)) return false;
+        seen.add(paneId);
         return true;
       });
     },
     [panels],
   );
-  const capturedByPaneId = React.useMemo(
-    () => new Map(capturedPanes.map((pane) => [pane.paneId, pane])),
-    [capturedPanes],
+  const pinnedPaneIds = React.useMemo(
+    () => new Set(pinnedPanes.map(({ paneId }) => paneId)),
+    [pinnedPanes],
   );
 
+  /**
+   * A pin appends, so the newest graph can land outside the extent's cut. The
+   * preview stays truthful about what the reader sees; instead of promoting
+   * the new pane, bring wherever it actually landed into view.
+   */
+  const previousPaneIdsRef = React.useRef<readonly string[]>([]);
+  const trackedPinsRef = React.useRef(false);
+  React.useEffect(() => {
+    const previous = new Set(previousPaneIdsRef.current);
+    const paneIds = pinnedPanes.map(({ paneId }) => paneId);
+    const added = paneIds.filter((paneId) => !previous.has(paneId));
+    previousPaneIdsRef.current = paneIds;
+    if (!trackedPinsRef.current) {
+      trackedPinsRef.current = true;
+      return;
+    }
+    const paneId = added.at(-1);
+    if (paneId === undefined) return;
+    document
+      .querySelector(`[data-briefing-pane-id=${JSON.stringify(paneId)}]`)
+      ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [pinnedPanes]);
+
   if (!open) return null;
+
+  const softLimit = previewExtent === "inflow"
+    ? INFLOW_GRAPH_SOFT_LIMIT_V1
+    : PEEK_GRAPH_SOFT_LIMIT_V1;
+  const visiblePanes = pinnedPanes.slice(0, softLimit);
+  const overflowPanes = pinnedPanes.slice(visiblePanes.length);
+
   return (
     <div
       className="pointer-events-none fixed inset-y-0 right-0 z-[80] flex justify-end"
       data-testid="scientific-workbench-briefing-compose-v1"
+      data-briefing-preview-extent={previewExtent}
     >
       <aside
         role="dialog"
         aria-modal="false"
         aria-labelledby="scientific-briefing-title-v1"
         aria-describedby="scientific-briefing-description-v1"
-        className="pointer-events-auto flex h-full w-screen max-w-md flex-col border-l border-wb-line bg-wb-app text-wb-text shadow-2xl"
+        className="pointer-events-auto flex h-full w-screen max-w-[min(100vw,820px)] flex-col border-l border-wb-line bg-wb-app text-wb-text shadow-2xl sm:w-[45vw] sm:min-w-[560px]"
       >
         <header className="flex items-start gap-3 border-b border-wb-line px-5 py-4">
           <span className="rounded-md bg-wb-active p-2 text-wb-accent">
             <ClipboardList className="h-4 w-4" />
           </span>
           <div className="min-w-0 flex-1">
-            <h2
-              id="scientific-briefing-title-v1"
-              className="text-sm font-bold"
-            >
+            <h2 id="scientific-briefing-title-v1" className="text-sm font-bold">
               {t("studioAuthorPreview.briefing.title")}
             </h2>
             <p
@@ -105,115 +182,256 @@ export function ScientificWorkbenchBriefingComposerV1({
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-wb-subtle">
-              {t("studioAuthorPreview.briefing.graphPanes")}
-            </p>
-            <button
-              type="button"
-              disabled={graphPanels.length === 0}
-              onClick={() => onCaptureAll(graphPanels.map(({ id }) => id))}
-              className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-wb-line px-2.5 text-xs font-bold text-wb-muted hover:bg-wb-hover hover:text-wb-text active:scale-[0.98] disabled:opacity-50"
-            >
-              <Camera className="h-3.5 w-3.5" />
-              {t("studioAuthorPreview.briefing.captureAll")}
-            </button>
+        <div className="flex flex-wrap items-center gap-2 border-b border-wb-line px-4 py-2.5">
+          <div
+            role="tablist"
+            aria-label={t("studioAuthorPreview.briefing.extentTablist")}
+            className="inline-flex rounded-md border border-wb-line p-0.5"
+          >
+            {(["inflow", "peek"] as const).map((candidate) => (
+              <button
+                key={candidate}
+                type="button"
+                role="tab"
+                aria-selected={previewExtent === candidate}
+                onClick={() => setPreviewExtent(candidate)}
+                data-testid={`scientific-briefing-extent-${candidate}-v1`}
+                className={`min-h-8 rounded px-3 text-xs font-bold transition-colors ${
+                  previewExtent === candidate
+                    ? "bg-wb-active text-wb-text"
+                    : "text-wb-muted hover:text-wb-text"
+                }`}
+              >
+                {t(`studioAuthorPreview.briefing.extentName.${candidate}`)}
+              </button>
+            ))}
           </div>
+          <button
+            type="button"
+            aria-pressed={narrowPreview}
+            onClick={() => setNarrowPreview((value) => !value)}
+            data-testid="scientific-briefing-narrow-preview-v1"
+            className={`inline-flex min-h-8 items-center gap-1.5 rounded-md border border-wb-line px-2.5 text-xs font-bold transition-colors ${
+              narrowPreview
+                ? "bg-wb-active text-wb-text"
+                : "text-wb-muted hover:text-wb-text"
+            }`}
+          >
+            <Smartphone className="h-3.5 w-3.5" />
+            {t("studioAuthorPreview.briefing.narrowPreview")}
+          </button>
+        </div>
 
-          {graphPanels.length > 1 && (
-            <p
-              className={`mb-3 rounded-md border px-3 py-2 text-[11px] leading-5 ${
-                capturedPanes.length > 1
-                  ? "border-amber-400/35 bg-amber-400/10 text-amber-100"
-                  : "border-wb-line bg-wb-panel text-wb-muted"
-              }`}
-              data-testid="scientific-briefing-inflow-graph-limit-v1"
-              role={capturedPanes.length > 1 ? "alert" : undefined}
-            >
-              {capturedPanes.length > 1
-                ? t("studioAuthorPreview.briefing.inflowLimitExceeded", {
-                    count: capturedPanes.length,
-                  })
-                : t("studioAuthorPreview.briefing.inflowLimitNotice", {
-                    count: graphPanels.length,
-                  })}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <section
+            className="border-b border-wb-line bg-wb-soft px-4 py-4"
+            aria-label={t("studioAuthorPreview.briefing.previewLabel")}
+          >
+            <p className="mb-3 text-[11px] leading-5 text-wb-subtle">
+              {t("studioAuthorPreview.briefing.previewNotice")}
             </p>
-          )}
+            <div
+              className={narrowPreview ? "mx-auto max-w-[390px]" : ""}
+              data-testid="scientific-briefing-preview-v1"
+              data-briefing-preview-graph-count={visiblePanes.length}
+            >
+              {pinnedPanes.length === 0
+                ? (
+                  <BriefingEmptyStateV1
+                    graphPanels={graphPanels}
+                    onPin={onPin}
+                  />
+                )
+                : (
+                  <div className="grid gap-4">
+                    {visiblePanes.map((pane, index) => (
+                      <BriefingPreviewPaneV1
+                        key={pane.paneId}
+                        pane={pane}
+                        index={index}
+                        total={pinnedPanes.length}
+                        drift={driftByPaneId.get(pane.paneId)}
+                        unpinBlockedReason={
+                          unpinBlockedByPaneId.get(pane.paneId)
+                        }
+                        registry={registry}
+                        previewScenarioIdMap={previewScenarioIdMap}
+                        onUnpin={onUnpin}
+                        onSync={onSync}
+                        onMove={onMove}
+                      />
+                    ))}
 
-          <div className="grid gap-2.5">
-            {graphPanels.map((panel) => {
-              const paneId = panel.sourceViewId ?? panel.id;
-              const captured = capturedByPaneId.get(paneId);
-              return (
-                <section
-                  key={panel.id}
-                  className="rounded-lg border border-wb-line bg-wb-panel p-3"
-                  data-briefing-source-panel-id={panel.id}
-                  data-briefing-captured={String(captured !== undefined)}
-                >
-                  <div className="flex items-start gap-3">
+                    {overflowPanes.length > 0 && (
+                      <div
+                        role="alert"
+                        data-testid="scientific-briefing-overflow-v1"
+                        className="rounded-lg border border-amber-400/35 bg-amber-400/10 p-3 text-[11px] leading-5 text-amber-100"
+                      >
+                        <p className="flex items-start gap-2 font-bold">
+                          <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                          {t("studioAuthorPreview.briefing.overflowTitle", {
+                            count: overflowPanes.length,
+                            extent: t(
+                              `studioAuthorPreview.briefing.extentName.${previewExtent}`,
+                            ),
+                          })}
+                        </p>
+                        <p className="mt-1 text-amber-100/80">
+                          {t("studioAuthorPreview.briefing.overflowHelp")}
+                        </p>
+                        <ul className="mt-2 grid gap-1.5">
+                          {overflowPanes.map((pane) => (
+                            <li
+                              key={pane.paneId}
+                              data-briefing-pane-id={pane.paneId}
+                              className="flex items-center justify-between gap-2 rounded border border-amber-400/20 bg-wb-panel px-2.5 py-1.5"
+                            >
+                              <span className="min-w-0 truncate text-wb-text">
+                                {pane.title}
+                              </span>
+                              <span className="flex shrink-0 gap-1">
+                                <PaneActionV1
+                                  label={t(
+                                    "studioAuthorPreview.briefing.moveUp",
+                                  )}
+                                  onClick={() => onMove(pane.paneId, -1)}
+                                >
+                                  <ArrowUp className="h-3.5 w-3.5" />
+                                </PaneActionV1>
+                                <PaneActionV1
+                                  label={unpinBlockedByPaneId.get(pane.paneId)
+                                    ?? t(
+                                      "studioAuthorPreview.briefing.unpin",
+                                    )}
+                                  disabled={unpinBlockedByPaneId.has(
+                                    pane.paneId,
+                                  )}
+                                  danger
+                                  onClick={() => onUnpin(pane.paneId)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </PaneActionV1>
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {readbacks.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {readbacks.map((readback) => (
+                          <div
+                            key={readback.readbackId}
+                            className="rounded-lg border border-wb-line bg-wb-panel p-3"
+                          >
+                            <p className="text-[11px] font-semibold text-wb-muted">
+                              {readback.label}
+                            </p>
+                            <p className="mt-1 font-mono text-lg text-wb-text">
+                              —
+                              <span className="ml-1 text-[11px] text-wb-subtle">
+                                {readback.unit}
+                              </span>
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {controls.map((control) => (
+                      <div
+                        key={control.controlId}
+                        className="rounded-lg border border-wb-line bg-wb-panel p-3"
+                      >
+                        <div className="mb-2 flex items-baseline justify-between gap-2">
+                          <span className="text-xs font-bold text-wb-text">
+                            {control.label}
+                          </span>
+                          <span className="font-mono text-xs text-wb-muted">
+                            {control.initialValue}
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={Math.max(1, control.allowedValues.length - 1)}
+                          step={1}
+                          value={Math.max(
+                            0,
+                            control.allowedValues.indexOf(control.initialValue),
+                          )}
+                          readOnly
+                          disabled
+                          aria-label={control.label}
+                          className="h-2 w-full accent-wb-accent"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
+          </section>
+
+          <section
+            className="p-4"
+            aria-label={t("studioAuthorPreview.briefing.paletteLabel")}
+          >
+            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-wider text-wb-subtle">
+              {t("studioAuthorPreview.briefing.paletteLabel")}
+            </p>
+            <div className="grid gap-2">
+              {graphPanels.map((panel) => {
+                const paneId = panel.sourceViewId ?? panel.id;
+                const pinned = pinnedPaneIds.has(paneId);
+                return (
+                  <div
+                    key={panel.id}
+                    data-briefing-source-panel-id={panel.id}
+                    data-briefing-pinned={String(pinned)}
+                    className="flex items-center gap-3 rounded-lg border border-wb-line bg-wb-panel px-3 py-2.5"
+                  >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-bold text-wb-text">
                         {panel.title}
                       </p>
-                      <p className="mt-1 text-[11px] text-wb-subtle">
-                        {paneKindLabelV1(panel.type, t)}
+                      <p className="mt-0.5 text-[11px] text-wb-subtle">
+                        {paneKindLabelV1(panel.type)}
                         {panel.type === "WAVEFORM" && (
                           <> · {(panel.timeWindow ?? 2_000) / 1_000}s</>
                         )}
                       </p>
                     </div>
-                    {captured !== undefined && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                        <Check className="h-3 w-3" />
-                        {t("studioAuthorPreview.briefing.captured")}
-                      </span>
-                    )}
+                    <button
+                      type="button"
+                      aria-pressed={pinned}
+                      onClick={() =>
+                        pinned ? onUnpin(paneId) : onPin(panel.id)}
+                      className={`inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs font-bold transition-colors active:scale-[0.98] ${
+                        pinned
+                          ? "border border-wb-line bg-wb-active text-wb-text"
+                          : "bg-wb-primary text-white hover:bg-wb-primary-hover"
+                      }`}
+                    >
+                      {pinned
+                        ? <Check className="h-3.5 w-3.5" />
+                        : <Plus className="h-3.5 w-3.5" />}
+                      {pinned
+                        ? t("studioAuthorPreview.briefing.pinned")
+                        : t("studioAuthorPreview.briefing.pin")}
+                    </button>
                   </div>
-                  <div className="mt-3 flex justify-end gap-1.5">
-                    {captured === undefined ? (
-                      <button
-                        type="button"
-                        onClick={() => onCapture(panel.id)}
-                        className="inline-flex min-h-8 items-center gap-1.5 rounded-md bg-wb-primary px-2.5 text-xs font-bold text-white hover:bg-wb-primary-hover active:scale-[0.98]"
-                      >
-                        <Camera className="h-3.5 w-3.5" />
-                        {t("studioAuthorPreview.briefing.capture")}
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onUpdate(panel.id)}
-                          className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-wb-line px-2.5 text-xs font-bold text-wb-muted hover:bg-wb-hover hover:text-wb-text active:scale-[0.98]"
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          {t("studioAuthorPreview.briefing.updateCapture")}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onRemove(paneId)}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-wb-subtle hover:bg-red-500/10 hover:text-red-300 active:scale-[0.97]"
-                          aria-label={t(
-                            "studioAuthorPreview.briefing.removeCapture",
-                          )}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </section>
         </div>
 
         <footer className="flex items-center justify-between gap-3 border-t border-wb-line px-5 py-3">
           <p className="text-[11px] leading-5 text-wb-subtle">
-            {t("studioAuthorPreview.briefing.paneCount", {
-              count: capturedPanes.length,
+            {t("studioAuthorPreview.briefing.sessionDraft", {
+              count: pinnedPanes.length,
             })}
           </p>
           <button
@@ -230,19 +448,215 @@ export function ScientificWorkbenchBriefingComposerV1({
   );
 }
 
-function paneKindLabelV1(
-  type: PanelDef["type"],
-  t: TFunction,
-): string {
+function BriefingPreviewPaneV1({
+  pane,
+  index,
+  total,
+  drift,
+  unpinBlockedReason,
+  registry,
+  previewScenarioIdMap,
+  onUnpin,
+  onSync,
+  onMove,
+}: Readonly<{
+  pane: StudioGraphPaneSpecV1;
+  index: number;
+  total: number;
+  drift: StudioGraphPaneCaptureDriftV1 | undefined;
+  unpinBlockedReason: string | undefined;
+  registry: ScientificProductRuntimeRegistryPortV1;
+  previewScenarioIdMap: ReadonlyMap<string, string>;
+  onUnpin(paneId: string): void;
+  onSync(paneId: string): void;
+  onMove(paneId: string, direction: -1 | 1): void;
+}>) {
+  const { t } = useTranslation();
+  const clock = React.useMemo(
+    () => createScientificWorkbenchDisplayClockV1(true, 1),
+    [],
+  );
+  const panel = React.useMemo(
+    () =>
+      panelFromStudioGraphPaneSpecV1(pane, {
+        scenarioIdMap: previewScenarioIdMap,
+        panelId: `briefing-preview:${pane.paneId}`,
+      }),
+    [pane, previewScenarioIdMap],
+  );
+  const firstScenarioId = pane.scenarios[0]?.scenarioId;
+  const activeInstanceId = firstScenarioId === undefined
+    ? undefined
+    : previewScenarioIdMap.get(firstScenarioId) ?? firstScenarioId;
+
+  return (
+    <section
+      className="overflow-hidden rounded-lg border border-wb-line bg-wb-panel"
+      data-testid="scientific-briefing-preview-pane-v1"
+      data-briefing-pane-id={pane.paneId}
+      data-briefing-pane-drift={drift?.kind ?? "unknown"}
+    >
+      <header className="flex items-center gap-2 border-b border-wb-line px-3 py-2">
+        {index === 0 && (
+          <span className="rounded bg-wb-active px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-wb-accent">
+            {t("studioAuthorPreview.briefing.primary")}
+          </span>
+        )}
+        <span className="min-w-0 flex-1 truncate text-xs font-bold text-wb-text">
+          {pane.title}
+        </span>
+        <PaneActionV1
+          label={t("studioAuthorPreview.briefing.moveUp")}
+          disabled={index === 0}
+          onClick={() => onMove(pane.paneId, -1)}
+        >
+          <ArrowUp className="h-3.5 w-3.5" />
+        </PaneActionV1>
+        <PaneActionV1
+          label={t("studioAuthorPreview.briefing.moveDown")}
+          disabled={index === total - 1}
+          onClick={() => onMove(pane.paneId, 1)}
+        >
+          <ArrowDown className="h-3.5 w-3.5" />
+        </PaneActionV1>
+        <PaneActionV1
+          label={unpinBlockedReason
+            ?? t("studioAuthorPreview.briefing.unpin")}
+          disabled={unpinBlockedReason !== undefined}
+          danger
+          onClick={() => onUnpin(pane.paneId)}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </PaneActionV1>
+      </header>
+
+      {drift?.kind === "drifted" && (
+        <button
+          type="button"
+          onClick={() => onSync(pane.paneId)}
+          data-testid="scientific-briefing-sync-v1"
+          className="flex w-full items-center gap-2 border-b border-amber-400/25 bg-amber-400/10 px-3 py-2 text-left text-[11px] leading-5 text-amber-100 hover:bg-amber-400/15"
+        >
+          <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 flex-1">
+            {t("studioAuthorPreview.briefing.driftNotice")}
+          </span>
+          <span className="shrink-0 font-bold underline">
+            {t("studioAuthorPreview.briefing.sync")}
+          </span>
+        </button>
+      )}
+      {drift?.kind === "uncapturable" && (
+        <p
+          role="alert"
+          data-testid="scientific-briefing-uncapturable-v1"
+          className="border-b border-wb-line bg-wb-soft px-3 py-2 text-[11px] leading-5 text-wb-muted"
+        >
+          {t("studioAuthorPreview.briefing.uncapturableNotice")}
+        </p>
+      )}
+
+      <div
+        className={pane.kind === "waveform"
+          ? "relative h-[220px] min-h-0"
+          : "relative h-[300px] min-h-0"}
+      >
+        <ScientificProductGraphPaneV1
+          panel={panel}
+          registry={registry}
+          clock={clock}
+          renderContext={{
+            instances: [],
+            activeInstanceId,
+            presentationMode: "reading",
+            canConfigure: false,
+          }}
+        />
+      </div>
+    </section>
+  );
+}
+
+function BriefingEmptyStateV1({
+  graphPanels,
+  onPin,
+}: Readonly<{
+  graphPanels: readonly PanelDef[];
+  onPin(panelId: string): void;
+}>) {
+  const { t } = useTranslation();
+  const suggestion = graphPanels.find(({ type }) => type === "PVLOOP")
+    ?? graphPanels.find(({ type }) => type === "WAVEFORM")
+    ?? graphPanels[0];
+  return (
+    <div
+      className="rounded-lg border border-dashed border-wb-line bg-wb-panel p-5 text-center"
+      data-testid="scientific-briefing-empty-v1"
+    >
+      <p className="text-sm font-bold text-wb-text">
+        {t("studioAuthorPreview.briefing.emptyTitle")}
+      </p>
+      <p className="mx-auto mt-2 max-w-sm text-xs leading-5 text-wb-muted">
+        {t("studioAuthorPreview.briefing.emptyDescription")}
+      </p>
+      {suggestion !== undefined && (
+        <button
+          type="button"
+          onClick={() => onPin(suggestion.id)}
+          data-testid="scientific-briefing-empty-action-v1"
+          className="mt-4 inline-flex min-h-9 items-center gap-1.5 rounded-md bg-wb-primary px-3 text-xs font-bold text-white hover:bg-wb-primary-hover active:scale-[0.98]"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          {t("studioAuthorPreview.briefing.emptyAction", {
+            title: suggestion.title,
+          })}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function PaneActionV1({
+  label,
+  disabled = false,
+  danger = false,
+  onClick,
+  children,
+}: Readonly<{
+  label: string;
+  disabled?: boolean;
+  danger?: boolean;
+  onClick(): void;
+  children: React.ReactNode;
+}>) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
+        danger
+          ? "text-wb-subtle hover:bg-red-500/10 hover:text-red-300"
+          : "text-wb-subtle hover:bg-wb-hover hover:text-wb-text"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function paneKindLabelV1(type: PanelDef["type"]): string {
   switch (type) {
     case "WAVEFORM":
-      return t("studioAuthorPreview.briefing.paneKinds.waveform");
+      return "Waveform";
     case "PVLOOP":
-      return t("studioAuthorPreview.briefing.paneKinds.pvLoop");
+      return "PV loop";
     case "GUYTON_LEFT":
-      return t("studioAuthorPreview.briefing.paneKinds.guytonLeft");
+      return "Guyton / Starling · left";
     case "GUYTON_RIGHT":
-      return t("studioAuthorPreview.briefing.paneKinds.guytonRight");
+      return "Guyton / Starling · right";
     default:
       return type;
   }

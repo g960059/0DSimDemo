@@ -107,19 +107,35 @@
       "headingAt": "Heading {{position}}"
     },
     "briefing": {
-      "button": "Briefing",
-      "title": "Compose briefing",
-      "description": "Copy the current window, colors, and legend position into the article. Later pane changes stay detached until you update the capture.",
+      "button": "Reader layout",
+      "title": "What the reader sees",
+      "description": "Decide how the embedded experiment appears in the article. The current window, colors, and legend position are copied; later pane changes stay detached until you sync them.",
       "close": "Close",
-      "graphPanes": "Graph panes",
-      "captureAll": "Capture all",
-      "inflowLimitExceeded": "In-flow is designed for one graph. {{count}} are captured, which will make the article long. Keep the one needed in the reading flow.",
-      "inflowLimitNotice": "In-flow is designed for one graph. Capture all will place {{count}} graphs directly in the article.",
-      "captured": "Captured",
-      "capture": "Capture",
-      "updateCapture": "Update capture",
-      "removeCapture": "Remove capture",
-      "paneCount": "{{count}} panes in the Reader Brief session draft",
+      "extentTablist": "Presentation extent",
+      "extentName": {
+        "inflow": "In article",
+        "peek": "Panel",
+        "fullscreen": "Full screen"
+      },
+      "narrowPreview": "Phone width",
+      "previewLabel": "What the reader sees",
+      "previewNotice": "This is the reader's actual view. Values and controls run live in the Reader.",
+      "paletteLabel": "Graphs you can add",
+      "pin": "Add",
+      "pinned": "Added",
+      "unpin": "Remove from layout",
+      "primary": "Primary",
+      "moveUp": "Move earlier",
+      "moveDown": "Move later",
+      "sync": "Sync",
+      "driftNotice": "The Workbench pane changed. Readers still see the older presentation.",
+      "uncapturableNotice": "This source pane cannot be captured right now (it may be hidden or removed in the Workbench).",
+      "overflowTitle": "{{count}} graphs do not fit in {{extent}}",
+      "overflowHelp": "Move one earlier to make it the primary graph, or remove it. The panel extent holds more.",
+      "emptyTitle": "Nothing added yet",
+      "emptyDescription": "Add a Workbench graph and the reader's actual view appears here. Start with one primary graph.",
+      "emptyAction": "Make “{{title}}” the primary graph",
+      "sessionDraft": "{{count}} graphs in the Reader Brief session draft",
       "editArticle": "Edit article",
       "paneKinds": {
         "waveform": "Waveform",
@@ -130,7 +146,10 @@
       "errors": {
         "missingTarget": "The session draft has no Reader Brief target.",
         "missingScenario": "The active Workbench scenario cannot be mapped to the article.",
-        "unknownPane": "Unknown Workbench pane {{panelId}}"
+        "unknownPane": "Unknown Workbench pane {{panelId}}",
+        "missingSource": "The source Workbench pane is no longer available.",
+        "lastGraph": "A brief needs at least one graph. Add another before removing this one.",
+        "backsReadbacks": "This waveform backs {{count}} reader readback(s) or control(s). Add a replacement waveform first."
       }
     },
     "reader": {
