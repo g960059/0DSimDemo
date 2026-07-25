@@ -39,6 +39,7 @@ import {
 describe("main-wire normal-adult five-wall provider adapter V1", () => {
   it("cold-starts the canonical actual Land/SLS/Moyer/Klotz provider", () => {
     const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
+    expect(provider.parameterIdentityHash).toBe("b41e09f8");
     const coldDrive = asMainWireFiveWallFreeCalciumDriveV1(
       evaluateFiveWallNormalCalciumDriveV1(0).freeCalciumUMByWall,
     );

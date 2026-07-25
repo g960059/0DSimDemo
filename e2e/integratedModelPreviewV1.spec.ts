@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 const RELEASE_SHA256 =
-  "d66b948dc85265cc5d40c23038b1e67682784f068bc54c8daf10bb249e6a8e47";
+  "ccb12d25e279ccab81ba9372b89f7ea16ba5e4ab3cb5694107c0cdd155add5f5";
 
 test("runs the exact integrated release and exports an exact run record", async ({
   page,
@@ -84,6 +84,9 @@ test("runs the exact integrated release and exports an exact run record", async 
         exactTerminalCheckpointIncluded: true,
         executableBuildProvenanceAttached: false,
         standaloneReplayCompleteArtifactClaimed: false,
+        promotionEligibility: "eligible-with-current-runtime-exact-replay",
+        upgradePath:
+          "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1",
       },
     });
     expect(exported.run.trace).toHaveLength(504);
@@ -119,6 +122,66 @@ test("runs the exact integrated release and exports an exact run record", async 
   }
 });
 
+test("keeps the Worker closed until explicit acknowledgement when storage fails", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    const acknowledgementKey =
+      "circleheart.modelLimitations.circleheart-adult-five-wall-integrated-preview.0.1.0";
+    const originalGetItem = Storage.prototype.getItem;
+    const originalSetItem = Storage.prototype.setItem;
+    Storage.prototype.getItem = function getItem(key: string): string | null {
+      if (key === acknowledgementKey) {
+        throw new DOMException("storage read unavailable", "SecurityError");
+      }
+      return originalGetItem.call(this, key);
+    };
+    Storage.prototype.setItem = function setItem(
+      key: string,
+      value: string,
+    ): void {
+      if (key === acknowledgementKey) {
+        throw new DOMException("storage write unavailable", "SecurityError");
+      }
+      originalSetItem.call(this, key, value);
+    };
+    const NativeWorker = window.Worker;
+    (window as typeof window & {
+      __integratedPreviewWorkerConstructionCount: number;
+    }).__integratedPreviewWorkerConstructionCount = 0;
+    window.Worker = class CountingWorker extends NativeWorker {
+      constructor(scriptURL: string | URL, options?: WorkerOptions) {
+        (window as typeof window & {
+          __integratedPreviewWorkerConstructionCount: number;
+        }).__integratedPreviewWorkerConstructionCount += 1;
+        super(scriptURL, options);
+      }
+    };
+  });
+
+  await page.goto("/ja/integrated-preview", {
+    waitUntil: "domcontentloaded",
+  });
+  const pageHost = page.getByTestId("integrated-model-preview-page-v1");
+  const acknowledge = page.getByRole("button", { name: "理解しました" });
+  await expect(acknowledge).toBeVisible();
+  await expect(pageHost).toContainText(
+    "Review and acknowledge this release's model limitations to continue.",
+  );
+  expect(await workerConstructionCount(page)).toBe(0);
+
+  await page.keyboard.press("Escape");
+  await expect(acknowledge).toBeVisible();
+  expect(await workerConstructionCount(page)).toBe(0);
+
+  await acknowledge.click();
+  await expect(pageHost).toHaveAttribute("data-runtime-phase", "ready", {
+    timeout: 30_000,
+  });
+  expect(await workerConstructionCount(page)).toBe(1);
+});
+
 async function checkpointSha(page: import("@playwright/test").Page) {
   const checkpointLabel = page.getByText("Terminal checkpoint SHA-256", {
     exact: true,
@@ -126,4 +189,14 @@ async function checkpointSha(page: import("@playwright/test").Page) {
   const value = await checkpointLabel.locator("..").locator("dd").textContent();
   expect(value).toMatch(/^[0-9a-f]{64}$/);
   return value;
+}
+
+async function workerConstructionCount(
+  page: import("@playwright/test").Page,
+): Promise<number> {
+  return page.evaluate(
+    () => (window as typeof window & {
+      __integratedPreviewWorkerConstructionCount: number;
+    }).__integratedPreviewWorkerConstructionCount,
+  );
 }

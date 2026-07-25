@@ -223,6 +223,18 @@ function createMaterialKernels(
     const passive = isAtrium
       ? createMoyerPassiveEvaluator(prior.passive.atrial.compiled)
       : createKlotzPassiveEvaluator(ventricularProfile.equilibriumPassive);
+    const passiveParameterPreimage = isAtrium
+      ? Object.freeze({
+        modelId: prior.passive.atrial.compiled.modelId,
+        parameterSetId: prior.passive.atrial.compiled.parameterSetId,
+        prior: prior.passive.atrial.compiled.prior,
+      })
+      : Object.freeze({
+        modelId: ventricularProfile.equilibriumPassive.modelId,
+        parameterSetId:
+          ventricularProfile.equilibriumPassive.parameterSetId,
+        params: ventricularProfile.equilibriumPassive.params,
+      });
     const baseParams = isAtrium
       ? prior.active.wallMaterialByWall[wallId]
       : ventricularProfile.wallMaterial;
@@ -233,6 +245,7 @@ function createMaterialKernels(
       wallId,
       materialParams,
       passive,
+      passiveParameterPreimage,
       prior.parameterIdentityHash,
     );
   });
@@ -406,6 +419,7 @@ function createWallKernel(
   wallId: MainWireFiveWallIdV1,
   params: LandSlsWallMaterialParamsV1,
   evaluatePassive: PassiveEvaluatorV1,
+  passiveParameterPreimage: WholeHeartMechanicsSerializableValueV1,
   priorIdentityHash: string,
 ): MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1> {
   const passiveAtZero = evaluatePassive(0);
@@ -420,6 +434,19 @@ function createWallKernel(
   return Object.freeze({
     modelId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
     parameterSetId: `${params.parameterSetId}-${wallId}`,
+    parameterIdentityPreimage: Object.freeze({
+      adapterId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
+      wallId,
+      passive: passiveParameterPreimage,
+      landSls: Object.freeze({
+        parameterSetId: params.parameterSetId,
+        landEquationParameters: params.landEquationParameters,
+        landSlackStretch: params.landSlackStretch,
+        orientationFraction01: params.orientationFraction01,
+        viableActiveFraction01: params.viableActiveFraction01,
+        sls: params.sls,
+      }),
+    }),
     parameterIdentityHash,
     topology:
       "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,

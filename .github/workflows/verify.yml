@@ -146,11 +146,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify generated release artifacts and catalogs
+      - name: Verify generated release artifacts, catalogs, and frontend projection
         run: |
+          npx vitest run \
+            __tests__/mainWireIntegratedPreviewWorkerIntegrityV1.test.ts \
+            __tests__/mainWireIntegratedPreviewSessionV1.test.ts \
+            __tests__/mainWireIntegratedModelPeriodicSteadyV3.test.ts \
+            __tests__/mainWireIntegratedModelTransactionV3.test.ts
           npm run verify:scientific:integrated-preview-seed
           npm run verify:scientific:integrated-preview-release
           npm run verify:scientific:product-release-catalogs
+          npm run verify:scientific:integrated-preview-frontend
 
   browser_e2e:
     name: Production browser E2E

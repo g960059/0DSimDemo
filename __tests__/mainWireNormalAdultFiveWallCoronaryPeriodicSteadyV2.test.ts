@@ -341,6 +341,9 @@ function deterministicFiveWallProvider(
     parameterSetId:
       `deterministic-five-wall-periodic-test-prior-${identitySuffix}`,
     parameterIdentityHash: `periodic-test-${identitySuffix}`,
+    parameterIdentityPreimage: Object.freeze({
+      testProvider: `deterministic-five-wall-periodic-test-${identitySuffix}`,
+    }),
     stateSchemaVersion: 1,
     stateCodec: codec,
     initializeCold: (input) => evaluate(

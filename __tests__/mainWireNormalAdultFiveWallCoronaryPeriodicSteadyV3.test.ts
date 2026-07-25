@@ -331,6 +331,9 @@ function deterministicFiveWallProvider(): MainWireNormalAdultFiveWallProviderV1 
     providerId: "deterministic-five-wall-periodic-v3-test-provider",
     parameterSetId: "deterministic-five-wall-periodic-v3-test-prior",
     parameterIdentityHash: "periodic-v3-test",
+    parameterIdentityPreimage: Object.freeze({
+      testProvider: "deterministic-five-wall-periodic-v3-test",
+    }),
     stateSchemaVersion: 1,
     stateCodec: codec,
     initializeCold: (input) => evaluate(

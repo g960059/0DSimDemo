@@ -13,7 +13,7 @@ It is shipped as a separate development identity:
 
 ```text
 circleheart/adult-five-wall-integrated-preview@0.1.0
-d66b948dc85265cc5d40c23038b1e67682784f068bc54c8daf10bb249e6a8e47
+ccb12d25e279ccab81ba9372b89f7ea16ba5e4ab3cb5694107c0cdd155add5f5
 ```
 
 The existing
@@ -58,6 +58,8 @@ SimulationInputSpec
 
 MainWireIntegratedPreviewRunRecordV2
   + externally supplied BuildArtifactRefV1
+  + exact schema/checkpoint restore/re-execution verification
+  + current seed-lineage verification
   -> generic replay-complete RunArtifactV1
 ```
 
@@ -67,7 +69,19 @@ The browser record deliberately sets
 identify the executable bundle that contains its own running code. Promotion
 through `createMainWireIntegratedPreviewRunArtifactV1` is therefore a separate
 build/CI or persistence-boundary operation that requires a validated
-`BuildArtifactRefV1`; the page never invents that reference.
+`BuildArtifactRefV1`; the page never invents that reference. Promotion accepts
+untrusted JSON, validates its exact schema and claim literals, restores both
+checkpoints against the current release input, and exactly re-executes the
+recorded transition before emitting a replay-complete artifact.
+
+Promotion eligibility is explicit in each record rather than inferred from the
+presence of checkpoints. The bundled seed and the first continuation from the
+current seed fork are eligible for current-runtime exact replay verification.
+Later continuation records remain exact, content-addressed one-beat records,
+but are marked `blocked-missing-complete-seed-lineage` with
+`upgradePath=null`: a start checkpoint alone cannot prove the claimed ordinal
+from the seed. Promotion of those records stays fail closed until the complete
+intervening lineage is carried and verified.
 
 The current `/integrated-preview` page is a thin integration surface and can be
 discarded or restyled by the cell/document branch. The following contracts
@@ -102,23 +116,30 @@ identity or the generated seed changes.
 
 | Object | SHA-256 |
 |---|---|
-| canonical periodic source, exact file bytes | `sourceEvidence.sourceArtifact.rawFileSha256` |
-| canonical periodic source, canonical JSON | `sourceEvidence.sourceArtifact.canonicalJsonSha256` |
-| raw seed file | `6cfcca91f6642b08d5ebfc60bc6c2e45c56b084da74791182bb33b8388926546` |
-| canonical seed payload | `a4ae4457bb9d2b670edfbd4bd76a60ce1b79c17c7d8405e28719d5eb207b7424` |
-| exact seed start checkpoint | `payload.startModelState.checkpointSha256` |
-| exact seed terminal checkpoint | `payload.terminalModelState.checkpointSha256` |
-| preview case catalog | `c45444053e39fe30b3d35a0af3033e26346e5f170fb6a60ecd5b6a0c1f5b9c28` |
-| preview control catalog | `1adcebcd1bc69f6b17c1a159d3f7d83577e5b3a871771c3fe09027ed141d312e` |
-| preview observable catalog | `af525a5acff4e0c42097b2b1cd531df587829f29d47d6a1ae8d3305a3ee1578b` |
-| preview UI/graph catalog | `8cdde2ba037a01abd373ad1028babacd634da4fc8f990d11be706e80dde49103` |
+| canonical periodic source, exact file bytes | `389cb73a6e7af066bff72d7647533f3a3ef80727ee27d5669639c103cbe1e399` |
+| canonical periodic source, canonical JSON | `a5c6f3a36c5dad490ef2609786415757c9c89c47b9ab50624d118dac76c9dfd4` |
+| raw seed file | `208ecd498ee837c182391ffde423924cde901813da6b0eeac797cace813b2c8f` |
+| canonical seed payload | `a52afa5cdc291bb14c7a4bbae87e8235d4705bc6939453f9c86c9a66aad99821` |
+| exact seed start checkpoint | `9fc15d39328e3ef1e3c4f17d22b99c224fd44efebbf4b1fe5cbdb5cec3036aef` |
+| exact seed terminal checkpoint | `f4024a1570f791315211a0d88b767fb4b0e846ac80dba3f57079ca7924accad0` |
+| preview case catalog | `75792aea1ce0d5c7062128aa765046ea423b0f766e5ca679bff6f4de183eab8a` |
+| preview control catalog | `eda32e7c4c8b62e79ec8c23aebee0703ea3a279fe4351f597e5e92ad68784a2d` |
+| preview observable catalog | `634ac420a040117017bc867cefee56547e5dd991acc5c66d94ae392a9365b5b2` |
+| preview UI/graph catalog | `86c798ca6198ddfd2b52c2116b5797d210d642676093b17c7156b05a6be82611` |
 
 The release loader verifies its manifest identity. The seed loader verifies
 both raw-file and canonical-payload identities before restore, plus exact
 start/terminal checkpoint times and the live fixture's fixed global blood
-volume and protocol identity. The session hashes the full input spec. Both Main
-V3 checkpoints retain their own integrity hashes, and every browser record
-hashes the canonical payload excluding only its self-referential
+volume and protocol identity. That protocol identity includes the complete
+canonical mechanics-provider parameter preimage—passive, Land, SLS, atrial and
+TriSeg geometry, solver, and state schema—rather than the legacy rounded
+32-bit cache fingerprint. It also binds the cycle length and an exact Main V3
+checkpoint of the cold accepted initialization. Each Main V3 checkpoint in
+turn binds a SHA-256 of the complete provider parameter preimage, so restore
+cannot substitute a provider that collides under the legacy cache fingerprint.
+The session hashes the full input spec. Both Main V3 checkpoints retain their
+own integrity hashes, and every browser record hashes the canonical payload
+excluding only its self-referential
 `recordSha256` field. A promoted generic `RunArtifactV1` separately binds the
 externally supplied `BuildArtifactRefV1`.
 
@@ -142,6 +163,23 @@ stable noncoronary Worker ABI and does not fall back to that model after an
 integrated failure. A failed beat command restores the session's entire
 pre-command accepted tuple and continuation ordinal; accepted substeps are
 never exposed as a partially completed user command.
+
+The client additionally binds every response to the pending request, session,
+command and expected MCS preset, recomputes the RunRecord and input SHA-256,
+and requires the supplied presentation to equal the complete projection
+derived from that record. A literal-only main-thread descriptor independently
+pins the release, preset-specific input spec, seed boundaries, create
+checkpoint and fixed checkpoint claims without importing the numerical model
+into the main bundle. For each active session the client advances only from the
+previous exact terminal checkpoint, time, revision and continuation ordinal,
+with at most one stateful command in flight. Any mismatch, duplicate, stale or
+forked response, timeout, Worker error or message-deserialization error
+quarantines and terminates the whole stateful Worker.
+
+The release-specific limitations acknowledgement is also fail closed.
+Unavailable browser storage is treated as not acknowledged; it cannot create a
+Worker. The explicit acknowledgement action may authorize the current
+in-memory session even when persistence remains unavailable.
 
 For HMII, activation is a state-preserving structural fork from the same P1
 coronary/rhythm/base state. The new dynamic circuit flow begins at zero and is

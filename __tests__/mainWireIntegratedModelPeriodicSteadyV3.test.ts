@@ -5,9 +5,16 @@ import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V2 } from "@/engin
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+  createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  mainWireIntegratedModelPeriodicFixtureIdentityV3,
+  mainWireIntegratedModelPeriodicProtocolIdentityHashV3,
   runMainWireIntegratedModelPeriodicSteadyV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import type {
+  MainWireFiveWallLandTriSegProviderParameterPreimageV1,
+} from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
+import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
 
 describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
   it("reuses the predeclared V2 policy/scales and makes every MCS circuit explicitly all-off with zero inertance", () => {
@@ -47,6 +54,152 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
           .acceptedFlowMlPerSec,
       ),
     ).toEqual([0, 0, 0, 0]);
+  });
+
+  it("binds the protocol SHA to the complete provider preimage, not its rounded FNV proxy", async () => {
+    const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const preimage = fixture.provider.parameterIdentityPreimage as
+      MainWireFiveWallLandTriSegProviderParameterPreimageV1;
+    expect(preimage.materialByWall.LVFW.parameterPreimage).toMatchObject({
+      adapterId: "main-wire-normal-adult-five-wall-material-adapter-v1",
+      wallId: "LVFW",
+      passive: {
+        params: {
+          centralTangentPa: expect.any(Number),
+          tensionScalePa: expect.any(Number),
+        },
+      },
+      landSls: {
+        landEquationParameters: {
+          values: {
+            CaT50Ref: expect.any(Number),
+            Tref: expect.any(Number),
+          },
+        },
+        sls: {
+          branchModulusPa: expect.any(Number),
+          relaxationTimeSec: expect.any(Number),
+        },
+      },
+    });
+
+    const fixtureIdentity =
+      await mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture);
+    expect(fixtureIdentity.provider.parameterIdentityPreimage)
+      .toEqual(preimage);
+    expect(fixtureIdentity.provider)
+      .not.toHaveProperty("parameterIdentityHash");
+
+    const mutatedPreimage = Object.freeze({
+      ...preimage,
+      atria: Object.freeze({
+        ...preimage.atria,
+        LA: Object.freeze({
+          ...preimage.atria.LA,
+          wallMaterialVolumeM3:
+            preimage.atria.LA.wallMaterialVolumeM3 + 4e-13,
+        }),
+      }),
+    });
+    const actualMutation =
+      mutatedPreimage.atria.LA.wallMaterialVolumeM3
+      - preimage.atria.LA.wallMaterialVolumeM3;
+    expect(actualMutation).toBeGreaterThan(0);
+    expect(actualMutation).toBeLessThan(0.5e-12);
+    const mutatedFixture = Object.freeze({
+      ...fixture,
+      provider: Object.freeze({
+        ...fixture.provider,
+        parameterIdentityPreimage: mutatedPreimage,
+      }),
+    });
+
+    expect(await sha256CanonicalJsonHex(
+      await mainWireIntegratedModelPeriodicFixtureIdentityV3(mutatedFixture),
+    )).not.toBe(await sha256CanonicalJsonHex(fixtureIdentity));
+    expect(await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+      mutatedFixture,
+      {
+        nominalDtSec: 0.002,
+        maximumCycleCount: 1,
+        executionPurpose: "bounded-smoke",
+      },
+    )).not.toBe(await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+      fixture,
+      {
+        nominalDtSec: 0.002,
+        maximumCycleCount: 1,
+        executionPurpose: "bounded-smoke",
+      },
+    ));
+  });
+
+  it("binds the cycle length and exact cold accepted-state initialization into the protocol SHA", async () => {
+    const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const alternateColdFixture =
+      createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3(
+        fixture.fixedGlobalTotalBloodVolumeMl - 1,
+      );
+    const changedCycleLength = Object.freeze({
+      ...fixture,
+      cycleLengthSec: 0.5,
+    }) as unknown as typeof fixture;
+    const changedColdAcceptedState = Object.freeze({
+      ...fixture,
+      cold: alternateColdFixture.cold,
+    }) as typeof fixture;
+    const protocolOptions = Object.freeze({
+      nominalDtSec: 0.002,
+      maximumCycleCount: 1,
+      executionPurpose: "bounded-smoke" as const,
+    });
+
+    const [
+      fixtureIdentity,
+      changedCycleIdentity,
+      changedColdIdentity,
+      protocolIdentity,
+      changedCycleProtocolIdentity,
+      changedColdProtocolIdentity,
+    ] = await Promise.all([
+      mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
+      mainWireIntegratedModelPeriodicFixtureIdentityV3(changedCycleLength),
+      mainWireIntegratedModelPeriodicFixtureIdentityV3(
+        changedColdAcceptedState,
+      ),
+      mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+        fixture,
+        protocolOptions,
+      ),
+      mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+        changedCycleLength,
+        protocolOptions,
+      ),
+      mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+        changedColdAcceptedState,
+        protocolOptions,
+      ),
+    ]);
+
+    expect(fixtureIdentity.cycleLengthSec).toBe(1);
+    expect(fixtureIdentity.coldAcceptedStateInitialization).toMatchObject({
+      kind: "exact-main-v3-checkpoint",
+      schemaVersion: 3,
+      revision: 0,
+      acceptedTimeSec: 0,
+      checkpointSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
+    expect(changedCycleIdentity.cycleLengthSec).toBe(0.5);
+    expect(changedColdIdentity.coldAcceptedStateInitialization.checkpointSha256)
+      .not.toBe(
+        fixtureIdentity.coldAcceptedStateInitialization.checkpointSha256,
+      );
+    expect(await sha256CanonicalJsonHex(changedCycleIdentity))
+      .not.toBe(await sha256CanonicalJsonHex(fixtureIdentity));
+    expect(await sha256CanonicalJsonHex(changedColdIdentity))
+      .not.toBe(await sha256CanonicalJsonHex(fixtureIdentity));
+    expect(changedCycleProtocolIdentity).not.toBe(protocolIdentity);
+    expect(changedColdProtocolIdentity).not.toBe(protocolIdentity);
   });
 
   it("advances one canonical-provider cycle with exact event ownership, conservation, raw trace, healthy projection, and V3 checkpoint", async () => {

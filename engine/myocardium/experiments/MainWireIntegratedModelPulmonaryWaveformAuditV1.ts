@@ -282,7 +282,8 @@ export async function runMainWireIntegratedModelPulmonaryWaveformAuditV1(
     protocol:
       MAIN_WIRE_INTEGRATED_MODEL_PULMONARY_WAVEFORM_AUDIT_PROTOCOL_V1,
     claim: MAIN_WIRE_INTEGRATED_MODEL_PULMONARY_WAVEFORM_AUDIT_CLAIM_V1,
-    fixtureIdentity: mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
+    fixtureIdentity:
+      await mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
   });
   const kernel = await runMainWireIntegratedModelPeriodicKernelV3(fixture, {
     protocolIdentityHash,

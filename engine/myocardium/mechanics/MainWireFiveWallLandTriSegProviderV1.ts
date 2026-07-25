@@ -110,6 +110,11 @@ export type MainWireFiveWallMaterialEvaluationV1<TWallState> = Readonly<{
 export type MainWireFiveWallLandSlsMaterialKernelV1<TWallState> = Readonly<{
   modelId: string;
   parameterSetId: string;
+  /**
+   * Complete, detached parameter input for cryptographic/release identity.
+   * `parameterIdentityHash` remains only a compact hot-path/cache guard.
+   */
+  parameterIdentityPreimage: WholeHeartMechanicsSerializableValueV1;
   parameterIdentityHash: string;
   topology:
     "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS";
@@ -210,9 +215,34 @@ export type MainWireFiveWallLandTriSegProviderV1<TWallState> =
   WholeHeartMechanicsProviderV1<
     MainWireFiveWallLandTriSegStateV1<TWallState>,
     MainWireFiveWallFreeCalciumDriveV1
-  >;
+  > & Readonly<{
+    /**
+     * Full canonical parameter input for SHA/release identity. The compact
+     * `parameterIdentityHash` is intentionally not a cryptographic identity.
+     */
+    parameterIdentityPreimage: WholeHeartMechanicsSerializableValueV1;
+  }>;
 
-type ResolvedSolverOptionsV1 = Required<MainWireFiveWallInternalSolverOptionsV1>;
+export type MainWireFiveWallLandTriSegProviderParameterPreimageV1 = Readonly<{
+  providerModelId: typeof MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID;
+  stateSchemaVersion: number;
+  parameterSetId: string;
+  materialByWall: MainWireFiveWallRecordV1<Readonly<{
+    modelId: string;
+    parameterSetId: string;
+    parameterPreimage: WholeHeartMechanicsSerializableValueV1;
+  }>>;
+  atria: MainWireFiveWallLandTriSegProviderParamsV1<unknown>["atria"];
+  trisegWalls:
+    MainWireFiveWallLandTriSegProviderParamsV1<unknown>["trisegWalls"];
+  initialTriSegCoordinates: TriSegCoordinatesV1;
+  internalCoordinateScales: TriSegCoordinatesV1;
+  solver: Readonly<Required<MainWireFiveWallInternalSolverOptionsV1>>;
+  fixedResidualEnergyScaleJ: number;
+}>;
+
+type ResolvedSolverOptionsV1 =
+  Required<MainWireFiveWallInternalSolverOptionsV1>;
 
 type CandidateEvaluationV1<TWallState> = Readonly<{
   volumesMl: WholeHeartMechanicsChamberValuesV1;
@@ -307,7 +337,10 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
 ): MainWireFiveWallLandTriSegProviderV1<TWallState> {
   const solver = resolveSolverOptions(params.solver);
   validateParams(params, solver);
-  const parameterIdentityHash = providerParameterIdentityHash(params, solver);
+  const parameterIdentityPreimage =
+    providerParameterIdentityPreimageV1(params, solver);
+  const parameterIdentityHash =
+    providerParameterIdentityHash(params, solver);
   const parameterIdentityInputsAreImmutable =
     providerParameterIdentityInputsAreImmutableV1(params, solver);
   const stateCodec = createStateCodec(params.materialByWall);
@@ -315,7 +348,11 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
   const initializeCold: MainWireFiveWallLandTriSegProviderV1<TWallState>["initializeCold"] =
     (input) => {
       if (!parameterIdentityInputsAreImmutable) {
-        assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+        assertEffectiveParameterIdentity(
+          params,
+          solver,
+          parameterIdentityPreimage,
+        );
       }
       validateDrive(input.drivingInputs);
       validateVolumes(input.volumesMl);
@@ -417,7 +454,11 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
   const evaluateTrial: MainWireFiveWallLandTriSegProviderV1<TWallState>["evaluateTrial"] =
     (input) => {
       if (!parameterIdentityInputsAreImmutable) {
-        assertEffectiveParameterIdentity(params, solver, parameterIdentityHash);
+        assertEffectiveParameterIdentity(
+          params,
+          solver,
+          parameterIdentityPreimage,
+        );
       }
       validateDrive(input.drivingInputs);
       validateVolumes(input.candidateVolumesMl);
@@ -467,6 +508,7 @@ export function createMainWireFiveWallLandTriSegProviderV1<TWallState>(
     providerId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
     parameterSetId: params.parameterSetId,
     parameterIdentityHash,
+    parameterIdentityPreimage,
     stateSchemaVersion: STATE_SCHEMA_VERSION,
     stateCodec,
     acceptedStateInputMode:
@@ -1536,10 +1578,46 @@ function cloneState<TWallState>(
   });
 }
 
+export function mainWireFiveWallLandTriSegProviderParameterPreimageV1<
+  TWallState,
+>(
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+): MainWireFiveWallLandTriSegProviderParameterPreimageV1 {
+  const solver = resolveSolverOptions(params.solver);
+  validateParams(params, solver);
+  return providerParameterIdentityPreimageV1(params, solver);
+}
+
+function providerParameterIdentityPreimageV1<TWallState>(
+  params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
+  solver: ResolvedSolverOptionsV1,
+): MainWireFiveWallLandTriSegProviderParameterPreimageV1 {
+  return canonicalSerializableSnapshotV1({
+    providerModelId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
+    stateSchemaVersion: STATE_SCHEMA_VERSION,
+    parameterSetId: params.parameterSetId,
+    materialByWall: fiveWallRecord((wallId) => ({
+      modelId: params.materialByWall[wallId].modelId,
+      parameterSetId: params.materialByWall[wallId].parameterSetId,
+      parameterPreimage:
+        params.materialByWall[wallId].parameterIdentityPreimage,
+    })),
+    atria: params.atria,
+    trisegWalls: params.trisegWalls,
+    initialTriSegCoordinates: params.initialTriSegCoordinates,
+    internalCoordinateScales: params.internalCoordinateScales,
+    solver,
+    fixedResidualEnergyScaleJ: ONE_JOULE,
+  }, "five-wall provider parameter preimage") as
+    MainWireFiveWallLandTriSegProviderParameterPreimageV1;
+}
+
 function providerParameterIdentityHash<TWallState>(
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   solver: ResolvedSolverOptionsV1,
 ): string {
+  // Preserve the established compact runtime/cache identity. Release and
+  // checkpoint trust decisions use the complete canonical preimage above.
   return stableHash(sanitizeForStableHash({
     providerModelId: MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
     stateSchemaVersion: STATE_SCHEMA_VERSION,
@@ -1561,9 +1639,14 @@ function providerParameterIdentityHash<TWallState>(
 function assertEffectiveParameterIdentity<TWallState>(
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   solver: ResolvedSolverOptionsV1,
-  expected: string,
+  expected: MainWireFiveWallLandTriSegProviderParameterPreimageV1,
 ): void {
-  if (providerParameterIdentityHash(params, solver) !== expected) {
+  if (
+    !serializableValuesExactlyEqual(
+      providerParameterIdentityPreimageV1(params, solver),
+      expected,
+    )
+  ) {
     throw new Error("effective provider parameters changed after construction");
   }
 }
@@ -1591,12 +1674,28 @@ function providerParameterIdentityInputsAreImmutableV1<TWallState>(
     || !Object.isFrozen(solver)
   ) return false;
   for (const wallId of MAIN_WIRE_FIVE_WALL_IDS_V1) {
-    if (!Object.isFrozen(params.materialByWall[wallId])) return false;
+    const material = params.materialByWall[wallId];
+    if (
+      !Object.isFrozen(material)
+      || !serializableTreeIsDeeplyFrozenV1(
+        material.parameterIdentityPreimage,
+      )
+    ) return false;
   }
   for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
     if (!Object.isFrozen(params.trisegWalls[wallId])) return false;
   }
   return true;
+}
+
+function serializableTreeIsDeeplyFrozenV1(
+  value: WholeHeartMechanicsSerializableValueV1,
+): boolean {
+  if (value === null || typeof value !== "object") return true;
+  if (!Object.isFrozen(value)) return false;
+  return Array.isArray(value)
+    ? value.every(serializableTreeIsDeeplyFrozenV1)
+    : Object.values(value).every(serializableTreeIsDeeplyFrozenV1);
 }
 
 function validateParams<TWallState>(
@@ -1901,6 +2000,61 @@ function nearlyEqual(left: number, right: number, tolerance: number): boolean {
 
 function assertFiniteNumbers(values: Readonly<Record<string, number>>): void {
   for (const [label, value] of Object.entries(values)) requireFinite(value, label);
+}
+
+function serializableValuesExactlyEqual(left: unknown, right: unknown): boolean {
+  if (
+    left === null
+    || right === null
+    || typeof left !== "object"
+    || typeof right !== "object"
+  ) return left === right;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left)
+      && Array.isArray(right)
+      && left.length === right.length
+      && left.every((entry, index) =>
+        serializableValuesExactlyEqual(entry, right[index]));
+  }
+  const leftRecord = left as Readonly<Record<string, unknown>>;
+  const rightRecord = right as Readonly<Record<string, unknown>>;
+  const leftKeys = Object.keys(leftRecord).sort();
+  const rightKeys = Object.keys(rightRecord).sort();
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key, index) =>
+      key === rightKeys[index]
+      && serializableValuesExactlyEqual(leftRecord[key], rightRecord[key]));
+}
+
+function canonicalSerializableSnapshotV1(
+  value: unknown,
+  label: string,
+): WholeHeartMechanicsSerializableValueV1 {
+  if (
+    value === null
+    || typeof value === "boolean"
+    || typeof value === "string"
+  ) return value as null | boolean | string;
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new Error(`${label} must be finite`);
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map((entry, index) =>
+      canonicalSerializableSnapshotV1(entry, `${label}[${index}]`)));
+  }
+  if (
+    typeof value !== "object"
+    || Object.getPrototypeOf(value) !== Object.prototype
+  ) throw new Error(`${label} must contain only plain serializable values`);
+  return Object.freeze(Object.fromEntries(
+    Object.entries(value as Readonly<Record<string, unknown>>)
+      .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
+      .map(([key, entry]) => [
+        key,
+        canonicalSerializableSnapshotV1(entry, `${label}.${key}`),
+      ]),
+  ));
 }
 
 function requireFinite(value: unknown, label: string): number {

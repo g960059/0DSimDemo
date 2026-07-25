@@ -21,7 +21,10 @@ export function hasModelLimitationsAcknowledgement(
   try {
     return localStorage.getItem(acknowledgementKey) === '1';
   } catch {
-    return true; // if storage is unavailable, don't nag
+    // A persistence failure is not evidence of acknowledgement. The modal
+    // remains the trust boundary, while its explicit action can still
+    // authorize the current in-memory session.
+    return false;
   }
 }
 
@@ -80,13 +83,16 @@ export const ModelLimitations: React.FC<{
     setReopened(false);
   };
 
-  // Escape closes (and acknowledges, if first run).
+  // Escape may close a manually reopened informational dialog, but it must
+  // never manufacture first-run acknowledgement.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !firstRun) close();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [firstRun, open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>

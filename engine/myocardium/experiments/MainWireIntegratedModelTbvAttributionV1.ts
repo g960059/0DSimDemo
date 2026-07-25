@@ -255,7 +255,7 @@ export async function runMainWireIntegratedModelTbvAttributionV1(
       parentProtocolIdentityHash: protocolIdentityHash,
       armProtocol,
       fixtureIdentity:
-        mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
+        await mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
     });
     const kernel = await runMainWireIntegratedModelPeriodicKernelV3(fixture, {
       protocolIdentityHash: armProtocolIdentityHash,

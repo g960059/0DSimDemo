@@ -33,6 +33,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
+  type CanonicalJsonValue,
 } from "@/engine/scientific/release";
 
 export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID =
@@ -56,6 +57,8 @@ export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3 = deepFreeze({
     "sha-256-over-complete-canonical-dynamic-inertance-profile-content" as const,
   dynamicMechanicalSupportStructuralHydraulicIdentity:
     "sha-256-over-accepted-rotary-structural-hydraulic-projection" as const,
+  providerParameterIdentity:
+    "sha-256-over-complete-canonical-provider-parameter-preimage" as const,
   exactResumeScope:
     "all-coronary-v3-owners-all-composed-rhythm-owned-source-conduction-capture-interval-calcium-queues-and-four-dynamic-device-flows" as const,
   ownerClock:
@@ -94,8 +97,13 @@ export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3 = deepFreeze({
 });
 
 export type MainWireIntegratedModelCheckpointContextV3<TWallState> = Readonly<
-  MainWireFiveWallCoronaryCheckpointContextV3<TWallState>
+  Omit<MainWireFiveWallCoronaryCheckpointContextV3<TWallState>, "provider">
   & {
+    provider:
+      MainWireFiveWallCoronaryCheckpointContextV3<TWallState>["provider"]
+      & Readonly<{
+        parameterIdentityPreimage: CanonicalJsonValue;
+      }>;
     rhythm: MainWireIntegratedComposedRhythmContextV3;
     dynamicMechanicalSupportProfile:
       DynamicMechanicalSupportInertanceProfileV1;
@@ -109,6 +117,7 @@ export type MainWireIntegratedModelCheckpointPayloadV3 = Readonly<{
   transactionId: typeof MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID;
   revision: number;
   acceptedTimeSec: number;
+  providerParameterIdentitySha256: string;
   composedRhythmConfigurationIdentitySha256: string;
   dynamicMechanicalSupportProfileIdentitySha256: string;
   dynamicMechanicalSupportStructuralHydraulicIdentitySha256: string;
@@ -143,6 +152,7 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
   const [
     coronary,
     composedRhythm,
+    providerParameterIdentitySha256,
     composedRhythmConfigurationIdentitySha256,
     dynamicMechanicalSupportProfileIdentitySha256,
     dynamicMechanicalSupportStructuralHydraulicIdentitySha256,
@@ -151,6 +161,7 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
     checkpointAcceptedComposedRhythmTransactionStateV2(
       state.composedRhythm,
     ),
+    sha256CanonicalJsonHex(context.provider.parameterIdentityPreimage),
     sha256CanonicalJsonHex(context.rhythm.configuration),
     sha256CanonicalJsonHex(
       dynamicMechanicalSupport.inertanceProfileSnapshot,
@@ -171,6 +182,7 @@ export async function checkpointMainWireIntegratedModelV3<TWallState>(
     transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
     revision: state.revision,
     acceptedTimeSec: state.acceptedTimeSec,
+    providerParameterIdentitySha256,
     composedRhythmConfigurationIdentitySha256,
     dynamicMechanicalSupportProfileIdentitySha256,
     dynamicMechanicalSupportStructuralHydraulicIdentitySha256,
@@ -209,16 +221,26 @@ export async function restoreMainWireIntegratedModelV3<TWallState>(
   ) throw new Error("composed integrated model checkpoint claim mismatch");
 
   const [
+    expectedProviderParameterIdentitySha256,
     expectedComposedRhythmConfigurationIdentitySha256,
     expectedDynamicMechanicalSupportProfileIdentitySha256,
     expectedDynamicMechanicalSupportStructuralHydraulicIdentitySha256,
   ] = await Promise.all([
+    sha256CanonicalJsonHex(context.provider.parameterIdentityPreimage),
     sha256CanonicalJsonHex(context.rhythm.configuration),
     sha256CanonicalJsonHex(expectedDynamicBinding.inertanceProfileSnapshot),
     sha256CanonicalJsonHex(
       expectedDynamicBinding.structuralHydraulicProjection,
     ),
   ]);
+  if (
+    checkpoint.providerParameterIdentitySha256
+      !== expectedProviderParameterIdentitySha256
+  ) {
+    throw new Error(
+      "composed integrated checkpoint provider parameter SHA-256 identity mismatch",
+    );
+  }
   if (
     checkpoint.composedRhythmConfigurationIdentitySha256
       !== expectedComposedRhythmConfigurationIdentitySha256
@@ -348,6 +370,7 @@ function assertCheckpointEnvelope(
     "transactionId",
     "revision",
     "acceptedTimeSec",
+    "providerParameterIdentitySha256",
     "composedRhythmConfigurationIdentitySha256",
     "dynamicMechanicalSupportProfileIdentitySha256",
     "dynamicMechanicalSupportStructuralHydraulicIdentitySha256",
@@ -364,6 +387,10 @@ function assertCheckpointEnvelope(
     || typed.transactionId !== MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID
   ) throw new Error("unsupported composed integrated model checkpoint schema");
   digest(typed.checkpointSha256, "composed integrated checkpoint SHA-256");
+  digest(
+    typed.providerParameterIdentitySha256,
+    "composed integrated checkpoint provider parameter SHA-256 identity",
+  );
   digest(
     typed.composedRhythmConfigurationIdentitySha256,
     "composed integrated checkpoint rhythm configuration SHA-256 identity",

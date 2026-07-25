@@ -7,6 +7,7 @@ import {
   MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM,
   createMainWireFiveWallLandTriSegProviderV1,
   finiteDifferenceJacobianWithSymmetryAudit,
+  mainWireFiveWallLandTriSegProviderParameterPreimageV1,
   type MainWireFiveWallFreeCalciumDriveV1,
   type MainWireFiveWallIdV1,
   type MainWireFiveWallLandSlsMaterialKernelV1,
@@ -28,6 +29,7 @@ import {
   sanitizeForStableHash,
   stableHash,
 } from "@/engine/myocardium/kinematics/stableHash";
+import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
 
 type TestWallState = Readonly<{
   landState: Float64Array;
@@ -301,7 +303,7 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       .toThrow(/identity mismatch/);
   });
 
-  it("retains the per-call identity audit for mutable custom parameters", () => {
+  it("re-audits mutable custom parameters against the exact preimage", () => {
     const frozen = providerParams();
     const mutable = {
       ...frozen,
@@ -311,10 +313,48 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       },
     };
     const provider = createMainWireFiveWallLandTriSegProviderV1(mutable);
-    mutable.atria.LA.wallMaterialVolumeM3 *= 1.01;
+    mutable.atria.LA.wallMaterialVolumeM3 += 4e-13;
 
     expect(() => coldStart(provider))
       .toThrow(/effective provider parameters changed after construction/);
+  });
+
+  it("exposes an exact canonical parameter preimage below the FNV rounding scale", async () => {
+    const baselineParams = providerParams("canonical-preimage");
+    const mutatedParams = Object.freeze({
+      ...baselineParams,
+      atria: Object.freeze({
+        ...baselineParams.atria,
+        LA: Object.freeze({
+          ...baselineParams.atria.LA,
+          wallMaterialVolumeM3:
+            baselineParams.atria.LA.wallMaterialVolumeM3 + 4e-13,
+        }),
+      }),
+    });
+    const actualMutation =
+      mutatedParams.atria.LA.wallMaterialVolumeM3
+      - baselineParams.atria.LA.wallMaterialVolumeM3;
+    expect(actualMutation).toBeGreaterThan(0);
+    expect(actualMutation).toBeLessThan(0.5e-12);
+
+    const baseline = createMainWireFiveWallLandTriSegProviderV1(
+      baselineParams,
+    );
+    const mutated = createMainWireFiveWallLandTriSegProviderV1(mutatedParams);
+    const baselinePreimage =
+      mainWireFiveWallLandTriSegProviderParameterPreimageV1(baselineParams);
+    const mutatedPreimage =
+      mainWireFiveWallLandTriSegProviderParameterPreimageV1(mutatedParams);
+
+    // The legacy rounded FNV proxy deliberately remains only a compact
+    // runtime/cache guard; it cannot distinguish this relevant mutation.
+    expect(mutated.parameterIdentityHash)
+      .toBe(baseline.parameterIdentityHash);
+    expect(baseline.parameterIdentityPreimage).toEqual(baselinePreimage);
+    expect(mutated.parameterIdentityPreimage).toEqual(mutatedPreimage);
+    expect(await sha256CanonicalJsonHex(mutatedPreimage))
+      .not.toBe(await sha256CanonicalJsonHex(baselinePreimage));
   });
 
   it("matches the material-consistent TriSeg Jacobian to the full constitutive FD fallback", () => {
@@ -540,6 +580,7 @@ function testMaterialKernel(input: Readonly<{
   return Object.freeze({
     modelId: "test-land-active-passive-parallel-sls-v1",
     parameterSetId,
+    parameterIdentityPreimage: Object.freeze({ ...input }),
     parameterIdentityHash,
     topology:
       "Land-active-plus-equilibrium-passive-plus-parallel-one-state-SLS" as const,

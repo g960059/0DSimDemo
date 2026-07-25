@@ -71,7 +71,10 @@ import {
   type WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 import { MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1 } from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
-import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
+import {
+  sha256CanonicalJsonHex,
+  type CanonicalJsonValue,
+} from "@/engine/scientific/release";
 
 type TestState = Readonly<{
   timeSec: number;
@@ -82,7 +85,9 @@ type TestState = Readonly<{
 type TestProvider = WholeHeartMechanicsProviderV1<
   TestState,
   MainWireFiveWallFreeCalciumDriveV1
->;
+> & Readonly<{
+  parameterIdentityPreimage: CanonicalJsonValue;
+}>;
 
 type Fixture = Readonly<{
   provider: TestProvider;
@@ -815,6 +820,16 @@ function testProvider(): TestProvider {
     providerId: "external-AF-wrapper-test-provider",
     parameterSetId: "external-AF-wrapper-test-prior",
     parameterIdentityHash: "external-AF-wrapper-test-hash",
+    parameterIdentityPreimage: Object.freeze({
+      providerId: "external-AF-wrapper-test-provider",
+      parameterSetId: "external-AF-wrapper-test-prior",
+      stiffnessMmHgPerMl: Object.freeze({
+        LA: 0.2,
+        LV: 0.8,
+        RA: 0.08,
+        RV: 0.17,
+      }),
+    }),
     stateSchemaVersion: 1,
     stateCodec: Object.freeze({
       clone: (state: TestState) => Object.freeze({ ...state }),

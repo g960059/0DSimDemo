@@ -33,6 +33,7 @@ import {
   MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1,
 } from "@/engine/scientific/assembly";
 import {
+  canonicalJsonStringify,
   cloneAndFreezeCanonicalJson,
   sha256CanonicalJsonHex,
   type CanonicalJsonObject,
@@ -40,7 +41,7 @@ import {
 } from "@/engine/scientific/release";
 import {
   createRunArtifactV1,
-  type BuildArtifactRefV1,
+  loadBuildArtifactRefV1,
   type RunArtifactV1,
 } from "@/engine/scientific/records";
 import {
@@ -133,8 +134,12 @@ export type MainWireIntegratedPreviewRunRecordV2 = Readonly<{
     exactTerminalCheckpointIncluded: true;
     executableBuildProvenanceAttached: false;
     standaloneReplayCompleteArtifactClaimed: false;
+    promotionEligibility:
+      | "eligible-with-current-runtime-exact-replay"
+      | "blocked-missing-complete-seed-lineage";
     upgradePath:
-      "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1";
+      | "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1"
+      | null;
   }>;
   recordSha256: string;
 }>;
@@ -219,7 +224,7 @@ export class MainWireIntegratedPreviewSessionV1 {
     const fixture =
       createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
     const periodicFixtureIdentitySha256 = await sha256CanonicalJsonHex(
-      mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
+      await mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
     );
     const seedState = await restoreMainWireIntegratedModelV3(
       checkpointContext(fixture, fixture.profile, fixture.config),
@@ -290,8 +295,11 @@ export class MainWireIntegratedPreviewSessionV1 {
   }
 
   static async replayOneBeatRecord(
-    expected: MainWireIntegratedPreviewRunRecordV2,
+    input: unknown,
   ): Promise<MainWireIntegratedPreviewRunRecordV2> {
+    const expected = await loadMainWireIntegratedPreviewRunRecordEnvelopeV2(
+      input,
+    );
     if (
       expected.run.kind !== "one-beat-continuation"
       || expected.run.execution.operation
@@ -305,34 +313,10 @@ export class MainWireIntegratedPreviewSessionV1 {
         "integrated preview replay requires a one-beat continuation record",
       );
     }
-    const { recordSha256, ...recordPayload } = expected;
-    const [expectedRecordSha256, expectedInputSpecSha256] = await Promise.all([
-      sha256CanonicalJsonHex(recordPayload),
-      sha256CanonicalJsonHex(expected.simulationInputSpec),
-    ]);
-    if (
-      recordSha256 !== expectedRecordSha256
-      || expected.simulationInputSpecSha256 !== expectedInputSpecSha256
-      || expected.startModelState.acceptedTimeSec
-        !== expected.run.startAcceptedTimeSec
-      || expected.terminalModelState.acceptedTimeSec
-        !== expected.run.endAcceptedTimeSec
-    ) {
-      throw new Error("integrated preview replay record identity is invalid");
-    }
     const session = await MainWireIntegratedPreviewSessionV1.create(
       expected.simulationInputSpec.mechanicalSupport.presetId,
     );
-    if (
-      session.inputSpecSha256 !== expected.simulationInputSpecSha256
-      || session.releaseRef.id !== expected.releaseRef.id
-      || session.releaseRef.version !== expected.releaseRef.version
-      || session.releaseRef.sha256 !== expected.releaseRef.sha256
-    ) {
-      throw new Error(
-        "integrated preview replay identity differs from the current runtime",
-      );
-    }
+    assertCurrentSessionIdentity(session, expected);
     session.acceptedState = await restoreMainWireIntegratedModelV3(
       checkpointContext(
         session.fixture,
@@ -345,15 +329,133 @@ export class MainWireIntegratedPreviewSessionV1 {
       expected.run.execution.continuationBeatOrdinalFromSeed - 1;
     const replayed = await session.runNextBeatRecord();
     if (
-      replayed.recordSha256 !== expected.recordSha256
-      || replayed.terminalModelState.checkpointSha256
-        !== expected.terminalModelState.checkpointSha256
+      canonicalJsonStringify(replayed) !== canonicalJsonStringify(expected)
     ) {
       throw new Error(
         "integrated preview replay differs from the expected run record",
       );
     }
     return replayed;
+  }
+
+  static async loadReplayVerifiedRunRecordForPromotion(
+    input: unknown,
+  ): Promise<MainWireIntegratedPreviewRunRecordV2> {
+    const record = await loadMainWireIntegratedPreviewRunRecordEnvelopeV2(
+      input,
+    );
+    if (
+      record.replayCompleteness.promotionEligibility
+        !== "eligible-with-current-runtime-exact-replay"
+      || record.replayCompleteness.upgradePath
+        !== "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1"
+    ) {
+      throw new Error(
+        "integrated preview record is not promotion-eligible without "
+          + "complete seed lineage",
+      );
+    }
+    const session = await MainWireIntegratedPreviewSessionV1.create(
+      record.simulationInputSpec.mechanicalSupport.presetId,
+    );
+    assertCurrentSessionIdentity(session, record);
+    if (
+      canonicalJsonStringify(session.sourceSeedIdentity())
+        !== canonicalJsonStringify(record.sourceSeed)
+    ) {
+      throw new Error(
+        "integrated preview source seed differs from the current runtime",
+      );
+    }
+    const context = checkpointContext(
+      session.fixture,
+      session.dynamicProfile,
+      session.dynamicConfig,
+    );
+    const [restoredStart] = await Promise.all([
+      restoreMainWireIntegratedModelV3(context, record.startModelState),
+      restoreMainWireIntegratedModelV3(context, record.terminalModelState),
+    ]);
+
+    if (record.run.kind === "one-beat-continuation") {
+      if (
+        record.run.execution.operation
+          !== "advance-one-fixed-sinus-cycle"
+      ) throw new Error("integrated preview continuation execution differs");
+      const ordinal =
+        record.run.execution.continuationBeatOrdinalFromSeed;
+      if (ordinal !== 1) {
+        throw new Error(
+          "integrated preview promotion supports only the first exact "
+            + "continuation from the current seed fork",
+        );
+      }
+      const seedTerminalAcceptedTimeSec =
+        session.seed.payload.terminalModelState.acceptedTimeSec;
+      if (
+        record.run.startAcceptedTimeSec
+          !== seedTerminalAcceptedTimeSec + ordinal - 1
+        || record.run.endAcceptedTimeSec
+          !== seedTerminalAcceptedTimeSec + ordinal
+      ) {
+        throw new Error(
+          "integrated preview continuation ordinal differs from its seed time",
+        );
+      }
+      const currentFirstContinuationStart =
+        await checkpointMainWireIntegratedModelV3(
+          context,
+          session.acceptedState,
+        );
+      if (
+        canonicalJsonStringify(currentFirstContinuationStart)
+          !== canonicalJsonStringify(record.startModelState)
+      ) {
+        throw new Error(
+          "integrated preview first continuation does not start at "
+            + "the current seed fork",
+        );
+      }
+      session.acceptedState = restoredStart;
+      session.continuationBeatCountFromSeed =
+        ordinal - 1;
+      const replayed = await session.runNextBeatRecord();
+      if (
+        canonicalJsonStringify(replayed) !== canonicalJsonStringify(record)
+      ) {
+        throw new Error(
+          "integrated preview continuation record is not exactly reproducible",
+        );
+      }
+      return record;
+    }
+
+    const currentSeedRecord = await session.seedRunRecord();
+    if (
+      canonicalJsonStringify(currentSeedRecord)
+        !== canonicalJsonStringify(record)
+    ) {
+      throw new Error(
+        "integrated preview bundled seed record differs from the current seed",
+      );
+    }
+
+    session.acceptedState = restoredStart;
+    session.continuationBeatCountFromSeed = 0;
+    const replayedTransition = await session.runNextBeatRecord();
+    if (
+      canonicalJsonStringify(replayedTransition.run.trace)
+        !== canonicalJsonStringify(record.run.trace)
+      || canonicalJsonStringify(replayedTransition.startModelState)
+        !== canonicalJsonStringify(record.startModelState)
+      || canonicalJsonStringify(replayedTransition.terminalModelState)
+        !== canonicalJsonStringify(record.terminalModelState)
+    ) {
+      throw new Error(
+        "integrated preview bundled seed transition is not exactly reproducible",
+      );
+    }
+    return record;
   }
 
   async seedRunRecord(): Promise<MainWireIntegratedPreviewRunRecordV2> {
@@ -390,6 +492,22 @@ export class MainWireIntegratedPreviewSessionV1 {
       this.continuationBeatCountFromSeed = retainedContinuationBeatCount;
       throw error;
     }
+  }
+
+  private sourceSeedIdentity():
+  MainWireIntegratedPreviewRunRecordV2["sourceSeed"] {
+    return Object.freeze({
+      payloadSha256: this.seed.payloadSha256,
+      startCheckpointSha256:
+        this.seed.payload.startModelState.checkpointSha256,
+      terminalCheckpointSha256:
+        this.seed.payload.terminalModelState.checkpointSha256,
+      protocolIdentityHash:
+        this.seed.payload.sourceEvidence.protocolIdentityHash,
+      periodicFixtureIdentitySha256:
+        this.inputSpec.periodicFixtureIdentitySha256,
+      numericalPeriod1Established: true,
+    });
   }
 
   private async advanceOneBeatRecord():
@@ -543,6 +661,12 @@ export class MainWireIntegratedPreviewSessionV1 {
         "integrated preview checkpoint boundaries differ from the run ledger",
       );
     }
+    const promotionEligible =
+      input.kind === "bundled-p1-seed"
+      || (
+        input.execution.operation === "advance-one-fixed-sinus-cycle"
+        && input.execution.continuationBeatOrdinalFromSeed === 1
+      );
     const payload = cloneAndFreezeCanonicalJson<CanonicalJsonObject>({
       artifactId:
         "circleheart-main-wire-integrated-preview-run-record-v2",
@@ -550,18 +674,7 @@ export class MainWireIntegratedPreviewSessionV1 {
       releaseRef: this.releaseRef,
       simulationInputSpec: this.inputSpec,
       simulationInputSpecSha256: this.inputSpecSha256,
-      sourceSeed: {
-        payloadSha256: this.seed.payloadSha256,
-        startCheckpointSha256:
-          this.seed.payload.startModelState.checkpointSha256,
-        terminalCheckpointSha256:
-          this.seed.payload.terminalModelState.checkpointSha256,
-        protocolIdentityHash:
-          this.seed.payload.sourceEvidence.protocolIdentityHash,
-        periodicFixtureIdentitySha256:
-          this.inputSpec.periodicFixtureIdentitySha256,
-        numericalPeriod1Established: true,
-      },
+      sourceSeed: this.sourceSeedIdentity(),
       run,
       startModelState: input.startModelState,
       terminalModelState: input.terminalModelState,
@@ -571,8 +684,12 @@ export class MainWireIntegratedPreviewSessionV1 {
         exactTerminalCheckpointIncluded: true,
         executableBuildProvenanceAttached: false,
         standaloneReplayCompleteArtifactClaimed: false,
-        upgradePath:
-          "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1",
+        promotionEligibility: promotionEligible
+          ? "eligible-with-current-runtime-exact-replay"
+          : "blocked-missing-complete-seed-lineage",
+        upgradePath: promotionEligible
+          ? "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1"
+          : null,
       },
     });
     return cloneAndFreezeCanonicalJson({
@@ -613,15 +730,59 @@ export function projectMainWireIntegratedPreviewRunV2(
   });
 }
 
-/**
- * Promotes a browser-produced run record to a replay-complete RunArtifactV1.
- * The executable BuildArtifactRefV1 must come from CI/build provenance; the
- * browser session deliberately does not invent it.
- */
-export async function createMainWireIntegratedPreviewRunArtifactV1(
-  record: MainWireIntegratedPreviewRunRecordV2,
-  buildArtifactRef: BuildArtifactRefV1,
-): Promise<RunArtifactV1> {
+async function loadMainWireIntegratedPreviewRunRecordEnvelopeV2(
+  input: unknown,
+): Promise<MainWireIntegratedPreviewRunRecordV2> {
+  let safe: CanonicalJsonObject;
+  try {
+    safe = cloneAndFreezeCanonicalJson<CanonicalJsonObject>(input);
+  } catch (error) {
+    throw new Error(
+      "integrated preview run record is not canonical JSON data: "
+        + (error instanceof Error ? error.message : String(error)),
+    );
+  }
+  assertExactRecordKeys(safe, [
+    "artifactId",
+    "schemaVersion",
+    "releaseRef",
+    "simulationInputSpec",
+    "simulationInputSpecSha256",
+    "sourceSeed",
+    "run",
+    "startModelState",
+    "terminalModelState",
+    "replayCompleteness",
+    "recordSha256",
+  ], "integrated preview run record");
+  if (
+    safe.artifactId
+      !== "circleheart-main-wire-integrated-preview-run-record-v2"
+    || safe.schemaVersion !== 2
+  ) throw new Error("integrated preview run record schema is unsupported");
+
+  assertReleaseRef(safe.releaseRef, "integrated preview run record releaseRef");
+  assertSimulationInputSpec(safe.simulationInputSpec, safe.releaseRef);
+  assertDigest(
+    safe.simulationInputSpecSha256,
+    "integrated preview input spec SHA-256",
+  );
+  assertSourceSeed(safe.sourceSeed, safe.simulationInputSpec);
+  assertRunLedger(safe.run);
+  assertCheckpointBoundary(
+    safe.startModelState,
+    safe.run,
+    "start",
+  );
+  assertCheckpointBoundary(
+    safe.terminalModelState,
+    safe.run,
+    "terminal",
+  );
+  assertReplayCompleteness(safe.replayCompleteness, safe.run);
+  assertDigest(safe.recordSha256, "integrated preview run record SHA-256");
+
+  const record = safe as unknown as MainWireIntegratedPreviewRunRecordV2;
   const { recordSha256, ...recordPayload } = record;
   const [expectedRecordSha256, expectedInputSpecSha256] = await Promise.all([
     sha256CanonicalJsonHex(recordPayload),
@@ -630,12 +791,628 @@ export async function createMainWireIntegratedPreviewRunArtifactV1(
   if (
     recordSha256 !== expectedRecordSha256
     || record.simulationInputSpecSha256 !== expectedInputSpecSha256
+  ) throw new Error("integrated preview run record content identity differs");
+  if (
+    canonicalJsonStringify(record.releaseRef)
+      !== canonicalJsonStringify(record.simulationInputSpec.releaseRef)
+    || record.sourceSeed.payloadSha256
+      !== record.simulationInputSpec.seedRunPayloadSha256
+    || record.sourceSeed.protocolIdentityHash
+      !== record.simulationInputSpec.sourceProtocolIdentityHash
+    || record.sourceSeed.periodicFixtureIdentitySha256
+      !== record.simulationInputSpec.periodicFixtureIdentitySha256
     || record.startModelState.acceptedTimeSec
       !== record.run.startAcceptedTimeSec
     || record.terminalModelState.acceptedTimeSec
       !== record.run.endAcceptedTimeSec
     || record.run.acceptedStepCount !== record.run.trace.length
-    || buildArtifactRef.simulationReleaseRef.id !== record.releaseRef.id
+    || record.terminalModelState.revision - record.startModelState.revision
+      !== record.run.acceptedStepCount
+  ) throw new Error("integrated preview run record internal identity differs");
+
+  if (record.run.kind === "bundled-p1-seed") {
+    if (
+      record.run.execution.operation !== "project-bundled-p1-seed"
+      || record.run.execution.continuationBeatCountFromSeed !== 0
+      || record.run.numericalPeriod1Established !== true
+      || record.simulationInputSpec.mechanicalSupport.presetId !== "all-off"
+      || record.startModelState.checkpointSha256
+        !== record.sourceSeed.startCheckpointSha256
+      || record.terminalModelState.checkpointSha256
+        !== record.sourceSeed.terminalCheckpointSha256
+    ) throw new Error("integrated preview bundled seed record relation differs");
+  } else if (
+    record.run.execution.operation !== "advance-one-fixed-sinus-cycle"
+    || record.run.execution.requestedDurationSec !== 1
+    || !Number.isInteger(
+      record.run.execution.continuationBeatOrdinalFromSeed,
+    )
+    || record.run.execution.continuationBeatOrdinalFromSeed < 1
+    || record.run.numericalPeriod1Established
+      !== "not-assessed-for-this-continuation"
+  ) {
+    throw new Error("integrated preview continuation record relation differs");
+  }
+  return record;
+}
+
+function assertCurrentSessionIdentity(
+  session: MainWireIntegratedPreviewSessionV1,
+  record: MainWireIntegratedPreviewRunRecordV2,
+): void {
+  if (
+    session.inputSpecSha256 !== record.simulationInputSpecSha256
+    || canonicalJsonStringify(session.inputSpec)
+      !== canonicalJsonStringify(record.simulationInputSpec)
+    || canonicalJsonStringify(session.releaseRef)
+      !== canonicalJsonStringify(record.releaseRef)
+  ) {
+    throw new Error(
+      "integrated preview run record identity differs from the current runtime",
+    );
+  }
+}
+
+function assertSimulationInputSpec(
+  value: unknown,
+  outerReleaseRef: unknown,
+): asserts value is MainWireIntegratedPreviewSimulationInputSpecV1 {
+  assertExactRecordKeys(value, [
+    "schemaId",
+    "schemaVersion",
+    "releaseRef",
+    "modelAssembly",
+    "fixedGlobalTotalBloodVolumeMl",
+    "rhythm",
+    "mechanicalSupport",
+    "nominalDtSec",
+    "seedRunPayloadSha256",
+    "sourceProtocolIdentityHash",
+    "periodicFixtureIdentitySha256",
+  ], "integrated preview simulation input spec");
+  if (
+    value.schemaId !== "circleheart-integrated-simulation-input-spec-v1"
+    || value.schemaVersion !== 1
+    || value.modelAssembly
+      !== "base+coronary-v3+dynamic-mcs+composed-rhythm-v2"
+    || value.fixedGlobalTotalBloodVolumeMl !== 5_600
+    || value.nominalDtSec !== 0.002
+  ) throw new Error("integrated preview simulation input schema differs");
+  assertReleaseRef(value.releaseRef, "integrated preview input releaseRef");
+  if (
+    canonicalJsonStringify(value.releaseRef)
+      !== canonicalJsonStringify(outerReleaseRef)
+  ) throw new Error("integrated preview input releaseRef differs");
+  assertExactRecordKeys(value.rhythm, [
+    "presetId",
+    "heartRateBpm",
+    "cycleLengthSec",
+    "externalAfOwnerIncluded",
+  ], "integrated preview rhythm input");
+  if (
+    value.rhythm.presetId !== "composed-regular-sinus-60-v1"
+    || value.rhythm.heartRateBpm !== 60
+    || value.rhythm.cycleLengthSec !== 1
+    || value.rhythm.externalAfOwnerIncluded !== false
+  ) throw new Error("integrated preview rhythm input differs");
+  assertExactRecordKeys(value.mechanicalSupport, [
+    "presetId",
+    "activeDeviceIds",
+    "interpretation",
+    "canonicalProfileSha256",
+    "canonicalConfigSha256",
+  ], "integrated preview mechanical-support input");
+  const support = value.mechanicalSupport;
+  if (
+    !MAIN_WIRE_INTEGRATED_PREVIEW_MCS_PRESET_IDS_V1.includes(
+      support.presetId as MainWireIntegratedPreviewMcsPresetIdV1,
+    )
+    || !Array.isArray(support.activeDeviceIds)
+  ) throw new Error("integrated preview mechanical-support preset differs");
+  if (
+    support.presetId === "all-off"
+      ? support.activeDeviceIds.length !== 0
+        || support.interpretation !== "numerically-periodic-all-off-seed"
+      : support.activeDeviceIds.length !== 1
+        || support.activeDeviceIds[0] !== "LVAD"
+        || support.interpretation !== "one-unsteady-post-activation-beat"
+  ) throw new Error("integrated preview mechanical-support relation differs");
+  assertDigest(
+    support.canonicalProfileSha256,
+    "integrated preview MCS profile SHA-256",
+  );
+  assertDigest(
+    support.canonicalConfigSha256,
+    "integrated preview MCS config SHA-256",
+  );
+  assertDigest(
+    value.seedRunPayloadSha256,
+    "integrated preview seed payload SHA-256",
+  );
+  assertDigest(
+    value.sourceProtocolIdentityHash,
+    "integrated preview source protocol SHA-256",
+  );
+  assertDigest(
+    value.periodicFixtureIdentitySha256,
+    "integrated preview fixture identity SHA-256",
+  );
+}
+
+function assertSourceSeed(
+  value: unknown,
+  inputSpec: unknown,
+): asserts value is MainWireIntegratedPreviewRunRecordV2["sourceSeed"] {
+  assertExactRecordKeys(value, [
+    "payloadSha256",
+    "startCheckpointSha256",
+    "terminalCheckpointSha256",
+    "protocolIdentityHash",
+    "periodicFixtureIdentitySha256",
+    "numericalPeriod1Established",
+  ], "integrated preview source seed");
+  assertSimulationInputSpecShapeOnly(inputSpec);
+  for (const [field, label] of [
+    ["payloadSha256", "payload"],
+    ["startCheckpointSha256", "start checkpoint"],
+    ["terminalCheckpointSha256", "terminal checkpoint"],
+    ["protocolIdentityHash", "protocol identity"],
+    ["periodicFixtureIdentitySha256", "fixture identity"],
+  ] as const) {
+    assertDigest(value[field], `integrated preview source seed ${label} SHA-256`);
+  }
+  if (
+    value.numericalPeriod1Established !== true
+    || value.payloadSha256 !== inputSpec.seedRunPayloadSha256
+    || value.protocolIdentityHash !== inputSpec.sourceProtocolIdentityHash
+    || value.periodicFixtureIdentitySha256
+      !== inputSpec.periodicFixtureIdentitySha256
+  ) throw new Error("integrated preview source seed relation differs");
+}
+
+function assertSimulationInputSpecShapeOnly(
+  value: unknown,
+): asserts value is MainWireIntegratedPreviewSimulationInputSpecV1 {
+  if (
+    typeof value !== "object"
+    || value === null
+    || Array.isArray(value)
+  ) throw new Error("integrated preview input spec is required");
+}
+
+function assertRunLedger(
+  value: unknown,
+): asserts value is MainWireIntegratedPreviewRunRecordV2["run"] {
+  assertExactRecordKeys(value, [
+    "kind",
+    "execution",
+    "startAcceptedTimeSec",
+    "endAcceptedTimeSec",
+    "acceptedStepCount",
+    "trace",
+    "allValuesFinite",
+    "maximumTotalBloodVolumeErrorMl",
+    "maximumCoronaryBloodVolumeLedgerResidualMl",
+    "maximumDynamicMcsConservationResidualMlPerSec",
+    "numericalPeriod1Established",
+    "physiologicalAcceptanceEstablished",
+    "clinicalValidationClaimed",
+  ], "integrated preview run ledger");
+  assertFiniteNumber(value.startAcceptedTimeSec, "run start accepted time");
+  assertFiniteNumber(value.endAcceptedTimeSec, "run end accepted time");
+  assertNonnegativeInteger(value.acceptedStepCount, "run accepted step count");
+  if (
+    value.endAcceptedTimeSec - value.startAcceptedTimeSec !== 1
+    || value.acceptedStepCount < 1
+    || value.acceptedStepCount
+      > MAIN_WIRE_INTEGRATED_PREVIEW_TRANSIENT_POLICY_V1
+        .maximumAcceptedStepCountPerBeat
+    || !Array.isArray(value.trace)
+    || value.trace.length !== value.acceptedStepCount
+    || value.allValuesFinite !== true
+    || value.physiologicalAcceptanceEstablished !== false
+    || value.clinicalValidationClaimed !== false
+    || !allNumericLeavesFinite(value.trace)
+  ) throw new Error("integrated preview run ledger relation differs");
+  assertFiniteNonnegative(
+    value.maximumTotalBloodVolumeErrorMl,
+    "run maximum total blood-volume error",
+  );
+  assertFiniteNonnegative(
+    value.maximumCoronaryBloodVolumeLedgerResidualMl,
+    "run maximum coronary ledger residual",
+  );
+  assertFiniteNonnegative(
+    value.maximumDynamicMcsConservationResidualMlPerSec,
+    "run maximum dynamic-MCS conservation residual",
+  );
+  if (
+    value.kind !== "bundled-p1-seed"
+    && value.kind !== "one-beat-continuation"
+  ) throw new Error("integrated preview run kind differs");
+  assertExactRecordKeys(value.execution, value.kind === "bundled-p1-seed"
+    ? ["operation", "continuationBeatCountFromSeed"]
+    : [
+      "operation",
+      "requestedDurationSec",
+      "continuationBeatOrdinalFromSeed",
+    ], "integrated preview run execution");
+  const run = value as unknown as
+    MainWireIntegratedPreviewRunRecordV2["run"];
+  if (run.kind === "bundled-p1-seed") {
+    if (
+      run.execution.operation !== "project-bundled-p1-seed"
+      || run.execution.continuationBeatCountFromSeed !== 0
+      || run.numericalPeriod1Established !== true
+    ) throw new Error("integrated preview run execution differs");
+  } else if (
+    run.execution.operation !== "advance-one-fixed-sinus-cycle"
+    || run.execution.requestedDurationSec !== 1
+    || typeof run.execution.continuationBeatOrdinalFromSeed !== "number"
+    || !Number.isInteger(
+      run.execution.continuationBeatOrdinalFromSeed,
+    )
+    || run.execution.continuationBeatOrdinalFromSeed < 1
+    || run.numericalPeriod1Established
+      !== "not-assessed-for-this-continuation"
+  ) throw new Error("integrated preview run execution differs");
+  assertTraceRelations(run);
+}
+
+function assertTraceRelations(
+  run: MainWireIntegratedPreviewRunRecordV2["run"],
+): void {
+  let priorAcceptedTimeSec = run.startAcceptedTimeSec;
+  let traceCycleIndex: number | undefined;
+  let durationSec = 0;
+  let maximumTotalBloodVolumeErrorMl = 0;
+  let maximumCoronaryBloodVolumeLedgerResidualMl = 0;
+  let maximumDynamicMcsConservationResidualMlPerSec = 0;
+  run.trace.forEach((sample, index) => {
+    assertExactRecordKeys(sample, [
+      "cycleIndex",
+      "acceptedStepIndexWithinCycle",
+      "acceptedTimeSec",
+      "cyclePhase01",
+      "acceptedDtSec",
+      "chamberVolumeMl",
+      "absolutePressureMmHg",
+      "valveFlowMlPerSec",
+      "pulmonaryCirculation",
+      "coronary",
+      "freeCalciumUMByWall",
+      "dynamicMcsAcceptedFlowMlPerSec",
+      "acceptedEventIdentity",
+      "diagnostics",
+    ], `integrated preview trace sample ${index}`);
+    assertFiniteNumber(sample.acceptedTimeSec, "trace accepted time");
+    assertFiniteNumber(sample.acceptedDtSec, "trace accepted dt");
+    assertFiniteNumber(sample.cyclePhase01, "trace cycle phase");
+    assertNonnegativeInteger(sample.cycleIndex, "trace cycle index");
+    assertNonnegativeInteger(
+      sample.acceptedStepIndexWithinCycle,
+      "trace accepted step index",
+    );
+    assertTraceSamplePayload(sample, index);
+    traceCycleIndex ??= sample.cycleIndex;
+    if (
+      sample.acceptedStepIndexWithinCycle !== index + 1
+      || sample.cycleIndex !== traceCycleIndex
+      || sample.acceptedTimeSec <= priorAcceptedTimeSec
+      || !(sample.acceptedDtSec > 0)
+      || sample.acceptedTimeSec - priorAcceptedTimeSec
+        !== sample.acceptedDtSec
+      || !(sample.cyclePhase01 > 0 && sample.cyclePhase01 <= 1)
+      || sample.cyclePhase01
+        !== sample.acceptedTimeSec - run.startAcceptedTimeSec
+    ) throw new Error("integrated preview trace coordinate differs");
+    assertExactRecordKeys(sample.diagnostics, [
+      "mechanicsResidualNorm",
+      "circulationScaledResidualInfinityNorm",
+      "maximumContinuityResidualMl",
+      "totalBloodVolumeErrorMl",
+      "coronaryBloodVolumeLedgerResidualMl",
+      "dynamicMcsConservationResidualMlPerSec",
+    ], `integrated preview trace diagnostics ${index}`);
+    for (const diagnostic of Object.values(sample.diagnostics)) {
+      assertFiniteNumber(diagnostic, "integrated preview trace diagnostic");
+    }
+    durationSec += sample.acceptedDtSec;
+    maximumTotalBloodVolumeErrorMl = Math.max(
+      maximumTotalBloodVolumeErrorMl,
+      Math.abs(sample.diagnostics.totalBloodVolumeErrorMl),
+    );
+    maximumCoronaryBloodVolumeLedgerResidualMl = Math.max(
+      maximumCoronaryBloodVolumeLedgerResidualMl,
+      Math.abs(sample.diagnostics.coronaryBloodVolumeLedgerResidualMl),
+    );
+    maximumDynamicMcsConservationResidualMlPerSec = Math.max(
+      maximumDynamicMcsConservationResidualMlPerSec,
+      Math.abs(sample.diagnostics.dynamicMcsConservationResidualMlPerSec),
+    );
+    priorAcceptedTimeSec = sample.acceptedTimeSec;
+  });
+  if (
+    priorAcceptedTimeSec !== run.endAcceptedTimeSec
+    || traceCycleIndex !== Math.floor(run.startAcceptedTimeSec) + 1
+    || Math.abs(durationSec - 1) > 1e-12
+    || maximumTotalBloodVolumeErrorMl
+      !== run.maximumTotalBloodVolumeErrorMl
+    || maximumCoronaryBloodVolumeLedgerResidualMl
+      !== run.maximumCoronaryBloodVolumeLedgerResidualMl
+    || maximumDynamicMcsConservationResidualMlPerSec
+      !== run.maximumDynamicMcsConservationResidualMlPerSec
+  ) throw new Error("integrated preview trace summary differs");
+}
+
+function assertTraceSamplePayload(
+  sample: MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
+  index: number,
+): void {
+  const label = `integrated preview trace sample ${index}`;
+  assertExactFiniteNumberRecord(
+    sample.chamberVolumeMl,
+    ["LA", "LV", "RA", "RV"],
+    `${label} chamber volume`,
+  );
+  assertExactFiniteNumberRecord(
+    sample.absolutePressureMmHg,
+    ["LA", "LV", "RA", "RV", "Ao", "PA", "PVein"],
+    `${label} absolute pressure`,
+  );
+  assertExactFiniteNumberRecord(
+    sample.valveFlowMlPerSec,
+    ["MV", "AoV", "TV", "PV"],
+    `${label} valve flow`,
+  );
+  assertExactRecordKeys(sample.pulmonaryCirculation, [
+    "nodeVolumeMl",
+    "absolutePressureMmHg",
+    "edgeFlowMlPerSec",
+  ], `${label} pulmonary circulation`);
+  assertExactFiniteNumberRecord(
+    sample.pulmonaryCirculation.nodeVolumeMl,
+    ["PA", "PArt", "PCap", "PVen", "PVein"],
+    `${label} pulmonary node volume`,
+  );
+  assertExactFiniteNumberRecord(
+    sample.pulmonaryCirculation.absolutePressureMmHg,
+    ["PA", "PArt", "PCap", "PVen", "PVein"],
+    `${label} pulmonary absolute pressure`,
+  );
+  assertExactFiniteNumberRecord(
+    sample.pulmonaryCirculation.edgeFlowMlPerSec,
+    ["PV", "PA_PArt", "PArt_PCap", "PCap_PVen", "PVen_PVein", "PVein_LA"],
+    `${label} pulmonary edge flow`,
+  );
+  assertExactFiniteNumberRecord(
+    sample.coronary,
+    ["totalInletFlowMlPerSec", "ladSubendocardialQmFlowMlPerSec"],
+    `${label} coronary projection`,
+  );
+  assertExactFiniteNumberRecord(
+    sample.freeCalciumUMByWall,
+    ["LA", "LVFW", "SEP", "RVFW", "RA"],
+    `${label} free calcium`,
+  );
+  assertExactFiniteNumberRecord(
+    sample.dynamicMcsAcceptedFlowMlPerSec,
+    ["IMPELLA", "LVAD", "VA_ECMO", "VV_ECMO"],
+    `${label} dynamic-MCS flow`,
+  );
+  assertExactRecordKeys(sample.acceptedEventIdentity, [
+    "atrialCapturedActivationId",
+    "ventricularCapturedActivationId",
+    "deliveredCalciumDepositIds",
+    "scheduledCalciumDepositIds",
+  ], `${label} accepted event identity`);
+  for (const field of [
+    "atrialCapturedActivationId",
+    "ventricularCapturedActivationId",
+  ] as const) {
+    const value = sample.acceptedEventIdentity[field];
+    if (value !== null && typeof value !== "string") {
+      throw new Error(`${label} ${field} differs`);
+    }
+  }
+  for (const field of [
+    "deliveredCalciumDepositIds",
+    "scheduledCalciumDepositIds",
+  ] as const) {
+    const value = sample.acceptedEventIdentity[field];
+    if (
+      !Array.isArray(value)
+      || value.some((id) => typeof id !== "string")
+    ) throw new Error(`${label} ${field} differs`);
+  }
+}
+
+function assertExactFiniteNumberRecord(
+  value: unknown,
+  expectedKeys: readonly string[],
+  label: string,
+): asserts value is Readonly<Record<string, number>> {
+  assertExactRecordKeys(value, expectedKeys, label);
+  for (const key of expectedKeys) {
+    assertFiniteNumber(value[key], `${label}.${key}`);
+  }
+}
+
+function assertCheckpointBoundary(
+  value: unknown,
+  run: unknown,
+  boundary: "start" | "terminal",
+): asserts value is MainWireIntegratedModelCheckpointV3 {
+  assertPlainRecord(value, `integrated preview ${boundary} checkpoint`);
+  assertRunLedgerShapeOnly(run);
+  assertDigest(
+    value.checkpointSha256,
+    `integrated preview ${boundary} checkpoint SHA-256`,
+  );
+  assertFiniteNumber(
+    value.acceptedTimeSec,
+    `integrated preview ${boundary} checkpoint accepted time`,
+  );
+  assertNonnegativeInteger(
+    value.revision,
+    `integrated preview ${boundary} checkpoint revision`,
+  );
+  const expectedTime = boundary === "start"
+    ? run.startAcceptedTimeSec
+    : run.endAcceptedTimeSec;
+  if (value.acceptedTimeSec !== expectedTime) {
+    throw new Error(`integrated preview ${boundary} checkpoint time differs`);
+  }
+}
+
+function assertRunLedgerShapeOnly(
+  value: unknown,
+): asserts value is MainWireIntegratedPreviewRunRecordV2["run"] {
+  if (
+    typeof value !== "object"
+    || value === null
+    || Array.isArray(value)
+  ) throw new Error("integrated preview run ledger is required");
+}
+
+function assertReplayCompleteness(
+  value: unknown,
+  run: MainWireIntegratedPreviewRunRecordV2["run"],
+): asserts value is MainWireIntegratedPreviewRunRecordV2[
+  "replayCompleteness"
+] {
+  assertExactRecordKeys(value, [
+    "stateTransitionInputIdentitiesIncluded",
+    "exactStartCheckpointIncluded",
+    "exactTerminalCheckpointIncluded",
+    "executableBuildProvenanceAttached",
+    "standaloneReplayCompleteArtifactClaimed",
+    "promotionEligibility",
+    "upgradePath",
+  ], "integrated preview replay completeness");
+  const promotionEligible =
+    run.kind === "bundled-p1-seed"
+    || (
+      run.execution.operation === "advance-one-fixed-sinus-cycle"
+      && run.execution.continuationBeatOrdinalFromSeed === 1
+    );
+  if (
+    value.stateTransitionInputIdentitiesIncluded !== true
+    || value.exactStartCheckpointIncluded !== true
+    || value.exactTerminalCheckpointIncluded !== true
+    || value.executableBuildProvenanceAttached !== false
+    || value.standaloneReplayCompleteArtifactClaimed !== false
+    || value.promotionEligibility !== (
+      promotionEligible
+        ? "eligible-with-current-runtime-exact-replay"
+        : "blocked-missing-complete-seed-lineage"
+    )
+    || value.upgradePath !== (
+      promotionEligible
+        ? "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1"
+        : null
+    )
+  ) throw new Error("integrated preview replay-completeness claim differs");
+}
+
+function assertReleaseRef(
+  value: unknown,
+  label: string,
+): asserts value is SimulationReleaseRef {
+  assertExactRecordKeys(value, ["id", "version", "sha256"], label);
+  if (
+    typeof value.id !== "string"
+    || value.id.length === 0
+    || typeof value.version !== "string"
+    || value.version.length === 0
+  ) throw new Error(`${label} is invalid`);
+  assertDigest(value.sha256, `${label} SHA-256`);
+}
+
+function assertExactRecordKeys(
+  value: unknown,
+  expectedKeys: readonly string[],
+  label: string,
+): asserts value is Record<string, unknown> {
+  assertPlainRecord(value, label);
+  const actual = Object.keys(value).sort();
+  const expected = [...expectedKeys].sort();
+  if (
+    actual.length !== expected.length
+    || actual.some((key, index) => key !== expected[index])
+  ) throw new Error(`${label} keys differ`);
+}
+
+function assertPlainRecord(
+  value: unknown,
+  label: string,
+): asserts value is Record<string, unknown> {
+  if (
+    typeof value !== "object"
+    || value === null
+    || Array.isArray(value)
+  ) throw new Error(`${label} must be an object`);
+}
+
+function assertDigest(value: unknown, label: string): asserts value is string {
+  if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) {
+    throw new Error(`${label} is invalid`);
+  }
+}
+
+function assertFiniteNumber(
+  value: unknown,
+  label: string,
+): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${label} must be finite`);
+  }
+}
+
+function assertFiniteNonnegative(
+  value: unknown,
+  label: string,
+): asserts value is number {
+  assertFiniteNumber(value, label);
+  if (value < 0) throw new Error(`${label} must be nonnegative`);
+}
+
+function assertNonnegativeInteger(
+  value: unknown,
+  label: string,
+): asserts value is number {
+  if (!Number.isInteger(value) || (value as number) < 0) {
+    throw new Error(`${label} must be a nonnegative integer`);
+  }
+}
+
+/**
+ * Promotes a browser-produced run record to a replay-complete RunArtifactV1.
+ * The executable BuildArtifactRefV1 must come from CI/build provenance; the
+ * browser session deliberately does not invent it.
+ */
+export async function createMainWireIntegratedPreviewRunArtifactV1(
+  recordInput: unknown,
+  buildArtifactRefInput: unknown,
+): Promise<RunArtifactV1> {
+  const buildArtifactRef = loadBuildArtifactRefV1(buildArtifactRefInput);
+  const currentRelease =
+    await loadMainWireAdultFiveWallIntegratedPreviewReleaseV1();
+  if (
+    buildArtifactRef.numericalRuntimeAbi.id
+      !== currentRelease.manifest.numericalRuntime.runtimeId
+    || buildArtifactRef.numericalRuntimeAbi.version
+      !== currentRelease.manifest.numericalRuntime.runtimeVersion
+  ) {
+    throw new Error(
+      "integrated preview build artifact numerical runtime ABI differs "
+        + "from the current release",
+    );
+  }
+  const record = await MainWireIntegratedPreviewSessionV1
+    .loadReplayVerifiedRunRecordForPromotion(recordInput);
+  if (
+    buildArtifactRef.simulationReleaseRef.id !== record.releaseRef.id
     || buildArtifactRef.simulationReleaseRef.version
       !== record.releaseRef.version
     || buildArtifactRef.simulationReleaseRef.sha256

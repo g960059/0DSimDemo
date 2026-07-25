@@ -456,11 +456,26 @@ export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
   typeof createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3
 >;
 
-export function mainWireIntegratedModelPeriodicFixtureIdentityV3(
+export async function mainWireIntegratedModelPeriodicFixtureIdentityV3(
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
 ) {
+  const coldInitializationCheckpoint =
+    await checkpointMainWireIntegratedModelV3(
+      createCheckpointContext(fixture, fixture.cold.acceptedState),
+      fixture.cold.acceptedState,
+    );
   return deepFreeze({
     fixedGlobalTotalBloodVolumeMl: fixture.fixedGlobalTotalBloodVolumeMl,
+    cycleLengthSec: fixture.cycleLengthSec,
+    coldAcceptedStateInitialization: {
+      kind: "exact-main-v3-checkpoint",
+      checkpointId: coldInitializationCheckpoint.checkpointId,
+      schemaVersion: coldInitializationCheckpoint.schemaVersion,
+      transactionId: coldInitializationCheckpoint.transactionId,
+      revision: coldInitializationCheckpoint.revision,
+      acceptedTimeSec: coldInitializationCheckpoint.acceptedTimeSec,
+      checkpointSha256: coldInitializationCheckpoint.checkpointSha256,
+    },
     provider: providerIdentity(fixture.provider),
     composedRhythmConfiguration: fixture.rhythm.configuration,
     dynamicMechanicalSupportProfile: fixture.profile,
@@ -483,7 +498,7 @@ export async function mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
       inheritedPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
       inheritedReferenceScales:
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
-      ...mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
+      ...await mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
     }),
   );
 }
@@ -1633,7 +1648,7 @@ function providerIdentity(provider: Provider) {
     contractId: provider.contractId,
     providerId: provider.providerId,
     parameterSetId: provider.parameterSetId,
-    parameterIdentityHash: provider.parameterIdentityHash,
+    parameterIdentityPreimage: provider.parameterIdentityPreimage,
     stateSchemaVersion: provider.stateSchemaVersion,
   });
 }

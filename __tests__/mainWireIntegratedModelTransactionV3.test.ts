@@ -104,6 +104,7 @@ import {
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
+  type CanonicalJsonValue,
 } from "@/engine/scientific/release";
 
 type TestState = Readonly<{
@@ -115,7 +116,9 @@ type TestState = Readonly<{
 type TestProvider = WholeHeartMechanicsProviderV1<
   TestState,
   MainWireFiveWallFreeCalciumDriveV1
->;
+> & Readonly<{
+  parameterIdentityPreimage: CanonicalJsonValue;
+}>;
 
 type Fixture = Readonly<{
   provider: TestProvider;
@@ -697,6 +700,22 @@ describe("main-wire composed-rhythm integrated checkpoint V3", () => {
       checkpoint,
     )).rejects.toThrow(/rhythm configuration SHA-256 identity mismatch/);
 
+    const substitutedProviderContext = Object.freeze({
+      ...context,
+      provider: Object.freeze({
+        ...context.provider,
+        parameterIdentityPreimage: Object.freeze({
+          provider: "same-legacy-hash-different-exact-parameter-input",
+        }),
+      }),
+    });
+    expect(substitutedProviderContext.provider.parameterIdentityHash)
+      .toBe(context.provider.parameterIdentityHash);
+    await expect(restoreMainWireIntegratedModelV3(
+      substitutedProviderContext,
+      checkpoint,
+    )).rejects.toThrow(/provider parameter SHA-256 identity mismatch/);
+
     const outerTamper = cloneCheckpoint(checkpoint);
     outerTamper.dynamicMechanicalSupport.acceptedFlowMlPerSec.LVAD += 1;
     await expect(restoreMainWireIntegratedModelV3(
@@ -1170,6 +1189,16 @@ function testProvider(): TestProvider {
     providerId: "composed-integrated-test-provider",
     parameterSetId: "composed-integrated-test-prior",
     parameterIdentityHash: "composed-integrated-test-hash",
+    parameterIdentityPreimage: Object.freeze({
+      providerId: "composed-integrated-test-provider",
+      parameterSetId: "composed-integrated-test-prior",
+      stiffnessMmHgPerMl: Object.freeze({
+        LA: 0.20,
+        LV: 0.80,
+        RA: 0.08,
+        RV: 0.17,
+      }),
+    }),
     stateSchemaVersion: 1,
     stateCodec: Object.freeze({
       clone: (state: TestState) => Object.freeze({ ...state }),

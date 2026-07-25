@@ -36,6 +36,9 @@ import {
   type MainWireIntegratedPreviewWorkerLikeV1,
 } from "@/engine/scientificBrowser/MainWireIntegratedPreviewWorkerClientV1";
 import {
+  MAIN_WIRE_INTEGRATED_PREVIEW_BROWSER_EXPECTED_IDENTITY_V1,
+} from "@/engine/scientificBrowser/mainWireIntegratedPreviewExpectedIdentityV1";
+import {
   INTEGRATED_PREVIEW_COMMAND_PROTOCOL_V1_ID,
 } from "@/engine/scientific/worker/integratedPreviewCommandProtocolV1";
 
@@ -92,12 +95,38 @@ describe("integrated preview release-bound session V1", () => {
       .toBe(seed.payload.startModelState.checkpointSha256);
     expect(runRecord.terminalModelState.checkpointSha256)
       .toBe(seed.payload.terminalModelState.checkpointSha256);
+    expect(runRecord.simulationInputSpecSha256).toBe(
+      MAIN_WIRE_INTEGRATED_PREVIEW_BROWSER_EXPECTED_IDENTITY_V1
+        .byMcsPresetId["all-off"].simulationInputSpecSha256,
+    );
+    expect(runRecord.startModelState.checkpointSha256).toBe(
+      MAIN_WIRE_INTEGRATED_PREVIEW_BROWSER_EXPECTED_IDENTITY_V1
+        .byMcsPresetId["all-off"].createStartCheckpointSha256,
+    );
+    const expectedClaimSha256 =
+      MAIN_WIRE_INTEGRATED_PREVIEW_BROWSER_EXPECTED_IDENTITY_V1
+        .checkpointClaimSha256;
+    await expect(sha256CanonicalJsonHex(
+      runRecord.startModelState.exactResumeClaim,
+    )).resolves.toBe(expectedClaimSha256.integratedV3);
+    await expect(sha256CanonicalJsonHex(
+      runRecord.startModelState.coronary.exactResumeClaim,
+    )).resolves.toBe(expectedClaimSha256.coronaryV3);
+    await expect(sha256CanonicalJsonHex(
+      runRecord.startModelState.coronary.baseCheckpointV2.exactResumeClaim,
+    )).resolves.toBe(expectedClaimSha256.coronaryV2);
+    await expect(sha256CanonicalJsonHex(
+      runRecord.startModelState.composedRhythm.exactResumeClaim,
+    )).resolves.toBe(expectedClaimSha256.composedRhythmV2);
     expect(runRecord.replayCompleteness).toMatchObject({
       stateTransitionInputIdentitiesIncluded: true,
       exactStartCheckpointIncluded: true,
       exactTerminalCheckpointIncluded: true,
       executableBuildProvenanceAttached: false,
       standaloneReplayCompleteArtifactClaimed: false,
+      promotionEligibility: "eligible-with-current-runtime-exact-replay",
+      upgradePath:
+        "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1",
     });
     const buildArtifactRef = Object.freeze({
       schemaId: "circleheart-build-artifact-ref-v1" as const,
@@ -131,9 +160,150 @@ describe("integrated preview release-bound session V1", () => {
       createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
     expect(runRecord.simulationInputSpec.periodicFixtureIdentitySha256)
       .toBe(await sha256CanonicalJsonHex(
-        mainWireIntegratedModelPeriodicFixtureIdentityV3(currentFixture),
+        await mainWireIntegratedModelPeriodicFixtureIdentityV3(currentFixture),
       ));
-  });
+  }, 60_000);
+
+  it("rejects self-consistent forged bundled-seed records at promotion", async () => {
+    const [release, session] = await Promise.all([
+      loadMainWireAdultFiveWallIntegratedPreviewReleaseV1(),
+      MainWireIntegratedPreviewSessionV1.create("all-off"),
+    ]);
+    const record = await session.seedRunRecord();
+    const forgedTrace = mutableClone(record);
+    forgedTrace.run.trace[0]!.chamberVolumeMl.LV += 1;
+    await rehashRunRecord(forgedTrace);
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      forgedTrace,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/differs from the current seed/);
+
+    const forgedInput = mutableClone(record);
+    forgedInput.simulationInputSpec.mechanicalSupport
+      .canonicalConfigSha256 = "f".repeat(64);
+    forgedInput.simulationInputSpecSha256 = await sha256CanonicalJsonHex(
+      forgedInput.simulationInputSpec,
+    );
+    await rehashRunRecord(forgedInput);
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      forgedInput,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/differs from the current runtime/);
+
+    const forgedSourceSeed = mutableClone(record);
+    forgedSourceSeed.sourceSeed.terminalCheckpointSha256 = "e".repeat(64);
+    forgedSourceSeed.terminalModelState.checkpointSha256 = "e".repeat(64);
+    await rehashRunRecord(forgedSourceSeed);
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      forgedSourceSeed,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/source seed differs from the current runtime/);
+
+    const forgedReplayClaim = mutableClone(record);
+    Reflect.set(
+      forgedReplayClaim.replayCompleteness,
+      "standaloneReplayCompleteArtifactClaimed",
+      true,
+    );
+    await rehashRunRecord(forgedReplayClaim);
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      forgedReplayClaim,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/replay-completeness claim differs/);
+
+    const forgedNestedCheckpointPayload = mutableClone(record);
+    forgedNestedCheckpointPayload.startModelState.dynamicMechanicalSupport
+      .acceptedFlowMlPerSec.LVAD += 1;
+    await rehashRunRecord(forgedNestedCheckpointPayload);
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      forgedNestedCheckpointPayload,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/checkpoint outer SHA-256 mismatch/);
+
+    const unknownRoot = {
+      ...mutableClone(record),
+      unrecognizedEvidenceClaim: true,
+    };
+    await rehashRunRecord(unknownRoot);
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      unknownRoot,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/keys differ/);
+
+    const unknownNestedTraceField = mutableClone(record);
+    Reflect.set(
+      unknownNestedTraceField.run.trace[0]!.diagnostics,
+      "unrecognizedDiagnosticClaim",
+      0,
+    );
+    await rehashRunRecord(unknownNestedTraceField);
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      unknownNestedTraceField,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/trace diagnostics 0 keys differ/);
+  }, 60_000);
+
+  it("rejects same-release build provenance for another runtime ABI", async () => {
+    const [release, session] = await Promise.all([
+      loadMainWireAdultFiveWallIntegratedPreviewReleaseV1(),
+      MainWireIntegratedPreviewSessionV1.create("all-off"),
+    ]);
+    const record = await session.seedRunRecord();
+    const mismatchedBuildArtifactRef = {
+      ...buildArtifactRefFor(release.ref),
+      numericalRuntimeAbi: {
+        id: "other-structurally-valid-runtime",
+        version: "0.1.0",
+      },
+    };
+
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      record,
+      mismatchedBuildArtifactRef,
+    )).rejects.toThrow(/numerical runtime ABI differs/);
+  }, 60_000);
+
+  it("rejects a rehashed continuation record that exact replay disproves", async () => {
+    const [release, session] = await Promise.all([
+      loadMainWireAdultFiveWallIntegratedPreviewReleaseV1(),
+      MainWireIntegratedPreviewSessionV1.create("all-off"),
+    ]);
+    const record = await session.runNextBeatRecord();
+    const forged = mutableClone(record);
+    forged.run.trace[0]!.chamberVolumeMl.LV += 1;
+    await rehashRunRecord(forged);
+
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      forged,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/not exactly reproducible/);
+
+    const forgedOrdinal = mutableClone(record);
+    if (
+      forgedOrdinal.run.execution.operation
+        !== "advance-one-fixed-sinus-cycle"
+    ) throw new Error("expected continuation record");
+    forgedOrdinal.run.execution.continuationBeatOrdinalFromSeed += 1;
+    await rehashRunRecord(forgedOrdinal);
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      forgedOrdinal,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/replay-completeness claim differs/);
+
+    const secondRecord = await session.runNextBeatRecord();
+    expect(secondRecord.run.execution).toMatchObject({
+      operation: "advance-one-fixed-sinus-cycle",
+      continuationBeatOrdinalFromSeed: 2,
+    });
+    expect(secondRecord.replayCompleteness).toMatchObject({
+      promotionEligibility: "blocked-missing-complete-seed-lineage",
+      upgradePath: null,
+    });
+    await expect(createMainWireIntegratedPreviewRunArtifactV1(
+      secondRecord,
+      buildArtifactRefFor(release.ref),
+    )).rejects.toThrow(/not promotion-eligible without complete seed lineage/);
+  }, 60_000);
 
   it("binds the seed protocol identity to every live circulation parameter", async () => {
     const seed = await loadMainWireIntegratedPreviewSeedRunV1();
@@ -225,10 +395,33 @@ describe("integrated preview release-bound session V1", () => {
     expect(presentation.terminalModelStateRef.acceptedTimeSec).toBe(71);
     expect(runRecord.startModelState.checkpointSha256)
       .not.toBe(runRecord.terminalModelState.checkpointSha256);
+    expect(runRecord.simulationInputSpecSha256).toBe(
+      MAIN_WIRE_INTEGRATED_PREVIEW_BROWSER_EXPECTED_IDENTITY_V1
+        .byMcsPresetId["lvad-hmii-9000-one-beat-transient"]
+        .simulationInputSpecSha256,
+    );
+    expect(runRecord.startModelState.checkpointSha256).toBe(
+      MAIN_WIRE_INTEGRATED_PREVIEW_BROWSER_EXPECTED_IDENTITY_V1
+        .byMcsPresetId["lvad-hmii-9000-one-beat-transient"]
+        .createStartCheckpointSha256,
+    );
+    expect(runRecord.replayCompleteness).toMatchObject({
+      promotionEligibility: "eligible-with-current-runtime-exact-replay",
+      upgradePath:
+        "createMainWireIntegratedPreviewRunArtifactV1-with-external-BuildArtifactRefV1",
+    });
     const replayed =
       await MainWireIntegratedPreviewSessionV1.replayOneBeatRecord(runRecord);
     expect(canonicalJsonStringify(replayed))
       .toBe(canonicalJsonStringify(runRecord));
+    const promoted = await createMainWireIntegratedPreviewRunArtifactV1(
+      runRecord,
+      buildArtifactRefFor(runRecord.releaseRef),
+    );
+    expect(promoted.content.initializationIdentity).toEqual({
+      kind: "exact-checkpoint",
+      checkpointSha256: runRecord.startModelState.checkpointSha256,
+    });
   }, 60_000);
 
   it("binds the complete HMII profile and command configuration by content", async () => {
@@ -392,7 +585,8 @@ describe("integrated preview release-bound session V1", () => {
     const successClient = new MainWireIntegratedPreviewWorkerClientV1({
       workerFactory: () => successWorker,
     });
-    const successRequest = successClient.disposeSession("success-shape");
+    const successRequest =
+      successClient.createSession("success-shape", "all-off");
     const successRejected = expect(successRequest).rejects.toThrow(
       /response is invalid/,
     );
@@ -462,6 +656,45 @@ describe("integrated preview release-bound session V1", () => {
     expect(messageErrorWorker.listenerCount).toBe(0);
   });
 });
+
+type DeepMutable<T> =
+  T extends readonly (infer TItem)[]
+    ? DeepMutable<TItem>[]
+    : T extends object
+      ? { -readonly [TKey in keyof T]: DeepMutable<T[TKey]> }
+      : T;
+
+function mutableClone<T>(value: T): DeepMutable<T> {
+  return JSON.parse(JSON.stringify(value)) as DeepMutable<T>;
+}
+
+async function rehashRunRecord<TRecord extends { recordSha256: string }>(
+  record: TRecord,
+): Promise<TRecord> {
+  const { recordSha256: _ignored, ...payload } = record;
+  record.recordSha256 = await sha256CanonicalJsonHex(payload);
+  return record;
+}
+
+function buildArtifactRefFor(
+  releaseRef: Readonly<{ id: string; version: string; sha256: string }>,
+) {
+  return {
+    schemaId: "circleheart-build-artifact-ref-v1",
+    simulationReleaseRef: releaseRef,
+    numericalRuntimeAbi: {
+      id: "main-wire-integrated-accepted-state-runtime",
+      version: "0.1.0",
+    },
+    source: {
+      repository: "g960059/0DSimDemo",
+      gitCommitSha: "1".repeat(40),
+      gitTreeSha: "2".repeat(40),
+      gitWorktreeStatus: "clean",
+    },
+    artifactSha256: "3".repeat(64),
+  };
+}
 
 type PostedCommand = Readonly<{
   requestId: string;
