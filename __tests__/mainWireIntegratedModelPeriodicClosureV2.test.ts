@@ -6,6 +6,7 @@ import {
 import {
   CORONARY_ACCEPTED_AUTOREGULATION_STATE_V3_ID,
   createCoronaryAutoregulationWindowBindingV3,
+  createDefaultCoronaryAutoregulationWindowControlV3,
   type CoronaryAcceptedAutoregulationStateV3,
 } from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import type {
@@ -103,7 +104,7 @@ describe("MainWireIntegratedModelPeriodicClosureV2", () => {
       pendingEffectiveActivationCount: 1,
       pendingLineageAdvanceByPeriodLag: true,
     });
-    expect(report.groups["coronary-v3"].entryCount).toBe(106);
+    expect(report.groups["coronary-v3"].entryCount).toBe(125);
     expect(report.groups["dynamic-mcs-accepted-flow"].entryCount).toBe(4);
     expect(report.groups["generated-calcium"].entryCount).toBe(10);
     expect(report.groups["generated-av-relative-timing"].entryCount).toBe(3);
@@ -112,11 +113,11 @@ describe("MainWireIntegratedModelPeriodicClosureV2", () => {
     expect(report.groups["generated-pending-effective-activation"].entryCount)
       .toBe(2);
     expect(report.overall).toMatchObject({
-      coronaryNumericEntryCount: 104,
+      coronaryNumericEntryCount: 122,
       integratedNumericEntryCount: 20,
-      numericEntryCount: 124,
-      booleanEntryCount: 2,
-      entryCount: 126,
+      numericEntryCount: 142,
+      booleanEntryCount: 3,
+      entryCount: 145,
       pendingEffectiveActivationCount: 1,
     });
     expect(report.overall.maximumNormalizedDelta).toBeLessThanOrEqual(
@@ -142,7 +143,7 @@ describe("MainWireIntegratedModelPeriodicClosureV2", () => {
       });
     expect(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_CLAIM_V2)
       .toMatchObject({
-        fixedClosureEntryCount: 124,
+        fixedClosureEntryCount: 143,
         pendingEffectiveActivationNumericEntriesPerEvent: 2,
         irregularOrFlutterApplicability: "not-applicable-fail-closed",
         normalizedTolerancePolicy:
@@ -681,6 +682,7 @@ function coronaryState(
     qmTimeIntegralMlByTerritoryLayer: layerRecord(0),
     perfusionPressureTimeIntegralMmHgSecByTerritory: territoryRecord(0),
     windowControl: null,
+    desiredControl: createDefaultCoronaryAutoregulationWindowControlV3(),
   }) satisfies CoronaryAcceptedAutoregulationStateV3;
   return Object.freeze({
     ...base,

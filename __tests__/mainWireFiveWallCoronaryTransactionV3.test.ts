@@ -81,6 +81,9 @@ describe("main-wire coronary accepted-autoregulation transaction V3", () => {
       acceptedDurationSec: 0,
       acceptedStepCount: 0,
       windowControl: null,
+      desiredControl: {
+        controlId: "circleheart.coronary-autoregulation-control.rest.v1",
+      },
     });
     expect(MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V3
       .legacyV2AcceptedStateReinterpreted).toBe(false);
@@ -178,6 +181,97 @@ describe("main-wire coronary accepted-autoregulation transaction V3", () => {
     expect(next.baseStep.coronaryTrial.diagnostics.hydraulics
       .effectiveToneResistanceScaleByTerritoryLayer)
       .toEqual(closing.acceptedToneAfterWindow);
+  }, 60_000);
+
+  it("keeps the applied window control while queuing a desired change for the next boundary", () => {
+    const provider = testProvider();
+    const cold = initializeMainWireFiveWallCoronaryV3({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+      autoregulationWindow: {
+        durationSec: 0.003,
+        interpretation: "irregular-rhythm-stationary",
+      },
+    });
+    const commonInput = {
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    } as const;
+    const baseline = stepMainWireFiveWallCoronaryV3(
+      provider,
+      cold.acceptedState,
+      commonInput,
+    );
+    expect(baseline.converged).toBe(true);
+    if (!baseline.converged) return;
+
+    const desiredDrive = {
+      controlId: "mid-window-hyperemia",
+      demandScaleByTerritoryLayer: layerRecord(1),
+      hyperemia01ByTerritoryLayer: layerRecord(1),
+    } as const;
+    const changed = stepMainWireFiveWallCoronaryV3(
+      provider,
+      baseline.acceptedState,
+      {
+        ...commonInput,
+        coronaryAutoregulationDrive: desiredDrive,
+      },
+    );
+    const retry = stepMainWireFiveWallCoronaryV3(
+      provider,
+      baseline.acceptedState,
+      {
+        ...commonInput,
+        coronaryAutoregulationDrive: desiredDrive,
+      },
+    );
+    expect(changed.converged).toBe(true);
+    expect(retry).toEqual(changed);
+    if (!changed.converged) return;
+    expect(changed.acceptedState.coronaryAutoregulation
+      .windowControl?.controlId)
+      .toBe("circleheart.coronary-autoregulation-control.rest.v1");
+    expect(changed.acceptedState.coronaryAutoregulation
+      .desiredControl?.controlId)
+      .toBe("mid-window-hyperemia");
+
+    const closing = stepMainWireFiveWallCoronaryV3(
+      provider,
+      changed.acceptedState,
+      {
+        ...commonInput,
+        coronaryAutoregulationDrive: desiredDrive,
+      },
+    );
+    expect(closing.converged).toBe(true);
+    if (!closing.converged) return;
+    expect(closing.autoregulationCompletion?.control.controlId)
+      .toBe("circleheart.coronary-autoregulation-control.rest.v1");
+    expect(closing.acceptedState.coronaryAutoregulation).toMatchObject({
+      acceptedDurationSec: 0,
+      acceptedStepCount: 0,
+      windowControl: null,
+      desiredControl: { controlId: "mid-window-hyperemia" },
+    });
+
+    const nextWindow = stepMainWireFiveWallCoronaryV3(
+      provider,
+      closing.acceptedState,
+      {
+        ...commonInput,
+        coronaryAutoregulationDrive: desiredDrive,
+      },
+    );
+    expect(nextWindow.converged).toBe(true);
+    if (!nextWindow.converged) return;
+    expect(nextWindow.acceptedState.coronaryAutoregulation
+      .windowControl?.controlId)
+      .toBe("mid-window-hyperemia");
   }, 60_000);
 
   it("rolls back every V3 owner when the accepted control is malformed", () => {

@@ -32,7 +32,7 @@ import type { MainWireFiveWallCoronaryPeriodicAcceptedStateV2 } from "@/engine/m
 import { WHOLE_HEART_MECHANICS_CONTRACT_V1_ID } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
 
 describe("MainWireFiveWallCoronaryPeriodicClosureV3", () => {
-  it("extends the audited V2 closure to 104 numeric plus two boolean owners", () => {
+  it("extends closure through every desired-control scalar and bound owner", () => {
     const report = compareMainWireFiveWallCoronaryAcceptedStatesV3(
       acceptedState({ revision: 300, timeSec: 3 }),
       acceptedState({ revision: 200, timeSec: 2 }),
@@ -45,19 +45,19 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV3", () => {
       entryCount: 94,
     });
     expect(report.groups["coronary-autoregulation-window"]).toMatchObject({
-      numericEntryCount: 11,
-      booleanEntryCount: 1,
-      entryCount: 12,
+      numericEntryCount: 29,
+      booleanEntryCount: 2,
+      entryCount: 31,
       maximumNormalizedDelta: 0,
     });
     expect(report.overall).toMatchObject({
       baseNumericEntryCount: 93,
-      autoregulationNumericEntryCount: 11,
-      numericEntryCount: 104,
+      autoregulationNumericEntryCount: 29,
+      numericEntryCount: 122,
       baseBooleanEntryCount: 1,
-      autoregulationBooleanEntryCount: 1,
-      booleanEntryCount: 2,
-      entryCount: 106,
+      autoregulationBooleanEntryCount: 2,
+      booleanEntryCount: 3,
+      entryCount: 125,
       maximumNormalizedDelta: 0,
     });
     expect(report.provenance).toMatchObject({
@@ -68,10 +68,10 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV3", () => {
     expect(
       MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_CLOSURE_CLAIM_V3,
     ).toMatchObject({
-      autoregulationNumericStateCount: 11,
-      numericClosureEntryCount: 104,
-      hiddenBooleanClosureEntryCount: 2,
-      totalClosureEntryCount: 106,
+      autoregulationNumericStateCount: 29,
+      numericClosureEntryCount: 122,
+      hiddenBooleanClosureEntryCount: 3,
+      totalClosureEntryCount: 125,
     });
 
     const single = assessMainWireFiveWallCoronarySinglePeriodClosureV3(
@@ -80,6 +80,32 @@ describe("MainWireFiveWallCoronaryPeriodicClosureV3", () => {
     );
     expect(single.withinFullAcceptedStateTolerance).toBe(true);
     expect(single.period1EvidenceEstablished).toBe(false);
+  });
+
+  it("measures every desired-control scalar and gates its identity exactly", () => {
+    const changedScalar = compareMainWireFiveWallCoronaryAcceptedStatesV3(
+      acceptedState({
+        revision: 300,
+        timeSec: 3,
+        desiredDemandScale: 1 + Number.EPSILON,
+      }),
+      acceptedState({ revision: 200, timeSec: 2 }),
+      MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3,
+    );
+    expect(changedScalar.overall.maximumNormalizedDelta)
+      .toBe(Number.EPSILON);
+    expect(changedScalar.overall.worstPath)
+      .toContain("desiredControl.demandScaleByTerritoryLayer");
+
+    expect(() => compareMainWireFiveWallCoronaryAcceptedStatesV3(
+      acceptedState({
+        revision: 300,
+        timeSec: 3,
+        desiredControlId: "another-exact-control-id",
+      }),
+      acceptedState({ revision: 200, timeSec: 2 }),
+      MAIN_WIRE_FIVE_WALL_CORONARY_PERIODIC_REFERENCE_SCALES_V3,
+    )).toThrow(/desired-control identity differs/);
   });
 
   it("fails closed when either sinus comparison boundary has a live accumulator", () => {
@@ -198,6 +224,8 @@ type StateOptions = Readonly<{
   rhythmInterpretation?:
     "periodic-sinus-cycle-aligned" | "irregular-rhythm-stationary";
   ladSubepicardialTone?: number;
+  desiredControlId?: string;
+  desiredDemandScale?: number;
 }>;
 
 function acceptedState(
@@ -216,6 +244,16 @@ function acceptedState(
   const windowStartAcceptedTimeSec = windowIndex * windowDurationSec;
   const acceptedDurationSec = options.acceptedDurationSec ?? 0;
   const partial = acceptedDurationSec > 0;
+  const defaultControl =
+    createDefaultCoronaryAutoregulationWindowControlV3();
+  const desiredControl = partial || windowIndex > 0
+    ? Object.freeze({
+      ...defaultControl,
+      controlId: options.desiredControlId ?? defaultControl.controlId,
+      demandScaleByTerritoryLayer:
+        layerRecord(options.desiredDemandScale ?? 1),
+    })
+    : null;
   const autoregulation = Object.freeze({
     stateId: CORONARY_ACCEPTED_AUTOREGULATION_STATE_V3_ID,
     windowIndex,
@@ -231,8 +269,9 @@ function acceptedState(
       partial ? 35 : 0,
     ),
     windowControl: partial
-      ? createDefaultCoronaryAutoregulationWindowControlV3()
+      ? defaultControl
       : null,
+    desiredControl,
   }) satisfies CoronaryAcceptedAutoregulationStateV3;
   return Object.freeze({
     ...base,

@@ -17,6 +17,11 @@ import {
   DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
   type DynamicRotaryPumpCircuitInertanceV1,
 } from "@/engine/devices/dynamicRotaryPumpV1";
+import {
+  compensatedMechanicalSupportNodeSumV1,
+  mechanicalSupportConservationToleranceMlPerSecV1,
+  mechanicalSupportNodeRatesAreConservativeV1,
+} from "@/engine/devices/mechanicalSupportConservationV1";
 import { evaluateMechanicalSupportHydraulicsV1 } from
   "@/engine/devices/networkV1";
 import {
@@ -160,6 +165,24 @@ describe("dynamic four-device mechanical-support network V1", () => {
       .toBeCloseTo(-routed("VV_ECMO"), 12);
     expect(result.nodeNetVolumeRateMlPerSec.SA).toBe(0);
     expect(result.conservationResidualMlPerSec).toBeCloseTo(0, 12);
+    expect(mechanicalSupportNodeRatesAreConservativeV1(
+      result.nodeNetVolumeRateMlPerSec,
+      result.conservationResidualMlPerSec,
+    )).toBe(true);
+    const toleranceMlPerSec =
+      mechanicalSupportConservationToleranceMlPerSecV1(
+        result.nodeNetVolumeRateMlPerSec,
+      );
+    const deliberatelyImbalancedNodeRates = Object.freeze({
+      ...result.nodeNetVolumeRateMlPerSec,
+      SA: result.nodeNetVolumeRateMlPerSec.SA + 2 * toleranceMlPerSec,
+    });
+    expect(mechanicalSupportNodeRatesAreConservativeV1(
+      deliberatelyImbalancedNodeRates,
+      compensatedMechanicalSupportNodeSumV1(
+        deliberatelyImbalancedNodeRates,
+      ),
+    )).toBe(false);
     expectConservativeJacobians(result);
 
     const pressureDerivative = centralDifference(

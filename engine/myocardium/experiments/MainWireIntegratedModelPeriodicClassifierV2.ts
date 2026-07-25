@@ -213,13 +213,13 @@ function validateLagReport(
   }
   const pendingCount = report.overall.pendingEffectiveActivationCount;
   const expectedIntegratedNumeric = 18 + 2 * pendingCount;
-  const expectedNumeric = 104 + expectedIntegratedNumeric;
+  const expectedNumeric = 122 + expectedIntegratedNumeric;
   if (!Number.isSafeInteger(pendingCount) || pendingCount < 0
-    || report.overall.coronaryNumericEntryCount !== 104
+    || report.overall.coronaryNumericEntryCount !== 122
     || report.overall.integratedNumericEntryCount !== expectedIntegratedNumeric
     || report.overall.numericEntryCount !== expectedNumeric
-    || report.overall.booleanEntryCount !== 2
-    || report.overall.entryCount !== expectedNumeric + 2) {
+    || report.overall.booleanEntryCount !== 3
+    || report.overall.entryCount !== expectedNumeric + 3) {
     throw new Error(`integrated ${label} closure dimension is invalid`);
   }
   if (!Number.isFinite(report.overall.maximumNormalizedDelta)

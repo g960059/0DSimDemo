@@ -27,7 +27,7 @@ import {
 import {
   evaluateMainWireIntegratedModelCalciumDriveV3,
   initializeMainWireIntegratedModelV3,
-  maximumMainWireIntegratedModelStepDurationV3,
+  limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
   type MainWireIntegratedModelAcceptedStateV3,
   type MainWireIntegratedModelStepInputV3,
@@ -392,7 +392,6 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalB
   assertAllOffConfig(config);
   const dynamicMechanicalSupport = Object.freeze({
     config,
-    heartRateBpm: 60,
     profile,
   });
   const coronaryStepInput = Object.freeze({
@@ -796,9 +795,9 @@ function runOneCycle(
       nominalGridIndex += 1;
       continue;
     }
-    const maximum = maximumMainWireIntegratedModelStepDurationV3(
+    const maximum = limitMainWireIntegratedModelCandidateTimeV3(
       accepted,
-      requestedStepSec,
+      nominalTargetTimeSec,
       {
         configuration: fixture.rhythm.configuration,
         externalAfNextBoundaryTimeSec: null,
@@ -807,15 +806,17 @@ function runOneCycle(
       fixture.config,
     );
     if (
-      !(maximum.maximumStepSec > 0) ||
-      maximum.maximumStepSec > requestedStepSec + 1e-14
+      !(maximum.candidateTimeSec > accepted.acceptedTimeSec) ||
+      maximum.candidateTimeSec > nominalTargetTimeSec
     ) {
       throw new Error("V3 periodic scheduler returned an invalid step");
     }
+    const acceptedDtSec =
+      maximum.candidateTimeSec - accepted.acceptedTimeSec;
     const stepped = stepMainWireIntegratedModelV3(
       fixture.provider,
       accepted,
-      stepInput(fixture, maximum.maximumStepSec),
+      stepInput(fixture, maximum.candidateTimeSec),
     );
     if (stepped.converged === false) {
       throw new Error(
@@ -879,7 +880,7 @@ function runOneCycle(
       acceptedStepCount,
       startTimeSec,
       fixture.cycleLengthSec,
-      maximum.maximumStepSec,
+      acceptedDtSec,
       stepped,
     );
     traceSamples.push(sample);
@@ -1474,10 +1475,10 @@ function allOffBinding(deviceId: RotarySupportDeviceIdV1, digit: string) {
 
 function stepInput(
   fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
-  dtSec: number,
+  candidateTimeSec: number,
 ): MainWireIntegratedModelStepInputV3 {
   return Object.freeze({
-    dtSec,
+    candidateTimeSec,
     coronary: fixture.coronaryStepInput,
     rhythm: Object.freeze({
       configuration: fixture.rhythm.configuration,

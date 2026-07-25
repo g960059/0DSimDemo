@@ -7,6 +7,9 @@ import {
   validateRotaryPumpConfigV1,
 } from "@/engine/devices/rotaryPumpV1";
 import {
+  compensatedMechanicalSupportNodeSumV1,
+} from "@/engine/devices/mechanicalSupportConservationV1";
+import {
   MECHANICAL_SUPPORT_MODEL_V1_ID,
   MECHANICAL_SUPPORT_NODE_NAMES_V1,
   type MechanicalSupportConfigV1,
@@ -38,8 +41,8 @@ export function evaluateMechanicalSupportHydraulicsV1(
     nodeRates[evaluation.inletNode] -= flowMlPerSec;
     nodeRates[evaluation.outletNode] += flowMlPerSec;
   }
-  const conservationResidualMlPerSec = MECHANICAL_SUPPORT_NODE_NAMES_V1
-    .reduce((sum, node) => sum + nodeRates[node], 0);
+  const conservationResidualMlPerSec =
+    compensatedMechanicalSupportNodeSumV1(nodeRates);
   return Object.freeze({
     modelId: MECHANICAL_SUPPORT_MODEL_V1_ID,
     pump,

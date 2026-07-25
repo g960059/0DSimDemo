@@ -11,6 +11,9 @@ import {
 import { createMechanicalSupportConfigV1 } from
   "@/engine/devices/defaultsV1";
 import {
+  mechanicalSupportConservationToleranceMlPerSecV1,
+} from "@/engine/devices/mechanicalSupportConservationV1";
+import {
   createDynamicMechanicalSupportDeviceProfileBindingV1,
   createDynamicMechanicalSupportInertanceProfileV1,
   type DynamicMechanicalSupportInertanceProfileV1,
@@ -19,9 +22,10 @@ import {
   DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
   type DynamicRotaryPumpCircuitInertanceV1,
 } from "@/engine/devices/dynamicRotaryPumpV1";
-import type {
-  MechanicalSupportConfigV1,
-  RotarySupportDeviceIdV1,
+import {
+  MECHANICAL_SUPPORT_NODE_NAMES_V1,
+  type MechanicalSupportConfigV1,
+  type RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3,
@@ -34,7 +38,7 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3,
   evaluateMainWireIntegratedModelCalciumDriveV3,
   initializeMainWireIntegratedModelV3,
-  maximumMainWireIntegratedModelStepDurationV3,
+  limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
   type MainWireIntegratedModelAcceptedStateV3,
   type MainWireIntegratedModelStepInputV3,
@@ -184,7 +188,6 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
       },
       dynamicMechanicalSupport: {
         config: fixture.config,
-        heartRateBpm: 60,
         profile: fixture.profile,
       },
     } as never)).toThrow(/rejects a second calciumDriveOverride/);
@@ -201,7 +204,6 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
     });
     const initial = fixture.cold.acceptedState;
     const maximum = maximumRegular(fixture, initial, 0.01);
-    expect(maximum.maximumStepSec).toBe(0.001);
     expect(maximum.candidateTimeSec).toBe(0.001);
     expect(maximum.clippedByRhythmBoundary).toBe(true);
     expect(maximum.rhythmBoundaryOwners.length).toBeGreaterThan(0);
@@ -209,7 +211,7 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
     const crossing = stepMainWireIntegratedModelV3(
       fixture.provider,
       initial,
-      regularStepInput(fixture, 0.01),
+      regularStepInput(fixture, initial, 0.01),
     );
     expect(crossing.converged).toBe(false);
     if (crossing.converged === false) {
@@ -280,6 +282,58 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
     expect(afterRise.acceptedState.composedRhythm.revision).toBe(5);
   }, 60_000);
 
+  it("promotes shared-node four-pump candidates under the physical residual policy", () => {
+    const fixture = integratedFixture({
+      suffix: "four-pump-conservation",
+      config: createMechanicalSupportConfigV1({
+        lvad: { enabled: true, speedRpm: 5_200 },
+        impella: { enabled: true, performanceLevel: 7 },
+        vaEcmo: {
+          enabled: true,
+          speedRpm: 3_500,
+          cannulation: "central",
+        },
+        vvEcmo: {
+          enabled: true,
+          speedRpm: 3_500,
+          hemodynamicCoupling: "bicaval-pressure-resolved",
+        },
+      }),
+      initialAcceptedFlowMlPerSec: flowRecord({
+        LVAD: 40,
+        IMPELLA: 20,
+        VA_ECMO: 60,
+        VV_ECMO: 30,
+      }),
+      inertance: inertance({
+        pumpInternalMmHgSec2PerMl: 0.04,
+        drainageMmHgSec2PerMl: 0.02,
+        oxygenatorMmHgSec2PerMl: 0.01,
+        returnPathMmHgSec2PerMl: 0.03,
+      }),
+    });
+    let acceptedState = fixture.cold.acceptedState;
+    let observedNaiveRoundoff = false;
+    for (let stepIndex = 0; stepIndex < 16; stepIndex += 1) {
+      const stepped = successfulRegularStep(fixture, acceptedState, 0.00005);
+      const nodeRates =
+        stepped.dynamicMechanicalSupportTrial.nodeNetVolumeRateMlPerSec;
+      const naiveResidual = MECHANICAL_SUPPORT_NODE_NAMES_V1.reduce(
+        (sum, node) => sum + nodeRates[node],
+        0,
+      );
+      observedNaiveRoundoff ||= naiveResidual !== 0;
+      expect(Math.abs(
+        stepped.dynamicMechanicalSupportTrial.conservationResidualMlPerSec,
+      )).toBeLessThanOrEqual(
+        mechanicalSupportConservationToleranceMlPerSecV1(nodeRates),
+      );
+      acceptedState = stepped.acceptedState;
+    }
+    expect(observedNaiveRoundoff).toBe(true);
+    expect(acceptedState.revision).toBe(16);
+  }, 60_000);
+
   it("keeps retries pure and all crossing, mechanics, and duplicate-owner failures atomic", () => {
     const fixture = integratedFixture({
       suffix: "rollback",
@@ -291,7 +345,7 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
     });
     const previous = fixture.cold.acceptedState;
     const before = canonicalJsonStringify(previous);
-    const input = regularStepInput(fixture, 0.001);
+    const input = regularStepInput(fixture, previous, 0.001);
     const first = stepMainWireIntegratedModelV3(
       fixture.provider,
       previous,
@@ -368,7 +422,7 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
         configuration: flutterRhythm.configuration,
         acceptedState: flutterRhythm.state,
       },
-      dynamicMechanicalSupport: { config, heartRateBpm: 300, profile },
+      dynamicMechanicalSupport: { config, profile },
     })).toThrow(/requires an explicit irregular-rhythm-stationary/);
 
     const flutter = integratedFixture({
@@ -400,7 +454,7 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
         configuration: pacingRhythm.configuration,
         acceptedState: pacingRhythm.state,
       },
-      dynamicMechanicalSupport: { config, heartRateBpm: 60, profile },
+      dynamicMechanicalSupport: { config, profile },
     })).toThrow(/requires an explicit irregular-rhythm-stationary/);
 
     const pacing = integratedFixture({
@@ -428,7 +482,7 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
       sourceMode: "external-af",
       autoregulationWindow: irregularWindow(0.5),
     });
-    const afMaximum = maximumMainWireIntegratedModelStepDurationV3(
+    const afMaximum = limitMainWireIntegratedModelCandidateTimeV3(
       af.cold.acceptedState,
       0.01,
       {
@@ -452,7 +506,7 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
       af.provider,
       af.cold.acceptedState,
       {
-        ...regularStepInput(af, 0.005),
+        ...regularStepInput(af, af.cold.acceptedState, 0.005),
         rhythm: {
           configuration: af.rhythmConfiguration,
           externalAfNextBoundaryTimeSec: 0.005,
@@ -480,6 +534,60 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
       .externalAfSeam.afWrapperIntegrated).toBe(false);
   }, 60_000);
+
+  it("derives phase-IABP rate from regular sinus and rejects irregular phase clocks", () => {
+    const sinus = integratedFixture({
+      suffix: "derived-iabp-clock",
+      config: createMechanicalSupportConfigV1({
+        iabp: { enabled: true },
+      }),
+    });
+    expect(successfulRegularStep(
+      sinus,
+      sinus.cold.acceptedState,
+      0.001,
+    ).dynamicMechanicalSupportTrial.iabp.enabled).toBe(true);
+
+    const externalAf = rhythmFixture({ sourceMode: "external-af" });
+    const profile = syntheticProfile(inertance(), "af-iabp-rejected");
+    expect(() => initializeMainWireIntegratedModelV3({
+      coronary: {
+        ...coronaryColdInput(testProvider()),
+        autoregulationWindow: irregularWindow(0.5),
+      },
+      rhythm: {
+        configuration: externalAf.configuration,
+        acceptedState: externalAf.state,
+      },
+      dynamicMechanicalSupport: {
+        config: createMechanicalSupportConfigV1({
+          iabp: { enabled: true },
+        }),
+        profile,
+      },
+    })).toThrow(/phase-derived IABP is unavailable for external AF/);
+
+    const validInput = regularStepInput(
+      sinus,
+      sinus.cold.acceptedState,
+      0.001,
+    );
+    const rejected = stepMainWireIntegratedModelV3(
+      sinus.provider,
+      sinus.cold.acceptedState,
+      {
+        ...validInput,
+        dynamicMechanicalSupport: {
+          ...validInput.dynamicMechanicalSupport,
+          heartRateBpm: 30,
+        },
+      } as never,
+    );
+    expect(rejected.converged).toBe(false);
+    if (rejected.converged === false) {
+      expect(rejected.message).toMatch(/context keys are invalid/);
+    }
+  });
 
   it("states the open scientific and release limits without overclaiming", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
@@ -636,7 +744,6 @@ function integratedFixture(options: Readonly<{
     },
     dynamicMechanicalSupport: {
       config,
-      heartRateBpm: options.rhythmClass === "flutter" ? 300 : 60,
       profile,
       ...(options.initialAcceptedFlowMlPerSec === undefined
         ? {}
@@ -851,10 +958,11 @@ function calciumParameters(calciumGainUMPerUnitDrive = 1) {
 
 function regularStepInput(
   fixture: Fixture,
+  state: MainWireIntegratedModelAcceptedStateV3<TestState>,
   dtSec: number,
 ): MainWireIntegratedModelStepInputV3 {
   return Object.freeze({
-    dtSec,
+    candidateTimeSec: state.acceptedTimeSec + dtSec,
     coronary: coronaryStepInput(),
     rhythm: Object.freeze({
       configuration: fixture.rhythmConfiguration,
@@ -863,11 +971,6 @@ function regularStepInput(
     }),
     dynamicMechanicalSupport: Object.freeze({
       config: fixture.config,
-      heartRateBpm: fixture.rhythmConfiguration.atrialSource.mode === "regular"
-          && fixture.rhythmConfiguration.atrialSource
-            .regularSourceConfiguration.rhythmClass === "flutter"
-        ? 300
-        : 60,
       profile: fixture.profile,
     }),
   });
@@ -881,7 +984,7 @@ function successfulRegularStep(
   const result = stepMainWireIntegratedModelV3(
     fixture.provider,
     state,
-    regularStepInput(fixture, dtSec),
+    regularStepInput(fixture, state, dtSec),
   );
   if (result.converged === false) throw new Error(result.message);
   return result;
@@ -892,9 +995,9 @@ function maximumRegular(
   state: MainWireIntegratedModelAcceptedStateV3<TestState>,
   requestedStepSec: number,
 ) {
-  return maximumMainWireIntegratedModelStepDurationV3(
+  return limitMainWireIntegratedModelCandidateTimeV3(
     state,
-    requestedStepSec,
+    state.acceptedTimeSec + requestedStepSec,
     {
       configuration: fixture.rhythmConfiguration,
       externalAfNextBoundaryTimeSec: null,

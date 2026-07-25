@@ -106,7 +106,7 @@ describe("canonical coronary V3 accepted-autoregulation periodic runner", () => 
     expect(first.periodicSteadyStateClaimed).toBe(false);
   });
 
-  it("captures empty accepted autoregulation windows and uses the 106-owner V3 P1 closure", () => {
+  it("captures empty windows and the full 125-owner V3 P1 closure", () => {
     expect(first.retainedBoundaries.map((boundary) => ({
       beatIndex: boundary.beatIndex,
       timeSec: boundary.acceptedState.acceptedTimeSec,
@@ -154,20 +154,19 @@ describe("canonical coronary V3 accepted-autoregulation periodic runner", () => 
     for (const observation of first.observations) {
       expect(observation.period1).toMatchObject({
         overall: {
-          numericEntryCount: 104,
-          booleanEntryCount: 2,
-          entryCount: 106,
+          numericEntryCount: 122,
+          booleanEntryCount: 3,
+          entryCount: 125,
         },
         provenance: {
           autoregulationWindowIndexAdvance: 1,
           autoregulationWindowStartRevisionAdvance: 3,
         },
-        groups: {
-          "coronary-autoregulation-window": {
-            maximumNormalizedDelta: 0,
-          },
-        },
       });
+    }
+    for (const observation of first.observations) {
+      expect(observation.period1?.groups
+        ["coronary-autoregulation-window"].maximumNormalizedDelta).toBe(0);
     }
   });
 

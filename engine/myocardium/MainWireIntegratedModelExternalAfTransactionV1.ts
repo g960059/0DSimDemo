@@ -2,7 +2,7 @@ import type { MechanicalSupportConfigV1 } from "@/engine/devices/typesV1";
 import type { DynamicMechanicalSupportInertanceProfileV1 } from "@/engine/devices/dynamicNetworkV1";
 import {
   initializeMainWireIntegratedModelV3,
-  maximumMainWireIntegratedModelStepDurationV3,
+  limitMainWireIntegratedModelCandidateTimeV3,
   stepMainWireIntegratedModelV3,
   validateMainWireIntegratedModelAcceptedStateV3,
   type MainWireIntegratedComposedRhythmContextV3,
@@ -11,7 +11,7 @@ import {
   type MainWireIntegratedModelColdResultV3,
   type MainWireIntegratedModelCoronaryStepInputV3,
   type MainWireIntegratedModelInitializeInputV3,
-  type MainWireIntegratedModelMaximumStepV3,
+  type MainWireIntegratedModelCandidateTimeLimitV3,
   type MainWireIntegratedModelStepFailureV3,
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
@@ -111,7 +111,7 @@ export type MainWireIntegratedModelExternalAfMaximumStepV1 = Readonly<{
   requestedStepSec: number;
   requestedEndTimeSec: number;
   afSource: AcceptedAfAtrialSourceMaximumStepV1;
-  integratedModel: MainWireIntegratedModelMaximumStepV3;
+  integratedModel: MainWireIntegratedModelCandidateTimeLimitV3;
   maximumStepSec: number;
   candidateTimeSec: number;
   externalAfNextBoundaryTimeSec: number;
@@ -221,9 +221,9 @@ export function maximumMainWireIntegratedModelExternalAfStepDurationV1<
   );
   const externalAfNextBoundaryTimeSec =
     previous.afSource.nextSourceActivationTimeSec;
-  const integratedModel = maximumMainWireIntegratedModelStepDurationV3(
+  const integratedModel = limitMainWireIntegratedModelCandidateTimeV3(
     previous.integratedModel,
-    requested,
+    requestedEndTimeSec,
     {
       configuration: context.rhythm.configuration,
       externalAfNextBoundaryTimeSec,
@@ -231,11 +231,13 @@ export function maximumMainWireIntegratedModelExternalAfStepDurationV1<
     context.dynamicMechanicalSupportProfile,
     context.dynamicMechanicalSupportConfig,
   );
+  const integratedModelStepSec =
+    integratedModel.candidateTimeSec - previous.acceptedTimeSec;
   const useIntegrated =
-    integratedModel.maximumStepSec <= afSource.maximumStepSec;
+    integratedModelStepSec <= afSource.maximumStepSec;
   const maximumStepSec = Math.min(
     afSource.maximumStepSec,
-    integratedModel.maximumStepSec,
+    integratedModelStepSec,
   );
   const candidateTimeSec = useIntegrated
     ? integratedModel.candidateTimeSec
@@ -255,7 +257,7 @@ export function maximumMainWireIntegratedModelExternalAfStepDurationV1<
     candidateTimeSec === afSource.boundaryActivationTimeSec;
   const clippedByIntegratedModelBoundary =
     candidateTimeSec === integratedModel.candidateTimeSec &&
-    integratedModel.maximumStepSec < requested;
+    integratedModelStepSec < requested;
   return Object.freeze({
     requestedStepSec: requested,
     requestedEndTimeSec,
@@ -267,7 +269,7 @@ export function maximumMainWireIntegratedModelExternalAfStepDurationV1<
     clippedByAfSourceBoundary,
     clippedByIntegratedModelBoundary,
     afSourceAndIntegratedModelBoundaryTie:
-      afSource.maximumStepSec === integratedModel.maximumStepSec &&
+      afSource.maximumStepSec === integratedModelStepSec &&
       afSource.clippedBySourceImpulse,
   });
 }
@@ -320,7 +322,7 @@ export function stepMainWireIntegratedModelExternalAfV1<TWallState>(
       provider,
       previous.integratedModel,
       {
-        dtSec: candidateTimeSec - previous.acceptedTimeSec,
+        candidateTimeSec,
         coronary: input.coronary,
         rhythm: {
           configuration: input.rhythm.configuration,

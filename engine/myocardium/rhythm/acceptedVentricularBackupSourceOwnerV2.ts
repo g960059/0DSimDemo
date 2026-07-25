@@ -57,11 +57,18 @@ export const ACCEPTED_VENTRICULAR_BACKUP_SOURCE_CLAIM_V2 = deepFreeze({
   }),
   captureFeedback:
     "accepted-ventricular-activation-plus-parent-source-impulse-lineage" as const,
+  ownerImpulseIdentityFeedback: Object.freeze({
+    namespaceReservation:
+      "all-current-stale-and-replayed-framed-owner-identities" as const,
+    acceptedEscape:
+      "exact-current-due-escape-lineage-only" as const,
+    acceptedVvi:
+      "exact-current-due-conditional-vvi-lineage-only" as const,
+  }),
   externalPacingFeedback: Object.freeze({
     acceptedAsNonVviCapture: true as const,
     distinguishedFromOwnedConditionalVviBy:
       "exact-parent-source-impulse-lineage-not-source-kind-alone" as const,
-    currentOwnedVviIdentityReservedWhenNotDueForSpoofRejection: true as const,
     ownedConditionalVviMayNotMasqueradeAsNonVvi: true as const,
     externalPacingPacemakerPhysiologyClaimed: false as const,
   }),
@@ -72,6 +79,8 @@ export const ACCEPTED_VENTRICULAR_BACKUP_SOURCE_CLAIM_V2 = deepFreeze({
   timerBoundaryEqualityIsDue: true as const,
   eventStepRequirement:
     "candidate-may-not-cross-earliest-owner-due-time" as const,
+  boundaryEndpointContract:
+    "absolute-candidate-time-only-never-derived-duration-readdition" as const,
   constructionEvidence: Object.freeze({
     intrinsicEscape:
       "Kennelly-and-Lane-1978-PMID-87278-is-rate-plausibility-context-only;-rate-is-an-explicit-scenario-parameter" as const,
@@ -274,10 +283,8 @@ export type AcceptedVentricularBackupSourceCandidateV2 = Readonly<{
   candidateState: AcceptedVentricularBackupSourceStateV2;
 }>;
 
-export type AcceptedVentricularBackupMaximumStepV2 = Readonly<{
-  requestedStepSec: number;
-  requestedEndTimeSec: number;
-  maximumStepSec: number;
+export type AcceptedVentricularBackupCandidateTimeLimitV2 = Readonly<{
+  requestedCandidateTimeSec: number;
   candidateTimeSec: number;
   clippedByDueTime: boolean;
   boundaryDueTimeSec: number | null;
@@ -654,15 +661,41 @@ export function createVentricularBackupSourceResolutionV2(
     proposal.candidateTimeSec,
     "conditional VVI accepted ventricular activation",
   );
+  const escapeImpulse = proposal.sourceImpulsesForNonVviBatch[0] ?? null;
   const pacingImpulse = proposal.conditionalVviPacingSourceImpulse;
   const pacingAttempted = proposal.vviPaceDue && nonVvi === null;
   if (
     nonVvi !== null
-    && nonVvi.parentSourceImpulseId
-      === proposal.reservedConditionalVviPacingSourceImpulseId
+    && claimsVentricularBackupOwnerImpulseNamespace(
+      proposal,
+      "pacing",
+      nonVvi.parentSourceImpulseId,
+    )
   ) {
     throw new Error(
-      "owned conditional VVI pacing activation cannot masquerade as non-VVI feedback",
+      "current, stale, or replayed owner VVI activation cannot masquerade as non-VVI feedback",
+    );
+  }
+  if (
+    nonVvi !== null
+    && (
+      nonVvi.sourceKind === "escape"
+      || claimsVentricularBackupOwnerImpulseNamespace(
+        proposal,
+        "escape",
+        nonVvi.parentSourceImpulseId,
+      )
+    )
+  ) {
+    if (escapeImpulse === null) {
+      throw new Error(
+        "current, stale, or replayed owner escape activation requires the exact due escape impulse",
+      );
+    }
+    assertActivationMatchesImpulseLineage(
+      nonVvi,
+      escapeImpulse,
+      "intrinsic escape captured activation",
     );
   }
   if (nonVvi !== null && conditional !== null) {
@@ -671,7 +704,6 @@ export function createVentricularBackupSourceResolutionV2(
   if (!pacingAttempted && conditional !== null) {
     throw new Error("conditional VVI capture requires a due pacing attempt");
   }
-  const escapeImpulse = proposal.sourceImpulsesForNonVviBatch[0] ?? null;
   if (pacingAttempted && pacingImpulse === null) {
     throw new Error("due conditional VVI attempt is missing its source impulse");
   }
@@ -687,18 +719,6 @@ export function createVentricularBackupSourceResolutionV2(
       "conditional VVI captured activation",
     );
   }
-  if (
-    nonVvi !== null
-    && escapeImpulse !== null
-    && nonVvi.parentSourceImpulseId === escapeImpulse.sourceImpulseId
-  ) {
-    assertActivationMatchesImpulseLineage(
-      nonVvi,
-      escapeImpulse,
-      "intrinsic escape captured activation",
-    );
-  }
-
   const acceptedActivation = nonVvi ?? conditional;
   const attemptResults: VentricularBackupSourceAttemptResultV2[] = [];
   if (escapeImpulse !== null) {
@@ -896,32 +916,35 @@ export function rollbackAcceptedVentricularBackupSourceCandidateV2(
   return acceptedState;
 }
 
-export function maximumAcceptedVentricularBackupSourceStepV2(
+/**
+ * Limits an absolute requested endpoint to the next owner due time.
+ *
+ * candidateTimeSec is the sole executable endpoint. A derived duration is
+ * deliberately not returned: subtracting this endpoint and adding that
+ * duration back to acceptedTimeSec need not reproduce the due time in binary
+ * floating-point arithmetic.
+ */
+export function limitAcceptedVentricularBackupSourceCandidateTimeV2(
   acceptedState: AcceptedVentricularBackupSourceStateV2,
-  requestedStepSec: number,
-): AcceptedVentricularBackupMaximumStepV2 {
+  requestedCandidateTimeSec: number,
+): AcceptedVentricularBackupCandidateTimeLimitV2 {
   validateAcceptedVentricularBackupSourceStateV2(acceptedState);
-  const requestedStep = requirePositiveFinite(
-    requestedStepSec,
-    "ventricular backup requested step",
+  const requestedCandidateTime = requireNonnegativeFinite(
+    requestedCandidateTimeSec,
+    "ventricular backup requested candidate time",
   );
-  const requestedEnd = acceptedState.acceptedTimeSec + requestedStep;
-  if (!Number.isFinite(requestedEnd) || !(requestedEnd > acceptedState.acceptedTimeSec)) {
-    throw new Error("ventricular backup requested end time must advance finitely");
+  if (!(requestedCandidateTime > acceptedState.acceptedTimeSec)) {
+    throw new Error("ventricular backup requested candidate time must advance");
   }
   const boundary = Math.min(
     acceptedState.nextIntrinsicEscapeDueTimeSec,
     acceptedState.nextVviPaceDueTimeSec,
   );
-  if (boundary <= requestedEnd) {
-    const maximumStep = boundary - acceptedState.acceptedTimeSec;
-    if (!(maximumStep > 0)) throw new Error("next ventricular backup due time must be future");
+  if (boundary <= requestedCandidateTime) {
     return Object.freeze({
-      requestedStepSec: requestedStep,
-      requestedEndTimeSec: requestedEnd,
-      maximumStepSec: maximumStep,
+      requestedCandidateTimeSec: requestedCandidateTime,
       candidateTimeSec: boundary,
-      clippedByDueTime: boundary < requestedEnd,
+      clippedByDueTime: boundary < requestedCandidateTime,
       boundaryDueTimeSec: boundary,
       intrinsicEscapeDueAtBoundary:
         acceptedState.nextIntrinsicEscapeDueTimeSec === boundary,
@@ -929,10 +952,8 @@ export function maximumAcceptedVentricularBackupSourceStepV2(
     });
   }
   return Object.freeze({
-    requestedStepSec: requestedStep,
-    requestedEndTimeSec: requestedEnd,
-    maximumStepSec: requestedStep,
-    candidateTimeSec: requestedEnd,
+    requestedCandidateTimeSec: requestedCandidateTime,
+    candidateTimeSec: requestedCandidateTime,
     clippedByDueTime: false,
     boundaryDueTimeSec: null,
     intrinsicEscapeDueAtBoundary: false,
@@ -1121,6 +1142,19 @@ function sourceImpulse(
     sourceSequence: sequence,
     activationTimeSec,
   });
+}
+
+function claimsVentricularBackupOwnerImpulseNamespace(
+  proposal: VentricularBackupSourceProposalV2,
+  kind: "escape" | "pacing",
+  sourceImpulseId: string,
+): boolean {
+  const namespace = `ventricular-backup-${kind}-source-impulse-v2`;
+  const ownerPrefix = `${framedId(namespace, [
+    proposal.configurationId,
+    proposal.ownerInstanceId,
+  ])}:`;
+  return sourceImpulseId.startsWith(ownerPrefix);
 }
 
 function attemptResult(

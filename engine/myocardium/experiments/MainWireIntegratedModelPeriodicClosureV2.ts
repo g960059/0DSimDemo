@@ -45,17 +45,17 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_CLOSURE_CLAIM_V2 =
     irregularOrFlutterApplicability: "not-applicable-fail-closed" as const,
     coronaryComparator:
       "main-wire-five-wall-coronary-full-accepted-state-periodic-closure-v3" as const,
-    coronaryClosureEntryCount: 106 as const,
+    coronaryClosureEntryCount: 125 as const,
     dynamicMechanicalSupportAcceptedFlowStateCount: 4 as const,
     generatedCalciumStateCount: 10 as const,
     generatedAvRelativeTimingStateCount: 3 as const,
     generatedNextSourceRelativeTimingStateCount: 1 as const,
-    fixedNumericClosureEntryCount: 122 as const,
-    fixedBooleanClosureEntryCount: 2 as const,
-    fixedClosureEntryCount: 124 as const,
+    fixedNumericClosureEntryCount: 140 as const,
+    fixedBooleanClosureEntryCount: 3 as const,
+    fixedClosureEntryCount: 143 as const,
     pendingEffectiveActivationNumericEntriesPerEvent: 2 as const,
     totalClosureEntryCountFormula:
-      "124+2*reference-pending-effective-activation-count" as const,
+      "143+2*reference-pending-effective-activation-count" as const,
     absoluteMetadataExcludedFromClosureDelta: Object.freeze([
       "accepted-time",
       "accepted-revision",
@@ -244,10 +244,10 @@ export type MainWireIntegratedModelPeriodicClosureReportV2 = Readonly<{
     MainWireIntegratedModelPeriodicClosureGroupReportV2
   >>;
   overall: Readonly<{
-    coronaryNumericEntryCount: 104;
+    coronaryNumericEntryCount: 122;
     integratedNumericEntryCount: number;
     numericEntryCount: number;
-    booleanEntryCount: 2;
+    booleanEntryCount: 3;
     entryCount: number;
     pendingEffectiveActivationCount: number;
     maximumNormalizedDelta: number;
@@ -437,8 +437,8 @@ export function compareMainWireIntegratedModelAcceptedStatesV2(
   const booleanEntryCount = coronaryClosure.overall.booleanEntryCount;
   const expectedIntegratedNumeric = 18 + pendingPairs.length * 2;
   if (integratedNumericEntryCount !== expectedIntegratedNumeric
-    || numericEntryCount !== 122 + pendingPairs.length * 2
-    || booleanEntryCount !== 2) {
+    || numericEntryCount !== 140 + pendingPairs.length * 2
+    || booleanEntryCount !== 3) {
     throw new Error("integrated periodic closure state dimension changed");
   }
 
@@ -467,10 +467,10 @@ export function compareMainWireIntegratedModelAcceptedStatesV2(
     }),
     groups,
     overall: Object.freeze({
-      coronaryNumericEntryCount: 104 as const,
+      coronaryNumericEntryCount: 122 as const,
       integratedNumericEntryCount,
       numericEntryCount,
-      booleanEntryCount: 2 as const,
+      booleanEntryCount: 3 as const,
       entryCount: numericEntryCount + booleanEntryCount,
       pendingEffectiveActivationCount: pendingPairs.length,
       maximumNormalizedDelta: worstGroup.maximumNormalizedDelta,

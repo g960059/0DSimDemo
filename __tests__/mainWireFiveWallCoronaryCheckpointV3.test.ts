@@ -12,6 +12,11 @@ import {
   MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
 } from "@/engine/coronary/mainWireNormalAdultCoronaryV2";
 import {
+  CORONARY_LAYER_IDS_V2,
+  CORONARY_TERRITORY_IDS_V2,
+  type CoronaryTerritoryLayerRecordV2,
+} from "@/engine/coronary/typesV2";
+import {
   MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V3,
   checkpointMainWireFiveWallCoronaryV3,
   promoteMainWireFiveWallCoronaryCheckpointV2ToV3,
@@ -42,8 +47,14 @@ type Provider = ReturnType<
 >;
 type WallState = ReturnType<Provider["initializeCold"]>["materialState"];
 
+const PENDING_DRIVE = Object.freeze({
+  controlId: "checkpoint-pending-hyperemia",
+  demandScaleByTerritoryLayer: layerRecord(1),
+  hyperemia01ByTerritoryLayer: layerRecord(1),
+});
+
 describe("main-wire coronary accepted-autoregulation checkpoint V3", () => {
-  it("round-trips a mid-window accumulator under the complete outer SHA", async () => {
+  it("round-trips a pending desired control and its mid-window accumulator", async () => {
     const fixture = await midWindowFixture();
     const checkpoint = await checkpointMainWireFiveWallCoronaryV3(
       fixture.context,
@@ -61,8 +72,14 @@ describe("main-wire coronary accepted-autoregulation checkpoint V3", () => {
     expect(checkpoint.baseCheckpointV2.exactResumeClaim
       .autoregulationAccumulatorIncluded).toBe(false);
     expect(checkpoint.coronaryAutoregulation).toMatchObject({
-      acceptedDurationSec: 0.002,
-      acceptedStepCount: 1,
+      acceptedDurationSec: 0.004,
+      acceptedStepCount: 2,
+      windowControl: {
+        controlId: "circleheart.coronary-autoregulation-control.rest.v1",
+      },
+      desiredControl: {
+        controlId: "checkpoint-pending-hyperemia",
+      },
     });
     expect(checkpoint.checkpointSha256).toMatch(/^[0-9a-f]{64}$/);
 
@@ -73,6 +90,7 @@ describe("main-wire coronary accepted-autoregulation checkpoint V3", () => {
       runtime,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
       pericardium,
+      coronaryAutoregulationDrive: PENDING_DRIVE,
     } as const;
     const uninterrupted = stepMainWireFiveWallCoronaryV3(
       fixture.context.provider,
@@ -184,7 +202,7 @@ async function midWindowFixture(): Promise<Readonly<{
     calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
     pericardium,
   });
-  const stepped = stepMainWireFiveWallCoronaryV3(
+  const first = stepMainWireFiveWallCoronaryV3(
     provider,
     cold.acceptedState,
     {
@@ -192,6 +210,18 @@ async function midWindowFixture(): Promise<Readonly<{
       runtime,
       calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
       pericardium,
+    },
+  );
+  if (first.converged === false) throw new Error(first.message);
+  const stepped = stepMainWireFiveWallCoronaryV3(
+    provider,
+    first.acceptedState,
+    {
+      dtSec: 0.002,
+      runtime,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium,
+      coronaryAutoregulationDrive: PENDING_DRIVE,
     },
   );
   if (stepped.converged === false) throw new Error(stepped.message);
@@ -229,4 +259,14 @@ function testRuntime() {
     }),
     valvePreset: MAIN_WIRE_FOUR_VALVE_NORMAL_PRESET_V1,
   });
+}
+
+function layerRecord(
+  value: number,
+): CoronaryTerritoryLayerRecordV2<number> {
+  return Object.freeze(Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map(
+    (territoryId) => [territoryId, Object.freeze(Object.fromEntries(
+      CORONARY_LAYER_IDS_V2.map((layerId) => [layerId, value]),
+    ))],
+  ))) as CoronaryTerritoryLayerRecordV2<number>;
 }

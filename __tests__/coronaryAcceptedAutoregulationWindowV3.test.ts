@@ -82,6 +82,8 @@ describe("accepted physical-time coronary autoregulation window V3", () => {
     expect(state.acceptedDurationSec).toBe(0);
     expect(state.acceptedStepCount).toBe(0);
     expect(state.windowControl).toBeNull();
+    expect(state.desiredControl?.controlId)
+      .toBe(createDefaultCoronaryAutoregulationWindowControlV3().controlId);
     expect(tone.LAD.subendocardial).toBeGreaterThan(1);
   });
 
@@ -132,7 +134,7 @@ describe("accepted physical-time coronary autoregulation window V3", () => {
     )).toThrow(/crosses.*window boundary/);
   });
 
-  it("latches control mid-window and permits a new control only after reset", () => {
+  it("queues an exact mid-window control change and applies it at the next boundary", () => {
     const initial = createCoronaryAcceptedAutoregulationStateV3(binding, {
       acceptedTimeSec: 0,
       revision: 0,
@@ -144,33 +146,50 @@ describe("accepted physical-time coronary autoregulation window V3", () => {
       controlId: "hyperemia-test-control",
       hyperemia01ByTerritoryLayer: layerRecord(1),
     }) satisfies CoronaryAutoregulationWindowControlV3;
+    const future = Object.freeze({
+      ...baseline,
+      controlId: "future-demand-test-control",
+      demandScaleByTerritoryLayer: layerRecord(1.2),
+    }) satisfies CoronaryAutoregulationWindowControlV3;
     const partial = advanceCoronaryAcceptedAutoregulationV3(
       binding,
       initial,
       tone,
       sampleInput(0, 0.5, 1, baseline),
     );
-    expect(() => advanceCoronaryAcceptedAutoregulationV3(
+    const changedMidWindow = advanceCoronaryAcceptedAutoregulationV3(
       binding,
       partial.nextState,
       tone,
-      sampleInput(0.5, 1, 2, changed),
-    )).toThrow(/cannot change mid-window/);
+      sampleInput(0.5, 0.75, 2, changed),
+    );
+    const retry = advanceCoronaryAcceptedAutoregulationV3(
+      binding,
+      partial.nextState,
+      tone,
+      sampleInput(0.5, 0.75, 2, changed),
+    );
+    expect(retry).toEqual(changedMidWindow);
+    expect(changedMidWindow.nextState.windowControl).toEqual(baseline);
+    expect(changedMidWindow.nextState.desiredControl).toEqual(changed);
     const completed = advanceCoronaryAcceptedAutoregulationV3(
       binding,
-      partial.nextState,
+      changedMidWindow.nextState,
       tone,
-      sampleInput(0.5, 1, 2, baseline),
+      sampleInput(0.75, 1, 3, changed),
     );
     expect(completed.completedWindow).not.toBeNull();
+    expect(completed.completedWindow?.control).toEqual(baseline);
+    expect(completed.nextState.windowControl).toBeNull();
+    expect(completed.nextState.desiredControl).toEqual(changed);
     const next = advanceCoronaryAcceptedAutoregulationV3(
       binding,
       completed.nextState,
       completed.nextToneResistanceScaleByTerritoryLayer,
-      sampleInput(1, 1.25, 3, changed),
+      sampleInput(1, 1.25, 4, future),
     );
-    expect(next.nextState.windowControl?.controlId)
-      .toBe("hyperemia-test-control");
+    expect(next.nextState.windowControl).toEqual(changed);
+    expect(next.nextState.desiredControl).toEqual(future);
   });
 
   it("allows instantaneous reverse Qm but fails closed on a negative window mean", () => {
@@ -247,12 +266,16 @@ describe("accepted physical-time coronary autoregulation window V3", () => {
       acceptedDurationSec: 0,
       acceptedStepCount: 0,
       windowControl: null,
+      desiredControl:
+        createDefaultCoronaryAutoregulationWindowControlV3(),
     });
     expect(fine.state).toMatchObject({
       windowIndex: 1,
       acceptedDurationSec: 0,
       acceptedStepCount: 0,
       windowControl: null,
+      desiredControl:
+        createDefaultCoronaryAutoregulationWindowControlV3(),
     });
     for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
       for (const layerId of CORONARY_LAYER_IDS_V2) {

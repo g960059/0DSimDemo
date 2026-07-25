@@ -9,6 +9,10 @@ import {
   type DynamicMechanicalSupportHydraulicEvaluationV1,
   type DynamicMechanicalSupportInertanceProfileV1,
 } from "@/engine/devices/dynamicNetworkV1";
+import {
+  mechanicalSupportConservationToleranceMlPerSecV1,
+  mechanicalSupportNodeRatesAreConservativeV1,
+} from "@/engine/devices/mechanicalSupportConservationV1";
 import { validateMechanicalSupportConfigV1 } from
   "@/engine/devices/networkV1";
 import {
@@ -37,12 +41,12 @@ import {
   commitAcceptedComposedRhythmTransactionCandidateV2,
   createNoExternalAtrialSourceBatchV2,
   evaluateAcceptedComposedRhythmTransactionCandidateV2,
-  maximumAcceptedComposedRhythmTransactionStepV2,
+  limitAcceptedComposedRhythmTransactionCandidateTimeV2,
   validateAcceptedComposedRhythmTransactionConfigurationV2,
   validateAcceptedComposedRhythmTransactionStateV2,
   type AcceptedComposedRhythmTransactionCandidateV2,
   type AcceptedComposedRhythmTransactionConfigurationV2,
-  type AcceptedComposedRhythmTransactionMaximumStepV2,
+  type AcceptedComposedRhythmTransactionCandidateTimeLimitV2,
   type AcceptedComposedRhythmTransactionStateV2,
   type ComposedRhythmExternalAtrialSourceBatchV2,
 } from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
@@ -82,6 +86,13 @@ export const MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3 = deepFreeze({
     "composed-rhythm-calcium-coronary-mechanics-circulation-and-dynamic-mcs" as const,
   dynamicMcsAcceptedBinding:
     "complete-inertance-profile-snapshot-and-structural-hydraulic-projection" as const,
+  phaseIabpClock: Object.freeze({
+    userAuthoredHeartRateAccepted: false as const,
+    regularSinusHeartRate:
+      "derived-from-composed-rhythm-cycle-length" as const,
+    externalAfOrNonSinusWhenIabpEnabled:
+      "rejected-until-accepted-ventricular-event-triggered-owner-is-integrated" as const,
+  }),
   legacyAlgebraicMcsAcceptedInIntegratedLane: false as const,
   fixedGlobalBloodVolumeConservationInheritedFromCoronaryV3: true as const,
   dynamicMcsNodeRateConservationRequired: true as const,
@@ -121,7 +132,6 @@ export type MainWireIntegratedComposedRhythmStepContextV3 =
 
 export type MainWireIntegratedDynamicMechanicalSupportContextV3 = Readonly<{
   config: MechanicalSupportConfigV1;
-  heartRateBpm: number;
   profile: DynamicMechanicalSupportInertanceProfileV1;
 }>;
 
@@ -172,21 +182,18 @@ export type MainWireIntegratedModelCoronaryStepInputV3 = Omit<
 >;
 
 export type MainWireIntegratedModelStepInputV3 = Readonly<{
-  dtSec: number;
+  candidateTimeSec: number;
   coronary: MainWireIntegratedModelCoronaryStepInputV3;
   rhythm: MainWireIntegratedComposedRhythmStepContextV3;
   dynamicMechanicalSupport:
     MainWireIntegratedDynamicMechanicalSupportContextV3;
 }>;
 
-export type MainWireIntegratedModelMaximumStepV3 = Readonly<{
-  requestedStepSec: number;
-  requestedEndTimeSec: number;
+export type MainWireIntegratedModelCandidateTimeLimitV3 = Readonly<{
+  requestedCandidateTimeSec: number;
   coronaryWindowMaximumStepSec: number;
-  coronaryCappedStepSec: number;
   coronaryCappedEndTimeSec: number;
-  rhythm: AcceptedComposedRhythmTransactionMaximumStepV2;
-  maximumStepSec: number;
+  rhythm: AcceptedComposedRhythmTransactionCandidateTimeLimitV2;
   candidateTimeSec: number;
   clippedByCoronaryWindow: boolean;
   clippedByRhythmBoundary: boolean;
@@ -203,7 +210,7 @@ export type MainWireIntegratedModelStepSuccessV3<TWallState> = Readonly<{
   dynamicMechanicalSupportTrial:
     DynamicMechanicalSupportHydraulicEvaluationV1;
   calciumDrive: MainWireFiveWallFreeCalciumDriveV1;
-  maximumStep: MainWireIntegratedModelMaximumStepV3;
+  candidateTimeLimit: MainWireIntegratedModelCandidateTimeLimitV3;
   mechanicsCommitted: true;
   circulationCommitted: true;
   coronaryCommitted: true;
@@ -225,7 +232,7 @@ export type MainWireIntegratedModelStepFailureV3<TWallState> = Readonly<{
   rollbackState: MainWireIntegratedModelAcceptedStateV3<TWallState>;
   coronaryStep?: MainWireFiveWallCoronaryStepResultV3<TWallState>;
   composedRhythmCandidate?: AcceptedComposedRhythmTransactionCandidateV2;
-  maximumStep?: MainWireIntegratedModelMaximumStepV3;
+  candidateTimeLimit?: MainWireIntegratedModelCandidateTimeLimitV3;
   mechanicsCommitted: false;
   circulationCommitted: false;
   coronaryCommitted: false;
@@ -249,6 +256,10 @@ export function initializeMainWireIntegratedModelV3<TWallState>(
   ], "composed integrated cold input");
   assertRhythmInitializeContext(input.rhythm);
   assertDynamicInitializeContext(input.dynamicMechanicalSupport);
+  dynamicMechanicalSupportHeartRateBpm(
+    input.rhythm.configuration,
+    input.dynamicMechanicalSupport.config,
+  );
   rejectExternallyOwnedColdInputs(input.coronary);
   assertCoronaryColdInput(input.coronary);
   validateAcceptedComposedRhythmTransactionStateV2(
@@ -296,13 +307,13 @@ export function initializeMainWireIntegratedModelV3<TWallState>(
 }
 
 /** Coronary window cap is resolved before composed rhythm event discovery. */
-export function maximumMainWireIntegratedModelStepDurationV3<TWallState>(
+export function limitMainWireIntegratedModelCandidateTimeV3<TWallState>(
   previous: MainWireIntegratedModelAcceptedStateV3<TWallState>,
-  requestedStepSec: number,
+  requestedCandidateTimeSec: number,
   rhythm: MainWireIntegratedComposedRhythmBoundaryContextV3,
   dynamicProfile: DynamicMechanicalSupportInertanceProfileV1,
   dynamicConfig: MechanicalSupportConfigV1,
-): MainWireIntegratedModelMaximumStepV3 {
+): MainWireIntegratedModelCandidateTimeLimitV3 {
   validateMainWireIntegratedModelAcceptedStateV3(
     previous,
     rhythm,
@@ -310,55 +321,52 @@ export function maximumMainWireIntegratedModelStepDurationV3<TWallState>(
     dynamicConfig,
   );
   assertRhythmBoundaryContext(rhythm);
-  const requested = requirePositiveFinite(requestedStepSec, "requestedStepSec");
-  const requestedEndTimeSec = safeFutureTime(
-    previous.acceptedTimeSec,
-    requested,
-    "composed integrated requested endpoint",
+  const requestedCandidateTime = requireNonnegativeFinite(
+    requestedCandidateTimeSec,
+    "requestedCandidateTimeSec",
   );
+  if (!(requestedCandidateTime > previous.acceptedTimeSec)) {
+    throw new Error("composed integrated requested endpoint must advance");
+  }
+  const requestedStepSec =
+    requestedCandidateTime - previous.acceptedTimeSec;
   const coronaryWindowMaximumStepSec =
     maximumMainWireFiveWallCoronaryStepDurationV3(previous.coronary);
-  const coronaryCappedStepSec = Math.min(
-    requested,
-    coronaryWindowMaximumStepSec,
+  const tolerance = clockTolerance(
+    previous.acceptedTimeSec,
+    requestedStepSec,
   );
-  if (!(coronaryCappedStepSec > 0)) {
+  const clippedByCoronaryWindow =
+    coronaryWindowMaximumStepSec < requestedStepSec - tolerance;
+  const coronaryCappedEndTimeSec = clippedByCoronaryWindow
+    ? previous.acceptedTimeSec + coronaryWindowMaximumStepSec
+    : requestedCandidateTime;
+  if (!(coronaryCappedEndTimeSec > previous.acceptedTimeSec)) {
     throw new Error("composed integrated coronary-capped step must be positive");
   }
-  const coronaryCappedEndTimeSec = previous.acceptedTimeSec
-    + coronaryCappedStepSec;
-  const rhythmMaximum = maximumAcceptedComposedRhythmTransactionStepV2(
+  const rhythmLimit = limitAcceptedComposedRhythmTransactionCandidateTimeV2(
     previous.composedRhythm,
-    coronaryCappedStepSec,
+    coronaryCappedEndTimeSec,
     rhythm.externalAfNextBoundaryTimeSec,
   );
-  const maximumStepSec = rhythmMaximum.maximumStepSec;
-  const candidateTimeSec = rhythmMaximum.candidateTimeSec;
-  if (!(maximumStepSec > 0) || !Number.isFinite(maximumStepSec)) {
-    throw new Error("composed integrated maximum step must be positive finite");
-  }
-  const tolerance = clockTolerance(previous.acceptedTimeSec, requested);
-  const boundaryTime = rhythmMaximum.boundaryTimeSec;
+  const candidateTimeSec = rhythmLimit.candidateTimeSec;
+  const boundaryTime = rhythmLimit.boundaryTimeSec;
   return Object.freeze({
-    requestedStepSec: requested,
-    requestedEndTimeSec,
+    requestedCandidateTimeSec: requestedCandidateTime,
     coronaryWindowMaximumStepSec,
-    coronaryCappedStepSec,
     coronaryCappedEndTimeSec,
-    rhythm: rhythmMaximum,
-    maximumStepSec,
+    rhythm: rhythmLimit,
     candidateTimeSec,
-    clippedByCoronaryWindow:
-      coronaryWindowMaximumStepSec < requested - tolerance,
+    clippedByCoronaryWindow,
     clippedByRhythmBoundary:
       boundaryTime !== null
       && boundaryTime < coronaryCappedEndTimeSec - tolerance,
     rhythmBoundaryTimeSec: boundaryTime,
-    rhythmBoundaryOwners: rhythmMaximum.boundaryOwners,
+    rhythmBoundaryOwners: rhythmLimit.boundaryOwners,
     coronaryWindowAndRhythmBoundaryTie:
       boundaryTime !== null
       && boundaryTime === coronaryCappedEndTimeSec
-      && coronaryWindowMaximumStepSec <= requested + tolerance,
+      && coronaryWindowMaximumStepSec <= requestedStepSec + tolerance,
   });
 }
 
@@ -370,7 +378,8 @@ export function stepMainWireIntegratedModelV3<TWallState>(
   previous: MainWireIntegratedModelAcceptedStateV3<TWallState>,
   input: MainWireIntegratedModelStepInputV3,
 ): MainWireIntegratedModelStepResultV3<TWallState> {
-  let maximumStep: MainWireIntegratedModelMaximumStepV3 | undefined;
+  let candidateTimeLimit:
+    MainWireIntegratedModelCandidateTimeLimitV3 | undefined;
   let composedRhythmCandidate:
     AcceptedComposedRhythmTransactionCandidateV2 | undefined;
   let coronaryStep: MainWireFiveWallCoronaryStepResultV3<TWallState> | undefined;
@@ -387,9 +396,9 @@ export function stepMainWireIntegratedModelV3<TWallState>(
       previous.coronary.coronaryAutoregulationBinding.windowPolicy,
       input.coronary.calciumDriveParams.cycleLengthSec,
     );
-    maximumStep = maximumMainWireIntegratedModelStepDurationV3(
+    candidateTimeLimit = limitMainWireIntegratedModelCandidateTimeV3(
       previous,
-      input.dtSec,
+      input.candidateTimeSec,
       {
         configuration: input.rhythm.configuration,
         externalAfNextBoundaryTimeSec:
@@ -398,15 +407,12 @@ export function stepMainWireIntegratedModelV3<TWallState>(
       input.dynamicMechanicalSupport.profile,
       input.dynamicMechanicalSupport.config,
     );
-    if (
-      input.dtSec - maximumStep.maximumStepSec
-        > clockTolerance(previous.acceptedTimeSec, input.dtSec)
-    ) {
+    if (candidateTimeLimit.candidateTimeSec !== input.candidateTimeSec) {
       throw new RangeError(
         "composed integrated step crosses a coronary or rhythm boundary",
       );
     }
-    const candidateTimeSec = maximumStep.candidateTimeSec;
+    const candidateTimeSec = candidateTimeLimit.candidateTimeSec;
     const candidateDtSec = candidateTimeSec - previous.acceptedTimeSec;
     const externalAtrialSourceBatch = externalBatchForCandidate(
       previous,
@@ -423,7 +429,10 @@ export function stepMainWireIntegratedModelV3<TWallState>(
     );
     const dynamicMechanicalSupport = Object.freeze({
       config: input.dynamicMechanicalSupport.config,
-      heartRateBpm: input.dynamicMechanicalSupport.heartRateBpm,
+      heartRateBpm: dynamicMechanicalSupportHeartRateBpm(
+        input.rhythm.configuration,
+        input.dynamicMechanicalSupport.config,
+      ),
       profile: input.dynamicMechanicalSupport.profile,
       previousAcceptedState: previous.dynamicMechanicalSupport,
     }) satisfies NonCoronaryDynamicMechanicalSupportInputV1;
@@ -442,7 +451,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
         previous,
         "coronary-v3-candidate-failed",
         coronaryStep.message,
-        { coronaryStep, composedRhythmCandidate, maximumStep },
+        { coronaryStep, composedRhythmCandidate, candidateTimeLimit },
       );
     }
     const dynamicTrial = coronaryStep.baseStep.circulationTrial
@@ -450,8 +459,19 @@ export function stepMainWireIntegratedModelV3<TWallState>(
     if (dynamicTrial === undefined) {
       throw new Error("coronary candidate omitted dynamic MCS readback");
     }
-    if (dynamicTrial.conservationResidualMlPerSec !== 0) {
-      throw new Error("dynamic MCS node-rate conservation residual is nonzero");
+    if (!mechanicalSupportNodeRatesAreConservativeV1(
+      dynamicTrial.nodeNetVolumeRateMlPerSec,
+      dynamicTrial.conservationResidualMlPerSec,
+    )) {
+      const toleranceMlPerSec =
+        mechanicalSupportConservationToleranceMlPerSecV1(
+          dynamicTrial.nodeNetVolumeRateMlPerSec,
+        );
+      throw new Error(
+        "dynamic MCS node-rate conservation residual "
+          + `${dynamicTrial.conservationResidualMlPerSec} mL/s exceeds `
+          + `the scale-aware ${toleranceMlPerSec} mL/s tolerance`,
+      );
     }
     validateDynamicMechanicalSupportAcceptedStateV1(
       dynamicTrial.candidateAcceptedState,
@@ -478,7 +498,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
       composedRhythmCandidate,
       dynamicMechanicalSupportTrial: dynamicTrial,
       calciumDrive,
-      maximumStep,
+      candidateTimeLimit,
       mechanicsCommitted: true as const,
       circulationCommitted: true as const,
       coronaryCommitted: true as const,
@@ -494,7 +514,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
         ? "integrated-promotion-rejected"
         : "outer-input-clock-binding-or-boundary-rejected",
       error instanceof Error ? error.message : String(error),
-      { coronaryStep, composedRhythmCandidate, maximumStep },
+      { coronaryStep, composedRhythmCandidate, candidateTimeLimit },
     );
   }
 }
@@ -622,7 +642,7 @@ function failure<TWallState>(
   details: Readonly<{
     coronaryStep?: MainWireFiveWallCoronaryStepResultV3<TWallState>;
     composedRhythmCandidate?: AcceptedComposedRhythmTransactionCandidateV2;
-    maximumStep?: MainWireIntegratedModelMaximumStepV3;
+    candidateTimeLimit?: MainWireIntegratedModelCandidateTimeLimitV3;
   }>,
 ): MainWireIntegratedModelStepFailureV3<TWallState> {
   return Object.freeze({
@@ -636,9 +656,9 @@ function failure<TWallState>(
     ...(details.composedRhythmCandidate === undefined
       ? {}
       : { composedRhythmCandidate: details.composedRhythmCandidate }),
-    ...(details.maximumStep === undefined
+    ...(details.candidateTimeLimit === undefined
       ? {}
-      : { maximumStep: details.maximumStep }),
+      : { candidateTimeLimit: details.candidateTimeLimit }),
     mechanicsCommitted: false as const,
     circulationCommitted: false as const,
     coronaryCommitted: false as const,
@@ -651,12 +671,12 @@ function failure<TWallState>(
 
 function assertStepInput(input: MainWireIntegratedModelStepInputV3): void {
   assertExactKeys(input, [
-    "dtSec",
+    "candidateTimeSec",
     "coronary",
     "rhythm",
     "dynamicMechanicalSupport",
   ], "composed integrated step input");
-  requirePositiveFinite(input.dtSec, "input.dtSec");
+  requireNonnegativeFinite(input.candidateTimeSec, "input.candidateTimeSec");
   assertRhythmStepContext(input.rhythm);
   assertDynamicContext(input.dynamicMechanicalSupport);
   rejectExternallyOwnedStepInputs(input.coronary);
@@ -716,11 +736,9 @@ function assertDynamicContext(
 ): void {
   assertExactKeys(context, [
     "config",
-    "heartRateBpm",
     "profile",
   ], "composed integrated dynamic MCS context");
   validateMechanicalSupportConfigV1(context.config);
-  requirePositiveFinite(context.heartRateBpm, "dynamic MCS heartRateBpm");
   validateDynamicMechanicalSupportInertanceProfileV1(context.profile);
 }
 
@@ -729,13 +747,11 @@ function assertDynamicInitializeContext(
 ): void {
   assertAllowedKeys(context, [
     "config",
-    "heartRateBpm",
     "profile",
     "initialAcceptedFlowMlPerSec",
   ], "composed integrated dynamic MCS cold context");
   assertDynamicContext({
     config: context.config,
-    heartRateBpm: context.heartRateBpm,
     profile: context.profile,
   });
   if (context.initialAcceptedFlowMlPerSec !== undefined) {
@@ -899,6 +915,35 @@ function regularSinusCycleLength(
     : null;
 }
 
+function dynamicMechanicalSupportHeartRateBpm(
+  rhythm: AcceptedComposedRhythmTransactionConfigurationV2,
+  config: MechanicalSupportConfigV1,
+): number {
+  const atrialSource = rhythm.atrialSource;
+  if (atrialSource.mode === "regular") {
+    if (
+      config.iabp.enabled
+      && atrialSource.regularSourceConfiguration.rhythmClass !== "sinus"
+    ) {
+      throw new Error(
+        "phase-derived IABP requires regular sinus rhythm until an "
+          + "accepted ventricular event-triggered owner is integrated",
+      );
+    }
+    return 60
+      / atrialSource.regularSourceConfiguration.cycleLengthSec;
+  }
+  if (config.iabp.enabled) {
+    throw new Error(
+      "phase-derived IABP is unavailable for external AF until an accepted "
+        + "ventricular event-triggered owner is integrated",
+    );
+  }
+  // The circulation contract still carries a scalar, but disabled IABP never
+  // consumes it. No user-authored heart-rate value can enter this lane.
+  return 60;
+}
+
 function assertExpectedRhythmConfiguration(
   state: AcceptedComposedRhythmTransactionStateV2,
   expected: AcceptedComposedRhythmTransactionConfigurationV2,
@@ -915,14 +960,6 @@ function assertExpectedRhythmConfiguration(
 function clockTolerance(timeSec: number, dtSec: number): number {
   return 64 * Number.EPSILON
     * Math.max(1, Math.abs(timeSec), Math.abs(dtSec));
-}
-
-function safeFutureTime(timeSec: number, durationSec: number, field: string): number {
-  const next = timeSec + durationSec;
-  if (!Number.isFinite(next) || !(next > timeSec)) {
-    throw new Error(`${field} must be strictly future and finite`);
-  }
-  return next;
 }
 
 function requirePositiveFinite(value: unknown, field: string): number {

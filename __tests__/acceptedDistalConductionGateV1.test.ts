@@ -267,6 +267,16 @@ describe("accepted distal conduction gate V1", () => {
       parentCapturedActivationId: "",
       proximalArrivalTimeSec: 0.1,
     })).toThrow(/parent.*nonempty/);
+    expect(() => evaluateDistalConductionGateCandidateDecisionV1(state, {
+      proximalAvOutputId: "   ",
+      parentCapturedActivationId: "parent",
+      proximalArrivalTimeSec: 0.1,
+    })).toThrow(/proximal.*nonempty/);
+    expect(() => evaluateDistalConductionGateCandidateDecisionV1(state, {
+      proximalAvOutputId: "masked-drop",
+      parentCapturedActivationId: "\t",
+      proximalArrivalTimeSec: 0.1,
+    })).toThrow(/parent.*nonempty/);
 
     const candidate = evaluate(state, "valid", 0.1);
     const tampered = jsonClone(candidate);

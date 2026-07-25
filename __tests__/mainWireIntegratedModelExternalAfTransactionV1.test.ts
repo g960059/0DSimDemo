@@ -432,7 +432,6 @@ function integratedFixture(
       },
       dynamicMechanicalSupport: {
         config,
-        heartRateBpm: 400,
         profile,
       },
     },
@@ -653,7 +652,6 @@ function stepInput(
     rhythm: Object.freeze({ configuration: fixture.rhythmConfiguration }),
     dynamicMechanicalSupport: Object.freeze({
       config: fixture.config,
-      heartRateBpm: 400,
       profile: fixture.profile,
     }),
   });

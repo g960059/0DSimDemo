@@ -12,6 +12,9 @@ import {
   validateMechanicalSupportConfigV1,
 } from "@/engine/devices/networkV1";
 import {
+  compensatedMechanicalSupportNodeSumV1,
+} from "@/engine/devices/mechanicalSupportConservationV1";
+import {
   MECHANICAL_SUPPORT_MODEL_V1_ID,
   MECHANICAL_SUPPORT_NODE_NAMES_V1,
   ROTARY_SUPPORT_DEVICE_IDS_V1,
@@ -1314,10 +1317,7 @@ function freezePreviousFlowJacobian(
 }
 
 function sumNodeRecord(record: NodeRecord<number>): number {
-  return MECHANICAL_SUPPORT_NODE_NAMES_V1.reduce(
-    (sum, node) => sum + record[node],
-    0,
-  );
+  return compensatedMechanicalSupportNodeSumV1(record);
 }
 
 function sumNodeColumn(

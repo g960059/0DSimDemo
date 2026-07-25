@@ -124,6 +124,8 @@ export const COMPOSED_RHYTHM_PENDING_CALCIUM_DEPOSIT_V2_ID =
 export const ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CLAIM_V2 = deepFreeze({
   scope: "standalone-atomic-rhythm-to-five-wall-exact-calcium-composition" as const,
   liveHemodynamicOrFrontendWiringClaimed: false as const,
+  boundaryEndpointContract:
+    "absolute-candidate-time-only-never-derived-duration-readdition" as const,
   boundaryOrder: Object.freeze([
     "earliest-owned-event-clipping",
     "due-proximal-output-through-distal-gate",
@@ -165,7 +167,7 @@ export const ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CLAIM_V2 = deepFreeze({
     acceptedInput:
       "explicit-external-owner-batch-of-atrial-primary-intrinsic-source-impulses" as const,
     eventClippingOwner:
-      "caller-must-combine-external-owner-next-boundary-with-transaction-maximum-step" as const,
+      "caller-must-combine-external-owner-next-boundary-with-transaction-candidate-endpoint-limit" as const,
     coordinatedAtrialCalcium: "forbidden" as const,
   }),
   authoredVentricularPacingReplay: Object.freeze({
@@ -396,10 +398,8 @@ export type AcceptedComposedRhythmTransactionCandidateV2 = Readonly<{
   candidateState: AcceptedComposedRhythmTransactionStateV2;
 }>;
 
-export type AcceptedComposedRhythmTransactionMaximumStepV2 = Readonly<{
-  requestedStepSec: number;
-  requestedEndTimeSec: number;
-  maximumStepSec: number;
+export type AcceptedComposedRhythmTransactionCandidateTimeLimitV2 = Readonly<{
+  requestedCandidateTimeSec: number;
   candidateTimeSec: number;
   boundaryTimeSec: number | null;
   boundaryOwners: readonly string[];
@@ -679,14 +679,26 @@ export function initializeAcceptedComposedRhythmTransactionStateV2(
   return state;
 }
 
-export function maximumAcceptedComposedRhythmTransactionStepV2(
+/**
+ * Limits an absolute requested endpoint to the earliest owned event boundary.
+ *
+ * candidateTimeSec is the sole executable endpoint. Consumers must not
+ * reconstruct it by subtracting acceptedTimeSec and adding the derived
+ * duration back, because that round trip is not exact for every finite pair.
+ */
+export function limitAcceptedComposedRhythmTransactionCandidateTimeV2(
   state: AcceptedComposedRhythmTransactionStateV2,
-  requestedStepSec: number,
+  requestedCandidateTimeSec: number,
   externalAfNextBoundaryTimeSec: number | null,
-): AcceptedComposedRhythmTransactionMaximumStepV2 {
+): AcceptedComposedRhythmTransactionCandidateTimeLimitV2 {
   validateAcceptedComposedRhythmTransactionStateV2(state);
-  const requested = requirePositiveFinite(requestedStepSec, "requestedStepSec");
-  const requestedEnd = safeFutureTime(state.acceptedTimeSec, requested, "requested composed rhythm end");
+  const requestedCandidateTime = requireNonnegativeFinite(
+    requestedCandidateTimeSec,
+    "requestedCandidateTimeSec",
+  );
+  if (!(requestedCandidateTime > state.acceptedTimeSec)) {
+    throw new Error("requested composed rhythm candidate time must advance");
+  }
   const boundaries = ownedBoundaries(state);
   if (state.configuration.atrialSource.mode === "external-af") {
     const external = requireNonnegativeFinite(externalAfNextBoundaryTimeSec, "externalAfNextBoundaryTimeSec");
@@ -695,12 +707,13 @@ export function maximumAcceptedComposedRhythmTransactionStepV2(
   } else if (externalAfNextBoundaryTimeSec !== null) {
     throw new Error("regular atrial mode must not supply an external AF boundary");
   }
-  const earliest = Math.min(requestedEnd, ...boundaries.map((boundary) => boundary.timeSec));
+  const earliest = Math.min(
+    requestedCandidateTime,
+    ...boundaries.map((boundary) => boundary.timeSec),
+  );
   const owners = boundaries.filter((boundary) => boundary.timeSec === earliest).map((boundary) => boundary.owner).sort();
   return Object.freeze({
-    requestedStepSec: requested,
-    requestedEndTimeSec: requestedEnd,
-    maximumStepSec: earliest - state.acceptedTimeSec,
+    requestedCandidateTimeSec: requestedCandidateTime,
     candidateTimeSec: earliest,
     boundaryTimeSec: owners.length === 0 ? null : earliest,
     boundaryOwners: Object.freeze(owners),

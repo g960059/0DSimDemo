@@ -66,8 +66,13 @@ export type CoronaryAcceptedAutoregulationStateV3 = Readonly<{
     CoronaryTerritoryLayerRecordV2<number>;
   perfusionPressureTimeIntegralMmHgSecByTerritory:
     CoronaryTerritoryRecordV2<number>;
-  /** Null exactly while the current physical-time window is empty. */
+  /** Control physically applied throughout the current accepted window. */
   windowControl: CoronaryAutoregulationWindowControlV3 | null;
+  /**
+   * Latest desired control. A mid-window change is retained here and becomes
+   * the next window's applied control at its accepted boundary.
+   */
+  desiredControl: CoronaryAutoregulationWindowControlV3 | null;
 }>;
 
 export type CoronaryAcceptedAutoregulationCompletionV3 = Readonly<{
@@ -144,6 +149,7 @@ export function createCoronaryAcceptedAutoregulationStateV3(
   input: Readonly<{
     acceptedTimeSec: number;
     revision: number;
+    desiredControl?: CoronaryAutoregulationWindowControlV3;
   }>,
 ): CoronaryAcceptedAutoregulationStateV3 {
   validateCoronaryAutoregulationWindowBindingV3(binding);
@@ -170,6 +176,9 @@ export function createCoronaryAcceptedAutoregulationStateV3(
     qmTimeIntegralMlByTerritoryLayer: zeroLayerRecord(),
     perfusionPressureTimeIntegralMmHgSecByTerritory: zeroTerritoryRecord(),
     windowControl: null,
+    desiredControl: input.desiredControl === undefined
+      ? null
+      : freezeControl(input.desiredControl),
   });
 }
 
@@ -271,13 +280,13 @@ export function advanceCoronaryAcceptedAutoregulationV3(
   const suppliedControl = freezeControl(
     input.control ?? createDefaultCoronaryAutoregulationWindowControlV3(),
   );
-  const control = previous.windowControl ?? suppliedControl;
-  if (previous.windowControl !== null
-    && !controlsExactlyEqual(previous.windowControl, suppliedControl)) {
-    throw new RangeError(
-      "coronary autoregulation control cannot change mid-window",
-    );
-  }
+  const desiredControl = previous.desiredControl !== null
+      && controlsExactlyEqual(previous.desiredControl, suppliedControl)
+    ? previous.desiredControl
+    : suppliedControl;
+  const control = previous.windowControl
+    ?? previous.desiredControl
+    ?? desiredControl;
 
   const duration = previous.acceptedDurationSec + dtSec;
   const stepCount = previous.acceptedStepCount + 1;
@@ -303,6 +312,7 @@ export function advanceCoronaryAcceptedAutoregulationV3(
       qmTimeIntegralMlByTerritoryLayer: qmIntegral,
       perfusionPressureTimeIntegralMmHgSecByTerritory: pressureIntegral,
       windowControl: control,
+      desiredControl,
     });
     validateCoronaryAcceptedAutoregulationStateV3(
       binding,
@@ -364,6 +374,7 @@ export function advanceCoronaryAcceptedAutoregulationV3(
     qmTimeIntegralMlByTerritoryLayer: zeroLayerRecord(),
     perfusionPressureTimeIntegralMmHgSecByTerritory: zeroTerritoryRecord(),
     windowControl: null,
+    desiredControl,
   });
   validateCoronaryAcceptedAutoregulationStateV3(
     binding,
@@ -449,6 +460,7 @@ export function validateCoronaryAcceptedAutoregulationStateV3(
     "qmTimeIntegralMlByTerritoryLayer",
     "perfusionPressureTimeIntegralMmHgSecByTerritory",
     "windowControl",
+    "desiredControl",
   ], "coronary accepted autoregulation state");
   if (state.stateId !== CORONARY_ACCEPTED_AUTOREGULATION_STATE_V3_ID) {
     throw new Error("unsupported coronary accepted autoregulation state");
@@ -491,7 +503,8 @@ export function validateCoronaryAcceptedAutoregulationStateV3(
   );
   const empty = state.acceptedStepCount === 0;
   if (empty !== (state.acceptedDurationSec === 0)
-    || empty !== (state.windowControl === null)) {
+    || (empty && state.windowControl !== null)
+    || (!empty && state.windowControl === null)) {
     throw new Error("autoregulation empty-window invariants differ");
   }
   if (empty && (!layerRecordIsZero(state.qmTimeIntegralMlByTerritoryLayer)
@@ -499,6 +512,10 @@ export function validateCoronaryAcceptedAutoregulationStateV3(
       state.perfusionPressureTimeIntegralMmHgSecByTerritory,
     ))) throw new Error("empty autoregulation window contains integrals");
   if (state.windowControl !== null) freezeControl(state.windowControl);
+  if (state.desiredControl !== null) freezeControl(state.desiredControl);
+  if (!empty && state.desiredControl === null) {
+    throw new Error("active autoregulation window has no desired control");
+  }
   if (clock !== undefined) {
     requireNonnegativeFinite(clock.acceptedTimeSec, "acceptedTimeSec");
     const expectedTime = state.windowStartAcceptedTimeSec
@@ -535,6 +552,9 @@ function freezeState(
     windowControl: state.windowControl === null
       ? null
       : freezeControl(state.windowControl),
+    desiredControl: state.desiredControl === null
+      ? null
+      : freezeControl(state.desiredControl),
   });
 }
 

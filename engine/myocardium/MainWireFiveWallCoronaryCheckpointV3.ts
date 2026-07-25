@@ -32,11 +32,11 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_CLAIM_V3 =
     integrity: "sha-256-over-canonical-json-complete-payload" as const,
     autoregulationAccumulatorIncluded: true as const,
     autoregulationAccumulator:
-      "six-qm-integrals-three-perfusion-pressure-integrals-duration-step-count-window-control-origin-index-and-start" as const,
+      "six-qm-integrals-three-perfusion-pressure-integrals-duration-step-count-window-control-desired-control-origin-index-and-start" as const,
     acceptedToneMode:
       "six-tone-states-update-only-after-complete-accepted-physical-time-window" as const,
     exactResumeScope:
-      "all-v2-owners-plus-mid-window-autoregulation-history-and-control" as const,
+      "all-v2-owners-plus-mid-window-autoregulation-history-applied-control-and-pending-desired-control" as const,
     legacyCheckpointV2DirectRestoreCompatible: false as const,
     explicitV2PromotionAvailable: true as const,
   });

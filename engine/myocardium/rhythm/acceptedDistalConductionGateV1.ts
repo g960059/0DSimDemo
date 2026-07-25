@@ -970,7 +970,7 @@ function requireExactKeys(
 }
 
 function requireNonemptyString(value: unknown, field: string): string {
-  if (typeof value !== "string" || value.length === 0) {
+  if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`${field} must be a nonempty string`);
   }
   return value;
