@@ -16,8 +16,6 @@ import { useTranslation } from "react-i18next";
 import type { PanelDef } from "@/types";
 import type {
   ReaderBriefExtentV1,
-  ReaderControlSpecV1,
-  ReaderInstantaneousReadbackSpecV1,
   StudioGraphPaneSpecV1,
 } from "@/studio/contracts/v1";
 import {
@@ -53,8 +51,6 @@ export type ScientificWorkbenchBriefingComposerV1Props = Readonly<{
   registry: ScientificProductRuntimeRegistryPortV1;
   /** Article scenario id → live Workbench scenario id, for the preview. */
   previewScenarioIdMap: ReadonlyMap<string, string>;
-  readbacks: readonly ReaderInstantaneousReadbackSpecV1[];
-  controls: readonly ReaderControlSpecV1[];
   extent: ReaderBriefExtentV1;
   onClose(): void;
   onPin(panelId: string): void;
@@ -80,8 +76,6 @@ export function ScientificWorkbenchBriefingComposerV1({
   unpinBlockedByPaneId,
   registry,
   previewScenarioIdMap,
-  readbacks,
-  controls,
   extent,
   onClose,
   onPin,
@@ -319,56 +313,6 @@ export function ScientificWorkbenchBriefingComposerV1({
                       </div>
                     )}
 
-                    {readbacks.length > 0 && (
-                      <div className="grid grid-cols-2 gap-2">
-                        {readbacks.map((readback) => (
-                          <div
-                            key={readback.readbackId}
-                            className="rounded-lg border border-wb-line bg-wb-panel p-3"
-                          >
-                            <p className="text-[11px] font-semibold text-wb-muted">
-                              {readback.label}
-                            </p>
-                            <p className="mt-1 font-mono text-lg text-wb-text">
-                              —
-                              <span className="ml-1 text-[11px] text-wb-subtle">
-                                {readback.unit}
-                              </span>
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {controls.map((control) => (
-                      <div
-                        key={control.controlId}
-                        className="rounded-lg border border-wb-line bg-wb-panel p-3"
-                      >
-                        <div className="mb-2 flex items-baseline justify-between gap-2">
-                          <span className="text-xs font-bold text-wb-text">
-                            {control.label}
-                          </span>
-                          <span className="font-mono text-xs text-wb-muted">
-                            {control.initialValue}
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={Math.max(1, control.allowedValues.length - 1)}
-                          step={1}
-                          value={Math.max(
-                            0,
-                            control.allowedValues.indexOf(control.initialValue),
-                          )}
-                          readOnly
-                          disabled
-                          aria-label={control.label}
-                          className="h-2 w-full accent-wb-accent"
-                        />
-                      </div>
-                    ))}
                   </div>
                 )}
             </div>

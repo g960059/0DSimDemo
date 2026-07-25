@@ -308,8 +308,6 @@ export function ScientificWorkbenchBriefingControlV1({
             unpinBlockedByPaneId={unpinBlockedByPaneId}
             registry={registry}
             previewScenarioIdMap={previewScenarioIdMap}
-            readbacks={target?.brief.instantaneousReadbacks ?? []}
-            controls={target?.brief.controls ?? []}
             extent={target?.brief.extent ?? "inflow"}
             onClose={() => setOpenV1(false)}
             onPin={pinPane}
