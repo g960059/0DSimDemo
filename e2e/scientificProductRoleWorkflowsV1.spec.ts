@@ -167,6 +167,59 @@ test.describe.serial("Product workflows by role", () => {
         article.getByTestId("studio-document-drop-line-v1"),
       ).toHaveCount(0);
 
+      // A second experiment is created by placing it, and it is its own
+      // composition: the article now holds two, each with its own brief.
+      const placements = () =>
+        article.locator('[data-document-block-kind="experiment-placement"]');
+      await expect(placements()).toHaveCount(1);
+      await article.getByTestId("studio-document-block-v1").first().hover();
+      await article.getByTestId("studio-document-block-v1").first()
+        .getByTestId("studio-document-block-handle-v1").click();
+      await page.getByTestId("studio-document-insert-experiment-v1").click();
+      await expect(placements()).toHaveCount(2);
+      // Each placement names the experiment it composes, so the Workbench
+      // opens the one the author meant rather than the first in the draft.
+      const composeButtons = article.getByTestId(
+        "studio-placement-compose-v1",
+      );
+      await expect(composeButtons).toHaveCount(2);
+      // The new placement was inserted below the first block, so it leads the
+      // article; its compose button must open its own experiment.
+      await composeButtons.first().click();
+      await expect(page).toHaveURL(/\/ja\/workbench\?experiment=/);
+      const composedExperimentId = new URL(page.url()).searchParams
+        .get("experiment");
+      expect(composedExperimentId).not.toBeNull();
+      await readyStudioWorkbenchV1(page);
+      await page.getByTestId("scientific-workbench-open-briefing-v1").click();
+      const secondComposer = page.getByTestId(
+        "scientific-workbench-briefing-compose-v1",
+      );
+      // The new experiment arrives uncomposed rather than inheriting one.
+      await expect(secondComposer).toContainText("graph 0枚");
+      await page.locator(
+        '[data-briefing-pick-kind="graph"]'
+        + '[data-briefing-pick-key="product-left-pressure-v1"]',
+      ).click();
+      await expect(secondComposer).toContainText("graph 1枚");
+      await secondComposer.getByRole("button", {
+        name: "記事を編集",
+        exact: true,
+      }).click();
+      await expect(page).toHaveURL(/\/ja\/studio\/author$/);
+      await expect(placements()).toHaveCount(2);
+
+      // Leave the article with one experiment for the rest of the workflow.
+      const secondPlacement = placements().first();
+      await secondPlacement.hover();
+      await secondPlacement.getByTestId("studio-document-block-handle-v1")
+        .click();
+      await page.getByRole("menuitem", {
+        name: "ブロックを削除",
+        exact: true,
+      }).click();
+      await expect(placements()).toHaveCount(1);
+
       // The same handle still opens the menu when the pointer stays put.
       await lastBlock.hover();
       await article.getByTestId("studio-document-block-v1").last()

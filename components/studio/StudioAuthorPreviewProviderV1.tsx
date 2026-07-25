@@ -4,6 +4,10 @@ import {
   SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
 } from "@/components/scientificProduct/ScientificProductSampleAfterloadArticleV1";
 import {
+  SCIENTIFIC_PRODUCT_OFFICIAL_HEALTHY_CASE_ID_V1,
+  SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
+} from "@/components/scientificProduct/scientificProductCaseCatalogV1";
+import {
   StudioAuthorPreviewApplicationV1,
   StudioAuthorPreviewRevisionConflictErrorV1,
   type ReplaceStudioAuthorDocumentContentCommandV1,
@@ -113,6 +117,14 @@ export type StudioAuthorPreviewContextValueV1 = Readonly<{
   replaceReaderBriefSelection(
     command: ReplaceStudioAuthorReaderBriefSelectionCommandV1,
   ): StudioAuthorDraftV1;
+  /**
+   * Adds an experiment bound to this release and returns what an article
+   * block needs to place it. Its Reader brief starts empty.
+   */
+  createExperiment(): Readonly<{
+    experimentId: string;
+    readerBriefId: string;
+  }>;
   materializePreview(): ReaderPreviewManifestV1;
   resolvePreview(previewId: string): ReaderPreviewManifestV1 | null;
   /**
@@ -259,6 +271,30 @@ export function StudioAuthorPreviewProviderV1({
     const next = application.replaceReaderBriefSelection(command);
     setDraft(next);
     return next;
+  }, [application]);
+
+  const createExperiment = React.useCallback(() => {
+    const suffix = globalThis.crypto.randomUUID();
+    const reference = Object.freeze({
+      experimentId: `experiment/${suffix}`,
+      readerBriefId: `reader-brief/${suffix}`,
+    });
+    setDraft(application.createExperiment({
+      expectedRevision: application.getDraftSnapshot().revision,
+      experimentId: reference.experimentId,
+      modelRef: `${SCIENTIFIC_PRODUCT_RELEASE_REF_V1.id}`
+        + `@${SCIENTIFIC_PRODUCT_RELEASE_REF_V1.version}`
+        + `:sha256:${SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256}`,
+      scenarioId: `scenario/${suffix}`,
+      scenarioLabel: "健康成人のexact periodic基準",
+      runtimeSource: Object.freeze({
+        kind: "preview-bootstrap",
+        sourceId: SCIENTIFIC_PRODUCT_OFFICIAL_HEALTHY_CASE_ID_V1,
+        qualification: "uncertified-preview-only",
+      }),
+      readerBriefId: reference.readerBriefId,
+    }));
+    return reference;
   }, [application]);
 
   const materializePreview = React.useCallback(() => {
@@ -522,12 +558,14 @@ export function StudioAuthorPreviewProviderV1({
       redoDocumentContent,
       replaceReaderBriefGraphPanes,
       replaceReaderBriefSelection,
+      createExperiment,
       materializePreview,
       resolvePreview,
       acquireReaderPlacement,
       noteReaderPlacementUse,
     }), [
     acquireReaderPlacement,
+    createExperiment,
     draft,
     lastPreviewId,
     materializePreview,

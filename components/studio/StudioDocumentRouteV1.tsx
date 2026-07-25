@@ -46,6 +46,7 @@ export default function StudioDocumentRouteV1() {
     canRedoDocumentContent,
     undoDocumentContent,
     redoDocumentContent,
+    createExperiment,
     materializePreview,
   } = useStudioAuthorPreviewV1();
   const [capability, setCapability] =
@@ -139,16 +140,18 @@ export default function StudioDocumentRouteV1() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [capability, redoDocumentContent, undoDocumentContent]);
 
-  const insertableExperiment = React.useMemo(() => {
-    const experiment = draft.experiments[0];
-    const brief = experiment?.readerBriefs[0];
-    return experiment === undefined || brief === undefined
-      ? null
-      : Object.freeze({
-        experimentId: experiment.experimentId,
-        readerBriefId: brief.briefId,
-      });
-  }, [draft.experiments]);
+  const createExperimentForBlock = React.useCallback(() => {
+    try {
+      const reference = createExperiment();
+      setErrorMessage(null);
+      return reference;
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : String(error),
+      );
+      return null;
+    }
+  }, [createExperiment]);
 
   const scrollRootRef = React.useRef<HTMLDivElement | null>(null);
   const runtimeForPlacement = useStudioReaderPlacementRuntimesV1({
@@ -282,7 +285,10 @@ export default function StudioDocumentRouteV1() {
         <StudioDocumentSurfaceV1
           document={resolvedDocument}
           capability={capability}
-          edit={{ onCommit: commitContent, insertableExperiment }}
+          edit={{
+            onCommit: commitContent,
+            createExperiment: createExperimentForBlock,
+          }}
           runtimeForPlacement={runtimeForPlacement}
         />
       </div>

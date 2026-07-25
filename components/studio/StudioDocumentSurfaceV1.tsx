@@ -1,6 +1,19 @@
 import * as React from "react";
-import { FlaskConical, GripVertical, Heading2, Heading3, Pilcrow, Plus, Trash2 } from "lucide-react";
+import {
+  FlaskConical,
+  GripVertical,
+  Heading2,
+  Heading3,
+  PanelsTopLeft,
+  Pilcrow,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useLocation, useNavigate } from "react-router-dom";
+
+import { workbenchHref } from "@/homeLinks";
+import { localeFromPathname } from "@/localeRouting";
 
 import type {
   ReaderPlacementInlineModeV1,
@@ -32,8 +45,14 @@ export type StudioDocumentEditV1 = Readonly<{
     blocks: readonly StudioDocumentBlockV1[],
     expectedRevision: number,
   ): number | null;
-  /** Experiment reference offered by `/` insertion, or null when none exists. */
-  insertableExperiment: Readonly<{
+  /**
+   * Adds an experiment to the draft and returns what a block needs to place
+   * it, or null when it could not be created. Inserting an experiment makes a
+   * new one rather than pointing at an existing one: an article's experiments
+   * each own their brief, so two placements are two experiments to compose,
+   * not one composition shown twice.
+   */
+  createExperiment(): Readonly<{
     experimentId: string;
     readerBriefId: string;
   }> | null;
@@ -319,7 +338,7 @@ export function StudioDocumentSurfaceV1({
                   total={buffer.blocks.length}
                   menuOpen={menuBlockId === block.blockId}
                   isExperiment={block.kind === "experiment-placement"}
-                  insertableExperiment={edit?.insertableExperiment ?? null}
+                  canInsertExperiment={edit !== undefined}
                   removable={buffer.blocks.length > 1}
                   dragging={drag.state.active}
                   onHandlePointerDown={(event) =>
@@ -333,14 +352,18 @@ export function StudioDocumentSurfaceV1({
                     text: "",
                   })}
                   onChangeKind={changeBlockKind}
-                  onInsertExperiment={(reference) => insertBlock(index + 1, {
-                    blockId: newBlockIdV1(),
-                    kind: "experiment-placement",
-                    experimentId: reference.experimentId,
-                    readerBriefId: reference.readerBriefId,
-                    inlineMode: "live",
-                    localCaption: null,
-                  })}
+                  onInsertExperiment={() => {
+                    const reference = edit?.createExperiment() ?? null;
+                    if (reference === null) return;
+                    insertBlock(index + 1, {
+                      blockId: newBlockIdV1(),
+                      kind: "experiment-placement",
+                      experimentId: reference.experimentId,
+                      readerBriefId: reference.readerBriefId,
+                      inlineMode: "live",
+                      localCaption: null,
+                    });
+                  }}
                   onMove={moveBlock}
                   onRemove={() => removeBlock(block.blockId)}
                 />
@@ -362,6 +385,7 @@ export function StudioDocumentSurfaceV1({
                         />
                         {composing && (
                           <StudioPlacementOptionsV1
+                            experimentId={placement.experiment.experimentId}
                             inlineMode={placement.inlineMode}
                             caption={placement.localCaption}
                             onChange={(inlineMode, localCaption) => {
@@ -432,6 +456,7 @@ export function StudioDocumentSurfaceV1({
                 const heading = newBlockIdV1();
                 const lead = newBlockIdV1();
                 const reading = newBlockIdV1();
+                const experiment = edit?.createExperiment() ?? null;
                 updateBuffer({
                   title: buffer.title.length === 0
                     ? t("studioAuthorPreview.surface.templateTitle")
@@ -442,18 +467,14 @@ export function StudioDocumentSurfaceV1({
                       kind: "paragraph",
                       text: t("studioAuthorPreview.surface.templateLead"),
                     },
-                    ...(edit?.insertableExperiment === null
-                      || edit?.insertableExperiment === undefined
-                      ? []
-                      : [{
-                        blockId: newBlockIdV1(),
-                        kind: "experiment-placement" as const,
-                        experimentId: edit.insertableExperiment.experimentId,
-                        readerBriefId:
-                          edit.insertableExperiment.readerBriefId,
-                        inlineMode: "live" as const,
-                        localCaption: null,
-                      }]),
+                    ...(experiment === null ? [] : [{
+                      blockId: newBlockIdV1(),
+                      kind: "experiment-placement" as const,
+                      experimentId: experiment.experimentId,
+                      readerBriefId: experiment.readerBriefId,
+                      inlineMode: "live" as const,
+                      localCaption: null,
+                    }]),
                     {
                       blockId: heading,
                       kind: "heading",
@@ -637,7 +658,7 @@ function StudioBlockGutterV1({
   total,
   menuOpen,
   isExperiment,
-  insertableExperiment,
+  canInsertExperiment,
   removable,
   dragging,
   onHandlePointerDown,
@@ -654,10 +675,7 @@ function StudioBlockGutterV1({
   total: number;
   menuOpen: boolean;
   isExperiment: boolean;
-  insertableExperiment: Readonly<{
-    experimentId: string;
-    readerBriefId: string;
-  }> | null;
+  canInsertExperiment: boolean;
   removable: boolean;
   dragging: boolean;
   onHandlePointerDown(event: React.PointerEvent<HTMLElement>): void;
@@ -669,10 +687,7 @@ function StudioBlockGutterV1({
     kind: "paragraph" | "heading",
     level?: 2 | 3,
   ): void;
-  onInsertExperiment(reference: Readonly<{
-    experimentId: string;
-    readerBriefId: string;
-  }>): void;
+  onInsertExperiment(): void;
   onMove(blockId: string, direction: -1 | 1): void;
   onRemove(): void;
 }>) {
@@ -773,12 +788,12 @@ function StudioBlockGutterV1({
                 </MenuItemV1>
               </>
             )}
-            {insertableExperiment !== null && (
+            {canInsertExperiment && (
               <MenuItemV1
                 label={t("studioAuthorPreview.surface.insertExperiment")}
                 testId="studio-document-insert-experiment-v1"
                 onClick={() => {
-                  onInsertExperiment(insertableExperiment);
+                  onInsertExperiment();
                   onCloseMenu();
                 }}
               >
@@ -883,10 +898,12 @@ function MenuItemV1({
 }
 
 function StudioPlacementOptionsV1({
+  experimentId,
   inlineMode,
   caption,
   onChange,
 }: Readonly<{
+  experimentId: string;
   inlineMode: ReaderPlacementInlineModeV1;
   caption: string | null;
   onChange(
@@ -895,6 +912,9 @@ function StudioPlacementOptionsV1({
   ): void;
 }>) {
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const locale = localeFromPathname(location.pathname);
   return (
     <div
       className="-mt-4 mb-9 flex flex-wrap items-center gap-2"
@@ -919,6 +939,21 @@ function StudioPlacementOptionsV1({
           </button>
         ))}
       </div>
+      <button
+        type="button"
+        data-testid="studio-placement-compose-v1"
+        // Each placement owns its own experiment, so composing one names it.
+        // A single Workbench entry point would silently compose the first.
+        onClick={() => navigate(
+          `${workbenchHref(locale)}?experiment=${
+            encodeURIComponent(experimentId)
+          }`,
+        )}
+        className="inline-flex min-h-7 shrink-0 items-center gap-1.5 rounded-md px-2 text-[11px] font-bold text-wb-accent transition-colors hover:bg-wb-hover"
+      >
+        <PanelsTopLeft className="h-3.5 w-3.5" />
+        {t("studioAuthorPreview.surface.composeInWorkbench")}
+      </button>
       <input
         value={caption ?? ""}
         placeholder={t("studioAuthorPreview.surface.captionPlaceholder")}

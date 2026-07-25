@@ -560,6 +560,47 @@ describe("StudioAuthorPreviewApplicationV1", () => {
       initialDraft: draft as unknown as StudioAuthorDraftV1,
     })).toThrow(StudioAuthorPreviewValidationErrorV1);
   });
+
+  it("adds an experiment with an empty brief that a block can then place", () => {
+    const application = createApplicationV1();
+    const before = application.getDraftSnapshot();
+
+    const next = application.createExperiment({
+      expectedRevision: before.revision,
+      experimentId: "experiment/second",
+      modelRef: before.experiments[0]!.modelRef,
+      scenarioId: "scenario/second",
+      scenarioLabel: "second scenario",
+      runtimeSource: before.experiments[0]!.scenarios[0]!.runtimeSource,
+      readerBriefId: "reader-brief/second",
+    });
+
+    expect(next.experiments).toHaveLength(before.experiments.length + 1);
+    expect(next.revision).toBe(before.revision + 1);
+    // Placing an experiment is a separate, document-level edit.
+    expect(next.document.revision).toBe(before.document.revision);
+    const created = next.experiments.at(-1)!;
+    // An experiment arrives uncomposed: its brief is what an author builds.
+    expect(created.readerBriefs[0]).toMatchObject({
+      briefId: "reader-brief/second",
+      extent: "inflow",
+      graphPanes: [],
+      instantaneousReadbacks: [],
+      controls: [],
+    });
+
+    expect(() =>
+      application.createExperiment({
+        expectedRevision: next.revision,
+        experimentId: "experiment/second",
+        modelRef: created.modelRef,
+        scenarioId: "scenario/third",
+        scenarioLabel: "third scenario",
+        runtimeSource: created.scenarios[0]!.runtimeSource,
+        readerBriefId: "reader-brief/third",
+      })
+    ).toThrow(/already exists/);
+  });
 });
 
 /**

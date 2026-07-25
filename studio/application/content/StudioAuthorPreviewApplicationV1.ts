@@ -79,6 +79,24 @@ export type ReplaceStudioAuthorReaderBriefSelectionCommandV1 = Readonly<{
   controls: readonly ReaderControlSpecV1[];
 }>;
 
+/**
+ * Adds an experiment with one scenario and one empty Reader brief.
+ *
+ * The model identity and the runtime source are given by the caller: which
+ * release an article may run against, and which case a scenario reads, are
+ * decisions of the product surface, not of content editing. This layer only
+ * checks that what it is handed is a valid draft.
+ */
+export type CreateStudioAuthorExperimentCommandV1 = Readonly<{
+  expectedRevision: number;
+  experimentId: string;
+  modelRef: string;
+  scenarioId: string;
+  scenarioLabel: string;
+  runtimeSource: ExperimentScenarioRuntimeSourceV1;
+  readerBriefId: string;
+}>;
+
 export type MaterializeStudioReaderPreviewCommandV1 = Readonly<{
   expectedRevision: number;
 }>;
@@ -358,6 +376,61 @@ export class StudioAuthorPreviewApplicationV1 {
                 ),
               },
       ),
+    });
+    return this.draft;
+  }
+
+  /**
+   * Adds an experiment carrying one scenario and one empty Reader brief.
+   *
+   * The brief starts empty because an author builds it by picking on the
+   * Workbench; an experiment that arrived pre-composed would present a
+   * selection nobody made. This advances the draft revision and leaves the
+   * Document alone — placing the experiment in the article is a separate,
+   * document-level edit, so an experiment can exist before it is placed.
+   */
+  createExperiment(
+    command: CreateStudioAuthorExperimentCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    requiredPortableIdV1(command.experimentId, "$.command.experimentId");
+    requiredPortableIdV1(command.scenarioId, "$.command.scenarioId");
+    requiredPortableIdV1(command.readerBriefId, "$.command.readerBriefId");
+    if (
+      this.draft.experiments.some(({ experimentId }) =>
+        experimentId === command.experimentId)
+    ) {
+      throw validationErrorV1(
+        "$.command.experimentId",
+        `experiment ${command.experimentId} already exists`,
+      );
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...this.draft,
+      revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
+      experiments: [
+        ...this.draft.experiments,
+        {
+          schemaId: STUDIO_EXPERIMENT_REVISION_V1_SCHEMA_ID,
+          experimentId: command.experimentId,
+          revision: 0,
+          modelRef: command.modelRef,
+          scenarios: [{
+            scenarioId: command.scenarioId,
+            label: command.scenarioLabel,
+            runtimeSource: command.runtimeSource,
+          }],
+          readerBriefs: [{
+            schemaId: STUDIO_READER_BRIEF_V1_SCHEMA_ID,
+            briefId: command.readerBriefId,
+            extent: "inflow",
+            graphPanes: [],
+            instantaneousReadbacks: [],
+            controls: [],
+          }],
+        },
+      ],
     });
     return this.draft;
   }

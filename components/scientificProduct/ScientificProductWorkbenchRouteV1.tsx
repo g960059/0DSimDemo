@@ -120,10 +120,8 @@ import {
   type StudioBriefingPickApiV1,
 } from "./ScientificWorkbenchBriefingPickV1";
 import {
-  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
-  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
-  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
-} from "./ScientificProductSampleAfterloadArticleV1";
+  useStudioAuthorPreviewV1,
+} from "@/components/studio/StudioAuthorPreviewProviderV1";
 import {
   readScientificProductSavedScenarioCatalogV1,
   removeScientificProductSavedScenarioV1,
@@ -297,6 +295,32 @@ function ScientificProductWorkbenchShellV1({
   const { t } = useTranslation();
   const locale = localeFromPathname(location.pathname);
   const isMobile = useIsMobile();
+  const { draft: authorDraft } = useStudioAuthorPreviewV1();
+  /**
+   * Which experiment this Workbench is composing.
+   *
+   * An article may hold several, so the placement that sent the author here
+   * names the one they meant. It travels in the URL rather than in memory so
+   * that a reload composes the same experiment. Without a name — an author
+   * who opened the Workbench directly — the first experiment is composed,
+   * which is the only one a single-experiment article has.
+   */
+  const composeTarget = React.useMemo(() => {
+    const requested = new URLSearchParams(location.search).get("experiment");
+    const experiment = authorDraft.experiments.find(({ experimentId }) =>
+      experimentId === requested) ?? authorDraft.experiments[0];
+    const brief = experiment?.readerBriefs[0];
+    const scenario = experiment?.scenarios[0];
+    return experiment === undefined
+        || brief === undefined
+        || scenario === undefined
+      ? null
+      : Object.freeze({
+        experimentId: experiment.experimentId,
+        briefId: brief.briefId,
+        scenarioId: scenario.scenarioId,
+      });
+  }, [authorDraft.experiments, location.search]);
   const { workbenchTheme, setWorkbenchTheme } = useWorkbenchTheme();
   const [isPlaying, setPlaying] = React.useState(true);
   const [briefingOpen, setBriefingOpen] = React.useState(false);
@@ -930,21 +954,16 @@ function ScientificProductWorkbenchShellV1({
           />
         )}
         presentationComposeControl={(
-          <ScientificWorkbenchBriefingControlV1
-            panels={panels.panels}
-            registry={registry}
-            activeScenarioId={activeInstanceId}
-            target={Object.freeze({
-              experimentId:
-                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
-              briefId:
-                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
-              scenarioId:
-                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
-            })}
-            onOpenChange={setBriefingOpen}
-            onPickApiChange={setBriefingPickApi}
-          />
+          composeTarget === null ? null : (
+            <ScientificWorkbenchBriefingControlV1
+              panels={panels.panels}
+              registry={registry}
+              activeScenarioId={activeInstanceId}
+              target={composeTarget}
+              onOpenChange={setBriefingOpen}
+              onPickApiChange={setBriefingPickApi}
+            />
+          )
         )}
         settingsContent={(
           <ScientificProductTransitionBehaviorSettingsV1
