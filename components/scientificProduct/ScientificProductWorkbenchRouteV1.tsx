@@ -116,6 +116,10 @@ import {
   ScientificWorkbenchBriefingControlV1,
 } from "./ScientificWorkbenchBriefingControlV1";
 import {
+  StudioBriefingPickProviderV1,
+  type StudioBriefingPickApiV1,
+} from "./ScientificWorkbenchBriefingPickV1";
+import {
   SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
   SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
   SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
@@ -296,6 +300,8 @@ function ScientificProductWorkbenchShellV1({
   const { workbenchTheme, setWorkbenchTheme } = useWorkbenchTheme();
   const [isPlaying, setPlaying] = React.useState(true);
   const [briefingOpen, setBriefingOpen] = React.useState(false);
+  const [briefingPickApi, setBriefingPickApi] =
+    React.useState<StudioBriefingPickApiV1 | null>(null);
   const [sceneMeta, setSceneMeta] = React.useState({
     title: resolution.caseEntry.displayName,
     description: resolution.caseEntry.description,
@@ -827,6 +833,7 @@ function ScientificProductWorkbenchShellV1({
     );
 
   return (
+    <StudioBriefingPickProviderV1 value={briefingPickApi}>
     <div
       className="workbench-root relative flex h-full w-full flex-col overflow-hidden bg-wb-app font-sans text-wb-text"
       style={briefingOpen
@@ -936,6 +943,7 @@ function ScientificProductWorkbenchShellV1({
                 SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
             })}
             onOpenChange={setBriefingOpen}
+            onPickApiChange={setBriefingPickApi}
           />
         )}
         settingsContent={(
@@ -1058,6 +1066,7 @@ function ScientificProductWorkbenchShellV1({
       />
       </div>
     </div>
+    </StudioBriefingPickProviderV1>
   );
 }
 

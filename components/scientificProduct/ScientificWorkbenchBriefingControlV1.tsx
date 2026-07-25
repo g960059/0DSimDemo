@@ -34,6 +34,9 @@ import type {
 import {
   ScientificWorkbenchBriefingComposerV1,
 } from "./ScientificWorkbenchBriefingComposerV1";
+import type {
+  StudioBriefingPickApiV1,
+} from "./ScientificWorkbenchBriefingPickV1";
 
 export type ScientificWorkbenchBriefingControlV1Props = Readonly<{
   panels: readonly PanelDef[];
@@ -51,6 +54,11 @@ export type ScientificWorkbenchBriefingControlV1Props = Readonly<{
   canCompose?: boolean;
   /** Reports open state so the host can reflow instead of being overlaid. */
   onOpenChange?: (open: boolean) => void;
+  /**
+   * Publishes the pick API while compose is open, so the Workbench itself can
+   * be the palette instead of a parallel list inside the drawer.
+   */
+  onPickApiChange?: (api: StudioBriefingPickApiV1 | null) => void;
 }>;
 
 /**
@@ -67,6 +75,7 @@ export function ScientificWorkbenchBriefingControlV1({
   target: targetRef,
   canCompose = true,
   onOpenChange,
+  onPickApiChange,
 }: ScientificWorkbenchBriefingControlV1Props) {
   const { t } = useTranslation();
   const location = useLocation();
@@ -385,6 +394,41 @@ export function ScientificWorkbenchBriefingControlV1({
     next.splice(to, 0, moved);
     commitPanesV1(Object.freeze(next));
   }, [commitPanesV1, pinnedPanes]);
+
+  const pinnedPaneIdSet = React.useMemo(
+    () => new Set(pinnedPanes.map(({ paneId }) => paneId)),
+    [pinnedPanes],
+  );
+  const pinnedControlKeys = React.useMemo(
+    () => new Set((target?.brief.controls ?? []).map((control) =>
+      control.binding.parameterKey)),
+    [target],
+  );
+  const onPickApiChangeRef = React.useRef(onPickApiChange);
+  onPickApiChangeRef.current = onPickApiChange;
+  const pickApi = React.useMemo<StudioBriefingPickApiV1>(() => Object.freeze({
+    isGraphPinned: (paneId: string) => pinnedPaneIdSet.has(paneId),
+    toggleGraph: (panelId: string, paneId: string) => {
+      if (pinnedPaneIdSet.has(paneId)) unpinPane(paneId);
+      else pinPane(panelId);
+    },
+    isControlPinned: (parameterKey: string) =>
+      pinnedControlKeys.has(parameterKey),
+    toggleControl,
+  }), [
+    pinPane,
+    pinnedControlKeys,
+    pinnedPaneIdSet,
+    toggleControl,
+    unpinPane,
+  ]);
+  React.useEffect(() => {
+    onPickApiChangeRef.current?.(open ? pickApi : null);
+  }, [open, pickApi]);
+  React.useEffect(
+    () => () => onPickApiChangeRef.current?.(null),
+    [],
+  );
 
   if (!canCompose) return null;
 

@@ -2,6 +2,10 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { ControllerItemControl } from "@/components/controls/ControllerItemControl";
+import {
+  StudioBriefingPickOverlayV1,
+  useStudioBriefingPickV1,
+} from "./ScientificWorkbenchBriefingPickV1";
 import { shouldEnableLegendInteractions } from "@/components/InteractiveGraphLegend";
 import {
   deriveMainWireScientificMetricsV1,
@@ -405,7 +409,36 @@ export const SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1 = Object.freeze(
  * fixed windows, legend placement, PV history and protocol demand therefore
  * have one owner.
  */
-export function ScientificProductGraphPaneV1({
+export function ScientificProductGraphPaneV1(props: Readonly<{
+  panel: PanelDef;
+  registry: ScientificProductRuntimeRegistryPortV1;
+  clock: ScientificWorkbenchDisplayClockV1;
+  renderContext: WorkbenchRuntimeRenderContext;
+}>) {
+  const pick = useStudioBriefingPickV1();
+  // Reading surfaces render the pane itself; only compose adds a pick layer.
+  // The wrapper is unconditional: switching the element type at this position
+  // would unmount the pane inside its Dockview host on every compose toggle.
+  const picking = pick !== null
+    && props.renderContext.presentationMode !== "reading";
+  const paneId = props.panel.sourceViewId ?? props.panel.id;
+  return (
+    <div className="group/pick relative h-full min-h-0 w-full">
+      <ScientificProductGraphPaneBodyV1 {...props} />
+      {picking && pick !== null && (
+        <StudioBriefingPickOverlayV1
+          kind="graph"
+          pickKey={paneId}
+          picked={pick.isGraphPinned(paneId)}
+          label={props.panel.title}
+          onToggle={() => pick.toggleGraph(props.panel.id, paneId)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ScientificProductGraphPaneBodyV1({
   panel,
   registry,
   clock,
@@ -2315,6 +2348,7 @@ function ScientificControllerPanelV1({
   items: readonly ControllerItem[];
   targetScenarioId?: string;
 }>) {
+  const pick = useStudioBriefingPickV1();
   const descriptors = React.useSyncExternalStore(
     registry.subscribeDescriptors,
     registry.getDescriptorSnapshot,
@@ -2411,7 +2445,23 @@ function ScientificControllerPanelV1({
             const domain =
               MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[controlId];
             const releaseItem = scientificControllerItemForReleaseV1(item);
+            const controlPick = pick === null
+              ? null
+              : {
+                picked: pick.isControlPinned(controlId),
+                toggle: () => pick.toggleControl(controlId),
+              };
             return (
+              <div
+                key={`pick:${scientificControllerInteractionKeyV1(
+                  descriptor.id,
+                  descriptor.source.releaseSha256,
+                  item,
+                )}`}
+                className={controlPick === null
+                  ? undefined
+                  : "group/pick relative"}
+              >
               <ControllerItemControl
                 key={scientificControllerInteractionKeyV1(
                   descriptor.id,
@@ -2442,6 +2492,16 @@ function ScientificControllerPanelV1({
                 }}
                 disabled={!controlsEditable}
               />
+                {controlPick !== null && (
+                  <StudioBriefingPickOverlayV1
+                    kind="control"
+                    pickKey={controlId}
+                    picked={controlPick.picked}
+                    label={releaseItem.label ?? controlId}
+                    onToggle={controlPick.toggle}
+                  />
+                )}
+              </div>
             );
           })}
         </div>

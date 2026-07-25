@@ -645,6 +645,41 @@ test.describe.serial("Product workflows by role", () => {
         .first()
         .getByRole("button", { name: /参照元です/ });
       await expect(seededWaveformRemove).toBeDisabled();
+      // Compose turns the Workbench itself into the palette: a graph and a
+      // control are picked where they are, not from a parallel list.
+      const pressurePick = page.locator(
+        '[data-briefing-pick-kind="graph"]'
+        + '[data-briefing-pick-key="product-left-pressure-v1"]',
+      );
+      await expect(pressurePick).toHaveAttribute(
+        "data-briefing-picked",
+        "false",
+      );
+      await pressurePick.click();
+      await expect(pressurePick).toHaveAttribute(
+        "data-briefing-picked",
+        "true",
+      );
+      const venousPick = page.locator(
+        '[data-briefing-pick-kind="control"]'
+        + '[data-briefing-pick-key="circulation.venous-tone"]',
+      );
+      await venousPick.click();
+      await expect(venousPick).toHaveAttribute(
+        "data-briefing-picked",
+        "true",
+      );
+      await venousPick.click();
+      await expect(venousPick).toHaveAttribute(
+        "data-briefing-picked",
+        "false",
+      );
+      await pressurePick.click();
+      await expect(pressurePick).toHaveAttribute(
+        "data-briefing-picked",
+        "false",
+      );
+
       const paletteRows = composer.locator("[data-briefing-source-panel-id]");
       await expect(paletteRows).toHaveCount(5);
       for (let index = 0; index < 5; index += 1) {
