@@ -36,11 +36,13 @@ export default function StudioReaderPreviewRouteV1() {
     () => resolvePreview(previewId),
     [previewId, resolvePreview],
   );
+  const scrollRootRef = React.useRef<HTMLDivElement | null>(null);
   const runtimeForPlacement = useStudioReaderPlacementRuntimesV1({
     previewId: manifest === null ? null : previewId,
     placements: manifest?.resolvedReaderDocument.placements
       ?? NO_PLACEMENTS_V1,
     autoLive: true,
+    rootRef: scrollRootRef,
   });
 
   if (manifest === null) {
@@ -84,7 +86,7 @@ export default function StudioReaderPreviewRouteV1() {
           {t("studioAuthorPreview.reader.unpublishedBadge")}
         </span>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={scrollRootRef} className="min-h-0 flex-1 overflow-y-auto">
         <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-xs leading-5 text-amber-900">
           {t("studioAuthorPreview.reader.sessionNotice")}
         </div>

@@ -150,10 +150,12 @@ export default function StudioDocumentRouteV1() {
       });
   }, [draft.experiments]);
 
+  const scrollRootRef = React.useRef<HTMLDivElement | null>(null);
   const runtimeForPlacement = useStudioReaderPlacementRuntimesV1({
     previewId,
     placements: resolvedDocument.placements,
     autoLive: capability === "read",
+    rootRef: scrollRootRef,
   });
 
   return (
@@ -272,7 +274,7 @@ export default function StudioDocumentRouteV1() {
         </p>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={scrollRootRef} className="min-h-0 flex-1 overflow-y-auto">
         <StudioDocumentSurfaceV1
           document={resolvedDocument}
           capability={capability}

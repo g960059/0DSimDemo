@@ -278,8 +278,12 @@ export function StudioAuthorPreviewProviderV1({
     entry: ActiveReaderPreviewEntryV1,
   ): Promise<void> => {
     const entries = entriesRef.current;
-    const owns = () =>
-      entries.get(entry.placementBlockId) === entry && entry.retainCount > 0;
+    // Ownership is holding the slot, not being displayed. A reader can scroll
+    // past while the session is still opening; abandoning the open there would
+    // leave a cached entry that says "loading" forever, since re-acquiring it
+    // finds the entry present and never opens it again. Eviction, not the
+    // scroll position, is what ends an open.
+    const owns = () => entries.get(entry.placementBlockId) === entry;
     if (!owns()) return;
 
     let binding: ReturnType<
@@ -635,9 +639,12 @@ function restartReaderPreviewEntryV1(
   void (async () => {
     try {
       await disposeReaderPreviewEntryV1(entry);
-      if (!owns()) return;
+      // Cleared before the ownership check: an entry that lost the slot
+      // mid-reset must not be left marked as resetting, or a later acquire
+      // would find a cached entry that can never reopen.
       entry.abortController = new AbortController();
       entry.resetInFlight = false;
+      if (!owns()) return;
       await reopen();
     } catch (error) {
       entry.resetInFlight = false;

@@ -52,6 +52,8 @@ export type StudioDocumentPlacementRuntimeV1 = Readonly<{
   registry: ScientificProductRuntimeRegistryPortV1 | null;
   live: boolean;
   observe(element: HTMLElement | null): void;
+  /** Take the live lane by hand, rather than by being looked at. */
+  requestLive(): void;
 }>;
 
 export type StudioDocumentSurfaceV1Props = Readonly<{

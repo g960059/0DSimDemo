@@ -132,13 +132,7 @@ function StudioExperimentBoundCellV1({
   );
   const [controlError, setControlError] = React.useState<string | null>(null);
   const [focusOpen, setFocusOpen] = React.useState(false);
-  /**
-   * The reader asked for this one by hand — opening a `launch` placement or
-   * moving a control. A hand-started cell keeps the lane while it is on
-   * screen even if the policy would have given it to a neighbour.
-   */
-  const [startedByHand, setStartedByHand] = React.useState(false);
-  const live = runtime.live || startedByHand;
+  const live = runtime.live;
   const clock = React.useMemo(
     () => createScientificWorkbenchDisplayClockV1(true, 1),
     [],
@@ -169,7 +163,13 @@ function StudioExperimentBoundCellV1({
     };
   }, [controller, live]);
 
-  const activate = React.useCallback(() => setStartedByHand(true), []);
+  /**
+   * Asking by hand — opening a `launch` placement or moving a control — goes
+   * through the same policy that the viewport does, so the lane is handed
+   * over rather than shared: one experiment integrates at a time however
+   * playback began, and a hidden tab still holds none.
+   */
+  const activate = runtime.requestLive;
   const panes = placement.readerBrief.graphPanes;
   const inflowPanes = panes.slice(0, INFLOW_GRAPH_LIMIT_V1);
   const canFocus = panes.length > inflowPanes.length;

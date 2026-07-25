@@ -31,26 +31,42 @@ const PROMOTE_RATIO_V1 = 0.4;
  */
 const PROMOTE_DWELL_MS_V1 = 300;
 const DEMOTE_GRACE_MS_V1 = 2_500;
+const FOCUS_THRESHOLDS_V1: number[] =
+  Array.from({ length: 21 }, (_, step) => step / 20);
 
 export type StudioReaderPlaybackPolicyV1 = Readonly<{
   observe(placementBlockId: string): (element: HTMLElement | null) => void;
   playbackFor(placementBlockId: string): StudioReaderPlaybackV1;
+  /**
+   * A reader asked for this one by hand. It takes the lane rather than
+   * running beside whatever holds it, so "one at a time" stays true however
+   * playback started.
+   */
+  requestLive(placementBlockId: string): void;
 }>;
 
 export function useStudioReaderPlaybackPolicyV1(
   options: Readonly<{
-    /** Composing is writing, not watching: nothing takes the live lane. */
+    /** Composing is writing, not watching: nothing auto-plays. */
     autoLive: boolean;
     /** Placements whose author asked for live; others never auto-play. */
     autoLivePlacementIds: ReadonlySet<string>;
+    /**
+     * The scrollport the article lives in. An ancestor scroll container clips
+     * intersection whatever the root margin says, so observing against the
+     * browser viewport would make the approach margin do nothing and every
+     * bootstrap would begin only once the reader had arrived.
+     */
+    rootRef: React.RefObject<HTMLElement | null>;
   }>,
 ): StudioReaderPlaybackPolicyV1 {
-  const { autoLive, autoLivePlacementIds } = options;
+  const { autoLive, autoLivePlacementIds, rootRef } = options;
   const documentVisible = useDocumentVisible();
   const [bound, setBound] = React.useState<ReadonlySet<string>>(
     () => new Set(),
   );
   const [focused, setFocused] = React.useState<string | null>(null);
+  const [handStarted, setHandStarted] = React.useState<string | null>(null);
 
   const elementsRef = React.useRef(new Map<string, HTMLElement>());
   const ratiosRef = React.useRef(new Map<string, number>());
@@ -107,9 +123,13 @@ export function useStudioReaderPlaybackPolicyV1(
 
   React.useEffect(() => {
     if (typeof IntersectionObserver === "undefined") {
-      // Without an observer every placement is treated as reachable, which
-      // keeps the surface usable rather than silently never binding.
-      setBound(new Set(elementsRef.current.keys()));
+      // Without an observer every placement is treated as reachable and the
+      // first eligible one plays. Binding without ever choosing a focus would
+      // leave a reader with an article of permanently suspended experiments.
+      const reachable = [...elementsRef.current.keys()];
+      setBound(new Set(reachable));
+      setFocused(reachable.find((placementBlockId) =>
+        autoLivePlacementIdsRef.current.has(placementBlockId)) ?? null);
       return undefined;
     }
     const idFor = (element: Element): string | null => {
@@ -137,7 +157,11 @@ export function useStudioReaderPlaybackPolicyV1(
         }
         return changed ? next : current;
       });
-    }, { rootMargin: `${BIND_MARGIN_PX_V1}px 0px`, threshold: 0 });
+    }, {
+      root: rootRef.current,
+      rootMargin: `${BIND_MARGIN_PX_V1}px 0px`,
+      threshold: 0,
+    });
 
     const focusObserver = new IntersectionObserver((entries) => {
       for (const entry of entries) {
@@ -156,7 +180,13 @@ export function useStudioReaderPlaybackPolicyV1(
         );
       }
       settleFocusV1();
-    }, { threshold: [0, 0.2, PROMOTE_RATIO_V1, 0.75, 1] });
+    }, {
+      root: rootRef.current,
+      // Which placement is nearest the middle changes while both stay inside
+      // one visibility band, and a sparse threshold list would report nothing
+      // until one of them crossed it.
+      threshold: FOCUS_THRESHOLDS_V1,
+    });
 
     for (const element of elementsRef.current.values()) {
       bindObserver.observe(element);
@@ -172,7 +202,7 @@ export function useStudioReaderPlaybackPolicyV1(
         pendingRef.current = null;
       }
     };
-  }, [settleFocusV1]);
+  }, [rootRef, settleFocusV1]);
 
   // A ref callback with a new identity on every render would detach and
   // reattach the element each time, which the observers would see as the
@@ -212,25 +242,53 @@ export function useStudioReaderPlaybackPolicyV1(
 
   React.useEffect(() => {
     // The author's declaration outranks the viewport: a placement that opted
-    // out of in-flow playback never takes the lane by being looked at.
-    if (focused !== null && !autoLivePlacementIds.has(focused)) {
-      setFocused(null);
+    // out of in-flow playback never takes the lane by being looked at. The
+    // reverse also has to be handled — becoming eligible while already on
+    // screen produces no intersection event, so the choice is remade here.
+    settleFocusV1();
+  }, [autoLivePlacementIds, settleFocusV1]);
+
+  React.useEffect(() => {
+    // A hand-started placement that has left the reader's reach gives the
+    // lane back rather than holding it for the rest of the session.
+    if (handStarted !== null && !bound.has(handStarted)) setHandStarted(null);
+  }, [bound, handStarted]);
+
+  const requestLive = React.useCallback((placementBlockId: string) => {
+    if (pendingRef.current !== null) {
+      clearTimeout(pendingRef.current.timer);
+      pendingRef.current = null;
     }
-  }, [autoLivePlacementIds, focused]);
+    setHandStarted(placementBlockId);
+    setFocused(placementBlockId);
+  }, []);
 
   const playbackFor = React.useCallback((
     placementBlockId: string,
-  ): StudioReaderPlaybackV1 =>
-    Object.freeze({
-      bound: bound.has(placementBlockId),
-      live: autoLive
+  ): StudioReaderPlaybackV1 => {
+    const isBound = bound.has(placementBlockId);
+    return Object.freeze({
+      bound: isBound,
+      // Live is a subset of bound. The owner suspends a session the moment it
+      // is released, so a cell that still believed itself live would sit
+      // paused while showing a running state.
+      live: isBound
         && documentVisible
         && focused === placementBlockId
-        && autoLivePlacementIds.has(placementBlockId),
-    }), [autoLive, autoLivePlacementIds, bound, documentVisible, focused]);
+        && (handStarted === placementBlockId
+          || (autoLive && autoLivePlacementIds.has(placementBlockId))),
+    });
+  }, [
+    autoLive,
+    autoLivePlacementIds,
+    bound,
+    documentVisible,
+    focused,
+    handStarted,
+  ]);
 
   return React.useMemo(
-    () => Object.freeze({ observe, playbackFor }),
-    [observe, playbackFor],
+    () => Object.freeze({ observe, playbackFor, requestLive }),
+    [observe, playbackFor, requestLive],
   );
 }
