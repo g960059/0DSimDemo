@@ -335,7 +335,7 @@ export function StudioDocumentSurfaceV1({
               data-document-block-kind={block.kind}
               data-document-block-carried={String(carried)}
             >
-              {drag.state.dropIndex === index && (
+              {drag.state.dropBoundary === index && (
                 <StudioBlockDropLineV1 />
               )}
               {composing && (
@@ -352,6 +352,8 @@ export function StudioDocumentSurfaceV1({
                     drag.startDrag(block.blockId, index, event)}
                   onHandleMove={(direction) =>
                     drag.moveByKeyboard(block.blockId, index, direction)}
+                  onToggleMenu={() => setMenuBlockId((current) =>
+                    current === block.blockId ? null : block.blockId)}
                   onCloseMenu={() => setMenuBlockId(null)}
                   onInsertParagraph={() => insertBlock(index + 1, {
                     blockId: newBlockIdV1(),
@@ -446,7 +448,7 @@ export function StudioDocumentSurfaceV1({
             </div>
           );
         })}
-        {drag.state.dropIndex === buffer.blocks.length && (
+        {drag.state.dropBoundary === buffer.blocks.length && (
           <StudioBlockDropLineV1 />
         )}
       </div>
@@ -679,6 +681,7 @@ function StudioBlockGutterV1({
   dragging,
   onHandlePointerDown,
   onHandleMove,
+  onToggleMenu,
   onCloseMenu,
   onInsertParagraph,
   onChangeKind,
@@ -696,6 +699,7 @@ function StudioBlockGutterV1({
   dragging: boolean;
   onHandlePointerDown(event: React.PointerEvent<HTMLElement>): void;
   onHandleMove(direction: -1 | 1): void;
+  onToggleMenu(): void;
   onCloseMenu(): void;
   onInsertParagraph(): void;
   onChangeKind(
@@ -726,12 +730,21 @@ function StudioBlockGutterV1({
         // the block. The two live on one control because they answer the
         // same question — what happens to this block.
         onPointerDown={onHandlePointerDown}
+        onClick={(event) => {
+          // A pointer press already decided between carrying and the menu.
+          // Only a keyboard activation arrives here with no pointer behind it,
+          // and it must still be able to open the menu.
+          if (event.detail !== 0) return;
+          onToggleMenu();
+        }}
         onKeyDown={(event) => {
           if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
           event.preventDefault();
           onHandleMove(event.key === "ArrowUp" ? -1 : 1);
         }}
-        className={`inline-flex h-7 w-7 items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text ${
+        // Without this a touch drag scrolls the article instead of carrying
+        // the block, and the pointer never travels far enough to be a drag.
+        className={`inline-flex h-7 w-7 touch-none items-center justify-center rounded text-wb-subtle transition-colors hover:bg-wb-hover hover:text-wb-text ${
           dragging ? "cursor-grabbing" : "cursor-grab"
         }`}
       >

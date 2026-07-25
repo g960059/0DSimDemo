@@ -16,8 +16,16 @@ import * as React from "react";
 export type StudioBlockDragStateV1 = Readonly<{
   /** The block being carried, or null when no drag is in progress. */
   blockId: string | null;
-  /** Index the block would land at, or null when it would not move. */
-  dropIndex: number | null;
+  /**
+   * Which gap the landing line is drawn in, counted in the article as it
+   * currently stands, or null when the block would not move.
+   *
+   * This is not the index the block lands at. Removing the carried block
+   * first shifts every later gap up by one, so a downward move lands one
+   * index lower than the gap the reader is looking at — and drawing the line
+   * at the landing index would put it a block too high.
+   */
+  dropBoundary: number | null;
   /** True once the pointer has travelled far enough to be a drag. */
   active: boolean;
 }>;
@@ -53,7 +61,7 @@ export function useStudioBlockDragV1(
 ): StudioBlockDragV1 {
   const { blockIds, onDrop, onClick } = input;
   const [state, setState] = React.useState<StudioBlockDragStateV1>(
-    () => ({ blockId: null, dropIndex: null, active: false }),
+    () => ({ blockId: null, dropBoundary: null, active: false }),
   );
 
   const elementsRef = React.useRef(new Map<string, HTMLElement>());
@@ -63,6 +71,9 @@ export function useStudioBlockDragV1(
   onDropRef.current = onDrop;
   const onClickRef = React.useRef(onClick);
   onClickRef.current = onClick;
+
+  /** Abandons a drag in progress, so unmounting cannot leave one running. */
+  const activeFinishRef = React.useRef<(() => void) | null>(null);
 
   const registerCallbacksRef = React.useRef(
     new Map<string, (element: HTMLElement | null) => void>(),
@@ -79,32 +90,35 @@ export function useStudioBlockDragV1(
   }, []);
 
   /**
-   * Where the carried block would land if the pointer were released here.
+   * Where the carried block would go if the pointer were released here.
    *
-   * Measured against each block's midpoint, and reported as null when the
-   * result would put the block back where it already is — so releasing after
-   * a small movement is a no-op rather than a revision.
+   * `boundary` is the gap in the article as it stands — what the line is drawn
+   * in. `landing` is the index after the carried block is removed, which is
+   * what the move commits. They differ for every downward move. Both are null
+   * when the result would put the block back where it already is, so releasing
+   * after a small movement is a no-op rather than a revision.
    */
-  const dropIndexAtV1 = React.useCallback((
+  const dropTargetAtV1 = React.useCallback((
     blockId: string,
     clientY: number,
-  ): number | null => {
+  ): Readonly<{ boundary: number; landing: number }> | null => {
     const ids = blockIdsRef.current;
     const from = ids.indexOf(blockId);
     if (from < 0) return null;
-    let target = ids.length;
+    let boundary = ids.length;
     for (const [index, candidate] of ids.entries()) {
       const element = elementsRef.current.get(candidate);
       if (element === undefined) continue;
       const box = element.getBoundingClientRect();
       if (clientY < box.top + box.height / 2) {
-        target = index;
+        boundary = index;
         break;
       }
     }
-    // Removing the block first shifts every later boundary up by one.
-    const settled = target > from ? target - 1 : target;
-    return settled === from ? null : settled;
+    const landing = boundary > from ? boundary - 1 : boundary;
+    return landing === from
+      ? null
+      : Object.freeze({ boundary, landing });
   }, []);
 
   const startDrag = React.useCallback((
@@ -142,7 +156,7 @@ export function useStudioBlockDragV1(
         scrollport.scrollBy({ top: delta });
         setState({
           blockId,
-          dropIndex: dropIndexAtV1(blockId, pointerY),
+          dropBoundary: dropTargetAtV1(blockId, pointerY)?.boundary ?? null,
           active: true,
         });
       }
@@ -172,7 +186,8 @@ export function useStudioBlockDragV1(
       moveEvent.preventDefault();
       setState({
         blockId,
-        dropIndex: dropIndexAtV1(blockId, moveEvent.clientY),
+        dropBoundary:
+          dropTargetAtV1(blockId, moveEvent.clientY)?.boundary ?? null,
         active: true,
       });
     };
@@ -190,15 +205,16 @@ export function useStudioBlockDragV1(
       } catch {
         // The handle may already be gone; the drag ends either way.
       }
-      setState({ blockId: null, dropIndex: null, active: false });
+      setState({ blockId: null, dropBoundary: null, active: false });
+      activeFinishRef.current = null;
       if (!active) {
-        // The pointer never travelled, so the handle was clicked.
+        // The pointer never travelled, so the handle was pressed, not dragged.
         onClickRef.current(blockId);
         return;
       }
       if (!dropped) return;
-      const target = dropIndexAtV1(blockId, clientY);
-      if (target !== null) onDropRef.current(blockId, target);
+      const target = dropTargetAtV1(blockId, clientY);
+      if (target !== null) onDropRef.current(blockId, target.landing);
     };
     const onUp = (upEvent: PointerEvent) => {
       if (upEvent.pointerId !== pointerId) return;
@@ -219,8 +235,12 @@ export function useStudioBlockDragV1(
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancel);
     window.addEventListener("keydown", onKeyDown, true);
+    // A drag can outlive the surface: a route change unmounts the article
+    // while a pointer is still down. Without this the window listeners and the
+    // autoscroll frame loop would keep running with nothing to move.
+    activeFinishRef.current = () => finish(false, pointerY);
     void index;
-  }, [dropIndexAtV1]);
+  }, [dropTargetAtV1]);
 
   const moveByKeyboard = React.useCallback((
     blockId: string,
@@ -233,7 +253,7 @@ export function useStudioBlockDragV1(
   }, []);
 
   React.useEffect(() => () => {
-    setState({ blockId: null, dropIndex: null, active: false });
+    activeFinishRef.current?.();
   }, []);
 
   return React.useMemo(

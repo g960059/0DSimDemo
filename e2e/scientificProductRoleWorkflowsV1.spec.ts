@@ -158,6 +158,13 @@ test.describe.serial("Product workflows by role", () => {
       await expect(
         article.locator('[data-document-block-carried="true"]'),
       ).toHaveCount(1);
+      // The line marks the gap the block lands in, so it must sit on the block
+      // the carried one will end up above.
+      const lineBlockId = await article
+        .locator('[data-document-block-id]:has([data-testid=' +
+          '"studio-document-drop-line-v1"])')
+        .getAttribute("data-document-block-id");
+      expect(lineBlockId).toBe(orderBeforeDrag[0]);
       await page.mouse.move(handleX, firstBlockBox.y + 4, { steps: 6 });
       await page.mouse.up();
       const orderAfterDrag = await blockIdsV1();
