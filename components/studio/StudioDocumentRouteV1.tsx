@@ -47,6 +47,9 @@ export default function StudioDocumentRouteV1() {
     undoDocumentContent,
     redoDocumentContent,
     createExperiment,
+    experimentSources,
+    sourceForExperiment,
+    replaceExperimentSource,
     materializePreview,
   } = useStudioAuthorPreviewV1();
   const [capability, setCapability] =
@@ -288,6 +291,9 @@ export default function StudioDocumentRouteV1() {
           edit={{
             onCommit: commitContent,
             createExperiment: createExperimentForBlock,
+            experimentSources,
+            sourceForExperiment,
+            setExperimentSource: replaceExperimentSource,
           }}
           runtimeForPlacement={runtimeForPlacement}
         />

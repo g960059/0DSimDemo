@@ -56,6 +56,13 @@ export type StudioDocumentEditV1 = Readonly<{
     experimentId: string;
     readerBriefId: string;
   }> | null;
+  /** Cases an experiment may read, offered per placement. */
+  experimentSources: readonly Readonly<{
+    sourceId: string;
+    label: string;
+  }>[];
+  sourceForExperiment(experimentId: string): string | null;
+  setExperimentSource(experimentId: string, sourceId: string): void;
 }>;
 
 /**
@@ -386,6 +393,15 @@ export function StudioDocumentSurfaceV1({
                         {composing && (
                           <StudioPlacementOptionsV1
                             experimentId={placement.experiment.experimentId}
+                            sources={edit?.experimentSources ?? []}
+                            sourceId={edit?.sourceForExperiment(
+                              placement.experiment.experimentId,
+                            ) ?? null}
+                            onChangeSource={(sourceId) =>
+                              edit?.setExperimentSource(
+                                placement.experiment.experimentId,
+                                sourceId,
+                              )}
                             inlineMode={placement.inlineMode}
                             caption={placement.localCaption}
                             onChange={(inlineMode, localCaption) => {
@@ -899,11 +915,17 @@ function MenuItemV1({
 
 function StudioPlacementOptionsV1({
   experimentId,
+  sources,
+  sourceId,
+  onChangeSource,
   inlineMode,
   caption,
   onChange,
 }: Readonly<{
   experimentId: string;
+  sources: readonly Readonly<{ sourceId: string; label: string }>[];
+  sourceId: string | null;
+  onChangeSource(sourceId: string): void;
   inlineMode: ReaderPlacementInlineModeV1;
   caption: string | null;
   onChange(
@@ -939,6 +961,25 @@ function StudioPlacementOptionsV1({
           </button>
         ))}
       </div>
+      {sourceId !== null && sources.length > 0 && (
+        // Which physiology the experiment reads. It sits beside the
+        // presentation choices because it is the same kind of decision about
+        // this one placement, and it can be corrected after the fact rather
+        // than only at the moment of insertion.
+        <select
+          value={sourceId}
+          aria-label={t("studioAuthorPreview.surface.experimentSource")}
+          data-testid="studio-placement-source-v1"
+          onChange={(event) => onChangeSource(event.target.value)}
+          className="min-h-7 shrink-0 rounded-md bg-wb-soft px-2 text-[11px] font-bold text-wb-muted outline-none hover:text-wb-text"
+        >
+          {sources.map((source) => (
+            <option key={source.sourceId} value={source.sourceId}>
+              {source.label}
+            </option>
+          ))}
+        </select>
+      )}
       <button
         type="button"
         data-testid="studio-placement-compose-v1"

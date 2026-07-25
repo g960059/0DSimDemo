@@ -53,6 +53,8 @@ export type ScientificWorkbenchBriefingComposerV1Props = Readonly<{
   readbacks: readonly ReaderInstantaneousReadbackSpecV1[];
   controls: readonly ReaderControlSpecV1[];
   extent: ReaderBriefExtentV1;
+  /** Records the companion surface this brief is authored for. */
+  onExtentChange(extent: ReaderBriefExtentV1): void;
   onClose(): void;
   onPin(panelId: string): void;
   onUnpin(paneId: string): void;
@@ -86,10 +88,11 @@ export function ScientificWorkbenchBriefingComposerV1({
   onSync,
   onMove,
   onOpenDocumentEditor,
+  onExtentChange,
 }: ScientificWorkbenchBriefingComposerV1Props) {
   const { t } = useTranslation();
-  const [previewExtent, setPreviewExtent] =
-    React.useState<ReaderBriefExtentV1>(extent);
+  // The brief owns the extent; this surface only shows and changes it.
+  const previewExtent = extent;
   const [narrowPreview, setNarrowPreview] = React.useState(false);
 
 
@@ -120,7 +123,11 @@ export function ScientificWorkbenchBriefingComposerV1({
 
   const softLimit = previewExtent === "inflow"
     ? INFLOW_GRAPH_SOFT_LIMIT_V1
-    : PEEK_GRAPH_SOFT_LIMIT_V1;
+    : previewExtent === "peek"
+    ? PEEK_GRAPH_SOFT_LIMIT_V1
+    // A full screen has room for everything the author pinned, so nothing
+    // there overflows.
+    : pinnedPanes.length;
   const visiblePanes = pinnedPanes.slice(0, softLimit);
   const overflowPanes = pinnedPanes.slice(visiblePanes.length);
 
@@ -168,13 +175,13 @@ export function ScientificWorkbenchBriefingComposerV1({
             aria-label={t("studioAuthorPreview.briefing.extentTablist")}
             className="inline-flex rounded-md border border-wb-line p-0.5"
           >
-            {(["inflow", "peek"] as const).map((candidate) => (
+            {(["inflow", "peek", "fullscreen"] as const).map((candidate) => (
               <button
                 key={candidate}
                 type="button"
                 role="tab"
                 aria-selected={previewExtent === candidate}
-                onClick={() => setPreviewExtent(candidate)}
+                onClick={() => onExtentChange(candidate)}
                 data-testid={`scientific-briefing-extent-${candidate}-v1`}
                 className={`min-h-8 rounded px-3 text-xs font-bold transition-colors ${
                   previewExtent === candidate

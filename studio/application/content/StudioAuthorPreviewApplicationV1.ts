@@ -9,6 +9,7 @@ import {
   STUDIO_RESOLVED_READER_DOCUMENT_V1_SCHEMA_ID,
   type ExperimentScenarioRuntimeSourceV1,
   type ExperimentRevisionV1,
+  type ReaderBriefExtentV1,
   type ReaderBriefV1,
   type ReaderPreviewManifestV1,
   type ResolvedReaderExperimentV1,
@@ -95,6 +96,31 @@ export type CreateStudioAuthorExperimentCommandV1 = Readonly<{
   scenarioLabel: string;
   runtimeSource: ExperimentScenarioRuntimeSourceV1;
   readerBriefId: string;
+}>;
+
+/**
+ * Repoints one scenario at a different runtime source.
+ *
+ * Which physiology an experiment reads is an authoring decision that outlives
+ * the moment of creation, so it is a command rather than a fixed property. The
+ * brief survives it: its panes name observables and its scenario id is
+ * unchanged, so what the reader sees is the same presentation of a different
+ * case — which is exactly what changing the case means.
+ */
+export type ReplaceStudioAuthorExperimentRuntimeSourceCommandV1 = Readonly<{
+  expectedRevision: number;
+  experimentId: string;
+  scenarioId: string;
+  scenarioLabel: string;
+  runtimeSource: ExperimentScenarioRuntimeSourceV1;
+}>;
+
+/** The companion surface a brief is authored for. */
+export type ReplaceStudioAuthorReaderBriefExtentCommandV1 = Readonly<{
+  expectedRevision: number;
+  experimentId: string;
+  briefId: string;
+  extent: ReaderBriefExtentV1;
 }>;
 
 export type MaterializeStudioReaderPreviewCommandV1 = Readonly<{
@@ -431,6 +457,116 @@ export class StudioAuthorPreviewApplicationV1 {
           }],
         },
       ],
+    });
+    return this.draft;
+  }
+
+  /**
+   * Records which companion surface a brief is authored for.
+   *
+   * The extent is a brief-level presentation decision like its panes, so it
+   * advances the draft and Experiment revisions and leaves the Document alone.
+   */
+  replaceReaderBriefExtent(
+    command: ReplaceStudioAuthorReaderBriefExtentCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    requiredPortableIdV1(command.experimentId, "$.command.experimentId");
+    requiredPortableIdV1(command.briefId, "$.command.briefId");
+    const experimentIndex = this.draft.experiments.findIndex(
+      ({ experimentId }) => experimentId === command.experimentId,
+    );
+    if (experimentIndex < 0) {
+      throw validationErrorV1(
+        "$.command.experimentId",
+        `unknown experiment ${command.experimentId}`,
+      );
+    }
+    const currentExperiment = this.draft.experiments[experimentIndex]!;
+    const briefIndex = currentExperiment.readerBriefs.findIndex(
+      ({ briefId }) => briefId === command.briefId,
+    );
+    if (briefIndex < 0) {
+      throw validationErrorV1(
+        "$.command.briefId",
+        `unknown Reader brief ${command.briefId}`,
+      );
+    }
+    if (
+      currentExperiment.readerBriefs[briefIndex]!.extent === command.extent
+    ) {
+      return this.draft;
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...this.draft,
+      revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
+      experiments: this.draft.experiments.map((experiment, index) =>
+        index !== experimentIndex ? experiment : {
+          ...experiment,
+          revision: nextRevisionV1(
+            currentExperiment.revision,
+            `$.draft.experiments[${experimentIndex}].revision`,
+          ),
+          readerBriefs: experiment.readerBriefs.map((brief, candidate) =>
+            candidate !== briefIndex
+              ? brief
+              : { ...brief, extent: command.extent }),
+        }),
+    });
+    return this.draft;
+  }
+
+  replaceExperimentRuntimeSource(
+    command: ReplaceStudioAuthorExperimentRuntimeSourceCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    requiredPortableIdV1(command.experimentId, "$.command.experimentId");
+    requiredPortableIdV1(command.scenarioId, "$.command.scenarioId");
+    const experimentIndex = this.draft.experiments.findIndex(
+      ({ experimentId }) => experimentId === command.experimentId,
+    );
+    if (experimentIndex < 0) {
+      throw validationErrorV1(
+        "$.command.experimentId",
+        `unknown experiment ${command.experimentId}`,
+      );
+    }
+    const currentExperiment = this.draft.experiments[experimentIndex]!;
+    const scenarioIndex = currentExperiment.scenarios.findIndex(
+      ({ scenarioId }) => scenarioId === command.scenarioId,
+    );
+    if (scenarioIndex < 0) {
+      throw validationErrorV1(
+        "$.command.scenarioId",
+        `unknown scenario ${command.scenarioId}`,
+      );
+    }
+    const currentScenario = currentExperiment.scenarios[scenarioIndex]!;
+    if (
+      sameRuntimeSourceV1(currentScenario.runtimeSource, command.runtimeSource)
+      && currentScenario.label === command.scenarioLabel
+    ) {
+      return this.draft;
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...this.draft,
+      revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
+      experiments: this.draft.experiments.map((experiment, index) =>
+        index !== experimentIndex ? experiment : {
+          ...experiment,
+          revision: nextRevisionV1(
+            currentExperiment.revision,
+            `$.draft.experiments[${experimentIndex}].revision`,
+          ),
+          scenarios: experiment.scenarios.map((scenario, candidate) =>
+            candidate !== scenarioIndex ? scenario : {
+              ...scenario,
+              label: command.scenarioLabel,
+              runtimeSource: command.runtimeSource,
+            }),
+        }),
     });
     return this.draft;
   }

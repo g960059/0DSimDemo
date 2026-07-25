@@ -561,6 +561,51 @@ describe("StudioAuthorPreviewApplicationV1", () => {
     })).toThrow(StudioAuthorPreviewValidationErrorV1);
   });
 
+  it("repoints a scenario at another case and records the brief's extent", () => {
+    const application = createApplicationV1();
+    const before = application.getDraftSnapshot();
+    const experiment = before.experiments[0]!;
+
+    const repointed = application.replaceExperimentRuntimeSource({
+      expectedRevision: before.revision,
+      experimentId: experiment.experimentId,
+      scenarioId: experiment.scenarios[0]!.scenarioId,
+      scenarioLabel: "another case",
+      runtimeSource: Object.freeze({
+        kind: "preview-bootstrap",
+        sourceId: "main-wire/as-severe",
+        qualification: "uncertified-preview-only",
+      }),
+    });
+    expect(repointed.experiments[0]!.scenarios[0]).toMatchObject({
+      label: "another case",
+      runtimeSource: { sourceId: "main-wire/as-severe" },
+    });
+    // Which case an experiment reads is not a document edit, and the brief
+    // survives it: the panes name observables, not a case.
+    expect(repointed.document.revision).toBe(before.document.revision);
+    expect(repointed.experiments[0]!.readerBriefs[0]!.graphPanes)
+      .toEqual(experiment.readerBriefs[0]!.graphPanes);
+
+    const widened = application.replaceReaderBriefExtent({
+      expectedRevision: repointed.revision,
+      experimentId: experiment.experimentId,
+      briefId: experiment.readerBriefs[0]!.briefId,
+      extent: "fullscreen",
+    });
+    expect(widened.experiments[0]!.readerBriefs[0]!.extent).toBe("fullscreen");
+    expect(widened.document.revision).toBe(before.document.revision);
+    // Re-recording the same extent is not a change.
+    expect(
+      application.replaceReaderBriefExtent({
+        expectedRevision: widened.revision,
+        experimentId: experiment.experimentId,
+        briefId: experiment.readerBriefs[0]!.briefId,
+        extent: "fullscreen",
+      }),
+    ).toBe(widened);
+  });
+
   it("adds an experiment with an empty brief that a block can then place", () => {
     const application = createApplicationV1();
     const before = application.getDraftSnapshot();

@@ -9,6 +9,7 @@ import { localeFromPathname } from "@/localeRouting";
 import type { PanelDef } from "@/types";
 import type {
   ExperimentRevisionV1,
+  ReaderBriefExtentV1,
   ReaderBriefV1,
   ReaderControlSpecV1,
   ReaderInstantaneousReadbackSpecV1,
@@ -85,6 +86,7 @@ export function ScientificWorkbenchBriefingControlV1({
     draft,
     replaceReaderBriefGraphPanes,
     replaceReaderBriefSelection,
+    replaceReaderBriefExtent,
   } = useStudioAuthorPreviewV1();
   const [open, setOpen] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -272,6 +274,26 @@ export function ScientificWorkbenchBriefingControlV1({
       setError(errorMessageV1(commitError));
     }
   }, [draft.revision, replaceReaderBriefSelection, target, t]);
+
+  const commitExtentV1 = React.useCallback((
+    extent: ReaderBriefExtentV1,
+  ) => {
+    if (target === null) {
+      setError(t("studioAuthorPreview.briefing.errors.missingTarget"));
+      return;
+    }
+    try {
+      replaceReaderBriefExtent({
+        expectedRevision: draft.revision,
+        experimentId: target.experiment.experimentId,
+        briefId: target.brief.briefId,
+        extent,
+      });
+      setError(null);
+    } catch (commitError) {
+      setError(errorMessageV1(commitError));
+    }
+  }, [draft.revision, replaceReaderBriefExtent, target, t]);
 
   const toggleReadbackSpecV1 = React.useCallback((
     spec: ReaderInstantaneousReadbackSpecV1,
@@ -525,6 +547,7 @@ export function ScientificWorkbenchBriefingControlV1({
             readbacks={target?.brief.instantaneousReadbacks ?? []}
             controls={target?.brief.controls ?? []}
             extent={target?.brief.extent ?? "inflow"}
+            onExtentChange={commitExtentV1}
             onClose={() => setOpenV1(false)}
             onPin={pinPane}
             onUnpin={unpinPane}

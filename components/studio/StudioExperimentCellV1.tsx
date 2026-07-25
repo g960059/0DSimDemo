@@ -172,7 +172,14 @@ function StudioExperimentBoundCellV1({
   const activate = runtime.requestLive;
   const panes = placement.readerBrief.graphPanes;
   const inflowPanes = panes.slice(0, INFLOW_GRAPH_LIMIT_V1);
-  const canFocus = panes.length > inflowPanes.length;
+  const extent = placement.readerBrief.extent;
+  /**
+   * In-flow keeps one graph whatever the extent, because the article's column
+   * is the constraint. What the extent decides is the companion surface: a
+   * brief authored for a panel or a full screen says so by offering to open,
+   * even when everything it carries already fits in the flow.
+   */
+  const canFocus = panes.length > inflowPanes.length || extent !== "inflow";
   const scenarioId = placement.experiment.scenarios[0]?.scenarioId;
 
   const commitControl = React.useCallback((
@@ -353,6 +360,7 @@ function StudioExperimentBoundCellV1({
       {focusOpen && (
         <StudioExperimentFocusV1
           placement={placement}
+          extent={extent}
           panes={panes}
           registry={registry}
           clock={clock}
@@ -525,6 +533,7 @@ function StudioExperimentReadbacksV1({
 
 function StudioExperimentFocusV1({
   placement,
+  extent,
   panes,
   registry,
   clock,
@@ -534,6 +543,7 @@ function StudioExperimentFocusV1({
   onClose,
 }: Readonly<{
   placement: ResolvedReaderExperimentPlacementV1;
+  extent: ResolvedReaderExperimentPlacementV1["readerBrief"]["extent"];
   panes: ResolvedReaderExperimentPlacementV1["readerBrief"]["graphPanes"];
   registry: ScientificProductRuntimeRegistryPortV1;
   clock: ReturnType<typeof createScientificWorkbenchDisplayClockV1>;
@@ -553,21 +563,33 @@ function StudioExperimentFocusV1({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex justify-end bg-black/20"
+      className={`fixed inset-0 z-[70] flex justify-end ${
+        extent === "fullscreen" ? "" : "bg-black/20"
+      }`}
       data-testid="studio-reader-focus-v1"
+      data-studio-reader-extent={extent}
     >
-      <button
-        type="button"
-        aria-label={t("studioAuthorPreview.reader.closeFocus")}
-        onClick={onClose}
-        className="hidden flex-1 cursor-default sm:block"
-      />
+      {extent !== "fullscreen" && (
+        // A panel leaves the article visible beside it, and clicking what is
+        // still visible is how a reader closes it. A full screen has nothing
+        // beside it, so it offers no such target.
+        <button
+          type="button"
+          aria-label={t("studioAuthorPreview.reader.closeFocus")}
+          onClick={onClose}
+          className="hidden flex-1 cursor-default sm:block"
+        />
+      )}
       <aside
         role="dialog"
         aria-modal="false"
         aria-label={placement.localCaption
           ?? t("studioAuthorPreview.reader.interactiveExperiment")}
-        className="flex h-full w-full flex-col bg-wb-app text-wb-text shadow-2xl sm:w-[min(100vw,clamp(560px,54vw,960px))]"
+        className={`flex h-full w-full flex-col bg-wb-app text-wb-text shadow-2xl ${
+          extent === "fullscreen"
+            ? ""
+            : "sm:w-[min(100vw,clamp(560px,54vw,960px))]"
+        }`}
       >
         <header className="flex items-center gap-3 px-5 py-3.5">
           <span className="min-w-0 flex-1 truncate text-sm font-bold">

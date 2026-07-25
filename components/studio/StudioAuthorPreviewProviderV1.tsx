@@ -4,13 +4,16 @@ import {
   SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
 } from "@/components/scientificProduct/ScientificProductSampleAfterloadArticleV1";
 import {
+  SCIENTIFIC_PRODUCT_CASE_CATALOG_V1,
   SCIENTIFIC_PRODUCT_OFFICIAL_HEALTHY_CASE_ID_V1,
   SCIENTIFIC_PRODUCT_RELEASE_REF_V1,
+  scientificProductCaseByIdV1,
 } from "@/components/scientificProduct/scientificProductCaseCatalogV1";
 import {
   StudioAuthorPreviewApplicationV1,
   StudioAuthorPreviewRevisionConflictErrorV1,
   type ReplaceStudioAuthorDocumentContentCommandV1,
+  type ReplaceStudioAuthorReaderBriefExtentCommandV1,
   type ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
   type ReplaceStudioAuthorReaderBriefSelectionCommandV1,
 } from "@/studio/application/content";
@@ -117,14 +120,26 @@ export type StudioAuthorPreviewContextValueV1 = Readonly<{
   replaceReaderBriefSelection(
     command: ReplaceStudioAuthorReaderBriefSelectionCommandV1,
   ): StudioAuthorDraftV1;
+  replaceReaderBriefExtent(
+    command: ReplaceStudioAuthorReaderBriefExtentCommandV1,
+  ): StudioAuthorDraftV1;
   /**
    * Adds an experiment bound to this release and returns what an article
    * block needs to place it. Its Reader brief starts empty.
    */
-  createExperiment(): Readonly<{
+  createExperiment(sourceId?: string): Readonly<{
     experimentId: string;
     readerBriefId: string;
   }>;
+  /** Cases an experiment may read, for the surface that offers the choice. */
+  experimentSources: readonly Readonly<{
+    sourceId: string;
+    label: string;
+  }>[];
+  /** Which case an experiment reads now, or null when it is unknown. */
+  sourceForExperiment(experimentId: string): string | null;
+  /** Repoints an experiment's scenario at another case. */
+  replaceExperimentSource(experimentId: string, sourceId: string): void;
   materializePreview(): ReaderPreviewManifestV1;
   resolvePreview(previewId: string): ReaderPreviewManifestV1 | null;
   /**
@@ -273,12 +288,28 @@ export function StudioAuthorPreviewProviderV1({
     return next;
   }, [application]);
 
-  const createExperiment = React.useCallback(() => {
+  const replaceReaderBriefExtent = React.useCallback((
+    command: ReplaceStudioAuthorReaderBriefExtentCommandV1,
+  ) => {
+    const next = application.replaceReaderBriefExtent(command);
+    setDraft(next);
+    return next;
+  }, [application]);
+
+  const createExperiment = React.useCallback((sourceId?: string) => {
     const suffix = globalThis.crypto.randomUUID();
     const reference = Object.freeze({
       experimentId: `experiment/${suffix}`,
       readerBriefId: `reader-brief/${suffix}`,
     });
+    // An unnamed case means the official baseline: the one case every article
+    // can be read against without a research claim attached to it.
+    const caseEntry = scientificProductCaseByIdV1(
+      sourceId ?? SCIENTIFIC_PRODUCT_OFFICIAL_HEALTHY_CASE_ID_V1,
+    );
+    if (caseEntry === null) {
+      throw new Error(`Unknown runtime source ${String(sourceId)}`);
+    }
     setDraft(application.createExperiment({
       expectedRevision: application.getDraftSnapshot().revision,
       experimentId: reference.experimentId,
@@ -286,15 +317,51 @@ export function StudioAuthorPreviewProviderV1({
         + `@${SCIENTIFIC_PRODUCT_RELEASE_REF_V1.version}`
         + `:sha256:${SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256}`,
       scenarioId: `scenario/${suffix}`,
-      scenarioLabel: "健康成人のexact periodic基準",
+      scenarioLabel: caseEntry.displayName,
       runtimeSource: Object.freeze({
         kind: "preview-bootstrap",
-        sourceId: SCIENTIFIC_PRODUCT_OFFICIAL_HEALTHY_CASE_ID_V1,
+        sourceId: caseEntry.caseId,
         qualification: "uncertified-preview-only",
       }),
       readerBriefId: reference.readerBriefId,
     }));
     return reference;
+  }, [application]);
+
+  const experimentSources = React.useMemo(
+    () => Object.freeze(SCIENTIFIC_PRODUCT_CASE_CATALOG_V1.map((entry) =>
+      Object.freeze({ sourceId: entry.caseId, label: entry.displayName }))),
+    [],
+  );
+
+  const sourceForExperiment = React.useCallback((experimentId: string) => {
+    const experiment = application.getDraftSnapshot().experiments.find(
+      (candidate) => candidate.experimentId === experimentId,
+    );
+    return experiment?.scenarios[0]?.runtimeSource.sourceId ?? null;
+  }, [application]);
+
+  const replaceExperimentSource = React.useCallback((
+    experimentId: string,
+    sourceId: string,
+  ) => {
+    const current = application.getDraftSnapshot();
+    const experiment = current.experiments.find((candidate) =>
+      candidate.experimentId === experimentId);
+    const scenario = experiment?.scenarios[0];
+    const caseEntry = scientificProductCaseByIdV1(sourceId);
+    if (scenario === undefined || caseEntry === null) return;
+    setDraft(application.replaceExperimentRuntimeSource({
+      expectedRevision: current.revision,
+      experimentId,
+      scenarioId: scenario.scenarioId,
+      scenarioLabel: caseEntry.displayName,
+      runtimeSource: Object.freeze({
+        kind: "preview-bootstrap",
+        sourceId: caseEntry.caseId,
+        qualification: "uncertified-preview-only",
+      }),
+    }));
   }, [application]);
 
   const materializePreview = React.useCallback(() => {
@@ -558,7 +625,11 @@ export function StudioAuthorPreviewProviderV1({
       redoDocumentContent,
       replaceReaderBriefGraphPanes,
       replaceReaderBriefSelection,
+      replaceReaderBriefExtent,
       createExperiment,
+      experimentSources,
+      sourceForExperiment,
+      replaceExperimentSource,
       materializePreview,
       resolvePreview,
       acquireReaderPlacement,
@@ -567,6 +638,9 @@ export function StudioAuthorPreviewProviderV1({
     acquireReaderPlacement,
     createExperiment,
     draft,
+    experimentSources,
+    replaceExperimentSource,
+    sourceForExperiment,
     lastPreviewId,
     materializePreview,
     noteReaderPlacementUse,
@@ -575,6 +649,7 @@ export function StudioAuthorPreviewProviderV1({
     redoDocumentContent,
     replaceDocumentContentLatest,
     replaceReaderBriefGraphPanes,
+    replaceReaderBriefExtent,
     replaceReaderBriefSelection,
     resolvePreview,
     resolvedDocument,

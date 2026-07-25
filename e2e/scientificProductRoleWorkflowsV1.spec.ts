@@ -848,6 +848,18 @@ test.describe.serial("Product workflows by role", () => {
       await expect(composer).toContainText(
         "graph 5枚をReader Briefに保存中",
       );
+      // The extent is authored, not previewed: a full screen has room for
+      // everything pinned, so nothing there overflows.
+      await composer.getByTestId("scientific-briefing-extent-fullscreen-v1")
+        .click();
+      await expect(preview).toHaveAttribute(
+        "data-briefing-preview-graph-count",
+        "5",
+      );
+      await expect(composer.getByTestId(
+        "scientific-briefing-overflow-v1",
+      )).toHaveCount(0);
+      await composer.getByTestId("scientific-briefing-extent-peek-v1").click();
       // Promote the pane configured in this test so the article's primary
       // graph is deterministic, then hand off to the document.
       const primaryPaneId = () =>
@@ -915,6 +927,12 @@ test.describe.serial("Product workflows by role", () => {
       const focusView = page.getByTestId("studio-reader-focus-v1");
       await page.getByTestId("studio-reader-open-focus-v1").click();
       await expect(focusView).toBeVisible();
+      // The authored extent reaches the reader: the companion surface opens as
+      // the panel the author chose.
+      await expect(focusView).toHaveAttribute(
+        "data-studio-reader-extent",
+        "peek",
+      );
       await expect(
         focusView.locator("[data-studio-reader-pane-kind]"),
       ).toHaveCount(5);

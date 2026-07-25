@@ -213,6 +213,7 @@
       "blockMenu": "ブロックメニュー",
       "dragBlock": "ドラッグで並び替え、クリックでメニュー",
       "composeInWorkbench": "Workbenchで構成",
+      "experimentSource": "この実験が読むケース",
       "closeMenu": "メニューを閉じる",
       "turnIntoParagraph": "段落にする",
       "turnIntoHeading2": "見出し2にする",
