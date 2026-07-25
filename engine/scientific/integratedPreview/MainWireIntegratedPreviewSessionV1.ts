@@ -19,10 +19,11 @@ import {
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
-  createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
+  createMainWireIntegratedModelRegularSinusAllOffRecipeV3,
   mainWireIntegratedModelPeriodicFixtureIdentityV3,
   type MainWireIntegratedModelPeriodicTerminalTraceSampleV3,
-  type MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  type MainWireIntegratedModelRegularSinusAllOffRecipeV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
 import type {
   MainWireNormalAdultFiveWallMechanicsStateV1,
@@ -170,7 +171,7 @@ export type MainWireIntegratedPreviewRunPresentationV2 = Readonly<{
   }>;
 }>;
 
-type Fixture = MainWireIntegratedModelRegularSinusAllOffFixtureV3;
+type Recipe = MainWireIntegratedModelRegularSinusAllOffRecipeV3;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<
   MainWireNormalAdultFiveWallMechanicsStateV1
 >;
@@ -184,7 +185,7 @@ export class MainWireIntegratedPreviewSessionV1 {
   readonly inputSpec: MainWireIntegratedPreviewSimulationInputSpecV1;
   readonly inputSpecSha256: string;
 
-  private readonly fixture: Fixture;
+  private readonly recipe: Recipe;
   private readonly seed: MainWireIntegratedPreviewSeedRunV1;
   private readonly dynamicProfile: DynamicMechanicalSupportInertanceProfileV1;
   private readonly dynamicConfig: MechanicalSupportConfigV1;
@@ -195,7 +196,7 @@ export class MainWireIntegratedPreviewSessionV1 {
     releaseRef: SimulationReleaseRef,
     inputSpec: MainWireIntegratedPreviewSimulationInputSpecV1,
     inputSpecSha256: string,
-    fixture: Fixture,
+    recipe: Recipe,
     seed: MainWireIntegratedPreviewSeedRunV1,
     dynamicProfile: DynamicMechanicalSupportInertanceProfileV1,
     dynamicConfig: MechanicalSupportConfigV1,
@@ -204,7 +205,7 @@ export class MainWireIntegratedPreviewSessionV1 {
     this.releaseRef = releaseRef;
     this.inputSpec = inputSpec;
     this.inputSpecSha256 = inputSpecSha256;
-    this.fixture = fixture;
+    this.recipe = recipe;
     this.seed = seed;
     this.dynamicProfile = dynamicProfile;
     this.dynamicConfig = dynamicConfig;
@@ -221,13 +222,17 @@ export class MainWireIntegratedPreviewSessionV1 {
       loadMainWireAdultFiveWallIntegratedPreviewReleaseV1(),
       loadMainWireIntegratedPreviewSeedRunV1(),
     ]);
-    const fixture =
-      createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const recipe =
+      createMainWireIntegratedModelRegularSinusAllOffRecipeV3();
     const periodicFixtureIdentitySha256 = await sha256CanonicalJsonHex(
-      await mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
+      await mainWireIntegratedModelPeriodicFixtureIdentityV3(recipe),
     );
     const seedState = await restoreMainWireIntegratedModelV3(
-      checkpointContext(fixture, fixture.profile, fixture.config),
+      checkpointContext(
+        recipe,
+        recipe.dynamicMechanicalSupport.profile,
+        recipe.dynamicMechanicalSupport.config,
+      ),
       seed.payload.terminalModelState,
     );
     const active = mcsPresetId === "lvad-hmii-9000-one-beat-transient";
@@ -250,7 +255,7 @@ export class MainWireIntegratedPreviewSessionV1 {
           dynamicProfile,
           dynamicConfig,
         ),
-        { configuration: fixture.rhythm.configuration },
+        { configuration: recipe.rhythm.configuration },
         dynamicProfile,
         dynamicConfig,
       )
@@ -261,7 +266,7 @@ export class MainWireIntegratedPreviewSessionV1 {
       releaseRef: release.ref,
       modelAssembly:
         "base+coronary-v3+dynamic-mcs+composed-rhythm-v2",
-      fixedGlobalTotalBloodVolumeMl: fixture.fixedGlobalTotalBloodVolumeMl,
+      fixedGlobalTotalBloodVolumeMl: recipe.fixedGlobalTotalBloodVolumeMl,
       rhythm: {
         presetId: "composed-regular-sinus-60-v1",
         heartRateBpm: 60,
@@ -286,7 +291,7 @@ export class MainWireIntegratedPreviewSessionV1 {
       release.ref,
       inputSpec,
       await sha256CanonicalJsonHex(inputSpec),
-      fixture,
+      recipe,
       seed,
       dynamicProfile,
       dynamicConfig,
@@ -319,7 +324,7 @@ export class MainWireIntegratedPreviewSessionV1 {
     assertCurrentSessionIdentity(session, expected);
     session.acceptedState = await restoreMainWireIntegratedModelV3(
       checkpointContext(
-        session.fixture,
+        session.recipe,
         session.dynamicProfile,
         session.dynamicConfig,
       ),
@@ -368,7 +373,7 @@ export class MainWireIntegratedPreviewSessionV1 {
       );
     }
     const context = checkpointContext(
-      session.fixture,
+      session.recipe,
       session.dynamicProfile,
       session.dynamicConfig,
     );
@@ -452,7 +457,9 @@ export class MainWireIntegratedPreviewSessionV1 {
         !== canonicalJsonStringify(record.terminalModelState)
     ) {
       throw new Error(
-        "integrated preview bundled seed transition is not exactly reproducible",
+        "integrated preview bundled seed transition is not exactly "
+          + "reproducible in the current execution runtime; cross-runtime "
+          + "bitwise equivalence is not claimed",
       );
     }
     return record;
@@ -516,7 +523,7 @@ export class MainWireIntegratedPreviewSessionV1 {
     const endAcceptedTimeSec = startAcceptedTimeSec + 1;
     const startModelState = await checkpointMainWireIntegratedModelV3(
       checkpointContext(
-        this.fixture,
+        this.recipe,
         this.dynamicProfile,
         this.dynamicConfig,
       ),
@@ -547,7 +554,7 @@ export class MainWireIntegratedPreviewSessionV1 {
         this.acceptedState,
         nominalTarget,
         {
-          configuration: this.fixture.rhythm.configuration,
+          configuration: this.recipe.rhythm.configuration,
           externalAfNextBoundaryTimeSec: null,
         },
         this.dynamicProfile,
@@ -556,13 +563,13 @@ export class MainWireIntegratedPreviewSessionV1 {
       const acceptedDtSec = candidateTimeLimit.candidateTimeSec
         - this.acceptedState.acceptedTimeSec;
       const stepped = stepMainWireIntegratedModelV3(
-        this.fixture.provider,
+        this.recipe.provider,
         this.acceptedState,
         {
           candidateTimeSec: candidateTimeLimit.candidateTimeSec,
-          coronary: this.fixture.coronaryStepInput,
+          coronary: this.recipe.coronaryStepInput,
           rhythm: {
-            configuration: this.fixture.rhythm.configuration,
+            configuration: this.recipe.rhythm.configuration,
             externalAfNextBoundaryTimeSec: null,
             externalAtrialSourceBatch: null,
           },
@@ -590,7 +597,7 @@ export class MainWireIntegratedPreviewSessionV1 {
     }
     const terminalModelState = await checkpointMainWireIntegratedModelV3(
       checkpointContext(
-        this.fixture,
+        this.recipe,
         this.dynamicProfile,
         this.dynamicConfig,
       ),
@@ -1462,24 +1469,17 @@ export async function createMainWireIntegratedPreviewRunArtifactV1(
 }
 
 function checkpointContext(
-  fixture: Fixture,
+  recipe: Recipe,
   dynamicMechanicalSupportProfile: DynamicMechanicalSupportInertanceProfileV1,
   dynamicMechanicalSupportConfig: MechanicalSupportConfigV1,
 ): MainWireIntegratedModelCheckpointContextV3<
   MainWireNormalAdultFiveWallMechanicsStateV1
 > {
-  return Object.freeze({
-    provider: fixture.provider,
-    coronaryPrior: fixture.coronaryStepInput.coronaryPrior,
-    collapseHydraulics: fixture.coronaryStepInput.collapseHydraulics,
-    impMechanism: fixture.coronaryStepInput.impMechanism,
-    shorteningImpPrior: fixture.coronaryStepInput.shorteningImpPrior,
-    coronaryAutoregulationBinding:
-      fixture.cold.acceptedState.coronary.coronaryAutoregulationBinding,
-    rhythm: Object.freeze({ configuration: fixture.rhythm.configuration }),
+  return createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+    recipe,
     dynamicMechanicalSupportProfile,
     dynamicMechanicalSupportConfig,
-  });
+  );
 }
 
 function traceSample(

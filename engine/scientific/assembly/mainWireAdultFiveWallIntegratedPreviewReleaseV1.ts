@@ -18,6 +18,7 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID,
   createMainWireIntegratedModelAllOffZeroInertanceProfileV3,
@@ -38,7 +39,7 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_ID =
 export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_VERSION =
   "0.1.0" as const;
 export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_SHA256 =
-  "ccb12d25e279ccab81ba9372b89f7ea16ba5e4ab3cb5694107c0cdd155add5f5" as const;
+  "32d4f2c936eabd6b19fcb18386ba540174de6627110b1c2febb0140938f0fa5d" as const;
 export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_ARTIFACT_PATH =
   "engine/scientific/assembly/releases/main-wire-adult-five-wall-integrated-preview-0.1.0.json" as const;
 export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_ACK_KEY_V1 =
@@ -52,6 +53,7 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_LIMITATIONS_V1 =
     "the HeartMate II inertance profile is a literature transcription and is not release-approved",
     "external AF joint checkpointing and rhythm-synchronized IABP remain blocked",
     "multipatch myocardium and patient-specific fitting are not included",
+    "exact numerical checkpoint evidence is canonical-environment-bound; cross-runtime bitwise equivalence is not claimed",
   ] as const);
 
 export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_ARTIFACT_PATH =
@@ -59,13 +61,23 @@ export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_ARTIFACT_PATH =
 export const MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH =
   "data/scientific/evidence/integrated-preview-0.1.0/canonical-periodic-v3-source.json" as const;
 export const MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_RAW_SHA256 =
-  "389cb73a6e7af066bff72d7647533f3a3ef80727ee27d5669639c103cbe1e399" as const;
+  "c3735e70eb940ca231f3d8f9456756664bf081edf334e7239463d9f0c8fb09f6" as const;
 export const MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_CANONICAL_SHA256 =
-  "a5c6f3a36c5dad490ef2609786415757c9c89c47b9ab50624d118dac76c9dfd4" as const;
+  "183525fb3d0911f3a10b873b7410cef2ec15146aa352002f88e9d27cc26f7b8a" as const;
+export const MAIN_WIRE_INTEGRATED_PREVIEW_COLD_INITIALIZATION_CHECKPOINT_SHA256 =
+  "ab04a3ad56b21c9d06971dceed606053c52569c00122d20485fe5077b69218f5" as const;
+export const MAIN_WIRE_INTEGRATED_PREVIEW_CANONICAL_EXECUTION_ENVIRONMENT_V1 =
+  Object.freeze({
+    nodeVersion: "v26.4.0" as const,
+    v8Version: "14.6.202.34-node.21" as const,
+    platform: "darwin" as const,
+    arch: "arm64" as const,
+    crossRuntimeBitwiseEquivalenceClaimed: false as const,
+  });
 export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_RAW_SHA256 =
-  "208ecd498ee837c182391ffde423924cde901813da6b0eeac797cace813b2c8f" as const;
+  "71455dfb3e59d132ac6b3df6ddcde322c4aefbfb67be4c1119a8daef7c21299c" as const;
 export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_PAYLOAD_SHA256 =
-  "a52afa5cdc291bb14c7a4bbae87e8235d4705bc6939453f9c86c9a66aad99821" as const;
+  "a990889b4c31218b55998da12371cf34bd5d88effeb237acc4547b45dd566b10" as const;
 export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_START_CHECKPOINT_SHA256 =
   "9fc15d39328e3ef1e3c4f17d22b99c224fd44efebbf4b1fe5cbdb5cec3036aef" as const;
 export const MAIN_WIRE_INTEGRATED_PREVIEW_SEED_TERMINAL_CHECKPOINT_SHA256 =
@@ -159,7 +171,13 @@ SimulationReleaseManifestInputV1 {
         periodicSourceArtifact: {
           path:
             MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH,
-          artifactSchemaVersion: 4,
+          artifactSchemaVersion: 5,
+          runtimeAbiSha256:
+            MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
+          coldInitializationCheckpointSha256:
+            MAIN_WIRE_INTEGRATED_PREVIEW_COLD_INITIALIZATION_CHECKPOINT_SHA256,
+          canonicalExecutionEnvironment:
+            MAIN_WIRE_INTEGRATED_PREVIEW_CANONICAL_EXECUTION_ENVIRONMENT_V1,
           rawFileSha256:
             MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_RAW_SHA256,
           canonicalJsonSha256:

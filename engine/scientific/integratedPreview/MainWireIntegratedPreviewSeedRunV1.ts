@@ -4,7 +4,8 @@ import type {
   MainWireIntegratedModelCheckpointV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
 import {
-  createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
+  createMainWireIntegratedModelRegularSinusAllOffRecipeV3,
   mainWireIntegratedModelPeriodicProtocolIdentityHashV3,
   type MainWireIntegratedModelHealthyReferenceProjectionV3,
   type MainWireIntegratedModelPeriodicTerminalCycleTraceV3,
@@ -51,19 +52,21 @@ export type MainWireIntegratedPreviewSeedInputSpecV1 = Readonly<{
 
 export type MainWireIntegratedPreviewSeedRunPayloadV1 = Readonly<{
   artifactId: typeof MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_ID;
-  schemaVersion: 2;
+  schemaVersion: 3;
   role: "release-bound-live-session-seed";
   simulationInputSpec: MainWireIntegratedPreviewSeedInputSpecV1;
   sourceEvidence: Readonly<{
     experimentId: string;
     executionPurpose: "canonical-evidence";
     protocolIdentityHash: string;
+    runtimeAbiSha256:
+      typeof MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3;
     completedCycleCount: 70;
     classification: MainWireIntegratedModelPeriodicClassificationV3;
     sourceArtifact: Readonly<{
       path:
         typeof MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH;
-      artifactSchemaVersion: 4;
+      artifactSchemaVersion: 5;
       rawFileSha256: string;
       canonicalJsonSha256: string;
     }>;
@@ -126,7 +129,7 @@ Promise<MainWireIntegratedPreviewSeedRunV1> {
     MainWireIntegratedPreviewSeedRunPayloadV1;
   if (
     payload.artifactId !== MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_ID
-    || payload.schemaVersion !== 2
+    || payload.schemaVersion !== 3
     || payload.role !== "release-bound-live-session-seed"
     || payload.simulationInputSpec.schemaId
       !== "circleheart-integrated-simulation-input-spec-v1"
@@ -135,6 +138,8 @@ Promise<MainWireIntegratedPreviewSeedRunV1> {
     || payload.simulationInputSpec.nominalDtSec !== 0.002
     || payload.sourceEvidence.classification.status !== "period1-converged"
     || payload.sourceEvidence.completedCycleCount !== 70
+    || payload.sourceEvidence.runtimeAbiSha256
+      !== MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3
     || payload.displaySeed.terminalCycleTrace.samples.length !== 504
     || payload.startModelState.checkpointSha256
       !== MAIN_WIRE_INTEGRATED_PREVIEW_SEED_START_CHECKPOINT_SHA256
@@ -148,15 +153,15 @@ Promise<MainWireIntegratedPreviewSeedRunV1> {
       !== payload.displaySeed.terminalCycleTrace.endTimeSec
     || payload.sourceEvidence.sourceArtifact.path
       !== MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH
-    || payload.sourceEvidence.sourceArtifact.artifactSchemaVersion !== 4
+    || payload.sourceEvidence.sourceArtifact.artifactSchemaVersion !== 5
     || payload.sourceEvidence.sourceArtifact.rawFileSha256
       !== MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_RAW_SHA256
     || payload.sourceEvidence.sourceArtifact.canonicalJsonSha256
       !== MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_CANONICAL_SHA256
   ) throw new Error("integrated preview seed identity is unsupported");
-  const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+  const recipe = createMainWireIntegratedModelRegularSinusAllOffRecipeV3();
   const expectedFixedGlobalTotalBloodVolumeMl =
-    fixture.fixedGlobalTotalBloodVolumeMl;
+    recipe.fixedGlobalTotalBloodVolumeMl;
   if (
     payload.simulationInputSpec.fixedGlobalTotalBloodVolumeMl
       !== expectedFixedGlobalTotalBloodVolumeMl
@@ -169,12 +174,12 @@ Promise<MainWireIntegratedPreviewSeedRunV1> {
   ) {
     throw new Error(
       "integrated preview seed fixed global blood volume differs from "
-        + "the live model fixture",
+        + "the live model recipe",
     );
   }
   const currentProtocolIdentityHash =
     await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
-      fixture,
+      recipe,
       {
         nominalDtSec: payload.simulationInputSpec.nominalDtSec,
         executionPurpose: payload.sourceEvidence.executionPurpose,
@@ -186,7 +191,7 @@ Promise<MainWireIntegratedPreviewSeedRunV1> {
   ) {
     throw new Error(
       "integrated preview seed protocol identity differs from the live "
-        + "model fixture",
+        + "model recipe",
     );
   }
   cachedSeed = parsed as unknown as MainWireIntegratedPreviewSeedRunV1;

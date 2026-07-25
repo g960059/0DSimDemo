@@ -820,7 +820,7 @@ async function syntheticRunRecord(
     sourceProtocolIdentityHash:
       SEED_RUN.payload.sourceEvidence.protocolIdentityHash,
     periodicFixtureIdentitySha256:
-      "4aa51af4f442705cd098c3e787972f33b28e0bb92253254b1bc0b4fd331d5472",
+      "ad93e35b35b6a90fdb5c12a9c44b878cb1d287b50a687a1a660544bd8a5a28ed",
   };
   const payload = {
     artifactId: "circleheart-main-wire-integrated-preview-run-record-v2",

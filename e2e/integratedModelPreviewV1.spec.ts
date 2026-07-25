@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
 const RELEASE_SHA256 =
-  "ccb12d25e279ccab81ba9372b89f7ea16ba5e4ab3cb5694107c0cdd155add5f5";
+  "32d4f2c936eabd6b19fcb18386ba540174de6627110b1c2febb0140938f0fa5d";
 
 test("runs the exact integrated release and exports an exact run record", async ({
   page,

@@ -11,12 +11,12 @@ export const MAIN_WIRE_INTEGRATED_PREVIEW_BROWSER_RELEASE_REF_V1 =
     id: "circleheart/adult-five-wall-integrated-preview",
     version: "0.1.0",
     sha256:
-      "ccb12d25e279ccab81ba9372b89f7ea16ba5e4ab3cb5694107c0cdd155add5f5",
+      "32d4f2c936eabd6b19fcb18386ba540174de6627110b1c2febb0140938f0fa5d",
   } as const);
 
 const SOURCE_SEED_IDENTITY_V1 = Object.freeze({
   payloadSha256:
-    "a52afa5cdc291bb14c7a4bbae87e8235d4705bc6939453f9c86c9a66aad99821",
+    "a990889b4c31218b55998da12371cf34bd5d88effeb237acc4547b45dd566b10",
   startCheckpointSha256:
     "9fc15d39328e3ef1e3c4f17d22b99c224fd44efebbf4b1fe5cbdb5cec3036aef",
   terminalCheckpointSha256:
@@ -40,13 +40,13 @@ export const MAIN_WIRE_INTEGRATED_PREVIEW_BROWSER_EXPECTED_IDENTITY_V1 =
     byMcsPresetId: Object.freeze({
       "all-off": Object.freeze({
         simulationInputSpecSha256:
-          "73248db5e5f67036a8af004901b7a28744f76a19677fa721fe4940cb110d9174",
+          "d1e175e8288501c36303ef46c97187dd3f5de15fc664b9ab28060614b3a02ac4",
         createStartCheckpointSha256:
           SOURCE_SEED_IDENTITY_V1.startCheckpointSha256,
       }),
       "lvad-hmii-9000-one-beat-transient": Object.freeze({
         simulationInputSpecSha256:
-          "be91f6813435fcdf58f5dbe8b7a359d683258208b396bcb72980af333f9a629d",
+          "9ba2475531139c5235c6cd6b075970676abc8193b3beb948439332752578545f",
         createStartCheckpointSha256:
           "2202d829789d38649aa936995623afd59cb47e3e64f0d4292ad35693389b61c1",
       }),

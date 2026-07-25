@@ -5,18 +5,33 @@ import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V2 } from "@/engin
 import { MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_V3,
+  createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3,
   createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  createMainWireIntegratedModelRegularSinusAllOffRecipeV3,
   mainWireIntegratedModelPeriodicFixtureIdentityV3,
   mainWireIntegratedModelPeriodicProtocolIdentityHashV3,
   runMainWireIntegratedModelPeriodicSteadyV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
-import type {
-  MainWireFiveWallLandTriSegProviderParameterPreimageV1,
-} from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
+import type { MainWireFiveWallLandTriSegProviderParameterPreimageV1 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import { sha256CanonicalJsonHex } from "@/engine/scientific/release";
 
 describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
+  it("pins the complete portable runtime ABI descriptor SHA", async () => {
+    expect(
+      await sha256CanonicalJsonHex(
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_V3,
+      ),
+    ).toBe(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_V3).toMatchObject({
+      implementationChangeRequiresDescriptorVersionBump: true,
+      derivedFloatingPointColdOutputInPortableProtocolIdentity: false,
+      crossRuntimeBitwiseColdEquivalenceClaimed: false,
+    });
+  });
+
   it("reuses the predeclared V2 policy/scales and makes every MCS circuit explicitly all-off with zero inertance", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3).toBe(
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V2,
@@ -43,6 +58,14 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       fixture.config.vaEcmo.enabled,
       fixture.config.vvEcmo.enabled,
     ]).toEqual([false, false, false, false]);
+    expect(
+      fixture.dynamicMechanicalSupport.initialAcceptedFlowMlPerSec,
+    ).toEqual({
+      LVAD: 0,
+      IMPELLA: 0,
+      VA_ECMO: 0,
+      VV_ECMO: 0,
+    });
     for (const circuit of Object.values(fixture.profile.inertanceByDevice)) {
       expect(
         Object.values(circuit).filter((value) => typeof value === "number"),
@@ -58,8 +81,8 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
 
   it("binds the protocol SHA to the complete provider preimage, not its rounded FNV proxy", async () => {
     const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
-    const preimage = fixture.provider.parameterIdentityPreimage as
-      MainWireFiveWallLandTriSegProviderParameterPreimageV1;
+    const preimage = fixture.provider
+      .parameterIdentityPreimage as MainWireFiveWallLandTriSegProviderParameterPreimageV1;
     expect(preimage.materialByWall.LVFW.parameterPreimage).toMatchObject({
       adapterId: "main-wire-normal-adult-five-wall-material-adapter-v1",
       wallId: "LVFW",
@@ -85,10 +108,12 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
 
     const fixtureIdentity =
       await mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture);
-    expect(fixtureIdentity.provider.parameterIdentityPreimage)
-      .toEqual(preimage);
-    expect(fixtureIdentity.provider)
-      .not.toHaveProperty("parameterIdentityHash");
+    expect(fixtureIdentity.provider.parameterIdentityPreimage).toEqual(
+      preimage,
+    );
+    expect(fixtureIdentity.provider).not.toHaveProperty(
+      "parameterIdentityHash",
+    );
 
     const mutatedPreimage = Object.freeze({
       ...preimage,
@@ -96,14 +121,13 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
         ...preimage.atria,
         LA: Object.freeze({
           ...preimage.atria.LA,
-          wallMaterialVolumeM3:
-            preimage.atria.LA.wallMaterialVolumeM3 + 4e-13,
+          wallMaterialVolumeM3: preimage.atria.LA.wallMaterialVolumeM3 + 4e-13,
         }),
       }),
     });
     const actualMutation =
-      mutatedPreimage.atria.LA.wallMaterialVolumeM3
-      - preimage.atria.LA.wallMaterialVolumeM3;
+      mutatedPreimage.atria.LA.wallMaterialVolumeM3 -
+      preimage.atria.LA.wallMaterialVolumeM3;
     expect(actualMutation).toBeGreaterThan(0);
     expect(actualMutation).toBeLessThan(0.5e-12);
     const mutatedFixture = Object.freeze({
@@ -114,36 +138,86 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       }),
     });
 
-    expect(await sha256CanonicalJsonHex(
-      await mainWireIntegratedModelPeriodicFixtureIdentityV3(mutatedFixture),
-    )).not.toBe(await sha256CanonicalJsonHex(fixtureIdentity));
-    expect(await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
-      mutatedFixture,
-      {
+    expect(
+      await sha256CanonicalJsonHex(
+        await mainWireIntegratedModelPeriodicFixtureIdentityV3(mutatedFixture),
+      ),
+    ).not.toBe(await sha256CanonicalJsonHex(fixtureIdentity));
+    expect(
+      await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+        mutatedFixture,
+        {
+          nominalDtSec: 0.002,
+          maximumCycleCount: 1,
+          executionPurpose: "bounded-smoke",
+        },
+      ),
+    ).not.toBe(
+      await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(fixture, {
         nominalDtSec: 0.002,
         maximumCycleCount: 1,
         executionPurpose: "bounded-smoke",
-      },
-    )).not.toBe(await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
-      fixture,
-      {
-        nominalDtSec: 0.002,
-        maximumCycleCount: 1,
-        executionPurpose: "bounded-smoke",
-      },
-    ));
+      }),
+    );
   });
 
-  it("binds the cycle length and exact cold accepted-state initialization into the protocol SHA", async () => {
+  it("fails closed when convenience aliases diverge from the canonical recipe inputs", async () => {
+    const recipe = createMainWireIntegratedModelRegularSinusAllOffRecipeV3();
+    const divergentRecipes = [
+      {
+        ...recipe,
+        runtime: { ...recipe.runtime },
+      },
+      {
+        ...recipe,
+        pericardium: { ...recipe.pericardium },
+      },
+      {
+        ...recipe,
+        dynamicMechanicalSupport: {
+          ...recipe.dynamicMechanicalSupport,
+          profile: { ...recipe.profile },
+        },
+      },
+      {
+        ...recipe,
+        dynamicMechanicalSupport: {
+          ...recipe.dynamicMechanicalSupport,
+          config: { ...recipe.config },
+        },
+      },
+    ] as unknown as readonly (typeof recipe)[];
+
+    for (const divergent of divergentRecipes) {
+      await expect(
+        mainWireIntegratedModelPeriodicFixtureIdentityV3(divergent),
+      ).rejects.toThrow(/canonical aliases differ/);
+      expect(() =>
+        createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+          divergent,
+        )).toThrow(/canonical aliases differ/);
+    }
+  });
+
+  it("binds declarative recipe mutations but not derived cold numerical output into the portable protocol SHA", async () => {
     const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
     const alternateColdFixture =
       createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3(
         fixture.fixedGlobalTotalBloodVolumeMl - 1,
       );
+    const recipe = createMainWireIntegratedModelRegularSinusAllOffRecipeV3();
+    expect(recipe).not.toHaveProperty("cold");
     const changedCycleLength = Object.freeze({
-      ...fixture,
+      ...recipe,
       cycleLengthSec: 0.5,
-    }) as unknown as typeof fixture;
+    }) as unknown as typeof recipe;
+    const changedAutoregulationWindow = Object.freeze({
+      ...recipe,
+      coronaryAutoregulationWindow: Object.freeze({
+        ...recipe.coronaryAutoregulationWindow,
+        durationSec: 0.5,
+      }),
+    }) as unknown as typeof recipe;
     const changedColdAcceptedState = Object.freeze({
       ...fixture,
       cold: alternateColdFixture.cold,
@@ -157,13 +231,18 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
     const [
       fixtureIdentity,
       changedCycleIdentity,
+      changedAutoregulationWindowIdentity,
       changedColdIdentity,
       protocolIdentity,
       changedCycleProtocolIdentity,
+      changedAutoregulationWindowProtocolIdentity,
       changedColdProtocolIdentity,
     ] = await Promise.all([
       mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
       mainWireIntegratedModelPeriodicFixtureIdentityV3(changedCycleLength),
+      mainWireIntegratedModelPeriodicFixtureIdentityV3(
+        changedAutoregulationWindow,
+      ),
       mainWireIntegratedModelPeriodicFixtureIdentityV3(
         changedColdAcceptedState,
       ),
@@ -176,30 +255,52 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
         protocolOptions,
       ),
       mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
+        changedAutoregulationWindow,
+        protocolOptions,
+      ),
+      mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
         changedColdAcceptedState,
         protocolOptions,
       ),
     ]);
 
     expect(fixtureIdentity.cycleLengthSec).toBe(1);
-    expect(fixtureIdentity.coldAcceptedStateInitialization).toMatchObject({
-      kind: "exact-main-v3-checkpoint",
-      schemaVersion: 3,
-      revision: 0,
+    expect(fixtureIdentity.coldInitializationRecipe).toMatchObject({
+      schemaVersion: 1,
       acceptedTimeSec: 0,
-      checkpointSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      initialRevision: 0,
+      coronaryAutoregulationWindow: {
+        durationSec: 1,
+        interpretation: "periodic-sinus-cycle-aligned",
+      },
+      derivedFloatingPointColdOutputIncluded: false,
     });
+    expect(fixtureIdentity.runtimeAbi).toEqual({
+      descriptor: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_V3,
+      sha256: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
+    });
+    expect(fixtureIdentity).not.toHaveProperty(
+      "coldAcceptedStateInitialization",
+    );
+    expect(fixtureIdentity.coldInitializationRecipe).not.toHaveProperty(
+      "checkpointSha256",
+    );
+    expect(JSON.stringify(fixtureIdentity)).not.toContain("checkpointSha256");
     expect(changedCycleIdentity.cycleLengthSec).toBe(0.5);
-    expect(changedColdIdentity.coldAcceptedStateInitialization.checkpointSha256)
-      .not.toBe(
-        fixtureIdentity.coldAcceptedStateInitialization.checkpointSha256,
-      );
-    expect(await sha256CanonicalJsonHex(changedCycleIdentity))
-      .not.toBe(await sha256CanonicalJsonHex(fixtureIdentity));
-    expect(await sha256CanonicalJsonHex(changedColdIdentity))
-      .not.toBe(await sha256CanonicalJsonHex(fixtureIdentity));
+    expect(await sha256CanonicalJsonHex(changedCycleIdentity)).not.toBe(
+      await sha256CanonicalJsonHex(fixtureIdentity),
+    );
+    expect(
+      await sha256CanonicalJsonHex(changedAutoregulationWindowIdentity),
+    ).not.toBe(await sha256CanonicalJsonHex(fixtureIdentity));
+    expect(await sha256CanonicalJsonHex(changedColdIdentity)).toBe(
+      await sha256CanonicalJsonHex(fixtureIdentity),
+    );
     expect(changedCycleProtocolIdentity).not.toBe(protocolIdentity);
-    expect(changedColdProtocolIdentity).not.toBe(protocolIdentity);
+    expect(changedAutoregulationWindowProtocolIdentity).not.toBe(
+      protocolIdentity,
+    );
+    expect(changedColdProtocolIdentity).toBe(protocolIdentity);
   });
 
   it("advances one canonical-provider cycle with exact event ownership, conservation, raw trace, healthy projection, and V3 checkpoint", async () => {
@@ -220,6 +321,7 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       physiologicalAcceptanceEstablished: false,
       independentValidationEstablished: false,
       releaseAcceptanceEstablished: false,
+      coldInitializationCheckpointExactRoundTripVerified: true,
       terminalCheckpointExactRoundTripVerified: true,
       allCyclesFiniteConservedAndEventExact: true,
     });
@@ -290,19 +392,16 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
       expect(Object.values(sample.dynamicMcsAcceptedFlowMlPerSec)).toEqual([
         0, 0, 0, 0,
       ]);
-      expect(
-        Object.keys(sample.pulmonaryCirculation.nodeVolumeMl),
-      ).toEqual(["PA", "PArt", "PCap", "PVen", "PVein"]);
-      expect(
-        Object.keys(sample.pulmonaryCirculation.edgeFlowMlPerSec),
-      ).toEqual([
-        "PV",
-        "PA_PArt",
-        "PArt_PCap",
-        "PCap_PVen",
-        "PVen_PVein",
-        "PVein_LA",
+      expect(Object.keys(sample.pulmonaryCirculation.nodeVolumeMl)).toEqual([
+        "PA",
+        "PArt",
+        "PCap",
+        "PVen",
+        "PVein",
       ]);
+      expect(Object.keys(sample.pulmonaryCirculation.edgeFlowMlPerSec)).toEqual(
+        ["PV", "PA_PArt", "PArt_PCap", "PCap_PVen", "PVen_PVein", "PVein_LA"],
+      );
     }
 
     const projection = result.terminalHealthyReferenceProjection;
@@ -334,6 +433,12 @@ describe("integrated Main V3 regular-sinus all-off periodic experiment", () => {
     expect(result.terminalCheckpoint.checkpointSha256).toMatch(
       /^[0-9a-f]{64}$/,
     );
+    expect(result.coldInitializationCheckpoint).toMatchObject({
+      acceptedTimeSec: 0,
+      revision: 0,
+      schemaVersion: 3,
+      checkpointSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
     expect(result.terminalCycleStartCheckpoint).toMatchObject({
       acceptedTimeSec: 0,
       schemaVersion: 3,

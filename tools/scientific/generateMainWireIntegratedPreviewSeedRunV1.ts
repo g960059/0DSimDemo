@@ -2,9 +2,29 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import {
+  MAIN_WIRE_INTEGRATED_PREVIEW_CANONICAL_EXECUTION_ENVIRONMENT_V1,
+  MAIN_WIRE_INTEGRATED_PREVIEW_COLD_INITIALIZATION_CHECKPOINT_SHA256,
   MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH,
   MAIN_WIRE_INTEGRATED_PREVIEW_SEED_RUN_V1_ARTIFACT_PATH,
 } from "@/engine/scientific/assembly/mainWireAdultFiveWallIntegratedPreviewReleaseV1";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
+  checkpointMainWireIntegratedModelV3,
+  restoreMainWireIntegratedModelV3,
+  type MainWireIntegratedModelCheckpointContextV3,
+  type MainWireIntegratedModelCheckpointV3,
+} from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
+} from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
+import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
+  createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3,
+  createMainWireIntegratedModelRegularSinusAllOffRecipeV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import type {
+  MainWireNormalAdultFiveWallMechanicsStateV1,
+} from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
@@ -42,12 +62,54 @@ const classification = requiredRecord(
   source.classification,
   "source classification",
 );
+const canonicalExecutionEnvironment = requiredRecord(
+  source.canonicalExecutionEnvironment,
+  "source canonicalExecutionEnvironment",
+);
+const coldInitializationEvidence = requiredRecord(
+  source.coldInitializationEvidence,
+  "source coldInitializationEvidence",
+);
+const coldInitializationCheckpoint = requiredRecord(
+  coldInitializationEvidence.checkpoint,
+  "source coldInitializationEvidence checkpoint",
+);
 if (
-  source.artifactSchemaVersion !== 4
+  source.artifactSchemaVersion !== 5
   || source.executionPurpose !== "canonical-evidence"
+  || source.runtimeAbiSha256
+    !== MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3
+  || !isSha256(source.protocolIdentityHash)
   || source.numericalPeriod1Established !== true
   || source.fixedGlobalTotalBloodVolumeMl !== 5_600
   || source.terminalCheckpointExactRoundTripVerified !== true
+  || typeof canonicalExecutionEnvironment.nodeVersion !== "string"
+  || canonicalExecutionEnvironment.nodeVersion.length === 0
+  || typeof canonicalExecutionEnvironment.v8Version !== "string"
+  || canonicalExecutionEnvironment.v8Version.length === 0
+  || typeof canonicalExecutionEnvironment.platform !== "string"
+  || canonicalExecutionEnvironment.platform.length === 0
+  || typeof canonicalExecutionEnvironment.arch !== "string"
+  || canonicalExecutionEnvironment.arch.length === 0
+  || canonicalExecutionEnvironment.crossRuntimeBitwiseEquivalenceClaimed
+    !== false
+  || canonicalJsonStringify(canonicalExecutionEnvironment)
+    !== canonicalJsonStringify(
+      MAIN_WIRE_INTEGRATED_PREVIEW_CANONICAL_EXECUTION_ENVIRONMENT_V1,
+    )
+  || coldInitializationEvidence.role
+    !== "canonical-generation-evidence-only-not-portable-protocol-input"
+  || coldInitializationEvidence.exactRoundTripVerified !== true
+  || coldInitializationCheckpoint.checkpointId
+    !== MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID
+  || coldInitializationCheckpoint.schemaVersion !== 3
+  || coldInitializationCheckpoint.transactionId
+    !== MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID
+  || coldInitializationCheckpoint.acceptedTimeSec !== 0
+  || coldInitializationCheckpoint.revision !== 0
+  || !isSha256(coldInitializationCheckpoint.checkpointSha256)
+  || coldInitializationCheckpoint.checkpointSha256
+    !== MAIN_WIRE_INTEGRATED_PREVIEW_COLD_INITIALIZATION_CHECKPOINT_SHA256
   || classification.status !== "period1-converged"
   || !Array.isArray(terminalCycleTrace.samples)
   || terminalCycleTrace.samples.length === 0
@@ -60,13 +122,35 @@ if (
   throw new Error("source is not the canonical integrated V3 P1 artifact");
 }
 
+const checkpointContext =
+  createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+    createMainWireIntegratedModelRegularSinusAllOffRecipeV3(),
+  );
+await Promise.all([
+  verifyExactCheckpoint(
+    checkpointContext,
+    coldInitializationCheckpoint,
+    "cold initialization",
+  ),
+  verifyExactCheckpoint(
+    checkpointContext,
+    terminalCycleStartCheckpoint,
+    "terminal cycle start",
+  ),
+  verifyExactCheckpoint(
+    checkpointContext,
+    terminalCheckpoint,
+    "terminal",
+  ),
+]);
+
 const [sourceRawFileSha256, sourceCanonicalJsonSha256] = await Promise.all([
   sha256TextHex(sourceRaw),
   sha256CanonicalJsonHex(source),
 ]);
 const payload = Object.freeze({
   artifactId: ARTIFACT_ID,
-  schemaVersion: 2 as const,
+  schemaVersion: 3 as const,
   role: "release-bound-live-session-seed" as const,
   simulationInputSpec: Object.freeze({
     schemaId: "circleheart-integrated-simulation-input-spec-v1" as const,
@@ -90,11 +174,12 @@ const payload = Object.freeze({
     experimentId: source.experimentId,
     executionPurpose: source.executionPurpose,
     protocolIdentityHash: source.protocolIdentityHash,
+    runtimeAbiSha256: source.runtimeAbiSha256,
     completedCycleCount: source.completedCycleCount,
     classification,
     sourceArtifact: Object.freeze({
       path: portableSourcePath,
-      artifactSchemaVersion: 4 as const,
+      artifactSchemaVersion: 5 as const,
       rawFileSha256: sourceRawFileSha256,
       canonicalJsonSha256: sourceCanonicalJsonSha256,
     }),
@@ -144,6 +229,9 @@ process.stdout.write(`${JSON.stringify({
   sourceCanonicalJsonSha256,
   outputPath,
   payloadSha256: artifact.payloadSha256,
+  runtimeAbiSha256: source.runtimeAbiSha256,
+  coldInitializationCheckpointSha256:
+    coldInitializationCheckpoint.checkpointSha256,
   sampleCount: terminalCycleTrace.samples.length,
   startCheckpointSha256: terminalCycleStartCheckpoint.checkpointSha256,
   terminalCheckpointSha256: terminalCheckpoint.checkpointSha256,
@@ -168,6 +256,37 @@ function requiredRecord(
     throw new Error(`${label} must be an object`);
   }
   return value as Record<string, unknown>;
+}
+
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+}
+
+async function verifyExactCheckpoint(
+  context: MainWireIntegratedModelCheckpointContextV3<
+    MainWireNormalAdultFiveWallMechanicsStateV1
+  >,
+  checkpoint: Record<string, unknown>,
+  label: string,
+): Promise<void> {
+  const exactCheckpoint =
+    checkpoint as unknown as MainWireIntegratedModelCheckpointV3;
+  const restored = await restoreMainWireIntegratedModelV3(
+    context,
+    exactCheckpoint,
+  );
+  const recheckpointed = await checkpointMainWireIntegratedModelV3(
+    context,
+    restored,
+  );
+  if (
+    canonicalJsonStringify(recheckpointed)
+      !== canonicalJsonStringify(exactCheckpoint)
+  ) {
+    throw new Error(
+      `source ${label} checkpoint differs after exact restore`,
+    );
+  }
 }
 
 function portableRepositoryPath(absolutePath: string): string {

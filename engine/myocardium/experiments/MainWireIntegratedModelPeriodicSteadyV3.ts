@@ -1,4 +1,7 @@
 import { NORMAL_CORONARY_DISEASE_INPUT_V2 } from "@/engine/coronary/backwardEulerCoronaryNetworkV2";
+import {
+  createCoronaryAutoregulationWindowBindingV3,
+} from "@/engine/coronary/acceptedAutoregulationWindowV3";
 import { NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2 } from "@/engine/coronary/mainWireCoronaryBoundaryV2";
 import {
   MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
@@ -8,6 +11,9 @@ import { createMechanicalSupportConfigV1 } from "@/engine/devices/defaultsV1";
 import {
   createDynamicMechanicalSupportDeviceProfileBindingV1,
   createDynamicMechanicalSupportInertanceProfileV1,
+  DYNAMIC_MECHANICAL_SUPPORT_ACCEPTED_STATE_V1_ID,
+  DYNAMIC_MECHANICAL_SUPPORT_INERTANCE_PROFILE_V1_ID,
+  DYNAMIC_MECHANICAL_SUPPORT_NETWORK_V1_ID,
   type DynamicMechanicalSupportInertanceProfileV1,
 } from "@/engine/devices/dynamicNetworkV1";
 import {
@@ -19,12 +25,16 @@ import type {
   RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
   checkpointMainWireIntegratedModelV3,
   restoreMainWireIntegratedModelV3,
   type MainWireIntegratedModelCheckpointContextV3,
   type MainWireIntegratedModelCheckpointV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
+import { MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V3_ID } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV3";
+import { MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_V3_ID } from "@/engine/myocardium/MainWireFiveWallCoronaryCheckpointV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
   evaluateMainWireIntegratedModelCalciumDriveV3,
   initializeMainWireIntegratedModelV3,
   limitMainWireIntegratedModelCandidateTimeV3,
@@ -62,6 +72,8 @@ import { createMainWireNormalAdultCommonPericardiumV1 } from "@/engine/myocardiu
 import { createCanonicalMainWireNormalAdultFiveWallProviderV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import { createAcceptedAuthoredEctopyScheduleConfigurationV2 } from "@/engine/myocardium/rhythm/acceptedAuthoredEctopyScheduleV2";
 import {
+  ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CONFIGURATION_V2_ID,
+  ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_STATE_V2_ID,
   createAcceptedComposedRhythmTransactionConfigurationV2,
   initializeAcceptedComposedRhythmTransactionStateV2,
   type AcceptedComposedRhythmTransactionConfigurationV2,
@@ -91,6 +103,61 @@ import {
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_V3_ID =
   "main-wire-integrated-composed-regular-sinus-all-off-periodic-steady-v3" as const;
 
+/**
+ * Portable implementation boundary for materializing the declarative cold
+ * recipe. Any implementation change that can alter the accepted state must
+ * bump this descriptor rather than smuggling engine-specific floating-point
+ * output into the protocol identity.
+ */
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_V3 = deepFreeze({
+  descriptorId: "main-wire-integrated-model-periodic-runtime-abi-v3.1" as const,
+  descriptorVersion: 1 as const,
+  initializer: Object.freeze({
+    owner: "initializeMainWireIntegratedModelV3" as const,
+    implementationVersion:
+      "main-wire-integrated-model-cold-initializer-v3.1" as const,
+  }),
+  acceptedStateOwners: Object.freeze({
+    integratedModel: Object.freeze({
+      transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
+      schemaVersion: 3 as const,
+    }),
+    coronary: Object.freeze({
+      transactionId: MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V3_ID,
+      schemaVersion: 3 as const,
+      checkpointId: MAIN_WIRE_FIVE_WALL_CORONARY_CHECKPOINT_V3_ID,
+      checkpointSchemaVersion: 3 as const,
+    }),
+    composedRhythm: Object.freeze({
+      configurationSchemaId:
+        ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CONFIGURATION_V2_ID,
+      configurationSchemaVersion: 2 as const,
+      stateSchemaId: ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_STATE_V2_ID,
+      stateSchemaVersion: 2 as const,
+    }),
+    dynamicMechanicalSupport: Object.freeze({
+      networkId: DYNAMIC_MECHANICAL_SUPPORT_NETWORK_V1_ID,
+      networkSchemaVersion: 1 as const,
+      inertanceProfileSchemaId:
+        DYNAMIC_MECHANICAL_SUPPORT_INERTANCE_PROFILE_V1_ID,
+      inertanceProfileSchemaVersion: 1 as const,
+      acceptedStateSchemaId: DYNAMIC_MECHANICAL_SUPPORT_ACCEPTED_STATE_V1_ID,
+      acceptedStateSchemaVersion: 1 as const,
+    }),
+  }),
+  checkpoint: Object.freeze({
+    checkpointId: MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_V3_ID,
+    schemaVersion: 3 as const,
+  }),
+  implementationChangeRequiresDescriptorVersionBump: true as const,
+  derivedFloatingPointColdOutputInPortableProtocolIdentity: false as const,
+  crossRuntimeBitwiseColdEquivalenceClaimed: false as const,
+});
+
+/** SHA-256 over the complete canonical runtime ABI descriptor above. */
+export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3 =
+  "a0ebdb2c6b27bed99c9f414fc4cff91bb5e1c1d492bd95e8caf3697387ef2f02" as const;
+
 /** Thresholds, scales, slow-time horizon, and cycle bounds are inherited as-is. */
 export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3 =
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V2;
@@ -104,6 +171,10 @@ export const MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_STEADY_CLAIM_V3 = deepFreeze({
   allFourMcsInertanceCircuitsExplicitAndZero: true as const,
   completeAcceptedStateP1P2Comparator: true as const,
   exactMainV3CheckpointStoredAndRoundTripVerified: true as const,
+  coldInitializationCheckpointStoredAsEnvironmentBoundEvidence: true as const,
+  coldInitializationCheckpointExcludedFromPortableProtocolIdentity:
+    true as const,
+  crossRuntimeBitwiseColdEquivalenceClaimed: false as const,
   terminalCycleTrace:
     "raw-accepted-endpoints-with-event-clipped-dt-no-resampling" as const,
   finiteConservationEventIdentityAndSingleCalciumOwnerFailClosed: true as const,
@@ -325,6 +396,8 @@ export type MainWireIntegratedModelPeriodicSteadyResultV3 = Readonly<{
   terminalCycleTrace: MainWireIntegratedModelPeriodicTerminalCycleTraceV3;
   terminalHealthyReferenceProjection: MainWireIntegratedModelHealthyReferenceProjectionV3;
   terminalAcceptedState: MainWireIntegratedModelAcceptedStateV3<MainWireNormalAdultFiveWallMechanicsStateV1>;
+  coldInitializationCheckpoint: MainWireIntegratedModelCheckpointV3;
+  coldInitializationCheckpointExactRoundTripVerified: true;
   terminalCycleStartCheckpoint: MainWireIntegratedModelCheckpointV3;
   terminalCheckpoint: MainWireIntegratedModelCheckpointV3;
   terminalCheckpointExactRoundTripVerified: true;
@@ -352,6 +425,8 @@ export type MainWireIntegratedModelPeriodicKernelResultV3 = Readonly<{
   observations: readonly MainWireIntegratedModelPeriodicCycleObservationV3[];
   terminalCycleTrace: MainWireIntegratedModelPeriodicTerminalCycleTraceV3;
   terminalAcceptedState: MainWireIntegratedModelAcceptedStateV3<MainWireNormalAdultFiveWallMechanicsStateV1>;
+  coldInitializationCheckpoint: MainWireIntegratedModelCheckpointV3;
+  coldInitializationCheckpointExactRoundTripVerified: true;
   terminalCycleStartCheckpoint: MainWireIntegratedModelCheckpointV3;
   terminalCheckpoint: MainWireIntegratedModelCheckpointV3;
   terminalCheckpointExactRoundTripVerified: true;
@@ -372,7 +447,7 @@ type WallState = MainWireNormalAdultFiveWallMechanicsStateV1;
 type AcceptedState = MainWireIntegratedModelAcceptedStateV3<WallState>;
 type SuccessfulStep = MainWireIntegratedModelStepSuccessV3<WallState>;
 
-export function createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3(
+export function createMainWireIntegratedModelRegularSinusAllOffRecipeForGlobalBloodVolumeV3(
   fixedGlobalTotalBloodVolumeMl: number,
 ) {
   if (
@@ -390,9 +465,16 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalB
   const profile = createMainWireIntegratedModelAllOffZeroInertanceProfileV3();
   const config = createMechanicalSupportConfigV1();
   assertAllOffConfig(config);
+  const initialAcceptedFlowMlPerSec = Object.freeze({
+    LVAD: 0 as const,
+    IMPELLA: 0 as const,
+    VA_ECMO: 0 as const,
+    VV_ECMO: 0 as const,
+  });
   const dynamicMechanicalSupport = Object.freeze({
     config,
     profile,
+    initialAcceptedFlowMlPerSec,
   });
   const coronaryStepInput = Object.freeze({
     runtime,
@@ -406,31 +488,10 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalB
     circulationNewtonOptions:
       MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CORONARY_CIRCULATION_NEWTON_POLICY_V2,
   });
-  const cold = initializeMainWireIntegratedModelV3({
-    coronary: {
-      provider,
-      runtime,
-      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
-      pericardium,
-      coronaryPrior: MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_PRIOR_V2,
-      coronaryDisease: NORMAL_CORONARY_DISEASE_INPUT_V2,
-      collapseHydraulics:
-        MAIN_WIRE_PROVISIONAL_NORMAL_ADULT_CORONARY_COLLAPSE_V2,
-      impMechanism: "cep-shortening-induced" as const,
-      shorteningImpPrior: NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
-      fixedGlobalTotalBloodVolumeMl,
-      autoregulationWindow: Object.freeze({
-        durationSec: 1,
-        interpretation: "periodic-sinus-cycle-aligned" as const,
-      }),
-    },
-    rhythm: {
-      configuration: rhythm.configuration,
-      acceptedState: rhythm.state,
-    },
-    dynamicMechanicalSupport,
+  const coronaryAutoregulationWindow = Object.freeze({
+    durationSec: 1 as const,
+    interpretation: "periodic-sinus-cycle-aligned" as const,
   });
-  assertAllOffAcceptedQ(cold.acceptedState);
   return Object.freeze({
     provider,
     runtime,
@@ -440,8 +501,79 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalB
     config,
     dynamicMechanicalSupport,
     coronaryStepInput,
+    coronaryAutoregulationWindow,
     fixedGlobalTotalBloodVolumeMl,
     cycleLengthSec: 1 as const,
+  });
+}
+
+export function createMainWireIntegratedModelRegularSinusAllOffRecipeV3() {
+  return createMainWireIntegratedModelRegularSinusAllOffRecipeForGlobalBloodVolumeV3(
+    MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1.fullGraphReferenceTotalBloodVolumeMl,
+  );
+}
+
+export type MainWireIntegratedModelRegularSinusAllOffRecipeV3 = ReturnType<
+  typeof createMainWireIntegratedModelRegularSinusAllOffRecipeForGlobalBloodVolumeV3
+>;
+
+export function createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+  recipe: MainWireIntegratedModelRegularSinusAllOffRecipeV3,
+  dynamicMechanicalSupportProfile:
+    DynamicMechanicalSupportInertanceProfileV1 =
+      recipe.dynamicMechanicalSupport.profile,
+  dynamicMechanicalSupportConfig:
+    MechanicalSupportConfigV1 = recipe.dynamicMechanicalSupport.config,
+): MainWireIntegratedModelCheckpointContextV3<WallState> {
+  assertCanonicalRecipeAliasesV3(recipe);
+  return Object.freeze({
+    provider: recipe.provider,
+    coronaryPrior: recipe.coronaryStepInput.coronaryPrior,
+    collapseHydraulics: recipe.coronaryStepInput.collapseHydraulics,
+    impMechanism: recipe.coronaryStepInput.impMechanism,
+    shorteningImpPrior: recipe.coronaryStepInput.shorteningImpPrior,
+    coronaryAutoregulationBinding:
+      createCoronaryAutoregulationWindowBindingV3({
+        originAcceptedTimeSec: 0,
+        ...recipe.coronaryAutoregulationWindow,
+      }),
+    rhythm: Object.freeze({ configuration: recipe.rhythm.configuration }),
+    dynamicMechanicalSupportProfile,
+    dynamicMechanicalSupportConfig,
+  });
+}
+
+export function createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3(
+  fixedGlobalTotalBloodVolumeMl: number,
+) {
+  const recipe =
+    createMainWireIntegratedModelRegularSinusAllOffRecipeForGlobalBloodVolumeV3(
+      fixedGlobalTotalBloodVolumeMl,
+    );
+  assertCanonicalRecipeAliasesV3(recipe);
+  const cold = initializeMainWireIntegratedModelV3({
+    coronary: {
+      provider: recipe.provider,
+      runtime: recipe.coronaryStepInput.runtime,
+      calciumDriveParams: recipe.coronaryStepInput.calciumDriveParams,
+      pericardium: recipe.coronaryStepInput.pericardium,
+      coronaryPrior: recipe.coronaryStepInput.coronaryPrior,
+      coronaryDisease: recipe.coronaryStepInput.coronaryDisease,
+      collapseHydraulics: recipe.coronaryStepInput.collapseHydraulics,
+      impMechanism: recipe.coronaryStepInput.impMechanism,
+      shorteningImpPrior: recipe.coronaryStepInput.shorteningImpPrior,
+      fixedGlobalTotalBloodVolumeMl,
+      autoregulationWindow: recipe.coronaryAutoregulationWindow,
+    },
+    rhythm: {
+      configuration: recipe.rhythm.configuration,
+      acceptedState: recipe.rhythm.state,
+    },
+    dynamicMechanicalSupport: recipe.dynamicMechanicalSupport,
+  });
+  assertAllOffAcceptedQ(cold.acceptedState);
+  return Object.freeze({
+    ...recipe,
     cold,
   });
 }
@@ -457,35 +589,53 @@ export type MainWireIntegratedModelRegularSinusAllOffFixtureV3 = ReturnType<
 >;
 
 export async function mainWireIntegratedModelPeriodicFixtureIdentityV3(
-  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  recipe: MainWireIntegratedModelRegularSinusAllOffRecipeV3,
 ) {
-  const coldInitializationCheckpoint =
-    await checkpointMainWireIntegratedModelV3(
-      createCheckpointContext(fixture, fixture.cold.acceptedState),
-      fixture.cold.acceptedState,
+  assertCanonicalRecipeAliasesV3(recipe);
+  const runtimeAbiSha256 = await sha256CanonicalJsonHex(
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_V3,
+  );
+  if (
+    runtimeAbiSha256 !==
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3
+  ) {
+    throw new Error(
+      "V3 periodic runtime ABI descriptor differs from its pinned SHA-256",
     );
+  }
   return deepFreeze({
-    fixedGlobalTotalBloodVolumeMl: fixture.fixedGlobalTotalBloodVolumeMl,
-    cycleLengthSec: fixture.cycleLengthSec,
-    coldAcceptedStateInitialization: {
-      kind: "exact-main-v3-checkpoint",
-      checkpointId: coldInitializationCheckpoint.checkpointId,
-      schemaVersion: coldInitializationCheckpoint.schemaVersion,
-      transactionId: coldInitializationCheckpoint.transactionId,
-      revision: coldInitializationCheckpoint.revision,
-      acceptedTimeSec: coldInitializationCheckpoint.acceptedTimeSec,
-      checkpointSha256: coldInitializationCheckpoint.checkpointSha256,
+    fixedGlobalTotalBloodVolumeMl: recipe.fixedGlobalTotalBloodVolumeMl,
+    cycleLengthSec: recipe.cycleLengthSec,
+    coldInitializationRecipe: {
+      recipeId:
+        "main-wire-integrated-model-regular-sinus-all-off-cold-recipe-v1" as const,
+      schemaVersion: 1 as const,
+      acceptedTimeSec: 0 as const,
+      initialRevision: 0 as const,
+      coronaryAutoregulationWindow: recipe.coronaryAutoregulationWindow,
+      composedRhythmAcceptedState: recipe.rhythm.state,
+      dynamicMechanicalSupportAcceptedFlowMlPerSec:
+        recipe.dynamicMechanicalSupport.initialAcceptedFlowMlPerSec,
+      materialization:
+        "runtime-abi-bound-initializer-derived-floating-point-output-is-evidence-only" as const,
+      derivedFloatingPointColdOutputIncluded: false as const,
     },
-    provider: providerIdentity(fixture.provider),
-    composedRhythmConfiguration: fixture.rhythm.configuration,
-    dynamicMechanicalSupportProfile: fixture.profile,
-    dynamicMechanicalSupportConfig: fixture.config,
-    coronaryStepInput: fixture.coronaryStepInput,
+    runtimeAbi: {
+      descriptor: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_V3,
+      sha256: runtimeAbiSha256,
+    },
+    provider: providerIdentity(recipe.provider),
+    composedRhythmConfiguration: recipe.rhythm.configuration,
+    dynamicMechanicalSupportProfile:
+      recipe.dynamicMechanicalSupport.profile,
+    dynamicMechanicalSupportConfig:
+      recipe.dynamicMechanicalSupport.config,
+    coronaryStepInput: recipe.coronaryStepInput,
   });
 }
 
 export async function mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
-  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  recipe: MainWireIntegratedModelRegularSinusAllOffRecipeV3,
   options: MainWireIntegratedModelPeriodicSteadyOptionsV3,
 ): Promise<string> {
   const resolved = resolveOptions(options);
@@ -498,7 +648,7 @@ export async function mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
       inheritedPolicy: MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
       inheritedReferenceScales:
         MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
-      ...await mainWireIntegratedModelPeriodicFixtureIdentityV3(fixture),
+      ...(await mainWireIntegratedModelPeriodicFixtureIdentityV3(recipe)),
     }),
   );
 }
@@ -512,7 +662,7 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
       fixture,
       resolved,
-  );
+    );
   const earlyClassificationStopEligible =
     resolved.executionPurpose !== "fixed-horizon-characterization";
   const kernel = await runMainWireIntegratedModelPeriodicKernelV3(fixture, {
@@ -560,6 +710,9 @@ export async function runMainWireIntegratedModelPeriodicSteadyV3(
     terminalCycleTrace: kernel.terminalCycleTrace,
     terminalHealthyReferenceProjection,
     terminalAcceptedState: kernel.terminalAcceptedState,
+    coldInitializationCheckpoint: kernel.coldInitializationCheckpoint,
+    coldInitializationCheckpointExactRoundTripVerified:
+      kernel.coldInitializationCheckpointExactRoundTripVerified,
     terminalCycleStartCheckpoint: kernel.terminalCycleStartCheckpoint,
     terminalCheckpoint: kernel.terminalCheckpoint,
     terminalCheckpointExactRoundTripVerified:
@@ -574,6 +727,32 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
   options: MainWireIntegratedModelPeriodicKernelOptionsV3,
 ): Promise<MainWireIntegratedModelPeriodicKernelResultV3> {
   validateKernelOptions(options);
+  assertCanonicalRecipeAliasesV3(fixture);
+  const coldCheckpointContext =
+    createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+      fixture,
+    );
+  const coldInitializationCheckpoint =
+    await checkpointMainWireIntegratedModelV3(
+      coldCheckpointContext,
+      fixture.cold.acceptedState,
+    );
+  const restoredCold = await restoreMainWireIntegratedModelV3(
+    coldCheckpointContext,
+    JSON.parse(canonicalJsonStringify(coldInitializationCheckpoint)),
+  );
+  const restoredColdCheckpoint = await checkpointMainWireIntegratedModelV3(
+    coldCheckpointContext,
+    restoredCold,
+  );
+  if (
+    canonicalJsonStringify(restoredColdCheckpoint) !==
+    canonicalJsonStringify(coldInitializationCheckpoint)
+  ) {
+    throw new Error(
+      "V3 periodic cold initialization checkpoint exact round-trip differs",
+    );
+  }
   const classifierOptions = Object.freeze({
     period1NormalizedTolerance:
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3.period1NormalizedTolerance,
@@ -633,7 +812,7 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
       accepted,
       previous,
       MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
-      fixture.config,
+      fixture.dynamicMechanicalSupport.config,
     );
     const period2 =
       twoBack === null
@@ -642,7 +821,7 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
             accepted,
             twoBack,
             MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_REFERENCE_SCALES_V3,
-            fixture.config,
+            fixture.dynamicMechanicalSupport.config,
           );
     const cycleIndex = zeroBasedCycleIndex + 1;
     observations.push(
@@ -691,11 +870,17 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
     interpretation:
       "raw-accepted-endpoint-samples-no-resampling-no-shape-acceptance" as const,
   });
-  const terminalCycleStartCheckpoint = await checkpointMainWireIntegratedModelV3(
-    createCheckpointContext(fixture, terminalCycleStartAcceptedState),
-    terminalCycleStartAcceptedState,
-  );
-  const checkpointContext = createCheckpointContext(fixture, accepted);
+  const terminalCycleStartCheckpoint =
+    await checkpointMainWireIntegratedModelV3(
+      createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+        fixture,
+      ),
+      terminalCycleStartAcceptedState,
+    );
+  const checkpointContext =
+    createMainWireIntegratedModelRegularSinusAllOffCheckpointContextV3(
+      fixture,
+    );
   const terminalCheckpoint = await checkpointMainWireIntegratedModelV3(
     checkpointContext,
     accepted,
@@ -738,6 +923,8 @@ export async function runMainWireIntegratedModelPeriodicKernelV3(
     observations,
     terminalCycleTrace,
     terminalAcceptedState: accepted,
+    coldInitializationCheckpoint,
+    coldInitializationCheckpointExactRoundTripVerified: true as const,
     terminalCycleStartCheckpoint,
     terminalCheckpoint,
     terminalCheckpointExactRoundTripVerified: true as const,
@@ -817,8 +1004,8 @@ function runOneCycle(
         configuration: fixture.rhythm.configuration,
         externalAfNextBoundaryTimeSec: null,
       },
-      fixture.profile,
-      fixture.config,
+      fixture.dynamicMechanicalSupport.profile,
+      fixture.dynamicMechanicalSupport.config,
     );
     if (
       !(maximum.candidateTimeSec > accepted.acceptedTimeSec) ||
@@ -826,8 +1013,7 @@ function runOneCycle(
     ) {
       throw new Error("V3 periodic scheduler returned an invalid step");
     }
-    const acceptedDtSec =
-      maximum.candidateTimeSec - accepted.acceptedTimeSec;
+    const acceptedDtSec = maximum.candidateTimeSec - accepted.acceptedTimeSec;
     const stepped = stepMainWireIntegratedModelV3(
       fixture.provider,
       accepted,
@@ -1453,8 +1639,7 @@ function priorVentricularCapture(
   }).capturedActivations[0]!;
 }
 
-export function createMainWireIntegratedModelAllOffZeroInertanceProfileV3():
-DynamicMechanicalSupportInertanceProfileV1 {
+export function createMainWireIntegratedModelAllOffZeroInertanceProfileV3(): DynamicMechanicalSupportInertanceProfileV1 {
   const zero = Object.freeze({
     unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
     pumpInternalMmHgSec2PerMl: 0,
@@ -1500,25 +1685,39 @@ function stepInput(
       externalAfNextBoundaryTimeSec: null,
       externalAtrialSourceBatch: null,
     }),
-    dynamicMechanicalSupport: fixture.dynamicMechanicalSupport,
+    dynamicMechanicalSupport: Object.freeze({
+      config: fixture.dynamicMechanicalSupport.config,
+      profile: fixture.dynamicMechanicalSupport.profile,
+    }),
   });
 }
 
-function createCheckpointContext(
-  fixture: MainWireIntegratedModelRegularSinusAllOffFixtureV3,
-  state: AcceptedState,
-): MainWireIntegratedModelCheckpointContextV3<WallState> {
-  return Object.freeze({
-    provider: fixture.provider,
-    coronaryPrior: fixture.coronaryStepInput.coronaryPrior,
-    collapseHydraulics: fixture.coronaryStepInput.collapseHydraulics,
-    impMechanism: fixture.coronaryStepInput.impMechanism,
-    shorteningImpPrior: fixture.coronaryStepInput.shorteningImpPrior,
-    coronaryAutoregulationBinding: state.coronary.coronaryAutoregulationBinding,
-    rhythm: Object.freeze({ configuration: fixture.rhythm.configuration }),
-    dynamicMechanicalSupportProfile: fixture.profile,
-    dynamicMechanicalSupportConfig: fixture.config,
-  });
+function assertCanonicalRecipeAliasesV3(
+  recipe: MainWireIntegratedModelRegularSinusAllOffRecipeV3,
+): void {
+  const mismatches: string[] = [];
+  if (recipe.runtime !== recipe.coronaryStepInput.runtime) {
+    mismatches.push("runtime");
+  }
+  if (recipe.pericardium !== recipe.coronaryStepInput.pericardium) {
+    mismatches.push("pericardium");
+  }
+  if (
+    recipe.profile !== recipe.dynamicMechanicalSupport.profile
+  ) {
+    mismatches.push("dynamicMechanicalSupport.profile");
+  }
+  if (
+    recipe.config !== recipe.dynamicMechanicalSupport.config
+  ) {
+    mismatches.push("dynamicMechanicalSupport.config");
+  }
+  if (mismatches.length > 0) {
+    throw new Error(
+      "V3 periodic recipe canonical aliases differ: "
+        + mismatches.join(", "),
+    );
+  }
 }
 
 function validateKernelOptions(

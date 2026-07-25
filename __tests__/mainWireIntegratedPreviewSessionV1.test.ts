@@ -5,6 +5,7 @@ import {
   assembleMainWireAdultFiveWallIntegratedPreviewReleaseV1,
   loadMainWireAdultFiveWallIntegratedPreviewReleaseV1,
   MAIN_WIRE_ADULT_FIVE_WALL_INTEGRATED_PREVIEW_RELEASE_V1_SHA256,
+  MAIN_WIRE_INTEGRATED_PREVIEW_CANONICAL_EXECUTION_ENVIRONMENT_V1,
   MAIN_WIRE_INTEGRATED_PREVIEW_MECHANICAL_SUPPORT_INPUTS_V1,
   MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH,
   MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_CANONICAL_SHA256,
@@ -12,8 +13,9 @@ import {
   MAIN_WIRE_INTEGRATED_PREVIEW_SEED_TERMINAL_CHECKPOINT_SHA256,
 } from "@/engine/scientific/assembly";
 import {
-  createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3,
-  createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
+  createMainWireIntegratedModelRegularSinusAllOffRecipeForGlobalBloodVolumeV3,
+  createMainWireIntegratedModelRegularSinusAllOffRecipeV3,
   mainWireIntegratedModelPeriodicFixtureIdentityV3,
   mainWireIntegratedModelPeriodicProtocolIdentityHashV3,
 } from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
@@ -67,10 +69,13 @@ describe("integrated preview release-bound session V1", () => {
     expect(seed.payload.startModelState.acceptedTimeSec).toBe(69);
     expect(seed.payload.terminalModelState.acceptedTimeSec).toBe(70);
     expect(seed.payload.sourceEvidence.sourceArtifact).toMatchObject({
-      artifactSchemaVersion: 4,
+      artifactSchemaVersion: 5,
       path:
         "data/scientific/evidence/integrated-preview-0.1.0/canonical-periodic-v3-source.json",
     });
+    expect(seed.payload.schemaVersion).toBe(3);
+    expect(seed.payload.sourceEvidence.runtimeAbiSha256)
+      .toBe(MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3);
     const sourceRaw = readFileSync(
       MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_ARTIFACT_PATH,
       "utf8",
@@ -79,6 +84,24 @@ describe("integrated preview release-bound session V1", () => {
       .toBe(MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_RAW_SHA256);
     expect(await sha256CanonicalJsonHex(JSON.parse(sourceRaw)))
       .toBe(MAIN_WIRE_INTEGRATED_PREVIEW_PERIODIC_SOURCE_V3_CANONICAL_SHA256);
+    expect(JSON.parse(sourceRaw)).toMatchObject({
+      artifactSchemaVersion: 5,
+      runtimeAbiSha256:
+        MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
+      canonicalExecutionEnvironment: {
+        crossRuntimeBitwiseEquivalenceClaimed: false,
+      },
+      coldInitializationEvidence: {
+        role:
+          "canonical-generation-evidence-only-not-portable-protocol-input",
+        exactRoundTripVerified: true,
+        checkpoint: {
+          schemaVersion: 3,
+          acceptedTimeSec: 0,
+          revision: 0,
+        },
+      },
+    });
 
     const session = await MainWireIntegratedPreviewSessionV1.create("all-off");
     const runRecord = await session.seedRunRecord();
@@ -143,24 +166,30 @@ describe("integrated preview release-bound session V1", () => {
       }),
       artifactSha256: "3".repeat(64),
     });
-    const replayArtifact =
-      await createMainWireIntegratedPreviewRunArtifactV1(
-        runRecord,
-        buildArtifactRef,
+    const replayAttempt = createMainWireIntegratedPreviewRunArtifactV1(
+      runRecord,
+      buildArtifactRef,
+    );
+    if (currentExecutionEnvironmentMatchesCanonicalEvidence()) {
+      const replayArtifact = await replayAttempt;
+      expect(replayArtifact.content.buildArtifactRef).toEqual(buildArtifactRef);
+      expect(replayArtifact.content.initializationIdentity).toEqual({
+        kind: "exact-checkpoint",
+        checkpointSha256: runRecord.startModelState.checkpointSha256,
+      });
+      expect(replayArtifact.ref.sha256).toMatch(/^[0-9a-f]{64}$/);
+    } else {
+      await expect(replayAttempt).rejects.toThrow(
+        /cross-runtime bitwise equivalence is not claimed/,
       );
-    expect(replayArtifact.content.buildArtifactRef).toEqual(buildArtifactRef);
-    expect(replayArtifact.content.initializationIdentity).toEqual({
-      kind: "exact-checkpoint",
-      checkpointSha256: runRecord.startModelState.checkpointSha256,
-    });
-    expect(replayArtifact.ref.sha256).toMatch(/^[0-9a-f]{64}$/);
+    }
     expect(runRecord.simulationInputSpec.sourceProtocolIdentityHash)
       .toBe(seed.payload.sourceEvidence.protocolIdentityHash);
-    const currentFixture =
-      createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const currentRecipe =
+      createMainWireIntegratedModelRegularSinusAllOffRecipeV3();
     expect(runRecord.simulationInputSpec.periodicFixtureIdentitySha256)
       .toBe(await sha256CanonicalJsonHex(
-        await mainWireIntegratedModelPeriodicFixtureIdentityV3(currentFixture),
+        await mainWireIntegratedModelPeriodicFixtureIdentityV3(currentRecipe),
       ));
   }, 60_000);
 
@@ -307,11 +336,11 @@ describe("integrated preview release-bound session V1", () => {
 
   it("binds the seed protocol identity to every live circulation parameter", async () => {
     const seed = await loadMainWireIntegratedPreviewSeedRunV1();
-    const fixture =
-      createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const recipe =
+      createMainWireIntegratedModelRegularSinusAllOffRecipeV3();
     const currentHash =
       await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
-        fixture,
+        recipe,
         {
           nominalDtSec: seed.payload.simulationInputSpec.nominalDtSec,
           executionPurpose: seed.payload.sourceEvidence.executionPurpose,
@@ -319,34 +348,36 @@ describe("integrated preview release-bound session V1", () => {
       );
     expect(currentHash).toBe(seed.payload.sourceEvidence.protocolIdentityHash);
 
-    const mutatedFixture = {
-      ...fixture,
-      coronaryStepInput: {
-        ...fixture.coronaryStepInput,
-        runtime: {
-          ...fixture.coronaryStepInput.runtime,
-          losses: {
-            ...fixture.coronaryStepInput.runtime.losses,
-            systemicResistance:
-              fixture.coronaryStepInput.runtime.losses.systemicResistance
-                * 1.01,
-          },
-        },
+    const mutatedRuntime = {
+      ...recipe.coronaryStepInput.runtime,
+      losses: {
+        ...recipe.coronaryStepInput.runtime.losses,
+        systemicResistance:
+          recipe.coronaryStepInput.runtime.losses.systemicResistance
+            * 1.01,
       },
-    } as typeof fixture;
+    };
+    const mutatedRecipe = {
+      ...recipe,
+      runtime: mutatedRuntime,
+      coronaryStepInput: {
+        ...recipe.coronaryStepInput,
+        runtime: mutatedRuntime,
+      },
+    } as typeof recipe;
     expect(await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
-      mutatedFixture,
+      mutatedRecipe,
       {
         nominalDtSec: seed.payload.simulationInputSpec.nominalDtSec,
         executionPurpose: seed.payload.sourceEvidence.executionPurpose,
       },
     )).not.toBe(currentHash);
-    const mutatedBloodVolumeFixture =
-      createMainWireIntegratedModelRegularSinusAllOffFixtureForGlobalBloodVolumeV3(
-        fixture.fixedGlobalTotalBloodVolumeMl - 1,
+    const mutatedBloodVolumeRecipe =
+      createMainWireIntegratedModelRegularSinusAllOffRecipeForGlobalBloodVolumeV3(
+        recipe.fixedGlobalTotalBloodVolumeMl - 1,
       );
     expect(await mainWireIntegratedModelPeriodicProtocolIdentityHashV3(
-      mutatedBloodVolumeFixture,
+      mutatedBloodVolumeRecipe,
       {
         nominalDtSec: seed.payload.simulationInputSpec.nominalDtSec,
         executionPurpose: seed.payload.sourceEvidence.executionPurpose,
@@ -666,6 +697,15 @@ type DeepMutable<T> =
 
 function mutableClone<T>(value: T): DeepMutable<T> {
   return JSON.parse(JSON.stringify(value)) as DeepMutable<T>;
+}
+
+function currentExecutionEnvironmentMatchesCanonicalEvidence(): boolean {
+  const canonical =
+    MAIN_WIRE_INTEGRATED_PREVIEW_CANONICAL_EXECUTION_ENVIRONMENT_V1;
+  return process.version === canonical.nodeVersion
+    && process.versions.v8 === canonical.v8Version
+    && process.platform === canonical.platform
+    && process.arch === canonical.arch;
 }
 
 async function rehashRunRecord<TRecord extends { recordSha256: string }>(

@@ -13,7 +13,7 @@ It is shipped as a separate development identity:
 
 ```text
 circleheart/adult-five-wall-integrated-preview@0.1.0
-ccb12d25e279ccab81ba9372b89f7ea16ba5e4ab3cb5694107c0cdd155add5f5
+32d4f2c936eabd6b19fcb18386ba540174de6627110b1c2febb0140938f0fa5d
 ```
 
 The existing
@@ -77,6 +77,12 @@ recorded transition before emitting a replay-complete artifact.
 Promotion eligibility is explicit in each record rather than inferred from the
 presence of checkpoints. The bundled seed and the first continuation from the
 current seed fork are eligible for current-runtime exact replay verification.
+`eligible` means that replay may be attempted; it is not a promise that a
+canonical-environment seed transition will be bitwise reproducible in another
+Node/V8 or browser runtime. A cross-runtime mismatch fails closed and cannot be
+promoted. The first continuation is generated and replayed by the same current
+runtime, while the bundled seed retains its separately identified canonical
+generation environment.
 Later continuation records remain exact, content-addressed one-beat records,
 but are marked `blocked-missing-complete-seed-lineage` with
 `upgradePath=null`: a start checkpoint alone cannot prove the claimed ordinal
@@ -106,40 +112,73 @@ a mutable label such as `"normal"` or the current frontend component state.
 ## 3. Content-addressed chain
 
 The bundled seed is derived from the canonical cycle-70 Main V3 P1 artifact
-without resampling, smoothing or interpolation. The complete source artifact
-is checked in at
+without resampling, smoothing or interpolation. Source schema V5 separates
+portable protocol identity from exact numerical evidence. The complete source
+artifact is checked in at
 `data/scientific/evidence/integrated-preview-0.1.0/canonical-periodic-v3-source.json`.
-The generated seed's `sourceEvidence.sourceArtifact` stores both the SHA-256 of
-the exact source-file bytes and the SHA-256 of its canonical JSON value. The
-seed verification command re-reads that checked-in source and fails if either
-identity or the generated seed changes.
+It records the canonical generation environment (Node, V8, platform and
+architecture) and the exact cold-initialization checkpoint as
+`coldInitializationEvidence`. That checkpoint is evidence produced by the
+named environment; it is not an input to the portable protocol identity and
+does not claim bitwise equivalence across JavaScript engines or platforms.
+
+The generated seed is schema V3. Its `sourceEvidence` pins the portable
+protocol hash, the runtime-ABI SHA-256, and both the exact source-file SHA-256
+and canonical-JSON SHA-256. The seed verification command re-reads that
+checked-in source and fails if any source identity, ABI identity or generated
+seed changes.
 
 | Object | SHA-256 |
 |---|---|
-| canonical periodic source, exact file bytes | `389cb73a6e7af066bff72d7647533f3a3ef80727ee27d5669639c103cbe1e399` |
-| canonical periodic source, canonical JSON | `a5c6f3a36c5dad490ef2609786415757c9c89c47b9ab50624d118dac76c9dfd4` |
-| raw seed file | `208ecd498ee837c182391ffde423924cde901813da6b0eeac797cace813b2c8f` |
-| canonical seed payload | `a52afa5cdc291bb14c7a4bbae87e8235d4705bc6939453f9c86c9a66aad99821` |
+| portable periodic protocol, canonical-evidence options | `49df2f6ffb057c0dbfd47f794f141b9712224736abf08aff678b74e014a165c5` |
+| portable periodic runtime ABI | `a0ebdb2c6b27bed99c9f414fc4cff91bb5e1c1d492bd95e8caf3697387ef2f02` |
+| exact canonical-environment cold checkpoint | `ab04a3ad56b21c9d06971dceed606053c52569c00122d20485fe5077b69218f5` |
+| canonical periodic source, exact file bytes | `c3735e70eb940ca231f3d8f9456756664bf081edf334e7239463d9f0c8fb09f6` |
+| canonical periodic source, canonical JSON | `183525fb3d0911f3a10b873b7410cef2ec15146aa352002f88e9d27cc26f7b8a` |
+| raw seed file | `71455dfb3e59d132ac6b3df6ddcde322c4aefbfb67be4c1119a8daef7c21299c` |
+| canonical seed payload | `a990889b4c31218b55998da12371cf34bd5d88effeb237acc4547b45dd566b10` |
 | exact seed start checkpoint | `9fc15d39328e3ef1e3c4f17d22b99c224fd44efebbf4b1fe5cbdb5cec3036aef` |
 | exact seed terminal checkpoint | `f4024a1570f791315211a0d88b767fb4b0e846ac80dba3f57079ca7924accad0` |
-| preview case catalog | `75792aea1ce0d5c7062128aa765046ea423b0f766e5ca679bff6f4de183eab8a` |
-| preview control catalog | `eda32e7c4c8b62e79ec8c23aebee0703ea3a279fe4351f597e5e92ad68784a2d` |
-| preview observable catalog | `634ac420a040117017bc867cefee56547e5dd991acc5c66d94ae392a9365b5b2` |
-| preview UI/graph catalog | `86c798ca6198ddfd2b52c2116b5797d210d642676093b17c7156b05a6be82611` |
+| preview case catalog | `281b4445011761285f347c5f89d3242b26870faf5519e90cf20f61510c15b51c` |
+| preview control catalog | `1adbeae5c6fcc34b909107c84b757100ae8188255f1f0c82d28838909cafc815` |
+| preview observable catalog | `9898059a6a57ef8366a2772eb89d69a92dad0bd317cd3abdadf721e6a41d9fad` |
+| preview UI/graph catalog | `f869e25d28f17752c8f15907aca52873a3c9df9588e1963cb7c838561585eea9` |
 
 The release loader verifies its manifest identity. The seed loader verifies
 both raw-file and canonical-payload identities before restore, plus exact
-start/terminal checkpoint times and the live fixture's fixed global blood
-volume and protocol identity. That protocol identity includes the complete
-canonical mechanics-provider parameter preimage—passive, Land, SLS, atrial and
-TriSeg geometry, solver, and state schema—rather than the legacy rounded
-32-bit cache fingerprint. It also binds the cycle length and an exact Main V3
-checkpoint of the cold accepted initialization. Each Main V3 checkpoint in
-turn binds a SHA-256 of the complete provider parameter preimage, so restore
-cannot substitute a provider that collides under the legacy cache fingerprint.
-The session hashes the full input spec. Both Main V3 checkpoints retain their
-own integrity hashes, and every browser record hashes the canonical payload
-excluding only its self-referential
+start/terminal checkpoint times, fixed global blood volume, and the live
+input-only recipe's portable protocol and runtime-ABI identities. Loading the
+seed and creating a browser session do not materialize a new cold numerical
+state.
+
+The identity boundary has three explicit layers:
+
+1. The portable protocol-spec SHA-256 binds all declarative simulation inputs,
+   the cold-initialization recipe and the pinned runtime ABI. It includes the
+   complete canonical mechanics-provider parameter preimage—passive, Land,
+   SLS, atrial and TriSeg geometry, solver, and state schema—rather than the
+   legacy rounded 32-bit cache fingerprint. It never includes a derived
+   floating-point cold state.
+2. The runtime-ABI SHA-256 binds the integrated transaction, coronary,
+   composed-rhythm, dynamic-MCS, checkpoint and initializer contract
+   identities. An implementation change that can alter exact results requires
+   an ABI-version bump.
+3. Exact evidence SHA-256 values bind the environment-labelled cold, cycle
+   start and terminal checkpoints through the checked-in source and seed
+   artifacts. They support exact restore under the pinned runtime; they do not
+   turn a platform-specific floating-point result into a portable input spec.
+
+This split lets Node/V8 implementations agree on the protocol and ABI while
+honestly retaining exact canonical evidence from one named environment. A
+consumer checks the portable protocol and ABI, then restores the checked-in
+seed boundaries exactly. It does not rerun cold initialization and demand
+cross-runtime bitwise equality.
+
+Each Main V3 checkpoint binds a SHA-256 of the complete provider parameter
+preimage, so restore cannot substitute a provider that collides under the
+legacy cache fingerprint. The session hashes the full input spec. Both Main V3
+checkpoints retain their own integrity hashes, and every browser record hashes
+the canonical payload excluding only its self-referential
 `recordSha256` field. A promoted generic `RunArtifactV1` separately binds the
 externally supplied `BuildArtifactRefV1`.
 

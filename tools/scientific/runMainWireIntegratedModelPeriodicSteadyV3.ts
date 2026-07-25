@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V3,
   runMainWireIntegratedModelPeriodicSteadyV3,
   type MainWireIntegratedModelPeriodicExecutionPurposeV3,
@@ -24,10 +25,26 @@ const result = await runMainWireIntegratedModelPeriodicSteadyV3({
 });
 const terminalCycle = result.cycles.at(-1)!;
 const summary = Object.freeze({
-  artifactSchemaVersion: 4 as const,
+  artifactSchemaVersion: 5 as const,
   experimentId: result.experimentId,
   executionPurpose: result.executionPurpose,
   protocolIdentityHash: result.protocolIdentityHash,
+  runtimeAbiSha256:
+    MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_RUNTIME_ABI_SHA256_V3,
+  canonicalExecutionEnvironment: Object.freeze({
+    nodeVersion: process.version,
+    v8Version: process.versions.v8,
+    platform: process.platform,
+    arch: process.arch,
+    crossRuntimeBitwiseEquivalenceClaimed: false as const,
+  }),
+  coldInitializationEvidence: Object.freeze({
+    role:
+      "canonical-generation-evidence-only-not-portable-protocol-input" as const,
+    checkpoint: result.coldInitializationCheckpoint,
+    exactRoundTripVerified:
+      result.coldInitializationCheckpointExactRoundTripVerified,
+  }),
   nominalDtSec: result.nominalDtSec,
   cycleLengthSec: result.cycleLengthSec,
   fixedGlobalTotalBloodVolumeMl: result.fixedGlobalTotalBloodVolumeMl,
@@ -98,6 +115,9 @@ if (outputPath === null) {
       healthyReferenceAssessmentEligible:
         summary.terminalHealthyReferenceProjection.assessmentEligibility
           .eligible,
+      runtimeAbiSha256: summary.runtimeAbiSha256,
+      coldInitializationCheckpointSha256:
+        summary.coldInitializationEvidence.checkpoint.checkpointSha256,
       terminalCycleStartCheckpointSha256:
         summary.terminalCycleStartCheckpoint.checkpointSha256,
       terminalCheckpointSha256: summary.terminalCheckpoint.checkpointSha256,
