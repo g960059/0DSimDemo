@@ -10,7 +10,9 @@ import {
 } from "@/studio/application/content";
 import type {
   ReaderPreviewManifestV1,
+  ResolvedReaderDocumentV1,
   StudioAuthorDraftV1,
+  StudioDocumentBlockV1,
 } from "@/studio/contracts/v1";
 
 import type {
@@ -67,12 +69,22 @@ type ActiveReaderPreviewEntryV1 = {
 
 export type StudioAuthorPreviewContextValueV1 = Readonly<{
   draft: StudioAuthorDraftV1;
+  /** The current draft resolved as Reader input, for the unified surface. */
+  resolvedDocument: ResolvedReaderDocumentV1;
   lastPreviewId: string | null;
   readerSession: StudioReaderPreviewSessionStateV1;
   updateTitle(title: string): StudioAuthorDraftV1;
   updateTextBlock(blockId: string, text: string): StudioAuthorDraftV1;
   replaceDocumentContent(
     command: ReplaceStudioAuthorDocumentContentCommandV1,
+  ): StudioAuthorDraftV1;
+  /**
+   * Commits content against the freshest revision. A long-lived editor buffer
+   * must not carry a stale `expectedRevision` from its render closure.
+   */
+  replaceDocumentContentLatest(
+    title: string,
+    blocks: readonly StudioDocumentBlockV1[],
   ): StudioAuthorDraftV1;
   replaceReaderBriefGraphPanes(
     command: ReplaceStudioAuthorReaderBriefGraphPanesCommandV1,
@@ -149,6 +161,19 @@ export function StudioAuthorPreviewProviderV1({
     command: ReplaceStudioAuthorDocumentContentCommandV1,
   ) => {
     const next = application.replaceDocumentContent(command);
+    setDraft(next);
+    return next;
+  }, [application]);
+
+  const replaceDocumentContentLatest = React.useCallback((
+    title: string,
+    blocks: readonly StudioDocumentBlockV1[],
+  ) => {
+    const next = application.replaceDocumentContent({
+      expectedRevision: application.getDraftSnapshot().revision,
+      title,
+      blocks,
+    });
     setDraft(next);
     return next;
   }, [application]);
@@ -355,14 +380,21 @@ export function StudioAuthorPreviewProviderV1({
     };
   }, []);
 
+  const resolvedDocument = React.useMemo(
+    () => application.resolveDocument(),
+    [application, draft],
+  );
+
   const value = React.useMemo<StudioAuthorPreviewContextValueV1>(() =>
     Object.freeze({
       draft,
+      resolvedDocument,
       lastPreviewId,
       readerSession,
       updateTitle,
       updateTextBlock,
       replaceDocumentContent,
+      replaceDocumentContentLatest,
       replaceReaderBriefGraphPanes,
       materializePreview,
       resolvePreview,
@@ -374,8 +406,10 @@ export function StudioAuthorPreviewProviderV1({
     materializePreview,
     readerSession,
     replaceDocumentContent,
+    replaceDocumentContentLatest,
     replaceReaderBriefGraphPanes,
     resolvePreview,
+    resolvedDocument,
     updateTextBlock,
     updateTitle,
   ]);

@@ -12,6 +12,8 @@ import {
   type ReaderBriefV1,
   type ReaderPreviewManifestV1,
   type ResolvedReaderExperimentV1,
+  type ResolvedReaderDocumentV1,
+  type StudioExperimentPlacementBlockV1,
   type ResolvedReaderExperimentPlacementV1,
   type StudioAuthorDraftV1,
   type StudioDocumentBlockV1,
@@ -104,7 +106,7 @@ export class StudioAuthorPreviewApplicationV1 {
     command: UpdateStudioAuthorTitleCommandV1,
   ): StudioAuthorDraftV1 {
     this.assertExpectedRevision(command.expectedRevision);
-    requiredTrimmedStringV1(command.title, "$.command.title");
+    draftTextV1(command.title, "$.command.title");
     this.draft = cloneThenDeepFreezeSerializableV1({
       ...this.draft,
       revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
@@ -125,7 +127,7 @@ export class StudioAuthorPreviewApplicationV1 {
   ): StudioAuthorDraftV1 {
     this.assertExpectedRevision(command.expectedRevision);
     requiredPortableIdV1(command.blockId, "$.command.blockId");
-    requiredTrimmedStringV1(command.text, "$.command.text");
+    draftTextV1(command.text, "$.command.text");
     let found = false;
     const blocks = this.draft.document.blocks.map((block) => {
       if (block.blockId !== command.blockId) return block;
@@ -308,6 +310,57 @@ export class StudioAuthorPreviewApplicationV1 {
       );
     }
 
+    const { placements, runtimeBindings } =
+      this.resolvePlacementsV1(sourceDraft);
+
+    // sourceDraft is already a clone of the live application draft. Clone the
+    // complete manifest once more before freezing so no stored preview can
+    // alias either the editable aggregate or a caller-owned value.
+    const manifest = cloneThenDeepFreezeSerializableV1<
+      ReaderPreviewManifestV1
+    >({
+      schemaId: STUDIO_READER_PREVIEW_MANIFEST_V1_SCHEMA_ID,
+      previewId,
+      trust: "draft-preview-uncertified",
+      sharePolicy: "session-only",
+      publicationManifestRef: null,
+      source: {
+        kind: "draft-revision",
+        draftId: sourceDraft.draftId,
+        revision: sourceDraft.revision,
+      },
+      runtimeBindings: Object.fromEntries(runtimeBindings),
+      resolvedReaderDocument: {
+        schemaId: STUDIO_RESOLVED_READER_DOCUMENT_V1_SCHEMA_ID,
+        document: sourceDraft.document,
+        placements,
+      },
+    }, "$.manifest");
+    this.previews.set(previewId, manifest);
+    return manifest;
+  }
+
+  /**
+   * Resolves the current draft into publication-neutral Reader input.
+   *
+   * The unified document surface renders this on every edit so an author sees
+   * the real Reader output while writing. It intentionally mints no preview
+   * id: a materialized preview stays the immutable, session-only artifact.
+   */
+  resolveDocument(): ResolvedReaderDocumentV1 {
+    const sourceDraft = validateStudioAuthorDraftV1(this.draft);
+    const { placements } = this.resolvePlacementsV1(sourceDraft);
+    return cloneThenDeepFreezeSerializableV1<ResolvedReaderDocumentV1>({
+      schemaId: STUDIO_RESOLVED_READER_DOCUMENT_V1_SCHEMA_ID,
+      document: sourceDraft.document,
+      placements,
+    }, "$.resolvedReaderDocument");
+  }
+
+  private resolvePlacementsV1(sourceDraft: StudioAuthorDraftV1): Readonly<{
+    placements: readonly ResolvedReaderExperimentPlacementV1[];
+    runtimeBindings: ReadonlyMap<string, ExperimentScenarioRuntimeSourceV1>;
+  }> {
     const experiments = new Map<string, ExperimentRevisionV1>(
       sourceDraft.experiments.map((experiment) => [
         experiment.experimentId,
@@ -365,34 +418,12 @@ export class StudioAuthorPreviewApplicationV1 {
         placementBlockId: block.blockId,
         experiment: resolvedExperiment,
         readerBrief,
+        inlineMode: block.inlineMode,
+        localCaption: block.localCaption,
       });
     }
 
-    // sourceDraft is already a clone of the live application draft. Clone the
-    // complete manifest once more before freezing so no stored preview can
-    // alias either the editable aggregate or a caller-owned value.
-    const manifest = cloneThenDeepFreezeSerializableV1<
-      ReaderPreviewManifestV1
-    >({
-      schemaId: STUDIO_READER_PREVIEW_MANIFEST_V1_SCHEMA_ID,
-      previewId,
-      trust: "draft-preview-uncertified",
-      sharePolicy: "session-only",
-      publicationManifestRef: null,
-      source: {
-        kind: "draft-revision",
-        draftId: sourceDraft.draftId,
-        revision: sourceDraft.revision,
-      },
-      runtimeBindings: Object.fromEntries(runtimeBindings),
-      resolvedReaderDocument: {
-        schemaId: STUDIO_RESOLVED_READER_DOCUMENT_V1_SCHEMA_ID,
-        document: sourceDraft.document,
-        placements,
-      },
-    }, "$.manifest");
-    this.previews.set(previewId, manifest);
-    return manifest;
+    return { placements, runtimeBindings };
   }
 
   resolvePreview(
@@ -448,9 +479,24 @@ function sameDocumentBlocksV1(
       return false;
     }
     if (block.kind === "experiment-placement") {
-      return other.kind === "experiment-placement"
-        && block.experimentId === other.experimentId
-        && block.readerBriefId === other.readerBriefId;
+      if (other.kind !== "experiment-placement") return false;
+      // Adding a placement field must not silently drop out of this
+      // comparison: an unnoticed omission reports a real edit as "unchanged".
+      const compared: Readonly<
+        Record<keyof StudioExperimentPlacementBlockV1, true>
+      > = {
+        blockId: true,
+        kind: true,
+        experimentId: true,
+        readerBriefId: true,
+        inlineMode: true,
+        localCaption: true,
+      };
+      void compared;
+      return block.experimentId === other.experimentId
+        && block.readerBriefId === other.readerBriefId
+        && block.inlineMode === other.inlineMode
+        && block.localCaption === other.localCaption;
     }
     if (other.kind === "experiment-placement" || block.text !== other.text) {
       return false;
@@ -559,7 +605,7 @@ function validateDocumentV1(
     "$.draft.document.revision",
   );
   requiredTrimmedStringV1(document.locale, "$.draft.document.locale");
-  requiredTrimmedStringV1(document.title, "$.draft.document.title");
+  draftTextV1(document.title, "$.draft.document.title");
   if (!Array.isArray(document.blocks) || document.blocks.length === 0) {
     throw validationErrorV1(
       "$.draft.document.blocks",
@@ -584,12 +630,12 @@ function validateDocumentV1(
       if (block.level !== 2 && block.level !== 3) {
         throw validationErrorV1(`${path}.level`, "must be 2 or 3");
       }
-      requiredTrimmedStringV1(block.text, `${path}.text`);
+      draftTextV1(block.text, `${path}.text`);
       return;
     }
     if (block.kind === "paragraph") {
       assertExactKeysV1(block, ["blockId", "kind", "text"], path);
-      requiredTrimmedStringV1(block.text, `${path}.text`);
+      draftTextV1(block.text, `${path}.text`);
       return;
     }
     if (block.kind === "experiment-placement") {
@@ -598,9 +644,27 @@ function validateDocumentV1(
         "kind",
         "experimentId",
         "readerBriefId",
+        "inlineMode",
+        "localCaption",
       ], path);
       requiredPortableIdV1(block.experimentId, `${path}.experimentId`);
       requiredPortableIdV1(block.readerBriefId, `${path}.readerBriefId`);
+      if (
+        block.inlineMode !== "live"
+        && block.inlineMode !== "compact"
+        && block.inlineMode !== "launch"
+      ) {
+        throw validationErrorV1(
+          `${path}.inlineMode`,
+          "must be live, compact, or launch",
+        );
+      }
+      if (block.localCaption !== null) {
+        requiredTrimmedStringV1(
+          block.localCaption,
+          `${path}.localCaption`,
+        );
+      }
       return;
     }
     throw validationErrorV1(`${path}.kind`, "unsupported block kind");
@@ -709,8 +773,15 @@ function validateReaderBriefV1(
     throw validationErrorV1(`${path}.schemaId`, "schema identity mismatch");
   }
   requiredPortableIdV1(brief.briefId, `${path}.briefId`);
-  if (brief.extent !== "inflow") {
-    throw validationErrorV1(`${path}.extent`, "must be inflow");
+  if (
+    brief.extent !== "inflow"
+    && brief.extent !== "peek"
+    && brief.extent !== "fullscreen"
+  ) {
+    throw validationErrorV1(
+      `${path}.extent`,
+      "must be inflow, peek, or fullscreen",
+    );
   }
   if (!Array.isArray(brief.graphPanes) || brief.graphPanes.length === 0) {
     throw validationErrorV1(
@@ -1417,6 +1488,20 @@ function deepFreezeV1<TValue>(value: TValue): TValue {
   if (value !== null && typeof value === "object") {
     for (const child of Object.values(value)) deepFreezeV1(child);
     Object.freeze(value);
+  }
+  return value;
+}
+
+function draftTextV1(
+  value: unknown,
+  path: string,
+): string {
+  // A draft must be able to hold the block an author is about to type into.
+  // Requiring prose here would make "press Enter, then write" impossible and
+  // would silently reject every later commit. Non-empty text is a publication
+  // gate, not a drafting one.
+  if (typeof value !== "string" || value.trim() !== value) {
+    throw validationErrorV1(path, "must be a trimmed string");
   }
   return value;
 }

@@ -188,11 +188,23 @@ export type StudioParagraphBlockV1 = Readonly<{
   text: string;
 }>;
 
+/**
+ * How one placement of an experiment behaves inside one article.
+ *
+ * This is a per-article decision, not a property of the experiment: the same
+ * brief can read `compact` in a resident article and `live` in a specialist
+ * one. `launch` shows the canonical seed point and opens on request only.
+ */
+export type ReaderPlacementInlineModeV1 = "live" | "compact" | "launch";
+
 export type StudioExperimentPlacementBlockV1 = Readonly<{
   blockId: StudioDocumentBlockIdV1;
   kind: "experiment-placement";
   experimentId: StudioExperimentIdV1;
   readerBriefId: StudioReaderBriefIdV1;
+  inlineMode: ReaderPlacementInlineModeV1;
+  /** Article-local caption. The experiment itself never carries it. */
+  localCaption: string | null;
 }>;
 
 export type StudioDocumentBlockV1 =
@@ -239,6 +251,8 @@ export type ResolvedReaderExperimentPlacementV1 = Readonly<{
   placementBlockId: StudioDocumentBlockIdV1;
   experiment: ResolvedReaderExperimentV1;
   readerBrief: ReaderBriefV1;
+  inlineMode: ReaderPlacementInlineModeV1;
+  localCaption: string | null;
 }>;
 
 /**

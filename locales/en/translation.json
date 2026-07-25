@@ -184,7 +184,37 @@
       "runningStatus": "Running automatically at 1×. Waveforms and instantaneous values update with newly accepted points.",
       "pressureGraph": "Left-ventricular and aortic pressure",
       "pressureGraphAria": "Absolute left-ventricular and aortic pressure waveforms over time",
-      "timeAxis": "Time (seconds)"
+      "timeAxis": "Time (seconds)",
+      "launchHint": "Opens to interact. It does not play inside the article.",
+      "openFocus": "Open in detail",
+      "closeFocus": "Close",
+      "activate": "Play"
+    },
+    "surface": {
+      "capability": "Mode",
+      "compose": "Compose",
+      "read": "Read",
+      "titlePlaceholder": "Article title",
+      "headingPlaceholder": "Heading",
+      "paragraphPlaceholder": "Write, or press “/” to insert a block",
+      "appendParagraph": "Add a paragraph",
+      "insertBelow": "Insert paragraph below",
+      "blockMenu": "Block menu",
+      "closeMenu": "Close menu",
+      "turnIntoParagraph": "Turn into paragraph",
+      "turnIntoHeading2": "Turn into heading 2",
+      "turnIntoHeading3": "Turn into heading 3",
+      "insertExperiment": "Insert experiment",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "removeBlock": "Delete block",
+      "unresolvedExperiment": "This experiment could not be resolved.",
+      "captionPlaceholder": "Caption for this article (optional)",
+      "inlineMode": {
+        "live": "Plays inline",
+        "compact": "Plays on touch",
+        "launch": "Opens to play"
+      }
     }
   },
   "cases": {

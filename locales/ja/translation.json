@@ -184,7 +184,37 @@
       "runningStatus": "1×で自動実行中です。波形と瞬時値は、受理された新しい点に合わせて更新されます。",
       "pressureGraph": "左室圧と大動脈圧",
       "pressureGraphAria": "時間に対する左室絶対圧と大動脈絶対圧の波形",
-      "timeAxis": "時間（秒）"
+      "timeAxis": "時間（秒）",
+      "launchHint": "開いて操作します。記事内では再生しません。",
+      "openFocus": "詳しく開く",
+      "closeFocus": "閉じる",
+      "activate": "再生する"
+    },
+    "surface": {
+      "capability": "表示モード",
+      "compose": "編集",
+      "read": "読者",
+      "titlePlaceholder": "記事タイトル",
+      "headingPlaceholder": "見出し",
+      "paragraphPlaceholder": "本文を入力（「/」でブロックを挿入）",
+      "appendParagraph": "本文を追加",
+      "insertBelow": "下に段落を挿入",
+      "blockMenu": "ブロックメニュー",
+      "closeMenu": "メニューを閉じる",
+      "turnIntoParagraph": "段落にする",
+      "turnIntoHeading2": "見出し2にする",
+      "turnIntoHeading3": "見出し3にする",
+      "insertExperiment": "実験を挿入",
+      "moveUp": "前へ移動",
+      "moveDown": "後へ移動",
+      "removeBlock": "ブロックを削除",
+      "unresolvedExperiment": "この実験を解決できませんでした。",
+      "captionPlaceholder": "この記事でのキャプション（任意）",
+      "inlineMode": {
+        "live": "本文で再生",
+        "compact": "触ると再生",
+        "launch": "開いて再生"
+      }
     }
   },
   "cases": {

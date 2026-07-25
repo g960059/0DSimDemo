@@ -29,39 +29,42 @@ test.describe.serial("Product workflows by role", () => {
       }).click();
       await expect(page).toHaveURL(/\/ja\/studio\/author$/);
 
-      const author = page.getByTestId("studio-document-author-v1");
-      await expect(author).toBeVisible();
+      const surface = page.getByTestId("studio-document-route-v1");
+      await expect(surface).toBeVisible();
+      await expect(surface).toHaveAttribute("data-studio-capability", "compose");
+      const article = page.getByTestId("studio-document-reader-v1");
       const authoredTitle =
         "E2E: 全身血管抵抗を上げたときの圧波形";
       const authoredIntroduction =
         "Author E2Eで編集した導入文です。左室圧と大動脈圧を同じ時間軸で観察します。";
-      await author.locator("input").first().fill(authoredTitle);
-      const introduction = author.locator("textarea").first();
-      await introduction.fill(authoredIntroduction);
-      await introduction.blur();
-      const documentEditor = author.getByTestId(
-        "studio-document-block-editor-v1",
+
+      // The surface is written on directly: title and prose are the rendered
+      // article, not form fields beside a preview.
+      const titleLine = article.locator("h1[contenteditable='true']");
+      await titleLine.click();
+      await titleLine.fill(authoredTitle);
+      const firstParagraph = article
+        .locator("p[contenteditable='true']")
+        .first();
+      await firstParagraph.click();
+      await firstParagraph.fill(authoredIntroduction);
+      await titleLine.click();
+      await expect(surface).toHaveAttribute(
+        "data-draft-revision",
+        /^[1-9]\d*$/,
       );
-      await documentEditor.getByRole("button", {
-        name: "H2見出しを追加",
-        exact: true,
-      }).click();
-      const addedHeading = documentEditor.getByTestId(
-        "studio-document-editor-block-v1",
-      ).last();
-      await expect(addedHeading).toHaveAttribute(
-        "data-document-block-kind",
-        "heading",
-      );
-      const experimentPlacement = documentEditor.locator(
+
+      // Structure is edited through the block gutter rather than a block form.
+      const placementBlock = article.locator(
         '[data-document-block-kind="experiment-placement"]',
       );
-      await experimentPlacement.getByRole("button", {
-        name: "このブロックの上に段落を挿入",
+      await placementBlock.hover();
+      await placementBlock.getByRole("button", {
+        name: "下に段落を挿入",
         exact: true,
       }).click();
-      const orderedBlockKinds = await documentEditor.getByTestId(
-        "studio-document-editor-block-v1",
+      const orderedBlockKinds = await article.getByTestId(
+        "studio-document-block-v1",
       ).evaluateAll((blocks) =>
         blocks.map((block) =>
           block.getAttribute("data-document-block-kind")));
@@ -69,60 +72,35 @@ test.describe.serial("Product workflows by role", () => {
         "experiment-placement",
       );
       expect(placementIndex).toBeGreaterThan(0);
-      expect(orderedBlockKinds[placementIndex - 1]).toBe("paragraph");
-      const structuralRevision = await numericAttributeV1(
-        author,
-        "data-draft-revision",
-      );
-      await page.goBack({ waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(/\/ja\/$/);
-      await page.goForward({ waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(/\/ja\/studio\/author$/);
-      await expect(author).toHaveAttribute(
-        "data-draft-revision",
-        String(structuralRevision),
-      );
-      await expect(addedHeading).toHaveAttribute(
-        "data-document-block-kind",
-        "heading",
-      );
-      const authoredHeading = "E2Eで追加した観察項目";
-      const addedHeadingInput = addedHeading.getByRole("textbox");
-      await addedHeadingInput.fill(authoredHeading);
-      await addedHeadingInput.blur();
-      await expect(author).toHaveAttribute(
-        "data-draft-revision",
-        /^[1-9]\d*$/,
-      );
-      await expect(author).toHaveAttribute("data-editor-dirty", "false");
-      const authoredRevision = await numericAttributeV1(
-        author,
-        "data-draft-revision",
-      );
-      await author.getByRole("button", {
-        name: "Readerで確認",
-        exact: true,
-      }).click();
+      expect(orderedBlockKinds[placementIndex + 1]).toBe("paragraph");
 
-      await expect(page).toHaveURL(
-        /\/ja\/studio\/preview\/[^/?#]+$/,
-        { timeout: 120_000 },
+      // The placement carries its own per-article presentation decision.
+      const placementOptions = page.getByTestId(
+        "studio-placement-options-v1",
       );
-      const previewUrl = page.url();
-      const preview = page.getByTestId("studio-reader-preview-v1");
-      await expect(preview).toBeVisible({ timeout: 120_000 });
-      await expect(preview).toHaveAttribute(
-        "data-preview-trust",
-        "draft-preview-uncertified",
+      await expect(placementOptions).toHaveAttribute(
+        "data-placement-inline-mode",
+        "live",
       );
-      await expect(preview).toHaveAttribute(
-        "data-preview-share-policy",
-        "session-only",
+      await page.getByTestId("studio-placement-mode-compact-v1").click();
+      await expect(placementOptions).toHaveAttribute(
+        "data-placement-inline-mode",
+        "compact",
       );
-      await expect(preview).toHaveAttribute(
-        "data-publication-manifest-ref",
-        "null",
+      await page.getByTestId("studio-placement-mode-live-v1").click();
+
+      // Composing never integrates: the author sees the canonical point only.
+      const experimentCell = page.getByTestId(
+        "studio-reader-experiment-cell-v1",
       );
+      await expect(experimentCell).toHaveAttribute(
+        "data-reader-activated",
+        "false",
+      );
+
+      await page.getByTestId("studio-capability-read-v1").click();
+      await expect(surface).toHaveAttribute("data-studio-capability", "read");
+      await expect(article.locator("[contenteditable='true']")).toHaveCount(0);
 
       const reader = page.getByTestId("studio-document-reader-v1");
       await expect(reader.getByRole("heading", {
@@ -130,31 +108,17 @@ test.describe.serial("Product workflows by role", () => {
         exact: true,
       })).toBeVisible();
       await expect(reader).toContainText(authoredIntroduction);
-      await expect(reader.getByRole("heading", {
-        name: authoredHeading,
-        exact: true,
-      })).toBeVisible();
 
       const sharedGraphPanes = reader.getByTestId(
         "studio-reader-shared-graph-panes-v1",
       );
+      // In-flow carries the primary graph only; the rest of the brief opens
+      // in focus, so the article stays readable.
       await expect(
-        sharedGraphPanes.locator(
-          'section[data-studio-reader-pane-kind="waveform"]',
-        ),
-      ).toHaveCount(1);
-      await expect(
-        sharedGraphPanes.locator(
-          'section[data-studio-reader-pane-kind="pv-loop"]',
-        ),
-      ).toHaveCount(1);
-      await expect(
-        sharedGraphPanes.locator(
-          'section[data-studio-reader-pane-kind="guyton-left"]',
-        ),
+        sharedGraphPanes.locator("[data-studio-reader-pane-kind]"),
       ).toHaveCount(1);
       const readerWaveformPane = sharedGraphPanes.locator(
-        'section[data-studio-reader-pane-kind="waveform"]',
+        '[data-studio-reader-pane-kind="waveform"]',
       );
       await expect(readerWaveformPane).toHaveAttribute(
         "data-studio-reader-time-window-ms",
@@ -167,17 +131,26 @@ test.describe.serial("Product workflows by role", () => {
       const readerWaveform = readerWaveformPane.getByTestId(
         "scientific-workbench-waveform-canvas-v1",
       );
-      const readerPv = sharedGraphPanes.getByTestId(
+      await expect(readerWaveform).toBeVisible();
+
+      const focusView = page.getByTestId("studio-reader-focus-v1");
+      await page.getByTestId("studio-reader-open-focus-v1").click();
+      await expect(focusView).toBeVisible();
+      await expect(
+        focusView.locator("[data-studio-reader-pane-kind]"),
+      ).toHaveCount(3);
+      const readerPv = focusView.getByTestId(
         "scientific-workbench-pv-canvas-v1",
       );
-      await expect(readerWaveform).toBeVisible();
       await expect(readerPv).toBeVisible();
-      await expect(sharedGraphPanes.getByTestId(
+      await expect(focusView.getByTestId(
         "scientific-left-cardiac-output-filling-pressure-pane-v1",
       )).toHaveAttribute(
         "data-protocol-status",
         /running|partial|complete/,
       );
+      await focusView.getByRole("button", { name: "閉じる" }).first().click();
+      await expect(focusView).toHaveCount(0);
 
       const experiment = page.getByTestId(
         "studio-reader-experiment-cell-v1",
@@ -204,8 +177,7 @@ test.describe.serial("Product workflows by role", () => {
           && observation.frameCount === "1"
           && observation.canonicalSeedPointCount === "1"
           && observation.startedFromOnePoint === "true"
-          && observation.waveformFrameCount === "1"
-          && observation.pvFrameCount === "1")
+          && observation.waveformFrameCount === "1")
       ).toBe(true);
       await expect.poll(async () =>
         numericAttributeV1(experiment, "data-reader-frame-count")
@@ -235,10 +207,16 @@ test.describe.serial("Product workflows by role", () => {
         readerWaveform,
         "data-waveform-parameter-history-series-count",
       )).toBeGreaterThan(0);
+      // The PV loop lives in focus now, and focus shares the same Session, so
+      // the parameter-generation history must already be there when it opens.
+      await page.getByTestId("studio-reader-open-focus-v1").click();
+      await expect(focusView).toBeVisible();
       await expect.poll(async () => numericAttributeV1(
-        readerPv,
+        focusView.getByTestId("scientific-workbench-pv-canvas-v1"),
         "data-pv-parameter-history-count",
       )).toBeGreaterThan(0);
+      await focusView.getByRole("button", { name: "閉じる" }).first().click();
+      await expect(focusView).toHaveCount(0);
 
       // Reset is an exact source restoration, not a reverse parameter patch:
       // the current runtime is disposed and the same manifest opens as a new
@@ -266,70 +244,25 @@ test.describe.serial("Product workflows by role", () => {
           .some((observation) =>
             observation.phase === "seed"
             && observation.frameCount === "1"
-            && observation.waveformFrameCount === "1"
-            && observation.pvFrameCount === "1")
+            && observation.waveformFrameCount === "1")
       ).toBe(true);
 
-      // Returning to the same manifest must construct a fresh numerical
-      // session. The previous Reader-only parameter choice is not authored
-      // content and therefore returns to the brief's initial value.
-      const firstVisitObservationCount =
-        (await readerFirstPaintsV1(page)).length;
-      await preview.locator('a[href="/ja/studio/author"]').click();
-      await expect(author).toBeVisible();
-      await expect(author).toHaveAttribute(
-        "data-draft-revision",
-        String(authoredRevision),
+      // Composing and reading are one surface: returning to compose keeps the
+      // committed content and the reader-only parameter choice stays out of it.
+      await page.getByTestId("studio-capability-compose-v1").click();
+      await expect(surface).toHaveAttribute(
+        "data-studio-capability",
+        "compose",
       );
-      // A temporarily empty title may block a new materialization, but it
-      // must not trap the author in the editor or block the older immutable
-      // Preview.
-      await author.getByTestId("studio-document-title-input-v1").fill("");
-      await author.getByRole("button", {
-        name: "直前のReader Previewを開く",
-        exact: true,
-      }).click();
-      await expect(page).toHaveURL(previewUrl);
-      const reopenedExperiment = page.getByTestId(
-        "studio-reader-experiment-cell-v1",
-      );
-      await expect(reopenedExperiment).toBeVisible({ timeout: 120_000 });
-      const reopenedSystemic = reopenedExperiment.getByRole("slider", {
-        name: "全身血管抵抗倍率",
-        exact: true,
-      });
-      await expect(reopenedSystemic.locator("..").locator("output"))
-        .toHaveText("1");
-      await expect(reopenedExperiment).toHaveAttribute(
-        "data-reader-target-generation",
-        "0",
-      );
-      await expect.poll(async () =>
-        (await readerFirstPaintsV1(page))
-          .slice(firstVisitObservationCount)
-          .some((observation) =>
-            observation.phase === "seed"
-            && observation.frameCount === "1")
-      ).toBe(true);
+      await expect(article.locator("h1[contenteditable='true']"))
+        .toHaveText(authoredTitle);
+      await expect(article).toContainText(authoredIntroduction);
 
-      // Preview manifests live only in the current provider instance. A hard
-      // reload creates another session and must not resolve the old URL.
+      // The draft is session-only: a hard reload starts from the seeded
+      // article again rather than restoring an author's unsaved work.
       await page.reload({ waitUntil: "domcontentloaded" });
-      const expired = page.getByTestId(
-        "studio-reader-preview-unavailable-v1",
-      );
-      await expect(expired).toBeVisible();
-      await expect(expired.getByRole("heading", {
-        name: "このPreviewは利用できません",
-        exact: true,
-      })).toBeVisible();
-      await expect(expired).toContainText(
-        "再読み込み、別タブ、または新しいセッションでは復元できません。",
-      );
-      await expect(page.getByTestId("studio-reader-preview-v1"))
-        .toHaveCount(0);
-      await expect(page.getByTestId("studio-reader-experiment-cell-v1"))
-        .toHaveCount(0);
+      await expect(surface).toBeVisible({ timeout: 120_000 });
+      await expect(article.locator("h1")).not.toHaveText(authoredTitle);
 
       expect(browserErrors).toEqual([]);
     } finally {
@@ -756,35 +689,46 @@ test.describe.serial("Product workflows by role", () => {
       await expect(composer).toContainText(
         "graph 8枚をReader Briefに保存中",
       );
+      // Promote the pane configured in this test so the article's primary
+      // graph is deterministic, then hand off to the document.
+      const primaryPaneId = () =>
+        composer.getByTestId("scientific-briefing-preview-pane-v1")
+          .first()
+          .getAttribute("data-briefing-pane-id");
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        if (await primaryPaneId() === "product-left-pressure-v1") break;
+        await composer
+          .locator('[data-briefing-pane-id="product-left-pressure-v1"]')
+          .getByRole("button", { name: "前へ", exact: true })
+          .first()
+          .click();
+      }
+      expect(await primaryPaneId()).toBe("product-left-pressure-v1");
+
       await composer.getByRole("button", {
         name: "記事を編集",
         exact: true,
       }).click();
       await expect(page).toHaveURL(/\/ja\/studio\/author$/);
-      const author = page.getByTestId("studio-document-author-v1");
-      await expect(author).toBeVisible();
-      await expect(author).toHaveAttribute(
+      const surface = page.getByTestId("studio-document-route-v1");
+      await expect(surface).toBeVisible();
+      await expect(surface).toHaveAttribute(
         "data-draft-revision",
         /^[1-9]\d*$/,
       );
-      await author.getByRole("button", {
-        name: "Readerで確認",
-        exact: true,
-      }).click();
+      await page.getByTestId("studio-capability-read-v1").click();
 
       const reader = page.getByTestId("studio-document-reader-v1");
       await expect(reader).toBeVisible({ timeout: 120_000 });
       const capturedPanes = reader.getByTestId(
         "studio-reader-shared-graph-panes-v1",
       );
-      await expect(
-        capturedPanes.locator(
-          "section[data-studio-reader-pane-kind]",
-        ),
-      ).toHaveCount(8);
+      // The captured presentation reaches the article unchanged: the reader
+      // renders the pinned copy, not the current Workbench pane.
       const capturedPressurePane = capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="waveform"]',
-      ).filter({ hasText: "AoP / LVP / LAP" });
+        '[data-studio-reader-pane-kind="waveform"]',
+      );
+      await expect(capturedPressurePane).toHaveCount(1);
       await expect(capturedPressurePane).toHaveAttribute(
         "data-studio-reader-time-window-ms",
         "7000",
@@ -803,36 +747,20 @@ test.describe.serial("Product workflows by role", () => {
       await expect(
         capturedLegendEntry.locator("span").first(),
       ).toHaveAttribute("style", capturedSeriesStyle!);
-      await expect(capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="pv-loop"]',
-      )).toHaveCount(2);
-      await expect(capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="guyton-left"]',
-      )).toHaveCount(2);
-      await expect(capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="guyton-right"]',
-      )).toHaveCount(1);
-      await expect(capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="waveform"]',
-      )).toHaveCount(3);
-      const capturedLeftGuyton = capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="guyton-left"]',
-      ).filter({ hasText: "Left filling pressure–cardiac output" });
-      const capturedRightGuyton = capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="guyton-right"]',
-      ).filter({ hasText: "Right filling pressure–cardiac output" });
-      await expect(capturedLeftGuyton.getByTestId(
-        "scientific-left-cardiac-output-filling-pressure-pane-v1",
-      )).toHaveAttribute(
-        "data-protocol-status",
-        /running|partial|complete/,
-      );
-      await expect(capturedRightGuyton.getByTestId(
-        "scientific-right-cardiac-output-filling-pressure-pane-v1",
-      )).toHaveAttribute(
-        "data-protocol-status",
-        /running|partial|complete/,
-      );
+
+      // The rest of the brief opens in focus rather than lengthening the
+      // article, and the focus cut is bounded.
+      const focusView = page.getByTestId("studio-reader-focus-v1");
+      await page.getByTestId("studio-reader-open-focus-v1").click();
+      await expect(focusView).toBeVisible();
+      await expect(
+        focusView.locator("[data-studio-reader-pane-kind]"),
+      ).toHaveCount(4);
+      await expect(
+        focusView.locator('[data-studio-reader-pane-kind="pv-loop"]'),
+      ).toHaveCount(1);
+      await focusView.getByRole("button", { name: "閉じる" }).first().click();
+      await expect(focusView).toHaveCount(0);
 
       expect(browserErrors).toEqual([]);
     } finally {
@@ -877,7 +805,7 @@ async function captureReaderFirstPaintsV1(page: Page): Promise<void> {
       const pv = cell.querySelector(
         '[data-panel-kind="pressure-volume"]',
       );
-      if (waveform === null || pv === null) return;
+      if (waveform === null) return;
       recordedSeedCells.add(cell);
       observations.push(Object.freeze({
         phase: cell.getAttribute("data-reader-phase"),
@@ -891,9 +819,9 @@ async function captureReaderFirstPaintsV1(page: Page): Promise<void> {
         waveformFrameCount: waveform.getAttribute(
           "data-scientific-frame-count",
         ),
-        pvFrameCount: pv.getAttribute(
-          "data-scientific-frame-count",
-        ),
+        pvFrameCount: pv === null
+          ? null
+          : pv.getAttribute("data-scientific-frame-count"),
       }));
     };
     const observer = new MutationObserver(record);

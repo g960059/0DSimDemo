@@ -75,6 +75,8 @@ StudioAuthorDraftV1 = deepFreezeSampleV1({
         experimentId: SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
         readerBriefId:
           SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
+        inlineMode: "live",
+        localCaption: null,
       },
       {
         blockId: "afterload-reading-guide",

@@ -30,8 +30,8 @@ const ScientificWorkbenchPage = React.lazy(
 const ScientificProductWorkbenchPage = React.lazy(
   () => import('./components/scientificProduct/ScientificProductWorkbenchPageV1'),
 );
-const StudioDocumentAuthorRouteV1 = React.lazy(
-  () => import('./components/studio/author/StudioDocumentAuthorRouteV1'),
+const StudioDocumentRouteV1 = React.lazy(
+  () => import('./components/studio/StudioDocumentRouteV1'),
 );
 const StudioReaderPreviewRouteV1 = React.lazy(
   () => import('./components/studio/reader/StudioReaderPreviewRouteV1'),
@@ -102,7 +102,7 @@ const appRoutes = () => (
       path="studio/author"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading author workspace…" />}>
-          <StudioDocumentAuthorRouteV1 />
+          <StudioDocumentRouteV1 />
         </React.Suspense>
       )}
     />
