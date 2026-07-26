@@ -129,20 +129,23 @@ describe("main-wire mechanical support device laws V1", () => {
     const config = createMechanicalSupportConfigV1({
       lvad: { enabled: true, speedRpm: 5_200 },
     }).lvad;
+    if (config.inletSuction.kind !== "legacy-smooth-availability") {
+      throw new Error("default LVAD must use legacy inlet availability");
+    }
     const recovered = evaluateRotaryPumpV1("LVAD", config, {
       inletPressureMmHg: 4,
       outletPressureMmHg: 70,
       inletVolumeMl: 80,
     });
     const pressureCollapse = evaluateRotaryPumpV1("LVAD", config, {
-      inletPressureMmHg: config.inletCollapse.collapsePressureMmHg,
+      inletPressureMmHg: config.inletSuction.collapsePressureMmHg,
       outletPressureMmHg: 70,
       inletVolumeMl: 80,
     });
     const volumeCollapse = evaluateRotaryPumpV1("LVAD", config, {
       inletPressureMmHg: 4,
       outletPressureMmHg: 70,
-      inletVolumeMl: config.inletCollapse.minimumVolumeMl ?? 0,
+      inletVolumeMl: config.inletSuction.minimumVolumeMl ?? 0,
     });
 
     expect(recovered.flowLMin).toBeGreaterThan(0);
@@ -155,14 +158,41 @@ describe("main-wire mechanical support device laws V1", () => {
     expect(volumeCollapse.inletCollapseActive).toBe(true);
   });
 
+  it("does not assign an unvalidated legacy alert severity to HMII Choi resistance", () => {
+    const config = mechanicalSupportPresetV1("lvad-hmii-9000");
+    const hydraulics = evaluateMechanicalSupportHydraulicsV1(config, {
+      timeSec: 1,
+      cyclePhase01: 0.5,
+      beatIndex: 1,
+      heartRateBpm: 60,
+      nodeAbsolutePressureMmHg: {
+        LV: -1,
+        Ao: 65,
+        SA: 60,
+        RA: 4,
+        VC: 6,
+      },
+      nodeVolumeMl: { LV: 1 },
+    });
+    const alerts = mechanicalSupportAlertsV1(hydraulics);
+
+    expect(hydraulics.pump.LVAD.inletCollapseActive).toBe(true);
+    expect(hydraulics.pump.LVAD.inletAvailability01).toBe(1);
+    expect(hydraulics.pump.LVAD.inletSuctionResistanceMmHgSecPerMl).toBe(7);
+    expect(alerts.map((entry) => entry.code)).not.toContain("INLET_COLLAPSE");
+  });
+
   it("rejects non-finite inlet-collapse thresholds", () => {
     const base = createMechanicalSupportConfigV1({
       lvad: { enabled: true },
     }).lvad;
+    if (base.inletSuction.kind !== "legacy-smooth-availability") {
+      throw new Error("default LVAD must use legacy inlet availability");
+    }
     const config = {
       ...base,
-      inletCollapse: {
-        ...base.inletCollapse,
+      inletSuction: {
+        ...base.inletSuction,
         collapsePressureMmHg: Number.NaN,
       },
     };
@@ -604,7 +634,8 @@ function ecmoPumpOnlyConfig(speedRpm: number): RotaryPumpDeviceConfigV1 {
     drainage: ZERO_SEGMENT,
     oxygenator: ZERO_SEGMENT,
     returnPath: ZERO_SEGMENT,
-    inletCollapse: Object.freeze({
+    inletSuction: Object.freeze({
+      kind: "legacy-smooth-availability" as const,
       collapsePressureMmHg: -50,
       recoveredPressureMmHg: -40,
       minimumVolumeMl: null,

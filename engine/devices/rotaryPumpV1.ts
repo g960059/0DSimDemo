@@ -3,6 +3,8 @@ import type {
   MechanicalSupportNodeNameV1,
   RotaryPumpDeviceConfigV1,
   RotaryPumpEvaluationV1,
+  RotaryPumpForwardFlowEvidenceStatusV1,
+  RotaryPumpInletSuctionMechanismV1,
   RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
 
@@ -51,49 +53,30 @@ export function evaluateRotaryPumpV1(
     + config.drainage.quadraticResistanceMmHgSec2PerMl2
     + config.oxygenator.quadraticResistanceMmHgSec2PerMl2
     + config.returnPath.quadraticResistanceMmHgSec2PerMl2;
-  const effectiveLinear = Math.max(linear, 1e-6);
+  const suction = evaluateRotaryPumpInletSuctionV1(
+    config.inletSuction,
+    input,
+  );
+  const effectiveLinear = Math.max(linear, 1e-6)
+    + suction.resistanceMmHgSecPerMl;
   const unrestrictedMlPerSec = solveSignedLinearQuadraticFlowV1(
     idealPumpHeadMmHg - pressureRiseRequiredMmHg,
     effectiveLinear,
     quadratic,
   );
   const unrestrictedFlowLMin = mlPerSecToLMin(unrestrictedMlPerSec);
-  const unrestrictedFlowPressureTangent = 1 / (
-    effectiveLinear + 2 * quadratic * Math.abs(unrestrictedMlPerSec)
-  );
-  const pressureAvailability = smoothstep01WithDerivative(
-    (inletPressureMmHg - config.inletCollapse.collapsePressureMmHg)
-      / (config.inletCollapse.recoveredPressureMmHg
-        - config.inletCollapse.collapsePressureMmHg),
-    1 / (config.inletCollapse.recoveredPressureMmHg
-      - config.inletCollapse.collapsePressureMmHg),
-  );
-  const volumeAvailability = input.inletVolumeMl === undefined
-    || config.inletCollapse.minimumVolumeMl === null
-    || config.inletCollapse.recoveredVolumeMl === null
-    ? Object.freeze({ value: 1, derivative: 0 })
-    : smoothstep01WithDerivative(
-      (input.inletVolumeMl - config.inletCollapse.minimumVolumeMl)
-        / (config.inletCollapse.recoveredVolumeMl
-          - config.inletCollapse.minimumVolumeMl),
-      1 / (config.inletCollapse.recoveredVolumeMl
-        - config.inletCollapse.minimumVolumeMl),
-    );
-  const availability = pressureAvailability.value <= volumeAvailability.value
-    ? Object.freeze({
-      value: pressureAvailability.value,
-      dInletPressure: pressureAvailability.derivative,
-      dInletVolume: 0,
-    })
-    : Object.freeze({
-      value: volumeAvailability.value,
-      dInletPressure: 0,
-      dInletVolume: volumeAvailability.derivative,
-    });
+  const rootSlopeDenominator = effectiveLinear
+    + 2 * quadratic * Math.abs(unrestrictedMlPerSec);
+  const unrestrictedFlowPressureTangent = (
+    1 - unrestrictedMlPerSec * suction.dResistanceDInletPressure
+  ) / rootSlopeDenominator;
+  const unrestrictedFlowOutletPressureTangent =
+    -1 / rootSlopeDenominator;
+  const availability = suction.availability;
   const inletAvailability01 = availability.value;
-  const forwardCapacityMlPerSec = lMinToMlPerSec(
-    config.maximumForwardFlowLMin,
-  );
+  const forwardCapacityMlPerSec = config.maximumForwardFlowLMin === null
+    ? null
+    : lMinToMlPerSec(config.maximumForwardFlowLMin);
   const reverseCapacityMlPerSec = lMinToMlPerSec(
     config.maximumReverseFlowLMin,
   );
@@ -103,7 +86,8 @@ export function evaluateRotaryPumpV1(
   let dFlowDInletVolume: number;
   if (unrestrictedMlPerSec >= 0) {
     const availabilityLimitedFlow = unrestrictedMlPerSec * availability.value;
-    if (availabilityLimitedFlow >= forwardCapacityMlPerSec) {
+    if (forwardCapacityMlPerSec !== null
+        && availabilityLimitedFlow >= forwardCapacityMlPerSec) {
       flowMlPerSec = forwardCapacityMlPerSec;
       dFlowDInletPressure = 0;
       dFlowDOutletPressure = 0;
@@ -112,8 +96,8 @@ export function evaluateRotaryPumpV1(
       flowMlPerSec = availabilityLimitedFlow;
       dFlowDInletPressure = availability.value * unrestrictedFlowPressureTangent
         + unrestrictedMlPerSec * availability.dInletPressure;
-      dFlowDOutletPressure = -availability.value
-        * unrestrictedFlowPressureTangent;
+      dFlowDOutletPressure = availability.value
+        * unrestrictedFlowOutletPressureTangent;
       dFlowDInletVolume = unrestrictedMlPerSec
         * availability.dInletVolume;
     }
@@ -125,10 +109,12 @@ export function evaluateRotaryPumpV1(
   } else {
     flowMlPerSec = unrestrictedMlPerSec;
     dFlowDInletPressure = unrestrictedFlowPressureTangent;
-    dFlowDOutletPressure = -unrestrictedFlowPressureTangent;
+    dFlowDOutletPressure = unrestrictedFlowOutletPressureTangent;
     dFlowDInletVolume = 0;
   }
   const flowLMin = mlPerSecToLMin(flowMlPerSec);
+  const inletSuctionPressureDropMmHg =
+    suction.resistanceMmHgSecPerMl * flowMlPerSec;
   const drainagePressureDropMmHg = segmentDrop(config.drainage, flowMlPerSec);
   const oxygenatorPressureDropMmHg = segmentDrop(config.oxygenator, flowMlPerSec);
   const returnPathPressureDropMmHg = segmentDrop(config.returnPath, flowMlPerSec);
@@ -137,10 +123,12 @@ export function evaluateRotaryPumpV1(
     + config.curve.quadraticLossMmHgSec2PerMl2
       * flowMlPerSec * Math.abs(flowMlPerSec);
   const deliveredPumpHeadMmHg = idealPumpHeadMmHg - internalPumpLossMmHg;
-  const totalPathDrop = drainagePressureDropMmHg
+  const totalPathDrop = inletSuctionPressureDropMmHg
+    + drainagePressureDropMmHg
     + oxygenatorPressureDropMmHg
     + returnPathPressureDropMmHg;
-  const prePumpPressureMmHg = inletPressureMmHg - drainagePressureDropMmHg;
+  const prePumpPressureMmHg = inletPressureMmHg
+    - inletSuctionPressureDropMmHg - drainagePressureDropMmHg;
   const postPumpPressureMmHg = prePumpPressureMmHg + deliveredPumpHeadMmHg;
   const postOxygenatorPressureMmHg =
     postPumpPressureMmHg - oxygenatorPressureDropMmHg;
@@ -171,7 +159,13 @@ export function evaluateRotaryPumpV1(
     dFlowMlPerSecDInletVolumePerSec: dFlowDInletVolume,
     inletAvailability01,
     inletCollapseActive: unrestrictedMlPerSec > 0
-      && inletAvailability01 < 0.999,
+      && (inletAvailability01 < 0.999
+        || suction.resistanceMmHgSecPerMl > 0),
+    inletSuctionMechanismKind: config.inletSuction.kind,
+    inletSuctionResistanceMmHgSecPerMl:
+      suction.resistanceMmHgSecPerMl,
+    inletSuctionPressureDropMmHg,
+    ...rotaryPumpForwardFlowEvidenceDiagnosticsV1(config, flowLMin),
     drainagePressureDropMmHg,
     oxygenatorPressureDropMmHg,
     returnPathPressureDropMmHg,
@@ -224,35 +218,15 @@ export function validateRotaryPumpConfigV1(
   validateSegment(config.drainage, `${label}.drainage`);
   validateSegment(config.oxygenator, `${label}.oxygenator`);
   validateSegment(config.returnPath, `${label}.returnPath`);
-  finite(config.inletCollapse.collapsePressureMmHg,
-    `${label}.inletCollapse.collapsePressureMmHg`);
-  finite(config.inletCollapse.recoveredPressureMmHg,
-    `${label}.inletCollapse.recoveredPressureMmHg`);
-  if (
-    config.inletCollapse.recoveredPressureMmHg
-      <= config.inletCollapse.collapsePressureMmHg
-  ) throw new Error(`${label}.inletCollapse pressure interval must be positive`);
-  if (
-    config.inletCollapse.minimumVolumeMl !== null
-    || config.inletCollapse.recoveredVolumeMl !== null
-  ) {
-    if (config.inletCollapse.minimumVolumeMl !== null) {
-      nonnegative(config.inletCollapse.minimumVolumeMl,
-        `${label}.inletCollapse.minimumVolumeMl`);
-    }
-    if (config.inletCollapse.recoveredVolumeMl !== null) {
-      nonnegative(config.inletCollapse.recoveredVolumeMl,
-        `${label}.inletCollapse.recoveredVolumeMl`);
-    }
-    if (
-      config.inletCollapse.minimumVolumeMl === null
-      || config.inletCollapse.recoveredVolumeMl === null
-      || config.inletCollapse.recoveredVolumeMl
-        <= config.inletCollapse.minimumVolumeMl
-    ) throw new Error(`${label}.inletCollapse volume interval must be positive or null`);
+  validateInletSuction(config.inletSuction, `${label}.inletSuction`);
+  if (config.maximumForwardFlowLMin !== null) {
+    nonnegative(
+      config.maximumForwardFlowLMin,
+      `${label}.maximumForwardFlowLMin`,
+    );
   }
-  nonnegative(config.maximumForwardFlowLMin, `${label}.maximumForwardFlowLMin`);
   nonnegative(config.maximumReverseFlowLMin, `${label}.maximumReverseFlowLMin`);
+  validateForwardFlowEvidenceDomain(config, label);
 }
 
 function disabledEvaluation(
@@ -279,6 +253,10 @@ function disabledEvaluation(
     dFlowMlPerSecDInletVolumePerSec: 0,
     inletAvailability01: 1,
     inletCollapseActive: false,
+    inletSuctionMechanismKind: config.inletSuction.kind,
+    inletSuctionResistanceMmHgSecPerMl: 0,
+    inletSuctionPressureDropMmHg: 0,
+    ...rotaryPumpForwardFlowEvidenceDiagnosticsV1(config, 0),
     drainagePressureDropMmHg: 0,
     oxygenatorPressureDropMmHg: 0,
     returnPathPressureDropMmHg: 0,
@@ -316,6 +294,10 @@ function clampedEvaluation(
     dFlowMlPerSecDInletVolumePerSec: 0,
     inletAvailability01: 1,
     inletCollapseActive: false,
+    inletSuctionMechanismKind: config.inletSuction.kind,
+    inletSuctionResistanceMmHgSecPerMl: 0,
+    inletSuctionPressureDropMmHg: 0,
+    ...rotaryPumpForwardFlowEvidenceDiagnosticsV1(config, 0),
     drainagePressureDropMmHg: 0,
     oxygenatorPressureDropMmHg: 0,
     returnPathPressureDropMmHg: 0,
@@ -337,6 +319,225 @@ function segmentDrop(segment: HydraulicSegmentV1, flowMlPerSec: number): number 
 function validateSegment(segment: HydraulicSegmentV1, label: string): void {
   nonnegative(segment.linearResistanceMmHgSecPerMl, `${label}.linearResistance`);
   nonnegative(segment.quadraticResistanceMmHgSec2PerMl2, `${label}.quadraticResistance`);
+}
+
+export type EvaluatedRotaryPumpInletSuctionV1 = Readonly<{
+  resistanceMmHgSecPerMl: number;
+  dResistanceDInletPressure: number;
+  availability: Readonly<{
+    value: number;
+    dInletPressure: number;
+    dInletVolume: number;
+    owner: "pressure-collapse" | "volume-collapse" | null;
+  }>;
+}>;
+
+export function evaluateRotaryPumpInletSuctionV1(
+  mechanism: RotaryPumpInletSuctionMechanismV1,
+  input: Readonly<{
+    inletPressureMmHg: number;
+    inletVolumeMl?: number;
+  }>,
+): EvaluatedRotaryPumpInletSuctionV1 {
+  if (mechanism.kind === "none") {
+    return Object.freeze({
+      resistanceMmHgSecPerMl: 0,
+      dResistanceDInletPressure: 0,
+      availability: Object.freeze({
+        value: 1,
+        dInletPressure: 0,
+        dInletVolume: 0,
+        owner: null,
+      }),
+    });
+  }
+  if (mechanism.kind === "pressure-dependent-series-resistance") {
+    // The cited law owns equality: P_LV <= P_threshold. R_k is zero at the
+    // boundary, while the one-sided active-branch pressure tangent is kept.
+    const active = input.inletPressureMmHg <= mechanism.thresholdPressureMmHg;
+    return Object.freeze({
+      resistanceMmHgSecPerMl: active
+        ? mechanism.resistanceSlopeMmHgSecPerMlPerMmHg
+          * (mechanism.thresholdPressureMmHg - input.inletPressureMmHg)
+        : 0,
+      dResistanceDInletPressure: active
+        ? -mechanism.resistanceSlopeMmHgSecPerMlPerMmHg
+        : 0,
+      availability: Object.freeze({
+        value: 1,
+        dInletPressure: 0,
+        dInletVolume: 0,
+        owner: null,
+      }),
+    });
+  }
+
+  const pressureInterval = mechanism.recoveredPressureMmHg
+    - mechanism.collapsePressureMmHg;
+  const pressureAvailability = smoothstep01WithDerivative(
+    (input.inletPressureMmHg - mechanism.collapsePressureMmHg)
+      / pressureInterval,
+    1 / pressureInterval,
+  );
+  const volumeAvailability = input.inletVolumeMl === undefined
+    || mechanism.minimumVolumeMl === null
+    || mechanism.recoveredVolumeMl === null
+    ? Object.freeze({ value: 1, derivative: 0 })
+    : smoothstep01WithDerivative(
+      (input.inletVolumeMl - mechanism.minimumVolumeMl)
+        / (mechanism.recoveredVolumeMl - mechanism.minimumVolumeMl),
+      1 / (mechanism.recoveredVolumeMl - mechanism.minimumVolumeMl),
+    );
+  return Object.freeze({
+    resistanceMmHgSecPerMl: 0,
+    dResistanceDInletPressure: 0,
+    // Preserve the pre-existing deterministic tie-break exactly.
+    availability: pressureAvailability.value <= volumeAvailability.value
+      ? Object.freeze({
+        value: pressureAvailability.value,
+        dInletPressure: pressureAvailability.derivative,
+        dInletVolume: 0,
+        owner: "pressure-collapse" as const,
+      })
+      : Object.freeze({
+        value: volumeAvailability.value,
+        dInletPressure: 0,
+        dInletVolume: volumeAvailability.derivative,
+        owner: "volume-collapse" as const,
+      }),
+  });
+}
+
+function validateInletSuction(
+  mechanism: RotaryPumpInletSuctionMechanismV1,
+  label: string,
+): void {
+  if (mechanism === null || typeof mechanism !== "object") {
+    throw new Error(`${label} must be a discriminated object`);
+  }
+  if (mechanism.kind === "none") {
+    assertExactKeys(mechanism, ["kind"], label);
+    return;
+  }
+  if (mechanism.kind === "pressure-dependent-series-resistance") {
+    assertExactKeys(mechanism, [
+      "kind",
+      "thresholdPressureMmHg",
+      "resistanceSlopeMmHgSecPerMlPerMmHg",
+    ], label);
+    finite(
+      mechanism.thresholdPressureMmHg,
+      `${label}.thresholdPressureMmHg`,
+    );
+    positive(
+      mechanism.resistanceSlopeMmHgSecPerMlPerMmHg,
+      `${label}.resistanceSlopeMmHgSecPerMlPerMmHg`,
+    );
+    return;
+  }
+  if (mechanism.kind !== "legacy-smooth-availability") {
+    throw new Error(`${label}.kind is unsupported`);
+  }
+  assertExactKeys(mechanism, [
+    "kind",
+    "collapsePressureMmHg",
+    "recoveredPressureMmHg",
+    "minimumVolumeMl",
+    "recoveredVolumeMl",
+  ], label);
+  finite(mechanism.collapsePressureMmHg, `${label}.collapsePressureMmHg`);
+  finite(mechanism.recoveredPressureMmHg, `${label}.recoveredPressureMmHg`);
+  if (mechanism.recoveredPressureMmHg <= mechanism.collapsePressureMmHg) {
+    throw new Error(`${label} pressure interval must be positive`);
+  }
+  if (mechanism.minimumVolumeMl === null
+      && mechanism.recoveredVolumeMl === null) return;
+  if (mechanism.minimumVolumeMl === null
+      || mechanism.recoveredVolumeMl === null) {
+    throw new Error(`${label} volume interval must be positive or null`);
+  }
+  nonnegative(mechanism.minimumVolumeMl, `${label}.minimumVolumeMl`);
+  nonnegative(mechanism.recoveredVolumeMl, `${label}.recoveredVolumeMl`);
+  if (mechanism.recoveredVolumeMl <= mechanism.minimumVolumeMl) {
+    throw new Error(`${label} volume interval must be positive or null`);
+  }
+}
+
+function validateForwardFlowEvidenceDomain(
+  config: RotaryPumpDeviceConfigV1,
+  label: string,
+): void {
+  const domain = config.forwardFlowEvidenceDomain;
+  if (domain === null || typeof domain !== "object") {
+    throw new Error(`${label}.forwardFlowEvidenceDomain must be an object`);
+  }
+  assertExactKeys(domain, [
+    "publishedExperimentalTraversalUpperLMin",
+    "advertisedCapacityLMin",
+  ], `${label}.forwardFlowEvidenceDomain`);
+  const publishedUpper = domain.publishedExperimentalTraversalUpperLMin;
+  const advertised = domain.advertisedCapacityLMin;
+  if ((publishedUpper === null) !== (advertised === null)) {
+    throw new Error(
+      `${label}.forwardFlowEvidenceDomain limits must both be null or finite`,
+    );
+  }
+  if (publishedUpper === null || advertised === null) return;
+  positive(
+    publishedUpper,
+    `${label}.forwardFlowEvidenceDomain.publishedExperimentalTraversalUpperLMin`,
+  );
+  positive(advertised, `${label}.forwardFlowEvidenceDomain.advertisedCapacityLMin`);
+  if (advertised < publishedUpper) {
+    throw new Error(
+      `${label}.forwardFlowEvidenceDomain advertised capacity must cover published experimental traversal`,
+    );
+  }
+}
+
+export function rotaryPumpForwardFlowEvidenceDiagnosticsV1(
+  config: RotaryPumpDeviceConfigV1,
+  flowLMin: number,
+): Readonly<{
+  forwardFlowEvidenceStatus: RotaryPumpForwardFlowEvidenceStatusV1;
+  forwardFlowPublishedExperimentalTraversalUpperLMin: number | null;
+  forwardFlowAdvertisedCapacityLMin: number | null;
+}> {
+  const publishedUpper = config.forwardFlowEvidenceDomain
+    .publishedExperimentalTraversalUpperLMin;
+  const advertised = config.forwardFlowEvidenceDomain.advertisedCapacityLMin;
+  let status: RotaryPumpForwardFlowEvidenceStatusV1;
+  if (publishedUpper === null || advertised === null) status = "not-declared";
+  else if (!(flowLMin > 0)) {
+    // The cited traversal and advertised capacity describe forward flow only.
+    // Zero or reverse flow must not be mislabeled as lying inside that domain.
+    status = "non-forward-flow-not-applicable";
+  }
+  else if (flowLMin <= publishedUpper) {
+    status = "within-published-experimental-domain";
+  }
+  else if (flowLMin <= advertised) {
+    status =
+      "above-published-experimental-domain-within-advertised-capacity";
+  } else status = "above-advertised-capacity";
+  return Object.freeze({
+    forwardFlowEvidenceStatus: status,
+    forwardFlowPublishedExperimentalTraversalUpperLMin: publishedUpper,
+    forwardFlowAdvertisedCapacityLMin: advertised,
+  });
+}
+
+function assertExactKeys(
+  value: object,
+  expected: readonly string[],
+  label: string,
+): void {
+  const actual = Object.keys(value).sort();
+  const keys = [...expected].sort();
+  if (actual.length !== keys.length
+      || actual.some((key, index) => key !== keys[index])) {
+    throw new Error(`${label} keys must be exactly ${keys.join(", ")}`);
+  }
 }
 
 function smoothstep01WithDerivative(

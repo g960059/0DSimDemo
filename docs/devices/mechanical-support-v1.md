@@ -34,19 +34,43 @@ H_p(q,N)-(P_{out}-P_{in})-\sum_i\Delta P_i(q)=0.
 
 The signed linear-quadratic equation is solved in closed form. Affinity-scaled profiles use \(\gamma=1\); the HeartMate-II regression uses \(\gamma=0\) because its published linear coefficient is speed independent. Reverse flow is retained; it is not replaced by `max(0,q)`. A stopped, unclamped rotary pump can therefore back-flow, while a separately commanded circuit clamp gives exactly zero flow. The solver also returns pre-pump, post-pump, and post-oxygenator pressures.
 
-V1 treats this hydraulic operating point as quasi-static. Published LVAD and ECMO models often add a circuit-flow state,
+The legacy algebraic evaluator retains this quasi-static operating point as a
+verification shadow. The integrated transaction instead owns circuit flow as
+an accepted state and advances it with backward Euler,
 
 \[
 L_{eq}\dot q=H_p-\Delta P_{patient}-\sum_i\Delta P_i,
 \]
 
-but the hydraulic time constant is short compared with the cardiac cycle, and omitting that state avoids changing the accepted checkpoint schema. Circuit inertance should be added in a later stateful device transaction if pump-start, tubing ringing, or chatter frequency is a target.
+For the published HeartMate-II coefficients used below, including both cannulae gives approximately
 
-### Inlet collapse and flow limits
+\[
+R_{eq}=0.1707+2(0.0677)=0.3061,
+\qquad
+L_{eq}=0.02177+2(0.0127)=0.04717,
+\]
 
-Forward flow is multiplied by a smooth availability between a collapse and recovery threshold. Pressure and source-volume availability are both evaluated; the lower one owns the semismooth branch. This captures preload-limited flow and suction without a discontinuous clamp. The pressure reaction required by suction/capacity limiting is reported separately from the hydraulic residual.
+and therefore \(L_{eq}/R_{eq}\approx0.154\) s. That is not negligible for phasic flow, tachycardia, rhythm transitions, suction/chatter, or coronary-flow coupling. The dynamic owner therefore stores \(q_n\), includes \(L/dt\) in the signed root, returns analytic pressure/previous-flow tangents, and binds the complete structural hydraulic projection to checkpoint SHA-256 identity. The algebraic reduction remains limited to steady/beat-mean comparisons and the zero-inertance equivalence test. Source coefficients: [Wang et al., 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC3894974/).
 
-For ECMO, a pre-pump pressure below -75 mmHg produces a warning and below -100 mmHg a critical readback. These are safety-oriented model readbacks, not management recommendations. In V1, source-node pressure/volume controls drainage availability; the calculated pre-pump P1 is an alarm readback and does not itself add a second Starling-resistor feedback. The ELSO circuit guideline is the primary clinical source for pressure monitoring, pump-off backflow, and clamping behavior: [ELSO Adult and Pediatric ECMO Circuits Guideline](https://www.elso.org/Portals/0/files/pdf/ELSO_Guidelines_for_Adult_and_Pediatric_Membrane_Oxygenation_Circuits.pdf).
+### Inlet suction and flow-domain diagnostics
+
+Every rotary profile must select one fail-closed inlet mechanism:
+
+- `legacy-smooth-availability`: forward flow is multiplied by the lower of a smooth pressure availability and a smooth whole-source-volume availability. Its limiter owns an explicit constraint reaction.
+- `pressure-dependent-series-resistance`: the resistance is part of the hydraulic equation and residual, not a constraint reaction.
+- `none`: no inlet-suction term is added.
+
+The legacy smooth law is retained for backward compatibility in the HM3,
+Impella, and ECMO research profiles. Its generic pressure/whole-compartment
+volume thresholds are provisional model choices, not device-specific suction
+validation. They are not transferred into the HeartMate-II profile.
+
+An optional maximum forward flow is a numerical constraint only when a profile
+explicitly supplies one. Separately, a profile can declare a published
+experimental traversal limit and an advertised capacity. Those values produce diagnostic
+statuses but never clip instantaneous flow.
+
+For ECMO, a pre-pump pressure below -75 mmHg produces a warning and below -100 mmHg a critical readback. These thresholds are a provisional local alarm profile, not values validated by the cited guideline and not management recommendations. In V1, source-node pressure/volume controls drainage availability; the calculated pre-pump P1 is an alarm readback and does not itself add a second Starling-resistor feedback. The ELSO circuit guideline supports monitoring circuit pressures, preventing pump-off backflow, and explicit clamping behavior, but it is not used here as evidence for the two numerical alarm thresholds: [ELSO Adult and Pediatric ECMO Circuits Guideline](https://www.elso.org/Portals/0/files/pdf/ELSO_Guidelines_for_Adult_and_Pediatric_Membrane_Oxygenation_Circuits.pdf).
 
 ## LVAD
 
@@ -68,7 +92,34 @@ A HeartMate-II literature preset is also supplied. Its curve is represented dire
 H=9.03\times10^{-5}\omega^2-0.1707q-0.02177\dot q,
 \]
 
-where \(\omega\) is rad/s, \(q\) is mL/s, and the inertial term is omitted only in V1's documented quasi-static reduction. Inflow and outflow resistances are each 0.0677 mmHg·s/mL. At 9000 rpm, the reduction gives zero-flow head 80.21 mmHg and approximately 3.96 L/min at a 60 mmHg LV-to-aortic head. The dynamic equation, suction resistance, disease scenarios, and reported 6000-12000 rpm trends are from [Wang et al., 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC3894974/).
+where \(\omega\) is rad/s, \(q\) is mL/s, and the integrated owner retains the inertial term. Inflow and outflow resistances are each 0.0677 mmHg·s/mL. At 9000 rpm, the steady reduction gives zero-flow head 80.21 mmHg and approximately 3.96 L/min at a 60 mmHg LV-to-aortic head.
+
+Only this HMII preset uses the Choi pressure-dependent suction resistance
+
+\[
+R_k(P_{LV})=
+\begin{cases}
+0,&P_{LV}>1\ \mathrm{mmHg},\\
+3.5(1-P_{LV}),&P_{LV}\leq1\ \mathrm{mmHg},
+\end{cases}
+\]
+
+in mmHg·s/mL. Equality belongs to the active branch (zero resistance with its
+one-sided active tangent). \(R_kq\) is included directly in total series loss,
+pre-pump pressure, and hydraulic closure. It never appears as a fictitious
+`pressure-collapse` constraint owner or reaction, and whole-LV volume is not an
+input to this law. The formulation follows [Choi et al., 2007](https://doi.org/10.1111/j.1525-1594.2007.00350.x) as transcribed in [Wang et al., 2014](https://doi.org/10.1371/journal.pone.0085234).
+
+HMII has no instantaneous 10 L/min hard clamp. The profile records 9 L/min as
+the upper forward flow traversed in a published independent experiment and 10 L/min as advertised
+capacity. Zero and reverse flow return `non-forward-flow-not-applicable`;
+positive flow returns `within-published-experimental-domain`,
+`above-published-experimental-domain-within-advertised-capacity`, or
+`above-advertised-capacity` without altering \(q\). These classifications use
+[Yang et al., 2015](https://doi.org/10.1016/j.jtcvs.2015.06.049) and
+the [FDA HeartMate-II instructions](https://www.accessdata.fda.gov/cdrh_docs/pdf6/P060040S005C.pdf); advertised capacity is not evidence for a phasic clamp.
+The published-experimental-domain status describes source coverage only; it is
+not validation or acceptance of this repository's implementation.
 
 Required behavior checked by the validation lane:
 
@@ -86,7 +137,7 @@ Impella is modeled from LV to Ao, also in parallel with the native valve. The cl
 
 The bounded affinity H-Q surrogate is calibrated so a representative 70 mmHg transvalvular head traverses the official mean-flow ranges from P2 through P9. Pressure remains an input, so those ranges are not imposed as fixed flow. P0/low support retains pressure-driven retrograde flow. The speed and displayed-flow ranges, P9 peak limit, suction warning, and retrograde-flow warning come from the [FDA Impella CP with SmartAssist Instructions for Use](https://www.fda.gov/media/140767/download).
 
-Device-arterial coupling is essential: a fixed-flow source would miss both afterload dependence and low-speed backflow. A reduced two-element formulation and in-vitro comparison are described by [Sauren et al., 2019](https://pmc.ncbi.nlm.nih.gov/articles/PMC6661194/).
+Device-arterial coupling is essential: a fixed-flow source would miss afterload dependence and low-speed backflow. A reduced two-element formulation evaluated with animal and retrospective patient data is described by [Chang, Keller, and Edelman, 2019](https://pmc.ncbi.nlm.nih.gov/articles/PMC6661194/). It supports the importance of device-arterial coupling; it is not an independent validation of this repository's Impella H-Q surrogate.
 
 ## VA-ECMO
 
@@ -173,7 +224,7 @@ The displacement-volume approach and 80 ms transition are the low-order reductio
 
 | Device | Inputs | Principal readbacks |
 |---|---|---|
-| LVAD | insert/enable, rpm, clamp, H-Q profile | flow, head, inlet availability, LV/Ao pressures, backflow |
+| LVAD | insert/enable, rpm, clamp, H-Q/suction profile | flow, head, inlet availability or series resistance, evidence-domain status, LV/Ao pressures, backflow |
 | Impella | insert/enable, P0-P9, clamp | pressure-dependent flow, suction, backflow |
 | VA-ECMO | rpm, clamp, central/peripheral, cannula/oxygenator coefficients | Q, P1/pre-pump, post-pump, post-oxygenator, MAP effect |
 | VV-ECMO | rpm, clamp, cannulation, hydraulic coupling, recirculation | Q, effective Q, pre/post oxygen content, SaO2, CO2 removal |
@@ -198,12 +249,12 @@ Generated results and plots are in [`data/devices/validation/v1`](../../data/dev
 
 - No patient-specific fitting, parameter estimation, or clinical outcome prediction.
 - No motor current, power, thrombosis, hemolysis, thermal state, or controller AUTO logic.
-- No dynamic device circuit blood-volume or inertial-flow state in V1.
-- ECMO P1/pre-pump over-suction is alarmed but is not an additional automatic drainage-collapse limiter; source-node pressure/volume and explicit flow caps own V1 flow limitation.
+- Dynamic rotary flow is modeled, but motor-current/speed dynamics and circuit compliance/blood-volume states are not.
+- ECMO P1/pre-pump over-suction is alarmed but is not an additional automatic drainage-collapse limiter; its provisional legacy source-node availability and explicit profile caps own flow limitation.
 - No cannula-position geometry; recirculation is a controlled low-order parameter.
 - Gas exchange is not a dynamic PaO2/PaCO2, acid-base, or tissue-metabolism model.
 - Fick closure is steady and whole-body; it has no organ-specific extraction, venous transit delay, temperature/pH shift, or dynamic oxygen stores.
 - VA Harlequin is a two-territory steady mixer, not a spatial aortic transport model.
-- The current non-coronary lane cannot quantify IABP coronary-flow augmentation.
+- The checked MCS validation lane is non-coronary. The combined transaction seam can now evaluate coronary flow, but periodic IABP-coronary augmentation has not been validated.
 - IABP timing is phase based; arrhythmia and ECG/pressure trigger failures are not modeled.
 - Device coefficients are profiles. A manufacturer/product name does not make a profile universal across cannulas, grafts, blood viscosity, or operating domains.

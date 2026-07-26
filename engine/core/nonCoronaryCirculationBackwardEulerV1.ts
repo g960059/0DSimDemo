@@ -29,12 +29,21 @@ import {
 import { stressedVolumeFromPtm } from "@/engine/vascularPv";
 import { evaluateIabpV1 } from "@/engine/devices/iabpV1";
 import {
+  evaluateDynamicMechanicalSupportHydraulicsV1,
+  validateDynamicMechanicalSupportAcceptedStateV1,
+  validateDynamicMechanicalSupportInertanceProfileV1,
+  type DynamicMechanicalSupportAcceptedStateV1,
+  type DynamicMechanicalSupportHydraulicEvaluationV1,
+  type DynamicMechanicalSupportInertanceProfileV1,
+} from "@/engine/devices/dynamicNetworkV1";
+import {
   evaluateMechanicalSupportHydraulicsV1,
   validateMechanicalSupportConfigV1,
 } from "@/engine/devices/networkV1";
-import type {
-  MechanicalSupportConfigV1,
-  MechanicalSupportHydraulicEvaluationV1,
+import {
+  MECHANICAL_SUPPORT_NODE_NAMES_V1,
+  type MechanicalSupportConfigV1,
+  type MechanicalSupportHydraulicEvaluationV1,
 } from "@/engine/devices/typesV1";
 
 export const NON_CORONARY_CIRCULATION_BE_V1_ID =
@@ -202,6 +211,19 @@ export type NonCoronaryMechanicalSupportInputV1 = Readonly<{
   heartRateBpm: number;
 }>;
 
+/**
+ * Optional pure dynamic-device trial seam. The circulation core reads one
+ * immutable accepted q_n record on every Newton/FD/line-search probe and
+ * exposes q_(n+1), but deliberately does not own or promote device state.
+ */
+export type NonCoronaryDynamicMechanicalSupportInputV1 = Readonly<{
+  config: MechanicalSupportConfigV1;
+  /** Used only to map accepted time to IABP beat phase. */
+  heartRateBpm: number;
+  profile: DynamicMechanicalSupportInertanceProfileV1;
+  previousAcceptedState: DynamicMechanicalSupportAcceptedStateV1;
+}>;
+
 export type NonCoronaryCirculationGraphV1 = Readonly<{
   topologyId: typeof NON_CORONARY_CIRCULATION_BE_V1_ID;
   nodes: readonly NodeSpec[];
@@ -358,6 +380,8 @@ export type NonCoronaryCirculationTrialInputV1<
   dtSec: number;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
   mechanicalSupport?: NonCoronaryMechanicalSupportInputV1;
+  /** Mutually exclusive with the legacy algebraic mechanicalSupport seam. */
+  dynamicMechanicalSupport?: NonCoronaryDynamicMechanicalSupportInputV1;
   evaluateCandidateMechanics:
     NonCoronaryCandidateMechanicsCallbackV1<TEvaluation>;
   options?: NonCoronaryCirculationNewtonOptionsV1;
@@ -482,6 +506,8 @@ export type NonCoronaryCirculationTrialSuccessV1<
   candidateMechanicsEvaluation: TEvaluation;
   /** Present when a device configuration was supplied, including all-off. */
   mechanicalSupport?: MechanicalSupportHydraulicEvaluationV1;
+  /** Pure candidate only; an outer transaction must promote its device state. */
+  dynamicMechanicalSupport?: DynamicMechanicalSupportHydraulicEvaluationV1;
   /** Absent at runtime on the immutable non-companion path. */
   conservativeCompanion?:
     NonCoronaryConservativeCompanionTrialReadbackV1<TCompanionTrial>;
@@ -557,6 +583,8 @@ type CandidateEvaluation<TEvaluation, TCompanionTrial = never> = Readonly<{
   valveEvaluations: ValveRecord<MainWireQuasiSteadyOrificeValveEvaluationV2>;
   candidateMechanicsEvaluation: TEvaluation;
   mechanicalSupport: MechanicalSupportHydraulicEvaluationV1 | null;
+  dynamicMechanicalSupport:
+    DynamicMechanicalSupportHydraulicEvaluationV1 | null;
   absoluteChamberPressureTangent:
     NonCoronaryAbsoluteChamberPressureTangentV1 | null;
   conservativeCompanion:
@@ -744,6 +772,13 @@ export function evaluateNonCoronaryCirculationBackwardEulerTrialV1<
     );
     validateConservativeCompanionAdapter(input);
     validateMechanicalSupportInput(input.mechanicalSupport);
+    validateDynamicMechanicalSupportInput(input.dynamicMechanicalSupport);
+    if (input.mechanicalSupport !== undefined
+        && input.dynamicMechanicalSupport !== undefined) {
+      throw new Error(
+        "mechanicalSupport and dynamicMechanicalSupport are mutually exclusive",
+      );
+    }
     if (typeof input.evaluateCandidateMechanics !== "function") {
       throw new Error("evaluateCandidateMechanics must be a function");
     }
@@ -1299,9 +1334,21 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       candidateTimeSec,
       input.mechanicalSupport.heartRateBpm,
     );
-  const iabp = input.mechanicalSupport === undefined || supportTiming === null
+  const dynamicSupportTiming = input.dynamicMechanicalSupport === undefined
     ? null
-    : evaluateIabpV1(input.mechanicalSupport.config.iabp, supportTiming);
+    : mechanicalSupportTiming(
+      candidateTimeSec,
+      input.dynamicMechanicalSupport.heartRateBpm,
+    );
+  const iabp = input.mechanicalSupport !== undefined && supportTiming !== null
+    ? evaluateIabpV1(input.mechanicalSupport.config.iabp, supportTiming)
+    : input.dynamicMechanicalSupport !== undefined
+        && dynamicSupportTiming !== null
+      ? evaluateIabpV1(
+        input.dynamicMechanicalSupport.config.iabp,
+        dynamicSupportTiming,
+      )
+      : null;
   const nodeAbsolutePressuresMmHg = nodeRecord((name) => {
     if (isChamberName(name)) return mechanics.absolutePressuresMmHg[name];
     const node = graph.nodes[graph.nodeIndex.get(name)!];
@@ -1325,6 +1372,33 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
       input.mechanicalSupport.config,
       {
         ...supportTiming,
+        nodeAbsolutePressureMmHg: Object.freeze({
+          LV: nodeAbsolutePressuresMmHg.LV,
+          Ao: nodeAbsolutePressuresMmHg.Ao,
+          SA: nodeAbsolutePressuresMmHg.SA,
+          RA: nodeAbsolutePressuresMmHg.RA,
+          VC: nodeAbsolutePressuresMmHg.VC,
+        }),
+        nodeVolumeMl: Object.freeze({
+          LV: nodeVolumesMl.LV,
+          Ao: nodeVolumesMl.Ao,
+          SA: nodeVolumesMl.SA,
+          RA: nodeVolumesMl.RA,
+          VC: nodeVolumesMl.VC,
+        }),
+      },
+    );
+  const dynamicMechanicalSupport =
+    input.dynamicMechanicalSupport === undefined
+      || dynamicSupportTiming === null
+    ? null
+    : evaluateDynamicMechanicalSupportHydraulicsV1(
+      input.dynamicMechanicalSupport.config,
+      input.dynamicMechanicalSupport.profile,
+      input.dynamicMechanicalSupport.previousAcceptedState,
+      {
+        dtSec: input.dtSec,
+        ...dynamicSupportTiming,
         nodeAbsolutePressureMmHg: Object.freeze({
           LV: nodeAbsolutePressuresMmHg.LV,
           Ao: nodeAbsolutePressuresMmHg.Ao,
@@ -1438,7 +1512,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
         ? conservativeCompanion.outerBoundaryNetVolumeRateMlPerSec[name]
         : 0;
     const supportRate = mechanicalSupportNodeRateMlPerSec(
-      mechanicalSupport,
+      mechanicalSupport ?? dynamicMechanicalSupport,
       name,
     );
     return nodeVolumesMl[name] - previous.nodeVolumesMl[name]
@@ -1463,6 +1537,7 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     >,
     candidateMechanicsEvaluation: mechanics.evaluation,
     mechanicalSupport,
+    dynamicMechanicalSupport,
     absoluteChamberPressureTangent:
       mechanics.absolutePressureTangent ?? null,
     conservativeCompanion,
@@ -1720,7 +1795,9 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
         node,
         current.nodeVolumesMl[name]
           + (name === "SA"
-            ? current.mechanicalSupport?.iabp.balloonVolumeMl ?? 0
+            ? current.mechanicalSupport?.iabp.balloonVolumeMl
+              ?? current.dynamicMechanicalSupport?.iabp.balloonVolumeMl
+              ?? 0
             : 0),
         input.runtime.vascular,
         "adaptive-volume-tolerance",
@@ -1923,6 +2000,51 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
       }
     }
   }
+  if (current.dynamicMechanicalSupport !== null) {
+    const support = current.dynamicMechanicalSupport;
+    for (const residualNode of MECHANICAL_SUPPORT_NODE_NAMES_V1) {
+      const residualRow = independentIndex.get(residualNode);
+      if (residualRow === undefined) {
+        throw new Error(
+          `${residualNode} dynamic mechanical-support node must be independent`,
+        );
+      }
+      for (let column = 0; column < size; column += 1) {
+        let dRateDScaledVolume = 0;
+        for (const pressureNode of MECHANICAL_SUPPORT_NODE_NAMES_V1) {
+          const pressureRow = graph.nodeIndex.get(pressureNode);
+          if (pressureRow === undefined) {
+            throw new Error(
+              `${pressureNode} dynamic mechanical-support pressure node is absent`,
+            );
+          }
+          dRateDScaledVolume += support
+            .dNodeNetVolumeRateDNodePressureMlPerSecPerMmHg[residualNode][
+              pressureNode
+            ] * nodePressureDerivativeByScaledVolume[pressureRow]![column]!;
+        }
+        for (const volumeNode of MECHANICAL_SUPPORT_NODE_NAMES_V1) {
+          const volumeColumn = independentIndex.get(volumeNode);
+          if (volumeColumn === undefined) {
+            throw new Error(
+              `${volumeNode} dynamic mechanical-support volume node must be independent`,
+            );
+          }
+          if (volumeColumn === column) {
+            dRateDScaledVolume += support
+              .dNodeNetVolumeRateDNodeVolumePerSec[residualNode][volumeNode]
+              * volumeScales[column]!;
+          }
+        }
+        requireFinite(
+          dRateDScaledVolume,
+          `${residualNode} dynamic mechanical-support source tangent`,
+        );
+        jacobian[residualRow]![column] -= input.dtSec
+          * dRateDScaledVolume / volumeScales[residualRow]!;
+      }
+    }
+  }
   const companionSensitivities = current.conservativeCompanion?.sensitivities;
   if (current.conservativeCompanion !== null) {
     if (companionSensitivities === undefined) {
@@ -2017,6 +2139,9 @@ function success<TEvaluation, TCompanionTrial>(
     ...(evaluation.mechanicalSupport === null
       ? {}
       : { mechanicalSupport: evaluation.mechanicalSupport }),
+    ...(evaluation.dynamicMechanicalSupport === null
+      ? {}
+      : { dynamicMechanicalSupport: evaluation.dynamicMechanicalSupport }),
     ...(companion === null
       ? {}
       : {
@@ -2624,6 +2749,23 @@ function validateMechanicalSupportInput(
   validateMechanicalSupportConfigV1(input.config);
 }
 
+function validateDynamicMechanicalSupportInput(
+  input: NonCoronaryDynamicMechanicalSupportInputV1 | undefined,
+): void {
+  if (input === undefined) return;
+  requirePositive(
+    input.heartRateBpm,
+    "dynamicMechanicalSupport.heartRateBpm",
+  );
+  validateMechanicalSupportConfigV1(input.config);
+  validateDynamicMechanicalSupportInertanceProfileV1(input.profile);
+  validateDynamicMechanicalSupportAcceptedStateV1(
+    input.previousAcceptedState,
+    input.profile,
+    input.config,
+  );
+}
+
 function mechanicalSupportTiming(
   timeSec: number,
   heartRateBpm: number,
@@ -2647,7 +2789,10 @@ function mechanicalSupportTiming(
 }
 
 function mechanicalSupportNodeRateMlPerSec(
-  evaluation: MechanicalSupportHydraulicEvaluationV1 | null,
+  evaluation:
+    | MechanicalSupportHydraulicEvaluationV1
+    | DynamicMechanicalSupportHydraulicEvaluationV1
+    | null,
   node: NonCoronaryNodeNameV1,
 ): number {
   if (evaluation === null) return 0;

@@ -47,7 +47,10 @@ export function mechanicalSupportAlertsV1(
         "rpm",
       ));
     }
-    if (!pump.circuitClamped && pump.inletCollapseActive) {
+    if (!pump.circuitClamped
+        && pump.inletCollapseActive
+        && pump.inletSuctionMechanismKind
+          === "legacy-smooth-availability") {
       alerts.push(alert(
         "INLET_COLLAPSE",
         pump.inletAvailability01 < 0.25 ? "critical" : "warning",
@@ -57,6 +60,9 @@ export function mechanicalSupportAlertsV1(
         "fraction",
       ));
     }
+    // Pressure-dependent series resistance is a mechanistic diagnostic. No
+    // severity threshold for its coefficient/drop has been independently
+    // validated, so it must not inherit the legacy availability alert.
     if (
       (pump.deviceId === "VA_ECMO" || pump.deviceId === "VV_ECMO")
       && pump.prePumpPressureMmHg < -75

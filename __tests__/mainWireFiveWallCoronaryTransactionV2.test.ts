@@ -25,6 +25,10 @@ import {
   CORONARY_TERRITORY_IDS_V2,
 } from "@/engine/coronary/typesV2";
 import {
+  createMechanicalSupportConfigV1,
+  defaultMechanicalSupportConfigV1,
+} from "@/engine/devices/defaultsV1";
+import {
   MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2,
   advanceMainWireCoronaryMvcReferenceV2,
   initializeMainWireFiveWallCoronaryV2,
@@ -33,6 +37,7 @@ import {
 } from "@/engine/myocardium/MainWireFiveWallCoronaryTransactionV2";
 import {
   FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+  evaluateFiveWallNormalCalciumDriveV1,
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
@@ -149,6 +154,10 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
     expect(MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2
       .mechanicsProbeContext).toBe(
         "one-audited-private-accepted-mechanics-snapshot-per-outer-step",
+      );
+    expect(MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2
+      .mechanicalSupportCoupling).toBe(
+        "optional-same-candidate-algebraic-device-node-rates-inside-outer-be-residual",
       );
     expect(MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2.outerJacobian)
       .toBe(
@@ -310,6 +319,193 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       .toEqual(cold.acceptedState.coronary
         .toneResistanceScaleByTerritoryLayer);
     expect(next.coronaryBinding).toEqual(cold.acceptedState.coronaryBinding);
+  }, 60_000);
+
+  it("is bit-exact when the combined coronary + MCS extension is all-off", () => {
+    const provider = testLandReadbackProvider(false);
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const withoutDevices = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: PERICARDIUM,
+      },
+    );
+    const allOff = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: PERICARDIUM,
+        mechanicalSupport: {
+          config: defaultMechanicalSupportConfigV1(),
+          heartRateBpm: 60,
+        },
+      },
+    );
+
+    expect(withoutDevices.converged).toBe(true);
+    expect(allOff.converged).toBe(true);
+    if (!withoutDevices.converged || !allOff.converged) return;
+    expect(allOff.acceptedState).toEqual(withoutDevices.acceptedState);
+    expect(allOff.circulationTrial.candidateNodeVolumesMl)
+      .toEqual(withoutDevices.circulationTrial.candidateNodeVolumesMl);
+    expect(allOff.circulationTrial.nodeAbsolutePressuresMmHg)
+      .toEqual(withoutDevices.circulationTrial.nodeAbsolutePressuresMmHg);
+    expect(allOff.circulationTrial.edgeFlowsMlPerSec)
+      .toEqual(withoutDevices.circulationTrial.edgeFlowsMlPerSec);
+    expect(allOff.circulationTrial.mechanicalSupport).toBeDefined();
+    expect(withoutDevices.circulationTrial.mechanicalSupport).toBeUndefined();
+  }, 60_000);
+
+  it("is bit-exact when an external owner supplies the same calcium candidate", () => {
+    const provider = testLandReadbackProvider(false);
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const common = {
+      dtSec: 0.001,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    } as const;
+    const native = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      common,
+    );
+    const prescribed = evaluateFiveWallNormalCalciumDriveV1(
+      0.001,
+      FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+    );
+    const external = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      {
+        ...common,
+        calciumDriveOverride: Object.freeze({
+          freeCalciumUMByWall: prescribed.freeCalciumUMByWall,
+        }),
+      },
+    );
+
+    expect(native.converged).toBe(true);
+    expect(external.converged).toBe(true);
+    if (!native.converged || !external.converged) return;
+    expect(external.calciumDrive).toEqual(native.calciumDrive);
+    expect(external.acceptedState).toEqual(native.acceptedState);
+    expect(external.circulationTrial.edgeFlowsMlPerSec)
+      .toEqual(native.circulationTrial.edgeFlowsMlPerSec);
+    expect(MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2
+      .calciumDriveStateOwnership).toBe(
+        "none-external-owner-must-commit-or-rollback-with-this-transaction",
+      );
+  }, 60_000);
+
+  it("couples LVAD and coronary hydraulics conservatively in one candidate", () => {
+    const provider = testLandReadbackProvider(false);
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const stepped = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: PERICARDIUM,
+        mechanicalSupport: {
+          config: createMechanicalSupportConfigV1({
+            lvad: { enabled: true, speedRpm: 4_500 },
+          }),
+          heartRateBpm: 60,
+        },
+        circulationNewtonOptions: {
+          analyticJacobianFiniteDifferenceShadow: true,
+        },
+      },
+    );
+
+    expect(stepped.converged).toBe(true);
+    if (!stepped.converged) return;
+    const support = stepped.circulationTrial.mechanicalSupport!;
+    expect(support.pump.LVAD.flowLMin).toBeGreaterThan(0);
+    expect(support.nodeNetVolumeRateMlPerSec.LV).toBeLessThan(0);
+    expect(support.nodeNetVolumeRateMlPerSec.Ao).toBeGreaterThan(0);
+    expect(Math.abs(support.conservationResidualMlPerSec)).toBeLessThan(1e-12);
+    expect(Math.abs(
+      stepped.circulationTrial.diagnostics.totalBloodVolumeErrorMl,
+    )).toBeLessThan(1e-8);
+    expect(Math.abs(
+      stepped.coronaryTrial.diagnostics.exactBloodVolumeLedgerResidualMl,
+    )).toBeLessThan(1e-8);
+    expect(stepped.circulationTrial.diagnostics.jacobianMode)
+      .toBe("analytic-semismooth");
+    expect(stepped.circulationTrial.diagnostics
+      .finiteDifferenceJacobianFallbackReason).toBeNull();
+    expect(stepped.circulationTrial.diagnostics
+      .finiteDifferenceJacobianShadowCount).toBeGreaterThan(0);
+    expect(stepped.circulationTrial.diagnostics
+      .jacobianMaximumRelativeFrobeniusShadowDifference)
+      .toBeLessThan(2e-5);
+  }, 60_000);
+
+  it("rolls back coronary, circulation, and mechanics on malformed MCS input", () => {
+    const provider = testLandReadbackProvider(false);
+    const cold = initializeMainWireFiveWallCoronaryV2({
+      provider,
+      runtime: RUNTIME,
+      calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+      pericardium: PERICARDIUM,
+    });
+    const before = JSON.stringify(cold.acceptedState);
+    const defaults = defaultMechanicalSupportConfigV1();
+    const malformed = {
+      ...defaults,
+      lvad: {
+        ...defaults.lvad,
+        enabled: true,
+        speedRpm: Number.NaN,
+      },
+    } as ReturnType<typeof defaultMechanicalSupportConfigV1>;
+    const stepped = stepMainWireFiveWallCoronaryV2(
+      provider,
+      cold.acceptedState,
+      {
+        dtSec: 0.001,
+        runtime: RUNTIME,
+        calciumDriveParams: FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1,
+        pericardium: PERICARDIUM,
+        mechanicalSupport: { config: malformed, heartRateBpm: 60 },
+      },
+    );
+
+    expect(stepped.converged).toBe(false);
+    if (stepped.converged === true) throw new Error("expected rollback");
+    expect(stepped.circulationFailureReason).toBe("invalid-input");
+    expect(stepped.circulationCommitted).toBe(false);
+    expect(stepped.coronaryCommitted).toBe(false);
+    expect(stepped.mechanicsCommitted).toBe(false);
+    expect(stepped.mvcReferenceCommitted).toBe(false);
+    expect(JSON.stringify(stepped.rollbackState)).toBe(before);
+    expect(JSON.stringify(cold.acceptedState)).toBe(before);
   }, 60_000);
 
   it("rolls back every owner when an invalid V2 disease input rejects the coupled trial", () => {
