@@ -1,97 +1,116 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ArrowRight, Play } from 'lucide-react';
 import { ScientificProductCasesGridV1 } from './scientificProduct';
 import { allCasesHref, authorPreviewHref, workbenchHref } from '../homeLinks';
 import { localeFromPathname } from '../localeRouting';
-import { useWorkbenchTheme } from '../features/workbench/hooks/useWorkbenchTheme';
 
 /**
  * The two doorways into the product.
  *
  * Reading and running are the whole surface area: an article carries live
  * experiments, and the Workbench is where the physiology behind one is built.
- * Everything a reader meets is a document, so the home page offers the
- * document first and the case catalogue as the way into the bench.
+ * There is one article destination, so the page offers it once — a second
+ * block pointing at the same route would invent a distinction the product
+ * does not have.
+ *
+ * Sections alternate ground and are split: the left column says what the
+ * section is, the right column is the thing itself. That keeps the page
+ * readable at a glance for someone who does not yet know which of the two
+ * doorways is theirs.
  */
 export const Home = () => {
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const { workbenchTheme } = useWorkbenchTheme();
 
   return (
-    <div
-      className="workbench-root h-full w-full overflow-y-auto bg-wb-app p-4 font-sans text-wb-text sm:p-8"
-      data-workbench-theme={workbenchTheme}
-    >
-      <div className="mx-auto max-w-5xl space-y-10">
-        <section className="border-b border-wb-line pb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-wb-text sm:text-4xl">
-            {t('common.appName')}
+    <div className="h-full w-full overflow-y-auto bg-wb-app text-wb-text">
+      <section className="border-b border-wb-line px-6 py-14 sm:px-10 sm:py-20">
+        <div className="mx-auto max-w-5xl">
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-wb-accent">
+            {t('home.eyebrow')}
+          </p>
+          <h1 className="mt-4 max-w-3xl text-3xl font-bold leading-tight tracking-tight text-wb-text sm:text-5xl">
+            {t('home.headline')}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-wb-muted sm:text-base">
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-wb-muted sm:text-base">
             {t('home.lead')}
           </p>
-        </section>
-
-        <section
-          className="rounded-2xl bg-wb-panel p-6 sm:p-8"
-          data-testid="studio-author-preview-entry-v1"
-        >
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div className="max-w-2xl">
-              <h2 className="text-2xl font-bold text-wb-text">
-                {t('studioAuthorPreview.home.title')}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-wb-muted">
-                {t('studioAuthorPreview.home.description')}
-              </p>
-              <p className="mt-3 text-xs leading-5 text-wb-warning">
-                {t('studioAuthorPreview.home.boundaryNotice')}
-              </p>
-            </div>
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
               to={authorPreviewHref(locale)}
-              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg bg-wb-primary px-4 text-sm font-bold text-white transition-transform duration-150 active:scale-[0.97] motion-reduce:transform-none hover:bg-wb-primary-hover"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-wb-primary px-5 text-sm font-bold text-white transition-transform duration-150 hover:bg-wb-primary-hover active:scale-[0.98] motion-reduce:transform-none"
             >
-              {t('studioAuthorPreview.home.openAuthor')}
+              <Play className="h-4 w-4" />
+              {t('home.openArticle')}
+            </Link>
+            <Link
+              to={workbenchHref(locale)}
+              className="inline-flex min-h-11 items-center rounded-lg border border-wb-line-strong px-5 text-sm font-bold text-wb-text transition-colors hover:bg-wb-hover"
+            >
+              {t('home.openBlankWorkbench')}
             </Link>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section className="pb-6">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-wb-text">
-                {t('home.exploreTitle')}
-              </h2>
-              <p className="mt-1 text-sm text-wb-muted">
-                {t('home.exploreDescription')}
-              </p>
-            </div>
-            <span className="flex flex-wrap items-center gap-4">
-              <Link
-                to={workbenchHref(locale)}
-                className="text-sm font-bold text-wb-muted transition-colors hover:text-wb-text"
-              >
-                {t('home.openBlankWorkbench')}
-              </Link>
-              <Link
-                to={allCasesHref(locale)}
-                className="text-sm font-bold text-wb-accent transition-colors hover:underline"
-              >
-                {t('home.seeAllCases')} →
-              </Link>
-            </span>
+      <section className="border-b border-wb-line bg-wb-soft px-6 py-14 sm:px-10">
+        <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:gap-12">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-wb-text">
+              {t('home.readTitle')}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-wb-muted">
+              {t('home.readDescription')}
+            </p>
           </div>
+          <div className="rounded-xl border border-wb-line bg-wb-panel p-6">
+            <h3 className="text-base font-bold text-wb-text">
+              {t('studioAuthorPreview.home.title')}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-wb-muted">
+              {t('studioAuthorPreview.home.description')}
+            </p>
+            <p className="mt-3 text-xs leading-5 text-wb-warning">
+              {t('studioAuthorPreview.home.boundaryNotice')}
+            </p>
+            <Link
+              to={authorPreviewHref(locale)}
+              data-testid="studio-author-preview-entry-v1"
+              className="mt-5 inline-flex items-center gap-1.5 text-sm font-bold text-wb-accent transition-colors hover:underline"
+            >
+              {t('studioAuthorPreview.home.openAuthor')}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
 
+      <section className="px-6 py-14 sm:px-10">
+        <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] lg:gap-12">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-wb-text">
+              {t('home.exploreTitle')}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-wb-muted">
+              {t('home.exploreDescription')}
+            </p>
+            <Link
+              to={allCasesHref(locale)}
+              className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-wb-accent transition-colors hover:underline"
+            >
+              {t('home.seeAllCases')}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
           <ScientificProductCasesGridV1
             locale={locale}
             openLabel={t('home.openCase')}
           />
-        </section>
-      </div>
+        </div>
+      </section>
     </div>
   );
 };

@@ -1,6 +1,9 @@
 {
   "common": {
     "appName": "CircleHeart",
+    "theme": {
+      "toggle": "テーマを切り替え"
+    },
     "language": {
       "ja": "日本語",
       "en": "EN",
@@ -38,6 +41,11 @@
     "fallbackNotice": "このコンテンツは現在{{locale}}のみ利用できます。"
   },
   "home": {
+    "eyebrow": "CIRCULATORY PHYSIOLOGY WORKBENCH",
+    "headline": "循環動態を、動かして学ぶ。",
+    "openArticle": "記事を開く",
+    "readTitle": "読む",
+    "readDescription": "記事の中で実験がそのまま動きます。読みながらノブを回して、波形とPVループの応答を見られます。",
     "lead": "循環動態の記事を読み、埋め込まれた実験をその場で動かせます。実験の中身はWorkbenchで組み立てます。",
     "exploreTitle": "探索する",
     "exploreDescription": "疾患ケースをワークベンチで開きます。",

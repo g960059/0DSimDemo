@@ -131,7 +131,7 @@ const appRoutes = () => (
 
 const ScientificAlphaLoading = () => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     Loading scientific runtime alpha…
@@ -140,7 +140,7 @@ const ScientificAlphaLoading = () => (
 
 const ScientificWorkbenchLoading = () => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     Loading document-bound scientific workspace…
@@ -149,7 +149,7 @@ const ScientificWorkbenchLoading = () => (
 
 const ProductWorkbenchLoading = () => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     Loading the circulation workbench…
@@ -158,7 +158,7 @@ const ProductWorkbenchLoading = () => (
 
 const ProductPageLoading = ({ label }: { label: string }) => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     {label}
@@ -167,7 +167,7 @@ const ProductPageLoading = ({ label }: { label: string }) => (
 
 const ScientificPerformanceLabLoading = () => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     Loading raw scientific browser measurement lab…

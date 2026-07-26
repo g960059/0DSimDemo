@@ -1,6 +1,9 @@
 {
   "common": {
     "appName": "CircleHeart",
+    "theme": {
+      "toggle": "Toggle theme"
+    },
     "language": {
       "ja": "日本語",
       "en": "EN",
@@ -38,6 +41,11 @@
     "fallbackNotice": "Content is currently available in {{locale}} only."
   },
   "home": {
+    "eyebrow": "CIRCULATORY PHYSIOLOGY WORKBENCH",
+    "headline": "Learn circulation by moving it.",
+    "openArticle": "Open the article",
+    "readTitle": "Read",
+    "readDescription": "Experiments run inside the article. Turn a control while you read and watch the waveforms and the PV loop answer.",
     "lead": "Read cardiovascular articles whose experiments run live, and build the physiology behind them in the Workbench.",
     "exploreTitle": "Explore",
     "exploreDescription": "Open disease-first cases in the Workbench.",

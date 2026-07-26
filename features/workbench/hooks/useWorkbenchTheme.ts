@@ -1,23 +1,54 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import type { WorkbenchThemeId } from '@/components/workbench/WorkbenchSidePanel';
 import { getStoredWorkbenchTheme, WORKBENCH_THEME_STORAGE_KEY } from '@/features/workbench/workbenchDefaults';
 
+/**
+ * One theme, owned once.
+ *
+ * The theme belongs to the document, not to whichever route happens to be
+ * mounted. When several routes each held their own copy, each wrote the body
+ * dataset and each removed it on unmount, so a navigation could clear the
+ * attribute the incoming route had just set. The state lives here instead, and
+ * every reader sees the same value.
+ */
+let currentTheme: WorkbenchThemeId | null = null;
+const listeners = new Set<() => void>();
+
+function readTheme(): WorkbenchThemeId {
+  if (currentTheme === null) currentTheme = getStoredWorkbenchTheme();
+  return currentTheme;
+}
+
+function applyTheme(theme: WorkbenchThemeId): void {
+  if (typeof document !== 'undefined') {
+    document.body.dataset.workbenchTheme = theme;
+  }
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem(WORKBENCH_THEME_STORAGE_KEY, theme);
+  }
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function setWorkbenchThemeV1(theme: WorkbenchThemeId): void {
+  if (readTheme() === theme) return;
+  currentTheme = theme;
+  applyTheme(theme);
+  for (const listener of [...listeners]) listener();
+}
+
 export function useWorkbenchTheme() {
-  const [workbenchTheme, setWorkbenchTheme] = useState<WorkbenchThemeId>(getStoredWorkbenchTheme);
+  const workbenchTheme = useSyncExternalStore(subscribe, readTheme, readTheme);
 
   useEffect(() => {
-    if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(WORKBENCH_THEME_STORAGE_KEY, workbenchTheme);
-  }, [workbenchTheme]);
-
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.body.dataset.workbenchTheme = workbenchTheme;
-    return () => {
-      if (document.body.dataset.workbenchTheme === workbenchTheme) {
-        delete document.body.dataset.workbenchTheme;
-      }
-    };
+    // Applied, never cleaned up: the attribute belongs to the document for as
+    // long as the app is mounted, so unmounting a route must not remove it.
+    applyTheme(workbenchTheme);
   }, [workbenchTheme]);
 
   useEffect(() => {
@@ -41,6 +72,10 @@ export function useWorkbenchTheme() {
     return () => {
       document.removeEventListener('scroll', handleScroll, true);
     };
+  }, []);
+
+  const setWorkbenchTheme = useCallback((theme: WorkbenchThemeId) => {
+    setWorkbenchThemeV1(theme);
   }, []);
 
   return { workbenchTheme, setWorkbenchTheme };

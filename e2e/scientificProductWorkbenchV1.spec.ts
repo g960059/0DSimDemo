@@ -242,7 +242,10 @@ test.describe.serial("Studio runtime in the product Workbench", () => {
       await expect(page.getByTestId(
         "scientific-product-workbench-loading-v1",
       )).toHaveCount(0);
-      await expect(page.locator(".workbench-root")).toHaveCount(0);
+      // `.workbench-root` is the token root, which the app shell now carries
+      // on every page, so the absence of the Workbench is the absence of its
+      // own surface rather than of the theme.
+      await expect(page.locator(".workbench-dockview")).toHaveCount(0);
 
       expect(browserErrors).toEqual([]);
     } finally {
