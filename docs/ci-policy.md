@@ -2,12 +2,14 @@
 
 ## PR Path
 
-Pull requests run the checks needed to catch integration breakage quickly:
+Pull requests run the checks needed to catch integration breakage quickly, all
+in the `Verify` workflow:
 
+- `Classify changes`
 - `Build`
-- the complete fail-closed `test:fast` suite
-- `Verify baseline` when runtime/model/case verification inputs changed
-- a three-case official-case smoke verification when those inputs changed
+- `Fast tests` — the fail-closed `test:pr` smoke suite
+- `Production browser E2E` — `test:e2e:browser:pr`, i.e. everything except the
+  `@full-e2e` stress tests
 - `Check diff whitespace`
 - aggregate `Build, test, and verify`
 
@@ -16,14 +18,12 @@ slow engine convergence, and environment-gated heavy tests are not part of that
 suite. Suite ownership is itself a fast test, so an unclassified test file or a
 new research file accidentally added to fast fails immediately.
 
-`Verify baseline` and `Verify official cases` are path-aware on pull requests.
-They skip explicitly safe documentation and repo-local skill changes, the
-mechanics2 research-sidecar code/tools/data/tests, the ordinary verify workflow
-itself, disposable `.DS_Store` files, and migrated prompt history. Any other
-changed path runs legacy model verification by default, including runtime
-engine, official-case, verifier, package, config, myocardium data, and newly
-added code paths. Pushes to `main` and manual ordinary runs keep the full
-verification path.
+`Production browser E2E` is path-aware on pull requests. It skips explicitly
+safe documentation and repo-local skill changes, the mechanics2
+research-sidecar code/tools/data/tests, disposable `.DS_Store` files, and
+migrated prompt history. Any other changed path runs it, including runtime
+engine, verifier, package, config, myocardium data, and newly added code paths.
+Editing the verify workflow itself always runs it.
 
 PR authors are still expected to run targeted local verification for touched
 areas before opening or updating a PR. For current myocardium work, that means
@@ -32,14 +32,29 @@ experiment artifact.
 
 ## Main and Scientific Paths
 
-Main pushes and ordinary manual verification run the full baseline and all
-official cases in addition to build and fast tests.
+Pushes to `main` run the same jobs as a pull request, with two differences: the
+complete `test:fast` suite instead of the PR smoke subset, and no path gating —
+every job runs.
 
-Nightly work lives in the separate `Scientific verification` workflow:
+The browser E2E selection is deliberately the same on `main` as on a pull
+request. The `@full-e2e` stress tests observe transient runtime states, such as
+the open transient between a commit and its settlement, which a shared runner
+races past; they ran only on `main`, so `main` was red on every push from
+2026-07-20 onward while every pull request was green. They now run nightly
+instead. Making them observable deterministically is runtime work, and until
+that lands the per-push gate reports only what it can judge reliably.
 
-- engine regression in four parallel shards
-- current `mainWire` scientific tests in four parallel shards
-- the two opt-in heavy engine files in their own job and timeout
+Nightly work lives in the separate `Scientific verification` workflow, at
+03:17 JST:
+
+- engine regression in parallel shards
+- current `mainWire` scientific tests in parallel shards
+- the opt-in heavy engine files in their own job and timeout
+- the full production browser E2E suite, including `@full-e2e`
+
+Archived research runs only on a manual dispatch with `run_archive` set. It is
+not part of any automatic run, so a test classified `archived-research` is
+exercised only when someone asks for it explicitly.
 
 The canonical lane is dormant on the current pre-mainWire `main` snapshot. An
 inventory job reports zero files and skips the four canonical shards rather

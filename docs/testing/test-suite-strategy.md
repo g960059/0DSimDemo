@@ -90,16 +90,17 @@ fast.
 
 ## CI layout
 
-The ordinary `Verify` workflow runs build, the complete fast suite, whitespace,
-and path-aware legacy baseline/case checks. Pull requests use three
-representative official cases (`normal-sinus`, `acute-anterior-mi`, and
-`aortic-stenosis`); main pushes and manual ordinary verification retain the full
-official-case set.
+The ordinary `Verify` workflow runs build, the fast suite, whitespace, and a
+path-aware production browser E2E job. Pull requests run the `test:pr` smoke
+subset; main pushes run the complete fast suite. Both run the same browser E2E
+selection, which excludes the `@full-e2e` stress tests.
 
 The separate `Scientific verification` workflow owns nightly work. Engine
-regression, canonical scientific tests, and heavy tests run as independent jobs
-instead of sharing a timeout. Archived research is disabled nightly and can be
-enabled explicitly from `workflow_dispatch`.
+regression, canonical scientific tests, heavy tests, and the full browser E2E
+suite including `@full-e2e` run as independent jobs instead of sharing a
+timeout. Archived research is disabled nightly and can be enabled explicitly
+from `workflow_dispatch`, so a test classified `archived-research` runs only
+when someone asks for it.
 
 Until the stacked main-wire branches reach `main`, the canonical file inventory
 is zero and that matrix is shown as skipped. This avoids treating an empty

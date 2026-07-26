@@ -355,7 +355,6 @@ npm run preview
 | `npm run test:watch` | Watch only the fast suite |
 | `npm run test:watch:all` | Watch every test file |
 | `npm run verify:baseline` | Run the baseline verification script |
-| `npm run verify:cases:smoke` | Verify three representative official cases |
 | `npm run fit:left-filling` | Fitting tool for left-heart filling |
 | `npm run fit:right-pvf-headroom` | Fitting tool for right-heart / PVF headroom |
 
