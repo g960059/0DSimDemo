@@ -55,7 +55,7 @@ export const Layout = () => {
               </span>
             </Link>
 
-            <nav className="hidden items-center gap-1 md:flex">
+            <nav className="hidden shrink-0 items-center gap-1 md:flex">
               {navItems.map((item) => {
                 const isActive = normalizedPath === item.matchPath || (item.matchPath !== '/' && normalizedPath.startsWith(item.matchPath));
                 return (
@@ -77,7 +77,7 @@ export const Layout = () => {
             </nav>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex min-w-0 shrink items-center gap-2">
             <ModelLimitations />
             <button
               type="button"
@@ -109,15 +109,15 @@ export const Layout = () => {
               })}
             </div>
             {user ? (
-              <div className="flex min-w-0 items-center gap-2 border-l border-wb-line pl-2">
+              <div className="flex min-w-0 shrink items-center gap-2 border-l border-wb-line pl-2">
                 <span
                   aria-hidden="true"
                   className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-wb-active text-xs font-bold text-wb-accent"
                 >
                   {avatarInitial}
                 </span>
-                <span className="hidden min-w-0 flex-col sm:flex">
-                  <span className="max-w-[9rem] truncate text-xs font-bold text-wb-text">{displayName}</span>
+                <span className="hidden min-w-0 flex-col lg:flex">
+                  <span className="max-w-[8rem] truncate text-xs font-bold text-wb-text">{displayName}</span>
                   {profile?.role === 'admin' && (
                     <span className="text-[10px] font-bold text-wb-muted">{t('auth.admin')}</span>
                   )}

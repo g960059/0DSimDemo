@@ -33,7 +33,19 @@
       }
     </style>
 </head>
-  <body class="bg-slate-950 text-slate-100 antialiased overflow-hidden">
+  <body class="antialiased overflow-hidden">
+    <script>
+      // The stored theme is applied before first paint. Waiting for React
+      // would show a dark body to someone who chose light, on every load.
+      (function () {
+        try {
+          var stored = localStorage.getItem('hemosim.workbench.theme');
+          document.body.dataset.workbenchTheme = stored === 'light' ? 'light' : 'dark';
+        } catch (error) {
+          document.body.dataset.workbenchTheme = 'dark';
+        }
+      })();
+    </script>
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

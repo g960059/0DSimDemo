@@ -24,16 +24,18 @@ describe("morphology case corpus V1", () => {
     ]);
   });
 
-  it("pins each scenario's instances, knobs and target volumes", () => {
-    const shape = MORPHOLOGY_CASE_CORPUS_V1.map((entry) => [
+  it("pins each scenario's instances exactly, values included", () => {
+    // Names alone would let a knob value or an intervention drift while the
+    // contract still passed, and the diagnostic's physiology would move with
+    // it. The whole instance is pinned.
+    expect(MORPHOLOGY_CASE_CORPUS_V1.map((entry) => [
       entry.id,
-      entry.instances.map((instance) => [
-        instance.id,
-        Object.keys(instance.knobs ?? {}).sort(),
-        instance.targetVolume ?? null,
-      ]),
-    ]);
-    expect(shape).toMatchSnapshot();
+      entry.schemaVersion,
+      entry.engineVersion,
+      entry.knobMappingVersion,
+      entry.solver,
+      entry.instances,
+    ])).toMatchSnapshot();
   });
 
   it("carries no teaching content, and its documents add none", () => {

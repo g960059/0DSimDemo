@@ -11,7 +11,8 @@ import {
  * These four scenarios were extracted from the retired teaching-case catalogue
  * when it was deleted. Only what the diagnostic reads is kept — identity,
  * solver, knob mapping and the scenario instances. Nothing here is teaching
- * content: there are no notes, panels, reading manifests, localized copy,
+ * content: the titles are the scenario ids, and there are no notes, panels,
+ * reading manifests, localized copy,
  * expected findings or model-limitation prose, and none may be added. This is
  * a myocardium-lane fixture, owned by the lane that runs it.
  */
@@ -31,7 +32,7 @@ export const MORPHOLOGY_CASE_CORPUS_V1: readonly MorphologyCorpusEntryV1[] =
   Object.freeze([
     {
       "id": "normal-sinus",
-      "title": "Normal physiology",
+      "title": "normal-sinus",
       "schemaVersion": 2,
       "engineVersion": "circleheart@0.0.0",
       "knobMappingVersion": "knobmap-0.3-activestress",
@@ -57,7 +58,7 @@ export const MORPHOLOGY_CASE_CORPUS_V1: readonly MorphologyCorpusEntryV1[] =
     },
     {
       "id": "acute-anterior-mi",
-      "title": "Acute Anterior MI: when the pump stalls",
+      "title": "acute-anterior-mi",
       "schemaVersion": 2,
       "engineVersion": "circleheart@0.0.0",
       "knobMappingVersion": "knobmap-0.3-activestress",
@@ -96,7 +97,7 @@ export const MORPHOLOGY_CASE_CORPUS_V1: readonly MorphologyCorpusEntryV1[] =
     },
     {
       "id": "systolic-heart-failure",
-      "title": "Systolic Heart Failure (HFrEF)",
+      "title": "systolic-heart-failure",
       "schemaVersion": 2,
       "engineVersion": "circleheart@0.0.0",
       "knobMappingVersion": "knobmap-0.3-activestress",
@@ -137,7 +138,7 @@ export const MORPHOLOGY_CASE_CORPUS_V1: readonly MorphologyCorpusEntryV1[] =
     },
     {
       "id": "lv-failure-dobutamine",
-      "title": "Cardiogenic shock: LV failure ± dobutamine",
+      "title": "lv-failure-dobutamine",
       "schemaVersion": 2,
       "engineVersion": "circleheart@0.0.0",
       "knobMappingVersion": "knobmap-0.3-activestress",
@@ -205,8 +206,16 @@ export const MORPHOLOGY_CASE_CORPUS_V1: readonly MorphologyCorpusEntryV1[] =
 export function morphologyCorpusCaseDocumentV1(
   entry: MorphologyCorpusEntryV1,
 ): CaseDocument {
+  if (entry.schemaVersion !== 1 && entry.schemaVersion !== CASE_SCHEMA_VERSION) {
+    // The document loader fails closed on an unrecognised schema, and so does
+    // this: silently restamping one would run a case this build cannot read.
+    throw new Error(
+      `Morphology corpus case ${entry.id} has unsupported schemaVersion `
+      + `${entry.schemaVersion} (this build supports ${CASE_SCHEMA_VERSION}).`,
+    );
+  }
   return {
-    schemaVersion: entry.schemaVersion === 1 ? 1 : CASE_SCHEMA_VERSION,
+    schemaVersion: entry.schemaVersion,
     engineVersion: entry.engineVersion,
     knobMappingVersion: entry.knobMappingVersion,
     solver: entry.solver,

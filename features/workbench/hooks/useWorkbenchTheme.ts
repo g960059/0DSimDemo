@@ -23,8 +23,13 @@ function applyTheme(theme: WorkbenchThemeId): void {
   if (typeof document !== 'undefined') {
     document.body.dataset.workbenchTheme = theme;
   }
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem(WORKBENCH_THEME_STORAGE_KEY, theme);
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(WORKBENCH_THEME_STORAGE_KEY, theme);
+    }
+  } catch {
+    // A full or blocked store must not strand the change: the theme applies
+    // for this session and is simply not remembered for the next one.
   }
 }
 
@@ -38,8 +43,10 @@ function subscribe(listener: () => void): () => void {
 export function setWorkbenchThemeV1(theme: WorkbenchThemeId): void {
   if (readTheme() === theme) return;
   currentTheme = theme;
-  applyTheme(theme);
+  // Subscribers are told before anything that can fail, so a rejected write
+  // cannot leave the store changed and every reader showing the old value.
   for (const listener of [...listeners]) listener();
+  applyTheme(theme);
 }
 
 export function useWorkbenchTheme() {

@@ -50,7 +50,9 @@ body[data-workbench-theme] {
   /* The accent reads as a link on this ground, but white on it does not, so
      a filled action carries its own darker blue. */
   --wb-primary: #1d6fd0;
-  --wb-primary-hover: #2a7fe0;
+  /* Hover deepens rather than lightens: a lighter fill would drop white
+     below 4.5:1 on a control whose whole job is to be pressed. */
+  --wb-primary-hover: #1a63bd;
   --wb-danger: #ff8fa3;
   --wb-danger-soft: rgba(255, 143, 163, 0.14);
   --wb-warning: #ffc56d;

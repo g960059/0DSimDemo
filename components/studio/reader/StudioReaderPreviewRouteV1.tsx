@@ -118,9 +118,11 @@ function StudioReaderPreviewStatusV1({
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
+  const { workbenchTheme } = useWorkbenchTheme();
   return (
     <main
       className="workbench-root flex h-full w-full items-center justify-center bg-wb-app p-6 font-sans text-wb-text"
+      data-workbench-theme={workbenchTheme}
       data-testid={
         failed
           ? "studio-reader-preview-unavailable-v1"
