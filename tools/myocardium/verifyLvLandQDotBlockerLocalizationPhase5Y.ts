@@ -35,7 +35,6 @@ const VERIFIER_PATH = "tools/myocardium/verifyLvLandQDotBlockerLocalizationPhase
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
 const MORPHOLOGY_README_PATH = "docs/myocardium/morphology/README.md";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PACKAGE_PATH = "package.json";
 const MODELCORE_PATH = "engine/ModelCore.ts";
 const MORPHOLOGY_RUNNER_PATH = "tools/myocardium/verifyPvLoopMorphologyQuality.ts";
@@ -424,7 +423,6 @@ function validateSourceText(
     readRequiredText(rootDir, README_PATH, errors),
     readRequiredText(rootDir, ROADMAP_PATH, errors),
     readRequiredText(rootDir, MORPHOLOGY_README_PATH, errors),
-    readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors),
     readRequiredText(rootDir, PACKAGE_PATH, errors),
     readRequiredText(rootDir, MODELCORE_PATH, errors),
     readRequiredText(rootDir, MORPHOLOGY_RUNNER_PATH, errors),
@@ -437,7 +435,6 @@ function validateSourceText(
   const readmeText = textFor(files, README_PATH);
   const roadmapText = textFor(files, ROADMAP_PATH);
   const morphologyText = textFor(files, MORPHOLOGY_README_PATH);
-  const lanesText = textFor(files, HISTORICAL_LANES_PATH);
   const modelCoreText = textFor(files, MODELCORE_PATH);
   const morphologyRunnerText = textFor(files, MORPHOLOGY_RUNNER_PATH);
   if (
@@ -455,7 +452,6 @@ function validateSourceText(
     !readmeText.includes("Phase 5Y")
     || !roadmapText.includes("Phase 5Y")
     || !morphologyText.includes("Phase 5Y")
-    || !lanesText.includes("lv-land-qdot-blocker-localization-phase5y-result-v1")
   ) {
     addIssue(errors, "phase5y_docs", "docs", "Docs must record Phase 5Y qDot blocker localization evidence and boundaries.");
   }

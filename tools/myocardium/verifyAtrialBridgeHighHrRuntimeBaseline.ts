@@ -33,7 +33,6 @@ const SOURCE_LOCALIZATION_PATH =
   "data/myocardium/protocols/atrial-bridge-blocker-localization-phase5p5b-result-v1.json";
 const BUILDER_PATH = "tools/myocardium/buildAtrialBridgeHighHrRuntimeBaseline.ts";
 const PACKAGE_PATH = "package.json";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/atrial-bridge-shootout-roadmap.md";
 const DECISION_PATH = "data/myocardium/decisions/atrial-bridge-decision21-phase6-selection-v1.json";
@@ -254,14 +253,6 @@ function validateSourceText(rootDir: string, errors: AtrialBridgeRuntimeBaseline
 }
 
 function validateDocs(rootDir: string, errors: AtrialBridgeRuntimeBaselineValidationIssue[]): void {
-  const currentLanes = readOptional(rootDir, HISTORICAL_LANES_PATH);
-  if (
-    !currentLanes.includes("Phase 5.5C")
-    || !currentLanes.includes("runtime-boundary-likely")
-    || !currentLanes.includes("stock active no-provider")
-  ) {
-    addIssue(errors, "phase5p5c_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must record Phase 5.5C runtime-boundary baseline evidence.");
-  }
   const readme = readOptional(rootDir, README_PATH);
   if (!readme.includes("Phase 5.5C") || !readme.includes("runtime-boundary")) {
     addIssue(errors, "phase5p5c_readme", README_PATH, "Myocardium README must summarize Phase 5.5C runtime baseline evidence.");
@@ -327,7 +318,14 @@ function walkFiles(dir: string): string[] {
 }
 
 function readOptional(rootDir: string, relativePath: string): string {
-  return readFileSync(path.join(rootDir, relativePath), "utf8");
+  // Actually optional, as the name says. It used to be a bare readFileSync, so a
+  // moved doc crashed the verifier instead of reporting the doc-drift error the
+  // caller checks for. An empty string fails those `includes` checks properly.
+  try {
+    return readFileSync(path.join(rootDir, relativePath), "utf8");
+  } catch {
+    return "";
+  }
 }
 
 function exists(filePath: string): boolean {

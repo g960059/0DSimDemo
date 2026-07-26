@@ -33,6 +33,15 @@ scientific acceptance.
 ## Historical routing
 
 The [detailed lane diary through 2026-07-10](archive/current-lanes-through-2026-07-10.md)
-is noncanonical. It remains in the working tree only because historical
-myocardium verifiers inspect its claim boundaries. Git history and immutable
-artifacts remain the evidence sources.
+is noncanonical. Git history and immutable artifacts remain the evidence
+sources.
+
+It no longer has any code consumer. Twenty-one myocardium verifiers used to
+require specific wording in it; because the file is frozen, every requirement
+added by a phase that landed after the archive date was unsatisfiable in
+principle, and twenty verifiers were red for that reason alone. Those pins are
+gone, and `tools/repository/checkRepositoryHygiene.mjs` now fails if any tool
+under `tools/` reads `docs/status/archive/` again. The diary is kept as plain
+history — chiefly the MechanicsCore2 / CircAdapt-lite sidecar record, which is
+an active lane — so whether to keep it is now an ordinary editorial call rather
+than something the verifiers force.

@@ -30,7 +30,6 @@ const VERIFIER_PATH = "tools/myocardium/verifyUser0LvLandDefaultFlipRfcPhase5AJ.
 const RFC_DOC_PATH = "docs/myocardium/roadmap/phase5aj-user0-lv-land-default-flip-rfc.md";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PACKAGE_PATH = "package.json";
 
 const UPSTREAM_PATHS = [
@@ -265,7 +264,6 @@ function validateSourceText(
     readRequiredText(rootDir, RFC_DOC_PATH, errors),
     readRequiredText(rootDir, README_PATH, errors),
     readRequiredText(rootDir, ROADMAP_PATH, errors),
-    readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors),
     readRequiredText(rootDir, PACKAGE_PATH, errors),
     ...UPSTREAM_PATHS.map((relativePath) => readRequiredText(rootDir, relativePath, errors)),
   ];
@@ -277,7 +275,6 @@ function validateSourceText(
   const rfcText = textFor(files, RFC_DOC_PATH);
   const readmeText = textFor(files, README_PATH);
   const roadmapText = textFor(files, ROADMAP_PATH);
-  const currentLanesText = textFor(files, HISTORICAL_LANES_PATH);
 
   if (
     !builderText.includes("rfc-draft-owner-decision-needed")
@@ -308,12 +305,6 @@ function validateSourceText(
     "User-0 LV Land default-flip RFC",
     "rfc-ready-owner-decision-needed",
     "no root/Zc or atrial gating",
-  ]);
-  validateDocText(HISTORICAL_LANES_PATH, currentLanesText, errors, [
-    "Phase 5AJ",
-    "user0-lv-land-default-flip-rfc-phase5aj-result-v1",
-    "owner-decision-needed",
-    "actual default flip still requires owner GO",
   ]);
 }
 

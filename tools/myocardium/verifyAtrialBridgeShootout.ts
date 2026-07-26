@@ -34,7 +34,6 @@ const RESULT_ARTIFACT_PATH =
 const BUILDER_PATH = "tools/myocardium/buildAtrialBridgeShootout.ts";
 const VERIFIER_PATH = "tools/myocardium/verifyAtrialBridgeShootout.ts";
 const PACKAGE_PATH = "package.json";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/atrial-bridge-shootout-roadmap.md";
 const DECISION_PATH = "data/myocardium/decisions/atrial-bridge-decision21-phase6-selection-v1.json";
@@ -331,15 +330,6 @@ function validateSourceText(rootDir: string, errors: AtrialBridgeShootoutValidat
 }
 
 function validateDocs(rootDir: string, errors: AtrialBridgeShootoutValidationIssue[]): void {
-  const currentLanes = readOptional(rootDir, HISTORICAL_LANES_PATH);
-  if (
-    !currentLanes.includes("Phase 5.5")
-    || !currentLanes.includes("atrial bridge shootout")
-    || !currentLanes.includes("high-HR")
-    || !currentLanes.includes("owner selection remains pending")
-  ) {
-    addIssue(errors, "phase5p5_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must record measured atrial shootout evidence and the high-HR/owner-selection blocker.");
-  }
   const readme = readOptional(rootDir, README_PATH);
   if (!readme.includes("Phase 5.5") || !readme.includes("A1") || !readme.includes("high-HR")) {
     addIssue(errors, "phase5p5_readme", README_PATH, "Myocardium README must summarize the Phase 5.5 measured shootout and blocker.");
@@ -395,7 +385,14 @@ function walkFiles(dir: string): string[] {
 }
 
 function readOptional(rootDir: string, relativePath: string): string {
-  return readFileSync(path.join(rootDir, relativePath), "utf8");
+  // Actually optional, as the name says. It used to be a bare readFileSync, so a
+  // moved doc crashed the verifier instead of reporting the doc-drift error the
+  // caller checks for. An empty string fails those `includes` checks properly.
+  try {
+    return readFileSync(path.join(rootDir, relativePath), "utf8");
+  } catch {
+    return "";
+  }
 }
 
 function exists(filePath: string): boolean {

@@ -34,7 +34,6 @@ const SOURCE_SHOOTOUT_PATH =
 const BUILDER_PATH = "tools/myocardium/buildAtrialBridgeBlockerLocalization.ts";
 const SHOOTOUT_BUILDER_PATH = "tools/myocardium/buildAtrialBridgeShootout.ts";
 const PACKAGE_PATH = "package.json";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/atrial-bridge-shootout-roadmap.md";
 const DECISION_PATH = "data/myocardium/decisions/atrial-bridge-decision21-phase6-selection-v1.json";
@@ -351,15 +350,6 @@ function validateSourceText(rootDir: string, errors: AtrialBridgeLocalizationVal
 }
 
 function validateDocs(rootDir: string, errors: AtrialBridgeLocalizationValidationIssue[]): void {
-  const currentLanes = readOptional(rootDir, HISTORICAL_LANES_PATH);
-  if (
-    !currentLanes.includes("Phase 5.5B")
-    || !currentLanes.includes("HR105")
-    || !currentLanes.includes("repeatability")
-    || !currentLanes.includes("not-supported")
-  ) {
-    addIssue(errors, "phase5p5b_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must record Phase 5.5B blocker localization and updated blocker status.");
-  }
   const readme = readOptional(rootDir, README_PATH);
   if (!readme.includes("Phase 5.5B") || !readme.includes("blocker localization")) {
     addIssue(errors, "phase5p5b_readme", README_PATH, "Myocardium README must summarize Phase 5.5B blocker localization.");
@@ -416,7 +406,14 @@ function walkFiles(dir: string): string[] {
 }
 
 function readOptional(rootDir: string, relativePath: string): string {
-  return readFileSync(path.join(rootDir, relativePath), "utf8");
+  // Actually optional, as the name says. It used to be a bare readFileSync, so a
+  // moved doc crashed the verifier instead of reporting the doc-drift error the
+  // caller checks for. An empty string fails those `includes` checks properly.
+  try {
+    return readFileSync(path.join(rootDir, relativePath), "utf8");
+  } catch {
+    return "";
+  }
 }
 
 function exists(filePath: string): boolean {
