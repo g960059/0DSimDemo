@@ -48,6 +48,27 @@ because release manifests and surviving engine code still reference parts of
 that set. They are retained historical evidence, not an active lane; treat them
 as read-only until something needs them again.
 
+## What the retained artifacts under `data/myocardium/protocols` do and do not promise
+
+One of them is load-bearing at runtime:
+`modelcore-land-calcium-unit-interface-audit-result-v1.json` supplies the
+calcium scale that `engine/myocardium/runtimeActiveSource.ts` imports. The
+artifacts it names through `*ArtifactId` fields are retained with it, so the
+provenance of that number is traceable without leaving the repository. That
+chain is closed: every `*ArtifactId` in a retained artifact resolves to another
+retained artifact.
+
+Nothing else about those artifacts is guaranteed to resolve. They are frozen
+records of runs that happened, so their `verifierScript` aliases, their
+`sourceEvidence` paths, and the reproduction commands embedded in them name
+scripts, tools, and files that were retired with their lanes. Those names
+resolve in git history, not in the working tree, and the artifacts are not
+edited to say so because several of them are hash-pinned by tests. To rerun one,
+check out a commit from before the retirement.
+
+The practical rule: read a retained artifact for what it recorded, not as a
+command you can run today.
+
 ## Read order
 
 | Priority | Document | Purpose |
