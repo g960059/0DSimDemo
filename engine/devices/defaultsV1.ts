@@ -4,6 +4,10 @@ import {
   type MechanicalSupportConfigV1,
   type RotaryPumpDeviceConfigV1,
 } from "@/engine/devices/typesV1";
+import {
+  DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
+  type DynamicRotaryPumpCircuitInertanceV1,
+} from "@/engine/devices/dynamicRotaryPumpV1";
 import { validateMechanicalSupportConfigV1 } from "@/engine/devices/networkV1";
 
 /** FDA Impella CP with SmartAssist P-level rotor speeds. */
@@ -50,6 +54,36 @@ export const HEARTMATE_II_CANNULA_SEGMENT_V1 = Object.freeze({
   linearResistanceMmHgSecPerMl: 0.0677,
   quadraticResistanceMmHgSec2PerMl2: 0,
 });
+
+/** Wang/Choi 2014 pressure-dependent inflow resistance; HMII only. */
+export const HEARTMATE_II_CHOI_INLET_SUCTION_V1 = Object.freeze({
+  kind: "pressure-dependent-series-resistance" as const,
+  thresholdPressureMmHg: 1,
+  resistanceSlopeMmHgSecPerMlPerMmHg: 3.5,
+});
+
+/**
+ * Diagnostic domain, never a flow clamp: the cited independent experiment
+ * traversed through 9 L/min and 10 L/min is advertised device capacity. This
+ * metadata is not validation of this repository's implementation.
+ */
+export const HEARTMATE_II_FORWARD_FLOW_EVIDENCE_DOMAIN_V1 = Object.freeze({
+  publishedExperimentalTraversalUpperLMin: 9,
+  advertisedCapacityLMin: 10,
+});
+
+/**
+ * Direct Wang/Choi HeartMate-II R-L transcription for verification work.
+ * This is not a release-approved profile and must not be reused for HM3,
+ * Impella, or ECMO circuits.
+ */
+export const HEARTMATE_II_LITERATURE_CIRCUIT_INERTANCE_V1 = Object.freeze({
+  unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
+  pumpInternalMmHgSec2PerMl: 0.02177,
+  drainageMmHgSec2PerMl: 0.0127,
+  oxygenatorMmHgSec2PerMl: 0,
+  returnPathMmHgSec2PerMl: 0.0127,
+}) satisfies DynamicRotaryPumpCircuitInertanceV1;
 
 /** Girfoglio HM3 H-Q fit, with Q^2 extended as signed Q|Q| for back-flow. */
 export const HEARTMATE_3_SIGNED_LITERATURE_CURVE_V1 = Object.freeze({
@@ -102,7 +136,8 @@ const LVAD_BASE: RotaryPumpDeviceConfigV1 = Object.freeze({
     linearResistanceMmHgSecPerMl: 0.015,
     quadraticResistanceMmHgSec2PerMl2: 0.0003,
   }),
-  inletCollapse: Object.freeze({
+  inletSuction: Object.freeze({
+    kind: "legacy-smooth-availability" as const,
     collapsePressureMmHg: -5,
     recoveredPressureMmHg: 3,
     minimumVolumeMl: 20,
@@ -110,9 +145,13 @@ const LVAD_BASE: RotaryPumpDeviceConfigV1 = Object.freeze({
   }),
   maximumForwardFlowLMin: 10,
   maximumReverseFlowLMin: 3,
+  forwardFlowEvidenceDomain: Object.freeze({
+    publishedExperimentalTraversalUpperLMin: null,
+    advertisedCapacityLMin: null,
+  }),
 });
 
-const IMPELLA_BASE = Object.freeze({
+const IMPELLA_BASE: MechanicalSupportConfigV1["impella"] = Object.freeze({
   enabled: false,
   circuitClamped: false,
   performanceLevel: 6 as ImpellaPerformanceLevelV1,
@@ -129,7 +168,8 @@ const IMPELLA_BASE = Object.freeze({
     linearResistanceMmHgSecPerMl: 0.03,
     quadraticResistanceMmHgSec2PerMl2: 0.001,
   }),
-  inletCollapse: Object.freeze({
+  inletSuction: Object.freeze({
+    kind: "legacy-smooth-availability" as const,
     collapsePressureMmHg: -4,
     recoveredPressureMmHg: 4,
     minimumVolumeMl: 18,
@@ -137,6 +177,10 @@ const IMPELLA_BASE = Object.freeze({
   }),
   maximumForwardFlowLMin: 4.3,
   maximumReverseFlowLMin: 2,
+  forwardFlowEvidenceDomain: Object.freeze({
+    publishedExperimentalTraversalUpperLMin: null,
+    advertisedCapacityLMin: null,
+  }),
 });
 
 const ECMO_DRAINAGE = Object.freeze({
@@ -156,7 +200,7 @@ const ECMO_RETURN = Object.freeze({
   quadraticResistanceMmHgSec2PerMl2: 0.018036,
 });
 
-const VA_ECMO_BASE = Object.freeze({
+const VA_ECMO_BASE: MechanicalSupportConfigV1["vaEcmo"] = Object.freeze({
   enabled: false,
   circuitClamped: false,
   cannulation: "peripheral" as const,
@@ -167,7 +211,8 @@ const VA_ECMO_BASE = Object.freeze({
   drainage: ECMO_DRAINAGE,
   oxygenator: ECMO_OXYGENATOR,
   returnPath: ECMO_RETURN,
-  inletCollapse: Object.freeze({
+  inletSuction: Object.freeze({
+    kind: "legacy-smooth-availability" as const,
     collapsePressureMmHg: -8,
     recoveredPressureMmHg: 2,
     minimumVolumeMl: 25,
@@ -175,9 +220,13 @@ const VA_ECMO_BASE = Object.freeze({
   }),
   maximumForwardFlowLMin: 7,
   maximumReverseFlowLMin: 7,
+  forwardFlowEvidenceDomain: Object.freeze({
+    publishedExperimentalTraversalUpperLMin: null,
+    advertisedCapacityLMin: null,
+  }),
 });
 
-const VV_ECMO_BASE = Object.freeze({
+const VV_ECMO_BASE: MechanicalSupportConfigV1["vvEcmo"] = Object.freeze({
   enabled: false,
   circuitClamped: false,
   cannulation: "femoral-jugular" as const,
@@ -189,7 +238,8 @@ const VV_ECMO_BASE = Object.freeze({
   drainage: ECMO_DRAINAGE,
   oxygenator: ECMO_OXYGENATOR,
   returnPath: ECMO_RETURN,
-  inletCollapse: Object.freeze({
+  inletSuction: Object.freeze({
+    kind: "legacy-smooth-availability" as const,
     collapsePressureMmHg: -8,
     recoveredPressureMmHg: 2,
     minimumVolumeMl: 25,
@@ -197,6 +247,10 @@ const VV_ECMO_BASE = Object.freeze({
   }),
   maximumForwardFlowLMin: 7,
   maximumReverseFlowLMin: 7,
+  forwardFlowEvidenceDomain: Object.freeze({
+    publishedExperimentalTraversalUpperLMin: null,
+    advertisedCapacityLMin: null,
+  }),
 });
 
 export function defaultMechanicalSupportConfigV1(): MechanicalSupportConfigV1 {
@@ -287,9 +341,12 @@ function mergePump<TBase extends RotaryPumpDeviceConfigV1>(
     drainage: Object.freeze({ ...base.drainage, ...override?.drainage }),
     oxygenator: Object.freeze({ ...base.oxygenator, ...override?.oxygenator }),
     returnPath: Object.freeze({ ...base.returnPath, ...override?.returnPath }),
-    inletCollapse: Object.freeze({
-      ...base.inletCollapse,
-      ...override?.inletCollapse,
+    inletSuction: deepFreeze(
+      override?.inletSuction ?? { ...base.inletSuction },
+    ),
+    forwardFlowEvidenceDomain: Object.freeze({
+      ...base.forwardFlowEvidenceDomain,
+      ...override?.forwardFlowEvidenceDomain,
     }),
   }) as TBase;
 }

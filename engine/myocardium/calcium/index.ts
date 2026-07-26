@@ -37,3 +37,4 @@ export {
   type PrescribedCalciumProtocolSection,
   type PrescribedCalciumProtocolStatus,
 } from "@/engine/myocardium/calcium/protocols";
+export * from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";

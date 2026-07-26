@@ -9,6 +9,8 @@ import {
   type NonCoronaryCirculationAcceptedStateV1,
   type NonCoronaryCirculationNewtonOptionsV1,
   type NonCoronaryConservativeCompanionCandidateInputV1,
+  type NonCoronaryDynamicMechanicalSupportInputV1,
+  type NonCoronaryMechanicalSupportInputV1,
   type NonCoronaryProtocolResistanceScaleByEdgeV1,
   type NonCoronaryCirculationRuntimeParamsV1,
   type NonCoronaryCirculationTrialDiagnosticsV1,
@@ -119,6 +121,14 @@ export const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_CLAIM_V2 =
     mechanicsOwner: "one-joint-five-wall-provider" as const,
     coronaryBoundaryCoupling:
       "aortic-uptake-and-common-coronary-venous-right-atrial-return-in-outer-be-residual" as const,
+    mechanicalSupportCoupling:
+      "optional-same-candidate-algebraic-device-node-rates-inside-outer-be-residual" as const,
+    mechanicalSupportStateOwnership:
+      "no-accepted-device-state-config-and-beat-timing-are-session-inputs" as const,
+    calciumDriveSeam:
+      "optional-externally-owned-same-candidate-five-wall-free-calcium" as const,
+    calciumDriveStateOwnership:
+      "none-external-owner-must-commit-or-rollback-with-this-transaction" as const,
     totalBloodVolumeOwner:
       "one-fixed-global-ledger-including-fifteen-plus-sixteen-volumes" as const,
     companionNewtonSemantics:
@@ -201,6 +211,11 @@ export type MainWireFiveWallCoronaryInitializeInputV2<TWallState> = Readonly<{
   >;
   runtime: NonCoronaryCirculationRuntimeParamsV1;
   calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+  /**
+   * Optional cold drive owned and version-bound by a wider transaction.
+   * This V2 substrate intentionally stores no rhythm/calcium state itself.
+   */
+  calciumDriveOverride?: MainWireFiveWallFreeCalciumDriveV1;
   pericardium: MainWireCommonPericardiumBindingV1;
   coronaryInitial?: CoronaryAcceptedHydraulicStateV2;
   coronaryPrior?: CoronaryTopologyPriorV2;
@@ -210,6 +225,31 @@ export type MainWireFiveWallCoronaryInitializeInputV2<TWallState> = Readonly<{
   shorteningImpPrior?: MainWireCoronaryShorteningImpGainPriorV2;
   fixedGlobalTotalBloodVolumeMl?: number;
   timeSec?: number;
+}>;
+
+export type MainWireFiveWallCoronaryStepInputV2 = Readonly<{
+  dtSec: number;
+  runtime: NonCoronaryCirculationRuntimeParamsV1;
+  calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
+  /** Final candidate drive from an external accepted rhythm/calcium owner. */
+  calciumDriveOverride?: MainWireFiveWallFreeCalciumDriveV1;
+  pericardium: MainWireCommonPericardiumBindingV1;
+  coronaryPrior?: CoronaryTopologyPriorV2;
+  coronaryDisease?: CoronaryDiseaseInputV2;
+  collapseHydraulics?: CoronaryCollapseHydraulicsPriorV2;
+  impMechanism?: MainWireCoronaryImpMechanismV2;
+  shorteningImpPrior?: MainWireCoronaryShorteningImpGainPriorV2;
+  coronarySolverOptions?: Partial<CoronaryBackwardEulerSolverOptionsV2>;
+  circulationNewtonOptions?: NonCoronaryCirculationNewtonOptionsV1;
+  /** Optional algebraic MCS/IABP extension evaluated inside each BE candidate. */
+  mechanicalSupport?: NonCoronaryMechanicalSupportInputV1;
+  /**
+   * Pure dynamic MCS candidate seam. q_n is externally accepted and the core
+   * only returns q_(n+1); a wider transaction owns atomic promotion.
+   */
+  dynamicMechanicalSupport?: NonCoronaryDynamicMechanicalSupportInputV1;
+  protocolResistanceScaleByEdge?:
+    NonCoronaryProtocolResistanceScaleByEdgeV1;
 }>;
 
 export type MainWireFiveWallCoronaryColdResultV2<TWallState> = Readonly<{
@@ -318,13 +358,11 @@ export function initializeMainWireFiveWallCoronaryV2<TWallState>(
     coronaryBloodVolumeMl(preliminaryCoronary),
     timeSec,
   );
-  const calciumEvaluation = evaluateFiveWallNormalCalciumDriveV1(
+  const calciumDrive = resolveCalciumDriveV2(
     timeSec,
     input.calciumDriveParams,
+    input.calciumDriveOverride,
   );
-  const calciumDrive = Object.freeze({
-    freeCalciumUMByWall: calciumEvaluation.freeCalciumUMByWall,
-  });
   const mechanicsCold = initializeWholeHeartMechanicsColdV1(input.provider, {
     timeSec,
     volumesMl: chamberVolumes(preliminaryCirculation),
@@ -449,21 +487,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
     MainWireFiveWallFreeCalciumDriveV1
   >,
   previous: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
-  input: Readonly<{
-    dtSec: number;
-    runtime: NonCoronaryCirculationRuntimeParamsV1;
-    calciumDriveParams: FiveWallNormalCalciumDriveParamsV1;
-    pericardium: MainWireCommonPericardiumBindingV1;
-    coronaryPrior?: CoronaryTopologyPriorV2;
-    coronaryDisease?: CoronaryDiseaseInputV2;
-    collapseHydraulics?: CoronaryCollapseHydraulicsPriorV2;
-    impMechanism?: MainWireCoronaryImpMechanismV2;
-    shorteningImpPrior?: MainWireCoronaryShorteningImpGainPriorV2;
-    coronarySolverOptions?: Partial<CoronaryBackwardEulerSolverOptionsV2>;
-    circulationNewtonOptions?: NonCoronaryCirculationNewtonOptionsV1;
-    protocolResistanceScaleByEdge?:
-      NonCoronaryProtocolResistanceScaleByEdgeV1;
-  }>,
+  input: MainWireFiveWallCoronaryStepInputV2,
 ): MainWireFiveWallCoronaryStepResultV2<TWallState> {
   validateAcceptedTuple(previous);
   requirePositiveFinite(input.dtSec, "dtSec");
@@ -486,13 +510,11 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
   assertSameBinding(previous.coronaryBinding, binding);
 
   const candidateTimeSec = previous.acceptedTimeSec + input.dtSec;
-  const calciumEvaluation = evaluateFiveWallNormalCalciumDriveV1(
+  const calciumDrive = resolveCalciumDriveV2(
     candidateTimeSec,
     input.calciumDriveParams,
+    input.calciumDriveOverride,
   );
-  const calciumDrive = Object.freeze({
-    freeCalciumUMByWall: calciumEvaluation.freeCalciumUMByWall,
-  });
   const pthMmHg = commonIntrathoracicPressureMmHg(
     candidateTimeSec,
     input.runtime,
@@ -510,6 +532,8 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
     previousAcceptedState: previous.circulation,
     dtSec: input.dtSec,
     runtime: input.runtime,
+    mechanicalSupport: input.mechanicalSupport,
+    dynamicMechanicalSupport: input.dynamicMechanicalSupport,
     options: input.circulationNewtonOptions,
     protocolResistanceScaleByEdge: input.protocolResistanceScaleByEdge,
     evaluateCandidateMechanics: (volumesMl) =>
@@ -1338,6 +1362,50 @@ function commonIntrathoracicPressureMmHg(
     timeSec,
     runtime.respiratory,
   );
+}
+
+function resolveCalciumDriveV2(
+  timeSec: number,
+  params: FiveWallNormalCalciumDriveParamsV1,
+  override: MainWireFiveWallFreeCalciumDriveV1 | undefined,
+): MainWireFiveWallFreeCalciumDriveV1 {
+  const source = override ?? Object.freeze({
+    freeCalciumUMByWall: evaluateFiveWallNormalCalciumDriveV1(
+      timeSec,
+      params,
+    ).freeCalciumUMByWall,
+  });
+  if (
+    source === null
+    || typeof source !== "object"
+    || Array.isArray(source)
+    || Object.keys(source).length !== 1
+    || !Object.hasOwn(source, "freeCalciumUMByWall")
+  ) {
+    throw new Error("five-wall calcium drive must contain exactly one wall record");
+  }
+  const record = source.freeCalciumUMByWall;
+  if (record === null || typeof record !== "object" || Array.isArray(record)) {
+    throw new Error("five-wall free-calcium record must be an object");
+  }
+  const wallIds = ["LA", "LVFW", "SEP", "RVFW", "RA"] as const;
+  const actualKeys = Object.keys(record).sort();
+  const expectedKeys = [...wallIds].sort();
+  if (
+    actualKeys.length !== expectedKeys.length
+    || actualKeys.some((key, index) => key !== expectedKeys[index])
+  ) {
+    throw new Error("five-wall free-calcium record keys mismatch");
+  }
+  return Object.freeze({
+    freeCalciumUMByWall: Object.freeze(Object.fromEntries(wallIds.map(
+      (wallId) => {
+        const value = record[wallId];
+        requireNonnegativeFinite(value, `${wallId} free calcium`);
+        return [wallId, value];
+      },
+    ))) as MainWireFiveWallFreeCalciumDriveV1["freeCalciumUMByWall"],
+  });
 }
 
 function absoluteChamberPressureTangent(
