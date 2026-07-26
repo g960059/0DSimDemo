@@ -5,23 +5,23 @@
 **CircleHeart** は、研究・教育を目的とした **0D 閉ループ循環動態シミュレーション・ワークベンチ**です。
 単に数値パラメータを動かすツールではなく、**症例・介入・波形・PV ループ・指標・解説ノート**を同じ画面で読み比べるための physiology workbench として設計されています。
 
-能動応力（active-stress）型の心腔、動的に開閉する弁、体循環・肺循環の windkessel ツリー、心膜・中隔による左右心相互作用、3 領域の冠循環床を備え、固定ステップの陽的 Runge–Kutta 法（2 次の Heun 法）と質量保存型の総血液量（TBV）台帳によって統合的に積分します。
+五壁（LA・RA・LVFW・中隔・RVFW）の心筋力学、動的に開閉する弁、体循環・肺循環の windkessel ツリー、共通心膜による左右心相互作用を備え、閉ループを陰解法（Backward Euler）で積分します。冠循環・機械的補助循環・不整脈は実装済みですが、現在のブラウザ session からはまだ外れています。
 
 主な対象読者は、循環動態モデル・0D シミュレーション・医用工学・麻酔/循環器領域の研究者です。後期研修医・初期研修医・臨床工学技士など、循環動態を学びたい臨床ユーザーも、公式レッスンと公式ケースから入って使い始められます。
 
 ## ドキュメントの現在地
 
-心筋収縮サブシステムの置換は Revision 3 として進み、main-wire five-wall モデルがブラウザに配線されています。legacy `ActiveStressChamberModel` の経路は Guyton/Starling 解析など一部でまだ使われます。心筋まわりの文書は [`docs/myocardium/`](docs/myocardium/) にあります。
+心筋収縮サブシステムの置換は Revision 3 として進み、main-wire five-wall モデルがブラウザに配線されています。legacy `ActiveStressChamberModel` はツリーに残っていますが、製品の経路ではありません。Guyton/Starling 解析も scientific session 側の `runGuytonStarlingProtocolV1()` を通ります。心筋まわりの文書は [`docs/myocardium/`](docs/myocardium/) にあります。
 
 ブラウザが実際に動かしているモデルは、main-wire five-wall の Land–TriSeg 系です。
-LA/RA/LVFW/SEP/RVFW の五壁に Land active material、parallel one-state SLS、
-energy-conjugate TriSeg、共通心膜、準定常オリフィス弁を組み合わせ、非冠循環の
-閉ループを Backward Euler で解いています。宣言そのものは
+五壁すべてが Land active material と parallel one-state SLS を持ち、心室側の
+LVFW/SEP/RVFW だけが energy-conjugate TriSeg で連成します。LA/RA は固定壁の
+self-similar one-fiber 幾何です。これに共通心膜と準定常オリフィス弁を組み合わせ、
+非冠循環の閉ループを Backward Euler で解いています。宣言そのものは
 `engine/scientific/runtime/MainWireScientificSessionV1.ts` の session claim、
 `engine/scientific/assembly/mainWireAdultFiveWallNonCoronaryReleaseV1.ts` の release、
 `engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1.ts` の provider に
-あります。coronary、機械的補助循環、rhythm は実装済みですが、この session からは
-まだ外れています。
+あります。
 
 そこに至るまでの Phase 4B〜5C の readiness gate の記述は、対応する verifier ごと
 退役したためこの README から削除しました。経緯は git 履歴と当時の PR に残っています。

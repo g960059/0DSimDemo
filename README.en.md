@@ -5,24 +5,27 @@
 **CircleHeart** is a **0D closed-loop cardiovascular hemodynamics workbench** for research and teaching.
 Rather than just a tool for nudging numeric parameters, it is designed as a *physiology workbench* where you read and compare **cases, interventions, waveforms, PV loops, metrics, and explanatory notes** side by side on a single screen.
 
-It models active-stress cardiac chambers, dynamically opening/closing valves, systemic and pulmonary windkessel trees, ventricular interaction through pericardium and septum, and a 3-territory coronary bed — integrated with a fixed-step explicit Runge–Kutta scheme (2nd-order Heun's method) and a mass-conservative total-blood-volume (TBV) ledger.
+It models five-wall cardiac mechanics (LA, RA, LV free wall, septum, RV free wall), dynamically opening/closing valves, systemic and pulmonary windkessel trees, and ventricular interaction through a common pericardium, integrating the closed loop implicitly with Backward Euler. Coronary circulation, mechanical circulatory support, and rhythm are implemented but not yet part of the current browser session.
 
 The primary audience is researchers in cardiovascular modeling, 0D simulation, biomedical engineering, and anesthesia/cardiology. Clinical users who want to learn hemodynamics — residents, clinical engineers, and others — can start from the official lessons and official cases.
 
 ## Documentation status
 
 The myocardial contraction replacement has landed: the browser runs the
-main-wire five-wall Land-TriSeg model. LA/RA/LVFW/SEP/RVFW carry Land active
-material, a parallel one-state SLS branch, energy-conjugate TriSeg, a common
-pericardium, and a quasi-steady orifice valve, with the non-coronary closed loop
-solved by Backward Euler. The declarations live in
+main-wire five-wall Land-TriSeg model. All five walls carry Land active material
+and a parallel one-state SLS branch; energy-conjugate TriSeg couples the
+ventricular walls only (LV free wall, septum, RV free wall), while LA and RA use
+fixed-wall self-similar one-fiber geometry. A common pericardium and a
+quasi-steady orifice valve complete the assembly, and the non-coronary closed
+loop is solved by Backward Euler. The declarations live in
 `engine/scientific/runtime/MainWireScientificSessionV1.ts`,
 `engine/scientific/assembly/mainWireAdultFiveWallNonCoronaryReleaseV1.ts`, and
 `engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1.ts`. Coronary
 circulation, mechanical support, and rhythm are implemented but not yet part of
-that session. The legacy `ActiveStressChamberModel` path is still used in places
-such as the Guyton/Starling analysis. Myocardium documents live under
-[`docs/myocardium/`](docs/myocardium/).
+that session. The legacy `ActiveStressChamberModel` remains in the tree but is
+not the product path; the Guyton/Starling analysis also runs through the
+scientific session's `runGuytonStarlingProtocolV1()`. Myocardium documents live
+under [`docs/myocardium/`](docs/myocardium/).
 
 Older ADRs, roadmaps, and research notes were removed from the local `docs/`
 tree so stale assumptions do not read like current canon. Use git history when

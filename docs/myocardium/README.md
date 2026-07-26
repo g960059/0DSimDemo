@@ -8,10 +8,12 @@ model is the code: the session claim in
 `engine/scientific/assembly/mainWireAdultFiveWallNonCoronaryReleaseV1.ts`, and
 the wall provider in
 `engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1.ts`. Together
-they declare a fixed normal-adult five-wall non-coronary assembly with Land
-active material, parallel one-state SLS, energy-conjugate TriSeg, a common
-pericardium, a quasi-steady orifice valve preset, and no coronary or device
-graph.
+they declare a fixed normal-adult five-wall non-coronary assembly. All five
+walls carry Land active material with equilibrium passive material and a
+parallel one-state SLS branch; energy-conjugate TriSeg is the ventricular
+geometry only, and LA/RA use fixed-wall self-similar one-fiber geometry. A
+common pericardium and a quasi-steady orifice valve preset complete it, with no
+coronary or device graph.
 
 The two documents below describe the mechanics but neither claims to be that
 statement:
