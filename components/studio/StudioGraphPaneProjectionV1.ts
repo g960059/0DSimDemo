@@ -5,6 +5,10 @@ import type {
   PanelType,
 } from "@/types";
 import {
+  DEFAULT_PV_LOOP_HISTORY_BEATS,
+  DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
+} from "@/types";
+import {
   STUDIO_GRAPH_PANE_V1_SCHEMA_ID,
   type StudioGraphPaneKindV1,
   type StudioGraphPaneSpecV1,
@@ -161,13 +165,15 @@ export function captureStudioGraphPaneSpecV1({
         ? panel.timeWindow ?? graphView?.timeWindow ?? 2_000
         : null,
       pvBeatHistoryCount: kind === "pv-loop"
-        ? panel.pvHistoryBeats ?? graphView?.pvHistoryBeats ?? 8
+        ? panel.pvHistoryBeats
+          ?? graphView?.pvHistoryBeats
+          ?? DEFAULT_PV_LOOP_HISTORY_BEATS
         : null,
       pvBeatHistoryMode: kind === "pv-loop"
         ? panel.pvHistoryMode ?? graphView?.pvHistoryMode ?? "fade"
         : null,
       pvParameterHistoryCount: kind === "pv-loop"
-        ? parameterHistoryCount ?? 6
+        ? parameterHistoryCount ?? DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT
         : null,
       pvRelationDisplayMode: kind === "pv-loop"
         ? panel.pvRelationDisplayMode

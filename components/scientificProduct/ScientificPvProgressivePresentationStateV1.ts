@@ -1,3 +1,10 @@
+import type { PvLoopHistoryMode } from "@/types";
+
+import {
+  normalizeScientificPvHistoryBeatsV1,
+  scientificPvHistoryAlphaV1,
+} from "./ScientificPvHistoryPresentationV1";
+
 export const SCIENTIFIC_PV_PRESENTATION_CROSSFADE_MS_V1 = 160;
 export const SCIENTIFIC_PV_PRESENTATION_PENDING_CURRENT_ALPHA_V1 = 0.55;
 export const SCIENTIFIC_PV_PRESENTATION_FIRST_HISTORY_ALPHA_V1 = 0.3;
@@ -18,6 +25,8 @@ export type ScientificPvPresentationDomainV1 = Readonly<{
 export type ScientificPvPresentationGenerationInputV1<TPayload> = Readonly<{
   generationId: string;
   sequence: number;
+  /** Optional continuous accepted-time age used by PV-linked overlays. */
+  historyAge?: number;
   status: ScientificPvPresentationGenerationStatusV1;
   renderable: boolean;
   payload: TPayload | null;
@@ -40,6 +49,9 @@ export type AdvanceScientificPvPresentationInputV1<TPayload> = Readonly<{
   reducedMotion: boolean;
   /** Domain contributed by native PV trajectories and other non-generation data. */
   baseDomain: ScientificPvPresentationDomainV1 | null;
+  /** When supplied, guide retention and alpha share the native PV history. */
+  historyBeats?: number;
+  historyMode?: PvLoopHistoryMode;
   scenarios: readonly ScientificPvPresentationScenarioInputV1<TPayload>[];
 }>;
 
@@ -133,6 +145,11 @@ export function advanceScientificPvProgressivePresentationStateV1<TPayload>(
   const durationMs = input.reducedMotion
     ? 0
     : SCIENTIFIC_PV_PRESENTATION_CROSSFADE_MS_V1;
+  const usesSharedPvHistory = input.historyBeats !== undefined;
+  const historyLimit = usesSharedPvHistory
+    ? normalizeScientificPvHistoryBeatsV1(input.historyBeats!)
+    : state.historyLimit;
+  const historyMode = input.historyMode ?? "fade";
   const incomingByScenarioId = new Map(
     input.scenarios.map((scenario) => [scenario.scenarioId, scenario]),
   );
@@ -153,7 +170,9 @@ export function advanceScientificPvProgressivePresentationStateV1<TPayload>(
       incoming,
       nowMs,
       durationMs,
-      state.historyLimit,
+      historyLimit,
+      historyMode,
+      usesSharedPvHistory,
     );
     if (reconciled.layers.length > 0 || incoming !== null) {
       scenarios[scenarioId] = reconciled;
@@ -180,7 +199,7 @@ export function advanceScientificPvProgressivePresentationStateV1<TPayload>(
   });
 
   return Object.freeze({
-    historyLimit: state.historyLimit,
+    historyLimit,
     lastNowMs: nowMs,
     scenarioOrder: normalizedScenarioOrder,
     scenarios: Object.freeze(scenarios),
@@ -229,7 +248,19 @@ export function presentScientificPvProgressivePresentationStateV1<TPayload>(
 export function scientificPvPresentationOpacityTargetV1(
   generationAge: number,
   replacementPending: boolean,
+  sharedPvHistory?: Readonly<{
+    historyBeats: number;
+    historyMode: PvLoopHistoryMode;
+  }>,
 ): number {
+  if (sharedPvHistory !== undefined) {
+    if (generationAge <= 0) return 1;
+    return scientificPvHistoryAlphaV1(
+      generationAge,
+      sharedPvHistory.historyBeats,
+      sharedPvHistory.historyMode,
+    );
+  }
   if (generationAge <= 0) {
     return replacementPending
       ? SCIENTIFIC_PV_PRESENTATION_PENDING_CURRENT_ALPHA_V1
@@ -266,6 +297,8 @@ function reconcileScenario<TPayload>(
   nowMs: number,
   durationMs: number,
   historyLimit: number,
+  historyMode: PvLoopHistoryMode,
+  usesSharedPvHistory: boolean,
 ): ScientificPvPresentationScenarioStateV1<TPayload> {
   const previousLayers = previous?.layers ?? [];
   const previousCurrent = previousLayers.find(({ generation }) =>
@@ -289,6 +322,7 @@ function reconcileScenario<TPayload>(
     input,
     previousLayers,
     historyLimit,
+    retainAbsentPreviousLayers: !usesSharedPvHistory,
   });
   const previousByGenerationId = new Map(previousLayers.map((layer) => [
     layer.generation.generationId,
@@ -303,6 +337,12 @@ function reconcileScenario<TPayload>(
     const target = scientificPvPresentationOpacityTargetV1(
       generationAge,
       generationAge === 0 && replacementPending,
+      usesSharedPvHistory
+        ? Object.freeze({
+            historyBeats: historyLimit,
+            historyMode,
+          })
+        : undefined,
     );
     const existing = previousByGenerationId.get(generation.generationId);
     if (existing === undefined) {
@@ -368,6 +408,7 @@ function desiredGenerations<TPayload>(input: Readonly<{
   input: ScientificPvPresentationScenarioInputV1<TPayload> | null;
   previousLayers: readonly ScientificPvPresentationLayerStateV1<TPayload>[];
   historyLimit: number;
+  retainAbsentPreviousLayers: boolean;
 }>): readonly Readonly<{
   generation: RenderableGeneration<TPayload>;
   generationAge: number;
@@ -389,15 +430,20 @@ function desiredGenerations<TPayload>(input: Readonly<{
     add(input.input?.current ?? null);
   }
   for (const history of input.input?.history ?? []) add(history);
-  for (const layer of [...input.previousLayers]
-    .sort((left, right) => left.generationAge - right.generationAge)) {
-    add(layer.generation);
+  if (input.retainAbsentPreviousLayers) {
+    for (const layer of [...input.previousLayers]
+      .sort((left, right) => left.generationAge - right.generationAge)) {
+      add(layer.generation);
+    }
   }
   return Object.freeze(ordered
     .slice(0, 1 + input.historyLimit)
     .map((generation, generationAge) => Object.freeze({
       generation,
-      generationAge,
+      generationAge: generation.historyAge !== undefined
+        && Number.isFinite(generation.historyAge)
+        ? Math.max(0, generation.historyAge)
+        : generationAge,
     })));
 }
 

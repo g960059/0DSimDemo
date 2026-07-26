@@ -99,8 +99,9 @@ export const DEFAULT_HEMODYNAMIC_DETAIL_MODE: HemodynamicDetailMode = 'standard'
 export const DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT:
   HemodynamicParameterHistoryCount = 5;
 export const DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE = false;
+export const DEFAULT_PV_LOOP_HISTORY_BEATS = 4;
 export const DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT:
-  PvLoopParameterHistoryCount = 6;
+  PvLoopParameterHistoryCount = 0;
 export const DEFAULT_PV_RELATION_DISPLAY_MODE: PvRelationDisplayMode = 'off';
 export const DEFAULT_PV_RELATION_PRESSURE_BASIS: PvRelationPressureBasis =
   'intracavitary';

@@ -57,6 +57,7 @@ import type {
   SimInstance,
   WorkbenchWorkspace,
 } from "@/types";
+import { DEFAULT_PV_LOOP_HISTORY_BEATS } from "@/types";
 import type {
   MainWireScientificWorkspaceDocumentV1,
 } from "@/engine/scientific/documents";
@@ -1252,14 +1253,14 @@ export function createScientificProductWorkbenchPresentationV1(
         kind: "graph",
         graphType: "pvloop",
         showLegend: true,
-        pvHistoryBeats: 8,
+        pvHistoryBeats: DEFAULT_PV_LOOP_HISTORY_BEATS,
         pvHistoryMode: "fade",
         pvRelationDisplayMode: "off",
       },
       isSettingsOpen: false,
       showLegend: true,
       showGuides: true,
-      pvHistoryBeats: 8,
+      pvHistoryBeats: DEFAULT_PV_LOOP_HISTORY_BEATS,
       pvHistoryMode: "fade",
       pvRelationDisplayMode: "off",
     },

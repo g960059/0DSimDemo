@@ -42,10 +42,12 @@ import {
   DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
   DEFAULT_HEMODYNAMIC_DETAIL_MODE,
   DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  DEFAULT_PV_LOOP_HISTORY_BEATS,
   DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
   DEFAULT_PV_RELATION_DISPLAY_MODE,
   DEFAULT_PV_RELATION_PRESSURE_BASIS,
   type HemodynamicDetailMode,
+  type PvLoopHistoryMode,
   type PvRelationDisplayMode,
   type PvRelationPressureBasis,
 } from "@/types";
@@ -62,6 +64,10 @@ import {
   type ScientificWorkbenchPvSeriesV1,
   type ScientificWorkbenchWaveformSeriesV1,
 } from "./ScientificWorkbenchAnimatedChartsV1";
+import {
+  normalizeScientificPvHistoryBeatsV1,
+  scientificPvHistoryAlphaV1,
+} from "./ScientificPvHistoryPresentationV1";
 import {
   buildScientificPvBoundaryGuidesV1,
   type ScientificPvBoundaryGuideV1,
@@ -592,7 +598,7 @@ function ScientificPvGraphPanelV1({
     false;
   const historyBeats = panel.pvHistoryBeats ??
     (panel.view?.kind === "graph" ? panel.view.pvHistoryBeats : undefined) ??
-    8;
+    DEFAULT_PV_LOOP_HISTORY_BEATS;
   const historyMode = panel.pvHistoryMode ??
     (panel.view?.kind === "graph" ? panel.view.pvHistoryMode : undefined) ??
     "fade";
@@ -617,15 +623,26 @@ function ScientificPvGraphPanelV1({
   const boundaryGuides = React.useMemo(
     () => !pvAnalysisAvailable
       ? fallbackBoundaryGuides
-      : fallbackBoundaryGuides.flatMap((fallbackGuide) =>
-        scientificPvProgressiveBoundaryGuidesForScenarioV1({
+      : fallbackBoundaryGuides.flatMap((fallbackGuide) => {
+        const presentation = presentations.find(({ descriptor }) =>
+          descriptor.id === fallbackGuide.scenarioId);
+        return scientificPvProgressiveBoundaryGuidesForScenarioV1({
           fallbackGuide,
           series: registry.getPvRelationProtocolSeries(
             fallbackGuide.scenarioId,
           ),
-        })),
+          historyCount: historyBeats,
+          historyMode,
+          currentAcceptedTimeSec:
+            presentation?.frames.at(-1)?.acceptedTimeSec ?? null,
+          cycleDurationSec: presentation?.cycleDurationSec ?? null,
+        });
+      }),
     [
       fallbackBoundaryGuides,
+      historyBeats,
+      historyMode,
+      presentations,
       pvRelationProtocolSnapshot,
       registry,
       pvAnalysisAvailable,
@@ -660,10 +677,14 @@ function ScientificPvGraphPanelV1({
       pressureBasis,
       showSamplePoints: displayMode === "research" && showSamplePoints,
       displayedEvidence: presentation.displayedEvidence,
-      // Beat-trajectory history and parameter-generation history are distinct.
-      // Keep the latter bounded to the registry's five-generation product
-      // contract instead of coupling it to the PV beat-history control.
-      historyCount: 5,
+      // Previous relations are a visual companion to the previous PV loop,
+      // so both obey the same beat-history horizon and fade mode.
+      historyCount: normalizeScientificPvHistoryBeatsV1(historyBeats),
+      historyBeats,
+      historyMode,
+      currentAcceptedTimeSec:
+        presentation.frames.at(-1)?.acceptedTimeSec ?? null,
+      cycleDurationSec: presentation.cycleDurationSec,
     });
   });
 
@@ -739,14 +760,22 @@ export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
     fallbackGuide: ScientificPvBoundaryGuideV1;
     series: ScientificProductPvRelationProtocolSeriesV1;
     historyCount?: number;
+    historyMode?: PvLoopHistoryMode;
+    currentAcceptedTimeSec?: number | null;
+    cycleDurationSec?: number | null;
   }>,
 ): readonly ScientificPvBoundaryGuideV1[] {
+  const historyBeats = normalizeScientificPvHistoryBeatsV1(
+    input.historyCount ?? DEFAULT_PV_LOOP_HISTORY_BEATS,
+  );
+  const historyCount = Math.min(5, historyBeats);
+  const historyMode = input.historyMode ?? "fade";
   const current = input.series.current;
   if (current === null || current.snapshot === null) {
     const pending = input.series.pending;
     const pendingSnapshot = pending?.snapshot ?? null;
     const job = pendingSnapshot?.jobSnapshot ?? null;
-    return Object.freeze([buildScientificPvProgressiveBoundaryGuideV1({
+    const guide = buildScientificPvProgressiveBoundaryGuideV1({
       fallbackGuide: input.fallbackGuide,
       generationId: pending?.generationId
         ?? `${input.fallbackGuide.key}:acquiring`,
@@ -763,11 +792,12 @@ export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
       result: pendingSnapshot?.researchResultV3
         ?? job?.researchResultV3
         ?? null,
+    });
+    return Object.freeze([Object.freeze({
+      ...guide,
+      opacityMultiplier: 1,
     })]);
   }
-  const historyCount = Math.max(0, Math.min(5, Math.round(
-    input.historyCount ?? 5,
-  )));
   const generations = [
     Object.freeze({
       generation: current,
@@ -787,10 +817,27 @@ export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
       }),
     ),
   ];
-  return Object.freeze(generations.map((entry) => {
+  return Object.freeze(generations.flatMap((entry) => {
     const snapshot = entry.generation.snapshot!;
     const job = snapshot.jobSnapshot;
-    return buildScientificPvProgressiveBoundaryGuideV1({
+    const historyAgeBeats = entry.generationAge === 0
+      ? 0
+      : scientificPvAcceptedTimeHistoryAgeV1({
+        fallbackAge: entry.generationAge,
+        sourceAcceptedTimeSec:
+          entry.generation.source.sourceIdentity.acceptedTimeSec,
+        currentAcceptedTimeSec: input.currentAcceptedTimeSec ?? null,
+        cycleDurationSec: input.cycleDurationSec ?? null,
+      });
+    const opacityMultiplier = entry.replacementPending
+      ? 1
+      : scientificPvHistoryAlphaV1(
+        historyAgeBeats,
+        historyBeats,
+        historyMode,
+      );
+    if (entry.generationAge > 0 && opacityMultiplier <= 0) return [];
+    const guide = buildScientificPvProgressiveBoundaryGuideV1({
       fallbackGuide: input.fallbackGuide,
       generationId: entry.generation.generationId,
       generationSequence: entry.generation.sequence,
@@ -803,7 +850,33 @@ export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
         ?? job?.researchResultV3
         ?? null,
     });
+    return [Object.freeze({
+      ...guide,
+      historyAgeBeats,
+      opacityMultiplier,
+    })];
   }));
+}
+
+function scientificPvAcceptedTimeHistoryAgeV1(input: Readonly<{
+  fallbackAge: number;
+  sourceAcceptedTimeSec: number;
+  currentAcceptedTimeSec: number | null;
+  cycleDurationSec: number | null;
+}>): number {
+  if (
+    input.currentAcceptedTimeSec !== null
+    && input.cycleDurationSec !== null
+    && Number.isFinite(input.sourceAcceptedTimeSec)
+    && Number.isFinite(input.currentAcceptedTimeSec)
+    && input.currentAcceptedTimeSec >= input.sourceAcceptedTimeSec
+    && input.cycleDurationSec > 0
+  ) {
+    return (
+      input.currentAcceptedTimeSec - input.sourceAcceptedTimeSec
+    ) / input.cycleDurationSec;
+  }
+  return Math.max(0, input.fallbackAge);
 }
 
 function ScientificHemodynamicProtocolPanelV1({
@@ -1053,6 +1126,10 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
   pressureBasis: PvRelationPressureBasis;
   showSamplePoints: boolean;
   historyCount: number;
+  historyBeats?: number;
+  historyMode?: PvLoopHistoryMode;
+  currentAcceptedTimeSec?: number | null;
+  cycleDurationSec?: number | null;
   displayedEvidence?: ScientificProductScenarioPresentationV1["displayedEvidence"];
 }>): readonly ScientificProductPvRelationOverlayPresentationV1[] {
   if (input.displayMode === "off") return Object.freeze([]);
@@ -1064,13 +1141,28 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
       ? []
       : [Object.freeze({
           generation: input.series.current,
-          age: hasPending ? 1 : 0,
+          age: hasPending
+            ? scientificPvAcceptedTimeHistoryAgeV1({
+              fallbackAge: 1,
+              sourceAcceptedTimeSec:
+                input.series.current.source.sourceIdentity.acceptedTimeSec,
+              currentAcceptedTimeSec:
+                input.currentAcceptedTimeSec ?? null,
+              cycleDurationSec: input.cycleDurationSec ?? null,
+            })
+            : 0,
           role: "current" as const,
         })]),
     ...input.series.history.slice(0, Math.max(0, input.historyCount)).map(
       (generation, index) => Object.freeze({
         generation,
-        age: index + (hasPending ? 2 : 1),
+        age: scientificPvAcceptedTimeHistoryAgeV1({
+          fallbackAge: index + (hasPending ? 2 : 1),
+          sourceAcceptedTimeSec:
+            generation.source.sourceIdentity.acceptedTimeSec,
+          currentAcceptedTimeSec: input.currentAcceptedTimeSec ?? null,
+          cycleDurationSec: input.cycleDurationSec ?? null,
+        }),
         role: "history" as const,
       }),
     ),
@@ -1182,7 +1274,18 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
       }));
     }
   }
-  return Object.freeze(overlays);
+  const historyBeats = normalizeScientificPvHistoryBeatsV1(
+    input.historyBeats ?? input.historyCount,
+  );
+  const historyMode = input.historyMode ?? "fade";
+  return Object.freeze(overlays.filter((overlay) => {
+    const age = Math.max(0, overlay.generationAge ?? 0);
+    return age === 0 || scientificPvHistoryAlphaV1(
+      age,
+      historyBeats,
+      historyMode,
+    ) > 0;
+  }));
 }
 
 function scientificPvRelationGenerationOverlayV1(input: Readonly<{

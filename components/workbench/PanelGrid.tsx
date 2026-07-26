@@ -22,6 +22,7 @@ import {
   DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
   DEFAULT_HEMODYNAMIC_DETAIL_MODE,
   DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  DEFAULT_PV_LOOP_HISTORY_BEATS,
   DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
   DEFAULT_PV_RELATION_DISPLAY_MODE,
   DEFAULT_PV_RELATION_PRESSURE_BASIS,
@@ -980,7 +981,8 @@ function GraphPanelSettingsBoard({
     const hasPvDebug = panel.type === 'PVLOOP';
     const hasWindow = panel.type === 'WAVEFORM';
     const debugTraceMode = panel.pvDebugTraceMode ?? 'raw';
-    const pvHistoryBeats = panel.pvHistoryBeats ?? 8;
+    const pvHistoryBeats =
+      panel.pvHistoryBeats ?? DEFAULT_PV_LOOP_HISTORY_BEATS;
     const pvHistoryMode = panel.pvHistoryMode ?? 'fade';
     const pvParameterHistoryCount = panel.pvParameterHistoryCount
       ?? DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT;

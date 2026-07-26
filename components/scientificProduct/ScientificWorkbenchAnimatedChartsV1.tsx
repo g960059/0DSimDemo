@@ -16,6 +16,7 @@ import {
 } from "@/engine/scientific/observables";
 import { InteractiveGraphLegend } from "@/components/InteractiveGraphLegend";
 import {
+  DEFAULT_PV_LOOP_HISTORY_BEATS,
   DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
   type LegendPosition,
   type PvLoopHistoryMode,
@@ -35,6 +36,15 @@ import {
   type ScientificPvPresentationGenerationInputV1,
   type ScientificPvPresentationScenarioInputV1,
 } from "./ScientificPvProgressivePresentationStateV1";
+import {
+  normalizeScientificPvHistoryBeatsV1,
+  scientificPvHistoryAlphaV1,
+} from "./ScientificPvHistoryPresentationV1";
+
+export {
+  normalizeScientificPvHistoryBeatsV1,
+  scientificPvHistoryAlphaV1,
+} from "./ScientificPvHistoryPresentationV1";
 
 export type ScientificWorkbenchChartScenarioV1 = Readonly<{
   id: string;
@@ -303,6 +313,7 @@ function scientificPvBoundaryGuideGenerationInputV1(
   return Object.freeze({
     generationId: guide.generationId ?? `textbook:${guide.key}`,
     sequence: guide.generationSequence ?? 0,
+    historyAge: guide.historyAgeBeats,
     status: guide.status === "running"
       ? "running" as const
       : guide.status === "stale"
@@ -324,6 +335,13 @@ const CAP_RADIUS_PX = 4;
 const TRANSIENT_VALUE_CACHE = new WeakMap<
   readonly MainWireScientificObservableFrameV1[],
   Map<string, readonly TimedValue[]>
+>();
+const WAVEFORM_TRANSITION_VALUE_CACHE = new WeakMap<
+  readonly MainWireScientificObservableFrameV1[],
+  WeakMap<
+    readonly MainWireScientificObservableFrameV1[],
+    Map<string, ScientificWaveformTransitionValuesV1>
+  >
 >();
 
 const OBSERVABLE_DEFINITIONS = new Map(
@@ -366,7 +384,10 @@ export function ScientificWorkbenchWaveformCanvasV1({
     signalId: item.observableId,
   })), [series]);
   const retainedParameterHistorySeriesCount = series.filter((item) =>
-    waveformParameterGenerationValuesV1(item, timeWindowSec).length > 0)
+    scientificWaveformRetainsParameterGenerationV1(
+      item.scenario,
+      timeWindowSec,
+    ))
     .length;
 
   React.useEffect(() => {
@@ -386,11 +407,15 @@ export function ScientificWorkbenchWaveformCanvasV1({
       const sharedElapsedSeconds = scientificSharedOpenTransientElapsedSecondsV1(currentSeries)
         ?? clockElapsedSeconds;
       const cursor = positiveModulo(sharedElapsedSeconds, timeWindowSec);
-      const samples = currentSeries.flatMap((item) =>
-        [
-          ...(periodicValues(item) ?? transientValues(item, timeWindowSec)),
-          ...waveformParameterGenerationValuesV1(item, timeWindowSec),
-        ]);
+      const samples = currentSeries.flatMap((item) => {
+        const transition = scientificWaveformTransitionValuesV1(
+          item,
+          timeWindowSec,
+        );
+        return transition.retainsPreviousGeneration
+          ? transition.values
+          : periodicValues(item) ?? transition.values;
+      });
       const finiteValues = samples
         .map(({ value }) => value)
         .filter((value): value is number => value !== null && Number.isFinite(value));
@@ -401,12 +426,14 @@ export function ScientificWorkbenchWaveformCanvasV1({
 
       let firstCap: Readonly<{ x: number; y: number }> | null = null;
       for (const item of currentSeries) {
-        const periodic = periodicValues(item);
-        const transient = item.scenario.periodicCycleFrames === null
-          ? transientValues(item, timeWindowSec)
-          : null;
-        const parameterHistory =
-          waveformParameterGenerationValuesV1(item, timeWindowSec);
+        const transition = scientificWaveformTransitionValuesV1(
+          item,
+          timeWindowSec,
+        );
+        const periodic = transition.retainsPreviousGeneration
+          ? null
+          : periodicValues(item);
+        const transient = periodic === null ? transition.values : null;
         const transientCap = transient?.at(-1) ?? null;
         const seriesCursor = periodic !== null
           ? cursor
@@ -423,16 +450,7 @@ export function ScientificWorkbenchWaveformCanvasV1({
         ctx.lineWidth = 1.5;
         ctx.lineJoin = "round";
         ctx.lineCap = "round";
-        ctx.globalAlpha = item.scenario.displayedEvidence === "open-transient-no-periodic-claim"
-          ? 0.82
-          : 1;
-        if (parameterHistory.length > 0) {
-          ctx.save();
-          ctx.globalAlpha = 0.22;
-          ctx.lineWidth = 1.25;
-          drawStaticWaveform(ctx, parameterHistory, x, y);
-          ctx.restore();
-        }
+        ctx.globalAlpha = 1;
         if (periodic !== null) {
           drawPeriodicWaveform(
             ctx,
@@ -446,7 +464,7 @@ export function ScientificWorkbenchWaveformCanvasV1({
         } else {
           drawTransientWaveform(
             ctx,
-            transient ?? [],
+            transient,
             seriesCursor,
             timeWindowSec,
             x,
@@ -497,7 +515,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   relations = [],
   clock,
   showLegend = true,
-  historyBeats = 8,
+  historyBeats = DEFAULT_PV_LOOP_HISTORY_BEATS,
   historyMode = "fade",
   parameterHistoryCount = DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
   legendInteraction,
@@ -528,7 +546,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   const guidePresentationStateRef = React.useRef(
     createScientificPvProgressivePresentationStateV1<
       ScientificPvBoundaryGuideV1
-    >({ historyLimit: 5 }),
+    >({ historyLimit: DEFAULT_PV_LOOP_HISTORY_BEATS }),
   );
   const lastPeriodicTrajectoryBySeriesRef = React.useRef(
     new Map<string, readonly PvValue[]>(),
@@ -612,17 +630,12 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       normalizedHistoryBeats,
       retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
       normalizedParameterHistoryCount,
-    ).filter((trajectory) =>
-      trajectory.kind === "parameter-generation"
-        ? scientificPvParameterGenerationAlphaV1(
-          trajectory.age,
-          normalizedParameterHistoryCount,
-        ) > 0
-        : scientificPvHistoryAlphaV1(
-          trajectory.age,
-          normalizedHistoryBeats,
-          historyMode,
-        ) > 0).length),
+    ).filter((trajectory) => scientificPvTrajectoryVisibleAlphaV1(
+      trajectory,
+      normalizedHistoryBeats,
+      historyMode,
+      normalizedParameterHistoryCount,
+    ) > 0).length),
   );
   const retainedSourceTrajectoryCount = Math.max(
     0,
@@ -647,10 +660,28 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
       normalizedParameterHistoryCount,
     ).filter((trajectory) =>
-      trajectory.kind === "parameter-generation"
+      trajectory.parameterHistoryAge !== undefined
       && scientificPvParameterGenerationAlphaV1(
-        trajectory.age,
+        trajectory.parameterHistoryAge,
         normalizedParameterHistoryCount,
+      ) > 0).length),
+  );
+  const retainedParameterBoundaryCount = Math.max(
+    0,
+    ...series.map((item) => scientificPvTrajectoriesV1(
+      item,
+      normalizedHistoryBeats,
+      retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
+      normalizedParameterHistoryCount,
+    ).filter((trajectory) =>
+      (
+        trajectory.kind === "parameter-boundary"
+        || trajectory.kind === "retained-source-periodic"
+      )
+      && scientificPvHistoryAlphaV1(
+        trajectory.age,
+        normalizedHistoryBeats,
+        historyMode,
       ) > 0).length),
   );
 
@@ -677,25 +708,28 @@ export function ScientificWorkbenchPvLoopCanvasV1({
             normalizedHistoryBeats,
             retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
             normalizedParameterHistoryCount,
-          ).filter((trajectory) =>
-            trajectory.kind === "parameter-generation"
-              ? scientificPvParameterGenerationAlphaV1(
-                trajectory.age,
-                normalizedParameterHistoryCount,
-              ) > 0
-              : scientificPvHistoryAlphaV1(
-                trajectory.age,
-                normalizedHistoryBeats,
-                historyMode,
-              ) > 0),
+          ).filter((trajectory) => scientificPvTrajectoryVisibleAlphaV1(
+            trajectory,
+            normalizedHistoryBeats,
+            historyMode,
+            normalizedParameterHistoryCount,
+          ) > 0),
         ]),
       );
       const allPoints = currentSeries.flatMap((item) =>
         scientificPvTrajectoryDomainPointsV1(
           visibleTrajectoriesBySeries.get(item.key) ?? [],
         ));
+      const visibleRelations = currentRelations.filter((relation) => {
+        const age = Math.max(0, relation.generationAge ?? 0);
+        return age === 0 || scientificPvHistoryAlphaV1(
+          age,
+          normalizedHistoryBeats,
+          historyMode,
+        ) > 0;
+      });
       const relationPoints = scientificPvRelationDomainPointsV1(
-        currentRelations,
+        visibleRelations,
       );
       const baseDomain = scientificPvPresentationDomainFromPointsV1([
         ...allPoints.map(({ volume, pressure }) => Object.freeze({
@@ -711,6 +745,8 @@ export function ScientificWorkbenchPvLoopCanvasV1({
             nowMs,
             reducedMotion,
             baseDomain,
+            historyBeats: normalizedHistoryBeats,
+            historyMode,
             scenarios: scientificPvBoundaryGuidePresentationInputsV1(
               currentBoundaryGuides,
             ),
@@ -769,8 +805,16 @@ export function ScientificWorkbenchPvLoopCanvasV1({
         );
       }
 
-      for (const relation of currentRelations) {
-        drawScientificPvRelationOverlayV1(ctx, relation, x, y, theme);
+      for (const relation of visibleRelations) {
+        drawScientificPvRelationOverlayV1(
+          ctx,
+          relation,
+          x,
+          y,
+          theme,
+          normalizedHistoryBeats,
+          historyMode,
+        );
       }
 
       const sharedElapsedSeconds = scientificSharedOpenTransientElapsedSecondsV1(currentSeries)
@@ -781,32 +825,16 @@ export function ScientificWorkbenchPvLoopCanvasV1({
         const points = pvPoints(item);
         const trajectories = visibleTrajectoriesBySeries.get(item.key) ?? [];
         for (const trajectory of [...trajectories].reverse()) {
-          const alpha = trajectory.kind === "parameter-generation"
-            ? scientificPvParameterGenerationAlphaV1(
-              trajectory.age,
-              normalizedParameterHistoryCount,
-            )
-            : scientificPvHistoryAlphaV1(
-              trajectory.age,
-              normalizedHistoryBeats,
-              historyMode,
-            );
-          if (alpha <= 0 || trajectory.points.length < 2) continue;
-          ctx.save();
-          ctx.strokeStyle = item.color;
-          ctx.globalAlpha = alpha;
-          ctx.lineWidth = trajectory.age === 0 ? 2 : 1.6;
-          ctx.lineJoin = "round";
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          trajectory.points.forEach((point, index) => {
-            const px = x(point.volume);
-            const py = y(point.pressure);
-            if (index === 0 || point.breakBefore) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
+          drawScientificPvTrajectoryV1({
+            ctx,
+            trajectory,
+            item,
+            x,
+            y,
+            historyBeats: normalizedHistoryBeats,
+            historyMode,
+            parameterHistoryCount: normalizedParameterHistoryCount,
           });
-          ctx.stroke();
-          ctx.restore();
         }
         // A parameter transition resets the current trace to one point. Its
         // retained parameter-generation trajectories remain drawable at that
@@ -854,6 +882,9 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       data-pv-history-mode={historyMode}
       data-pv-history-trajectory-count={retainedTrajectoryCount}
       data-pv-history-source-trajectory-count={retainedSourceTrajectoryCount}
+      data-pv-history-parameter-boundary-count={
+        retainedParameterBoundaryCount
+      }
       data-pv-parameter-history-count={retainedParameterGenerationCount}
       data-pv-boundary-guide-count={boundaryGuides.length}
       data-pv-guide-espvr-curve-count={boundaryGuides.filter((guide) =>
@@ -912,6 +943,121 @@ export function ScientificWorkbenchPvLoopCanvasV1({
       })()}
     </div>
   );
+}
+
+function drawScientificPvTrajectoryV1(input: Readonly<{
+  ctx: CanvasRenderingContext2D;
+  trajectory: ScientificPvTrajectoryV1;
+  item: ScientificWorkbenchPvSeriesV1;
+  x: d3.ScaleLinear<number, number>;
+  y: d3.ScaleLinear<number, number>;
+  historyBeats: number;
+  historyMode: PvLoopHistoryMode;
+  parameterHistoryCount: number;
+}>): void {
+  const {
+    ctx,
+    trajectory,
+    item,
+    x,
+    y,
+    historyBeats,
+    historyMode,
+    parameterHistoryCount,
+  } = input;
+  if (trajectory.points.length < 2) return;
+  const latestAcceptedTimeSec =
+    (item.scenario.periodicCycleFrames ?? item.scenario.frames)
+      .at(-1)?.acceptedTimeSec
+    ?? null;
+  const cycleDurationSec = item.scenario.cycleDurationSec;
+  const archivedParameterAlpha =
+    trajectory.parameterHistoryAge === undefined
+      ? 0
+      : scientificPvParameterGenerationAlphaV1(
+        trajectory.parameterHistoryAge,
+        parameterHistoryCount,
+      );
+  const fixedAlpha = trajectory.kind === "periodic"
+    ? 1
+    : trajectory.kind === "parameter-generation"
+      ? archivedParameterAlpha
+      : null;
+
+  ctx.save();
+  ctx.strokeStyle = item.color;
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
+  for (let index = 1; index < trajectory.points.length; index += 1) {
+    const left = trajectory.points[index - 1]!;
+    const right = trajectory.points[index]!;
+    if (right.breakBefore) continue;
+    const leftHistoryAlpha = scientificPvHistoryAlphaV1(
+      scientificPvPointAgeBeatsV1({
+        point: left,
+        pointIndex: index - 1,
+        pointCount: trajectory.points.length,
+        trajectoryAge: trajectory.age,
+        latestAcceptedTimeSec,
+        cycleDurationSec,
+      }),
+      historyBeats,
+      historyMode,
+    );
+    const rightHistoryAlpha = scientificPvHistoryAlphaV1(
+      scientificPvPointAgeBeatsV1({
+        point: right,
+        pointIndex: index,
+        pointCount: trajectory.points.length,
+        trajectoryAge: trajectory.age,
+        latestAcceptedTimeSec,
+        cycleDurationSec,
+      }),
+      historyBeats,
+      historyMode,
+    );
+    const leftAlpha = fixedAlpha
+      ?? Math.max(leftHistoryAlpha, archivedParameterAlpha);
+    const rightAlpha = fixedAlpha
+      ?? Math.max(rightHistoryAlpha, archivedParameterAlpha);
+    const alpha = (leftAlpha + rightAlpha) / 2;
+    if (alpha <= 0) continue;
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = rightAlpha >= 0.98 ? 2 : 1.6;
+    ctx.beginPath();
+    ctx.moveTo(x(left.volume), y(left.pressure));
+    ctx.lineTo(x(right.volume), y(right.pressure));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function scientificPvPointAgeBeatsV1(input: Readonly<{
+  point: PvValue;
+  pointIndex: number;
+  pointCount: number;
+  trajectoryAge: number;
+  latestAcceptedTimeSec: number | null;
+  cycleDurationSec: number | null;
+}>): number {
+  if (
+    input.point.acceptedTimeSec !== undefined
+    && input.latestAcceptedTimeSec !== null
+    && input.cycleDurationSec !== null
+    && Number.isFinite(input.point.acceptedTimeSec)
+    && Number.isFinite(input.latestAcceptedTimeSec)
+    && input.cycleDurationSec > 0
+  ) {
+    return Math.max(
+      0,
+      (input.latestAcceptedTimeSec - input.point.acceptedTimeSec)
+        / input.cycleDurationSec,
+    );
+  }
+  const progress = input.pointCount <= 1
+    ? 1
+    : input.pointIndex / (input.pointCount - 1);
+  return input.trajectoryAge + (1 - progress);
 }
 
 export function drawScientificPvBoundaryGuideV1(
@@ -1102,6 +1248,8 @@ export function drawScientificPvRelationOverlayV1(
   x: d3.ScaleLinear<number, number>,
   y: d3.ScaleLinear<number, number>,
   theme?: CanvasTheme,
+  historyBeats = DEFAULT_PV_LOOP_HISTORY_BEATS,
+  historyMode: PvLoopHistoryMode = "fade",
 ): void {
   const generationAge = Math.max(0, relation.generationAge ?? 0);
   const generationAlpha = generationAge === 0
@@ -1110,7 +1258,12 @@ export function drawScientificPvRelationOverlayV1(
       : relation.status === "stale" || relation.status === "error"
         ? 0.42
         : 0.96
-    : Math.max(0.08, 0.22 / (generationAge + 1));
+    : scientificPvHistoryAlphaV1(
+      generationAge,
+      historyBeats,
+      historyMode,
+    );
+  if (generationAlpha <= 0) return;
   const relationColor = scientificRelationColorV1(relation.color, theme);
   const relationOutline = theme?.backgroundIsDark === false
     ? "#0f172a"
@@ -1288,6 +1441,7 @@ type TimedValue = Readonly<{
 }>;
 export type PvValue = Readonly<{
   timeSec: number;
+  acceptedTimeSec?: number;
   volume: number;
   pressure: number;
   breakBefore: boolean;
@@ -1337,17 +1491,15 @@ function transientValues(
 }
 
 /**
- * The previous parameter trace remains a quiet background until the incoming
- * generation has acquired a complete visible window. It is then removed
- * atomically, so an ever-growing history can never leak into the waveform.
+ * The previous parameter trace remains in the same sweep buffer until the
+ * incoming generation has overwritten one complete visible window.
  */
 export function scientificWaveformRetainsParameterGenerationV1(
   scenario: ScientificWorkbenchChartScenarioV1,
   windowSec: number,
 ): boolean {
   if (
-    scenario.displayedEvidence !== "open-transient-no-periodic-claim"
-    || scenario.parameterGenerationHistory.length === 0
+    scenario.parameterGenerationHistory.length === 0
     || !(windowSec > 0)
   ) return false;
   const latest = scenario.frames.at(-1)?.acceptedTimeSec;
@@ -1357,37 +1509,106 @@ export function scientificWaveformRetainsParameterGenerationV1(
     && origin !== undefined
     && Number.isFinite(latest)
     && Number.isFinite(origin)
+    && latest >= origin
     && latest - origin < windowSec - 1e-9;
 }
 
-function waveformParameterGenerationValuesV1(
+export type ScientificWaveformTransitionValuesV1 = Readonly<{
+  values: readonly TimedValue[];
+  retainsPreviousGeneration: boolean;
+}>;
+
+/**
+ * Projects the previous tail and incoming samples into one accepted-time
+ * sweep. There is one stroke and one alpha: the cursor naturally overwrites
+ * the old waveform instead of crossfading two superimposed waveforms.
+ */
+export function scientificWaveformTransitionValuesV1(
   item: ScientificWorkbenchWaveformSeriesV1,
   windowSec: number,
-): readonly TimedValue[] {
+): ScientificWaveformTransitionValuesV1 {
   if (
     !scientificWaveformRetainsParameterGenerationV1(
       item.scenario,
       windowSec,
     )
-  ) return Object.freeze([]);
+  ) {
+    return Object.freeze({
+      values: transientValues(item, windowSec),
+      retainsPreviousGeneration: false,
+    });
+  }
   const generation = item.scenario.parameterGenerationHistory.find(
     ({ frames }) => frames.length >= 2,
   );
-  if (generation === undefined) return Object.freeze([]);
-  return transientValues({
+  const origin = item.scenario.transientOriginAcceptedTimeSec
+    ?? item.scenario.frames[0]?.acceptedTimeSec
+    ?? null;
+  const latest = item.scenario.frames.at(-1)?.acceptedTimeSec ?? null;
+  if (generation === undefined || origin === null || latest === null) {
+    return Object.freeze({
+      values: transientValues(item, windowSec),
+      retainsPreviousGeneration: false,
+    });
+  }
+  const cacheKey = `${item.observableId}:${windowSec}:${origin}`;
+  const byPreviousFrames = WAVEFORM_TRANSITION_VALUE_CACHE.get(
+    item.scenario.frames,
+  ) ?? new WeakMap();
+  const byKey = byPreviousFrames.get(generation.frames) ?? new Map();
+  const cached = byKey.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const firstAcceptedTimeSec = latest - windowSec;
+  const previousFrames = generation.frames.filter(({ acceptedTimeSec }) =>
+    acceptedTimeSec >= firstAcceptedTimeSec - 1e-9
+    && acceptedTimeSec <= origin + 1e-9);
+  if (previousFrames.length < 2) {
+    const currentOnly = Object.freeze({
+      values: transientValues(item, windowSec),
+      retainsPreviousGeneration: false,
+    });
+    byKey.set(cacheKey, currentOnly);
+    byPreviousFrames.set(generation.frames, byKey);
+    WAVEFORM_TRANSITION_VALUE_CACHE.set(
+      item.scenario.frames,
+      byPreviousFrames,
+    );
+    return currentOnly;
+  }
+  const mergedByAcceptedTime = new Map<
+    number,
+    MainWireScientificObservableFrameV1
+  >();
+  for (const frame of previousFrames) {
+    mergedByAcceptedTime.set(frame.acceptedTimeSec, frame);
+  }
+  for (const frame of item.scenario.frames) {
+    if (frame.acceptedTimeSec < firstAcceptedTimeSec - 1e-9) continue;
+    mergedByAcceptedTime.set(frame.acceptedTimeSec, frame);
+  }
+  const mergedFrames = Object.freeze(
+    [...mergedByAcceptedTime.values()].sort(
+      (left, right) => left.acceptedTimeSec - right.acceptedTimeSec,
+    ),
+  );
+  const values = transientValues({
     ...item,
     scenario: {
       ...item.scenario,
-      frames: generation.frames,
+      frames: mergedFrames,
       periodicCycleFrames: null,
-      cycleDurationSec: generation.cycleDurationSec,
-      transientOriginAcceptedTimeSec:
-        generation.transientOriginAcceptedTimeSec
-        ?? generation.frames[0]?.acceptedTimeSec
-        ?? null,
-      displayedEvidence: generation.displayedEvidence,
+      transientOriginAcceptedTimeSec: origin,
     },
   }, windowSec);
+  const result = Object.freeze({
+    values,
+    retainsPreviousGeneration: true,
+  });
+  byKey.set(cacheKey, result);
+  byPreviousFrames.set(generation.frames, byKey);
+  WAVEFORM_TRANSITION_VALUE_CACHE.set(item.scenario.frames, byPreviousFrames);
+  return result;
 }
 
 function lowerBoundAcceptedTimeV1(
@@ -1465,6 +1686,7 @@ function pvPoints(item: ScientificWorkbenchPvSeriesV1): PvValue[] {
     }
     const point = {
       timeSec: frame.acceptedTimeSec - start,
+      acceptedTimeSec: frame.acceptedTimeSec,
       volume,
       pressure,
       breakBefore: !previousAvailable,
@@ -1476,11 +1698,14 @@ function pvPoints(item: ScientificWorkbenchPvSeriesV1): PvValue[] {
 
 export type ScientificPvTrajectoryV1 = Readonly<{
   age: number;
+  /** Archive rank when the optional parameter-history lane also retains it. */
+  parameterHistoryAge?: number;
   points: readonly PvValue[];
   kind:
     | "periodic"
     | "transient"
     | "retained-source-periodic"
+    | "parameter-boundary"
     | "parameter-generation";
 }>;
 
@@ -1505,19 +1730,25 @@ type RetainedScientificPvSourceTrajectoryV1 = Readonly<{
  */
 export function scientificPvTrajectoriesV1(
   item: ScientificWorkbenchPvSeriesV1,
-  historyBeats = 8,
+  historyBeats = DEFAULT_PV_LOOP_HISTORY_BEATS,
   retainedSourcePeriodicPoints?: readonly PvValue[],
   parameterHistoryCount: PvLoopParameterHistoryCount =
     DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
 ): readonly ScientificPvTrajectoryV1[] {
   const horizon = normalizeScientificPvHistoryBeatsV1(historyBeats);
   const scenario = item.scenario;
+  const cycleDurationSec = scenario.cycleDurationSec;
+  const latestAcceptedTimeSec =
+    (scenario.periodicCycleFrames ?? scenario.frames).at(-1)?.acceptedTimeSec
+    ?? null;
   const parameterTrajectories =
     scientificPvParameterGenerationTrajectoriesV1(
       item,
       parameterHistoryCount,
+      horizon,
+      latestAcceptedTimeSec,
+      cycleDurationSec,
     );
-  const cycleDurationSec = scenario.cycleDurationSec;
   const origin = scenario.transientOriginAcceptedTimeSec;
   if (
     scenario.displayedEvidence !== "open-transient-no-periodic-claim"
@@ -1560,7 +1791,12 @@ export function scientificPvTrajectoriesV1(
     });
     if (points.length === 0) continue;
     trajectories.push(Object.freeze({
-      age: latestBeat - beatIndex,
+      age: scientificPvTrajectoryAgeBeatsV1(
+        points,
+        latestAcceptedTimeSec,
+        cycleDurationSec,
+        latestBeat - beatIndex,
+      ),
       points: Object.freeze(points),
       kind: "transient" as const,
     }));
@@ -1574,9 +1810,20 @@ export function scientificPvTrajectoriesV1(
     && retainedSourcePeriodicPoints !== undefined
     && retainedSourcePeriodicPoints.length >= 2
     && latestBeat <= horizon
+    && !parameterTrajectories.some((trajectory) =>
+      trajectory.kind === "parameter-boundary"
+      && sameScientificPvTrajectoryBoundaryV1(
+        trajectory.points,
+        retainedSourcePeriodicPoints,
+      ))
   ) {
     trajectories.push(Object.freeze({
-      age: latestBeat,
+      age: scientificPvTrajectoryAgeBeatsV1(
+        retainedSourcePeriodicPoints,
+        latestAcceptedTimeSec,
+        cycleDurationSec,
+        latestBeat,
+      ),
       points: retainedSourcePeriodicPoints,
       kind: "retained-source-periodic" as const,
     }));
@@ -1590,11 +1837,14 @@ export function scientificPvTrajectoriesV1(
 function scientificPvParameterGenerationTrajectoriesV1(
   item: ScientificWorkbenchPvSeriesV1,
   historyCount: PvLoopParameterHistoryCount,
+  pvHistoryBeats: number,
+  latestAcceptedTimeSec: number | null,
+  cycleDurationSec: number | null,
 ): readonly ScientificPvTrajectoryV1[] {
-  const horizon = normalizeScientificPvParameterHistoryCountV1(historyCount);
-  if (horizon === 0) return Object.freeze([]);
+  const parameterHorizon =
+    normalizeScientificPvParameterHistoryCountV1(historyCount);
+  const pvHorizon = normalizeScientificPvHistoryBeatsV1(pvHistoryBeats);
   const trajectories = item.scenario.parameterGenerationHistory
-    .slice(0, horizon)
     .flatMap((generation, index) => {
       const cycleFrames = parameterGenerationCycleFramesV1(
         generation.frames,
@@ -1615,15 +1865,75 @@ function scientificPvParameterGenerationTrajectoriesV1(
           displayedEvidence: generation.displayedEvidence,
         },
       });
-      return points.length < 2
-        ? []
-        : [Object.freeze({
-          age: index + 1,
-          points: Object.freeze(points),
-          kind: "parameter-generation" as const,
-        })];
+      if (points.length < 2) return [];
+      const naturalAge = scientificPvTrajectoryAgeBeatsV1(
+        points,
+        latestAcceptedTimeSec,
+        cycleDurationSec ?? generation.cycleDurationSec,
+        index + 1,
+      );
+      const belongsToPvHistory =
+        pvHorizon > 0 && naturalAge < pvHorizon - 1e-9;
+      const belongsToParameterHistory = index < parameterHorizon;
+      if (!belongsToPvHistory && !belongsToParameterHistory) return [];
+      return [Object.freeze({
+        age: belongsToPvHistory ? naturalAge : index + 1,
+        ...(belongsToParameterHistory
+          ? { parameterHistoryAge: index + 1 }
+          : {}),
+        points: Object.freeze(points),
+        kind: belongsToPvHistory
+          ? "parameter-boundary" as const
+          : "parameter-generation" as const,
+      })];
     });
-  return Object.freeze(trajectories);
+  const pvHistory = trajectories
+    .filter(({ kind }) => kind === "parameter-boundary")
+    .sort((left, right) => left.age - right.age)
+    .slice(0, pvHorizon);
+  const parameterHistory = trajectories.filter(({ kind }) =>
+    kind === "parameter-generation");
+  return Object.freeze([...pvHistory, ...parameterHistory]);
+}
+
+function scientificPvTrajectoryAgeBeatsV1(
+  points: readonly PvValue[],
+  latestAcceptedTimeSec: number | null,
+  cycleDurationSec: number | null,
+  fallbackAge: number,
+): number {
+  const trajectoryEnd = points.at(-1)?.acceptedTimeSec;
+  if (
+    trajectoryEnd !== undefined
+    && latestAcceptedTimeSec !== null
+    && cycleDurationSec !== null
+    && Number.isFinite(trajectoryEnd)
+    && Number.isFinite(latestAcceptedTimeSec)
+    && cycleDurationSec > 0
+  ) {
+    return Math.max(
+      0,
+      (latestAcceptedTimeSec - trajectoryEnd) / cycleDurationSec,
+    );
+  }
+  return Math.max(0, fallbackAge);
+}
+
+function sameScientificPvTrajectoryBoundaryV1(
+  left: readonly PvValue[],
+  right: readonly PvValue[],
+): boolean {
+  const leftEnd = left.at(-1);
+  const rightEnd = right.at(-1);
+  if (leftEnd === undefined || rightEnd === undefined) return false;
+  if (
+    leftEnd.acceptedTimeSec !== undefined
+    && rightEnd.acceptedTimeSec !== undefined
+  ) {
+    return Math.abs(leftEnd.acceptedTimeSec - rightEnd.acceptedTimeSec) < 1e-9;
+  }
+  return Math.abs(leftEnd.volume - rightEnd.volume) < 1e-9
+    && Math.abs(leftEnd.pressure - rightEnd.pressure) < 1e-9;
 }
 
 function parameterGenerationCycleFramesV1(
@@ -1696,11 +2006,6 @@ function updateRetainedScientificPvSourceTrajectoriesV1(
   }
 }
 
-export function normalizeScientificPvHistoryBeatsV1(value: number): number {
-  if (!Number.isFinite(value)) return 8;
-  return Math.min(16, Math.max(0, Math.round(value)));
-}
-
 const PV_PARAMETER_HISTORY_COUNTS_V1 =
   Object.freeze([0, 1, 3, 5, 6] as const);
 
@@ -1727,16 +2032,26 @@ export function scientificPvParameterGenerationAlphaV1(
   return 0.42 * Math.max(0.15, 1 - (age - 1) / horizon);
 }
 
-export function scientificPvHistoryAlphaV1(
-  age: number,
+function scientificPvTrajectoryVisibleAlphaV1(
+  trajectory: ScientificPvTrajectoryV1,
   historyBeats: number,
-  mode: PvLoopHistoryMode,
+  historyMode: PvLoopHistoryMode,
+  parameterHistoryCount: number,
 ): number {
-  if (age <= 0) return 1;
-  const horizon = normalizeScientificPvHistoryBeatsV1(historyBeats);
-  if (horizon === 0 || age > horizon) return 0;
-  if (mode === "persistent") return 0.34;
-  return 0.5 * Math.max(0, 1 - age / horizon);
+  const historyAlpha = trajectory.kind === "parameter-generation"
+    ? 0
+    : scientificPvHistoryAlphaV1(
+      trajectory.age,
+      historyBeats,
+      historyMode,
+    );
+  const parameterAlpha = trajectory.parameterHistoryAge === undefined
+    ? 0
+    : scientificPvParameterGenerationAlphaV1(
+      trajectory.parameterHistoryAge,
+      parameterHistoryCount,
+    );
+  return Math.max(historyAlpha, parameterAlpha);
 }
 
 function availableValue(
@@ -1812,35 +2127,6 @@ function drawTransientWaveform(
     }
     if (!drawing) ctx.moveTo(x(point.timeSec), y(point.value!));
     else ctx.lineTo(x(point.timeSec), y(point.value!));
-    drawing = true;
-  }
-  if (drawing) ctx.stroke();
-}
-
-function drawStaticWaveform(
-  ctx: CanvasRenderingContext2D,
-  values: readonly TimedValue[],
-  x: d3.ScaleLinear<number, number>,
-  y: d3.ScaleLinear<number, number>,
-): void {
-  ctx.beginPath();
-  let drawing = false;
-  for (const point of values) {
-    if (point.breakBefore && drawing) {
-      ctx.stroke();
-      ctx.beginPath();
-      drawing = false;
-    }
-    if (point.value === null) {
-      if (drawing) ctx.stroke();
-      ctx.beginPath();
-      drawing = false;
-      continue;
-    }
-    const px = x(point.timeSec);
-    const py = y(point.value);
-    if (!drawing) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
     drawing = true;
   }
   if (drawing) ctx.stroke();

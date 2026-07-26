@@ -398,7 +398,7 @@ test.describe.serial("Product workflows by role", () => {
       await expect(focusView).toBeVisible();
       await expect.poll(async () => numericAttributeV1(
         focusView.getByTestId("scientific-workbench-pv-canvas-v1"),
-        "data-pv-parameter-history-count",
+        "data-pv-history-parameter-boundary-count",
       )).toBeGreaterThan(0);
       await focusView.getByRole("button", { name: "閉じる" }).first().click();
       await expect(focusView).toHaveCount(0);
@@ -674,7 +674,7 @@ test.describe.serial("Product workflows by role", () => {
       )).toBeGreaterThan(0);
       await expect.poll(async () => numericAttributeV1(
         pvCanvas,
-        "data-pv-parameter-history-count",
+        "data-pv-history-parameter-boundary-count",
       )).toBeGreaterThan(0);
 
       await page.getByRole("button", {

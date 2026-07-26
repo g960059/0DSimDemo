@@ -13,7 +13,9 @@ import {
   scientificPvTrajectoriesV1,
   normalizeScientificPvHistoryBeatsV1,
   normalizeScientificPvParameterHistoryCountV1,
+  scientificWaveformTransitionValuesV1,
   scientificWaveformRetainsParameterGenerationV1,
+  type ScientificWorkbenchWaveformSeriesV1,
   type ScientificWorkbenchPvSeriesV1,
 } from "@/components/scientificProduct/ScientificWorkbenchAnimatedChartsV1";
 import type {
@@ -34,7 +36,7 @@ describe("scientific Workbench display clock V1", () => {
   });
 
   it("uses the bounded 0/1/3/5/6 parameter-generation history scale", () => {
-    expect(normalizeScientificPvParameterHistoryCountV1(Number.NaN)).toBe(6);
+    expect(normalizeScientificPvParameterHistoryCountV1(Number.NaN)).toBe(0);
     expect(normalizeScientificPvParameterHistoryCountV1(0)).toBe(0);
     expect(normalizeScientificPvParameterHistoryCountV1(1)).toBe(1);
     expect(normalizeScientificPvParameterHistoryCountV1(3)).toBe(3);
@@ -91,7 +93,7 @@ describe("scientific Workbench display clock V1", () => {
       }));
   });
 
-  it("fades previous parameter-generation PV loops and keeps them in the domain", () => {
+  it("includes a previous parameter loop in ordinary beat history even when parameter history is off", () => {
     const oldCycle = Object.freeze([
       pvFrame(8, 35, -5),
       pvFrame(8.5, 90, 160),
@@ -126,8 +128,9 @@ describe("scientific Workbench display clock V1", () => {
     );
     expect(trajectories).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        age: 1,
-        kind: "parameter-generation",
+        age: expect.closeTo(1.2, 12),
+        kind: "parameter-boundary",
+        parameterHistoryAge: 1,
       }),
     ]));
     const domainPoints = scientificPvTrajectoryDomainPointsV1(trajectories);
@@ -138,7 +141,11 @@ describe("scientific Workbench display clock V1", () => {
       8,
       undefined,
       0,
-    ).some(({ kind }) => kind === "parameter-generation")).toBe(false);
+    )).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        kind: "parameter-boundary",
+      }),
+    ]));
 
     const withPartialHistory = {
       ...withHistory,
@@ -158,8 +165,8 @@ describe("scientific Workbench display clock V1", () => {
       6,
     )).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        age: 1,
-        kind: "parameter-generation",
+        kind: "parameter-boundary",
+        parameterHistoryAge: 1,
         points: expect.arrayContaining([
           expect.objectContaining({ volume: 35, pressure: -5 }),
           expect.objectContaining({ volume: 90, pressure: 160 }),
@@ -207,6 +214,69 @@ describe("scientific Workbench display clock V1", () => {
       ...scenario,
       frames: [pvFrame(10, 0, 0), pvFrame(15, 0, 0)],
     }, 5)).toBe(false);
+  });
+
+  it("joins the previous and incoming waveform into one full-alpha sweep", () => {
+    const previousFrames = Object.freeze([
+      waveformFrame(8, 80),
+      waveformFrame(9, 90),
+      waveformFrame(9.9, 99),
+    ]);
+    const currentFrames = Object.freeze([
+      waveformFrame(10, 100),
+      waveformFrame(10.2, 102),
+    ]);
+    const item = {
+      key: "scenario-1:aop",
+      observableId: "hemodynamics.pressure.absolute.Ao",
+      signalName: "AoP",
+      color: "#4da3ff",
+      scenario: {
+        id: "scenario-1",
+        name: "Scenario 1",
+        color: "#4da3ff",
+        isVisible: true,
+        frames: currentFrames,
+        parameterGenerationHistory: [{
+          targetGeneration: 0,
+          parameterEpoch: 0,
+          controlStateSha256: "a".repeat(64),
+          frames: previousFrames,
+          periodicCycleFrames: null,
+          cycleDurationSec: 1,
+          transientOriginAcceptedTimeSec: 8,
+          displayedEvidence: "open-transient-no-periodic-claim" as const,
+        }],
+        periodicCycleFrames: null,
+        cycleDurationSec: 1,
+        transientOriginAcceptedTimeSec: 10,
+        displayedEvidence: "open-transient-no-periodic-claim" as const,
+      },
+    } as ScientificWorkbenchWaveformSeriesV1;
+
+    const transition = scientificWaveformTransitionValuesV1(item, 5);
+    expect(transition.retainsPreviousGeneration).toBe(true);
+    expect(transition.values.map(({ value }) => value)).toEqual([
+      80,
+      90,
+      99,
+      100,
+      102,
+    ]);
+    expect(transition.values.map(({ timeSec }) => timeSec)).toEqual([
+      3,
+      4,
+      4.9,
+      0,
+      expect.closeTo(0.2, 12),
+    ]);
+    expect(transition.values.map(({ breakBefore }) => breakBefore)).toEqual([
+      true,
+      false,
+      false,
+      true,
+      false,
+    ]);
   });
 
   it("anchors an open transient to its retained accepted-time origin", () => {
@@ -325,6 +395,21 @@ function pvFrame(
       "hemodynamics.pressure.absolute.LV": {
         availability: "available",
         value: pressure,
+      },
+    },
+  } as unknown as MainWireScientificObservableFrameV1;
+}
+
+function waveformFrame(
+  acceptedTimeSec: number,
+  pressureMmHg: number,
+): MainWireScientificObservableFrameV1 {
+  return {
+    acceptedTimeSec,
+    values: {
+      "hemodynamics.pressure.absolute.Ao": {
+        availability: "available",
+        value: pressureMmHg,
       },
     },
   } as unknown as MainWireScientificObservableFrameV1;
