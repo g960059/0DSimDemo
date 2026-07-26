@@ -12,8 +12,13 @@ available through git history, for example at baseline commit
 
 | Area | Entry point | Status |
 |---|---|---|
+| Mechanics model specification | [myocardium/model-spec/four-chamber-triseg-land-v1.md](myocardium/model-spec/four-chamber-triseg-land-v1.md) | Normative target model; not a runtime claim |
 | Myocardial contraction rebuild | [myocardium/README.md](myocardium/README.md) | Proposed Phase 0 |
-| MechanicsCore2 sidecar | [mechanics2/README.md](mechanics2/README.md) | Active user-0 architecture lane |
+| Studio / presentation architecture | [studio/DESIGN-STUDIO-002-cell-document-architecture.md](studio/DESIGN-STUDIO-002-cell-document-architecture.md) | Draft for design and implementation |
+
+The MechanicsCore2 / AV-plane sidecar lane was retired and removed from the
+working tree. Its code, benches, reports, and lane documents remain in git
+history; see the commit that removed `engine/mechanics2`.
 
 ## Recovery policy for removed docs
 

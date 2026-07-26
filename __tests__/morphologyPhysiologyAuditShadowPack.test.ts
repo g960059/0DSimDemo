@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import artifact from "../data/diagnostics/morphology/morphology-physiology-audit-shadow-pack-v1.json";
-import { expectMechanics2ReportArtifactParity } from "./helpers/mechanics2ReportParity";
+import { expectReportArtifactParity } from "./helpers/reportArtifactParity";
 import { buildMorphologyPhysiologyAuditShadowPackV1 } from "@/tools/diagnostics/runMorphologyPhysiologyAuditShadowPack";
 
 describe("Morphology physiology audit shadow pack", () => {
@@ -65,6 +65,6 @@ describe("Morphology physiology audit shadow pack", () => {
   it("matches the committed shadow-pack artifact exactly", () => {
     const rerun = buildMorphologyPhysiologyAuditShadowPackV1();
     const { normalizedSha256: _hash, ...rerunWithoutHash } = rerun;
-    expectMechanics2ReportArtifactParity(artifact, rerunWithoutHash);
+    expectReportArtifactParity(artifact, rerunWithoutHash);
   });
 });
