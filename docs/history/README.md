@@ -39,12 +39,12 @@ one to history only after its consumer has been migrated to a canonical
 artifact or fixture.
 
 The detailed 2026-07-10 lane diary at
-`docs/status/archive/current-lanes-through-2026-07-10.md` is noncanonical
-history. It was previously retained because myocardium verifiers inspected its
-claim boundaries; those consumers have been migrated — the twenty-one prose pins
-against it are removed and `tools/repository/checkRepositoryHygiene.mjs` now
-rejects any tool under `tools/` that reads `docs/status/archive/`. Removing the
-diary is therefore an ordinary editorial decision now, not a blocked one.
+`docs/status/archive/current-lanes-through-2026-07-10.md` was removed from the
+working tree. It was retained only because myocardium verifiers inspected its
+claim boundaries; the twenty-one prose pins against it were retired first, and
+the verifiers themselves were retired with the archived-research lanes.
+`tools/repository/checkRepositoryHygiene.mjs` still rejects any tool under
+`tools/` that reads `docs/status/archive/`.
 
 The general rule that produced that pin class is worth stating: a verification
 tool must not require particular wording in an archived document. Archives are

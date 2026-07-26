@@ -19,15 +19,16 @@ Every `*.test.ts` file must belong to exactly one tier. The ownership test in
 `__tests__/testSuiteManifest.test.ts` fails on unclassified files, stale
 entries, and overlaps.
 
-After the archived-research retirement, the 276 files divide into 118 fast, 68
+After the archived-research retirement, the 277 files divide into 119 fast, 68
 engine regression, 87 canonical scientific, 2 heavy, and 1 rules-emulator file.
+`npm run test:suites:inventory` prints the current split from the registry.
 The archived-research tier no longer exists: the MechanicsCore2 / AV-plane
 sidecar and the earlier ModelCore+Land boundary lane were removed from the
 working tree and remain in git history.
 
 | Command | Responsibility | Default CI path |
 |---|---|---|
-| `npm test` / `npm run test:fast` | Pure unit, schema, one-step contract, and lightweight SSR tests | Every PR and main push |
+| `npm test` / `npm run test:fast` | Pure unit, schema, one-step contract, and lightweight SSR tests | Every main push; pull requests run the `test:pr` subset |
 | `npm run test:related -- <source...>` | Fast tests statically related to edited sources | Local development |
 | `npm run test:regression` | Longer legacy engine convergence and physiology regression | Nightly, 4 shards |
 | `npm run test:scientific:canonical` | Current `mainWire*` scientific lane | Nightly, 4 shards |
@@ -43,8 +44,9 @@ not start the Firestore emulator.
 - 60 second wall-clock hard limit, overrideable only for diagnosis with
   `CIRCLEHEART_FAST_TEST_BUDGET_MS`.
 - 10 second per-test and per-hook timeout.
-- At most 120 files before the ownership test forces an explicit review. The
-  wall-clock budget remains authoritative as lightweight kernel coverage grows.
+- `FAST_SUITE_FILE_BUDGET` in `vitest.suites.ts` is the ceiling the ownership
+  test enforces; raising it is the explicit review. The wall-clock budget
+  remains authoritative as lightweight kernel coverage grows.
 - Files named as benches, calibration, envelope, replay, artifact, or
   attribution work cannot enter the fast allowlist.
 - The current warm local baseline is expected to be roughly ten seconds; the
