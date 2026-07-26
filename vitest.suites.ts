@@ -20,7 +20,6 @@ export const fastEngineTests = [
 
 export const diagnosticResearchTests = [
   "__tests__/myocardium*.test.ts",
-  "__tests__/pvLoopCurrentMainBaselineSnapshot.test.ts",
   "__tests__/pvLoopMorphologyQualityRunner.test.ts",
   "engine/__tests__/starlingLowPreloadDebug.test.ts",
 ];
