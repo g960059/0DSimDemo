@@ -16,8 +16,14 @@ data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json
 Required verifier:
 
 ```text
-npm run verify:myocardium-phase5c-post-fidelity-entry-gate
+npm run verify:myocardium-modelcore-equivalent-positive-control-closure
 ```
+
+That verifier imports the gate and asserts its entry route, `gateStatus` and
+`blockedUntil.runtimeReplacement`. The dedicated Phase 5C-E gate script is
+retired: beyond those fields it enforced a documentation freeze that later
+phases legitimately outgrew, so the gate's remaining fields are a record rather
+than an enforced contract.
 
 Source audit evidence:
 

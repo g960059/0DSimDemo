@@ -35,7 +35,7 @@ phase gates called out below.
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
 | 4c | [roadmap/phase5c-new-myocardium-check-plan.md](roadmap/phase5c-new-myocardium-check-plan.md) | Phase 5C-C new-myocardium low-preload check plan |
 | 4d | [roadmap/phase5c-positive-control-fidelity-audit-plan.md](roadmap/phase5c-positive-control-fidelity-audit-plan.md) | Phase 5C-D positive-control fidelity audit over the Phase 5C-C no-go result |
-| 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
+| 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result; the gate artifact is live and enforced by the Phase 5C-I ModelCore closure verifier, its own gate script is retired |
 | 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J/K/L/M/N/O/P ModelCore-equivalent route, experimental source-provider hook, provider-state lifecycle, source-only pressure adapter, paired Land source-provider run, qDot attribution, output-match diagnostic, activation/source-interface audit, and calcium/source forcing bracket |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
@@ -822,9 +822,12 @@ Phase 5C-E records that post-fidelity entry gate in
 [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md)
 and
 [`../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json`](../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json).
-Run `npm run verify:myocardium-phase5c-post-fidelity-entry-gate` and
-`npm run verify:myocardium-modelcore-equivalent-positive-control-closure` to
-check the gate and the ModelCore-equivalent positive-control evidence. Run
+Run `npm run verify:myocardium-modelcore-equivalent-positive-control-closure`
+to check the gate and the ModelCore-equivalent positive-control evidence — that
+verifier imports the gate and asserts its entry route, `gateStatus` and
+`blockedUntil.runtimeReplacement` directly. The separate Phase 5C-E gate script
+is retired; the gate's remaining fields are a record, not an enforced contract.
+Run
 `npm run verify:myocardium-modelcore-active-provider-state-lifecycle` to check
 the Phase 5C-J provider-state lifecycle precondition used by Land pairing.
 Run `npm run verify:myocardium-modelcore-active-source-pressure-adapter` to
