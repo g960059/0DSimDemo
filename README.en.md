@@ -11,10 +11,18 @@ The primary audience is researchers in cardiovascular modeling, 0D simulation, b
 
 ## Documentation status
 
-The current codebase is a working prototype centered on the legacy
-`ActiveStressChamberModel`. The next myocardial contraction subsystem is being
-planned as a Revision 3 full replacement. The candidate canonical documents for
-that work live under [`docs/myocardium/`](docs/myocardium/).
+The myocardial contraction replacement has landed: the browser runs the
+main-wire five-wall Land-TriSeg model. LA/RA/LVFW/SEP/RVFW carry Land active
+material, a parallel one-state SLS branch, energy-conjugate TriSeg, a common
+pericardium, and a quasi-steady orifice valve, with the non-coronary closed loop
+solved by Backward Euler. The declarations live in
+`engine/scientific/runtime/MainWireScientificSessionV1.ts`,
+`engine/scientific/assembly/mainWireAdultFiveWallNonCoronaryReleaseV1.ts`, and
+`engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1.ts`. Coronary
+circulation, mechanical support, and rhythm are implemented but not yet part of
+that session. The legacy `ActiveStressChamberModel` path is still used in places
+such as the Guyton/Starling analysis. Myocardium documents live under
+[`docs/myocardium/`](docs/myocardium/).
 
 Older ADRs, roadmaps, and research notes were removed from the local `docs/`
 tree so stale assumptions do not read like current canon. Use git history when

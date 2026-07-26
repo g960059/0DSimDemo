@@ -1,5 +1,11 @@
 # Phase 5C-B Low-Preload Domain Extension Plan
 
+
+> **Some paths below are retired.** This document names tools, tests, and
+> artifacts from lanes that were removed from the working tree. They are
+> recoverable from git history (`git show <commit>:<path>`); do not read
+> them as commands you can run today.
+
 ## Context
 
 Phase 5C-A added a deterministic Land shadow alternans comparator for the fixed

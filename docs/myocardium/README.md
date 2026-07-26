@@ -58,13 +58,16 @@ provenance of that number is traceable without leaving the repository. That
 chain is closed: every `*ArtifactId` in a retained artifact resolves to another
 retained artifact.
 
-Nothing else about those artifacts is guaranteed to resolve. They are frozen
-records of runs that happened, so their `verifierScript` aliases, their
-`sourceEvidence` paths, and the reproduction commands embedded in them name
-scripts, tools, and files that were retired with their lanes. Those names
-resolve in git history, not in the working tree, and the artifacts are not
-edited to say so because several of them are hash-pinned by tests. To rerun one,
-check out a commit from before the retirement.
+Nothing else about those artifacts is guaranteed to resolve. They are preserved
+as immutable evidence of runs that happened, so some of the names inside them —
+`verifierScript` aliases, `sourceEvidence` paths, embedded reproduction
+commands — refer to scripts, tools, and files that were retired with their
+lanes; those resolve in git history rather than in the working tree. Some still
+resolve: the PV-loop morphology quality runner named in one of the reproduction
+commands is still here. The artifacts are not edited to annotate which is which,
+because the point of immutable evidence is that it is not rewritten after the
+fact. To rerun one whose tooling is gone, check out a commit from before the
+retirement.
 
 The practical rule: read a retained artifact for what it recorded, not as a
 command you can run today.
