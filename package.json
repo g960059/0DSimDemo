@@ -13,6 +13,7 @@
     "test:pr": "CIRCLEHEART_TEST_SUITE_LABEL='PR smoke suite' CIRCLEHEART_VITEST_CONFIG=vitest.pr.config.ts node tools/testing/runFastVitest.mjs",
     "test:related": "vitest related --run --config vitest.fast.config.ts",
     "test:suites:audit": "vitest run --config vitest.fast.config.ts __tests__/testSuiteManifest.test.ts",
+    "test:suites:inventory": "vite-node --script tools/testing/printSuiteInventory.ts",
     "test:regression": "vitest run --config vitest.regression.config.ts",
     "test:scientific:canonical": "vitest run --config vitest.canonical.config.ts",
     "test:heavy": "CIRCLEHEART_HEAVY_TESTS=1 vitest run --config vitest.heavy.config.ts",

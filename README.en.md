@@ -348,7 +348,6 @@ npm run preview
 | `npm run test:related -- <source...>` | Run fast tests statically related to edited sources |
 | `npm run test:regression` | Run slower engine convergence and physiology regression tests |
 | `npm run test:scientific:canonical` | Run the current `mainWire` scientific lane |
-| `npm run test:scientific:archive` | Explicitly replay historical research and artifact tests |
 | `npm run test:heavy` | Run Guyton/Starling and low-preload opt-in heavy tests |
 | `npm run test:all` | Run every non-emulator tier; this is intentionally very slow |
 | `npm run test:rules` | Run the Firestore rules emulator test |

@@ -360,7 +360,6 @@ npm run preview
 | `npm run test:related -- <source...>` | 変更sourceに関連するfast testだけを実行 |
 | `npm run test:regression` | slow engine convergence / physiology regression tests を明示実行 |
 | `npm run test:scientific:canonical` | 現行 `mainWire` 科学検証を実行 |
-| `npm run test:scientific:archive` | 過去phaseの研究bench / artifact replayを明示実行 |
 | `npm run test:heavy` | opt-in heavy casesを有効にしてGuyton/Starlingとlow-preloadを実行 |
 | `npm run test:all` | emulator以外の全tierを明示実行（非常に重い） |
 | `npm run test:rules` | Firestore rules emulator test を実行 |

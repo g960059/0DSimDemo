@@ -1,0 +1,2622 @@
+{
+  "comparisonId": "main-wire-normal-adult-five-wall-dt-halving-difference-v1",
+  "protocolIdentity": {
+    "exactMatch": true,
+    "identityHash": "745d9200",
+    "componentHashes": {
+      "mechanicsProviderMetadataStableHash": "78789398",
+      "calciumDriveFixedParamsStableHash": "9660029d",
+      "circulationTopologyGraphStableHash": "27a8ce3f",
+      "circulationRuntimeStableHash": "6a2d35d3",
+      "periodicPolicyStableHash": "00e13e40"
+    }
+  },
+  "coarseDtSec": 0.002,
+  "fineDtSec": 0.001,
+  "fineAcceptedStepsPerCoarseAcceptedStep": 2,
+  "coarseFinalBeatIndex": 27,
+  "fineFinalBeatIndex": 27,
+  "bothPeriod1Converged": true,
+  "interpretable": true,
+  "interpretabilityReasons": [],
+  "commonAcceptedSampleMapping": [
+    {
+      "coarseAcceptedSampleIndex": 0,
+      "fineAcceptedSampleIndex": 1,
+      "cyclePhase01": 0.001999999996467494
+    },
+    {
+      "coarseAcceptedSampleIndex": 1,
+      "fineAcceptedSampleIndex": 3,
+      "cyclePhase01": 0.003999999996466386
+    },
+    {
+      "coarseAcceptedSampleIndex": 2,
+      "fineAcceptedSampleIndex": 5,
+      "cyclePhase01": 0.005999999996465277
+    },
+    {
+      "coarseAcceptedSampleIndex": 3,
+      "fineAcceptedSampleIndex": 7,
+      "cyclePhase01": 0.007999999996464169
+    },
+    {
+      "coarseAcceptedSampleIndex": 4,
+      "fineAcceptedSampleIndex": 9,
+      "cyclePhase01": 0.00999999999646306
+    },
+    {
+      "coarseAcceptedSampleIndex": 5,
+      "fineAcceptedSampleIndex": 11,
+      "cyclePhase01": 0.011999999996461952
+    },
+    {
+      "coarseAcceptedSampleIndex": 6,
+      "fineAcceptedSampleIndex": 13,
+      "cyclePhase01": 0.013999999996460843
+    },
+    {
+      "coarseAcceptedSampleIndex": 7,
+      "fineAcceptedSampleIndex": 15,
+      "cyclePhase01": 0.015999999996459735
+    },
+    {
+      "coarseAcceptedSampleIndex": 8,
+      "fineAcceptedSampleIndex": 17,
+      "cyclePhase01": 0.017999999996458627
+    },
+    {
+      "coarseAcceptedSampleIndex": 9,
+      "fineAcceptedSampleIndex": 19,
+      "cyclePhase01": 0.019999999996457518
+    },
+    {
+      "coarseAcceptedSampleIndex": 10,
+      "fineAcceptedSampleIndex": 21,
+      "cyclePhase01": 0.02199999999645641
+    },
+    {
+      "coarseAcceptedSampleIndex": 11,
+      "fineAcceptedSampleIndex": 23,
+      "cyclePhase01": 0.0239999999964553
+    },
+    {
+      "coarseAcceptedSampleIndex": 12,
+      "fineAcceptedSampleIndex": 25,
+      "cyclePhase01": 0.025999999996454193
+    },
+    {
+      "coarseAcceptedSampleIndex": 13,
+      "fineAcceptedSampleIndex": 27,
+      "cyclePhase01": 0.027999999996453084
+    },
+    {
+      "coarseAcceptedSampleIndex": 14,
+      "fineAcceptedSampleIndex": 29,
+      "cyclePhase01": 0.029999999996451976
+    },
+    {
+      "coarseAcceptedSampleIndex": 15,
+      "fineAcceptedSampleIndex": 31,
+      "cyclePhase01": 0.03199999999645087
+    },
+    {
+      "coarseAcceptedSampleIndex": 16,
+      "fineAcceptedSampleIndex": 33,
+      "cyclePhase01": 0.03399999999644976
+    },
+    {
+      "coarseAcceptedSampleIndex": 17,
+      "fineAcceptedSampleIndex": 35,
+      "cyclePhase01": 0.03599999999644865
+    },
+    {
+      "coarseAcceptedSampleIndex": 18,
+      "fineAcceptedSampleIndex": 37,
+      "cyclePhase01": 0.03799999999644754
+    },
+    {
+      "coarseAcceptedSampleIndex": 19,
+      "fineAcceptedSampleIndex": 39,
+      "cyclePhase01": 0.039999999996446434
+    },
+    {
+      "coarseAcceptedSampleIndex": 20,
+      "fineAcceptedSampleIndex": 41,
+      "cyclePhase01": 0.041999999996445325
+    },
+    {
+      "coarseAcceptedSampleIndex": 21,
+      "fineAcceptedSampleIndex": 43,
+      "cyclePhase01": 0.04399999999644422
+    },
+    {
+      "coarseAcceptedSampleIndex": 22,
+      "fineAcceptedSampleIndex": 45,
+      "cyclePhase01": 0.04599999999644311
+    },
+    {
+      "coarseAcceptedSampleIndex": 23,
+      "fineAcceptedSampleIndex": 47,
+      "cyclePhase01": 0.047999999996442
+    },
+    {
+      "coarseAcceptedSampleIndex": 24,
+      "fineAcceptedSampleIndex": 49,
+      "cyclePhase01": 0.04999999999644089
+    },
+    {
+      "coarseAcceptedSampleIndex": 25,
+      "fineAcceptedSampleIndex": 51,
+      "cyclePhase01": 0.05199999999643978
+    },
+    {
+      "coarseAcceptedSampleIndex": 26,
+      "fineAcceptedSampleIndex": 53,
+      "cyclePhase01": 0.053999999996438675
+    },
+    {
+      "coarseAcceptedSampleIndex": 27,
+      "fineAcceptedSampleIndex": 55,
+      "cyclePhase01": 0.055999999996437566
+    },
+    {
+      "coarseAcceptedSampleIndex": 28,
+      "fineAcceptedSampleIndex": 57,
+      "cyclePhase01": 0.05799999999643646
+    },
+    {
+      "coarseAcceptedSampleIndex": 29,
+      "fineAcceptedSampleIndex": 59,
+      "cyclePhase01": 0.05999999999643535
+    },
+    {
+      "coarseAcceptedSampleIndex": 30,
+      "fineAcceptedSampleIndex": 61,
+      "cyclePhase01": 0.06199999999643424
+    },
+    {
+      "coarseAcceptedSampleIndex": 31,
+      "fineAcceptedSampleIndex": 63,
+      "cyclePhase01": 0.06399999999643313
+    },
+    {
+      "coarseAcceptedSampleIndex": 32,
+      "fineAcceptedSampleIndex": 65,
+      "cyclePhase01": 0.06599999999643202
+    },
+    {
+      "coarseAcceptedSampleIndex": 33,
+      "fineAcceptedSampleIndex": 67,
+      "cyclePhase01": 0.06799999999643092
+    },
+    {
+      "coarseAcceptedSampleIndex": 34,
+      "fineAcceptedSampleIndex": 69,
+      "cyclePhase01": 0.06999999999642981
+    },
+    {
+      "coarseAcceptedSampleIndex": 35,
+      "fineAcceptedSampleIndex": 71,
+      "cyclePhase01": 0.0719999999964287
+    },
+    {
+      "coarseAcceptedSampleIndex": 36,
+      "fineAcceptedSampleIndex": 73,
+      "cyclePhase01": 0.07399999999642759
+    },
+    {
+      "coarseAcceptedSampleIndex": 37,
+      "fineAcceptedSampleIndex": 75,
+      "cyclePhase01": 0.07599999999642648
+    },
+    {
+      "coarseAcceptedSampleIndex": 38,
+      "fineAcceptedSampleIndex": 77,
+      "cyclePhase01": 0.07799999999642537
+    },
+    {
+      "coarseAcceptedSampleIndex": 39,
+      "fineAcceptedSampleIndex": 79,
+      "cyclePhase01": 0.07999999999642426
+    },
+    {
+      "coarseAcceptedSampleIndex": 40,
+      "fineAcceptedSampleIndex": 81,
+      "cyclePhase01": 0.08199999999642316
+    },
+    {
+      "coarseAcceptedSampleIndex": 41,
+      "fineAcceptedSampleIndex": 83,
+      "cyclePhase01": 0.08399999999642205
+    },
+    {
+      "coarseAcceptedSampleIndex": 42,
+      "fineAcceptedSampleIndex": 85,
+      "cyclePhase01": 0.08599999999642094
+    },
+    {
+      "coarseAcceptedSampleIndex": 43,
+      "fineAcceptedSampleIndex": 87,
+      "cyclePhase01": 0.08799999999641983
+    },
+    {
+      "coarseAcceptedSampleIndex": 44,
+      "fineAcceptedSampleIndex": 89,
+      "cyclePhase01": 0.08999999999641872
+    },
+    {
+      "coarseAcceptedSampleIndex": 45,
+      "fineAcceptedSampleIndex": 91,
+      "cyclePhase01": 0.09199999999641761
+    },
+    {
+      "coarseAcceptedSampleIndex": 46,
+      "fineAcceptedSampleIndex": 93,
+      "cyclePhase01": 0.0939999999964165
+    },
+    {
+      "coarseAcceptedSampleIndex": 47,
+      "fineAcceptedSampleIndex": 95,
+      "cyclePhase01": 0.0959999999964154
+    },
+    {
+      "coarseAcceptedSampleIndex": 48,
+      "fineAcceptedSampleIndex": 97,
+      "cyclePhase01": 0.09799999999641429
+    },
+    {
+      "coarseAcceptedSampleIndex": 49,
+      "fineAcceptedSampleIndex": 99,
+      "cyclePhase01": 0.09999999999641318
+    },
+    {
+      "coarseAcceptedSampleIndex": 50,
+      "fineAcceptedSampleIndex": 101,
+      "cyclePhase01": 0.10199999999641207
+    },
+    {
+      "coarseAcceptedSampleIndex": 51,
+      "fineAcceptedSampleIndex": 103,
+      "cyclePhase01": 0.10399999999641096
+    },
+    {
+      "coarseAcceptedSampleIndex": 52,
+      "fineAcceptedSampleIndex": 105,
+      "cyclePhase01": 0.10599999999640985
+    },
+    {
+      "coarseAcceptedSampleIndex": 53,
+      "fineAcceptedSampleIndex": 107,
+      "cyclePhase01": 0.10799999999640875
+    },
+    {
+      "coarseAcceptedSampleIndex": 54,
+      "fineAcceptedSampleIndex": 109,
+      "cyclePhase01": 0.10999999999640764
+    },
+    {
+      "coarseAcceptedSampleIndex": 55,
+      "fineAcceptedSampleIndex": 111,
+      "cyclePhase01": 0.11199999999640653
+    },
+    {
+      "coarseAcceptedSampleIndex": 56,
+      "fineAcceptedSampleIndex": 113,
+      "cyclePhase01": 0.11399999999640542
+    },
+    {
+      "coarseAcceptedSampleIndex": 57,
+      "fineAcceptedSampleIndex": 115,
+      "cyclePhase01": 0.11599999999640431
+    },
+    {
+      "coarseAcceptedSampleIndex": 58,
+      "fineAcceptedSampleIndex": 117,
+      "cyclePhase01": 0.1179999999964032
+    },
+    {
+      "coarseAcceptedSampleIndex": 59,
+      "fineAcceptedSampleIndex": 119,
+      "cyclePhase01": 0.1199999999964021
+    },
+    {
+      "coarseAcceptedSampleIndex": 60,
+      "fineAcceptedSampleIndex": 121,
+      "cyclePhase01": 0.12199999999640099
+    },
+    {
+      "coarseAcceptedSampleIndex": 61,
+      "fineAcceptedSampleIndex": 123,
+      "cyclePhase01": 0.12399999999639988
+    },
+    {
+      "coarseAcceptedSampleIndex": 62,
+      "fineAcceptedSampleIndex": 125,
+      "cyclePhase01": 0.12599999999639877
+    },
+    {
+      "coarseAcceptedSampleIndex": 63,
+      "fineAcceptedSampleIndex": 127,
+      "cyclePhase01": 0.12799999999639766
+    },
+    {
+      "coarseAcceptedSampleIndex": 64,
+      "fineAcceptedSampleIndex": 129,
+      "cyclePhase01": 0.12999999999639655
+    },
+    {
+      "coarseAcceptedSampleIndex": 65,
+      "fineAcceptedSampleIndex": 131,
+      "cyclePhase01": 0.13199999999639545
+    },
+    {
+      "coarseAcceptedSampleIndex": 66,
+      "fineAcceptedSampleIndex": 133,
+      "cyclePhase01": 0.13399999999639434
+    },
+    {
+      "coarseAcceptedSampleIndex": 67,
+      "fineAcceptedSampleIndex": 135,
+      "cyclePhase01": 0.13599999999639323
+    },
+    {
+      "coarseAcceptedSampleIndex": 68,
+      "fineAcceptedSampleIndex": 137,
+      "cyclePhase01": 0.13799999999639212
+    },
+    {
+      "coarseAcceptedSampleIndex": 69,
+      "fineAcceptedSampleIndex": 139,
+      "cyclePhase01": 0.139999999996391
+    },
+    {
+      "coarseAcceptedSampleIndex": 70,
+      "fineAcceptedSampleIndex": 141,
+      "cyclePhase01": 0.1419999999963899
+    },
+    {
+      "coarseAcceptedSampleIndex": 71,
+      "fineAcceptedSampleIndex": 143,
+      "cyclePhase01": 0.1439999999963888
+    },
+    {
+      "coarseAcceptedSampleIndex": 72,
+      "fineAcceptedSampleIndex": 145,
+      "cyclePhase01": 0.14599999999638769
+    },
+    {
+      "coarseAcceptedSampleIndex": 73,
+      "fineAcceptedSampleIndex": 147,
+      "cyclePhase01": 0.14799999999638658
+    },
+    {
+      "coarseAcceptedSampleIndex": 74,
+      "fineAcceptedSampleIndex": 149,
+      "cyclePhase01": 0.14999999999638547
+    },
+    {
+      "coarseAcceptedSampleIndex": 75,
+      "fineAcceptedSampleIndex": 151,
+      "cyclePhase01": 0.15199999999638436
+    },
+    {
+      "coarseAcceptedSampleIndex": 76,
+      "fineAcceptedSampleIndex": 153,
+      "cyclePhase01": 0.15399999999638325
+    },
+    {
+      "coarseAcceptedSampleIndex": 77,
+      "fineAcceptedSampleIndex": 155,
+      "cyclePhase01": 0.15599999999638214
+    },
+    {
+      "coarseAcceptedSampleIndex": 78,
+      "fineAcceptedSampleIndex": 157,
+      "cyclePhase01": 0.15799999999638104
+    },
+    {
+      "coarseAcceptedSampleIndex": 79,
+      "fineAcceptedSampleIndex": 159,
+      "cyclePhase01": 0.15999999999637993
+    },
+    {
+      "coarseAcceptedSampleIndex": 80,
+      "fineAcceptedSampleIndex": 161,
+      "cyclePhase01": 0.16199999999637882
+    },
+    {
+      "coarseAcceptedSampleIndex": 81,
+      "fineAcceptedSampleIndex": 163,
+      "cyclePhase01": 0.1639999999963777
+    },
+    {
+      "coarseAcceptedSampleIndex": 82,
+      "fineAcceptedSampleIndex": 165,
+      "cyclePhase01": 0.1659999999963766
+    },
+    {
+      "coarseAcceptedSampleIndex": 83,
+      "fineAcceptedSampleIndex": 167,
+      "cyclePhase01": 0.1679999999963755
+    },
+    {
+      "coarseAcceptedSampleIndex": 84,
+      "fineAcceptedSampleIndex": 169,
+      "cyclePhase01": 0.16999999999637438
+    },
+    {
+      "coarseAcceptedSampleIndex": 85,
+      "fineAcceptedSampleIndex": 171,
+      "cyclePhase01": 0.17199999999637328
+    },
+    {
+      "coarseAcceptedSampleIndex": 86,
+      "fineAcceptedSampleIndex": 173,
+      "cyclePhase01": 0.17399999999637217
+    },
+    {
+      "coarseAcceptedSampleIndex": 87,
+      "fineAcceptedSampleIndex": 175,
+      "cyclePhase01": 0.17599999999637106
+    },
+    {
+      "coarseAcceptedSampleIndex": 88,
+      "fineAcceptedSampleIndex": 177,
+      "cyclePhase01": 0.17799999999636995
+    },
+    {
+      "coarseAcceptedSampleIndex": 89,
+      "fineAcceptedSampleIndex": 179,
+      "cyclePhase01": 0.17999999999636884
+    },
+    {
+      "coarseAcceptedSampleIndex": 90,
+      "fineAcceptedSampleIndex": 181,
+      "cyclePhase01": 0.18199999999636773
+    },
+    {
+      "coarseAcceptedSampleIndex": 91,
+      "fineAcceptedSampleIndex": 183,
+      "cyclePhase01": 0.18399999999636663
+    },
+    {
+      "coarseAcceptedSampleIndex": 92,
+      "fineAcceptedSampleIndex": 185,
+      "cyclePhase01": 0.18599999999636552
+    },
+    {
+      "coarseAcceptedSampleIndex": 93,
+      "fineAcceptedSampleIndex": 187,
+      "cyclePhase01": 0.1879999999963644
+    },
+    {
+      "coarseAcceptedSampleIndex": 94,
+      "fineAcceptedSampleIndex": 189,
+      "cyclePhase01": 0.1899999999963633
+    },
+    {
+      "coarseAcceptedSampleIndex": 95,
+      "fineAcceptedSampleIndex": 191,
+      "cyclePhase01": 0.1919999999963622
+    },
+    {
+      "coarseAcceptedSampleIndex": 96,
+      "fineAcceptedSampleIndex": 193,
+      "cyclePhase01": 0.19399999999636108
+    },
+    {
+      "coarseAcceptedSampleIndex": 97,
+      "fineAcceptedSampleIndex": 195,
+      "cyclePhase01": 0.19599999999635997
+    },
+    {
+      "coarseAcceptedSampleIndex": 98,
+      "fineAcceptedSampleIndex": 197,
+      "cyclePhase01": 0.19799999999635887
+    },
+    {
+      "coarseAcceptedSampleIndex": 99,
+      "fineAcceptedSampleIndex": 199,
+      "cyclePhase01": 0.19999999999635776
+    },
+    {
+      "coarseAcceptedSampleIndex": 100,
+      "fineAcceptedSampleIndex": 201,
+      "cyclePhase01": 0.20199999999635665
+    },
+    {
+      "coarseAcceptedSampleIndex": 101,
+      "fineAcceptedSampleIndex": 203,
+      "cyclePhase01": 0.20399999999635554
+    },
+    {
+      "coarseAcceptedSampleIndex": 102,
+      "fineAcceptedSampleIndex": 205,
+      "cyclePhase01": 0.20599999999635443
+    },
+    {
+      "coarseAcceptedSampleIndex": 103,
+      "fineAcceptedSampleIndex": 207,
+      "cyclePhase01": 0.20799999999635332
+    },
+    {
+      "coarseAcceptedSampleIndex": 104,
+      "fineAcceptedSampleIndex": 209,
+      "cyclePhase01": 0.20999999999635222
+    },
+    {
+      "coarseAcceptedSampleIndex": 105,
+      "fineAcceptedSampleIndex": 211,
+      "cyclePhase01": 0.2119999999963511
+    },
+    {
+      "coarseAcceptedSampleIndex": 106,
+      "fineAcceptedSampleIndex": 213,
+      "cyclePhase01": 0.21399999999635
+    },
+    {
+      "coarseAcceptedSampleIndex": 107,
+      "fineAcceptedSampleIndex": 215,
+      "cyclePhase01": 0.2159999999963489
+    },
+    {
+      "coarseAcceptedSampleIndex": 108,
+      "fineAcceptedSampleIndex": 217,
+      "cyclePhase01": 0.21799999999634778
+    },
+    {
+      "coarseAcceptedSampleIndex": 109,
+      "fineAcceptedSampleIndex": 219,
+      "cyclePhase01": 0.21999999999634667
+    },
+    {
+      "coarseAcceptedSampleIndex": 110,
+      "fineAcceptedSampleIndex": 221,
+      "cyclePhase01": 0.22199999999634557
+    },
+    {
+      "coarseAcceptedSampleIndex": 111,
+      "fineAcceptedSampleIndex": 223,
+      "cyclePhase01": 0.22399999999634446
+    },
+    {
+      "coarseAcceptedSampleIndex": 112,
+      "fineAcceptedSampleIndex": 225,
+      "cyclePhase01": 0.22599999999634335
+    },
+    {
+      "coarseAcceptedSampleIndex": 113,
+      "fineAcceptedSampleIndex": 227,
+      "cyclePhase01": 0.22799999999634224
+    },
+    {
+      "coarseAcceptedSampleIndex": 114,
+      "fineAcceptedSampleIndex": 229,
+      "cyclePhase01": 0.22999999999634113
+    },
+    {
+      "coarseAcceptedSampleIndex": 115,
+      "fineAcceptedSampleIndex": 231,
+      "cyclePhase01": 0.23199999999634002
+    },
+    {
+      "coarseAcceptedSampleIndex": 116,
+      "fineAcceptedSampleIndex": 233,
+      "cyclePhase01": 0.23399999999633891
+    },
+    {
+      "coarseAcceptedSampleIndex": 117,
+      "fineAcceptedSampleIndex": 235,
+      "cyclePhase01": 0.2359999999963378
+    },
+    {
+      "coarseAcceptedSampleIndex": 118,
+      "fineAcceptedSampleIndex": 237,
+      "cyclePhase01": 0.2379999999963367
+    },
+    {
+      "coarseAcceptedSampleIndex": 119,
+      "fineAcceptedSampleIndex": 239,
+      "cyclePhase01": 0.2399999999963356
+    },
+    {
+      "coarseAcceptedSampleIndex": 120,
+      "fineAcceptedSampleIndex": 241,
+      "cyclePhase01": 0.24199999999633448
+    },
+    {
+      "coarseAcceptedSampleIndex": 121,
+      "fineAcceptedSampleIndex": 243,
+      "cyclePhase01": 0.24399999999633337
+    },
+    {
+      "coarseAcceptedSampleIndex": 122,
+      "fineAcceptedSampleIndex": 245,
+      "cyclePhase01": 0.24599999999633226
+    },
+    {
+      "coarseAcceptedSampleIndex": 123,
+      "fineAcceptedSampleIndex": 247,
+      "cyclePhase01": 0.24799999999633116
+    },
+    {
+      "coarseAcceptedSampleIndex": 124,
+      "fineAcceptedSampleIndex": 249,
+      "cyclePhase01": 0.24999999999633005
+    },
+    {
+      "coarseAcceptedSampleIndex": 125,
+      "fineAcceptedSampleIndex": 251,
+      "cyclePhase01": 0.25199999999632894
+    },
+    {
+      "coarseAcceptedSampleIndex": 126,
+      "fineAcceptedSampleIndex": 253,
+      "cyclePhase01": 0.25399999999632783
+    },
+    {
+      "coarseAcceptedSampleIndex": 127,
+      "fineAcceptedSampleIndex": 255,
+      "cyclePhase01": 0.2559999999963267
+    },
+    {
+      "coarseAcceptedSampleIndex": 128,
+      "fineAcceptedSampleIndex": 257,
+      "cyclePhase01": 0.2579999999963256
+    },
+    {
+      "coarseAcceptedSampleIndex": 129,
+      "fineAcceptedSampleIndex": 259,
+      "cyclePhase01": 0.2599999999963245
+    },
+    {
+      "coarseAcceptedSampleIndex": 130,
+      "fineAcceptedSampleIndex": 261,
+      "cyclePhase01": 0.2619999999963234
+    },
+    {
+      "coarseAcceptedSampleIndex": 131,
+      "fineAcceptedSampleIndex": 263,
+      "cyclePhase01": 0.2639999999963223
+    },
+    {
+      "coarseAcceptedSampleIndex": 132,
+      "fineAcceptedSampleIndex": 265,
+      "cyclePhase01": 0.2659999999963212
+    },
+    {
+      "coarseAcceptedSampleIndex": 133,
+      "fineAcceptedSampleIndex": 267,
+      "cyclePhase01": 0.26799999999632007
+    },
+    {
+      "coarseAcceptedSampleIndex": 134,
+      "fineAcceptedSampleIndex": 269,
+      "cyclePhase01": 0.26999999999631896
+    },
+    {
+      "coarseAcceptedSampleIndex": 135,
+      "fineAcceptedSampleIndex": 271,
+      "cyclePhase01": 0.27199999999631785
+    },
+    {
+      "coarseAcceptedSampleIndex": 136,
+      "fineAcceptedSampleIndex": 273,
+      "cyclePhase01": 0.27399999999631675
+    },
+    {
+      "coarseAcceptedSampleIndex": 137,
+      "fineAcceptedSampleIndex": 275,
+      "cyclePhase01": 0.27599999999631564
+    },
+    {
+      "coarseAcceptedSampleIndex": 138,
+      "fineAcceptedSampleIndex": 277,
+      "cyclePhase01": 0.27799999999631453
+    },
+    {
+      "coarseAcceptedSampleIndex": 139,
+      "fineAcceptedSampleIndex": 279,
+      "cyclePhase01": 0.2799999999963134
+    },
+    {
+      "coarseAcceptedSampleIndex": 140,
+      "fineAcceptedSampleIndex": 281,
+      "cyclePhase01": 0.2819999999963123
+    },
+    {
+      "coarseAcceptedSampleIndex": 141,
+      "fineAcceptedSampleIndex": 283,
+      "cyclePhase01": 0.2839999999963112
+    },
+    {
+      "coarseAcceptedSampleIndex": 142,
+      "fineAcceptedSampleIndex": 285,
+      "cyclePhase01": 0.2859999999963101
+    },
+    {
+      "coarseAcceptedSampleIndex": 143,
+      "fineAcceptedSampleIndex": 287,
+      "cyclePhase01": 0.287999999996309
+    },
+    {
+      "coarseAcceptedSampleIndex": 144,
+      "fineAcceptedSampleIndex": 289,
+      "cyclePhase01": 0.2899999999963079
+    },
+    {
+      "coarseAcceptedSampleIndex": 145,
+      "fineAcceptedSampleIndex": 291,
+      "cyclePhase01": 0.29199999999630677
+    },
+    {
+      "coarseAcceptedSampleIndex": 146,
+      "fineAcceptedSampleIndex": 293,
+      "cyclePhase01": 0.29399999999630566
+    },
+    {
+      "coarseAcceptedSampleIndex": 147,
+      "fineAcceptedSampleIndex": 295,
+      "cyclePhase01": 0.29599999999630455
+    },
+    {
+      "coarseAcceptedSampleIndex": 148,
+      "fineAcceptedSampleIndex": 297,
+      "cyclePhase01": 0.29799999999630344
+    },
+    {
+      "coarseAcceptedSampleIndex": 149,
+      "fineAcceptedSampleIndex": 299,
+      "cyclePhase01": 0.29999999999630234
+    },
+    {
+      "coarseAcceptedSampleIndex": 150,
+      "fineAcceptedSampleIndex": 301,
+      "cyclePhase01": 0.3019999999963012
+    },
+    {
+      "coarseAcceptedSampleIndex": 151,
+      "fineAcceptedSampleIndex": 303,
+      "cyclePhase01": 0.3039999999963001
+    },
+    {
+      "coarseAcceptedSampleIndex": 152,
+      "fineAcceptedSampleIndex": 305,
+      "cyclePhase01": 0.305999999996299
+    },
+    {
+      "coarseAcceptedSampleIndex": 153,
+      "fineAcceptedSampleIndex": 307,
+      "cyclePhase01": 0.3079999999962979
+    },
+    {
+      "coarseAcceptedSampleIndex": 154,
+      "fineAcceptedSampleIndex": 309,
+      "cyclePhase01": 0.3099999999962968
+    },
+    {
+      "coarseAcceptedSampleIndex": 155,
+      "fineAcceptedSampleIndex": 311,
+      "cyclePhase01": 0.3119999999962957
+    },
+    {
+      "coarseAcceptedSampleIndex": 156,
+      "fineAcceptedSampleIndex": 313,
+      "cyclePhase01": 0.3139999999962946
+    },
+    {
+      "coarseAcceptedSampleIndex": 157,
+      "fineAcceptedSampleIndex": 315,
+      "cyclePhase01": 0.31599999999629347
+    },
+    {
+      "coarseAcceptedSampleIndex": 158,
+      "fineAcceptedSampleIndex": 317,
+      "cyclePhase01": 0.31799999999629236
+    },
+    {
+      "coarseAcceptedSampleIndex": 159,
+      "fineAcceptedSampleIndex": 319,
+      "cyclePhase01": 0.31999999999629125
+    },
+    {
+      "coarseAcceptedSampleIndex": 160,
+      "fineAcceptedSampleIndex": 321,
+      "cyclePhase01": 0.32199999999629014
+    },
+    {
+      "coarseAcceptedSampleIndex": 161,
+      "fineAcceptedSampleIndex": 323,
+      "cyclePhase01": 0.32399999999628903
+    },
+    {
+      "coarseAcceptedSampleIndex": 162,
+      "fineAcceptedSampleIndex": 325,
+      "cyclePhase01": 0.3259999999962879
+    },
+    {
+      "coarseAcceptedSampleIndex": 163,
+      "fineAcceptedSampleIndex": 327,
+      "cyclePhase01": 0.3279999999962868
+    },
+    {
+      "coarseAcceptedSampleIndex": 164,
+      "fineAcceptedSampleIndex": 329,
+      "cyclePhase01": 0.3299999999962857
+    },
+    {
+      "coarseAcceptedSampleIndex": 165,
+      "fineAcceptedSampleIndex": 331,
+      "cyclePhase01": 0.3319999999962846
+    },
+    {
+      "coarseAcceptedSampleIndex": 166,
+      "fineAcceptedSampleIndex": 333,
+      "cyclePhase01": 0.3339999999962835
+    },
+    {
+      "coarseAcceptedSampleIndex": 167,
+      "fineAcceptedSampleIndex": 335,
+      "cyclePhase01": 0.3359999999962824
+    },
+    {
+      "coarseAcceptedSampleIndex": 168,
+      "fineAcceptedSampleIndex": 337,
+      "cyclePhase01": 0.3379999999962813
+    },
+    {
+      "coarseAcceptedSampleIndex": 169,
+      "fineAcceptedSampleIndex": 339,
+      "cyclePhase01": 0.33999999999628017
+    },
+    {
+      "coarseAcceptedSampleIndex": 170,
+      "fineAcceptedSampleIndex": 341,
+      "cyclePhase01": 0.34199999999627906
+    },
+    {
+      "coarseAcceptedSampleIndex": 171,
+      "fineAcceptedSampleIndex": 343,
+      "cyclePhase01": 0.34399999999627795
+    },
+    {
+      "coarseAcceptedSampleIndex": 172,
+      "fineAcceptedSampleIndex": 345,
+      "cyclePhase01": 0.34599999999627684
+    },
+    {
+      "coarseAcceptedSampleIndex": 173,
+      "fineAcceptedSampleIndex": 347,
+      "cyclePhase01": 0.34799999999627573
+    },
+    {
+      "coarseAcceptedSampleIndex": 174,
+      "fineAcceptedSampleIndex": 349,
+      "cyclePhase01": 0.3499999999962746
+    },
+    {
+      "coarseAcceptedSampleIndex": 175,
+      "fineAcceptedSampleIndex": 351,
+      "cyclePhase01": 0.3519999999962735
+    },
+    {
+      "coarseAcceptedSampleIndex": 176,
+      "fineAcceptedSampleIndex": 353,
+      "cyclePhase01": 0.3539999999962724
+    },
+    {
+      "coarseAcceptedSampleIndex": 177,
+      "fineAcceptedSampleIndex": 355,
+      "cyclePhase01": 0.3559999999962713
+    },
+    {
+      "coarseAcceptedSampleIndex": 178,
+      "fineAcceptedSampleIndex": 357,
+      "cyclePhase01": 0.3579999999962702
+    },
+    {
+      "coarseAcceptedSampleIndex": 179,
+      "fineAcceptedSampleIndex": 359,
+      "cyclePhase01": 0.3599999999962691
+    },
+    {
+      "coarseAcceptedSampleIndex": 180,
+      "fineAcceptedSampleIndex": 361,
+      "cyclePhase01": 0.361999999996268
+    },
+    {
+      "coarseAcceptedSampleIndex": 181,
+      "fineAcceptedSampleIndex": 363,
+      "cyclePhase01": 0.36399999999626687
+    },
+    {
+      "coarseAcceptedSampleIndex": 182,
+      "fineAcceptedSampleIndex": 365,
+      "cyclePhase01": 0.36599999999626576
+    },
+    {
+      "coarseAcceptedSampleIndex": 183,
+      "fineAcceptedSampleIndex": 367,
+      "cyclePhase01": 0.36799999999626465
+    },
+    {
+      "coarseAcceptedSampleIndex": 184,
+      "fineAcceptedSampleIndex": 369,
+      "cyclePhase01": 0.36999999999626354
+    },
+    {
+      "coarseAcceptedSampleIndex": 185,
+      "fineAcceptedSampleIndex": 371,
+      "cyclePhase01": 0.37199999999626243
+    },
+    {
+      "coarseAcceptedSampleIndex": 186,
+      "fineAcceptedSampleIndex": 373,
+      "cyclePhase01": 0.3739999999962613
+    },
+    {
+      "coarseAcceptedSampleIndex": 187,
+      "fineAcceptedSampleIndex": 375,
+      "cyclePhase01": 0.3759999999962602
+    },
+    {
+      "coarseAcceptedSampleIndex": 188,
+      "fineAcceptedSampleIndex": 377,
+      "cyclePhase01": 0.3779999999962591
+    },
+    {
+      "coarseAcceptedSampleIndex": 189,
+      "fineAcceptedSampleIndex": 379,
+      "cyclePhase01": 0.379999999996258
+    },
+    {
+      "coarseAcceptedSampleIndex": 190,
+      "fineAcceptedSampleIndex": 381,
+      "cyclePhase01": 0.3819999999962569
+    },
+    {
+      "coarseAcceptedSampleIndex": 191,
+      "fineAcceptedSampleIndex": 383,
+      "cyclePhase01": 0.3839999999962558
+    },
+    {
+      "coarseAcceptedSampleIndex": 192,
+      "fineAcceptedSampleIndex": 385,
+      "cyclePhase01": 0.3859999999962547
+    },
+    {
+      "coarseAcceptedSampleIndex": 193,
+      "fineAcceptedSampleIndex": 387,
+      "cyclePhase01": 0.38799999999625356
+    },
+    {
+      "coarseAcceptedSampleIndex": 194,
+      "fineAcceptedSampleIndex": 389,
+      "cyclePhase01": 0.38999999999625246
+    },
+    {
+      "coarseAcceptedSampleIndex": 195,
+      "fineAcceptedSampleIndex": 391,
+      "cyclePhase01": 0.39199999999625135
+    },
+    {
+      "coarseAcceptedSampleIndex": 196,
+      "fineAcceptedSampleIndex": 393,
+      "cyclePhase01": 0.39399999999625024
+    },
+    {
+      "coarseAcceptedSampleIndex": 197,
+      "fineAcceptedSampleIndex": 395,
+      "cyclePhase01": 0.39599999999624913
+    },
+    {
+      "coarseAcceptedSampleIndex": 198,
+      "fineAcceptedSampleIndex": 397,
+      "cyclePhase01": 0.397999999996248
+    },
+    {
+      "coarseAcceptedSampleIndex": 199,
+      "fineAcceptedSampleIndex": 399,
+      "cyclePhase01": 0.3999999999962469
+    },
+    {
+      "coarseAcceptedSampleIndex": 200,
+      "fineAcceptedSampleIndex": 401,
+      "cyclePhase01": 0.4019999999962458
+    },
+    {
+      "coarseAcceptedSampleIndex": 201,
+      "fineAcceptedSampleIndex": 403,
+      "cyclePhase01": 0.4039999999962447
+    },
+    {
+      "coarseAcceptedSampleIndex": 202,
+      "fineAcceptedSampleIndex": 405,
+      "cyclePhase01": 0.4059999999962436
+    },
+    {
+      "coarseAcceptedSampleIndex": 203,
+      "fineAcceptedSampleIndex": 407,
+      "cyclePhase01": 0.4079999999962425
+    },
+    {
+      "coarseAcceptedSampleIndex": 204,
+      "fineAcceptedSampleIndex": 409,
+      "cyclePhase01": 0.40999999999624137
+    },
+    {
+      "coarseAcceptedSampleIndex": 205,
+      "fineAcceptedSampleIndex": 411,
+      "cyclePhase01": 0.41199999999624026
+    },
+    {
+      "coarseAcceptedSampleIndex": 206,
+      "fineAcceptedSampleIndex": 413,
+      "cyclePhase01": 0.41399999999623915
+    },
+    {
+      "coarseAcceptedSampleIndex": 207,
+      "fineAcceptedSampleIndex": 415,
+      "cyclePhase01": 0.41599999999623805
+    },
+    {
+      "coarseAcceptedSampleIndex": 208,
+      "fineAcceptedSampleIndex": 417,
+      "cyclePhase01": 0.41799999999623694
+    },
+    {
+      "coarseAcceptedSampleIndex": 209,
+      "fineAcceptedSampleIndex": 419,
+      "cyclePhase01": 0.41999999999623583
+    },
+    {
+      "coarseAcceptedSampleIndex": 210,
+      "fineAcceptedSampleIndex": 421,
+      "cyclePhase01": 0.4219999999962347
+    },
+    {
+      "coarseAcceptedSampleIndex": 211,
+      "fineAcceptedSampleIndex": 423,
+      "cyclePhase01": 0.4239999999962336
+    },
+    {
+      "coarseAcceptedSampleIndex": 212,
+      "fineAcceptedSampleIndex": 425,
+      "cyclePhase01": 0.4259999999962325
+    },
+    {
+      "coarseAcceptedSampleIndex": 213,
+      "fineAcceptedSampleIndex": 427,
+      "cyclePhase01": 0.4279999999962314
+    },
+    {
+      "coarseAcceptedSampleIndex": 214,
+      "fineAcceptedSampleIndex": 429,
+      "cyclePhase01": 0.4299999999962303
+    },
+    {
+      "coarseAcceptedSampleIndex": 215,
+      "fineAcceptedSampleIndex": 431,
+      "cyclePhase01": 0.4319999999962292
+    },
+    {
+      "coarseAcceptedSampleIndex": 216,
+      "fineAcceptedSampleIndex": 433,
+      "cyclePhase01": 0.43399999999622807
+    },
+    {
+      "coarseAcceptedSampleIndex": 217,
+      "fineAcceptedSampleIndex": 435,
+      "cyclePhase01": 0.43599999999622696
+    },
+    {
+      "coarseAcceptedSampleIndex": 218,
+      "fineAcceptedSampleIndex": 437,
+      "cyclePhase01": 0.43799999999622585
+    },
+    {
+      "coarseAcceptedSampleIndex": 219,
+      "fineAcceptedSampleIndex": 439,
+      "cyclePhase01": 0.43999999999622474
+    },
+    {
+      "coarseAcceptedSampleIndex": 220,
+      "fineAcceptedSampleIndex": 441,
+      "cyclePhase01": 0.44199999999622364
+    },
+    {
+      "coarseAcceptedSampleIndex": 221,
+      "fineAcceptedSampleIndex": 443,
+      "cyclePhase01": 0.4439999999962225
+    },
+    {
+      "coarseAcceptedSampleIndex": 222,
+      "fineAcceptedSampleIndex": 445,
+      "cyclePhase01": 0.4459999999962214
+    },
+    {
+      "coarseAcceptedSampleIndex": 223,
+      "fineAcceptedSampleIndex": 447,
+      "cyclePhase01": 0.4479999999962203
+    },
+    {
+      "coarseAcceptedSampleIndex": 224,
+      "fineAcceptedSampleIndex": 449,
+      "cyclePhase01": 0.4499999999962192
+    },
+    {
+      "coarseAcceptedSampleIndex": 225,
+      "fineAcceptedSampleIndex": 451,
+      "cyclePhase01": 0.4519999999962181
+    },
+    {
+      "coarseAcceptedSampleIndex": 226,
+      "fineAcceptedSampleIndex": 453,
+      "cyclePhase01": 0.453999999996217
+    },
+    {
+      "coarseAcceptedSampleIndex": 227,
+      "fineAcceptedSampleIndex": 455,
+      "cyclePhase01": 0.4559999999962159
+    },
+    {
+      "coarseAcceptedSampleIndex": 228,
+      "fineAcceptedSampleIndex": 457,
+      "cyclePhase01": 0.45799999999621477
+    },
+    {
+      "coarseAcceptedSampleIndex": 229,
+      "fineAcceptedSampleIndex": 459,
+      "cyclePhase01": 0.45999999999621366
+    },
+    {
+      "coarseAcceptedSampleIndex": 230,
+      "fineAcceptedSampleIndex": 461,
+      "cyclePhase01": 0.46199999999621255
+    },
+    {
+      "coarseAcceptedSampleIndex": 231,
+      "fineAcceptedSampleIndex": 463,
+      "cyclePhase01": 0.46399999999621144
+    },
+    {
+      "coarseAcceptedSampleIndex": 232,
+      "fineAcceptedSampleIndex": 465,
+      "cyclePhase01": 0.46599999999621033
+    },
+    {
+      "coarseAcceptedSampleIndex": 233,
+      "fineAcceptedSampleIndex": 467,
+      "cyclePhase01": 0.4679999999962092
+    },
+    {
+      "coarseAcceptedSampleIndex": 234,
+      "fineAcceptedSampleIndex": 469,
+      "cyclePhase01": 0.4699999999962081
+    },
+    {
+      "coarseAcceptedSampleIndex": 235,
+      "fineAcceptedSampleIndex": 471,
+      "cyclePhase01": 0.471999999996207
+    },
+    {
+      "coarseAcceptedSampleIndex": 236,
+      "fineAcceptedSampleIndex": 473,
+      "cyclePhase01": 0.4739999999962059
+    },
+    {
+      "coarseAcceptedSampleIndex": 237,
+      "fineAcceptedSampleIndex": 475,
+      "cyclePhase01": 0.4759999999962048
+    },
+    {
+      "coarseAcceptedSampleIndex": 238,
+      "fineAcceptedSampleIndex": 477,
+      "cyclePhase01": 0.4779999999962037
+    },
+    {
+      "coarseAcceptedSampleIndex": 239,
+      "fineAcceptedSampleIndex": 479,
+      "cyclePhase01": 0.4799999999962026
+    },
+    {
+      "coarseAcceptedSampleIndex": 240,
+      "fineAcceptedSampleIndex": 481,
+      "cyclePhase01": 0.48199999999620147
+    },
+    {
+      "coarseAcceptedSampleIndex": 241,
+      "fineAcceptedSampleIndex": 483,
+      "cyclePhase01": 0.48399999999620036
+    },
+    {
+      "coarseAcceptedSampleIndex": 242,
+      "fineAcceptedSampleIndex": 485,
+      "cyclePhase01": 0.48599999999619925
+    },
+    {
+      "coarseAcceptedSampleIndex": 243,
+      "fineAcceptedSampleIndex": 487,
+      "cyclePhase01": 0.48799999999619814
+    },
+    {
+      "coarseAcceptedSampleIndex": 244,
+      "fineAcceptedSampleIndex": 489,
+      "cyclePhase01": 0.48999999999619703
+    },
+    {
+      "coarseAcceptedSampleIndex": 245,
+      "fineAcceptedSampleIndex": 491,
+      "cyclePhase01": 0.4919999999961959
+    },
+    {
+      "coarseAcceptedSampleIndex": 246,
+      "fineAcceptedSampleIndex": 493,
+      "cyclePhase01": 0.4939999999961948
+    },
+    {
+      "coarseAcceptedSampleIndex": 247,
+      "fineAcceptedSampleIndex": 495,
+      "cyclePhase01": 0.4959999999961937
+    },
+    {
+      "coarseAcceptedSampleIndex": 248,
+      "fineAcceptedSampleIndex": 497,
+      "cyclePhase01": 0.4979999999961926
+    },
+    {
+      "coarseAcceptedSampleIndex": 249,
+      "fineAcceptedSampleIndex": 499,
+      "cyclePhase01": 0.4999999999961915
+    },
+    {
+      "coarseAcceptedSampleIndex": 250,
+      "fineAcceptedSampleIndex": 501,
+      "cyclePhase01": 0.5019999999961904
+    },
+    {
+      "coarseAcceptedSampleIndex": 251,
+      "fineAcceptedSampleIndex": 503,
+      "cyclePhase01": 0.5039999999961893
+    },
+    {
+      "coarseAcceptedSampleIndex": 252,
+      "fineAcceptedSampleIndex": 505,
+      "cyclePhase01": 0.5059999999961882
+    },
+    {
+      "coarseAcceptedSampleIndex": 253,
+      "fineAcceptedSampleIndex": 507,
+      "cyclePhase01": 0.5079999999961871
+    },
+    {
+      "coarseAcceptedSampleIndex": 254,
+      "fineAcceptedSampleIndex": 509,
+      "cyclePhase01": 0.509999999996186
+    },
+    {
+      "coarseAcceptedSampleIndex": 255,
+      "fineAcceptedSampleIndex": 511,
+      "cyclePhase01": 0.5119999999961848
+    },
+    {
+      "coarseAcceptedSampleIndex": 256,
+      "fineAcceptedSampleIndex": 513,
+      "cyclePhase01": 0.5139999999961837
+    },
+    {
+      "coarseAcceptedSampleIndex": 257,
+      "fineAcceptedSampleIndex": 515,
+      "cyclePhase01": 0.5159999999961826
+    },
+    {
+      "coarseAcceptedSampleIndex": 258,
+      "fineAcceptedSampleIndex": 517,
+      "cyclePhase01": 0.5179999999961815
+    },
+    {
+      "coarseAcceptedSampleIndex": 259,
+      "fineAcceptedSampleIndex": 519,
+      "cyclePhase01": 0.5199999999961804
+    },
+    {
+      "coarseAcceptedSampleIndex": 260,
+      "fineAcceptedSampleIndex": 521,
+      "cyclePhase01": 0.5219999999961793
+    },
+    {
+      "coarseAcceptedSampleIndex": 261,
+      "fineAcceptedSampleIndex": 523,
+      "cyclePhase01": 0.5239999999961782
+    },
+    {
+      "coarseAcceptedSampleIndex": 262,
+      "fineAcceptedSampleIndex": 525,
+      "cyclePhase01": 0.5259999999961771
+    },
+    {
+      "coarseAcceptedSampleIndex": 263,
+      "fineAcceptedSampleIndex": 527,
+      "cyclePhase01": 0.527999999996176
+    },
+    {
+      "coarseAcceptedSampleIndex": 264,
+      "fineAcceptedSampleIndex": 529,
+      "cyclePhase01": 0.5299999999961749
+    },
+    {
+      "coarseAcceptedSampleIndex": 265,
+      "fineAcceptedSampleIndex": 531,
+      "cyclePhase01": 0.5319999999961738
+    },
+    {
+      "coarseAcceptedSampleIndex": 266,
+      "fineAcceptedSampleIndex": 533,
+      "cyclePhase01": 0.5339999999961726
+    },
+    {
+      "coarseAcceptedSampleIndex": 267,
+      "fineAcceptedSampleIndex": 535,
+      "cyclePhase01": 0.5359999999961715
+    },
+    {
+      "coarseAcceptedSampleIndex": 268,
+      "fineAcceptedSampleIndex": 537,
+      "cyclePhase01": 0.5379999999961704
+    },
+    {
+      "coarseAcceptedSampleIndex": 269,
+      "fineAcceptedSampleIndex": 539,
+      "cyclePhase01": 0.5399999999961693
+    },
+    {
+      "coarseAcceptedSampleIndex": 270,
+      "fineAcceptedSampleIndex": 541,
+      "cyclePhase01": 0.5419999999961682
+    },
+    {
+      "coarseAcceptedSampleIndex": 271,
+      "fineAcceptedSampleIndex": 543,
+      "cyclePhase01": 0.5439999999961671
+    },
+    {
+      "coarseAcceptedSampleIndex": 272,
+      "fineAcceptedSampleIndex": 545,
+      "cyclePhase01": 0.545999999996166
+    },
+    {
+      "coarseAcceptedSampleIndex": 273,
+      "fineAcceptedSampleIndex": 547,
+      "cyclePhase01": 0.5479999999961649
+    },
+    {
+      "coarseAcceptedSampleIndex": 274,
+      "fineAcceptedSampleIndex": 549,
+      "cyclePhase01": 0.5499999999961638
+    },
+    {
+      "coarseAcceptedSampleIndex": 275,
+      "fineAcceptedSampleIndex": 551,
+      "cyclePhase01": 0.5519999999961627
+    },
+    {
+      "coarseAcceptedSampleIndex": 276,
+      "fineAcceptedSampleIndex": 553,
+      "cyclePhase01": 0.5539999999961616
+    },
+    {
+      "coarseAcceptedSampleIndex": 277,
+      "fineAcceptedSampleIndex": 555,
+      "cyclePhase01": 0.5559999999961605
+    },
+    {
+      "coarseAcceptedSampleIndex": 278,
+      "fineAcceptedSampleIndex": 557,
+      "cyclePhase01": 0.5579999999961593
+    },
+    {
+      "coarseAcceptedSampleIndex": 279,
+      "fineAcceptedSampleIndex": 559,
+      "cyclePhase01": 0.5599999999961582
+    },
+    {
+      "coarseAcceptedSampleIndex": 280,
+      "fineAcceptedSampleIndex": 561,
+      "cyclePhase01": 0.5619999999961571
+    },
+    {
+      "coarseAcceptedSampleIndex": 281,
+      "fineAcceptedSampleIndex": 563,
+      "cyclePhase01": 0.563999999996156
+    },
+    {
+      "coarseAcceptedSampleIndex": 282,
+      "fineAcceptedSampleIndex": 565,
+      "cyclePhase01": 0.5659999999961549
+    },
+    {
+      "coarseAcceptedSampleIndex": 283,
+      "fineAcceptedSampleIndex": 567,
+      "cyclePhase01": 0.5679999999961538
+    },
+    {
+      "coarseAcceptedSampleIndex": 284,
+      "fineAcceptedSampleIndex": 569,
+      "cyclePhase01": 0.5699999999961527
+    },
+    {
+      "coarseAcceptedSampleIndex": 285,
+      "fineAcceptedSampleIndex": 571,
+      "cyclePhase01": 0.5719999999961516
+    },
+    {
+      "coarseAcceptedSampleIndex": 286,
+      "fineAcceptedSampleIndex": 573,
+      "cyclePhase01": 0.5739999999961505
+    },
+    {
+      "coarseAcceptedSampleIndex": 287,
+      "fineAcceptedSampleIndex": 575,
+      "cyclePhase01": 0.5759999999961494
+    },
+    {
+      "coarseAcceptedSampleIndex": 288,
+      "fineAcceptedSampleIndex": 577,
+      "cyclePhase01": 0.5779999999961483
+    },
+    {
+      "coarseAcceptedSampleIndex": 289,
+      "fineAcceptedSampleIndex": 579,
+      "cyclePhase01": 0.5799999999961472
+    },
+    {
+      "coarseAcceptedSampleIndex": 290,
+      "fineAcceptedSampleIndex": 581,
+      "cyclePhase01": 0.581999999996146
+    },
+    {
+      "coarseAcceptedSampleIndex": 291,
+      "fineAcceptedSampleIndex": 583,
+      "cyclePhase01": 0.5839999999961449
+    },
+    {
+      "coarseAcceptedSampleIndex": 292,
+      "fineAcceptedSampleIndex": 585,
+      "cyclePhase01": 0.5859999999961438
+    },
+    {
+      "coarseAcceptedSampleIndex": 293,
+      "fineAcceptedSampleIndex": 587,
+      "cyclePhase01": 0.5879999999961427
+    },
+    {
+      "coarseAcceptedSampleIndex": 294,
+      "fineAcceptedSampleIndex": 589,
+      "cyclePhase01": 0.5899999999961416
+    },
+    {
+      "coarseAcceptedSampleIndex": 295,
+      "fineAcceptedSampleIndex": 591,
+      "cyclePhase01": 0.5919999999961405
+    },
+    {
+      "coarseAcceptedSampleIndex": 296,
+      "fineAcceptedSampleIndex": 593,
+      "cyclePhase01": 0.5939999999961394
+    },
+    {
+      "coarseAcceptedSampleIndex": 297,
+      "fineAcceptedSampleIndex": 595,
+      "cyclePhase01": 0.5959999999961383
+    },
+    {
+      "coarseAcceptedSampleIndex": 298,
+      "fineAcceptedSampleIndex": 597,
+      "cyclePhase01": 0.5979999999961372
+    },
+    {
+      "coarseAcceptedSampleIndex": 299,
+      "fineAcceptedSampleIndex": 599,
+      "cyclePhase01": 0.5999999999961361
+    },
+    {
+      "coarseAcceptedSampleIndex": 300,
+      "fineAcceptedSampleIndex": 601,
+      "cyclePhase01": 0.601999999996135
+    },
+    {
+      "coarseAcceptedSampleIndex": 301,
+      "fineAcceptedSampleIndex": 603,
+      "cyclePhase01": 0.6039999999961339
+    },
+    {
+      "coarseAcceptedSampleIndex": 302,
+      "fineAcceptedSampleIndex": 605,
+      "cyclePhase01": 0.6059999999961327
+    },
+    {
+      "coarseAcceptedSampleIndex": 303,
+      "fineAcceptedSampleIndex": 607,
+      "cyclePhase01": 0.6079999999961316
+    },
+    {
+      "coarseAcceptedSampleIndex": 304,
+      "fineAcceptedSampleIndex": 609,
+      "cyclePhase01": 0.6099999999961305
+    },
+    {
+      "coarseAcceptedSampleIndex": 305,
+      "fineAcceptedSampleIndex": 611,
+      "cyclePhase01": 0.6119999999961294
+    },
+    {
+      "coarseAcceptedSampleIndex": 306,
+      "fineAcceptedSampleIndex": 613,
+      "cyclePhase01": 0.6139999999961283
+    },
+    {
+      "coarseAcceptedSampleIndex": 307,
+      "fineAcceptedSampleIndex": 615,
+      "cyclePhase01": 0.6159999999961272
+    },
+    {
+      "coarseAcceptedSampleIndex": 308,
+      "fineAcceptedSampleIndex": 617,
+      "cyclePhase01": 0.6179999999961261
+    },
+    {
+      "coarseAcceptedSampleIndex": 309,
+      "fineAcceptedSampleIndex": 619,
+      "cyclePhase01": 0.619999999996125
+    },
+    {
+      "coarseAcceptedSampleIndex": 310,
+      "fineAcceptedSampleIndex": 621,
+      "cyclePhase01": 0.6219999999961239
+    },
+    {
+      "coarseAcceptedSampleIndex": 311,
+      "fineAcceptedSampleIndex": 623,
+      "cyclePhase01": 0.6239999999961228
+    },
+    {
+      "coarseAcceptedSampleIndex": 312,
+      "fineAcceptedSampleIndex": 625,
+      "cyclePhase01": 0.6259999999961217
+    },
+    {
+      "coarseAcceptedSampleIndex": 313,
+      "fineAcceptedSampleIndex": 627,
+      "cyclePhase01": 0.6279999999961206
+    },
+    {
+      "coarseAcceptedSampleIndex": 314,
+      "fineAcceptedSampleIndex": 629,
+      "cyclePhase01": 0.6299999999961194
+    },
+    {
+      "coarseAcceptedSampleIndex": 315,
+      "fineAcceptedSampleIndex": 631,
+      "cyclePhase01": 0.6319999999961183
+    },
+    {
+      "coarseAcceptedSampleIndex": 316,
+      "fineAcceptedSampleIndex": 633,
+      "cyclePhase01": 0.6339999999961172
+    },
+    {
+      "coarseAcceptedSampleIndex": 317,
+      "fineAcceptedSampleIndex": 635,
+      "cyclePhase01": 0.6359999999961161
+    },
+    {
+      "coarseAcceptedSampleIndex": 318,
+      "fineAcceptedSampleIndex": 637,
+      "cyclePhase01": 0.637999999996115
+    },
+    {
+      "coarseAcceptedSampleIndex": 319,
+      "fineAcceptedSampleIndex": 639,
+      "cyclePhase01": 0.6399999999961139
+    },
+    {
+      "coarseAcceptedSampleIndex": 320,
+      "fineAcceptedSampleIndex": 641,
+      "cyclePhase01": 0.6419999999961128
+    },
+    {
+      "coarseAcceptedSampleIndex": 321,
+      "fineAcceptedSampleIndex": 643,
+      "cyclePhase01": 0.6439999999961117
+    },
+    {
+      "coarseAcceptedSampleIndex": 322,
+      "fineAcceptedSampleIndex": 645,
+      "cyclePhase01": 0.6459999999961106
+    },
+    {
+      "coarseAcceptedSampleIndex": 323,
+      "fineAcceptedSampleIndex": 647,
+      "cyclePhase01": 0.6479999999961095
+    },
+    {
+      "coarseAcceptedSampleIndex": 324,
+      "fineAcceptedSampleIndex": 649,
+      "cyclePhase01": 0.6499999999961084
+    },
+    {
+      "coarseAcceptedSampleIndex": 325,
+      "fineAcceptedSampleIndex": 651,
+      "cyclePhase01": 0.6519999999961072
+    },
+    {
+      "coarseAcceptedSampleIndex": 326,
+      "fineAcceptedSampleIndex": 653,
+      "cyclePhase01": 0.6539999999961061
+    },
+    {
+      "coarseAcceptedSampleIndex": 327,
+      "fineAcceptedSampleIndex": 655,
+      "cyclePhase01": 0.655999999996105
+    },
+    {
+      "coarseAcceptedSampleIndex": 328,
+      "fineAcceptedSampleIndex": 657,
+      "cyclePhase01": 0.6579999999961039
+    },
+    {
+      "coarseAcceptedSampleIndex": 329,
+      "fineAcceptedSampleIndex": 659,
+      "cyclePhase01": 0.6599999999961028
+    },
+    {
+      "coarseAcceptedSampleIndex": 330,
+      "fineAcceptedSampleIndex": 661,
+      "cyclePhase01": 0.6619999999961017
+    },
+    {
+      "coarseAcceptedSampleIndex": 331,
+      "fineAcceptedSampleIndex": 663,
+      "cyclePhase01": 0.6639999999961006
+    },
+    {
+      "coarseAcceptedSampleIndex": 332,
+      "fineAcceptedSampleIndex": 665,
+      "cyclePhase01": 0.6659999999960995
+    },
+    {
+      "coarseAcceptedSampleIndex": 333,
+      "fineAcceptedSampleIndex": 667,
+      "cyclePhase01": 0.6679999999960984
+    },
+    {
+      "coarseAcceptedSampleIndex": 334,
+      "fineAcceptedSampleIndex": 669,
+      "cyclePhase01": 0.6699999999960973
+    },
+    {
+      "coarseAcceptedSampleIndex": 335,
+      "fineAcceptedSampleIndex": 671,
+      "cyclePhase01": 0.6719999999960962
+    },
+    {
+      "coarseAcceptedSampleIndex": 336,
+      "fineAcceptedSampleIndex": 673,
+      "cyclePhase01": 0.6739999999960951
+    },
+    {
+      "coarseAcceptedSampleIndex": 337,
+      "fineAcceptedSampleIndex": 675,
+      "cyclePhase01": 0.675999999996094
+    },
+    {
+      "coarseAcceptedSampleIndex": 338,
+      "fineAcceptedSampleIndex": 677,
+      "cyclePhase01": 0.6779999999960928
+    },
+    {
+      "coarseAcceptedSampleIndex": 339,
+      "fineAcceptedSampleIndex": 679,
+      "cyclePhase01": 0.6799999999960917
+    },
+    {
+      "coarseAcceptedSampleIndex": 340,
+      "fineAcceptedSampleIndex": 681,
+      "cyclePhase01": 0.6819999999960906
+    },
+    {
+      "coarseAcceptedSampleIndex": 341,
+      "fineAcceptedSampleIndex": 683,
+      "cyclePhase01": 0.6839999999960895
+    },
+    {
+      "coarseAcceptedSampleIndex": 342,
+      "fineAcceptedSampleIndex": 685,
+      "cyclePhase01": 0.6859999999960884
+    },
+    {
+      "coarseAcceptedSampleIndex": 343,
+      "fineAcceptedSampleIndex": 687,
+      "cyclePhase01": 0.6879999999960873
+    },
+    {
+      "coarseAcceptedSampleIndex": 344,
+      "fineAcceptedSampleIndex": 689,
+      "cyclePhase01": 0.6899999999960862
+    },
+    {
+      "coarseAcceptedSampleIndex": 345,
+      "fineAcceptedSampleIndex": 691,
+      "cyclePhase01": 0.6919999999960851
+    },
+    {
+      "coarseAcceptedSampleIndex": 346,
+      "fineAcceptedSampleIndex": 693,
+      "cyclePhase01": 0.693999999996084
+    },
+    {
+      "coarseAcceptedSampleIndex": 347,
+      "fineAcceptedSampleIndex": 695,
+      "cyclePhase01": 0.6959999999960829
+    },
+    {
+      "coarseAcceptedSampleIndex": 348,
+      "fineAcceptedSampleIndex": 697,
+      "cyclePhase01": 0.6979999999960818
+    },
+    {
+      "coarseAcceptedSampleIndex": 349,
+      "fineAcceptedSampleIndex": 699,
+      "cyclePhase01": 0.6999999999960806
+    },
+    {
+      "coarseAcceptedSampleIndex": 350,
+      "fineAcceptedSampleIndex": 701,
+      "cyclePhase01": 0.7019999999960795
+    },
+    {
+      "coarseAcceptedSampleIndex": 351,
+      "fineAcceptedSampleIndex": 703,
+      "cyclePhase01": 0.7039999999960784
+    },
+    {
+      "coarseAcceptedSampleIndex": 352,
+      "fineAcceptedSampleIndex": 705,
+      "cyclePhase01": 0.7059999999960773
+    },
+    {
+      "coarseAcceptedSampleIndex": 353,
+      "fineAcceptedSampleIndex": 707,
+      "cyclePhase01": 0.7079999999960762
+    },
+    {
+      "coarseAcceptedSampleIndex": 354,
+      "fineAcceptedSampleIndex": 709,
+      "cyclePhase01": 0.7099999999960751
+    },
+    {
+      "coarseAcceptedSampleIndex": 355,
+      "fineAcceptedSampleIndex": 711,
+      "cyclePhase01": 0.711999999996074
+    },
+    {
+      "coarseAcceptedSampleIndex": 356,
+      "fineAcceptedSampleIndex": 713,
+      "cyclePhase01": 0.7139999999960729
+    },
+    {
+      "coarseAcceptedSampleIndex": 357,
+      "fineAcceptedSampleIndex": 715,
+      "cyclePhase01": 0.7159999999960718
+    },
+    {
+      "coarseAcceptedSampleIndex": 358,
+      "fineAcceptedSampleIndex": 717,
+      "cyclePhase01": 0.7179999999960707
+    },
+    {
+      "coarseAcceptedSampleIndex": 359,
+      "fineAcceptedSampleIndex": 719,
+      "cyclePhase01": 0.7199999999960696
+    },
+    {
+      "coarseAcceptedSampleIndex": 360,
+      "fineAcceptedSampleIndex": 721,
+      "cyclePhase01": 0.7219999999960685
+    },
+    {
+      "coarseAcceptedSampleIndex": 361,
+      "fineAcceptedSampleIndex": 723,
+      "cyclePhase01": 0.7239999999960673
+    },
+    {
+      "coarseAcceptedSampleIndex": 362,
+      "fineAcceptedSampleIndex": 725,
+      "cyclePhase01": 0.7259999999960662
+    },
+    {
+      "coarseAcceptedSampleIndex": 363,
+      "fineAcceptedSampleIndex": 727,
+      "cyclePhase01": 0.7279999999960651
+    },
+    {
+      "coarseAcceptedSampleIndex": 364,
+      "fineAcceptedSampleIndex": 729,
+      "cyclePhase01": 0.729999999996064
+    },
+    {
+      "coarseAcceptedSampleIndex": 365,
+      "fineAcceptedSampleIndex": 731,
+      "cyclePhase01": 0.7319999999960629
+    },
+    {
+      "coarseAcceptedSampleIndex": 366,
+      "fineAcceptedSampleIndex": 733,
+      "cyclePhase01": 0.7339999999960618
+    },
+    {
+      "coarseAcceptedSampleIndex": 367,
+      "fineAcceptedSampleIndex": 735,
+      "cyclePhase01": 0.7359999999960607
+    },
+    {
+      "coarseAcceptedSampleIndex": 368,
+      "fineAcceptedSampleIndex": 737,
+      "cyclePhase01": 0.7379999999960596
+    },
+    {
+      "coarseAcceptedSampleIndex": 369,
+      "fineAcceptedSampleIndex": 739,
+      "cyclePhase01": 0.7399999999960585
+    },
+    {
+      "coarseAcceptedSampleIndex": 370,
+      "fineAcceptedSampleIndex": 741,
+      "cyclePhase01": 0.7419999999960574
+    },
+    {
+      "coarseAcceptedSampleIndex": 371,
+      "fineAcceptedSampleIndex": 743,
+      "cyclePhase01": 0.7439999999960563
+    },
+    {
+      "coarseAcceptedSampleIndex": 372,
+      "fineAcceptedSampleIndex": 745,
+      "cyclePhase01": 0.7459999999960552
+    },
+    {
+      "coarseAcceptedSampleIndex": 373,
+      "fineAcceptedSampleIndex": 747,
+      "cyclePhase01": 0.747999999996054
+    },
+    {
+      "coarseAcceptedSampleIndex": 374,
+      "fineAcceptedSampleIndex": 749,
+      "cyclePhase01": 0.7499999999960529
+    },
+    {
+      "coarseAcceptedSampleIndex": 375,
+      "fineAcceptedSampleIndex": 751,
+      "cyclePhase01": 0.7519999999960518
+    },
+    {
+      "coarseAcceptedSampleIndex": 376,
+      "fineAcceptedSampleIndex": 753,
+      "cyclePhase01": 0.7539999999960507
+    },
+    {
+      "coarseAcceptedSampleIndex": 377,
+      "fineAcceptedSampleIndex": 755,
+      "cyclePhase01": 0.7559999999960496
+    },
+    {
+      "coarseAcceptedSampleIndex": 378,
+      "fineAcceptedSampleIndex": 757,
+      "cyclePhase01": 0.7579999999960485
+    },
+    {
+      "coarseAcceptedSampleIndex": 379,
+      "fineAcceptedSampleIndex": 759,
+      "cyclePhase01": 0.7599999999960474
+    },
+    {
+      "coarseAcceptedSampleIndex": 380,
+      "fineAcceptedSampleIndex": 761,
+      "cyclePhase01": 0.7619999999960463
+    },
+    {
+      "coarseAcceptedSampleIndex": 381,
+      "fineAcceptedSampleIndex": 763,
+      "cyclePhase01": 0.7639999999960452
+    },
+    {
+      "coarseAcceptedSampleIndex": 382,
+      "fineAcceptedSampleIndex": 765,
+      "cyclePhase01": 0.7659999999960441
+    },
+    {
+      "coarseAcceptedSampleIndex": 383,
+      "fineAcceptedSampleIndex": 767,
+      "cyclePhase01": 0.767999999996043
+    },
+    {
+      "coarseAcceptedSampleIndex": 384,
+      "fineAcceptedSampleIndex": 769,
+      "cyclePhase01": 0.7699999999960419
+    },
+    {
+      "coarseAcceptedSampleIndex": 385,
+      "fineAcceptedSampleIndex": 771,
+      "cyclePhase01": 0.7719999999960407
+    },
+    {
+      "coarseAcceptedSampleIndex": 386,
+      "fineAcceptedSampleIndex": 773,
+      "cyclePhase01": 0.7739999999960396
+    },
+    {
+      "coarseAcceptedSampleIndex": 387,
+      "fineAcceptedSampleIndex": 775,
+      "cyclePhase01": 0.7759999999960385
+    },
+    {
+      "coarseAcceptedSampleIndex": 388,
+      "fineAcceptedSampleIndex": 777,
+      "cyclePhase01": 0.7779999999960374
+    },
+    {
+      "coarseAcceptedSampleIndex": 389,
+      "fineAcceptedSampleIndex": 779,
+      "cyclePhase01": 0.7799999999960363
+    },
+    {
+      "coarseAcceptedSampleIndex": 390,
+      "fineAcceptedSampleIndex": 781,
+      "cyclePhase01": 0.7819999999960352
+    },
+    {
+      "coarseAcceptedSampleIndex": 391,
+      "fineAcceptedSampleIndex": 783,
+      "cyclePhase01": 0.7839999999960341
+    },
+    {
+      "coarseAcceptedSampleIndex": 392,
+      "fineAcceptedSampleIndex": 785,
+      "cyclePhase01": 0.785999999996033
+    },
+    {
+      "coarseAcceptedSampleIndex": 393,
+      "fineAcceptedSampleIndex": 787,
+      "cyclePhase01": 0.7879999999960319
+    },
+    {
+      "coarseAcceptedSampleIndex": 394,
+      "fineAcceptedSampleIndex": 789,
+      "cyclePhase01": 0.7899999999960308
+    },
+    {
+      "coarseAcceptedSampleIndex": 395,
+      "fineAcceptedSampleIndex": 791,
+      "cyclePhase01": 0.7919999999960297
+    },
+    {
+      "coarseAcceptedSampleIndex": 396,
+      "fineAcceptedSampleIndex": 793,
+      "cyclePhase01": 0.7939999999960285
+    },
+    {
+      "coarseAcceptedSampleIndex": 397,
+      "fineAcceptedSampleIndex": 795,
+      "cyclePhase01": 0.7959999999960274
+    },
+    {
+      "coarseAcceptedSampleIndex": 398,
+      "fineAcceptedSampleIndex": 797,
+      "cyclePhase01": 0.7979999999960263
+    },
+    {
+      "coarseAcceptedSampleIndex": 399,
+      "fineAcceptedSampleIndex": 799,
+      "cyclePhase01": 0.7999999999960252
+    },
+    {
+      "coarseAcceptedSampleIndex": 400,
+      "fineAcceptedSampleIndex": 801,
+      "cyclePhase01": 0.8019999999960241
+    },
+    {
+      "coarseAcceptedSampleIndex": 401,
+      "fineAcceptedSampleIndex": 803,
+      "cyclePhase01": 0.803999999996023
+    },
+    {
+      "coarseAcceptedSampleIndex": 402,
+      "fineAcceptedSampleIndex": 805,
+      "cyclePhase01": 0.8059999999960219
+    },
+    {
+      "coarseAcceptedSampleIndex": 403,
+      "fineAcceptedSampleIndex": 807,
+      "cyclePhase01": 0.8079999999960208
+    },
+    {
+      "coarseAcceptedSampleIndex": 404,
+      "fineAcceptedSampleIndex": 809,
+      "cyclePhase01": 0.8099999999960197
+    },
+    {
+      "coarseAcceptedSampleIndex": 405,
+      "fineAcceptedSampleIndex": 811,
+      "cyclePhase01": 0.8119999999960186
+    },
+    {
+      "coarseAcceptedSampleIndex": 406,
+      "fineAcceptedSampleIndex": 813,
+      "cyclePhase01": 0.8139999999960175
+    },
+    {
+      "coarseAcceptedSampleIndex": 407,
+      "fineAcceptedSampleIndex": 815,
+      "cyclePhase01": 0.8159999999960164
+    },
+    {
+      "coarseAcceptedSampleIndex": 408,
+      "fineAcceptedSampleIndex": 817,
+      "cyclePhase01": 0.8179999999960152
+    },
+    {
+      "coarseAcceptedSampleIndex": 409,
+      "fineAcceptedSampleIndex": 819,
+      "cyclePhase01": 0.8199999999960141
+    },
+    {
+      "coarseAcceptedSampleIndex": 410,
+      "fineAcceptedSampleIndex": 821,
+      "cyclePhase01": 0.821999999996013
+    },
+    {
+      "coarseAcceptedSampleIndex": 411,
+      "fineAcceptedSampleIndex": 823,
+      "cyclePhase01": 0.8239999999960119
+    },
+    {
+      "coarseAcceptedSampleIndex": 412,
+      "fineAcceptedSampleIndex": 825,
+      "cyclePhase01": 0.8259999999960108
+    },
+    {
+      "coarseAcceptedSampleIndex": 413,
+      "fineAcceptedSampleIndex": 827,
+      "cyclePhase01": 0.8279999999960097
+    },
+    {
+      "coarseAcceptedSampleIndex": 414,
+      "fineAcceptedSampleIndex": 829,
+      "cyclePhase01": 0.8299999999960086
+    },
+    {
+      "coarseAcceptedSampleIndex": 415,
+      "fineAcceptedSampleIndex": 831,
+      "cyclePhase01": 0.8319999999960075
+    },
+    {
+      "coarseAcceptedSampleIndex": 416,
+      "fineAcceptedSampleIndex": 833,
+      "cyclePhase01": 0.8339999999960064
+    },
+    {
+      "coarseAcceptedSampleIndex": 417,
+      "fineAcceptedSampleIndex": 835,
+      "cyclePhase01": 0.8359999999960053
+    },
+    {
+      "coarseAcceptedSampleIndex": 418,
+      "fineAcceptedSampleIndex": 837,
+      "cyclePhase01": 0.8379999999960042
+    },
+    {
+      "coarseAcceptedSampleIndex": 419,
+      "fineAcceptedSampleIndex": 839,
+      "cyclePhase01": 0.839999999996003
+    },
+    {
+      "coarseAcceptedSampleIndex": 420,
+      "fineAcceptedSampleIndex": 841,
+      "cyclePhase01": 0.841999999996002
+    },
+    {
+      "coarseAcceptedSampleIndex": 421,
+      "fineAcceptedSampleIndex": 843,
+      "cyclePhase01": 0.8439999999960008
+    },
+    {
+      "coarseAcceptedSampleIndex": 422,
+      "fineAcceptedSampleIndex": 845,
+      "cyclePhase01": 0.8459999999959997
+    },
+    {
+      "coarseAcceptedSampleIndex": 423,
+      "fineAcceptedSampleIndex": 847,
+      "cyclePhase01": 0.8479999999959986
+    },
+    {
+      "coarseAcceptedSampleIndex": 424,
+      "fineAcceptedSampleIndex": 849,
+      "cyclePhase01": 0.8499999999959975
+    },
+    {
+      "coarseAcceptedSampleIndex": 425,
+      "fineAcceptedSampleIndex": 851,
+      "cyclePhase01": 0.8519999999959964
+    },
+    {
+      "coarseAcceptedSampleIndex": 426,
+      "fineAcceptedSampleIndex": 853,
+      "cyclePhase01": 0.8539999999959953
+    },
+    {
+      "coarseAcceptedSampleIndex": 427,
+      "fineAcceptedSampleIndex": 855,
+      "cyclePhase01": 0.8559999999959942
+    },
+    {
+      "coarseAcceptedSampleIndex": 428,
+      "fineAcceptedSampleIndex": 857,
+      "cyclePhase01": 0.8579999999959931
+    },
+    {
+      "coarseAcceptedSampleIndex": 429,
+      "fineAcceptedSampleIndex": 859,
+      "cyclePhase01": 0.859999999995992
+    },
+    {
+      "coarseAcceptedSampleIndex": 430,
+      "fineAcceptedSampleIndex": 861,
+      "cyclePhase01": 0.8619999999959909
+    },
+    {
+      "coarseAcceptedSampleIndex": 431,
+      "fineAcceptedSampleIndex": 863,
+      "cyclePhase01": 0.8639999999959898
+    },
+    {
+      "coarseAcceptedSampleIndex": 432,
+      "fineAcceptedSampleIndex": 865,
+      "cyclePhase01": 0.8659999999959886
+    },
+    {
+      "coarseAcceptedSampleIndex": 433,
+      "fineAcceptedSampleIndex": 867,
+      "cyclePhase01": 0.8679999999959875
+    },
+    {
+      "coarseAcceptedSampleIndex": 434,
+      "fineAcceptedSampleIndex": 869,
+      "cyclePhase01": 0.8699999999959864
+    },
+    {
+      "coarseAcceptedSampleIndex": 435,
+      "fineAcceptedSampleIndex": 871,
+      "cyclePhase01": 0.8719999999959853
+    },
+    {
+      "coarseAcceptedSampleIndex": 436,
+      "fineAcceptedSampleIndex": 873,
+      "cyclePhase01": 0.8739999999959842
+    },
+    {
+      "coarseAcceptedSampleIndex": 437,
+      "fineAcceptedSampleIndex": 875,
+      "cyclePhase01": 0.8759999999959831
+    },
+    {
+      "coarseAcceptedSampleIndex": 438,
+      "fineAcceptedSampleIndex": 877,
+      "cyclePhase01": 0.877999999995982
+    },
+    {
+      "coarseAcceptedSampleIndex": 439,
+      "fineAcceptedSampleIndex": 879,
+      "cyclePhase01": 0.8799999999959809
+    },
+    {
+      "coarseAcceptedSampleIndex": 440,
+      "fineAcceptedSampleIndex": 881,
+      "cyclePhase01": 0.8819999999959798
+    },
+    {
+      "coarseAcceptedSampleIndex": 441,
+      "fineAcceptedSampleIndex": 883,
+      "cyclePhase01": 0.8839999999959787
+    },
+    {
+      "coarseAcceptedSampleIndex": 442,
+      "fineAcceptedSampleIndex": 885,
+      "cyclePhase01": 0.8859999999959776
+    },
+    {
+      "coarseAcceptedSampleIndex": 443,
+      "fineAcceptedSampleIndex": 887,
+      "cyclePhase01": 0.8879999999959765
+    },
+    {
+      "coarseAcceptedSampleIndex": 444,
+      "fineAcceptedSampleIndex": 889,
+      "cyclePhase01": 0.8899999999959753
+    },
+    {
+      "coarseAcceptedSampleIndex": 445,
+      "fineAcceptedSampleIndex": 891,
+      "cyclePhase01": 0.8919999999959742
+    },
+    {
+      "coarseAcceptedSampleIndex": 446,
+      "fineAcceptedSampleIndex": 893,
+      "cyclePhase01": 0.8939999999959731
+    },
+    {
+      "coarseAcceptedSampleIndex": 447,
+      "fineAcceptedSampleIndex": 895,
+      "cyclePhase01": 0.895999999995972
+    },
+    {
+      "coarseAcceptedSampleIndex": 448,
+      "fineAcceptedSampleIndex": 897,
+      "cyclePhase01": 0.8979999999959709
+    },
+    {
+      "coarseAcceptedSampleIndex": 449,
+      "fineAcceptedSampleIndex": 899,
+      "cyclePhase01": 0.8999999999959698
+    },
+    {
+      "coarseAcceptedSampleIndex": 450,
+      "fineAcceptedSampleIndex": 901,
+      "cyclePhase01": 0.9019999999959687
+    },
+    {
+      "coarseAcceptedSampleIndex": 451,
+      "fineAcceptedSampleIndex": 903,
+      "cyclePhase01": 0.9039999999959676
+    },
+    {
+      "coarseAcceptedSampleIndex": 452,
+      "fineAcceptedSampleIndex": 905,
+      "cyclePhase01": 0.9059999999959665
+    },
+    {
+      "coarseAcceptedSampleIndex": 453,
+      "fineAcceptedSampleIndex": 907,
+      "cyclePhase01": 0.9079999999959654
+    },
+    {
+      "coarseAcceptedSampleIndex": 454,
+      "fineAcceptedSampleIndex": 909,
+      "cyclePhase01": 0.9099999999959643
+    },
+    {
+      "coarseAcceptedSampleIndex": 455,
+      "fineAcceptedSampleIndex": 911,
+      "cyclePhase01": 0.9119999999959632
+    },
+    {
+      "coarseAcceptedSampleIndex": 456,
+      "fineAcceptedSampleIndex": 913,
+      "cyclePhase01": 0.913999999995962
+    },
+    {
+      "coarseAcceptedSampleIndex": 457,
+      "fineAcceptedSampleIndex": 915,
+      "cyclePhase01": 0.9159999999959609
+    },
+    {
+      "coarseAcceptedSampleIndex": 458,
+      "fineAcceptedSampleIndex": 917,
+      "cyclePhase01": 0.9179999999959598
+    },
+    {
+      "coarseAcceptedSampleIndex": 459,
+      "fineAcceptedSampleIndex": 919,
+      "cyclePhase01": 0.9199999999959587
+    },
+    {
+      "coarseAcceptedSampleIndex": 460,
+      "fineAcceptedSampleIndex": 921,
+      "cyclePhase01": 0.9219999999959576
+    },
+    {
+      "coarseAcceptedSampleIndex": 461,
+      "fineAcceptedSampleIndex": 923,
+      "cyclePhase01": 0.9239999999959565
+    },
+    {
+      "coarseAcceptedSampleIndex": 462,
+      "fineAcceptedSampleIndex": 925,
+      "cyclePhase01": 0.9259999999959554
+    },
+    {
+      "coarseAcceptedSampleIndex": 463,
+      "fineAcceptedSampleIndex": 927,
+      "cyclePhase01": 0.9279999999959543
+    },
+    {
+      "coarseAcceptedSampleIndex": 464,
+      "fineAcceptedSampleIndex": 929,
+      "cyclePhase01": 0.9299999999959532
+    },
+    {
+      "coarseAcceptedSampleIndex": 465,
+      "fineAcceptedSampleIndex": 931,
+      "cyclePhase01": 0.9319999999959521
+    },
+    {
+      "coarseAcceptedSampleIndex": 466,
+      "fineAcceptedSampleIndex": 933,
+      "cyclePhase01": 0.933999999995951
+    },
+    {
+      "coarseAcceptedSampleIndex": 467,
+      "fineAcceptedSampleIndex": 935,
+      "cyclePhase01": 0.9359999999959498
+    },
+    {
+      "coarseAcceptedSampleIndex": 468,
+      "fineAcceptedSampleIndex": 937,
+      "cyclePhase01": 0.9379999999959487
+    },
+    {
+      "coarseAcceptedSampleIndex": 469,
+      "fineAcceptedSampleIndex": 939,
+      "cyclePhase01": 0.9399999999959476
+    },
+    {
+      "coarseAcceptedSampleIndex": 470,
+      "fineAcceptedSampleIndex": 941,
+      "cyclePhase01": 0.9419999999959465
+    },
+    {
+      "coarseAcceptedSampleIndex": 471,
+      "fineAcceptedSampleIndex": 943,
+      "cyclePhase01": 0.9439999999959454
+    },
+    {
+      "coarseAcceptedSampleIndex": 472,
+      "fineAcceptedSampleIndex": 945,
+      "cyclePhase01": 0.9459999999959443
+    },
+    {
+      "coarseAcceptedSampleIndex": 473,
+      "fineAcceptedSampleIndex": 947,
+      "cyclePhase01": 0.9479999999959432
+    },
+    {
+      "coarseAcceptedSampleIndex": 474,
+      "fineAcceptedSampleIndex": 949,
+      "cyclePhase01": 0.9499999999959421
+    },
+    {
+      "coarseAcceptedSampleIndex": 475,
+      "fineAcceptedSampleIndex": 951,
+      "cyclePhase01": 0.951999999995941
+    },
+    {
+      "coarseAcceptedSampleIndex": 476,
+      "fineAcceptedSampleIndex": 953,
+      "cyclePhase01": 0.9539999999959399
+    },
+    {
+      "coarseAcceptedSampleIndex": 477,
+      "fineAcceptedSampleIndex": 955,
+      "cyclePhase01": 0.9559999999959388
+    },
+    {
+      "coarseAcceptedSampleIndex": 478,
+      "fineAcceptedSampleIndex": 957,
+      "cyclePhase01": 0.9579999999959377
+    },
+    {
+      "coarseAcceptedSampleIndex": 479,
+      "fineAcceptedSampleIndex": 959,
+      "cyclePhase01": 0.9599999999959365
+    },
+    {
+      "coarseAcceptedSampleIndex": 480,
+      "fineAcceptedSampleIndex": 961,
+      "cyclePhase01": 0.9619999999959354
+    },
+    {
+      "coarseAcceptedSampleIndex": 481,
+      "fineAcceptedSampleIndex": 963,
+      "cyclePhase01": 0.9639999999959343
+    },
+    {
+      "coarseAcceptedSampleIndex": 482,
+      "fineAcceptedSampleIndex": 965,
+      "cyclePhase01": 0.9659999999959332
+    },
+    {
+      "coarseAcceptedSampleIndex": 483,
+      "fineAcceptedSampleIndex": 967,
+      "cyclePhase01": 0.9679999999959321
+    },
+    {
+      "coarseAcceptedSampleIndex": 484,
+      "fineAcceptedSampleIndex": 969,
+      "cyclePhase01": 0.969999999995931
+    },
+    {
+      "coarseAcceptedSampleIndex": 485,
+      "fineAcceptedSampleIndex": 971,
+      "cyclePhase01": 0.9719999999959299
+    },
+    {
+      "coarseAcceptedSampleIndex": 486,
+      "fineAcceptedSampleIndex": 973,
+      "cyclePhase01": 0.9739999999959288
+    },
+    {
+      "coarseAcceptedSampleIndex": 487,
+      "fineAcceptedSampleIndex": 975,
+      "cyclePhase01": 0.9759999999959277
+    },
+    {
+      "coarseAcceptedSampleIndex": 488,
+      "fineAcceptedSampleIndex": 977,
+      "cyclePhase01": 0.9779999999959266
+    },
+    {
+      "coarseAcceptedSampleIndex": 489,
+      "fineAcceptedSampleIndex": 979,
+      "cyclePhase01": 0.9799999999959255
+    },
+    {
+      "coarseAcceptedSampleIndex": 490,
+      "fineAcceptedSampleIndex": 981,
+      "cyclePhase01": 0.9819999999959244
+    },
+    {
+      "coarseAcceptedSampleIndex": 491,
+      "fineAcceptedSampleIndex": 983,
+      "cyclePhase01": 0.9839999999959232
+    },
+    {
+      "coarseAcceptedSampleIndex": 492,
+      "fineAcceptedSampleIndex": 985,
+      "cyclePhase01": 0.9859999999959221
+    },
+    {
+      "coarseAcceptedSampleIndex": 493,
+      "fineAcceptedSampleIndex": 987,
+      "cyclePhase01": 0.987999999995921
+    },
+    {
+      "coarseAcceptedSampleIndex": 494,
+      "fineAcceptedSampleIndex": 989,
+      "cyclePhase01": 0.9899999999959199
+    },
+    {
+      "coarseAcceptedSampleIndex": 495,
+      "fineAcceptedSampleIndex": 991,
+      "cyclePhase01": 0.9919999999959188
+    },
+    {
+      "coarseAcceptedSampleIndex": 496,
+      "fineAcceptedSampleIndex": 993,
+      "cyclePhase01": 0.9939999999959177
+    },
+    {
+      "coarseAcceptedSampleIndex": 497,
+      "fineAcceptedSampleIndex": 995,
+      "cyclePhase01": 0.9959999999959166
+    },
+    {
+      "coarseAcceptedSampleIndex": 498,
+      "fineAcceptedSampleIndex": 997,
+      "cyclePhase01": 0.9979999999959155
+    },
+    {
+      "coarseAcceptedSampleIndex": 499,
+      "fineAcceptedSampleIndex": 999,
+      "cyclePhase01": 0.9999999999959144
+    }
+  ],
+  "signalMetrics": {
+    "laBloodVolumeMl": {
+      "signalId": "laBloodVolumeMl",
+      "unit": "mL",
+      "referenceScale": 100,
+      "maximumAbsoluteDifference": 0.26643199299212483,
+      "fixedScaleNormalizedMaximumDifference": 0.002664319929921248,
+      "relativeL2Difference": 0.002910707645377823,
+      "worstCoarseAcceptedSampleIndex": 207,
+      "worstFineAcceptedSampleIndex": 415,
+      "worstCyclePhase01": 0.41599999999623805
+    },
+    "lvBloodVolumeMl": {
+      "signalId": "lvBloodVolumeMl",
+      "unit": "mL",
+      "referenceScale": 150,
+      "maximumAbsoluteDifference": 0.3268757778031528,
+      "fixedScaleNormalizedMaximumDifference": 0.0021791718520210186,
+      "relativeL2Difference": 0.0014613799081892788,
+      "worstCoarseAcceptedSampleIndex": 444,
+      "worstFineAcceptedSampleIndex": 889,
+      "worstCyclePhase01": 0.8899999999959753
+    },
+    "laAbsolutePressureMmHg": {
+      "signalId": "laAbsolutePressureMmHg",
+      "unit": "mmHg",
+      "referenceScale": 10,
+      "maximumAbsoluteDifference": 0.09137717609354423,
+      "fixedScaleNormalizedMaximumDifference": 0.009137717609354423,
+      "relativeL2Difference": 0.008706891421645331,
+      "worstCoarseAcceptedSampleIndex": 212,
+      "worstFineAcceptedSampleIndex": 425,
+      "worstCyclePhase01": 0.4259999999962325
+    },
+    "lvAbsolutePressureMmHg": {
+      "signalId": "lvAbsolutePressureMmHg",
+      "unit": "mmHg",
+      "referenceScale": 100,
+      "maximumAbsoluteDifference": 1.6699675391301518,
+      "fixedScaleNormalizedMaximumDifference": 0.01669967539130152,
+      "relativeL2Difference": 0.006894600302065587,
+      "worstCoarseAcceptedSampleIndex": 25,
+      "worstFineAcceptedSampleIndex": 51,
+      "worstCyclePhase01": 0.05199999999643978
+    },
+    "mitralFlowMlPerSec": {
+      "signalId": "mitralFlowMlPerSec",
+      "unit": "mL/s",
+      "referenceScale": 500,
+      "maximumAbsoluteDifference": 8.67676021327074,
+      "fixedScaleNormalizedMaximumDifference": 0.01735352042654148,
+      "relativeL2Difference": 0.021157442786992407,
+      "worstCoarseAcceptedSampleIndex": 191,
+      "worstFineAcceptedSampleIndex": 383,
+      "worstCyclePhase01": 0.3839999999962558
+    },
+    "pulmonaryVeinToLaFlowMlPerSec": {
+      "signalId": "pulmonaryVeinToLaFlowMlPerSec",
+      "unit": "mL/s",
+      "referenceScale": 500,
+      "maximumAbsoluteDifference": 3.622048790507824,
+      "fixedScaleNormalizedMaximumDifference": 0.0072440975810156485,
+      "relativeL2Difference": 0.01413042618659408,
+      "worstCoarseAcceptedSampleIndex": 447,
+      "worstFineAcceptedSampleIndex": 895,
+      "worstCyclePhase01": 0.895999999995972
+    },
+    "laTotalWallStressPa": {
+      "signalId": "laTotalWallStressPa",
+      "unit": "Pa",
+      "referenceScale": 100000,
+      "maximumAbsoluteDifference": 79.82454707914667,
+      "fixedScaleNormalizedMaximumDifference": 0.0007982454707914667,
+      "relativeL2Difference": 0.010477212281914911,
+      "worstCoarseAcceptedSampleIndex": 208,
+      "worstFineAcceptedSampleIndex": 417,
+      "worstCyclePhase01": 0.41799999999623694
+    },
+    "laFiberLogStrain": {
+      "signalId": "laFiberLogStrain",
+      "unit": "log-strain",
+      "referenceScale": 0.1,
+      "maximumAbsoluteDifference": 0.0019611241897928983,
+      "fixedScaleNormalizedMaximumDifference": 0.019611241897928983,
+      "relativeL2Difference": 0.011353144568726596,
+      "worstCoarseAcceptedSampleIndex": 208,
+      "worstFineAcceptedSampleIndex": 417,
+      "worstCyclePhase01": 0.41799999999623694
+    }
+  },
+  "claim": {
+    "comparisonKind": "dt-halving-difference-not-convergence-order",
+    "fineGridUsedAsDifferenceReference": true,
+    "interpolationApplied": false,
+    "comparedBeat": "last-retained-complete-period1-beat-only",
+    "physiologicalOrNumericalPassThresholdApplied": false,
+    "parameterSearch": false
+  }
+}

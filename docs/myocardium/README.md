@@ -1,32 +1,52 @@
 # Myocardium documentation
 
-Two documents describe the four-chamber mechanics, and they answer different
-questions:
+## What describes the model the browser runs
+
+Nothing in this directory does. The authoritative statement of the shipped
+model is the code: the session claim in
+`engine/scientific/runtime/MainWireScientificSessionV1.ts`, the release in
+`engine/scientific/assembly/mainWireAdultFiveWallNonCoronaryReleaseV1.ts`, and
+the wall provider in
+`engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1.ts`. Together
+they declare a fixed normal-adult five-wall non-coronary assembly with Land
+active material, parallel one-state SLS, energy-conjugate TriSeg, a common
+pericardium, a quasi-steady orifice valve preset, and no coronary or device
+graph.
+
+The two documents below describe the mechanics but neither claims to be that
+statement:
 
 - [model-spec/mainwire-four-chamber-land-triseg-v1.ja.md](model-spec/mainwire-four-chamber-land-triseg-v1.ja.md)
-  is the **as-implemented design boundary** for the main-wire five-wall
-  Land–TriSeg model that the browser session runs. It records the structural
-  decisions that were actually taken and reversed, including the rejection of
-  a shared long-axis coordinate and of independent per-valve flow inertance in
-  favour of a quasi-steady orifice.
+  records the **structural design decisions** for the four-chamber mechanics —
+  which candidates were adopted and which were rejected, including the shared
+  long-axis coordinate and independent per-valve flow inertance. Read its own
+  status section first: it declares itself a research sidecar with its own
+  Backward Euler transaction and explicitly does not claim to be the browser
+  runtime.
 - [model-spec/four-chamber-triseg-land-v1.md](model-spec/four-chamber-triseg-land-v1.md)
   (`.ja.md` is the Japanese edition) is the **target specification**: the
   intended v1 model, its claim boundary, its verification gates (§19), and its
   implementation sequence (§21).
 
-Where they disagree, the as-implemented document wins for statements about the
-current model and the target specification wins for statements about intent.
-Two known divergences: the implementation uses a quasi-steady orifice valve
-rather than the specification's per-valve inertial state, and it currently
-carries no venous-inlet inertance. Both are recorded in the as-implemented
-document.
+Two divergences between the target specification and what ships: the shipped
+model uses a quasi-steady orifice valve rather than the specification's
+per-valve inertial state, and `PVein_LA` carries no venous-inlet inertance
+(`pvOstialInertanceL` is 0 in `engine/core/topology.ts`).
 
-The per-phase experiment history of the earlier rebuild — Phase 5C ModelCore
-and Land boundary probes, arterial-root Zc studies, atrial-bridge shootouts,
-developer-flag and default-flip RFCs, the MechanicsCore2 AV-plane sidecar, and
-their pinned JSON artifacts — was removed from the working tree. It remains in
-git history and in the pull requests that produced it. See
+## What was retired
+
+The MechanicsCore2 / AV-plane sidecar and the ModelCore+Land boundary lane were
+removed from the working tree: their components, benches, one-off verify
+scripts, pinned diagnostic artifacts, and lane documents. They remain in git
+history and in the pull requests that produced it. See
 [../README.md](../README.md) for the recovery command.
+
+The retirement is not exhaustive. Some early Phase 1–3 sources and protocol
+packs stayed — the periodic activation scheduler, the state-layout builder, the
+calcium/Land protocol packs, and the thick-sphere and generalized-force work —
+because release manifests and surviving engine code still reference parts of
+that set. They are retained historical evidence, not an active lane; treat them
+as read-only until something needs them again.
 
 ## Read order
 

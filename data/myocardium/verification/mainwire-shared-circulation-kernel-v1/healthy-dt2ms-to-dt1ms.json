@@ -1,0 +1,2789 @@
+{
+  "comparisonId": "main-wire-normal-adult-five-wall-dt-halving-difference-v1",
+  "protocolIdentity": {
+    "exactMatch": true,
+    "identityHash": "9d3d3dba",
+    "componentHashes": {
+      "mechanicsProviderMetadataStableHash": "78789398",
+      "calciumDriveFixedParamsStableHash": "9660029d",
+      "circulationTopologyGraphStableHash": "27a8ce3f",
+      "circulationRuntimeStableHash": "6a2d35d3",
+      "bloodVolumeOperatingPointStableHash": "337d28cc",
+      "commonPericardiumStableHash": "ff9ebb6d",
+      "periodicPolicyStableHash": "00e13e40"
+    }
+  },
+  "coarseDtSec": 0.002,
+  "fineDtSec": 0.001,
+  "fineAcceptedStepsPerCoarseAcceptedStep": 2,
+  "coarseFinalBeatIndex": 8,
+  "fineFinalBeatIndex": 10,
+  "bothPeriod1Converged": true,
+  "interpretable": true,
+  "interpretabilityReasons": [],
+  "commonAcceptedSampleMapping": [
+    {
+      "coarseAcceptedSampleIndex": 0,
+      "fineAcceptedSampleIndex": 1,
+      "cyclePhase01": 0.0019999999994508855
+    },
+    {
+      "coarseAcceptedSampleIndex": 1,
+      "fineAcceptedSampleIndex": 3,
+      "cyclePhase01": 0.003999999999450665
+    },
+    {
+      "coarseAcceptedSampleIndex": 2,
+      "fineAcceptedSampleIndex": 5,
+      "cyclePhase01": 0.005999999999450445
+    },
+    {
+      "coarseAcceptedSampleIndex": 3,
+      "fineAcceptedSampleIndex": 7,
+      "cyclePhase01": 0.007999999999450225
+    },
+    {
+      "coarseAcceptedSampleIndex": 4,
+      "fineAcceptedSampleIndex": 9,
+      "cyclePhase01": 0.009999999999450004
+    },
+    {
+      "coarseAcceptedSampleIndex": 5,
+      "fineAcceptedSampleIndex": 11,
+      "cyclePhase01": 0.011999999999449784
+    },
+    {
+      "coarseAcceptedSampleIndex": 6,
+      "fineAcceptedSampleIndex": 13,
+      "cyclePhase01": 0.013999999999449564
+    },
+    {
+      "coarseAcceptedSampleIndex": 7,
+      "fineAcceptedSampleIndex": 15,
+      "cyclePhase01": 0.015999999999449344
+    },
+    {
+      "coarseAcceptedSampleIndex": 8,
+      "fineAcceptedSampleIndex": 17,
+      "cyclePhase01": 0.017999999999449123
+    },
+    {
+      "coarseAcceptedSampleIndex": 9,
+      "fineAcceptedSampleIndex": 19,
+      "cyclePhase01": 0.019999999999448903
+    },
+    {
+      "coarseAcceptedSampleIndex": 10,
+      "fineAcceptedSampleIndex": 21,
+      "cyclePhase01": 0.021999999999448683
+    },
+    {
+      "coarseAcceptedSampleIndex": 11,
+      "fineAcceptedSampleIndex": 23,
+      "cyclePhase01": 0.023999999999448463
+    },
+    {
+      "coarseAcceptedSampleIndex": 12,
+      "fineAcceptedSampleIndex": 25,
+      "cyclePhase01": 0.025999999999448242
+    },
+    {
+      "coarseAcceptedSampleIndex": 13,
+      "fineAcceptedSampleIndex": 27,
+      "cyclePhase01": 0.027999999999448022
+    },
+    {
+      "coarseAcceptedSampleIndex": 14,
+      "fineAcceptedSampleIndex": 29,
+      "cyclePhase01": 0.0299999999994478
+    },
+    {
+      "coarseAcceptedSampleIndex": 15,
+      "fineAcceptedSampleIndex": 31,
+      "cyclePhase01": 0.03199999999944758
+    },
+    {
+      "coarseAcceptedSampleIndex": 16,
+      "fineAcceptedSampleIndex": 33,
+      "cyclePhase01": 0.03399999999944736
+    },
+    {
+      "coarseAcceptedSampleIndex": 17,
+      "fineAcceptedSampleIndex": 35,
+      "cyclePhase01": 0.03599999999944714
+    },
+    {
+      "coarseAcceptedSampleIndex": 18,
+      "fineAcceptedSampleIndex": 37,
+      "cyclePhase01": 0.03799999999944692
+    },
+    {
+      "coarseAcceptedSampleIndex": 19,
+      "fineAcceptedSampleIndex": 39,
+      "cyclePhase01": 0.0399999999994467
+    },
+    {
+      "coarseAcceptedSampleIndex": 20,
+      "fineAcceptedSampleIndex": 41,
+      "cyclePhase01": 0.04199999999944648
+    },
+    {
+      "coarseAcceptedSampleIndex": 21,
+      "fineAcceptedSampleIndex": 43,
+      "cyclePhase01": 0.04399999999944626
+    },
+    {
+      "coarseAcceptedSampleIndex": 22,
+      "fineAcceptedSampleIndex": 45,
+      "cyclePhase01": 0.04599999999944604
+    },
+    {
+      "coarseAcceptedSampleIndex": 23,
+      "fineAcceptedSampleIndex": 47,
+      "cyclePhase01": 0.04799999999944582
+    },
+    {
+      "coarseAcceptedSampleIndex": 24,
+      "fineAcceptedSampleIndex": 49,
+      "cyclePhase01": 0.0499999999994456
+    },
+    {
+      "coarseAcceptedSampleIndex": 25,
+      "fineAcceptedSampleIndex": 51,
+      "cyclePhase01": 0.05199999999944538
+    },
+    {
+      "coarseAcceptedSampleIndex": 26,
+      "fineAcceptedSampleIndex": 53,
+      "cyclePhase01": 0.05399999999944516
+    },
+    {
+      "coarseAcceptedSampleIndex": 27,
+      "fineAcceptedSampleIndex": 55,
+      "cyclePhase01": 0.05599999999944494
+    },
+    {
+      "coarseAcceptedSampleIndex": 28,
+      "fineAcceptedSampleIndex": 57,
+      "cyclePhase01": 0.05799999999944472
+    },
+    {
+      "coarseAcceptedSampleIndex": 29,
+      "fineAcceptedSampleIndex": 59,
+      "cyclePhase01": 0.0599999999994445
+    },
+    {
+      "coarseAcceptedSampleIndex": 30,
+      "fineAcceptedSampleIndex": 61,
+      "cyclePhase01": 0.06199999999944428
+    },
+    {
+      "coarseAcceptedSampleIndex": 31,
+      "fineAcceptedSampleIndex": 63,
+      "cyclePhase01": 0.06399999999944406
+    },
+    {
+      "coarseAcceptedSampleIndex": 32,
+      "fineAcceptedSampleIndex": 65,
+      "cyclePhase01": 0.06599999999944384
+    },
+    {
+      "coarseAcceptedSampleIndex": 33,
+      "fineAcceptedSampleIndex": 67,
+      "cyclePhase01": 0.06799999999944362
+    },
+    {
+      "coarseAcceptedSampleIndex": 34,
+      "fineAcceptedSampleIndex": 69,
+      "cyclePhase01": 0.0699999999994434
+    },
+    {
+      "coarseAcceptedSampleIndex": 35,
+      "fineAcceptedSampleIndex": 71,
+      "cyclePhase01": 0.07199999999944318
+    },
+    {
+      "coarseAcceptedSampleIndex": 36,
+      "fineAcceptedSampleIndex": 73,
+      "cyclePhase01": 0.07399999999944296
+    },
+    {
+      "coarseAcceptedSampleIndex": 37,
+      "fineAcceptedSampleIndex": 75,
+      "cyclePhase01": 0.07599999999944274
+    },
+    {
+      "coarseAcceptedSampleIndex": 38,
+      "fineAcceptedSampleIndex": 77,
+      "cyclePhase01": 0.07799999999944252
+    },
+    {
+      "coarseAcceptedSampleIndex": 39,
+      "fineAcceptedSampleIndex": 79,
+      "cyclePhase01": 0.0799999999994423
+    },
+    {
+      "coarseAcceptedSampleIndex": 40,
+      "fineAcceptedSampleIndex": 81,
+      "cyclePhase01": 0.08199999999944207
+    },
+    {
+      "coarseAcceptedSampleIndex": 41,
+      "fineAcceptedSampleIndex": 83,
+      "cyclePhase01": 0.08399999999944185
+    },
+    {
+      "coarseAcceptedSampleIndex": 42,
+      "fineAcceptedSampleIndex": 85,
+      "cyclePhase01": 0.08599999999944163
+    },
+    {
+      "coarseAcceptedSampleIndex": 43,
+      "fineAcceptedSampleIndex": 87,
+      "cyclePhase01": 0.08799999999944141
+    },
+    {
+      "coarseAcceptedSampleIndex": 44,
+      "fineAcceptedSampleIndex": 89,
+      "cyclePhase01": 0.0899999999994412
+    },
+    {
+      "coarseAcceptedSampleIndex": 45,
+      "fineAcceptedSampleIndex": 91,
+      "cyclePhase01": 0.09199999999944097
+    },
+    {
+      "coarseAcceptedSampleIndex": 46,
+      "fineAcceptedSampleIndex": 93,
+      "cyclePhase01": 0.09399999999944075
+    },
+    {
+      "coarseAcceptedSampleIndex": 47,
+      "fineAcceptedSampleIndex": 95,
+      "cyclePhase01": 0.09599999999944053
+    },
+    {
+      "coarseAcceptedSampleIndex": 48,
+      "fineAcceptedSampleIndex": 97,
+      "cyclePhase01": 0.09799999999944031
+    },
+    {
+      "coarseAcceptedSampleIndex": 49,
+      "fineAcceptedSampleIndex": 99,
+      "cyclePhase01": 0.09999999999944009
+    },
+    {
+      "coarseAcceptedSampleIndex": 50,
+      "fineAcceptedSampleIndex": 101,
+      "cyclePhase01": 0.10199999999943987
+    },
+    {
+      "coarseAcceptedSampleIndex": 51,
+      "fineAcceptedSampleIndex": 103,
+      "cyclePhase01": 0.10399999999943965
+    },
+    {
+      "coarseAcceptedSampleIndex": 52,
+      "fineAcceptedSampleIndex": 105,
+      "cyclePhase01": 0.10599999999943943
+    },
+    {
+      "coarseAcceptedSampleIndex": 53,
+      "fineAcceptedSampleIndex": 107,
+      "cyclePhase01": 0.10799999999943921
+    },
+    {
+      "coarseAcceptedSampleIndex": 54,
+      "fineAcceptedSampleIndex": 109,
+      "cyclePhase01": 0.10999999999943899
+    },
+    {
+      "coarseAcceptedSampleIndex": 55,
+      "fineAcceptedSampleIndex": 111,
+      "cyclePhase01": 0.11199999999943877
+    },
+    {
+      "coarseAcceptedSampleIndex": 56,
+      "fineAcceptedSampleIndex": 113,
+      "cyclePhase01": 0.11399999999943855
+    },
+    {
+      "coarseAcceptedSampleIndex": 57,
+      "fineAcceptedSampleIndex": 115,
+      "cyclePhase01": 0.11599999999943833
+    },
+    {
+      "coarseAcceptedSampleIndex": 58,
+      "fineAcceptedSampleIndex": 117,
+      "cyclePhase01": 0.11799999999943811
+    },
+    {
+      "coarseAcceptedSampleIndex": 59,
+      "fineAcceptedSampleIndex": 119,
+      "cyclePhase01": 0.11999999999943789
+    },
+    {
+      "coarseAcceptedSampleIndex": 60,
+      "fineAcceptedSampleIndex": 121,
+      "cyclePhase01": 0.12199999999943767
+    },
+    {
+      "coarseAcceptedSampleIndex": 61,
+      "fineAcceptedSampleIndex": 123,
+      "cyclePhase01": 0.12399999999943745
+    },
+    {
+      "coarseAcceptedSampleIndex": 62,
+      "fineAcceptedSampleIndex": 125,
+      "cyclePhase01": 0.12599999999943723
+    },
+    {
+      "coarseAcceptedSampleIndex": 63,
+      "fineAcceptedSampleIndex": 127,
+      "cyclePhase01": 0.127999999999437
+    },
+    {
+      "coarseAcceptedSampleIndex": 64,
+      "fineAcceptedSampleIndex": 129,
+      "cyclePhase01": 0.1299999999994368
+    },
+    {
+      "coarseAcceptedSampleIndex": 65,
+      "fineAcceptedSampleIndex": 131,
+      "cyclePhase01": 0.13199999999943657
+    },
+    {
+      "coarseAcceptedSampleIndex": 66,
+      "fineAcceptedSampleIndex": 133,
+      "cyclePhase01": 0.13399999999943635
+    },
+    {
+      "coarseAcceptedSampleIndex": 67,
+      "fineAcceptedSampleIndex": 135,
+      "cyclePhase01": 0.13599999999943613
+    },
+    {
+      "coarseAcceptedSampleIndex": 68,
+      "fineAcceptedSampleIndex": 137,
+      "cyclePhase01": 0.1379999999994359
+    },
+    {
+      "coarseAcceptedSampleIndex": 69,
+      "fineAcceptedSampleIndex": 139,
+      "cyclePhase01": 0.1399999999994357
+    },
+    {
+      "coarseAcceptedSampleIndex": 70,
+      "fineAcceptedSampleIndex": 141,
+      "cyclePhase01": 0.14199999999943547
+    },
+    {
+      "coarseAcceptedSampleIndex": 71,
+      "fineAcceptedSampleIndex": 143,
+      "cyclePhase01": 0.14399999999943525
+    },
+    {
+      "coarseAcceptedSampleIndex": 72,
+      "fineAcceptedSampleIndex": 145,
+      "cyclePhase01": 0.14599999999943503
+    },
+    {
+      "coarseAcceptedSampleIndex": 73,
+      "fineAcceptedSampleIndex": 147,
+      "cyclePhase01": 0.1479999999994348
+    },
+    {
+      "coarseAcceptedSampleIndex": 74,
+      "fineAcceptedSampleIndex": 149,
+      "cyclePhase01": 0.14999999999943459
+    },
+    {
+      "coarseAcceptedSampleIndex": 75,
+      "fineAcceptedSampleIndex": 151,
+      "cyclePhase01": 0.15199999999943437
+    },
+    {
+      "coarseAcceptedSampleIndex": 76,
+      "fineAcceptedSampleIndex": 153,
+      "cyclePhase01": 0.15399999999943415
+    },
+    {
+      "coarseAcceptedSampleIndex": 77,
+      "fineAcceptedSampleIndex": 155,
+      "cyclePhase01": 0.15599999999943392
+    },
+    {
+      "coarseAcceptedSampleIndex": 78,
+      "fineAcceptedSampleIndex": 157,
+      "cyclePhase01": 0.1579999999994337
+    },
+    {
+      "coarseAcceptedSampleIndex": 79,
+      "fineAcceptedSampleIndex": 159,
+      "cyclePhase01": 0.15999999999943348
+    },
+    {
+      "coarseAcceptedSampleIndex": 80,
+      "fineAcceptedSampleIndex": 161,
+      "cyclePhase01": 0.16199999999943326
+    },
+    {
+      "coarseAcceptedSampleIndex": 81,
+      "fineAcceptedSampleIndex": 163,
+      "cyclePhase01": 0.16399999999943304
+    },
+    {
+      "coarseAcceptedSampleIndex": 82,
+      "fineAcceptedSampleIndex": 165,
+      "cyclePhase01": 0.16599999999943282
+    },
+    {
+      "coarseAcceptedSampleIndex": 83,
+      "fineAcceptedSampleIndex": 167,
+      "cyclePhase01": 0.1679999999994326
+    },
+    {
+      "coarseAcceptedSampleIndex": 84,
+      "fineAcceptedSampleIndex": 169,
+      "cyclePhase01": 0.16999999999943238
+    },
+    {
+      "coarseAcceptedSampleIndex": 85,
+      "fineAcceptedSampleIndex": 171,
+      "cyclePhase01": 0.17199999999943216
+    },
+    {
+      "coarseAcceptedSampleIndex": 86,
+      "fineAcceptedSampleIndex": 173,
+      "cyclePhase01": 0.17399999999943194
+    },
+    {
+      "coarseAcceptedSampleIndex": 87,
+      "fineAcceptedSampleIndex": 175,
+      "cyclePhase01": 0.17599999999943172
+    },
+    {
+      "coarseAcceptedSampleIndex": 88,
+      "fineAcceptedSampleIndex": 177,
+      "cyclePhase01": 0.1779999999994315
+    },
+    {
+      "coarseAcceptedSampleIndex": 89,
+      "fineAcceptedSampleIndex": 179,
+      "cyclePhase01": 0.17999999999943128
+    },
+    {
+      "coarseAcceptedSampleIndex": 90,
+      "fineAcceptedSampleIndex": 181,
+      "cyclePhase01": 0.18199999999943106
+    },
+    {
+      "coarseAcceptedSampleIndex": 91,
+      "fineAcceptedSampleIndex": 183,
+      "cyclePhase01": 0.18399999999943084
+    },
+    {
+      "coarseAcceptedSampleIndex": 92,
+      "fineAcceptedSampleIndex": 185,
+      "cyclePhase01": 0.18599999999943062
+    },
+    {
+      "coarseAcceptedSampleIndex": 93,
+      "fineAcceptedSampleIndex": 187,
+      "cyclePhase01": 0.1879999999994304
+    },
+    {
+      "coarseAcceptedSampleIndex": 94,
+      "fineAcceptedSampleIndex": 189,
+      "cyclePhase01": 0.18999999999943018
+    },
+    {
+      "coarseAcceptedSampleIndex": 95,
+      "fineAcceptedSampleIndex": 191,
+      "cyclePhase01": 0.19199999999942996
+    },
+    {
+      "coarseAcceptedSampleIndex": 96,
+      "fineAcceptedSampleIndex": 193,
+      "cyclePhase01": 0.19399999999942974
+    },
+    {
+      "coarseAcceptedSampleIndex": 97,
+      "fineAcceptedSampleIndex": 195,
+      "cyclePhase01": 0.19599999999942952
+    },
+    {
+      "coarseAcceptedSampleIndex": 98,
+      "fineAcceptedSampleIndex": 197,
+      "cyclePhase01": 0.1979999999994293
+    },
+    {
+      "coarseAcceptedSampleIndex": 99,
+      "fineAcceptedSampleIndex": 199,
+      "cyclePhase01": 0.19999999999942908
+    },
+    {
+      "coarseAcceptedSampleIndex": 100,
+      "fineAcceptedSampleIndex": 201,
+      "cyclePhase01": 0.20199999999942886
+    },
+    {
+      "coarseAcceptedSampleIndex": 101,
+      "fineAcceptedSampleIndex": 203,
+      "cyclePhase01": 0.20399999999942864
+    },
+    {
+      "coarseAcceptedSampleIndex": 102,
+      "fineAcceptedSampleIndex": 205,
+      "cyclePhase01": 0.20599999999942842
+    },
+    {
+      "coarseAcceptedSampleIndex": 103,
+      "fineAcceptedSampleIndex": 207,
+      "cyclePhase01": 0.2079999999994282
+    },
+    {
+      "coarseAcceptedSampleIndex": 104,
+      "fineAcceptedSampleIndex": 209,
+      "cyclePhase01": 0.20999999999942798
+    },
+    {
+      "coarseAcceptedSampleIndex": 105,
+      "fineAcceptedSampleIndex": 211,
+      "cyclePhase01": 0.21199999999942776
+    },
+    {
+      "coarseAcceptedSampleIndex": 106,
+      "fineAcceptedSampleIndex": 213,
+      "cyclePhase01": 0.21399999999942754
+    },
+    {
+      "coarseAcceptedSampleIndex": 107,
+      "fineAcceptedSampleIndex": 215,
+      "cyclePhase01": 0.21599999999942732
+    },
+    {
+      "coarseAcceptedSampleIndex": 108,
+      "fineAcceptedSampleIndex": 217,
+      "cyclePhase01": 0.2179999999994271
+    },
+    {
+      "coarseAcceptedSampleIndex": 109,
+      "fineAcceptedSampleIndex": 219,
+      "cyclePhase01": 0.21999999999942688
+    },
+    {
+      "coarseAcceptedSampleIndex": 110,
+      "fineAcceptedSampleIndex": 221,
+      "cyclePhase01": 0.22199999999942666
+    },
+    {
+      "coarseAcceptedSampleIndex": 111,
+      "fineAcceptedSampleIndex": 223,
+      "cyclePhase01": 0.22399999999942644
+    },
+    {
+      "coarseAcceptedSampleIndex": 112,
+      "fineAcceptedSampleIndex": 225,
+      "cyclePhase01": 0.22599999999942622
+    },
+    {
+      "coarseAcceptedSampleIndex": 113,
+      "fineAcceptedSampleIndex": 227,
+      "cyclePhase01": 0.227999999999426
+    },
+    {
+      "coarseAcceptedSampleIndex": 114,
+      "fineAcceptedSampleIndex": 229,
+      "cyclePhase01": 0.22999999999942577
+    },
+    {
+      "coarseAcceptedSampleIndex": 115,
+      "fineAcceptedSampleIndex": 231,
+      "cyclePhase01": 0.23199999999942555
+    },
+    {
+      "coarseAcceptedSampleIndex": 116,
+      "fineAcceptedSampleIndex": 233,
+      "cyclePhase01": 0.23399999999942533
+    },
+    {
+      "coarseAcceptedSampleIndex": 117,
+      "fineAcceptedSampleIndex": 235,
+      "cyclePhase01": 0.23599999999942511
+    },
+    {
+      "coarseAcceptedSampleIndex": 118,
+      "fineAcceptedSampleIndex": 237,
+      "cyclePhase01": 0.2379999999994249
+    },
+    {
+      "coarseAcceptedSampleIndex": 119,
+      "fineAcceptedSampleIndex": 239,
+      "cyclePhase01": 0.23999999999942467
+    },
+    {
+      "coarseAcceptedSampleIndex": 120,
+      "fineAcceptedSampleIndex": 241,
+      "cyclePhase01": 0.24199999999942445
+    },
+    {
+      "coarseAcceptedSampleIndex": 121,
+      "fineAcceptedSampleIndex": 243,
+      "cyclePhase01": 0.24399999999942423
+    },
+    {
+      "coarseAcceptedSampleIndex": 122,
+      "fineAcceptedSampleIndex": 245,
+      "cyclePhase01": 0.245999999999424
+    },
+    {
+      "coarseAcceptedSampleIndex": 123,
+      "fineAcceptedSampleIndex": 247,
+      "cyclePhase01": 0.2479999999994238
+    },
+    {
+      "coarseAcceptedSampleIndex": 124,
+      "fineAcceptedSampleIndex": 249,
+      "cyclePhase01": 0.24999999999942357
+    },
+    {
+      "coarseAcceptedSampleIndex": 125,
+      "fineAcceptedSampleIndex": 251,
+      "cyclePhase01": 0.25199999999942335
+    },
+    {
+      "coarseAcceptedSampleIndex": 126,
+      "fineAcceptedSampleIndex": 253,
+      "cyclePhase01": 0.25399999999942313
+    },
+    {
+      "coarseAcceptedSampleIndex": 127,
+      "fineAcceptedSampleIndex": 255,
+      "cyclePhase01": 0.2559999999994229
+    },
+    {
+      "coarseAcceptedSampleIndex": 128,
+      "fineAcceptedSampleIndex": 257,
+      "cyclePhase01": 0.2579999999994227
+    },
+    {
+      "coarseAcceptedSampleIndex": 129,
+      "fineAcceptedSampleIndex": 259,
+      "cyclePhase01": 0.25999999999942247
+    },
+    {
+      "coarseAcceptedSampleIndex": 130,
+      "fineAcceptedSampleIndex": 261,
+      "cyclePhase01": 0.26199999999942225
+    },
+    {
+      "coarseAcceptedSampleIndex": 131,
+      "fineAcceptedSampleIndex": 263,
+      "cyclePhase01": 0.26399999999942203
+    },
+    {
+      "coarseAcceptedSampleIndex": 132,
+      "fineAcceptedSampleIndex": 265,
+      "cyclePhase01": 0.2659999999994218
+    },
+    {
+      "coarseAcceptedSampleIndex": 133,
+      "fineAcceptedSampleIndex": 267,
+      "cyclePhase01": 0.2679999999994216
+    },
+    {
+      "coarseAcceptedSampleIndex": 134,
+      "fineAcceptedSampleIndex": 269,
+      "cyclePhase01": 0.26999999999942137
+    },
+    {
+      "coarseAcceptedSampleIndex": 135,
+      "fineAcceptedSampleIndex": 271,
+      "cyclePhase01": 0.27199999999942115
+    },
+    {
+      "coarseAcceptedSampleIndex": 136,
+      "fineAcceptedSampleIndex": 273,
+      "cyclePhase01": 0.27399999999942093
+    },
+    {
+      "coarseAcceptedSampleIndex": 137,
+      "fineAcceptedSampleIndex": 275,
+      "cyclePhase01": 0.2759999999994207
+    },
+    {
+      "coarseAcceptedSampleIndex": 138,
+      "fineAcceptedSampleIndex": 277,
+      "cyclePhase01": 0.2779999999994205
+    },
+    {
+      "coarseAcceptedSampleIndex": 139,
+      "fineAcceptedSampleIndex": 279,
+      "cyclePhase01": 0.27999999999942027
+    },
+    {
+      "coarseAcceptedSampleIndex": 140,
+      "fineAcceptedSampleIndex": 281,
+      "cyclePhase01": 0.28199999999942005
+    },
+    {
+      "coarseAcceptedSampleIndex": 141,
+      "fineAcceptedSampleIndex": 283,
+      "cyclePhase01": 0.2839999999994198
+    },
+    {
+      "coarseAcceptedSampleIndex": 142,
+      "fineAcceptedSampleIndex": 285,
+      "cyclePhase01": 0.2859999999994196
+    },
+    {
+      "coarseAcceptedSampleIndex": 143,
+      "fineAcceptedSampleIndex": 287,
+      "cyclePhase01": 0.2879999999994194
+    },
+    {
+      "coarseAcceptedSampleIndex": 144,
+      "fineAcceptedSampleIndex": 289,
+      "cyclePhase01": 0.28999999999941917
+    },
+    {
+      "coarseAcceptedSampleIndex": 145,
+      "fineAcceptedSampleIndex": 291,
+      "cyclePhase01": 0.29199999999941895
+    },
+    {
+      "coarseAcceptedSampleIndex": 146,
+      "fineAcceptedSampleIndex": 293,
+      "cyclePhase01": 0.2939999999994187
+    },
+    {
+      "coarseAcceptedSampleIndex": 147,
+      "fineAcceptedSampleIndex": 295,
+      "cyclePhase01": 0.2959999999994185
+    },
+    {
+      "coarseAcceptedSampleIndex": 148,
+      "fineAcceptedSampleIndex": 297,
+      "cyclePhase01": 0.2979999999994183
+    },
+    {
+      "coarseAcceptedSampleIndex": 149,
+      "fineAcceptedSampleIndex": 299,
+      "cyclePhase01": 0.29999999999941807
+    },
+    {
+      "coarseAcceptedSampleIndex": 150,
+      "fineAcceptedSampleIndex": 301,
+      "cyclePhase01": 0.30199999999941785
+    },
+    {
+      "coarseAcceptedSampleIndex": 151,
+      "fineAcceptedSampleIndex": 303,
+      "cyclePhase01": 0.3039999999994176
+    },
+    {
+      "coarseAcceptedSampleIndex": 152,
+      "fineAcceptedSampleIndex": 305,
+      "cyclePhase01": 0.3059999999994174
+    },
+    {
+      "coarseAcceptedSampleIndex": 153,
+      "fineAcceptedSampleIndex": 307,
+      "cyclePhase01": 0.3079999999994172
+    },
+    {
+      "coarseAcceptedSampleIndex": 154,
+      "fineAcceptedSampleIndex": 309,
+      "cyclePhase01": 0.30999999999941696
+    },
+    {
+      "coarseAcceptedSampleIndex": 155,
+      "fineAcceptedSampleIndex": 311,
+      "cyclePhase01": 0.31199999999941674
+    },
+    {
+      "coarseAcceptedSampleIndex": 156,
+      "fineAcceptedSampleIndex": 313,
+      "cyclePhase01": 0.3139999999994165
+    },
+    {
+      "coarseAcceptedSampleIndex": 157,
+      "fineAcceptedSampleIndex": 315,
+      "cyclePhase01": 0.3159999999994163
+    },
+    {
+      "coarseAcceptedSampleIndex": 158,
+      "fineAcceptedSampleIndex": 317,
+      "cyclePhase01": 0.3179999999994161
+    },
+    {
+      "coarseAcceptedSampleIndex": 159,
+      "fineAcceptedSampleIndex": 319,
+      "cyclePhase01": 0.31999999999941586
+    },
+    {
+      "coarseAcceptedSampleIndex": 160,
+      "fineAcceptedSampleIndex": 321,
+      "cyclePhase01": 0.32199999999941564
+    },
+    {
+      "coarseAcceptedSampleIndex": 161,
+      "fineAcceptedSampleIndex": 323,
+      "cyclePhase01": 0.3239999999994154
+    },
+    {
+      "coarseAcceptedSampleIndex": 162,
+      "fineAcceptedSampleIndex": 325,
+      "cyclePhase01": 0.3259999999994152
+    },
+    {
+      "coarseAcceptedSampleIndex": 163,
+      "fineAcceptedSampleIndex": 327,
+      "cyclePhase01": 0.327999999999415
+    },
+    {
+      "coarseAcceptedSampleIndex": 164,
+      "fineAcceptedSampleIndex": 329,
+      "cyclePhase01": 0.32999999999941476
+    },
+    {
+      "coarseAcceptedSampleIndex": 165,
+      "fineAcceptedSampleIndex": 331,
+      "cyclePhase01": 0.33199999999941454
+    },
+    {
+      "coarseAcceptedSampleIndex": 166,
+      "fineAcceptedSampleIndex": 333,
+      "cyclePhase01": 0.3339999999994143
+    },
+    {
+      "coarseAcceptedSampleIndex": 167,
+      "fineAcceptedSampleIndex": 335,
+      "cyclePhase01": 0.3359999999994141
+    },
+    {
+      "coarseAcceptedSampleIndex": 168,
+      "fineAcceptedSampleIndex": 337,
+      "cyclePhase01": 0.3379999999994139
+    },
+    {
+      "coarseAcceptedSampleIndex": 169,
+      "fineAcceptedSampleIndex": 339,
+      "cyclePhase01": 0.33999999999941366
+    },
+    {
+      "coarseAcceptedSampleIndex": 170,
+      "fineAcceptedSampleIndex": 341,
+      "cyclePhase01": 0.34199999999941344
+    },
+    {
+      "coarseAcceptedSampleIndex": 171,
+      "fineAcceptedSampleIndex": 343,
+      "cyclePhase01": 0.3439999999994132
+    },
+    {
+      "coarseAcceptedSampleIndex": 172,
+      "fineAcceptedSampleIndex": 345,
+      "cyclePhase01": 0.345999999999413
+    },
+    {
+      "coarseAcceptedSampleIndex": 173,
+      "fineAcceptedSampleIndex": 347,
+      "cyclePhase01": 0.3479999999994128
+    },
+    {
+      "coarseAcceptedSampleIndex": 174,
+      "fineAcceptedSampleIndex": 349,
+      "cyclePhase01": 0.34999999999941256
+    },
+    {
+      "coarseAcceptedSampleIndex": 175,
+      "fineAcceptedSampleIndex": 351,
+      "cyclePhase01": 0.35199999999941234
+    },
+    {
+      "coarseAcceptedSampleIndex": 176,
+      "fineAcceptedSampleIndex": 353,
+      "cyclePhase01": 0.3539999999994121
+    },
+    {
+      "coarseAcceptedSampleIndex": 177,
+      "fineAcceptedSampleIndex": 355,
+      "cyclePhase01": 0.3559999999994119
+    },
+    {
+      "coarseAcceptedSampleIndex": 178,
+      "fineAcceptedSampleIndex": 357,
+      "cyclePhase01": 0.3579999999994117
+    },
+    {
+      "coarseAcceptedSampleIndex": 179,
+      "fineAcceptedSampleIndex": 359,
+      "cyclePhase01": 0.35999999999941146
+    },
+    {
+      "coarseAcceptedSampleIndex": 180,
+      "fineAcceptedSampleIndex": 361,
+      "cyclePhase01": 0.36199999999941124
+    },
+    {
+      "coarseAcceptedSampleIndex": 181,
+      "fineAcceptedSampleIndex": 363,
+      "cyclePhase01": 0.363999999999411
+    },
+    {
+      "coarseAcceptedSampleIndex": 182,
+      "fineAcceptedSampleIndex": 365,
+      "cyclePhase01": 0.3659999999994108
+    },
+    {
+      "coarseAcceptedSampleIndex": 183,
+      "fineAcceptedSampleIndex": 367,
+      "cyclePhase01": 0.3679999999994106
+    },
+    {
+      "coarseAcceptedSampleIndex": 184,
+      "fineAcceptedSampleIndex": 369,
+      "cyclePhase01": 0.36999999999941036
+    },
+    {
+      "coarseAcceptedSampleIndex": 185,
+      "fineAcceptedSampleIndex": 371,
+      "cyclePhase01": 0.37199999999941014
+    },
+    {
+      "coarseAcceptedSampleIndex": 186,
+      "fineAcceptedSampleIndex": 373,
+      "cyclePhase01": 0.3739999999994099
+    },
+    {
+      "coarseAcceptedSampleIndex": 187,
+      "fineAcceptedSampleIndex": 375,
+      "cyclePhase01": 0.3759999999994097
+    },
+    {
+      "coarseAcceptedSampleIndex": 188,
+      "fineAcceptedSampleIndex": 377,
+      "cyclePhase01": 0.3779999999994095
+    },
+    {
+      "coarseAcceptedSampleIndex": 189,
+      "fineAcceptedSampleIndex": 379,
+      "cyclePhase01": 0.37999999999940925
+    },
+    {
+      "coarseAcceptedSampleIndex": 190,
+      "fineAcceptedSampleIndex": 381,
+      "cyclePhase01": 0.38199999999940903
+    },
+    {
+      "coarseAcceptedSampleIndex": 191,
+      "fineAcceptedSampleIndex": 383,
+      "cyclePhase01": 0.3839999999994088
+    },
+    {
+      "coarseAcceptedSampleIndex": 192,
+      "fineAcceptedSampleIndex": 385,
+      "cyclePhase01": 0.3859999999994086
+    },
+    {
+      "coarseAcceptedSampleIndex": 193,
+      "fineAcceptedSampleIndex": 387,
+      "cyclePhase01": 0.3879999999994084
+    },
+    {
+      "coarseAcceptedSampleIndex": 194,
+      "fineAcceptedSampleIndex": 389,
+      "cyclePhase01": 0.38999999999940815
+    },
+    {
+      "coarseAcceptedSampleIndex": 195,
+      "fineAcceptedSampleIndex": 391,
+      "cyclePhase01": 0.39199999999940793
+    },
+    {
+      "coarseAcceptedSampleIndex": 196,
+      "fineAcceptedSampleIndex": 393,
+      "cyclePhase01": 0.3939999999994077
+    },
+    {
+      "coarseAcceptedSampleIndex": 197,
+      "fineAcceptedSampleIndex": 395,
+      "cyclePhase01": 0.3959999999994075
+    },
+    {
+      "coarseAcceptedSampleIndex": 198,
+      "fineAcceptedSampleIndex": 397,
+      "cyclePhase01": 0.3979999999994073
+    },
+    {
+      "coarseAcceptedSampleIndex": 199,
+      "fineAcceptedSampleIndex": 399,
+      "cyclePhase01": 0.39999999999940705
+    },
+    {
+      "coarseAcceptedSampleIndex": 200,
+      "fineAcceptedSampleIndex": 401,
+      "cyclePhase01": 0.40199999999940683
+    },
+    {
+      "coarseAcceptedSampleIndex": 201,
+      "fineAcceptedSampleIndex": 403,
+      "cyclePhase01": 0.4039999999994066
+    },
+    {
+      "coarseAcceptedSampleIndex": 202,
+      "fineAcceptedSampleIndex": 405,
+      "cyclePhase01": 0.4059999999994064
+    },
+    {
+      "coarseAcceptedSampleIndex": 203,
+      "fineAcceptedSampleIndex": 407,
+      "cyclePhase01": 0.40799999999940617
+    },
+    {
+      "coarseAcceptedSampleIndex": 204,
+      "fineAcceptedSampleIndex": 409,
+      "cyclePhase01": 0.40999999999940595
+    },
+    {
+      "coarseAcceptedSampleIndex": 205,
+      "fineAcceptedSampleIndex": 411,
+      "cyclePhase01": 0.41199999999940573
+    },
+    {
+      "coarseAcceptedSampleIndex": 206,
+      "fineAcceptedSampleIndex": 413,
+      "cyclePhase01": 0.4139999999994055
+    },
+    {
+      "coarseAcceptedSampleIndex": 207,
+      "fineAcceptedSampleIndex": 415,
+      "cyclePhase01": 0.4159999999994053
+    },
+    {
+      "coarseAcceptedSampleIndex": 208,
+      "fineAcceptedSampleIndex": 417,
+      "cyclePhase01": 0.41799999999940507
+    },
+    {
+      "coarseAcceptedSampleIndex": 209,
+      "fineAcceptedSampleIndex": 419,
+      "cyclePhase01": 0.41999999999940485
+    },
+    {
+      "coarseAcceptedSampleIndex": 210,
+      "fineAcceptedSampleIndex": 421,
+      "cyclePhase01": 0.42199999999940463
+    },
+    {
+      "coarseAcceptedSampleIndex": 211,
+      "fineAcceptedSampleIndex": 423,
+      "cyclePhase01": 0.4239999999994044
+    },
+    {
+      "coarseAcceptedSampleIndex": 212,
+      "fineAcceptedSampleIndex": 425,
+      "cyclePhase01": 0.4259999999994042
+    },
+    {
+      "coarseAcceptedSampleIndex": 213,
+      "fineAcceptedSampleIndex": 427,
+      "cyclePhase01": 0.42799999999940397
+    },
+    {
+      "coarseAcceptedSampleIndex": 214,
+      "fineAcceptedSampleIndex": 429,
+      "cyclePhase01": 0.42999999999940375
+    },
+    {
+      "coarseAcceptedSampleIndex": 215,
+      "fineAcceptedSampleIndex": 431,
+      "cyclePhase01": 0.43199999999940353
+    },
+    {
+      "coarseAcceptedSampleIndex": 216,
+      "fineAcceptedSampleIndex": 433,
+      "cyclePhase01": 0.4339999999994033
+    },
+    {
+      "coarseAcceptedSampleIndex": 217,
+      "fineAcceptedSampleIndex": 435,
+      "cyclePhase01": 0.4359999999994031
+    },
+    {
+      "coarseAcceptedSampleIndex": 218,
+      "fineAcceptedSampleIndex": 437,
+      "cyclePhase01": 0.43799999999940287
+    },
+    {
+      "coarseAcceptedSampleIndex": 219,
+      "fineAcceptedSampleIndex": 439,
+      "cyclePhase01": 0.43999999999940265
+    },
+    {
+      "coarseAcceptedSampleIndex": 220,
+      "fineAcceptedSampleIndex": 441,
+      "cyclePhase01": 0.4419999999994024
+    },
+    {
+      "coarseAcceptedSampleIndex": 221,
+      "fineAcceptedSampleIndex": 443,
+      "cyclePhase01": 0.4439999999994022
+    },
+    {
+      "coarseAcceptedSampleIndex": 222,
+      "fineAcceptedSampleIndex": 445,
+      "cyclePhase01": 0.445999999999402
+    },
+    {
+      "coarseAcceptedSampleIndex": 223,
+      "fineAcceptedSampleIndex": 447,
+      "cyclePhase01": 0.44799999999940177
+    },
+    {
+      "coarseAcceptedSampleIndex": 224,
+      "fineAcceptedSampleIndex": 449,
+      "cyclePhase01": 0.44999999999940155
+    },
+    {
+      "coarseAcceptedSampleIndex": 225,
+      "fineAcceptedSampleIndex": 451,
+      "cyclePhase01": 0.4519999999994013
+    },
+    {
+      "coarseAcceptedSampleIndex": 226,
+      "fineAcceptedSampleIndex": 453,
+      "cyclePhase01": 0.4539999999994011
+    },
+    {
+      "coarseAcceptedSampleIndex": 227,
+      "fineAcceptedSampleIndex": 455,
+      "cyclePhase01": 0.4559999999994009
+    },
+    {
+      "coarseAcceptedSampleIndex": 228,
+      "fineAcceptedSampleIndex": 457,
+      "cyclePhase01": 0.45799999999940066
+    },
+    {
+      "coarseAcceptedSampleIndex": 229,
+      "fineAcceptedSampleIndex": 459,
+      "cyclePhase01": 0.45999999999940044
+    },
+    {
+      "coarseAcceptedSampleIndex": 230,
+      "fineAcceptedSampleIndex": 461,
+      "cyclePhase01": 0.4619999999994002
+    },
+    {
+      "coarseAcceptedSampleIndex": 231,
+      "fineAcceptedSampleIndex": 463,
+      "cyclePhase01": 0.4639999999994
+    },
+    {
+      "coarseAcceptedSampleIndex": 232,
+      "fineAcceptedSampleIndex": 465,
+      "cyclePhase01": 0.4659999999993998
+    },
+    {
+      "coarseAcceptedSampleIndex": 233,
+      "fineAcceptedSampleIndex": 467,
+      "cyclePhase01": 0.46799999999939956
+    },
+    {
+      "coarseAcceptedSampleIndex": 234,
+      "fineAcceptedSampleIndex": 469,
+      "cyclePhase01": 0.46999999999939934
+    },
+    {
+      "coarseAcceptedSampleIndex": 235,
+      "fineAcceptedSampleIndex": 471,
+      "cyclePhase01": 0.4719999999993991
+    },
+    {
+      "coarseAcceptedSampleIndex": 236,
+      "fineAcceptedSampleIndex": 473,
+      "cyclePhase01": 0.4739999999993989
+    },
+    {
+      "coarseAcceptedSampleIndex": 237,
+      "fineAcceptedSampleIndex": 475,
+      "cyclePhase01": 0.4759999999993987
+    },
+    {
+      "coarseAcceptedSampleIndex": 238,
+      "fineAcceptedSampleIndex": 477,
+      "cyclePhase01": 0.47799999999939846
+    },
+    {
+      "coarseAcceptedSampleIndex": 239,
+      "fineAcceptedSampleIndex": 479,
+      "cyclePhase01": 0.47999999999939824
+    },
+    {
+      "coarseAcceptedSampleIndex": 240,
+      "fineAcceptedSampleIndex": 481,
+      "cyclePhase01": 0.481999999999398
+    },
+    {
+      "coarseAcceptedSampleIndex": 241,
+      "fineAcceptedSampleIndex": 483,
+      "cyclePhase01": 0.4839999999993978
+    },
+    {
+      "coarseAcceptedSampleIndex": 242,
+      "fineAcceptedSampleIndex": 485,
+      "cyclePhase01": 0.4859999999993976
+    },
+    {
+      "coarseAcceptedSampleIndex": 243,
+      "fineAcceptedSampleIndex": 487,
+      "cyclePhase01": 0.48799999999939736
+    },
+    {
+      "coarseAcceptedSampleIndex": 244,
+      "fineAcceptedSampleIndex": 489,
+      "cyclePhase01": 0.48999999999939714
+    },
+    {
+      "coarseAcceptedSampleIndex": 245,
+      "fineAcceptedSampleIndex": 491,
+      "cyclePhase01": 0.4919999999993969
+    },
+    {
+      "coarseAcceptedSampleIndex": 246,
+      "fineAcceptedSampleIndex": 493,
+      "cyclePhase01": 0.4939999999993967
+    },
+    {
+      "coarseAcceptedSampleIndex": 247,
+      "fineAcceptedSampleIndex": 495,
+      "cyclePhase01": 0.4959999999993965
+    },
+    {
+      "coarseAcceptedSampleIndex": 248,
+      "fineAcceptedSampleIndex": 497,
+      "cyclePhase01": 0.49799999999939626
+    },
+    {
+      "coarseAcceptedSampleIndex": 249,
+      "fineAcceptedSampleIndex": 499,
+      "cyclePhase01": 0.49999999999939604
+    },
+    {
+      "coarseAcceptedSampleIndex": 250,
+      "fineAcceptedSampleIndex": 501,
+      "cyclePhase01": 0.5019999999993958
+    },
+    {
+      "coarseAcceptedSampleIndex": 251,
+      "fineAcceptedSampleIndex": 503,
+      "cyclePhase01": 0.5039999999993956
+    },
+    {
+      "coarseAcceptedSampleIndex": 252,
+      "fineAcceptedSampleIndex": 505,
+      "cyclePhase01": 0.5059999999993954
+    },
+    {
+      "coarseAcceptedSampleIndex": 253,
+      "fineAcceptedSampleIndex": 507,
+      "cyclePhase01": 0.5079999999993952
+    },
+    {
+      "coarseAcceptedSampleIndex": 254,
+      "fineAcceptedSampleIndex": 509,
+      "cyclePhase01": 0.5099999999993949
+    },
+    {
+      "coarseAcceptedSampleIndex": 255,
+      "fineAcceptedSampleIndex": 511,
+      "cyclePhase01": 0.5119999999993947
+    },
+    {
+      "coarseAcceptedSampleIndex": 256,
+      "fineAcceptedSampleIndex": 513,
+      "cyclePhase01": 0.5139999999993945
+    },
+    {
+      "coarseAcceptedSampleIndex": 257,
+      "fineAcceptedSampleIndex": 515,
+      "cyclePhase01": 0.5159999999993943
+    },
+    {
+      "coarseAcceptedSampleIndex": 258,
+      "fineAcceptedSampleIndex": 517,
+      "cyclePhase01": 0.5179999999993941
+    },
+    {
+      "coarseAcceptedSampleIndex": 259,
+      "fineAcceptedSampleIndex": 519,
+      "cyclePhase01": 0.5199999999993938
+    },
+    {
+      "coarseAcceptedSampleIndex": 260,
+      "fineAcceptedSampleIndex": 521,
+      "cyclePhase01": 0.5219999999993936
+    },
+    {
+      "coarseAcceptedSampleIndex": 261,
+      "fineAcceptedSampleIndex": 523,
+      "cyclePhase01": 0.5239999999993934
+    },
+    {
+      "coarseAcceptedSampleIndex": 262,
+      "fineAcceptedSampleIndex": 525,
+      "cyclePhase01": 0.5259999999993932
+    },
+    {
+      "coarseAcceptedSampleIndex": 263,
+      "fineAcceptedSampleIndex": 527,
+      "cyclePhase01": 0.527999999999393
+    },
+    {
+      "coarseAcceptedSampleIndex": 264,
+      "fineAcceptedSampleIndex": 529,
+      "cyclePhase01": 0.5299999999993927
+    },
+    {
+      "coarseAcceptedSampleIndex": 265,
+      "fineAcceptedSampleIndex": 531,
+      "cyclePhase01": 0.5319999999993925
+    },
+    {
+      "coarseAcceptedSampleIndex": 266,
+      "fineAcceptedSampleIndex": 533,
+      "cyclePhase01": 0.5339999999993923
+    },
+    {
+      "coarseAcceptedSampleIndex": 267,
+      "fineAcceptedSampleIndex": 535,
+      "cyclePhase01": 0.5359999999993921
+    },
+    {
+      "coarseAcceptedSampleIndex": 268,
+      "fineAcceptedSampleIndex": 537,
+      "cyclePhase01": 0.5379999999993919
+    },
+    {
+      "coarseAcceptedSampleIndex": 269,
+      "fineAcceptedSampleIndex": 539,
+      "cyclePhase01": 0.5399999999993916
+    },
+    {
+      "coarseAcceptedSampleIndex": 270,
+      "fineAcceptedSampleIndex": 541,
+      "cyclePhase01": 0.5419999999993914
+    },
+    {
+      "coarseAcceptedSampleIndex": 271,
+      "fineAcceptedSampleIndex": 543,
+      "cyclePhase01": 0.5439999999993912
+    },
+    {
+      "coarseAcceptedSampleIndex": 272,
+      "fineAcceptedSampleIndex": 545,
+      "cyclePhase01": 0.545999999999391
+    },
+    {
+      "coarseAcceptedSampleIndex": 273,
+      "fineAcceptedSampleIndex": 547,
+      "cyclePhase01": 0.5479999999993908
+    },
+    {
+      "coarseAcceptedSampleIndex": 274,
+      "fineAcceptedSampleIndex": 549,
+      "cyclePhase01": 0.5499999999993905
+    },
+    {
+      "coarseAcceptedSampleIndex": 275,
+      "fineAcceptedSampleIndex": 551,
+      "cyclePhase01": 0.5519999999993903
+    },
+    {
+      "coarseAcceptedSampleIndex": 276,
+      "fineAcceptedSampleIndex": 553,
+      "cyclePhase01": 0.5539999999993901
+    },
+    {
+      "coarseAcceptedSampleIndex": 277,
+      "fineAcceptedSampleIndex": 555,
+      "cyclePhase01": 0.5559999999993899
+    },
+    {
+      "coarseAcceptedSampleIndex": 278,
+      "fineAcceptedSampleIndex": 557,
+      "cyclePhase01": 0.5579999999993897
+    },
+    {
+      "coarseAcceptedSampleIndex": 279,
+      "fineAcceptedSampleIndex": 559,
+      "cyclePhase01": 0.5599999999993894
+    },
+    {
+      "coarseAcceptedSampleIndex": 280,
+      "fineAcceptedSampleIndex": 561,
+      "cyclePhase01": 0.5619999999993892
+    },
+    {
+      "coarseAcceptedSampleIndex": 281,
+      "fineAcceptedSampleIndex": 563,
+      "cyclePhase01": 0.563999999999389
+    },
+    {
+      "coarseAcceptedSampleIndex": 282,
+      "fineAcceptedSampleIndex": 565,
+      "cyclePhase01": 0.5659999999993888
+    },
+    {
+      "coarseAcceptedSampleIndex": 283,
+      "fineAcceptedSampleIndex": 567,
+      "cyclePhase01": 0.5679999999993885
+    },
+    {
+      "coarseAcceptedSampleIndex": 284,
+      "fineAcceptedSampleIndex": 569,
+      "cyclePhase01": 0.5699999999993883
+    },
+    {
+      "coarseAcceptedSampleIndex": 285,
+      "fineAcceptedSampleIndex": 571,
+      "cyclePhase01": 0.5719999999993881
+    },
+    {
+      "coarseAcceptedSampleIndex": 286,
+      "fineAcceptedSampleIndex": 573,
+      "cyclePhase01": 0.5739999999993879
+    },
+    {
+      "coarseAcceptedSampleIndex": 287,
+      "fineAcceptedSampleIndex": 575,
+      "cyclePhase01": 0.5759999999993877
+    },
+    {
+      "coarseAcceptedSampleIndex": 288,
+      "fineAcceptedSampleIndex": 577,
+      "cyclePhase01": 0.5779999999993874
+    },
+    {
+      "coarseAcceptedSampleIndex": 289,
+      "fineAcceptedSampleIndex": 579,
+      "cyclePhase01": 0.5799999999993872
+    },
+    {
+      "coarseAcceptedSampleIndex": 290,
+      "fineAcceptedSampleIndex": 581,
+      "cyclePhase01": 0.581999999999387
+    },
+    {
+      "coarseAcceptedSampleIndex": 291,
+      "fineAcceptedSampleIndex": 583,
+      "cyclePhase01": 0.5839999999993868
+    },
+    {
+      "coarseAcceptedSampleIndex": 292,
+      "fineAcceptedSampleIndex": 585,
+      "cyclePhase01": 0.5859999999993866
+    },
+    {
+      "coarseAcceptedSampleIndex": 293,
+      "fineAcceptedSampleIndex": 587,
+      "cyclePhase01": 0.5879999999993863
+    },
+    {
+      "coarseAcceptedSampleIndex": 294,
+      "fineAcceptedSampleIndex": 589,
+      "cyclePhase01": 0.5899999999993861
+    },
+    {
+      "coarseAcceptedSampleIndex": 295,
+      "fineAcceptedSampleIndex": 591,
+      "cyclePhase01": 0.5919999999993859
+    },
+    {
+      "coarseAcceptedSampleIndex": 296,
+      "fineAcceptedSampleIndex": 593,
+      "cyclePhase01": 0.5939999999993857
+    },
+    {
+      "coarseAcceptedSampleIndex": 297,
+      "fineAcceptedSampleIndex": 595,
+      "cyclePhase01": 0.5959999999993855
+    },
+    {
+      "coarseAcceptedSampleIndex": 298,
+      "fineAcceptedSampleIndex": 597,
+      "cyclePhase01": 0.5979999999993852
+    },
+    {
+      "coarseAcceptedSampleIndex": 299,
+      "fineAcceptedSampleIndex": 599,
+      "cyclePhase01": 0.599999999999385
+    },
+    {
+      "coarseAcceptedSampleIndex": 300,
+      "fineAcceptedSampleIndex": 601,
+      "cyclePhase01": 0.6019999999993848
+    },
+    {
+      "coarseAcceptedSampleIndex": 301,
+      "fineAcceptedSampleIndex": 603,
+      "cyclePhase01": 0.6039999999993846
+    },
+    {
+      "coarseAcceptedSampleIndex": 302,
+      "fineAcceptedSampleIndex": 605,
+      "cyclePhase01": 0.6059999999993844
+    },
+    {
+      "coarseAcceptedSampleIndex": 303,
+      "fineAcceptedSampleIndex": 607,
+      "cyclePhase01": 0.6079999999993841
+    },
+    {
+      "coarseAcceptedSampleIndex": 304,
+      "fineAcceptedSampleIndex": 609,
+      "cyclePhase01": 0.6099999999993839
+    },
+    {
+      "coarseAcceptedSampleIndex": 305,
+      "fineAcceptedSampleIndex": 611,
+      "cyclePhase01": 0.6119999999993837
+    },
+    {
+      "coarseAcceptedSampleIndex": 306,
+      "fineAcceptedSampleIndex": 613,
+      "cyclePhase01": 0.6139999999993835
+    },
+    {
+      "coarseAcceptedSampleIndex": 307,
+      "fineAcceptedSampleIndex": 615,
+      "cyclePhase01": 0.6159999999993833
+    },
+    {
+      "coarseAcceptedSampleIndex": 308,
+      "fineAcceptedSampleIndex": 617,
+      "cyclePhase01": 0.617999999999383
+    },
+    {
+      "coarseAcceptedSampleIndex": 309,
+      "fineAcceptedSampleIndex": 619,
+      "cyclePhase01": 0.6199999999993828
+    },
+    {
+      "coarseAcceptedSampleIndex": 310,
+      "fineAcceptedSampleIndex": 621,
+      "cyclePhase01": 0.6219999999993826
+    },
+    {
+      "coarseAcceptedSampleIndex": 311,
+      "fineAcceptedSampleIndex": 623,
+      "cyclePhase01": 0.6239999999993824
+    },
+    {
+      "coarseAcceptedSampleIndex": 312,
+      "fineAcceptedSampleIndex": 625,
+      "cyclePhase01": 0.6259999999993822
+    },
+    {
+      "coarseAcceptedSampleIndex": 313,
+      "fineAcceptedSampleIndex": 627,
+      "cyclePhase01": 0.6279999999993819
+    },
+    {
+      "coarseAcceptedSampleIndex": 314,
+      "fineAcceptedSampleIndex": 629,
+      "cyclePhase01": 0.6299999999993817
+    },
+    {
+      "coarseAcceptedSampleIndex": 315,
+      "fineAcceptedSampleIndex": 631,
+      "cyclePhase01": 0.6319999999993815
+    },
+    {
+      "coarseAcceptedSampleIndex": 316,
+      "fineAcceptedSampleIndex": 633,
+      "cyclePhase01": 0.6339999999993813
+    },
+    {
+      "coarseAcceptedSampleIndex": 317,
+      "fineAcceptedSampleIndex": 635,
+      "cyclePhase01": 0.6359999999993811
+    },
+    {
+      "coarseAcceptedSampleIndex": 318,
+      "fineAcceptedSampleIndex": 637,
+      "cyclePhase01": 0.6379999999993808
+    },
+    {
+      "coarseAcceptedSampleIndex": 319,
+      "fineAcceptedSampleIndex": 639,
+      "cyclePhase01": 0.6399999999993806
+    },
+    {
+      "coarseAcceptedSampleIndex": 320,
+      "fineAcceptedSampleIndex": 641,
+      "cyclePhase01": 0.6419999999993804
+    },
+    {
+      "coarseAcceptedSampleIndex": 321,
+      "fineAcceptedSampleIndex": 643,
+      "cyclePhase01": 0.6439999999993802
+    },
+    {
+      "coarseAcceptedSampleIndex": 322,
+      "fineAcceptedSampleIndex": 645,
+      "cyclePhase01": 0.64599999999938
+    },
+    {
+      "coarseAcceptedSampleIndex": 323,
+      "fineAcceptedSampleIndex": 647,
+      "cyclePhase01": 0.6479999999993797
+    },
+    {
+      "coarseAcceptedSampleIndex": 324,
+      "fineAcceptedSampleIndex": 649,
+      "cyclePhase01": 0.6499999999993795
+    },
+    {
+      "coarseAcceptedSampleIndex": 325,
+      "fineAcceptedSampleIndex": 651,
+      "cyclePhase01": 0.6519999999993793
+    },
+    {
+      "coarseAcceptedSampleIndex": 326,
+      "fineAcceptedSampleIndex": 653,
+      "cyclePhase01": 0.6539999999993791
+    },
+    {
+      "coarseAcceptedSampleIndex": 327,
+      "fineAcceptedSampleIndex": 655,
+      "cyclePhase01": 0.6559999999993789
+    },
+    {
+      "coarseAcceptedSampleIndex": 328,
+      "fineAcceptedSampleIndex": 657,
+      "cyclePhase01": 0.6579999999993786
+    },
+    {
+      "coarseAcceptedSampleIndex": 329,
+      "fineAcceptedSampleIndex": 659,
+      "cyclePhase01": 0.6599999999993784
+    },
+    {
+      "coarseAcceptedSampleIndex": 330,
+      "fineAcceptedSampleIndex": 661,
+      "cyclePhase01": 0.6619999999993782
+    },
+    {
+      "coarseAcceptedSampleIndex": 331,
+      "fineAcceptedSampleIndex": 663,
+      "cyclePhase01": 0.663999999999378
+    },
+    {
+      "coarseAcceptedSampleIndex": 332,
+      "fineAcceptedSampleIndex": 665,
+      "cyclePhase01": 0.6659999999993778
+    },
+    {
+      "coarseAcceptedSampleIndex": 333,
+      "fineAcceptedSampleIndex": 667,
+      "cyclePhase01": 0.6679999999993775
+    },
+    {
+      "coarseAcceptedSampleIndex": 334,
+      "fineAcceptedSampleIndex": 669,
+      "cyclePhase01": 0.6699999999993773
+    },
+    {
+      "coarseAcceptedSampleIndex": 335,
+      "fineAcceptedSampleIndex": 671,
+      "cyclePhase01": 0.6719999999993771
+    },
+    {
+      "coarseAcceptedSampleIndex": 336,
+      "fineAcceptedSampleIndex": 673,
+      "cyclePhase01": 0.6739999999993769
+    },
+    {
+      "coarseAcceptedSampleIndex": 337,
+      "fineAcceptedSampleIndex": 675,
+      "cyclePhase01": 0.6759999999993767
+    },
+    {
+      "coarseAcceptedSampleIndex": 338,
+      "fineAcceptedSampleIndex": 677,
+      "cyclePhase01": 0.6779999999993764
+    },
+    {
+      "coarseAcceptedSampleIndex": 339,
+      "fineAcceptedSampleIndex": 679,
+      "cyclePhase01": 0.6799999999993762
+    },
+    {
+      "coarseAcceptedSampleIndex": 340,
+      "fineAcceptedSampleIndex": 681,
+      "cyclePhase01": 0.681999999999376
+    },
+    {
+      "coarseAcceptedSampleIndex": 341,
+      "fineAcceptedSampleIndex": 683,
+      "cyclePhase01": 0.6839999999993758
+    },
+    {
+      "coarseAcceptedSampleIndex": 342,
+      "fineAcceptedSampleIndex": 685,
+      "cyclePhase01": 0.6859999999993756
+    },
+    {
+      "coarseAcceptedSampleIndex": 343,
+      "fineAcceptedSampleIndex": 687,
+      "cyclePhase01": 0.6879999999993753
+    },
+    {
+      "coarseAcceptedSampleIndex": 344,
+      "fineAcceptedSampleIndex": 689,
+      "cyclePhase01": 0.6899999999993751
+    },
+    {
+      "coarseAcceptedSampleIndex": 345,
+      "fineAcceptedSampleIndex": 691,
+      "cyclePhase01": 0.6919999999993749
+    },
+    {
+      "coarseAcceptedSampleIndex": 346,
+      "fineAcceptedSampleIndex": 693,
+      "cyclePhase01": 0.6939999999993747
+    },
+    {
+      "coarseAcceptedSampleIndex": 347,
+      "fineAcceptedSampleIndex": 695,
+      "cyclePhase01": 0.6959999999993745
+    },
+    {
+      "coarseAcceptedSampleIndex": 348,
+      "fineAcceptedSampleIndex": 697,
+      "cyclePhase01": 0.6979999999993742
+    },
+    {
+      "coarseAcceptedSampleIndex": 349,
+      "fineAcceptedSampleIndex": 699,
+      "cyclePhase01": 0.699999999999374
+    },
+    {
+      "coarseAcceptedSampleIndex": 350,
+      "fineAcceptedSampleIndex": 701,
+      "cyclePhase01": 0.7019999999993738
+    },
+    {
+      "coarseAcceptedSampleIndex": 351,
+      "fineAcceptedSampleIndex": 703,
+      "cyclePhase01": 0.7039999999993736
+    },
+    {
+      "coarseAcceptedSampleIndex": 352,
+      "fineAcceptedSampleIndex": 705,
+      "cyclePhase01": 0.7059999999993734
+    },
+    {
+      "coarseAcceptedSampleIndex": 353,
+      "fineAcceptedSampleIndex": 707,
+      "cyclePhase01": 0.7079999999993731
+    },
+    {
+      "coarseAcceptedSampleIndex": 354,
+      "fineAcceptedSampleIndex": 709,
+      "cyclePhase01": 0.7099999999993729
+    },
+    {
+      "coarseAcceptedSampleIndex": 355,
+      "fineAcceptedSampleIndex": 711,
+      "cyclePhase01": 0.7119999999993727
+    },
+    {
+      "coarseAcceptedSampleIndex": 356,
+      "fineAcceptedSampleIndex": 713,
+      "cyclePhase01": 0.7139999999993725
+    },
+    {
+      "coarseAcceptedSampleIndex": 357,
+      "fineAcceptedSampleIndex": 715,
+      "cyclePhase01": 0.7159999999993722
+    },
+    {
+      "coarseAcceptedSampleIndex": 358,
+      "fineAcceptedSampleIndex": 717,
+      "cyclePhase01": 0.717999999999372
+    },
+    {
+      "coarseAcceptedSampleIndex": 359,
+      "fineAcceptedSampleIndex": 719,
+      "cyclePhase01": 0.7199999999993718
+    },
+    {
+      "coarseAcceptedSampleIndex": 360,
+      "fineAcceptedSampleIndex": 721,
+      "cyclePhase01": 0.7219999999993716
+    },
+    {
+      "coarseAcceptedSampleIndex": 361,
+      "fineAcceptedSampleIndex": 723,
+      "cyclePhase01": 0.7239999999993714
+    },
+    {
+      "coarseAcceptedSampleIndex": 362,
+      "fineAcceptedSampleIndex": 725,
+      "cyclePhase01": 0.7259999999993711
+    },
+    {
+      "coarseAcceptedSampleIndex": 363,
+      "fineAcceptedSampleIndex": 727,
+      "cyclePhase01": 0.7279999999993709
+    },
+    {
+      "coarseAcceptedSampleIndex": 364,
+      "fineAcceptedSampleIndex": 729,
+      "cyclePhase01": 0.7299999999993707
+    },
+    {
+      "coarseAcceptedSampleIndex": 365,
+      "fineAcceptedSampleIndex": 731,
+      "cyclePhase01": 0.7319999999993705
+    },
+    {
+      "coarseAcceptedSampleIndex": 366,
+      "fineAcceptedSampleIndex": 733,
+      "cyclePhase01": 0.7339999999993703
+    },
+    {
+      "coarseAcceptedSampleIndex": 367,
+      "fineAcceptedSampleIndex": 735,
+      "cyclePhase01": 0.73599999999937
+    },
+    {
+      "coarseAcceptedSampleIndex": 368,
+      "fineAcceptedSampleIndex": 737,
+      "cyclePhase01": 0.7379999999993698
+    },
+    {
+      "coarseAcceptedSampleIndex": 369,
+      "fineAcceptedSampleIndex": 739,
+      "cyclePhase01": 0.7399999999993696
+    },
+    {
+      "coarseAcceptedSampleIndex": 370,
+      "fineAcceptedSampleIndex": 741,
+      "cyclePhase01": 0.7419999999993694
+    },
+    {
+      "coarseAcceptedSampleIndex": 371,
+      "fineAcceptedSampleIndex": 743,
+      "cyclePhase01": 0.7439999999993692
+    },
+    {
+      "coarseAcceptedSampleIndex": 372,
+      "fineAcceptedSampleIndex": 745,
+      "cyclePhase01": 0.745999999999369
+    },
+    {
+      "coarseAcceptedSampleIndex": 373,
+      "fineAcceptedSampleIndex": 747,
+      "cyclePhase01": 0.7479999999993687
+    },
+    {
+      "coarseAcceptedSampleIndex": 374,
+      "fineAcceptedSampleIndex": 749,
+      "cyclePhase01": 0.7499999999993685
+    },
+    {
+      "coarseAcceptedSampleIndex": 375,
+      "fineAcceptedSampleIndex": 751,
+      "cyclePhase01": 0.7519999999993683
+    },
+    {
+      "coarseAcceptedSampleIndex": 376,
+      "fineAcceptedSampleIndex": 753,
+      "cyclePhase01": 0.7539999999993681
+    },
+    {
+      "coarseAcceptedSampleIndex": 377,
+      "fineAcceptedSampleIndex": 755,
+      "cyclePhase01": 0.7559999999993678
+    },
+    {
+      "coarseAcceptedSampleIndex": 378,
+      "fineAcceptedSampleIndex": 757,
+      "cyclePhase01": 0.7579999999993676
+    },
+    {
+      "coarseAcceptedSampleIndex": 379,
+      "fineAcceptedSampleIndex": 759,
+      "cyclePhase01": 0.7599999999993674
+    },
+    {
+      "coarseAcceptedSampleIndex": 380,
+      "fineAcceptedSampleIndex": 761,
+      "cyclePhase01": 0.7619999999993672
+    },
+    {
+      "coarseAcceptedSampleIndex": 381,
+      "fineAcceptedSampleIndex": 763,
+      "cyclePhase01": 0.763999999999367
+    },
+    {
+      "coarseAcceptedSampleIndex": 382,
+      "fineAcceptedSampleIndex": 765,
+      "cyclePhase01": 0.7659999999993667
+    },
+    {
+      "coarseAcceptedSampleIndex": 383,
+      "fineAcceptedSampleIndex": 767,
+      "cyclePhase01": 0.7679999999993665
+    },
+    {
+      "coarseAcceptedSampleIndex": 384,
+      "fineAcceptedSampleIndex": 769,
+      "cyclePhase01": 0.7699999999993663
+    },
+    {
+      "coarseAcceptedSampleIndex": 385,
+      "fineAcceptedSampleIndex": 771,
+      "cyclePhase01": 0.7719999999993661
+    },
+    {
+      "coarseAcceptedSampleIndex": 386,
+      "fineAcceptedSampleIndex": 773,
+      "cyclePhase01": 0.7739999999993659
+    },
+    {
+      "coarseAcceptedSampleIndex": 387,
+      "fineAcceptedSampleIndex": 775,
+      "cyclePhase01": 0.7759999999993656
+    },
+    {
+      "coarseAcceptedSampleIndex": 388,
+      "fineAcceptedSampleIndex": 777,
+      "cyclePhase01": 0.7779999999993654
+    },
+    {
+      "coarseAcceptedSampleIndex": 389,
+      "fineAcceptedSampleIndex": 779,
+      "cyclePhase01": 0.7799999999993652
+    },
+    {
+      "coarseAcceptedSampleIndex": 390,
+      "fineAcceptedSampleIndex": 781,
+      "cyclePhase01": 0.781999999999365
+    },
+    {
+      "coarseAcceptedSampleIndex": 391,
+      "fineAcceptedSampleIndex": 783,
+      "cyclePhase01": 0.7839999999993648
+    },
+    {
+      "coarseAcceptedSampleIndex": 392,
+      "fineAcceptedSampleIndex": 785,
+      "cyclePhase01": 0.7859999999993645
+    },
+    {
+      "coarseAcceptedSampleIndex": 393,
+      "fineAcceptedSampleIndex": 787,
+      "cyclePhase01": 0.7879999999993643
+    },
+    {
+      "coarseAcceptedSampleIndex": 394,
+      "fineAcceptedSampleIndex": 789,
+      "cyclePhase01": 0.7899999999993641
+    },
+    {
+      "coarseAcceptedSampleIndex": 395,
+      "fineAcceptedSampleIndex": 791,
+      "cyclePhase01": 0.7919999999993639
+    },
+    {
+      "coarseAcceptedSampleIndex": 396,
+      "fineAcceptedSampleIndex": 793,
+      "cyclePhase01": 0.7939999999993637
+    },
+    {
+      "coarseAcceptedSampleIndex": 397,
+      "fineAcceptedSampleIndex": 795,
+      "cyclePhase01": 0.7959999999993634
+    },
+    {
+      "coarseAcceptedSampleIndex": 398,
+      "fineAcceptedSampleIndex": 797,
+      "cyclePhase01": 0.7979999999993632
+    },
+    {
+      "coarseAcceptedSampleIndex": 399,
+      "fineAcceptedSampleIndex": 799,
+      "cyclePhase01": 0.799999999999363
+    },
+    {
+      "coarseAcceptedSampleIndex": 400,
+      "fineAcceptedSampleIndex": 801,
+      "cyclePhase01": 0.8019999999993628
+    },
+    {
+      "coarseAcceptedSampleIndex": 401,
+      "fineAcceptedSampleIndex": 803,
+      "cyclePhase01": 0.8039999999993626
+    },
+    {
+      "coarseAcceptedSampleIndex": 402,
+      "fineAcceptedSampleIndex": 805,
+      "cyclePhase01": 0.8059999999993623
+    },
+    {
+      "coarseAcceptedSampleIndex": 403,
+      "fineAcceptedSampleIndex": 807,
+      "cyclePhase01": 0.8079999999993621
+    },
+    {
+      "coarseAcceptedSampleIndex": 404,
+      "fineAcceptedSampleIndex": 809,
+      "cyclePhase01": 0.8099999999993619
+    },
+    {
+      "coarseAcceptedSampleIndex": 405,
+      "fineAcceptedSampleIndex": 811,
+      "cyclePhase01": 0.8119999999993617
+    },
+    {
+      "coarseAcceptedSampleIndex": 406,
+      "fineAcceptedSampleIndex": 813,
+      "cyclePhase01": 0.8139999999993615
+    },
+    {
+      "coarseAcceptedSampleIndex": 407,
+      "fineAcceptedSampleIndex": 815,
+      "cyclePhase01": 0.8159999999993612
+    },
+    {
+      "coarseAcceptedSampleIndex": 408,
+      "fineAcceptedSampleIndex": 817,
+      "cyclePhase01": 0.817999999999361
+    },
+    {
+      "coarseAcceptedSampleIndex": 409,
+      "fineAcceptedSampleIndex": 819,
+      "cyclePhase01": 0.8199999999993608
+    },
+    {
+      "coarseAcceptedSampleIndex": 410,
+      "fineAcceptedSampleIndex": 821,
+      "cyclePhase01": 0.8219999999993606
+    },
+    {
+      "coarseAcceptedSampleIndex": 411,
+      "fineAcceptedSampleIndex": 823,
+      "cyclePhase01": 0.8239999999993604
+    },
+    {
+      "coarseAcceptedSampleIndex": 412,
+      "fineAcceptedSampleIndex": 825,
+      "cyclePhase01": 0.8259999999993601
+    },
+    {
+      "coarseAcceptedSampleIndex": 413,
+      "fineAcceptedSampleIndex": 827,
+      "cyclePhase01": 0.8279999999993599
+    },
+    {
+      "coarseAcceptedSampleIndex": 414,
+      "fineAcceptedSampleIndex": 829,
+      "cyclePhase01": 0.8299999999993597
+    },
+    {
+      "coarseAcceptedSampleIndex": 415,
+      "fineAcceptedSampleIndex": 831,
+      "cyclePhase01": 0.8319999999993595
+    },
+    {
+      "coarseAcceptedSampleIndex": 416,
+      "fineAcceptedSampleIndex": 833,
+      "cyclePhase01": 0.8339999999993593
+    },
+    {
+      "coarseAcceptedSampleIndex": 417,
+      "fineAcceptedSampleIndex": 835,
+      "cyclePhase01": 0.835999999999359
+    },
+    {
+      "coarseAcceptedSampleIndex": 418,
+      "fineAcceptedSampleIndex": 837,
+      "cyclePhase01": 0.8379999999993588
+    },
+    {
+      "coarseAcceptedSampleIndex": 419,
+      "fineAcceptedSampleIndex": 839,
+      "cyclePhase01": 0.8399999999993586
+    },
+    {
+      "coarseAcceptedSampleIndex": 420,
+      "fineAcceptedSampleIndex": 841,
+      "cyclePhase01": 0.8419999999993584
+    },
+    {
+      "coarseAcceptedSampleIndex": 421,
+      "fineAcceptedSampleIndex": 843,
+      "cyclePhase01": 0.8439999999993582
+    },
+    {
+      "coarseAcceptedSampleIndex": 422,
+      "fineAcceptedSampleIndex": 845,
+      "cyclePhase01": 0.8459999999993579
+    },
+    {
+      "coarseAcceptedSampleIndex": 423,
+      "fineAcceptedSampleIndex": 847,
+      "cyclePhase01": 0.8479999999993577
+    },
+    {
+      "coarseAcceptedSampleIndex": 424,
+      "fineAcceptedSampleIndex": 849,
+      "cyclePhase01": 0.8499999999993575
+    },
+    {
+      "coarseAcceptedSampleIndex": 425,
+      "fineAcceptedSampleIndex": 851,
+      "cyclePhase01": 0.8519999999993573
+    },
+    {
+      "coarseAcceptedSampleIndex": 426,
+      "fineAcceptedSampleIndex": 853,
+      "cyclePhase01": 0.853999999999357
+    },
+    {
+      "coarseAcceptedSampleIndex": 427,
+      "fineAcceptedSampleIndex": 855,
+      "cyclePhase01": 0.8559999999993568
+    },
+    {
+      "coarseAcceptedSampleIndex": 428,
+      "fineAcceptedSampleIndex": 857,
+      "cyclePhase01": 0.8579999999993566
+    },
+    {
+      "coarseAcceptedSampleIndex": 429,
+      "fineAcceptedSampleIndex": 859,
+      "cyclePhase01": 0.8599999999993564
+    },
+    {
+      "coarseAcceptedSampleIndex": 430,
+      "fineAcceptedSampleIndex": 861,
+      "cyclePhase01": 0.8619999999993562
+    },
+    {
+      "coarseAcceptedSampleIndex": 431,
+      "fineAcceptedSampleIndex": 863,
+      "cyclePhase01": 0.863999999999356
+    },
+    {
+      "coarseAcceptedSampleIndex": 432,
+      "fineAcceptedSampleIndex": 865,
+      "cyclePhase01": 0.8659999999993557
+    },
+    {
+      "coarseAcceptedSampleIndex": 433,
+      "fineAcceptedSampleIndex": 867,
+      "cyclePhase01": 0.8679999999993555
+    },
+    {
+      "coarseAcceptedSampleIndex": 434,
+      "fineAcceptedSampleIndex": 869,
+      "cyclePhase01": 0.8699999999993553
+    },
+    {
+      "coarseAcceptedSampleIndex": 435,
+      "fineAcceptedSampleIndex": 871,
+      "cyclePhase01": 0.8719999999993551
+    },
+    {
+      "coarseAcceptedSampleIndex": 436,
+      "fineAcceptedSampleIndex": 873,
+      "cyclePhase01": 0.8739999999993548
+    },
+    {
+      "coarseAcceptedSampleIndex": 437,
+      "fineAcceptedSampleIndex": 875,
+      "cyclePhase01": 0.8759999999993546
+    },
+    {
+      "coarseAcceptedSampleIndex": 438,
+      "fineAcceptedSampleIndex": 877,
+      "cyclePhase01": 0.8779999999993544
+    },
+    {
+      "coarseAcceptedSampleIndex": 439,
+      "fineAcceptedSampleIndex": 879,
+      "cyclePhase01": 0.8799999999993542
+    },
+    {
+      "coarseAcceptedSampleIndex": 440,
+      "fineAcceptedSampleIndex": 881,
+      "cyclePhase01": 0.881999999999354
+    },
+    {
+      "coarseAcceptedSampleIndex": 441,
+      "fineAcceptedSampleIndex": 883,
+      "cyclePhase01": 0.8839999999993537
+    },
+    {
+      "coarseAcceptedSampleIndex": 442,
+      "fineAcceptedSampleIndex": 885,
+      "cyclePhase01": 0.8859999999993535
+    },
+    {
+      "coarseAcceptedSampleIndex": 443,
+      "fineAcceptedSampleIndex": 887,
+      "cyclePhase01": 0.8879999999993533
+    },
+    {
+      "coarseAcceptedSampleIndex": 444,
+      "fineAcceptedSampleIndex": 889,
+      "cyclePhase01": 0.8899999999993531
+    },
+    {
+      "coarseAcceptedSampleIndex": 445,
+      "fineAcceptedSampleIndex": 891,
+      "cyclePhase01": 0.8919999999993529
+    },
+    {
+      "coarseAcceptedSampleIndex": 446,
+      "fineAcceptedSampleIndex": 893,
+      "cyclePhase01": 0.8939999999993526
+    },
+    {
+      "coarseAcceptedSampleIndex": 447,
+      "fineAcceptedSampleIndex": 895,
+      "cyclePhase01": 0.8959999999993524
+    },
+    {
+      "coarseAcceptedSampleIndex": 448,
+      "fineAcceptedSampleIndex": 897,
+      "cyclePhase01": 0.8979999999993522
+    },
+    {
+      "coarseAcceptedSampleIndex": 449,
+      "fineAcceptedSampleIndex": 899,
+      "cyclePhase01": 0.899999999999352
+    },
+    {
+      "coarseAcceptedSampleIndex": 450,
+      "fineAcceptedSampleIndex": 901,
+      "cyclePhase01": 0.9019999999993518
+    },
+    {
+      "coarseAcceptedSampleIndex": 451,
+      "fineAcceptedSampleIndex": 903,
+      "cyclePhase01": 0.9039999999993515
+    },
+    {
+      "coarseAcceptedSampleIndex": 452,
+      "fineAcceptedSampleIndex": 905,
+      "cyclePhase01": 0.9059999999993513
+    },
+    {
+      "coarseAcceptedSampleIndex": 453,
+      "fineAcceptedSampleIndex": 907,
+      "cyclePhase01": 0.9079999999993511
+    },
+    {
+      "coarseAcceptedSampleIndex": 454,
+      "fineAcceptedSampleIndex": 909,
+      "cyclePhase01": 0.9099999999993509
+    },
+    {
+      "coarseAcceptedSampleIndex": 455,
+      "fineAcceptedSampleIndex": 911,
+      "cyclePhase01": 0.9119999999993507
+    },
+    {
+      "coarseAcceptedSampleIndex": 456,
+      "fineAcceptedSampleIndex": 913,
+      "cyclePhase01": 0.9139999999993504
+    },
+    {
+      "coarseAcceptedSampleIndex": 457,
+      "fineAcceptedSampleIndex": 915,
+      "cyclePhase01": 0.9159999999993502
+    },
+    {
+      "coarseAcceptedSampleIndex": 458,
+      "fineAcceptedSampleIndex": 917,
+      "cyclePhase01": 0.91799999999935
+    },
+    {
+      "coarseAcceptedSampleIndex": 459,
+      "fineAcceptedSampleIndex": 919,
+      "cyclePhase01": 0.9199999999993498
+    },
+    {
+      "coarseAcceptedSampleIndex": 460,
+      "fineAcceptedSampleIndex": 921,
+      "cyclePhase01": 0.9219999999993496
+    },
+    {
+      "coarseAcceptedSampleIndex": 461,
+      "fineAcceptedSampleIndex": 923,
+      "cyclePhase01": 0.9239999999993493
+    },
+    {
+      "coarseAcceptedSampleIndex": 462,
+      "fineAcceptedSampleIndex": 925,
+      "cyclePhase01": 0.9259999999993491
+    },
+    {
+      "coarseAcceptedSampleIndex": 463,
+      "fineAcceptedSampleIndex": 927,
+      "cyclePhase01": 0.9279999999993489
+    },
+    {
+      "coarseAcceptedSampleIndex": 464,
+      "fineAcceptedSampleIndex": 929,
+      "cyclePhase01": 0.9299999999993487
+    },
+    {
+      "coarseAcceptedSampleIndex": 465,
+      "fineAcceptedSampleIndex": 931,
+      "cyclePhase01": 0.9319999999993485
+    },
+    {
+      "coarseAcceptedSampleIndex": 466,
+      "fineAcceptedSampleIndex": 933,
+      "cyclePhase01": 0.9339999999993482
+    },
+    {
+      "coarseAcceptedSampleIndex": 467,
+      "fineAcceptedSampleIndex": 935,
+      "cyclePhase01": 0.935999999999348
+    },
+    {
+      "coarseAcceptedSampleIndex": 468,
+      "fineAcceptedSampleIndex": 937,
+      "cyclePhase01": 0.9379999999993478
+    },
+    {
+      "coarseAcceptedSampleIndex": 469,
+      "fineAcceptedSampleIndex": 939,
+      "cyclePhase01": 0.9399999999993476
+    },
+    {
+      "coarseAcceptedSampleIndex": 470,
+      "fineAcceptedSampleIndex": 941,
+      "cyclePhase01": 0.9419999999993474
+    },
+    {
+      "coarseAcceptedSampleIndex": 471,
+      "fineAcceptedSampleIndex": 943,
+      "cyclePhase01": 0.9439999999993471
+    },
+    {
+      "coarseAcceptedSampleIndex": 472,
+      "fineAcceptedSampleIndex": 945,
+      "cyclePhase01": 0.9459999999993469
+    },
+    {
+      "coarseAcceptedSampleIndex": 473,
+      "fineAcceptedSampleIndex": 947,
+      "cyclePhase01": 0.9479999999993467
+    },
+    {
+      "coarseAcceptedSampleIndex": 474,
+      "fineAcceptedSampleIndex": 949,
+      "cyclePhase01": 0.9499999999993465
+    },
+    {
+      "coarseAcceptedSampleIndex": 475,
+      "fineAcceptedSampleIndex": 951,
+      "cyclePhase01": 0.9519999999993463
+    },
+    {
+      "coarseAcceptedSampleIndex": 476,
+      "fineAcceptedSampleIndex": 953,
+      "cyclePhase01": 0.953999999999346
+    },
+    {
+      "coarseAcceptedSampleIndex": 477,
+      "fineAcceptedSampleIndex": 955,
+      "cyclePhase01": 0.9559999999993458
+    },
+    {
+      "coarseAcceptedSampleIndex": 478,
+      "fineAcceptedSampleIndex": 957,
+      "cyclePhase01": 0.9579999999993456
+    },
+    {
+      "coarseAcceptedSampleIndex": 479,
+      "fineAcceptedSampleIndex": 959,
+      "cyclePhase01": 0.9599999999993454
+    },
+    {
+      "coarseAcceptedSampleIndex": 480,
+      "fineAcceptedSampleIndex": 961,
+      "cyclePhase01": 0.9619999999993452
+    },
+    {
+      "coarseAcceptedSampleIndex": 481,
+      "fineAcceptedSampleIndex": 963,
+      "cyclePhase01": 0.9639999999993449
+    },
+    {
+      "coarseAcceptedSampleIndex": 482,
+      "fineAcceptedSampleIndex": 965,
+      "cyclePhase01": 0.9659999999993447
+    },
+    {
+      "coarseAcceptedSampleIndex": 483,
+      "fineAcceptedSampleIndex": 967,
+      "cyclePhase01": 0.9679999999993445
+    },
+    {
+      "coarseAcceptedSampleIndex": 484,
+      "fineAcceptedSampleIndex": 969,
+      "cyclePhase01": 0.9699999999993443
+    },
+    {
+      "coarseAcceptedSampleIndex": 485,
+      "fineAcceptedSampleIndex": 971,
+      "cyclePhase01": 0.971999999999344
+    },
+    {
+      "coarseAcceptedSampleIndex": 486,
+      "fineAcceptedSampleIndex": 973,
+      "cyclePhase01": 0.9739999999993438
+    },
+    {
+      "coarseAcceptedSampleIndex": 487,
+      "fineAcceptedSampleIndex": 975,
+      "cyclePhase01": 0.9759999999993436
+    },
+    {
+      "coarseAcceptedSampleIndex": 488,
+      "fineAcceptedSampleIndex": 977,
+      "cyclePhase01": 0.9779999999993434
+    },
+    {
+      "coarseAcceptedSampleIndex": 489,
+      "fineAcceptedSampleIndex": 979,
+      "cyclePhase01": 0.9799999999993432
+    },
+    {
+      "coarseAcceptedSampleIndex": 490,
+      "fineAcceptedSampleIndex": 981,
+      "cyclePhase01": 0.981999999999343
+    },
+    {
+      "coarseAcceptedSampleIndex": 491,
+      "fineAcceptedSampleIndex": 983,
+      "cyclePhase01": 0.9839999999993427
+    },
+    {
+      "coarseAcceptedSampleIndex": 492,
+      "fineAcceptedSampleIndex": 985,
+      "cyclePhase01": 0.9859999999993425
+    },
+    {
+      "coarseAcceptedSampleIndex": 493,
+      "fineAcceptedSampleIndex": 987,
+      "cyclePhase01": 0.9879999999993423
+    },
+    {
+      "coarseAcceptedSampleIndex": 494,
+      "fineAcceptedSampleIndex": 989,
+      "cyclePhase01": 0.9899999999993421
+    },
+    {
+      "coarseAcceptedSampleIndex": 495,
+      "fineAcceptedSampleIndex": 991,
+      "cyclePhase01": 0.9919999999993419
+    },
+    {
+      "coarseAcceptedSampleIndex": 496,
+      "fineAcceptedSampleIndex": 993,
+      "cyclePhase01": 0.9939999999993416
+    },
+    {
+      "coarseAcceptedSampleIndex": 497,
+      "fineAcceptedSampleIndex": 995,
+      "cyclePhase01": 0.9959999999993414
+    },
+    {
+      "coarseAcceptedSampleIndex": 498,
+      "fineAcceptedSampleIndex": 997,
+      "cyclePhase01": 0.9979999999993412
+    },
+    {
+      "coarseAcceptedSampleIndex": 499,
+      "fineAcceptedSampleIndex": 999,
+      "cyclePhase01": 0.999999999999341
+    }
+  ],
+  "signalMetrics": {
+    "laBloodVolumeMl": {
+      "signalId": "laBloodVolumeMl",
+      "unit": "mL",
+      "referenceScale": 100,
+      "maximumAbsoluteDifference": 0.5002917552066393,
+      "fixedScaleNormalizedMaximumDifference": 0.0050029175520663926,
+      "relativeL2Difference": 0.0046281236588768876,
+      "worstCoarseAcceptedSampleIndex": 232,
+      "worstFineAcceptedSampleIndex": 465,
+      "worstCyclePhase01": 0.4659999999993998
+    },
+    "lvBloodVolumeMl": {
+      "signalId": "lvBloodVolumeMl",
+      "unit": "mL",
+      "referenceScale": 150,
+      "maximumAbsoluteDifference": 0.5159647331300619,
+      "fixedScaleNormalizedMaximumDifference": 0.003439764887533746,
+      "relativeL2Difference": 0.0014368539208032465,
+      "worstCoarseAcceptedSampleIndex": 441,
+      "worstFineAcceptedSampleIndex": 883,
+      "worstCyclePhase01": 0.8839999999993537
+    },
+    "raBloodVolumeMl": {
+      "signalId": "raBloodVolumeMl",
+      "unit": "mL",
+      "referenceScale": 100,
+      "maximumAbsoluteDifference": 0.2015146227239626,
+      "fixedScaleNormalizedMaximumDifference": 0.0020151462272396258,
+      "relativeL2Difference": 0.0015411513713539547,
+      "worstCoarseAcceptedSampleIndex": 444,
+      "worstFineAcceptedSampleIndex": 889,
+      "worstCyclePhase01": 0.8899999999993531
+    },
+    "rvBloodVolumeMl": {
+      "signalId": "rvBloodVolumeMl",
+      "unit": "mL",
+      "referenceScale": 200,
+      "maximumAbsoluteDifference": 0.6260250409603287,
+      "fixedScaleNormalizedMaximumDifference": 0.0031301252048016436,
+      "relativeL2Difference": 0.001954323189219606,
+      "worstCoarseAcceptedSampleIndex": 95,
+      "worstFineAcceptedSampleIndex": 191,
+      "worstCyclePhase01": 0.19199999999942996
+    },
+    "laAbsolutePressureMmHg": {
+      "signalId": "laAbsolutePressureMmHg",
+      "unit": "mmHg",
+      "referenceScale": 10,
+      "maximumAbsoluteDifference": 0.3210569457050827,
+      "fixedScaleNormalizedMaximumDifference": 0.03210569457050827,
+      "relativeL2Difference": 0.006633566515589145,
+      "worstCoarseAcceptedSampleIndex": 433,
+      "worstFineAcceptedSampleIndex": 867,
+      "worstCyclePhase01": 0.8679999999993555
+    },
+    "lvAbsolutePressureMmHg": {
+      "signalId": "lvAbsolutePressureMmHg",
+      "unit": "mmHg",
+      "referenceScale": 100,
+      "maximumAbsoluteDifference": 2.2549868075570103,
+      "fixedScaleNormalizedMaximumDifference": 0.022549868075570103,
+      "relativeL2Difference": 0.005842728466386257,
+      "worstCoarseAcceptedSampleIndex": 20,
+      "worstFineAcceptedSampleIndex": 41,
+      "worstCyclePhase01": 0.04199999999944648
+    },
+    "raAbsolutePressureMmHg": {
+      "signalId": "raAbsolutePressureMmHg",
+      "unit": "mmHg",
+      "referenceScale": 10,
+      "maximumAbsoluteDifference": 0.07337706539258715,
+      "fixedScaleNormalizedMaximumDifference": 0.007337706539258715,
+      "relativeL2Difference": 0.005636844302712521,
+      "worstCoarseAcceptedSampleIndex": 449,
+      "worstFineAcceptedSampleIndex": 899,
+      "worstCyclePhase01": 0.899999999999352
+    },
+    "rvAbsolutePressureMmHg": {
+      "signalId": "rvAbsolutePressureMmHg",
+      "unit": "mmHg",
+      "referenceScale": 40,
+      "maximumAbsoluteDifference": 0.6361355047225548,
+      "fixedScaleNormalizedMaximumDifference": 0.01590338761806387,
+      "relativeL2Difference": 0.007399576412227094,
+      "worstCoarseAcceptedSampleIndex": 21,
+      "worstFineAcceptedSampleIndex": 43,
+      "worstCyclePhase01": 0.04399999999944626
+    },
+    "aorticAbsolutePressureMmHg": {
+      "signalId": "aorticAbsolutePressureMmHg",
+      "unit": "mmHg",
+      "referenceScale": 100,
+      "maximumAbsoluteDifference": 0.2010174090997907,
+      "fixedScaleNormalizedMaximumDifference": 0.002010174090997907,
+      "relativeL2Difference": 0.001092488967152078,
+      "worstCoarseAcceptedSampleIndex": 82,
+      "worstFineAcceptedSampleIndex": 165,
+      "worstCyclePhase01": 0.16599999999943282
+    },
+    "pulmonaryArteryAbsolutePressureMmHg": {
+      "signalId": "pulmonaryArteryAbsolutePressureMmHg",
+      "unit": "mmHg",
+      "referenceScale": 30,
+      "maximumAbsoluteDifference": 0.5551517871558289,
+      "fixedScaleNormalizedMaximumDifference": 0.018505059571860962,
+      "relativeL2Difference": 0.015215485522049148,
+      "worstCoarseAcceptedSampleIndex": 321,
+      "worstFineAcceptedSampleIndex": 643,
+      "worstCyclePhase01": 0.6439999999993802
+    },
+    "mitralFlowMlPerSec": {
+      "signalId": "mitralFlowMlPerSec",
+      "unit": "mL/s",
+      "referenceScale": 500,
+      "maximumAbsoluteDifference": 21.464677559466935,
+      "fixedScaleNormalizedMaximumDifference": 0.04292935511893387,
+      "relativeL2Difference": 0.023079401806027404,
+      "worstCoarseAcceptedSampleIndex": 433,
+      "worstFineAcceptedSampleIndex": 867,
+      "worstCyclePhase01": 0.8679999999993555
+    },
+    "aorticValveFlowMlPerSec": {
+      "signalId": "aorticValveFlowMlPerSec",
+      "unit": "mL/s",
+      "referenceScale": 500,
+      "maximumAbsoluteDifference": 28.498201737993213,
+      "fixedScaleNormalizedMaximumDifference": 0.056996403475986425,
+      "relativeL2Difference": 0.009038837889671535,
+      "worstCoarseAcceptedSampleIndex": 27,
+      "worstFineAcceptedSampleIndex": 55,
+      "worstCyclePhase01": 0.05599999999944494
+    },
+    "tricuspidFlowMlPerSec": {
+      "signalId": "tricuspidFlowMlPerSec",
+      "unit": "mL/s",
+      "referenceScale": 500,
+      "maximumAbsoluteDifference": 10.025452957993139,
+      "fixedScaleNormalizedMaximumDifference": 0.020050905915986277,
+      "relativeL2Difference": 0.019052553979972152,
+      "worstCoarseAcceptedSampleIndex": 450,
+      "worstFineAcceptedSampleIndex": 901,
+      "worstCyclePhase01": 0.9019999999993518
+    },
+    "pulmonaryValveFlowMlPerSec": {
+      "signalId": "pulmonaryValveFlowMlPerSec",
+      "unit": "mL/s",
+      "referenceScale": 500,
+      "maximumAbsoluteDifference": 21.363803268242037,
+      "fixedScaleNormalizedMaximumDifference": 0.042727606536484074,
+      "relativeL2Difference": 0.014819348445283088,
+      "worstCoarseAcceptedSampleIndex": 25,
+      "worstFineAcceptedSampleIndex": 51,
+      "worstCyclePhase01": 0.05199999999944538
+    },
+    "pulmonaryVeinToLaFlowMlPerSec": {
+      "signalId": "pulmonaryVeinToLaFlowMlPerSec",
+      "unit": "mL/s",
+      "referenceScale": 500,
+      "maximumAbsoluteDifference": 9.380679800467442,
+      "fixedScaleNormalizedMaximumDifference": 0.018761359600934883,
+      "relativeL2Difference": 0.01617038236061573,
+      "worstCoarseAcceptedSampleIndex": 433,
+      "worstFineAcceptedSampleIndex": 867,
+      "worstCyclePhase01": 0.8679999999993555
+    },
+    "mitralOpeningFraction01": {
+      "signalId": "mitralOpeningFraction01",
+      "unit": "fraction",
+      "referenceScale": 1,
+      "maximumAbsoluteDifference": 0.031200819470784624,
+      "fixedScaleNormalizedMaximumDifference": 0.031200819470784624,
+      "relativeL2Difference": 0.012729713276522846,
+      "worstCoarseAcceptedSampleIndex": 432,
+      "worstFineAcceptedSampleIndex": 865,
+      "worstCyclePhase01": 0.8659999999993557
+    },
+    "aorticValveOpeningFraction01": {
+      "signalId": "aorticValveOpeningFraction01",
+      "unit": "fraction",
+      "referenceScale": 1,
+      "maximumAbsoluteDifference": 0.06798558153868384,
+      "fixedScaleNormalizedMaximumDifference": 0.06798558153868384,
+      "relativeL2Difference": 0.009253249154216754,
+      "worstCoarseAcceptedSampleIndex": 27,
+      "worstFineAcceptedSampleIndex": 55,
+      "worstCyclePhase01": 0.05599999999944494
+    },
+    "tricuspidOpeningFraction01": {
+      "signalId": "tricuspidOpeningFraction01",
+      "unit": "fraction",
+      "referenceScale": 1,
+      "maximumAbsoluteDifference": 0.07365468535538816,
+      "fixedScaleNormalizedMaximumDifference": 0.07365468535538816,
+      "relativeL2Difference": 0.02486466050837327,
+      "worstCoarseAcceptedSampleIndex": 489,
+      "worstFineAcceptedSampleIndex": 979,
+      "worstCyclePhase01": 0.9799999999993432
+    },
+    "pulmonaryValveOpeningFraction01": {
+      "signalId": "pulmonaryValveOpeningFraction01",
+      "unit": "fraction",
+      "referenceScale": 1,
+      "maximumAbsoluteDifference": 0.11317308210021165,
+      "fixedScaleNormalizedMaximumDifference": 0.11317308210021165,
+      "relativeL2Difference": 0.029749785424797393,
+      "worstCoarseAcceptedSampleIndex": 160,
+      "worstFineAcceptedSampleIndex": 321,
+      "worstCyclePhase01": 0.32199999999941564
+    },
+    "commonPericardialPressureMmHg": {
+      "signalId": "commonPericardialPressureMmHg",
+      "unit": "mmHg",
+      "referenceScale": 10,
+      "maximumAbsoluteDifference": 0,
+      "fixedScaleNormalizedMaximumDifference": 0,
+      "relativeL2Difference": 0,
+      "worstCoarseAcceptedSampleIndex": 0,
+      "worstFineAcceptedSampleIndex": 1,
+      "worstCyclePhase01": 0.0019999999994508855
+    },
+    "intrapericardialOccupiedVolumeMl": {
+      "signalId": "intrapericardialOccupiedVolumeMl",
+      "unit": "mL",
+      "referenceScale": 600,
+      "maximumAbsoluteDifference": 0.7853354666584664,
+      "fixedScaleNormalizedMaximumDifference": 0.0013088924444307774,
+      "relativeL2Difference": 0.0007497912040608545,
+      "worstCoarseAcceptedSampleIndex": 34,
+      "worstFineAcceptedSampleIndex": 69,
+      "worstCyclePhase01": 0.0699999999994434
+    },
+    "laTotalWallStressPa": {
+      "signalId": "laTotalWallStressPa",
+      "unit": "Pa",
+      "referenceScale": 100000,
+      "maximumAbsoluteDifference": 292.7756963274569,
+      "fixedScaleNormalizedMaximumDifference": 0.002927756963274569,
+      "relativeL2Difference": 0.009589789740304151,
+      "worstCoarseAcceptedSampleIndex": 432,
+      "worstFineAcceptedSampleIndex": 865,
+      "worstCyclePhase01": 0.8659999999993557
+    },
+    "laFiberLogStrain": {
+      "signalId": "laFiberLogStrain",
+      "unit": "log-strain",
+      "referenceScale": 0.1,
+      "maximumAbsoluteDifference": 0.0027470392792375287,
+      "fixedScaleNormalizedMaximumDifference": 0.027470392792375287,
+      "relativeL2Difference": 0.0076394106925969565,
+      "worstCoarseAcceptedSampleIndex": 239,
+      "worstFineAcceptedSampleIndex": 479,
+      "worstCyclePhase01": 0.47999999999939824
+    }
+  },
+  "claim": {
+    "comparisonKind": "dt-halving-difference-not-convergence-order",
+    "fineGridUsedAsDifferenceReference": true,
+    "interpolationApplied": false,
+    "comparedBeat": "last-retained-complete-period1-beat-only",
+    "physiologicalOrNumericalPassThresholdApplied": false,
+    "parameterSearch": false
+  }
+}

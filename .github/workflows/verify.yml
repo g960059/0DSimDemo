@@ -47,14 +47,6 @@ jobs:
             case "$file" in
               docs/*|.codex/skills/*)
                 ;;
-              engine/mechanics2/*|engine/mechanics2/**/*)
-                ;;
-              tools/mechanics2/*|tools/mechanics2/**/*)
-                ;;
-              data/mechanics2/*|data/mechanics2/**/*)
-                ;;
-              __tests__/mechanics2*.test.ts)
-                ;;
               .github/workflows/verify.yml)
                 browser_e2e=true
                 ;;

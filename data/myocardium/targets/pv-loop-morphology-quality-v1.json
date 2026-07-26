@@ -1,0 +1,348 @@
+{
+  "schemaVersion": 1,
+  "id": "pv-loop-morphology-quality-v1",
+  "status": "proposed",
+  "claimBoundary": "diagnostic-only-no-model-change",
+  "purpose": "Common diagnostic target/readout contract for LV/RV PV-loop morphology audits. This target pack defines measurement vocabulary only; it does not authorize model, solver, official case parameter, UI smoothing, or package script changes.",
+  "relatedDocs": [
+    "docs/myocardium/verification/pv-loop-morphology-quality.md",
+    "docs/myocardium/verification/filling-limb-artifact-audit-v1.md",
+    "docs/myocardium/verification/arterial-load-morphology-v1.md"
+  ],
+  "officialCaseSet": {
+    "ids": [
+      "normal-sinus",
+      "acute-anterior-mi",
+      "systolic-heart-failure",
+      "lv-failure-dobutamine"
+    ],
+    "role": "Canonical diagnostic subject ids for future morphology reports.",
+    "parameterPolicy": "read-only-no-parameter-change",
+    "caseWiring": "not-claimed"
+  },
+  "phaseSegmentation": {
+    "scope": "Per beat, per chamber, with identical label semantics for LV and RV.",
+    "chambers": ["LV", "RV"],
+    "labels": [
+      {
+        "id": "filling",
+        "description": "AV valve open, semilunar valve closed, ventricular volume generally increasing."
+      },
+      {
+        "id": "atrial-kick",
+        "description": "Late filling subset associated with atrial activation or atrial-pressure a wave, AV valve open, semilunar valve closed."
+      },
+      {
+        "id": "isovolumic-contraction",
+        "description": "Both inlet and outlet valves closed, pressure rising, volume approximately constant before semilunar opening."
+      },
+      {
+        "id": "ejection",
+        "description": "Semilunar valve open, AV valve closed, ventricular volume generally decreasing."
+      },
+      {
+        "id": "isovolumic-relaxation",
+        "description": "Both inlet and outlet valves closed, pressure falling, volume approximately constant after semilunar closing."
+      },
+      {
+        "id": "transition",
+        "description": "Samples within the configured event guard band around valve/phase boundaries or samples whose phase evidence is mixed."
+      },
+      {
+        "id": "uncertain",
+        "description": "Samples with missing, contradictory, or numerically non-finite evidence."
+      }
+    ],
+    "transitionReportingPolicy": {
+      "requiredModes": ["transition-inclusive", "transition-excluded-core"],
+      "summaryRequirement": "Every primary morphology metric must report both transition-inclusive and transition-excluded-core values plus transitionSampleFraction.",
+      "interpretationRule": "If the qualitative conclusion changes when transition samples are excluded, report event-sensitive/sampling-sensitive and do not treat the metric as a stable morphology finding."
+    }
+  },
+  "requiredSignals": {
+    "common": [
+      {
+        "name": "timeSec",
+        "unit": "s",
+        "required": true,
+        "description": "Monotonic sample time."
+      },
+      {
+        "name": "beatIndex",
+        "unit": "count",
+        "required": true,
+        "description": "Beat identifier used for beat-aligned metrics."
+      },
+      {
+        "name": "dtSec",
+        "unit": "s",
+        "required": true,
+        "description": "Local sample interval or explicit derivative denominator."
+      },
+      {
+        "name": "phaseLabel",
+        "unit": "enum",
+        "required": false,
+        "description": "Optional runner-supplied phase label; if absent, the future runner derives labels from valve and trajectory signals."
+      }
+    ],
+    "LV": [
+      { "name": "lvPressurePa", "unit": "Pa", "required": true },
+      { "name": "lvVolumeM3", "unit": "m3", "required": true },
+      { "name": "mitralValveOpen", "unit": "boolean", "required": true },
+      { "name": "mitralValveOpen01", "unit": "dimensionless", "required": true },
+      { "name": "aorticValveOpen", "unit": "boolean", "required": true },
+      { "name": "aorticValveOpen01", "unit": "dimensionless", "required": true },
+      { "name": "mitralFlowM3PerSec", "unit": "m3/s", "required": true },
+      { "name": "aorticFlowM3PerSec", "unit": "m3/s", "required": true },
+      { "name": "leftAtrialPressurePa", "unit": "Pa", "required": true },
+      { "name": "aorticPressurePa", "unit": "Pa", "required": true }
+    ],
+    "RV": [
+      { "name": "rvPressurePa", "unit": "Pa", "required": true },
+      { "name": "rvVolumeM3", "unit": "m3", "required": true },
+      { "name": "tricuspidValveOpen", "unit": "boolean", "required": true },
+      { "name": "tricuspidValveOpen01", "unit": "dimensionless", "required": true },
+      { "name": "pulmonaryValveOpen", "unit": "boolean", "required": true },
+      { "name": "pulmonaryValveOpen01", "unit": "dimensionless", "required": true },
+      { "name": "tricuspidFlowM3PerSec", "unit": "m3/s", "required": true },
+      { "name": "pulmonaryFlowM3PerSec", "unit": "m3/s", "required": true },
+      { "name": "rightAtrialPressurePa", "unit": "Pa", "required": true },
+      { "name": "pulmonaryArteryPressurePa", "unit": "Pa", "required": true }
+    ],
+    "eventAndArtifact": [
+      { "name": "valveEventId", "unit": "string", "required": false },
+      { "name": "qDotM3PerSec2", "unit": "m3/s2", "required": false },
+      { "name": "qDotRawM3PerSec2", "unit": "m3/s2", "required": false },
+      { "name": "qDotPostM3PerSec2", "unit": "m3/s2", "required": false },
+      { "name": "qDotClampHit01", "unit": "dimensionless", "required": false },
+      { "name": "qDotClampImpulseM3PerSec2", "unit": "m3/s2", "required": false },
+      { "name": "qDotClampActive", "unit": "boolean", "required": false },
+      { "name": "dynamicFlowClampHits", "unit": "count", "required": false },
+      { "name": "valveDiodeClampHits", "unit": "count", "required": false },
+      {
+        "name": "perSampleDynamicFlowClampHits",
+        "unit": "count",
+        "required": false,
+        "description": "Runner-derived last-step sample marker count from emitted valve flow-clamp impulse fields; separate from cumulative debugClampDiagnostics counters."
+      },
+      {
+        "name": "perSampleValveDiodeClampHits",
+        "unit": "count",
+        "required": false,
+        "description": "Runner-derived last-step sample marker count from emitted valve diode impulse fields; separate from cumulative debugClampDiagnostics counters."
+      },
+      { "name": "pressureFloorActive", "unit": "boolean", "required": false },
+      { "name": "pressureFloorHit01", "unit": "dimensionless", "required": false },
+      { "name": "activeStressPa", "unit": "Pa", "required": false },
+      { "name": "activationEventId", "unit": "string", "required": false },
+      { "name": "solverSubstepCount", "unit": "count", "required": false }
+    ],
+    "arterialLoadDiagnostic": [
+      {
+        "name": "systemicArterialPressurePa",
+        "unit": "Pa",
+        "required": false,
+        "description": "SA node pressure converted from current mmHg sample units to Pa."
+      },
+      {
+        "name": "downstreamPulmonaryArterialPressurePa",
+        "unit": "Pa",
+        "required": false,
+        "description": "PArt node pressure converted from current mmHg sample units to Pa."
+      },
+      {
+        "name": "aorticRootToSystemicArteryFlowM3PerSec",
+        "unit": "m3/s",
+        "required": false,
+        "description": "Ao_SA dynamic edge flow converted from mL/s to m3/s."
+      },
+      {
+        "name": "proximalPulmonaryArterialFlowM3PerSec",
+        "unit": "m3/s",
+        "required": false,
+        "description": "PA_PArt dynamic edge flow converted from mL/s to m3/s."
+      },
+      {
+        "name": "aorticRootComplianceM3PerPa",
+        "unit": "m3/Pa",
+        "required": false,
+        "description": "Ao arterial-node derivative compliance from the current arterial PV law at transmural pressure."
+      },
+      {
+        "name": "pulmonaryRootComplianceM3PerPa",
+        "unit": "m3/Pa",
+        "required": false,
+        "description": "PA arterial-node derivative compliance from the current arterial PV law at transmural pressure."
+      }
+    ],
+    "notModeled": [
+      {
+        "name": "characteristicImpedancePaSecPerM3",
+        "boundary": "unavailable-no-proxy",
+        "description": "The current model does not explicitly model characteristic impedance; the runner must not infer a proxy from R/L/C/flow."
+      },
+      {
+        "name": "arterialReflectionCoefficient",
+        "boundary": "unavailable-no-proxy",
+        "description": "The current model does not explicitly model arterial reflection; the runner must not infer a proxy from pressure or flow shape."
+      }
+    ]
+  },
+  "metricDefinitions": {
+    "phaseCoverageFraction": {
+      "unit": "dimensionless",
+      "description": "Fraction of beat samples assigned to each phase label."
+    },
+    "transitionSampleFraction": {
+      "unit": "dimensionless",
+      "description": "Fraction of beat samples labeled transition."
+    },
+    "uncertainSampleFraction": {
+      "unit": "dimensionless",
+      "description": "Fraction of beat samples labeled uncertain."
+    },
+    "pvLoopArea": {
+      "unit": "Pa*m3",
+      "description": "Signed beat-aligned pressure-volume loop area using raw pressure and volume samples."
+    },
+    "phaseNormalizedRoughness": {
+      "unit": "dimensionless",
+      "description": "Discrete curvature-like roughness within a phase, normalized by first-derivative variation plus epsilon. The future runner must record the exact formula and derivative stencil."
+    },
+    "phaseKinkCount": {
+      "unit": "countPerBeat",
+      "description": "Count of robust local slope or curvature outliers inside a phase."
+    },
+    "samplingInvarianceDelta": {
+      "unit": "dimensionless",
+      "description": "Relative change in a metric across raw and configured resampling modes."
+    },
+    "eventCorrelationWindowHitFraction": {
+      "unit": "dimensionless",
+      "description": "Fraction of morphology outlier samples that fall within the configured event/artifact correlation window."
+    },
+    "lvRvAsymmetryIndex": {
+      "unit": "dimensionless",
+      "description": "Absolute LV/RV difference for the same metric, normalized by the chamber mean plus epsilon."
+    }
+  },
+  "classificationLabels": {
+    "diagnostic-only": {
+      "description": "A report label, not an acceptance or rejection outcome."
+    },
+    "stable-under-sampling": {
+      "description": "Metric interpretation is preserved across configured sampling modes."
+    },
+    "sampling-sensitive": {
+      "description": "Metric magnitude or classification changes materially across configured sampling modes."
+    },
+    "event-sensitive": {
+      "description": "Metric is dominated by transition or event-window samples."
+    },
+    "lv-rv-asymmetric": {
+      "description": "The finding is materially different between LV and RV under the same method."
+    },
+    "unclassified": {
+      "description": "Required evidence is missing or mixed."
+    }
+  },
+  "artifactSchemas": {
+    "phaseSegmentationSeries": {
+      "format": "jsonl-or-csv",
+      "oneRowPer": "sample",
+      "requiredFields": [
+        "caseId",
+        "branchId",
+        "beatIndex",
+        "timeSec",
+        "chamber",
+        "pressurePa",
+        "volumeM3",
+        "dPressurePaPerSec",
+        "dVolumeM3PerSec",
+        "inletValveOpen01",
+        "outletValveOpen01",
+        "inletFlowM3PerSec",
+        "outletFlowM3PerSec",
+        "phaseLabel",
+        "transitionReason",
+        "sourceSignalMask"
+      ]
+    },
+    "perBeatMetricSummary": {
+      "format": "json",
+      "oneRowPer": "beat/chamber/metric/samplingMode/transitionPolicy",
+      "requiredFields": [
+        "caseId",
+        "branchId",
+        "beatIndex",
+        "chamber",
+        "metricId",
+        "samplingMode",
+        "transitionPolicy",
+        "value",
+        "unit",
+        "classificationLabels"
+      ]
+    },
+    "runSummary": {
+      "format": "json",
+      "requiredFields": [
+        "schemaVersion",
+        "targetPackId",
+        "claimBoundary",
+        "inputArtifactHashes",
+        "runnerVersion",
+        "signalAvailability",
+        "guardrailResults"
+      ]
+    }
+  },
+  "samplingModes": {
+    "raw": {
+      "description": "Use emitted samples without interpolation, preserving exact sample timing."
+    },
+    "uniformBeatGrid": {
+      "description": "Beat-normalized uniform resampling for derivative sensitivity reporting only. The runner must record interpolation type."
+    },
+    "eventAlignedCore": {
+      "description": "Event-aligned samples excluding transition guard windows."
+    },
+    "coarseSensitivity": {
+      "description": "Downsampled or coarser beat grid used only to expose sampling-only artifacts."
+    }
+  },
+  "guardrails": [
+    {
+      "id": "no-model-change",
+      "rule": "This target pack must not be used to change model equations, solver behavior, official case parameters, package scripts, or UI display smoothing."
+    },
+    {
+      "id": "raw-first",
+      "rule": "Raw-sample metrics are mandatory; resampled metrics are secondary sensitivity reports."
+    },
+    {
+      "id": "transition-dual-report",
+      "rule": "Primary morphology metrics must be reported both with and without transition samples."
+    },
+    {
+      "id": "lv-rv-same-method",
+      "rule": "LV and RV must use identical segmentation and metric definitions unless a missing-signal exception is recorded."
+    },
+    {
+      "id": "no-single-metric-pass",
+      "rule": "No single morphology metric in this pack is an official pass/fail target."
+    },
+    {
+      "id": "input-provenance",
+      "rule": "The future runner must record input artifact hashes and signal availability before computing metrics."
+    }
+  ],
+  "targetPolicy": {
+    "kind": "required-diagnostic-readouts",
+    "acceptanceStatus": "not-owner-acceptance",
+    "numericThresholds": "not-fixed-in-v1",
+    "interpretation": "Completeness, reproducibility, and classification quality are the v1 targets. Official morphology acceptance remains out of scope."
+  }
+}

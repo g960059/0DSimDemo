@@ -19,10 +19,11 @@ Every `*.test.ts` file must belong to exactly one tier. The ownership test in
 `__tests__/testSuiteManifest.test.ts` fails on unclassified files, stale
 entries, and overlaps.
 
-At the 2026-07-17 migration snapshot, the 260 files divide into 69 fast, 27
-engine regression, 161 archived research, 2 heavy, and 1 rules-emulator file.
-The previous fast command selected 164 files, so 96 long research files left
-the inner loop without being deleted.
+After the archived-research retirement, the 276 files divide into 118 fast, 68
+engine regression, 87 canonical scientific, 2 heavy, and 1 rules-emulator file.
+The archived-research tier no longer exists: the MechanicsCore2 / AV-plane
+sidecar and the earlier ModelCore+Land boundary lane were removed from the
+working tree and remain in git history.
 
 | Command | Responsibility | Default CI path |
 |---|---|---|
@@ -30,13 +31,11 @@ the inner loop without being deleted.
 | `npm run test:related -- <source...>` | Fast tests statically related to edited sources | Local development |
 | `npm run test:regression` | Longer legacy engine convergence and physiology regression | Nightly, 4 shards |
 | `npm run test:scientific:canonical` | Current `mainWire*` scientific lane | Nightly, 4 shards |
-| `npm run test:scientific:archive` | Historical mechanics/myocardium benches and artifact replay | Manual only, 12 shards in Actions |
 | `npm run test:heavy` | Environment-gated Guyton/Starling and low-preload sweeps | Nightly, separate job |
 | `npm run test:rules` | Firestore emulator test | Explicit emulator workflow/local run |
 
-`test:research` is an alias for `test:scientific:archive`. `test:all` runs all
-Node-based tiers, including archive and heavy, but intentionally does not start
-the Firestore emulator.
+`test:all` runs all Node-based tiers, including heavy, but intentionally does
+not start the Firestore emulator.
 
 ## Fast-suite contract
 
@@ -54,10 +53,9 @@ the Firestore emulator.
 
 To add a pure fast test, add its exact path to `fastTests` in
 `vitest.suites.ts`. A new `mainWire*.test.ts` is conservatively classified as
-canonical scientific unless explicitly promoted to fast. Historical
-`mechanics2*`, `myocardium*`, and related research prefixes are conservatively
-classified as archive unless an exact lightweight test is deliberately
-promoted, so they cannot leak into fast automatically.
+canonical scientific unless explicitly promoted to fast. Every other tier is
+fail-closed: an unregistered test file is unclassified and the ownership test
+fails, so nothing leaks into fast automatically.
 
 ## Research-test migration rule
 
@@ -69,8 +67,8 @@ combine:
 2. Put closed-loop periodic runs, dt-halving, disease envelopes, sweeps, and
    calibration in a `vite-node` experiment tool or canonical scientific test.
 3. Validate committed artifacts quickly by schema, provenance, hash, and
-   internal consistency. Full regeneration parity belongs to canonical or
-   archived scientific verification, never to fast.
+   internal consistency. Full regeneration parity belongs to canonical
+   scientific verification, never to fast.
 
 Preferred suffixes for new files are `.unit.test.ts`, `.contract.test.ts`,
 `.regression.test.ts`, `.scientific.test.ts`, `.artifact.test.ts`, and
@@ -98,14 +96,11 @@ selection, which excludes the `@full-e2e` stress tests.
 The separate `Scientific verification` workflow owns nightly work. Engine
 regression, canonical scientific tests, heavy tests, and the full browser E2E
 suite including `@full-e2e` run as independent jobs instead of sharing a
-timeout. Archived research is disabled nightly and can be enabled explicitly
-from `workflow_dispatch`, so a test classified `archived-research` runs only
-when someone asks for it.
+timeout.
 
-Until the stacked main-wire branches reach `main`, the canonical file inventory
-is zero and that matrix is shown as skipped. This avoids treating an empty
-scientific suite as positive evidence; it activates automatically when
-`mainWire*.test.ts` files are present.
+The canonical file inventory is computed from the suite registry. If it is ever
+zero the matrix is shown as skipped, which avoids treating an empty scientific
+suite as positive evidence.
 
 This split preserves scientific evidence without making historical phase
 reproduction a blocking inner-loop test.

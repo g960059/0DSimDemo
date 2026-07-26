@@ -7,7 +7,7 @@
  * checks that every *.test.ts file belongs to exactly one suite.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 116;
+export const FAST_SUITE_FILE_BUDGET = 119;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 57;
 
 export const fastTests = [
@@ -25,6 +25,7 @@ export const fastTests = [
   "__tests__/homeLinks.test.ts",
   "__tests__/instanceColors.test.ts",
   "__tests__/knobMetadata.test.ts",
+  "__tests__/laPvLobeMeasurementV2.test.ts",
   "__tests__/laPvReservoirConduitOrderV1.test.ts",
   "__tests__/land2017AtrialLewalleForceScaleV1.test.ts",
   "__tests__/land2017AtrialPrior.test.ts",
@@ -72,12 +73,14 @@ export const fastTests = [
   "__tests__/normalAdultFiveWallPriorV1.test.ts",
   "__tests__/notePanel.test.ts",
   "__tests__/morphologyCaseCorpusV1.test.ts",
+  "__tests__/morphologyPhysiologyAuditShadowPack.test.ts",
   "__tests__/noteViewRefs.test.ts",
   "__tests__/panelGrid.test.ts",
   "__tests__/panelView.test.ts",
   "__tests__/parallelOneStateSlsV1.test.ts",
   "__tests__/publishStatusBadge.test.ts",
   "__tests__/pvLoopDebugOverlay.test.ts",
+  "__tests__/pvLoopMorphologyQualityRunner.test.ts",
   "__tests__/pvLoopPoints.test.ts",
   "__tests__/pvLoopTransition.test.ts",
   "__tests__/rawParameterCatalog.test.ts",

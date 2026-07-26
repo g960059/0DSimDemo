@@ -25,13 +25,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Count canonical test files
         id: inventory
         shell: bash
         run: |
-          canonical_files=$(find __tests__ -maxdepth 1 -name 'mainWire*.test.ts' -print | wc -l | tr -d ' ')
+          # From the suite registry, not a filename glob: some mainWire files
+          # are promoted to fast and the canonical lane also owns exact
+          # coronary files, so a glob count does not match what actually runs.
+          canonical_files=$(npm run --silent test:suites:inventory -- --canonical-only)
           echo "canonical_files=$canonical_files" >> "$GITHUB_OUTPUT"
-          echo "Canonical mainWire test files: $canonical_files" >> "$GITHUB_STEP_SUMMARY"
+          npm run --silent test:suites:inventory >> "$GITHUB_STEP_SUMMARY"
 
   engine_regression:
     name: Engine regression (${{ matrix.shard }})

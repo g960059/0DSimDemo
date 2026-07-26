@@ -11,7 +11,7 @@ assistant transcripts, and plans that no longer constrain the implementation.
 |---|---|---|
 | Studio v1 | [studio/README.md](studio/README.md) | Active greenfield application lane |
 | Scientific runtime | [scientific-runtime/ADR-0001-single-scientific-core.md](scientific-runtime/ADR-0001-single-scientific-core.md) | Active Model Platform boundary |
-| Four-chamber mechanics | [myocardium/README.md](myocardium/README.md) | As-implemented boundary plus target specification |
+| Four-chamber mechanics | [myocardium/README.md](myocardium/README.md) | Design decisions plus target specification |
 | Cross-lane routing | [status/current-lanes.md](status/current-lanes.md) | Compact pointer index |
 | Repository archaeology | [history/README.md](history/README.md) | Recovery index |
 

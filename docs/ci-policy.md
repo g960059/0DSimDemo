@@ -19,11 +19,12 @@ suite. Suite ownership is itself a fast test, so an unclassified test file or a
 new research file accidentally added to fast fails immediately.
 
 `Production browser E2E` is path-aware on pull requests. It skips explicitly
-safe documentation and repo-local skill changes, the mechanics2
-research-sidecar code/tools/data/tests, disposable `.DS_Store` files, and
-migrated prompt history. Any other changed path runs it, including runtime
+safe documentation and repo-local skill changes, disposable `.DS_Store` files,
+and migrated prompt history. Any other changed path runs it, including runtime
 engine, verifier, package, config, myocardium data, and newly added code paths.
-Editing the verify workflow itself always runs it.
+Editing the verify workflow itself always runs it. `engine/mechanics2` is no
+longer exempt: the sidecar lane is retired and what remains under that path is
+production valve and diagnostic code.
 
 PR authors are still expected to run targeted local verification for touched
 areas before opening or updating a PR. For current myocardium work, that means
@@ -52,18 +53,14 @@ Nightly work lives in the separate `Scientific verification` workflow, at
 - the opt-in heavy engine files in their own job and timeout
 - the full production browser E2E suite, including `@full-e2e`
 
-Archived research runs only on a manual dispatch with `run_archive` set. It is
-not part of any automatic run, so a test classified `archived-research` is
-exercised only when someone asks for it explicitly.
+The archived-research suite is retired. The MechanicsCore2 / AV-plane sidecar
+and the earlier ModelCore+Land boundary lane were removed from the working
+tree, so there is no longer a manual-dispatch archive suite, a `run_archive`
+input, or archive shards. Those experiments remain in git history and in the
+pull requests that produced them.
 
-The canonical lane is dormant on the current pre-mainWire `main` snapshot. An
-inventory job reports zero files and skips the four canonical shards rather
-than reporting an empty suite as a successful scientific result. The shards
-activate automatically once `mainWire*.test.ts` files reach `main`.
-
-Historical mechanics/myocardium phase benches and full artifact replay are
-manual-only. A workflow dispatch can enable them in twelve independent shards.
-They are retained as reproducibility evidence, but old local hypotheses are not
-reapplied to current main on every PR or nightly run.
+The canonical lane is active. An inventory job counts the canonical scientific
+files from the suite registry and skips the shards rather than reporting an
+empty suite as a successful scientific result if that count is ever zero.
 
 See `docs/testing/test-suite-strategy.md` for suite ownership and budgets.

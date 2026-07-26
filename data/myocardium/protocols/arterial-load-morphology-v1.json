@@ -1,0 +1,449 @@
+{
+  "schemaVersion": 1,
+  "id": "arterial-load-morphology-v1",
+  "status": "proposed",
+  "phase": "diagnostic-audit",
+  "claimBoundary": "diagnostic-only-no-model-change",
+  "purpose": "Diagnostic-only audit descriptor for arterial-load morphology during AoV/PV-open ejection, including ejection squareness, top curvature, corner sharpness, and AoP/PAP incisura attribution.",
+  "relatedDocs": [
+    "docs/myocardium/verification/arterial-load-morphology-v1.md",
+    "docs/myocardium/verification/pv-loop-morphology-quality.md"
+  ],
+  "dependsOn": [
+    "data/myocardium/protocols/pv-loop-morphology-quality-v1.json",
+    "data/myocardium/targets/pv-loop-morphology-quality-v1.json"
+  ],
+  "officialCaseSet": {
+    "ids": [
+      "normal-sinus",
+      "acute-anterior-mi",
+      "systolic-heart-failure",
+      "lv-failure-dobutamine"
+    ],
+    "role": "Canonical read-only diagnostic subjects.",
+    "parameterPolicy": "read-only-no-parameter-change",
+    "caseWiring": "not-claimed"
+  },
+  "auditScope": {
+    "chambers": ["LV", "RV"],
+    "arterialBeds": ["aortic", "pulmonary"],
+    "phaseLabels": ["ejection", "transition", "uncertain"],
+    "limbDefinition": "Samples with semilunar valve open and AV valve closed, split into opening corner, core ejection, peak/top region, closing corner, and event-adjacent transition windows.",
+    "primaryQuestions": [
+      "Are AoV/PV-open ejection limbs excessively square or flat-topped?",
+      "Are top curvature and corner sharpness dominated by event windows or present in core ejection?",
+      "Are AoP/PAP incisura/dicrotic-notch features present, absent, inverted, or artifact-correlated?",
+      "Do findings align with Zc, reflection, root compliance, semilunar valve, active-stress, or qDot evidence?"
+    ]
+  },
+  "requiredSignals": {
+    "common": [
+      { "name": "timeSec", "unit": "s", "required": true },
+      { "name": "dtSec", "unit": "s", "required": true },
+      { "name": "beatIndex", "unit": "count", "required": true },
+      { "name": "phaseLabel", "unit": "enum", "required": true },
+      { "name": "transitionReason", "unit": "string", "required": false },
+      { "name": "samplingMode", "unit": "enum", "required": true }
+    ],
+    "LV_AoV_aortic_path": [
+      { "name": "lvPressurePa", "unit": "Pa", "required": true },
+      { "name": "lvVolumeM3", "unit": "m3", "required": true },
+      { "name": "aorticValveOpen", "unit": "boolean", "required": true },
+      { "name": "aorticValveOpen01", "unit": "dimensionless", "required": true },
+      { "name": "aorticFlowM3PerSec", "unit": "m3/s", "required": true },
+      { "name": "aorticPressurePa", "unit": "Pa", "required": true },
+      { "name": "systemicArterialPressurePa", "unit": "Pa", "required": false },
+      { "name": "aorticRootToSystemicArteryFlowM3PerSec", "unit": "m3/s", "required": false },
+      { "name": "mitralValveOpen", "unit": "boolean", "required": true },
+      { "name": "mitralValveOpen01", "unit": "dimensionless", "required": true }
+    ],
+    "RV_PV_pulmonary_path": [
+      { "name": "rvPressurePa", "unit": "Pa", "required": true },
+      { "name": "rvVolumeM3", "unit": "m3", "required": true },
+      { "name": "pulmonaryValveOpen", "unit": "boolean", "required": true },
+      { "name": "pulmonaryValveOpen01", "unit": "dimensionless", "required": true },
+      { "name": "pulmonaryFlowM3PerSec", "unit": "m3/s", "required": true },
+      { "name": "pulmonaryArteryPressurePa", "unit": "Pa", "required": true },
+      { "name": "downstreamPulmonaryArterialPressurePa", "unit": "Pa", "required": false },
+      { "name": "proximalPulmonaryArterialFlowM3PerSec", "unit": "m3/s", "required": false },
+      { "name": "tricuspidValveOpen", "unit": "boolean", "required": true },
+      { "name": "tricuspidValveOpen01", "unit": "dimensionless", "required": true }
+    ],
+    "arterialLoadAndArtifact": [
+      {
+        "name": "characteristicImpedancePaSecPerM3",
+        "unit": "Pa*s/m3",
+        "required": false,
+        "boundary": "unavailable-no-proxy-current-runtime",
+        "description": "Not explicitly modeled by the current runtime; do not infer from resistance, inertance, compliance, pressure, or flow."
+      },
+      {
+        "name": "arterialReflectionCoefficient",
+        "unit": "dimensionless",
+        "required": false,
+        "boundary": "unavailable-no-proxy-current-runtime",
+        "description": "Not explicitly modeled by the current runtime; do not infer from pressure or flow shape."
+      },
+      {
+        "name": "arterialReflectionDelaySec",
+        "unit": "s",
+        "required": false,
+        "boundary": "unavailable-no-proxy-current-runtime",
+        "description": "No explicit reflection path/delay is modeled by the current runtime."
+      },
+      { "name": "aorticRootComplianceM3PerPa", "unit": "m3/Pa", "required": false },
+      { "name": "pulmonaryRootComplianceM3PerPa", "unit": "m3/Pa", "required": false },
+      { "name": "semilunarValveOpenEventTimeSec", "unit": "s", "required": false },
+      { "name": "semilunarValveCloseEventTimeSec", "unit": "s", "required": false },
+      { "name": "semilunarValveStateResidual", "unit": "dimensionless", "required": false },
+      { "name": "valveDiodeClampHits", "unit": "count", "required": false },
+      { "name": "dynamicFlowClampHits", "unit": "count", "required": false },
+      { "name": "qDotM3PerSec2", "unit": "m3/s2", "required": false },
+      { "name": "qDotRawM3PerSec2", "unit": "m3/s2", "required": false },
+      { "name": "qDotPostM3PerSec2", "unit": "m3/s2", "required": false },
+      { "name": "qDotClampHit01", "unit": "dimensionless", "required": false },
+      { "name": "qDotClampImpulseM3PerSec2", "unit": "m3/s2", "required": false },
+      { "name": "qDotClampActive", "unit": "boolean", "required": false },
+      { "name": "activeStressPa", "unit": "Pa", "required": false },
+      { "name": "activeStressDerivativePaPerSec", "unit": "Pa/s", "required": false },
+      { "name": "passiveStressPa", "unit": "Pa", "required": false },
+      { "name": "fiberStrain", "unit": "dimensionless", "required": false },
+      { "name": "fiberStrainRatePerSec", "unit": "1/s", "required": false },
+      { "name": "strokeWorkJ", "unit": "J", "required": false },
+      { "name": "solverSubstepCount", "unit": "count", "required": false }
+    ]
+  },
+  "metricDefinitions": {
+    "semilunarOpenEjectionSquareness": {
+      "unit": "dimensionless",
+      "description": "Flat-sided or rectangular quality of the AoV/PV-open ejection PV limb, reported separately for LV/AoV and RV/PV under both transition policies.",
+      "requiredBreakdowns": ["chamber", "semilunarValve", "arterialBed", "beatIndex", "samplingMode", "transitionPolicy"]
+    },
+    "aovOpenEjectionSquareness": {
+      "unit": "dimensionless",
+      "description": "LV/AoV-specific alias of semilunarOpenEjectionSquareness for handoff traceability."
+    },
+    "pvOpenEjectionSquareness": {
+      "unit": "dimensionless",
+      "description": "RV/PV-specific alias of semilunarOpenEjectionSquareness for handoff traceability."
+    },
+    "ejectionTopCurvature": {
+      "unit": "dimensionless",
+      "description": "Curvature-like metric over the pressure-volume top region near peak ventricular pressure during ejection."
+    },
+    "ejectionCornerSharpness": {
+      "unit": "dimensionless",
+      "description": "Robust slope/curvature discontinuity score near semilunar opening and closing corners."
+    },
+    "cornerSharpnessAtOpen": {
+      "unit": "dimensionless",
+      "description": "Opening-corner component of ejectionCornerSharpness."
+    },
+    "cornerSharpnessAtClose": {
+      "unit": "dimensionless",
+      "description": "Closing-corner component of ejectionCornerSharpness."
+    },
+    "ejectionPlateauFraction": {
+      "unit": "dimensionless",
+      "description": "Fraction of ejection samples with near-flat pressure top after robust scale normalization."
+    },
+    "ejectionLimbKinkCount": {
+      "unit": "countPerBeat",
+      "description": "Count of slope/curvature outliers on the semilunar-open ejection limb."
+    },
+    "arterialPressureIncisuraDepth": {
+      "unit": "Pa",
+      "description": "AoP/PAP dicrotic notch or incisura depth relative to local pre/post-closing shoulder."
+    },
+    "arterialPressureIncisuraTimingSec": {
+      "unit": "s",
+      "description": "Timing of incisura relative to semilunar valve close event or inferred close transition."
+    },
+    "incisuraPresenceScore": {
+      "unit": "dimensionless",
+      "description": "Robust score for present, absent, inverted, or artifact-dominated AoP/PAP incisura morphology."
+    },
+    "aovOpenAoPIncisuraScore": {
+      "unit": "dimensionless",
+      "description": "LV/AoV/AoP-specific incisura score for handoff traceability."
+    },
+    "pvOpenPAPIncisuraScore": {
+      "unit": "dimensionless",
+      "description": "RV/PV/PAP-specific incisura score for handoff traceability."
+    },
+    "arterialPressureTopCurvature": {
+      "unit": "dimensionless",
+      "description": "Curvature-like metric over systolic AoP/PAP top pressure."
+    },
+    "ventricularArterialGradientProfile": {
+      "unit": "Pa",
+      "description": "Time-normalized LVP-AoP or RVP-PAP gradient profile across ejection."
+    },
+    "peakPressureTimingAsFractionOfEjection": {
+      "unit": "dimensionless",
+      "description": "Timing of peak ventricular or proximal arterial pressure as a fraction of the ejection window."
+    },
+    "zcCouplingScore": {
+      "unit": "dimensionless",
+      "description": "Association between ejection sharpness/incisura features and characteristic impedance evidence when available."
+    },
+    "reflectionCouplingScore": {
+      "unit": "dimensionless",
+      "description": "Association between waveform shoulder/incisura features and reflection coefficient or delay evidence when available."
+    },
+    "rootComplianceCouplingScore": {
+      "unit": "dimensionless",
+      "description": "Association between top curvature, incisura damping, and aortic/pulmonary root compliance evidence when available."
+    },
+    "semilunarValveEventCoincidenceFraction": {
+      "unit": "dimensionless",
+      "description": "Fraction of ejection-limb outliers inside semilunar open/close event windows or valve-state residual outliers."
+    },
+    "activeStressCouplingScore": {
+      "unit": "dimensionless",
+      "description": "Association between ejection PV morphology residuals and active stress or active-stress derivative evidence when available."
+    },
+    "qDotCoincidenceFraction": {
+      "unit": "dimensionless",
+      "description": "Fraction of ejection-limb or incisura outliers aligned with qDot spikes or qDot clamp activation."
+    },
+    "samplingOnlyScore": {
+      "unit": "dimensionless",
+      "description": "Magnitude of apparent morphology improvement or classification change across sampling modes without matching raw event evidence."
+    },
+    "aoPulmonaryAsymmetryIndex": {
+      "unit": "dimensionless",
+      "description": "Absolute LV/AoV/aortic versus RV/PV/pulmonary difference for paired ejection morphology metrics, normalized by paired mean plus epsilon."
+    }
+  },
+  "classificationLabels": {
+    "arterial-load-morphology-finding": {
+      "description": "Ejection or arterial-pressure morphology finding is present."
+    },
+    "aov-open-ejection": {
+      "description": "Finding is on the LV/AoV open ejection limb."
+    },
+    "pv-open-ejection": {
+      "description": "Finding is on the RV/PV open ejection limb."
+    },
+    "excessive-squareness": {
+      "description": "Ejection limb is unusually rectangular or flat-sided under the configured metric."
+    },
+    "flat-top-curvature": {
+      "description": "Top curvature indicates a flat or plateau-like pressure-volume top."
+    },
+    "sharp-corner": {
+      "description": "Opening or closing corner sharpness is high relative to robust scale."
+    },
+    "incisura-present": {
+      "description": "AoP/PAP incisura is present under the configured score."
+    },
+    "incisura-absent": {
+      "description": "AoP/PAP incisura is absent or overly damped under the configured score."
+    },
+    "incisura-inverted": {
+      "description": "AoP/PAP notch direction is inverted or physiologically suspicious under the configured score."
+    },
+    "flat-aop-during-ejection": {
+      "description": "AoP is flat or plateau-like during LV/AoV ejection."
+    },
+    "flat-pap-during-ejection": {
+      "description": "PAP is flat or plateau-like during RV/PV ejection."
+    },
+    "aop-lacks-incisura": {
+      "description": "AoP lacks an incisura near AoV closure under raw-pressure evidence."
+    },
+    "pap-lacks-incisura": {
+      "description": "PAP lacks an incisura near PV closure under raw-pressure evidence."
+    },
+    "valve-transition-corner": {
+      "description": "Corner sharpness aligns primarily with semilunar valve transition timing."
+    },
+    "active-stress-plateau": {
+      "description": "Ejection morphology aligns with a flat or plateau-like active-stress waveform."
+    },
+    "afterload-too-compliant": {
+      "description": "Finding is consistent with excessive proximal/downstream arterial compliance evidence."
+    },
+    "z-candidate-deficit": {
+      "description": "Finding is consistent with missing or inadequate characteristic impedance evidence."
+    },
+    "zc-correlated": {
+      "description": "Finding aligns with characteristic impedance evidence."
+    },
+    "reflection-correlated": {
+      "description": "Finding aligns with reflection coefficient or delay evidence."
+    },
+    "root-compliance-correlated": {
+      "description": "Finding aligns with aortic/pulmonary root compliance evidence."
+    },
+    "semilunar-valve-correlated": {
+      "description": "Finding aligns with semilunar valve event timing, valve state, or valve residual evidence."
+    },
+    "active-stress-correlated": {
+      "description": "Finding aligns with active stress or active-stress derivative evidence."
+    },
+    "qdot-correlated": {
+      "description": "Finding aligns with qDot spike or clamp evidence."
+    },
+    "sampling-only": {
+      "description": "Finding changes materially under resampling without matching raw event evidence."
+    },
+    "transition-dominated": {
+      "description": "Finding is materially reduced or disappears when transition samples are excluded."
+    },
+    "unclassified": {
+      "description": "Available evidence is insufficient or mixed."
+    }
+  },
+  "artifactSchemas": {
+    "ejectionOutlierSeries": {
+      "format": "jsonl-or-csv",
+      "oneRowPer": "outlierSample",
+      "requiredFields": [
+        "caseId",
+        "branchId",
+        "beatIndex",
+        "chamber",
+        "semilunarValve",
+        "arterialBed",
+        "timeSec",
+        "ventricularPressurePa",
+        "arterialPressurePa",
+        "volumeM3",
+        "flowM3PerSec",
+        "phaseLabel",
+        "transitionPolicy",
+        "samplingMode",
+        "morphologyResidual",
+        "qDotRawM3PerSec2",
+        "qDotPostM3PerSec2",
+        "qDotClampHit01",
+        "valveDiodeClampHit",
+        "dynamicFlowClampHit",
+        "eventWindowHits",
+        "classificationLabels"
+      ]
+    },
+    "perBeatEjectionMetrics": {
+      "format": "json",
+      "oneRowPer": "case/chamber/beat/samplingMode/transitionPolicy",
+      "requiredFields": [
+        "caseId",
+        "branchId",
+        "chamber",
+        "semilunarValve",
+        "arterialBed",
+        "beatIndex",
+        "samplingMode",
+        "transitionPolicy",
+        "semilunarOpenEjectionSquareness",
+        "ejectionTopCurvature",
+        "ejectionCornerSharpness",
+        "arterialPressureIncisuraDepth",
+        "incisuraPresenceScore",
+        "classificationLabels"
+      ]
+    },
+    "classificationEvidence": {
+      "format": "json",
+      "requiredFields": [
+        "caseId",
+        "branchId",
+        "chamber",
+        "beatIndex",
+        "candidateLabels",
+        "evidenceScores",
+        "missingSignals",
+        "guardrailResults"
+      ]
+    },
+    "runSummary": {
+      "format": "json",
+      "requiredFields": [
+        "schemaVersion",
+        "protocolId",
+        "claimBoundary",
+        "officialCaseSet",
+        "inputArtifactHashes",
+        "runnerVersion",
+        "signalAvailability",
+        "guardrailResults"
+      ]
+    }
+  },
+  "samplingModes": {
+    "raw": {
+      "description": "Primary report from emitted samples without smoothing or interpolation."
+    },
+    "uniformBeatGrid": {
+      "description": "Beat-normalized uniform resampling used to detect derivative sensitivity; interpolation type must be recorded."
+    },
+    "eventAlignedCore": {
+      "description": "Semilunar-open ejection core with configured transition windows excluded."
+    },
+    "coarseSensitivity": {
+      "description": "Coarser grid sensitivity report used to flag sampling-only morphology."
+    }
+  },
+  "guardrails": [
+    {
+      "id": "diagnostic-only-no-model-change",
+      "rule": "Do not change model equations, solver behavior, official case parameters, UI smoothing, or package scripts to improve this report."
+    },
+    {
+      "id": "raw-before-resampled",
+      "rule": "Compute and preserve raw-sample ejection and arterial-pressure metrics before any resampling sensitivity report."
+    },
+    {
+      "id": "no-smoothing-to-pass",
+      "rule": "Do not smooth ventricular pressure, arterial pressure, volume, flow, qDot, or valve state before primary metrics."
+    },
+    {
+      "id": "transition-dual-report",
+      "rule": "Report ejection and arterial-pressure metrics with transition samples included and excluded."
+    },
+    {
+      "id": "incisura-not-forced",
+      "rule": "Do not infer a present incisura from smoothed or resampled data when raw AoP/PAP evidence is absent."
+    },
+    {
+      "id": "paired-aov-pv-method",
+      "rule": "LV/AoV/aortic and RV/PV/pulmonary paths must use identical metric formulas and sampling modes."
+    },
+    {
+      "id": "classification-needs-evidence",
+      "rule": "Each non-unclassified label must cite the signal and score that caused it; missing optional signals must be recorded as unavailable."
+    },
+    {
+      "id": "no-official-pass-fail",
+      "rule": "This audit reports diagnostic classifications only and does not create official morphology pass/fail criteria."
+    }
+  ],
+  "antiGamingGuards": [
+    "Do not change official case parameters, arterial resistance/compliance/Zc/reflection values, valve thresholds, qDot clamp policy, active stress, or solver settings to improve morphology metrics.",
+    "Do not hide ejection squareness or missing incisura by UI-only smoothing, display decimation, or resampled-only reporting.",
+    "Do not classify a missing incisura as physiologic without raw AoP/PAP and semilunar-close evidence.",
+    "Do not report only transition-excluded metrics; transition-inclusive results are mandatory.",
+    "Do not compare aortic and pulmonary paths with different derivative stencils, beat windows, or normalization constants."
+  ],
+  "antiGamingReadouts": [
+    { "name": "strokeVolumeM3", "unit": "m3", "purpose": "Detect output suppression." },
+    { "name": "cardiacOutputM3PerSec", "unit": "m3/s", "purpose": "Detect output suppression." },
+    { "name": "strokeWorkJ", "unit": "J", "purpose": "Detect work collapse." },
+    { "name": "peakPressurePa", "unit": "Pa", "purpose": "Detect pressure collapse." },
+    { "name": "meanArterialPressurePa", "unit": "Pa", "purpose": "Detect arterial-pressure collapse." },
+    { "name": "systolicArterialPressurePa", "unit": "Pa", "purpose": "Detect SBP collapse." },
+    { "name": "diastolicArterialPressurePa", "unit": "Pa", "purpose": "Detect DBP distortion." },
+    { "name": "ejectionDurationSec", "unit": "s", "purpose": "Detect artificially shortened ejection." },
+    { "name": "semilunarForwardVolumeM3", "unit": "m3", "purpose": "Detect suppressed forward ejection." },
+    { "name": "semilunarReverseVolumeM3", "unit": "m3", "purpose": "Detect nonphysiologic reverse flow." },
+    { "name": "qDotClampHitFraction", "unit": "dimensionless", "purpose": "Detect clamp-driven improvement." }
+  ],
+  "candidateFixFailureModes": [
+    "squareness improves but SV, CO, or stroke work collapses",
+    "incisura appears only with nonphysiologic reverse flow",
+    "curvature improves by excessive damping",
+    "morphology improves while qDot, valve diode, or dynamic flow clamp events increase"
+  ]
+}

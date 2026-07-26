@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { expect } from "vitest";
 
-export function expectMechanics2ReportArtifactParity(
+export function expectReportArtifactParity(
   artifact: unknown,
   rerunReport: unknown,
 ): void {
