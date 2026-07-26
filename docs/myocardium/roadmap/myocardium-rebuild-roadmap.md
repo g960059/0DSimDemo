@@ -351,25 +351,12 @@ production tissue homogenization.
 - Phase 5C-I owner decision: no production ModelCore wiring is authorized. Current partial evidence uses an artifact-only source-provider constructor hook and reproduces the legacy activeStress period-2 positive control through that hook, but Land pairing has not yet run and the route remains unsatisfied.
 - boundary: no runtime replacement, no chamber/case/workbench/state-schema wiring, no production ModelCore adoption beyond the artifact-only constructor hook, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload/interdependence/RHF coverage, and no TriSeg adoption
 
-### Phase 5C-F — positive-control triage audit
+### Phase 5C-F and Phase 5C-G — retired
 
-- plan: [phase5c-positive-control-triage-audit.md](phase5c-positive-control-triage-audit.md)
-- triage gate: `data/myocardium/gates/phase5c-positive-control-triage-audit-v1.json`
-- gate script: `npm run verify:myocardium-phase5c-positive-control-triage-audit`
-- source entry gate: `phase5c-post-fidelity-entry-gate-v1`
-- current outcome: plan-only triage; Phase 5C-E entry remains `entry-blocked-until-route-satisfied`, with same-closure advancement still `blocked-until-positive-control-period2`
-- diagnostic lanes: `same-closure-source-provider-audit`, `closure-event-surface-diagnostic`, and `owner-replacement-criterion-prep`
-- boundary: report-only or owner-pending triage; no runtime replacement, no ModelCore/chamber/case/workbench/state-schema wiring, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload coverage, no ventricular interdependence coverage, no right-heart failure coverage, and no TriSeg adoption
-
-### Phase 5C-G — same-closure source-provider audit
-
-- plan: [phase5c-same-closure-source-provider-audit.md](phase5c-same-closure-source-provider-audit.md)
-- audit snapshot: `data/myocardium/gates/phase5c-same-closure-source-provider-audit-v1.json`
-- gate script: `npm run verify:myocardium-phase5c-same-closure-source-provider-audit`
-- source triage gate: `phase5c-positive-control-triage-audit-v1`
-- current outcome: source-provider audit only; Phase 5C-E entry remains `entry-blocked-until-route-satisfied`, with the positive control still `positive-control-failed`, `settled-period-1`, and `blocked-until-positive-control-period2`
-- PR #193 handoff: `modelcore-equivalent-closure-positive-control` remains `proposed-next-route-not-implemented` in this historical snapshot; Phase 5C-G does not implement or satisfy that route
-- boundary: report-only same-closure provenance snapshot; no runtime replacement, no ModelCore/chamber/case/workbench/state-schema wiring, no ModelCore-equivalent closure implementation, no qDot/valve/afterload tuning, no official morphology acceptance, no final no-alternans, no RV pressure-overload coverage, no ventricular interdependence coverage, no right-heart failure coverage, and no TriSeg adoption
+- Phase 5C-F (positive-control triage audit) and Phase 5C-G (same-closure source-provider audit) recorded a decision, not a capability: 5C-F's three diagnostic lanes were report-only and never ran, and 5C-G was a provenance snapshot of the legacy activeStress vs Land 2017 comparison inside one closure.
+- both inherited a Phase 5C-E status that has since flipped to `entry-route-satisfied-interpretation-pending`, so each record contradicted its own upstream; both also enforced prose pins on documents the lane has moved past, including an archived `docs/status/archive/` snapshot.
+- the route they were waiting on is carried by Phase 5C-H onward. Their artifacts, verifiers, tests and plan docs remain readable in git history.
+- the numeric anchor 5C-G held is preserved as a pinned `legacyPositiveControl.stableHash` assertion in `__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts`.
 
 ### Phase 5C-H — ModelCore-equivalent positive-control route definition
 

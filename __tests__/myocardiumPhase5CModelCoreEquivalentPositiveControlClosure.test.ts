@@ -41,7 +41,16 @@ describe("myocardium Phase 5C-I ModelCore-equivalent positive-control closure", 
     expect(evidence.legacyPositiveControl.tbvSanitizeAbsMl).toBeLessThanOrEqual(0.05);
     expect(evidence.legacyPositiveControl.tbvProjectionAppliedMl).toBeLessThanOrEqual(0.05);
     expect(evidence.legacyPositiveControl.maxValveReverseMl).toBeLessThanOrEqual(0.05);
-    expect(evidence.legacyPositiveControl.stableHash).toMatch(/^[0-9a-f]{8}$/);
+    // Absolute anchor, inherited from the retired Phase 5C-G same-closure audit.
+    //
+    // The surviving low-preload check enforces that the legacy activeStress and
+    // Land 2017 branches *agree*, which stays satisfied if both drift together.
+    // This literal is the only assertion that pins where the legacy positive
+    // control actually sits, so it is kept even though 5C-G's gate is gone.
+    //
+    // A change here is a real change in the legacy closure. Re-pin only
+    // deliberately, and say in the commit what moved and why.
+    expect(evidence.legacyPositiveControl.stableHash).toBe("5dad7b8e");
     expect(evidence.hookInvocationEvidence.totalInvocations).toBeGreaterThan(0);
     expect(evidence.hookInvocationEvidence.invocationCounts.initialInternal).toBeGreaterThan(0);
     expect(evidence.hookInvocationEvidence.invocationCounts.pressure).toBeGreaterThan(0);

@@ -80,8 +80,6 @@
     "verify:myocardium-land-shadow-alternans-comparator-readiness": "vite-node tools/myocardium/verifyLandShadowAlternansComparatorReadiness.ts",
     "verify:myocardium-land-new-myocardium-low-preload-check": "vite-node tools/myocardium/verifyLandNewMyocardiumLowPreloadCheck.ts",
     "verify:myocardium-phase5c-post-fidelity-entry-gate": "vite-node tools/myocardium/verifyPhase5CPostFidelityEntryGate.ts",
-    "verify:myocardium-phase5c-positive-control-triage-audit": "vite-node tools/myocardium/verifyPhase5CPositiveControlTriageAudit.ts",
-    "verify:myocardium-phase5c-same-closure-source-provider-audit": "vite-node tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts",
     "verify:myocardium-modelcore-equivalent-positive-control-closure": "vite-node tools/myocardium/verifyModelCoreEquivalentPositiveControlClosure.ts",
     "verify:myocardium-modelcore-active-provider-state-lifecycle": "vite-node tools/myocardium/verifyModelCoreActiveProviderStateLifecycle.ts",
     "verify:myocardium-modelcore-active-source-pressure-adapter": "vite-node tools/myocardium/verifyModelCoreActiveSourcePressureAdapter.ts",
