@@ -79,14 +79,14 @@ history and relative imports remain intact.
 
 ## Stacked main-wire adoption
 
-When the current stacked main-wire branches rebase onto this registry, promote
-pure valve/material/prior kernels, one-step transactions, and synthetic
-diagnostic fixtures by exact path into `fastTests`. Keep periodic steady-state
-runs, multi-beat summaries, mechanism-ledger replays, artifact parity, and
-structural-ablation reports in `canonical-scientific`. The anticipated first
-integration is about 97 fast files, which fits the 120-file review ceiling; the
-60-second measured wall budget still decides whether any promoted file is truly
-fast.
+When promoting work into this registry, put pure valve/material/prior kernels,
+one-step transactions, and synthetic diagnostic fixtures by exact path into
+`fastTests`. Keep periodic steady-state runs, multi-beat summaries,
+mechanism-ledger replays, artifact parity, and structural-ablation reports in
+`canonical-scientific`. The fast suite is at its `FAST_SUITE_FILE_BUDGET`
+ceiling, so a promotion now means either raising that budget deliberately or
+demoting something else; the 60-second measured wall budget still decides
+whether any promoted file is truly fast.
 
 ## CI layout
 
