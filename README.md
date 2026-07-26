@@ -161,7 +161,11 @@ Workbench は、研究者にとってはモデル探索画面、臨床ユーザ�
 
 ## シミュレーションモデルの概要
 
-現在のエンジンは、0D 閉ループ循環をノードとエッジで表します。状態量の単位は、圧が mmHg、容積が mL、流量が mL/s、時間が s、エラスタンスが mmHg/mL です。
+> **この節は legacy ModelCore 経路の説明です。** ブラウザが現在動かしている
+> main-wire five-wall session の構成は「ドキュメントの現在地」を参照してください。
+> legacy 経路はツリーに残っており、以下の記述はその経路について正しいものです。
+
+エンジンは 0D 閉ループ循環をノードとエッジで表します。状態量の単位は、圧が mmHg、容積が mL、流量が mL/s、時間が s、エラスタンスが mmHg/mL です。
 
 ### 心腔
 
@@ -452,11 +456,11 @@ npm run test
 
 ## 現在の位置づけ
 
-CircleHeart は、すでに単なる UI モックではなく、legacy active-stress 型心腔、動的弁、体循環・肺循環ネットワーク、心膜・中隔連成、冠循環、TBV 台帳、公式ケース、レッスン、Workbench、case persistence、health / morphology tests を備えた実働プロトタイプです。
+CircleHeart は、すでに単なる UI モックではなく、five-wall 心筋力学、動的弁、体循環・肺循環ネットワーク、共通心膜、公式ケース、レッスン、Workbench、case persistence、health / morphology tests を備えた実働プロトタイプです。legacy active-stress 経路、冠循環、TBV 台帳もツリーに残っています。
 
 一方で、まだ validated simulator ではありません。
 
-心筋収縮サブシステムは Revision 3 で全面置換方針を整理中です。Revision 3 は現行runtimeを説明する文書ではなく、Phase 0 のowner decisions後に進める次期実装契約です。
+心筋収縮サブシステムの置換は Revision 3 として進み、その到達点である main-wire five-wall モデルがブラウザに配線されています。target specification は現行 runtime の説明ではなく到達目標であり、両者の差分は [`docs/myocardium/README.md`](docs/myocardium/README.md) にまとめています。
 
 今後の重要テーマは、機能追加そのものよりも、以下です。
 

@@ -164,7 +164,12 @@ Researchers can track raw parameters, but ordinary cases and educational content
 
 ## Simulation model overview
 
-The current engine represents the 0D closed-loop circulation as nodes and edges. State variables use the following units: pressure in mmHg, volume in mL, flow in mL/s, time in s, and elastance in mmHg/mL.
+> **This section describes the legacy ModelCore path.** For the main-wire
+> five-wall session the browser runs today, see "Documentation status" above.
+> The legacy path remains in the tree, and the statements below are accurate
+> about it.
+
+The engine represents the 0D closed-loop circulation as nodes and edges. State variables use the following units: pressure in mmHg, volume in mL, flow in mL/s, time in s, and elastance in mmHg/mL.
 
 ### Chambers
 
@@ -454,11 +459,11 @@ When adding cases or lessons, always write model limitations. The more clinical 
 
 ## Current status
 
-CircleHeart is no longer a mere UI mock: it is a working prototype with legacy active-stress chambers, dynamic valves, systemic/pulmonary networks, pericardial/septal coupling, the coronary circulation, a TBV ledger, official cases, lessons, the Workbench, case persistence, and health / morphology tests.
+CircleHeart is no longer a mere UI mock: it is a working prototype with five-wall cardiac mechanics, dynamic valves, systemic/pulmonary networks, a common pericardium, official cases, lessons, the Workbench, case persistence, and health / morphology tests. The legacy active-stress path, the coronary circulation, and the TBV ledger also remain in the tree.
 
 At the same time, it is not yet a validated simulator.
 
-The myocardial contraction subsystem is being reorganized under Revision 3 as a full replacement plan. Revision 3 does not describe the current runtime; it is the next implementation contract after Phase 0 owner decisions are accepted.
+The myocardial contraction replacement proceeded under Revision 3, and its outcome — the main-wire five-wall model — is what the browser runs. The target specification is not a description of the current runtime but the goal it aims at; the differences between them are listed in [`docs/myocardium/README.md`](docs/myocardium/README.md).
 
 The key themes going forward are not feature additions per se, but:
 

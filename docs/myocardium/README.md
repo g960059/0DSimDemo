@@ -30,10 +30,20 @@ statement:
   intended v1 model, its claim boundary, its verification gates (§19), and its
   implementation sequence (§21).
 
-Two divergences between the target specification and what ships: the shipped
-model uses a quasi-steady orifice valve rather than the specification's
-per-valve inertial state, and `PVein_LA` carries no venous-inlet inertance
-(`pvOstialInertanceL` is 0 in `engine/core/topology.ts`).
+The target specification and what ships differ in several places. This list is
+not exhaustive; it records the ones known at the time of writing.
+
+- Valves: the shipped model uses a quasi-steady orifice rather than the
+  specification's per-valve inertial state.
+- Venous inlets: the specification asks for two venous-inlet inertial states.
+  `PVein_LA` carries none (`pvOstialInertanceL` is 0 in
+  `engine/core/topology.ts`), and the shipped non-coronary solver declares two
+  dynamic circulation edges rather than that pair.
+- Compartment count: the specification's canonical v1 is eight blood-volume
+  compartments; the shipped non-coronary circulation declares fifteen nodes.
+- Rhythm: the specification asks for a regional event graph. The shipped
+  release declares no conduction; the rhythm implementation exists but is not
+  part of the current session.
 
 ## What was retired
 
