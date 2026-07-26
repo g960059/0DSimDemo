@@ -367,7 +367,6 @@ npm run preview
 | `npm run test:watch` | fast suiteだけをwatch modeで実行 |
 | `npm run test:watch:all` | 全test fileをwatch対象にする |
 | `npm run verify:baseline` | baseline verification script を実行 |
-| `npm run verify:cases:smoke` | 代表3症例だけを検証 |
 | `npm run fit:left-filling` | 左心系 filling 関連の fitting tool |
 | `npm run fit:right-pvf-headroom` | 右心系 / PVF headroom 関連の fitting tool |
 

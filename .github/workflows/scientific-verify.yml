@@ -121,6 +121,43 @@ jobs:
       - name: Run heavy tests
         run: npm run test:heavy
 
+  browser_e2e_full:
+    name: Production browser E2E (full, including @full-e2e)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The per-push gate runs everything except @full-e2e. These are the
+      # long-running stress tests, so they belong with the nightly numerical
+      # verification rather than in front of every merge.
+      - name: Run the full production browser E2E suite
+        run: npm run test:e2e:browser
+
+      - name: Upload browser E2E diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-browser-e2e-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+
   archived_research:
     name: Archived research (${{ matrix.shard }})
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_archive }}

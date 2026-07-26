@@ -152,14 +152,14 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      # The @full-e2e stress tests observe transient runtime states — an open
+      # transient between a commit and its settlement — which a shared runner
+      # races past. They ran only here, on main, so main's gate was red on
+      # every push since 2026-07-20 while every pull request was green. A gate
+      # that is always red is not a gate, so they moved to the nightly
+      # scientific verification, next to the rest of the slow numerical work.
       - name: Run production browser E2E
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npm run test:e2e:browser:pr
-          else
-            npm run test:e2e:browser
-          fi
+        run: npm run test:e2e:browser:pr
 
       - name: Upload browser E2E diagnostics
         if: always()
