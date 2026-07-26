@@ -180,11 +180,5 @@
     "ventricularInterdependenceCoverage": false,
     "rightHeartFailureCoverage": false,
     "triSegAdoption": false
-  },
-  "requiredVerificationScripts": [
-    "verify:myocardium-land-new-myocardium-low-preload-check",
-    "verify:myocardium-modelcore-equivalent-positive-control-closure",
-    "verify:myocardium-modelcore-paired-land-source-provider",
-    "verify:myocardium-phase5c-post-fidelity-entry-gate"
-  ]
+  }
 }

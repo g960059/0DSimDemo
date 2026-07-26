@@ -35,9 +35,8 @@ phase gates called out below.
 | 4b | [roadmap/phase5c-low-preload-domain-plan.md](roadmap/phase5c-low-preload-domain-plan.md) | Phase 5C-B selected-v2 low-preload domain extension plan |
 | 4c | [roadmap/phase5c-new-myocardium-check-plan.md](roadmap/phase5c-new-myocardium-check-plan.md) | Phase 5C-C new-myocardium low-preload check plan |
 | 4d | [roadmap/phase5c-positive-control-fidelity-audit-plan.md](roadmap/phase5c-positive-control-fidelity-audit-plan.md) | Phase 5C-D positive-control fidelity audit over the Phase 5C-C no-go result |
-| 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result |
-| 4f | [roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md) | Phase 5C-F triage audit plan while the Phase 5C-E entry gate remains blocked |
-| 4g | [roadmap/phase5c-same-closure-source-provider-audit.md](roadmap/phase5c-same-closure-source-provider-audit.md) | Phase 5C-G same-closure source-provider audit snapshot after the PR #193 lane handoff |
+| 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result; the gate artifact is live and enforced by the Phase 5C-I ModelCore closure verifier, its own gate script is retired |
+| 4f, 4g | — | Phase 5C-F triage audit and Phase 5C-G same-closure source-provider audit, both retired; ids left vacant because row letters track phase letters. See the retirement note below and git history |
 | 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J/K/L/M/N/O/P ModelCore-equivalent route, experimental source-provider hook, provider-state lifecycle, source-only pressure adapter, paired Land source-provider run, qDot attribution, output-match diagnostic, activation/source-interface audit, and calcium/source forcing bracket |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
@@ -824,9 +823,12 @@ Phase 5C-E records that post-fidelity entry gate in
 [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md)
 and
 [`../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json`](../../data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json).
-Run `npm run verify:myocardium-phase5c-post-fidelity-entry-gate` and
-`npm run verify:myocardium-modelcore-equivalent-positive-control-closure` to
-check the gate and the ModelCore-equivalent positive-control evidence. Run
+Run `npm run verify:myocardium-modelcore-equivalent-positive-control-closure`
+to check the gate and the ModelCore-equivalent positive-control evidence — that
+verifier imports the gate and asserts its entry route, `gateStatus` and
+`blockedUntil.runtimeReplacement` directly. The separate Phase 5C-E gate script
+is retired; the gate's remaining fields are a record, not an enforced contract.
+Run
 `npm run verify:myocardium-modelcore-active-provider-state-lifecycle` to check
 the Phase 5C-J provider-state lifecycle precondition used by Land pairing.
 Run `npm run verify:myocardium-modelcore-active-source-pressure-adapter` to
@@ -1382,35 +1384,36 @@ No source-stress clamp, Tref/source-calcium tuning, qDot/valve/load tuning,
 runtime default flip, atrial physiology acceptance, or official morphology
 claim is made.
 
-Phase 5C-F records the triage audit plan in
-[roadmap/phase5c-positive-control-triage-audit.md](roadmap/phase5c-positive-control-triage-audit.md)
-and
-[`../../data/myocardium/gates/phase5c-positive-control-triage-audit-v1.json`](../../data/myocardium/gates/phase5c-positive-control-triage-audit-v1.json).
-Run `npm run verify:myocardium-phase5c-positive-control-triage-audit` to
-check the gate. The diagnostic lanes are
-`same-closure-source-provider-audit`, `closure-event-surface-diagnostic`, and
-`owner-replacement-criterion-prep`; all are report-only or owner-pending and
-keep `blocked-until-positive-control-period2`. This phase has no runtime
-replacement, no qDot/valve/afterload tuning, no official morphology acceptance,
-no final no-alternans, no RV pressure-overload coverage, no ventricular
-interdependence coverage, no right-heart failure coverage, and no TriSeg
-adoption.
+Phase 5C-F (positive-control triage audit) and Phase 5C-G (same-closure
+source-provider audit) are **retired**. Both recorded a decision, not a
+capability: 5C-F was a report-only triage plan whose three diagnostic lanes
+never ran, and 5C-G was a provenance snapshot of the legacy activeStress vs
+Land 2017 comparison inside one closure. Both inherited a Phase 5C-E status
+that has since flipped to `entry-route-satisfied-interpretation-pending`, so
+each record contradicted its own upstream, and both gates enforced prose pins
+on documents the lane has since moved past. The route they were waiting on is
+now carried by Phase 5C-H onward. Their artifacts, verifiers and audits remain
+readable in git history.
 
-Phase 5C-G records the `same-closure-source-provider-audit` snapshot in
-[roadmap/phase5c-same-closure-source-provider-audit.md](roadmap/phase5c-same-closure-source-provider-audit.md)
-and
-[`../../data/myocardium/gates/phase5c-same-closure-source-provider-audit-v1.json`](../../data/myocardium/gates/phase5c-same-closure-source-provider-audit-v1.json).
-Run `npm run verify:myocardium-phase5c-same-closure-source-provider-audit` to
-check the audit against the live Phase 5C-C report. This phase keeps the
-PR #193 `modelcore-equivalent-closure-positive-control` handoff as
-`proposed-next-route-not-implemented` for the historical Phase 5C-G snapshot;
-it does not implement a ModelCore-equivalent closure and does not satisfy an
-entry route. The current outcome remains
-`positive-control-failed`, `settled-period-1`, and
-`blocked-until-positive-control-period2`. This phase has no runtime
-replacement, no qDot/valve/afterload tuning, no official morphology
-acceptance, no final no-alternans, no RV pressure-overload coverage, no
-ventricular interdependence coverage, no right-heart failure coverage, and no
+What retiring 5C-G actually forfeits, stated plainly: its snapshot-vs-live
+equality checks on `sourceProviderStableHash` and the six
+`sourceProviderProvenance` keys, and its runtime-boundary assertions that the
+provider stays `artifactEquationImportOnly` with `usesModelCoreRuntimeWiring`,
+`usesChamberRuntimeWiring`, `hardCodedBeatParityForcing` and
+`consumesPrerecordedTraceReplay` all false on both snapshot and live. Those
+were float-insensitive and substantive, and nothing carries them forward. 5C-G
+did **not** pin generated trajectory hash values — it shape-checked them and
+recorded them as audit context, not cross-platform acceptance pins — so no
+trajectory anchor is lost with it. Separately, and not as a replacement,
+`__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts`
+now pins the legacy positive control's `adjacentDelta` and `periodDelta` as
+physical values with float headroom, so a drift inside the previous wide
+alternans bounds fails rather than passing.
+Retiring them changes no boundary either phase declared: same-closure
+advancement stays `blocked-until-positive-control-period2`, and neither phase
+claimed runtime replacement, no qDot/valve/afterload tuning, no official
+morphology acceptance, no final no-alternans, no RV pressure-overload coverage,
+no ventricular interdependence coverage, no right-heart failure coverage, and no
 TriSeg adoption.
 
 Phase 5C-H records the

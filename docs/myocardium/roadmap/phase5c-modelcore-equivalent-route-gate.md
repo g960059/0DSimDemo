@@ -113,7 +113,7 @@ data/myocardium/gates/phase5c-post-fidelity-entry-gate-v1.json
 Required verifier:
 
 ```text
-npm run verify:myocardium-phase5c-post-fidelity-entry-gate
+npm run verify:myocardium-modelcore-equivalent-positive-control-closure
 npm run verify:myocardium-modelcore-active-provider-state-lifecycle
 npm run verify:myocardium-modelcore-active-source-pressure-adapter
 npm run verify:myocardium-modelcore-paired-land-source-provider

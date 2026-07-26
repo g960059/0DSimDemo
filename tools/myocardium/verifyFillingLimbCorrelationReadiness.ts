@@ -74,7 +74,6 @@ const ALLOWED_COMPARATOR_TOKEN_PATHS = new Set([
   "tools/myocardium/buildMorphologyBlockerBundlePhaseM1.ts",
   "tools/myocardium/verifyMorphologyBlockerBundlePhaseM1.ts",
   "tools/myocardium/verifyFillingLimbCorrelationReadiness.ts",
-  "tools/myocardium/verifyPhase5CSameClosureSourceProviderAudit.ts",
   "tools/myocardium/verifyPvLoopCurrentMainBaselineSnapshot.ts",
   "__tests__/pvLoopFillingLimbDiagnosticComparator.test.ts",
   "__tests__/pvLoopFillingLimbCorrelationReadiness.test.ts",
