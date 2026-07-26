@@ -356,7 +356,9 @@ production tissue homogenization.
 - Phase 5C-F (positive-control triage audit) and Phase 5C-G (same-closure source-provider audit) recorded a decision, not a capability: 5C-F's three diagnostic lanes were report-only and never ran, and 5C-G was a provenance snapshot of the legacy activeStress vs Land 2017 comparison inside one closure.
 - both inherited a Phase 5C-E status that has since flipped to `entry-route-satisfied-interpretation-pending`, so each record contradicted its own upstream; both also enforced prose pins on documents the lane has moved past, including an archived `docs/status/archive/` snapshot.
 - the route they were waiting on is carried by Phase 5C-H onward. Their artifacts, verifiers, tests and plan docs remain readable in git history.
-- the numeric anchor 5C-G held is preserved as a pinned `legacyPositiveControl.stableHash` assertion in `__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts`.
+- what retiring 5C-G forfeits: its snapshot-vs-live equality checks on `sourceProviderStableHash` and the six `sourceProviderProvenance` keys, and its runtime-boundary assertions that the provider stays `artifactEquationImportOnly` with `usesModelCoreRuntimeWiring`, `usesChamberRuntimeWiring`, `hardCodedBeatParityForcing` and `consumesPrerecordedTraceReplay` all false on both snapshot and live. Those were float-insensitive and substantive, and nothing carries them forward.
+- 5C-G did **not** pin generated trajectory hash values — it shape-checked them as audit context, explicitly "not cross-platform acceptance pins" — so no trajectory anchor is lost with it.
+- separately, and not as a replacement: `__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts` now pins the legacy positive control's `adjacentDelta` and `periodDelta` as physical values with float headroom, so a drift inside the previous wide alternans bounds fails rather than passing.
 
 ### Phase 5C-H — ModelCore-equivalent positive-control route definition
 

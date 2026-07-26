@@ -36,6 +36,7 @@ phase gates called out below.
 | 4c | [roadmap/phase5c-new-myocardium-check-plan.md](roadmap/phase5c-new-myocardium-check-plan.md) | Phase 5C-C new-myocardium low-preload check plan |
 | 4d | [roadmap/phase5c-positive-control-fidelity-audit-plan.md](roadmap/phase5c-positive-control-fidelity-audit-plan.md) | Phase 5C-D positive-control fidelity audit over the Phase 5C-C no-go result |
 | 4e | [roadmap/phase5c-post-fidelity-entry-gate.md](roadmap/phase5c-post-fidelity-entry-gate.md) | Phase 5C-E entry gate after the Phase 5C-D no-go result; the gate artifact is live and enforced by the Phase 5C-I ModelCore closure verifier, its own gate script is retired |
+| 4f, 4g | — | Phase 5C-F triage audit and Phase 5C-G same-closure source-provider audit, both retired; ids left vacant because row letters track phase letters. See the retirement note below and git history |
 | 4h | [roadmap/phase5c-modelcore-equivalent-route-gate.md](roadmap/phase5c-modelcore-equivalent-route-gate.md) | Phase 5C-H/I/J/K/L/M/N/O/P ModelCore-equivalent route, experimental source-provider hook, provider-state lifecycle, source-only pressure adapter, paired Land source-provider run, qDot attribution, output-match diagnostic, activation/source-interface audit, and calcium/source forcing bracket |
 | 5 | [research/myocardial-contraction-rebuild-design-record.md](research/myocardial-contraction-rebuild-design-record.md) | Background rationale and design discussion |
 | 6 | [review-notes/phase2b-level3-review-deltas.md](review-notes/phase2b-level3-review-deltas.md) | PR #166 Phase 2B/Level 3 review deltas |
@@ -1392,9 +1393,22 @@ that has since flipped to `entry-route-satisfied-interpretation-pending`, so
 each record contradicted its own upstream, and both gates enforced prose pins
 on documents the lane has since moved past. The route they were waiting on is
 now carried by Phase 5C-H onward. Their artifacts, verifiers and audits remain
-readable in git history; the numeric anchor 5C-G held is preserved as a pinned
-`legacyPositiveControl.stableHash` assertion in
-`__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts`.
+readable in git history.
+
+What retiring 5C-G actually forfeits, stated plainly: its snapshot-vs-live
+equality checks on `sourceProviderStableHash` and the six
+`sourceProviderProvenance` keys, and its runtime-boundary assertions that the
+provider stays `artifactEquationImportOnly` with `usesModelCoreRuntimeWiring`,
+`usesChamberRuntimeWiring`, `hardCodedBeatParityForcing` and
+`consumesPrerecordedTraceReplay` all false on both snapshot and live. Those
+were float-insensitive and substantive, and nothing carries them forward. 5C-G
+did **not** pin generated trajectory hash values — it shape-checked them and
+recorded them as audit context, not cross-platform acceptance pins — so no
+trajectory anchor is lost with it. Separately, and not as a replacement,
+`__tests__/myocardiumPhase5CModelCoreEquivalentPositiveControlClosure.test.ts`
+now pins the legacy positive control's `adjacentDelta` and `periodDelta` as
+physical values with float headroom, so a drift inside the previous wide
+alternans bounds fails rather than passing.
 Retiring them changes no boundary either phase declared: same-closure
 advancement stays `blocked-until-positive-control-period2`, and neither phase
 claimed runtime replacement, no qDot/valve/afterload tuning, no official

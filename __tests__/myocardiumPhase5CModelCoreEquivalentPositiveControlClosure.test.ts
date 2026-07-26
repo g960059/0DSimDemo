@@ -41,16 +41,21 @@ describe("myocardium Phase 5C-I ModelCore-equivalent positive-control closure", 
     expect(evidence.legacyPositiveControl.tbvSanitizeAbsMl).toBeLessThanOrEqual(0.05);
     expect(evidence.legacyPositiveControl.tbvProjectionAppliedMl).toBeLessThanOrEqual(0.05);
     expect(evidence.legacyPositiveControl.maxValveReverseMl).toBeLessThanOrEqual(0.05);
-    // Absolute anchor, inherited from the retired Phase 5C-G same-closure audit.
+    // Where the legacy positive control actually sits, not just that it
+    // alternates. The bounds above (adjacentDelta > 0.1, periodDelta < 0.05)
+    // admit a wide band; these pin the measured operating point so a drift that
+    // stays inside the band still fails.
     //
-    // The surviving low-preload check enforces that the legacy activeStress and
-    // Land 2017 branches *agree*, which stays satisfied if both drift together.
-    // This literal is the only assertion that pins where the legacy positive
-    // control actually sits, so it is kept even though 5C-G's gate is gone.
-    //
-    // A change here is a real change in the legacy closure. Re-pin only
-    // deliberately, and say in the commit what moved and why.
-    expect(evidence.legacyPositiveControl.stableHash).toBe("5dad7b8e");
+    // Pinned as physical values with float headroom rather than as the
+    // stableHash literal. That hash is taken over vlvTrace — ~1150 raw
+    // per-sample doubles rounded to 1e-12 absolute, in a period-2 alternans
+    // regime — so one last-bit difference flips it entirely. The retired
+    // Phase 5C-G audit reached the same conclusion and deliberately
+    // shape-checked generated trajectory hashes instead of pinning them,
+    // recording them as "audit context, not cross-platform acceptance pins".
+    expect(evidence.legacyPositiveControl.adjacentDelta).toBeCloseTo(0.5745, 3);
+    expect(evidence.legacyPositiveControl.periodDelta).toBeCloseTo(0.00789, 4);
+    expect(evidence.legacyPositiveControl.stableHash).toMatch(/^[0-9a-f]{8}$/);
     expect(evidence.hookInvocationEvidence.totalInvocations).toBeGreaterThan(0);
     expect(evidence.hookInvocationEvidence.invocationCounts.initialInternal).toBeGreaterThan(0);
     expect(evidence.hookInvocationEvidence.invocationCounts.pressure).toBeGreaterThan(0);
