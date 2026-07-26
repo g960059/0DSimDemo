@@ -1,0 +1,67 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`morphology case corpus V1 > pins each scenario's instances, knobs and target volumes 1`] = `
+[
+  [
+    "normal-sinus",
+    [
+      [
+        "1",
+        [],
+        5600,
+      ],
+    ],
+  ],
+  [
+    "acute-anterior-mi",
+    [
+      [
+        "1",
+        [],
+        5600,
+      ],
+      [
+        "2",
+        [
+          "contractility",
+        ],
+        5600,
+      ],
+    ],
+  ],
+  [
+    "systolic-heart-failure",
+    [
+      [
+        "1",
+        [],
+        5600,
+      ],
+      [
+        "2",
+        [
+          "HR",
+          "afterload",
+          "contractility",
+        ],
+        5600,
+      ],
+    ],
+  ],
+  [
+    "lv-failure-dobutamine",
+    [
+      [
+        "1",
+        [],
+        5600,
+      ],
+      [
+        "2",
+        [],
+        5600,
+      ],
+    ],
+  ],
+]
+`;

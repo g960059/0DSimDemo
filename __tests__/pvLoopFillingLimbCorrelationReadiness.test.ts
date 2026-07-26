@@ -35,10 +35,10 @@ describe("PV-loop filling-limb correlation readiness boundary", () => {
       noForbiddenClaims: true,
     });
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "index.tsx")).toBe(true);
-    expect(input.runtimeIntegrationFiles.some((file) => file.path === "WorkbenchPage.tsx")).toBe(true);
+    expect(input.runtimeIntegrationFiles.some((file) => file.path === "components/workbench/PanelGrid.tsx")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "controllerItems.ts")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "controllerCatalog.ts")).toBe(true);
-    expect(input.runtimeIntegrationFiles.some((file) => file.path === "workbenchLoad.ts")).toBe(true);
+    expect(input.runtimeIntegrationFiles.some((file) => file.path === "features/workbench/workbenchDefaults.ts")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "contexts/AuthContext.tsx")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "components/Charts.tsx")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "engine/ModelCore.ts")).toBe(true);
@@ -177,7 +177,7 @@ describe("PV-loop filling-limb correlation readiness boundary", () => {
         text: "const wired = 'filling-limb-correlation-readiness-v1';",
       },
       {
-        path: "workbenchLoad.ts",
+        path: "features/workbench/workbenchDefaults.ts",
         text: "runFillingLimbCorrelationComparator();",
       },
       {

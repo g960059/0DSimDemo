@@ -11,7 +11,10 @@ import { measureConverged } from "@/engine/measure";
 import type { ModelCoreExperimentalOptions } from "@/engine/ModelCore";
 import type { MeasureOptions, SteadyMeasurement } from "@/engine/measure";
 import type { SimSample, SimulationHealth } from "@/engine/protocol";
-import { OFFICIAL_CASES } from "@/officialCases";
+import {
+  MORPHOLOGY_CASE_CORPUS_V1,
+  morphologyCorpusCaseDocumentV1,
+} from "./morphologyCaseCorpusV1";
 import type { SimInstance } from "@/types";
 
 export type PvLoopPhase =
@@ -2705,9 +2708,9 @@ export function buildMorphologyEvidenceSummaryForTest(
 
 export function runPvLoopMorphologyDiagnostic(options: CliOptions): DiagnosticRunResult {
   const docs = options.caseDocuments ?? options.caseIds.map((caseId) => {
-    const doc = OFFICIAL_CASES.find((candidate) => candidate.meta.id === caseId);
-    if (!doc) return null;
-    return doc;
+    const entry = MORPHOLOGY_CASE_CORPUS_V1.find((candidate) => candidate.id === caseId);
+    if (!entry) return null;
+    return morphologyCorpusCaseDocumentV1(entry);
   }).filter((doc): doc is CaseDocument => doc != null);
   const summary = buildInitialSummary(options.caseDocuments ? docs.map((doc) => doc.meta.id) : options.caseIds);
   const metricRows: MetricRow[] = [];
@@ -2725,7 +2728,7 @@ export function runPvLoopMorphologyDiagnostic(options: CliOptions): DiagnosticRu
 
   if (!options.caseDocuments) {
     for (const caseId of options.caseIds) {
-      if (!OFFICIAL_CASES.some((candidate) => candidate.meta.id === caseId)) {
+      if (!MORPHOLOGY_CASE_CORPUS_V1.some((candidate) => candidate.id === caseId)) {
         summary.errors.push(`Official case not found: ${caseId}`);
       }
     }

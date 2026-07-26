@@ -7,17 +7,14 @@
  * that every *.test.ts file belongs to exactly one suite.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 124;
+export const FAST_SUITE_FILE_BUDGET = 116;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 57;
 
 export const fastTests = [
-  "__tests__/caseCloud.test.ts",
-  "__tests__/casePublish.test.ts",
   "__tests__/caseValidation.test.ts",
   "__tests__/caseWorkspace.test.ts",
   "__tests__/chartsPhaseReplacement.test.ts",
   "__tests__/commonPericardiumV1.test.ts",
-  "__tests__/contentI18n.test.ts",
   "__tests__/controllerBinding.test.ts",
   "__tests__/controllerItemControl.test.ts",
   "__tests__/controllerItems.test.ts",
@@ -74,12 +71,11 @@ export const fastTests = [
   "__tests__/nonCoronaryCirculationBackwardEulerV1.test.ts",
   "__tests__/normalAdultFiveWallPriorV1.test.ts",
   "__tests__/notePanel.test.ts",
+  "__tests__/morphologyCaseCorpusV1.test.ts",
   "__tests__/noteViewRefs.test.ts",
-  "__tests__/notes.roundtrip.test.ts",
   "__tests__/panelGrid.test.ts",
   "__tests__/panelView.test.ts",
   "__tests__/parallelOneStateSlsV1.test.ts",
-  "__tests__/publishDialogState.test.ts",
   "__tests__/publishStatusBadge.test.ts",
   "__tests__/pvLoopDebugOverlay.test.ts",
   "__tests__/pvLoopPoints.test.ts",
@@ -109,13 +105,11 @@ export const fastTests = [
   "__tests__/studioMainWireRuntimeAdapterV1.test.ts",
   "__tests__/studioSimulationSessionCoordinatorV1.test.ts",
   "__tests__/testSuiteManifest.test.ts",
-  "__tests__/usePreviewRuntime.test.ts",
   "__tests__/waveformPhaseWipe.test.ts",
   "__tests__/wholeHeartMechanicsContractV1.test.ts",
   "__tests__/workbenchAuthoredViews.test.ts",
   "__tests__/workbenchDefaults.test.ts",
   "__tests__/workbenchGraphBoardLayout.test.ts",
-  "__tests__/workbenchLoadDebugOverlay.test.ts",
   "__tests__/workbenchP1aStructuralHosts.test.ts",
   "__tests__/workbenchPanelModel.test.ts",
   "__tests__/workbenchRuntimeAuthoringSeams.test.ts",
@@ -123,7 +117,6 @@ export const fastTests = [
   "components/__tests__/pvLoopPoints.test.ts",
   "engine/__tests__/activeStressSourcePressureAdapter.test.ts",
   "engine/__tests__/caseDoc.test.ts",
-  "engine/__tests__/casePersist.test.ts",
   "engine/__tests__/caseResolve.test.ts",
   "engine/__tests__/chambers.test.ts",
   "engine/__tests__/circulationGraphKernelV1.test.ts",
@@ -132,7 +125,6 @@ export const fastTests = [
   "engine/__tests__/instanceKnobs.test.ts",
   "engine/__tests__/leftFillingReview.test.ts",
   "engine/__tests__/modelCoreExperimentalActiveProviderState.test.ts",
-  "engine/__tests__/officialCaseBridge.test.ts",
   "engine/__tests__/starlingFit.test.ts",
   "engine/__tests__/valveTiming.test.ts",
 ] as const;
@@ -214,7 +206,6 @@ export const regressionTests = [
   "__tests__/scientificPvProgressivePresentationStateV1.test.ts",
   "__tests__/scientificProductHemodynamicAnalysisCoordinatorV1.test.ts",
   "__tests__/scientificProductPvRelationAnalysisCoordinatorV1.test.ts",
-  "__tests__/officialAfterloadCase.test.ts",
   "components/__tests__/guytonPaneChrome.test.ts",
   "components/__tests__/guytonStarlingWorkerClient.test.ts",
   "components/__tests__/guytonSteadyMapTransition.test.ts",
@@ -236,7 +227,6 @@ export const regressionTests = [
   "engine/__tests__/modelCoreRuntimeActiveSource.test.ts",
   "engine/__tests__/objective.test.ts",
   "engine/__tests__/observables.test.ts",
-  "engine/__tests__/officialCases.test.ts",
   "engine/__tests__/previewController.test.ts",
   "engine/__tests__/settling.test.ts",
   "engine/__tests__/stateContract.test.ts",

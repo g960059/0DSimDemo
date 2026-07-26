@@ -11,7 +11,6 @@ import { clampFloatingDialogPosition, moveFloatingDialogPosition } from "@/compo
 import { ScenarioPane } from "@/components/workbench/ScenarioPane";
 import { getDockviewStructureSignature, getDockviewTabMenuPosition, isDockviewHorizontalOnlyDropAllowed, shouldReapplyDockviewLayout } from "@/components/workbench/WorkbenchDockview";
 import { standardAuthoredViews } from "@/features/workbench/authoredViews";
-import { createAuthorRuntimeSnapshot, resolveAuthorActiveInstanceId } from "@/features/workbench/hooks/useWorkbenchScene";
 import {
   addVisibleInstanceConfigsToPanels,
   removeInstanceConfigsFromPanels,
@@ -1007,23 +1006,6 @@ describe("PanelGrid Dockview layout", () => {
     expect(dockviewSource.match(/context\.mode === 'learner'/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
   });
 
-  it("builds a reset-to-author runtime snapshot with initial active scenario and deep-cloned instances", () => {
-    const authored = [
-      { ...normalInstance, id: "a", isVisible: true, params: { ...DEFAULT_PARAMS, HR: 72 } },
-      { ...copiedInstance, id: "b", isVisible: false, params: { ...DEFAULT_PARAMS, HR: 88 } },
-    ];
-    const activeId = resolveAuthorActiveInstanceId(authored, "a", "b");
-    const snapshot = createAuthorRuntimeSnapshot(authored, activeId);
-
-    authored[1].isVisible = true;
-    authored[1].params.HR = 120;
-
-    expect(activeId).toBe("b");
-    expect(resolveAuthorActiveInstanceId(authored, "a", "missing")).toBe("a");
-    expect(snapshot.activeInstanceId).toBe("b");
-    expect(snapshot.instances[1].isVisible).toBe(false);
-    expect(snapshot.instances[1].params.HR).toBe(88);
-  });
 });
 
 describe("PanelGrid settings scroll spy", () => {

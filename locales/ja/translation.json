@@ -237,7 +237,6 @@
     "title": "ケース",
     "myCases": "自分のケース",
     "noSavedCases": "保存済みケースはまだありません。",
-    "officialCases": "公式ケース",
     "community": "コミュニティ",
     "openCase": "ケースを開く",
     "scientificCases": "科学モデルのケース",
@@ -990,44 +989,6 @@
       "question": "質問",
       "newOption": "新しいオプション",
       "addOption": "オプションを追加"
-    }
-  },
-  "officialCases": {
-    "normal-sinus": {
-      "title": "正常循環",
-      "description": "成人安静時の概ね生理的な基準状態。他のケースはここからのずれとして読みます。"
-    },
-    "acute-anterior-mi": {
-      "title": "急性前壁心筋梗塞: ポンプが止まるとき",
-      "description": "正常心と急性前壁MIを比較し、前壁収縮性低下によるPVループ縮小、SV/CO低下、左房圧上昇を読みます。"
-    },
-    "systolic-heart-failure": {
-      "title": "収縮不全 HFrEF",
-      "description": "正常左室とHFrEFの比較。収縮性低下と後負荷上昇がSV/COを下げ、充満圧を上げる様子を波形、PVループ、指標で読みます。"
-    },
-    "diastolic-heart-failure": {
-      "title": "拡張不全 HFpEF",
-      "description": "硬く弛緩しにくい左室と正常心の比較。ポンプ機能が保たれていても充満圧が上がります。"
-    },
-    "aortic-stenosis": {
-      "title": "大動脈弁狭窄: 出口の硬い扉",
-      "description": "重症大動脈弁狭窄と正常心を比較し、左室が大きな圧較差と高いPVループを作って拍出を保つ様子を読みます。"
-    },
-    "hypovolemic-shock": {
-      "title": "低容量性ショック",
-      "description": "循環血液量を失った状態と正常心の比較。preload低下でPVループが狭く左へ寄り、SV、CO、血圧が下がります。"
-    },
-    "lv-failure-dobutamine": {
-      "title": "心原性ショック: 左室不全 +/- ドブタミン",
-      "description": "重症左室ポンプ不全とbeta-1刺激薬ドブタミンへの反応を並べて比較します。COと血圧は回復し、充満圧は下がります。"
-    },
-    "valve-lesions": {
-      "title": "弁膜症: 大動脈弁狭窄と僧帽弁逆流",
-      "description": "代表的な左心系弁膜症の比較。ASは収縮期のLV-Ao圧較差を作り、MRは左房への逆流でLAPを上げ前方拍出を下げます。"
-    },
-    "hypovolemia": {
-      "title": "循環血液量低下",
-      "description": "出血などによる循環血液量低下。心臓自体は正常でもpreloadが下がり、SVとCOが低下します。"
     }
   },
   "publish": {
