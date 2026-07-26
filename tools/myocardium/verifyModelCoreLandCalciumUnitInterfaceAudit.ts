@@ -29,7 +29,6 @@ const BUILDER_PATH = "tools/myocardium/buildModelCoreLandCalciumUnitInterfaceAud
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
 const ROUTE_DOC_PATH = "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 
 const EXPECTED_DELTAS = [-1250, 1000] as const;
 const EXPECTED_SCENARIOS = [
@@ -402,7 +401,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const readmeText = readOptionalText(rootDir, README_PATH);
   const roadmapText = readOptionalText(rootDir, ROADMAP_PATH);
   const routeDocText = readOptionalText(rootDir, ROUTE_DOC_PATH);
-  const lanesText = readOptionalText(rootDir, HISTORICAL_LANES_PATH);
   const packageText = readOptionalText(rootDir, "package.json");
   if (
     !builderText.includes("calcium-unit-source-interface-audit-only")
@@ -424,9 +422,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   }
   if (routeDocText && (!routeDocText.includes("Phase 5C-Q") || !routeDocText.includes("SDIRK2"))) {
     addIssue(errors, "phase5q_route_doc", ROUTE_DOC_PATH, "Route gate doc must keep Phase 5C-Q and SDIRK2 next-check boundary visible.");
-  }
-  if (lanesText && (!lanesText.includes("Phase 5C-Q") || !lanesText.includes("3-5 PR"))) {
-    addIssue(errors, "phase5q_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must show the Phase 5C-Q result and broad oracle cadence policy.");
   }
   if (packageText && !packageText.includes("verify:myocardium-modelcore-land-calcium-unit-interface-audit")) {
     addIssue(errors, "phase5q_package_script", "package.json", "package.json must expose the Phase 5C-Q verifier script.");

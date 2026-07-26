@@ -79,6 +79,31 @@ for (const trackedPath of trackedPaths) {
   }
 }
 
+// A verification tool must not pin the prose of an archived document.
+//
+// Twenty-one myocardium verifiers used to require specific wording in
+// docs/status/archive/current-lanes-through-2026-07-10.md. The file is frozen,
+// so once a phase landed after the archive date its pin could never be
+// satisfied — twenty verifiers were red for that reason alone, and the red said
+// nothing about the physics they existed to guard. Compacting a status document
+// is normal and will happen again; this rule keeps the next compaction from
+// recreating the class.
+for (const trackedPath of trackedPaths) {
+  if (
+    !existsSync(path.join(repositoryRoot, trackedPath))
+    || !trackedPath.startsWith("tools/")
+    || !/\.(ts|tsx|mjs|js)$/.test(trackedPath)
+    || trackedPath === "tools/repository/checkRepositoryHygiene.mjs"
+  ) {
+    continue;
+  }
+  if (readFileSync(path.join(repositoryRoot, trackedPath), "utf8").includes("docs/status/archive/")) {
+    failures.push(
+      `${trackedPath}: a verification tool must not read docs/status/archive/ — an archived document is frozen, so any prose requirement against it becomes permanently unsatisfiable`,
+    );
+  }
+}
+
 if (failures.length > 0) {
   console.error("Repository hygiene check failed:");
   for (const failure of failures) console.error(`- ${failure}`);

@@ -38,7 +38,16 @@ policy. Many are imported by tests or referenced by verification tools. Move
 one to history only after its consumer has been migrated to a canonical
 artifact or fixture.
 
-The detailed 2026-07-10 lane diary is similarly retained at
-`docs/status/archive/current-lanes-through-2026-07-10.md` as a noncanonical
-legacy fixture because historical myocardium verifiers still inspect its claim
-boundaries. Remove it only in the same change that migrates those consumers.
+The detailed 2026-07-10 lane diary at
+`docs/status/archive/current-lanes-through-2026-07-10.md` is noncanonical
+history. It was previously retained because myocardium verifiers inspected its
+claim boundaries; those consumers have been migrated — the twenty-one prose pins
+against it are removed and `tools/repository/checkRepositoryHygiene.mjs` now
+rejects any tool under `tools/` that reads `docs/status/archive/`. Removing the
+diary is therefore an ordinary editorial decision now, not a blocked one.
+
+The general rule that produced that pin class is worth stating: a verification
+tool must not require particular wording in an archived document. Archives are
+frozen by definition, so such a requirement is satisfiable only until the next
+phase lands, and then it fails forever while saying nothing about what the tool
+exists to check.

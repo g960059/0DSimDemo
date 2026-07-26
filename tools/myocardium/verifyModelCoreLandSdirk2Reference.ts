@@ -28,7 +28,6 @@ const BUILDER_PATH = "tools/myocardium/buildModelCoreLandSdirk2ReferenceEvidence
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
 const ROUTE_DOC_PATH = "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const EXPECTED_DELTAS = [-1250, 1000] as const;
 const EXPECTED_SCENARIOS = [
   "raw-land-be",
@@ -322,7 +321,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const readmeText = readOptionalText(rootDir, README_PATH);
   const roadmapText = readOptionalText(rootDir, ROADMAP_PATH);
   const routeDocText = readOptionalText(rootDir, ROUTE_DOC_PATH);
-  const lanesText = readOptionalText(rootDir, HISTORICAL_LANES_PATH);
   const packageText = readOptionalText(rootDir, "package.json");
   if (
     !builderText.includes("land-source-provider-commit-solver-robustness-only")
@@ -340,9 +338,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   }
   if (routeDocText && (!routeDocText.includes("Phase 5C-R") || !routeDocText.includes("not a global ModelCore SDIRK2"))) {
     addIssue(errors, "phase5r_route_doc", ROUTE_DOC_PATH, "Route gate doc must keep Phase 5C-R provider-local and non-global.");
-  }
-  if (lanesText && (!lanesText.includes("Phase 5C-R") || !lanesText.includes("sdirk2-reference-inconclusive"))) {
-    addIssue(errors, "phase5r_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must show the Phase 5C-R result and next calibration direction.");
   }
   if (packageText && !packageText.includes("verify:myocardium-modelcore-land-sdirk2-reference")) {
     addIssue(errors, "phase5r_package_script", "package.json", "package.json must expose the Phase 5C-R verifier script.");

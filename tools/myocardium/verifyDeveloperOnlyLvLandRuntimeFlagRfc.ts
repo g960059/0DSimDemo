@@ -31,7 +31,6 @@ const HELPER_PATH = "tools/myocardium/modelCoreDeveloperOnlyLandRuntimeFlag.ts";
 const BUILDER_PATH = "tools/myocardium/buildDeveloperOnlyLvLandRuntimeFlagRfc.ts";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PRODUCTION_TARGET_PATHS = [
   "caseCloud.ts",
   "caseDoc.ts",
@@ -257,7 +256,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const builderText = readRequiredText(rootDir, BUILDER_PATH, errors);
   const readmeText = readRequiredText(rootDir, README_PATH, errors);
   const roadmapText = readRequiredText(rootDir, ROADMAP_PATH, errors);
-  const lanesText = readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors);
   const packageText = readRequiredText(rootDir, "package.json", errors);
 
   if (
@@ -292,17 +290,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
       || !roadmapText.includes("no runtime replacement"))
   ) {
     addIssue(errors, "phase5u_roadmap", ROADMAP_PATH, "Roadmap must record Phase 5U and keep runtime replacement blocked.");
-  }
-  const lanesKeepPhase5UOwnerDecision =
-    lanesText?.includes("Phase 5U") === true
-    && lanesText.includes("rfc-draft-owner-decision-needed")
-    && lanesText.includes("owner GO/NO-GO");
-  const lanesRecordPhase5VFollowOn =
-    lanesText?.includes("Phase 5V") === true
-    && lanesText.includes("developer-only measured operating suite")
-    && lanesText.includes("No official case, Workbench, state-schema, runtime UI, production registry, or production runtime wiring exists");
-  if (lanesText && !lanesKeepPhase5UOwnerDecision && !lanesRecordPhase5VFollowOn) {
-    addIssue(errors, "phase5u_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must either point from Phase 5U to owner GO/NO-GO or record a later developer-only-only follow-on without runtime adoption.");
   }
   if (packageText && !packageText.includes("verify:myocardium-developer-only-lv-land-runtime-flag-rfc")) {
     addIssue(errors, "phase5u_package_script", "package.json", "package.json must expose the Phase 5U verifier script.");

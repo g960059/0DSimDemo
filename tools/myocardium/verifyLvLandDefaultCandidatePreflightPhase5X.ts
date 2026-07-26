@@ -35,7 +35,6 @@ const MEASURE_PATH = "engine/measure.ts";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
 const MORPHOLOGY_README_PATH = "docs/myocardium/morphology/README.md";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 const PACKAGE_PATH = "package.json";
 const EXPECTED_MODEL_PATH_IDS = [
   "stock-active-no-provider-v0",
@@ -528,7 +527,6 @@ function validateSourceText(
     readRequiredText(rootDir, README_PATH, errors),
     readRequiredText(rootDir, ROADMAP_PATH, errors),
     readRequiredText(rootDir, MORPHOLOGY_README_PATH, errors),
-    readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors),
     readRequiredText(rootDir, PACKAGE_PATH, errors),
   ];
   for (const file of files) {
@@ -541,7 +539,6 @@ function validateSourceText(
   const readmeText = textFor(files, README_PATH);
   const roadmapText = textFor(files, ROADMAP_PATH);
   const morphologyReadmeText = textFor(files, MORPHOLOGY_README_PATH);
-  const lanesText = textFor(files, HISTORICAL_LANES_PATH);
 
   if (
     !builderText.includes("normal-floor-plus-one-axis-user-knob-sweep-v1")
@@ -565,8 +562,6 @@ function validateSourceText(
     !readmeText.includes("Phase 5X")
     || !roadmapText.includes("Phase 5X")
     || !morphologyReadmeText.includes("Phase 5X")
-    || !lanesText.includes("lv-land-default-candidate-preflight-phase5x-result-v1")
-    || !lanesText.includes("developer-only LV Land envelope")
   ) {
     addIssue(errors, "phase5x_docs", "docs", "Docs must record Phase 5X preflight evidence and retain the Phase 5W developer-only LV Land envelope wording.");
   }

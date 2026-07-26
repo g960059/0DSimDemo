@@ -29,7 +29,6 @@ const BUILDER_PATH = "tools/myocardium/buildModelCoreLandCalciumSourceForcingBra
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
 const ROUTE_DOC_PATH = "docs/myocardium/roadmap/phase5c-modelcore-equivalent-route-gate.md";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 
 export function validateModelCoreLandCalciumSourceForcingBracket(rootDir = process.cwd()):
 ModelCoreLandCalciumSourceForcingBracketValidationReport {
@@ -239,7 +238,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const readmeText = readOptionalText(rootDir, README_PATH);
   const roadmapText = readOptionalText(rootDir, ROADMAP_PATH);
   const routeDocText = readOptionalText(rootDir, ROUTE_DOC_PATH);
-  const lanesText = readOptionalText(rootDir, HISTORICAL_LANES_PATH);
   const packageText = readOptionalText(rootDir, "package.json");
   if (
     !builderText.includes("calcium-source-scale-forcing-bracket-only")
@@ -259,9 +257,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   }
   if (routeDocText && !routeDocText.includes("Phase 5C-P")) {
     addIssue(errors, "phase5p_route_doc", ROUTE_DOC_PATH, "Route gate doc must keep the Phase 5C-P boundary visible.");
-  }
-  if (lanesText && !lanesText.includes("Phase 5C-P")) {
-    addIssue(errors, "phase5p_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must show the Phase 5C-P result and next diagnostic.");
   }
   if (packageText && !packageText.includes("verify:myocardium-modelcore-land-calcium-source-forcing-bracket")) {
     addIssue(errors, "phase5p_package_script", "package.json", "package.json must expose the Phase 5C-P verifier script.");

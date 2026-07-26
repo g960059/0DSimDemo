@@ -32,7 +32,6 @@ const PAIRED_BUILDER_PATH =
 const DEBUG_RUNNER_PATH = "tools/debugStarlingLowPreload.ts";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
 
 export function validateModelCorePairedLandQDotClampAttribution(rootDir = process.cwd()):
 ModelCorePairedLandQDotClampAttributionValidationReport {
@@ -255,7 +254,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const debugRunnerText = readFileSync(path.join(rootDir, DEBUG_RUNNER_PATH), "utf8");
   const readmeText = readOptionalText(rootDir, README_PATH);
   const roadmapText = readOptionalText(rootDir, ROADMAP_PATH);
-  const lanesText = readOptionalText(rootDir, HISTORICAL_LANES_PATH);
   if (
     !builderText.includes("buildModelCorePairedLandSourceProviderEvidence")
     || !builderText.includes("clamp-threshold-avoidance-risk")
@@ -278,9 +276,6 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   }
   if (roadmapText && !roadmapText.includes("Phase 5C-M")) {
     addIssue(errors, "phase5m_roadmap", ROADMAP_PATH, "Roadmap must record the Phase 5C-M qDot clamp attribution result.");
-  }
-  if (lanesText && !lanesText.includes("qDot clamp-threshold attribution")) {
-    addIssue(errors, "phase5m_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must keep the qDot clamp-threshold attribution blocker visible.");
   }
 }
 
