@@ -16,11 +16,6 @@ const Home = React.lazy(
 const OfficialCases = React.lazy(
   () => import('./components/Cases').then((module) => ({ default: module.OfficialCases })),
 );
-const LessonReadingRoute = React.lazy(
-  () => import('./components/reading/LessonReadingRoute').then((module) => ({
-    default: module.LessonReadingRoute,
-  })),
-);
 const ScientificRuntimeAlphaPage = React.lazy(
   () => import('./components/scientificAlpha/ScientificRuntimeAlphaPage'),
 );
@@ -30,8 +25,8 @@ const ScientificWorkbenchPage = React.lazy(
 const ScientificProductWorkbenchPage = React.lazy(
   () => import('./components/scientificProduct/ScientificProductWorkbenchPageV1'),
 );
-const StudioDocumentAuthorRouteV1 = React.lazy(
-  () => import('./components/studio/author/StudioDocumentAuthorRouteV1'),
+const StudioDocumentRouteV1 = React.lazy(
+  () => import('./components/studio/StudioDocumentRouteV1'),
 );
 const StudioReaderPreviewRouteV1 = React.lazy(
   () => import('./components/studio/reader/StudioReaderPreviewRouteV1'),
@@ -75,14 +70,6 @@ const appRoutes = () => (
       )}
     />
     <Route
-      path="lesson/:id"
-      element={(
-        <React.Suspense fallback={<ProductPageLoading label="Loading lesson…" />}>
-          <LessonReadingRoute />
-        </React.Suspense>
-      )}
-    />
-    <Route
       path="workbench"
       element={(
         <React.Suspense fallback={<ProductWorkbenchLoading />}>
@@ -102,7 +89,7 @@ const appRoutes = () => (
       path="studio/author"
       element={(
         <React.Suspense fallback={<ProductPageLoading label="Loading author workspace…" />}>
-          <StudioDocumentAuthorRouteV1 />
+          <StudioDocumentRouteV1 />
         </React.Suspense>
       )}
     />
@@ -138,13 +125,13 @@ const appRoutes = () => (
         </React.Suspense>
       )}
     />
-    <Route path="*" element={<Navigate to="." replace />} />
+    <Route path="*" element={<LocalizedHomeRedirect />} />
   </>
 );
 
 const ScientificAlphaLoading = () => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     Loading scientific runtime alpha…
@@ -153,7 +140,7 @@ const ScientificAlphaLoading = () => (
 
 const ScientificWorkbenchLoading = () => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     Loading document-bound scientific workspace…
@@ -162,7 +149,7 @@ const ScientificWorkbenchLoading = () => (
 
 const ProductWorkbenchLoading = () => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     Loading the circulation workbench…
@@ -171,7 +158,7 @@ const ProductWorkbenchLoading = () => (
 
 const ProductPageLoading = ({ label }: { label: string }) => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     {label}
@@ -180,12 +167,28 @@ const ProductPageLoading = ({ label }: { label: string }) => (
 
 const ScientificPerformanceLabLoading = () => (
   <div
-    className="flex h-full items-center justify-center bg-slate-950 text-sm text-slate-400"
+    className="flex h-full items-center justify-center bg-wb-app text-sm text-wb-muted"
     role="status"
   >
     Loading raw scientific browser measurement lab…
   </div>
 );
+
+/**
+ * Anything unrecognised inside a locale lands on that locale's home.
+ *
+ * A relative redirect resolves to the splat itself, so a retired route — a
+ * lesson link someone kept — would render the chrome around nothing.
+ */
+const LocalizedHomeRedirect = () => {
+  const { locale } = useParams();
+  return (
+    <Navigate
+      to={prefixPath("/", isLocale(locale) ? locale : detectPreferredLocale())}
+      replace
+    />
+  );
+};
 
 const LocalizedLayout = () => {
   const { locale } = useParams();

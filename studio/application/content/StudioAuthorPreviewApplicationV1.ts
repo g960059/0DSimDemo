@@ -9,9 +9,14 @@ import {
   STUDIO_RESOLVED_READER_DOCUMENT_V1_SCHEMA_ID,
   type ExperimentScenarioRuntimeSourceV1,
   type ExperimentRevisionV1,
+  type ReaderBriefExtentV1,
   type ReaderBriefV1,
   type ReaderPreviewManifestV1,
   type ResolvedReaderExperimentV1,
+  type ReaderControlSpecV1,
+  type ReaderInstantaneousReadbackSpecV1,
+  type ResolvedReaderDocumentV1,
+  type StudioExperimentPlacementBlockV1,
   type ResolvedReaderExperimentPlacementV1,
   type StudioAuthorDraftV1,
   type StudioDocumentBlockV1,
@@ -67,6 +72,57 @@ export type ReplaceStudioAuthorReaderBriefGraphPanesCommandV1 = Readonly<{
   graphPanes: readonly StudioGraphPaneSpecV1[];
 }>;
 
+export type ReplaceStudioAuthorReaderBriefSelectionCommandV1 = Readonly<{
+  expectedRevision: number;
+  experimentId: string;
+  briefId: string;
+  instantaneousReadbacks: readonly ReaderInstantaneousReadbackSpecV1[];
+  controls: readonly ReaderControlSpecV1[];
+}>;
+
+/**
+ * Adds an experiment with one scenario and one empty Reader brief.
+ *
+ * The model identity and the runtime source are given by the caller: which
+ * release an article may run against, and which case a scenario reads, are
+ * decisions of the product surface, not of content editing. This layer only
+ * checks that what it is handed is a valid draft.
+ */
+export type CreateStudioAuthorExperimentCommandV1 = Readonly<{
+  expectedRevision: number;
+  experimentId: string;
+  modelRef: string;
+  scenarioId: string;
+  scenarioLabel: string;
+  runtimeSource: ExperimentScenarioRuntimeSourceV1;
+  readerBriefId: string;
+}>;
+
+/**
+ * Repoints one scenario at a different runtime source.
+ *
+ * Which physiology an experiment reads is an authoring decision that outlives
+ * the moment of creation, so it is a command rather than a fixed property. The
+ * brief survives it: its panes name observables and its scenario id is
+ * unchanged, so what the reader sees is the same presentation of a different
+ * case — which is exactly what changing the case means.
+ */
+export type ReplaceStudioAuthorExperimentRuntimeSourceCommandV1 = Readonly<{
+  expectedRevision: number;
+  experimentId: string;
+  scenarioId: string;
+  scenarioLabel: string;
+  runtimeSource: ExperimentScenarioRuntimeSourceV1;
+}>;
+
+/** The companion surface a brief is authored for. */
+export type ReplaceStudioAuthorReaderBriefExtentCommandV1 = Readonly<{
+  expectedRevision: number;
+  experimentId: string;
+  briefId: string;
+  extent: ReaderBriefExtentV1;
+}>;
+
 export type MaterializeStudioReaderPreviewCommandV1 = Readonly<{
   expectedRevision: number;
 }>;
@@ -83,6 +139,11 @@ export class StudioAuthorPreviewApplicationV1 {
   private readonly previews =
     new Map<StudioReaderPreviewIdV1, ReaderPreviewManifestV1>();
   private readonly idFactory: StudioAuthorPreviewIdFactoryV1;
+  private documentHistory: readonly Readonly<{
+    title: string;
+    blocks: readonly StudioDocumentBlockV1[];
+  }>[];
+  private documentHistoryIndex: number;
 
   constructor(input: Readonly<{
     initialDraft: StudioAuthorDraftV1;
@@ -94,6 +155,11 @@ export class StudioAuthorPreviewApplicationV1 {
     );
     this.idFactory = input.idFactory ?? (() =>
       `reader-preview-${globalThis.crypto.randomUUID()}`);
+    this.documentHistory = [{
+      title: this.draft.document.title,
+      blocks: this.draft.document.blocks,
+    }];
+    this.documentHistoryIndex = 0;
   }
 
   getDraftSnapshot(): StudioAuthorDraftV1 {
@@ -104,7 +170,7 @@ export class StudioAuthorPreviewApplicationV1 {
     command: UpdateStudioAuthorTitleCommandV1,
   ): StudioAuthorDraftV1 {
     this.assertExpectedRevision(command.expectedRevision);
-    requiredTrimmedStringV1(command.title, "$.command.title");
+    draftTextV1(command.title, "$.command.title");
     this.draft = cloneThenDeepFreezeSerializableV1({
       ...this.draft,
       revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
@@ -125,7 +191,7 @@ export class StudioAuthorPreviewApplicationV1 {
   ): StudioAuthorDraftV1 {
     this.assertExpectedRevision(command.expectedRevision);
     requiredPortableIdV1(command.blockId, "$.command.blockId");
-    requiredTrimmedStringV1(command.text, "$.command.text");
+    draftTextV1(command.text, "$.command.text");
     let found = false;
     const blocks = this.draft.document.blocks.map((block) => {
       if (block.blockId !== command.blockId) return block;
@@ -166,8 +232,46 @@ export class StudioAuthorPreviewApplicationV1 {
    * so a title edit, block edit, and reorder either advance together by one
    * revision or leave the previous draft untouched.
    */
+  /**
+   * Undo is a forward command, never a rewind.
+   *
+   * The audit trail is append-only, so undoing re-issues the previous content
+   * as a new content replacement. The revision therefore always advances, and
+   * an undone edit is as recoverable as any other.
+   */
+  canUndoDocumentContent(): boolean {
+    return this.documentHistoryIndex > 0;
+  }
+
+  canRedoDocumentContent(): boolean {
+    return this.documentHistoryIndex < this.documentHistory.length - 1;
+  }
+
+  undoDocumentContent(): StudioAuthorDraftV1 {
+    if (!this.canUndoDocumentContent()) return this.draft;
+    this.documentHistoryIndex -= 1;
+    return this.applyDocumentHistoryV1();
+  }
+
+  redoDocumentContent(): StudioAuthorDraftV1 {
+    if (!this.canRedoDocumentContent()) return this.draft;
+    this.documentHistoryIndex += 1;
+    return this.applyDocumentHistoryV1();
+  }
+
+  private applyDocumentHistoryV1(): StudioAuthorDraftV1 {
+    const entry = this.documentHistory[this.documentHistoryIndex]!;
+    this.replaceDocumentContent({
+      expectedRevision: this.draft.revision,
+      title: entry.title,
+      blocks: entry.blocks,
+    }, { recordHistory: false });
+    return this.draft;
+  }
+
   replaceDocumentContent(
     command: ReplaceStudioAuthorDocumentContentCommandV1,
+    options: Readonly<{ recordHistory?: boolean }> = {},
   ): StudioAuthorDraftV1 {
     this.assertExpectedRevision(command.expectedRevision);
     const candidateAtCurrentRevision = validateStudioAuthorDraftV1({
@@ -202,6 +306,16 @@ export class StudioAuthorPreviewApplicationV1 {
         ),
       },
     });
+    if (options.recordHistory !== false) {
+      this.documentHistory = [
+        ...this.documentHistory.slice(0, this.documentHistoryIndex + 1),
+        {
+          title: this.draft.document.title,
+          blocks: this.draft.document.blocks,
+        },
+      ];
+      this.documentHistoryIndex = this.documentHistory.length - 1;
+    }
     return this.draft;
   }
 
@@ -292,6 +406,258 @@ export class StudioAuthorPreviewApplicationV1 {
     return this.draft;
   }
 
+  /**
+   * Adds an experiment carrying one scenario and one empty Reader brief.
+   *
+   * The brief starts empty because an author builds it by picking on the
+   * Workbench; an experiment that arrived pre-composed would present a
+   * selection nobody made. This advances the draft revision and leaves the
+   * Document alone — placing the experiment in the article is a separate,
+   * document-level edit, so an experiment can exist before it is placed.
+   */
+  createExperiment(
+    command: CreateStudioAuthorExperimentCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    requiredPortableIdV1(command.experimentId, "$.command.experimentId");
+    requiredPortableIdV1(command.scenarioId, "$.command.scenarioId");
+    requiredPortableIdV1(command.readerBriefId, "$.command.readerBriefId");
+    if (
+      this.draft.experiments.some(({ experimentId }) =>
+        experimentId === command.experimentId)
+    ) {
+      throw validationErrorV1(
+        "$.command.experimentId",
+        `experiment ${command.experimentId} already exists`,
+      );
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...this.draft,
+      revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
+      experiments: [
+        ...this.draft.experiments,
+        {
+          schemaId: STUDIO_EXPERIMENT_REVISION_V1_SCHEMA_ID,
+          experimentId: command.experimentId,
+          revision: 0,
+          modelRef: command.modelRef,
+          scenarios: [{
+            scenarioId: command.scenarioId,
+            label: command.scenarioLabel,
+            runtimeSource: command.runtimeSource,
+          }],
+          readerBriefs: [{
+            schemaId: STUDIO_READER_BRIEF_V1_SCHEMA_ID,
+            briefId: command.readerBriefId,
+            extent: "inflow",
+            graphPanes: [],
+            instantaneousReadbacks: [],
+            controls: [],
+          }],
+        },
+      ],
+    });
+    return this.draft;
+  }
+
+  /**
+   * Records which companion surface a brief is authored for.
+   *
+   * The extent is a brief-level presentation decision like its panes, so it
+   * advances the draft and Experiment revisions and leaves the Document alone.
+   */
+  replaceReaderBriefExtent(
+    command: ReplaceStudioAuthorReaderBriefExtentCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    requiredPortableIdV1(command.experimentId, "$.command.experimentId");
+    requiredPortableIdV1(command.briefId, "$.command.briefId");
+    const experimentIndex = this.draft.experiments.findIndex(
+      ({ experimentId }) => experimentId === command.experimentId,
+    );
+    if (experimentIndex < 0) {
+      throw validationErrorV1(
+        "$.command.experimentId",
+        `unknown experiment ${command.experimentId}`,
+      );
+    }
+    const currentExperiment = this.draft.experiments[experimentIndex]!;
+    const briefIndex = currentExperiment.readerBriefs.findIndex(
+      ({ briefId }) => briefId === command.briefId,
+    );
+    if (briefIndex < 0) {
+      throw validationErrorV1(
+        "$.command.briefId",
+        `unknown Reader brief ${command.briefId}`,
+      );
+    }
+    if (
+      currentExperiment.readerBriefs[briefIndex]!.extent === command.extent
+    ) {
+      return this.draft;
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...this.draft,
+      revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
+      experiments: this.draft.experiments.map((experiment, index) =>
+        index !== experimentIndex ? experiment : {
+          ...experiment,
+          revision: nextRevisionV1(
+            currentExperiment.revision,
+            `$.draft.experiments[${experimentIndex}].revision`,
+          ),
+          readerBriefs: experiment.readerBriefs.map((brief, candidate) =>
+            candidate !== briefIndex
+              ? brief
+              : { ...brief, extent: command.extent }),
+        }),
+    });
+    return this.draft;
+  }
+
+  replaceExperimentRuntimeSource(
+    command: ReplaceStudioAuthorExperimentRuntimeSourceCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    requiredPortableIdV1(command.experimentId, "$.command.experimentId");
+    requiredPortableIdV1(command.scenarioId, "$.command.scenarioId");
+    const experimentIndex = this.draft.experiments.findIndex(
+      ({ experimentId }) => experimentId === command.experimentId,
+    );
+    if (experimentIndex < 0) {
+      throw validationErrorV1(
+        "$.command.experimentId",
+        `unknown experiment ${command.experimentId}`,
+      );
+    }
+    const currentExperiment = this.draft.experiments[experimentIndex]!;
+    const scenarioIndex = currentExperiment.scenarios.findIndex(
+      ({ scenarioId }) => scenarioId === command.scenarioId,
+    );
+    if (scenarioIndex < 0) {
+      throw validationErrorV1(
+        "$.command.scenarioId",
+        `unknown scenario ${command.scenarioId}`,
+      );
+    }
+    const currentScenario = currentExperiment.scenarios[scenarioIndex]!;
+    if (
+      sameRuntimeSourceV1(currentScenario.runtimeSource, command.runtimeSource)
+      && currentScenario.label === command.scenarioLabel
+    ) {
+      return this.draft;
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...this.draft,
+      revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
+      experiments: this.draft.experiments.map((experiment, index) =>
+        index !== experimentIndex ? experiment : {
+          ...experiment,
+          revision: nextRevisionV1(
+            currentExperiment.revision,
+            `$.draft.experiments[${experimentIndex}].revision`,
+          ),
+          scenarios: experiment.scenarios.map((scenario, candidate) =>
+            candidate !== scenarioIndex ? scenario : {
+              ...scenario,
+              label: command.scenarioLabel,
+              runtimeSource: command.runtimeSource,
+            }),
+        }),
+    });
+    return this.draft;
+  }
+
+  /**
+   * Replaces the readbacks and controls a Reader brief exposes.
+   *
+   * These are selections over the same brief aggregate as its graph panes, so
+   * this advances the draft and Experiment revisions together and leaves the
+   * Document revision alone. Referential closure (every readback signal backed
+   * by a pinned waveform item) is enforced by draft validation.
+   */
+  replaceReaderBriefSelection(
+    command: ReplaceStudioAuthorReaderBriefSelectionCommandV1,
+  ): StudioAuthorDraftV1 {
+    this.assertExpectedRevision(command.expectedRevision);
+    requiredPortableIdV1(command.experimentId, "$.command.experimentId");
+    requiredPortableIdV1(command.briefId, "$.command.briefId");
+    const experimentIndex = this.draft.experiments.findIndex(
+      ({ experimentId }) => experimentId === command.experimentId,
+    );
+    if (experimentIndex < 0) {
+      throw validationErrorV1(
+        "$.command.experimentId",
+        `unknown experiment ${command.experimentId}`,
+      );
+    }
+    const currentExperiment = this.draft.experiments[experimentIndex]!;
+    const briefIndex = currentExperiment.readerBriefs.findIndex(
+      ({ briefId }) => briefId === command.briefId,
+    );
+    if (briefIndex < 0) {
+      throw validationErrorV1(
+        "$.command.briefId",
+        `unknown Reader brief ${command.briefId}`,
+      );
+    }
+
+    const candidateAtCurrentRevision = validateStudioAuthorDraftV1({
+      ...this.draft,
+      experiments: this.draft.experiments.map((experiment, index) =>
+        index !== experimentIndex
+          ? experiment
+          : {
+              ...experiment,
+              readerBriefs: experiment.readerBriefs.map((brief, index) =>
+                index !== briefIndex
+                  ? brief
+                  : {
+                      ...brief,
+                      instantaneousReadbacks: command.instantaneousReadbacks,
+                      controls: command.controls,
+                    }),
+            }),
+    });
+    const candidateBrief =
+      candidateAtCurrentRevision.experiments[experimentIndex]!
+        .readerBriefs[briefIndex]!;
+    const currentBrief = currentExperiment.readerBriefs[briefIndex]!;
+    if (
+      sameSerializableSelectionV1(
+        candidateBrief.instantaneousReadbacks,
+        currentBrief.instantaneousReadbacks,
+      )
+      && sameSerializableSelectionV1(
+        candidateBrief.controls,
+        currentBrief.controls,
+      )
+    ) {
+      return this.draft;
+    }
+
+    this.draft = validateStudioAuthorDraftV1({
+      ...candidateAtCurrentRevision,
+      revision: nextRevisionV1(this.draft.revision, "$.draft.revision"),
+      experiments: candidateAtCurrentRevision.experiments.map(
+        (experiment, index) =>
+          index !== experimentIndex
+            ? experiment
+            : {
+                ...experiment,
+                revision: nextRevisionV1(
+                  currentExperiment.revision,
+                  `$.draft.experiments[${experimentIndex}].revision`,
+                ),
+              },
+      ),
+    });
+    return this.draft;
+  }
+
   materializePreview(
     command: MaterializeStudioReaderPreviewCommandV1,
   ): ReaderPreviewManifestV1 {
@@ -308,6 +674,57 @@ export class StudioAuthorPreviewApplicationV1 {
       );
     }
 
+    const { placements, runtimeBindings } =
+      this.resolvePlacementsV1(sourceDraft);
+
+    // sourceDraft is already a clone of the live application draft. Clone the
+    // complete manifest once more before freezing so no stored preview can
+    // alias either the editable aggregate or a caller-owned value.
+    const manifest = cloneThenDeepFreezeSerializableV1<
+      ReaderPreviewManifestV1
+    >({
+      schemaId: STUDIO_READER_PREVIEW_MANIFEST_V1_SCHEMA_ID,
+      previewId,
+      trust: "draft-preview-uncertified",
+      sharePolicy: "session-only",
+      publicationManifestRef: null,
+      source: {
+        kind: "draft-revision",
+        draftId: sourceDraft.draftId,
+        revision: sourceDraft.revision,
+      },
+      runtimeBindings: Object.fromEntries(runtimeBindings),
+      resolvedReaderDocument: {
+        schemaId: STUDIO_RESOLVED_READER_DOCUMENT_V1_SCHEMA_ID,
+        document: sourceDraft.document,
+        placements,
+      },
+    }, "$.manifest");
+    this.previews.set(previewId, manifest);
+    return manifest;
+  }
+
+  /**
+   * Resolves the current draft into publication-neutral Reader input.
+   *
+   * The unified document surface renders this on every edit so an author sees
+   * the real Reader output while writing. It intentionally mints no preview
+   * id: a materialized preview stays the immutable, session-only artifact.
+   */
+  resolveDocument(): ResolvedReaderDocumentV1 {
+    const sourceDraft = validateStudioAuthorDraftV1(this.draft);
+    const { placements } = this.resolvePlacementsV1(sourceDraft);
+    return cloneThenDeepFreezeSerializableV1<ResolvedReaderDocumentV1>({
+      schemaId: STUDIO_RESOLVED_READER_DOCUMENT_V1_SCHEMA_ID,
+      document: sourceDraft.document,
+      placements,
+    }, "$.resolvedReaderDocument");
+  }
+
+  private resolvePlacementsV1(sourceDraft: StudioAuthorDraftV1): Readonly<{
+    placements: readonly ResolvedReaderExperimentPlacementV1[];
+    runtimeBindings: ReadonlyMap<string, ExperimentScenarioRuntimeSourceV1>;
+  }> {
     const experiments = new Map<string, ExperimentRevisionV1>(
       sourceDraft.experiments.map((experiment) => [
         experiment.experimentId,
@@ -365,34 +782,12 @@ export class StudioAuthorPreviewApplicationV1 {
         placementBlockId: block.blockId,
         experiment: resolvedExperiment,
         readerBrief,
+        inlineMode: block.inlineMode,
+        localCaption: block.localCaption,
       });
     }
 
-    // sourceDraft is already a clone of the live application draft. Clone the
-    // complete manifest once more before freezing so no stored preview can
-    // alias either the editable aggregate or a caller-owned value.
-    const manifest = cloneThenDeepFreezeSerializableV1<
-      ReaderPreviewManifestV1
-    >({
-      schemaId: STUDIO_READER_PREVIEW_MANIFEST_V1_SCHEMA_ID,
-      previewId,
-      trust: "draft-preview-uncertified",
-      sharePolicy: "session-only",
-      publicationManifestRef: null,
-      source: {
-        kind: "draft-revision",
-        draftId: sourceDraft.draftId,
-        revision: sourceDraft.revision,
-      },
-      runtimeBindings: Object.fromEntries(runtimeBindings),
-      resolvedReaderDocument: {
-        schemaId: STUDIO_RESOLVED_READER_DOCUMENT_V1_SCHEMA_ID,
-        document: sourceDraft.document,
-        placements,
-      },
-    }, "$.manifest");
-    this.previews.set(previewId, manifest);
-    return manifest;
+    return { placements, runtimeBindings };
   }
 
   resolvePreview(
@@ -433,6 +828,13 @@ function sameRuntimeSourceV1(
     && left.qualification === right.qualification;
 }
 
+function sameSerializableSelectionV1(
+  left: unknown,
+  right: unknown,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 function sameDocumentBlocksV1(
   left: readonly StudioDocumentBlockV1[],
   right: readonly StudioDocumentBlockV1[],
@@ -448,9 +850,24 @@ function sameDocumentBlocksV1(
       return false;
     }
     if (block.kind === "experiment-placement") {
-      return other.kind === "experiment-placement"
-        && block.experimentId === other.experimentId
-        && block.readerBriefId === other.readerBriefId;
+      if (other.kind !== "experiment-placement") return false;
+      // Adding a placement field must not silently drop out of this
+      // comparison: an unnoticed omission reports a real edit as "unchanged".
+      const compared: Readonly<
+        Record<keyof StudioExperimentPlacementBlockV1, true>
+      > = {
+        blockId: true,
+        kind: true,
+        experimentId: true,
+        readerBriefId: true,
+        inlineMode: true,
+        localCaption: true,
+      };
+      void compared;
+      return block.experimentId === other.experimentId
+        && block.readerBriefId === other.readerBriefId
+        && block.inlineMode === other.inlineMode
+        && block.localCaption === other.localCaption;
     }
     if (other.kind === "experiment-placement" || block.text !== other.text) {
       return false;
@@ -559,7 +976,7 @@ function validateDocumentV1(
     "$.draft.document.revision",
   );
   requiredTrimmedStringV1(document.locale, "$.draft.document.locale");
-  requiredTrimmedStringV1(document.title, "$.draft.document.title");
+  draftTextV1(document.title, "$.draft.document.title");
   if (!Array.isArray(document.blocks) || document.blocks.length === 0) {
     throw validationErrorV1(
       "$.draft.document.blocks",
@@ -584,12 +1001,12 @@ function validateDocumentV1(
       if (block.level !== 2 && block.level !== 3) {
         throw validationErrorV1(`${path}.level`, "must be 2 or 3");
       }
-      requiredTrimmedStringV1(block.text, `${path}.text`);
+      draftTextV1(block.text, `${path}.text`);
       return;
     }
     if (block.kind === "paragraph") {
       assertExactKeysV1(block, ["blockId", "kind", "text"], path);
-      requiredTrimmedStringV1(block.text, `${path}.text`);
+      draftTextV1(block.text, `${path}.text`);
       return;
     }
     if (block.kind === "experiment-placement") {
@@ -598,9 +1015,27 @@ function validateDocumentV1(
         "kind",
         "experimentId",
         "readerBriefId",
+        "inlineMode",
+        "localCaption",
       ], path);
       requiredPortableIdV1(block.experimentId, `${path}.experimentId`);
       requiredPortableIdV1(block.readerBriefId, `${path}.readerBriefId`);
+      if (
+        block.inlineMode !== "live"
+        && block.inlineMode !== "compact"
+        && block.inlineMode !== "launch"
+      ) {
+        throw validationErrorV1(
+          `${path}.inlineMode`,
+          "must be live, compact, or launch",
+        );
+      }
+      if (block.localCaption !== null) {
+        requiredTrimmedStringV1(
+          block.localCaption,
+          `${path}.localCaption`,
+        );
+      }
       return;
     }
     throw validationErrorV1(`${path}.kind`, "unsupported block kind");
@@ -709,15 +1144,27 @@ function validateReaderBriefV1(
     throw validationErrorV1(`${path}.schemaId`, "schema identity mismatch");
   }
   requiredPortableIdV1(brief.briefId, `${path}.briefId`);
-  if (brief.extent !== "inflow") {
-    throw validationErrorV1(`${path}.extent`, "must be inflow");
-  }
-  if (!Array.isArray(brief.graphPanes) || brief.graphPanes.length === 0) {
+  if (
+    brief.extent !== "inflow"
+    && brief.extent !== "peek"
+    && brief.extent !== "fullscreen"
+  ) {
     throw validationErrorV1(
-      `${path}.graphPanes`,
-      "must contain at least one explicit graph pane",
+      `${path}.extent`,
+      "must be inflow, peek, or fullscreen",
     );
   }
+  if (!Array.isArray(brief.graphPanes)) {
+    throw validationErrorV1(
+      `${path}.graphPanes`,
+      "must be an array",
+    );
+  }
+  // A draft brief starts empty and is built by picking on the Workbench, so
+  // no graphs is a legal drafting state — the same drafting-versus-publication
+  // split that lets a block hold the text an author is still typing. Carrying
+  // at least one graph is a gate on publishing a brief, not a rule that may
+  // stop an author from clearing what they picked.
   const signalIds = validateGraphPanesV1(
     brief.graphPanes,
     `${path}.graphPanes`,
@@ -752,7 +1199,10 @@ function validateReaderBriefV1(
       readback.signalId,
       `${readbackPath}.signalId`,
     );
-    if (!signalIds.has(signalId)) {
+    if (
+      readback.sampling !== "beat"
+      && !signalIds.has(signalId)
+    ) {
       throw validationErrorV1(
         `${readbackPath}.signalId`,
         `dangling explicit signal ${signalId}`,
@@ -760,10 +1210,13 @@ function validateReaderBriefV1(
     }
     requiredTrimmedStringV1(readback.label, `${readbackPath}.label`);
     requiredTrimmedStringV1(readback.unit, `${readbackPath}.unit`);
-    if (readback.sampling !== "instantaneous") {
+    if (
+      readback.sampling !== "instantaneous"
+      && readback.sampling !== "beat"
+    ) {
       throw validationErrorV1(
         `${readbackPath}.sampling`,
-        "must be instantaneous",
+        "must be instantaneous or beat",
       );
     }
   });
@@ -1417,6 +1870,22 @@ function deepFreezeV1<TValue>(value: TValue): TValue {
   if (value !== null && typeof value === "object") {
     for (const child of Object.values(value)) deepFreezeV1(child);
     Object.freeze(value);
+  }
+  return value;
+}
+
+function draftTextV1(
+  value: unknown,
+  path: string,
+): string {
+  // A draft must be able to hold the block an author is about to type into,
+  // exactly as typed. Requiring prose would make "press Enter, then write"
+  // impossible, and requiring a trimmed string would reject the trailing
+  // space that exists between any two words: the commit made on blur would be
+  // discarded and the edit lost. Non-empty trimmed text is a publication
+  // gate, not a drafting one.
+  if (typeof value !== "string") {
+    throw validationErrorV1(path, "must be a string");
   }
   return value;
 }

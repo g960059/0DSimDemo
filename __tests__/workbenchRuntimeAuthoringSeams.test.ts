@@ -3,6 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import i18n from "@/i18n";
+import {
+  MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1,
+} from "@/engine/scientific/observables";
 import type { ControllerItem, PanelDef } from "@/types";
 import {
   ControllerItemsBuilder,
@@ -38,6 +41,8 @@ import {
 import {
   captureStudioGraphPaneSpecV1,
   panelFromStudioGraphPaneSpecV1,
+  sameStudioGraphPaneSpecV1,
+  studioGraphPaneCaptureDriftV1,
 } from "@/components/studio/StudioGraphPaneProjectionV1";
 import type {
   ScientificProductRuntimeRegistryPortV1,
@@ -632,4 +637,156 @@ describe("runtime-specific Workbench authoring seams", () => {
     });
   });
 
+});
+
+const HOST_SCENARIO_ID = "host-scenario";
+const ARTICLE_SCENARIO_ID = "article-scenario";
+const OBSERVABLE_ID = MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1[0]!;
+
+function registryStubV1(
+  isVisible: boolean,
+): ScientificProductRuntimeRegistryPortV1 {
+  return {
+    getPresentation: (id: string) =>
+      id === HOST_SCENARIO_ID
+        ? ({
+          descriptor: {
+            id: HOST_SCENARIO_ID,
+            name: "Reference adult",
+            color: "#38bdf8",
+            isVisible,
+          },
+          workspaceDocument: null,
+        } as unknown as ReturnType<
+          ScientificProductRuntimeRegistryPortV1["getPresentation"]
+        >)
+        : null,
+  } as unknown as ScientificProductRuntimeRegistryPortV1;
+}
+
+function waveformPanelV1(timeWindow = 2_000): PanelDef {
+  return {
+    id: "product-left-pressure-v1",
+    sourceViewId: "product-left-pressure-v1",
+    type: "WAVEFORM",
+    title: "Left pressures",
+    role: "graph",
+    zone: "main",
+    w: 12,
+    h: 5,
+    config: {
+      [HOST_SCENARIO_ID]: {
+        visible: true,
+        selectedSignals: [OBSERVABLE_ID],
+      },
+    },
+    isSettingsOpen: false,
+    showLegend: true,
+    showGuides: false,
+    timeWindow,
+  } as unknown as PanelDef;
+}
+
+const CAPTURE_SCENARIO_ID_MAP = new Map([
+  [HOST_SCENARIO_ID, ARTICLE_SCENARIO_ID],
+]);
+const PREVIEW_SCENARIO_ID_MAP = new Map([
+  [ARTICLE_SCENARIO_ID, HOST_SCENARIO_ID],
+]);
+
+describe("StudioGraphPaneProjectionV1 authoring drift", () => {
+  it("reports no drift while the live source is unchanged", () => {
+    const registry = registryStubV1(true);
+    const panel = waveformPanelV1();
+    const pinned = captureStudioGraphPaneSpecV1({
+      panel,
+      registry,
+      scenarioIdMap: CAPTURE_SCENARIO_ID_MAP,
+    });
+
+    expect(studioGraphPaneCaptureDriftV1(pinned, {
+      panel,
+      registry,
+      scenarioIdMap: CAPTURE_SCENARIO_ID_MAP,
+    })).toEqual({ kind: "current" });
+  });
+
+  it("reports drift after a presentation change, and clears it once re-pinned", () => {
+    const registry = registryStubV1(true);
+    const pinned = captureStudioGraphPaneSpecV1({
+      panel: waveformPanelV1(2_000),
+      registry,
+      scenarioIdMap: CAPTURE_SCENARIO_ID_MAP,
+    });
+    const changed = waveformPanelV1(7_000);
+
+    expect(studioGraphPaneCaptureDriftV1(pinned, {
+      panel: changed,
+      registry,
+      scenarioIdMap: CAPTURE_SCENARIO_ID_MAP,
+    })).toEqual({ kind: "drifted" });
+
+    const resynced = captureStudioGraphPaneSpecV1({
+      panel: changed,
+      registry,
+      scenarioIdMap: CAPTURE_SCENARIO_ID_MAP,
+    });
+    expect(sameStudioGraphPaneSpecV1(pinned, resynced)).toBe(false);
+    expect(studioGraphPaneCaptureDriftV1(resynced, {
+      panel: changed,
+      registry,
+      scenarioIdMap: CAPTURE_SCENARIO_ID_MAP,
+    })).toEqual({ kind: "current" });
+  });
+
+  it("reports an uncapturable source instead of throwing", () => {
+    const pinned = captureStudioGraphPaneSpecV1({
+      panel: waveformPanelV1(),
+      registry: registryStubV1(true),
+      scenarioIdMap: CAPTURE_SCENARIO_ID_MAP,
+    });
+
+    const drift = studioGraphPaneCaptureDriftV1(pinned, {
+      panel: waveformPanelV1(),
+      registry: registryStubV1(false),
+      scenarioIdMap: CAPTURE_SCENARIO_ID_MAP,
+    });
+    expect(drift.kind).toBe("uncapturable");
+    if (drift.kind !== "uncapturable") throw new Error("unreachable");
+    expect(drift.reason.length).toBeGreaterThan(0);
+  });
+});
+
+describe("StudioGraphPaneProjectionV1 presentation options", () => {
+  const pinned = captureStudioGraphPaneSpecV1({
+    panel: waveformPanelV1(7_000),
+    registry: registryStubV1(true),
+    scenarioIdMap: CAPTURE_SCENARIO_ID_MAP,
+  });
+
+  it("keeps portable article identity when no options are supplied", () => {
+    const panel = panelFromStudioGraphPaneSpecV1(pinned);
+    expect(panel.id).toBe("product-left-pressure-v1");
+    expect(Object.keys(panel.config)).toEqual([ARTICLE_SCENARIO_ID]);
+  });
+
+  it("remaps onto the host session for an authoring preview", () => {
+    const panel = panelFromStudioGraphPaneSpecV1(pinned, {
+      scenarioIdMap: PREVIEW_SCENARIO_ID_MAP,
+      panelId: "briefing-preview:product-left-pressure-v1",
+    });
+    expect(panel.id).toBe("briefing-preview:product-left-pressure-v1");
+    // The pane keeps its portable identity even when the panel id is scoped
+    // to the preview, so presentation settings stay attached to the capture.
+    expect(panel.sourceViewId).toBe("product-left-pressure-v1");
+    expect(Object.keys(panel.config)).toEqual([HOST_SCENARIO_ID]);
+    expect(panel.timeWindow).toBe(7_000);
+  });
+
+  it("falls back to the article id when a scenario has no host mapping", () => {
+    const panel = panelFromStudioGraphPaneSpecV1(pinned, {
+      scenarioIdMap: new Map([["unrelated", "other"]]),
+    });
+    expect(Object.keys(panel.config)).toEqual([ARTICLE_SCENARIO_ID]);
+  });
 });

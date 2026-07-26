@@ -30,7 +30,7 @@ describe("PV-loop arterial-load Zc/reflection comparator readiness boundary", ()
       noProductionDefaultAcceptedOfficialMorphologyPassClaims: true,
     });
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "index.tsx")).toBe(true);
-    expect(input.runtimeIntegrationFiles.some((file) => file.path === "WorkbenchPage.tsx")).toBe(true);
+    expect(input.runtimeIntegrationFiles.some((file) => file.path === "components/workbench/PanelGrid.tsx")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "components/Charts.tsx")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => (
       file.path === "tools/myocardium/verifyPvLoopMorphologyQuality.ts"

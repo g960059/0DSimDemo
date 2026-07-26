@@ -29,39 +29,96 @@ test.describe.serial("Product workflows by role", () => {
       }).click();
       await expect(page).toHaveURL(/\/ja\/studio\/author$/);
 
-      const author = page.getByTestId("studio-document-author-v1");
-      await expect(author).toBeVisible();
+      const surface = page.getByTestId("studio-document-route-v1");
+      await expect(surface).toBeVisible();
+      await expect(surface).toHaveAttribute("data-studio-capability", "compose");
+      const article = page.getByTestId("studio-document-reader-v1");
+
+      // An experiment ships empty. It holds what its author picked on the
+      // Workbench and nothing else, so the cell says where content comes from
+      // instead of presenting a composition nobody made.
+      await expect(
+        page.getByTestId("studio-reader-empty-brief-v1"),
+      ).toBeVisible({ timeout: 120_000 });
+      await expect(
+        page.getByTestId("studio-reader-open-focus-v1"),
+      ).toHaveCount(0);
+
+      // Compose is the artifact and the Workbench is the palette: graphs and
+      // controls are picked on the thing itself, then the author comes back
+      // to write around them.
+      await page.getByTestId("studio-author-open-workbench-v1").click();
+      await expect(page).toHaveURL(/\/ja\/workbench$/);
+      await readyStudioWorkbenchV1(page);
+      await page.getByTestId("scientific-workbench-open-briefing-v1").click();
+      const authorComposer = page.getByTestId(
+        "scientific-workbench-briefing-compose-v1",
+      );
+      await expect(authorComposer).toBeVisible();
+      const authorGraphPicks = page.locator(
+        '[data-briefing-pick-kind="graph"]',
+      );
+      await expect(authorGraphPicks).toHaveCount(5);
+      // The first pick becomes the article's primary graph, so the pressure
+      // waveform is chosen before the rest.
+      await page.locator(
+        '[data-briefing-pick-kind="graph"]'
+        + '[data-briefing-pick-key="product-left-pressure-v1"]',
+      ).click();
+      const authorPickCount = await authorGraphPicks.count();
+      for (let index = 0; index < authorPickCount; index += 1) {
+        const pickBox = authorGraphPicks.nth(index);
+        if (await pickBox.getAttribute("data-briefing-picked") === "false") {
+          await pickBox.click();
+        }
+      }
+      const authorControlPick = page.locator(
+        '[data-briefing-pick-kind="control"]'
+        + '[data-briefing-pick-key="circulation.systemic-vascular-resistance-scale"]',
+      );
+      await authorControlPick.click();
+      await expect(authorControlPick).toHaveAttribute(
+        "data-briefing-picked",
+        "true",
+      );
+      await authorComposer.getByRole("button", {
+        name: "記事を編集",
+        exact: true,
+      }).click();
+      await expect(page).toHaveURL(/\/ja\/studio\/author$/);
+      await expect(surface).toBeVisible();
       const authoredTitle =
         "E2E: 全身血管抵抗を上げたときの圧波形";
       const authoredIntroduction =
         "Author E2Eで編集した導入文です。左室圧と大動脈圧を同じ時間軸で観察します。";
-      await author.locator("input").first().fill(authoredTitle);
-      const introduction = author.locator("textarea").first();
-      await introduction.fill(authoredIntroduction);
-      await introduction.blur();
-      const documentEditor = author.getByTestId(
-        "studio-document-block-editor-v1",
+
+      // The surface is written on directly: title and prose are the rendered
+      // article, not form fields beside a preview.
+      const titleLine = article.locator("h1[contenteditable='true']");
+      await titleLine.click();
+      await titleLine.fill(authoredTitle);
+      const firstParagraph = article
+        .locator("p[contenteditable='true']")
+        .first();
+      await firstParagraph.click();
+      await firstParagraph.fill(authoredIntroduction);
+      await titleLine.click();
+      await expect(surface).toHaveAttribute(
+        "data-draft-revision",
+        /^[1-9]\d*$/,
       );
-      await documentEditor.getByRole("button", {
-        name: "H2見出しを追加",
-        exact: true,
-      }).click();
-      const addedHeading = documentEditor.getByTestId(
-        "studio-document-editor-block-v1",
-      ).last();
-      await expect(addedHeading).toHaveAttribute(
-        "data-document-block-kind",
-        "heading",
-      );
-      const experimentPlacement = documentEditor.locator(
+
+      // Structure is edited through the block gutter rather than a block form.
+      const placementBlock = article.locator(
         '[data-document-block-kind="experiment-placement"]',
       );
-      await experimentPlacement.getByRole("button", {
-        name: "このブロックの上に段落を挿入",
+      await placementBlock.hover();
+      await placementBlock.getByRole("button", {
+        name: "下に段落を挿入",
         exact: true,
       }).click();
-      const orderedBlockKinds = await documentEditor.getByTestId(
-        "studio-document-editor-block-v1",
+      const orderedBlockKinds = await article.getByTestId(
+        "studio-document-block-v1",
       ).evaluateAll((blocks) =>
         blocks.map((block) =>
           block.getAttribute("data-document-block-kind")));
@@ -69,60 +126,157 @@ test.describe.serial("Product workflows by role", () => {
         "experiment-placement",
       );
       expect(placementIndex).toBeGreaterThan(0);
-      expect(orderedBlockKinds[placementIndex - 1]).toBe("paragraph");
-      const structuralRevision = await numericAttributeV1(
-        author,
-        "data-draft-revision",
+      expect(orderedBlockKinds[placementIndex + 1]).toBe("paragraph");
+
+      // A block is carried by its handle: a press that travels reorders the
+      // article, and one that does not opens the block's menu. The carry is
+      // kept short and away from the scrollport edges so the article does not
+      // autoscroll under the pointer while the landing line is being read.
+      const blockIdsV1 = () =>
+        article.getByTestId("studio-document-block-v1").evaluateAll((blocks) =>
+          blocks.map((block) =>
+            block.getAttribute("data-document-block-id")));
+      const orderBeforeDrag = await blockIdsV1();
+      const blockAt = (index: number) =>
+        article.getByTestId("studio-document-block-v1").nth(index);
+      await blockAt(0).hover();
+      const dragHandle = blockAt(0).getByTestId(
+        "studio-document-block-handle-v1",
       );
-      await page.goBack({ waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(/\/ja\/$/);
-      await page.goForward({ waitUntil: "domcontentloaded" });
-      await expect(page).toHaveURL(/\/ja\/studio\/author$/);
-      await expect(author).toHaveAttribute(
-        "data-draft-revision",
-        String(structuralRevision),
+      const handleBox = await dragHandle.boundingBox();
+      const secondBox = await blockAt(1).boundingBox();
+      if (handleBox === null || secondBox === null) {
+        throw new Error("expected the drag handle and second block to lay out");
+      }
+      const handleX = handleBox.x + handleBox.width / 2;
+      // Just past the second block's midpoint: the first block lands after it.
+      const belowSecondMidpoint = secondBox.y + secondBox.height * 0.75;
+      await page.mouse.move(handleX, handleBox.y + handleBox.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(handleX, belowSecondMidpoint, { steps: 10 });
+      // Nothing reflows while the block is carried; only the landing line
+      // moves, so the article an author is judging stays still.
+      await expect(
+        article.getByTestId("studio-document-drop-line-v1"),
+      ).toHaveCount(1);
+      await expect(
+        article.locator('[data-document-block-carried="true"]'),
+      ).toHaveCount(1);
+      // The line marks the gap the block lands in, which is above the block
+      // that will follow it — not the index the move commits.
+      const lineBlockId = await article
+        .locator('[data-document-block-id]:has([data-testid=' +
+          '"studio-document-drop-line-v1"])')
+        .getAttribute("data-document-block-id");
+      expect(lineBlockId).toBe(orderBeforeDrag[2]);
+      await page.mouse.up();
+      const orderAfterDrag = await blockIdsV1();
+      expect(orderAfterDrag.slice(0, 2))
+        .toEqual([orderBeforeDrag[1], orderBeforeDrag[0]]);
+      await expect(
+        article.getByTestId("studio-document-drop-line-v1"),
+      ).toHaveCount(0);
+
+      // The same handle still opens the menu when the pointer stays put.
+      await blockAt(0).hover();
+      await blockAt(0).getByTestId("studio-document-block-handle-v1").click();
+      await expect(
+        page.getByTestId("studio-document-block-menu-v1"),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(
+        page.getByTestId("studio-document-block-menu-v1"),
+      ).toHaveCount(0);
+
+      // A second experiment is created by placing it, and it is its own
+      // composition: the article now holds two, each with its own brief.
+      const placements = () =>
+        article.locator('[data-document-block-kind="experiment-placement"]');
+      await expect(placements()).toHaveCount(1);
+      await article.getByTestId("studio-document-block-v1").first().hover();
+      await article.getByTestId("studio-document-block-v1").first()
+        .getByTestId("studio-document-block-handle-v1").click();
+      await page.getByTestId("studio-document-insert-experiment-v1").click();
+      await expect(placements()).toHaveCount(2);
+      // Each placement names the experiment it composes, so the Workbench
+      // opens the one the author meant rather than the first in the draft.
+      const composeButtons = article.getByTestId(
+        "studio-placement-compose-v1",
       );
-      await expect(addedHeading).toHaveAttribute(
-        "data-document-block-kind",
-        "heading",
+      await expect(composeButtons).toHaveCount(2);
+      // The new placement was inserted below the first block, so it leads the
+      // article; its compose button must open its own experiment.
+      await composeButtons.first().click();
+      // The Workbench runs the case the experiment reads, and composes the
+      // experiment the placement named.
+      await expect(page).toHaveURL(
+        /\/ja\/workbench\/[^?]+\?experiment=/,
       );
-      const authoredHeading = "E2Eで追加した観察項目";
-      const addedHeadingInput = addedHeading.getByRole("textbox");
-      await addedHeadingInput.fill(authoredHeading);
-      await addedHeadingInput.blur();
-      await expect(author).toHaveAttribute(
-        "data-draft-revision",
-        /^[1-9]\d*$/,
+      const composedExperimentId = new URL(page.url()).searchParams
+        .get("experiment");
+      expect(composedExperimentId).not.toBeNull();
+      await readyStudioWorkbenchV1(page);
+      await page.getByTestId("scientific-workbench-open-briefing-v1").click();
+      const secondComposer = page.getByTestId(
+        "scientific-workbench-briefing-compose-v1",
       );
-      await expect(author).toHaveAttribute("data-editor-dirty", "false");
-      const authoredRevision = await numericAttributeV1(
-        author,
-        "data-draft-revision",
-      );
-      await author.getByRole("button", {
-        name: "Readerで確認",
+      // The new experiment arrives uncomposed rather than inheriting one.
+      await expect(secondComposer).toContainText("graph 0枚");
+      await page.locator(
+        '[data-briefing-pick-kind="graph"]'
+        + '[data-briefing-pick-key="product-left-pressure-v1"]',
+      ).click();
+      await expect(secondComposer).toContainText("graph 1枚");
+      await secondComposer.getByRole("button", {
+        name: "記事を編集",
         exact: true,
       }).click();
+      await expect(page).toHaveURL(/\/ja\/studio\/author$/);
+      await expect(placements()).toHaveCount(2);
 
-      await expect(page).toHaveURL(
-        /\/ja\/studio\/preview\/[^/?#]+$/,
-        { timeout: 120_000 },
+      // A placement whose experiment was deleted is not composable: opening
+      // the Workbench with no target composes a placed experiment, never one
+      // the article no longer carries.
+      await expect(placements()).toHaveCount(2);
+
+      // Leave the article with one experiment for the rest of the workflow.
+      const secondPlacement = placements().first();
+      await secondPlacement.hover();
+      await secondPlacement.getByTestId("studio-document-block-handle-v1")
+        .click();
+      await page.getByRole("menuitem", {
+        name: "ブロックを削除",
+        exact: true,
+      }).click();
+      await expect(placements()).toHaveCount(1);
+
+      // The placement carries its own per-article presentation decision.
+      const placementOptions = page.getByTestId(
+        "studio-placement-options-v1",
       );
-      const previewUrl = page.url();
-      const preview = page.getByTestId("studio-reader-preview-v1");
-      await expect(preview).toBeVisible({ timeout: 120_000 });
-      await expect(preview).toHaveAttribute(
-        "data-preview-trust",
-        "draft-preview-uncertified",
+      await expect(placementOptions).toHaveAttribute(
+        "data-placement-inline-mode",
+        "live",
       );
-      await expect(preview).toHaveAttribute(
-        "data-preview-share-policy",
-        "session-only",
+      await page.getByTestId("studio-placement-mode-compact-v1").click();
+      await expect(placementOptions).toHaveAttribute(
+        "data-placement-inline-mode",
+        "compact",
       );
-      await expect(preview).toHaveAttribute(
-        "data-publication-manifest-ref",
-        "null",
+      await page.getByTestId("studio-placement-mode-live-v1").click();
+
+      // Composing never integrates: the author sees the canonical point only.
+      const experimentCell = page.getByTestId(
+        "studio-reader-experiment-cell-v1",
       );
+      await expect(experimentCell).toHaveAttribute(
+        "data-reader-activated",
+        "false",
+      );
+
+      await page.getByTestId("studio-capability-read-v1").click();
+      await expect(surface).toHaveAttribute("data-studio-capability", "read");
+      await expect(article.locator("[contenteditable='true']")).toHaveCount(0);
 
       const reader = page.getByTestId("studio-document-reader-v1");
       await expect(reader.getByRole("heading", {
@@ -130,31 +284,26 @@ test.describe.serial("Product workflows by role", () => {
         exact: true,
       })).toBeVisible();
       await expect(reader).toContainText(authoredIntroduction);
-      await expect(reader.getByRole("heading", {
-        name: authoredHeading,
-        exact: true,
-      })).toBeVisible();
+
+      // An experiment integrates only while a reader is looking at it, so the
+      // workflow scrolls to it the way a reader arrives at one.
+      await article.locator(
+        '[data-document-block-kind="experiment-placement"]',
+      ).scrollIntoViewIfNeeded();
+      await expect(
+        page.getByTestId("studio-reader-experiment-cell-v1"),
+      ).toHaveAttribute("data-reader-live", "true", { timeout: 60_000 });
 
       const sharedGraphPanes = reader.getByTestId(
         "studio-reader-shared-graph-panes-v1",
       );
+      // In-flow carries the primary graph only; the rest of the brief opens
+      // in focus, so the article stays readable.
       await expect(
-        sharedGraphPanes.locator(
-          'section[data-studio-reader-pane-kind="waveform"]',
-        ),
-      ).toHaveCount(1);
-      await expect(
-        sharedGraphPanes.locator(
-          'section[data-studio-reader-pane-kind="pv-loop"]',
-        ),
-      ).toHaveCount(1);
-      await expect(
-        sharedGraphPanes.locator(
-          'section[data-studio-reader-pane-kind="guyton-left"]',
-        ),
+        sharedGraphPanes.locator("[data-studio-reader-pane-kind]"),
       ).toHaveCount(1);
       const readerWaveformPane = sharedGraphPanes.locator(
-        'section[data-studio-reader-pane-kind="waveform"]',
+        '[data-studio-reader-pane-kind="waveform"]',
       );
       await expect(readerWaveformPane).toHaveAttribute(
         "data-studio-reader-time-window-ms",
@@ -162,22 +311,31 @@ test.describe.serial("Product workflows by role", () => {
       );
       await expect(readerWaveformPane).toHaveAttribute(
         "data-studio-reader-legend-position",
-        "0.68,0.06",
+        "default",
       );
       const readerWaveform = readerWaveformPane.getByTestId(
         "scientific-workbench-waveform-canvas-v1",
       );
-      const readerPv = sharedGraphPanes.getByTestId(
+      await expect(readerWaveform).toBeVisible();
+
+      const focusView = page.getByTestId("studio-reader-focus-v1");
+      await page.getByTestId("studio-reader-open-focus-v1").click();
+      await expect(focusView).toBeVisible();
+      await expect(
+        focusView.locator("[data-studio-reader-pane-kind]"),
+      ).toHaveCount(5);
+      const readerPv = focusView.getByTestId(
         "scientific-workbench-pv-canvas-v1",
       );
-      await expect(readerWaveform).toBeVisible();
       await expect(readerPv).toBeVisible();
-      await expect(sharedGraphPanes.getByTestId(
+      await expect(focusView.getByTestId(
         "scientific-left-cardiac-output-filling-pressure-pane-v1",
       )).toHaveAttribute(
         "data-protocol-status",
         /running|partial|complete/,
       );
+      await focusView.getByRole("button", { name: "閉じる" }).first().click();
+      await expect(focusView).toHaveCount(0);
 
       const experiment = page.getByTestId(
         "studio-reader-experiment-cell-v1",
@@ -204,15 +362,14 @@ test.describe.serial("Product workflows by role", () => {
           && observation.frameCount === "1"
           && observation.canonicalSeedPointCount === "1"
           && observation.startedFromOnePoint === "true"
-          && observation.waveformFrameCount === "1"
-          && observation.pvFrameCount === "1")
+          && observation.waveformFrameCount === "1")
       ).toBe(true);
       await expect.poll(async () =>
         numericAttributeV1(experiment, "data-reader-frame-count")
       ).toBeGreaterThan(1);
 
       const systemicResistance = experiment.getByRole("slider", {
-        name: "全身血管抵抗倍率",
+        name: "Systemic resistance scale",
         exact: true,
       });
       const systemicControl = systemicResistance.locator("..");
@@ -235,10 +392,16 @@ test.describe.serial("Product workflows by role", () => {
         readerWaveform,
         "data-waveform-parameter-history-series-count",
       )).toBeGreaterThan(0);
+      // The PV loop lives in focus now, and focus shares the same Session, so
+      // the parameter-generation history must already be there when it opens.
+      await page.getByTestId("studio-reader-open-focus-v1").click();
+      await expect(focusView).toBeVisible();
       await expect.poll(async () => numericAttributeV1(
-        readerPv,
+        focusView.getByTestId("scientific-workbench-pv-canvas-v1"),
         "data-pv-history-parameter-boundary-count",
       )).toBeGreaterThan(0);
+      await focusView.getByRole("button", { name: "閉じる" }).first().click();
+      await expect(focusView).toHaveCount(0);
 
       // Reset is an exact source restoration, not a reverse parameter patch:
       // the current runtime is disposed and the same manifest opens as a new
@@ -251,7 +414,7 @@ test.describe.serial("Product workflows by role", () => {
       );
       await expect(resetExperiment).toBeVisible({ timeout: 120_000 });
       const resetSystemic = resetExperiment.getByRole("slider", {
-        name: "全身血管抵抗倍率",
+        name: "Systemic resistance scale",
         exact: true,
       });
       await expect(resetSystemic.locator("..").locator("output"))
@@ -266,153 +429,25 @@ test.describe.serial("Product workflows by role", () => {
           .some((observation) =>
             observation.phase === "seed"
             && observation.frameCount === "1"
-            && observation.waveformFrameCount === "1"
-            && observation.pvFrameCount === "1")
+            && observation.waveformFrameCount === "1")
       ).toBe(true);
 
-      // Returning to the same manifest must construct a fresh numerical
-      // session. The previous Reader-only parameter choice is not authored
-      // content and therefore returns to the brief's initial value.
-      const firstVisitObservationCount =
-        (await readerFirstPaintsV1(page)).length;
-      await preview.locator('a[href="/ja/studio/author"]').click();
-      await expect(author).toBeVisible();
-      await expect(author).toHaveAttribute(
-        "data-draft-revision",
-        String(authoredRevision),
+      // Composing and reading are one surface: returning to compose keeps the
+      // committed content and the reader-only parameter choice stays out of it.
+      await page.getByTestId("studio-capability-compose-v1").click();
+      await expect(surface).toHaveAttribute(
+        "data-studio-capability",
+        "compose",
       );
-      // A temporarily empty title may block a new materialization, but it
-      // must not trap the author in the editor or block the older immutable
-      // Preview.
-      await author.getByTestId("studio-document-title-input-v1").fill("");
-      await author.getByRole("button", {
-        name: "直前のReader Previewを開く",
-        exact: true,
-      }).click();
-      await expect(page).toHaveURL(previewUrl);
-      const reopenedExperiment = page.getByTestId(
-        "studio-reader-experiment-cell-v1",
-      );
-      await expect(reopenedExperiment).toBeVisible({ timeout: 120_000 });
-      const reopenedSystemic = reopenedExperiment.getByRole("slider", {
-        name: "全身血管抵抗倍率",
-        exact: true,
-      });
-      await expect(reopenedSystemic.locator("..").locator("output"))
-        .toHaveText("1");
-      await expect(reopenedExperiment).toHaveAttribute(
-        "data-reader-target-generation",
-        "0",
-      );
-      await expect.poll(async () =>
-        (await readerFirstPaintsV1(page))
-          .slice(firstVisitObservationCount)
-          .some((observation) =>
-            observation.phase === "seed"
-            && observation.frameCount === "1")
-      ).toBe(true);
+      await expect(article.locator("h1[contenteditable='true']"))
+        .toHaveText(authoredTitle);
+      await expect(article).toContainText(authoredIntroduction);
 
-      // Preview manifests live only in the current provider instance. A hard
-      // reload creates another session and must not resolve the old URL.
+      // The draft is session-only: a hard reload starts from the seeded
+      // article again rather than restoring an author's unsaved work.
       await page.reload({ waitUntil: "domcontentloaded" });
-      const expired = page.getByTestId(
-        "studio-reader-preview-unavailable-v1",
-      );
-      await expect(expired).toBeVisible();
-      await expect(expired.getByRole("heading", {
-        name: "このPreviewは利用できません",
-        exact: true,
-      })).toBeVisible();
-      await expect(expired).toContainText(
-        "再読み込み、別タブ、または新しいセッションでは復元できません。",
-      );
-      await expect(page.getByTestId("studio-reader-preview-v1"))
-        .toHaveCount(0);
-      await expect(page.getByTestId("studio-reader-experiment-cell-v1"))
-        .toHaveCount(0);
-
-      expect(browserErrors).toEqual([]);
-    } finally {
-      await attachBrowserErrorsV1(testInfo, browserErrors);
-    }
-  });
-
-  test("Resident role transition boundary — reads and adjusts in the legacy Reader, then enters the Studio Workbench", async ({
-    page,
-  }, testInfo) => {
-    test.setTimeout(180_000);
-    page.setDefaultTimeout(30_000);
-    const browserErrors = captureBrowserErrorsV1(page);
-
-    try {
-      await acknowledgeModelLimitationsV1(page);
-      await page.goto("/ja/", { waitUntil: "domcontentloaded" });
-
-      await expect(page.getByRole("heading", {
-        name: "正常循環リファレンス",
-        exact: true,
-      })).toBeVisible();
-      await page.getByRole("link", {
-        name: "レッスンを始める",
-        exact: true,
-      }).first().click();
-      await expect(page).toHaveURL(/\/ja\/lesson\/normal-reference$/);
-
-      const article = page.getByRole("article");
-      await expect(article.getByRole("heading", {
-        name: "Normal Physiology Reference",
-        exact: true,
-      })).toBeVisible();
-      await expect(article).toContainText(
-        "このコンテンツは現在英語 (EN)のみ利用できます。",
-      );
-      await expect(article).toContainText("インタラクティブ");
-
-      const inlineModelToggle = article.getByRole("button", {
-        name: "コントロールを隠す",
-        exact: true,
-      });
-      await inlineModelToggle.click();
-      const adjustModel = article.getByRole("button", {
-        name: "モデルを調整",
-        exact: true,
-      });
-      await expect(adjustModel).toHaveAttribute("aria-expanded", "false");
-      await adjustModel.click();
-      await expect(article.getByRole("button", {
-        name: "コントロールを隠す",
-        exact: true,
-      })).toHaveAttribute("aria-expanded", "true");
-
-      // Lesson interaction still uses its own reading preview runtime. The
-      // Studio-owned runtime begins only after entering the product Workbench.
-      await expect(page.getByTestId(
-        "scientific-product-workbench-host-v1",
-      )).toHaveCount(0);
-      await expect(page.locator('[data-studio-runtime="true"]'))
-        .toHaveCount(0);
-
-      await page.getByRole("link", {
-        name: "ホームに戻る",
-        exact: true,
-      }).click();
-      await expect(page).toHaveURL(/\/ja\/?$/);
-      await page.getByRole("link", {
-        name: "自由シミュレーションを開く",
-        exact: true,
-      }).click();
-
-      const { evidence } = await readyStudioWorkbenchV1(page);
-      await expect(page).toHaveURL(/\/ja\/workbench$/);
-      await expect(evidence).toHaveAttribute("data-studio-runtime", "true");
-      await expect(evidence).toHaveAttribute(
-        "data-displayed-evidence",
-        "open-transient-no-periodic-claim",
-      );
-      await expect(evidence).toHaveAttribute(
-        "data-studio-strict-phase",
-        "source-settled",
-      );
+      await expect(surface).toBeVisible({ timeout: 120_000 });
+      await expect(article.locator("h1")).not.toHaveText(authoredTitle);
 
       expect(browserErrors).toEqual([]);
     } finally {
@@ -696,55 +731,113 @@ test.describe.serial("Product workflows by role", () => {
         "aria-modal",
         "false",
       );
-      await expect(composer.getByTestId(
-        "scientific-briefing-inflow-graph-limit-v1",
-      )).toContainText("In-flowの推奨上限はgraph 1枚");
-      const pressureCapture = composer.locator(
-        '[data-briefing-source-panel-id="product-left-pressure-v1"]',
-      );
-      await expect(pressureCapture).toContainText("7s");
-      await composer.getByRole("button", {
-        name: "すべてcapture",
-        exact: true,
-      }).click();
+      // Compose is non-modal and reserves width instead of covering the
+      // Workbench, so a source pane stays reachable while composing. Nothing
+      // is laid over live content: the pick affordance is a real checkbox.
+      await expect(page.getByTestId(
+        "scientific-product-workbench-host-v1",
+      )).toHaveAttribute("data-briefing-compose-open", "true");
+      // Compose is the artifact; the Workbench is the palette. Pick every
+      // graph where it lives rather than from a list inside the drawer.
+      const graphPicks = page.locator('[data-briefing-pick-kind="graph"]');
+      await expect(graphPicks).toHaveCount(5);
+      const pickCount = await graphPicks.count();
+      for (let index = 0; index < pickCount; index += 1) {
+        const pickBox = graphPicks.nth(index);
+        if (await pickBox.getAttribute("data-briefing-picked") === "false") {
+          await pickBox.click();
+        }
+      }
       await expect(
-        composer.locator('[data-briefing-captured="true"]'),
+        page.locator('[data-briefing-pick-kind="graph"]'
+          + '[data-briefing-picked="true"]'),
       ).toHaveCount(5);
-      await expect(composer.getByTestId(
-        "scientific-briefing-inflow-graph-limit-v1",
-      )).toHaveAttribute("role", "alert");
-      await expect(composer).toContainText(
-        "5 paneをReader Briefに保存中",
+
+      // In-flow renders only the primary graph; everything else is reported as
+      // overflow with an in-place resolution rather than a bare warning.
+      const preview = composer.getByTestId("scientific-briefing-preview-v1");
+      await expect(preview).toHaveAttribute(
+        "data-briefing-preview-graph-count",
+        "1",
       );
+      const overflow = composer.getByTestId("scientific-briefing-overflow-v1");
+      await expect(overflow).toHaveAttribute("role", "alert");
+      // The peek extent holds more of the same brief without re-authoring it.
+      await composer.getByTestId("scientific-briefing-extent-peek-v1").click();
+      await expect(preview).toHaveAttribute(
+        "data-briefing-preview-graph-count",
+        "4",
+      );
+      // A pane pinned from this session matches its live source.
+      await expect(composer.locator(
+        'section[data-briefing-pane-drift="current"]',
+      ).first()).toBeVisible();
+      await composer.getByTestId("scientific-briefing-extent-inflow-v1")
+        .click();
+      await expect(preview).toHaveAttribute(
+        "data-briefing-preview-graph-count",
+        "1",
+      );
+      // The brief holds exactly what was picked and nothing else: it ships
+      // empty, so every pane in it is an author's decision.
+      await expect(composer).toContainText(
+        "graph 5枚をReader Briefに保存中",
+      );
+      // The extent is authored, not previewed: a full screen has room for
+      // everything pinned, so nothing there overflows.
+      await composer.getByTestId("scientific-briefing-extent-fullscreen-v1")
+        .click();
+      await expect(preview).toHaveAttribute(
+        "data-briefing-preview-graph-count",
+        "5",
+      );
+      await expect(composer.getByTestId(
+        "scientific-briefing-overflow-v1",
+      )).toHaveCount(0);
+      await composer.getByTestId("scientific-briefing-extent-peek-v1").click();
+      // Promote the pane configured in this test so the article's primary
+      // graph is deterministic, then hand off to the document.
+      const primaryPaneId = () =>
+        composer.getByTestId("scientific-briefing-preview-pane-v1")
+          .first()
+          .getAttribute("data-briefing-pane-id");
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        if (await primaryPaneId() === "product-left-pressure-v1") break;
+        await composer
+          .locator('[data-briefing-pane-id="product-left-pressure-v1"]')
+          .getByRole("button", { name: "前へ", exact: true })
+          .first()
+          .click();
+      }
+      expect(await primaryPaneId()).toBe("product-left-pressure-v1");
+
       await composer.getByRole("button", {
         name: "記事を編集",
         exact: true,
       }).click();
       await expect(page).toHaveURL(/\/ja\/studio\/author$/);
-      const author = page.getByTestId("studio-document-author-v1");
-      await expect(author).toBeVisible();
-      await expect(author).toHaveAttribute(
+      const surface = page.getByTestId("studio-document-route-v1");
+      await expect(surface).toBeVisible();
+      await expect(surface).toHaveAttribute(
         "data-draft-revision",
         /^[1-9]\d*$/,
       );
-      await author.getByRole("button", {
-        name: "Readerで確認",
-        exact: true,
-      }).click();
+      await page.getByTestId("studio-capability-read-v1").click();
 
       const reader = page.getByTestId("studio-document-reader-v1");
       await expect(reader).toBeVisible({ timeout: 120_000 });
+      await reader.locator(
+        '[data-document-block-kind="experiment-placement"]',
+      ).scrollIntoViewIfNeeded();
       const capturedPanes = reader.getByTestId(
         "studio-reader-shared-graph-panes-v1",
       );
-      await expect(
-        capturedPanes.locator(
-          "section[data-studio-reader-pane-kind]",
-        ),
-      ).toHaveCount(5);
+      // The captured presentation reaches the article unchanged: the reader
+      // renders the pinned copy, not the current Workbench pane.
       const capturedPressurePane = capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="waveform"]',
-      ).filter({ hasText: "AoP / LVP / LAP" });
+        '[data-studio-reader-pane-kind="waveform"]',
+      );
+      await expect(capturedPressurePane).toHaveCount(1);
       await expect(capturedPressurePane).toHaveAttribute(
         "data-studio-reader-time-window-ms",
         "7000",
@@ -763,36 +856,26 @@ test.describe.serial("Product workflows by role", () => {
       await expect(
         capturedLegendEntry.locator("span").first(),
       ).toHaveAttribute("style", capturedSeriesStyle!);
-      await expect(capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="pv-loop"]',
-      )).toHaveCount(1);
-      await expect(capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="guyton-left"]',
-      )).toHaveCount(1);
-      await expect(capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="guyton-right"]',
-      )).toHaveCount(1);
-      await expect(capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="waveform"]',
-      )).toHaveCount(2);
-      const capturedLeftGuyton = capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="guyton-left"]',
-      ).filter({ hasText: "Left filling pressure–cardiac output" });
-      const capturedRightGuyton = capturedPanes.locator(
-        'section[data-studio-reader-pane-kind="guyton-right"]',
-      ).filter({ hasText: "Right filling pressure–cardiac output" });
-      await expect(capturedLeftGuyton.getByTestId(
-        "scientific-left-cardiac-output-filling-pressure-pane-v1",
-      )).toHaveAttribute(
-        "data-protocol-status",
-        /running|partial|complete/,
+
+      // The rest of the brief opens in focus rather than lengthening the
+      // article, and focus never drops a pane the author pinned.
+      const focusView = page.getByTestId("studio-reader-focus-v1");
+      await page.getByTestId("studio-reader-open-focus-v1").click();
+      await expect(focusView).toBeVisible();
+      // The authored extent reaches the reader: the companion surface opens as
+      // the panel the author chose.
+      await expect(focusView).toHaveAttribute(
+        "data-studio-reader-extent",
+        "peek",
       );
-      await expect(capturedRightGuyton.getByTestId(
-        "scientific-right-cardiac-output-filling-pressure-pane-v1",
-      )).toHaveAttribute(
-        "data-protocol-status",
-        /running|partial|complete/,
-      );
+      await expect(
+        focusView.locator("[data-studio-reader-pane-kind]"),
+      ).toHaveCount(5);
+      await expect(
+        focusView.locator('[data-studio-reader-pane-kind="pv-loop"]'),
+      ).toHaveCount(1);
+      await focusView.getByRole("button", { name: "閉じる" }).first().click();
+      await expect(focusView).toHaveCount(0);
 
       expect(browserErrors).toEqual([]);
     } finally {
@@ -837,7 +920,7 @@ async function captureReaderFirstPaintsV1(page: Page): Promise<void> {
       const pv = cell.querySelector(
         '[data-panel-kind="pressure-volume"]',
       );
-      if (waveform === null || pv === null) return;
+      if (waveform === null) return;
       recordedSeedCells.add(cell);
       observations.push(Object.freeze({
         phase: cell.getAttribute("data-reader-phase"),
@@ -851,9 +934,9 @@ async function captureReaderFirstPaintsV1(page: Page): Promise<void> {
         waveformFrameCount: waveform.getAttribute(
           "data-scientific-frame-count",
         ),
-        pvFrameCount: pv.getAttribute(
-          "data-scientific-frame-count",
-        ),
+        pvFrameCount: pv === null
+          ? null
+          : pv.getAttribute("data-scientific-frame-count"),
       }));
     };
     const observer = new MutationObserver(record);

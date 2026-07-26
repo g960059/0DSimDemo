@@ -2,6 +2,11 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 
 import { ControllerItemControl } from "@/components/controls/ControllerItemControl";
+import {
+  StudioBriefingPickBoxV1,
+  studioBriefingPickedEdgeClassV1,
+  useStudioBriefingPickV1,
+} from "./ScientificWorkbenchBriefingPickV1";
 import { shouldEnableLegendInteractions } from "@/components/InteractiveGraphLegend";
 import {
   deriveMainWireScientificMetricsV1,
@@ -411,7 +416,42 @@ export const SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1 = Object.freeze(
  * fixed windows, legend placement, PV history and protocol demand therefore
  * have one owner.
  */
-export function ScientificProductGraphPaneV1({
+export function ScientificProductGraphPaneV1(props: Readonly<{
+  panel: PanelDef;
+  registry: ScientificProductRuntimeRegistryPortV1;
+  clock: ScientificWorkbenchDisplayClockV1;
+  renderContext: WorkbenchRuntimeRenderContext;
+}>) {
+  const pick = useStudioBriefingPickV1();
+  // Reading surfaces render the pane itself; only compose adds a pick layer.
+  // The wrapper is unconditional: switching the element type at this position
+  // would unmount the pane inside its Dockview host on every compose toggle.
+  const picking = pick !== null
+    && props.renderContext.presentationMode !== "reading";
+  const paneId = props.panel.sourceViewId ?? props.panel.id;
+  const picked = picking && pick !== null && pick.isGraphPinned(paneId);
+  return (
+    <div
+      className={`relative h-full min-h-0 w-full ${
+        studioBriefingPickedEdgeClassV1(picked)
+      }`}
+    >
+      <ScientificProductGraphPaneBodyV1 {...props} />
+      {picking && pick !== null && (
+        <StudioBriefingPickBoxV1
+          kind="graph"
+          placement="corner"
+          pickKey={paneId}
+          picked={pick.isGraphPinned(paneId)}
+          label={props.panel.title}
+          onToggle={() => pick.toggleGraph(props.panel.id, paneId)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ScientificProductGraphPaneBodyV1({
   panel,
   registry,
   clock,
@@ -2255,6 +2295,7 @@ function ScientificMetricsPanelV1({
   registry: ScientificProductRuntimeRegistryPortV1;
   selections: Readonly<Record<string, readonly string[]>>;
 }>) {
+  const pick = useStudioBriefingPickV1();
   const presentations = useScientificScenarioPresentationsV1(registry).filter(
     ({ descriptor }) => descriptor.isVisible && selections[descriptor.id],
   );
@@ -2333,7 +2374,11 @@ function ScientificMetricsPanelV1({
                 return (
                   <div
                     key={`${presentation.descriptor.id}:${metricId}`}
-                    className="min-w-0 py-0.5"
+                    className={`min-w-0 rounded py-0.5 ${
+                      pick !== null && pick.isBeatMetricPinned(metricId)
+                        ? `pl-1.5 ${studioBriefingPickedEdgeClassV1(true)}`
+                        : ""
+                    }`}
                     data-metric-id={metricId}
                     data-availability={metric.availability}
                     data-periodic-boundary-completion={String(
@@ -2348,9 +2393,23 @@ function ScientificMetricsPanelV1({
                     }
                   >
                     <dt
-                      className="truncate text-[10px] font-medium leading-4 text-wb-subtle"
+                      className="flex items-center gap-1.5 truncate text-[10px] font-medium leading-4 text-wb-subtle"
                       title={metricPresentation.label}
                     >
+                      {pick !== null && (
+                        <StudioBriefingPickBoxV1
+                          kind="metric"
+                          size="sm"
+                          pickKey={metricId}
+                          picked={pick.isBeatMetricPinned(metricId)}
+                          label={metricPresentation.label}
+                          onToggle={() => pick.toggleBeatMetric(
+                            metricId,
+                            metricPresentation.label,
+                            metricPresentation.unit,
+                          )}
+                        />
+                      )}
                       <span aria-hidden="true">
                         {metricPresentation.shortLabel}
                       </span>
@@ -2390,7 +2449,7 @@ function ScientificMetricsPanelV1({
   );
 }
 
-function metricEvaluationForPresentationV1(
+export function metricEvaluationForPresentationV1(
   presentation: ScientificProductScenarioPresentationV1,
 ): MainWireScientificDerivedMetricEvaluationV1 {
   const cycle = presentation.metricCycle;
@@ -2418,6 +2477,7 @@ function ScientificControllerPanelV1({
   items: readonly ControllerItem[];
   targetScenarioId?: string;
 }>) {
+  const pick = useStudioBriefingPickV1();
   const descriptors = React.useSyncExternalStore(
     registry.subscribeDescriptors,
     registry.getDescriptorSnapshot,
@@ -2514,7 +2574,37 @@ function ScientificControllerPanelV1({
             const domain =
               MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0[controlId];
             const releaseItem = scientificControllerItemForReleaseV1(item);
+            const controlPick = pick === null
+              ? null
+              : {
+                picked: pick.isControlPinned(controlId),
+                toggle: () => pick.toggleControl(controlId),
+              };
             return (
+              <div
+                key={`pick:${scientificControllerInteractionKeyV1(
+                  descriptor.id,
+                  descriptor.source.releaseSha256,
+                  item,
+                )}`}
+                className={controlPick === null
+                  ? undefined
+                  : `flex items-start gap-2 rounded ${
+                    studioBriefingPickedEdgeClassV1(controlPick.picked)
+                  } ${controlPick.picked ? "pl-2" : "pl-0"}`}
+              >
+              {controlPick !== null && (
+                <span className="pt-2">
+                  <StudioBriefingPickBoxV1
+                    kind="control"
+                    pickKey={controlId}
+                    picked={controlPick.picked}
+                    label={releaseItem.label ?? controlId}
+                    onToggle={controlPick.toggle}
+                  />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
               <ControllerItemControl
                 key={scientificControllerInteractionKeyV1(
                   descriptor.id,
@@ -2545,6 +2635,8 @@ function ScientificControllerPanelV1({
                 }}
                 disabled={!controlsEditable}
               />
+              </div>
+              </div>
             );
           })}
         </div>

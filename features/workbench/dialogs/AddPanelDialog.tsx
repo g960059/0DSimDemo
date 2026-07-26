@@ -33,17 +33,17 @@ export function AddPanelDialog({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl p-6 w-full max-w-lg">
-        <h2 className="text-lg font-bold text-slate-200 mb-4 tracking-tight">{t('workbench.dialogs.addPanel.title', { panelType })}</h2>
+      <div className="bg-wb-panel border border-wb-line rounded-lg shadow-2xl p-6 w-full max-w-lg">
+        <h2 className="text-lg font-bold text-wb-text mb-4 tracking-tight">{t('workbench.dialogs.addPanel.title', { panelType })}</h2>
 
         <div className="max-h-[60vh] overflow-y-auto space-y-4 mb-6 custom-scrollbar pr-2">
           {instances.map(inst => (
-            <div key={inst.id} className="bg-slate-800/50 p-3 rounded border border-slate-700">
+            <div key={inst.id} className="bg-wb-soft p-3 rounded border border-wb-line">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-3">
                   <input
                     type="checkbox"
-                    className="w-4 h-4 cursor-pointer accent-blue-500"
+                    className="w-4 h-4 cursor-pointer accent-wb-accent"
                     checked={config[inst.id]?.visible || false}
                     onChange={() => setConfig(prev => ({
                       ...prev, [inst.id]: { ...prev[inst.id], visible: !prev[inst.id]?.visible }
@@ -51,7 +51,7 @@ export function AddPanelDialog({
                   />
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: inst.color }}></span>
-                    <span className="text-sm font-bold text-slate-300">{inst.name}</span>
+                    <span className="text-sm font-bold text-wb-muted">{inst.name}</span>
                   </div>
                 </div>
               </div>
@@ -60,7 +60,7 @@ export function AddPanelDialog({
                 'GUYTON_LEFT',
                 'GUYTON_3D',
               ].includes(panelType) && (
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                <div className="grid grid-cols-3 md:grid-cols-4 gap-2 mt-3 pt-3 border-t border-wb-line/50">
                   {choices.map(sig => {
                     const isSelected = config[inst.id]?.selectedSignals.includes(sig);
                     return (
@@ -73,7 +73,7 @@ export function AddPanelDialog({
                             return { ...prev, [inst.id]: { ...prev[inst.id], selectedSignals: Array.from(currentSigs) } };
                           });
                         }}
-                        className={`py-1.5 px-2 text-xs rounded transition-colors text-center font-mono ${isSelected ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50' : 'bg-slate-950 text-slate-500 border border-slate-800 hover:border-slate-600'}`}
+                        className={`py-1.5 px-2 text-xs rounded transition-colors text-center font-mono ${isSelected ? 'bg-blue-500/20 text-blue-300 border border-blue-500/50' : 'bg-wb-app text-wb-subtle border border-wb-line hover:border-wb-line-strong'}`}
                       >
                         {sig}
                       </button>
@@ -86,8 +86,8 @@ export function AddPanelDialog({
         </div>
 
         <div className="flex items-center justify-end gap-3 pt-2">
-          <button onClick={onCancel} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200 transition-colors">{t('common.cancel')}</button>
-          <button onClick={onConfirm} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded shadow transition-colors">{t('workbench.dialogs.addPanel.confirm')}</button>
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-wb-muted hover:text-wb-text transition-colors">{t('common.cancel')}</button>
+          <button onClick={onConfirm} className="px-6 py-2 bg-wb-primary hover:bg-wb-primary-hover text-white text-sm font-bold rounded shadow transition-colors">{t('workbench.dialogs.addPanel.confirm')}</button>
         </div>
       </div>
     </div>

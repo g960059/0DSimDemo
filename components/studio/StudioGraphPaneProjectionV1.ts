@@ -28,6 +28,7 @@ import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1,
   type MainWireScientificObservableIdV1,
 } from "@/engine/scientific/observables";
+import { canonicalJsonStringify } from "@/engine/scientific/release";
 
 const OBSERVABLE_IDS_V1 = new Set<string>(
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1,
@@ -211,13 +212,31 @@ export function captureStudioGraphPaneSpecV1({
   });
 }
 
+export type StudioGraphPanePresentationOptionsV1 = Readonly<{
+  /**
+   * Maps portable article scenario ids back onto host runtime scenario ids.
+   * The Reader renders against article ids and omits this; an authoring
+   * preview renders against the live Workbench session and supplies the
+   * inverse of its capture map. Unmapped ids fall back to themselves so a
+   * missing entry can never silently blank a scenario.
+   */
+  scenarioIdMap?: ReadonlyMap<string, string>;
+  /**
+   * Overrides the reconstructed panel id. A preview rendered beside the live
+   * Workbench must not reuse a live panel id, because per-panel presentation
+   * caches are keyed by it.
+   */
+  panelId?: string;
+}>;
+
 /** Reconstructs the exact read-only pane consumed by the shared renderer. */
 export function panelFromStudioGraphPaneSpecV1(
   pane: StudioGraphPaneSpecV1,
+  options: StudioGraphPanePresentationOptionsV1 = {},
 ): PanelDef {
   const type = panelTypeForStudioGraphPaneKindV1(pane.kind);
   const config = Object.fromEntries(pane.scenarios.map((scenario) => [
-    scenario.scenarioId,
+    options.scenarioIdMap?.get(scenario.scenarioId) ?? scenario.scenarioId,
     {
       visible: true,
       selectedSignals: scenario.items.map(({ itemId }) => itemId),
@@ -235,7 +254,7 @@ export function panelFromStudioGraphPaneSpecV1(
     ? "pvloop"
     : pane.kind;
   const panel: PanelDef & { pvParameterHistoryCount?: number } = {
-    id: pane.paneId,
+    id: options.panelId ?? pane.paneId,
     sourceViewId: pane.paneId,
     type,
     title: pane.title,
@@ -356,6 +375,50 @@ export function isCapturableStudioGraphPanelV1(
   panel: PanelDef,
 ): boolean {
   return studioGraphPaneKindForPanelV1(panel.type) !== null;
+}
+
+/**
+ * Compares two detached pane presentations by value.
+ *
+ * Authoring surfaces use this to detect that a pinned copy no longer matches
+ * its live source. Captures are frozen plain data, so canonical JSON is an
+ * exact comparison and needs no per-field maintenance.
+ */
+export function sameStudioGraphPaneSpecV1(
+  left: StudioGraphPaneSpecV1,
+  right: StudioGraphPaneSpecV1,
+): boolean {
+  return canonicalJsonStringify(left) === canonicalJsonStringify(right);
+}
+
+export type StudioGraphPaneCaptureDriftV1 =
+  | Readonly<{ kind: "current" }>
+  | Readonly<{ kind: "drifted" }>
+  /** The live pane can no longer be captured at all (e.g. hidden scenario). */
+  | Readonly<{ kind: "uncapturable"; reason: string }>;
+
+/**
+ * Reports whether a pinned pane still matches what capturing it now produces.
+ *
+ * This never throws: an uncapturable source is a reportable authoring state,
+ * not a failure of the compose surface.
+ */
+export function studioGraphPaneCaptureDriftV1(
+  pinned: StudioGraphPaneSpecV1,
+  input: CaptureStudioGraphPaneSpecV1Input,
+): StudioGraphPaneCaptureDriftV1 {
+  let candidate: StudioGraphPaneSpecV1;
+  try {
+    candidate = captureStudioGraphPaneSpecV1(input);
+  } catch (error) {
+    return Object.freeze({
+      kind: "uncapturable",
+      reason: error instanceof Error ? error.message : String(error),
+    });
+  }
+  return sameStudioGraphPaneSpecV1(pinned, candidate)
+    ? Object.freeze({ kind: "current" })
+    : Object.freeze({ kind: "drifted" });
 }
 
 function studioGraphPaneKindForPanelV1(

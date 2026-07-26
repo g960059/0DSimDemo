@@ -10,15 +10,15 @@ export const OfficialCases = () => {
   const locale = localeFromPathname(location.pathname);
 
   return (
-    <div className="h-full w-full overflow-y-auto p-4 sm:p-8 bg-slate-950 text-slate-200">
-      <div className="max-w-5xl mx-auto space-y-10">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold">{t('cases.title')}</h1>
+    <div className="h-full w-full overflow-y-auto bg-wb-app p-6 text-wb-text sm:p-10">
+      <div className="mx-auto max-w-5xl space-y-10">
+        <div className="mb-8 flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-wb-text">{t('cases.title')}</h1>
         </div>
 
         <section>
-          <h2 className="mb-1 text-xl font-bold text-slate-100">{t('cases.scientificCases')}</h2>
-          <p className="mb-4 text-sm text-slate-400">
+          <h2 className="mb-1 text-xl font-bold text-wb-text">{t('cases.scientificCases')}</h2>
+          <p className="mb-4 text-sm leading-6 text-wb-muted">
             {t('cases.scientificCasesDescription')}
           </p>
           <ScientificProductCasesGridV1

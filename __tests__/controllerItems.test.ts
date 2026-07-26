@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { groupControllerItemsByCategory, normalizeControllerItems } from "@/controllerItems";
-import { mergePanelControllerItems } from "@/WorkbenchPage";
+import { mergePanelControllerItems } from "@/features/workbench/workbenchDefaults";
 import { readingToStudioZones } from "@/readingConversion";
 import type { ControllerItem, PanelDef } from "@/types";
 

@@ -45,7 +45,6 @@ describe("myocardium Phase 4B-B tissue homogenization readiness", () => {
     expect(report.identityAdapterCandidate.params).toEqual(IDENTITY_FIBER_NOMINAL_V1_PARAMS);
     expect(report.identityAdapterCandidate.descriptorMatchesRuntimeParams).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "caseDoc.ts")).toBe(true);
-    expect(input.runtimeIntegrationFiles.some((file) => file.path === "features/workbench/casePublish.ts")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "engine/previewWorker.ts")).toBe(true);
     expect(serialized).not.toMatch(
       /\bproductionHomogenizationCompleted\b|\bofficialMorphologyPass\b|"liveRuntimeReplacement":true|"calciumCyclingAlternansValidation":"(?:validated|accepted|claimed)"/i,
@@ -125,7 +124,7 @@ describe("myocardium Phase 4B-B tissue homogenization readiness", () => {
           + '"liveRuntimeReplacement": true}',
       },
       {
-        path: "features/workbench/casePublish.ts",
+        path: "features/workbench/viewSpec.ts",
         text:
           "import { IdentityFiberNominalV1, evaluateIdentityFiberNominalV1 } from '@/engine/myocardium/homogenization';\n"
           + "const id = 'land-tissue-homogenization-phase4b-protocols-v1';\n"

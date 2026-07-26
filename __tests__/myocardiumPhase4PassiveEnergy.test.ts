@@ -48,7 +48,6 @@ describe("myocardium Phase 4C-A passive energy readiness", () => {
     expect(report.passiveCandidate.params).toEqual(PASSIVE_EXPONENTIAL_ENERGY_PHASE4C_A_CANDIDATE_PARAMS);
     expect(report.passiveCandidate.descriptorMatchesRuntimeParams).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "caseDoc.ts")).toBe(true);
-    expect(input.runtimeIntegrationFiles.some((file) => file.path === "features/workbench/casePublish.ts")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "engine/previewController.ts")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "engine/steadyJob.ts")).toBe(true);
     expect(input.runtimeIntegrationFiles.some((file) => file.path === "engine/guytonStarlingChainProtocol.ts")).toBe(true);

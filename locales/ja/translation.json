@@ -1,6 +1,9 @@
 {
   "common": {
     "appName": "CircleHeart",
+    "theme": {
+      "toggle": "テーマを切り替え"
+    },
     "language": {
       "ja": "日本語",
       "en": "EN",
@@ -38,19 +41,16 @@
     "fallbackNotice": "このコンテンツは現在{{locale}}のみ利用できます。"
   },
   "home": {
-    "lead": "ガイド付きレッスン、疾患ケース、自由シミュレーションを通して循環動態を学ぶワークベンチです。",
-    "openWorkbench": "ワークベンチを開く",
-    "openFreeSimulation": "自由シミュレーションを開く",
-    "learnTitle": "学ぶ",
-    "learnDescription": "公式レッスンから始めます。",
-    "openLessonFallback": "対話的レッスンを開きます。",
-    "startLesson": "レッスンを始める",
-    "noLessons": "利用できるレッスンはまだありません。",
+    "eyebrow": "CIRCULATORY PHYSIOLOGY WORKBENCH",
+    "headline": "循環動態を、動かして学ぶ。",
+    "openArticle": "記事を開く",
+    "readTitle": "読む",
+    "readDescription": "記事の中で実験がそのまま動きます。読みながらノブを回して、波形とPVループの応答を見られます。",
+    "lead": "循環動態の記事を読み、埋め込まれた実験をその場で動かせます。実験の中身はWorkbenchで組み立てます。",
     "exploreTitle": "探索する",
     "exploreDescription": "疾患ケースをワークベンチで開きます。",
     "seeAllCases": "すべてのケースを見る",
     "openCase": "ケースを開く",
-    "noCases": "公式ケースはまだありません。",
     "openBlankWorkbench": "空のワークベンチを開く"
   },
   "studioAuthorPreview": {
@@ -107,19 +107,35 @@
       "headingAt": "見出し {{position}}"
     },
     "briefing": {
-      "button": "Briefing",
-      "title": "Briefingを構成",
-      "description": "現在のwindow・色・凡例位置を記事へコピーします。後のpane変更は、更新するまでReaderへ反映されません。",
+      "button": "読者向け構成",
+      "title": "読者に見せる構成",
+      "description": "記事に埋め込む実験の見え方をここで決めます。現在のwindow・色・凡例位置がコピーされ、後のpane変更は同期するまでReaderへ反映されません。",
       "close": "閉じる",
-      "graphPanes": "Graph panes",
-      "captureAll": "すべてcapture",
-      "inflowLimitExceeded": "In-flowの推奨上限はgraph 1枚です。現在{{count}}枚のため、記事が長くなります。本文に必要な1枚を残してください。",
-      "inflowLimitNotice": "In-flowの推奨上限はgraph 1枚です。「すべてcapture」は{{count}}枚を本文内に配置します。",
-      "captured": "capture済み",
-      "capture": "Capture",
-      "updateCapture": "現在設定で更新",
-      "removeCapture": "captureを削除",
-      "paneCount": "{{count}} paneをReader Briefに保存中（session draft）",
+      "extentTablist": "表示範囲",
+      "extentName": {
+        "inflow": "本文内",
+        "peek": "パネル",
+        "fullscreen": "全画面"
+      },
+      "narrowPreview": "スマホ幅",
+      "previewLabel": "読者に見える実物",
+      "previewNotice": "読者が見る実物です。数値と操作は実際のReaderで動きます。",
+      "paletteLabel": "追加できるgraph",
+      "pin": "追加",
+      "pinned": "追加済み",
+      "unpin": "構成から外す",
+      "primary": "主図",
+      "moveUp": "前へ",
+      "moveDown": "後へ",
+      "sync": "同期",
+      "driftNotice": "Workbench側の設定が変わりました。読者にはまだ古い見え方が出ます。",
+      "uncapturableNotice": "この元paneを今はcaptureできません（Workbenchで非表示・削除された可能性があります）。",
+      "overflowTitle": "{{extent}}には入りきらないgraphが{{count}}枚あります",
+      "overflowHelp": "前へ移動して主図にするか、構成から外してください。パネル表示ではより多く並べられます。",
+      "emptyTitle": "まだ何も追加されていません",
+      "emptyDescription": "Workbenchのgraphを追加すると、読者に見える実物がここに表示されます。まずは主図を1枚選びます。",
+      "emptyAction": "「{{title}}」を主図にする",
+      "sessionDraft": "graph {{count}}枚をReader Briefに保存中（session draft）",
       "editArticle": "記事を編集",
       "paneKinds": {
         "waveform": "Waveform",
@@ -130,7 +146,19 @@
       "errors": {
         "missingTarget": "session draftにReader Briefの対象がありません。",
         "missingScenario": "選択中のWorkbench scenarioを記事へ対応付けできません。",
-        "unknownPane": "Workbench pane {{panelId}} が見つかりません。"
+        "unknownPane": "Workbench pane {{panelId}} が見つかりません。",
+        "missingSource": "元のWorkbench paneが見つかりません。",
+        "backsReadbacks": "この波形は、読者に見せる瞬時値または操作{{count}}件の参照元です。先に代わりの波形を追加してください。",
+        "signalNeedsGraph": "「{{label}}」を指標にするには、この波形graphを先に追加してください。"
+      },
+      "metricsLabel": "追加できる指標",
+      "controlsLabel": "追加できる操作",
+      "metricsEmpty": "指標はwaveformのgraphから選べます。先に波形graphを追加してください。",
+      "emptyHint": {
+        "graph": "graphのpaneに出るチェックで、記事に出すgraphを選びます。",
+        "signal": "graphの凡例のチェックで、その波形の瞬時値を指標にできます。",
+        "metric": "下の指標ペインのチェックで、1拍ごとの指標を選べます。",
+        "control": "右の操作のチェックで、読者が動かせるparameterを選べます。"
       }
     },
     "reader": {
@@ -165,14 +193,58 @@
       "runningStatus": "1×で自動実行中です。波形と瞬時値は、受理された新しい点に合わせて更新されます。",
       "pressureGraph": "左室圧と大動脈圧",
       "pressureGraphAria": "時間に対する左室絶対圧と大動脈絶対圧の波形",
-      "timeAxis": "時間（秒）"
+      "timeAxis": "時間（秒）",
+      "launchHint": "開いて操作します。記事内では再生しません。",
+      "openFocus": "詳しく開く",
+      "closeFocus": "閉じる",
+      "activate": "再生する",
+      "emptyBrief": "Workbenchでgraph・数値・操作を選ぶと、ここに読者が見る形で並びます。",
+      "preparingExperiment": "この実験を読み込んでいます。"
+    },
+    "surface": {
+      "capability": "表示モード",
+      "compose": "編集",
+      "read": "読者",
+      "titlePlaceholder": "記事タイトル",
+      "headingPlaceholder": "見出し",
+      "paragraphPlaceholder": "本文を入力（「/」でブロックを挿入）",
+      "appendParagraph": "本文を追加",
+      "insertBelow": "下に段落を挿入",
+      "blockMenu": "ブロックメニュー",
+      "dragBlock": "ドラッグで並び替え、クリックでメニュー",
+      "composeInWorkbench": "Workbenchで構成",
+      "experimentSource": "この実験が読むケース",
+      "closeMenu": "メニューを閉じる",
+      "turnIntoParagraph": "段落にする",
+      "turnIntoHeading2": "見出し2にする",
+      "turnIntoHeading3": "見出し3にする",
+      "insertExperiment": "実験を挿入",
+      "moveUp": "前へ移動",
+      "moveDown": "後へ移動",
+      "removeBlock": "ブロックを削除",
+      "unresolvedExperiment": "この実験を解決できませんでした。",
+      "captionPlaceholder": "この記事でのキャプション（任意）",
+      "inlineMode": {
+        "live": "本文で再生",
+        "compact": "触ると再生",
+        "launch": "開いて再生"
+      },
+      "composeBadge": "編集中",
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "emptyTitle": "記事を書きはじめる",
+      "emptyDescription": "見出しと本文を打ち込み、Workbenchで構成した実験を差し込みます。書き出しに迷うときは、下のひな形から始められます。",
+      "templateExplainer": "解説記事のひな形から始める",
+      "templateTitle": "この実験で何を観察するか",
+      "templateLead": "ここに、読者が何を見ようとしているのかを1〜2文で書きます。",
+      "templateHeading": "読み方",
+      "templateReading": "どの順で何を見ればよいかを書きます。"
     }
   },
   "cases": {
     "title": "ケース",
     "myCases": "自分のケース",
     "noSavedCases": "保存済みケースはまだありません。",
-    "officialCases": "公式ケース",
     "community": "コミュニティ",
     "openCase": "ケースを開く",
     "scientificCases": "科学モデルのケース",
@@ -925,92 +997,6 @@
       "question": "質問",
       "newOption": "新しいオプション",
       "addOption": "オプションを追加"
-    }
-  },
-  "lessonPlayer": {
-    "notFound": {
-      "title": "レッスンが見つかりません",
-      "description": "このレッスンは現在の学習パスでは利用できません。"
-    },
-    "backToHome": "ホームに戻る",
-    "loading": "レッスンを読み込み中...",
-    "reveal": "表示",
-    "next": "次へ",
-    "lesson": "レッスン",
-    "step": "ステップ {{number}}",
-    "back": "戻る",
-    "complete": "完了"
-  },
-  "reading": {
-    "minRead_one": "{{count}}分で読めます",
-    "minRead_other": "{{count}}分で読めます",
-    "interactive": "インタラクティブ",
-    "tableOfContents": "目次",
-    "hideControls": "コントロールを隠す",
-    "adjustModel": "モデルを調整"
-  },
-  "lessons": {
-    "normal-reference": {
-      "title": "正常循環リファレンス",
-      "objective": "正常安静時の波形、PVループ、指標、コントロールを読むための基準点を作ります。"
-    },
-    "acute-anterior-mi": {
-      "title": "急性前壁心筋梗塞: ポンプが止まるとき",
-      "objective": "前壁収縮性の急な低下が、LV PVループ、SV、CO、左房圧をどう変えるかを読みます。"
-    },
-    "systolic-heart-failure": {
-      "title": "収縮不全 HFrEF",
-      "objective": "弱い左室が拍出量と心拍出量を下げ、充満圧とPVループをどう変えるかを理解します。"
-    },
-    "diastolic-heart-failure": {
-      "title": "拡張不全 HFpEF",
-      "objective": "硬く弛緩しにくい左室で、EFが保たれていても充満圧が上がる構造を読みます。"
-    },
-    "aortic-stenosis": {
-      "title": "大動脈弁狭窄: 出口の硬い扉",
-      "objective": "狭い大動脈弁が左室に高圧を要求し、圧較差とPVループにどう現れるかを学びます。"
-    },
-    "hypovolemic-shock": {
-      "title": "低容量性ショック",
-      "objective": "循環血液量低下がpreload、SV、血圧を下げる様子を理解します。"
-    }
-  },
-  "officialCases": {
-    "normal-sinus": {
-      "title": "正常循環",
-      "description": "成人安静時の概ね生理的な基準状態。他のケースはここからのずれとして読みます。"
-    },
-    "acute-anterior-mi": {
-      "title": "急性前壁心筋梗塞: ポンプが止まるとき",
-      "description": "正常心と急性前壁MIを比較し、前壁収縮性低下によるPVループ縮小、SV/CO低下、左房圧上昇を読みます。"
-    },
-    "systolic-heart-failure": {
-      "title": "収縮不全 HFrEF",
-      "description": "正常左室とHFrEFの比較。収縮性低下と後負荷上昇がSV/COを下げ、充満圧を上げる様子を波形、PVループ、指標で読みます。"
-    },
-    "diastolic-heart-failure": {
-      "title": "拡張不全 HFpEF",
-      "description": "硬く弛緩しにくい左室と正常心の比較。ポンプ機能が保たれていても充満圧が上がります。"
-    },
-    "aortic-stenosis": {
-      "title": "大動脈弁狭窄: 出口の硬い扉",
-      "description": "重症大動脈弁狭窄と正常心を比較し、左室が大きな圧較差と高いPVループを作って拍出を保つ様子を読みます。"
-    },
-    "hypovolemic-shock": {
-      "title": "低容量性ショック",
-      "description": "循環血液量を失った状態と正常心の比較。preload低下でPVループが狭く左へ寄り、SV、CO、血圧が下がります。"
-    },
-    "lv-failure-dobutamine": {
-      "title": "心原性ショック: 左室不全 +/- ドブタミン",
-      "description": "重症左室ポンプ不全とbeta-1刺激薬ドブタミンへの反応を並べて比較します。COと血圧は回復し、充満圧は下がります。"
-    },
-    "valve-lesions": {
-      "title": "弁膜症: 大動脈弁狭窄と僧帽弁逆流",
-      "description": "代表的な左心系弁膜症の比較。ASは収縮期のLV-Ao圧較差を作り、MRは左房への逆流でLAPを上げ前方拍出を下げます。"
-    },
-    "hypovolemia": {
-      "title": "循環血液量低下",
-      "description": "出血などによる循環血液量低下。心臓自体は正常でもpreloadが下がり、SVとCOが低下します。"
     }
   },
   "publish": {

@@ -332,7 +332,10 @@ describe("Studio Reader Preview runtime binding V1", () => {
   it("binds the publication-neutral Reader document to its exact preview source", () => {
     const manifest = readerPreviewManifestV1();
 
-    const binding = resolveStudioReaderPreviewRuntimeBindingV1(manifest);
+    const binding = resolveStudioReaderPreviewRuntimeBindingV1(
+      manifest,
+      manifest.resolvedReaderDocument.placements[0]!.placementBlockId,
+    );
 
     expect(binding).toMatchObject({
       scenario: {
@@ -359,6 +362,7 @@ describe("Studio Reader Preview runtime binding V1", () => {
     expect(() =>
       resolveStudioReaderPreviewRuntimeBindingV1(
         wrongModel as unknown as ReaderPreviewManifestV1,
+        wrongModel.resolvedReaderDocument.placements[0]!.placementBlockId,
       )
     ).toThrow(/model identity does not match/);
 
@@ -369,8 +373,52 @@ describe("Studio Reader Preview runtime binding V1", () => {
     expect(() =>
       resolveStudioReaderPreviewRuntimeBindingV1(
         wrongQualification as unknown as ReaderPreviewManifestV1,
+        wrongQualification.resolvedReaderDocument.placements[0]!
+          .placementBlockId,
       )
     ).toThrow(/not qualified for an uncertified preview/);
+  });
+  it("binds each placement of a multi-experiment article on its own", () => {
+    const application = new StudioAuthorPreviewApplicationV1({
+      initialDraft: SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
+      idFactory: () => "reader-binding-multi-test",
+    });
+    const draft = application.getDraftSnapshot();
+    const placement = draft.document.blocks.find((block) =>
+      block.kind === "experiment-placement")!;
+    application.replaceDocumentContent({
+      expectedRevision: draft.revision,
+      title: draft.document.title,
+      blocks: [
+        ...draft.document.blocks,
+        { ...placement, blockId: "second-experiment-placement" },
+      ],
+    });
+    const manifest = application.materializePreview({
+      expectedRevision: application.getDraftSnapshot().revision,
+    });
+
+    // An article carries as many experiments as its author placed, and each
+    // one resolves without reading the others.
+    expect(manifest.resolvedReaderDocument.placements).toHaveLength(2);
+    for (const candidate of manifest.resolvedReaderDocument.placements) {
+      const binding = resolveStudioReaderPreviewRuntimeBindingV1(
+        manifest,
+        candidate.placementBlockId,
+      );
+      expect(binding.placement.placementBlockId).toBe(
+        candidate.placementBlockId,
+      );
+      expect(binding.source.qualification).toBe("uncertified-preview-only");
+    }
+  });
+
+  it("refuses a placement the manifest does not carry", () => {
+    const manifest = readerPreviewManifestV1();
+
+    expect(() =>
+      resolveStudioReaderPreviewRuntimeBindingV1(manifest, "absent-placement")
+    ).toThrow(/no placement absent-placement/);
   });
 });
 
@@ -387,6 +435,7 @@ function mutableManifestV1(
 ): {
   resolvedReaderDocument: {
     placements: Array<{
+      placementBlockId: string;
       experiment: {
         modelRef: string;
       };
@@ -402,6 +451,7 @@ function mutableManifestV1(
   return JSON.parse(JSON.stringify(manifest)) as {
     resolvedReaderDocument: {
       placements: Array<{
+        placementBlockId: string;
         experiment: {
           modelRef: string;
         };

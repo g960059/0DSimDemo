@@ -12,42 +12,42 @@ import {
   authorPreviewHref,
 } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
+import { useWorkbenchTheme } from "@/features/workbench/hooks/useWorkbenchTheme";
 
 import {
   useStudioAuthorPreviewV1,
 } from "../StudioAuthorPreviewProviderV1";
+import {
+  useStudioReaderPlacementRuntimesV1,
+} from "../StudioReaderPlacementRuntimesV1";
 import { StudioDocumentReaderV1 } from "./StudioDocumentReaderV1";
+
+const NO_PLACEMENTS_V1 = Object.freeze([]);
 
 export default function StudioReaderPreviewRouteV1() {
   const { t } = useTranslation();
   const { previewId = "" } = useParams<{ previewId: string }>();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
-  const {
-    readerSession,
-    acquireReaderPreview,
-  } = useStudioAuthorPreviewV1();
+  const { resolvePreview } = useStudioAuthorPreviewV1();
+  const { workbenchTheme } = useWorkbenchTheme();
 
-  React.useEffect(
-    () => acquireReaderPreview(previewId),
-    [acquireReaderPreview, previewId],
+  // The page is the manifest; a numerical session belongs to each placement
+  // and opens as the reader reaches it, so nothing here waits on a Worker.
+  const manifest = React.useMemo(
+    () => resolvePreview(previewId),
+    [previewId, resolvePreview],
   );
+  const scrollRootRef = React.useRef<HTMLDivElement | null>(null);
+  const runtimeForPlacement = useStudioReaderPlacementRuntimesV1({
+    previewId: manifest === null ? null : previewId,
+    placements: manifest?.resolvedReaderDocument.placements
+      ?? NO_PLACEMENTS_V1,
+    autoLive: true,
+    rootRef: scrollRootRef,
+  });
 
-  if (
-    readerSession.phase === "idle"
-    || (
-      readerSession.phase !== "expired"
-      && readerSession.previewId !== previewId
-    )
-  ) {
-    return (
-      <StudioReaderPreviewStatusV1
-        title={t("studioAuthorPreview.reader.opening")}
-        message={t("studioAuthorPreview.reader.openingDescription")}
-      />
-    );
-  }
-  if (readerSession.phase === "expired") {
+  if (manifest === null) {
     return (
       <StudioReaderPreviewStatusV1
         title={t("studioAuthorPreview.reader.expired")}
@@ -56,74 +56,50 @@ export default function StudioReaderPreviewRouteV1() {
       />
     );
   }
-  if (readerSession.phase === "loading") {
-    return (
-      <StudioReaderPreviewStatusV1
-        title={t("studioAuthorPreview.reader.opening")}
-        message={readerSession.message}
-      />
-    );
-  }
-  if (readerSession.phase === "failed") {
-    return (
-      <StudioReaderPreviewStatusV1
-        title={t("studioAuthorPreview.reader.failed")}
-        message={readerSession.message}
-        failed
-      />
-    );
-  }
 
-  const controller = readerSession.readerController;
   return (
     <div
-      className="flex h-full w-full flex-col overflow-hidden bg-slate-100 text-slate-900"
+      className="workbench-root flex h-full w-full flex-col overflow-hidden bg-wb-app font-sans text-wb-text"
+      data-workbench-theme={workbenchTheme}
       data-testid="studio-reader-preview-v1"
-      data-preview-id={readerSession.previewId}
-      data-preview-trust={readerSession.manifest.trust}
-      data-preview-share-policy={readerSession.manifest.sharePolicy}
+      data-preview-id={previewId}
+      data-preview-trust={manifest.trust}
+      data-preview-share-policy={manifest.sharePolicy}
       data-publication-manifest-ref="null"
     >
-      <header className="z-20 flex min-h-14 shrink-0 items-center gap-3 border-b border-amber-300/30 bg-slate-950 px-3 text-slate-100 shadow-lg shadow-slate-950/10 sm:px-5">
+      <header className="z-20 flex min-h-14 shrink-0 items-center gap-3 border-b border-wb-warning/30 bg-wb-header px-3 text-wb-text sm:px-5">
         <Link
           to={authorPreviewHref(locale)}
-          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800 hover:text-white active:scale-[0.97]"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text active:scale-[0.97]"
         >
           <ArrowLeft className="h-4 w-4" />
           <span className="hidden sm:inline">
             {t("studioAuthorPreview.reader.backToEdit")}
           </span>
         </Link>
-        <div className="h-5 w-px bg-slate-800" aria-hidden="true" />
+        <div className="h-5 w-px bg-wb-line" aria-hidden="true" />
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Eye className="h-4 w-4 shrink-0 text-amber-300" />
+          <Eye className="h-4 w-4 shrink-0 text-wb-warning" />
           <strong className="truncate text-sm">
             {t("studioAuthorPreview.reader.previewBanner")}
           </strong>
         </div>
-        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[11px] font-bold text-amber-100">
+        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-wb-warning/25 bg-wb-warning-soft px-2.5 py-1 text-[11px] font-bold text-wb-warning">
           <LockKeyhole className="h-3.5 w-3.5" />
           {t("studioAuthorPreview.reader.unpublishedBadge")}
         </span>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-xs leading-5 text-amber-900">
+      <div
+        ref={scrollRootRef}
+        data-studio-scrollport="true"
+        className="min-h-0 flex-1 overflow-y-auto"
+      >
+        <div className="border-b border-wb-warning/25 bg-wb-warning-soft px-4 py-2.5 text-center text-xs leading-5 text-wb-warning">
           {t("studioAuthorPreview.reader.sessionNotice")}
         </div>
         <StudioDocumentReaderV1
-          document={readerSession.manifest.resolvedReaderDocument}
-          controllerForPlacement={(placementBlockId) =>
-            readerSession.manifest.resolvedReaderDocument.placements
-              .some((placement) =>
-                placement.placementBlockId === placementBlockId)
-              ? controller
-              : null}
-          registryForPlacement={(placementBlockId) =>
-            readerSession.manifest.resolvedReaderDocument.placements
-              .some((placement) =>
-                placement.placementBlockId === placementBlockId)
-              ? readerSession.registry
-              : null}
+          document={manifest.resolvedReaderDocument}
+          runtimeForPlacement={runtimeForPlacement}
         />
       </div>
     </div>
@@ -142,30 +118,32 @@ function StudioReaderPreviewStatusV1({
   const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
+  const { workbenchTheme } = useWorkbenchTheme();
   return (
     <main
-      className="flex h-full w-full items-center justify-center bg-slate-950 p-6 text-slate-100"
+      className="workbench-root flex h-full w-full items-center justify-center bg-wb-app p-6 font-sans text-wb-text"
+      data-workbench-theme={workbenchTheme}
       data-testid={
         failed
           ? "studio-reader-preview-unavailable-v1"
           : "studio-reader-preview-loading-v1"
       }
     >
-      <section className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-7 text-center shadow-2xl">
+      <section className="w-full max-w-lg rounded-2xl border border-wb-line bg-wb-panel p-7 text-center shadow-2xl">
         {failed ? (
-          <AlertTriangle className="mx-auto h-8 w-8 text-amber-300" />
+          <AlertTriangle className="mx-auto h-8 w-8 text-wb-warning" />
         ) : (
           <span
-            className="mx-auto block h-7 w-7 animate-spin rounded-full border-2 border-slate-700 border-t-sky-300 motion-reduce:animate-none"
+            className="mx-auto block h-7 w-7 animate-spin rounded-full border-2 border-wb-line border-t-wb-accent motion-reduce:animate-none"
             aria-hidden="true"
           />
         )}
         <h1 className="mt-5 text-xl font-bold">{title}</h1>
-        <p className="mt-3 text-sm leading-6 text-slate-400">{message}</p>
+        <p className="mt-3 text-sm leading-6 text-wb-muted">{message}</p>
         {failed && (
           <Link
             to={authorPreviewHref(locale)}
-            className="mt-6 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-slate-100 px-4 text-sm font-bold text-slate-950 transition-transform duration-150 active:scale-[0.97]"
+            className="mt-6 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-wb-primary px-4 text-sm font-bold text-white transition-transform duration-150 active:scale-[0.97]"
           >
             <ArrowLeft className="h-4 w-4" />
             {t("studioAuthorPreview.reader.backToEdit")}

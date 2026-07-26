@@ -3,8 +3,7 @@ import type { CaseDocument, ReadingColumnEntry } from "./caseDoc";
 import type { PanelDef, PanelRole, PanelType, ControllerItem } from "./types";
 import { roleOf } from "./paneRole";
 import { defaultZoneOf } from "./paneZone";
-import { type KnobKey } from "./engine/knobs";
-import type { NumericKnobKey } from "./lessonDoc";
+import { type KnobKey, type NumericKnobKey } from "./engine/knobs";
 import { defaultControllerItemFor } from "./knobMetadata";
 
 export const READING_ROLE_ORDER: Record<PanelRole, number> = { note: 0, graph: 1, output: 2, control: 3 };

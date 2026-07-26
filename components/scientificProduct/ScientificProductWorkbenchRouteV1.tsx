@@ -117,10 +117,12 @@ import {
   ScientificWorkbenchBriefingControlV1,
 } from "./ScientificWorkbenchBriefingControlV1";
 import {
-  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
-  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
-  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
-} from "./ScientificProductSampleAfterloadArticleV1";
+  StudioBriefingPickProviderV1,
+  type StudioBriefingPickApiV1,
+} from "./ScientificWorkbenchBriefingPickV1";
+import {
+  useStudioAuthorPreviewV1,
+} from "@/components/studio/StudioAuthorPreviewProviderV1";
 import {
   readScientificProductSavedScenarioCatalogV1,
   removeScientificProductSavedScenarioV1,
@@ -294,8 +296,52 @@ function ScientificProductWorkbenchShellV1({
   const { t } = useTranslation();
   const locale = localeFromPathname(location.pathname);
   const isMobile = useIsMobile();
+  const { draft: authorDraft } = useStudioAuthorPreviewV1();
+  /**
+   * Which experiment this Workbench is composing.
+   *
+   * An article may hold several, so the placement that sent the author here
+   * names the one they meant. It travels in the URL rather than in memory so
+   * that a reload composes the same experiment. Without a name — an author
+   * who opened the Workbench directly — the first experiment is composed,
+   * which is the only one a single-experiment article has.
+   */
+  const composeTarget = React.useMemo(() => {
+    const requested = new URLSearchParams(location.search).get("experiment");
+    // Only an experiment the article places can be composed from here. An
+    // experiment left behind by a deleted placement is not part of the
+    // article any more, and composing it would edit a brief no reader meets.
+    const placed = new Set(
+      authorDraft.document.blocks
+        .filter((block) => block.kind === "experiment-placement")
+        .map((block) => block.experimentId),
+    );
+    const placedExperiments = authorDraft.experiments.filter(
+      ({ experimentId }) => placed.has(experimentId),
+    );
+    // A named experiment that cannot be found is a mistake, not an invitation
+    // to compose whichever one happens to be first.
+    const experiment = requested === null
+      ? placedExperiments[0]
+      : placedExperiments.find(({ experimentId }) =>
+        experimentId === requested);
+    const brief = experiment?.readerBriefs[0];
+    const scenario = experiment?.scenarios[0];
+    return experiment === undefined
+        || brief === undefined
+        || scenario === undefined
+      ? null
+      : Object.freeze({
+        experimentId: experiment.experimentId,
+        briefId: brief.briefId,
+        scenarioId: scenario.scenarioId,
+      });
+  }, [authorDraft.document.blocks, authorDraft.experiments, location.search]);
   const { workbenchTheme, setWorkbenchTheme } = useWorkbenchTheme();
   const [isPlaying, setPlaying] = React.useState(true);
+  const [briefingOpen, setBriefingOpen] = React.useState(false);
+  const [briefingPickApi, setBriefingPickApi] =
+    React.useState<StudioBriefingPickApiV1 | null>(null);
   const [sceneMeta, setSceneMeta] = React.useState({
     title: resolution.caseEntry.displayName,
     description: resolution.caseEntry.description,
@@ -827,8 +873,19 @@ function ScientificProductWorkbenchShellV1({
     );
 
   return (
+    <StudioBriefingPickProviderV1 value={briefingPickApi}>
     <div
       className="workbench-root relative flex h-full w-full flex-col overflow-hidden bg-wb-app font-sans text-wb-text"
+      style={briefingOpen
+        ? {
+          // Compose is non-modal: the Workbench must stay reachable so a pane
+          // can be adjusted and re-synced without closing the layer. Reserving
+          // the width (rather than being overlaid) is what makes that true.
+          paddingRight: "min(100vw, max(560px, min(45vw, 820px)))",
+          transition: "padding-right 200ms cubic-bezier(0.32,0.72,0,1)",
+        }
+        : { transition: "padding-right 200ms cubic-bezier(0.32,0.72,0,1)" }}
+      data-briefing-compose-open={String(briefingOpen)}
       data-workbench-theme={workbenchTheme}
       data-testid="scientific-product-workbench-host-v1"
       data-product-case-id={resolution.canonicalCaseId}
@@ -913,19 +970,16 @@ function ScientificProductWorkbenchShellV1({
           />
         )}
         presentationComposeControl={(
-          <ScientificWorkbenchBriefingControlV1
-            panels={panels.panels}
-            registry={registry}
-            activeScenarioId={activeInstanceId}
-            target={Object.freeze({
-              experimentId:
-                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
-              briefId:
-                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
-              scenarioId:
-                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
-            })}
-          />
+          composeTarget === null ? null : (
+            <ScientificWorkbenchBriefingControlV1
+              panels={panels.panels}
+              registry={registry}
+              activeScenarioId={activeInstanceId}
+              target={composeTarget}
+              onOpenChange={setBriefingOpen}
+              onPickApiChange={setBriefingPickApi}
+            />
+          )
         )}
         settingsContent={(
           <ScientificProductTransitionBehaviorSettingsV1
@@ -1047,6 +1101,7 @@ function ScientificProductWorkbenchShellV1({
       />
       </div>
     </div>
+    </StudioBriefingPickProviderV1>
   );
 }
 

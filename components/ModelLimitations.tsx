@@ -29,10 +29,10 @@ function setAck() {
 }
 
 const Body: React.FC<{ limitations?: string[] }> = ({ limitations = LIMITATIONS }) => (
-  <ul className="space-y-2 text-sm text-slate-300">
+  <ul className="space-y-2 text-sm text-wb-muted">
     {limitations.map((l, i) => (
       <li key={i} className="flex gap-2">
-        <span className="text-slate-500 mt-0.5">•</span>
+        <span className="text-wb-subtle mt-0.5">•</span>
         <span>{l}</span>
       </li>
     ))}
@@ -71,7 +71,7 @@ export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: strin
     <>
       <button
         onClick={() => setReopened(true)}
-        className="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors flex items-center gap-1"
+        className="p-1.5 text-wb-muted hover:text-wb-text hover:bg-wb-hover rounded transition-colors flex items-center gap-1"
         title={t('modelLimitations.buttonTitle')}
         aria-label={t('modelLimitations.titleShort')}
       >
@@ -81,14 +81,14 @@ export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: strin
 
       {open && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="model-limits-title" className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
+          <div role="dialog" aria-modal="true" aria-labelledby="model-limits-title" className="bg-wb-panel border border-wb-line-strong rounded-lg shadow-2xl w-full max-w-lg">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-wb-line">
               <div className="flex items-center gap-2">
                 <Info className="w-4 h-4 text-blue-400" />
-                <h2 id="model-limits-title" className="text-sm font-bold text-slate-200">{t('modelLimitations.title')}</h2>
+                <h2 id="model-limits-title" className="text-sm font-bold text-wb-text">{t('modelLimitations.title')}</h2>
               </div>
               {!firstRun && (
-                <button onClick={close} aria-label={t('common.close')} className="text-slate-500 hover:text-slate-300">
+                <button onClick={close} aria-label={t('common.close')} className="text-wb-subtle hover:text-wb-muted">
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -96,7 +96,7 @@ export const ModelLimitations: React.FC<{ compact?: boolean; limitations?: strin
             <div className="px-5 py-4">
               <Body limitations={shownLimitations} />
             </div>
-            <div className="px-5 py-3 border-t border-slate-800 flex justify-end">
+            <div className="px-5 py-3 border-t border-wb-line flex justify-end">
               <button
                 onClick={close}
                 autoFocus

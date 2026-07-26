@@ -2,6 +2,11 @@
 
 /*
  * Workbench design tokens — the single source of visual truth.
+ *
+ * The palette follows zenn.dev: a blue accent on a near-white light theme
+ * and a navy dark theme. Every value below is checked against its own
+ * surfaces — the bright accent is decoration in light, because it is
+ * 2.55:1 on white, and text and fills use a darker blue of the same family.
  * Components consume these ONLY through the bg-wb-* / text-wb-* / border-wb-*
  * utilities defined in the @theme block below; raw slate-* literals are
  * reserved for non-workbench surfaces. Adding a theme (e.g. light) means
@@ -16,33 +21,43 @@
  */
 .workbench-root,
 body[data-workbench-theme] {
-  --wb-app-bg: #08111f;
-  --wb-header-bg: #020617;
-  --wb-panel-bg: #0b1120;
-  --wb-panel-bg-soft: #0f172a;
-  --wb-zone-main-bg: #08111f;
-  --wb-zone-aux-bg: #0b1120;
-  --wb-tab-strip-bg: rgba(2, 6, 23, 0.3);
+  color-scheme: dark;
+  --wb-app-bg: #151f2e;
+  --wb-header-bg: #101825;
+  --wb-panel-bg: #1f2f45;
+  --wb-panel-bg-soft: #1a2638;
+  --wb-zone-main-bg: #151f2e;
+  --wb-zone-aux-bg: #1a2638;
+  /* Compose picking owns one accent that no physiologic trace uses, so a
+     picked element never competes with the data it is showing. */
+  --wb-pick: #7c3aed;
+  --wb-pick-idle: rgba(214, 227, 237, 0.34);
+  --wb-pick-soft: rgba(124, 58, 237, 0.20);
+  --wb-tab-strip-bg: rgba(16, 24, 37, 0.34);
   --wb-tab-active-bg: var(--wb-zone-aux-bg);
-  --wb-tab-inactive-bg: rgba(15, 23, 42, 0.44);
-  --wb-tab-hover-bg: rgba(30, 41, 59, 0.72);
-  --wb-hover-bg: rgba(30, 41, 59, 0.55);
-  --wb-active-bg: rgba(56, 189, 248, 0.14);
-  --wb-input-bg: rgba(30, 41, 59, 0.42);
-  --wb-border: rgba(51, 65, 85, 0.56);
-  --wb-border-strong: rgba(100, 116, 139, 0.62);
-  --wb-text: #e2e8f0;
-  --wb-text-muted: #94a3b8;
-  --wb-text-subtle: #64748b;
-  --wb-accent: #38bdf8;
-  --wb-accent-soft: rgba(56, 189, 248, 0.16);
-  --wb-primary: #2563eb;
-  --wb-primary-hover: #3b82f6;
-  --wb-danger: #f87171;
-  --wb-danger-soft: rgba(248, 113, 113, 0.14);
-  --wb-warning: #fbbf24;
-  --wb-warning-soft: rgba(251, 191, 36, 0.16);
-  --wb-sash: #08111f;
+  --wb-tab-inactive-bg: rgba(26, 38, 56, 0.50);
+  --wb-tab-hover-bg: rgba(46, 68, 92, 0.70);
+  --wb-hover-bg: rgba(46, 68, 92, 0.55);
+  --wb-active-bg: rgba(62, 168, 255, 0.14);
+  --wb-input-bg: rgba(46, 68, 92, 0.42);
+  --wb-border: rgba(46, 68, 92, 0.72);
+  --wb-border-strong: rgba(105, 130, 155, 0.66);
+  --wb-text: #d6e3ed;
+  --wb-text-muted: #acbcc7;
+  --wb-text-subtle: #8f9faa;
+  --wb-accent: #3ea8ff;
+  --wb-accent-soft: rgba(62, 168, 255, 0.16);
+  /* The accent reads as a link on this ground, but white on it does not, so
+     a filled action carries its own darker blue. */
+  --wb-primary: #1d6fd0;
+  /* Hover deepens rather than lightens: a lighter fill would drop white
+     below 4.5:1 on a control whose whole job is to be pressed. */
+  --wb-primary-hover: #1a63bd;
+  --wb-danger: #ff8fa3;
+  --wb-danger-soft: rgba(255, 143, 163, 0.14);
+  --wb-warning: #ffc56d;
+  --wb-warning-soft: rgba(255, 197, 109, 0.16);
+  --wb-sash: #151f2e;
   background: var(--wb-app-bg);
   color: var(--wb-text);
 }
@@ -73,33 +88,39 @@ body[data-workbench-theme] {
 
 .workbench-root[data-workbench-theme="light"],
 body[data-workbench-theme="light"] {
-  --wb-app-bg: #f5f7fa;
+  color-scheme: light;
+  --wb-app-bg: #ffffff;
   --wb-header-bg: #ffffff;
   --wb-panel-bg: #ffffff;
-  --wb-panel-bg-soft: #eef1f5;
-  --wb-zone-main-bg: #f5f7fa;
-  --wb-zone-aux-bg: #fbfcfe;
+  --wb-panel-bg-soft: #f5f9fc;
+  --wb-pick: #6d28d9;
+  --wb-pick-idle: rgba(26, 38, 56, 0.34);
+  --wb-pick-soft: rgba(109, 40, 217, 0.12);
+  --wb-zone-main-bg: #ffffff;
+  --wb-zone-aux-bg: #f5f9fc;
   --wb-tab-strip-bg: transparent;
   --wb-tab-active-bg: transparent;
   --wb-tab-inactive-bg: transparent;
-  --wb-tab-hover-bg: rgba(15, 23, 42, 0.06);
-  --wb-hover-bg: rgba(15, 23, 42, 0.05);
-  --wb-active-bg: rgba(2, 132, 199, 0.10);
-  --wb-input-bg: rgba(15, 23, 42, 0.045);
-  --wb-border: rgba(15, 23, 42, 0.12);
-  --wb-border-strong: rgba(15, 23, 42, 0.24);
-  --wb-text: #0f172a;
-  --wb-text-muted: #475569;
-  --wb-text-subtle: #8a94a6;
-  --wb-accent: #0284c7;
-  --wb-accent-soft: rgba(2, 132, 199, 0.12);
-  --wb-primary: #2563eb;
-  --wb-primary-hover: #1d4ed8;
-  --wb-danger: #dc2626;
-  --wb-danger-soft: rgba(220, 38, 38, 0.10);
-  --wb-warning: #92400e;
-  --wb-warning-soft: rgba(146, 64, 14, 0.12);
-  --wb-sash: #e2e8f0;
+  --wb-tab-hover-bg: rgba(26, 38, 56, 0.06);
+  --wb-hover-bg: rgba(26, 38, 56, 0.05);
+  --wb-active-bg: rgba(11, 107, 192, 0.10);
+  --wb-input-bg: rgba(26, 38, 56, 0.04);
+  --wb-border: #d6e3ed;
+  --wb-border-strong: #acbcc7;
+  --wb-text: #1a2638;
+  --wb-text-muted: #4a5568;
+  --wb-text-subtle: #65717b;
+  /* The bright accent is 2.55:1 on white, so it is decoration only; text and
+     fills use a blue of the same family that carries its own contrast. */
+  --wb-accent: #0b6bc0;
+  --wb-accent-soft: rgba(62, 168, 255, 0.14);
+  --wb-primary: #0b6bc0;
+  --wb-primary-hover: #095aa3;
+  --wb-danger: #c9252d;
+  --wb-danger-soft: rgba(201, 37, 45, 0.10);
+  --wb-warning: #b45309;
+  --wb-warning-soft: rgba(180, 83, 9, 0.12);
+  --wb-sash: #edf2f7;
 }
 
 .workbench-root[data-workbench-theme="light"] .workbench-dockview.dockview-theme-dark,

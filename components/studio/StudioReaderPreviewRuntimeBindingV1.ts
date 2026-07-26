@@ -18,27 +18,35 @@ export type StudioReaderPreviewRuntimeBindingV1 = Readonly<{
 }>;
 
 /**
- * Resolves the preview-only runtime authority outside the publication-neutral
- * Reader document. Every identity must agree before a Worker is allocated.
+ * Resolves the preview-only runtime authority for one placement, outside the
+ * publication-neutral Reader document. Every identity must agree before a
+ * Worker is allocated.
+ *
+ * The binding is per placement, not per document: an article may carry several
+ * experiments, and each one owns its own numerical session. Nothing here reads
+ * the other placements, so allocating one never depends on how many exist.
  */
 export function resolveStudioReaderPreviewRuntimeBindingV1(
   manifest: ReaderPreviewManifestV1,
+  placementBlockId: string,
 ): StudioReaderPreviewRuntimeBindingV1 {
-  const placement = manifest.resolvedReaderDocument.placements[0];
-  if (
-    placement === undefined
-    || manifest.resolvedReaderDocument.placements.length !== 1
-    || placement.experiment.scenarios.length !== 1
-  ) {
+  const placement = manifest.resolvedReaderDocument.placements.find(
+    (candidate) => candidate.placementBlockId === placementBlockId,
+  );
+  if (placement === undefined) {
     throw new Error(
-      "Reader Preview requires exactly one experiment placement and one scenario",
+      `Reader Preview has no placement ${placementBlockId}`,
+    );
+  }
+  if (placement.experiment.scenarios.length !== 1) {
+    throw new Error(
+      "Reader Preview requires exactly one scenario per experiment placement",
     );
   }
   const scenario = placement.experiment.scenarios[0]!;
   const source = manifest.runtimeBindings[scenario.scenarioId];
   if (
     source === undefined
-    || Object.keys(manifest.runtimeBindings).length !== 1
     || source.kind !== "preview-bootstrap"
     || source.qualification !== "uncertified-preview-only"
   ) {
