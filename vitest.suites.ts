@@ -198,6 +198,9 @@ export const prSmokeTests = [
 ] as const;
 
 export const regressionTests = [
+  // Retained from the retired myocardium lane: the 0.2.0 release numerical
+  // validation manifest cites this Land protocol oracle as evidence.
+  "__tests__/myocardiumPhase1LandProtocols.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorCheckpointV1.test.ts",
   "__tests__/acceptedEventTriggeredIabpActuatorOwnerV1.test.ts",
   "__tests__/acceptedAfAtrialSourceOwnerCheckpointV1.test.ts",
