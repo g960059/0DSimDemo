@@ -13,6 +13,12 @@ related:
 
 # ADR-MYO-002 — Phase 6 atrial bridge selection
 
+
+> **Some paths below are retired.** This document names tools, tests, and
+> artifacts from lanes that were removed from the working tree. They are
+> recoverable from git history (`git show <commit>:<path>`); do not read
+> them as commands you can run today.
+
 ## Context
 
 ADR-MYO-001 currently plans Phase 6 as:

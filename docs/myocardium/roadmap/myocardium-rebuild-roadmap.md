@@ -7,6 +7,12 @@ source_design_record: "../research/myocardial-contraction-rebuild-design-record.
 
 # Myocardial contraction rebuild — Roadmap
 
+
+> **Some paths below are retired.** This document names tools, tests, and
+> artifacts from lanes that were removed from the working tree. They are
+> recoverable from git history (`git show <commit>:<path>`); do not read
+> them as commands you can run today.
+
 ## Delivery principle
 
 中心仮説を安価に反証してから、production mechanics、solver、closed loop、legacy removalへ進む。future extensionをPhase Aへ混在させない。

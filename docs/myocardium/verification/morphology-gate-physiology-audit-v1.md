@@ -3,9 +3,10 @@
 Status: shadow/report-only scaffold.
 
 This note defines a physiology-aware morphology audit layer for future cases,
-lessons, and preset fitting. It does not change the current strict morphology
-gate, MechanicsCore2 source/reservoir work, runtime wiring, AV-plane work, or
-LandAtrial work.
+lessons, and preset fitting. It does not change the strict morphology gate,
+runtime wiring, or LandAtrial work. The MechanicsCore2 source/reservoir and
+AV-plane lanes it was originally scoped against are retired; the audit layer
+outlives them because it is about morphology, not about that lane.
 
 ## Goal
 
@@ -35,8 +36,8 @@ V1 is shadow-only:
 - `enforcedEquivalentDecision` is reported only to show what the same evidence
   would imply if enforcement is explicitly enabled later.
 
-This means V1 cannot rescue current MechanicsCore2 residuals and cannot relax
-the strict normal envelope.
+This means V1 cannot rescue a model residual and cannot relax the strict normal
+envelope.
 
 ## Implementation
 

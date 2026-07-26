@@ -1,5 +1,11 @@
 # PR #166 changelog
 
+
+> **Some paths below are retired.** This document names tools, tests, and
+> artifacts from lanes that were removed from the working tree. They are
+> recoverable from git history (`git show <commit>:<path>`); do not read
+> them as commands you can run today.
+
 This PR is docs/data-only and introduces myocardium planning updates after review.
 
 ## Initial addition

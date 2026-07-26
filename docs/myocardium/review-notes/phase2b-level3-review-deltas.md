@@ -7,6 +7,12 @@ related_pr: 166
 
 # Phase 2B / Level 3 review deltas
 
+
+> **Some paths below are retired.** This document names tools, tests, and
+> artifacts from lanes that were removed from the working tree. They are
+> recoverable from git history (`git show <commit>:<path>`); do not read
+> them as commands you can run today.
+
 This note records the plan changes accepted from the recent Phase 2B / Level 3 review. It is docs/data-only and does not change runtime behavior.
 
 ## 1. Phase 2B mechanistic report fields

@@ -14,6 +14,12 @@ accepted_source_ref: "https://github.com/g960059/0DSimDemo/pull/154"
 
 # ADR-MYO-001 — Full replacement of the myocardial contraction subsystem, Phase A
 
+
+> **Some paths below are retired.** This document names tools, tests, and
+> artifacts from lanes that were removed from the working tree. They are
+> recoverable from git history (`git show <commit>:<path>`); do not read
+> them as commands you can run today.
+
 ## Context
 
 現行 `ActiveStressChamberModel` は、任意単位Ca、静的Hill activation、二重のlength dependence、post-hoc force–velocity、passive law、thick-sphere、stress-to-pressure倍率、心房reservoir状態を同一クラスへ混在させている。パラメータは最終圧・流量に対して積として補償し、構造的な同定不能性と低前負荷event-surface依存を生む。

@@ -1,0 +1,4739 @@
+{
+  "schemaVersion": 1,
+  "id": "lv-land-default-candidate-preflight-phase5x-result-v1",
+  "phase": "Phase 5X",
+  "claimBoundary": "early-default-candidate-user-knob-morphology-preflight-diagnostic-only",
+  "upstreamPhase5WArtifactId": "myocardium-developer-only-lv-land-envelope-phase5w-result-v1",
+  "upstreamPhaseM1ArtifactId": "morphology-blocker-bundle-phase-m1-result-v1",
+  "verifierScript": "verify:myocardium-lv-land-default-candidate-preflight",
+  "migrationPolicy": {
+    "landRuntimeDefault": "early-default-candidate-after-preflight-not-in-this-artifact",
+    "legacyActiveStress": "freeze-positive-control-reference-do-not-delete",
+    "alternansSdirk2": "parallel-science-closure-not-product-migration-gate",
+    "officialCases": "not-individually-tuned-until-model-stabilizes"
+  },
+  "protocol": {
+    "matrixMode": "normal-floor-plus-one-axis-user-knob-sweep-v1",
+    "modelPathIds": [
+      "stock-active-no-provider-v0",
+      "developer-only-lv-land-v0"
+    ],
+    "sweepPointCount": 14,
+    "sweepPoints": [
+      {
+        "id": "normal-floor",
+        "label": "normal baseline floor",
+        "role": "normal-floor",
+        "targetTBVMl": 5600,
+        "knobs": {}
+      },
+      {
+        "id": "preload-low",
+        "label": "preload low",
+        "role": "user-preload",
+        "targetTBVMl": 4800,
+        "knobs": {}
+      },
+      {
+        "id": "preload-high",
+        "label": "preload high",
+        "role": "user-preload",
+        "targetTBVMl": 6400,
+        "knobs": {}
+      },
+      {
+        "id": "hr60",
+        "label": "heart rate 60",
+        "role": "user-hr",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "HR": 60
+        }
+      },
+      {
+        "id": "hr90",
+        "label": "heart rate 90",
+        "role": "user-hr",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "HR": 90
+        }
+      },
+      {
+        "id": "hr120",
+        "label": "heart rate 120",
+        "role": "user-hr",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "HR": 120
+        }
+      },
+      {
+        "id": "contractility-low",
+        "label": "contractility low",
+        "role": "user-contractility",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "contractility": 0.65
+        }
+      },
+      {
+        "id": "contractility-high",
+        "label": "contractility high",
+        "role": "user-contractility",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "contractility": 1.35
+        }
+      },
+      {
+        "id": "afterload-low",
+        "label": "afterload low",
+        "role": "user-afterload",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "afterload": 0.75
+        }
+      },
+      {
+        "id": "afterload-high",
+        "label": "afterload high",
+        "role": "user-afterload",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "afterload": 1.45
+        }
+      },
+      {
+        "id": "arterial-stiffness-low",
+        "label": "arterial stiffness low",
+        "role": "user-arterial-stiffness",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "arterialStiffness": 0.7
+        }
+      },
+      {
+        "id": "arterial-stiffness-high",
+        "label": "arterial stiffness high",
+        "role": "user-arterial-stiffness",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "arterialStiffness": 1.6
+        }
+      },
+      {
+        "id": "venous-tone-low",
+        "label": "venous tone low",
+        "role": "user-venous-tone",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "venousTone": 0.08
+        }
+      },
+      {
+        "id": "venous-tone-high",
+        "label": "venous tone high",
+        "role": "user-venous-tone",
+        "targetTBVMl": 5600,
+        "knobs": {
+          "venousTone": 0.28
+        }
+      }
+    ],
+    "runnerVersion": "pv-loop-morphology-quality-runner-v1",
+    "sourceProviderScope": "LV-only",
+    "calciumMappingScenario": "phase2b-absolute-peak-ca",
+    "commitScheme": "BE",
+    "selectedMetricIds": [
+      "CO",
+      "SV",
+      "EDV",
+      "EAInflowProxy",
+      "uncertainSampleFraction",
+      "lowerLimbKinkCount",
+      "mvOpenLowerLimbRoughness",
+      "tvOpenLowerLimbRoughness",
+      "qDotClampHitFraction",
+      "aovOpenEjectionSquareness",
+      "pvOpenEjectionSquareness",
+      "incisuraPresenceScore",
+      "ejectionDuration",
+      "semilunarForwardVolume",
+      "semilunarReverseVolume"
+    ],
+    "morphologyAbsoluteThresholds": {
+      "qDotClampHitFractionMax": 0.25,
+      "ejectionSquarenessMax": 0.98,
+      "lowerLimbKinkCountMax": 16,
+      "openLowerLimbRoughnessMax": 80,
+      "uncertainSampleFractionMax": 0.25
+    }
+  },
+  "normalOperatingPointFloor": {
+    "observed": {
+      "CO_L": 4.787675,
+      "AoPMean": 77.658726,
+      "EF_LApprox": 0.488936,
+      "EDV_L": 130.612411,
+      "ESV_L": 66.589096,
+      "LVEDPApprox": 17.276729
+    },
+    "thresholds": {
+      "CO_L": {
+        "min": 3.5,
+        "max": 7,
+        "unit": "L/min"
+      },
+      "AoPMean": {
+        "min": 65,
+        "max": 110,
+        "unit": "mmHg"
+      },
+      "EF_LApprox": {
+        "min": 0.45,
+        "max": 0.75,
+        "unit": "fraction"
+      },
+      "EDV_L": {
+        "min": 70,
+        "max": 180,
+        "unit": "mL"
+      },
+      "ESV_L": {
+        "min": 20,
+        "max": 110,
+        "unit": "mL"
+      },
+      "LVEDPApprox": {
+        "min": 0,
+        "max": 16,
+        "unit": "mmHg"
+      }
+    },
+    "pass": false,
+    "failures": [
+      "LVEDPApprox"
+    ]
+  },
+  "runner": {
+    "stock": {
+      "modelPathId": "stock-active-no-provider-v0",
+      "branchCount": 14,
+      "metricRowCount": 34608,
+      "phaseRowCount": 125808,
+      "warningCount": 14,
+      "errorCount": 0,
+      "normalizedSummarySha256": "b5d357e5b2b32a4434a9b5baa7c1ef38b0a61d081af15a04c306459b5cc1d60e",
+      "normalizedMetricSha256": "6ec6b824751a765d6eefbb7cfb7b3ed9256483475ecdf6bbbf3476dea0fd9b9e",
+      "errors": []
+    },
+    "land": {
+      "modelPathId": "developer-only-lv-land-v0",
+      "branchCount": 14,
+      "metricRowCount": 34608,
+      "phaseRowCount": 121021,
+      "warningCount": 14,
+      "errorCount": 0,
+      "normalizedSummarySha256": "fd200bad5033eb740fdc5ab237fdfbf5d0e2bea8bd8b2b21f9dd2fbdbdd2ccf7",
+      "normalizedMetricSha256": "80148e3c0afc1250a24f2bd42f94f7dcb7767537c3c839a8b8a642f847f65b69",
+      "errors": []
+    }
+  },
+  "landProviderInstrumentation": {
+    "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1:phase5u-developer-only-be-phase5q-calcium",
+    "sourceActiveStressCallCount": 3145133,
+    "debugActiveStressTermsCallCount": 0,
+    "commitProviderStateAfterStepCount": 247367,
+    "landSolveFailureCount": 0,
+    "landSolveOkCount": 247367,
+    "maxSolverResidualNorm": 0,
+    "sourcePathAuditSampleCount": 3145133,
+    "commitPathAuditSampleCount": 247367
+  },
+  "points": [
+    {
+      "id": "normal-floor",
+      "label": "normal baseline floor",
+      "role": "normal-floor",
+      "targetTBVMl": 5600,
+      "knobs": {},
+      "stock": {
+        "caseId": "phase5x-user-knob-normal-floor",
+        "branchId": "normal-floor",
+        "branchName": "normal baseline floor",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 13,
+        "settleActualSeconds": 11.3,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.00492,
+          "cycleMetricDelta": 0.000358,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-normal-floor",
+        "branchId": "normal-floor",
+        "branchName": "normal baseline floor",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 14,
+        "settleActualSeconds": 12.05,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.006546,
+          "cycleMetricDelta": 0.00049,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 5.417837,
+          "landMean": 4.789736,
+          "delta": -0.628101,
+          "relativeDelta": -0.115932,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 72.237832,
+          "landMean": 63.863152,
+          "delta": -8.37468,
+          "relativeDelta": -0.115932,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 122.249781,
+          "landMean": 130.535273,
+          "delta": 8.285492,
+          "relativeDelta": 0.067775,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.040017,
+          "landMean": 0,
+          "delta": -0.040017,
+          "relativeDelta": -1,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 1.000006,
+          "landMean": 1.392225,
+          "delta": 0.392219,
+          "relativeDelta": 0.392217,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.794872,
+          "landMean": 1,
+          "delta": 0.205128,
+          "relativeDelta": 0.258064,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.196681,
+          "landMean": 0.202217,
+          "delta": 0.005536,
+          "relativeDelta": 0.028147,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.366561,
+          "landMean": 0.746203,
+          "delta": 0.379642,
+          "relativeDelta": 1.035686,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.025,
+          "landMean": 0.01,
+          "delta": -0.015,
+          "relativeDelta": -0.6,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 28.620169,
+          "landMean": 9.619426,
+          "delta": -19.000743,
+          "relativeDelta": -0.663893,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 5.421841,
+          "landMean": 4.799277,
+          "delta": -0.622564,
+          "relativeDelta": -0.114825,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 72.291212,
+          "landMean": 63.990366,
+          "delta": -8.300846,
+          "relativeDelta": -0.114825,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 141.809503,
+          "landMean": 148.734595,
+          "delta": 6.925092,
+          "relativeDelta": 0.048834,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.918669,
+          "landMean": 0.881939,
+          "delta": -0.03673,
+          "relativeDelta": -0.039982,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0.007503,
+          "delta": 0.007503,
+          "relativeDelta": 7503000,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 37.333333,
+          "landMean": 27,
+          "delta": -10.333333,
+          "relativeDelta": -0.276786,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.33989,
+          "landMean": 1.237087,
+          "delta": -0.102803,
+          "relativeDelta": -0.076725,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.21766,
+          "landMean": 0.297673,
+          "delta": 0.080013,
+          "relativeDelta": 0.367605,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.188462,
+          "landMean": 0.178473,
+          "delta": -0.009989,
+          "relativeDelta": -0.053003,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.065,
+          "landMean": 0.063,
+          "delta": -0.002,
+          "relativeDelta": -0.030769,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 46.952941,
+          "landMean": 42.348729,
+          "delta": -4.604212,
+          "relativeDelta": -0.09806,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:27",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-normal-floor"
+    },
+    {
+      "id": "preload-low",
+      "label": "preload low",
+      "role": "user-preload",
+      "targetTBVMl": 4800,
+      "knobs": {},
+      "stock": {
+        "caseId": "phase5x-user-knob-preload-low",
+        "branchId": "preload-low",
+        "branchName": "preload low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 14,
+        "settleActualSeconds": 12.05,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.010736,
+          "cycleMetricDelta": 0.001402,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-preload-low",
+        "branchId": "preload-low",
+        "branchName": "preload low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 18,
+        "settleActualSeconds": 15.3,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.003374,
+          "cycleMetricDelta": 0.000175,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 4.575885,
+          "landMean": 4.385168,
+          "delta": -0.190717,
+          "relativeDelta": -0.041679,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 61.011801,
+          "landMean": 58.468911,
+          "delta": -2.54289,
+          "relativeDelta": -0.041679,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 106.955995,
+          "landMean": 119.043521,
+          "delta": 12.087526,
+          "relativeDelta": 0.113014,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.026261,
+          "landMean": 0.070295,
+          "delta": 0.044034,
+          "relativeDelta": 1.676783,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 1.000204,
+          "landMean": 0,
+          "delta": -1.000204,
+          "relativeDelta": -1,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.761905,
+          "landMean": 1,
+          "delta": 0.238095,
+          "relativeDelta": 0.3125,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.283456,
+          "landMean": 0.202656,
+          "delta": -0.0808,
+          "relativeDelta": -0.285053,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.442373,
+          "landMean": 0.691912,
+          "delta": 0.249539,
+          "relativeDelta": 0.564092,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.02,
+          "landMean": 0.011,
+          "delta": -0.009,
+          "relativeDelta": -0.45,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 20.7106,
+          "landMean": 10.716866,
+          "delta": -9.993734,
+          "relativeDelta": -0.482542,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 4.564199,
+          "landMean": 4.382226,
+          "delta": -0.181973,
+          "relativeDelta": -0.03987,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 60.855988,
+          "landMean": 58.429675,
+          "delta": -2.426313,
+          "relativeDelta": -0.03987,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 115.501302,
+          "landMean": 117.445485,
+          "delta": 1.944183,
+          "relativeDelta": 0.016833,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.758358,
+          "landMean": 0.83365,
+          "delta": 0.075292,
+          "relativeDelta": 0.099283,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.046269,
+          "landMean": 0.04519,
+          "delta": -0.001079,
+          "relativeDelta": -0.02332,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 8.666667,
+          "landMean": 2,
+          "delta": -6.666667,
+          "relativeDelta": -0.769231,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.258192,
+          "landMean": 1.247525,
+          "delta": -0.010667,
+          "relativeDelta": -0.008478,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.200802,
+          "landMean": 0.200789,
+          "delta": -0.000013,
+          "relativeDelta": -0.000065,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.184356,
+          "landMean": 0.18517,
+          "delta": 0.000814,
+          "relativeDelta": 0.004415,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.064,
+          "landMean": 0.063,
+          "delta": -0.001,
+          "relativeDelta": -0.015625,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 40.308554,
+          "landMean": 38.787387,
+          "delta": -1.521167,
+          "relativeDelta": -0.037738,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "preload-high",
+      "label": "preload high",
+      "role": "user-preload",
+      "targetTBVMl": 6400,
+      "knobs": {},
+      "stock": {
+        "caseId": "phase5x-user-knob-preload-high",
+        "branchId": "preload-high",
+        "branchName": "preload high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 23,
+        "settleActualSeconds": 20.1,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.00821,
+          "cycleMetricDelta": 0.000073,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2401
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-preload-high",
+        "branchId": "preload-high",
+        "branchName": "preload high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 16,
+        "settleActualSeconds": 13.8,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.017963,
+          "cycleMetricDelta": 0.000636,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 5.504039,
+          "landMean": 4.685975,
+          "delta": -0.818064,
+          "relativeDelta": -0.14863,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 73.387186,
+          "landMean": 62.479665,
+          "delta": -10.907521,
+          "relativeDelta": -0.14863,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 125.783797,
+          "landMean": 129.098401,
+          "delta": 3.314604,
+          "relativeDelta": 0.026352,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 1.000141,
+          "landMean": 1.0001,
+          "delta": -0.000041,
+          "relativeDelta": -0.000041,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.75,
+          "landMean": 1,
+          "delta": 0.25,
+          "relativeDelta": 0.333333,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.197001,
+          "landMean": 0.201822,
+          "delta": 0.004821,
+          "relativeDelta": 0.024472,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.337381,
+          "landMean": 0.79024,
+          "delta": 0.452859,
+          "relativeDelta": 1.342278,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.027,
+          "landMean": 0.009333,
+          "delta": -0.017667,
+          "relativeDelta": -0.654333,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 31.513057,
+          "landMean": 8.902232,
+          "delta": -22.610825,
+          "relativeDelta": -0.717507,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 5.504855,
+          "landMean": 4.703046,
+          "delta": -0.801809,
+          "relativeDelta": -0.145655,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 73.398064,
+          "landMean": 62.707286,
+          "delta": -10.690778,
+          "relativeDelta": -0.145655,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 171.625917,
+          "landMean": 175.437115,
+          "delta": 3.811198,
+          "relativeDelta": 0.022206,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 1.198742,
+          "landMean": 1.235333,
+          "delta": 0.036591,
+          "relativeDelta": 0.030524,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 15.666667,
+          "landMean": 11.666667,
+          "delta": -4,
+          "relativeDelta": -0.255319,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.324091,
+          "landMean": 1.187442,
+          "delta": -0.136649,
+          "relativeDelta": -0.103202,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.417596,
+          "landMean": 0.420189,
+          "delta": 0.002593,
+          "relativeDelta": 0.006209,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.172184,
+          "landMean": 0.170428,
+          "delta": -0.001756,
+          "relativeDelta": -0.010198,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.086,
+          "landMean": 0.08,
+          "delta": -0.006,
+          "relativeDelta": -0.069767,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 50.938027,
+          "landMean": 43.062879,
+          "delta": -7.875148,
+          "relativeDelta": -0.154603,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "hr60",
+      "label": "heart rate 60",
+      "role": "user-hr",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "HR": 60
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-hr60",
+        "branchId": "hr60",
+        "branchName": "heart rate 60",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 13,
+        "settleActualSeconds": 14.25,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.000431,
+          "cycleMetricDelta": 0.000075,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 3000
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-hr60",
+        "branchId": "hr60",
+        "branchName": "heart rate 60",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 12,
+        "settleActualSeconds": 13.25,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.005741,
+          "cycleMetricDelta": 0.000246,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 3000
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 4.677386,
+          "landMean": 4.017401,
+          "delta": -0.659985,
+          "relativeDelta": -0.141101,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 77.95644,
+          "landMean": 66.956687,
+          "delta": -10.999753,
+          "relativeDelta": -0.141101,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 120.822605,
+          "landMean": 126.80171,
+          "delta": 5.979105,
+          "relativeDelta": 0.049487,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 0,
+          "landMean": 1.000076,
+          "delta": 1.000076,
+          "relativeDelta": 1000076000,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.65233,
+          "landMean": 1,
+          "delta": 0.34767,
+          "relativeDelta": 0.532966,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.197568,
+          "landMean": 0.202995,
+          "delta": 0.005427,
+          "relativeDelta": 0.027469,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.299279,
+          "landMean": 0.633024,
+          "delta": 0.333745,
+          "relativeDelta": 1.115163,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.029667,
+          "landMean": 0.012333,
+          "delta": -0.017334,
+          "relativeDelta": -0.584286,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 35.750793,
+          "landMean": 12.3008,
+          "delta": -23.449993,
+          "relativeDelta": -0.655929,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 4.462385,
+          "landMean": 3.808728,
+          "delta": -0.653657,
+          "relativeDelta": -0.146482,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 74.37309,
+          "landMean": 63.478795,
+          "delta": -10.894295,
+          "relativeDelta": -0.146482,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 159.768117,
+          "landMean": 163.508429,
+          "delta": 3.740312,
+          "relativeDelta": 0.023411,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 1.295073,
+          "landMean": 1.197545,
+          "delta": -0.097528,
+          "relativeDelta": -0.075307,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 22,
+          "landMean": 19,
+          "delta": -3,
+          "relativeDelta": -0.136364,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.242056,
+          "landMean": 1.210613,
+          "delta": -0.031443,
+          "relativeDelta": -0.025315,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.275263,
+          "landMean": 0.295369,
+          "delta": 0.020106,
+          "relativeDelta": 0.073043,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.001573,
+          "landMean": 0.001315,
+          "delta": -0.000258,
+          "relativeDelta": -0.164018,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.282,
+          "landMean": 0.260667,
+          "delta": -0.021333,
+          "relativeDelta": -0.075649,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 119.210116,
+          "landMean": 99.896187,
+          "delta": -19.313929,
+          "relativeDelta": -0.162016,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:19",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "hr90",
+      "label": "heart rate 90",
+      "role": "user-hr",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "HR": 90
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-hr90",
+        "branchId": "hr90",
+        "branchName": "heart rate 90",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 15,
+        "settleActualSeconds": 10.667,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.034214,
+          "cycleMetricDelta": 0.000534,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2000
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-hr90",
+        "branchId": "hr90",
+        "branchName": "heart rate 90",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 19,
+        "settleActualSeconds": 13.417,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.00488,
+          "cycleMetricDelta": 0.00038,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2000
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 5.797246,
+          "landMean": 5.330699,
+          "delta": -0.466547,
+          "relativeDelta": -0.080477,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 64.41384,
+          "landMean": 59.229983,
+          "delta": -5.183857,
+          "relativeDelta": -0.080477,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 117.566636,
+          "landMean": 130.5797,
+          "delta": 13.013064,
+          "relativeDelta": 0.110687,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.002007,
+          "landMean": 0.033604,
+          "delta": 0.031597,
+          "relativeDelta": 15.743398,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 1.000111,
+          "landMean": 1.000011,
+          "delta": -0.0001,
+          "relativeDelta": -0.0001,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.848485,
+          "landMean": 1,
+          "delta": 0.151515,
+          "relativeDelta": 0.178571,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.204285,
+          "landMean": 0.196585,
+          "delta": -0.0077,
+          "relativeDelta": -0.037692,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.426991,
+          "landMean": 0.895045,
+          "delta": 0.468054,
+          "relativeDelta": 1.096168,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.021,
+          "landMean": 0.008,
+          "delta": -0.013,
+          "relativeDelta": -0.619048,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 22.255054,
+          "landMean": 7.33827,
+          "delta": -14.916784,
+          "relativeDelta": -0.670265,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 5.798458,
+          "landMean": 5.328713,
+          "delta": -0.469745,
+          "relativeDelta": -0.081012,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 64.427314,
+          "landMean": 59.207917,
+          "delta": -5.219397,
+          "relativeDelta": -0.081012,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 133.974086,
+          "landMean": 138.605191,
+          "delta": 4.631105,
+          "relativeDelta": 0.034567,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.638071,
+          "landMean": 0.631183,
+          "delta": -0.006888,
+          "relativeDelta": -0.010795,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.012024,
+          "landMean": 0.004012,
+          "delta": -0.008012,
+          "relativeDelta": -0.666334,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 16,
+          "landMean": 23.333333,
+          "delta": 7.333333,
+          "relativeDelta": 0.458333,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.29781,
+          "landMean": 1.201452,
+          "delta": -0.096358,
+          "relativeDelta": -0.074247,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.306483,
+          "landMean": 0.404218,
+          "delta": 0.097735,
+          "relativeDelta": 0.318892,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.187284,
+          "landMean": 0.185642,
+          "delta": -0.001642,
+          "relativeDelta": -0.008767,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.062667,
+          "landMean": 0.060667,
+          "delta": -0.002,
+          "relativeDelta": -0.031915,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 42.09614,
+          "landMean": 38.540799,
+          "delta": -3.555341,
+          "relativeDelta": -0.084458,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:23.333333",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "hr120",
+      "label": "heart rate 120",
+      "role": "user-hr",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "HR": 120
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-hr120",
+        "branchId": "hr120",
+        "branchName": "heart rate 120",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 20,
+        "settleActualSeconds": 11.25,
+        "health": {
+          "status": "failed",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 3.351251,
+          "cycleMetricDelta": 0.02966,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "failed",
+          "physiologicalRange": "ok",
+          "messages": [
+            "Left/right CO mismatch 3.35 L/min."
+          ]
+        },
+        "metricCount": 2472,
+        "sampleCount": 1500
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-hr120",
+        "branchId": "hr120",
+        "branchName": "heart rate 120",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 22,
+        "settleActualSeconds": 11.75,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.011493,
+          "cycleMetricDelta": 0.001221,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 1500
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 6.350223,
+          "landMean": 5.166905,
+          "delta": -1.183318,
+          "relativeDelta": -0.186343,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 52.918524,
+          "landMean": 43.057545,
+          "delta": -9.860979,
+          "relativeDelta": -0.186343,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 102.958869,
+          "landMean": 102.112871,
+          "delta": -0.845998,
+          "relativeDelta": -0.008217,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0.002014,
+          "delta": 0.002014,
+          "relativeDelta": 2014000,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0.333333,
+          "landMean": 0,
+          "delta": -0.333333,
+          "relativeDelta": -1,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 1.000073,
+          "landMean": 1.000154,
+          "delta": 0.000081,
+          "relativeDelta": 0.000081,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.57971,
+          "landMean": 1,
+          "delta": 0.42029,
+          "relativeDelta": 0.725,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.304742,
+          "landMean": 0.197724,
+          "delta": -0.107018,
+          "relativeDelta": -0.351176,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.541642,
+          "landMean": 1,
+          "delta": 0.458358,
+          "relativeDelta": 0.846238,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.017667,
+          "landMean": 0.005,
+          "delta": -0.012667,
+          "relativeDelta": -0.716986,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 17.728395,
+          "landMean": 4.238777,
+          "delta": -13.489618,
+          "relativeDelta": -0.760905,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 4.274866,
+          "landMean": 4.338979,
+          "delta": 0.064113,
+          "relativeDelta": 0.014998,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 35.62388,
+          "landMean": 36.158162,
+          "delta": 0.534282,
+          "relativeDelta": 0.014998,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 131.993283,
+          "landMean": 129.045201,
+          "delta": -2.948082,
+          "relativeDelta": -0.022335,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 2,
+          "landMean": 2,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 40.157199,
+          "landMean": 67.784724,
+          "delta": 27.627525,
+          "relativeDelta": 0.687984,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.333017,
+          "landMean": 0.331055,
+          "delta": -0.001962,
+          "relativeDelta": -0.005892,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.44596,
+          "landMean": 0.16716,
+          "delta": -0.2788,
+          "relativeDelta": -0.625168,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.115667,
+          "landMean": 0.051,
+          "delta": -0.064667,
+          "relativeDelta": -0.559079,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 41.390114,
+          "landMean": 22.646557,
+          "delta": -18.743557,
+          "relativeDelta": -0.452851,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "contractility-low",
+      "label": "contractility low",
+      "role": "user-contractility",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "contractility": 0.65
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-contractility-low",
+        "branchId": "contractility-low",
+        "branchName": "contractility low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 15,
+        "settleActualSeconds": 12.8,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.001703,
+          "cycleMetricDelta": 0.000143,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-contractility-low",
+        "branchId": "contractility-low",
+        "branchName": "contractility low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 14,
+        "settleActualSeconds": 12.05,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.006546,
+          "cycleMetricDelta": 0.00049,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 4.081351,
+          "landMean": 4.789736,
+          "delta": 0.708385,
+          "relativeDelta": 0.173566,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 54.418016,
+          "landMean": 63.863152,
+          "delta": 9.445136,
+          "relativeDelta": 0.173566,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 131.506555,
+          "landMean": 130.535273,
+          "delta": -0.971282,
+          "relativeDelta": -0.007386,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 0,
+          "landMean": 1.392225,
+          "delta": 1.392225,
+          "relativeDelta": 1392225000,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.25,
+          "landMean": 1,
+          "delta": 0.75,
+          "relativeDelta": 3,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.202514,
+          "landMean": 0.202217,
+          "delta": -0.000297,
+          "relativeDelta": -0.001467,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.367953,
+          "landMean": 0.746203,
+          "delta": 0.37825,
+          "relativeDelta": 1.027985,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.023,
+          "landMean": 0.01,
+          "delta": -0.013,
+          "relativeDelta": -0.565217,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 22.851184,
+          "landMean": 9.619426,
+          "delta": -13.231758,
+          "relativeDelta": -0.57904,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 4.082817,
+          "landMean": 4.799277,
+          "delta": 0.71646,
+          "relativeDelta": 0.175482,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 54.437558,
+          "landMean": 63.990366,
+          "delta": 9.552808,
+          "relativeDelta": 0.175482,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 155.862121,
+          "landMean": 148.734595,
+          "delta": -7.127526,
+          "relativeDelta": -0.04573,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.881281,
+          "landMean": 0.881939,
+          "delta": 0.000658,
+          "relativeDelta": 0.000747,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0.007503,
+          "delta": 0.007503,
+          "relativeDelta": 7503000,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 21,
+          "landMean": 27,
+          "delta": 6,
+          "relativeDelta": 0.285714,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.155466,
+          "landMean": 1.237087,
+          "delta": 0.081621,
+          "relativeDelta": 0.070639,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.299922,
+          "landMean": 0.297673,
+          "delta": -0.002249,
+          "relativeDelta": -0.007499,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.187643,
+          "landMean": 0.178473,
+          "delta": -0.00917,
+          "relativeDelta": -0.048869,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.056,
+          "landMean": 0.063,
+          "delta": 0.007,
+          "relativeDelta": 0.125,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 34.704195,
+          "landMean": 42.348729,
+          "delta": 7.644534,
+          "relativeDelta": 0.220277,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:27",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "contractility-high",
+      "label": "contractility high",
+      "role": "user-contractility",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "contractility": 1.35
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-contractility-high",
+        "branchId": "contractility-high",
+        "branchName": "contractility high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 17,
+        "settleActualSeconds": 14.55,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.005243,
+          "cycleMetricDelta": 0.000339,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-contractility-high",
+        "branchId": "contractility-high",
+        "branchName": "contractility high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 14,
+        "settleActualSeconds": 12.05,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.006546,
+          "cycleMetricDelta": 0.00049,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 5.833471,
+          "landMean": 4.789736,
+          "delta": -1.043735,
+          "relativeDelta": -0.178922,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 77.779608,
+          "landMean": 63.863152,
+          "delta": -13.916456,
+          "relativeDelta": -0.178922,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 111.620036,
+          "landMean": 130.535273,
+          "delta": 18.915237,
+          "relativeDelta": 0.169461,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.0175,
+          "landMean": 0,
+          "delta": -0.0175,
+          "relativeDelta": -1,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 1.000147,
+          "landMean": 1.392225,
+          "delta": 0.392078,
+          "relativeDelta": 0.39202,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.662835,
+          "landMean": 1,
+          "delta": 0.337165,
+          "relativeDelta": 0.508671,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.29622,
+          "landMean": 0.202217,
+          "delta": -0.094003,
+          "relativeDelta": -0.317342,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.304292,
+          "landMean": 0.746203,
+          "delta": 0.441911,
+          "relativeDelta": 1.45226,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.028667,
+          "landMean": 0.01,
+          "delta": -0.018667,
+          "relativeDelta": -0.651167,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 34.959868,
+          "landMean": 9.619426,
+          "delta": -25.340442,
+          "relativeDelta": -0.724844,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 5.827298,
+          "landMean": 4.799277,
+          "delta": -1.028021,
+          "relativeDelta": -0.176415,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 77.697309,
+          "landMean": 63.990366,
+          "delta": -13.706943,
+          "relativeDelta": -0.176415,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 135.943916,
+          "landMean": 148.734595,
+          "delta": 12.790679,
+          "relativeDelta": 0.094088,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.960197,
+          "landMean": 0.881939,
+          "delta": -0.078258,
+          "relativeDelta": -0.081502,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.0275,
+          "landMean": 0.007503,
+          "delta": -0.019997,
+          "relativeDelta": -0.727164,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 3.666667,
+          "landMean": 27,
+          "delta": 23.333333,
+          "relativeDelta": 6.363636,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 2345.180712,
+          "landMean": 1.237087,
+          "delta": -2343.943625,
+          "relativeDelta": -0.999472,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.200696,
+          "landMean": 0.297673,
+          "delta": 0.096977,
+          "relativeDelta": 0.483203,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.188912,
+          "landMean": 0.178473,
+          "delta": -0.010439,
+          "relativeDelta": -0.055259,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.067667,
+          "landMean": 0.063,
+          "delta": -0.004667,
+          "relativeDelta": -0.06897,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 51.196127,
+          "landMean": 42.348729,
+          "delta": -8.847398,
+          "relativeDelta": -0.172814,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:27",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "afterload-low",
+      "label": "afterload low",
+      "role": "user-afterload",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "afterload": 0.75
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-afterload-low",
+        "branchId": "afterload-low",
+        "branchName": "afterload low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 19,
+        "settleActualSeconds": 16.05,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.003451,
+          "cycleMetricDelta": 0.000368,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-afterload-low",
+        "branchId": "afterload-low",
+        "branchName": "afterload low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 13,
+        "settleActualSeconds": 11.3,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.003461,
+          "cycleMetricDelta": 0.000359,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 5.783652,
+          "landMean": 5.10197,
+          "delta": -0.681682,
+          "relativeDelta": -0.117864,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 77.11536,
+          "landMean": 68.026271,
+          "delta": -9.089089,
+          "relativeDelta": -0.117864,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 118.454905,
+          "landMean": 128.698103,
+          "delta": 10.243198,
+          "relativeDelta": 0.086473,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.043935,
+          "landMean": 0,
+          "delta": -0.043935,
+          "relativeDelta": -1,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 0,
+          "landMean": 1.000128,
+          "delta": 1.000128,
+          "relativeDelta": 1000128000,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.645161,
+          "landMean": 1,
+          "delta": 0.354839,
+          "relativeDelta": 0.550001,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.197359,
+          "landMean": 0.203272,
+          "delta": 0.005913,
+          "relativeDelta": 0.029961,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.29471,
+          "landMean": 0.645693,
+          "delta": 0.350983,
+          "relativeDelta": 1.190944,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.03,
+          "landMean": 0.012,
+          "delta": -0.018,
+          "relativeDelta": -0.6,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 36.209074,
+          "landMean": 11.982594,
+          "delta": -24.22648,
+          "relativeDelta": -0.669072,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 5.782708,
+          "landMean": 5.090513,
+          "delta": -0.692195,
+          "relativeDelta": -0.119701,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 77.102775,
+          "landMean": 67.873508,
+          "delta": -9.229267,
+          "relativeDelta": -0.119701,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 141.622263,
+          "landMean": 149.353052,
+          "delta": 7.730789,
+          "relativeDelta": 0.054587,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.951013,
+          "landMean": 0.906428,
+          "delta": -0.044585,
+          "relativeDelta": -0.046882,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.026361,
+          "landMean": 0.006253,
+          "delta": -0.020108,
+          "relativeDelta": -0.762794,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 19.666667,
+          "landMean": 28.666667,
+          "delta": 9,
+          "relativeDelta": 0.457627,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.399117,
+          "landMean": 1.256211,
+          "delta": -0.142906,
+          "relativeDelta": -0.10214,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.203458,
+          "landMean": 0.294631,
+          "delta": 0.091173,
+          "relativeDelta": 0.448117,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.187831,
+          "landMean": 0.178994,
+          "delta": -0.008837,
+          "relativeDelta": -0.047048,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.067,
+          "landMean": 0.065,
+          "delta": -0.002,
+          "relativeDelta": -0.029851,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 50.756163,
+          "landMean": 45.029739,
+          "delta": -5.726424,
+          "relativeDelta": -0.112822,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:28.666667",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "afterload-high",
+      "label": "afterload high",
+      "role": "user-afterload",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "afterload": 1.45
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-afterload-high",
+        "branchId": "afterload-high",
+        "branchName": "afterload high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 23,
+        "settleActualSeconds": 19.3,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.034514,
+          "cycleMetricDelta": 0.001652,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2401
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-afterload-high",
+        "branchId": "afterload-high",
+        "branchName": "afterload high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 18,
+        "settleActualSeconds": 15.3,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.011497,
+          "cycleMetricDelta": 0.000516,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 4.81928,
+          "landMean": 4.252288,
+          "delta": -0.566992,
+          "relativeDelta": -0.117651,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 64.257068,
+          "landMean": 56.697169,
+          "delta": -7.559899,
+          "relativeDelta": -0.117651,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 128.427886,
+          "landMean": 132.986298,
+          "delta": 4.558412,
+          "relativeDelta": 0.035494,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.015033,
+          "landMean": 0,
+          "delta": -0.015033,
+          "relativeDelta": -1,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.541667,
+          "landMean": 1,
+          "delta": 0.458333,
+          "relativeDelta": 0.846153,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.202086,
+          "landMean": 0.197232,
+          "delta": -0.004854,
+          "relativeDelta": -0.024019,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.389277,
+          "landMean": 0.894781,
+          "delta": 0.505504,
+          "relativeDelta": 1.298571,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.023,
+          "landMean": 0.008,
+          "delta": -0.015,
+          "relativeDelta": -0.652174,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 24.899147,
+          "landMean": 7.426275,
+          "delta": -17.472872,
+          "relativeDelta": -0.701746,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 4.84188,
+          "landMean": 4.265727,
+          "delta": -0.576153,
+          "relativeDelta": -0.118994,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 64.558405,
+          "landMean": 56.876356,
+          "delta": -7.682049,
+          "relativeDelta": -0.118994,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 142.150235,
+          "landMean": 148.630021,
+          "delta": 6.479786,
+          "relativeDelta": 0.045584,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.859963,
+          "landMean": 0.852435,
+          "delta": -0.007528,
+          "relativeDelta": -0.008754,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 25,
+          "landMean": 23.333333,
+          "delta": -1.666667,
+          "relativeDelta": -0.066667,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.241279,
+          "landMean": 1.192725,
+          "delta": -0.048554,
+          "relativeDelta": -0.039116,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.30634,
+          "landMean": 0.30427,
+          "delta": -0.00207,
+          "relativeDelta": -0.006757,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.181363,
+          "landMean": 0.180758,
+          "delta": -0.000605,
+          "relativeDelta": -0.003336,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.063,
+          "landMean": 0.059,
+          "delta": -0.004,
+          "relativeDelta": -0.063492,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 42.863868,
+          "landMean": 37.182624,
+          "delta": -5.681244,
+          "relativeDelta": -0.132542,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:23.333333",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "arterial-stiffness-low",
+      "label": "arterial stiffness low",
+      "role": "user-arterial-stiffness",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "arterialStiffness": 0.7
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-arterial-stiffness-low",
+        "branchId": "arterial-stiffness-low",
+        "branchName": "arterial stiffness low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 22,
+        "settleActualSeconds": 18.55,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.000069,
+          "cycleMetricDelta": 0.000335,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2401
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-arterial-stiffness-low",
+        "branchId": "arterial-stiffness-low",
+        "branchName": "arterial stiffness low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 22,
+        "settleActualSeconds": 18.55,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.029456,
+          "cycleMetricDelta": 0.000696,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2401
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 5.187011,
+          "landMean": 4.801987,
+          "delta": -0.385024,
+          "relativeDelta": -0.074228,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 69.160147,
+          "landMean": 64.026494,
+          "delta": -5.133653,
+          "relativeDelta": -0.074228,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 112.237291,
+          "landMean": 128.507183,
+          "delta": 16.269892,
+          "relativeDelta": 0.14496,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.016312,
+          "landMean": 0.089053,
+          "delta": 0.072741,
+          "relativeDelta": 4.459355,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 1.00017,
+          "landMean": 0,
+          "delta": -1.00017,
+          "relativeDelta": -1,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.769231,
+          "landMean": 1,
+          "delta": 0.230769,
+          "relativeDelta": 0.3,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.196705,
+          "landMean": 0.202634,
+          "delta": 0.005929,
+          "relativeDelta": 0.030142,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.371782,
+          "landMean": 0.644591,
+          "delta": 0.272809,
+          "relativeDelta": 0.733788,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.025,
+          "landMean": 0.012,
+          "delta": -0.013,
+          "relativeDelta": -0.52,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 27.617461,
+          "landMean": 12.010822,
+          "delta": -15.606639,
+          "relativeDelta": -0.5651,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 5.185993,
+          "landMean": 4.773032,
+          "delta": -0.412961,
+          "relativeDelta": -0.07963,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 69.146574,
+          "landMean": 63.640432,
+          "delta": -5.506142,
+          "relativeDelta": -0.07963,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 122.127135,
+          "landMean": 128.037675,
+          "delta": 5.91054,
+          "relativeDelta": 0.048397,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.997459,
+          "landMean": 0.926497,
+          "delta": -0.070962,
+          "relativeDelta": -0.071143,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.021331,
+          "landMean": 0.019238,
+          "delta": -0.002093,
+          "relativeDelta": -0.09812,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 5.333333,
+          "landMean": 3.333333,
+          "delta": -2,
+          "relativeDelta": -0.375,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 278.915622,
+          "landMean": 196.390877,
+          "delta": -82.524745,
+          "relativeDelta": -0.295877,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.201041,
+          "landMean": 0.297923,
+          "delta": 0.096882,
+          "relativeDelta": 0.481902,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.154426,
+          "landMean": 0.161073,
+          "delta": 0.006647,
+          "relativeDelta": 0.043043,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.073,
+          "landMean": 0.07,
+          "delta": -0.003,
+          "relativeDelta": -0.041096,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 48.614731,
+          "landMean": 43.855672,
+          "delta": -4.759059,
+          "relativeDelta": -0.097893,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "open-limb-roughness-high:RV:196.390877",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "arterial-stiffness-high",
+      "label": "arterial stiffness high",
+      "role": "user-arterial-stiffness",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "arterialStiffness": 1.6
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-arterial-stiffness-high",
+        "branchId": "arterial-stiffness-high",
+        "branchName": "arterial stiffness high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 19,
+        "settleActualSeconds": 16.05,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.003934,
+          "cycleMetricDelta": 0.000197,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-arterial-stiffness-high",
+        "branchId": "arterial-stiffness-high",
+        "branchName": "arterial stiffness high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 19,
+        "settleActualSeconds": 16.05,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.006076,
+          "cycleMetricDelta": 0.000192,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 5.0134,
+          "landMean": 4.620671,
+          "delta": -0.392729,
+          "relativeDelta": -0.078336,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 66.845339,
+          "landMean": 61.608941,
+          "delta": -5.236398,
+          "relativeDelta": -0.078336,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 123.763353,
+          "landMean": 127.12581,
+          "delta": 3.362457,
+          "relativeDelta": 0.027168,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 0,
+          "landMean": 1.649511,
+          "delta": 1.649511,
+          "relativeDelta": 1649511000,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.833333,
+          "landMean": 1,
+          "delta": 0.166667,
+          "relativeDelta": 0.2,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.201077,
+          "landMean": 0.195841,
+          "delta": -0.005236,
+          "relativeDelta": -0.02604,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.397161,
+          "landMean": 0.895254,
+          "delta": 0.498093,
+          "relativeDelta": 1.254134,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.023,
+          "landMean": 0.008,
+          "delta": -0.015,
+          "relativeDelta": -0.652174,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 25.884596,
+          "landMean": 7.401916,
+          "delta": -18.48268,
+          "relativeDelta": -0.714042,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 5.003289,
+          "landMean": 4.614796,
+          "delta": -0.388493,
+          "relativeDelta": -0.077648,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 66.710525,
+          "landMean": 61.530615,
+          "delta": -5.17991,
+          "relativeDelta": -0.077648,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 162.463264,
+          "landMean": 164.120498,
+          "delta": 1.657234,
+          "relativeDelta": 0.010201,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.992525,
+          "landMean": 0.996758,
+          "delta": 0.004233,
+          "relativeDelta": 0.004265,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 24,
+          "landMean": 29,
+          "delta": 5,
+          "relativeDelta": 0.208333,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.35535,
+          "landMean": 1.242221,
+          "delta": -0.113129,
+          "relativeDelta": -0.083468,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.205711,
+          "landMean": 0.211137,
+          "delta": 0.005426,
+          "relativeDelta": 0.026377,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.01982,
+          "landMean": 0.016329,
+          "delta": -0.003491,
+          "relativeDelta": -0.176135,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.206,
+          "landMean": 0.197,
+          "delta": -0.009,
+          "relativeDelta": -0.043689,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 79.849356,
+          "landMean": 72.160273,
+          "delta": -7.689083,
+          "relativeDelta": -0.096295,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:29",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "venous-tone-low",
+      "label": "venous tone low",
+      "role": "user-venous-tone",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "venousTone": 0.08
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-venous-tone-low",
+        "branchId": "venous-tone-low",
+        "branchName": "venous tone low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 13,
+        "settleActualSeconds": 11.3,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.007808,
+          "cycleMetricDelta": 0.000696,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-venous-tone-low",
+        "branchId": "venous-tone-low",
+        "branchName": "venous tone low",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 14,
+        "settleActualSeconds": 12.05,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.003926,
+          "cycleMetricDelta": 0.000482,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 5.403858,
+          "landMean": 4.787677,
+          "delta": -0.616181,
+          "relativeDelta": -0.114026,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 72.051436,
+          "landMean": 63.835697,
+          "delta": -8.215739,
+          "relativeDelta": -0.114026,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 121.902155,
+          "landMean": 130.41158,
+          "delta": 8.509425,
+          "relativeDelta": 0.069805,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.044185,
+          "landMean": 0,
+          "delta": -0.044185,
+          "relativeDelta": -1,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 1.000003,
+          "landMean": 1.150182,
+          "delta": 0.150179,
+          "relativeDelta": 0.150179,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.807692,
+          "landMean": 1,
+          "delta": 0.192308,
+          "relativeDelta": 0.238096,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.196675,
+          "landMean": 0.202242,
+          "delta": 0.005567,
+          "relativeDelta": 0.028306,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.367015,
+          "landMean": 0.746265,
+          "delta": 0.37925,
+          "relativeDelta": 1.033337,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.025,
+          "landMean": 0.01,
+          "delta": -0.015,
+          "relativeDelta": -0.6,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 28.561475,
+          "landMean": 9.606217,
+          "delta": -18.955258,
+          "relativeDelta": -0.663665,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 5.412914,
+          "landMean": 4.791031,
+          "delta": -0.621883,
+          "relativeDelta": -0.114889,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 72.172184,
+          "landMean": 63.880418,
+          "delta": -8.291766,
+          "relativeDelta": -0.114889,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 140.662782,
+          "landMean": 147.676866,
+          "delta": 7.014084,
+          "relativeDelta": 0.049865,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.919447,
+          "landMean": 0.875617,
+          "delta": -0.04383,
+          "relativeDelta": -0.04767,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0.008754,
+          "delta": 0.008754,
+          "relativeDelta": 8754000,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 29.666667,
+          "landMean": 26,
+          "delta": -3.666667,
+          "relativeDelta": -0.123596,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.341795,
+          "landMean": 1.228719,
+          "delta": -0.113076,
+          "relativeDelta": -0.084272,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.212131,
+          "landMean": 0.297663,
+          "delta": 0.085532,
+          "relativeDelta": 0.403204,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.189872,
+          "landMean": 0.179583,
+          "delta": -0.010289,
+          "relativeDelta": -0.054189,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.064333,
+          "landMean": 0.063,
+          "delta": -0.001333,
+          "relativeDelta": -0.02072,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 46.460491,
+          "landMean": 42.068601,
+          "delta": -4.39189,
+          "relativeDelta": -0.09453,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:26",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    },
+    {
+      "id": "venous-tone-high",
+      "label": "venous tone high",
+      "role": "user-venous-tone",
+      "targetTBVMl": 5600,
+      "knobs": {
+        "venousTone": 0.28
+      },
+      "stock": {
+        "caseId": "phase5x-user-knob-venous-tone-high",
+        "branchId": "venous-tone-high",
+        "branchName": "venous tone high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 14,
+        "settleActualSeconds": 12.05,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.017708,
+          "cycleMetricDelta": 0.000609,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "land": {
+        "caseId": "phase5x-user-knob-venous-tone-high",
+        "branchId": "venous-tone-high",
+        "branchName": "venous tone high",
+        "settled": true,
+        "settleReason": "converged",
+        "settleBeats": 15,
+        "settleActualSeconds": 12.8,
+        "health": {
+          "status": "ok",
+          "periodBeats": 1,
+          "tbvDriftMl": 0,
+          "leftRightFlowMismatchLMin": 0.008067,
+          "cycleMetricDelta": 0.000436,
+          "clampHitCount": 0,
+          "numericalStability": "ok",
+          "massConservation": "ok",
+          "flowBalance": "ok",
+          "physiologicalRange": "ok",
+          "messages": []
+        },
+        "metricCount": 2472,
+        "sampleCount": 2400
+      },
+      "bothBranchesPresent": true,
+      "bothSettled": true,
+      "landHealthOk": true,
+      "metricDeltas": [
+        {
+          "chamber": "LV",
+          "metricId": "CO",
+          "stockMean": 5.442624,
+          "landMean": 4.786451,
+          "delta": -0.656173,
+          "relativeDelta": -0.120562,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "SV",
+          "stockMean": 72.568318,
+          "landMean": 63.819342,
+          "delta": -8.748976,
+          "relativeDelta": -0.120562,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "EDV",
+          "stockMean": 122.947558,
+          "landMean": 130.63325,
+          "delta": 7.685692,
+          "relativeDelta": 0.062512,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0.032514,
+          "landMean": 0,
+          "delta": -0.032514,
+          "relativeDelta": -1,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "mvOpenLowerLimbRoughness",
+          "stockMean": 1.000013,
+          "landMean": 1.554557,
+          "delta": 0.554544,
+          "relativeDelta": 0.554537,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0.740741,
+          "landMean": 1,
+          "delta": 0.259259,
+          "relativeDelta": 0.35,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "aovOpenEjectionSquareness",
+          "stockMean": 0.196788,
+          "landMean": 0.202191,
+          "delta": 0.005403,
+          "relativeDelta": 0.027456,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.350706,
+          "landMean": 0.746164,
+          "delta": 0.395458,
+          "relativeDelta": 1.127605,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.026,
+          "landMean": 0.01,
+          "delta": -0.016,
+          "relativeDelta": -0.615385,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 30.227717,
+          "landMean": 9.62671,
+          "delta": -20.601007,
+          "relativeDelta": -0.681527,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "LV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "CO",
+          "stockMean": 5.451568,
+          "landMean": 4.795474,
+          "delta": -0.656094,
+          "relativeDelta": -0.12035,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "SV",
+          "stockMean": 72.687576,
+          "landMean": 63.93965,
+          "delta": -8.747926,
+          "relativeDelta": -0.12035,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EDV",
+          "stockMean": 143.679848,
+          "landMean": 150.724928,
+          "delta": 7.04508,
+          "relativeDelta": 0.049033,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "EAInflowProxy",
+          "stockMean": 0.921856,
+          "landMean": 0.895078,
+          "delta": -0.026778,
+          "relativeDelta": -0.029048,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "uncertainSampleFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "lowerLimbKinkCount",
+          "stockMean": 34,
+          "landMean": 27,
+          "delta": -7,
+          "relativeDelta": -0.205882,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "tvOpenLowerLimbRoughness",
+          "stockMean": 1.33227,
+          "landMean": 1.24478,
+          "delta": -0.08749,
+          "relativeDelta": -0.06567,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "qDotClampHitFraction",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "pvOpenEjectionSquareness",
+          "stockMean": 0.226125,
+          "landMean": 0.297644,
+          "delta": 0.071519,
+          "relativeDelta": 0.316281,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "incisuraPresenceScore",
+          "stockMean": 0.1867,
+          "landMean": 0.178965,
+          "delta": -0.007735,
+          "relativeDelta": -0.04143,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "ejectionDuration",
+          "stockMean": 0.065,
+          "landMean": 0.063,
+          "delta": -0.002,
+          "relativeDelta": -0.030769,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarForwardVolume",
+          "stockMean": 47.44476,
+          "landMean": 42.249971,
+          "delta": -5.194789,
+          "relativeDelta": -0.109491,
+          "stockCount": 3,
+          "landCount": 3
+        },
+        {
+          "chamber": "RV",
+          "metricId": "semilunarReverseVolume",
+          "stockMean": 0,
+          "landMean": 0,
+          "delta": 0,
+          "relativeDelta": 0,
+          "stockCount": 3,
+          "landCount": 3
+        }
+      ],
+      "absoluteMorphologyFailures": [
+        "lower-limb-kinks-high:RV:27",
+        "qdot-clamp-high:LV:1"
+      ],
+      "classification": "blocked-by-morphology-absolute-gate"
+    }
+  ],
+  "preflight": {
+    "expectedPointCount": 14,
+    "completePointCount": 14,
+    "candidatePassPointCount": 0,
+    "landSolveFailureCount": 0,
+    "stockRunnerErrorCount": 0,
+    "landRunnerErrorCount": 0,
+    "absoluteMorphologyFailureCount": 25,
+    "readiness": "blocked-before-default-flip",
+    "defaultFlipInThisArtifact": false,
+    "legacyDeletionReadiness": "blocked-freeze-reference"
+  },
+  "summary": {
+    "currentInterpretation": "Developer-only LV Land did not yet clear the normal operating floor and user-knob morphology preflight. Do not flip runtime default until blockers are resolved or explicitly accepted.",
+    "recommendedNext": [
+      "if preflight is ready, make a separate default-flip PR that keeps legacy active-stress frozen and selectable for reference",
+      "run SDIRK2 alternans closure against the frozen reference closure in parallel, not as a migration gate",
+      "continue atrial figure-eight and arterial Zc/root morphology work as separate subsystems; do not tune Land to hide those blockers"
+    ]
+  },
+  "boundary": {
+    "noRuntimeDefaultFlipInThisArtifact": true,
+    "noLegacyActiveStressDeletion": true,
+    "noOfficialCaseReauthoring": true,
+    "noWorkbenchRuntimeWiring": true,
+    "noStateSchemaMigration": true,
+    "noRuntimeFlagUi": true,
+    "noProductionRegistryIntegration": true,
+    "noPerCaseTuning": true,
+    "noTrefFudge": true,
+    "noQDotTuning": true,
+    "noValveTuning": true,
+    "noAfterloadTuning": true,
+    "noPreloadTuning": true,
+    "noLandParameterTuning": true,
+    "noSourceStressScaling": true,
+    "noOfficialMorphologyAcceptance": true,
+    "noFinalNoAlternansAcceptance": true,
+    "noClinicalScientificValidationClaim": true
+  },
+  "doesNotUnlock": [
+    "runtimeDefaultFlip",
+    "legacyActiveStressDeletion",
+    "officialCaseWiring",
+    "officialCaseReauthoring",
+    "workbenchRuntimeWiring",
+    "stateSchemaMigration",
+    "runtimeFlagUi",
+    "productionRegistryIntegration",
+    "officialMorphologyAcceptance",
+    "finalNoAlternans",
+    "perCaseTuning",
+    "TrefFudge",
+    "qDotTuning",
+    "valveThresholdTuning",
+    "arterialLoadTuning",
+    "preloadTuning",
+    "landParameterTuning",
+    "sourceStressScaling",
+    "clinicalDecisionSupport",
+    "scientificValidationClaim"
+  ]
+}

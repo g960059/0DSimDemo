@@ -7,6 +7,12 @@ source_adr: "../adr/ADR-MYO-002-atrial-bridge.md"
 
 # Atrial bridge v1 — Verification and shootout plan
 
+
+> **Some paths below are retired.** This document names tools, tests, and
+> artifacts from lanes that were removed from the working tree. They are
+> recoverable from git history (`git show <commit>:<path>`); do not read
+> them as commands you can run today.
+
 ## 1. Objective
 
 Select a Phase 6 atrial bridge that supports LV/RV Land closed-loop evaluation without introducing non-physiologic atrial PV loops, pressure oscillations, preload artifacts, or valve/qDot contamination.

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "id": "modelcore-paired-land-qdot-clamp-attribution-result-v1",
+  "phase": "Phase 5C-M",
+  "claimBoundary": "same-closure-qdot-clamp-threshold-attribution-only",
+  "upstreamPairedRunEvidenceId": "modelcore-paired-land-source-provider-run-v1",
+  "upstreamPairedRunResultArtifactId": "modelcore-paired-land-source-provider-run-result-v1",
+  "upstreamPairedRunResultArtifactPath": "data/myocardium/protocols/modelcore-paired-land-source-provider-run-result-v1.json",
+  "verifierScript": "verify:myocardium-modelcore-paired-land-qdot-clamp-attribution",
+  "sameClosureBoundary": {
+    "stableHashesMatch": true,
+    "sourceProviderDifferenceOnly": true,
+    "noQDotTuning": true,
+    "noValveTuning": true,
+    "noAfterloadTuning": true,
+    "noPreloadTuning": true,
+    "noLandParameterTuning": true
+  },
+  "pairedRunStatus": {
+    "legacyStatus": "period-2-positive-control-pass",
+    "landStatus": "finite-period-1",
+    "outcomeClass": "A",
+    "routeSatisfactionStatus": "satisfied-paired-land-provider-run-finite",
+    "finalNoAlternansClaim": "not-claimed"
+  },
+  "clampAttribution": {
+    "legacy": {
+      "sourceProviderId": "modelcore-experimental-legacy-active-stress-lv-source-only-provider-v1",
+      "status": "period-2-positive-control-pass",
+      "periodBeats": 2,
+      "adjacentDelta": 0.5745146104493377,
+      "periodDelta": 0.007893685508913251,
+      "clampAttributionTrace": {
+        "traceBeatCount": 4,
+        "sampleCount": 384,
+        "aovQDotClampHitCount": 20,
+        "aovQDotClampHitFraction": 0.052083333333333336,
+        "aovQDotMaxRawAbsMlPerS2": 404765.10770714603,
+        "aovQDotMaxPostAbsMlPerS2": 40000,
+        "aovQDotMaxPositiveRawMlPerS2": 79250.35303113578,
+        "aovQDotMinNegativeRawMlPerS2": -404765.10770714603,
+        "aovQDotMaxImpulseAbsMlPerS2": 364765.10770714603,
+        "qAoCapRatioMax": 0.9972974131618831,
+        "qAoNearCap90Fraction": 0.010416666666666666,
+        "qAoNearCap95Fraction": 0.010416666666666666,
+        "qAoNearCap98Fraction": 0.005208333333333333,
+        "qAoAtCapFraction": 0,
+        "qAoLocalCapActiveFraction": 0,
+        "dynamicFlowClampHitsAoV": 0,
+        "valveDiodeClampHitsAoV": 48090
+      }
+    },
+    "land": {
+      "sourceProviderId": "modelcore-experimental-land2017-lv-source-only-provider-v1",
+      "status": "finite-period-1",
+      "periodBeats": 1,
+      "adjacentDelta": 0.007275531777681616,
+      "periodDelta": 0.007275531777681616,
+      "clampAttributionTrace": {
+        "traceBeatCount": 4,
+        "sampleCount": 384,
+        "aovQDotClampHitCount": 0,
+        "aovQDotClampHitFraction": 0,
+        "aovQDotMaxRawAbsMlPerS2": 9594.136779381372,
+        "aovQDotMaxPostAbsMlPerS2": 9594.136779381372,
+        "aovQDotMaxPositiveRawMlPerS2": 4312.057804460238,
+        "aovQDotMinNegativeRawMlPerS2": -9594.136779381372,
+        "aovQDotMaxImpulseAbsMlPerS2": 0,
+        "qAoCapRatioMax": 0.11238253479920154,
+        "qAoNearCap90Fraction": 0,
+        "qAoNearCap95Fraction": 0,
+        "qAoNearCap98Fraction": 0,
+        "qAoAtCapFraction": 0,
+        "qAoLocalCapActiveFraction": 0,
+        "dynamicFlowClampHitsAoV": 0,
+        "valveDiodeClampHitsAoV": 15283
+      }
+    },
+    "deltas": {
+      "landVsLegacyAovQDotClampHitFractionDelta": -0.052083333333333336,
+      "landVsLegacyAovQDotClampHitCountDelta": -20,
+      "landVsLegacyAovQDotMaxImpulseAbsMlPerS2Delta": -364765.10770714603,
+      "landVsLegacyAovQDotMaxRawAbsMlPerS2Delta": -395170.97092776466,
+      "landVsLegacyQAoCapRatioMaxDelta": -0.8849148783626816,
+      "landVsLegacyQAoPeakDeltaMlPerSec": -1327.3689642045924,
+      "landVsLegacySVDeltaMl": -33.109816411147165,
+      "landVsLegacyCOLDeltaLMin": -2.483236230836037
+    }
+  },
+  "attributionInterpretation": {
+    "classification": "clamp-threshold-avoidance-risk-supported",
+    "structuralAlternansRemovalClaim": "not-established",
+    "finalNoAlternansClaim": "not-claimed",
+    "officialMorphologyAcceptance": "not-claimed",
+    "summary": "Land period-1 remains a positive interpretable signal, but lower output and lower AoV qDot clamp engagement support clamp-threshold avoidance as an unresolved attribution risk.",
+    "requiredNextChecks": [
+      "output-matched-paired-run-before-structural-attribution",
+      "SDIRK2-reference-before-final-no-alternans",
+      "preload-domain-sweep-before-domain-claim"
+    ]
+  },
+  "doesNotUnlock": [
+    "runtimeReplacement",
+    "officialMorphologyAcceptance",
+    "finalNoAlternans",
+    "qDotTuning",
+    "valveThresholdTuning",
+    "arterialLoadTuning",
+    "preloadTuning",
+    "landParameterTuning",
+    "TriSegAdoption",
+    "StudioScientificValidityClaim"
+  ]
+}

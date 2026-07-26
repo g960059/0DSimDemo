@@ -21,6 +21,12 @@ normative_documents:
 
 # 0DSimDemo 心筋収縮サブシステム全面刷新 — Phase A Land-first実装・検証計画
 
+
+> **Some paths below are retired.** This document names tools, tests, and
+> artifacts from lanes that were removed from the working tree. They are
+> recoverable from git history (`git show <commit>:<path>`); do not read
+> them as commands you can run today.
+
 ## 0. 文書の位置づけ
 
 本書は、現行の `ActiveStressChamberModel` を段階的に修理する計画ではない。心筋収縮、activation timing、Ca入力、myofilament kinetics、組織へのhomogenization、心室運動学、generalized forceへの写像、およびその数値結合を、**旧パラメータ意味論を引き継がずに新規実装するための設計記録兼実装チーム向け総合仕様**である。
