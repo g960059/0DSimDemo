@@ -41,17 +41,18 @@ not start the Firestore emulator.
 ## Fast-suite contract
 
 - Exact allowlist; no broad `__tests__/*.test.ts` include.
-- 60 second wall-clock hard limit, overrideable only for diagnosis with
-  `CIRCLEHEART_FAST_TEST_BUDGET_MS`.
+- 60 second wall-clock limit locally, raised to 90 seconds in CI via
+  `CIRCLEHEART_FAST_TEST_BUDGET_MS` because shared runners are markedly slower
+  than a development machine. Override it anywhere else only for diagnosis.
 - 10 second per-test and per-hook timeout.
 - `FAST_SUITE_FILE_BUDGET` in `vitest.suites.ts` is the ceiling the ownership
   test enforces; raising it is the explicit review. The wall-clock budget
   remains authoritative as lightweight kernel coverage grows.
 - Files named as benches, calibration, envelope, replay, artifact, or
   attribution work cannot enter the fast allowlist.
-- The current warm local baseline is expected to be roughly ten seconds; the
-  60 second limit leaves CI and slower-machine headroom without accepting suite
-  creep.
+- The current warm local baseline is expected to be roughly ten to twenty
+  seconds, so both the 60 second local limit and the 90 second CI budget leave
+  headroom without accepting suite creep.
 
 To add a pure fast test, add its exact path to `fastTests` in
 `vitest.suites.ts`. A new `mainWire*.test.ts` is conservatively classified as
