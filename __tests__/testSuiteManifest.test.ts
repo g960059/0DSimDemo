@@ -7,7 +7,6 @@ import {
   classifyTestFile,
   fastTests,
   heavyTests,
-  isArchivedResearchTest,
   isCanonicalScientificTest,
   regressionTests,
   prSmokeTests,
@@ -52,7 +51,6 @@ function memberships(file: string): string[] {
     heavyFiles.has(file) ? "heavy" : null,
     rulesFiles.has(file) ? "rules" : null,
     isCanonicalScientificTest(file) ? "canonical-scientific" : null,
-    isArchivedResearchTest(file) ? "archived-research" : null,
   ].filter((value): value is string => value !== null);
 }
 
@@ -103,8 +101,7 @@ describe("Vitest suite ownership manifest", () => {
   it("defaults future scientific files away from fast", () => {
     expect(classifyTestFile("__tests__/mainWireFutureExperiment.test.ts"))
       .toBe("canonical-scientific");
-    expect(classifyTestFile("__tests__/mechanics2FutureBench.test.ts"))
-      .toBe("archived-research");
+    expect(classifyTestFile("__tests__/mechanics2FutureBench.test.ts")).toBeNull();
     expect(classifyTestFile("__tests__/unregisteredFeature.test.ts")).toBeNull();
   });
 });

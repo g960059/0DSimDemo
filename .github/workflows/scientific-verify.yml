@@ -2,12 +2,6 @@ name: Scientific verification
 
 on:
   workflow_dispatch:
-    inputs:
-      run_archive:
-        description: Run historical research and artifact-replay tests
-        required: false
-        default: false
-        type: boolean
   schedule:
     # Nightly current-model verification at 03:17 JST.
     - cron: "17 18 * * *"
@@ -157,41 +151,3 @@ jobs:
             playwright-report/
             test-results/
           if-no-files-found: ignore
-
-  archived_research:
-    name: Archived research (${{ matrix.shard }})
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_archive }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        shard:
-          - 1/12
-          - 2/12
-          - 3/12
-          - 4/12
-          - 5/12
-          - 6/12
-          - 7/12
-          - 8/12
-          - 9/12
-          - 10/12
-          - 11/12
-          - 12/12
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run archived research shard
-        run: npm run test:scientific:archive -- --shard=${{ matrix.shard }}

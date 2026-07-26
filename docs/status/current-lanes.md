@@ -22,9 +22,8 @@ parts, not the persistence or ownership model for Studio v1.
 
 The host-neutral runtime and evidence boundaries remain canonical:
 
-- [scientific runtime](../scientific-runtime/README.md)
+- [scientific runtime](../scientific-runtime/ADR-0001-single-scientific-core.md)
 - [myocardium lane](../myocardium/README.md)
-- [MechanicsCore2 lane](../mechanics2/README.md)
 
 Use the current implementation and immutable report artifacts to determine a
 model claim. A status document must not promote a diagnostic result into
@@ -32,16 +31,14 @@ scientific acceptance.
 
 ## Historical routing
 
-The [detailed lane diary through 2026-07-10](archive/current-lanes-through-2026-07-10.md)
-is noncanonical. Git history and immutable artifacts remain the evidence
-sources.
+The detailed lane diary through 2026-07-10 was removed from the working tree,
+together with the retired MechanicsCore2 / AV-plane lane it chiefly recorded.
+Git history and immutable artifacts remain the evidence sources.
 
-It no longer has any code consumer. Twenty-one myocardium verifiers used to
-require specific wording in it; because the file is frozen, every requirement
-added by a phase that landed after the archive date was unsatisfiable in
-principle, and twenty verifiers were red for that reason alone. Those pins are
-gone, and `tools/repository/checkRepositoryHygiene.mjs` now fails if any tool
-under `tools/` reads `docs/status/archive/` again. The diary is kept as plain
-history — chiefly the MechanicsCore2 / CircAdapt-lite sidecar record, which is
-an active lane — so whether to keep it is now an ordinary editorial call rather
-than something the verifiers force.
+Its last code consumers are gone too. Twenty-one myocardium verifiers used to
+require specific wording in the diary; because the file was frozen, every
+requirement added by a phase that landed after the archive date was
+unsatisfiable in principle, and twenty verifiers were red for that reason
+alone. Those pins were retired first, and the verifiers themselves are retired
+with the lane. `tools/repository/checkRepositoryHygiene.mjs` still fails if any
+tool under `tools/` reads `docs/status/archive/` again.

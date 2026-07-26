@@ -97,9 +97,8 @@ full TriSeg escalation before those mechanisms are claimed.
 Owner `g960059` accepted the recommended defaults for decisions 1–3, 9, 11,
 14, 15, 17, and 20 on 2026-06-26 via Codex thread instruction. The
 structured source reference is PR #154:
-<https://github.com/g960059/0DSimDemo/pull/154>. The
-machine-readable record is
-[`../../../data/myocardium/phase0-decisions.json`](../../../data/myocardium/phase0-decisions.json).
+<https://github.com/g960059/0DSimDemo/pull/154>. The machine-readable record `data/myocardium/phase0-decisions.json` was
+retired from the working tree and remains in git history.
 Owner decisions not listed in the ADR acceptance clause remain pending or
 deferred to their stated phases.
 

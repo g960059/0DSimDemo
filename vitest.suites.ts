@@ -2,9 +2,9 @@
  * Vitest suite ownership registry.
  *
  * Fast, regression, heavy, and rules tests are fail-closed: a new file must be
- * registered explicitly. Research families are fail-safe by prefix so a new
- * long-running bench cannot leak into the fast suite. The manifest test checks
- * that every *.test.ts file belongs to exactly one suite.
+ * registered explicitly. The canonical scientific lane is fail-safe by prefix so
+ * a new main-wire bench cannot leak into the fast suite. The manifest test
+ * checks that every *.test.ts file belongs to exactly one suite.
  */
 
 export const FAST_SUITE_FILE_BUDGET = 116;
@@ -295,30 +295,10 @@ export const canonicalScientificTestGlobs = [
   "__tests__/coronaryV2ShadowProtocol.test.ts",
 ] as const;
 
-/**
- * Historical research lanes. These files may rerun long parameter searches or
- * compare committed artifacts and therefore stay manual-only by default.
- */
-export const archivedResearchTestGlobs = [
-  "__tests__/atrialAVPlane*.test.ts",
-  "__tests__/mechanics2*.test.ts",
-  "__tests__/mechanistic*.test.ts",
-  "__tests__/morphologyPhysiology*.test.ts",
-  "__tests__/myocardium*.test.ts",
-  "__tests__/workConjugate*.test.ts",
-  "__tests__/pvLoopArterialLoadZcReflectionDiagnosticComparator.test.ts",
-  "__tests__/pvLoopCurrentMainBaselineSnapshot.test.ts",
-  "__tests__/pvLoopFillingLimbCorrelationReadiness.test.ts",
-  "__tests__/pvLoopFillingLimbDiagnosticComparator.test.ts",
-  "__tests__/pvLoopMorphologyQualityRunner.test.ts",
-  "__tests__/pvLoopZcReflectionComparatorReadiness.test.ts",
-] as const;
-
 export type TestSuiteName =
   | "fast"
   | "regression"
   | "canonical-scientific"
-  | "archived-research"
   | "heavy"
   | "rules";
 
@@ -326,24 +306,6 @@ const fastSet = new Set<string>(fastTests);
 const regressionSet = new Set<string>(regressionTests);
 const heavySet = new Set<string>(heavyTests);
 const rulesSet = new Set<string>(rulesTests);
-
-const archivedResearchPrefixes = [
-  "__tests__/atrialAVPlane",
-  "__tests__/mechanics2",
-  "__tests__/mechanistic",
-  "__tests__/morphologyPhysiology",
-  "__tests__/myocardium",
-  "__tests__/workConjugate",
-] as const;
-
-const archivedResearchExact = new Set<string>([
-  "__tests__/pvLoopArterialLoadZcReflectionDiagnosticComparator.test.ts",
-  "__tests__/pvLoopCurrentMainBaselineSnapshot.test.ts",
-  "__tests__/pvLoopFillingLimbCorrelationReadiness.test.ts",
-  "__tests__/pvLoopFillingLimbDiagnosticComparator.test.ts",
-  "__tests__/pvLoopMorphologyQualityRunner.test.ts",
-  "__tests__/pvLoopZcReflectionComparatorReadiness.test.ts",
-]);
 
 const canonicalScientificExact = new Set<string>([
   "__tests__/backwardEulerCoronaryNetworkV1.test.ts",
@@ -371,19 +333,11 @@ export function isCanonicalScientificTest(file: string): boolean {
     );
 }
 
-export function isArchivedResearchTest(file: string): boolean {
-  return !fastSet.has(file)
-    && (archivedResearchExact.has(file)
-      || (file.endsWith(".test.ts")
-        && archivedResearchPrefixes.some((prefix) => file.startsWith(prefix))));
-}
-
 export function classifyTestFile(file: string): TestSuiteName | null {
   if (fastSet.has(file)) return "fast";
   if (regressionSet.has(file)) return "regression";
   if (heavySet.has(file)) return "heavy";
   if (rulesSet.has(file)) return "rules";
   if (isCanonicalScientificTest(file)) return "canonical-scientific";
-  if (isArchivedResearchTest(file)) return "archived-research";
   return null;
 }

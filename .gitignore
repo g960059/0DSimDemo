@@ -34,6 +34,10 @@ playwright-report/
 test-results/
 blob-report/
 
+# machine-local agent tooling (do not track)
+/.agents/
+/skills-lock.json
+
 # machine-local Claude Code permissions (do not track)
 .claude/settings.local.json
 .claude/
