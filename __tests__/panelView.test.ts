@@ -45,6 +45,7 @@ describe("panel view compatibility adapter", () => {
       pvDebugTraceMode: "both",
       pvHistoryBeats: 8,
       pvHistoryMode: "fade",
+      pvParameterHistoryCount: 6,
       pvRelationDisplayMode: "research",
       pvRelationPressureBasis: "transmural",
       pvRelationShowSamplePoints: true,
@@ -66,6 +67,7 @@ describe("panel view compatibility adapter", () => {
     expect(view.pvDebugTraceMode).toBe("both");
     expect(view.pvHistoryBeats).toBe(8);
     expect(view.pvHistoryMode).toBe("fade");
+    expect(view.pvParameterHistoryCount).toBe(6);
     expect(view.pvRelationDisplayMode).toBe("research");
     expect(view.pvRelationPressureBasis).toBe("transmural");
     expect(view.pvRelationShowSamplePoints).toBe(true);

@@ -6,6 +6,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+/logs.txt
+/mv_out.txt
+
+# One-off local probes and imported assistant transcripts
+/test_blocknote.ts
+/test_blocknote_esm.mjs
+/migrated_prompt_history/
 
 node_modules
 dist-ssr
@@ -22,7 +29,7 @@ dist-ssr
 *.sln
 *.sw?
 dist/
-artifacts/
+/artifacts/
 playwright-report/
 test-results/
 blob-report/

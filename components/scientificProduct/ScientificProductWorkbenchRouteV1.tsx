@@ -57,10 +57,10 @@ import type {
   SimInstance,
   WorkbenchWorkspace,
 } from "@/types";
+import { DEFAULT_PV_LOOP_HISTORY_BEATS } from "@/types";
 import type {
   MainWireScientificWorkspaceDocumentV1,
 } from "@/engine/scientific/documents";
-import type { SteadyUpdateStatusMap } from "@/engine/previewController";
 import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_VALUES_V0,
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_VALUE_DOMAINS_V0,
@@ -71,13 +71,13 @@ import {
 import type {
   ScientificResearchControlContextV0,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
-import {
-  ScientificWorkbenchResearchControlV0,
-} from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlV0";
 import type {
   ScientificWorkbenchResearchControlDraftV0,
   ScientificWorkbenchResearchControlSnapshotV0,
 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
+import {
+  InMemoryContentAddressedArtifactStoreV1,
+} from "@/studio/infrastructure/artifacts/InMemoryContentAddressedArtifactStoreV1";
 
 import {
   createScientificWorkbenchRuntimeRendererV1,
@@ -99,18 +99,28 @@ import {
   createScientificWorkbenchDisplayClockV1,
 } from "./ScientificWorkbenchDisplayClockV1";
 import {
-  createScientificProductWorkerClientV1,
-  ScientificProductScenarioRegistryV1,
-  loadScientificProductScenarioRuntimeV1,
-  type ScientificProductLoadedRuntimeV1,
-} from "./ScientificProductScenarioRegistryV1";
-import {
-  ScientificProductQuickCheckRegistryV1,
   type ScientificProductQuickCheckRecordV1,
 } from "./ScientificProductQuickCheckRegistryV1";
+import type {
+  ScientificProductRuntimeRegistryPortV1,
+} from "./ScientificProductRuntimeRegistryPortV1";
+import {
+  loadScientificProductStudioScenarioRuntimeV1,
+  nextScientificProductStudioScenarioIdV1,
+  ScientificProductStudioScenarioRegistryV1,
+  type ScientificProductStudioScenarioRuntimeV1,
+} from "./ScientificProductStudioScenarioRegistryV1";
 import {
   createScientificProductEvidenceReportV1,
 } from "./ScientificProductEvidenceReportV1";
+import {
+  ScientificWorkbenchBriefingControlV1,
+} from "./ScientificWorkbenchBriefingControlV1";
+import {
+  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
+  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
+  SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+} from "./ScientificProductSampleAfterloadArticleV1";
 import {
   readScientificProductSavedScenarioCatalogV1,
   removeScientificProductSavedScenarioV1,
@@ -130,7 +140,34 @@ import {
 type ScientificProductRuntimeLoadStateV1 =
   | Readonly<{ phase: "loading"; message: string }>
   | Readonly<{ phase: "failed"; message: string }>
-  | Readonly<{ phase: "ready"; runtime: ScientificProductLoadedRuntimeV1 }>;
+  | Readonly<{
+    phase: "ready";
+    runtime: ScientificProductStudioScenarioRuntimeV1;
+  }>;
+
+const EMPTY_STUDIO_QUICK_CHECK_SNAPSHOT_V1 = Object.freeze({
+  records: Object.freeze([]) as readonly ScientificProductQuickCheckRecordV1[],
+});
+const STUDIO_VV_NOT_CONNECTED_MESSAGE_V1 =
+  "Studio V&V reports are not connected to this product surface yet. "
+  + "Live simulation and strict numerical settlement remain active.";
+
+function scheduleAfterCommittedPaintV1(callback: () => void): () => void {
+  if (typeof globalThis.requestAnimationFrame !== "function") {
+    const timeoutId = globalThis.setTimeout(callback, 0);
+    return () => globalThis.clearTimeout(timeoutId);
+  }
+  let secondFrameId: number | null = null;
+  const firstFrameId = globalThis.requestAnimationFrame(() => {
+    secondFrameId = globalThis.requestAnimationFrame(callback);
+  });
+  return () => {
+    globalThis.cancelAnimationFrame(firstFrameId);
+    if (secondFrameId !== null) {
+      globalThis.cancelAnimationFrame(secondFrameId);
+    }
+  };
+}
 
 export default function ScientificProductWorkbenchRouteV1() {
   const { caseId } = useParams<{ caseId?: string }>();
@@ -184,43 +221,35 @@ function ScientificProductWorkbenchLoaderV1({
 
   React.useEffect(() => {
     let active = true;
-    let pendingClient: ReturnType<typeof createScientificProductWorkerClientV1>;
-    try {
-      pendingClient = createScientificProductWorkerClientV1();
-    } catch (error: unknown) {
-      setState({
-        phase: "failed",
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return undefined;
-    }
-    let clientOwnershipTransferred = false;
-    let loadedRuntime: ScientificProductLoadedRuntimeV1 | null = null;
+    const abortController = new AbortController();
+    const artifacts = new InMemoryContentAddressedArtifactStoreV1();
+    const scenarioId = nextScientificProductStudioScenarioIdV1();
+    let loadedRuntime: ScientificProductStudioScenarioRuntimeV1 | null = null;
     setState({
       phase: "loading",
       message: resolution.caseEntry.kind === "official-exact-periodic"
-        ? "Verifying the official document chain and restoring its exact P1 state…"
+        ? "Restoring the exact source and preparing its one-point Studio snapshot…"
         : "Starting an independent release-bound run and waiting for numerical P1…",
     });
-    void loadScientificProductScenarioRuntimeV1(
-      resolution.caseEntry,
-      (progress) => {
+    void loadScientificProductStudioScenarioRuntimeV1({
+      scenarioId,
+      caseEntry: resolution.caseEntry,
+      artifacts,
+      onProgress: (progress) => {
         if (!active) return;
         setState({
           phase: "loading",
-          message: progress.status === "period1-converged"
-            ? `P1 confirmed after ${progress.completedBeatCount} beats; capturing the following complete cycle…`
-            : `Periodic settlement ${progress.completedBeatCount}/${progress.maximumBeatCount}; no steady graph is exposed yet.`,
+          message: progress.message,
         });
       },
-      pendingClient,
-    ).then((runtime) => {
+      signal: abortController.signal,
+      deferInitialLivePresentation: true,
+    }).then((runtime) => {
       if (!active) {
-        runtime.client.terminate();
+        void runtime.controller.dispose();
         return;
       }
       loadedRuntime = runtime;
-      clientOwnershipTransferred = true;
       setState({ phase: "ready", runtime });
     }).catch((error: unknown) => {
       if (active) {
@@ -233,8 +262,8 @@ function ScientificProductWorkbenchLoaderV1({
 
     return () => {
       active = false;
-      if (clientOwnershipTransferred) loadedRuntime?.client.terminate();
-      else pendingClient.terminate();
+      abortController.abort();
+      if (loadedRuntime !== null) void loadedRuntime.controller.dispose();
     };
   }, [resolution.canonicalCaseId]);
 
@@ -258,7 +287,7 @@ function ScientificProductWorkbenchShellV1({
   runtime,
 }: Readonly<{
   resolution: ScientificProductCaseRouteResolutionV1;
-  runtime: ScientificProductLoadedRuntimeV1;
+  runtime: ScientificProductStudioScenarioRuntimeV1;
 }>) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -266,7 +295,6 @@ function ScientificProductWorkbenchShellV1({
   const locale = localeFromPathname(location.pathname);
   const isMobile = useIsMobile();
   const { workbenchTheme, setWorkbenchTheme } = useWorkbenchTheme();
-  const [timeScale, setTimeScale] = React.useState(1);
   const [isPlaying, setPlaying] = React.useState(true);
   const [sceneMeta, setSceneMeta] = React.useState({
     title: resolution.caseEntry.displayName,
@@ -277,11 +305,13 @@ function ScientificProductWorkbenchShellV1({
     ],
   });
   const [registry] = React.useState(() =>
-    new ScientificProductScenarioRegistryV1(resolution, runtime));
-  const [quickCheckRegistry] = React.useState(() =>
-    new ScientificProductQuickCheckRegistryV1(registry));
+    new ScientificProductStudioScenarioRegistryV1(
+      resolution,
+      runtime,
+    ));
   const registryMountedRef = React.useRef(false);
   React.useEffect(() => {
+    registry.connect();
     registryMountedRef.current = true;
     return () => {
       registryMountedRef.current = false;
@@ -290,22 +320,17 @@ function ScientificProductWorkbenchShellV1({
       // the same registry; a real unmount remains false at the microtask.
       globalThis.queueMicrotask(() => {
         if (!registryMountedRef.current) {
-          quickCheckRegistry.dispose();
-          registry.dispose();
+          void registry.dispose();
         }
       });
     };
-  }, [quickCheckRegistry, registry]);
+  }, [registry]);
   const descriptors = React.useSyncExternalStore(
     registry.subscribeDescriptors,
     registry.getDescriptorSnapshot,
     registry.getDescriptorSnapshot,
   );
-  const quickCheckSnapshot = React.useSyncExternalStore(
-    quickCheckRegistry.subscribe,
-    quickCheckRegistry.getSnapshot,
-    quickCheckRegistry.getSnapshot,
-  );
+  const quickCheckSnapshot = EMPTY_STUDIO_QUICK_CHECK_SNAPSHOT_V1;
   const [savedScenarioCatalog, setSavedScenarioCatalog] = React.useState(
     readScientificProductSavedScenarioCatalogV1,
   );
@@ -313,15 +338,6 @@ function ScientificProductWorkbenchShellV1({
     () => descriptors as unknown as SimInstance[],
     [descriptors],
   );
-  const scenarioStatuses = React.useMemo<SteadyUpdateStatusMap>(() =>
-    Object.fromEntries(descriptors.map((descriptor) => [
-      descriptor.id,
-      descriptor.lifecycle === "loading"
-        ? "computing"
-        : descriptor.lifecycle === "failed"
-          ? "failed"
-          : "updated",
-    ])), [descriptors]);
   const scenarioPresetCatalog = React.useMemo<readonly ScenarioPresetCatalogEntry[]>(
     () => descriptors.length >= registry.maximumScenarioCount
       ? SCIENTIFIC_SCENARIO_PRESET_CATALOG_V1.map((entry) => ({
@@ -335,10 +351,10 @@ function ScientificProductWorkbenchShellV1({
   const markUserEdited = React.useCallback(() => undefined, []);
   const initialPresentation = React.useMemo(
     () => createScientificProductWorkbenchPresentationV1(
-      runtime.result.workspaceDocument,
+      runtime.workspaceDocument,
       initialScenarioId,
     ),
-    [initialScenarioId, runtime.result.workspaceDocument],
+    [initialScenarioId, runtime.workspaceDocument],
   );
   const initialPanels = initialPresentation.panels;
   const panels = useWorkbenchPanels({
@@ -349,7 +365,7 @@ function ScientificProductWorkbenchShellV1({
       panels: initialPanels,
       workspace: initialPresentation.workbenchWorkspace,
       notes: {},
-      noteCaseKey: runtime.result.workspaceDocument.ref.sha256,
+      noteCaseKey: runtime.workspaceDocument.ref.sha256,
     },
     normalizePanelControllerItems: normalizeScientificPanelControllerItemsV1,
   });
@@ -368,8 +384,47 @@ function ScientificProductWorkbenchShellV1({
     [],
   );
   React.useEffect(() => {
-    displayClock.configure(isPlaying, timeScale);
-  }, [displayClock, isPlaying, timeScale]);
+    displayClock.configure(isPlaying, 1);
+  }, [displayClock, isPlaying]);
+
+  React.useEffect(() => {
+    let presentationBoundaryPassed = false;
+    const synchronizePlayback = (): void => {
+      const shouldRun = isPlaying && !document.hidden;
+      for (const descriptor of registry.getDescriptorSnapshot()) {
+        const scenarioRuntime = registry.getRuntime(descriptor.id);
+        if (scenarioRuntime === null) continue;
+        if (shouldRun) scenarioRuntime.controlStore.actions.resumeLive();
+        else scenarioRuntime.controlStore.actions.pauseLive();
+      }
+    };
+    // The paint boundary gates only starting or resuming presentation. A user
+    // pause (or a hidden document) must suspend immediately rather than
+    // accumulating another two animation frames of accepted work.
+    if (!isPlaying || document.hidden) synchronizePlayback();
+    const cancelDeferredStart = scheduleAfterCommittedPaintV1(() => {
+      presentationBoundaryPassed = true;
+      synchronizePlayback();
+    });
+    const synchronizeVisiblePlayback = (): void => {
+      // Hidden always suspends immediately. Only visible resume is gated by
+      // the paint boundary, which may still be pending for a new scenario.
+      if (document.hidden || presentationBoundaryPassed) {
+        synchronizePlayback();
+      }
+    };
+    document.addEventListener(
+      "visibilitychange",
+      synchronizeVisiblePlayback,
+    );
+    return () => {
+      cancelDeferredStart();
+      document.removeEventListener(
+        "visibilitychange",
+        synchronizeVisiblePlayback,
+      );
+    };
+  }, [descriptors, isPlaying, registry]);
 
   React.useEffect(() => {
     if (!descriptors.some(({ id }) => id === activeInstanceId)) {
@@ -533,6 +588,9 @@ function ScientificProductWorkbenchShellV1({
   }, [activeInstanceId, panels.removeInstanceConfigs, registry]);
 
   const noPhysicsMutation = React.useCallback(() => undefined, []);
+  const toggleStudioPlayback = React.useCallback(() => {
+    setPlaying((wasPlaying) => !wasPlaying);
+  }, []);
   const evidenceViewOpen = React.useMemo(
     () => new URLSearchParams(location.search).get("view") === "evidence",
     [location.search],
@@ -613,7 +671,7 @@ function ScientificProductWorkbenchShellV1({
       name: caseEntry.displayName,
       description: caseEntry.description,
       statusLabel: report === undefined
-        ? "Not checked in this session"
+        ? "Studio V&V report unavailable"
         : evidenceSubjectStatusLabelV1(report, "ready"),
     });
   }), [quickCheckSnapshot.records]);
@@ -631,12 +689,12 @@ function ScientificProductWorkbenchShellV1({
       key: savedSubjectKeyV1(saved.id),
       name: saved.name,
       description: releaseMatches
-        ? `Saved ${new Date(saved.savedAtIso).toLocaleString()}. Reopen to run an automatic release-bound Quick Check.`
+        ? `Saved ${new Date(saved.savedAtIso).toLocaleString()}. Studio V&V reporting is not connected yet.`
         : "Saved under a different model release; opening is disabled.",
       statusLabel: !releaseMatches
         ? "Release mismatch"
         : report === undefined
-          ? "Saved · not checked in this session"
+          ? "Saved · V&V report unavailable"
           : evidenceSubjectStatusLabelV1(report, "ready"),
     });
   }), [quickCheckSnapshot.records, savedScenarioCatalog.scenarios]);
@@ -747,9 +805,17 @@ function ScientificProductWorkbenchShellV1({
   const selectedCurrentId = sessionIdFromSubjectKeyV1(
     selectedEvidenceSubjectKey,
   );
+  const selectedCurrentRuntime = selectedCurrentId === null
+    ? null
+    : registry.getRuntime(selectedCurrentId);
+  const selectedCurrentSettled = selectedCurrentRuntime !== null
+    && committedContextForPersistenceV1(
+      selectedCurrentRuntime.controlStore.getSnapshot(),
+    ) !== null;
   const saveDisabled = selectedCurrentId === null
     || descriptors.find(({ id }) => id === selectedCurrentId)?.lifecycle
       !== "ready"
+    || !selectedCurrentSettled
     || quickCheckSnapshot.records.find(
       ({ scenarioId }) => scenarioId === selectedCurrentId,
     )?.status === "checking";
@@ -771,23 +837,6 @@ function ScientificProductWorkbenchShellV1({
       data-release-sha256={SCIENTIFIC_PRODUCT_RELEASE_REF_V1.sha256}
       data-scenario-count={descriptors.length}
     >
-      {descriptors.map(({ id }) => {
-        const scenarioRuntime = registry.getRuntime(id);
-        return scenarioRuntime === null ? null : (
-          <ScientificWorkbenchResearchControlV0
-            key={scenarioRuntime.sessionId}
-            client={scenarioRuntime.client}
-            workspaceDocument={scenarioRuntime.workspaceDocument}
-            initialSource={scenarioRuntime.initialSource}
-            store={scenarioRuntime.controlStore}
-            renderController={false}
-            renderWorkspace={false}
-            surface="product"
-            playbackRunning={isPlaying}
-            playbackTimeScale={timeScale}
-          />
-        );
-      })}
       <ScientificProductFrameEvidenceV1
         registry={registry}
         activeScenarioId={activeInstanceId}
@@ -810,7 +859,7 @@ function ScientificProductWorkbenchShellV1({
             onOpenSaved={openSavedScenario}
             onDeleteSaved={deleteSavedFromEvidence}
             saveDisabled={saveDisabled}
-            saveDisabledReason="Wait for the committed-target Quick Check to finish before saving."
+            saveDisabledReason="Use the settled candidate before saving this scenario."
             openInWorkbenchDisabled={openInWorkbenchDisabled}
           />
         </div>
@@ -832,9 +881,12 @@ function ScientificProductWorkbenchShellV1({
         fileActionsDisabled
         fileActionsUnavailableReason={t("workbench.scientificFilesUnavailable")}
         isPlaying={isPlaying}
-        togglePlay={() => setPlaying((value) => !value)}
-        timeScale={timeScale}
-        setTimeScale={setTimeScale}
+        togglePlay={toggleStudioPlayback}
+        playLabel={t("workbench.header.resumeLiveTrace")}
+        pauseLabel={t("workbench.header.pauseLiveTrace")}
+        timeScale={1}
+        setTimeScale={noPhysicsMutation}
+        showTimeScaleControl={false}
         noteOpen={panels.workbenchLayout.noteOpen}
         metricsOpen={panels.workbenchLayout.metricsOpen}
         rightRailVisible={panels.workbenchLayout.rightRailVisible}
@@ -858,6 +910,21 @@ function ScientificProductWorkbenchShellV1({
             status={evidenceStatus}
             scenarios={evidenceScenarioSummaries}
             onOpenFullReport={openEvidenceView}
+          />
+        )}
+        presentationComposeControl={(
+          <ScientificWorkbenchBriefingControlV1
+            panels={panels.panels}
+            registry={registry}
+            activeScenarioId={activeInstanceId}
+            target={Object.freeze({
+              experimentId:
+                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_EXPERIMENT_ID_V1,
+              briefId:
+                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_READER_BRIEF_ID_V1,
+              scenarioId:
+                SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SCENARIO_ID_V1,
+            })}
           />
         )}
         settingsContent={(
@@ -922,7 +989,6 @@ function ScientificProductWorkbenchShellV1({
         setNoteModes={panels.setNoteModes}
         physicsRefs={physicsRefs}
         instanceHealth={{}}
-        steadyUpdateStatuses={scenarioStatuses}
         activeInstanceId={activeInstanceId}
         setActiveInstanceId={setActiveInstanceId}
         updateInstanceParams={noPhysicsMutation}
@@ -934,10 +1000,10 @@ function ScientificProductWorkbenchShellV1({
         resetInstanceKnobs={noPhysicsMutation}
         addInstance={addInstance}
         removeInstance={removeInstance}
-        timeScale={timeScale}
-        setTimeScale={setTimeScale}
+        timeScale={1}
+        setTimeScale={noPhysicsMutation}
         isPlaying={isPlaying}
-        togglePlay={() => setPlaying((value) => !value)}
+        togglePlay={toggleStudioPlayback}
         addPanel={panels.addPanel}
         duplicatePanel={panels.duplicatePanel}
         removePanel={panels.removePanel}
@@ -988,7 +1054,7 @@ function ScientificProductFrameEvidenceV1({
   registry,
   activeScenarioId,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   activeScenarioId: string;
 }>) {
   React.useSyncExternalStore(
@@ -996,7 +1062,14 @@ function ScientificProductFrameEvidenceV1({
     registry.getFrameVersionSnapshot,
     registry.getFrameVersionSnapshot,
   );
+  const runtime = registry.getRuntime(activeScenarioId);
+  React.useSyncExternalStore(
+    runtime?.controlStore.subscribe ?? EMPTY_SUBSCRIBE_V1,
+    runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT_V1,
+    runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT_V1,
+  );
   const presentation = registry.getPresentation(activeScenarioId);
+  const studio = registry.getStudioStatus?.(activeScenarioId) ?? null;
   return (
     <span
       hidden
@@ -1005,9 +1078,25 @@ function ScientificProductFrameEvidenceV1({
       data-scientific-frame-count={presentation?.frames.length ?? 0}
       data-scientific-final-revision={presentation?.frames.at(-1)?.revision ?? ""}
       data-displayed-evidence={presentation?.displayedEvidence ?? "unavailable"}
+      data-studio-runtime="true"
+      data-studio-target-generation={studio?.targetGeneration ?? ""}
+      data-studio-presentation-revision={studio?.presentationRevision ?? ""}
+      data-studio-live-playback={studio?.livePlayback ?? ""}
+      data-studio-strict-phase={studio?.strictPhase ?? ""}
+      data-studio-strict-candidate={String(
+        studio?.strictCandidateAvailable === true,
+      )}
+      data-studio-strict-candidate-pinned={String(
+        studio?.strictCandidatePinned === true,
+      )}
+      data-studio-pinned-run-count={studio?.pinnedRunCount ?? 0}
     />
   );
 }
+
+const EMPTY_SUBSCRIBE_V1 = (_listener: () => void): (() => void) =>
+  () => undefined;
+const EMPTY_CONTROL_SNAPSHOT_V1 = () => null;
 
 function ScientificProductWorkbenchStatusV1({
   message,
@@ -1109,14 +1198,14 @@ export function createScientificProductWorkbenchPresentationV1(
         kind: "graph",
         graphType: "pvloop",
         showLegend: true,
-        pvHistoryBeats: 8,
+        pvHistoryBeats: DEFAULT_PV_LOOP_HISTORY_BEATS,
         pvHistoryMode: "fade",
         pvRelationDisplayMode: "off",
       },
       isSettingsOpen: false,
       showLegend: true,
       showGuides: true,
-      pvHistoryBeats: 8,
+      pvHistoryBeats: DEFAULT_PV_LOOP_HISTORY_BEATS,
       pvHistoryMode: "fade",
       pvRelationDisplayMode: "off",
     },
@@ -1165,6 +1254,62 @@ export function createScientificProductWorkbenchPresentationV1(
       showLegend: true,
       showGuides: false,
       timeWindow: 2_000,
+    },
+    {
+      id: "product-guyton-left-v1",
+      sourceViewId: "product-guyton-left-v1",
+      type: "GUYTON_LEFT",
+      title: "Left filling pressure–cardiac output",
+      role: "graph",
+      zone: "main",
+      x: 0,
+      y: 8,
+      w: 6,
+      h: 6,
+      config: visibleConfig(["Default"]),
+      view: {
+        kind: "graph",
+        graphType: "guyton-left",
+        showLegend: true,
+        showGuides: true,
+        hemodynamicDetailMode: "compare",
+        hemodynamicParameterHistoryCount: 5,
+        hemodynamicAllowNegativeFillingPressure: false,
+      },
+      isSettingsOpen: false,
+      showLegend: true,
+      showGuides: true,
+      hemodynamicDetailMode: "compare",
+      hemodynamicParameterHistoryCount: 5,
+      hemodynamicAllowNegativeFillingPressure: false,
+    },
+    {
+      id: "product-guyton-right-v1",
+      sourceViewId: "product-guyton-right-v1",
+      type: "GUYTON_RIGHT",
+      title: "Right filling pressure–cardiac output",
+      role: "graph",
+      zone: "main",
+      x: 6,
+      y: 8,
+      w: 6,
+      h: 6,
+      config: visibleConfig(["Default"]),
+      view: {
+        kind: "graph",
+        graphType: "guyton-right",
+        showLegend: true,
+        showGuides: true,
+        hemodynamicDetailMode: "compare",
+        hemodynamicParameterHistoryCount: 5,
+        hemodynamicAllowNegativeFillingPressure: false,
+      },
+      isSettingsOpen: false,
+      showLegend: true,
+      showGuides: true,
+      hemodynamicDetailMode: "compare",
+      hemodynamicParameterHistoryCount: 5,
+      hemodynamicAllowNegativeFillingPressure: false,
     },
   ];
   const defaultWorkspace = workspaceForPanels(panels);
@@ -1362,7 +1507,7 @@ function evidenceControlMessageV1(
 ): string {
   if (lifecycle === "loading") return "Preparing scenario…";
   if (lifecycle === "failed") return "Scenario calculation failed.";
-  if (record === undefined) return "Waiting for Quick Check.";
+  if (record === undefined) return STUDIO_VV_NOT_CONNECTED_MESSAGE_V1;
   if (record.status === "passed") {
     const review = evidenceReferenceReviewLabelV1(record);
     return review === null ? "Quick check passed." : `${review}.`;
@@ -1464,7 +1609,7 @@ function evidenceSubjectStatusLabelV1(
 ): string {
   if (lifecycle === "loading") return "Checking";
   if (lifecycle === "failed") return "Verification error";
-  if (record === undefined) return "Waiting for Quick Check";
+  if (record === undefined) return "Studio V&V report unavailable";
   if (record.status === "checking") return "Checking";
   if (record.status === "verification-error") return "Verification error";
   return evidenceReferenceReviewLabelV1(record) ?? "Quick check passed";
@@ -1503,7 +1648,7 @@ type SelectedScientificProductEvidenceV1 = Readonly<{
 
 function selectEvidenceSubjectV1(input: Readonly<{
   subjectKey: string;
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   records: readonly ScientificProductQuickCheckRecordV1[];
   savedScenarios: readonly ScientificProductSavedScenarioV1[];
 }>): SelectedScientificProductEvidenceV1 {
@@ -1532,7 +1677,9 @@ function selectEvidenceSubjectV1(input: Readonly<{
       unavailableVerificationError: descriptor?.lifecycle === "failed"
         ? descriptor.statusMessage
         : null,
-      unavailableMessage: null,
+      unavailableMessage: record === null
+        ? STUDIO_VV_NOT_CONNECTED_MESSAGE_V1
+        : null,
     });
   }
 
@@ -1558,7 +1705,9 @@ function selectEvidenceSubjectV1(input: Readonly<{
       workspaceSha256: presentation?.workspaceDocument.ref.sha256 ?? null,
       releaseMatchesCurrent: true,
       unavailableVerificationError: null,
-      unavailableMessage: null,
+      unavailableMessage: record === null
+        ? STUDIO_VV_NOT_CONNECTED_MESSAGE_V1
+        : null,
     });
   }
 
@@ -1587,7 +1736,9 @@ function selectEvidenceSubjectV1(input: Readonly<{
       releaseMatchesCurrent,
       unavailableVerificationError: null,
       unavailableMessage: releaseMatchesCurrent
-        ? null
+        ? record === null
+          ? STUDIO_VV_NOT_CONNECTED_MESSAGE_V1
+          : null
         : "This saved scenario belongs to a different model release. Its evidence is not reused or translated silently.",
     });
   }
@@ -1603,6 +1754,6 @@ function selectEvidenceSubjectV1(input: Readonly<{
     workspaceSha256: null,
     releaseMatchesCurrent: true,
     unavailableVerificationError: null,
-    unavailableMessage: null,
+    unavailableMessage: STUDIO_VV_NOT_CONNECTED_MESSAGE_V1,
   });
 }

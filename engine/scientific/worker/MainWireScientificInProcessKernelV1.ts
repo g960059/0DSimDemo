@@ -118,12 +118,14 @@ export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_CLAIM = Object.freeze({
   researchControlPeriodicTrackerResetInTargetOnly: true as const,
   researchControlArbitraryParameterPatchAccepted: false as const,
   researchControlCheckpointCapability:
-    "unavailable-until-control-state-aware-v4" as const,
+    "control-aware-exact-resume-v4" as const,
   resolvedSessionInputCapability:
     "complete-input-release-bound-revalidation" as const,
   resolvedSessionArbitraryParameterPatchAccepted: false as const,
   genericExactCheckpointCapability:
     "v3-exact-release-and-session-input-bound" as const,
+  controlAwareExactCheckpointCapability:
+    "v4-release-base-input-control-epoch-state-codec-phase-bound" as const,
   genericExactRestoreCallerSuppliedReleaseAccepted: false as const,
   legacyV2RestoreCapability:
     "official-fixed-canonical-preset-internal-only" as const,
@@ -386,6 +388,10 @@ export class MainWireScientificInProcessKernelV1 {
         return this.getExactCheckpoint(command);
       case "restoreExactSession":
         return this.restoreExact(command);
+      case "getExactCheckpointV4":
+        return this.getExactCheckpointV4(command);
+      case "restoreExactSessionV4":
+        return this.restoreExactV4(command);
       case "disposeSession":
         return this.dispose(command);
       case "settlePeriodic":
@@ -984,7 +990,7 @@ export class MainWireScientificInProcessKernelV1 {
         periodicTrackerResetAtFork: true as const,
         sourceSessionRetainedAtFork: true as const,
         exactCheckpointCapability:
-          "unavailable-until-control-aware-checkpoint-v4" as const,
+          "control-aware-exact-checkpoint-v4" as const,
         periodicSteadyStateClaimed: false as const,
         officialTrustClaimed: false as const,
         clinicalDiagnosisClaimed: false as const,
@@ -1010,7 +1016,7 @@ export class MainWireScientificInProcessKernelV1 {
           acceptedStatePreservedAtFork: true as const,
           periodicTrackerResetAtFork: true as const,
           sourceSessionRetainedAtFork: true as const,
-          exactCheckpointAvailable: false as const,
+          exactCheckpointAvailable: true as const,
           periodicSteadyStateClaimed: false as const,
           observableFrame: project(target),
         }),
@@ -1107,6 +1113,84 @@ export class MainWireScientificInProcessKernelV1 {
       );
       this.sessions.set(command.sessionId, session);
       this.sessionOrigins.set(command.sessionId, sessionOrigin);
+      this.allocatedSessionIds.add(command.sessionId);
+      return response;
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "exact-restore-rejected",
+        errorMessage(error),
+      );
+    }
+  }
+
+  private async getExactCheckpointV4(
+    command: Extract<ScientificCommandV1, { kind: "getExactCheckpointV4" }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const session = this.sessions.get(command.sessionId);
+    if (session === undefined) return unknownSession(command);
+    try {
+      const checkpoint = await session.checkpointExactV4();
+      return successResponse(
+        command,
+        session.releaseRef,
+        this.requiredSessionOrigin(command.sessionId),
+        Object.freeze({
+          kind: "exactCheckpointV4" as const,
+          resolvedSessionInput: session.sessionInput,
+          checkpoint,
+          observableFrame: project(session),
+        }),
+      );
+    } catch (error) {
+      return errorResponseForCommand(
+        command,
+        "checkpoint-failed",
+        errorMessage(error),
+        {
+          releaseRef: session.releaseRef,
+          sessionOrigin: this.requiredSessionOrigin(command.sessionId),
+        },
+      );
+    }
+  }
+
+  private async restoreExactV4(
+    command: Extract<ScientificCommandV1, { kind: "restoreExactSessionV4" }>,
+  ): Promise<MainWireScientificCommandResponseV1> {
+    const allocationError = this.sessionAllocationError(command);
+    if (allocationError !== null) return allocationError;
+    try {
+      const release = await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
+      const session = await MainWireScientificSessionV1.restoreExactV4(
+        release,
+        command.resolvedSessionInput,
+        command.checkpoint,
+      );
+      const observableFrame = project(session);
+      const controlBinding = session.controlCheckpointIdentityV4();
+      const sessionOrigin = exactRestoreOriginV4(command, session);
+      const researchControlContext = Object.freeze({
+        stateIdentity: session.stateIdentity(),
+        controlState: controlBinding.controlTargetState,
+        parameterEpoch: controlBinding.parameterEpoch,
+      });
+      const response = successResponse(
+        command,
+        session.releaseRef,
+        sessionOrigin,
+        Object.freeze({
+          kind: "sessionRestoredV4" as const,
+          researchControlContext,
+          observableFrame,
+        }),
+      );
+      this.sessions.set(command.sessionId, session);
+      this.sessionOrigins.set(command.sessionId, sessionOrigin);
+      this.researchControlBindings.set(command.sessionId, Object.freeze({
+        controlState: controlBinding.controlTargetState,
+        parameterEpoch: controlBinding.parameterEpoch,
+      }));
       this.allocatedSessionIds.add(command.sessionId);
       return response;
     } catch (error) {
@@ -1484,7 +1568,8 @@ export class MainWireScientificInProcessKernelV1 {
         | "createResearchPresetSession"
         | "createResearchDocumentCaseSession"
         | "forkResearchControlSession"
-        | "restoreExactSession";
+        | "restoreExactSession"
+        | "restoreExactSessionV4";
     }>,
   ): MainWireScientificCommandResponseV1 | null {
     if (this.sessions.has(command.sessionId)) {
@@ -1812,6 +1897,7 @@ function parseCommand(
         "targetControlState",
       ]
     : value.kind === "restoreExactSession"
+        || value.kind === "restoreExactSessionV4"
       ? [...common, "resolvedSessionInput", "checkpoint"]
       : value.kind === "pollGuytonStarlingProtocolJob"
         || value.kind === "cancelGuytonStarlingProtocolJob"
@@ -2041,8 +2127,10 @@ function transientExecutionProtocol(
     protocolId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_CLOSED_LOOP_V1_ID,
     protocolVersion:
       MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1.protocolVersion,
-    classification: sessionOrigin.kind
-      === "research-control-state-preserving-fork-v0"
+    classification: (
+      sessionOrigin.kind === "research-control-state-preserving-fork-v0"
+      || sessionOrigin.kind === "control-aware-exact-checkpoint-v4-restore"
+    )
       ? "exploratory-parameterization" as const
       : MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_TRANSIENT_POLICY_V1
         .approvedDtSec.some((approved) => approved === command.dtSec)
@@ -2079,6 +2167,41 @@ function exactRestoreOrigin(
     checkpointSchemaVersion: 3 as const,
     checkpointSha256: command.checkpoint.checkpointSha256,
     sessionInputSha256: session.sessionInputSha256,
+  });
+}
+
+function exactRestoreOriginV4(
+  command: Extract<ScientificCommandV1, { kind: "restoreExactSessionV4" }>,
+  session: MainWireScientificSessionV1,
+): ScientificSessionOriginV1 {
+  if (
+    !isRecord(command.checkpoint)
+    || command.checkpoint.checkpointId
+      !== "main-wire-scientific-session-exact-checkpoint-v4"
+    || command.checkpoint.schemaVersion !== 4
+    || typeof command.checkpoint.checkpointSha256 !== "string"
+    || !SHA256_HEX_PATTERN.test(command.checkpoint.checkpointSha256)
+    || typeof command.checkpoint.baseSessionInputSha256 !== "string"
+    || !SHA256_HEX_PATTERN.test(
+      command.checkpoint.baseSessionInputSha256,
+    )
+    || command.checkpoint.baseSessionInputSha256
+      !== session.sessionInputSha256
+    || typeof command.checkpoint.controlTargetStateSha256 !== "string"
+    || !SHA256_HEX_PATTERN.test(
+      command.checkpoint.controlTargetStateSha256,
+    )
+    || !Number.isSafeInteger(command.checkpoint.parameterEpoch)
+    || (command.checkpoint.parameterEpoch as number) < 0
+  ) throw new Error("validated exact V4 checkpoint lacks its bound identities");
+  return Object.freeze({
+    kind: "control-aware-exact-checkpoint-v4-restore" as const,
+    checkpointSchemaVersion: 4 as const,
+    checkpointSha256: command.checkpoint.checkpointSha256,
+    baseSessionInputSha256: session.sessionInputSha256,
+    controlTargetStateSha256:
+      command.checkpoint.controlTargetStateSha256,
+    parameterEpoch: command.checkpoint.parameterEpoch as number,
   });
 }
 

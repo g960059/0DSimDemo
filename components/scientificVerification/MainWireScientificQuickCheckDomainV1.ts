@@ -43,6 +43,7 @@ export const MAIN_WIRE_SCIENTIFIC_QUICK_CHECK_V1_CLAIM = Object.freeze({
 export const MAIN_WIRE_SCIENTIFIC_QUICK_CHECK_EVIDENCE_VALUES_V1 =
   Object.freeze([
     "open-transient-no-periodic-claim",
+    "settled-snapshot-one-point",
     "target-period1-and-following-cycle-validated",
     "retained-period1-source-cycle",
   ] as const);
@@ -210,7 +211,9 @@ export function evaluateMainWireScientificQuickCheckV1(
   const acceptedStepFrames = input.frames.filter((frame) =>
     frame.source === "accepted-step");
   const periodicSteadyStateEvidencePresent =
-    input.displayedEvidence !== "open-transient-no-periodic-claim";
+    input.displayedEvidence
+      === "target-period1-and-following-cycle-validated"
+    || input.displayedEvidence === "retained-period1-source-cycle";
   const diagnosticFrames = periodicSteadyStateEvidencePresent
     ? acceptedStepFrames
     : [];

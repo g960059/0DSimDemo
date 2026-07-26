@@ -8,4 +8,9 @@ export const workbenchHref = (locale?: Locale) => prefixPath("/workbench", local
 
 export const allCasesHref = (locale?: Locale) => prefixPath("/cases", locale);
 
+export const authorPreviewHref = (locale?: Locale) => prefixPath("/studio/author", locale);
+
+export const readerPreviewHref = (previewId: string, locale?: Locale) =>
+  prefixPath(`/studio/preview/${encodeURIComponent(previewId)}`, locale);
+
 export const homeHref = (locale?: Locale) => prefixPath("/", locale);

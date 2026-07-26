@@ -6,6 +6,8 @@ import {
   DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
   DEFAULT_HEMODYNAMIC_DETAIL_MODE,
   DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  DEFAULT_PV_LOOP_HISTORY_BEATS,
+  DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
   DEFAULT_PV_RELATION_DISPLAY_MODE,
   DEFAULT_PV_RELATION_PRESSURE_BASIS,
 } from "@/types";
@@ -19,6 +21,7 @@ import type {
   PanelType,
   PvLoopDebugTraceMode,
   PvLoopHistoryMode,
+  PvLoopParameterHistoryCount,
   PvRelationPanelSettings,
   SimInstance,
   WorkbenchWorkspace,
@@ -397,7 +400,11 @@ export function useWorkbenchPanels({
 
   const updatePanelPvHistory = useCallback((
     panelId: string,
-    history: Readonly<{ beats?: number; mode?: PvLoopHistoryMode }>,
+    history: Readonly<{
+      beats?: number;
+      mode?: PvLoopHistoryMode;
+      parameterGenerations?: PvLoopParameterHistoryCount;
+    }>,
   ) => {
     markUserEdited();
     setPanels((prev) => updatePanelWithSourceViewMirrors(
@@ -406,15 +413,24 @@ export function useWorkbenchPanels({
       (panel) => {
         if (panel.type !== 'PVLOOP') return panel;
         const beats = history.beats === undefined
-          ? panel.pvHistoryBeats ?? 8
+          ? panel.pvHistoryBeats ?? DEFAULT_PV_LOOP_HISTORY_BEATS
           : Math.min(16, Math.max(0, Math.round(history.beats)));
         const mode = history.mode ?? panel.pvHistoryMode ?? 'fade';
+        const parameterHistoryCount = history.parameterGenerations
+          ?? panel.pvParameterHistoryCount
+          ?? DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT;
         return {
           ...panel,
           pvHistoryBeats: beats,
           pvHistoryMode: mode,
+          pvParameterHistoryCount: parameterHistoryCount,
           view: panel.view?.kind === 'graph'
-            ? { ...panel.view, pvHistoryBeats: beats, pvHistoryMode: mode }
+            ? {
+              ...panel.view,
+              pvHistoryBeats: beats,
+              pvHistoryMode: mode,
+              pvParameterHistoryCount: parameterHistoryCount,
+            }
             : panel.view,
         };
       },

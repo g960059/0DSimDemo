@@ -47,6 +47,7 @@ import {
   type MainWireScientificResearchControlCatalogV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlCatalogV0";
 import {
+  createMainWireScientificResearchControlBaselineTargetStateV0,
   loadMainWireScientificResearchControlTargetStateV0,
   type MainWireScientificResearchControlTargetStateV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
@@ -71,6 +72,12 @@ import {
   loadMainWireScientificSessionExactCheckpointV3,
   type MainWireScientificSessionExactCheckpointV3,
 } from "@/engine/scientific/runtime/MainWireScientificExactCheckpointV3";
+import {
+  createMainWireScientificSessionExactCheckpointV4,
+  loadMainWireScientificSessionExactCheckpointV4,
+  type MainWireScientificSessionExactCheckpointV4,
+  type MainWireScientificSessionStateCodecIdentityV4,
+} from "@/engine/scientific/runtime/MainWireScientificExactCheckpointV4";
 import {
   runMainWireScientificGuytonStarlingProtocolV1,
   type MainWireScientificGuytonStarlingProtocolResultV1,
@@ -302,6 +309,8 @@ export type MainWireScientificResearchControlForkReceiptV0 = Readonly<{
     ];
     postForkExactCheckpointV3:
       "unavailable-until-control-state-aware-checkpoint-schema";
+    postForkExactCheckpointV4:
+      "available-control-aware-exact-resume";
   }>;
 }>;
 
@@ -382,6 +391,11 @@ type CheckpointProvenance =
   | "resolved-session-input-v1"
   | "research-control-target-state-v0";
 
+export type MainWireScientificSessionControlCheckpointBindingV4 = Readonly<{
+  controlTargetState: MainWireScientificResearchControlTargetStateV0;
+  parameterEpoch: number;
+}>;
+
 export class MainWireScientificSessionV1 {
   readonly sessionId = MAIN_WIRE_SCIENTIFIC_SESSION_V1_ID;
   readonly releaseRef: SimulationReleaseRef;
@@ -394,6 +408,10 @@ export class MainWireScientificSessionV1 {
   private lastObservation: MainWireScientificSessionObservationV1;
   private periodicSettlementTracker: PeriodicSettlementTracker | null = null;
   private readonly checkpointProvenance: CheckpointProvenance;
+  private readonly stateCodecIdentityV4:
+    MainWireScientificSessionStateCodecIdentityV4;
+  private readonly controlCheckpointBindingV4:
+    MainWireScientificSessionControlCheckpointBindingV4 | null;
 
   private constructor(
     releaseRef: SimulationReleaseRef,
@@ -401,8 +419,12 @@ export class MainWireScientificSessionV1 {
     dependencies: FixedAssemblyDependencies,
     acceptedState: AcceptedState,
     observation: MainWireScientificSessionObservationV1,
+    stateCodecIdentityV4:
+      MainWireScientificSessionStateCodecIdentityV4,
     periodicSettlementTracker: PeriodicSettlementTracker | null = null,
     checkpointProvenance: CheckpointProvenance = "resolved-session-input-v1",
+    controlCheckpointBindingV4:
+      MainWireScientificSessionControlCheckpointBindingV4 | null = null,
   ) {
     assertObservationMatchesAcceptedState(
       releaseRef,
@@ -420,6 +442,8 @@ export class MainWireScientificSessionV1 {
     this.lastObservation = observation;
     this.periodicSettlementTracker = periodicSettlementTracker;
     this.checkpointProvenance = checkpointProvenance;
+    this.stateCodecIdentityV4 = stateCodecIdentityV4;
+    this.controlCheckpointBindingV4 = controlCheckpointBindingV4;
   }
 
   static async initialize(
@@ -474,7 +498,9 @@ export class MainWireScientificSessionV1 {
       dependencies,
       acceptedState,
       restoredObservation(release.ref, acceptedState),
+      stateCodecIdentityFromReleaseV4(release),
       periodicSettlementTracker,
+      "resolved-session-input-v1",
     );
   }
 
@@ -512,7 +538,66 @@ export class MainWireScientificSessionV1 {
       dependencies,
       acceptedState,
       restoredObservation(release.ref, acceptedState),
+      stateCodecIdentityFromReleaseV4(release),
       periodicSettlementTracker,
+      "resolved-session-input-v1",
+    );
+  }
+
+  static async restoreExactV4(
+    untrustedRelease: unknown,
+    untrustedBaseSessionInput: unknown,
+    checkpoint: unknown,
+  ): Promise<MainWireScientificSessionV1> {
+    const release = await loadFixedAssemblyRelease(untrustedRelease);
+    const sessionInput = await loadMainWireScientificResolvedSessionInputV1(
+      release,
+      untrustedBaseSessionInput,
+    );
+    const stateCodec = stateCodecIdentityFromReleaseV4(release);
+    const validatedCheckpoint =
+      await loadMainWireScientificSessionExactCheckpointV4(
+        {
+          releaseRef: release.ref,
+          baseSessionInputSha256: sessionInput.sessionInputSha256,
+          stateCodec,
+        },
+        checkpoint,
+      );
+    const catalog = await createMainWireScientificResearchControlCatalogV0();
+    const baseDependencies = buildFixedAssemblyDependencies(sessionInput);
+    const overlay = researchControlDependencyOverlay(
+      catalog,
+      validatedCheckpoint.controlTargetState,
+      baseDependencies,
+    );
+    const dependencies: FixedAssemblyDependencies = Object.freeze({
+      ...baseDependencies,
+      runtime: overlay.runtime,
+      pericardium: overlay.pericardium,
+    });
+    const acceptedState = restoreMainWireFiveWallNonCoronaryV1(
+      dependencies.provider,
+      validatedCheckpoint.transaction,
+    );
+    const periodicSettlementTracker = restorePeriodicTracker(
+      dependencies.provider,
+      acceptedState,
+      validatedCheckpoint.periodicSettlementTracker,
+    );
+    return new MainWireScientificSessionV1(
+      release.ref,
+      sessionInput,
+      dependencies,
+      acceptedState,
+      restoredObservation(release.ref, acceptedState),
+      stateCodec,
+      periodicSettlementTracker,
+      "research-control-target-state-v0",
+      Object.freeze({
+        controlTargetState: validatedCheckpoint.controlTargetState,
+        parameterEpoch: validatedCheckpoint.parameterEpoch,
+      }),
     );
   }
 
@@ -620,6 +705,17 @@ export class MainWireScientificSessionV1 {
       sourceControlState,
       input.expectedSourceIdentity,
     );
+    const currentControlBinding = await this.resolvedControlBindingV4();
+    if (
+      currentControlBinding.parameterEpoch
+        !== input.expectedSourceIdentity.parameterEpoch
+      || currentControlBinding.controlTargetState.targetStateSha256
+        !== sourceControlState.targetStateSha256
+    ) {
+      throw new Error(
+        "research control fork source does not match the current session runtime overlay or session-owned control checkpoint binding",
+      );
+    }
 
     const baseTargetDependencies = buildFixedAssemblyDependencies(
       this.sessionInput,
@@ -674,8 +770,13 @@ export class MainWireScientificSessionV1 {
       targetDependencies,
       targetAcceptedState,
       researchControlForkObservation(this.releaseRef, targetAcceptedState),
+      this.stateCodecIdentityV4,
       null,
       "research-control-target-state-v0",
+      Object.freeze({
+        controlTargetState: targetControlState,
+        parameterEpoch: input.expectedSourceIdentity.parameterEpoch + 1,
+      }),
     );
     const sourceIdentity = copyResearchControlSourceIdentity(
       input.expectedSourceIdentity,
@@ -753,6 +854,8 @@ export class MainWireScientificSessionV1 {
         ] as const),
         postForkExactCheckpointV3:
           "unavailable-until-control-state-aware-checkpoint-schema" as const,
+        postForkExactCheckpointV4:
+          "available-control-aware-exact-resume" as const,
       }),
     });
     return Object.freeze({ targetSession, receipt });
@@ -1058,6 +1161,63 @@ export class MainWireScientificSessionV1 {
     return this.checkpointExactV3();
   }
 
+  async checkpointExactV4():
+  Promise<MainWireScientificSessionExactCheckpointV4> {
+    const controlBinding = await this.resolvedControlBindingV4();
+    return createMainWireScientificSessionExactCheckpointV4(
+      {
+        releaseRef: this.releaseRef,
+        baseSessionInputSha256: this.sessionInputSha256,
+        stateCodec: this.stateCodecIdentityV4,
+      },
+      {
+        controlTargetState: controlBinding.controlTargetState,
+        parameterEpoch: controlBinding.parameterEpoch,
+        transaction: checkpointMainWireFiveWallNonCoronaryV1(
+          this.dependencies.provider,
+          this.acceptedState,
+        ),
+        periodicSettlementTracker: checkpointPeriodicTracker(
+          this.dependencies.provider,
+          this.periodicSettlementTracker,
+        ),
+      },
+    );
+  }
+
+  controlCheckpointIdentityV4():
+  MainWireScientificSessionControlCheckpointBindingV4 {
+    if (this.controlCheckpointBindingV4 === null) {
+      throw new Error(
+        "session control checkpoint identity has not been established",
+      );
+    }
+    return this.controlCheckpointBindingV4;
+  }
+
+  private async resolvedControlBindingV4():
+  Promise<MainWireScientificSessionControlCheckpointBindingV4> {
+    const binding = this.controlCheckpointBindingV4 ?? Object.freeze({
+      controlTargetState:
+        await createMainWireScientificResearchControlBaselineTargetStateV0(),
+      parameterEpoch: 0,
+    });
+    assertResearchControlReleaseMatchesSession(
+      this.releaseRef,
+      binding.controlTargetState,
+      "source",
+    );
+    const baseDependencies = buildFixedAssemblyDependencies(this.sessionInput);
+    const catalog = await createMainWireScientificResearchControlCatalogV0();
+    const expectedOverlay = researchControlDependencyOverlay(
+      catalog,
+      binding.controlTargetState,
+      baseDependencies,
+    );
+    assertResearchControlRuntimeMatches(this.dependencies, expectedOverlay);
+    return binding;
+  }
+
   private assertExactCheckpointAvailable(): void {
     if (this.checkpointProvenance === "research-control-target-state-v0") {
       throw new Error(
@@ -1092,6 +1252,7 @@ export class MainWireScientificSessionV1 {
       dependencies,
       cold.acceptedState,
       coldObservation(release.ref, cold),
+      stateCodecIdentityFromReleaseV4(release),
     );
   }
 }
@@ -1219,8 +1380,8 @@ function restorePeriodicTracker(
     acceptedState,
   );
   if (
-    latestTransaction.checkpointFingerprint
-      !== acceptedTransaction.checkpointFingerprint
+    canonicalJsonStringify(latestTransaction)
+      !== canonicalJsonStringify(acceptedTransaction)
   ) throw new Error("periodic settlement tracker terminal state mismatch");
   boundaryStates[boundaryStates.length - 1] = acceptedState;
   const expectedTerminalTimeSec = checkpoint.anchorAcceptedTimeSec
@@ -1406,6 +1567,18 @@ async function loadFixedAssemblyRelease(
     );
   }
   return loaded;
+}
+
+function stateCodecIdentityFromReleaseV4(
+  release: SimulationReleaseV1,
+): MainWireScientificSessionStateCodecIdentityV4 {
+  return Object.freeze({
+    stateSchemaId: release.manifest.stateSchema.schemaId,
+    stateSchemaVersion: release.manifest.stateSchema.schemaVersion,
+    transactionCheckpointId:
+      "main-wire-five-wall-noncoronary-checkpoint-v1" as const,
+    transactionCheckpointSchemaVersion: 1 as const,
+  });
 }
 
 function buildFixedAssemblyDependencies(

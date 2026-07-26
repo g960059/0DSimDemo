@@ -143,9 +143,22 @@ export type ScientificProductScenarioRuntimeV1 = Readonly<{
   controlStore: ScientificWorkbenchResearchControlStoreV0;
 }>;
 
+export type ScientificProductParameterGenerationPresentationV1 = Readonly<{
+  targetGeneration: number;
+  parameterEpoch: number;
+  controlStateSha256: string;
+  frames: readonly MainWireScientificObservableFrameV1[];
+  periodicCycleFrames: readonly MainWireScientificObservableFrameV1[] | null;
+  cycleDurationSec: number | null;
+  transientOriginAcceptedTimeSec: number | null;
+  displayedEvidence: ScientificWorkbenchDisplayedEvidenceV0;
+}>;
+
 export type ScientificProductScenarioPresentationV1 = Readonly<{
   descriptor: ScientificProductScenarioDescriptorV1;
   frames: readonly MainWireScientificObservableFrameV1[];
+  parameterGenerationHistory:
+    readonly ScientificProductParameterGenerationPresentationV1[];
   periodicCycleFrames: readonly MainWireScientificObservableFrameV1[] | null;
   cycleDurationSec: number | null;
   transientOriginAcceptedTimeSec: number | null;
@@ -167,6 +180,7 @@ export type ScientificProductHemodynamicProtocolDetailModeV1 =
 
 export type ScientificProductHemodynamicProtocolCalculationSourceV1 =
   | "visible-period1-source"
+  | "automatic-strict-candidate"
   | typeof SCIENTIFIC_PRODUCT_HEMODYNAMIC_ANALYSIS_PROVENANCE_V1;
 
 export type ScientificProductHemodynamicProtocolSourceIdentityV1 = Readonly<{
@@ -2308,6 +2322,7 @@ export class ScientificProductScenarioRegistryV1 {
     return Object.freeze({
       descriptor: entry.descriptor,
       frames: snapshot.frames,
+      parameterGenerationHistory: Object.freeze([]),
       periodicCycleFrames: validatedCycle?.frames ?? null,
       cycleDurationSec: validatedCycle?.durationSec
         ?? runtime.result.terminalCycle.durationSec,

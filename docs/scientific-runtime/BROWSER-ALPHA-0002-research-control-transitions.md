@@ -92,9 +92,11 @@ state. A later steady promotion must pass the full P1 and following-cycle gate.
 
 V2/V3 exact checkpoints bind the original resolved input, not the V0 control
 target. A forked target therefore cannot emit those checkpoint schemas. A
-future control-aware checkpoint must bind the base resolved-input digest, the
-complete target state and digest, and the parameter epoch before persistence is
-enabled.
+forked target instead exposes control-aware exact checkpoint V4. V4 binds the
+base resolved-input digest, complete target state and digest, parameter epoch,
+state-codec identity, canonical phase, and accepted transaction. Browser
+transport revalidates both nested and outer digests before resolving a V4
+checkpoint response.
 
 ## Required browser evidence
 

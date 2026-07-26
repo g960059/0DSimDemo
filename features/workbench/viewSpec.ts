@@ -1,4 +1,4 @@
-import type { ControllerItem, HemodynamicDetailMode, HemodynamicParameterHistoryCount, LegendPosition, MetricType, PanelDef, PanelInstanceConfig, PvLoopDebugTraceMode, PvLoopHistoryMode, PvRelationDisplayMode, PvRelationPressureBasis, WorkbenchWorkspace } from "@/types";
+import type { ControllerItem, HemodynamicDetailMode, HemodynamicParameterHistoryCount, LegendPosition, MetricType, PanelDef, PanelInstanceConfig, PvLoopDebugTraceMode, PvLoopHistoryMode, PvLoopParameterHistoryCount, PvRelationDisplayMode, PvRelationPressureBasis, WorkbenchWorkspace } from "@/types";
 
 export type ScenarioBinding = { kind: "active" } | { kind: "scenario"; scenarioId: string };
 
@@ -25,6 +25,7 @@ export interface GraphViewSpec extends ViewSpecBase {
     pvDebugTraceMode?: PvLoopDebugTraceMode;
     pvHistoryBeats?: number;
     pvHistoryMode?: PvLoopHistoryMode;
+    pvParameterHistoryCount?: PvLoopParameterHistoryCount;
     pvRelationDisplayMode?: PvRelationDisplayMode;
     pvRelationPressureBasis?: PvRelationPressureBasis;
     pvRelationShowSamplePoints?: boolean;
@@ -231,6 +232,9 @@ function graphViewSpecFromPanel(panel: PanelDef, graphType: GraphViewType): Grap
       ...(panel.pvDebugTraceMode !== undefined ? { pvDebugTraceMode: panel.pvDebugTraceMode } : {}),
       ...(panel.pvHistoryBeats !== undefined ? { pvHistoryBeats: panel.pvHistoryBeats } : {}),
       ...(panel.pvHistoryMode !== undefined ? { pvHistoryMode: panel.pvHistoryMode } : {}),
+      ...(panel.pvParameterHistoryCount !== undefined
+        ? { pvParameterHistoryCount: panel.pvParameterHistoryCount }
+        : {}),
       ...(panel.pvRelationDisplayMode !== undefined
         ? { pvRelationDisplayMode: panel.pvRelationDisplayMode }
         : {}),

@@ -37,9 +37,12 @@ import {
   DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE,
   DEFAULT_HEMODYNAMIC_DETAIL_MODE,
   DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT,
+  DEFAULT_PV_LOOP_HISTORY_BEATS,
+  DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
   DEFAULT_PV_RELATION_DISPLAY_MODE,
   DEFAULT_PV_RELATION_PRESSURE_BASIS,
   type HemodynamicDetailMode,
+  type PvLoopHistoryMode,
   type PvRelationDisplayMode,
   type PvRelationPressureBasis,
 } from "@/types";
@@ -57,6 +60,10 @@ import {
   type ScientificWorkbenchWaveformSeriesV1,
 } from "./ScientificWorkbenchAnimatedChartsV1";
 import {
+  normalizeScientificPvHistoryBeatsV1,
+  scientificPvHistoryAlphaV1,
+} from "./ScientificPvHistoryPresentationV1";
+import {
   buildScientificPvBoundaryGuidesV1,
   type ScientificPvBoundaryGuideV1,
 } from "./ScientificPvBoundaryGuidesV1";
@@ -69,8 +76,13 @@ import {
   type ScientificProductHemodynamicProtocolPresentationV1,
   type ScientificProductHemodynamicProtocolSeriesV1,
   type ScientificProductPvRelationProtocolSeriesV1,
-  type ScientificProductScenarioRegistryV1,
 } from "./ScientificProductScenarioRegistryV1";
+import {
+  resolveScientificProductPvTrajectoryV1,
+} from "./ScientificProductPvTrajectoryCatalogV1";
+import type {
+  ScientificProductRuntimeRegistryPortV1,
+} from "./ScientificProductRuntimeRegistryPortV1";
 import {
   ScientificCardiacOutputFillingPressurePaneV1,
   type ScientificGuytonCurvePointV1,
@@ -125,9 +137,6 @@ const WAVEFORM_ALIASES: Readonly<
   xiPV: "valve.PV.opening_fraction",
   Pperi: "pericardium.excess_pressure",
 });
-
-const CHAMBERS = Object.freeze(["LA", "RA", "LV", "RV"] as const);
-type ScientificChamberV1 = (typeof CHAMBERS)[number];
 
 export const SCIENTIFIC_CONTROL_SYSTEMIC_V1 =
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_IDS_V0[0];
@@ -278,7 +287,7 @@ export function scientificControllerInteractionKeyV1(
 }
 
 export type ScientificWorkbenchRuntimeRendererV1Options = Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   clock: ScientificWorkbenchDisplayClockV1;
 }>;
 
@@ -312,21 +321,17 @@ export function createScientificWorkbenchRuntimeRendererV1({
         />
       );
     }
-    if (panel.type === "WAVEFORM" || panel.type === "PVLOOP") {
+    if (
+      panel.type === "WAVEFORM"
+      || panel.type === "PVLOOP"
+      || panel.type === "GUYTON_LEFT"
+      || panel.type === "GUYTON_RIGHT"
+    ) {
       return (
-        <ScientificGraphPanelV1
+        <ScientificProductGraphPaneV1
           panel={panel}
           registry={registry}
           clock={clock}
-          renderContext={context}
-        />
-      );
-    }
-    if (panel.type === "GUYTON_LEFT" || panel.type === "GUYTON_RIGHT") {
-      return (
-        <ScientificHemodynamicProtocolPanelV1
-          panel={panel}
-          registry={registry}
           renderContext={context}
         />
       );
@@ -398,6 +403,55 @@ export const SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1 = Object.freeze(
   ),
 );
 
+/**
+ * Shared scientific graph-pane renderer used by Workbench and Reader.
+ *
+ * Reader passes a reconstructed portable pane and a reading render context;
+ * Workbench passes its live pane and studio context. Scientific projection,
+ * fixed windows, legend placement, PV history and protocol demand therefore
+ * have one owner.
+ */
+export function ScientificProductGraphPaneV1({
+  panel,
+  registry,
+  clock,
+  renderContext,
+}: Readonly<{
+  panel: PanelDef;
+  registry: ScientificProductRuntimeRegistryPortV1;
+  clock: ScientificWorkbenchDisplayClockV1;
+  renderContext: WorkbenchRuntimeRenderContext;
+}>) {
+  if (panel.type === "WAVEFORM" || panel.type === "PVLOOP") {
+    return (
+      <ScientificGraphPanelV1
+        panel={panel}
+        registry={registry}
+        clock={clock}
+        renderContext={renderContext}
+      />
+    );
+  }
+  if (panel.type === "GUYTON_LEFT" || panel.type === "GUYTON_RIGHT") {
+    if (registry.capabilities?.guytonLoadSeries === false) {
+      return (
+        <ScientificUnavailablePanelV1
+          title="Studio load-series analysis is not connected yet"
+          detail="The live trace and automatic strict settlement use the Studio runtime. This advanced protocol will return after it has its own Studio analysis port."
+        />
+      );
+    }
+    return (
+      <ScientificHemodynamicProtocolPanelV1
+        panel={panel}
+        registry={registry}
+        renderContext={renderContext}
+      />
+    );
+  }
+  return <NoScientificSelectionV1 />;
+}
+
 function ScientificGraphPanelV1({
   panel,
   registry,
@@ -405,7 +459,7 @@ function ScientificGraphPanelV1({
   renderContext,
 }: Readonly<{
   panel: PanelDef;
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   clock: ScientificWorkbenchDisplayClockV1;
   renderContext: WorkbenchRuntimeRenderContext;
 }>) {
@@ -442,6 +496,10 @@ function ScientificGraphPanelV1({
         className="relative h-full min-h-0 w-full overflow-hidden"
         data-testid={`scientific-workbench-pane-${panel.id}`}
         data-panel-kind="time-series"
+        data-scientific-frame-count={Math.max(
+          0,
+          ...effective.map((presentation) => presentation.frames.length),
+        )}
       >
         <ScientificWorkbenchWaveformCanvasV1
           series={series}
@@ -473,7 +531,7 @@ function ScientificPvGraphPanelV1({
   legendInteraction,
 }: Readonly<{
   panel: PanelDef;
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   clock: ScientificWorkbenchDisplayClockV1;
   presentations: readonly ScientificProductScenarioPresentationV1[];
   legendInteraction: ScientificWorkbenchLegendInteractionV1;
@@ -485,6 +543,7 @@ function ScientificPvGraphPanelV1({
     registry.getPvRelationProtocolSeriesSnapshot,
   );
   const displayMode = scientificPvRelationDisplayModeV1(panel);
+  const pvAnalysisAvailable = registry.capabilities?.pvRelations !== false;
   const configuredPressureBasis = scientificPvRelationPressureBasisV1(panel);
   // Pressure-basis selection belongs to the opt-in research analysis. When it
   // is off, keep the beginner-facing loop and its textbook guides on ordinary
@@ -499,10 +558,15 @@ function ScientificPvGraphPanelV1({
     false;
   const historyBeats = panel.pvHistoryBeats ??
     (panel.view?.kind === "graph" ? panel.view.pvHistoryBeats : undefined) ??
-    8;
+    DEFAULT_PV_LOOP_HISTORY_BEATS;
   const historyMode = panel.pvHistoryMode ??
     (panel.view?.kind === "graph" ? panel.view.pvHistoryMode : undefined) ??
     "fade";
+  const parameterHistoryCount = panel.pvParameterHistoryCount ??
+    (panel.view?.kind === "graph"
+      ? panel.view.pvParameterHistoryCount
+      : undefined) ??
+    DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT;
   const series = presentations.flatMap((presentation) =>
     pvSeriesForScenarioV1(
       presentation,
@@ -517,24 +581,44 @@ function ScientificPvGraphPanelV1({
     [panel.showGuides, series],
   );
   const boundaryGuides = React.useMemo(
-    () => fallbackBoundaryGuides.flatMap((fallbackGuide) =>
-      scientificPvProgressiveBoundaryGuidesForScenarioV1({
-        fallbackGuide,
-        series: registry.getPvRelationProtocolSeries(
-          fallbackGuide.scenarioId,
-        ),
-      })),
-    [fallbackBoundaryGuides, pvRelationProtocolSnapshot, registry],
+    () => !pvAnalysisAvailable
+      ? fallbackBoundaryGuides
+      : fallbackBoundaryGuides.flatMap((fallbackGuide) => {
+        const presentation = presentations.find(({ descriptor }) =>
+          descriptor.id === fallbackGuide.scenarioId);
+        return scientificPvProgressiveBoundaryGuidesForScenarioV1({
+          fallbackGuide,
+          series: registry.getPvRelationProtocolSeries(
+            fallbackGuide.scenarioId,
+          ),
+          historyCount: historyBeats,
+          historyMode,
+          currentAcceptedTimeSec:
+            presentation?.frames.at(-1)?.acceptedTimeSec ?? null,
+          cycleDurationSec: presentation?.cycleDurationSec ?? null,
+        });
+      }),
+    [
+      fallbackBoundaryGuides,
+      historyBeats,
+      historyMode,
+      presentations,
+      pvRelationProtocolSnapshot,
+      registry,
+      pvAnalysisAvailable,
+    ],
   );
-  const analysisPresentations = presentations.filter((presentation) =>
-    scientificPvAnalysisDemandEnabledV1({
-      displayMode,
-      showGuides: panel.showGuides,
-      selectsLv: scientificPvPanelSelectsLvV1(
-        presentation,
-        panel.config[presentation.descriptor.id]!,
-      ),
-    }));
+  const analysisPresentations = !pvAnalysisAvailable
+    ? Object.freeze([])
+    : presentations.filter((presentation) =>
+      scientificPvAnalysisDemandEnabledV1({
+        displayMode,
+        showGuides: panel.showGuides,
+        selectsLv: scientificPvPanelSelectsLvV1(
+          presentation,
+          panel.config[presentation.descriptor.id]!,
+        ),
+      }));
   const relationPresentations = analysisPresentations.filter(() =>
     displayMode !== "off");
   const relations = relationPresentations.flatMap((presentation) => {
@@ -553,10 +637,14 @@ function ScientificPvGraphPanelV1({
       pressureBasis,
       showSamplePoints: displayMode === "research" && showSamplePoints,
       displayedEvidence: presentation.displayedEvidence,
-      // Beat-trajectory history and parameter-generation history are distinct.
-      // Keep the latter bounded to the registry's five-generation product
-      // contract instead of coupling it to the PV beat-history control.
-      historyCount: 5,
+      // Previous relations are a visual companion to the previous PV loop,
+      // so both obey the same beat-history horizon and fade mode.
+      historyCount: normalizeScientificPvHistoryBeatsV1(historyBeats),
+      historyBeats,
+      historyMode,
+      currentAcceptedTimeSec:
+        presentation.frames.at(-1)?.acceptedTimeSec ?? null,
+      cycleDurationSec: presentation.cycleDurationSec,
     });
   });
 
@@ -579,8 +667,13 @@ function ScientificPvGraphPanelV1({
         className="relative h-full min-h-0 w-full overflow-hidden"
         data-testid={`scientific-workbench-pane-${panel.id}`}
         data-panel-kind="pressure-volume"
+        data-scientific-frame-count={Math.max(
+          0,
+          ...presentations.map((presentation) => presentation.frames.length),
+        )}
         data-pv-relation-mode={displayMode}
         data-pv-pressure-basis={pressureBasis}
+        data-pv-analysis-available={String(pvAnalysisAvailable)}
       >
         <ScientificWorkbenchPvLoopCanvasV1
           series={series}
@@ -590,8 +683,18 @@ function ScientificPvGraphPanelV1({
           showLegend={panel.showLegend !== false}
           historyBeats={historyBeats}
           historyMode={historyMode}
+          parameterHistoryCount={parameterHistoryCount}
           legendInteraction={legendInteraction}
         />
+        {!pvAnalysisAvailable && displayMode !== "off" && (
+          <p
+            className="pointer-events-none absolute bottom-2 left-2 right-2 rounded border border-wb-line bg-wb-panel/95 px-2 py-1.5 text-[10px] leading-4 text-wb-muted shadow-sm"
+            data-testid="scientific-studio-pv-analysis-unavailable-v1"
+          >
+            Studio load-series analysis is not connected yet. The live PV loop
+            remains available.
+          </p>
+        )}
       </div>
     </>
   );
@@ -617,14 +720,22 @@ export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
     fallbackGuide: ScientificPvBoundaryGuideV1;
     series: ScientificProductPvRelationProtocolSeriesV1;
     historyCount?: number;
+    historyMode?: PvLoopHistoryMode;
+    currentAcceptedTimeSec?: number | null;
+    cycleDurationSec?: number | null;
   }>,
 ): readonly ScientificPvBoundaryGuideV1[] {
+  const historyBeats = normalizeScientificPvHistoryBeatsV1(
+    input.historyCount ?? DEFAULT_PV_LOOP_HISTORY_BEATS,
+  );
+  const historyCount = Math.min(5, historyBeats);
+  const historyMode = input.historyMode ?? "fade";
   const current = input.series.current;
   if (current === null || current.snapshot === null) {
     const pending = input.series.pending;
     const pendingSnapshot = pending?.snapshot ?? null;
     const job = pendingSnapshot?.jobSnapshot ?? null;
-    return Object.freeze([buildScientificPvProgressiveBoundaryGuideV1({
+    const guide = buildScientificPvProgressiveBoundaryGuideV1({
       fallbackGuide: input.fallbackGuide,
       generationId: pending?.generationId
         ?? `${input.fallbackGuide.key}:acquiring`,
@@ -641,11 +752,12 @@ export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
       result: pendingSnapshot?.researchResultV3
         ?? job?.researchResultV3
         ?? null,
+    });
+    return Object.freeze([Object.freeze({
+      ...guide,
+      opacityMultiplier: 1,
     })]);
   }
-  const historyCount = Math.max(0, Math.min(5, Math.round(
-    input.historyCount ?? 5,
-  )));
   const generations = [
     Object.freeze({
       generation: current,
@@ -665,10 +777,27 @@ export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
       }),
     ),
   ];
-  return Object.freeze(generations.map((entry) => {
+  return Object.freeze(generations.flatMap((entry) => {
     const snapshot = entry.generation.snapshot!;
     const job = snapshot.jobSnapshot;
-    return buildScientificPvProgressiveBoundaryGuideV1({
+    const historyAgeBeats = entry.generationAge === 0
+      ? 0
+      : scientificPvAcceptedTimeHistoryAgeV1({
+        fallbackAge: entry.generationAge,
+        sourceAcceptedTimeSec:
+          entry.generation.source.sourceIdentity.acceptedTimeSec,
+        currentAcceptedTimeSec: input.currentAcceptedTimeSec ?? null,
+        cycleDurationSec: input.cycleDurationSec ?? null,
+      });
+    const opacityMultiplier = entry.replacementPending
+      ? 1
+      : scientificPvHistoryAlphaV1(
+        historyAgeBeats,
+        historyBeats,
+        historyMode,
+      );
+    if (entry.generationAge > 0 && opacityMultiplier <= 0) return [];
+    const guide = buildScientificPvProgressiveBoundaryGuideV1({
       fallbackGuide: input.fallbackGuide,
       generationId: entry.generation.generationId,
       generationSequence: entry.generation.sequence,
@@ -681,7 +810,33 @@ export function scientificPvProgressiveBoundaryGuidesForScenarioV1(
         ?? job?.researchResultV3
         ?? null,
     });
+    return [Object.freeze({
+      ...guide,
+      historyAgeBeats,
+      opacityMultiplier,
+    })];
   }));
+}
+
+function scientificPvAcceptedTimeHistoryAgeV1(input: Readonly<{
+  fallbackAge: number;
+  sourceAcceptedTimeSec: number;
+  currentAcceptedTimeSec: number | null;
+  cycleDurationSec: number | null;
+}>): number {
+  if (
+    input.currentAcceptedTimeSec !== null
+    && input.cycleDurationSec !== null
+    && Number.isFinite(input.sourceAcceptedTimeSec)
+    && Number.isFinite(input.currentAcceptedTimeSec)
+    && input.currentAcceptedTimeSec >= input.sourceAcceptedTimeSec
+    && input.cycleDurationSec > 0
+  ) {
+    return (
+      input.currentAcceptedTimeSec - input.sourceAcceptedTimeSec
+    ) / input.cycleDurationSec;
+  }
+  return Math.max(0, input.fallbackAge);
 }
 
 function ScientificHemodynamicProtocolPanelV1({
@@ -690,7 +845,7 @@ function ScientificHemodynamicProtocolPanelV1({
   renderContext,
 }: Readonly<{
   panel: PanelDef;
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   renderContext: WorkbenchRuntimeRenderContext;
 }>) {
   const presentations = useScientificScenarioPresentationsV1(registry);
@@ -733,19 +888,40 @@ function ScientificHemodynamicProtocolPanelV1({
   };
   if (eligible.length === 0) return <NoScientificSelectionV1 />;
   const side = panel.type === "GUYTON_LEFT" ? "left" : "right";
-  const entries = eligible.map((presentation) => Object.freeze({
+  const entries = eligible.map((presentation) => {
+    const config = panel.config[presentation.descriptor.id]!;
+    const effectivePresentation: ScientificProductScenarioPresentationV1 =
+      Object.freeze({
+        ...presentation,
+        descriptor: Object.freeze({
+          ...presentation.descriptor,
+          name: config.customName ?? presentation.descriptor.name,
+          color: config.customBaseColor ?? presentation.descriptor.color,
+        }),
+      });
+    return Object.freeze({
+      presentation: effectivePresentation,
+      series: registry.getHemodynamicProtocolSeries(
+        presentation.descriptor.id,
+        kind,
+      ),
+      displayedSourceIdentity: displayedHemodynamicSourceIdentityV1(
+        registry,
+        presentation.descriptor.id,
+      ),
+    });
+  });
+  const scenarios = entries.map(({
     presentation,
-    series: registry.getHemodynamicProtocolSeries(
-      presentation.descriptor.id,
-      kind,
-    ),
-  }));
-  const scenarios = entries.map(({ presentation, series }) =>
+    series,
+    displayedSourceIdentity,
+  }) =>
     scientificHemodynamicResponseScenarioV1(
       side,
       presentation,
       series,
       historyCount,
+      displayedSourceIdentity,
     ));
   const status = scientificHemodynamicAggregateStatusV1(side, entries);
   return (
@@ -817,7 +993,7 @@ function ScientificHemodynamicProtocolDemandV1({
   detailMode,
   sourceIdentityKey,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   demandId: string;
   scenarioId: string;
   kind: ScientificProductHemodynamicProtocolKindV1;
@@ -841,7 +1017,7 @@ function ScientificPvRelationProtocolDemandV1({
   scenarioId,
   sourceIdentityKey,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   demandId: string;
   scenarioId: string;
   sourceIdentityKey: string;
@@ -856,7 +1032,7 @@ function ScientificPvRelationProtocolDemandV1({
 }
 
 function scientificHemodynamicDemandIdentityV1(
-  registry: ScientificProductScenarioRegistryV1,
+  registry: ScientificProductRuntimeRegistryPortV1,
   scenarioId: string,
 ): string {
   const snapshot = registry.getRuntime(scenarioId)?.controlStore.getSnapshot();
@@ -910,6 +1086,10 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
   pressureBasis: PvRelationPressureBasis;
   showSamplePoints: boolean;
   historyCount: number;
+  historyBeats?: number;
+  historyMode?: PvLoopHistoryMode;
+  currentAcceptedTimeSec?: number | null;
+  cycleDurationSec?: number | null;
   displayedEvidence?: ScientificProductScenarioPresentationV1["displayedEvidence"];
 }>): readonly ScientificProductPvRelationOverlayPresentationV1[] {
   if (input.displayMode === "off") return Object.freeze([]);
@@ -921,13 +1101,28 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
       ? []
       : [Object.freeze({
           generation: input.series.current,
-          age: hasPending ? 1 : 0,
+          age: hasPending
+            ? scientificPvAcceptedTimeHistoryAgeV1({
+              fallbackAge: 1,
+              sourceAcceptedTimeSec:
+                input.series.current.source.sourceIdentity.acceptedTimeSec,
+              currentAcceptedTimeSec:
+                input.currentAcceptedTimeSec ?? null,
+              cycleDurationSec: input.cycleDurationSec ?? null,
+            })
+            : 0,
           role: "current" as const,
         })]),
     ...input.series.history.slice(0, Math.max(0, input.historyCount)).map(
       (generation, index) => Object.freeze({
         generation,
-        age: index + (hasPending ? 2 : 1),
+        age: scientificPvAcceptedTimeHistoryAgeV1({
+          fallbackAge: index + (hasPending ? 2 : 1),
+          sourceAcceptedTimeSec:
+            generation.source.sourceIdentity.acceptedTimeSec,
+          currentAcceptedTimeSec: input.currentAcceptedTimeSec ?? null,
+          cycleDurationSec: input.cycleDurationSec ?? null,
+        }),
         role: "history" as const,
       }),
     ),
@@ -1002,7 +1197,8 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
         generationSequence: latestFailure.sequence,
         generationRole: "pending" as const,
         targetPreview:
-          latestFailure.source.sourceIdentity.calculationSource !==
+          latestFailure.source === null
+          || latestFailure.source.sourceIdentity.calculationSource !==
             "visible-period1-source",
         espvr: Object.freeze([]),
         edpvr: Object.freeze([]),
@@ -1038,7 +1234,18 @@ export function scientificPvRelationOverlaysForScenarioV1(input: Readonly<{
       }));
     }
   }
-  return Object.freeze(overlays);
+  const historyBeats = normalizeScientificPvHistoryBeatsV1(
+    input.historyBeats ?? input.historyCount,
+  );
+  const historyMode = input.historyMode ?? "fade";
+  return Object.freeze(overlays.filter((overlay) => {
+    const age = Math.max(0, overlay.generationAge ?? 0);
+    return age === 0 || scientificPvHistoryAlphaV1(
+      age,
+      historyBeats,
+      historyMode,
+    ) > 0;
+  }));
 }
 
 function scientificPvRelationGenerationOverlayV1(input: Readonly<{
@@ -1271,6 +1478,13 @@ function scientificPvRelationEndpointSamplesV1(
 type ScientificHemodynamicSeriesEntryV1 = Readonly<{
   presentation: ScientificProductScenarioPresentationV1;
   series: ScientificProductHemodynamicProtocolSeriesV1;
+  displayedSourceIdentity:
+    ScientificHemodynamicDisplayedSourceIdentityV1 | null;
+}>;
+
+type ScientificHemodynamicDisplayedSourceIdentityV1 = Readonly<{
+  parameterEpoch: number;
+  controlStateSha256: string;
 }>;
 
 function scientificHemodynamicDetailModeV1(
@@ -1304,17 +1518,27 @@ function scientificHemodynamicResponseScenarioV1(
   presentation: ScientificProductScenarioPresentationV1,
   series: ScientificProductHemodynamicProtocolSeriesV1,
   historyCount: number,
+  displayedSourceIdentity:
+    ScientificHemodynamicDisplayedSourceIdentityV1 | null,
 ): ScientificHemodynamicResponseScenarioV1 {
   const current = scientificHemodynamicResponseGenerationV1(
     side,
     presentation.descriptor.name,
     series.current,
+    Object.freeze({
+      displayedSourceIdentity,
+      history: false,
+    }),
   );
   const history = series.history.slice(0, historyCount).flatMap((generation) => {
     const converted = scientificHemodynamicResponseGenerationV1(
       side,
       presentation.descriptor.name,
       generation,
+      Object.freeze({
+        displayedSourceIdentity,
+        history: true,
+      }),
     );
     return converted === null ? [] : [converted];
   });
@@ -1338,6 +1562,14 @@ export function scientificHemodynamicResponseGenerationV1(
   side: "right" | "left",
   scenarioName: string,
   generation: ScientificProductHemodynamicProtocolGenerationV1 | null,
+  context: Readonly<{
+    displayedSourceIdentity:
+      ScientificHemodynamicDisplayedSourceIdentityV1 | null;
+    history: boolean;
+  }> = Object.freeze({
+    displayedSourceIdentity: null,
+    history: false,
+  }),
 ): ScientificHemodynamicResponseGenerationV1 | null {
   const protocol = generation?.snapshot;
   if (generation === null || protocol === null || protocol === undefined) {
@@ -1357,11 +1589,38 @@ export function scientificHemodynamicResponseGenerationV1(
     data.status.qc.level === "warning" || data.status.qc.level === "fail"
       ? [data.status.qc.summary, ...(data.status.qc.details ?? [])]
       : [];
+  const calculationSource =
+    generation.source.sourceIdentity.calculationSource;
+  const parameterStateRole = context.history
+    ? "history" as const
+    : calculationSource === "automatic-strict-candidate"
+      ? "target-preview" as const
+      : context.displayedSourceIdentity !== null
+        && !sameHemodynamicDisplayedSourceIdentityV1(
+          generation,
+          context.displayedSourceIdentity,
+        )
+        ? "previous" as const
+        : calculationSource === "visible-period1-source"
+          ? "visible-current" as const
+          : "target-preview" as const;
   return Object.freeze({
     id: generation.generationId,
-    label: generation.status === "complete"
-      ? "Completed parameter state"
-      : "Current parameter state",
+    label: parameterStateRole === "history"
+      || parameterStateRole === "previous"
+      ? "Previous parameter state"
+      : calculationSource === "automatic-strict-candidate"
+        ? generation.status === "complete"
+          ? "Automatic strict candidate"
+          : "Computing strict candidate"
+        : calculationSource ===
+            "independent-case-source-warm-continuation"
+          ? "Calculated target preview"
+          : generation.status === "complete"
+            ? "Completed parameter state"
+            : "Current parameter state",
+    calculationSource,
+    parameterStateRole,
     vascularReturnCurve: data.vascularReturnCurve,
     estimatedCardiacSegments: data.estimatedCardiacSegments ?? [],
     settledCardiacSegments: data.cardiacPreloadSegments ?? [],
@@ -1386,7 +1645,7 @@ function scientificHemodynamicResultV1(
     : null;
 }
 
-function scientificHemodynamicAggregateStatusV1(
+export function scientificHemodynamicAggregateStatusV1(
   side: "right" | "left",
   entries: readonly ScientificHemodynamicSeriesEntryV1[],
 ): ScientificHemodynamicProtocolStatusV1 {
@@ -1419,6 +1678,68 @@ function scientificHemodynamicAggregateStatusV1(
     });
   }
 
+  const failures = entries.flatMap(({ series }) =>
+    series.lastFailure === null ? [] : [series.lastFailure.errorMessage]);
+  if (failures.length > 0) {
+    const retainsPrevious = entries.some(({ series }) =>
+      series.current !== null);
+    return Object.freeze({
+      status: "error" as const,
+      label: retainsPrevious ? "Curve update failed" : "Curve unavailable",
+      qc: Object.freeze({
+        level: "fail" as const,
+        summary: failures.join(" "),
+      }),
+    });
+  }
+
+  const identityMismatches = entries.filter(
+    ({ series, displayedSourceIdentity }) =>
+    series.current !== null
+    && displayedSourceIdentity !== null
+    && !sameHemodynamicDisplayedSourceIdentityV1(
+      series.current,
+      displayedSourceIdentity,
+    ),
+  );
+  const retainedPrevious = identityMismatches.filter(({ series }) =>
+    series.current?.source.sourceIdentity.calculationSource
+      !== "automatic-strict-candidate"
+  );
+  if (retainedPrevious.length > 0) {
+    return Object.freeze({
+      status: "running" as const,
+      label: "Waiting for settled curve…",
+      qc: Object.freeze({
+        level: "pending" as const,
+        summary:
+          "Previous parameter curves remain visible while automatic strict settlement prepares the new source.",
+      }),
+    });
+  }
+
+  const strictTargetPreviews = identityMismatches.filter(({ series }) =>
+    series.current?.source.sourceIdentity.calculationSource
+      === "automatic-strict-candidate"
+  );
+  if (strictTargetPreviews.length > 0) {
+    const allComplete = strictTargetPreviews.every(({ series }) =>
+      series.current?.status === "complete"
+    );
+    return Object.freeze({
+      status: "running" as const,
+      label: allComplete
+        ? "Strict target preview ready"
+        : "Computing strict target preview…",
+      qc: Object.freeze({
+        level: "pending" as const,
+        summary: allComplete
+          ? "A settled strict candidate for the target is ready while the live transition catches up."
+          : "The strict target preview is updating while the live transition catches up.",
+      }),
+    });
+  }
+
   const currentStatuses = entries.flatMap(({ presentation, series }) => {
     const protocol = series.current?.snapshot;
     if (protocol === null || protocol === undefined) return [];
@@ -1446,18 +1767,6 @@ function scientificHemodynamicAggregateStatusV1(
     });
   }
 
-  const failures = entries.flatMap(({ series }) =>
-    series.lastFailure === null ? [] : [series.lastFailure.errorMessage]);
-  if (failures.length > 0) {
-    return Object.freeze({
-      status: "error" as const,
-      label: "Curve unavailable",
-      qc: Object.freeze({
-        level: "fail" as const,
-        summary: failures.join(" "),
-      }),
-    });
-  }
   return Object.freeze({
     status: "running" as const,
     label: "Preparing curves…",
@@ -1466,6 +1775,29 @@ function scientificHemodynamicAggregateStatusV1(
       summary: "The first parameter curve is being prepared.",
     }),
   });
+}
+
+function displayedHemodynamicSourceIdentityV1(
+  registry: ScientificProductRuntimeRegistryPortV1,
+  scenarioId: string,
+): ScientificHemodynamicDisplayedSourceIdentityV1 | null {
+  const snapshot = registry.getRuntime(scenarioId)?.controlStore.getSnapshot();
+  if (snapshot === undefined) return null;
+  return Object.freeze({
+    parameterEpoch: snapshot.provenance.displayedParameterEpoch,
+    controlStateSha256:
+      snapshot.provenance.displayedControlStateSha256,
+  });
+}
+
+function sameHemodynamicDisplayedSourceIdentityV1(
+  generation: ScientificProductHemodynamicProtocolGenerationV1,
+  displayed: ScientificHemodynamicDisplayedSourceIdentityV1,
+): boolean {
+  return generation.source.sourceIdentity.parameterEpoch
+      === displayed.parameterEpoch
+    && generation.source.sourceIdentity.controlStateSha256
+      === displayed.controlStateSha256;
 }
 
 /**
@@ -1920,7 +2252,7 @@ function ScientificMetricsPanelV1({
   registry,
   selections,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   selections: Readonly<Record<string, readonly string[]>>;
 }>) {
   const presentations = useScientificScenarioPresentationsV1(registry).filter(
@@ -2082,7 +2414,7 @@ function ScientificControllerPanelV1({
   items,
   targetScenarioId,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   items: readonly ControllerItem[];
   targetScenarioId?: string;
 }>) {
@@ -2238,7 +2570,7 @@ export function ScientificProductTransitionBehaviorSettingsV1({
   registry,
   activeScenarioId,
 }: Readonly<{
-  registry: ScientificProductScenarioRegistryV1;
+  registry: ScientificProductRuntimeRegistryPortV1;
   activeScenarioId: string;
 }>) {
   const { t } = useTranslation();
@@ -2256,16 +2588,31 @@ export function ScientificProductTransitionBehaviorSettingsV1({
     runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT,
   );
   if (descriptor === undefined || snapshot === null) return null;
-  const modeEditable = snapshot.ownerConnected && snapshot.phase === "idle";
+  const studio = registry.getStudioStatus?.(descriptor.id) ?? null;
+  const candidateReady = studio?.strictCandidateAvailable === true;
+  const promotionInFlight = studio?.promotionInFlight === true;
+  const pinInFlight = studio?.pinInFlight === true;
+  const candidatePinned = studio?.strictCandidatePinned === true;
+  const strictStatus = studio?.strictPhase === "source-settled"
+    ? t("workbench.sidePanel.settings.studioRuntime.sourceSettled")
+    : studio?.strictPhase === "candidate-ready"
+      ? t("workbench.sidePanel.settings.studioRuntime.candidateReady")
+      : studio?.strictPhase === "settled-in-use"
+        ? t("workbench.sidePanel.settings.studioRuntime.settledInUse")
+        : studio?.strictPhase === "failed"
+          ? t("workbench.sidePanel.settings.studioRuntime.failed")
+          : t("workbench.sidePanel.settings.studioRuntime.runningAutomatically");
   return (
     <section
       className="space-y-3 border-t border-wb-line pt-4"
       data-testid="scientific-product-transition-mode-v1"
       data-scenario-id={descriptor.id}
+      data-studio-runtime="true"
+      data-strict-candidate-available={String(candidateReady)}
     >
       <div>
         <h3 className="text-[11px] font-medium text-wb-subtle">
-          {t("workbench.sidePanel.settings.transitionBehavior.title")}
+          {t("workbench.sidePanel.settings.studioRuntime.title")}
         </h3>
         <div className="mt-1 flex min-w-0 items-center gap-2 text-xs font-bold text-wb-text">
           <span
@@ -2275,30 +2622,112 @@ export function ScientificProductTransitionBehaviorSettingsV1({
           <span className="truncate">{descriptor.name}</span>
         </div>
         <p className="mt-1 text-xs leading-5 text-wb-muted">
-          {t("workbench.sidePanel.settings.transitionBehavior.description")}
+          {t("workbench.sidePanel.settings.studioRuntime.description")}
         </p>
       </div>
-      <div
-        className="grid grid-cols-2 gap-1"
-        role="group"
-        aria-label="Transition mode"
-      >
-        {(["live", "steady"] as const).map((mode) => (
-          <button
-            key={mode}
-            type="button"
-            onClick={() => runtime!.controlStore.actions.setMode(mode)}
-            disabled={!modeEditable}
-            aria-pressed={snapshot.mode === mode}
-            className={`min-h-9 rounded border px-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-45 ${snapshot.mode === mode ? "border-wb-accent bg-wb-active text-wb-text" : "border-wb-line bg-wb-input text-wb-muted hover:text-wb-text"}`}
-          >
-            {t(`workbench.sidePanel.settings.transitionBehavior.${mode}`)}
-          </button>
-        ))}
+      <dl className="space-y-1.5 rounded-md border border-wb-line bg-wb-input px-2.5 py-2 text-[11px]">
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-wb-subtle">
+            {t("workbench.sidePanel.settings.studioRuntime.liveTrace")}
+          </dt>
+          <dd className="font-medium text-wb-text">
+            {studio?.livePlayback === "suspended"
+              ? t("workbench.sidePanel.settings.studioRuntime.paused")
+              : snapshot.inFlight
+                ? t("workbench.sidePanel.settings.studioRuntime.applyingTarget")
+                : t("workbench.sidePanel.settings.studioRuntime.running")}
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-wb-subtle">
+            {t("workbench.sidePanel.settings.studioRuntime.strictSettlement")}
+          </dt>
+          <dd className="font-medium text-wb-text">
+            {strictStatus}
+          </dd>
+        </div>
+        {studio !== null && (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-wb-subtle">
+              {t("workbench.sidePanel.settings.studioRuntime.targetGeneration")}
+            </dt>
+            <dd className="font-mono text-wb-muted">
+              {studio.targetGeneration}
+            </dd>
+          </div>
+        )}
+      </dl>
+      <div className="grid grid-cols-2 gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            void registry.promoteStudioSteadyCandidate?.(descriptor.id)
+              .catch(() => undefined);
+          }}
+          disabled={!candidateReady || promotionInFlight || pinInFlight}
+          className="min-h-9 rounded border border-wb-accent bg-wb-active px-2 text-xs font-bold text-wb-text disabled:cursor-not-allowed disabled:border-wb-line disabled:bg-wb-input disabled:text-wb-subtle"
+        >
+          {promotionInFlight
+            ? t("workbench.sidePanel.settings.studioRuntime.using")
+            : t("workbench.sidePanel.settings.studioRuntime.useSettledState")}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            void registry.pinStudioSteadyCandidate?.(descriptor.id)
+              .catch(() => undefined);
+          }}
+          disabled={
+            !candidateReady
+            || promotionInFlight
+            || pinInFlight
+            || candidatePinned
+          }
+          className="min-h-9 rounded border border-wb-line bg-wb-input px-2 text-xs font-bold text-wb-muted disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {pinInFlight
+            ? t("workbench.sidePanel.settings.studioRuntime.pinning")
+            : candidatePinned
+              ? t("workbench.sidePanel.settings.studioRuntime.pinned")
+              : t("workbench.sidePanel.settings.studioRuntime.pinRun")}
+        </button>
       </div>
-      {!modeEditable && (
+      {!candidateReady && (
         <p className="text-[10px] leading-4 text-wb-subtle">
-          {t("workbench.sidePanel.settings.transitionBehavior.locked")}
+          {t("workbench.sidePanel.settings.studioRuntime.candidateHint")}
+        </p>
+      )}
+      {candidateReady && !candidatePinned && (
+        <p className="text-[10px] leading-4 text-wb-subtle">
+          {t("workbench.sidePanel.settings.studioRuntime.pinBeforeUse")}
+        </p>
+      )}
+      {studio !== null && studio.pinnedRunCount > 0 && (
+        <p className="text-[10px] leading-4 text-wb-subtle">
+          {t("workbench.sidePanel.settings.studioRuntime.pinnedRuns", {
+            count: studio.pinnedRunCount,
+          })}
+        </p>
+      )}
+      {(studio?.strictPhase === "failed"
+        || studio?.lastFailure?.lane === "live"
+        || studio?.lastFailure?.lane === "presentation") && (
+        <button
+          type="button"
+          onClick={snapshot.actions.resetLiveOrFailure}
+          disabled={snapshot.inFlight || promotionInFlight || pinInFlight}
+          className="min-h-8 w-full rounded border border-wb-line bg-wb-input px-2 text-xs font-bold text-wb-muted disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {t("workbench.sidePanel.settings.studioRuntime.retryTarget")}
+        </button>
+      )}
+      {(studio?.lastActionError
+        ?? studio?.lastFailure?.message
+        ?? snapshot.errorMessage) !== null && (
+        <p className="text-[10px] leading-4 text-wb-danger" role="alert">
+          {studio?.lastActionError
+            ?? studio?.lastFailure?.message
+            ?? snapshot.errorMessage}
         </p>
       )}
     </section>
@@ -2306,7 +2735,7 @@ export function ScientificProductTransitionBehaviorSettingsV1({
 }
 
 function useScientificScenarioPresentationsV1(
-  registry: ScientificProductScenarioRegistryV1,
+  registry: ScientificProductRuntimeRegistryPortV1,
 ): readonly ScientificProductScenarioPresentationV1[] {
   const descriptors = React.useSyncExternalStore(
     registry.subscribeDescriptors,
@@ -2356,10 +2785,9 @@ function pvSeriesForScenarioV1(
   config: PanelInstanceConfig,
   pressureBasis: PvRelationPressureBasis = "intracavitary",
 ): ScientificWorkbenchPvSeriesV1[] {
-  const catalog = trajectoryCatalogV1(presentation.workspaceDocument);
   const trajectories = selectedPvTrajectories(
     config.selectedSignals ?? [],
-    catalog,
+    presentation.workspaceDocument,
   );
   return trajectories.map((trajectory, index) => {
     const modelName = config.customName ?? presentation.descriptor.name;
@@ -2391,7 +2819,7 @@ function scientificPvPanelSelectsLvV1(
 ): boolean {
   return selectedPvTrajectories(
     config.selectedSignals ?? [],
-    trajectoryCatalogV1(presentation.workspaceDocument),
+    presentation.workspaceDocument,
   ).some(({ volumeObservableId }) =>
     volumeObservableId === "hemodynamics.volume.LV");
 }
@@ -2406,6 +2834,7 @@ function chartScenarioV1(
     color: presentation.descriptor.color,
     isVisible: presentation.descriptor.isVisible,
     frames: presentation.frames,
+    parameterGenerationHistory: presentation.parameterGenerationHistory,
     guideCycleFrames: presentation.metricCycle?.frames ?? null,
     periodicCycleFrames: presentation.periodicCycleFrames,
     cycleDurationSec: presentation.cycleDurationSec,
@@ -2456,52 +2885,21 @@ function selectedWaveformObservables(
 
 function selectedPvTrajectories(
   selected: readonly string[],
-  workspaceTrajectories: ReadonlyMap<
-    string,
-    MainWireScientificWorkspacePressureVolumeTrajectoryV1
-  >,
+  workspace:
+    ScientificProductScenarioPresentationV1["workspaceDocument"],
 ): MainWireScientificWorkspacePressureVolumeTrajectoryV1[] {
   return [
     ...new Map(
       selected.flatMap((candidate) => {
-        const fromWorkspace = workspaceTrajectories.get(candidate);
-        if (fromWorkspace !== undefined) {
-          return [[fromWorkspace.trajectoryId, fromWorkspace] as const];
-        }
-        const chamber = CHAMBERS.find(
-          (value) => value === candidate.toUpperCase(),
+        const trajectory = resolveScientificProductPvTrajectoryV1(
+          workspace,
+          candidate,
         );
-        if (chamber === undefined) return [];
-        const trajectory = chamberTrajectory(chamber);
+        if (trajectory === null) return [];
         return [[trajectory.trajectoryId, trajectory] as const];
       }),
     ).values(),
   ];
-}
-
-function chamberTrajectory(
-  chamber: ScientificChamberV1,
-): MainWireScientificWorkspacePressureVolumeTrajectoryV1 {
-  return Object.freeze({
-    trajectoryId: `${chamber.toLowerCase()}-pressure-volume`,
-    label: `${chamber} pressure–volume loop`,
-    volumeObservableId: `hemodynamics.volume.${chamber}`,
-    pressureObservableId: `hemodynamics.pressure.absolute.${chamber}`,
-  });
-}
-
-function trajectoryCatalogV1(
-  workspace: ScientificProductScenarioPresentationV1["workspaceDocument"],
-): ReadonlyMap<string, MainWireScientificWorkspacePressureVolumeTrajectoryV1> {
-  return new Map(
-    workspace.content.panels.flatMap(({ view }) =>
-      view.kind === "pressure-volume"
-        ? view.trajectories.map(
-            (trajectory) => [trajectory.trajectoryId, trajectory] as const,
-          )
-        : [],
-    ),
-  );
 }
 
 export function graphViewToPanel(view: GraphViewSpec): PanelDef {
@@ -2542,6 +2940,7 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
       legendPosition: view.presentation?.legendPosition,
       pvHistoryBeats: view.presentation?.pvHistoryBeats,
       pvHistoryMode: view.presentation?.pvHistoryMode,
+      pvParameterHistoryCount: view.presentation?.pvParameterHistoryCount,
       pvRelationDisplayMode: view.presentation?.pvRelationDisplayMode,
       pvRelationPressureBasis: view.presentation?.pvRelationPressureBasis,
       pvRelationShowSamplePoints:
@@ -2558,6 +2957,7 @@ export function graphViewToPanel(view: GraphViewSpec): PanelDef {
     showLegend: view.presentation?.showLegend,
     pvHistoryBeats: view.presentation?.pvHistoryBeats,
     pvHistoryMode: view.presentation?.pvHistoryMode,
+    pvParameterHistoryCount: view.presentation?.pvParameterHistoryCount,
     pvRelationDisplayMode: view.presentation?.pvRelationDisplayMode,
     pvRelationPressureBasis: view.presentation?.pvRelationPressureBasis,
     pvRelationShowSamplePoints:

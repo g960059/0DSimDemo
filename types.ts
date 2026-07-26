@@ -89,6 +89,7 @@ export interface LegendPosition {
 }
 
 export type PvLoopHistoryMode = 'fade' | 'persistent';
+export type PvLoopParameterHistoryCount = 0 | 1 | 3 | 5 | 6;
 export type PvRelationDisplayMode = 'off' | 'standard' | 'research';
 export type PvRelationPressureBasis = 'intracavitary' | 'transmural';
 export type HemodynamicDetailMode = 'standard' | 'settled-reference' | 'compare';
@@ -98,6 +99,9 @@ export const DEFAULT_HEMODYNAMIC_DETAIL_MODE: HemodynamicDetailMode = 'standard'
 export const DEFAULT_HEMODYNAMIC_PARAMETER_HISTORY_COUNT:
   HemodynamicParameterHistoryCount = 5;
 export const DEFAULT_HEMODYNAMIC_ALLOW_NEGATIVE_FILLING_PRESSURE = false;
+export const DEFAULT_PV_LOOP_HISTORY_BEATS = 4;
+export const DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT:
+  PvLoopParameterHistoryCount = 0;
 export const DEFAULT_PV_RELATION_DISPLAY_MODE: PvRelationDisplayMode = 'off';
 export const DEFAULT_PV_RELATION_PRESSURE_BASIS: PvRelationPressureBasis =
   'intracavitary';
@@ -130,6 +134,7 @@ export interface GraphPanelView {
     pvDebugTraceMode?: PvLoopDebugTraceMode;
     pvHistoryBeats?: number;
     pvHistoryMode?: PvLoopHistoryMode;
+    pvParameterHistoryCount?: PvLoopParameterHistoryCount;
     pvRelationDisplayMode?: PvRelationDisplayMode;
     pvRelationPressureBasis?: PvRelationPressureBasis;
     pvRelationShowSamplePoints?: boolean;
@@ -244,6 +249,7 @@ export interface PanelDef {
     pvDebugTraceMode?: PvLoopDebugTraceMode;
     pvHistoryBeats?: number;
     pvHistoryMode?: PvLoopHistoryMode;
+    pvParameterHistoryCount?: PvLoopParameterHistoryCount;
     /** LV protocol-derived pressure-volume relation presentation settings. */
     pvRelationDisplayMode?: PvRelationDisplayMode;
     pvRelationPressureBasis?: PvRelationPressureBasis;

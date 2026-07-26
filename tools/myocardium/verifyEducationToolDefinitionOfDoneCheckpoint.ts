@@ -26,8 +26,8 @@ const RESULT_ARTIFACT_PATH =
 const BUILDER_PATH = "tools/myocardium/buildEducationToolDefinitionOfDoneCheckpoint.ts";
 const README_PATH = "docs/myocardium/README.md";
 const ROADMAP_PATH = "docs/myocardium/roadmap/myocardium-rebuild-roadmap.md";
-const HISTORICAL_LANES_PATH = "docs/status/archive/current-lanes-through-2026-07-10.md";
-const STUDIO_ROADMAP_PATH = "docs/studio/roadmap/mvp-roadmap.md";
+const STUDIO_ARCHITECTURE_PATH =
+  "docs/studio/DESIGN-STUDIO-002-cell-document-architecture.md";
 
 export function validateEducationToolDefinitionOfDoneCheckpoint(rootDir = process.cwd()):
 EducationToolDoDCheckpointValidationReport {
@@ -250,8 +250,11 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
   const builderText = readRequiredText(rootDir, BUILDER_PATH, errors);
   const readmeText = readRequiredText(rootDir, README_PATH, errors);
   const roadmapText = readRequiredText(rootDir, ROADMAP_PATH, errors);
-  const lanesText = readRequiredText(rootDir, HISTORICAL_LANES_PATH, errors);
-  const studioRoadmapText = readRequiredText(rootDir, STUDIO_ROADMAP_PATH, errors);
+  const studioArchitectureText = readRequiredText(
+    rootDir,
+    STUDIO_ARCHITECTURE_PATH,
+    errors,
+  );
   const packageText = readRequiredText(rootDir, "package.json", errors);
 
   if (
@@ -280,21 +283,21 @@ function validateSourceText(rootDir: string, errors: ValidationIssue[]): void {
     addIssue(errors, "phase5t_roadmap", ROADMAP_PATH, "Roadmap must record Phase 5T and keep runtime replacement blocked.");
   }
   if (
-    lanesText
-    && (!lanesText.includes("Phase 5T")
-      || !lanesText.includes("owner-review-ready-not-accepted")
-      || !lanesText.includes("developer-only LV Land runtime-flag design RFC"))
+    studioArchitectureText
+    && (!studioArchitectureText.includes(
+      "数理モデルの完成度・科学的 acceptance と、Studio の software architecture readiness は別",
+    )
+      || !studioArchitectureText.includes(
+        "現在のofficial case / article / preset",
+      )
+      || !studioArchitectureText.includes("CertificationPolicy"))
   ) {
-    addIssue(errors, "phase5t_current_lanes", HISTORICAL_LANES_PATH, "Current lanes must point from Phase 5T to the developer-only runtime-flag RFC decision.");
-  }
-  if (
-    studioRoadmapText
-    && (!studioRoadmapText.includes("Select an official case, compare branches, inspect PV loop/waveform/output metrics, and read a synchronized explanatory note")
-      || !studioRoadmapText.includes("must not convert a model diagnostic or morphology correlation into scientific acceptance")
-      || !studioRoadmapText.includes("clinicalCaveats")
-      || !studioRoadmapText.includes("notMedicalAdvice"))
-  ) {
-    addIssue(errors, "phase5t_studio_policy", STUDIO_ROADMAP_PATH, "Studio roadmap must keep static/mock Workbench and caveat fields visible.");
+    addIssue(
+      errors,
+      "phase5t_studio_policy",
+      STUDIO_ARCHITECTURE_PATH,
+      "Studio architecture must keep model validation authoritative and require official content re-authoring under certification policy.",
+    );
   }
   if (packageText && !packageText.includes("verify:myocardium-education-tool-dod-checkpoint")) {
     addIssue(errors, "phase5t_package_script", "package.json", "package.json must expose the Phase 5T verifier script.");

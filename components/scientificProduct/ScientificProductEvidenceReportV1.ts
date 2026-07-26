@@ -170,7 +170,8 @@ function unavailableReportV1(
   input: ScientificProductEvidenceReportInputV1,
 ): ScientificProductEvidenceSelectedReportV1 {
   const verificationError = input.unavailableVerificationError?.trim() || null;
-  const action = input.unavailableMessage?.trim() || (input.subjectKind === "preset"
+  const explicitUnavailableMessage = input.unavailableMessage?.trim() || null;
+  const action = explicitUnavailableMessage || (input.subjectKind === "preset"
     ? "Open this preset in Workbench to create release-bound evidence."
     : input.subjectKind === "saved-scenario"
       ? "Open this saved scenario in Workbench; its Quick Check starts automatically."
@@ -179,7 +180,8 @@ function unavailableReportV1(
     subjectKey: input.subjectKey,
     status: verificationError !== null
       ? "verification-error" as const
-      : input.subjectKind === "current-session"
+      : explicitUnavailableMessage === null
+        && input.subjectKind === "current-session"
         ? "checking" as const
         : "idle" as const,
     message: verificationError ?? action,

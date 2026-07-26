@@ -32,7 +32,12 @@ export type ScientificHemodynamicCurveGenerationV1<
 export type ScientificHemodynamicCurveGenerationFailureV1<TSourceIdentity> =
   Readonly<{
     generationId: string;
-    source: ScientificHemodynamicCurveGenerationSourceV1<TSourceIdentity>;
+    /**
+     * Null when artifact restoration or Worker startup failed before the
+     * first job snapshot supplied a source/job identity.
+     */
+    source: ScientificHemodynamicCurveGenerationSourceV1<TSourceIdentity>
+      | null;
     sequence: number;
     errorMessage: string;
   }>;
@@ -100,6 +105,14 @@ export type ApplyScientificHemodynamicCurveSnapshotInputV1<
   source: ScientificHemodynamicCurveGenerationSourceV1<TSourceIdentity>;
   update: ScientificHemodynamicCurveSnapshotUpdateV1<TSnapshot>;
 }>;
+
+export type RecordScientificHemodynamicCurveAcquisitionFailureInputV1 =
+  Readonly<{
+    scenarioId: string;
+    generationId: string;
+    sequence: number;
+    errorMessage: string;
+  }>;
 
 export function createScientificHemodynamicCurveHistoryStateV1<
   TSourceIdentity,
@@ -249,6 +262,40 @@ export function applyScientificHemodynamicCurveSnapshotV1<
     pending: targetKind === "pending" ? updated : scenario.pending,
     history: scenario.history,
     lastFailure: null,
+  }));
+}
+
+/**
+ * Records a restore/start failure that occurs before the Worker can publish a
+ * job identity. The previous renderable generation and its history remain
+ * visible while the acquisition error becomes observable to the UI.
+ */
+export function recordScientificHemodynamicCurveAcquisitionFailureV1<
+  TSourceIdentity,
+  TSnapshot,
+>(
+  state: ScientificHemodynamicCurveHistoryStateV1<
+    TSourceIdentity,
+    TSnapshot
+  >,
+  input: RecordScientificHemodynamicCurveAcquisitionFailureInputV1,
+): ScientificHemodynamicCurveHistoryStateV1<TSourceIdentity, TSnapshot> {
+  const scenario = state.scenarios[input.scenarioId]
+    ?? emptyScenarioState<TSourceIdentity, TSnapshot>();
+  if (
+    scenario.lastFailure?.generationId === input.generationId
+    && scenario.lastFailure.sequence >= input.sequence
+  ) return state;
+  return replaceScenario(state, input.scenarioId, Object.freeze({
+    current: scenario.current,
+    pending: scenario.pending,
+    history: scenario.history,
+    lastFailure: Object.freeze({
+      generationId: input.generationId,
+      source: null,
+      sequence: input.sequence,
+      errorMessage: input.errorMessage,
+    }),
   }));
 }
 

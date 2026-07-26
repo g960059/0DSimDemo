@@ -6,6 +6,7 @@ import { Layout } from './components/Layout';
 import './index.css';
 import './i18n';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { StudioAuthorPreviewProviderV1 } from './components/studio/StudioAuthorPreviewProviderV1';
 import { detectPreferredLocale, isLocale, prefixPath, stripLocaleFromPathname } from './localeRouting';
 import { SCIENTIFIC_BROWSER_PERFORMANCE_APP_ENTRY_MARK_V0 } from './components/scientificPerformance/scientificBrowserPerformanceTraceV0';
 
@@ -28,6 +29,12 @@ const ScientificWorkbenchPage = React.lazy(
 );
 const ScientificProductWorkbenchPage = React.lazy(
   () => import('./components/scientificProduct/ScientificProductWorkbenchPageV1'),
+);
+const StudioDocumentAuthorRouteV1 = React.lazy(
+  () => import('./components/studio/author/StudioDocumentAuthorRouteV1'),
+);
+const StudioReaderPreviewRouteV1 = React.lazy(
+  () => import('./components/studio/reader/StudioReaderPreviewRouteV1'),
 );
 const ScientificBrowserPerformanceLab = React.lazy(
   () => import('./components/scientificPerformance/ScientificBrowserPerformanceLabV0'),
@@ -88,6 +95,22 @@ const appRoutes = () => (
       element={(
         <React.Suspense fallback={<ProductWorkbenchLoading />}>
           <ScientificProductWorkbenchPage />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="studio/author"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Loading author workspace…" />}>
+          <StudioDocumentAuthorRouteV1 />
+        </React.Suspense>
+      )}
+    />
+    <Route
+      path="studio/preview/:previewId"
+      element={(
+        <React.Suspense fallback={<ProductPageLoading label="Opening Reader Preview…" />}>
+          <StudioReaderPreviewRouteV1 />
         </React.Suspense>
       )}
     />
@@ -171,7 +194,11 @@ const LocalizedLayout = () => {
     const redirected = `${prefixPath(stripLocaleFromPathname(location.pathname), detectPreferredLocale())}${location.search}${location.hash}`;
     return <Navigate to={redirected} replace />;
   }
-  return <Layout />;
+  return (
+    <StudioAuthorPreviewProviderV1>
+      <Layout />
+    </StudioAuthorPreviewProviderV1>
+  );
 };
 
 const PreferredLocaleRedirect = () => (

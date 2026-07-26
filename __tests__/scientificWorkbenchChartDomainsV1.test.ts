@@ -65,7 +65,7 @@ describe("scientific Workbench chart domains", () => {
     })).toBe(false);
   });
 
-  it("keeps the current educational guide dimmed until a pending replacement is renderable", () => {
+  it("keeps the current educational guide aligned with PV history until a replacement is renderable", () => {
     const fallback = buildScientificPvBoundaryGuideV1(
       textbookPvSeriesFixture("absolute"),
     )!;
@@ -91,21 +91,33 @@ describe("scientific Workbench chart domains", () => {
     const guides = scientificPvProgressiveBoundaryGuidesForScenarioV1({
       fallbackGuide: fallback,
       series: pvRelationSeriesFixture({ current, pending, history: [history] }),
+      currentAcceptedTimeSec: 2.5,
+      cycleDurationSec: 1,
     });
 
     expect(guides).toHaveLength(2);
     expect(guides[0]).toMatchObject({
       generationId: "parameter-epoch-1",
       generationAge: 0,
-      opacityMultiplier: 0.55,
+      opacityMultiplier: 1,
       maximumPointCount: 7,
     });
     expect(guides[1]).toMatchObject({
       generationId: "parameter-epoch-0",
       generationAge: 1,
-      opacityMultiplier: 0.3,
+      historyAgeBeats: 1.5,
+      opacityMultiplier: 0.625,
       sourceRole: "history",
     });
+
+    const expired = scientificPvProgressiveBoundaryGuidesForScenarioV1({
+      fallbackGuide: fallback,
+      series: pvRelationSeriesFixture({ current, history: [history] }),
+      currentAcceptedTimeSec: 5,
+      cycleDurationSec: 1,
+    });
+    expect(expired.map(({ generationId }) => generationId))
+      .toEqual(["parameter-epoch-1"]);
   });
 
   it("withholds default PV boundary curves until two usable endpoints exist", () => {
@@ -556,10 +568,20 @@ describe("scientific Workbench chart domains", () => {
       "parameter-epoch-2",
       pvRelationResultFixture({ fitStatus: "accepted", externalPressureMmHg: 5 }),
     );
-    const historical = pvRelationGenerationFixture(
+    const historicalFixture = pvRelationGenerationFixture(
       "parameter-epoch-1",
       pvRelationResultFixture({ fitStatus: "accepted", externalPressureMmHg: 4 }),
     );
+    const historical = Object.freeze({
+      ...historicalFixture,
+      source: Object.freeze({
+        ...historicalFixture.source,
+        sourceIdentity: Object.freeze({
+          ...historicalFixture.source.sourceIdentity,
+          acceptedTimeSec: 0,
+        }),
+      }),
+    });
     const pending = pvRelationGenerationFixture(
       "parameter-epoch-3",
       null,
@@ -573,6 +595,9 @@ describe("scientific Workbench chart domains", () => {
       pressureBasis: "intracavitary",
       showSamplePoints: false,
       historyCount: 5,
+      historyBeats: 4,
+      currentAcceptedTimeSec: 1.5,
+      cycleDurationSec: 1,
     });
 
     expect(overlays.map(({ key }) => key)).toEqual([
@@ -587,10 +612,10 @@ describe("scientific Workbench chart domains", () => {
       targetPreview: false,
     });
     expect(overlays[1]!.espvr.length).toBeGreaterThan(1);
-    expect(overlays[1]!.generationAge).toBe(1);
+    expect(overlays[1]!.generationAge).toBe(0.5);
     expect(overlays[1]!.generationRole).toBe("current");
     expect(overlays[2]!.espvr.length).toBeGreaterThan(1);
-    expect(overlays[2]!.generationAge).toBe(2);
+    expect(overlays[2]!.generationAge).toBe(1.5);
     expect(overlays[2]!.generationRole).toBe("history");
     expect(scientificPvRelationDomainPointsV1(overlays)).toEqual([
       ...overlays[1]!.espvr,

@@ -139,4 +139,64 @@ describe("EvidenceChecksStatusControl", () => {
     expect(html).not.toContain("Simulation health");
     expect(html).not.toContain("Save case");
   });
+
+  it("hides the speed control and honors product-specific pause/resume labels", () => {
+    const playingHtml = renderWorkbenchHeaderPlaybackV1({
+      isPlaying: true,
+      showTimeScaleControl: false,
+      playLabel: "Resume live trace",
+      pauseLabel: "Pause live trace",
+    });
+    const pausedHtml = renderWorkbenchHeaderPlaybackV1({
+      isPlaying: false,
+      showTimeScaleControl: false,
+      playLabel: "Resume live trace",
+      pauseLabel: "Pause live trace",
+    });
+
+    expect(playingHtml).toContain('aria-label="Pause live trace"');
+    expect(playingHtml).toContain('title="Pause live trace"');
+    expect(pausedHtml).toContain('aria-label="Resume live trace"');
+    expect(pausedHtml).toContain('title="Resume live trace"');
+    expect(playingHtml).not.toContain(">1x<");
+    expect(pausedHtml).not.toContain(">1x<");
+  });
 });
+
+function renderWorkbenchHeaderPlaybackV1(input: Readonly<{
+  isPlaying: boolean;
+  showTimeScaleControl: boolean;
+  playLabel: string;
+  pauseLabel: string;
+}>): string {
+  return renderToString(React.createElement(WorkbenchHeader, {
+    mode: "sandbox",
+    backHref: "/cases",
+    backLabel: "Cases",
+    sceneMeta: { title: "Case", description: "", modelLimitations: [] },
+    onSceneMetaChange: () => {},
+    onPrimaryAction: () => {},
+    fileInputRef: React.createRef<HTMLInputElement>(),
+    onImportFile: () => {},
+    onExport: () => {},
+    showPrimaryAction: false,
+    isPlaying: input.isPlaying,
+    togglePlay: () => {},
+    playLabel: input.playLabel,
+    pauseLabel: input.pauseLabel,
+    timeScale: 1,
+    setTimeScale: () => {},
+    showTimeScaleControl: input.showTimeScaleControl,
+    noteOpen: false,
+    metricsOpen: false,
+    rightRailVisible: false,
+    metricsSpan: "main",
+    hasNotePanel: false,
+    onToggleNote: () => {},
+    onToggleMetrics: () => {},
+    onToggleRightRail: () => {},
+    onMetricsSpanChange: () => {},
+    theme: "dark",
+    onThemeChange: () => {},
+  }));
+}
