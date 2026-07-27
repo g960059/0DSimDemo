@@ -1,5 +1,6 @@
 import type {
   ArtifactStorePortV1,
+  ArtifactJsonArrayStreamSummaryV1,
   StudioArtifactKindV1,
   StudioArtifactRefV1,
   StudioJsonObjectV1,
@@ -12,6 +13,7 @@ import {
 import {
   cloneAndFreezeStudioJsonV1,
   sha256StudioJsonHexV1,
+  sha256StudioTextHexV1,
   studioCanonicalJsonStringifyV1,
 } from "./studioCanonicalJsonV1";
 
@@ -20,7 +22,9 @@ const STUDIO_JSON_BLOB_V1_SCHEMA_ID =
 const SHA256_HEX_PATTERN_V1 = /^[0-9a-f]{64}$/;
 
 const ARTIFACT_KINDS_V1 = new Set<StudioArtifactKindV1>([
+  "exact-signal-export",
   "model-package",
+  "replay-origin",
   "run-artifact",
   "simulation-input",
   "snapshot-envelope",
@@ -109,6 +113,85 @@ implements ArtifactStorePortV1 {
       this.entries.set(stored.ref.sha256, stored);
     }
     return Object.freeze(prepared.map(({ ref }) => ref));
+  }
+
+  async putJsonArrayStream<TKind extends StudioArtifactKindV1>(
+    write: Readonly<{
+      kind: TKind;
+      mediaType: string;
+      arrayProperty: string;
+      maximumArrayByteLength: number;
+      items: AsyncIterable<StudioJsonValueV1>;
+      buildContentWithoutArray(
+        summary: ArtifactJsonArrayStreamSummaryV1,
+      ): StudioJsonObjectV1;
+    }>,
+    options: Readonly<{ signal?: AbortSignal }> = {},
+  ): Promise<Readonly<{
+    artifactRef: StudioArtifactRefV1<TKind>;
+    summary: ArtifactJsonArrayStreamSummaryV1;
+  }>> {
+    assertStreamWriteV1(write);
+    assertBatchNotAbortedV1(options.signal);
+    const items: StudioJsonValueV1[] = [];
+    const canonicalParts: string[] = [];
+    let canonicalArrayByteLength = 2;
+    for await (const item of write.items) {
+      assertBatchNotAbortedV1(options.signal);
+      const detached = cloneAndFreezeStudioJsonV1(item);
+      const canonical = studioCanonicalJsonStringifyV1(detached);
+      canonicalArrayByteLength +=
+        (canonicalParts.length === 0 ? 0 : 1)
+        + new TextEncoder().encode(canonical).byteLength;
+      if (
+        canonicalArrayByteLength > write.maximumArrayByteLength
+      ) {
+        throw new StudioArtifactStoreValidationErrorV1(
+          "streamed JSON array exceeds its byte budget",
+        );
+      }
+      items.push(detached);
+      canonicalParts.push(canonical);
+    }
+    assertBatchNotAbortedV1(options.signal);
+    const canonicalArray = `[${canonicalParts.join(",")}]`;
+    const summary = Object.freeze({
+      itemCount: items.length,
+      canonicalArraySha256:
+        await sha256StudioTextHexV1(canonicalArray),
+      canonicalArrayByteLength,
+    });
+    assertBatchNotAbortedV1(options.signal);
+    const contentWithoutArray = write.buildContentWithoutArray(summary);
+    if (
+      contentWithoutArray === null
+      || typeof contentWithoutArray !== "object"
+      || Array.isArray(contentWithoutArray)
+      || Object.prototype.hasOwnProperty.call(
+        contentWithoutArray,
+        write.arrayProperty,
+      )
+    ) {
+      throw new StudioArtifactStoreValidationErrorV1(
+        "stream content builder returned an invalid object",
+      );
+    }
+    const content = Object.freeze({
+      ...contentWithoutArray,
+      [write.arrayProperty]: Object.freeze(items),
+    }) as StudioJsonObjectV1;
+    const stored = await prepareStoredArtifactV1({
+      kind: write.kind,
+      mediaType: write.mediaType,
+      content,
+    });
+    assertBatchNotAbortedV1(options.signal);
+    this.assertCompatibleV1(stored);
+    this.entries.set(stored.ref.sha256, stored);
+    return Object.freeze({
+      artifactRef: stored.ref as StudioArtifactRefV1<TKind>,
+      summary,
+    });
   }
 
   private assertCompatibleV1(stored: StoredJsonArtifactV1): void {
@@ -202,6 +285,38 @@ function assertWriteV1(
   ) {
     throw new StudioArtifactStoreValidationErrorV1(
       "mediaType must be a non-empty trimmed string",
+    );
+  }
+}
+
+function assertStreamWriteV1(
+  write: Readonly<{
+    kind: StudioArtifactKindV1;
+    mediaType: string;
+    arrayProperty: string;
+    maximumArrayByteLength: number;
+    items: AsyncIterable<StudioJsonValueV1>;
+    buildContentWithoutArray: unknown;
+  }>,
+): void {
+  assertWriteV1({
+    kind: write.kind,
+    mediaType: write.mediaType,
+    content: null,
+  });
+  if (
+    typeof write.arrayProperty !== "string"
+    || write.arrayProperty.trim().length === 0
+    || write.arrayProperty.trim() !== write.arrayProperty
+    || !Number.isSafeInteger(write.maximumArrayByteLength)
+    || write.maximumArrayByteLength < 2
+    || write.items === null
+    || typeof write.items !== "object"
+    || !(Symbol.asyncIterator in write.items)
+    || typeof write.buildContentWithoutArray !== "function"
+  ) {
+    throw new StudioArtifactStoreValidationErrorV1(
+      "streamed JSON array command is invalid",
     );
   }
 }

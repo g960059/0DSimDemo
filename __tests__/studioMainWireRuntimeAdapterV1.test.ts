@@ -61,21 +61,30 @@ import {
 } from "@/studio/adapters/mainWire/MainWireStudioHemodynamicAnalysisHostV1";
 import type {
   OpenScenarioRuntimeBranchV1,
+  ExactSignalReplayRecipeV1,
+  ReplayOriginArtifactRefV1,
   RuntimeControlPatchV1,
   RuntimeSignalBatchV1,
   RuntimeSignalEventV1,
   RuntimeSteadyCandidateV1,
   StudioArtifactRefV1,
+  StudioRunArtifactContentV1,
   StudioSettledAnalysisSourceV1,
   StudioJsonWriteV1,
   StudioJsonValueV1,
 } from "@/studio/contracts/v1";
+import {
+  loadExactSignalExportContentV1,
+} from "@/studio";
 import {
   STUDIO_RUN_ARTIFACT_CONTENT_V1_SCHEMA_ID,
 } from "@/studio/contracts/v1";
 import {
   InMemoryContentAddressedArtifactStoreV1,
 } from "@/studio/infrastructure/artifacts/InMemoryContentAddressedArtifactStoreV1";
+import {
+  studioCanonicalJsonStringifyV1,
+} from "@/studio/infrastructure/artifacts/studioCanonicalJsonV1";
 import {
   buildOfficialHealthyPeriodicDocumentChainV1,
 } from "@/tools/scientific/officialHealthyPeriodicDocumentChainV1";
@@ -1076,7 +1085,10 @@ describe("MainWire Studio runtime adapter", () => {
     await Promise.all([first.live, replacement.live]);
     expect(firstStrict.branches[0]!.status).toBe("superseded");
     expect(replacementStrict.branches[0]!.status).toBe("failure");
-    expect(artifacts.entryCount).toBe(baselineEntryCount);
+    // Opening and both accepted live preparations materialize one
+    // content-addressed origin; each preparation also stores its checkpoint.
+    // The cancelled strict candidate adds no snapshot.
+    expect(artifacts.entryCount).toBe(baselineEntryCount + 5);
     await adapter.closeSession("strict-artifact-supersession-session");
   });
 
@@ -1143,7 +1155,9 @@ describe("MainWire Studio runtime adapter", () => {
     await Promise.all([first.live, replacement.live]);
     expect(firstStrict.branches[0]!.status).toBe("superseded");
     expect(replacementStrict.branches[0]!.status).toBe("failure");
-    expect(artifacts.entryCount).toBe(baselineEntryCount);
+    // Opening contributes one origin and each live preparation contributes
+    // its replay checkpoint plus origin; no strict-candidate snapshot leaks.
+    expect(artifacts.entryCount).toBe(baselineEntryCount + 5);
     expect(artifacts.successfulSnapshotBatchCount)
       .toBe(baselineSnapshotBatchCount);
     await adapter.closeSession("strict-precommit-supersession-session");
@@ -1740,8 +1754,10 @@ describe("MainWire Studio runtime adapter", () => {
     await Promise.all([first.strict, replacement.strict]);
     expect(firstLive.branches[0]!.status).toBe("superseded");
     expect(replacementLive.branches[0]!.status).toBe("success");
-    expect(harness.hosts[0]!.checkpointV4Inputs).toHaveLength(2);
-    expect(harness.hosts[0]!.checkpointV4Inputs[1]!.stateIdentity)
+    expect(harness.hosts[0]!.checkpointV4Inputs).toHaveLength(4);
+    // Source checkpoints are now interleaved with post-fork replay
+    // checkpoints. The replacement source must still include partial progress.
+    expect(harness.hosts[0]!.checkpointV4Inputs[2]!.stateIdentity)
       .toMatchObject({
         revision: baseFixture.frame.revision + 1,
         acceptedTimeSec: baseFixture.frame.acceptedTimeSec + 0.002,
@@ -1839,6 +1855,562 @@ describe("MainWire Studio runtime adapter", () => {
     );
     expect(Math.min(phaseDistance, 1 - phaseDistance)).toBeLessThan(1e-9);
     await adapter.closeSession("phase-promotion-session");
+  });
+
+  it("exports one exact second with 500 contiguous intervals and the stride-1 reference endpoint", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "exact-one-second-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const internal = internalAdapterBranchV1(
+      adapter,
+      "exact-one-second-session",
+      "scenario",
+    );
+    const before = Object.freeze({
+      host: internal.host,
+      hostedSession: internal.hostedSession,
+      liveBranchId: internal.liveBranchId,
+      streamEpoch: internal.streamEpoch,
+      livePacing: internal.livePacing,
+      tracePointCount: internal.tracePointCount,
+      replayOrigins: internal.replayOrigins,
+      liveRequestCount: internal.host.requestCount,
+    });
+    const presentationEvents: RuntimeSignalEventV1[] = [];
+    adapter.subscribeSignalChannel(
+      branch.signalChannelRef,
+      (event) => presentationEvents.push(event),
+    );
+    const command = Object.freeze({
+      sessionId: "exact-one-second-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 1,
+    });
+
+    const firstExport = await adapter.exportExactSignals(command);
+    const firstValue =
+      await stored.artifacts.readJson(firstExport.artifactRef);
+    const firstContent =
+      await loadExactSignalExportContentV1(firstValue);
+    expect(firstExport.artifactRef.kind).toBe("exact-signal-export");
+    expect(firstContent.manifest.coverage).toEqual({
+      kind: "exact-signal-replay-v1",
+      dtSec: 0.002,
+      observationStride: 1,
+      intervalCount: 500,
+      sampleCount: 501,
+    });
+    expect(firstContent.samples).toHaveLength(501);
+    expect(firstContent.samples[0]!.provenance)
+      .toBe("checkpoint-boundary");
+    expect(firstContent.samples.slice(1).every((sample) =>
+      sample.provenance === "accepted-step"
+    )).toBe(true);
+    for (let index = 2; index < firstContent.samples.length; index += 1) {
+      const previous = firstContent.samples[index - 1]!;
+      const sample = firstContent.samples[index]!;
+      expect(sample.revision).toBe(previous.revision + 1);
+      expect(sample.simulationTimeSec - previous.simulationTimeSec)
+        .toBeCloseTo(0.002, 12);
+    }
+
+    const referenceHost = harness.factory();
+    const referenceRestored = await referenceHost.restoreV4({
+      sessionId: "stride-one-reference",
+      resolvedSessionInput: baseFixture.sessionInput,
+      checkpointV4: baseFixture.checkpoint,
+    });
+    const reference = await referenceHost.runTransient({
+      session: referenceRestored,
+      dtSec: 0.002,
+      stepCount: 500,
+      observationStride: 1,
+    });
+    const finalSample = firstContent.samples.at(-1)!;
+    const finalReference = reference.observableFrames.at(-1)!;
+    expect(finalSample.revision).toBe(finalReference.revision);
+    expect(finalSample.simulationTimeSec)
+      .toBeCloseTo(finalReference.acceptedTimeSec, 12);
+    for (const observableId of [
+      "hemodynamics.volume.LV",
+      "hemodynamics.pressure.absolute.Ao",
+      "valve.AoV.flow",
+    ] as const) {
+      expect(finalSample.values[observableId])
+        .toEqual(finalReference.values[observableId]);
+    }
+    referenceHost.terminate();
+
+    const secondExport = await adapter.exportExactSignals(command);
+    const secondValue =
+      await stored.artifacts.readJson(secondExport.artifactRef);
+    expect(secondExport.artifactRef.sha256)
+      .toBe(firstExport.artifactRef.sha256);
+    expect(secondExport.manifest.dataSha256)
+      .toBe(firstExport.manifest.dataSha256);
+    expect(studioCanonicalJsonStringifyV1(secondValue))
+      .toBe(studioCanonicalJsonStringifyV1(firstValue));
+    const assertedWithoutEvidence = mutableCloneV1(firstValue);
+    assertedWithoutEvidence.manifest.claims
+      .durableReplayLedgerAvailable = true;
+    await expect(
+      loadExactSignalExportContentV1(assertedWithoutEvidence),
+    ).rejects.toThrow(/claims mismatch/);
+
+    const fastForwarded = await adapter.exportExactSignals({
+      ...command,
+      intervalStartOffsetSec: 0.01,
+      intervalDurationSec: 0.004,
+    });
+    const fastForwardedContent = await loadExactSignalExportContentV1(
+      await stored.artifacts.readJson(fastForwarded.artifactRef),
+    );
+    expect(fastForwardedContent.samples).toHaveLength(3);
+    expect(fastForwardedContent.samples[0]).toMatchObject({
+      provenance: "accepted-step",
+      revision: baseFixture.frame.revision + 5,
+    });
+    expect(fastForwardedContent.samples[0]!.simulationTimeSec)
+      .toBeCloseTo(baseFixture.frame.acceptedTimeSec + 0.01, 12);
+    expect(fastForwardedContent.manifest).toMatchObject({
+      checkpointBoundarySampleCount: 0,
+      acceptedStepSampleCount: 3,
+      claims: {
+        fastForwardIntermediateObservationsRetained: false,
+      },
+    });
+
+    // The replay hosts are exclusive and disposable. Nothing on the source
+    // branch, its pacing epoch, or its presentation history is touched.
+    expect(internal.host).toBe(before.host);
+    expect(internal.hostedSession).toBe(before.hostedSession);
+    expect(internal.liveBranchId).toBe(before.liveBranchId);
+    expect(internal.streamEpoch).toBe(before.streamEpoch);
+    expect(internal.livePacing).toBe(before.livePacing);
+    expect(internal.tracePointCount).toBe(before.tracePointCount);
+    expect(internal.replayOrigins).toBe(before.replayOrigins);
+    expect(internal.host.requestCount).toBe(before.liveRequestCount);
+    expect(presentationEvents).toEqual([]);
+    expect(harness.hosts.slice(1).every(({ terminated }) => terminated))
+      .toBe(true);
+
+    const runContent = await stored.artifacts.readJson(
+      stored.runRef,
+    ) as unknown as StudioRunArtifactContentV1;
+    expect(runContent.claims.canonicalSignalSamplesStored).toBe(false);
+    await adapter.closeSession("exact-one-second-session");
+  });
+
+  it("reloads the content-addressed origin and rejects a forged source-run binding before replay", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "forged-replay-origin-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const internal = internalAdapterBranchV1(
+      adapter,
+      "forged-replay-origin-session",
+      "scenario",
+    );
+    const retained = internal.replayOrigins[0]!;
+    const foreignInputRef = await stored.artifacts.putJson({
+      kind: "simulation-input",
+      mediaType: "application/vnd.circleheart.foreign-input.v1+json",
+      content: { foreign: true },
+    });
+    const foreignRunContent = mutableCloneV1(
+      await stored.artifacts.readJson(stored.runRef),
+    );
+    foreignRunContent.simulationInputRef = foreignInputRef;
+    const foreignRunRef = await stored.artifacts.putJson({
+      kind: "run-artifact",
+      mediaType:
+        "application/vnd.circleheart.studio-run-artifact.v1+json",
+      content: foreignRunContent,
+    });
+    const forgedEnvelope = mutableCloneV1(
+      await stored.artifacts.readJson(retained.originRef),
+    );
+    forgedEnvelope.sourceRunRef = foreignRunRef;
+    const forgedOriginRef = await stored.artifacts.putJson({
+      kind: "replay-origin",
+      mediaType: retained.originRef.mediaType,
+      content: forgedEnvelope,
+    });
+    (
+      internal as unknown as {
+        replayOrigins: readonly unknown[];
+      }
+    ).replayOrigins = Object.freeze([Object.freeze({
+      ...retained,
+      originRef: forgedOriginRef,
+    })]);
+
+    await expect(adapter.exportExactSignals({
+      sessionId: "forged-replay-origin-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 0.002,
+    })).rejects.toThrow(/source run and retained origin do not match/);
+    expect(harness.hosts).toHaveLength(2);
+    expect(harness.hosts[1]!.runTransientCallCount).toBe(0);
+    await adapter.closeSession("forged-replay-origin-session");
+  });
+
+  it("bounds, serializes, and cancels export work while the isolated live lane keeps paced advancement", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.yieldRunToTimer = true;
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "bounded-export-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const command = Object.freeze({
+      sessionId: "bounded-export-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 0.032,
+    });
+
+    await expect(adapter.exportExactSignals({
+      ...command,
+      intervalDurationSec: 3_600,
+    })).rejects.toThrow(/resource budget|invalid/);
+    expect(harness.hosts).toHaveLength(1);
+
+    const replayRunGate = deferredV1<void>();
+    harness.runGatesByHostOrdinal.set(1, replayRunGate);
+    const controller = new AbortController();
+    const exportPromise = adapter.exportExactSignals(
+      command,
+      { signal: controller.signal },
+    );
+    await waitForV1(() =>
+      harness.hosts[1]?.runTransientCallCount === 1
+    );
+    await expect(adapter.exportExactSignals({
+      ...command,
+      intervalDurationSec: 0.002,
+    })).rejects.toThrow(/concurrency budget/);
+
+    const liveBatches: RuntimeSignalBatchV1[] = [];
+    const subscription = adapter.subscribeSignalChannel(
+      branch.signalChannelRef,
+      (event) => {
+        if (event.kind === "samples") liveBatches.push(event);
+      },
+    );
+    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await waitForV1(() => liveBatches.length >= 1);
+    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    expect(harness.hosts[0]!.runTransientCallCount).toBeGreaterThan(0);
+    expect(harness.hosts[1]!.runTransientCallCount).toBe(1);
+    expect(liveBatches[0]!.livePacing.mode).toBe("realtime-1x");
+
+    controller.abort();
+    replayRunGate.resolve();
+    await expect(exportPromise).rejects.toThrow(/cancelled/);
+    expect(harness.hosts[1]!.terminated).toBe(true);
+    subscription.unsubscribe();
+
+    const afterCancellation = await adapter.exportExactSignals({
+      ...command,
+      intervalDurationSec: 0.002,
+    });
+    expect(afterCancellation.manifest.coverage.sampleCount).toBe(2);
+    await adapter.closeSession("bounded-export-session");
+  });
+
+  it("commits a live transition even when the replay origin cannot be stored", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "replay-origin-failure-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const beforeOriginCount =
+      internalAdapterBranchV1(
+        adapter,
+        "replay-origin-failure-session",
+        "scenario",
+      ).replayOrigins.length;
+
+    // Export availability must not be part of live-lane correctness. A store
+    // that refuses the replay checkpoint makes this generation
+    // non-exportable; it must not suspend a numerically healthy lane.
+    const putJson = stored.artifacts.putJson.bind(stored.artifacts);
+    let refusals = 0;
+    (stored.artifacts as unknown as {
+      putJson: typeof stored.artifacts.putJson;
+    }).putJson = ((...args: Parameters<typeof putJson>) => {
+      const request = args[0] as Readonly<{ mediaType?: unknown }>;
+      if (String(request?.mediaType ?? "").includes("replay-checkpoint")) {
+        refusals += 1;
+        return Promise.reject(new Error("artifact store is unavailable"));
+      }
+      return putJson(...args);
+    }) as typeof putJson;
+
+    const execution = adapter.startTargetIntent({
+      sessionId: "replay-origin-failure-session",
+      intentId: "replay-origin-failure-intent",
+      targets: [{
+        scenarioId: "scenario",
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: 1,
+        presentationRevision: 1,
+        patch: await targetPatchV1(
+          baseFixture,
+          "circulation.systemic-vascular-resistance-scale",
+          1.5,
+        ),
+      }],
+    });
+    const [live] = await Promise.all([execution.live, execution.strict]);
+
+    expect(live.branches[0]!.status).toBe("success");
+    const internal = internalAdapterBranchV1(
+      adapter,
+      "replay-origin-failure-session",
+      "scenario",
+    );
+    expect((internal as unknown as {
+      liveFailure: Error | null;
+    }).liveFailure).toBeNull();
+    // The lane advanced without gaining an origin, so the generation is
+    // simply not exportable.
+    expect(internal.replayOrigins).toHaveLength(beforeOriginCount);
+    expect(refusals).toBeGreaterThan(0);
+    await adapter.closeSession("replay-origin-failure-session");
+  });
+
+  it("produces identical artifacts for the same recipe and build across fresh adapters while claiming no durable ledger", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const firstHarness = new FakeHostHarnessV1(baseFixture);
+    const firstAdapter = runtimeAdapterV1(stored, firstHarness);
+    const firstOpened = await firstAdapter.openSession({
+      sessionId: "recipe-scope-first-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const firstBranch = firstOpened.branches[0]!;
+    const firstOrigin = internalAdapterBranchV1(
+      firstAdapter,
+      "recipe-scope-first-session",
+      "scenario",
+    ).replayOrigins[0]!;
+    const firstExport = await firstAdapter.exportExactSignals({
+      sessionId: "recipe-scope-first-session",
+      scenarioId: "scenario",
+      liveBranchId: firstBranch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 0.004,
+    });
+    await firstAdapter.closeSession("recipe-scope-first-session");
+
+    const secondHarness = new FakeHostHarnessV1(baseFixture);
+    const secondAdapter = runtimeAdapterV1(stored, secondHarness);
+    const secondOpened = await secondAdapter.openSession({
+      sessionId: "recipe-scope-second-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const secondBranch = secondOpened.branches[0]!;
+    const secondOrigin = internalAdapterBranchV1(
+      secondAdapter,
+      "recipe-scope-second-session",
+      "scenario",
+    ).replayOrigins[0]!;
+    const secondExport = await secondAdapter.exportExactSignals({
+      sessionId: "recipe-scope-second-session",
+      scenarioId: "scenario",
+      liveBranchId: secondBranch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 0.004,
+    });
+
+    expect(secondOrigin.originRef.sha256)
+      .not.toBe(firstOrigin.originRef.sha256);
+    expect(secondOrigin.recipe).toEqual(firstOrigin.recipe);
+    expect(secondExport.artifactRef.sha256)
+      .toBe(firstExport.artifactRef.sha256);
+    expect(secondExport.manifest).toMatchObject({
+      determinismScope: "same-recipe-same-build-v1",
+      claims: {
+        sameRecipeSameBuildSampleDeterminism: true,
+        durableReplayLedgerAvailable: false,
+        crossBuildDeterminismClaimed: false,
+      },
+    });
+    expect(secondExport.manifest).not.toHaveProperty("sessionId");
+    expect(secondExport.manifest).not.toHaveProperty("liveBranchId");
+    expect(secondExport.manifest).not.toHaveProperty("candidateId");
+    expect(secondExport.manifest).not.toHaveProperty("targetGeneration");
+    expect(secondExport.manifest).not.toHaveProperty(
+      "presentationRevision",
+    );
+    await secondAdapter.closeSession("recipe-scope-second-session");
+  });
+
+  it("retains every presentation origin in the last seven target-generation groups", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.strictConvergesWithoutAdvance = true;
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "replay-origin-retention-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const issued = await issueStrictCandidateV1(
+      adapter,
+      baseFixture,
+      branch,
+      "replay-origin-retention-session",
+      "replay-origin-candidate",
+    );
+    await adapter.promoteSteadyCandidate({
+      sessionId: "replay-origin-retention-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 1,
+      presentationRevision: 2,
+      candidate: issued.candidate,
+    });
+
+    for (let targetGeneration = 2; targetGeneration <= 7; targetGeneration += 1) {
+      const targetScale = [1.5, 2, 3, 4, 0.25, 0.75][
+        targetGeneration - 2
+      ]!;
+      const execution = adapter.startTargetIntent({
+        sessionId: "replay-origin-retention-session",
+        intentId: `replay-origin-intent-${targetGeneration}`,
+        targets: [{
+          scenarioId: "scenario",
+          liveBranchId: branch.liveBranchId,
+          targetGeneration,
+          presentationRevision: targetGeneration + 1,
+          patch: await targetPatchV1(
+            baseFixture,
+            "circulation.systemic-vascular-resistance-scale",
+            targetScale,
+          ),
+        }],
+      });
+      const [live] = await Promise.all([
+        execution.live,
+        execution.strict,
+      ]);
+      if (live.branches[0]!.status !== "success") {
+        const failure = live.branches[0]!;
+        throw new Error(
+          `generation ${targetGeneration}: ${
+            failure.status === "failure"
+              ? failure.message
+              : failure.reason
+          }`,
+        );
+      }
+    }
+
+    const internal = internalAdapterBranchV1(
+      adapter,
+      "replay-origin-retention-session",
+      "scenario",
+    );
+    expect(internal.replayOrigins).toHaveLength(8);
+    expect(internal.replayOrigins.map(({ correlation }) => [
+      correlation.targetGeneration,
+      correlation.presentationRevision,
+    ])).toEqual([
+      [1, 1],
+      [1, 2],
+      [2, 3],
+      [3, 4],
+      [4, 5],
+      [5, 6],
+      [6, 7],
+      [7, 8],
+    ]);
+    expect(internal.replayOrigins[0]!.correlation.originKind)
+      .toBe("live-transition");
+    expect(internal.replayOrigins[1]!.correlation).toMatchObject({
+      originKind: "promoted-steady-candidate",
+      candidateId: issued.candidate.candidateId,
+    });
+    expect(internal.replayOrigins.at(-1)!.correlation).toMatchObject({
+      originKind: "live-transition",
+      targetGeneration: 7,
+      presentationRevision: 8,
+    });
+    // For generation 1, checkpoint input 0 is the source and input 1 is the
+    // control-fork target captured before its first accepted-step command.
+    expect(harness.hosts[0]!.checkpointV4Inputs[1]!.stateIdentity)
+      .toEqual({
+        revision: internal.replayOrigins[0]!.recipe.boundaryRevision,
+        acceptedTimeSec:
+          internal.replayOrigins[0]!.recipe.boundaryTimeSec,
+        totalBloodVolumeMl:
+          harness.hosts[0]!.checkpointV4Inputs[1]!.stateIdentity
+            .totalBloodVolumeMl,
+      });
+
+    await expect(adapter.exportExactSignals({
+      sessionId: "replay-origin-retention-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 0.002,
+    })).rejects.toThrow(/outside retention/);
+    const retainedExport = await adapter.exportExactSignals({
+      sessionId: "replay-origin-retention-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 1,
+      presentationRevision: 1,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 0.002,
+    });
+    expect(retainedExport.manifest.recipe)
+      .toEqual(internal.replayOrigins[0]!.recipe);
+    const retainedPromotionExport = await adapter.exportExactSignals({
+      sessionId: "replay-origin-retention-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 1,
+      presentationRevision: 2,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 0.002,
+    });
+    expect(retainedPromotionExport.manifest.recipe)
+      .toEqual(internal.replayOrigins[1]!.recipe);
+    await adapter.closeSession("replay-origin-retention-session");
   });
 });
 
@@ -2457,6 +3029,50 @@ function runtimeAdapterV1(
   });
 }
 
+type InternalAdapterBranchForTestV1 = Readonly<{
+  host: MainWireStudioSessionHostV1;
+  hostedSession: MainWireStudioHostedSessionV1;
+  liveBranchId: string;
+  streamEpoch: number;
+  livePacing: unknown;
+  tracePointCount: number;
+  replayOrigins: readonly Readonly<{
+    originRef: ReplayOriginArtifactRefV1;
+    correlation: Readonly<{
+      originKind:
+        | "opened-run"
+        | "live-transition"
+        | "promoted-steady-candidate";
+      sessionId: string;
+      scenarioId: string;
+      liveBranchId: string;
+      targetGeneration: number;
+      presentationRevision: number;
+      candidateId: string | null;
+    }>;
+    recipe: ExactSignalReplayRecipeV1;
+  }>[];
+}>;
+
+function internalAdapterBranchV1(
+  adapter: MainWireSimulationRuntimeAdapterV1,
+  sessionId: string,
+  scenarioId: string,
+): InternalAdapterBranchForTestV1 {
+  const sessions = (
+    adapter as unknown as Readonly<{
+      sessions: Map<string, Readonly<{
+        branches: Map<string, InternalAdapterBranchForTestV1>;
+      }>>;
+    }>
+  ).sessions;
+  const branch = sessions.get(sessionId)?.branches.get(scenarioId);
+  if (branch === undefined) {
+    throw new Error("test could not find internal adapter branch");
+  }
+  return branch;
+}
+
 type FakeHostEventV1 =
   | Readonly<{
     kind: "fork-start" | "fork-complete";
@@ -2509,6 +3125,7 @@ class FakeHostHarnessV1 {
 class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
   readonly sessions = new Map<string, MainWireStudioHostedSessionV1>();
   readonly checkpointV4Inputs: MainWireStudioHostedSessionV1[] = [];
+  private readonly strictSettledSessionIds = new Set<string>();
   requestCount = 0;
   runTransientCallCount = 0;
   settlePeriodicCallCount = 0;
@@ -2541,7 +3158,16 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
     const resolved = input.resolvedSessionInput as {
       sessionInputSha256: string;
     };
-    const hosted = hostedSessionV1({
+    const restoredFrame = Object.freeze({
+      ...frameAtV1(
+        this.harness.fixture.frame,
+        input.checkpointV4.transaction.revision,
+        input.checkpointV4.transaction.acceptedTimeSec,
+      ),
+      source: "exact-checkpoint-restore" as const,
+    });
+    const hosted = Object.freeze({
+      ...hostedSessionV1({
       hostId: this.hostId,
       sessionId: input.sessionId,
       baseSessionInputSha256: resolved.sessionInputSha256,
@@ -2550,6 +3176,8 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
       revision: input.checkpointV4.transaction.revision,
       acceptedTimeSec: input.checkpointV4.transaction.acceptedTimeSec,
       frame: this.harness.fixture.frame,
+      }),
+      observableFrame: restoredFrame,
     });
     this.sessions.set(hosted.sessionId, hosted);
     return hosted;
@@ -2712,6 +3340,7 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
         stateIdentity: this.harness.fixture.strictStateIdentity,
       });
       this.sessions.set(settled.sessionId, settled);
+      this.strictSettledSessionIds.add(settled.sessionId);
       return Object.freeze({
         session: settled,
         status: evidence.status,
@@ -2790,7 +3419,10 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
       await checkpointGate.promise;
     }
     this.checkpointV4CompletedCount += 1;
-    if (this.harness.strictConvergesWithoutAdvance) {
+    if (
+      this.harness.strictConvergesWithoutAdvance
+      && this.strictSettledSessionIds.has(session.sessionId)
+    ) {
       const checkpoint = mutableCloneV1(
         this.harness.fixture.strictCheckpoint,
       );
@@ -2812,9 +3444,30 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
           checkpoint as MainWireScientificSessionExactCheckpointV4,
       });
     }
+    const transaction = mutableCloneV1(
+      this.harness.fixture.checkpoint.transaction,
+    );
+    transaction.revision = session.stateIdentity.revision;
+    transaction.acceptedTimeSec =
+      session.stateIdentity.acceptedTimeSec;
+    const checkpointV4 =
+      await createMainWireScientificSessionExactCheckpointV4(
+        {
+          releaseRef: this.harness.fixture.checkpoint.releaseRef,
+          baseSessionInputSha256:
+            session.baseSessionInputSha256,
+          stateCodec: this.harness.fixture.checkpoint.stateCodec,
+        },
+        {
+          controlTargetState: session.controlState,
+          parameterEpoch: session.parameterEpoch,
+          transaction,
+          periodicSettlementTracker: null,
+        },
+      );
     return Object.freeze({
       session,
-      checkpointV4: this.harness.fixture.checkpoint,
+      checkpointV4,
     });
   }
 

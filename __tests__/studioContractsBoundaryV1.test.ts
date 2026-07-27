@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
+  type ExactSignalSampleV1,
   type RuntimeControlIntentV1,
+  type RuntimeObservablePointV1,
   type RuntimeTargetIntentCommandV1,
   type StudioArtifactRefV1,
 } from "@/studio/contracts/v1";
@@ -73,6 +75,57 @@ describe("Studio V1 contract and dependency boundary", () => {
     });
     expect(command.targets).toHaveLength(2);
     expect(runRef.schemaId).toBe(STUDIO_ARTIFACT_REF_V1_SCHEMA_ID);
+  });
+
+  it("makes presentation points structurally ineligible for exact evaluators", () => {
+    const presentationCannotSatisfyExact:
+      RuntimeObservablePointV1 extends ExactSignalSampleV1
+        ? never
+        : true = true;
+
+    expect(presentationCannotSatisfyExact).toBe(true);
+  });
+
+  it("does not let a caller-authored exact-shaped value satisfy the nominal sample or expose replay internals", () => {
+    type CallerAuthoredExactShapeV1 = Readonly<{
+      coverage: "exact-signal-replay-v1";
+      provenance: "checkpoint-boundary" | "accepted-step";
+      revision: number;
+      simulationTimeSec: number;
+      phase01: number;
+      values: Readonly<Record<string, Readonly<{
+        observableId: string;
+        value: number | null;
+        availability: "available";
+        quality: "authoritative-state";
+      }>>>;
+    }>;
+    const structuralClaimCannotSatisfyExact:
+      CallerAuthoredExactShapeV1 extends ExactSignalSampleV1
+        ? never
+        : true = true;
+    const studioIndex = readFileSync(
+      path.resolve(process.cwd(), "studio", "index.ts"),
+      "utf8",
+    );
+    const mainWireIndex = readFileSync(
+      path.resolve(
+        process.cwd(),
+        "studio",
+        "adapters",
+        "mainWire",
+        "index.ts",
+      ),
+      "utf8",
+    );
+
+    expect(structuralClaimCannotSatisfyExact).toBe(true);
+    expect(studioIndex).not.toContain(
+      "StudioExactSignalExportWriterV1,",
+    );
+    expect(mainWireIndex).not.toContain(
+      "MainWireExactSignalReplayWorkerV1",
+    );
   });
 
   it("keeps the greenfield Reader Preview independent from legacy reading and preview stacks", () => {

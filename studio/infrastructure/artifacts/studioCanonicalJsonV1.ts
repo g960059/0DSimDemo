@@ -35,6 +35,14 @@ export function cloneAndFreezeStudioJsonV1<
 export async function sha256StudioJsonHexV1(
   value: unknown,
 ): Promise<string> {
+  return sha256StudioTextHexV1(
+    studioCanonicalJsonStringifyV1(value),
+  );
+}
+
+export async function sha256StudioTextHexV1(
+  value: string,
+): Promise<string> {
   const subtle = globalThis.crypto?.subtle;
   if (subtle === undefined) {
     throw new StudioCanonicalJsonErrorV1(
@@ -42,9 +50,7 @@ export async function sha256StudioJsonHexV1(
       "Web Crypto subtle.digest is required",
     );
   }
-  const bytes = new TextEncoder().encode(
-    studioCanonicalJsonStringifyV1(value),
-  );
+  const bytes = new TextEncoder().encode(value);
   const digest = await subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) =>
     byte.toString(16).padStart(2, "0")).join("");
