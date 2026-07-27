@@ -1117,6 +1117,24 @@ function applyDraftToStoreV1(
   store: ScientificWorkbenchResearchControlStoreV0,
   draft: ScientificWorkbenchResearchControlDraftV0,
 ): void {
+  // A duplicate that changes nothing must not request a transition.
+  //
+  // The legacy registry guarded this and the Studio rewrite dropped it, so
+  // duplicating an untouched scenario always asked the runtime to retarget to
+  // the state it was already in. That is not merely wasted work: the Worker
+  // rejects a control fork whose target equals its source.
+  const controls = store.getSnapshot().source.context.controlState.controls;
+  if (
+    draft.systemic
+      === controls["circulation.systemic-vascular-resistance-scale"]
+    && draft.pulmonary
+      === controls["circulation.pulmonary-vascular-resistance-scale"]
+    && draft.venousTone === controls["circulation.venous-tone"]
+    && draft.arterialStiffness === controls["circulation.arterial-stiffness"]
+    && draft.peepCmH2O === controls["ventilation.peep-cm-h2o"]
+    && draft.pericardialFluidVolumeMl
+      === controls["pericardium.prescribed-fluid-volume-ml"]
+  ) return;
   store.actions.setSystemicScale(draft.systemic);
   store.actions.setPulmonaryScale(draft.pulmonary);
   store.actions.setControlValue("circulation.venous-tone", draft.venousTone);
