@@ -7,7 +7,7 @@
  * that every *.test.ts file belongs to exactly one suite.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 118;
+export const FAST_SUITE_FILE_BUDGET = 119;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 58;
 
 export const fastTests = [
