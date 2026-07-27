@@ -2,11 +2,15 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import type {
+  MainWireScientificCompleteTransientBeatV1,
+} from "@/engine/scientific/metrics";
 import {
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
   type ExactSignalSampleV1,
   type RuntimeControlIntentV1,
-  type RuntimeObservablePointV1,
+  type RuntimePresentationBeatEstimateV1,
+  type RuntimePresentationSampleV1,
   type RuntimeTargetIntentCommandV1,
   type StudioArtifactRefV1,
 } from "@/studio/contracts/v1";
@@ -77,13 +81,19 @@ describe("Studio V1 contract and dependency boundary", () => {
     expect(runRef.schemaId).toBe(STUDIO_ARTIFACT_REF_V1_SCHEMA_ID);
   });
 
-  it("makes presentation points structurally ineligible for exact evaluators", () => {
+  it("makes presentation samples structurally ineligible for exact evaluators", () => {
     const presentationCannotSatisfyExact:
-      RuntimeObservablePointV1 extends ExactSignalSampleV1
+      RuntimePresentationSampleV1 extends ExactSignalSampleV1
+        ? never
+        : true = true;
+    const estimateCannotSatisfyExactEvaluator:
+      RuntimePresentationBeatEstimateV1 extends
+        MainWireScientificCompleteTransientBeatV1
         ? never
         : true = true;
 
     expect(presentationCannotSatisfyExact).toBe(true);
+    expect(estimateCannotSatisfyExactEvaluator).toBe(true);
   });
 
   it("does not let a caller-authored exact-shaped value satisfy the nominal sample or expose replay internals", () => {
@@ -125,6 +135,27 @@ describe("Studio V1 contract and dependency boundary", () => {
     );
     expect(mainWireIndex).not.toContain(
       "MainWireExactSignalReplayWorkerV1",
+    );
+  });
+
+  it("keeps Studio live metric derivation out of the product render-history path", () => {
+    const studioRegistry = readFileSync(
+      path.resolve(
+        process.cwd(),
+        "components",
+        "scientificProduct",
+        "ScientificProductStudioScenarioRegistryV1.ts",
+      ),
+      "utf8",
+    );
+
+    expect(studioRegistry).not.toContain("completeLatestTransientBeatV1");
+    expect(studioRegistry).not.toContain(
+      "deriveMainWireScientificTransientBeatMetricsV1",
+    );
+    expect(studioRegistry).toContain("presentationBeatEstimate");
+    expect(studioRegistry).toContain(
+      '"presentation-beat-estimate" as const',
     );
   });
 

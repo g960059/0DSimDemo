@@ -32,6 +32,9 @@ import type {
   MainWireScientificMetricCycleV1,
   MainWireScientificValidatedTerminalCycleV1,
 } from "@/engine/scientific/metrics";
+import type {
+  RuntimePresentationBeatEstimateV1,
+} from "@/studio/contracts/v1";
 import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0,
   MainWireScientificResearchControlScaleV0,
@@ -148,6 +151,7 @@ export type ScientificProductParameterGenerationPresentationV1 = Readonly<{
   parameterEpoch: number;
   controlStateSha256: string;
   frames: readonly MainWireScientificObservableFrameV1[];
+  presentationBeatEstimate: RuntimePresentationBeatEstimateV1 | null;
   periodicCycleFrames: readonly MainWireScientificObservableFrameV1[] | null;
   cycleDurationSec: number | null;
   transientOriginAcceptedTimeSec: number | null;
@@ -164,10 +168,12 @@ export type ScientificProductScenarioPresentationV1 = Readonly<{
   transientOriginAcceptedTimeSec: number | null;
   validatedCycle: MainWireScientificValidatedTerminalCycleV1 | null;
   metricCycle: MainWireScientificMetricCycleV1 | null;
+  presentationBeatEstimate: RuntimePresentationBeatEstimateV1 | null;
   metricEvidence:
     | "validated-periodic-P1"
     | "retained-periodic-source"
     | "provisional-complete-transient-beat"
+    | "presentation-beat-estimate"
     | "unavailable";
   displayedEvidence: ScientificWorkbenchDisplayedEvidenceV0;
   workspaceDocument: MainWireScientificWorkspaceDocumentV1;
@@ -298,6 +304,13 @@ type ScenarioEntryV1 = {
   pvRelationAnalysisCoordinator:
     | ScientificProductPvRelationAnalysisCoordinatorV1
     | null;
+  presentationCache: Readonly<{
+    descriptor: ScientificProductScenarioDescriptorV1;
+    snapshot: ReturnType<
+      ScientificWorkbenchResearchControlStoreV0["getSnapshot"]
+    >;
+    presentation: ScientificProductScenarioPresentationV1;
+  }> | null;
 };
 
 export type AddScientificScenarioOptionsV1 = Readonly<{
@@ -334,6 +347,8 @@ export class ScientificProductScenarioRegistryV1 {
   private readonly entries = new Map<string, ScenarioEntryV1>();
   private readonly descriptorListeners = new Set<() => void>();
   private readonly frameListeners = new Set<() => void>();
+  private readonly scenarioPresentationListeners =
+    new Map<string, Set<() => void>>();
   private readonly protocolListeners = new Set<() => void>();
   private readonly hemodynamicProtocols = new Map<
     string,
@@ -411,6 +426,7 @@ export class ScientificProductScenarioRegistryV1 {
       duplicateTransitionModeState: "none",
       hemodynamicAnalysisCoordinator: null,
       pvRelationAnalysisCoordinator: null,
+      presentationCache: null,
     };
     this.entries.set(id, entry);
     this.attachRuntime(entry, runtime);
@@ -430,6 +446,27 @@ export class ScientificProductScenarioRegistryV1 {
   };
 
   readonly getFrameVersionSnapshot = () => this.frameVersion;
+
+  readonly subscribeScenarioPresentation = (
+    scenarioId: string,
+    listener: () => void,
+  ): (() => void) => {
+    const listeners =
+      this.scenarioPresentationListeners.get(scenarioId) ?? new Set();
+    listeners.add(listener);
+    this.scenarioPresentationListeners.set(scenarioId, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) {
+        this.scenarioPresentationListeners.delete(scenarioId);
+      }
+    };
+  };
+
+  readonly getScenarioPresentationSnapshot = (
+    scenarioId: string,
+  ): ScientificProductScenarioPresentationV1 | null =>
+    this.getPresentation(scenarioId);
 
   readonly subscribeHemodynamicProtocols = (
     listener: () => void,
@@ -2298,6 +2335,12 @@ export class ScientificProductScenarioRegistryV1 {
     const runtime = entry?.runtime;
     if (entry === undefined || runtime === null) return null;
     const snapshot = runtime.controlStore.getSnapshot();
+    const cached = entry.presentationCache;
+    if (
+      cached !== null
+      && cached.descriptor === entry.descriptor
+      && cached.snapshot === snapshot
+    ) return cached.presentation;
     const displayedEvidence = snapshot.provenance.displayedEvidence;
     const validatedCycle = validatedCycleForDisplayV1(
       displayedEvidence,
@@ -2319,7 +2362,7 @@ export class ScientificProductScenarioRegistryV1 {
       sourceCycle,
       cache: this.transientMetricBeatCache,
     });
-    return Object.freeze({
+    const presentation = Object.freeze({
       descriptor: entry.descriptor,
       frames: snapshot.frames,
       parameterGenerationHistory: Object.freeze([]),
@@ -2334,10 +2377,17 @@ export class ScientificProductScenarioRegistryV1 {
           : null,
       validatedCycle,
       metricCycle: metricSelection.cycle,
+      presentationBeatEstimate: null,
       metricEvidence: metricSelection.evidence,
       displayedEvidence,
       workspaceDocument: runtime.workspaceDocument,
     });
+    entry.presentationCache = Object.freeze({
+      descriptor: entry.descriptor,
+      snapshot,
+      presentation,
+    });
+    return presentation;
   }
 
   addPreset(
@@ -2373,6 +2423,7 @@ export class ScientificProductScenarioRegistryV1 {
       duplicateTransitionModeState: "none",
       hemodynamicAnalysisCoordinator: null,
       pvRelationAnalysisCoordinator: null,
+      presentationCache: null,
     };
     this.entries.set(id, entry);
     this.publishDescriptors();
@@ -2540,6 +2591,10 @@ export class ScientificProductScenarioRegistryV1 {
     this.publishDescriptors();
     this.publishFrames();
     this.publishProtocols();
+    this.descriptorListeners.clear();
+    this.frameListeners.clear();
+    this.scenarioPresentationListeners.clear();
+    this.protocolListeners.clear();
   }
 
   private attachRuntime(
@@ -2573,7 +2628,7 @@ export class ScientificProductScenarioRegistryV1 {
       this.reconcilePvRelationProtocolDemandForScenario(entry.descriptor.id);
     });
     entry.unsubscribeFrames = controlStore.subscribeFrames(() => {
-      this.publishFrames();
+      this.publishFrames(entry.descriptor.id);
     });
   }
 
@@ -2732,9 +2787,17 @@ export class ScientificProductScenarioRegistryV1 {
     for (const listener of [...this.descriptorListeners]) listener();
   }
 
-  private publishFrames(): void {
+  private publishFrames(scenarioId?: string): void {
     this.frameVersion += 1;
     for (const listener of [...this.frameListeners]) listener();
+    const scenarioIds = scenarioId === undefined
+      ? [...this.scenarioPresentationListeners.keys()]
+      : [scenarioId];
+    for (const id of scenarioIds) {
+      for (const listener of [
+        ...(this.scenarioPresentationListeners.get(id) ?? []),
+      ]) listener();
+    }
   }
 
   private publishProtocols(): void {

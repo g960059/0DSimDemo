@@ -42,6 +42,17 @@ export interface ScientificProductRuntimeRegistryPortV1 {
     () => readonly ScientificProductScenarioDescriptorV1[];
   readonly subscribeFrames: (listener: () => void) => () => void;
   readonly getFrameVersionSnapshot: () => number;
+  /**
+   * Scenario-local presentation store. Consumers that render one lane must
+   * use this pair so an unrelated lane cannot invalidate their snapshot.
+   */
+  readonly subscribeScenarioPresentation: (
+    scenarioId: string,
+    listener: () => void,
+  ) => () => void;
+  readonly getScenarioPresentationSnapshot: (
+    scenarioId: string,
+  ) => ScientificProductScenarioPresentationV1 | null;
   readonly subscribeHemodynamicProtocols:
     (listener: () => void) => () => void;
   readonly getHemodynamicProtocolSeriesSnapshot:
@@ -50,6 +61,7 @@ export interface ScientificProductRuntimeRegistryPortV1 {
     () => ScientificProductPvRelationProtocolSeriesSnapshotV1;
 
   getRuntime(id: string): ScientificProductRuntimeViewV1 | null;
+  /** @deprecated Prefer getScenarioPresentationSnapshot for render reads. */
   getPresentation(id: string): ScientificProductScenarioPresentationV1 | null;
   getHemodynamicProtocolSeries(
     scenarioId: string,

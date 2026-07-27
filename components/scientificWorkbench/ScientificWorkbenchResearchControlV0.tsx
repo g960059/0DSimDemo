@@ -1726,6 +1726,8 @@ function acceptedTransientChunk(
       !== expectedStepCount
     || response.payload.executionProtocol.dtSec
       !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec
+    || response.payload.executionProtocol.observationPolicy.kind
+      !== "accepted-step-stride"
     || response.payload.executionProtocol.observationPolicy.stride
       !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.observationStride
     || response.payload.executionProtocol.classification

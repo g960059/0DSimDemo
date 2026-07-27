@@ -10,9 +10,9 @@ import type {
   PromoteSteadyCandidateCommandV1,
   RuntimeCandidatePromotedV1,
   RuntimeLiveIntentResultV1,
+  RuntimePresentationSignalChannelRefV1,
+  RuntimePresentationSignalEventV1,
   RuntimeSessionOpenedV1,
-  RuntimeSignalChannelRefV1,
-  RuntimeSignalEventV1,
   RuntimeStrictIntentResultV1,
   RuntimeTargetIntentCommandV1,
 } from "./runtime";
@@ -57,20 +57,22 @@ export interface SimulationRuntimePortV1 {
    * Adapter-local data-plane binding. Channel refs and batches are portable;
    * the callback/subscription convenience is not a wire-format contract.
    */
-  subscribeSignalChannel(
-    channel: RuntimeSignalChannelRefV1,
-    observer: (event: RuntimeSignalEventV1) => void,
-  ): RuntimeSignalSubscriptionV1;
+  subscribePresentationSignalChannel(
+    channel: RuntimePresentationSignalChannelRefV1,
+    observer: (event: RuntimePresentationSignalEventV1) => void,
+  ): RuntimePresentationSignalSubscriptionV1;
 
   /**
    * Stops/starts numerical live advancement at an accepted command boundary.
    * Strict settlement is independent and continues while presentation is
    * suspended. Resume continues the same accepted state and stream epoch.
    */
-  suspendSignalChannel(channel: RuntimeSignalChannelRefV1): Promise<void>;
+  suspendPresentationSignalChannel(
+    channel: RuntimePresentationSignalChannelRefV1,
+  ): Promise<void>;
 
-  resumeSignalChannel(
-    channel: RuntimeSignalChannelRefV1,
+  resumePresentationSignalChannel(
+    channel: RuntimePresentationSignalChannelRefV1,
     expectedStreamEpoch: number,
   ): Promise<void>;
 
@@ -83,7 +85,7 @@ export interface SimulationRuntimePortV1 {
   closeSession(sessionId: string): Promise<void>;
 }
 
-export type RuntimeSignalSubscriptionV1 = Readonly<{
+export type RuntimePresentationSignalSubscriptionV1 = Readonly<{
   unsubscribe(): void;
 }>;
 

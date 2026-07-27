@@ -12,6 +12,9 @@ import {
   type MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import {
+  MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1,
+} from "@/engine/scientific/metrics";
+import {
   emptyMainWireScientificFastTbvPreviewV1,
 } from "@/engine/scientific/protocols/MainWireScientificFastTbvPreviewV1";
 import type {
@@ -34,13 +37,20 @@ import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type ScientificCommandV1,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import {
+  MainWireScientificInProcessKernelV1,
+} from "@/engine/scientific/worker/MainWireScientificInProcessKernelV1";
 import type {
   MainWireScientificWorkerResponseV1,
 } from "@/engine/scientificBrowser/MainWireScientificWorkerClientV1";
 import {
+  MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
+} from "@/engine/scientificBrowser/mainWireScientificBrowserRuntimeLimitsV1";
+import {
   MainWireBrowserWorkerSessionHostV1,
   MainWireSimulationRuntimeAdapterV1,
   MainWireStudioTransientPartialProgressErrorV1,
+  createMainWirePresentationBeatAccumulatorV1,
   MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1,
   loadMainWireStudioSnapshotEnvelopeV1,
   mainWireStudioExecutionIdentityV1,
@@ -52,6 +62,7 @@ import {
   type MainWireStudioCheckpointReceiptV1,
   type MainWireStudioHostedSessionV1,
   type MainWireStudioPeriodicSettlementChunkV1,
+  type MainWirePresentationEstimatorInstrumentationV1,
   type MainWireStudioSessionHostFactoryV1,
   type MainWireStudioSessionHostV1,
   type MainWireStudioTransientChunkV1,
@@ -64,14 +75,19 @@ import type {
   ExactSignalReplayRecipeV1,
   ReplayOriginArtifactRefV1,
   RuntimeControlPatchV1,
-  RuntimeSignalBatchV1,
-  RuntimeSignalEventV1,
+  RuntimePresentationSampleBatchV1,
+  RuntimePresentationSampleV1,
+  RuntimePresentationSignalEventV1,
+  ExactSignalSampleV1,
   RuntimeSteadyCandidateV1,
   StudioArtifactRefV1,
   StudioRunArtifactContentV1,
   StudioSettledAnalysisSourceV1,
   StudioJsonWriteV1,
   StudioJsonValueV1,
+} from "@/studio/contracts/v1";
+import {
+  runtimePresentationCanonicalPhaseV1,
 } from "@/studio/contracts/v1";
 import {
   loadExactSignalExportContentV1,
@@ -364,6 +380,79 @@ describe("MainWire Studio runtime adapter", () => {
     expect(recovered.didRebase).toBe(false);
   });
 
+  it("matches stride-1 pacing mode, achieved rate, and deficit under a fake clock", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.yieldRunToTimer = true;
+    const clock = new FakeMonotonicClockV1();
+    const activeDurationsMs: number[] = [];
+    const durationScheduleMs = [20, 40, 10, 100];
+    harness.onRunTransient = () => {
+      const duration = durationScheduleMs[
+        Math.min(activeDurationsMs.length, durationScheduleMs.length - 1)
+      ]!;
+      activeDurationsMs.push(duration);
+      clock.advance(duration);
+    };
+    const adapter = runtimeAdapterV1(stored, harness, {
+      liveStepCountPerChunk: 16,
+      nowMs: clock.nowMs,
+      delayMs: clock.delayMs,
+    });
+    const opened = await adapter.openSession({
+      sessionId: "stride-independent-pacing-session",
+      branches: [sourceBranchV1(stored, "stride-independent-pacing-scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+      (event) => {
+        if (event.kind === "samples") batches.push(event);
+      },
+    );
+
+    await adapter.resumePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+      0,
+    );
+    await waitForV1(() => batches.length >= 3);
+    await adapter.suspendPresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+    );
+
+    let referenceWallNowMs = 0;
+    let referenceState = mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: referenceWallNowMs,
+      acceptedSimulationNowSec: baseFixture.frame.acceptedTimeSec,
+      mode: "realtime-1x",
+      cumulativeRebasedDeficitMs: 0,
+    });
+    for (const [index, batch] of batches.entries()) {
+      const activeWallDurationMs = activeDurationsMs[index]!;
+      referenceWallNowMs += activeWallDurationMs;
+      // A stride-1 observer would retain all 16 accepted steps. Fixed stride 4
+      // retains four; pacing uses the same endpoint and fake-clock duration.
+      const strideOneReference = mainWireStudioLivePacingDecisionV1({
+        state: referenceState,
+        wallNowMs: referenceWallNowMs,
+        acceptedSimulationNowSec:
+          batch.samples.at(-1)!.acceptedTimeSec,
+        activeWallDurationMs,
+      });
+      expect(batch.samples).toHaveLength(4);
+      expect(batch.livePacing).toEqual(strideOneReference.livePacing);
+      referenceState = strideOneReference.nextState;
+      referenceWallNowMs += strideOneReference.delayMs;
+    }
+    expect(harness.hosts[0]!.runTransientInputs.slice(0, batches.length))
+      .toEqual(batches.map(() => ({
+        stepCount: 16,
+        observationStride: 4,
+      })));
+    await adapter.closeSession("stride-independent-pacing-session");
+  });
+
   it("re-anchors past one cycle of lag instead of failing, and only recovers after a full cycle at 1x", () => {
     // Each chunk advances 32 ms of model time but costs 100 ms of wall time,
     // so the epoch deficit grows by 68 ms per chunk.
@@ -524,8 +613,8 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "live-pacing-overload-scenario")],
     });
     const branch = opened.branches[0]!;
-    const events: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       events.push(event);
     });
     // Each command advances only 32 ms of model time but consumes 100 ms of
@@ -542,7 +631,7 @@ describe("MainWire Studio runtime adapter", () => {
           .filter((total) => total > 0),
       ),
     ];
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     // Each distinct nonzero cumulative total is one re-anchor, so this waits
     // for the lane to survive two of them rather than merely reach degraded.
     await waitForV1(() => rebaseTotalsV1().length >= 2);
@@ -554,16 +643,16 @@ describe("MainWire Studio runtime adapter", () => {
     // so reaching a second re-anchor is twice the lifetime the old lane had.
     expect(batches.length).toBeGreaterThanOrEqual(30);
 
-    let previousSequence: number | null = null;
+    let previousOrdinal: number | null = null;
     let previousTimeSec: number | null = null;
     for (const batch of batches) {
-      for (const point of batch.points) {
-        if (previousSequence !== null) {
-          expect(point.sequence).toBe(previousSequence + 1);
-          expect(point.simulationTimeSec).toBeGreaterThan(previousTimeSec!);
+      for (const sample of batch.samples) {
+        if (previousOrdinal !== null) {
+          expect(sample.presentationOrdinal).toBe(previousOrdinal + 1);
+          expect(sample.acceptedTimeSec).toBeGreaterThan(previousTimeSec!);
         }
-        previousSequence = point.sequence;
-        previousTimeSec = point.simulationTimeSec;
+        previousOrdinal = sample.presentationOrdinal;
+        previousTimeSec = sample.acceptedTimeSec;
       }
       expect(batch.livePacing.epochLagMs)
         .toBeLessThanOrEqual(MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1);
@@ -589,6 +678,318 @@ describe("MainWire Studio runtime adapter", () => {
     await adapter.closeSession("live-pacing-overload-session");
   });
 
+  it("keeps stride-4 rendering and full-rate metrics separate through the production Worker path", async () => {
+    const productionFixture = Object.freeze({
+      ...baseFixture,
+      checkpoint: baseFixture.strictCheckpoint,
+      frame: baseFixture.strictFrame,
+    });
+    const stored = await storeSourceV1(productionFixture);
+    let hostOrdinal = 0;
+    const transientCommands: Array<Readonly<{
+      stepCount: number;
+      observationStride: number;
+      metricIntegrationPolicy: string | null;
+      rendererRetentionPolicy: string | null;
+    }>> = [];
+    const adapter = new MainWireSimulationRuntimeAdapterV1({
+      artifacts: stored.artifacts,
+      liveStepCountPerChunk: 16,
+      nowMs: () => 0,
+      delayMs: () => delayV1(0),
+      hostFactory: () => {
+        const kernel = new MainWireScientificInProcessKernelV1({
+          maximumRequestCountPerKernelLifetime:
+            MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+              .maximumRequestCountPerLifetime,
+          maximumSessionIdentityCountPerKernelLifetime:
+            MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+              .maximumSessionIdentityCountPerLifetime,
+          maximumTransientStepCountPerCommand:
+            MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+              .maximumTransientStepCountPerCommand,
+          maximumOutputFrameCountPerCommand:
+            MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+              .maximumOutputFrameCountPerCommand,
+        });
+        hostOrdinal += 1;
+        return new MainWireBrowserWorkerSessionHostV1({
+          hostId: `production-path-host-${hostOrdinal}`,
+          client: {
+            request: (command: ScientificCommandV1) => {
+              if (command.kind === "runTransient") {
+                transientCommands.push(Object.freeze({
+                  stepCount: command.stepCount,
+                  observationStride: command.observationStride,
+                  metricIntegrationPolicy:
+                    command.metricIntegrationPolicy ?? null,
+                  rendererRetentionPolicy:
+                    command.rendererRetentionPolicy ?? null,
+                }));
+              }
+              return kernel.handle(command);
+            },
+            terminate: vi.fn(),
+          } as never,
+        });
+      },
+    });
+    const opened = await adapter.openSession({
+      sessionId: "production-boundary-retention-session",
+      branches: [sourceBranchV1(
+        stored,
+        "production-boundary-retention-scenario",
+      )],
+    });
+    const branch = opened.branches[0]!;
+    expect(branch.initialPresentation.sample).toMatchObject({
+      acceptedRevision:
+        productionFixture.checkpoint.transaction.revision,
+      acceptedTimeSec:
+        productionFixture.checkpoint.transaction.acceptedTimeSec,
+      phase: 0,
+      retentionReason: "stream-boundary",
+    });
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+      (event) => events.push(event),
+    );
+
+    await adapter.resumePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+      0,
+    );
+    await waitForV1(() =>
+      events.some(({ kind }) => kind === "failure")
+      || events.some((event) =>
+        event.kind === "samples"
+        && event.metricState.completedBeatCount >= 1
+      ));
+    await adapter.suspendPresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+    );
+
+    const failure = events.find(({ kind }) => kind === "failure");
+    expect(failure).toBeUndefined();
+    const batches = events.filter((event) => event.kind === "samples");
+    const firstTwoCycles = transientCommands.slice(0, 64);
+    expect(firstTwoCycles).toHaveLength(64);
+    expect(firstTwoCycles.every(({ observationStride }) =>
+      observationStride === 4
+    )).toBe(true);
+    expect(firstTwoCycles.every(({ metricIntegrationPolicy }) =>
+      metricIntegrationPolicy
+        === "full-accepted-step-transient-metrics-v1"
+    )).toBe(true);
+    expect(firstTwoCycles.every(({ rendererRetentionPolicy }) =>
+      rendererRetentionPolicy === "fixed-renderer-geometry-error-v1"
+    )).toBe(true);
+    expect(firstTwoCycles.map(({ stepCount }) => stepCount)).toEqual([
+      ...Array.from({ length: 31 }, () => 16),
+      4,
+      ...Array.from({ length: 31 }, () => 16),
+      4,
+    ]);
+    const samples = batches.flatMap((batch) => batch.samples);
+    for (const acceptedRevision of [
+      productionFixture.checkpoint.transaction.revision + 500,
+      productionFixture.checkpoint.transaction.revision + 1_000,
+    ]) {
+      expect(samples.find((sample) =>
+        sample.acceptedRevision === acceptedRevision
+      )).toMatchObject({
+        phase: 0,
+        retentionReason: "canonical-beat-boundary",
+      });
+    }
+    expect(batches.at(-1)!.samples.at(-1)!.acceptedRevision)
+      .toBeGreaterThanOrEqual(
+        productionFixture.checkpoint.transaction.revision + 1_000,
+      );
+    expect(batches.at(-1)!.metricState).toMatchObject({
+      status: "complete",
+      completedBeatCount: 1,
+      latestBeatEstimate: {
+        startAcceptedRevision:
+          productionFixture.checkpoint.transaction.revision + 500,
+        endAcceptedRevision:
+          productionFixture.checkpoint.transaction.revision + 1_000,
+        evidence: {
+          bothCanonicalBeatBoundariesRetained: true,
+          metricIntegration: "full-accepted-step",
+          metricIntegrationSampleCount: 501,
+          transientBeatFullyMeasured: true,
+          revisionsContiguous: true,
+          cadenceUniform: true,
+          exportEquivalent: false,
+        },
+      },
+    });
+    const exactResult = await adapter.exportExactSignals({
+      sessionId: "production-boundary-retention-session",
+      scenarioId: "production-boundary-retention-scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 1,
+      intervalDurationSec: 1,
+    });
+    const exactContent = await loadExactSignalExportContentV1(
+      await stored.artifacts.readJson(exactResult.artifactRef),
+    );
+    const exactAccumulator =
+      createMainWirePresentationBeatAccumulatorV1();
+    let exactEstimate = null;
+    for (const [ordinal, sample] of exactContent.samples.entries()) {
+      // Exact restore has no kernel read command for reconstructing the
+      // observable vector at the restore point. Use the production-projected
+      // source boundary that the live adapter actually opened; every accepted
+      // interval after it comes from the stride-1 exact replay artifact.
+      const values = Object.fromEntries(
+        Object.entries(sample.values).flatMap(([id, value]) =>
+          value.availability === "available" && value.value !== null
+            ? [[id, value.value]]
+            : []
+        ),
+      );
+      exactEstimate = exactAccumulator.update(Object.freeze({
+        coverage: "decimated-presentation" as const,
+        presentationOrdinal: ordinal,
+        acceptedRevision: sample.revision,
+        acceptedTimeSec: sample.simulationTimeSec,
+        acceptedStepSpanFromPrevious: ordinal === 0 ? 0 : 1,
+        phase: runtimePresentationCanonicalPhaseV1(sample.revision),
+        values: Object.freeze(values),
+        retentionReason: ordinal === 0
+          ? "stream-boundary" as const
+          : runtimePresentationCanonicalPhaseV1(sample.revision) === 0
+            ? "canonical-beat-boundary" as const
+            : "geometry-feature" as const,
+      }));
+    }
+    const decimatedEstimate = batches.find((batch) =>
+      batch.metricState.completedBeatCount === 1
+    )?.metricState.latestBeatEstimate;
+    expect(decimatedEstimate).toMatchObject({
+      retainedSampleCount: 150,
+      evidence: {
+        metricIntegration: "full-accepted-step",
+        metricIntegrationSampleCount: 501,
+        exportEquivalent: false,
+      },
+    });
+    const firstCycleSamples = samples.filter(({ acceptedRevision }) =>
+      acceptedRevision
+        <= productionFixture.checkpoint.transaction.revision + 500
+    );
+    expect(firstCycleSamples).toHaveLength(149);
+    expect(Math.max(...samples.map(
+      ({ acceptedStepSpanFromPrevious }) => acceptedStepSpanFromPrevious,
+    ))).toBe(4);
+    expect(exactContent.samples).toHaveLength(501);
+    expect(
+      100 * (1 - firstCycleSamples.length / 500),
+    ).toBeCloseTo(70.2, 12);
+
+    const fullRateMetricBeatStartRevision =
+      productionFixture.checkpoint.transaction.revision + 500;
+    const fullRateMetricBeatEndRevision =
+      productionFixture.checkpoint.transaction.revision + 1_000;
+    const renderBeatSamples = samples.filter(({ acceptedRevision }) =>
+      acceptedRevision >= fullRateMetricBeatStartRevision
+      && acceptedRevision <= fullRateMetricBeatEndRevision
+    );
+    expect(renderBeatSamples).toHaveLength(150);
+    expect(maximumNormalizedPolylineDeviationV1(
+      exactContent.samples,
+      renderBeatSamples,
+      "hemodynamics.volume.LV",
+      "hemodynamics.pressure.absolute.LV",
+    )).toBeLessThanOrEqual(0.02);
+    for (const observableId of [
+      "hemodynamics.pressure.absolute.LV",
+      "hemodynamics.pressure.absolute.Ao",
+      "hemodynamics.volume.LV",
+      "valve.AoV.flow",
+    ]) {
+      expect(
+        maximumNormalizedLinearInterpolationErrorV1(
+          exactContent.samples,
+          renderBeatSamples,
+          observableId,
+        ),
+        observableId,
+      ).toBeLessThanOrEqual(0.02);
+    }
+
+    for (const definition of
+      MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1) {
+      const exact = exactEstimate!.values[definition.metricId]!;
+      const decimated = decimatedEstimate!.values[definition.metricId]!;
+      expect(exact.value, definition.metricId).not.toBeNull();
+      expect(decimated.availability).toBe("available");
+      expect(decimated.value, definition.metricId)
+        .toBeCloseTo(exact.value!, 10);
+    }
+
+    const internal = internalAdapterBranchV1(
+      adapter,
+      "production-boundary-retention-session",
+      "production-boundary-retention-scenario",
+    );
+    const liveCheckpoint = await internal.host.checkpointV4(
+      internal.hostedSession,
+    );
+    const referenceKernel = new MainWireScientificInProcessKernelV1({
+      maximumRequestCountPerKernelLifetime:
+        MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+          .maximumRequestCountPerLifetime,
+      maximumSessionIdentityCountPerKernelLifetime:
+        MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+          .maximumSessionIdentityCountPerLifetime,
+      maximumTransientStepCountPerCommand:
+        MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+          .maximumTransientStepCountPerCommand,
+      maximumOutputFrameCountPerCommand:
+        MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+          .maximumOutputFrameCountPerCommand,
+    });
+    const referenceHost = new MainWireBrowserWorkerSessionHostV1({
+      hostId: "production-stride-one-reference-host",
+      client: {
+        request: (command: ScientificCommandV1) =>
+          referenceKernel.handle(command),
+        terminate: vi.fn(),
+      } as never,
+    });
+    let referenceSession = await referenceHost.restoreV4({
+      sessionId: "production-stride-one-reference-session",
+      resolvedSessionInput: productionFixture.sessionInput,
+      checkpointV4: productionFixture.checkpoint,
+    });
+    let remainingReferenceSteps =
+      liveCheckpoint.session.stateIdentity.revision
+      - productionFixture.checkpoint.transaction.revision;
+    while (remainingReferenceSteps > 0) {
+      const stepCount = Math.min(16, remainingReferenceSteps);
+      const chunk = await referenceHost.runTransient({
+        session: referenceSession,
+        dtSec: 0.002,
+        stepCount,
+        observationStride: 1,
+      });
+      referenceSession = chunk.session;
+      remainingReferenceSteps -= stepCount;
+    }
+    const referenceCheckpoint =
+      await referenceHost.checkpointV4(referenceSession);
+    expect(liveCheckpoint.checkpointV4)
+      .toEqual(referenceCheckpoint.checkpointV4);
+    referenceHost.terminate();
+    await adapter.closeSession("production-boundary-retention-session");
+  }, 30_000);
+
   it("keeps streaming when the clock is too coarse to resolve the pacing delay", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);
@@ -609,12 +1010,12 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "live-pacing-coarse-clock-scenario")],
     });
     const branch = opened.branches[0]!;
-    const events: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       events.push(event);
     });
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() =>
       events.filter((event) => event.kind === "samples").length >= 4);
     expect(events.some(({ kind }) => kind === "failure")).toBe(false);
@@ -642,13 +1043,13 @@ describe("MainWire Studio runtime adapter", () => {
     });
     const branch = opened.branches[0]!;
     const publishedAtMs: number[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       if (event.kind === "samples") publishedAtMs.push(clock.nowMs());
     });
     // Compute is far faster than realtime: 1 ms of wall time per 32 ms chunk.
     harness.onRunTransient = () => clock.advance(1);
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => publishedAtMs.length >= 4);
 
     // Every batch is released at or after its 1x deadline. Publishing first and
@@ -669,17 +1070,17 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "throwing-live-observer-scenario")],
     });
     const branch = opened.branches[0]!;
-    const throwingObserverKinds: RuntimeSignalEventV1["kind"][] = [];
-    const healthyObserverEvents: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const throwingObserverKinds: RuntimePresentationSignalEventV1["kind"][] = [];
+    const healthyObserverEvents: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       throwingObserverKinds.push(event.kind);
       throw new Error("synthetic live observer failure");
     });
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       healthyObserverEvents.push(event);
     });
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() =>
       healthyObserverEvents.some(({ kind }) => kind === "failure"));
 
@@ -696,7 +1097,7 @@ describe("MainWire Studio runtime adapter", () => {
     await delayV1(5);
     expect(harness.hosts[0]!.runTransientCallCount).toBe(stoppedCallCount);
     await expect(
-      adapter.resumeSignalChannel(branch.signalChannelRef, 0),
+      adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0),
     ).rejects.toThrow(/live signal observer callback failed/);
     await adapter.closeSession("throwing-live-observer-session");
   });
@@ -732,32 +1133,39 @@ describe("MainWire Studio runtime adapter", () => {
     expect(harness.hosts[1]!.terminated).toBe(true);
   });
 
-  it("streams 1x live points and suspends/resumes at host command boundaries", async () => {
+  it("streams fixed-stride presentation samples and suspends/resumes at host command boundaries", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);
-    const adapter = runtimeAdapterV1(stored, harness);
+    const onSampleUpdate = vi.fn();
+    const onBeatFinalized = vi.fn();
+    const adapter = runtimeAdapterV1(stored, harness, {
+      presentationEstimatorInstrumentation: {
+        onSampleUpdate,
+        onBeatFinalized,
+      },
+    });
     const opened = await adapter.openSession({
       sessionId: "signal-session",
       branches: [sourceBranchV1(stored, "signal-scenario")],
     });
     const branch = opened.branches[0]!;
-    const batches: RuntimeSignalBatchV1[] = [];
-    const subscription = adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    const subscription = adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => {
         if (event.kind === "samples") batches.push(event);
       },
     );
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => batches.length >= 1);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
     const countAtSuspend = harness.hosts[0]!.runTransientCallCount;
     await delayV1(5);
 
     expect(harness.hosts[0]!.runTransientCallCount).toBe(countAtSuspend);
     expect(batches[0]).toMatchObject({
-      channelId: branch.signalChannelRef.channelId,
+      channelId: branch.presentationSignalChannelRef.channelId,
       sessionId: "signal-session",
       scenarioId: "signal-scenario",
       liveBranchId: branch.liveBranchId,
@@ -765,15 +1173,26 @@ describe("MainWire Studio runtime adapter", () => {
       presentationRevision: 0,
       streamEpoch: 0,
     });
-    expect(batches[0]!.points).toHaveLength(2);
-    expect(batches[0]!.points[1]!.sequence)
-      .toBeGreaterThan(batches[0]!.points[0]!.sequence);
+    expect(batches[0]!.samples).toHaveLength(1);
+    expect(batches[0]!.samples[0]).toMatchObject({
+      acceptedStepSpanFromPrevious: 2,
+      retentionReason: "command-boundary",
+    });
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(
       () => harness.hosts[0]!.runTransientCallCount > countAtSuspend,
     );
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
+    expect(onSampleUpdate).toHaveBeenCalledTimes(
+      1 + batches.reduce(
+        (count, batch) => count + batch.samples.length,
+        0,
+      ),
+    );
+    expect(onBeatFinalized).toHaveBeenCalledTimes(
+      batches.at(-1)!.metricState.completedBeatCount,
+    );
     subscription.unsubscribe();
     await adapter.closeSession("signal-session");
     expect(harness.hosts[0]!.terminated).toBe(true);
@@ -788,15 +1207,15 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "live-host-rotation-scenario")],
     });
     const branch = opened.branches[0]!;
-    const batches: RuntimeSignalBatchV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       if (event.kind === "samples") batches.push(event);
     });
     harness.hosts[0]!.requestCount = 90_000;
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => batches.length > 0);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
 
     expect(harness.hosts).toHaveLength(2);
     expect(harness.hosts[0]).toMatchObject({
@@ -808,8 +1227,11 @@ describe("MainWire Studio runtime adapter", () => {
     // presentation of a chunk, not its computation, so the loop may already
     // have issued the next command by the time the first batch is observed.
     expect(harness.hosts[1]!.runTransientCallCount).toBeGreaterThanOrEqual(1);
-    expect(batches[0]!.points[0]!.sequence)
-      .toBe(baseFixture.frame.revision + 1);
+    expect(batches[0]!.samples[0]).toMatchObject({
+      acceptedRevision: baseFixture.frame.revision + 2,
+      acceptedStepSpanFromPrevious: 2,
+      retentionReason: "command-boundary",
+    });
     await adapter.closeSession("live-host-rotation-session");
     expect(harness.hosts[1]!.terminated).toBe(true);
   });
@@ -829,7 +1251,7 @@ describe("MainWire Studio runtime adapter", () => {
     harness.hosts[0]!.requestCount = 90_000;
     harness.checkpointGatesByHostOrdinal.set(0, checkpointGate);
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() =>
       harness.hosts[0]!.checkpointV4CallCount === 1
       && !harness.checkpointGatesByHostOrdinal.has(0));
@@ -882,7 +1304,7 @@ describe("MainWire Studio runtime adapter", () => {
     });
     expect(harness.hosts[0]!.terminated).toBe(true);
     await expect(
-      adapter.resumeSignalChannel(branch.signalChannelRef, 1),
+      adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 1),
     ).rejects.toThrow(/live host disposal failed and was quarantined/);
     await adapter.closeSession("live-disposal-quarantine-session");
   });
@@ -1197,6 +1619,21 @@ describe("MainWire Studio runtime adapter", () => {
       execution.strict,
     ]);
     expect(live.branches[0]!.status).toBe("success");
+    expect(live.branches[0]).toMatchObject({
+      status: "success",
+      result: {
+        initialPresentation: {
+          sample: {
+            acceptedStepSpanFromPrevious: 0,
+            retentionReason: "stream-boundary",
+          },
+        },
+      },
+    });
+    expect(harness.hosts[0]!.runTransientInputs[0]).toEqual({
+      stepCount: 1,
+      observationStride: 4,
+    });
     expect(strict.branches[0]!.status).toBe("success");
     if (strict.branches[0]!.status !== "success") {
       throw new Error("strict fixture did not create a candidate");
@@ -1311,15 +1748,15 @@ describe("MainWire Studio runtime adapter", () => {
       "rollback-candidate-intent",
     );
     const candidate = issued.candidate;
-    const batches: RuntimeSignalBatchV1[] = [];
-    adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => {
         if (event.kind === "samples") batches.push(event);
       },
     );
-    await adapter.resumeSignalChannel(
-      branch.signalChannelRef,
+    await adapter.resumePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       issued.streamEpoch,
     );
     await waitForV1(() => batches.length >= 1);
@@ -1339,7 +1776,7 @@ describe("MainWire Studio runtime adapter", () => {
     expect(harness.hosts[1]!.terminated).toBe(true);
     expect(harness.hosts[2]!.terminated).toBe(true);
     await waitForV1(() => batches.length > beforePromotion);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
     await adapter.closeSession("rollback-session");
   });
 
@@ -1378,11 +1815,11 @@ describe("MainWire Studio runtime adapter", () => {
       candidateId: candidate.candidateId,
       presentationRevision: 2,
       streamEpoch: 2,
-      initialFrame: {
-        windowMetrics: {
+      initialPresentation: {
+        metricState: {
           status: "collecting",
-          collectedPointCount: 1,
-          completedCycleCount: 0,
+          retainedSampleCount: 1,
+          completedBeatCount: 0,
         },
       },
     });
@@ -1581,28 +2018,28 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "scenario")],
     });
     const branch = opened.branches[0]!;
-    const batches: RuntimeSignalBatchV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       if (event.kind === "samples") batches.push(event);
     });
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => harness.hosts[0]!.runTransientCallCount === 1);
 
     const suspending =
-      adapter.suspendSignalChannel(branch.signalChannelRef);
+      adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
     const resuming =
-      adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+      adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     runGate.resolve();
     await Promise.all([suspending, resuming]);
     await waitForV1(() =>
       harness.hosts[0]!.runTransientCallCount >= 2 && batches.length >= 2);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
 
-    const sequences = batches.flatMap(({ points }) =>
-      points.map(({ sequence }) => sequence));
-    expect(sequences.length).toBeGreaterThanOrEqual(4);
-    for (let index = 1; index < sequences.length; index += 1) {
-      expect(sequences[index]).toBe(sequences[index - 1]! + 1);
+    const ordinals = batches.flatMap(({ samples }) =>
+      samples.map(({ presentationOrdinal }) => presentationOrdinal));
+    expect(ordinals.length).toBeGreaterThanOrEqual(2);
+    for (let index = 1; index < ordinals.length; index += 1) {
+      expect(ordinals[index]).toBe(ordinals[index - 1]! + 1);
     }
     await adapter.closeSession("overlap-playback-session");
   });
@@ -1617,12 +2054,12 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "scenario")],
     });
     const branch = opened.branches[0]!;
-    const events: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => events.push(event),
     );
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => events.some(({ kind }) => kind === "failure"));
 
     expect(events.find(({ kind }) => kind === "failure")).toMatchObject({
@@ -1632,7 +2069,7 @@ describe("MainWire Studio runtime adapter", () => {
       streamEpoch: 0,
       message: expect.stringMatching(/synthetic transient failure/),
     });
-    await expect(adapter.resumeSignalChannel(branch.signalChannelRef, 0))
+    await expect(adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0))
       .rejects.toThrow(/synthetic transient failure/);
     await adapter.closeSession("live-failure-session");
   });
@@ -1649,19 +2086,30 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "scenario")],
     });
     const branch = opened.branches[0]!;
-    const events: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => events.push(event),
     );
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => events.some(({ kind }) => kind === "failure"));
 
     const workerAccepted = [...harness.hosts[0]!.sessions.values()][0]!;
     expect(workerAccepted.stateIdentity).toMatchObject({
       revision: baseFixture.frame.revision + 1,
       acceptedTimeSec: baseFixture.frame.acceptedTimeSec + 0.002,
+    });
+    expect(events.map(({ kind }) => kind)).toEqual(["samples", "failure"]);
+    expect(events[0]).toMatchObject({
+      kind: "samples",
+      samples: [{
+        acceptedRevision: baseFixture.frame.revision + 1,
+        acceptedStepSpanFromPrevious: 1,
+      }],
+      metricState: {
+        retainedSampleCount: 2,
+      },
     });
     expect(events.find(({ kind }) => kind === "failure")).toMatchObject({
       kind: "failure",
@@ -1672,7 +2120,7 @@ describe("MainWire Studio runtime adapter", () => {
     const failedRunCount = harness.hosts[0]!.runTransientCallCount;
     await delayV1(5);
     expect(harness.hosts[0]!.runTransientCallCount).toBe(failedRunCount);
-    await expect(adapter.resumeSignalChannel(branch.signalChannelRef, 0))
+    await expect(adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0))
       .rejects.toThrow(/synthetic accepted partial transient failure/);
 
     const patch = await targetPatchV1(
@@ -1828,12 +2276,12 @@ describe("MainWire Studio runtime adapter", () => {
       "phase-promotion-session",
       "phase-promotion-candidate",
     );
-    const batches: RuntimeSignalBatchV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       if (event.kind === "samples") batches.push(event);
     });
-    await adapter.resumeSignalChannel(
-      branch.signalChannelRef,
+    await adapter.resumePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       issued.streamEpoch,
     );
     await waitForV1(() => batches.length >= 1);
@@ -1846,14 +2294,18 @@ describe("MainWire Studio runtime adapter", () => {
       presentationRevision: 2,
       candidate: issued.candidate,
     });
-    const finalLivePhase = batches.at(-1)?.points.at(-1)?.phase01;
-    const candidatePhase = promoted.initialFrame.point.phase01;
+    const finalLivePhase = batches.at(-1)?.samples.at(-1)?.phase;
+    const candidatePhase = promoted.initialPresentation.sample.phase;
     expect(finalLivePhase).not.toBeNull();
     expect(candidatePhase).not.toBeNull();
     const phaseDistance = Math.abs(
       (finalLivePhase as number) - (candidatePhase as number),
     );
     expect(Math.min(phaseDistance, 1 - phaseDistance)).toBeLessThan(1e-9);
+    expect(harness.hosts[0]!.runTransientInputs.length).toBeGreaterThan(1);
+    expect(harness.hosts[0]!.runTransientInputs.every((input) =>
+      input.observationStride === 4 && input.stepCount <= 16
+    )).toBe(true);
     await adapter.closeSession("phase-promotion-session");
   });
 
@@ -1881,9 +2333,9 @@ describe("MainWire Studio runtime adapter", () => {
       replayOrigins: internal.replayOrigins,
       liveRequestCount: internal.host.requestCount,
     });
-    const presentationEvents: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const presentationEvents: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => presentationEvents.push(event),
     );
     const command = Object.freeze({
@@ -2113,16 +2565,16 @@ describe("MainWire Studio runtime adapter", () => {
       intervalDurationSec: 0.002,
     })).rejects.toThrow(/concurrency budget/);
 
-    const liveBatches: RuntimeSignalBatchV1[] = [];
-    const subscription = adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const liveBatches: RuntimePresentationSampleBatchV1[] = [];
+    const subscription = adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => {
         if (event.kind === "samples") liveBatches.push(event);
       },
     );
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => liveBatches.length >= 1);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
     expect(harness.hosts[0]!.runTransientCallCount).toBeGreaterThan(0);
     expect(harness.hosts[1]!.runTransientCallCount).toBe(1);
     expect(liveBatches[0]!.livePacing.mode).toBe("realtime-1x");
@@ -2804,6 +3256,19 @@ async function createBaseFixtureV1() {
   if (strictSettlement.completed === false) {
     throw new Error(strictSettlement.message);
   }
+  const strictBoundaryReferenceSession =
+    await MainWireScientificSessionV1.restoreExactV4(
+      release,
+      session.sessionInput,
+      strictCheckpoint,
+    );
+  const strictBoundaryReference = strictBoundaryReferenceSession.runTransient({
+    dtSec: 0.002,
+    stepCount: 500,
+  });
+  if (!strictBoundaryReference.completed) {
+    throw new Error("strict boundary reference cycle failed");
+  }
   const frame = projectMainWireScientificObservationV1(step.observation);
   const strictStateIdentity = strictSession.stateIdentity();
   return Object.freeze({
@@ -2815,7 +3280,9 @@ async function createBaseFixtureV1() {
     strictCheckpoint,
     strictStateIdentity,
     strictFrame: frameAtV1(
-      frame,
+      projectMainWireScientificObservationV1(
+        strictBoundaryReference.finalObservation,
+      ),
       strictStateIdentity.revision,
       strictStateIdentity.acceptedTimeSec,
     ),
@@ -3017,6 +3484,8 @@ function runtimeAdapterV1(
     liveStepCountPerChunk?: number;
     nowMs?: () => number;
     delayMs?: (durationMs: number) => Promise<void>;
+    presentationEstimatorInstrumentation?:
+      MainWirePresentationEstimatorInstrumentationV1;
   }> = {},
 ): MainWireSimulationRuntimeAdapterV1 {
   return new MainWireSimulationRuntimeAdapterV1({
@@ -3026,6 +3495,8 @@ function runtimeAdapterV1(
     strictMaximumBeatCount: 1,
     nowMs: overrides.nowMs,
     delayMs: overrides.delayMs ?? delayV1,
+    presentationEstimatorInstrumentation:
+      overrides.presentationEstimatorInstrumentation,
   });
 }
 
@@ -3125,6 +3596,10 @@ class FakeHostHarnessV1 {
 class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
   readonly sessions = new Map<string, MainWireStudioHostedSessionV1>();
   readonly checkpointV4Inputs: MainWireStudioHostedSessionV1[] = [];
+  readonly runTransientInputs: Array<Readonly<{
+    stepCount: number;
+    observationStride: number;
+  }>> = [];
   private readonly strictSettledSessionIds = new Set<string>();
   requestCount = 0;
   runTransientCallCount = 0;
@@ -3237,6 +3712,10 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
     this.requestCount += 1;
     this.assertOwnedV1(input.session);
     this.runTransientCallCount += 1;
+    this.runTransientInputs.push(Object.freeze({
+      stepCount: input.stepCount,
+      observationStride: input.observationStride,
+    }));
     this.harness.onRunTransient?.();
     this.harness.events.push({
       kind: "run",
@@ -3304,12 +3783,12 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
         ));
       }
     }
-    const frame = frames.at(-1)
-      ?? frameAtV1(
-        input.session.observableFrame,
-        revision,
-        acceptedTimeSec,
-      );
+    const frame = frameAtV1(
+      input.session.observableFrame,
+      revision,
+      acceptedTimeSec,
+    );
+    if (frames.at(-1)?.revision !== revision) frames.push(frame);
     const session = hostedSessionV1({
       ...input.session,
       frame,
@@ -3545,6 +4024,129 @@ function frameAtV1(
     revision,
     acceptedTimeSec,
   });
+}
+
+function maximumNormalizedPolylineDeviationV1(
+  exact: readonly ExactSignalSampleV1[],
+  retained: readonly RuntimePresentationSampleV1[],
+  xObservableId: string,
+  yObservableId: string,
+): number {
+  const exactX = exact.map((sample) =>
+    exactSignalValueV1(sample, xObservableId));
+  const exactY = exact.map((sample) =>
+    exactSignalValueV1(sample, yObservableId));
+  const xRange = finiteRangeV1(exactX);
+  const yRange = finiteRangeV1(exactY);
+  let maximum = 0;
+  let retainedIndex = 0;
+  for (const sample of exact) {
+    while (
+      retainedIndex + 1 < retained.length - 1
+      && retained[retainedIndex + 1]!.acceptedRevision < sample.revision
+    ) retainedIndex += 1;
+    const left = retained[retainedIndex]!;
+    const right = retained[retainedIndex + 1]!;
+    const px =
+      (exactSignalValueV1(sample, xObservableId) - xRange.minimum)
+      / xRange.excursion;
+    const py =
+      (exactSignalValueV1(sample, yObservableId) - yRange.minimum)
+      / yRange.excursion;
+    const lx = (left.values[xObservableId]! - xRange.minimum)
+      / xRange.excursion;
+    const ly = (left.values[yObservableId]! - yRange.minimum)
+      / yRange.excursion;
+    const rx = (right.values[xObservableId]! - xRange.minimum)
+      / xRange.excursion;
+    const ry = (right.values[yObservableId]! - yRange.minimum)
+      / yRange.excursion;
+    maximum = Math.max(
+      maximum,
+      pointToSegmentDistanceV1(px, py, lx, ly, rx, ry),
+    );
+  }
+  return maximum;
+}
+
+function maximumNormalizedLinearInterpolationErrorV1(
+  exact: readonly ExactSignalSampleV1[],
+  retained: readonly RuntimePresentationSampleV1[],
+  observableId: string,
+): number {
+  const exactValues = exact.map((sample) =>
+    exactSignalValueV1(sample, observableId));
+  const range = finiteRangeV1(exactValues);
+  let maximum = 0;
+  let retainedIndex = 0;
+  for (const sample of exact) {
+    while (
+      retainedIndex + 1 < retained.length - 1
+      && retained[retainedIndex + 1]!.acceptedRevision < sample.revision
+    ) retainedIndex += 1;
+    const left = retained[retainedIndex]!;
+    const right = retained[retainedIndex + 1]!;
+    const fraction = (sample.revision - left.acceptedRevision)
+      / (right.acceptedRevision - left.acceptedRevision);
+    const interpolated = left.values[observableId]!
+      + fraction * (right.values[observableId]!
+        - left.values[observableId]!);
+    maximum = Math.max(
+      maximum,
+      Math.abs(
+        exactSignalValueV1(sample, observableId) - interpolated,
+      ) / range.excursion,
+    );
+  }
+  return maximum;
+}
+
+function exactSignalValueV1(
+  sample: ExactSignalSampleV1,
+  observableId: string,
+): number {
+  const value = sample.values[observableId];
+  if (
+    value?.availability !== "available"
+    || value.value === null
+    || !Number.isFinite(value.value)
+  ) throw new Error(`exact signal ${observableId} is unavailable`);
+  return value.value;
+}
+
+function finiteRangeV1(values: readonly number[]): Readonly<{
+  minimum: number;
+  excursion: number;
+}> {
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const excursion = maximum - minimum;
+  if (!Number.isFinite(excursion) || !(excursion > 0)) {
+    throw new Error("fidelity reference range is invalid");
+  }
+  return Object.freeze({ minimum, excursion });
+}
+
+function pointToSegmentDistanceV1(
+  px: number,
+  py: number,
+  lx: number,
+  ly: number,
+  rx: number,
+  ry: number,
+): number {
+  const dx = rx - lx;
+  const dy = ry - ly;
+  const denominator = dx * dx + dy * dy;
+  if (!(denominator > 0)) return Math.hypot(px - lx, py - ly);
+  const projection = Math.min(
+    1,
+    Math.max(0, ((px - lx) * dx + (py - ly) * dy) / denominator),
+  );
+  return Math.hypot(
+    px - (lx + projection * dx),
+    py - (ly + projection * dy),
+  );
 }
 
 function mutableCloneV1(value: unknown): any {

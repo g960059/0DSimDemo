@@ -19,11 +19,23 @@ import {
   MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1,
 } from "@/engine/scientific/runtime";
 import {
+  MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+} from "@/engine/scientific/metrics";
+import {
+  SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
+} from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import {
   MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
 } from "@/engine/scientificBrowser/mainWireScientificBrowserRuntimeLimitsV1";
 import {
   INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
   EXACT_SIGNAL_EXPORT_LIMITS_V1,
+  RUNTIME_PRESENTATION_COVERAGE_V1,
+  RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1,
+  RUNTIME_PRESENTATION_DT_SEC_V1,
+  RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+  runtimePresentationCanonicalPhaseV1,
+  runtimePresentationStepsToNextCanonicalBoundaryV1,
   type ArtifactStorePortV1,
   type ExactSignalExportCommandV1,
   type ExactSignalExportOptionsV1,
@@ -40,21 +52,21 @@ import {
   type RuntimeLiveIntentResultV1,
   type RuntimeLivePacingModeV1,
   type RuntimeLivePacingStateV1,
-  type RuntimeObservablePointV1,
-  type RuntimePresentationFrameV1,
+  type RuntimePresentationMetricStateV1,
+  type RuntimePresentationSampleV1,
+  type RuntimePresentationSignalChannelRefV1,
+  type RuntimePresentationSignalEventV1,
+  type RuntimePresentationSignalFailureV1,
+  type RuntimePresentationSignalSubscriptionV1,
+  type RuntimePresentationSnapshotV1,
   type RuntimeScenarioBranchOpenedV1,
   type RuntimeSessionOpenedV1,
-  type RuntimeSignalChannelRefV1,
-  type RuntimeSignalEventV1,
-  type RuntimeSignalFailureV1,
-  type RuntimeSignalSubscriptionV1,
   type RuntimeSteadyCandidateV1,
   type RuntimeStrictIntentBranchResultV1,
   type RuntimeStrictIntentResultV1,
   type RuntimeTargetIntentBranchV1,
   type RuntimeTargetIntentCommandV1,
   type RuntimeTargetIntentExecutionV1,
-  type RuntimeWindowMetricStateV1,
   type RunArtifactRefV1,
   type SimulationInputRefV1,
   type SimulationRuntimePortV1,
@@ -96,7 +108,7 @@ import {
 import {
   loadMainWireStudioSnapshotEnvelopeV1,
   mainWireStudioExecutionIdentityV1,
-  mainWireStudioSeedPresentationFrameV1,
+  mainWireStudioSeedPresentationSnapshotV1,
   putMainWireStudioSnapshotEnvelopeV1,
   type MainWireStudioSnapshotEnvelopeContentV1,
 } from "./MainWireStudioSnapshotEnvelopeV1";
@@ -104,8 +116,14 @@ import {
   assertMainWireStudioTargetPatchV1,
   mainWireStudioTargetInputSha256V1,
 } from "./MainWireStudioTargetResolverV1";
+import {
+  attachMainWireFullRateMetricIntegrationV1,
+  createMainWirePresentationBeatAccumulatorV1,
+  type MainWirePresentationBeatAccumulatorV1,
+  type MainWirePresentationEstimatorInstrumentationV1,
+} from "./MainWirePresentationEstimatorRegistryV1";
 
-const MAIN_WIRE_LIVE_DT_SEC_V1 = 0.002;
+const MAIN_WIRE_LIVE_DT_SEC_V1 = RUNTIME_PRESENTATION_DT_SEC_V1;
 const MAIN_WIRE_CYCLE_LENGTH_SEC_V1 = 1;
 const DEFAULT_STRICT_MAXIMUM_BEAT_COUNT_V1 = 32;
 /**
@@ -132,6 +150,8 @@ export type MainWireSimulationRuntimeAdapterOptionsV1 = Readonly<{
   strictMaximumBeatCount?: number;
   nowMs?: () => number;
   delayMs?: (durationMs: number) => Promise<void>;
+  presentationEstimatorInstrumentation?:
+    MainWirePresentationEstimatorInstrumentationV1;
 }>;
 
 export class MainWireSimulationRuntimeAdapterErrorV1 extends Error {
@@ -161,8 +181,9 @@ type AdapterBranchV1 = {
   host: MainWireStudioSessionHostV1;
   hostedSession: MainWireStudioHostedSessionV1;
   execution: RuntimeExecutionIdentityV1;
-  signalChannelRef: RuntimeSignalChannelRefV1;
-  signalObservers: Set<(event: RuntimeSignalEventV1) => void>;
+  presentationSignalChannelRef: RuntimePresentationSignalChannelRefV1;
+  presentationSignalObservers:
+    Set<(event: RuntimePresentationSignalEventV1) => void>;
   targetGeneration: number;
   reservedTargetGeneration: number;
   presentationRevision: number;
@@ -185,8 +206,11 @@ type AdapterBranchV1 = {
    * rotation. Only a new stream epoch clears it.
    */
   livePacingReportingWindow: readonly MainWireStudioLivePacingRateSliceV1[];
-  traceOriginTimeSec: number;
-  tracePointCount: number;
+  presentationOrdinal: number;
+  retainedSampleCount: number;
+  latestPresentationSample: RuntimePresentationSampleV1 | null;
+  presentationEstimator: MainWirePresentationBeatAccumulatorV1;
+  presentationMetricState: RuntimePresentationMetricStateV1;
   replayOrigins: readonly MainWireRetainedExactSignalReplayOriginV1[];
 };
 
@@ -242,6 +266,8 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
   private readonly strictMaximumBeatCount: number;
   private readonly nowMs: () => number;
   private readonly delayMs: (durationMs: number) => Promise<void>;
+  private readonly presentationEstimatorInstrumentation:
+    MainWirePresentationEstimatorInstrumentationV1;
   private readonly sessions = new Map<string, AdapterSessionV1>();
   private readonly openingSessionIds = new Set<string>();
   private readonly openingHostsBySessionId =
@@ -278,6 +304,8 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     );
     this.nowMs = options.nowMs ?? monotonicNowMsV1;
     this.delayMs = options.delayMs ?? delayMsV1;
+    this.presentationEstimatorInstrumentation =
+      options.presentationEstimatorInstrumentation ?? {};
     nextAdapterRuntimeIdentityV1 += 1;
   }
 
@@ -453,32 +481,32 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     }
   }
 
-  subscribeSignalChannel(
-    channel: RuntimeSignalChannelRefV1,
-    observer: (event: RuntimeSignalEventV1) => void,
-  ): RuntimeSignalSubscriptionV1 {
+  subscribePresentationSignalChannel(
+    channel: RuntimePresentationSignalChannelRefV1,
+    observer: (event: RuntimePresentationSignalEventV1) => void,
+  ): RuntimePresentationSignalSubscriptionV1 {
     const branch = this.requiredChannelBranchV1(channel);
-    branch.signalObservers.add(observer);
+    branch.presentationSignalObservers.add(observer);
     let subscribed = true;
     return Object.freeze({
       unsubscribe: () => {
         if (!subscribed) return;
         subscribed = false;
-        branch.signalObservers.delete(observer);
+        branch.presentationSignalObservers.delete(observer);
       },
     });
   }
 
-  async suspendSignalChannel(
-    channel: RuntimeSignalChannelRefV1,
+  async suspendPresentationSignalChannel(
+    channel: RuntimePresentationSignalChannelRefV1,
   ): Promise<void> {
     const branch = this.requiredChannelBranchV1(channel);
     branch.playbackRequested = false;
     await this.suspendBranchAtBoundaryV1(branch);
   }
 
-  async resumeSignalChannel(
-    channel: RuntimeSignalChannelRefV1,
+  async resumePresentationSignalChannel(
+    channel: RuntimePresentationSignalChannelRefV1,
     expectedStreamEpoch: number,
   ): Promise<void> {
     const branch = this.requiredChannelBranchV1(channel);
@@ -513,7 +541,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     for (const branch of session.branches.values()) {
       branch.playbackRequested = false;
       branch.desiredRunning = false;
-      branch.signalObservers.clear();
+      branch.presentationSignalObservers.clear();
       hosts.add(branch.host);
     }
     for (const token of session.activeIntentByScenario.values()) {
@@ -640,10 +668,10 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     // strict lane. The receipt check above already pins the seed and the restore
     // to the same revision and accepted time; only the projection differed. The
     // seed still drives the initial presentation on its own, through
-    // mainWireStudioSeedPresentationFrameV1 below.
+    // mainWireStudioSeedPresentationSnapshotV1 below.
     const hostedSession = restored;
     const liveBranchId = this.nextInternalIdV1("branch");
-    const signalChannelRef = Object.freeze({
+    const presentationSignalChannelRef = Object.freeze({
       protocolId: SIGNAL_CHANNEL_PROTOCOL_V1,
       channelId: this.nextInternalIdV1("signal"),
       sessionId: studioSessionId,
@@ -653,7 +681,13 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     const execution = mainWireStudioExecutionIdentityV1(
       envelope.checkpointV4,
     );
-    const initialFrame = mainWireStudioSeedPresentationFrameV1(envelope);
+    const initialPresentation =
+      mainWireStudioSeedPresentationSnapshotV1(envelope);
+    const presentationEstimator =
+      createMainWirePresentationBeatAccumulatorV1(
+        this.presentationEstimatorInstrumentation,
+      );
+    presentationEstimator.update(initialPresentation.sample);
     let openingReplayOrigin:
       MainWireRetainedExactSignalReplayOriginV1 | null = null;
     try {
@@ -696,8 +730,8 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       host,
       hostedSession,
       execution,
-      signalChannelRef,
-      signalObservers: new Set(),
+      presentationSignalChannelRef,
+      presentationSignalObservers: new Set(),
       targetGeneration: 0,
       reservedTargetGeneration: 0,
       presentationRevision: 0,
@@ -716,8 +750,11 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       liveFailure: null,
       livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
       livePacingReportingWindow: Object.freeze([]),
-      traceOriginTimeSec: initialFrame.point.simulationTimeSec,
-      tracePointCount: 1,
+      presentationOrdinal: 0,
+      retainedSampleCount: 1,
+      latestPresentationSample: initialPresentation.sample,
+      presentationEstimator,
+      presentationMetricState: initialPresentation.metricState,
       replayOrigins: openingReplayOrigin === null
         ? Object.freeze([])
         : Object.freeze([openingReplayOrigin]),
@@ -731,10 +768,10 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
         sourceInputRef: source.sourceInputRef,
         sourceSnapshotRef: source.sourceSnapshotRef,
         initialTargetInputSha256: source.initialTargetInputSha256,
-        signalChannelRef,
+        presentationSignalChannelRef,
         streamEpoch: 0,
         execution,
-        initialFrame,
+        initialPresentation,
       }),
     });
   }
@@ -858,9 +895,14 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
         branch.streamEpoch,
         "stream epoch",
       );
-      branch.traceOriginTimeSec =
-        entry.liveTarget.stateIdentity.acceptedTimeSec;
-      branch.tracePointCount = 0;
+      branch.presentationOrdinal = -1;
+      branch.retainedSampleCount = 0;
+      branch.latestPresentationSample = null;
+      branch.presentationEstimator =
+        createMainWirePresentationBeatAccumulatorV1(
+          this.presentationEstimatorInstrumentation,
+        );
+      branch.presentationMetricState = collectingMetricStateV1(0);
       branch.liveFailure = null;
       // A new stream epoch is a new 1x contract. Neither the old epoch's lag,
       // its accumulated deficit, nor its measured rate describes the trace
@@ -1090,8 +1132,10 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
               prepared.replayOrigin,
             );
           }
-          prepared.branch.traceOriginTimeSec = latest.acceptedTimeSec;
-          prepared.branch.tracePointCount = 1;
+          const initialPresentation = this.resetPresentationAccumulatorV1(
+            prepared.branch,
+            latest,
+          );
           return Object.freeze({
             status: "success" as const,
             scenarioId: token.target.scenarioId,
@@ -1102,10 +1146,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
               presentationRevision: token.target.presentationRevision,
               targetInputSha256: token.target.patch.targetInputSha256,
               streamEpoch: prepared.branch.streamEpoch,
-              frame: presentationFrameFromObservableV1(
-                latest,
-                collectingMetricsV1(1),
-              ),
+              initialPresentation,
             }),
           });
         } catch (error) {
@@ -1285,7 +1326,11 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       session: prepared.liveTarget,
       dtSec: MAIN_WIRE_LIVE_DT_SEC_V1,
       stepCount: 1,
-      observationStride: 1,
+      observationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+      metricIntegrationPolicy:
+        MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+      rendererRetentionPolicy:
+        SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
     });
     let boundary!: Promise<void>;
     boundary = request.then(
@@ -1342,6 +1387,22 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     ) return false;
     if (error.completedStepCount > 0) {
       branch.hostedSession = accepted;
+      // A failed command may still have committed accepted numerical steps.
+      // Preserve every observation retained by the Worker before publishing
+      // the terminal failure, but only when this stream already owns a reset
+      // boundary (initial-transition failure has no publishable trace yet).
+      if (
+        branch.latestPresentationSample !== null
+        && error.acceptedPartialProgress.observableFrames.length > 0
+      ) {
+        this.publishTransientChunkV1(
+          branch,
+          error.acceptedPartialProgress,
+          branch.targetGeneration,
+          branch.presentationRevision,
+          branch.streamEpoch,
+        );
+      }
     }
     return true;
   }
@@ -1450,8 +1511,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
           command,
           oldHost,
           oldSessionId,
-          envelope.checkpointV4.canonicalPhase.phase01,
-          envelope.checkpointV4.canonicalPhase.cycleLengthSec,
+          envelope.checkpointV4.transaction.revision,
         );
       }
       this.assertPromotionStillCurrentV1(
@@ -1466,7 +1526,8 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
         branch.streamEpoch,
         "stream epoch",
       );
-      const initialFrame = mainWireStudioSeedPresentationFrameV1(envelope);
+      const initialPresentation =
+        mainWireStudioSeedPresentationSnapshotV1(envelope);
       let promotedReplayOrigin:
         MainWireRetainedExactSignalReplayOriginV1 | null = null;
       try {
@@ -1519,7 +1580,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
         presentationRevision: command.presentationRevision,
         candidateId: command.candidate.candidateId,
         streamEpoch,
-        initialFrame,
+        initialPresentation,
       });
 
       // From here through the pointer swap there is no await or fallible
@@ -1535,8 +1596,15 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       branch.presentationRevision = command.presentationRevision;
       branch.reservedPresentationRevision = command.presentationRevision;
       branch.streamEpoch = streamEpoch;
-      branch.traceOriginTimeSec = envelope.seedObservableFrame.acceptedTimeSec;
-      branch.tracePointCount = 1;
+      branch.presentationOrdinal = 0;
+      branch.retainedSampleCount = 1;
+      branch.latestPresentationSample = initialPresentation.sample;
+      branch.presentationEstimator =
+        createMainWirePresentationBeatAccumulatorV1(
+          this.presentationEstimatorInstrumentation,
+        );
+      branch.presentationEstimator.update(initialPresentation.sample);
+      branch.presentationMetricState = initialPresentation.metricState;
       branch.liveFailure = null;
       branch.livePacing = INITIAL_RUNTIME_LIVE_PACING_STATE_V1;
       branch.livePacingReportingWindow = Object.freeze([]);
@@ -1634,30 +1702,17 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     command: PromoteSteadyCandidateCommandV1,
     expectedHost: MainWireStudioSessionHostV1,
     expectedSessionId: string,
-    targetPhase01: number,
-    cycleLengthSec: number,
+    targetAcceptedRevision: number,
   ): Promise<void> {
-    const currentPhase01 = canonicalPhaseForCycleV1(
-      branch.hostedSession.stateIdentity.acceptedTimeSec,
-      cycleLengthSec,
+    const stepsPerCycle = Math.round(
+      RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1
+        / RUNTIME_PRESENTATION_DT_SEC_V1,
     );
-    const phaseDelta01 = positiveModuloOneV1(
-      targetPhase01 - currentPhase01,
-    );
-    const deltaSec = phaseDelta01 * cycleLengthSec;
-    const totalStepCount = Math.round(
-      deltaSec / MAIN_WIRE_LIVE_DT_SEC_V1,
-    );
-    const reachedPhase01 = canonicalPhaseForCycleV1(
-      branch.hostedSession.stateIdentity.acceptedTimeSec
-        + totalStepCount * MAIN_WIRE_LIVE_DT_SEC_V1,
-      cycleLengthSec,
-    );
-    if (circularPhaseDistanceV1(reachedPhase01, targetPhase01) > 1e-9) {
-      throw runtimeErrorV1(
-        "candidate phase is not reachable on the live integration grid",
-      );
-    }
+    const currentPhaseStep =
+      branch.hostedSession.stateIdentity.revision % stepsPerCycle;
+    const targetPhaseStep = targetAcceptedRevision % stepsPerCycle;
+    const totalStepCount =
+      (targetPhaseStep - currentPhaseStep + stepsPerCycle) % stepsPerCycle;
 
     let remainingStepCount = totalStepCount;
     // Phase alignment is still 1x presentation on the outgoing stream, so it
@@ -1672,9 +1727,13 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
         expectedHost,
         expectedSessionId,
       );
-      const stepCount = Math.min(
+      const maximumStepCount = Math.min(
         remainingStepCount,
         this.liveStepCountPerChunk,
+      );
+      const stepCount = boundaryRetainingLiveStepCountV1(
+        branch.hostedSession.stateIdentity.revision,
+        maximumStepCount,
       );
       const activeStartedWallMs = this.nowMs();
       const chunk = await this.runPromotionAlignmentChunkV1(
@@ -1735,7 +1794,11 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       session: branch.hostedSession,
       dtSec: MAIN_WIRE_LIVE_DT_SEC_V1,
       stepCount,
-      observationStride: 1,
+      observationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+      metricIntegrationPolicy:
+        MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+      rendererRetentionPolicy:
+        SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
     });
     let boundary!: Promise<void>;
     boundary = request.then(
@@ -1787,15 +1850,15 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
         branch.desiredRunning = false;
         this.emitSignalEventV1(branch, Object.freeze({
           kind: "failure",
-          channelId: branch.signalChannelRef.channelId,
-          sessionId: branch.signalChannelRef.sessionId,
+          channelId: branch.presentationSignalChannelRef.channelId,
+          sessionId: branch.presentationSignalChannelRef.sessionId,
           scenarioId: branch.scenarioId,
           liveBranchId: branch.liveBranchId,
           targetGeneration: branch.targetGeneration,
           presentationRevision: branch.presentationRevision,
           streamEpoch: branch.streamEpoch,
           message: failure.message,
-        }) satisfies RuntimeSignalFailureV1);
+        }) satisfies RuntimePresentationSignalFailureV1);
       },
     ).finally(() => {
       if (branch.loopPromise === operation) branch.loopPromise = null;
@@ -1832,11 +1895,19 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       const targetGeneration = branch.targetGeneration;
       const presentationRevision = branch.presentationRevision;
       const streamEpoch = branch.streamEpoch;
+      const stepCount = boundaryRetainingLiveStepCountV1(
+        branch.hostedSession.stateIdentity.revision,
+        this.liveStepCountPerChunk,
+      );
       const chunk = await sourceHost.runTransient({
         session: branch.hostedSession,
         dtSec: MAIN_WIRE_LIVE_DT_SEC_V1,
-        stepCount: this.liveStepCountPerChunk,
-        observationStride: 1,
+        stepCount,
+        observationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+        metricIntegrationPolicy:
+          MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+        rendererRetentionPolicy:
+          SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
       });
       // Rotation is compute this lane had to perform, so it counts as active
       // wall time; the pacing sleep below deliberately does not.
@@ -1952,7 +2023,9 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     branch: AdapterBranchV1,
   ): Promise<void> {
     if (branch.host.requestCount < LIVE_HOST_ROTATION_REQUEST_COUNT_V1) return;
-    const session = this.sessions.get(branch.signalChannelRef.sessionId);
+    const session = this.sessions.get(
+      branch.presentationSignalChannelRef.sessionId,
+    );
     if (
       session === undefined
       || session.closed
@@ -2027,11 +2100,11 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
 
   private emitSignalEventV1(
     branch: AdapterBranchV1,
-    event: RuntimeSignalEventV1,
+    event: RuntimePresentationSignalEventV1,
   ): void {
     let observerFailed = false;
     let firstObserverFailure: unknown;
-    for (const observer of [...branch.signalObservers]) {
+    for (const observer of [...branch.presentationSignalObservers]) {
       try {
         observer(event);
       } catch (error) {
@@ -2056,15 +2129,15 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     // subscribers from receiving it or invalidate numerical ownership.
     this.emitSignalEventV1(branch, Object.freeze({
       kind: "failure",
-      channelId: branch.signalChannelRef.channelId,
-      sessionId: branch.signalChannelRef.sessionId,
+      channelId: branch.presentationSignalChannelRef.channelId,
+      sessionId: branch.presentationSignalChannelRef.sessionId,
       scenarioId: branch.scenarioId,
       liveBranchId: branch.liveBranchId,
       targetGeneration: branch.targetGeneration,
       presentationRevision: branch.presentationRevision,
       streamEpoch: branch.streamEpoch,
       message: failure.message,
-    }) satisfies RuntimeSignalFailureV1);
+    }) satisfies RuntimePresentationSignalFailureV1);
   }
 
   private publishTransientChunkV1(
@@ -2074,28 +2147,103 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     presentationRevision: number,
     streamEpoch: number,
   ): void {
-    const points = Object.freeze(
-      chunk.observableFrames.map(observablePointV1),
-    );
-    if (points.length === 0) return;
-    branch.tracePointCount += points.length;
+    const samples: RuntimePresentationSampleV1[] = [];
+    const fullRateMetricBeat =
+      chunk.metricIntegration?.latestCompletedBeat ?? null;
+    for (const [frameIndex, frame] of chunk.observableFrames.entries()) {
+      const previous = branch.latestPresentationSample;
+      if (previous === null) {
+        throw runtimeErrorV1(
+          "presentation chunk has no retained stream boundary",
+        );
+      }
+      const presentationOrdinal = nextSafeIntegerV1(
+        branch.presentationOrdinal,
+        "presentation ordinal",
+      );
+      const phase = runtimePresentationCanonicalPhaseV1(frame.revision);
+      const span = frame.revision - previous.acceptedRevision;
+      const retentionReason = phase === 0
+        ? "canonical-beat-boundary" as const
+        : span < RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1
+          ? frameIndex === chunk.observableFrames.length - 1
+            ? "command-boundary" as const
+            : "geometry-feature" as const
+          : "observation-stride" as const;
+      const sample = presentationSampleFromObservableV1(
+        frame,
+        presentationOrdinal,
+        previous,
+        retentionReason,
+      );
+      const estimate = branch.presentationEstimator.update(sample);
+      branch.presentationOrdinal = presentationOrdinal;
+      branch.retainedSampleCount += 1;
+      branch.latestPresentationSample = sample;
+      if (
+        estimate !== null
+        && fullRateMetricBeat !== null
+        && estimate.startAcceptedRevision
+          === fullRateMetricBeat.startAcceptedRevision
+        && estimate.endAcceptedRevision
+          === fullRateMetricBeat.endAcceptedRevision
+      ) {
+        const fullRateEstimate =
+          attachMainWireFullRateMetricIntegrationV1(
+            estimate,
+            fullRateMetricBeat,
+          );
+        const completedBeatCount =
+          branch.presentationMetricState.completedBeatCount + 1;
+        branch.presentationMetricState = Object.freeze({
+          status: "complete" as const,
+          retainedSampleCount: branch.retainedSampleCount,
+          completedBeatCount,
+          latestBeatEstimate: fullRateEstimate,
+        });
+      } else if (branch.presentationMetricState.status === "complete") {
+        branch.presentationMetricState = Object.freeze({
+          ...branch.presentationMetricState,
+          retainedSampleCount: branch.retainedSampleCount,
+        });
+      } else {
+        branch.presentationMetricState =
+          collectingMetricStateV1(branch.retainedSampleCount);
+      }
+      samples.push(sample);
+    }
+    if (samples.length === 0) return;
     this.emitSignalEventV1(branch, Object.freeze({
       kind: "samples",
-      channelId: branch.signalChannelRef.channelId,
-      sessionId: branch.signalChannelRef.sessionId,
+      channelId: branch.presentationSignalChannelRef.channelId,
+      sessionId: branch.presentationSignalChannelRef.sessionId,
       scenarioId: branch.scenarioId,
       liveBranchId: branch.liveBranchId,
       targetGeneration,
       presentationRevision,
       streamEpoch,
-      points,
-      windowMetrics: metricsForTraceV1(
-        branch.tracePointCount,
-        branch.traceOriginTimeSec,
-        points.at(-1)!.simulationTimeSec,
-      ),
+      samples: Object.freeze(samples),
+      metricState: branch.presentationMetricState,
       livePacing: branch.livePacing,
     }));
+  }
+
+  private resetPresentationAccumulatorV1(
+    branch: AdapterBranchV1,
+    frame: MainWireScientificObservableFrameV1,
+  ): RuntimePresentationSnapshotV1 {
+    const sample = presentationSampleFromObservableV1(frame, 0, null);
+    const estimator = createMainWirePresentationBeatAccumulatorV1(
+      this.presentationEstimatorInstrumentation,
+    );
+    estimator.update(sample);
+    const metricState = collectingMetricStateV1(1);
+    branch.presentationOrdinal = 0;
+    branch.retainedSampleCount = 1;
+    branch.latestPresentationSample = sample;
+    branch.presentationEstimator = estimator;
+    branch.presentationMetricState = metricState;
+    return Object.freeze({ sample, metricState });
   }
 
   private async suspendBranchAtBoundaryV1(
@@ -2205,13 +2353,13 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
   }
 
   private requiredChannelBranchV1(
-    channel: RuntimeSignalChannelRefV1,
+    channel: RuntimePresentationSignalChannelRefV1,
   ): AdapterBranchV1 {
     const session = this.requiredSessionV1(channel.sessionId);
     const branch = requiredBranchV1(session, channel.scenarioId);
     if (
       channel.protocolId !== SIGNAL_CHANNEL_PROTOCOL_V1
-      || channel.channelId !== branch.signalChannelRef.channelId
+      || channel.channelId !== branch.presentationSignalChannelRef.channelId
       || channel.liveBranchId !== branch.liveBranchId
     ) throw runtimeErrorV1("signal channel binding mismatch");
     return branch;
@@ -3051,19 +3199,12 @@ function failureForTargetV1(
   });
 }
 
-function presentationFrameFromObservableV1(
+function presentationSampleFromObservableV1(
   frame: MainWireScientificObservableFrameV1,
-  windowMetrics: RuntimeWindowMetricStateV1,
-): RuntimePresentationFrameV1 {
-  return Object.freeze({
-    point: observablePointV1(frame),
-    windowMetrics,
-  });
-}
-
-function observablePointV1(
-  frame: MainWireScientificObservableFrameV1,
-): RuntimeObservablePointV1 {
+  presentationOrdinal: number,
+  previous: RuntimePresentationSampleV1 | null,
+  retainedReason?: RuntimePresentationSampleV1["retentionReason"],
+): RuntimePresentationSampleV1 {
   const values: Record<string, number> = {};
   for (const [observableId, observable] of Object.entries(frame.values)) {
     if (
@@ -3072,47 +3213,36 @@ function observablePointV1(
       && Number.isFinite(observable.value)
     ) values[observableId] = observable.value;
   }
+  const phase = runtimePresentationCanonicalPhaseV1(frame.revision);
   return Object.freeze({
-    sequence: frame.revision,
-    simulationTimeSec: frame.acceptedTimeSec,
-    phase01: canonicalPhase01V1(frame.acceptedTimeSec),
+    coverage: RUNTIME_PRESENTATION_COVERAGE_V1,
+    presentationOrdinal,
+    acceptedRevision: frame.revision,
+    acceptedTimeSec: frame.acceptedTimeSec,
+    acceptedStepSpanFromPrevious: previous === null
+      ? 0
+      : frame.revision - previous.acceptedRevision,
+    phase,
     values: Object.freeze(values),
+    retentionReason: previous === null
+      ? "stream-boundary" as const
+      : retainedReason ?? (
+        phase === 0
+          ? "canonical-beat-boundary" as const
+          : "observation-stride" as const
+      ),
   });
 }
 
-function collectingMetricsV1(
-  collectedPointCount: number,
-): RuntimeWindowMetricStateV1 {
+function collectingMetricStateV1(
+  retainedSampleCount: number,
+): RuntimePresentationMetricStateV1 {
   return Object.freeze({
     status: "collecting" as const,
-    collectedPointCount,
-    completedCycleCount: 0 as const,
+    retainedSampleCount,
+    completedBeatCount: 0 as const,
+    latestBeatEstimate: null,
   });
-}
-
-function metricsForTraceV1(
-  collectedPointCount: number,
-  originTimeSec: number,
-  latestTimeSec: number,
-): RuntimeWindowMetricStateV1 {
-  const completedCycleCount = Math.floor(
-    Math.max(0, latestTimeSec - originTimeSec + 1e-12)
-      / MAIN_WIRE_CYCLE_LENGTH_SEC_V1,
-  );
-  return completedCycleCount === 0
-    ? collectingMetricsV1(collectedPointCount)
-    : Object.freeze({
-      status: "complete" as const,
-      collectedPointCount,
-      completedCycleCount,
-      values: Object.freeze({}),
-    });
-}
-
-function canonicalPhase01V1(timeSec: number): number {
-  const raw = timeSec / MAIN_WIRE_CYCLE_LENGTH_SEC_V1;
-  const phase = raw - Math.floor(raw);
-  return phase >= 1 - 1e-12 || phase < 1e-12 ? 0 : phase;
 }
 
 function sameArtifactRefV1(
@@ -3230,31 +3360,6 @@ function artifactRefFingerprintV1(
   ];
 }
 
-function canonicalPhaseForCycleV1(
-  timeSec: number,
-  cycleLengthSec: number,
-): number {
-  if (
-    !Number.isFinite(timeSec)
-    || !Number.isFinite(cycleLengthSec)
-    || cycleLengthSec <= 0
-  ) throw runtimeErrorV1("canonical phase input is invalid");
-  return positiveModuloOneV1(timeSec / cycleLengthSec);
-}
-
-function positiveModuloOneV1(value: number): number {
-  if (!Number.isFinite(value)) {
-    throw runtimeErrorV1("canonical phase is invalid");
-  }
-  const phase = value - Math.floor(value);
-  return phase >= 1 - 1e-12 || phase < 1e-12 ? 0 : phase;
-}
-
-function circularPhaseDistanceV1(left: number, right: number): number {
-  const distance = Math.abs(left - right);
-  return Math.min(distance, 1 - distance);
-}
-
 function nextSafeIntegerV1(current: number, path: string): number {
   if (!Number.isSafeInteger(current) || current < 0) {
     throw runtimeErrorV1(`${path} is invalid`);
@@ -3263,6 +3368,27 @@ function nextSafeIntegerV1(current: number, path: string): number {
     throw runtimeErrorV1(`${path} is exhausted`);
   }
   return current + 1;
+}
+
+/**
+ * The Worker always retains a command's final accepted state. Shortening the
+ * command that would cross a canonical boundary therefore makes retention
+ * explicit and remains correct when the observation stride is later raised.
+ */
+function boundaryRetainingLiveStepCountV1(
+  acceptedRevision: number,
+  maximumStepCount: number,
+): number {
+  if (
+    !Number.isSafeInteger(maximumStepCount)
+    || maximumStepCount < 1
+  ) throw runtimeErrorV1("live step-count boundary is invalid");
+  return Math.min(
+    maximumStepCount,
+    runtimePresentationStepsToNextCanonicalBoundaryV1(
+      acceptedRevision,
+    ),
+  );
 }
 
 function boundedPositiveIntegerV1(

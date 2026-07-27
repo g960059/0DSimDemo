@@ -12,6 +12,13 @@ import type {
 import type {
   MainWireFiveWallPeriodicClassificationV1,
 } from "@/engine/myocardium/experiments/MainWireFiveWallPeriodicClosureV1";
+import type {
+  MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+  MainWireScientificTransientMetricIntegrationResultV1,
+} from "@/engine/scientific/metrics";
+import type {
+  SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
+} from "@/engine/scientific/worker/scientificCommandProtocolV1";
 
 export type MainWireStudioAcceptedStateIdentityV1 = Readonly<{
   revision: number;
@@ -32,6 +39,8 @@ export type MainWireStudioHostedSessionV1 = Readonly<{
 export type MainWireStudioTransientChunkV1 = Readonly<{
   session: MainWireStudioHostedSessionV1;
   observableFrames: readonly MainWireScientificObservableFrameV1[];
+  metricIntegration?:
+    MainWireScientificTransientMetricIntegrationResultV1 | null;
 }>;
 
 export type MainWireStudioPeriodicSettlementChunkV1 = Readonly<{
@@ -81,6 +90,10 @@ export interface MainWireStudioSessionHostV1 {
     dtSec: number;
     stepCount: number;
     observationStride: number;
+    metricIntegrationPolicy?:
+      typeof MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1;
+    rendererRetentionPolicy?:
+      typeof SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1;
   }>): Promise<MainWireStudioTransientChunkV1>;
 
   settlePeriodic(

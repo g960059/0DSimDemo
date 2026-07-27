@@ -11,11 +11,11 @@ import type {
   SimulationReleaseRef,
 } from "@/engine/scientific/release";
 import {
-  projectRuntimeObservablePointToMainWireScientificObservableFrameV1,
+  projectRuntimePresentationSampleToMainWireScientificObservableFrameV1,
   ScientificProductStudioObservableFrameProjectionErrorV1,
 } from "@/components/scientificProduct/ScientificProductStudioObservableFrameProjectionV1";
 import type {
-  RuntimeObservablePointV1,
+  RuntimePresentationSampleV1,
 } from "@/studio/contracts/v1";
 
 const RELEASE_REF_V1: SimulationReleaseRef = Object.freeze({
@@ -25,22 +25,26 @@ const RELEASE_REF_V1: SimulationReleaseRef = Object.freeze({
 });
 
 describe("Scientific Product Studio observable frame projection V1", () => {
-  it("projects the complete catalog with exact identity and source-kind quality", () => {
-    const point: RuntimeObservablePointV1 = {
-      sequence: 42,
-      simulationTimeSec: 12.5,
-      phase01: 0.5,
+  it("projects catalog-shaped chart values without promoting presentation coverage", () => {
+    const sample: RuntimePresentationSampleV1 = {
+      coverage: "decimated-presentation",
+      presentationOrdinal: 17,
+      acceptedRevision: 42,
+      acceptedTimeSec: 12.5,
+      acceptedStepSpanFromPrevious: 16,
+      phase: 0.5,
       values: {
         "hemodynamics.volume.LV": 123,
         "valve.AoV.flow": 45.6,
         "solver.mechanics.iterations": 3,
         "solver.mechanics.residual_norm": 0,
       },
+      retentionReason: "observation-stride",
     };
 
     const frame =
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point,
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample,
         releaseRef: RELEASE_REF_V1,
       });
 
@@ -51,8 +55,8 @@ describe("Scientific Product Studio observable frame projection V1", () => {
         MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION,
       sourceObservationId: "main-wire-scientific-session-observation-v1",
       source: "accepted-step",
-      revision: point.sequence,
-      acceptedTimeSec: point.simulationTimeSec,
+      revision: sample.acceptedRevision,
+      acceptedTimeSec: sample.acceptedTimeSec,
       releaseRef: RELEASE_REF_V1,
     });
     expect(Object.keys(frame.values)).toEqual(
@@ -110,38 +114,45 @@ describe("Scientific Product Studio observable frame projection V1", () => {
     expect(Object.values(frame.values).every(Object.isFrozen)).toBe(true);
   });
 
-  it("accepts a null phase while retaining the exact sequence and time", () => {
-    const point = validPointV1({
-      sequence: 0,
-      simulationTimeSec: 0,
-      phase01: null,
+  it("uses accepted identity rather than the retained presentation ordinal", () => {
+    const sample = validSampleV1({
+      presentationOrdinal: 3,
+      acceptedRevision: 0,
+      acceptedTimeSec: 0,
+      phase: 0,
+      retentionReason: "canonical-beat-boundary",
     });
 
     const frame =
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point,
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample,
         releaseRef: RELEASE_REF_V1,
       });
 
     expect(frame.revision).toBe(0);
     expect(frame.acceptedTimeSec).toBe(0);
+    expect(frame.revision).not.toBe(sample.presentationOrdinal);
   });
 
   it.each([
-    ["negative sequence", { sequence: -1 }],
-    ["fractional sequence", { sequence: 1.5 }],
-    ["unsafe sequence", { sequence: Number.MAX_SAFE_INTEGER + 1 }],
-    ["negative time", { simulationTimeSec: -0.001 }],
-    ["NaN time", { simulationTimeSec: Number.NaN }],
-    ["infinite time", { simulationTimeSec: Number.POSITIVE_INFINITY }],
-    ["negative phase", { phase01: -0.001 }],
-    ["phase at upper bound", { phase01: 1 }],
-    ["NaN phase", { phase01: Number.NaN }],
-    ["infinite phase", { phase01: Number.POSITIVE_INFINITY }],
+    ["negative acceptedRevision", { acceptedRevision: -1 }],
+    ["fractional acceptedRevision", { acceptedRevision: 1.5 }],
+    ["unsafe acceptedRevision", { acceptedRevision: Number.MAX_SAFE_INTEGER + 1 }],
+    ["negative presentation ordinal", { presentationOrdinal: -1 }],
+    ["negative declared span", { acceptedStepSpanFromPrevious: -1 }],
+    ["negative time", { acceptedTimeSec: -0.001 }],
+    ["NaN time", { acceptedTimeSec: Number.NaN }],
+    ["infinite time", { acceptedTimeSec: Number.POSITIVE_INFINITY }],
+    ["negative phase", { phase: -0.001 }],
+    ["phase at upper bound", { phase: 1 }],
+    ["NaN phase", { phase: Number.NaN }],
+    ["infinite phase", { phase: Number.POSITIVE_INFINITY }],
+    ["wrong coverage", { coverage: "exact-signal-replay-v1" }],
+    ["unknown retention reason", { retentionReason: "because" }],
   ])("rejects an invalid %s", (_label, overrides) => {
     expect(() =>
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point: validPointV1(overrides),
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample: validSampleV1(overrides),
         releaseRef: RELEASE_REF_V1,
       })
     ).toThrow(ScientificProductStudioObservableFrameProjectionErrorV1);
@@ -154,22 +165,22 @@ describe("Scientific Product Studio observable frame projection V1", () => {
     "12",
     null,
   ])("rejects a non-finite numeric observable value %j", (invalidValue) => {
-    const point = validPointV1({
+    const sample = validSampleV1({
       values: {
         "hemodynamics.volume.LV": invalidValue,
       },
     });
 
     expect(() =>
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point,
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample,
         releaseRef: RELEASE_REF_V1,
       })
     ).toThrow(/hemodynamics\.volume\.LV must be finite/);
   });
 
   it("rejects unknown observables", () => {
-    const point = validPointV1({
+    const sample = validSampleV1({
       values: {
         "hemodynamics.volume.LV": 123,
         "unknown.observable": 1,
@@ -177,23 +188,23 @@ describe("Scientific Product Studio observable frame projection V1", () => {
     });
 
     expect(() =>
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point,
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample,
         releaseRef: RELEASE_REF_V1,
       })
     ).toThrow(/unknown observable unknown\.observable/);
   });
 
   it("rejects values for catalog entries declared not-modeled", () => {
-    const point = validPointV1({
+    const sample = validSampleV1({
       values: {
         "coronary.flow.total": 0,
       },
     });
 
     expect(() =>
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point,
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample,
         releaseRef: RELEASE_REF_V1,
       })
     ).toThrow(/coronary\.flow\.total is cataloged as not-modeled/);
@@ -201,15 +212,15 @@ describe("Scientific Product Studio observable frame projection V1", () => {
 
   it("rejects malformed values containers and release references", () => {
     expect(() =>
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point: validPointV1({ values: [] }),
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample: validSampleV1({ values: [] }),
         releaseRef: RELEASE_REF_V1,
       })
     ).toThrow(/values must be an object/);
 
     expect(() =>
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point: validPointV1(),
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample: validSampleV1(),
         releaseRef: {
           ...RELEASE_REF_V1,
           sha256: "not-a-digest",
@@ -226,16 +237,16 @@ describe("Scientific Product Studio observable frame projection V1", () => {
     // validated ref turning into a different valid ref.
     const mutable: Record<string, unknown> = { ...RELEASE_REF_V1 };
     expect(
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point: validPointV1(),
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample: validSampleV1(),
         releaseRef: mutable as unknown as typeof RELEASE_REF_V1,
       }).releaseRef,
     ).toMatchObject({ sha256: RELEASE_REF_V1.sha256 });
 
     mutable["sha256"] = "not-a-digest";
     expect(() =>
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point: validPointV1(),
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample: validSampleV1(),
         releaseRef: mutable as unknown as typeof RELEASE_REF_V1,
       })
     ).toThrow(/simulation release reference is invalid/);
@@ -243,8 +254,8 @@ describe("Scientific Product Studio observable frame projection V1", () => {
     const otherSha256 = "b".repeat(64);
     mutable["sha256"] = otherSha256;
     expect(
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point: validPointV1(),
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample: validSampleV1(),
         releaseRef: mutable as unknown as typeof RELEASE_REF_V1,
       }).releaseRef,
     ).toMatchObject({ sha256: otherSha256 });
@@ -253,27 +264,31 @@ describe("Scientific Product Studio observable frame projection V1", () => {
   it("reuses the validated result for a frozen release ref identity", () => {
     const frozen = Object.freeze({ ...RELEASE_REF_V1 });
     const first =
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point: validPointV1(),
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample: validSampleV1(),
         releaseRef: frozen,
       }).releaseRef;
     const second =
-      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-        point: validPointV1(),
+      projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+        sample: validSampleV1(),
         releaseRef: frozen,
       }).releaseRef;
     expect(second).toBe(first);
   });
 });
 
-function validPointV1(
+function validSampleV1(
   overrides: Readonly<Record<string, unknown>> = {},
-): RuntimeObservablePointV1 {
+): RuntimePresentationSampleV1 {
   return {
-    sequence: 7,
-    simulationTimeSec: 1.25,
-    phase01: 0.25,
+    coverage: "decimated-presentation",
+    presentationOrdinal: 7,
+    acceptedRevision: 7,
+    acceptedTimeSec: 1.25,
+    acceptedStepSpanFromPrevious: 1,
+    phase: 0.25,
     values: {},
+    retentionReason: "observation-stride",
     ...overrides,
-  } as unknown as RuntimeObservablePointV1;
+  } as unknown as RuntimePresentationSampleV1;
 }

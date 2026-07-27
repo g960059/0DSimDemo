@@ -22,9 +22,11 @@ import {
 } from "@/engine/scientific/runtime";
 import {
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
+  RUNTIME_PRESENTATION_COVERAGE_V1,
+  runtimePresentationCanonicalPhaseV1,
   type ArtifactStorePortV1,
   type RuntimeExecutionIdentityV1,
-  type RuntimePresentationFrameV1,
+  type RuntimePresentationSnapshotV1,
   type SimulationInputRefV1,
   type SnapshotEnvelopeRefV1,
   type StudioJsonValueV1,
@@ -198,9 +200,9 @@ export function mainWireStudioExecutionIdentityV1(
   });
 }
 
-export function mainWireStudioSeedPresentationFrameV1(
+export function mainWireStudioSeedPresentationSnapshotV1(
   envelope: MainWireStudioSnapshotEnvelopeContentV1,
-): RuntimePresentationFrameV1 {
+): RuntimePresentationSnapshotV1 {
   const frame = envelope.seedObservableFrame;
   const values: Record<string, number> = {};
   for (const [observableId, observable] of Object.entries(frame.values)) {
@@ -211,16 +213,21 @@ export function mainWireStudioSeedPresentationFrameV1(
     ) values[observableId] = observable.value;
   }
   return Object.freeze({
-    point: Object.freeze({
-      sequence: frame.revision,
-      simulationTimeSec: frame.acceptedTimeSec,
-      phase01: envelope.checkpointV4.canonicalPhase.phase01,
+    sample: Object.freeze({
+      coverage: RUNTIME_PRESENTATION_COVERAGE_V1,
+      presentationOrdinal: 0,
+      acceptedRevision: frame.revision,
+      acceptedTimeSec: frame.acceptedTimeSec,
+      acceptedStepSpanFromPrevious: 0,
+      phase: runtimePresentationCanonicalPhaseV1(frame.revision),
       values: Object.freeze(values),
+      retentionReason: "stream-boundary" as const,
     }),
-    windowMetrics: Object.freeze({
+    metricState: Object.freeze({
       status: "collecting" as const,
-      collectedPointCount: 1,
-      completedCycleCount: 0 as const,
+      retainedSampleCount: 1,
+      completedBeatCount: 0 as const,
+      latestBeatEstimate: null,
     }),
   });
 }

@@ -8,6 +8,12 @@ import {
   scientificWorkbenchMetricPresentationV1,
 } from "@/components/scientificProduct/ScientificWorkbenchMetricPresentationV1";
 import {
+  metricEvaluationForPresentationV1,
+} from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
+import type {
+  ScientificProductScenarioPresentationV1,
+} from "@/components/scientificProduct/ScientificProductScenarioRegistryV1";
+import {
   MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1,
 } from "@/engine/scientific/metrics";
 
@@ -106,5 +112,57 @@ describe("scientific Workbench metric presentation V1", () => {
         `valve.${valveId}.regurgitant_fraction`,
       ]),
     ));
+  });
+
+  it("presents branch-accumulated live values as estimates", () => {
+    const presentation = {
+      presentationBeatEstimate: {
+        coverage: "decimated-presentation",
+        startPresentationOrdinal: 0,
+        endPresentationOrdinal: 500,
+        startAcceptedRevision: 10,
+        endAcceptedRevision: 510,
+        startAcceptedTimeSec: 2,
+        endAcceptedTimeSec: 3,
+        durationSec: 1,
+        retainedSampleCount: 501,
+        values: {
+          "hemodynamics.pressure.mean.Ao": {
+            metricId: "hemodynamics.pressure.mean.Ao",
+            value: 91.25,
+            availability: "available",
+            unavailableReason: null,
+            unavailableDependency: null,
+          },
+        },
+        evidence: {
+          bothCanonicalBeatBoundariesRetained: true,
+          transientBeatFullyMeasured: false,
+          revisionsContiguous: false,
+          cadenceUniform: false,
+          exportEquivalent: false,
+        },
+      },
+      metricCycle: null,
+    } as unknown as ScientificProductScenarioPresentationV1;
+
+    const evaluation = metricEvaluationForPresentationV1(presentation);
+
+    expect(evaluation).toMatchObject({
+      registryId: "main-wire-presentation-estimator-registry-v1",
+      inputCycleContractId: "main-wire-presentation-beat-estimate-v1",
+      cycleAvailability: "estimate",
+      cycleInterpretation: "presentation-beat-estimate",
+      releaseRef: null,
+      firstRevision: 10,
+      finalRevision: 510,
+      values: {
+        "hemodynamics.pressure.mean.Ao": {
+          value: 91.25,
+          availability: "available",
+          periodicBoundaryCompletionApplied: false,
+        },
+      },
+    });
   });
 });

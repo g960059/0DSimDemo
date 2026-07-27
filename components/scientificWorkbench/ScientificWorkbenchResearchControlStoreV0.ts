@@ -10,6 +10,9 @@ import type {
 import type {
   ScientificResearchControlContextV0,
 } from "@/engine/scientific/worker";
+import type {
+  RuntimePresentationBeatEstimateV1,
+} from "@/studio/contracts/v1";
 
 export type ScientificWorkbenchResearchTransitionModeV0 = "steady" | "live";
 
@@ -64,6 +67,7 @@ export type ScientificWorkbenchParameterGenerationFramesV0 = Readonly<{
   parameterEpoch: number;
   controlStateSha256: string;
   frames: readonly MainWireScientificObservableFrameV1[];
+  presentationBeatEstimate?: RuntimePresentationBeatEstimateV1 | null;
   liveTransitionOriginAcceptedTimeSec: number | null;
   displayedEvidence: ScientificWorkbenchDisplayedEvidenceV0;
 }>;
@@ -111,6 +115,7 @@ export type ScientificWorkbenchResearchControlSnapshotV0 = Readonly<{
   source: ScientificWorkbenchResearchControlSourceV0;
   candidate: ScientificWorkbenchResearchControlCandidateV0 | null;
   frames: readonly MainWireScientificObservableFrameV1[];
+  presentationBeatEstimate?: RuntimePresentationBeatEstimateV1 | null;
   parameterGenerationHistory?:
     readonly ScientificWorkbenchParameterGenerationFramesV0[];
   targetControlStateSha256: string | null;

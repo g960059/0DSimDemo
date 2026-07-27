@@ -25,6 +25,7 @@ import {
 } from "@/studio/application/runtime/SimulationSessionCoordinatorV1";
 import type {
   RuntimeLivePacingStateV1,
+  RuntimePresentationBeatEstimateV1,
   RuntimePresentationEventV1,
   RuntimeSteadyCandidateV1,
   ScenarioRuntimeBranchStateV1,
@@ -36,7 +37,7 @@ import {
 } from "@/studio/contracts/v1";
 
 import {
-  projectRuntimeObservablePointToMainWireScientificObservableFrameV1,
+  projectRuntimePresentationSampleToMainWireScientificObservableFrameV1,
 } from "./ScientificProductStudioObservableFrameProjectionV1";
 import type {
   ScientificProductStudioBootstrapResultV1,
@@ -101,6 +102,8 @@ export class ScientificProductStudioScenarioControllerV1 {
     MainWireScientificResearchControlTargetStateV0
   >();
   private frames: readonly MainWireScientificObservableFrameV1[];
+  private presentationBeatEstimate: RuntimePresentationBeatEstimateV1 | null =
+    null;
   private displayKind: "settled" | "transient" = "settled";
   private liveTransitionOriginAcceptedTimeSec: number | null = null;
   private operationTail: Promise<void> = Promise.resolve();
@@ -129,9 +132,9 @@ export class ScientificProductStudioScenarioControllerV1 {
     this.coordinator = coordinator;
     this.scenarioId = bootstrap.branch.scenarioId;
     // Validate and freeze the scenario's release ref once here rather than
-    // leaving a bootstrap-owned object to be revalidated per projected point.
+    // leaving a bootstrap-owned object to be revalidated per projected sample.
     // The projection only caches frozen identities, so this is also what keeps
-    // the live path off the canonicalise/reparse/freeze cost 500 times a second.
+    // that invariant work out of the retained-sample append path.
     this.releaseRef = loadSimulationReleaseRefV1(
       bootstrap.source.seedFrame.releaseRef,
     );
@@ -201,12 +204,15 @@ export class ScientificProductStudioScenarioControllerV1 {
       this.ownerToken,
       this.ownerActionRef,
     );
-    this.unsubscribeCoordinator = this.coordinator.subscribe(
+    this.unsubscribeCoordinator = this.coordinator.subscribeBranch(
+      this.scenarioId,
       this.onCoordinatorStateV1,
     );
-    this.unsubscribePresentation = this.coordinator.subscribePresentation(
-      this.onPresentationEventV1,
-    );
+    this.unsubscribePresentation =
+      this.coordinator.subscribeScenarioPresentation(
+        this.scenarioId,
+        this.onPresentationEventV1,
+      );
     this.publishV1();
   }
 
@@ -251,6 +257,8 @@ export class ScientificProductStudioScenarioControllerV1 {
 
   get status(): ScientificProductStudioScenarioStatusV1 {
     const branch = this.branchV1();
+    const presentation =
+      this.coordinator.getScenarioPresentationSnapshot(this.scenarioId);
     const candidate = branch?.latestSteadyCandidate ?? null;
     const strictPhase = branch?.lastRuntimeFailure?.lane === "strict"
       ? "failed" as const
@@ -266,7 +274,9 @@ export class ScientificProductStudioScenarioControllerV1 {
       targetGeneration: branch?.targetGeneration ?? 0,
       presentationRevision: branch?.presentationRevision ?? 0,
       livePlayback: this.acknowledgedLivePlayback,
-      livePacing: branch?.livePacing ?? INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
+      livePacing: presentation?.livePacing
+        ?? branch?.livePacing
+        ?? INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
       strictPhase,
       strictCandidateAvailable: candidate !== null,
       strictCandidatePinned:
@@ -466,8 +476,8 @@ export class ScientificProductStudioScenarioControllerV1 {
       let frame: MainWireScientificObservableFrameV1;
       try {
         frame =
-          projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-            point: event.frame.point,
+          projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+            sample: event.presentation.sample,
             releaseRef: this.releaseRef,
           });
       } catch (error) {
@@ -478,6 +488,7 @@ export class ScientificProductStudioScenarioControllerV1 {
         this.retainDisplayedParameterGenerationV1();
       }
       this.frames = Object.freeze([frame]);
+      this.presentationBeatEstimate = null;
       this.displayKind = event.origin.kind === "live-transition"
         ? "transient"
         : "settled";
@@ -496,9 +507,9 @@ export class ScientificProductStudioScenarioControllerV1 {
     if (this.presentationFailure !== null) return;
     let appended: readonly MainWireScientificObservableFrameV1[];
     try {
-      appended = event.points.map((point) =>
-        projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-          point,
+      appended = event.samples.map((sample) =>
+        projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+          sample,
           releaseRef: this.releaseRef,
         }));
     } catch (error) {
@@ -513,6 +524,8 @@ export class ScientificProductStudioScenarioControllerV1 {
         ?? null;
     }
     this.frames = boundedFramesV1([...this.frames, ...appended]);
+    this.presentationBeatEstimate =
+      event.metricState.latestBeatEstimate;
     this.scheduleFramePublishV1();
   };
 
@@ -533,6 +546,7 @@ export class ScientificProductStudioScenarioControllerV1 {
         controlStateSha256:
           this.displayedTargetState.targetStateSha256,
         frames: Object.freeze([...this.frames]),
+        presentationBeatEstimate: this.presentationBeatEstimate,
         liveTransitionOriginAcceptedTimeSec:
           this.liveTransitionOriginAcceptedTimeSec,
         displayedEvidence: this.displayKind === "settled"
@@ -750,10 +764,6 @@ export class ScientificProductStudioScenarioControllerV1 {
       branch.presentationRevision,
       branch.streamEpoch,
       branch.livePlayback,
-      // Only the durable pacing facts belong in the change signature; the
-      // volatile lag and rate reach consumers with each sample append.
-      branch.livePacing.mode,
-      branch.livePacing.cumulativeRebasedDeficitMs,
       branch.display.origin,
       branch.latestSteadyCandidate?.candidateId ?? null,
       branch.lastRuntimeFailure?.lane ?? null,
@@ -817,6 +827,7 @@ export class ScientificProductStudioScenarioControllerV1 {
         source: this.source,
         candidate: null,
         frames: this.frames,
+        presentationBeatEstimate: this.presentationBeatEstimate,
         parameterGenerationHistory: this.parameterGenerationHistory,
         targetControlStateSha256:
           this.desiredTargetState.targetStateSha256,

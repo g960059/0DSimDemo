@@ -15,8 +15,12 @@ import {
   type MainWireScientificCompleteTransientBeatV1,
   type MainWireScientificDerivedMetricEvaluationV1,
   type MainWireScientificDerivedMetricIdV1,
+  type MainWireScientificDerivedMetricValueV1,
   type MainWireScientificValidatedTerminalCycleV1,
 } from "@/engine/scientific/metrics";
+import type {
+  RuntimePresentationBeatEstimateV1,
+} from "@/studio/contracts/v1";
 import type { MainWireScientificWorkspacePressureVolumeTrajectoryV1 } from "@/engine/scientific/documents";
 import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1,
@@ -120,6 +124,33 @@ const METRIC_EVALUATION_BY_CYCLE_V1 = new WeakMap<
   object,
   MainWireScientificDerivedMetricEvaluationV1
 >();
+const METRIC_EVALUATION_BY_PRESENTATION_ESTIMATE_V1 = new WeakMap<
+  object,
+  ScientificProductPresentationMetricEvaluationV1
+>();
+
+export type ScientificProductPresentationMetricEvaluationV1 = Readonly<{
+  registryId: "main-wire-presentation-estimator-registry-v1";
+  schemaVersion: 1;
+  inputCycleContractId: "main-wire-presentation-beat-estimate-v1";
+  cycleAvailability: "estimate";
+  cycleInterpretation: "presentation-beat-estimate";
+  cycleUnavailableReason: null;
+  releaseRef: null;
+  firstRevision: number;
+  finalRevision: number;
+  firstAcceptedTimeSec: number;
+  finalAcceptedTimeSec: number;
+  durationSec: number;
+  values: Readonly<Record<
+    MainWireScientificDerivedMetricIdV1,
+    MainWireScientificDerivedMetricValueV1
+  >>;
+}>;
+
+export type ScientificProductMetricEvaluationV1 =
+  | MainWireScientificDerivedMetricEvaluationV1
+  | ScientificProductPresentationMetricEvaluationV1;
 
 const WAVEFORM_ALIASES: Readonly<
   Record<string, MainWireScientificObservableIdV1>
@@ -503,7 +534,10 @@ function ScientificGraphPanelV1({
   clock: ScientificWorkbenchDisplayClockV1;
   renderContext: WorkbenchRuntimeRenderContext;
 }>) {
-  const presentations = useScientificScenarioPresentationsV1(registry);
+  const presentations = useScientificScenarioPresentationsV1(
+    registry,
+    visibleScenarioIdsForPanelV1(panel),
+  );
   const effective = presentations.filter(
     (presentation) =>
       presentation.descriptor.isVisible &&
@@ -888,7 +922,10 @@ function ScientificHemodynamicProtocolPanelV1({
   registry: ScientificProductRuntimeRegistryPortV1;
   renderContext: WorkbenchRuntimeRenderContext;
 }>) {
-  const presentations = useScientificScenarioPresentationsV1(registry);
+  const presentations = useScientificScenarioPresentationsV1(
+    registry,
+    visibleScenarioIdsForPanelV1(panel),
+  );
   const eligible = presentations.filter(
     ({ descriptor }) =>
       descriptor.isVisible && panel.config[descriptor.id]?.visible === true,
@@ -2296,7 +2333,10 @@ function ScientificMetricsPanelV1({
   selections: Readonly<Record<string, readonly string[]>>;
 }>) {
   const pick = useStudioBriefingPickV1();
-  const presentations = useScientificScenarioPresentationsV1(registry).filter(
+  const presentations = useScientificScenarioPresentationsV1(
+    registry,
+    Object.keys(selections),
+  ).filter(
     ({ descriptor }) => descriptor.isVisible && selections[descriptor.id],
   );
   const requestedCount = Object.values(selections).flat().length;
@@ -2353,6 +2393,12 @@ function ScientificMetricsPanelV1({
                   "provisional-complete-transient-beat" && (
                   <p className="truncate text-[10px] leading-4 text-wb-subtle">
                     Live · provisional complete beat
+                  </p>
+                )}
+                {presentation.metricEvidence ===
+                  "presentation-beat-estimate" && (
+                  <p className="truncate text-[10px] leading-4 text-wb-subtle">
+                    Live · beat estimate
                   </p>
                 )}
                 {evaluation.cycleAvailability === "unavailable" && (
@@ -2451,7 +2497,19 @@ function ScientificMetricsPanelV1({
 
 export function metricEvaluationForPresentationV1(
   presentation: ScientificProductScenarioPresentationV1,
-): MainWireScientificDerivedMetricEvaluationV1 {
+): ScientificProductMetricEvaluationV1 {
+  const estimate = presentation.presentationBeatEstimate;
+  if (estimate !== null) {
+    const cached =
+      METRIC_EVALUATION_BY_PRESENTATION_ESTIMATE_V1.get(estimate as object);
+    if (cached !== undefined) return cached;
+    const evaluation = presentationMetricEvaluationFromEstimateV1(estimate);
+    METRIC_EVALUATION_BY_PRESENTATION_ESTIMATE_V1.set(
+      estimate as object,
+      evaluation,
+    );
+    return evaluation;
+  }
   const cycle = presentation.metricCycle;
   if (cycle === null) return deriveMainWireScientificMetricsV1(null);
   const cached = METRIC_EVALUATION_BY_CYCLE_V1.get(cycle as object);
@@ -2466,6 +2524,58 @@ export function metricEvaluationForPresentationV1(
         );
   METRIC_EVALUATION_BY_CYCLE_V1.set(cycle as object, evaluation);
   return evaluation;
+}
+
+function presentationMetricEvaluationFromEstimateV1(
+  estimate: RuntimePresentationBeatEstimateV1,
+): ScientificProductPresentationMetricEvaluationV1 {
+  const values = Object.fromEntries(
+    MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1.map(({ metricId }) => {
+      const metric = estimate.values[metricId];
+      if (metric === undefined) {
+        return [metricId, Object.freeze({
+          metricId,
+          value: null,
+          availability: "not-evaluated-at-accepted-state" as const,
+          quality: "not-assessed" as const,
+          unavailableReason: "dependency-unavailable" as const,
+          unavailableDependency: null,
+          periodicBoundaryCompletionApplied: false,
+        })];
+      }
+      return [metricId, Object.freeze({
+        metricId,
+        value: metric.value,
+        availability: metric.availability,
+        quality: metric.availability === "available"
+          ? "accepted-derived" as const
+          : "not-assessed" as const,
+        unavailableReason: metric.unavailableReason,
+        unavailableDependency:
+          metric.unavailableDependency as MainWireScientificObservableIdV1
+            | null,
+        periodicBoundaryCompletionApplied: false,
+      })];
+    }),
+  ) as Record<
+    MainWireScientificDerivedMetricIdV1,
+    MainWireScientificDerivedMetricValueV1
+  >;
+  return Object.freeze({
+    registryId: "main-wire-presentation-estimator-registry-v1",
+    schemaVersion: 1,
+    inputCycleContractId: "main-wire-presentation-beat-estimate-v1",
+    cycleAvailability: "estimate",
+    cycleInterpretation: "presentation-beat-estimate",
+    cycleUnavailableReason: null,
+    releaseRef: null,
+    firstRevision: estimate.startAcceptedRevision,
+    finalRevision: estimate.endAcceptedRevision,
+    firstAcceptedTimeSec: estimate.startAcceptedTimeSec,
+    finalAcceptedTimeSec: estimate.endAcceptedTimeSec,
+    durationSec: estimate.durationSec,
+    values: Object.freeze(values),
+  });
 }
 
 function ScientificControllerPanelV1({
@@ -2853,21 +2963,90 @@ export function ScientificProductTransitionBehaviorSettingsV1({
 
 function useScientificScenarioPresentationsV1(
   registry: ScientificProductRuntimeRegistryPortV1,
+  requestedScenarioIds?: readonly string[],
 ): readonly ScientificProductScenarioPresentationV1[] {
   const descriptors = React.useSyncExternalStore(
     registry.subscribeDescriptors,
     registry.getDescriptorSnapshot,
     registry.getDescriptorSnapshot,
   );
-  React.useSyncExternalStore(
-    registry.subscribeFrames,
-    registry.getFrameVersionSnapshot,
-    registry.getFrameVersionSnapshot,
+  const requestedKey = requestedScenarioIds === undefined
+    ? null
+    : JSON.stringify([...new Set(requestedScenarioIds)].sort());
+  const scenarioIds = React.useMemo(() => {
+    const requested = requestedKey === null
+      ? null
+      : new Set<string>(JSON.parse(requestedKey));
+    return descriptors
+      .map(({ id }) => id)
+      .filter((id) => requested === null || requested.has(id));
+  }, [descriptors, requestedKey]);
+  const store = React.useMemo(() => {
+    let previousValues:
+      readonly (ScientificProductScenarioPresentationV1 | null)[] | null =
+        null;
+    let previousSnapshot:
+      readonly ScientificProductScenarioPresentationV1[] =
+        Object.freeze([]);
+    const getSnapshot = () => {
+      const values = scenarioIds.map((scenarioId) =>
+        registry.getScenarioPresentationSnapshot(scenarioId));
+      if (
+        previousValues !== null
+        && values.length === previousValues.length
+        && values.every((value, index) => value === previousValues![index])
+      ) return previousSnapshot;
+      previousValues = Object.freeze(values);
+      previousSnapshot = Object.freeze(values.flatMap((value) =>
+        value === null ? [] : [value]
+      ));
+      return previousSnapshot;
+    };
+    return Object.freeze({
+      subscribe(listener: () => void): () => void {
+        const unsubscribers = scenarioIds.map((scenarioId) =>
+          registry.subscribeScenarioPresentation(scenarioId, listener));
+        return () => {
+          for (const unsubscribe of unsubscribers) unsubscribe();
+        };
+      },
+      getSnapshot,
+    });
+  }, [registry, scenarioIds]);
+  return React.useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot,
   );
-  return descriptors.flatMap((descriptor) => {
-    const presentation = registry.getPresentation(descriptor.id);
-    return presentation === null ? [] : [presentation];
-  });
+}
+
+export function useScientificScenarioPresentationV1(
+  registry: ScientificProductRuntimeRegistryPortV1,
+  scenarioId: string | undefined,
+): ScientificProductScenarioPresentationV1 | null {
+  const subscribe = React.useCallback(
+    (listener: () => void) => scenarioId === undefined
+      ? EMPTY_SUBSCRIBE(listener)
+      : registry.subscribeScenarioPresentation(scenarioId, listener),
+    [registry, scenarioId],
+  );
+  const getSnapshot = React.useCallback(
+    () => scenarioId === undefined
+      ? null
+      : registry.getScenarioPresentationSnapshot(scenarioId),
+    [registry, scenarioId],
+  );
+  return React.useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getSnapshot,
+  );
+}
+
+function visibleScenarioIdsForPanelV1(panel: PanelDef): readonly string[] {
+  return Object.entries(panel.config).flatMap(([scenarioId, config]) =>
+    config.visible === true ? [scenarioId] : []
+  );
 }
 
 function waveformSeriesForScenarioV1(

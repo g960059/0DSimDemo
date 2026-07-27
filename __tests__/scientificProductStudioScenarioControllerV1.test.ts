@@ -7,7 +7,7 @@ import type {
   ScientificProductStudioBootstrapResultV1,
 } from "@/components/scientificProduct/ScientificProductStudioBootstrapV1";
 import {
-  projectRuntimeObservablePointToMainWireScientificObservableFrameV1,
+  projectRuntimePresentationSampleToMainWireScientificObservableFrameV1,
 } from "@/components/scientificProduct/ScientificProductStudioObservableFrameProjectionV1";
 import {
   createMainWireScientificResearchControlBaselineTargetStateV0,
@@ -24,10 +24,10 @@ import type {
   RuntimeCandidatePromotedV1,
   RuntimeExecutionIdentityV1,
   RuntimeLiveIntentResultV1,
-  RuntimePresentationFrameV1,
+  RuntimePresentationSnapshotV1,
   RuntimeSessionOpenedV1,
-  RuntimeSignalChannelRefV1,
-  RuntimeSignalEventV1,
+  RuntimePresentationSignalChannelRefV1,
+  RuntimePresentationSignalEventV1,
   RuntimeStrictIntentResultV1,
   RuntimeTargetIntentCommandV1,
   RuntimeTargetIntentExecutionV1,
@@ -420,6 +420,10 @@ describe("Scientific Product Studio scenario controller V1", () => {
       lane: "live",
       message: expect.stringContaining("live worker died"),
     });
+    expect(controller.controlStore.getSnapshot()).toMatchObject({
+      phase: "failed",
+      errorMessage: expect.stringContaining("live worker died"),
+    });
 
     await controller.dispose();
   });
@@ -670,10 +674,10 @@ async function controllerOpeningFixtureV1(initialParameterEpoch: number) {
   ]);
   const targetState =
     await createMainWireScientificResearchControlBaselineTargetStateV0();
-  const point = runtimeFrameV1(100).point;
+  const sample = runtimePresentationV1(100).sample;
   const seedFrame =
-    projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-      point,
+    projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+      sample,
       releaseRef: targetState.releaseRef,
     });
   const bootstrap = Object.freeze({
@@ -740,9 +744,9 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
   private nextSuspendGate: DeferredV1<void> | null = null;
   private nextResumeError: Error | null = null;
   private nextResumeGate: DeferredV1<void> | null = null;
-  private signalChannel: RuntimeSignalChannelRefV1 | null = null;
+  private signalChannel: RuntimePresentationSignalChannelRefV1 | null = null;
   private signalObserver:
-    ((event: RuntimeSignalEventV1) => void) | null = null;
+    ((event: RuntimePresentationSignalEventV1) => void) | null = null;
 
   async openSession(
     command: OpenSimulationSessionCommandV1,
@@ -764,10 +768,10 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
       branches: command.branches.map((branch) => ({
         ...branch,
         liveBranchId: `branch/${branch.scenarioId}`,
-        signalChannelRef: signalChannelV1(command.sessionId, branch.scenarioId),
+        presentationSignalChannelRef: signalChannelV1(command.sessionId, branch.scenarioId),
         streamEpoch: 0,
         execution: EXECUTION_V1,
-        initialFrame: runtimeFrameV1(100),
+      initialPresentation: runtimePresentationV1(100),
       })),
     };
   }
@@ -793,13 +797,14 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
       presentationRevision: command.presentationRevision,
       candidateId: command.candidate.candidateId,
       streamEpoch: command.presentationRevision,
-      initialFrame: runtimeFrameV1(1_000 + command.targetGeneration),
+      initialPresentation:
+        runtimePresentationV1(1_000 + command.targetGeneration),
     };
   }
 
-  subscribeSignalChannel(
-    channel: RuntimeSignalChannelRefV1,
-    observer: (event: RuntimeSignalEventV1) => void,
+  subscribePresentationSignalChannel(
+    channel: RuntimePresentationSignalChannelRefV1,
+    observer: (event: RuntimePresentationSignalEventV1) => void,
   ) {
     this.signalChannel = channel;
     this.signalObserver = observer;
@@ -813,8 +818,8 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
     });
   }
 
-  async suspendSignalChannel(
-    channel: RuntimeSignalChannelRefV1,
+  async suspendPresentationSignalChannel(
+    channel: RuntimePresentationSignalChannelRefV1,
   ): Promise<void> {
     this.signalLifecycle.push(`suspend:start:${channel.scenarioId}`);
     const gate = this.nextSuspendGate;
@@ -823,8 +828,8 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
     this.signalLifecycle.push(`suspend:complete:${channel.scenarioId}`);
   }
 
-  async resumeSignalChannel(
-    channel: RuntimeSignalChannelRefV1,
+  async resumePresentationSignalChannel(
+    channel: RuntimePresentationSignalChannelRefV1,
     expectedStreamEpoch: number,
   ): Promise<void> {
     this.signalLifecycle.push(
@@ -895,7 +900,11 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
     presentationRevision = 0,
   ): void {
     this.emitSignalPointV1(
-      runtimeFrameV1(sequence).point,
+      runtimePresentationV1(
+        sequence,
+        collectedPointCount - 1,
+        collectedPointCount === 1 ? 0 : 1,
+      ).sample,
       collectedPointCount,
       targetGeneration,
       presentationRevision,
@@ -906,9 +915,13 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
     sequence: number,
     collectedPointCount: number,
   ): void {
-    const point = runtimeFrameV1(sequence).point;
+    const sample = runtimePresentationV1(
+      sequence,
+      collectedPointCount - 1,
+      collectedPointCount === 1 ? 0 : 1,
+    ).sample;
     this.emitSignalPointV1(Object.freeze({
-      ...point,
+      ...sample,
       values: Object.freeze({
         "unknown.presentation.value": 1,
       }),
@@ -916,7 +929,7 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
   }
 
   private emitSignalPointV1(
-    point: RuntimePresentationFrameV1["point"],
+    sample: RuntimePresentationSnapshotV1["sample"],
     collectedPointCount: number,
     targetGeneration: number,
     presentationRevision: number,
@@ -935,11 +948,12 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
       targetGeneration,
       presentationRevision,
       streamEpoch: presentationRevision,
-      points: Object.freeze([point]),
-      windowMetrics: Object.freeze({
+      samples: Object.freeze([sample]),
+      metricState: Object.freeze({
         status: "collecting" as const,
-        collectedPointCount,
-        completedCycleCount: 0 as const,
+        retainedSampleCount: collectedPointCount,
+        completedBeatCount: 0 as const,
+        latestBeatEstimate: null,
       }),
       livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
     }));
@@ -960,7 +974,8 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
           presentationRevision: target.presentationRevision,
           targetInputSha256: target.patch.targetInputSha256,
           streamEpoch: target.presentationRevision,
-          frame: runtimeFrameV1(200 + target.targetGeneration),
+          initialPresentation:
+            runtimePresentationV1(200 + target.targetGeneration),
         },
       })),
     });
@@ -1022,7 +1037,7 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
 function signalChannelV1(
   sessionId: string,
   scenarioId: string,
-): RuntimeSignalChannelRefV1 {
+): RuntimePresentationSignalChannelRefV1 {
   return Object.freeze({
     protocolId: "circleheart-studio-runtime-signal-channel-v1",
     channelId: `channel/${scenarioId}`,
@@ -1032,20 +1047,34 @@ function signalChannelV1(
   });
 }
 
-function runtimeFrameV1(sequence: number): RuntimePresentationFrameV1 {
+function runtimePresentationV1(
+  acceptedRevision: number,
+  presentationOrdinal = 0,
+  acceptedStepSpanFromPrevious = 0,
+): RuntimePresentationSnapshotV1 {
+  const phase = (acceptedRevision % 500) / 500;
   return Object.freeze({
-    point: Object.freeze({
-      sequence,
-      simulationTimeSec: sequence * 0.01,
-      phase01: (sequence % 100) / 100,
+    sample: Object.freeze({
+      coverage: "decimated-presentation" as const,
+      presentationOrdinal,
+      acceptedRevision,
+      acceptedTimeSec: acceptedRevision * 0.002,
+      acceptedStepSpanFromPrevious,
+      phase,
       values: Object.freeze({
-        "hemodynamics.volume.LV": 120 + sequence,
+        "hemodynamics.volume.LV": 120 + acceptedRevision,
       }),
+      retentionReason: presentationOrdinal === 0
+        ? "stream-boundary" as const
+        : phase === 0
+          ? "canonical-beat-boundary" as const
+          : "observation-stride" as const,
     }),
-    windowMetrics: Object.freeze({
+    metricState: Object.freeze({
       status: "collecting" as const,
-      collectedPointCount: 1,
-      completedCycleCount: 0 as const,
+      retainedSampleCount: 1,
+      completedBeatCount: 0 as const,
+      latestBeatEstimate: null,
     }),
   });
 }

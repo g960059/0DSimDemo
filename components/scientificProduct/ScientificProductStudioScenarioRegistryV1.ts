@@ -10,18 +10,8 @@ import type {
   ScientificWorkbenchResearchControlStoreV0,
 } from "@/components/scientificWorkbench/ScientificWorkbenchResearchControlStoreV0";
 import type {
-  MainWireScientificCompleteTransientBeatV1,
-  MainWireScientificMetricCycleV1,
-} from "@/engine/scientific/metrics";
-import type {
-  MainWireScientificObservableFrameV1,
-} from "@/engine/scientific/observables";
-import type {
   MainWireScientificHemodynamicJobSnapshotV2,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
-import {
-  sameSimulationReleaseRef,
-} from "@/engine/scientific/release";
 import {
   InMemoryContentAddressedArtifactStoreV1,
 } from "@/studio/infrastructure/artifacts/InMemoryContentAddressedArtifactStoreV1";
@@ -119,11 +109,9 @@ type ScenarioEntryV1 = {
 /**
  * Memoised `getPresentation` result for one scenario.
  *
- * Building a presentation revalidates the latest beat for the scenario and for
- * every retained parameter generation, walking 501 frames each time. The
- * registry publishes one global frame version, so every subscribed pane asks
- * every scenario for its presentation on every notification — work that grows
- * with panes times scenarios squared while depending on none of that.
+ * Building a presentation joins immutable controller state and the latest
+ * branch-accumulated beat estimate. It does not derive metrics from retained
+ * render frames.
  *
  * The fields below are the complete set the result derives from, and each is
  * replaced rather than mutated, so identical identities mean an identical
@@ -225,6 +213,8 @@ implements ScientificProductRuntimeRegistryPortV1 {
   private readonly entries = new Map<string, ScenarioEntryV1>();
   private readonly descriptorListeners = new Set<() => void>();
   private readonly frameListeners = new Set<() => void>();
+  private readonly scenarioPresentationListeners =
+    new Map<string, Set<() => void>>();
   private readonly protocolListeners = new Set<() => void>();
   private readonly hemodynamicProtocolDemands = new Map<
     string,
@@ -304,6 +294,27 @@ implements ScientificProductRuntimeRegistryPortV1 {
 
   readonly getFrameVersionSnapshot = () => this.frameVersion;
 
+  readonly subscribeScenarioPresentation = (
+    scenarioId: string,
+    listener: () => void,
+  ): (() => void) => {
+    const listeners =
+      this.scenarioPresentationListeners.get(scenarioId) ?? new Set();
+    listeners.add(listener);
+    this.scenarioPresentationListeners.set(scenarioId, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) {
+        this.scenarioPresentationListeners.delete(scenarioId);
+      }
+    };
+  };
+
+  readonly getScenarioPresentationSnapshot = (
+    scenarioId: string,
+  ): ScientificProductScenarioPresentationV1 | null =>
+    this.getPresentation(scenarioId);
+
   readonly subscribeHemodynamicProtocols = (
     listener: () => void,
   ): (() => void) => {
@@ -336,18 +347,20 @@ implements ScientificProductRuntimeRegistryPortV1 {
       && cached.snapshot === snapshot
       && cached.workspaceDocument === runtime.workspaceDocument
     ) return cached.presentation;
-    const metricCycle = completeLatestTransientBeatV1(snapshot.frames);
+    const presentationBeatEstimate =
+      snapshot.presentationBeatEstimate ?? null;
     const parameterGenerationHistory = Object.freeze(
       (snapshot.parameterGenerationHistory ?? []).map((generation) => {
-        const generationCycle =
-          completeLatestTransientBeatV1(generation.frames);
+        const generationEstimate =
+          generation.presentationBeatEstimate ?? null;
         return Object.freeze({
           targetGeneration: generation.targetGeneration,
           parameterEpoch: generation.parameterEpoch,
           controlStateSha256: generation.controlStateSha256,
           frames: generation.frames,
-          periodicCycleFrames: generationCycle?.frames ?? null,
-          cycleDurationSec: generationCycle?.durationSec ?? null,
+          presentationBeatEstimate: generationEstimate,
+          periodicCycleFrames: null,
+          cycleDurationSec: generationEstimate?.durationSec ?? null,
           transientOriginAcceptedTimeSec:
             generation.displayedEvidence
               === "open-transient-no-periodic-claim"
@@ -364,16 +377,17 @@ implements ScientificProductRuntimeRegistryPortV1 {
       frames: snapshot.frames,
       parameterGenerationHistory,
       periodicCycleFrames: null,
-      cycleDurationSec: metricCycle?.durationSec ?? null,
+      cycleDurationSec: presentationBeatEstimate?.durationSec ?? null,
       transientOriginAcceptedTimeSec:
         snapshot.liveTransitionOriginAcceptedTimeSec
           ?? snapshot.frames[0]?.acceptedTimeSec
           ?? null,
       validatedCycle: null,
-      metricCycle,
-      metricEvidence: metricCycle === null
+      metricCycle: null,
+      presentationBeatEstimate,
+      metricEvidence: presentationBeatEstimate === null
         ? "unavailable" as const
-        : "provisional-complete-transient-beat" as const,
+        : "presentation-beat-estimate" as const,
       displayedEvidence: snapshot.provenance.displayedEvidence,
       workspaceDocument: runtime.workspaceDocument,
     });
@@ -634,6 +648,7 @@ implements ScientificProductRuntimeRegistryPortV1 {
     this.publishFramesV1();
     this.descriptorListeners.clear();
     this.frameListeners.clear();
+    this.scenarioPresentationListeners.clear();
     this.protocolListeners.clear();
     this.hemodynamicProtocolDemands.clear();
     this.activeHemodynamicProtocolRequests.clear();
@@ -658,7 +673,7 @@ implements ScientificProductRuntimeRegistryPortV1 {
       );
     }) ?? null;
     entry.unsubscribeFrames = entry.runtime?.controlStore.subscribeFrames(
-      () => this.publishFramesV1(),
+      () => this.publishFramesV1(entry.descriptor.id),
     ) ?? null;
     this.reconcileHemodynamicProtocolDemandsForScenarioV1(
       entry.descriptor.id,
@@ -1059,9 +1074,17 @@ implements ScientificProductRuntimeRegistryPortV1 {
     for (const listener of [...this.descriptorListeners]) listener();
   }
 
-  private publishFramesV1(): void {
+  private publishFramesV1(scenarioId?: string): void {
     this.frameVersion += 1;
     for (const listener of [...this.frameListeners]) listener();
+    const scenarioIds = scenarioId === undefined
+      ? [...this.scenarioPresentationListeners.keys()]
+      : [scenarioId];
+    for (const id of scenarioIds) {
+      for (const listener of [
+        ...(this.scenarioPresentationListeners.get(id) ?? []),
+      ]) listener();
+    }
   }
 }
 
@@ -1189,44 +1212,6 @@ function applyDraftToStoreV1(
     draft.pericardialFluidVolumeMl,
   );
   store.actions.applyTransition();
-}
-
-function completeLatestTransientBeatV1(
-  frames: readonly MainWireScientificObservableFrameV1[],
-): MainWireScientificCompleteTransientBeatV1 | null {
-  if (frames.length < 501) return null;
-  const beat = frames.slice(-501);
-  const first = beat[0]!;
-  const last = beat.at(-1)!;
-  if (
-    first.source !== "accepted-step"
-    || last.source !== "accepted-step"
-    || Math.abs(last.acceptedTimeSec - first.acceptedTimeSec - 1) > 1e-10
-  ) return null;
-  for (let index = 1; index < beat.length; index += 1) {
-    const previous = beat[index - 1]!;
-    const current = beat[index]!;
-    if (
-      current.source !== "accepted-step"
-      || current.revision !== previous.revision + 1
-      || Math.abs(current.acceptedTimeSec - previous.acceptedTimeSec - 0.002)
-        > 1e-10
-      || !sameSimulationReleaseRef(first.releaseRef, current.releaseRef)
-    ) return null;
-  }
-  return Object.freeze({
-    frames: Object.freeze(beat),
-    releaseRef: first.releaseRef,
-    durationSec: 1,
-    evidence: Object.freeze({
-      exactReleaseRefUniform: true as const,
-      revisionsContiguous: true as const,
-      cadenceUniform: true as const,
-      bothBeatBoundariesMeasured: true as const,
-      transientBeatFullyMeasured: true as const,
-      smoothingOrInterpolationApplied: false as const,
-    }),
-  });
 }
 
 function uniqueScenarioNameV1(
