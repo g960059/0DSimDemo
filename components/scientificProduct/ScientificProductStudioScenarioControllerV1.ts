@@ -956,12 +956,16 @@ function boundedFramesV1(
   const minimumTime = lastTime - PRESENTATION_HISTORY_WINDOW_SEC_V1;
   const firstRetained = frames.findIndex(({ acceptedTimeSec }) =>
     acceptedTimeSec >= minimumTime);
-  const bounded = firstRetained <= 0 ? frames : frames.slice(firstRetained);
-  return Object.freeze(
-    bounded.length <= PRESENTATION_HISTORY_HARD_LIMIT_V1
-      ? [...bounded]
-      : bounded.slice(-PRESENTATION_HISTORY_HARD_LIMIT_V1),
+  // Trim the window and the hard limit in one slice. Doing it in two steps
+  // copied the retained history twice more per batch on top of the caller's
+  // concatenation, and at 31 batches per second per lane over a 20-second
+  // history that is the largest array churn in the append path.
+  const windowStart = firstRetained <= 0 ? 0 : firstRetained;
+  const start = Math.max(
+    windowStart,
+    frames.length - PRESENTATION_HISTORY_HARD_LIMIT_V1,
   );
+  return Object.freeze(frames.slice(start));
 }
 
 function errorMessageV1(error: unknown): string {
