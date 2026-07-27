@@ -2000,6 +2000,71 @@ describe("MainWire Studio runtime adapter", () => {
     await adapter.closeSession("exact-one-second-session");
   });
 
+  it("commits a live transition even when the replay origin cannot be stored", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "replay-origin-failure-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const beforeOriginCount =
+      internalAdapterBranchV1(
+        adapter,
+        "replay-origin-failure-session",
+        "scenario",
+      ).replayOrigins.length;
+
+    // Export availability must not be part of live-lane correctness. A store
+    // that refuses the replay checkpoint makes this generation
+    // non-exportable; it must not suspend a numerically healthy lane.
+    const putJson = stored.artifacts.putJson.bind(stored.artifacts);
+    let refusals = 0;
+    (stored.artifacts as unknown as {
+      putJson: typeof stored.artifacts.putJson;
+    }).putJson = ((...args: Parameters<typeof putJson>) => {
+      const request = args[0] as Readonly<{ mediaType?: unknown }>;
+      if (String(request?.mediaType ?? "").includes("replay-checkpoint")) {
+        refusals += 1;
+        return Promise.reject(new Error("artifact store is unavailable"));
+      }
+      return putJson(...args);
+    }) as typeof putJson;
+
+    const execution = adapter.startTargetIntent({
+      sessionId: "replay-origin-failure-session",
+      intentId: "replay-origin-failure-intent",
+      targets: [{
+        scenarioId: "scenario",
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: 1,
+        presentationRevision: 1,
+        patch: await targetPatchV1(
+          baseFixture,
+          "circulation.systemic-vascular-resistance-scale",
+          1.5,
+        ),
+      }],
+    });
+    const [live] = await Promise.all([execution.live, execution.strict]);
+
+    expect(live.branches[0]!.status).toBe("success");
+    const internal = internalAdapterBranchV1(
+      adapter,
+      "replay-origin-failure-session",
+      "scenario",
+    );
+    expect((internal as unknown as {
+      liveFailure: Error | null;
+    }).liveFailure).toBeNull();
+    // The lane advanced without gaining an origin, so the generation is
+    // simply not exportable.
+    expect(internal.replayOrigins).toHaveLength(beforeOriginCount);
+    expect(refusals).toBeGreaterThan(0);
+    await adapter.closeSession("replay-origin-failure-session");
+  });
+
   it("retains the current replay origin plus six predecessors across opening, live transition, and promotion", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);

@@ -202,7 +202,7 @@ type PreparedBranchV1 = Readonly<{
   strictHost: MainWireStudioSessionHostV1;
   strictTarget: MainWireStudioHostedSessionV1;
   targetState: MainWireScientificResearchControlTargetStateV0;
-  replayOrigin: RuntimeReplayOriginV1;
+  replayOrigin: RuntimeReplayOriginV1 | null;
 }>;
 
 type PreparationOutcomeV1 = Readonly<{
@@ -886,41 +886,60 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
             : null,
         ].filter((value): value is string => value !== null).join("; "));
       }
-      const liveReplayCheckpoint =
-        await branch.host.checkpointV4(liveFork.value);
-      assertLiveReplayCheckpointReceiptV1(
-        branch,
-        liveFork.value,
-        targetState,
-        liveReplayCheckpoint,
-      );
-      liveTarget = liveReplayCheckpoint.session;
-      const replayCheckpointRef =
-        await putMainWireStudioReplayCheckpointEnvelopeV1(
-          this.artifacts,
-          {
-            simulationInputRef: branch.sourceInputRef,
-            resolvedSessionInput: branch.resolvedSessionInput,
-            checkpointV4: liveReplayCheckpoint.checkpointV4,
-          },
-        );
-      const replayOrigin = Object.freeze({
-        kind: "live-transition" as const,
-        sessionId: session.sessionId,
-        scenarioId: branch.scenarioId,
-        liveBranchId: branch.liveBranchId,
-        targetGeneration: token.target.targetGeneration,
-        presentationRevision: token.target.presentationRevision,
-        sourceRunRef: branch.sourceRunRef,
-        simulationInputRef: branch.sourceInputRef,
-        targetInputSha256: token.target.patch.targetInputSha256,
-        execution: branch.execution,
-        boundaryRevision:
-          liveReplayCheckpoint.checkpointV4.transaction.revision,
-        boundaryTimeSec:
-          liveReplayCheckpoint.checkpointV4.transaction.acceptedTimeSec,
-        replayCheckpointRef,
-      }) satisfies RuntimeReplayOriginV1;
+      // The accepted live target is the fork itself. Taking it from the
+      // checkpoint receipt instead would make the committed numerical state
+      // depend on a host returning a faithful token, which the receipt
+      // assertion below does not fully establish.
+      liveTarget = liveFork.value;
+      // Materialising the replay origin is best effort. Export availability
+      // must never become part of live-lane correctness: a slow or failing
+      // artifact write makes this generation non-exportable, it does not
+      // suspend a numerically healthy lane. Ownership is rechecked before the
+      // write so a superseded intent does not leave an unreachable blob.
+      let replayOrigin: RuntimeReplayOriginV1 | null = null;
+      try {
+        if (token.cancellation === null) {
+          const liveReplayCheckpoint =
+            await branch.host.checkpointV4(liveFork.value);
+          assertLiveReplayCheckpointReceiptV1(
+            branch,
+            liveFork.value,
+            targetState,
+            liveReplayCheckpoint,
+          );
+          if (token.cancellation === null) {
+            const replayCheckpointRef =
+              await putMainWireStudioReplayCheckpointEnvelopeV1(
+                this.artifacts,
+                {
+                  simulationInputRef: branch.sourceInputRef,
+                  resolvedSessionInput: branch.resolvedSessionInput,
+                  checkpointV4: liveReplayCheckpoint.checkpointV4,
+                },
+              );
+            replayOrigin = Object.freeze({
+              kind: "live-transition" as const,
+              sessionId: session.sessionId,
+              scenarioId: branch.scenarioId,
+              liveBranchId: branch.liveBranchId,
+              targetGeneration: token.target.targetGeneration,
+              presentationRevision: token.target.presentationRevision,
+              sourceRunRef: branch.sourceRunRef,
+              simulationInputRef: branch.sourceInputRef,
+              targetInputSha256: token.target.patch.targetInputSha256,
+              execution: branch.execution,
+              boundaryRevision:
+                liveReplayCheckpoint.checkpointV4.transaction.revision,
+              boundaryTimeSec:
+                liveReplayCheckpoint.checkpointV4.transaction.acceptedTimeSec,
+              replayCheckpointRef,
+            }) satisfies RuntimeReplayOriginV1;
+          }
+        }
+      } catch {
+        // Leaves this generation non-exportable. The live transition commits.
+        replayOrigin = null;
+      }
       await strictHost.dispose(strictSource.sessionId);
       return Object.freeze({
         token,
@@ -982,14 +1001,16 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
           if (after !== null) return after;
           const latest = chunk.observableFrames.at(-1)
             ?? chunk.session.observableFrame;
-          assertInitialLiveReplayContinuationV1(
-            prepared.replayOrigin,
-            latest,
-          );
-          retainReplayOriginV1(
-            prepared.branch,
-            prepared.replayOrigin,
-          );
+          if (prepared.replayOrigin !== null) {
+            assertInitialLiveReplayContinuationV1(
+              prepared.replayOrigin,
+              latest,
+            );
+            retainReplayOriginV1(
+              prepared.branch,
+              prepared.replayOrigin,
+            );
+          }
           prepared.branch.traceOriginTimeSec = latest.acceptedTimeSec;
           prepared.branch.tracePointCount = 1;
           return Object.freeze({
