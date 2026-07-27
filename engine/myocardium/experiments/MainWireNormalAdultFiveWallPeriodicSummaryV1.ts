@@ -31,9 +31,6 @@ import type {
   MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
-} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
-import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
 
@@ -107,19 +104,17 @@ export type MainWireNormalAdultFiveWallClassifierEvidenceClosureV1 = Readonly<{
   period2MaximumNormalizedDelta: number | null;
 }>;
 
-export type MainWireNormalAdultFiveWallJacobianWidthHistogramEntryV1 = Readonly<{
-  absoluteScaledStep: number;
+export type MainWireNormalAdultFiveWallJacobianSourceHistogramEntryV1 = Readonly<{
+  derivativeSource: "analytic-triseg-hessian";
   count: number;
-  classification: "nominal" | "alternate";
 }>;
 
-export type MainWireNormalAdultFiveWallJacobianWidthAuditV1 = Readonly<{
-  nominalScaledStep: number;
+export type MainWireNormalAdultFiveWallJacobianSourceAuditV1 = Readonly<{
   acceptedStepCount: number;
-  nominalStepCount: number;
-  alternateStepCount: number;
+  analyticStepCount: number;
+  nonanalyticStepCount: number;
   histogram:
-    readonly MainWireNormalAdultFiveWallJacobianWidthHistogramEntryV1[];
+    readonly MainWireNormalAdultFiveWallJacobianSourceHistogramEntryV1[];
 }>;
 
 export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
@@ -155,9 +150,9 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     classifier: MainWireNormalAdultFiveWallPeriodicResultV1["periodicity"];
     evidenceClosures:
       readonly MainWireNormalAdultFiveWallClassifierEvidenceClosureV1[];
-    evidenceJacobianFiniteDifferenceWidthAudits: readonly Readonly<{
+    evidenceJacobianDerivativeSourceAudits: readonly Readonly<{
       beatIndex: number;
-      audit: MainWireNormalAdultFiveWallJacobianWidthAuditV1;
+      audit: MainWireNormalAdultFiveWallJacobianSourceAuditV1;
     }>[];
     periodicSteadyStateClaimed: boolean;
     period2OrbitSuspected: boolean;
@@ -181,8 +176,8 @@ export type MainWireNormalAdultFiveWallPeriodicSummaryV1 = Readonly<{
     sampleCount: number;
     precedingAcceptedSampleAvailable: boolean;
     precedingBeatIndex: number | null;
-    jacobianFiniteDifferenceWidthAudit:
-      MainWireNormalAdultFiveWallJacobianWidthAuditV1;
+    jacobianDerivativeSourceAudit:
+      MainWireNormalAdultFiveWallJacobianSourceAuditV1;
   }>;
   fixedActivationPrior: Readonly<{
     parameterSetId: string;
@@ -366,7 +361,7 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       policy: result.policy,
       classifier: result.periodicity,
       evidenceClosures,
-      evidenceJacobianFiniteDifferenceWidthAudits: evidenceJacobianAudits,
+      evidenceJacobianDerivativeSourceAudits: evidenceJacobianAudits,
       periodicSteadyStateClaimed: result.periodicSteadyStateClaimed,
       period2OrbitSuspected: result.period2OrbitSuspected,
       latestPeriod1Closure: latestClosure?.period1 === null
@@ -388,8 +383,8 @@ export function summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(
       precedingBeatIndex: precedingSample === null
         ? null
         : precedingBeat!.beatIndex,
-      jacobianFiniteDifferenceWidthAudit:
-        summarizeJacobianFiniteDifferenceWidths(samples),
+      jacobianDerivativeSourceAudit:
+        summarizeJacobianDerivativeSources(samples),
     }),
     fixedActivationPrior: Object.freeze({
       parameterSetId:
@@ -514,7 +509,7 @@ function classifierEvidenceJacobianAudits(
   result: MainWireNormalAdultFiveWallPeriodicResultV1,
 ): readonly Readonly<{
   beatIndex: number;
-  audit: MainWireNormalAdultFiveWallJacobianWidthAuditV1;
+  audit: MainWireNormalAdultFiveWallJacobianSourceAuditV1;
 }>[] {
   const retainedByBeat = new Map(result.retainedCompleteBeats.map((beat) =>
     [beat.beatIndex, beat] as const));
@@ -527,45 +522,31 @@ function classifierEvidenceJacobianAudits(
     }
     return Object.freeze({
       beatIndex,
-      audit: summarizeJacobianFiniteDifferenceWidths(beat.samples),
+      audit: summarizeJacobianDerivativeSources(beat.samples),
     });
   }));
 }
 
-function summarizeJacobianFiniteDifferenceWidths(
+function summarizeJacobianDerivativeSources(
   samples: readonly MainWireNormalAdultFiveWallDiagnosticSampleV2[],
-): MainWireNormalAdultFiveWallJacobianWidthAuditV1 {
-  const nominalScaledStep =
-    MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1;
-  const counts = new Map<number, number>();
+): MainWireNormalAdultFiveWallJacobianSourceAuditV1 {
+  const counts = new Map<"analytic-triseg-hessian", number>();
   for (const sample of samples) {
-    const absoluteScaledStep = Math.abs(
-      sample.acceptedMechanicsJacobianAudit.finiteDifferenceScaledStepUsed,
-    );
-    if (!(absoluteScaledStep > 0) || !Number.isFinite(absoluteScaledStep)) {
-      throw new Error(
-        "accepted mechanics Jacobian finite-difference step must be positive and finite",
-      );
-    }
-    counts.set(absoluteScaledStep, (counts.get(absoluteScaledStep) ?? 0) + 1);
+    const source =
+      sample.acceptedMechanicsJacobianAudit.derivativeSource;
+    counts.set(source, (counts.get(source) ?? 0) + 1);
   }
-  const histogram = Object.freeze(Array.from(counts, ([absoluteScaledStep, count]) =>
+  const histogram = Object.freeze(Array.from(counts, ([derivativeSource, count]) =>
     Object.freeze({
-      absoluteScaledStep,
+      derivativeSource,
       count,
-      classification: absoluteScaledStep === nominalScaledStep
-        ? "nominal" as const
-        : "alternate" as const,
-    })).sort((left, right) =>
-      left.absoluteScaledStep - right.absoluteScaledStep));
-  const nominalStepCount = histogram
-    .filter((entry) => entry.classification === "nominal")
-    .reduce((sum, entry) => sum + entry.count, 0);
+    })));
+  const analyticStepCount =
+    counts.get("analytic-triseg-hessian") ?? 0;
   return Object.freeze({
-    nominalScaledStep,
     acceptedStepCount: samples.length,
-    nominalStepCount,
-    alternateStepCount: samples.length - nominalStepCount,
+    analyticStepCount,
+    nonanalyticStepCount: samples.length - analyticStepCount,
     histogram,
   });
 }

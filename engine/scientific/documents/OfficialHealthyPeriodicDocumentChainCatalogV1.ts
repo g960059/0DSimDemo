@@ -54,36 +54,36 @@ export const OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING =
   Object.freeze({
     byteLength: 2_715 as const,
     rawFileSha256:
-      "a02ef9c8b9834dbdcbbff28e3aa9eeb0b5ae462ff4c899759d2a77fe9ca2c83b" as const,
+      "b857f879bc50f145f97b9a3a56520213002dffedf5f978d85473051cf2a9251b" as const,
     releaseRef: Object.freeze({
       id: "circleheart/adult-five-wall-noncoronary" as const,
       version: "0.2.0" as const,
       sha256:
-        "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4" as const,
+        "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a" as const,
     }),
     sessionInputSha256:
-      "4c637109b4c858b4cc5755e7b0bb039bfb4dbb57fc5e1b2b156fc2f1f6e3eae1" as const,
+      "84bcec5ef9ca80ade7f2d2615a2fbf23fda64a427b7eb1065563b47a1f0dac4f" as const,
     checkpointRawFileSha256:
-      "f3d8913125bfcd8e5d2066674157b4882164bcb0f9575d1ac67f8baf6aec2a14" as const,
+      "bc347a6d6d15b49c9380f926ae902887e2cc1d7b41edbe9c574e082b9c95b11c" as const,
     checkpointSha256:
-      "e63b33b17b3d62bdca417aa8315ba3046b0758c6401a3633e917b6b5114511f6" as const,
+      "10b0a0b94180842a1971549e35aaf1a0064f93103b6a965052528ba30bd03f15" as const,
     presetRef: Object.freeze({
       schemaId:
         "circleheart-main-wire-scientific-preset-document-ref-v1" as const,
       sha256:
-        "0e4ff59d0f55485e954374ca18138ab164c3428132455a6465eb3f79d553c8aa" as const,
+        "6c6932610f1141de6268b7e47f68d9c0f12df9247882f022605b3185a8bbbb80" as const,
     }),
     caseRef: Object.freeze({
       schemaId:
         "circleheart-main-wire-scientific-case-document-ref-v1" as const,
       sha256:
-        "c5644512b2e2589847f6b4471794c9fbca062b68190f06fd8405002a664f7861" as const,
+        "0e48b0cd6c50c3807dd1f5d6482ef487330d70e757d5fe3a6543800d17eca5f8" as const,
     }),
     workspaceRef: Object.freeze({
       schemaId:
         "circleheart-main-wire-scientific-workspace-document-ref-v1" as const,
       sha256:
-        "5faed3f4de4750cfaadd21dfd37a9b3be5f50ac669e4e99575c2e75c8f9c9bab" as const,
+        "2ee687406df73ac96a382070355e899ed16cf0a98f01a515d285bcb1a40112b7" as const,
     }),
   });
 

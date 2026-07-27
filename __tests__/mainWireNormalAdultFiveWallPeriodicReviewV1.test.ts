@@ -56,10 +56,9 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
       unavailableReason:
         "legacy-result-missing-semantic-owner-or-construction-audit",
     });
-    expect(review.run.jacobianFiniteDifferenceWidthAudit).toEqual({
-      nominalScaledStep: 2e-5,
-      nominalStepCount: 10,
-      alternateStepCount: 0,
+    expect(review.run.jacobianDerivativeSourceAudit).toEqual({
+      analyticStepCount: 10,
+      nonanalyticStepCount: 0,
     });
     expect(review.currentBeatSamples).toHaveLength(10);
     expect(review.previousBeatSamples).toHaveLength(10);
@@ -90,7 +89,7 @@ describe("main-wire normal-adult five-wall periodic review V1", () => {
     expect(rendered.html).toContain("Latest group-wise closure");
     expect(rendered.html).toContain("Phasic flow ledger");
     expect(rendered.html).toContain("Wall work and SLS balance");
-    expect(rendered.html).toContain("Jacobian FD nominal / alternate");
+    expect(rendered.html).toContain("Jacobian analytic / other");
     expect(rendered.html).toContain("review-fixt");
     expect(rendered.html).toContain("Blood-volume operating point");
     expect(rendered.html).toContain("Legacy / unavailable");
@@ -439,7 +438,7 @@ function sample(
       totalThermodynamicPotentialIncludingLandClaimed: false,
     })),
     acceptedMechanicsJacobianAudit: Object.freeze({
-      finiteDifferenceScaledStepUsed: 2e-5,
+      derivativeSource: "analytic-triseg-hessian",
       antisymmetricMaximumAbsoluteByOneJ: 0,
       antisymmetricRelative: 0,
       symmetricWithinTolerance: true,

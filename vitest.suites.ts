@@ -29,6 +29,7 @@ export const fastTests = [
   "__tests__/laPvReservoirConduitOrderV1.test.ts",
   "__tests__/land2017AtrialLewalleForceScaleV1.test.ts",
   "__tests__/land2017AtrialPrior.test.ts",
+  "__tests__/land2017DirectSolve.test.ts",
   "__tests__/land2017WholeOrganPriorV1.test.ts",
   "__tests__/landSlsWallMaterialV1.test.ts",
   "__tests__/layoutOps.test.ts",

@@ -70,7 +70,7 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID =
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION =
   "0.2.0" as const;
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_SHA256 =
-  "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4" as const;
+  "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a" as const;
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ARTIFACT_PATH =
   "engine/scientific/assembly/releases/main-wire-adult-five-wall-noncoronary-0.2.0.json" as const;
 
@@ -146,7 +146,7 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_EVIDENCE_V2 = Object.freeze({
     artifactPath:
       "data/scientific/releases/0.2.0/numerical-validation-v1.json" as const,
     artifactSha256:
-      "586ad27b21709784c868f98aee176641277dba949fce73fe0a87c54f2fb8e7de" as const,
+      "fa01ee30f6520852485dcbb16e3c53755ad6eec1369a531742ded7f6fbd9413a" as const,
     digestSemantics: "raw-file-bytes-sha256" as const,
     role: "numerical-shadow-and-local-performance-classification" as const,
   }),

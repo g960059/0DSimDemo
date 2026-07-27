@@ -125,7 +125,7 @@ describe("SimulationRelease V1", () => {
       id: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID,
       version: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION,
       sha256:
-        "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4",
+        "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a",
     });
     expect(release.ref.sha256).toBe(
       await sha256CanonicalJsonHex(release.manifest),

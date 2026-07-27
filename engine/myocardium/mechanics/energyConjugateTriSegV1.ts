@@ -96,6 +96,13 @@ export type TriSegWallDerivativeV1 = Readonly<{
   dFiberLogStrainDJunctionRadiusPerM: number;
 }>;
 
+export type TriSegWallSecondDerivativeV1 = Readonly<{
+  wallId: TriSegWallIdV1;
+  d2FiberLogStrainDCapVolume2PerM6: number;
+  d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4: number;
+  d2FiberLogStrainDJunctionRadius2PerM2: number;
+}>;
+
 export type TriSegGeneralizedForceV1 = Readonly<{
   leftVentricularPressurePa: number;
   rightVentricularPressurePa: number;
@@ -348,6 +355,83 @@ export function evaluateTriSegWallDerivativeV1(
   } as const;
   for (const [label, value] of Object.entries(result)) {
     if (label !== "wallId") requireFinite(value as number, `${geometry.wallId}.${label}`);
+  }
+  return Object.freeze(result);
+}
+
+/**
+ * Exact Hessian of wall log strain with respect to signed cap volume and
+ * junction radius. The inverse-cap second derivatives follow directly from
+ * implicit differentiation of
+ *
+ *   pi h (h^2 + 3 y^2) / 6 - V = 0.
+ */
+export function evaluateTriSegWallSecondDerivativeV1(
+  geometry: TriSegWallGeometryV1,
+): TriSegWallSecondDerivativeV1 {
+  const h = geometry.signedCapHeightM;
+  const y = geometry.junctionRadiusM;
+  const h2 = h * h;
+  const y2 = y * y;
+  const r2 = h2 + y2;
+  const r4 = r2 * r2;
+  const r6 = r4 * r2;
+  const r8 = r4 * r4;
+  const inversePi = 1 / Math.PI;
+
+  const hV = 2 * inversePi / r2;
+  const hy = -2 * h * y / r2;
+  const hVV = -8 * h * inversePi * inversePi / r6;
+  const hVy = 4 * y * (h2 - y2) * inversePi / r6;
+  const hyy = -2 * h * (h2 - y2) * (h2 + 3 * y2) / r6;
+
+  const logarithmicH = h / r2;
+  const logarithmicY = y / r2;
+  const logarithmicHH = (y2 - h2) / r4;
+  const logarithmicHY = -2 * h * y / r4;
+  const logarithmicYY = (h2 - y2) / r4;
+
+  const curvatureCoefficient =
+    3 * geometry.parameters.wallMaterialVolumeM3 * inversePi;
+  const zeta = geometry.thicknessCurvatureRatio;
+  const zetaH = curvatureCoefficient * (y2 - 3 * h2) / r6;
+  const zetaY = -4 * curvatureCoefficient * h * y / r6;
+  const zetaHH =
+    12 * curvatureCoefficient * h * (h2 - y2) / r8;
+  const zetaHY =
+    4 * curvatureCoefficient * y * (5 * h2 - y2) / r8;
+  const zetaYY =
+    4 * curvatureCoefficient * h * (5 * y2 - h2) / r8;
+  const correctionFirst = -zeta / 6 - 0.076 * zeta ** 3;
+  const correctionSecond = -1 / 6 - 0.228 * zeta * zeta;
+
+  const strainH = logarithmicH + correctionFirst * zetaH;
+  const strainHH = logarithmicHH
+    + correctionSecond * zetaH * zetaH
+    + correctionFirst * zetaHH;
+  const strainHY = logarithmicHY
+    + correctionSecond * zetaH * zetaY
+    + correctionFirst * zetaHY;
+  const strainYY = logarithmicYY
+    + correctionSecond * zetaY * zetaY
+    + correctionFirst * zetaYY;
+
+  const result = {
+    wallId: geometry.wallId,
+    d2FiberLogStrainDCapVolume2PerM6:
+      strainHH * hV * hV + strainH * hVV,
+    d2FiberLogStrainDCapVolumeDJunctionRadiusPerM4:
+      (strainHH * hy + strainHY) * hV + strainH * hVy,
+    d2FiberLogStrainDJunctionRadius2PerM2:
+      strainHH * hy * hy
+      + 2 * strainHY * hy
+      + strainYY
+      + strainH * hyy,
+  } as const;
+  for (const [label, value] of Object.entries(result)) {
+    if (label !== "wallId") {
+      requireFinite(value as number, `${geometry.wallId}.${label}`);
+    }
   }
   return Object.freeze(result);
 }

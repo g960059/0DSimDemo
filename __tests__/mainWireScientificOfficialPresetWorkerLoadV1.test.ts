@@ -44,18 +44,18 @@ describe("main-wire scientific official preset Worker load V1", () => {
           id: "circleheart/adult-five-wall-noncoronary",
           version: "0.2.0",
           sha256:
-            "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4",
+            "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a",
         },
       },
       provenance: {
         catalogSchemaId: "circleheart-official-preset-catalog-v1",
         catalogSchemaVersion: 1,
         manifestRawFileSha256:
-          "eb40d42aa4e8bde3b696eb1257428d2022826137e1f2c994c75f59188e451ca0",
+          "4bd772f1df329d56502954d88e4e276e643d8b150368480f38af242a8eefbce8",
         checkpointRawFileSha256:
-          "dbe660999758177aa7c72f92ce8da3bf4378a69d11f42454724a4f923d767ea2",
+          "e00e1b6b4507f3b9bec6f8eaebfe5f3fc79b41c7bb97ae7eb74f24bc3754a3d4",
         checkpointSha256:
-          "2f1c0b477905b07dfefc8a37ee7e1b7ab3d856d7f017770c6bc92a22fb529ff0",
+          "9c3ee4a8adb59bcf21e261e6b58443714b642bbc25e98293091c3917252ea43c",
       },
       checkpoint: {
         schemaVersion: 2,
@@ -82,11 +82,11 @@ describe("main-wire scientific official preset Worker load V1", () => {
         catalogSchemaId: "circleheart-official-preset-catalog-v1",
         catalogSchemaVersion: 1,
         manifestRawFileSha256:
-          "eb40d42aa4e8bde3b696eb1257428d2022826137e1f2c994c75f59188e451ca0",
+          "4bd772f1df329d56502954d88e4e276e643d8b150368480f38af242a8eefbce8",
         checkpointRawFileSha256:
-          "dbe660999758177aa7c72f92ce8da3bf4378a69d11f42454724a4f923d767ea2",
+          "e00e1b6b4507f3b9bec6f8eaebfe5f3fc79b41c7bb97ae7eb74f24bc3754a3d4",
         checkpointSha256:
-          "2f1c0b477905b07dfefc8a37ee7e1b7ab3d856d7f017770c6bc92a22fb529ff0",
+          "9c3ee4a8adb59bcf21e261e6b58443714b642bbc25e98293091c3917252ea43c",
         parameterization: "fixed-canonical-only",
       },
       payload: {

@@ -17,7 +17,6 @@ import {
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallClosedLoopV1";
 import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
-  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 import {
   createMainWireNormalAdultCommonPericardiumV1,
@@ -70,8 +69,7 @@ describe("main-wire normal-adult five-wall diagnostic sample V2", () => {
         typeof value !== "number" || Number.isFinite(value))))
       .toBe(true);
     expect(diagnostic.acceptedMechanicsJacobianAudit).toMatchObject({
-      finiteDifferenceScaledStepUsed:
-        MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
+      derivativeSource: "analytic-triseg-hessian",
       symmetricWithinTolerance: true,
       strictLocalStableEquilibrium: true,
     });

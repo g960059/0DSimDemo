@@ -8,9 +8,6 @@ import {
   runMainWireNormalAdultFiveWallPeriodicSteadyV1,
   type MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
-import {
-  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
-} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
 
 describe("main-wire normal-adult five-wall periodic summary V1", () => {
   let result: MainWireNormalAdultFiveWallPeriodicResultV1;
@@ -73,12 +70,12 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
       .toBeLessThan(1e-6);
     expect(summary.convergence.policy).toBe(result.policy);
     expect(summary.convergence.latestPeriod1Closure).not.toBeNull();
-    expect(summary.selectedBeat.jacobianFiniteDifferenceWidthAudit
+    expect(summary.selectedBeat.jacobianDerivativeSourceAudit
       .acceptedStepCount).toBe(summary.selectedBeat.sampleCount);
-    expect(summary.selectedBeat.jacobianFiniteDifferenceWidthAudit
-      .nominalStepCount
-      + summary.selectedBeat.jacobianFiniteDifferenceWidthAudit
-        .alternateStepCount).toBe(summary.selectedBeat.sampleCount);
+    expect(summary.selectedBeat.jacobianDerivativeSourceAudit
+      .analyticStepCount).toBe(summary.selectedBeat.sampleCount);
+    expect(summary.selectedBeat.jacobianDerivativeSourceAudit
+      .nonanalyticStepCount).toBe(0);
   });
 
   it("keeps compact morphology readbacks but withholds interpretation pre-closure", () => {
@@ -131,9 +128,9 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
         observation.period2?.overall.maximumNormalizedDelta ?? null,
     }]);
     expect(withEvidence.convergence
-      .evidenceJacobianFiniteDifferenceWidthAudits).toHaveLength(1);
+      .evidenceJacobianDerivativeSourceAudits).toHaveLength(1);
     expect(withEvidence.convergence
-      .evidenceJacobianFiniteDifferenceWidthAudits[0]).toMatchObject({
+      .evidenceJacobianDerivativeSourceAudits[0]).toMatchObject({
       beatIndex: observation.beatIndex,
       audit: {
         acceptedStepCount: result.stepsPerBeat,
@@ -156,40 +153,17 @@ describe("main-wire normal-adult five-wall periodic summary V1", () => {
     })).toThrow(/referenceScaleSetId does not match periodic policy/);
   });
 
-  it("counts nominal and alternate accepted Jacobian widths on the selected beat", () => {
-    const nominal =
-      MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1;
+  it("records analytic Jacobian ownership on the selected beat", () => {
     const selected = result.retainedCompleteBeats.at(-1)!;
-    const samples = Object.freeze(selected.samples.map((sample, index) =>
-      Object.freeze({
-        ...sample,
-        acceptedMechanicsJacobianAudit: Object.freeze({
-          ...sample.acceptedMechanicsJacobianAudit,
-          finiteDifferenceScaledStepUsed: index === 0 ? nominal / 2 : nominal,
-        }),
-      })));
-    const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1({
-      ...result,
-      retainedCompleteBeats: Object.freeze([
-        ...result.retainedCompleteBeats.slice(0, -1),
-        Object.freeze({ ...selected, samples }),
-      ]),
-    });
-    expect(summary.selectedBeat.jacobianFiniteDifferenceWidthAudit).toEqual({
-      nominalScaledStep: nominal,
-      acceptedStepCount: samples.length,
-      nominalStepCount: samples.length - 1,
-      alternateStepCount: 1,
+    const summary = summarizeMainWireNormalAdultFiveWallPeriodicSteadyV1(result);
+    expect(summary.selectedBeat.jacobianDerivativeSourceAudit).toEqual({
+      acceptedStepCount: selected.samples.length,
+      analyticStepCount: selected.samples.length,
+      nonanalyticStepCount: 0,
       histogram: [
         {
-          absoluteScaledStep: nominal / 2,
-          count: 1,
-          classification: "alternate",
-        },
-        {
-          absoluteScaledStep: nominal,
-          count: samples.length - 1,
-          classification: "nominal",
+          derivativeSource: "analytic-triseg-hessian",
+          count: selected.samples.length,
         },
       ],
     });

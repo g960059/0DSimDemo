@@ -10,7 +10,7 @@ const OFFICIAL_PRODUCT_CASE_ID =
   "circleheart/official-healthy-periodic";
 const OFFICIAL_PRODUCT_SOURCE_REVISION = 13_000;
 const RELEASE_SHA256 =
-  "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4";
+  "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a";
 const LV_PV_TITLE = "LV pressure–volume loop";
 
 test.describe.serial("Studio runtime in the product Workbench", () => {

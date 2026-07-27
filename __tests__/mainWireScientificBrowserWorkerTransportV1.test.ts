@@ -549,9 +549,9 @@ function officialDocumentCasePayload(
     presetId: "circleheart/official-healthy-periodic",
     presetVersion: "1.0.0",
     checkpointSha256:
-      "e63b33b17b3d62bdca417aa8315ba3046b0758c6401a3633e917b6b5114511f6",
+      "10b0a0b94180842a1971549e35aaf1a0064f93103b6a965052528ba30bd03f15",
     sessionInputSha256:
-      "4c637109b4c858b4cc5755e7b0bb039bfb4dbb57fc5e1b2b156fc2f1f6e3eae1",
+      "84bcec5ef9ca80ade7f2d2615a2fbf23fda64a427b7eb1065563b47a1f0dac4f",
     caseRef: OFFICIAL_CASE_REF,
     workspaceRef: OFFICIAL_WORKSPACE_REF,
     periodicSteadyStateClaimed: true,
@@ -641,7 +641,7 @@ const OFFICIAL_RELEASE_REF = Object.freeze({
   id: "circleheart/adult-five-wall-noncoronary",
   version: "0.2.0",
   sha256:
-    "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4",
+    "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a",
 });
 
 const SESSION_ORIGIN = Object.freeze({
@@ -657,24 +657,24 @@ const OFFICIAL_PRESET_SESSION_ORIGIN = Object.freeze({
   catalogSchemaId: "circleheart-official-preset-catalog-v1",
   catalogSchemaVersion: 1,
   manifestRawFileSha256:
-    "eb40d42aa4e8bde3b696eb1257428d2022826137e1f2c994c75f59188e451ca0",
+    "4bd772f1df329d56502954d88e4e276e643d8b150368480f38af242a8eefbce8",
   checkpointRawFileSha256:
-    "dbe660999758177aa7c72f92ce8da3bf4378a69d11f42454724a4f923d767ea2",
+    "e00e1b6b4507f3b9bec6f8eaebfe5f3fc79b41c7bb97ae7eb74f24bc3754a3d4",
   checkpointSha256:
-    "2f1c0b477905b07dfefc8a37ee7e1b7ab3d856d7f017770c6bc92a22fb529ff0",
+    "9c3ee4a8adb59bcf21e261e6b58443714b642bbc25e98293091c3917252ea43c",
   parameterization: "fixed-canonical-only",
 });
 
 const OFFICIAL_CASE_REF = Object.freeze({
   schemaId: "circleheart-main-wire-scientific-case-document-ref-v1",
   sha256:
-    "c5644512b2e2589847f6b4471794c9fbca062b68190f06fd8405002a664f7861",
+    "0e48b0cd6c50c3807dd1f5d6482ef487330d70e757d5fe3a6543800d17eca5f8",
 });
 
 const OFFICIAL_WORKSPACE_REF = Object.freeze({
   schemaId: "circleheart-main-wire-scientific-workspace-document-ref-v1",
   sha256:
-    "5faed3f4de4750cfaadd21dfd37a9b3be5f50ac669e4e99575c2e75c8f9c9bab",
+    "2ee687406df73ac96a382070355e899ed16cf0a98f01a515d285bcb1a40112b7",
 });
 
 const OFFICIAL_DOCUMENT_CASE_ORIGIN = Object.freeze({
@@ -689,9 +689,9 @@ const OFFICIAL_DOCUMENT_CASE_ORIGIN = Object.freeze({
   checkpointRawFileSha256:
     "f3d8913125bfcd8e5d2066674157b4882164bcb0f9575d1ac67f8baf6aec2a14",
   checkpointSha256:
-    "e63b33b17b3d62bdca417aa8315ba3046b0758c6401a3633e917b6b5114511f6",
+    "10b0a0b94180842a1971549e35aaf1a0064f93103b6a965052528ba30bd03f15",
   sessionInputSha256:
-    "4c637109b4c858b4cc5755e7b0bb039bfb4dbb57fc5e1b2b156fc2f1f6e3eae1",
+    "84bcec5ef9ca80ade7f2d2615a2fbf23fda64a427b7eb1065563b47a1f0dac4f",
   caseRef: OFFICIAL_CASE_REF,
   workspaceRef: OFFICIAL_WORKSPACE_REF,
   periodicSteadyStateClaimed: true,

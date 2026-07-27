@@ -38,6 +38,9 @@ import {
   stableHash as stableLandParameterHash,
   type Land2017SourceParameterSet,
 } from "@/engine/myocardium/myofilament/land2017/parameterSets";
+import {
+  computeLand2017SteadyStateTangentPaFromSolvedState,
+} from "@/engine/myocardium/myofilament/land2017/tangents";
 import type {
   WholeHeartMechanicsSerializableValueV1,
   WholeHeartMechanicsStateCodecV1,
@@ -45,10 +48,6 @@ import type {
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID =
   "main-wire-normal-adult-five-wall-material-adapter-v1" as const;
-
-/** Fixed canonical control, exposed so accepted-step diagnostics can audit it. */
-export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1 =
-  2e-5 as const;
 
 export const MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM = Object.freeze({
   priorId: NORMAL_ADULT_FIVE_WALL_PRIOR_V1.priorId,
@@ -262,10 +261,6 @@ function createNormalAdultProvider(
         Math.abs(prior.anatomy.triSeg.loadedCoordinates.septalMidwallCapVolumeM3),
       junctionRadiusM: prior.anatomy.triSeg.loadedCoordinates.junctionRadiusM,
     }),
-    solver: Object.freeze({
-      finiteDifferenceScaledStep:
-        MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
-    }),
   }));
 }
 
@@ -440,11 +435,28 @@ function createWallKernel(
         ...(cold.converged ? [] : ["Land fixed-input cold iteration did not converge"]),
         ...accepted.issues,
       ];
+      const landStretch = Math.exp(fiberLogStrain) * params.landSlackStretch;
+      const activeNominalTangentPa =
+        computeLand2017SteadyStateTangentPaFromSolvedState(
+          cold.state.landState,
+          freeCalciumUM,
+          landStretch - 1,
+          params.landEquationParameters,
+        );
+      const activeKirchhoffTangentPa =
+        params.orientationFraction01
+        * params.viableActiveFraction01
+        * (
+          landStretch * accepted.activeNominalStressPa
+          + landStretch * landStretch * activeNominalTangentPa
+        );
       return materialEvaluation({
         wallId,
         state: cold.state,
         fiberLogStrain,
         stressPa: accepted.totalKirchhoffStressPa,
+        algorithmicFiberTangentPa:
+          passive.input.tangentPa + activeKirchhoffTangentPa,
         iterationCount: cold.fixedInputIterations,
         residualNorm: cold.maximumStateUpdate,
         finite: accepted.finite && Number.isFinite(cold.maximumStateUpdate),
@@ -572,7 +584,7 @@ function materialEvaluation(input: Readonly<{
   state: LandSlsWallMaterialStateV1;
   fiberLogStrain: number;
   stressPa: number;
-  algorithmicFiberTangentPa?: number;
+  algorithmicFiberTangentPa: number;
   iterationCount: number;
   residualNorm: number;
   finite: boolean;
@@ -584,17 +596,13 @@ function materialEvaluation(input: Readonly<{
     input.fiberLogStrain,
     input.stressPa,
     input.residualNorm,
-    ...(input.algorithmicFiberTangentPa === undefined
-      ? []
-      : [input.algorithmicFiberTangentPa]),
+    input.algorithmicFiberTangentPa,
   ].every(Number.isFinite);
   return Object.freeze({
     state: cloneLandSlsWallMaterialStateV1(input.state),
     fiberLogStrain: input.fiberLogStrain,
     fiberKirchhoffStressPa: input.stressPa,
-    ...(input.algorithmicFiberTangentPa === undefined
-      ? {}
-      : { algorithmicFiberTangentPa: input.algorithmicFiberTangentPa }),
+    algorithmicFiberTangentPa: input.algorithmicFiberTangentPa,
     iterationCount: input.iterationCount,
     residualNorm: input.residualNorm,
     finite,

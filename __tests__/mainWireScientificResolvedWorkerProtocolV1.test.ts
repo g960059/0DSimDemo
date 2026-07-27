@@ -172,7 +172,7 @@ describe("main-wire resolved-session Worker protocol V1", () => {
       id: "circleheart/adult-five-wall-noncoronary",
       version: "0.2.0",
       sha256:
-        "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4",
+        "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a",
     });
     const sessionInputSha256 = "a".repeat(64);
     const submitted = resolvedCommand(
@@ -226,7 +226,7 @@ describe("main-wire resolved-session Worker protocol V1", () => {
       id: "circleheart/adult-five-wall-noncoronary",
       version: "0.2.0",
       sha256:
-        "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4",
+        "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a",
     });
     const sessionInputSha256 = "a".repeat(64);
     const checkpointSha256 = "c".repeat(64);

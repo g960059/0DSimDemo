@@ -24,9 +24,6 @@ import type {
   MainWireNormalAdultFiveWallPeriodicResultV1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
 import {
-  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
-} from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
-import {
   NORMAL_ADULT_FIVE_WALL_PRIOR_V1,
 } from "@/engine/myocardium/mechanics/normalAdultFiveWallPriorV1";
 
@@ -128,10 +125,9 @@ export type MainWireNormalAdultFiveWallPeriodicReviewV1 = Readonly<{
     pericardiumParameterSetId: string;
     initialization: string;
     protocolIdentityHash: string;
-    jacobianFiniteDifferenceWidthAudit: Readonly<{
-      nominalScaledStep: number;
-      nominalStepCount: number;
-      alternateStepCount: number;
+    jacobianDerivativeSourceAudit: Readonly<{
+      analyticStepCount: number;
+      nonanalyticStepCount: number;
     }>;
   }>;
   currentBeatSamples:
@@ -198,11 +194,9 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       wallMaterialVolumeMlByWall: wallMaterialVolumesMl(),
     });
   const latestClosure = result.beatClosure.at(-1)?.period1 ?? null;
-  const nominalJacobianStep =
-    MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1;
-  const nominalJacobianStepCount = currentBeat.samples.filter((sample) =>
-    sample.acceptedMechanicsJacobianAudit.finiteDifferenceScaledStepUsed
-      === nominalJacobianStep).length;
+  const analyticJacobianStepCount = currentBeat.samples.filter((sample) =>
+    sample.acceptedMechanicsJacobianAudit.derivativeSource
+      === "analytic-triseg-hessian").length;
   return Object.freeze({
     reviewId: MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_REVIEW_V1_ID,
     generatedFromExperimentId: result.experimentId,
@@ -224,11 +218,10 @@ export function buildMainWireNormalAdultFiveWallPeriodicReviewV1(
       pericardiumParameterSetId: result.pericardiumParameterSetId,
       initialization: result.initialization,
       protocolIdentityHash: result.protocolIdentityHash,
-      jacobianFiniteDifferenceWidthAudit: Object.freeze({
-        nominalScaledStep: nominalJacobianStep,
-        nominalStepCount: nominalJacobianStepCount,
-        alternateStepCount:
-          currentBeat.samples.length - nominalJacobianStepCount,
+      jacobianDerivativeSourceAudit: Object.freeze({
+        analyticStepCount: analyticJacobianStepCount,
+        nonanalyticStepCount:
+          currentBeat.samples.length - analyticJacobianStepCount,
       }),
     }),
     currentBeatSamples: currentBeat.samples,
@@ -302,7 +295,7 @@ export function renderMainWireNormalAdultFiveWallPeriodicReviewV1(
     ${card("PV S/D volume", nullableRatio(safeRatio(diagnostics.pulmonaryVenous.S.forwardVolumeMl, diagnostics.pulmonaryVenous.D.forwardVolumeMl)))}
     ${card("pericardium", `${review.run.pericardiumMode} · ${review.run.pericardiumCase}`)}
     ${card("peak Pperi", `${format(maximum(review.currentBeatSamples.map((sample) => sample.commonPericardium.excessPressureMmHg)), 3)} mmHg`)}
-    ${card("Jacobian FD nominal / alternate", `${review.run.jacobianFiniteDifferenceWidthAudit.nominalStepCount} / ${review.run.jacobianFiniteDifferenceWidthAudit.alternateStepCount}`)}
+    ${card("Jacobian analytic / other", `${review.run.jacobianDerivativeSourceAudit.analyticStepCount} / ${review.run.jacobianDerivativeSourceAudit.nonanalyticStepCount}`)}
     ${card("protocol identity", review.run.protocolIdentityHash.slice(0, 12))}
   </section>
   ${bloodVolumeOperatingPointSection(review.bloodVolumeOperatingPoint)}

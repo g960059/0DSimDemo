@@ -14,7 +14,6 @@ import {
 import {
   MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1,
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_CLAIM,
-  MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
   asMainWireFiveWallFreeCalciumDriveV1,
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   createMainWireNormalAdultFiveWallMaterialKernelsV1,
@@ -170,18 +169,12 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
     expect(off.LVFW.parameterIdentityHash).toBe(on.LVFW.parameterIdentityHash);
   }, 60_000);
 
-  it("matches the canonical consistent-tangent path to a test-only full-FD shadow", () => {
+  it("matches the analytic canonical tangent to full resolved production-kernel probes", () => {
     const fast = createCanonicalMainWireNormalAdultFiveWallProviderV1();
-    const shadow = createTestOnlyFullFiniteDifferenceShadowProvider();
     const coldDrive = asMainWireFiveWallFreeCalciumDriveV1(
       evaluateFiveWallNormalCalciumDriveV1(0).freeCalciumUMByWall,
     );
     const fastCold = initializeWholeHeartMechanicsColdV1(fast, {
-      timeSec: 0,
-      volumesMl: MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1,
-      drivingInputs: coldDrive,
-    });
-    const shadowCold = initializeWholeHeartMechanicsColdV1(shadow, {
       timeSec: 0,
       volumesMl: MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1,
       drivingInputs: coldDrive,
@@ -197,15 +190,7 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
       candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1,
       drivingInputs: candidateDrive,
     });
-    const shadowTrial = evaluateWholeHeartMechanicsTrialV1(shadow, {
-      previousAcceptedState: shadowCold.acceptedState,
-      candidateTimeSec,
-      stepDtSec: candidateTimeSec,
-      candidateVolumesMl: MAIN_WIRE_NORMAL_ADULT_MECHANICS_FIXTURE_VOLUMES_ML_V1,
-      drivingInputs: candidateDrive,
-    });
     const fastReadback = providerReadback(fastTrial.diagnostics.readback);
-    const shadowReadback = providerReadback(shadowTrial.diagnostics.readback);
     const pressureTangentShadow = fullResolvedCanonicalPressureVolumeTangent(
       fast,
       fastCold.acceptedState,
@@ -214,19 +199,9 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
     );
 
     expect(fastTrial.diagnostics.converged).toBe(true);
-    expect(shadowTrial.diagnostics.converged).toBe(true);
-    expect(maximumMatrixRelativeError(
-      fastReadback.scaledAlgorithmicJacobianByOneJ,
-      shadowReadback.scaledAlgorithmicJacobianByOneJ,
-    )).toBeLessThan(1e-4);
-    for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
-      expect(relativeError(
-        fastTrial.transmuralPressuresMmHg[chamber],
-        shadowTrial.transmuralPressuresMmHg[chamber],
-      )).toBeLessThan(2e-7);
-    }
-    expect(shadowTrial.transmuralPressureVolumeTangentMmHgPerMl)
-      .toBeUndefined();
+    expect(fastReadback.jacobianDerivativeSource)
+      .toBe("analytic-triseg-hessian");
+    expect(fastReadback.jacobianAntisymmetricMaximumAbsoluteByOneJ).toBe(0);
     expect(fastTrial.transmuralPressureVolumeTangentMmHgPerMl).toBeDefined();
     expect(maximumPressureTangentAbsoluteError(
       fastTrial.transmuralPressureVolumeTangentMmHgPerMl!,
@@ -242,62 +217,6 @@ describe("main-wire normal-adult five-wall provider adapter V1", () => {
     expect(fastTrial.transmuralPressureVolumeTangentMmHgPerMl!.LV.LA).toBe(0);
   }, 60_000);
 });
-
-function createTestOnlyFullFiniteDifferenceShadowProvider() {
-  const prior = NORMAL_ADULT_FIVE_WALL_PRIOR_V1;
-  const canonical = createMainWireNormalAdultFiveWallMaterialKernelsV1();
-  const materialByWall = Object.freeze(Object.fromEntries(
-    (["LA", "LVFW", "SEP", "RVFW", "RA"] as const).map((wallId) => [
-      wallId,
-      stripConsistentTangent(canonical[wallId]),
-    ]),
-  )) as MainWireFiveWallRecordV1<
-    MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>
-  >;
-  return createMainWireFiveWallLandTriSegProviderV1(Object.freeze({
-    parameterSetId: `${prior.priorId}-test-only-full-fd-shadow`,
-    materialByWall,
-    atria: Object.freeze({
-      LA: Object.freeze({
-        wallMaterialVolumeM3:
-          prior.anatomy.atria.LA.wallMaterialVolumeMl * 1e-6,
-        referenceCavityBloodVolumeM3:
-          prior.anatomy.atria.LA.inverseUnloadedReferenceCavityVolumeMl * 1e-6,
-      }),
-      RA: Object.freeze({
-        wallMaterialVolumeM3:
-          prior.anatomy.atria.RA.wallMaterialVolumeMl * 1e-6,
-        referenceCavityBloodVolumeM3:
-          prior.anatomy.atria.RA.inverseUnloadedReferenceCavityVolumeMl * 1e-6,
-      }),
-    }),
-    trisegWalls: prior.anatomy.triSeg.wallGeometryParameters,
-    initialTriSegCoordinates: prior.anatomy.triSeg.loadedCoordinates,
-    internalCoordinateScales: Object.freeze({
-      septalMidwallCapVolumeM3:
-        Math.abs(prior.anatomy.triSeg.loadedCoordinates.septalMidwallCapVolumeM3),
-      junctionRadiusM: prior.anatomy.triSeg.loadedCoordinates.junctionRadiusM,
-    }),
-    solver: Object.freeze({
-      finiteDifferenceScaledStep:
-        MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_NOMINAL_JACOBIAN_SCALED_STEP_V1,
-    }),
-  }));
-}
-
-function stripConsistentTangent(
-  kernel: MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1>,
-): MainWireFiveWallLandSlsMaterialKernelV1<LandSlsWallMaterialStateV1> {
-  return Object.freeze({
-    ...kernel,
-    evaluateTrialFromAccepted: (input) => {
-      const evaluated = kernel.evaluateTrialFromAccepted(input);
-      const { algorithmicFiberTangentPa: _ignored, ...fullFdEvaluation } =
-        evaluated;
-      return Object.freeze(fullFdEvaluation);
-    },
-  });
-}
 
 function providerReadback(
   value: WholeHeartMechanicsSerializableValueV1 | null,
