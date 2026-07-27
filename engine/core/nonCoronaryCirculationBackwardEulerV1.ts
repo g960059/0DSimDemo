@@ -710,6 +710,30 @@ const MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS = 1024;
 let cachedGraphV1: NonCoronaryCirculationGraphV1 | null = null;
 
 /**
+ * Scratch vectors for the three fifteen-element `Float64Array`s the Newton
+ * solve used to allocate on every candidate and every iteration.
+ *
+ * A fifteen-element `Float64Array` is 120 bytes. V8 keeps a typed array on its
+ * own heap only up to 64 bytes; past that the backing store comes from an
+ * allocator shared by every isolate in the renderer process, so live lanes in
+ * one page serialise on it. These vectors are pure scratch: each is filled
+ * before it is read and none of them is reachable from any returned value, so
+ * reusing them changes no number. They are module-scoped rather than
+ * per-session because a worker isolate runs one synchronous step at a time and
+ * each vector is consumed inside the synchronous span that fills it; giving
+ * each site its own vector keeps the sites independent of one another.
+ */
+const EDGE_FLOW_SCRATCH_V1 = new Float64Array(
+  NON_CORONARY_EDGE_NAMES_V1.length,
+);
+const NODE_RATE_SCRATCH_V1 = new Float64Array(
+  NON_CORONARY_NODE_NAMES_V1.length,
+);
+const VASCULAR_PRESSURE_TANGENT_SCRATCH_V1 = new Float64Array(
+  NON_CORONARY_NODE_NAMES_V1.length,
+);
+
+/**
  * The non-coronary topology is a pure function of the authoritative graph and
  * the module-level scope constants: it takes no argument and depends on no
  * mutable state, so every call returns the same value. The frozen result is
@@ -1553,9 +1577,20 @@ function evaluateCandidate<TEvaluation, TCompanionTrial = never>(
     "edgeFlowsMlPerSec",
     requireFinite,
   );
-  const localFlows = Float64Array.from(graph.edges, (edge) =>
-    edgeFlowsMlPerSec[edge.name as NonCoronaryEdgeNameV1]);
-  const localRates = incidenceVolumeRatesFromEdgeFlowsV1(graph, localFlows);
+  // Both vectors are scratch that dies inside this function: `localFlows` is
+  // written for every edge before it is read, and `localRates` is zeroed by the
+  // incidence operator. Neither is reachable from the frozen result below.
+  const localFlows = EDGE_FLOW_SCRATCH_V1;
+  for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
+    localFlows[edgeIndex] = edgeFlowsMlPerSec[
+      graph.edges[edgeIndex]!.name as NonCoronaryEdgeNameV1
+    ]!;
+  }
+  const localRates = incidenceVolumeRatesFromEdgeFlowsV1(
+    graph,
+    localFlows,
+    NODE_RATE_SCRATCH_V1,
+  );
   const continuityResidualMlByNode = nodeRecord((name) => {
     const localIndex = graph.nodeIndex.get(name)!;
     const companionRate = conservativeCompanion === null
@@ -1824,8 +1859,14 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
     throw new Error("circulation volume-scale count is incompatible");
   }
   const size = INDEPENDENT_NODE_NAMES.length;
-  const vascularPressureTangentByNodeIndex =
-    new Float64Array(graph.nodes.length);
+  // Chamber nodes are skipped below, so the buffer has to start at zero for
+  // them exactly as a freshly constructed `Float64Array` would. It is read only
+  // inside this function.
+  if (VASCULAR_PRESSURE_TANGENT_SCRATCH_V1.length !== graph.nodes.length) {
+    throw new Error("circulation node count is incompatible with the scratch vector");
+  }
+  const vascularPressureTangentByNodeIndex = VASCULAR_PRESSURE_TANGENT_SCRATCH_V1;
+  vascularPressureTangentByNodeIndex.fill(0);
   for (const node of graph.nodes) {
     const name = node.name as NonCoronaryNodeNameV1;
     if (isChamberName(name)) continue;

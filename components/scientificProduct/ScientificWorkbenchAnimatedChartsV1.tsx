@@ -1723,12 +1723,102 @@ type RetainedScientificPvSourceTrajectoryV1 = Readonly<{
  * The current (possibly incomplete) beat is age 0. Periodic evidence remains
  * one canonical trajectory because duplicated steady beats add no information.
  */
+type ScientificPvTrajectoryMemoEntryV1 = {
+  readonly periodicCycleFrames: unknown;
+  readonly parameterGenerationHistory: unknown;
+  readonly cycleDurationSec: number | null;
+  readonly transientOriginAcceptedTimeSec: number | null;
+  readonly displayedEvidence: ScientificWorkbenchChartScenarioV1[
+    "displayedEvidence"
+  ];
+  readonly volumeObservableId: string;
+  readonly pressureObservableId: string;
+  readonly historyBeats: number;
+  readonly parameterHistoryCount: PvLoopParameterHistoryCount;
+  readonly retainedSourcePeriodicPoints: readonly PvValue[] | undefined;
+  readonly value: readonly ScientificPvTrajectoryV1[];
+};
+
+/**
+ * Memo for the trajectory rebuild, keyed on the retained frame array.
+ *
+ * Rebuilding trajectories walks the whole retained history and allocates a
+ * point object per frame. The pane called it once per series inside the canvas
+ * animation callback, so it ran at the display refresh rate for every live
+ * scenario, and again on every React render for the four retained counts —
+ * while the underlying frames only change when a chunk arrives a few times a
+ * second. Measured on the production build with four live lanes in one page,
+ * that rebuild and the render it drives were the largest consumers of the one
+ * main thread every lane in the page shares.
+ *
+ * The key is the complete read set of the computation: the two frame arrays and
+ * the generation history by identity, the four scenario scalars it branches on,
+ * the two observable ids the points are sampled from, the two history settings,
+ * and the retained source points by identity. A presentation snapshot keeps
+ * those arrays stable between updates, while the scenario object wrapping them
+ * is rebuilt every render, so identity on the arrays is what can hit.
+ */
+const PV_TRAJECTORY_MEMO_V1 = new WeakMap<
+  object,
+  ScientificPvTrajectoryMemoEntryV1[]
+>();
+const PV_TRAJECTORY_MEMO_ENTRIES_PER_FRAME_ARRAY_V1 = 8;
+
 export function scientificPvTrajectoriesV1(
   item: ScientificWorkbenchPvSeriesV1,
   historyBeats = DEFAULT_PV_LOOP_HISTORY_BEATS,
   retainedSourcePeriodicPoints?: readonly PvValue[],
   parameterHistoryCount: PvLoopParameterHistoryCount =
     DEFAULT_PV_LOOP_PARAMETER_HISTORY_COUNT,
+): readonly ScientificPvTrajectoryV1[] {
+  const scenario = item.scenario;
+  const entries = PV_TRAJECTORY_MEMO_V1.get(scenario.frames) ?? [];
+  const matches = (entry: ScientificPvTrajectoryMemoEntryV1): boolean =>
+    entry.periodicCycleFrames === scenario.periodicCycleFrames
+    && entry.parameterGenerationHistory === scenario.parameterGenerationHistory
+    && entry.cycleDurationSec === scenario.cycleDurationSec
+    && entry.transientOriginAcceptedTimeSec
+      === scenario.transientOriginAcceptedTimeSec
+    && entry.displayedEvidence === scenario.displayedEvidence
+    && entry.volumeObservableId === item.volumeObservableId
+    && entry.pressureObservableId === item.pressureObservableId
+    && entry.historyBeats === historyBeats
+    && entry.parameterHistoryCount === parameterHistoryCount
+    && entry.retainedSourcePeriodicPoints === retainedSourcePeriodicPoints;
+  const hit = entries.find(matches);
+  if (hit !== undefined) return hit.value;
+  const value = computeScientificPvTrajectoriesV1(
+    item,
+    historyBeats,
+    retainedSourcePeriodicPoints,
+    parameterHistoryCount,
+  );
+  entries.unshift({
+    periodicCycleFrames: scenario.periodicCycleFrames,
+    parameterGenerationHistory: scenario.parameterGenerationHistory,
+    cycleDurationSec: scenario.cycleDurationSec,
+    transientOriginAcceptedTimeSec: scenario.transientOriginAcceptedTimeSec,
+    displayedEvidence: scenario.displayedEvidence,
+    volumeObservableId: item.volumeObservableId,
+    pressureObservableId: item.pressureObservableId,
+    historyBeats,
+    parameterHistoryCount,
+    retainedSourcePeriodicPoints,
+    value,
+  });
+  entries.length = Math.min(
+    entries.length,
+    PV_TRAJECTORY_MEMO_ENTRIES_PER_FRAME_ARRAY_V1,
+  );
+  PV_TRAJECTORY_MEMO_V1.set(scenario.frames, entries);
+  return value;
+}
+
+function computeScientificPvTrajectoriesV1(
+  item: ScientificWorkbenchPvSeriesV1,
+  historyBeats: number,
+  retainedSourcePeriodicPoints: readonly PvValue[] | undefined,
+  parameterHistoryCount: PvLoopParameterHistoryCount,
 ): readonly ScientificPvTrajectoryV1[] {
   const horizon = normalizeScientificPvHistoryBeatsV1(historyBeats);
   const scenario = item.scenario;
