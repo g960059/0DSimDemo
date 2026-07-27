@@ -432,6 +432,43 @@ describe("MainWire Studio runtime adapter", () => {
     expect(recoveredAt).toBe(32);
   });
 
+  it("carries outstanding lag across a loop re-anchor instead of forgiving it", () => {
+    let state = mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: 0,
+      acceptedSimulationNowSec: 0,
+      mode: "realtime-1x",
+      cumulativeRebasedDeficitMs: 0,
+    });
+    // 32 ms of model time took 140 ms, so the lane owes 108 ms.
+    const lagging = mainWireStudioLivePacingDecisionV1({
+      state,
+      wallNowMs: 140,
+      acceptedSimulationNowSec: 0.032,
+      activeWallDurationMs: 140,
+    });
+    expect(lagging.livePacing.epochLagMs).toBe(108);
+
+    // A loop restart re-anchors. The debt must survive it: a resumed lane that
+    // silently starts from zero would absorb lag the contract says is never
+    // absorbed.
+    state = mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: 500,
+      acceptedSimulationNowSec: 0.032,
+      mode: lagging.livePacing.mode,
+      cumulativeRebasedDeficitMs:
+        lagging.livePacing.cumulativeRebasedDeficitMs,
+      epochLagMs: lagging.livePacing.epochLagMs,
+    });
+    const afterRestart = mainWireStudioLivePacingDecisionV1({
+      state,
+      wallNowMs: 532,
+      acceptedSimulationNowSec: 0.064,
+      activeWallDurationMs: 32,
+    });
+    expect(afterRestart.livePacing.epochLagMs).toBe(108);
+    expect(afterRestart.delayMs).toBe(0);
+  });
+
   it("does not re-anchor at exactly the declared lag budget", () => {
     const state = mainWireStudioInitialLivePacingEpochStateV1({
       wallNowMs: 0,

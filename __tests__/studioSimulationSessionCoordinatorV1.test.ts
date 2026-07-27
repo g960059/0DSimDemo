@@ -1162,6 +1162,101 @@ describe("Studio SimulationSession coordinator V1", () => {
       },
     });
 
+    // A recovery claim carrying no measurable rate is absent evidence, not a
+    // contradiction. A clock too coarse to resolve any active-wall duration
+    // reports none, and rejecting that would suspend a recovered lane.
+    const recoveredRuntime = new FakeRuntimePortV1();
+    const recoveredCoordinator = coordinatorV1(recoveredRuntime);
+    await recoveredCoordinator.open(openCommandV1());
+    recoveredRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "degraded",
+        epochLagMs: 4,
+        recentAchievedRate: 0.5,
+        cumulativeRebasedDeficitMs: 1_200,
+      },
+    });
+    recoveredRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(3).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "realtime-1x",
+        epochLagMs: 0,
+        recentAchievedRate: null,
+        cumulativeRebasedDeficitMs: 1_200,
+      },
+    });
+    expect(recoveredCoordinator.branch("baseline")).toMatchObject({
+      livePlayback: "running",
+      lastRuntimeFailure: null,
+      livePacing: { mode: "realtime-1x", recentAchievedRate: null },
+    });
+
+    // A rate that actively contradicts the claim is still rejected.
+    const contradictingRuntime = new FakeRuntimePortV1();
+    const contradictingCoordinator = coordinatorV1(contradictingRuntime);
+    await contradictingCoordinator.open(openCommandV1());
+    contradictingRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "degraded",
+        epochLagMs: 4,
+        recentAchievedRate: 0.5,
+        cumulativeRebasedDeficitMs: 1_200,
+      },
+    });
+    contradictingRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(3).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "realtime-1x",
+        epochLagMs: 0,
+        recentAchievedRate: 0.4,
+        cumulativeRebasedDeficitMs: 1_200,
+      },
+    });
+    expect(contradictingCoordinator.branch("baseline")).toMatchObject({
+      livePlayback: "suspended",
+      lastRuntimeFailure: {
+        message: "runtime signal channel emitted an invalid batch",
+      },
+    });
+
     const metricRuntime = new FakeRuntimePortV1();
     const metricCoordinator = coordinatorV1(metricRuntime);
     await metricCoordinator.open(openCommandV1());

@@ -1631,6 +1631,7 @@ implements SimulationRuntimePortV1 {
       mode: branch.livePacing.mode,
       cumulativeRebasedDeficitMs: branch.livePacing.cumulativeRebasedDeficitMs,
       reportingRateWindow: branch.livePacingReportingWindow,
+      epochLagMs: branch.livePacing.epochLagMs,
     });
   }
 
@@ -2115,16 +2116,25 @@ export function mainWireStudioInitialLivePacingEpochStateV1(
     cumulativeRebasedDeficitMs: number;
     /**
      * Carried across loop restarts within one stream epoch. Recovery evidence
-     * is deliberately not carried: a resumed lane has to earn 1x again.
+     * is deliberately not carried: a resumed degraded lane has to earn 1x
+     * again. A lane already at 1x keeps that mode immediately.
      */
     reportingRateWindow?: readonly MainWireStudioLivePacingRateSliceV1[];
+    /**
+     * Outstanding sub-cycle lag from the epoch being replaced. Restarting a
+     * loop must not quietly forgive it: the new anchor is moved back by this
+     * much so the deadline still owes it.
+     */
+    epochLagMs?: number;
   }>,
 ): MainWireStudioLivePacingEpochStateV1 {
-  if (input.acceptedSimulationNowSec < 0) {
+  const epochLagMs = input.epochLagMs ?? 0;
+  if (input.acceptedSimulationNowSec < 0 || epochLagMs < 0) {
     throw runtimeErrorV1("live pacing state is invalid");
   }
+  assertFiniteLivePacingValueV1(epochLagMs);
   const state = Object.freeze({
-    wallAnchorMs: input.wallNowMs,
+    wallAnchorMs: input.wallNowMs - epochLagMs,
     simulationAnchorSec: input.acceptedSimulationNowSec,
     lastDecisionWallMs: input.wallNowMs,
     lastAcceptedSimulationSec: input.acceptedSimulationNowSec,
