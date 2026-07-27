@@ -123,9 +123,43 @@ function loadRuntimeObservablePointV1(
   return value as RuntimeObservablePointV1;
 }
 
+/**
+ * Validation-result cache keyed by the caller's own reference identity.
+ *
+ * Every projected point carries the same release ref object for the lifetime
+ * of a scenario, but validating it canonicalises, reparses, and deep-freezes
+ * the value. At 500 points per second per lane that was the most repeated work
+ * in this projection, for an answer that cannot change while the identity is
+ * unchanged.
+ *
+ * Only frozen identities are cached. An unfrozen object can be mutated behind
+ * its identity, so a cached verdict for it would outlive the data it was made
+ * about: mutating a validated ref into invalid data, or into a different valid
+ * ref, would keep emitting the old answer. Such callers are revalidated every
+ * time. The live path stores an already-validated frozen ref, so it still hits
+ * the cache.
+ */
+const VALIDATED_RELEASE_REF_BY_IDENTITY_V1 = new WeakMap<
+  object,
+  SimulationReleaseRef
+>();
+
 function loadReleaseRefV1(value: unknown): SimulationReleaseRef {
+  const cacheable = typeof value === "object"
+      && value !== null
+      && Object.isFrozen(value)
+    ? value
+    : null;
+  if (cacheable !== null) {
+    const cached = VALIDATED_RELEASE_REF_BY_IDENTITY_V1.get(cacheable);
+    if (cached !== undefined) return cached;
+  }
   try {
-    return loadSimulationReleaseRefV1(value);
+    const loaded = loadSimulationReleaseRefV1(value);
+    if (cacheable !== null) {
+      VALIDATED_RELEASE_REF_BY_IDENTITY_V1.set(cacheable, loaded);
+    }
+    return loaded;
   } catch (error) {
     throw projectionErrorV1(
       `simulation release reference is invalid: ${errorMessageV1(error)}`,

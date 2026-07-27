@@ -33,6 +33,9 @@ import type {
   RuntimeTargetIntentExecutionV1,
   SimulationRuntimePortV1,
 } from "@/studio/contracts/v1";
+import {
+  INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
+} from "@/studio/contracts/v1";
 
 describe("Scientific Product Studio scenario controller V1", () => {
   it("records an earlier queued action failure until a later action completes", async () => {
@@ -383,6 +386,72 @@ describe("Scientific Product Studio scenario controller V1", () => {
     await controller.dispose();
   });
 
+  it("stops claiming Running when a failed resume suspends the lane", async () => {
+    const { controller, coordinator, runtime } =
+      await controllerFixtureV1(0);
+    const actions = controller.controlStore.actions;
+    expect(controller.status.livePlayback).toBe("running");
+
+    // Pause, then resume before the suspend boundary settles, so desired
+    // playback ends at "running" while acknowledgement is still the
+    // pre-action "running" and two actions are outstanding.
+    const suspendGate = runtime.delayNextSuspend();
+    actions.pauseLive();
+    await waitForV1(() =>
+      runtime.signalLifecycle.includes("suspend:start:scenario/controller")
+    );
+    runtime.rejectNextResume(new Error("live worker died"));
+    actions.resumeLive();
+    expect(controller.status.livePlayback).toBe("running");
+
+    // The queued resume fails, which suspends the lane fail-closed. Desired
+    // playback is still "running", so the desired-state equality gate alone
+    // would keep acknowledging "running" for a lane that has stopped.
+    suspendGate.resolve(undefined);
+    await waitForV1(() =>
+      coordinator.branch("scenario/controller").lastRuntimeFailure !== null
+    );
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 20));
+
+    expect(coordinator.branch("scenario/controller").livePlayback)
+      .toBe("suspended");
+    expect(controller.status.livePlayback).toBe("suspended");
+    expect(controller.status.lastFailure).toMatchObject({
+      lane: "live",
+      message: expect.stringContaining("live worker died"),
+    });
+
+    await controller.dispose();
+  });
+
+  it("still waits for the runtime boundary while a playback action is pending", async () => {
+    const { controller, coordinator, runtime } =
+      await controllerFixtureV1(0);
+    const actions = controller.controlStore.actions;
+    expect(controller.status.livePlayback).toBe("running");
+
+    // The failure override must not short-circuit the boundary contract. With
+    // a suspend still in flight, product state has to keep reporting the
+    // pre-action value even though the coordinator already flipped its own and
+    // a live failure has landed.
+    const suspendGate = runtime.delayNextSuspend();
+    actions.pauseLive();
+    await waitForV1(() =>
+      runtime.signalLifecycle.includes("suspend:start:scenario/controller")
+    );
+    expect(coordinator.branch("scenario/controller").livePlayback)
+      .toBe("suspended");
+    runtime.emitLiveSignalFailure("live worker died");
+    await waitForV1(() =>
+      coordinator.branch("scenario/controller").lastRuntimeFailure !== null
+    );
+    expect(controller.status.livePlayback).toBe("running");
+
+    suspendGate.resolve(undefined);
+    await waitForV1(() => controller.status.livePlayback === "suspended");
+    await controller.dispose();
+  });
+
   it("orders pause/resume and recovers a failed suspended branch with one reset intent", async () => {
     const { controller, coordinator, runtime } =
       await controllerFixtureV1(0);
@@ -670,6 +739,7 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
   }>> = [];
   private nextSuspendGate: DeferredV1<void> | null = null;
   private nextResumeError: Error | null = null;
+  private nextResumeGate: DeferredV1<void> | null = null;
   private signalChannel: RuntimeSignalChannelRefV1 | null = null;
   private signalObserver:
     ((event: RuntimeSignalEventV1) => void) | null = null;
@@ -760,6 +830,9 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
     this.signalLifecycle.push(
       `resume:start:${channel.scenarioId}:${expectedStreamEpoch}`,
     );
+    const gate = this.nextResumeGate;
+    this.nextResumeGate = null;
+    if (gate !== null) await gate.promise;
     const error = this.nextResumeError;
     this.nextResumeError = null;
     if (error !== null) throw error;
@@ -788,6 +861,31 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
 
   rejectNextResume(error: Error): void {
     this.nextResumeError = error;
+  }
+
+  delayNextResume(): DeferredV1<void> {
+    const gate = deferredV1<void>();
+    this.nextResumeGate = gate;
+    return gate;
+  }
+
+  emitLiveSignalFailure(message: string): void {
+    const channel = this.signalChannel;
+    const observer = this.signalObserver;
+    if (channel === null || observer === null) {
+      throw new Error("fake signal channel is not subscribed");
+    }
+    observer(Object.freeze({
+      kind: "failure" as const,
+      channelId: channel.channelId,
+      sessionId: channel.sessionId,
+      scenarioId: channel.scenarioId,
+      liveBranchId: channel.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      message,
+    }));
   }
 
   emitSignal(
@@ -843,6 +941,7 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
         collectedPointCount,
         completedCycleCount: 0 as const,
       }),
+      livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
     }));
   }
 

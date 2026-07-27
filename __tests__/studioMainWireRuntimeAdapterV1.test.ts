@@ -44,8 +44,8 @@ import {
   MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1,
   loadMainWireStudioSnapshotEnvelopeV1,
   mainWireStudioExecutionIdentityV1,
+  mainWireStudioInitialLivePacingEpochStateV1,
   mainWireStudioLivePacingDecisionV1,
-  mainWireStudioLivePacingDelayMsV1,
   mainWireStudioTargetInputSha256V1,
   putMainWireStudioSnapshotEnvelopeV1,
   resolveMainWireStudioTargetInputV1,
@@ -301,44 +301,206 @@ describe("MainWire browser Worker host seam", () => {
 describe("MainWire Studio runtime adapter", () => {
   it("measures normal pacing and catches up transient lag against one fake clock", () => {
     const clock = new FakeMonotonicClockV1();
+    let state = mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: 0,
+      acceptedSimulationNowSec: 0,
+      mode: "realtime-1x",
+      cumulativeRebasedDeficitMs: 0,
+    });
     clock.advance(20);
     const normal = mainWireStudioLivePacingDecisionV1({
-      wallStartMs: 0,
+      state,
       wallNowMs: clock.nowMs(),
-      simulationStartSec: 0,
-      simulationNowSec: 0.032,
+      acceptedSimulationNowSec: 0.032,
+      activeWallDurationMs: 20,
     });
-    expect(normal).toEqual({ delayMs: 12, lagMs: 0 });
+    expect(normal.delayMs).toBe(12);
+    expect(normal.livePacing).toEqual({
+      mode: "realtime-1x",
+      epochLagMs: 0,
+      // 32 ms of accepted simulation for 20 ms of compute. The rate reports
+      // from the partial window rather than withholding a number until a full
+      // cycle exists.
+      recentAchievedRate: 1.6,
+      cumulativeRebasedDeficitMs: 0,
+    });
+    expect(normal.didRebase).toBe(false);
+    state = normal.nextState;
     clock.advance(normal.delayMs);
 
     clock.advance(40);
     const lagging = mainWireStudioLivePacingDecisionV1({
-      wallStartMs: 0,
+      state,
       wallNowMs: clock.nowMs(),
-      simulationStartSec: 0,
-      simulationNowSec: 0.064,
+      acceptedSimulationNowSec: 0.064,
+      activeWallDurationMs: 40,
     });
-    expect(lagging).toEqual({ delayMs: 0, lagMs: 8 });
+    expect(lagging.delayMs).toBe(0);
+    expect(lagging.livePacing.epochLagMs).toBe(8);
+    expect(lagging.livePacing.mode).toBe("realtime-1x");
+    expect(lagging.didRebase).toBe(false);
+    state = lagging.nextState;
 
     // The next fast chunk catches up the prior 8 ms deficit and waits only
-    // until the cumulative 96 ms deadline.
+    // until the cumulative 96 ms deadline. Lag is not a one-way ratchet.
     clock.advance(10);
     const recovered = mainWireStudioLivePacingDecisionV1({
-      wallStartMs: 0,
+      state,
       wallNowMs: clock.nowMs(),
-      simulationStartSec: 0,
-      simulationNowSec: 0.096,
+      acceptedSimulationNowSec: 0.096,
+      activeWallDurationMs: 10,
     });
-    expect(recovered).toEqual({ delayMs: 14, lagMs: 0 });
-    expect(mainWireStudioLivePacingDelayMsV1({
-      wallStartMs: 0,
-      wallNowMs: clock.nowMs(),
-      simulationStartSec: 0,
-      simulationNowSec: 0.096,
-    })).toBe(14);
+    expect(recovered.delayMs).toBe(14);
+    expect(recovered.livePacing.epochLagMs).toBe(0);
+    expect(recovered.didRebase).toBe(false);
   });
 
-  it("fails the live lane when sustained fake-clock overload exceeds the declared 1x lag budget", async () => {
+  it("re-anchors past one cycle of lag instead of failing, and only recovers after a full cycle at 1x", () => {
+    // Each chunk advances 32 ms of model time but costs 100 ms of wall time,
+    // so the epoch deficit grows by 68 ms per chunk.
+    let state = mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: 0,
+      acceptedSimulationNowSec: 0,
+      mode: "realtime-1x",
+      cumulativeRebasedDeficitMs: 0,
+    });
+    let wallNowMs = 0;
+    let acceptedSimulationNowSec = 0;
+    let rebaseCount = 0;
+    let cumulativeAfterFirstRebase = 0;
+    let lastDecision: ReturnType<typeof mainWireStudioLivePacingDecisionV1>
+      | null = null;
+    // Run overload until the second re-anchor, then stop exactly there so the
+    // recovery window starts empty and its horizon is unambiguous.
+    for (let chunk = 0; chunk < 200 && rebaseCount < 2; chunk += 1) {
+      wallNowMs += 100;
+      acceptedSimulationNowSec += 0.032;
+      lastDecision = mainWireStudioLivePacingDecisionV1({
+        state,
+        wallNowMs,
+        acceptedSimulationNowSec,
+        activeWallDurationMs: 100,
+      });
+      expect(lastDecision.delayMs).toBe(0);
+      // Post-decision lag stays inside one cycle: that is what re-anchoring buys.
+      expect(lastDecision.livePacing.epochLagMs)
+        .toBeLessThanOrEqual(MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1);
+      if (lastDecision.didRebase) {
+        rebaseCount += 1;
+        expect(lastDecision.rebasedDeficitMs)
+          .toBeGreaterThan(MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1);
+        if (rebaseCount === 1) {
+          cumulativeAfterFirstRebase =
+            lastDecision.livePacing.cumulativeRebasedDeficitMs;
+        }
+      }
+      state = lastDecision.nextState;
+    }
+    expect(rebaseCount).toBe(2);
+    expect(state.mode).toBe("degraded");
+    // A re-anchor clears recovery evidence but never the reported rate, so the
+    // lane can still say how slow it is while it is too slow to ever recover.
+    expect(state.recoveryRateWindow).toHaveLength(0);
+    expect(state.reportingRateWindow.length).toBeGreaterThan(0);
+    expect(lastDecision!.livePacing.recentAchievedRate).toBeGreaterThan(0);
+    expect(lastDecision!.livePacing.recentAchievedRate).toBeLessThan(1);
+    // Cumulative slowdown stays explicit rather than being absorbed.
+    expect(lastDecision!.livePacing.cumulativeRebasedDeficitMs)
+      .toBeGreaterThan(cumulativeAfterFirstRebase);
+
+    // Compute recovers to 16 ms per 32 ms chunk (2x realtime). Recovery waits
+    // for a whole canonical cycle of that, not merely a small instantaneous lag.
+    let recoveredAt: number | null = null;
+    for (let chunk = 0; chunk < 64 && recoveredAt === null; chunk += 1) {
+      wallNowMs += 32;
+      acceptedSimulationNowSec += 0.032;
+      const decision = mainWireStudioLivePacingDecisionV1({
+        state,
+        wallNowMs,
+        acceptedSimulationNowSec,
+        activeWallDurationMs: 16,
+      });
+      state = decision.nextState;
+      if (decision.livePacing.mode === "realtime-1x") {
+        recoveredAt = chunk + 1;
+        expect(decision.livePacing.recentAchievedRate).toBeGreaterThanOrEqual(1);
+      }
+    }
+    // 1,000 ms of accepted simulation at 32 ms per chunk needs 32 chunks.
+    // Recovery cannot be claimed before the window holds a complete cycle,
+    // however small the instantaneous lag has become.
+    expect(recoveredAt).toBe(32);
+  });
+
+  it("carries outstanding lag across a loop re-anchor instead of forgiving it", () => {
+    let state = mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: 0,
+      acceptedSimulationNowSec: 0,
+      mode: "realtime-1x",
+      cumulativeRebasedDeficitMs: 0,
+    });
+    // 32 ms of model time took 140 ms, so the lane owes 108 ms.
+    const lagging = mainWireStudioLivePacingDecisionV1({
+      state,
+      wallNowMs: 140,
+      acceptedSimulationNowSec: 0.032,
+      activeWallDurationMs: 140,
+    });
+    expect(lagging.livePacing.epochLagMs).toBe(108);
+
+    // A loop restart re-anchors. The debt must survive it: a resumed lane that
+    // silently starts from zero would absorb lag the contract says is never
+    // absorbed.
+    state = mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: 500,
+      acceptedSimulationNowSec: 0.032,
+      mode: lagging.livePacing.mode,
+      cumulativeRebasedDeficitMs:
+        lagging.livePacing.cumulativeRebasedDeficitMs,
+      epochLagMs: lagging.livePacing.epochLagMs,
+    });
+    const afterRestart = mainWireStudioLivePacingDecisionV1({
+      state,
+      wallNowMs: 532,
+      acceptedSimulationNowSec: 0.064,
+      activeWallDurationMs: 32,
+    });
+    expect(afterRestart.livePacing.epochLagMs).toBe(108);
+    expect(afterRestart.delayMs).toBe(0);
+  });
+
+  it("does not re-anchor at exactly the declared lag budget", () => {
+    const state = mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: 0,
+      acceptedSimulationNowSec: 0,
+      mode: "realtime-1x",
+      cumulativeRebasedDeficitMs: 0,
+    });
+    const atBudget = mainWireStudioLivePacingDecisionV1({
+      state,
+      wallNowMs: 32 + MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1,
+      acceptedSimulationNowSec: 0.032,
+      activeWallDurationMs: 1,
+    });
+    expect(atBudget.didRebase).toBe(false);
+    expect(atBudget.livePacing.mode).toBe("realtime-1x");
+    expect(atBudget.livePacing.epochLagMs)
+      .toBe(MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1);
+
+    const pastBudget = mainWireStudioLivePacingDecisionV1({
+      state,
+      wallNowMs: 33 + MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1,
+      acceptedSimulationNowSec: 0.032,
+      activeWallDurationMs: 1,
+    });
+    expect(pastBudget.didRebase).toBe(true);
+    expect(pastBudget.livePacing.mode).toBe("degraded");
+    expect(pastBudget.livePacing.epochLagMs).toBe(0);
+    expect(pastBudget.livePacing.cumulativeRebasedDeficitMs)
+      .toBe(MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1 + 1);
+  });
+
+  it("keeps the live lane running under sustained overload and reports degraded pacing", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);
     harness.yieldRunToTimer = true;
@@ -358,30 +520,134 @@ describe("MainWire Studio runtime adapter", () => {
       events.push(event);
     });
     // Each command advances only 32 ms of model time but consumes 100 ms of
-    // fake wall time. The cumulative deficit therefore grows by 68 ms/chunk.
+    // fake wall time. The cumulative deficit therefore grows by 68 ms/chunk,
+    // so the old 1,000 ms fatal cap is crossed after ~15 chunks. The lane must
+    // survive far past that, across more than one re-anchor.
     harness.onRunTransient = () => clock.advance(100);
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
-    await waitForV1(() => events.some(({ kind }) => kind === "failure"));
-
-    const failure = events.find(({ kind }) => kind === "failure");
-    expect(failure).toMatchObject({
-      kind: "failure",
-      message: expect.stringMatching(
-        new RegExp(
-          "live 1x pacing lag .* exceeded the declared "
-          + `${MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1} ms maximum`,
-        ),
+    const rebaseTotalsV1 = (): readonly number[] => [
+      ...new Set(
+        events
+          .filter((event) => event.kind === "samples")
+          .map((event) => event.livePacing.cumulativeRebasedDeficitMs)
+          .filter((total) => total > 0),
       ),
-    });
-    expect(harness.hosts[0]!.runTransientCallCount).toBeGreaterThan(1);
-    const stoppedCallCount = harness.hosts[0]!.runTransientCallCount;
-    await delayV1(5);
-    expect(harness.hosts[0]!.runTransientCallCount).toBe(stoppedCallCount);
-    await expect(
-      adapter.resumeSignalChannel(branch.signalChannelRef, 0),
-    ).rejects.toThrow(/live 1x pacing lag/);
+    ];
+    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    // Each distinct nonzero cumulative total is one re-anchor, so this waits
+    // for the lane to survive two of them rather than merely reach degraded.
+    await waitForV1(() => rebaseTotalsV1().length >= 2);
+
+    const batches = events.filter((event) => event.kind === "samples");
+    expect(events.some(({ kind }) => kind === "failure")).toBe(false);
+    // Crossing the old cap must be demonstrated, not assumed. At 68 ms of
+    // deficit per chunk the retired 1,000 ms cap would have fired on chunk 15,
+    // so reaching a second re-anchor is twice the lifetime the old lane had.
+    expect(batches.length).toBeGreaterThanOrEqual(30);
+
+    let previousSequence: number | null = null;
+    let previousTimeSec: number | null = null;
+    for (const batch of batches) {
+      for (const point of batch.points) {
+        if (previousSequence !== null) {
+          expect(point.sequence).toBe(previousSequence + 1);
+          expect(point.simulationTimeSec).toBeGreaterThan(previousTimeSec!);
+        }
+        previousSequence = point.sequence;
+        previousTimeSec = point.simulationTimeSec;
+      }
+      expect(batch.livePacing.epochLagMs)
+        .toBeLessThanOrEqual(MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1);
+    }
+
+    const degraded = batches.filter(
+      (batch) => batch.livePacing.mode === "degraded",
+    );
+    expect(degraded.length).toBeGreaterThanOrEqual(2);
+    // Each re-anchor adds its discarded deficit, so the reported total grows.
+    expect(degraded.at(-1)!.livePacing.cumulativeRebasedDeficitMs)
+      .toBeGreaterThan(degraded[0]!.livePacing.cumulativeRebasedDeficitMs);
+
+    // The lane is still streaming, not merely alive: commands keep being
+    // issued and batches keep arriving well past the second re-anchor.
+    const observedCallCount = harness.hosts[0]!.runTransientCallCount;
+    const observedBatchCount = batches.length;
+    await waitForV1(() =>
+      harness.hosts[0]!.runTransientCallCount > observedCallCount
+      && events.filter((event) => event.kind === "samples").length
+        > observedBatchCount);
+    expect(events.some(({ kind }) => kind === "failure")).toBe(false);
     await adapter.closeSession("live-pacing-overload-session");
+  });
+
+  it("keeps streaming when the clock is too coarse to resolve the pacing delay", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.yieldRunToTimer = true;
+    // A clock that never advances is the limiting case of the real browser one:
+    // once compute outruns realtime the residual delay falls below the host
+    // clock's granularity, so a wait can return with the reading unchanged.
+    // The lane must publish and continue rather than treat that as a fault.
+    const adapter = runtimeAdapterV1(stored, harness, {
+      liveStepCountPerChunk: 16,
+      nowMs: () => 1_000,
+      delayMs: async () => {
+        await delayV1(0);
+      },
+    });
+    const opened = await adapter.openSession({
+      sessionId: "live-pacing-coarse-clock-session",
+      branches: [sourceBranchV1(stored, "live-pacing-coarse-clock-scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const events: RuntimeSignalEventV1[] = [];
+    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+      events.push(event);
+    });
+
+    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await waitForV1(() =>
+      events.filter((event) => event.kind === "samples").length >= 4);
+    expect(events.some(({ kind }) => kind === "failure")).toBe(false);
+
+    const observed = events.filter((event) => event.kind === "samples").length;
+    await waitForV1(() =>
+      events.filter((event) => event.kind === "samples").length > observed);
+    expect(events.some(({ kind }) => kind === "failure")).toBe(false);
+    await adapter.closeSession("live-pacing-coarse-clock-session");
+  });
+
+  it("waits before publishing so presentation never runs ahead of 1x", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.yieldRunToTimer = true;
+    const clock = new FakeMonotonicClockV1();
+    const adapter = runtimeAdapterV1(stored, harness, {
+      liveStepCountPerChunk: 16,
+      nowMs: clock.nowMs,
+      delayMs: clock.delayMs,
+    });
+    const opened = await adapter.openSession({
+      sessionId: "live-pacing-delay-session",
+      branches: [sourceBranchV1(stored, "live-pacing-delay-scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const publishedAtMs: number[] = [];
+    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+      if (event.kind === "samples") publishedAtMs.push(clock.nowMs());
+    });
+    // Compute is far faster than realtime: 1 ms of wall time per 32 ms chunk.
+    harness.onRunTransient = () => clock.advance(1);
+
+    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await waitForV1(() => publishedAtMs.length >= 4);
+
+    // Every batch is released at or after its 1x deadline. Publishing first and
+    // sleeping afterwards would let presentation run a whole chunk ahead.
+    for (const [index, atMs] of publishedAtMs.slice(0, 4).entries()) {
+      expect(atMs).toBeGreaterThanOrEqual((index + 1) * 32);
+    }
+    await adapter.closeSession("live-pacing-delay-session");
   });
 
   it("reports a throwing live observer through the signal failure channel without detaching it", async () => {
@@ -528,10 +794,11 @@ describe("MainWire Studio runtime adapter", () => {
       terminated: true,
       checkpointV4CallCount: 1,
     });
-    expect(harness.hosts[1]).toMatchObject({
-      terminated: false,
-      runTransientCallCount: 1,
-    });
+    expect(harness.hosts[1]!.terminated).toBe(false);
+    // The rotated host owns the live lane from here. Pacing delays the
+    // presentation of a chunk, not its computation, so the loop may already
+    // have issued the next command by the time the first batch is observed.
+    expect(harness.hosts[1]!.runTransientCallCount).toBeGreaterThanOrEqual(1);
     expect(batches[0]!.points[0]!.sequence)
       .toBe(baseFixture.frame.revision + 1);
     await adapter.closeSession("live-host-rotation-session");

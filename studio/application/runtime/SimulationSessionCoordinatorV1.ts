@@ -1,5 +1,6 @@
 import {
   INITIAL_PRESENTATION_REVISION_V1,
+  INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
   INITIAL_TARGET_GENERATION_V1,
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
   STUDIO_RUN_ARTIFACT_CONTENT_V1_SCHEMA_ID,
@@ -15,6 +16,7 @@ import {
   type RuntimeExecutionIdentityV1,
   type RuntimeLaneFailureV1,
   type RuntimeLiveIntentResultV1,
+  type RuntimeLivePacingStateV1,
   type RuntimeLiveTransitionResultV1,
   type RuntimeObservablePointV1,
   type RuntimePresentationEventV1,
@@ -437,6 +439,7 @@ export class SimulationSessionCoordinatorV1 {
         presentationRevision,
         streamEpoch: safePromoted.streamEpoch,
         targetInputSha256: candidate.targetInputSha256,
+        livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
         display: Object.freeze({
           origin: Object.freeze({
             kind: "promoted-steady-candidate" as const,
@@ -879,8 +882,13 @@ export class SimulationSessionCoordinatorV1 {
           "runtime signal metrics regressed",
         );
       }
+      const livePacing = copyLivePacingStateV1(
+        signal.livePacing as RuntimeLivePacingStateV1,
+        branch.livePacing,
+      );
       const replacement = Object.freeze({
         ...branch,
+        livePacing,
         display: Object.freeze({
           ...branch.display,
           latestPoint: points.at(-1)!,
@@ -1099,6 +1107,7 @@ export class SimulationSessionCoordinatorV1 {
         const replacement = Object.freeze({
           ...branch,
           streamEpoch: live.streamEpoch,
+          livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
           display: Object.freeze({
             origin: Object.freeze({
               kind: "live-transition" as const,
@@ -1381,6 +1390,7 @@ function initialBranchStateV1(
     signalChannelRef: opened.signalChannelRef,
     streamEpoch: opened.streamEpoch,
     livePlayback: "suspended",
+    livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
     execution: opened.execution,
     targetGeneration: INITIAL_TARGET_GENERATION_V1,
     presentationRevision: INITIAL_PRESENTATION_REVISION_V1,
@@ -2012,6 +2022,57 @@ function copyPointV1(
     simulationTimeSec: point.simulationTimeSec,
     phase01: point.phase01,
     values: Object.freeze(values),
+  });
+}
+
+function copyLivePacingStateV1(
+  livePacing: RuntimeLivePacingStateV1,
+  previous: RuntimeLivePacingStateV1,
+): RuntimeLivePacingStateV1 {
+  if (
+    livePacing === null
+    || typeof livePacing !== "object"
+    || (livePacing.mode !== "realtime-1x" && livePacing.mode !== "degraded")
+    || !Number.isFinite(livePacing.epochLagMs)
+    || livePacing.epochLagMs < 0
+    || !Number.isFinite(livePacing.cumulativeRebasedDeficitMs)
+    || livePacing.cumulativeRebasedDeficitMs < 0
+    || (
+      livePacing.recentAchievedRate !== null
+      && (
+        !Number.isFinite(livePacing.recentAchievedRate)
+        // A reported rate always covers a window with positive accepted
+        // simulation duration, so zero is not a measurable rate but a
+        // malformed one.
+        || livePacing.recentAchievedRate <= 0
+      )
+    )
+    // Reported slowdown only accumulates within a stream epoch, and the epoch
+    // reset clears it. A batch that lowers the total would erase separation the
+    // runtime already admitted to, which is what this field exists to prevent.
+    || livePacing.cumulativeRebasedDeficitMs
+      < previous.cumulativeRebasedDeficitMs
+    // A claimed return to 1x must not be contradicted by the rate that comes
+    // with it. The full-cycle, no-re-anchor evidence stays with the adapter.
+    // A null rate is absent evidence, not contradictory evidence: a clock too
+    // coarse to resolve any active-wall duration reports none, and rejecting
+    // that would suspend a lane that has genuinely recovered.
+    || (
+      previous.mode === "degraded"
+      && livePacing.mode === "realtime-1x"
+      && livePacing.recentAchievedRate !== null
+      && livePacing.recentAchievedRate < 1
+    )
+  ) {
+    throw new SimulationSessionCoordinatorErrorV1(
+      "runtime live pacing state is invalid",
+    );
+  }
+  return Object.freeze({
+    mode: livePacing.mode,
+    epochLagMs: livePacing.epochLagMs,
+    recentAchievedRate: livePacing.recentAchievedRate,
+    cumulativeRebasedDeficitMs: livePacing.cumulativeRebasedDeficitMs,
   });
 }
 

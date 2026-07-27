@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
   type OpenSimulationSessionCommandV1,
   type PromoteSteadyCandidateCommandV1,
@@ -306,6 +307,7 @@ describe("Studio SimulationSession coordinator V1", () => {
         collectedPointCount: 3,
         completedCycleCount: 0,
       },
+      livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
     });
     expect(events).toHaveLength(4);
     expect(coordinator.branch("baseline").livePlayback).toBe("suspended");
@@ -1070,6 +1072,191 @@ describe("Studio SimulationSession coordinator V1", () => {
       },
     });
 
+    // Pacing is part of the batch contract, so a batch that omits it or
+    // reports an impossible value is rejected like any other malformed batch.
+    for (const livePacing of [
+      undefined,
+      { mode: "sprinting", epochLagMs: 0, recentAchievedRate: null, cumulativeRebasedDeficitMs: 0 },
+      { mode: "degraded", epochLagMs: -1, recentAchievedRate: null, cumulativeRebasedDeficitMs: 0 },
+      { mode: "degraded", epochLagMs: 0, recentAchievedRate: Number.NaN, cumulativeRebasedDeficitMs: 0 },
+      { mode: "realtime-1x", epochLagMs: 0, recentAchievedRate: null, cumulativeRebasedDeficitMs: -5 },
+      // A rate always covers a window with positive accepted simulation
+      // duration, so zero is malformed rather than "not moving".
+      { mode: "degraded", epochLagMs: 0, recentAchievedRate: 0, cumulativeRebasedDeficitMs: 0 },
+    ]) {
+      const pacingRuntime = new FakeRuntimePortV1();
+      const pacingCoordinator = coordinatorV1(pacingRuntime);
+      await pacingCoordinator.open(openCommandV1());
+      pacingRuntime.emitRawSignal("baseline", {
+        kind: "samples",
+        targetGeneration: 0,
+        presentationRevision: 0,
+        streamEpoch: 0,
+        points: [frameV1(2).point],
+        windowMetrics: {
+          status: "collecting",
+          collectedPointCount: 2,
+          completedCycleCount: 0,
+        },
+        ...(livePacing === undefined ? {} : { livePacing }),
+      });
+      expect(pacingCoordinator.branch("baseline")).toMatchObject({
+        livePlayback: "suspended",
+        lastRuntimeFailure: {
+          message: "runtime signal channel emitted an invalid batch",
+        },
+      });
+    }
+
+    // Admitted slowdown cannot be walked back inside a stream epoch. The
+    // second batch reports a smaller cumulative deficit than the first, which
+    // would silently erase separation the runtime already reported.
+    const regressingRuntime = new FakeRuntimePortV1();
+    const regressingCoordinator = coordinatorV1(regressingRuntime);
+    await regressingCoordinator.open(openCommandV1());
+    regressingRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "degraded",
+        epochLagMs: 12,
+        recentAchievedRate: 0.5,
+        cumulativeRebasedDeficitMs: 1_400,
+      },
+    });
+    expect(regressingCoordinator.branch("baseline")).toMatchObject({
+      livePlayback: "running",
+      lastRuntimeFailure: null,
+      livePacing: { mode: "degraded", cumulativeRebasedDeficitMs: 1_400 },
+    });
+    regressingRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(3).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "degraded",
+        epochLagMs: 12,
+        recentAchievedRate: 0.5,
+        cumulativeRebasedDeficitMs: 900,
+      },
+    });
+    expect(regressingCoordinator.branch("baseline")).toMatchObject({
+      livePlayback: "suspended",
+      lastRuntimeFailure: {
+        message: "runtime signal channel emitted an invalid batch",
+      },
+    });
+
+    // A recovery claim carrying no measurable rate is absent evidence, not a
+    // contradiction. A clock too coarse to resolve any active-wall duration
+    // reports none, and rejecting that would suspend a recovered lane.
+    const recoveredRuntime = new FakeRuntimePortV1();
+    const recoveredCoordinator = coordinatorV1(recoveredRuntime);
+    await recoveredCoordinator.open(openCommandV1());
+    recoveredRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "degraded",
+        epochLagMs: 4,
+        recentAchievedRate: 0.5,
+        cumulativeRebasedDeficitMs: 1_200,
+      },
+    });
+    recoveredRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(3).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "realtime-1x",
+        epochLagMs: 0,
+        recentAchievedRate: null,
+        cumulativeRebasedDeficitMs: 1_200,
+      },
+    });
+    expect(recoveredCoordinator.branch("baseline")).toMatchObject({
+      livePlayback: "running",
+      lastRuntimeFailure: null,
+      livePacing: { mode: "realtime-1x", recentAchievedRate: null },
+    });
+
+    // A rate that actively contradicts the claim is still rejected.
+    const contradictingRuntime = new FakeRuntimePortV1();
+    const contradictingCoordinator = coordinatorV1(contradictingRuntime);
+    await contradictingCoordinator.open(openCommandV1());
+    contradictingRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "degraded",
+        epochLagMs: 4,
+        recentAchievedRate: 0.5,
+        cumulativeRebasedDeficitMs: 1_200,
+      },
+    });
+    contradictingRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(3).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "realtime-1x",
+        epochLagMs: 0,
+        recentAchievedRate: 0.4,
+        cumulativeRebasedDeficitMs: 1_200,
+      },
+    });
+    expect(contradictingCoordinator.branch("baseline")).toMatchObject({
+      livePlayback: "suspended",
+      lastRuntimeFailure: {
+        message: "runtime signal channel emitted an invalid batch",
+      },
+    });
+
     const metricRuntime = new FakeRuntimePortV1();
     const metricCoordinator = coordinatorV1(metricRuntime);
     await metricCoordinator.open(openCommandV1());
@@ -1413,6 +1600,7 @@ describe("Studio SimulationSession coordinator V1", () => {
         collectedPointCount: 2,
         completedCycleCount: 0,
       },
+      livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
     });
     expect(coordinator.branch("baseline")).toMatchObject({
       livePlayback: "suspended",
@@ -1624,8 +1812,8 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
   private readonly immediateResumeEvents =
     new Map<string, Array<Omit<
       RuntimeSignalBatchV1,
-      "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
-    >>>();
+      "channelId" | "sessionId" | "scenarioId" | "liveBranchId" | "livePacing"
+    > & Partial<Pick<RuntimeSignalBatchV1, "livePacing">>>>();
   private readonly nextResumeErrors = new Map<string, Error>();
   private readonly nextResumeGates = new Map<string, DeferredV1<void>>();
   private readonly nextSuspendGates = new Map<string, DeferredV1<void>>();
@@ -1811,6 +1999,7 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
     }
     if (event !== undefined) {
       this.signalObservers.get(channel.channelId)?.({
+        livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
         ...event,
         channelId: channel.channelId,
         sessionId: channel.sessionId,
@@ -1829,8 +2018,8 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
     scenarioId: string,
     input: Omit<
       RuntimeSignalBatchV1,
-      "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
-    >,
+      "channelId" | "sessionId" | "scenarioId" | "liveBranchId" | "livePacing"
+    > & Partial<Pick<RuntimeSignalBatchV1, "livePacing">>,
   ): void {
     const channel = this.signalChannelsByScenario.get(scenarioId);
     if (
@@ -1838,6 +2027,7 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
       || this.suspendedSignalChannelIds.has(channel.channelId)
     ) return;
     this.signalObservers.get(channel.channelId)?.({
+      livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
       ...input,
       channelId: channel.channelId,
       sessionId: channel.sessionId,
@@ -1850,8 +2040,8 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
     scenarioId: string,
     input: Omit<
       RuntimeSignalBatchV1,
-      "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
-    >,
+      "channelId" | "sessionId" | "scenarioId" | "liveBranchId" | "livePacing"
+    > & Partial<Pick<RuntimeSignalBatchV1, "livePacing">>,
   ): void {
     const queue = this.immediateResumeEvents.get(scenarioId) ?? [];
     queue.push(input);

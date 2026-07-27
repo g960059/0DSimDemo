@@ -22,6 +22,7 @@ import {
   MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
 } from "@/engine/scientificBrowser/mainWireScientificBrowserRuntimeLimitsV1";
 import {
+  INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
   STUDIO_RUN_ARTIFACT_CONTENT_V1_SCHEMA_ID,
   type ArtifactStorePortV1,
@@ -34,6 +35,8 @@ import {
   type RuntimeIntentBranchInterruptionV1,
   type RuntimeLiveIntentBranchResultV1,
   type RuntimeLiveIntentResultV1,
+  type RuntimeLivePacingModeV1,
+  type RuntimeLivePacingStateV1,
   type RuntimeObservablePointV1,
   type RuntimePresentationFrameV1,
   type RuntimeScenarioBranchOpenedV1,
@@ -87,8 +90,9 @@ const DEFAULT_STRICT_MAXIMUM_BEAT_COUNT_V1 = 32;
 /**
  * A fixed-1x presentation may recover short compute stalls against its
  * cumulative deadline, but it must not silently drift by a complete canonical
- * cycle. Crossing this budget suspends the live lane through its existing
- * failure channel; a new target/reset is required to establish a fresh epoch.
+ * cycle. Crossing this budget re-anchors the pacing epoch: the accepted chunk
+ * is still published, the lane keeps running, and the discarded wall/model
+ * separation is reported as degraded pacing. It is not a lane failure.
  */
 export const MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1 =
   MAIN_WIRE_CYCLE_LENGTH_SEC_V1 * 1_000;
@@ -152,6 +156,12 @@ type AdapterBranchV1 = {
   promotionInProgress: boolean;
   loopIdentity: number;
   liveFailure: Error | null;
+  livePacing: RuntimeLivePacingStateV1;
+  /**
+   * Stream-epoch scoped, so the reported rate survives loop restarts and host
+   * rotation. Only a new stream epoch clears it.
+   */
+  livePacingReportingWindow: readonly MainWireStudioLivePacingRateSliceV1[];
   traceOriginTimeSec: number;
   tracePointCount: number;
 };
@@ -567,6 +577,8 @@ implements SimulationRuntimePortV1 {
       promotionInProgress: false,
       loopIdentity: 0,
       liveFailure: null,
+      livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
+      livePacingReportingWindow: Object.freeze([]),
       traceOriginTimeSec: initialFrame.point.simulationTimeSec,
       tracePointCount: 1,
     };
@@ -710,6 +722,11 @@ implements SimulationRuntimePortV1 {
         entry.liveTarget.stateIdentity.acceptedTimeSec;
       branch.tracePointCount = 0;
       branch.liveFailure = null;
+      // A new stream epoch is a new 1x contract. Neither the old epoch's lag,
+      // its accumulated deficit, nor its measured rate describes the trace
+      // that starts here.
+      branch.livePacing = INITIAL_RUNTIME_LIVE_PACING_STATE_V1;
+      branch.livePacingReportingWindow = Object.freeze([]);
       committed.set(branch.scenarioId, entry);
     }
     // Source retirement is cleanup after the numerical commit. A transport
@@ -1254,6 +1271,8 @@ implements SimulationRuntimePortV1 {
       branch.traceOriginTimeSec = envelope.seedObservableFrame.acceptedTimeSec;
       branch.tracePointCount = 1;
       branch.liveFailure = null;
+      branch.livePacing = INITIAL_RUNTIME_LIVE_PACING_STATE_V1;
+      branch.livePacingReportingWindow = Object.freeze([]);
       session.transientHosts.delete(newHost);
       this.issuedCandidates.delete(
         issuedCandidateKeyV1(command.candidate),
@@ -1373,6 +1392,10 @@ implements SimulationRuntimePortV1 {
     }
 
     let remainingStepCount = totalStepCount;
+    // Phase alignment is still 1x presentation on the outgoing stream, so it
+    // uses the same epoch rules. The successful promotion resets pacing
+    // immediately afterwards.
+    let pacingState = this.reanchorLivePacingEpochV1(branch);
     while (remainingStepCount > 0 && branch.playbackRequested) {
       this.assertPromotionStillCurrentV1(
         session,
@@ -1385,12 +1408,13 @@ implements SimulationRuntimePortV1 {
         remainingStepCount,
         this.liveStepCountPerChunk,
       );
-      const commandStartedAtMs = this.nowMs();
+      const activeStartedWallMs = this.nowMs();
       const chunk = await this.runPromotionAlignmentChunkV1(
         branch,
         expectedHost,
         stepCount,
       );
+      const activeWallDurationMs = this.nowMs() - activeStartedWallMs;
       this.assertPromotionStillCurrentV1(
         session,
         branch,
@@ -1399,6 +1423,27 @@ implements SimulationRuntimePortV1 {
         expectedSessionId,
       );
       branch.hostedSession = chunk.session;
+      // Supersession during the pacing wait is reported by the promotion
+      // assertion below, which throws rather than silently dropping the chunk.
+      const decision = await this.settleLivePacingDelayV1(
+        pacingState,
+        chunk.session.stateIdentity.acceptedTimeSec,
+        activeWallDurationMs,
+        () => true,
+      );
+      this.assertPromotionStillCurrentV1(
+        session,
+        branch,
+        command,
+        expectedHost,
+        expectedSessionId,
+      );
+      if (decision === null) {
+        throw runtimeErrorV1("promotion alignment pacing lost its chunk");
+      }
+      pacingState = decision.nextState;
+      branch.livePacing = decision.livePacing;
+      branch.livePacingReportingWindow = decision.nextState.reportingRateWindow;
       this.publishTransientChunkV1(
         branch,
         chunk,
@@ -1407,16 +1452,6 @@ implements SimulationRuntimePortV1 {
         branch.streamEpoch,
       );
       remainingStepCount -= stepCount;
-      const remainingMs = Math.max(
-        0,
-        stepCount * MAIN_WIRE_LIVE_DT_SEC_V1 * 1_000
-          - (this.nowMs() - commandStartedAtMs),
-      );
-      if (
-        remainingStepCount > 0
-        && remainingMs > 0
-        && branch.playbackRequested
-      ) await this.delayMs(remainingMs);
     }
   }
 
@@ -1508,15 +1543,22 @@ implements SimulationRuntimePortV1 {
     branch: AdapterBranchV1,
     loopIdentity: number,
   ): Promise<void> {
-    const pacingWallStartMs = this.nowMs();
-    const pacingSimulationStartSec =
-      branch.hostedSession.stateIdentity.acceptedTimeSec;
+    // The epoch carries the branch's current mode and accumulated deficit
+    // across pause/resume: a resumed lane that was degraded has not proven it
+    // can hold 1x again until a full cycle of compute says so.
+    let pacingState = this.reanchorLivePacingEpochV1(branch);
     while (
       branch.desiredRunning
       && branch.loopIdentity === loopIdentity
       && branch.liveFailure === null
     ) {
+      const activeStartedWallMs = this.nowMs();
       await this.rotateLiveHostIfRequiredV1(branch);
+      if (
+        !branch.desiredRunning
+        || branch.loopIdentity !== loopIdentity
+        || branch.liveFailure !== null
+      ) return;
       const sourceSessionId = branch.hostedSession.sessionId;
       const sourceHost = branch.host;
       const targetGeneration = branch.targetGeneration;
@@ -1528,6 +1570,9 @@ implements SimulationRuntimePortV1 {
         stepCount: this.liveStepCountPerChunk,
         observationStride: 1,
       });
+      // Rotation is compute this lane had to perform, so it counts as active
+      // wall time; the pacing sleep below deliberately does not.
+      const activeWallDurationMs = this.nowMs() - activeStartedWallMs;
       if (
         branch.host === sourceHost
         && branch.hostedSession.sessionId === sourceSessionId
@@ -1538,38 +1583,34 @@ implements SimulationRuntimePortV1 {
         || branch.targetGeneration !== targetGeneration
         || branch.presentationRevision !== presentationRevision
         || branch.streamEpoch !== streamEpoch
-      ) continue;
-      if (
-        !branch.desiredRunning
-        || branch.loopIdentity !== loopIdentity
       ) {
-        // A manual suspension still accepts and publishes the command that was
-        // already in flight. This preserves a contiguous sequence on resume.
-        this.publishTransientChunkV1(
-          branch,
-          chunk,
-          targetGeneration,
-          presentationRevision,
-          streamEpoch,
-        );
+        // The accepted state this epoch was measuring against is gone. Re-anchor
+        // scheduling on whatever is current instead of comparing the next chunk
+        // to a superseded timeline.
+        pacingState = this.reanchorLivePacingEpochV1(branch);
         continue;
       }
-      const pacing = mainWireStudioLivePacingDecisionV1({
-        wallStartMs: pacingWallStartMs,
-        wallNowMs: this.nowMs(),
-        simulationStartSec: pacingSimulationStartSec,
-        simulationNowSec: chunk.session.stateIdentity.acceptedTimeSec,
-      });
-      if (
-        pacing.lagMs
-          > MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1
-      ) {
-        throw new Error(
-          `live 1x pacing lag ${pacing.lagMs.toFixed(3)} ms exceeded `
-          + "the declared "
-          + `${MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1} ms maximum`,
-        );
+      // A manual suspension still accepts, paces, and publishes the command
+      // that was already in flight. This preserves a contiguous sequence on
+      // resume, so the suspension boundary is not a reason to skip pacing.
+      const decision = await this.settleLivePacingDelayV1(
+        pacingState,
+        chunk.session.stateIdentity.acceptedTimeSec,
+        activeWallDurationMs,
+        () =>
+          branch.host === sourceHost
+          && branch.hostedSession.sessionId === sourceSessionId
+          && branch.targetGeneration === targetGeneration
+          && branch.presentationRevision === presentationRevision
+          && branch.streamEpoch === streamEpoch,
+      );
+      if (decision === null) {
+        pacingState = this.reanchorLivePacingEpochV1(branch);
+        continue;
       }
+      pacingState = decision.nextState;
+      branch.livePacing = decision.livePacing;
+      branch.livePacingReportingWindow = decision.nextState.reportingRateWindow;
       this.publishTransientChunkV1(
         branch,
         chunk,
@@ -1577,8 +1618,66 @@ implements SimulationRuntimePortV1 {
         presentationRevision,
         streamEpoch,
       );
-      if (pacing.delayMs > 0) await this.delayMs(pacing.delayMs);
     }
+  }
+
+  private reanchorLivePacingEpochV1(
+    branch: AdapterBranchV1,
+  ): MainWireStudioLivePacingEpochStateV1 {
+    return mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: this.nowMs(),
+      acceptedSimulationNowSec:
+        branch.hostedSession.stateIdentity.acceptedTimeSec,
+      mode: branch.livePacing.mode,
+      cumulativeRebasedDeficitMs: branch.livePacing.cumulativeRebasedDeficitMs,
+      reportingRateWindow: branch.livePacingReportingWindow,
+      epochLagMs: branch.livePacing.epochLagMs,
+    });
+  }
+
+  /**
+   * Waits out the 1x presentation delay for an accepted chunk and returns the
+   * decision to commit, or null when the chunk's identity was superseded while
+   * waiting.
+   *
+   * The wait happens before the caller publishes, so presentation can never run
+   * ahead of the declared rate by up to a chunk. The pure decision is recomputed
+   * from the same pre-chunk epoch after each wait, so an early-returning timer
+   * simply leaves a smaller residual delay rather than releasing the chunk early.
+   *
+   * A wait the monotonic clock cannot resolve ends the loop instead of
+   * repeating it. Sub-millisecond residual delays are routine once compute runs
+   * faster than realtime, and the host clock's granularity is the floor on how
+   * precisely any deadline can be honoured. Spinning on that floor would burn
+   * the lane, and failing on it would kill exactly the healthy lane this pacing
+   * model exists to keep running.
+   */
+  private async settleLivePacingDelayV1(
+    pacingState: MainWireStudioLivePacingEpochStateV1,
+    acceptedSimulationNowSec: number,
+    activeWallDurationMs: number,
+    stillCurrent: () => boolean,
+  ): Promise<MainWireStudioLivePacingDecisionV1 | null> {
+    let decision = mainWireStudioLivePacingDecisionV1({
+      state: pacingState,
+      wallNowMs: this.nowMs(),
+      acceptedSimulationNowSec,
+      activeWallDurationMs,
+    });
+    while (decision.delayMs > 0) {
+      const waitStartedWallMs = this.nowMs();
+      await this.delayMs(decision.delayMs);
+      if (!stillCurrent()) return null;
+      const wallNowMs = this.nowMs();
+      if (wallNowMs <= waitStartedWallMs) break;
+      decision = mainWireStudioLivePacingDecisionV1({
+        state: pacingState,
+        wallNowMs,
+        acceptedSimulationNowSec,
+        activeWallDurationMs,
+      });
+    }
+    return decision;
   }
 
   private async rotateLiveHostIfRequiredV1(
@@ -1727,6 +1826,7 @@ implements SimulationRuntimePortV1 {
         branch.traceOriginTimeSec,
         points.at(-1)!.simulationTimeSec,
       ),
+      livePacing: branch.livePacing,
     }));
   }
 
@@ -1867,49 +1967,307 @@ implements SimulationRuntimePortV1 {
   }
 }
 
-export function mainWireStudioLivePacingDelayMsV1(
-  input: Readonly<{
-    wallStartMs: number;
-    wallNowMs: number;
-    simulationStartSec: number;
-    simulationNowSec: number;
-  }>,
-): number {
-  return mainWireStudioLivePacingDecisionV1(input).delayMs;
-}
+/**
+ * One chunk's contribution to the rolling throughput window. Active wall
+ * duration covers host rotation and the transient command itself; it excludes
+ * adapter-inserted pacing sleeps, which are not compute cost.
+ */
+export type MainWireStudioLivePacingRateSliceV1 = Readonly<{
+  acceptedSimulationDurationMs: number;
+  activeWallDurationMs: number;
+}>;
+
+export type MainWireStudioLivePacingEpochStateV1 = Readonly<{
+  wallAnchorMs: number;
+  simulationAnchorSec: number;
+  lastDecisionWallMs: number;
+  lastAcceptedSimulationSec: number;
+  mode: RuntimeLivePacingModeV1;
+  cumulativeRebasedDeficitMs: number;
+  /**
+   * Diagnostic throughput window, scoped to the stream epoch. It survives
+   * pacing re-anchors and loop restarts, so a lane that re-anchors faster than
+   * it can accumulate a cycle still reports a measured rate. Reporting a rate
+   * and proving recovery are deliberately separate: the recovery window below
+   * is the evidence, this one is the number a reader sees.
+   */
+  reportingRateWindow: readonly MainWireStudioLivePacingRateSliceV1[];
+  /**
+   * Recovery evidence, scoped to the pacing epoch. A re-anchor clears it and
+   * the re-anchoring chunk never enters it, so returning to 1x always requires
+   * a clean cycle that contains no re-anchor.
+   */
+  recoveryRateWindow: readonly MainWireStudioLivePacingRateSliceV1[];
+}>;
+
+export type MainWireStudioLivePacingDecisionInputV1 = Readonly<{
+  state: MainWireStudioLivePacingEpochStateV1;
+  wallNowMs: number;
+  acceptedSimulationNowSec: number;
+  activeWallDurationMs: number;
+}>;
 
 export type MainWireStudioLivePacingDecisionV1 = Readonly<{
   delayMs: number;
-  lagMs: number;
+  didRebase: boolean;
+  /**
+   * Full pre-rebase epoch lag discarded by this decision; zero otherwise.
+   */
+  rebasedDeficitMs: number;
+  nextState: MainWireStudioLivePacingEpochStateV1;
+  livePacing: RuntimeLivePacingStateV1;
 }>;
 
-export function mainWireStudioLivePacingDecisionV1(
+const LIVE_PACING_CYCLE_MS_V1 = MAIN_WIRE_CYCLE_LENGTH_SEC_V1 * 1_000;
+
+function assertFiniteLivePacingValueV1(value: number): void {
+  if (!Number.isFinite(value)) {
+    throw runtimeErrorV1("live pacing state is invalid");
+  }
+}
+
+type LivePacingWindowTotalsV1 = Readonly<{
+  totalAcceptedSimulationMs: number;
+  totalActiveWallMs: number;
+}>;
+
+function livePacingWindowTotalsV1(
+  window: readonly MainWireStudioLivePacingRateSliceV1[],
+): LivePacingWindowTotalsV1 {
+  let totalAcceptedSimulationMs = 0;
+  let totalActiveWallMs = 0;
+  for (const slice of window) {
+    totalAcceptedSimulationMs += slice.acceptedSimulationDurationMs;
+    totalActiveWallMs += slice.activeWallDurationMs;
+  }
+  return { totalAcceptedSimulationMs, totalActiveWallMs };
+}
+
+function assertLivePacingRateWindowV1(
+  window: readonly MainWireStudioLivePacingRateSliceV1[],
+): void {
+  if (!Array.isArray(window)) {
+    throw runtimeErrorV1("live pacing state is invalid");
+  }
+  for (const slice of window) {
+    if (
+      slice.acceptedSimulationDurationMs <= 0
+      || slice.activeWallDurationMs < 0
+    ) throw runtimeErrorV1("live pacing state is invalid");
+    assertFiniteLivePacingValueV1(slice.acceptedSimulationDurationMs);
+    assertFiniteLivePacingValueV1(slice.activeWallDurationMs);
+  }
+  const { totalAcceptedSimulationMs } = livePacingWindowTotalsV1(window);
+  assertFiniteLivePacingValueV1(totalAcceptedSimulationMs);
+  // A stored window must already be the minimal trailing window holding one
+  // cycle. Anything longer would silently widen the horizon it reports over.
+  // A shorter, partial window is valid: it is what a lane that re-anchors
+  // often has to report from.
+  if (
+    window.length > 1
+    && totalAcceptedSimulationMs - window[0]!.acceptedSimulationDurationMs
+      >= LIVE_PACING_CYCLE_MS_V1
+  ) throw runtimeErrorV1("live pacing state is invalid");
+}
+
+function assertLivePacingEpochStateV1(
+  state: MainWireStudioLivePacingEpochStateV1,
+): void {
+  if (
+    (state.mode !== "realtime-1x" && state.mode !== "degraded")
+    || state.cumulativeRebasedDeficitMs < 0
+    || state.wallAnchorMs > state.lastDecisionWallMs
+    || state.simulationAnchorSec > state.lastAcceptedSimulationSec
+  ) throw runtimeErrorV1("live pacing state is invalid");
+  assertFiniteLivePacingValueV1(state.wallAnchorMs);
+  assertFiniteLivePacingValueV1(state.simulationAnchorSec);
+  assertFiniteLivePacingValueV1(state.lastDecisionWallMs);
+  assertFiniteLivePacingValueV1(state.lastAcceptedSimulationSec);
+  assertFiniteLivePacingValueV1(state.cumulativeRebasedDeficitMs);
+  assertLivePacingRateWindowV1(state.reportingRateWindow);
+  assertLivePacingRateWindowV1(state.recoveryRateWindow);
+}
+
+/**
+ * Keeps the shortest trailing chunk-aligned window that still holds one
+ * complete canonical cycle. A window shorter than a cycle is retained whole.
+ */
+function trimmedLivePacingWindowV1(
+  window: readonly MainWireStudioLivePacingRateSliceV1[],
+  slice: MainWireStudioLivePacingRateSliceV1,
+): readonly MainWireStudioLivePacingRateSliceV1[] {
+  const next = [...window, slice];
+  let { totalAcceptedSimulationMs } = livePacingWindowTotalsV1(next);
+  while (
+    next.length > 1
+    && totalAcceptedSimulationMs - next[0]!.acceptedSimulationDurationMs
+      >= LIVE_PACING_CYCLE_MS_V1
+  ) {
+    totalAcceptedSimulationMs -= next.shift()!.acceptedSimulationDurationMs;
+  }
+  return Object.freeze(next);
+}
+
+export function mainWireStudioInitialLivePacingEpochStateV1(
   input: Readonly<{
-    wallStartMs: number;
     wallNowMs: number;
-    simulationStartSec: number;
-    simulationNowSec: number;
+    acceptedSimulationNowSec: number;
+    mode: RuntimeLivePacingModeV1;
+    cumulativeRebasedDeficitMs: number;
+    /**
+     * Carried across loop restarts within one stream epoch. Recovery evidence
+     * is deliberately not carried: a resumed degraded lane has to earn 1x
+     * again. A lane already at 1x keeps that mode immediately.
+     */
+    reportingRateWindow?: readonly MainWireStudioLivePacingRateSliceV1[];
+    /**
+     * Outstanding sub-cycle lag from the epoch being replaced. Restarting a
+     * loop must not quietly forgive it: the new anchor is moved back by this
+     * much so the deadline still owes it.
+     */
+    epochLagMs?: number;
   }>,
+): MainWireStudioLivePacingEpochStateV1 {
+  const epochLagMs = input.epochLagMs ?? 0;
+  if (input.acceptedSimulationNowSec < 0 || epochLagMs < 0) {
+    throw runtimeErrorV1("live pacing state is invalid");
+  }
+  assertFiniteLivePacingValueV1(epochLagMs);
+  const state = Object.freeze({
+    wallAnchorMs: input.wallNowMs - epochLagMs,
+    simulationAnchorSec: input.acceptedSimulationNowSec,
+    lastDecisionWallMs: input.wallNowMs,
+    lastAcceptedSimulationSec: input.acceptedSimulationNowSec,
+    mode: input.mode,
+    cumulativeRebasedDeficitMs: input.cumulativeRebasedDeficitMs,
+    reportingRateWindow: Object.freeze([...input.reportingRateWindow ?? []]),
+    recoveryRateWindow: Object.freeze([]),
+  }) satisfies MainWireStudioLivePacingEpochStateV1;
+  assertLivePacingEpochStateV1(state);
+  return state;
+}
+
+/**
+ * Decides how long to wait before presenting an accepted chunk, and whether
+ * the lane can still honour 1x at all.
+ *
+ * Lag is measured against the cumulative deadline of the current epoch, so a
+ * short stall is repaid by a later fast chunk rather than accumulating. Only
+ * when lag crosses a whole canonical cycle does the epoch re-anchor: the
+ * accepted chunk is still published, model time is untouched, and the
+ * discarded wall/model separation is reported instead of hidden.
+ */
+export function mainWireStudioLivePacingDecisionV1(
+  input: MainWireStudioLivePacingDecisionInputV1,
 ): MainWireStudioLivePacingDecisionV1 {
+  const { state } = input;
+  assertLivePacingEpochStateV1(state);
+  assertFiniteLivePacingValueV1(input.wallNowMs);
+  assertFiniteLivePacingValueV1(input.acceptedSimulationNowSec);
+  assertFiniteLivePacingValueV1(input.activeWallDurationMs);
   if (
-    !Number.isFinite(input.wallStartMs)
-    || !Number.isFinite(input.wallNowMs)
-    || !Number.isFinite(input.simulationStartSec)
-    || !Number.isFinite(input.simulationNowSec)
-    || input.wallNowMs < input.wallStartMs
-    || input.simulationNowSec < input.simulationStartSec
-  ) throw runtimeErrorV1("live pacing identity is invalid");
-  const simulatedElapsedMs =
-    (input.simulationNowSec - input.simulationStartSec) * 1_000;
-  const deadlineOffsetMs =
-    input.wallStartMs + simulatedElapsedMs - input.wallNowMs;
-  if (
-    !Number.isFinite(simulatedElapsedMs)
-    || !Number.isFinite(deadlineOffsetMs)
-  ) throw runtimeErrorV1("live pacing identity is invalid");
+    input.acceptedSimulationNowSec < 0
+    || state.lastDecisionWallMs > input.wallNowMs
+    || input.acceptedSimulationNowSec <= state.lastAcceptedSimulationSec
+    || input.activeWallDurationMs < 0
+    || input.activeWallDurationMs > input.wallNowMs - state.lastDecisionWallMs
+  ) throw runtimeErrorV1("live pacing state is invalid");
+
+  const acceptedSimulationDurationMs =
+    (input.acceptedSimulationNowSec - state.lastAcceptedSimulationSec) * 1_000;
+  const simulatedFromAnchorMs =
+    (input.acceptedSimulationNowSec - state.simulationAnchorSec) * 1_000;
+  const deadlineWallMs = state.wallAnchorMs + simulatedFromAnchorMs;
+  const signedLagMs = input.wallNowMs - deadlineWallMs;
+  const preRebaseLagMs = Math.max(0, signedLagMs);
+  assertFiniteLivePacingValueV1(acceptedSimulationDurationMs);
+  assertFiniteLivePacingValueV1(simulatedFromAnchorMs);
+  assertFiniteLivePacingValueV1(deadlineWallMs);
+  assertFiniteLivePacingValueV1(signedLagMs);
+
+  const slice = Object.freeze({
+    acceptedSimulationDurationMs,
+    activeWallDurationMs: input.activeWallDurationMs,
+  });
+  // Every accepted chunk contributes to the reported rate, including one that
+  // re-anchors. Only recovery evidence is reset by a re-anchor, so a lane too
+  // slow to ever complete a clean cycle can still report how slow it is.
+  const reportingRateWindow = trimmedLivePacingWindowV1(
+    state.reportingRateWindow,
+    slice,
+  );
+  const reporting = livePacingWindowTotalsV1(reportingRateWindow);
+  assertFiniteLivePacingValueV1(reporting.totalAcceptedSimulationMs);
+  assertFiniteLivePacingValueV1(reporting.totalActiveWallMs);
+  const recentAchievedRate = reportingRateWindow.length > 0
+      && reporting.totalActiveWallMs > 0
+    ? reporting.totalAcceptedSimulationMs / reporting.totalActiveWallMs
+    : null;
+
+  if (preRebaseLagMs > MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1) {
+    // Both anchors move together, so the entire separation is discarded here
+    // rather than the excess over the threshold.
+    const cumulativeRebasedDeficitMs =
+      state.cumulativeRebasedDeficitMs + preRebaseLagMs;
+    assertFiniteLivePacingValueV1(cumulativeRebasedDeficitMs);
+    return Object.freeze({
+      delayMs: 0,
+      didRebase: true,
+      rebasedDeficitMs: preRebaseLagMs,
+      nextState: Object.freeze({
+        wallAnchorMs: input.wallNowMs,
+        simulationAnchorSec: input.acceptedSimulationNowSec,
+        lastDecisionWallMs: input.wallNowMs,
+        lastAcceptedSimulationSec: input.acceptedSimulationNowSec,
+        mode: "degraded" as const,
+        cumulativeRebasedDeficitMs,
+        reportingRateWindow,
+        recoveryRateWindow: Object.freeze([]),
+      }),
+      livePacing: Object.freeze({
+        mode: "degraded" as const,
+        epochLagMs: 0,
+        recentAchievedRate,
+        cumulativeRebasedDeficitMs,
+      }) satisfies RuntimeLivePacingStateV1,
+    });
+  }
+
+  const recoveryRateWindow = trimmedLivePacingWindowV1(
+    state.recoveryRateWindow,
+    slice,
+  );
+  const recovery = livePacingWindowTotalsV1(recoveryRateWindow);
+  assertFiniteLivePacingValueV1(recovery.totalAcceptedSimulationMs);
+  assertFiniteLivePacingValueV1(recovery.totalActiveWallMs);
+  // A momentarily small lag does not prove sustainable 1x, and neither does a
+  // healthy reported rate. Recovery needs a whole cycle of compute that
+  // actually kept up, containing no re-anchor.
+  const recovered = state.mode === "degraded"
+    && recovery.totalAcceptedSimulationMs >= LIVE_PACING_CYCLE_MS_V1
+    && recovery.totalActiveWallMs <= recovery.totalAcceptedSimulationMs;
+  const mode = recovered ? "realtime-1x" : state.mode;
+  const delayMs = Math.max(0, deadlineWallMs - input.wallNowMs);
+  assertFiniteLivePacingValueV1(delayMs);
+
   return Object.freeze({
-    delayMs: Math.max(0, deadlineOffsetMs),
-    lagMs: Math.max(0, -deadlineOffsetMs),
+    delayMs,
+    didRebase: false,
+    rebasedDeficitMs: 0,
+    nextState: Object.freeze({
+      ...state,
+      lastDecisionWallMs: input.wallNowMs,
+      lastAcceptedSimulationSec: input.acceptedSimulationNowSec,
+      mode,
+      reportingRateWindow,
+      recoveryRateWindow,
+    }),
+    livePacing: Object.freeze({
+      mode,
+      epochLagMs: preRebaseLagMs,
+      recentAchievedRate,
+      cumulativeRebasedDeficitMs: state.cumulativeRebasedDeficitMs,
+    }) satisfies RuntimeLivePacingStateV1,
   });
 }
 

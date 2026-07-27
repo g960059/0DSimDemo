@@ -2730,6 +2730,31 @@ export function ScientificProductTransitionBehaviorSettingsV1({
                 : t("workbench.sidePanel.settings.studioRuntime.running")}
           </dd>
         </div>
+        {studio !== null && studio.livePlayback === "running" && (
+          <div className="flex items-center justify-between gap-3">
+            <dt className="text-wb-subtle">
+              {t("workbench.sidePanel.settings.studioRuntime.livePacing")}
+            </dt>
+            <dd
+              className={studio.livePacing.mode === "degraded"
+                ? "font-medium text-wb-warning"
+                : "font-medium text-wb-text"}
+            >
+              {studio.livePacing.mode === "realtime-1x"
+                ? t("workbench.sidePanel.settings.studioRuntime.pacingRealtime")
+                : studio.livePacing.recentAchievedRate === null
+                  ? t(
+                    "workbench.sidePanel.settings.studioRuntime"
+                    + ".pacingDegradedUnknown",
+                  )
+                  : t(
+                    "workbench.sidePanel.settings.studioRuntime"
+                    + ".pacingDegradedRate",
+                    { rate: studio.livePacing.recentAchievedRate.toFixed(2) },
+                  )}
+            </dd>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-3">
           <dt className="text-wb-subtle">
             {t("workbench.sidePanel.settings.studioRuntime.strictSettlement")}

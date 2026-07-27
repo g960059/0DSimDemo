@@ -24,7 +24,8 @@ The repository contains the Studio v1 contracts, coordinator,
 content-addressed JSON artifact store, exact MainWire V4 snapshot envelope,
 target resolver, Worker host, MainWire runtime adapter, and an initial product
 Workbench bridge. That bridge opens from one settled seed point, streams live
-data at 1×, starts live and strict work automatically for every committed
+data at 1× (its ceiling, with degraded pacing reported when compute cannot
+sustain it), starts live and strict work automatically for every committed
 parameter intent, discards superseded generations internally, and exposes
 explicit steady-candidate promotion and pinning.
 
@@ -32,7 +33,7 @@ The first greenfield Author → Reader Preview slice is also present. It
 materializes a detached `draft-preview-uncertified`, session-only preview
 manifest containing a publication-neutral resolved document plus external
 preview runtime bindings. It renders that document through the shared Reader
-seam, starts its experiment from one point at fixed 1×, and keeps Reader
+seam, starts its experiment from one point at 1× or, when compute cannot sustain it, at a reported degraded pace, and keeps Reader
 controls revision-neutral. It supports one placement and one scenario only.
 Its preview-bootstrap refs are not certification or publication lineage.
 

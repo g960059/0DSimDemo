@@ -217,6 +217,53 @@ describe("Scientific Product Studio observable frame projection V1", () => {
       })
     ).toThrow(/simulation release reference is invalid/);
   });
+
+  it("revalidates a mutable release ref instead of trusting a cached verdict", () => {
+    // The projection caches validation results by reference identity. An
+    // unfrozen object can be mutated behind its identity, so a cached verdict
+    // would outlive the data it was made about. These two mutations are the
+    // ways that could go wrong: a validated ref turning invalid, and a
+    // validated ref turning into a different valid ref.
+    const mutable: Record<string, unknown> = { ...RELEASE_REF_V1 };
+    expect(
+      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
+        point: validPointV1(),
+        releaseRef: mutable as unknown as typeof RELEASE_REF_V1,
+      }).releaseRef,
+    ).toMatchObject({ sha256: RELEASE_REF_V1.sha256 });
+
+    mutable["sha256"] = "not-a-digest";
+    expect(() =>
+      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
+        point: validPointV1(),
+        releaseRef: mutable as unknown as typeof RELEASE_REF_V1,
+      })
+    ).toThrow(/simulation release reference is invalid/);
+
+    const otherSha256 = "b".repeat(64);
+    mutable["sha256"] = otherSha256;
+    expect(
+      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
+        point: validPointV1(),
+        releaseRef: mutable as unknown as typeof RELEASE_REF_V1,
+      }).releaseRef,
+    ).toMatchObject({ sha256: otherSha256 });
+  });
+
+  it("reuses the validated result for a frozen release ref identity", () => {
+    const frozen = Object.freeze({ ...RELEASE_REF_V1 });
+    const first =
+      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
+        point: validPointV1(),
+        releaseRef: frozen,
+      }).releaseRef;
+    const second =
+      projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
+        point: validPointV1(),
+        releaseRef: frozen,
+      }).releaseRef;
+    expect(second).toBe(first);
+  });
 });
 
 function validPointV1(

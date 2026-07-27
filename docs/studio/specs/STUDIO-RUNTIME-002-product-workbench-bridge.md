@@ -50,7 +50,7 @@ evidence that the target Studio product architecture is complete.
   same-time accepted observable point.
 - No canonical beat history is saved or passed into the product surface.
 - The product opens that branch with live presentation suspended, commits the
-  one-point state to the Workbench, and resumes fixed-1× presentation only
+  one-point state to the Workbench, and resumes 1×-ceiling presentation only
   after a double-`requestAnimationFrame` paint boundary.
 - Charts, PV loops, and window metrics grow forward from that one settled
   point. The seed is identified as a settled one-point snapshot only while it
@@ -62,7 +62,9 @@ evidence that the target Studio product architecture is complete.
 
 - Every committed parameter change automatically starts both paths:
   foreground live transition and background strict settlement.
-- The live path runs at fixed 1× physiological time. The bridge exposes
+- The live path presents at 1× physiological time as its ceiling, never
+  faster. When compute cannot sustain it the lane keeps running and reports
+  degraded pacing rather than accelerating or failing. The bridge exposes
   pause/resume for live playback; it does not expose a speed selector.
 - Suspending live playback does not cancel the strict lane.
 - Target generation and presentation revision remain Studio-owned.

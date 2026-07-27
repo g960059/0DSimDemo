@@ -113,7 +113,32 @@ type ScenarioEntryV1 = {
   pendingDuplicateDraft: ScientificWorkbenchResearchControlDraftV0 | null;
   hemodynamicAnalysisCoordinator:
     ScientificProductStudioHemodynamicAnalysisCoordinatorV1 | null;
+  presentationCache: ScenarioPresentationCacheV1 | null;
 };
+
+/**
+ * Memoised `getPresentation` result for one scenario.
+ *
+ * Building a presentation revalidates the latest beat for the scenario and for
+ * every retained parameter generation, walking 501 frames each time. The
+ * registry publishes one global frame version, so every subscribed pane asks
+ * every scenario for its presentation on every notification — work that grows
+ * with panes times scenarios squared while depending on none of that.
+ *
+ * The fields below are the complete set the result derives from, and each is
+ * replaced rather than mutated, so identical identities mean an identical
+ * answer. Caching on them also keeps the returned presentation referentially
+ * stable, which is what lets consumers downstream memoise at all.
+ */
+type ScenarioPresentationCacheV1 = Readonly<{
+  descriptor: ScientificProductScenarioDescriptorV1;
+  snapshot: ReturnType<
+    ScientificProductStudioScenarioRuntimeV1["controlStore"]["getSnapshot"]
+  >;
+  workspaceDocument:
+    ScientificProductStudioScenarioRuntimeV1["workspaceDocument"];
+  presentation: ScientificProductScenarioPresentationV1;
+}>;
 
 type ActiveHemodynamicProtocolRequestV1 = Readonly<{
   requestToken: string;
@@ -245,6 +270,7 @@ implements ScientificProductRuntimeRegistryPortV1 {
       unsubscribeFrames: null,
       pendingDuplicateDraft: null,
       hemodynamicAnalysisCoordinator: null,
+      presentationCache: null,
     };
     this.entries.set(descriptor.id, entry);
     this.attachHemodynamicAnalysisCoordinatorV1(entry);
@@ -303,6 +329,13 @@ implements ScientificProductRuntimeRegistryPortV1 {
     const runtime = entry?.runtime;
     if (entry === undefined || runtime === null) return null;
     const snapshot = runtime.controlStore.getSnapshot();
+    const cached = entry.presentationCache;
+    if (
+      cached !== null
+      && cached.descriptor === entry.descriptor
+      && cached.snapshot === snapshot
+      && cached.workspaceDocument === runtime.workspaceDocument
+    ) return cached.presentation;
     const metricCycle = completeLatestTransientBeatV1(snapshot.frames);
     const parameterGenerationHistory = Object.freeze(
       (snapshot.parameterGenerationHistory ?? []).map((generation) => {
@@ -326,7 +359,7 @@ implements ScientificProductRuntimeRegistryPortV1 {
         });
       }),
     );
-    return Object.freeze({
+    const presentation = Object.freeze({
       descriptor: entry.descriptor,
       frames: snapshot.frames,
       parameterGenerationHistory,
@@ -344,6 +377,13 @@ implements ScientificProductRuntimeRegistryPortV1 {
       displayedEvidence: snapshot.provenance.displayedEvidence,
       workspaceDocument: runtime.workspaceDocument,
     });
+    entry.presentationCache = Object.freeze({
+      descriptor: entry.descriptor,
+      snapshot,
+      workspaceDocument: runtime.workspaceDocument,
+      presentation,
+    });
+    return presentation;
   }
 
   addPreset(
@@ -377,6 +417,7 @@ implements ScientificProductRuntimeRegistryPortV1 {
       unsubscribeFrames: null,
       pendingDuplicateDraft: options.duplicateDraft ?? null,
       hemodynamicAnalysisCoordinator: null,
+      presentationCache: null,
     };
     this.entries.set(id, entry);
     this.publishDescriptorsV1();

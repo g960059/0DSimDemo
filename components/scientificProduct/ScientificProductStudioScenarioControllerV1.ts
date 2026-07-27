@@ -18,14 +18,21 @@ import type {
   MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import {
+  loadSimulationReleaseRefV1,
+} from "@/engine/scientific/release";
+import {
   SimulationSessionCoordinatorV1,
 } from "@/studio/application/runtime/SimulationSessionCoordinatorV1";
 import type {
+  RuntimeLivePacingStateV1,
   RuntimePresentationEventV1,
   RuntimeSteadyCandidateV1,
   ScenarioRuntimeBranchStateV1,
   StudioArtifactRefV1,
   StudioSettledAnalysisSourceV1,
+} from "@/studio/contracts/v1";
+import {
+  INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
 } from "@/studio/contracts/v1";
 
 import {
@@ -45,6 +52,7 @@ export type ScientificProductStudioScenarioStatusV1 = Readonly<{
   targetGeneration: number;
   presentationRevision: number;
   livePlayback: "running" | "suspended";
+  livePacing: RuntimeLivePacingStateV1;
   strictPhase:
     | "source-settled"
     | "running"
@@ -120,7 +128,13 @@ export class ScientificProductStudioScenarioControllerV1 {
   ) {
     this.coordinator = coordinator;
     this.scenarioId = bootstrap.branch.scenarioId;
-    this.releaseRef = bootstrap.source.seedFrame.releaseRef;
+    // Validate and freeze the scenario's release ref once here rather than
+    // leaving a bootstrap-owned object to be revalidated per projected point.
+    // The projection only caches frozen identities, so this is also what keeps
+    // the live path off the canonicalise/reparse/freeze cost 500 times a second.
+    this.releaseRef = loadSimulationReleaseRefV1(
+      bootstrap.source.seedFrame.releaseRef,
+    );
     this.baseSessionInputSha256 = bootstrap.baseSessionInputSha256;
     this.initialParameterEpoch = bootstrap.source.context.parameterEpoch;
     this.source = Object.freeze({
@@ -252,6 +266,7 @@ export class ScientificProductStudioScenarioControllerV1 {
       targetGeneration: branch?.targetGeneration ?? 0,
       presentationRevision: branch?.presentationRevision ?? 0,
       livePlayback: this.acknowledgedLivePlayback,
+      livePacing: branch?.livePacing ?? INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
       strictPhase,
       strictCandidateAvailable: candidate !== null,
       strictCandidatePinned:
@@ -433,6 +448,10 @@ export class ScientificProductStudioScenarioControllerV1 {
     const signature = this.coordinatorSignatureV1();
     if (signature === this.lastCoordinatorSignature) return;
     this.lastCoordinatorSignature = signature;
+    // While a pause/resume is outstanding the runtime boundary has not
+    // acknowledged the desired state yet, so product state must not claim the
+    // action completed. A failure landing in that window is picked up when the
+    // action settles, through the equality gate's failure override.
     if (this.pendingPlaybackActionCount === 0) {
       this.synchronizeAcknowledgedLivePlaybackV1(true);
     }
@@ -698,9 +717,24 @@ export class ScientificProductStudioScenarioControllerV1 {
    */
   private synchronizeAcknowledgedLivePlaybackV1(force = false): void {
     const branch = this.branchV1();
+    if (branch === null) return;
+    // A live failure suspends the lane regardless of what the user asked for.
+    // Without this override, a resume that fails leaves branch playback at
+    // "suspended" while desired playback is still "running", the equality
+    // check below never matches, and product state keeps reporting the stale
+    // "Running" it held before the action. desiredLivePlayback is deliberately
+    // left alone: reset/retry still needs that intent.
+    // Narrow deliberately: only a live-lane failure, and only once no playback
+    // action is still outstanding. A strict-lane failure does not stop live
+    // playback, and overriding mid-action would acknowledge a runtime boundary
+    // that has not been reached.
+    const suspendedByFailure = branch.livePlayback === "suspended"
+      && branch.lastRuntimeFailure?.lane === "live"
+      && this.pendingPlaybackActionCount === 0;
     if (
-      branch !== null
-      && (force || branch.livePlayback === this.desiredLivePlayback)
+      force
+      || suspendedByFailure
+      || branch.livePlayback === this.desiredLivePlayback
     ) {
       this.acknowledgedLivePlayback = branch.livePlayback;
     }
@@ -716,6 +750,10 @@ export class ScientificProductStudioScenarioControllerV1 {
       branch.presentationRevision,
       branch.streamEpoch,
       branch.livePlayback,
+      // Only the durable pacing facts belong in the change signature; the
+      // volatile lag and rate reach consumers with each sample append.
+      branch.livePacing.mode,
+      branch.livePacing.cumulativeRebasedDeficitMs,
       branch.display.origin,
       branch.latestSteadyCandidate?.candidateId ?? null,
       branch.lastRuntimeFailure?.lane ?? null,
@@ -927,12 +965,16 @@ function boundedFramesV1(
   const minimumTime = lastTime - PRESENTATION_HISTORY_WINDOW_SEC_V1;
   const firstRetained = frames.findIndex(({ acceptedTimeSec }) =>
     acceptedTimeSec >= minimumTime);
-  const bounded = firstRetained <= 0 ? frames : frames.slice(firstRetained);
-  return Object.freeze(
-    bounded.length <= PRESENTATION_HISTORY_HARD_LIMIT_V1
-      ? [...bounded]
-      : bounded.slice(-PRESENTATION_HISTORY_HARD_LIMIT_V1),
+  // Trim the window and the hard limit in one slice. Doing it in two steps
+  // copied the retained history twice more per batch on top of the caller's
+  // concatenation, and at 31 batches per second per lane over a 20-second
+  // history that is the largest array churn in the append path.
+  const windowStart = firstRetained <= 0 ? 0 : firstRetained;
+  const start = Math.max(
+    windowStart,
+    frames.length - PRESENTATION_HISTORY_HARD_LIMIT_V1,
   );
+  return Object.freeze(frames.slice(start));
 }
 
 function errorMessageV1(error: unknown): string {
