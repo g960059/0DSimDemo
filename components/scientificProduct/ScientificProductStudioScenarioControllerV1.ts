@@ -708,9 +708,19 @@ export class ScientificProductStudioScenarioControllerV1 {
    */
   private synchronizeAcknowledgedLivePlaybackV1(force = false): void {
     const branch = this.branchV1();
+    if (branch === null) return;
+    // A live failure suspends the lane regardless of what the user asked for.
+    // Without this override, a resume that fails leaves branch playback at
+    // "suspended" while desired playback is still "running", the equality
+    // check below never matches, and product state keeps reporting the stale
+    // "Running" it held before the action. desiredLivePlayback is deliberately
+    // left alone: reset/retry still needs that intent.
+    const suspendedByFailure = branch.livePlayback === "suspended"
+      && branch.lastRuntimeFailure !== null;
     if (
-      branch !== null
-      && (force || branch.livePlayback === this.desiredLivePlayback)
+      force
+      || suspendedByFailure
+      || branch.livePlayback === this.desiredLivePlayback
     ) {
       this.acknowledgedLivePlayback = branch.livePlayback;
     }
