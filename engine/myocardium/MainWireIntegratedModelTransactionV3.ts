@@ -99,12 +99,17 @@ export const MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3 = deepFreeze({
   externalAfSeam: Object.freeze({
     typedSourceBatchPreserved: true as const,
     afOwnerStateOwnedHere: false as const,
-    afWrapperIntegrated: false as const,
+    afWrapperIntegrated: true as const,
+    wrapperTransactionId:
+      "main-wire-integrated-model-external-af-wrapper-transaction-v1" as const,
+    browserSessionPathIntegrated: false as const,
     coordinatedAfAtrialCalciumClaimed: false as const,
+    coordinatedAfAtrialCalciumBlockerScope:
+      "separate-standing-limitation-not-owner-wrapper-or-joint-checkpoint" as const,
   }),
   proximalAvGateV2DirectlyOwnedByComposedRhythm: true as const,
   releaseBlockers: Object.freeze({
-    afOwnerWrapperAndJointCheckpoint: "open" as const,
+    afOwnerWrapperAndJointCheckpoint: "closed" as const,
     iabpAcceptedVentricularSynchronization: "open" as const,
   }),
   checkpointOwnedHere: false as const,

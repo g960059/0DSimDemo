@@ -70,7 +70,10 @@ export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3 = deepFreeze({
     typedSourceModeConfigurationStored: true as const,
     externalAfOwnerStateStored: false as const,
     externalAfOwnerCheckpointRequiredSeparately: true as const,
-    afWrapperIntegrated: false as const,
+    afWrapperIntegrated: true as const,
+    jointCheckpointId:
+      "circleheart.main-wire-integrated-model-external-af-wrapper-checkpoint.v1" as const,
+    browserSessionPathIntegrated: false as const,
   }),
   proximalAvGateV2CompleteAcceptedStateStoredInComposedCheckpoint:
     true as const,
@@ -83,7 +86,7 @@ export const MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3 = deepFreeze({
   exactRestoreRequiresExpectedDynamicStructuralHydraulicConfig: true as const,
   externalSessionMustOwnDeviceConfigAndControllerCommand: true as const,
   releaseBlockers: Object.freeze({
-    afOwnerWrapperAndJointCheckpoint: "open" as const,
+    afOwnerWrapperAndJointCheckpoint: "closed" as const,
     iabpAcceptedVentricularSynchronization: "open" as const,
   }),
   migrationClaimed: false as const,

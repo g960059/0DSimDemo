@@ -532,7 +532,21 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
       .externalAfSeam.afOwnerStateOwnedHere).toBe(false);
     expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
-      .externalAfSeam.afWrapperIntegrated).toBe(false);
+      .externalAfSeam.afWrapperIntegrated).toBe(true);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
+      .externalAfSeam.wrapperTransactionId)
+      .toBe(
+        "main-wire-integrated-model-external-af-wrapper-transaction-v1",
+      );
+    expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
+      .externalAfSeam.browserSessionPathIntegrated).toBe(false);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
+      .externalAfSeam.coordinatedAfAtrialCalciumClaimed).toBe(false);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
+      .externalAfSeam.coordinatedAfAtrialCalciumBlockerScope)
+      .toBe(
+        "separate-standing-limitation-not-owner-wrapper-or-joint-checkpoint",
+      );
   }, 60_000);
 
   it("derives phase-IABP rate from regular sinus and rejects irregular phase clocks", () => {
@@ -589,11 +603,13 @@ describe("main-wire composed-rhythm integrated transaction V3", () => {
     }
   });
 
-  it("states the open scientific and release limits without overclaiming", () => {
+  it("states the closed AF infrastructure gate and remaining limits", () => {
     expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
       .proximalAvGateV2DirectlyOwnedByComposedRhythm).toBe(true);
     expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
-      .releaseBlockers.afOwnerWrapperAndJointCheckpoint).toBe("open");
+      .releaseBlockers.afOwnerWrapperAndJointCheckpoint).toBe("closed");
+    expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
+      .releaseBlockers.iabpAcceptedVentricularSynchronization).toBe("open");
     expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3
       .longTermPhysiologicalValidationEstablished).toBe(false);
     expect(MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3.releaseReady)
@@ -647,6 +663,19 @@ describe("main-wire composed-rhythm integrated checkpoint V3", () => {
       .toHaveLength(1);
     expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
       .externalAfSeam.externalAfOwnerStateStored).toBe(false);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
+      .externalAfSeam.afWrapperIntegrated).toBe(true);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
+      .externalAfSeam.jointCheckpointId)
+      .toBe(
+        "circleheart.main-wire-integrated-model-external-af-wrapper-checkpoint.v1",
+      );
+    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
+      .externalAfSeam.browserSessionPathIntegrated).toBe(false);
+    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
+      .releaseBlockers.afOwnerWrapperAndJointCheckpoint).toBe("closed");
+    expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
+      .releaseBlockers.iabpAcceptedVentricularSynchronization).toBe("open");
     expect(MAIN_WIRE_INTEGRATED_MODEL_CHECKPOINT_CLAIM_V3
       .proximalAvGateV2CompleteAcceptedStateStoredInComposedCheckpoint)
       .toBe(true);
