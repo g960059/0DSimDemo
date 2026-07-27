@@ -123,9 +123,33 @@ function loadRuntimeObservablePointV1(
   return value as RuntimeObservablePointV1;
 }
 
+/**
+ * Validation-result cache keyed by the caller's own reference identity.
+ *
+ * Every projected point carries the same release ref object for the lifetime
+ * of a scenario, but validating it canonicalises, reparses, and deep-freezes
+ * the value. At 500 points per second per lane that was the most repeated work
+ * in this projection, for an answer that cannot change while the identity is
+ * unchanged. A different object is still validated in full, so nothing is
+ * trusted merely for having been seen before.
+ */
+const VALIDATED_RELEASE_REF_BY_IDENTITY_V1 = new WeakMap<
+  object,
+  SimulationReleaseRef
+>();
+
 function loadReleaseRefV1(value: unknown): SimulationReleaseRef {
+  const identity = typeof value === "object" && value !== null ? value : null;
+  if (identity !== null) {
+    const cached = VALIDATED_RELEASE_REF_BY_IDENTITY_V1.get(identity);
+    if (cached !== undefined) return cached;
+  }
   try {
-    return loadSimulationReleaseRefV1(value);
+    const loaded = loadSimulationReleaseRefV1(value);
+    if (identity !== null) {
+      VALIDATED_RELEASE_REF_BY_IDENTITY_V1.set(identity, loaded);
+    }
+    return loaded;
   } catch (error) {
     throw projectionErrorV1(
       `simulation release reference is invalid: ${errorMessageV1(error)}`,

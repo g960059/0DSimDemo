@@ -623,57 +623,52 @@ export function ScientificWorkbenchPvLoopCanvasV1({
   const normalizedHistoryBeats = normalizeScientificPvHistoryBeatsV1(historyBeats);
   const normalizedParameterHistoryCount =
     normalizeScientificPvParameterHistoryCountV1(parameterHistoryCount);
-  const retainedTrajectoryCount = Math.max(
-    0,
-    ...series.map((item) => scientificPvTrajectoriesV1(
+  // Rebuilding trajectories walks the whole retained history, so build them
+  // once per render and derive every count from that. These four counts used
+  // to rebuild independently and then keep only a length, which made the most
+  // expensive call in the pane run four times for four numbers.
+  const countedTrajectoriesBySeries = series.map((item) =>
+    scientificPvTrajectoriesV1(
       item,
       normalizedHistoryBeats,
       retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
       normalizedParameterHistoryCount,
-    ).filter((trajectory) => scientificPvTrajectoryVisibleAlphaV1(
+    ));
+  const maximumMatchingTrajectoryCountV1 = (
+    matches: (trajectory: ScientificPvTrajectoryV1) => boolean,
+  ): number =>
+    Math.max(
+      0,
+      ...countedTrajectoriesBySeries.map((trajectories) =>
+        trajectories.filter(matches).length),
+    );
+  const retainedTrajectoryCount = maximumMatchingTrajectoryCountV1(
+    (trajectory) => scientificPvTrajectoryVisibleAlphaV1(
       trajectory,
       normalizedHistoryBeats,
       historyMode,
       normalizedParameterHistoryCount,
-    ) > 0).length),
+    ) > 0,
   );
-  const retainedSourceTrajectoryCount = Math.max(
-    0,
-    ...series.map((item) => scientificPvTrajectoriesV1(
-      item,
-      normalizedHistoryBeats,
-      retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
-      normalizedParameterHistoryCount,
-    ).filter((trajectory) =>
+  const retainedSourceTrajectoryCount = maximumMatchingTrajectoryCountV1(
+    (trajectory) =>
       trajectory.kind === "retained-source-periodic"
       && scientificPvHistoryAlphaV1(
         trajectory.age,
         normalizedHistoryBeats,
         historyMode,
-      ) > 0).length),
+      ) > 0,
   );
-  const retainedParameterGenerationCount = Math.max(
-    0,
-    ...series.map((item) => scientificPvTrajectoriesV1(
-      item,
-      normalizedHistoryBeats,
-      retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
-      normalizedParameterHistoryCount,
-    ).filter((trajectory) =>
+  const retainedParameterGenerationCount = maximumMatchingTrajectoryCountV1(
+    (trajectory) =>
       trajectory.parameterHistoryAge !== undefined
       && scientificPvParameterGenerationAlphaV1(
         trajectory.parameterHistoryAge,
         normalizedParameterHistoryCount,
-      ) > 0).length),
+      ) > 0,
   );
-  const retainedParameterBoundaryCount = Math.max(
-    0,
-    ...series.map((item) => scientificPvTrajectoriesV1(
-      item,
-      normalizedHistoryBeats,
-      retainedSourceTrajectoryBySeriesRef.current.get(item.key)?.points,
-      normalizedParameterHistoryCount,
-    ).filter((trajectory) =>
+  const retainedParameterBoundaryCount = maximumMatchingTrajectoryCountV1(
+    (trajectory) =>
       (
         trajectory.kind === "parameter-boundary"
         || trajectory.kind === "retained-source-periodic"
@@ -682,7 +677,7 @@ export function ScientificWorkbenchPvLoopCanvasV1({
         trajectory.age,
         normalizedHistoryBeats,
         historyMode,
-      ) > 0).length),
+      ) > 0,
   );
 
   React.useEffect(() => {
