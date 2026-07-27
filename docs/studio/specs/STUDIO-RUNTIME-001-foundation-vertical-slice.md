@@ -139,11 +139,17 @@ never stores one beat of samples, window metrics, or presentation state.
 
 ## Worker and signal-channel contract
 
-One live scenario branch owns one dedicated Worker host. Each strict target
-owns a separate exclusive Worker lease, because one Worker kernel serializes
-commands and would otherwise block the foreground behind settlement. For a
-multi-branch intent, every live/strict clone must be prepared before either
-lane advances.
+One live scenario branch owns one admitted parent Worker host. Its small
+hemodynamic-analysis control plane shares that parent; the compute-heavy
+continuation solvers remain child Workers. Admission follows the fixed
+`main-wire-scientific-worker-live-lane-budget-v1` policy (one lane per four
+`navigator.hardwareConcurrency` logical processors, clamped to 1–4), never
+observed throughput. Each strict target still owns a separate exclusive
+transient Worker lease, because one Worker kernel serializes commands and
+would otherwise block the foreground behind settlement. Exact-signal
+replay/export likewise retains a separate disposable Worker and cannot touch
+the live host. For a multi-branch intent, every live/strict clone must be
+prepared before either lane advances.
 
 The live Worker emits high-frequency batches on a branch-bound signal channel
 at 1× physiological time. The control-plane state retains only first/latest

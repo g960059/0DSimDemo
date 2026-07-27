@@ -325,6 +325,10 @@ export class MainWireScientificWorkerClientV1 {
     return this.pending.size;
   }
 
+  get requestCount(): number {
+    return this.completedRequestIds.size + this.pending.size;
+  }
+
   request(
     command: ScientificCommandV1,
   ): Promise<MainWireScientificWorkerResponseV1> {

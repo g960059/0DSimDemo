@@ -471,6 +471,7 @@ export function StudioAuthorPreviewProviderV1({
       });
       if (!owns()) {
         await runtime.controller.dispose();
+        runtime.scientificWorkerLane?.terminate();
         return;
       }
       entry.runtime = runtime;
@@ -750,6 +751,7 @@ async function disposeReaderPreviewEntryV1(
     await registry.dispose();
   } else if (runtime !== null) {
     await runtime.controller.dispose();
+    runtime.scientificWorkerLane?.terminate();
   }
 }
 

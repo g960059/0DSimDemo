@@ -64,6 +64,7 @@ import {
   type MainWireStudioPeriodicSettlementChunkV1,
   type MainWirePresentationEstimatorInstrumentationV1,
   type MainWireStudioSessionHostFactoryV1,
+  type MainWireStudioSessionHostRequestV1,
   type MainWireStudioSessionHostV1,
   type MainWireStudioTransientChunkV1,
 } from "@/studio/adapters/mainWire";
@@ -1375,6 +1376,13 @@ describe("MainWire Studio runtime adapter", () => {
       .toEqual(["success", "success"]);
     expect(strict.branches.map(({ status }) => status))
       .toEqual(["failure", "failure"]);
+    expect(harness.hostRequests.map((request) => request?.workerRole))
+      .toEqual([
+        "live-lane",
+        "live-lane",
+        "strict-settlement",
+        "strict-settlement",
+      ]);
     expect(harness.hosts.slice(0, 2).map(
       (host) => host.runTransientCallCount,
     )).toEqual([1, 1]);
@@ -2590,6 +2598,12 @@ describe("MainWire Studio runtime adapter", () => {
       intervalDurationSec: 0.002,
     });
     expect(afterCancellation.manifest.coverage.sampleCount).toBe(2);
+    expect(harness.hostRequests.map((request) => request?.workerRole))
+      .toEqual([
+        "live-lane",
+        "exact-signal-replay",
+        "exact-signal-replay",
+      ]);
     await adapter.closeSession("bounded-export-session");
   });
 
@@ -3558,6 +3572,9 @@ type FakeHostEventV1 =
 
 class FakeHostHarnessV1 {
   readonly hosts: FakeSessionHostV1[] = [];
+  readonly hostRequests: Array<
+    MainWireStudioSessionHostRequestV1 | undefined
+  > = [];
   readonly events: FakeHostEventV1[] = [];
   readonly failRestoreAtHostOrdinals = new Set<number>();
   readonly failNextRunAtHostOrdinals = new Set<number>();
@@ -3580,7 +3597,8 @@ class FakeHostHarnessV1 {
 
   constructor(readonly fixture: BaseFixtureV1) {}
 
-  readonly factory: MainWireStudioSessionHostFactoryV1 = () => {
+  readonly factory: MainWireStudioSessionHostFactoryV1 = (request) => {
+    this.hostRequests.push(request);
     const ordinal = this.hosts.length;
     const host = new FakeSessionHostV1(
       `fake-host-${ordinal}`,

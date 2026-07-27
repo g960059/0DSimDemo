@@ -73,6 +73,10 @@ export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_SHA256 =
   "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a" as const;
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ARTIFACT_PATH =
   "engine/scientific/assembly/releases/main-wire-adult-five-wall-noncoronary-0.2.0.json" as const;
+export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_ID =
+  "main-wire-five-wall-noncoronary-accepted-state" as const;
+export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_VERSION =
+  1 as const;
 
 export const MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_INITIALIZATION_PROTOCOL_V1_ID =
   "main-wire-normal-adult-five-wall-fixed-tbv-cold-initialization-v1" as const;
@@ -329,8 +333,10 @@ SimulationReleaseManifestInputV1 {
       },
     },
     stateSchema: {
-      schemaId: "main-wire-five-wall-noncoronary-accepted-state",
-      schemaVersion: 1,
+      schemaId:
+        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_ID,
+      schemaVersion:
+        MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_VERSION,
       snapshot: {
         transactionId: MAIN_WIRE_FIVE_WALL_NONCORONARY_TRANSACTION_V1_ID,
         circulationNodeIds: NON_CORONARY_CIRCULATION_SCOPE_V1.includedNodes,

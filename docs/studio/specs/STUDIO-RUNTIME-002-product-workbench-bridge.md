@@ -26,10 +26,11 @@ existing product Workbench shell
       ├─ one Studio scenario controller per displayed scenario
       │   → one SimulationSessionCoordinatorV1 per scenario
       │     → MainWireSimulationRuntimeAdapterV1
-      │       → dedicated live Worker
-      │       → exclusive strict Worker lease
+      │       → one admitted live parent Worker
+      │       → exclusive transient strict Worker lease
+      │       → exclusive transient exact-replay/export Worker
       └─ one demand-driven hemodynamic analysis coordinator per scenario
-          → one persistent MainWire analysis Worker
+          → a logical client lease on that scenario's live parent Worker
             → exact settled-source V4 restore
             → bidirectional Guyton/Starling continuation Workers
 ```
@@ -39,6 +40,14 @@ only owner of the foreground live and background strict lanes. Guyton/Starling
 uses a separate, explicitly bounded analysis path from an exact settled source;
 it is not a fallback live controller. This remains a transition bridge, not
 evidence that the target Studio product architecture is complete.
+
+Displayed scenarios are admitted by the fixed
+`main-wire-scientific-worker-live-lane-budget-v1` policy: one lane per four
+logical processors reported by `navigator.hardwareConcurrency`, clamped to the
+product range of one through four. The policy does not sample or react to
+throughput. Sharing removes the analysis control-plane parent thread; it does
+not merge the continuation solvers, strict settlement, or exact export into
+the foreground live command queue.
 
 ## Implemented user-visible runtime semantics
 

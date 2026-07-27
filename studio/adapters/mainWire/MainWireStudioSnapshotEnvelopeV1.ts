@@ -1,6 +1,10 @@
 import {
-  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
-} from "@/engine/scientific/assembly";
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_SHA256,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_ID,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_VERSION,
+} from "@/engine/scientific/assembly/mainWireAdultFiveWallNonCoronaryReleaseV1";
 import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1,
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_FRAME_V1_ID,
@@ -19,7 +23,7 @@ import {
 import {
   loadMainWireScientificSessionExactCheckpointV4,
   type MainWireScientificSessionExactCheckpointV4,
-} from "@/engine/scientific/runtime";
+} from "@/engine/scientific/runtime/MainWireScientificExactCheckpointV4";
 import {
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
   RUNTIME_PRESENTATION_COVERAGE_V1,
@@ -146,17 +150,22 @@ export async function loadMainWireStudioSnapshotEnvelopeV1(
     envelope.checkpointV4,
     "checkpointV4",
   );
-  const canonicalRelease =
-    await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
   const checkpointV4 =
     await loadMainWireScientificSessionExactCheckpointV4(
       {
-        releaseRef: canonicalRelease.ref,
+        releaseRef: Object.freeze({
+          id: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID,
+          version:
+            MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION,
+          sha256:
+            MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_SHA256,
+        }),
         baseSessionInputSha256: expectedBaseSessionInputSha256,
         stateCodec: Object.freeze({
-          stateSchemaId: canonicalRelease.manifest.stateSchema.schemaId,
+          stateSchemaId:
+            MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_ID,
           stateSchemaVersion:
-            canonicalRelease.manifest.stateSchema.schemaVersion,
+            MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_VERSION,
           transactionCheckpointId:
             "main-wire-five-wall-noncoronary-checkpoint-v1",
           transactionCheckpointSchemaVersion: 1,

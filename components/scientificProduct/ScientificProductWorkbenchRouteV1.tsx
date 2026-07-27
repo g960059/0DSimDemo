@@ -250,6 +250,7 @@ function ScientificProductWorkbenchLoaderV1({
     }).then((runtime) => {
       if (!active) {
         void runtime.controller.dispose();
+        runtime.scientificWorkerLane?.terminate();
         return;
       }
       loadedRuntime = runtime;
@@ -266,7 +267,11 @@ function ScientificProductWorkbenchLoaderV1({
     return () => {
       active = false;
       abortController.abort();
-      if (loadedRuntime !== null) void loadedRuntime.controller.dispose();
+      if (loadedRuntime !== null) {
+        void loadedRuntime.controller.dispose().finally(() =>
+          loadedRuntime?.scientificWorkerLane?.terminate()
+        );
+      }
     };
   }, [resolution.canonicalCaseId]);
 

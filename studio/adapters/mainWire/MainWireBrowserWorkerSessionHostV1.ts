@@ -50,10 +50,10 @@ import type {
   MainWireStudioTransientChunkV1,
 } from "./MainWireStudioSessionHostV1";
 
-type MainWireStudioWorkerClientV1 = Pick<
+export type MainWireStudioWorkerClientV1 = Pick<
   MainWireScientificWorkerClientV1,
   "request" | "terminate"
->;
+> & Readonly<{ requestCount?: number }>;
 
 export type MainWireBrowserWorkerSessionHostOptionsV1 = Readonly<{
   client?: MainWireStudioWorkerClientV1;
@@ -122,11 +122,13 @@ implements MainWireStudioSessionHostV1 {
     }
     this.client = options.client
       ?? (options.clientFactory
-        ?? (() => createProductionClientV1(options.integrityTier)))();
+        ?? (() => createMainWireBrowserWorkerClientV1(
+          options.integrityTier,
+        )))();
   }
 
   get requestCount(): number {
-    return this.requestOrdinal;
+    return this.client.requestCount ?? this.requestOrdinal;
   }
 
   async restoreV4(
@@ -375,21 +377,35 @@ implements MainWireStudioSessionHostV1 {
   }
 }
 
-export function createMainWireBrowserWorkerSessionHostFactoryV1():
-MainWireStudioSessionHostFactoryV1 {
+export function createMainWireBrowserWorkerSessionHostFactoryV1(
+  options: Readonly<{
+    createLiveLaneClient?: (
+      integrityTier: HotPathIntegrityTierV1,
+    ) => MainWireStudioWorkerClientV1;
+  }> = {},
+): MainWireStudioSessionHostFactoryV1 {
   return (request) => new MainWireBrowserWorkerSessionHostV1({
     ...(request?.integrityTier === undefined
       ? {}
       : { integrityTier: request.integrityTier }),
+    ...(request?.workerRole === "live-lane"
+      && options.createLiveLaneClient !== undefined
+      ? {
+        clientFactory: () => options.createLiveLaneClient!(
+          request.integrityTier ?? "full-invariant",
+        ),
+      }
+      : {}),
   });
 }
 
-function createProductionClientV1(
+export function createMainWireBrowserWorkerClientV1(
   integrityTier: HotPathIntegrityTierV1 = "full-invariant",
+  maximumPendingRequestCount = 1,
 ): MainWireScientificWorkerClientV1 {
   return new MainWireScientificWorkerClientV1({
     workerFactory: () => createDefaultMainWireScientificWorkerV1(integrityTier),
-    maximumPendingRequestCount: 1,
+    maximumPendingRequestCount,
     maximumRequestCountPerClientLifetime:
       MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
         .maximumRequestCountPerLifetime,
