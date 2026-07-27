@@ -603,17 +603,31 @@ export function collapsibleTubeAreaRatioAndPressureDerivativesV1(
 /**
  * Apply the directed graph incidence operator to edge flows. Positive flow is
  * from edge.up to edge.down; the returned vector follows graph.nodes order.
+ *
+ * `out` lets a caller supply a scratch vector instead of taking a fresh one.
+ * The result is identical either way: the buffer is zeroed before accumulation,
+ * exactly as a freshly constructed `Float64Array` would be. The live lane needs
+ * this because a fifteen-element `Float64Array` is 120 bytes, which is past the
+ * 64-byte limit V8 keeps typed arrays on its own heap under; anything larger
+ * takes a backing store from an allocator shared by the whole renderer process.
  */
 export function incidenceVolumeRatesFromEdgeFlowsV1(
   graph: AuthoritativeCirculationGraphV1,
   edgeFlowsMlPerSec: ArrayLike<number>,
+  out?: Float64Array,
 ): Float64Array {
   if (edgeFlowsMlPerSec.length !== graph.edges.length) {
     throw new RangeError(
       `Expected ${graph.edges.length} edge flows, received ${edgeFlowsMlPerSec.length}`,
     );
   }
-  const rates = new Float64Array(graph.nodes.length);
+  if (out !== undefined && out.length !== graph.nodes.length) {
+    throw new RangeError(
+      `Expected a ${graph.nodes.length}-element rate buffer, received ${out.length}`,
+    );
+  }
+  const rates = out ?? new Float64Array(graph.nodes.length);
+  rates.fill(0);
   for (let edgeIndex = 0; edgeIndex < graph.edges.length; edgeIndex++) {
     const edge = graph.edges[edgeIndex]!;
     const flow = edgeFlowsMlPerSec[edgeIndex]!;
