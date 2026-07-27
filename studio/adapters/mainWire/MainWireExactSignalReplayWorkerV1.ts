@@ -12,18 +12,29 @@ import {
   MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
 } from "@/engine/scientificBrowser/mainWireScientificBrowserRuntimeLimitsV1";
 import {
-  EXACT_SIGNAL_EXPORT_MANIFEST_V1_SCHEMA_ID,
+  EXACT_SIGNAL_EXPORT_LIMITS_V1,
   EXACT_SIGNAL_REPLAY_COVERAGE_V1,
   type ArtifactStorePortV1,
   type ExactSignalExportCommandV1,
-  type ExactSignalExportManifestDraftV1,
   type ExactSignalExportResultV1,
-  type ExactSignalExportWriterPortV1,
+  type ExactSignalReplayRecipeV1,
   type ExactSignalSampleV1,
   type RuntimeExecutionIdentityV1,
-  type RuntimeReplayOriginV1,
-  type SnapshotEnvelopeRefV1,
+  type StudioRunArtifactContentV1,
 } from "@/studio/contracts/v1";
+import {
+  loadStudioRunArtifactContentV1,
+} from "@/studio/infrastructure/artifacts/StudioRunArtifactContentLoaderV1";
+import type {
+  MainWireExactSignalExportWriterInternalPortV1,
+} from "@/studio/infrastructure/artifacts/StudioExactSignalExportWriterV1";
+import {
+  loadMainWireExactSignalReplayOriginEnvelopeV1,
+  sameMainWireExactSignalReplayRecipeV1,
+  sameMainWireReplayOriginCorrelationV1,
+  type MainWireExactSignalReplayOriginEnvelopeContentV1,
+  type MainWireRetainedExactSignalReplayOriginV1,
+} from "./MainWireExactSignalReplayOriginEnvelopeV1";
 import type {
   MainWireStudioHostedSessionV1,
   MainWireStudioSessionHostV1,
@@ -42,10 +53,11 @@ import {
 
 export const MAIN_WIRE_EXACT_SIGNAL_DT_SEC_V1 = 0.002 as const;
 const TIME_TOLERANCE_SEC_V1 = 1e-11;
+const VERIFIED_REPLAY_MINT_TOKEN_V1 = Object.freeze({});
 
 export type MainWireExactSignalReplayWorkerOptionsV1 = Readonly<{
   artifacts: ArtifactStorePortV1;
-  writer: ExactSignalExportWriterPortV1;
+  writer: MainWireExactSignalExportWriterInternalPortV1;
   host: MainWireStudioSessionHostV1;
   replaySessionId: string;
 }>;
@@ -58,13 +70,34 @@ export class MainWireExactSignalReplayErrorV1 extends Error {
 }
 
 /**
- * One instance owns one exclusive execution host. It never touches the live
- * host token: all fast-forward and exact-step commands run against a restored
- * replay session and flow directly into the writer's async iterable.
+ * Runtime capability consumed by the internal writer. Its constructor token is
+ * module-private, and it is minted only after the origin DTO, source-run
+ * binding, checkpoint, dedicated restore receipt and command arithmetic have
+ * all been validated.
+ */
+export class MainWireVerifiedExactSignalReplayV1 {
+  private constructor(
+    readonly recipe: ExactSignalReplayRecipeV1,
+  ) {}
+
+  static mintInternalV1(
+    token: object,
+    recipe: ExactSignalReplayRecipeV1,
+  ): MainWireVerifiedExactSignalReplayV1 {
+    if (token !== VERIFIED_REPLAY_MINT_TOKEN_V1) {
+      throw replayErrorV1("verified replay capability mint denied");
+    }
+    return new MainWireVerifiedExactSignalReplayV1(recipe);
+  }
+}
+
+/**
+ * Internal one-job worker. It is deliberately absent from public barrels.
+ * Every command runs on a dedicated host and is bounded and cancellable.
  */
 export class MainWireExactSignalReplayWorkerV1 {
   private readonly artifacts: ArtifactStorePortV1;
-  private readonly writer: ExactSignalExportWriterPortV1;
+  private readonly writer: MainWireExactSignalExportWriterInternalPortV1;
   private readonly host: MainWireStudioSessionHostV1;
   private readonly replaySessionId: string;
 
@@ -76,54 +109,38 @@ export class MainWireExactSignalReplayWorkerV1 {
   }
 
   async exportExactSignals(
-    origin: RuntimeReplayOriginV1,
+    retained: MainWireRetainedExactSignalReplayOriginV1,
     command: ExactSignalExportCommandV1,
+    signal: AbortSignal,
   ): Promise<ExactSignalExportResultV1> {
     try {
-      assertCommandOriginBindingV1(origin, command);
-      const loaded = await this.loadOriginV1(origin);
+      assertNotAbortedV1(signal);
+      const loaded = await this.loadOriginV1(retained, command, signal);
+      assertNotAbortedV1(signal);
       const restored = await this.host.restoreV4({
         sessionId: this.replaySessionId,
         resolvedSessionInput: loaded.resolvedSessionInput,
         checkpointV4: loaded.checkpointV4,
       });
-      assertRestoreBindingV1(origin, loaded, restored);
-      const intervalCount = gridStepCountV1(
-        command.intervalDurationSec,
-      );
-      const manifest = Object.freeze({
-        schemaId: EXACT_SIGNAL_EXPORT_MANIFEST_V1_SCHEMA_ID,
-        schemaVersion: 1 as const,
-        origin,
+      assertNotAbortedV1(signal);
+      assertRestoreBindingV1(loaded.recipe, loaded, restored);
+      const capability =
+        MainWireVerifiedExactSignalReplayV1.mintInternalV1(
+          VERIFIED_REPLAY_MINT_TOKEN_V1,
+          loaded.recipe,
+        );
+      return await this.writer.writeExactSignalExportV1({
+        capability,
+        recipe: loaded.recipe,
         intervalStartOffsetSec: command.intervalStartOffsetSec,
         intervalDurationSec: command.intervalDurationSec,
-        coverage: Object.freeze({
-          kind: EXACT_SIGNAL_REPLAY_COVERAGE_V1,
-          dtSec: MAIN_WIRE_EXACT_SIGNAL_DT_SEC_V1,
-          observationStride: 1 as const,
-          intervalCount,
-          sampleCount: intervalCount + 1,
-        }),
-        claims: Object.freeze({
-          onDemandResimulation: true as const,
-          fastForwardIntermediateObservationsRetained:
-            false as const,
-          restoredBoundaryProvenance:
-            "checkpoint-boundary" as const,
-          acceptedStepRevisionAndTimeContinuityValidated:
-            true as const,
-          smoothingOrInterpolationApplied: false as const,
-          presentationSamplesConsumed: false as const,
-          liveRuntimeBranchMutated: false as const,
-        }),
-      }) satisfies ExactSignalExportManifestDraftV1;
-      return await this.writer.writeExactSignalExport({
-        manifest,
         samples: this.streamSamplesV1(
           restored,
           command,
           loaded.cycleLengthSec,
+          signal,
         ),
+        signal,
       });
     } catch (error) {
       if (error instanceof MainWireExactSignalReplayErrorV1) throw error;
@@ -132,35 +149,65 @@ export class MainWireExactSignalReplayWorkerV1 {
   }
 
   private async loadOriginV1(
-    origin: RuntimeReplayOriginV1,
+    retained: MainWireRetainedExactSignalReplayOriginV1,
+    command: ExactSignalExportCommandV1,
+    signal: AbortSignal,
   ): Promise<LoadedReplayOriginV1> {
-    const snapshotRef = replaySnapshotRefV1(origin);
-    const [inputValue, snapshotValue] = await Promise.all([
-      this.artifacts.readJson(origin.simulationInputRef),
-      this.artifacts.readJson(snapshotRef),
-    ]);
+    assertNotAbortedV1(signal);
+    const originValue = await this.artifacts.readJson(retained.originRef);
+    assertNotAbortedV1(signal);
+    const origin =
+      loadMainWireExactSignalReplayOriginEnvelopeV1(originValue);
+    if (
+      !sameMainWireReplayOriginCorrelationV1(
+        origin.correlation,
+        retained.correlation,
+      )
+      || !sameMainWireExactSignalReplayRecipeV1(
+        origin.recipe,
+        retained.recipe,
+      )
+    ) throw replayErrorV1("retained origin index does not match its envelope");
+    assertCommandOriginBindingV1(origin, command);
+    assertReplayResourceArithmeticV1(origin.recipe, command);
+
+    const [inputValue, snapshotValue, sourceRunValue] =
+      await Promise.all([
+        this.artifacts.readJson(origin.recipe.simulationInputRef),
+        this.artifacts.readJson(origin.recipe.replayCheckpointRef),
+        this.artifacts.readJson(origin.sourceRunRef),
+      ]);
+    assertNotAbortedV1(signal);
     const resolvedSessionInput =
       await loadMainWireScientificResolvedSessionInputEnvelopeV1(
         inputValue,
       );
+    const sourceRun = loadStudioRunArtifactContentV1(sourceRunValue);
+    await assertSourceRunBindingV1(
+      this.artifacts,
+      origin,
+      sourceRun,
+    );
+    assertNotAbortedV1(signal);
     const snapshotRecord = recordV1(snapshotValue, "snapshot");
     const loaded = snapshotRecord.schemaId
         === MAIN_WIRE_STUDIO_REPLAY_CHECKPOINT_ENVELOPE_V1_SCHEMA_ID
       ? await loadMainWireStudioReplayCheckpointEnvelopeV1(
         snapshotValue,
         {
-          simulationInputRef: origin.simulationInputRef,
+          simulationInputRef: origin.recipe.simulationInputRef,
           resolvedSessionInput,
         },
       )
       : await loadMainWireStudioSnapshotEnvelopeV1(
         snapshotValue,
         {
-          simulationInputRef: origin.simulationInputRef,
+          simulationInputRef: origin.recipe.simulationInputRef,
           baseSessionInputSha256:
             resolvedSessionInput.sessionInputSha256,
         },
       );
+    assertNotAbortedV1(signal);
     const checkpointV4 = loaded.checkpointV4;
     const expectedTargetInputSha256 =
       await mainWireStudioTargetInputSha256V1(
@@ -169,20 +216,25 @@ export class MainWireExactSignalReplayWorkerV1 {
       );
     const execution = mainWireStudioExecutionIdentityV1(checkpointV4);
     if (
-      expectedTargetInputSha256 !== origin.targetInputSha256
+      expectedTargetInputSha256 !== origin.recipe.targetInputSha256
       || checkpointV4.transaction.revision
-        !== origin.boundaryRevision
+        !== origin.recipe.boundaryRevision
       || !sameTimeV1(
         checkpointV4.transaction.acceptedTimeSec,
-        origin.boundaryTimeSec,
+        origin.recipe.boundaryTimeSec,
       )
-      || !sameExecutionIdentityV1(execution, origin.execution)
+      || !sameExecutionIdentityV1(execution, origin.recipe.execution)
+      || !sameTimeV1(
+        checkpointV4.canonicalPhase.cycleLengthSec,
+        origin.recipe.cycleLengthSec,
+      )
       || !sameSimulationReleaseRef(
         checkpointV4.releaseRef,
         resolvedSessionInput.releaseRef,
       )
     ) throw replayErrorV1("retained origin identity mismatch");
     return Object.freeze({
+      recipe: origin.recipe,
       resolvedSessionInput,
       checkpointV4,
       cycleLengthSec: checkpointV4.canonicalPhase.cycleLengthSec,
@@ -193,12 +245,14 @@ export class MainWireExactSignalReplayWorkerV1 {
     restored: MainWireStudioHostedSessionV1,
     command: ExactSignalExportCommandV1,
     cycleLengthSec: number,
+    signal: AbortSignal,
   ): AsyncGenerator<ExactSignalSampleV1> {
     let session = restored;
     let boundaryFrame = restored.observableFrame;
     let remainingFastForwardSteps =
       gridStepCountV1(command.intervalStartOffsetSec);
     while (remainingFastForwardSteps > 0) {
+      assertNotAbortedV1(signal);
       const stepCount = Math.min(
         remainingFastForwardSteps,
         MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
@@ -208,10 +262,9 @@ export class MainWireExactSignalReplayWorkerV1 {
         session,
         dtSec: MAIN_WIRE_EXACT_SIGNAL_DT_SEC_V1,
         stepCount,
-        // The command protocol always returns its final observation. Asking
-        // for only that boundary keeps fast-forward history out of export.
         observationStride: stepCount,
       });
+      assertNotAbortedV1(signal);
       assertTransientChunkV1(session, chunk, stepCount, stepCount);
       session = chunk.session;
       boundaryFrame = chunk.observableFrames.at(-1)!;
@@ -231,6 +284,7 @@ export class MainWireExactSignalReplayWorkerV1 {
     let remainingIntervalSteps =
       gridStepCountV1(command.intervalDurationSec);
     while (remainingIntervalSteps > 0) {
+      assertNotAbortedV1(signal);
       const stepCount = Math.min(
         remainingIntervalSteps,
         MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
@@ -242,9 +296,11 @@ export class MainWireExactSignalReplayWorkerV1 {
         stepCount,
         observationStride: 1,
       });
+      assertNotAbortedV1(signal);
       assertTransientChunkV1(session, chunk, stepCount, 1);
       session = chunk.session;
       for (const frame of chunk.observableFrames) {
+        assertNotAbortedV1(signal);
         yield exactSampleFromFrameV1(
           frame,
           "accepted-step",
@@ -257,6 +313,7 @@ export class MainWireExactSignalReplayWorkerV1 {
 }
 
 type LoadedReplayOriginV1 = Readonly<{
+  recipe: ExactSignalReplayRecipeV1;
   resolvedSessionInput: MainWireScientificResolvedSessionInputV1;
   checkpointV4: Parameters<
     MainWireStudioSessionHostV1["restoreV4"]
@@ -265,22 +322,83 @@ type LoadedReplayOriginV1 = Readonly<{
 }>;
 
 function assertCommandOriginBindingV1(
-  origin: RuntimeReplayOriginV1,
+  origin: MainWireExactSignalReplayOriginEnvelopeContentV1,
   command: ExactSignalExportCommandV1,
 ): void {
+  const correlation = origin.correlation;
   if (
-    origin.sessionId !== command.sessionId
-    || origin.scenarioId !== command.scenarioId
-    || origin.liveBranchId !== command.liveBranchId
-    || origin.targetGeneration !== command.targetGeneration
-    || origin.presentationRevision !== command.presentationRevision
+    correlation.sessionId !== command.sessionId
+    || correlation.scenarioId !== command.scenarioId
+    || correlation.liveBranchId !== command.liveBranchId
+    || correlation.targetGeneration !== command.targetGeneration
+    || correlation.presentationRevision !== command.presentationRevision
     || !finiteGridDurationV1(command.intervalStartOffsetSec, true)
     || !finiteGridDurationV1(command.intervalDurationSec, false)
   ) throw replayErrorV1("command and retained origin do not match");
 }
 
+function assertReplayResourceArithmeticV1(
+  recipe: ExactSignalReplayRecipeV1,
+  command: ExactSignalExportCommandV1,
+): void {
+  const startSteps = gridStepCountV1(command.intervalStartOffsetSec);
+  const intervalSteps = gridStepCountV1(command.intervalDurationSec);
+  const maximumStepsPerRequest =
+    MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+      .maximumTransientStepCountPerCommand;
+  const workerRequestCount = 1
+    + Math.ceil(startSteps / maximumStepsPerRequest)
+    + Math.ceil(intervalSteps / maximumStepsPerRequest);
+  if (
+    startSteps > EXACT_SIGNAL_EXPORT_LIMITS_V1
+      .maximumStartOffsetStepCount
+    || intervalSteps + 1
+      > EXACT_SIGNAL_EXPORT_LIMITS_V1.maximumSampleCount
+    || workerRequestCount
+      > EXACT_SIGNAL_EXPORT_LIMITS_V1.maximumWorkerRequestCount
+    || !Number.isSafeInteger(recipe.boundaryRevision + startSteps)
+    || !Number.isSafeInteger(
+      recipe.boundaryRevision + startSteps + intervalSteps,
+    )
+    || !Number.isFinite(
+      recipe.boundaryTimeSec
+        + command.intervalStartOffsetSec
+        + command.intervalDurationSec,
+    )
+  ) throw replayErrorV1("exact export exceeds its resource budget");
+}
+
+async function assertSourceRunBindingV1(
+  artifacts: ArtifactStorePortV1,
+  origin: MainWireExactSignalReplayOriginEnvelopeContentV1,
+  sourceRun: StudioRunArtifactContentV1,
+): Promise<void> {
+  if (
+    !sameArtifactRefV1(
+      sourceRun.simulationInputRef,
+      origin.recipe.simulationInputRef,
+    )
+    || !sameExecutionIdentityV1(
+      sourceRun.execution,
+      origin.recipe.execution,
+    )
+    || (
+      origin.correlation.originKind === "opened-run"
+      && (
+        !sameArtifactRefV1(
+          sourceRun.snapshotRef,
+          origin.recipe.replayCheckpointRef,
+        )
+        || sourceRun.targetInputSha256
+          !== origin.recipe.targetInputSha256
+      )
+    )
+    || !await artifacts.has(sourceRun.sourceRunRef)
+  ) throw replayErrorV1("source run and retained origin do not match");
+}
+
 function assertRestoreBindingV1(
-  origin: RuntimeReplayOriginV1,
+  recipe: ExactSignalReplayRecipeV1,
   loaded: LoadedReplayOriginV1,
   restored: MainWireStudioHostedSessionV1,
 ): void {
@@ -292,16 +410,16 @@ function assertRestoreBindingV1(
     || restored.controlState.targetStateSha256
       !== loaded.checkpointV4.controlTargetStateSha256
     || restored.parameterEpoch !== loaded.checkpointV4.parameterEpoch
-    || restored.stateIdentity.revision !== origin.boundaryRevision
+    || restored.stateIdentity.revision !== recipe.boundaryRevision
     || !sameTimeV1(
       restored.stateIdentity.acceptedTimeSec,
-      origin.boundaryTimeSec,
+      recipe.boundaryTimeSec,
     )
-    || restored.observableFrame.revision !== origin.boundaryRevision
+    || restored.observableFrame.revision !== recipe.boundaryRevision
     || restored.observableFrame.source !== "exact-checkpoint-restore"
     || !sameTimeV1(
       restored.observableFrame.acceptedTimeSec,
-      origin.boundaryTimeSec,
+      recipe.boundaryTimeSec,
     )
   ) throw replayErrorV1("dedicated worker restore receipt mismatch");
 }
@@ -379,20 +497,7 @@ function exactSampleFromFrameV1(
     simulationTimeSec: frame.acceptedTimeSec,
     phase01: phase01V1(frame.acceptedTimeSec, cycleLengthSec),
     values: Object.freeze(values),
-  });
-}
-
-function replaySnapshotRefV1(
-  origin: RuntimeReplayOriginV1,
-): SnapshotEnvelopeRefV1 {
-  switch (origin.kind) {
-    case "opened-run":
-      return origin.sourceSnapshotRef;
-    case "live-transition":
-      return origin.replayCheckpointRef;
-    case "promoted-steady-candidate":
-      return origin.promotedSnapshotRef;
-  }
+  }) as unknown as ExactSignalSampleV1;
 }
 
 function phase01V1(timeSec: number, cycleLengthSec: number): number {
@@ -426,8 +531,35 @@ function sameExecutionIdentityV1(
     && left.protocolRef === right.protocolRef;
 }
 
+function sameArtifactRefV1(
+  left: Readonly<{
+    schemaId: string;
+    kind: string;
+    sha256: string;
+    mediaType: string;
+    byteLength: number;
+  }>,
+  right: Readonly<{
+    schemaId: string;
+    kind: string;
+    sha256: string;
+    mediaType: string;
+    byteLength: number;
+  }>,
+): boolean {
+  return left.schemaId === right.schemaId
+    && left.kind === right.kind
+    && left.sha256 === right.sha256
+    && left.mediaType === right.mediaType
+    && left.byteLength === right.byteLength;
+}
+
 function sameTimeV1(left: number, right: number): boolean {
   return Math.abs(left - right) <= TIME_TOLERANCE_SEC_V1;
+}
+
+function assertNotAbortedV1(signal: AbortSignal): void {
+  if (signal.aborted) throw replayErrorV1("export was cancelled");
 }
 
 function recordV1(

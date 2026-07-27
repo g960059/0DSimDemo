@@ -18,6 +18,7 @@ export type StudioJsonValueV1 =
 export type StudioArtifactKindV1 =
   | "exact-signal-export"
   | "model-package"
+  | "replay-origin"
   | "run-artifact"
   | "simulation-input"
   | "snapshot-envelope"
@@ -40,10 +41,13 @@ export type SimulationInputRefV1 =
   StudioArtifactRefV1<"simulation-input">;
 export type ExactSignalExportArtifactRefV1 =
   StudioArtifactRefV1<"exact-signal-export">;
+export type ReplayOriginArtifactRefV1 =
+  StudioArtifactRefV1<"replay-origin">;
 
 /**
- * Exact model/runtime identities which determine numerical reproducibility.
- * UI state, actors, clocks, and Studio generations are intentionally absent.
+ * Build-scoped model/runtime identities used by replay admission. `modelRef`
+ * includes the release content hash; the remaining refs are versioned build
+ * identities, not independent content hashes of their implementations.
  */
 export type RuntimeExecutionIdentityV1 = Readonly<{
   modelRef: string;

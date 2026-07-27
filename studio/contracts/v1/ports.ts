@@ -1,6 +1,7 @@
 import type {
   StudioArtifactKindV1,
   StudioArtifactRefV1,
+  StudioJsonObjectV1,
   StudioJsonValueV1,
   StudioJsonWriteV1,
 } from "./artifacts";
@@ -110,7 +111,36 @@ export interface ArtifactStorePortV1 {
     options?: Readonly<{ signal?: AbortSignal }>,
   ): Promise<readonly StudioArtifactRefV1[]>;
 
+  /**
+   * Consumes one JSON array incrementally. The store owns the bounded spool;
+   * callers retain only stream-validation state. Disk/remote stores may avoid
+   * holding the array in memory, while the in-memory CAS remains explicitly
+   * bounded.
+   */
+  putJsonArrayStream<TKind extends StudioArtifactKindV1>(
+    write: Readonly<{
+      kind: TKind;
+      mediaType: string;
+      arrayProperty: string;
+      maximumArrayByteLength: number;
+      items: AsyncIterable<StudioJsonValueV1>;
+      buildContentWithoutArray(
+        summary: ArtifactJsonArrayStreamSummaryV1,
+      ): StudioJsonObjectV1;
+    }>,
+    options?: Readonly<{ signal?: AbortSignal }>,
+  ): Promise<Readonly<{
+    artifactRef: StudioArtifactRefV1<TKind>;
+    summary: ArtifactJsonArrayStreamSummaryV1;
+  }>>;
+
   readJson(ref: StudioArtifactRefV1): Promise<StudioJsonValueV1>;
 
   has(ref: StudioArtifactRefV1): Promise<boolean>;
 }
+
+export type ArtifactJsonArrayStreamSummaryV1 = Readonly<{
+  itemCount: number;
+  canonicalArraySha256: string;
+  canonicalArrayByteLength: number;
+}>;
