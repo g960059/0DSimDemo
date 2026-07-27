@@ -187,7 +187,7 @@
       "seedStatus": "Rendering begins only after one point from the uncertified Preview reference snapshot is actually painted; no beat is stored.",
       "updatingStatus": "Applying the parameter change, continuing the live trace, and refreshing its reference automatically. This remains uncertified Preview output.",
       "pausedStatus": "The live trace is paused and the last accepted point remains on screen.",
-      "strictFailedStatus": "The live trace continues at 1×. A refreshed settled reference is unavailable for this setting, so this uncertified Preview shows no steady-state claim.",
+      "strictFailedStatus": "The live trace keeps running. A refreshed settled reference is unavailable for this setting, so this uncertified Preview shows no steady-state claim.",
       "controlRejectedStatus": "The selected control was not applied. Reader keeps the last accepted presentation on screen.",
       "runtimeFailedStatus": "Reader presentation updates stopped at the last accepted point. Review the displayed error.",
       "runningStatus": "Running automatically. Waveforms and instantaneous values update with newly accepted points. Playback holds 1× while compute keeps up, and reports degraded pacing when it cannot.",

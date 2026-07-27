@@ -286,7 +286,7 @@ content（全 graph にアクセス）と layout（2×2 の空間的意味）を
 
 ## 9. runtime（前景 live 1× / 背景 strict steady）
 
-- **表示は 1× 生理時間。計算だけ背景で高速。** 加速表示は HR 変化に誤認され、波形の形を歪めるため不採用。
+- **表示は 1× 生理時間を上限とする。計算だけ背景で高速。** 加速表示は HR 変化に誤認され、波形の形を歪めるため不採用。計算が 1× に追いつかない場合も加速はせず、`degraded` として報告する（§9 の pacing 参照）。
 - **二重経路は parameter 変更ごとに自動開始**: 前景 live transition（現在stateから連続積分）+ 背景 strict steady job（同じtarget inputを最大速で厳密収束）。
 - parameter変更のたびにscenarioごとの `targetGeneration` を進める。古いjobはcancel可能ならcancelし、完了してもgeneration不一致なら破棄する。`stale / available` をユーザー状態として保存しない。
 - schedulerは連続drag中の未開始jobをlatest-winsでcoalesceしてよいが、generationは各target変更で進め、操作停止後の最新targetに対するjobを必ず開始する。「自動再計算」のsemanticと「全pointer eventを完走させる」を同一視しない。
@@ -672,7 +672,7 @@ AI command bar / authoring wizard / community publishing / free canvas / sweep�
 
 **「任意のpinned RunからN本を同時に温間再開し、settled snapshotの1 pointから1×で重ね描画しつつ、parameter変更ごとにstrict steady jobを自動実行できるか」**を全presentation contextへ広げる前に確認する。これは唯一の設計リスクではないが、失敗すれば中心UXが成立しないblocking riskである。
 
-headless側では、exact V4 restore、同revision/timeの1-point projection、N-branch intent、live/strict Worker分離、generation discard、signal channel suspend/resume、P1 candidate admission、明示promotionのcontractとadapterが入った。さらに既存product Workbenchへのbridgeで、settled snapshotの1 pointからの表示、parameter commitごとの自動live+strict、固定1× live、pause/resume、candidateの明示promotionとpinを実browser surfaceへ接続した。parameter変更時の波形はincoming windowが満ちるまで直前generationを保持し、PV loopは設定可能な最大6世代のparameter-generation履歴をbeat履歴とは別にfade表示する。いずれも旧generationを保持中のdomain計算へ含める。
+headless側では、exact V4 restore、同revision/timeの1-point projection、N-branch intent、live/strict Worker分離、generation discard、signal channel suspend/resume、P1 candidate admission、明示promotionのcontractとadapterが入った。さらに既存product Workbenchへのbridgeで、settled snapshotの1 pointからの表示、parameter commitごとの自動live+strict、上限1× live（追いつかない場合はdegraded報告）、pause/resume、candidateの明示promotionとpinを実browser surfaceへ接続した。parameter変更時の波形はincoming windowが満ちるまで直前generationを保持し、PV loopは設定可能な最大6世代のparameter-generation履歴をbeat履歴とは別にfade表示する。いずれも旧generationを保持中のdomain計算へ含める。
 
 Guyton/Starlingはunavailable placeholderではなく、scenarioごとのpersistent MainWire analysis Workerへ接続した。表示paneのdemandをlatest exact settled sourceへbindし、短命なexact V4 restore session上でbidirectional continuation sweepを走らせる。source/detail変更はlatest-onlyにserializeし、superseded job/sessionをcancel・disposeして旧結果のpublishを拒否する一方、parent Workerはscenario lifecycle中維持する。left/right demandは必要detailへcoalesceし、新結果待ちまたはerror時は最後のusable presentationを保持する。V&V reportとadvanced PV relation/load-seriesは引き続き旧経路へfallbackせず、UIで明示的にunavailableとする。
 
@@ -711,7 +711,7 @@ benchmarkの対象機種と数値budgetはspike実施前に規範別紙へ記載
 4. standalone scratchはSimulationSession + ephemeral ExperimentDraftで開始する。保存時にdurable ExperimentDraft、Document追加時にDocumentDraft + CellPlacementを作る。n=1 Documentをscratchの内部表現にしない。
 5. graphはspatial（author配置・content保存）、controller / metricは主にinspector。Catalog → Working Set → Briefは足し算。
 6. extentはIn-flow / Peek / Fullscreen、capabilityはRead / Interact / Composeとして直交させる。FullscreenはCompose権限を意味しない。
-7. 前景は1×生理時間。settled snapshotのcanonical phaseにある1 pointから描画を始め、traceを成長させる。canonical last-beat sampleは保存しない。
+7. 前景は1×生理時間を上限とする（計算が追いつかない場合は加速せず`degraded`として報告する）。settled snapshotのcanonical phaseにある1 pointから描画を始め、traceを成長させる。canonical last-beat sampleは保存しない。
 8. parameter変更ごとに前景liveと背景strict steady jobを自動開始する。generation不一致の結果は内部で破棄し、`stale` / `available`をユーザー向け永続状態にしない。steady candidateへ自動ジャンプしない。
 9. RunArtifact / AssessmentReport / CertifiedSeedを分ける。Certification用Assessmentはsnapshot + assessor + validation profileに紐づき、Compose操作には紐づかない。研究用Assessmentはimmutable artifact setもsubjectにできる。required / advisory gateはCertificationPolicyで決める。
 10. Readerは通常、公開済みCertifiedSeedから再生し、重い完全Assessmentを毎回走らせない。必要なruntime / solver / stateCodec packageは公開revisionとともに実行可能性を維持する。

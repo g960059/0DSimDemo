@@ -121,7 +121,9 @@ Continuous drag may coalesce work that has not started, but the latest target
 must always receive both paths. There is no user-facing `stale` or `available`
 steady-job state. Candidate availability is derived by generation equality.
 
-The foreground integrates at 1× physiological time. A shared control binding
+The foreground presents at 1× physiological time as a ceiling; when compute
+cannot sustain it the lane keeps running and reports degraded pacing rather
+than accelerating. A shared control binding
 issues one atomic intent to every targeted scenario branch. Partial UI edits
 are resolved against the latest desired target before dispatch; each runtime
 branch receives a complete exact control map plus its target digest.
@@ -302,7 +304,7 @@ The contracts, coordinator, V4 envelope/target codecs, Worker host, runtime
 adapter, generation discard, signal suspend/resume, P1 candidate admission,
 and explicit promotion boundary are present. An initial product Workbench
 bridge also connects a real browser surface to one-point open, automatic
-live+strict parameter intent, fixed 1× live presentation, explicit promotion,
+live+strict parameter intent, 1×-ceiling live presentation, explicit promotion,
 and pinning.
 
 That bridge is not the final Study Lab, Reader, or Document Editor. It uses one

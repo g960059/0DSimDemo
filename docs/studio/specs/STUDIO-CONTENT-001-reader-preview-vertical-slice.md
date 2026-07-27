@@ -255,11 +255,11 @@ settled one-point preview source
   → one-point Reader DOM commit
     → one-point browser paint boundary (double requestAnimationFrame)
       → subscribe/start presentation
-        → fixed 1× trace grows forward
+        → 1×-ceiling trace grows forward
 ```
 
 The browser E2E records the initial `phase=seed`, `frameCount=1` DOM commit
-before any growing trace, then separately waits for the fixed-1× trace to grow
+before any growing trace, then separately waits for the 1×-ceiling trace to grow
 forward. The DOM observer is commit evidence rather than a pixel capture; the
 double-animation-frame boundary is the implementation mechanism that preserves
 the required paint-before-start order.
@@ -372,7 +372,7 @@ Adopted from both reviews:
 - keep `parameterKey` distinct from `signalId`;
 - make `draft-preview-uncertified` and `session-only` explicit;
 - allocate a fresh Reader runtime for every open and dispose it on close;
-- paint the one-point source before starting fixed-1× presentation;
+- paint the one-point source before starting 1×-ceiling presentation;
 - keep Reader controls revision-neutral; and
 - expose only the Reader facade allowlist.
 
@@ -427,7 +427,7 @@ transition product bridge boundary is recorded in
    publication resolver must converge on that same renderer seam.
 5. Every Reader open owns a fresh runtime and every close disposes it.
 6. The Reader first commits and paints exactly one source point, then grows its
-   trace forward at fixed 1× without a saved beat.
+   trace forward at 1×, or at a reported degraded pace, without a saved beat.
 7. The facade exposes only brief-selected signals/readbacks and exact
    allowlisted parameter values for the explicit scenario.
 8. A Reader parameter commit starts normal Studio live+strict runtime work but

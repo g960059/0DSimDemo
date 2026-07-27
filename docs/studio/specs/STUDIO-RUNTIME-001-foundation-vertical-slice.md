@@ -155,11 +155,17 @@ activating that epoch, so even an immediate first batch cannot race the state
 replacement. A current-epoch Worker failure, malformed batch, sequence gap, or
 metric regression fails closed by suspending that branch; an explicitly stale
 identity is discarded. Strict work remains independent of playback suspension.
-Pacing uses one cumulative wall/model-time deadline, so a short stall can be
-caught up instead of becoming permanent drift. The maximum unreported lag is
-predeclared as one canonical cycle (1,000 ms in this release). Exceeding it
-emits a current-epoch signal failure and suspends the live lane rather than
-continuing to label a slower trace as 1×. Likewise, a signal observer exception
+Pacing uses one cumulative wall/model-time deadline within an epoch, so a short
+stall can be caught up instead of becoming permanent drift. The maximum
+unreported lag is predeclared as one canonical cycle (1,000 ms in this release).
+Exceeding it re-anchors the pacing epoch rather than continuing to label a
+slower trace as 1×: the accepted chunk is still published, model timestamps and
+step counts are never rewritten, the lane keeps running, and the discarded
+wall/model separation is reported as degraded pacing with a cumulative total.
+Sustained sub-1× compute — ordinary with several scenarios live at once — is a
+reported operating state, not a lane failure. Pacing returns to `realtime-1x`
+only after a full canonical cycle of throughput at or above 1× with no further
+re-anchor. Likewise, a signal observer exception
 is reported once through that failure channel to all subscribers and never
 causes a silent detach or loss of the accepted numerical state.
 
@@ -243,9 +249,13 @@ product contexts remain follow-up work.
    changing display;
 8. promotion is explicit and rejects an obsolete candidate;
 9. same-generation late live completion cannot overwrite a promoted display;
-10. the signal channel advances against a cumulative 1× deadline, catches up
-    bounded transient lag, and fails closed beyond the declared one-cycle lag
-    budget; suspend/resume preserves numerical state and stream epoch;
+10. the signal channel advances against a cumulative 1× deadline within an
+    epoch, catches up bounded transient lag, and beyond the declared one-cycle
+    lag budget re-anchors that epoch — publishing the accepted chunk, keeping
+    the lane running, reporting degraded pacing, and retaining the discarded
+    separation as a cumulative deficit — returning to 1× only after a full
+    cycle at or above 1× with no further re-anchor; suspend/resume preserves
+    numerical state and stream epoch;
 11. pinned canonical artifacts contain no last-beat sample history;
 12. equal artifact bytes resolve to the same content ref;
 13. source run content is lineage-validated before open;
