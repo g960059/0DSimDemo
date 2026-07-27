@@ -17,6 +17,9 @@ import {
 } from "@/engine/core/circulationGraphKernelV1";
 import type { EdgeSpec, NodeSpec } from "@/engine/core/topology";
 import {
+  fullHotPathInvariantsEnabledV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   validateMainWireFourValveDiseasePresetV1,
   type MainWireFourValveDiseasePresetV1,
 } from "@/engine/mechanics2/valve/MainWireFourValveDiseasePresetV1";
@@ -620,6 +623,19 @@ type MutableNewtonFailureTraceEntryV1 = {
   acceptedTrialScaledResidualInfinityNorm: number | null;
 };
 
+/**
+ * Per-step memo of mechanics-callback results, keyed on the candidate time and
+ * the four chamber volumes.
+ *
+ * On the analytic-Jacobian path the hit rate is exactly zero: every candidate
+ * the outer Newton loop asks for differs in at least one chamber volume, and a
+ * full healthy beat reports `mechanicsCallbackCacheHits` of 0 for all 2500
+ * steps. On the finite-difference fallback path it is not: the Jacobian probes
+ * every independent node, and the nine non-chamber columns leave all four
+ * chamber volumes unchanged, so each of them is a hit. Removing the memo would
+ * multiply whole-heart mechanics evaluations on exactly the path that already
+ * costs the most.
+ */
 type CandidateMechanicsCache<TEvaluation> = {
   readonly values: CandidateMechanicsTimeCache<TEvaluation>;
   readonly jacobianUsage: JacobianUsageDiagnosticsV1;
@@ -669,7 +685,21 @@ const DEFAULT_NEWTON_OPTIONS = Object.freeze({
 const MAX_NEWTON_FAILURE_TRACE_ENTRIES = 32;
 const MAX_FAILURE_DIAGNOSTIC_MESSAGE_CHARACTERS = 1024;
 
+let cachedGraphV1: NonCoronaryCirculationGraphV1 | null = null;
+
+/**
+ * The non-coronary topology is a pure function of the authoritative graph and
+ * the module-level scope constants: it takes no argument and depends on no
+ * mutable state, so every call returns the same value. The frozen result is
+ * built once per module instance and shared; every scope check below still runs
+ * on that one build, so a source-topology change is still rejected.
+ */
 export function buildNonCoronaryCirculationGraphV1():
+NonCoronaryCirculationGraphV1 {
+  return cachedGraphV1 ??= buildNonCoronaryCirculationGraphOnceV1();
+}
+
+function buildNonCoronaryCirculationGraphOnceV1():
 NonCoronaryCirculationGraphV1 {
   const sourceGraph = buildAuthoritativeCirculationGraphV1();
   const includedNodeNames = new Set<string>(NON_CORONARY_NODE_NAMES_V1);
@@ -2717,7 +2747,29 @@ function resolveNewtonOptions(
   return Object.freeze(resolved);
 }
 
+/**
+ * Runtime parameters that have already passed this validation. The session
+ * holds one frozen runtime object for the life of a parameter setting and hands
+ * the same object to every step, so without this the whole check — including
+ * five `stableHash` passes over an unchanging valve preset — re-ran twice per
+ * 2 ms step.
+ *
+ * Membership is by object identity. A caller that mutates a runtime object in
+ * place instead of building a new one is outside the contract: the object is
+ * expected to be frozen, and the session replaces it wholesale on a parameter
+ * change.
+ */
+const VALIDATED_RUNTIMES_V1 = new WeakSet<object>();
+
 function validateRuntime(runtime: NonCoronaryCirculationRuntimeParamsV1): void {
+  if (VALIDATED_RUNTIMES_V1.has(runtime)) return;
+  validateRuntimeOnceV1(runtime);
+  VALIDATED_RUNTIMES_V1.add(runtime);
+}
+
+function validateRuntimeOnceV1(
+  runtime: NonCoronaryCirculationRuntimeParamsV1,
+): void {
   requireFinite(runtime.vascular.venousTone, "venousTone");
   requirePositive(runtime.vascular.arterialStiffness, "arterialStiffness");
   requirePositive(runtime.losses.systemicResistance, "systemicResistance");
@@ -2970,11 +3022,19 @@ function copyValveStates(
   });
 }
 
+/**
+ * Key-set check for a record crossing this module's boundary. It is a defensive
+ * precondition on a scoped record whose key set is fixed by the topology, so it
+ * belongs to the full-invariant tier; see engine/hotPathIntegrityTierV1.ts. The
+ * per-field value validation the copy helpers apply is unaffected and always
+ * runs — a missing key still surfaces as a value that fails its own check.
+ */
 function assertExactKeys<T extends string>(
   value: object,
   names: readonly T[],
   label: string,
 ): void {
+  if (!fullHotPathInvariantsEnabledV1()) return;
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`${label} must be a record`);
   }
@@ -2986,32 +3046,51 @@ function assertExactKeys<T extends string>(
   }
 }
 
+/**
+ * Builds a scoped record over a fixed name list.
+ *
+ * Insertion order is the declaration order of the name list, exactly as the
+ * previous `Object.fromEntries(names.map(...))` form produced, so every
+ * canonical JSON serialization and every hash over these records is unchanged.
+ * Writing the properties directly avoids the pair array and the entry arrays.
+ *
+ * Freezing is a hot-path defence rather than a computed value: these records are
+ * rebuilt from scratch on every candidate and never handed to a provider, so the
+ * freeze belongs to the full-invariant tier.
+ */
+function scopedRecord<TName extends string, T>(
+  names: readonly TName[],
+  build: (name: TName) => T,
+): Record<TName, T> {
+  const record = {} as Record<TName, T>;
+  for (let index = 0; index < names.length; index += 1) {
+    const name = names[index]!;
+    record[name] = build(name);
+  }
+  return fullHotPathInvariantsEnabledV1() ? Object.freeze(record) : record;
+}
+
 function nodeRecord<T>(build: (name: NonCoronaryNodeNameV1) => T): NodeRecord<T> {
-  return Object.freeze(Object.fromEntries(
-    NON_CORONARY_NODE_NAMES_V1.map((name) => [name, build(name)]),
-  )) as NodeRecord<T>;
+  return scopedRecord(NON_CORONARY_NODE_NAMES_V1, build) as NodeRecord<T>;
 }
 
 function edgeRecord<T>(build: (name: NonCoronaryEdgeNameV1) => T): EdgeRecord<T> {
-  return Object.freeze(Object.fromEntries(
-    NON_CORONARY_EDGE_NAMES_V1.map((name) => [name, build(name)]),
-  )) as EdgeRecord<T>;
+  return scopedRecord(NON_CORONARY_EDGE_NAMES_V1, build) as EdgeRecord<T>;
 }
 
 function dynamicEdgeRecord<T>(
   build: (name: NonCoronaryDynamicEdgeNameV1) => T,
 ): DynamicEdgeRecord<T> {
-  return Object.freeze(Object.fromEntries(
-    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1.map((name) => [name, build(name)]),
-  )) as DynamicEdgeRecord<T>;
+  return scopedRecord(
+    NON_CORONARY_DYNAMIC_EDGE_NAMES_V1,
+    build,
+  ) as DynamicEdgeRecord<T>;
 }
 
 function valveRecord<T>(
   build: (name: NonCoronaryValveNameV1) => T,
 ): ValveRecord<T> {
-  return Object.freeze(Object.fromEntries(
-    NON_CORONARY_VALVE_NAMES_V1.map((name) => [name, build(name)]),
-  )) as ValveRecord<T>;
+  return scopedRecord(NON_CORONARY_VALVE_NAMES_V1, build) as ValveRecord<T>;
 }
 
 function uniqueIndex(values: readonly { readonly name: string }[]): Map<string, number> {

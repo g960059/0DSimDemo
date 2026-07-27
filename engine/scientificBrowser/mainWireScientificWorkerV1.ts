@@ -22,6 +22,29 @@ import {
 import {
   MainWireScientificPvRelationWorkerManagerV1,
 } from "@/engine/scientificBrowser/MainWireScientificPvRelationWorkerManagerV1";
+import {
+  HOT_PATH_INTEGRITY_TIERS_V1,
+  selectHotPathIntegrityTierV1,
+  type HotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+
+// The host names this Worker after the integrity tier it should run. The live
+// Workbench lane asks for the lean tier; the exact-signal replay/export host
+// does not, and neither does anything that forgets to ask, so the fallback is
+// the full-invariant tier. Every value this Worker produces — accepted state,
+// observations, diagnostics, exact checkpoints — is bit-identical either way;
+// see engine/hotPathIntegrityTierV1.ts and the equality pin in
+// __tests__/hotPathIntegrityTierV1.test.ts.
+selectHotPathIntegrityTierV1(requestedIntegrityTierV1());
+
+function requestedIntegrityTierV1(): HotPathIntegrityTierV1 {
+  const requested = (globalThis as { name?: unknown }).name;
+  return HOT_PATH_INTEGRITY_TIERS_V1.includes(
+      requested as HotPathIntegrityTierV1,
+    )
+    ? requested as HotPathIntegrityTierV1
+    : "full-invariant";
+}
 
 type ScientificWorkerScopeV1 = Readonly<{
   postMessage: (message: unknown) => void;

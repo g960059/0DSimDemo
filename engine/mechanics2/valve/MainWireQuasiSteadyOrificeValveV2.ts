@@ -387,7 +387,7 @@ function evaluateMainWireQuasiSteadyOrificeValveWithTangentV2(
     issues: Object.freeze([]),
     claim: MAIN_WIRE_QUASI_STEADY_ORIFICE_VALVE_CLAIM_V2,
   } satisfies MainWireQuasiSteadyOrificeValveEvaluationV2);
-  const finite = numericLeaves(result).every(Number.isFinite);
+  const finite = everyNumericLeafIsFinite(result);
   return finite ? result : Object.freeze({
     ...result,
     valid: false,
@@ -613,10 +613,23 @@ function nonnegative(value: number, name: string, issues: string[]): void {
   }
 }
 
-function numericLeaves(value: unknown): number[] {
-  if (typeof value === "number") return [value];
-  if (value == null || typeof value !== "object") return [];
-  return Object.values(value).flatMap(numericLeaves);
+/**
+ * Same predicate as walking every numeric leaf of the readback and testing each
+ * for finiteness — it just does not build the intermediate arrays. The previous
+ * form allocated one array per object and one more per `flatMap` level for
+ * every valve of every candidate; over four valves and roughly three candidates
+ * a 2 ms step, that was the single largest allocator consumer in the valve law.
+ *
+ * The check itself is unchanged and runs in every tier: its result is reported
+ * as `finite`/`valid` on the evaluation, so it is a value, not an assertion.
+ */
+function everyNumericLeafIsFinite(value: unknown): boolean {
+  if (typeof value === "number") return Number.isFinite(value);
+  if (value == null || typeof value !== "object") return true;
+  for (const child of Object.values(value)) {
+    if (!everyNumericLeafIsFinite(child)) return false;
+  }
+  return true;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
