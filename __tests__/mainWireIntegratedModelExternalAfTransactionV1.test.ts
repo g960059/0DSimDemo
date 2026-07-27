@@ -299,11 +299,16 @@ describe("main-wire external-AF atomic checkpoint V1", () => {
       context,
       jsonClone(checkpoint),
     );
+    const restoredCheckpoint =
+      await checkpointMainWireIntegratedModelExternalAfV1(context, restored);
 
     expect(restored).toEqual(state);
     expect(restored).not.toBe(state);
     expect(restored.afSource).not.toBe(state.afSource);
     expect(restored.integratedModel).not.toBe(state.integratedModel);
+    expect(restoredCheckpoint).toEqual(checkpoint);
+    expect(restoredCheckpoint.checkpointSha256)
+      .toBe(checkpoint.checkpointSha256);
     expect(checkpoint.exactResumeClaim).toEqual(
       MAIN_WIRE_INTEGRATED_MODEL_EXTERNAL_AF_CHECKPOINT_CLAIM_V1,
     );
@@ -321,17 +326,43 @@ describe("main-wire external-AF atomic checkpoint V1", () => {
         .pendingCalciumDeposits,
     ).toHaveLength(1);
 
-    const direct = successfulStep(fixture, state, 0.001);
-    const replay = successfulStep(fixture, restored, 0.001);
-    expect(replay).toEqual(direct);
+    let directState = state;
+    let replayState = restored;
+    let futureAfImpulseCount = 0;
+    while (directState.acceptedTimeSec < 0.4) {
+      const requestedStepSec = Math.min(
+        0.005,
+        0.4 - directState.acceptedTimeSec,
+      );
+      const maximum =
+        maximumMainWireIntegratedModelExternalAfStepDurationV1(
+          directState,
+          requestedStepSec,
+          bindingContext(fixture),
+        );
+      const direct = successfulStep(
+        fixture,
+        directState,
+        maximum.maximumStepSec,
+      );
+      const replay = successfulStep(
+        fixture,
+        replayState,
+        maximum.maximumStepSec,
+      );
+      expect(replay).toEqual(direct);
+      futureAfImpulseCount += direct.afSourceTrial.sourceImpulses.length;
+      directState = direct.acceptedState;
+      replayState = replay.acceptedState;
+    }
+    expect(futureAfImpulseCount).toBeGreaterThanOrEqual(2);
+    expect(replayState).toEqual(directState);
+    expect(replayState.afSource.randomState)
+      .toEqual(directState.afSource.randomState);
     expect(
-      replay.integratedModelStep.composedRhythmCandidate
-        .deliveredCalciumDeposits,
-    ).toHaveLength(1);
-    expect(
-      replay.acceptedState.integratedModel.composedRhythm
+      replayState.integratedModel.composedRhythm
         .deliveredCalciumDepositCount,
-    ).toBe(1);
+    ).toBeGreaterThanOrEqual(1);
   }, 60_000);
 
   it("rejects nested tamper, outer clock splits, and complete-context substitution", async () => {
