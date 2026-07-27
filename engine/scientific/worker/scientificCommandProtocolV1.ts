@@ -43,9 +43,22 @@ import type {
   MainWireScientificPvRelationJobSnapshotV1,
   MainWireScientificPvRelationJobStartV1,
 } from "@/engine/scientific/protocols/MainWireScientificPvRelationJobV1";
+import type {
+  MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+  MainWireScientificTransientMetricIntegrationResultV1,
+} from "@/engine/scientific/metrics";
 
 export const SCIENTIFIC_COMMAND_PROTOCOL_V1_ID =
   "circleheart-scientific-command-protocol-v1" as const;
+export const SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1 =
+  "fixed-renderer-geometry-error-v1" as const;
+export const SCIENTIFIC_TRANSIENT_RENDERER_GEOMETRY_THRESHOLDS_V1 =
+  Object.freeze({
+    absolutePressureMmHg: 0.5 as const,
+    chamberVolumeMl: 0.5 as const,
+    valveFlowMlPerSec: 5 as const,
+    valveOpeningFraction: 0.01 as const,
+  });
 
 export const SCIENTIFIC_COMMAND_KINDS_V1 = Object.freeze([
   "createCanonicalSession",
@@ -164,6 +177,14 @@ export type RunTransientCommandV1 = CommandBaseV1<"runTransient"> & Readonly<{
   dtSec: number;
   stepCount: number;
   observationStride: number;
+  /**
+   * Optional because exact replay/export and general scientific callers retain
+   * their existing path. Studio live presentation opts in explicitly.
+   */
+  metricIntegrationPolicy?:
+    typeof MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1;
+  rendererRetentionPolicy?:
+    typeof SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1;
 }>;
 
 export type ObserveCommandV1 = CommandBaseV1<"observe">;
@@ -389,11 +410,21 @@ export type ScientificTransientExecutionProtocolV1 = Readonly<{
   classification: "approved-release-protocol" | "exploratory-parameterization";
   dtSec: number;
   stepCount: number;
-  observationPolicy: Readonly<{
-    kind: "accepted-step-stride";
-    stride: number;
-    finalAcceptedStateAlwaysIncluded: true;
-  }>;
+  observationPolicy:
+    | Readonly<{
+      kind: "accepted-step-stride";
+      stride: number;
+      finalAcceptedStateAlwaysIncluded: true;
+    }>
+    | Readonly<{
+      kind: "fixed-renderer-geometry-error";
+      maximumStride: number;
+      policyId: typeof SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1;
+      finalAcceptedStateAlwaysIncluded: true;
+    }>;
+  metricIntegrationPolicy:
+    | typeof MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1
+    | null;
   commitPolicy: "each-step-atomic-partial-progress-retained";
 }>;
 
@@ -510,6 +541,8 @@ export type ScientificCommandSuccessPayloadByKindV1<TObservableFrame> =
       executionProtocol: ScientificTransientExecutionProtocolV1;
       observableFrames: readonly TObservableFrame[];
       finalObservableFrame: TObservableFrame;
+      metricIntegration:
+        MainWireScientificTransientMetricIntegrationResultV1 | null;
     }>;
     observe: Readonly<{
       kind: "observation";
@@ -618,6 +651,8 @@ export type ScientificTransientPartialProgressV1<TObservableFrame> = Readonly<{
   completedStepCount: number;
   executionProtocol: ScientificTransientExecutionProtocolV1;
   finalObservableFrame: TObservableFrame;
+  metricIntegration:
+    MainWireScientificTransientMetricIntegrationResultV1 | null;
 }>;
 
 export type ScientificPeriodicSettlementPartialProgressV1<TObservableFrame> =

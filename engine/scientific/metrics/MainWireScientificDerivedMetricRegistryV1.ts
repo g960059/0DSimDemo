@@ -329,8 +329,7 @@ export type MainWireScientificDerivedMetricUnavailableReasonV1 =
   | "dependency-unavailable"
   | "dependency-contract-invalid"
   | "invalid-derived-denominator"
-  | "derived-value-non-finite"
-  | "presentation-decimation-unsupported";
+  | "derived-value-non-finite";
 
 export type MainWireScientificDerivedMetricValueV1 = Readonly<{
   metricId: MainWireScientificDerivedMetricIdV1;

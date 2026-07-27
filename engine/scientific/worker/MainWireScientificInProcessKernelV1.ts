@@ -46,6 +46,8 @@ import {
 import {
   SCIENTIFIC_COMMAND_KINDS_V1,
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+  SCIENTIFIC_TRANSIENT_RENDERER_GEOMETRY_THRESHOLDS_V1,
+  SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
   type ScientificCommandErrorCodeV1,
   type ScientificCommandErrorResponseV1,
   type ScientificCommandKindV1,
@@ -75,6 +77,13 @@ import type {
 import {
   MAIN_WIRE_SCIENTIFIC_HEMODYNAMIC_CALCULATION_DETAILS_V2,
 } from "@/engine/scientific/protocols/MainWireScientificHemodynamicJobV2";
+import {
+  createMainWireScientificTransientMetricAccumulatorV1,
+  MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+  type MainWireScientificTransientMetricAccumulatorV1,
+  type MainWireScientificTransientMetricIntegrationBeatV1,
+  type MainWireScientificTransientMetricIntegrationResultV1,
+} from "@/engine/scientific/metrics";
 
 export const MAIN_WIRE_SCIENTIFIC_IN_PROCESS_KERNEL_V1_ID =
   "main-wire-scientific-in-process-kernel-v1" as const;
@@ -226,6 +235,8 @@ export class MainWireScientificInProcessKernelV1 {
   private readonly sessionOrigins = new Map<string, ScientificSessionOriginV1>();
   private readonly researchControlBindings =
     new Map<string, ResearchControlSessionBindingV0>();
+  private readonly transientMetricAccumulators =
+    new Map<string, MainWireScientificTransientMetricAccumulatorV1>();
   private readonly allocatedSessionIds = new Set<string>();
   private readonly seenRequestIds = new Set<string>();
   private queuedCommandCount = 0;
@@ -867,10 +878,44 @@ export class MainWireScientificInProcessKernelV1 {
       sessionOrigin,
     );
     const observableFrames: MainWireScientificObservableFrameV1[] = [];
+    const rendererRetentionEnabled =
+      command.rendererRetentionPolicy ===
+        SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1;
+    const rendererSourceFrame = rendererRetentionEnabled
+      ? project(session)
+      : null;
+    const rendererFullRateFrames:
+      MainWireScientificObservableFrameV1[] = [];
+    const metricAccumulator =
+      command.metricIntegrationPolicy ===
+        MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1
+        ? this.requiredTransientMetricAccumulatorV1(command.sessionId)
+        : null;
+    let metricAcceptedStepFrameCount = 0;
+    let latestCompletedMetricBeat:
+      MainWireScientificTransientMetricIntegrationBeatV1 | null = null;
     for (let index = 0; index < command.stepCount; index += 1) {
       const stepped = session.step(command.dtSec);
       if (stepped.converged === false) {
         const finalObservableFrame = project(session);
+        const retainedFrames = rendererSourceFrame === null
+          ? appendDistinctFinalFrame(
+            observableFrames,
+            finalObservableFrame,
+          )
+          : appendDistinctFinalFrame(
+            selectRendererGeometryFramesV1(
+              rendererSourceFrame,
+              rendererFullRateFrames,
+              command.observationStride,
+            ),
+            finalObservableFrame,
+          );
+        const metricIntegration = transientMetricIntegrationResultV1(
+          metricAccumulator,
+          metricAcceptedStepFrameCount,
+          latestCompletedMetricBeat,
+        );
         return errorResponseForCommand(
           command,
           "simulation-step-failed",
@@ -878,33 +923,77 @@ export class MainWireScientificInProcessKernelV1 {
           {
             releaseRef: session.releaseRef,
             sessionOrigin,
-            observableFrames:
-              appendDistinctFinalFrame(observableFrames, finalObservableFrame),
+            observableFrames: retainedFrames,
             partialProgress: Object.freeze({
               kind: "transient-partial-progress" as const,
               requestedStepCount: command.stepCount,
               completedStepCount: index,
               executionProtocol,
               finalObservableFrame,
+              metricIntegration,
             }),
           },
         );
       }
       const completedStepCount = index + 1;
+      let observableFrame: MainWireScientificObservableFrameV1 | null = null;
+      if (metricAccumulator !== null || rendererRetentionEnabled) {
+        observableFrame = projectObservation(stepped.observation);
+        if (rendererRetentionEnabled) {
+          rendererFullRateFrames.push(observableFrame);
+        }
+      }
+      if (metricAccumulator !== null) {
+        observableFrame ??= projectObservation(stepped.observation);
+        metricAcceptedStepFrameCount += 1;
+        const completedBeat = metricAccumulator.update(observableFrame);
+        if (completedBeat !== null) {
+          latestCompletedMetricBeat = completedBeat;
+        }
+      }
       if (
+        !rendererRetentionEnabled
+        && (
         completedStepCount % command.observationStride === 0
         || completedStepCount === command.stepCount
-      ) observableFrames.push(projectObservation(stepped.observation));
+        )
+      ) {
+        observableFrames.push(
+          observableFrame ?? projectObservation(stepped.observation),
+        );
+      }
     }
     const finalObservableFrame = project(session);
+    const retainedFrames = rendererSourceFrame === null
+      ? observableFrames
+      : selectRendererGeometryFramesV1(
+        rendererSourceFrame,
+        rendererFullRateFrames,
+        command.observationStride,
+      );
     return successResponse(command, session.releaseRef, sessionOrigin, Object.freeze({
       kind: "transientCompleted" as const,
       requestedStepCount: command.stepCount,
       completedStepCount: command.stepCount,
       executionProtocol,
-      observableFrames: Object.freeze(observableFrames),
+      observableFrames: Object.freeze(retainedFrames),
       finalObservableFrame,
+      metricIntegration: transientMetricIntegrationResultV1(
+        metricAccumulator,
+        metricAcceptedStepFrameCount,
+        latestCompletedMetricBeat,
+      ),
     }));
+  }
+
+  private requiredTransientMetricAccumulatorV1(
+    sessionId: string,
+  ): MainWireScientificTransientMetricAccumulatorV1 {
+    const existing = this.transientMetricAccumulators.get(sessionId);
+    if (existing !== undefined) return existing;
+    const created = createMainWireScientificTransientMetricAccumulatorV1();
+    this.transientMetricAccumulators.set(sessionId, created);
+    return created;
   }
 
   private async forkResearchControlSession(
@@ -1220,6 +1309,7 @@ export class MainWireScientificInProcessKernelV1 {
     this.sessions.delete(command.sessionId);
     this.sessionOrigins.delete(command.sessionId);
     this.researchControlBindings.delete(command.sessionId);
+    this.transientMetricAccumulators.delete(command.sessionId);
     this.hemodynamicJobManager?.disposeOwner(command.sessionId);
     this.pvRelationJobManager?.disposeOwner(command.sessionId);
     return response;
@@ -1888,7 +1978,18 @@ function parseCommand(
   }
   const common = ["protocolId", "kind", "requestId", "sessionId"];
   const expectedKeys = value.kind === "runTransient"
-    ? [...common, "dtSec", "stepCount", "observationStride"]
+    ? [
+      ...common,
+      "dtSec",
+      "stepCount",
+      "observationStride",
+      ...(value.metricIntegrationPolicy === undefined
+        ? []
+        : ["metricIntegrationPolicy"]),
+      ...(value.rendererRetentionPolicy === undefined
+        ? []
+        : ["rendererRetentionPolicy"]),
+    ]
     : value.kind === "forkResearchControlSession"
       ? [
         ...common,
@@ -1937,9 +2038,33 @@ function parseCommand(
       !Number.isSafeInteger(value.observationStride)
       || (value.observationStride as number) < 1
     ) return invalid(identity, "observationStride must be a positive integer");
-    const outputFrameCount = Math.ceil(
-      (value.stepCount as number) / (value.observationStride as number),
-    );
+    if (
+      value.metricIntegrationPolicy !== undefined
+      && (
+        value.metricIntegrationPolicy
+          !== MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1
+        || value.dtSec !== 0.002
+      )
+    ) {
+      return invalid(
+        identity,
+        "metric integration requires the full accepted-step 0.002 s policy",
+      );
+    }
+    if (
+      value.rendererRetentionPolicy !== undefined
+      && value.rendererRetentionPolicy
+        !== SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1
+    ) {
+      return invalid(identity, "renderer retention policy is unsupported");
+    }
+    const outputFrameCount =
+      value.rendererRetentionPolicy
+        === SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1
+        ? value.stepCount as number
+        : Math.ceil(
+          (value.stepCount as number) / (value.observationStride as number),
+        );
     if (outputFrameCount > maximumOutputFrameCount) {
       return invalid(
         identity,
@@ -2107,6 +2232,117 @@ function projectObservation(
   return projectMainWireScientificObservationV1(observation);
 }
 
+/**
+ * Fixed streaming geometry policy for drawing only. The stride is a hard
+ * maximum accepted-step span. A candidate is additionally retained when
+ * omitting it would exceed one of the declared physical-unit interpolation
+ * tolerances. No lane, pacing, wall-clock, or renderer-throughput state enters
+ * this decision.
+ */
+function selectRendererGeometryFramesV1(
+  source: MainWireScientificObservableFrameV1,
+  fullRateFrames: readonly MainWireScientificObservableFrameV1[],
+  maximumStride: number,
+): readonly MainWireScientificObservableFrameV1[] {
+  if (fullRateFrames.length === 0) return Object.freeze([]);
+  const retained: MainWireScientificObservableFrameV1[] = [];
+  let lastRetained = source;
+  let candidate = source;
+  for (const current of fullRateFrames) {
+    if (
+      current.revision - lastRetained.revision > maximumStride
+      || rendererGeometryErrorRatioV1(
+        lastRetained,
+        candidate,
+        current,
+      ) > 1
+    ) {
+      if (candidate.revision > lastRetained.revision) {
+        retained.push(candidate);
+        lastRetained = candidate;
+      }
+    }
+    candidate = current;
+  }
+  const final = fullRateFrames.at(-1)!;
+  if (final.revision > lastRetained.revision) retained.push(final);
+  return Object.freeze(retained);
+}
+
+function rendererGeometryErrorRatioV1(
+  left: MainWireScientificObservableFrameV1,
+  candidate: MainWireScientificObservableFrameV1,
+  right: MainWireScientificObservableFrameV1,
+): number {
+  if (
+    candidate.revision <= left.revision
+    || right.revision <= candidate.revision
+  ) return 0;
+  const fraction = (candidate.revision - left.revision)
+    / (right.revision - left.revision);
+  let maximum = 0;
+  for (const [observableId, tolerance] of
+    RENDERER_GEOMETRY_OBSERVABLE_TOLERANCES_V1) {
+    const leftValue = availableObservableValueV1(left, observableId);
+    const candidateValue =
+      availableObservableValueV1(candidate, observableId);
+    const rightValue = availableObservableValueV1(right, observableId);
+    if (
+      leftValue === null
+      || candidateValue === null
+      || rightValue === null
+    ) continue;
+    const interpolated = leftValue + fraction * (rightValue - leftValue);
+    maximum = Math.max(
+      maximum,
+      Math.abs(candidateValue - interpolated) / tolerance,
+    );
+  }
+  return maximum;
+}
+
+const RENDERER_GEOMETRY_OBSERVABLE_TOLERANCES_V1 = Object.freeze([
+  ...["LA", "RA", "LV", "RV", "Ao", "PA", "PVein"].map((nodeId) =>
+    [
+      `hemodynamics.pressure.absolute.${nodeId}`,
+      SCIENTIFIC_TRANSIENT_RENDERER_GEOMETRY_THRESHOLDS_V1
+        .absolutePressureMmHg,
+    ] as const
+  ),
+  ...["LA", "RA", "LV", "RV"].map((chamberId) =>
+    [
+      `hemodynamics.volume.${chamberId}`,
+      SCIENTIFIC_TRANSIENT_RENDERER_GEOMETRY_THRESHOLDS_V1.chamberVolumeMl,
+    ] as const
+  ),
+  ...["MV", "AoV", "TV", "PV"].flatMap((valveId) => [
+    [
+      `valve.${valveId}.flow`,
+      SCIENTIFIC_TRANSIENT_RENDERER_GEOMETRY_THRESHOLDS_V1
+        .valveFlowMlPerSec,
+    ] as const,
+    [
+      `valve.${valveId}.opening_fraction`,
+      SCIENTIFIC_TRANSIENT_RENDERER_GEOMETRY_THRESHOLDS_V1
+        .valveOpeningFraction,
+    ] as const,
+  ]),
+]);
+
+function availableObservableValueV1(
+  frame: MainWireScientificObservableFrameV1,
+  observableId: string,
+): number | null {
+  const observable = frame.values[
+    observableId as keyof typeof frame.values
+  ];
+  return observable?.availability === "available"
+    && observable.value !== null
+    && Number.isFinite(observable.value)
+    ? observable.value
+    : null;
+}
+
 function appendDistinctFinalFrame(
   frames: readonly MainWireScientificObservableFrameV1[],
   finalFrame: MainWireScientificObservableFrameV1,
@@ -2138,12 +2374,37 @@ function transientExecutionProtocol(
       : "exploratory-parameterization" as const,
     dtSec: command.dtSec,
     stepCount: command.stepCount,
-    observationPolicy: Object.freeze({
-      kind: "accepted-step-stride" as const,
-      stride: command.observationStride,
-      finalAcceptedStateAlwaysIncluded: true as const,
-    }),
+    observationPolicy: command.rendererRetentionPolicy
+      === SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1
+      ? Object.freeze({
+        kind: "fixed-renderer-geometry-error" as const,
+        maximumStride: command.observationStride,
+        policyId: SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
+        finalAcceptedStateAlwaysIncluded: true as const,
+      })
+      : Object.freeze({
+        kind: "accepted-step-stride" as const,
+        stride: command.observationStride,
+        finalAcceptedStateAlwaysIncluded: true as const,
+      }),
+    metricIntegrationPolicy:
+      command.metricIntegrationPolicy ?? null,
     commitPolicy: "each-step-atomic-partial-progress-retained" as const,
+  });
+}
+
+function transientMetricIntegrationResultV1(
+  accumulator: MainWireScientificTransientMetricAccumulatorV1 | null,
+  acceptedStepFrameCountThisCall: number,
+  latestCompletedBeat:
+    MainWireScientificTransientMetricIntegrationBeatV1 | null,
+): MainWireScientificTransientMetricIntegrationResultV1 | null {
+  if (accumulator === null) return null;
+  return Object.freeze({
+    policyId:
+      MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+    acceptedStepFrameCountThisCall,
+    latestCompletedBeat,
   });
 }
 

@@ -19,6 +19,12 @@ import {
   MAIN_WIRE_SCIENTIFIC_PERIODIC_SETTLEMENT_V1,
 } from "@/engine/scientific/runtime";
 import {
+  MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+} from "@/engine/scientific/metrics";
+import {
+  SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
+} from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import {
   MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
 } from "@/engine/scientificBrowser/mainWireScientificBrowserRuntimeLimitsV1";
 import {
@@ -111,6 +117,7 @@ import {
   mainWireStudioTargetInputSha256V1,
 } from "./MainWireStudioTargetResolverV1";
 import {
+  attachMainWireFullRateMetricIntegrationV1,
   createMainWirePresentationBeatAccumulatorV1,
   type MainWirePresentationBeatAccumulatorV1,
   type MainWirePresentationEstimatorInstrumentationV1,
@@ -1320,6 +1327,10 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       dtSec: MAIN_WIRE_LIVE_DT_SEC_V1,
       stepCount: 1,
       observationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+      metricIntegrationPolicy:
+        MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+      rendererRetentionPolicy:
+        SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
     });
     let boundary!: Promise<void>;
     boundary = request.then(
@@ -1784,6 +1795,10 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       dtSec: MAIN_WIRE_LIVE_DT_SEC_V1,
       stepCount,
       observationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+      metricIntegrationPolicy:
+        MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+      rendererRetentionPolicy:
+        SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
     });
     let boundary!: Promise<void>;
     boundary = request.then(
@@ -1889,6 +1904,10 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
         dtSec: MAIN_WIRE_LIVE_DT_SEC_V1,
         stepCount,
         observationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+        metricIntegrationPolicy:
+          MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+        rendererRetentionPolicy:
+          SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
       });
       // Rotation is compute this lane had to perform, so it counts as active
       // wall time; the pacing sleep below deliberately does not.
@@ -2129,7 +2148,9 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     streamEpoch: number,
   ): void {
     const samples: RuntimePresentationSampleV1[] = [];
-    for (const frame of chunk.observableFrames) {
+    const fullRateMetricBeat =
+      chunk.metricIntegration?.latestCompletedBeat ?? null;
+    for (const [frameIndex, frame] of chunk.observableFrames.entries()) {
       const previous = branch.latestPresentationSample;
       if (previous === null) {
         throw runtimeErrorV1(
@@ -2140,23 +2161,45 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
         branch.presentationOrdinal,
         "presentation ordinal",
       );
+      const phase = runtimePresentationCanonicalPhaseV1(frame.revision);
+      const span = frame.revision - previous.acceptedRevision;
+      const retentionReason = phase === 0
+        ? "canonical-beat-boundary" as const
+        : span < RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1
+          ? frameIndex === chunk.observableFrames.length - 1
+            ? "command-boundary" as const
+            : "geometry-feature" as const
+          : "observation-stride" as const;
       const sample = presentationSampleFromObservableV1(
         frame,
         presentationOrdinal,
         previous,
+        retentionReason,
       );
       const estimate = branch.presentationEstimator.update(sample);
       branch.presentationOrdinal = presentationOrdinal;
       branch.retainedSampleCount += 1;
       branch.latestPresentationSample = sample;
-      if (estimate !== null) {
+      if (
+        estimate !== null
+        && fullRateMetricBeat !== null
+        && estimate.startAcceptedRevision
+          === fullRateMetricBeat.startAcceptedRevision
+        && estimate.endAcceptedRevision
+          === fullRateMetricBeat.endAcceptedRevision
+      ) {
+        const fullRateEstimate =
+          attachMainWireFullRateMetricIntegrationV1(
+            estimate,
+            fullRateMetricBeat,
+          );
         const completedBeatCount =
           branch.presentationMetricState.completedBeatCount + 1;
         branch.presentationMetricState = Object.freeze({
           status: "complete" as const,
           retainedSampleCount: branch.retainedSampleCount,
           completedBeatCount,
-          latestBeatEstimate: estimate,
+          latestBeatEstimate: fullRateEstimate,
         });
       } else if (branch.presentationMetricState.status === "complete") {
         branch.presentationMetricState = Object.freeze({
@@ -3160,6 +3203,7 @@ function presentationSampleFromObservableV1(
   frame: MainWireScientificObservableFrameV1,
   presentationOrdinal: number,
   previous: RuntimePresentationSampleV1 | null,
+  retainedReason?: RuntimePresentationSampleV1["retentionReason"],
 ): RuntimePresentationSampleV1 {
   const values: Record<string, number> = {};
   for (const [observableId, observable] of Object.entries(frame.values)) {
@@ -3182,9 +3226,11 @@ function presentationSampleFromObservableV1(
     values: Object.freeze(values),
     retentionReason: previous === null
       ? "stream-boundary" as const
-      : phase === 0
-        ? "canonical-beat-boundary" as const
-        : "observation-stride" as const,
+      : retainedReason ?? (
+        phase === 0
+          ? "canonical-beat-boundary" as const
+          : "observation-stride" as const
+      ),
   });
 }
 

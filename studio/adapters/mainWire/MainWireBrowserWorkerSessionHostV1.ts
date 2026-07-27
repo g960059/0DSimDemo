@@ -1,5 +1,6 @@
 import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
+  SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
   type ScientificCommandErrorResponseV1,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
 import {
@@ -32,6 +33,10 @@ import {
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_PERIODIC_POLICY_V1,
 } from "@/engine/myocardium/experiments/MainWireNormalAdultFiveWallPeriodicSteadyV1";
+import {
+  MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1,
+  type MainWireScientificTransientMetricIntegrationResultV1,
+} from "@/engine/scientific/metrics";
 import type {
   MainWireStudioCheckpointReceiptV1,
   MainWireStudioHostedSessionV1,
@@ -220,6 +225,12 @@ implements MainWireStudioSessionHostV1 {
       dtSec: input.dtSec,
       stepCount: input.stepCount,
       observationStride: input.observationStride,
+      ...(input.metricIntegrationPolicy === undefined
+        ? {}
+        : { metricIntegrationPolicy: input.metricIntegrationPolicy }),
+      ...(input.rendererRetentionPolicy === undefined
+        ? {}
+        : { rendererRetentionPolicy: input.rendererRetentionPolicy }),
     });
     if (response.ok === false) {
       if (
@@ -248,6 +259,7 @@ implements MainWireStudioSessionHostV1 {
     return Object.freeze({
       session: updateHostedSessionV1(input.session, final),
       observableFrames: response.payload.observableFrames,
+      metricIntegration: response.payload.metricIntegration,
     });
   }
 
@@ -594,13 +606,23 @@ function assertTransientReceiptBindingV1(
     input,
   );
 
-  const expectedOffsets = transientObservationOffsetsV1(
-    input.stepCount,
-    input.observationStride,
-  );
+  const expectedOffsets = input.rendererRetentionPolicy === undefined
+    ? transientObservationOffsetsV1(
+      input.stepCount,
+      input.observationStride,
+    )
+    : payload.observableFrames.map((frame) =>
+      frame.revision - input.session.stateIdentity.revision
+    );
   if (payload.observableFrames.length !== expectedOffsets.length) {
     throw hostErrorV1("transient observable frame count mismatch");
   }
+  assertRendererRetentionOffsetsV1(
+    expectedOffsets,
+    input.stepCount,
+    input.observationStride,
+    input.rendererRetentionPolicy,
+  );
   for (let index = 0; index < expectedOffsets.length; index += 1) {
     const offset = expectedOffsets[index]!;
     const frame = payload.observableFrames[index]!;
@@ -623,6 +645,13 @@ function assertTransientReceiptBindingV1(
     last === undefined
     || !sameCanonicalV1(last, payload.finalObservableFrame)
   ) throw hostErrorV1("transient final observable frame mismatch");
+  assertMetricIntegrationReceiptV1(
+    payload.metricIntegration,
+    input.metricIntegrationPolicy,
+    input.stepCount,
+    input.session.stateIdentity.revision,
+    payload.finalObservableFrame.revision,
+  );
 }
 
 function acceptedTransientPartialProgressV1(
@@ -656,15 +685,25 @@ function acceptedTransientPartialProgressV1(
     partial.executionProtocol,
     input,
   );
-  const expectedOffsets = transientObservationOffsetsV1(
-    partial.completedStepCount,
-    input.observationStride,
-  );
+  const expectedOffsets = input.rendererRetentionPolicy === undefined
+    ? transientObservationOffsetsV1(
+      partial.completedStepCount,
+      input.observationStride,
+    )
+    : response.error.observableFrames.map((frame) =>
+      frame.revision - input.session.stateIdentity.revision
+    );
   if (response.error.observableFrames.length !== expectedOffsets.length) {
     throw hostErrorV1(
       "transient partial-progress observable frame count mismatch",
     );
   }
+  assertRendererRetentionOffsetsV1(
+    expectedOffsets,
+    partial.completedStepCount,
+    input.observationStride,
+    input.rendererRetentionPolicy,
+  );
   for (let index = 0; index < expectedOffsets.length; index += 1) {
     const offset = expectedOffsets[index]!;
     const frame = response.error.observableFrames[index]!;
@@ -699,6 +738,13 @@ function acceptedTransientPartialProgressV1(
   ) throw hostErrorV1(
     "transient partial-progress final observable frame mismatch",
   );
+  assertMetricIntegrationReceiptV1(
+    partial.metricIntegration,
+    input.metricIntegrationPolicy,
+    partial.completedStepCount,
+    input.session.stateIdentity.revision,
+    partial.finalObservableFrame.revision,
+  );
   return Object.freeze({
     requestedStepCount: partial.requestedStepCount,
     completedStepCount: partial.completedStepCount,
@@ -708,6 +754,7 @@ function acceptedTransientPartialProgressV1(
         partial.finalObservableFrame,
       ),
       observableFrames: response.error.observableFrames,
+      metricIntegration: partial.metricIntegration,
     }),
   });
 }
@@ -722,12 +769,94 @@ function assertTransientExecutionProtocolBindingV1(
   if (
     protocol.dtSec !== input.dtSec
     || protocol.stepCount !== input.stepCount
-    || protocol.observationPolicy.kind !== "accepted-step-stride"
-    || protocol.observationPolicy.stride !== input.observationStride
+    || (
+      input.rendererRetentionPolicy === undefined
+        ? protocol.observationPolicy.kind !== "accepted-step-stride"
+          || protocol.observationPolicy.stride !== input.observationStride
+        : protocol.observationPolicy.kind
+            !== "fixed-renderer-geometry-error"
+          || protocol.observationPolicy.maximumStride
+            !== input.observationStride
+          || protocol.observationPolicy.policyId
+            !== input.rendererRetentionPolicy
+    )
     || protocol.observationPolicy.finalAcceptedStateAlwaysIncluded !== true
+    || protocol.metricIntegrationPolicy
+      !== (input.metricIntegrationPolicy ?? null)
     || protocol.commitPolicy
       !== "each-step-atomic-partial-progress-retained"
   ) throw hostErrorV1("transient execution protocol mismatch");
+}
+
+function assertRendererRetentionOffsetsV1(
+  offsets: readonly number[],
+  completedStepCount: number,
+  maximumStride: number,
+  policy:
+    typeof SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1 | undefined,
+): void {
+  if (policy === undefined) return;
+  if (
+    offsets.length === 0
+    || offsets.at(-1) !== completedStepCount
+    || offsets.some((offset, index) =>
+      !Number.isSafeInteger(offset)
+      || offset < (completedStepCount === 0 ? 0 : 1)
+      || offset > completedStepCount
+      || (
+        index > 0
+        && (
+          offset <= offsets[index - 1]!
+          || offset - offsets[index - 1]! > maximumStride
+        )
+      )
+    )
+    || (
+      offsets[0]! > maximumStride
+      && completedStepCount > 0
+    )
+  ) throw hostErrorV1("transient renderer retention receipt mismatch");
+}
+
+function assertMetricIntegrationReceiptV1(
+  result: MainWireScientificTransientMetricIntegrationResultV1 | null,
+  requestedPolicy:
+    typeof MAIN_WIRE_SCIENTIFIC_TRANSIENT_METRIC_INTEGRATION_POLICY_V1
+      | undefined,
+  completedStepCount: number,
+  sourceRevision: number,
+  finalRevision: number,
+): void {
+  if (requestedPolicy === undefined) {
+    if (result !== null) {
+      throw hostErrorV1("unexpected transient metric integration");
+    }
+    return;
+  }
+  if (
+    result === null
+    || result.policyId !== requestedPolicy
+    || result.acceptedStepFrameCountThisCall !== completedStepCount
+  ) throw hostErrorV1("transient metric integration receipt mismatch");
+  const beat = result.latestCompletedBeat;
+  if (beat === null) return;
+  if (
+    beat.policyId !== requestedPolicy
+    || beat.acceptedStepSampleCount !== 501
+    || beat.endAcceptedRevision > finalRevision
+    || beat.endAcceptedRevision <= sourceRevision
+    || beat.endAcceptedRevision - beat.startAcceptedRevision !== 500
+    || beat.evaluation.cycleAvailability !== "provisional"
+    || beat.evaluation.cycleInterpretation
+      !== "provisional-complete-transient-beat"
+    || beat.evidence.acceptedStepReadbackOnly !== true
+    || beat.evidence.bothBeatBoundariesMeasured !== true
+    || beat.evidence.revisionsContiguous !== true
+    || beat.evidence.cadenceUniform2ms !== true
+    || beat.evidence.smoothingOrInterpolationApplied !== false
+    || beat.evidence.periodicOrbitClaimed !== false
+    || beat.evidence.exactExportEquivalent !== false
+  ) throw hostErrorV1("transient metric integration beat mismatch");
 }
 
 function transientObservationOffsetsV1(

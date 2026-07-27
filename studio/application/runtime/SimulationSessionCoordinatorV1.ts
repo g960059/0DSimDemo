@@ -2190,6 +2190,8 @@ function copyPresentationSampleV1(
     || (
       sample.retentionReason !== "stream-boundary"
       && sample.retentionReason !== "observation-stride"
+      && sample.retentionReason !== "geometry-feature"
+      && sample.retentionReason !== "command-boundary"
       && sample.retentionReason !== "canonical-beat-boundary"
     )
     || sample.values === null
@@ -2363,9 +2365,11 @@ function copyPresentationBeatEstimateV1(
     || typeof estimate.values !== "object"
     || Array.isArray(estimate.values)
     || estimate.evidence?.bothCanonicalBeatBoundariesRetained !== true
-    || estimate.evidence.transientBeatFullyMeasured !== false
-    || estimate.evidence.revisionsContiguous !== false
-    || estimate.evidence.cadenceUniform !== false
+    || estimate.evidence.metricIntegration !== "full-accepted-step"
+    || estimate.evidence.metricIntegrationSampleCount !== 501
+    || estimate.evidence.transientBeatFullyMeasured !== true
+    || estimate.evidence.revisionsContiguous !== true
+    || estimate.evidence.cadenceUniform !== true
     || estimate.evidence.exportEquivalent !== false
   ) {
     throw new SimulationSessionCoordinatorErrorV1(
@@ -2427,9 +2431,11 @@ function copyPresentationBeatEstimateV1(
     values: Object.freeze(values),
     evidence: Object.freeze({
       bothCanonicalBeatBoundariesRetained: true as const,
-      transientBeatFullyMeasured: false as const,
-      revisionsContiguous: false as const,
-      cadenceUniform: false as const,
+      metricIntegration: "full-accepted-step" as const,
+      metricIntegrationSampleCount: 501,
+      transientBeatFullyMeasured: true,
+      revisionsContiguous: true,
+      cadenceUniform: true,
       exportEquivalent: false as const,
     }),
   });
@@ -2473,6 +2479,8 @@ function assertPresentationSampleContinuityV1(
       sample.phase === 0
         ? sample.retentionReason !== "canonical-beat-boundary"
         : sample.retentionReason !== "observation-stride"
+          && sample.retentionReason !== "geometry-feature"
+          && sample.retentionReason !== "command-boundary"
     )
   ) {
     throw new SimulationSessionCoordinatorErrorV1(
@@ -2513,11 +2521,10 @@ function assertMetricStateBoundToSamplesV1(
   const completedDelta =
     next.completedBeatCount - previous.completedBeatCount;
   const boundarySamples = samples.filter(({ phase }) => phase === 0);
-  const expectedCompletedDelta = Math.max(
-    0,
-    boundarySamples.length - (previouslyRetainedBoundaries.length > 0 ? 0 : 1),
-  );
-  if (completedDelta !== expectedCompletedDelta) {
+  if (
+    completedDelta < 0
+    || completedDelta > boundarySamples.length
+  ) {
     throw new SimulationSessionCoordinatorErrorV1(
       "runtime presentation metric finalization count is invalid",
     );

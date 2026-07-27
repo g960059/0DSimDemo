@@ -76,7 +76,9 @@ import type {
   ReplayOriginArtifactRefV1,
   RuntimeControlPatchV1,
   RuntimePresentationSampleBatchV1,
+  RuntimePresentationSampleV1,
   RuntimePresentationSignalEventV1,
+  ExactSignalSampleV1,
   RuntimeSteadyCandidateV1,
   StudioArtifactRefV1,
   StudioRunArtifactContentV1,
@@ -429,8 +431,8 @@ describe("MainWire Studio runtime adapter", () => {
     for (const [index, batch] of batches.entries()) {
       const activeWallDurationMs = activeDurationsMs[index]!;
       referenceWallNowMs += activeWallDurationMs;
-      // A stride-1 observer would retain all 16 accepted steps, but pacing is
-      // driven by the same accepted endpoint and fake-clock duration.
+      // A stride-1 observer would retain all 16 accepted steps. Fixed stride 4
+      // retains four; pacing uses the same endpoint and fake-clock duration.
       const strideOneReference = mainWireStudioLivePacingDecisionV1({
         state: referenceState,
         wallNowMs: referenceWallNowMs,
@@ -438,7 +440,7 @@ describe("MainWire Studio runtime adapter", () => {
           batch.samples.at(-1)!.acceptedTimeSec,
         activeWallDurationMs,
       });
-      expect(batch.samples).toHaveLength(1);
+      expect(batch.samples).toHaveLength(4);
       expect(batch.livePacing).toEqual(strideOneReference.livePacing);
       referenceState = strideOneReference.nextState;
       referenceWallNowMs += strideOneReference.delayMs;
@@ -446,7 +448,7 @@ describe("MainWire Studio runtime adapter", () => {
     expect(harness.hosts[0]!.runTransientInputs.slice(0, batches.length))
       .toEqual(batches.map(() => ({
         stepCount: 16,
-        observationStride: 16,
+        observationStride: 4,
       })));
     await adapter.closeSession("stride-independent-pacing-session");
   });
@@ -676,7 +678,7 @@ describe("MainWire Studio runtime adapter", () => {
     await adapter.closeSession("live-pacing-overload-session");
   });
 
-  it("retains and finalizes canonical beat boundaries through the production adapter and Worker emission path", async () => {
+  it("keeps stride-4 rendering and full-rate metrics separate through the production Worker path", async () => {
     const productionFixture = Object.freeze({
       ...baseFixture,
       checkpoint: baseFixture.strictCheckpoint,
@@ -687,6 +689,8 @@ describe("MainWire Studio runtime adapter", () => {
     const transientCommands: Array<Readonly<{
       stepCount: number;
       observationStride: number;
+      metricIntegrationPolicy: string | null;
+      rendererRetentionPolicy: string | null;
     }>> = [];
     const adapter = new MainWireSimulationRuntimeAdapterV1({
       artifacts: stored.artifacts,
@@ -717,6 +721,10 @@ describe("MainWire Studio runtime adapter", () => {
                 transientCommands.push(Object.freeze({
                   stepCount: command.stepCount,
                   observationStride: command.observationStride,
+                  metricIntegrationPolicy:
+                    command.metricIntegrationPolicy ?? null,
+                  rendererRetentionPolicy:
+                    command.rendererRetentionPolicy ?? null,
                 }));
               }
               return kernel.handle(command);
@@ -756,7 +764,7 @@ describe("MainWire Studio runtime adapter", () => {
       events.some(({ kind }) => kind === "failure")
       || events.some((event) =>
         event.kind === "samples"
-        && event.metricState.completedBeatCount >= 2
+        && event.metricState.completedBeatCount >= 1
       ));
     await adapter.suspendPresentationSignalChannel(
       branch.presentationSignalChannelRef,
@@ -768,7 +776,14 @@ describe("MainWire Studio runtime adapter", () => {
     const firstTwoCycles = transientCommands.slice(0, 64);
     expect(firstTwoCycles).toHaveLength(64);
     expect(firstTwoCycles.every(({ observationStride }) =>
-      observationStride === 16
+      observationStride === 4
+    )).toBe(true);
+    expect(firstTwoCycles.every(({ metricIntegrationPolicy }) =>
+      metricIntegrationPolicy
+        === "full-accepted-step-transient-metrics-v1"
+    )).toBe(true);
+    expect(firstTwoCycles.every(({ rendererRetentionPolicy }) =>
+      rendererRetentionPolicy === "fixed-renderer-geometry-error-v1"
     )).toBe(true);
     expect(firstTwoCycles.map(({ stepCount }) => stepCount)).toEqual([
       ...Array.from({ length: 31 }, () => 16),
@@ -794,7 +809,7 @@ describe("MainWire Studio runtime adapter", () => {
       );
     expect(batches.at(-1)!.metricState).toMatchObject({
       status: "complete",
-      completedBeatCount: 2,
+      completedBeatCount: 1,
       latestBeatEstimate: {
         startAcceptedRevision:
           productionFixture.checkpoint.transaction.revision + 500,
@@ -802,6 +817,11 @@ describe("MainWire Studio runtime adapter", () => {
           productionFixture.checkpoint.transaction.revision + 1_000,
         evidence: {
           bothCanonicalBeatBoundariesRetained: true,
+          metricIntegration: "full-accepted-step",
+          metricIntegrationSampleCount: 501,
+          transientBeatFullyMeasured: true,
+          revisionsContiguous: true,
+          cadenceUniform: true,
           exportEquivalent: false,
         },
       },
@@ -812,7 +832,7 @@ describe("MainWire Studio runtime adapter", () => {
       liveBranchId: branch.liveBranchId,
       targetGeneration: 0,
       presentationRevision: 0,
-      intervalStartOffsetSec: 0,
+      intervalStartOffsetSec: 1,
       intervalDurationSec: 1,
     });
     const exactContent = await loadExactSignalExportContentV1(
@@ -826,15 +846,13 @@ describe("MainWire Studio runtime adapter", () => {
       // observable vector at the restore point. Use the production-projected
       // source boundary that the live adapter actually opened; every accepted
       // interval after it comes from the stride-1 exact replay artifact.
-      const values = ordinal === 0
-        ? branch.initialPresentation.sample.values
-        : Object.fromEntries(
-          Object.entries(sample.values).flatMap(([id, value]) =>
-            value.availability === "available" && value.value !== null
-              ? [[id, value.value]]
-              : []
-          ),
-        );
+      const values = Object.fromEntries(
+        Object.entries(sample.values).flatMap(([id, value]) =>
+          value.availability === "available" && value.value !== null
+            ? [[id, value.value]]
+            : []
+        ),
+      );
       exactEstimate = exactAccumulator.update(Object.freeze({
         coverage: "decimated-presentation" as const,
         presentationOrdinal: ordinal,
@@ -847,15 +865,17 @@ describe("MainWire Studio runtime adapter", () => {
           ? "stream-boundary" as const
           : runtimePresentationCanonicalPhaseV1(sample.revision) === 0
             ? "canonical-beat-boundary" as const
-            : "observation-stride" as const,
+            : "geometry-feature" as const,
       }));
     }
     const decimatedEstimate = batches.find((batch) =>
       batch.metricState.completedBeatCount === 1
     )?.metricState.latestBeatEstimate;
     expect(decimatedEstimate).toMatchObject({
-      retainedSampleCount: 33,
+      retainedSampleCount: 150,
       evidence: {
+        metricIntegration: "full-accepted-step",
+        metricIntegrationSampleCount: 501,
         exportEquivalent: false,
       },
     });
@@ -863,38 +883,54 @@ describe("MainWire Studio runtime adapter", () => {
       acceptedRevision
         <= productionFixture.checkpoint.transaction.revision + 500
     );
-    expect(firstCycleSamples).toHaveLength(32);
+    expect(firstCycleSamples).toHaveLength(149);
     expect(Math.max(...samples.map(
       ({ acceptedStepSpanFromPrevious }) => acceptedStepSpanFromPrevious,
-    ))).toBe(16);
+    ))).toBe(4);
     expect(exactContent.samples).toHaveLength(501);
     expect(
       100 * (1 - firstCycleSamples.length / 500),
-    ).toBeCloseTo(93.6, 12);
+    ).toBeCloseTo(70.2, 12);
+
+    const fullRateMetricBeatStartRevision =
+      productionFixture.checkpoint.transaction.revision + 500;
+    const fullRateMetricBeatEndRevision =
+      productionFixture.checkpoint.transaction.revision + 1_000;
+    const renderBeatSamples = samples.filter(({ acceptedRevision }) =>
+      acceptedRevision >= fullRateMetricBeatStartRevision
+      && acceptedRevision <= fullRateMetricBeatEndRevision
+    );
+    expect(renderBeatSamples).toHaveLength(150);
+    expect(maximumNormalizedPolylineDeviationV1(
+      exactContent.samples,
+      renderBeatSamples,
+      "hemodynamics.volume.LV",
+      "hemodynamics.pressure.absolute.LV",
+    )).toBeLessThanOrEqual(0.02);
+    for (const observableId of [
+      "hemodynamics.pressure.absolute.LV",
+      "hemodynamics.pressure.absolute.Ao",
+      "hemodynamics.volume.LV",
+      "valve.AoV.flow",
+    ]) {
+      expect(
+        maximumNormalizedLinearInterpolationErrorV1(
+          exactContent.samples,
+          renderBeatSamples,
+          observableId,
+        ),
+        observableId,
+      ).toBeLessThanOrEqual(0.02);
+    }
 
     for (const definition of
       MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1) {
       const exact = exactEstimate!.values[definition.metricId]!;
       const decimated = decimatedEstimate!.values[definition.metricId]!;
-      const unsupported =
-        definition.quantityKind === "reverse-cycle-volume"
-        || definition.quantityKind === "same-valve-regurgitant-fraction"
-        || definition.quantityKind === "forward-flow-peak-gradient"
-        || definition.quantityKind === "forward-flow-time-mean-gradient";
-      if (unsupported) {
-        expect(decimated).toMatchObject({
-          value: null,
-          availability: "not-measurable",
-          unavailableReason: "presentation-decimation-unsupported",
-        });
-        continue;
-      }
       expect(exact.value, definition.metricId).not.toBeNull();
       expect(decimated.availability).toBe("available");
-      const relativeErrorPercent =
-        100 * Math.abs(decimated.value! - exact.value!)
-          / Math.abs(exact.value!);
-      expect(relativeErrorPercent).toBeLessThanOrEqual(8);
+      expect(decimated.value, definition.metricId)
+        .toBeCloseTo(exact.value!, 10);
     }
 
     const internal = internalAdapterBranchV1(
@@ -1140,7 +1176,7 @@ describe("MainWire Studio runtime adapter", () => {
     expect(batches[0]!.samples).toHaveLength(1);
     expect(batches[0]!.samples[0]).toMatchObject({
       acceptedStepSpanFromPrevious: 2,
-      retentionReason: "observation-stride",
+      retentionReason: "command-boundary",
     });
 
     await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
@@ -1194,7 +1230,7 @@ describe("MainWire Studio runtime adapter", () => {
     expect(batches[0]!.samples[0]).toMatchObject({
       acceptedRevision: baseFixture.frame.revision + 2,
       acceptedStepSpanFromPrevious: 2,
-      retentionReason: "observation-stride",
+      retentionReason: "command-boundary",
     });
     await adapter.closeSession("live-host-rotation-session");
     expect(harness.hosts[1]!.terminated).toBe(true);
@@ -1596,7 +1632,7 @@ describe("MainWire Studio runtime adapter", () => {
     });
     expect(harness.hosts[0]!.runTransientInputs[0]).toEqual({
       stepCount: 1,
-      observationStride: 16,
+      observationStride: 4,
     });
     expect(strict.branches[0]!.status).toBe("success");
     if (strict.branches[0]!.status !== "success") {
@@ -2268,7 +2304,7 @@ describe("MainWire Studio runtime adapter", () => {
     expect(Math.min(phaseDistance, 1 - phaseDistance)).toBeLessThan(1e-9);
     expect(harness.hosts[0]!.runTransientInputs.length).toBeGreaterThan(1);
     expect(harness.hosts[0]!.runTransientInputs.every((input) =>
-      input.observationStride === 16 && input.stepCount <= 16
+      input.observationStride === 4 && input.stepCount <= 16
     )).toBe(true);
     await adapter.closeSession("phase-promotion-session");
   });
@@ -3988,6 +4024,129 @@ function frameAtV1(
     revision,
     acceptedTimeSec,
   });
+}
+
+function maximumNormalizedPolylineDeviationV1(
+  exact: readonly ExactSignalSampleV1[],
+  retained: readonly RuntimePresentationSampleV1[],
+  xObservableId: string,
+  yObservableId: string,
+): number {
+  const exactX = exact.map((sample) =>
+    exactSignalValueV1(sample, xObservableId));
+  const exactY = exact.map((sample) =>
+    exactSignalValueV1(sample, yObservableId));
+  const xRange = finiteRangeV1(exactX);
+  const yRange = finiteRangeV1(exactY);
+  let maximum = 0;
+  let retainedIndex = 0;
+  for (const sample of exact) {
+    while (
+      retainedIndex + 1 < retained.length - 1
+      && retained[retainedIndex + 1]!.acceptedRevision < sample.revision
+    ) retainedIndex += 1;
+    const left = retained[retainedIndex]!;
+    const right = retained[retainedIndex + 1]!;
+    const px =
+      (exactSignalValueV1(sample, xObservableId) - xRange.minimum)
+      / xRange.excursion;
+    const py =
+      (exactSignalValueV1(sample, yObservableId) - yRange.minimum)
+      / yRange.excursion;
+    const lx = (left.values[xObservableId]! - xRange.minimum)
+      / xRange.excursion;
+    const ly = (left.values[yObservableId]! - yRange.minimum)
+      / yRange.excursion;
+    const rx = (right.values[xObservableId]! - xRange.minimum)
+      / xRange.excursion;
+    const ry = (right.values[yObservableId]! - yRange.minimum)
+      / yRange.excursion;
+    maximum = Math.max(
+      maximum,
+      pointToSegmentDistanceV1(px, py, lx, ly, rx, ry),
+    );
+  }
+  return maximum;
+}
+
+function maximumNormalizedLinearInterpolationErrorV1(
+  exact: readonly ExactSignalSampleV1[],
+  retained: readonly RuntimePresentationSampleV1[],
+  observableId: string,
+): number {
+  const exactValues = exact.map((sample) =>
+    exactSignalValueV1(sample, observableId));
+  const range = finiteRangeV1(exactValues);
+  let maximum = 0;
+  let retainedIndex = 0;
+  for (const sample of exact) {
+    while (
+      retainedIndex + 1 < retained.length - 1
+      && retained[retainedIndex + 1]!.acceptedRevision < sample.revision
+    ) retainedIndex += 1;
+    const left = retained[retainedIndex]!;
+    const right = retained[retainedIndex + 1]!;
+    const fraction = (sample.revision - left.acceptedRevision)
+      / (right.acceptedRevision - left.acceptedRevision);
+    const interpolated = left.values[observableId]!
+      + fraction * (right.values[observableId]!
+        - left.values[observableId]!);
+    maximum = Math.max(
+      maximum,
+      Math.abs(
+        exactSignalValueV1(sample, observableId) - interpolated,
+      ) / range.excursion,
+    );
+  }
+  return maximum;
+}
+
+function exactSignalValueV1(
+  sample: ExactSignalSampleV1,
+  observableId: string,
+): number {
+  const value = sample.values[observableId];
+  if (
+    value?.availability !== "available"
+    || value.value === null
+    || !Number.isFinite(value.value)
+  ) throw new Error(`exact signal ${observableId} is unavailable`);
+  return value.value;
+}
+
+function finiteRangeV1(values: readonly number[]): Readonly<{
+  minimum: number;
+  excursion: number;
+}> {
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const excursion = maximum - minimum;
+  if (!Number.isFinite(excursion) || !(excursion > 0)) {
+    throw new Error("fidelity reference range is invalid");
+  }
+  return Object.freeze({ minimum, excursion });
+}
+
+function pointToSegmentDistanceV1(
+  px: number,
+  py: number,
+  lx: number,
+  ly: number,
+  rx: number,
+  ry: number,
+): number {
+  const dx = rx - lx;
+  const dy = ry - ly;
+  const denominator = dx * dx + dy * dy;
+  if (!(denominator > 0)) return Math.hypot(px - lx, py - ly);
+  const projection = Math.min(
+    1,
+    Math.max(0, ((px - lx) * dx + (py - ly) * dy) / denominator),
+  );
+  return Math.hypot(
+    px - (lx + projection * dx),
+    py - (ly + projection * dy),
+  );
 }
 
 function mutableCloneV1(value: unknown): any {

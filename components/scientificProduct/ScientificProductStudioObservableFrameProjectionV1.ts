@@ -122,6 +122,8 @@ function loadRuntimePresentationSampleV1(
   if (
     value.retentionReason !== "stream-boundary"
     && value.retentionReason !== "observation-stride"
+    && value.retentionReason !== "geometry-feature"
+    && value.retentionReason !== "command-boundary"
     && value.retentionReason !== "canonical-beat-boundary"
   ) throw projectionErrorV1("runtime presentation retention reason is invalid");
   if (!isRecordV1(value.values)) {

@@ -36,11 +36,13 @@ export const RUNTIME_PRESENTATION_STEPS_PER_CYCLE_V1 =
   RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1
   / RUNTIME_PRESENTATION_DT_SEC_V1;
 /**
- * Fixed presentation policy. It is deliberately independent of pacing state,
- * lane count, and render demand. The accepted numerical step and exact
- * replay/export tier remain fixed at their stride-1 0.002 s grid.
+ * Fixed renderer-density maximum: no transported gap may exceed four accepted
+ * 2 ms steps. The Worker additionally retains points that exceed the declared
+ * physical-unit geometry-error tolerances, plus canonical beat and command
+ * boundaries. Neither decision depends on pacing, lane count, or render
+ * demand. Exact replay/export remains on its stride-1 0.002 s grid.
  */
-export const RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1 = 16 as const;
+export const RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1 = 4 as const;
 
 /**
  * Canonical presentation phase is indexed by the fixed accepted-step grid,
@@ -76,6 +78,8 @@ export function runtimePresentationStepsToNextCanonicalBoundaryV1(
 export type RuntimePresentationSampleRetentionReasonV1 =
   | "stream-boundary"
   | "observation-stride"
+  | "geometry-feature"
+  | "command-boundary"
   | "canonical-beat-boundary";
 
 /**
@@ -120,18 +124,18 @@ export type RuntimePresentationMetricEstimateValueV1 = Readonly<{
   unavailableReason:
     | "dependency-unavailable"
     | "dependency-contract-invalid"
+    | "validated-complete-cycle-required"
     | "invalid-derived-denominator"
     | "derived-value-non-finite"
-    | "presentation-decimation-unsupported"
     | null;
   unavailableDependency: string | null;
 }>;
 
 /**
- * Finalized over retained samples from one canonical phase-0 boundary to the
- * next. This is an estimate even while the Stage 1/2 stride is one: none of
- * the false evidence fields may be promoted merely because today's adapter
- * happened to retain every accepted step.
+ * Presentation metadata is finalized from retained render samples, while
+ * metric values may be supplied by the separately declared Worker-side
+ * accepted-step accumulator. Evidence describes metric integration, not the
+ * density of the transported drawing trace.
  */
 export type RuntimePresentationBeatEstimateV1 = Readonly<{
   coverage: typeof RUNTIME_PRESENTATION_COVERAGE_V1;
@@ -146,9 +150,13 @@ export type RuntimePresentationBeatEstimateV1 = Readonly<{
   values: Readonly<Record<string, RuntimePresentationMetricEstimateValueV1>>;
   evidence: Readonly<{
     bothCanonicalBeatBoundariesRetained: true;
-    transientBeatFullyMeasured: false;
-    revisionsContiguous: false;
-    cadenceUniform: false;
+    metricIntegration:
+      | "retained-presentation-samples"
+      | "full-accepted-step";
+    metricIntegrationSampleCount: number;
+    transientBeatFullyMeasured: boolean;
+    revisionsContiguous: boolean;
+    cadenceUniform: boolean;
     exportEquivalent: false;
   }>;
 }>;

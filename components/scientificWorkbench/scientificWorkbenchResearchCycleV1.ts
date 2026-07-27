@@ -265,6 +265,8 @@ export async function loadScientificWorkbenchResearchCycleV1(
         !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.stepsPerWorkerCommand
       || captured.payload.executionProtocol.dtSec
         !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.dtSec
+      || captured.payload.executionProtocol.observationPolicy.kind
+        !== "accepted-step-stride"
       || captured.payload.executionProtocol.observationPolicy.stride
         !== SCIENTIFIC_WORKBENCH_TERMINAL_CYCLE_V1.observationStride
     ) {

@@ -1443,10 +1443,10 @@ describe("Studio SimulationSession coordinator V1", () => {
       "baseline",
       rawPresentationBatchV1({
         presentationOrdinal: 1,
-        acceptedRevision: 17,
-        acceptedTimeSec: 0.034,
-        acceptedStepSpanFromPrevious: 16,
-        phase: 0.034,
+        acceptedRevision: 5,
+        acceptedTimeSec: 0.01,
+        acceptedStepSpanFromPrevious: 4,
+        phase: 0.01,
         retentionReason: "observation-stride",
       }),
     );
@@ -1456,8 +1456,8 @@ describe("Studio SimulationSession coordinator V1", () => {
         retainedSampleCount: 2,
         presentation: { sample: {
           presentationOrdinal: 1,
-          acceptedRevision: 17,
-          acceptedStepSpanFromPrevious: 16,
+          acceptedRevision: 5,
+          acceptedStepSpanFromPrevious: 4,
         } },
       });
 
@@ -1465,7 +1465,7 @@ describe("Studio SimulationSession coordinator V1", () => {
     const boundaryCoordinator = coordinatorV1(boundaryRuntime);
     await boundaryCoordinator.open(openCommandV1());
     const retainedRevisions = [
-      ...Array.from({ length: 31 }, (_, index) => 17 + index * 16),
+      ...Array.from({ length: 124 }, (_, index) => 5 + index * 4),
       500,
     ];
     for (const [index, acceptedRevision] of retainedRevisions.entries()) {
@@ -1491,7 +1491,7 @@ describe("Studio SimulationSession coordinator V1", () => {
       .toBe("running");
     expect(boundaryCoordinator.getScenarioPresentationSnapshot("baseline"))
       .toMatchObject({
-        retainedSampleCount: 33,
+        retainedSampleCount: 126,
         presentation: { sample: {
           acceptedRevision: 500,
           acceptedStepSpanFromPrevious: 3,
@@ -2096,9 +2096,11 @@ function beatEstimateV1() {
     }),
     evidence: Object.freeze({
       bothCanonicalBeatBoundariesRetained: true as const,
-      transientBeatFullyMeasured: false as const,
-      revisionsContiguous: false as const,
-      cadenceUniform: false as const,
+      metricIntegration: "full-accepted-step" as const,
+      metricIntegrationSampleCount: 501,
+      transientBeatFullyMeasured: true,
+      revisionsContiguous: true,
+      cadenceUniform: true,
       exportEquivalent: false as const,
     }),
   });

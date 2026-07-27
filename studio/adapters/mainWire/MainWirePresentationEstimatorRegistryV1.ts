@@ -7,6 +7,13 @@ import {
 import type {
   MainWireScientificObservableIdV1,
 } from "@/engine/scientific/observables";
+import type {
+  MainWireScientificTransientMetricIntegrationBeatV1,
+} from "@/engine/scientific/metrics";
+import {
+  SCIENTIFIC_TRANSIENT_RENDERER_GEOMETRY_THRESHOLDS_V1,
+  SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
+} from "@/engine/scientific/worker/scientificCommandProtocolV1";
 import {
   RUNTIME_PRESENTATION_COVERAGE_V1,
   RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1,
@@ -38,18 +45,26 @@ export const MAIN_WIRE_PRESENTATION_ESTIMATOR_REGISTRY_SNAPSHOT_V1 =
         ({ metricId }) => metricId,
       ),
     ),
-    exactEvaluatorInputProduced: false as const,
-    fixedObservationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
-    expectedBoundaryAlignedSampleCount:
+    exactEvaluatorInputProduced: true as const,
+    metricAccumulationLocation: "scientific-worker-before-decimation" as const,
+    metricAcceptedStepStride: 1 as const,
+    rendererRetentionPolicy:
+      SCIENTIFIC_TRANSIENT_RENDERER_RETENTION_POLICY_V1,
+    maximumObservationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+    geometryErrorThresholds:
+      SCIENTIFIC_TRANSIENT_RENDERER_GEOMETRY_THRESHOLDS_V1,
+    baseBoundaryAlignedSampleCount:
       1 + Math.ceil(
         RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1
           / RUNTIME_PRESENTATION_DT_SEC_V1
           / RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
       ),
+    productionHealthyBoundaryAlignedSampleCount: 150 as const,
+    productionHealthyTransportedSamplesPerSecond: 149 as const,
     characterization: Object.freeze({
       reference:
         "production-kernel-official-healthy-periodic-checkpoint-stride-1" as const,
-      purpose: "live-screening-estimate-only" as const,
+      purpose: "provisional-complete-transient-beat-metrics" as const,
       supportedQuantityKinds: Object.freeze([
         "time-weighted-mean-pressure",
         "cycle-maximum-pressure",
@@ -60,17 +75,17 @@ export const MAIN_WIRE_PRESENTATION_ESTIMATOR_REGISTRY_SNAPSHOT_V1 =
         "volume-excursion",
         "ejection-fraction",
         "forward-cycle-volume",
-        "net-cycle-volume",
-        "net-cardiac-output",
-      ] as const),
-      unavailableQuantityKinds: Object.freeze([
         "reverse-cycle-volume",
+        "net-cycle-volume",
         "same-valve-regurgitant-fraction",
+        "net-cardiac-output",
         "forward-flow-peak-gradient",
         "forward-flow-time-mean-gradient",
       ] as const),
+      unavailableQuantityKinds: Object.freeze([]),
       supportedMetricRelativeErrorAcceptanceCeilingPercent:
-        8 as const,
+        0 as const,
+      metricValueParityWithCompleteTransientBeatEvaluator: true as const,
       generalizedErrorBoundClaimed: false as const,
       valveDiseaseAccuracyClaimed: false as const,
       exactExportEquivalent: false as const,
@@ -329,9 +344,73 @@ function finalizeBeatV1(
     values: Object.freeze(values),
     evidence: Object.freeze({
       bothCanonicalBeatBoundariesRetained: true as const,
+      metricIntegration:
+        "retained-presentation-samples" as const,
+      metricIntegrationSampleCount: beat.retainedSampleCount,
       transientBeatFullyMeasured: false as const,
       revisionsContiguous: false as const,
       cadenceUniform: false as const,
+      exportEquivalent: false as const,
+    }),
+  });
+}
+
+/**
+ * Replaces render-density estimates with the scalar evaluation accumulated
+ * over every accepted 2 ms step inside the Worker. The presentation ordinals
+ * and retained count continue to describe drawing transport only.
+ */
+export function attachMainWireFullRateMetricIntegrationV1(
+  presentation:
+    RuntimePresentationBeatEstimateV1,
+  integration:
+    MainWireScientificTransientMetricIntegrationBeatV1,
+): RuntimePresentationBeatEstimateV1 {
+  if (
+    presentation.startAcceptedRevision
+      !== integration.startAcceptedRevision
+    || presentation.endAcceptedRevision
+      !== integration.endAcceptedRevision
+    || Math.abs(
+      presentation.startAcceptedTimeSec
+        - integration.startAcceptedTimeSec,
+    ) > BEAT_DURATION_TOLERANCE_SEC_V1
+    || Math.abs(
+      presentation.endAcceptedTimeSec
+        - integration.endAcceptedTimeSec,
+    ) > BEAT_DURATION_TOLERANCE_SEC_V1
+    || integration.evaluation.cycleAvailability !== "provisional"
+    || integration.evaluation.cycleInterpretation
+      !== "provisional-complete-transient-beat"
+  ) {
+    throw new Error(
+      "full-rate metric integration does not match presentation beat",
+    );
+  }
+  const values = Object.fromEntries(
+    Object.entries(integration.evaluation.values).map(
+      ([metricId, metric]) => [
+        metricId,
+        Object.freeze({
+          metricId,
+          value: metric.value,
+          availability: metric.availability,
+          unavailableReason: metric.unavailableReason,
+          unavailableDependency: metric.unavailableDependency,
+        }) satisfies RuntimePresentationMetricEstimateValueV1,
+      ],
+    ),
+  );
+  return Object.freeze({
+    ...presentation,
+    values: Object.freeze(values),
+    evidence: Object.freeze({
+      bothCanonicalBeatBoundariesRetained: true as const,
+      metricIntegration: "full-accepted-step" as const,
+      metricIntegrationSampleCount: integration.acceptedStepSampleCount,
+      transientBeatFullyMeasured: true,
+      revisionsContiguous: true,
+      cadenceUniform: true,
       exportEquivalent: false as const,
     }),
   });
@@ -343,22 +422,6 @@ function finalizeMetricV1(
   durationSec: number,
 ): RuntimePresentationMetricEstimateValueV1 {
   const dependencyId = definition.dependencies[0]!;
-  if (
-    RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1 > 1
-    && (
-      definition.quantityKind === "reverse-cycle-volume"
-      || definition.quantityKind === "same-valve-regurgitant-fraction"
-      || definition.quantityKind === "forward-flow-peak-gradient"
-      || definition.quantityKind === "forward-flow-time-mean-gradient"
-    )
-  ) {
-    return unavailableMetricV1(
-      definition.metricId,
-      "not-measurable",
-      "presentation-decimation-unsupported",
-      dependencyId,
-    );
-  }
   const dependency = beat.dependencies.get(dependencyId);
   if (dependency === undefined || !dependency.available) {
     return unavailableMetricV1(
@@ -596,6 +659,8 @@ function assertEstimatorSampleV1(
       sample.phase === 0
         ? sample.retentionReason !== "canonical-beat-boundary"
         : sample.retentionReason !== "observation-stride"
+          && sample.retentionReason !== "geometry-feature"
+          && sample.retentionReason !== "command-boundary"
     )
   ) {
     throw new Error(
