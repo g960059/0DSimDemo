@@ -2052,6 +2052,17 @@ function copyLivePacingStateV1(
     // runtime already admitted to, which is what this field exists to prevent.
     || livePacing.cumulativeRebasedDeficitMs
       < previous.cumulativeRebasedDeficitMs
+    // Claiming a return to 1x requires a measured rate that supports it. The
+    // full-cycle, no-re-anchor evidence behind the claim is the adapter's to
+    // hold; what reaches here must at least not contradict it.
+    || (
+      previous.mode === "degraded"
+      && livePacing.mode === "realtime-1x"
+      && (
+        livePacing.recentAchievedRate === null
+        || livePacing.recentAchievedRate < 1
+      )
+    )
   ) {
     throw new SimulationSessionCoordinatorErrorV1(
       "runtime live pacing state is invalid",

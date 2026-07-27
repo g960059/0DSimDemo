@@ -101,6 +101,17 @@ test.describe.serial("Workbench live pacing under sustained load", () => {
           ),
           "degraded pacing reported no re-anchored deficit",
         ).toBeGreaterThanOrEqual(beforeDeficit);
+        // The rate has to be a number here. A lane this slow re-anchors before
+        // it can ever assemble a clean cycle, so a rate scoped to the recovery
+        // window would stay null forever and the panel would promise a
+        // measurement that never arrives.
+        expect(
+          await pacingNumberV1(
+            evidence,
+            "data-studio-live-pacing-achieved-rate",
+          ),
+          "degraded pacing reported no achieved rate",
+        ).toBeGreaterThan(0);
       }
 
       // The exact failure the owner saw must not be on screen.

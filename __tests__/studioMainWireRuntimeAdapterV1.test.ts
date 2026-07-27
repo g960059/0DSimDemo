@@ -318,7 +318,10 @@ describe("MainWire Studio runtime adapter", () => {
     expect(normal.livePacing).toEqual({
       mode: "realtime-1x",
       epochLagMs: 0,
-      recentAchievedRate: null,
+      // 32 ms of accepted simulation for 20 ms of compute. The rate reports
+      // from the partial window rather than withholding a number until a full
+      // cycle exists.
+      recentAchievedRate: 1.6,
       cumulativeRebasedDeficitMs: 0,
     });
     expect(normal.didRebase).toBe(false);
@@ -395,7 +398,12 @@ describe("MainWire Studio runtime adapter", () => {
     }
     expect(rebaseCount).toBe(2);
     expect(state.mode).toBe("degraded");
-    expect(state.achievedRateWindow).toHaveLength(0);
+    // A re-anchor clears recovery evidence but never the reported rate, so the
+    // lane can still say how slow it is while it is too slow to ever recover.
+    expect(state.recoveryRateWindow).toHaveLength(0);
+    expect(state.reportingRateWindow.length).toBeGreaterThan(0);
+    expect(lastDecision!.livePacing.recentAchievedRate).toBeGreaterThan(0);
+    expect(lastDecision!.livePacing.recentAchievedRate).toBeLessThan(1);
     // Cumulative slowdown stays explicit rather than being absorbed.
     expect(lastDecision!.livePacing.cumulativeRebasedDeficitMs)
       .toBeGreaterThan(cumulativeAfterFirstRebase);

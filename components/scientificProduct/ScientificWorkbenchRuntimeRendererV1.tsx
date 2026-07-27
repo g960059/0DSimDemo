@@ -2745,7 +2745,7 @@ export function ScientificProductTransitionBehaviorSettingsV1({
                 : studio.livePacing.recentAchievedRate === null
                   ? t(
                     "workbench.sidePanel.settings.studioRuntime"
-                    + ".pacingDegradedMeasuring",
+                    + ".pacingDegradedUnknown",
                   )
                   : t(
                     "workbench.sidePanel.settings.studioRuntime"

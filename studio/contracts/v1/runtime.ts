@@ -80,9 +80,18 @@ export type RuntimeLivePacingStateV1 = Readonly<{
    */
   epochLagMs: number;
   /**
-   * Accepted simulation duration divided by active compute duration over the
-   * rolling window, as a dimensionless multiple of realtime. Null until the
-   * window holds a complete canonical cycle.
+   * Recent achieved compute throughput as a dimensionless multiple of
+   * realtime: accepted simulation duration over active compute duration across
+   * the trailing window, or across all available accepted simulation when less
+   * than one canonical cycle has been observed. This diagnostic window
+   * survives pacing re-anchors within a stream epoch, so a lane too slow to
+   * ever complete a clean cycle still reports how slow it is. Null only when
+   * no finite rate is measurable, such as an empty window or zero observed
+   * active-wall duration.
+   *
+   * Diagnostic only. It does not by itself prove recovery and never determines
+   * `mode`: a degraded lane may report a rate at or above 1x while its clean
+   * recovery window is still incomplete.
    */
   recentAchievedRate: number | null;
   /**
