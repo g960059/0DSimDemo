@@ -61,6 +61,44 @@ export type RuntimeSignalChannelRefV1 = Readonly<{
   liveBranchId: RuntimeBranchIdV1;
 }>;
 
+/**
+ * `realtime-1x` is the declared presentation contract: one second of model
+ * time per second of wall time, measured against a cumulative epoch deadline.
+ * `degraded` means compute could not sustain that rate, the lane re-anchored
+ * its epoch rather than failing, and wall/model time have separated by an
+ * amount the runtime reports instead of hiding.
+ */
+export type RuntimeLivePacingModeV1 =
+  | "realtime-1x"
+  | "degraded";
+
+export type RuntimeLivePacingStateV1 = Readonly<{
+  mode: RuntimeLivePacingModeV1;
+  /**
+   * Lag against the current, possibly re-anchored, epoch deadline. A short
+   * stall shows here and is repaid at 1x; it is not a mode change.
+   */
+  epochLagMs: number;
+  /**
+   * Accepted simulation duration divided by active compute duration over the
+   * rolling window, as a dimensionless multiple of realtime. Null until the
+   * window holds a complete canonical cycle.
+   */
+  recentAchievedRate: number | null;
+  /**
+   * Total wall/model separation discarded by every re-anchor in this stream
+   * epoch. Cumulative slowdown stays explicit; it is never silently absorbed.
+   */
+  cumulativeRebasedDeficitMs: number;
+}>;
+
+export const INITIAL_RUNTIME_LIVE_PACING_STATE_V1 = Object.freeze({
+  mode: "realtime-1x" as const,
+  epochLagMs: 0,
+  recentAchievedRate: null,
+  cumulativeRebasedDeficitMs: 0,
+}) satisfies RuntimeLivePacingStateV1;
+
 export type RuntimeSignalBatchV1 = Readonly<{
   kind: "samples";
   channelId: string;
@@ -72,6 +110,12 @@ export type RuntimeSignalBatchV1 = Readonly<{
   streamEpoch: number;
   points: readonly RuntimeObservablePointV1[];
   windowMetrics: RuntimeWindowMetricStateV1;
+  /**
+   * Pacing is carried by the batch that caused it so the reported state is
+   * atomic with the accepted chunk. A separate event kind would reintroduce
+   * ordering and staleness questions the coordinator cannot resolve.
+   */
+  livePacing: RuntimeLivePacingStateV1;
 }>;
 
 export type RuntimeSignalFailureV1 = Readonly<{
@@ -345,6 +389,11 @@ export type ScenarioRuntimeBranchStateV1 = Readonly<{
   signalChannelRef: RuntimeSignalChannelRefV1;
   streamEpoch: number;
   livePlayback: "running" | "suspended";
+  /**
+   * Degraded pacing is a reported status, not a failure. `livePlayback`
+   * remains "running" and `lastRuntimeFailure` stays null while it is set.
+   */
+  livePacing: RuntimeLivePacingStateV1;
   execution: RuntimeExecutionIdentityV1;
   targetGeneration: TargetGenerationV1;
   /**

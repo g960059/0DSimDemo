@@ -36,6 +36,9 @@ import {
   type StudioGraphPaneSpecV1,
 } from "@/studio/contracts/v1/content";
 import {
+  INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
+} from "@/studio/contracts/v1";
+import {
   StudioAuthorPreviewApplicationV1,
 } from "@/studio/application/content";
 
@@ -574,6 +577,7 @@ async function readerRuntimeFixtureV1(): Promise<Readonly<{
           targetGeneration: 3,
           presentationRevision: 1,
           livePlayback: "running" as const,
+          livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
           strictPhase: "running" as const,
           strictCandidateAvailable: false,
           strictCandidatePinned: false,

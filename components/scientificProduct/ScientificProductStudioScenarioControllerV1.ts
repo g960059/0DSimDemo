@@ -21,11 +21,15 @@ import {
   SimulationSessionCoordinatorV1,
 } from "@/studio/application/runtime/SimulationSessionCoordinatorV1";
 import type {
+  RuntimeLivePacingStateV1,
   RuntimePresentationEventV1,
   RuntimeSteadyCandidateV1,
   ScenarioRuntimeBranchStateV1,
   StudioArtifactRefV1,
   StudioSettledAnalysisSourceV1,
+} from "@/studio/contracts/v1";
+import {
+  INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
 } from "@/studio/contracts/v1";
 
 import {
@@ -45,6 +49,7 @@ export type ScientificProductStudioScenarioStatusV1 = Readonly<{
   targetGeneration: number;
   presentationRevision: number;
   livePlayback: "running" | "suspended";
+  livePacing: RuntimeLivePacingStateV1;
   strictPhase:
     | "source-settled"
     | "running"
@@ -252,6 +257,7 @@ export class ScientificProductStudioScenarioControllerV1 {
       targetGeneration: branch?.targetGeneration ?? 0,
       presentationRevision: branch?.presentationRevision ?? 0,
       livePlayback: this.acknowledgedLivePlayback,
+      livePacing: branch?.livePacing ?? INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
       strictPhase,
       strictCandidateAvailable: candidate !== null,
       strictCandidatePinned:
@@ -433,6 +439,10 @@ export class ScientificProductStudioScenarioControllerV1 {
     const signature = this.coordinatorSignatureV1();
     if (signature === this.lastCoordinatorSignature) return;
     this.lastCoordinatorSignature = signature;
+    // While a pause/resume is outstanding the runtime boundary has not
+    // acknowledged the desired state yet, so product state must not claim the
+    // action completed. A failure landing in that window is picked up when the
+    // action settles, through the equality gate's failure override.
     if (this.pendingPlaybackActionCount === 0) {
       this.synchronizeAcknowledgedLivePlaybackV1(true);
     }
@@ -716,6 +726,10 @@ export class ScientificProductStudioScenarioControllerV1 {
       branch.presentationRevision,
       branch.streamEpoch,
       branch.livePlayback,
+      // Only the durable pacing facts belong in the change signature; the
+      // volatile lag and rate reach consumers with each sample append.
+      branch.livePacing.mode,
+      branch.livePacing.cumulativeRebasedDeficitMs,
       branch.display.origin,
       branch.latestSteadyCandidate?.candidateId ?? null,
       branch.lastRuntimeFailure?.lane ?? null,

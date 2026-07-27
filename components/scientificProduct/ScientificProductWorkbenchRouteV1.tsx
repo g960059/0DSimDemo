@@ -1137,6 +1137,14 @@ function ScientificProductFrameEvidenceV1({
       data-studio-target-generation={studio?.targetGeneration ?? ""}
       data-studio-presentation-revision={studio?.presentationRevision ?? ""}
       data-studio-live-playback={studio?.livePlayback ?? ""}
+      data-studio-live-pacing-mode={studio?.livePacing.mode ?? ""}
+      data-studio-live-pacing-epoch-lag-ms={studio?.livePacing.epochLagMs ?? ""}
+      data-studio-live-pacing-achieved-rate={
+        studio?.livePacing.recentAchievedRate ?? ""
+      }
+      data-studio-live-pacing-rebased-deficit-ms={
+        studio?.livePacing.cumulativeRebasedDeficitMs ?? ""
+      }
       data-studio-strict-phase={studio?.strictPhase ?? ""}
       data-studio-strict-candidate={String(
         studio?.strictCandidateAvailable === true,

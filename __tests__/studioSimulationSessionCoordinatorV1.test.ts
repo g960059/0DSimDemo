@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
   type OpenSimulationSessionCommandV1,
   type PromoteSteadyCandidateCommandV1,
@@ -306,6 +307,7 @@ describe("Studio SimulationSession coordinator V1", () => {
         collectedPointCount: 3,
         completedCycleCount: 0,
       },
+      livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
     });
     expect(events).toHaveLength(4);
     expect(coordinator.branch("baseline").livePlayback).toBe("suspended");
@@ -1070,6 +1072,39 @@ describe("Studio SimulationSession coordinator V1", () => {
       },
     });
 
+    // Pacing is part of the batch contract, so a batch that omits it or
+    // reports an impossible value is rejected like any other malformed batch.
+    for (const livePacing of [
+      undefined,
+      { mode: "sprinting", epochLagMs: 0, recentAchievedRate: null, cumulativeRebasedDeficitMs: 0 },
+      { mode: "degraded", epochLagMs: -1, recentAchievedRate: null, cumulativeRebasedDeficitMs: 0 },
+      { mode: "degraded", epochLagMs: 0, recentAchievedRate: Number.NaN, cumulativeRebasedDeficitMs: 0 },
+      { mode: "realtime-1x", epochLagMs: 0, recentAchievedRate: null, cumulativeRebasedDeficitMs: -5 },
+    ]) {
+      const pacingRuntime = new FakeRuntimePortV1();
+      const pacingCoordinator = coordinatorV1(pacingRuntime);
+      await pacingCoordinator.open(openCommandV1());
+      pacingRuntime.emitRawSignal("baseline", {
+        kind: "samples",
+        targetGeneration: 0,
+        presentationRevision: 0,
+        streamEpoch: 0,
+        points: [frameV1(2).point],
+        windowMetrics: {
+          status: "collecting",
+          collectedPointCount: 2,
+          completedCycleCount: 0,
+        },
+        ...(livePacing === undefined ? {} : { livePacing }),
+      });
+      expect(pacingCoordinator.branch("baseline")).toMatchObject({
+        livePlayback: "suspended",
+        lastRuntimeFailure: {
+          message: "runtime signal channel emitted an invalid batch",
+        },
+      });
+    }
+
     const metricRuntime = new FakeRuntimePortV1();
     const metricCoordinator = coordinatorV1(metricRuntime);
     await metricCoordinator.open(openCommandV1());
@@ -1413,6 +1448,7 @@ describe("Studio SimulationSession coordinator V1", () => {
         collectedPointCount: 2,
         completedCycleCount: 0,
       },
+      livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
     });
     expect(coordinator.branch("baseline")).toMatchObject({
       livePlayback: "suspended",
@@ -1624,8 +1660,8 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
   private readonly immediateResumeEvents =
     new Map<string, Array<Omit<
       RuntimeSignalBatchV1,
-      "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
-    >>>();
+      "channelId" | "sessionId" | "scenarioId" | "liveBranchId" | "livePacing"
+    > & Partial<Pick<RuntimeSignalBatchV1, "livePacing">>>>();
   private readonly nextResumeErrors = new Map<string, Error>();
   private readonly nextResumeGates = new Map<string, DeferredV1<void>>();
   private readonly nextSuspendGates = new Map<string, DeferredV1<void>>();
@@ -1811,6 +1847,7 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
     }
     if (event !== undefined) {
       this.signalObservers.get(channel.channelId)?.({
+        livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
         ...event,
         channelId: channel.channelId,
         sessionId: channel.sessionId,
@@ -1829,8 +1866,8 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
     scenarioId: string,
     input: Omit<
       RuntimeSignalBatchV1,
-      "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
-    >,
+      "channelId" | "sessionId" | "scenarioId" | "liveBranchId" | "livePacing"
+    > & Partial<Pick<RuntimeSignalBatchV1, "livePacing">>,
   ): void {
     const channel = this.signalChannelsByScenario.get(scenarioId);
     if (
@@ -1838,6 +1875,7 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
       || this.suspendedSignalChannelIds.has(channel.channelId)
     ) return;
     this.signalObservers.get(channel.channelId)?.({
+      livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
       ...input,
       channelId: channel.channelId,
       sessionId: channel.sessionId,
@@ -1850,8 +1888,8 @@ class FakeRuntimePortV1 implements SimulationRuntimePortV1 {
     scenarioId: string,
     input: Omit<
       RuntimeSignalBatchV1,
-      "channelId" | "sessionId" | "scenarioId" | "liveBranchId"
-    >,
+      "channelId" | "sessionId" | "scenarioId" | "liveBranchId" | "livePacing"
+    > & Partial<Pick<RuntimeSignalBatchV1, "livePacing">>,
   ): void {
     const queue = this.immediateResumeEvents.get(scenarioId) ?? [];
     queue.push(input);

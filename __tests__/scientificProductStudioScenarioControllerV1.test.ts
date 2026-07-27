@@ -33,6 +33,9 @@ import type {
   RuntimeTargetIntentExecutionV1,
   SimulationRuntimePortV1,
 } from "@/studio/contracts/v1";
+import {
+  INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
+} from "@/studio/contracts/v1";
 
 describe("Scientific Product Studio scenario controller V1", () => {
   it("records an earlier queued action failure until a later action completes", async () => {
@@ -843,6 +846,7 @@ class ControllerFakeRuntimeV1 implements SimulationRuntimePortV1 {
         collectedPointCount,
         completedCycleCount: 0 as const,
       }),
+      livePacing: INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
     }));
   }
 
