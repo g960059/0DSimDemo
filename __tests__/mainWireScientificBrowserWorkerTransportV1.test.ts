@@ -13,6 +13,13 @@ import {
   createMainWireScientificResearchControlBaselineTargetStateV0,
   type MainWireScientificResearchControlTargetStateV0,
 } from "@/engine/scientific/controls/MainWireScientificResearchControlTargetStateV0";
+import {
+  OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING,
+  OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID,
+} from "@/engine/scientific/documents";
+import {
+  OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING,
+} from "@/engine/scientific/presets";
 
 describe("main-wire scientific browser Worker transport V1", () => {
   it("matches concurrent responses by caller-supplied requestId", async () => {
@@ -549,9 +556,11 @@ function officialDocumentCasePayload(
     presetId: "circleheart/official-healthy-periodic",
     presetVersion: "1.0.0",
     checkpointSha256:
-      "10b0a0b94180842a1971549e35aaf1a0064f93103b6a965052528ba30bd03f15",
+      OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING
+        .checkpointSha256,
     sessionInputSha256:
-      "84bcec5ef9ca80ade7f2d2615a2fbf23fda64a427b7eb1065563b47a1f0dac4f",
+      OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING
+        .sessionInputSha256,
     caseRef: OFFICIAL_CASE_REF,
     workspaceRef: OFFICIAL_WORKSPACE_REF,
     periodicSteadyStateClaimed: true,
@@ -637,12 +646,8 @@ const RELEASE_REF = Object.freeze({
   sha256: "1".repeat(64),
 });
 
-const OFFICIAL_RELEASE_REF = Object.freeze({
-  id: "circleheart/adult-five-wall-noncoronary",
-  version: "0.2.0",
-  sha256:
-    "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a",
-});
+const OFFICIAL_RELEASE_REF =
+  OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING.releaseRef;
 
 const SESSION_ORIGIN = Object.freeze({
   kind: "canonical-cold-start",
@@ -657,41 +662,40 @@ const OFFICIAL_PRESET_SESSION_ORIGIN = Object.freeze({
   catalogSchemaId: "circleheart-official-preset-catalog-v1",
   catalogSchemaVersion: 1,
   manifestRawFileSha256:
-    "4bd772f1df329d56502954d88e4e276e643d8b150368480f38af242a8eefbce8",
+    OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+      .manifestRawFileSha256,
   checkpointRawFileSha256:
-    "e00e1b6b4507f3b9bec6f8eaebfe5f3fc79b41c7bb97ae7eb74f24bc3754a3d4",
+    OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING
+      .checkpointRawFileSha256,
   checkpointSha256:
-    "9c3ee4a8adb59bcf21e261e6b58443714b642bbc25e98293091c3917252ea43c",
+    OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING.checkpointSha256,
   parameterization: "fixed-canonical-only",
 });
 
-const OFFICIAL_CASE_REF = Object.freeze({
-  schemaId: "circleheart-main-wire-scientific-case-document-ref-v1",
-  sha256:
-    "0e48b0cd6c50c3807dd1f5d6482ef487330d70e757d5fe3a6543800d17eca5f8",
-});
+const OFFICIAL_CASE_REF =
+  OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING.caseRef;
 
-const OFFICIAL_WORKSPACE_REF = Object.freeze({
-  schemaId: "circleheart-main-wire-scientific-workspace-document-ref-v1",
-  sha256:
-    "2ee687406df73ac96a382070355e899ed16cf0a98f01a515d285bcb1a40112b7",
-});
+const OFFICIAL_WORKSPACE_REF =
+  OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING.workspaceRef;
 
 const OFFICIAL_DOCUMENT_CASE_ORIGIN = Object.freeze({
   kind: "official-document-case-v3-exact-checkpoint-restore",
   presetId: "circleheart/official-healthy-periodic",
   presetVersion: "1.0.0",
   catalogSchemaId:
-    "circleheart-official-scientific-document-chain-catalog-v1",
+    OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_SCHEMA_ID,
   catalogSchemaVersion: 1,
   catalogRawFileSha256:
-    "a02ef9c8b9834dbdcbbff28e3aa9eeb0b5ae462ff4c899759d2a77fe9ca2c83b",
+    OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING.rawFileSha256,
   checkpointRawFileSha256:
-    "f3d8913125bfcd8e5d2066674157b4882164bcb0f9575d1ac67f8baf6aec2a14",
+    OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING
+      .checkpointRawFileSha256,
   checkpointSha256:
-    "10b0a0b94180842a1971549e35aaf1a0064f93103b6a965052528ba30bd03f15",
+    OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING
+      .checkpointSha256,
   sessionInputSha256:
-    "84bcec5ef9ca80ade7f2d2615a2fbf23fda64a427b7eb1065563b47a1f0dac4f",
+    OFFICIAL_HEALTHY_PERIODIC_DOCUMENT_CHAIN_CATALOG_V1_BINDING
+      .sessionInputSha256,
   caseRef: OFFICIAL_CASE_REF,
   workspaceRef: OFFICIAL_WORKSPACE_REF,
   periodicSteadyStateClaimed: true,
