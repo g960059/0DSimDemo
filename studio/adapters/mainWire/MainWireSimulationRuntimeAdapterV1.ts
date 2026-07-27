@@ -515,10 +515,18 @@ implements SimulationRuntimePortV1 {
       || restored.stateIdentity.acceptedTimeSec
         !== envelope.seedObservableFrame.acceptedTimeSec
     ) throw runtimeErrorV1(`restore receipt mismatch for ${source.scenarioId}`);
-    const hostedSession = Object.freeze({
-      ...restored,
-      observableFrame: envelope.seedObservableFrame,
-    });
+    // The hosted-session token has to stay exactly what the Worker restored.
+    //
+    // This used to substitute the envelope's accepted-step seed frame, which
+    // split the browser-side token from the Worker: the Worker keeps returning
+    // its own exact-checkpoint-restore projection, so the first checkpoint taken
+    // to prepare a target failed its accepted-state binding ("checkpoint V4
+    // accepted-state binding mismatch") and suspended both the live and the
+    // strict lane. The receipt check above already pins the seed and the restore
+    // to the same revision and accepted time; only the projection differed. The
+    // seed still drives the initial presentation on its own, through
+    // mainWireStudioSeedPresentationFrameV1 below.
+    const hostedSession = restored;
     const liveBranchId = this.nextInternalIdV1("branch");
     const signalChannelRef = Object.freeze({
       protocolId: SIGNAL_CHANNEL_PROTOCOL_V1,
