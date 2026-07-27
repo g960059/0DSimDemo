@@ -25,6 +25,7 @@ import {
   INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
   EXACT_SIGNAL_EXPORT_LIMITS_V1,
   RUNTIME_PRESENTATION_COVERAGE_V1,
+  RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1,
   RUNTIME_PRESENTATION_DT_SEC_V1,
   RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
   runtimePresentationCanonicalPhaseV1,
@@ -1375,6 +1376,22 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     ) return false;
     if (error.completedStepCount > 0) {
       branch.hostedSession = accepted;
+      // A failed command may still have committed accepted numerical steps.
+      // Preserve every observation retained by the Worker before publishing
+      // the terminal failure, but only when this stream already owns a reset
+      // boundary (initial-transition failure has no publishable trace yet).
+      if (
+        branch.latestPresentationSample !== null
+        && error.acceptedPartialProgress.observableFrames.length > 0
+      ) {
+        this.publishTransientChunkV1(
+          branch,
+          error.acceptedPartialProgress,
+          branch.targetGeneration,
+          branch.presentationRevision,
+          branch.streamEpoch,
+        );
+      }
     }
     return true;
   }
@@ -1483,8 +1500,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
           command,
           oldHost,
           oldSessionId,
-          envelope.checkpointV4.canonicalPhase.phase01,
-          envelope.checkpointV4.canonicalPhase.cycleLengthSec,
+          envelope.checkpointV4.transaction.revision,
         );
       }
       this.assertPromotionStillCurrentV1(
@@ -1675,30 +1691,17 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     command: PromoteSteadyCandidateCommandV1,
     expectedHost: MainWireStudioSessionHostV1,
     expectedSessionId: string,
-    targetPhase01: number,
-    cycleLengthSec: number,
+    targetAcceptedRevision: number,
   ): Promise<void> {
-    const currentPhase01 = canonicalPhaseForCycleV1(
-      branch.hostedSession.stateIdentity.acceptedTimeSec,
-      cycleLengthSec,
+    const stepsPerCycle = Math.round(
+      RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1
+        / RUNTIME_PRESENTATION_DT_SEC_V1,
     );
-    const phaseDelta01 = positiveModuloOneV1(
-      targetPhase01 - currentPhase01,
-    );
-    const deltaSec = phaseDelta01 * cycleLengthSec;
-    const totalStepCount = Math.round(
-      deltaSec / MAIN_WIRE_LIVE_DT_SEC_V1,
-    );
-    const reachedPhase01 = canonicalPhaseForCycleV1(
-      branch.hostedSession.stateIdentity.acceptedTimeSec
-        + totalStepCount * MAIN_WIRE_LIVE_DT_SEC_V1,
-      cycleLengthSec,
-    );
-    if (circularPhaseDistanceV1(reachedPhase01, targetPhase01) > 1e-9) {
-      throw runtimeErrorV1(
-        "candidate phase is not reachable on the live integration grid",
-      );
-    }
+    const currentPhaseStep =
+      branch.hostedSession.stateIdentity.revision % stepsPerCycle;
+    const targetPhaseStep = targetAcceptedRevision % stepsPerCycle;
+    const totalStepCount =
+      (targetPhaseStep - currentPhaseStep + stepsPerCycle) % stepsPerCycle;
 
     let remainingStepCount = totalStepCount;
     // Phase alignment is still 1x presentation on the outgoing stream, so it
@@ -3309,31 +3312,6 @@ function artifactRefFingerprintV1(
     ref.mediaType,
     ref.byteLength,
   ];
-}
-
-function canonicalPhaseForCycleV1(
-  timeSec: number,
-  cycleLengthSec: number,
-): number {
-  if (
-    !Number.isFinite(timeSec)
-    || !Number.isFinite(cycleLengthSec)
-    || cycleLengthSec <= 0
-  ) throw runtimeErrorV1("canonical phase input is invalid");
-  return positiveModuloOneV1(timeSec / cycleLengthSec);
-}
-
-function positiveModuloOneV1(value: number): number {
-  if (!Number.isFinite(value)) {
-    throw runtimeErrorV1("canonical phase is invalid");
-  }
-  const phase = value - Math.floor(value);
-  return phase >= 1 - 1e-12 || phase < 1e-12 ? 0 : phase;
-}
-
-function circularPhaseDistanceV1(left: number, right: number): number {
-  const distance = Math.abs(left - right);
-  return Math.min(distance, 1 - distance);
 }
 
 function nextSafeIntegerV1(current: number, path: string): number {

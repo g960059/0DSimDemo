@@ -11,6 +11,7 @@ import {
   RUNTIME_PRESENTATION_COVERAGE_V1,
   RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1,
   RUNTIME_PRESENTATION_DT_SEC_V1,
+  RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
   runtimePresentationCanonicalPhaseV1,
   type RuntimePresentationBeatEstimateV1,
   type RuntimePresentationMetricEstimateValueV1,
@@ -38,6 +39,42 @@ export const MAIN_WIRE_PRESENTATION_ESTIMATOR_REGISTRY_SNAPSHOT_V1 =
       ),
     ),
     exactEvaluatorInputProduced: false as const,
+    fixedObservationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+    expectedBoundaryAlignedSampleCount:
+      1 + Math.ceil(
+        RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1
+          / RUNTIME_PRESENTATION_DT_SEC_V1
+          / RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+      ),
+    characterization: Object.freeze({
+      reference:
+        "production-kernel-official-healthy-periodic-checkpoint-stride-1" as const,
+      purpose: "live-screening-estimate-only" as const,
+      supportedQuantityKinds: Object.freeze([
+        "time-weighted-mean-pressure",
+        "cycle-maximum-pressure",
+        "cycle-minimum-pressure",
+        "pressure-excursion",
+        "end-diastolic-volume",
+        "end-systolic-volume",
+        "volume-excursion",
+        "ejection-fraction",
+        "forward-cycle-volume",
+        "net-cycle-volume",
+        "net-cardiac-output",
+      ] as const),
+      unavailableQuantityKinds: Object.freeze([
+        "reverse-cycle-volume",
+        "same-valve-regurgitant-fraction",
+        "forward-flow-peak-gradient",
+        "forward-flow-time-mean-gradient",
+      ] as const),
+      supportedMetricRelativeErrorAcceptanceCeilingPercent:
+        8 as const,
+      generalizedErrorBoundClaimed: false as const,
+      valveDiseaseAccuracyClaimed: false as const,
+      exactExportEquivalent: false as const,
+    }),
   });
 
 export type MainWirePresentationEstimatorInstrumentationV1 = Readonly<{
@@ -306,6 +343,22 @@ function finalizeMetricV1(
   durationSec: number,
 ): RuntimePresentationMetricEstimateValueV1 {
   const dependencyId = definition.dependencies[0]!;
+  if (
+    RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1 > 1
+    && (
+      definition.quantityKind === "reverse-cycle-volume"
+      || definition.quantityKind === "same-valve-regurgitant-fraction"
+      || definition.quantityKind === "forward-flow-peak-gradient"
+      || definition.quantityKind === "forward-flow-time-mean-gradient"
+    )
+  ) {
+    return unavailableMetricV1(
+      definition.metricId,
+      "not-measurable",
+      "presentation-decimation-unsupported",
+      dependencyId,
+    );
+  }
   const dependency = beat.dependencies.get(dependencyId);
   if (dependency === undefined || !dependency.available) {
     return unavailableMetricV1(
@@ -562,6 +615,11 @@ function assertEstimatorSampleV1(
   if (span > stepsToNextBoundary) {
     throw new Error(
       "presentation estimator received a sample after an omitted beat boundary",
+    );
+  }
+  if (span > RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1) {
+    throw new Error(
+      "presentation estimator received a span over the fixed observation stride",
     );
   }
 }

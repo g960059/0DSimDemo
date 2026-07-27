@@ -204,12 +204,15 @@ export class ScientificProductStudioScenarioControllerV1 {
       this.ownerToken,
       this.ownerActionRef,
     );
-    this.unsubscribeCoordinator = this.coordinator.subscribe(
+    this.unsubscribeCoordinator = this.coordinator.subscribeBranch(
+      this.scenarioId,
       this.onCoordinatorStateV1,
     );
-    this.unsubscribePresentation = this.coordinator.subscribePresentation(
-      this.onPresentationEventV1,
-    );
+    this.unsubscribePresentation =
+      this.coordinator.subscribeScenarioPresentation(
+        this.scenarioId,
+        this.onPresentationEventV1,
+      );
     this.publishV1();
   }
 
@@ -254,6 +257,8 @@ export class ScientificProductStudioScenarioControllerV1 {
 
   get status(): ScientificProductStudioScenarioStatusV1 {
     const branch = this.branchV1();
+    const presentation =
+      this.coordinator.getScenarioPresentationSnapshot(this.scenarioId);
     const candidate = branch?.latestSteadyCandidate ?? null;
     const strictPhase = branch?.lastRuntimeFailure?.lane === "strict"
       ? "failed" as const
@@ -269,7 +274,9 @@ export class ScientificProductStudioScenarioControllerV1 {
       targetGeneration: branch?.targetGeneration ?? 0,
       presentationRevision: branch?.presentationRevision ?? 0,
       livePlayback: this.acknowledgedLivePlayback,
-      livePacing: branch?.livePacing ?? INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
+      livePacing: presentation?.livePacing
+        ?? branch?.livePacing
+        ?? INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
       strictPhase,
       strictCandidateAvailable: candidate !== null,
       strictCandidatePinned:
@@ -757,10 +764,6 @@ export class ScientificProductStudioScenarioControllerV1 {
       branch.presentationRevision,
       branch.streamEpoch,
       branch.livePlayback,
-      // Only the durable pacing facts belong in the change signature; the
-      // volatile lag and rate reach consumers with each sample append.
-      branch.livePacing.mode,
-      branch.livePacing.cumulativeRebasedDeficitMs,
       branch.display.origin,
       branch.latestSteadyCandidate?.candidateId ?? null,
       branch.lastRuntimeFailure?.lane ?? null,

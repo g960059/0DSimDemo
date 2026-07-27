@@ -5,6 +5,7 @@ import {
   RUNTIME_PRESENTATION_COVERAGE_V1,
   RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1,
   RUNTIME_PRESENTATION_DT_SEC_V1,
+  RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
   runtimePresentationCanonicalPhaseV1,
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
   STUDIO_RUN_ARTIFACT_CONTENT_V1_SCHEMA_ID,
@@ -27,6 +28,7 @@ import {
   type RuntimePresentationMetricEstimateValueV1,
   type RuntimePresentationMetricStateV1,
   type RuntimePresentationSampleV1,
+  type RuntimeScenarioPresentationSnapshotV1,
   type RuntimePresentationSignalChannelRefV1,
   type RuntimePresentationSignalEventV1,
   type RuntimePresentationSignalSubscriptionV1,
@@ -102,8 +104,17 @@ export class SimulationSessionCoordinatorV1 {
   private readonly presentationBeatBoundaries =
     new Map<string, readonly RuntimePresentationSampleV1[]>();
   private readonly stateListeners = new Set<() => void>();
+  private readonly branchListeners = new Map<string, Set<() => void>>();
   private readonly presentationListeners =
     new Set<(event: RuntimePresentationEventV1) => void>();
+  private readonly scenarioPresentationListeners = new Map<
+    string,
+    Set<(event: RuntimePresentationEventV1) => void>
+  >();
+  private readonly scenarioPresentationSnapshots = new Map<
+    string,
+    RuntimeScenarioPresentationSnapshotV1
+  >();
   private state: SimulationSessionStateV1 | null = null;
   private openingSessionId: string | null = null;
   private openingCompletion: Promise<void> | null = null;
@@ -134,6 +145,34 @@ export class SimulationSessionCoordinatorV1 {
   };
 
   /**
+   * Branch-scoped control-plane subscription. A listener is called when this
+   * branch identity changes or when the containing session changes lifecycle;
+   * admitted presentation batches do not touch this channel.
+   */
+  readonly subscribeBranch = (
+    scenarioId: string,
+    listener: () => void,
+  ): (() => void) => {
+    const listeners = this.branchListeners.get(scenarioId) ?? new Set();
+    listeners.add(listener);
+    this.branchListeners.set(scenarioId, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) this.branchListeners.delete(scenarioId);
+    };
+  };
+
+  /**
+   * Stable branch-local presentation reader for `useSyncExternalStore` style
+   * consumers. The same object is returned until this scenario admits a reset
+   * or append; unrelated branches cannot invalidate it.
+   */
+  readonly getScenarioPresentationSnapshot = (
+    scenarioId: string,
+  ): RuntimeScenarioPresentationSnapshotV1 | null =>
+    this.scenarioPresentationSnapshots.get(scenarioId) ?? null;
+
+  /**
    * Ordered, non-replayed presentation trace events owned by the coordinator.
    * Subscribe before `open()` to receive the initial one-point reset.
    */
@@ -143,6 +182,25 @@ export class SimulationSessionCoordinatorV1 {
     this.presentationListeners.add(listener);
     return () => {
       this.presentationListeners.delete(listener);
+    };
+  };
+
+  /**
+   * Ordered, non-replayed presentation events for exactly one scenario.
+   */
+  readonly subscribeScenarioPresentation = (
+    scenarioId: string,
+    listener: (event: RuntimePresentationEventV1) => void,
+  ): (() => void) => {
+    const listeners =
+      this.scenarioPresentationListeners.get(scenarioId) ?? new Set();
+    listeners.add(listener);
+    this.scenarioPresentationListeners.set(scenarioId, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) {
+        this.scenarioPresentationListeners.delete(scenarioId);
+      }
     };
   };
 
@@ -865,7 +923,20 @@ export class SimulationSessionCoordinatorV1 {
       }
       const samples = Object.freeze(signal.samples.map((sample) =>
         copyPresentationSampleV1(sample as RuntimePresentationSampleV1)));
-      let prior = branch.display.latestSample;
+      const presentation =
+        this.scenarioPresentationSnapshots.get(branch.scenarioId);
+      if (
+        presentation === undefined
+        || presentation.liveBranchId !== branch.liveBranchId
+        || presentation.targetGeneration !== branch.targetGeneration
+        || presentation.presentationRevision !== branch.presentationRevision
+        || presentation.streamEpoch !== branch.streamEpoch
+      ) {
+        throw new SimulationSessionCoordinatorErrorV1(
+          "runtime presentation snapshot is not bound to the current branch",
+        );
+      }
+      let prior = presentation.presentation.sample;
       for (const sample of samples) {
         assertPresentationSampleContinuityV1(prior, sample);
         prior = sample;
@@ -874,13 +945,13 @@ export class SimulationSessionCoordinatorV1 {
         signal.metricState as RuntimePresentationMetricStateV1,
       );
       const nextRetainedSampleCount =
-        branch.display.retainedSampleCount + samples.length;
+        presentation.retainedSampleCount + samples.length;
       if (metricState.retainedSampleCount !== nextRetainedSampleCount) {
         throw new SimulationSessionCoordinatorErrorV1(
           "runtime presentation metrics do not match the retained sample count",
         );
       }
-      const previousMetricState = branch.display.metricState;
+      const previousMetricState = presentation.presentation.metricState;
       if (
         (
           previousMetricState.status === "complete"
@@ -901,19 +972,21 @@ export class SimulationSessionCoordinatorV1 {
       );
       const livePacing = copyLivePacingStateV1(
         signal.livePacing as RuntimeLivePacingStateV1,
-        branch.livePacing,
+        presentation.livePacing,
       );
       const replacement = Object.freeze({
-        ...branch,
+        ...presentation,
         livePacing,
-        display: Object.freeze({
-          ...branch.display,
-          latestSample: samples.at(-1)!,
-          retainedSampleCount: nextRetainedSampleCount,
+        presentation: Object.freeze({
+          sample: samples.at(-1)!,
           metricState,
         }),
-      });
-      this.replaceBranchV1(branch.scenarioId, replacement);
+        retainedSampleCount: nextRetainedSampleCount,
+      }) satisfies RuntimeScenarioPresentationSnapshotV1;
+      this.scenarioPresentationSnapshots.set(
+        branch.scenarioId,
+        replacement,
+      );
       const admittedBoundaries = samples.filter(({ phase }) => phase === 0);
       if (admittedBoundaries.length > 0) {
         const priorBoundaries =
@@ -927,7 +1000,7 @@ export class SimulationSessionCoordinatorV1 {
       }
       this.publishPresentationAppendV1(
         current.sessionId,
-        replacement,
+        branch,
         samples,
         metricState,
       );
@@ -1307,6 +1380,7 @@ export class SimulationSessionCoordinatorV1 {
     next: SimulationSessionStateV1 | null,
   ): boolean {
     if (this.state === next) return false;
+    const previous = this.state;
     this.state = next;
     for (const listener of [...this.stateListeners]) {
       try {
@@ -1314,6 +1388,33 @@ export class SimulationSessionCoordinatorV1 {
       } catch {
         // External-store subscribers cannot invalidate an accepted numerical
         // state transition or prevent other external-store listeners.
+      }
+    }
+    const previousBranches = new Map(
+      previous?.branches.map((branch) => [branch.scenarioId, branch]) ?? [],
+    );
+    const nextBranches = new Map(
+      next?.branches.map((branch) => [branch.scenarioId, branch]) ?? [],
+    );
+    const sessionLifecycleChanged =
+      previous?.status !== next?.status
+      || previous?.sessionId !== next?.sessionId;
+    for (const scenarioId of new Set([
+      ...previousBranches.keys(),
+      ...nextBranches.keys(),
+    ])) {
+      if (
+        !sessionLifecycleChanged
+        && previousBranches.get(scenarioId) === nextBranches.get(scenarioId)
+      ) continue;
+      for (const listener of [
+        ...(this.branchListeners.get(scenarioId) ?? []),
+      ]) {
+        try {
+          listener();
+        } catch {
+          // One branch consumer cannot prevent later branch consumers.
+        }
       }
     }
     return true;
@@ -1344,6 +1445,22 @@ export class SimulationSessionCoordinatorV1 {
       presentation.sample.phase === 0
         ? Object.freeze([presentation.sample])
         : Object.freeze([]),
+    );
+    this.scenarioPresentationSnapshots.set(
+      branch.scenarioId,
+      Object.freeze({
+        sessionId,
+        scenarioId: branch.scenarioId,
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: branch.targetGeneration,
+        presentationRevision: branch.presentationRevision,
+        streamEpoch: branch.streamEpoch,
+        origin: branch.display.origin,
+        firstSample: presentation.sample,
+        presentation,
+        retainedSampleCount: 1,
+        livePacing: branch.livePacing,
+      }),
     );
     this.publishPresentationEventV1(Object.freeze({
       kind: "reset" as const,
@@ -1380,6 +1497,16 @@ export class SimulationSessionCoordinatorV1 {
   private publishPresentationEventV1(
     event: RuntimePresentationEventV1,
   ): void {
+    for (const listener of [
+      ...(this.scenarioPresentationListeners.get(event.scenarioId) ?? []),
+    ]) {
+      try {
+        listener(event);
+      } catch {
+        // A scenario consumer cannot corrupt its numerical branch or prevent
+        // delivery to the remaining scenario/global consumers.
+      }
+    }
     for (const listener of [...this.presentationListeners]) {
       try {
         listener(event);
@@ -2331,6 +2458,7 @@ function assertPresentationSampleContinuityV1(
     // 3. Every append declares a positive accepted-step span.
     || !Number.isSafeInteger(span)
     || span < 1
+    || span > RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1
     // 4. The declaration agrees with accepted revision arithmetic.
     || sample.acceptedRevision - prior.acceptedRevision !== span
     // 5. Accepted model time advances.

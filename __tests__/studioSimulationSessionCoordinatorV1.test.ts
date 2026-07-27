@@ -188,28 +188,28 @@ describe("Studio SimulationSession coordinator V1", () => {
         latestBeatEstimate: null,
       },
     });
+    expect(notifications).toHaveLength(4);
+
+    await coordinator.suspendBranch("baseline");
+    expect(notifications).toHaveLength(5);
+    await coordinator.suspendBranch("baseline");
     expect(notifications).toHaveLength(5);
 
-    await coordinator.suspendBranch("baseline");
-    expect(notifications).toHaveLength(6);
-    await coordinator.suspendBranch("baseline");
-    expect(notifications).toHaveLength(6);
-
     await coordinator.resumeBranch("baseline");
-    expect(notifications).toHaveLength(7);
+    expect(notifications).toHaveLength(6);
     await coordinator.resumeBranch("baseline");
-    expect(notifications).toHaveLength(7);
+    expect(notifications).toHaveLength(6);
 
     await coordinator.promoteSteadyCandidate("baseline");
-    expect(notifications).toHaveLength(8);
+    expect(notifications).toHaveLength(7);
 
     const closing = coordinator.close();
-    expect(notifications).toHaveLength(9);
+    expect(notifications).toHaveLength(8);
     expect(notifications.at(-1)).toMatch(/^closing\|/);
     await closing;
-    expect(notifications).toHaveLength(10);
+    expect(notifications).toHaveLength(9);
     await coordinator.close();
-    expect(notifications).toHaveLength(10);
+    expect(notifications).toHaveLength(9);
     unsubscribe();
 
     expect(notifications).toEqual([
@@ -217,13 +217,92 @@ describe("Studio SimulationSession coordinator V1", () => {
       "live|g1|r1|e0|opened-run|samples:1|running|candidate:false|intent:intent/observable-state",
       "live|g1|r1|e0|opened-run|samples:1|running|candidate:true|intent:intent/observable-state",
       "live|g1|r1|e1|live-transition|samples:1|running|candidate:true|intent:intent/observable-state",
-      "live|g1|r1|e1|live-transition|samples:2|running|candidate:true|intent:intent/observable-state",
-      "live|g1|r1|e1|live-transition|samples:2|suspended|candidate:true|intent:intent/observable-state",
-      "live|g1|r1|e1|live-transition|samples:2|running|candidate:true|intent:intent/observable-state",
+      "live|g1|r1|e1|live-transition|samples:1|suspended|candidate:true|intent:intent/observable-state",
+      "live|g1|r1|e1|live-transition|samples:1|running|candidate:true|intent:intent/observable-state",
       "live|g1|r2|e2|promoted-steady-candidate|samples:1|running|candidate:false|intent:intent/observable-state",
       "closing|g1|r2|e2|promoted-steady-candidate|samples:1|running|candidate:false|intent:intent/observable-state",
       "closed|g1|r2|e2|promoted-steady-candidate|samples:1|running|candidate:false|intent:intent/observable-state",
     ]);
+  });
+
+  it("invalidates only the advanced scenario presentation snapshot", async () => {
+    const runtime = new FakeRuntimePortV1();
+    const coordinator = coordinatorV1(runtime);
+    const twoLaneCommand = openCommandV1();
+    await coordinator.open({
+      ...twoLaneCommand,
+      branches: [
+        ...twoLaneCommand.branches,
+        {
+          ...twoLaneCommand.branches[0]!,
+          scenarioId: "scenario-c",
+          initialTargetInputSha256: "3".repeat(64),
+        },
+        {
+          ...twoLaneCommand.branches[1]!,
+          scenarioId: "scenario-d",
+          initialTargetInputSha256: "4".repeat(64),
+        },
+      ],
+    });
+
+    const scenarioIds = ["baseline", "hfrEF", "scenario-c", "scenario-d"];
+    const calls = new Map(scenarioIds.map((scenarioId) => [scenarioId, 0]));
+    const branchCalls =
+      new Map(scenarioIds.map((scenarioId) => [scenarioId, 0]));
+    const before = new Map(scenarioIds.map((scenarioId) => [
+      scenarioId,
+      coordinator.getScenarioPresentationSnapshot(scenarioId),
+    ]));
+    const unsubscribers = scenarioIds.flatMap((scenarioId) => [
+      coordinator.subscribeScenarioPresentation(scenarioId, () => {
+        calls.set(scenarioId, calls.get(scenarioId)! + 1);
+      }),
+      coordinator.subscribeBranch(scenarioId, () => {
+        branchCalls.set(scenarioId, branchCalls.get(scenarioId)! + 1);
+      }),
+    ]);
+
+    const baselineBefore = before.get("baseline")!;
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .toBe(baselineBefore);
+    const nextRevision =
+      baselineBefore!.presentation.sample.acceptedRevision + 1;
+    runtime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      samples: [frameV1(nextRevision).sample],
+      metricState: {
+        status: "collecting",
+        retainedSampleCount: 2,
+        completedBeatCount: 0,
+        latestBeatEstimate: null,
+      },
+    });
+
+    expect(Object.fromEntries(calls)).toEqual({
+      baseline: 1,
+      hfrEF: 0,
+      "scenario-c": 0,
+      "scenario-d": 0,
+    });
+    expect(Object.fromEntries(branchCalls)).toEqual({
+      baseline: 0,
+      hfrEF: 0,
+      "scenario-c": 0,
+      "scenario-d": 0,
+    });
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .not.toBe(baselineBefore);
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .toBe(coordinator.getScenarioPresentationSnapshot("baseline"));
+    for (const scenarioId of scenarioIds.slice(1)) {
+      expect(coordinator.getScenarioPresentationSnapshot(scenarioId))
+        .toBe(before.get(scenarioId));
+    }
+    for (const unsubscribe of unsubscribers) unsubscribe();
   });
 
   it("publishes only coordinator-validated presentation resets and appends", async () => {
@@ -237,6 +316,8 @@ describe("Studio SimulationSession coordinator V1", () => {
       const branch = snapshot?.branches.find(({ scenarioId }) =>
         scenarioId === event.scenarioId
       );
+      const presentation =
+        coordinator.getScenarioPresentationSnapshot(event.scenarioId);
       const latestSequence = event.kind === "reset"
         ? event.presentation.sample.acceptedRevision
         : event.samples.at(-1)?.acceptedRevision;
@@ -246,7 +327,8 @@ describe("Studio SimulationSession coordinator V1", () => {
         && branch.targetGeneration === event.targetGeneration
         && branch.presentationRevision === event.presentationRevision
         && branch.streamEpoch === event.streamEpoch
-        && branch.display.latestSample.acceptedRevision === latestSequence,
+        && presentation?.presentation.sample.acceptedRevision
+          === latestSequence,
       );
     });
 
@@ -438,20 +520,22 @@ describe("Studio SimulationSession coordinator V1", () => {
 
     expect(coordinator.branch("baseline")).toMatchObject({
       targetGeneration: 1,
-      display: {
-        retainedSampleCount: 2,
-        latestSample: { acceptedRevision: firstSequence },
-      },
       latestSteadyCandidate: {
         targetGeneration: 1,
       },
     });
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
+        retainedSampleCount: 2,
+        presentation: {
+          sample: { acceptedRevision: firstSequence },
+        },
+      });
     expect(stateDeliveries).toEqual([
       "live|g0|samples:1|candidate:false",
       "live|g1|samples:1|candidate:false",
       "live|g1|samples:1|candidate:false",
-      "live|g1|samples:2|candidate:false",
-      "live|g1|samples:2|candidate:true",
+      "live|g1|samples:1|candidate:true",
     ]);
     expect(presentationDeliveries).toEqual([
       "reset|baseline|g0",
@@ -978,9 +1062,10 @@ describe("Studio SimulationSession coordinator V1", () => {
     });
 
     await coordinator.open(openCommandV1());
-    expect(coordinator.branch("baseline").display).toMatchObject({
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
       retainedSampleCount: 2,
-      latestSample: { acceptedRevision: 2 },
+      presentation: { sample: { acceptedRevision: 2 } },
     });
 
     coordinator.applyControlIntent({
@@ -1003,10 +1088,11 @@ describe("Studio SimulationSession coordinator V1", () => {
     runtime.resolveLive("intent/immediate-activation");
     runtime.resolveStrict("intent/immediate-activation");
     await flushV1();
-    expect(coordinator.branch("baseline").display).toMatchObject({
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
       origin: { kind: "live-transition" },
       retainedSampleCount: 2,
-      latestSample: { acceptedRevision: 102 },
+      presentation: { sample: { acceptedRevision: 102 } },
     });
 
     runtime.queueImmediateSignalOnResume("baseline", {
@@ -1023,10 +1109,11 @@ describe("Studio SimulationSession coordinator V1", () => {
       },
     });
     await coordinator.promoteSteadyCandidate("baseline");
-    expect(coordinator.branch("baseline").display).toMatchObject({
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
       origin: { kind: "promoted-steady-candidate" },
       retainedSampleCount: 2,
-      latestSample: { acceptedRevision: 1_002 },
+      presentation: { sample: { acceptedRevision: 1_002 } },
     });
     expect(runtime.resumedSignalEpochs.filter(({ scenarioId }) =>
       scenarioId === "baseline"
@@ -1150,8 +1237,14 @@ describe("Studio SimulationSession coordinator V1", () => {
     expect(regressingCoordinator.branch("baseline")).toMatchObject({
       livePlayback: "running",
       lastRuntimeFailure: null,
-      livePacing: { mode: "degraded", cumulativeRebasedDeficitMs: 1_400 },
     });
+    expect(regressingCoordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
+        livePacing: {
+          mode: "degraded",
+          cumulativeRebasedDeficitMs: 1_400,
+        },
+      });
     regressingRuntime.emitSignal("baseline", {
       kind: "samples",
       targetGeneration: 0,
@@ -1225,8 +1318,11 @@ describe("Studio SimulationSession coordinator V1", () => {
     expect(recoveredCoordinator.branch("baseline")).toMatchObject({
       livePlayback: "running",
       lastRuntimeFailure: null,
-      livePacing: { mode: "realtime-1x", recentAchievedRate: null },
     });
+    expect(recoveredCoordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
+        livePacing: { mode: "realtime-1x", recentAchievedRate: null },
+      });
 
     // A rate that actively contradicts the claim is still rejected.
     const contradictingRuntime = new FakeRuntimePortV1();
@@ -1354,41 +1450,54 @@ describe("Studio SimulationSession coordinator V1", () => {
         retentionReason: "observation-stride",
       }),
     );
-    expect(strideCoordinator.branch("baseline")).toMatchObject({
-      livePlayback: "running",
-      display: {
+    expect(strideCoordinator.branch("baseline").livePlayback).toBe("running");
+    expect(strideCoordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
         retainedSampleCount: 2,
-        latestSample: {
+        presentation: { sample: {
           presentationOrdinal: 1,
           acceptedRevision: 17,
           acceptedStepSpanFromPrevious: 16,
-        },
-      },
-    });
+        } },
+      });
 
     const boundaryRuntime = new FakeRuntimePortV1();
     const boundaryCoordinator = coordinatorV1(boundaryRuntime);
     await boundaryCoordinator.open(openCommandV1());
-    boundaryRuntime.emitRawSignal(
-      "baseline",
-      rawPresentationBatchV1({
-        presentationOrdinal: 1,
-        acceptedRevision: 500,
-        acceptedTimeSec: 1,
-        acceptedStepSpanFromPrevious: 499,
-        phase: 0,
-        retentionReason: "canonical-beat-boundary",
-      }),
-    );
-    expect(boundaryCoordinator.branch("baseline")).toMatchObject({
-      livePlayback: "running",
-      display: {
-        latestSample: {
+    const retainedRevisions = [
+      ...Array.from({ length: 31 }, (_, index) => 17 + index * 16),
+      500,
+    ];
+    for (const [index, acceptedRevision] of retainedRevisions.entries()) {
+      const previousRevision = index === 0
+        ? 1
+        : retainedRevisions[index - 1]!;
+      boundaryRuntime.emitRawSignal(
+        "baseline",
+        rawPresentationBatchV1({
+          presentationOrdinal: index + 1,
+          acceptedRevision,
+          acceptedTimeSec: acceptedRevision * 0.002,
+          acceptedStepSpanFromPrevious:
+            acceptedRevision - previousRevision,
+          phase: (acceptedRevision % 500) / 500,
+          retentionReason: acceptedRevision === 500
+            ? "canonical-beat-boundary"
+            : "observation-stride",
+        }, index + 2),
+      );
+    }
+    expect(boundaryCoordinator.branch("baseline").livePlayback)
+      .toBe("running");
+    expect(boundaryCoordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
+        retainedSampleCount: 33,
+        presentation: { sample: {
           acceptedRevision: 500,
+          acceptedStepSpanFromPrevious: 3,
           retentionReason: "canonical-beat-boundary",
-        },
-      },
-    });
+        } },
+      });
   });
 
   it.each([
@@ -1422,6 +1531,17 @@ describe("Studio SimulationSession coordinator V1", () => {
         acceptedTimeSec: 0.035,
         acceptedStepSpanFromPrevious: 16,
         phase: 0.035,
+        retentionReason: "observation-stride" as const,
+      },
+    ],
+    [
+      "a span above the fixed observation stride",
+      {
+        presentationOrdinal: 1,
+        acceptedRevision: 18,
+        acceptedTimeSec: 0.036,
+        acceptedStepSpanFromPrevious: 17,
+        phase: 0.036,
         retentionReason: "observation-stride" as const,
       },
     ],
@@ -1689,9 +1809,12 @@ describe("Studio SimulationSession coordinator V1", () => {
         latestBeatEstimate: null,
       },
     });
-    expect(coordinator.branch("baseline").display).toMatchObject({
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
       retainedSampleCount: 3,
-      latestSample: { acceptedRevision: nextSequence + 1 },
+      presentation: {
+        sample: { acceptedRevision: nextSequence + 1 },
+      },
     });
 
     await coordinator.suspendBranch("baseline");
@@ -1709,8 +1832,10 @@ describe("Studio SimulationSession coordinator V1", () => {
         latestBeatEstimate: null,
       },
     });
-    expect(coordinator.branch("baseline").display.latestSample.acceptedRevision)
-      .toBe(nextSequence + 1);
+    expect(
+      coordinator.getScenarioPresentationSnapshot("baseline")
+        ?.presentation.sample.acceptedRevision,
+    ).toBe(nextSequence + 1);
 
     await coordinator.resumeBranch("baseline");
     expect(coordinator.branch("baseline").livePlayback).toBe("running");
@@ -1749,12 +1874,15 @@ describe("Studio SimulationSession coordinator V1", () => {
     });
     expect(coordinator.branch("baseline")).toMatchObject({
       livePlayback: "suspended",
-      display: {
-        retainedSampleCount: 2,
-        latestSample: { acceptedRevision: boundarySequence },
-      },
       lastRuntimeFailure: null,
     });
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
+        retainedSampleCount: 2,
+        presentation: {
+          sample: { acceptedRevision: boundarySequence },
+        },
+      });
 
     suspendGate.resolve(undefined);
     await suspending;
@@ -1774,12 +1902,15 @@ describe("Studio SimulationSession coordinator V1", () => {
     });
     expect(coordinator.branch("baseline")).toMatchObject({
       livePlayback: "running",
-      display: {
-        retainedSampleCount: 3,
-        latestSample: { acceptedRevision: boundarySequence + 1 },
-      },
       lastRuntimeFailure: null,
     });
+    expect(coordinator.getScenarioPresentationSnapshot("baseline"))
+      .toMatchObject({
+        retainedSampleCount: 3,
+        presentation: {
+          sample: { acceptedRevision: boundarySequence + 1 },
+        },
+      });
   });
 });
 
@@ -1921,6 +2052,7 @@ function frameV1(
 
 function rawPresentationBatchV1(
   sample: Omit<RuntimePresentationSampleV1, "coverage" | "values">,
+  retainedSampleCount = 2,
 ): Readonly<Record<string, unknown>> {
   return {
     kind: "samples",
@@ -1934,7 +2066,7 @@ function rawPresentationBatchV1(
     })],
     metricState: {
       status: "collecting",
-      retainedSampleCount: 2,
+      retainedSampleCount,
       completedBeatCount: 0,
       latestBeatEstimate: null,
     },

@@ -35,16 +35,26 @@ const METRIC_DEPENDENCIES_V1 = Object.freeze([
 ]);
 
 describe("MainWire presentation estimator registry V1", () => {
-  it("matches the prior stride-1 formulas while retaining weaker evidence", () => {
+  it("characterizes supported stride-16 estimates and refuses unsupported claims", () => {
     const onSampleUpdate = vi.fn();
     const onBeatFinalized = vi.fn();
     const accumulator = createMainWirePresentationBeatAccumulatorV1({
       onSampleUpdate,
       onBeatFinalized,
     });
-    const samples = Array.from(
+    const exactSamples = Array.from(
       { length: 501 },
       (_, ordinal) => presentationSampleV1(ordinal),
+    );
+    const retainedSteps = boundaryAwareStrideStepsV1(500);
+    const samples = retainedSteps.map((acceptedRevision, ordinal) =>
+      presentationSampleV1(
+        ordinal,
+        acceptedRevision,
+        ordinal === 0
+          ? 0
+          : acceptedRevision - retainedSteps[ordinal - 1]!,
+      )
     );
 
     let estimate = null;
@@ -54,7 +64,7 @@ describe("MainWire presentation estimator registry V1", () => {
     expect(estimate).not.toBeNull();
 
     const exactTestBeat = Object.freeze({
-      frames: Object.freeze(samples.map((sample) =>
+      frames: Object.freeze(exactSamples.map((sample) =>
         projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
           sample,
           releaseRef: RELEASE_V1,
@@ -74,22 +84,43 @@ describe("MainWire presentation estimator registry V1", () => {
       exactTestBeat,
     );
 
-    for (const { metricId } of
+    let maximumSupportedRelativeError = 0;
+    for (const { metricId, quantityKind } of
       MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1) {
       const estimatedMetric = estimate!.values[metricId]!;
       const priorMetric = prior.values[metricId];
-      expect(estimatedMetric.availability).toBe(priorMetric.availability);
-      if (priorMetric.value === null) {
+      if (
+        MAIN_WIRE_PRESENTATION_ESTIMATOR_REGISTRY_SNAPSHOT_V1
+          .characterization.unavailableQuantityKinds.includes(
+            quantityKind as never,
+          )
+      ) {
+        expect(estimatedMetric).toMatchObject({
+          value: null,
+          availability: "not-measurable",
+          unavailableReason: "presentation-decimation-unsupported",
+        });
+      } else if (priorMetric.value === null) {
         expect(estimatedMetric.value).toBeNull();
       } else {
-        expect(estimatedMetric.value).toBeCloseTo(priorMetric.value, 12);
+        expect(estimatedMetric.availability).toBe("available");
+        const relativeError = Math.abs(
+          (estimatedMetric.value! - priorMetric.value) / priorMetric.value,
+        );
+        maximumSupportedRelativeError = Math.max(
+          maximumSupportedRelativeError,
+          relativeError,
+        );
       }
     }
+    expect(maximumSupportedRelativeError).toBeLessThanOrEqual(0.08);
     expect(estimate).toMatchObject({
       coverage: "decimated-presentation",
       startPresentationOrdinal: 0,
-      endPresentationOrdinal: 500,
-      retainedSampleCount: 501,
+      endPresentationOrdinal: 32,
+      startAcceptedRevision: 0,
+      endAcceptedRevision: 500,
+      retainedSampleCount: 33,
       evidence: {
         bothCanonicalBeatBoundariesRetained: true,
         transientBeatFullyMeasured: false,
@@ -103,6 +134,15 @@ describe("MainWire presentation estimator registry V1", () => {
         beatBoundary:
           "canonical-phase-0-to-next-canonical-phase-0",
         exactEvaluatorInputProduced: false,
+        fixedObservationStride: 16,
+        expectedBoundaryAlignedSampleCount: 33,
+        characterization: {
+          purpose: "live-screening-estimate-only",
+          supportedMetricRelativeErrorAcceptanceCeilingPercent: 8,
+          generalizedErrorBoundClaimed: false,
+          valveDiseaseAccuracyClaimed: false,
+          exactExportEquivalent: false,
+        },
       });
   });
 
@@ -114,20 +154,27 @@ describe("MainWire presentation estimator registry V1", () => {
       onBeatFinalized,
     });
 
-    for (let ordinal = 0; ordinal <= 1_000; ordinal += 1) {
-      accumulator.update(presentationSampleV1(ordinal));
+    const retainedSteps = boundaryAwareStrideStepsV1(1_000);
+    for (const [ordinal, acceptedRevision] of retainedSteps.entries()) {
+      accumulator.update(presentationSampleV1(
+        ordinal,
+        acceptedRevision,
+        ordinal === 0
+          ? 0
+          : acceptedRevision - retainedSteps[ordinal - 1]!,
+      ));
     }
 
     expect(accumulator.getInstrumentationSnapshot()).toEqual({
-      sampleUpdateCount: 1_001,
+      sampleUpdateCount: 65,
       beatFinalizationCount: 2,
     });
-    expect(onSampleUpdate).toHaveBeenCalledTimes(1_001);
+    expect(onSampleUpdate).toHaveBeenCalledTimes(65);
     expect(onBeatFinalized).toHaveBeenCalledTimes(2);
     expect(accumulator.getLatestEstimate()).toMatchObject({
-      startPresentationOrdinal: 500,
-      endPresentationOrdinal: 1_000,
-      retainedSampleCount: 501,
+      startPresentationOrdinal: 32,
+      endPresentationOrdinal: 64,
+      retainedSampleCount: 33,
     });
   });
 
@@ -136,7 +183,7 @@ describe("MainWire presentation estimator registry V1", () => {
     accumulator.update(presentationSampleV1(0));
 
     expect(() => accumulator.update(Object.freeze({
-      ...presentationSampleV1(501),
+      ...presentationSampleV1(1, 501, 501),
       presentationOrdinal: 1,
       acceptedStepSpanFromPrevious: 501,
     }))).toThrow(/omitted beat boundary/);
@@ -150,15 +197,17 @@ describe("MainWire presentation estimator registry V1", () => {
 
 function presentationSampleV1(
   presentationOrdinal: number,
+  acceptedRevision = presentationOrdinal,
+  acceptedStepSpanFromPrevious = presentationOrdinal === 0 ? 0 : 1,
 ): RuntimePresentationSampleV1 {
-  const phaseStep = presentationOrdinal % 500;
+  const phaseStep = acceptedRevision % 500;
   const phase = phaseStep / 500;
   return Object.freeze({
     coverage: "decimated-presentation" as const,
     presentationOrdinal,
-    acceptedRevision: presentationOrdinal,
-    acceptedTimeSec: presentationOrdinal * 0.002,
-    acceptedStepSpanFromPrevious: presentationOrdinal === 0 ? 0 : 1,
+    acceptedRevision,
+    acceptedTimeSec: acceptedRevision * 0.002,
+    acceptedStepSpanFromPrevious,
     phase,
     values: Object.freeze(Object.fromEntries(
       METRIC_DEPENDENCIES_V1.map((observableId) => [
@@ -172,6 +221,15 @@ function presentationSampleV1(
         ? "canonical-beat-boundary" as const
         : "observation-stride" as const,
   });
+}
+
+function boundaryAwareStrideStepsV1(
+  finalAcceptedRevision: number,
+): readonly number[] {
+  return Object.freeze(
+    Array.from({ length: finalAcceptedRevision + 1 }, (_, revision) => revision)
+      .filter((revision) => revision % 16 === 0 || revision % 500 === 0),
+  );
 }
 
 function dependencyValueV1(

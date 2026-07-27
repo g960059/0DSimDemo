@@ -11,6 +11,7 @@ import type {
 } from "@/components/scientificProduct/ScientificProductRuntimeRegistryPortV1";
 import {
   ScientificProductGraphPaneV1,
+  useScientificScenarioPresentationV1,
 } from "@/components/scientificProduct/ScientificWorkbenchRuntimeRendererV1";
 import {
   createScientificWorkbenchDisplayClockV1,
@@ -485,14 +486,10 @@ function StudioExperimentReadbacksV1({
   // Per-beat values come from the scenario's finalized metric evidence: a
   // presentation estimate for Studio live branches, or an exact metric cycle
   // for legacy/settled sources. Neither is derived from render-frame history.
-  React.useSyncExternalStore(
-    registry.subscribeFrames,
-    registry.getFrameVersionSnapshot,
-    registry.getFrameVersionSnapshot,
+  const presentation = useScientificScenarioPresentationV1(
+    registry,
+    scenarioId,
   );
-  const presentation = scenarioId === undefined
-    ? null
-    : registry.getPresentation(scenarioId);
   const evaluation = presentation === null
     ? null
     : metricEvaluationForPresentationV1(presentation);

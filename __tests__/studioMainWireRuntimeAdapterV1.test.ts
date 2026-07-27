@@ -12,6 +12,9 @@ import {
   type MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import {
+  MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1,
+} from "@/engine/scientific/metrics";
+import {
   emptyMainWireScientificFastTbvPreviewV1,
 } from "@/engine/scientific/protocols/MainWireScientificFastTbvPreviewV1";
 import type {
@@ -47,6 +50,7 @@ import {
   MainWireBrowserWorkerSessionHostV1,
   MainWireSimulationRuntimeAdapterV1,
   MainWireStudioTransientPartialProgressErrorV1,
+  createMainWirePresentationBeatAccumulatorV1,
   MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1,
   loadMainWireStudioSnapshotEnvelopeV1,
   mainWireStudioExecutionIdentityV1,
@@ -79,6 +83,9 @@ import type {
   StudioSettledAnalysisSourceV1,
   StudioJsonWriteV1,
   StudioJsonValueV1,
+} from "@/studio/contracts/v1";
+import {
+  runtimePresentationCanonicalPhaseV1,
 } from "@/studio/contracts/v1";
 import {
   loadExactSignalExportContentV1,
@@ -369,6 +376,79 @@ describe("MainWire Studio runtime adapter", () => {
     expect(recovered.delayMs).toBe(14);
     expect(recovered.livePacing.epochLagMs).toBe(0);
     expect(recovered.didRebase).toBe(false);
+  });
+
+  it("matches stride-1 pacing mode, achieved rate, and deficit under a fake clock", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.yieldRunToTimer = true;
+    const clock = new FakeMonotonicClockV1();
+    const activeDurationsMs: number[] = [];
+    const durationScheduleMs = [20, 40, 10, 100];
+    harness.onRunTransient = () => {
+      const duration = durationScheduleMs[
+        Math.min(activeDurationsMs.length, durationScheduleMs.length - 1)
+      ]!;
+      activeDurationsMs.push(duration);
+      clock.advance(duration);
+    };
+    const adapter = runtimeAdapterV1(stored, harness, {
+      liveStepCountPerChunk: 16,
+      nowMs: clock.nowMs,
+      delayMs: clock.delayMs,
+    });
+    const opened = await adapter.openSession({
+      sessionId: "stride-independent-pacing-session",
+      branches: [sourceBranchV1(stored, "stride-independent-pacing-scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+      (event) => {
+        if (event.kind === "samples") batches.push(event);
+      },
+    );
+
+    await adapter.resumePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+      0,
+    );
+    await waitForV1(() => batches.length >= 3);
+    await adapter.suspendPresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+    );
+
+    let referenceWallNowMs = 0;
+    let referenceState = mainWireStudioInitialLivePacingEpochStateV1({
+      wallNowMs: referenceWallNowMs,
+      acceptedSimulationNowSec: baseFixture.frame.acceptedTimeSec,
+      mode: "realtime-1x",
+      cumulativeRebasedDeficitMs: 0,
+    });
+    for (const [index, batch] of batches.entries()) {
+      const activeWallDurationMs = activeDurationsMs[index]!;
+      referenceWallNowMs += activeWallDurationMs;
+      // A stride-1 observer would retain all 16 accepted steps, but pacing is
+      // driven by the same accepted endpoint and fake-clock duration.
+      const strideOneReference = mainWireStudioLivePacingDecisionV1({
+        state: referenceState,
+        wallNowMs: referenceWallNowMs,
+        acceptedSimulationNowSec:
+          batch.samples.at(-1)!.acceptedTimeSec,
+        activeWallDurationMs,
+      });
+      expect(batch.samples).toHaveLength(1);
+      expect(batch.livePacing).toEqual(strideOneReference.livePacing);
+      referenceState = strideOneReference.nextState;
+      referenceWallNowMs += strideOneReference.delayMs;
+    }
+    expect(harness.hosts[0]!.runTransientInputs.slice(0, batches.length))
+      .toEqual(batches.map(() => ({
+        stepCount: 16,
+        observationStride: 16,
+      })));
+    await adapter.closeSession("stride-independent-pacing-session");
   });
 
   it("re-anchors past one cycle of lag instead of failing, and only recovers after a full cycle at 1x", () => {
@@ -688,7 +768,7 @@ describe("MainWire Studio runtime adapter", () => {
     const firstTwoCycles = transientCommands.slice(0, 64);
     expect(firstTwoCycles).toHaveLength(64);
     expect(firstTwoCycles.every(({ observationStride }) =>
-      observationStride === 1
+      observationStride === 16
     )).toBe(true);
     expect(firstTwoCycles.map(({ stepCount }) => stepCount)).toEqual([
       ...Array.from({ length: 31 }, () => 16),
@@ -726,6 +806,151 @@ describe("MainWire Studio runtime adapter", () => {
         },
       },
     });
+    const exactResult = await adapter.exportExactSignals({
+      sessionId: "production-boundary-retention-session",
+      scenarioId: "production-boundary-retention-scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 1,
+    });
+    const exactContent = await loadExactSignalExportContentV1(
+      await stored.artifacts.readJson(exactResult.artifactRef),
+    );
+    const exactAccumulator =
+      createMainWirePresentationBeatAccumulatorV1();
+    let exactEstimate = null;
+    for (const [ordinal, sample] of exactContent.samples.entries()) {
+      // Exact restore has no kernel read command for reconstructing the
+      // observable vector at the restore point. Use the production-projected
+      // source boundary that the live adapter actually opened; every accepted
+      // interval after it comes from the stride-1 exact replay artifact.
+      const values = ordinal === 0
+        ? branch.initialPresentation.sample.values
+        : Object.fromEntries(
+          Object.entries(sample.values).flatMap(([id, value]) =>
+            value.availability === "available" && value.value !== null
+              ? [[id, value.value]]
+              : []
+          ),
+        );
+      exactEstimate = exactAccumulator.update(Object.freeze({
+        coverage: "decimated-presentation" as const,
+        presentationOrdinal: ordinal,
+        acceptedRevision: sample.revision,
+        acceptedTimeSec: sample.simulationTimeSec,
+        acceptedStepSpanFromPrevious: ordinal === 0 ? 0 : 1,
+        phase: runtimePresentationCanonicalPhaseV1(sample.revision),
+        values: Object.freeze(values),
+        retentionReason: ordinal === 0
+          ? "stream-boundary" as const
+          : runtimePresentationCanonicalPhaseV1(sample.revision) === 0
+            ? "canonical-beat-boundary" as const
+            : "observation-stride" as const,
+      }));
+    }
+    const decimatedEstimate = batches.find((batch) =>
+      batch.metricState.completedBeatCount === 1
+    )?.metricState.latestBeatEstimate;
+    expect(decimatedEstimate).toMatchObject({
+      retainedSampleCount: 33,
+      evidence: {
+        exportEquivalent: false,
+      },
+    });
+    const firstCycleSamples = samples.filter(({ acceptedRevision }) =>
+      acceptedRevision
+        <= productionFixture.checkpoint.transaction.revision + 500
+    );
+    expect(firstCycleSamples).toHaveLength(32);
+    expect(Math.max(...samples.map(
+      ({ acceptedStepSpanFromPrevious }) => acceptedStepSpanFromPrevious,
+    ))).toBe(16);
+    expect(exactContent.samples).toHaveLength(501);
+    expect(
+      100 * (1 - firstCycleSamples.length / 500),
+    ).toBeCloseTo(93.6, 12);
+
+    for (const definition of
+      MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1) {
+      const exact = exactEstimate!.values[definition.metricId]!;
+      const decimated = decimatedEstimate!.values[definition.metricId]!;
+      const unsupported =
+        definition.quantityKind === "reverse-cycle-volume"
+        || definition.quantityKind === "same-valve-regurgitant-fraction"
+        || definition.quantityKind === "forward-flow-peak-gradient"
+        || definition.quantityKind === "forward-flow-time-mean-gradient";
+      if (unsupported) {
+        expect(decimated).toMatchObject({
+          value: null,
+          availability: "not-measurable",
+          unavailableReason: "presentation-decimation-unsupported",
+        });
+        continue;
+      }
+      expect(exact.value, definition.metricId).not.toBeNull();
+      expect(decimated.availability).toBe("available");
+      const relativeErrorPercent =
+        100 * Math.abs(decimated.value! - exact.value!)
+          / Math.abs(exact.value!);
+      expect(relativeErrorPercent).toBeLessThanOrEqual(8);
+    }
+
+    const internal = internalAdapterBranchV1(
+      adapter,
+      "production-boundary-retention-session",
+      "production-boundary-retention-scenario",
+    );
+    const liveCheckpoint = await internal.host.checkpointV4(
+      internal.hostedSession,
+    );
+    const referenceKernel = new MainWireScientificInProcessKernelV1({
+      maximumRequestCountPerKernelLifetime:
+        MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+          .maximumRequestCountPerLifetime,
+      maximumSessionIdentityCountPerKernelLifetime:
+        MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+          .maximumSessionIdentityCountPerLifetime,
+      maximumTransientStepCountPerCommand:
+        MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+          .maximumTransientStepCountPerCommand,
+      maximumOutputFrameCountPerCommand:
+        MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+          .maximumOutputFrameCountPerCommand,
+    });
+    const referenceHost = new MainWireBrowserWorkerSessionHostV1({
+      hostId: "production-stride-one-reference-host",
+      client: {
+        request: (command: ScientificCommandV1) =>
+          referenceKernel.handle(command),
+        terminate: vi.fn(),
+      } as never,
+    });
+    let referenceSession = await referenceHost.restoreV4({
+      sessionId: "production-stride-one-reference-session",
+      resolvedSessionInput: productionFixture.sessionInput,
+      checkpointV4: productionFixture.checkpoint,
+    });
+    let remainingReferenceSteps =
+      liveCheckpoint.session.stateIdentity.revision
+      - productionFixture.checkpoint.transaction.revision;
+    while (remainingReferenceSteps > 0) {
+      const stepCount = Math.min(16, remainingReferenceSteps);
+      const chunk = await referenceHost.runTransient({
+        session: referenceSession,
+        dtSec: 0.002,
+        stepCount,
+        observationStride: 1,
+      });
+      referenceSession = chunk.session;
+      remainingReferenceSteps -= stepCount;
+    }
+    const referenceCheckpoint =
+      await referenceHost.checkpointV4(referenceSession);
+    expect(liveCheckpoint.checkpointV4)
+      .toEqual(referenceCheckpoint.checkpointV4);
+    referenceHost.terminate();
     await adapter.closeSession("production-boundary-retention-session");
   }, 30_000);
 
@@ -872,7 +1097,7 @@ describe("MainWire Studio runtime adapter", () => {
     expect(harness.hosts[1]!.terminated).toBe(true);
   });
 
-  it("streams 1x presentation samples and suspends/resumes at host command boundaries", async () => {
+  it("streams fixed-stride presentation samples and suspends/resumes at host command boundaries", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);
     const onSampleUpdate = vi.fn();
@@ -912,9 +1137,11 @@ describe("MainWire Studio runtime adapter", () => {
       presentationRevision: 0,
       streamEpoch: 0,
     });
-    expect(batches[0]!.samples).toHaveLength(2);
-    expect(batches[0]!.samples[1]!.presentationOrdinal)
-      .toBeGreaterThan(batches[0]!.samples[0]!.presentationOrdinal);
+    expect(batches[0]!.samples).toHaveLength(1);
+    expect(batches[0]!.samples[0]).toMatchObject({
+      acceptedStepSpanFromPrevious: 2,
+      retentionReason: "observation-stride",
+    });
 
     await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(
@@ -964,8 +1191,11 @@ describe("MainWire Studio runtime adapter", () => {
     // presentation of a chunk, not its computation, so the loop may already
     // have issued the next command by the time the first batch is observed.
     expect(harness.hosts[1]!.runTransientCallCount).toBeGreaterThanOrEqual(1);
-    expect(batches[0]!.samples[0]!.acceptedRevision)
-      .toBe(baseFixture.frame.revision + 1);
+    expect(batches[0]!.samples[0]).toMatchObject({
+      acceptedRevision: baseFixture.frame.revision + 2,
+      acceptedStepSpanFromPrevious: 2,
+      retentionReason: "observation-stride",
+    });
     await adapter.closeSession("live-host-rotation-session");
     expect(harness.hosts[1]!.terminated).toBe(true);
   });
@@ -1353,6 +1583,21 @@ describe("MainWire Studio runtime adapter", () => {
       execution.strict,
     ]);
     expect(live.branches[0]!.status).toBe("success");
+    expect(live.branches[0]).toMatchObject({
+      status: "success",
+      result: {
+        initialPresentation: {
+          sample: {
+            acceptedStepSpanFromPrevious: 0,
+            retentionReason: "stream-boundary",
+          },
+        },
+      },
+    });
+    expect(harness.hosts[0]!.runTransientInputs[0]).toEqual({
+      stepCount: 1,
+      observationStride: 16,
+    });
     expect(strict.branches[0]!.status).toBe("success");
     if (strict.branches[0]!.status !== "success") {
       throw new Error("strict fixture did not create a candidate");
@@ -1756,7 +2001,7 @@ describe("MainWire Studio runtime adapter", () => {
 
     const ordinals = batches.flatMap(({ samples }) =>
       samples.map(({ presentationOrdinal }) => presentationOrdinal));
-    expect(ordinals.length).toBeGreaterThanOrEqual(4);
+    expect(ordinals.length).toBeGreaterThanOrEqual(2);
     for (let index = 1; index < ordinals.length; index += 1) {
       expect(ordinals[index]).toBe(ordinals[index - 1]! + 1);
     }
@@ -1818,6 +2063,17 @@ describe("MainWire Studio runtime adapter", () => {
     expect(workerAccepted.stateIdentity).toMatchObject({
       revision: baseFixture.frame.revision + 1,
       acceptedTimeSec: baseFixture.frame.acceptedTimeSec + 0.002,
+    });
+    expect(events.map(({ kind }) => kind)).toEqual(["samples", "failure"]);
+    expect(events[0]).toMatchObject({
+      kind: "samples",
+      samples: [{
+        acceptedRevision: baseFixture.frame.revision + 1,
+        acceptedStepSpanFromPrevious: 1,
+      }],
+      metricState: {
+        retainedSampleCount: 2,
+      },
     });
     expect(events.find(({ kind }) => kind === "failure")).toMatchObject({
       kind: "failure",
@@ -2010,6 +2266,10 @@ describe("MainWire Studio runtime adapter", () => {
       (finalLivePhase as number) - (candidatePhase as number),
     );
     expect(Math.min(phaseDistance, 1 - phaseDistance)).toBeLessThan(1e-9);
+    expect(harness.hosts[0]!.runTransientInputs.length).toBeGreaterThan(1);
+    expect(harness.hosts[0]!.runTransientInputs.every((input) =>
+      input.observationStride === 16 && input.stepCount <= 16
+    )).toBe(true);
     await adapter.closeSession("phase-promotion-session");
   });
 
@@ -2960,6 +3220,19 @@ async function createBaseFixtureV1() {
   if (strictSettlement.completed === false) {
     throw new Error(strictSettlement.message);
   }
+  const strictBoundaryReferenceSession =
+    await MainWireScientificSessionV1.restoreExactV4(
+      release,
+      session.sessionInput,
+      strictCheckpoint,
+    );
+  const strictBoundaryReference = strictBoundaryReferenceSession.runTransient({
+    dtSec: 0.002,
+    stepCount: 500,
+  });
+  if (!strictBoundaryReference.completed) {
+    throw new Error("strict boundary reference cycle failed");
+  }
   const frame = projectMainWireScientificObservationV1(step.observation);
   const strictStateIdentity = strictSession.stateIdentity();
   return Object.freeze({
@@ -2971,7 +3244,9 @@ async function createBaseFixtureV1() {
     strictCheckpoint,
     strictStateIdentity,
     strictFrame: frameAtV1(
-      frame,
+      projectMainWireScientificObservationV1(
+        strictBoundaryReference.finalObservation,
+      ),
       strictStateIdentity.revision,
       strictStateIdentity.acceptedTimeSec,
     ),
@@ -3285,6 +3560,10 @@ class FakeHostHarnessV1 {
 class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
   readonly sessions = new Map<string, MainWireStudioHostedSessionV1>();
   readonly checkpointV4Inputs: MainWireStudioHostedSessionV1[] = [];
+  readonly runTransientInputs: Array<Readonly<{
+    stepCount: number;
+    observationStride: number;
+  }>> = [];
   private readonly strictSettledSessionIds = new Set<string>();
   requestCount = 0;
   runTransientCallCount = 0;
@@ -3397,6 +3676,10 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
     this.requestCount += 1;
     this.assertOwnedV1(input.session);
     this.runTransientCallCount += 1;
+    this.runTransientInputs.push(Object.freeze({
+      stepCount: input.stepCount,
+      observationStride: input.observationStride,
+    }));
     this.harness.onRunTransient?.();
     this.harness.events.push({
       kind: "run",
@@ -3464,12 +3747,12 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
         ));
       }
     }
-    const frame = frames.at(-1)
-      ?? frameAtV1(
-        input.session.observableFrame,
-        revision,
-        acceptedTimeSec,
-      );
+    const frame = frameAtV1(
+      input.session.observableFrame,
+      revision,
+      acceptedTimeSec,
+    );
+    if (frames.at(-1)?.revision !== revision) frames.push(frame);
     const session = hostedSessionV1({
       ...input.session,
       frame,

@@ -420,6 +420,10 @@ describe("Scientific Product Studio scenario controller V1", () => {
       lane: "live",
       message: expect.stringContaining("live worker died"),
     });
+    expect(controller.controlStore.getSnapshot()).toMatchObject({
+      phase: "failed",
+      errorMessage: expect.stringContaining("live worker died"),
+    });
 
     await controller.dispose();
   });

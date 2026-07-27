@@ -36,10 +36,11 @@ export const RUNTIME_PRESENTATION_STEPS_PER_CYCLE_V1 =
   RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1
   / RUNTIME_PRESENTATION_DT_SEC_V1;
 /**
- * Stage 1/2 contract value. A later change may increase this without changing
- * the accepted numerical step or exact replay/export grid.
+ * Fixed presentation policy. It is deliberately independent of pacing state,
+ * lane count, and render demand. The accepted numerical step and exact
+ * replay/export tier remain fixed at their stride-1 0.002 s grid.
  */
-export const RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1 = 1 as const;
+export const RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1 = 16 as const;
 
 /**
  * Canonical presentation phase is indexed by the fixed accepted-step grid,
@@ -121,6 +122,7 @@ export type RuntimePresentationMetricEstimateValueV1 = Readonly<{
     | "dependency-contract-invalid"
     | "invalid-derived-denominator"
     | "derived-value-non-finite"
+    | "presentation-decimation-unsupported"
     | null;
   unavailableDependency: string | null;
 }>;
@@ -487,11 +489,29 @@ export type RuntimePresentationEventV1 =
   | RuntimePresentationResetEventV1
   | RuntimePresentationAppendEventV1;
 
+/**
+ * Branch-local external-store value for the volatile presentation plane.
+ *
+ * The coordinator replaces this object only when this scenario resets or
+ * admits a sample batch. Other scenarios, strict-candidate completion, and
+ * aggregate session bookkeeping leave its identity unchanged.
+ */
+export type RuntimeScenarioPresentationSnapshotV1 =
+  RuntimePresentationEventIdentityV1 & Readonly<{
+    origin: RuntimeDisplayOriginV1;
+    firstSample: RuntimePresentationSampleV1;
+    presentation: RuntimePresentationSnapshotV1;
+    retainedSampleCount: number;
+    livePacing: RuntimeLivePacingStateV1;
+  }>;
+
 export type RuntimeDisplayWindowV1 = Readonly<{
   origin: RuntimeDisplayOriginV1;
   /**
-   * The high-frequency trace belongs on a signal channel. This control-plane
-   * view keeps only its first/latest presentation samples and a growth count.
+   * The high-frequency trace belongs to
+   * `RuntimeScenarioPresentationSnapshotV1`. This aggregate control-plane view
+   * is replaced only at a trace reset and therefore remains the durable origin
+   * identity for intent, promotion, close, and failure coordination.
    */
   firstSample: RuntimePresentationSampleV1;
   latestSample: RuntimePresentationSampleV1;

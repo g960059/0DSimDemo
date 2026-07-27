@@ -213,6 +213,8 @@ implements ScientificProductRuntimeRegistryPortV1 {
   private readonly entries = new Map<string, ScenarioEntryV1>();
   private readonly descriptorListeners = new Set<() => void>();
   private readonly frameListeners = new Set<() => void>();
+  private readonly scenarioPresentationListeners =
+    new Map<string, Set<() => void>>();
   private readonly protocolListeners = new Set<() => void>();
   private readonly hemodynamicProtocolDemands = new Map<
     string,
@@ -291,6 +293,27 @@ implements ScientificProductRuntimeRegistryPortV1 {
   };
 
   readonly getFrameVersionSnapshot = () => this.frameVersion;
+
+  readonly subscribeScenarioPresentation = (
+    scenarioId: string,
+    listener: () => void,
+  ): (() => void) => {
+    const listeners =
+      this.scenarioPresentationListeners.get(scenarioId) ?? new Set();
+    listeners.add(listener);
+    this.scenarioPresentationListeners.set(scenarioId, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) {
+        this.scenarioPresentationListeners.delete(scenarioId);
+      }
+    };
+  };
+
+  readonly getScenarioPresentationSnapshot = (
+    scenarioId: string,
+  ): ScientificProductScenarioPresentationV1 | null =>
+    this.getPresentation(scenarioId);
 
   readonly subscribeHemodynamicProtocols = (
     listener: () => void,
@@ -625,6 +648,7 @@ implements ScientificProductRuntimeRegistryPortV1 {
     this.publishFramesV1();
     this.descriptorListeners.clear();
     this.frameListeners.clear();
+    this.scenarioPresentationListeners.clear();
     this.protocolListeners.clear();
     this.hemodynamicProtocolDemands.clear();
     this.activeHemodynamicProtocolRequests.clear();
@@ -649,7 +673,7 @@ implements ScientificProductRuntimeRegistryPortV1 {
       );
     }) ?? null;
     entry.unsubscribeFrames = entry.runtime?.controlStore.subscribeFrames(
-      () => this.publishFramesV1(),
+      () => this.publishFramesV1(entry.descriptor.id),
     ) ?? null;
     this.reconcileHemodynamicProtocolDemandsForScenarioV1(
       entry.descriptor.id,
@@ -1050,9 +1074,17 @@ implements ScientificProductRuntimeRegistryPortV1 {
     for (const listener of [...this.descriptorListeners]) listener();
   }
 
-  private publishFramesV1(): void {
+  private publishFramesV1(scenarioId?: string): void {
     this.frameVersion += 1;
     for (const listener of [...this.frameListeners]) listener();
+    const scenarioIds = scenarioId === undefined
+      ? [...this.scenarioPresentationListeners.keys()]
+      : [scenarioId];
+    for (const id of scenarioIds) {
+      for (const listener of [
+        ...(this.scenarioPresentationListeners.get(id) ?? []),
+      ]) listener();
+    }
   }
 }
 

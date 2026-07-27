@@ -87,6 +87,7 @@ import {
   SCIENTIFIC_WORKBENCH_METRIC_OPTIONS_V1,
   SCIENTIFIC_WORKBENCH_SIGNAL_OPTIONS_V1,
   SCIENTIFIC_WORKBENCH_VENTILATION_RESTRAINT_CONTROLLER_ITEMS_V1,
+  useScientificScenarioPresentationV1,
 } from "./ScientificWorkbenchRuntimeRendererV1";
 import {
   SCIENTIFIC_WORKBENCH_METRIC_PRESENTATION_CATALOG_V1,
@@ -1112,10 +1113,9 @@ function ScientificProductFrameEvidenceV1({
   registry: ScientificProductRuntimeRegistryPortV1;
   activeScenarioId: string;
 }>) {
-  React.useSyncExternalStore(
-    registry.subscribeFrames,
-    registry.getFrameVersionSnapshot,
-    registry.getFrameVersionSnapshot,
+  const presentation = useScientificScenarioPresentationV1(
+    registry,
+    activeScenarioId,
   );
   const runtime = registry.getRuntime(activeScenarioId);
   React.useSyncExternalStore(
@@ -1123,7 +1123,6 @@ function ScientificProductFrameEvidenceV1({
     runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT_V1,
     runtime?.controlStore.getSnapshot ?? EMPTY_CONTROL_SNAPSHOT_V1,
   );
-  const presentation = registry.getPresentation(activeScenarioId);
   const studio = registry.getStudioStatus?.(activeScenarioId) ?? null;
   return (
     <span

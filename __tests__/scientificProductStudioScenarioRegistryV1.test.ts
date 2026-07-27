@@ -364,6 +364,63 @@ describe("Scientific Product Studio scenario registry V1", () => {
 
     await registry.dispose();
   });
+
+  it("does not rerender three unrelated lanes when one of four frame stores advances", async () => {
+    const initialScenarioId = "scenario/registry-four-lane-initial";
+    const initialController = controllerFixtureV1(
+      settledSourceV1(initialScenarioId, 0, "6"),
+    );
+    const registry = registryFixtureV1(initialScenarioId, initialController);
+    registry.connect();
+    const addedScenarioIds = [
+      registry.addPreset("main-wire/as-severe"),
+      registry.addPreset("main-wire/as-severe"),
+      registry.addPreset("main-wire/as-severe"),
+    ];
+    expect(addedScenarioIds.every((id) => id !== null)).toBe(true);
+    await waitForV1(() =>
+      registry.getDescriptorSnapshot().length === 4
+      && registry.getDescriptorSnapshot().every(({ lifecycle }) =>
+        lifecycle === "ready"
+      )
+    );
+
+    const scenarioIds = [initialScenarioId, ...addedScenarioIds] as string[];
+    const renderCounts =
+      new Map(scenarioIds.map((scenarioId) => [scenarioId, 0]));
+    const lastSnapshots = new Map(scenarioIds.map((scenarioId) => [
+      scenarioId,
+      registry.getScenarioPresentationSnapshot(scenarioId),
+    ]));
+    const unsubscribers = scenarioIds.map((scenarioId) =>
+      registry.subscribeScenarioPresentation(scenarioId, () => {
+        const next = registry.getScenarioPresentationSnapshot(scenarioId);
+        if (next !== lastSnapshots.get(scenarioId)) {
+          lastSnapshots.set(scenarioId, next);
+          renderCounts.set(scenarioId, renderCounts.get(scenarioId)! + 1);
+        }
+      })
+    );
+
+    const before = new Map(lastSnapshots);
+    initialController.emitFrames();
+
+    expect(Object.fromEntries(renderCounts)).toEqual({
+      [initialScenarioId]: 1,
+      [scenarioIds[1]!]: 0,
+      [scenarioIds[2]!]: 0,
+      [scenarioIds[3]!]: 0,
+    });
+    expect(registry.getScenarioPresentationSnapshot(initialScenarioId))
+      .not.toBe(before.get(initialScenarioId));
+    for (const scenarioId of scenarioIds.slice(1)) {
+      expect(registry.getScenarioPresentationSnapshot(scenarioId))
+        .toBe(before.get(scenarioId));
+    }
+
+    for (const unsubscribe of unsubscribers) unsubscribe();
+    await registry.dispose();
+  });
 });
 
 type MockAnalysisCoordinatorV1 = Readonly<{
@@ -381,6 +438,7 @@ type MockAnalysisCoordinatorV1 = Readonly<{
 type ControlStoreFixtureV1 = Readonly<{
   store: ScientificWorkbenchResearchControlStoreV0;
   emitStore(): void;
+  emitFrames(): void;
 }>;
 
 type ControllerFixtureV1 = Readonly<{
@@ -389,6 +447,7 @@ type ControllerFixtureV1 = Readonly<{
   }>;
   setSettledSource(source: StudioSettledAnalysisSourceV1 | null): void;
   emitStore(): void;
+  emitFrames(): void;
 }>;
 
 const loadedControllerFixturesV1 = new Map<string, ControllerFixtureV1>();
@@ -438,13 +497,22 @@ function controllerFixtureV1(
       settledSource = source;
     },
     emitStore: controlStore.emitStore,
+    emitFrames: controlStore.emitFrames,
   });
 }
 
 function controlStoreFixtureV1(): ControlStoreFixtureV1 {
   const listeners = new Set<() => void>();
   const frameListeners = new Set<() => void>();
+  let frames: readonly unknown[] = Object.freeze([]);
+  let snapshot = presentationControlSnapshotV1(frames);
   const store = {
+    getSnapshot(): unknown {
+      return snapshot;
+    },
+    getFramesSnapshot(): readonly unknown[] {
+      return frames;
+    },
     subscribe(listener: () => void): () => void {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -459,6 +527,25 @@ function controlStoreFixtureV1(): ControlStoreFixtureV1 {
     emitStore(): void {
       for (const listener of [...listeners]) listener();
     },
+    emitFrames(): void {
+      frames = Object.freeze([]);
+      snapshot = presentationControlSnapshotV1(frames);
+      for (const listener of [...frameListeners]) listener();
+    },
+  });
+}
+
+function presentationControlSnapshotV1(
+  frames: readonly unknown[],
+): Readonly<Record<string, unknown>> {
+  return Object.freeze({
+    frames,
+    presentationBeatEstimate: null,
+    parameterGenerationHistory: Object.freeze([]),
+    liveTransitionOriginAcceptedTimeSec: null,
+    provenance: Object.freeze({
+      displayedEvidence: "open-transient-no-periodic-claim",
+    }),
   });
 }
 
