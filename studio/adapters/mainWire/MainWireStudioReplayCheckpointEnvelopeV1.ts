@@ -1,6 +1,10 @@
 import {
-  loadMainWireAdultFiveWallNonCoronaryReleaseV1,
-} from "@/engine/scientific/assembly";
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_SHA256,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_ID,
+  MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_VERSION,
+} from "@/engine/scientific/assembly/mainWireAdultFiveWallNonCoronaryReleaseV1";
 import type {
   MainWireScientificResolvedSessionInputV1,
 } from "@/engine/scientific/inputs";
@@ -10,7 +14,7 @@ import {
 import {
   loadMainWireScientificSessionExactCheckpointV4,
   type MainWireScientificSessionExactCheckpointV4,
-} from "@/engine/scientific/runtime";
+} from "@/engine/scientific/runtime/MainWireScientificExactCheckpointV4";
 import {
   type ArtifactStorePortV1,
   type SimulationInputRefV1,
@@ -111,26 +115,29 @@ export async function loadMainWireStudioReplayCheckpointEnvelopeV1(
       expected.simulationInputRef,
     )
   ) throw replayCheckpointErrorV1("envelope identity mismatch");
-  const canonicalRelease =
-    await loadMainWireAdultFiveWallNonCoronaryReleaseV1();
+  const canonicalReleaseRef = Object.freeze({
+    id: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_ID,
+    version: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_VERSION,
+    sha256: MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_RELEASE_V1_SHA256,
+  });
   if (
     expected.resolvedSessionInput.sessionInputSha256.length !== 64
     || !sameSimulationReleaseRef(
       expected.resolvedSessionInput.releaseRef,
-      canonicalRelease.ref,
+      canonicalReleaseRef,
     )
   ) throw replayCheckpointErrorV1("resolved input identity mismatch");
   const checkpointV4 =
     await loadMainWireScientificSessionExactCheckpointV4(
       {
-        releaseRef: canonicalRelease.ref,
+        releaseRef: canonicalReleaseRef,
         baseSessionInputSha256:
           expected.resolvedSessionInput.sessionInputSha256,
         stateCodec: Object.freeze({
           stateSchemaId:
-            canonicalRelease.manifest.stateSchema.schemaId,
+            MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_ID,
           stateSchemaVersion:
-            canonicalRelease.manifest.stateSchema.schemaVersion,
+            MAIN_WIRE_ADULT_FIVE_WALL_NONCORONARY_STATE_SCHEMA_V1_VERSION,
           transactionCheckpointId:
             "main-wire-five-wall-noncoronary-checkpoint-v1",
           transactionCheckpointSchemaVersion: 1,

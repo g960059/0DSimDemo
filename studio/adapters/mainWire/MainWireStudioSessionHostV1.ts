@@ -123,6 +123,14 @@ export type MainWireStudioSessionHostRequestV1 = Readonly<{
    * means the full-invariant tier. See engine/hotPathIntegrityTierV1.ts.
    */
   integrityTier?: HotPathIntegrityTierV1;
+  /**
+   * Declared scheduling role. Omitted means an isolated Worker, preserving
+   * the conservative behaviour for injected and non-product factories.
+   */
+  workerRole?:
+    | "live-lane"
+    | "strict-settlement"
+    | "exact-signal-replay";
 }>;
 
 export type MainWireStudioSessionHostFactoryV1 =

@@ -131,15 +131,43 @@ branch receives a complete exact control map plus its target digest.
 The implemented MainWire host topology is:
 
 ```text
-one dedicated live Worker per scenario branch
-  + one separate exclusive strict Worker lease per branch target
+one admitted parent scientific Worker per live scenario branch
+  ├─ live integration
+  └─ the scenario's small hemodynamic-analysis control plane
+      └─ compute-heavy lower/higher-volume continuation child Workers
+
+one separate transient strict-settlement Worker lease per branch target
+one separate transient exact-signal replay/export Worker per export
 ```
 
-The lanes are cloned from the same accepted source boundary before either
-advances. A branch lane ends as `success`, `failure`, `superseded`, or
-`aborted`. Supersession by a newer generation and abort on close are expected
-lifecycle outcomes: they do not reject the aggregate lane promise and are not
-shown as numerical runtime failures.
+The parent-Worker budget is the fixed
+`main-wire-scientific-worker-live-lane-budget-v1` policy: read
+`navigator.hardwareConcurrency` once, admit one live lane per four logical
+processors, and clamp the result to `[1, 4]`. It never reacts to measured
+throughput. A lane and its analysis control plane share one parent
+Worker/kernel; a fresh live-host generation is still created for promotion and
+exact-checkpoint host rotation. The product does not admit more simultaneous
+live scenarios than the declared budget.
+
+Source bootstrap has its own temporary Worker before a lane is admitted and
+terminates after materializing the one-point source. The hemodynamic analysis
+parent no longer creates a second parent Worker per displayed scenario:
+restore/start/poll/dispose share the live parent, while the actual lower- and
+higher-volume solvers remain isolated continuation Workers. Strict settlement
+cannot share the live parent because one synchronous settlement command would
+serialize foreground integration behind it, so its exclusive Worker is
+preserved and terminated with the job. Promotion and lifetime rotation may
+briefly overlap the retiring and replacement live generations so a failed
+restore cannot destroy the accepted branch. Exact-signal replay/export also
+keeps its exclusive full-invariant Worker, is limited to one export, never
+touches the live session, and terminates after success, cancellation, or
+failure.
+
+The live and strict lanes are cloned from the same accepted source boundary
+before either advances. A branch lane ends as `success`, `failure`,
+`superseded`, or `aborted`. Supersession by a newer generation and abort on
+close are expected lifecycle outcomes: they do not reject the aggregate lane
+promise and are not shown as numerical runtime failures.
 
 The high-frequency live trace is a data-plane signal channel, not a domain
 event log. Suspending waits for an accepted command boundary; resuming

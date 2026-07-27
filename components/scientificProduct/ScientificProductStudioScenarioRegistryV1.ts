@@ -16,8 +16,13 @@ import {
   InMemoryContentAddressedArtifactStoreV1,
 } from "@/studio/infrastructure/artifacts/InMemoryContentAddressedArtifactStoreV1";
 import {
+  MAIN_WIRE_SCIENTIFIC_WORKER_LANE_SCHEDULER_V1,
   MainWireSimulationRuntimeAdapterV1,
 } from "@/studio/adapters/mainWire/MainWireSimulationRuntimeAdapterV1";
+import type {
+  MainWireScientificWorkerLaneSchedulerV1,
+  MainWireScientificWorkerLaneV1,
+} from "@/engine/scientificBrowser/MainWireScientificWorkerLaneSchedulerV1";
 import {
   SimulationSessionCoordinatorV1,
 } from "@/studio/application/runtime/SimulationSessionCoordinatorV1";
@@ -90,6 +95,7 @@ export type ScientificProductStudioScenarioRuntimeV1 = Readonly<{
   controlStore: ScientificWorkbenchResearchControlStoreV0;
   controller: ScientificProductStudioScenarioControllerV1;
   analysisArtifacts: InMemoryContentAddressedArtifactStoreV1;
+  scientificWorkerLane?: MainWireScientificWorkerLaneV1;
 }>;
 
 type ScenarioEntryV1 = {
@@ -145,6 +151,7 @@ export async function loadScientificProductStudioScenarioRuntimeV1(
     onProgress?: (progress: ScientificProductStudioBootstrapProgressV1) => void;
     signal?: AbortSignal;
     deferInitialLivePresentation?: boolean;
+    workerLaneScheduler?: MainWireScientificWorkerLaneSchedulerV1;
   }>,
 ): Promise<ScientificProductStudioScenarioRuntimeV1> {
   assertRuntimeLoadNotAbortedV1(input.signal);
@@ -156,23 +163,35 @@ export async function loadScientificProductStudioScenarioRuntimeV1(
     signal: input.signal,
   });
   assertRuntimeLoadNotAbortedV1(input.signal);
+  const workerLaneScheduler = input.workerLaneScheduler
+    ?? MAIN_WIRE_SCIENTIFIC_WORKER_LANE_SCHEDULER_V1;
+  const scientificWorkerLane = workerLaneScheduler.acquireLane();
   const adapter = new MainWireSimulationRuntimeAdapterV1({
     artifacts: input.artifacts,
+    createLiveLaneClient: (integrityTier) =>
+      scientificWorkerLane.createLiveClient(integrityTier),
   });
   const coordinator = new SimulationSessionCoordinatorV1({
     runtime: adapter,
     artifacts: input.artifacts,
   });
-  const controller = await ScientificProductStudioScenarioControllerV1.create({
-    bootstrap,
-    coordinator,
-    sessionId:
-      `product-studio-session-${++studioSessionOrdinalV1}-${input.scenarioId}`,
-    deferInitialLivePresentation: input.deferInitialLivePresentation,
-    signal: input.signal,
-  });
+  let controller: ScientificProductStudioScenarioControllerV1;
+  try {
+    controller = await ScientificProductStudioScenarioControllerV1.create({
+      bootstrap,
+      coordinator,
+      sessionId:
+        `product-studio-session-${++studioSessionOrdinalV1}-${input.scenarioId}`,
+      deferInitialLivePresentation: input.deferInitialLivePresentation,
+      signal: input.signal,
+    });
+  } catch (error) {
+    scientificWorkerLane.terminate();
+    throw error;
+  }
   if (input.signal?.aborted) {
     await controller.dispose();
+    scientificWorkerLane.terminate();
     throw new Error("scientific product Studio runtime load aborted");
   }
   return Object.freeze({
@@ -182,6 +201,7 @@ export async function loadScientificProductStudioScenarioRuntimeV1(
     controlStore: controller.controlStore,
     controller,
     analysisArtifacts: input.artifacts,
+    scientificWorkerLane,
   });
 }
 
@@ -328,7 +348,11 @@ implements ScientificProductRuntimeRegistryPortV1 {
   readonly getPvRelationProtocolSeriesSnapshot = () => this.emptyPvSnapshot;
 
   get maximumScenarioCount(): number {
-    return MAXIMUM_PRODUCT_SCENARIO_COUNT_V1;
+    return Math.min(
+      MAXIMUM_PRODUCT_SCENARIO_COUNT_V1,
+      MAIN_WIRE_SCIENTIFIC_WORKER_LANE_SCHEDULER_V1
+        .maximumConcurrentLiveLaneCount,
+    );
   }
 
   getRuntime(id: string): ScientificProductStudioScenarioRuntimeV1 | null {
@@ -454,6 +478,7 @@ implements ScientificProductRuntimeRegistryPortV1 {
     }).then(async (runtime) => {
       if (!this.entryIsCurrentV1(id, entry, generation)) {
         await runtime.controller.dispose();
+        runtime.scientificWorkerLane?.terminate();
         return;
       }
       entry.loadAbortController = null;
@@ -701,6 +726,12 @@ implements ScientificProductRuntimeRegistryPortV1 {
         hostOptions: Object.freeze({
           artifacts: runtime.analysisArtifacts,
           hostId: `product-studio-analysis:${entry.descriptor.id}`,
+          ...(runtime.scientificWorkerLane === undefined
+            ? {}
+            : {
+              createClient: () =>
+                runtime.scientificWorkerLane!.createAnalysisClient(),
+            }),
         }),
         onSnapshot: (event) => {
           if (
@@ -734,9 +765,12 @@ implements ScientificProductRuntimeRegistryPortV1 {
     return this.trackDisposalV1(Promise.all([
       loadPromise?.catch(() => undefined) ?? Promise.resolve(),
       coordinator?.dispose().catch(() => undefined) ?? Promise.resolve(),
-      runtime?.controller.dispose().catch(() => undefined)
-        ?? Promise.resolve(),
-    ]).then(() => undefined));
+      runtime === null
+        ? Promise.resolve()
+        : runtime.controller.dispose().catch(() => undefined),
+    ]).then(() => {
+      runtime?.scientificWorkerLane?.terminate();
+    }));
   }
 
   private trackDisposalV1(operation: Promise<void>): Promise<void> {

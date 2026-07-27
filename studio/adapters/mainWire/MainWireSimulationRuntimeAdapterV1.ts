@@ -27,6 +27,13 @@ import {
 import {
   MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
 } from "@/engine/scientificBrowser/mainWireScientificBrowserRuntimeLimitsV1";
+import type {
+  HotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
+  browserMainWireScientificWorkerLaneBudgetV1,
+  MainWireScientificWorkerLaneSchedulerV1,
+} from "@/engine/scientificBrowser/MainWireScientificWorkerLaneSchedulerV1";
 import {
   INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
   EXACT_SIGNAL_EXPORT_LIMITS_V1,
@@ -84,8 +91,10 @@ import {
   StudioExactSignalExportWriterV1,
 } from "@/studio/infrastructure/artifacts/StudioExactSignalExportWriterV1";
 import {
+  createMainWireBrowserWorkerClientV1,
   createMainWireBrowserWorkerSessionHostFactoryV1,
   MainWireStudioTransientPartialProgressErrorV1,
+  type MainWireStudioWorkerClientV1,
 } from "./MainWireBrowserWorkerSessionHostV1";
 import {
   MainWireExactSignalReplayWorkerV1,
@@ -136,9 +145,11 @@ const DEFAULT_STRICT_MAXIMUM_BEAT_COUNT_V1 = 32;
  */
 export const MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1 =
   MAIN_WIRE_CYCLE_LENGTH_SEC_V1 * 1_000;
-// Keep a large recovery margin below the audited 100,000-request Worker cap.
-// Rotation is exact-checkpoint based and invisible to the signal-channel
-// identity, so a continuous authoring session is not lifetime-bounded.
+// Keep a 10,000-request margin below the audited 100,000-request Worker cap.
+// The host reads the whole shared Worker generation's request count, including
+// analysis-control requests. Rotation is exact-checkpoint based and invisible
+// to the signal-channel identity, so a continuous authoring session is not
+// lifetime-bounded.
 const LIVE_HOST_ROTATION_REQUEST_COUNT_V1 = 90_000;
 const SIGNAL_CHANNEL_PROTOCOL_V1 =
   "circleheart-studio-runtime-signal-channel-v1" as const;
@@ -152,11 +163,26 @@ const RETAINED_REPLAY_ORIGIN_GENERATION_COUNT_V1 = 7;
  * engine/hotPathIntegrityTierV1.ts.
  */
 const LIVE_LANE_HOST_REQUEST_V1: MainWireStudioSessionHostRequestV1 =
-  Object.freeze({ integrityTier: "hot-path-lean" as const });
+  Object.freeze({
+    integrityTier: "hot-path-lean" as const,
+    workerRole: "live-lane" as const,
+  });
+const STRICT_SETTLEMENT_HOST_REQUEST_V1:
+MainWireStudioSessionHostRequestV1 = Object.freeze({
+  integrityTier: "hot-path-lean" as const,
+  workerRole: "strict-settlement" as const,
+});
+const EXACT_SIGNAL_REPLAY_HOST_REQUEST_V1:
+MainWireStudioSessionHostRequestV1 = Object.freeze({
+  workerRole: "exact-signal-replay" as const,
+});
 
 export type MainWireSimulationRuntimeAdapterOptionsV1 = Readonly<{
   artifacts: ArtifactStorePortV1;
   hostFactory?: MainWireStudioSessionHostFactoryV1;
+  createLiveLaneClient?: (
+    integrityTier: HotPathIntegrityTierV1,
+  ) => MainWireStudioWorkerClientV1;
   liveStepCountPerChunk?: number;
   strictMaximumBeatCount?: number;
   nowMs?: () => number;
@@ -164,6 +190,13 @@ export type MainWireSimulationRuntimeAdapterOptionsV1 = Readonly<{
   presentationEstimatorInstrumentation?:
     MainWirePresentationEstimatorInstrumentationV1;
 }>;
+
+export const MAIN_WIRE_SCIENTIFIC_WORKER_LANE_SCHEDULER_V1 =
+  new MainWireScientificWorkerLaneSchedulerV1(
+    browserMainWireScientificWorkerLaneBudgetV1(),
+    (integrityTier) =>
+      createMainWireBrowserWorkerClientV1(integrityTier, 4),
+  );
 
 export class MainWireSimulationRuntimeAdapterErrorV1 extends Error {
   constructor(message: string) {
@@ -264,9 +297,11 @@ let nextAdapterRuntimeIdentityV1 = 0;
 /**
  * MainWire implementation of the Studio runtime port.
  *
- * A live branch owns a dedicated Worker host. Every strict job owns a separate
- * exclusive Worker host, preventing the kernel-wide command queue from
- * serializing foreground live work behind periodic settlement.
+ * A live branch owns a dedicated logical host. Product lanes co-locate their
+ * small hemodynamic-analysis control plane on that host's Worker thread.
+ * Every strict job still owns a separate exclusive Worker host, preventing
+ * the kernel-wide command queue from serializing foreground live work behind
+ * periodic settlement.
  */
 export class MainWireSimulationRuntimeAdapterV1
 implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
@@ -298,7 +333,11 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     this.exactSignalWriter =
       new StudioExactSignalExportWriterV1(options.artifacts);
     this.hostFactory = options.hostFactory
-      ?? createMainWireBrowserWorkerSessionHostFactoryV1();
+      ?? createMainWireBrowserWorkerSessionHostFactoryV1({
+        ...(options.createLiveLaneClient === undefined
+          ? {}
+          : { createLiveLaneClient: options.createLiveLaneClient }),
+      });
     this.liveStepCountPerChunk = boundedPositiveIntegerV1(
       options.liveStepCountPerChunk
         ?? MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
@@ -466,7 +505,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     session.exactExportControllers.add(controller);
     let host: MainWireStudioSessionHostV1 | null = null;
     try {
-      host = this.hostFactory();
+      host = this.hostFactory(EXACT_SIGNAL_REPLAY_HOST_REQUEST_V1);
       session.transientHosts.add(host);
       const worker = new MainWireExactSignalReplayWorkerV1({
         artifacts: this.artifacts,
@@ -959,7 +998,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     if (branch.hostedSession.sessionId === sourceCheckpoint.session.sessionId) {
       branch.hostedSession = sourceCheckpoint.session;
     }
-    const strictHost = this.hostFactory(LIVE_LANE_HOST_REQUEST_V1);
+    const strictHost = this.hostFactory(STRICT_SETTLEMENT_HOST_REQUEST_V1);
     token.strictHost = strictHost;
     let liveTarget: MainWireStudioHostedSessionV1 | null = null;
     try {

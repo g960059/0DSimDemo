@@ -80,10 +80,10 @@ const SCIENTIFIC_WORKER_IDENTIFIER_MAXIMUM_LENGTH_V1 = 96;
 let hostOrdinalV1 = 0;
 
 /**
- * One persistent parent MainWire Worker for one Studio scenario's scientific
- * analyses. Source sessions are short-lived exact V4 restores; the parent
- * Worker (and therefore its bidirectional continuation Workers) survives
- * across accepted Studio generations.
+ * One persistent logical analysis host for a Studio scenario. In the product
+ * runtime its short-lived client lease shares the scenario's live parent
+ * Worker; source sessions remain independent exact V4 restores and the
+ * compute-heavy bidirectional continuations stay in their own child Workers.
  */
 export class MainWireStudioHemodynamicAnalysisHostV1 {
   readonly hostId: string;
@@ -327,6 +327,10 @@ export class MainWireStudioHemodynamicAnalysisHostV1 {
         || response.payload.kind !== "sessionDisposed"
         || response.payload.disposedSessionId !== session.sessionId
       ) throw hostErrorV1("analysis source disposal receipt mismatch");
+      if (this.client === client) {
+        client.terminate();
+        this.client = null;
+      }
     } catch (error) {
       if (this.client === client) {
         // The caller may intentionally treat cleanup as best effort. Keep that
