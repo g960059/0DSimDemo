@@ -535,6 +535,43 @@ describe("MainWire Studio runtime adapter", () => {
     await adapter.closeSession("live-pacing-overload-session");
   });
 
+  it("keeps streaming when the clock is too coarse to resolve the pacing delay", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.yieldRunToTimer = true;
+    // A clock that never advances is the limiting case of the real browser one:
+    // once compute outruns realtime the residual delay falls below the host
+    // clock's granularity, so a wait can return with the reading unchanged.
+    // The lane must publish and continue rather than treat that as a fault.
+    const adapter = runtimeAdapterV1(stored, harness, {
+      liveStepCountPerChunk: 16,
+      nowMs: () => 1_000,
+      delayMs: async () => {
+        await delayV1(0);
+      },
+    });
+    const opened = await adapter.openSession({
+      sessionId: "live-pacing-coarse-clock-session",
+      branches: [sourceBranchV1(stored, "live-pacing-coarse-clock-scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const events: RuntimeSignalEventV1[] = [];
+    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+      events.push(event);
+    });
+
+    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await waitForV1(() =>
+      events.filter((event) => event.kind === "samples").length >= 4);
+    expect(events.some(({ kind }) => kind === "failure")).toBe(false);
+
+    const observed = events.filter((event) => event.kind === "samples").length;
+    await waitForV1(() =>
+      events.filter((event) => event.kind === "samples").length > observed);
+    expect(events.some(({ kind }) => kind === "failure")).toBe(false);
+    await adapter.closeSession("live-pacing-coarse-clock-session");
+  });
+
   it("waits before publishing so presentation never runs ahead of 1x", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);

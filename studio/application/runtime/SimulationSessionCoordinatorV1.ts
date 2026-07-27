@@ -884,6 +884,7 @@ export class SimulationSessionCoordinatorV1 {
       }
       const livePacing = copyLivePacingStateV1(
         signal.livePacing as RuntimeLivePacingStateV1,
+        branch.livePacing,
       );
       const replacement = Object.freeze({
         ...branch,
@@ -2026,6 +2027,7 @@ function copyPointV1(
 
 function copyLivePacingStateV1(
   livePacing: RuntimeLivePacingStateV1,
+  previous: RuntimeLivePacingStateV1,
 ): RuntimeLivePacingStateV1 {
   if (
     livePacing === null
@@ -2039,9 +2041,17 @@ function copyLivePacingStateV1(
       livePacing.recentAchievedRate !== null
       && (
         !Number.isFinite(livePacing.recentAchievedRate)
-        || livePacing.recentAchievedRate < 0
+        // A reported rate always covers a window with positive accepted
+        // simulation duration, so zero is not a measurable rate but a
+        // malformed one.
+        || livePacing.recentAchievedRate <= 0
       )
     )
+    // Reported slowdown only accumulates within a stream epoch, and the epoch
+    // reset clears it. A batch that lowers the total would erase separation the
+    // runtime already admitted to, which is what this field exists to prevent.
+    || livePacing.cumulativeRebasedDeficitMs
+      < previous.cumulativeRebasedDeficitMs
   ) {
     throw new SimulationSessionCoordinatorErrorV1(
       "runtime live pacing state is invalid",

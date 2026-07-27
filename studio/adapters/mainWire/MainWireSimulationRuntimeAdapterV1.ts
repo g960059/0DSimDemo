@@ -1637,6 +1637,13 @@ implements SimulationRuntimePortV1 {
    * ahead of the declared rate by up to a chunk. The pure decision is recomputed
    * from the same pre-chunk epoch after each wait, so an early-returning timer
    * simply leaves a smaller residual delay rather than releasing the chunk early.
+   *
+   * A wait the monotonic clock cannot resolve ends the loop instead of
+   * repeating it. Sub-millisecond residual delays are routine once compute runs
+   * faster than realtime, and the host clock's granularity is the floor on how
+   * precisely any deadline can be honoured. Spinning on that floor would burn
+   * the lane, and failing on it would kill exactly the healthy lane this pacing
+   * model exists to keep running.
    */
   private async settleLivePacingDelayV1(
     pacingState: MainWireStudioLivePacingEpochStateV1,
@@ -1655,11 +1662,7 @@ implements SimulationRuntimePortV1 {
       await this.delayMs(decision.delayMs);
       if (!stillCurrent()) return null;
       const wallNowMs = this.nowMs();
-      if (wallNowMs <= waitStartedWallMs) {
-        throw runtimeErrorV1(
-          "live pacing delay made no monotonic clock progress",
-        );
-      }
+      if (wallNowMs <= waitStartedWallMs) break;
       decision = mainWireStudioLivePacingDecisionV1({
         state: pacingState,
         wallNowMs,

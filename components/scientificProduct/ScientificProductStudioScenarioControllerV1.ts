@@ -715,8 +715,13 @@ export class ScientificProductStudioScenarioControllerV1 {
     // check below never matches, and product state keeps reporting the stale
     // "Running" it held before the action. desiredLivePlayback is deliberately
     // left alone: reset/retry still needs that intent.
+    // Narrow deliberately: only a live-lane failure, and only once no playback
+    // action is still outstanding. A strict-lane failure does not stop live
+    // playback, and overriding mid-action would acknowledge a runtime boundary
+    // that has not been reached.
     const suspendedByFailure = branch.livePlayback === "suspended"
-      && branch.lastRuntimeFailure !== null;
+      && branch.lastRuntimeFailure?.lane === "live"
+      && this.pendingPlaybackActionCount === 0;
     if (
       force
       || suspendedByFailure

@@ -1080,6 +1080,9 @@ describe("Studio SimulationSession coordinator V1", () => {
       { mode: "degraded", epochLagMs: -1, recentAchievedRate: null, cumulativeRebasedDeficitMs: 0 },
       { mode: "degraded", epochLagMs: 0, recentAchievedRate: Number.NaN, cumulativeRebasedDeficitMs: 0 },
       { mode: "realtime-1x", epochLagMs: 0, recentAchievedRate: null, cumulativeRebasedDeficitMs: -5 },
+      // A rate always covers a window with positive accepted simulation
+      // duration, so zero is malformed rather than "not moving".
+      { mode: "degraded", epochLagMs: 0, recentAchievedRate: 0, cumulativeRebasedDeficitMs: 0 },
     ]) {
       const pacingRuntime = new FakeRuntimePortV1();
       const pacingCoordinator = coordinatorV1(pacingRuntime);
@@ -1104,6 +1107,60 @@ describe("Studio SimulationSession coordinator V1", () => {
         },
       });
     }
+
+    // Admitted slowdown cannot be walked back inside a stream epoch. The
+    // second batch reports a smaller cumulative deficit than the first, which
+    // would silently erase separation the runtime already reported.
+    const regressingRuntime = new FakeRuntimePortV1();
+    const regressingCoordinator = coordinatorV1(regressingRuntime);
+    await regressingCoordinator.open(openCommandV1());
+    regressingRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(2).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 2,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "degraded",
+        epochLagMs: 12,
+        recentAchievedRate: 0.5,
+        cumulativeRebasedDeficitMs: 1_400,
+      },
+    });
+    expect(regressingCoordinator.branch("baseline")).toMatchObject({
+      livePlayback: "running",
+      lastRuntimeFailure: null,
+      livePacing: { mode: "degraded", cumulativeRebasedDeficitMs: 1_400 },
+    });
+    regressingRuntime.emitSignal("baseline", {
+      kind: "samples",
+      targetGeneration: 0,
+      presentationRevision: 0,
+      streamEpoch: 0,
+      points: [frameV1(3).point],
+      windowMetrics: {
+        status: "collecting",
+        collectedPointCount: 3,
+        completedCycleCount: 0,
+      },
+      livePacing: {
+        mode: "degraded",
+        epochLagMs: 12,
+        recentAchievedRate: 0.5,
+        cumulativeRebasedDeficitMs: 900,
+      },
+    });
+    expect(regressingCoordinator.branch("baseline")).toMatchObject({
+      livePlayback: "suspended",
+      lastRuntimeFailure: {
+        message: "runtime signal channel emitted an invalid batch",
+      },
+    });
 
     const metricRuntime = new FakeRuntimePortV1();
     const metricCoordinator = coordinatorV1(metricRuntime);

@@ -424,6 +424,34 @@ describe("Scientific Product Studio scenario controller V1", () => {
     await controller.dispose();
   });
 
+  it("still waits for the runtime boundary while a playback action is pending", async () => {
+    const { controller, coordinator, runtime } =
+      await controllerFixtureV1(0);
+    const actions = controller.controlStore.actions;
+    expect(controller.status.livePlayback).toBe("running");
+
+    // The failure override must not short-circuit the boundary contract. With
+    // a suspend still in flight, product state has to keep reporting the
+    // pre-action value even though the coordinator already flipped its own and
+    // a live failure has landed.
+    const suspendGate = runtime.delayNextSuspend();
+    actions.pauseLive();
+    await waitForV1(() =>
+      runtime.signalLifecycle.includes("suspend:start:scenario/controller")
+    );
+    expect(coordinator.branch("scenario/controller").livePlayback)
+      .toBe("suspended");
+    runtime.emitLiveSignalFailure("live worker died");
+    await waitForV1(() =>
+      coordinator.branch("scenario/controller").lastRuntimeFailure !== null
+    );
+    expect(controller.status.livePlayback).toBe("running");
+
+    suspendGate.resolve(undefined);
+    await waitForV1(() => controller.status.livePlayback === "suspended");
+    await controller.dispose();
+  });
+
   it("orders pause/resume and recovers a failed suspended branch with one reset intent", async () => {
     const { controller, coordinator, runtime } =
       await controllerFixtureV1(0);
