@@ -10,7 +10,7 @@ import {
   SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SOURCE_ID_V1,
 } from "@/components/scientificProduct/ScientificProductSampleAfterloadArticleV1";
 import {
-  projectRuntimeObservablePointToMainWireScientificObservableFrameV1,
+  projectRuntimePresentationSampleToMainWireScientificObservableFrameV1,
 } from "@/components/scientificProduct/ScientificProductStudioObservableFrameProjectionV1";
 import {
   resolveStudioReaderPreviewRuntimeBindingV1,
@@ -646,12 +646,18 @@ function observableFrameV1(
   sequence: number,
   values: Readonly<Record<string, number>>,
 ): MainWireScientificObservableFrameV1 {
-  return projectRuntimeObservablePointToMainWireScientificObservableFrameV1({
-    point: Object.freeze({
-      sequence,
-      simulationTimeSec: acceptedTimeSec,
-      phase01: null,
+  return projectRuntimePresentationSampleToMainWireScientificObservableFrameV1({
+    sample: Object.freeze({
+      coverage: "decimated-presentation" as const,
+      presentationOrdinal: sequence,
+      acceptedRevision: sequence,
+      acceptedTimeSec,
+      acceptedStepSpanFromPrevious: sequence === 0 ? 0 : 1,
+      phase: acceptedTimeSec - Math.floor(acceptedTimeSec),
       values,
+      retentionReason: sequence === 0
+        ? "stream-boundary" as const
+        : "observation-stride" as const,
     }),
     releaseRef: MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_RELEASE_REF_V0,
   });

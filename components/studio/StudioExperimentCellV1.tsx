@@ -482,9 +482,9 @@ function StudioExperimentReadbacksV1({
   registry: ScientificProductRuntimeRegistryPortV1;
   scenarioId: string | undefined;
 }>) {
-  // Per-beat metrics are evaluated from the scenario's metric cycle rather
-  // than the observable stream, so they resolve here rather than in the
-  // controller's frame projection.
+  // Per-beat values come from the scenario's finalized metric evidence: a
+  // presentation estimate for Studio live branches, or an exact metric cycle
+  // for legacy/settled sources. Neither is derived from render-frame history.
   React.useSyncExternalStore(
     registry.subscribeFrames,
     registry.getFrameVersionSnapshot,

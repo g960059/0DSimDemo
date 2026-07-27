@@ -32,6 +32,9 @@ import type {
   MainWireScientificMetricCycleV1,
   MainWireScientificValidatedTerminalCycleV1,
 } from "@/engine/scientific/metrics";
+import type {
+  RuntimePresentationBeatEstimateV1,
+} from "@/studio/contracts/v1";
 import {
   MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_SCALE_VALUES_V0,
   MainWireScientificResearchControlScaleV0,
@@ -148,6 +151,7 @@ export type ScientificProductParameterGenerationPresentationV1 = Readonly<{
   parameterEpoch: number;
   controlStateSha256: string;
   frames: readonly MainWireScientificObservableFrameV1[];
+  presentationBeatEstimate: RuntimePresentationBeatEstimateV1 | null;
   periodicCycleFrames: readonly MainWireScientificObservableFrameV1[] | null;
   cycleDurationSec: number | null;
   transientOriginAcceptedTimeSec: number | null;
@@ -164,10 +168,12 @@ export type ScientificProductScenarioPresentationV1 = Readonly<{
   transientOriginAcceptedTimeSec: number | null;
   validatedCycle: MainWireScientificValidatedTerminalCycleV1 | null;
   metricCycle: MainWireScientificMetricCycleV1 | null;
+  presentationBeatEstimate: RuntimePresentationBeatEstimateV1 | null;
   metricEvidence:
     | "validated-periodic-P1"
     | "retained-periodic-source"
     | "provisional-complete-transient-beat"
+    | "presentation-beat-estimate"
     | "unavailable";
   displayedEvidence: ScientificWorkbenchDisplayedEvidenceV0;
   workspaceDocument: MainWireScientificWorkspaceDocumentV1;
@@ -2334,6 +2340,7 @@ export class ScientificProductScenarioRegistryV1 {
           : null,
       validatedCycle,
       metricCycle: metricSelection.cycle,
+      presentationBeatEstimate: null,
       metricEvidence: metricSelection.evidence,
       displayedEvidence,
       workspaceDocument: runtime.workspaceDocument,

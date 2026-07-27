@@ -28,32 +28,149 @@ export type RuntimeControlPatchV1 = Readonly<{
   values: Readonly<Record<string, RuntimeControlValueV1>>;
 }>;
 
-export type RuntimeObservablePointV1 = Readonly<{
-  sequence: number;
-  simulationTimeSec: number;
-  phase01: number | null;
+export const RUNTIME_PRESENTATION_COVERAGE_V1 =
+  "decimated-presentation" as const;
+export const RUNTIME_PRESENTATION_DT_SEC_V1 = 0.002 as const;
+export const RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1 = 1 as const;
+export const RUNTIME_PRESENTATION_STEPS_PER_CYCLE_V1 =
+  RUNTIME_PRESENTATION_CYCLE_LENGTH_SEC_V1
+  / RUNTIME_PRESENTATION_DT_SEC_V1;
+/**
+ * Stage 1/2 contract value. A later change may increase this without changing
+ * the accepted numerical step or exact replay/export grid.
+ */
+export const RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1 = 1 as const;
+
+/**
+ * Canonical presentation phase is indexed by the fixed accepted-step grid,
+ * rather than by applying a narrow modulo tolerance to the accumulated
+ * floating-point clock. The numerical state and exact export retain their
+ * original accepted time; this function only identifies which accepted state
+ * owns a presentation beat boundary.
+ */
+export function runtimePresentationCanonicalPhaseV1(
+  acceptedRevision: number,
+): number {
+  assertRuntimePresentationRevisionV1(acceptedRevision);
+  const phaseStep =
+    acceptedRevision % RUNTIME_PRESENTATION_STEPS_PER_CYCLE_V1;
+  return phaseStep * RUNTIME_PRESENTATION_DT_SEC_V1;
+}
+
+/**
+ * Positive accepted-step distance to the next canonical phase-zero state.
+ * A boundary state therefore reports one whole cycle, never zero.
+ */
+export function runtimePresentationStepsToNextCanonicalBoundaryV1(
+  acceptedRevision: number,
+): number {
+  assertRuntimePresentationRevisionV1(acceptedRevision);
+  const phaseStep =
+    acceptedRevision % RUNTIME_PRESENTATION_STEPS_PER_CYCLE_V1;
+  return phaseStep === 0
+    ? RUNTIME_PRESENTATION_STEPS_PER_CYCLE_V1
+    : RUNTIME_PRESENTATION_STEPS_PER_CYCLE_V1 - phaseStep;
+}
+
+export type RuntimePresentationSampleRetentionReasonV1 =
+  | "stream-boundary"
+  | "observation-stride"
+  | "canonical-beat-boundary";
+
+/**
+ * Presentation-only accepted-state projection.
+ *
+ * The accepted revision/time identify the state that was observed; they do
+ * not claim that intervening accepted states were retained. Coverage and the
+ * declared step span keep this DTO structurally and semantically separate from
+ * exact replay samples.
+ */
+export type RuntimePresentationSampleV1 = Readonly<{
+  coverage: typeof RUNTIME_PRESENTATION_COVERAGE_V1;
+  presentationOrdinal: number;
+  acceptedRevision: number;
+  acceptedTimeSec: number;
+  acceptedStepSpanFromPrevious: number;
+  phase: number;
   values: Readonly<Record<string, number>>;
+  retentionReason: RuntimePresentationSampleRetentionReasonV1;
 }>;
 
-export type RuntimeWindowMetricStateV1 =
+function assertRuntimePresentationRevisionV1(
+  acceptedRevision: number,
+): void {
+  if (
+    !Number.isSafeInteger(acceptedRevision)
+    || acceptedRevision < 0
+  ) {
+    throw new Error("runtime presentation accepted revision is invalid");
+  }
+}
+
+export type RuntimePresentationMetricEstimateValueV1 = Readonly<{
+  metricId: string;
+  value: number | null;
+  availability:
+    | "available"
+    | "not-modeled"
+    | "not-measurable"
+    | "not-converged"
+    | "not-evaluated-at-accepted-state";
+  unavailableReason:
+    | "dependency-unavailable"
+    | "dependency-contract-invalid"
+    | "invalid-derived-denominator"
+    | "derived-value-non-finite"
+    | null;
+  unavailableDependency: string | null;
+}>;
+
+/**
+ * Finalized over retained samples from one canonical phase-0 boundary to the
+ * next. This is an estimate even while the Stage 1/2 stride is one: none of
+ * the false evidence fields may be promoted merely because today's adapter
+ * happened to retain every accepted step.
+ */
+export type RuntimePresentationBeatEstimateV1 = Readonly<{
+  coverage: typeof RUNTIME_PRESENTATION_COVERAGE_V1;
+  startPresentationOrdinal: number;
+  endPresentationOrdinal: number;
+  startAcceptedRevision: number;
+  endAcceptedRevision: number;
+  startAcceptedTimeSec: number;
+  endAcceptedTimeSec: number;
+  durationSec: number;
+  retainedSampleCount: number;
+  values: Readonly<Record<string, RuntimePresentationMetricEstimateValueV1>>;
+  evidence: Readonly<{
+    bothCanonicalBeatBoundariesRetained: true;
+    transientBeatFullyMeasured: false;
+    revisionsContiguous: false;
+    cadenceUniform: false;
+    exportEquivalent: false;
+  }>;
+}>;
+
+export type RuntimePresentationMetricStateV1 =
   | Readonly<{
     status: "collecting";
-    collectedPointCount: number;
-    completedCycleCount: 0;
+    retainedSampleCount: number;
+    completedBeatCount: 0;
+    latestBeatEstimate: null;
   }>
   | Readonly<{
     status: "complete";
-    collectedPointCount: number;
-    completedCycleCount: number;
-    values: Readonly<Record<string, number>>;
+    retainedSampleCount: number;
+    completedBeatCount: number;
+    latestBeatEstimate: RuntimePresentationBeatEstimateV1;
   }>;
 
-export type RuntimePresentationFrameV1 = Readonly<{
-  point: RuntimeObservablePointV1;
-  windowMetrics: RuntimeWindowMetricStateV1;
+export type RuntimePresentationSnapshotV1 = Readonly<{
+  sample: RuntimePresentationSampleV1;
+  metricState: RuntimePresentationMetricStateV1;
 }>;
 
-export type RuntimeSignalChannelRefV1 = Readonly<{
+export type RuntimePresentationSignalChannelRefV1 = Readonly<{
   protocolId: "circleheart-studio-runtime-signal-channel-v1";
   channelId: string;
   sessionId: StudioSessionIdV1;
@@ -108,7 +225,7 @@ export const INITIAL_RUNTIME_LIVE_PACING_STATE_V1 = Object.freeze({
   cumulativeRebasedDeficitMs: 0,
 }) satisfies RuntimeLivePacingStateV1;
 
-export type RuntimeSignalBatchV1 = Readonly<{
+export type RuntimePresentationSampleBatchV1 = Readonly<{
   kind: "samples";
   channelId: string;
   sessionId: StudioSessionIdV1;
@@ -117,8 +234,8 @@ export type RuntimeSignalBatchV1 = Readonly<{
   targetGeneration: TargetGenerationV1;
   presentationRevision: PresentationRevisionV1;
   streamEpoch: number;
-  points: readonly RuntimeObservablePointV1[];
-  windowMetrics: RuntimeWindowMetricStateV1;
+  samples: readonly RuntimePresentationSampleV1[];
+  metricState: RuntimePresentationMetricStateV1;
   /**
    * Pacing is carried by the batch that caused it so the reported state is
    * atomic with the accepted chunk. A separate event kind would reintroduce
@@ -127,7 +244,7 @@ export type RuntimeSignalBatchV1 = Readonly<{
   livePacing: RuntimeLivePacingStateV1;
 }>;
 
-export type RuntimeSignalFailureV1 = Readonly<{
+export type RuntimePresentationSignalFailureV1 = Readonly<{
   kind: "failure";
   channelId: string;
   sessionId: StudioSessionIdV1;
@@ -139,9 +256,9 @@ export type RuntimeSignalFailureV1 = Readonly<{
   message: string;
 }>;
 
-export type RuntimeSignalEventV1 =
-  | RuntimeSignalBatchV1
-  | RuntimeSignalFailureV1;
+export type RuntimePresentationSignalEventV1 =
+  | RuntimePresentationSampleBatchV1
+  | RuntimePresentationSignalFailureV1;
 
 export type OpenScenarioRuntimeBranchV1 = Readonly<{
   scenarioId: ScenarioIdV1;
@@ -163,10 +280,10 @@ export type RuntimeScenarioBranchOpenedV1 = Readonly<{
   sourceInputRef: SimulationInputRefV1;
   sourceSnapshotRef: SnapshotEnvelopeRefV1;
   initialTargetInputSha256: Sha256HexV1;
-  signalChannelRef: RuntimeSignalChannelRefV1;
+  presentationSignalChannelRef: RuntimePresentationSignalChannelRefV1;
   streamEpoch: number;
   execution: RuntimeExecutionIdentityV1;
-  initialFrame: RuntimePresentationFrameV1;
+  initialPresentation: RuntimePresentationSnapshotV1;
 }>;
 
 export type RuntimeSessionOpenedV1 = Readonly<{
@@ -214,7 +331,7 @@ export type RuntimeLiveTransitionResultV1 = Readonly<{
   presentationRevision: PresentationRevisionV1;
   targetInputSha256: Sha256HexV1;
   streamEpoch: number;
-  frame: RuntimePresentationFrameV1;
+  initialPresentation: RuntimePresentationSnapshotV1;
 }>;
 
 export type RuntimeIntentBranchFailureV1 = Readonly<{
@@ -305,9 +422,9 @@ export type RuntimeCandidatePromotedV1 = Readonly<{
   streamEpoch: number;
   /**
    * Projection of the candidate snapshot itself. It starts a new trace with
-   * one point; no synthetic previous beat is returned.
+   * one presentation sample; no synthetic previous beat is returned.
    */
-  initialFrame: RuntimePresentationFrameV1;
+  initialPresentation: RuntimePresentationSnapshotV1;
 }>;
 
 export type RuntimeDisplayOriginV1 =
@@ -342,7 +459,7 @@ export type RuntimePresentationEventIdentityV1 = Readonly<{
 }>;
 
 /**
- * Starts a new disposable trace with exactly one accepted point.
+ * Starts a new disposable trace with exactly one presentation sample.
  *
  * A reset is emitted for an opened run, an accepted live target transition,
  * and a successful steady-candidate promotion.
@@ -351,19 +468,19 @@ export type RuntimePresentationResetEventV1 =
   RuntimePresentationEventIdentityV1 & Readonly<{
     kind: "reset";
     origin: RuntimeDisplayOriginV1;
-    frame: RuntimePresentationFrameV1;
+    presentation: RuntimePresentationSnapshotV1;
   }>;
 
 /**
- * Appends a coordinator-validated contiguous signal batch to the current
- * trace. `windowMetrics.collectedPointCount` is the total point count after
+ * Appends coordinator-validated presentation samples to the current trace.
+ * `metricState.retainedSampleCount` is the total retained sample count after
  * this append, not merely the size of this event.
  */
 export type RuntimePresentationAppendEventV1 =
   RuntimePresentationEventIdentityV1 & Readonly<{
     kind: "append";
-    points: readonly RuntimeObservablePointV1[];
-    windowMetrics: RuntimeWindowMetricStateV1;
+    samples: readonly RuntimePresentationSampleV1[];
+    metricState: RuntimePresentationMetricStateV1;
   }>;
 
 export type RuntimePresentationEventV1 =
@@ -374,12 +491,12 @@ export type RuntimeDisplayWindowV1 = Readonly<{
   origin: RuntimeDisplayOriginV1;
   /**
    * The high-frequency trace belongs on a signal channel. This control-plane
-   * view keeps only its exact first/latest projections and a growth count.
+   * view keeps only its first/latest presentation samples and a growth count.
    */
-  firstPoint: RuntimeObservablePointV1;
-  latestPoint: RuntimeObservablePointV1;
-  pointCount: number;
-  windowMetrics: RuntimeWindowMetricStateV1;
+  firstSample: RuntimePresentationSampleV1;
+  latestSample: RuntimePresentationSampleV1;
+  retainedSampleCount: number;
+  metricState: RuntimePresentationMetricStateV1;
 }>;
 
 export type RuntimeLaneFailureV1 = Readonly<{
@@ -395,7 +512,7 @@ export type ScenarioRuntimeBranchStateV1 = Readonly<{
   sourceRunRef: RunArtifactRefV1;
   sourceInputRef: SimulationInputRefV1;
   sourceSnapshotRef: SnapshotEnvelopeRefV1;
-  signalChannelRef: RuntimeSignalChannelRefV1;
+  presentationSignalChannelRef: RuntimePresentationSignalChannelRefV1;
   streamEpoch: number;
   livePlayback: "running" | "suspended";
   /**

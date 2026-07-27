@@ -34,9 +34,15 @@ import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type ScientificCommandV1,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import {
+  MainWireScientificInProcessKernelV1,
+} from "@/engine/scientific/worker/MainWireScientificInProcessKernelV1";
 import type {
   MainWireScientificWorkerResponseV1,
 } from "@/engine/scientificBrowser/MainWireScientificWorkerClientV1";
+import {
+  MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
+} from "@/engine/scientificBrowser/mainWireScientificBrowserRuntimeLimitsV1";
 import {
   MainWireBrowserWorkerSessionHostV1,
   MainWireSimulationRuntimeAdapterV1,
@@ -52,6 +58,7 @@ import {
   type MainWireStudioCheckpointReceiptV1,
   type MainWireStudioHostedSessionV1,
   type MainWireStudioPeriodicSettlementChunkV1,
+  type MainWirePresentationEstimatorInstrumentationV1,
   type MainWireStudioSessionHostFactoryV1,
   type MainWireStudioSessionHostV1,
   type MainWireStudioTransientChunkV1,
@@ -64,8 +71,8 @@ import type {
   ExactSignalReplayRecipeV1,
   ReplayOriginArtifactRefV1,
   RuntimeControlPatchV1,
-  RuntimeSignalBatchV1,
-  RuntimeSignalEventV1,
+  RuntimePresentationSampleBatchV1,
+  RuntimePresentationSignalEventV1,
   RuntimeSteadyCandidateV1,
   StudioArtifactRefV1,
   StudioRunArtifactContentV1,
@@ -524,8 +531,8 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "live-pacing-overload-scenario")],
     });
     const branch = opened.branches[0]!;
-    const events: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       events.push(event);
     });
     // Each command advances only 32 ms of model time but consumes 100 ms of
@@ -542,7 +549,7 @@ describe("MainWire Studio runtime adapter", () => {
           .filter((total) => total > 0),
       ),
     ];
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     // Each distinct nonzero cumulative total is one re-anchor, so this waits
     // for the lane to survive two of them rather than merely reach degraded.
     await waitForV1(() => rebaseTotalsV1().length >= 2);
@@ -554,16 +561,16 @@ describe("MainWire Studio runtime adapter", () => {
     // so reaching a second re-anchor is twice the lifetime the old lane had.
     expect(batches.length).toBeGreaterThanOrEqual(30);
 
-    let previousSequence: number | null = null;
+    let previousOrdinal: number | null = null;
     let previousTimeSec: number | null = null;
     for (const batch of batches) {
-      for (const point of batch.points) {
-        if (previousSequence !== null) {
-          expect(point.sequence).toBe(previousSequence + 1);
-          expect(point.simulationTimeSec).toBeGreaterThan(previousTimeSec!);
+      for (const sample of batch.samples) {
+        if (previousOrdinal !== null) {
+          expect(sample.presentationOrdinal).toBe(previousOrdinal + 1);
+          expect(sample.acceptedTimeSec).toBeGreaterThan(previousTimeSec!);
         }
-        previousSequence = point.sequence;
-        previousTimeSec = point.simulationTimeSec;
+        previousOrdinal = sample.presentationOrdinal;
+        previousTimeSec = sample.acceptedTimeSec;
       }
       expect(batch.livePacing.epochLagMs)
         .toBeLessThanOrEqual(MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1);
@@ -589,6 +596,139 @@ describe("MainWire Studio runtime adapter", () => {
     await adapter.closeSession("live-pacing-overload-session");
   });
 
+  it("retains and finalizes canonical beat boundaries through the production adapter and Worker emission path", async () => {
+    const productionFixture = Object.freeze({
+      ...baseFixture,
+      checkpoint: baseFixture.strictCheckpoint,
+      frame: baseFixture.strictFrame,
+    });
+    const stored = await storeSourceV1(productionFixture);
+    let hostOrdinal = 0;
+    const transientCommands: Array<Readonly<{
+      stepCount: number;
+      observationStride: number;
+    }>> = [];
+    const adapter = new MainWireSimulationRuntimeAdapterV1({
+      artifacts: stored.artifacts,
+      liveStepCountPerChunk: 16,
+      nowMs: () => 0,
+      delayMs: () => delayV1(0),
+      hostFactory: () => {
+        const kernel = new MainWireScientificInProcessKernelV1({
+          maximumRequestCountPerKernelLifetime:
+            MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+              .maximumRequestCountPerLifetime,
+          maximumSessionIdentityCountPerKernelLifetime:
+            MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+              .maximumSessionIdentityCountPerLifetime,
+          maximumTransientStepCountPerCommand:
+            MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+              .maximumTransientStepCountPerCommand,
+          maximumOutputFrameCountPerCommand:
+            MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+              .maximumOutputFrameCountPerCommand,
+        });
+        hostOrdinal += 1;
+        return new MainWireBrowserWorkerSessionHostV1({
+          hostId: `production-path-host-${hostOrdinal}`,
+          client: {
+            request: (command: ScientificCommandV1) => {
+              if (command.kind === "runTransient") {
+                transientCommands.push(Object.freeze({
+                  stepCount: command.stepCount,
+                  observationStride: command.observationStride,
+                }));
+              }
+              return kernel.handle(command);
+            },
+            terminate: vi.fn(),
+          } as never,
+        });
+      },
+    });
+    const opened = await adapter.openSession({
+      sessionId: "production-boundary-retention-session",
+      branches: [sourceBranchV1(
+        stored,
+        "production-boundary-retention-scenario",
+      )],
+    });
+    const branch = opened.branches[0]!;
+    expect(branch.initialPresentation.sample).toMatchObject({
+      acceptedRevision:
+        productionFixture.checkpoint.transaction.revision,
+      acceptedTimeSec:
+        productionFixture.checkpoint.transaction.acceptedTimeSec,
+      phase: 0,
+      retentionReason: "stream-boundary",
+    });
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+      (event) => events.push(event),
+    );
+
+    await adapter.resumePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+      0,
+    );
+    await waitForV1(() =>
+      events.some(({ kind }) => kind === "failure")
+      || events.some((event) =>
+        event.kind === "samples"
+        && event.metricState.completedBeatCount >= 2
+      ));
+    await adapter.suspendPresentationSignalChannel(
+      branch.presentationSignalChannelRef,
+    );
+
+    const failure = events.find(({ kind }) => kind === "failure");
+    expect(failure).toBeUndefined();
+    const batches = events.filter((event) => event.kind === "samples");
+    const firstTwoCycles = transientCommands.slice(0, 64);
+    expect(firstTwoCycles).toHaveLength(64);
+    expect(firstTwoCycles.every(({ observationStride }) =>
+      observationStride === 1
+    )).toBe(true);
+    expect(firstTwoCycles.map(({ stepCount }) => stepCount)).toEqual([
+      ...Array.from({ length: 31 }, () => 16),
+      4,
+      ...Array.from({ length: 31 }, () => 16),
+      4,
+    ]);
+    const samples = batches.flatMap((batch) => batch.samples);
+    for (const acceptedRevision of [
+      productionFixture.checkpoint.transaction.revision + 500,
+      productionFixture.checkpoint.transaction.revision + 1_000,
+    ]) {
+      expect(samples.find((sample) =>
+        sample.acceptedRevision === acceptedRevision
+      )).toMatchObject({
+        phase: 0,
+        retentionReason: "canonical-beat-boundary",
+      });
+    }
+    expect(batches.at(-1)!.samples.at(-1)!.acceptedRevision)
+      .toBeGreaterThanOrEqual(
+        productionFixture.checkpoint.transaction.revision + 1_000,
+      );
+    expect(batches.at(-1)!.metricState).toMatchObject({
+      status: "complete",
+      completedBeatCount: 2,
+      latestBeatEstimate: {
+        startAcceptedRevision:
+          productionFixture.checkpoint.transaction.revision + 500,
+        endAcceptedRevision:
+          productionFixture.checkpoint.transaction.revision + 1_000,
+        evidence: {
+          bothCanonicalBeatBoundariesRetained: true,
+          exportEquivalent: false,
+        },
+      },
+    });
+    await adapter.closeSession("production-boundary-retention-session");
+  }, 30_000);
+
   it("keeps streaming when the clock is too coarse to resolve the pacing delay", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);
@@ -609,12 +749,12 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "live-pacing-coarse-clock-scenario")],
     });
     const branch = opened.branches[0]!;
-    const events: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       events.push(event);
     });
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() =>
       events.filter((event) => event.kind === "samples").length >= 4);
     expect(events.some(({ kind }) => kind === "failure")).toBe(false);
@@ -642,13 +782,13 @@ describe("MainWire Studio runtime adapter", () => {
     });
     const branch = opened.branches[0]!;
     const publishedAtMs: number[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       if (event.kind === "samples") publishedAtMs.push(clock.nowMs());
     });
     // Compute is far faster than realtime: 1 ms of wall time per 32 ms chunk.
     harness.onRunTransient = () => clock.advance(1);
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => publishedAtMs.length >= 4);
 
     // Every batch is released at or after its 1x deadline. Publishing first and
@@ -669,17 +809,17 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "throwing-live-observer-scenario")],
     });
     const branch = opened.branches[0]!;
-    const throwingObserverKinds: RuntimeSignalEventV1["kind"][] = [];
-    const healthyObserverEvents: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const throwingObserverKinds: RuntimePresentationSignalEventV1["kind"][] = [];
+    const healthyObserverEvents: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       throwingObserverKinds.push(event.kind);
       throw new Error("synthetic live observer failure");
     });
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       healthyObserverEvents.push(event);
     });
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() =>
       healthyObserverEvents.some(({ kind }) => kind === "failure"));
 
@@ -696,7 +836,7 @@ describe("MainWire Studio runtime adapter", () => {
     await delayV1(5);
     expect(harness.hosts[0]!.runTransientCallCount).toBe(stoppedCallCount);
     await expect(
-      adapter.resumeSignalChannel(branch.signalChannelRef, 0),
+      adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0),
     ).rejects.toThrow(/live signal observer callback failed/);
     await adapter.closeSession("throwing-live-observer-session");
   });
@@ -732,32 +872,39 @@ describe("MainWire Studio runtime adapter", () => {
     expect(harness.hosts[1]!.terminated).toBe(true);
   });
 
-  it("streams 1x live points and suspends/resumes at host command boundaries", async () => {
+  it("streams 1x presentation samples and suspends/resumes at host command boundaries", async () => {
     const stored = await storeSourceV1(baseFixture);
     const harness = new FakeHostHarnessV1(baseFixture);
-    const adapter = runtimeAdapterV1(stored, harness);
+    const onSampleUpdate = vi.fn();
+    const onBeatFinalized = vi.fn();
+    const adapter = runtimeAdapterV1(stored, harness, {
+      presentationEstimatorInstrumentation: {
+        onSampleUpdate,
+        onBeatFinalized,
+      },
+    });
     const opened = await adapter.openSession({
       sessionId: "signal-session",
       branches: [sourceBranchV1(stored, "signal-scenario")],
     });
     const branch = opened.branches[0]!;
-    const batches: RuntimeSignalBatchV1[] = [];
-    const subscription = adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    const subscription = adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => {
         if (event.kind === "samples") batches.push(event);
       },
     );
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => batches.length >= 1);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
     const countAtSuspend = harness.hosts[0]!.runTransientCallCount;
     await delayV1(5);
 
     expect(harness.hosts[0]!.runTransientCallCount).toBe(countAtSuspend);
     expect(batches[0]).toMatchObject({
-      channelId: branch.signalChannelRef.channelId,
+      channelId: branch.presentationSignalChannelRef.channelId,
       sessionId: "signal-session",
       scenarioId: "signal-scenario",
       liveBranchId: branch.liveBranchId,
@@ -765,15 +912,24 @@ describe("MainWire Studio runtime adapter", () => {
       presentationRevision: 0,
       streamEpoch: 0,
     });
-    expect(batches[0]!.points).toHaveLength(2);
-    expect(batches[0]!.points[1]!.sequence)
-      .toBeGreaterThan(batches[0]!.points[0]!.sequence);
+    expect(batches[0]!.samples).toHaveLength(2);
+    expect(batches[0]!.samples[1]!.presentationOrdinal)
+      .toBeGreaterThan(batches[0]!.samples[0]!.presentationOrdinal);
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(
       () => harness.hosts[0]!.runTransientCallCount > countAtSuspend,
     );
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
+    expect(onSampleUpdate).toHaveBeenCalledTimes(
+      1 + batches.reduce(
+        (count, batch) => count + batch.samples.length,
+        0,
+      ),
+    );
+    expect(onBeatFinalized).toHaveBeenCalledTimes(
+      batches.at(-1)!.metricState.completedBeatCount,
+    );
     subscription.unsubscribe();
     await adapter.closeSession("signal-session");
     expect(harness.hosts[0]!.terminated).toBe(true);
@@ -788,15 +944,15 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "live-host-rotation-scenario")],
     });
     const branch = opened.branches[0]!;
-    const batches: RuntimeSignalBatchV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       if (event.kind === "samples") batches.push(event);
     });
     harness.hosts[0]!.requestCount = 90_000;
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => batches.length > 0);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
 
     expect(harness.hosts).toHaveLength(2);
     expect(harness.hosts[0]).toMatchObject({
@@ -808,7 +964,7 @@ describe("MainWire Studio runtime adapter", () => {
     // presentation of a chunk, not its computation, so the loop may already
     // have issued the next command by the time the first batch is observed.
     expect(harness.hosts[1]!.runTransientCallCount).toBeGreaterThanOrEqual(1);
-    expect(batches[0]!.points[0]!.sequence)
+    expect(batches[0]!.samples[0]!.acceptedRevision)
       .toBe(baseFixture.frame.revision + 1);
     await adapter.closeSession("live-host-rotation-session");
     expect(harness.hosts[1]!.terminated).toBe(true);
@@ -829,7 +985,7 @@ describe("MainWire Studio runtime adapter", () => {
     harness.hosts[0]!.requestCount = 90_000;
     harness.checkpointGatesByHostOrdinal.set(0, checkpointGate);
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() =>
       harness.hosts[0]!.checkpointV4CallCount === 1
       && !harness.checkpointGatesByHostOrdinal.has(0));
@@ -882,7 +1038,7 @@ describe("MainWire Studio runtime adapter", () => {
     });
     expect(harness.hosts[0]!.terminated).toBe(true);
     await expect(
-      adapter.resumeSignalChannel(branch.signalChannelRef, 1),
+      adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 1),
     ).rejects.toThrow(/live host disposal failed and was quarantined/);
     await adapter.closeSession("live-disposal-quarantine-session");
   });
@@ -1311,15 +1467,15 @@ describe("MainWire Studio runtime adapter", () => {
       "rollback-candidate-intent",
     );
     const candidate = issued.candidate;
-    const batches: RuntimeSignalBatchV1[] = [];
-    adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => {
         if (event.kind === "samples") batches.push(event);
       },
     );
-    await adapter.resumeSignalChannel(
-      branch.signalChannelRef,
+    await adapter.resumePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       issued.streamEpoch,
     );
     await waitForV1(() => batches.length >= 1);
@@ -1339,7 +1495,7 @@ describe("MainWire Studio runtime adapter", () => {
     expect(harness.hosts[1]!.terminated).toBe(true);
     expect(harness.hosts[2]!.terminated).toBe(true);
     await waitForV1(() => batches.length > beforePromotion);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
     await adapter.closeSession("rollback-session");
   });
 
@@ -1378,11 +1534,11 @@ describe("MainWire Studio runtime adapter", () => {
       candidateId: candidate.candidateId,
       presentationRevision: 2,
       streamEpoch: 2,
-      initialFrame: {
-        windowMetrics: {
+      initialPresentation: {
+        metricState: {
           status: "collecting",
-          collectedPointCount: 1,
-          completedCycleCount: 0,
+          retainedSampleCount: 1,
+          completedBeatCount: 0,
         },
       },
     });
@@ -1581,28 +1737,28 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "scenario")],
     });
     const branch = opened.branches[0]!;
-    const batches: RuntimeSignalBatchV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       if (event.kind === "samples") batches.push(event);
     });
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => harness.hosts[0]!.runTransientCallCount === 1);
 
     const suspending =
-      adapter.suspendSignalChannel(branch.signalChannelRef);
+      adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
     const resuming =
-      adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+      adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     runGate.resolve();
     await Promise.all([suspending, resuming]);
     await waitForV1(() =>
       harness.hosts[0]!.runTransientCallCount >= 2 && batches.length >= 2);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
 
-    const sequences = batches.flatMap(({ points }) =>
-      points.map(({ sequence }) => sequence));
-    expect(sequences.length).toBeGreaterThanOrEqual(4);
-    for (let index = 1; index < sequences.length; index += 1) {
-      expect(sequences[index]).toBe(sequences[index - 1]! + 1);
+    const ordinals = batches.flatMap(({ samples }) =>
+      samples.map(({ presentationOrdinal }) => presentationOrdinal));
+    expect(ordinals.length).toBeGreaterThanOrEqual(4);
+    for (let index = 1; index < ordinals.length; index += 1) {
+      expect(ordinals[index]).toBe(ordinals[index - 1]! + 1);
     }
     await adapter.closeSession("overlap-playback-session");
   });
@@ -1617,12 +1773,12 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "scenario")],
     });
     const branch = opened.branches[0]!;
-    const events: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => events.push(event),
     );
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => events.some(({ kind }) => kind === "failure"));
 
     expect(events.find(({ kind }) => kind === "failure")).toMatchObject({
@@ -1632,7 +1788,7 @@ describe("MainWire Studio runtime adapter", () => {
       streamEpoch: 0,
       message: expect.stringMatching(/synthetic transient failure/),
     });
-    await expect(adapter.resumeSignalChannel(branch.signalChannelRef, 0))
+    await expect(adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0))
       .rejects.toThrow(/synthetic transient failure/);
     await adapter.closeSession("live-failure-session");
   });
@@ -1649,13 +1805,13 @@ describe("MainWire Studio runtime adapter", () => {
       branches: [sourceBranchV1(stored, "scenario")],
     });
     const branch = opened.branches[0]!;
-    const events: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const events: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => events.push(event),
     );
 
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => events.some(({ kind }) => kind === "failure"));
 
     const workerAccepted = [...harness.hosts[0]!.sessions.values()][0]!;
@@ -1672,7 +1828,7 @@ describe("MainWire Studio runtime adapter", () => {
     const failedRunCount = harness.hosts[0]!.runTransientCallCount;
     await delayV1(5);
     expect(harness.hosts[0]!.runTransientCallCount).toBe(failedRunCount);
-    await expect(adapter.resumeSignalChannel(branch.signalChannelRef, 0))
+    await expect(adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0))
       .rejects.toThrow(/synthetic accepted partial transient failure/);
 
     const patch = await targetPatchV1(
@@ -1828,12 +1984,12 @@ describe("MainWire Studio runtime adapter", () => {
       "phase-promotion-session",
       "phase-promotion-candidate",
     );
-    const batches: RuntimeSignalBatchV1[] = [];
-    adapter.subscribeSignalChannel(branch.signalChannelRef, (event) => {
+    const batches: RuntimePresentationSampleBatchV1[] = [];
+    adapter.subscribePresentationSignalChannel(branch.presentationSignalChannelRef, (event) => {
       if (event.kind === "samples") batches.push(event);
     });
-    await adapter.resumeSignalChannel(
-      branch.signalChannelRef,
+    await adapter.resumePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       issued.streamEpoch,
     );
     await waitForV1(() => batches.length >= 1);
@@ -1846,8 +2002,8 @@ describe("MainWire Studio runtime adapter", () => {
       presentationRevision: 2,
       candidate: issued.candidate,
     });
-    const finalLivePhase = batches.at(-1)?.points.at(-1)?.phase01;
-    const candidatePhase = promoted.initialFrame.point.phase01;
+    const finalLivePhase = batches.at(-1)?.samples.at(-1)?.phase;
+    const candidatePhase = promoted.initialPresentation.sample.phase;
     expect(finalLivePhase).not.toBeNull();
     expect(candidatePhase).not.toBeNull();
     const phaseDistance = Math.abs(
@@ -1881,9 +2037,9 @@ describe("MainWire Studio runtime adapter", () => {
       replayOrigins: internal.replayOrigins,
       liveRequestCount: internal.host.requestCount,
     });
-    const presentationEvents: RuntimeSignalEventV1[] = [];
-    adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const presentationEvents: RuntimePresentationSignalEventV1[] = [];
+    adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => presentationEvents.push(event),
     );
     const command = Object.freeze({
@@ -2113,16 +2269,16 @@ describe("MainWire Studio runtime adapter", () => {
       intervalDurationSec: 0.002,
     })).rejects.toThrow(/concurrency budget/);
 
-    const liveBatches: RuntimeSignalBatchV1[] = [];
-    const subscription = adapter.subscribeSignalChannel(
-      branch.signalChannelRef,
+    const liveBatches: RuntimePresentationSampleBatchV1[] = [];
+    const subscription = adapter.subscribePresentationSignalChannel(
+      branch.presentationSignalChannelRef,
       (event) => {
         if (event.kind === "samples") liveBatches.push(event);
       },
     );
-    await adapter.resumeSignalChannel(branch.signalChannelRef, 0);
+    await adapter.resumePresentationSignalChannel(branch.presentationSignalChannelRef, 0);
     await waitForV1(() => liveBatches.length >= 1);
-    await adapter.suspendSignalChannel(branch.signalChannelRef);
+    await adapter.suspendPresentationSignalChannel(branch.presentationSignalChannelRef);
     expect(harness.hosts[0]!.runTransientCallCount).toBeGreaterThan(0);
     expect(harness.hosts[1]!.runTransientCallCount).toBe(1);
     expect(liveBatches[0]!.livePacing.mode).toBe("realtime-1x");
@@ -3017,6 +3173,8 @@ function runtimeAdapterV1(
     liveStepCountPerChunk?: number;
     nowMs?: () => number;
     delayMs?: (durationMs: number) => Promise<void>;
+    presentationEstimatorInstrumentation?:
+      MainWirePresentationEstimatorInstrumentationV1;
   }> = {},
 ): MainWireSimulationRuntimeAdapterV1 {
   return new MainWireSimulationRuntimeAdapterV1({
@@ -3026,6 +3184,8 @@ function runtimeAdapterV1(
     strictMaximumBeatCount: 1,
     nowMs: overrides.nowMs,
     delayMs: overrides.delayMs ?? delayV1,
+    presentationEstimatorInstrumentation:
+      overrides.presentationEstimatorInstrumentation,
   });
 }
 

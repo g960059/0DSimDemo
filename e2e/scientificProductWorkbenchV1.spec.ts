@@ -8,6 +8,7 @@ import {
 
 const OFFICIAL_PRODUCT_CASE_ID =
   "circleheart/official-healthy-periodic";
+const OFFICIAL_PRODUCT_SOURCE_REVISION = 13_000;
 const RELEASE_SHA256 =
   "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4";
 const LV_PV_TITLE = "LV pressure–volume loop";
@@ -105,6 +106,51 @@ test.describe.serial("Studio runtime in the product Workbench", () => {
         exact: true,
       })).toHaveCount(0);
 
+      expect(browserErrors).toEqual([]);
+    } finally {
+      await attachBrowserErrors(testInfo, browserErrors);
+    }
+  });
+
+  test("keeps the no-interaction live lane advancing beyond two canonical cycles", async ({
+    page,
+  }, testInfo) => {
+    test.setTimeout(180_000);
+    page.setDefaultTimeout(30_000);
+    const browserErrors = captureBrowserErrors(page);
+
+    try {
+      await acknowledgeModelLimitations(page);
+      await page.goto("/ja/workbench", { waitUntil: "domcontentloaded" });
+      const { evidence } = await readyStudioWorkbenchV1(page);
+
+      await expect.poll(
+        () => numericAttributeV1(
+          evidence,
+          "data-scientific-final-revision",
+        ),
+        {
+          timeout: 30_000,
+          intervals: [500],
+          message:
+            "the live lane did not emit two complete canonical cycles",
+        },
+      ).toBeGreaterThanOrEqual(OFFICIAL_PRODUCT_SOURCE_REVISION + 1_000);
+
+      const afterTwoCycles = await numericAttributeV1(
+        evidence,
+        "data-scientific-final-revision",
+      );
+      await page.waitForTimeout(6_000);
+
+      await expect(evidence).toHaveAttribute(
+        "data-studio-live-playback",
+        "running",
+      );
+      expect(await numericAttributeV1(
+        evidence,
+        "data-scientific-final-revision",
+      )).toBeGreaterThan(afterTwoCycles);
       expect(browserErrors).toEqual([]);
     } finally {
       await attachBrowserErrors(testInfo, browserErrors);

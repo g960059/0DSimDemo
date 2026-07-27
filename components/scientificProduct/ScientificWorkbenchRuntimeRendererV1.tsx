@@ -15,8 +15,12 @@ import {
   type MainWireScientificCompleteTransientBeatV1,
   type MainWireScientificDerivedMetricEvaluationV1,
   type MainWireScientificDerivedMetricIdV1,
+  type MainWireScientificDerivedMetricValueV1,
   type MainWireScientificValidatedTerminalCycleV1,
 } from "@/engine/scientific/metrics";
+import type {
+  RuntimePresentationBeatEstimateV1,
+} from "@/studio/contracts/v1";
 import type { MainWireScientificWorkspacePressureVolumeTrajectoryV1 } from "@/engine/scientific/documents";
 import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_IDS_V1,
@@ -120,6 +124,33 @@ const METRIC_EVALUATION_BY_CYCLE_V1 = new WeakMap<
   object,
   MainWireScientificDerivedMetricEvaluationV1
 >();
+const METRIC_EVALUATION_BY_PRESENTATION_ESTIMATE_V1 = new WeakMap<
+  object,
+  ScientificProductPresentationMetricEvaluationV1
+>();
+
+export type ScientificProductPresentationMetricEvaluationV1 = Readonly<{
+  registryId: "main-wire-presentation-estimator-registry-v1";
+  schemaVersion: 1;
+  inputCycleContractId: "main-wire-presentation-beat-estimate-v1";
+  cycleAvailability: "estimate";
+  cycleInterpretation: "presentation-beat-estimate";
+  cycleUnavailableReason: null;
+  releaseRef: null;
+  firstRevision: number;
+  finalRevision: number;
+  firstAcceptedTimeSec: number;
+  finalAcceptedTimeSec: number;
+  durationSec: number;
+  values: Readonly<Record<
+    MainWireScientificDerivedMetricIdV1,
+    MainWireScientificDerivedMetricValueV1
+  >>;
+}>;
+
+export type ScientificProductMetricEvaluationV1 =
+  | MainWireScientificDerivedMetricEvaluationV1
+  | ScientificProductPresentationMetricEvaluationV1;
 
 const WAVEFORM_ALIASES: Readonly<
   Record<string, MainWireScientificObservableIdV1>
@@ -2355,6 +2386,12 @@ function ScientificMetricsPanelV1({
                     Live · provisional complete beat
                   </p>
                 )}
+                {presentation.metricEvidence ===
+                  "presentation-beat-estimate" && (
+                  <p className="truncate text-[10px] leading-4 text-wb-subtle">
+                    Live · beat estimate
+                  </p>
+                )}
                 {evaluation.cycleAvailability === "unavailable" && (
                   <p className="truncate text-[10px] leading-4 text-wb-subtle">
                     Awaiting a complete cycle
@@ -2451,7 +2488,19 @@ function ScientificMetricsPanelV1({
 
 export function metricEvaluationForPresentationV1(
   presentation: ScientificProductScenarioPresentationV1,
-): MainWireScientificDerivedMetricEvaluationV1 {
+): ScientificProductMetricEvaluationV1 {
+  const estimate = presentation.presentationBeatEstimate;
+  if (estimate !== null) {
+    const cached =
+      METRIC_EVALUATION_BY_PRESENTATION_ESTIMATE_V1.get(estimate as object);
+    if (cached !== undefined) return cached;
+    const evaluation = presentationMetricEvaluationFromEstimateV1(estimate);
+    METRIC_EVALUATION_BY_PRESENTATION_ESTIMATE_V1.set(
+      estimate as object,
+      evaluation,
+    );
+    return evaluation;
+  }
   const cycle = presentation.metricCycle;
   if (cycle === null) return deriveMainWireScientificMetricsV1(null);
   const cached = METRIC_EVALUATION_BY_CYCLE_V1.get(cycle as object);
@@ -2466,6 +2515,58 @@ export function metricEvaluationForPresentationV1(
         );
   METRIC_EVALUATION_BY_CYCLE_V1.set(cycle as object, evaluation);
   return evaluation;
+}
+
+function presentationMetricEvaluationFromEstimateV1(
+  estimate: RuntimePresentationBeatEstimateV1,
+): ScientificProductPresentationMetricEvaluationV1 {
+  const values = Object.fromEntries(
+    MAIN_WIRE_SCIENTIFIC_DERIVED_METRIC_CATALOG_V1.map(({ metricId }) => {
+      const metric = estimate.values[metricId];
+      if (metric === undefined) {
+        return [metricId, Object.freeze({
+          metricId,
+          value: null,
+          availability: "not-evaluated-at-accepted-state" as const,
+          quality: "not-assessed" as const,
+          unavailableReason: "dependency-unavailable" as const,
+          unavailableDependency: null,
+          periodicBoundaryCompletionApplied: false,
+        })];
+      }
+      return [metricId, Object.freeze({
+        metricId,
+        value: metric.value,
+        availability: metric.availability,
+        quality: metric.availability === "available"
+          ? "accepted-derived" as const
+          : "not-assessed" as const,
+        unavailableReason: metric.unavailableReason,
+        unavailableDependency:
+          metric.unavailableDependency as MainWireScientificObservableIdV1
+            | null,
+        periodicBoundaryCompletionApplied: false,
+      })];
+    }),
+  ) as Record<
+    MainWireScientificDerivedMetricIdV1,
+    MainWireScientificDerivedMetricValueV1
+  >;
+  return Object.freeze({
+    registryId: "main-wire-presentation-estimator-registry-v1",
+    schemaVersion: 1,
+    inputCycleContractId: "main-wire-presentation-beat-estimate-v1",
+    cycleAvailability: "estimate",
+    cycleInterpretation: "presentation-beat-estimate",
+    cycleUnavailableReason: null,
+    releaseRef: null,
+    firstRevision: estimate.startAcceptedRevision,
+    finalRevision: estimate.endAcceptedRevision,
+    firstAcceptedTimeSec: estimate.startAcceptedTimeSec,
+    finalAcceptedTimeSec: estimate.endAcceptedTimeSec,
+    durationSec: estimate.durationSec,
+    values: Object.freeze(values),
+  });
 }
 
 function ScientificControllerPanelV1({

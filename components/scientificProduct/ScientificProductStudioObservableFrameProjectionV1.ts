@@ -14,7 +14,10 @@ import {
   type SimulationReleaseRef,
 } from "@/engine/scientific/release";
 import type {
-  RuntimeObservablePointV1,
+  RuntimePresentationSampleV1,
+} from "@/studio/contracts/v1";
+import {
+  RUNTIME_PRESENTATION_COVERAGE_V1,
 } from "@/studio/contracts/v1";
 
 export class ScientificProductStudioObservableFrameProjectionErrorV1
@@ -25,8 +28,8 @@ export class ScientificProductStudioObservableFrameProjectionErrorV1
   }
 }
 
-export type RuntimeObservablePointFrameProjectionInputV1 = Readonly<{
-  point: RuntimeObservablePointV1;
+export type RuntimePresentationSampleFrameProjectionInputV1 = Readonly<{
+  sample: RuntimePresentationSampleV1;
   releaseRef: SimulationReleaseRef;
 }>;
 
@@ -40,19 +43,19 @@ const OBSERVABLE_DEFINITIONS_BY_ID_V1 = new Map(
 /**
  * Presentation-only projection for reusing the existing scientific charts.
  *
- * The runtime point carries only available numeric values. This projection
- * restores the complete observable catalog without evaluating new science or
- * changing runtime state.
+ * The runtime sample carries only retained presentation values. This
+ * projection restores catalog-shaped chart values without restoring omitted
+ * observations, exact cadence, or exact-beat evidence.
  */
-export function projectRuntimeObservablePointToMainWireScientificObservableFrameV1(
-  input: RuntimeObservablePointFrameProjectionInputV1,
+export function projectRuntimePresentationSampleToMainWireScientificObservableFrameV1(
+  input: RuntimePresentationSampleFrameProjectionInputV1,
 ): MainWireScientificObservableFrameV1 {
   if (!isRecordV1(input)) {
     throw projectionErrorV1("projection input must be an object");
   }
-  const point = loadRuntimeObservablePointV1(input.point);
+  const sample = loadRuntimePresentationSampleV1(input.sample);
   const releaseRef = loadReleaseRefV1(input.releaseRef);
-  const suppliedValues = loadSuppliedObservableValuesV1(point.values);
+  const suppliedValues = loadSuppliedObservableValuesV1(sample.values);
 
   const values = Object.fromEntries(
     MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1.map((definition) => [
@@ -72,65 +75,71 @@ export function projectRuntimeObservablePointToMainWireScientificObservableFrame
     releaseRef,
     sourceObservationId: "main-wire-scientific-session-observation-v1",
     source: "accepted-step",
-    revision: point.sequence,
-    acceptedTimeSec: point.simulationTimeSec,
+    revision: sample.acceptedRevision,
+    acceptedTimeSec: sample.acceptedTimeSec,
     values: Object.freeze(values),
   });
 }
 
-function loadRuntimeObservablePointV1(
+function loadRuntimePresentationSampleV1(
   value: unknown,
-): RuntimeObservablePointV1 {
+): RuntimePresentationSampleV1 {
   if (!isRecordV1(value)) {
-    throw projectionErrorV1("runtime observable point must be an object");
+    throw projectionErrorV1("runtime presentation sample must be an object");
   }
   if (
-    !Number.isSafeInteger(value.sequence)
-    || (value.sequence as number) < 0
+    value.coverage !== RUNTIME_PRESENTATION_COVERAGE_V1
+    || !Number.isSafeInteger(value.presentationOrdinal)
+    || (value.presentationOrdinal as number) < 0
   ) {
     throw projectionErrorV1(
-      "runtime observable point sequence must be a non-negative safe integer",
+      "runtime presentation sample identity is invalid",
     );
   }
   if (
-    typeof value.simulationTimeSec !== "number"
-    || !Number.isFinite(value.simulationTimeSec)
-    || value.simulationTimeSec < 0
+    !Number.isSafeInteger(value.acceptedRevision)
+    || (value.acceptedRevision as number) < 0
+    || typeof value.acceptedTimeSec !== "number"
+    || !Number.isFinite(value.acceptedTimeSec)
+    || value.acceptedTimeSec < 0
+    || !Number.isSafeInteger(value.acceptedStepSpanFromPrevious)
+    || (value.acceptedStepSpanFromPrevious as number) < 0
   ) {
     throw projectionErrorV1(
-      "runtime observable point time must be a non-negative finite number",
+      "runtime presentation accepted-state identity is invalid",
     );
   }
   if (
-    value.phase01 !== null
-    && (
-      typeof value.phase01 !== "number"
-      || !Number.isFinite(value.phase01)
-      || value.phase01 < 0
-      || value.phase01 >= 1
-    )
+    typeof value.phase !== "number"
+    || !Number.isFinite(value.phase)
+    || value.phase < 0
+    || value.phase >= 1
   ) {
     throw projectionErrorV1(
-      "runtime observable point phase must be null or a finite number in [0, 1)",
+      "runtime presentation phase must be a finite number in [0, 1)",
     );
   }
+  if (
+    value.retentionReason !== "stream-boundary"
+    && value.retentionReason !== "observation-stride"
+    && value.retentionReason !== "canonical-beat-boundary"
+  ) throw projectionErrorV1("runtime presentation retention reason is invalid");
   if (!isRecordV1(value.values)) {
     throw projectionErrorV1(
-      "runtime observable point values must be an object",
+      "runtime presentation sample values must be an object",
     );
   }
 
-  return value as RuntimeObservablePointV1;
+  return value as RuntimePresentationSampleV1;
 }
 
 /**
  * Validation-result cache keyed by the caller's own reference identity.
  *
- * Every projected point carries the same release ref object for the lifetime
+ * Every projected sample carries the same release ref object for the lifetime
  * of a scenario, but validating it canonicalises, reparses, and deep-freezes
- * the value. At 500 points per second per lane that was the most repeated work
- * in this projection, for an answer that cannot change while the identity is
- * unchanged.
+ * the value. Repeating that work for every retained sample is unnecessary
+ * because the answer cannot change while the identity is unchanged.
  *
  * Only frozen identities are cached. An unfrozen object can be mutated behind
  * its identity, so a cached verdict for it would outlive the data it was made
@@ -177,7 +186,7 @@ function loadSuppliedObservableValuesV1(
     );
     if (definition === undefined) {
       throw projectionErrorV1(
-        `runtime observable point contains unknown observable ${observableId}`,
+        `runtime presentation sample contains unknown observable ${observableId}`,
       );
     }
     if (
