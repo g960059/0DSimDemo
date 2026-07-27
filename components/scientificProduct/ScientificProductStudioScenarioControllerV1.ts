@@ -18,6 +18,9 @@ import type {
   MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import {
+  loadSimulationReleaseRefV1,
+} from "@/engine/scientific/release";
+import {
   SimulationSessionCoordinatorV1,
 } from "@/studio/application/runtime/SimulationSessionCoordinatorV1";
 import type {
@@ -125,7 +128,13 @@ export class ScientificProductStudioScenarioControllerV1 {
   ) {
     this.coordinator = coordinator;
     this.scenarioId = bootstrap.branch.scenarioId;
-    this.releaseRef = bootstrap.source.seedFrame.releaseRef;
+    // Validate and freeze the scenario's release ref once here rather than
+    // leaving a bootstrap-owned object to be revalidated per projected point.
+    // The projection only caches frozen identities, so this is also what keeps
+    // the live path off the canonicalise/reparse/freeze cost 500 times a second.
+    this.releaseRef = loadSimulationReleaseRefV1(
+      bootstrap.source.seedFrame.releaseRef,
+    );
     this.baseSessionInputSha256 = bootstrap.baseSessionInputSha256;
     this.initialParameterEpoch = bootstrap.source.context.parameterEpoch;
     this.source = Object.freeze({
