@@ -30,7 +30,7 @@ describe("official healthy periodic exact-checkpoint preset V1", () => {
       rawFileSha256Matches: true,
       exactRestoreSucceeded: true,
       terminalPeriod1Confirmed: true,
-      checkpointByteLength: 20_763,
+      checkpointByteLength: 20_752,
     });
   });
 
@@ -52,7 +52,7 @@ describe("official healthy periodic exact-checkpoint preset V1", () => {
         path: OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_MANIFEST_PATH,
         byteLength: 4_263,
         rawFileSha256:
-          "eb40d42aa4e8bde3b696eb1257428d2022826137e1f2c994c75f59188e451ca0",
+          "4bd772f1df329d56502954d88e4e276e643d8b150368480f38af242a8eefbce8",
       },
     });
     expect(document).toMatchObject({
@@ -78,7 +78,7 @@ describe("official healthy periodic exact-checkpoint preset V1", () => {
         checkpoint: {
           path: OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_V1_ASSET_PATH,
           rawFileSha256:
-            "dbe660999758177aa7c72f92ce8da3bf4378a69d11f42454724a4f923d767ea2",
+            "e00e1b6b4507f3b9bec6f8eaebfe5f3fc79b41c7bb97ae7eb74f24bc3754a3d4",
           checkpointEnvelopeSha256: checkpoint.checkpointSha256,
         },
       },

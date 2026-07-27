@@ -27,7 +27,7 @@ export const MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_TARGET_STATE_RESOLVER_V0_ID =
 export const MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_TARGET_STATE_V0_DIGEST_SEMANTICS =
   "sha256-canonical-json-payload-without-targetStateSha256" as const;
 export const MAIN_WIRE_SCIENTIFIC_RESEARCH_CONTROL_BASELINE_TARGET_STATE_SHA256_V0 =
-  "8620de193d75ad4f8edc292daccf2d76c9c6e790c3897bd0c9e043949613c6ad" as const;
+  "0b87eedb1b1c5bb4dcf20de77d82390d4b0d20d032524199fa7956bd9ee451f7" as const;
 
 export type MainWireScientificResearchControlValuesV0 = Readonly<Record<
   MainWireScientificResearchControlIdV0,

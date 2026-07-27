@@ -52,7 +52,7 @@ retroactively claimed as part of the historical alpha route.
 2. Serve the build with `npm run preview -- --host 127.0.0.1`.
 3. Open `/ja/scientific-alpha` and wait for `Post-P1 beat ready`.
 4. Confirm `501` terminal samples, official-preset session origin, release SHA
-   `75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4`,
+   `aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a`,
    four PV plots, valve flow, and atrial/ventricular/vascular pressure plots.
 5. Confirm that no current browser error was emitted during restore or beat
    acquisition.

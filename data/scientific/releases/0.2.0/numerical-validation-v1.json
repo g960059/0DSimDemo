@@ -24,10 +24,10 @@
     "executableBuildProvenance": "external-BuildArtifactRefV1-and-RunArtifactV1-only"
   },
   "numericalAlgorithms": {
-    "landAndWallMaterial": "implicit-BE-consistent-Land-plus-analytic-passive-and-one-state-SLS-tangent",
-    "trisegInternalSolve": "center-material-consistent-tangent-plus-geometry-only-central-difference",
-    "fourChamberPressureVolume": "Schur-condensed-same-candidate-absolute-pressure-tangent-including-common-pericardium",
-    "circulation": "analytic-semismooth-14-volume-BE-Jacobian-with-fixed-TBV-dependent-SV-chain-rule",
+    "landAndWallMaterial": "exact-affine-block-direct-BE-and-SDIRK2-Land-with-structured-consistent-tangent-plus-analytic-passive-and-one-state-SLS-tangent",
+    "trisegInternalSolve": "center-material-consistent-tangent-plus-analytic-spherical-cap-implicit-hessian",
+    "fourChamberPressureVolume": "analytic-Schur-condensed-same-candidate-absolute-pressure-tangent-including-common-pericardium",
+    "circulation": "sparse-assembled-analytic-semismooth-14-volume-BE-Jacobian-with-fixed-TBV-dependent-SV-chain-rule",
     "productionFallbackPolicy": "full-finite-difference-only-if-chamber-tangent-is-absent-and-counted-in-diagnostics"
   },
   "oracleEvidence": {
@@ -48,8 +48,8 @@
   },
   "focusedDeterministicSuite": {
     "classification": "passed-focused-numerical-and-transaction-suite",
-    "testFiles": 10,
-    "testsPassed": 77,
+    "testFiles": 11,
+    "testsPassed": 102,
     "testsFailed": 0,
     "files": [
       {
@@ -62,7 +62,11 @@
       },
       {
         "path": "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
-        "testsPassed": 10
+        "testsPassed": 8
+      },
+      {
+        "path": "__tests__/land2017DirectSolve.test.ts",
+        "testsPassed": 2
       },
       {
         "path": "__tests__/mainWireNormalAdultFiveWallProviderV1.test.ts",
@@ -78,23 +82,30 @@
       },
       {
         "path": "__tests__/nonCoronaryCirculationBackwardEulerV1.test.ts",
-        "testsPassed": 17
+        "testsPassed": 22
       },
       {
         "path": "__tests__/wholeHeartMechanicsContractV1.test.ts",
-        "testsPassed": 5
+        "testsPassed": 21
       },
       {
         "path": "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
-        "testsPassed": 5
+        "testsPassed": 8
       },
       {
         "path": "__tests__/mainWireScientificSessionV1.test.ts",
-        "testsPassed": 2
+        "testsPassed": 3
       }
     ]
   },
   "shadowMetrics": [
+    {
+      "metricId": "land-direct-BE-and-SDIRK2-existing-residual-postcondition",
+      "reference": "test-only-generic-Newton-oracle-across-the-scientific-envelope",
+      "verifiedRelation": "less-than-or-equal",
+      "verifiedBound": 1e-9,
+      "classification": "passed"
+    },
     {
       "metricId": "land-BE-consistent-tangent-relative-error",
       "reference": "resolved-central-finite-difference-including-declared-kinks",
@@ -158,19 +169,19 @@
       "mechanicsCallbackCallsPerStepMean": 22.744
     },
     "candidateLocalMeasurement": {
-      "initializationMs": 238.103,
-      "integrationMs": 785.618,
-      "integrationStepsPerSecond": 636.442,
-      "stepP50Ms": 1.348,
-      "stepP95Ms": 2.414,
-      "stepMaximumMs": 9.152,
-      "mechanicsCallbackCallsPerStepMean": 3.416,
+      "initializationMs": 45.096,
+      "integrationMs": 310.292,
+      "integrationStepsPerSecond": 1611.387,
+      "stepP50Ms": 0.562,
+      "stepP95Ms": 0.859,
+      "stepMaximumMs": 1.217,
+      "mechanicsCallbackCallsPerStepMean": 3.412,
       "mechanicsCallbackCacheHitsPerStepMean": 0,
-      "mechanicsIterationsPerStepMean": 2.282
+      "mechanicsIterationsPerStepMean": 2.236
     },
     "derivedComparison": {
-      "throughputRatioVersusBaseline": 12.423221,
-      "mechanicsCallbackReductionFraction": 0.849807,
+      "throughputRatioVersusBaseline": 31.453979,
+      "mechanicsCallbackReductionFraction": 0.849982,
       "local500StepsPerSecondTargetExceeded": true,
       "formalMultiRunPerformanceGatePassed": false,
       "browserEndToEndGatePassed": false

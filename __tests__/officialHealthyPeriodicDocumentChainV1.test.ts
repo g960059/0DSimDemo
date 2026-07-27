@@ -207,20 +207,20 @@ describe("official healthy periodic V3 document chain", () => {
       checkpoint: {
         schemaVersion: 3,
         checkpointSha256:
-          "e63b33b17b3d62bdca417aa8315ba3046b0758c6401a3633e917b6b5114511f6",
+          "10b0a0b94180842a1971549e35aaf1a0064f93103b6a965052528ba30bd03f15",
         sessionInputSha256:
-          "4c637109b4c858b4cc5755e7b0bb039bfb4dbb57fc5e1b2b156fc2f1f6e3eae1",
+          "84bcec5ef9ca80ade7f2d2615a2fbf23fda64a427b7eb1065563b47a1f0dac4f",
       },
       caseDocument: {
         ref: {
           sha256:
-            "c5644512b2e2589847f6b4471794c9fbca062b68190f06fd8405002a664f7861",
+            "0e48b0cd6c50c3807dd1f5d6482ef487330d70e757d5fe3a6543800d17eca5f8",
         },
       },
       workspaceDocument: {
         ref: {
           sha256:
-            "5faed3f4de4750cfaadd21dfd37a9b3be5f50ac669e4e99575c2e75c8f9c9bab",
+            "2ee687406df73ac96a382070355e899ed16cf0a98f01a515d285bcb1a40112b7",
         },
       },
     });
@@ -289,16 +289,16 @@ describe("official healthy periodic V3 document chain", () => {
       sessionOrigin: {
         kind: "official-document-case-v3-exact-checkpoint-restore",
         checkpointSha256:
-          "e63b33b17b3d62bdca417aa8315ba3046b0758c6401a3633e917b6b5114511f6",
+          "10b0a0b94180842a1971549e35aaf1a0064f93103b6a965052528ba30bd03f15",
         sessionInputSha256:
-          "4c637109b4c858b4cc5755e7b0bb039bfb4dbb57fc5e1b2b156fc2f1f6e3eae1",
+          "84bcec5ef9ca80ade7f2d2615a2fbf23fda64a427b7eb1065563b47a1f0dac4f",
         caseRef: {
           sha256:
-            "c5644512b2e2589847f6b4471794c9fbca062b68190f06fd8405002a664f7861",
+            "0e48b0cd6c50c3807dd1f5d6482ef487330d70e757d5fe3a6543800d17eca5f8",
         },
         workspaceRef: {
           sha256:
-            "5faed3f4de4750cfaadd21dfd37a9b3be5f50ac669e4e99575c2e75c8f9c9bab",
+            "2ee687406df73ac96a382070355e899ed16cf0a98f01a515d285bcb1a40112b7",
         },
         periodicSteadyStateClaimed: true,
         clinicalValidationClaimed: false,

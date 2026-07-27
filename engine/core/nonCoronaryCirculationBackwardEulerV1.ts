@@ -673,6 +673,28 @@ export const NON_CORONARY_INDEPENDENT_NODE_NAMES_V1 = Object.freeze(
   ),
 );
 const INDEPENDENT_NODE_NAMES = NON_CORONARY_INDEPENDENT_NODE_NAMES_V1;
+const INDEPENDENT_NODE_INDEX: Readonly<
+  Partial<Record<NonCoronaryNodeNameV1, number>>
+> = Object.freeze(
+  INDEPENDENT_NODE_NAMES.reduce(
+    (indices, name, index) => {
+      indices[name] = index;
+      return indices;
+    },
+    {} as Partial<Record<NonCoronaryNodeNameV1, number>>,
+  ),
+);
+const CHAMBER_TANGENT_INDEX: Readonly<
+  Partial<Record<NonCoronaryNodeNameV1, number>>
+> = Object.freeze(
+  NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.reduce(
+    (indices, name, index) => {
+      indices[name] = index;
+      return indices;
+    },
+    {} as Partial<Record<NonCoronaryNodeNameV1, number>>,
+  ),
+);
 const DEFAULT_NEWTON_OPTIONS = Object.freeze({
   maxIterations: 30,
   absoluteContinuityResidualToleranceMl: 1e-8,
@@ -1757,6 +1779,25 @@ function conservativeCompanionSensitivitiesAvailable<
     || evaluation.conservativeCompanion.sensitivities !== undefined;
 }
 
+function accumulateAnalyticJacobianPressureColumn(
+  jacobian: number[][],
+  column: number,
+  pressureCoefficient: number,
+  pressureDerivative: number,
+  firstResidualRow: number | undefined,
+  firstResidualFactor: number,
+  secondResidualRow: number | undefined,
+  secondResidualFactor: number,
+): void {
+  const derivative = pressureCoefficient * pressureDerivative;
+  if (firstResidualRow !== undefined) {
+    jacobian[firstResidualRow]![column] += firstResidualFactor * derivative;
+  }
+  if (secondResidualRow !== undefined) {
+    jacobian[secondResidualRow]![column] += secondResidualFactor * derivative;
+  }
+}
+
 /**
  * Exact chain rule for the current BE residual, using the same candidate's
  * chamber algorithmic tangent and active vascular/edge/valve branches.
@@ -1782,41 +1823,9 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
   if (volumeScales.length !== INDEPENDENT_NODE_NAMES.length) {
     throw new Error("circulation volume-scale count is incompatible");
   }
-  const independentIndex = new Map<NonCoronaryNodeNameV1, number>();
-  INDEPENDENT_NODE_NAMES.forEach((name, index) =>
-    independentIndex.set(name, index));
-  const nodePressureDerivativeByScaledVolume = Array.from(
-    { length: graph.nodes.length },
-    () => Array(INDEPENDENT_NODE_NAMES.length).fill(0) as number[],
-  );
-
-  // The mechanics callback tangent is already absolute and already contains
-  // the common-pericardium rank-one contribution exactly once.
-  for (
-    let pressureRow = 0;
-    pressureRow < NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length;
-    pressureRow += 1
-  ) {
-    const pressureChamber =
-      NON_CORONARY_CHAMBER_TANGENT_ORDER_V1[pressureRow]!;
-    const nodeRow = graph.nodeIndex.get(pressureChamber)!;
-    for (
-      let volumeColumn = 0;
-      volumeColumn < NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length;
-      volumeColumn += 1
-    ) {
-      const volumeChamber =
-        NON_CORONARY_CHAMBER_TANGENT_ORDER_V1[volumeColumn]!;
-      const independentColumn = independentIndex.get(volumeChamber);
-      if (independentColumn === undefined) {
-        throw new Error(`chamber ${volumeChamber} is not an independent node`);
-      }
-      nodePressureDerivativeByScaledVolume[nodeRow]![independentColumn] =
-        chamberTangent.dPressureDVolumeMmHgPerMl[pressureRow]![volumeColumn]!
-          * volumeScales[independentColumn]!;
-    }
-  }
-
+  const size = INDEPENDENT_NODE_NAMES.length;
+  const vascularPressureTangentByNodeIndex =
+    new Float64Array(graph.nodes.length);
   for (const node of graph.nodes) {
     const name = node.name as NonCoronaryNodeNameV1;
     if (isChamberName(name)) continue;
@@ -1835,35 +1844,105 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
     const pressureTangentMmHgPerMl =
       paired.dTransmuralPressureDPhysicalVolumeMmHgPerMl;
     requireFinite(pressureTangentMmHgPerMl, `${name} vascular pressure tangent`);
-    const nodeRow = graph.nodeIndex.get(name)!;
-    if (name === DEPENDENT_NODE) {
-      // Fixed global TBV: dV_SV/dx_j = -s_j - dV_companion/dx_j.
-      const companionVolumeSensitivity = current.conservativeCompanion
-        ?.sensitivities
-        ?.dCandidateCompanionBloodVolumeMlDScaledIndependentVolume;
-      for (let column = 0; column < volumeScales.length; column += 1) {
-        nodePressureDerivativeByScaledVolume[nodeRow]![column] =
-          -pressureTangentMmHgPerMl * (
-            volumeScales[column]!
-            + (companionVolumeSensitivity?.[column] ?? 0)
-          );
-      }
-    } else {
-      const column = independentIndex.get(name);
-      if (column === undefined) {
-        throw new Error(`vascular node ${name} is not represented in the volume map`);
-      }
-      nodePressureDerivativeByScaledVolume[nodeRow]![column] =
-        pressureTangentMmHgPerMl * volumeScales[column]!;
-    }
+    vascularPressureTangentByNodeIndex[graph.nodeIndex.get(name)!] =
+      pressureTangentMmHgPerMl;
   }
 
-  const size = INDEPENDENT_NODE_NAMES.length;
   const jacobian = Array.from(
     { length: size },
     (_, row) => Array.from({ length: size }, (_unused, column) =>
       row === column ? 1 : 0),
   );
+  const companionVolumeSensitivity = current.conservativeCompanion
+    ?.sensitivities
+    ?.dCandidateCompanionBloodVolumeMlDScaledIndependentVolume;
+
+  /**
+   * Add coefficient * dP(node)/dx directly to one or two residual rows.
+   * Chamber pressure has four nonzeros, ordinary vascular pressure has one,
+   * and only the fixed-TBV dependent SV pressure has a dense row.
+   */
+  const accumulateNodePressureChain = (
+    pressureNode: NonCoronaryNodeNameV1,
+    pressureCoefficient: number,
+    firstResidualRow: number | undefined,
+    firstResidualFactor: number,
+    secondResidualRow?: number,
+    secondResidualFactor = 0,
+  ): void => {
+    if (isChamberName(pressureNode)) {
+      const pressureRow = CHAMBER_TANGENT_INDEX[pressureNode];
+      if (pressureRow === undefined) {
+        throw new Error(`chamber ${pressureNode} has no tangent row`);
+      }
+      for (
+        let volumeColumn = 0;
+        volumeColumn < NON_CORONARY_CHAMBER_TANGENT_ORDER_V1.length;
+        volumeColumn += 1
+      ) {
+        const volumeChamber =
+          NON_CORONARY_CHAMBER_TANGENT_ORDER_V1[volumeColumn]!;
+        const independentColumn = INDEPENDENT_NODE_INDEX[volumeChamber];
+        if (independentColumn === undefined) {
+          throw new Error(`chamber ${volumeChamber} is not an independent node`);
+        }
+        // The callback tangent is absolute and already contains the common
+        // pericardium contribution exactly once.
+        accumulateAnalyticJacobianPressureColumn(
+          jacobian,
+          independentColumn,
+          pressureCoefficient,
+          chamberTangent.dPressureDVolumeMmHgPerMl[pressureRow]![volumeColumn]!
+            * volumeScales[independentColumn]!,
+          firstResidualRow,
+          firstResidualFactor,
+          secondResidualRow,
+          secondResidualFactor,
+        );
+      }
+      return;
+    }
+
+    const pressureTangentMmHgPerMl =
+      vascularPressureTangentByNodeIndex[graph.nodeIndex.get(pressureNode)!]!;
+    if (pressureNode === DEPENDENT_NODE) {
+      // Fixed global TBV: dV_SV/dx_j = -s_j - dV_companion/dx_j.
+      for (let column = 0; column < size; column += 1) {
+        accumulateAnalyticJacobianPressureColumn(
+          jacobian,
+          column,
+          pressureCoefficient,
+          -pressureTangentMmHgPerMl * (
+            volumeScales[column]!
+            + (companionVolumeSensitivity?.[column] ?? 0)
+          ),
+          firstResidualRow,
+          firstResidualFactor,
+          secondResidualRow,
+          secondResidualFactor,
+        );
+      }
+      return;
+    }
+
+    const independentColumn = INDEPENDENT_NODE_INDEX[pressureNode];
+    if (independentColumn === undefined) {
+      throw new Error(
+        `vascular node ${pressureNode} is not represented in the volume map`,
+      );
+    }
+    accumulateAnalyticJacobianPressureColumn(
+      jacobian,
+      independentColumn,
+      pressureCoefficient,
+      pressureTangentMmHgPerMl * volumeScales[independentColumn]!,
+      firstResidualRow,
+      firstResidualFactor,
+      secondResidualRow,
+      secondResidualFactor,
+    );
+  };
+
   const candidateTimeSec =
     input.previousAcceptedState.acceptedTimeSec + input.dtSec;
   for (const edge of graph.edges) {
@@ -1971,61 +2050,82 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
       dFlowDDownstreamPressureMlPerSecPerMmHg,
       `${edgeName} downstream pressure-flow tangent`,
     );
-    const upstreamPressureRow = graph.nodeIndex.get(upstreamName)!;
-    const downstreamPressureRow = graph.nodeIndex.get(downstreamName)!;
-    const upstreamResidualRow = independentIndex.get(upstreamName);
-    const downstreamResidualRow = independentIndex.get(downstreamName);
-    for (let column = 0; column < size; column += 1) {
-      const dFlowDScaledVolume =
-        dFlowDUpstreamPressureMlPerSecPerMmHg
-          * nodePressureDerivativeByScaledVolume[upstreamPressureRow]![column]!
-        + dFlowDDownstreamPressureMlPerSecPerMmHg
-          * nodePressureDerivativeByScaledVolume[downstreamPressureRow]![column]!;
-      // incidence(upstream)=-q, so residual(upstream)=...+dt*q.
-      if (upstreamResidualRow !== undefined) {
-        jacobian[upstreamResidualRow]![column] += input.dtSec
-          * dFlowDScaledVolume / volumeScales[upstreamResidualRow]!;
-      }
-      // incidence(downstream)=+q, so residual(downstream)=...-dt*q.
-      if (downstreamResidualRow !== undefined) {
-        jacobian[downstreamResidualRow]![column] -= input.dtSec
-          * dFlowDScaledVolume / volumeScales[downstreamResidualRow]!;
-      }
-    }
+    const upstreamResidualRow = INDEPENDENT_NODE_INDEX[upstreamName];
+    const downstreamResidualRow = INDEPENDENT_NODE_INDEX[downstreamName];
+    // incidence(upstream)=-q, so residual(upstream)=...+dt*q;
+    // incidence(downstream)=+q, so residual(downstream)=...-dt*q.
+    const upstreamResidualFactor = upstreamResidualRow === undefined
+      ? 0
+      : input.dtSec / volumeScales[upstreamResidualRow]!;
+    const downstreamResidualFactor = downstreamResidualRow === undefined
+      ? 0
+      : -input.dtSec / volumeScales[downstreamResidualRow]!;
+    accumulateNodePressureChain(
+      upstreamName,
+      dFlowDUpstreamPressureMlPerSecPerMmHg,
+      upstreamResidualRow,
+      upstreamResidualFactor,
+      downstreamResidualRow,
+      downstreamResidualFactor,
+    );
+    accumulateNodePressureChain(
+      downstreamName,
+      dFlowDDownstreamPressureMlPerSecPerMmHg,
+      upstreamResidualRow,
+      upstreamResidualFactor,
+      downstreamResidualRow,
+      downstreamResidualFactor,
+    );
   }
   if (current.mechanicalSupport !== null) {
     for (const pump of Object.values(current.mechanicalSupport.pump)) {
       const inletName = pump.inletNode as NonCoronaryNodeNameV1;
       const outletName = pump.outletNode as NonCoronaryNodeNameV1;
       if (inletName === outletName) continue;
-      const inletPressureRow = graph.nodeIndex.get(inletName);
-      const outletPressureRow = graph.nodeIndex.get(outletName);
-      if (inletPressureRow === undefined || outletPressureRow === undefined) {
+      if (
+        graph.nodeIndex.get(inletName) === undefined
+        || graph.nodeIndex.get(outletName) === undefined
+      ) {
         throw new Error(`${pump.deviceId} mechanical-support node is absent`);
       }
-      const inletResidualRow = independentIndex.get(inletName);
-      const outletResidualRow = independentIndex.get(outletName);
-      const inletVolumeColumn = independentIndex.get(inletName);
-      for (let column = 0; column < size; column += 1) {
-        const dInletVolumeDScaledVolume = inletVolumeColumn === column
-          ? volumeScales[column]!
-          : 0;
+      const inletResidualRow = INDEPENDENT_NODE_INDEX[inletName];
+      const outletResidualRow = INDEPENDENT_NODE_INDEX[outletName];
+      const inletResidualFactor = inletResidualRow === undefined
+        ? 0
+        : input.dtSec / volumeScales[inletResidualRow]!;
+      const outletResidualFactor = outletResidualRow === undefined
+        ? 0
+        : -input.dtSec / volumeScales[outletResidualRow]!;
+      accumulateNodePressureChain(
+        inletName,
+        pump.dFlowMlPerSecDInletPressureMlPerSecPerMmHg,
+        inletResidualRow,
+        inletResidualFactor,
+        outletResidualRow,
+        outletResidualFactor,
+      );
+      accumulateNodePressureChain(
+        outletName,
+        pump.dFlowMlPerSecDOutletPressureMlPerSecPerMmHg,
+        inletResidualRow,
+        inletResidualFactor,
+        outletResidualRow,
+        outletResidualFactor,
+      );
+      const inletVolumeColumn = INDEPENDENT_NODE_INDEX[inletName];
+      if (inletVolumeColumn !== undefined) {
         const dFlowDScaledVolume =
-          pump.dFlowMlPerSecDInletPressureMlPerSecPerMmHg
-            * nodePressureDerivativeByScaledVolume[inletPressureRow]![column]!
-          + pump.dFlowMlPerSecDOutletPressureMlPerSecPerMmHg
-            * nodePressureDerivativeByScaledVolume[outletPressureRow]![column]!
-          + pump.dFlowMlPerSecDInletVolumePerSec
-            * dInletVolumeDScaledVolume;
+          pump.dFlowMlPerSecDInletVolumePerSec
+            * volumeScales[inletVolumeColumn]!;
         // Device incidence follows the same conservative inlet/outlet signs
         // as a native edge, but remains outside the immutable graph manifest.
         if (inletResidualRow !== undefined) {
-          jacobian[inletResidualRow]![column] += input.dtSec
-            * dFlowDScaledVolume / volumeScales[inletResidualRow]!;
+          jacobian[inletResidualRow]![inletVolumeColumn] +=
+            inletResidualFactor * dFlowDScaledVolume;
         }
         if (outletResidualRow !== undefined) {
-          jacobian[outletResidualRow]![column] -= input.dtSec
-            * dFlowDScaledVolume / volumeScales[outletResidualRow]!;
+          jacobian[outletResidualRow]![inletVolumeColumn] +=
+            outletResidualFactor * dFlowDScaledVolume;
         }
       }
     }
@@ -2033,45 +2133,46 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
   if (current.dynamicMechanicalSupport !== null) {
     const support = current.dynamicMechanicalSupport;
     for (const residualNode of MECHANICAL_SUPPORT_NODE_NAMES_V1) {
-      const residualRow = independentIndex.get(residualNode);
+      const residualRow = INDEPENDENT_NODE_INDEX[residualNode];
       if (residualRow === undefined) {
         throw new Error(
           `${residualNode} dynamic mechanical-support node must be independent`,
         );
       }
-      for (let column = 0; column < size; column += 1) {
-        let dRateDScaledVolume = 0;
-        for (const pressureNode of MECHANICAL_SUPPORT_NODE_NAMES_V1) {
-          const pressureRow = graph.nodeIndex.get(pressureNode);
-          if (pressureRow === undefined) {
-            throw new Error(
-              `${pressureNode} dynamic mechanical-support pressure node is absent`,
-            );
-          }
-          dRateDScaledVolume += support
-            .dNodeNetVolumeRateDNodePressureMlPerSecPerMmHg[residualNode][
-              pressureNode
-            ] * nodePressureDerivativeByScaledVolume[pressureRow]![column]!;
+      const residualFactor = -input.dtSec / volumeScales[residualRow]!;
+      for (const pressureNode of MECHANICAL_SUPPORT_NODE_NAMES_V1) {
+        if (graph.nodeIndex.get(pressureNode) === undefined) {
+          throw new Error(
+            `${pressureNode} dynamic mechanical-support pressure node is absent`,
+          );
         }
-        for (const volumeNode of MECHANICAL_SUPPORT_NODE_NAMES_V1) {
-          const volumeColumn = independentIndex.get(volumeNode);
-          if (volumeColumn === undefined) {
-            throw new Error(
-              `${volumeNode} dynamic mechanical-support volume node must be independent`,
-            );
-          }
-          if (volumeColumn === column) {
-            dRateDScaledVolume += support
-              .dNodeNetVolumeRateDNodeVolumePerSec[residualNode][volumeNode]
-              * volumeScales[column]!;
-          }
-        }
-        requireFinite(
-          dRateDScaledVolume,
-          `${residualNode} dynamic mechanical-support source tangent`,
+        const pressureCoefficient = requireFinite(
+          support.dNodeNetVolumeRateDNodePressureMlPerSecPerMmHg[
+            residualNode
+          ][pressureNode],
+          `${residualNode}/${pressureNode} dynamic support pressure tangent`,
         );
-        jacobian[residualRow]![column] -= input.dtSec
-          * dRateDScaledVolume / volumeScales[residualRow]!;
+        accumulateNodePressureChain(
+          pressureNode,
+          pressureCoefficient,
+          residualRow,
+          residualFactor,
+        );
+      }
+      for (const volumeNode of MECHANICAL_SUPPORT_NODE_NAMES_V1) {
+        const volumeColumn = INDEPENDENT_NODE_INDEX[volumeNode];
+        if (volumeColumn === undefined) {
+          throw new Error(
+            `${volumeNode} dynamic mechanical-support volume node must be independent`,
+          );
+        }
+        const dRateDScaledVolume = requireFinite(
+          support.dNodeNetVolumeRateDNodeVolumePerSec[residualNode][volumeNode]
+            * volumeScales[volumeColumn]!,
+          `${residualNode}/${volumeNode} dynamic support volume tangent`,
+        );
+        jacobian[residualRow]![volumeColumn] +=
+          residualFactor * dRateDScaledVolume;
       }
     }
   }
@@ -2084,7 +2185,7 @@ function analyticCirculationJacobian<TEvaluation, TCompanionTrial>(
     }
     for (const boundaryName of
       NON_CORONARY_CONSERVATIVE_COMPANION_BOUNDARY_NODES_V1) {
-      const residualRow = independentIndex.get(boundaryName);
+      const residualRow = INDEPENDENT_NODE_INDEX[boundaryName];
       if (residualRow === undefined) {
         throw new Error(`${boundaryName} companion boundary must be independent`);
       }

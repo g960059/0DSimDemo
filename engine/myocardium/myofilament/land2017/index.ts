@@ -88,6 +88,7 @@ export {
 export {
   computeLand2017AlgorithmicTangentPa,
   computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep,
+  computeLand2017SteadyStateTangentPaFromSolvedState,
   computeLand2017FrozenStateTangentByFiniteDifferencePa,
   computeLand2017FrozenStateTangentPa,
   evaluateLand2017SolvedStepWithTangents,

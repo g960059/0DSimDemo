@@ -6,7 +6,6 @@ import {
 import {
   MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM,
   createMainWireFiveWallLandTriSegProviderV1,
-  finiteDifferenceJacobianWithSymmetryAudit,
   type MainWireFiveWallFreeCalciumDriveV1,
   type MainWireFiveWallIdV1,
   type MainWireFiveWallLandSlsMaterialKernelV1,
@@ -77,6 +76,15 @@ const ATRIA = Object.freeze({
 describe("MainWireFiveWallLandTriSegProviderV1", () => {
   it("cold-initializes five Land/SLS wall states at one finite stable joint root", () => {
     const provider = createProvider();
+    const raw = provider.initializeCold({
+      timeSec: 0,
+      volumesMl: REFERENCE_VOLUMES,
+      drivingInputs: zeroDrive(),
+    });
+    expect(
+      raw.diagnostics.converged,
+      raw.diagnostics.errors.join("; "),
+    ).toBe(true);
     const cold = initializeWholeHeartMechanicsColdV1(provider, {
       timeSec: 0,
       volumesMl: REFERENCE_VOLUMES,
@@ -162,74 +170,21 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       );
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
       .trialGeometryLinearization)
-      .toBe("central-finite-difference-with-center-material-tangent");
-    expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
-      .coldOrMissingTangentFallback)
-      .toBe("full-constitutive-central-finite-difference");
+      .toBe(
+        "analytic-spherical-cap-implicit-hessian-with-center-material-tangent",
+      );
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
       .trialTransmuralPressureVolumeTangent)
-      .toBe("center-material-consistent-four-chamber-Schur-complement");
+      .toBe(
+        "analytic-center-material-consistent-four-chamber-Schur-complement",
+      );
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
       .trialTransmuralPressureVolumeTangentUnits).toBe("mmHg-per-mL");
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
       .trialTransmuralPressureVolumeTangentIncludesPericardium).toBe(false);
     expect(MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM
       .pressureVolumeTangentUnavailableWhen)
-      .toBe("cold-or-any-wall-material-tangent-missing");
-  });
-
-  it("uses a smaller same-branch step when the nominal central difference crosses a kink", () => {
-    const nominalStep = 0.01;
-    const kinkOffset = 0.006;
-    const symmetryTolerance = 2e-4;
-    const solver = {
-      maximumIterations: 48,
-      scaledResidualInfinityTolerance: 1e-9,
-      scaledUpdateInfinityTolerance: 1e-11,
-      finiteDifferenceScaledStep: nominalStep,
-      jacobianSymmetryRelativeTolerance: symmetryTolerance,
-      strictStabilityEigenvalueByOneJ: 1e-10,
-      maximumLineSearchBacktracks: 28,
-      junctionRadiusLowerBoundM: 1e-5,
-      coldConsistencyMaximumIterations: 6,
-      coldConsistencyScaledCoordinateTolerance: 1e-10,
-      coldMaterialResidualTolerance: 1e-9,
-    } as const;
-    const conservativePiecewiseForce = (scaled: readonly number[]) => {
-      const [x, y] = scaled;
-      const branchExtension = Math.max(0, x! + 2 * y! + kinkOffset);
-      return Object.freeze([
-        x! + branchExtension,
-        y! + 2 * branchExtension,
-      ]);
-    };
-    const nominalJacobian = centralDifferenceForTest(
-      conservativePiecewiseForce,
-      [0, 0],
-      nominalStep,
-    );
-
-    expect(relativeAntisymmetryForTest(nominalJacobian))
-      .toBeGreaterThan(symmetryTolerance);
-
-    const audited = finiteDifferenceJacobianWithSymmetryAudit(
-      conservativePiecewiseForce,
-      [0, 0],
-      solver,
-    );
-
-    expect(audited.stepUsed).toBeCloseTo(nominalStep * 0.25, 15);
-    expect(audited.stability.jacobianSymmetricWithinTolerance).toBe(true);
-    expect(audited.stability.jacobianAntisymmetricRelative)
-      .toBeLessThan(symmetryTolerance);
-    expect(audited.stability.strictLocalStableEquilibrium).toBe(true);
-
-    const smoothBranchAudit = finiteDifferenceJacobianWithSymmetryAudit(
-      conservativePiecewiseForce,
-      [1, 1],
-      solver,
-    );
-    expect(smoothBranchAudit.stepUsed).toBe(nominalStep);
+      .toBe("cold-solve-only-or-invalid-analytic-hessian");
   });
 
   it("matches chamber pressure and TriSeg generalized force to virtual work", () => {
@@ -317,39 +272,8 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       .toThrow(/effective provider parameters changed after construction/);
   });
 
-  it("matches the material-consistent TriSeg Jacobian to the full constitutive FD fallback", () => {
-    const fastProvider = createProvider("consistent-tangent", true);
-    const shadowProvider = createProvider("full-fd-shadow", false);
-    const fast = trial(
-      fastProvider,
-      coldStart(fastProvider).acceptedState,
-      candidateVolumes(),
-      activeDrive(),
-    );
-    const shadow = trial(
-      shadowProvider,
-      coldStart(shadowProvider).acceptedState,
-      candidateVolumes(),
-      activeDrive(),
-    );
-    const fastReadback = readback(fast.diagnostics.readback);
-    const shadowReadback = readback(shadow.diagnostics.readback);
-
-    expect(fast.diagnostics.converged && shadow.diagnostics.converged).toBe(true);
-    expect(maximumMatrixRelativeError(
-      fastReadback.scaledAlgorithmicJacobianByOneJ,
-      shadowReadback.scaledAlgorithmicJacobianByOneJ,
-    )).toBeLessThan(2e-6);
-    for (const chamber of ["LA", "LV", "RA", "RV"] as const) {
-      expect(relativeError(
-        fast.transmuralPressuresMmHg[chamber],
-        shadow.transmuralPressuresMmHg[chamber],
-      )).toBeLessThan(2e-8);
-    }
-  });
-
   it("returns a symmetric four-chamber mmHg/mL tangent matching full constitutive re-solves", () => {
-    const provider = createProvider("pressure-tangent", true);
+    const provider = createProvider("pressure-tangent");
     const cold = coldStart(provider);
     const volumes = candidateVolumes();
     const drive = activeDrive();
@@ -372,30 +296,20 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
       expect(tangent![chamber][chamber]).toBeGreaterThan(0);
     }
 
-    const missingTangentProvider = createProvider("missing-tangent", false);
-    const missingCold = coldStart(missingTangentProvider);
-    expect(trial(
-      missingTangentProvider,
-      missingCold.acceptedState,
-      volumes,
-      drive,
-    ).transmuralPressureVolumeTangentMmHgPerMl).toBeUndefined();
   });
 
 });
 
 function createProvider(
   parameterSetSuffix = "canonical",
-  includeConsistentTangent = false,
 ) {
   return createMainWireFiveWallLandTriSegProviderV1(
-    providerParams(parameterSetSuffix, includeConsistentTangent),
+    providerParams(parameterSetSuffix),
   );
 }
 
 function providerParams(
   parameterSetSuffix = "canonical",
-  includeConsistentTangent = false,
 ): MainWireFiveWallLandTriSegProviderParamsV1<TestWallState> {
   const geometry = evaluateTriSegGeometryV1({
     leftVentricularCavityVolumeM3: REFERENCE_VOLUMES.LV * 1e-6,
@@ -431,7 +345,6 @@ function providerParams(
     activeGainPaPerUM: activeGainPaPerUM[wallId],
     slsBranchModulusPa: 18_000,
     slsRelaxationTimeSec: 0.08,
-    includeConsistentTangent,
   }));
   return Object.freeze({
     parameterSetId: `five-wall-test-${parameterSetSuffix}`,
@@ -446,8 +359,6 @@ function providerParams(
     solver: Object.freeze({
       maximumIterations: 48,
       scaledResidualInfinityTolerance: 1e-9,
-      finiteDifferenceScaledStep: 1e-5,
-      jacobianSymmetryRelativeTolerance: 3e-4,
       strictStabilityEigenvalueByOneJ: 1e-10,
     }),
   });
@@ -460,7 +371,6 @@ function testMaterialKernel(input: Readonly<{
   activeGainPaPerUM: number;
   slsBranchModulusPa: number;
   slsRelaxationTimeSec: number;
-  includeConsistentTangent: boolean;
 }>): MainWireFiveWallLandSlsMaterialKernelV1<TestWallState> {
   const parameterSetId = `test-land-sls-${input.wallId}-v1`;
   const parameterIdentityHash = stableHash(sanitizeForStableHash(input));
@@ -481,7 +391,7 @@ function testMaterialKernel(input: Readonly<{
     let viscousLogStrain = fiberLogStrain;
     let slsStressPa = 0;
     let slsPrimitiveDensity = 0;
-    let algorithmicFiberTangentPa: number | undefined;
+    let algorithmicFiberTangentPa = input.stiffnessPa;
     if (previous !== null && dtSec !== null) {
       const ratio = dtSec / input.slsRelaxationTimeSec;
       viscousLogStrain = (
@@ -493,10 +403,8 @@ function testMaterialKernel(input: Readonly<{
       slsStressPa = algorithmicBranchModulusPa * algorithmicElasticStrain;
       slsPrimitiveDensity = 0.5 * algorithmicBranchModulusPa
         * algorithmicElasticStrain ** 2;
-      if (input.includeConsistentTangent) {
-        algorithmicFiberTangentPa =
-          input.stiffnessPa + algorithmicBranchModulusPa;
-      }
+      algorithmicFiberTangentPa =
+        input.stiffnessPa + algorithmicBranchModulusPa;
     }
     const stressPa = equilibriumStressPa + activeStressPa + slsStressPa;
     const state: TestWallState = Object.freeze({
@@ -516,9 +424,7 @@ function testMaterialKernel(input: Readonly<{
       state,
       fiberLogStrain,
       fiberKirchhoffStressPa: stressPa,
-      ...(algorithmicFiberTangentPa === undefined
-        ? {}
-        : { algorithmicFiberTangentPa }),
+      algorithmicFiberTangentPa,
       algorithmicStressPrimitiveDensityJPerM3:
         0.5 * input.stiffnessPa * equilibriumElasticStrain ** 2
         + activeStressPa * fiberLogStrain

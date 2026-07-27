@@ -97,8 +97,8 @@ describe("scientific release 0.2.0 numerical validation identity", () => {
 
     expect(artifact.focusedDeterministicSuite).toMatchObject({
       classification: "passed-focused-numerical-and-transaction-suite",
-      testFiles: 10,
-      testsPassed: 77,
+      testFiles: 11,
+      testsPassed: 102,
       testsFailed: 0,
     });
     expect(artifact.focusedDeterministicSuite.files.reduce(
@@ -113,8 +113,8 @@ describe("scientific release 0.2.0 numerical validation identity", () => {
       "local-single-run-smoke-exceeds-target-formal-acceptance-not-claimed",
     );
     expect(artifact.performance.derivedComparison).toEqual({
-      throughputRatioVersusBaseline: 12.423221,
-      mechanicsCallbackReductionFraction: 0.849807,
+      throughputRatioVersusBaseline: 31.453979,
+      mechanicsCallbackReductionFraction: 0.849982,
       local500StepsPerSecondTargetExceeded: true,
       formalMultiRunPerformanceGatePassed: false,
       browserEndToEndGatePassed: false,

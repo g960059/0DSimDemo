@@ -1,22 +1,23 @@
 import {
   evaluateLand2017AlgebraicTerms,
+  land2017CaTRPNUnblockingFactor,
+  land2017CaTRPNUnblockingFactorDerivative,
+  land2017GammaSu,
+  land2017GammaWu,
+  land2017GammaWuDerivative,
   type Land2017EquationParameters,
 } from "@/engine/myocardium/myofilament/land2017/equations";
 import { LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET } from "@/engine/myocardium/myofilament/land2017/parameterSets";
 import {
   solveLand2017BackwardEulerStep,
-  solveLand2017LocalLinearSystem,
+  solveLand2017PopulationBlock,
   type Land2017StepSolveOptions,
 } from "@/engine/myocardium/myofilament/land2017/solver";
-import {
-  LAND2017_LOCAL_JACOBIAN_SIZE,
-  writeLand2017BackwardEulerResidualJacobian,
-  writeLand2017BackwardEulerResidualStageStrainDerivative,
-} from "@/engine/myocardium/myofilament/land2017/jacobian";
 import {
   LAND2017_STATE_INDEX,
   LAND2017_STATE_SIZE,
   assertLand2017StateVectorLength,
+  deriveLand2017StepKinematics,
   type LandStepInput,
 } from "@/engine/myocardium/myofilament/land2017/types";
 
@@ -27,10 +28,9 @@ export type Land2017TangentOptions = Land2017StepSolveOptions & {
 /**
  * Consistent derivative of the converged BE active nominal stress with
  * respect to the stage engineering strain. Smooth branches use exact implicit
- * differentiation of the same six-state residual used by the local Newton
- * solve. At zetaS=0 and zetaS=-1, where gamma_su is nonsmooth, the declared
- * centered Clarke-midpoint selection matches the consuming centered geometry
- * linearization without changing the local Newton active-branch Jacobian.
+ * differentiation of the same affine scalar-plus-3x3 factorization used by the
+ * direct step. At zetaS=0 and zetaS=-1, where gamma_su is nonsmooth, the
+ * declared centered Clarke-midpoint selection is retained.
  */
 export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
   solvedNextState: ArrayLike<number>,
@@ -42,47 +42,84 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
     solvedNextState,
     "Land 2017 consistent tangent solved state",
   );
-  // Reassemble at the supplied converged state/input pair. Keeping this
-  // correspondence inside the API prevents callers from accidentally pairing
-  // a state with a Jacobian from another local solve.
-  const jacobian = writeLand2017BackwardEulerResidualJacobian(
-    solvedNextState,
-    input,
-    parameterSet,
-  );
-  applyCentralSemismoothLandJacobianSelection(
-    jacobian,
-    solvedNextState,
-    input,
-    parameterSet,
-  );
-  if (jacobian.length !== LAND2017_LOCAL_JACOBIAN_SIZE) {
-    throw new Error("Land 2017 consistent tangent requires a 6x6 residual Jacobian");
-  }
-  const residualStrainDerivative =
-    writeLand2017BackwardEulerResidualStageStrainDerivative(
-      solvedNextState,
-      input,
-      parameterSet,
-    );
-  const stateStrainDerivative = solveLand2017LocalLinearSystem(
-    jacobian,
-    Float64Array.from(
-      residualStrainDerivative,
-      (value) => -value,
-    ),
-  );
-
   const p = parameterSet.values;
+  const d = parameterSet.derived;
   const terms = evaluateLand2017AlgebraicTerms(
     solvedNextState,
     { fiberEngineeringStrain: input.stageFiberEngineeringStrain },
     parameterSet,
   );
+  const CaTRPN = solvedNextState[LAND2017_STATE_INDEX.CaTRPN];
+  const B = solvedNextState[LAND2017_STATE_INDEX.B];
   const W = solvedNextState[LAND2017_STATE_INDEX.W];
   const S = solvedNextState[LAND2017_STATE_INDEX.S];
   const zetaW = solvedNextState[LAND2017_STATE_INDEX.zetaW];
   const zetaS = solvedNextState[LAND2017_STATE_INDEX.zetaS];
+  const dt = input.dtSec;
+  const calciumDrive = Math.pow(
+    input.freeCalciumUM / terms.CaT50,
+    p.nTRPN,
+  );
+  const dCaT50DStageStrain = terms.lambda < 1.2 ? p.beta1 : 0;
+  const dCalciumDriveDStageStrain = calciumDrive
+    * (-p.nTRPN * dCaT50DStageStrain / terms.CaT50);
+  const caResidualStrainDerivative = -dt
+    * p.kTRPN
+    * dCalciumDriveDStageStrain
+    * (1 - CaTRPN);
+  const dCaTRPNDStrain = -caResidualStrainDerivative
+    / (1 + dt * p.kTRPN * (calciumDrive + 1));
+
+  deriveLand2017StepKinematics(input);
+  const zetaDriveDependsOnStageStrain =
+    input.stageZetaDriveFiberEngineeringStrainRatePerSec === undefined;
+  const dZetaWDStrain = zetaDriveDependsOnStageStrain
+    ? d.Aw / (1 + dt * d.cw)
+    : 0;
+  const dZetaSDStrain = zetaDriveDependsOnStageStrain
+    ? d.As / (1 + dt * d.cs)
+    : 0;
+  const nTmHalf = p.nTm / 2;
+  const unblocking = land2017CaTRPNUnblockingFactor(CaTRPN, p);
+  const bindingRate = d.kb * unblocking;
+  const unbindingRate = p.ku * Math.pow(CaTRPN, nTmHalf);
+  const weakLossRate =
+    d.kwu + p.kws + land2017GammaWu(zetaW, p);
+  const strongLossRate = d.ksu + land2017GammaSu(zetaS, p);
+  const dBResidualDCaTRPN = -dt * (
+    d.kb
+      * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p)
+      * terms.U
+    - p.ku
+      * nTmHalf
+      * Math.pow(CaTRPN, nTmHalf - 1)
+      * B
+  );
+  const dWResidualDZetaW =
+    dt * W * land2017GammaWuDerivative(zetaW, p);
+  const dSResidualDZetaS =
+    dt * S * centralSemismoothGammaSuDerivative(zetaS, p.gammaS);
+  const populationDerivative = solveLand2017PopulationBlock(
+    1 + dt * (bindingRate + unbindingRate),
+    dt * bindingRate,
+    dt * bindingRate,
+    dt * p.kuw,
+    1 + dt * (p.kuw + weakLossRate),
+    dt * p.kuw,
+    -dt * p.kws,
+    1 + dt * strongLossRate,
+    -dBResidualDCaTRPN * dCaTRPNDStrain,
+    -dWResidualDZetaW * dZetaWDStrain,
+    -dSResidualDZetaS * dZetaSDStrain,
+  );
+  const stateStrainDerivative = Float64Array.from([
+    dCaTRPNDStrain,
+    populationDerivative[0],
+    populationDerivative[1],
+    populationDerivative[2],
+    dZetaWDStrain,
+    dZetaSDStrain,
+  ]);
   const populationDistortion = S * (zetaS + 1) + W * zetaW;
   const stressScalePa = terms.h * p.Tref / p.rs;
   let tangentPa = land2017LengthFactorDerivative(terms.lambda, p.beta0)
@@ -104,32 +141,95 @@ export function computeLand2017ConsistentAlgorithmicTangentPaFromSolvedStep(
 }
 
 /**
- * At the two one-sided gamma_su recruitment corners, the classical derivative
- * is undefined. The material tangent is consumed by a centered geometry
- * linearization, so use the midpoint of the two valid one-sided derivatives.
- * Away from those exact corners the Newton and tangent Jacobians are identical.
+ * Exact strain derivative of a fixed-calcium, zero-rate Land equilibrium.
+ * This is the constitutive tangent of the cold-initialization map, not a
+ * one-step BE tangent.
  */
-function applyCentralSemismoothLandJacobianSelection(
-  jacobian: Float64Array,
-  solvedNextState: ArrayLike<number>,
-  input: LandStepInput,
-  parameterSet: Land2017EquationParameters,
-): void {
-  const zetaS = solvedNextState[LAND2017_STATE_INDEX.zetaS];
-  let midpointGammaDerivative = 0;
+export function computeLand2017SteadyStateTangentPaFromSolvedState(
+  solvedState: ArrayLike<number>,
+  freeCalciumUM: number,
+  fiberEngineeringStrain: number,
+  parameterSet: Land2017EquationParameters =
+    LAND2017_INTACT_HUMAN_37C_SOURCE_PARAMETER_SET,
+): number {
+  assertLand2017StateVectorLength(
+    solvedState,
+    "Land 2017 steady tangent solved state",
+  );
+  const p = parameterSet.values;
+  const d = parameterSet.derived;
+  const terms = evaluateLand2017AlgebraicTerms(
+    solvedState,
+    { fiberEngineeringStrain },
+    parameterSet,
+  );
+  const CaTRPN = solvedState[LAND2017_STATE_INDEX.CaTRPN];
+  const B = solvedState[LAND2017_STATE_INDEX.B];
+  const S = solvedState[LAND2017_STATE_INDEX.S];
+  const calciumDrive = Math.pow(freeCalciumUM / terms.CaT50, p.nTRPN);
+  const dCaT50DStrain = terms.lambda < 1.2 ? p.beta1 : 0;
+  const dCalciumDriveDStrain = calciumDrive
+    * (-p.nTRPN * dCaT50DStrain / terms.CaT50);
+  const dCaTRPNDStrain =
+    dCalciumDriveDStrain / ((calciumDrive + 1) * (calciumDrive + 1));
+  const nTmHalf = p.nTm / 2;
+  const bindingRate =
+    d.kb * land2017CaTRPNUnblockingFactor(CaTRPN, p);
+  const unbindingRate = p.ku * Math.pow(CaTRPN, nTmHalf);
+  const dPopulationResidualDCaTRPN = -(
+    d.kb
+      * land2017CaTRPNUnblockingFactorDerivative(CaTRPN, p)
+      * terms.U
+    - p.ku
+      * nTmHalf
+      * Math.pow(CaTRPN, nTmHalf - 1)
+      * B
+  );
+  const populationDerivative = solveLand2017PopulationBlock(
+    bindingRate + unbindingRate,
+    bindingRate,
+    bindingRate,
+    p.kuw,
+    p.kuw + d.kwu + p.kws,
+    p.kuw,
+    -p.kws,
+    d.ksu,
+    -dPopulationResidualDCaTRPN * dCaTRPNDStrain,
+    0,
+    0,
+  );
+  const populationDistortion = S;
+  const stressScalePa = terms.h * p.Tref / p.rs;
+  const tangentPa =
+    land2017LengthFactorDerivative(terms.lambda, p.beta0)
+      * p.Tref / p.rs
+      * populationDistortion
+    + stressScalePa * populationDerivative[2];
+  if (!Number.isFinite(tangentPa)) {
+    throw new Error("Land 2017 steady-state tangent is non-finite");
+  }
+  return tangentPa;
+}
+
+/**
+ * At the two one-sided gamma_su recruitment corners, the classical derivative
+ * is undefined. Retain the established midpoint of the valid one-sided
+ * derivatives; away from the corners this is the exact active-branch slope.
+ */
+function centralSemismoothGammaSuDerivative(
+  zetaS: number,
+  gammaS: number,
+): number {
   const kinkTolerance = 64 * Number.EPSILON;
   if (Math.abs(zetaS) <= kinkTolerance) {
-    midpointGammaDerivative = 0.5 * parameterSet.values.gammaS;
+    return 0.5 * gammaS;
   }
   if (Math.abs(zetaS + 1) <= kinkTolerance) {
-    midpointGammaDerivative = -0.5 * parameterSet.values.gammaS;
+    return -0.5 * gammaS;
   }
-  if (midpointGammaDerivative === 0) return;
-  const S = solvedNextState[LAND2017_STATE_INDEX.S];
-  jacobian[
-    LAND2017_STATE_INDEX.S * LAND2017_STATE_SIZE
-    + LAND2017_STATE_INDEX.zetaS
-  ] += input.dtSec * S * midpointGammaDerivative;
+  if (zetaS < -1) return -gammaS;
+  if (zetaS > 0) return gammaS;
+  return 0;
 }
 
 export function computeLand2017AlgorithmicTangentPa(

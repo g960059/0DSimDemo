@@ -55,7 +55,7 @@ export type MainWireNormalAdultFiveWallDiagnosticSampleV2 =
     >>;
     /** Accepted mechanics solve audit; copied readback, never solver feedback. */
     acceptedMechanicsJacobianAudit: Readonly<{
-      finiteDifferenceScaledStepUsed: number;
+      derivativeSource: "analytic-triseg-hessian";
       antisymmetricMaximumAbsoluteByOneJ: number;
       antisymmetricRelative: number;
       symmetricWithinTolerance: boolean;
@@ -114,8 +114,7 @@ export function sampleMainWireNormalAdultFiveWallDiagnosticStepV2(
     wallEnergyLedgerDensity: wallRecord((wallId) =>
       Object.freeze({ ...wallReadbackByWall[wallId].energyLedger })),
     acceptedMechanicsJacobianAudit: Object.freeze({
-      finiteDifferenceScaledStepUsed:
-        mechanics.jacobianFiniteDifferenceScaledStepUsed,
+      derivativeSource: mechanics.jacobianDerivativeSource,
       antisymmetricMaximumAbsoluteByOneJ:
         mechanics.jacobianAntisymmetricMaximumAbsoluteByOneJ,
       antisymmetricRelative: mechanics.jacobianAntisymmetricRelative,

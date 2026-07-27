@@ -28,16 +28,16 @@ export const OFFICIAL_HEALTHY_PERIODIC_CHECKPOINT_PRESET_V1_BINDING =
       id: "circleheart/adult-five-wall-noncoronary" as const,
       version: "0.2.0" as const,
       sha256:
-        "75a4aac4458de6f03db4fe3d43a919a9d06ec34e5f18e2ae48fbf63475f9e7e4" as const,
+        "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a" as const,
     }),
     manifestByteLength: 4_263 as const,
     manifestRawFileSha256:
-      "eb40d42aa4e8bde3b696eb1257428d2022826137e1f2c994c75f59188e451ca0" as const,
-    checkpointByteLength: 20_763 as const,
+      "4bd772f1df329d56502954d88e4e276e643d8b150368480f38af242a8eefbce8" as const,
+    checkpointByteLength: 20_752 as const,
     checkpointRawFileSha256:
-      "dbe660999758177aa7c72f92ce8da3bf4378a69d11f42454724a4f923d767ea2" as const,
+      "e00e1b6b4507f3b9bec6f8eaebfe5f3fc79b41c7bb97ae7eb74f24bc3754a3d4" as const,
     checkpointSha256:
-      "2f1c0b477905b07dfefc8a37ee7e1b7ab3d856d7f017770c6bc92a22fb529ff0" as const,
+      "9c3ee4a8adb59bcf21e261e6b58443714b642bbc25e98293091c3917252ea43c" as const,
   });
 
 export type OfficialHealthyPeriodicClosureSummaryV1 = Readonly<{
