@@ -16,6 +16,7 @@ export type StudioJsonValueV1 =
   | StudioJsonObjectV1;
 
 export type StudioArtifactKindV1 =
+  | "exact-signal-export"
   | "model-package"
   | "run-artifact"
   | "simulation-input"
@@ -37,6 +38,8 @@ export type SnapshotEnvelopeRefV1 =
 export type RunArtifactRefV1 = StudioArtifactRefV1<"run-artifact">;
 export type SimulationInputRefV1 =
   StudioArtifactRefV1<"simulation-input">;
+export type ExactSignalExportArtifactRefV1 =
+  StudioArtifactRefV1<"exact-signal-export">;
 
 /**
  * Exact model/runtime identities which determine numerical reproducibility.

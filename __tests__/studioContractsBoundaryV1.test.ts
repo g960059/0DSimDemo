@@ -4,7 +4,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
+  type ExactSignalSampleV1,
   type RuntimeControlIntentV1,
+  type RuntimeObservablePointV1,
   type RuntimeTargetIntentCommandV1,
   type StudioArtifactRefV1,
 } from "@/studio/contracts/v1";
@@ -73,6 +75,15 @@ describe("Studio V1 contract and dependency boundary", () => {
     });
     expect(command.targets).toHaveLength(2);
     expect(runRef.schemaId).toBe(STUDIO_ARTIFACT_REF_V1_SCHEMA_ID);
+  });
+
+  it("makes presentation points structurally ineligible for exact evaluators", () => {
+    const presentationCannotSatisfyExact:
+      RuntimeObservablePointV1 extends ExactSignalSampleV1
+        ? never
+        : true = true;
+
+    expect(presentationCannotSatisfyExact).toBe(true);
   });
 
   it("keeps the greenfield Reader Preview independent from legacy reading and preview stacks", () => {

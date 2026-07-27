@@ -26,6 +26,10 @@ import {
   STUDIO_ARTIFACT_REF_V1_SCHEMA_ID,
   STUDIO_RUN_ARTIFACT_CONTENT_V1_SCHEMA_ID,
   type ArtifactStorePortV1,
+  type ExactSignalExportCommandV1,
+  type ExactSignalExportPortV1,
+  type ExactSignalExportResultV1,
+  type ExactSignalExportWriterPortV1,
   type OpenScenarioRuntimeBranchV1,
   type OpenSimulationSessionCommandV1,
   type PromoteSteadyCandidateCommandV1,
@@ -39,6 +43,7 @@ import {
   type RuntimeLivePacingStateV1,
   type RuntimeObservablePointV1,
   type RuntimePresentationFrameV1,
+  type RuntimeReplayOriginV1,
   type RuntimeScenarioBranchOpenedV1,
   type RuntimeSessionOpenedV1,
   type RuntimeSignalChannelRefV1,
@@ -61,9 +66,15 @@ import {
   type StudioRunArtifactContentV1,
 } from "@/studio/contracts/v1";
 import {
+  StudioExactSignalExportWriterV1,
+} from "@/studio/infrastructure/artifacts/StudioExactSignalExportWriterV1";
+import {
   createMainWireBrowserWorkerSessionHostFactoryV1,
   MainWireStudioTransientPartialProgressErrorV1,
 } from "./MainWireBrowserWorkerSessionHostV1";
+import {
+  MainWireExactSignalReplayWorkerV1,
+} from "./MainWireExactSignalReplayWorkerV1";
 import type {
   MainWireStudioCheckpointReceiptV1,
   MainWireStudioHostedSessionV1,
@@ -72,6 +83,9 @@ import type {
   MainWireStudioSessionHostV1,
   MainWireStudioTransientChunkV1,
 } from "./MainWireStudioSessionHostV1";
+import {
+  putMainWireStudioReplayCheckpointEnvelopeV1,
+} from "./MainWireStudioReplayCheckpointEnvelopeV1";
 import {
   loadMainWireStudioSnapshotEnvelopeV1,
   mainWireStudioExecutionIdentityV1,
@@ -102,9 +116,11 @@ export const MAIN_WIRE_STUDIO_MAXIMUM_LIVE_PACING_LAG_MS_V1 =
 const LIVE_HOST_ROTATION_REQUEST_COUNT_V1 = 90_000;
 const SIGNAL_CHANNEL_PROTOCOL_V1 =
   "circleheart-studio-runtime-signal-channel-v1" as const;
+const RETAINED_REPLAY_ORIGIN_COUNT_V1 = 7;
 
 export type MainWireSimulationRuntimeAdapterOptionsV1 = Readonly<{
   artifacts: ArtifactStorePortV1;
+  exactSignalWriter?: ExactSignalExportWriterPortV1;
   hostFactory?: MainWireStudioSessionHostFactoryV1;
   liveStepCountPerChunk?: number;
   strictMaximumBeatCount?: number;
@@ -164,6 +180,7 @@ type AdapterBranchV1 = {
   livePacingReportingWindow: readonly MainWireStudioLivePacingRateSliceV1[];
   traceOriginTimeSec: number;
   tracePointCount: number;
+  replayOrigins: readonly RuntimeReplayOriginV1[];
 };
 
 type IntentBranchTokenV1 = {
@@ -185,6 +202,7 @@ type PreparedBranchV1 = Readonly<{
   strictHost: MainWireStudioSessionHostV1;
   strictTarget: MainWireStudioHostedSessionV1;
   targetState: MainWireScientificResearchControlTargetStateV0;
+  replayOrigin: RuntimeReplayOriginV1;
 }>;
 
 type PreparationOutcomeV1 = Readonly<{
@@ -209,8 +227,9 @@ let nextAdapterRuntimeIdentityV1 = 0;
  * serializing foreground live work behind periodic settlement.
  */
 export class MainWireSimulationRuntimeAdapterV1
-implements SimulationRuntimePortV1 {
+implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
   private readonly artifacts: ArtifactStorePortV1;
+  private readonly exactSignalWriter: ExactSignalExportWriterPortV1;
   private readonly hostFactory: MainWireStudioSessionHostFactoryV1;
   private readonly liveStepCountPerChunk: number;
   private readonly strictMaximumBeatCount: number;
@@ -231,6 +250,8 @@ implements SimulationRuntimePortV1 {
 
   constructor(options: MainWireSimulationRuntimeAdapterOptionsV1) {
     this.artifacts = options.artifacts;
+    this.exactSignalWriter = options.exactSignalWriter
+      ?? new StudioExactSignalExportWriterV1(options.artifacts);
     this.hostFactory = options.hostFactory
       ?? createMainWireBrowserWorkerSessionHostFactoryV1();
     this.liveStepCountPerChunk = boundedPositiveIntegerV1(
@@ -349,6 +370,46 @@ implements SimulationRuntimePortV1 {
       if (this.promotionOperations.get(idempotencyKey) === operation) {
         this.promotionOperations.delete(idempotencyKey);
       }
+    }
+  }
+
+  async exportExactSignals(
+    command: ExactSignalExportCommandV1,
+  ): Promise<ExactSignalExportResultV1> {
+    assertExactSignalExportCommandV1(command);
+    const session = this.requiredSessionV1(command.sessionId);
+    const branch = requiredBranchV1(session, command.scenarioId);
+    if (
+      command.liveBranchId !== branch.liveBranchId
+      || command.targetGeneration > branch.reservedTargetGeneration
+      || command.presentationRevision
+        > branch.reservedPresentationRevision
+    ) throw runtimeErrorV1("exact export branch identity mismatch");
+    const origin = branch.replayOrigins.find((candidate) =>
+      candidate.targetGeneration === command.targetGeneration
+      && candidate.presentationRevision === command.presentationRevision
+    );
+    if (origin === undefined) {
+      throw runtimeErrorV1(
+        "exact export origin is unavailable or outside retention",
+      );
+    }
+
+    const host = this.hostFactory();
+    session.transientHosts.add(host);
+    try {
+      const worker = new MainWireExactSignalReplayWorkerV1({
+        artifacts: this.artifacts,
+        writer: this.exactSignalWriter,
+        host,
+        replaySessionId: this.nextInternalIdV1("exact-replay"),
+      });
+      return await worker.exportExactSignals(origin, command);
+    } catch (error) {
+      throw runtimeErrorV1(errorMessageV1(error));
+    } finally {
+      session.transientHosts.delete(host);
+      host.terminate();
     }
   }
 
@@ -549,6 +610,22 @@ implements SimulationRuntimePortV1 {
       envelope.checkpointV4,
     );
     const initialFrame = mainWireStudioSeedPresentationFrameV1(envelope);
+    const openingReplayOrigin = Object.freeze({
+      kind: "opened-run" as const,
+      sessionId: studioSessionId,
+      scenarioId: source.scenarioId,
+      liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      simulationInputRef: source.sourceInputRef,
+      targetInputSha256: source.initialTargetInputSha256,
+      execution,
+      boundaryRevision: envelope.checkpointV4.transaction.revision,
+      boundaryTimeSec:
+        envelope.checkpointV4.transaction.acceptedTimeSec,
+      sourceRunRef: source.sourceRunRef,
+      sourceSnapshotRef: source.sourceSnapshotRef,
+    }) satisfies RuntimeReplayOriginV1;
     const internal: AdapterBranchV1 = {
       scenarioId: source.scenarioId,
       liveBranchId,
@@ -581,6 +658,7 @@ implements SimulationRuntimePortV1 {
       livePacingReportingWindow: Object.freeze([]),
       traceOriginTimeSec: initialFrame.point.simulationTimeSec,
       tracePointCount: 1,
+      replayOrigins: Object.freeze([openingReplayOrigin]),
     };
     return Object.freeze({
       internal,
@@ -808,15 +886,51 @@ implements SimulationRuntimePortV1 {
             : null,
         ].filter((value): value is string => value !== null).join("; "));
       }
+      const liveReplayCheckpoint =
+        await branch.host.checkpointV4(liveFork.value);
+      assertLiveReplayCheckpointReceiptV1(
+        branch,
+        liveFork.value,
+        targetState,
+        liveReplayCheckpoint,
+      );
+      liveTarget = liveReplayCheckpoint.session;
+      const replayCheckpointRef =
+        await putMainWireStudioReplayCheckpointEnvelopeV1(
+          this.artifacts,
+          {
+            simulationInputRef: branch.sourceInputRef,
+            resolvedSessionInput: branch.resolvedSessionInput,
+            checkpointV4: liveReplayCheckpoint.checkpointV4,
+          },
+        );
+      const replayOrigin = Object.freeze({
+        kind: "live-transition" as const,
+        sessionId: session.sessionId,
+        scenarioId: branch.scenarioId,
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: token.target.targetGeneration,
+        presentationRevision: token.target.presentationRevision,
+        sourceRunRef: branch.sourceRunRef,
+        simulationInputRef: branch.sourceInputRef,
+        targetInputSha256: token.target.patch.targetInputSha256,
+        execution: branch.execution,
+        boundaryRevision:
+          liveReplayCheckpoint.checkpointV4.transaction.revision,
+        boundaryTimeSec:
+          liveReplayCheckpoint.checkpointV4.transaction.acceptedTimeSec,
+        replayCheckpointRef,
+      }) satisfies RuntimeReplayOriginV1;
       await strictHost.dispose(strictSource.sessionId);
       return Object.freeze({
         token,
         branch,
         oldLiveSessionId: sourceCheckpoint.session.sessionId,
-        liveTarget: liveFork.value,
+        liveTarget,
         strictHost,
         strictTarget: strictFork.value,
         targetState,
+        replayOrigin,
       });
     } catch (error) {
       if (liveTarget !== null) {
@@ -868,6 +982,14 @@ implements SimulationRuntimePortV1 {
           if (after !== null) return after;
           const latest = chunk.observableFrames.at(-1)
             ?? chunk.session.observableFrame;
+          assertInitialLiveReplayContinuationV1(
+            prepared.replayOrigin,
+            latest,
+          );
+          retainReplayOriginV1(
+            prepared.branch,
+            prepared.replayOrigin,
+          );
           prepared.branch.traceOriginTimeSec = latest.acceptedTimeSec;
           prepared.branch.tracePointCount = 1;
           return Object.freeze({
@@ -1245,6 +1367,27 @@ implements SimulationRuntimePortV1 {
         "stream epoch",
       );
       const initialFrame = mainWireStudioSeedPresentationFrameV1(envelope);
+      const promotedReplayOrigin = Object.freeze({
+        kind: "promoted-steady-candidate" as const,
+        sessionId: command.sessionId,
+        scenarioId: command.scenarioId,
+        liveBranchId: branch.liveBranchId,
+        targetGeneration: command.targetGeneration,
+        presentationRevision: command.presentationRevision,
+        sourceRunRef: command.candidate.sourceRunRef,
+        simulationInputRef: command.candidate.simulationInputRef,
+        targetInputSha256: command.candidate.targetInputSha256,
+        execution,
+        boundaryRevision: envelope.checkpointV4.transaction.revision,
+        boundaryTimeSec:
+          envelope.checkpointV4.transaction.acceptedTimeSec,
+        candidateId: command.candidate.candidateId,
+        promotedSnapshotRef: command.candidate.snapshotRef,
+      }) satisfies RuntimeReplayOriginV1;
+      const replayOrigins = nextReplayOriginsV1(
+        branch.replayOrigins,
+        promotedReplayOrigin,
+      );
       const receipt = Object.freeze({
         sessionId: command.sessionId,
         scenarioId: command.scenarioId,
@@ -1273,6 +1416,7 @@ implements SimulationRuntimePortV1 {
       branch.liveFailure = null;
       branch.livePacing = INITIAL_RUNTIME_LIVE_PACING_STATE_V1;
       branch.livePacingReportingWindow = Object.freeze([]);
+      branch.replayOrigins = replayOrigins;
       session.transientHosts.delete(newHost);
       this.issuedCandidates.delete(
         issuedCandidateKeyV1(command.candidate),
@@ -2523,6 +2667,140 @@ function sameNumberSequenceV1(
 ): boolean {
   return left.length === right.length
     && left.every((value, index) => value === right[index]);
+}
+
+function assertLiveReplayCheckpointReceiptV1(
+  branch: AdapterBranchV1,
+  forked: MainWireStudioHostedSessionV1,
+  targetState: MainWireScientificResearchControlTargetStateV0,
+  receipt: MainWireStudioCheckpointReceiptV1,
+): void {
+  const { session, checkpointV4 } = receipt;
+  if (
+    session.hostId !== branch.host.hostId
+    || session.sessionId !== forked.sessionId
+    || session.baseSessionInputSha256
+      !== branch.resolvedSessionInput.sessionInputSha256
+    || session.controlState.targetStateSha256
+      !== targetState.targetStateSha256
+    || session.parameterEpoch !== forked.parameterEpoch
+    || session.stateIdentity.revision !== forked.stateIdentity.revision
+    || !sameExactExportTimeV1(
+      session.stateIdentity.acceptedTimeSec,
+      forked.stateIdentity.acceptedTimeSec,
+    )
+    || checkpointV4.baseSessionInputSha256
+      !== branch.resolvedSessionInput.sessionInputSha256
+    || checkpointV4.controlTargetStateSha256
+      !== targetState.targetStateSha256
+    || checkpointV4.parameterEpoch !== session.parameterEpoch
+    || checkpointV4.transaction.revision
+      !== session.stateIdentity.revision
+    || !sameExactExportTimeV1(
+      checkpointV4.transaction.acceptedTimeSec,
+      session.stateIdentity.acceptedTimeSec,
+    )
+    || !sameExecutionIdentityV1(
+      mainWireStudioExecutionIdentityV1(checkpointV4),
+      branch.execution,
+    )
+  ) throw runtimeErrorV1("live replay checkpoint receipt mismatch");
+}
+
+function assertInitialLiveReplayContinuationV1(
+  origin: RuntimeReplayOriginV1,
+  frame: MainWireScientificObservableFrameV1,
+): void {
+  if (
+    origin.kind !== "live-transition"
+    || frame.source !== "accepted-step"
+    || frame.revision !== origin.boundaryRevision + 1
+    || !sameExactExportTimeV1(
+      frame.acceptedTimeSec,
+      origin.boundaryTimeSec + MAIN_WIRE_LIVE_DT_SEC_V1,
+    )
+  ) throw runtimeErrorV1("live replay origin does not precede first step");
+}
+
+function retainReplayOriginV1(
+  branch: AdapterBranchV1,
+  origin: RuntimeReplayOriginV1,
+): void {
+  branch.replayOrigins = nextReplayOriginsV1(
+    branch.replayOrigins,
+    origin,
+  );
+}
+
+function nextReplayOriginsV1(
+  retained: readonly RuntimeReplayOriginV1[],
+  origin: RuntimeReplayOriginV1,
+): readonly RuntimeReplayOriginV1[] {
+  const latest = retained.at(-1);
+  if (
+    retained.length === 0
+    || retained.length > RETAINED_REPLAY_ORIGIN_COUNT_V1
+    || latest === undefined
+    || origin.sessionId !== latest.sessionId
+    || origin.scenarioId !== latest.scenarioId
+    || origin.liveBranchId !== latest.liveBranchId
+    || origin.presentationRevision <= latest.presentationRevision
+    || retained.some((candidate) =>
+      candidate.presentationRevision === origin.presentationRevision
+    )
+  ) throw runtimeErrorV1("replay origin retention identity mismatch");
+  return Object.freeze(
+    [...retained, origin].slice(-RETAINED_REPLAY_ORIGIN_COUNT_V1),
+  );
+}
+
+function assertExactSignalExportCommandV1(
+  command: ExactSignalExportCommandV1,
+): void {
+  const ids = [
+    command.sessionId,
+    command.scenarioId,
+    command.liveBranchId,
+  ];
+  const startStepCount = Math.round(
+    command.intervalStartOffsetSec / MAIN_WIRE_LIVE_DT_SEC_V1,
+  );
+  const intervalCount = Math.round(
+    command.intervalDurationSec / MAIN_WIRE_LIVE_DT_SEC_V1,
+  );
+  if (
+    ids.some((value) =>
+      typeof value !== "string" || value.trim().length === 0
+    )
+    || !Number.isSafeInteger(command.targetGeneration)
+    || command.targetGeneration < 0
+    || !Number.isSafeInteger(command.presentationRevision)
+    || command.presentationRevision < 0
+    || !Number.isFinite(command.intervalStartOffsetSec)
+    || command.intervalStartOffsetSec < 0
+    || !Number.isFinite(command.intervalDurationSec)
+    || command.intervalDurationSec <= 0
+    || !Number.isSafeInteger(startStepCount)
+    || !Number.isSafeInteger(intervalCount)
+    || intervalCount < 1
+    || !sameExactExportTimeV1(
+      command.intervalStartOffsetSec,
+      startStepCount * MAIN_WIRE_LIVE_DT_SEC_V1,
+    )
+    || !sameExactExportTimeV1(
+      command.intervalDurationSec,
+      intervalCount * MAIN_WIRE_LIVE_DT_SEC_V1,
+    )
+    || !Number.isFinite(
+      command.intervalStartOffsetSec + command.intervalDurationSec,
+    )
+  ) throw runtimeErrorV1("exact export command is invalid");
+}
+
+function sameExactExportTimeV1(left: number, right: number): boolean {
+  return Number.isFinite(left)
+    && Number.isFinite(right)
+    && Math.abs(left - right) <= 1e-11;
 }
 
 function assertOpenCommandV1(

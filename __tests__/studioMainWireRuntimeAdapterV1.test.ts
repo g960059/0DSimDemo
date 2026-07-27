@@ -61,11 +61,14 @@ import {
 } from "@/studio/adapters/mainWire/MainWireStudioHemodynamicAnalysisHostV1";
 import type {
   OpenScenarioRuntimeBranchV1,
+  ExactSignalExportContentV1,
   RuntimeControlPatchV1,
+  RuntimeReplayOriginV1,
   RuntimeSignalBatchV1,
   RuntimeSignalEventV1,
   RuntimeSteadyCandidateV1,
   StudioArtifactRefV1,
+  StudioRunArtifactContentV1,
   StudioSettledAnalysisSourceV1,
   StudioJsonWriteV1,
   StudioJsonValueV1,
@@ -76,6 +79,9 @@ import {
 import {
   InMemoryContentAddressedArtifactStoreV1,
 } from "@/studio/infrastructure/artifacts/InMemoryContentAddressedArtifactStoreV1";
+import {
+  studioCanonicalJsonStringifyV1,
+} from "@/studio/infrastructure/artifacts/studioCanonicalJsonV1";
 import {
   buildOfficialHealthyPeriodicDocumentChainV1,
 } from "@/tools/scientific/officialHealthyPeriodicDocumentChainV1";
@@ -1076,7 +1082,9 @@ describe("MainWire Studio runtime adapter", () => {
     await Promise.all([first.live, replacement.live]);
     expect(firstStrict.branches[0]!.status).toBe("superseded");
     expect(replacementStrict.branches[0]!.status).toBe("failure");
-    expect(artifacts.entryCount).toBe(baselineEntryCount);
+    // Each accepted live preparation materializes its post-fork replay
+    // checkpoint independently of the superseded strict candidate staging.
+    expect(artifacts.entryCount).toBe(baselineEntryCount + 2);
     await adapter.closeSession("strict-artifact-supersession-session");
   });
 
@@ -1143,7 +1151,9 @@ describe("MainWire Studio runtime adapter", () => {
     await Promise.all([first.live, replacement.live]);
     expect(firstStrict.branches[0]!.status).toBe("superseded");
     expect(replacementStrict.branches[0]!.status).toBe("failure");
-    expect(artifacts.entryCount).toBe(baselineEntryCount);
+    // Replay checkpoint materialization is required before each first live
+    // step; neither entry is a leaked strict-candidate snapshot.
+    expect(artifacts.entryCount).toBe(baselineEntryCount + 2);
     expect(artifacts.successfulSnapshotBatchCount)
       .toBe(baselineSnapshotBatchCount);
     await adapter.closeSession("strict-precommit-supersession-session");
@@ -1740,8 +1750,10 @@ describe("MainWire Studio runtime adapter", () => {
     await Promise.all([first.strict, replacement.strict]);
     expect(firstLive.branches[0]!.status).toBe("superseded");
     expect(replacementLive.branches[0]!.status).toBe("success");
-    expect(harness.hosts[0]!.checkpointV4Inputs).toHaveLength(2);
-    expect(harness.hosts[0]!.checkpointV4Inputs[1]!.stateIdentity)
+    expect(harness.hosts[0]!.checkpointV4Inputs).toHaveLength(4);
+    // Source checkpoints are now interleaved with post-fork replay
+    // checkpoints. The replacement source must still include partial progress.
+    expect(harness.hosts[0]!.checkpointV4Inputs[2]!.stateIdentity)
       .toMatchObject({
         revision: baseFixture.frame.revision + 1,
         acceptedTimeSec: baseFixture.frame.acceptedTimeSec + 0.002,
@@ -1839,6 +1851,267 @@ describe("MainWire Studio runtime adapter", () => {
     );
     expect(Math.min(phaseDistance, 1 - phaseDistance)).toBeLessThan(1e-9);
     await adapter.closeSession("phase-promotion-session");
+  });
+
+  it("exports one exact second with 500 contiguous intervals and the stride-1 reference endpoint", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "exact-one-second-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const internal = internalAdapterBranchV1(
+      adapter,
+      "exact-one-second-session",
+      "scenario",
+    );
+    const before = Object.freeze({
+      host: internal.host,
+      hostedSession: internal.hostedSession,
+      liveBranchId: internal.liveBranchId,
+      streamEpoch: internal.streamEpoch,
+      livePacing: internal.livePacing,
+      tracePointCount: internal.tracePointCount,
+      replayOrigins: internal.replayOrigins,
+      liveRequestCount: internal.host.requestCount,
+    });
+    const presentationEvents: RuntimeSignalEventV1[] = [];
+    adapter.subscribeSignalChannel(
+      branch.signalChannelRef,
+      (event) => presentationEvents.push(event),
+    );
+    const command = Object.freeze({
+      sessionId: "exact-one-second-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 1,
+    });
+
+    const firstExport = await adapter.exportExactSignals(command);
+    const firstValue =
+      await stored.artifacts.readJson(firstExport.artifactRef);
+    const firstContent =
+      firstValue as unknown as ExactSignalExportContentV1;
+    expect(firstExport.artifactRef.kind).toBe("exact-signal-export");
+    expect(firstContent.manifest.coverage).toEqual({
+      kind: "exact-signal-replay-v1",
+      dtSec: 0.002,
+      observationStride: 1,
+      intervalCount: 500,
+      sampleCount: 501,
+    });
+    expect(firstContent.samples).toHaveLength(501);
+    expect(firstContent.samples[0]!.provenance)
+      .toBe("checkpoint-boundary");
+    expect(firstContent.samples.slice(1).every((sample) =>
+      sample.provenance === "accepted-step"
+    )).toBe(true);
+    for (let index = 2; index < firstContent.samples.length; index += 1) {
+      const previous = firstContent.samples[index - 1]!;
+      const sample = firstContent.samples[index]!;
+      expect(sample.revision).toBe(previous.revision + 1);
+      expect(sample.simulationTimeSec - previous.simulationTimeSec)
+        .toBeCloseTo(0.002, 12);
+    }
+
+    const referenceHost = harness.factory();
+    const referenceRestored = await referenceHost.restoreV4({
+      sessionId: "stride-one-reference",
+      resolvedSessionInput: baseFixture.sessionInput,
+      checkpointV4: baseFixture.checkpoint,
+    });
+    const reference = await referenceHost.runTransient({
+      session: referenceRestored,
+      dtSec: 0.002,
+      stepCount: 500,
+      observationStride: 1,
+    });
+    const finalSample = firstContent.samples.at(-1)!;
+    const finalReference = reference.observableFrames.at(-1)!;
+    expect(finalSample.revision).toBe(finalReference.revision);
+    expect(finalSample.simulationTimeSec)
+      .toBeCloseTo(finalReference.acceptedTimeSec, 12);
+    for (const observableId of [
+      "hemodynamics.volume.LV",
+      "hemodynamics.pressure.absolute.Ao",
+      "valve.AoV.flow",
+    ] as const) {
+      expect(finalSample.values[observableId])
+        .toEqual(finalReference.values[observableId]);
+    }
+    referenceHost.terminate();
+
+    const secondExport = await adapter.exportExactSignals(command);
+    const secondValue =
+      await stored.artifacts.readJson(secondExport.artifactRef);
+    expect(secondExport.artifactRef.sha256)
+      .toBe(firstExport.artifactRef.sha256);
+    expect(secondExport.manifest.dataSha256)
+      .toBe(firstExport.manifest.dataSha256);
+    expect(studioCanonicalJsonStringifyV1(secondValue))
+      .toBe(studioCanonicalJsonStringifyV1(firstValue));
+
+    const fastForwarded = await adapter.exportExactSignals({
+      ...command,
+      intervalStartOffsetSec: 0.01,
+      intervalDurationSec: 0.004,
+    });
+    const fastForwardedContent = await stored.artifacts.readJson(
+      fastForwarded.artifactRef,
+    ) as unknown as ExactSignalExportContentV1;
+    expect(fastForwardedContent.samples).toHaveLength(3);
+    expect(fastForwardedContent.samples[0]).toMatchObject({
+      provenance: "accepted-step",
+      revision: baseFixture.frame.revision + 5,
+    });
+    expect(fastForwardedContent.samples[0]!.simulationTimeSec)
+      .toBeCloseTo(baseFixture.frame.acceptedTimeSec + 0.01, 12);
+    expect(fastForwardedContent.manifest).toMatchObject({
+      checkpointBoundarySampleCount: 0,
+      acceptedStepSampleCount: 3,
+      claims: {
+        fastForwardIntermediateObservationsRetained: false,
+      },
+    });
+
+    // The replay hosts are exclusive and disposable. Nothing on the source
+    // branch, its pacing epoch, or its presentation history is touched.
+    expect(internal.host).toBe(before.host);
+    expect(internal.hostedSession).toBe(before.hostedSession);
+    expect(internal.liveBranchId).toBe(before.liveBranchId);
+    expect(internal.streamEpoch).toBe(before.streamEpoch);
+    expect(internal.livePacing).toBe(before.livePacing);
+    expect(internal.tracePointCount).toBe(before.tracePointCount);
+    expect(internal.replayOrigins).toBe(before.replayOrigins);
+    expect(internal.host.requestCount).toBe(before.liveRequestCount);
+    expect(presentationEvents).toEqual([]);
+    expect(harness.hosts.slice(1).every(({ terminated }) => terminated))
+      .toBe(true);
+
+    const runContent = await stored.artifacts.readJson(
+      stored.runRef,
+    ) as unknown as StudioRunArtifactContentV1;
+    expect(runContent.claims.canonicalSignalSamplesStored).toBe(false);
+    await adapter.closeSession("exact-one-second-session");
+  });
+
+  it("retains the current replay origin plus six predecessors across opening, live transition, and promotion", async () => {
+    const stored = await storeSourceV1(baseFixture);
+    const harness = new FakeHostHarnessV1(baseFixture);
+    harness.strictConvergesWithoutAdvance = true;
+    const adapter = runtimeAdapterV1(stored, harness);
+    const opened = await adapter.openSession({
+      sessionId: "replay-origin-retention-session",
+      branches: [sourceBranchV1(stored, "scenario")],
+    });
+    const branch = opened.branches[0]!;
+    const issued = await issueStrictCandidateV1(
+      adapter,
+      baseFixture,
+      branch,
+      "replay-origin-retention-session",
+      "replay-origin-candidate",
+    );
+    await adapter.promoteSteadyCandidate({
+      sessionId: "replay-origin-retention-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 1,
+      presentationRevision: 2,
+      candidate: issued.candidate,
+    });
+
+    for (let targetGeneration = 2; targetGeneration <= 6; targetGeneration += 1) {
+      const targetScale = [1.5, 2, 3, 4, 0.25][
+        targetGeneration - 2
+      ]!;
+      const execution = adapter.startTargetIntent({
+        sessionId: "replay-origin-retention-session",
+        intentId: `replay-origin-intent-${targetGeneration}`,
+        targets: [{
+          scenarioId: "scenario",
+          liveBranchId: branch.liveBranchId,
+          targetGeneration,
+          presentationRevision: targetGeneration + 1,
+          patch: await targetPatchV1(
+            baseFixture,
+            "circulation.systemic-vascular-resistance-scale",
+            targetScale,
+          ),
+        }],
+      });
+      const [live] = await Promise.all([
+        execution.live,
+        execution.strict,
+      ]);
+      if (live.branches[0]!.status !== "success") {
+        const failure = live.branches[0]!;
+        throw new Error(
+          `generation ${targetGeneration}: ${
+            failure.status === "failure"
+              ? failure.message
+              : failure.reason
+          }`,
+        );
+      }
+    }
+
+    const internal = internalAdapterBranchV1(
+      adapter,
+      "replay-origin-retention-session",
+      "scenario",
+    );
+    expect(internal.replayOrigins).toHaveLength(7);
+    expect(internal.replayOrigins.map(({ presentationRevision }) =>
+      presentationRevision
+    )).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(internal.replayOrigins[0]!.kind).toBe("live-transition");
+    expect(internal.replayOrigins[1]).toMatchObject({
+      kind: "promoted-steady-candidate",
+      candidateId: issued.candidate.candidateId,
+      promotedSnapshotRef: issued.candidate.snapshotRef,
+    });
+    expect(internal.replayOrigins.at(-1)).toMatchObject({
+      kind: "live-transition",
+      targetGeneration: 6,
+      presentationRevision: 7,
+    });
+    // For generation 1, checkpoint input 0 is the source and input 1 is the
+    // control-fork target captured before its first accepted-step command.
+    expect(harness.hosts[0]!.checkpointV4Inputs[1]!.stateIdentity)
+      .toEqual({
+        revision: internal.replayOrigins[0]!.boundaryRevision,
+        acceptedTimeSec: internal.replayOrigins[0]!.boundaryTimeSec,
+        totalBloodVolumeMl:
+          harness.hosts[0]!.checkpointV4Inputs[1]!.stateIdentity
+            .totalBloodVolumeMl,
+      });
+
+    await expect(adapter.exportExactSignals({
+      sessionId: "replay-origin-retention-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 0,
+      presentationRevision: 0,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 0.002,
+    })).rejects.toThrow(/outside retention/);
+    const retainedExport = await adapter.exportExactSignals({
+      sessionId: "replay-origin-retention-session",
+      scenarioId: "scenario",
+      liveBranchId: branch.liveBranchId,
+      targetGeneration: 1,
+      presentationRevision: 1,
+      intervalStartOffsetSec: 0,
+      intervalDurationSec: 0.002,
+    });
+    expect(retainedExport.manifest.origin.kind).toBe("live-transition");
+    await adapter.closeSession("replay-origin-retention-session");
   });
 });
 
@@ -2457,6 +2730,35 @@ function runtimeAdapterV1(
   });
 }
 
+type InternalAdapterBranchForTestV1 = Readonly<{
+  host: MainWireStudioSessionHostV1;
+  hostedSession: MainWireStudioHostedSessionV1;
+  liveBranchId: string;
+  streamEpoch: number;
+  livePacing: unknown;
+  tracePointCount: number;
+  replayOrigins: readonly RuntimeReplayOriginV1[];
+}>;
+
+function internalAdapterBranchV1(
+  adapter: MainWireSimulationRuntimeAdapterV1,
+  sessionId: string,
+  scenarioId: string,
+): InternalAdapterBranchForTestV1 {
+  const sessions = (
+    adapter as unknown as Readonly<{
+      sessions: Map<string, Readonly<{
+        branches: Map<string, InternalAdapterBranchForTestV1>;
+      }>>;
+    }>
+  ).sessions;
+  const branch = sessions.get(sessionId)?.branches.get(scenarioId);
+  if (branch === undefined) {
+    throw new Error("test could not find internal adapter branch");
+  }
+  return branch;
+}
+
 type FakeHostEventV1 =
   | Readonly<{
     kind: "fork-start" | "fork-complete";
@@ -2509,6 +2811,7 @@ class FakeHostHarnessV1 {
 class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
   readonly sessions = new Map<string, MainWireStudioHostedSessionV1>();
   readonly checkpointV4Inputs: MainWireStudioHostedSessionV1[] = [];
+  private readonly strictSettledSessionIds = new Set<string>();
   requestCount = 0;
   runTransientCallCount = 0;
   settlePeriodicCallCount = 0;
@@ -2541,7 +2844,16 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
     const resolved = input.resolvedSessionInput as {
       sessionInputSha256: string;
     };
-    const hosted = hostedSessionV1({
+    const restoredFrame = Object.freeze({
+      ...frameAtV1(
+        this.harness.fixture.frame,
+        input.checkpointV4.transaction.revision,
+        input.checkpointV4.transaction.acceptedTimeSec,
+      ),
+      source: "exact-checkpoint-restore" as const,
+    });
+    const hosted = Object.freeze({
+      ...hostedSessionV1({
       hostId: this.hostId,
       sessionId: input.sessionId,
       baseSessionInputSha256: resolved.sessionInputSha256,
@@ -2550,6 +2862,8 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
       revision: input.checkpointV4.transaction.revision,
       acceptedTimeSec: input.checkpointV4.transaction.acceptedTimeSec,
       frame: this.harness.fixture.frame,
+      }),
+      observableFrame: restoredFrame,
     });
     this.sessions.set(hosted.sessionId, hosted);
     return hosted;
@@ -2712,6 +3026,7 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
         stateIdentity: this.harness.fixture.strictStateIdentity,
       });
       this.sessions.set(settled.sessionId, settled);
+      this.strictSettledSessionIds.add(settled.sessionId);
       return Object.freeze({
         session: settled,
         status: evidence.status,
@@ -2790,7 +3105,10 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
       await checkpointGate.promise;
     }
     this.checkpointV4CompletedCount += 1;
-    if (this.harness.strictConvergesWithoutAdvance) {
+    if (
+      this.harness.strictConvergesWithoutAdvance
+      && this.strictSettledSessionIds.has(session.sessionId)
+    ) {
       const checkpoint = mutableCloneV1(
         this.harness.fixture.strictCheckpoint,
       );
@@ -2812,9 +3130,30 @@ class FakeSessionHostV1 implements MainWireStudioSessionHostV1 {
           checkpoint as MainWireScientificSessionExactCheckpointV4,
       });
     }
+    const transaction = mutableCloneV1(
+      this.harness.fixture.checkpoint.transaction,
+    );
+    transaction.revision = session.stateIdentity.revision;
+    transaction.acceptedTimeSec =
+      session.stateIdentity.acceptedTimeSec;
+    const checkpointV4 =
+      await createMainWireScientificSessionExactCheckpointV4(
+        {
+          releaseRef: this.harness.fixture.checkpoint.releaseRef,
+          baseSessionInputSha256:
+            session.baseSessionInputSha256,
+          stateCodec: this.harness.fixture.checkpoint.stateCodec,
+        },
+        {
+          controlTargetState: session.controlState,
+          parameterEpoch: session.parameterEpoch,
+          transaction,
+          periodicSettlementTracker: null,
+        },
+      );
     return Object.freeze({
       session,
-      checkpointV4: this.harness.fixture.checkpoint,
+      checkpointV4,
     });
   }
 

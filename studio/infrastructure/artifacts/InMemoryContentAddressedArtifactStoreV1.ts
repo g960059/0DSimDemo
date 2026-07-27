@@ -20,6 +20,7 @@ const STUDIO_JSON_BLOB_V1_SCHEMA_ID =
 const SHA256_HEX_PATTERN_V1 = /^[0-9a-f]{64}$/;
 
 const ARTIFACT_KINDS_V1 = new Set<StudioArtifactKindV1>([
+  "exact-signal-export",
   "model-package",
   "run-artifact",
   "simulation-input",
