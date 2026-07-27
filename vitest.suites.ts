@@ -7,7 +7,7 @@
  * that every *.test.ts file belongs to exactly one suite.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 117;
+export const FAST_SUITE_FILE_BUDGET = 118;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 58;
 
 export const fastTests = [
@@ -23,6 +23,7 @@ export const fastTests = [
   "__tests__/equilibriumOneFiberPassiveV1.test.ts",
   "__tests__/fiveWallNormalCalciumDriveV1.test.ts",
   "__tests__/homeLinks.test.ts",
+  "__tests__/hotPathIntegrityTierV1.test.ts",
   "__tests__/instanceColors.test.ts",
   "__tests__/knobMetadata.test.ts",
   "__tests__/laPvReservoirConduitOrderV1.test.ts",

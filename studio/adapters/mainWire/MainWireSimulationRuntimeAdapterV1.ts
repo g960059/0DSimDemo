@@ -99,6 +99,7 @@ import type {
   MainWireStudioHostedSessionV1,
   MainWireStudioPeriodicSettlementChunkV1,
   MainWireStudioSessionHostFactoryV1,
+  MainWireStudioSessionHostRequestV1,
   MainWireStudioSessionHostV1,
   MainWireStudioTransientChunkV1,
 } from "./MainWireStudioSessionHostV1";
@@ -142,6 +143,16 @@ const LIVE_HOST_ROTATION_REQUEST_COUNT_V1 = 90_000;
 const SIGNAL_CHANNEL_PROTOCOL_V1 =
   "circleheart-studio-runtime-signal-channel-v1" as const;
 const RETAINED_REPLAY_ORIGIN_GENERATION_COUNT_V1 = 7;
+/**
+ * Live lanes — opening a branch, the strict steady candidate, promotion and
+ * host rotation — run the hot-path-lean integrity tier. The exact-signal
+ * replay/export host deliberately does not pass this and therefore keeps the
+ * full-invariant tier, as does any injected test host factory that ignores the
+ * request. The tiers produce identical numbers; see
+ * engine/hotPathIntegrityTierV1.ts.
+ */
+const LIVE_LANE_HOST_REQUEST_V1: MainWireStudioSessionHostRequestV1 =
+  Object.freeze({ integrityTier: "hot-path-lean" as const });
 
 export type MainWireSimulationRuntimeAdapterOptionsV1 = Readonly<{
   artifacts: ArtifactStorePortV1;
@@ -331,7 +342,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       assertOpeningActive();
       const opened = await Promise.all(loaded.map(async (entry) => {
         assertOpeningActive();
-        const host = this.hostFactory();
+        const host = this.hostFactory(LIVE_LANE_HOST_REQUEST_V1);
         hosts.add(host);
         const hosted = await host.restoreV4({
           sessionId: this.nextInternalIdV1("live-open"),
@@ -948,7 +959,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     if (branch.hostedSession.sessionId === sourceCheckpoint.session.sessionId) {
       branch.hostedSession = sourceCheckpoint.session;
     }
-    const strictHost = this.hostFactory();
+    const strictHost = this.hostFactory(LIVE_LANE_HOST_REQUEST_V1);
     token.strictHost = strictHost;
     let liveTarget: MainWireStudioHostedSessionV1 | null = null;
     try {
@@ -1415,7 +1426,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
     this.assertPromotionPreconditionsV1(session, branch, command);
     const oldHost = branch.host;
     const oldSessionId = branch.hostedSession.sessionId;
-    const newHost = this.hostFactory();
+    const newHost = this.hostFactory(LIVE_LANE_HOST_REQUEST_V1);
     session.transientHosts.add(newHost);
     let enteredCommitWindow = false;
     let committed = false;
@@ -2048,7 +2059,7 @@ implements SimulationRuntimePortV1, ExactSignalExportPortV1 {
       || branch.hostedSession.sessionId !== checkpoint.session.sessionId
     ) throw runtimeErrorV1("live host rotation lost session ownership");
 
-    const newHost = this.hostFactory();
+    const newHost = this.hostFactory(LIVE_LANE_HOST_REQUEST_V1);
     session.transientHosts.add(newHost);
     try {
       const restored = await newHost.restoreV4({

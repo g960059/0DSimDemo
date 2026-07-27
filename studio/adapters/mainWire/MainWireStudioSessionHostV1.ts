@@ -2,6 +2,9 @@ import type {
   MainWireScientificResearchControlTargetStateV0,
 } from "@/engine/scientific/controls";
 import type {
+  HotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import type {
   MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
 import type {
@@ -109,5 +112,18 @@ export interface MainWireStudioSessionHostV1 {
   terminate(): void;
 }
 
+/**
+ * Optional per-host request. Every field is optional and every implementation
+ * may ignore it: a factory written as `() => host` stays assignable, and an
+ * omitted field must select the conservative behaviour.
+ */
+export type MainWireStudioSessionHostRequestV1 = Readonly<{
+  /**
+   * Hot-path integrity tier the host's compute Worker should run. Omitted
+   * means the full-invariant tier. See engine/hotPathIntegrityTierV1.ts.
+   */
+  integrityTier?: HotPathIntegrityTierV1;
+}>;
+
 export type MainWireStudioSessionHostFactoryV1 =
-  () => MainWireStudioSessionHostV1;
+  (request?: MainWireStudioSessionHostRequestV1) => MainWireStudioSessionHostV1;

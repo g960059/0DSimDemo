@@ -1,4 +1,7 @@
 import type { MainWireScientificObservableFrameV1 } from "@/engine/scientific/observables";
+import type {
+  HotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
 import {
   SCIENTIFIC_COMMAND_PROTOCOL_V1_ID,
   type ScientificCommandKindV1,
@@ -117,12 +120,20 @@ export type MainWireScientificWorkerClientOptionsV1 = Readonly<{
   requestTimeoutMs?: number;
 }>;
 
-/** Vite-recognized production Worker factory. */
-export function createDefaultMainWireScientificWorkerV1():
-  MainWireScientificWorkerLikeV1 {
+/**
+ * Vite-recognized production Worker factory.
+ *
+ * The hot-path integrity tier travels as the Worker's name, which the Worker
+ * reads from its own scope. A Worker created without one runs the
+ * full-invariant tier, so any caller that does not ask for the lean tier keeps
+ * every check. See engine/hotPathIntegrityTierV1.ts.
+ */
+export function createDefaultMainWireScientificWorkerV1(
+  integrityTier: HotPathIntegrityTierV1 = "full-invariant",
+): MainWireScientificWorkerLikeV1 {
   return new Worker(
     new URL("./mainWireScientificWorkerV1.ts", import.meta.url),
-    { type: "module" },
+    { type: "module", name: integrityTier },
   ) as unknown as MainWireScientificWorkerLikeV1;
 }
 

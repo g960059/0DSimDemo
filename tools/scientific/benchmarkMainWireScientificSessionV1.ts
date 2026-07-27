@@ -4,6 +4,14 @@ import {
 import {
   sha256CanonicalJsonHex,
 } from "@/engine/scientific/release";
+import {
+  HOT_PATH_INTEGRITY_TIERS_V1,
+  hotPathIntegrityTierV1,
+  selectHotPathIntegrityTierV1,
+  type HotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+
+selectHotPathIntegrityTierV1(integrityTierArgument());
 
 const dtSec = numericArgument("--dt", 0.002);
 const beatCount = integerArgument("--beats", 1);
@@ -74,6 +82,7 @@ console.log(JSON.stringify({
   benchmarkId: "main-wire-scientific-session-v1-wall-clock-smoke",
   benchmarkLabel: process.env.CIRCLEHEART_BENCHMARK_LABEL ?? null,
   role: "measurement-only-no-performance-acceptance-claim",
+  hotPathIntegrityTier: hotPathIntegrityTierV1(),
   dtSec,
   beatCount,
   warmupBeatCount,
@@ -137,6 +146,29 @@ function quantile(sorted: readonly number[], fraction: number): number {
 
 function pushFinite(target: number[], value: number | null): void {
   if (value !== null && Number.isFinite(value)) target.push(value);
+}
+
+/**
+ * Selects the hot-path integrity tier for this measurement. The default is the
+ * full-invariant tier, so an unqualified run measures the same code every
+ * harness and every test runs. `--integrity hot-path-lean` measures what the
+ * live simulation Worker runs. The two tiers are pinned equal by
+ * `__tests__/hotPathIntegrityTierV1.test.ts`; the trajectory hashes this
+ * benchmark prints are the same comparison, one run at a time.
+ */
+function integrityTierArgument(): HotPathIntegrityTierV1 {
+  const index = process.argv.indexOf("--integrity");
+  if (index < 0) return "full-invariant";
+  const value = process.argv[index + 1];
+  if (
+    value === undefined
+    || !HOT_PATH_INTEGRITY_TIERS_V1.includes(value as HotPathIntegrityTierV1)
+  ) {
+    throw new Error(
+      `--integrity must be one of ${HOT_PATH_INTEGRITY_TIERS_V1.join(", ")}`,
+    );
+  }
+  return value as HotPathIntegrityTierV1;
 }
 
 function numericArgument(name: string, fallback: number): number {

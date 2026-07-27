@@ -7,9 +7,13 @@ import {
   MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
 } from "@/engine/scientificBrowser/mainWireScientificBrowserRuntimeLimitsV1";
 import {
+  createDefaultMainWireScientificWorkerV1,
   MainWireScientificWorkerClientV1,
   type MainWireScientificWorkerResponseV1,
 } from "@/engine/scientificBrowser/MainWireScientificWorkerClientV1";
+import type {
+  HotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
 import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_CATALOG_V1,
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_FRAME_V1_ID,
@@ -55,6 +59,12 @@ export type MainWireBrowserWorkerSessionHostOptionsV1 = Readonly<{
   client?: MainWireStudioWorkerClientV1;
   clientFactory?: () => MainWireStudioWorkerClientV1;
   hostId?: string;
+  /**
+   * Hot-path integrity tier for this host's Worker. Omitted means the
+   * full-invariant tier; only a live Workbench lane asks for the lean tier.
+   * See engine/hotPathIntegrityTierV1.ts.
+   */
+  integrityTier?: HotPathIntegrityTierV1;
 }>;
 
 let nextBrowserHostOrdinalV1 = 0;
@@ -111,7 +121,8 @@ implements MainWireStudioSessionHostV1 {
       );
     }
     this.client = options.client
-      ?? (options.clientFactory ?? createProductionClientV1)();
+      ?? (options.clientFactory
+        ?? (() => createProductionClientV1(options.integrityTier)))();
   }
 
   get requestCount(): number {
@@ -366,11 +377,18 @@ implements MainWireStudioSessionHostV1 {
 
 export function createMainWireBrowserWorkerSessionHostFactoryV1():
 MainWireStudioSessionHostFactoryV1 {
-  return () => new MainWireBrowserWorkerSessionHostV1();
+  return (request) => new MainWireBrowserWorkerSessionHostV1({
+    ...(request?.integrityTier === undefined
+      ? {}
+      : { integrityTier: request.integrityTier }),
+  });
 }
 
-function createProductionClientV1(): MainWireScientificWorkerClientV1 {
+function createProductionClientV1(
+  integrityTier: HotPathIntegrityTierV1 = "full-invariant",
+): MainWireScientificWorkerClientV1 {
   return new MainWireScientificWorkerClientV1({
+    workerFactory: () => createDefaultMainWireScientificWorkerV1(integrityTier),
     maximumPendingRequestCount: 1,
     maximumRequestCountPerClientLifetime:
       MAIN_WIRE_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1

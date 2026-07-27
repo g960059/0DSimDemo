@@ -6,6 +6,9 @@ import {
   type LandSourceOutput,
 } from "@/engine/myocardium/myofilament/land2017";
 import {
+  fullHotPathInvariantsEnabledV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   PARALLEL_ONE_STATE_SLS_CLAIM_V1,
   initialParallelOneStateSlsStateV1,
   stepParallelOneStateSlsBackwardEulerV1,
@@ -169,8 +172,14 @@ export function trialLandSlsWallMaterialV1(
 ): LandSlsWallMaterialEvaluationV1 {
   const issues: string[] = [];
   try {
-    validateParams(params);
-    validateState(previous);
+    validateParamsOncePerObject(params);
+    // The previous state is this kernel's own output from the previous accepted
+    // step, re-checked here on every wall of every candidate. It is a defensive
+    // precondition, not a reported value, so it belongs to the full-invariant
+    // tier; see engine/hotPathIntegrityTierV1.ts. Cold initialization and the
+    // accepted-state evaluation below still validate unconditionally, and a
+    // state arriving from a checkpoint therefore still passes through a check.
+    if (fullHotPathInvariantsEnabledV1()) validateState(previous);
     requireFinite(input.nextFiberLogStrain, "nextFiberLogStrain");
     requireNonnegative(input.nextFreeCalciumUM, "nextFreeCalciumUM");
     requirePositive(input.dtSec, "dtSec");
@@ -308,8 +317,10 @@ export function evaluateAcceptedLandSlsWallStateV1(
 > & {
   readonly slsOverstressPa: number;
 } {
-  validateParams(params);
-  validateState(state);
+  validateParamsOncePerObject(params);
+  // Defensive precondition on this kernel's own accepted state; see the note in
+  // trialLandSlsWallMaterialV1 and engine/hotPathIntegrityTierV1.ts.
+  if (fullHotPathInvariantsEnabledV1()) validateState(state);
   validatePassive(equilibriumPassive);
   const landStretch = Math.exp(state.previousFiberLogStrain) * params.landSlackStretch;
   const landEngineering = landStretch - 1;
@@ -348,10 +359,18 @@ export function evaluateAcceptedLandSlsWallStateV1(
   });
 }
 
+/**
+ * Value-preserving copy of a wall state; also the provider's state-codec clone,
+ * so it runs for every wall of every snapshot the mechanics contract takes.
+ *
+ * The precondition check on the incoming state is defensive — the copy itself
+ * is unconditional and exact — so it belongs to the full-invariant tier; see
+ * engine/hotPathIntegrityTierV1.ts.
+ */
 export function cloneLandSlsWallMaterialStateV1(
   state: LandSlsWallMaterialStateV1,
 ): LandSlsWallMaterialStateV1 {
-  validateState(state);
+  if (fullHotPathInvariantsEnabledV1()) validateState(state);
   return Object.freeze({
     landState: Float64Array.from(state.landState),
     slsState: Object.freeze({ ...state.slsState }),
@@ -379,6 +398,21 @@ function validateParams(params: LandSlsWallMaterialParamsV1): void {
   requirePositive(params.landSlackStretch, "landSlackStretch");
   requireUnitIntervalPositive(params.orientationFraction01, "orientationFraction01");
   requireUnitIntervalInclusive(params.viableActiveFraction01, "viableActiveFraction01");
+}
+
+/**
+ * Parameter sets are immutable and shared: one frozen object per wall for the
+ * life of a parameter setting, revalidated on every wall of every candidate.
+ * Validating once per object keeps the check without re-running it about
+ * seventeen times per 2 ms step. Membership is by object identity, so a new
+ * parameter set is validated again.
+ */
+const VALIDATED_LAND_SLS_PARAMS_V1 = new WeakSet<object>();
+
+function validateParamsOncePerObject(params: LandSlsWallMaterialParamsV1): void {
+  if (VALIDATED_LAND_SLS_PARAMS_V1.has(params)) return;
+  validateParams(params);
+  VALIDATED_LAND_SLS_PARAMS_V1.add(params);
 }
 
 function validateState(state: LandSlsWallMaterialStateV1): void {
