@@ -330,9 +330,9 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
       .toBe(
         implicit.dCommonCoronaryVenousOutletFlowMlPerSecDScaledVariable,
       );
-    // The previous probe counts described finite-difference volume-Jacobian
-    // assembly. Analytic sparse assembly replaced it; the finite-difference
-    // resolved directional shadow below now verifies its correctness.
+    // The previous counts described finite-difference observable probes.
+    // Analytic observable and boundary paths replaced them; the resolved
+    // finite-difference shadow below now verifies correctness.
     expect(implicit.diagnostics).toMatchObject({
       baseTrialReusedWithoutResolve: true,
       candidateTrialResolveCount: 0,
@@ -340,10 +340,10 @@ describe("sixteen-volume coronary backward-Euler hydraulic network V2", () => {
       exactZeroBoundaryDirectionCount: 0,
       baseResidualProbeEvaluationCount: 1,
       volumeJacobianProbeEvaluationCount: 0,
-      boundaryResidualProbeEvaluationCount: 4,
-      observableProbeEvaluationCount: 4,
+      boundaryResidualProbeEvaluationCount: 0,
+      observableProbeEvaluationCount: 0,
       implicitLinearSolveCount: 2,
-      hydraulicResidualEvaluationCount: 9,
+      hydraulicResidualEvaluationCount: 1,
     });
     expect(implicit.diagnostics.maximumAbsoluteReconstructedBaseResidualMl)
       .toBeLessThan(1e-9);
