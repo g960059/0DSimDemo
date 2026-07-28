@@ -7,11 +7,15 @@ import {
   resolveMainWireCoronaryBoundaryV2,
 } from "@/engine/coronary/mainWireCoronaryBoundaryV2";
 import {
+  evaluateAllCoronaryImpV1,
+} from "@/engine/coronary/intramyocardialPressureV1";
+import {
   CORONARY_LAYER_IDS_V2,
   CORONARY_TERRITORY_IDS_V2,
 } from "@/engine/coronary/typesV2";
 import {
   evaluateMainWireCoronaryMechanicsCouplingV1,
+  evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1,
 } from "@/engine/coronary/mainWireMechanicsCouplingV1";
 import {
   evaluateFiveWallNormalCalciumDriveV1,
@@ -361,6 +365,108 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
     }
   }, 60_000);
 
+  it("keeps atrial mechanics bit-identical under ventricular volume probes", () => {
+    const fixture = canonicalPreparedMechanicsFixture();
+    const base = evaluatePreparedWholeHeartMechanicsTrialV1(
+      fixture.preparedStep,
+      fixture.baseVolumes,
+    );
+    const baseReadback = readback(base.diagnostics.readback);
+    for (const node of ["LV", "RV"] as const) {
+      const volumeStepMl = 2e-6 * Math.max(
+        10,
+        Math.abs(fixture.baseVolumes[node]),
+      );
+      const perturbed = evaluatePreparedWholeHeartMechanicsTrialV1(
+        fixture.preparedStep,
+        Object.freeze({
+          ...fixture.baseVolumes,
+          [node]: fixture.baseVolumes[node] + volumeStepMl,
+        }),
+      );
+      const perturbedReadback = readback(perturbed.diagnostics.readback);
+
+      expect(perturbed.transmuralPressuresMmHg.LA)
+        .toBe(base.transmuralPressuresMmHg.LA);
+      expect(perturbed.transmuralPressuresMmHg.RA)
+        .toBe(base.transmuralPressuresMmHg.RA);
+      for (const wallId of ["LA", "RA"] as const) {
+        expect(perturbedReadback.effectiveFiberLogStrainByWall[wallId])
+          .toBe(baseReadback.effectiveFiberLogStrainByWall[wallId]);
+        expect(normalAdultWallReadback(
+          perturbedReadback.wallMaterialReadbackByWall[wallId],
+        ).landActiveKirchhoffStressPa).toBe(normalAdultWallReadback(
+          baseReadback.wallMaterialReadbackByWall[wallId],
+        ).landActiveKirchhoffStressPa);
+      }
+    }
+  }, 60_000);
+
+  it("retains ventricular fibre-strain and active-stress rows from the pressure Schur solve", () => {
+    const fixture = canonicalPreparedMechanicsFixture();
+    const base = evaluatePreparedWholeHeartMechanicsTrialV1(
+      fixture.preparedStep,
+      fixture.baseVolumes,
+    );
+    const tangent = readback(base.diagnostics.readback)
+      .ventricularCoronaryBoundaryTangent;
+    expect(tangent).toBeDefined();
+    let maximumActiveStressDerivativeMagnitude = 0;
+    for (const node of ["LV", "RV"] as const) {
+      const volumeStepMl = 2e-6 * Math.max(
+        10,
+        Math.abs(fixture.baseVolumes[node]),
+      );
+      const minus = evaluatePreparedWholeHeartMechanicsTrialV1(
+        fixture.preparedStep,
+        Object.freeze({
+          ...fixture.baseVolumes,
+          [node]: fixture.baseVolumes[node] - volumeStepMl,
+        }),
+      );
+      const plus = evaluatePreparedWholeHeartMechanicsTrialV1(
+        fixture.preparedStep,
+        Object.freeze({
+          ...fixture.baseVolumes,
+          [node]: fixture.baseVolumes[node] + volumeStepMl,
+        }),
+      );
+      const minusReadback = readback(minus.diagnostics.readback);
+      const plusReadback = readback(plus.diagnostics.readback);
+      for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
+        const shadowStrainDerivative = (
+          plusReadback.effectiveFiberLogStrainByWall[wallId]
+          - minusReadback.effectiveFiberLogStrainByWall[wallId]
+        ) / (2 * volumeStepMl);
+        expect(Math.abs(
+          tangent!.effectiveFiberLogStrainPerMlByWall[wallId][node]
+          - shadowStrainDerivative,
+        )).toBeLessThan(1e-8);
+
+        const shadowActiveStressDerivative = (
+          normalAdultWallReadback(
+            plusReadback.wallMaterialReadbackByWall[wallId],
+          ).landActiveKirchhoffStressPa
+          - normalAdultWallReadback(
+            minusReadback.wallMaterialReadbackByWall[wallId],
+          ).landActiveKirchhoffStressPa
+        ) / (2 * volumeStepMl);
+        const analyticActiveStressDerivative =
+          tangent!.landActiveKirchhoffStressPaPerMlByWall[wallId][node];
+        maximumActiveStressDerivativeMagnitude = Math.max(
+          maximumActiveStressDerivativeMagnitude,
+          Math.abs(analyticActiveStressDerivative),
+        );
+        expect(Math.abs(
+          analyticActiveStressDerivative - shadowActiveStressDerivative,
+        )).toBeLessThan(1e-3);
+      }
+    }
+    // This makes dropping the active-only row observable rather than allowing
+    // the pressure and fibre rows to keep this guard accidentally green.
+    expect(maximumActiveStressDerivativeMagnitude).toBeGreaterThan(1);
+  }, 60_000);
+
   it("matches the pericardium-inclusive RA tangent to full atrial re-solves", () => {
     const fixture = canonicalPreparedMechanicsFixture();
     const base = evaluatePreparedWholeHeartMechanicsTrialV1(
@@ -569,6 +675,185 @@ describe("MainWireFiveWallLandTriSegProviderV1", () => {
     }
   }, 60_000);
 
+  it("reconstructs engaged ventricular boundary fields from the retained tangent rows", () => {
+    const fixture = canonicalPreparedMechanicsFixture();
+    const pericardiumBinding = createMainWireNormalAdultCommonPericardiumV1(
+      "on",
+      "effusion-300ml-positive-control",
+    );
+    const commonIntrathoracicPressureMmHg = -3;
+    const base = evaluatePreparedWholeHeartMechanicsTrialV1(
+      fixture.preparedStep,
+      fixture.baseVolumes,
+    );
+    const basePericardium = evaluateMainWireCommonPericardiumBindingV1(
+      pericardiumBinding,
+      fixture.baseVolumes,
+    );
+    const baseCoupling = evaluateMainWireCoronaryMechanicsCouplingV1(
+      base,
+      Object.freeze({
+        commonIntrathoracicPressureMmHg,
+        commonPericardialExcessPressureMmHg:
+          basePericardium.excessPressureMmHg,
+      }),
+    );
+    const reference = Object.freeze({
+      referenceFiberLogStrainByWall:
+        baseCoupling.effectiveFiberLogStrainByWall,
+    });
+    let maximumDirectedActivePressureMovementMmHg = 0;
+
+    for (const node of ["LV", "RV"] as const) {
+      const volumeStepMl = 2e-6 * Math.max(
+        10,
+        Math.abs(fixture.baseVolumes[node]),
+      );
+      const perturbedVolumes = Object.freeze({
+        ...fixture.baseVolumes,
+        [node]: fixture.baseVolumes[node] + volumeStepMl,
+      });
+      const fullTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
+        fixture.preparedStep,
+        perturbedVolumes,
+      );
+      const perturbedPericardium =
+        evaluateMainWireCommonPericardiumBindingV1(
+          pericardiumBinding,
+          perturbedVolumes,
+        );
+      const commonPressureInput = Object.freeze({
+        commonIntrathoracicPressureMmHg,
+        commonPericardialExcessPressureMmHg:
+          perturbedPericardium.excessPressureMmHg,
+      });
+      const fullCoupling = evaluateMainWireCoronaryMechanicsCouplingV1(
+        fullTrial,
+        commonPressureInput,
+      );
+      const reconstructedCoupling =
+        evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1(
+          base,
+          Object.freeze({
+            ventricularVolume: node,
+            signedVolumeDeltaMl: volumeStepMl,
+            ...commonPressureInput,
+          }),
+        );
+      if (reconstructedCoupling === null) {
+        throw new Error("production mechanics trial omitted analytic rows");
+      }
+
+      expect(fullTrial.transmuralPressuresMmHg.LA)
+        .toBe(base.transmuralPressuresMmHg.LA);
+      expect(fullTrial.transmuralPressuresMmHg.RA)
+        .toBe(base.transmuralPressuresMmHg.RA);
+      expect(reconstructedCoupling.input.externalPressureMmHg)
+        .toBe(fullCoupling.input.externalPressureMmHg);
+      for (const chamber of ["LV", "RV"] as const) {
+        expect(Math.abs(
+          reconstructedCoupling.input.chamberTransmuralPressureMmHg[chamber]
+          - fullCoupling.input.chamberTransmuralPressureMmHg[chamber],
+        )).toBeLessThan(5e-6);
+      }
+      for (const wallId of ["LVFW", "SEP", "RVFW"] as const) {
+        expect(Math.abs(
+          reconstructedCoupling.effectiveFiberLogStrainByWall[wallId]
+          - fullCoupling.effectiveFiberLogStrainByWall[wallId],
+        )).toBeLessThan(1e-8);
+        expect(Math.abs(
+          reconstructedCoupling.input.landActiveFiberStressPaByWall[wallId]
+          - fullCoupling.input.landActiveFiberStressPaByWall[wallId],
+        )).toBeLessThan(1e-3);
+      }
+
+      const fullSourceImp = evaluateAllCoronaryImpV1(fullCoupling.input);
+      const reconstructedSourceImp = evaluateAllCoronaryImpV1(
+        reconstructedCoupling.input,
+      );
+      const baseSourceImp = evaluateAllCoronaryImpV1(baseCoupling.input);
+      const fullAbsoluteRaMmHg =
+        fullTrial.transmuralPressuresMmHg.RA
+        + commonIntrathoracicPressureMmHg
+        + perturbedPericardium.excessPressureMmHg;
+      for (const mechanism of [
+        "cep-shortening-induced",
+        "source-cep-land-active",
+      ] as const) {
+        const fullBoundary = resolveMainWireCoronaryBoundaryV2(
+          Object.freeze({
+            absoluteAorticPressureMmHg: 95,
+            absoluteRightAtrialPressureMmHg: fullAbsoluteRaMmHg,
+            sourceIntramyocardialPressureMmHgByTerritoryLayer:
+              sourceImpValues(fullSourceImp),
+            mechanicsInput: fullCoupling.input,
+            effectiveFiberLogStrainByWall:
+              fullCoupling.effectiveFiberLogStrainByWall,
+          }),
+          mechanism,
+          mechanism === "cep-shortening-induced" ? reference : null,
+        );
+        const reconstructedBoundary = resolveMainWireCoronaryBoundaryV2(
+          Object.freeze({
+            absoluteAorticPressureMmHg: 95,
+            absoluteRightAtrialPressureMmHg: fullAbsoluteRaMmHg,
+            sourceIntramyocardialPressureMmHgByTerritoryLayer:
+              sourceImpValues(reconstructedSourceImp),
+            mechanicsInput: reconstructedCoupling.input,
+            effectiveFiberLogStrainByWall:
+              reconstructedCoupling.effectiveFiberLogStrainByWall,
+          }),
+          mechanism,
+          mechanism === "cep-shortening-induced" ? reference : null,
+        );
+
+        expect(reconstructedBoundary.absoluteAorticPressureMmHg)
+          .toBe(fullBoundary.absoluteAorticPressureMmHg);
+        expect(reconstructedBoundary.absoluteRightAtrialPressureMmHg)
+          .toBe(fullBoundary.absoluteRightAtrialPressureMmHg);
+        expect(reconstructedBoundary.perivascularExternalPressureMmHg)
+          .toBe(fullBoundary.perivascularExternalPressureMmHg);
+        for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+          for (const layerId of CORONARY_LAYER_IDS_V2) {
+            expect(Math.abs(
+              reconstructedBoundary
+                .intramyocardialPressureMmHgByTerritoryLayer[
+                  territoryId
+                ][layerId]
+              - fullBoundary
+                .intramyocardialPressureMmHgByTerritoryLayer[
+                  territoryId
+                ][layerId],
+            )).toBeLessThan(5e-6);
+          }
+        }
+      }
+      for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+        for (const layerId of CORONARY_LAYER_IDS_V2) {
+          maximumDirectedActivePressureMovementMmHg = Math.max(
+            maximumDirectedActivePressureMovementMmHg,
+            Math.abs(
+              reconstructedSourceImp[territoryId][layerId]
+                .activeStressInducedPressureMmHg
+              - baseSourceImp[territoryId][layerId]
+                .activeStressInducedPressureMmHg,
+            ),
+          );
+          expect(Math.abs(
+            reconstructedSourceImp[territoryId][layerId]
+              .activeStressInducedPressureMmHg
+            - fullSourceImp[territoryId][layerId]
+              .activeStressInducedPressureMmHg,
+          )).toBeLessThan(1e-8);
+        }
+      }
+    }
+    // This source-mechanism assertion fails if the active-only material
+    // tangent is omitted while the pressure and shortening paths remain live.
+    expect(maximumDirectedActivePressureMovementMmHg)
+      .toBeGreaterThan(1e-10);
+  }, 60_000);
+
   it("returns a symmetric four-chamber mmHg/mL tangent matching full constitutive re-solves", () => {
     const provider = createProvider("pressure-tangent");
     const cold = coldStart(provider);
@@ -745,6 +1030,7 @@ function testMaterialKernel(input: Readonly<{
       fiberLogStrain,
       fiberKirchhoffStressPa: stressPa,
       algorithmicFiberTangentPa,
+      activeFiberAlgorithmicTangentPa: 0,
       algorithmicStressPrimitiveDensityJPerM3:
         0.5 * input.stiffnessPa * equilibriumElasticStrain ** 2
         + activeStressPa * fiberLogStrain
@@ -888,6 +1174,22 @@ function normalAdultWallReadback(
   value: WholeHeartMechanicsSerializableValueV1 | null,
 ): MainWireNormalAdultWallMaterialReadbackV1 {
   return value as unknown as MainWireNormalAdultWallMaterialReadbackV1;
+}
+
+function sourceImpValues(
+  value: ReturnType<typeof evaluateAllCoronaryImpV1>,
+) {
+  const layers = (territoryId: "LAD" | "LCx" | "RCA") => Object.freeze({
+    subepicardial:
+      value[territoryId].subepicardial.intramyocardialPressureMmHg,
+    subendocardial:
+      value[territoryId].subendocardial.intramyocardialPressureMmHg,
+  });
+  return Object.freeze({
+    LAD: layers("LAD"),
+    LCx: layers("LCx"),
+    RCA: layers("RCA"),
+  });
 }
 
 function centralDifferenceForTest(

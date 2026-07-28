@@ -79,12 +79,17 @@ describe("main-wire integrated V3 evaluation counters", () => {
 
     expect(counters.mechanics.candidateCenterEvaluationCount)
       .toBe(diagnostics.mechanicsCallbackUniqueCandidateCount);
+    // This previously measured 12 whole-heart mechanics probes per step.
+    // The analytic tangent replaced those finite-difference probes, and these
+    // counters now prove that they are gone rather than merely unobserved.
     expect(counters.mechanics.lvRvProbeEvaluationCount)
-      .toBe(4 * counters.outerCirculationCandidateCount);
-    expect(counters.mechanics.totalEvaluationCount).toBe(
-      counters.mechanics.candidateCenterEvaluationCount
-      + counters.mechanics.lvRvProbeEvaluationCount,
-    );
+      .toBe(0);
+    expect(counters.mechanics
+      .ventricularCoronaryBoundaryProbeFallbackCount).toBe(0);
+    expect(counters.mechanics.totalEvaluationCount)
+      .toBe(diagnostics.mechanicsCallbackUniqueCandidateCount);
+    expect(counters.mechanics.totalEvaluationCount)
+      .toBe(counters.mechanics.candidateCenterEvaluationCount);
     expect(counters.mechanics.triSegProviderCounterReadbackCount)
       .toBe(counters.mechanics.totalEvaluationCount);
     expect(counters.mechanics.solveInternalCoordinatesCallCount)
@@ -120,4 +125,83 @@ describe("main-wire integrated V3 evaluation counters", () => {
     expect(laCacheableRepeatMaterialEvaluationCount).toBe(0);
     expect(raCacheableRepeatMaterialEvaluationCount).toBe(0);
   });
+
+  it("falls back to mechanics probes when the optional ventricular rows are absent", () => {
+    const fixture = createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const providerWithoutAnalyticRows = Object.freeze({
+      ...fixture.provider,
+      evaluateTrial: (
+        input: Parameters<typeof fixture.provider.evaluateTrial>[0],
+      ) => {
+        const evaluation = fixture.provider.evaluateTrial(input);
+        const readback = evaluation.diagnostics.readback;
+        if (
+          readback === null
+          || typeof readback !== "object"
+          || Array.isArray(readback)
+        ) {
+          throw new Error("production trial omitted its mechanics readback");
+        }
+        const readbackWithoutAnalyticRows = Object.freeze(
+          Object.fromEntries(
+            Object.entries(readback).filter(
+              ([key]) => key !== "ventricularCoronaryBoundaryTangent",
+            ),
+          ),
+        );
+        return Object.freeze({
+          ...evaluation,
+          diagnostics: Object.freeze({
+            ...evaluation.diagnostics,
+            readback: readbackWithoutAnalyticRows,
+          }),
+        });
+      },
+    });
+    const previous = fixture.cold.acceptedState;
+    const maximum = limitMainWireIntegratedModelCandidateTimeV3(
+      previous,
+      0.002,
+      {
+        configuration: fixture.rhythm.configuration,
+        externalAfNextBoundaryTimeSec: null,
+      },
+      fixture.profile,
+      fixture.config,
+    );
+    const stepped = stepMainWireIntegratedModelV3(
+      providerWithoutAnalyticRows,
+      previous,
+      Object.freeze({
+        candidateTimeSec: maximum.candidateTimeSec,
+        coronary: Object.freeze({
+          ...fixture.coronaryStepInput,
+          evaluationCounterCollection: "enabled" as const,
+        }),
+        rhythm: Object.freeze({
+          configuration: fixture.rhythm.configuration,
+          externalAfNextBoundaryTimeSec: null,
+          externalAtrialSourceBatch: null,
+        }),
+        dynamicMechanicalSupport: fixture.dynamicMechanicalSupport,
+      }),
+    );
+
+    expect(stepped.converged).toBe(true);
+    if (stepped.converged === false) {
+      throw new Error(`ventricular-row fallback failed: ${stepped.message}`);
+    }
+    const counters = stepped.coronaryStep.baseStep.circulationTrial.diagnostics
+      .evaluationCounters;
+    expect(counters).toBeDefined();
+    if (counters === undefined) {
+      throw new Error("ventricular-row fallback omitted evaluation counters");
+    }
+    expect(counters.mechanics
+      .ventricularCoronaryBoundaryProbeFallbackCount).toBeGreaterThan(0);
+    expect(counters.mechanics.lvRvProbeEvaluationCount).toBe(
+      2 * counters.mechanics
+        .ventricularCoronaryBoundaryProbeFallbackCount,
+    );
+  }, 60_000);
 });

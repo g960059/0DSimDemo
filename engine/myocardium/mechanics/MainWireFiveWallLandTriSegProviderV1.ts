@@ -76,6 +76,22 @@ export type MainWireFiveWallIdV1 =
   (typeof MAIN_WIRE_FIVE_WALL_IDS_V1)[number];
 export type MainWireFiveWallRecordV1<T> =
   Readonly<Record<MainWireFiveWallIdV1, T>>;
+export type MainWireFiveWallVentricularWallIdV1 =
+  "LVFW" | "SEP" | "RVFW";
+export type MainWireFiveWallVentricularVolumeColumnsV1 = Readonly<{
+  LV: number;
+  RV: number;
+}>;
+export type MainWireFiveWallVentricularCoronaryBoundaryTangentV1 = Readonly<{
+  effectiveFiberLogStrainPerMlByWall: Readonly<Record<
+    MainWireFiveWallVentricularWallIdV1,
+    MainWireFiveWallVentricularVolumeColumnsV1
+  >>;
+  landActiveKirchhoffStressPaPerMlByWall: Readonly<Record<
+    MainWireFiveWallVentricularWallIdV1,
+    MainWireFiveWallVentricularVolumeColumnsV1
+  >>;
+}>;
 
 export type MainWireFiveWallFreeCalciumDriveV1 = Readonly<{
   freeCalciumUMByWall: MainWireFiveWallRecordV1<number>;
@@ -87,6 +103,8 @@ export type MainWireFiveWallMaterialEvaluationV1<TWallState> = Readonly<{
   fiberKirchhoffStressPa: number;
   /** Consistent d(tau_fiber)/d(log fiber strain) for this trial state. */
   algorithmicFiberTangentPa: number;
+  /** Active-only consistent d(tau_active)/d(log fiber strain). */
+  activeFiberAlgorithmicTangentPa: number;
   /**
    * Optional local antiderivative of the algorithmic trial-stress map. This is
    * diagnostic only and is never called stored or thermodynamic energy.
@@ -194,6 +212,8 @@ export type MainWireFiveWallLandTriSegReadbackV1 = Readonly<{
   coldConsistencyIterations: number | null;
   coldConsistencyScaledCoordinateUpdate: number | null;
   evaluationCounters?: MainWireFiveWallLandTriSegEvaluationCountersV1;
+  ventricularCoronaryBoundaryTangent?:
+    MainWireFiveWallVentricularCoronaryBoundaryTangentV1;
   triseg: Readonly<{
     leftVentricularPressurePa: number;
     rightVentricularPressurePa: number;
@@ -1080,6 +1100,12 @@ function ventricularMaterialTangents<TWallState>(
 }
 
 type TriSegAlgorithmicHessianV1 = readonly (readonly number[])[];
+type ConsistentMechanicsTangentV1 = Readonly<{
+  transmuralPressureVolumeTangentMmHgPerMl:
+    WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1;
+  ventricularCoronaryBoundaryTangent:
+    MainWireFiveWallVentricularCoronaryBoundaryTangentV1;
+}>;
 
 /**
  * Exact Hessian of the center trial's algorithmic stress primitive in physical
@@ -1174,7 +1200,7 @@ function analyticScaledInternalJacobian<TWallState>(
 function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
   solved: InternalSolveSuccessV1<TWallState>,
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
-): WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1 | undefined {
+): ConsistentMechanicsTangentV1 | undefined {
   const center = solved.candidate;
   const leftAtrialTangent =
     center.materialByWall.LA.algorithmicFiberTangentPa;
@@ -1194,6 +1220,18 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
     { length: 2 },
     () => [0, 0],
   );
+  const ventricularWallIds = ["LVFW", "SEP", "RVFW"] as const;
+  const capVolumeGradientByWall = {
+    LVFW: [-1, 0, 1] as const,
+    SEP: [0, 0, 1] as const,
+    RVFW: [0, 1, 1] as const,
+  };
+  const fiberStrainTangent = Object.fromEntries(
+    ventricularWallIds.map((wallId) => [wallId, [0, 0]]),
+  ) as Record<MainWireFiveWallVentricularWallIdV1, number[]>;
+  const activeStressTangent = Object.fromEntries(
+    ventricularWallIds.map((wallId) => [wallId, [0, 0]]),
+  ) as Record<MainWireFiveWallVentricularWallIdV1, number[]>;
   for (let volumeColumn = 0; volumeColumn < 2; volumeColumn += 1) {
     const forceColumn = [0, 1].map((coordinateRow) =>
       hessian[coordinateRow + 2]![volumeColumn]!
@@ -1218,6 +1256,29 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
         hessian[pressureRow]![volumeColumn]! * 1e-6 / PA_PER_MMHG
         - pressureCoordinateDerivative;
     }
+    for (const wallId of ventricularWallIds) {
+      const first = center.triseg.wallDerivativeByWall[wallId];
+      const capGradient = capVolumeGradientByWall[wallId];
+      const directDerivativePerMl =
+        capGradient[volumeColumn]!
+        * first.dFiberLogStrainDCapVolumePerM3
+        * 1e-6;
+      const coordinateDerivativePerMl =
+        capGradient[2]
+        * first.dFiberLogStrainDCapVolumePerM3
+        * coordinateScales[0]
+        * coordinateResponse[0]!
+        + first.dFiberLogStrainDJunctionRadiusPerM
+        * coordinateScales[1]
+        * coordinateResponse[1]!;
+      const strainDerivativePerMl =
+        directDerivativePerMl - coordinateDerivativePerMl;
+      fiberStrainTangent[wallId]![volumeColumn] =
+        strainDerivativePerMl;
+      activeStressTangent[wallId]![volumeColumn] =
+        center.materialByWall[wallId].activeFiberAlgorithmicTangentPa
+        * strainDerivativePerMl;
+    }
   }
 
   const leftAtrialPressureTangent = atrialPressureVolumeTangentMmHgPerMl(
@@ -1232,7 +1293,7 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
     center.fiberKirchhoffStressPaByWall.RA,
     rightAtrialTangent,
   );
-  const tangent = Object.freeze({
+  const pressureTangent = Object.freeze({
     LA: Object.freeze({ LA: leftAtrialPressureTangent, LV: 0, RA: 0, RV: 0 }),
     LV: Object.freeze({
       LA: 0,
@@ -1248,9 +1309,50 @@ function consistentTransmuralPressureVolumeTangentMmHgPerMl<TWallState>(
       RV: ventricularPressureTangent[1]![1]!,
     }),
   });
-  return Object.values(tangent).flatMap((row) => Object.values(row))
-    .every(Number.isFinite)
-    ? tangent
+  const ventricularCoronaryBoundaryTangent = Object.freeze({
+    effectiveFiberLogStrainPerMlByWall: Object.freeze(Object.fromEntries(
+      ventricularWallIds.map((wallId) => [
+        wallId,
+        Object.freeze({
+          LV: fiberStrainTangent[wallId]![0]!,
+          RV: fiberStrainTangent[wallId]![1]!,
+        }),
+      ]),
+    )) as Readonly<Record<
+      MainWireFiveWallVentricularWallIdV1,
+      MainWireFiveWallVentricularVolumeColumnsV1
+    >>,
+    landActiveKirchhoffStressPaPerMlByWall: Object.freeze(Object.fromEntries(
+      ventricularWallIds.map((wallId) => [
+        wallId,
+        Object.freeze({
+          LV: activeStressTangent[wallId]![0]!,
+          RV: activeStressTangent[wallId]![1]!,
+        }),
+      ]),
+    )) as Readonly<Record<
+      MainWireFiveWallVentricularWallIdV1,
+      MainWireFiveWallVentricularVolumeColumnsV1
+    >>,
+  });
+  const finite = [
+    ...Object.values(pressureTangent).flatMap((row) => Object.values(row)),
+    ...ventricularWallIds.flatMap((wallId) => [
+      ...Object.values(
+        ventricularCoronaryBoundaryTangent
+          .effectiveFiberLogStrainPerMlByWall[wallId],
+      ),
+      ...Object.values(
+        ventricularCoronaryBoundaryTangent
+          .landActiveKirchhoffStressPaPerMlByWall[wallId],
+      ),
+    ]),
+  ].every(Number.isFinite);
+  return finite
+    ? Object.freeze({
+      transmuralPressureVolumeTangentMmHgPerMl: pressureTangent,
+      ventricularCoronaryBoundaryTangent,
+    })
     : undefined;
 }
 
@@ -1277,11 +1379,10 @@ function successfulProviderEvaluation<TWallState>(
 ): WholeHeartMechanicsProviderEvaluationV1<
   MainWireFiveWallLandTriSegStateV1<TWallState>
 > {
-  let pressureVolumeTangent:
-    WholeHeartMechanicsPressureVolumeTangentMmHgPerMlV1 | undefined;
+  let consistentTangent: ConsistentMechanicsTangentV1 | undefined;
   if (solveMode === "trial") {
     try {
-      pressureVolumeTangent =
+      consistentTangent =
         consistentTransmuralPressureVolumeTangentMmHgPerMl(
           solved,
           params,
@@ -1289,7 +1390,7 @@ function successfulProviderEvaluation<TWallState>(
     } catch {
       // The tangent is an optional acceleration contract. A valid center trial
       // remains valid if its analytic Hessian cannot be condensed.
-      pressureVolumeTangent = undefined;
+      consistentTangent = undefined;
     }
   }
   const readback = buildReadback(
@@ -1297,6 +1398,7 @@ function successfulProviderEvaluation<TWallState>(
     solveMode,
     coldConsistencyIterations,
     coldConsistencyScaledCoordinateUpdate,
+    consistentTangent?.ventricularCoronaryBoundaryTangent,
   );
   const diagnostics: WholeHeartMechanicsDiagnosticsV1 = Object.freeze({
     converged: true,
@@ -1310,10 +1412,11 @@ function successfulProviderEvaluation<TWallState>(
   return Object.freeze({
     materialState: solved.candidate.state,
     transmuralPressuresMmHg: solved.candidate.transmuralPressuresMmHg,
-    ...(pressureVolumeTangent === undefined
+    ...(consistentTangent === undefined
       ? {}
       : {
-        transmuralPressureVolumeTangentMmHgPerMl: pressureVolumeTangent,
+        transmuralPressureVolumeTangentMmHgPerMl:
+          consistentTangent.transmuralPressureVolumeTangentMmHgPerMl,
       }),
     diagnostics,
   });
@@ -1371,6 +1474,8 @@ function buildReadback<TWallState>(
   solveMode: "cold" | "trial",
   coldConsistencyIterations: number | null,
   coldConsistencyScaledCoordinateUpdate: number | null,
+  ventricularCoronaryBoundaryTangent:
+    MainWireFiveWallVentricularCoronaryBoundaryTangentV1 | undefined,
 ): MainWireFiveWallLandTriSegReadbackV1 {
   const candidate = solved.candidate;
   return Object.freeze({
@@ -1405,6 +1510,9 @@ function buildReadback<TWallState>(
     ...(solved.evaluationCounters === undefined
       ? {}
       : { evaluationCounters: solved.evaluationCounters }),
+    ...(ventricularCoronaryBoundaryTangent === undefined
+      ? {}
+      : { ventricularCoronaryBoundaryTangent }),
     triseg: Object.freeze({
       leftVentricularPressurePa:
         candidate.triseg.cavityTransmuralPressuresPa.LV,
@@ -1760,6 +1868,10 @@ function validateMaterialEvaluation<TWallState>(
   requireFinite(
     evaluation.algorithmicFiberTangentPa,
     `${wallId}.algorithmicFiberTangentPa`,
+  );
+  requireFinite(
+    evaluation.activeFiberAlgorithmicTangentPa,
+    `${wallId}.activeFiberAlgorithmicTangentPa`,
   );
 }
 
