@@ -205,9 +205,20 @@ export type MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
   pericardium: MainWireCommonPericardiumEvaluationV1;
   coronaryMechanicsCoupling:
     MainWireCoronaryMechanicsCouplingEvaluationV1;
-  sourceImpByTerritoryLayer:
-    CoronaryTerritoryLayerRecordV2<CoronaryImpEvaluationV1>;
-  sourceIntramyocardialPressureMmHgByTerritoryLayer:
+  sourceIntramyocardialPressureMmHgByTerritoryLayer?:
+    CoronaryTerritoryLayerRecordV2<number>;
+}>;
+
+/**
+ * Candidate mechanics values read by the coronary boundary resolver.
+ *
+ * Atrial-direction probes construct this view without minting another
+ * exclusive-ownership whole-heart mechanics trial.
+ */
+export type MainWireCoronaryBoundaryMechanicsViewV2 = Readonly<{
+  coronaryMechanicsCoupling:
+    MainWireCoronaryMechanicsCouplingEvaluationV1;
+  sourceIntramyocardialPressureMmHgByTerritoryLayer?:
     CoronaryTerritoryLayerRecordV2<number>;
 }>;
 
@@ -401,7 +412,6 @@ export function initializeMainWireFiveWallCoronaryV2<TWallState>(
     CoronaryPressureLadderInitializationV2["diagnostics"] | null = null;
   let coronary = preliminaryCoronary;
   if (input.coronaryInitial === undefined) {
-    const sourceImp = evaluateAllCoronaryImpV1(preliminaryCoupling.input);
     const boundary = resolveMainWireCoronaryBoundaryV2(
       Object.freeze({
         absoluteAorticPressureMmHg: absoluteAorticPressureMmHg(
@@ -411,8 +421,14 @@ export function initializeMainWireFiveWallCoronaryV2<TWallState>(
         absoluteRightAtrialPressureMmHg:
           mechanicsCold.transmuralPressuresMmHg.RA
           + pthMmHg + preliminaryPericardium.excessPressureMmHg,
-        sourceIntramyocardialPressureMmHgByTerritoryLayer:
-          intramyocardialPressureRecord(sourceImp),
+        ...(impMechanism === "source-cep-land-active"
+          ? {
+            sourceIntramyocardialPressureMmHgByTerritoryLayer:
+              intramyocardialPressureRecord(
+                evaluateAllCoronaryImpV1(preliminaryCoupling.input),
+              ),
+          }
+          : {}),
         mechanicsInput: preliminaryCoupling.input,
         effectiveFiberLogStrainByWall:
           preliminaryCoupling.effectiveFiberLogStrainByWall,
@@ -554,6 +570,7 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
         volumesMl,
         input.pericardium,
         pthMmHg,
+        impMechanism,
       ),
     conservativeCompanion: Object.freeze({
       fixedGlobalTotalBloodVolumeMl:
@@ -750,6 +767,7 @@ function evaluatePreparedCandidateMechanicsV2<TWallState>(
   volumesMl: WholeHeartMechanicsChamberValuesV1,
   pericardiumBinding: MainWireCommonPericardiumBindingV1,
   commonIntrathoracicPressureMmHg: number,
+  impMechanism: MainWireCoronaryImpMechanismV2,
 ): NonCoronaryCandidateMechanicsResultV1<
   MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>
 > {
@@ -779,16 +797,18 @@ function evaluatePreparedCandidateMechanicsV2<TWallState>(
       commonPericardialExcessPressureMmHg:
         pericardium.excessPressureMmHg,
     });
-  const sourceImpByTerritoryLayer = evaluateAllCoronaryImpV1(
-    coronaryMechanicsCoupling.input,
-  );
   const evaluation = Object.freeze({
     mechanicsTrial,
     pericardium,
     coronaryMechanicsCoupling,
-    sourceImpByTerritoryLayer,
-    sourceIntramyocardialPressureMmHgByTerritoryLayer:
-      intramyocardialPressureRecord(sourceImpByTerritoryLayer),
+    ...(impMechanism === "source-cep-land-active"
+      ? {
+        sourceIntramyocardialPressureMmHgByTerritoryLayer:
+          intramyocardialPressureRecord(
+            evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input),
+          ),
+      }
+      : {}),
   });
   return Object.freeze({
     absolutePressuresMmHg: Object.freeze({
@@ -817,12 +837,10 @@ function evaluatePreparedCandidateMechanicsV2<TWallState>(
   });
 }
 
-function resolveCandidateCoronaryBoundaryV2<TWallState>(
+function resolveCandidateCoronaryBoundaryV2(
   absoluteAorticPressureMmHg: number,
   absoluteRightAtrialPressureMmHg: number,
-  mechanics: MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
-    TWallState
-  >,
+  mechanics: MainWireCoronaryBoundaryMechanicsViewV2,
   impMechanism: MainWireCoronaryImpMechanismV2,
   shorteningReference: MainWireCoronaryShorteningReferenceV2,
   shorteningImpPrior: MainWireCoronaryShorteningImpGainPriorV2,
@@ -831,8 +849,13 @@ function resolveCandidateCoronaryBoundaryV2<TWallState>(
     Object.freeze({
       absoluteAorticPressureMmHg,
       absoluteRightAtrialPressureMmHg,
-      sourceIntramyocardialPressureMmHgByTerritoryLayer:
-        mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer,
+      ...(mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer
+        === undefined
+        ? {}
+        : {
+          sourceIntramyocardialPressureMmHgByTerritoryLayer:
+            mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer,
+        }),
       mechanicsInput: mechanics.coronaryMechanicsCoupling.input,
       effectiveFiberLogStrainByWall:
         mechanics.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall,
@@ -878,9 +901,7 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
   const directionForBoundary = (
     absoluteAorticPressureMmHg: number,
     absoluteRightAtrialPressureMmHg: number,
-    mechanics: MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
-      TWallState
-    >,
+    mechanics: MainWireCoronaryBoundaryMechanicsViewV2,
   ): CoronaryHydraulicBoundaryInputV2 => resolveCandidateCoronaryBoundaryV2(
     absoluteAorticPressureMmHg,
     absoluteRightAtrialPressureMmHg,
@@ -905,6 +926,91 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
       "perturbed coronary outer boundary pressure",
     );
     return perturbed;
+  };
+  const atrialDirection = (
+    node: "LA" | "RA",
+    index: number,
+  ): CoronaryImplicitBoundaryDirectionV2 => {
+    const volumeScaleMl = candidate.independentVolumeScalesMl[index]!;
+    requirePositiveFinite(
+      volumeScaleMl,
+      `${node} independent volume scale`,
+    );
+    const volumeStepMl = scaledStep * volumeScaleMl;
+    const minusVolumes = Object.freeze({
+      ...baseVolumes,
+      [node]: baseVolumes[node] - volumeStepMl,
+    });
+    const plusVolumes = Object.freeze({
+      ...baseVolumes,
+      [node]: baseVolumes[node] + volumeStepMl,
+    });
+    requirePositiveFinite(minusVolumes[node], `${node} minus probe volume`);
+
+    // Atrial volume reaches this boundary only through its own pressure and
+    // the common pericardial scalar. TriSeg pressure, ventricular fibre strain,
+    // and active stress are invariant, so the base mechanics trial is reused.
+    // This needs no impMechanism branch because each existing IMP mechanism
+    // sees the same ventricular inputs plus the recomputed external pressure.
+    // That is not permission to reuse a future ventricular analytic direction:
+    // source-cep-land-active has no active-only material tangent in engine/.
+    const directionView = (
+      volumesMl: WholeHeartMechanicsChamberValuesV1,
+    ): MainWireCoronaryBoundaryMechanicsViewV2 => {
+      const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+        pericardiumBinding,
+        volumesMl,
+      );
+      const coronaryMechanicsCoupling =
+        evaluateMainWireCoronaryMechanicsCouplingV1(
+          baseMechanics.mechanicsTrial,
+          Object.freeze({
+            commonIntrathoracicPressureMmHg,
+            commonPericardialExcessPressureMmHg:
+              pericardium.excessPressureMmHg,
+          }),
+        );
+      return Object.freeze({
+        coronaryMechanicsCoupling,
+        ...(impMechanism === "source-cep-land-active"
+          ? {
+            sourceIntramyocardialPressureMmHgByTerritoryLayer:
+              intramyocardialPressureRecord(
+                evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input),
+              ),
+          }
+          : {}),
+      });
+    };
+    return Object.freeze({
+      scaledStep,
+      minusBoundary: directionForBoundary(
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.Ao,
+          tangent.Ao[index]!,
+          -1,
+        ),
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.RA,
+          tangent.RA[index]!,
+          -1,
+        ),
+        directionView(minusVolumes),
+      ),
+      plusBoundary: directionForBoundary(
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.Ao,
+          tangent.Ao[index]!,
+          1,
+        ),
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.RA,
+          tangent.RA[index]!,
+          1,
+        ),
+        directionView(plusVolumes),
+      ),
+    });
   };
 
   return Object.freeze(candidate.independentNodeOrder.map((node, index) => {
@@ -939,7 +1045,10 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
         ),
       }) satisfies CoronaryImplicitBoundaryDirectionV2;
     }
-    if (node === "LA" || node === "LV" || node === "RA" || node === "RV") {
+    if (node === "LA" || node === "RA") {
+      return atrialDirection(node, index);
+    }
+    if (node === "LV" || node === "RV") {
       const volumeScaleMl = candidate.independentVolumeScalesMl[index]!;
       requirePositiveFinite(
         volumeScaleMl,
@@ -960,12 +1069,14 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
         minusVolumes,
         pericardiumBinding,
         commonIntrathoracicPressureMmHg,
+        impMechanism,
       );
       const plusMechanics = evaluatePreparedCandidateMechanicsV2(
         mechanicsStep,
         plusVolumes,
         pericardiumBinding,
         commonIntrathoracicPressureMmHg,
+        impMechanism,
       );
       return Object.freeze({
         scaledStep,
