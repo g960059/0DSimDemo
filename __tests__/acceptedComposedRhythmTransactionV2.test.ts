@@ -45,6 +45,9 @@ import {
   RECOVERY_CONCEALMENT_AV_GATE_STATE_V2_ID,
 } from "@/engine/myocardium/rhythm/recoveryConcealmentAvGateV2";
 import {
+  withHotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   createAcceptedVentricularBackupSourceConfigurationV2,
 } from "@/engine/myocardium/rhythm/acceptedVentricularBackupSourceOwnerV2";
 import {
@@ -70,6 +73,7 @@ type FixtureOptions = Readonly<{
   vviIntervalSec?: number;
   sourceMode?: "regular" | "external-af";
   regularRhythmClass?: "sinus" | "flutter";
+  lvfwCalciumGainUMPerUnitDrive?: number;
 }>;
 
 function fixture(options: FixtureOptions = {}): {
@@ -159,7 +163,8 @@ function fixture(options: FixtureOptions = {}): {
     }),
     ventricularIntervalStrength: intervalConfiguration,
     calciumParametersByWall: Object.freeze({
-      LA: calciumParameters(), RA: calciumParameters(), LVFW: calciumParameters(),
+      LA: calciumParameters(), RA: calciumParameters(),
+      LVFW: calciumParameters(options.lvfwCalciumGainUMPerUnitDrive),
       SEP: calciumParameters(), RVFW: calciumParameters(),
     }),
     sinusAtrialCalciumDeposit: {
@@ -203,12 +208,12 @@ function fixture(options: FixtureOptions = {}): {
   return { configuration, state };
 }
 
-function calciumParameters() {
+function calciumParameters(calciumGainUMPerUnitDrive = 1) {
   return Object.freeze({
     tauRiseSec: 0.03,
     tauDecaySec: 0.2,
     calciumRestUM: 0.1,
-    calciumGainUMPerUnitDrive: 1,
+    calciumGainUMPerUnitDrive,
   });
 }
 
@@ -255,6 +260,32 @@ function advanceAt(
 }
 
 describe("AcceptedComposedRhythmTransactionV2", () => {
+  it("rejects state A's candidate against state B's rhythm configuration in the lean tier", () => {
+    const a = fixture({ firstRegularTimeSec: 10 });
+    const b = fixture({
+      firstRegularTimeSec: 10,
+      lvfwCalciumGainUMPerUnitDrive: 1.125,
+    });
+    const candidateFromA = evaluateAt(a.state, 0.1);
+
+    expect(b.configuration.configurationId)
+      .toBe(a.configuration.configurationId);
+    expect(
+      b.configuration.calciumParametersByWall.LVFW
+        .calciumGainUMPerUnitDrive,
+    ).not.toBe(
+      a.configuration.calciumParametersByWall.LVFW
+        .calciumGainUMPerUnitDrive,
+    );
+    withHotPathIntegrityTierV1("hot-path-lean", () => {
+      expect(() =>
+        commitAcceptedComposedRhythmTransactionCandidateV2(
+          b.state,
+          candidateFromA,
+        )).toThrow(/candidate does not match its accepted base/);
+    });
+  });
+
   it("returns the exact owned endpoint without exposing a re-addable duration", () => {
     const { state } = fixture({
       acceptedTimeSec: 1.8571428571428572,

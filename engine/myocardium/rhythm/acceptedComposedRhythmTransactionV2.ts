@@ -100,6 +100,9 @@ import {
   type AcceptedVentricularIntervalStrengthConfigurationV1,
   type AcceptedVentricularIntervalStrengthStateV1,
 } from "@/engine/myocardium/rhythm/acceptedVentricularIntervalStrengthOwnerV1";
+import {
+  fullHotPathInvariantsEnabledV1,
+} from "@/engine/hotPathIntegrityTierV1";
 import { canonicalJsonStringify } from "@/engine/scientific/release";
 
 /**
@@ -194,7 +197,12 @@ export const ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CLAIM_V2 = deepFreeze({
   parameterDefaultsProvided: false as const,
   acceptedStateImmutable: true as const,
   candidateEvaluationPure: true as const,
-  commitValidation: "exact-deterministic-recomputation" as const,
+  commitValidation: Object.freeze({
+    fullInvariantOrUnstampedBoundary:
+      "exact-deterministic-recomputation" as const,
+    hotPathLeanSameTickInternal:
+      "exact-candidate-and-base-object-identity-stamp" as const,
+  }),
   rollbackReturnsAcceptedIdentity: true as const,
   clinicalValidityClaimed: false as const,
 });
@@ -404,6 +412,25 @@ export type AcceptedComposedRhythmTransactionCandidateTimeLimitV2 = Readonly<{
   boundaryTimeSec: number | null;
   boundaryOwners: readonly string[];
 }>;
+
+/**
+ * Entries are issued only after this module has constructed, recursively
+ * frozen, and fully validated the exact state object. The stamp covers that
+ * object identity only; a restored, copied, or hand-built state misses and is
+ * fully validated. No assertion about an arbitrary frozen object is made.
+ */
+const internallyValidatedAcceptedComposedRhythmStatesV2 =
+  new WeakSet<object>();
+
+/**
+ * Entries map one internally constructed, recursively frozen candidate object
+ * to the exact internally validated base-state object used to produce it.
+ * Either identity changing makes the lookup miss.
+ */
+const internalCandidateBaseByCandidateV2 = new WeakMap<
+  object,
+  AcceptedComposedRhythmTransactionStateV2
+>();
 
 export function createNoExternalAtrialSourceBatchV2(
   candidateTimeSec: number,
@@ -676,6 +703,7 @@ export function initializeAcceptedComposedRhythmTransactionStateV2(
     deliveredCalciumDepositCount: 0,
   }) satisfies AcceptedComposedRhythmTransactionStateV2;
   validateAcceptedComposedRhythmTransactionStateV2(state);
+  stampInternallyValidatedAcceptedComposedRhythmStateV2(state);
   return state;
 }
 
@@ -691,7 +719,7 @@ export function limitAcceptedComposedRhythmTransactionCandidateTimeV2(
   requestedCandidateTimeSec: number,
   externalAfNextBoundaryTimeSec: number | null,
 ): AcceptedComposedRhythmTransactionCandidateTimeLimitV2 {
-  validateAcceptedComposedRhythmTransactionStateV2(state);
+  validateAcceptedComposedRhythmTransactionBoundaryV2(state);
   const requestedCandidateTime = requireNonnegativeFinite(
     requestedCandidateTimeSec,
     "requestedCandidateTimeSec",
@@ -724,7 +752,7 @@ export function evaluateAcceptedComposedRhythmTransactionCandidateV2(
   state: AcceptedComposedRhythmTransactionStateV2,
   input: AcceptedComposedRhythmTransactionCandidateInputV2,
 ): AcceptedComposedRhythmTransactionCandidateV2 {
-  validateAcceptedComposedRhythmTransactionStateV2(state);
+  validateAcceptedComposedRhythmTransactionBoundaryV2(state);
   requireExactKeys(requirePlainRecord(input, "composed rhythm candidate input"), ["candidateTimeSec", "externalAtrialSourceBatch"], "composed rhythm candidate input");
   if (state.revision === Number.MAX_SAFE_INTEGER) throw new Error("composed rhythm revision cannot increment safely");
   const candidateTimeSec = requireNonnegativeFinite(input.candidateTimeSec, "candidateTimeSec");
@@ -894,7 +922,8 @@ export function evaluateAcceptedComposedRhythmTransactionCandidateV2(
     deliveredCalciumDepositCount: safeCounterAdd(state.deliveredCalciumDepositCount, deliveredCalciumDeposits.length, "deliveredCalciumDepositCount"),
   }) satisfies AcceptedComposedRhythmTransactionStateV2;
   validateAcceptedComposedRhythmTransactionStateV2(candidateState);
-  return deepFreeze({
+  stampInternallyValidatedAcceptedComposedRhythmStateV2(candidateState);
+  const candidate = deepFreeze({
     candidateSchemaId: ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CANDIDATE_V2_ID,
     schemaVersion: 2 as const,
     configurationId: state.configuration.configurationId,
@@ -925,12 +954,26 @@ export function evaluateAcceptedComposedRhythmTransactionCandidateV2(
     scheduledCalciumDeposits,
     candidateState,
   });
+  if (internallyValidatedAcceptedComposedRhythmStatesV2.has(state)) {
+    internalCandidateBaseByCandidateV2.set(candidate, state);
+  }
+  return candidate;
 }
 
 export function commitAcceptedComposedRhythmTransactionCandidateV2(
   state: AcceptedComposedRhythmTransactionStateV2,
   candidate: AcceptedComposedRhythmTransactionCandidateV2,
 ): AcceptedComposedRhythmTransactionStateV2 {
+  if (
+    !fullHotPathInvariantsEnabledV1()
+    && internalCandidateBaseByCandidateV2.get(candidate) === state
+  ) {
+    // The lean tier skips only same-tick defensive recomputation for the exact
+    // candidate/base identity pair privately issued above. Full-invariant
+    // always recomputes; an unstamped, copied, restored, or differently based
+    // candidate also takes the complete path in either tier.
+    return candidate.candidateState;
+  }
   const expected = evaluateAcceptedComposedRhythmTransactionCandidateV2(state, {
     candidateTimeSec: candidate.candidateTimeSec,
     externalAtrialSourceBatch: candidate.externalAtrialSourceBatch,
@@ -1133,6 +1176,25 @@ export function validateAcceptedComposedRhythmTransactionStateV2(
     throw new Error("composed rhythm accepted-capture counters are split");
   }
   requireNonnegativeSafeInteger(state.deliveredCalciumDepositCount, "deliveredCalciumDepositCount");
+}
+
+/**
+ * Validates data crossing this owner boundary. Only the exact identity of a
+ * state privately constructed, recursively frozen, and fully validated above
+ * can take the constant-time path. All other state objects take the complete
+ * exported validator, including restored checkpoints and hand-built states.
+ */
+export function validateAcceptedComposedRhythmTransactionBoundaryV2(
+  state: AcceptedComposedRhythmTransactionStateV2,
+): void {
+  if (internallyValidatedAcceptedComposedRhythmStatesV2.has(state)) return;
+  validateAcceptedComposedRhythmTransactionStateV2(state);
+}
+
+function stampInternallyValidatedAcceptedComposedRhythmStateV2(
+  state: AcceptedComposedRhythmTransactionStateV2,
+): void {
+  internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
 }
 
 function initializeEctopy(configuration: AcceptedAuthoredEctopyScheduleConfigurationV2, acceptedTimeSec: number): AcceptedAuthoredEctopyScheduleStateV2 {

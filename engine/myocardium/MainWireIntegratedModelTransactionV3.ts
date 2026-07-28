@@ -43,6 +43,7 @@ import {
   evaluateAcceptedComposedRhythmTransactionCandidateV2,
   limitAcceptedComposedRhythmTransactionCandidateTimeV2,
   validateAcceptedComposedRhythmTransactionConfigurationV2,
+  validateAcceptedComposedRhythmTransactionBoundaryV2,
   validateAcceptedComposedRhythmTransactionStateV2,
   type AcceptedComposedRhythmTransactionCandidateV2,
   type AcceptedComposedRhythmTransactionConfigurationV2,
@@ -294,7 +295,7 @@ export function initializeMainWireIntegratedModelV3<TWallState>(
   );
   rejectExternallyOwnedColdInputs(input.coronary);
   assertCoronaryColdInput(input.coronary);
-  validateAcceptedComposedRhythmTransactionStateV2(
+  validateAcceptedComposedRhythmTransactionBoundaryV2(
     input.rhythm.acceptedState,
   );
   assertExpectedRhythmConfiguration(
@@ -587,7 +588,7 @@ export function validateMainWireIntegratedModelAcceptedStateV3<TWallState>(
   requireNonnegativeInteger(state.revision, "state.revision");
   requireNonnegativeFinite(state.acceptedTimeSec, "state.acceptedTimeSec");
   validateMainWireFiveWallCoronaryAcceptedStateV3(state.coronary);
-  validateAcceptedComposedRhythmTransactionStateV2(state.composedRhythm);
+  validateAcceptedComposedRhythmTransactionBoundaryV2(state.composedRhythm);
   assertExpectedRhythmConfiguration(
     state.composedRhythm,
     rhythm.configuration,
