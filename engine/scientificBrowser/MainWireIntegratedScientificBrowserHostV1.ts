@@ -12,6 +12,8 @@ import type {
 } from "@/engine/myocardium/MainWireIntegratedScientificSession";
 import {
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID,
+  type MainWireIntegratedScientificWorkerAdvanceBatchPartialProgressV1,
+  type MainWireIntegratedScientificWorkerAdvancePayloadV1,
   type MainWireIntegratedScientificWorkerAdvancePartialProgressV1,
   type MainWireIntegratedScientificWorkerCommandV1,
   type MainWireIntegratedScientificWorkerErrorResponseV1,
@@ -67,6 +69,39 @@ export type MainWireIntegratedBrowserAdvanceReceiptV1 =
     message: string;
   }>;
 
+type MainWireIntegratedBrowserSuccessfulAdvanceReceiptV1 = Extract<
+  MainWireIntegratedBrowserAdvanceReceiptV1,
+  { status: "advanced" | "already-at-target" }
+>;
+
+export type MainWireIntegratedBrowserAdvanceBatchReceiptV1 =
+  | Readonly<{
+    status: "advanced";
+    session: MainWireIntegratedBrowserHostedSessionV1;
+    firstPresentationOrdinal: number;
+    lastPresentationOrdinal: number;
+    requestedPresentationOrdinalCount: number;
+    advances:
+      readonly MainWireIntegratedBrowserSuccessfulAdvanceReceiptV1[];
+  }>
+  | Readonly<{
+    status: "failed";
+    session: MainWireIntegratedBrowserHostedSessionV1;
+    firstPresentationOrdinal: number;
+    requestedPresentationOrdinalCount: number;
+    completedAdvances:
+      readonly MainWireIntegratedBrowserSuccessfulAdvanceReceiptV1[];
+    failedPresentationOrdinal: number;
+    failedPresentationTimeSec: number;
+    failedOrdinalPartiallyAdvanced: boolean;
+    failedOrdinalInternalAcceptedSubstepCount: number;
+    failedOrdinalBoundaryClippedSubstepCount: number;
+    failedOrdinalSubsteps:
+      readonly MainWireIntegratedLaneSubstepRecordV1[];
+    failureReason: string;
+    message: string;
+  }>;
+
 export type MainWireIntegratedBrowserCheckpointReceiptV1 = Readonly<{
   session: MainWireIntegratedBrowserHostedSessionV1;
   checkpoint: MainWireIntegratedModelCheckpointV3;
@@ -92,6 +127,12 @@ export interface MainWireIntegratedScientificBrowserHostV1 {
     session: MainWireIntegratedBrowserHostedSessionV1,
     presentationOrdinal: number,
   ): Promise<MainWireIntegratedBrowserAdvanceReceiptV1>;
+
+  advanceConsecutivePresentationOrdinals?(
+    session: MainWireIntegratedBrowserHostedSessionV1,
+    firstPresentationOrdinal: number,
+    presentationOrdinalCount: number,
+  ): Promise<MainWireIntegratedBrowserAdvanceBatchReceiptV1>;
 
   getOperationalCheckpoint(
     session: MainWireIntegratedBrowserHostedSessionV1,
@@ -239,6 +280,7 @@ implements MainWireIntegratedScientificBrowserHostV1 {
       if (
         response.error.code !== "simulation-step-failed"
         || progress === null
+        || progress.kind !== "presentation-advance-partial-progress"
       ) throw commandErrorV1(response);
       this.assertSameLaneV1(session, response.laneDescriptor);
       return this.failedAdvanceV1(session, response, progress);
@@ -274,6 +316,76 @@ implements MainWireIntegratedScientificBrowserHostV1 {
       emittedPresentationSample:
         response.payload.emittedPresentationSample,
       observableFrame: response.payload.observableFrame,
+    });
+  }
+
+  async advanceConsecutivePresentationOrdinals(
+    session: MainWireIntegratedBrowserHostedSessionV1,
+    firstPresentationOrdinal: number,
+    presentationOrdinalCount: number,
+  ): Promise<MainWireIntegratedBrowserAdvanceBatchReceiptV1> {
+    this.assertCurrentSessionV1(session);
+    if (
+      !Number.isSafeInteger(presentationOrdinalCount)
+      || presentationOrdinalCount < 1
+      || presentationOrdinalCount
+        > MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+          .maximumPresentationOrdinalCountPerAdvanceCommand
+    ) throw hostErrorV1("presentation advance batch count is invalid");
+    const response = await this.requestV1({
+      protocolId:
+        MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID,
+      kind: "advanceToPresentationOrdinal",
+      requestId: this.nextRequestIdV1("advance-batch"),
+      sessionId: session.sessionId,
+      presentationOrdinal: firstPresentationOrdinal,
+      presentationOrdinalCount,
+    });
+    if (response.ok === false) {
+      const progress = response.error.partialProgress;
+      if (
+        response.error.code !== "simulation-step-failed"
+        || progress === null
+        || progress.kind
+          !== "presentation-advance-batch-partial-progress"
+      ) throw commandErrorV1(response);
+      this.assertSameLaneV1(session, response.laneDescriptor);
+      return this.failedAdvanceBatchV1(
+        session,
+        response,
+        progress,
+      );
+    }
+    if (
+      response.commandKind !== "advanceToPresentationOrdinal"
+      || response.payload.kind !== "presentation-advance-batch"
+      || response.payload.firstPresentationOrdinal
+        !== firstPresentationOrdinal
+      || response.payload.requestedPresentationOrdinalCount
+        !== presentationOrdinalCount
+    ) throw hostErrorV1("presentation advance batch receipt mismatch");
+    this.assertSameLaneV1(session, response.laneDescriptor);
+    const advances = response.payload.advances.map((payload) =>
+      this.successfulAdvanceReceiptV1(
+        session.sessionId,
+        response.laneDescriptor,
+        payload,
+      ));
+    const updated = advances.at(-1)?.session;
+    if (updated === undefined) {
+      throw hostErrorV1("presentation advance batch was empty");
+    }
+    this.sessions.set(session.sessionId, updated);
+    return Object.freeze({
+      status: "advanced" as const,
+      session: updated,
+      firstPresentationOrdinal:
+        response.payload.firstPresentationOrdinal,
+      lastPresentationOrdinal:
+        response.payload.lastPresentationOrdinal,
+      requestedPresentationOrdinalCount:
+        response.payload.requestedPresentationOrdinalCount,
+      advances: Object.freeze(advances),
     });
   }
 
@@ -464,6 +576,89 @@ implements MainWireIntegratedScientificBrowserHostV1 {
         progress.internalAcceptedSubstepCount,
       emittedPresentationSample: false as const,
       observableFrame: null,
+      failureReason: progress.failureReason,
+      message: response.error.message,
+    });
+  }
+
+  private successfulAdvanceReceiptV1(
+    sessionId: string,
+    laneDescriptor: StudioLaneDescriptorV1,
+    payload: MainWireIntegratedScientificWorkerAdvancePayloadV1,
+  ): MainWireIntegratedBrowserSuccessfulAdvanceReceiptV1 {
+    const updated = Object.freeze({
+      hostId: this.hostId,
+      sessionId,
+      laneDescriptor,
+      presentationOrdinal: payload.presentationOrdinal,
+      acceptedRevision: payload.acceptedRevision,
+      acceptedTimeSec: payload.acceptedTimeSec,
+      observableFrame: payload.observableFrame,
+    });
+    return Object.freeze({
+      status: payload.status,
+      session: updated,
+      presentationOrdinal: payload.presentationOrdinal,
+      presentationTimeSec: payload.presentationTimeSec,
+      acceptedRevisionSpanFromPrevious:
+        payload.acceptedRevisionSpanFromPrevious,
+      internalAcceptedSubstepCount:
+        payload.internalAcceptedSubstepCount,
+      boundaryClippedSubstepCount:
+        payload.boundaryClippedSubstepCount,
+      substeps: payload.substeps,
+      emittedPresentationSample:
+        payload.emittedPresentationSample,
+      observableFrame: payload.observableFrame,
+    });
+  }
+
+  private failedAdvanceBatchV1(
+    session: MainWireIntegratedBrowserHostedSessionV1,
+    response: MainWireIntegratedScientificWorkerErrorResponseV1,
+    progress:
+      MainWireIntegratedScientificWorkerAdvanceBatchPartialProgressV1,
+  ): MainWireIntegratedBrowserAdvanceBatchReceiptV1 {
+    const laneDescriptor = response.laneDescriptor;
+    if (laneDescriptor === null) {
+      throw hostErrorV1(
+        "failed advance batch omitted its lane descriptor",
+      );
+    }
+    const completedAdvances = progress.completedAdvances.map((payload) =>
+      this.successfulAdvanceReceiptV1(
+        session.sessionId,
+        laneDescriptor,
+        payload,
+      ));
+    const latestCompleted = completedAdvances.at(-1);
+    const updated = Object.freeze({
+      hostId: this.hostId,
+      sessionId: session.sessionId,
+      laneDescriptor,
+      presentationOrdinal: progress.lastPresentationOrdinal,
+      acceptedRevision: progress.acceptedRevision,
+      acceptedTimeSec: progress.acceptedTimeSec,
+      observableFrame:
+        latestCompleted?.observableFrame ?? session.observableFrame,
+    });
+    this.sessions.set(session.sessionId, updated);
+    return Object.freeze({
+      status: "failed" as const,
+      session: updated,
+      firstPresentationOrdinal: progress.firstPresentationOrdinal,
+      requestedPresentationOrdinalCount:
+        progress.requestedPresentationOrdinalCount,
+      completedAdvances: Object.freeze(completedAdvances),
+      failedPresentationOrdinal: progress.failedPresentationOrdinal,
+      failedPresentationTimeSec: progress.failedPresentationTimeSec,
+      failedOrdinalPartiallyAdvanced:
+        progress.failedOrdinalPartiallyAdvanced,
+      failedOrdinalInternalAcceptedSubstepCount:
+        progress.failedOrdinalInternalAcceptedSubstepCount,
+      failedOrdinalBoundaryClippedSubstepCount:
+        progress.failedOrdinalBoundaryClippedSubstepCount,
+      failedOrdinalSubsteps: progress.failedOrdinalSubsteps,
       failureReason: progress.failureReason,
       message: response.error.message,
     });

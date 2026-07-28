@@ -15,10 +15,14 @@ import {
 import {
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_HOST_V1_ID,
   MainWireIntegratedScientificBrowserHostV1Impl,
+  type MainWireIntegratedBrowserAdvanceBatchReceiptV1,
   type MainWireIntegratedBrowserAdvanceReceiptV1,
   type MainWireIntegratedBrowserHostedSessionV1,
   type MainWireIntegratedScientificBrowserHostV1,
 } from "@/engine/scientificBrowser/MainWireIntegratedScientificBrowserHostV1";
+import {
+  MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
+} from "@/engine/scientificBrowser/mainWireIntegratedScientificBrowserRuntimeLimitsV1";
 import {
   mainWireStudioInitialLivePacingEpochStateV1,
   mainWireStudioLivePacingDecisionV1,
@@ -47,15 +51,19 @@ import type {
 } from "@/studio/contracts/v1/runtime";
 
 /**
- * Measured in step 6: one request per 2 ms ordinal gives 150 simulated seconds
- * before rotation and a 25,000-request margin below the audited Worker cap.
+ * Re-derived for 16 ordinals per full request: 75,000 * 16 / 500 = 2,400
+ * simulated seconds before rotation, while retaining the same 25,000-request
+ * margin below the audited Worker cap. Lifecycle and retry requests shorten
+ * that model duration slightly.
  *
  * Provisional: structured-clone cost, long-session memory growth, browser
  * rotation latency, and user-visible interruption remain unmeasured.
  */
 export const MAIN_WIRE_INTEGRATED_V3_LIVE_HOST_ROTATION_POLICY_V1 =
   Object.freeze({
-    requestCount: 75_000 as const,
+    requestCount:
+      MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+        .workerRotationRequestCount,
     status: "provisional" as const,
     auditedWorkerLifetimeRequestCount: 100_000 as const,
     unmeasured: Object.freeze([
@@ -140,6 +148,17 @@ type IntegratedAdvanceOutcomeV1 =
         { status: "failed" }
       >;
     }>;
+
+type IntegratedAdvanceRunOutcomeV1 = Readonly<{
+  advances: readonly Extract<
+    IntegratedAdvanceOutcomeV1,
+    { status: "advanced" }
+  >[];
+  failure: Extract<
+    MainWireIntegratedBrowserAdvanceReceiptV1,
+    { status: "failed" }
+  > | null;
+}>;
 
 export class MainWireIntegratedV3LiveLaneDriverErrorV1 extends Error {
   constructor(message: string) {
@@ -383,71 +402,81 @@ implements StudioIntegratedV3LiveLaneDriverV1 {
         && branch.failure === null
         && branch.observers.size > 0
       ) {
-        const presentationOrdinal = branch.presentationOrdinal + 1;
-        const previousAcceptedRevision =
-          branch.hostedSession.acceptedRevision;
+        const firstPresentationOrdinal =
+          branch.presentationOrdinal + 1;
         const activeStartedWallMs = this.nowMs();
         await this.rotateHostIfRequiredV1(branch);
         if (branch.closed) return;
-        const outcome = await this.advanceWithRetryV1(
+        const run = await this.advanceRunV1(
           branch,
-          presentationOrdinal,
-          previousAcceptedRevision,
+          firstPresentationOrdinal,
         );
         const activeWallDurationMs =
           this.nowMs() - activeStartedWallMs;
         if (branch.closed) return;
-        if (outcome.status === "failed") {
-          const { receipt } = outcome;
+        if (run.advances.length > 0) {
+          let previousAcceptedRevision =
+            run.advances[0]!.receipt.session.acceptedRevision
+              - run.advances[0]!.acceptedRevisionSpanFromPrevious;
+          const samples = run.advances.map((outcome, index) => {
+            const presentationOrdinal =
+              firstPresentationOrdinal + index;
+            const { receipt } = outcome;
+            if (receipt.status !== "advanced") {
+              throw laneErrorV1(
+                "next presentation ordinal was already accepted",
+              );
+            }
+            this.assertAdvanceReceiptV1(
+              receipt,
+              presentationOrdinal,
+              previousAcceptedRevision,
+              outcome.acceptedRevisionSpanFromPrevious,
+              outcome.internalAcceptedSubstepCount,
+              outcome.boundaryClippedSubstepCount,
+            );
+            previousAcceptedRevision =
+              receipt.session.acceptedRevision;
+            return this.presentationSampleV1(
+              receipt.session,
+              presentationOrdinal,
+              outcome.acceptedRevisionSpanFromPrevious,
+              outcome.internalAcceptedSubstepCount,
+              outcome.boundaryClippedSubstepCount,
+            );
+          });
+          const finalAdvance = run.advances.at(-1)!;
+          const pacingDecision = await this.settlePacingV1(
+            branch,
+            finalAdvance.receipt.session.acceptedTimeSec,
+            activeWallDurationMs,
+          );
+          if (branch.closed || pacingDecision === null) return;
+          branch.pacingEpoch = pacingDecision.nextState;
+          branch.presentationOrdinal =
+            finalAdvance.receipt.presentationOrdinal;
+          this.emitV1(branch, Object.freeze({
+            kind: "samples" as const,
+            channelId: branch.channel.channelId,
+            sessionId: branch.channel.sessionId,
+            scenarioId: branch.scenarioId,
+            liveBranchId: branch.liveBranchId,
+            targetGeneration: 0 as const,
+            presentationRevision: 0 as const,
+            streamEpoch: 0 as const,
+            samples: Object.freeze(samples),
+            metricState: null,
+            livePacing: pacingDecision.livePacing,
+          }));
+        }
+        if (run.failure !== null) {
+          const receipt = run.failure;
           this.failBranchV1(
             branch,
-            `presentation ordinal ${presentationOrdinal} failed after ${receipt.internalAcceptedSubstepCount} accepted substeps: ${receipt.failureReason}: ${receipt.message}`,
+            `presentation ordinal ${receipt.requestedPresentationOrdinal} failed after ${receipt.internalAcceptedSubstepCount} accepted substeps: ${receipt.failureReason}: ${receipt.message}`,
           );
           return;
         }
-        const { receipt } = outcome;
-        if (receipt.status !== "advanced") {
-          throw laneErrorV1(
-            "next presentation ordinal was already accepted",
-          );
-        }
-        this.assertAdvanceReceiptV1(
-          receipt,
-          presentationOrdinal,
-          previousAcceptedRevision,
-          outcome.acceptedRevisionSpanFromPrevious,
-          outcome.internalAcceptedSubstepCount,
-          outcome.boundaryClippedSubstepCount,
-        );
-
-        const pacingDecision = await this.settlePacingV1(
-          branch,
-          receipt.session.acceptedTimeSec,
-          activeWallDurationMs,
-        );
-        if (branch.closed || pacingDecision === null) return;
-        branch.pacingEpoch = pacingDecision.nextState;
-        branch.presentationOrdinal = presentationOrdinal;
-        const sample = this.presentationSampleV1(
-          receipt.session,
-          presentationOrdinal,
-          outcome.acceptedRevisionSpanFromPrevious,
-          outcome.internalAcceptedSubstepCount,
-          outcome.boundaryClippedSubstepCount,
-        );
-        this.emitV1(branch, Object.freeze({
-          kind: "samples" as const,
-          channelId: branch.channel.channelId,
-          sessionId: branch.channel.sessionId,
-          scenarioId: branch.scenarioId,
-          liveBranchId: branch.liveBranchId,
-          targetGeneration: 0 as const,
-          presentationRevision: 0 as const,
-          streamEpoch: 0 as const,
-          samples: Object.freeze([sample]),
-          metricState: null,
-          livePacing: pacingDecision.livePacing,
-        }));
       }
     } catch (error) {
       if (!branch.closed) {
@@ -456,15 +485,105 @@ implements StudioIntegratedV3LiveLaneDriverV1 {
     }
   }
 
+  private async advanceRunV1(
+    branch: IntegratedBranchV1,
+    firstPresentationOrdinal: number,
+  ): Promise<IntegratedAdvanceRunOutcomeV1> {
+    const advanceBatch =
+      branch.host.advanceConsecutivePresentationOrdinals;
+    if (advanceBatch === undefined) {
+      const outcome = await this.advanceWithRetryV1(
+        branch,
+        firstPresentationOrdinal,
+        branch.hostedSession.acceptedRevision,
+      );
+      return outcome.status === "advanced"
+        ? Object.freeze({
+          advances: Object.freeze([outcome]),
+          failure: null,
+        })
+        : Object.freeze({
+          advances: Object.freeze([]),
+          failure: outcome.receipt,
+        });
+    }
+
+    const batch = await advanceBatch.call(
+      branch.host,
+      branch.hostedSession,
+      firstPresentationOrdinal,
+      MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+        .maximumPresentationOrdinalCountPerAdvanceCommand,
+    );
+    branch.hostedSession = batch.session;
+    const completed = (
+      batch.status === "advanced"
+        ? batch.advances
+        : batch.completedAdvances
+    ).map((receipt) => Object.freeze({
+      status: "advanced" as const,
+      receipt,
+      acceptedRevisionSpanFromPrevious:
+        receipt.acceptedRevisionSpanFromPrevious,
+      internalAcceptedSubstepCount:
+        receipt.internalAcceptedSubstepCount,
+      boundaryClippedSubstepCount:
+        receipt.boundaryClippedSubstepCount,
+    }));
+    if (batch.status === "advanced") {
+      return Object.freeze({
+        advances: Object.freeze(completed),
+        failure: null,
+      });
+    }
+
+    const failedReceipt = failedBatchOrdinalReceiptV1(batch);
+    if (!batch.failedOrdinalPartiallyAdvanced) {
+      return Object.freeze({
+        advances: Object.freeze(completed),
+        failure: failedReceipt,
+      });
+    }
+    const previousAcceptedRevision =
+      completed.at(-1)?.receipt.session.acceptedRevision
+      ?? (
+        batch.session.acceptedRevision
+        - batch.failedOrdinalInternalAcceptedSubstepCount
+      );
+    const retry = await this.advanceWithRetryV1(
+      branch,
+      batch.failedPresentationOrdinal,
+      previousAcceptedRevision,
+      batch.failedOrdinalInternalAcceptedSubstepCount,
+      batch.failedOrdinalBoundaryClippedSubstepCount,
+      1,
+    );
+    if (retry.status === "failed") {
+      return Object.freeze({
+        advances: Object.freeze(completed),
+        failure: retry.receipt,
+      });
+    }
+    return Object.freeze({
+      advances: Object.freeze([...completed, retry]),
+      failure: null,
+    });
+  }
+
   private async advanceWithRetryV1(
     branch: IntegratedBranchV1,
     presentationOrdinal: number,
     previousAcceptedRevision: number,
+    initialAcceptedSubstepCount = 0,
+    initialBoundaryClippedSubstepCount = 0,
+    completedAttemptCount = 0,
   ): Promise<IntegratedAdvanceOutcomeV1> {
     let receipt: MainWireIntegratedBrowserAdvanceReceiptV1 | null = null;
-    let partialAcceptedSubstepCount = 0;
+    let partialAcceptedSubstepCount = initialAcceptedSubstepCount;
+    let partialBoundaryClippedSubstepCount =
+      initialBoundaryClippedSubstepCount;
     for (
-      let attempt = 1;
+      let attempt = completedAttemptCount + 1;
       attempt <=
         MAIN_WIRE_INTEGRATED_V3_ADVANCE_MAXIMUM_ATTEMPT_COUNT_V1;
       attempt += 1
@@ -484,22 +603,35 @@ implements StudioIntegratedV3LiveLaneDriverV1 {
             partialAcceptedSubstepCount
             + receipt.internalAcceptedSubstepCount,
           boundaryClippedSubstepCount:
-            partialAcceptedSubstepCount
+            partialBoundaryClippedSubstepCount
             + receipt.boundaryClippedSubstepCount,
         });
       }
       partialAcceptedSubstepCount +=
         receipt.internalAcceptedSubstepCount;
+      partialBoundaryClippedSubstepCount +=
+        receipt.internalAcceptedSubstepCount;
       if (!receipt.partiallyAdvanced) {
-        return Object.freeze({ status: "failed" as const, receipt });
+        return Object.freeze({
+          status: "failed" as const,
+          receipt: Object.freeze({
+            ...receipt,
+            internalAcceptedSubstepCount:
+              partialAcceptedSubstepCount,
+          }),
+        });
       }
     }
     return Object.freeze({
       status: "failed" as const,
-      receipt: receipt as Extract<
-        MainWireIntegratedBrowserAdvanceReceiptV1,
-        { status: "failed" }
-      >,
+      receipt: Object.freeze({
+        ...receipt as Extract<
+          MainWireIntegratedBrowserAdvanceReceiptV1,
+          { status: "failed" }
+        >,
+        internalAcceptedSubstepCount:
+          partialAcceptedSubstepCount,
+      }),
     });
   }
 
@@ -765,6 +897,30 @@ function assertOpenCommandV1(
     ) throw laneErrorV1("open command scenario identity is invalid");
     scenarioIds.add(branch.scenarioId);
   }
+}
+
+function failedBatchOrdinalReceiptV1(
+  batch: Extract<
+    MainWireIntegratedBrowserAdvanceBatchReceiptV1,
+    { status: "failed" }
+  >,
+): Extract<
+  MainWireIntegratedBrowserAdvanceReceiptV1,
+  { status: "failed" }
+> {
+  return Object.freeze({
+    status: "failed" as const,
+    session: batch.session,
+    requestedPresentationOrdinal: batch.failedPresentationOrdinal,
+    requestedPresentationTimeSec: batch.failedPresentationTimeSec,
+    partiallyAdvanced: batch.failedOrdinalPartiallyAdvanced,
+    internalAcceptedSubstepCount:
+      batch.failedOrdinalInternalAcceptedSubstepCount,
+    emittedPresentationSample: false as const,
+    observableFrame: null,
+    failureReason: batch.failureReason,
+    message: batch.message,
+  });
 }
 
 function laneErrorV1(

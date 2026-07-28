@@ -96,7 +96,14 @@ export type ObserveIntegratedSessionCommandV1 =
 export type AdvanceToPresentationOrdinalCommandV1 =
   CommandBaseV1<"advanceToPresentationOrdinal"> & Readonly<{
     presentationOrdinal: number;
-  }>;
+  }> & (
+    | Readonly<{
+      presentationOrdinalCount?: never;
+    }>
+    | Readonly<{
+      presentationOrdinalCount: number;
+    }>
+  );
 
 export type GetOperationalCheckpointCommandV1 =
   CommandBaseV1<"getOperationalCheckpoint">;
@@ -143,6 +150,32 @@ export type MainWireIntegratedScientificWorkerAdvancePayloadV1 = Readonly<{
   observableFrame: MainWireIntegratedLaneObservableFrameV1;
 }>;
 
+export type MainWireIntegratedScientificWorkerAdvanceBatchPayloadV1 =
+  Readonly<{
+    kind: "presentation-advance-batch";
+    /**
+     * Terminal fields mirror `advances.at(-1)`. Keeping the final per-ordinal
+     * receipt at the top level preserves the response's advance summary while
+     * `advances` remains the authoritative ordered sample collection.
+     */
+    status: "advanced";
+    presentationOrdinal: number;
+    presentationTimeSec: number;
+    acceptedRevision: number;
+    acceptedTimeSec: number;
+    acceptedRevisionSpanFromPrevious: number;
+    internalAcceptedSubstepCount: number;
+    boundaryClippedSubstepCount: number;
+    substeps: readonly MainWireIntegratedLaneSubstepRecordV1[];
+    emittedPresentationSample: true;
+    observableFrame: MainWireIntegratedLaneObservableFrameV1;
+    firstPresentationOrdinal: number;
+    lastPresentationOrdinal: number;
+    requestedPresentationOrdinalCount: number;
+    advances:
+      readonly MainWireIntegratedScientificWorkerAdvancePayloadV1[];
+  }>;
+
 export type MainWireIntegratedScientificWorkerSuccessPayloadByKindV1 =
   Readonly<{
     createWorkerOwnedPresetSession: Readonly<{
@@ -154,7 +187,8 @@ export type MainWireIntegratedScientificWorkerSuccessPayloadByKindV1 =
       session: MainWireIntegratedScientificWorkerSessionSnapshotV1;
     }>;
     advanceToPresentationOrdinal:
-      MainWireIntegratedScientificWorkerAdvancePayloadV1;
+      | MainWireIntegratedScientificWorkerAdvancePayloadV1
+      | MainWireIntegratedScientificWorkerAdvanceBatchPayloadV1;
     getOperationalCheckpoint: Readonly<{
       kind: "operational-checkpoint";
       checkpoint: MainWireIntegratedModelCheckpointV3;
@@ -201,6 +235,26 @@ export type MainWireIntegratedScientificWorkerAdvancePartialProgressV1 =
     failureReason: string;
   }>;
 
+export type MainWireIntegratedScientificWorkerAdvanceBatchPartialProgressV1 =
+  Readonly<{
+    kind: "presentation-advance-batch-partial-progress";
+    firstPresentationOrdinal: number;
+    requestedPresentationOrdinalCount: number;
+    completedAdvances:
+      readonly MainWireIntegratedScientificWorkerAdvancePayloadV1[];
+    failedPresentationOrdinal: number;
+    failedPresentationTimeSec: number;
+    acceptedRevision: number;
+    acceptedTimeSec: number;
+    lastPresentationOrdinal: number | null;
+    failedOrdinalPartiallyAdvanced: boolean;
+    failedOrdinalInternalAcceptedSubstepCount: number;
+    failedOrdinalBoundaryClippedSubstepCount: number;
+    failedOrdinalSubsteps:
+      readonly MainWireIntegratedLaneSubstepRecordV1[];
+    failureReason: string;
+  }>;
+
 export type MainWireIntegratedScientificWorkerSuccessResponseForKindV1<
   TKind extends MainWireIntegratedScientificWorkerCommandKindV1,
 > = Readonly<{
@@ -235,7 +289,8 @@ export type MainWireIntegratedScientificWorkerErrorResponseV1 = Readonly<{
     retryable: false;
     silentFallbackApplied: false;
     partialProgress:
-      MainWireIntegratedScientificWorkerAdvancePartialProgressV1
+      | MainWireIntegratedScientificWorkerAdvancePartialProgressV1
+      | MainWireIntegratedScientificWorkerAdvanceBatchPartialProgressV1
       | null;
   }>;
 }>;

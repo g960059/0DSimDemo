@@ -12,10 +12,12 @@ import {
   INTEGRATED_LANE_MAX_SUBSTEPS_PER_INTERVAL_V1,
   MainWireIntegratedScientificSession,
   integratedLanePresentationTargetTimeSecV1,
+  type MainWireIntegratedLanePresentationAdvanceV1,
 } from "@/engine/myocardium/MainWireIntegratedScientificSession";
 import {
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_COMMAND_KINDS_V1,
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID,
+  type MainWireIntegratedScientificWorkerAdvancePayloadV1,
   type MainWireIntegratedScientificWorkerCommandKindV1,
   type MainWireIntegratedScientificWorkerCommandV1,
   type MainWireIntegratedScientificWorkerErrorCodeV1,
@@ -56,6 +58,7 @@ export type MainWireIntegratedScientificWorkerKernelOptionsV1 = Readonly<{
   maximumSessionIdentityCountPerKernelLifetime?: number;
   maximumCommandJsonBytes?: number;
   maximumCommandJsonNodeCount?: number;
+  maximumPresentationOrdinalCountPerAdvanceCommand?: number;
 }>;
 
 type HostedSession = {
@@ -92,6 +95,7 @@ const MAXIMUM_CONFIGURED_REQUEST_COUNT = 100_000;
 const MAXIMUM_CONFIGURED_SESSION_IDENTITY_COUNT = 4_096;
 const MAXIMUM_CONFIGURED_COMMAND_JSON_BYTES = 16 * 1024 * 1024;
 const MAXIMUM_CONFIGURED_COMMAND_JSON_NODE_COUNT = 1_000_000;
+const MAXIMUM_CONFIGURED_PRESENTATION_ORDINAL_COUNT_PER_ADVANCE_COMMAND = 16;
 const RESERVED_RECOVERY_REQUEST_COUNT = 2;
 const IDENTIFIER_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
@@ -105,6 +109,7 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
   readonly maximumSessionIdentityCountPerKernelLifetime: number;
   readonly maximumCommandJsonBytes: number;
   readonly maximumCommandJsonNodeCount: number;
+  readonly maximumPresentationOrdinalCountPerAdvanceCommand: number;
 
   private readonly sessions = new Map<string, HostedSession>();
   private readonly allocatedSessionIds = new Set<string>();
@@ -149,6 +154,13 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
       MAXIMUM_CONFIGURED_COMMAND_JSON_NODE_COUNT,
       "maximumCommandJsonNodeCount",
     );
+    this.maximumPresentationOrdinalCountPerAdvanceCommand =
+      boundedPositiveInteger(
+        options.maximumPresentationOrdinalCountPerAdvanceCommand
+          ?? MAXIMUM_CONFIGURED_PRESENTATION_ORDINAL_COUNT_PER_ADVANCE_COMMAND,
+        MAXIMUM_CONFIGURED_PRESENTATION_ORDINAL_COUNT_PER_ADVANCE_COMMAND,
+        "maximumPresentationOrdinalCountPerAdvanceCommand",
+      );
     if (
       INTEGRATED_LANE_MAX_SUBSTEPS_PER_INTERVAL_V1
         !== 16
@@ -329,6 +341,14 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
   ): Promise<MainWireIntegratedScientificWorkerResponseV1> {
     const hosted = this.sessions.get(command.sessionId);
     if (hosted === undefined) return this.unknownSession(command);
+    if (command.presentationOrdinalCount !== undefined) {
+      return this.advanceBatch(
+        command as typeof command & Readonly<{
+          presentationOrdinalCount: number;
+        }>,
+        hosted,
+      );
+    }
     if (!isAdmissiblePresentationOrdinalV1(
       hosted,
       command.presentationOrdinal,
@@ -341,70 +361,143 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
       );
     }
 
-    const targetTimeSec = integratedLanePresentationTargetTimeSecV1(
+    const advanced = advanceOnePresentationOrdinalV1(
+      hosted,
       command.presentationOrdinal,
     );
-    let result;
-    try {
-      result = hosted.session.advanceToPresentationTime(targetTimeSec);
-    } catch (error) {
+    if (advanced.ok === false) {
       return errorResponseV1(
         identityForCommandV1(command),
-        "presentation-ordinal-mismatch",
-        errorMessageV1(error),
+        advanced.code,
+        advanced.message,
         await this.laneDescriptor,
+        advanced.partialProgress,
       );
     }
-    if (result.status === "failed") {
+    return successResponseV1(
+      command,
+      await this.laneDescriptor,
+      advanced.payload,
+    );
+  }
+
+  private async advanceBatch(
+    command: Extract<
+      MainWireIntegratedScientificWorkerCommandV1,
+      { kind: "advanceToPresentationOrdinal" }
+    > & Readonly<{ presentationOrdinalCount: number }>,
+    hosted: HostedSession,
+  ): Promise<MainWireIntegratedScientificWorkerResponseV1> {
+    const count = command.presentationOrdinalCount;
+    const lastPresentationOrdinal =
+      command.presentationOrdinal + count - 1;
+    if (
+      count > this.maximumPresentationOrdinalCountPerAdvanceCommand
+      || !Number.isSafeInteger(lastPresentationOrdinal)
+      || !isNextPresentationOrdinalV1(
+        hosted,
+        command.presentationOrdinal,
+      )
+    ) {
       return errorResponseV1(
         identityForCommandV1(command),
-        "simulation-step-failed",
-        result.message,
+        count > this.maximumPresentationOrdinalCountPerAdvanceCommand
+          ? "invalid-command"
+          : "presentation-ordinal-mismatch",
+        count > this.maximumPresentationOrdinalCountPerAdvanceCommand
+          ? `presentationOrdinalCount exceeds the V3 bound of ${this.maximumPresentationOrdinalCountPerAdvanceCommand}`
+          : "batch must begin at the next unrepresented presentation ordinal",
         await this.laneDescriptor,
-        Object.freeze({
-          kind: "presentation-advance-partial-progress" as const,
-          requestedPresentationOrdinal: command.presentationOrdinal,
-          requestedPresentationTimeSec: targetTimeSec,
-          acceptedRevision: result.acceptedRevision,
-          acceptedTimeSec: result.acceptedTimeSec,
-          lastPresentationOrdinal: hosted.lastPresentationOrdinal,
-          partiallyAdvanced: result.partiallyAdvanced,
-          internalAcceptedSubstepCount:
-            result.internalAcceptedSubstepCount,
-          emittedPresentationSample: false as const,
-          observableFrame: null,
-          failureReason: result.reason,
-        }),
       );
     }
 
-    const alreadyAtTarget = result.status === "already-at-target";
-    if (!alreadyAtTarget) {
-      hosted.lastPresentationOrdinal = command.presentationOrdinal;
+    const completedAdvances:
+      MainWireIntegratedScientificWorkerAdvancePayloadV1[] = [];
+    for (let offset = 0; offset < count; offset += 1) {
+      const presentationOrdinal = command.presentationOrdinal + offset;
+      const advanced = advanceOnePresentationOrdinalV1(
+        hosted,
+        presentationOrdinal,
+      );
+      if (advanced.ok === false) {
+        if (advanced.code === "presentation-ordinal-mismatch") {
+          return errorResponseV1(
+            identityForCommandV1(command),
+            advanced.code,
+            advanced.message,
+            await this.laneDescriptor,
+          );
+        }
+        const failure = advanced.result;
+        return errorResponseV1(
+          identityForCommandV1(command),
+          "simulation-step-failed",
+          advanced.message,
+          await this.laneDescriptor,
+          Object.freeze({
+            kind:
+              "presentation-advance-batch-partial-progress" as const,
+            firstPresentationOrdinal: command.presentationOrdinal,
+            requestedPresentationOrdinalCount: count,
+            completedAdvances: Object.freeze([...completedAdvances]),
+            failedPresentationOrdinal: presentationOrdinal,
+            failedPresentationTimeSec:
+              integratedLanePresentationTargetTimeSecV1(
+                presentationOrdinal,
+              ),
+            acceptedRevision: failure.acceptedRevision,
+            acceptedTimeSec: failure.acceptedTimeSec,
+            lastPresentationOrdinal: hosted.lastPresentationOrdinal,
+            failedOrdinalPartiallyAdvanced:
+              failure.partiallyAdvanced,
+            failedOrdinalInternalAcceptedSubstepCount:
+              failure.internalAcceptedSubstepCount,
+            failedOrdinalBoundaryClippedSubstepCount:
+              failure.boundaryClippedSubstepCount ?? 0,
+            failedOrdinalSubsteps:
+              failure.substeps ?? Object.freeze([]),
+            failureReason: failure.reason,
+          }),
+        );
+      }
+      if (advanced.payload.status !== "advanced") {
+        return errorResponseV1(
+          identityForCommandV1(command),
+          "presentation-ordinal-mismatch",
+          "batch encountered an already represented presentation ordinal",
+          await this.laneDescriptor,
+        );
+      }
+      completedAdvances.push(advanced.payload);
     }
-    const observableFrame =
-      projectMainWireIntegratedLaneObservationV1(result.observation);
+
+    const finalAdvance = completedAdvances.at(-1);
+    if (finalAdvance === undefined) {
+      throw new Error("integrated advance batch completed no ordinals");
+    }
     return successResponseV1(
       command,
       await this.laneDescriptor,
       Object.freeze({
-        kind: "presentation-advance" as const,
-        status: result.status,
-        presentationOrdinal: command.presentationOrdinal,
-        presentationTimeSec: result.presentationTimeSec,
-        acceptedRevision: result.acceptedRevision,
-        acceptedTimeSec: result.acceptedTimeSec,
-        acceptedRevisionSpanFromPrevious: alreadyAtTarget
-          ? 0
-          : result.acceptedRevisionSpanFromPrevious,
+        kind: "presentation-advance-batch" as const,
+        status: "advanced" as const,
+        presentationOrdinal: finalAdvance.presentationOrdinal,
+        presentationTimeSec: finalAdvance.presentationTimeSec,
+        acceptedRevision: finalAdvance.acceptedRevision,
+        acceptedTimeSec: finalAdvance.acceptedTimeSec,
+        acceptedRevisionSpanFromPrevious:
+          finalAdvance.acceptedRevisionSpanFromPrevious,
         internalAcceptedSubstepCount:
-          result.internalAcceptedSubstepCount,
-        boundaryClippedSubstepCount: alreadyAtTarget
-          ? 0
-          : result.boundaryClippedSubstepCount,
-        substeps: alreadyAtTarget ? Object.freeze([]) : result.substeps,
-        emittedPresentationSample: !alreadyAtTarget,
-        observableFrame,
+          finalAdvance.internalAcceptedSubstepCount,
+        boundaryClippedSubstepCount:
+          finalAdvance.boundaryClippedSubstepCount,
+        substeps: finalAdvance.substeps,
+        emittedPresentationSample: true as const,
+        observableFrame: finalAdvance.observableFrame,
+        firstPresentationOrdinal: command.presentationOrdinal,
+        lastPresentationOrdinal,
+        requestedPresentationOrdinalCount: count,
+        advances: Object.freeze([...completedAdvances]),
       }),
     );
   }
@@ -550,6 +643,109 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
   }
 }
 
+type AdvanceOnePresentationOrdinalResultV1 =
+  | Readonly<{
+    ok: true;
+    payload: MainWireIntegratedScientificWorkerAdvancePayloadV1;
+  }>
+  | Readonly<{
+    ok: false;
+    code: "presentation-ordinal-mismatch";
+    message: string;
+    partialProgress: null;
+  }>
+  | Readonly<{
+    ok: false;
+    code: "simulation-step-failed";
+    message: string;
+    partialProgress: NonNullable<
+      MainWireIntegratedScientificWorkerErrorResponseV1["error"][
+        "partialProgress"
+      ]
+    >;
+    result: Extract<
+      MainWireIntegratedLanePresentationAdvanceV1,
+      { status: "failed" }
+    >;
+  }>;
+
+function advanceOnePresentationOrdinalV1(
+  hosted: HostedSession,
+  presentationOrdinal: number,
+): AdvanceOnePresentationOrdinalResultV1 {
+  // The target is deliberately re-derived from the ordinal on every
+  // iteration. A batch must never accumulate a running floating-point time.
+  const targetTimeSec = integratedLanePresentationTargetTimeSecV1(
+    presentationOrdinal,
+  );
+  let result: MainWireIntegratedLanePresentationAdvanceV1;
+  try {
+    result = hosted.session.advanceToPresentationTime(targetTimeSec);
+  } catch (error) {
+    return Object.freeze({
+      ok: false as const,
+      code: "presentation-ordinal-mismatch" as const,
+      message: errorMessageV1(error),
+      partialProgress: null,
+    });
+  }
+  if (result.status === "failed") {
+    return Object.freeze({
+      ok: false as const,
+      code: "simulation-step-failed" as const,
+      message: result.message,
+      result,
+      partialProgress: Object.freeze({
+        kind: "presentation-advance-partial-progress" as const,
+        requestedPresentationOrdinal: presentationOrdinal,
+        requestedPresentationTimeSec: targetTimeSec,
+        acceptedRevision: result.acceptedRevision,
+        acceptedTimeSec: result.acceptedTimeSec,
+        lastPresentationOrdinal: hosted.lastPresentationOrdinal,
+        partiallyAdvanced: result.partiallyAdvanced,
+        internalAcceptedSubstepCount:
+          result.internalAcceptedSubstepCount,
+        emittedPresentationSample: false as const,
+        observableFrame: null,
+        failureReason: result.reason,
+      }),
+    });
+  }
+
+  const alreadyAtTarget = result.status === "already-at-target";
+  if (!alreadyAtTarget) {
+    hosted.lastPresentationOrdinal = presentationOrdinal;
+  }
+  const observableFrame =
+    projectMainWireIntegratedLaneObservationV1(result.observation);
+  return Object.freeze({
+    ok: true as const,
+    payload: Object.freeze({
+      kind: "presentation-advance" as const,
+      status: result.status,
+      presentationOrdinal,
+      presentationTimeSec: result.presentationTimeSec,
+      acceptedRevision: result.acceptedRevision,
+      acceptedTimeSec: result.acceptedTimeSec,
+      acceptedRevisionSpanFromPrevious: result.status
+        === "already-at-target"
+        ? 0
+        : result.acceptedRevisionSpanFromPrevious,
+      internalAcceptedSubstepCount:
+        result.internalAcceptedSubstepCount,
+      boundaryClippedSubstepCount: result.status
+        === "already-at-target"
+        ? 0
+        : result.boundaryClippedSubstepCount,
+      substeps: result.status === "already-at-target"
+        ? Object.freeze([])
+        : result.substeps,
+      emittedPresentationSample: !alreadyAtTarget,
+      observableFrame,
+    }),
+  });
+}
+
 async function loadLaneDescriptorV1(): Promise<StudioLaneDescriptorV1> {
   const identity =
     await loadMainWireIntegratedLaneDevelopmentIdentityV1();
@@ -605,6 +801,25 @@ function isAdmissiblePresentationOrdinalV1(
   if (acceptedOrdinal !== null) {
     return ordinal === acceptedOrdinal || ordinal === acceptedOrdinal + 1;
   }
+  let nextOrdinal = Math.floor(acceptedTimeSec / 0.002) + 1;
+  while (
+    integratedLanePresentationTargetTimeSecV1(nextOrdinal)
+      <= acceptedTimeSec
+  ) {
+    nextOrdinal += 1;
+  }
+  return ordinal === nextOrdinal;
+}
+
+function isNextPresentationOrdinalV1(
+  hosted: HostedSession,
+  ordinal: number,
+): boolean {
+  if (!Number.isSafeInteger(ordinal) || ordinal < 1) return false;
+  const acceptedTimeSec =
+    hosted.session.currentAcceptedState().acceptedTimeSec;
+  const acceptedOrdinal = exactPresentationOrdinalV1(acceptedTimeSec);
+  if (acceptedOrdinal !== null) return ordinal === acceptedOrdinal + 1;
   let nextOrdinal = Math.floor(acceptedTimeSec / 0.002) + 1;
   while (
     integratedLanePresentationTargetTimeSecV1(nextOrdinal)
@@ -685,7 +900,15 @@ function parseCommandV1(value: unknown): ParsedCommand {
   }
   const commonKeys = ["protocolId", "kind", "requestId", "sessionId"];
   const expectedKeys = value.kind === "advanceToPresentationOrdinal"
-    ? [...commonKeys, "presentationOrdinal"]
+    ? (
+      "presentationOrdinalCount" in value
+        ? [
+          ...commonKeys,
+          "presentationOrdinal",
+          "presentationOrdinalCount",
+        ]
+        : [...commonKeys, "presentationOrdinal"]
+    )
     : value.kind === "restoreOperationalCheckpoint"
       ? [...commonKeys, "checkpoint"]
       : commonKeys;
@@ -705,6 +928,19 @@ function parseCommandV1(value: unknown): ParsedCommand {
     return invalidParseV1(
       identity,
       "presentationOrdinal must be a non-negative safe integer",
+    );
+  }
+  if (
+    value.kind === "advanceToPresentationOrdinal"
+    && "presentationOrdinalCount" in value
+    && (
+      !Number.isSafeInteger(value.presentationOrdinalCount)
+      || (value.presentationOrdinalCount as number) < 1
+    )
+  ) {
+    return invalidParseV1(
+      identity,
+      "presentationOrdinalCount must be a positive safe integer",
     );
   }
   return Object.freeze({

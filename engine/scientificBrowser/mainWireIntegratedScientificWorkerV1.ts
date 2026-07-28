@@ -43,6 +43,9 @@ const kernel = new MainWireIntegratedScientificWorkerKernelV1({
   maximumCommandJsonNodeCount:
     MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
       .maximumCommandJsonNodeCount,
+  maximumPresentationOrdinalCountPerAdvanceCommand:
+    MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+      .maximumPresentationOrdinalCountPerAdvanceCommand,
 });
 
 scope.onmessage = (event: MessageEvent<unknown>): void => {

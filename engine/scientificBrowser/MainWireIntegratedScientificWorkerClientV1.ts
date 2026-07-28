@@ -452,11 +452,17 @@ function isResponseCompatibleWithCommandV1(
       && response.error.partialProgress !== null
     ) {
       const progress = response.error.partialProgress;
-      return progress.kind === "presentation-advance-partial-progress"
-        && progress.requestedPresentationOrdinal
-          === command.presentationOrdinal
-        && progress.emittedPresentationSample === false
-        && progress.observableFrame === null;
+      return command.presentationOrdinalCount === undefined
+        ? progress.kind === "presentation-advance-partial-progress"
+          && progress.requestedPresentationOrdinal
+            === command.presentationOrdinal
+          && progress.emittedPresentationSample === false
+          && progress.observableFrame === null
+        : isAdvanceBatchPartialProgressV1(
+          progress,
+          command.presentationOrdinal,
+          command.presentationOrdinalCount,
+        );
     }
     return response.error.partialProgress === null;
   }
@@ -470,45 +476,17 @@ function isResponseCompatibleWithCommandV1(
       return payload.kind === "observation"
         && isSessionSnapshotV1(payload.session);
     case "advanceToPresentationOrdinal":
-      return payload.kind === "presentation-advance"
-        && payload.presentationOrdinal === command.presentationOrdinal
-        && payload.presentationTimeSec
-          === command.presentationOrdinal
-            * MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
-              .presentationDtSec
-        && payload.acceptedTimeSec === payload.presentationTimeSec
-        && Number.isSafeInteger(payload.acceptedRevision)
-        && payload.acceptedRevision >= 0
-        && Number.isSafeInteger(
-          payload.acceptedRevisionSpanFromPrevious,
+      return command.presentationOrdinalCount === undefined
+        ? isAdvancePayloadV1(
+          payload,
+          command.presentationOrdinal,
+          true,
         )
-        && payload.acceptedRevisionSpanFromPrevious >= 0
-        && Number.isSafeInteger(payload.internalAcceptedSubstepCount)
-        && payload.internalAcceptedSubstepCount >= 0
-        && payload.internalAcceptedSubstepCount
-          <= MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
-            .maximumSubstepCountPerPresentationCommand
-        && Number.isSafeInteger(payload.boundaryClippedSubstepCount)
-        && payload.boundaryClippedSubstepCount >= 0
-        && payload.boundaryClippedSubstepCount
-          <= payload.internalAcceptedSubstepCount
-        && Array.isArray(payload.substeps)
-        && payload.substeps.length
-          === payload.internalAcceptedSubstepCount
-        && payload.substeps.every(isSubstepRecordV1)
-        && (
-          payload.status === "advanced"
-            ? payload.internalAcceptedSubstepCount >= 1
-              && payload.acceptedRevisionSpanFromPrevious
-                === payload.internalAcceptedSubstepCount
-            : payload.status === "already-at-target"
-              && payload.internalAcceptedSubstepCount === 0
-              && payload.acceptedRevisionSpanFromPrevious === 0
-              && payload.boundaryClippedSubstepCount === 0
-        )
-        && payload.emittedPresentationSample
-          === (payload.status === "advanced")
-        && isObservableFrameV1(payload.observableFrame);
+        : isAdvanceBatchPayloadV1(
+          payload,
+          command.presentationOrdinal,
+          command.presentationOrdinalCount,
+        );
     case "getOperationalCheckpoint":
       return payload.kind === "operational-checkpoint"
         && isRecordV1(payload.checkpoint)
@@ -652,6 +630,7 @@ function isErrorPayloadV1(value: unknown): boolean {
     && (
       value.partialProgress === null
       || isAdvancePartialProgressV1(value.partialProgress)
+      || isAdvanceBatchPartialProgressV1(value.partialProgress)
     )
     && hasExactKeysV1(value, [
       "code",
@@ -660,6 +639,117 @@ function isErrorPayloadV1(value: unknown): boolean {
       "silentFallbackApplied",
       "partialProgress",
     ]);
+}
+
+function isAdvancePayloadV1(
+  value: unknown,
+  presentationOrdinal: number,
+  allowAlreadyAtTarget: boolean,
+): boolean {
+  if (
+    !isRecordV1(value)
+    || value.kind !== "presentation-advance"
+    || value.presentationOrdinal !== presentationOrdinal
+    || value.presentationTimeSec
+      !== presentationOrdinal
+        * MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
+          .presentationDtSec
+    || value.acceptedTimeSec !== value.presentationTimeSec
+    || !Number.isSafeInteger(value.acceptedRevision)
+    || value.acceptedRevision < 0
+    || !Number.isSafeInteger(value.acceptedRevisionSpanFromPrevious)
+    || value.acceptedRevisionSpanFromPrevious < 0
+    || !Number.isSafeInteger(value.internalAcceptedSubstepCount)
+    || value.internalAcceptedSubstepCount < 0
+    || value.internalAcceptedSubstepCount
+      > MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+        .maximumSubstepCountPerPresentationCommand
+    || !Number.isSafeInteger(value.boundaryClippedSubstepCount)
+    || value.boundaryClippedSubstepCount < 0
+    || !Array.isArray(value.substeps)
+    || value.substeps.length !== value.internalAcceptedSubstepCount
+    || !value.substeps.every(isSubstepRecordV1)
+    || value.boundaryClippedSubstepCount
+      !== value.substeps.filter(
+        (substep: Record<string, unknown>) =>
+          substep.landedOnPresentationTarget === false,
+      ).length
+    || !isObservableFrameV1(value.observableFrame)
+  ) return false;
+  if (value.status === "advanced") {
+    return value.internalAcceptedSubstepCount >= 1
+      && value.acceptedRevisionSpanFromPrevious
+        >= value.internalAcceptedSubstepCount
+      && value.emittedPresentationSample === true;
+  }
+  return allowAlreadyAtTarget
+    && value.status === "already-at-target"
+    && value.internalAcceptedSubstepCount === 0
+    && value.acceptedRevisionSpanFromPrevious === 0
+    && value.boundaryClippedSubstepCount === 0
+    && value.emittedPresentationSample === false;
+}
+
+function isAdvanceBatchPayloadV1(
+  value: unknown,
+  firstPresentationOrdinal: number,
+  requestedPresentationOrdinalCount: number,
+): boolean {
+  if (
+    !isRecordV1(value)
+    || value.kind !== "presentation-advance-batch"
+    || value.firstPresentationOrdinal !== firstPresentationOrdinal
+    || value.requestedPresentationOrdinalCount
+      !== requestedPresentationOrdinalCount
+    || value.lastPresentationOrdinal
+      !== firstPresentationOrdinal + requestedPresentationOrdinalCount - 1
+    || !Array.isArray(value.advances)
+    || value.advances.length !== requestedPresentationOrdinalCount
+    || !hasExactKeysV1(value, [
+      "kind",
+      "status",
+      "presentationOrdinal",
+      "presentationTimeSec",
+      "acceptedRevision",
+      "acceptedTimeSec",
+      "acceptedRevisionSpanFromPrevious",
+      "internalAcceptedSubstepCount",
+      "boundaryClippedSubstepCount",
+      "substeps",
+      "emittedPresentationSample",
+      "observableFrame",
+      "firstPresentationOrdinal",
+      "lastPresentationOrdinal",
+      "requestedPresentationOrdinalCount",
+      "advances",
+    ])
+  ) return false;
+  if (!value.advances.every(
+    (advance: unknown, index: number) =>
+      isAdvancePayloadV1(
+        advance,
+        firstPresentationOrdinal + index,
+        false,
+      ),
+  )) return false;
+  const finalAdvance = value.advances.at(-1);
+  return finalAdvance !== undefined
+    && value.status === "advanced"
+    && value.presentationOrdinal === finalAdvance.presentationOrdinal
+    && value.presentationTimeSec === finalAdvance.presentationTimeSec
+    && value.acceptedRevision === finalAdvance.acceptedRevision
+    && value.acceptedTimeSec === finalAdvance.acceptedTimeSec
+    && value.acceptedRevisionSpanFromPrevious
+      === finalAdvance.acceptedRevisionSpanFromPrevious
+    && value.internalAcceptedSubstepCount
+      === finalAdvance.internalAcceptedSubstepCount
+    && value.boundaryClippedSubstepCount
+      === finalAdvance.boundaryClippedSubstepCount
+    && value.emittedPresentationSample === true
+    && JSON.stringify(value.substeps)
+      === JSON.stringify(finalAdvance.substeps)
+    && JSON.stringify(value.observableFrame)
+      === JSON.stringify(finalAdvance.observableFrame);
 }
 
 function isObservableValueV1(
@@ -764,6 +854,113 @@ function isAdvancePartialProgressV1(value: unknown): boolean {
       "observableFrame",
       "failureReason",
     ]);
+}
+
+function isAdvanceBatchPartialProgressV1(
+  value: unknown,
+  expectedFirstPresentationOrdinal?: number,
+  expectedPresentationOrdinalCount?: number,
+): boolean {
+  if (
+    !isRecordV1(value)
+    || value.kind !== "presentation-advance-batch-partial-progress"
+    || !Number.isSafeInteger(value.firstPresentationOrdinal)
+    || value.firstPresentationOrdinal < 0
+    || !Number.isSafeInteger(value.requestedPresentationOrdinalCount)
+    || value.requestedPresentationOrdinalCount < 1
+    || value.requestedPresentationOrdinalCount
+      > MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+        .maximumPresentationOrdinalCountPerAdvanceCommand
+    || (
+      expectedFirstPresentationOrdinal !== undefined
+      && value.firstPresentationOrdinal
+        !== expectedFirstPresentationOrdinal
+    )
+    || (
+      expectedPresentationOrdinalCount !== undefined
+      && value.requestedPresentationOrdinalCount
+        !== expectedPresentationOrdinalCount
+    )
+    || !Array.isArray(value.completedAdvances)
+    || value.completedAdvances.length
+      >= value.requestedPresentationOrdinalCount
+    || !value.completedAdvances.every(
+      (advance: unknown, index: number) =>
+        isAdvancePayloadV1(
+          advance,
+          value.firstPresentationOrdinal + index,
+          false,
+        ),
+    )
+  ) return false;
+  const failedPresentationOrdinal =
+    value.firstPresentationOrdinal + value.completedAdvances.length;
+  if (
+    value.failedPresentationOrdinal !== failedPresentationOrdinal
+    || value.failedPresentationTimeSec
+      !== failedPresentationOrdinal
+        * MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
+          .presentationDtSec
+    || !Number.isSafeInteger(value.acceptedRevision)
+    || value.acceptedRevision < 0
+    || typeof value.acceptedTimeSec !== "number"
+    || !Number.isFinite(value.acceptedTimeSec)
+    || value.acceptedTimeSec < 0
+    || value.acceptedTimeSec > value.failedPresentationTimeSec
+    || (
+      value.lastPresentationOrdinal !== null
+      && (
+        !Number.isSafeInteger(value.lastPresentationOrdinal)
+        || value.lastPresentationOrdinal
+          !== failedPresentationOrdinal - 1
+      )
+    )
+    || typeof value.failedOrdinalPartiallyAdvanced !== "boolean"
+    || !Number.isSafeInteger(
+      value.failedOrdinalInternalAcceptedSubstepCount,
+    )
+    || value.failedOrdinalInternalAcceptedSubstepCount < 0
+    || value.failedOrdinalInternalAcceptedSubstepCount
+      > MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+        .maximumSubstepCountPerPresentationCommand
+    || !Number.isSafeInteger(
+      value.failedOrdinalBoundaryClippedSubstepCount,
+    )
+    || !Array.isArray(value.failedOrdinalSubsteps)
+    || value.failedOrdinalSubsteps.length
+      !== value.failedOrdinalInternalAcceptedSubstepCount
+    || !value.failedOrdinalSubsteps.every(isSubstepRecordV1)
+    || value.failedOrdinalBoundaryClippedSubstepCount
+      !== value.failedOrdinalSubsteps.filter(
+        (substep: Record<string, unknown>) =>
+          substep.landedOnPresentationTarget === false,
+      ).length
+    || value.failedOrdinalPartiallyAdvanced
+      !== (value.failedOrdinalInternalAcceptedSubstepCount > 0)
+    || typeof value.failureReason !== "string"
+    || !hasExactKeysV1(value, [
+      "kind",
+      "firstPresentationOrdinal",
+      "requestedPresentationOrdinalCount",
+      "completedAdvances",
+      "failedPresentationOrdinal",
+      "failedPresentationTimeSec",
+      "acceptedRevision",
+      "acceptedTimeSec",
+      "lastPresentationOrdinal",
+      "failedOrdinalPartiallyAdvanced",
+      "failedOrdinalInternalAcceptedSubstepCount",
+      "failedOrdinalBoundaryClippedSubstepCount",
+      "failedOrdinalSubsteps",
+      "failureReason",
+    ])
+  ) return false;
+  const lastCompleted = value.completedAdvances.at(-1);
+  return lastCompleted === undefined
+    || (
+      value.acceptedRevision >= lastCompleted.acceptedRevision
+      && value.acceptedTimeSec >= lastCompleted.acceptedTimeSec
+    );
 }
 
 function sameReleaseRefV1(

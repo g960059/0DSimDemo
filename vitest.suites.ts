@@ -232,6 +232,7 @@ export const regressionTests = [
   "__tests__/integratedLanePresetV1.test.ts",
   "__tests__/integratedLaneRegistryAndIdentityV1.test.ts",
   "__tests__/integratedScientificBrowserHostV1.test.ts",
+  "__tests__/integratedScientificWorkerAdvanceBatchV1.test.ts",
   "__tests__/integratedScientificSessionV1.test.ts",
   "__tests__/integratedScientificWorkerKernelV1.test.ts",
   "__tests__/studioLiveLaneDriverV1.test.ts",

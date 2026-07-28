@@ -94,6 +94,33 @@ test.describe.serial("Experimental integrated V3 lane", () => {
       expect(measuredRealtimeMultiple).toBeGreaterThan(0);
       expect(measuredRealtimeMultiple).toBeLessThan(1);
 
+      // The window above starts cold, so it charges the lane for JIT warm-up,
+      // Worker startup and the first canvas layout. A second window taken well
+      // after start separates one-off cost from steady-state throughput; the
+      // node harnesses discard 600 warm-up steps before timing anything, and
+      // without this the two numbers are not comparable.
+      const warmStartRevision = lastRevision;
+      const warmStartTimeSec = lastTimeSec;
+      const warmStartedAtMs = Date.now();
+      await expect
+        .poll(
+          async () =>
+            Number(await requiredAttributeV1(surface, "data-accepted-revision")),
+          { timeout: 120_000, intervals: [500] },
+        )
+        .toBeGreaterThan(warmStartRevision + 1_000);
+      const warmElapsedMs = Date.now() - warmStartedAtMs;
+      const warmTimeSec = Number(
+        await requiredAttributeV1(surface, "data-model-time-sec"),
+      );
+      const warmMultiple = (warmTimeSec - warmStartTimeSec)
+        / (warmElapsedMs / 1_000);
+      console.log(
+        `[integrated-v3] warm window: ${warmMultiple.toFixed(3)}x realtime, `
+          + `${(1 / warmMultiple).toFixed(2)} s per 1.000 s beat`,
+      );
+      expect(warmMultiple).toBeGreaterThan(0);
+
       // T14: this lane must never claim realtime-1x.
       const pacingState = await requiredAttributeV1(surface, "data-pacing-state");
       expect(pacingState).not.toBe("realtime-1x");

@@ -89,6 +89,8 @@ export type MainWireIntegratedLanePresentationAdvanceV1 =
       acceptedRevision: number;
       partiallyAdvanced: boolean;
       internalAcceptedSubstepCount: number;
+      boundaryClippedSubstepCount?: number;
+      substeps?: readonly MainWireIntegratedLaneSubstepRecordV1[];
       requestedPresentationTimeSec: number;
     }>;
 
@@ -225,7 +227,7 @@ export class MainWireIntegratedScientificSession {
           "substep-budget-exhausted",
           "integrated lane presentation interval exhausted its substep budget",
           targetTimeSec,
-          substepCount,
+          substeps,
         );
       }
 
@@ -248,7 +250,7 @@ export class MainWireIntegratedScientificSession {
           "candidate-time-did-not-advance",
           errorMessage(error),
           targetTimeSec,
-          substepCount,
+          substeps,
         );
       }
 
@@ -257,7 +259,7 @@ export class MainWireIntegratedScientificSession {
           "candidate-time-did-not-advance",
           "integrated lane candidate time did not advance",
           targetTimeSec,
-          substepCount,
+          substeps,
         );
       }
 
@@ -276,7 +278,7 @@ export class MainWireIntegratedScientificSession {
           result.reason,
           result.message,
           targetTimeSec,
-          substepCount,
+          substeps,
         );
       }
       if (result.acceptedState.acceptedTimeSec !== limit.candidateTimeSec) {
@@ -284,7 +286,7 @@ export class MainWireIntegratedScientificSession {
           "integrated-promotion-rejected",
           "integrated lane accepted clock did not equal the limited candidate",
           targetTimeSec,
-          substepCount,
+          substeps,
         );
       }
 
@@ -310,7 +312,7 @@ export class MainWireIntegratedScientificSession {
         "integrated-promotion-rejected",
         "integrated lane did not land exactly on its presentation target",
         targetTimeSec,
-        substepCount,
+        substeps,
       );
     }
     if (this.lastAcceptedStep === null) {
@@ -318,7 +320,7 @@ export class MainWireIntegratedScientificSession {
         "integrated-promotion-rejected",
         "integrated lane advanced without an accepted-step readback",
         targetTimeSec,
-        substepCount,
+        substeps,
       );
     }
     const acceptedRevisionSpanFromPrevious =
@@ -328,7 +330,7 @@ export class MainWireIntegratedScientificSession {
         "integrated-promotion-rejected",
         "integrated lane accepted revision did not advance",
         targetTimeSec,
-        substepCount,
+        substeps,
       );
     }
 
@@ -365,7 +367,7 @@ export class MainWireIntegratedScientificSession {
     reason: AdvanceFailureReason,
     message: string,
     targetTimeSec: number,
-    substepCount: number,
+    substeps: readonly MainWireIntegratedLaneSubstepRecordV1[],
   ): Extract<
     MainWireIntegratedLanePresentationAdvanceV1,
     { status: "failed" }
@@ -376,8 +378,11 @@ export class MainWireIntegratedScientificSession {
       message,
       acceptedTimeSec: this.acceptedState.acceptedTimeSec,
       acceptedRevision: this.acceptedState.revision,
-      partiallyAdvanced: substepCount > 0,
-      internalAcceptedSubstepCount: substepCount,
+      partiallyAdvanced: substeps.length > 0,
+      internalAcceptedSubstepCount: substeps.length,
+      boundaryClippedSubstepCount:
+        substeps.filter((substep) => !substep.landedOnPresentationTarget).length,
+      substeps: Object.freeze([...substeps]),
       requestedPresentationTimeSec: targetTimeSec,
     });
   }
