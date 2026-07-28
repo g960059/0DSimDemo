@@ -38,8 +38,8 @@ export type ScientificProductDiscoveryCaseV1 =
   | ScientificProductIntegratedV3CaseV1;
 
 /**
- * Product discovery adds the opt-in experimental lane without changing the
- * release-bound non-coronary case catalog consumed by its runtime loaders.
+ * Product discovery includes the experimental lane without merging it into
+ * the release-bound non-coronary catalog consumed by that lane's loaders.
  */
 export const SCIENTIFIC_PRODUCT_DISCOVERY_CASE_CATALOG_V1:
 readonly ScientificProductDiscoveryCaseV1[] = Object.freeze([

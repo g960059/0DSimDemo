@@ -603,14 +603,22 @@ describe("document-bound scientific workbench page V1", () => {
     );
   });
 
-  it("starts the blank product path with fail-closed scientific verification", () => {
+  it("starts the blank product path on the integrated V3 lane with its explicit warnings", () => {
     const markup = renderProductRoute("/ja/workbench");
 
     expect(markup).toContain(
+      'data-testid="integrated-v3-product-opening-v1"',
+    );
+    expect(markup).toContain(
+      'data-selected-lane-kind="integrated-v3-experimental"',
+    );
+    expect(markup).toContain("Experimental · development · unverified");
+    expect(markup).toContain(
+      "Live view only. There is no exact 0.002 s export, no saved snapshot, and no steady-state candidate on this lane.",
+    );
+    expect(markup).not.toContain(
       'data-testid="scientific-product-workbench-loading-v1"',
     );
-    expect(markup).toContain("release-bound scientific state");
-    expect(markup).not.toContain("scientific-product-workbench-host-v1");
     expect(markup).not.toContain('data-testid="scientific-workbench-page-v1"');
     expect(markup).not.toContain("main-wire/healthy-cold");
   });

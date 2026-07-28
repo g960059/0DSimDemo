@@ -6,7 +6,6 @@ import { localeFromPathname } from "@/localeRouting";
 import {
   INTEGRATED_V3_LANE_CAPABILITY_KEYS_V1,
   INTEGRATED_V3_LANE_KIND_V1,
-  type StudioLaneCapabilitiesV1,
   type StudioLaneDescriptorV1,
 } from "@/engine/myocardium/MainWireIntegratedLaneIdentityV1";
 import {
@@ -28,31 +27,13 @@ import {
 import type {
   ScientificProductIntegratedV3CaseV1,
 } from "./ScientificProductIntegratedV3CaseV1";
+import {
+  SCIENTIFIC_PRODUCT_LANE_CAPABILITY_LABELS_V1,
+} from "./ScientificProductLaneSelectorV1";
 
 const V3_HISTORY_WINDOW_SEC = 5;
 const V3_HISTORY_MAXIMUM_SAMPLE_COUNT = 3_000;
 const V3_PRESENTATION_REFRESH_MS = 40;
-
-const CAPABILITY_LABELS_V1 = {
-  liveWorkerExecution: "Browser-Worker execution",
-  decimatedLivePresentation: "Live chart presentation",
-  livePacingReporting: "Measured pacing",
-  suspendResumePresentation: "Suspend or resume presentation",
-  operationalWorkerRotationCheckpoint: "Operational Worker rotation",
-  interactiveResearchControls: "Research controls",
-  strictPeriodicSettlement: "Strict periodic settlement",
-  steadyCandidatePromotion: "Promote steady candidate",
-  candidatePinning: "Pin candidate",
-  persistedWarmSnapshot: "Save or restore snapshot",
-  exactSignalExport: "Exact signal export",
-  presentationBeatEstimates: "Per-beat estimates",
-  hemodynamicSideAnalysis: "Guyton / Starling analysis",
-  pvRelationsSideAnalysis: "PV-relation analysis",
-  tbvContinuationSeedPrediction: "TBV continuation analysis",
-  externalAfRhythm: "External AF rhythm",
-  iabpSupport: "IABP support",
-  releaseOrCandidateIdentity: "Release or candidate identity",
-} as const satisfies Record<keyof StudioLaneCapabilitiesV1, string>;
 
 const PRESSURE_SERIES_V1 = Object.freeze([
   {
@@ -426,7 +407,7 @@ export function ScientificProductIntegratedV3LaneSurfaceV1({
                     className="w-full cursor-not-allowed rounded border border-wb-line px-3 py-2 text-left text-sm font-semibold text-wb-subtle opacity-70"
                     data-capability-action={key}
                   >
-                    {CAPABILITY_LABELS_V1[key]}
+                    {SCIENTIFIC_PRODUCT_LANE_CAPABILITY_LABELS_V1[key]}
                   </button>
                   <p
                     id={explanationId}

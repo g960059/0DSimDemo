@@ -160,7 +160,14 @@ test.describe.serial("Experimental integrated V3 lane", () => {
 
       // T9: every unavailable action is disabled before invocation and carries
       // its explanation.
-      const unavailable = page.locator("[data-capability-available='false']");
+      // Scoped to the workbench surface and to rows that carry a capability
+      // key. The lane selector also renders data-capability-available rows, so
+      // an unscoped locator matches those first and reads a key that is not
+      // there — which is this test being under-specific, not the product
+      // losing the attribute.
+      const unavailable = surface.locator(
+        "[data-capability-available='false'][data-capability-key]",
+      );
       const unavailableCount = await unavailable.count();
       expect(unavailableCount).toBeGreaterThan(0);
       for (let index = 0; index < unavailableCount; index += 1) {

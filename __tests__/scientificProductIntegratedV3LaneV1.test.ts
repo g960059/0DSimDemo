@@ -49,7 +49,7 @@ const OBSERVABLE_VALUES_V1 = {
 } as const satisfies Record<MainWireIntegratedLaneObservableIdV1, number>;
 
 describe("scientific product integrated V3 lane step 8", () => {
-  it("adds the opt-in badge to product discovery without changing the release-bound catalog default", () => {
+  it("adds the experimental badge to discovery without merging it into the release-bound catalog", () => {
     expect(SCIENTIFIC_PRODUCT_DISCOVERY_CASE_CATALOG_V1).toHaveLength(10);
     expect(SCIENTIFIC_PRODUCT_DISCOVERY_CASE_CATALOG_V1.at(-1)).toEqual(
       SCIENTIFIC_PRODUCT_INTEGRATED_V3_CASE_V1,
