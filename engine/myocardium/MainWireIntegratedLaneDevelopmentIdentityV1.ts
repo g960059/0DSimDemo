@@ -45,7 +45,7 @@ export const MAIN_WIRE_INTEGRATED_LANE_DEVELOPMENT_IDENTITY_V1_ID =
 export const MAIN_WIRE_INTEGRATED_LANE_DEVELOPMENT_IDENTITY_V1_VERSION =
   "0.0.1" as const;
 export const MAIN_WIRE_INTEGRATED_LANE_DEVELOPMENT_IDENTITY_V1_SHA256 =
-  "4753c81aa3635af0723b88afa0a6f567ecb8f31f0d5df2a8f074bf87eed23a86" as const;
+  "983d37228297b59f0da287d4fac965c9e9abb86c2d830c88aa58b8ba28ffae46" as const;
 export const MAIN_WIRE_INTEGRATED_LANE_DEVELOPMENT_IDENTITY_V1_ARTIFACT_PATH =
   "engine/myocardium/releases/main-wire-integrated-coronary-sinus-hmii-experimental-0.0.1.json" as const;
 export const MAIN_WIRE_INTEGRATED_LANE_STATE_CODEC_V1_ID =
