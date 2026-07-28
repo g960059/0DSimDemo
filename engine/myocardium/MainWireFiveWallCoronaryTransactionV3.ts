@@ -30,6 +30,7 @@ import {
   MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID,
   initializeMainWireFiveWallCoronaryV2,
   stepMainWireFiveWallCoronaryV2,
+  validateMainWireFiveWallCoronaryAcceptedStateV2,
   type MainWireFiveWallCoronaryAcceptedStateV2,
   type MainWireFiveWallCoronaryColdResultV2,
   type MainWireFiveWallCoronaryInitializeInputV2,
@@ -78,6 +79,14 @@ export type MainWireFiveWallCoronaryAcceptedStateV3<TWallState> = Readonly<
     coronaryAutoregulation: CoronaryAcceptedAutoregulationStateV3;
   }
 >;
+
+/**
+ * A cached V2 view exists only after the exact V3 object and that exact V2
+ * reconstruction passed both validators while the V3 validation surface was
+ * frozen. A changed/deserialised V3 object therefore cannot inherit the stamp.
+ */
+const validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3 =
+  new WeakMap<object, MainWireFiveWallCoronaryAcceptedStateV2<unknown>>();
 
 export type MainWireFiveWallCoronaryAutoregulationDriveV3 = Readonly<{
   controlId: string;
@@ -185,6 +194,16 @@ export function maximumMainWireFiveWallCoronaryStepDurationV3<TWallState>(
   state: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
 ): number {
   validateMainWireFiveWallCoronaryAcceptedStateV3(state);
+  return maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3(
+    state,
+  );
+}
+
+function maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3<
+  TWallState,
+>(
+  state: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+): number {
   return maximumCoronaryAutoregulationStepDurationV3(
     state.coronaryAutoregulationBinding,
     state.coronaryAutoregulation,
@@ -200,8 +219,12 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
   previous: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
   input: MainWireFiveWallCoronaryStepInputV3,
 ): MainWireFiveWallCoronaryStepResultV3<TWallState> {
-  validateMainWireFiveWallCoronaryAcceptedStateV3(previous);
-  const maximumDtSec = maximumMainWireFiveWallCoronaryStepDurationV3(previous);
+  const basePrevious =
+    validatedMainWireFiveWallCoronaryBaseStateV2(previous);
+  const maximumDtSec =
+    maximumMainWireFiveWallCoronaryStepDurationFromValidatedStateV3(
+      previous,
+    );
   const tolerance = 64 * Number.EPSILON
     * Math.max(1, Math.abs(previous.acceptedTimeSec), Math.abs(input.dtSec));
   if (!Number.isFinite(input.dtSec) || input.dtSec <= 0
@@ -210,7 +233,6 @@ export function stepMainWireFiveWallCoronaryV3<TWallState>(
       "step dt must be positive and must not cross the autoregulation window",
     );
   }
-  const basePrevious = mainWireFiveWallCoronaryBaseStateV2(previous);
   const baseStep = stepMainWireFiveWallCoronaryV2(
     provider,
     basePrevious,
@@ -334,6 +356,17 @@ export function wrapMainWireFiveWallCoronaryAcceptedStateV3<TWallState>(
 export function validateMainWireFiveWallCoronaryAcceptedStateV3<TWallState>(
   state: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
 ): void {
+  validatedMainWireFiveWallCoronaryBaseStateV2(state);
+}
+
+function validatedMainWireFiveWallCoronaryBaseStateV2<TWallState>(
+  state: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+): MainWireFiveWallCoronaryAcceptedStateV2<TWallState> {
+  const cached =
+    validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.get(state) as
+      | MainWireFiveWallCoronaryAcceptedStateV2<TWallState>
+      | undefined;
+  if (cached !== undefined) return cached;
   if (state.transactionId !== MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V3_ID) {
     throw new Error("invalid main-wire coronary V3 transaction identity");
   }
@@ -355,6 +388,24 @@ export function validateMainWireFiveWallCoronaryAcceptedStateV3<TWallState>(
       maximumRevision: state.revision,
     },
   );
+  const baseState = mainWireFiveWallCoronaryBaseStateV2(state);
+  validateMainWireFiveWallCoronaryAcceptedStateV2(baseState);
+  if (
+    Object.isFrozen(state)
+    && Object.isFrozen(state.circulation)
+    && Object.isFrozen(state.coronary)
+    && Object.isFrozen(state.mechanics)
+    && isTransitivelyFrozenPlainDataV3(
+      state.coronaryAutoregulationBinding,
+    )
+    && isTransitivelyFrozenPlainDataV3(state.coronaryAutoregulation)
+  ) {
+    validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
+      state,
+      baseState as MainWireFiveWallCoronaryAcceptedStateV2<unknown>,
+    );
+  }
+  return baseState;
 }
 
 function withAcceptedCoronaryTone<TWallState>(
@@ -412,6 +463,35 @@ function mapLayerRecord(
       ]),
     ))],
   ))) as CoronaryTerritoryLayerRecordV2<number>;
+}
+
+function isTransitivelyFrozenPlainDataV3(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): boolean {
+  if (value === null || typeof value !== "object") return true;
+  if (seen.has(value)) return true;
+  if (!Object.isFrozen(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  if (
+    prototype !== null
+    && prototype !== Object.prototype
+    && prototype !== Array.prototype
+  ) {
+    return false;
+  }
+  seen.add(value);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      descriptor === undefined
+      || !("value" in descriptor)
+      || !isTransitivelyFrozenPlainDataV3(descriptor.value, seen)
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 function nearlyEqual(left: number, right: number): boolean {

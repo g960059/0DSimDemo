@@ -186,6 +186,18 @@ export type MainWireFiveWallCoronaryAcceptedStateV2<TWallState> = Readonly<{
   mvcReferenceState: MainWireCoronaryMvcReferenceStateV2;
 }>;
 
+/**
+ * The cache is used only when every object `acceptedTuple` dereferences on its
+ * way to a scalar is frozen; `mainWireFiveWallCoronaryValidationSurfaceIsFrozenV2`
+ * enumerates exactly that set, including the two-level MVC reference that
+ * `validateMvcReferenceState` reaches through. Everything else `acceptedTuple`
+ * touches is a primitive on one of those frozen objects. Mutable mechanics
+ * payloads outside that read surface are deliberately irrelevant to the stamp
+ * and retain their existing contract.
+ */
+const validatedMainWireFiveWallCoronaryAcceptedStatesV2 =
+  new WeakSet<object>();
+
 export type MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
   TWallState,
 > = Readonly<{
@@ -1112,9 +1124,16 @@ function acceptedTuple<TWallState>(
   });
 }
 
+export function validateMainWireFiveWallCoronaryAcceptedStateV2<TWallState>(
+  state: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
+): void {
+  validateAcceptedTuple(state);
+}
+
 function validateAcceptedTuple<TWallState>(
   state: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
 ): void {
+  if (validatedMainWireFiveWallCoronaryAcceptedStatesV2.has(state)) return;
   if (state.transactionId !== MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID) {
     throw new Error("accepted coupled coronary V2 transaction id is invalid");
   }
@@ -1127,6 +1146,27 @@ function validateAcceptedTuple<TWallState>(
     state.mechanics,
     state.mvcReferenceState,
   );
+  if (mainWireFiveWallCoronaryValidationSurfaceIsFrozenV2(state)) {
+    validatedMainWireFiveWallCoronaryAcceptedStatesV2.add(state);
+  }
+}
+
+function mainWireFiveWallCoronaryValidationSurfaceIsFrozenV2<TWallState>(
+  state: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
+): boolean {
+  return Object.isFrozen(state)
+    && Object.isFrozen(state.coronaryBinding)
+    && Object.isFrozen(state.circulation)
+    && Object.isFrozen(state.circulation.nodeVolumesMl)
+    && Object.isFrozen(state.coronary)
+    && Object.isFrozen(state.coronary.volumeMlByNode)
+    && Object.isFrozen(state.mechanics)
+    && Object.isFrozen(state.mechanics.acceptedVolumesMl)
+    && Object.isFrozen(state.mvcReferenceState)
+    && Object.isFrozen(state.mvcReferenceState.reference)
+    && Object.isFrozen(
+      state.mvcReferenceState.reference.referenceFiberLogStrainByWall,
+    );
 }
 
 function buildBinding(
