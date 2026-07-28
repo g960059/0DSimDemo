@@ -166,9 +166,13 @@ The frozen configuration is therefore:
 
 Atrial source mode is `"regular"` with `externalAfOwnerInstanceId: null`
 (`...PeriodicSteadyV3.ts:1158-1162`). **READ.** This is what makes the lane
-structurally incapable of accepting external AF: `externalBatchForCandidate` in
-regular mode throws if either `externalAfNextBoundaryTimeSec` or
-`externalAtrialSourceBatch` is non-null
+structurally incapable of accepting external AF through two independent
+defences. A non-null `externalAfNextBoundaryTimeSec` is rejected by the
+composed-rhythm limiter
+(`engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2.ts:707-708`) and
+throws through the advance loop. With that boundary null, a non-null
+`externalAtrialSourceBatch` reaches `externalBatchForCandidate` and is returned
+by the advance as a discriminated transaction failure
 (`engine/myocardium/MainWireIntegratedModelTransactionV3.ts:628-635`). **READ.**
 
 **CHOICE — the configuration identifier strings.** These are the one thing that
@@ -1005,10 +1009,19 @@ Named so a reviewer can check they exist.
   equals the uninterrupted one — the smoke's structure at
   `__tests__/mainWireIntegratedModelRealProviderSmokeV3.test.ts:349-400`,
   extended to a mid-interval (off-grid) origin.
-- **T-A6 — external AF is refused, not ignored.** Supplying a non-null
-  `externalAfNextBoundaryTimeSec` or `externalAtrialSourceBatch` produces a
-  failure carrying `"regular composed rhythm rejects external AF inputs"`
-  (`engine/myocardium/MainWireIntegratedModelTransactionV3.ts:633`).
+- **T-A6a — external AF boundary is refused by the limiter.** Supplying a
+  non-null `externalAfNextBoundaryTimeSec` makes the advance throw with a
+  message matching
+  `/regular atrial mode must not supply an external AF boundary/`
+  (`engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2.ts:707-708`).
+- **T-A6b — external AF batch is refused by the transaction.** Supplying a
+  non-null `externalAtrialSourceBatch` with the boundary null makes the advance
+  return `status: "failed"` rather than throw, with a reason from
+  `MainWireIntegratedModelStepFailureReasonV3` and a message matching
+  `/regular composed rhythm rejects external AF inputs/`
+  (`engine/myocardium/MainWireIntegratedModelTransactionV3.ts:628-633`).
+  These are independent defences at two layers; collapsing them into one path
+  would silently remove a defence.
 
 ---
 

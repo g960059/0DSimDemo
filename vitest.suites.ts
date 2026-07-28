@@ -229,6 +229,8 @@ export const regressionTests = [
   "__tests__/dynamicMechanicalSupportNetworkV1.test.ts",
   "__tests__/dynamicRotaryPumpV1.test.ts",
   "__tests__/exactEventPrescribedCalciumV1.test.ts",
+  "__tests__/integratedLanePresetV1.test.ts",
+  "__tests__/integratedScientificSessionV1.test.ts",
   "__tests__/nonCoronaryDynamicMechanicalSupportIntegrationV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV2.test.ts",

@@ -33,11 +33,10 @@ import {
   type MainWireIntegratedModelStepInputV3,
   type MainWireIntegratedModelStepSuccessV3,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
-import { FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
-  convertPeriodicBiexponentialToExactEventCalciumV1,
-  zeroExactEventCalciumStateV1,
-} from "@/engine/myocardium/calcium/exactEventPrescribedCalciumV1";
+  createMainWireIntegratedRegularSinusRhythmV3,
+} from "@/engine/myocardium/MainWireIntegratedRegularSinusRhythmV3";
+import { FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_NUMERICAL_PROTOCOL_V2,
   MAIN_WIRE_INTEGRATED_MODEL_PERIODIC_POLICY_V2,
@@ -60,25 +59,6 @@ import {
 import { MAIN_WIRE_NORMAL_ADULT_BLOOD_VOLUME_PROVENANCE_V1 } from "@/engine/myocardium/experiments/MainWireNormalAdultBloodVolumeOperatingPointV1";
 import { createMainWireNormalAdultCommonPericardiumV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultCommonPericardiumV1";
 import { createCanonicalMainWireNormalAdultFiveWallProviderV1 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
-import { createAcceptedAuthoredEctopyScheduleConfigurationV2 } from "@/engine/myocardium/rhythm/acceptedAuthoredEctopyScheduleV2";
-import {
-  createAcceptedComposedRhythmTransactionConfigurationV2,
-  initializeAcceptedComposedRhythmTransactionStateV2,
-  type AcceptedComposedRhythmTransactionConfigurationV2,
-  type AcceptedComposedRhythmTransactionStateV2,
-} from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
-import { createDistalConductionGateConfigurationV1 } from "@/engine/myocardium/rhythm/acceptedDistalConductionGateV1";
-import {
-  createAcceptedElectricalCaptureOwnerConfigurationV2,
-  createSourceImpulseV2,
-  evaluateAcceptedElectricalCaptureBatchCandidateV2,
-  initializeAcceptedElectricalCaptureOwnerStateV2,
-  type CapturedElectricalActivationV2,
-} from "@/engine/myocardium/rhythm/acceptedElectricalCaptureOwnerV2";
-import { createRegularAtrialSourceConfigurationV1 } from "@/engine/myocardium/rhythm/acceptedRegularAtrialSourceOwnerV1";
-import { createAcceptedVentricularBackupSourceConfigurationV2 } from "@/engine/myocardium/rhythm/acceptedVentricularBackupSourceOwnerV2";
-import { createAcceptedVentricularIntervalStrengthConfigurationV1 } from "@/engine/myocardium/rhythm/acceptedVentricularIntervalStrengthOwnerV1";
-import { createRecoveryConcealmentAvGateParametersV1 } from "@/engine/myocardium/rhythm/recoveryConcealmentAvGateV1";
 import {
   canonicalJsonStringify,
   sha256CanonicalJsonHex,
@@ -321,7 +301,10 @@ export function createMainWireIntegratedModelRegularSinusAllOffFixtureV3() {
   const provider = createCanonicalMainWireNormalAdultFiveWallProviderV1();
   const runtime = normalAdultMainWireRuntimeV1();
   const pericardium = createMainWireNormalAdultCommonPericardiumV1();
-  const rhythm = createRegularSinusComposedRhythmV3();
+  const rhythm = createMainWireIntegratedRegularSinusRhythmV3({
+    idPrefix: "periodic-v3",
+    parameterProvenanceSourceId: "bounded-periodic-v3-construction",
+  });
   const profile = createAllOffZeroInertanceProfileV3();
   const config = createMechanicalSupportConfigV1();
   assertAllOffConfig(config);
@@ -1082,196 +1065,6 @@ function gateResult(
         : ("fail" as const),
     sourceIds: gate.sourceIds,
   });
-}
-
-function createRegularSinusComposedRhythmV3(): Readonly<{
-  configuration: AcceptedComposedRhythmTransactionConfigurationV2;
-  state: AcceptedComposedRhythmTransactionStateV2;
-}> {
-  const capture = createAcceptedElectricalCaptureOwnerConfigurationV2({
-    configurationId: "periodic-v3-capture-configuration",
-    ownerInstanceId: "periodic-v3-capture-owner",
-    atrialGate: {
-      gateInstanceId: "periodic-v3-atrial-capture-gate",
-      refractoryPeriodSec: 0.2,
-    },
-    ventricularGate: {
-      gateInstanceId: "periodic-v3-ventricular-capture-gate",
-      refractoryPeriodSec: 0.25,
-    },
-  });
-  const interval = createAcceptedVentricularIntervalStrengthConfigurationV1({
-    configurationId: "periodic-v3-interval-configuration",
-    ownerInstanceId: "periodic-v3-interval-owner",
-    parameterProvenance: {
-      kind: "explicit-research-parameters",
-      sourceId: "bounded-periodic-v3-construction",
-    },
-    recoveryTimeConstantSec: 0.5,
-    releaseFractionBeta: 0.8,
-    releasedLoadReturnFractionR: 0.5,
-    intervalInfluxInhibitionFractionH: 0.2,
-    referenceCycleLengthSec: 1,
-  });
-  const regular = createRegularAtrialSourceConfigurationV1({
-    configurationId: "periodic-v3-regular-sinus-configuration",
-    ownerInstanceId: "periodic-v3-regular-sinus-owner",
-    sourceId: "periodic-v3-sinus-source",
-    rhythmClass: "sinus",
-    cycleLengthSec: 1,
-  });
-  const atrialCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
-    {
-      diastolicCalciumUM:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial.diastolicCalciumUM,
-      peakAmplitudeUM:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial.peakAmplitudeUM,
-      riseTimeConstantSec:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial
-          .riseTimeConstantSec,
-      decayTimeConstantSec:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.atrial
-          .decayTimeConstantSec,
-    },
-    1,
-  );
-  const ventricularCalcium = convertPeriodicBiexponentialToExactEventCalciumV1(
-    {
-      diastolicCalciumUM:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
-          .diastolicCalciumUM,
-      peakAmplitudeUM:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
-          .peakAmplitudeUM,
-      riseTimeConstantSec:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
-          .riseTimeConstantSec,
-      decayTimeConstantSec:
-        FIVE_WALL_NORMAL_CALCIUM_DRIVE_FIXED_PRIOR_V1.ventricular
-          .decayTimeConstantSec,
-    },
-    1,
-  );
-  const configuration = createAcceptedComposedRhythmTransactionConfigurationV2({
-    configurationId: "periodic-v3-composed-sinus-configuration",
-    ownerInstanceId: "periodic-v3-composed-sinus-owner",
-    atrialSource: {
-      mode: "regular",
-      regularSourceConfiguration: regular,
-      externalAfOwnerInstanceId: null,
-    },
-    authoredEctopySchedule: createAcceptedAuthoredEctopyScheduleConfigurationV2(
-      {
-        configurationId: "periodic-v3-empty-ectopy-configuration",
-        ownerInstanceId: "periodic-v3-empty-ectopy-owner",
-        scheduleId: "periodic-v3-empty-ectopy-schedule",
-        events: [],
-      },
-    ),
-    authoredVentricularPacingReplay: null,
-    electricalCaptureOwner: capture,
-    avGateParameters: createRecoveryConcealmentAvGateParametersV1({
-      parameterSetId: "periodic-v3-proximal-av-parameters",
-      parameterProvenance: {
-        kind: "explicit-research-parameters",
-        sourceId: "bounded-periodic-v3-construction",
-      },
-      minimumConductionDelaySec: 0.125,
-      recoveryDelayAmplitudeSec: 0,
-      recoveryTimeConstantSec: 1,
-      postConductionRefractorySec: 0.25,
-      concealedRefractoryExtensionSec: 0,
-    }),
-    avGateInstanceId: "periodic-v3-proximal-av-owner",
-    distalGate: createDistalConductionGateConfigurationV1({
-      configurationId: "periodic-v3-distal-configuration",
-      gateInstanceId: "periodic-v3-distal-owner",
-      parameterProvenance: {
-        kind: "explicit-research-parameters",
-        sourceId: "bounded-periodic-v3-construction",
-      },
-      hvConductionDelaySec: 0.0625,
-      distalEffectiveRefractoryPeriodSec: 0,
-      modeConfiguration: { mode: "pass" },
-    }),
-    ventricularBackup: createAcceptedVentricularBackupSourceConfigurationV2({
-      configurationId: "periodic-v3-backup-configuration",
-      ownerInstanceId: "periodic-v3-backup-owner",
-      parameterProvenance: {
-        kind: "authored",
-        sourceId: "bounded-periodic-v3-construction",
-      },
-      intrinsicEscapeSourceId: "periodic-v3-escape-source",
-      intrinsicEscapeCycleLengthSec: 2,
-      vviPacingSourceId: "periodic-v3-vvi-source",
-      vviLowerRateLimitPerMin: 30,
-    }),
-    ventricularIntervalStrength: interval,
-    calciumParametersByWall: Object.freeze({
-      LA: atrialCalcium.parameters,
-      LVFW: ventricularCalcium.parameters,
-      SEP: ventricularCalcium.parameters,
-      RVFW: ventricularCalcium.parameters,
-      RA: atrialCalcium.parameters,
-    }),
-    sinusAtrialCalciumDeposit: {
-      electricalToCalciumDelaySec: 0.0625,
-      leftAtrialStrength: 1,
-      rightAtrialStrength: 1,
-    },
-    pacAtrialCalciumDeposit: null,
-    ventricularCalciumDeposit: {
-      electricalToCalciumDelaySec: 0.0625,
-      lvFreeWallBaseStrength: 1,
-      septalBaseStrength: 1,
-      rvFreeWallBaseStrength: 1,
-    },
-  });
-  const zero = zeroExactEventCalciumStateV1();
-  const state = initializeAcceptedComposedRhythmTransactionStateV2(
-    configuration,
-    {
-      acceptedTimeSec: 0,
-      regularFirstFutureActivationTimeSec: 0.625,
-      regularFirstSourceSequence: 0,
-      priorAcceptedAtrialCapture: null,
-      priorAcceptedVentricularActivation: priorVentricularCapture(capture),
-      initialNormalizedSrLoadState: interval.referenceNormalizedSrLoadState,
-      calciumStateByWall: Object.freeze({
-        LA: zero,
-        LVFW: zero,
-        SEP: zero,
-        RVFW: zero,
-        RA: zero,
-      }),
-    },
-  );
-  return Object.freeze({ configuration, state });
-}
-
-function priorVentricularCapture(
-  configuration: ReturnType<
-    typeof createAcceptedElectricalCaptureOwnerConfigurationV2
-  >,
-): CapturedElectricalActivationV2 {
-  const state = initializeAcceptedElectricalCaptureOwnerStateV2(configuration, {
-    acceptedTimeSec: 0,
-    atrialPriorCapture: null,
-    ventricularPriorCapture: null,
-  });
-  const source = createSourceImpulseV2({
-    sourceImpulseId: "periodic-v3-history-source-0",
-    parentCapturedActivationId: null,
-    chamber: "ventricular",
-    sourceKind: "escape",
-    sourceId: "periodic-v3-history-source",
-    sourceSequence: 0,
-    activationTimeSec: 0,
-  });
-  return evaluateAcceptedElectricalCaptureBatchCandidateV2(state, {
-    candidateTimeSec: 0,
-    sourceImpulses: [source],
-  }).capturedActivations[0]!;
 }
 
 function createAllOffZeroInertanceProfileV3(): DynamicMechanicalSupportInertanceProfileV1 {
