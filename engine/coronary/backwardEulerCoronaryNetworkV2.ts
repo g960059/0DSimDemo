@@ -661,12 +661,12 @@ export function solveCoronaryBackwardEulerTrialV2(
         iterations,
       );
     }
-    const jacobian = numericalJacobianPositiveV2(
+    const jacobian = analyticSparseCoronaryVolumeJacobianV2(
       candidate,
-      evaluated.residual,
-      evaluate,
-      minimumVolumes,
-      options.finiteDifferenceRelativeStep,
+      evaluated.hydraulics,
+      input.dtSec,
+      topology,
+      collapseHydraulics,
     );
     const step = solveDenseLinearSystemV2(
       jacobian,
@@ -791,10 +791,6 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
   const candidate = volumeRecordToArrayV2(
     baseTrial.candidateAcceptedState.volumeMlByNode,
   );
-  const minimumVolumes = topology.nodes.map(
-    (node) => node.pressureVolume.referenceVolumeMl
-      * options.minimumVolumeFractionOfReference,
-  );
   validateVolumesV2(
     candidate,
     topology,
@@ -887,14 +883,12 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
   let maximumLinearizedResidual = 0;
   let jacobian: number[][] | null = null;
   if (exactZeroBoundaryDirectionCount < request.boundaryDirections.length) {
-    jacobian = numericalJacobianPositiveCentralV2(
+    jacobian = analyticSparseCoronaryVolumeJacobianV2(
       candidate,
-      (volumes) => {
-        volumeJacobianProbeEvaluationCount += 1;
-        return evaluate(volumes, request.trialInput.boundary).residual;
-      },
-      minimumVolumes,
-      options.finiteDifferenceRelativeStep,
+      base.hydraulics,
+      request.trialInput.dtSec,
+      topology,
+      collapseHydraulics,
     );
   }
 
@@ -1428,12 +1422,37 @@ function collapseScaleForNodeV2(
   node: CoronaryConservedVolumeNodeSpecV2,
   prior: CoronaryCollapseHydraulicsPriorV2,
 ): number {
-  if (prior.mode === "disabled-mechanism-ablation") return 1;
-  return evaluateVolumeDependentCoronaryResistanceV1(volumeMl, {
+  return evaluateCollapseScaleAndDerivativeForNodeV2(
+    volumeMl,
+    node,
+    prior,
+  ).resistanceScale;
+}
+
+function evaluateCollapseScaleAndDerivativeForNodeV2(
+  volumeMl: number,
+  node: CoronaryConservedVolumeNodeSpecV2,
+  prior: CoronaryCollapseHydraulicsPriorV2,
+): Readonly<{
+  resistanceScale: number;
+  dResistanceScaleDVolumePerMl: number;
+}> {
+  if (prior.mode === "disabled-mechanism-ablation") {
+    return {
+      resistanceScale: 1,
+      dResistanceScaleDVolumePerMl: 0,
+    };
+  }
+  const evaluated = evaluateVolumeDependentCoronaryResistanceV1(volumeMl, {
     referenceResistanceMmHgSecPerMl: 1,
     referenceVolumeMl: prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
     residualHydraulicAreaFraction: prior.residualHydraulicAreaFraction,
-  }).resistanceScale;
+  });
+  return {
+    resistanceScale: evaluated.resistanceScale,
+    dResistanceScaleDVolumePerMl:
+      evaluated.dResistanceDVolumeMmHgSecPerMl2,
+  };
 }
 
 function nodeByIdV2(
@@ -1473,71 +1492,150 @@ function accumulateFlowContinuityV2(
   });
 }
 
-function numericalJacobianPositiveV2(
+/**
+ * Edge-local assembly of the exact same-candidate BE volume Jacobian.
+ *
+ * The returned storage is dense because the existing 16x16 pivoted solver
+ * consumes rows, but assembly touches only the identity and edge-incidence
+ * pattern. Collapse resistance tangents can add only an edge endpoint column.
+ */
+function analyticSparseCoronaryVolumeJacobianV2(
   candidate: readonly number[],
-  baseResidual: readonly number[],
-  evaluate: (candidate: number[]) => ResidualEvaluationV2,
-  minimumVolumes: readonly number[],
-  relativeStep: number,
+  hydraulics: MutableHydraulicEvaluationV2,
+  dtSec: number,
+  topology: CoronaryTopologyV2,
+  collapseHydraulics: CoronaryCollapseHydraulicsPriorV2,
 ): number[][] {
   const n = candidate.length;
   const jacobian = Array.from({ length: n }, () => Array<number>(n).fill(0));
-  for (let column = 0; column < n; column += 1) {
-    const step = Math.max(1e-9, relativeStep * Math.max(1, Math.abs(candidate[column])));
-    const plus = candidate.slice();
-    plus[column] += step;
-    const plusResidual = evaluate(plus).residual;
-    if (candidate[column] - step > minimumVolumes[column]) {
-      const minus = candidate.slice();
-      minus[column] -= step;
-      const minusResidual = evaluate(minus).residual;
-      for (let row = 0; row < n; row += 1) {
-        jacobian[row][column] =
-          (plusResidual[row] - minusResidual[row]) / (2 * step);
-      }
-    } else {
-      for (let row = 0; row < n; row += 1) {
-        jacobian[row][column] =
-          (plusResidual[row] - baseResidual[row]) / step;
-      }
-    }
-  }
-  return jacobian;
-}
-
-function numericalJacobianPositiveCentralV2(
-  candidate: readonly number[],
-  evaluateResidual: (candidate: number[]) => readonly number[],
-  minimumVolumes: readonly number[],
-  relativeStep: number,
-): number[][] {
-  const n = candidate.length;
-  const jacobian = Array.from({ length: n }, () => Array<number>(n).fill(0));
-  for (let column = 0; column < n; column += 1) {
-    const nominalStep = Math.max(
-      1e-9,
-      relativeStep * Math.max(1, Math.abs(candidate[column])),
-    );
-    const positiveHeadroom = candidate[column] - minimumVolumes[column];
-    const step = Math.min(nominalStep, 0.25 * positiveHeadroom);
-    if (!Number.isFinite(step) || step <= 0) {
-      throw new RangeError(
-        `${CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[column]} has no positive-domain central-difference headroom`,
+  const dPressureDVolumeMmHgPerMl = topology.nodes.map((node, nodeIndex) => {
+    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+      candidate[nodeIndex],
+      node.pressureVolume,
+    ).complianceMlPerMmHg;
+    if (!Number.isFinite(compliance) || compliance <= 0) {
+      throw new Error(
+        `${node.nodeId} coronary pressure-volume compliance is not positive and finite`,
       );
     }
-    const plus = candidate.slice();
-    const minus = candidate.slice();
-    plus[column] += step;
-    minus[column] -= step;
-    const plusResidual = evaluateResidual(plus);
-    const minusResidual = evaluateResidual(minus);
-    for (let row = 0; row < n; row += 1) {
-      jacobian[row][column] =
-        (plusResidual[row] - minusResidual[row]) / (2 * step);
-    }
+    return 1 / compliance;
+  });
+  for (let diagonal = 0; diagonal < n; diagonal += 1) {
+    jacobian[diagonal][diagonal] = 1;
   }
-  jacobian.forEach((row, index) =>
-    requireFiniteVectorV2(row, `coronary residual Jacobian row ${index}`));
+
+  topology.edges.forEach((edge, edgeIndex) => {
+    const flow = hydraulics.flowByEdge[edgeIndex];
+    const linearResistance = hydraulics.linearResistanceByEdge[edgeIndex];
+    const quadraticResistance = hydraulics.quadraticResistanceByEdge[edgeIndex];
+    const loss = evaluateSignedLinearQuadraticLossV1(
+      flow,
+      linearResistance,
+      quadraticResistance,
+    );
+    // solveSignedLinearQuadraticFlowV2 intentionally treats coefficients at or
+    // below this threshold as the linear algorithmic branch. Match that branch
+    // exactly; above it, use the exported Young-Tsai signed-loss tangent.
+    const dPressureLossDFlowMmHgSecPerMl = quadraticResistance <= 1e-14
+      ? linearResistance
+      : loss.dPressureLossDFlowMmHgSecPerMl;
+    if (
+      !Number.isFinite(dPressureLossDFlowMmHgSecPerMl)
+      || dPressureLossDFlowMmHgSecPerMl <= 0
+    ) {
+      throw new Error(
+        `${edge.edgeId} coronary pressure-flow tangent is not positive and finite`,
+      );
+    }
+
+    const flowNumeratorDerivativeByColumn = new Map<number, number>();
+    const accumulateFlowNumeratorDerivative = (
+      column: number,
+      derivative: number,
+    ): void => {
+      flowNumeratorDerivativeByColumn.set(
+        column,
+        (flowNumeratorDerivativeByColumn.get(column) ?? 0) + derivative,
+      );
+    };
+    if (isConservedNodeV2(edge.upstreamNodeId)) {
+      const column = CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
+      accumulateFlowNumeratorDerivative(
+        column,
+        dPressureDVolumeMmHgPerMl[column],
+      );
+    }
+    if (isConservedNodeV2(edge.downstreamNodeId)) {
+      const column = CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId];
+      accumulateFlowNumeratorDerivative(
+        column,
+        -dPressureDVolumeMmHgPerMl[column],
+      );
+    }
+
+    const accumulateCollapseResistanceDerivative = (
+      nodeId: CoronaryConservedVolumeNodeIdV2,
+      logarithmicResistanceFactor: number,
+    ): void => {
+      const column = CANONICAL_NODE_INDEX_V2[nodeId];
+      const collapse = evaluateCollapseScaleAndDerivativeForNodeV2(
+        candidate[column],
+        nodeByIdV2(nodeId, topology),
+        collapseHydraulics,
+      );
+      const dLinearResistanceDVolume =
+        logarithmicResistanceFactor * linearResistance
+        * collapse.dResistanceScaleDVolumePerMl
+        / collapse.resistanceScale;
+      accumulateFlowNumeratorDerivative(
+        column,
+        -flow * dLinearResistanceDVolume,
+      );
+    };
+    if (edge.kind === "micro-proximal-arteriolar") {
+      accumulateCollapseResistanceDerivative(
+        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        1,
+      );
+    } else if (edge.kind === "micro-intermediate-capillary") {
+      accumulateCollapseResistanceDerivative(
+        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        0.5,
+      );
+      accumulateCollapseResistanceDerivative(
+        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        0.5,
+      );
+    } else if (edge.kind === "micro-distal-venular") {
+      accumulateCollapseResistanceDerivative(
+        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        1,
+      );
+    }
+
+    const upstreamRow = isConservedNodeV2(edge.upstreamNodeId)
+      ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+      : null;
+    const downstreamRow = isConservedNodeV2(edge.downstreamNodeId)
+      ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+      : null;
+    for (
+      const [column, flowNumeratorDerivative]
+      of flowNumeratorDerivativeByColumn
+    ) {
+      const dFlowDVolume =
+        flowNumeratorDerivative / dPressureLossDFlowMmHgSecPerMl;
+      if (upstreamRow !== null) {
+        jacobian[upstreamRow][column] += dtSec * dFlowDVolume;
+      }
+      if (downstreamRow !== null) {
+        jacobian[downstreamRow][column] -= dtSec * dFlowDVolume;
+      }
+    }
+  });
+  jacobian.forEach((row, index) => {
+    requireFiniteVectorV2(row, `coronary analytic residual Jacobian row ${index}`);
+  });
   return jacobian;
 }
 
