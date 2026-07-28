@@ -1012,7 +1012,25 @@ Named so a reviewer can check they exist.
 
 ---
 
-# 5. Open decisions for the product owner
+# 5. Open decisions — RESOLVED by the product owner, 2026-07-28
+
+The five questions below were put to the product owner and answered. The answers are
+binding for this increment; the original framing of each question is retained beneath
+its resolution so a reviewer can see what was traded away.
+
+| # | Decision | Resolution |
+|---|---|---|
+| **O1** | Unapproved MCS inertance profile in a user-visible lane | **Accepted, governed by identity-embedded disclaimer.** Implement §1.4 in full: `profileId` and every `circuitProfileId` end in `-experimental-not-release-approved`; `profileBindingSha256` and every `circuitProfileBindingSha256` are computed with `sha256CanonicalJsonHex` over their own content and asserted at construction; the manifest carries `dynamicMcsInertanceProfileReleaseApproved: false as const`. Trap T7 and T11 are mandatory, including the negative test that a placeholder digest fails construction. |
+| **O2** | Configuration identifier strings | **Mint new `integrated-lane-v1-*` ids.** The lane's identity is decoupled from the periodic-evidence fixture's lifecycle. Share the numbers by extracting the builder to take an id prefix; do not share the identity. `parameterProvenance.sourceId` must become lane-specific rather than `"bounded-periodic-v3-construction"`. |
+| **O3** | Territory inlet flows in the first catalog | **Included.** `coronary.flow.inlet.LAD`, `.LCx` and `.RCA` ship in the first observable catalog and are fixed into its SHA. |
+| **O4** | `suspendResumePresentation` in the first capability set | **Not included.** The first worker protocol stays minimal per scope Q5 step 6. The capability record therefore carries `suspendResumePresentation: { available: false, reason: "out-of-scope-for-this-increment" }` — it is still an explicit, displayed capability, not an omission. |
+| **O5** | Worker-rotation threshold | **Deferred to Q5 step 6, and must be measured, not inherited.** The non-coronary 90,000 was chosen for a lane with a different request-to-model-time ratio, and the V3 checkpoint's serialisation cost is unmeasured. Landing step 6 without a measured number is a stop condition. |
+
+## 5.1 The original questions, for the record
+
+### Original framing
+
+#### Open decisions for the product owner
 
 Five. Each is genuinely underdetermined — an implementer defaulting one of these
 would be making a product or scientific call, not a coding call.
