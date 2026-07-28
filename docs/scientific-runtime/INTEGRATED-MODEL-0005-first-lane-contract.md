@@ -28,7 +28,7 @@ falsified by measurement because inferred facts were reported as read ones.
 
 ### Where the scope and the source disagree, the source wins
 
-Three places, recorded here because they change the contract:
+Four places, recorded here because they change the contract:
 
 1. **The scope says V3 "rejects a caller that crosses" a boundary**
    (`INTEGRATED-MODEL-0004` line 25, line 327). **The source does not throw to
@@ -63,6 +63,37 @@ Three places, recorded here because they change the contract:
    benchmark (another process is measuring on this machine), so I verify
    neither figure. See §1.8 for the arithmetic, which does not follow from the
    owner's prose as stated.
+
+4. **The scope §2.4 says the common lane seam contains `observe`,
+   `advanceToPresentationTime`, operational checkpoint/restore and `dispose`.**
+   That is the V3 session's internal surface, not a surface the existing lane
+   exposes. `SimulationRuntimePortV1` actually exposes `openSession`,
+   `startTargetIntent`, `promoteSteadyCandidate`,
+   `subscribePresentationSignalChannel`, suspend/resume and `closeSession`
+   (`studio/contracts/v1/ports.ts:24-85`). **READ.** Its adapter exposes
+   `openSession` at
+   `studio/adapters/mainWire/MainWireSimulationRuntimeAdapterV1.ts:362-425`,
+   the signal subscription at `:534-548` and `closeSession` at `:574-606`,
+   while live advancement/publishing and Worker rotation are private at
+   `:1879-2010`, `:2072-2148` and `:2193-2343`. **READ.** The V3 browser host
+   exposes the complete driver mechanism — preset creation, observation,
+   ordinal advancement, operational checkpoint/restore, disposal and
+   termination — at
+   `engine/scientificBrowser/MainWireIntegratedScientificBrowserHostV1.ts:79-109`.
+   **READ.**
+
+   **Correction to scope §2.4:** the common seam is stream-shaped. Every lane
+   supplies immutable lane/execution identity, the exhaustive §3 capability
+   descriptor, presentation-signal subscription, capability-gated
+   suspend/resume, and close. Open is lane-discriminated: the non-coronary
+   member consumes its existing run/input/snapshot references, while V3 uses a
+   new non-persisted Worker-owned-preset open command. Intents and promotion
+   live on an optional sub-interface supplied only by the non-coronary member.
+   Observation, advancement and operational checkpoint/restore are not common
+   seam members; each concrete driver owns them privately. **INFER from the
+   two READ surfaces above, resolved by the product owner.** This preserves the
+   current adapter without making either lane claim a method or capability it
+   does not have.
 
 ---
 
@@ -479,7 +510,7 @@ count. **READ** for the field; **INFER** for the consequence.
 
 ---
 
-# 2. `advanceToPresentationTime(targetTimeSec)`
+# 2. Driver-private `advanceToPresentationTime(targetTimeSec)`
 
 ## 2.1 The problem in one paragraph
 
@@ -508,6 +539,9 @@ The operation lives on the V3 scientific session, inside the Worker. It is
 synchronous: `stepMainWireIntegratedModelV3` is synchronous
 (`engine/myocardium/MainWireIntegratedModelTransactionV3.ts:378`). **READ.** The
 Worker *command* that wraps it is asynchronous; the two must not be conflated.
+**It is a V3 driver-private pacing mechanism, not a member of the common Studio
+lane seam.** The Studio-facing driver advances by presentation ordinal and
+pushes the resulting samples through its subscription channel.
 
 ```ts
 /**
@@ -919,7 +953,7 @@ error.
 | `liveWorkerExecution` | `true` | — | — |
 | `decimatedLivePresentation` | `true` | — | — |
 | `livePacingReporting` | `true` | — | — |
-| `suspendResumePresentation` | `true` | **CHOICE** — pure scheduling, makes no numerical claim, and a 0.31× lane the user cannot pause is hostile | — |
+| `suspendResumePresentation` | `false` | `out-of-scope-for-this-increment` | "Suspend and resume presentation are out of scope for this increment." |
 | `operationalWorkerRotationCheckpoint` | `true` | internal only; never user-visible | — |
 | `interactiveResearchControls` | `false` | `no-owner-preserving-transition-protocol` | "This experimental lane runs one fixed input. Controls need a transition protocol that preserves the coronary, rhythm and device state, which this lane does not have yet." |
 | `strictPeriodicSettlement` | `false` | `no-periodic-tracker-for-this-lane` | "Periodic settlement needs a periodicity tracker for the integrated model. This lane has none." |
@@ -1037,7 +1071,7 @@ its resolution so a reviewer can see what was traded away.
 | **O2** | Configuration identifier strings | **Mint new `integrated-lane-v1-*` ids.** The lane's identity is decoupled from the periodic-evidence fixture's lifecycle. Share the numbers by extracting the builder to take an id prefix; do not share the identity. `parameterProvenance.sourceId` must become lane-specific rather than `"bounded-periodic-v3-construction"`. |
 | **O3** | Territory inlet flows in the first catalog | **Included.** `coronary.flow.inlet.LAD`, `.LCx` and `.RCA` ship in the first observable catalog and are fixed into its SHA. |
 | **O4** | `suspendResumePresentation` in the first capability set | **Not included.** The first worker protocol stays minimal per scope Q5 step 6. The capability record therefore carries `suspendResumePresentation: { available: false, reason: "out-of-scope-for-this-increment" }` — it is still an explicit, displayed capability, not an omission. |
-| **O5** | Worker-rotation threshold | **Deferred to Q5 step 6, and must be measured, not inherited.** The non-coronary 90,000 was chosen for a lane with a different request-to-model-time ratio, and the V3 checkpoint's serialisation cost is unmeasured. Landing step 6 without a measured number is a stop condition. |
+| **O5** | Worker-rotation threshold | **75,000 requests, provisional.** Step 6 measured a 47,938-byte checkpoint at model time 1 s/revision 504, with checkpoint production median 2.698 ms, `JSON.stringify` median 0.043 ms and operational restore median 28.905 ms in Node. At one request per presentation ordinal, 75,000 requests buys 150 simulated seconds and leaves 25,000 requests below the audited 100,000 lifetime cap. Structured-clone cost, long-session memory growth, browser rotation latency and user-visible interruption remain unmeasured, so this is explicitly not an audited final threshold. |
 
 ## 5.1 The original questions, for the record
 
@@ -1097,13 +1131,15 @@ inherited.
 
 **Independently re-verified in this checkout (READ):**
 
-- V3's complete production import surface is
-  `engine/myocardium/MainWireIntegratedModelCheckpointV3.ts`,
-  `engine/myocardium/MainWireIntegratedModelExternalAfTransactionV1.ts`,
-  `engine/myocardium/experiments/MainWireIntegratedModelPeriodicClosureV3.ts`
-  and `engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3.ts`.
-  Nothing under `studio/` or `components/` imports it. Exhaustive `grep`, not an
-  inference. This confirms `INTEGRATED-MODEL-0004` line 51.
+- At contract-freeze time, nothing under `studio/` or `components/` imported
+  the V3 lane. Ordered steps 2-6 subsequently added the production preset,
+  session, registry, identity and browser host. Step 7 now adds imports only in
+  the new `studio/adapters/mainWire/StudioLiveLaneV1.ts`,
+  `studio/adapters/mainWire/MainWireIntegratedV3LiveLaneDriverV1.ts` and
+  `studio/adapters/mainWire/MainWireStudioLiveLaneFactoryV1.ts`; no pre-existing
+  Studio file and no component imports V3. Exhaustive `grep`, not an inference.
+  The original non-coronary adapter therefore remains a separate, unchanged
+  member rather than being widened.
 - The boundary `RangeError` is caught internally and returned as a failure
   (correcting the scope; §"source wins" item 1).
 - The production periodic fixture ships placeholder profile digests, and
@@ -1119,6 +1155,12 @@ inherited.
   (`engine/coronary/acceptedAutoregulationWindowV3.ts:195-201`), which would make
   the limiter throw; the window-index advance appears to make this unreachable,
   but the loop guards it anyway.
+- Step 7 verification passed with 73 regression files/601 tests and 120 fast
+  files/1,017 tests, including the unchanged non-coronary adapter suite, the
+  real V3 500-ordinal lockstep, event-boundary and operational-checkpoint tests,
+  and the new stream-driver/factory tests. TypeScript, the suite manifest,
+  repository hygiene and both scientific browser-bundle boundary verifiers
+  also passed.
 
 **Not verified, and why:**
 
@@ -1126,19 +1168,20 @@ inherited.
    machine. Both 6.50 ms and 4.6 ms are taken as given from the owner. The
    scope's 15.2-16.0 ms figure is treated as superseded, and the scope itself
    could not reproduce it (`INTEGRATED-MODEL-0004` line 566).
-2. **I did not run the test suite.** No claim here rests on a test I executed;
-   claims rest on source I read. The tests I cite as "existing and passing" are
-   cited as *assertions present in the repository*, not as runs I performed.
-3. **The floating-point exactness argument in §2.3** is an INFER backed by
-   Sterbenz's lemma plus a fail-closed validation in the transaction. It is not
-   measured. T-A1 exists to convert it into a measured fact, and no
-   implementation should land without it.
-4. **Substep frequency.** I did not count how many rhythm boundaries occur per
+2. **The floating-point exactness argument in §2.3** is an INFER backed by
+   Sterbenz's lemma plus a fail-closed validation in the transaction. T-A1 now
+   verifies the required exact endpoint invariant across 500 ordinals; that
+   passing execution does not turn the explanatory lemma argument itself into
+   a source READ.
+3. **Substep frequency.** I did not count how many rhythm boundaries occur per
    beat under the frozen configuration, so I did not estimate the substep
    overhead on the achieved rate beyond "small and positive". The lane must
    measure, not estimate.
-5. **Worker payload sizes, serialisation cost, rotation latency and memory
-   growth** remain unmeasured, as they did for the scope. O5 depends on them.
-6. **Which observables researchers actually want** is unresolved and unresolvable
+4. **Browser-specific rotation cost and long-session behaviour.** Step 6
+   measured checkpoint size, production, JSON serialisation and restore in
+   Node (§5 O5). Structured-clone cost, browser rotation latency,
+   user-perceived interruption and long-session memory growth remain
+   unmeasured, which is why 75,000 is provisional.
+5. **Which observables researchers actually want** is unresolved and unresolvable
    from the source. §1.5 implements the owner's stated minimum; O3 asks the one
    question that changes the catalog SHA.
