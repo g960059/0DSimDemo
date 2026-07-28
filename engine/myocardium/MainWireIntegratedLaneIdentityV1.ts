@@ -25,7 +25,7 @@ export const INTEGRATED_V3_LANE_LIMITATIONS_V1 = Object.freeze([
   "The LVAD circuit inertance profile is production-owned and explicitly not release-approved.",
   "Not clinically validated, not patient-specific, and not fitted to any patient or waveform.",
   "Cold, transient exploration. Periodic steady state is not established, and long-term physiological behaviour is not established.",
-  "This lane runs below realtime. It reports the rate it actually achieves. Running slower than realtime is expected here, not a fault.",
+  "This lane reports the rate it actually achieves, measured rather than declared. That rate depends on the machine and on how many lanes are open, and running slower than realtime is expected here rather than a fault.",
   "Live view only. There is no exact 0.002 s export, no saved snapshot, and no steady-state candidate on this lane.",
 ] as const);
 

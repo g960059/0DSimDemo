@@ -453,6 +453,15 @@ artifact store, never offered as a save, and never described as warm-restartable
 
 ## 1.7 The exact limitation wording the UI must carry
 
+**Amended 2026-07-29.** Limitation 7 originally read *"This lane runs below realtime."* That was true
+when this contract was frozen, at roughly 0.21x, and it became **false** once the step reached
+1.66 ms/accepted step and the lane measured **1.016x realtime** in a browser. A limitation string that
+asserts a performance property the code has since disproved is the same defect this document exists to
+prevent, so the string now states what is actually guaranteed — that the rate is measured rather than
+declared, and that running below realtime is expected rather than a fault — without claiming a
+direction. The lane identity SHA moved accordingly, as it must when a claim changes.
+
+
 **CHOICE.** Frozen as an ordered, immutable array. The UI renders these strings
 verbatim; it does not paraphrase them, and it does not render a subset.
 
@@ -464,7 +473,7 @@ export const INTEGRATED_V3_LANE_LIMITATIONS_V1 = Object.freeze([
   "The LVAD circuit inertance profile is production-owned and explicitly not release-approved.",
   "Not clinically validated, not patient-specific, and not fitted to any patient or waveform.",
   "Cold, transient exploration. Periodic steady state is not established, and long-term physiological behaviour is not established.",
-  "This lane runs below realtime. It reports the rate it actually achieves. Running slower than realtime is expected here, not a fault.",
+  "This lane reports the rate it actually achieves, measured rather than declared. That rate depends on the machine and on how many lanes are open, and running slower than realtime is expected here rather than a fault.",
   "Live view only. There is no exact 0.002 s export, no saved snapshot, and no steady-state candidate on this lane.",
 ] as const);
 ```

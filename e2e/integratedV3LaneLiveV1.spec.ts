@@ -27,7 +27,7 @@ const EXPECTED_LIMITATIONS_V1 = [
   "The LVAD circuit inertance profile is production-owned and explicitly not release-approved.",
   "Not clinically validated, not patient-specific, and not fitted to any patient or waveform.",
   "Cold, transient exploration. Periodic steady state is not established, and long-term physiological behaviour is not established.",
-  "This lane runs below realtime. It reports the rate it actually achieves. Running slower than realtime is expected here, not a fault.",
+  "This lane reports the rate it actually achieves, measured rather than declared. That rate depends on the machine and on how many lanes are open, and running slower than realtime is expected here rather than a fault.",
   "Live view only. There is no exact 0.002 s export, no saved snapshot, and no steady-state candidate on this lane.",
 ] as const;
 
@@ -83,16 +83,22 @@ test.describe.serial("Experimental integrated V3 lane", () => {
       const wallClockSecondsPerBeat = 1 / measuredRealtimeMultiple;
 
       // Reported for the record. The achieved rate is machine dependent, so the
-      // assertion is only that the lane is genuinely below realtime and genuinely
-      // moving — not a pinned number.
+      // assertions below pin only that it is measured and that the lane is
+      // genuinely moving — never a direction or a number.
       console.log(
         `[integrated-v3] advanced ${modelSecondsAdvanced.toFixed(3)} model s `
           + `in ${(elapsedMs / 1_000).toFixed(3)} wall s = `
           + `${measuredRealtimeMultiple.toFixed(3)}x realtime, `
           + `${wallClockSecondsPerBeat.toFixed(2)} s per 1.000 s beat`,
       );
+      // Deliberately not asserted against 1x in either direction. This spec
+      // once required the lane to be below realtime, which was true when it
+      // was written and became false when the step reached 1.66 ms; a test
+      // that pins today's speed as a property of the lane fails for the best
+      // possible reason. What must hold is that the rate is measured rather
+      // than declared, and that the lane is genuinely advancing.
       expect(measuredRealtimeMultiple).toBeGreaterThan(0);
-      expect(measuredRealtimeMultiple).toBeLessThan(1);
+      expect(Number.isFinite(measuredRealtimeMultiple)).toBe(true);
 
       // The window above starts cold, so it charges the lane for JIT warm-up,
       // Worker startup and the first canvas layout. A second window taken well
@@ -121,9 +127,13 @@ test.describe.serial("Experimental integrated V3 lane", () => {
       );
       expect(warmMultiple).toBeGreaterThan(0);
 
-      // T14: this lane must never claim realtime-1x.
+      // T14, restated. The original rule was that this lane must never claim
+      // realtime-1x, which was the right rule while it could not achieve it.
+      // Now that it can, the honest rule is that the label must be derived
+      // from measurement rather than hardcoded, so `measured` and `degraded`
+      // are both legitimate and a declared constant is not.
       const pacingState = await requiredAttributeV1(surface, "data-pacing-state");
-      expect(pacingState).not.toBe("realtime-1x");
+      expect(["measured", "degraded"]).toContain(pacingState);
       const achievedRate = await requiredAttributeV1(surface, "data-achieved-rate");
       expect(achievedRate).not.toBe("");
       expect(Number(achievedRate)).toBeGreaterThan(0);
