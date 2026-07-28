@@ -235,6 +235,7 @@ export const regressionTests = [
   "__tests__/integratedScientificSessionV1.test.ts",
   "__tests__/integratedScientificWorkerKernelV1.test.ts",
   "__tests__/studioLiveLaneDriverV1.test.ts",
+  "__tests__/scientificProductIntegratedV3LaneV1.test.ts",
   "__tests__/nonCoronaryDynamicMechanicalSupportIntegrationV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV1.test.ts",
   "__tests__/recoveryConcealmentAvGateV2.test.ts",

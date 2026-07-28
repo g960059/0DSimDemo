@@ -139,6 +139,12 @@ import {
   scientificProductCaseByIdV1,
   type ScientificProductCaseRouteResolutionV1,
 } from "./scientificProductCaseCatalogV1";
+import {
+  resolveScientificProductIntegratedV3CaseRouteV1,
+} from "./ScientificProductIntegratedV3CaseV1";
+import {
+  ScientificProductIntegratedV3WorkbenchV1,
+} from "./ScientificProductIntegratedV3WorkbenchV1";
 
 type ScientificProductRuntimeLoadStateV1 =
   | Readonly<{ phase: "loading"; message: string }>
@@ -176,6 +182,15 @@ export default function ScientificProductWorkbenchRouteV1() {
   const { caseId } = useParams<{ caseId?: string }>();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
+  const integratedV3Case =
+    resolveScientificProductIntegratedV3CaseRouteV1(caseId);
+  if (integratedV3Case !== null) {
+    return (
+      <ScientificProductIntegratedV3WorkbenchV1
+        caseEntry={integratedV3Case}
+      />
+    );
+  }
   const resolution = resolveProductRoute(caseId);
 
   if (resolution === null) {
