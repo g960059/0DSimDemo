@@ -313,6 +313,8 @@ export function ScientificProductIntegratedV3LaneSurfaceV1({
       data-presentation-coverage={sample.coverage}
       data-pacing-state={pacingLabel}
       data-achieved-rate={pacing.recentAchievedRate ?? ""}
+      data-accepted-revision={sample.acceptedRevision}
+      data-model-time-sec={sample.acceptedTimeSec}
     >
       <header className="border-b border-wb-line bg-wb-panel px-5 py-5 sm:px-8">
         <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-4">
