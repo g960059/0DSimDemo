@@ -23,9 +23,10 @@
  * - The default is `full-invariant`. Every node harness, every verifier, every
  *   generator and the whole test suite therefore keep every check, with no
  *   opt-in required and no change to what they already assert.
- * - Exactly one entry point selects `hot-path-lean`: the live simulation Worker
- *   (`engine/scientificBrowser/mainWireScientificWorkerV1.ts`). The exact
- *   signal replay/export path runs on its own host and never selects it.
+ * - The live scientific Worker entry points explicitly select
+ *   `hot-path-lean`: the established non-coronary Worker and the separate
+ *   integrated V3 Worker. The exact signal replay/export path runs on its own
+ *   host and never selects it.
  * - `CIRCLEHEART_HOT_PATH_INTEGRITY` (node) and
  *   `VITE_CIRCLEHEART_HOT_PATH_INTEGRITY` (bundled builds) can move the default
  *   for a whole process; the Vite variable is a literal at build time, so a
