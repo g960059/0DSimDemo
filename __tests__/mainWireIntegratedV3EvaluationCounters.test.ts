@@ -95,8 +95,13 @@ describe("main-wire integrated V3 evaluation counters", () => {
       );
 
     for (const wallId of ["LA", "RA"] as const) {
+      // This used to expect evaluateCandidateCallCount (40), recording 25
+      // repeated material evaluations per atrial wall per step. Those repeats
+      // were the target: material is now solved once per TriSeg solve (15),
+      // while strain below is still observed once per candidate. The derived
+      // repeat counters prove the redundant material solves are gone.
       expect(counters.mechanics.atrialMaterialEvaluationCountByWall[wallId])
-        .toBe(counters.mechanics.evaluateCandidateCallCount);
+        .toBe(counters.mechanics.solveInternalCoordinatesCallCount);
       expect(counters.mechanics
         .atrialFiberLogStrainObservationCountByWall[wallId])
         .toBe(counters.mechanics.evaluateCandidateCallCount);
@@ -106,5 +111,13 @@ describe("main-wire integrated V3 evaluation counters", () => {
         .atrialFiberLogStrainDistinctInputCountByWall[wallId])
         .toBe(counters.mechanics.solveInternalCoordinatesCallCount);
     }
+    const laCacheableRepeatMaterialEvaluationCount =
+      counters.mechanics.atrialMaterialEvaluationCountByWall.LA
+      - counters.mechanics.atrialFiberLogStrainDistinctInputCountByWall.LA;
+    const raCacheableRepeatMaterialEvaluationCount =
+      counters.mechanics.atrialMaterialEvaluationCountByWall.RA
+      - counters.mechanics.atrialFiberLogStrainDistinctInputCountByWall.RA;
+    expect(laCacheableRepeatMaterialEvaluationCount).toBe(0);
+    expect(raCacheableRepeatMaterialEvaluationCount).toBe(0);
   });
 });

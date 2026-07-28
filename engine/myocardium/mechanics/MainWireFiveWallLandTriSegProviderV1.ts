@@ -304,6 +304,25 @@ type EvaluationModeV1<TWallState> =
     stepDtSec: number;
   }>;
 
+type AtrialWallIdV1 = "LA" | "RA";
+
+type TrialAtrialMaterialReuseKeyV1<TWallState> = Readonly<{
+  previousAcceptedState: TWallState;
+  candidateFiberLogStrain: number;
+  candidateFreeCalciumUM: number;
+  stepDtSec: number;
+}>;
+
+type TrialAtrialMaterialReuseEntryV1<TWallState> = Readonly<{
+  key: TrialAtrialMaterialReuseKeyV1<TWallState>;
+  evaluation: MainWireFiveWallMaterialEvaluationV1<TWallState>;
+}>;
+
+type TrialAtrialMaterialReuseV1<TWallState> = {
+  LA: TrialAtrialMaterialReuseEntryV1<TWallState> | null;
+  RA: TrialAtrialMaterialReuseEntryV1<TWallState> | null;
+};
+
 type MutableEvaluationCountersV1 = {
   evaluateCandidateCallCount: number;
   atrialMaterialEvaluationCountByWall: { LA: number; RA: number };
@@ -525,6 +544,11 @@ function solveInternalCoordinates<TWallState>(
     }>).evaluationCounterCollection === "enabled"
       ? createMutableEvaluationCounters()
       : null;
+  // Reuse is deliberately private to one trial-mode TriSeg solve. Cold
+  // consistency has different state semantics, and widening this lifetime
+  // across solves would make separate whole-heart candidates share a result.
+  const trialAtrialMaterialReuse: TrialAtrialMaterialReuseV1<TWallState> | null =
+    mode.kind === "trial" ? { LA: null, RA: null } : null;
   try {
     currentCandidate = evaluateCandidate(
       volumesMl,
@@ -534,6 +558,7 @@ function solveInternalCoordinates<TWallState>(
       params,
       solver,
       evaluationCounters,
+      trialAtrialMaterialReuse,
     );
   } catch (error) {
     return internalFailure({
@@ -704,6 +729,7 @@ function solveInternalCoordinates<TWallState>(
           params,
           solver,
           evaluationCounters,
+          trialAtrialMaterialReuse,
         );
         const candidateNorm = infinityNorm(
           candidate.scaledAlgorithmicGeneralizedForceByOneJ,
@@ -798,6 +824,8 @@ function evaluateCandidate<TWallState>(
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   solver: ResolvedSolverOptionsV1,
   evaluationCounters: MutableEvaluationCountersV1 | null = null,
+  trialAtrialMaterialReuse:
+    TrialAtrialMaterialReuseV1<TWallState> | null = null,
 ): CandidateEvaluationV1<TWallState> {
   if (evaluationCounters !== null) {
     evaluationCounters.evaluateCandidateCallCount += 1;
@@ -840,25 +868,37 @@ function evaluateCandidate<TWallState>(
     const kernel = params.materialByWall[wallId];
     const fiberLogStrain = effectiveFiberLogStrainByWall[wallId];
     const freeCalciumUM = drive.freeCalciumUMByWall[wallId];
+    const evaluation = mode.kind === "cold"
+      ? kernel.initializeColdAtFixedInput({ fiberLogStrain, freeCalciumUM })
+      : wallId === "LA" || wallId === "RA"
+        ? evaluateTrialAtrialMaterialWithReuse(
+          wallId,
+          kernel,
+          mode.previousState.wallStateByWall[wallId],
+          fiberLogStrain,
+          freeCalciumUM,
+          mode.stepDtSec,
+          trialAtrialMaterialReuse,
+          evaluationCounters,
+        )
+        : kernel.evaluateTrialFromAccepted({
+          // Every constitutive evaluation receives a fresh clone of exactly the
+          // same accepted wall state. Candidate order therefore cannot advance
+          // or contaminate constitutive history.
+          previousAcceptedState: kernel.stateCodec.clone(
+            mode.previousState.wallStateByWall[wallId],
+          ),
+          candidateFiberLogStrain: fiberLogStrain,
+          candidateFreeCalciumUM: freeCalciumUM,
+          stepDtSec: mode.stepDtSec,
+        });
     if (
-      evaluationCounters !== null
+      mode.kind === "cold"
+      && evaluationCounters !== null
       && (wallId === "LA" || wallId === "RA")
     ) {
       evaluationCounters.atrialMaterialEvaluationCountByWall[wallId] += 1;
     }
-    const evaluation = mode.kind === "cold"
-      ? kernel.initializeColdAtFixedInput({ fiberLogStrain, freeCalciumUM })
-      : kernel.evaluateTrialFromAccepted({
-        // Every Newton/finite-difference candidate receives a fresh clone of
-        // exactly the same accepted wall state. Candidate order therefore
-        // cannot advance or contaminate constitutive history.
-        previousAcceptedState: kernel.stateCodec.clone(
-          mode.previousState.wallStateByWall[wallId],
-        ),
-        candidateFiberLogStrain: fiberLogStrain,
-        candidateFreeCalciumUM: freeCalciumUM,
-        stepDtSec: mode.stepDtSec,
-      });
     validateMaterialEvaluation(evaluation, fiberLogStrain, wallId);
     return evaluation;
   });
@@ -931,6 +971,9 @@ function evaluateCandidate<TWallState>(
     );
   }
   const state = Object.freeze({
+    // A reuse hit shares only a private, read-only constitutive evaluation.
+    // Every Newton candidate still owns fresh wall-state clones, so neither a
+    // discarded line-search point nor the returned result aliases another.
     wallStateByWall: fiveWallRecord((wallId) =>
       params.materialByWall[wallId].stateCodec.clone(materialByWall[wallId].state)),
     trisegCoordinates: Object.freeze({ ...coordinates }),
@@ -951,6 +994,70 @@ function evaluateCandidate<TWallState>(
     materialIterationCount,
     maximumMaterialResidualNorm,
   });
+}
+
+function evaluateTrialAtrialMaterialWithReuse<TWallState>(
+  wallId: AtrialWallIdV1,
+  kernel: MainWireFiveWallLandSlsMaterialKernelV1<TWallState>,
+  previousAcceptedState: TWallState,
+  candidateFiberLogStrain: number,
+  candidateFreeCalciumUM: number,
+  stepDtSec: number,
+  reuse: TrialAtrialMaterialReuseV1<TWallState> | null,
+  evaluationCounters: MutableEvaluationCountersV1 | null,
+): MainWireFiveWallMaterialEvaluationV1<TWallState> {
+  if (reuse === null) {
+    throw new Error("trial atrial material reuse is unavailable");
+  }
+  /*
+   * `evaluateTrialFromAccepted` has exactly four candidate-varying inputs, and
+   * all four are present in this key: previousAcceptedState,
+   * candidateFiberLogStrain, candidateFreeCalciumUM and stepDtSec. That is
+   * complete because the cache is private to one wall (fixing the kernel and
+   * its parameters) and one solve; the internal TriSeg coordinates are not an
+   * atrial-kernel input, while their only possible atrial consequence, fiber
+   * strain, is keyed explicitly.
+   */
+  const key = Object.freeze({
+    previousAcceptedState,
+    candidateFiberLogStrain,
+    candidateFreeCalciumUM,
+    stepDtSec,
+  });
+  const cached = reuse[wallId];
+  if (cached !== null && trialAtrialMaterialReuseKeysMatch(cached.key, key)) {
+    return cached.evaluation;
+  }
+  if (evaluationCounters !== null) {
+    evaluationCounters.atrialMaterialEvaluationCountByWall[wallId] += 1;
+  }
+  const evaluation = kernel.evaluateTrialFromAccepted({
+    // Keep the constitutive isolation guarantee on a cache miss: the kernel
+    // never receives the accepted wall object held by this solve.
+    previousAcceptedState: kernel.stateCodec.clone(previousAcceptedState),
+    candidateFiberLogStrain,
+    candidateFreeCalciumUM,
+    stepDtSec,
+  });
+  validateMaterialEvaluation(evaluation, candidateFiberLogStrain, wallId);
+  reuse[wallId] = Object.freeze({ key, evaluation });
+  return evaluation;
+}
+
+function trialAtrialMaterialReuseKeysMatch<TWallState>(
+  left: TrialAtrialMaterialReuseKeyV1<TWallState>,
+  right: TrialAtrialMaterialReuseKeyV1<TWallState>,
+): boolean {
+  return left.previousAcceptedState === right.previousAcceptedState
+    && Object.is(
+      left.candidateFiberLogStrain,
+      right.candidateFiberLogStrain,
+    )
+    && Object.is(
+      left.candidateFreeCalciumUM,
+      right.candidateFreeCalciumUM,
+    )
+    && Object.is(left.stepDtSec, right.stepDtSec);
 }
 
 type VentricularMaterialTangentsV1 = Readonly<{
