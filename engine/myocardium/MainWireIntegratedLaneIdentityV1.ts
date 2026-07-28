@@ -15,6 +15,8 @@ export const INTEGRATED_V3_LANE_DISPLAY_NAME_V1 =
   "Experimental — coronary + sinus + HMII 9000" as const;
 export const INTEGRATED_V3_LANE_BADGE_V1 =
   "Experimental · development · unverified" as const;
+export const INTEGRATED_V3_LANE_PRESENTATION_OBSERVATION_STRIDE_V1 =
+  4 as const;
 
 export const INTEGRATED_V3_LANE_LIMITATIONS_V1 = Object.freeze([
   "Experimental lane. Development lifecycle, unverified evidence. This is not a release.",
@@ -46,9 +48,16 @@ export type StudioLaneCapabilityV1 =
       explanation: string;
     }>;
 
+export type StudioLaneDecimatedPresentationCapabilityV1 =
+  Readonly<{
+    available: true;
+    observationStride: number;
+  }>;
+
 export type StudioLaneCapabilitiesV1 = Readonly<{
   liveWorkerExecution: StudioLaneCapabilityV1;
-  decimatedLivePresentation: StudioLaneCapabilityV1;
+  decimatedLivePresentation:
+    StudioLaneDecimatedPresentationCapabilityV1;
   livePacingReporting: StudioLaneCapabilityV1;
   suspendResumePresentation: StudioLaneCapabilityV1;
   operationalWorkerRotationCheckpoint: StudioLaneCapabilityV1;
@@ -93,7 +102,11 @@ const NONCORONARY_SIDE_ANALYSIS_EXPLANATION =
 
 export const INTEGRATED_V3_LANE_CAPABILITIES_V1 = Object.freeze({
   liveWorkerExecution: available(),
-  decimatedLivePresentation: available(),
+  decimatedLivePresentation: Object.freeze({
+    available: true as const,
+    observationStride:
+      INTEGRATED_V3_LANE_PRESENTATION_OBSERVATION_STRIDE_V1,
+  }),
   livePacingReporting: available(),
   suspendResumePresentation: unavailable(
     "out-of-scope-for-this-increment",

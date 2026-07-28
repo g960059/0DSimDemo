@@ -11,6 +11,9 @@ import {
   integratedLanePresentationTargetTimeSecV1,
 } from "@/engine/myocardium/MainWireIntegratedScientificSession";
 import {
+  canonicalJsonStringify,
+} from "@/engine/scientific/release";
+import {
   createCanonicalMainWireNormalAdultFiveWallProviderV1,
   type MainWireNormalAdultFiveWallProviderV1,
 } from "@/engine/myocardium/mechanics/MainWireNormalAdultFiveWallProviderV1";
@@ -26,12 +29,31 @@ import {
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1,
 } from "@/engine/scientificBrowser/mainWireIntegratedScientificBrowserRuntimeLimitsV1";
 import {
+  MAIN_WIRE_INTEGRATED_V3_PRESENTATION_OBSERVATION_STRIDE_V1,
   MainWireIntegratedV3LiveLaneDriverV1,
 } from "@/studio/adapters/mainWire/MainWireIntegratedV3LiveLaneDriverV1";
+import {
+  RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+} from "@/studio/contracts/v1/runtime";
 
 const BATCH_BOUND =
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
     .maximumPresentationOrdinalCountPerAdvanceCommand;
+const EXPECTED_TRANSPORTED_ORDINALS_1_THROUGH_416 = Object.freeze([
+  4, 8, 12, 16, 20, 24, 28, 32,
+  36, 40, 44, 48, 52, 56, 60, 64,
+  68, 72, 76, 80, 84, 88, 92, 96,
+  100, 104, 108, 112, 116, 120, 124, 128,
+  132, 136, 140, 144, 148, 152, 156, 160,
+  164, 168, 172, 176, 180, 184, 188, 192,
+  196, 200, 204, 208, 212, 216, 220, 224,
+  228, 232, 236, 240, 244, 248, 252, 256,
+  260, 264, 268, 272, 276, 280, 284, 288,
+  292, 296, 300, 304, 308, 312, 316, 320,
+  324, 328, 332, 336, 340, 344, 348, 352,
+  356, 360, 364, 368, 372, 376, 380, 384,
+  388, 392, 396, 400, 404, 408, 412, 416,
+] as const);
 
 describe("integrated V3 Worker presentation-ordinal batching", () => {
   it("rejects a batch above the explicit V3-only bound", async () => {
@@ -64,13 +86,18 @@ describe("integrated V3 Worker presentation-ordinal batching", () => {
     });
   });
 
-  it("produces sample-for-sample identical singular and batched runs, including boundary diagnostics", async () => {
+  // This test previously asserted that every ordinal was transported. That
+  // encoded full-rate transport even though the lane descriptor already
+  // claimed decimated presentation; the two are reconciled here in favour of
+  // the descriptor, while accepted-state identity becomes the stronger
+  // scientific invariant.
+  it("preserves the complete accepted state while transporting the explicit decimated ordinal sequence", async () => {
     const finalPresentationOrdinal = 416;
     const singularWorker = new KernelBackedWorkerV1();
     const singularHost = hostForV1("singular-host", singularWorker);
     let singularSession =
       await singularHost.createWorkerOwnedPreset("singular-session");
-    const singularAdvances: SuccessfulAdvanceV1[] = [];
+    let singularBoundaryAdvance: SuccessfulAdvanceV1 | null = null;
     for (
       let presentationOrdinal = 1;
       presentationOrdinal <= finalPresentationOrdinal;
@@ -85,9 +112,14 @@ describe("integrated V3 Worker presentation-ordinal batching", () => {
           `singular ordinal ${presentationOrdinal} failed: ${receipt.message}`,
         );
       }
-      singularAdvances.push(receipt);
+      if (presentationOrdinal === 407) {
+        singularBoundaryAdvance = receipt;
+      }
       singularSession = receipt.session;
     }
+    const singularAcceptedState = singularWorker
+      .scientificSession("singular-session")
+      .currentAcceptedState();
 
     const batchedWorker = new KernelBackedWorkerV1();
     const batchedHost = hostForV1("batched-host", batchedWorker);
@@ -114,20 +146,29 @@ describe("integrated V3 Worker presentation-ordinal batching", () => {
           `batch failed at ordinal ${receipt.failedPresentationOrdinal}: ${receipt.message}`,
         );
       }
-      expect(receipt.advances).toHaveLength(count);
       batchedAdvances.push(...receipt.advances);
       batchedSession = receipt.session;
     }
+    const batchedAcceptedState = batchedWorker
+      .scientificSession("batched-session")
+      .currentAcceptedState();
 
-    expect(batchedAdvances).toHaveLength(finalPresentationOrdinal);
-    expect(
-      batchedAdvances.map(comparableAdvanceV1),
-    ).toEqual(
-      singularAdvances.map(comparableAdvanceV1),
+    expect(batchedAdvances.map(({ presentationOrdinal }) =>
+      presentationOrdinal)).toEqual(
+      EXPECTED_TRANSPORTED_ORDINALS_1_THROUGH_416,
     );
-    expect(
-      comparableAdvanceV1(batchedAdvances[406]!),
-    ).toMatchObject({
+    expect(batchedSession.acceptedRevision)
+      .toBe(singularSession.acceptedRevision);
+    expect(batchedSession.acceptedTimeSec)
+      .toBe(singularSession.acceptedTimeSec);
+    expect(batchedAcceptedState.revision)
+      .toBe(singularAcceptedState.revision);
+    expect(batchedAcceptedState.acceptedTimeSec)
+      .toBe(singularAcceptedState.acceptedTimeSec);
+    expect(batchedAcceptedState).toStrictEqual(singularAcceptedState);
+    expect(canonicalAcceptedStateV1(batchedAcceptedState))
+      .toBe(canonicalAcceptedStateV1(singularAcceptedState));
+    expect(singularBoundaryAdvance).toMatchObject({
       presentationOrdinal: 407,
       presentationTimeSec:
         integratedLanePresentationTargetTimeSecV1(407),
@@ -209,7 +250,25 @@ describe("integrated V3 Worker presentation-ordinal batching", () => {
     expect(
       failed.completedAdvances.map(({ presentationOrdinal }) =>
         presentationOrdinal),
-    ).toEqual([401, 402, 403, 404, 405, 406]);
+    ).toEqual([404, 406]);
+    expect(failed.completedAdvances.map((advance) => ({
+      presentationOrdinal: advance.presentationOrdinal,
+      acceptedRevisionSpanFromPrevious:
+        advance.acceptedRevisionSpanFromPrevious,
+      internalAcceptedSubstepCount:
+        advance.internalAcceptedSubstepCount,
+    }))).toEqual([
+      {
+        presentationOrdinal: 404,
+        acceptedRevisionSpanFromPrevious: 4,
+        internalAcceptedSubstepCount: 4,
+      },
+      {
+        presentationOrdinal: 406,
+        acceptedRevisionSpanFromPrevious: 2,
+        internalAcceptedSubstepCount: 2,
+      },
+    ]);
     expect(failed.failedOrdinalSubsteps).toEqual([
       expect.objectContaining({
         acceptedRevision: acceptedRevisionBeforeBatch + 7,
@@ -277,9 +336,17 @@ describe("integrated V3 Worker presentation-ordinal batching", () => {
 
     expect(samples.map(({ presentationOrdinal }) =>
       presentationOrdinal)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8,
-      9, 10, 11, 12, 13, 14, 15, 16,
+      4, 8, 12, 16,
     ]);
+    expect(
+      opened.laneDescriptor.capabilities.decimatedLivePresentation
+        .observationStride,
+    ).toBe(
+      MAIN_WIRE_INTEGRATED_V3_PRESENTATION_OBSERVATION_STRIDE_V1,
+    );
+    expect(
+      MAIN_WIRE_INTEGRATED_V3_PRESENTATION_OBSERVATION_STRIDE_V1,
+    ).toBe(RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1);
     const advanceCommands = worker.posted.filter(
       (command): command is {
         kind: "advanceToPresentationOrdinal";
@@ -305,25 +372,6 @@ type SuccessfulAdvanceV1 = Extract<
   MainWireIntegratedBrowserAdvanceReceiptV1,
   { status: "advanced" | "already-at-target" }
 >;
-
-function comparableAdvanceV1(receipt: SuccessfulAdvanceV1) {
-  return Object.freeze({
-    status: receipt.status,
-    presentationOrdinal: receipt.presentationOrdinal,
-    presentationTimeSec: receipt.presentationTimeSec,
-    acceptedRevision: receipt.session.acceptedRevision,
-    acceptedTimeSec: receipt.session.acceptedTimeSec,
-    acceptedRevisionSpanFromPrevious:
-      receipt.acceptedRevisionSpanFromPrevious,
-    internalAcceptedSubstepCount:
-      receipt.internalAcceptedSubstepCount,
-    boundaryClippedSubstepCount:
-      receipt.boundaryClippedSubstepCount,
-    substeps: receipt.substeps,
-    emittedPresentationSample: receipt.emittedPresentationSample,
-    observableFrame: receipt.observableFrame,
-  });
-}
 
 class KernelBackedWorkerV1
 implements MainWireIntegratedScientificWorkerLikeV1 {
@@ -423,4 +471,44 @@ function failingProviderV1(
       return base.evaluateTrial(input);
     },
   });
+}
+
+function canonicalAcceptedStateV1(value: unknown): string {
+  return canonicalJsonStringify(plainDataProjectionV1(value));
+}
+
+function plainDataProjectionV1(
+  value: unknown,
+  path = "$",
+  seen = new WeakSet<object>(),
+): unknown {
+  if (value === null || typeof value !== "object") return value;
+  if (seen.has(value)) {
+    throw new Error(`accepted state contains a cycle at ${path}`);
+  }
+  seen.add(value);
+  let projected: unknown;
+  if (ArrayBuffer.isView(value)) {
+    projected = value instanceof DataView
+      ? Array.from(new Uint8Array(
+        value.buffer,
+        value.byteOffset,
+        value.byteLength,
+      ))
+      : Array.from(value as unknown as ArrayLike<number>);
+  } else if (Array.isArray(value)) {
+    projected = value.map((child, index) =>
+      plainDataProjectionV1(child, `${path}[${index}]`, seen));
+  } else {
+    projected = Object.fromEntries(Object.keys(value).map((key) => [
+      key,
+      plainDataProjectionV1(
+        (value as Record<string, unknown>)[key],
+        `${path}.${key}`,
+        seen,
+      ),
+    ]));
+  }
+  seen.delete(value);
+  return projected;
 }

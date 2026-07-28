@@ -44,6 +44,9 @@ import type {
 import type {
   RuntimePresentationSignalSubscriptionV1,
 } from "@/studio/contracts/v1/ports";
+import {
+  RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+} from "@/studio/contracts/v1/runtime";
 import type {
   RuntimeLivePacingStateV1,
   RuntimePresentationSignalChannelRefV1,
@@ -90,6 +93,19 @@ export const MAIN_WIRE_INTEGRATED_V3_LANE_DESCRIPTOR_V1 =
     MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
       .observableCatalogSha256,
   );
+
+export const MAIN_WIRE_INTEGRATED_V3_PRESENTATION_OBSERVATION_STRIDE_V1 =
+  RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1;
+
+if (
+  MAIN_WIRE_INTEGRATED_V3_LANE_DESCRIPTOR_V1.capabilities
+    .decimatedLivePresentation.observationStride
+    !== MAIN_WIRE_INTEGRATED_V3_PRESENTATION_OBSERVATION_STRIDE_V1
+) {
+  throw new Error(
+    "integrated V3 declared and applied presentation strides disagree",
+  );
+}
 
 export const MAIN_WIRE_INTEGRATED_V3_EXECUTION_IDENTITY_V1 = Object.freeze({
   modelRef:
@@ -418,9 +434,9 @@ implements StudioIntegratedV3LiveLaneDriverV1 {
           let previousAcceptedRevision =
             run.advances[0]!.receipt.session.acceptedRevision
               - run.advances[0]!.acceptedRevisionSpanFromPrevious;
-          const samples = run.advances.map((outcome, index) => {
-            const presentationOrdinal =
-              firstPresentationOrdinal + index;
+          let previousPresentationOrdinal =
+            firstPresentationOrdinal - 1;
+          const samples = run.advances.map((outcome) => {
             const { receipt } = outcome;
             if (receipt.status !== "advanced") {
               throw laneErrorV1(
@@ -429,7 +445,8 @@ implements StudioIntegratedV3LiveLaneDriverV1 {
             }
             this.assertAdvanceReceiptV1(
               receipt,
-              presentationOrdinal,
+              receipt.presentationOrdinal,
+              previousPresentationOrdinal,
               previousAcceptedRevision,
               outcome.acceptedRevisionSpanFromPrevious,
               outcome.internalAcceptedSubstepCount,
@@ -437,9 +454,11 @@ implements StudioIntegratedV3LiveLaneDriverV1 {
             );
             previousAcceptedRevision =
               receipt.session.acceptedRevision;
+            previousPresentationOrdinal =
+              receipt.presentationOrdinal;
             return this.presentationSampleV1(
               receipt.session,
-              presentationOrdinal,
+              receipt.presentationOrdinal,
               outcome.acceptedRevisionSpanFromPrevious,
               outcome.internalAcceptedSubstepCount,
               outcome.boundaryClippedSubstepCount,
@@ -754,6 +773,7 @@ implements StudioIntegratedV3LiveLaneDriverV1 {
       { status: "advanced" | "already-at-target" }
     >,
     presentationOrdinal: number,
+    previousPresentationOrdinal: number,
     previousAcceptedRevision: number,
     acceptedRevisionSpanFromPrevious: number,
     internalAcceptedSubstepCount: number,
@@ -764,6 +784,9 @@ implements StudioIntegratedV3LiveLaneDriverV1 {
       receipt.status !== "advanced"
       || receipt.emittedPresentationSample !== true
       || receipt.presentationOrdinal !== presentationOrdinal
+      || presentationOrdinal <= previousPresentationOrdinal
+      || presentationOrdinal - previousPresentationOrdinal
+        > MAIN_WIRE_INTEGRATED_V3_PRESENTATION_OBSERVATION_STRIDE_V1
       || receipt.session.presentationOrdinal !== presentationOrdinal
       || receipt.presentationTimeSec
         !== presentationOrdinal

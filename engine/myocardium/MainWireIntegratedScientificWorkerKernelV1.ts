@@ -16,6 +16,7 @@ import {
 } from "@/engine/myocardium/MainWireIntegratedScientificSession";
 import {
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_COMMAND_KINDS_V1,
+  MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1,
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID,
   type MainWireIntegratedScientificWorkerAdvancePayloadV1,
   type MainWireIntegratedScientificWorkerCommandKindV1,
@@ -377,7 +378,7 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
     return successResponseV1(
       command,
       await this.laneDescriptor,
-      advanced.payload,
+      presentationAdvancePayloadV1([advanced]),
     );
   }
 
@@ -413,6 +414,7 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
 
     const completedAdvances:
       MainWireIntegratedScientificWorkerAdvancePayloadV1[] = [];
+    let pendingAdvances: AdvanceOnePresentationOrdinalSuccessV1[] = [];
     for (let offset = 0; offset < count; offset += 1) {
       const presentationOrdinal = command.presentationOrdinal + offset;
       const advanced = advanceOnePresentationOrdinalV1(
@@ -429,6 +431,12 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
           );
         }
         const failure = advanced.result;
+        if (pendingAdvances.length > 0) {
+          completedAdvances.push(
+            presentationAdvancePayloadV1(pendingAdvances),
+          );
+          pendingAdvances = [];
+        }
         return errorResponseV1(
           identityForCommandV1(command),
           "simulation-step-failed",
@@ -460,7 +468,7 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
           }),
         );
       }
-      if (advanced.payload.status !== "advanced") {
+      if (advanced.result.status !== "advanced") {
         return errorResponseV1(
           identityForCommandV1(command),
           "presentation-ordinal-mismatch",
@@ -468,9 +476,20 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
           await this.laneDescriptor,
         );
       }
-      completedAdvances.push(advanced.payload);
+      pendingAdvances.push(advanced);
+      if (shouldRetainBatchObservationV1(offset + 1, count)) {
+        completedAdvances.push(
+          presentationAdvancePayloadV1(pendingAdvances),
+        );
+        pendingAdvances = [];
+      }
     }
 
+    if (pendingAdvances.length > 0) {
+      throw new Error(
+        "integrated advance batch omitted its terminal observation",
+      );
+    }
     const finalAdvance = completedAdvances.at(-1);
     if (finalAdvance === undefined) {
       throw new Error("integrated advance batch completed no ordinals");
@@ -643,11 +662,17 @@ export class MainWireIntegratedScientificWorkerKernelV1 {
   }
 }
 
+type AdvanceOnePresentationOrdinalSuccessV1 = Readonly<{
+  ok: true;
+  presentationOrdinal: number;
+  result: Exclude<
+    MainWireIntegratedLanePresentationAdvanceV1,
+    { status: "failed" }
+  >;
+}>;
+
 type AdvanceOnePresentationOrdinalResultV1 =
-  | Readonly<{
-    ok: true;
-    payload: MainWireIntegratedScientificWorkerAdvancePayloadV1;
-  }>
+  | AdvanceOnePresentationOrdinalSuccessV1
   | Readonly<{
     ok: false;
     code: "presentation-ordinal-mismatch";
@@ -712,38 +737,94 @@ function advanceOnePresentationOrdinalV1(
     });
   }
 
-  const alreadyAtTarget = result.status === "already-at-target";
-  if (!alreadyAtTarget) {
+  if (result.status !== "already-at-target") {
     hosted.lastPresentationOrdinal = presentationOrdinal;
   }
-  const observableFrame =
-    projectMainWireIntegratedLaneObservationV1(result.observation);
   return Object.freeze({
     ok: true as const,
-    payload: Object.freeze({
-      kind: "presentation-advance" as const,
-      status: result.status,
-      presentationOrdinal,
-      presentationTimeSec: result.presentationTimeSec,
-      acceptedRevision: result.acceptedRevision,
-      acceptedTimeSec: result.acceptedTimeSec,
-      acceptedRevisionSpanFromPrevious: result.status
-        === "already-at-target"
-        ? 0
-        : result.acceptedRevisionSpanFromPrevious,
-      internalAcceptedSubstepCount:
-        result.internalAcceptedSubstepCount,
-      boundaryClippedSubstepCount: result.status
-        === "already-at-target"
-        ? 0
-        : result.boundaryClippedSubstepCount,
-      substeps: result.status === "already-at-target"
-        ? Object.freeze([])
-        : result.substeps,
-      emittedPresentationSample: !alreadyAtTarget,
-      observableFrame,
-    }),
+    presentationOrdinal,
+    result,
   });
+}
+
+function presentationAdvancePayloadV1(
+  advances: readonly AdvanceOnePresentationOrdinalSuccessV1[],
+): MainWireIntegratedScientificWorkerAdvancePayloadV1 {
+  const finalAdvance = advances.at(-1);
+  if (finalAdvance === undefined) {
+    throw new Error("integrated presentation payload has no advance");
+  }
+  const alreadyAtTarget =
+    finalAdvance.result.status === "already-at-target";
+  if (
+    alreadyAtTarget
+    && (
+      advances.length !== 1
+      || advances.some(({ result }) =>
+        result.status !== "already-at-target")
+    )
+  ) {
+    throw new Error(
+      "integrated already-at-target receipt cannot aggregate advances",
+    );
+  }
+  const acceptedRevisionSpanFromPrevious = advances.reduce(
+    (sum, { result }) => sum + (
+      result.status === "already-at-target"
+        ? 0
+        : result.acceptedRevisionSpanFromPrevious
+    ),
+    0,
+  );
+  const internalAcceptedSubstepCount = advances.reduce(
+    (sum, { result }) => sum + result.internalAcceptedSubstepCount,
+    0,
+  );
+  const boundaryClippedSubstepCount = advances.reduce(
+    (sum, { result }) => sum + (
+      result.status === "already-at-target"
+        ? 0
+        : result.boundaryClippedSubstepCount
+    ),
+    0,
+  );
+  const substeps = Object.freeze(advances.flatMap(({ result }) =>
+    result.status === "already-at-target" ? [] : result.substeps));
+  return Object.freeze({
+    kind: "presentation-advance" as const,
+    status: finalAdvance.result.status,
+    presentationOrdinal: finalAdvance.presentationOrdinal,
+    presentationTimeSec: finalAdvance.result.presentationTimeSec,
+    acceptedRevision: finalAdvance.result.acceptedRevision,
+    acceptedTimeSec: finalAdvance.result.acceptedTimeSec,
+    acceptedRevisionSpanFromPrevious,
+    internalAcceptedSubstepCount,
+    boundaryClippedSubstepCount,
+    substeps,
+    emittedPresentationSample: !alreadyAtTarget,
+    observableFrame: projectMainWireIntegratedLaneObservationV1(
+      finalAdvance.result.observation,
+    ),
+  });
+}
+
+/**
+ * The source observation already retained by the host is the opening command
+ * boundary. Within the command this lane retains every fourth presentation
+ * ordinal and the terminal completed ordinal, including a partial prefix.
+ * It cannot retain canonical beat boundaries: contract §2.5 deliberately
+ * exposes no presentation phase from the composed-rhythm owner.
+ */
+function shouldRetainBatchObservationV1(
+  completedPresentationOrdinalCount: number,
+  requestedPresentationOrdinalCount: number,
+): boolean {
+  return completedPresentationOrdinalCount
+      % MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
+        .presentationObservationStride
+      === 0
+    || completedPresentationOrdinalCount
+      === requestedPresentationOrdinalCount;
 }
 
 async function loadLaneDescriptorV1(): Promise<StudioLaneDescriptorV1> {

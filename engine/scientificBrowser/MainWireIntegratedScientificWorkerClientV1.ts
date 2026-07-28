@@ -558,7 +558,18 @@ function isLaneDescriptorV1(value: unknown): boolean {
   ) {
     const capability = capabilities[key];
     if (!isRecordV1(capability)) return false;
-    if (availableKeys.has(key)) {
+    if (key === "decimatedLivePresentation") {
+      if (
+        capability.available !== true
+        || capability.observationStride
+          !== MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
+            .presentationObservationStride
+        || !hasExactKeysV1(
+          capability,
+          ["available", "observationStride"],
+        )
+      ) return false;
+    } else if (availableKeys.has(key)) {
       if (
         capability.available !== true
         || !hasExactKeysV1(capability, ["available"])
@@ -645,6 +656,9 @@ function isAdvancePayloadV1(
   value: unknown,
   presentationOrdinal: number,
   allowAlreadyAtTarget: boolean,
+  maximumInternalAcceptedSubstepCount: number =
+    MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+      .maximumSubstepCountPerPresentationCommand,
 ): boolean {
   if (
     !isRecordV1(value)
@@ -662,8 +676,7 @@ function isAdvancePayloadV1(
     || !Number.isSafeInteger(value.internalAcceptedSubstepCount)
     || value.internalAcceptedSubstepCount < 0
     || value.internalAcceptedSubstepCount
-      > MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
-        .maximumSubstepCountPerPresentationCommand
+      > maximumInternalAcceptedSubstepCount
     || !Number.isSafeInteger(value.boundaryClippedSubstepCount)
     || value.boundaryClippedSubstepCount < 0
     || !Array.isArray(value.substeps)
@@ -704,7 +717,6 @@ function isAdvanceBatchPayloadV1(
     || value.lastPresentationOrdinal
       !== firstPresentationOrdinal + requestedPresentationOrdinalCount - 1
     || !Array.isArray(value.advances)
-    || value.advances.length !== requestedPresentationOrdinalCount
     || !hasExactKeysV1(value, [
       "kind",
       "status",
@@ -724,14 +736,41 @@ function isAdvanceBatchPayloadV1(
       "advances",
     ])
   ) return false;
-  if (!value.advances.every(
-    (advance: unknown, index: number) =>
-      isAdvancePayloadV1(
-        advance,
-        firstPresentationOrdinal + index,
-        false,
-      ),
-  )) return false;
+  const expectedPresentationOrdinals =
+    retainedBatchPresentationOrdinalsV1(
+      firstPresentationOrdinal,
+      requestedPresentationOrdinalCount,
+    );
+  if (
+    value.advances.length !== expectedPresentationOrdinals.length
+    || !value.advances.every(
+      (advance: unknown, index: number) => {
+        const presentationOrdinal =
+          expectedPresentationOrdinals[index]!;
+        const previousPresentationOrdinal = index === 0
+          ? firstPresentationOrdinal - 1
+          : expectedPresentationOrdinals[index - 1]!;
+        const presentationOrdinalSpan =
+          presentationOrdinal - previousPresentationOrdinal;
+        return isAdvancePayloadV1(
+          advance,
+          presentationOrdinal,
+          false,
+          presentationOrdinalSpan
+            * MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+              .maximumSubstepCountPerPresentationCommand,
+        );
+      },
+    )
+  ) return false;
+  for (let index = 1; index < value.advances.length; index += 1) {
+    const previous = value.advances[index - 1]!;
+    const current = value.advances[index]!;
+    if (
+      current.acceptedRevision - previous.acceptedRevision
+        !== current.acceptedRevisionSpanFromPrevious
+    ) return false;
+  }
   const finalAdvance = value.advances.at(-1);
   return finalAdvance !== undefined
     && value.status === "advanced"
@@ -882,21 +921,41 @@ function isAdvanceBatchPartialProgressV1(
         !== expectedPresentationOrdinalCount
     )
     || !Array.isArray(value.completedAdvances)
-    || value.completedAdvances.length
-      >= value.requestedPresentationOrdinalCount
-    || !value.completedAdvances.every(
-      (advance: unknown, index: number) =>
-        isAdvancePayloadV1(
-          advance,
-          value.firstPresentationOrdinal + index,
-          false,
-        ),
-    )
+    || !Number.isSafeInteger(value.failedPresentationOrdinal)
+    || value.failedPresentationOrdinal < value.firstPresentationOrdinal
+    || value.failedPresentationOrdinal
+      >= value.firstPresentationOrdinal
+        + value.requestedPresentationOrdinalCount
   ) return false;
-  const failedPresentationOrdinal =
-    value.firstPresentationOrdinal + value.completedAdvances.length;
+  const failedPresentationOrdinal = value.failedPresentationOrdinal;
+  const completedPresentationOrdinalCount =
+    failedPresentationOrdinal - value.firstPresentationOrdinal;
+  const expectedCompletedPresentationOrdinals =
+    retainedBatchPresentationOrdinalsV1(
+      value.firstPresentationOrdinal,
+      completedPresentationOrdinalCount,
+    );
   if (
-    value.failedPresentationOrdinal !== failedPresentationOrdinal
+    value.completedAdvances.length
+      !== expectedCompletedPresentationOrdinals.length
+    || !value.completedAdvances.every(
+      (advance: unknown, index: number) => {
+        const presentationOrdinal =
+          expectedCompletedPresentationOrdinals[index]!;
+        const previousPresentationOrdinal = index === 0
+          ? value.firstPresentationOrdinal - 1
+          : expectedCompletedPresentationOrdinals[index - 1]!;
+        return isAdvancePayloadV1(
+          advance,
+          presentationOrdinal,
+          false,
+          (
+            presentationOrdinal - previousPresentationOrdinal
+          ) * MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_RUNTIME_LIMITS_V1
+            .maximumSubstepCountPerPresentationCommand,
+        );
+      },
+    )
     || value.failedPresentationTimeSec
       !== failedPresentationOrdinal
         * MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
@@ -956,11 +1015,43 @@ function isAdvanceBatchPartialProgressV1(
     ])
   ) return false;
   const lastCompleted = value.completedAdvances.at(-1);
+  if (lastCompleted !== undefined) {
+    for (let index = 1; index < value.completedAdvances.length; index += 1) {
+      const previous = value.completedAdvances[index - 1]!;
+      const current = value.completedAdvances[index]!;
+      if (
+        current.acceptedRevision - previous.acceptedRevision
+          !== current.acceptedRevisionSpanFromPrevious
+      ) return false;
+    }
+  }
   return lastCompleted === undefined
     || (
       value.acceptedRevision >= lastCompleted.acceptedRevision
       && value.acceptedTimeSec >= lastCompleted.acceptedTimeSec
     );
+}
+
+function retainedBatchPresentationOrdinalsV1(
+  firstPresentationOrdinal: number,
+  completedPresentationOrdinalCount: number,
+): readonly number[] {
+  if (completedPresentationOrdinalCount === 0) return Object.freeze([]);
+  const retained: number[] = [];
+  const stride =
+    MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
+      .presentationObservationStride;
+  for (
+    let completedCount = stride;
+    completedCount < completedPresentationOrdinalCount;
+    completedCount += stride
+  ) {
+    retained.push(firstPresentationOrdinal + completedCount - 1);
+  }
+  retained.push(
+    firstPresentationOrdinal + completedPresentationOrdinalCount - 1,
+  );
+  return Object.freeze(retained);
 }
 
 function sameReleaseRefV1(

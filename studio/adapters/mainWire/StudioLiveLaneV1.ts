@@ -24,6 +24,9 @@ import type {
   RuntimeTargetIntentExecutionV1,
   SimulationRuntimePortV1,
 } from "@/studio/contracts/v1/ports";
+import {
+  RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+} from "@/studio/contracts/v1/runtime";
 import type {
   OpenSimulationSessionCommandV1,
   PromoteSteadyCandidateCommandV1,
@@ -56,7 +59,10 @@ export const STUDIO_NONCORONARY_OBSERVABLE_CATALOG_SHA256_V1 =
 
 export const STUDIO_NONCORONARY_LANE_CAPABILITIES_V1 = Object.freeze({
   liveWorkerExecution: availableV1(),
-  decimatedLivePresentation: availableV1(),
+  decimatedLivePresentation: Object.freeze({
+    available: true as const,
+    observationStride: RUNTIME_PRESENTATION_OBSERVATION_STRIDE_V1,
+  }),
   livePacingReporting: availableV1(),
   suspendResumePresentation: availableV1(),
   operationalWorkerRotationCheckpoint: availableV1(),

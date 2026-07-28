@@ -1,6 +1,9 @@
 import type {
   MainWireIntegratedModelCheckpointV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
+import {
+  INTEGRATED_V3_LANE_PRESENTATION_OBSERVATION_STRIDE_V1,
+} from "@/engine/myocardium/MainWireIntegratedLaneIdentityV1";
 import type {
   StudioLaneCapabilitiesV1,
   StudioLaneDescriptorV1,
@@ -29,13 +32,15 @@ export const MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1 =
         "main-wire-integrated-coronary-sinus-hmii-experimental" as const,
       version: "0.0.1" as const,
       sha256:
-        "983d37228297b59f0da287d4fac965c9e9abb86c2d830c88aa58b8ba28ffae46" as const,
+        "d914a608c1330ad83ca68ffc80f91626ea07600266561c4157d7d6e82a9a95c9" as const,
     }),
     observableCatalogId:
       "main-wire-integrated-v3-experimental-observable-registry-v1" as const,
     observableCatalogSha256:
       "ae5ebba68482b2410e47d102ca94d2105688ab747bf562136bcb7ee4c13b4913" as const,
     presentationDtSec: 0.002 as const,
+    presentationObservationStride:
+      INTEGRATED_V3_LANE_PRESENTATION_OBSERVATION_STRIDE_V1,
   });
 
 export const MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_COMMAND_KINDS_V1 =
@@ -172,6 +177,10 @@ export type MainWireIntegratedScientificWorkerAdvanceBatchPayloadV1 =
     firstPresentationOrdinal: number;
     lastPresentationOrdinal: number;
     requestedPresentationOrdinalCount: number;
+    /**
+     * Ordered retained presentation observations. This is deliberately
+     * decimated and therefore need not contain every requested ordinal.
+     */
     advances:
       readonly MainWireIntegratedScientificWorkerAdvancePayloadV1[];
   }>;
