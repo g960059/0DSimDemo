@@ -414,12 +414,22 @@ export type AcceptedComposedRhythmTransactionCandidateTimeLimitV2 = Readonly<{
 }>;
 
 /**
- * Entries are issued only after this module has constructed, recursively
- * frozen, and fully validated the exact state object. The stamp covers that
- * object identity only; a restored, copied, or hand-built state misses and is
- * fully validated. No assertion about an arbitrary frozen object is made.
+ * Entries are issued only for exact state objects this module constructed and
+ * recursively froze. Full-invariant deep-validates the object before stamping;
+ * lean relies on the constructor's already-validated owner candidates and
+ * field derivations instead of immediately re-walking its output. A restored,
+ * copied, or hand-built state misses and is fully validated. No assertion about
+ * an arbitrary frozen object is made.
  */
 const internallyValidatedAcceptedComposedRhythmStatesV2 =
+  new WeakSet<object>();
+
+/**
+ * Exact configurations minted by this module, or subsequently proved once by
+ * the complete exported validator. Only transitively frozen plain-data graphs
+ * enter this set, so an identity hit cannot hide a later mutation.
+ */
+const internallyValidatedAcceptedComposedRhythmConfigurationsV2 =
   new WeakSet<object>();
 
 /**
@@ -525,7 +535,7 @@ export function createAcceptedComposedRhythmTransactionConfigurationV2(
   const sinusAtrialCalciumDeposit = copyAtrialDeposit(input.sinusAtrialCalciumDeposit, "sinusAtrialCalciumDeposit");
   const pacAtrialCalciumDeposit = copyAtrialDeposit(input.pacAtrialCalciumDeposit, "pacAtrialCalciumDeposit");
   const ventricularCalciumDeposit = copyVentricularDeposit(input.ventricularCalciumDeposit);
-  return deepFreeze({
+  const configuration = deepFreeze({
     configurationSchemaId: ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CONFIGURATION_V2_ID,
     schemaVersion: 2 as const,
     configurationId: requireNonemptyString(input.configurationId, "configurationId"),
@@ -544,11 +554,25 @@ export function createAcceptedComposedRhythmTransactionConfigurationV2(
     pacAtrialCalciumDeposit,
     ventricularCalciumDeposit,
   });
+  stampInternallyValidatedAcceptedComposedRhythmConfigurationV2(configuration);
+  return configuration;
 }
 
 export function validateAcceptedComposedRhythmTransactionConfigurationV2(
   configuration: AcceptedComposedRhythmTransactionConfigurationV2,
 ): void {
+  if (
+    !fullHotPathInvariantsEnabledV1()
+    && internallyValidatedAcceptedComposedRhythmConfigurationsV2.has(
+      configuration,
+    )
+  ) {
+    // Lean narrows only the repeated proof for this exact module-issued or
+    // previously fully validated, transitively frozen configuration object.
+    // A copied, restored, hand-built, or mutable configuration misses and
+    // still takes every sub-validator plus the canonical rebuild comparison.
+    return;
+  }
   requireExactKeys(
     requirePlainRecord(configuration, "composed rhythm configuration"),
     [
@@ -604,6 +628,7 @@ export function validateAcceptedComposedRhythmTransactionConfigurationV2(
   if (canonicalJsonStringify(configuration) !== canonicalJsonStringify(rebuilt)) {
     throw new Error("composed rhythm configuration is not canonical");
   }
+  stampInternallyValidatedAcceptedComposedRhythmConfigurationV2(configuration);
 }
 
 export function initializeAcceptedComposedRhythmTransactionStateV2(
@@ -921,7 +946,13 @@ export function evaluateAcceptedComposedRhythmTransactionCandidateV2(
     acceptedVentricularCaptureCount: safeCounterAdd(state.acceptedVentricularCaptureCount, capturedVentricularActivation === null ? 0 : 1, "acceptedVentricularCaptureCount"),
     deliveredCalciumDepositCount: safeCounterAdd(state.deliveredCalciumDepositCount, deliveredCalciumDeposits.length, "deliveredCalciumDepositCount"),
   }) satisfies AcceptedComposedRhythmTransactionStateV2;
-  validateAcceptedComposedRhythmTransactionStateV2(candidateState);
+  if (fullHotPathInvariantsEnabledV1()) {
+    validateAcceptedComposedRhythmTransactionStateV2(candidateState);
+  }
+  // Lean omits only the immediate deep re-proof of this exact state graph
+  // assembled and recursively frozen above from already accepted owner
+  // candidates. It therefore proves less about constructor output at this
+  // site; arbitrary boundary states never receive this stamp.
   stampInternallyValidatedAcceptedComposedRhythmStateV2(candidateState);
   const candidate = deepFreeze({
     candidateSchemaId: ACCEPTED_COMPOSED_RHYTHM_TRANSACTION_CANDIDATE_V2_ID,
@@ -1180,8 +1211,9 @@ export function validateAcceptedComposedRhythmTransactionStateV2(
 
 /**
  * Validates data crossing this owner boundary. Only the exact identity of a
- * state privately constructed, recursively frozen, and fully validated above
- * can take the constant-time path. All other state objects take the complete
+ * state privately constructed and recursively frozen above can take the
+ * constant-time path. Full-invariant re-proves that output before stamping;
+ * lean stamps the constructor proof. All other state objects take the complete
  * exported validator, including restored checkpoints and hand-built states.
  */
 export function validateAcceptedComposedRhythmTransactionBoundaryV2(
@@ -1195,6 +1227,16 @@ function stampInternallyValidatedAcceptedComposedRhythmStateV2(
   state: AcceptedComposedRhythmTransactionStateV2,
 ): void {
   internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
+}
+
+function stampInternallyValidatedAcceptedComposedRhythmConfigurationV2(
+  configuration: AcceptedComposedRhythmTransactionConfigurationV2,
+): void {
+  if (isTransitivelyFrozenPlainData(configuration)) {
+    internallyValidatedAcceptedComposedRhythmConfigurationsV2.add(
+      configuration,
+    );
+  }
 }
 
 function initializeEctopy(configuration: AcceptedAuthoredEctopyScheduleConfigurationV2, acceptedTimeSec: number): AcceptedAuthoredEctopyScheduleStateV2 {
@@ -1647,4 +1689,5 @@ function requireNonemptyString(value: unknown, field: string): string { if (type
 function requirePositiveFinite(value: unknown, field: string): number { if (typeof value !== "number" || !Number.isFinite(value) || !(value > 0)) throw new Error(`${field} must be positive finite`); return value; }
 function requireNonnegativeFinite(value: unknown, field: string): number { if (typeof value !== "number" || !Number.isFinite(value) || value < 0) throw new Error(`${field} must be nonnegative finite`); return value; }
 function requireNonnegativeSafeInteger(value: unknown, field: string): number { if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new Error(`${field} must be a nonnegative safe integer`); return value; }
+function isTransitivelyFrozenPlainData(value: unknown, seen = new WeakSet<object>()): boolean { if (value === null || typeof value !== "object") return true; if (seen.has(value)) return true; if (!Object.isFrozen(value)) return false; const prototype = Object.getPrototypeOf(value); if (prototype !== null && prototype !== Object.prototype && prototype !== Array.prototype) return false; seen.add(value); for (const key of Reflect.ownKeys(value)) { const descriptor = Object.getOwnPropertyDescriptor(value, key); if (descriptor === undefined || !("value" in descriptor) || !isTransitivelyFrozenPlainData(descriptor.value, seen)) return false; } return true; }
 function deepFreeze<T>(value: T): T { if (value !== null && typeof value === "object") { for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child); Object.freeze(value); } return value; }

@@ -17,6 +17,9 @@ import {
   type CoronaryTerritoryRecordV2,
   type CoronaryToneStateV2,
 } from "@/engine/coronary/typesV2";
+import {
+  fullHotPathInvariantsEnabledV1,
+} from "@/engine/hotPathIntegrityTierV1";
 
 export const CORONARY_ACCEPTED_AUTOREGULATION_BINDING_V3_ID =
   "accepted-physical-time-coronary-autoregulation-v1" as const;
@@ -94,6 +97,12 @@ export type CoronaryAcceptedAutoregulationAdvanceV3 = Readonly<{
   completedWindow: CoronaryAcceptedAutoregulationCompletionV3 | null;
 }>;
 
+const VALIDATED_AUTOREGULATION_BINDINGS_V3 = new WeakSet<object>();
+const VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3 = new WeakMap<
+  object,
+  WeakSet<object>
+>();
+
 export function createCoronaryAutoregulationWindowBindingV3(
   input: Readonly<{
     originAcceptedTimeSec: number;
@@ -112,7 +121,7 @@ export function createCoronaryAutoregulationWindowBindingV3(
     && input.interpretation !== "irregular-rhythm-stationary") {
     throw new RangeError("unsupported autoregulation window interpretation");
   }
-  return Object.freeze({
+  const binding = Object.freeze({
     bindingId: CORONARY_ACCEPTED_AUTOREGULATION_BINDING_V3_ID,
     law: "integral-flow-homeostasis-v2" as const,
     priorFingerprint: coronaryConfigurationFingerprintV2(
@@ -130,6 +139,8 @@ export function createCoronaryAutoregulationWindowBindingV3(
     perfusionPressureObservable:
       "final-candidate-post-focal-lesion-pressure-minus-common-cv-pressure" as const,
   });
+  VALIDATED_AUTOREGULATION_BINDINGS_V3.add(binding);
+  return binding;
 }
 
 export function createDefaultCoronaryAutoregulationWindowControlV3():
@@ -314,13 +325,11 @@ export function advanceCoronaryAcceptedAutoregulationV3(
       windowControl: control,
       desiredControl,
     });
-    validateCoronaryAcceptedAutoregulationStateV3(
+    validateOrStampConstructedAutoregulationStateV3(
       binding,
       nextState,
-      {
-        acceptedTimeSec: input.candidateAcceptedTimeSec,
-        maximumRevision: input.candidateRevision,
-      },
+      input.candidateAcceptedTimeSec,
+      input.candidateRevision,
     );
     return Object.freeze({
       nextState,
@@ -376,13 +385,11 @@ export function advanceCoronaryAcceptedAutoregulationV3(
     windowControl: null,
     desiredControl,
   });
-  validateCoronaryAcceptedAutoregulationStateV3(
+  validateOrStampConstructedAutoregulationStateV3(
     binding,
     nextState,
-    {
-      acceptedTimeSec: input.candidateAcceptedTimeSec,
-      maximumRevision: input.candidateRevision,
-    },
+    input.candidateAcceptedTimeSec,
+    input.candidateRevision,
   );
   return Object.freeze({
     nextState,
@@ -396,6 +403,15 @@ export function advanceCoronaryAcceptedAutoregulationV3(
 export function validateCoronaryAutoregulationWindowBindingV3(
   binding: CoronaryAutoregulationWindowBindingV3,
 ): void {
+  if (
+    !fullHotPathInvariantsEnabledV1()
+    && VALIDATED_AUTOREGULATION_BINDINGS_V3.has(binding)
+  ) {
+    // Lean omits only the repeated fingerprint and shape proof for this exact
+    // immutable binding. A copied or caller-built binding misses this identity
+    // stamp and retains the complete exported validation.
+    return;
+  }
   assertPlainObject(binding, "coronary autoregulation V3 binding");
   assertExactKeys(binding, [
     "bindingId",
@@ -437,6 +453,9 @@ export function validateCoronaryAutoregulationWindowBindingV3(
       !== "irregular-rhythm-stationary") {
     throw new Error("unsupported autoregulation window interpretation");
   }
+  if (isTransitivelyFrozenPlainData(binding)) {
+    VALIDATED_AUTOREGULATION_BINDINGS_V3.add(binding);
+  }
 }
 
 export function validateCoronaryAcceptedAutoregulationStateV3(
@@ -447,6 +466,17 @@ export function validateCoronaryAcceptedAutoregulationStateV3(
     maximumRevision?: number;
   }>,
 ): void {
+  if (
+    !fullHotPathInvariantsEnabledV1()
+    && hasAutoregulationStateBindingStampV3(state, binding)
+  ) {
+    // Lean skips the repeated structural proof only for this exact state and
+    // immutable-binding pair, either issued by this module or previously proved
+    // by the complete validator below. The supplied outer clock is still
+    // checked on every call; any other state or binding takes the full path.
+    validateAutoregulationClockV3(state, clock);
+    return;
+  }
   validateCoronaryAutoregulationWindowBindingV3(binding);
   assertPlainObject(state, "coronary accepted autoregulation state");
   assertExactKeys(state, [
@@ -516,24 +546,8 @@ export function validateCoronaryAcceptedAutoregulationStateV3(
   if (!empty && state.desiredControl === null) {
     throw new Error("active autoregulation window has no desired control");
   }
-  if (clock !== undefined) {
-    requireNonnegativeFinite(clock.acceptedTimeSec, "acceptedTimeSec");
-    const expectedTime = state.windowStartAcceptedTimeSec
-      + state.acceptedDurationSec;
-    if (!nearlyEqual(clock.acceptedTimeSec, expectedTime)) {
-      throw new Error("autoregulation window clock differs from accepted tuple");
-    }
-    if (clock.maximumRevision !== undefined) {
-      requireNonnegativeInteger(clock.maximumRevision, "maximumRevision");
-      const expectedRevision = state.windowStartRevision
-        + state.acceptedStepCount;
-      if (expectedRevision !== clock.maximumRevision) {
-        throw new Error(
-          "autoregulation window step count differs from accepted revision",
-        );
-      }
-    }
-  }
+  validateAutoregulationClockV3(state, clock);
+  stampAutoregulationStateBindingV3(state, binding);
 }
 
 function freezeState(
@@ -556,6 +570,99 @@ function freezeState(
       ? null
       : freezeControl(state.desiredControl),
   });
+}
+
+function validateOrStampConstructedAutoregulationStateV3(
+  binding: CoronaryAutoregulationWindowBindingV3,
+  state: CoronaryAcceptedAutoregulationStateV3,
+  acceptedTimeSec: number,
+  maximumRevision: number,
+): void {
+  if (fullHotPathInvariantsEnabledV1()) {
+    validateCoronaryAcceptedAutoregulationStateV3(binding, state, {
+      acceptedTimeSec,
+      maximumRevision,
+    });
+    return;
+  }
+  // Lean narrows the post-construction guarantee here: it does not immediately
+  // re-walk this module's own freshly frozen state. The constructor above
+  // derives its clock/revision and copies every record from already validated
+  // inputs; only that exact output/binding identity receives the stamp.
+  stampAutoregulationStateBindingV3(state, binding);
+}
+
+function validateAutoregulationClockV3(
+  state: CoronaryAcceptedAutoregulationStateV3,
+  clock: Readonly<{
+    acceptedTimeSec: number;
+    maximumRevision?: number;
+  }> | undefined,
+): void {
+  if (clock === undefined) return;
+  requireNonnegativeFinite(clock.acceptedTimeSec, "acceptedTimeSec");
+  const expectedTime = state.windowStartAcceptedTimeSec
+    + state.acceptedDurationSec;
+  if (!nearlyEqual(clock.acceptedTimeSec, expectedTime)) {
+    throw new Error("autoregulation window clock differs from accepted tuple");
+  }
+  if (clock.maximumRevision !== undefined) {
+    requireNonnegativeInteger(clock.maximumRevision, "maximumRevision");
+    const expectedRevision = state.windowStartRevision
+      + state.acceptedStepCount;
+    if (expectedRevision !== clock.maximumRevision) {
+      throw new Error(
+        "autoregulation window step count differs from accepted revision",
+      );
+    }
+  }
+}
+
+function hasAutoregulationStateBindingStampV3(
+  state: CoronaryAcceptedAutoregulationStateV3,
+  binding: CoronaryAutoregulationWindowBindingV3,
+): boolean {
+  return VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state)
+    ?.has(binding) ?? false;
+}
+
+function stampAutoregulationStateBindingV3(
+  state: CoronaryAcceptedAutoregulationStateV3,
+  binding: CoronaryAutoregulationWindowBindingV3,
+): void {
+  if (
+    !isTransitivelyFrozenPlainData(state)
+    || !isTransitivelyFrozenPlainData(binding)
+  ) return;
+  const bindings = VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state)
+    ?? new WeakSet<object>();
+  bindings.add(binding);
+  VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.set(state, bindings);
+}
+
+function isTransitivelyFrozenPlainData(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): boolean {
+  if (value === null || typeof value !== "object") return true;
+  if (seen.has(value)) return true;
+  if (!Object.isFrozen(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  if (
+    prototype !== null
+    && prototype !== Object.prototype
+    && prototype !== Array.prototype
+  ) return false;
+  seen.add(value);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      descriptor === undefined
+      || !("value" in descriptor)
+      || !isTransitivelyFrozenPlainData(descriptor.value, seen)
+    ) return false;
+  }
+  return true;
 }
 
 function freezeControl(

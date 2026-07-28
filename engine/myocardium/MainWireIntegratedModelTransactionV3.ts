@@ -2,6 +2,9 @@ import type {
   NonCoronaryDynamicMechanicalSupportInputV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
+  fullHotPathInvariantsEnabledV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   createDynamicMechanicalSupportAcceptedStateV1,
   validateDynamicMechanicalSupportAcceptedStateV1,
   validateDynamicMechanicalSupportInertanceProfileV1,
@@ -169,16 +172,16 @@ type MainWireIntegratedModelValidationStampV3<TWallState> = Readonly<{
 }>;
 
 /**
- * Only internally constructed accepted states receive entries here. A hit
- * requires the exact rhythm-configuration, dynamic-profile, and dynamic-config
- * object triple, and entries are created only when all three graphs are
- * transitively frozen plain data. Replacing any member of the triple misses;
- * changing one in place is impossible after the stamp is created. Therefore a
- * state validated against rhythm/profile/config A can never use that stamp for
- * rhythm/profile/config B. Deserialised and hand-built states have no entry and
- * each exported boundary either performs the complete validation or observes
- * this exact internal stamp; the coronary layers likewise key their stamps by
- * the exact frozen state objects validated in the same accepted tuple pass.
+ * Only internally constructed accepted states receive entries here.
+ * Full-invariant deep-validates the constructed tuple before stamping; lean
+ * relies on the three accepted owner outputs plus this wrapper's direct
+ * identity/clock derivation. A hit requires the exact rhythm-configuration,
+ * dynamic-profile, and dynamic-config object triple, and entries are created
+ * only when all three graphs are transitively frozen plain data. Replacing any
+ * member of the triple misses; changing one in place is impossible after the
+ * stamp is created. Deserialised and hand-built states have no entry and each
+ * exported boundary either performs complete validation or observes this exact
+ * private constructor/context stamp.
  */
 const internalValidationStampsByAcceptedStateV3 = new WeakMap<
   object,
@@ -649,12 +652,20 @@ function wrapInternalMainWireIntegratedModelAcceptedStateV3<TWallState>(
     composedRhythm,
     dynamicMechanicalSupport,
   );
-  validateMainWireIntegratedModelAcceptedStateV3(
-    state,
-    rhythm,
-    dynamicProfile,
-    dynamicConfig,
-  );
+  if (fullHotPathInvariantsEnabledV1()) {
+    validateMainWireIntegratedModelAcceptedStateV3(
+      state,
+      rhythm,
+      dynamicProfile,
+      dynamicConfig,
+    );
+  }
+  // Lean narrows only the immediate re-proof of this private wrapper output.
+  // Its three owner states were produced/accepted by their owning transactions,
+  // and this constructor derives the outer identity and clocks directly from
+  // them. Exported wraps, restored/hand-built states, and a different context
+  // triple still take complete validation; only this exact state/context stamp
+  // can be reused.
   stampInternalMainWireIntegratedModelValidationV3(Object.freeze({
     state,
     rhythmConfiguration: rhythm.configuration,
@@ -1098,6 +1109,13 @@ function assertExpectedRhythmConfiguration(
   state: AcceptedComposedRhythmTransactionStateV2,
   expected: AcceptedComposedRhythmTransactionConfigurationV2,
 ): void {
+  if (state.configuration === expected) {
+    // Both callers validate the state and expected context before reaching this
+    // comparison. Exact identity is therefore the complete equality proof for
+    // the lane-owned frozen constant and avoids using canonical JSON as an
+    // equality operator. Different boundary objects retain the deep path.
+    return;
+  }
   validateAcceptedComposedRhythmTransactionConfigurationV2(expected);
   if (
     canonicalJsonStringify(state.configuration)

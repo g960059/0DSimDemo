@@ -7,8 +7,27 @@ import {
   type HotPathIntegrityTierV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import {
+  validateCoronaryAcceptedAutoregulationStateV3,
+} from "@/engine/coronary/acceptedAutoregulationWindowV3";
+import {
+  validateDynamicMechanicalSupportAcceptedStateV1,
+} from "@/engine/devices/dynamicNetworkV1";
+import {
+  validateMainWireIntegratedModelAcceptedStateV3,
+} from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
+import {
   cloneLandSlsWallMaterialStateV1,
 } from "@/engine/myocardium/mechanics/landSlsWallMaterialV1";
+import {
+  MainWireIntegratedScientificSession,
+  integratedLanePresentationTargetTimeSecV1,
+} from "@/engine/myocardium/MainWireIntegratedScientificSession";
+import {
+  createMainWireIntegratedModelRegularSinusAllOffFixtureV3,
+} from "@/engine/myocardium/experiments/MainWireIntegratedModelPeriodicSteadyV3";
+import {
+  validateAcceptedComposedRhythmTransactionConfigurationV2,
+} from "@/engine/myocardium/rhythm/acceptedComposedRhythmTransactionV2";
 import {
   createMainWireScientificSessionV1,
 } from "@/engine/scientific/runtime";
@@ -17,9 +36,17 @@ import {
 } from "@/engine/scientific/release";
 
 const STEP_COUNT = 120;
+const INTEGRATED_PRESENTATION_STEP_COUNT = 500;
 const DT_SEC = 0.002;
 
 type TierRun = Readonly<{
+  observationsSha256: string;
+  diagnosticsSha256: string;
+  checkpointSha256: string;
+  finalState: unknown;
+}>;
+
+type IntegratedTierRun = Readonly<{
   observationsSha256: string;
   diagnosticsSha256: string;
   checkpointSha256: string;
@@ -47,6 +74,58 @@ async function runTierV1(tier: HotPathIntegrityTierV1): Promise<TierRun> {
       diagnosticsSha256: await sha256CanonicalJsonHex(diagnostics),
       checkpointSha256: checkpoint.checkpointSha256,
       finalState: session.stateIdentity(),
+    });
+  } finally {
+    selectHotPathIntegrityTierV1(previous);
+  }
+}
+
+async function runIntegratedTierV3(
+  tier: HotPathIntegrityTierV1,
+): Promise<IntegratedTierRun> {
+  const previous = hotPathIntegrityTierV1();
+  selectHotPathIntegrityTierV1(tier);
+  try {
+    const session = await MainWireIntegratedScientificSession.create();
+    const observations: unknown[] = [];
+    const diagnostics: unknown[] = [];
+    for (
+      let ordinal = 1;
+      ordinal <= INTEGRATED_PRESENTATION_STEP_COUNT;
+      ordinal += 1
+    ) {
+      const advanced = session.advanceToPresentationTime(
+        integratedLanePresentationTargetTimeSecV1(ordinal),
+      );
+      if (advanced.status !== "advanced") {
+        throw new Error(
+          `${tier} integrated run failed at ordinal ${ordinal}: `
+            + (advanced.status === "failed"
+              ? advanced.message
+              : advanced.status),
+        );
+      }
+      observations.push(plainDataProjection(advanced.observation));
+      const acceptedStep = advanced.observation.lastAcceptedStep;
+      if (acceptedStep === null) {
+        throw new Error(`${tier} integrated run omitted its accepted step`);
+      }
+      diagnostics.push(plainDataProjection({
+        candidateTimeLimit: acceptedStep.candidateTimeLimit,
+        circulation:
+          acceptedStep.coronaryStep.baseStep.circulationTrial.diagnostics,
+        coronary:
+          acceptedStep.coronaryStep.baseStep.coronaryTrial.diagnostics,
+        dynamicMechanicalSupport:
+          acceptedStep.dynamicMechanicalSupportTrial,
+      }));
+    }
+    const checkpoint = await session.checkpointOperational();
+    return Object.freeze({
+      observationsSha256: await sha256CanonicalJsonHex(observations),
+      diagnosticsSha256: await sha256CanonicalJsonHex(diagnostics),
+      checkpointSha256: checkpoint.checkpointSha256,
+      finalState: session.currentAcceptedState(),
     });
   } finally {
     selectHotPathIntegrityTierV1(previous);
@@ -86,6 +165,62 @@ describe("hot-path integrity tier V1", () => {
     }
   });
 
+  it("keeps malformed caller-supplied rhythm configuration validation in lean", () => {
+    const fixture =
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const malformed = Object.freeze({
+      ...fixture.rhythm.configuration,
+      configurationId: "",
+    });
+
+    selectHotPathIntegrityTierV1("hot-path-lean");
+    try {
+      expect(() =>
+        validateAcceptedComposedRhythmTransactionConfigurationV2(malformed))
+        .toThrow(/configurationId/);
+    } finally {
+      selectHotPathIntegrityTierV1("full-invariant");
+    }
+  });
+
+  it("keeps unstamped accepted-state boundaries complete in lean", () => {
+    const fixture =
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const accepted = fixture.cold.acceptedState;
+    const dynamicClone = Object.freeze({
+      ...accepted.dynamicMechanicalSupport,
+    });
+    const autoregulationClone = Object.freeze({
+      ...accepted.coronary.coronaryAutoregulation,
+      acceptedDurationSec: Number.NaN,
+    });
+    const integratedClone = Object.freeze({
+      ...accepted,
+      acceptedTimeSec: accepted.acceptedTimeSec + 0.001,
+    });
+
+    selectHotPathIntegrityTierV1("hot-path-lean");
+    try {
+      expect(() => validateDynamicMechanicalSupportAcceptedStateV1(
+        dynamicClone,
+        fixture.profile,
+        fixture.config,
+      )).toThrow(/live factory provenance/);
+      expect(() => validateCoronaryAcceptedAutoregulationStateV3(
+        accepted.coronary.coronaryAutoregulationBinding,
+        autoregulationClone,
+      )).toThrow(/acceptedDurationSec/);
+      expect(() => validateMainWireIntegratedModelAcceptedStateV3(
+        integratedClone,
+        { configuration: fixture.rhythm.configuration },
+        fixture.profile,
+        fixture.config,
+      )).toThrow(/owner clocks differ/);
+    } finally {
+      selectHotPathIntegrityTierV1("full-invariant");
+    }
+  });
+
   it("produces bit-identical numbers in both tiers", async () => {
     const full = await runTierV1("full-invariant");
     const lean = await runTierV1("hot-path-lean");
@@ -96,4 +231,43 @@ describe("hot-path integrity tier V1", () => {
     expect(lean.finalState).toEqual(full.finalState);
     expect(hotPathIntegrityTierV1()).toBe("full-invariant");
   }, 60_000);
+
+  it("produces bit-identical integrated V3 observations, diagnostics, and checkpoint", async () => {
+    const full = await runIntegratedTierV3("full-invariant");
+    const lean = await runIntegratedTierV3("hot-path-lean");
+
+    expect(lean.observationsSha256).toBe(full.observationsSha256);
+    expect(lean.diagnosticsSha256).toBe(full.diagnosticsSha256);
+    expect(lean.checkpointSha256).toBe(full.checkpointSha256);
+    expect(lean.finalState).toEqual(full.finalState);
+    expect(hotPathIntegrityTierV1()).toBe("full-invariant");
+  }, 60_000);
 });
+
+function plainDataProjection(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): unknown {
+  if (value === null || typeof value !== "object") return value;
+  if (seen.has(value)) throw new Error("integrated tier pin contains a cycle");
+  seen.add(value);
+  let projected: unknown;
+  if (ArrayBuffer.isView(value)) {
+    projected = value instanceof DataView
+      ? Array.from(new Uint8Array(
+        value.buffer,
+        value.byteOffset,
+        value.byteLength,
+      ))
+      : Array.from(value as unknown as ArrayLike<number>);
+  } else if (Array.isArray(value)) {
+    projected = value.map((child) => plainDataProjection(child, seen));
+  } else {
+    projected = Object.fromEntries(Object.keys(value).map((key) => [
+      key,
+      plainDataProjection((value as Record<string, unknown>)[key], seen),
+    ]));
+  }
+  seen.delete(value);
+  return projected;
+}
