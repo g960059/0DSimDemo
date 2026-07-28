@@ -937,7 +937,7 @@ function assertCoronaryStepInput(input: object): void {
     "coronaryDisease", "collapseHydraulics", "impMechanism",
     "shorteningImpPrior", "coronarySolverOptions",
     "circulationNewtonOptions", "protocolResistanceScaleByEdge",
-    "coronaryAutoregulationDrive",
+    "coronaryAutoregulationDrive", "evaluationCounterCollection",
   ], "composed integrated coronary step input");
   requireOwnKeys(input, [
     "runtime", "calciumDriveParams", "pericardium",

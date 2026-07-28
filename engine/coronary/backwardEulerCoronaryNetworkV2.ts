@@ -93,6 +93,8 @@ export type CoronaryBackwardEulerTrialInputV2 = Readonly<{
   disease?: CoronaryDiseaseInputV2;
   collapseHydraulics?: CoronaryCollapseHydraulicsPriorV2;
   solverOptions?: Partial<CoronaryBackwardEulerSolverOptionsV2>;
+  /** Opt-in measurement only; omitted on the production/default hot path. */
+  evaluationCounterCollection?: "enabled";
 }>;
 
 export type CoronaryHydraulicEvaluationV2 = Readonly<{
@@ -147,6 +149,8 @@ export type CoronaryBackwardEulerDiagnosticsV2 = Readonly<{
   converged: true;
   newtonIterations: number;
   totalLineSearchBacktracks: number;
+  /** Present only when the trial input opts into evaluation measurement. */
+  hydraulicResidualEvaluationCount?: number;
   finalResidualInfinityNormMl: number;
   maximumAbsoluteNodeContinuityResidualMl: number;
   continuityResidualMlByNode: CoronaryConservedVolumeStateV2;
@@ -617,6 +621,9 @@ export function solveCoronaryBackwardEulerTrialV2(
   );
 
   const evaluate = (candidate: number[]): ResidualEvaluationV2 => {
+    if (input.evaluationCounterCollection === "enabled") {
+      hydraulicResidualEvaluationCount += 1;
+    }
     const hydraulics = evaluateHydraulicsInternalV2(
       candidate,
       previousAcceptedState.toneResistanceScaleByTerritoryLayer,
@@ -638,6 +645,7 @@ export function solveCoronaryBackwardEulerTrialV2(
     return { residual, hydraulics };
   };
 
+  let hydraulicResidualEvaluationCount = 0;
   let candidate = previous.slice();
   let evaluated = evaluate(candidate);
   let residualNorm = infinityNormV2(evaluated.residual);
@@ -719,6 +727,9 @@ export function solveCoronaryBackwardEulerTrialV2(
       converged: true as const,
       newtonIterations: iterations,
       totalLineSearchBacktracks: backtracks,
+      ...(input.evaluationCounterCollection === "enabled"
+        ? { hydraulicResidualEvaluationCount }
+        : {}),
       finalResidualInfinityNormMl: residualNorm,
       maximumAbsoluteNodeContinuityResidualMl:
         infinityNormV2(evaluated.residual),

@@ -193,6 +193,7 @@ export type MainWireFiveWallLandTriSegReadbackV1 = Readonly<{
   maximumMaterialResidualNorm: number;
   coldConsistencyIterations: number | null;
   coldConsistencyScaledCoordinateUpdate: number | null;
+  evaluationCounters?: MainWireFiveWallLandTriSegEvaluationCountersV1;
   triseg: Readonly<{
     leftVentricularPressurePa: number;
     rightVentricularPressurePa: number;
@@ -200,6 +201,27 @@ export type MainWireFiveWallLandTriSegReadbackV1 = Readonly<{
   wallMaterialReadbackByWall:
     MainWireFiveWallRecordV1<WholeHeartMechanicsSerializableValueV1 | null>;
   claim: typeof MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_CLAIM;
+}>;
+
+export type MainWireFiveWallLandTriSegEvaluationCountersV1 = Readonly<{
+  solveInternalCoordinatesCallCount: 1;
+  evaluateCandidateCallCount: number;
+  atrialMaterialEvaluationCountByWall: Readonly<{
+    LA: number;
+    RA: number;
+  }>;
+  atrialFiberLogStrainObservationCountByWall: Readonly<{
+    LA: number;
+    RA: number;
+  }>;
+  atrialFiberLogStrainChangeCountByWall: Readonly<{
+    LA: number;
+    RA: number;
+  }>;
+  atrialFiberLogStrainDistinctInputCountByWall: Readonly<{
+    LA: number;
+    RA: number;
+  }>;
 }>;
 
 export type MainWireFiveWallLandTriSegProviderV1<TWallState> =
@@ -248,6 +270,7 @@ type InternalSolveSuccessV1<TWallState> = Readonly<{
   acceptedLineSearchSteps: number;
   lineSearchBacktracks: number;
   residualNorm: number;
+  evaluationCounters?: MainWireFiveWallLandTriSegEvaluationCountersV1;
 }>;
 
 type InternalSolveFailureV1<TWallState> = Readonly<{
@@ -280,6 +303,21 @@ type EvaluationModeV1<TWallState> =
     previousState: MainWireFiveWallLandTriSegStateV1<TWallState>;
     stepDtSec: number;
   }>;
+
+type MutableEvaluationCountersV1 = {
+  evaluateCandidateCallCount: number;
+  atrialMaterialEvaluationCountByWall: { LA: number; RA: number };
+  atrialFiberLogStrainObservationCountByWall: { LA: number; RA: number };
+  atrialFiberLogStrainChangeCountByWall: { LA: number; RA: number };
+  atrialFiberLogStrainDistinctInputsByWall: {
+    LA: Set<number>;
+    RA: Set<number>;
+  };
+  lastAtrialFiberLogStrainByWall: {
+    LA: number | null;
+    RA: number | null;
+  };
+};
 
 const PA_PER_MMHG = 133.322;
 const ONE_JOULE = 1;
@@ -481,6 +519,12 @@ function solveInternalCoordinates<TWallState>(
   let currentCandidate: CandidateEvaluationV1<TWallState>;
   let acceptedLineSearchSteps = 0;
   let lineSearchBacktracks = 0;
+  const evaluationCounters =
+    (drive as MainWireFiveWallFreeCalciumDriveV1 & Readonly<{
+      evaluationCounterCollection?: "enabled";
+    }>).evaluationCounterCollection === "enabled"
+      ? createMutableEvaluationCounters()
+      : null;
   try {
     currentCandidate = evaluateCandidate(
       volumesMl,
@@ -489,6 +533,7 @@ function solveInternalCoordinates<TWallState>(
       mode,
       params,
       solver,
+      evaluationCounters,
     );
   } catch (error) {
     return internalFailure({
@@ -569,6 +614,12 @@ function solveInternalCoordinates<TWallState>(
         acceptedLineSearchSteps,
         lineSearchBacktracks,
         residualNorm,
+        ...(evaluationCounters === null
+          ? {}
+          : {
+            evaluationCounters:
+              freezeEvaluationCounters(evaluationCounters),
+          }),
       });
     }
     if (iteration === solver.maximumIterations) {
@@ -652,6 +703,7 @@ function solveInternalCoordinates<TWallState>(
           mode,
           params,
           solver,
+          evaluationCounters,
         );
         const candidateNorm = infinityNorm(
           candidate.scaledAlgorithmicGeneralizedForceByOneJ,
@@ -688,6 +740,56 @@ function solveInternalCoordinates<TWallState>(
   throw new Error("unreachable internal Newton state");
 }
 
+function createMutableEvaluationCounters(): MutableEvaluationCountersV1 {
+  return {
+    evaluateCandidateCallCount: 0,
+    atrialMaterialEvaluationCountByWall: { LA: 0, RA: 0 },
+    atrialFiberLogStrainObservationCountByWall: { LA: 0, RA: 0 },
+    atrialFiberLogStrainChangeCountByWall: { LA: 0, RA: 0 },
+    atrialFiberLogStrainDistinctInputsByWall: {
+      LA: new Set<number>(),
+      RA: new Set<number>(),
+    },
+    lastAtrialFiberLogStrainByWall: { LA: null, RA: null },
+  };
+}
+
+function recordAtrialFiberLogStrain(
+  counters: MutableEvaluationCountersV1,
+  wallId: "LA" | "RA",
+  value: number,
+): void {
+  counters.atrialFiberLogStrainObservationCountByWall[wallId] += 1;
+  const previous = counters.lastAtrialFiberLogStrainByWall[wallId];
+  if (previous !== null && value !== previous) {
+    counters.atrialFiberLogStrainChangeCountByWall[wallId] += 1;
+  }
+  counters.lastAtrialFiberLogStrainByWall[wallId] = value;
+  counters.atrialFiberLogStrainDistinctInputsByWall[wallId].add(value);
+}
+
+function freezeEvaluationCounters(
+  counters: MutableEvaluationCountersV1,
+): MainWireFiveWallLandTriSegEvaluationCountersV1 {
+  return Object.freeze({
+    solveInternalCoordinatesCallCount: 1 as const,
+    evaluateCandidateCallCount: counters.evaluateCandidateCallCount,
+    atrialMaterialEvaluationCountByWall: Object.freeze({
+      ...counters.atrialMaterialEvaluationCountByWall,
+    }),
+    atrialFiberLogStrainObservationCountByWall: Object.freeze({
+      ...counters.atrialFiberLogStrainObservationCountByWall,
+    }),
+    atrialFiberLogStrainChangeCountByWall: Object.freeze({
+      ...counters.atrialFiberLogStrainChangeCountByWall,
+    }),
+    atrialFiberLogStrainDistinctInputCountByWall: Object.freeze({
+      LA: counters.atrialFiberLogStrainDistinctInputsByWall.LA.size,
+      RA: counters.atrialFiberLogStrainDistinctInputsByWall.RA.size,
+    }),
+  });
+}
+
 function evaluateCandidate<TWallState>(
   volumesMl: WholeHeartMechanicsChamberValuesV1,
   drive: MainWireFiveWallFreeCalciumDriveV1,
@@ -695,7 +797,11 @@ function evaluateCandidate<TWallState>(
   mode: EvaluationModeV1<TWallState>,
   params: MainWireFiveWallLandTriSegProviderParamsV1<TWallState>,
   solver: ResolvedSolverOptionsV1,
+  evaluationCounters: MutableEvaluationCountersV1 | null = null,
 ): CandidateEvaluationV1<TWallState> {
+  if (evaluationCounters !== null) {
+    evaluationCounters.evaluateCandidateCallCount += 1;
+  }
   validateScaledUnknownCount(scaledUnknowns);
   const coordinates = scaledUnknownsToCoordinates(scaledUnknowns, params);
   if (!(coordinates.junctionRadiusM > solver.junctionRadiusLowerBoundM)) {
@@ -711,6 +817,18 @@ function evaluateCandidate<TWallState>(
     LA: atrialFiberLogStrain(volumesMl.LA * 1e-6, params.atria.LA),
     RA: atrialFiberLogStrain(volumesMl.RA * 1e-6, params.atria.RA),
   });
+  if (evaluationCounters !== null) {
+    recordAtrialFiberLogStrain(
+      evaluationCounters,
+      "LA",
+      atrialBaseStrain.LA,
+    );
+    recordAtrialFiberLogStrain(
+      evaluationCounters,
+      "RA",
+      atrialBaseStrain.RA,
+    );
+  }
   const effectiveFiberLogStrainByWall = Object.freeze({
     LA: atrialBaseStrain.LA,
     LVFW: geometry.walls.LVFW.fiberLogStrain,
@@ -722,6 +840,12 @@ function evaluateCandidate<TWallState>(
     const kernel = params.materialByWall[wallId];
     const fiberLogStrain = effectiveFiberLogStrainByWall[wallId];
     const freeCalciumUM = drive.freeCalciumUMByWall[wallId];
+    if (
+      evaluationCounters !== null
+      && (wallId === "LA" || wallId === "RA")
+    ) {
+      evaluationCounters.atrialMaterialEvaluationCountByWall[wallId] += 1;
+    }
     const evaluation = mode.kind === "cold"
       ? kernel.initializeColdAtFixedInput({ fiberLogStrain, freeCalciumUM })
       : kernel.evaluateTrialFromAccepted({
@@ -1171,6 +1295,9 @@ function buildReadback<TWallState>(
     maximumMaterialResidualNorm: candidate.maximumMaterialResidualNorm,
     coldConsistencyIterations,
     coldConsistencyScaledCoordinateUpdate,
+    ...(solved.evaluationCounters === undefined
+      ? {}
+      : { evaluationCounters: solved.evaluationCounters }),
     triseg: Object.freeze({
       leftVentricularPressurePa:
         candidate.triseg.cavityTransmuralPressuresPa.LV,
