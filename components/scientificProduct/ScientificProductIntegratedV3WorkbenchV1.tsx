@@ -1,6 +1,8 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
 
+import { ModelLimitations } from "@/components/ModelLimitations";
 import { allCasesHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import {
@@ -35,6 +37,14 @@ const V3_HISTORY_WINDOW_SEC = 5;
 const V3_HISTORY_MAXIMUM_SAMPLE_COUNT = 3_000;
 const V3_PRESENTATION_REFRESH_MS = 40;
 
+/**
+ * Chart titles and series labels below are deliberately NOT routed through
+ * i18n, and this exception is specific to them rather than a house style.
+ * `e2e/integratedV3LaneLiveV1.spec.ts:149` locates each canvas by its English
+ * title text while driving the `/ja` route, so translating these strings makes
+ * that spec fail on a locale it does not parameterise. Everything else this
+ * surface renders as UI copy goes through `t()`.
+ */
 const PRESSURE_SERIES_V1 = Object.freeze([
   {
     signalId: "hemodynamics.pressure.absolute.LV",
@@ -116,6 +126,7 @@ export function ScientificProductIntegratedV3WorkbenchV1({
   caseEntry: ScientificProductIntegratedV3CaseV1;
   driverFactory?: ScientificProductIntegratedV3DriverFactoryV1;
 }>) {
+  const { t } = useTranslation();
   const [driver] = React.useState(driverFactory);
   const [state, setState] = React.useState<V3WorkbenchViewStateV1>({
     phase: "opening",
@@ -229,19 +240,33 @@ export function ScientificProductIntegratedV3WorkbenchV1({
     };
   }, [driver]);
 
+  // The acknowledgement is mounted on every phase, not only the ready one.
+  // This lane is what the bare `/<locale>/workbench` route opens, and the
+  // global header that carries `<ModelLimitations/>` elsewhere is suppressed
+  // for `/workbench` in `components/Layout.tsx:25-28`, so a first-time visitor
+  // would otherwise reach a live simulation with no "not a medical device"
+  // acknowledgement at all. The same component and the same
+  // `circleheart.modelLimitations.ack.v1` key are used deliberately: one
+  // acknowledgement, shared with the non-coronary route, not a second one.
   if (state.phase === "opening") {
     return (
       <main
-        className="flex h-full items-center justify-center bg-wb-app p-4 text-wb-text"
+        className="relative flex h-full items-center justify-center bg-wb-app p-4 text-wb-text"
         data-testid="integrated-v3-product-opening-v1"
       >
-        Opening the fixed experimental browser lane…
+        <div className="absolute right-4 top-4">
+          <ModelLimitations compact />
+        </div>
+        {t("workbench.integratedV3.opening")}
       </main>
     );
   }
   if (state.phase === "failed") {
     return (
-      <main className="flex h-full items-center justify-center bg-wb-app p-4 text-wb-text">
+      <main className="relative flex h-full items-center justify-center bg-wb-app p-4 text-wb-text">
+        <div className="absolute right-4 top-4">
+          <ModelLimitations compact />
+        </div>
         <p
           className="max-w-xl rounded-lg border border-wb-danger bg-wb-panel p-5"
           role="alert"
@@ -276,16 +301,26 @@ export function ScientificProductIntegratedV3LaneSurfaceV1({
   sample: StudioIntegratedV3PresentationSampleV1;
   pacing: RuntimeLivePacingStateV1;
 }>) {
+  const { t } = useTranslation();
   const location = useLocation();
   const locale = localeFromPathname(location.pathname);
   const chartPoints = React.useMemo(
     () => history.map(integratedV3ChartPointV1),
     [history],
   );
+  // The status grid keeps its English labels and values. Its wording is pinned
+  // by `__tests__/scientificProductIntegratedV3LaneV1.test.ts:131-138`, which
+  // renders this surface at `/ja/...` and asserts "Model time", "Accepted
+  // revision", "Internal substeps", "Regular sinus", "HMII 9000" and
+  // "degraded · 0.37× measured" as literal text. Translating them here fails
+  // that test, so the grid is left out of the i18n pass rather than worked
+  // around.
   const pacingLabel = pacing.mode === "degraded" ? "degraded" : "measured";
   const achievedRate = pacing.recentAchievedRate === null
     ? "Measuring achieved rate…"
     : `${pacing.recentAchievedRate.toFixed(2)}× measured`;
+  const unavailableActionCount = INTEGRATED_V3_LANE_CAPABILITY_KEYS_V1
+    .filter((key) => descriptor.capabilities[key].available === false).length;
 
   return (
     <main
@@ -301,24 +336,27 @@ export function ScientificProductIntegratedV3LaneSurfaceV1({
         <div className="mx-auto flex max-w-7xl flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-wb-accent">
-              Live browser lane
+              {t("workbench.integratedV3.eyebrow")}
             </p>
             <h1 className="mt-2 text-2xl font-bold">
               {caseEntry.displayName}
             </h1>
             <p className="mt-2 text-sm text-wb-muted">
-              Fixed input · Regular sinus · HMII 9000
+              {t("workbench.integratedV3.fixedInputSummary")}
             </p>
           </div>
           <div className="flex flex-col items-end gap-3">
-            <span className="rounded border border-wb-warning/40 bg-wb-warning-soft px-2 py-1 text-xs font-bold text-wb-warning">
-              {descriptor.badge}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded border border-wb-warning/40 bg-wb-warning-soft px-2 py-1 text-xs font-bold text-wb-warning">
+                {descriptor.badge}
+              </span>
+              <ModelLimitations compact />
+            </div>
             <Link
               to={allCasesHref(locale)}
               className="text-sm font-semibold text-wb-accent hover:underline"
             >
-              Back to case catalog
+              {t("workbench.integratedV3.backToCatalog")}
             </Link>
           </div>
         </div>
@@ -327,7 +365,7 @@ export function ScientificProductIntegratedV3LaneSurfaceV1({
       <div className="mx-auto grid max-w-7xl gap-5 px-5 py-6 sm:px-8">
         <section
           className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6"
-          aria-label="Lane status"
+          aria-label={t("workbench.integratedV3.statusAria")}
         >
           <StatusCellV1 label="Model time" value={`${sample.acceptedTimeSec.toFixed(3)} s`} />
           <StatusCellV1 label="Accepted revision" value={String(sample.acceptedRevision)} />
@@ -342,7 +380,7 @@ export function ScientificProductIntegratedV3LaneSurfaceV1({
 
         <section
           className="grid gap-5 lg:grid-cols-2"
-          aria-label="Integrated lane signals"
+          aria-label={t("workbench.integratedV3.signalsAria")}
         >
           <CatalogNeutralWaveformCanvasV1
             title="LV and aortic pressure"
@@ -367,7 +405,9 @@ export function ScientificProductIntegratedV3LaneSurfaceV1({
         </section>
 
         <section className="rounded-xl border border-wb-line bg-wb-panel p-5">
-          <h2 className="text-base font-bold">Limitations</h2>
+          <h2 className="text-base font-bold">
+            {t("workbench.integratedV3.limitationsHeading")}
+          </h2>
           <ol
             className="mt-3 grid gap-2 text-sm leading-6 text-wb-muted"
             data-testid="integrated-v3-limitations-v1"
@@ -380,46 +420,67 @@ export function ScientificProductIntegratedV3LaneSurfaceV1({
           </ol>
         </section>
 
+        {/*
+          Collapsed by default. All fourteen denied actions were rendered as
+          disabled buttons, so they were most of what a beginner met on this
+          route alongside the live coronary and LVAD view, and the lane
+          selector already states the same restrictions.
+          A `<details>` element is used rather than conditional rendering on
+          purpose: every `data-capability-*` attribute stays in the DOM while
+          collapsed, which is what `e2e/integratedV3LaneLiveV1.spec.ts:168-180`
+          reads. Removing the grid from the DOM would defeat that spec.
+        */}
         <section
           className="rounded-xl border border-wb-line bg-wb-panel p-5"
-          aria-label="Unavailable actions"
+          aria-label={t("workbench.integratedV3.unavailableHeading")}
         >
-          <h2 className="text-base font-bold">Unavailable actions</h2>
-          <p className="mt-1 text-sm text-wb-muted">
-            These actions are disabled before invocation for this fixed lane.
-          </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {INTEGRATED_V3_LANE_CAPABILITY_KEYS_V1.flatMap((key) => {
-              const capability = descriptor.capabilities[key];
-              if (capability.available !== false) return [];
-              const explanationId = `capability-${key}-explanation`;
-              return [
-                <div
-                  key={key}
-                  className="rounded-lg border border-wb-line bg-wb-soft p-3"
-                  data-capability-key={key}
-                  data-capability-available="false"
-                >
-                  <button
-                    type="button"
-                    disabled
-                    aria-describedby={explanationId}
-                    className="w-full cursor-not-allowed rounded border border-wb-line px-3 py-2 text-left text-sm font-semibold text-wb-subtle opacity-70"
-                    data-capability-action={key}
+          <details data-testid="integrated-v3-unavailable-actions-v1">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 text-wb-text marker:text-wb-subtle">
+              <h2 className="text-base font-bold">
+                {t("workbench.integratedV3.unavailableHeading")}
+              </h2>
+              <span className="text-xs font-semibold text-wb-muted">
+                {t("workbench.integratedV3.unavailableCount", {
+                  actionCount: unavailableActionCount,
+                })}
+              </span>
+            </summary>
+            <p className="mt-1 text-sm text-wb-muted">
+              {t("workbench.integratedV3.unavailableIntro")}
+            </p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {INTEGRATED_V3_LANE_CAPABILITY_KEYS_V1.flatMap((key) => {
+                const capability = descriptor.capabilities[key];
+                if (capability.available !== false) return [];
+                const explanationId = `capability-${key}-explanation`;
+                return [
+                  <div
+                    key={key}
+                    className="rounded-lg border border-wb-line bg-wb-soft p-3"
+                    data-capability-key={key}
+                    data-capability-available="false"
                   >
-                    {SCIENTIFIC_PRODUCT_LANE_CAPABILITY_LABELS_V1[key]}
-                  </button>
-                  <p
-                    id={explanationId}
-                    className="mt-2 text-xs leading-5 text-wb-muted"
-                    data-capability-explanation={key}
-                  >
-                    {capability.explanation}
-                  </p>
-                </div>,
-              ];
-            })}
-          </div>
+                    <button
+                      type="button"
+                      disabled
+                      aria-describedby={explanationId}
+                      className="w-full cursor-not-allowed rounded border border-wb-line px-3 py-2 text-left text-sm font-semibold text-wb-subtle opacity-70"
+                      data-capability-action={key}
+                    >
+                      {SCIENTIFIC_PRODUCT_LANE_CAPABILITY_LABELS_V1[key]}
+                    </button>
+                    <p
+                      id={explanationId}
+                      className="mt-2 text-xs leading-5 text-wb-muted"
+                      data-capability-explanation={key}
+                    >
+                      {capability.explanation}
+                    </p>
+                  </div>,
+                ];
+              })}
+            </div>
+          </details>
         </section>
       </div>
     </main>

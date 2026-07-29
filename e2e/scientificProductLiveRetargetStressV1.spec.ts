@@ -6,6 +6,9 @@ import {
   type TestInfo,
 } from "@playwright/test";
 
+const NONCORONARY_WORKBENCH_PATH =
+  "/ja/workbench?lane=noncoronary-v1";
+
 test.describe.serial("Studio product bridge lifecycle", () => {
   test("keeps the live trace coherent across a commit and header pause/resume", async ({
     page,
@@ -196,7 +199,9 @@ async function openReadyStudioWorkbenchV1(page: Page): Promise<Readonly<{
   await page.addInitScript(() => {
     localStorage.setItem("circleheart.modelLimitations.ack.v1", "1");
   });
-  await page.goto("/ja/workbench", { waitUntil: "domcontentloaded" });
+  await page.goto(NONCORONARY_WORKBENCH_PATH, {
+    waitUntil: "domcontentloaded",
+  });
 
   const host = page.getByTestId("scientific-product-workbench-host-v1");
   const evidence = page.getByTestId(

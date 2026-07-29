@@ -9,6 +9,8 @@ import {
 
 const OFFICIAL_PRODUCT_CASE_ID =
   "circleheart/official-healthy-periodic";
+const NONCORONARY_WORKBENCH_PATH =
+  "/ja/workbench?lane=noncoronary-v1";
 
 test.describe.serial("Product workflows by role", () => {
   test("Author role — edits an experiment article, checks Reader Preview, and keeps every preview session-local", async ({
@@ -49,7 +51,7 @@ test.describe.serial("Product workflows by role", () => {
       // controls are picked on the thing itself, then the author comes back
       // to write around them.
       await page.getByTestId("studio-author-open-workbench-v1").click();
-      await expect(page).toHaveURL(/\/ja\/workbench$/);
+      await expect(page).toHaveURL(NONCORONARY_WORKBENCH_PATH);
       await readyStudioWorkbenchV1(page);
       await page.getByTestId("scientific-workbench-open-briefing-v1").click();
       const authorComposer = page.getByTestId(
@@ -536,7 +538,7 @@ test.describe.serial("Product workflows by role", () => {
     try {
       const { host, evidence, controller } =
         await openReadyStudioWorkbenchV1(page);
-      await expect(page).toHaveURL(/\/ja\/workbench$/);
+      await expect(page).toHaveURL(NONCORONARY_WORKBENCH_PATH);
       await expect(page.getByTestId(
         "scientific-workbench-open-briefing-v1",
       )).toBeVisible();
@@ -620,7 +622,7 @@ test.describe.serial("Product workflows by role", () => {
         /running|partial|complete/,
       );
 
-      await expect(page).toHaveURL(/\/ja\/workbench$/);
+      await expect(page).toHaveURL(NONCORONARY_WORKBENCH_PATH);
       await expect(host).toBeVisible();
       await expect(page.getByTestId("studio-document-author-v1"))
         .toHaveCount(0);
@@ -1063,7 +1065,9 @@ async function openReadyStudioWorkbenchV1(
   controller: Locator;
 }>> {
   await acknowledgeModelLimitationsV1(page);
-  await page.goto("/ja/workbench", { waitUntil: "domcontentloaded" });
+  await page.goto(NONCORONARY_WORKBENCH_PATH, {
+    waitUntil: "domcontentloaded",
+  });
   return readyStudioWorkbenchV1(page);
 }
 

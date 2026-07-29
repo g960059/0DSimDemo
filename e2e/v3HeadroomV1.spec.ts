@@ -88,4 +88,46 @@ test("reports achieved rate under CPU throttling", { tag: "@full-e2e" }, async (
   );
   await session.send("Emulation.setCPUThrottlingRate", { rate: 1 });
   void workerSessions;
+
+  // Everything above was computed, printed, and gated on nothing: the only
+  // assertion was `achieved > 0`, which holds for a lane running 400x too slow.
+  // A spec that cannot fail for any reason a reader cares about is not a gate.
+  // The three below are the smallest set that makes these numbers mean
+  // something, and each is written against a quantity this spec observes.
+
+  // 1. The measurement is valid only if the throttle reached the Worker. The
+  //    solver runs there, so throttling the renderer alone measures a thread
+  //    that is not doing the work and would report generous numbers forever.
+  expect(
+    workerSessionId,
+    "CPU throttling never attached to a Worker target, so every rate above "
+      + "describes the renderer rather than the solver",
+  ).not.toBeNull();
+
+  // 2. Throttling must actually have bitten. A session can attach to a Worker
+  //    that is not the solver's, which assertion 1 cannot see; if cpu/12 is no
+  //    slower than cpu/1, these rates are not measuring what they claim.
+  const unthrottled = results.find((r) => r.rate === 1);
+  const slowest = results.find((r) => r.rate === RATES[RATES.length - 1]);
+  expect(unthrottled, "no unthrottled sample").toBeDefined();
+  expect(slowest, "no fully throttled sample").toBeDefined();
+  expect(
+    unthrottled!.achieved,
+    `throttling had no measurable effect (cpu/1 ${unthrottled!.achieved.toFixed(3)}x vs `
+      + `cpu/${slowest!.rate} ${slowest!.achieved.toFixed(3)}x), so these rates do not `
+      + "describe a throttled solver",
+  ).toBeGreaterThan(slowest!.achieved * 1.5);
+
+  // 3. A regression floor, not a performance claim. The lane measured ~1.0x
+  //    unthrottled on the machine this branch was written on; CI hardware is
+  //    slower and varies, so the floor sits far below that. It is deliberately
+  //    not a realtime assertion — this lane reports the rate it achieves and is
+  //    allowed to run slow — but a lane four times slower than the work this
+  //    branch did is a regression, and nothing else here would catch it.
+  const UNTHROTTLED_REGRESSION_FLOOR_X = 0.25;
+  expect(
+    unthrottled!.achieved,
+    `unthrottled rate ${unthrottled!.achieved.toFixed(3)}x is below the regression floor `
+      + `of ${UNTHROTTLED_REGRESSION_FLOOR_X}x`,
+  ).toBeGreaterThan(UNTHROTTLED_REGRESSION_FLOOR_X);
 });

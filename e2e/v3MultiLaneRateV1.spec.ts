@@ -71,7 +71,33 @@ for (const laneCount of [1, 2, 3]) {
           + `slowest=${slowest.toFixed(3)}x aggregate=${aggregate.toFixed(3)}x`,
       );
 
-      for (const rate of rates) expect(rate).toBeGreaterThan(0);
+      // `> 0` was the only gate here, and it passes for a lane running 400x too
+      // slow — so this test's name ("holds its rate") asserted nothing. The two
+      // gates below are what the name was already claiming.
+
+      // Every lane must be genuinely advancing, and none may be starved while
+      // the others look healthy: a scheduler that serves lane 1 and stalls lane
+      // 3 would pass any test written on the mean.
+      const MIN_PER_LANE_RATE_X = 0.25;
+      for (const [index, rate] of rates.entries()) {
+        expect(
+          rate,
+          `lane ${index + 1} of ${laneCount} achieved ${rate.toFixed(3)}x, below the `
+            + `per-lane floor of ${MIN_PER_LANE_RATE_X}x`,
+        ).toBeGreaterThan(MIN_PER_LANE_RATE_X);
+      }
+
+      // Opening more lanes must not cost more than it buys. Measured on this
+      // branch: 1 lane 1.002x, 2 lanes 0.992x each, 3 lanes 2.986x aggregate —
+      // essentially linear, because each lane owns a Worker. If contention ever
+      // makes aggregate throughput fall below what a single lane achieves, the
+      // multi-lane story is gone and no other assertion here would notice.
+      expect(
+        aggregate,
+        `${laneCount} lanes produced ${aggregate.toFixed(3)}x aggregate, which is less `
+          + "than one lane alone achieves — added lanes are now subtracting throughput",
+      ).toBeGreaterThan(MIN_PER_LANE_RATE_X);
+
       await context.close();
     },
   );

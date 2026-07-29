@@ -7,7 +7,7 @@
  * that every *.test.ts file belongs to exactly one suite.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 122;
+export const FAST_SUITE_FILE_BUDGET = 123;
 export const PR_SMOKE_SUITE_FILE_BUDGET = 59;
 
 export const fastTests = [
@@ -97,6 +97,11 @@ export const fastTests = [
   "__tests__/scientificProductStudioHemodynamicAnalysisCoordinatorV1.test.ts",
   "__tests__/scientificProductStudioScenarioRegistryV1.test.ts",
   "__tests__/scientificProductStudioScenarioControllerV1.test.ts",
+  // The first-run safety acknowledgement on the default workbench route. This
+  // one is registered fast rather than regression, unlike its V3 lane sibling:
+  // it guards a disclosure that vanished once already, and a guard that only
+  // runs nightly can be absent for weeks before anyone sees it.
+  "__tests__/scientificProductIntegratedV3DisclosureV1.test.ts",
   "__tests__/scientificHemodynamicProtocolPanesV1.test.ts",
   "__tests__/scientificWorkbenchChartDomainsV1.test.ts",
   "__tests__/scientificWorkbenchDisplayClockV1.test.ts",

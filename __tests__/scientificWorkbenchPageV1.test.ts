@@ -11,6 +11,11 @@ import {
   createScientificProductWorkbenchPresentationV1,
 } from "@/components/scientificProduct/ScientificProductWorkbenchRouteV1";
 import {
+  SCIENTIFIC_PRODUCT_DEFAULT_LANE_KIND_V1,
+  SCIENTIFIC_PRODUCT_LANE_PREFERENCE_KEY_V1,
+  resolveScientificProductLaneKindV1,
+} from "@/components/scientificProduct/ScientificProductLaneSelectorV1";
+import {
   createScientificProductEvidenceReportV1,
 } from "@/components/scientificProduct/ScientificProductEvidenceReportV1";
 import type {
@@ -58,11 +63,18 @@ import {
   MAIN_WIRE_SCIENTIFIC_OBSERVABLE_REGISTRY_V1_SCHEMA_VERSION,
   type MainWireScientificObservableFrameV1,
 } from "@/engine/scientific/observables";
+import {
+  INTEGRATED_V3_LANE_KIND_V1,
+} from "@/engine/myocardium/MainWireIntegratedLaneIdentityV1";
 import type {
   MainWireScientificWorkspaceDocumentV1,
 } from "@/engine/scientific/documents";
 import { workspaceForPanelStateReplacement } from "@/features/workbench/hooks/useWorkbenchPanels";
 import { layoutStateFromWorkspace } from "@/features/workbench/workbenchDefaults";
+import {
+  STUDIO_NONCORONARY_LANE_KIND_V1,
+} from "@/studio/adapters/mainWire/StudioLiveLaneV1";
+import { workbenchLaneHref } from "@/homeLinks";
 
 describe("document-bound scientific workbench page V1", () => {
   it("keeps the metric explorer presentational, searchable, and progressively disclosed", () => {
@@ -621,6 +633,125 @@ describe("document-bound scientific workbench page V1", () => {
     );
     expect(markup).not.toContain('data-testid="scientific-workbench-page-v1"');
     expect(markup).not.toContain("main-wire/healthy-cold");
+    expect(markup).not.toContain("data-default-lane-kind");
+  });
+
+  it("keeps the bare non-coronary URL on the Studio host path", () => {
+    const markup = renderProductRoute(
+      "/ja/workbench?lane=noncoronary-v1",
+    );
+
+    expect(markup).toContain(
+      'data-selected-lane-kind="noncoronary-v1"',
+    );
+    expect(markup).toContain(
+      'data-testid="scientific-product-workbench-loading-v1"',
+    );
+    expect(markup).toContain(
+      'data-testid="scientific-product-lane-selector-v1"',
+    );
+    expect(markup).not.toContain(
+      'data-testid="integrated-v3-product-opening-v1"',
+    );
+  });
+
+  it("uses URL, then stored preference, then default without persisting malformed URL values", () => {
+    const storedValues = new Map<string, string>([[
+      SCIENTIFIC_PRODUCT_LANE_PREFERENCE_KEY_V1,
+      STUDIO_NONCORONARY_LANE_KIND_V1,
+    ]]);
+    let reads = 0;
+    const writes: Array<readonly [string, string]> = [];
+    const storage = {
+      getItem: (key: string) => {
+        reads += 1;
+        return storedValues.get(key) ?? null;
+      },
+      setItem: (key: string, value: string) => {
+        writes.push([key, value]);
+        storedValues.set(key, value);
+      },
+    };
+
+    expect(resolveScientificProductLaneKindV1(
+      `?lane=${INTEGRATED_V3_LANE_KIND_V1}`,
+      storage,
+    )).toBe(INTEGRATED_V3_LANE_KIND_V1);
+    expect(reads).toBe(0);
+
+    expect(resolveScientificProductLaneKindV1("", storage))
+      .toBe(STUDIO_NONCORONARY_LANE_KIND_V1);
+    expect(reads).toBe(1);
+
+    storedValues.clear();
+    expect(resolveScientificProductLaneKindV1("", storage))
+      .toBe(SCIENTIFIC_PRODUCT_DEFAULT_LANE_KIND_V1);
+    expect(reads).toBe(2);
+
+    storedValues.set(
+      SCIENTIFIC_PRODUCT_LANE_PREFERENCE_KEY_V1,
+      STUDIO_NONCORONARY_LANE_KIND_V1,
+    );
+    for (const malformedSearch of [
+      "?lane=not-a-lane",
+      "?lane=%E0%A4%A",
+      "?lane=noncoronary-v1&lane=integrated-v3-experimental",
+    ]) {
+      expect(resolveScientificProductLaneKindV1(
+        malformedSearch,
+        storage,
+      )).toBe(SCIENTIFIC_PRODUCT_DEFAULT_LANE_KIND_V1);
+    }
+    expect(reads).toBe(2);
+    expect(writes).toEqual([]);
+  });
+
+  it("shows bare-route lane controls without leaking the selector onto case routes", () => {
+    const bareMarkup = renderProductRoute("/ja/workbench");
+    const caseMarkup = renderProductRoute(
+      "/ja/workbench/normal-sinus",
+    );
+    const visibleChoices = bareMarkup.indexOf(
+      'data-testid="scientific-product-lane-choices-v1"',
+    );
+    const collapsedComparison = bareMarkup.indexOf(
+      'data-testid="scientific-product-lane-comparison-v1"',
+    );
+
+    expect(visibleChoices).toBeGreaterThanOrEqual(0);
+    expect(collapsedComparison).toBeGreaterThan(visibleChoices);
+    expect(bareMarkup.slice(visibleChoices, collapsedComparison)).toContain(
+      'data-select-lane="noncoronary-v1"',
+    );
+    expect(caseMarkup).toContain(
+      'data-selected-lane-kind="noncoronary-v1"',
+    );
+    expect(caseMarkup).not.toContain(
+      'data-testid="scientific-product-lane-selector-v1"',
+    );
+  });
+
+  it("persists lane switches with replace history and sends authors to the non-coronary URL", () => {
+    const routeSource = read(
+      "components/scientificProduct/ScientificProductWorkbenchRouteV1.tsx",
+    );
+    const authorSource = read(
+      "components/studio/StudioDocumentRouteV1.tsx",
+    );
+
+    expect(routeSource).toContain(
+      "writeScientificProductLanePreferenceV1(laneKind)",
+    );
+    expect(routeSource).toContain(
+      'nextSearch.set("lane", laneKind)',
+    );
+    expect(routeSource).toContain("}, { replace: true })");
+    expect(authorSource).toContain("workbenchLaneHref(");
+    expect(authorSource).toContain("STUDIO_NONCORONARY_LANE_KIND_V1");
+    expect(workbenchLaneHref(
+      STUDIO_NONCORONARY_LANE_KIND_V1,
+      "ja",
+    )).toBe("/ja/workbench?lane=noncoronary-v1");
   });
 
   it("derives the product default graph board and open metrics host without mutating the scientific document", () => {

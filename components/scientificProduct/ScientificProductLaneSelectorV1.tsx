@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   INTEGRATED_V3_LANE_CAPABILITY_KEYS_V1,
@@ -81,6 +82,32 @@ export function readScientificProductLanePreferenceV1(
   }
 }
 
+/**
+ * Bare-route precedence is deliberate: URL > stored preference > product
+ * default. A present but invalid URL value is an explicit malformed choice,
+ * so it fails to the default instead of silently consulting or mutating
+ * storage.
+ */
+export function resolveScientificProductLaneKindV1(
+  search: string,
+  storage: ScientificProductLanePreferenceStorageV1 | null =
+    browserLanePreferenceStorageV1(),
+): StudioLiveLaneKindV1 {
+  try {
+    const laneValues = new URLSearchParams(search).getAll("lane");
+    if (laneValues.length > 0) {
+      const laneValue = laneValues.length === 1 ? laneValues[0] : null;
+      return laneValue !== null
+          && SCIENTIFIC_PRODUCT_LANE_KINDS_V1.has(laneValue)
+        ? laneValue as StudioLiveLaneKindV1
+        : SCIENTIFIC_PRODUCT_DEFAULT_LANE_KIND_V1;
+    }
+  } catch {
+    return SCIENTIFIC_PRODUCT_DEFAULT_LANE_KIND_V1;
+  }
+  return readScientificProductLanePreferenceV1(storage);
+}
+
 export function writeScientificProductLanePreferenceV1(
   laneKind: StudioLiveLaneKindV1,
   storage: ScientificProductLanePreferenceStorageV1 | null =
@@ -101,6 +128,8 @@ export function ScientificProductLaneSelectorV1({
   selectedDescriptor: StudioLaneDescriptorV1;
   onSelectLane: (laneKind: StudioLiveLaneKindV1) => void;
 }>) {
+  const { t } = useTranslation();
+
   return (
     <section
       className="shrink-0 border-b border-wb-line bg-wb-header px-4 py-3 text-wb-text"
@@ -115,7 +144,7 @@ export function ScientificProductLaneSelectorV1({
               id="scientific-product-lane-selector-title-v1"
               className="text-xs font-bold uppercase tracking-[0.16em] text-wb-accent"
             >
-              Simulation lane
+              {t("workbench.laneSelector.title")}
             </p>
             <h2 className="mt-1 text-base font-bold">
               {selectedDescriptor.displayName}
@@ -140,12 +169,42 @@ export function ScientificProductLaneSelectorV1({
           ))}
         </ol>
 
+        <div
+          className="mt-3 grid gap-2 sm:grid-cols-2"
+          role="group"
+          aria-label={t("workbench.laneSelector.chooseLane")}
+          data-testid="scientific-product-lane-choices-v1"
+        >
+          {SCIENTIFIC_PRODUCT_LANE_DESCRIPTORS_V1.map((descriptor) => {
+            const selected =
+              descriptor.laneId === selectedDescriptor.laneId;
+            return (
+              <button
+                key={descriptor.laneKind}
+                type="button"
+                disabled={selected}
+                aria-pressed={selected}
+                onClick={() => onSelectLane(descriptor.laneKind)}
+                className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-wb-line bg-wb-panel px-3 py-2 text-left text-sm font-bold text-wb-text disabled:cursor-default disabled:border-wb-accent disabled:bg-wb-active"
+                data-select-lane={descriptor.laneKind}
+              >
+                <span>{descriptor.displayName}</span>
+                <span className="shrink-0 text-xs text-wb-accent">
+                  {selected
+                    ? t("workbench.laneSelector.currentLane")
+                    : t("workbench.laneSelector.useLane")}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
         <details
           className="mt-3 rounded-lg border border-wb-line bg-wb-panel"
           data-testid="scientific-product-lane-comparison-v1"
         >
           <summary className="cursor-pointer px-3 py-2 text-sm font-bold text-wb-accent">
-            Choose lane and compare capabilities
+            {t("workbench.laneSelector.compareCapabilities")}
           </summary>
           <div className="grid gap-4 border-t border-wb-line p-3 xl:grid-cols-2">
             {SCIENTIFIC_PRODUCT_LANE_DESCRIPTORS_V1.map((descriptor) => {
@@ -165,21 +224,14 @@ export function ScientificProductLaneSelectorV1({
                         {descriptor.badge}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      disabled={selected}
-                      aria-pressed={selected}
-                      onClick={() => onSelectLane(descriptor.laneKind)}
-                      className="rounded bg-wb-accent px-3 py-1.5 text-xs font-bold text-white disabled:cursor-default disabled:opacity-50"
-                      data-select-lane={descriptor.laneKind}
-                    >
-                      {selected ? "Current lane" : "Use this lane"}
-                    </button>
                   </div>
 
                   <ol
                     className="mt-3 grid gap-1 text-xs leading-5 text-wb-muted"
-                    aria-label={`${descriptor.displayName} limitations`}
+                    aria-label={t(
+                      "workbench.laneSelector.limitationsAria",
+                      { lane: descriptor.displayName },
+                    )}
                     data-lane-limitations={descriptor.laneKind}
                   >
                     {descriptor.limitations.map((limitation, index) => (
@@ -189,7 +241,10 @@ export function ScientificProductLaneSelectorV1({
 
                   <dl
                     className="mt-4 grid gap-2"
-                    aria-label={`${descriptor.displayName} capabilities`}
+                    aria-label={t(
+                      "workbench.laneSelector.capabilitiesAria",
+                      { lane: descriptor.displayName },
+                    )}
                     data-lane-capabilities={descriptor.laneKind}
                   >
                     {INTEGRATED_V3_LANE_CAPABILITY_KEYS_V1.map((key) => {
@@ -202,7 +257,15 @@ export function ScientificProductLaneSelectorV1({
                           data-capability-available={capability.available}
                         >
                           <dt className="text-xs font-bold text-wb-text">
-                            {SCIENTIFIC_PRODUCT_LANE_CAPABILITY_LABELS_V1[key]}
+                            {t(
+                              `workbench.laneSelector.capabilities.${key}`,
+                              {
+                                defaultValue:
+                                  SCIENTIFIC_PRODUCT_LANE_CAPABILITY_LABELS_V1[
+                                    key
+                                  ],
+                              },
+                            )}
                           </dt>
                           <dd className="mt-1 text-xs leading-5 text-wb-muted">
                             {capability.available === false
@@ -212,14 +275,16 @@ export function ScientificProductLaneSelectorV1({
                                     className="block font-semibold text-wb-warning"
                                     data-capability-reason={capability.reason}
                                   >
-                                    Unavailable · {capability.reason}
+                                    {t("workbench.laneSelector.unavailable")}
+                                    {" · "}
+                                    {capability.reason}
                                   </span>
                                   <span data-capability-explanation={key}>
                                     {capability.explanation}
                                   </span>
                                 </>
                               )
-                              : "Available"}
+                              : t("workbench.laneSelector.available")}
                           </dd>
                         </div>
                       );

@@ -47,7 +47,7 @@ import {
 } from "@/features/workbench/viewSpec";
 import { workspaceForPanels } from "@/caseDoc";
 import { localeFromPathname } from "@/localeRouting";
-import { allCasesHref, workbenchHref } from "@/homeLinks";
+import { allCasesHref } from "@/homeLinks";
 import type {
   ControllerItem,
   MetricType,
@@ -147,10 +147,9 @@ import {
   ScientificProductIntegratedV3WorkbenchV1,
 } from "./ScientificProductIntegratedV3WorkbenchV1";
 import {
-  SCIENTIFIC_PRODUCT_DEFAULT_LANE_KIND_V1,
   SCIENTIFIC_PRODUCT_LANE_DESCRIPTOR_BY_KIND_V1,
   ScientificProductLaneSelectorV1,
-  readScientificProductLanePreferenceV1,
+  resolveScientificProductLaneKindV1,
   writeScientificProductLanePreferenceV1,
 } from "./ScientificProductLaneSelectorV1";
 import {
@@ -198,10 +197,6 @@ export default function ScientificProductWorkbenchRouteV1() {
   const location = useLocation();
   const navigate = useNavigate();
   const locale = localeFromPathname(location.pathname);
-  const [lanePreference, setLanePreference] =
-    React.useState<StudioLiveLaneKindV1>(
-      readScientificProductLanePreferenceV1,
-    );
   const integratedV3Case =
     resolveScientificProductIntegratedV3CaseRouteV1(caseId);
   const resolution = resolveProductRoute(caseId);
@@ -235,7 +230,7 @@ export default function ScientificProductWorkbenchRouteV1() {
   }
 
   const selectedLaneKind = caseId === undefined
-    ? lanePreference
+    ? resolveScientificProductLaneKindV1(location.search)
     : integratedV3Case !== null
       ? INTEGRATED_V3_LANE_KIND_V1
       : STUDIO_NONCORONARY_LANE_KIND_V1;
@@ -243,10 +238,13 @@ export default function ScientificProductWorkbenchRouteV1() {
     SCIENTIFIC_PRODUCT_LANE_DESCRIPTOR_BY_KIND_V1[selectedLaneKind];
   const selectLane = (laneKind: StudioLiveLaneKindV1): void => {
     writeScientificProductLanePreferenceV1(laneKind);
-    setLanePreference(laneKind);
-    if (caseId !== undefined) {
-      void navigate(workbenchHref(locale));
-    }
+    const nextSearch = new URLSearchParams(location.search);
+    nextSearch.set("lane", laneKind);
+    void navigate({
+      pathname: location.pathname,
+      search: `?${nextSearch.toString()}`,
+      hash: location.hash,
+    }, { replace: true });
   };
   const laneContentByKind = {
     [INTEGRATED_V3_LANE_KIND_V1]: (
@@ -269,12 +267,14 @@ export default function ScientificProductWorkbenchRouteV1() {
   return (
     <div
       className="flex h-full min-h-0 flex-col bg-wb-app"
-      data-default-lane-kind={SCIENTIFIC_PRODUCT_DEFAULT_LANE_KIND_V1}
+      data-selected-lane-kind={selectedLaneKind}
     >
-      <ScientificProductLaneSelectorV1
-        selectedDescriptor={selectedDescriptor}
-        onSelectLane={selectLane}
-      />
+      {caseId === undefined && (
+        <ScientificProductLaneSelectorV1
+          selectedDescriptor={selectedDescriptor}
+          onSelectLane={selectLane}
+        />
+      )}
       <div className="min-h-0 flex-1" key={selectedLaneKind}>
         {laneContentByKind[selectedLaneKind]}
       </div>
