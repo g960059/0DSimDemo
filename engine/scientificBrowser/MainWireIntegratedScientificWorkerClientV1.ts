@@ -1,5 +1,6 @@
-import type {
-  HotPathIntegrityTierV1,
+import {
+  HOT_PATH_INTEGRITY_TIERS_V1,
+  type HotPathIntegrityTierV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import {
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_CAPABILITY_KEYS_V1,
@@ -416,12 +417,16 @@ function isResponseEnvelopeV1(
     !isRecordV1(value)
     || value.protocolId
       !== MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID
+    || !HOT_PATH_INTEGRITY_TIERS_V1.includes(
+      value.hotPathIntegrityTier as HotPathIntegrityTierV1,
+    )
     || typeof value.ok !== "boolean"
     || typeof value.requestId !== "string"
     || typeof value.sessionId !== "string"
     || typeof value.commandKind !== "string"
     || !hasExactKeysV1(value, [
       "protocolId",
+      "hotPathIntegrityTier",
       "ok",
       "requestId",
       "sessionId",

@@ -104,6 +104,10 @@ import {
   fullHotPathInvariantsEnabledV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import { canonicalJsonStringify } from "@/engine/scientific/release";
+import {
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
 
 /**
  * Atomic standalone composition of accepted electrical sources, capture,
@@ -414,12 +418,11 @@ export type AcceptedComposedRhythmTransactionCandidateTimeLimitV2 = Readonly<{
 }>;
 
 /**
- * Entries are issued only for exact state objects this module constructed and
- * recursively froze. Full-invariant deep-validates the object before stamping;
- * lean relies on the constructor's already-validated owner candidates and
- * field derivations instead of immediately re-walking its output. A restored,
- * copied, or hand-built state misses and is fully validated. No assertion about
- * an arbitrary frozen object is made.
+ * Entries are issued only for exact, transitively frozen plain-data state
+ * objects this module constructed from validated owner candidates and direct
+ * field derivations. A restored, copied, or hand-built state misses and is
+ * fully validated. No assertion about an arbitrary frozen object is made, and
+ * this proof is independent of the hot-path tier.
  */
 const internallyValidatedAcceptedComposedRhythmStatesV2 =
   new WeakSet<object>();
@@ -564,15 +567,15 @@ export function validateAcceptedComposedRhythmTransactionConfigurationV2(
   configuration: AcceptedComposedRhythmTransactionConfigurationV2,
 ): void {
   if (
-    !fullHotPathInvariantsEnabledV1()
+    validationStampReuseEligibleV1()
     && internallyValidatedAcceptedComposedRhythmConfigurationsV2.has(
       configuration,
     )
   ) {
-    // Lean narrows only the repeated proof for this exact module-issued or
-    // previously fully validated, transitively frozen configuration object.
-    // A copied, restored, hand-built, or mutable configuration misses and
-    // still takes every sub-validator plus the canonical rebuild comparison.
+    // Reuse the complete proof for this exact module-issued or previously
+    // validated, transitively frozen configuration object. A copied, restored,
+    // hand-built, or mutable configuration misses and still takes every
+    // sub-validator plus the canonical rebuild comparison.
     return;
   }
   requireExactKeys(
@@ -987,7 +990,10 @@ export function evaluateAcceptedComposedRhythmTransactionCandidateV2(
     scheduledCalciumDeposits,
     candidateState,
   });
-  if (internallyValidatedAcceptedComposedRhythmStatesV2.has(state)) {
+  if (
+    validationStampReuseEligibleV1()
+    && internallyValidatedAcceptedComposedRhythmStatesV2.has(state)
+  ) {
     internalCandidateBaseByCandidateV2.set(candidate, state);
   }
   return candidate;
@@ -998,7 +1004,8 @@ export function commitAcceptedComposedRhythmTransactionCandidateV2(
   candidate: AcceptedComposedRhythmTransactionCandidateV2,
 ): AcceptedComposedRhythmTransactionStateV2 {
   if (
-    !fullHotPathInvariantsEnabledV1()
+    validationStampReuseEligibleV1()
+    && !fullHotPathInvariantsEnabledV1()
     && internalCandidateBaseByCandidateV2.get(candidate) === state
   ) {
     // The lean tier skips only same-tick defensive recomputation for the exact
@@ -1214,8 +1221,7 @@ export function validateAcceptedComposedRhythmTransactionStateV2(
 /**
  * Validates data crossing this owner boundary. Only the exact identity of a
  * transitively frozen plain-data state privately constructed above can take
- * the persistent constant-time path. Full-invariant re-proves that output
- * before stamping; lean stamps the constructor proof. Because every reachable
+ * the persistent constant-time path in either tier. Because every reachable
  * data property is frozen and no mutable built-in prototype is eligible, the
  * proof remains true after the state escapes. Restored and hand-built states
  * take the complete exported validator.
@@ -1223,14 +1229,17 @@ export function validateAcceptedComposedRhythmTransactionStateV2(
 export function validateAcceptedComposedRhythmTransactionBoundaryV2(
   state: AcceptedComposedRhythmTransactionStateV2,
 ): void {
-  if (internallyValidatedAcceptedComposedRhythmStatesV2.has(state)) return;
+  if (
+    validationStampReuseEligibleV1()
+    && internallyValidatedAcceptedComposedRhythmStatesV2.has(state)
+  ) return;
   validateAcceptedComposedRhythmTransactionStateV2(state);
 }
 
 function stampInternallyValidatedAcceptedComposedRhythmStateV2(
   state: AcceptedComposedRhythmTransactionStateV2,
 ): void {
-  if (isTransitivelyFrozenPlainData(state)) {
+  if (validationStampIssuanceEligibleV1(state)) {
     internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
   }
 }
@@ -1238,7 +1247,7 @@ function stampInternallyValidatedAcceptedComposedRhythmStateV2(
 function stampInternallyValidatedAcceptedComposedRhythmConfigurationV2(
   configuration: AcceptedComposedRhythmTransactionConfigurationV2,
 ): void {
-  if (isTransitivelyFrozenPlainData(configuration)) {
+  if (validationStampIssuanceEligibleV1(configuration)) {
     internallyValidatedAcceptedComposedRhythmConfigurationsV2.add(
       configuration,
     );
@@ -1695,5 +1704,4 @@ function requireNonemptyString(value: unknown, field: string): string { if (type
 function requirePositiveFinite(value: unknown, field: string): number { if (typeof value !== "number" || !Number.isFinite(value) || !(value > 0)) throw new Error(`${field} must be positive finite`); return value; }
 function requireNonnegativeFinite(value: unknown, field: string): number { if (typeof value !== "number" || !Number.isFinite(value) || value < 0) throw new Error(`${field} must be nonnegative finite`); return value; }
 function requireNonnegativeSafeInteger(value: unknown, field: string): number { if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new Error(`${field} must be a nonnegative safe integer`); return value; }
-function isTransitivelyFrozenPlainData(value: unknown, seen = new WeakSet<object>()): boolean { if (value === null || typeof value !== "object") return true; if (seen.has(value)) return true; if (!Object.isFrozen(value)) return false; const prototype = Object.getPrototypeOf(value); if (prototype !== null && prototype !== Object.prototype && prototype !== Array.prototype) return false; seen.add(value); for (const key of Reflect.ownKeys(value)) { const descriptor = Object.getOwnPropertyDescriptor(value, key); if (descriptor === undefined || !("value" in descriptor) || !isTransitivelyFrozenPlainData(descriptor.value, seen)) return false; } return true; }
 function deepFreeze<T>(value: T): T { if (value !== null && typeof value === "object") { for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child); Object.freeze(value); } return value; }

@@ -20,6 +20,10 @@ import {
 import {
   fullHotPathInvariantsEnabledV1,
 } from "@/engine/hotPathIntegrityTierV1";
+import {
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
 
 export const CORONARY_ACCEPTED_AUTOREGULATION_BINDING_V3_ID =
   "accepted-physical-time-coronary-autoregulation-v1" as const;
@@ -139,7 +143,7 @@ export function createCoronaryAutoregulationWindowBindingV3(
     perfusionPressureObservable:
       "final-candidate-post-focal-lesion-pressure-minus-common-cv-pressure" as const,
   });
-  if (isTransitivelyFrozenPlainData(binding)) {
+  if (validationStampIssuanceEligibleV1(binding)) {
     VALIDATED_AUTOREGULATION_BINDINGS_V3.add(binding);
   }
   return binding;
@@ -406,7 +410,7 @@ export function validateCoronaryAutoregulationWindowBindingV3(
   binding: CoronaryAutoregulationWindowBindingV3,
 ): void {
   if (
-    !fullHotPathInvariantsEnabledV1()
+    validationStampReuseEligibleV1()
     && VALIDATED_AUTOREGULATION_BINDINGS_V3.has(binding)
   ) {
     // This persistent proof is sound because only transitively frozen plain
@@ -455,7 +459,7 @@ export function validateCoronaryAutoregulationWindowBindingV3(
       !== "irregular-rhythm-stationary") {
     throw new Error("unsupported autoregulation window interpretation");
   }
-  if (isTransitivelyFrozenPlainData(binding)) {
+  if (validationStampIssuanceEligibleV1(binding)) {
     VALIDATED_AUTOREGULATION_BINDINGS_V3.add(binding);
   }
 }
@@ -469,7 +473,7 @@ export function validateCoronaryAcceptedAutoregulationStateV3(
   }>,
 ): void {
   if (
-    !fullHotPathInvariantsEnabledV1()
+    validationStampReuseEligibleV1()
     && hasAutoregulationStateBindingStampV3(state, binding)
   ) {
     // This persistent proof is sound because both identities are transitively
@@ -631,39 +635,11 @@ function stampAutoregulationStateBindingV3(
   state: CoronaryAcceptedAutoregulationStateV3,
   binding: CoronaryAutoregulationWindowBindingV3,
 ): void {
-  if (
-    !isTransitivelyFrozenPlainData(state)
-    || !isTransitivelyFrozenPlainData(binding)
-  ) return;
+  if (!validationStampIssuanceEligibleV1(state, binding)) return;
   const bindings = VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.get(state)
     ?? new WeakSet<object>();
   bindings.add(binding);
   VALIDATED_BINDINGS_BY_AUTOREGULATION_STATE_V3.set(state, bindings);
-}
-
-function isTransitivelyFrozenPlainData(
-  value: unknown,
-  seen = new WeakSet<object>(),
-): boolean {
-  if (value === null || typeof value !== "object") return true;
-  if (seen.has(value)) return true;
-  if (!Object.isFrozen(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  if (
-    prototype !== null
-    && prototype !== Object.prototype
-    && prototype !== Array.prototype
-  ) return false;
-  seen.add(value);
-  for (const key of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (
-      descriptor === undefined
-      || !("value" in descriptor)
-      || !isTransitivelyFrozenPlainData(descriptor.value, seen)
-    ) return false;
-  }
-  return true;
 }
 
 function freezeControl(

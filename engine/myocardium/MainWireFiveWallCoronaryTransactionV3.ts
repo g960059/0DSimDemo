@@ -44,6 +44,10 @@ import type {
 import type {
   WholeHeartMechanicsProviderV1,
 } from "@/engine/myocardium/wholeHeartMechanicsContractV1";
+import {
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
 
 export const MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V3_ID =
   "main-wire-five-wall-coronary-transaction-v3" as const;
@@ -366,7 +370,7 @@ function validatedMainWireFiveWallCoronaryBaseStateV2<TWallState>(
     validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.get(state) as
       | MainWireFiveWallCoronaryAcceptedStateV2<TWallState>
       | undefined;
-  if (cached !== undefined) return cached;
+  if (validationStampReuseEligibleV1() && cached !== undefined) return cached;
   if (state.transactionId !== MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V3_ID) {
     throw new Error("invalid main-wire coronary V3 transaction identity");
   }
@@ -395,10 +399,10 @@ function validatedMainWireFiveWallCoronaryBaseStateV2<TWallState>(
     && Object.isFrozen(state.circulation)
     && Object.isFrozen(state.coronary)
     && Object.isFrozen(state.mechanics)
-    && isTransitivelyFrozenPlainDataV3(
+    && validationStampIssuanceEligibleV1(
       state.coronaryAutoregulationBinding,
+      state.coronaryAutoregulation,
     )
-    && isTransitivelyFrozenPlainDataV3(state.coronaryAutoregulation)
   ) {
     validatedBaseStateByMainWireFiveWallCoronaryAcceptedStateV3.set(
       state,
@@ -463,35 +467,6 @@ function mapLayerRecord(
       ]),
     ))],
   ))) as CoronaryTerritoryLayerRecordV2<number>;
-}
-
-function isTransitivelyFrozenPlainDataV3(
-  value: unknown,
-  seen = new WeakSet<object>(),
-): boolean {
-  if (value === null || typeof value !== "object") return true;
-  if (seen.has(value)) return true;
-  if (!Object.isFrozen(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  if (
-    prototype !== null
-    && prototype !== Object.prototype
-    && prototype !== Array.prototype
-  ) {
-    return false;
-  }
-  seen.add(value);
-  for (const key of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (
-      descriptor === undefined
-      || !("value" in descriptor)
-      || !isTransitivelyFrozenPlainDataV3(descriptor.value, seen)
-    ) {
-      return false;
-    }
-  }
-  return true;
 }
 
 function nearlyEqual(left: number, right: number): boolean {

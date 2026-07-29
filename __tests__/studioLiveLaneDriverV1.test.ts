@@ -608,6 +608,7 @@ function hostedSessionV1(
   return Object.freeze({
     hostId,
     sessionId,
+    hotPathIntegrityTier: "full-invariant",
     laneDescriptor: MAIN_WIRE_INTEGRATED_V3_LANE_DESCRIPTOR_V1,
     presentationOrdinal,
     acceptedRevision,

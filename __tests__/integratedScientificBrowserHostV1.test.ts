@@ -155,6 +155,7 @@ describe("MainWireIntegratedScientificBrowserHostV1", () => {
     mismatchWorker.emitMessage({
       protocolId:
         MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID,
+      hotPathIntegrityTier: "full-invariant",
       ok: true,
       requestId: "mismatch-request",
       sessionId: "other-session",
@@ -218,6 +219,7 @@ describe("MainWireIntegratedScientificBrowserHostV1", () => {
     const host = hostFor("live-host", worker);
     const created = await host.createWorkerOwnedPreset("live-session");
     expect(created).toMatchObject({
+      hotPathIntegrityTier: "full-invariant",
       presentationOrdinal: 0,
       acceptedRevision: 0,
       acceptedTimeSec: 0,

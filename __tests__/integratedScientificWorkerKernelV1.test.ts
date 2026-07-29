@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  hotPathIntegrityTierV1,
+  selectHotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_COMMAND_KINDS_V1,
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1,
   MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID,
@@ -18,6 +22,24 @@ import {
 } from "@/engine/scientificBrowser/mainWireIntegratedScientificBrowserRuntimeLimitsV1";
 
 describe("MainWireIntegratedScientificWorkerKernelV1", () => {
+  it("reports the effective integrity tier in every response", async () => {
+    const previous = hotPathIntegrityTierV1();
+    selectHotPathIntegrityTierV1("hot-path-lean");
+    try {
+      const response =
+        await new MainWireIntegratedScientificWorkerKernelV1().handle(
+          command("observe", "observe-tier", "missing-session"),
+        );
+      expect(response).toMatchObject({
+        hotPathIntegrityTier: "hot-path-lean",
+        ok: false,
+        error: { code: "unknown-session-id" },
+      });
+    } finally {
+      selectHotPathIntegrityTierV1(previous);
+    }
+  });
+
   it("exposes only the six V3 commands and returns the exact capability descriptor", async () => {
     expect(
       MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_COMMAND_KINDS_V1,
@@ -46,6 +68,7 @@ describe("MainWireIntegratedScientificWorkerKernelV1", () => {
     ));
     expect(created).toMatchObject({
       ok: true,
+      hotPathIntegrityTier: "full-invariant",
       commandKind: "createWorkerOwnedPresetSession",
       laneDescriptor: {
         laneKind:

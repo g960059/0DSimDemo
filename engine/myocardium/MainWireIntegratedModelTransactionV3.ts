@@ -5,6 +5,10 @@ import {
   fullHotPathInvariantsEnabledV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import {
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
+import {
   createDynamicMechanicalSupportAcceptedStateV1,
   validateDynamicMechanicalSupportAcceptedStateV1,
   validateDynamicMechanicalSupportInertanceProfileV1,
@@ -171,17 +175,50 @@ type MainWireIntegratedModelValidationStampV3<TWallState> = Readonly<{
   dynamicConfig: MechanicalSupportConfigV1;
 }>;
 
+export type MainWireIntegratedConstructorFaultForTestV1 =
+  | "outer-accepted-time-ahead-of-owners"
+  | "dynamic-candidate-nan-flow";
+
+let constructorFaultForTestV1:
+  MainWireIntegratedConstructorFaultForTestV1 | null = null;
+
+/**
+ * Synchronously injects one constructor-output defect for a regression test.
+ * The callback scope and non-nesting guard prevent the fault from leaking into
+ * another transaction or an asynchronous continuation.
+ */
+export function withMainWireIntegratedConstructorFaultForTestV1<T>(
+  fault: MainWireIntegratedConstructorFaultForTestV1,
+  body: () => T,
+): T {
+  if (constructorFaultForTestV1 !== null) {
+    throw new Error("integrated constructor fault injection cannot nest");
+  }
+  constructorFaultForTestV1 = fault;
+  try {
+    const result = body();
+    if (
+      typeof result === "object"
+      && result !== null
+      && "then" in result
+    ) {
+      throw new Error("integrated constructor fault injection must be synchronous");
+    }
+    return result;
+  } finally {
+    constructorFaultForTestV1 = null;
+  }
+}
+
 /**
  * Only internally constructed accepted states receive entries here.
- * Full-invariant deep-validates the constructed tuple before stamping; lean
- * relies on the three accepted owner outputs plus this wrapper's direct
- * identity/clock derivation. A hit requires the exact rhythm-configuration,
- * dynamic-profile, and dynamic-config object triple, and entries are created
- * only when all three graphs are transitively frozen plain data. Replacing any
- * member of the triple misses; changing one in place is impossible after the
- * stamp is created. Deserialised and hand-built states have no entry and each
- * exported boundary either performs complete validation or observes this exact
- * private constructor/context stamp.
+ * A hit requires the exact rhythm-configuration, dynamic-profile, and
+ * dynamic-config object triple, and entries are created only when all three
+ * graphs are transitively frozen plain data. Replacing any member of the triple
+ * misses; changing one in place is impossible after the stamp is created.
+ * Deserialised and hand-built states have no entry and each exported boundary
+ * either performs complete validation or observes this exact private
+ * constructor/context stamp. This proof is independent of the hot-path tier.
  */
 const internalValidationStampsByAcceptedStateV3 = new WeakMap<
   object,
@@ -680,13 +717,27 @@ function constructMainWireIntegratedModelAcceptedStateV3<TWallState>(
   composedRhythm: AcceptedComposedRhythmTransactionStateV2,
   dynamicMechanicalSupport: DynamicMechanicalSupportAcceptedStateV1,
 ): MainWireIntegratedModelAcceptedStateV3<TWallState> {
+  const acceptedTimeSec =
+    constructorFaultForTestV1 === "outer-accepted-time-ahead-of-owners"
+      ? coronary.acceptedTimeSec + 0.001
+      : coronary.acceptedTimeSec;
+  const publishedDynamicMechanicalSupport =
+    constructorFaultForTestV1 === "dynamic-candidate-nan-flow"
+      ? Object.freeze({
+        ...dynamicMechanicalSupport,
+        acceptedFlowMlPerSec: Object.freeze({
+          ...dynamicMechanicalSupport.acceptedFlowMlPerSec,
+          LVAD: Number.NaN,
+        }),
+      }) as DynamicMechanicalSupportAcceptedStateV1
+      : dynamicMechanicalSupport;
   const state = Object.freeze({
     transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
     revision: coronary.revision,
-    acceptedTimeSec: coronary.acceptedTimeSec,
+    acceptedTimeSec,
     coronary,
     composedRhythm,
-    dynamicMechanicalSupport,
+    dynamicMechanicalSupport: publishedDynamicMechanicalSupport,
   });
   return state;
 }
@@ -700,10 +751,12 @@ function validateMainWireIntegratedBoundaryV3<TWallState>(
   const existing = internalValidationStampsByAcceptedStateV3.get(state) as
     | readonly MainWireIntegratedModelValidationStampV3<TWallState>[]
     | undefined;
-  const matching = existing?.find((stamp) =>
-    stamp.rhythmConfiguration === rhythm.configuration
-    && stamp.dynamicProfile === dynamicProfile
-    && stamp.dynamicConfig === dynamicConfig);
+  const matching = validationStampReuseEligibleV1()
+    ? existing?.find((stamp) =>
+      stamp.rhythmConfiguration === rhythm.configuration
+      && stamp.dynamicProfile === dynamicProfile
+      && stamp.dynamicConfig === dynamicConfig)
+    : undefined;
   if (matching !== undefined) return;
 
   validateMainWireIntegratedModelAcceptedStateV3(
@@ -728,11 +781,11 @@ function validateMainWireIntegratedBoundaryV3<TWallState>(
 function stampInternalMainWireIntegratedModelValidationV3<TWallState>(
   stamp: MainWireIntegratedModelValidationStampV3<TWallState>,
 ): void {
-  if (
-    !isTransitivelyFrozenPlainData(stamp.rhythmConfiguration)
-    || !isTransitivelyFrozenPlainData(stamp.dynamicProfile)
-    || !isTransitivelyFrozenPlainData(stamp.dynamicConfig)
-  ) {
+  if (!validationStampIssuanceEligibleV1(
+    stamp.rhythmConfiguration,
+    stamp.dynamicProfile,
+    stamp.dynamicConfig,
+  )) {
     return;
   }
   const existing =
@@ -1201,35 +1254,6 @@ function requireOwnKeys(
       throw new Error(`${field} is missing ${key}`);
     }
   }
-}
-
-function isTransitivelyFrozenPlainData(
-  value: unknown,
-  seen = new WeakSet<object>(),
-): boolean {
-  if (value === null || typeof value !== "object") return true;
-  if (seen.has(value)) return true;
-  if (!Object.isFrozen(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  if (
-    prototype !== null
-    && prototype !== Object.prototype
-    && prototype !== Array.prototype
-  ) {
-    return false;
-  }
-  seen.add(value);
-  for (const key of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (
-      descriptor === undefined
-      || !("value" in descriptor)
-      || !isTransitivelyFrozenPlainData(descriptor.value, seen)
-    ) {
-      return false;
-    }
-  }
-  return true;
 }
 
 function deepFreeze<T>(value: T): T {

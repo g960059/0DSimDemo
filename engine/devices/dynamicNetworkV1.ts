@@ -26,8 +26,9 @@ import {
   type RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
 import {
-  fullHotPathInvariantsEnabledV1,
-} from "@/engine/hotPathIntegrityTierV1";
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
 
 export const DYNAMIC_MECHANICAL_SUPPORT_NETWORK_V1_ID =
   "circleheart-dynamic-mechanical-support-network-v1" as const;
@@ -276,7 +277,7 @@ export function createDynamicMechanicalSupportInertanceProfileV1(
     deviceProfileBindingByDevice,
     inertanceByDevice,
   });
-  if (isTransitivelyFrozenData(profile)) {
+  if (validationStampIssuanceEligibleV1(profile)) {
     VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES.add(profile);
   }
   return profile;
@@ -378,9 +379,9 @@ export function validateDynamicMechanicalSupportInertanceProfileV1(
   profile: unknown,
 ): asserts profile is DynamicMechanicalSupportInertanceProfileV1 {
   if (
-    !fullHotPathInvariantsEnabledV1()
-    && profile !== null
+    profile !== null
     && typeof profile === "object"
+    && validationStampReuseEligibleV1()
     && VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES.has(profile)
   ) {
     // This persistent proof is sound because only a transitively frozen
@@ -419,7 +420,7 @@ export function validateDynamicMechanicalSupportInertanceProfileV1(
     typed.inertanceByDevice,
     "profile.inertanceByDevice",
   );
-  if (isTransitivelyFrozenData(profile)) {
+  if (validationStampIssuanceEligibleV1(profile)) {
     VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES.add(profile);
   }
 }
@@ -430,9 +431,9 @@ export function validateDynamicMechanicalSupportAcceptedStateV1(
   config: MechanicalSupportConfigV1,
 ): asserts state is DynamicMechanicalSupportAcceptedStateV1 {
   if (
-    !fullHotPathInvariantsEnabledV1()
-    && state !== null
+    state !== null
     && typeof state === "object"
+    && validationStampReuseEligibleV1()
     && hasDynamicMechanicalSupportValidationStampV1(state, profile, config)
   ) {
     // This persistent proof is sound because the live state, profile, and
@@ -510,8 +511,7 @@ export function evaluateDynamicMechanicalSupportHydraulicsV1(
   );
   // This candidate is private same-tick output assembled from the accepted
   // state's owned immutable binding and the four validated pump candidates.
-  // Lean may reuse only this exact profile/config identity proof; full keeps
-  // re-validating it at every downstream site.
+  // Only this exact state/profile/config identity proof can be reused.
   stampDynamicMechanicalSupportAcceptedStateV1(
     candidateAcceptedState,
     profile,
@@ -1366,9 +1366,7 @@ function stampDynamicMechanicalSupportAcceptedStateV1(
 ): void {
   if (
     !LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state)
-    || !isTransitivelyFrozenData(state)
-    || !isTransitivelyFrozenData(profile)
-    || !isTransitivelyFrozenData(config)
+    || !validationStampIssuanceEligibleV1(state, profile, config)
   ) return;
   const existing =
     VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state) ?? [];
@@ -1378,31 +1376,6 @@ function stampDynamicMechanicalSupportAcceptedStateV1(
     state,
     Object.freeze([...existing, Object.freeze({ profile, config })]),
   );
-}
-
-function isTransitivelyFrozenData(
-  value: unknown,
-  seen = new WeakSet<object>(),
-): boolean {
-  if (value === null || typeof value !== "object") return true;
-  if (seen.has(value)) return true;
-  if (!Object.isFrozen(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  if (
-    prototype !== null
-    && prototype !== Object.prototype
-    && prototype !== Array.prototype
-  ) return false;
-  seen.add(value);
-  for (const key of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (
-      descriptor === undefined
-      || !("value" in descriptor)
-      || !isTransitivelyFrozenData(descriptor.value, seen)
-    ) return false;
-  }
-  return true;
 }
 
 function addIncidenceDerivative(

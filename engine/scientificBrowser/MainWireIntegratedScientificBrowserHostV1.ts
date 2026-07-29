@@ -36,6 +36,7 @@ export const MAIN_WIRE_INTEGRATED_SCIENTIFIC_BROWSER_HOST_V1_ID =
 export type MainWireIntegratedBrowserHostedSessionV1 = Readonly<{
   hostId: string;
   sessionId: string;
+  hotPathIntegrityTier: HotPathIntegrityTierV1;
   laneDescriptor: StudioLaneDescriptorV1;
   presentationOrdinal: number | null;
   acceptedRevision: number;
@@ -234,6 +235,7 @@ implements MainWireIntegratedScientificBrowserHostV1 {
     ) throw hostErrorV1("create receipt mismatch");
     return this.installSessionV1(
       sessionId,
+      response.hotPathIntegrityTier,
       response.laneDescriptor,
       response.payload.session,
     );
@@ -254,9 +256,14 @@ implements MainWireIntegratedScientificBrowserHostV1 {
       response.commandKind !== "observe"
       || response.payload.kind !== "observation"
     ) throw hostErrorV1("observe receipt mismatch");
-    this.assertSameLaneV1(session, response.laneDescriptor);
+    this.assertSameLaneV1(
+      session,
+      response.hotPathIntegrityTier,
+      response.laneDescriptor,
+    );
     return this.installSessionV1(
       session.sessionId,
+      response.hotPathIntegrityTier,
       response.laneDescriptor,
       response.payload.session,
     );
@@ -282,7 +289,11 @@ implements MainWireIntegratedScientificBrowserHostV1 {
         || progress === null
         || progress.kind !== "presentation-advance-partial-progress"
       ) throw commandErrorV1(response);
-      this.assertSameLaneV1(session, response.laneDescriptor);
+      this.assertSameLaneV1(
+        session,
+        response.hotPathIntegrityTier,
+        response.laneDescriptor,
+      );
       return this.failedAdvanceV1(session, response, progress);
     }
     if (
@@ -290,10 +301,15 @@ implements MainWireIntegratedScientificBrowserHostV1 {
       || response.payload.kind !== "presentation-advance"
       || response.payload.presentationOrdinal !== presentationOrdinal
     ) throw hostErrorV1("presentation advance receipt mismatch");
-    this.assertSameLaneV1(session, response.laneDescriptor);
+    this.assertSameLaneV1(
+      session,
+      response.hotPathIntegrityTier,
+      response.laneDescriptor,
+    );
     const updated = Object.freeze({
       hostId: this.hostId,
       sessionId: session.sessionId,
+      hotPathIntegrityTier: response.hotPathIntegrityTier,
       laneDescriptor: response.laneDescriptor,
       presentationOrdinal: response.payload.presentationOrdinal,
       acceptedRevision: response.payload.acceptedRevision,
@@ -349,7 +365,11 @@ implements MainWireIntegratedScientificBrowserHostV1 {
         || progress.kind
           !== "presentation-advance-batch-partial-progress"
       ) throw commandErrorV1(response);
-      this.assertSameLaneV1(session, response.laneDescriptor);
+      this.assertSameLaneV1(
+        session,
+        response.hotPathIntegrityTier,
+        response.laneDescriptor,
+      );
       return this.failedAdvanceBatchV1(
         session,
         response,
@@ -364,10 +384,15 @@ implements MainWireIntegratedScientificBrowserHostV1 {
       || response.payload.requestedPresentationOrdinalCount
         !== presentationOrdinalCount
     ) throw hostErrorV1("presentation advance batch receipt mismatch");
-    this.assertSameLaneV1(session, response.laneDescriptor);
+    this.assertSameLaneV1(
+      session,
+      response.hotPathIntegrityTier,
+      response.laneDescriptor,
+    );
     const advances = response.payload.advances.map((payload) =>
       this.successfulAdvanceReceiptV1(
         session.sessionId,
+        response.hotPathIntegrityTier,
         response.laneDescriptor,
         payload,
       ));
@@ -404,9 +429,14 @@ implements MainWireIntegratedScientificBrowserHostV1 {
       response.commandKind !== "getOperationalCheckpoint"
       || response.payload.kind !== "operational-checkpoint"
     ) throw hostErrorV1("operational checkpoint receipt mismatch");
-    this.assertSameLaneV1(session, response.laneDescriptor);
+    this.assertSameLaneV1(
+      session,
+      response.hotPathIntegrityTier,
+      response.laneDescriptor,
+    );
     const updated = this.installSessionV1(
       session.sessionId,
+      response.hotPathIntegrityTier,
       response.laneDescriptor,
       response.payload.session,
     );
@@ -438,6 +468,7 @@ implements MainWireIntegratedScientificBrowserHostV1 {
     ) throw hostErrorV1("operational restore receipt mismatch");
     return this.installSessionV1(
       input.sessionId,
+      response.hotPathIntegrityTier,
       response.laneDescriptor,
       response.payload.session,
     );
@@ -459,7 +490,11 @@ implements MainWireIntegratedScientificBrowserHostV1 {
       || response.payload.kind !== "session-disposed"
       || response.payload.disposedSessionId !== session.sessionId
     ) throw hostErrorV1("dispose receipt mismatch");
-    this.assertSameLaneV1(session, response.laneDescriptor);
+    this.assertSameLaneV1(
+      session,
+      response.hotPathIntegrityTier,
+      response.laneDescriptor,
+    );
     this.sessions.delete(session.sessionId);
   }
 
@@ -512,20 +547,27 @@ implements MainWireIntegratedScientificBrowserHostV1 {
 
   private assertSameLaneV1(
     session: MainWireIntegratedBrowserHostedSessionV1,
+    hotPathIntegrityTier: HotPathIntegrityTierV1,
     descriptor: StudioLaneDescriptorV1 | null,
   ): asserts descriptor is StudioLaneDescriptorV1 {
     if (
-      descriptor === null
+      hotPathIntegrityTier !== session.hotPathIntegrityTier
+      || descriptor === null
       || descriptor.laneId !== session.laneDescriptor.laneId
       || descriptor.releaseRef.sha256
         !== session.laneDescriptor.releaseRef.sha256
       || descriptor.observableCatalogSha256
         !== session.laneDescriptor.observableCatalogSha256
-    ) throw hostErrorV1("lane descriptor changed within a hosted session");
+    ) {
+      throw hostErrorV1(
+        "integrity tier or lane descriptor changed within a hosted session",
+      );
+    }
   }
 
   private installSessionV1(
     sessionId: string,
+    hotPathIntegrityTier: HotPathIntegrityTierV1,
     laneDescriptor: StudioLaneDescriptorV1,
     snapshot: Readonly<{
       presentationOrdinal: number | null;
@@ -537,6 +579,7 @@ implements MainWireIntegratedScientificBrowserHostV1 {
     const session = Object.freeze({
       hostId: this.hostId,
       sessionId,
+      hotPathIntegrityTier,
       laneDescriptor,
       presentationOrdinal: snapshot.presentationOrdinal,
       acceptedRevision: snapshot.acceptedRevision,
@@ -583,12 +626,14 @@ implements MainWireIntegratedScientificBrowserHostV1 {
 
   private successfulAdvanceReceiptV1(
     sessionId: string,
+    hotPathIntegrityTier: HotPathIntegrityTierV1,
     laneDescriptor: StudioLaneDescriptorV1,
     payload: MainWireIntegratedScientificWorkerAdvancePayloadV1,
   ): MainWireIntegratedBrowserSuccessfulAdvanceReceiptV1 {
     const updated = Object.freeze({
       hostId: this.hostId,
       sessionId,
+      hotPathIntegrityTier,
       laneDescriptor,
       presentationOrdinal: payload.presentationOrdinal,
       acceptedRevision: payload.acceptedRevision,
@@ -628,6 +673,7 @@ implements MainWireIntegratedScientificBrowserHostV1 {
     const completedAdvances = progress.completedAdvances.map((payload) =>
       this.successfulAdvanceReceiptV1(
         session.sessionId,
+        response.hotPathIntegrityTier,
         laneDescriptor,
         payload,
       ));
@@ -635,6 +681,7 @@ implements MainWireIntegratedScientificBrowserHostV1 {
     const updated = Object.freeze({
       hostId: this.hostId,
       sessionId: session.sessionId,
+      hotPathIntegrityTier: response.hotPathIntegrityTier,
       laneDescriptor,
       presentationOrdinal: progress.lastPresentationOrdinal,
       acceptedRevision: progress.acceptedRevision,

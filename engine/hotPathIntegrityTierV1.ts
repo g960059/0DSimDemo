@@ -1,59 +1,105 @@
 /**
- * Hot-path integrity tier.
+ * Hot-path integrity tier: factual guard and stamp inventory.
  *
- * The scientific kernel carries value-producing checks, public-boundary
- * validation, and defensive construction proofs. Value-producing checks and
- * validation of mutable data crossing a public boundary always run. In
- * particular, accepted mechanics material contains typed arrays that cannot be
- * frozen, so both tiers re-encode and fingerprint it whenever it re-enters a
- * step.
+ * Measured price on lane `334636c9`: the fixed harness first measured lean at
+ * 1.613/1.518 and full at 2.401/2.399 ms per accepted step, about 54% slower
+ * before the constructor-side checks below were restored. On the completed
+ * working tree, four alternating runs measured lean at
+ * 1.539/1.542/1.567/1.570 and full at
+ * 2.638/2.643/2.651/2.674 ms per accepted step, about 71% slower by the means.
+ * An isolated interleaved build comparison attributes 0.248 ms/step, or 11.1%
+ * over the no-Family-B full tier, to those restored constructor checks. Before
+ * the harness fix, a full-requested `sequenceHashV3` run silently selected
+ * lean, so older measurements made through that utility are not tier evidence.
  *
- * `hot-path-lean` selects only checks whose result is not consumed by the
- * numerical method:
+ * Tier-selected sites:
  *
- * - immediate deep re-proof of a constructor output assembled from validated
- *   inputs;
- * - same-tick recomputation for an exact privately issued candidate/base pair;
- * - defensive clones or freezes that protect diagnostic readback rather than
- *   an accepted numerical value; and
- * - repeated validation of an exact identity whose complete reachable graph is
- *   proven to be transitively frozen plain data.
+ * - `nonCoronaryCirculationBackwardEulerV1` checks exact topology key sets and
+ *   freezes freshly built node/edge records only in full. Per-field validation
+ *   and every arithmetic value are outside those guards. No stamp is involved.
+ * - `landSlsWallMaterialV1` re-validates the kernel-owned previous state in its
+ *   trial, accepted-state evaluation, and codec clone only in full. Cold and
+ *   restore entry points still validate, and the copy/math still runs in lean.
+ *   These states contain a mutable typed array and never earn a frozen-data
+ *   stamp.
+ * - `wholeHeartMechanicsContractV1` always clones material state and
+ *   fingerprints encoded state. Full additionally encodes a second clone and
+ *   walks it for serializability; it also clones diagnostic readback where lean
+ *   publishes the provider readback reference. The diagnostic readback is not
+ *   accepted state or checkpoint material. No stamp is involved.
+ * - `acceptedComposedRhythmTransactionV2` fully validates each freshly built
+ *   candidate state in full before stamping it. Lean stamps the module-built
+ *   graph without that independent re-walk. Full also recomputes an exact
+ *   same-tick candidate/base pair at commit; lean may reuse the private pair.
+ * - `acceptedAutoregulationWindowV3` fully validates each freshly advanced
+ *   state, including its supplied outer clock, in full before stamping it.
+ *   Lean stamps the module-built state/binding pair without that re-walk.
+ * - `MainWireIntegratedModelTransactionV3` fully validates each private outer
+ *   accepted tuple in full before the tuple/context stamp is issued. Lean
+ *   stamps the wrapper built from its three owner outputs without that
+ *   independent validation. The two constructor fault controls pin that full
+ *   rejects an outer clock 0.001 s ahead of its owners and a dynamic candidate
+ *   that publishes NaN flow before either defect can earn this stamp.
  *
- * Some selected constructor proofs are the only immediate validation of an
- * output that becomes accepted state and is later serialized into a
- * checkpoint. Full-invariant can therefore catch a constructor bug at that
- * site which hot-path-lean will not. Lean does not claim equivalent fault
- * detection; it claims the same numbers only when those constructors satisfy
- * their contracts.
+ * Persistent stamps are separate from the tier. Only module-private issuers can
+ * create them, and `validation-stamps-disabled` makes every reuse and issuance
+ * eligibility check miss:
  *
- * `__tests__/hotPathIntegrityTierV1.test.ts` runs the same trajectory in both
- * tiers and pins observation, diagnostic and checkpoint equality. The
- * canonical accepted-state sequence has its own exact SHA-256 pin. Together
- * those tests make a numerical change reviewable; they do not turn omitted
- * constructor proofs into checks.
+ * - Composed rhythm stamps a transitively frozen configuration identity.
+ *   Factory issuance means "constructed canonically here"; exported-validator
+ *   issuance means "fully validated". A copied, restored, mutable, or hand-built
+ *   configuration misses. The state WeakSet accepts only a transitively frozen
+ *   state: initialization means fully validated, a full-tier candidate means
+ *   independently validated, and a lean candidate means constructed here from
+ *   owner candidates. A state clone/restore misses. There are no mutable
+ *   descendants to re-check on an identity hit.
+ * - Dynamic MCS stamps a transitively frozen profile identity and exact live
+ *   state/profile/config triples. Profile factory issuance means constructed
+ *   from validated copied fields; validator issuance means fully validated.
+ *   State factory and hydraulic-candidate issuance mean constructed here with
+ *   live-factory provenance; validator issuance means structurally validated
+ *   against that context. Restores retain live provenance but receive no
+ *   context stamp. A clone, restore, profile/config substitution, mutable
+ *   descendant, or non-live state misses; no mutable descendant is skipped on
+ *   a hit because all three eligible graphs are transitively frozen plain data.
+ * - Coronary autoregulation stamps a transitively frozen binding identity.
+ *   Factory issuance means constructed here; validator issuance means fully
+ *   validated. Its state stamp binds an exact transitively frozen state to an
+ *   exact binding. Full candidate issuance follows complete state validation;
+ *   lean candidate issuance means constructed here. A clone, restore, binding
+ *   substitution, or mutable descendant misses. The supplied outer
+ *   clock/revision is re-checked even on a state/binding hit.
+ * - The integrated V3 WeakMap keys the exact outer accepted tuple and records
+ *   exact rhythm-configuration/dynamic-profile/dynamic-config triples. Only the
+ *   private wrapper can seed an entry: in full the seed means the entire tuple
+ *   was validated; in lean it means only that the wrapper was constructed here
+ *   from owner outputs. A later context can be added only after complete
+ *   validation. Eligibility proves the context triple is transitively frozen;
+ *   it does not prove the accepted-state graph is transitively frozen. In
+ *   particular the coronary mechanics Land typed arrays remain mutable. An
+ *   exact tuple/context hit re-checks no mutable descendant at this site.
+ *   Cloning/restoring the tuple or substituting any context identity misses and
+ *   takes complete validation; owner-specific checks, including mechanics
+ *   fingerprints, remain the responsibility of their downstream sites.
+ * - The coronary V3-to-V2 view cache is issued only after the exact V3 object
+ *   and reconstructed V2 view pass their validators, the V3 wrapper surfaces
+ *   are frozen, and the autoregulation binding/state are transitively frozen.
+ *   It does not claim the embedded mechanics graph is transitively frozen. A
+ *   hit reuses the cached V2 view without re-checking mutable descendants at
+ *   this site. A clone/restore misses by V3 identity; this cache has no context
+ *   triple to substitute.
  *
- * Precedent: the release already separates a presentation tier from an exact
- * tier (live sampling is decimated; exact 0.002 s data comes from deterministic
- * replay). This is the same shape one level down — a cheap live tier and a
- * full-invariant tier that remains the reference.
+ * Selection and verification:
  *
- * Default and scope:
- *
- * - The default is `full-invariant`. Every node harness, every verifier, every
- *   generator and the whole test suite therefore keep every check, with no
- *   opt-in required and no change to what they already assert.
+ * - The default is `full-invariant`.
  * - The live scientific Worker entry points explicitly select
- *   `hot-path-lean`: the established non-coronary Worker and the separate
- *   integrated V3 Worker. The exact signal replay/export path runs on its own
- *   host and never selects it.
+ *   `hot-path-lean`; the integrated Worker reports the selected tier in its
+ *   protocol diagnostics.
  * - `CIRCLEHEART_HOT_PATH_INTEGRITY` (node) and
  *   `VITE_CIRCLEHEART_HOT_PATH_INTEGRITY` (bundled builds) can move the default
- *   for a whole process; the Vite variable is a literal at build time, so a
- *   build that pins it lets the bundler fold the tier test to a constant.
- *
- * What `hot-path-lean` does NOT do: it never skips a residual test, a
- * convergence test, a conservation audit, a finiteness flag that is reported,
- * or validation of mutable data crossing or re-entering a public boundary.
+ *   for a process. `CIRCLEHEART_VALIDATION_STAMPS=disabled` independently
+ *   selects the complete-revalidation verification mode, whose effective mode
+ *   is printed by `sequenceHashV3`.
  */
 
 export const HOT_PATH_INTEGRITY_TIER_V1_ID =
@@ -95,7 +141,7 @@ export function hotPathIntegrityTierV1(): HotPathIntegrityTierV1 {
 }
 
 /**
- * True when full defensive constructor proofs, defensive clones, and
+ * True when the remaining tier-selected defensive checks, clones, and
  * hot-path freezing are enabled. Guarded sites read this and nothing else.
  */
 export function fullHotPathInvariantsEnabledV1(): boolean {

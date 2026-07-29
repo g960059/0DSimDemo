@@ -13,7 +13,11 @@ import {
   validateDynamicMechanicalSupportAcceptedStateV1,
 } from "@/engine/devices/dynamicNetworkV1";
 import {
+  limitMainWireIntegratedModelCandidateTimeV3,
+  stepMainWireIntegratedModelV3,
   validateMainWireIntegratedModelAcceptedStateV3,
+  withMainWireIntegratedConstructorFaultForTestV1,
+  type MainWireIntegratedConstructorFaultForTestV1,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
   cloneLandSlsWallMaterialStateV1,
@@ -34,6 +38,11 @@ import {
 import {
   sha256CanonicalJsonHex,
 } from "@/engine/scientific/release";
+import {
+  DEFAULT_VALIDATION_STAMP_MODE_V1,
+  isTransitivelyFrozenPlainDataV1,
+  validationStampModeV1,
+} from "@/engine/validationStampModeV1";
 
 const STEP_COUNT = 120;
 const INTEGRATED_PRESENTATION_STEP_COUNT = 500;
@@ -140,6 +149,12 @@ describe("hot-path integrity tier V1", () => {
     expect(hotPathIntegrityTierV1()).toBe("full-invariant");
   });
 
+  it("defaults to validation stamps enabled", () => {
+    expect(DEFAULT_VALIDATION_STAMP_MODE_V1)
+      .toBe("validation-stamps-enabled");
+    expect(validationStampModeV1()).toBe("validation-stamps-enabled");
+  });
+
   it("actually gates a hot-path defensive check", () => {
     // Without this, the equality pin below could pass because the tier never
     // reaches the guarded modules at all.
@@ -165,7 +180,7 @@ describe("hot-path integrity tier V1", () => {
     }
   });
 
-  it("keeps malformed caller-supplied rhythm configuration validation in lean", () => {
+  it("keeps malformed caller-supplied rhythm configuration validation", () => {
     const fixture =
       createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
     const malformed = Object.freeze({
@@ -173,17 +188,12 @@ describe("hot-path integrity tier V1", () => {
       configurationId: "",
     });
 
-    selectHotPathIntegrityTierV1("hot-path-lean");
-    try {
-      expect(() =>
-        validateAcceptedComposedRhythmTransactionConfigurationV2(malformed))
-        .toThrow(/configurationId/);
-    } finally {
-      selectHotPathIntegrityTierV1("full-invariant");
-    }
+    expect(() =>
+      validateAcceptedComposedRhythmTransactionConfigurationV2(malformed))
+      .toThrow(/configurationId/);
   });
 
-  it("keeps unstamped accepted-state boundaries complete in lean", () => {
+  it("keeps unstamped accepted-state boundaries complete", () => {
     const fixture =
       createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
     const accepted = fixture.cold.acceptedState;
@@ -199,27 +209,59 @@ describe("hot-path integrity tier V1", () => {
       acceptedTimeSec: accepted.acceptedTimeSec + 0.001,
     });
 
-    selectHotPathIntegrityTierV1("hot-path-lean");
-    try {
-      expect(() => validateDynamicMechanicalSupportAcceptedStateV1(
-        dynamicClone,
-        fixture.profile,
-        fixture.config,
-      )).toThrow(/live factory provenance/);
-      expect(() => validateCoronaryAcceptedAutoregulationStateV3(
-        accepted.coronary.coronaryAutoregulationBinding,
-        autoregulationClone,
-      )).toThrow(/acceptedDurationSec/);
-      expect(() => validateMainWireIntegratedModelAcceptedStateV3(
-        integratedClone,
-        { configuration: fixture.rhythm.configuration },
-        fixture.profile,
-        fixture.config,
-      )).toThrow(/owner clocks differ/);
-    } finally {
-      selectHotPathIntegrityTierV1("full-invariant");
-    }
+    expect(() => validateDynamicMechanicalSupportAcceptedStateV1(
+      dynamicClone,
+      fixture.profile,
+      fixture.config,
+    )).toThrow(/live factory provenance/);
+    expect(() => validateCoronaryAcceptedAutoregulationStateV3(
+      accepted.coronary.coronaryAutoregulationBinding,
+      autoregulationClone,
+    )).toThrow(/acceptedDurationSec/);
+    expect(() => validateMainWireIntegratedModelAcceptedStateV3(
+      integratedClone,
+      { configuration: fixture.rhythm.configuration },
+      fixture.profile,
+      fixture.config,
+    )).toThrow(/owner clocks differ/);
   });
+
+  it.each([
+    [
+      "outer accepted time 0.001 s ahead of its owners",
+      "outer-accepted-time-ahead-of-owners",
+      /composed integrated accepted owner clocks differ/,
+    ],
+    [
+      "dynamic candidate publishing NaN flow",
+      "dynamic-candidate-nan-flow",
+      /state\.acceptedFlowMlPerSec\.LVAD must be finite/,
+    ],
+  ] as const)(
+    "full constructor validation rejects %s before stamping",
+    (_label, fault, message) => {
+      const full = runIntegratedConstructorFaultV1("full-invariant", fault);
+      expect(full).toMatchObject({
+        converged: false,
+        reason: "integrated-promotion-rejected",
+        message: expect.stringMatching(message),
+      });
+
+      const lean = runIntegratedConstructorFaultV1("hot-path-lean", fault);
+      expect(lean.converged).toBe(true);
+      if (lean.converged === false) {
+        throw new Error(`lean fault control unexpectedly failed: ${lean.message}`);
+      }
+      if (fault === "outer-accepted-time-ahead-of-owners") {
+        expect(lean.acceptedState.acceptedTimeSec).toBe(
+          lean.acceptedState.coronary.acceptedTimeSec + 0.001,
+        );
+      } else {
+        expect(lean.acceptedState.dynamicMechanicalSupport
+          .acceptedFlowMlPerSec.LVAD).toBeNaN();
+      }
+    },
+  );
 
   it("limits persistent proof caches to actually immutable plain-data graphs", () => {
     const fixture =
@@ -235,15 +277,57 @@ describe("hot-path integrity tier V1", () => {
       accepted.coronary.coronaryAutoregulationBinding,
       accepted.coronary.coronaryAutoregulation,
     ]) {
-      expect(isTransitivelyFrozenPlainData(cachedGraph)).toBe(true);
+      expect(isTransitivelyFrozenPlainDataV1(cachedGraph)).toBe(true);
     }
-    expect(isTransitivelyFrozenPlainData(
+    expect(isTransitivelyFrozenPlainDataV1(
       accepted.coronary.mechanics.materialState,
     )).toBe(false);
     expect(Object.isFrozen(
       accepted.coronary.mechanics.materialState.wallStateByWall.LA.landState,
     )).toBe(false);
   });
+
+  it.each([
+    ["frozen plain", Object.freeze({ value: 1 }), true],
+    [
+      "frozen nested",
+      Object.freeze({ nested: Object.freeze({ value: 1 }) }),
+      true,
+    ],
+    ["unfrozen nested", Object.freeze({ nested: { value: 1 } }), false],
+    ["typed array", new Float64Array([1]), false],
+    [
+      "frozen object holding a typed array",
+      Object.freeze({ values: new Float64Array([1]) }),
+      false,
+    ],
+    [
+      "getter",
+      Object.freeze(Object.defineProperty({}, "value", {
+        enumerable: true,
+        get: () => 1,
+      })),
+      false,
+    ],
+    ["Map", Object.freeze(new Map([["value", 1]])), false],
+    ["Date", Object.freeze(new Date(0)), false],
+    ["function", Object.freeze(() => 1), false],
+    [
+      "symbol key to unfrozen",
+      Object.freeze({ [Symbol("mutable")]: { value: 1 } }),
+      false,
+    ],
+    [
+      "proxy over a frozen target",
+      new Proxy(Object.freeze({ value: 1 }), {}),
+      true,
+    ],
+  ] as const)(
+    "pins the frozen-plain-data predicate for %s",
+    (_label, value, expected) => {
+      expect(isTransitivelyFrozenPlainDataV1(value)).toBe(expected);
+    },
+  );
 
   it("rejects a mutated published accepted material state in both tiers", async () => {
     const attack = async (tier: HotPathIntegrityTierV1) => {
@@ -327,27 +411,42 @@ function plainDataProjection(
   return projected;
 }
 
-function isTransitivelyFrozenPlainData(
-  value: unknown,
-  seen = new WeakSet<object>(),
-): boolean {
-  if (value === null || typeof value !== "object") return true;
-  if (seen.has(value)) return true;
-  if (!Object.isFrozen(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  if (
-    prototype !== null
-    && prototype !== Object.prototype
-    && prototype !== Array.prototype
-  ) return false;
-  seen.add(value);
-  for (const key of Reflect.ownKeys(value)) {
-    const descriptor = Object.getOwnPropertyDescriptor(value, key);
-    if (
-      descriptor === undefined
-      || !("value" in descriptor)
-      || !isTransitivelyFrozenPlainData(descriptor.value, seen)
-    ) return false;
+function runIntegratedConstructorFaultV1(
+  tier: HotPathIntegrityTierV1,
+  fault: MainWireIntegratedConstructorFaultForTestV1,
+) {
+  const previous = hotPathIntegrityTierV1();
+  selectHotPathIntegrityTierV1(tier);
+  try {
+    const fixture =
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const accepted = fixture.cold.acceptedState;
+    const maximum = limitMainWireIntegratedModelCandidateTimeV3(
+      accepted,
+      DT_SEC,
+      {
+        configuration: fixture.rhythm.configuration,
+        externalAfNextBoundaryTimeSec: null,
+      },
+      fixture.profile,
+      fixture.config,
+    );
+    return withMainWireIntegratedConstructorFaultForTestV1(fault, () =>
+      stepMainWireIntegratedModelV3(
+        fixture.provider,
+        accepted,
+        Object.freeze({
+          candidateTimeSec: maximum.candidateTimeSec,
+          coronary: fixture.coronaryStepInput,
+          rhythm: Object.freeze({
+            configuration: fixture.rhythm.configuration,
+            externalAfNextBoundaryTimeSec: null,
+            externalAtrialSourceBatch: null,
+          }),
+          dynamicMechanicalSupport: fixture.dynamicMechanicalSupport,
+        }),
+      ));
+  } finally {
+    selectHotPathIntegrityTierV1(previous);
   }
-  return true;
 }

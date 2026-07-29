@@ -3,6 +3,9 @@ import {
   type StudioLaneDescriptorV1,
 } from "@/engine/myocardium/MainWireIntegratedLaneIdentityV1";
 import {
+  hotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   loadMainWireIntegratedLaneDevelopmentIdentityV1,
 } from "@/engine/myocardium/MainWireIntegratedLaneDevelopmentIdentityArtifactV1";
 import {
@@ -923,6 +926,7 @@ function successResponseV1<
 ): MainWireIntegratedScientificWorkerSuccessResponseForKindV1<TKind> {
   return Object.freeze({
     protocolId: MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID,
+    hotPathIntegrityTier: hotPathIntegrityTierV1(),
     ok: true as const,
     requestId: command.requestId,
     sessionId: command.sessionId,
@@ -945,6 +949,7 @@ function errorResponseV1(
 ): MainWireIntegratedScientificWorkerErrorResponseV1 {
   return Object.freeze({
     protocolId: MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID,
+    hotPathIntegrityTier: hotPathIntegrityTierV1(),
     ok: false as const,
     ...identity,
     laneDescriptor,

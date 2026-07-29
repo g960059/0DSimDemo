@@ -1,6 +1,9 @@
 import type {
   MainWireIntegratedModelCheckpointV3,
 } from "@/engine/myocardium/MainWireIntegratedModelCheckpointV3";
+import type {
+  HotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
 import {
   INTEGRATED_V3_LANE_PRESENTATION_OBSERVATION_STRIDE_V1,
 } from "@/engine/myocardium/MainWireIntegratedLaneIdentityV1";
@@ -269,6 +272,7 @@ export type MainWireIntegratedScientificWorkerSuccessResponseForKindV1<
 > = Readonly<{
   protocolId:
     typeof MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID;
+  hotPathIntegrityTier: HotPathIntegrityTierV1;
   ok: true;
   requestId: string;
   sessionId: string;
@@ -286,6 +290,7 @@ export type MainWireIntegratedScientificWorkerSuccessResponseV1 = {
 export type MainWireIntegratedScientificWorkerErrorResponseV1 = Readonly<{
   protocolId:
     typeof MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_PROTOCOL_V1_ID;
+  hotPathIntegrityTier: HotPathIntegrityTierV1;
   ok: false;
   requestId: string | null;
   sessionId: string | null;
