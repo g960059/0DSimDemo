@@ -9,37 +9,47 @@ import {
 import type {
   HotPathIntegrityTierV1,
 } from "@/engine/hotPathIntegrityTierV1";
+import {
+  SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+} from "@/components/scientificProduct/ScientificProductScenarioPolicyV1";
 
 describe("MainWire scientific Worker lane scheduler V1", () => {
-  it("declares a fixed hardware-concurrency policy with no throughput feedback", () => {
+  it("uses the product scenario cap and keeps performance report-only", () => {
     expect(MAIN_WIRE_SCIENTIFIC_WORKER_LANE_POLICY_V1).toEqual({
       policyId: "main-wire-scientific-worker-live-lane-budget-v1",
-      logicalProcessorCountPerLiveLane: 4,
-      minimumLiveLaneCount: 1,
-      maximumLiveLaneCount: 4,
-      nonBrowserFallbackLiveLaneCount: 4,
-      allocation: "fixed-hardware-concurrency-admission",
-      throughputFeedbackAllowed: false,
+      maximumLiveLaneCount: SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+      allocation: "product-scenario-cap-admission",
+      performance: {
+        policy: "reported-not-rationed",
+        runtimeRateReporting: "achieved-rate-published",
+        issue508Measurement: {
+          machineScope: "one-high-end-machine",
+          approximateMainThreadFractionPerLiveLane: 0.4,
+          saturationObservedBetweenLiveLaneCounts: [2, 3],
+          threadOversubscriptionAtOneTimes: "ruled-out",
+        },
+        supportedHardwareFloor: {
+          device: "iPhone 14 or later",
+          logicalProcessorCount: 6,
+          sweptByIssue508: false,
+        },
+      },
       analysisControlPlaneSharesLiveWorker: true,
       strictSettlementWorkerIsolation: "separate-transient-worker",
       exactSignalReplayWorkerIsolation: "separate-transient-worker",
     });
-    expect(mainWireScientificWorkerLaneBudgetV1(1))
-      .toMatchObject({ maximumConcurrentLiveLaneCount: 1 });
-    expect(mainWireScientificWorkerLaneBudgetV1(4))
-      .toMatchObject({ maximumConcurrentLiveLaneCount: 1 });
-    expect(mainWireScientificWorkerLaneBudgetV1(8))
-      .toMatchObject({ maximumConcurrentLiveLaneCount: 2 });
-    expect(mainWireScientificWorkerLaneBudgetV1(18))
-      .toMatchObject({ maximumConcurrentLiveLaneCount: 4 });
-    expect(mainWireScientificWorkerLaneBudgetV1(64))
-      .toMatchObject({ maximumConcurrentLiveLaneCount: 4 });
+    const budget = mainWireScientificWorkerLaneBudgetV1();
+    expect(budget).toEqual({
+      policyId: "main-wire-scientific-worker-live-lane-budget-v1",
+      maximumConcurrentLiveLaneCount: SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+    });
+    expect("hardwareConcurrency" in budget).toBe(false);
   });
 
   it("co-locates live and analysis leases and keeps fresh live generations exact", () => {
     const clients: FakeUnderlyingClientV1[] = [];
     const scheduler = new MainWireScientificWorkerLaneSchedulerV1(
-      mainWireScientificWorkerLaneBudgetV1(4),
+      mainWireScientificWorkerLaneBudgetV1(),
       (integrityTier) => {
         const client = new FakeUnderlyingClientV1(integrityTier);
         clients.push(client);
@@ -69,20 +79,27 @@ describe("MainWire scientific Worker lane scheduler V1", () => {
 
   it("admits no more live lanes than the declared budget", () => {
     const scheduler = new MainWireScientificWorkerLaneSchedulerV1(
-      mainWireScientificWorkerLaneBudgetV1(4),
+      mainWireScientificWorkerLaneBudgetV1(),
       (integrityTier) => new FakeUnderlyingClientV1(integrityTier),
     );
-    const first = scheduler.acquireLane();
-    expect(() => scheduler.acquireLane()).toThrow(/budget 1 is exhausted/);
-    first.terminate();
+    const lanes = Array.from(
+      { length: SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1 },
+      () => scheduler.acquireLane(),
+    );
+    expect(scheduler.availableLiveLaneCount).toBe(0);
+    expect(() => scheduler.acquireLane()).toThrow(/budget 4 is exhausted/);
+    lanes[0]!.terminate();
+    expect(scheduler.admittedLiveLaneCount).toBe(3);
+    const replacement = scheduler.acquireLane();
+    for (const lane of lanes.slice(1)) lane.terminate();
+    replacement.terminate();
     expect(scheduler.admittedLiveLaneCount).toBe(0);
-    expect(() => scheduler.acquireLane()).not.toThrow();
   });
 
   it("returns to the accepted generation when a replacement is abandoned", () => {
     const clients: FakeUnderlyingClientV1[] = [];
     const scheduler = new MainWireScientificWorkerLaneSchedulerV1(
-      mainWireScientificWorkerLaneBudgetV1(4),
+      mainWireScientificWorkerLaneBudgetV1(),
       (integrityTier) => {
         const client = new FakeUnderlyingClientV1(integrityTier);
         clients.push(client);

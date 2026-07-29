@@ -24,6 +24,9 @@ import type {
   MainWireScientificWorkerLaneV1,
 } from "@/engine/scientificBrowser/MainWireScientificWorkerLaneSchedulerV1";
 import {
+  MainWireScientificWorkerLaneErrorV1,
+} from "@/engine/scientificBrowser/MainWireScientificWorkerLaneSchedulerV1";
+import {
   SimulationSessionCoordinatorV1,
 } from "@/studio/application/runtime/SimulationSessionCoordinatorV1";
 import type {
@@ -68,8 +71,10 @@ import {
   type ScientificProductCaseV1,
   type ScientificProductCaseRouteResolutionV1,
 } from "./scientificProductCaseCatalogV1";
+import {
+  SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+} from "./ScientificProductScenarioPolicyV1";
 
-const MAXIMUM_PRODUCT_SCENARIO_COUNT_V1 = 4;
 const SCENARIO_COLORS_V1 = Object.freeze([
   "#38bdf8",
   "#fb923c",
@@ -143,6 +148,16 @@ type ActiveHemodynamicProtocolRequestV1 = Readonly<{
     ScientificProductHemodynamicProtocolDemandV1["detailMode"];
 }>;
 
+export type ScientificProductScenarioCapacityReasonV1 =
+  | Readonly<{
+    kind: "product-scenario-cap";
+    maximumScenarioCount: number;
+  }>
+  | Readonly<{
+    kind: "live-lane-cap";
+    maximumConcurrentLiveLaneCount: number;
+  }>;
+
 export async function loadScientificProductStudioScenarioRuntimeV1(
   input: Readonly<{
     scenarioId: string;
@@ -152,31 +167,33 @@ export async function loadScientificProductStudioScenarioRuntimeV1(
     signal?: AbortSignal;
     deferInitialLivePresentation?: boolean;
     workerLaneScheduler?: MainWireScientificWorkerLaneSchedulerV1;
+    scientificWorkerLane?: MainWireScientificWorkerLaneV1;
   }>,
 ): Promise<ScientificProductStudioScenarioRuntimeV1> {
-  assertRuntimeLoadNotAbortedV1(input.signal);
-  const bootstrap = await bootstrapScientificProductStudioSourceV1({
-    caseEntry: input.caseEntry,
-    scenarioId: input.scenarioId,
-    artifacts: input.artifacts,
-    onProgress: input.onProgress,
-    signal: input.signal,
-  });
-  assertRuntimeLoadNotAbortedV1(input.signal);
-  const workerLaneScheduler = input.workerLaneScheduler
-    ?? MAIN_WIRE_SCIENTIFIC_WORKER_LANE_SCHEDULER_V1;
-  const scientificWorkerLane = workerLaneScheduler.acquireLane();
-  const adapter = new MainWireSimulationRuntimeAdapterV1({
-    artifacts: input.artifacts,
-    createLiveLaneClient: (integrityTier) =>
-      scientificWorkerLane.createLiveClient(integrityTier),
-  });
-  const coordinator = new SimulationSessionCoordinatorV1({
-    runtime: adapter,
-    artifacts: input.artifacts,
-  });
-  let controller: ScientificProductStudioScenarioControllerV1;
+  let scientificWorkerLane = input.scientificWorkerLane ?? null;
+  let controller: ScientificProductStudioScenarioControllerV1 | null = null;
   try {
+    assertRuntimeLoadNotAbortedV1(input.signal);
+    const bootstrap = await bootstrapScientificProductStudioSourceV1({
+      caseEntry: input.caseEntry,
+      scenarioId: input.scenarioId,
+      artifacts: input.artifacts,
+      onProgress: input.onProgress,
+      signal: input.signal,
+    });
+    assertRuntimeLoadNotAbortedV1(input.signal);
+    const workerLaneScheduler = input.workerLaneScheduler
+      ?? MAIN_WIRE_SCIENTIFIC_WORKER_LANE_SCHEDULER_V1;
+    scientificWorkerLane ??= workerLaneScheduler.acquireLane();
+    const adapter = new MainWireSimulationRuntimeAdapterV1({
+      artifacts: input.artifacts,
+      createLiveLaneClient: (integrityTier) =>
+        scientificWorkerLane!.createLiveClient(integrityTier),
+    });
+    const coordinator = new SimulationSessionCoordinatorV1({
+      runtime: adapter,
+      artifacts: input.artifacts,
+    });
     controller = await ScientificProductStudioScenarioControllerV1.create({
       bootstrap,
       coordinator,
@@ -185,24 +202,24 @@ export async function loadScientificProductStudioScenarioRuntimeV1(
       deferInitialLivePresentation: input.deferInitialLivePresentation,
       signal: input.signal,
     });
+    if (input.signal?.aborted) {
+      await controller.dispose();
+      controller = null;
+      throw new Error("scientific product Studio runtime load aborted");
+    }
+    return Object.freeze({
+      scenarioId: input.scenarioId,
+      caseEntry: input.caseEntry,
+      workspaceDocument: bootstrap.workspaceDocument,
+      controlStore: controller.controlStore,
+      controller,
+      analysisArtifacts: input.artifacts,
+      scientificWorkerLane,
+    });
   } catch (error) {
-    scientificWorkerLane.terminate();
+    scientificWorkerLane?.terminate();
     throw error;
   }
-  if (input.signal?.aborted) {
-    await controller.dispose();
-    scientificWorkerLane.terminate();
-    throw new Error("scientific product Studio runtime load aborted");
-  }
-  return Object.freeze({
-    scenarioId: input.scenarioId,
-    caseEntry: input.caseEntry,
-    workspaceDocument: bootstrap.workspaceDocument,
-    controlStore: controller.controlStore,
-    controller,
-    analysisArtifacts: input.artifacts,
-    scientificWorkerLane,
-  });
 }
 
 function assertRuntimeLoadNotAbortedV1(
@@ -261,6 +278,9 @@ implements ScientificProductRuntimeRegistryPortV1 {
   constructor(
     resolution: ScientificProductCaseRouteResolutionV1,
     initialRuntime: ScientificProductStudioScenarioRuntimeV1,
+    private readonly workerLaneScheduler:
+      MainWireScientificWorkerLaneSchedulerV1 =
+        MAIN_WIRE_SCIENTIFIC_WORKER_LANE_SCHEDULER_V1,
   ) {
     const descriptor = createDescriptorV1(
       initialRuntime.scenarioId,
@@ -348,11 +368,25 @@ implements ScientificProductRuntimeRegistryPortV1 {
   readonly getPvRelationProtocolSeriesSnapshot = () => this.emptyPvSnapshot;
 
   get maximumScenarioCount(): number {
-    return Math.min(
-      MAXIMUM_PRODUCT_SCENARIO_COUNT_V1,
-      MAIN_WIRE_SCIENTIFIC_WORKER_LANE_SCHEDULER_V1
-        .maximumConcurrentLiveLaneCount,
-    );
+    return SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1;
+  }
+
+  get scenarioCapacityReason():
+    ScientificProductScenarioCapacityReasonV1 | null {
+    if (this.entries.size >= SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1) {
+      return Object.freeze({
+        kind: "product-scenario-cap" as const,
+        maximumScenarioCount: SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+      });
+    }
+    if (this.workerLaneScheduler.availableLiveLaneCount === 0) {
+      return Object.freeze({
+        kind: "live-lane-cap" as const,
+        maximumConcurrentLiveLaneCount:
+          this.workerLaneScheduler.maximumConcurrentLiveLaneCount,
+      });
+    }
+    return null;
   }
 
   getRuntime(id: string): ScientificProductStudioScenarioRuntimeV1 | null {
@@ -428,11 +462,18 @@ implements ScientificProductRuntimeRegistryPortV1 {
     caseId: string,
     options: AddScientificScenarioOptionsV1 = {},
   ): string | null {
-    if (this.disposed || this.entries.size >= MAXIMUM_PRODUCT_SCENARIO_COUNT_V1) {
-      return null;
-    }
+    if (this.disposed || this.scenarioCapacityReason !== null) return null;
     const caseEntry = scientificProductCaseByIdV1(caseId);
     if (caseEntry === null) return null;
+    let scientificWorkerLane: MainWireScientificWorkerLaneV1;
+    try {
+      // Reserve synchronously so a descriptor cannot be published for work
+      // that the global live-lane scheduler has not admitted.
+      scientificWorkerLane = this.workerLaneScheduler.acquireLane();
+    } catch (error) {
+      if (error instanceof MainWireScientificWorkerLaneErrorV1) return null;
+      throw error;
+    }
     const id = nextScientificProductStudioScenarioIdV1();
     const entry: ScenarioEntryV1 = {
       descriptor: createDescriptorV1(
@@ -475,6 +516,7 @@ implements ScientificProductRuntimeRegistryPortV1 {
       },
       signal: entry.loadAbortController.signal,
       deferInitialLivePresentation: true,
+      scientificWorkerLane,
     }).then(async (runtime) => {
       if (!this.entryIsCurrentV1(id, entry, generation)) {
         await runtime.controller.dispose();
@@ -534,7 +576,12 @@ implements ScientificProductRuntimeRegistryPortV1 {
     ) return false;
     this.entries.delete(id);
     entry.loadingGeneration += 1;
-    void this.disposeEntryV1(entry);
+    void this.disposeEntryV1(entry).then(() => {
+      // Descriptor removal publishes immediately, while controller shutdown
+      // releases its lane asynchronously. Publish once more at that boundary
+      // so disabled add/duplicate controls observe the returned capacity.
+      if (!this.disposed) this.publishDescriptorsV1();
+    });
     this.removeHemodynamicProtocolScenarioV1(id);
     for (const [demandId, demand] of this.hemodynamicProtocolDemands) {
       if (demand.scenarioId === id) {

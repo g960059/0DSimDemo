@@ -6,6 +6,9 @@ import type {
 import type {
   ScientificProductStudioScenarioControllerV1,
 } from "@/components/scientificProduct/ScientificProductStudioScenarioControllerV1";
+import {
+  SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+} from "@/components/scientificProduct/ScientificProductScenarioPolicyV1";
 import type {
   ScientificProductStudioHemodynamicAnalysisErrorEventV1,
   ScientificProductStudioHemodynamicAnalysisRequestV1,
@@ -17,6 +20,10 @@ import type {
 import type {
   MainWireScientificWorkspaceDocumentV1,
 } from "@/engine/scientific/documents";
+import {
+  MainWireScientificWorkerLaneSchedulerV1,
+  mainWireScientificWorkerLaneBudgetV1,
+} from "@/engine/scientificBrowser/MainWireScientificWorkerLaneSchedulerV1";
 import type {
   StudioArtifactKindV1,
   StudioArtifactRefV1,
@@ -421,6 +428,111 @@ describe("Scientific Product Studio scenario registry V1", () => {
     for (const unsubscribe of unsubscribers) unsubscribe();
     await registry.dispose();
   });
+
+  it("reserves and releases one lane per scenario before publishing rows", async () => {
+    const initialScenarioId = "scenario/registry-capacity-initial";
+    const initialController = controllerFixtureV1(
+      settledSourceV1(initialScenarioId, 0, "7"),
+    );
+    const scheduler = new MainWireScientificWorkerLaneSchedulerV1(
+      mainWireScientificWorkerLaneBudgetV1(),
+      () => {
+        throw new Error("capacity test must not create a live client");
+      },
+    );
+    const registry = registryFixtureV1(
+      initialScenarioId,
+      initialController,
+      scheduler,
+    );
+    registry.connect();
+
+    const duplicateIds = Array.from(
+      { length: SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1 - 1 },
+      () => registry.duplicateStable(initialScenarioId),
+    );
+    expect(duplicateIds.every((id) => id !== null)).toBe(true);
+    expect(registry.getDescriptorSnapshot())
+      .toHaveLength(SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1);
+    expect(scheduler.admittedLiveLaneCount)
+      .toBe(SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1);
+    expect(registry.scenarioCapacityReason).toEqual({
+      kind: "product-scenario-cap",
+      maximumScenarioCount: SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+    });
+
+    expect(registry.addPreset("main-wire/as-severe")).toBeNull();
+    expect(registry.duplicateStable(initialScenarioId)).toBeNull();
+    expect(registry.getDescriptorSnapshot())
+      .toHaveLength(SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1);
+    expect(registryMocks.bootstrap)
+      .toHaveBeenCalledTimes(SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1 - 1);
+
+    await waitForV1(() =>
+      registry.getDescriptorSnapshot().every(({ lifecycle }) =>
+        lifecycle === "ready"
+      )
+    );
+    let observedReleasedCapacity = false;
+    const unsubscribeCapacity = registry.subscribeDescriptors(() => {
+      if (registry.scenarioCapacityReason === null) {
+        observedReleasedCapacity = true;
+      }
+    });
+    expect(registry.remove(duplicateIds[0]!)).toBe(true);
+    await waitForV1(() =>
+      scheduler.admittedLiveLaneCount
+        === SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1 - 1
+    );
+    await waitForV1(() => observedReleasedCapacity);
+    unsubscribeCapacity();
+    expect(registry.scenarioCapacityReason).toBeNull();
+
+    expect(registry.duplicateStable(initialScenarioId)).not.toBeNull();
+    expect(scheduler.admittedLiveLaneCount)
+      .toBe(SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1);
+    await waitForV1(() =>
+      registry.getDescriptorSnapshot().every(({ lifecycle }) =>
+        lifecycle === "ready"
+      )
+    );
+    await registry.dispose();
+    expect(scheduler.admittedLiveLaneCount).toBe(0);
+  });
+
+  it("refuses a row when another product surface owns the remaining lanes", async () => {
+    const scheduler = new MainWireScientificWorkerLaneSchedulerV1(
+      mainWireScientificWorkerLaneBudgetV1(),
+      () => {
+        throw new Error("capacity test must not create a live client");
+      },
+    );
+    const otherSurfaceLanes = Array.from(
+      { length: SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1 - 1 },
+      () => scheduler.acquireLane(),
+    );
+    const initialScenarioId = "scenario/registry-shared-capacity-initial";
+    const registry = registryFixtureV1(
+      initialScenarioId,
+      controllerFixtureV1(settledSourceV1(initialScenarioId, 0, "8")),
+      scheduler,
+    );
+    registry.connect();
+
+    expect(registry.scenarioCapacityReason).toEqual({
+      kind: "live-lane-cap",
+      maximumConcurrentLiveLaneCount: SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+    });
+    expect(registry.duplicateStable(initialScenarioId)).toBeNull();
+    expect(registry.getDescriptorSnapshot()).toHaveLength(1);
+    expect(registryMocks.bootstrap).not.toHaveBeenCalled();
+
+    await registry.dispose();
+    expect(scheduler.admittedLiveLaneCount)
+      .toBe(SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1 - 1);
+    for (const lane of otherSurfaceLanes) lane.terminate();
+    expect(scheduler.admittedLiveLaneCount).toBe(0);
+  });
 });
 
 type MockAnalysisCoordinatorV1 = Readonly<{
@@ -455,6 +567,7 @@ const loadedControllerFixturesV1 = new Map<string, ControllerFixtureV1>();
 function registryFixtureV1(
   scenarioId: string,
   controllerFixture: ControllerFixtureV1,
+  workerLaneScheduler?: MainWireScientificWorkerLaneSchedulerV1,
 ): ScientificProductStudioScenarioRegistryV1 {
   const resolution = resolveScientificProductCaseRouteV1("normal-sinus");
   if (resolution === null) throw new Error("healthy case fixture unavailable");
@@ -467,8 +580,13 @@ function registryFixtureV1(
     controlStore: controllerFixture.controller.controlStore,
     controller: controllerFixture.controller,
     analysisArtifacts: new InMemoryContentAddressedArtifactStoreV1(),
+    scientificWorkerLane: workerLaneScheduler?.acquireLane(),
   });
-  return new ScientificProductStudioScenarioRegistryV1(resolution, runtime);
+  return new ScientificProductStudioScenarioRegistryV1(
+    resolution,
+    runtime,
+    workerLaneScheduler,
+  );
 }
 
 function controllerFixtureV1(

@@ -39,4 +39,15 @@ describe('locale helpers', () => {
   it('keeps Japanese and English translation keys in parity', () => {
     expect(flattenTranslationKeys(jaTranslation).sort()).toEqual(flattenTranslationKeys(enTranslation).sort());
   });
+
+  it('localizes both scenario-cap and shared-lane refusal messages', () => {
+    expect(enTranslation.workbench.scenarioPane.maximumScenariosReached)
+      .toContain('Maximum of {{count}} scenarios');
+    expect(jaTranslation.workbench.scenarioPane.maximumScenariosReached)
+      .toContain('シナリオは最大{{count}}件');
+    expect(enTranslation.workbench.scenarioPane.liveLaneCapacityReached)
+      .toContain('live simulation slots');
+    expect(jaTranslation.workbench.scenarioPane.liveLaneCapacityReached)
+      .toContain('ライブ実験の同時実行枠');
+  });
 });

@@ -31,8 +31,8 @@ import type {
   HotPathIntegrityTierV1,
 } from "@/engine/hotPathIntegrityTierV1";
 import {
-  browserMainWireScientificWorkerLaneBudgetV1,
   MainWireScientificWorkerLaneSchedulerV1,
+  mainWireScientificWorkerLaneBudgetV1,
 } from "@/engine/scientificBrowser/MainWireScientificWorkerLaneSchedulerV1";
 import {
   INITIAL_RUNTIME_LIVE_PACING_STATE_V1,
@@ -193,7 +193,7 @@ export type MainWireSimulationRuntimeAdapterOptionsV1 = Readonly<{
 
 export const MAIN_WIRE_SCIENTIFIC_WORKER_LANE_SCHEDULER_V1 =
   new MainWireScientificWorkerLaneSchedulerV1(
-    browserMainWireScientificWorkerLaneBudgetV1(),
+    mainWireScientificWorkerLaneBudgetV1(),
     (integrityTier) =>
       createMainWireBrowserWorkerClientV1(integrityTier, 4),
   );

@@ -20,13 +20,30 @@ export default defineConfig({
     video: "off",
     screenshot: "only-on-failure",
   },
-  projects: [{
-    name: "chromium",
-    use: {
-      ...devices["Desktop Chrome"],
-      viewport: { width: 1440, height: 1000 },
+  projects: [
+    {
+      name: "chromium",
+      grepInvert: /@low-core/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 1000 },
+      },
     },
-  }],
+    {
+      // Playwright creates a fresh BrowserContext for every test. The tagged
+      // tests read this declared iPhone-14 floor and install it before the
+      // first application navigation/import.
+      name: "chromium-low-core",
+      grep: /@low-core/,
+      metadata: {
+        declaredLogicalProcessorCount: 6,
+      },
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1440, height: 1000 },
+      },
+    },
+  ],
   webServer: {
     command:
       "npm run build && npm run preview -- --host 127.0.0.1 --port 4173 --strictPort",

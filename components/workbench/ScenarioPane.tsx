@@ -22,6 +22,7 @@ export type ScenarioPresetCatalogEntry = Readonly<{
 export interface ScenarioPaneProps {
   instances: ScenarioPaneInstance[];
   addInstance: (sourceId?: string, presetId?: string) => void;
+  duplicateDisabledReason?: string;
   removeInstance: (id: string) => void;
   updateInstanceName: (id: string, name: string) => void;
   updateInstanceColor: (id: string, color: string) => void;
@@ -133,6 +134,7 @@ function SteadyStatusIndicator({ status }: { status?: SteadyUpdateStatus }) {
 export function ScenarioPane({
   instances,
   addInstance,
+  duplicateDisabledReason,
   removeInstance,
   updateInstanceName,
   updateInstanceColor,
@@ -310,7 +312,9 @@ export function ScenarioPane({
                 <>
                   <div className="fixed inset-0 z-[80]" onClick={() => setMenuState(null)} />
                   <div
-                    className="workbench-popover-menu fixed z-[90] w-36 rounded-md border py-1 shadow-xl"
+                    className={`workbench-popover-menu fixed z-[90] rounded-md border py-1 shadow-xl ${
+                      duplicateDisabledReason ? 'w-64' : 'w-36'
+                    }`}
                     style={{ left: menuState.x, top: menuState.y }}
                     onClick={(event) => event.stopPropagation()}
                   >
@@ -325,13 +329,27 @@ export function ScenarioPane({
                         </button>
                         <button
                           type="button"
+                          aria-label={t('common.duplicate')}
+                          disabled={Boolean(duplicateDisabledReason)}
+                          title={duplicateDisabledReason}
+                          aria-describedby={duplicateDisabledReason
+                            ? `${instance.id}-duplicate-disabled-reason`
+                            : undefined}
                           onClick={() => {
                             addInstance(instance.id);
                             setMenuState(null);
                           }}
-                          className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium"
+                          className="workbench-popover-menu-item block w-full px-3 py-1.5 text-left text-xs font-medium disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
                         >
-                          {t('common.duplicate')}
+                          <span className="block">{t('common.duplicate')}</span>
+                          {duplicateDisabledReason && (
+                            <span
+                              id={`${instance.id}-duplicate-disabled-reason`}
+                              className="mt-0.5 block text-[10px] font-normal text-amber-300/80"
+                            >
+                              {duplicateDisabledReason}
+                            </span>
+                          )}
                         </button>
                       </>
                     )}
