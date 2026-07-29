@@ -8,6 +8,13 @@ import {
   SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_SOURCE_ID_V1,
 } from "@/components/scientificProduct/ScientificProductSampleAfterloadArticleV1";
 import {
+  readerPreviewEntryIdsAbsentFromManifestV1,
+  readerPreviewErrorMessageV1,
+} from "@/components/studio/StudioAuthorPreviewProviderV1";
+import {
+  MainWireScientificWorkerLaneErrorV1,
+} from "@/engine/scientificBrowser/MainWireScientificWorkerLaneSchedulerV1";
+import {
   StudioAuthorPreviewApplicationV1,
   StudioAuthorPreviewRevisionConflictErrorV1,
   StudioAuthorPreviewValidationErrorV1,
@@ -19,6 +26,8 @@ import {
   type StudioDocumentBlockV1,
   type StudioGraphPaneSpecV1,
 } from "@/studio/contracts/v1";
+import enTranslation from "@/locales/en/translation.json";
+import jaTranslation from "@/locales/ja/translation.json";
 
 describe("StudioAuthorPreviewApplicationV1", () => {
   it("applies title and text-block commands with optimistic revision locking", () => {
@@ -645,6 +654,53 @@ describe("StudioAuthorPreviewApplicationV1", () => {
         readerBriefId: "reader-brief/third",
       })
     ).toThrow(/already exists/);
+  });
+
+  it("does not expose the internal live-lane exhaustion string to a reader", () => {
+    const internal = new MainWireScientificWorkerLaneErrorV1(
+      "scientific live-lane budget 4 is exhausted",
+    );
+    const enMessage = readerPreviewErrorMessageV1(
+      internal,
+      enTranslation.studioAuthorPreview.reader.liveLaneCapacityReached,
+    );
+    const jaMessage = readerPreviewErrorMessageV1(
+      internal,
+      jaTranslation.studioAuthorPreview.reader.liveLaneCapacityReached,
+    );
+
+    expect(enMessage).toBe(
+      "This article has more live simulations than can run at once. "
+      + "Close another live simulation or show fewer live placements, then "
+      + "try again.",
+    );
+    expect(jaMessage).toBe(
+      "この記事のライブ実験数が同時実行上限を超えています。別のライブ実験を"
+      + "閉じるか、ライブ配置を減らしてから再試行してください。",
+    );
+    expect(enMessage).not.toContain("scientific live-lane budget");
+    expect(jaMessage).not.toContain("scientific live-lane budget");
+  });
+
+  it("preserves unrelated reader-preview errors", () => {
+    expect(readerPreviewErrorMessageV1(
+      new Error("Manifest unavailable"),
+      "localized capacity",
+    ))
+      .toBe("Manifest unavailable");
+  });
+
+  it("identifies a removed placement so its warm lane can be disposed", () => {
+    const preview = createApplicationV1().materializePreview({
+      expectedRevision: 0,
+    });
+    const retainedPlacementId =
+      preview.resolvedReaderDocument.placements[0]!.placementBlockId;
+
+    expect(readerPreviewEntryIdsAbsentFromManifestV1(
+      [retainedPlacementId, "placement/removed"],
+      new Set([retainedPlacementId]),
+    )).toEqual(["placement/removed"]);
   });
 });
 

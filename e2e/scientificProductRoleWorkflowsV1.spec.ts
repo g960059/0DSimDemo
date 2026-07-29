@@ -2,6 +2,7 @@ import {
   expect,
   test,
   type Locator,
+  type BrowserContext,
   type Page,
   type TestInfo,
 } from "@playwright/test";
@@ -455,6 +456,76 @@ test.describe.serial("Product workflows by role", () => {
     }
   });
 
+  test("Author role — keeps two placements and Workbench live at the supported six-core floor @low-core", async ({
+    context,
+    page,
+  }, testInfo) => {
+    test.setTimeout(180_000);
+    page.setDefaultTimeout(30_000);
+    await declareProjectLogicalProcessorsV1(context, testInfo);
+    const browserErrors = captureBrowserErrorsV1(page);
+
+    try {
+      await acknowledgeModelLimitationsV1(page);
+      await page.goto("/ja/studio/author", {
+        waitUntil: "domcontentloaded",
+      });
+      expect(await page.evaluate(() => navigator.hardwareConcurrency)).toBe(6);
+
+      const article = page.getByTestId("studio-document-reader-v1");
+      const placements = () =>
+        article.locator('[data-document-block-kind="experiment-placement"]');
+      await expect(placements()).toHaveCount(1);
+      await article.getByTestId("studio-document-block-v1").first().hover();
+      await article.getByTestId("studio-document-block-v1").first()
+        .getByTestId("studio-document-block-handle-v1").click();
+      await page.getByTestId("studio-document-insert-experiment-v1").click();
+      await expect(placements()).toHaveCount(2);
+
+      const cells = page.getByTestId("studio-reader-experiment-cell-v1");
+      await expect(cells).toHaveCount(2);
+      for (let index = 0; index < 2; index += 1) {
+        await expect(cells.nth(index)).toHaveAttribute(
+          "data-reader-binding",
+          "ready",
+          { timeout: 120_000 },
+        );
+      }
+
+      await article.getByTestId("studio-placement-compose-v1").first().click();
+      await expect(page).toHaveURL(/\/ja\/workbench\/[^?]+\?experiment=/);
+      await readyStudioWorkbenchV1(page);
+      await expect(page.getByRole("alert").filter({
+        hasText: "scientific live-lane budget",
+      })).toHaveCount(0);
+
+      await page.getByTestId("scientific-workbench-open-briefing-v1").click();
+      await page.getByTestId("scientific-workbench-briefing-compose-v1")
+        .getByRole("button", { name: "記事を編集", exact: true })
+        .click();
+      await expect(page).toHaveURL(/\/ja\/studio\/author$/);
+      await expect(placements()).toHaveCount(2);
+
+      const removedPlacement = placements().first();
+      await removedPlacement.hover();
+      await removedPlacement.getByTestId("studio-document-block-handle-v1")
+        .click();
+      await page.getByRole("menuitem", {
+        name: "ブロックを削除",
+        exact: true,
+      }).click();
+      await expect(placements()).toHaveCount(1);
+      await page.getByTestId("studio-capability-read-v1").click();
+      await placements().scrollIntoViewIfNeeded();
+      await expect(page.getByTestId("studio-reader-experiment-cell-v1"))
+        .toHaveAttribute("data-reader-live", "true", { timeout: 60_000 });
+
+      expect(browserErrors).toEqual([]);
+    } finally {
+      await attachBrowserErrorsV1(testInfo, browserErrors);
+    }
+  });
+
   test("Clinician Workbench-only — configures graph history and compares a parameter transition without entering authoring", async ({
     page,
   }, testInfo) => {
@@ -895,6 +966,21 @@ type ReaderFirstPaintObservationV1 = Readonly<{
 
 const READER_FIRST_PAINTS_KEY_V1 =
   "__circleheartReaderFirstPaintsV1";
+
+async function declareProjectLogicalProcessorsV1(
+  context: BrowserContext,
+  testInfo: TestInfo,
+): Promise<void> {
+  const declaredLogicalProcessorCount =
+    testInfo.project.metadata.declaredLogicalProcessorCount;
+  expect(declaredLogicalProcessorCount).toBe(6);
+  await context.addInitScript((logicalProcessorCount) => {
+    Object.defineProperty(Navigator.prototype, "hardwareConcurrency", {
+      configurable: true,
+      get: () => logicalProcessorCount,
+    });
+  }, declaredLogicalProcessorCount);
+}
 
 async function captureReaderFirstPaintsV1(page: Page): Promise<void> {
   await page.addInitScript((key) => {

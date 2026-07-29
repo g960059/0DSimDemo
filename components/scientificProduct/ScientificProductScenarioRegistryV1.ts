@@ -100,6 +100,9 @@ import {
   type ScientificProductCaseRouteResolutionV1,
   type ScientificProductCaseV1,
 } from "./scientificProductCaseCatalogV1";
+import {
+  SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+} from "./ScientificProductScenarioPolicyV1";
 
 export type ScientificProductLoadedRuntimeV1 =
   | Readonly<{
@@ -320,7 +323,6 @@ export type AddScientificScenarioOptionsV1 = Readonly<{
   onProgress?: (progress: ScientificWorkbenchResearchProgressV1) => void;
 }>;
 
-const MAXIMUM_PRODUCT_SCENARIO_COUNT_V1 = 4;
 const SCENARIO_COLORS_V1 = Object.freeze([
   "#38bdf8",
   "#fb923c",
@@ -2323,7 +2325,7 @@ export class ScientificProductScenarioRegistryV1 {
   }
 
   get maximumScenarioCount(): number {
-    return MAXIMUM_PRODUCT_SCENARIO_COUNT_V1;
+    return SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1;
   }
 
   getRuntime(id: string): ScientificProductScenarioRuntimeV1 | null {
@@ -2394,7 +2396,10 @@ export class ScientificProductScenarioRegistryV1 {
     caseId: string,
     options: AddScientificScenarioOptionsV1 = {},
   ): string | null {
-    if (this.disposed || this.entries.size >= MAXIMUM_PRODUCT_SCENARIO_COUNT_V1) {
+    if (
+      this.disposed
+      || this.entries.size >= SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1
+    ) {
       return null;
     }
     const caseEntry = scientificProductCaseByIdV1(caseId);

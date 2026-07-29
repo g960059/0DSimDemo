@@ -199,7 +199,8 @@
       "closeFocus": "Close",
       "activate": "Play",
       "emptyBrief": "Pick a graph, a value or a control on the Workbench and it appears here, as a reader sees it.",
-      "preparingExperiment": "Preparing this experiment."
+      "preparingExperiment": "Preparing this experiment.",
+      "liveLaneCapacityReached": "This article has more live simulations than can run at once. Close another live simulation or show fewer live placements, then try again."
     },
     "surface": {
       "capability": "Mode",
@@ -662,7 +663,9 @@
       "hiddenHint": "hidden",
       "showScenarioAria": "Show {{name}} on graphs",
       "hideScenarioAria": "Hide {{name}} on graphs",
-      "addScenario": "Add scenario"
+      "addScenario": "Add scenario",
+      "maximumScenariosReached": "Maximum of {{count}} scenarios reached. Close one before adding or duplicating a scenario.",
+      "liveLaneCapacityReached": "All {{count}} live simulation slots are in use. Close one before adding or duplicating a scenario."
     },
       "panelGrid": {
         "panelTitle": "Panel Title",

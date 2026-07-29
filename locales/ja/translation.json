@@ -199,7 +199,8 @@
       "closeFocus": "閉じる",
       "activate": "再生する",
       "emptyBrief": "Workbenchでgraph・数値・操作を選ぶと、ここに読者が見る形で並びます。",
-      "preparingExperiment": "この実験を読み込んでいます。"
+      "preparingExperiment": "この実験を読み込んでいます。",
+      "liveLaneCapacityReached": "この記事のライブ実験数が同時実行上限を超えています。別のライブ実験を閉じるか、ライブ配置を減らしてから再試行してください。"
     },
     "surface": {
       "capability": "表示モード",
@@ -662,7 +663,9 @@
       "hiddenHint": "非表示",
       "showScenarioAria": "{{name}}をグラフに表示",
       "hideScenarioAria": "{{name}}をグラフで非表示",
-      "addScenario": "シナリオを追加"
+      "addScenario": "シナリオを追加",
+      "maximumScenariosReached": "シナリオは最大{{count}}件です。追加または複製するには1件閉じてください。",
+      "liveLaneCapacityReached": "ライブ実験の同時実行枠{{count}}件がすべて使用中です。追加または複製するには1件閉じてください。"
     },
       "panelGrid": {
       "panelTitle": "パネルタイトル",

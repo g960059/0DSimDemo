@@ -3107,6 +3107,9 @@ export function PanelGrid({
 }: PanelGridProps) {
   const { t } = useTranslation();
   const isReadOnly = mode === 'learner';
+  const scenarioDuplicateDisabledReason = scenarioPresetCatalog
+    ?.find(({ disabledReason }) => disabledReason !== undefined)
+    ?.disabledReason;
   const presenterPanels = useMemo(() => flowPack(panels), [panels]);
   const mainGraphPanels = useMemo(() => graphPanelsOnly(presenterPanels), [presenterPanels]);
   const notePanel = useMemo(() => firstPanelOfType(presenterPanels, 'NOTE'), [presenterPanels]);
@@ -3685,6 +3688,7 @@ export function PanelGrid({
                     <ScenarioPane
                       instances={instances}
                       addInstance={addInstance}
+                      duplicateDisabledReason={scenarioDuplicateDisabledReason}
                       removeInstance={removeInstance}
                       updateInstanceName={updateInstanceName}
                       updateInstanceColor={updateInstanceColor}

@@ -4,6 +4,9 @@ import type {
 import type {
   ScientificCommandV1,
 } from "@/engine/scientific/worker/scientificCommandProtocolV1";
+import {
+  SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+} from "@/components/scientificProduct/ScientificProductScenarioPolicyV1";
 import type {
   MainWireScientificWorkerClientStatusV1,
   MainWireScientificWorkerResponseV1,
@@ -11,12 +14,23 @@ import type {
 
 export const MAIN_WIRE_SCIENTIFIC_WORKER_LANE_POLICY_V1 = Object.freeze({
   policyId: "main-wire-scientific-worker-live-lane-budget-v1" as const,
-  logicalProcessorCountPerLiveLane: 4 as const,
-  minimumLiveLaneCount: 1 as const,
-  maximumLiveLaneCount: 4 as const,
-  nonBrowserFallbackLiveLaneCount: 4 as const,
-  allocation: "fixed-hardware-concurrency-admission" as const,
-  throughputFeedbackAllowed: false as const,
+  maximumLiveLaneCount: SCIENTIFIC_PRODUCT_SCENARIO_CAP_V1,
+  allocation: "product-scenario-cap-admission" as const,
+  performance: Object.freeze({
+    policy: "reported-not-rationed" as const,
+    runtimeRateReporting: "achieved-rate-published" as const,
+    issue508Measurement: Object.freeze({
+      machineScope: "one-high-end-machine" as const,
+      approximateMainThreadFractionPerLiveLane: 0.4,
+      saturationObservedBetweenLiveLaneCounts: Object.freeze([2, 3] as const),
+      threadOversubscriptionAtOneTimes: "ruled-out" as const,
+    }),
+    supportedHardwareFloor: Object.freeze({
+      device: "iPhone 14 or later" as const,
+      logicalProcessorCount: 6,
+      sweptByIssue508: false,
+    }),
+  }),
   analysisControlPlaneSharesLiveWorker: true as const,
   strictSettlementWorkerIsolation: "separate-transient-worker" as const,
   exactSignalReplayWorkerIsolation: "separate-transient-worker" as const,
@@ -24,51 +38,16 @@ export const MAIN_WIRE_SCIENTIFIC_WORKER_LANE_POLICY_V1 = Object.freeze({
 
 export type MainWireScientificWorkerLaneBudgetV1 = Readonly<{
   policyId: typeof MAIN_WIRE_SCIENTIFIC_WORKER_LANE_POLICY_V1.policyId;
-  hardwareConcurrency: number;
   maximumConcurrentLiveLaneCount: number;
 }>;
 
-export function mainWireScientificWorkerLaneBudgetV1(
-  hardwareConcurrency: number,
-): MainWireScientificWorkerLaneBudgetV1 {
-  const normalizedHardwareConcurrency =
-    Number.isSafeInteger(hardwareConcurrency) && hardwareConcurrency > 0
-      ? hardwareConcurrency
-      : 1;
+export function mainWireScientificWorkerLaneBudgetV1():
+  MainWireScientificWorkerLaneBudgetV1 {
   const policy = MAIN_WIRE_SCIENTIFIC_WORKER_LANE_POLICY_V1;
-  const maximumConcurrentLiveLaneCount = Math.max(
-    policy.minimumLiveLaneCount,
-    Math.min(
-      policy.maximumLiveLaneCount,
-      Math.floor(
-        normalizedHardwareConcurrency
-          / policy.logicalProcessorCountPerLiveLane,
-      ),
-    ),
-  );
   return Object.freeze({
     policyId: policy.policyId,
-    hardwareConcurrency: normalizedHardwareConcurrency,
-    maximumConcurrentLiveLaneCount,
+    maximumConcurrentLiveLaneCount: policy.maximumLiveLaneCount,
   });
-}
-
-export function browserMainWireScientificWorkerLaneBudgetV1():
-  MainWireScientificWorkerLaneBudgetV1 {
-  if (
-    typeof globalThis.window === "undefined"
-    || typeof globalThis.navigator === "undefined"
-  ) {
-    return mainWireScientificWorkerLaneBudgetV1(
-      MAIN_WIRE_SCIENTIFIC_WORKER_LANE_POLICY_V1
-        .nonBrowserFallbackLiveLaneCount
-      * MAIN_WIRE_SCIENTIFIC_WORKER_LANE_POLICY_V1
-        .logicalProcessorCountPerLiveLane,
-    );
-  }
-  return mainWireScientificWorkerLaneBudgetV1(
-    globalThis.navigator.hardwareConcurrency,
-  );
 }
 
 export interface MainWireScientificWorkerClientLeaseV1 {
@@ -247,6 +226,13 @@ export class MainWireScientificWorkerLaneSchedulerV1 {
 
   get admittedLiveLaneCount(): number {
     return this.activeLaneCount;
+  }
+
+  get availableLiveLaneCount(): number {
+    return Math.max(
+      0,
+      this.maximumConcurrentLiveLaneCount - this.activeLaneCount,
+    );
   }
 
   acquireLane(): MainWireScientificWorkerLaneV1 {

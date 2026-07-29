@@ -390,14 +390,24 @@ function ScientificProductWorkbenchShellV1({
     () => descriptors as unknown as SimInstance[],
     [descriptors],
   );
+  const scenarioCapacityReason = registry.scenarioCapacityReason;
+  const scenarioCapacityMessage = scenarioCapacityReason === null
+    ? null
+    : scenarioCapacityReason.kind === "product-scenario-cap"
+      ? t("workbench.scenarioPane.maximumScenariosReached", {
+        count: scenarioCapacityReason.maximumScenarioCount,
+      })
+      : t("workbench.scenarioPane.liveLaneCapacityReached", {
+        count: scenarioCapacityReason.maximumConcurrentLiveLaneCount,
+      });
   const scenarioPresetCatalog = React.useMemo<readonly ScenarioPresetCatalogEntry[]>(
-    () => descriptors.length >= registry.maximumScenarioCount
+    () => scenarioCapacityMessage !== null
       ? SCIENTIFIC_SCENARIO_PRESET_CATALOG_V1.map((entry) => ({
         ...entry,
-        disabledReason: `Maximum of ${registry.maximumScenarioCount} scenarios reached.`,
+        disabledReason: scenarioCapacityMessage,
       }))
       : SCIENTIFIC_SCENARIO_PRESET_CATALOG_V1,
-    [descriptors.length, registry],
+    [scenarioCapacityMessage],
   );
   const initialScenarioId = registry.getDescriptorSnapshot()[0]!.id;
   const markUserEdited = React.useCallback(() => undefined, []);

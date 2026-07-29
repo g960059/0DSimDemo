@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   SCIENTIFIC_PRODUCT_SAMPLE_AFTERLOAD_AUTHOR_DRAFT_V1,
@@ -168,6 +169,7 @@ const StudioAuthorPreviewContextV1 =
 export function StudioAuthorPreviewProviderV1({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const { t } = useTranslation();
   const applicationRef = React.useRef<StudioAuthorPreviewApplicationV1 | null>(
     null,
   );
@@ -393,10 +395,31 @@ export function StudioAuthorPreviewProviderV1({
     const manifest = application.materializePreview({
       expectedRevision: application.getDraftSnapshot().revision,
     });
+    const activePlacementBlockIds = new Set(
+      manifest.resolvedReaderDocument.placements.map(
+        ({ placementBlockId }) => placementBlockId,
+      ),
+    );
+    // An off-screen placement may stay warm for a Workbench round trip, but a
+    // block removed from the new manifest can never be revisited. Dispose that
+    // orphan now instead of letting its lane occupy the bounded warm cache.
+    for (
+      const placementBlockId of
+        readerPreviewEntryIdsAbsentFromManifestV1(
+          entriesRef.current.keys(),
+          activePlacementBlockIds,
+        )
+    ) {
+      const entry = entriesRef.current.get(placementBlockId);
+      if (entry === undefined) continue;
+      entriesRef.current.delete(placementBlockId);
+      setPlacementSession(placementBlockId, null);
+      void disposeReaderPreviewEntryV1(entry);
+    }
     lastManifestRef.current = Object.freeze({ signature, manifest });
     setLastPreviewId(manifest.previewId);
     return manifest;
-  }, [application]);
+  }, [application, setPlacementSession]);
 
   const resolvePreview = React.useCallback(
     (previewId: string) => application.resolvePreview(previewId),
@@ -424,7 +447,15 @@ export function StudioAuthorPreviewProviderV1({
         entry.placementBlockId,
       );
     } catch (error) {
-      failReaderPreviewEntryV1(entry, owns, setPlacementSession, errorMessageV1(error));
+      failReaderPreviewEntryV1(
+        entry,
+        owns,
+        setPlacementSession,
+        readerPreviewErrorMessageV1(
+          error,
+          t("studioAuthorPreview.reader.liveLaneCapacityReached"),
+        ),
+      );
       return;
     }
     const { placement, scenario, caseEntry } = binding;
@@ -509,9 +540,17 @@ export function StudioAuthorPreviewProviderV1({
       }));
     } catch (error) {
       await disposeReaderPreviewEntryV1(entry);
-      failReaderPreviewEntryV1(entry, owns, setPlacementSession, errorMessageV1(error));
+      failReaderPreviewEntryV1(
+        entry,
+        owns,
+        setPlacementSession,
+        readerPreviewErrorMessageV1(
+          error,
+          t("studioAuthorPreview.reader.liveLaneCapacityReached"),
+        ),
+      );
     }
-  }, [setPlacementSession]);
+  }, [setPlacementSession, t]);
 
   /**
    * Evicts the least recently used warm placement once the limit is passed.
@@ -849,4 +888,29 @@ function runtimeBindingSignatureV1(draft: StudioAuthorDraftV1): string {
 
 function errorMessageV1(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+export function readerPreviewEntryIdsAbsentFromManifestV1(
+  activeEntryIds: Iterable<string>,
+  manifestPlacementIds: ReadonlySet<string>,
+): readonly string[] {
+  return Object.freeze(
+    [...activeEntryIds].filter((placementBlockId) =>
+      !manifestPlacementIds.has(placementBlockId)
+    ),
+  );
+}
+
+export function readerPreviewErrorMessageV1(
+  error: unknown,
+  liveLaneCapacityMessage: string,
+): string {
+  if (
+    error instanceof Error
+    && error.name === "MainWireScientificWorkerLaneErrorV1"
+    && error.message.includes("live-lane budget")
+  ) {
+    return liveLaneCapacityMessage;
+  }
+  return errorMessageV1(error);
 }
