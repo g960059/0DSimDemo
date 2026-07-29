@@ -3,9 +3,13 @@ import {
   MAIN_WIRE_INTEGRATED_LANE_STATE_CODEC_V1_ID,
 } from "@/engine/myocardium/MainWireIntegratedLaneDevelopmentIdentityV1";
 import {
+  attachModelSurfaceManifestRefV1,
   createIntegratedV3LaneDescriptorV1,
   INTEGRATED_V3_LANE_KIND_V1,
 } from "@/engine/myocardium/MainWireIntegratedLaneIdentityV1";
+import {
+  MAIN_WIRE_INTEGRATED_V3_MODEL_SURFACE_MANIFEST_REF_V1,
+} from "@/engine/modelSurface/v1/MainWireIntegratedV3ModelSurfaceManifestArtifactV1";
 import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
@@ -88,10 +92,13 @@ export const MAIN_WIRE_INTEGRATED_V3_ADVANCE_MAXIMUM_ATTEMPT_COUNT_V1 =
   2 as const;
 
 export const MAIN_WIRE_INTEGRATED_V3_LANE_DESCRIPTOR_V1 =
-  createIntegratedV3LaneDescriptorV1(
-    MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1.releaseRef,
-    MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
-      .observableCatalogSha256,
+  attachModelSurfaceManifestRefV1(
+    createIntegratedV3LaneDescriptorV1(
+      MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1.releaseRef,
+      MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1
+        .observableCatalogSha256,
+    ),
+    MAIN_WIRE_INTEGRATED_V3_MODEL_SURFACE_MANIFEST_REF_V1,
   );
 
 export const MAIN_WIRE_INTEGRATED_V3_PRESENTATION_OBSERVATION_STRIDE_V1 =

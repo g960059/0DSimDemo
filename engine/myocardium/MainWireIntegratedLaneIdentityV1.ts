@@ -6,6 +6,9 @@ import type {
 import {
   MAIN_WIRE_INTEGRATED_LANE_OBSERVABLE_REGISTRY_V1_ID,
 } from "@/engine/myocardium/MainWireIntegratedLaneObservableRegistryV1";
+import type {
+  ModelSurfaceManifestRefV1,
+} from "@/engine/modelSurface/v1/ModelSurfaceManifestV1";
 
 export const INTEGRATED_V3_LANE_KIND_V1 =
   "integrated-v3-experimental" as const;
@@ -181,6 +184,11 @@ export type StudioLaneDescriptorV1 = Readonly<{
   capabilities: StudioLaneCapabilitiesV1;
 }>;
 
+export type StudioModelSurfaceLaneDescriptorV1 =
+  StudioLaneDescriptorV1 & Readonly<{
+    modelSurfaceManifestRef: ModelSurfaceManifestRefV1;
+  }>;
+
 export function createIntegratedV3LaneDescriptorV1(
   releaseRef: SimulationReleaseRef,
   observableCatalogSha256: string,
@@ -201,6 +209,27 @@ export function createIntegratedV3LaneDescriptorV1(
     observableCatalogSha256,
     limitations: INTEGRATED_V3_LANE_LIMITATIONS_V1,
     capabilities: INTEGRATED_V3_LANE_CAPABILITIES_V1,
+  });
+}
+
+/**
+ * Adds model-surface discovery after the Worker boundary. The V1 Worker
+ * descriptor and response payload remain byte-for-byte schema-compatible.
+ */
+export function attachModelSurfaceManifestRefV1(
+  descriptor: StudioLaneDescriptorV1,
+  manifestRef: ModelSurfaceManifestRefV1,
+): StudioModelSurfaceLaneDescriptorV1 {
+  if (
+    manifestRef.schemaVersion !== 1
+    || manifestRef.manifestId.trim() === ""
+    || !/^[0-9a-f]{64}$/.test(manifestRef.contentSha256)
+  ) {
+    throw new Error("lane model surface manifest ref is invalid");
+  }
+  return Object.freeze({
+    ...descriptor,
+    modelSurfaceManifestRef: Object.freeze({ ...manifestRef }),
   });
 }
 
