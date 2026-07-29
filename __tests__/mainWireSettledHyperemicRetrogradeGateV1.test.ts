@@ -5,34 +5,52 @@ import {
 } from "@/tools/coronary/measureSettledHyperemicRetrogradeGateV1";
 
 describe("settled maximal-hyperemia retrograde gate V1", () => {
-  it("pins the LAD subendocardial material-retrograde window and nadir", () => {
+  it("derives and pins the settled LAD subendocardial precapillary-R1 gate", () => {
     const measurement = measureSettledHyperemicRetrogradeGateV1();
 
     expect(measurement).toMatchObject({
-      settlingCycleCount: 3,
-      measurementCycleIndex: 4,
+      gateId:
+        "settled-lad-subendocardial-precapillary-r1-maximal-hyperemia-tone-floor-retrograde-gate-v1",
+      settlingCycleCount: 11,
+      measurementCycleIndex: 12,
       maximalHyperemia01: 1,
       flowSite: "LAD.subendocardial.precapillary-R1",
       materialRetrogradeThresholdMlPerSec: -0.5,
       window: {
-        startPhaseSec: 0.898,
+        startPhaseSec: 0.9,
         endPhaseSec: 0.97,
-        widthSec: 0.072,
-        firstThresholdSamplePhaseSec: 0.9,
+        widthSec: 0.07,
+        firstThresholdSamplePhaseSec: 0.902,
         lastThresholdSamplePhaseSec: 0.968,
       },
       nadir: {
-        phaseSec: 0.914,
+        phaseSec: 0.916,
+      },
+      convergence: {
+        criterionId: "consecutive-cycle-four-pin-convergence-v1",
+        previousSettlingCycleCount: 10,
+        previousMeasurementCycleIndex: 11,
+        nadirMagnitudeRelativeTolerance: 1e-4,
+        nadirPhaseDifferenceSec: 0,
+        windowStartDifferenceSec: 0,
+        windowWidthDifferenceSec: 0,
+        timePinsRequireExactNominalGridAgreement: true,
       },
     });
     expectRelative(
       measurement.nadir.magnitudeMlPerSec,
-      2.1872647659423703,
+      2.2890876548286965,
       1e-12,
     );
+    expect(measurement.convergence.nadirMagnitudeRelativeDifference)
+      .toBeLessThanOrEqual(
+        measurement.convergence.nadirMagnitudeRelativeTolerance,
+      );
+    // For a unimodal bracket the ratio is exactly one by construction. This
+    // bound guards only extra total variation from ringing inside the window.
     expect(measurement.roughness.ratio).toBeGreaterThanOrEqual(1);
     expect(measurement.roughness.ratio).toBeLessThanOrEqual(1 + 1e-12);
-  }, 30_000);
+  }, 45_000);
 });
 
 function expectRelative(

@@ -7,6 +7,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_CANONICAL_ACCEPTED_SEQUENCE_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelCanonicalSequenceV3";
+import {
   createMainWireIntegratedLanePresetV1,
 } from "@/engine/myocardium/MainWireIntegratedLanePresetV1";
 import {
@@ -45,7 +48,7 @@ export const MAIN_WIRE_INTEGRATED_LANE_DEVELOPMENT_IDENTITY_V1_ID =
 export const MAIN_WIRE_INTEGRATED_LANE_DEVELOPMENT_IDENTITY_V1_VERSION =
   "0.0.1" as const;
 export const MAIN_WIRE_INTEGRATED_LANE_DEVELOPMENT_IDENTITY_V1_SHA256 =
-  "8642c3563a95f8d75a45ace429be6e7b6304c5e02318e12e6a465a05bdfcdfbb" as const;
+  "8bd1170e7e14151b6396fe108c8f82f9c0436c7f3321ffb92c46925d48c1362e" as const;
 export const MAIN_WIRE_INTEGRATED_LANE_DEVELOPMENT_IDENTITY_V1_ARTIFACT_PATH =
   "engine/myocardium/releases/main-wire-integrated-coronary-sinus-hmii-experimental-0.0.1.json" as const;
 export const MAIN_WIRE_INTEGRATED_LANE_STATE_CODEC_V1_ID =
@@ -123,6 +126,8 @@ Promise<MainWireIntegratedLaneDevelopmentIdentityV1> {
     scientificModel: {
       transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
       transactionClaim: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3,
+      canonicalAcceptedStateSequence:
+        MAIN_WIRE_INTEGRATED_MODEL_CANONICAL_ACCEPTED_SEQUENCE_V3,
     },
     stateCodec: {
       codecId: MAIN_WIRE_INTEGRATED_LANE_STATE_CODEC_V1_ID,

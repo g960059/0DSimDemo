@@ -32,7 +32,7 @@ export const MAIN_WIRE_INTEGRATED_SCIENTIFIC_WORKER_LANE_BINDING_V1 =
         "main-wire-integrated-coronary-sinus-hmii-experimental" as const,
       version: "0.0.1" as const,
       sha256:
-        "8642c3563a95f8d75a45ace429be6e7b6304c5e02318e12e6a465a05bdfcdfbb" as const,
+        "8bd1170e7e14151b6396fe108c8f82f9c0436c7f3321ffb92c46925d48c1362e" as const,
     }),
     observableCatalogId:
       "main-wire-integrated-v3-experimental-observable-registry-v1" as const,

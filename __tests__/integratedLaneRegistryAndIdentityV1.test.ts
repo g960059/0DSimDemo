@@ -18,6 +18,9 @@ import {
   MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
 } from "@/engine/myocardium/MainWireIntegratedModelTransactionV3";
 import {
+  MAIN_WIRE_INTEGRATED_MODEL_CANONICAL_ACCEPTED_SEQUENCE_V3,
+} from "@/engine/myocardium/MainWireIntegratedModelCanonicalSequenceV3";
+import {
   loadMainWireIntegratedLaneDevelopmentIdentityV1,
 } from "@/engine/myocardium/MainWireIntegratedLaneDevelopmentIdentityArtifactV1";
 import {
@@ -358,6 +361,8 @@ describe("integrated V3 observable registry and development lane identity", () =
       evidenceStatus: "unverified",
       scientificModel: {
         transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
+        canonicalAcceptedStateSequence:
+          MAIN_WIRE_INTEGRATED_MODEL_CANONICAL_ACCEPTED_SEQUENCE_V3,
       },
       stateCodec: {
         codecId: MAIN_WIRE_INTEGRATED_LANE_STATE_CODEC_V1_ID,
