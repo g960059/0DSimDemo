@@ -13,7 +13,7 @@ result that no file under `studio/` or `components/` imports V3. Everything
 else remains as written by its author, including the limits it records in Q6.
 
 
-Date: 2026-07-28  
+Date: 2026-07-28
 Scope only: no implementation is included.
 
 ## Executive answer
