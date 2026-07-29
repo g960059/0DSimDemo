@@ -32,7 +32,14 @@ test.describe.serial("Workbench live pacing under sustained load", () => {
       const browserErrors = captureBrowserErrorsV1(page);
 
       await acknowledgeModelLimitationsV1(page);
-      await page.goto("/ja/workbench", { waitUntil: "domcontentloaded" });
+      // The lane is named rather than assumed. This spec duplicates to the
+      // four-scenario cap, which is a non-coronary concept — the V3 lane that
+      // now answers the bare route has no scenarios at all. Being `@full-e2e`,
+      // this file never runs in the PR gate, so a bare-route navigation here
+      // would have stayed broken behind a green tick.
+      await page.goto("/ja/workbench?lane=noncoronary-v1", {
+        waitUntil: "domcontentloaded",
+      });
 
       const host = page.getByTestId("scientific-product-workbench-host-v1");
       const evidence = page.getByTestId("scientific-product-frame-evidence-v1");

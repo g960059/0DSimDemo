@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  hotPathIntegrityTierV1,
+  selectHotPathIntegrityTierV1,
+  type HotPathIntegrityTierV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
   WHOLE_HEART_MECHANICS_CONTRACT_V1_ID,
   WHOLE_HEART_MECHANICS_OWNERSHIP_V1,
   checkpointWholeHeartMechanicsStateV1,
@@ -709,6 +714,37 @@ describe("whole-heart mechanics transaction contract v1", () => {
       firstContext,
       { LA: 69, LV: 124, RA: 64, RV: 109 },
     )).toThrow(/already consumed/);
+  });
+
+  it("rejects a mutated published prepared trial in both integrity tiers", () => {
+    const previousTier = hotPathIntegrityTierV1();
+    const attack = (tier: HotPathIntegrityTierV1) => {
+      selectHotPathIntegrityTierV1(tier);
+      const provider = testProvider();
+      const accepted = coldStart(provider).acceptedState;
+      const preparedStep = prepareWholeHeartMechanicsStepV1(provider, {
+        previousAcceptedState: accepted,
+        candidateTimeSec: 0.002,
+        stepDtSec: 0.002,
+        drivingInputs: drive(),
+      });
+      const issued = evaluatePreparedWholeHeartMechanicsTrialV1(
+        preparedStep,
+        { LA: 70, LV: 125, RA: 65, RV: 110 },
+      );
+      issued.candidateMaterialState.landState[0] += 1;
+      expect(() => commitPreparedWholeHeartMechanicsTrialV1(
+        preparedStep,
+        issued,
+      )).toThrow(/candidate material state fingerprint mismatch/);
+    };
+
+    try {
+      attack("full-invariant");
+      attack("hot-path-lean");
+    } finally {
+      selectHotPathIntegrityTierV1(previousTier);
+    }
   });
 
   it("invalidates every remaining probe when one prepared candidate commits", () => {

@@ -139,6 +139,26 @@ import {
   scientificProductCaseByIdV1,
   type ScientificProductCaseRouteResolutionV1,
 } from "./scientificProductCaseCatalogV1";
+import {
+  SCIENTIFIC_PRODUCT_INTEGRATED_V3_CASE_V1,
+  resolveScientificProductIntegratedV3CaseRouteV1,
+} from "./ScientificProductIntegratedV3CaseV1";
+import {
+  ScientificProductIntegratedV3WorkbenchV1,
+} from "./ScientificProductIntegratedV3WorkbenchV1";
+import {
+  SCIENTIFIC_PRODUCT_LANE_DESCRIPTOR_BY_KIND_V1,
+  ScientificProductLaneSelectorV1,
+  resolveScientificProductLaneKindV1,
+  writeScientificProductLanePreferenceV1,
+} from "./ScientificProductLaneSelectorV1";
+import {
+  INTEGRATED_V3_LANE_KIND_V1,
+} from "@/engine/myocardium/MainWireIntegratedLaneIdentityV1";
+import {
+  STUDIO_NONCORONARY_LANE_KIND_V1,
+  type StudioLiveLaneKindV1,
+} from "@/studio/adapters/mainWire/StudioLiveLaneV1";
 
 type ScientificProductRuntimeLoadStateV1 =
   | Readonly<{ phase: "loading"; message: string }>
@@ -175,10 +195,13 @@ function scheduleAfterCommittedPaintV1(callback: () => void): () => void {
 export default function ScientificProductWorkbenchRouteV1() {
   const { caseId } = useParams<{ caseId?: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const locale = localeFromPathname(location.pathname);
+  const integratedV3Case =
+    resolveScientificProductIntegratedV3CaseRouteV1(caseId);
   const resolution = resolveProductRoute(caseId);
 
-  if (resolution === null) {
+  if (integratedV3Case === null && resolution === null) {
     return (
       <main
         className="flex h-full items-center justify-center bg-wb-app px-4 text-wb-text"
@@ -206,11 +229,56 @@ export default function ScientificProductWorkbenchRouteV1() {
     );
   }
 
+  const selectedLaneKind = caseId === undefined
+    ? resolveScientificProductLaneKindV1(location.search)
+    : integratedV3Case !== null
+      ? INTEGRATED_V3_LANE_KIND_V1
+      : STUDIO_NONCORONARY_LANE_KIND_V1;
+  const selectedDescriptor =
+    SCIENTIFIC_PRODUCT_LANE_DESCRIPTOR_BY_KIND_V1[selectedLaneKind];
+  const selectLane = (laneKind: StudioLiveLaneKindV1): void => {
+    writeScientificProductLanePreferenceV1(laneKind);
+    const nextSearch = new URLSearchParams(location.search);
+    nextSearch.set("lane", laneKind);
+    void navigate({
+      pathname: location.pathname,
+      search: `?${nextSearch.toString()}`,
+      hash: location.hash,
+    }, { replace: true });
+  };
+  const laneContentByKind = {
+    [INTEGRATED_V3_LANE_KIND_V1]: (
+      <ScientificProductIntegratedV3WorkbenchV1
+        caseEntry={
+          integratedV3Case ?? SCIENTIFIC_PRODUCT_INTEGRATED_V3_CASE_V1
+        }
+      />
+    ),
+    [STUDIO_NONCORONARY_LANE_KIND_V1]: resolution === null
+      ? null
+      : (
+        <ScientificProductWorkbenchLoaderV1
+          key={resolution.canonicalCaseId}
+          resolution={resolution}
+        />
+      ),
+  } satisfies Record<StudioLiveLaneKindV1, React.ReactNode>;
+
   return (
-    <ScientificProductWorkbenchLoaderV1
-      key={resolution.canonicalCaseId}
-      resolution={resolution}
-    />
+    <div
+      className="flex h-full min-h-0 flex-col bg-wb-app"
+      data-selected-lane-kind={selectedLaneKind}
+    >
+      {caseId === undefined && (
+        <ScientificProductLaneSelectorV1
+          selectedDescriptor={selectedDescriptor}
+          onSelectLane={selectLane}
+        />
+      )}
+      <div className="min-h-0 flex-1" key={selectedLaneKind}>
+        {laneContentByKind[selectedLaneKind]}
+      </div>
+    </div>
   );
 }
 

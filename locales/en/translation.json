@@ -254,8 +254,51 @@
     "draftBadge": "draft"
   },
   "workbench": {
+    "integratedV3": {
+      "opening": "Opening the fixed experimental browser lane…",
+      "eyebrow": "Live browser lane",
+      "fixedInputSummary": "Fixed input · Regular sinus · HMII 9000",
+      "backToCatalog": "Back to case catalog",
+      "statusAria": "Lane status",
+      "signalsAria": "Integrated lane signals",
+      "limitationsHeading": "Limitations",
+      "unavailableHeading": "Unavailable actions",
+      "unavailableCount": "{{actionCount}} actions",
+      "unavailableIntro": "These actions are disabled before invocation for this fixed lane."
+    },
     "scientificPersistenceUnavailable": "Scientific case saving is not available in this release. This in-memory comparison is not written through the legacy case store.",
     "scientificFilesUnavailable": "Scientific Case/Workspace import and export are not available in this release. Legacy case files are not translated silently.",
+    "laneSelector": {
+      "title": "Simulation lane",
+      "chooseLane": "Choose a simulation lane",
+      "currentLane": "Current lane",
+      "useLane": "Use this lane",
+      "compareCapabilities": "Compare lane capabilities",
+      "limitationsAria": "{{lane}} limitations",
+      "capabilitiesAria": "{{lane}} capabilities",
+      "available": "Available",
+      "unavailable": "Unavailable",
+      "capabilities": {
+        "liveWorkerExecution": "Browser-Worker execution",
+        "decimatedLivePresentation": "Live chart presentation",
+        "livePacingReporting": "Measured pacing",
+        "suspendResumePresentation": "Suspend or resume presentation",
+        "operationalWorkerRotationCheckpoint": "Operational Worker rotation",
+        "interactiveResearchControls": "Research controls",
+        "strictPeriodicSettlement": "Strict periodic settlement",
+        "steadyCandidatePromotion": "Promote steady candidate",
+        "candidatePinning": "Pin candidate",
+        "persistedWarmSnapshot": "Save or restore snapshot",
+        "exactSignalExport": "Exact signal export",
+        "presentationBeatEstimates": "Per-beat estimates",
+        "hemodynamicSideAnalysis": "Guyton / Starling analysis",
+        "pvRelationsSideAnalysis": "PV-relation analysis",
+        "tbvContinuationSeedPrediction": "TBV continuation analysis",
+        "externalAfRhythm": "External AF rhythm",
+        "iabpSupport": "IABP support",
+        "releaseOrCandidateIdentity": "Release or candidate identity"
+      }
+    },
     "panels": {
       "waveforms": "Waveforms",
       "pvLoop": "PV Loop",

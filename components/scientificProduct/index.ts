@@ -1,4 +1,5 @@
 export * from "./scientificProductCaseCatalogV1";
+export * from "./ScientificProductIntegratedV3CaseV1";
 export * from "./ScientificProductCasesGridV1";
 export * from "./ScientificProductReleaseBundleRegistryV1";
 export * from "./ScientificProductRuntimeRegistryPortV1";

@@ -1,6 +1,7 @@
 import type { CoronaryMechanicsInputV1 } from "@/engine/coronary/intramyocardialPressureV1";
 import {
   MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID,
+  type MainWireFiveWallVentricularCoronaryBoundaryTangentV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
   MAIN_WIRE_NORMAL_ADULT_FIVE_WALL_ADAPTER_V1_ID,
@@ -100,6 +101,93 @@ export function evaluateMainWireCoronaryMechanicsCouplingV1<TWallState>(
   });
 }
 
+/**
+ * Applies one condensed ventricular-volume column to the same-candidate
+ * coronary mechanics fields. The ventricular fibre-strain and active-stress
+ * rows are an optional acceleration contract: absence returns `null` so the
+ * transaction can fall back to whole-heart mechanics probes. The production
+ * provider supplies the rows from the center trial's existing TriSeg Schur
+ * solve.
+ */
+export function evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1<
+  TWallState,
+>(
+  mechanicsTrial: Pick<
+    WholeHeartMechanicsTrialV1<TWallState>,
+    | "diagnostics"
+    | "transmuralPressuresMmHg"
+    | "transmuralPressureVolumeTangentMmHgPerMl"
+  >,
+  input: Readonly<{
+    ventricularVolume: "LV" | "RV";
+    signedVolumeDeltaMl: number;
+    commonIntrathoracicPressureMmHg: number;
+    commonPericardialExcessPressureMmHg: number;
+  }>,
+): MainWireCoronaryMechanicsCouplingEvaluationV1 | null {
+  assertFinite("signedVolumeDeltaMl", input.signedVolumeDeltaMl);
+  const boundaryTangent = ventricularCoronaryBoundaryTangent(
+    mechanicsTrial.diagnostics.readback,
+  );
+  if (boundaryTangent === null) return null;
+  const base = evaluateMainWireCoronaryMechanicsCouplingV1(
+    mechanicsTrial,
+    input,
+  );
+  const pressureTangent =
+    mechanicsTrial.transmuralPressureVolumeTangentMmHgPerMl;
+  if (pressureTangent === undefined) {
+    throw new Error(
+      "ventricular coronary direction requires the condensed pressure tangent",
+    );
+  }
+  const volumeColumn = input.ventricularVolume;
+  const delta = input.signedVolumeDeltaMl;
+  const chamberTransmuralPressureMmHg = Object.freeze({
+    LV: finiteValue(
+      "directed LV transmural pressure",
+      base.input.chamberTransmuralPressureMmHg.LV
+        + delta * pressureTangent.LV[volumeColumn],
+    ),
+    RV: finiteValue(
+      "directed RV transmural pressure",
+      base.input.chamberTransmuralPressureMmHg.RV
+        + delta * pressureTangent.RV[volumeColumn],
+    ),
+  });
+  const effectiveFiberLogStrainByWall = ventricularWallRecord(
+    (wallId) => finiteValue(
+      `directed ${wallId} effective fiber log strain`,
+      base.effectiveFiberLogStrainByWall[wallId]
+        + delta * boundaryTangent
+          .effectiveFiberLogStrainPerMlByWall[wallId][volumeColumn],
+    ),
+  );
+  const landActiveFiberStressPaByWall = ventricularWallRecord((wallId) => {
+    const stress = finiteValue(
+      `directed ${wallId} Land active stress`,
+      base.input.landActiveFiberStressPaByWall[wallId]
+        + delta * boundaryTangent
+          .landActiveKirchhoffStressPaPerMlByWall[wallId][volumeColumn],
+    );
+    if (stress < 0) {
+      throw new RangeError(
+        `directed ${wallId} Land active stress must be non-negative`,
+      );
+    }
+    return stress;
+  });
+  return Object.freeze({
+    ...base,
+    input: Object.freeze({
+      ...base.input,
+      chamberTransmuralPressureMmHg,
+      landActiveFiberStressPaByWall,
+    }),
+    effectiveFiberLogStrainByWall,
+  });
+}
+
 type MainWireMechanicsReadbackShapeV1 = Readonly<{
   providerModelId: string;
   effectiveFiberLogStrainByWall: Readonly<{
@@ -155,6 +243,66 @@ function mechanicsReadback(
       SEP: serializableOrNull(wallMaterialReadbackByWall.SEP),
       RVFW: serializableOrNull(wallMaterialReadbackByWall.RVFW),
     }),
+  });
+}
+
+function ventricularCoronaryBoundaryTangent(
+  value: WholeHeartMechanicsSerializableValueV1 | null,
+): MainWireFiveWallVentricularCoronaryBoundaryTangentV1 | null {
+  const record = objectValue(value, "five-wall mechanics readback");
+  if (record.providerModelId !== MAIN_WIRE_FIVE_WALL_LAND_TRISEG_PROVIDER_V1_ID) {
+    throw new Error("coronary coupling requires the main-wire Land/TriSeg readback");
+  }
+  if (record.ventricularCoronaryBoundaryTangent === undefined) {
+    return null;
+  }
+  if (record.solveMode !== "trial") {
+    throw new Error("ventricular coronary direction requires a trial readback");
+  }
+  const tangent = objectValue(
+    record.ventricularCoronaryBoundaryTangent,
+    "ventricular coronary boundary tangent",
+  );
+  const strain = objectValue(
+    tangent.effectiveFiberLogStrainPerMlByWall,
+    "ventricular fiber-strain tangent",
+  );
+  const active = objectValue(
+    tangent.landActiveKirchhoffStressPaPerMlByWall,
+    "ventricular active-stress tangent",
+  );
+  return Object.freeze({
+    effectiveFiberLogStrainPerMlByWall: ventricularWallRecord((wallId) =>
+      ventricularVolumeColumns(
+        strain[wallId],
+        `${wallId} fiber-strain tangent`,
+      )),
+    landActiveKirchhoffStressPaPerMlByWall: ventricularWallRecord((wallId) =>
+      ventricularVolumeColumns(
+        active[wallId],
+        `${wallId} active-stress tangent`,
+      )),
+  });
+}
+
+function ventricularVolumeColumns(
+  value: unknown,
+  name: string,
+): Readonly<{ LV: number; RV: number }> {
+  const record = objectValue(value, name);
+  return Object.freeze({
+    LV: finiteValue(`${name}.LV`, record.LV),
+    RV: finiteValue(`${name}.RV`, record.RV),
+  });
+}
+
+function ventricularWallRecord<T>(
+  build: (wallId: "LVFW" | "SEP" | "RVFW") => T,
+): Readonly<Record<"LVFW" | "SEP" | "RVFW", T>> {
+  return Object.freeze({
+    LVFW: build("LVFW"),
+    SEP: build("SEP"),
+    RVFW: build("RVFW"),
   });
 }
 

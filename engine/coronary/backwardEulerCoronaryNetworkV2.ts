@@ -93,6 +93,8 @@ export type CoronaryBackwardEulerTrialInputV2 = Readonly<{
   disease?: CoronaryDiseaseInputV2;
   collapseHydraulics?: CoronaryCollapseHydraulicsPriorV2;
   solverOptions?: Partial<CoronaryBackwardEulerSolverOptionsV2>;
+  /** Opt-in measurement only; omitted on the production/default hot path. */
+  evaluationCounterCollection?: "enabled";
 }>;
 
 export type CoronaryHydraulicEvaluationV2 = Readonly<{
@@ -147,6 +149,8 @@ export type CoronaryBackwardEulerDiagnosticsV2 = Readonly<{
   converged: true;
   newtonIterations: number;
   totalLineSearchBacktracks: number;
+  /** Present only when the trial input opts into evaluation measurement. */
+  hydraulicResidualEvaluationCount?: number;
   finalResidualInfinityNormMl: number;
   maximumAbsoluteNodeContinuityResidualMl: number;
   continuityResidualMlByNode: CoronaryConservedVolumeStateV2;
@@ -617,6 +621,9 @@ export function solveCoronaryBackwardEulerTrialV2(
   );
 
   const evaluate = (candidate: number[]): ResidualEvaluationV2 => {
+    if (input.evaluationCounterCollection === "enabled") {
+      hydraulicResidualEvaluationCount += 1;
+    }
     const hydraulics = evaluateHydraulicsInternalV2(
       candidate,
       previousAcceptedState.toneResistanceScaleByTerritoryLayer,
@@ -638,6 +645,7 @@ export function solveCoronaryBackwardEulerTrialV2(
     return { residual, hydraulics };
   };
 
+  let hydraulicResidualEvaluationCount = 0;
   let candidate = previous.slice();
   let evaluated = evaluate(candidate);
   let residualNorm = infinityNormV2(evaluated.residual);
@@ -653,12 +661,12 @@ export function solveCoronaryBackwardEulerTrialV2(
         iterations,
       );
     }
-    const jacobian = numericalJacobianPositiveV2(
+    const jacobian = analyticSparseCoronaryVolumeJacobianV2(
       candidate,
-      evaluated.residual,
-      evaluate,
-      minimumVolumes,
-      options.finiteDifferenceRelativeStep,
+      evaluated.hydraulics,
+      input.dtSec,
+      topology,
+      collapseHydraulics,
     );
     const step = solveDenseLinearSystemV2(
       jacobian,
@@ -719,6 +727,9 @@ export function solveCoronaryBackwardEulerTrialV2(
       converged: true as const,
       newtonIterations: iterations,
       totalLineSearchBacktracks: backtracks,
+      ...(input.evaluationCounterCollection === "enabled"
+        ? { hydraulicResidualEvaluationCount }
+        : {}),
       finalResidualInfinityNormMl: residualNorm,
       maximumAbsoluteNodeContinuityResidualMl:
         infinityNormV2(evaluated.residual),
@@ -737,8 +748,8 @@ export function solveCoronaryBackwardEulerTrialV2(
 
 /**
  * Reconstruct the converged BE trial's implicit directional derivative without
- * resolving any candidate trial. Boundary probes and volume probes always use
- * the same previous state, accepted tone, disease, and collapse ownership.
+ * resolving any candidate trial. Exact local tangents use the same candidate,
+ * accepted tone, disease, and collapse ownership as the converged base trial.
  */
 export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
   request: CoronaryBackwardEulerImplicitSensitivityRequestV2,
@@ -780,10 +791,6 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
   const candidate = volumeRecordToArrayV2(
     baseTrial.candidateAcceptedState.volumeMlByNode,
   );
-  const minimumVolumes = topology.nodes.map(
-    (node) => node.pressureVolume.referenceVolumeMl
-      * options.minimumVolumeFractionOfReference,
-  );
   validateVolumesV2(
     candidate,
     topology,
@@ -815,8 +822,8 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
   let hydraulicResidualEvaluationCount = 0;
   let baseResidualProbeEvaluationCount = 0;
   let volumeJacobianProbeEvaluationCount = 0;
-  let boundaryResidualProbeEvaluationCount = 0;
-  let observableProbeEvaluationCount = 0;
+  const boundaryResidualProbeEvaluationCount = 0;
+  const observableProbeEvaluationCount = 0;
   let implicitLinearSolveCount = 0;
 
   const evaluate = (
@@ -876,14 +883,12 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
   let maximumLinearizedResidual = 0;
   let jacobian: number[][] | null = null;
   if (exactZeroBoundaryDirectionCount < request.boundaryDirections.length) {
-    jacobian = numericalJacobianPositiveCentralV2(
+    jacobian = analyticSparseCoronaryVolumeJacobianV2(
       candidate,
-      (volumes) => {
-        volumeJacobianProbeEvaluationCount += 1;
-        return evaluate(volumes, request.trialInput.boundary).residual;
-      },
-      minimumVolumes,
-      options.finiteDifferenceRelativeStep,
+      base.hydraulics,
+      request.trialInput.dtSec,
+      topology,
+      collapseHydraulics,
     );
   }
 
@@ -903,19 +908,13 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
     if (jacobian === null) {
       throw new Error("nonzero coronary direction is missing its Jacobian");
     }
-    boundaryResidualProbeEvaluationCount += 2;
-    const plusBoundaryResidual = evaluate(
-      candidate.slice(),
-      direction.plusBoundary,
-    ).residual;
-    const minusBoundaryResidual = evaluate(
-      candidate.slice(),
-      direction.minusBoundary,
-    ).residual;
-    const dResidualDScaledVariable = plusBoundaryResidual.map(
-      (value, index) =>
-        (value - minusBoundaryResidual[index]) / (2 * direction.scaledStep),
-    );
+    const dResidualDScaledVariable =
+      analyticCoronaryBoundaryResidualDirectionalDerivativeV2(
+        base.hydraulics,
+        direction,
+        request.trialInput.dtSec,
+        topology,
+      );
     requireFiniteVectorV2(
       dResidualDScaledVariable,
       "coronary boundary residual directional derivative",
@@ -955,26 +954,18 @@ export function computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2(
       topology,
       options.minimumVolumeFractionOfReference,
     );
-    observableProbeEvaluationCount += 2;
-    const combinedPlus = evaluate(
-      combinedPlusVolume,
-      direction.plusBoundary,
-    ).hydraulics;
-    const combinedMinus = evaluate(
-      combinedMinusVolume,
-      direction.minusBoundary,
-    ).hydraulics;
-    const denominator = 2 * direction.scaledStep;
-    const totalVolumeDerivative =
-      (sumV2(combinedPlusVolume) - sumV2(combinedMinusVolume)) / denominator;
-    const totalInletDerivative =
-      (totalInletFlowV2(combinedPlus.flowByEdge, edgeIndex)
-        - totalInletFlowV2(combinedMinus.flowByEdge, edgeIndex))
-      / denominator;
-    const commonVenousOutletDerivative =
-      (combinedPlus.flowByEdge[edgeIndex.CV_RA]
-        - combinedMinus.flowByEdge[edgeIndex.CV_RA])
-      / denominator;
+    const {
+      totalVolumeDerivative,
+      totalInletDerivative,
+      commonVenousOutletDerivative,
+    } = analyticCoronaryObservableDirectionalDerivativesV2(
+      candidate,
+      dVolume,
+      base.hydraulics,
+      direction,
+      topology,
+      edgeIndex,
+    );
     requireFiniteVectorV2(
       [
         totalVolumeDerivative,
@@ -1417,12 +1408,37 @@ function collapseScaleForNodeV2(
   node: CoronaryConservedVolumeNodeSpecV2,
   prior: CoronaryCollapseHydraulicsPriorV2,
 ): number {
-  if (prior.mode === "disabled-mechanism-ablation") return 1;
-  return evaluateVolumeDependentCoronaryResistanceV1(volumeMl, {
+  return evaluateCollapseScaleAndDerivativeForNodeV2(
+    volumeMl,
+    node,
+    prior,
+  ).resistanceScale;
+}
+
+function evaluateCollapseScaleAndDerivativeForNodeV2(
+  volumeMl: number,
+  node: CoronaryConservedVolumeNodeSpecV2,
+  prior: CoronaryCollapseHydraulicsPriorV2,
+): Readonly<{
+  resistanceScale: number;
+  dResistanceScaleDVolumePerMl: number;
+}> {
+  if (prior.mode === "disabled-mechanism-ablation") {
+    return {
+      resistanceScale: 1,
+      dResistanceScaleDVolumePerMl: 0,
+    };
+  }
+  const evaluated = evaluateVolumeDependentCoronaryResistanceV1(volumeMl, {
     referenceResistanceMmHgSecPerMl: 1,
     referenceVolumeMl: prior.hydraulicAreaReferenceVolumeMlByNode[node.nodeId],
     residualHydraulicAreaFraction: prior.residualHydraulicAreaFraction,
-  }).resistanceScale;
+  });
+  return {
+    resistanceScale: evaluated.resistanceScale,
+    dResistanceScaleDVolumePerMl:
+      evaluated.dResistanceDVolumeMmHgSecPerMl2,
+  };
 }
 
 function nodeByIdV2(
@@ -1462,72 +1478,318 @@ function accumulateFlowContinuityV2(
   });
 }
 
-function numericalJacobianPositiveV2(
+/**
+ * Edge-local assembly of the exact same-candidate BE volume Jacobian.
+ *
+ * The returned storage is dense because the existing 16x16 pivoted solver
+ * consumes rows, but assembly touches only the identity and edge-incidence
+ * pattern. Collapse resistance tangents can add only an edge endpoint column.
+ */
+function analyticSparseCoronaryVolumeJacobianV2(
   candidate: readonly number[],
-  baseResidual: readonly number[],
-  evaluate: (candidate: number[]) => ResidualEvaluationV2,
-  minimumVolumes: readonly number[],
-  relativeStep: number,
+  hydraulics: MutableHydraulicEvaluationV2,
+  dtSec: number,
+  topology: CoronaryTopologyV2,
+  collapseHydraulics: CoronaryCollapseHydraulicsPriorV2,
 ): number[][] {
   const n = candidate.length;
   const jacobian = Array.from({ length: n }, () => Array<number>(n).fill(0));
-  for (let column = 0; column < n; column += 1) {
-    const step = Math.max(1e-9, relativeStep * Math.max(1, Math.abs(candidate[column])));
-    const plus = candidate.slice();
-    plus[column] += step;
-    const plusResidual = evaluate(plus).residual;
-    if (candidate[column] - step > minimumVolumes[column]) {
-      const minus = candidate.slice();
-      minus[column] -= step;
-      const minusResidual = evaluate(minus).residual;
-      for (let row = 0; row < n; row += 1) {
-        jacobian[row][column] =
-          (plusResidual[row] - minusResidual[row]) / (2 * step);
+  const dPressureDVolumeMmHgPerMl = topology.nodes.map((node, nodeIndex) => {
+    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+      candidate[nodeIndex],
+      node.pressureVolume,
+    ).complianceMlPerMmHg;
+    if (!Number.isFinite(compliance) || compliance <= 0) {
+      throw new Error(
+        `${node.nodeId} coronary pressure-volume compliance is not positive and finite`,
+      );
+    }
+    return 1 / compliance;
+  });
+  for (let diagonal = 0; diagonal < n; diagonal += 1) {
+    jacobian[diagonal][diagonal] = 1;
+  }
+
+  topology.edges.forEach((edge, edgeIndex) => {
+    const flow = hydraulics.flowByEdge[edgeIndex];
+    const linearResistance = hydraulics.linearResistanceByEdge[edgeIndex];
+    const quadraticResistance = hydraulics.quadraticResistanceByEdge[edgeIndex];
+    const dPressureLossDFlowMmHgSecPerMl =
+      coronaryPressureFlowTangentV2(
+        flow,
+        linearResistance,
+        quadraticResistance,
+        edge.edgeId,
+      );
+
+    const flowNumeratorDerivativeByColumn = new Map<number, number>();
+    const accumulateFlowNumeratorDerivative = (
+      column: number,
+      derivative: number,
+    ): void => {
+      flowNumeratorDerivativeByColumn.set(
+        column,
+        (flowNumeratorDerivativeByColumn.get(column) ?? 0) + derivative,
+      );
+    };
+    if (isConservedNodeV2(edge.upstreamNodeId)) {
+      const column = CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId];
+      accumulateFlowNumeratorDerivative(
+        column,
+        dPressureDVolumeMmHgPerMl[column],
+      );
+    }
+    if (isConservedNodeV2(edge.downstreamNodeId)) {
+      const column = CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId];
+      accumulateFlowNumeratorDerivative(
+        column,
+        -dPressureDVolumeMmHgPerMl[column],
+      );
+    }
+
+    const accumulateCollapseResistanceDerivative = (
+      nodeId: CoronaryConservedVolumeNodeIdV2,
+      logarithmicResistanceFactor: number,
+    ): void => {
+      const column = CANONICAL_NODE_INDEX_V2[nodeId];
+      const collapse = evaluateCollapseScaleAndDerivativeForNodeV2(
+        candidate[column],
+        nodeByIdV2(nodeId, topology),
+        collapseHydraulics,
+      );
+      const dLinearResistanceDVolume =
+        logarithmicResistanceFactor * linearResistance
+        * collapse.dResistanceScaleDVolumePerMl
+        / collapse.resistanceScale;
+      accumulateFlowNumeratorDerivative(
+        column,
+        -flow * dLinearResistanceDVolume,
+      );
+    };
+    if (edge.kind === "micro-proximal-arteriolar") {
+      accumulateCollapseResistanceDerivative(
+        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        1,
+      );
+    } else if (edge.kind === "micro-intermediate-capillary") {
+      accumulateCollapseResistanceDerivative(
+        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        0.5,
+      );
+      accumulateCollapseResistanceDerivative(
+        edge.downstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        0.5,
+      );
+    } else if (edge.kind === "micro-distal-venular") {
+      accumulateCollapseResistanceDerivative(
+        edge.upstreamNodeId as CoronaryConservedVolumeNodeIdV2,
+        1,
+      );
+    }
+
+    const upstreamRow = isConservedNodeV2(edge.upstreamNodeId)
+      ? CANONICAL_NODE_INDEX_V2[edge.upstreamNodeId]
+      : null;
+    const downstreamRow = isConservedNodeV2(edge.downstreamNodeId)
+      ? CANONICAL_NODE_INDEX_V2[edge.downstreamNodeId]
+      : null;
+    for (
+      const [column, flowNumeratorDerivative]
+      of flowNumeratorDerivativeByColumn
+    ) {
+      const dFlowDVolume =
+        flowNumeratorDerivative / dPressureLossDFlowMmHgSecPerMl;
+      if (upstreamRow !== null) {
+        jacobian[upstreamRow][column] += dtSec * dFlowDVolume;
       }
-    } else {
-      for (let row = 0; row < n; row += 1) {
-        jacobian[row][column] =
-          (plusResidual[row] - baseResidual[row]) / step;
+      if (downstreamRow !== null) {
+        jacobian[downstreamRow][column] -= dtSec * dFlowDVolume;
       }
     }
-  }
+  });
+  jacobian.forEach((row, index) => {
+    requireFiniteVectorV2(row, `coronary analytic residual Jacobian row ${index}`);
+  });
   return jacobian;
 }
 
-function numericalJacobianPositiveCentralV2(
+/**
+ * Exact local directional derivatives of the three conservative companion
+ * observables. Only the Ao-to-Art and CV-to-RA edge laws are needed here;
+ * their candidate-volume response is already present in dVolume.
+ */
+function analyticCoronaryObservableDirectionalDerivativesV2(
   candidate: readonly number[],
-  evaluateResidual: (candidate: number[]) => readonly number[],
-  minimumVolumes: readonly number[],
-  relativeStep: number,
-): number[][] {
-  const n = candidate.length;
-  const jacobian = Array.from({ length: n }, () => Array<number>(n).fill(0));
-  for (let column = 0; column < n; column += 1) {
-    const nominalStep = Math.max(
-      1e-9,
-      relativeStep * Math.max(1, Math.abs(candidate[column])),
-    );
-    const positiveHeadroom = candidate[column] - minimumVolumes[column];
-    const step = Math.min(nominalStep, 0.25 * positiveHeadroom);
-    if (!Number.isFinite(step) || step <= 0) {
-      throw new RangeError(
-        `${CORONARY_CONSERVED_VOLUME_NODE_IDS_V2[column]} has no positive-domain central-difference headroom`,
+  dVolume: readonly number[],
+  hydraulics: MutableHydraulicEvaluationV2,
+  direction: CoronaryImplicitBoundaryDirectionV2,
+  topology: CoronaryTopologyV2,
+  edgeIndex: Readonly<Record<CoronaryEdgeIdV2, number>>,
+): Readonly<{
+  totalVolumeDerivative: number;
+  totalInletDerivative: number;
+  commonVenousOutletDerivative: number;
+}> {
+  const boundaryDerivative =
+    centralCoronaryBoundaryDirectionalDerivativeV2(direction);
+  const conservedNodeAbsolutePressureDerivative = (
+    nodeId: CoronaryConservedVolumeNodeIdV2,
+  ): number => {
+    const nodeIndex = CANONICAL_NODE_INDEX_V2[nodeId];
+    const compliance = evaluateCrefAnchoredCollapsiblePvV2(
+      candidate[nodeIndex],
+      nodeByIdV2(nodeId, topology).pressureVolume,
+    ).complianceMlPerMmHg;
+    if (!Number.isFinite(compliance) || compliance <= 0) {
+      throw new Error(
+        `${nodeId} coronary pressure-volume compliance is not positive and finite`,
       );
     }
-    const plus = candidate.slice();
-    const minus = candidate.slice();
-    plus[column] += step;
-    minus[column] -= step;
-    const plusResidual = evaluateResidual(plus);
-    const minusResidual = evaluateResidual(minus);
-    for (let row = 0; row < n; row += 1) {
-      jacobian[row][column] =
-        (plusResidual[row] - minusResidual[row]) / (2 * step);
+    return boundaryDerivative.perivascularExternalPressureMmHg
+      + dVolume[nodeIndex] / compliance;
+  };
+  const flowDerivative = (
+    edgeId: CoronaryEdgeIdV2,
+    pressureDropDerivative: number,
+  ): number => {
+    const index = edgeIndex[edgeId];
+    return pressureDropDerivative / coronaryPressureFlowTangentV2(
+      hydraulics.flowByEdge[index],
+      hydraulics.linearResistanceByEdge[index],
+      hydraulics.quadraticResistanceByEdge[index],
+      edgeId,
+    );
+  };
+  const totalInletDerivative = CORONARY_TERRITORY_IDS_V2.reduce(
+    (total, territoryId) => total + flowDerivative(
+      `Ao_${territoryId}.Art`,
+      boundaryDerivative.absoluteAorticPressureMmHg
+        - conservedNodeAbsolutePressureDerivative(`${territoryId}.Art`),
+    ),
+    0,
+  );
+  const commonVenousOutletDerivative = flowDerivative(
+    "CV_RA",
+    conservedNodeAbsolutePressureDerivative("CV")
+      - boundaryDerivative.absoluteRightAtrialPressureMmHg,
+  );
+  const totalVolumeDerivative = sumV2(dVolume);
+  requireFiniteVectorV2(
+    [
+      totalVolumeDerivative,
+      totalInletDerivative,
+      commonVenousOutletDerivative,
+    ],
+    "coronary analytic observable directional derivative",
+  );
+  return {
+    totalVolumeDerivative,
+    totalInletDerivative,
+    commonVenousOutletDerivative,
+  };
+}
+
+function analyticCoronaryBoundaryResidualDirectionalDerivativeV2(
+  hydraulics: MutableHydraulicEvaluationV2,
+  direction: CoronaryImplicitBoundaryDirectionV2,
+  dtSec: number,
+  topology: CoronaryTopologyV2,
+): number[] {
+  const boundaryDerivative =
+    centralCoronaryBoundaryDirectionalDerivativeV2(direction);
+  const absolutePressureDerivative = (
+    nodeId: CoronaryHydraulicNodeIdV2,
+  ): number => {
+    if (nodeId === "Ao") {
+      return boundaryDerivative.absoluteAorticPressureMmHg;
     }
+    if (nodeId === "RA") {
+      return boundaryDerivative.absoluteRightAtrialPressureMmHg;
+    }
+    return externalPressureForNodeV2(
+      nodeByIdV2(nodeId, topology),
+      boundaryDerivative,
+    );
+  };
+  const flowDerivative = topology.edges.map((edge, edgeIndex) => {
+    const pressureDropDerivative =
+      absolutePressureDerivative(edge.upstreamNodeId)
+      - absolutePressureDerivative(edge.downstreamNodeId);
+    return pressureDropDerivative / coronaryPressureFlowTangentV2(
+      hydraulics.flowByEdge[edgeIndex],
+      hydraulics.linearResistanceByEdge[edgeIndex],
+      hydraulics.quadraticResistanceByEdge[edgeIndex],
+      edge.edgeId,
+    );
+  });
+  const residualDerivative = Array<number>(topology.nodes.length).fill(0);
+  accumulateFlowContinuityV2(
+    residualDerivative,
+    flowDerivative,
+    dtSec,
+    topology,
+  );
+  requireFiniteVectorV2(
+    residualDerivative,
+    "coronary analytic boundary residual directional derivative",
+  );
+  return residualDerivative;
+}
+
+function centralCoronaryBoundaryDirectionalDerivativeV2(
+  direction: CoronaryImplicitBoundaryDirectionV2,
+): CoronaryHydraulicBoundaryInputV2 {
+  const denominator = 2 * direction.scaledStep;
+  const derivative = (
+    plus: number,
+    minus: number,
+  ): number => (plus - minus) / denominator;
+  return {
+    absoluteAorticPressureMmHg: derivative(
+      direction.plusBoundary.absoluteAorticPressureMmHg,
+      direction.minusBoundary.absoluteAorticPressureMmHg,
+    ),
+    absoluteRightAtrialPressureMmHg: derivative(
+      direction.plusBoundary.absoluteRightAtrialPressureMmHg,
+      direction.minusBoundary.absoluteRightAtrialPressureMmHg,
+    ),
+    perivascularExternalPressureMmHg: derivative(
+      direction.plusBoundary.perivascularExternalPressureMmHg,
+      direction.minusBoundary.perivascularExternalPressureMmHg,
+    ),
+    intramyocardialPressureMmHgByTerritoryLayer: territoryLayerRecordV2(
+      (territoryId, layerId) => derivative(
+        direction.plusBoundary
+          .intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId],
+        direction.minusBoundary
+          .intramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId],
+      ),
+    ),
+  };
+}
+
+function coronaryPressureFlowTangentV2(
+  flowMlPerSec: number,
+  linearResistanceMmHgSecPerMl: number,
+  quadraticResistanceMmHgSec2PerMl2: number,
+  edgeId: CoronaryEdgeIdV2,
+): number {
+  // solveSignedLinearQuadraticFlowV2 intentionally treats coefficients at or
+  // below this threshold as the linear algorithmic branch. Match that branch
+  // exactly; above it, use the exported Young-Tsai signed-loss tangent.
+  const tangent = quadraticResistanceMmHgSec2PerMl2 <= 1e-14
+    ? linearResistanceMmHgSecPerMl
+    : evaluateSignedLinearQuadraticLossV1(
+      flowMlPerSec,
+      linearResistanceMmHgSecPerMl,
+      quadraticResistanceMmHgSec2PerMl2,
+    ).dPressureLossDFlowMmHgSecPerMl;
+  if (!Number.isFinite(tangent) || tangent <= 0) {
+    throw new Error(
+      `${edgeId} coronary pressure-flow tangent is not positive and finite`,
+    );
   }
-  jacobian.forEach((row, index) =>
-    requireFiniteVectorV2(row, `coronary residual Jacobian row ${index}`));
-  return jacobian;
+  return tangent;
 }
 
 function numericalJacobianUnboundedV2(

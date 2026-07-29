@@ -292,44 +292,6 @@ const PREPARED_WHOLE_HEART_MECHANICS_TRIAL_CONTEXTS_V1 =
 const CONSUMED_PREPARED_WHOLE_HEART_MECHANICS_STEPS_V1 =
   new WeakSet<object>();
 
-type OwnedMaterialSnapshotV1 = Readonly<{
-  encoded: WholeHeartMechanicsSerializableValueV1;
-  fingerprint: string;
-}>;
-
-/**
- * Encoded material state for the accepted states and trials this module minted
- * itself, keyed by the frozen wrapper object.
- *
- * Encoding a material state, walking it for JSON-serializability and folding it
- * into a fingerprint is the expensive half of `snapshotMaterialState`. One
- * accepted step pays it three times: once auditing the previous accepted state,
- * once sealing the selected candidate, once committing that candidate. All
- * three describe values this module produced, so the second and third re-derive
- * a result already in hand.
- *
- * Re-deriving it is what detects a mutation of state this module owns — a
- * provider that keeps a reference and writes through it, or a caller that
- * reaches into a published trial. Those are the `fingerprint mismatch` errors
- * that `__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts` and
- * `__tests__/wholeHeartMechanicsContractV1.test.ts` pin, so the re-derivation
- * stays in the full-invariant tier and the memo is consulted only in
- * `hot-path-lean`; see engine/hotPathIntegrityTierV1.ts. In the lean tier the
- * step encodes once instead of three times.
- *
- * What is memoized is only the *encoding*. Every accepted state and every trial
- * still receives its own `stateCodec.clone` in both tiers, so no two of them
- * alias one mutable material state, and the provider still never receives an
- * object the caller holds. An accepted state or trial this module did not mint
- * — a decoded checkpoint, a caller-built value, a foreign trial — misses the
- * map and takes the full snapshot-and-compare path in either tier.
- */
-const CONTRACT_OWNED_ACCEPTED_SNAPSHOTS_V1 =
-  new WeakMap<object, OwnedMaterialSnapshotV1>();
-
-const CONTRACT_OWNED_TRIAL_SNAPSHOTS_V1 =
-  new WeakMap<object, OwnedMaterialSnapshotV1>();
-
 export function initializeWholeHeartMechanicsColdV1<TState, TDrive>(
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
   input: WholeHeartMechanicsColdInputV1<TDrive>,
@@ -383,13 +345,11 @@ export function evaluateWholeHeartMechanicsTrialV1<TState, TDrive>(
  * Candidate evaluation and final promotion may then use the trusted helpers
  * below without re-auditing the same accepted material state.
  *
- * The audit always clones the accepted material state, so the provider still
- * never receives the object the caller holds. In the `hot-path-lean` tier it
- * re-encodes and re-fingerprints that state only when this module did not mint
- * it — a decoded checkpoint or a caller-built value; a state minted by this
- * module's own commit reuses that commit's encoding, which is the same value by
- * construction. The full-invariant tier always re-encodes. See
- * engine/hotPathIntegrityTierV1.ts.
+ * The audit always clones, re-encodes and re-fingerprints accepted material in
+ * both integrity tiers. Accepted state is public boundary data even when this
+ * module minted the wrapper: callers can write through typed-array elements,
+ * which JavaScript cannot freeze. The provider still never receives the object
+ * the caller holds.
  */
 export function prepareWholeHeartMechanicsStepV1<TState, TDrive>(
   provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
@@ -589,10 +549,6 @@ function evaluatePreparedWholeHeartMechanicsTrialEagerV1<TState, TDrive>(
     trial,
     preparedStep,
   );
-  CONTRACT_OWNED_TRIAL_SNAPSHOTS_V1.set(trial, Object.freeze({
-    encoded: candidateSnapshot.encoded,
-    fingerprint: candidateSnapshot.fingerprint,
-  }));
   return trial;
 }
 
@@ -675,10 +631,6 @@ export function sealPreparedWholeHeartMechanicsCandidateProbeV1<
     trial,
     preparedStep,
   );
-  CONTRACT_OWNED_TRIAL_SNAPSHOTS_V1.set(trial, Object.freeze({
-    encoded: candidateSnapshot.encoded,
-    fingerprint: candidateSnapshot.fingerprint,
-  }));
   WHOLE_HEART_MECHANICS_CANDIDATE_PROBE_INTERNALS_V1.delete(probe);
   return trial;
 }
@@ -702,14 +654,8 @@ export function commitWholeHeartMechanicsTrialV1<TState, TDrive>(
  * Trusted final promotion for a prepared outer step. The accepted baseline is
  * not re-audited; the externally visible trial is checked in full — identity,
  * staleness, candidate time, candidate volumes, readiness — and its material
- * state is cloned into the promoted accepted state so the two never alias.
- *
- * In the `hot-path-lean` tier the material state's *encoding* is not recomputed
- * for a trial this module minted: seal already encoded, validated and
- * fingerprinted that exact value, and no provider callback runs between seal
- * and commit. The full-invariant tier recomputes it, which is what detects a
- * caller that mutates a published trial before committing it. A trial from
- * anywhere else is re-encoded in either tier.
+ * state is re-encoded and fingerprinted at this public boundary before being
+ * cloned into the promoted accepted state, so the two never alias.
  */
 export function commitPreparedWholeHeartMechanicsTrialV1<TState, TDrive>(
   preparedStep: WholeHeartMechanicsPreparedStepV1<TState, TDrive>,
@@ -755,12 +701,11 @@ function commitWholeHeartMechanicsTrialAgainstPreparedBaseline<TState, TDrive>(
   ) throw new Error("stale whole-heart mechanics trial cannot be committed");
   validateCandidateTime(previous, trial.candidateTimeSec, trial.stepDtSec);
   validateVolumes(trial.candidateVolumesMl, "trial.candidateVolumesMl");
-  const candidateSnapshot = ownedTrialSnapshotV1(provider, trial)
-    ?? snapshotMaterialState(
-      provider,
-      trial.candidateMaterialState,
-      "candidate material state",
-    );
+  const candidateSnapshot = snapshotMaterialState(
+    provider,
+    trial.candidateMaterialState,
+    "candidate material state",
+  );
   if (candidateSnapshot.fingerprint !== trial.candidateMaterialStateFingerprint) {
     throw new Error(
       "candidate material state fingerprint mismatch; snapshot was mutated or decoded inconsistently",
@@ -783,37 +728,6 @@ function commitWholeHeartMechanicsTrialAgainstPreparedBaseline<TState, TDrive>(
     volumesMl: trial.candidateVolumesMl,
     materialState: candidateSnapshot.materialState,
     materialStateFingerprint: candidateSnapshot.fingerprint,
-  }, candidateSnapshot.encoded);
-}
-
-/**
- * Re-derives the commit-time snapshot of a trial this module minted, without
- * re-encoding or re-fingerprinting it.
- *
- * The promoted accepted state still gets its own `stateCodec.clone`, so it never
- * aliases the material state the returned trial exposes. Only the encoding is
- * reused, and only for a trial issued by this module: a foreign trial, or one
- * whose recorded fingerprint no longer matches the trial's own field, falls
- * through to the full snapshot-and-compare path.
- */
-function ownedTrialSnapshotV1<TState, TDrive>(
-  provider: WholeHeartMechanicsProviderV1<TState, TDrive>,
-  trial: WholeHeartMechanicsTrialV1<TState>,
-): Readonly<{
-  materialState: TState;
-  encoded: WholeHeartMechanicsSerializableValueV1;
-  fingerprint: string;
-}> | null {
-  if (fullHotPathInvariantsEnabledV1()) return null;
-  const owned = CONTRACT_OWNED_TRIAL_SNAPSHOTS_V1.get(trial);
-  if (
-    owned === undefined
-    || owned.fingerprint !== trial.candidateMaterialStateFingerprint
-  ) return null;
-  return Object.freeze({
-    materialState: provider.stateCodec.clone(trial.candidateMaterialState),
-    encoded: owned.encoded,
-    fingerprint: owned.fingerprint,
   });
 }
 
@@ -891,7 +805,7 @@ function acceptedState<TState, TDrive>(
     ...input,
     materialState: snapshot.materialState,
     materialStateFingerprint: snapshot.fingerprint,
-  }, snapshot.encoded);
+  });
 }
 
 function acceptedStateFromOwnedSnapshot<TState, TDrive>(
@@ -903,7 +817,6 @@ function acceptedStateFromOwnedSnapshot<TState, TDrive>(
     materialState: TState;
     materialStateFingerprint: string;
   },
-  encodedMaterialState: WholeHeartMechanicsSerializableValueV1 | undefined,
 ): WholeHeartMechanicsAcceptedStateV1<TState> {
   validateInteger(input.revision, "revision");
   validateTime(input.timeSec, "acceptedTimeSec");
@@ -920,12 +833,6 @@ function acceptedStateFromOwnedSnapshot<TState, TDrive>(
     materialState: input.materialState,
     materialStateFingerprint: input.materialStateFingerprint,
   });
-  if (encodedMaterialState !== undefined) {
-    CONTRACT_OWNED_ACCEPTED_SNAPSHOTS_V1.set(state, Object.freeze({
-      encoded: encodedMaterialState,
-      fingerprint: input.materialStateFingerprint,
-    }));
-  }
   return state;
 }
 
@@ -999,21 +906,11 @@ function auditAcceptedState<TState, TDrive>(
   validateInteger(state.revision, "accepted revision");
   validateTime(state.acceptedTimeSec, "acceptedTimeSec");
   validateVolumes(state.acceptedVolumesMl, "acceptedVolumesMl");
-  const owned = fullHotPathInvariantsEnabledV1()
-    ? undefined
-    : CONTRACT_OWNED_ACCEPTED_SNAPSHOTS_V1.get(state);
-  const snapshot = owned !== undefined
-      && owned.fingerprint === state.materialStateFingerprint
-    ? Object.freeze({
-      materialState: provider.stateCodec.clone(state.materialState),
-      encoded: owned.encoded,
-      fingerprint: owned.fingerprint,
-    })
-    : snapshotMaterialState(
-      provider,
-      state.materialState,
-      "accepted material state",
-    );
+  const snapshot = snapshotMaterialState(
+    provider,
+    state.materialState,
+    "accepted material state",
+  );
   if (snapshot.fingerprint !== state.materialStateFingerprint) {
     throw new Error(
       "accepted material state fingerprint mismatch; snapshot was mutated or decoded inconsistently",
@@ -1026,7 +923,7 @@ function auditAcceptedState<TState, TDrive>(
       volumesMl: state.acceptedVolumesMl,
       materialState: snapshot.materialState,
       materialStateFingerprint: snapshot.fingerprint,
-    }, snapshot.encoded),
+    }),
     encodedMaterialState: snapshot.encoded,
   });
 }

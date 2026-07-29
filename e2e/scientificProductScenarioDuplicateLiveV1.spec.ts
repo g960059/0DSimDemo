@@ -7,6 +7,9 @@ import {
   type TestInfo,
 } from "@playwright/test";
 
+const NONCORONARY_WORKBENCH_PATH =
+  "/ja/workbench?lane=noncoronary-v1";
+
 /**
  * A duplicated scenario has to actually simulate.
  *
@@ -33,7 +36,9 @@ test.describe.serial("Workbench scenario duplication", () => {
     const browserErrors = captureBrowserErrorsV1(page);
 
     await acknowledgeModelLimitationsV1(page);
-    await page.goto("/ja/workbench", { waitUntil: "domcontentloaded" });
+    await page.goto(NONCORONARY_WORKBENCH_PATH, {
+      waitUntil: "domcontentloaded",
+    });
 
     const host = page.getByTestId("scientific-product-workbench-host-v1");
     const evidence = page.getByTestId("scientific-product-frame-evidence-v1");
@@ -93,7 +98,13 @@ test.describe.serial("Workbench scenario duplication", () => {
     const browserErrors = captureBrowserErrorsV1(page);
 
     await acknowledgeModelLimitationsV1(page);
-    await page.goto("/ja/workbench", { waitUntil: "domcontentloaded" });
+    // Written against the bare route while the non-coronary lane was still the
+    // product default. This branch makes the V3 coronary lane the default, so
+    // the lane has to be named — the scenario capacity this test measures is a
+    // non-coronary concept, and the V3 surface has no scenarios at all.
+    await page.goto(NONCORONARY_WORKBENCH_PATH, {
+      waitUntil: "domcontentloaded",
+    });
     expect(await page.evaluate(() => navigator.hardwareConcurrency)).toBe(6);
 
     const host = page.getByTestId("scientific-product-workbench-host-v1");

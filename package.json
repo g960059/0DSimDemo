@@ -44,7 +44,7 @@
     "generate:scientific:macro-physiology-envelope": "vite-node --script tools/scientific/generateMainWireMacroPhysiologyEnvelopeV1.ts",
     "verify:scientific:macro-physiology-envelope": "vite-node --script tools/scientific/generateMainWireMacroPhysiologyEnvelopeV1.ts --check",
     "verify:scientific:valve-preset-numerical-envelope": "vite-node --script tools/scientific/runMainWireValvePresetNumericalRobustnessEnvelopeV1.ts",
-    "verify:scientific:browser-bundle-boundary": "node tools/scientific/verifyBrowserScientificBundleBoundaryV1.mjs",
+    "verify:scientific:browser-bundle-boundary": "node tools/scientific/verifyBrowserScientificBundleBoundaryV1.mjs && node tools/scientific/verifyIntegratedBrowserScientificBundleBoundaryV1.mjs",
     "verify:scientific:integrated-generated-v2": "vite-node --script tools/scientific/runMainWireIntegratedModelNumericalVerificationV2.ts",
     "verify:scientific:integrated-periodic-v2": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV2.ts",
     "verify:scientific:integrated-periodic-v3": "vite-node --script tools/scientific/runMainWireIntegratedModelPeriodicSteadyV3.ts",

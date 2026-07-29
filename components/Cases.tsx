@@ -1,7 +1,10 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ScientificProductCasesGridV1 } from './scientificProduct';
+import {
+  SCIENTIFIC_PRODUCT_DISCOVERY_CASE_CATALOG_V1,
+  ScientificProductCasesGridV1,
+} from './scientificProduct';
 import { localeFromPathname } from '../localeRouting';
 
 export const OfficialCases = () => {
@@ -24,6 +27,7 @@ export const OfficialCases = () => {
           <ScientificProductCasesGridV1
             locale={locale}
             openLabel={t('cases.openCase')}
+            cases={SCIENTIFIC_PRODUCT_DISCOVERY_CASE_CATALOG_V1}
           />
         </section>
       </div>

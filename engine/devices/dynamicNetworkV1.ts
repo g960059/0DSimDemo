@@ -25,6 +25,10 @@ import {
   type RotaryPumpDeviceConfigV1,
   type RotarySupportDeviceIdV1,
 } from "@/engine/devices/typesV1";
+import {
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
 
 export const DYNAMIC_MECHANICAL_SUPPORT_NETWORK_V1_ID =
   "circleheart-dynamic-mechanical-support-network-v1" as const;
@@ -132,6 +136,27 @@ export type DynamicMechanicalSupportAcceptedStateV1 = Readonly<{
 
 /** Factory provenance prevents a JSON/structured clone from becoming live state. */
 const LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES = new WeakSet<object>();
+
+/**
+ * Persistent identity proofs are allowed only for transitively frozen
+ * plain-data profiles. Mutable built-ins, including typed-array storage, are
+ * ineligible.
+ */
+const VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES = new WeakSet<object>();
+
+type DynamicMechanicalSupportValidationStampV1 = Readonly<{
+  profile: DynamicMechanicalSupportInertanceProfileV1;
+  config: MechanicalSupportConfigV1;
+}>;
+
+/**
+ * A hit requires an exact live factory state plus the exact frozen profile and
+ * config pair against which its complete structural binding was proved.
+ */
+const VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS = new WeakMap<
+  object,
+  readonly DynamicMechanicalSupportValidationStampV1[]
+>();
 
 export type DynamicMechanicalSupportHydraulicInputV1 =
   MechanicalSupportHydraulicInputV1 & Readonly<{
@@ -243,7 +268,7 @@ export function createDynamicMechanicalSupportInertanceProfileV1(
     input.deviceProfileBindingByDevice,
   );
   const inertanceByDevice = copyInertanceRecord(input.inertanceByDevice);
-  return Object.freeze({
+  const profile = Object.freeze({
     profileSchemaId: DYNAMIC_MECHANICAL_SUPPORT_INERTANCE_PROFILE_V1_ID,
     schemaVersion: 1 as const,
     unitSystemId: DYNAMIC_ROTARY_PUMP_UNIT_SYSTEM_V1_ID,
@@ -252,6 +277,10 @@ export function createDynamicMechanicalSupportInertanceProfileV1(
     deviceProfileBindingByDevice,
     inertanceByDevice,
   });
+  if (validationStampIssuanceEligibleV1(profile)) {
+    VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES.add(profile);
+  }
+  return profile;
 }
 
 export function createDynamicMechanicalSupportStructuralHydraulicProjectionV1(
@@ -280,11 +309,13 @@ export function createDynamicMechanicalSupportAcceptedStateV1(
   const flows = acceptedFlowMlPerSec === undefined
     ? deviceRecord(() => 0)
     : copyFlowRecord(acceptedFlowMlPerSec, "acceptedFlowMlPerSec");
-  return createAcceptedStateFromOwnedBinding(
+  const state = createAcceptedStateFromOwnedBinding(
     inertanceProfileSnapshot,
     structuralHydraulicProjection,
     flows,
   );
+  stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config);
+  return state;
 }
 
 /**
@@ -347,6 +378,17 @@ function createAcceptedStateFromOwnedBinding(
 export function validateDynamicMechanicalSupportInertanceProfileV1(
   profile: unknown,
 ): asserts profile is DynamicMechanicalSupportInertanceProfileV1 {
+  if (
+    profile !== null
+    && typeof profile === "object"
+    && validationStampReuseEligibleV1()
+    && VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES.has(profile)
+  ) {
+    // This persistent proof is sound because only a transitively frozen
+    // plain-data profile can enter the set. Any clone, mutable built-in, or
+    // mutable object misses and crosses the complete exported validation path.
+    return;
+  }
   plainRecord(profile, "dynamic mechanical-support inertance profile");
   assertExactKeys(
     profile,
@@ -378,6 +420,9 @@ export function validateDynamicMechanicalSupportInertanceProfileV1(
     typed.inertanceByDevice,
     "profile.inertanceByDevice",
   );
+  if (validationStampIssuanceEligibleV1(profile)) {
+    VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES.add(profile);
+  }
 }
 
 export function validateDynamicMechanicalSupportAcceptedStateV1(
@@ -385,6 +430,18 @@ export function validateDynamicMechanicalSupportAcceptedStateV1(
   profile: DynamicMechanicalSupportInertanceProfileV1,
   config: MechanicalSupportConfigV1,
 ): asserts state is DynamicMechanicalSupportAcceptedStateV1 {
+  if (
+    state !== null
+    && typeof state === "object"
+    && validationStampReuseEligibleV1()
+    && hasDynamicMechanicalSupportValidationStampV1(state, profile, config)
+  ) {
+    // This persistent proof is sound because the live state, profile, and
+    // config are all transitively frozen plain data. Restored, copied,
+    // hand-built, differently bound, or mutable inputs miss it and retain the
+    // full exported boundary validation.
+    return;
+  }
   validateDynamicMechanicalSupportInertanceProfileV1(profile);
   validateMechanicalSupportConfigV1(config);
   assertAcceptedStateShape(state, true);
@@ -401,6 +458,7 @@ export function validateDynamicMechanicalSupportAcceptedStateV1(
       "dynamic mechanical-support accepted state structural hydraulic config mismatch",
     );
   }
+  stampDynamicMechanicalSupportAcceptedStateV1(state, profile, config);
 }
 
 /**
@@ -450,6 +508,14 @@ export function evaluateDynamicMechanicalSupportHydraulicsV1(
     previousAcceptedState.structuralHydraulicProjection,
     deviceRecord((deviceId) =>
       pump[deviceId].candidateAcceptedState.acceptedFlowMlPerSec),
+  );
+  // This candidate is private same-tick output assembled from the accepted
+  // state's owned immutable binding and the four validated pump candidates.
+  // Only this exact state/profile/config identity proof can be reused.
+  stampDynamicMechanicalSupportAcceptedStateV1(
+    candidateAcceptedState,
+    profile,
+    config,
   );
   const nodeRates = mutableNodeRecord(() => 0);
   const pressureJacobian = mutableNodeMatrix();
@@ -1281,6 +1347,35 @@ function assertDeepFrozen(value: unknown, label: string): void {
     }
   };
   visit(value, label);
+}
+
+function hasDynamicMechanicalSupportValidationStampV1(
+  state: object,
+  profile: DynamicMechanicalSupportInertanceProfileV1,
+  config: MechanicalSupportConfigV1,
+): boolean {
+  return VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state)
+    ?.some((stamp) => stamp.profile === profile && stamp.config === config)
+    ?? false;
+}
+
+function stampDynamicMechanicalSupportAcceptedStateV1(
+  state: DynamicMechanicalSupportAcceptedStateV1,
+  profile: DynamicMechanicalSupportInertanceProfileV1,
+  config: MechanicalSupportConfigV1,
+): void {
+  if (
+    !LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state)
+    || !validationStampIssuanceEligibleV1(state, profile, config)
+  ) return;
+  const existing =
+    VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.get(state) ?? [];
+  if (existing.some((stamp) =>
+    stamp.profile === profile && stamp.config === config)) return;
+  VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_STATE_BINDINGS.set(
+    state,
+    Object.freeze([...existing, Object.freeze({ profile, config })]),
+  );
 }
 
 function addIncidenceDerivative(

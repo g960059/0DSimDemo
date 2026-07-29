@@ -81,6 +81,25 @@ describe("main-wire coronary V2 mechanics boundary", () => {
     }
   });
 
+  it("requires the historical source IMP only for its source mechanism", () => {
+    const { sourceIntramyocardialPressureMmHgByTerritoryLayer: _, ...sample } =
+      boundarySample(-0.10);
+    const reference = Object.freeze({
+      referenceFiberLogStrainByWall: walls(0),
+    });
+
+    expect(() => resolveMainWireCoronaryBoundaryV2(
+      sample,
+      "source-cep-land-active",
+      null,
+    )).toThrow(/requires source intramyocardial pressure/);
+    expect(() => resolveMainWireCoronaryBoundaryV2(
+      sample,
+      "cep-shortening-induced",
+      reference,
+    )).not.toThrow();
+  });
+
   it("validates all same-candidate mechanics fields in every mechanism", () => {
     const sample = boundarySample(-0.10);
     expect(() => resolveMainWireCoronaryBoundaryV2({

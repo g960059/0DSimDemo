@@ -10,10 +10,13 @@ import {
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { homeHref, workbenchHref } from "@/homeLinks";
+import { homeHref, workbenchLaneHref } from "@/homeLinks";
 import { localeFromPathname } from "@/localeRouting";
 import { useWorkbenchTheme } from "@/features/workbench/hooks/useWorkbenchTheme";
 import type { StudioDocumentBlockV1 } from "@/studio/contracts/v1";
+import {
+  STUDIO_NONCORONARY_LANE_KIND_V1,
+} from "@/studio/adapters/mainWire/StudioLiveLaneV1";
 
 import { useStudioAuthorPreviewV1 } from "./StudioAuthorPreviewProviderV1";
 import {
@@ -229,7 +232,10 @@ export default function StudioDocumentRouteV1() {
           )}
           <button
             type="button"
-            onClick={() => navigate(workbenchHref(locale))}
+            onClick={() => navigate(workbenchLaneHref(
+              STUDIO_NONCORONARY_LANE_KIND_V1,
+              locale,
+            ))}
             data-testid="studio-author-open-workbench-v1"
             className="inline-flex min-h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-wb-muted transition-colors hover:bg-wb-hover hover:text-wb-text"
           >

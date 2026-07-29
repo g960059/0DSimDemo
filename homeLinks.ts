@@ -1,8 +1,17 @@
 import { type Locale, prefixPath } from "./localeRouting";
+import type {
+  StudioLiveLaneKindV1,
+} from "./studio/adapters/mainWire/StudioLiveLaneV1";
 
 export const caseHref = (id: string, locale?: Locale) => `${prefixPath(`/workbench/${encodeURIComponent(id)}`, locale)}?from=cases`;
 
 export const workbenchHref = (locale?: Locale) => prefixPath("/workbench", locale);
+
+export const workbenchLaneHref = (
+  laneKind: StudioLiveLaneKindV1,
+  locale?: Locale,
+) =>
+  `${workbenchHref(locale)}?lane=${encodeURIComponent(laneKind)}`;
 
 /**
  * The Workbench opened to compose one experiment.

@@ -54,6 +54,7 @@ import {
 } from "@/engine/coronary/intramyocardialPressureV1";
 import {
   evaluateMainWireCoronaryMechanicsCouplingV1,
+  evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1,
   type MainWireCoronaryMechanicsCouplingEvaluationV1,
 } from "@/engine/coronary/mainWireMechanicsCouplingV1";
 import {
@@ -82,6 +83,7 @@ import {
 } from "@/engine/myocardium/calcium/fiveWallNormalCalciumDriveV1";
 import type {
   MainWireFiveWallFreeCalciumDriveV1,
+  MainWireFiveWallLandTriSegEvaluationCountersV1,
 } from "@/engine/myocardium/mechanics/MainWireFiveWallLandTriSegProviderV1";
 import {
   evaluateMainWireCommonPericardiumBindingV1,
@@ -186,6 +188,18 @@ export type MainWireFiveWallCoronaryAcceptedStateV2<TWallState> = Readonly<{
   mvcReferenceState: MainWireCoronaryMvcReferenceStateV2;
 }>;
 
+/**
+ * The cache is used only when every object `acceptedTuple` dereferences on its
+ * way to a scalar is frozen; `mainWireFiveWallCoronaryValidationSurfaceIsFrozenV2`
+ * enumerates exactly that set, including the two-level MVC reference that
+ * `validateMvcReferenceState` reaches through. Everything else `acceptedTuple`
+ * touches is a primitive on one of those frozen objects. Mutable mechanics
+ * payloads outside that read surface are deliberately irrelevant to the stamp
+ * and retain their existing contract.
+ */
+const validatedMainWireFiveWallCoronaryAcceptedStatesV2 =
+  new WeakSet<object>();
+
 export type MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
   TWallState,
 > = Readonly<{
@@ -193,9 +207,20 @@ export type MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
   pericardium: MainWireCommonPericardiumEvaluationV1;
   coronaryMechanicsCoupling:
     MainWireCoronaryMechanicsCouplingEvaluationV1;
-  sourceImpByTerritoryLayer:
-    CoronaryTerritoryLayerRecordV2<CoronaryImpEvaluationV1>;
-  sourceIntramyocardialPressureMmHgByTerritoryLayer:
+  sourceIntramyocardialPressureMmHgByTerritoryLayer?:
+    CoronaryTerritoryLayerRecordV2<number>;
+}>;
+
+/**
+ * Candidate mechanics values read by the coronary boundary resolver.
+ *
+ * Atrial-direction probes construct this view without minting another
+ * exclusive-ownership whole-heart mechanics trial.
+ */
+export type MainWireCoronaryBoundaryMechanicsViewV2 = Readonly<{
+  coronaryMechanicsCoupling:
+    MainWireCoronaryMechanicsCouplingEvaluationV1;
+  sourceIntramyocardialPressureMmHgByTerritoryLayer?:
     CoronaryTerritoryLayerRecordV2<number>;
 }>;
 
@@ -203,6 +228,111 @@ export type MainWireFiveWallCoronaryCompanionTrialV2 = Readonly<{
   coronaryTrial: CoronaryBackwardEulerTrialV2;
   boundary: CoronaryHydraulicBoundaryInputV2;
 }>;
+
+export type MainWireFiveWallCoronaryEvaluationCountersV2 = Readonly<{
+  outerCirculationCandidateCount: number;
+  coronaryTrial: Readonly<{
+    invocationCount: number;
+    hydraulicResidualEvaluationCount: number;
+    newtonIterationCount: number;
+    lineSearchBacktrackCount: number;
+  }>;
+  coronaryImplicitSensitivities: Readonly<{
+    invocationCount: number;
+    directionCount: number;
+    exactZeroBoundaryDirectionCount: number;
+    baseResidualProbeEvaluationCount: number;
+    volumeJacobianProbeEvaluationCount: number;
+    boundaryResidualProbeEvaluationCount: number;
+    observableProbeEvaluationCount: number;
+    implicitLinearSolveCount: number;
+    hydraulicResidualEvaluationCount: number;
+  }>;
+  mechanics: Readonly<{
+    candidateCenterEvaluationCount: number;
+    lvRvProbeEvaluationCount: number;
+    ventricularCoronaryBoundaryProbeFallbackCount: number;
+    totalEvaluationCount: number;
+    triSegProviderCounterReadbackCount: number;
+    solveInternalCoordinatesCallCount: number;
+    evaluateCandidateCallCount: number;
+    atrialMaterialEvaluationCountByWall: Readonly<{
+      LA: number;
+      RA: number;
+    }>;
+    atrialFiberLogStrainObservationCountByWall: Readonly<{
+      LA: number;
+      RA: number;
+    }>;
+    atrialFiberLogStrainChangeCountByWall: Readonly<{
+      LA: number;
+      RA: number;
+    }>;
+    atrialFiberLogStrainDistinctInputCountByWall: Readonly<{
+      LA: number;
+      RA: number;
+    }>;
+  }>;
+}>;
+
+export type MainWireFiveWallCoronaryCirculationDiagnosticsV2 = Readonly<
+  NonCoronaryCirculationTrialDiagnosticsV1 & {
+    /** Opt-in additive measurement; absent on the default production path. */
+    evaluationCounters?: MainWireFiveWallCoronaryEvaluationCountersV2;
+  }
+>;
+
+export type MainWireFiveWallCoronaryCirculationTrialSuccessV2<TWallState> =
+  Readonly<
+    Omit<
+      NonCoronaryCirculationTrialSuccessV1<
+        MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>,
+        MainWireFiveWallCoronaryCompanionTrialV2
+      >,
+      "diagnostics"
+    > & {
+      diagnostics: MainWireFiveWallCoronaryCirculationDiagnosticsV2;
+    }
+  >;
+
+type MutableMainWireFiveWallCoronaryEvaluationCountersV2 = {
+  outerCirculationCandidateCount: number;
+  coronaryTrial: {
+    invocationCount: number;
+    hydraulicResidualEvaluationCount: number;
+    newtonIterationCount: number;
+    lineSearchBacktrackCount: number;
+  };
+  coronaryImplicitSensitivities: {
+    invocationCount: number;
+    directionCount: number;
+    exactZeroBoundaryDirectionCount: number;
+    baseResidualProbeEvaluationCount: number;
+    volumeJacobianProbeEvaluationCount: number;
+    boundaryResidualProbeEvaluationCount: number;
+    observableProbeEvaluationCount: number;
+    implicitLinearSolveCount: number;
+    hydraulicResidualEvaluationCount: number;
+  };
+  mechanics: {
+    candidateCenterEvaluationCount: number;
+    lvRvProbeEvaluationCount: number;
+    ventricularCoronaryBoundaryProbeFallbackCount: number;
+    triSegProviderCounterReadbackCount: number;
+    solveInternalCoordinatesCallCount: number;
+    evaluateCandidateCallCount: number;
+    atrialMaterialEvaluationCountByWall: { LA: number; RA: number };
+    atrialFiberLogStrainObservationCountByWall: { LA: number; RA: number };
+    atrialFiberLogStrainChangeCountByWall: { LA: number; RA: number };
+    atrialFiberLogStrainDistinctInputCountByWall: { LA: number; RA: number };
+  };
+};
+
+type MainWireFiveWallCoronaryCirculationTrialFailureV2 = Readonly<
+  Omit<NonCoronaryCirculationTrialFailureV1, "diagnostics"> & {
+    diagnostics: MainWireFiveWallCoronaryCirculationDiagnosticsV2;
+  }
+>;
 
 export type MainWireFiveWallCoronaryInitializeInputV2<TWallState> = Readonly<{
   provider: WholeHeartMechanicsProviderV1<
@@ -250,6 +380,8 @@ export type MainWireFiveWallCoronaryStepInputV2 = Readonly<{
   dynamicMechanicalSupport?: NonCoronaryDynamicMechanicalSupportInputV1;
   protocolResistanceScaleByEdge?:
     NonCoronaryProtocolResistanceScaleByEdgeV1;
+  /** Opt-in measurement only; omitted on the production/default hot path. */
+  evaluationCounterCollection?: "enabled";
 }>;
 
 export type MainWireFiveWallCoronaryColdResultV2<TWallState> = Readonly<{
@@ -272,10 +404,8 @@ export type MainWireFiveWallCoronaryColdResultV2<TWallState> = Readonly<{
 export type MainWireFiveWallCoronaryStepSuccessV2<TWallState> = Readonly<{
   converged: true;
   acceptedState: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>;
-  circulationTrial: NonCoronaryCirculationTrialSuccessV1<
-    MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>,
-    MainWireFiveWallCoronaryCompanionTrialV2
-  >;
+  circulationTrial:
+    MainWireFiveWallCoronaryCirculationTrialSuccessV2<TWallState>;
   mechanicsTrial: WholeHeartMechanicsTrialV1<TWallState>;
   coronaryTrial: CoronaryBackwardEulerTrialV2;
   coronaryBoundary: CoronaryHydraulicBoundaryInputV2;
@@ -297,7 +427,7 @@ export type MainWireFiveWallCoronaryStepFailureV2<TWallState> = Readonly<{
   circulationFailureReason: NonCoronaryCirculationTrialFailureReasonV1;
   lastAcceptedCandidateNodeVolumesMl:
     NonCoronaryCirculationTrialFailureV1["lastAcceptedCandidateNodeVolumesMl"];
-  circulationDiagnostics: NonCoronaryCirculationTrialDiagnosticsV1;
+  circulationDiagnostics: MainWireFiveWallCoronaryCirculationDiagnosticsV2;
   mechanicsCommitted: false;
   circulationCommitted: false;
   coronaryCommitted: false;
@@ -389,7 +519,6 @@ export function initializeMainWireFiveWallCoronaryV2<TWallState>(
     CoronaryPressureLadderInitializationV2["diagnostics"] | null = null;
   let coronary = preliminaryCoronary;
   if (input.coronaryInitial === undefined) {
-    const sourceImp = evaluateAllCoronaryImpV1(preliminaryCoupling.input);
     const boundary = resolveMainWireCoronaryBoundaryV2(
       Object.freeze({
         absoluteAorticPressureMmHg: absoluteAorticPressureMmHg(
@@ -399,8 +528,14 @@ export function initializeMainWireFiveWallCoronaryV2<TWallState>(
         absoluteRightAtrialPressureMmHg:
           mechanicsCold.transmuralPressuresMmHg.RA
           + pthMmHg + preliminaryPericardium.excessPressureMmHg,
-        sourceIntramyocardialPressureMmHgByTerritoryLayer:
-          intramyocardialPressureRecord(sourceImp),
+        ...(impMechanism === "source-cep-land-active"
+          ? {
+            sourceIntramyocardialPressureMmHgByTerritoryLayer:
+              intramyocardialPressureRecord(
+                evaluateAllCoronaryImpV1(preliminaryCoupling.input),
+              ),
+          }
+          : {}),
         mechanicsInput: preliminaryCoupling.input,
         effectiveFiberLogStrainByWall:
           preliminaryCoupling.effectiveFiberLogStrainByWall,
@@ -515,6 +650,16 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
     input.calciumDriveParams,
     input.calciumDriveOverride,
   );
+  const evaluationCounters =
+    input.evaluationCounterCollection === "enabled"
+      ? createMutableEvaluationCountersV2()
+      : null;
+  const mechanicsCalciumDrive = evaluationCounters === null
+    ? calciumDrive
+    : Object.freeze({
+      ...calciumDrive,
+      evaluationCounterCollection: "enabled" as const,
+    });
   const pthMmHg = commonIntrathoracicPressureMmHg(
     candidateTimeSec,
     input.runtime,
@@ -523,9 +668,10 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
     previousAcceptedState: previous.mechanics,
     candidateTimeSec,
     stepDtSec: input.dtSec,
-    drivingInputs: calciumDrive,
+    drivingInputs: mechanicsCalciumDrive,
   });
-  const circulationTrial = evaluateNonCoronaryCirculationBackwardEulerTrialV1<
+  const rawCirculationTrial =
+    evaluateNonCoronaryCirculationBackwardEulerTrialV1<
     MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>,
     MainWireFiveWallCoronaryCompanionTrialV2
   >({
@@ -542,6 +688,9 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
         volumesMl,
         input.pericardium,
         pthMmHg,
+        impMechanism,
+        evaluationCounters,
+        "candidate-center",
       ),
     conservativeCompanion: Object.freeze({
       fixedGlobalTotalBloodVolumeMl:
@@ -549,6 +698,9 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
       previousAcceptedCompanionBloodVolumeMl:
         coronaryBloodVolumeMl(previous.coronary),
       evaluateSameCandidate: (candidate) => {
+        if (evaluationCounters !== null) {
+          evaluationCounters.outerCirculationCandidateCount += 1;
+        }
         const mechanics = candidate.candidateMechanicsEvaluation;
         const boundary = resolveCandidateCoronaryBoundaryV2(
           candidate.boundaryAbsolutePressuresMmHg.Ao,
@@ -565,6 +717,9 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
             ?? NORMAL_CORONARY_DISEASE_INPUT_V2,
           collapseHydraulics,
           solverOptions: input.coronarySolverOptions,
+          ...(evaluationCounters === null
+            ? {}
+            : { evaluationCounterCollection: "enabled" as const }),
         }) satisfies CoronaryBackwardEulerTrialInputV2;
         // Every outer Newton/FD/line-search probe starts from the same accepted
         // V2 state. No candidate is retained as a hidden warm start.
@@ -574,6 +729,12 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
           prior,
           topology,
         );
+        if (evaluationCounters !== null) {
+          recordCoronaryTrialCountersV2(
+            evaluationCounters,
+            coronaryTrial,
+          );
+        }
         const boundaryDirections = buildCoronaryBoundaryDirectionsV2(
           candidate,
           mechanicsStep,
@@ -585,8 +746,9 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
           shorteningImpPrior,
           input.circulationNewtonOptions?.finiteDifferenceScaledStep
             ?? DEFAULT_OUTER_SCALED_DIRECTION_STEP_V2,
+          evaluationCounters,
         );
-        const sensitivities = boundaryDirections === null
+        const implicitSensitivities = boundaryDirections === null
           ? undefined
           : computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2({
             previousAcceptedState: previous.coronary,
@@ -595,7 +757,18 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
             topology,
             baseTrial: coronaryTrial,
             boundaryDirections,
-          }).conservativeCompanionSensitivities;
+          });
+        if (
+          evaluationCounters !== null
+          && implicitSensitivities !== undefined
+        ) {
+          recordCoronaryImplicitSensitivityCountersV2(
+            evaluationCounters,
+            implicitSensitivities.diagnostics,
+          );
+        }
+        const sensitivities =
+          implicitSensitivities?.conservativeCompanionSensitivities;
         return Object.freeze({
           candidateCompanionBloodVolumeMl:
             coronaryTrial.diagnostics.candidateCoronaryBloodVolumeMl,
@@ -614,6 +787,10 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
       },
     }),
   });
+  const circulationTrial = attachEvaluationCountersV2(
+    rawCirculationTrial,
+    evaluationCounters,
+  );
 
   if (circulationTrial.converged === false) {
     return Object.freeze({
@@ -695,6 +872,226 @@ export function stepMainWireFiveWallCoronaryV2<TWallState>(
   });
 }
 
+function createMutableEvaluationCountersV2():
+MutableMainWireFiveWallCoronaryEvaluationCountersV2 {
+  return {
+    outerCirculationCandidateCount: 0,
+    coronaryTrial: {
+      invocationCount: 0,
+      hydraulicResidualEvaluationCount: 0,
+      newtonIterationCount: 0,
+      lineSearchBacktrackCount: 0,
+    },
+    coronaryImplicitSensitivities: {
+      invocationCount: 0,
+      directionCount: 0,
+      exactZeroBoundaryDirectionCount: 0,
+      baseResidualProbeEvaluationCount: 0,
+      volumeJacobianProbeEvaluationCount: 0,
+      boundaryResidualProbeEvaluationCount: 0,
+      observableProbeEvaluationCount: 0,
+      implicitLinearSolveCount: 0,
+      hydraulicResidualEvaluationCount: 0,
+    },
+    mechanics: {
+      candidateCenterEvaluationCount: 0,
+      lvRvProbeEvaluationCount: 0,
+      ventricularCoronaryBoundaryProbeFallbackCount: 0,
+      triSegProviderCounterReadbackCount: 0,
+      solveInternalCoordinatesCallCount: 0,
+      evaluateCandidateCallCount: 0,
+      atrialMaterialEvaluationCountByWall: { LA: 0, RA: 0 },
+      atrialFiberLogStrainObservationCountByWall: { LA: 0, RA: 0 },
+      atrialFiberLogStrainChangeCountByWall: { LA: 0, RA: 0 },
+      atrialFiberLogStrainDistinctInputCountByWall: { LA: 0, RA: 0 },
+    },
+  };
+}
+
+function recordCoronaryTrialCountersV2(
+  counters: MutableMainWireFiveWallCoronaryEvaluationCountersV2,
+  trial: CoronaryBackwardEulerTrialV2,
+): void {
+  const residualEvaluationCount =
+    trial.diagnostics.hydraulicResidualEvaluationCount;
+  if (residualEvaluationCount === undefined) {
+    throw new Error(
+      "enabled coronary evaluation measurement omitted its trial residual count",
+    );
+  }
+  counters.coronaryTrial.invocationCount += 1;
+  counters.coronaryTrial.hydraulicResidualEvaluationCount +=
+    residualEvaluationCount;
+  counters.coronaryTrial.newtonIterationCount +=
+    trial.diagnostics.newtonIterations;
+  counters.coronaryTrial.lineSearchBacktrackCount +=
+    trial.diagnostics.totalLineSearchBacktracks;
+}
+
+function recordCoronaryImplicitSensitivityCountersV2(
+  counters: MutableMainWireFiveWallCoronaryEvaluationCountersV2,
+  diagnostics: ReturnType<
+    typeof computeCoronaryBackwardEulerImplicitDirectionalSensitivitiesV2
+  >["diagnostics"],
+): void {
+  const target = counters.coronaryImplicitSensitivities;
+  target.invocationCount += 1;
+  target.directionCount += diagnostics.directionCount;
+  target.exactZeroBoundaryDirectionCount +=
+    diagnostics.exactZeroBoundaryDirectionCount;
+  target.baseResidualProbeEvaluationCount +=
+    diagnostics.baseResidualProbeEvaluationCount;
+  target.volumeJacobianProbeEvaluationCount +=
+    diagnostics.volumeJacobianProbeEvaluationCount;
+  target.boundaryResidualProbeEvaluationCount +=
+    diagnostics.boundaryResidualProbeEvaluationCount;
+  target.observableProbeEvaluationCount +=
+    diagnostics.observableProbeEvaluationCount;
+  target.implicitLinearSolveCount += diagnostics.implicitLinearSolveCount;
+  target.hydraulicResidualEvaluationCount +=
+    diagnostics.hydraulicResidualEvaluationCount;
+}
+
+function recordTriSegProviderCountersV2(
+  counters: MutableMainWireFiveWallCoronaryEvaluationCountersV2,
+  readback: unknown,
+): void {
+  const providerCounters = triSegProviderCountersV2(readback);
+  if (providerCounters === null) return;
+  const target = counters.mechanics;
+  target.triSegProviderCounterReadbackCount += 1;
+  target.solveInternalCoordinatesCallCount +=
+    providerCounters.solveInternalCoordinatesCallCount;
+  target.evaluateCandidateCallCount +=
+    providerCounters.evaluateCandidateCallCount;
+  for (const wallId of ["LA", "RA"] as const) {
+    target.atrialMaterialEvaluationCountByWall[wallId] +=
+      providerCounters.atrialMaterialEvaluationCountByWall[wallId];
+    target.atrialFiberLogStrainObservationCountByWall[wallId] +=
+      providerCounters.atrialFiberLogStrainObservationCountByWall[wallId];
+    target.atrialFiberLogStrainChangeCountByWall[wallId] +=
+      providerCounters.atrialFiberLogStrainChangeCountByWall[wallId];
+    target.atrialFiberLogStrainDistinctInputCountByWall[wallId] +=
+      providerCounters.atrialFiberLogStrainDistinctInputCountByWall[wallId];
+  }
+}
+
+function triSegProviderCountersV2(
+  readback: unknown,
+): MainWireFiveWallLandTriSegEvaluationCountersV1 | null {
+  if (!isRecordV2(readback) || !isRecordV2(readback.evaluationCounters)) {
+    return null;
+  }
+  const candidate = readback.evaluationCounters;
+  if (
+    candidate.solveInternalCoordinatesCallCount !== 1
+    || !isNonnegativeIntegerV2(candidate.evaluateCandidateCallCount)
+    || !isAtrialCounterRecordV2(candidate.atrialMaterialEvaluationCountByWall)
+    || !isAtrialCounterRecordV2(
+      candidate.atrialFiberLogStrainObservationCountByWall,
+    )
+    || !isAtrialCounterRecordV2(
+      candidate.atrialFiberLogStrainChangeCountByWall,
+    )
+    || !isAtrialCounterRecordV2(
+      candidate.atrialFiberLogStrainDistinctInputCountByWall,
+    )
+  ) {
+    throw new Error("TriSeg provider returned invalid evaluation counters");
+  }
+  return candidate as MainWireFiveWallLandTriSegEvaluationCountersV1;
+}
+
+function isAtrialCounterRecordV2(value: unknown): value is Readonly<{
+  LA: number;
+  RA: number;
+}> {
+  return isRecordV2(value)
+    && isNonnegativeIntegerV2(value.LA)
+    && isNonnegativeIntegerV2(value.RA);
+}
+
+function isRecordV2(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isNonnegativeIntegerV2(value: unknown): value is number {
+  return typeof value === "number"
+    && Number.isInteger(value)
+    && value >= 0;
+}
+
+function attachEvaluationCountersV2<TWallState>(
+  trial:
+    | NonCoronaryCirculationTrialSuccessV1<
+      MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>,
+      MainWireFiveWallCoronaryCompanionTrialV2
+    >
+    | NonCoronaryCirculationTrialFailureV1,
+  counters: MutableMainWireFiveWallCoronaryEvaluationCountersV2 | null,
+):
+  | MainWireFiveWallCoronaryCirculationTrialSuccessV2<TWallState>
+  | MainWireFiveWallCoronaryCirculationTrialFailureV2 {
+  if (counters === null) {
+    return trial as
+      | MainWireFiveWallCoronaryCirculationTrialSuccessV2<TWallState>
+      | MainWireFiveWallCoronaryCirculationTrialFailureV2;
+  }
+  const frozenCounters = freezeEvaluationCountersV2(counters);
+  return Object.freeze({
+    ...trial,
+    diagnostics: Object.freeze({
+      ...trial.diagnostics,
+      evaluationCounters: frozenCounters,
+    }),
+  }) as
+    | MainWireFiveWallCoronaryCirculationTrialSuccessV2<TWallState>
+    | MainWireFiveWallCoronaryCirculationTrialFailureV2;
+}
+
+function freezeEvaluationCountersV2(
+  counters: MutableMainWireFiveWallCoronaryEvaluationCountersV2,
+): MainWireFiveWallCoronaryEvaluationCountersV2 {
+  const mechanicsTotal =
+    counters.mechanics.candidateCenterEvaluationCount
+    + counters.mechanics.lvRvProbeEvaluationCount;
+  return Object.freeze({
+    outerCirculationCandidateCount:
+      counters.outerCirculationCandidateCount,
+    coronaryTrial: Object.freeze({ ...counters.coronaryTrial }),
+    coronaryImplicitSensitivities: Object.freeze({
+      ...counters.coronaryImplicitSensitivities,
+    }),
+    mechanics: Object.freeze({
+      candidateCenterEvaluationCount:
+        counters.mechanics.candidateCenterEvaluationCount,
+      lvRvProbeEvaluationCount:
+        counters.mechanics.lvRvProbeEvaluationCount,
+      ventricularCoronaryBoundaryProbeFallbackCount:
+        counters.mechanics.ventricularCoronaryBoundaryProbeFallbackCount,
+      totalEvaluationCount: mechanicsTotal,
+      triSegProviderCounterReadbackCount:
+        counters.mechanics.triSegProviderCounterReadbackCount,
+      solveInternalCoordinatesCallCount:
+        counters.mechanics.solveInternalCoordinatesCallCount,
+      evaluateCandidateCallCount:
+        counters.mechanics.evaluateCandidateCallCount,
+      atrialMaterialEvaluationCountByWall: Object.freeze({
+        ...counters.mechanics.atrialMaterialEvaluationCountByWall,
+      }),
+      atrialFiberLogStrainObservationCountByWall: Object.freeze({
+        ...counters.mechanics.atrialFiberLogStrainObservationCountByWall,
+      }),
+      atrialFiberLogStrainChangeCountByWall: Object.freeze({
+        ...counters.mechanics.atrialFiberLogStrainChangeCountByWall,
+      }),
+      atrialFiberLogStrainDistinctInputCountByWall: Object.freeze({
+        ...counters.mechanics.atrialFiberLogStrainDistinctInputCountByWall,
+      }),
+    }),
+  });
+}
+
 export function advanceMainWireCoronaryMvcReferenceV2(
   previous: MainWireCoronaryMvcReferenceStateV2,
   input: Readonly<{
@@ -738,13 +1135,30 @@ function evaluatePreparedCandidateMechanicsV2<TWallState>(
   volumesMl: WholeHeartMechanicsChamberValuesV1,
   pericardiumBinding: MainWireCommonPericardiumBindingV1,
   commonIntrathoracicPressureMmHg: number,
+  impMechanism: MainWireCoronaryImpMechanismV2,
+  evaluationCounters:
+    MutableMainWireFiveWallCoronaryEvaluationCountersV2 | null,
+  origin: "candidate-center" | "lv-rv-probe",
 ): NonCoronaryCandidateMechanicsResultV1<
   MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<TWallState>
 > {
+  if (evaluationCounters !== null) {
+    if (origin === "candidate-center") {
+      evaluationCounters.mechanics.candidateCenterEvaluationCount += 1;
+    } else {
+      evaluationCounters.mechanics.lvRvProbeEvaluationCount += 1;
+    }
+  }
   const mechanicsTrial = evaluatePreparedWholeHeartMechanicsTrialV1(
     mechanicsStep,
     volumesMl,
   );
+  if (evaluationCounters !== null) {
+    recordTriSegProviderCountersV2(
+      evaluationCounters,
+      mechanicsTrial.diagnostics.readback,
+    );
+  }
   if (
     !mechanicsTrial.diagnostics.converged
     || !mechanicsTrial.diagnostics.finite
@@ -767,16 +1181,18 @@ function evaluatePreparedCandidateMechanicsV2<TWallState>(
       commonPericardialExcessPressureMmHg:
         pericardium.excessPressureMmHg,
     });
-  const sourceImpByTerritoryLayer = evaluateAllCoronaryImpV1(
-    coronaryMechanicsCoupling.input,
-  );
   const evaluation = Object.freeze({
     mechanicsTrial,
     pericardium,
     coronaryMechanicsCoupling,
-    sourceImpByTerritoryLayer,
-    sourceIntramyocardialPressureMmHgByTerritoryLayer:
-      intramyocardialPressureRecord(sourceImpByTerritoryLayer),
+    ...(impMechanism === "source-cep-land-active"
+      ? {
+        sourceIntramyocardialPressureMmHgByTerritoryLayer:
+          intramyocardialPressureRecord(
+            evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input),
+          ),
+      }
+      : {}),
   });
   return Object.freeze({
     absolutePressuresMmHg: Object.freeze({
@@ -805,12 +1221,10 @@ function evaluatePreparedCandidateMechanicsV2<TWallState>(
   });
 }
 
-function resolveCandidateCoronaryBoundaryV2<TWallState>(
+function resolveCandidateCoronaryBoundaryV2(
   absoluteAorticPressureMmHg: number,
   absoluteRightAtrialPressureMmHg: number,
-  mechanics: MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
-    TWallState
-  >,
+  mechanics: MainWireCoronaryBoundaryMechanicsViewV2,
   impMechanism: MainWireCoronaryImpMechanismV2,
   shorteningReference: MainWireCoronaryShorteningReferenceV2,
   shorteningImpPrior: MainWireCoronaryShorteningImpGainPriorV2,
@@ -819,8 +1233,13 @@ function resolveCandidateCoronaryBoundaryV2<TWallState>(
     Object.freeze({
       absoluteAorticPressureMmHg,
       absoluteRightAtrialPressureMmHg,
-      sourceIntramyocardialPressureMmHgByTerritoryLayer:
-        mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer,
+      ...(mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer
+        === undefined
+        ? {}
+        : {
+          sourceIntramyocardialPressureMmHgByTerritoryLayer:
+            mechanics.sourceIntramyocardialPressureMmHgByTerritoryLayer,
+        }),
       mechanicsInput: mechanics.coronaryMechanicsCoupling.input,
       effectiveFiberLogStrainByWall:
         mechanics.coronaryMechanicsCoupling.effectiveFiberLogStrainByWall,
@@ -846,6 +1265,8 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
   shorteningReference: MainWireCoronaryShorteningReferenceV2,
   shorteningImpPrior: MainWireCoronaryShorteningImpGainPriorV2,
   scaledStep: number,
+  evaluationCounters:
+    MutableMainWireFiveWallCoronaryEvaluationCountersV2 | null,
 ): readonly CoronaryImplicitBoundaryDirectionV2[] | null {
   const tangent =
     candidate.dBoundaryAbsolutePressureDScaledIndependentVolume;
@@ -866,9 +1287,7 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
   const directionForBoundary = (
     absoluteAorticPressureMmHg: number,
     absoluteRightAtrialPressureMmHg: number,
-    mechanics: MainWireFiveWallCoronaryCandidateMechanicsEvaluationV2<
-      TWallState
-    >,
+    mechanics: MainWireCoronaryBoundaryMechanicsViewV2,
   ): CoronaryHydraulicBoundaryInputV2 => resolveCandidateCoronaryBoundaryV2(
     absoluteAorticPressureMmHg,
     absoluteRightAtrialPressureMmHg,
@@ -893,6 +1312,229 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
       "perturbed coronary outer boundary pressure",
     );
     return perturbed;
+  };
+  const atrialDirection = (
+    node: "LA" | "RA",
+    index: number,
+  ): CoronaryImplicitBoundaryDirectionV2 => {
+    const volumeScaleMl = candidate.independentVolumeScalesMl[index]!;
+    requirePositiveFinite(
+      volumeScaleMl,
+      `${node} independent volume scale`,
+    );
+    const volumeStepMl = scaledStep * volumeScaleMl;
+    const minusVolumes = Object.freeze({
+      ...baseVolumes,
+      [node]: baseVolumes[node] - volumeStepMl,
+    });
+    const plusVolumes = Object.freeze({
+      ...baseVolumes,
+      [node]: baseVolumes[node] + volumeStepMl,
+    });
+    requirePositiveFinite(minusVolumes[node], `${node} minus probe volume`);
+
+    // Atrial volume reaches this boundary only through its own pressure and
+    // the common pericardial scalar. TriSeg pressure, ventricular fibre strain,
+    // and active stress are invariant, so the base mechanics trial is reused.
+    // This needs no impMechanism branch because each existing IMP mechanism
+    // sees the same ventricular inputs plus the recomputed external pressure.
+    const directionView = (
+      volumesMl: WholeHeartMechanicsChamberValuesV1,
+    ): MainWireCoronaryBoundaryMechanicsViewV2 => {
+      const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+        pericardiumBinding,
+        volumesMl,
+      );
+      const coronaryMechanicsCoupling =
+        evaluateMainWireCoronaryMechanicsCouplingV1(
+          baseMechanics.mechanicsTrial,
+          Object.freeze({
+            commonIntrathoracicPressureMmHg,
+            commonPericardialExcessPressureMmHg:
+              pericardium.excessPressureMmHg,
+          }),
+        );
+      return Object.freeze({
+        coronaryMechanicsCoupling,
+        ...(impMechanism === "source-cep-land-active"
+          ? {
+            sourceIntramyocardialPressureMmHgByTerritoryLayer:
+              intramyocardialPressureRecord(
+                evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input),
+              ),
+          }
+          : {}),
+      });
+    };
+    return Object.freeze({
+      scaledStep,
+      minusBoundary: directionForBoundary(
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.Ao,
+          tangent.Ao[index]!,
+          -1,
+        ),
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.RA,
+          tangent.RA[index]!,
+          -1,
+        ),
+        directionView(minusVolumes),
+      ),
+      plusBoundary: directionForBoundary(
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.Ao,
+          tangent.Ao[index]!,
+          1,
+        ),
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.RA,
+          tangent.RA[index]!,
+          1,
+        ),
+        directionView(plusVolumes),
+      ),
+    });
+  };
+  const ventricularDirection = (
+    node: "LV" | "RV",
+    index: number,
+  ): CoronaryImplicitBoundaryDirectionV2 => {
+    const volumeScaleMl = candidate.independentVolumeScalesMl[index]!;
+    requirePositiveFinite(
+      volumeScaleMl,
+      `${node} independent volume scale`,
+    );
+    const volumeStepMl = scaledStep * volumeScaleMl;
+    const minusVolumes = Object.freeze({
+      ...baseVolumes,
+      [node]: baseVolumes[node] - volumeStepMl,
+    });
+    const plusVolumes = Object.freeze({
+      ...baseVolumes,
+      [node]: baseVolumes[node] + volumeStepMl,
+    });
+    requirePositiveFinite(minusVolumes[node], `${node} minus probe volume`);
+
+    // The ventricular fibre-strain and active-stress rows are an optional
+    // acceleration contract. Their absence falls back to whole-heart mechanics
+    // probes; the production provider supplies them from its TriSeg Schur solve.
+    const analyticDirectionView = (
+      volumesMl: WholeHeartMechanicsChamberValuesV1,
+      signedVolumeDeltaMl: number,
+    ): Readonly<{
+      mechanics: MainWireCoronaryBoundaryMechanicsViewV2;
+      absoluteRightAtrialPressureMmHg: number;
+    }> | null => {
+      const pericardium = evaluateMainWireCommonPericardiumBindingV1(
+        pericardiumBinding,
+        volumesMl,
+      );
+      const coronaryMechanicsCoupling =
+        evaluateMainWireCoronaryMechanicsCouplingVentricularDirectionV1(
+          baseMechanics.mechanicsTrial,
+          Object.freeze({
+            ventricularVolume: node,
+            signedVolumeDeltaMl,
+            commonIntrathoracicPressureMmHg,
+            commonPericardialExcessPressureMmHg:
+              pericardium.excessPressureMmHg,
+          }),
+        );
+      if (coronaryMechanicsCoupling === null) return null;
+      return Object.freeze({
+        mechanics: Object.freeze({
+          coronaryMechanicsCoupling,
+          ...(impMechanism === "source-cep-land-active"
+            ? {
+              sourceIntramyocardialPressureMmHgByTerritoryLayer:
+                intramyocardialPressureRecord(
+                  evaluateAllCoronaryImpV1(coronaryMechanicsCoupling.input),
+                ),
+            }
+            : {}),
+        }),
+        // Ventricular volume cannot change the separate RA wall. Re-evaluating
+        // the common pericardial scalar reconstructs this full-probe boundary.
+        absoluteRightAtrialPressureMmHg:
+          baseMechanics.mechanicsTrial.transmuralPressuresMmHg.RA
+          + commonIntrathoracicPressureMmHg
+          + pericardium.excessPressureMmHg,
+      });
+    };
+    const minus = analyticDirectionView(minusVolumes, -volumeStepMl);
+    if (minus === null) {
+      if (evaluationCounters !== null) {
+        evaluationCounters.mechanics
+          .ventricularCoronaryBoundaryProbeFallbackCount += 1;
+      }
+      const minusMechanics = evaluatePreparedCandidateMechanicsV2(
+        mechanicsStep,
+        minusVolumes,
+        pericardiumBinding,
+        commonIntrathoracicPressureMmHg,
+        impMechanism,
+        evaluationCounters,
+        "lv-rv-probe",
+      );
+      const plusMechanics = evaluatePreparedCandidateMechanicsV2(
+        mechanicsStep,
+        plusVolumes,
+        pericardiumBinding,
+        commonIntrathoracicPressureMmHg,
+        impMechanism,
+        evaluationCounters,
+        "lv-rv-probe",
+      );
+      return Object.freeze({
+        scaledStep,
+        minusBoundary: directionForBoundary(
+          perturbedPressure(
+            candidate.boundaryAbsolutePressuresMmHg.Ao,
+            tangent.Ao[index]!,
+            -1,
+          ),
+          minusMechanics.absolutePressuresMmHg.RA,
+          minusMechanics.evaluation,
+        ),
+        plusBoundary: directionForBoundary(
+          perturbedPressure(
+            candidate.boundaryAbsolutePressuresMmHg.Ao,
+            tangent.Ao[index]!,
+            1,
+          ),
+          plusMechanics.absolutePressuresMmHg.RA,
+          plusMechanics.evaluation,
+        ),
+      });
+    }
+    const plus = analyticDirectionView(plusVolumes, volumeStepMl);
+    if (plus === null) {
+      throw new Error(
+        "ventricular coronary analytic rows disappeared within one direction",
+      );
+    }
+    return Object.freeze({
+      scaledStep,
+      minusBoundary: directionForBoundary(
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.Ao,
+          tangent.Ao[index]!,
+          -1,
+        ),
+        minus.absoluteRightAtrialPressureMmHg,
+        minus.mechanics,
+      ),
+      plusBoundary: directionForBoundary(
+        perturbedPressure(
+          candidate.boundaryAbsolutePressuresMmHg.Ao,
+          tangent.Ao[index]!,
+          1,
+        ),
+        plus.absoluteRightAtrialPressureMmHg,
+        plus.mechanics,
+      ),
+    });
   };
 
   return Object.freeze(candidate.independentNodeOrder.map((node, index) => {
@@ -927,55 +1569,11 @@ function buildCoronaryBoundaryDirectionsV2<TWallState>(
         ),
       }) satisfies CoronaryImplicitBoundaryDirectionV2;
     }
-    if (node === "LA" || node === "LV" || node === "RA" || node === "RV") {
-      const volumeScaleMl = candidate.independentVolumeScalesMl[index]!;
-      requirePositiveFinite(
-        volumeScaleMl,
-        `${node} independent volume scale`,
-      );
-      const volumeStepMl = scaledStep * volumeScaleMl;
-      const minusVolumes = Object.freeze({
-        ...baseVolumes,
-        [node]: baseVolumes[node] - volumeStepMl,
-      });
-      const plusVolumes = Object.freeze({
-        ...baseVolumes,
-        [node]: baseVolumes[node] + volumeStepMl,
-      });
-      requirePositiveFinite(minusVolumes[node], `${node} minus probe volume`);
-      const minusMechanics = evaluatePreparedCandidateMechanicsV2(
-        mechanicsStep,
-        minusVolumes,
-        pericardiumBinding,
-        commonIntrathoracicPressureMmHg,
-      );
-      const plusMechanics = evaluatePreparedCandidateMechanicsV2(
-        mechanicsStep,
-        plusVolumes,
-        pericardiumBinding,
-        commonIntrathoracicPressureMmHg,
-      );
-      return Object.freeze({
-        scaledStep,
-        minusBoundary: directionForBoundary(
-          perturbedPressure(
-            candidate.boundaryAbsolutePressuresMmHg.Ao,
-            tangent.Ao[index]!,
-            -1,
-          ),
-          minusMechanics.absolutePressuresMmHg.RA,
-          minusMechanics.evaluation,
-        ),
-        plusBoundary: directionForBoundary(
-          perturbedPressure(
-            candidate.boundaryAbsolutePressuresMmHg.Ao,
-            tangent.Ao[index]!,
-            1,
-          ),
-          plusMechanics.absolutePressuresMmHg.RA,
-          plusMechanics.evaluation,
-        ),
-      }) satisfies CoronaryImplicitBoundaryDirectionV2;
+    if (node === "LA" || node === "RA") {
+      return atrialDirection(node, index);
+    }
+    if (node === "LV" || node === "RV") {
+      return ventricularDirection(node, index);
     }
     // All remaining vascular independent columns leave the three coronary
     // boundary owners (Ao, RA, and mechanics-derived IMP) unchanged.
@@ -1112,9 +1710,16 @@ function acceptedTuple<TWallState>(
   });
 }
 
+export function validateMainWireFiveWallCoronaryAcceptedStateV2<TWallState>(
+  state: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
+): void {
+  validateAcceptedTuple(state);
+}
+
 function validateAcceptedTuple<TWallState>(
   state: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
 ): void {
+  if (validatedMainWireFiveWallCoronaryAcceptedStatesV2.has(state)) return;
   if (state.transactionId !== MAIN_WIRE_FIVE_WALL_CORONARY_TRANSACTION_V2_ID) {
     throw new Error("accepted coupled coronary V2 transaction id is invalid");
   }
@@ -1127,6 +1732,27 @@ function validateAcceptedTuple<TWallState>(
     state.mechanics,
     state.mvcReferenceState,
   );
+  if (mainWireFiveWallCoronaryValidationSurfaceIsFrozenV2(state)) {
+    validatedMainWireFiveWallCoronaryAcceptedStatesV2.add(state);
+  }
+}
+
+function mainWireFiveWallCoronaryValidationSurfaceIsFrozenV2<TWallState>(
+  state: MainWireFiveWallCoronaryAcceptedStateV2<TWallState>,
+): boolean {
+  return Object.isFrozen(state)
+    && Object.isFrozen(state.coronaryBinding)
+    && Object.isFrozen(state.circulation)
+    && Object.isFrozen(state.circulation.nodeVolumesMl)
+    && Object.isFrozen(state.coronary)
+    && Object.isFrozen(state.coronary.volumeMlByNode)
+    && Object.isFrozen(state.mechanics)
+    && Object.isFrozen(state.mechanics.acceptedVolumesMl)
+    && Object.isFrozen(state.mvcReferenceState)
+    && Object.isFrozen(state.mvcReferenceState.reference)
+    && Object.isFrozen(
+      state.mvcReferenceState.reference.referenceFiberLogStrainByWall,
+    );
 }
 
 function buildBinding(

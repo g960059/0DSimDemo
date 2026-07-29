@@ -457,6 +457,7 @@ function createWallKernel(
         stressPa: accepted.totalKirchhoffStressPa,
         algorithmicFiberTangentPa:
           passive.input.tangentPa + activeKirchhoffTangentPa,
+        activeFiberAlgorithmicTangentPa: activeKirchhoffTangentPa,
         iterationCount: cold.fixedInputIterations,
         residualNorm: cold.maximumStateUpdate,
         finite: accepted.finite && Number.isFinite(cold.maximumStateUpdate),
@@ -502,6 +503,8 @@ function createWallKernel(
         fiberLogStrain: candidateFiberLogStrain,
         stressPa: trial.totalKirchhoffStressPa,
         algorithmicFiberTangentPa: trial.totalAlgorithmicTangentPa,
+        activeFiberAlgorithmicTangentPa:
+          trial.activeAlgorithmicTangentPa,
         iterationCount: trial.landSolverIterations,
         residualNorm,
         finite: trial.finite,
@@ -585,6 +588,7 @@ function materialEvaluation(input: Readonly<{
   fiberLogStrain: number;
   stressPa: number;
   algorithmicFiberTangentPa: number;
+  activeFiberAlgorithmicTangentPa: number;
   iterationCount: number;
   residualNorm: number;
   finite: boolean;
@@ -597,12 +601,15 @@ function materialEvaluation(input: Readonly<{
     input.stressPa,
     input.residualNorm,
     input.algorithmicFiberTangentPa,
+    input.activeFiberAlgorithmicTangentPa,
   ].every(Number.isFinite);
   return Object.freeze({
     state: cloneLandSlsWallMaterialStateV1(input.state),
     fiberLogStrain: input.fiberLogStrain,
     fiberKirchhoffStressPa: input.stressPa,
     algorithmicFiberTangentPa: input.algorithmicFiberTangentPa,
+    activeFiberAlgorithmicTangentPa:
+      input.activeFiberAlgorithmicTangentPa,
     iterationCount: input.iterationCount,
     residualNorm: input.residualNorm,
     finite,

@@ -6,13 +6,15 @@ import type { Locale } from "@/localeRouting";
 
 import {
   SCIENTIFIC_PRODUCT_CASE_CATALOG_V1,
-  type ScientificProductCaseV1,
 } from "./scientificProductCaseCatalogV1";
+import type {
+  ScientificProductDiscoveryCaseV1,
+} from "./ScientificProductIntegratedV3CaseV1";
 
 export type ScientificProductCasesGridV1Props = Readonly<{
   locale: Locale;
   openLabel: string;
-  cases?: readonly ScientificProductCaseV1[];
+  cases?: readonly ScientificProductDiscoveryCaseV1[];
 }>;
 
 export function ScientificProductCasesGridV1({
@@ -56,7 +58,7 @@ export function ScientificProductCasesGridV1({
   );
 }
 
-function badgeClass(entry: ScientificProductCaseV1): string {
+function badgeClass(entry: ScientificProductDiscoveryCaseV1): string {
   const tone = entry.kind === "official-exact-periodic"
     // Badges carry their own contrast in both themes: the accent and warning
     // tokens are checked against their surfaces, the raw palette was not.

@@ -254,8 +254,51 @@
     "draftBadge": "下書き"
   },
   "workbench": {
+    "integratedV3": {
+      "opening": "入力を固定した実験用ブラウザーレーンを起動しています…",
+      "eyebrow": "ライブ・ブラウザーレーン",
+      "fixedInputSummary": "入力固定 · 正常洞調律 · HMII 9000",
+      "backToCatalog": "ケース一覧に戻る",
+      "statusAria": "レーンの状態",
+      "signalsAria": "統合レーンの信号",
+      "limitationsHeading": "制限事項",
+      "unavailableHeading": "利用できない操作",
+      "unavailableCount": "{{actionCount}}件",
+      "unavailableIntro": "この固定レーンでは、これらの操作は実行前から無効化されています。"
+    },
     "scientificPersistenceUnavailable": "このリリースでは科学モデルのケース保存は未実装です。メモリ上の比較状態を旧ケース保存先へ書き込みません。",
     "scientificFilesUnavailable": "このリリースでは科学モデルのCase/Workspace入出力は未実装です。旧ケースファイルを暗黙に変換しません。",
+    "laneSelector": {
+      "title": "シミュレーションレーン",
+      "chooseLane": "シミュレーションレーンを選択",
+      "currentLane": "選択中",
+      "useLane": "このレーンを使う",
+      "compareCapabilities": "レーンの機能を比較",
+      "limitationsAria": "{{lane}}の制限事項",
+      "capabilitiesAria": "{{lane}}の機能",
+      "available": "利用可能",
+      "unavailable": "利用不可",
+      "capabilities": {
+        "liveWorkerExecution": "ブラウザーWorkerでの実行",
+        "decimatedLivePresentation": "ライブグラフ表示",
+        "livePacingReporting": "実測実行速度",
+        "suspendResumePresentation": "表示の一時停止・再開",
+        "operationalWorkerRotationCheckpoint": "Worker交代用チェックポイント",
+        "interactiveResearchControls": "研究用コントロール",
+        "strictPeriodicSettlement": "厳密な周期定常化",
+        "steadyCandidatePromotion": "定常候補の採用",
+        "candidatePinning": "候補の固定",
+        "persistedWarmSnapshot": "スナップショットの保存・復元",
+        "exactSignalExport": "信号の厳密エクスポート",
+        "presentationBeatEstimates": "拍ごとの推定値",
+        "hemodynamicSideAnalysis": "Guyton / Starling解析",
+        "pvRelationsSideAnalysis": "PV関係解析",
+        "tbvContinuationSeedPrediction": "TBV連続解析",
+        "externalAfRhythm": "外部AFリズム",
+        "iabpSupport": "IABP対応",
+        "releaseOrCandidateIdentity": "リリースまたは候補の識別情報"
+      }
+    },
     "panels": {
       "waveforms": "波形",
       "pvLoop": "PVループ",

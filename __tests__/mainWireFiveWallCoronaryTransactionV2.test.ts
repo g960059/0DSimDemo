@@ -593,6 +593,10 @@ describe("main-wire five-wall + sixteen-volume coronary atomic transaction V2", 
       .toBe("analytic-semismooth");
     expect(stepped.circulationTrial.diagnostics
       .finiteDifferenceJacobianFallbackCount).toBe(0);
+    expect(Object.is(
+      stepped.coronaryBoundary.absoluteRightAtrialPressureMmHg,
+      -0,
+    )).toBe(false);
   }, 60_000);
 
   it("matches the development full-FD shadow with the implicit coronary outer Jacobian", () => {

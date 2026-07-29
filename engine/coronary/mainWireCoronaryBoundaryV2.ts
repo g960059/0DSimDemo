@@ -39,7 +39,7 @@ export type MainWireCoronaryBoundarySampleV2 = Readonly<{
    * Accepted source IMP, retained only for the historical Land-active control.
    * CEP and SIP mechanisms are always recomputed from `mechanicsInput`.
    */
-  sourceIntramyocardialPressureMmHgByTerritoryLayer:
+  sourceIntramyocardialPressureMmHgByTerritoryLayer?:
     CoronaryTerritoryLayerRecordV2<number>;
   mechanicsInput: CoronaryMechanicsInputV1;
   effectiveFiberLogStrainByWall: MainWireCoronaryWallNumbersV2;
@@ -114,8 +114,8 @@ export function resolveMainWireCoronaryBoundaryV2(
   shorteningPrior: MainWireCoronaryShorteningImpGainPriorV2 =
     NORMAL_ADULT_CORONARY_SHORTENING_IMP_GAIN_PRIOR_V2,
 ): CoronaryHydraulicBoundaryInputV2 {
-  validateBoundarySample(sample);
   validateImpMechanism(impMechanism);
+  validateBoundarySample(sample, impMechanism);
   validateShorteningPrior(shorteningPrior);
 
   const cep = impMechanism !== "source-cep-land-active"
@@ -138,7 +138,7 @@ export function resolveMainWireCoronaryBoundaryV2(
     )
     : null;
   const intramyocardialPressure = cep === null
-    ? copyLayers(sample.sourceIntramyocardialPressureMmHgByTerritoryLayer)
+    ? copyLayers(sample.sourceIntramyocardialPressureMmHgByTerritoryLayer!)
     : copyLayers(Object.fromEntries(CORONARY_TERRITORY_IDS_V2.map(
       (territoryId) => [territoryId, Object.fromEntries(
         CORONARY_LAYER_IDS_V2.map((layerId) => [
@@ -231,7 +231,10 @@ function smoothPositivePart(value: number, width: number): number {
   return value * value / (2 * width);
 }
 
-function validateBoundarySample(sample: MainWireCoronaryBoundarySampleV2): void {
+function validateBoundarySample(
+  sample: MainWireCoronaryBoundarySampleV2,
+  impMechanism: MainWireCoronaryImpMechanismV2,
+): void {
   assertFinite("absoluteAorticPressureMmHg", sample.absoluteAorticPressureMmHg);
   assertFinite(
     "absoluteRightAtrialPressureMmHg",
@@ -263,12 +266,21 @@ function validateBoundarySample(sample: MainWireCoronaryBoundarySampleV2): void 
     "effectiveFiberLogStrainByWall",
     sample.effectiveFiberLogStrainByWall,
   );
-  for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
-    for (const layerId of CORONARY_LAYER_IDS_V2) {
-      assertFinite(
-        `sourceIntramyocardialPressureMmHgByTerritoryLayer.${territoryId}.${layerId}`,
-        sample.sourceIntramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId],
+  if (impMechanism === "source-cep-land-active") {
+    if (
+      sample.sourceIntramyocardialPressureMmHgByTerritoryLayer === undefined
+    ) {
+      throw new Error(
+        "source-cep-land-active requires source intramyocardial pressure",
       );
+    }
+    for (const territoryId of CORONARY_TERRITORY_IDS_V2) {
+      for (const layerId of CORONARY_LAYER_IDS_V2) {
+        assertFinite(
+          `sourceIntramyocardialPressureMmHgByTerritoryLayer.${territoryId}.${layerId}`,
+          sample.sourceIntramyocardialPressureMmHgByTerritoryLayer[territoryId][layerId],
+        );
+      }
     }
   }
 }

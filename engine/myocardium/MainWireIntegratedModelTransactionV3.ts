@@ -2,6 +2,13 @@ import type {
   NonCoronaryDynamicMechanicalSupportInputV1,
 } from "@/engine/core/nonCoronaryCirculationBackwardEulerV1";
 import {
+  fullHotPathInvariantsEnabledV1,
+} from "@/engine/hotPathIntegrityTierV1";
+import {
+  validationStampIssuanceEligibleV1,
+  validationStampReuseEligibleV1,
+} from "@/engine/validationStampModeV1";
+import {
   createDynamicMechanicalSupportAcceptedStateV1,
   validateDynamicMechanicalSupportAcceptedStateV1,
   validateDynamicMechanicalSupportInertanceProfileV1,
@@ -43,6 +50,7 @@ import {
   evaluateAcceptedComposedRhythmTransactionCandidateV2,
   limitAcceptedComposedRhythmTransactionCandidateTimeV2,
   validateAcceptedComposedRhythmTransactionConfigurationV2,
+  validateAcceptedComposedRhythmTransactionBoundaryV2,
   validateAcceptedComposedRhythmTransactionStateV2,
   type AcceptedComposedRhythmTransactionCandidateV2,
   type AcceptedComposedRhythmTransactionConfigurationV2,
@@ -61,6 +69,8 @@ export const MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID =
 export const MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_CLAIM_V3 = deepFreeze({
   acceptedTuple:
     "coronary-v3-plus-accepted-composed-rhythm-v2-plus-current-bound-dynamic-mcs-state" as const,
+  acceptedTupleValidation:
+    "once-per-internally-issued-state-and-exact-frozen-rhythm-profile-config-triple" as const,
   clockTuple: "outer-coronary-and-composed-rhythm-exact" as const,
   commitSemantics:
     "all-owners-promote-once-only-after-composed-rhythm-coronary-and-dynamic-mcs-success" as const,
@@ -156,6 +166,64 @@ export type MainWireIntegratedModelAcceptedStateV3<TWallState> = Readonly<{
   composedRhythm: AcceptedComposedRhythmTransactionStateV2;
   dynamicMechanicalSupport: DynamicMechanicalSupportAcceptedStateV1;
 }>;
+
+type MainWireIntegratedModelValidationStampV3<TWallState> = Readonly<{
+  state: MainWireIntegratedModelAcceptedStateV3<TWallState>;
+  rhythmConfiguration:
+    AcceptedComposedRhythmTransactionConfigurationV2;
+  dynamicProfile: DynamicMechanicalSupportInertanceProfileV1;
+  dynamicConfig: MechanicalSupportConfigV1;
+}>;
+
+export type MainWireIntegratedConstructorFaultForTestV1 =
+  | "outer-accepted-time-ahead-of-owners"
+  | "dynamic-candidate-nan-flow";
+
+let constructorFaultForTestV1:
+  MainWireIntegratedConstructorFaultForTestV1 | null = null;
+
+/**
+ * Synchronously injects one constructor-output defect for a regression test.
+ * The callback scope and non-nesting guard prevent the fault from leaking into
+ * another transaction or an asynchronous continuation.
+ */
+export function withMainWireIntegratedConstructorFaultForTestV1<T>(
+  fault: MainWireIntegratedConstructorFaultForTestV1,
+  body: () => T,
+): T {
+  if (constructorFaultForTestV1 !== null) {
+    throw new Error("integrated constructor fault injection cannot nest");
+  }
+  constructorFaultForTestV1 = fault;
+  try {
+    const result = body();
+    if (
+      typeof result === "object"
+      && result !== null
+      && "then" in result
+    ) {
+      throw new Error("integrated constructor fault injection must be synchronous");
+    }
+    return result;
+  } finally {
+    constructorFaultForTestV1 = null;
+  }
+}
+
+/**
+ * Only internally constructed accepted states receive entries here.
+ * A hit requires the exact rhythm-configuration, dynamic-profile, and
+ * dynamic-config object triple, and entries are created only when all three
+ * graphs are transitively frozen plain data. Replacing any member of the triple
+ * misses; changing one in place is impossible after the stamp is created.
+ * Deserialised and hand-built states have no entry and each exported boundary
+ * either performs complete validation or observes this exact private
+ * constructor/context stamp. This proof is independent of the hot-path tier.
+ */
+const internalValidationStampsByAcceptedStateV3 = new WeakMap<
+  object,
+  readonly MainWireIntegratedModelValidationStampV3<unknown>[]
+>();
 
 export type MainWireIntegratedModelCoronaryInitializeInputV3<TWallState> =
   Omit<
@@ -267,7 +335,7 @@ export function initializeMainWireIntegratedModelV3<TWallState>(
   );
   rejectExternallyOwnedColdInputs(input.coronary);
   assertCoronaryColdInput(input.coronary);
-  validateAcceptedComposedRhythmTransactionStateV2(
+  validateAcceptedComposedRhythmTransactionBoundaryV2(
     input.rhythm.acceptedState,
   );
   assertExpectedRhythmConfiguration(
@@ -300,7 +368,7 @@ export function initializeMainWireIntegratedModelV3<TWallState>(
     input.dynamicMechanicalSupport.config,
     input.dynamicMechanicalSupport.initialAcceptedFlowMlPerSec,
   );
-  const acceptedState = wrapMainWireIntegratedModelAcceptedStateV3(
+  const acceptedState = wrapInternalMainWireIntegratedModelAcceptedStateV3(
     coronaryCold.acceptedState,
     input.rhythm.acceptedState,
     dynamicMechanicalSupport,
@@ -319,12 +387,26 @@ export function limitMainWireIntegratedModelCandidateTimeV3<TWallState>(
   dynamicProfile: DynamicMechanicalSupportInertanceProfileV1,
   dynamicConfig: MechanicalSupportConfigV1,
 ): MainWireIntegratedModelCandidateTimeLimitV3 {
-  validateMainWireIntegratedModelAcceptedStateV3(
+  validateMainWireIntegratedBoundaryV3(
     previous,
     rhythm,
     dynamicProfile,
     dynamicConfig,
   );
+  return limitMainWireIntegratedModelCandidateTimeFromValidatedStateV3(
+    previous,
+    requestedCandidateTimeSec,
+    rhythm,
+  );
+}
+
+function limitMainWireIntegratedModelCandidateTimeFromValidatedStateV3<
+  TWallState,
+>(
+  previous: MainWireIntegratedModelAcceptedStateV3<TWallState>,
+  requestedCandidateTimeSec: number,
+  rhythm: MainWireIntegratedComposedRhythmBoundaryContextV3,
+): MainWireIntegratedModelCandidateTimeLimitV3 {
   assertRhythmBoundaryContext(rhythm);
   const requestedCandidateTime = requireNonnegativeFinite(
     requestedCandidateTimeSec,
@@ -390,7 +472,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
   let coronaryStep: MainWireFiveWallCoronaryStepResultV3<TWallState> | undefined;
   try {
     assertStepInput(input);
-    validateMainWireIntegratedModelAcceptedStateV3(
+    validateMainWireIntegratedBoundaryV3(
       previous,
       input.rhythm,
       input.dynamicMechanicalSupport.profile,
@@ -401,17 +483,16 @@ export function stepMainWireIntegratedModelV3<TWallState>(
       previous.coronary.coronaryAutoregulationBinding.windowPolicy,
       input.coronary.calciumDriveParams.cycleLengthSec,
     );
-    candidateTimeLimit = limitMainWireIntegratedModelCandidateTimeV3(
-      previous,
-      input.candidateTimeSec,
-      {
-        configuration: input.rhythm.configuration,
-        externalAfNextBoundaryTimeSec:
-          input.rhythm.externalAfNextBoundaryTimeSec,
-      },
-      input.dynamicMechanicalSupport.profile,
-      input.dynamicMechanicalSupport.config,
-    );
+    candidateTimeLimit =
+      limitMainWireIntegratedModelCandidateTimeFromValidatedStateV3(
+        previous,
+        input.candidateTimeSec,
+        {
+          configuration: input.rhythm.configuration,
+          externalAfNextBoundaryTimeSec:
+            input.rhythm.externalAfNextBoundaryTimeSec,
+        },
+      );
     if (candidateTimeLimit.candidateTimeSec !== input.candidateTimeSec) {
       throw new RangeError(
         "composed integrated step crosses a coronary or rhythm boundary",
@@ -488,7 +569,7 @@ export function stepMainWireIntegratedModelV3<TWallState>(
         previous.composedRhythm,
         composedRhythmCandidate,
       );
-    const acceptedState = wrapMainWireIntegratedModelAcceptedStateV3(
+    const acceptedState = wrapInternalMainWireIntegratedModelAcceptedStateV3(
       coronaryStep.acceptedState,
       composedRhythm,
       dynamicTrial.candidateAcceptedState,
@@ -547,7 +628,7 @@ export function validateMainWireIntegratedModelAcceptedStateV3<TWallState>(
   requireNonnegativeInteger(state.revision, "state.revision");
   requireNonnegativeFinite(state.acceptedTimeSec, "state.acceptedTimeSec");
   validateMainWireFiveWallCoronaryAcceptedStateV3(state.coronary);
-  validateAcceptedComposedRhythmTransactionStateV2(state.composedRhythm);
+  validateAcceptedComposedRhythmTransactionBoundaryV2(state.composedRhythm);
   assertExpectedRhythmConfiguration(
     state.composedRhythm,
     rhythm.configuration,
@@ -581,14 +662,11 @@ export function wrapMainWireIntegratedModelAcceptedStateV3<TWallState>(
   dynamicProfile: DynamicMechanicalSupportInertanceProfileV1,
   dynamicConfig: MechanicalSupportConfigV1,
 ): MainWireIntegratedModelAcceptedStateV3<TWallState> {
-  const state = Object.freeze({
-    transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
-    revision: coronary.revision,
-    acceptedTimeSec: coronary.acceptedTimeSec,
+  const state = constructMainWireIntegratedModelAcceptedStateV3(
     coronary,
     composedRhythm,
     dynamicMechanicalSupport,
-  });
+  );
   validateMainWireIntegratedModelAcceptedStateV3(
     state,
     rhythm,
@@ -596,6 +674,135 @@ export function wrapMainWireIntegratedModelAcceptedStateV3<TWallState>(
     dynamicConfig,
   );
   return state;
+}
+
+function wrapInternalMainWireIntegratedModelAcceptedStateV3<TWallState>(
+  coronary: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+  composedRhythm: AcceptedComposedRhythmTransactionStateV2,
+  dynamicMechanicalSupport: DynamicMechanicalSupportAcceptedStateV1,
+  rhythm: MainWireIntegratedComposedRhythmContextV3,
+  dynamicProfile: DynamicMechanicalSupportInertanceProfileV1,
+  dynamicConfig: MechanicalSupportConfigV1,
+): MainWireIntegratedModelAcceptedStateV3<TWallState> {
+  const state = constructMainWireIntegratedModelAcceptedStateV3(
+    coronary,
+    composedRhythm,
+    dynamicMechanicalSupport,
+  );
+  if (fullHotPathInvariantsEnabledV1()) {
+    validateMainWireIntegratedModelAcceptedStateV3(
+      state,
+      rhythm,
+      dynamicProfile,
+      dynamicConfig,
+    );
+  }
+  // Lean narrows only the immediate re-proof of this private wrapper output.
+  // Its three owner states were produced/accepted by their owning transactions,
+  // and this constructor derives the outer identity and clocks directly from
+  // them. Exported wraps, restored/hand-built states, and a different context
+  // triple still take complete validation; only this exact state/context stamp
+  // can be reused.
+  stampInternalMainWireIntegratedModelValidationV3(Object.freeze({
+    state,
+    rhythmConfiguration: rhythm.configuration,
+    dynamicProfile,
+    dynamicConfig,
+  }));
+  return state;
+}
+
+function constructMainWireIntegratedModelAcceptedStateV3<TWallState>(
+  coronary: MainWireFiveWallCoronaryAcceptedStateV3<TWallState>,
+  composedRhythm: AcceptedComposedRhythmTransactionStateV2,
+  dynamicMechanicalSupport: DynamicMechanicalSupportAcceptedStateV1,
+): MainWireIntegratedModelAcceptedStateV3<TWallState> {
+  const acceptedTimeSec =
+    constructorFaultForTestV1 === "outer-accepted-time-ahead-of-owners"
+      ? coronary.acceptedTimeSec + 0.001
+      : coronary.acceptedTimeSec;
+  const publishedDynamicMechanicalSupport =
+    constructorFaultForTestV1 === "dynamic-candidate-nan-flow"
+      ? Object.freeze({
+        ...dynamicMechanicalSupport,
+        acceptedFlowMlPerSec: Object.freeze({
+          ...dynamicMechanicalSupport.acceptedFlowMlPerSec,
+          LVAD: Number.NaN,
+        }),
+      }) as DynamicMechanicalSupportAcceptedStateV1
+      : dynamicMechanicalSupport;
+  const state = Object.freeze({
+    transactionId: MAIN_WIRE_INTEGRATED_MODEL_TRANSACTION_V3_ID,
+    revision: coronary.revision,
+    acceptedTimeSec,
+    coronary,
+    composedRhythm,
+    dynamicMechanicalSupport: publishedDynamicMechanicalSupport,
+  });
+  return state;
+}
+
+function validateMainWireIntegratedBoundaryV3<TWallState>(
+  state: MainWireIntegratedModelAcceptedStateV3<TWallState>,
+  rhythm: MainWireIntegratedComposedRhythmContextV3,
+  dynamicProfile: DynamicMechanicalSupportInertanceProfileV1,
+  dynamicConfig: MechanicalSupportConfigV1,
+): void {
+  const existing = internalValidationStampsByAcceptedStateV3.get(state) as
+    | readonly MainWireIntegratedModelValidationStampV3<TWallState>[]
+    | undefined;
+  const matching = validationStampReuseEligibleV1()
+    ? existing?.find((stamp) =>
+      stamp.rhythmConfiguration === rhythm.configuration
+      && stamp.dynamicProfile === dynamicProfile
+      && stamp.dynamicConfig === dynamicConfig)
+    : undefined;
+  if (matching !== undefined) return;
+
+  validateMainWireIntegratedModelAcceptedStateV3(
+    state,
+    rhythm,
+    dynamicProfile,
+    dynamicConfig,
+  );
+  // A state enters the reusable cache only through the private internal wrap.
+  // Once there, an additional fully validated frozen context triple is safe to
+  // remember as well (for example, an equivalent external wrapper context).
+  if (existing !== undefined) {
+    stampInternalMainWireIntegratedModelValidationV3(Object.freeze({
+      state,
+      rhythmConfiguration: rhythm.configuration,
+      dynamicProfile,
+      dynamicConfig,
+    }));
+  }
+}
+
+function stampInternalMainWireIntegratedModelValidationV3<TWallState>(
+  stamp: MainWireIntegratedModelValidationStampV3<TWallState>,
+): void {
+  if (!validationStampIssuanceEligibleV1(
+    stamp.rhythmConfiguration,
+    stamp.dynamicProfile,
+    stamp.dynamicConfig,
+  )) {
+    return;
+  }
+  const existing =
+    internalValidationStampsByAcceptedStateV3.get(stamp.state) ?? [];
+  if (existing.some((candidate) =>
+    candidate.rhythmConfiguration === stamp.rhythmConfiguration
+    && candidate.dynamicProfile === stamp.dynamicProfile
+    && candidate.dynamicConfig === stamp.dynamicConfig)) {
+    return;
+  }
+  internalValidationStampsByAcceptedStateV3.set(
+    stamp.state,
+    Object.freeze([
+      ...existing,
+      stamp as MainWireIntegratedModelValidationStampV3<unknown>,
+    ]),
+  );
 }
 
 export function evaluateMainWireIntegratedModelCalciumDriveV3(
@@ -705,7 +912,9 @@ function assertRhythmBoundaryContext(
     ["configuration", "externalAfNextBoundaryTimeSec"],
     "composed rhythm boundary context",
   );
-  assertRhythmContext({ configuration: context.configuration });
+  // The exact configuration object is covered by the validation proof passed
+  // to the only caller. Re-running its deep validator here would recreate the
+  // accepted-tuple validation subtree this transaction deliberately removes.
 }
 
 function assertRhythmStepContext(
@@ -792,7 +1001,7 @@ function assertCoronaryStepInput(input: object): void {
     "coronaryDisease", "collapseHydraulics", "impMechanism",
     "shorteningImpPrior", "coronarySolverOptions",
     "circulationNewtonOptions", "protocolResistanceScaleByEdge",
-    "coronaryAutoregulationDrive",
+    "coronaryAutoregulationDrive", "evaluationCounterCollection",
   ], "composed integrated coronary step input");
   requireOwnKeys(input, [
     "runtime", "calciumDriveParams", "pericardium",
@@ -953,6 +1162,13 @@ function assertExpectedRhythmConfiguration(
   state: AcceptedComposedRhythmTransactionStateV2,
   expected: AcceptedComposedRhythmTransactionConfigurationV2,
 ): void {
+  if (state.configuration === expected) {
+    // Both callers validate the state and expected context before reaching this
+    // comparison. Exact identity is therefore the complete equality proof for
+    // the lane-owned frozen constant and avoids using canonical JSON as an
+    // equality operator. Different boundary objects retain the deep path.
+    return;
+  }
   validateAcceptedComposedRhythmTransactionConfigurationV2(expected);
   if (
     canonicalJsonStringify(state.configuration)

@@ -12,6 +12,8 @@ const OFFICIAL_PRODUCT_SOURCE_REVISION = 13_000;
 const RELEASE_SHA256 =
   "aa1947dc572b94370044e97efc03e3e62b000657a2fd580be7883d2b0774e48a";
 const LV_PV_TITLE = "LV pressure–volume loop";
+const NONCORONARY_WORKBENCH_PATH =
+  "/ja/workbench?lane=noncoronary-v1";
 
 test.describe.serial("Studio runtime in the product Workbench", () => {
   test("boots a one-point Studio source in the preserved shell with fixed 1x playback", async ({
@@ -24,7 +26,9 @@ test.describe.serial("Studio runtime in the product Workbench", () => {
     try {
       await acknowledgeModelLimitations(page);
       await captureStudioWorkbenchFirstPointsV1(page);
-      await page.goto("/ja/workbench", { waitUntil: "domcontentloaded" });
+      await page.goto(NONCORONARY_WORKBENCH_PATH, {
+        waitUntil: "domcontentloaded",
+      });
 
       const { host, evidence } = await readyStudioWorkbenchV1(page);
       await expect.poll(async () =>
@@ -121,7 +125,9 @@ test.describe.serial("Studio runtime in the product Workbench", () => {
 
     try {
       await acknowledgeModelLimitations(page);
-      await page.goto("/ja/workbench", { waitUntil: "domcontentloaded" });
+      await page.goto(NONCORONARY_WORKBENCH_PATH, {
+        waitUntil: "domcontentloaded",
+      });
       const { evidence } = await readyStudioWorkbenchV1(page);
 
       await expect.poll(
@@ -166,7 +172,9 @@ test.describe.serial("Studio runtime in the product Workbench", () => {
 
     try {
       await acknowledgeModelLimitations(page);
-      await page.goto("/ja/workbench", { waitUntil: "domcontentloaded" });
+      await page.goto(NONCORONARY_WORKBENCH_PATH, {
+        waitUntil: "domcontentloaded",
+      });
       await readyStudioWorkbenchV1(page);
 
       const evidenceTrigger = page.getByRole("button", {
