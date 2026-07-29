@@ -139,7 +139,9 @@ export function createCoronaryAutoregulationWindowBindingV3(
     perfusionPressureObservable:
       "final-candidate-post-focal-lesion-pressure-minus-common-cv-pressure" as const,
   });
-  VALIDATED_AUTOREGULATION_BINDINGS_V3.add(binding);
+  if (isTransitivelyFrozenPlainData(binding)) {
+    VALIDATED_AUTOREGULATION_BINDINGS_V3.add(binding);
+  }
   return binding;
 }
 
@@ -407,9 +409,9 @@ export function validateCoronaryAutoregulationWindowBindingV3(
     !fullHotPathInvariantsEnabledV1()
     && VALIDATED_AUTOREGULATION_BINDINGS_V3.has(binding)
   ) {
-    // Lean omits only the repeated fingerprint and shape proof for this exact
-    // immutable binding. A copied or caller-built binding misses this identity
-    // stamp and retains the complete exported validation.
+    // This persistent proof is sound because only transitively frozen plain
+    // data enters the set. A copied, caller-built, or mutable binding misses
+    // this identity stamp and retains the complete exported validation.
     return;
   }
   assertPlainObject(binding, "coronary autoregulation V3 binding");
@@ -470,10 +472,9 @@ export function validateCoronaryAcceptedAutoregulationStateV3(
     !fullHotPathInvariantsEnabledV1()
     && hasAutoregulationStateBindingStampV3(state, binding)
   ) {
-    // Lean skips the repeated structural proof only for this exact state and
-    // immutable-binding pair, either issued by this module or previously proved
-    // by the complete validator below. The supplied outer clock is still
-    // checked on every call; any other state or binding takes the full path.
+    // This persistent proof is sound because both identities are transitively
+    // frozen plain data. The supplied outer clock is still checked on every
+    // call; any mutable, copied, or differently bound state takes the full path.
     validateAutoregulationClockV3(state, clock);
     return;
   }

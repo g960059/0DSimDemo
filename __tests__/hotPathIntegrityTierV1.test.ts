@@ -221,6 +221,61 @@ describe("hot-path integrity tier V1", () => {
     }
   });
 
+  it("limits persistent proof caches to actually immutable plain-data graphs", () => {
+    const fixture =
+      createMainWireIntegratedModelRegularSinusAllOffFixtureV3();
+    const accepted = fixture.cold.acceptedState;
+
+    for (const cachedGraph of [
+      fixture.rhythm.configuration,
+      accepted.composedRhythm,
+      fixture.profile,
+      fixture.config,
+      accepted.dynamicMechanicalSupport,
+      accepted.coronary.coronaryAutoregulationBinding,
+      accepted.coronary.coronaryAutoregulation,
+    ]) {
+      expect(isTransitivelyFrozenPlainData(cachedGraph)).toBe(true);
+    }
+    expect(isTransitivelyFrozenPlainData(
+      accepted.coronary.mechanics.materialState,
+    )).toBe(false);
+    expect(Object.isFrozen(
+      accepted.coronary.mechanics.materialState.wallStateByWall.LA.landState,
+    )).toBe(false);
+  });
+
+  it("rejects a mutated published accepted material state in both tiers", async () => {
+    const attack = async (tier: HotPathIntegrityTierV1) => {
+      selectHotPathIntegrityTierV1(tier);
+      const session = await MainWireIntegratedScientificSession.create();
+      session.currentAcceptedState().coronary.mechanics.materialState
+        .wallStateByWall.LA.landState[0] += 1;
+      return session.advanceToPresentationTime(
+        integratedLanePresentationTargetTimeSecV1(1),
+      );
+    };
+
+    try {
+      const full = await attack("full-invariant");
+      const lean = await attack("hot-path-lean");
+      for (const result of [full, lean]) {
+        expect(result).toMatchObject({
+          status: "failed",
+          acceptedTimeSec: 0,
+          acceptedRevision: 0,
+          partiallyAdvanced: false,
+          internalAcceptedSubstepCount: 0,
+          message: expect.stringMatching(
+            /accepted material state fingerprint mismatch/,
+          ),
+        });
+      }
+    } finally {
+      selectHotPathIntegrityTierV1("full-invariant");
+    }
+  });
+
   it("produces bit-identical numbers in both tiers", async () => {
     const full = await runTierV1("full-invariant");
     const lean = await runTierV1("hot-path-lean");
@@ -270,4 +325,29 @@ function plainDataProjection(
   }
   seen.delete(value);
   return projected;
+}
+
+function isTransitivelyFrozenPlainData(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): boolean {
+  if (value === null || typeof value !== "object") return true;
+  if (seen.has(value)) return true;
+  if (!Object.isFrozen(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  if (
+    prototype !== null
+    && prototype !== Object.prototype
+    && prototype !== Array.prototype
+  ) return false;
+  seen.add(value);
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      descriptor === undefined
+      || !("value" in descriptor)
+      || !isTransitivelyFrozenPlainData(descriptor.value, seen)
+    ) return false;
+  }
+  return true;
 }

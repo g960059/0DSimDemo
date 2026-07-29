@@ -427,7 +427,9 @@ const internallyValidatedAcceptedComposedRhythmStatesV2 =
 /**
  * Exact configurations minted by this module, or subsequently proved once by
  * the complete exported validator. Only transitively frozen plain-data graphs
- * enter this set, so an identity hit cannot hide a later mutation.
+ * enter this persistent proof cache, so an identity hit cannot hide a later
+ * mutation. This is not a mutable accepted-material cache: typed arrays and
+ * every other non-plain-data prototype are ineligible.
  */
 const internallyValidatedAcceptedComposedRhythmConfigurationsV2 =
   new WeakSet<object>();
@@ -1211,10 +1213,12 @@ export function validateAcceptedComposedRhythmTransactionStateV2(
 
 /**
  * Validates data crossing this owner boundary. Only the exact identity of a
- * state privately constructed and recursively frozen above can take the
- * constant-time path. Full-invariant re-proves that output before stamping;
- * lean stamps the constructor proof. All other state objects take the complete
- * exported validator, including restored checkpoints and hand-built states.
+ * transitively frozen plain-data state privately constructed above can take
+ * the persistent constant-time path. Full-invariant re-proves that output
+ * before stamping; lean stamps the constructor proof. Because every reachable
+ * data property is frozen and no mutable built-in prototype is eligible, the
+ * proof remains true after the state escapes. Restored and hand-built states
+ * take the complete exported validator.
  */
 export function validateAcceptedComposedRhythmTransactionBoundaryV2(
   state: AcceptedComposedRhythmTransactionStateV2,
@@ -1226,7 +1230,9 @@ export function validateAcceptedComposedRhythmTransactionBoundaryV2(
 function stampInternallyValidatedAcceptedComposedRhythmStateV2(
   state: AcceptedComposedRhythmTransactionStateV2,
 ): void {
-  internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
+  if (isTransitivelyFrozenPlainData(state)) {
+    internallyValidatedAcceptedComposedRhythmStatesV2.add(state);
+  }
 }
 
 function stampInternallyValidatedAcceptedComposedRhythmConfigurationV2(

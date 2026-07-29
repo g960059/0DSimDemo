@@ -1,17 +1,36 @@
 /**
  * Hot-path integrity tier.
  *
- * The scientific kernel carries two kinds of check. Some compute a value the
- * model reports; those always run. Others are *defensive*: they re-prove a
- * precondition the caller already established, re-clone data the module minted
- * itself, or freeze a record that never escapes the step. Those are what this
- * tier selects.
+ * The scientific kernel carries value-producing checks, public-boundary
+ * validation, and defensive construction proofs. Value-producing checks and
+ * validation of mutable data crossing a public boundary always run. In
+ * particular, accepted mechanics material contains typed arrays that cannot be
+ * frozen, so both tiers re-encode and fingerprint it whenever it re-enters a
+ * step.
  *
- * The two tiers are numerically identical by construction: nothing selected
- * here feeds an accepted value, a diagnostic, an observation or a checkpoint.
+ * `hot-path-lean` selects only checks whose result is not consumed by the
+ * numerical method:
+ *
+ * - immediate deep re-proof of a constructor output assembled from validated
+ *   inputs;
+ * - same-tick recomputation for an exact privately issued candidate/base pair;
+ * - defensive clones or freezes that protect diagnostic readback rather than
+ *   an accepted numerical value; and
+ * - repeated validation of an exact identity whose complete reachable graph is
+ *   proven to be transitively frozen plain data.
+ *
+ * Some selected constructor proofs are the only immediate validation of an
+ * output that becomes accepted state and is later serialized into a
+ * checkpoint. Full-invariant can therefore catch a constructor bug at that
+ * site which hot-path-lean will not. Lean does not claim equivalent fault
+ * detection; it claims the same numbers only when those constructors satisfy
+ * their contracts.
+ *
  * `__tests__/hotPathIntegrityTierV1.test.ts` runs the same trajectory in both
- * tiers and pins the observation, diagnostics and exact-checkpoint hashes, so
- * the two tiers cannot drift apart unnoticed.
+ * tiers and pins observation, diagnostic and checkpoint equality. The
+ * canonical accepted-state sequence has its own exact SHA-256 pin. Together
+ * those tests make a numerical change reviewable; they do not turn omitted
+ * constructor proofs into checks.
  *
  * Precedent: the release already separates a presentation tier from an exact
  * tier (live sampling is decimated; exact 0.002 s data comes from deterministic
@@ -34,8 +53,7 @@
  *
  * What `hot-path-lean` does NOT do: it never skips a residual test, a
  * convergence test, a conservation audit, a finiteness flag that is reported,
- * or any validation of data crossing a public boundary from outside this
- * package.
+ * or validation of mutable data crossing or re-entering a public boundary.
  */
 
 export const HOT_PATH_INTEGRITY_TIER_V1_ID =
@@ -77,8 +95,8 @@ export function hotPathIntegrityTierV1(): HotPathIntegrityTierV1 {
 }
 
 /**
- * True when defensive hot-path checks, defensive clones and hot-path freezing
- * are enabled. Guarded sites read this and nothing else.
+ * True when full defensive constructor proofs, defensive clones, and
+ * hot-path freezing are enabled. Guarded sites read this and nothing else.
  */
 export function fullHotPathInvariantsEnabledV1(): boolean {
   return fullInvariant;

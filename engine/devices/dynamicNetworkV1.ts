@@ -136,6 +136,11 @@ export type DynamicMechanicalSupportAcceptedStateV1 = Readonly<{
 /** Factory provenance prevents a JSON/structured clone from becoming live state. */
 const LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES = new WeakSet<object>();
 
+/**
+ * Persistent identity proofs are allowed only for transitively frozen
+ * plain-data profiles. Mutable built-ins, including typed-array storage, are
+ * ineligible.
+ */
 const VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES = new WeakSet<object>();
 
 type DynamicMechanicalSupportValidationStampV1 = Readonly<{
@@ -271,7 +276,9 @@ export function createDynamicMechanicalSupportInertanceProfileV1(
     deviceProfileBindingByDevice,
     inertanceByDevice,
   });
-  VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES.add(profile);
+  if (isTransitivelyFrozenData(profile)) {
+    VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES.add(profile);
+  }
   return profile;
 }
 
@@ -376,9 +383,9 @@ export function validateDynamicMechanicalSupportInertanceProfileV1(
     && typeof profile === "object"
     && VALIDATED_DYNAMIC_MECHANICAL_SUPPORT_PROFILES.has(profile)
   ) {
-    // Lean skips only the repeated field proof for this exact module-issued or
-    // previously fully validated frozen profile. Any external clone or mutable
-    // object misses and still crosses the complete exported validation path.
+    // This persistent proof is sound because only a transitively frozen
+    // plain-data profile can enter the set. Any clone, mutable built-in, or
+    // mutable object misses and crosses the complete exported validation path.
     return;
   }
   plainRecord(profile, "dynamic mechanical-support inertance profile");
@@ -428,10 +435,10 @@ export function validateDynamicMechanicalSupportAcceptedStateV1(
     && typeof state === "object"
     && hasDynamicMechanicalSupportValidationStampV1(state, profile, config)
   ) {
-    // Lean omits only re-proving the exact live factory state against the exact
-    // frozen profile/config pair already recorded for it. Restored, copied,
-    // hand-built, differently bound, or mutable inputs miss this identity
-    // proof and retain the full exported boundary validation.
+    // This persistent proof is sound because the live state, profile, and
+    // config are all transitively frozen plain data. Restored, copied,
+    // hand-built, differently bound, or mutable inputs miss it and retain the
+    // full exported boundary validation.
     return;
   }
   validateDynamicMechanicalSupportInertanceProfileV1(profile);
@@ -1359,6 +1366,7 @@ function stampDynamicMechanicalSupportAcceptedStateV1(
 ): void {
   if (
     !LIVE_DYNAMIC_MECHANICAL_SUPPORT_STATES.has(state)
+    || !isTransitivelyFrozenData(state)
     || !isTransitivelyFrozenData(profile)
     || !isTransitivelyFrozenData(config)
   ) return;
@@ -1379,6 +1387,12 @@ function isTransitivelyFrozenData(
   if (value === null || typeof value !== "object") return true;
   if (seen.has(value)) return true;
   if (!Object.isFrozen(value)) return false;
+  const prototype = Object.getPrototypeOf(value);
+  if (
+    prototype !== null
+    && prototype !== Object.prototype
+    && prototype !== Array.prototype
+  ) return false;
   seen.add(value);
   for (const key of Reflect.ownKeys(value)) {
     const descriptor = Object.getOwnPropertyDescriptor(value, key);

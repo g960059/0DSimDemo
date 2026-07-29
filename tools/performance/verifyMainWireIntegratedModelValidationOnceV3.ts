@@ -33,6 +33,17 @@ export type MainWireIntegratedModelTimingV3 = Readonly<{
   msPerAcceptedStep: number;
 }>;
 
+export function mainWireIntegratedModelSequenceSha256V3(
+  canonicalAcceptedStates: readonly string[],
+): string {
+  const hash = createHash("sha256");
+  for (const state of canonicalAcceptedStates) {
+    hash.update(`${Buffer.byteLength(state)}:`);
+    hash.update(state);
+  }
+  return hash.digest("hex");
+}
+
 /**
  * Drives the exported regular-sinus/all-off fixture through the same
  * limit-then-step path as the periodic-steady experiment.
@@ -198,14 +209,6 @@ export async function compareMainWireIntegratedModelBuildsV3(
       break;
     }
   }
-  const sequenceHash = (states: readonly string[]) => {
-    const hash = createHash("sha256");
-    for (const state of states) {
-      hash.update(`${Buffer.byteLength(state)}:`);
-      hash.update(state);
-    }
-    return hash.digest("hex");
-  };
   const timings = [
     {
       build: "baseline" as const,
@@ -229,9 +232,13 @@ export async function compareMainWireIntegratedModelBuildsV3(
     bitExact: firstDifferentStep === null,
     firstDifferentStep,
     baselineSequenceSha256:
-      sequenceHash(baselineSequence.canonicalAcceptedStates),
+      mainWireIntegratedModelSequenceSha256V3(
+        baselineSequence.canonicalAcceptedStates,
+      ),
     changedSequenceSha256:
-      sequenceHash(changedSequence.canonicalAcceptedStates),
+      mainWireIntegratedModelSequenceSha256V3(
+        changedSequence.canonicalAcceptedStates,
+      ),
     timingStepCount,
     timings: Object.freeze(timings),
   });
