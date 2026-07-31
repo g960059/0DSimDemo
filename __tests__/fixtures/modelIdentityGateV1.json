@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "models": [
+    {
+      "modelId": "main-wire-base-coronary-v3-dynamic-mcs-composed-rhythm-transaction-v3",
+      "canonicalAcceptedSequenceSha256": "edec3f9eb3b24eabd690d5451e98245dc44a070b48f75c878b2f669b583a73c9",
+      "acceptedStepCount": 500
+    }
+  ]
+}

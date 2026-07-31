@@ -8,6 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "check:repository-hygiene": "node tools/repository/checkRepositoryHygiene.mjs",
+    "generate:model-identity-fixture": "vite-node --script tools/modelIdentity/generateModelIdentityGateFixtureV1.ts",
+    "verify:model-identity-fixture": "vite-node --script tools/modelIdentity/generateModelIdentityGateFixtureV1.ts --check",
     "test": "npm run test:fast",
     "test:fast": "node tools/testing/runFastVitest.mjs",
     "test:pr": "CIRCLEHEART_TEST_SUITE_LABEL='PR smoke suite' CIRCLEHEART_VITEST_CONFIG=vitest.pr.config.ts node tools/testing/runFastVitest.mjs",

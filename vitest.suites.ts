@@ -7,8 +7,8 @@
  * that every *.test.ts file belongs to exactly one suite.
  */
 
-export const FAST_SUITE_FILE_BUDGET = 123;
-export const PR_SMOKE_SUITE_FILE_BUDGET = 59;
+export const FAST_SUITE_FILE_BUDGET = 124;
+export const PR_SMOKE_SUITE_FILE_BUDGET = 60;
 
 export const fastTests = [
   "__tests__/caseValidation.test.ts",
@@ -41,6 +41,7 @@ export const fastTests = [
   "__tests__/mainWireFiveWallPeriodicClosureV1.test.ts",
   "__tests__/mainWireFourValveDiseasePresetV1.test.ts",
   "__tests__/mainWireHealthyCycleAcceptanceV1.test.ts",
+  "__tests__/mainWireIntegratedModelCanonicalSequenceV3.test.ts",
   "__tests__/mainWireIntegratedModelValidationOnceV3.test.ts",
   "__tests__/mainWireIntegratedV3EvaluationCounters.test.ts",
   "__tests__/mainWireNormalAdultBloodVolumeOperatingPointV1.test.ts",
@@ -160,6 +161,7 @@ export const prSmokeTests = [
   "__tests__/mainWireFiveWallLandTriSegProviderV1.test.ts",
   "__tests__/mainWireFiveWallNonCoronaryTransactionV1.test.ts",
   "__tests__/mainWireHealthyCycleAcceptanceV1.test.ts",
+  "__tests__/mainWireIntegratedModelCanonicalSequenceV3.test.ts",
   "__tests__/mainWireOfficialHealthyPeriodicCheckpointPresetV1.test.ts",
   "__tests__/mainWirePresentationEstimatorRegistryV1.test.ts",
   "__tests__/mainWireQuasiSteadyOrificeValveV2.test.ts",

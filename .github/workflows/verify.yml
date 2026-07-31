@@ -128,6 +128,9 @@ jobs:
           # Keep the script's 60 s local gate while allowing CI variance.
           CIRCLEHEART_FAST_TEST_BUDGET_MS: 90000
 
+      - name: Check model identity fixture
+        run: npm run verify:model-identity-fixture
+
   browser_e2e:
     name: Production browser E2E
     needs:
